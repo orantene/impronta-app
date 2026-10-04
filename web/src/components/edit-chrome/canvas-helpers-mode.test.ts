@@ -43,9 +43,9 @@ function reset(raw?: string): void {
 
 // ── Default ────────────────────────────────────────────────────────────────
 
-test("helpers default to ON when the operator has never toggled", () => {
+test("helpers default to OFF when the operator has never toggled", () => {
   reset();
-  assert.equal(getCanvasHelpers(), true);
+  assert.equal(getCanvasHelpers(), false);
 });
 
 // ── Parsing ────────────────────────────────────────────────────────────────
@@ -64,33 +64,31 @@ test('"1"/"true" turn helpers on', () => {
   assert.equal(getCanvasHelpers(), true);
 });
 
-test("an unparseable stored value falls back to ON, never to a blank canvas", () => {
-  // A corrupt/legacy value must not silently strip the hints a first-time
-  // operator depends on — the failure direction is deliberate.
+test("an unparseable stored value falls back to OFF (no coaching clutter)", () => {
   reset("¯\\_(ツ)_/¯");
-  assert.equal(getCanvasHelpers(), true);
+  assert.equal(getCanvasHelpers(), false);
 });
 
 // ── Writing ────────────────────────────────────────────────────────────────
 
 test("setCanvasHelpers persists under the documented key", () => {
   reset();
-  setCanvasHelpers(false);
-  assert.equal(storage.get(CANVAS_HELPERS_STORAGE_KEY), "0");
-  assert.equal(getCanvasHelpers(), false);
-
   setCanvasHelpers(true);
   assert.equal(storage.get(CANVAS_HELPERS_STORAGE_KEY), "1");
   assert.equal(getCanvasHelpers(), true);
+
+  setCanvasHelpers(false);
+  assert.equal(storage.get(CANVAS_HELPERS_STORAGE_KEY), "0");
+  assert.equal(getCanvasHelpers(), false);
 });
 
 test("toggle flips the live value both ways", () => {
   reset();
-  assert.equal(getCanvasHelpers(), true);
-  toggleCanvasHelpers();
   assert.equal(getCanvasHelpers(), false);
   toggleCanvasHelpers();
   assert.equal(getCanvasHelpers(), true);
+  toggleCanvasHelpers();
+  assert.equal(getCanvasHelpers(), false);
 });
 
 test("the storage key is stable — renaming it resets every operator silently", () => {

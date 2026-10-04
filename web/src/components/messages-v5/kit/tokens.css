@@ -54,6 +54,11 @@
   --msgv5-sky-soft: #eef3fb;
   --msgv5-sky-ink: #2a4f8f;
   --msgv5-sky-bar: #9db8e6;
+  /* Front-door brief offer card — tenants override via --msgv5-offer-* on the guest wrap. */
+  --msgv5-offer-border: var(--msgv5-sky-ink);
+  --msgv5-offer-chip: var(--msgv5-sky-soft);
+  /* Ink on the solid Accept fill; guests override with readableOn(accent). */
+  --msgv5-offer-ink: var(--msgv5-white);
   --msgv5-red: #b3261e;
   --msgv5-red-soft: rgba(179, 38, 30, 0.08);
   --msgv5-red-ink: #7a1d17;
@@ -203,7 +208,8 @@
 /* ===== 4. Inbox ===== */
 .msgv5 .pane { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--msgv5-card); border: 1px solid var(--msgv5-line); border-radius: var(--msgv5-r-lg); overflow: hidden; }
 .msgv5 .ib-head { padding: 14px 14px 10px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--msgv5-line-2); }
-.msgv5 .ib-head .row { display: flex; align-items: center; gap: 8px; }
+.msgv5 .ib-head .row { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; }
+.msgv5 .ib-head .row .btn { flex-shrink: 0; white-space: nowrap; }
 .msgv5 .ib-head h2 { margin: 0; font-family: var(--msgv5-display); font-size: 17px; font-weight: 700; letter-spacing: -0.25px; }
 .msgv5 .ib-head .cnt-txt { font-size: 12px; color: var(--msgv5-ink-3); margin-left: auto; }
 .msgv5 .ib-list { overflow: auto; flex: 1; }
@@ -711,6 +717,70 @@
 .msgv5 .cx-row { display: flex; gap: 8px; }
 .msgv5 .cx-row .btn { flex: 1; justify-content: center; }
 .msgv5 .cx-col .btn.xl.fill { justify-content: center; }
+/* Front-door brief article.offer — accent border + row actions (Aceptar · ask · decline). */
+.msgv5 .mx-card.k-offer {
+  border: 1.5px solid var(--msgv5-offer-border);
+  border-radius: 18px;
+  background: var(--msgv5-offer-chip);
+  overflow: hidden;
+}
+/* Brief composition: title is already "Oferta · vN" — drop kit cat/dot chrome. */
+.msgv5 .mx-card.k-offer[data-card="client-offer"] .ch {
+  border-bottom: 0;
+  padding: 16px 16px 0;
+  gap: 0;
+}
+.msgv5 .mx-card.k-offer[data-card="client-offer"] .ch .dot-k,
+.msgv5 .mx-card.k-offer[data-card="client-offer"] .ch .cat {
+  display: none;
+}
+.msgv5 .mx-card.k-offer[data-card="client-offer"] .ch .ttl {
+  font: 600 16px var(--msgv5-display);
+  letter-spacing: -0.15px;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
+.msgv5 .mx-card.k-offer[data-card="client-offer"] .cb {
+  padding: 8px 16px 4px;
+}
+.msgv5 .mx-card.k-offer[data-card="client-offer"] .cf {
+  padding: 4px 16px 14px;
+  border-top: 0;
+  background: transparent;
+}
+.msgv5 .mx-card.k-offer .cf:has(.cx-offer-actions) {
+  flex-direction: row;
+  align-items: center;
+  background: transparent;
+}
+.msgv5 .cx-offer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 8px;
+}
+.msgv5 .cx-offer-actions .btn { flex: 0 0 auto; margin-left: 0; }
+.msgv5 .cx-offer-actions .btn.primary {
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: var(--msgv5-offer-border);
+  border-color: transparent;
+  color: var(--msgv5-offer-ink);
+}
+.msgv5 .cx-offer-actions .btn.cx-offer-ask,
+.msgv5 .cx-offer-actions .btn.ghost.cx-offer-ask {
+  border: 0;
+  background: transparent;
+  color: var(--msgv5-ink-3);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: 12px;
+  padding: 7px 4px;
+  box-shadow: none;
+}
 .msgv5 .cx-form { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
 .msgv5 .cx-form textarea { min-height: 72px; border: 1.5px solid var(--msgv5-ink-24); border-radius: 12px; padding: 10px 12px; font-size: 15px; font-family: inherit; color: var(--msgv5-ink); background: var(--msgv5-white); resize: vertical; }
 .msgv5 .cx-form label { font-size: 13px; color: var(--msgv5-ink-2); }

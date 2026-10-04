@@ -36,7 +36,7 @@ import { interpretClaimError } from "@/lib/stripe/webhook-routing";
  * Which webhook route is claiming. `platform` is the unified handler and keeps
  * the bare event id for backwards compatibility with rows already in the table.
  */
-export type WebhookLane = "platform" | "discover_client_subscription";
+export type WebhookLane = "platform" | "platform_mx" | "discover_client_subscription";
 
 export function laneScopedEventKey(lane: WebhookLane, eventId: string): string {
   return lane === "platform" ? eventId : `${lane}:${eventId}`;

@@ -2,7 +2,10 @@
 
 import type { ReactNode } from "react";
 import { type SellingDefaults } from "@/lib/talent/services-settings-actions";
+import { whoPrimaryCtaLabel } from "@/lib/talent/selling-booking-settings";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import type { LocationSettings } from "@/lib/talent/location-settings";
+import { LocationSettingsCard } from "./LocationSettingsCard";
 
 // PDF p15 "Defaults · the rules every item starts with". Four cards in a
 // 2x2 grid (one column on phone), the arithmetic worked out under each rule.
@@ -112,12 +115,20 @@ export function DefaultsScreen({
   onChange,
   onBack,
   onSave,
+  onOpenWebsiteSettings,
+  location,
+  onLocationChange,
 }: {
+  /** Address visibility and the private address (single source of truth). */
+  location?: LocationSettings | null;
+  onLocationChange?: (next: LocationSettings) => void;
   defaults: SellingDefaults;
   currency?: string;
   onChange: (next: SellingDefaults) => void;
   onBack: () => void;
   onSave: () => void;
+  /** Booking mode (Inherited/Custom/Reset, WSF-B) is edited in Website settings. */
+  onOpenWebsiteSettings?: () => void;
 }) {
   const copy = useDashboardText();
   const patch = (partial: Partial<SellingDefaults>) => onChange({ ...defaults, ...partial });
@@ -128,6 +139,7 @@ export function DefaultsScreen({
   const cancelH = defaults.cancelHours ?? 24;
   const reschedH = defaults.rescheduleHours ?? 24;
   const buffer = defaults.bufferAfterMin ?? 0;
+  const prep = defaults.bufferBeforeMin ?? 0;
   const noticeMin = defaults.minNoticeMin ?? 0;
   const noticeHours = Math.round((noticeMin / 60) * 10) / 10;
   const travels = defaults.where.includes("client");
@@ -156,11 +168,23 @@ export function DefaultsScreen({
           <p className="mt-1 text-[13.5px] text-admin-ink-muted">
             {copy.t("Every new item starts with these. Any item can override them.")}
           </p>
+          {onOpenWebsiteSettings ? (
+            <p className="mt-1 text-[13px] text-admin-ink-muted">
+              {copy.t("Booking mode and the rest of your selling setup also live in Website settings.")}{" "}
+              <button
+                type="button"
+                onClick={onOpenWebsiteSettings}
+                className="inline-flex min-h-[44px] items-center font-semibold text-admin-brand sm:min-h-0"
+              >
+                {copy.t("Open Website settings")}
+              </button>
+            </p>
+          ) : null}
         </div>
         <button
           type="button"
           onClick={onSave}
-          className="h-10 rounded-lg bg-emerald-900 px-4 text-[14px] font-semibold text-white hover:bg-emerald-950"
+          className="h-10 rounded-lg bg-[var(--tc-action)] px-4 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)]"
         >
           {copy.t("Save changes")}
         </button>
@@ -302,9 +326,20 @@ export function DefaultsScreen({
           )}
         </Card>
 
-        {/* Time between appointments */}
-        <Card title={copy.t("Time between appointments")} hint={copy.t("Blocked, never charged")}>
+        {location && onLocationChange ? <LocationSettingsCard value={location} onChange={onLocationChange} /> : null}
+
+        {/* Preparation + gaps between appointments */}
+        <Card title={copy.t("Preparation and gaps")} hint={copy.t("Blocked, never charged")}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <span className={fieldLabel}>{copy.t("Preparation before each booking")}</span>
+              <UnitInput
+                label={copy.t("Preparation before each booking")}
+                value={defaults.bufferBeforeMin}
+                unit="min"
+                onValue={(n) => patch({ bufferBeforeMin: n })}
+              />
+            </div>
             <div>
               <span className={fieldLabel}>{copy.t("Buffer after each one")}</span>
               <UnitInput
@@ -314,7 +349,7 @@ export function DefaultsScreen({
                 onValue={(n) => patch({ bufferAfterMin: n })}
               />
             </div>
-            <div>
+            <div className="sm:col-span-2">
               <span className={fieldLabel}>{copy.t("Shortest notice you accept")}</span>
               <UnitInput
                 label={copy.t("Shortest notice you accept")}
@@ -326,9 +361,86 @@ export function DefaultsScreen({
           </div>
           <p className={noteBox}>
             {copy
-              .t("A 60 minute service booked at 10:00 therefore ends at 11:00 for the client and {end} for you.")
+              .t(
+                "A 60 minute service booked at 10:00 needs prep from {prepStart}. It ends at 11:00 for the client and {end} for you.",
+              )
+              .replace("{prepStart}", clock(600 - prep))
               .replace("{end}", clock(660 + buffer))}{" "}
-            {copy.t("These times are saved on your defaults. A buffer hides the next slot that would overlap, and the notice hides anything sooner.")}
+            {copy.t(
+              "Preparation blocks time before the start so the previous client cannot run into your setup. The after buffer hides the next slot that would overlap, and the notice hides anything sooner.",
+            )}
+          </p>
+        </Card>
+
+        {/* How clients finish the booking sheet */}
+        <Card title={copy.t("How clients book")} hint={copy.t("Sheet button and path")}>
+          <div>
+            <span className={fieldLabel}>{copy.t("Default booking mode")}</span>
+            <p className="mt-0.5 text-[13px] text-admin-ink-dim">
+              {copy.t("Services that use your default follow this. A service with its own mode keeps it.")}
+            </p>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {(
+                [
+                  { id: "instant" as const, label: copy.t("Instant booking") },
+                  { id: "request" as const, label: copy.t("Request to book") },
+                  { id: "inquiry" as const, label: copy.t("Inquiry only") },
+                ] as const
+              ).map((m) => {
+                const on = defaults.bookingPosture === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => patch({ bookingPosture: m.id })}
+                    className={`rounded-lg border px-3 py-2 text-[13px] font-medium ${
+                      on
+                        ? "border-[var(--tc-action)] bg-[var(--tc-soft)] font-semibold text-[var(--tc-ink)]"
+                        : "border-admin-border-soft bg-white text-admin-ink hover:border-admin-ink/40"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <span className={fieldLabel}>{copy.t("Who-step button")}</span>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {(
+                [
+                  { id: "confirm_now" as const },
+                  { id: "contact" as const },
+                  { id: "check_availability" as const },
+                ] as const
+              ).map((c) => {
+                const on = defaults.whoPrimaryCta === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => patch({ whoPrimaryCta: c.id })}
+                    className={`rounded-lg border px-3 py-2 text-[13px] font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
+                      on
+                        ? "border-[var(--tc-action)] bg-[var(--tc-soft)] font-semibold text-[var(--tc-ink)]"
+                        : "border-admin-border-soft bg-white text-admin-ink hover:border-admin-ink/40"
+                    }`}
+                  >
+                    {whoPrimaryCtaLabel(c.id, copy.locale)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <p className={noteBox}>
+            {defaults.whoPrimaryCta !== "confirm_now"
+              ? copy.t(
+                  "After the client fills name and contact, this button opens chat with those details already filled in. It does not create a confirmed booking.",
+                )
+              : copy.t(
+                  "After the client fills name and contact, this button confirms the appointment when the service allows instant booking.",
+                )}
           </p>
         </Card>
       </div>

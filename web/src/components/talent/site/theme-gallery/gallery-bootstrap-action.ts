@@ -12,6 +12,10 @@
  * degrades to `{ enabled: false }` so the manager falls back to the old
  * `TemplateGallery` silently, never a thrown error.
  */
+import {
+  isTalentMaisonThemeEnabled,
+  readMaisonThemeMode,
+} from "@/lib/access/talent-maison-theme";
 import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -39,16 +43,37 @@ export async function loadThemeGalleryBootstrapAction(): Promise<ThemeGalleryBoo
     return { ok: true, data: { enabled: false } };
   }
 
-  const g = await gate();
+  // Free → personalSiteEdit ONLY when Maison is on for THIS talent. Otherwise
+  // keep today's Web Office gate (personalSiteSections) so flag-off / non-
+  // allowlisted production is unchanged (TALENT_THEME_GALLERY_ENABLED is
+  // already on in prod). Mode `talents` needs the profile id first.
+  const maisonMode = readMaisonThemeMode();
+  let g =
+    maisonMode === "all"
+      ? await gate("personalSiteEdit")
+      : await gate("personalSiteSections");
   if (!g.ok) {
-    // Not Max / not signed in — the manager's own gate already handles the
+    // Not entitled / not signed in — the manager's own gate already handles the
     // upsell; this bootstrap just degrades to the old gallery rather than
     // surfacing a second error.
     return { ok: true, data: { enabled: false } };
   }
+  if (
+    maisonMode === "talents" &&
+    isTalentMaisonThemeEnabled(g.talentProfileId)
+  ) {
+    const gEdit = await gate("personalSiteEdit");
+    if (!gEdit.ok) {
+      return { ok: true, data: { enabled: false } };
+    }
+    g = gEdit;
+  }
 
   try {
-    const catalog = await loadTalentThemeCatalog({ planKey: g.planKey });
+    const catalog = await loadTalentThemeCatalog({
+      planKey: g.planKey,
+      talentProfileId: g.talentProfileId,
+    });
 
     let currentDesignSlug: string | null = null;
     let currentLookSlug: string | null = null;

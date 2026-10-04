@@ -12,8 +12,21 @@
  * Behaviour unchanged: same ids, same labels, same patches.
  */
 
+import { useState, type ReactNode } from "react";
 import { InspectorLayoutPresetCards } from "../kit/inspector-mockup-primitives";
+import { ServicesCatalogLayoutInspector } from "../services-catalog-inspector";
 import type { AdvancedEditableBuilderNode } from "./node-layout-options";
+
+/** Kind-specific Layout-tab editors that must not grow `layout-panel.tsx`. */
+export function renderAdvancedSpecialLayout(
+  node: AdvancedEditableBuilderNode,
+  onPatch: (patch: Record<string, unknown>) => void,
+): ReactNode {
+  if (node.kind === "services_catalog") {
+    return <ServicesCatalogLayoutInspector node={node} onPatch={onPatch} />;
+  }
+  return null;
+}
 
 export type NodeLayoutPreset<T extends AdvancedEditableBuilderNode["kind"]> = {
   id: string;
@@ -209,6 +222,17 @@ export function nodeLayoutResetPatch(
       return {
         size: "m",
       };
+    case "services_catalog":
+      return {
+        layout: "rows",
+        categoryNav: "pills",
+        rowCtaVariant: "outline",
+        photoRadius: "soft",
+        durationFormat: "auto",
+        mobileBar: "float",
+        columns: undefined,
+        density: "comfortable",
+      };
   }
 }
 
@@ -220,14 +244,19 @@ export function NodeLayoutPresetGrid({
   onApply: (patch: Record<string, unknown>) => void;
 }) {
   const presets = nodeLayoutPresetsFor(kind);
+  // Round 3 — sticky last-applied so look cards show a real selected state.
+  const [lastAppliedId, setLastAppliedId] = useState<string | undefined>();
   if (presets.length === 0) return null;
 
   return (
     <InspectorLayoutPresetCards
-      value={undefined}
+      value={lastAppliedId}
       onChange={(id) => {
         const preset = presets.find((p) => p.id === id);
-        if (preset) onApply(preset.patch);
+        if (preset) {
+          setLastAppliedId(id);
+          onApply(preset.patch);
+        }
       }}
       options={presets.map((preset) => ({
         value: preset.id,

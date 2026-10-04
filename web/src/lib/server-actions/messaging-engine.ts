@@ -19,17 +19,16 @@ import { loadMessagingEssentials } from "@/lib/messaging/essentials";
 import { loadConversationHistory as loadConversationHistoryReader } from "@/lib/messaging/history";
 import { loadMessagingInbox } from "@/lib/messaging/inbox";
 import { insertMessage, recordDelivery } from "@/lib/messaging/insert-message";
-import { matchCustomers } from "@/lib/messaging/match-customers";
 import { mergeInquiries } from "@/lib/messaging/merge";
 import { linkRecordToConversation } from "@/lib/messaging/link-record";
 import { fail } from "@/lib/messaging/refusals";
+import { messagingInquiryManager } from "@/lib/messaging/staff-guard";
 import { talentSellerPaymentActor } from "@/lib/messaging/talent-payment-actor";
 import { renameInquiry } from "@/lib/messaging/rename";
 import { searchMessaging } from "@/lib/messaging/search";
 import { loadMessagingThread } from "@/lib/messaging/thread";
 import { issueVisitorCode, verifyThreadToken } from "@/lib/messaging/thread-token";
 import type { ActionResult, CardKind, ConversationHistoryEntry, InboxFilter, MessagingChannel, RecordKind } from "@/lib/messaging/types";
-import { normalizeEmail, normalizePhoneE164 } from "@/lib/customers/customer-identity";
 
 const uuid = z.string().uuid();
 const version = z.number().int().nonnegative();
@@ -303,70 +302,6 @@ async function setConversationState(
   return result;
 }
 
-export async function messagingMatchCustomers(input: {
-  name?: string | null;
-  email?: string | null;
-  phone?: string | null;
-}) {
-  const g = await staff();
-  if (!g.ok) return g;
-  // D-MSG-336: tenants can exceed 200 customers. An unordered `.limit(200)`
-  // missed the fixture customer (446 on journeys) so Same person? never
-  // fired. Prefer identity-key lookup when email/phone is present; keep a
-  // capped scan only for name-only match.
-  const email = normalizeEmail(input.email);
-  const phone = normalizePhoneE164(input.phone);
-  let query = scoped(g.admin, "customers", g.tenantId).select("id, display_name, email, phone_e164");
-  if (email || phone) {
-    const parts: string[] = [];
-    if (email) parts.push(`email.eq.${email}`);
-    if (phone) parts.push(`phone_e164.eq.${phone}`);
-    query = query.or(parts.join(","));
-  } else {
-    query = query.order("updated_at", { ascending: false }).limit(200);
-  }
-  const { data, error } = await query;
-  if (error) return fail("unavailable");
-  return {
-    ok: true as const,
-    matches: matchCustomers({
-      name: input.name,
-      email: input.email,
-      phone: input.phone,
-      customers: (data ?? []) as { id: string; display_name: string | null; email: string | null; phone_e164: string | null }[],
-    }),
-  };
-}
-
-export async function messagingCaptureIdentity(input: {
-  inquiryId: string;
-  level: "linked" | "confirmed" | "granted";
-  method: "phone" | "email" | "sms_code" | "name_only" | "staff";
-  customerId: string | null;
-  expectedVersion: number;
-}) {
-  const g = await staff();
-  if (!g.ok) return g;
-  const parsed = z
-    .object({
-      inquiryId: uuid,
-      level: z.enum(["linked", "confirmed", "granted"]),
-      method: z.enum(["phone", "email", "sms_code", "name_only", "staff"]),
-      customerId: uuid.nullable(),
-      expectedVersion: version,
-    })
-    .safeParse(input);
-  if (!parsed.success) return fail("invalid");
-  return callRpc(g.admin, "messaging_set_identity", {
-    p_tenant_id: g.tenantId,
-    p_inquiry_id: parsed.data.inquiryId,
-    p_level: parsed.data.level,
-    p_method: parsed.data.method,
-    p_customer_id: parsed.data.customerId,
-    p_expected_version: parsed.data.expectedVersion,
-  });
-}
-
 export async function messagingLinkRecord(input: {
   inquiryId: string;
   recordKind: RecordKind;
@@ -464,10 +399,10 @@ export async function messagingSendOptions(input: {
 }
 
 export async function messagingEnsureSharedDraft(input: { inquiryId: string; currency?: string }) {
-  const g = await staff();
-  if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, currency: z.string().length(3).optional() }).safeParse(input);
   if (!parsed.success) return fail("invalid");
+  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  if (!g.ok) return g;
   const { data: existing } = await scoped(g.admin, "orders", g.tenantId)
     .select("id, version")
     .eq("inquiry_id", parsed.data.inquiryId)
@@ -534,7 +469,7 @@ export async function messagingRequestPayment(input: {
   if (!inquiry) return fail("not_found");
   if ((inquiry as { version: number }).version !== parsed.data.expectedVersion) return fail("conflict");
   const { data: order } = await scoped(g.admin, "orders", g.tenantId)
-    .select("id, version, status, total_cents")
+    .select("id, version, status, total_cents, currency")
     .eq("id", parsed.data.orderId)
     .maybeSingle();
   if (!order) return fail("not_found");
@@ -568,24 +503,24 @@ export async function messagingRequestPayment(input: {
   const { data: lines } = await scoped(g.admin, "order_lines", g.tenantId)
     .select("id, label, units, unit_cents")
     .eq("order_id", parsed.data.orderId);
-  const snapshot = await scoped(g.admin, "checkout_snapshots", g.tenantId).insert({
-    inquiry_id: parsed.data.inquiryId,
-    basket: { lines: lines ?? [], version: basketVersion },
-    customer: {},
-    basket_version: basketVersion,
-  }).select("id").single();
-  if (snapshot.error || !snapshot.data) return fail("unavailable");
-
+  // Messages often runs on app.tulala.digital; /pay is agency/hub only. Same
+  // rewrite as agenda Collect deposit (#2311) so the minted URL does not 404.
+  const { resolveAgendaPayPublicOrigin } = await import("@/lib/talent-agenda/pay-public-origin");
+  const publicOrigin = await resolveAgendaPayPublicOrigin(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- service-role Supabase client
+    g.admin as any,
+    g.tenantId,
+    parsed.data.publicOrigin,
+  );
+  // A2/#14: mint first — snapshot only after success (no orphan rows on refuse).
   const minted = await createPaymentLink(g.admin, {
     tenantId: g.tenantId,
     orderId: parsed.data.orderId,
     amountCents,
     idempotencyKey: parsed.data.idempotencyKey,
     actorUserId: g.userId,
-    publicOrigin: parsed.data.publicOrigin,
-    // The mint itself names the conversation on the link and on the order
-    // (D-145, D-150); nothing here has to remember to do it afterwards.
-    inquiryId: parsed.data.inquiryId,
+    publicOrigin,
+    inquiryId: parsed.data.inquiryId, // D-145/D-150: stamp conversation on link+order
   });
   if (!minted.ok) {
     if (minted.reason === "exceeds_outstanding") return fail("invalid");
@@ -599,9 +534,23 @@ export async function messagingRequestPayment(input: {
   await scoped(g.admin, "payment_links", g.tenantId)
     .update({ basket_version: basketVersion })
     .eq("code", minted.code);
-  await scoped(g.admin, "checkout_snapshots", g.tenantId)
-    .update({ payment_link_id: (linkRow as { id: string } | null)?.id ?? null })
-    .eq("id", (snapshot.data as { id: string }).id);
+  const linkId = (linkRow as { id: string } | null)?.id ?? null;
+  const snapshot = await scoped(g.admin, "checkout_snapshots", g.tenantId)
+    .insert({
+      inquiry_id: parsed.data.inquiryId,
+      basket: { lines: lines ?? [], version: basketVersion },
+      customer: {},
+      basket_version: basketVersion,
+      payment_link_id: linkId,
+    })
+    .select("id")
+    .single();
+  if (snapshot.error) logServerError("messaging.requestPayment.snapshot", snapshot.error);
+  const currency = (order as { currency?: string }).currency ?? "USD";
+  // Client fee breakdown from the booking's frozen commission snapshot; [] (and
+  // so omitted) unless it sums exactly to what this link charges.
+  const { loadPayLinkFeeLines } = await import("@/lib/payments/pay-link-fee-lines");
+  const feeLines = await loadPayLinkFeeLines(g.admin, parsed.data.orderId, minted.amountCents);
   const card = await insertMessage(g.admin, {
     tenantId: g.tenantId,
     inquiryId: parsed.data.inquiryId,
@@ -613,6 +562,8 @@ export async function messagingRequestPayment(input: {
       amountCents: minted.amountCents,
       amountKind: parsed.data.amountKind,
       expiresAt: minted.expiresAt,
+      currency,
+      ...(feeLines.length ? { feeLines } : {}),
     },
     senderUserId: g.userId,
   });
@@ -708,10 +659,10 @@ export async function messagingRecoverSnapshot(input: { snapshotId: string; orde
 }
 
 export async function messagingSendOffer(input: { inquiryId: string; offerId: string }) {
-  const g = await staff();
-  if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, offerId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
+  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  if (!g.ok) return g;
   const { data: inquiry } = await scoped(g.admin, "inquiries", g.tenantId)
     .select("version")
     .eq("id", parsed.data.inquiryId)

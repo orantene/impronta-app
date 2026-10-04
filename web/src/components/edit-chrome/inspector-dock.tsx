@@ -150,6 +150,7 @@ import {
 } from "@/lib/site-admin/builder-node";
 import { sectionTypeHasLiveData } from "@/lib/site-admin/sections/section-live-data";
 import { runMobileHealthCheck } from "@/lib/site-admin/builder-node/mobile-health";
+import { stripInlineMarkers } from "@/lib/site-admin/builder-node/freeform-layer-name";
 
 /** Canvas-first inspector block title — type label, not content-derived copy. */
 function inspectorBlockTitle(typeKey: string | null | undefined): string {
@@ -165,18 +166,18 @@ function builderNodeTitle(node: Exclude<BuilderNode, { kind: "section" }>): stri
 
   switch (node.kind) {
     case "heading":
-      return node.props.text || "Heading";
+      return stripInlineMarkers(node.props.text) || "Heading";
     case "paragraph":
-      return node.props.text.length > 64
-        ? `${node.props.text.slice(0, 63).trimEnd()}…`
-        : node.props.text || "Paragraph";
+      return stripInlineMarkers(node.props.text).length > 64
+        ? `${stripInlineMarkers(node.props.text).slice(0, 63).trimEnd()}…`
+        : stripInlineMarkers(node.props.text) || "Paragraph";
     case "button":
-      return node.props.label || "Button";
+      return stripInlineMarkers(node.props.label) || "Button";
     case "image":
       return node.props.alt?.trim() || "Image";
     case "accordion_item":
     case "tab_panel":
-      return node.props.title || BUILDER_NODE_REGISTRY[node.kind].label;
+      return stripInlineMarkers(node.props.title) || BUILDER_NODE_REGISTRY[node.kind].label;
     case "divider":
       return node.props.tone === "muted" ? "Divider · muted" : "Divider";
     case "spacer":
@@ -1068,14 +1069,12 @@ export function InspectorDock() {
     }
     return (
       <div className="flex min-w-0 flex-col gap-1">
-        {/* W2-C5: the block/section NAME (sectionTitle) already renders once
-            via DrawerHead's own `title`. This sub-line only adds the kind
-            label, so the header never repeats the name a second (or third)
-            time. */}
+        {/* W2-C5: DrawerHead's `title` already shows the section name; this
+            sub-line adds only the kind label. */}
         {sectionMeta ? (
           <span
-            className="truncate text-[11px] font-semibold uppercase tracking-[0.06em]"
-            style={{ color: CHROME.muted }}
+            className="inline-flex max-w-full truncate rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]"
+            style={{ color: CHROME.accent, background: "rgba(124, 58, 237, 0.08)" }}
           >
             {sectionMeta}
           </span>

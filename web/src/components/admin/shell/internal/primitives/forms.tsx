@@ -350,7 +350,12 @@ export function TextInput({
   readOnly,
   error,
   maxLength,
+  id,
+  ariaLabel,
 }: {
+  /** DOM id (locale tabs point `aria-controls` at it). */
+  id?: string;
+  ariaLabel?: string;
   defaultValue?: string;
   /** Controlled value. If provided, pair with `onChange`. */
   value?: string;
@@ -393,6 +398,8 @@ export function TextInput({
         </span>
       )}
       <input
+        id={id}
+        aria-label={ariaLabel}
         type={type}
         inputMode={type === "email" ? "email" : undefined}
         autoComplete={type === "email" ? "email" : undefined}
@@ -452,7 +459,15 @@ export function TextArea({
   placeholder,
   rows = 4,
   error,
+  id,
+  ariaLabel,
+  readOnly,
+  maxLength,
 }: {
+  id?: string;
+  ariaLabel?: string;
+  readOnly?: boolean;
+  maxLength?: number;
   defaultValue?: string;
   /** Controlled value. Pair with onChange when supplied. */
   value?: string;
@@ -469,6 +484,10 @@ export function TextArea({
     : (focused ? "0 0 0 3px rgba(11,11,13,0.08)" : "none");
   return (
     <textarea
+      id={id}
+      aria-label={ariaLabel}
+      readOnly={readOnly}
+      maxLength={maxLength}
       defaultValue={value === undefined ? defaultValue : undefined}
       value={value}
       onChange={onChange}

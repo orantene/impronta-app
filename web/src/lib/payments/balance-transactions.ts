@@ -27,7 +27,7 @@
  */
 
 import "server-only";
-import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
+import { getStripeFor, isStripeConfigured, isStripeMxConfigured, type StripeAccountKey } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import type Stripe from "stripe";
@@ -47,8 +47,28 @@ const PAGE_SIZE = 100;
 /** Stop a single run from paging forever if the window is enormous. */
 const MAX_PAGES = 50;
 
+/**
+ * `provider_balance_transactions.provider` per platform account. US keeps the
+ * historical 'stripe' value; MX rows are 'stripe_mx', so each platform has its
+ * own watermark and its own balance reconciliation (no migration needed).
+ */
+export function balanceProviderFor(platform: StripeAccountKey): "stripe" | "stripe_mx" {
+  return platform === "mx" ? "stripe_mx" : "stripe";
+}
+
+/** Platforms whose balance we ingest / reconcile, and whether each is set up. */
+export function configuredBalancePlatforms(): Array<{ platform: StripeAccountKey; configured: boolean }> {
+  return [
+    { platform: "us", configured: isStripeConfigured() },
+    { platform: "mx", configured: isStripeMxConfigured() },
+  ];
+}
+
 export type IngestResult = {
   ok: boolean;
+  platform?: StripeAccountKey;
+  /** True when the platform is not configured: skipped cleanly, not a failure. */
+  skipped?: boolean;
   pages: number;
   fetched: number;
   written: number;
@@ -63,12 +83,13 @@ export type IngestResult = {
  * The newest transaction we have already stored. Used as the resume point so a
  * run costs one page in the steady state rather than a full lookback.
  */
-async function loadWatermark(): Promise<Date | null> {
+async function loadWatermark(provider: string): Promise<Date | null> {
   const sb = createServiceRoleClient();
   if (!sb) return null;
   const { data, error } = await sb
     .from("provider_balance_transactions")
     .select("stripe_created_at")
+    .eq("provider", provider)
     .order("stripe_created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -125,11 +146,12 @@ function sourceIdOf(txn: Stripe.BalanceTransaction): string | null {
 export function mapBalanceTransaction(
   txn: Stripe.BalanceTransaction,
   stripeAccountId: string | null,
+  platform: StripeAccountKey = "us",
 ): Record<string, unknown> {
   const amount = txn.amount ?? 0;
   const fee = txn.fee ?? 0;
   return {
-    provider: "stripe",
+    provider: balanceProviderFor(platform),
     stripe_balance_txn_id: txn.id,
     stripe_account_id: stripeAccountId,
     type: txn.type ?? "unknown",
@@ -166,8 +188,12 @@ export function mapBalanceTransaction(
 export async function ingestBalanceTransactions(opts?: {
   sinceIso?: string | null;
   lookbackDays?: number;
+  /** Platform account to page; default 'us'. MX unconfigured = skipped, ok. */
+  platform?: StripeAccountKey;
 }): Promise<IngestResult> {
+  const platform = opts?.platform ?? "us";
   const base: Omit<IngestResult, "ok"> = {
+    platform,
     pages: 0,
     fetched: 0,
     written: 0,
@@ -175,10 +201,13 @@ export async function ingestBalanceTransactions(opts?: {
     windowStart: "",
   };
 
-  if (!isStripeConfigured()) {
+  if (platform === "mx" && !isStripeMxConfigured()) {
+    return { ...base, ok: true, skipped: true };
+  }
+  if (platform === "us" && !isStripeConfigured()) {
     return { ...base, ok: false, error: "Stripe is not configured." };
   }
-  const stripe = getStripe();
+  const stripe = getStripeFor(platform);
   const sb = createServiceRoleClient();
   if (!stripe) return { ...base, ok: false, error: "Stripe is not configured." };
   if (!sb) return { ...base, ok: false, error: "Database not available." };
@@ -191,7 +220,7 @@ export async function ingestBalanceTransactions(opts?: {
   if (opts?.sinceIso) {
     since = new Date(opts.sinceIso);
   } else {
-    const watermark = await loadWatermark();
+    const watermark = await loadWatermark(balanceProviderFor(platform));
     since = watermark
       ? new Date(watermark.getTime() - 60_000)
       : new Date(Date.now() - lookbackDays * 86_400_000);
@@ -242,7 +271,7 @@ export async function ingestBalanceTransactions(opts?: {
 
       const rows: Record<string, unknown>[] = [];
       for (const txn of items) {
-        const row = mapBalanceTransaction(txn, null);
+        const row = mapBalanceTransaction(txn, null, platform);
         const linkage = await resolveBookingLinkage(sourceIdOf(txn), chargeToIntent);
         row.booking_transaction_id = linkage.bookingTransactionId;
         row.tenant_id = linkage.tenantId;
@@ -284,4 +313,13 @@ export async function ingestBalanceTransactions(opts?: {
       error: err instanceof Error ? err.message : "ingest failed",
     };
   }
+}
+
+/** Ingest every platform account: US as before, then MX when configured. */
+export async function ingestBalanceTransactionsAllPlatforms(): Promise<IngestResult[]> {
+  const out: IngestResult[] = [];
+  for (const { platform } of configuredBalancePlatforms()) {
+    out.push(await ingestBalanceTransactions({ platform }));
+  }
+  return out;
 }

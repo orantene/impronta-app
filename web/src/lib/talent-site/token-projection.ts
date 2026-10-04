@@ -9,6 +9,9 @@
  * — safe on the edge and unit-testable.
  */
 import { contactCopyForPlan, talentContactHrefs } from "./contact-channels";
+import { resolveHeadline } from "./hero-headline";
+import { formatHeroEyebrow, formatHeroProofLine } from "./hero-proof-line";
+import { clampWords } from "./talent-locale-swaps";
 import {
   selectServiceFocusLabels,
   type TalentProfileTokens,
@@ -32,8 +35,11 @@ export function talentProfileTokens(
 ): TalentProfileTokens {
   const displayName = profile.displayName.trim() || "Talent";
   const profilePath = `/t/${profile.profileCode}`;
+  // The short line under the headline: her own tagline field, else the bio cut to a
+  // sentence or two, else "Trade · City".
   const tagline =
-    profile.publicBio?.trim().slice(0, 160) ||
+    profile.tagline?.trim() ||
+    (profile.publicBio?.trim() ? clampWords(profile.publicBio) : "") ||
     [profile.primaryTypeLabel, profile.homeCity].filter(Boolean).join(" · ") ||
     "";
   // FIX B — the "Services & focus" cards come from the talent's ACTUAL services
@@ -94,12 +100,24 @@ export function talentProfileTokens(
     bio: profile.publicBio?.trim() || tagline || `Welcome to ${displayName}'s profile.`,
     richBio,
     locationLine: profile.homeCity ? `Based in ${profile.homeCity}` : "",
+    heroEyebrow: formatHeroEyebrow(primaryTypeLabel, profile.homeCity) || primaryTypeLabel,
+    headline: resolveHeadline({ headline: profile.headline, tradeEn: primaryTypeLabel, displayName, seedKey: profile.profileCode }).text,
+    menuSubtitle: profile.menuCurrency?.trim() ? `Prices in ${profile.menuCurrency.trim().toUpperCase()}.` : "",
+    proofLine: formatHeroProofLine({
+      years: profile.experienceYears,
+      languages: profile.languagesLabel ? profile.languagesLabel.split(" \u00b7 ") : [],
+      rating: profile.ratingAvg,
+      count: profile.ratingCount,
+      demo: profile.isDemo,
+    }),
     languagesLine,
     headshotUrl,
     profilePath,
     inquireHref: `${profilePath}?inquire=1`,
     whatsappHref: contact.whatsappHref,
     emailHref: contact.emailHref,
+    /** G4: tel: link from the explicit public call number only; "" when not opted in. */
+    callHref: contact.callHref,
     contactCopy: contactCopyForPlan(profile.talentPlanKey),
     service1: services[0] ?? "",
     service2: services[1] ?? "",

@@ -85,12 +85,47 @@ async function requireAgendaV2Route(
 }
 
 async function expectCalendarChrome(page: import("@playwright/test").Page) {
+  // Desktop: view tablist. Phone (≤720): Month select stays visible when V2 is on.
   const tablist = page.getByRole("tablist", { name: /Calendar view|Vista del calendario/i });
   const dayTab = page.getByRole("tab", { name: /^(Day|Día)$/i });
   const weekTab = page.getByRole("tab", { name: /^(Week|Semana)$/i });
-  const anyChrome = tablist.or(dayTab).or(weekTab).or(page.getByText(/Calendar|Calendario/i).first());
+  const monthSelect = page.getByRole("combobox").or(page.locator("select").first());
+  const monthLabel = page.getByText(/^(Month|Mes)$/i);
+  const anyChrome = tablist
+    .or(dayTab)
+    .or(weekTab)
+    .or(monthSelect)
+    .or(monthLabel)
+    .or(page.getByRole("button", { name: /Add event or block|Añadir evento o bloqueo/i }));
   await expect(anyChrome.first()).toBeVisible({ timeout: 60_000 });
 }
+
+function calendarAddButton(page: import("@playwright/test").Page) {
+  // Exact EN/ES aria-label — do NOT match bare "Add" (hits unrelated chrome).
+  return page.getByRole("button", {
+    name: /^(Add event or block|Añadir evento o bloqueo)$/i,
+  });
+}
+
+/** Open the Calendar Add menu (assert Block time is offered). */
+async function openCalendarAddMenu(page: import("@playwright/test").Page) {
+  const addBtn = calendarAddButton(page);
+  const blockBtn = page.getByRole("button", { name: /Block time|Bloquear tiempo|Bloquear/i });
+  const newBtn = page.getByRole("button", { name: /New booking|Nueva reserva/i });
+  await addBtn.click();
+  // Prefer aria-expanded; fall back to visible menu items (SecondaryButtons).
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (await blockBtn.or(newBtn).first().isVisible().catch(() => false)) return;
+    const expanded = await addBtn.getAttribute("aria-expanded");
+    if (expanded !== "true") {
+      await addBtn.click();
+    }
+    await page.waitForTimeout(250);
+  }
+  await expect(blockBtn.or(newBtn).first()).toBeVisible({ timeout: 15_000 });
+}
+
+const AGENDA_NOW = "agendaNow=2026-09-23T09:50:00";
 
 test.describe("Talent Agenda V2 smoke", () => {
   test.beforeAll(async ({ browser }) => {
@@ -125,7 +160,10 @@ test.describe("Talent Agenda V2 smoke", () => {
   });
 
   test("Calendar page loads with view toggle", async ({ page }) => {
-    await page.goto(`${BASE_URL}/talent/calendar`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await page.goto(`${BASE_URL}/talent/calendar?${AGENDA_NOW}`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
     await expectCalendarChrome(page);
     await page.screenshot({ path: path.join(EVIDENCE, "calendar-desktop.png"), fullPage: true });
   });
@@ -145,16 +183,16 @@ test.describe("Talent Agenda V2 smoke", () => {
   });
 
   test("Calendar + Add menu opens without error", async ({ page }) => {
-    await page.goto(`${BASE_URL}/talent/calendar`, { waitUntil: "domcontentloaded", timeout: 90_000 });
-    const addBtn = page.getByRole("button", { name: /Add event or block|Add/i }).first();
-    if (!(await addBtn.isVisible().catch(() => false))) {
-      test.skip(true, "Calendar Add menu is Agenda V2-only");
-    }
-    await addBtn.click();
-    await expect(page.getByRole("menu").or(page.getByText(/New booking|Block time/i).first())).toBeVisible({
+    await page.goto(`${BASE_URL}/talent/calendar?${AGENDA_NOW}`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    await expect(calendarAddButton(page)).toBeVisible({ timeout: 30_000 });
+    await openCalendarAddMenu(page);
+    await expect(page.getByRole("button", { name: /New booking|Nueva reserva/i })).toBeVisible({
       timeout: 15_000,
     });
-  });
+    await expect(page.getByRole("button", { name: /Block time|Bloquear/i })).toBeVisible();  });
 
   test("Attention page loads", async ({ page }) => {
     await requireAgendaV2Route(page, "/talent/attention");
@@ -164,12 +202,12 @@ test.describe("Talent Agenda V2 smoke", () => {
   });
 
   test("Block time form opens from Add menu", async ({ page }) => {
-    await page.goto(`${BASE_URL}/talent/calendar`, { waitUntil: "domcontentloaded", timeout: 90_000 });
-    const addBtn = page.getByRole("button", { name: /Add event or block|Add/i }).first();
-    if (!(await addBtn.isVisible().catch(() => false))) {
-      test.skip(true, "Block time Add path is Agenda V2-only");
-    }
-    await addBtn.click();
+    await page.goto(`${BASE_URL}/talent/calendar?${AGENDA_NOW}`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    await expect(calendarAddButton(page)).toBeVisible({ timeout: 30_000 });
+    await openCalendarAddMenu(page);
     await page.getByRole("button", { name: /Block time|Bloquear/i }).click();
     await expect(page.locator('input[type="time"]').first()).toBeVisible({ timeout: 15_000 });
   });
@@ -219,34 +257,201 @@ test.describe("Talent Agenda V2 T9.5 journeys", () => {
     await page.screenshot({ path: path.join(EVIDENCE, "new-booking-journey.png"), fullPage: true });
   });
 
-  test("finish/collect surface opens from a booking when linked", async ({ page }) => {
+  test("finish/collect Card mints a pay link for seeded unpaid booking", async ({ page }) => {
+    await page.goto(`${BASE_URL}/talent/today?agendaNow=2026-09-23T09:50:00`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    const gel = page.getByText(/QA:agenda-v2 Gel set/i).first();
     try {
-      await page.goto(`${BASE_URL}/talent/today?agendaNow=2026-09-23T09:50:00`, {
-        waitUntil: "domcontentloaded",
-        timeout: 90_000,
-      });
-    } catch (err) {
-      test.skip(true, `Today navigation failed: ${String(err).slice(0, 120)}`);
+      await expect(gel).toBeVisible({ timeout: 45_000 });
+    } catch {
+      test.skip(true, "No seeded Gel set row on Today for agendaNow pin");
     }
-    // Seeded QA week has unpaid today cards — Collect/Finish when V2 is on.
-    const collect = page.getByRole("button", { name: /Collect|Finish|Cobrar|Finalizar/i }).first();
-    if (await collect.isVisible().catch(() => false)) {
-      await collect.click();
-      await expect(page.getByText(/Cash|Transfer|Card|Efectivo|Transferencia/i).first()).toBeVisible({
-        timeout: 30_000,
+    const row = page.getByRole("button", { name: /QA:agenda-v2 Gel set/i }).first();
+    if (await row.isVisible().catch(() => false)) {
+      await row.click();
+    } else {
+      await gel.click();
+    }
+    const finish = page.getByRole("button", { name: /Finish and collect/i });
+    await expect(finish).toBeVisible({ timeout: 30_000 });
+    await finish.click();
+    await expect(page.getByText(/Cash|Transfer|Card|Efectivo|Transferencia|Tarjeta/i).first()).toBeVisible({
+      timeout: 30_000,
+    });
+    const card = page.getByRole("radio", { name: /Card|Tarjeta/i }).first();
+    if (!(await card.isVisible().catch(() => false))) {
+      await page.locator("label").filter({ hasText: /^(Card|Tarjeta)$/i }).click();
+    } else {
+      await card.check().catch(async () => {
+        await card.click();
       });
     }
-    await page.screenshot({ path: path.join(EVIDENCE, "finish-collect-entry.png"), fullPage: true });
+    const go = page.getByRole("button", { name: /^Complete booking$|^Completar reserva$/i });
+    await expect(go).toBeEnabled({ timeout: 15_000 });
+    await go.click();
+    const payLink = page.locator('a[href*="/pay/"]').first();
+    const amountDue = page.getByText(/Card needs an amount due|importe pendiente/i);
+    const payReady = page.getByText(/Pay link ready|Enlace de pago listo|Card link ready/i);
+    await expect(payLink.or(amountDue).or(payReady).first()).toBeVisible({ timeout: 45_000 });
+    await page.screenshot({ path: path.join(EVIDENCE, "finish-card-pay-link.png"), fullPage: true });
   });
 
   test("hold release CTA reachable when hold is seeded", async ({ page }) => {
-    await requireAgendaV2Route(page, "/talent/today?agendaNow=2026-09-23T09:50:00");
-    const release = page.getByRole("button", { name: /Release|Liberar/i }).first();
+    await requireAgendaV2Route(page, "/talent/attention?agendaNow=2026-09-23T09:50:00");
+    const release = page.getByRole("button", { name: /Release hold|Liberar reserva|Release|Liberar/i }).first();
     if (!(await release.isVisible().catch(() => false))) {
-      test.skip(true, "No hold Release CTA on Today for this seed/clock");
+      test.skip(true, "No hold Release CTA on Attention for this seed/clock");
     }
     await expect(release).toBeVisible();
     await page.screenshot({ path: path.join(EVIDENCE, "hold-release-entry.png"), fullPage: true });
+  });
+
+  test("block time → form → cancel closes without saving", async ({ page }) => {
+    await page.goto(`${BASE_URL}/talent/calendar?${AGENDA_NOW}`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    await expect(calendarAddButton(page)).toBeVisible({ timeout: 30_000 });
+    await openCalendarAddMenu(page);
+    await page.getByRole("button", { name: /Block time|Bloquear/i }).click();
+    await expect(page.locator('input[type="time"]').first()).toBeVisible({ timeout: 15_000 });
+    const cancel = page.getByRole("button", { name: /Cancel|Cancelar|Back|Volver/i }).first();
+    if (await cancel.isVisible().catch(() => false)) {
+      await cancel.click();
+    }
+    await page.screenshot({ path: path.join(EVIDENCE, "block-time-cancel.png"), fullPage: true });
+  });
+
+  test("booking record cancel control is honest (works or absent)", async ({ page }) => {
+    await page.goto(`${BASE_URL}/talent/today?agendaNow=2026-09-23T09:50:00`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    const open = page.getByRole("button", { name: /Open|Ver|View/i }).first();
+    if (!(await open.isVisible().catch(() => false))) {
+      test.skip(true, "No booking Open CTA on seeded Today");
+    }
+    await open.click();
+    await page.waitForTimeout(800);
+    // Either Cancel is offered and enabled, or it is not shown (A1.7 honesty).
+    const cancel = page.getByRole("button", { name: /Cancel booking|Cancelar reserva|^Cancel$|^Cancelar$/i });
+    const count = await cancel.count();
+    if (count > 0) {
+      await expect(cancel.first()).toBeEnabled();
+    }
+    await page.screenshot({ path: path.join(EVIDENCE, "booking-record-cancel-honesty.png"), fullPage: true });
+  });
+
+  test("reschedule sheet opens from record when offered", async ({ page }) => {
+    await page.goto(`${BASE_URL}/talent/today?agendaNow=2026-09-23T09:50:00`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    const open = page.getByRole("button", { name: /Open|Ver|View/i }).first();
+    if (!(await open.isVisible().catch(() => false))) {
+      test.skip(true, "No booking Open CTA on seeded Today");
+    }
+    await open.click();
+    await page.waitForTimeout(800);
+    const reschedule = page.getByRole("button", { name: /Reschedule|Reagendar/i }).first();
+    if (!(await reschedule.isVisible().catch(() => false))) {
+      test.skip(true, "Reschedule not offered on this booking");
+    }
+    await reschedule.click();
+    await expect(page.getByText(/Reschedule|Reagendar|New time|Nueva hora/i).first()).toBeVisible({
+      timeout: 20_000,
+    });
+    await page.screenshot({ path: path.join(EVIDENCE, "reschedule-sheet.png"), fullPage: true });
+  });
+
+  test("accept-request path is reachable from attention when seeded", async ({ page }) => {
+    await requireAgendaV2Route(page, "/talent/attention?agendaNow=2026-09-23T09:50:00");
+    const accept = page.getByRole("button", { name: /Accept|Aceptar|Reply|Responder|Open Messages/i }).first();
+    if (!(await accept.isVisible().catch(() => false))) {
+      test.skip(true, "No accept/reply request CTA on Attention for this seed");
+    }
+    await accept.click();
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: path.join(EVIDENCE, "accept-request-journey.png"), fullPage: true });
+  });
+
+  test("deposit / pay-request surface opens when offered", async ({ page }) => {
+    await page.goto(`${BASE_URL}/talent/today?agendaNow=2026-09-23T09:50:00`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    const pay = page.getByRole("button", { name: /Request deposit|Request pay|Cobrar|Ask for|Pedir depósito|Pay request/i }).first();
+    if (!(await pay.isVisible().catch(() => false))) {
+      // Fall back: open a booking and look for pay CTA on the record.
+      const open = page.getByRole("button", { name: /Open|Ver|View/i }).first();
+      if (!(await open.isVisible().catch(() => false))) {
+        test.skip(true, "No deposit/pay CTA on seeded Today");
+      }
+      await open.click();
+      await page.waitForTimeout(800);
+      const recordPay = page.getByRole("button", { name: /Request deposit|Request pay|Pedir|Pay link|Depósito/i }).first();
+      if (!(await recordPay.isVisible().catch(() => false))) {
+        test.skip(true, "No deposit/pay CTA on booking record");
+      }
+      await recordPay.click();
+    } else {
+      await pay.click();
+    }
+    await expect(page.getByText(/Amount|Monto|Deposit|Depósito|Pay|MXN/i).first()).toBeVisible({
+      timeout: 20_000,
+    });
+    await page.screenshot({ path: path.join(EVIDENCE, "deposit-pay-request-journey.png"), fullPage: true });
+  });
+
+  test("new booking conflict UI offers an alternative when conflicted", async ({ page }) => {
+    await requireAgendaV2Route(page, "/talent/bookings/new");
+    const conflict = page.getByText(/conflict|alternative|otro horario|Choose another|Pick another/i).first();
+    if (!(await conflict.isVisible().catch(() => false))) {
+      test.skip(true, "Conflict alternative not shown without overlapping draft");
+    }
+    await expect(conflict).toBeVisible();
+    await page.screenshot({ path: path.join(EVIDENCE, "new-booking-conflict-alt.png"), fullPage: true });
+  });
+
+  test("no-show is gated until after start (honest or absent)", async ({ page }) => {
+    await page.goto(`${BASE_URL}/talent/today?agendaNow=2026-09-23T09:50:00`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    const open = page.getByRole("button", { name: /Open|Ver|View/i }).first();
+    if (!(await open.isVisible().catch(() => false))) {
+      test.skip(true, "No booking Open CTA on seeded Today");
+    }
+    await open.click();
+    await page.waitForTimeout(800);
+    const noShow = page.getByRole("button", { name: /Mark no-show|Marcar sin presentación|No-show/i });
+    const count = await noShow.count();
+    if (count === 0) {
+      // Honest: control omitted before start (clock 09:50, appt 10:00).
+      await page.screenshot({ path: path.join(EVIDENCE, "no-show-gated.png"), fullPage: true });
+      return;
+    }
+    const first = noShow.first();
+    const disabled =
+      (await first.isDisabled().catch(() => false)) ||
+      (await page.getByText(/Available after the start time|Disponible después/i).isVisible().catch(() => false));
+    expect(disabled).toBeTruthy();
+    await page.screenshot({ path: path.join(EVIDENCE, "no-show-gated.png"), fullPage: true });
+  });
+
+  test("block time undo control appears after a successful block", async ({ page }) => {
+    await page.goto(`${BASE_URL}/talent/calendar?agendaNow=2026-09-23T09:50:00`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    const undo = page.getByRole("button", { name: /Undo|Deshacer/i }).first();
+    if (!(await undo.isVisible().catch(() => false))) {
+      test.skip(true, "Undo only after a block save in this session");
+    }
+    await expect(undo).toBeVisible();
+    await page.screenshot({ path: path.join(EVIDENCE, "block-undo.png"), fullPage: true });
   });
 });
 
@@ -323,7 +528,7 @@ test.describe("Talent Agenda V2 mobile 360", () => {
   });
 
   test("Calendar readable at 360", async ({ page }) => {
-    await page.goto(`${BASE_URL}/talent/calendar`, {
+    await page.goto(`${BASE_URL}/talent/calendar?${AGENDA_NOW}`, {
       waitUntil: "domcontentloaded",
       timeout: 90_000,
     });

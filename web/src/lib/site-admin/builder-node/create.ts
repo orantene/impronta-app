@@ -5,7 +5,8 @@ import type {
 } from "./types";
 import { createBuilderSectionEmbed } from "./section-embed-presets";
 import { makeId, randomUuid } from "./make-id";
-
+import { createGridlineNode } from "./create-gridline";
+import { cloneNailDesignerDefaultProps } from "./nail-designer-model";
 // Re-exported so existing `import { makeId } from "./create"` consumers keep
 // working; the canonical home is now the dependency-light `./make-id`.
 // randomUuid is the secure-context-safe raw-id generator (see make-id.ts).
@@ -239,21 +240,29 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
           emptyMessage: "Menu items are not published yet.",
         },
       };
-    case "services_catalog": return { id: makeId("services_catalog"), kind: "services_catalog", props: { layout: "rows", categoryNav: "pills", eyebrow: "The menu", title: "Services {i}and prices{/i}", showStats: true, showPhoto: true, showDuration: true, showUsdEquivalent: true, ctaLabel: "", emptyMessage: "No services are published yet." } };
+    case "services_catalog":
+    case "portfolio":
+    case "reviews":
+    case "visit":
+    case "contents":
+    case "masthead":
+    case "statement_footer":
+    case "utility_bar":
+    case "alert_band":
+    case "task_picker":
+    case "spec_table":
+    case "comp_card":
+    case "next_free_chip":
+      return createGridlineNode(kind);
     // cornerStyle/showShortLink omitted: render reads undefined as square/shown.
     case "qr_code": return { id: makeId("qr_code"), kind: "qr_code", props: { linkCode: "" } };
     case "ticket_picker": return { id: makeId("ticket_picker"), kind: "ticket_picker", props: { eventId: "", title: "" } };
     // No eventId on purpose: a linked page binds itself (dataSources.linkedEventId).
     case "event_program": return { id: makeId("event_program"), kind: "event_program", props: { layout: "timeline", groupBy: "auto" } };
+    case "app_nail_designer":
+      return { id: makeId("app_nail_designer"), kind: "app_nail_designer", props: cloneNailDesignerDefaultProps() };
     case "session_picker":
-      return {
-        id: makeId("session_picker"),
-        kind: "session_picker",
-        props: {
-          offeringId: "",
-          title: "",
-        },
-      };
+      return { id: makeId("session_picker"), kind: "session_picker", props: { offeringId: "", title: "" } };
     case "reserve_table":
       return {
         id: makeId("reserve_table"),
@@ -774,25 +783,8 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
   }
 }
 
-// Composition presets live in ./composition-presets (kept out of this file
-// to satisfy max-lines). Re-exported here so existing import sites that pull
-// them from "./create" keep working.
-export {
-  BUILDER_NODE_COMPOSITION_PRESETS,
-  createBuilderNodeCompositionPreset,
-} from "./composition-presets";
-export type {
-  BuilderNodeCompositionPresetId,
-  BuilderNodeCompositionPreset,
-} from "./composition-presets";
-
-// Curated Tulala-component embeds (Directory / Featured talent / Booking / CTA)
-// — presets + factory live in ./section-embed-presets; re-exported here so the
-// element-library picker and insert plumbing import them from one place.
-export {
-  SECTION_EMBED_PRESETS,
-  getSectionEmbedPreset,
-  sectionEmbedTypeLabel,
-  createBuilderSectionEmbed,
-} from "./section-embed-presets";
+// Presets live in siblings (max-lines); re-export for "./create" import sites.
+export { BUILDER_NODE_COMPOSITION_PRESETS, createBuilderNodeCompositionPreset } from "./composition-presets";
+export type { BuilderNodeCompositionPresetId, BuilderNodeCompositionPreset } from "./composition-presets";
+export { SECTION_EMBED_PRESETS, getSectionEmbedPreset, sectionEmbedTypeLabel, createBuilderSectionEmbed } from "./section-embed-presets";
 export type { SectionEmbedPreset } from "./section-embed-presets";

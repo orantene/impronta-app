@@ -1,6 +1,9 @@
 "use client";
 
+import { BOOKING_MODE_CHOICES, BOOKING_MODE_LABELS } from "@/lib/talent/booking-mode-labels";
 import { useEffect, useState, type ReactNode } from "react";
+import { useBeforeUnloadGuard } from "@/components/locale-field/use-before-unload-guard";
+import { OfferingDescriptionField, OfferingNameField } from "./OfferingTextFields";
 import {
   listTalentPortfolioPhotos,
   setOfferingImages,
@@ -14,12 +17,16 @@ import {
 } from "@/lib/talent/services-settings-actions";
 import { publicationWord } from "@/lib/talent/publication-state";
 import { offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
+import { PLATFORM_DEFAULT_BOOKING_POSTURE } from "@/lib/talent/selling-booking-settings";
 import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { useOfferingsEditor } from "./use-offerings-editor";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { uploadTalentMedia } from "@/lib/client/signed-upload";
+import { MatrixFields } from "./MatrixFields";
+import { IntakeFields } from "./IntakeFields";
 import { ProductEditorCard } from "./ProductEditorCard";
 import { categoryNearMatch } from "@/lib/talent/publication-state";
+import { localizeOfferingSaveError } from "./offering-editor-save";
 
 type Photo = { id: string; url: string };
 type Where = "studio" | "client" | "remote" | "agreed";
@@ -68,6 +75,7 @@ export function EditorScreen({
   catalogNames,
   needsWorkingHours = false,
   onOpenWorkingHours,
+  initialPreview = false,
 }: {
   item: TalentOffering;
   setItem: (next: TalentOffering) => void;
@@ -87,10 +95,12 @@ export function EditorScreen({
   catalogNames?: string[];
   needsWorkingHours?: boolean;
   onOpenWorkingHours?: () => void;
+  /** Row menu "Preview as customer" opens straight into the preview. */
+  initialPreview?: boolean;
 }) {
   const copy = useDashboardText();
   const es = copy.isSpanish;
-  const [preview, setPreview] = useState(false);
+  const [preview, setPreview] = useState(initialPreview);
   const [photosOpen, setPhotosOpen] = useState(false);
   const [busy, setBusy] = useState<null | "draft" | "publish">(null);
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +118,9 @@ export function EditorScreen({
   const kindWord =
     kind === "package" ? copy.t("Package") : kind === "product" ? copy.t("Product") : copy.t("Service");
   const patch = (partial: Partial<TalentOffering>) => setItem({ ...item, ...partial });
+  // Unsaved edits survive a language-switch reload only with a prompt (PR 7).
+  const [baseline, setBaseline] = useState(() => JSON.stringify(item));
+  useBeforeUnloadGuard(JSON.stringify(item) !== baseline);
   const patchAttr = (key: string, value: unknown) =>
     setItem({ ...item, attributes: { ...(item.attributes ?? {}), [key]: value } });
 
@@ -133,6 +146,7 @@ export function EditorScreen({
     depositPct && item.amountCents ? Math.round((item.amountCents * depositPct) / 100) : null;
   const where = attr<Where[]>(item, "where", (defaults?.where as Where[] | undefined)?.length ? (defaults!.where as Where[]) : ["studio"]);
   const bufferAfter = attr<number | null>(item, "bufferAfterMin", defaults?.bufferAfterMin ?? null);
+  const bufferBefore = attr<number | null>(item, "bufferBeforeMin", defaults?.bufferBeforeMin ?? null);
 
   const syncPhotos = async (next: Photo[]) => {
     setPhotos(next);
@@ -151,8 +165,12 @@ export function EditorScreen({
     try {
       const pending = isNew ? photos.filter((p) => !p.id.startsWith("url-")).map((p) => p.id) : undefined;
       await onSave(item, publish, pending);
-    } catch {
-      setError(copy.t("It did not save. Everything you entered is still here. Try again."));
+      setBaseline(JSON.stringify(item));
+    } catch (err) {
+      // Prefer server/validation text; localize ES (Codex P2) — no raw English.
+      const detail = err instanceof Error && err.message.trim() ? err.message.trim() : null;
+      const generic = copy.t("It did not save. Everything you entered is still here. Try again.");
+      setError(detail ? localizeOfferingSaveError(detail, { isSpanish: es, t: copy.t, generic }) : generic);
     } finally {
       setBusy(null);
     }
@@ -165,12 +183,18 @@ export function EditorScreen({
     agreed: copy.t("Agreed after enquiry"),
   };
 
-  const modes = [
-    { id: "instant", title: copy.t("Instant booking"), sub: copy.t("They pick a free time and it is booked") },
-    { id: "request", title: copy.t("Request to book"), sub: copy.t("You approve before anything is held") },
-    { id: "quote", title: copy.t("Request a quote"), sub: copy.t("You agree the amount with each client") },
-  ] as const;
-  const activeMode = quote ? "quote" : item.bookingMode === "instant" ? "instant" : "request";
+  // WSF B2: the same label set Website settings uses.
+  const modes = BOOKING_MODE_CHOICES.map((id) => ({
+    id,
+    title: copy.t(BOOKING_MODE_LABELS[id].title),
+    sub: copy.t(BOOKING_MODE_LABELS[id].sub),
+  }));
+  // WSF-B: null = inherits the talent default (Defaults > Default booking mode).
+  const modeInherited = item.bookingMode == null;
+  const defaultMode = defaults?.bookingPosture ?? PLATFORM_DEFAULT_BOOKING_POSTURE;
+  const effectiveMode = item.bookingMode ?? defaultMode;
+  const activeMode = quote ? "quote" : effectiveMode;
+  const modeTitle = (id: string) => modes.find((m) => m.id === id)?.title ?? id;
 
   const savedLine = isNew
     ? `${kindWord} · ${copy.t("not saved yet")}`
@@ -179,7 +203,7 @@ export function EditorScreen({
       : `${kindWord} · ${word === "hidden" ? copy.t("Hidden") : copy.t("Draft")}`;
 
   const btn = "rounded-lg border border-admin-border-soft bg-white px-4 py-2 text-[14px] font-semibold text-admin-ink disabled:opacity-60";
-  const primary = "rounded-lg bg-emerald-900 px-4 py-2 text-[14px] font-semibold text-white disabled:border disabled:border-admin-border-soft disabled:bg-white disabled:text-admin-ink";
+  const primary = "rounded-lg bg-[var(--tc-action)] px-4 py-2 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:border disabled:border-admin-border-soft disabled:bg-white disabled:text-admin-ink";
 
   return (
     <div className="font-admin-body">
@@ -223,10 +247,7 @@ export function EditorScreen({
       <div className="mt-5 grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">
           <Card title={copy.t("Details")} sub={copy.t("What it is and what it looks like")}>
-            <label className="block">
-              <span className={LABEL}>{copy.t("Name")}</span>
-              <input className={INPUT} maxLength={120} value={item.title} onChange={(e) => patch({ title: e.target.value })} />
-            </label>
+            <OfferingNameField item={item} label={copy.t("Name")} inputClass={INPUT} patch={patch} />
 
             <div>
               <p className={LABEL}>
@@ -329,6 +350,13 @@ export function EditorScreen({
                     </div>
                   </label>
                   <label className="block">
+                    <span className={LABEL}>{copy.t("Prep before")}</span>
+                    <div className="relative">
+                      <input type="number" min={0} className={`${INPUT} pr-12`} value={bufferBefore ?? ""} onChange={(e) => patchAttr("bufferBeforeMin", e.target.value === "" ? null : Number(e.target.value))} />
+                      <span className="pointer-events-none absolute right-3 top-1/2 mt-[3px] -translate-y-1/2 text-[14px] text-admin-ink-dim">min</span>
+                    </div>
+                  </label>
+                  <label className="block">
                     <span className={LABEL}>{copy.t("Buffer after")}</span>
                     <div className="relative">
                       <input type="number" min={0} className={`${INPUT} pr-12`} value={bufferAfter ?? ""} onChange={(e) => patchAttr("bufferAfterMin", e.target.value === "" ? null : Number(e.target.value))} />
@@ -339,10 +367,7 @@ export function EditorScreen({
             </div>
             )}
 
-            <label className="block">
-              <span className={LABEL}>{copy.t("Short description")}</span>
-              <textarea rows={2} maxLength={280} className={INPUT} value={item.description ?? ""} onChange={(e) => patch({ description: e.target.value || null })} />
-            </label>
+            <OfferingDescriptionField item={item} label={copy.t("Short description")} inputClass={INPUT} patch={patch} />
           </Card>
 
           <Card title={copy.t("How clients buy it")} sub={copy.t("You can change any of this later")}>
@@ -365,6 +390,21 @@ export function EditorScreen({
                 );
               })}
             </div>
+            {!quote ? (
+              <p className="text-[13px] text-admin-ink-dim">
+                {modeInherited ? copy.t("Uses your default:") : copy.t("Just for this item:")}{" "}
+                {modeTitle(effectiveMode)}
+                {!modeInherited ? (
+                  <button
+                    type="button"
+                    className="ml-2 text-[13px] text-admin-ink-muted underline"
+                    onClick={() => patch({ bookingMode: null })}
+                  >
+                    {copy.t("Reset to default")}
+                  </button>
+                ) : null}
+              </p>
+            ) : null}
 
             {activeMode === "instant" && needsWorkingHours && onOpenWorkingHours ? (
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-950">
@@ -391,13 +431,21 @@ export function EditorScreen({
                       <button key={w} type="button" aria-pressed={on} onClick={() => {
                         const next = on ? where.filter((x) => x !== w) : [...where, w];
                         patchAttr("where", next.length ? next : [w]);
-                      }} className={`rounded-lg px-3 py-1.5 text-[14px] font-semibold ${on ? "bg-emerald-900/[0.1] text-emerald-900" : "bg-black/[0.05] text-admin-ink-muted"}`}>
+                      }} className={`rounded-lg px-3 py-1.5 text-[14px] font-semibold ${on ? "border border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-ink)]" : "bg-black/[0.05] text-admin-ink-muted"}`}>
                         {whereLabel[w]}
                       </button>
                     );
                   })}
                 </div>
               </div>
+            )}
+
+            {kind !== "product" && (
+              <MatrixFields attributes={item.attributes} onChange={(next) => patch({ attributes: next })} />
+            )}
+
+            {kind !== "product" && (
+              <IntakeFields attributes={item.attributes} onChange={(next) => patch({ attributes: next })} />
             )}
 
             <div className="border-t border-admin-border-soft pt-5">
@@ -418,7 +466,7 @@ export function EditorScreen({
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     {[0, 20, 25, 30, 50].map((pct) => (
-                      <button key={pct} type="button" onClick={() => patch({ depositPct: pct || null, reserveMode: pct ? "deposit" : item.reserveMode })} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${depositPct === pct || (!depositPct && pct === 0) ? "bg-emerald-900/[0.1] text-emerald-900" : "bg-black/[0.05] text-admin-ink-muted"}`}>
+                      <button key={pct} type="button" onClick={() => patch({ depositPct: pct || null, reserveMode: pct ? "deposit" : item.reserveMode })} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${depositPct === pct || (!depositPct && pct === 0) ? "border border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-ink)]" : "bg-black/[0.05] text-admin-ink-muted"}`}>
                         {pct ? `${pct}%` : copy.t("None")}
                       </button>
                     ))}
@@ -437,7 +485,7 @@ export function EditorScreen({
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       {[12, 24, 48, 72].map((h) => (
-                        <button key={h} type="button" onClick={() => patch({ cancellationHours: h })} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${cancelHours === h ? "bg-emerald-900/[0.1] text-emerald-900" : "bg-black/[0.05] text-admin-ink-muted"}`}>
+                        <button key={h} type="button" onClick={() => patch({ cancellationHours: h })} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${cancelHours === h ? "border border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-ink)]" : "bg-black/[0.05] text-admin-ink-muted"}`}>
                           {h} h
                         </button>
                       ))}
@@ -470,7 +518,7 @@ export function EditorScreen({
                           const ids = on ? g.offeringIds.filter((x) => x !== item.id) : [...g.offeringIds, item.id];
                           await upsertAddonGroup(talentId, { id: g.id, name: g.name, amountCents: g.amountCents, durationMinutes: g.durationMinutes, offeringIds: ids });
                           await onRefreshAddons();
-                        }} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold disabled:opacity-50 ${on ? "bg-emerald-900/[0.1] text-emerald-900" : "border border-admin-border-soft text-admin-ink"}`}>
+                        }} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold disabled:opacity-50 ${on ? "border border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-ink)]" : "border border-admin-border-soft text-admin-ink"}`}>
                           {on ? copy.t("On this service") : copy.t("Add to this service")}
                         </button>
                       </li>
@@ -485,7 +533,7 @@ export function EditorScreen({
                 <button type="button" className="mt-1.5 rounded-lg border border-admin-border-soft px-4 text-[14px] font-semibold" onClick={() => onOpenExtra?.()}>
                   {copy.t("Create an extra")}
                 </button>
-                <button type="button" disabled={!extra.name.trim()} className="mt-1.5 rounded-lg bg-emerald-900 px-4 text-[14px] font-semibold text-white disabled:opacity-50" onClick={async () => {
+                <button type="button" disabled={!extra.name.trim()} className="mt-1.5 rounded-lg bg-[var(--tc-action)] px-4 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-50" onClick={async () => {
                   const res = await upsertAddonGroup(talentId, {
                     name: extra.name,
                     amountCents: Math.round(Number(extra.price || 0) * 100),
@@ -509,15 +557,15 @@ export function EditorScreen({
         <aside className="space-y-4 xl:border-l xl:border-admin-border-soft xl:pl-6">
           <div className="flex items-center justify-between">
             <p className={LABEL}>{copy.t("What the client sees")}</p>
-            <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${isLive ? "bg-emerald-900/[0.1] text-emerald-900" : "bg-black/[0.06] text-admin-ink-muted"}`}>
+            <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${isLive ? "tc-status tc-status-ok" : "bg-black/[0.06] text-admin-ink-muted"}`}>
               {isLive ? copy.t("Live") : word === "hidden" ? copy.t("Hidden") : copy.t("Draft")}
             </span>
           </div>
-          <ClientCard item={item} locale={locale} rates={rates} depositCents={depositCents} cancelHours={cancelHours} />
+          <ClientCard item={{ ...item, bookingMode: effectiveMode }} locale={locale} rates={rates} depositCents={depositCents} cancelHours={cancelHours} />
           <div className="rounded-2xl border border-admin-border-soft bg-white px-4 py-4">
             <div className="flex items-center justify-between">
               <p className={LABEL}>{copy.t("Ready to publish?")}</p>
-              <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${ready ? "bg-emerald-900/[0.1] text-emerald-900" : "bg-amber-100 text-amber-900"}`}>
+              <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${ready ? "tc-status tc-status-ok" : "tc-status tc-status-warn"}`}>
                 {ready ? copy.t("Yes") : copy.t("Not yet")}
               </span>
             </div>
@@ -527,15 +575,15 @@ export function EditorScreen({
       </div>
 
       {preview && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setPreview(false)}>
-          <div style={{ maxWidth: 460 }} className="w-full overflow-hidden rounded-2xl bg-white" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={() => setPreview(false)}>
+          <div style={{ maxWidth: 460 }} className="max-h-[88dvh] w-full overflow-y-auto rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="border-b border-admin-border-soft px-5 py-4">
               <h2 className="font-admin-body text-[18px] font-semibold tracking-normal text-admin-ink">{copy.t("Preview as customer")}</h2>
               <p className="mt-0.5 text-[13px] text-admin-ink-dim">{copy.t("This is how it looks on your pages. Nothing is booked from here.")}</p>
             </div>
             <div className="px-5 py-4">
               <ClientCard
-                item={item}
+                item={{ ...item, bookingMode: effectiveMode }}
                 locale={locale}
                 rates={rates}
                 depositCents={depositCents}
@@ -626,6 +674,8 @@ function ClientCard({ item, locale, rates, depositCents, cancelHours, sellerName
     ? es ? "Pedir cotización" : "Ask for a quote"
     : item.kind === "product"
       ? es ? "Comprar" : "Buy"
+      : item.bookingMode === "inquiry"
+        ? es ? "Consultar" : "Ask about this"
       : item.bookingMode === "instant"
         ? depositCents ? `${es ? "Reservar" : "Book"} · ${money(depositCents, item.currency)} ${es ? "de depósito" : "deposit"}` : es ? "Reservar" : "Book"
         : es ? "Pedir reserva" : "Request to book";
@@ -701,7 +751,7 @@ function PortfolioSheet({
   const chosen = (photos ?? []).filter((p) => picked.includes(p.id));
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 md:items-center md:p-4" onClick={onClose}>
-      <div style={{ maxWidth: 680 }} className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white md:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+      <div style={{ maxWidth: 680 }} className="flex max-h-[85dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-white md:rounded-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="border-b border-admin-border-soft px-5 py-4">
           <h2 className="font-admin-body text-[18px] font-semibold tracking-normal text-admin-ink">{copy.t("Pick photos from your portfolio")}</h2>
           <p className="mt-0.5 text-[13px] text-admin-ink-dim">
@@ -735,7 +785,7 @@ function PortfolioSheet({
           <span className="text-[13px] text-admin-ink-dim">{picked.length} {copy.t("selected")}</span>
           <span className="flex gap-3">
             <button type="button" className="text-[14px] text-admin-ink" onClick={onClose}>{copy.t("Cancel")}</button>
-            <button type="button" className="rounded-lg bg-emerald-900 px-4 py-2 text-[14px] font-semibold text-white" onClick={() => void onPick(picked.map((id) => chosen.find((p) => p.id === id)).filter((p): p is PortfolioPhoto => Boolean(p)).map((p) => ({ id: p.id, url: p.url })))}>
+            <button type="button" className="rounded-lg bg-[var(--tc-action)] px-4 py-2 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)]" onClick={() => void onPick(picked.map((id) => chosen.find((p) => p.id === id)).filter((p): p is PortfolioPhoto => Boolean(p)).map((p) => ({ id: p.id, url: p.url })))}>
               {copy.t("Use these photos")}
             </button>
           </span>

@@ -38,6 +38,7 @@ import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import { notifyBookingCancelled } from "@/lib/notifications/producers/booking-cancelled-notify";
 import { readInquiryOfferingContext } from "@/lib/talent/offering-stock";
 import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
+import { loadEffectiveCancellationHours } from "@/lib/talent/offering-policy-server";
 import { rescheduleBooking } from "@/lib/scheduling/reschedule-booking";
 import { emitNotification } from "@/lib/notifications/emit";
 import {
@@ -3293,12 +3294,7 @@ export async function cancelBookingAction(
           .maybeSingle();
         const offCtx = readInquiryOfferingContext(inqRow?.source_context);
         if (offCtx?.offering_id) {
-          const { data: offRow } = await supabase
-            .from("talent_offerings")
-            .select("cancellation_hours")
-            .eq("id", offCtx.offering_id)
-            .maybeSingle();
-          const hours = (offRow as { cancellation_hours: number | null } | null)?.cancellation_hours ?? null;
+          const hours = await loadEffectiveCancellationHours(supabase, offCtx.offering_id);
           const verdict = resolveCancellationWindow({
             cancellationHours: hours,
             startsAt: (booking.starts_at as string | null) ?? null,

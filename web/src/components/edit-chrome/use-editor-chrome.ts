@@ -419,6 +419,19 @@ export function useEditorChrome(input: { canEditTheme: boolean }) {
   ]);
 
   const closeAddMenu = useCallback(() => setAddMenuOpen(false), []);
+  const openAddMenu = useCallback(() => {
+    dismissCompetingEditorChrome();
+    closeAllRightRailDrawers();
+    setSearchPanelOpen(false);
+    setAllPagesPanelOpen(false);
+    setBrandPanelOpen(false);
+    setNavigatorOpen(false);
+    setAddMenuOpen(true);
+  }, [
+    closeAllRightRailDrawers,
+    dismissCompetingEditorChrome,
+    setNavigatorOpen,
+  ]);
   const toggleAddMenu = useCallback(() => {
     setAddMenuOpen((prev) => {
       const next = !prev;
@@ -627,6 +640,7 @@ export function useEditorChrome(input: { canEditTheme: boolean }) {
     toggleSearchPanel,
     closeSearchPanel,
     addMenuOpen,
+    openAddMenu,
     toggleAddMenu,
     closeAddMenu,
     allPagesPanelOpen,

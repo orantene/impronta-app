@@ -72,21 +72,37 @@ describe("A3.1 ownership — foreign bookingId → unauthorized", () => {
       ownBookingGate({
         bookingId: "b1",
         hasSessionUser: true,
+        userId: "user-1",
         talentProfileId: "talent-1",
         onBookingTalent: true,
         ownsTalentBookingMirror: false,
       }),
-      { ok: true, talentId: "talent-1" },
+      { ok: true, talentId: "talent-1", userId: "user-1" },
     );
     assert.deepEqual(
       ownBookingGate({
         bookingId: "b1",
         hasSessionUser: true,
+        userId: "user-1",
         talentProfileId: "talent-1",
         onBookingTalent: false,
         ownsTalentBookingMirror: true,
       }),
-      { ok: true, talentId: "talent-1" },
+      { ok: true, talentId: "talent-1", userId: "user-1" },
+    );
+  });
+
+  it("rejects owned booking when actor userId is missing", () => {
+    assert.deepEqual(
+      ownBookingGate({
+        bookingId: "b1",
+        hasSessionUser: true,
+        userId: null,
+        talentProfileId: "talent-1",
+        onBookingTalent: true,
+        ownsTalentBookingMirror: false,
+      }),
+      { ok: false, reason: "unauthorized" },
     );
   });
 });
@@ -132,7 +148,7 @@ describe("A3.1 load-mapper — transfer ≠ overdue", () => {
       agency: {
         payment_status: "unpaid",
         payment_method: "transfer",
-        total_client_revenue: 950_00,
+        total_client_revenue: 950,
         deposit_amount_cents: 0,
       },
       paidCents: 0,
@@ -151,7 +167,7 @@ describe("A3.1 load-mapper — transfer ≠ overdue", () => {
       agency: {
         payment_status: "unpaid",
         payment_method: "cash",
-        total_client_revenue: 950_00,
+        total_client_revenue: 950,
       },
       paidCents: 0,
       latestTxStatus: null,

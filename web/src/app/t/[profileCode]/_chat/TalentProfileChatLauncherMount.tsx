@@ -30,9 +30,15 @@
 import { loadGuestDockFlags } from "@/lib/inquiry/guest-dock-flags";
 import { TalentProfileChatLauncher } from "./TalentProfileChatLauncher";
 import { categoryChipLabel } from "./category-chip-label";
+import { guestDockServicePriceLabel } from "./guest-dock-service-price";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
+import { loadUsdRatesForSitePrices } from "@/lib/talent-site/server/vanity-usd-rates";
+import { loadTalentPlanKey, loadTalentSellingDefaults } from "@/lib/talent-site/server/load-max-site";
+import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
+import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
 import type { GuestChatOffering } from "@/lib/inquiry/guest-chat-contract";
 import { surfaceModeFromBackgroundMode } from "./mini-chat-styles";
+import type { ChatCardConfig } from "@/lib/talent-site/chat-card";
 import { createTranslator } from "@/i18n/messages";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import {
@@ -49,6 +55,8 @@ import {
   startGuestChatInquiry,
   checkGuestClaimEmail,
 } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
+import { getGuestInquiryByOrder } from "@/app/t/[profileCode]/_actions/guest-order-resume-actions";
+import { parseGuestOrderQuery } from "@/lib/inquiry/guest-order-resume";
 // U2 thread switcher + U4 detail chips — injected as callbacks so the client
 // bundle imports no backend module.
 import { listGuestInquiries } from "@/app/t/[profileCode]/_actions/guest-inquiries-actions";
@@ -64,6 +72,8 @@ import { ensureGuestChatInquiry } from "@/app/t/[profileCode]/_actions/guest-cha
 import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
 import { TalentOfferingIntentQuery } from "@/app/%5Ftalent-site/TalentOfferingIntentQuery";
 import type { IndustryPresetId } from "@/lib/words/presets";
+import { catalogRowPriceText } from "@/lib/site-admin/builder-node/services-catalog-bar-price";
+import { offeringPriceUnit } from "@/components/public-booking/catalog-booking-logic";
 
 type TalentProfileChatLauncherMountProps = {
   /** talent_profiles.id — the single talent the guest is messaging (MVP). */
@@ -88,6 +98,8 @@ type TalentProfileChatLauncherMountProps = {
   accentColor?: string | null;
   /** Optional agency logo URL for the panel header. */
   logoUrl?: string | null;
+  /** Talent profile photo; the header avatar fallback when there is no logo (AUD-039). */
+  photoUrl?: string | null;
   /** Source page for attribution (e.g. /t/TA-12345). */
   sourcePage: string;
   /** "Open full conversation ↗" target (inert/link-only for MVP). Null hides it. */
@@ -112,6 +124,26 @@ type TalentProfileChatLauncherMountProps = {
    * is what every agency surface wants. See `resolveTalentTradePreset`.
    */
   wordsPresetOverride?: IndustryPresetId | null;
+  /**
+   * Solo vanity host: omit the platform brand from guest-account copy so the
+   * panel never names Tulala on her own site (front-door Ana step 1).
+   */
+  omitPlatformBrand?: boolean;
+  /**
+   * `chat.variant` = card: the calm one-to-one chat card painted from her
+   * site's tokens (a talent's own host only). Null keeps the standard dock.
+   */
+  chatCard?: ChatCardConfig | null;
+  /**
+   * `chat.help-bubble` = on: the once-per-visit "can I help you choose?" bubble
+   * above the chat button (DK-3). Off everywhere unless the site asks for it.
+   */
+  helpBubble?: boolean;
+  /**
+   * Cold-load `?order=<uuid>` — when set, prefer that order's owned inquiry
+   * over the cookie resume pick and force-open the dock.
+   */
+  orderId?: string | null;
 };
 
 export async function TalentProfileChatLauncherMount({
@@ -124,12 +156,17 @@ export async function TalentProfileChatLauncherMount({
   agencyName,
   accentColor = null,
   logoUrl = null,
+  photoUrl = null,
   sourcePage,
   openFullHref = null,
   greeting = null,
   locale = null,
   backgroundMode = null,
   wordsPresetOverride = null,
+  omitPlatformBrand = false,
+  chatCard = null,
+  helpBubble = false,
+  orderId = null,
 }: TalentProfileChatLauncherMountProps) {
   // Guest chat only makes sense on an agency surface (the thread is tenant-owned).
   if (!tenantSlug) return null;
@@ -146,10 +183,18 @@ export async function TalentProfileChatLauncherMount({
   // L13: the tenant-wide dock switches + the per-business Items label.
   const dockFlags = await loadGuestDockFlags(tenantId, locale, wordsPresetOverride);
 
+  // Cold-load `?order=` wins over cookie resume when the guest owns that order.
+  const parsedOrder = parseGuestOrderQuery(orderId);
+  const orderResume = parsedOrder
+    ? await getGuestInquiryByOrder({ tenantSlug, orderId: parsedOrder })
+    : null;
+  const orderActive = orderResume?.ok ? orderResume.active : null;
+
   // Returning-guest resume (B1): reopen the live thread from the cookie instead
   // of starting fresh. Always { active } | failure; any failure → fresh start.
-  const resume = await getActiveGuestInquiry({ tenantSlug, talentProfileId });
-  const active = resume.ok ? resume.active : null;
+  const resume = orderActive ? null : await getActiveGuestInquiry({ tenantSlug, talentProfileId });
+  const active = orderActive ?? (resume?.ok ? resume.active : null);
+  const forceOpen = Boolean(orderActive);
 
   // Phase 3 — resolve the resolver-driven label's lifecycle inputs server-side
   // (phase / coordinator / last-message-role / other-open) from the same guest
@@ -163,6 +208,12 @@ export async function TalentProfileChatLauncherMount({
   // with none get a single "Custom quote" default so EVERY talent is
   // requestable from the chat.
   const publicOfferings = await loadPublicOfferingsForProfile(talentProfileId, locale ?? "en");
+  const [usdRates, sellingDefaults, planKey] = await Promise.all([
+    loadUsdRatesForSitePrices(publicOfferings),
+    loadTalentSellingDefaults(talentProfileId),
+    loadTalentPlanKey(talentProfileId),
+  ]);
+  const confirmsByHand = !talentOffersInstantBooking(planKey);
   const chatOfferings: GuestChatOffering[] =
     publicOfferings.length > 0
       ? publicOfferings.slice(0, 8).map((o) => ({
@@ -180,6 +231,8 @@ export async function TalentProfileChatLauncherMount({
           reserveMode: o.reserveMode,
           depositPct: o.depositPct,
           imageUrl: o.imageUrls[0] ?? null,
+          priceLabel: catalogRowPriceText(o, locale ?? "en"),
+          priceIsPerUnit: Boolean(offeringPriceUnit(o.attributes, locale ?? "en")),
         }))
       : [
           {
@@ -210,20 +263,41 @@ export async function TalentProfileChatLauncherMount({
       brand={{
         ...dockFlags,
         dockServiceMenu: publicOfferings
-          .map((o) => ({ title: o.title, category: categoryChipLabel(o.category) }))
-          .filter((o) => o.category),
+          .map((o) => {
+            const category = categoryChipLabel(o.category);
+            if (!category) return null;
+            const amountCents = o.visibility === "on_request" ? null : o.amountCents;
+            return {
+              title: o.title,
+              category,
+              amountCents,
+              currency: o.currency,
+              priceLabel: guestDockServicePriceLabel(
+                amountCents,
+                o.currency,
+                usdRates,
+                locale ?? "en",
+              ),
+              cta: deriveOfferingCta({ offering: o, defaults: sellingDefaults ?? {}, confirmsByHand }).cta,
+            };
+          })
+          .filter((o): o is NonNullable<typeof o> => o != null),
         agencyName,
         talentDisplayName,
+        soloTalent: true,
         accentColor,
         logoUrl,
+        photoUrl,
         greeting,
         locale,
+        omitPlatformBrand,
       }}
       label={t("public.guestChat.bookNow")}
       // Returning guest → reopen the thread + prefill the gate (B1). null → fresh.
       existingInquiryId={active?.inquiryId ?? null}
       existingContactPromoted={active?.contactPromoted ?? null}
       prefill={active?.prefill ?? null}
+      forceOpen={forceOpen}
       offerings={chatOfferings}
       onAttachOffering={attachOfferingToGuestInquiry}
       onStartInquiry={startGuestChatInquiry}
@@ -241,6 +315,8 @@ export async function TalentProfileChatLauncherMount({
       soundOnReply
       openFullHref={openFullHref}
       surfaceMode={surfaceModeFromBackgroundMode(backgroundMode)}
+      chatCard={chatCard}
+      helpBubble={helpBubble}
       activePhase={lifecycle.activePhase}
       activeStatus={lifecycle.activeStatus}
       coordinatorId={lifecycle.coordinatorId}

@@ -61,6 +61,44 @@ export interface InEditorCanvasRenderData {
    * tokens. The Theme drawer's preview bridge overlays the DRAFT live on top.
    */
   designTokens: Record<string, string>;
+  /**
+   * talent_page only: the catalog Design the site wears. The canvas root
+   * carries it as `data-talent-design` so the Design skin applies, exactly as
+   * on the live site. Absent on every other surface.
+   */
+  designSlug?: string | null;
+  /**
+   * Template Factory editor only: the flat `{{token}}` map of the preview
+   * talent. The canvas hydrates the un-hydrated design tree with it at render
+   * time (never pruning), so the saved document keeps its placeholders.
+   */
+  placeholders?: Record<string, string>;
+  /** talent_page only: server-rendered font links + Design skin stylesheet. */
+  headNodes?: ReactNode;
+  /** talent_page only: the site header / footer, read-only around the page. */
+  shellHeader?: ReactNode;
+  shellFooter?: ReactNode;
+  /** talent_page only: the global Tulala footer socket, shown locked under the footer. */
+  shellSocket?: ReactNode;
+  /**
+   * talent_page only: render-time label localisation (site locale, booking
+   * mode, per-talent swaps), applied to the LIVE tree on the canvas exactly
+   * as the live render applies it. Nothing is written back.
+   */
+  labelLocale?: {
+    locale: string;
+    ctaMode: "instant" | "request" | "inquiry" | null;
+    swaps: Record<string, string>;
+    /**
+     * Lines that follow her profile (hero headline, eyebrow, proof line...), resolved for
+     * the site locale: the canvas shows them the way the live page does, so an edit never
+     * flips the hero back to its stored text until a reload.
+     */
+    live?: {
+      values: Partial<Record<string, string>>;
+      seeds?: Partial<Record<string, ReadonlyArray<string>>>;
+    };
+  } | null;
 }
 
 export async function buildInEditorCanvasRenderData(args: {

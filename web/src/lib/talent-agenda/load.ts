@@ -1,12 +1,20 @@
 import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { parseBookingHours } from "@/lib/scheduling/hours-types";
 import { zonedLocalToUtc } from "@/lib/scheduling/tz";
+import {
+  majorMoneyToCents,
+  totalClientRevenueToCents,
+} from "@/lib/money/total-client-revenue";
 
 import { blocksTime, deriveBookingState, derivePaymentState } from "./derive";
 import { mapAgencyBookingPayment, mapDeliverableDeadline } from "./load-map";
+import { loadUnscheduledDraftsForTalent, txRefundPending } from "./load-unscheduled";
+import { summarizeCommercialEvent } from "@/lib/commercial-activity-summary";
+import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import type { TalentAgendaItem, TalentAgendaLoadResult, TalentAgendaRange } from "./types";
 
 type AgencyBookingRow = {
@@ -57,6 +65,7 @@ type TransactionRow = {
   requested_at: string | null;
   paid_at: string | null;
   refunded_at: string | null;
+  metadata?: unknown;
 };
 
 type PaymentLinkRow = {
@@ -74,6 +83,15 @@ type RescheduleRequestRow = {
   fee_cents: number;
   status: string;
   created_at: string;
+  expires_at: string | null;
+};
+
+type ActivityLogRow = {
+  id: string;
+  booking_id: string;
+  created_at: string;
+  event_type: string;
+  payload: unknown;
 };
 
 function initials(name: string | null | undefined): string {
@@ -111,7 +129,10 @@ function paidCentsFrom(
     .filter((row) => row.status === "paid" || row.status === "payout_pending" || row.status === "payout_sent")
     .reduce((sum, row) => sum + row.gross_amount_cents, 0);
   if (paid > 0) return paid;
-  if (agency?.payment_status === "paid") return agency.total_client_revenue;
+  // total_client_revenue is major units; paidCents consumers expect cents.
+  if (agency?.payment_status === "paid") {
+    return totalClientRevenueToCents(agency.total_client_revenue);
+  }
   if (agency?.payment_status === "partial") return agency.deposit_amount_cents ?? 0;
   return 0;
 }
@@ -133,6 +154,11 @@ function requestWindow(
  * Layout note: `app/(workspace)/talent/layout.tsx` should call this only when
  * `isAgendaV2(talentProfileId)` is true, leaving the legacy calendar bridge
  * untouched while the flag is off.
+ *
+ * Money join: talent session RLS cannot read agency_bookings / booking_talent /
+ * booking_transactions (staff/client/coordinator only). After talent_bookings
+ * scopes the id set under user RLS, commercial money is loaded via service role
+ * for those ids only — same elevation pattern as agenda writers.
  */
 export async function loadTalentAgenda(
   talentProfileId: string,
@@ -141,6 +167,9 @@ export async function loadTalentAgenda(
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { items: [], hours: null };
+    // Commercial tables are opaque to talent RLS — elevate only after
+    // talent_bookings has already scoped bookingIds to this profile.
+    const moneyDb = createServiceRoleClient() ?? supabase;
 
     const fromIso = range.from.toISOString();
     const toIso = range.to.toISOString();
@@ -199,11 +228,11 @@ export async function loadTalentAgenda(
     const ownerUserId =
       typeof profileRes.data?.user_id === "string" ? profileRes.data.user_id : null;
 
-    const [agencyBookingsRes, transactionsRes, inquiriesRes, deliverablesRes, rescheduleRes, talentLegsRes] =
+    const [agencyBookingsRes, transactionsRes, inquiriesRes, deliverablesRes, rescheduleRes, talentLegsRes, activityLogRes] =
       await Promise.all([
       bookingIds.length === 0
         ? Promise.resolve({ data: [], error: null })
-        : supabase
+        : moneyDb
             .from("agency_bookings")
             .select(
               "id, status, payment_status, total_client_revenue, deposit_amount_cents, currency_code, timezone, client_timezone, balance_due_at, source_type_snapshot, contact_name, contact_email, contact_phone, venue_name, venue_location_text, travel_before_min, travel_after_min, intake_status, intake_sent_at, order_id, tenant_id, payment_method, payment_notes",
@@ -211,9 +240,9 @@ export async function loadTalentAgenda(
             .in("id", bookingIds),
       bookingIds.length === 0
         ? Promise.resolve({ data: [], error: null })
-        : supabase
+        : moneyDb
             .from("booking_transactions")
-            .select("booking_id, status, gross_amount_cents, requested_at, paid_at, refunded_at")
+            .select("booking_id, status, gross_amount_cents, requested_at, paid_at, refunded_at, metadata")
             .in("booking_id", bookingIds),
       ownerUserId == null
         ? Promise.resolve({ data: [], error: null })
@@ -228,15 +257,31 @@ export async function loadTalentAgenda(
       Promise.resolve({ data: [], error: null }),
       bookingIds.length === 0
         ? Promise.resolve({ data: [], error: null })
-        : supabase
+        : moneyDb
             .from("booking_reschedule_requests")
-            .select("id, booking_id, new_starts_at, new_ends_at, fee_cents, status, created_at")
+            .select(
+              "id, booking_id, new_starts_at, new_ends_at, fee_cents, status, created_at, expires_at",
+            )
             .in("booking_id", bookingIds)
             .eq("status", "pending"),
-      supabase
+      moneyDb
         .from("booking_talent")
-        .select("booking_id")
+        .select("booking_id, client_charge_total")
         .eq("talent_profile_id", talentProfileId),
+      bookingIds.length === 0
+        ? Promise.resolve({ data: [], error: null })
+        : moneyDb
+            .from("booking_activity_log")
+            .select("id, booking_id, created_at, event_type, payload")
+            .in("booking_id", bookingIds)
+            // Talent surface: service-role bypasses staff-only RLS — only show
+            // events the agenda itself writes (status / payment), never staff
+            // client/manager/lineup audit rows.
+            .in("event_type", [
+              BOOKING_AUDIT.STATUS_CHANGED,
+              BOOKING_AUDIT.PAYMENT_STATE_CHANGED,
+            ])
+            .order("created_at", { ascending: false }),
     ]);
 
     if (agencyBookingsRes.error) logServerError("talent-agenda.agency-bookings", agencyBookingsRes.error);
@@ -244,11 +289,24 @@ export async function loadTalentAgenda(
     if (inquiriesRes.error) logServerError("talent-agenda.inquiries", inquiriesRes.error);
     if (rescheduleRes.error) logServerError("talent-agenda.reschedule", rescheduleRes.error);
     if (talentLegsRes.error) logServerError("talent-agenda.booking-talent", talentLegsRes.error);
+    if (activityLogRes.error) logServerError("talent-agenda.activity-log", activityLogRes.error);
 
+    const legChargeByBooking = new Map<string, number>();
     const legBookingIds = [
       ...new Set(
-        ((talentLegsRes.data ?? []) as Array<{ booking_id: string }>)
-          .map((r) => r.booking_id)
+        ((talentLegsRes.data ?? []) as Array<{
+          booking_id: string;
+          client_charge_total?: number | string | null;
+        }>)
+          .map((row) => {
+            if (typeof row.booking_id !== "string" || !row.booking_id) return null;
+            // client_charge_total is major units (same family as total_client_revenue).
+            const cents = majorMoneyToCents(row.client_charge_total);
+            if (cents > 0) {
+              legChargeByBooking.set(row.booking_id, cents);
+            }
+            return row.booking_id;
+          })
           .filter((id): id is string => typeof id === "string" && id.length > 0),
       ),
     ];
@@ -278,10 +336,22 @@ export async function loadTalentAgenda(
     }
 
     const pendingRescheduleByBooking = new Map<string, RescheduleRequestRow>();
+    const nowMs = Date.now();
     for (const row of (rescheduleRes.data ?? []) as RescheduleRequestRow[]) {
+      if (row.expires_at && Date.parse(row.expires_at) <= nowMs) continue;
       if (!pendingRescheduleByBooking.has(row.booking_id)) {
         pendingRescheduleByBooking.set(row.booking_id, row);
       }
+    }
+
+    const historyByBooking = new Map<string, TalentAgendaItem["history"]>();
+    for (const row of (activityLogRes.data ?? []) as ActivityLogRow[]) {
+      const { label, summary_lines } = summarizeCommercialEvent(row.event_type, row.payload);
+      const detail = summary_lines.filter((line) => typeof line === "string" && line.trim()).join(" ");
+      const text = detail ? `${label}: ${detail}` : label;
+      const current = historyByBooking.get(row.booking_id) ?? [];
+      current.push({ at: row.created_at, text });
+      historyByBooking.set(row.booking_id, current);
     }
 
     const holds = (holdsRes.data ?? []) as Array<{
@@ -314,7 +384,7 @@ export async function loadTalentAgenda(
     const paymentLinkQueries: PromiseLike<{ data: unknown; error: unknown }>[] = [];
     if (orderIds.length > 0) {
       paymentLinkQueries.push(
-        supabase
+        moneyDb
           .from("payment_links")
           .select("order_id, inquiry_id, status, expires_at")
           .in("order_id", orderIds)
@@ -323,7 +393,7 @@ export async function loadTalentAgenda(
     }
     if (holdInquiryIds.length > 0) {
       paymentLinkQueries.push(
-        supabase
+        moneyDb
           .from("payment_links")
           .select("order_id, inquiry_id, status, expires_at")
           .in("inquiry_id", holdInquiryIds)
@@ -383,6 +453,10 @@ export async function loadTalentAgenda(
       const txRows = transactionsByBooking.get(booking.id) ?? [];
       const latest = latestTransaction(txRows);
       const paidCents = paidCentsFrom(agency, txRows);
+      // Prefer agency total (major → cents); else talent leg charge already in cents.
+      const agencyTotalCents = totalClientRevenueToCents(agency?.total_client_revenue);
+      const totalCents =
+        agencyTotalCents > 0 ? agencyTotalCents : (legChargeByBooking.get(booking.id) ?? 0);
       const openLink =
         agency?.order_id != null ? openLinkByOrder.get(agency.order_id) : undefined;
       const linkOpen =
@@ -395,12 +469,21 @@ export async function loadTalentAgenda(
       const payment = mapAgencyBookingPayment({
         agencyStatus: agency?.status,
         talentBookingStatus: booking.status,
-        agency,
+        agency: agency
+          ? { ...agency, total_client_revenue: agency.total_client_revenue }
+          : totalCents > 0
+            ? {
+                payment_status: "unpaid",
+                // Synthetic fallback: store major so the mapper converts once.
+                total_client_revenue: totalCents / 100,
+              }
+            : undefined,
         paidCents,
         latestTxStatus: latest?.status,
         linkOpen,
         now: range.from,
         startsAt: booking.starts_at,
+        refundPending: txRefundPending(txRows),
       });
 
       const travelBefore = Math.max(
@@ -416,14 +499,10 @@ export async function loadTalentAgenda(
           ? Math.max(travelBefore, travelAfter)
           : 0;
 
-      const history: TalentAgendaItem["history"] = [];
+      const history: TalentAgendaItem["history"] = [
+        ...(historyByBooking.get(booking.id) ?? []),
+      ];
       const pendingReschedule = pendingRescheduleByBooking.get(booking.id);
-      if (pendingReschedule) {
-        history.push({
-          at: pendingReschedule.created_at,
-          text: "Reschedule pending.",
-        });
-      }
 
       const intakeStatus = agency?.intake_status ?? null;
       let tradeSection: TalentAgendaItem["tradeSection"];
@@ -468,7 +547,7 @@ export async function loadTalentAgenda(
           phone: agency?.contact_phone ?? undefined,
         },
         title: booking.title,
-        lines: [{ label: booking.title, cents: agency?.total_client_revenue ?? 0 }],
+        lines: [{ label: booking.title, cents: totalCents }],
         startsAt: booking.starts_at,
         endsAt: booking.ends_at,
         allDay: booking.all_day,
@@ -489,10 +568,10 @@ export async function loadTalentAgenda(
         booking: bookingState,
         payment,
         money: {
-          totalCents: agency?.total_client_revenue ?? 0,
+          totalCents,
           paidCents,
           depositCents: agency?.deposit_amount_cents ?? undefined,
-          dueCents: Math.max(0, (agency?.total_client_revenue ?? 0) - paidCents),
+          dueCents: Math.max(0, totalCents - paidCents),
           currency: agency?.currency_code ?? "MXN",
         },
         source: mapSource(agency?.source_type_snapshot),
@@ -647,6 +726,18 @@ export async function loadTalentAgenda(
     }>) {
       const deadline = mapDeliverableDeadline(deliverable, hours?.timezone ?? "UTC");
       if (deadline) items.push(deadline);
+    }
+
+    // Offer accepted with no time: draft agency_bookings never mirrored into
+    // talent_bookings, so the dated query above misses them. Surface on Today.
+    const unscheduled = await loadUnscheduledDraftsForTalent(moneyDb, {
+      talentProfileId,
+      scheduledBookingIds: bookingIds,
+      now: range.from,
+    });
+    const seen = new Set(items.map((i) => i.id));
+    for (const item of unscheduled) {
+      if (!seen.has(item.id)) items.push(item);
     }
 
     items.sort((a, b) => a.startsAt.localeCompare(b.startsAt));

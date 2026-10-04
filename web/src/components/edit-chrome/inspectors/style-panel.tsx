@@ -53,6 +53,7 @@ import { SectionStyleMockupPanel } from "./section-style-mockup-panel";
 import { LockBadge, LockedFieldsBanner, styleLockedPathsOf, SegmentedField, NumberField, DebouncedRangeInput, InspectorInfoTip, InspectorLabelWithInfo } from "./kit";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL, INSPECTOR_HELP_TEXT_CLASS as HINT, INSPECTOR_SECTION_TITLE_CLASS as SECTION_TITLE, InspectorBody } from "./kit/inspector-ui";
 import { useInspectorT } from "./kit/use-inspector-t";
+import { StyleContainerQuery } from "./style-container-query";
 import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
 import { CHROME } from "../kit/tokens";
 import { BoxModel } from "../kit/box-model";
@@ -181,13 +182,6 @@ const STANDALONE_STYLE_SCOPE_OPTIONS: ReadonlyArray<
 > = [
   { value: "viewport", label: "Screen" },
   { value: "container", label: "Container" },
-];
-const BUILDER_NODE_CONTAINER_TYPE_OPTIONS: ReadonlyArray<
-  SegmentedOption<string>
-> = [
-  { value: "", label: "Off" },
-  { value: "inline-size", label: "Width" },
-  { value: "size", label: "Size" },
 ];
 
 const HORIZONTAL_MODE_OPTIONS: ReadonlyArray<SegmentedOption<HorizontalSpacingMode>> = [
@@ -4893,49 +4887,35 @@ export function StylePanel({
                 </button>
               ) : null}
 
+            {/* Mockup annotation C — quick styles are the front door. */}
+            <QuickStyleCards
+              presets={selectedStandaloneStylePresets}
+              onApply={applyStandaloneStylePreset}
+              scopeLabel={selectedViewport}
+            />
+
+            {/* #3b — collapses when all inherit so Quick styles stay above the fold. */}
+            <NodeThemeInheritancePanel
+              rows={nodeInheritRows}
+              onInherit={(field) =>
+                patchSelectedBaseStyle({ [field]: undefined })
+              }
+              onOverride={(field, seedValue) =>
+                patchSelectedBaseStyle({
+                  [field]: seedValue || undefined,
+                })
+              }
+            />
+
             {["container", "split", "card", "cta_group"].includes(
               selectedStandaloneStyleNode.kind,
             ) ? (
-              <div
-                className="flex flex-col gap-2 border-t pt-3"
-                data-builder-node-style-control="containerQueries"
-                style={{ borderColor: CHROME.line }}
-              >
-                <span className={FIELD_LABEL}>{t("Query container")}</span>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={selectedStandaloneFullStyle?.containerType ?? ""}
-                  onChange={(next) =>
-                    patchSelectedBaseStyle({
-                      containerType:
-                        (next || undefined) as BuilderNodeStyleValue["containerType"],
-                    })
-                  }
-                  options={BUILDER_NODE_CONTAINER_TYPE_OPTIONS}
-                />
-                <input
-                  type="text"
-                  className="px-2"
-                  style={{
-                    height: 30,
-                    width: "100%",
-                    fontSize: 12,
-                    background: CHROME.surface2,
-                    border: `1px solid ${CHROME.controlBorder}`,
-                    borderRadius: 7,
-                    color: CHROME.ink,
-                    outline: "none",
-                  }}
-                  placeholder="container name"
-                  value={selectedStandaloneFullStyle?.containerName ?? ""}
-                  onChange={(e) =>
-                    patchSelectedBaseStyle({
-                      containerName: e.target.value.trim() || undefined,
-                    })
-                  }
-                />
-              </div>
+              // Collapsible container-query control; lives in
+              // ./style-container-query.tsx to keep this file in budget.
+              <StyleContainerQuery
+                style={selectedStandaloneFullStyle}
+                onPatch={patchSelectedBaseStyle}
+              />
             ) : null}
 
             {selectedInstanceComponentId && selectedBuilderNodeId ? (
@@ -5005,31 +4985,6 @@ export function StylePanel({
                 />
               </>
             ) : null}
-
-            {/* #3b — per-field Inherit / Override (Figma/Webflow-style). Writes
-                route through patchSelectedBaseStyle, the SAME base-style chain
-                the color/size rows use — inherit = clear the literal (cascade
-                default shows), override = seed the resolved value to edit. */}
-            <NodeThemeInheritancePanel
-              rows={nodeInheritRows}
-              onInherit={(field) =>
-                patchSelectedBaseStyle({ [field]: undefined })
-              }
-              onOverride={(field, seedValue) =>
-                patchSelectedBaseStyle({
-                  [field]: seedValue || undefined,
-                })
-              }
-            />
-
-            {/* Mockup annotation C — quick styles are the front door, and now
-                they look like it. The thumbnails are derived from each
-                preset's own style object; see QuickStyleCards. */}
-            <QuickStyleCards
-              presets={selectedStandaloneStylePresets}
-              onApply={applyStandaloneStylePreset}
-              scopeLabel={selectedViewport}
-            />
 
             {/* ── D4: the group stack ─────────────────────────────────────
                 Was SIX hardcoded section mounts, every one of them rendered

@@ -19,10 +19,33 @@
  * what says so, and it reads this module as well as the inline table.
  */
 
+import { CLIENTS_ES_TEXT } from "./dashboard-i18n-clients";
+import { FEES_ES_TEXT } from "./dashboard-i18n-fees";
+import { LANGUAGES_ES_TEXT } from "./dashboard-i18n-languages";
 import { LINKS_ES_TEXT } from "./dashboard-i18n-links";
+import { LOCATION_ES_TEXT } from "./dashboard-i18n-location";
+import { MONEY_ES_TEXT } from "./dashboard-i18n-money";
+import { MONEY_HOME_ES_TEXT } from "./dashboard-i18n-money-home";
+import { TALENT_CLIENT_PANELS_ES_TEXT } from "./dashboard-i18n-talent-client-panels";
+import { TALENT_GAPS_ES_TEXT } from "./dashboard-i18n-talent-gaps";
+import { DOMAIN_ERRORS_ES_TEXT } from "./dashboard-i18n-domain-errors";
+import { SWEEP_R1_ES_TEXT } from "./dashboard-i18n-sweep-r1";
+import { WEBSITE_ES_TEXT } from "./dashboard-i18n-website";
 
 export const RAIL_ES_TEXT: Record<string, string> = {
+  // First, so a generic key already translated elsewhere keeps its wording.
+  ...TALENT_CLIENT_PANELS_ES_TEXT,
   ...LINKS_ES_TEXT,
+  ...WEBSITE_ES_TEXT,
+  ...MONEY_ES_TEXT,
+  ...MONEY_HOME_ES_TEXT,
+  ...FEES_ES_TEXT,
+  ...CLIENTS_ES_TEXT,
+  ...TALENT_GAPS_ES_TEXT,
+  ...SWEEP_R1_ES_TEXT,
+  ...DOMAIN_ERRORS_ES_TEXT,
+  ...LOCATION_ES_TEXT,
+  ...LANGUAGES_ES_TEXT,
   // The four Appointments sub-views (W39). They are tabs of one route, but the
   // rail draws them as rows, so each needs its own literal. "Appointments" is
   // both the destination label and its landing child, and already has a row in
@@ -49,4 +72,83 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   "Setup is owner-only · ask the owner": "La configuración es solo del propietario · pídesela",
   // The tagline under the wordmark at the head of the rail.
   "Sell what you do, not what you ship": "Vende lo que haces, no lo que envías",
+  // Talent Messages + Actions: shown when no thread is open (kept out of
+  // dashboard-i18n.ts — that file is at its 3968-line size-ratchet budget).
+  "Pick a conversation first": "Elige una conversación primero",
+  "Added by you": "Añadida por ti",
+  "Direct": "Directo",
+  "Your website": "Tu sitio web",
+  "At the counter": "En el mostrador",
+  "Booking saved": "Reserva guardada",
+  "View booking": "Ver reserva",
+  "New conversation": "Nueva conversación",
+  "Clients write to you from your page. Share your link and new conversations show up here. You can also start one with + New conversation.":
+    "Tus clientas te escriben desde tu página. Comparte tu enlace y las conversaciones nuevas aparecen aquí. También puedes iniciar una con + Nueva conversación.",
+  "Copy your link": "Copiar tu enlace",
+  "Open your page": "Abrir tu página",
+  "Pick services, add extras.": "Elige servicios y extras.",
+  "The client sees the services, the total and one Accept button.":
+    "El cliente ve los servicios, el total y un botón de Aceptar.",
+  "What the client pays": "Lo que paga el cliente",
+  "Services total": "Total de servicios",
+  "Deposit to hold the time": "Anticipo para apartar el horario",
+  "Paid at the appointment": "Se paga en la cita",
+  "Send a quote": "Enviar una cotización",
+  "Pick services from your catalogue. Prices stay in your currency. The quote holds 24 hours.":
+    "Elige servicios de tu catálogo. Los precios quedan en tu moneda. La cotización vale 24 horas.",
+  "Propose a time": "Proponer un horario",
+  "Checks your calendar first.": "Revisa tu calendario primero.",
+  "Request a deposit": "Pedir un anticipo",
+  "Secure link. Card or transfer.": "Enlace seguro. Tarjeta o transferencia.",
+  "Send a photo or file": "Enviar una foto o archivo",
+  "The client sees it.": "El cliente lo ve.",
+  "Add a private note": "Agregar una nota privada",
+  "Only you.": "Solo tú.",
+  "Save client details": "Guardar datos del cliente",
+  "Name, phone, preferences.": "Nombre, teléfono, preferencias.",
+  "Private notes never reach the client. Quotes, times and payment requests do.":
+    "Las notas privadas nunca llegan al cliente. Las cotizaciones, horarios y solicitudes de pago sí.",
+  // Services Defaults — prep time + booking CTA modes (#2294). Same reason:
+  // do not grow the grandfathered dashboard-i18n.ts map.
+  "Preparation and gaps": "Preparación y márgenes",
+  "Preparation before each booking": "Preparación antes de cada cita",
+  "A 60 minute service booked at 10:00 needs prep from {prepStart}. It ends at 11:00 for the client and {end} for you.":
+    "Un servicio de 60 minutos reservado a las 10:00 necesita preparación desde las {prepStart}. Termina a las 11:00 para el cliente y a las {end} para ti.",
+  "Preparation blocks time before the start so the previous client cannot run into your setup. The after buffer hides the next slot that would overlap, and the notice hides anything sooner.":
+    "La preparación bloquea el tiempo antes del inicio para que el cliente anterior no se meta en tu setup. El margen de después oculta el siguiente horario que se encimaría, y el aviso oculta todo lo que sea antes.",
+  "How clients book": "Cómo reservan los clientes",
+  "Sheet button and path": "Botón y camino de la hoja",
+  "Booking mode": "Modo de reserva",
+  "Default booking mode": "Modo de reserva predeterminado",
+  "Services that use your default follow this. A service with its own mode keeps it.":
+    "Los servicios que usan tu predeterminado siguen esto. Un servicio con su propio modo lo mantiene.",
+  "Inquiry only": "Solo consulta",
+  "They message you first, nothing is booked": "Te escriben primero, no se reserva nada",
+  "On-demand reservation": "Reserva al momento",
+  "Contact / inquiry": "Contacto / consulta",
+  "Who-step button": "Botón del paso de datos",
+  "Confirm now": "Confirmar ahora",
+  "Check availability": "Consultar disponibilidad",
+  "After the client fills name and contact, this button opens chat with those details already filled in. It does not create a confirmed booking.":
+    "Cuando el cliente completa nombre y contacto, este botón abre el chat con esos datos ya cargados. No crea una cita confirmada.",
+  "After the client fills name and contact, this button confirms the appointment when the service allows instant booking.":
+    "Cuando el cliente completa nombre y contacto, este botón confirma la cita si el servicio admite reserva al momento.",
+  // Services dashboard ↔ website catalog parity (#2315). Keep out of
+  // dashboard-i18n.ts — that file is locked at the 3968-line size-ratchet budget.
+  "Put your menu on your page: the website Services widget shows the same offerings clients can book. It takes about a minute per service.":
+    "Pon tu menú en tu página: el widget de Servicios del sitio muestra las mismas ofertas que los clientes pueden reservar. Toma alrededor de un minuto por servicio.",
+  "Same catalog as your website.": "El mismo catálogo que tu sitio.",
+  "Prices and booking rules you save here go live on the Services menu widget when the offering is published. Website layout and styling stay draft until you publish the page.":
+    "Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño del sitio queda en borrador hasta que publiques la página.",
+  "Your website Services menu widget shows the same catalog - add an offering here and it can appear on your page without rebuilding the menu.":
+    "El widget de menú de Servicios de tu sitio muestra el mismo catálogo: agrega una oferta aquí y puede aparecer en tu página sin reconstruir el menú.",
+  "A newer version is live. Reload to keep editing.": "Hay una versión más reciente. Recargá para seguir editando.",
+  Reload: "Recargar",
+  "A newer version was published while this was open. Reload and try again.":
+    "Se publicó una versión más reciente mientras esto estaba abierto. Recargá e intentá de nuevo.",
+  // Talent avatar account menu — keep out of grandfathered dashboard-i18n.ts
+  // (size ratchet 3842). IdentityBar AccountMenuItem keys copy.t(sub).
+  "Run your own roster. Free plan, 1 minute.": "Administra tu propio roster. Plan gratis, 1 minuto.",
+  // Agenda/Today missing client label sentinel — keep out of grandfathered dashboard-i18n.ts.
+  "Untitled client": "Cliente sin nombre",
 };

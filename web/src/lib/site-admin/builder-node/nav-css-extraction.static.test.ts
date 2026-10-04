@@ -35,6 +35,9 @@ test("every load-bearing nav rule survived the move", () => {
     ["menu colour custom properties", /--bn-nav-menu-bg/],
     ["reduced motion", /prefers-reduced-motion:reduce/],
     ["launcher yields to open menu", /\[data-guest-chat-launcher\]/],
+    ["navChrome overlay mode", /data-nav-chrome="overlay"/],
+    ["navChrome side_rail mode", /data-nav-chrome="side_rail"/],
+    ["navChrome chapter_dots mode", /data-nav-chrome="chapter_dots"/],
   ];
   for (const [what, pattern] of required) {
     assert.match(BUILDER_NODE_NAV_CSS, pattern, `${what} did not survive the move`);

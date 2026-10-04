@@ -16,7 +16,9 @@ import "server-only";
 
 import { loadGuestChatSettings } from "./guest-chat-settings";
 import { GUEST_CHAT_DEFAULTS } from "./guest-chat-settings-shape";
+import { resolveGuestDockItemsLabel } from "./guest-dock-items-label";
 import { intakeTradeForPreset, type IntakeTrade } from "@/app/t/[profileCode]/_chat/guest-intake-rail";
+import { chatBookingsLabel } from "@/lib/words/chat-bookings-label";
 import { chatItemsLabel } from "@/lib/words/chat-items-label";
 import type { IndustryPresetId } from "@/lib/words/presets";
 import { loadTenantWords } from "@/lib/words/server";
@@ -25,6 +27,8 @@ export type GuestDockFlags = {
   dockItemsTab: boolean;
   dockCardsV5: boolean;
   dockItemsLabel: string | null;
+  /** Override for the Projects tab; null keeps i18n (Mis citas / Yours). */
+  dockProjectsLabel: string | null;
   dockRepresentsPeople: boolean;
   /** Which facts the progress rail names. Null keeps the count chip. */
   dockIntake: IntakeTrade | null;
@@ -38,9 +42,21 @@ export async function loadGuestDockFlags(
    * (D-MSG-430). Null keeps the tenant's preset. See `resolveTalentTradePreset`.
    */
   presetOverride?: IndustryPresetId | null,
+  /**
+   * Agency public storefront (Impronta), not hub. Drives DoR Browse label.
+   * Talent vanity mounts omit this.
+   */
+  opts?: { readonly agencyPublicSurface?: boolean },
 ): Promise<GuestDockFlags> {
   if (!tenantId) {
-    return { dockItemsTab: GUEST_CHAT_DEFAULTS.itemsTab, dockCardsV5: GUEST_CHAT_DEFAULTS.cardsV5, dockItemsLabel: null, dockRepresentsPeople: true, dockIntake: null };
+    return {
+      dockItemsTab: GUEST_CHAT_DEFAULTS.itemsTab,
+      dockCardsV5: GUEST_CHAT_DEFAULTS.cardsV5,
+      dockItemsLabel: null,
+      dockProjectsLabel: null,
+      dockRepresentsPeople: true,
+      dockIntake: null,
+    };
   }
   const [settings, words] = await Promise.all([
     loadGuestChatSettings(tenantId),
@@ -50,16 +66,27 @@ export async function loadGuestDockFlags(
   // wording; the label follows the same rule so the tab never reads "Items"
   // above a talent lineup (D-MSG-227).
   const representsPeople = words.preset.id === "custom" ? true : words.preset.representsPeople;
+  const wordsLookup = {
+    locale: words.locale,
+    preset: { ...words.preset, representsPeople },
+    word: (key: Parameters<typeof words.word>[0]) => words.word(key),
+    sourceOf: (key: Parameters<typeof words.sourceOf>[0]) => words.sourceOf(key),
+  };
+  const dockIntake = intakeTradeForPreset(words.preset.id);
+  const derivedItemsLabel = chatItemsLabel(wordsLookup);
   return {
     dockItemsTab: settings.itemsTab,
     dockCardsV5: settings.cardsV5,
-    dockItemsLabel: chatItemsLabel({
-      locale: words.locale,
-      preset: { ...words.preset, representsPeople },
-      word: (key) => words.word(key),
-      sourceOf: (key) => words.sourceOf(key),
+    // Agency public dock (Impronta): DoR middle tab is Browse, not Talent & services.
+    // Pass request locale so fr → Parcourir (words.locale collapses non-es to en).
+    dockItemsLabel: resolveGuestDockItemsLabel({
+      agencyPublicSurface: Boolean(opts?.agencyPublicSurface),
+      derivedLabel: derivedItemsLabel,
+      chatItemsCustomized: words.sourceOf("customers.chat_items") !== "default",
+      locale,
     }),
+    dockProjectsLabel: chatBookingsLabel(wordsLookup),
     dockRepresentsPeople: representsPeople,
-    dockIntake: intakeTradeForPreset(words.preset.id),
+    dockIntake,
   };
 }

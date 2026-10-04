@@ -14,6 +14,7 @@
  */
 
 import { useT } from "@/i18n/use-t";
+import { PLATFORM_DEFAULT_BOOKING_POSTURE } from "@/lib/talent/selling-booking-settings";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { Icon } from "../../primitives";
 import { DEFAULT_CURRENCY_OPTIONS } from "@/lib/billing/currencies";
@@ -173,17 +174,31 @@ function DepositFields({ item, patch, saving }: Pick<TabProps, "item" | "patch" 
         label={t("dashboard.catalog.pricing.howBooked")}
         hint={instantAllowed ? t("dashboard.catalog.pricing.howBookedHint") : t("dashboard.catalog.pricing.instantNeedsPrice")}
       >
+        {/* WSF-B: "inherit" keeps booking_mode null (uses the default); an
+            untouched select never turns inherit into an explicit value. */}
         <SelectShell><select
-          value={item.bookingMode}
+          value={item.bookingMode ?? "inherit"}
           disabled={saving}
           data-testid="catalog-field-booking-mode"
-          onChange={(e) => patch({ bookingMode: e.target.value === "instant" ? "instant" : "request" })}
+          onChange={(e) => {
+            const v = e.target.value;
+            patch({ bookingMode: v === "instant" || v === "request" || v === "inquiry" ? v : null });
+          }}
           className={SELECT}
         >
+          <option value="inherit">
+            {item.talentProfileId
+              ? t("dashboard.catalog.pricing.booking.inheritTalent")
+              : t("dashboard.catalog.pricing.booking.inherit").replace(
+                  "{mode}",
+                  t(`dashboard.catalog.pricing.booking.${PLATFORM_DEFAULT_BOOKING_POSTURE}`),
+                )}
+          </option>
           <option value="request">{t("dashboard.catalog.pricing.booking.request")}</option>
           <option value="instant" disabled={!instantAllowed}>
             {t("dashboard.catalog.pricing.booking.instant")}
           </option>
+          <option value="inquiry">{t("dashboard.catalog.pricing.booking.inquiry")}</option>
         </select></SelectShell>
       </Field>
       <Field label={t("dashboard.catalog.pricing.collectUpFront")} hint={item.bookingMode === "instant" ? null : t("dashboard.catalog.pricing.collectHint")}>

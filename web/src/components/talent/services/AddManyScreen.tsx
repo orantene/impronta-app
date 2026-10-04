@@ -102,7 +102,8 @@ export function AddManyScreen({
         amountCents: Math.round(Number(r.price) * 100),
         durationMinutes: r.kind === "service" ? Math.round(Number(r.minutes)) : null,
         status: "published",
-        bookingMode: "instant",
+        // WSF B2: services follow the talent default; products sell instantly.
+        bookingMode: r.kind === "product" ? "instant" : null,
         priceDisplay: "exact",
       });
       if (res.ok) {
@@ -192,7 +193,7 @@ export function AddManyScreen({
             type="button"
             disabled={!text.trim()}
             onClick={readList}
-            className="mt-1 w-full rounded-lg bg-emerald-900 py-2.5 text-[14px] font-semibold text-white disabled:opacity-50"
+            className="mt-1 w-full rounded-lg bg-[var(--tc-action)] py-2.5 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-50"
           >
             {copy.t("Read the list")}
           </button>
@@ -216,7 +217,7 @@ export function AddManyScreen({
                   type="button"
                   disabled={busy || readyRows.length === 0}
                   onClick={() => void publishReady()}
-                  className="rounded-lg bg-emerald-900 px-4 py-2 text-[14px] font-semibold text-white disabled:opacity-50"
+                  className="rounded-lg bg-[var(--tc-action)] px-4 py-2 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-50"
                 >
                   {busy ? copy.t("Publishing…") : copy.t("Publish the {n} that are ready").replace("{n}", String(readyRows.length))}
                 </button>

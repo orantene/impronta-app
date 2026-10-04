@@ -54,6 +54,9 @@ export const ADD_GALLERY_CATEGORIES: ReadonlyArray<AddGalleryCategoryDef> = [
   { id: "directory", label: "Directory", tab: "data", icon: "directory" },
   { id: "booking", label: "Booking & Inquiry", tab: "data", icon: "booking" },
   { id: "dynamic", label: "Dynamic Data", tab: "data", icon: "dynamic" },
+  // Apps (talent builder only): one rail entry; every app is a registry row
+  // in apps-registry.ts, so a second app needs no category work.
+  { id: "apps", label: "All apps", tab: "apps", icon: "interactive" },
 ];
 
 // ONB-4 — synthetic "recommended" category items: alias the curated section
@@ -104,6 +107,7 @@ const FALLBACK_CATEGORY_ICON_BY_TAB: Record<AddGalleryItem["tab"], string> = {
   designs: "hero",
   data: "dynamic",
   shell: "layout",
+  apps: "interactive",
 };
 
 /**

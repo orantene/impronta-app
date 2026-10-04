@@ -9,6 +9,7 @@
  * so display and action cannot disagree.
  */
 
+import { resolveEffectiveBookingMode } from "@/lib/scheduling/instant-book-gates";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { rowIsExclusive } from "@/lib/inquiry/owning-party-resolver";
 import {
@@ -53,6 +54,7 @@ type RosterRow = {
 
 type AgencyRow = {
   id: string;
+  kind: string | null;
   settings: unknown;
   timezone: string | null;
   plan_tier: string | null;
@@ -72,6 +74,22 @@ export function bookingSurfaceFromHost(kind: string): BookingSurfaceKind {
   if (kind === "talent_site" || kind === "app") return "own_page";
   if (kind === "hub") return "hub";
   return "other";
+}
+
+/**
+ * The marketing host (tulala.digital, its `/t/<code>` page) is where a free
+ * talent's public page lives. When her offering is sold through the platform
+ * hub tenant she is the merchant there, so it books as her own page. Any
+ * other seller on that host (a workspace storefront reached by path) keeps
+ * the old inquiry-only answer: its own gates live on its own site.
+ */
+export function marketingHostSurface(sellerAgencyKind: string | null | undefined): BookingSurfaceKind {
+  return sellerAgencyKind === "hub" ? "own_page" : "other";
+}
+
+/** An offering whose effective mode is inquiry (or closed) never takes a slot. */
+export function offeringModeTakesSlots(mode: string): boolean {
+  return mode === "instant" || mode === "request";
 }
 
 export function talentBookingModeFromPolicy(policy: {
@@ -123,14 +141,17 @@ export async function resolveTalentBooking(
     host: BookingSurfaceHost;
   },
 ): Promise<ResolvedTalentBooking> {
-  const surface = bookingSurfaceFromHost(input.host.kind);
+  let surface = bookingSurfaceFromHost(input.host.kind);
+  // Marketing host: decided once the seller tenant is known (below).
+  const marketingHost = surface === "other" && input.host.kind === "marketing";
+  if (marketingHost) surface = "own_page";
   if (surface === "other") {
     return { mode: "inquire", surface, tenantId: null, tenantSlug: null };
   }
 
   const { data: talent, error: talentErr } = await admin
     .from("talent_profiles")
-    .select("id, profile_kind, booking_terms, created_by_agency_id")
+    .select("id, profile_kind, booking_terms, created_by_agency_id, selling_defaults")
     .eq("id", input.talentProfileId)
     .maybeSingle();
 
@@ -221,7 +242,7 @@ export async function resolveTalentBooking(
   const { data: agencyData } = await admin
     .from("agencies")
     .select(
-      "id, settings, timezone, plan_tier, slug, discover_exposure_enabled, hub_exposure_tenant_ids",
+      "id, kind, settings, timezone, plan_tier, slug, discover_exposure_enabled, hub_exposure_tenant_ids",
     )
     .in("id", [...agencyIds]);
 
@@ -286,6 +307,20 @@ export async function resolveTalentBooking(
       : agenciesById.get(sellerTenantId) ?? null;
   const sellerAgency = agenciesById.get(sellerTenantId) ?? null;
 
+  if (marketingHost && marketingHostSurface(sellerAgency?.kind) !== "own_page") {
+    return { mode: "inquire", surface: "other", tenantId: null, tenantSlug: null };
+  }
+
+  const effectiveOfferingMode = offering
+    ? resolveEffectiveBookingMode({
+        offering: { bookingMode: offering.booking_mode },
+        defaults: talent.selling_defaults,
+      }).mode
+    : null;
+  if (effectiveOfferingMode != null && !offeringModeTakesSlots(effectiveOfferingMode)) {
+    return { mode: "inquire", surface, tenantId: sellerTenantId, tenantSlug: null };
+  }
+
   const { data: hoursRow } = await admin
     .from("talent_booking_hours")
     .select(
@@ -333,7 +368,8 @@ export async function resolveTalentBooking(
     hours: hoursRow,
     offering: offering
       ? {
-          bookingMode: offering.booking_mode === "instant" ? "instant" : "request",
+          // WSF-B: null inherits the talent default; one resolver.
+          bookingMode: effectiveOfferingMode === "instant" ? "instant" : "request",
           reserveMode:
             offering.reserve_mode === "deposit" ||
             offering.reserve_mode === "full" ||

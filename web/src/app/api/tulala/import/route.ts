@@ -112,7 +112,7 @@ export async function POST(req: Request): Promise<Response> {
     host: result.host,
     facts: result.facts.map((f) => ({
       key: f.factKey,
-      label: factLabel(f.factKey),
+      label: factLabel(f.factKey, body.locale),
       value: f.value,
     })),
   });

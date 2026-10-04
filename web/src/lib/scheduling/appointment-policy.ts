@@ -136,7 +136,9 @@ export function resolveSurfaceGate(input: SurfaceGateInput): { allowed: boolean 
       return { allowed: true };
     }
     case "own_page": {
-      if (!labor) return { allowed: false };
+      // Her own page: setting a service to instant/request and saving hours IS
+      // her consent. The direct-booking opt-in guards workspace and hub
+      // listings, not the page she runs herself (owner ruling 2026-10-01).
       if (exclusiveBlocksExternal) return { allowed: false };
       return { allowed: true };
     }

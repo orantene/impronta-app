@@ -2,6 +2,7 @@
 
 import {
   getAppUrl,
+  isTalentSignupNext,
   normalizeNextPath,
   resolvePostAuthDestination,
 } from "@/lib/auth-flow";
@@ -23,6 +24,9 @@ import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
 import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
 import { claimTulalaBriefOnAuth } from "@/lib/tulala/brief-claim-auth";
 import { headers } from "next/headers";
+import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
+import { recordSignupAcceptance } from "@/lib/legal/acceptances";
+import { resetLocaleOnSignIn } from "@/lib/auth/reset-locale-on-sign-in";
 
 /**
  * `pendingEmail` is set when signup succeeded but the session is not live yet
@@ -185,6 +189,7 @@ export async function signInWithEmail(
     : null;
 
   if (user) {
+    await resetLocaleOnSignIn(user.id);
     await claimGuestSupportOnAuth(user.id);
     await claimTulalaBriefOnAuth(supabase, user.id);
     const tenantId = await auditTenantId();
@@ -258,6 +263,7 @@ export async function signInWithEmailModal(
   }
 
   if (data.user) {
+    await resetLocaleOnSignIn(data.user.id);
     await claimGuestSupportOnAuth(data.user.id);
     await claimTulalaBriefOnAuth(supabase, data.user.id);
     const tenantId = await auditTenantId();
@@ -290,6 +296,10 @@ export async function signUpWithEmail(
   if (password.length < 8) {
     return { error: t("public.auth.actions.passwordTooShort") };
   }
+  // Legal 2.2: adults only (18+) and explicit agreement, enforced server side.
+  if (!isAgeAndTermsConfirmed(formData.get("age_terms"))) {
+    return { error: t("public.auth.actions.ageTermsRequired") };
+  }
 
   const supabase = await getCachedServerSupabase();
   if (!supabase) {
@@ -297,11 +307,9 @@ export async function signUpWithEmail(
   }
   const origin = getAppUrl();
   const nextPath = normalizeNextPath(String(formData.get("next") ?? "").trim());
-  // Talent-register flow: the modal passes next=/onboarding/talent-location.
-  // Tagging signup_intent in user metadata lets the handle_new_user trigger
-  // create the profile with app_role='talent' immediately, avoiding a brief
-  // window where a talent is misidentified as a client.
-  const signupIntent = nextPath.startsWith("/onboarding/talent") ? "talent" : undefined;
+  // Talent-register flow: `/register?as=talent` lands on `/talent/profile/fields`.
+  // Tagging signup_intent lets handle_new_user set app_role='talent' immediately.
+  const signupIntent = isTalentSignupNext(nextPath) ? "talent" : undefined;
   // Carry the page locale so the auth-email hook sends the confirm email in EN/ES.
   const lang = String(formData.get("locale") ?? "en") === "es" ? "es" : "en";
 
@@ -325,6 +333,8 @@ export async function signUpWithEmail(
   }
 
   if (data.user) {
+    // Best effort: never blocks signup (logs and returns on any failure).
+    await recordSignupAcceptance(data.user.id);
     if (data.session) {
       await claimGuestSupportOnAuth(data.user.id);
       await claimTulalaBriefOnAuth(supabase, data.user.id);
@@ -409,8 +419,11 @@ export async function signUpTalentInPlace(
     options: {
       // If email confirmation is on, the link lands on the app host and
       // resumes at the profile step.
+      // Was "/onboarding/talent-location" (legacy). Confirmation emails already
+      // in inboxes still point there, which is why that route stays as a
+      // redirect rather than being deleted.
       emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(
-        "/onboarding/talent-location",
+        "/talent/profile/fields",
       )}`,
       data: { signup_intent: "talent" },
     },

@@ -6,20 +6,21 @@ import { join } from "node:path";
 import { parseWeeklyHours } from "./hours-types";
 import {
   assertInstantPlanCeiling,
+  assertReservationMeetsNotice,
   instantRequiresSlot,
   instantReservationConfirmedBody,
   reservationStampForInstant,
+  resolveEffectiveMinNoticeMin,
   weeklyHasBookableWindow,
 } from "./instant-book-gates";
 
-test("free plan cannot auto-confirm (request ceiling)", () => {
-  const gate = assertInstantPlanCeiling("free");
+test("free plan can auto-confirm (instant ceiling)", () => {
+  assert.equal(assertInstantPlanCeiling("free").ok, true);
+});
+
+test("an unknown plan still fails closed", () => {
+  const gate = assertInstantPlanCeiling("nonsense");
   assert.equal(gate.ok, false);
-  if (!gate.ok) {
-    assert.equal(gate.reason, "plan_lacks_capability");
-    assert.equal(gate.maxMode, "request");
-    assert.equal(gate.requiredMode, "instant");
-  }
 });
 
 test("website and above can instant", () => {
@@ -124,4 +125,53 @@ test("engine refuses no-slot instant when a slot is required", () => {
 test("OfferingInstantMount routes a timed+hours Book now to the SlotPicker", () => {
   assert.match(MOUNT, /instantRequiresSlot/);
   assert.match(MOUNT, /tulala:offering-slot/);
+});
+
+test("BUF-2: selling defaults notice wins over hours row", () => {
+  assert.equal(
+    resolveEffectiveMinNoticeMin({
+      hoursMinNoticeMin: 60,
+      sellingDefaults: { minNoticeMin: 120 },
+    }),
+    120,
+  );
+  assert.equal(
+    resolveEffectiveMinNoticeMin({
+      hoursMinNoticeMin: 60,
+      sellingDefaults: null,
+    }),
+    60,
+  );
+  assert.equal(
+    resolveEffectiveMinNoticeMin({
+      hoursMinNoticeMin: null,
+      sellingDefaults: {},
+    }),
+    0,
+  );
+});
+
+test("BUF-2: confirm refuses a start inside the notice window", () => {
+  const now = new Date("2026-03-09T10:00:00.000Z");
+  const tooSoon = assertReservationMeetsNotice({
+    startsAt: "2026-03-09T11:00:00.000Z",
+    minNoticeMin: 120,
+    now,
+  });
+  assert.equal(tooSoon.ok, false);
+  if (!tooSoon.ok) assert.equal(tooSoon.reason, "too_soon");
+
+  const ok = assertReservationMeetsNotice({
+    startsAt: "2026-03-09T12:00:00.000Z",
+    minNoticeMin: 120,
+    now,
+  });
+  assert.equal(ok.ok, true);
+});
+
+test("BUF-2: placeInstantPurchase rechecks notice before createPurchase", () => {
+  const src = readFileSync(join(__dirname, "instant-purchase.ts"), "utf8");
+  assert.match(src, /assertReservationMeetsNotice/);
+  assert.match(src, /too_soon/);
+  assert.match(src, /min_notice_min/);
 });

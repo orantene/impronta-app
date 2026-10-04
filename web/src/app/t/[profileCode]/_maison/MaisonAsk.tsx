@@ -10,45 +10,91 @@
  * profile uses, so the conversation lands in Messages with provenance instead
  * of in a WhatsApp number nobody has confirmed.
  *
- * Two events are dispatched, on purpose:
+ * Sheet Chat now / Ask uses `openCatalogBookingChat` (selection + visitor).
  *
- *   tulala:ask-question    the INTENT, named for what it is, carrying context
- *                          (which service the visitor was looking at, where
- *                          the click came from). Nothing consumes it yet — see
- *                          docs/prompts/chat-ask-a-question.md.
- *   tulala:offering-request the seam that ALREADY works: TalentProfileChatLauncher
- *                          opens on this event and, with no detail, opens clean
- *                          with no pending offering attached.
- *
- * So the button works on the live profile now, and gets better the day the
- * launcher handles the named event.
+ * WSF D fix: menu/closing Ask used to fire the offering only on the named
+ * event, which nothing stores, then a bare `tulala:offering-request`, so the
+ * clicked service was dropped. Ask now goes through the same hand-off as the
+ * booking sheet: the offering lands in the shared pending-offering store and
+ * shows as an UNSENT draft on the composer strip (never auto-sent), and the
+ * chat-off inquiry form reads the same store. No offering → a clean dock.
  */
 
 import type { TalentOffering } from "@/lib/talent/offerings-types";
+import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
+import {
+  openCatalogBookingChat,
+  type CatalogBookingChatHandoff,
+} from "@/components/public-booking/catalog-booking-chat";
+import { clearPendingOffering } from "@/app/t/[profileCode]/_chat/pending-offering-store";
 
 export type MaisonAskContext = {
   talentName: string;
   sourcePage: string;
-  offering?: Pick<TalentOffering, "id" | "title"> | null;
+  /** The clicked/selected offering: a full CTA detail, or just id + title. */
+  offering?: OfferingRequestDetail | Pick<TalentOffering, "id" | "title"> | null;
   /** "menu" · "sheet" · "visit" — where the visitor asked from. */
   from: string;
 };
 
+/** A minimal request detail for an offering known only by id + title. */
+export function askOfferingDetail(
+  offering: NonNullable<MaisonAskContext["offering"]>,
+): OfferingRequestDetail {
+  if ("offeringId" in offering) return { ...offering, intent: "request" };
+  return {
+    offeringId: offering.id,
+    talentProfileId: null,
+    title: offering.title,
+    kind: "service",
+    priceType: "custom",
+    priceDisplay: "quote",
+    amountCents: null,
+    currency: "USD",
+    durationMinutes: null,
+    allowPayInPerson: false,
+    reserveMode: "full",
+    depositPct: null,
+    imageUrl: null,
+    intent: "request",
+  };
+}
+
 export function askQuestion(ctx: MaisonAskContext) {
+  if (ctx.offering) {
+    const detail = askOfferingDetail(ctx.offering);
+    // Same "Asking about" draft card as the selection dock's Ask (#2385):
+    // pre-filled, never auto-sent.
+    openCatalogBookingChat({
+      detail,
+      askAbout: [detail.title],
+      from: ctx.from,
+      sourcePage: ctx.sourcePage,
+      talentName: ctx.talentName,
+    });
+    return;
+  }
+  // Nothing picked: open clean, never with a stale offering from earlier.
+  clearPendingOffering();
   window.dispatchEvent(
     new CustomEvent("tulala:ask-question", {
       detail: {
         talentName: ctx.talentName,
         sourcePage: ctx.sourcePage,
-        offeringId: ctx.offering?.id ?? null,
-        offeringTitle: ctx.offering?.title ?? null,
+        offeringId: null,
+        offeringTitle: null,
         from: ctx.from,
       },
     }),
   );
-  // The launcher's existing seam: no detail = open the chat with nothing
-  // pre-attached. Harmless when the named event above is handled instead.
-  window.dispatchEvent(new CustomEvent("tulala:offering-request"));
+}
+
+/** Booking-sheet Ask / Chat now — carrying selection + Nombre + WhatsApp. */
+export function askFromBookingSheet(handoff: CatalogBookingChatHandoff) {
+  openCatalogBookingChat({
+    ...handoff,
+    from: handoff.from ?? "sheet",
+  });
 }
 
 export function MaisonAskButton({

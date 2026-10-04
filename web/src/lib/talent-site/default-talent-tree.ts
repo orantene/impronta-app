@@ -67,6 +67,17 @@ export interface TalentProfileTokens {
   richBio: string;
   /** City line, e.g. "Based in Cancún" (already prefixed). */
   locationLine: string;
+  /** Hero eyebrow, "Nail Artist · Mérida": trade and city, whichever exist. Falls back to the trade. */
+  heroEyebrow?: string;
+  /**
+   * Hero headline with its accent word, "Manos que {i}hablan{/i} por ti.": her own
+   * (`identity.headline`), else seeded from her trade, else her name in italics.
+   */
+  headline?: string;
+  /** Menu intro line, "Prices in MXN." ("" when she has no priced service). */
+  menuSubtitle?: string;
+  /** Hero proof line, "9 years of craft · Español · English · ★ 4.9 · 212 reviews" ("" when nothing is known). */
+  proofLine?: string;
   /**
    * Spoken-languages line, e.g. "Languages: Spanish · English" (already
    * prefixed). "" when none — the empty-paragraph carries no visible box.
@@ -82,6 +93,8 @@ export interface TalentProfileTokens {
   whatsappHref?: string;
   /** `mailto:...` when she published an address. Empty hides the button. */
   emailHref?: string;
+  /** `tel:...` from the explicit public call number only. Empty hides the call button. */
+  callHref?: string;
   /** Honest booking sentence. Defaults to hand confirmation. */
   contactCopy?: string;
   /** First three service / focus labels (already de-duped + capped). */
@@ -138,17 +151,12 @@ function resolvePropValue(
 }
 
 /**
- * Walk a builder-node tree and substitute `{{token}}` placeholders in EVERY
- * string-valued prop (deep — including nested objects and arrays) against the
- * talent's data. Returns a NEW tree (structural clone) — the source constant is
- * never mutated. Image/button nodes whose resolved `src`/`href` is empty keep a
- * safe fallback so the page never renders a broken `<img src="">` / dead link.
+ * The flat `{{token}}` value map for a talent (every placeholder a design may
+ * use). Shared by `hydrateTalentTree` and the Template Factory canvas, which
+ * hydrates at render time only.
  */
-export function hydrateTalentTree(
-  tree: ReadonlyArray<BuilderNode>,
-  talent: TalentProfileTokens,
-): BuilderNode[] {
-  const flat: Record<string, string> = {
+export function flattenProfileTokens(talent: TalentProfileTokens): Record<string, string> {
+  return {
     displayName: talent.displayName,
     primaryTypeLabel: talent.primaryTypeLabel,
     secondaryType1: talent.secondaryType1,
@@ -159,12 +167,17 @@ export function hydrateTalentTree(
     bio: talent.bio,
     richBio: talent.richBio,
     locationLine: talent.locationLine,
+    heroEyebrow: talent.heroEyebrow ?? talent.primaryTypeLabel,
+    headline: talent.headline ?? `{i}${talent.displayName}{/i}`,
+    menuSubtitle: talent.menuSubtitle ?? "",
+    proofLine: talent.proofLine ?? "",
     languagesLine: talent.languagesLine,
     headshotUrl: talent.headshotUrl,
     profilePath: talent.profilePath,
     inquireHref: talent.inquireHref,
     whatsappHref: talent.whatsappHref ?? "",
     emailHref: talent.emailHref ?? "",
+    callHref: talent.callHref ?? "",
     contactCopy: talent.contactCopy ?? CONTACT_COPY.confirmByHand,
     service1: talent.service1,
     service2: talent.service2,
@@ -177,6 +190,20 @@ export function hydrateTalentTree(
     gallery5: talent.gallery[5] ?? "",
     maxSiteUrl: talent.maxSiteUrl,
   };
+}
+
+/**
+ * Walk a builder-node tree and substitute `{{token}}` placeholders in EVERY
+ * string-valued prop (deep — including nested objects and arrays) against the
+ * talent's data. Returns a NEW tree (structural clone) — the source constant is
+ * never mutated. Image/button nodes whose resolved `src`/`href` is empty keep a
+ * safe fallback so the page never renders a broken `<img src="">` / dead link.
+ */
+export function hydrateTalentTree(
+  tree: ReadonlyArray<BuilderNode>,
+  talent: TalentProfileTokens,
+): BuilderNode[] {
+  const flat = flattenProfileTokens(talent);
 
   const visit = (node: BuilderNode): BuilderNode => {
     // Deep-rewrite every string-valued prop (recurses nested objects/arrays).

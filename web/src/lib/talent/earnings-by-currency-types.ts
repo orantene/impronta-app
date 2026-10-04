@@ -27,6 +27,11 @@ export type TalentEarningsByCurrency = {
   byCurrency: TalentEarnings[];
   /** All non-empty currency codes for tab labels. */
   currencies: string[];
+  /**
+   * Set when the loader failed. Money must show an error, never silent $0
+   * and never the demo fixture drawer (A4 / defect #9).
+   */
+  loadError?: string | null;
 };
 
 export const EMPTY_TALENT_EARNINGS_BY_CURRENCY: TalentEarningsByCurrency = {

@@ -136,11 +136,17 @@ export const TYPE_DEFAULTS: Record<string, TypeDefaults> = {
 };
 
 
+/** "nail-artist" -> "Nail artist": a readable label for a DB taxonomy slug the prototype TAXONOMY lacks. */
+export function typeLabelFromSlug(slug: string): string {
+  const words = slug.replace(/[-_]+/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 export function getTypeDefaults(typeId: string | null): TypeDefaults {
   if (!typeId) return { defaultSpecialties: [], bioTemplate: () => "" };
   return TYPE_DEFAULTS[typeId] ?? {
     defaultSpecialties: [],
-    bioTemplate: (v) => `${(findChild(typeId)?.child.label ?? "Talent")}${v.homeBase ? ` based in ${v.homeBase}` : ""}.`,
+    bioTemplate: (v) => `${(findChild(typeId)?.child.label ?? typeLabelFromSlug(typeId))}${v.homeBase ? ` based in ${v.homeBase}` : ""}.`,
   };
 }
 
@@ -391,8 +397,8 @@ export function makeInitialProfileState(
     // Hydrate portfolio videos from the canonical profile (any talent,
     // not just Marta). Drawer opens with motion work already present
     // when the talent has any. Replaces the old name-matching path.
-    const hasCanonical = !!payload.talentId;
-    if (hasCanonical && canonicalProfile.portfolioVideos) {
+    // F29: fixture talents only; a real talent never inherits demo videos.
+    if (isFixtureTalent && canonicalProfile.portfolioVideos) {
       for (const v of canonicalProfile.portfolioVideos) {
         const parsed = parseVideoUrl(v.url);
         if (!parsed) continue;
@@ -438,14 +444,17 @@ export function makeInitialProfileState(
       ? (draftDisplay || "")
       : (draftDisplay
         || (bridgeProfile && !isFixtureTalent ? bridgeProfile.displayName : null)
-        || (payload.talentId ? canonicalProfile.name : "Sofia Lupo")));
+        || (isFixtureTalent ? canonicalProfile.name : payload.talentId ? "" : "Sofia Lupo")));
   // Bridge MY_TALENT_PROFILE → ProfileState for the canonical demo
   // talent (Marta). When the workspace admin opens "her" or the talent
   // Phase B — bridge canonical profile → ProfileState. Works for any
   // talent whose record exists in TALENT_PROFILES_BY_ID, not just
   // Marta. Identity by `payload.talentId` (no name matching). Falls
   // back to empty defaults for fresh `create` mode.
-  const hasCanonical = !!payload.talentId && payload.mode !== "create";
+  // F29: only a FIXTURE talent bridges the demo profile. For a real talent
+  // `canonicalProfile` is the demo (Marta), and her languages, emergency
+  // contact and rate visibility were written into real profiles on save.
+  const hasCanonical = isFixtureTalent && payload.mode !== "create";
   // Only read travel/passport fixture data from the mock profile if this is
   // actually a fixture talent — otherwise these values come from the DB.
   const travelSeedPassports = isFixtureTalent ? (canonicalProfile.travel?.passports ?? []) : [];

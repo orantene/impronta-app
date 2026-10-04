@@ -9,6 +9,20 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+import {
+  ArrowDown,
+  ArrowUp,
+  CheckSquare,
+  ChevronRight,
+  ClipboardPaste,
+  Copy,
+  Files,
+  FolderOpen,
+  GripVertical,
+  Library,
+  Plus,
+  Trash2,
+} from "lucide-react";
 
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import {
@@ -69,6 +83,20 @@ import { InlineNameInput } from "./kit/inline-name-input";
 import { MyBlocksPanel } from "./my-blocks-panel";
 import { ComponentLibraryPanel } from "./component-library-panel";
 import { GenericContent } from "./generic-content";
+import { ServicesCatalogContentInspector } from "./services-catalog-inspector";
+import { PortfolioContentInspector } from "./portfolio-inspector";
+import { ReviewsContentInspector } from "./reviews-inspector";
+import { VisitContentInspector } from "./visit-inspector";
+import { ContentsContentInspector } from "./contents-inspector";
+import { MastheadContentInspector } from "./masthead-inspector";
+import { StatementFooterContentInspector } from "./statement-footer-inspector";
+import { NextFreeChipContentInspector } from "./next-free-chip-inspector";
+import { LiveTextToggle } from "./live-text-toggle";
+import { CompCardContentInspector } from "./comp-card-inspector";
+import { SpecTableContentInspector } from "./spec-table-inspector";
+import { UtilityBarContentInspector, AlertBandContentInspector } from "./utility-bar-inspector";
+import { TaskPickerContentInspector } from "./task-picker-inspector";
+import { NailDesignerContentInspector } from "./nail-designer-inspector";
 import { builder2027SecondaryLabel } from "../builder-2027-secondary-label";
 import {
   Builder2027ContentInspector,
@@ -76,6 +104,7 @@ import {
   type Builder2027Node,
 } from "./builder-2027-node-content";
 import { LocaleFieldTabs } from "./locale-field-tabs";
+import { useTalentAiTranslateEnabled } from "@/components/locale-field/talent-ai-context";
 import { useActiveContentLocale } from "../active-content-locale-bridge";
 import {
   removeItemAt,
@@ -94,6 +123,7 @@ import { CarouselSettingsPanel } from "./carousel";
 import { FormNodeContentInspector } from "./form-node-content";
 import { BuilderNodeNestedTextFields } from "./nested-text-fields";
 import { ResponsiveImageSourceField } from "./responsive-image-source-field";
+import { stripInlineMarkers } from "@/lib/site-admin/builder-node/freeform-layer-name";
 
 interface BuilderNodeContentInspectorProps {
   node: Exclude<BuilderNode, { kind: "section" }>;
@@ -576,9 +606,9 @@ function BuilderNodeContentInspectorBody({
   if (node.kind === "heading") {
     return (
       <BuilderNodeFlatPanel>
-        <BuilderNodeSection title="Heading">
+        <BuilderNodeSection title={t("Heading")}>
           <div className={KIT.field}>
-            <label className={KIT.label}>Text</label>
+            <label className={KIT.label}>{t("Text")}</label>
             <BuilderNodeLocalizableTextField
               node={node}
               prop="text"
@@ -591,8 +621,9 @@ function BuilderNodeContentInspectorBody({
               patch={commitPatch}
             />
           </div>
+          <LiveTextToggle liveText={node.props.liveText} commitPatch={(p) => void commitPatch(p)} />
           <div className={KIT.field}>
-            <label className={KIT.label}>Level</label>
+            <label className={KIT.label}>{t("Level")}</label>
             <Segmented
               fullWidth
               compact
@@ -618,7 +649,7 @@ function BuilderNodeContentInspectorBody({
     return (
       <BuilderNodeFlatPanel>
         <div className={KIT.field}>
-          <label className={KIT.label}>Copy</label>
+          <label className={KIT.label}>{t("Copy")}</label>
           <BuilderNodeLocalizableTextField
             node={node}
             prop="text"
@@ -631,6 +662,7 @@ function BuilderNodeContentInspectorBody({
             patch={commitPatch}
           />
         </div>
+        <LiveTextToggle liveText={node.props.liveText} commitPatch={(p) => void commitPatch(p)} />
         <VariantPicker node={node} commitPatch={(p) => void commitPatch(p)} />
       </BuilderNodeFlatPanel>
     );
@@ -1069,6 +1101,14 @@ function BuilderNodeContentInspectorBody({
                   }}
                   label="Allow multiple items open"
                   helper="When off, setting a default item keeps just one question open at a time."
+                />
+              </div>
+              <div style={{ padding: "4px 0" }}>
+                <Toggle
+                  on={node.props.startClosed === true}
+                  onChange={(next) => void commitPatch({ startClosed: next })}
+                  label="Start with every question closed"
+                  helper="Visitors open the questions they care about."
                 />
               </div>
             </div>
@@ -1557,93 +1597,68 @@ function BuilderNodeContentInspectorBody({
   }
 
   if (node.kind === "services_catalog") {
-    const catalog = node.props;
+    return <ServicesCatalogContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "portfolio") {
+    return <PortfolioContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "reviews") {
+    return <ReviewsContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "visit") {
+    return <VisitContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "contents") {
+    return <ContentsContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "masthead") {
+    return <MastheadContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "statement_footer") {
     return (
-      <BuilderNodeFlatPanel>
-        <BuilderNodeSection title="Copy">
-          <div className={KIT.field}>
-            <label className={KIT.label}>Eyebrow</label>
-            <input
-              className={KIT.input}
-              value={catalog.eyebrow ?? ""}
-              onChange={(e) => commitPatch({ eyebrow: e.target.value })}
-            />
-          </div>
-          <div className={KIT.field}>
-            <label className={KIT.label}>Title</label>
-            <input
-              className={KIT.input}
-              value={catalog.title ?? ""}
-              onChange={(e) => commitPatch({ title: e.target.value })}
-            />
-            <p className="text-xs text-black/50">Use {"{i}italic{/i}"} for the italic span.</p>
-          </div>
-          <div className={KIT.field}>
-            <label className={KIT.label}>Subtitle</label>
-            <input
-              className={KIT.input}
-              value={catalog.subtitle ?? ""}
-              onChange={(e) => commitPatch({ subtitle: e.target.value })}
-            />
-          </div>
-          <div className={KIT.field}>
-            <label className={KIT.label}>Button label</label>
-            <input
-              className={KIT.input}
-              value={catalog.ctaLabel ?? ""}
-              placeholder="Select / Seleccionar"
-              onChange={(e) => commitPatch({ ctaLabel: e.target.value })}
-            />
-          </div>
-        </BuilderNodeSection>
-        <BuilderNodeSection title="Layout">
-          <div className={KIT.field}>
-            <label className={KIT.label}>Layout</label>
-            <select
-              className={KIT.input}
-              value={catalog.layout ?? "rows"}
-              onChange={(e) => commitPatch({ layout: e.target.value })}
-            >
-              <option value="rows">Rows</option>
-              <option value="cards">Cards</option>
-              <option value="grid">Grid</option>
-              <option value="compact_list">Compact list</option>
-              <option value="editorial">Editorial</option>
-            </select>
-          </div>
-          <div className={KIT.field}>
-            <label className={KIT.label}>Category nav</label>
-            <select
-              className={KIT.input}
-              value={catalog.categoryNav ?? "pills"}
-              onChange={(e) => commitPatch({ categoryNav: e.target.value })}
-            >
-              <option value="pills">Pills (filter)</option>
-              <option value="tabs">Tabs (filter)</option>
-              <option value="jump_strip">Jump links</option>
-              <option value="sections">Sections</option>
-              <option value="none">None</option>
-            </select>
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={catalog.showStats !== false} onChange={(e) => commitPatch({ showStats: e.target.checked })} />
-            Show stats
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={catalog.showPhoto !== false} onChange={(e) => commitPatch({ showPhoto: e.target.checked })} />
-            Show photo
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={catalog.showDuration !== false} onChange={(e) => commitPatch({ showDuration: e.target.checked })} />
-            Show duration
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={catalog.showUsdEquivalent !== false} onChange={(e) => commitPatch({ showUsdEquivalent: e.target.checked })} />
-            Show USD equivalent
-          </label>
-        </BuilderNodeSection>
-      </BuilderNodeFlatPanel>
+      <StatementFooterContentInspector node={node} commitPatch={commitPatch} />
     );
+  }
+  if (node.kind === "utility_bar") {
+    return <UtilityBarContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "alert_band") {
+    return <AlertBandContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "task_picker") {
+    return <TaskPickerContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "app_nail_designer") {
+    const nailProps = node.props as Record<string, unknown>;
+    return (
+      <NailDesignerContentInspector
+        node={node}
+        commitPatch={commitPatch}
+        renderText={(prop, label, kind, placeholder) => (
+          <BuilderNodeLocalizableTextField
+            node={node}
+            prop={prop}
+            tenantId={tenantId}
+            fieldKind={kind}
+            baseValue={typeof nailProps[prop] === "string" ? (nailProps[prop] as string) : ""}
+            ariaLabel={label}
+            className={kind === "textarea" ? KIT.textarea : KIT.input}
+            placeholder={placeholder}
+            onCommitBase={(next) => commitPatch({ [prop]: next })}
+            patch={commitPatch}
+          />
+        )}
+      />
+    );
+  }
+  if (node.kind === "spec_table") {
+    return <SpecTableContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "comp_card") {
+    return <CompCardContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "next_free_chip") {
+    return <NextFreeChipContentInspector node={node} commitPatch={commitPatch} />;
   }
 
   // ── menu_board (workspace-owned orderable menu) ───────────────────────────
@@ -2925,6 +2940,43 @@ function BuilderNodeContentInspectorBody({
                 />
               </Field>
               <Field flush>
+                <FieldLabel info="Where the section links live on the page. Top bar is the classic sticky row. Overlay, side rail, bottom tabs, filter bar, and chapter dots are shared chrome modes any Design can use.">
+                  Navigation style
+                </FieldLabel>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      ["top_bar", "Top bar"],
+                      ["overlay", "Overlay"],
+                      ["side_rail", "Side rail"],
+                      ["bottom_tab", "Bottom tabs"],
+                      ["filter_bar", "Filter bar"],
+                      ["chapter_dots", "Chapter dots"],
+                    ] as const
+                  ).map(([value, label]) => {
+                    const active = (node.props.navChrome ?? "top_bar") === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => {
+                          void commitPatch({ navChrome: value });
+                        }}
+                        className="rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors"
+                        style={{
+                          borderColor: active ? CHROME.accent : CHROME.line,
+                          background: active ? CHROME.paper2 : "transparent",
+                          color: CHROME.ink,
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Field>
+              <Field flush>
                 <FieldLabel info="How a link’s submenu opens on desktop. “Mega” uses a wider multi-column panel. Only affects links with child links.">Submenu style</FieldLabel>
                 <Segmented
                   fullWidth
@@ -3957,6 +4009,16 @@ function BuilderNodeContentInspectorBody({
                 dataControl="social-icon-shape"
               />
               <Field flush>
+                <FieldLabel info="Print the platform names in a line (Instagram · WhatsApp) instead of icons. Good for footer fine print.">Show as</FieldLabel>
+                <Toggle
+                  on={node.props.display === "text"}
+                  onChange={(checked) => {
+                    void commitPatch({ display: checked ? "text" : undefined });
+                  }}
+                  label="Names instead of icons"
+                />
+              </Field>
+              <Field flush>
                 <FieldLabel info="When on, this block shows the social/contact links from your workspace identity and ignores the manual list below.">Source</FieldLabel>
                 <Toggle
                   on={isBound}
@@ -4474,6 +4536,8 @@ function NestedBlocksCard({
   const [selectedChildIds, setSelectedChildIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
+  /** Bulk-select chrome stays collapsed until the operator asks for it. */
+  const [selectMode, setSelectMode] = useState(false);
   // INS-3: inline naming for "Save pattern" (replaces window.prompt).
   const [savePatternNamingOpen, setSavePatternNamingOpen] = useState(false);
   useEffect(() => {
@@ -4596,13 +4660,13 @@ function NestedBlocksCard({
         className="rounded-lg border border-indigo-200 bg-indigo-50/50 px-3 py-2"
       >
         <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-indigo-700">
-          Insert block here
+          {t("Insert block here")}
         </div>
         <div className="flex flex-col gap-2">
           {compositionPresets.length > 0 ? (
             <div className="grid gap-1.5">
               <div className="text-[10px] font-semibold uppercase tracking-[0.10em] text-indigo-700/80">
-                Section packs
+                {t("Section packs")}
               </div>
               {compositionPresets.map((preset) => (
                 <button
@@ -4618,7 +4682,8 @@ function NestedBlocksCard({
                   <span className="min-w-0">
                     <span className="block truncate font-semibold">{preset.label}</span>
                     <span className="block truncate text-[10px] text-stone-500">
-                      {formatPresetLabel(preset.category)} · {preset.sectionCount} blocks
+                      {formatPresetLabel(preset.category)} · {preset.sectionCount}{" "}
+                      {t("blocks")}
                     </span>
                   </span>
                   <span
@@ -4628,7 +4693,7 @@ function NestedBlocksCard({
                         : "shrink-0 border border-stone-200 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-stone-500"
                     }
                   >
-                    {preset.dataMode === "data-ready" ? "Data" : "Starter"}
+                    {preset.dataMode === "data-ready" ? t("Data") : t("Starter")}
                   </span>
                 </button>
               ))}
@@ -4645,7 +4710,7 @@ function NestedBlocksCard({
             />
           ) : null}
           <button type="button" className={KIT.subtleButton} onClick={closeInsertPicker}>
-            Cancel
+            {t("Cancel")}
           </button>
         </div>
       </div>
@@ -4692,15 +4757,15 @@ function NestedBlocksCard({
                 title={
                   pastePreview.mode === "blocked"
                     ? pastePreview.message
-                    : "Paste the copied block into this group"
+                    : t("Paste the copied block into this group")
                 }
                 onClick={() => {
                   void onPaste(parentNodeId);
                 }}
               >
                 {pastePreview.mode === "blocked"
-                  ? "Pasting isn't allowed here"
-                  : "Paste in group"}
+                  ? t("Pasting isn't allowed here")
+                  : t("Paste in group")}
               </button>
               {pastePreview.mode !== "blocked" ? (
                 <button
@@ -4708,7 +4773,7 @@ function NestedBlocksCard({
                   className={KIT.ghostButton}
                   onClick={() => setSavePatternNamingOpen(true)}
                 >
-                  Save pattern
+                  {t("Save pattern")}
                 </button>
               ) : null}
             </div>
@@ -4716,10 +4781,10 @@ function NestedBlocksCard({
           {savePatternNamingOpen ? (
             <InlineNameInput
               mode="text"
-              title="Name this block pattern"
-              placeholder="Pattern name…"
-              defaultValue="Saved block pattern"
-              confirmLabel="Save"
+              title={t("Name this block pattern")}
+              placeholder={t("Pattern name…")}
+              defaultValue={t("Saved block pattern")}
+              confirmLabel={t("Save")}
               onConfirm={(name) => {
                 setSavePatternNamingOpen(false);
                 onSavePreset(name.trim() || "Saved block pattern");
@@ -4727,74 +4792,127 @@ function NestedBlocksCard({
               onCancel={() => setSavePatternNamingOpen(false)}
             />
           ) : null}
-          {/* W2-C4 — the in-content "Section packs" gallery was REMOVED. The
-              Add gallery (command dock) is the single insert surface; a second
-              full gallery here duplicated it. The composition presets are still
-              reachable inline via the contextual "Insert block here" picker
-              (renderInsertPicker) and remain fully in the data model. */}
-          <MyBlocksPanel parentNodeId={parentNodeId} />
-          <ComponentLibraryPanel parentNodeId={parentNodeId} />
-          {presets.length > 0 ? (
-            <details className="rounded-lg border border-stone-200 bg-white px-3 py-2">
-              <summary className="cursor-pointer text-[11px] font-semibold text-stone-700">
-                Block presets ({presets.length})
-              </summary>
-              <div className="mt-2 flex flex-col gap-2">
-                {presets.slice(0, 6).map((preset) => (
-                  <div
-                    key={preset.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-stone-200 bg-[#faf9f6] px-2 py-1.5"
-                  >
-                    <span className="min-w-0 text-[11px] font-medium text-stone-700">
-                      <span className="block truncate">{preset.name}</span>
-                      <span className="block text-[10px] font-normal text-stone-500">
-                        {t(BUILDER_NODE_REGISTRY[preset.node.kind].label)}
-                      </span>
-                    </span>
-                    <span className="inline-flex shrink-0 items-center gap-1">
-                      <button
-                        type="button"
-                        className={KIT.subtleButton}
-                        onClick={() => {
-                          void onPastePreset(preset.id, parentNodeId);
-                        }}
-                      >
-                        Insert
-                      </button>
-                      <button
-                        type="button"
-                        className={KIT.ghostButton}
-                        onClick={() => onRemovePreset(preset.id)}
-                      >
-                        Delete
-                      </button>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </details>
-          ) : null}
-          {nodes.length > 0 && addKinds.length > 0 ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-stone-200 bg-[#faf9f6] px-3 py-2">
-              <span className="text-[11px] font-medium text-stone-500">
-                Place new blocks exactly where they belong.
+          {/* Library + saved blocks stay collapsed; primary path is the list. */}
+          <details
+            className="group rounded-[11px] border bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04)]"
+            style={{ borderColor: "rgba(24,24,27,0.12)" }}
+            data-nested-library=""
+          >
+            <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-[12px] font-semibold text-stone-800">
+              <Library
+                size={14}
+                strokeWidth={2.2}
+                aria-hidden
+                className="shrink-0 text-violet-600"
+              />
+              <span className="min-w-0 flex-1 truncate">
+                {t("Library & saved blocks")}
               </span>
-              <button
-                type="button"
-                data-builder-node-insert-top
-                className={KIT.subtleButton}
-                onClick={() => setInsertAt((current) => (current === 0 ? null : 0))}
-              >
-                Insert at top
-              </button>
+              <ChevronRight
+                size={14}
+                strokeWidth={2.2}
+                aria-hidden
+                className="shrink-0 text-stone-400 transition-transform duration-150 group-open:rotate-90 group-open:text-violet-600"
+              />
+            </summary>
+            <div className="flex flex-col gap-2 border-t border-stone-100 px-3 py-2.5">
+              <MyBlocksPanel parentNodeId={parentNodeId} />
+              <ComponentLibraryPanel parentNodeId={parentNodeId} />
+              {presets.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.10em] text-stone-600">
+                    {t("Block presets")} ({presets.length})
+                  </div>
+                  {presets.slice(0, 6).map((preset) => (
+                    <div
+                      key={preset.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-stone-200 bg-[#faf9f6] px-2 py-1.5"
+                    >
+                      <span className="min-w-0 text-[11px] font-medium text-stone-700">
+                        <span className="block truncate">{preset.name}</span>
+                        <span className="block text-[10px] font-normal text-stone-500">
+                          {t(BUILDER_NODE_REGISTRY[preset.node.kind].label)}
+                        </span>
+                      </span>
+                      <span className="inline-flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          className={KIT.subtleButton}
+                          onClick={() => {
+                            void onPastePreset(preset.id, parentNodeId);
+                          }}
+                        >
+                          {t("Insert")}
+                        </button>
+                        <button
+                          type="button"
+                          className={KIT.ghostButton}
+                          onClick={() => onRemovePreset(preset.id)}
+                        >
+                          {t("Delete")}
+                        </button>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
-          ) : null}
-          {nodes.length > 1 ? (
+          </details>
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.10em] text-stone-600">
+              {t("Blocks in this group")}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              {addKinds.length > 0 ? (
+                <button
+                  type="button"
+                  data-builder-node-insert-top
+                  className="inline-flex h-8 items-center gap-1 rounded-[9px] border-none px-2.5 text-[12px] font-semibold text-white shadow-[0_1px_3px_rgba(124,58,237,0.32)] transition-[transform,background-color] duration-150 motion-safe:active:scale-[0.98]"
+                  style={{ background: "#7c3aed" }}
+                  title={t("Insert at top")}
+                  aria-label={t("Insert at top")}
+                  onClick={() =>
+                    setInsertAt((current) => (current === 0 ? null : 0))
+                  }
+                >
+                  <Plus size={14} strokeWidth={2.4} aria-hidden />
+                  {t("Insert")}
+                </button>
+              ) : null}
+              {nodes.length > 1 ? (
+                <button
+                  type="button"
+                  className={
+                    selectMode
+                      ? "inline-flex h-8 items-center gap-1 rounded-[9px] border border-violet-300 bg-violet-50 px-2.5 text-[12px] font-semibold text-violet-700 transition-[transform,background-color] duration-150 motion-safe:active:scale-[0.98]"
+                      : "inline-flex h-8 items-center gap-1 rounded-[9px] border border-stone-300 bg-white px-2.5 text-[12px] font-semibold text-stone-700 shadow-[0_1px_2px_rgba(17,24,39,0.04)] transition-[transform,background-color,border-color] duration-150 hover:border-violet-300 hover:text-violet-700 motion-safe:active:scale-[0.98]"
+                  }
+                  aria-pressed={selectMode}
+                  onClick={() => {
+                    setSelectMode((open) => {
+                      if (open) clearSelectedChildren();
+                      return !open;
+                    });
+                  }}
+                >
+                  <CheckSquare size={14} strokeWidth={2.2} aria-hidden />
+                  {selectMode ? t("Done selecting") : t("Select multiple")}
+                </button>
+              ) : null}
+            </span>
+          </div>
+
+          {selectMode && nodes.length > 1 ? (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2">
               <span className="text-[11px] font-medium text-stone-600">
                 {selectedChildCount > 0
-                  ? `${selectedChildCount} block${selectedChildCount === 1 ? "" : "s"} selected`
-                  : "Select blocks for bulk actions"}
+                  ? t(
+                      selectedChildCount === 1
+                        ? "{count} block selected"
+                        : "{count} blocks selected",
+                    ).replace("{count}", String(selectedChildCount))
+                  : t("Select blocks for bulk actions")}
               </span>
               <span className="flex flex-wrap items-center gap-1.5">
                 <button
@@ -4806,7 +4924,9 @@ function NestedBlocksCard({
                       : selectAllChildren
                   }
                 >
-                  {selectedChildCount === nodes.length ? "Clear" : "Select all"}
+                  {selectedChildCount === nodes.length
+                    ? t("Clear")
+                    : t("Select all")}
                 </button>
                 <button
                   type="button"
@@ -4814,7 +4934,7 @@ function NestedBlocksCard({
                   disabled={selectedChildCount === 0}
                   onClick={() => void duplicateSelectedChildren()}
                 >
-                  Duplicate
+                  {t("Duplicate")}
                 </button>
                 <button
                   type="button"
@@ -4822,11 +4942,12 @@ function NestedBlocksCard({
                   disabled={selectedChildCount === 0}
                   onClick={() => void removeSelectedChildren()}
                 >
-                  Remove
+                  {t("Remove")}
                 </button>
               </span>
             </div>
           ) : null}
+
           {renderInsertPicker(0)}
           {nodes.length > 0 ? (
             <div className="flex flex-col gap-2">
@@ -4844,139 +4965,159 @@ function NestedBlocksCard({
                     onDragOver={handleDragOver(index)}
                     onDrop={(event) => void handleDrop(event)}
                     onDragEnd={clearDragState}
+                    data-nested-block-card=""
                     className={
                       draggingNode?.nodeId === child.id
-                        ? "rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-2 opacity-70"
-                        : "rounded-lg border border-stone-200 bg-[#faf9f6] px-3 py-2"
+                        ? "rounded-[12px] border border-violet-300 bg-violet-50/70 px-3 py-2.5 opacity-70 shadow-sm"
+                        : "rounded-[12px] border border-stone-200/90 bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(17,24,39,0.04)] transition-[border-color,box-shadow] duration-150 hover:border-violet-200 hover:shadow-[0_2px_8px_rgba(124,58,237,0.08)]"
                     }
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="flex items-start gap-2">
                       <div
                         aria-hidden
-                        className="mt-0.5 inline-flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded-md text-[13px] font-semibold text-stone-500 active:cursor-grabbing"
-                        title="Drag to reorder"
+                        className="mt-0.5 inline-flex h-8 w-6 shrink-0 cursor-grab items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600 active:cursor-grabbing"
+                        title={t("Drag to reorder")}
                       >
-                        ⋮⋮
+                        <GripVertical size={15} strokeWidth={2.2} />
                       </div>
-                      <label className="mt-0.5 inline-flex h-6 w-5 shrink-0 cursor-pointer items-center justify-center">
-                        <input
-                          type="checkbox"
-                          className="h-3.5 w-3.5 accent-indigo-600"
-                          checked={selectedChildIds.has(child.id)}
-                          onChange={() => toggleSelectedChild(child.id)}
-                          aria-label={t("Select {label}").replace(
-                            "{label}",
-                            t(childPrimaryLabel(child)),
-                          )}
-                        />
-                      </label>
+                      {selectMode ? (
+                        <label className="mt-0.5 inline-flex h-8 w-5 shrink-0 cursor-pointer items-center justify-center">
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 accent-violet-600"
+                            checked={selectedChildIds.has(child.id)}
+                            onChange={() => toggleSelectedChild(child.id)}
+                            aria-label={t("Select {label}").replace(
+                              "{label}",
+                              t(childPrimaryLabel(child)),
+                            )}
+                          />
+                        </label>
+                      ) : null}
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-[12px] font-semibold text-stone-700">
+                        <div className="truncate text-[13px] font-semibold tracking-[-0.01em] text-stone-800">
                           {t(childPrimaryLabel(child))}
                         </div>
-                        <div className="mt-0.5 text-[11px] leading-snug text-stone-500">
-                          {t(childSecondaryLabel(child))}
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center justify-end gap-1.5">
-                        {extraActions ? extraActions(child, index) : null}
-                        <button
-                          type="button"
-                          className={KIT.subtleButton}
-                          onClick={() => onSelect(child.id)}
-                        >
-                          Open
-                        </button>
-                        <button
-                          type="button"
-                          className={KIT.subtleButton}
-                          onClick={() => {
-                            void onCopy(child.id);
-                          }}
-                        >
-                          Copy
-                        </button>
-                        <button
-                          type="button"
-                          className={KIT.subtleButton}
-                          onClick={() => {
-                            void onDuplicate(child.id);
-                          }}
-                        >
-                          Duplicate
-                        </button>
-                        {copiedKind ? (
-                          <button
-                            type="button"
-                            className={KIT.subtleButton}
-                            onClick={() => {
-                              void onPaste(child.id);
-                            }}
-                          >
-                            Paste
-                          </button>
-                        ) : null}
-                        {addKinds.length > 0 ? (
-                          <button
-                            type="button"
-                            className={KIT.subtleButton}
-                            onClick={() =>
-                              setInsertAt((current) =>
-                                current === index + 1 ? null : index + 1,
-                              )
+                        <div className="mt-0.5 text-[11px] font-medium leading-snug text-stone-500">
+                          {(() => {
+                            const secondary = childSecondaryLabel(child);
+                            const countMatch = secondary.match(
+                              /^(\d+) nested blocks?$/,
+                            );
+                            if (countMatch) {
+                              const count = countMatch[1]!;
+                              return t(
+                                count === "1"
+                                  ? "{count} nested block"
+                                  : "{count} nested blocks",
+                              ).replace("{count}", count);
                             }
+                            return t(secondary);
+                          })()}
+                        </div>
+                        <div className="mt-2.5 flex items-center gap-1.5">
+                          {extraActions ? extraActions(child, index) : null}
+                          <button
+                            type="button"
+                            className={
+                              KIT.primaryButton +
+                              " !h-8 !shrink-0 !gap-1 !px-3 !py-0 !text-[12px] !shadow-[0_1px_3px_rgba(124,58,237,0.35)]"
+                            }
+                            onClick={() => onSelect(child.id)}
                           >
-                            + After
+                            {t("Open")}
+                            <ChevronRight
+                              size={14}
+                              strokeWidth={2.4}
+                              aria-hidden
+                            />
                           </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          className={KIT.subtleButton}
-                          onClick={() => {
-                            void onMove(child.id, "up");
-                          }}
-                          disabled={index === 0}
-                          title={
-                            index === 0
-                              ? "Already first, can't move up"
-                              : "Move block up one position"
-                          }
-                          aria-label="Move block up"
-                        >
-                          Up
-                        </button>
-                        <button
-                          type="button"
-                          className={KIT.subtleButton}
-                          onClick={() => {
-                            void onMove(child.id, "down");
-                          }}
-                          disabled={index === nodes.length - 1}
-                          title={
-                            index === nodes.length - 1
-                              ? "Already last, can't move down"
-                              : "Move block down one position"
-                          }
-                          aria-label="Move block down"
-                        >
-                          Down
-                        </button>
-                        <button
-                          type="button"
-                          className={KIT.subtleButton}
-                          onClick={() => {
-                            void onRemove(child.id);
-                          }}
-                          disabled={canRemove ? !canRemove(child, index) : false}
-                          title={
-                            canRemove && !canRemove(child, index)
-                              ? "This block can't be removed (required for this section)"
-                              : "Remove block"
-                          }
-                          aria-label="Remove block"
-                        >
-                          Remove
-                        </button>
+                          <div
+                            className="ml-auto inline-flex min-w-0 items-center gap-0.5 overflow-x-auto rounded-[10px] border border-stone-200/80 bg-stone-50/90 p-0.5"
+                            data-nested-block-actions=""
+                          >
+                            <NestedBlockIconButton
+                              label={t("Copy block")}
+                              onClick={() => {
+                                void onCopy(child.id);
+                              }}
+                            >
+                              <Copy size={14} strokeWidth={2.1} aria-hidden />
+                            </NestedBlockIconButton>
+                            <NestedBlockIconButton
+                              label={t("Duplicate block")}
+                              onClick={() => {
+                                void onDuplicate(child.id);
+                              }}
+                            >
+                              <Files size={14} strokeWidth={2.1} aria-hidden />
+                            </NestedBlockIconButton>
+                            {copiedKind ? (
+                              <NestedBlockIconButton
+                                label={t("Paste")}
+                                onClick={() => {
+                                  void onPaste(child.id);
+                                }}
+                              >
+                                <ClipboardPaste
+                                  size={14}
+                                  strokeWidth={2.1}
+                                  aria-hidden
+                                />
+                              </NestedBlockIconButton>
+                            ) : null}
+                            {addKinds.length > 0 ? (
+                              <NestedBlockIconButton
+                                label={t("Insert after")}
+                                onClick={() =>
+                                  setInsertAt((current) =>
+                                    current === index + 1 ? null : index + 1,
+                                  )
+                                }
+                              >
+                                <Plus size={14} strokeWidth={2.1} aria-hidden />
+                              </NestedBlockIconButton>
+                            ) : null}
+                            <NestedBlockIconButton
+                              label={t("Move block up")}
+                              disabled={index === 0}
+                              onClick={() => {
+                                void onMove(child.id, "up");
+                              }}
+                            >
+                              <ArrowUp size={14} strokeWidth={2.1} aria-hidden />
+                            </NestedBlockIconButton>
+                            <NestedBlockIconButton
+                              label={t("Move block down")}
+                              disabled={index === nodes.length - 1}
+                              onClick={() => {
+                                void onMove(child.id, "down");
+                              }}
+                            >
+                              <ArrowDown
+                                size={14}
+                                strokeWidth={2.1}
+                                aria-hidden
+                              />
+                            </NestedBlockIconButton>
+                            <NestedBlockIconButton
+                              label={t("Remove block")}
+                              tone="danger"
+                              disabled={
+                                canRemove ? !canRemove(child, index) : false
+                              }
+                              onClick={() => {
+                                void onRemove(child.id);
+                              }}
+                            >
+                              <Trash2
+                                size={14}
+                                strokeWidth={2.1}
+                                aria-hidden
+                              />
+                            </NestedBlockIconButton>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -5002,28 +5143,80 @@ function NestedBlocksCard({
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-stone-300 bg-[#faf9f6] px-3 py-3 text-[11.5px] text-stone-500">
-              No nested blocks yet.
+              {t("No nested blocks yet.")}
             </div>
           )}
           {addKinds.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {addKinds.map((kind) => (
-                <button
-                  key={kind}
-                  type="button"
-                  className={KIT.ghostButton}
-                  onClick={() => {
-                    void onAdd(kind);
-                  }}
-                >
-                  + {t(BUILDER_NODE_REGISTRY[kind].label)}
-                </button>
-              ))}
-            </div>
+            <details
+              className="group rounded-[11px] border bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04)]"
+              style={{ borderColor: "rgba(24,24,27,0.12)" }}
+              data-nested-add-block=""
+            >
+              <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-[12px] font-semibold text-stone-800">
+                <FolderOpen
+                  size={14}
+                  strokeWidth={2.2}
+                  aria-hidden
+                  className="shrink-0 text-violet-600"
+                />
+                <span className="min-w-0 flex-1 truncate">{t("Add a block")}</span>
+                <ChevronRight
+                  size={14}
+                  strokeWidth={2.2}
+                  aria-hidden
+                  className="shrink-0 text-stone-400 transition-transform duration-150 group-open:rotate-90 group-open:text-violet-600"
+                />
+              </summary>
+              <div className="flex flex-wrap gap-2 border-t border-stone-100 px-3 py-2.5">
+                {addKinds.map((kind) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    className={KIT.ghostButton}
+                    onClick={() => {
+                      void onAdd(kind);
+                    }}
+                  >
+                    + {t(BUILDER_NODE_REGISTRY[kind].label)}
+                  </button>
+                ))}
+              </div>
+            </details>
           ) : null}
         </div>
       </CardBody>
     </Card>
+  );
+}
+
+function NestedBlockIconButton({
+  label,
+  disabled,
+  onClick,
+  children,
+  tone = "default",
+}: {
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  tone?: "default" | "danger";
+}) {
+  return (
+    <button
+      type="button"
+      className={
+        tone === "danger"
+          ? "inline-flex h-7 w-7 items-center justify-center rounded-[7px] border border-transparent text-stone-500 transition-[background-color,color,border-color] duration-150 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-35"
+          : "inline-flex h-7 w-7 items-center justify-center rounded-[7px] border border-transparent text-stone-500 transition-[background-color,color,border-color] duration-150 hover:border-violet-200 hover:bg-white hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-35"
+      }
+      title={label}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -5063,25 +5256,25 @@ function childSummary(node: Exclude<BuilderNode, { kind: "section" }>): string {
 function contentHint(node: Exclude<BuilderNode, { kind: "section" }>): string {
   switch (node.kind) {
     case "container":
-      return "This is a layout wrapper. Add, move, and edit nested blocks in Structure, then use Layout for grid/stack behavior.";
+      return "Add and reorder the blocks inside this group.";
     case "split":
-      return "This split owns its child blocks. Edit the copy and media inside the split from Structure; use Layout for ratio and collapse behavior.";
+      return "Open each column to edit its text and photos. Ratio is under Design.";
     case "accordion":
-      return "Accordion groups do not hold direct copy. Select each accordion item in Structure to rename its question and edit nested content.";
+      return "Open each item to rename the question and edit what’s inside.";
     case "tabs":
-      return "Tabs are defined by their panels. Select each tab panel in Structure to rename the tab and edit its nested content.";
+      return "Open each tab to rename it and edit what’s inside.";
     case "carousel":
-      return "Carousel content comes from its nested blocks. Add slides or cards in Structure, then tune autoplay and controls in Layout.";
+      return "Add slides below. Autoplay and controls are under Design.";
     case "masonry":
-      return "Masonry content is managed through its child blocks. Add images or cards in Structure; columns and gap live in Layout.";
+      return "Add images or cards below. Columns and gap are under Design.";
     case "card":
-      return "Card blocks wrap heading, paragraph, image, and button children, not nested layout shells. Edit blocks in Structure; surface style in Layout.";
+      return "Edit the heading, text, image, and button blocks below.";
     case "cta_group":
-      return "CTA groups hold buttons only. Add headline or body copy as sibling blocks outside this group (e.g. in a container). Row vs stack lives in Layout.";
+      return "This group holds buttons only. Add headline text as a sibling block.";
     case "divider":
-      return "Divider blocks render a horizontal rule. Use Layout to switch tone and Style for spacing.";
+      return "A horizontal line. Tone is under Design; spacing under Style.";
     case "spacer":
-      return "Spacer blocks have no direct content. Use Layout to change their size and keep page rhythm tidy.";
+      return "Empty space. Change its size under Design.";
     default:
       return BUILDER_NODE_REGISTRY[node.kind].description;
   }
@@ -5121,20 +5314,20 @@ function dataSourceHelper(sourceKey: string): string {
 function childPrimaryLabel(node: BuilderNode): string {
   switch (node.kind) {
     case "heading":
-      return node.props.text;
+      return stripInlineMarkers(node.props.text);
     case "paragraph":
-      return truncate(node.props.text, 72);
+      return truncate(stripInlineMarkers(node.props.text), 72);
     case "rich_text":
-      return truncate(node.props.text, 72);
+      return truncate(stripInlineMarkers(node.props.text), 72);
     case "button":
-      return node.props.label;
+      return stripInlineMarkers(node.props.label);
     case "image":
       return node.props.alt?.trim() || "Image block";
     case "icon":
       return node.props.label || BUILDER_NODE_REGISTRY[node.kind].label;
     case "accordion_item":
     case "tab_panel":
-      return node.props.title;
+      return stripInlineMarkers(node.props.title);
     default:
       return BUILDER_NODE_REGISTRY[node.kind].label;
   }
@@ -5215,6 +5408,32 @@ function childSecondaryLabel(node: BuilderNode): string {
       return "Menu · orderable items";
     case "services_catalog":
       return "Services menu · your catalogue";
+    case "portfolio":
+      return "Portfolio · your live media";
+    case "reviews":
+      return "Reviews · your client quotes";
+    case "visit":
+      return node.props.layout === "location"
+        ? "Location · zone, hours, how to arrive"
+        : "Visit · areas, days, languages";
+    case "contents":
+      return "Contents · chapter index";
+    case "masthead":
+      return "Masthead · stacked words";
+    case "statement_footer":
+      return "Statement footer · credit and contact";
+    case "utility_bar":
+      return "Utility bar · status and call";
+    case "alert_band":
+      return "Alert band · same-day emergency";
+    case "task_picker":
+      return "Task picker · tasks and recommended services";
+    case "spec_table":
+      return "Spec table · key and value rows";
+    case "comp_card":
+      return "Comp card · measure strip";
+    case "next_free_chip":
+      return "Next free · live slot chip";
     case "reserve_table":
       return "Reserve · books a real table";
     case "session_picker":
@@ -5250,6 +5469,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return (
         builder2027SecondaryLabel(node) ?? BUILDER_NODE_REGISTRY[node.kind].label
       );
+    case "app_nail_designer":
+      return BUILDER_NODE_REGISTRY[node.kind].label;
   }
 }
 
@@ -5349,7 +5570,12 @@ export function BuilderNodeLocalizableTextField({
   patch: (patch: Record<string, unknown>) => void | Promise<void>;
 }) {
   const { availableLocales, defaultLocale } = useEditContext();
+  const talentAi = useTalentAiTranslateEnabled();
   const { locale: activeContentLocale } = useActiveContentLocale();
+  // PR 7: a secondary tab ghosts the primary text (native placeholder, never a
+  // pre-filled value), and talent surfaces get the AI translate button.
+  const ghost = (isDefault: boolean) => (isDefault ? placeholder : baseValue.trim() || placeholder);
+  const aiOn = talentAi && (fieldKind === "input" || fieldKind === "textarea");
 
   const overlay = node.i18n;
   const supported = availableLocales.length > 0 ? availableLocales : [defaultLocale];
@@ -5402,7 +5628,7 @@ export function BuilderNodeLocalizableTextField({
           key={fieldKey}
           defaultValue={fieldValue}
           className={className}
-          placeholder={placeholder}
+          placeholder={ghost(isDefault)}
           aria-label={`${ariaLabel}${isDefault ? "" : ` (${locale})`}`}
           onBlur={(event) => {
             void commit(event.currentTarget.value);
@@ -5415,7 +5641,7 @@ export function BuilderNodeLocalizableTextField({
         key={fieldKey}
         defaultValue={fieldValue}
         className={className}
-        placeholder={placeholder}
+        placeholder={ghost(isDefault)}
         aria-label={`${ariaLabel}${isDefault ? "" : ` (${locale})`}`}
         onBlur={(event) => {
           void commit(event.currentTarget.value);
@@ -5443,6 +5669,7 @@ export function BuilderNodeLocalizableTextField({
       hasValueForLocale={hasValueForLocale}
       renderField={renderField}
       ariaLabel={`${ariaLabel} language`}
+      ai={aiOn ? { sourceText: baseValue, valueFor: valueForLocale, commit: (l, v) => commitForLocale(l)(v) } : undefined}
     />
   );
 }

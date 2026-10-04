@@ -97,7 +97,7 @@ Ordered by dependency. Each step has exit criteria. Do not start Stripe card fil
 
 | Step | Action | Owner | Exit |
 |---|---|---|---|
-| 1.1 | **`qa-stripe-r2` is aliased to production** and inherits production `STRIPE_SECRET_KEY` (env comment: livemode / D-MSG-330). **Do not** replace production live keys with `sk_test_`. Prefer: (a) a Vercel custom environment scoped to that host with `sk_test_`/`pk_test_`, or (b) a Preview deploy with journeys-branch test keys (already present for `program/journeys-2026-09`) temporarily aliased to R2 for the proof only. Explicit human approval required before any env write. | Human | Host mint returns `cs_test_` (not `cs_live_`) |
+| 1.1 | **Done half:** branch `qa/stripe-test-r2` has Preview `sk_test_`/`pk_test_`. Alias R2 → that preview (prod Supabase). **Do not** use journeys preview (QA DB → host unregistered). **Watch:** production promote / `*.tulala.digital` steals R2 back to livemode — re-pin alias for the proof window. | Agent | Host mint returns `cs_test_` (not `cs_live_`) |
 | 1.2 | Optional but recommended: ensure R2 tenant has at least one Menu/Services row so a fresh-offer mint does not hang on “No items yet”. | Agent via QA MCP / fixture | Catalog non-empty on R2 Messages Items |
 | 1.3 | Re-run `web/e2e/qa-program/admin/stripe-pay-refund.spec.ts` with `QA_ALLOW_AGENT_PROD_HOST=1`, production URL/SRK/anon only for `signInAgentOwnedHost` cookies (not for journeys content). | Agent | 4242 → Paid surfaces → **full** refund → unpaid/refunded header; screenshots under a new evidence day folder |
 | 1.4 | (After 1.3) Add partial-refund case to the same spec (or sibling); run once. | Agent | Partial refund asserted in UI + DB |

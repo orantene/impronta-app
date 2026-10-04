@@ -9,11 +9,13 @@ import {
   LOCALE_SUGGESTION_DISMISSED_COOKIE,
   shouldSuggestLocale,
 } from "@/i18n/locale-suggestion";
-import { stripLocaleFromPathname } from "@/i18n/pathnames";
+import { localeUrlSettings, stripLocaleFromPathname } from "@/i18n/pathnames";
 import { ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
 import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
+import { HOST_CONTEXT_HEADER, HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
 
 import { LocaleSuggestionBannerClient } from "./locale-suggestion-banner-client";
 
@@ -50,7 +52,7 @@ type BannerProps = React.ComponentProps<typeof LocaleSuggestionBannerClient>;
 
 async function resolveBannerProps(): Promise<BannerProps | null> {
   try {
-    const [h, jar, settings, scope] = await Promise.all([
+    const [h, jar, tenantUrlSettings, scope] = await Promise.all([
       headers(),
       cookies(),
       getRequestLocaleUrlSettings(),
@@ -67,9 +69,20 @@ async function resolveBannerProps(): Promise<BannerProps | null> {
     // and therefore no owner preference to honor — `LanguageSettings` has no
     // equivalent flag — so those surfaces default to true, matching the
     // `?? true` the tenant read itself uses for an unset column.
-    const showLanguageSwitcher = scope
-      ? (await loadTenantLocaleSettings(scope.tenantId)).showLanguageSwitcher
-      : true;
+    // A talent host (PR 5) speaks the TALENT's languages: offer only their
+    // configured secondary (or primary), in their URL grammar. A
+    // single-language talent collapses to one locale and never sees a banner.
+    const talentId =
+      h.get(HOST_CONTEXT_HEADER) === "talent_site" ? h.get(HOST_TALENT_PROFILE_HEADER)?.trim() : null;
+    const talent = talentId ? await loadTalentLocaleSettings(talentId) : null;
+    const settings = talent
+      ? localeUrlSettings(talent.defaultLocale, talent.supportedLocales)
+      : tenantUrlSettings;
+    const showLanguageSwitcher = talent
+      ? talent.showLanguageSwitcher
+      : scope
+        ? (await loadTenantLocaleSettings(scope.tenantId)).showLanguageSwitcher
+        : true;
 
     // The BROWSER pathname, set by proxy.ts before any rewrite. Without it we
     // cannot build a correct "same page, other language" href, and a banner

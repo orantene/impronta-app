@@ -8,6 +8,8 @@ import {
   offeringIsDirectlyBookable,
   offeringPriceLabel,
   blankOffering,
+  offeringToRowPatch,
+  offeringText,
   type TalentOfferingRow,
 } from "./offerings-types";
 import { offeringToOfferLineSeed, offeringIsOfferPriceable } from "./offerings-offer";
@@ -62,7 +64,10 @@ describe("rowToOffering", () => {
     const junk = rowToOffering(row({ kind: "nonsense", price_type: "??", booking_mode: "x", price_display: "y" }));
     assert.equal(junk.kind, "service");
     assert.equal(junk.priceType, "flat_package");
-    assert.equal(junk.bookingMode, "request");
+    // WSF-B: an unknown mode reads as null = inherit the talent default (not a hard request).
+    assert.equal(junk.bookingMode, null);
+    assert.equal(rowToOffering(row({ booking_mode: null })).bookingMode, null);
+    assert.equal(rowToOffering(row({ booking_mode: "inquiry" })).bookingMode, "inquiry");
     assert.equal(junk.priceDisplay, "exact");
   });
   it("prefers the locale i18n title", () => {
@@ -150,5 +155,58 @@ describe("offeringToOfferLineSeed", () => {
     const o = rowToOffering(row({ price_type: "custom", amount_cents: null }));
     assert.equal(offeringToOfferLineSeed(o), null);
     assert.equal(offeringIsOfferPriceable(o), false);
+  });
+});
+
+it("WSF B2: validateOffering holds an inherited Instant default to instant rules", async () => {
+  const { blankOffering, validateOffering } = await import("./offerings-types");
+  const base = { ...blankOffering("t1", "USD", 0), title: "Cut", bookingMode: null, status: "published" as const };
+  const priced = { ...base, amountCents: 5000 };
+  assert.deepEqual(validateOffering(priced, "instant"), []);
+  const quote = { ...base, priceDisplay: "quote" as const };
+  assert.ok(validateOffering(quote, "instant").some((e) => e.includes("follows your Instant default")));
+  assert.deepEqual(validateOffering(quote, "request"), []);
+  const dep = { ...priced, reserveMode: "deposit" as const };
+  assert.ok(validateOffering(dep, "instant").some((e) => e.includes("deposit percent")));
+  assert.deepEqual(validateOffering({ ...dep, depositPct: 30 }, "instant"), []);
+});
+
+describe("offering translations round-trip (PR 2)", () => {
+  it("EN-primary callers with no maps write exactly { en: title }", () => {
+    const o = { ...blankOffering("t1", "USD", 0), title: "Haircut", description: "Wash and cut" };
+    const p = offeringToRowPatch(o);
+    assert.deepEqual(p.title_i18n, { en: "Haircut" });
+    assert.deepEqual(p.description_i18n, { en: "Wash and cut" });
+    const empty = offeringToRowPatch({ ...o, description: null });
+    assert.equal(empty.description_i18n, null);
+  });
+
+  it("a Spanish translation survives an English-primary save", () => {
+    const loaded = rowToOffering(
+      row({ title_i18n: { en: "Deep-tissue massage", es: "Masaje profundo" } }),
+    );
+    assert.deepEqual(loaded.titleI18n, { en: "Deep-tissue massage", es: "Masaje profundo" });
+    const p = offeringToRowPatch({ ...loaded, title: "Deep massage" });
+    assert.deepEqual(p.title_i18n, { en: "Deep massage", es: "Masaje profundo" });
+  });
+
+  it("an ES-primary save writes the primary into es and keeps en", () => {
+    const loaded = rowToOffering(
+      row({ title: "Masaje profundo", title_i18n: { es: "Masaje profundo", en: "Deep massage" } }),
+      "es",
+      [],
+      ["es"],
+    );
+    assert.equal(loaded.title, "Masaje profundo");
+    const p = offeringToRowPatch({ ...loaded, title: "Masaje relajante" }, "es");
+    assert.equal(p.title, "Masaje relajante");
+    assert.deepEqual(p.title_i18n, { es: "Masaje relajante", en: "Deep massage" });
+  });
+
+  it("offeringText walks the chain, then the plain column", () => {
+    const r = row({ title: "Masaje", title_i18n: { es: "Masaje" } });
+    assert.equal(offeringText(r, "title", "en", ["en", "es"]), "Masaje");
+    assert.equal(offeringText(row({ title: "Plain", title_i18n: null }), "title", "fr"), "Plain");
+    assert.equal(offeringText(row({ title_i18n: { en: "Eng" } }), "title", "es"), "Eng");
   });
 });

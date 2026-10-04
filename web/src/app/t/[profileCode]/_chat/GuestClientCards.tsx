@@ -13,7 +13,7 @@
  * has already filtered to what the guest may see (D-MSG-2).
  */
 
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 
 import { translatorFor } from "@/i18n/use-t";
 import type { GuestThreadMessage, GuestThreadV5Extras } from "@/lib/inquiry/guest-chat-contract";
@@ -24,6 +24,7 @@ import { buildClientCopy } from "@/components/messages-v5/client/copy";
 import { useClientCardActions } from "@/components/messages-v5/client/use-client-card-actions";
 import { buildKitCopy } from "@/components/messages-v5/kit/copy";
 import "@/components/messages-v5/kit/tokens.css";
+import { readableOn } from "./mini-chat-styles";
 
 export function isGuestClientCardRow(m: Pick<GuestThreadMessage, "kind" | "isDeleted">): boolean {
   return !m.isDeleted && isClientCardKind(m.kind);
@@ -70,16 +71,44 @@ export function useGuestClientCards(input: {
   const kit = useMemo(() => buildKitCopy(t), [t]);
   const copy = useMemo(() => buildClientCopy(t), [t]);
   const messages = useMemo(() => rows.map(toThreadMessage), [rows]);
-  const offerCards = useMemo(() => offerCardMessageIds(messages), [messages]);
+  const offers = v5?.offers;
+  const offerCards = useMemo(() => offerCardMessageIds(messages, offers), [messages, offers]);
   const actions = useClientCardActions({ token: v5?.threadToken ?? null, messages, refresh, onTick });
-  return { kit, copy, messages, offerCards, actions, offers: v5?.offers ?? [], payCode: v5?.payCode ?? null, businessName, locale, onAsk };
+  return { kit, copy, messages, offerCards, actions, offers: offers ?? [], payCode: v5?.payCode ?? null, businessName, locale, onAsk };
 }
 
-export function GuestClientCardRow({ row, model, now }: { readonly row: GuestThreadMessage; readonly model: GuestClientCardsModel; readonly now: Date }) {
+export function GuestClientCardRow({
+  row,
+  model,
+  now,
+  accent,
+  accentInk,
+}: {
+  readonly row: GuestThreadMessage;
+  readonly model: GuestClientCardsModel;
+  readonly now: Date;
+  /** Tenant accent — paints the brief offer card border when present. */
+  readonly accent?: string;
+  /** Readable ink on the accent Accept fill (falls back to readableOn). */
+  readonly accentInk?: string;
+}) {
   const message = useMemo(() => toThreadMessage(row), [row]);
   if (!isClientCardKind(message.kind)) return null;
+  const offerInk = accentInk || (accent ? readableOn(accent) : undefined);
   return (
-    <div className="msgv5" data-guest-client-card={message.kind}>
+    <div
+      className="msgv5"
+      data-guest-client-card={message.kind}
+      style={
+        accent
+          ? ({
+              ["--msgv5-offer-border"]: accent,
+              ["--msgv5-offer-chip"]: `${accent}14`,
+              ...(offerInk ? { ["--msgv5-offer-ink"]: offerInk } : {}),
+            } as CSSProperties)
+          : undefined
+      }
+    >
       <ClientCard
         message={message}
         kind={message.kind}

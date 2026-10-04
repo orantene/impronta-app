@@ -36,6 +36,7 @@ import { interpolate } from "@/i18n/interpolate";
 import type { MiniChatBrand } from "@/lib/inquiry/guest-chat-contract";
 import type { UnifiedSyncState } from "./use-unified-inquiry";
 import { FONT, FONT_DISPLAY, type Palette, type SurfaceMode } from "./mini-chat-styles";
+import { resolveGuestHeaderAvatar } from "./guest-header-avatar";
 
 /**
  * The three honest states of the header's status line. "not a draft" does NOT
@@ -62,6 +63,12 @@ export type GuestPanelHeaderProps = {
    * "sent" = it has reached the agency; "new" = nothing started yet.
    */
   threadState?: GuestHeaderThreadState;
+  /**
+   * Front-door brief journey label (e.g. "Oferta"). When set, rendered as the
+   * centered uppercase status (DoR OFERTA) and the "Nueva solicitud" / details
+   * chrome is hidden so the header matches the brief bar.
+   */
+  journeyLabel?: string | null;
   /** Panel-level sync state, folded into the status line's accessible name. */
   syncState?: UnifiedSyncState;
   /** Re-run the last failed patch (the status line's error retry). */
@@ -89,6 +96,7 @@ export function GuestPanelHeader({
   talentFirst,
   C,
   threadState = "new",
+  journeyLabel = null,
   syncState = "idle",
   onRetrySync,
   onToggleExpand,
@@ -101,16 +109,18 @@ export function GuestPanelHeader({
   t,
   onClose,
 }: GuestPanelHeaderProps) {
-  const showStatusLine = threadState !== "new" || Boolean(onOpenSwitcher);
+  const journeyMode = Boolean(journeyLabel?.trim());
+  const showStatusLine =
+    !journeyMode && (threadState !== "new" || Boolean(onOpenSwitcher));
 
   return (
     <div
       style={{
         display: "flex",
-        alignItems: "flex-start",
+        alignItems: journeyMode ? "center" : "flex-start",
         gap: 10,
         padding: "10px 12px 10px 14px",
-        borderBottom: `1px solid ${C.borderSoft}`,
+        borderBottom: journeyMode ? "none" : `1px solid ${C.borderSoft}`,
         background: C.surfaceFaint,
         flexShrink: 0,
       }}
@@ -135,11 +145,34 @@ export function GuestPanelHeader({
         )}
       </div>
 
-      {onOpenDetails && (
+      {journeyMode && (
+        <span
+          data-guest-journey-status
+          style={{
+            flexShrink: 0,
+            border: 0,
+            background: "transparent",
+            padding: "0 4px",
+            whiteSpace: "nowrap",
+            fontFamily: FONT,
+            fontWeight: 500,
+            fontSize: 10,
+            lineHeight: 1,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: C.ink,
+          }}
+        >
+          {journeyLabel}
+        </span>
+      )}
+
+      {!journeyMode && onOpenDetails && (
         // Event-details CTA. v2.1 shipped a bare sliders glyph with a "0/6"
         // badge; unlabelled progress toward an unnamed goal reads as a score,
         // not an invitation. It is a labelled chip now, and the count appears
-        // only once there is progress worth reporting.
+        // only once there is progress worth reporting. Hidden in journey mode
+        // (offer / booked): the progress rail under the header owns that job.
         <DetailsChip
           onOpenDetails={onOpenDetails}
           filled={detailsFilled}
@@ -212,6 +245,72 @@ function BrandIdentity({
   talentFirst: string;
   C: Palette;
 }) {
+  // AUD-039: a talent vanity site shows avatar + name (DoR F02/F04/F08). The
+  // avatar is her site logo (contain on a white circle), else her profile photo
+  // (cover), else the monogram. Agency docks keep the wordmark path below.
+  if (brand.omitPlatformBrand) {
+    const avatar = resolveGuestHeaderAvatar({
+      logoUrl: brand.logoUrl,
+      photoUrl: brand.photoUrl,
+      name: talentFirst || brand.agencyName,
+    });
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+        <span
+          aria-hidden
+          data-guest-header-avatar={avatar.kind}
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: "50%",
+            flexShrink: 0,
+            overflow: "hidden",
+            background: avatar.kind === "monogram" ? accent : C.surface,
+            color: accentInk,
+            border: avatar.kind === "logo" ? `1px solid ${C.borderSoft}` : "none",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 12,
+            fontWeight: 700,
+            fontFamily: FONT,
+            boxSizing: "border-box",
+          }}
+        >
+          {avatar.kind === "monogram" ? (
+            avatar.letter
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatar.src}
+              alt=""
+              style={
+                avatar.kind === "logo"
+                  ? { width: "78%", height: "78%", objectFit: "contain", display: "block" }
+                  : { width: "100%", height: "100%", objectFit: "cover", display: "block" }
+              }
+            />
+          )}
+        </span>
+        <span
+          style={{
+            minWidth: 0,
+            fontFamily: FONT_DISPLAY,
+            fontSize: 15,
+            fontWeight: 600,
+            letterSpacing: 0.1,
+            color: C.ink,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {brand.agencyName}
+        </span>
+      </div>
+    );
+  }
+
   if (brand.logoUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -276,7 +375,7 @@ function BrandIdentity({
  * IS the switcher: a labelled control with a chevron, so the affordance is
  * never a naked chevron hanging off the brand name.
  */
-function StatusLine({
+export function StatusLine({
   threadState,
   syncState,
   onRetrySync,

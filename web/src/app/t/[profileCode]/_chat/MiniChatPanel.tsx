@@ -36,6 +36,7 @@ import { interpolate } from "@/i18n/interpolate";
 
 import { ExpandedChatLayout } from "./ExpandedChatLayout";
 import { MiniChatPanelColumn } from "./MiniChatPanelColumn";
+import { CardDockPanel } from "./CardDockPanel";
 import { usePresenceChime } from "./usePresenceChime";
 import { useUnifiedInquiry } from "./use-unified-inquiry";
 import type { UnifiedInquiryPatch } from "./use-unified-inquiry";
@@ -61,9 +62,11 @@ import {
 } from "./mini-chat-styles";
 import { miniPanelContainerStyle } from "./mini-chat-panel-geometry";
 import { useCompactViewport } from "./use-compact-viewport";
+import { useVisualViewportInset } from "./use-visual-viewport-inset";
 import type { MiniChatPanelLocalProps } from "./mini-chat-panel-props";
 import { offeringDraftPrefix, type ChatOffering } from "./OfferingQuickPicker";
 import { setPendingOffering } from "./pending-offering-store";
+import { consumeBookingSheetChatHandoff } from "./booking-sheet-chat-handoff";
 import { useGateEmailCheck } from "./use-gate-email-check";
 import { useGuestInquiriesList } from "./use-guest-inquiries-list";
 import { createApplyFailure } from "./mini-chat-panel-apply-failure";
@@ -89,10 +92,12 @@ function readStoredDockView(): GuestDockView | null {
   return null;
 }
 
-/**
- * The view the dock opens into. A remembered session view wins. Otherwise the
- * panel opens on Chat (Talk). Home stays in the view union for a stored session.
- */
+/** Remap stale "home" sessions to Hablar chat (empty-home = bubble + chips). */
+function normalizeDockView(view: GuestDockView): GuestDockView {
+  return view === "home" ? "chat" : view;
+}
+
+/** Remembered view wins (home→chat); otherwise open on Hablar chat. */
 function resolveInitialDockView(
   existingInquiryId: string | null,
   cartTalentIds: readonly string[] | undefined,
@@ -100,7 +105,7 @@ function resolveInitialDockView(
   void existingInquiryId;
   void cartTalentIds;
   const stored = readStoredDockView();
-  if (stored) return stored;
+  if (stored) return normalizeDockView(stored);
   return "chat";
 }
 
@@ -112,10 +117,6 @@ function persistDockView(view: GuestDockView): void {
     /* best-effort */
   }
 }
-
-// ───────────────────────────────────────────────────────────────────────────
-// Component
-// ───────────────────────────────────────────────────────────────────────────
 
 export function MiniChatPanel({
   open,
@@ -146,6 +147,7 @@ export function MiniChatPanel({
   soundOnReply = true,
   identity = "guest",
   surfaceMode = "light",
+  chatCard = null,
   isHub = false,
   expanded = false,
   onToggleExpand,
@@ -165,6 +167,9 @@ export function MiniChatPanel({
   // threaded to the column + 2-pane shell; + full-screen mobile sheet signal.
   const P = paletteFor(surfaceMode);
   const compactSheet = useCompactViewport();
+  // Front-door v27 Phone: lift the sheet above the soft keyboard using only
+  // the browser Visual Viewport (never an invented height). Desktop ignores it.
+  const keyboardInsetPx = useVisualViewportInset();
   const talentFirst = firstNameOf(brand.talentDisplayName);
   // Guest UI locale rides along on `brand` (resolved server-side from the
   // tenant's default_locale, since guests have no LOCALE_COOKIE).
@@ -179,7 +184,7 @@ export function MiniChatPanel({
   const [firstName, setFirstName] = useState(prefill?.firstName ?? prefillNames.firstName);
   const [lastName, setLastName] = useState(prefill?.lastName ?? prefillNames.lastName);
   const [email, setEmail] = useState(prefill?.email ?? "");
-  const [phone] = useState(prefill?.phone ?? "");
+  const [phone, setPhone] = useState(prefill?.phone ?? "");
   const [honeypot, setHoneypot] = useState("");
 
   const [stage, setStage] = useState<Stage>(existingInquiryId ? "thread" : "intro");
@@ -222,10 +227,7 @@ export function MiniChatPanel({
   // hook below.
   const [serverIntent, setServerIntent] = useState<InquiryIntent | null>(null);
 
-  // DOCK v2: the active dock view (Home / Chat / Lineup / Projects). Home is the
-  // friendly landing for a fresh visitor; an active conversation (a resumed
-  // inquiry or a seeded lineup) lands on Chat. The last view is remembered per
-  // session so re-opening the dock returns where the guest left off.
+  // DOCK v2: Home / Chat / Lineup / Projects. Remembered per session.
   const [dockView, setDockViewState] = useState<GuestDockView>(() =>
     resolveInitialDockView(existingInquiryId, cartTalentIds),
   );
@@ -233,25 +235,26 @@ export function MiniChatPanel({
     setDockViewState(view);
     persistDockView(view);
   };
-  // The panel mounts (closed) before any talent is added, so the lazy initializer
-  // above can only see the empty cart. Re-resolve the landing view on each fresh
-  // OPEN: a remembered session view wins, else an active conversation (resumed id
-  // or a seeded lineup) lands on Chat and a truly fresh visitor lands on Home.
+  // Fresh OPEN: remembered view (home→chat), else Hablar chat empty-home.
   const wasOpenRef = useRef(false);
-  const hasActiveContext = Boolean(existingInquiryId) || (cartTalentIds?.length ?? 0) > 0;
   useEffect(() => {
     if (open && !wasOpenRef.current) {
       const stored = readStoredDockView();
-      setDockViewState(stored ?? (hasActiveContext ? "chat" : "home"));
+      setDockViewState(stored ? normalizeDockView(stored) : "chat");
+      const h = consumeBookingSheetChatHandoff(brand.locale ?? "en");
+      if (h.firstName != null) setFirstName(h.firstName);
+      if (h.lastName != null) setLastName(h.lastName);
+      if (h.phone) setPhone(h.phone);
+      if (h.email) setEmail(h.email);
+      if (h.draftPrefix && !chatCard) {
+        setDraft((cur) => (cur.trim() ? cur : h.draftPrefix!));
+        setDockViewState("chat");
+      }
     }
     wasOpenRef.current = open;
-  }, [open, hasActiveContext]);
+  }, [open, brand.locale]);
 
-  // useGuestInquiriesList (W1-A decomposition pre-pass). W2-A: also feeds the
-  // Projects dock view (compact + expanded). The refreshKey flips only when the
-  // guest ENTERS the Projects view (not on every Chat<->Lineup switch), forcing
-  // exactly one refetch so an inquiry created earlier in this open session shows
-  // up without reopening the panel.
+  // useGuestInquiriesList — W2-A also feeds Projects; refresh on enter only.
   const inquiries = useGuestInquiriesList({
     open,
     expanded,
@@ -259,6 +262,7 @@ export function MiniChatPanel({
     tenantSlug,
     refreshKey: dockView === "projects",
     activeInquiryId: inquiryId,
+    locale: brand.locale,
   });
 
   // Finding #2: post-"Send to agency" success note (one-shot confirmation).
@@ -483,14 +487,13 @@ export function MiniChatPanel({
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
-    const focusTimer = setTimeout(() => textareaRef.current?.focus(), 60);
+    const phone = typeof window.matchMedia === "function" && (window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 900);
+    const focusTimer = phone ? undefined : setTimeout(() => textareaRef.current?.focus(), 60);
     return () => {
       window.removeEventListener("keydown", onKey);
-      clearTimeout(focusTimer);
+      if (focusTimer) clearTimeout(focusTimer);
     };
   }, [open, onClose]);
 
@@ -526,6 +529,7 @@ export function MiniChatPanel({
     talentProfileCode,
     sourcePage,
     locale: brand.locale,
+    t,
     contactPromoted: unified.contactPromoted,
     promoteContact: unified.promoteContact,
     onStartInquiry,
@@ -684,6 +688,7 @@ export function MiniChatPanel({
     onFirstNameChange: setFirstName,
     onLastNameChange: setLastName,
     onEmailChange: setEmail,
+    phone,
     onHoneypotChange: setHoneypot,
     onSubmit: submit,
     onFirstSend: () => void handleFirstSend(),
@@ -760,6 +765,8 @@ export function MiniChatPanel({
     dashboardHref: `/${tenantSlug}/client/messages`,
   };
 
+  // `chat.variant = card`: the SAME dock column inside the card frame (tabs, rail, views all live).
+  if (chatCard) return <CardDockPanel card={chatCard} compact={compactSheet} keyboardInsetPx={keyboardInsetPx} columnProps={columnProps} />;
   // ── Expanded 2-pane mode (F4) ─────────────────────────────────────────────
   if (expanded) {
     return (
@@ -785,7 +792,7 @@ export function MiniChatPanel({
       role="dialog"
       aria-modal="false"
       aria-label={interpolate(t("public.guestChat.messageBrandAria"), { brand: brand.agencyName })}
-      style={miniPanelContainerStyle(P, compactSheet)}
+      style={miniPanelContainerStyle(P, compactSheet, keyboardInsetPx)}
     >
       <MiniChatPanelColumn {...columnProps} />
     </div>

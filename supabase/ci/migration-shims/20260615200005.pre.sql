@@ -14,6 +14,7 @@
 --     inquiry_offer_line_items_merged_select_public   20261032000000
 --     inquiry_offers_merged_select_public             20261032000000
 --     inquiry_events_merged_select_public             20261028000000
+--     talent_profile_field_values_merged_select_public 20261231298400 (is_sensitive guard)
 --   (found by grepping CREATE POLICY for all 57 names this migration creates;
 --   those five are the only collisions.) Production applied this file in its
 --   own window, before either of those, and they later replaced the policies
@@ -54,7 +55,8 @@ SELECT '20260615200005', schemaname, tablename, policyname, permissive, cmd,
      'inquiry_offer_line_items_merged_all_public',
      'inquiry_offer_line_items_merged_select_public',
      'inquiry_offers_merged_select_public',
-     'inquiry_events_merged_select_public'
+     'inquiry_events_merged_select_public',
+     'talent_profile_field_values_merged_select_public'
    );
 
 DO $$

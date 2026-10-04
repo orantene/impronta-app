@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f7f4ef"/>
+      <stop offset="100%" stop-color="#e8efe9"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="540" fill="url(#bg)"/>
+  <text x="48" y="64" font-family="Georgia, serif" font-size="28" fill="#1a1a1a">G4-FOLIO / GRIDLINE APPS TAB</text>
+  <text x="48" y="100" font-family="system-ui,sans-serif" font-size="14" fill="#444">Apps tab always present · browse all · builder link</text>
+  <rect x="48" y="140" width="200" height="44" rx="8" fill="#fff" stroke="#1a1a1a"/>
+  <text x="72" y="168" font-family="system-ui,sans-serif" font-size="13" fill="#1a1a1a">Preview</text>
+  <rect x="260" y="140" width="200" height="44" rx="8" fill="#f0eeea" stroke="#1a1a1a"/>
+  <text x="320" y="168" font-family="system-ui,sans-serif" font-size="13" fill="#1a1a1a">Apps </text>
+  <rect x="48" y="220" width="180" height="44" rx="10" fill="#f0eeea" stroke="#d4d0c8"/>
+  <text x="68" y="248" font-family="system-ui,sans-serif" font-size="12" fill="#1a1a1a">Ver todas las apps</text>
+  <text x="48" y="500" font-family="system-ui,sans-serif" font-size="11" fill="#888">Code-verified after card · live QA on :3001 owed</text>
+</svg>

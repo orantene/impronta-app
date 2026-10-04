@@ -40,7 +40,7 @@ export function DuplicateReviewScreen({
           <button type="button" className="rounded-full border border-admin-border-soft px-3 py-1.5 text-[13px]" onClick={() => void onSaveDraft()}>
             {copy.t("Save draft")}
           </button>
-          <button type="button" className="rounded-full bg-admin-brand px-3 py-1.5 text-[13px] font-semibold text-white" onClick={() => void onPublish()}>
+          <button type="button" className="rounded-full bg-[var(--tc-action)] px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-[var(--tc-action-hover)]" onClick={() => void onPublish()}>
             {copy.t("Publish service")}
           </button>
         </div>

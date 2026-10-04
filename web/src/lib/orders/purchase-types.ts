@@ -13,6 +13,7 @@
  * reintroduce a bug it already has, and deleting it to buy lines is paying the
  * wrong debt.
  */
+import type { OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
 import type { CapacityRefusalReason } from "@/lib/capacity/types";
 import type { PaymentChoice } from "@/lib/orders/purchase-policy";
 
@@ -91,12 +92,21 @@ export type PurchaseInput = {
   openThread?: boolean;
   /**
    * Cookie-backed `guest_sessions.id` (via `resolveGuestSessionId`). When
-   * `openThread` creates an inquiry for a guest (no `actorUserId`), this is
-   * stamped on `inquiries.guest_session_id` so `/c/[inquiryId]` survives refresh.
-   * Contact-backed customers still need it: `resolvePurchaseBuyer` returns
+   * `openThread` creates an inquiry, this is stamped on
+   * `inquiries.guest_session_id` whenever present — including when
+   * `actorUserId` is also set — so `/c/[inquiryId]` ownership (cookie ===
+   * guest_session_id) survives refresh for signed-in buyers. Contact-backed
+   * customers still need it: `resolvePurchaseBuyer` returns
    * `guestSessionId: null` once an email is known.
    */
   guestSessionId?: string | null;
+  /**
+   * Gridline G9b: the visitor's task-picker brief. Stamped on the thread
+   * inquiry as `source_context.brief` when `openThread` creates one.
+   */
+  brief?: OfferingTaskBrief | null;
+  /** Talent policy version in force at checkout; stamped on the order and its booking. */
+  policyVersionId?: string | null;
   /**
    * A CALENDAR SLOT this purchase must hold, distinct from capacity units.
    *

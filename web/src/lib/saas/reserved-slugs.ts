@@ -49,6 +49,8 @@ export const WORKSPACE_SLUG_RESERVED_PREFIXES = new Set([
   "eventos",
   "r",
   "pay",
+  // Platform pay-host fallback (`/link/<code>`); not QR `/q`.
+  "link",
   "manage",
   // Static
   "sitemap.xml", "robots.txt",

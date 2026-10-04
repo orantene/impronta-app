@@ -326,6 +326,11 @@ export type IntentAdapterContext = {
   host_kind?: string | null;
   /** Host tenant id when the surface is workspace_site or hub. */
   host_tenant_id?: string | null;
+  /**
+   * A talent opening a conversation for herself (initiator_role 'talent').
+   * The engine only admits it for her own profile on the hub (talent-self-inquiry.ts).
+   */
+  talent_self?: boolean;
 };
 
 /**
@@ -365,7 +370,9 @@ export function intentToSubmitInquiryInput(
   // migration 20260514022934's documented backfill ("ELSE → initiator_role=
   // 'client'; conservative; matches legacy guest path"). Do not change to "guest".
   const initiator_role: SubmitInquiryInput["initiator_role"] =
-    intent.source === "admin_created"
+    ctx.talent_self
+      ? "talent"
+      : intent.source === "admin_created"
       ? "admin"
       : intent.source === "pitch"
         ? "admin"
@@ -408,7 +415,8 @@ export function intentToSubmitInquiryInput(
     source_workspace_id: ctx.source_workspace_id ?? null,
     trust_level_at_submission:
       ctx.trust_level_at_submission ?? intent.requester.trust_level ?? null,
-    client_user_id: ctx.client_user_id ?? ctx.actor_user_id ?? null,
+    // talent_self: the talent is never the client; her client has no user account yet.
+    client_user_id: ctx.talent_self ? ctx.client_user_id ?? null : ctx.client_user_id ?? ctx.actor_user_id ?? null,
     talent_profile_ids,
     actorUserId: ctx.actor_user_id,
     guest_session_id: ctx.guest_session_id ?? null,

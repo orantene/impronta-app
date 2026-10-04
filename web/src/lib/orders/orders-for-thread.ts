@@ -59,16 +59,27 @@ export async function loadOrdersForThread(
   // than the full total — asking a client to pay a sum they have part-paid.
   const { data: paidRows, error: paidErr } = await db
     .from("booking_transactions")
-    .select("order_id, gross_amount_cents, status")
+    .select("order_id, gross_amount_cents, net_amount_cents, status")
     .in("order_id", ids)
     .eq("status", "paid");
 
   if (paidErr) logServerError("orders.loadOrdersForThread/paid", paidErr);
 
   const collected = new Map<string, number>();
-  for (const row of (paidRows ?? []) as Array<{ order_id: string | null; gross_amount_cents: number }>) {
+  for (const row of (paidRows ?? []) as Array<{
+    order_id: string | null;
+    gross_amount_cents: number;
+    net_amount_cents?: number | null;
+  }>) {
     if (!row.order_id) continue;
-    collected.set(row.order_id, (collected.get(row.order_id) ?? 0) + Number(row.gross_amount_cents ?? 0));
+    const gross = Number(row.gross_amount_cents ?? 0);
+    const net =
+      row.net_amount_cents == null ? null : Number(row.net_amount_cents);
+    const principal =
+      net != null && Number.isFinite(net) && net >= 0 && net <= gross
+        ? net
+        : gross;
+    collected.set(row.order_id, (collected.get(row.order_id) ?? 0) + principal);
   }
 
   // ONE words read for the whole thread. D4: the customer-facing noun comes

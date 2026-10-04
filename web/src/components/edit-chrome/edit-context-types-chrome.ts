@@ -89,6 +89,7 @@ export interface EditContextChromeAndSessionValue {
   toggleSearchPanel: () => void;
   closeSearchPanel: () => void;
   addMenuOpen: boolean;
+  openAddMenu: () => void;
   toggleAddMenu: () => void;
   closeAddMenu: () => void;
   allPagesPanelOpen: boolean;
@@ -229,6 +230,10 @@ export interface EditContextChromeAndSessionValue {
   restoreRevision: (
     revisionId: string,
   ) => Promise<{ ok: boolean; error?: string }>;
+
+  /** Reset the draft to the live body via the surface adapter (talent sites);
+   *  `undefined` when the surface has none (topbar keeps the homepage path). */
+  discardDraftToLive?: () => Promise<{ ok: boolean; error?: string }>;
 
   /**
    * REV-1b — the active surface's OWNER-gated revision LIST read, or `null`

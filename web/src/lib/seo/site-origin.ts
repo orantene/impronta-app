@@ -37,7 +37,28 @@ export function publicSiteMetadataBase(): URL {
  * platform apex is the least-wrong answer there.
  */
 export function publicRequestSiteBase(hostContext: PublicHostContext): URL {
-  return tenantRequestOrigin(hostContext) ?? publicSiteMetadataBase();
+  return (
+    tenantRequestOrigin(hostContext) ??
+    talentSiteRequestOrigin(hostContext) ??
+    publicSiteMetadataBase()
+  );
+}
+
+/**
+ * A talent site host (`<name>.<apex>` subdomain or the talent's own custom
+ * domain) owns its whole origin, so its robots/sitemap anchor to that host.
+ * Deliberately NOT part of {@link publicAlternatesOrigin}: talent-site page
+ * canonicals are built by `buildMaxSiteSeo` from the host header.
+ */
+function talentSiteRequestOrigin(hostContext: PublicHostContext): URL | null {
+  if (hostContext.kind === "talent_site" && hostContext.hostname) {
+    try {
+      return new URL(`https://${hostContext.hostname}`);
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 /** The tenant's own origin, or null when this host is not a tenant storefront. */

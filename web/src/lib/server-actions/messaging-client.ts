@@ -8,7 +8,7 @@
  * `messagingGuestDraftAdd` already treats it. There is no staff guard here,
  * and nothing in this file reads or returns a staff-only field.
  *
- * Writers (D-MSG-160..166):
+ * Writers (D-MSG-160..166, D-MSG-432):
  *   - reply       -> `insertMessage` (kind "text", sender null) — inquiry_messages only
  *   - choose      -> POS `addLine` on the conversation's shared draft, `proposedBy: "client"`
  *                    (the same writer `messagingGuestDraftAdd` uses; a pick never books)
@@ -17,25 +17,33 @@
  *                    a guarded direct write of the same two rows otherwise (D-MSG-162)
  *   - decline     -> engine `clientRejectOffer` / the same fallback (D-MSG-162)
  *   - change      -> a `change_request` card + client message; staff revise (D-MSG-164)
+ *   - save email  -> mail the contact the `/c/t/<token>?from=email` link (D-MSG-432)
  *
  * Split out of `messaging-engine.ts` (already at the 800-line cap, same move
  * S6/L6 made) and kept apart from the staff wrappers on purpose: the client
  * bundle imports this file and nothing from the staff shell.
  */
 
+import { splitDirectAcceptApprovals } from "@/lib/messaging/offer-sender-approval";
+import { headers } from "next/headers";
 import { z } from "zod";
+
+import { ensureAcceptedOfferPayment } from "@/lib/messaging/accept-offer-payment";
 
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 import { clientRejectOffer } from "@/lib/inquiry/inquiry-engine-offers";
 import { renameClientContact } from "@/lib/messaging/client-rename";
+import { saveConversationToEmail } from "@/lib/messaging/client-save-to-email";
 import { resolveTenantOwnerId } from "@/lib/inquiry/coordinator-assignment";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import { bookAgainFromRecord } from "@/lib/messaging/client-book-again";
 import { insertMessage } from "@/lib/messaging/insert-message";
 import { fail } from "@/lib/messaging/refusals";
 import { verifyThreadToken } from "@/lib/messaging/thread-token";
+import { threadTokenMatchesRequestHost } from "@/lib/messaging/thread-token-host";
 import type { ActionResult, MessagingRefusal } from "@/lib/messaging/types";
 import { addLine, createDraftOrder } from "@/lib/pos/draft";
+import { nextFreeTimesForTalent } from "@/lib/scheduling/next-free-times";
 import { placeReservationHold } from "@/lib/scheduling/reservation-hold";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
@@ -53,6 +61,9 @@ type Link = { tenantId: string; inquiryId: string; admin: SupabaseClient };
 async function link(token: string): Promise<Link | { ok: false; reason: MessagingRefusal }> {
   const verified = verifyThreadToken(token);
   if (!verified.ok) return fail(verified.reason === "expired" ? "expired" : "not_allowed");
+  // Same host↔tenant gate as `/c/t/[token]/page.tsx` — writers must not
+  // act on a foreign agency host even if the HMAC is valid (Story 7).
+  if (!(await threadTokenMatchesRequestHost(verified.tenantId))) return fail("not_allowed");
   const admin = createServiceRoleClient();
   if (!admin) return fail("unavailable");
   return { tenantId: verified.tenantId, inquiryId: verified.inquiryId, admin };
@@ -191,7 +202,14 @@ export async function messagingClientPickTime(input: { token: string; messageId:
     ttlSeconds: CLIENT_TIME_HOLD_SECONDS,
     createdByUserId: null,
   });
-  if (!hold.ok) return fail(hold.code === "slot_taken" ? "unavailable" : hold.code === "invalid" ? "invalid" : "unavailable");
+  if (!hold.ok) {
+    if (hold.code === "slot_taken") {
+      // Same producer as guest-chat start: real next free starts only. Empty list ⇒ panel says pick another, never invents a clock.
+      const nextFreeTimes = await nextFreeTimesForTalent(l.admin, talentProfileId).catch(() => []);
+      return fail("unavailable", { nextFreeTimes });
+    }
+    return fail(hold.code === "invalid" ? "invalid" : "unavailable");
+  }
   await scoped(l.admin, "inquiry_messages", l.tenantId)
     .update({ card_payload: { ...p, state: "selected", pickedStartsAt: parsed.data.startsAt, holdId: hold.holdId, holdExpiresAt: hold.expiresAt, pickedAt: new Date().toISOString() } })
     .eq("id", card.id);
@@ -239,10 +257,10 @@ export async function messagingClientAddItem(input: {
 
 /* ---------- 4. accept / decline an exact offer version (D-MSG-162) ---------- */
 
-type OfferRow = { id: string; inquiry_id: string; status: string; version: number; valid_until: string | null; total_client_price?: number | string | null; currency_code?: string | null };
+type OfferRow = { id: string; inquiry_id: string; status: string; version: number; valid_until: string | null; total_client_price?: number | string | null; currency_code?: string | null; created_by_user_id?: string | null };
 
 async function offerFor(l: Link, offerId: string, offerVersion: number): Promise<OfferRow | { ok: false; reason: MessagingRefusal }> {
-  const { data } = await scoped(l.admin, "inquiry_offers", l.tenantId).select("id, inquiry_id, status, version, valid_until, total_client_price, currency_code").eq("id", offerId).maybeSingle();
+  const { data } = await scoped(l.admin, "inquiry_offers", l.tenantId).select("id, inquiry_id, status, version, valid_until, total_client_price, currency_code, created_by_user_id").eq("id", offerId).maybeSingle();
   const row = data as OfferRow | null;
   if (!row || row.inquiry_id !== l.inquiryId) return fail("not_found");
   // Accept binds to an exact version (owner ruling): a card drawn for v2 cannot act on v3.
@@ -281,7 +299,9 @@ export async function messagingClientAcceptOffer(input: { token: string; offerId
   if (isFail(l)) return l;
   const offer = await offerFor(l, parsed.data.offerId, parsed.data.offerVersion);
   if (isFail(offer)) return offer;
-  if (offer.status === "accepted") return fail("already");
+  // A second accept (double tap, retry after a lost answer) is not a refusal:
+  // it hands back the same order's same open link, creating nothing new.
+  if (offer.status === "accepted") return { ok: true, payCode: await payAfterAccept(l, offer) };
   if (offer.status !== "sent") return fail("expired");
   if (offer.valid_until && Date.parse(offer.valid_until) < Date.now()) return fail("expired");
   const inquiry = await inquiryFor(l);
@@ -307,6 +327,46 @@ export async function messagingClientAcceptOffer(input: { token: string; offerId
     if (isFail(direct)) return direct;
   }
   await offerStateCard(l, offer, "accepted", `Accepted offer v${offer.version}`);
+  return { ok: true, payCode: await payAfterAccept(l, offer) };
+}
+
+async function requestOrigin(): Promise<string> {
+  try {
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    if (!host) return "";
+    const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
+    return `${proto}://${host}`;
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * After an accept: the order + pay link + pay card, under the talent's
+ * deposit / payment policy (accept-offer-payment.ts). Pay in person posts a
+ * confirmed card and returns no code. Falls back to any open link already on
+ * the conversation (a staff "Request payment") so the visitor is never left
+ * without one that exists.
+ */
+async function payAfterAccept(l: Link, offer: OfferRow): Promise<string | null> {
+  const full = await scoped(l.admin, "inquiry_offers", l.tenantId).select("deposit_pct, deposit_amount_cents").eq("id", offer.id).maybeSingle();
+  const terms = (full.data ?? {}) as { deposit_pct?: number | string | null; deposit_amount_cents?: number | string | null };
+  const pay = await ensureAcceptedOfferPayment(l.admin, {
+    tenantId: l.tenantId,
+    inquiryId: l.inquiryId,
+    offerCreatedBy: offer.created_by_user_id ?? null,
+    publicOrigin: await requestOrigin(),
+    offer: {
+      id: offer.id,
+      version: Number(offer.version),
+      totalCents: Math.round(Number(offer.total_client_price ?? 0) * 100),
+      currency: (offer.currency_code ?? "USD").toUpperCase(),
+      depositPct: terms.deposit_pct == null ? null : Number(terms.deposit_pct),
+      depositCents: terms.deposit_amount_cents == null ? null : Number(terms.deposit_amount_cents),
+    },
+  });
+  if (pay.ok && (pay.payCode || pay.collection.collect === "none")) return pay.payCode;
   const { data: linkRow } = await scoped(l.admin, "payment_links", l.tenantId)
     .select("code")
     .eq("inquiry_id", l.inquiryId)
@@ -314,7 +374,28 @@ export async function messagingClientAcceptOffer(input: { token: string; offerId
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  return { ok: true, payCode: (linkRow as { code?: string } | null)?.code ?? null };
+  return (linkRow as { code?: string } | null)?.code ?? null;
+}
+
+/**
+ * The visitor's "send me the payment link" ask: the same writer as accept,
+ * for the newest accepted offer. Idempotent; answers the open link's code.
+ */
+export async function messagingClientRequestPayLink(input: { token: string }): Promise<ActionResult<{ payCode: string | null }>> {
+  const parsed = z.object({ token: z.string().min(1) }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const l = await link(parsed.data.token);
+  if (isFail(l)) return l;
+  const { data } = await scoped(l.admin, "inquiry_offers", l.tenantId)
+    .select("id, inquiry_id, status, version, valid_until, total_client_price, currency_code, created_by_user_id")
+    .eq("inquiry_id", l.inquiryId)
+    .eq("status", "accepted")
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const offer = data as OfferRow | null;
+  if (!offer) return fail("not_found");
+  return { ok: true, payCode: await payAfterAccept(l, offer) };
 }
 
 /**
@@ -330,13 +411,28 @@ async function acceptDirect(l: Link, offer: OfferRow, expectedVersion: number): 
   // guest-seat inquiry carries a client participant with no user, and its
   // pending approval refused every accept from the link).
   const { data: pending } = await scoped(l.admin, "inquiry_approvals", l.tenantId)
-    .select("id, participant_id, inquiry_participants!inner(role)")
+    .select("id, participant_id, inquiry_participants!inner(role, user_id, talent_profile_id)")
     .eq("offer_id", offer.id)
     .neq("status", "accepted");
-  const rows = (pending ?? []) as Array<{ id: string; inquiry_participants: { role: string } | { role: string }[] | null }>;
-  const roleOf = (r: (typeof rows)[number]) => (Array.isArray(r.inquiry_participants) ? r.inquiry_participants[0]?.role : r.inquiry_participants?.role) ?? "";
-  if (rows.some((r) => roleOf(r) !== "client")) return fail("not_allowed");
-  const own = rows.filter((r) => roleOf(r) === "client").map((r) => r.id);
+  type Part = { role: string; user_id: string | null; talent_profile_id: string | null };
+  const rows = (pending ?? []) as Array<{ id: string; inquiry_participants: Part | Part[] | null }>;
+  const partOf = (r: (typeof rows)[number]): Part | null => (Array.isArray(r.inquiry_participants) ? r.inquiry_participants[0] : r.inquiry_participants) ?? null;
+  // The sender's own approval is implicit in sending (offer-sender-approval.ts).
+  const talentIds = rows.map((r) => partOf(r)?.talent_profile_id).filter((x): x is string => Boolean(x));
+  const owners = new Map<string, string | null>();
+  if (talentIds.length > 0 && offer.created_by_user_id) {
+    // eslint-disable-next-line ratchet/no-untenanted-from -- talent_profiles is a global table; the ids come from THIS inquiry's participants
+    const { data: tps, error: tpErr } = await l.admin.from("talent_profiles").select("id, user_id").in("id", talentIds);
+    if (tpErr) return fail("unavailable");
+    for (const tp of (tps ?? []) as Array<{ id: string; user_id: string | null }>) owners.set(tp.id, tp.user_id);
+  }
+  const split = splitDirectAcceptApprovals(
+    rows.map((r) => ({ id: r.id, role: partOf(r)?.role ?? "", participantUserId: partOf(r)?.user_id ?? null, talentProfileId: partOf(r)?.talent_profile_id ?? null })),
+    offer.created_by_user_id ?? null,
+    owners,
+  );
+  if (split.blocking.length > 0) return fail("not_allowed");
+  const own = split.settle;
   if (own.length > 0) {
     await scoped(l.admin, "inquiry_approvals", l.tenantId).update({ status: "accepted", decided_at: new Date().toISOString(), updated_at: new Date().toISOString() }).in("id", own);
   }
@@ -466,5 +562,25 @@ export async function messagingClientBookAgain(input: { token: string; recordId:
     recordId: parsed.data.recordId,
     createInquiry: createInquiryFromIntent as never,
     resolveOwner: (admin, tenantId) => resolveTenantOwnerId(admin as never, tenantId),
+  });
+}
+
+/* ---------- 8. save conversation to email (D-MSG-432 / closes D-MSG-166b) ---------- */
+
+export async function messagingClientSaveToEmail(input: {
+  token: string;
+  requestOrigin?: string | null;
+}): Promise<ActionResult<{ email: string }>> {
+  const parsed = z
+    .object({ token: z.string().min(1), requestOrigin: z.string().max(200).nullable().optional() })
+    .safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const l = await link(parsed.data.token);
+  if (isFail(l)) return l;
+  return saveConversationToEmail(l.admin, {
+    tenantId: l.tenantId,
+    inquiryId: l.inquiryId,
+    token: parsed.data.token,
+    requestOrigin: parsed.data.requestOrigin ?? null,
   });
 }

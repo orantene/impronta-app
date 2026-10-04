@@ -21,10 +21,15 @@
  *   - tenant CUSTOM domains (improntamodels.com, …) → host-only (single-host
  *                                              storefronts; their auth stays
  *                                              local to that domain)
+ *   - Support Desk hosts (support.tulala.digital, desk.tulala.digital, …)
+ *     → host-only. Desk has its own login; never widen to `.tulala.digital`
+ *     (Phase 1a / Oran binding).
  *
  * Keeping the allow-list explicit bounds the blast radius to the two roots we
  * actually share sessions across.
  */
+
+import { isHostScopedAuthHost } from "@/lib/support/desk-hosts";
 
 /** Leading-dot parent domains we share auth cookies across. */
 const SHARED_COOKIE_PARENTS = [".tulala.digital", ".lvh.me"] as const;
@@ -46,6 +51,8 @@ export function cookieDomainForHost(
   if (h === "localhost" || h.endsWith(".local") || /^[0-9.]+$/.test(h)) {
     return undefined;
   }
+  // Support Desk: own login, host-scoped session only. Do not widen.
+  if (isHostScopedAuthHost(h)) return undefined;
   for (const parent of SHARED_COOKIE_PARENTS) {
     const root = parent.slice(1); // ".tulala.digital" → "tulala.digital"
     if (h === root || h.endsWith(parent)) {

@@ -64,20 +64,52 @@ export function SupportLauncher({
   // Layout effect: the slot is in the same commit, so the header button is
   // in place before the first paint and the floating circle never flashes.
   useLayoutEffect(() => {
-    const find = () => document.querySelector<HTMLElement>("[data-tulala-support-slot]");
-    const found = find();
-    if (found) { setSlot(found); return; }
+    // A rail slot (talent sidebar footer) wins over the identity-bar slot.
+    const find = () =>
+      document.querySelector<HTMLElement>('[data-tulala-support-slot="rail"][data-ready]') ??
+      document.querySelector<HTMLElement>('[data-tulala-support-slot]:not([data-tulala-support-slot="rail"])');
+    // Keep watching: a sidebar re-render can replace the slot node, and a
+    // portal into a detached node renders nothing.
+    let current = find();
+    setSlot(current);
     const observer = new MutationObserver(() => {
-      const el = find();
-      if (el) { setSlot(el); observer.disconnect(); }
+      if (current?.isConnected && current.dataset.tulalaSupportSlot === "rail") return;
+      current = find();
+      setSlot(current);
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-ready"] });
     return () => observer.disconnect();
   }, []);
-  const inHeader = slot !== null && !compact;
+  const inRail = slot !== null && !compact && slot.dataset.tulalaSupportSlot === "rail";
+  const inHeader = slot !== null && !compact && !inRail;
 
   return (
     <>
+      {inRail && slot ? createPortal(
+        <button
+          type="button"
+          data-tulala-support-launcher="rail"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-controls="tulala-support-panel"
+          aria-label={t("dashboard.adminSupport.launcherAria")}
+          onClick={toggle}
+          className="flex w-full cursor-pointer items-center gap-[8px] rounded-[8px] border border-transparent bg-transparent px-[10px] py-[8px] text-left font-admin-body text-[12.5px] font-medium text-admin-ink-muted hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink [transition:background_var(--transition-admin-micro),color_var(--transition-admin-micro)]"
+        >
+          <Icon name="life-buoy" size={13} stroke={1.7} color="currentColor" />
+          <span className="flex-1">{t("dashboard.adminSupport.railLabel")}</span>
+          {unread > 0 ? (
+            <span
+              aria-hidden
+              className="min-w-[15px] rounded-full px-[4px] text-center text-[10px] font-bold leading-[15px] text-white"
+              style={{ background: COLORS.coral }}
+            >
+              {unread > 9 ? "9+" : unread}
+            </span>
+          ) : null}
+        </button>,
+        slot,
+      ) : null}
       {inHeader ? createPortal(
         <button
           type="button"
@@ -121,7 +153,7 @@ export function SupportLauncher({
       {/* One solid dark circle with a white chat bubble. The previous
           white edge-tab read as a floating blob, and the ring icon plus a
           stray violet dot looked like a rendering artifact. */}
-      {!inHeader && (
+      {!inHeader && !inRail && (
       <button
         type="button"
         data-tulala-support-launcher=""

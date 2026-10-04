@@ -1405,21 +1405,17 @@ export async function actionLoadTalentGallery(
 export async function actionLoadTalentMediaBundle(
   talentProfileId: string,
 ): Promise<ActionResult<TalentMediaBundle>> {
-  const auth = await requireWorkspaceStaffAction();
-  if (!auth.ok) return { ok: false, error: auth.error };
-  const { tenantId } = auth;
-
+  // Staff of the rostering tenant OR the owning talent (uploads accept both).
+  const staff = await requireWorkspaceStaffAction();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
-
-  const { data: rosterRow } = await admin
-    .from("agency_talent_roster")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", talentProfileId)
-    .neq("status", "removed")
-    .maybeSingle();
-  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+  if (staff.ok) {
+    const { data: rosterRow } = await admin.from("agency_talent_roster").select("id")
+      .eq("tenant_id", staff.tenantId).eq("talent_profile_id", talentProfileId).neq("status", "removed").maybeSingle();
+    if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+  } else if (!(await requireTalentSelfAction(talentProfileId)).ok) {
+    return { ok: false, error: staff.error };
+  }
 
   const { data, error } = await admin
     .from("media_assets")

@@ -23,6 +23,8 @@
 
 import type { EnsureGuestChatInquiryCallback, GetGuestInquiryDetailsCallback, ListGuestInquiriesCallback, ListGuestTenantRosterCallback, ResolveGuestCartPortraitsCallback } from "./guest-chat-unified-contract"; // imported to annotate props below; also re-exported from this barrel further down
 import type { InquiryReceiptData } from "./inquiry-receipt-contract";
+import type { OfferingCtaKind } from "@/lib/talent/offerings-types";
+import type { OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
 import type { ClientOfferSummary } from "@/lib/messages-v5/client-thread-view"; // pure module (no server import); L13 v5 extras below // Jon 360 Phase 2 receipt; annotated on GetGuestThreadResult below + re-exported from this barrel
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -49,6 +51,8 @@ export type GuestThreadV5Extras = {
   offers: ClientOfferSummary[];
   /** The open payment-link code, if any (the offer card's Pay button). */
   payCode: string | null;
+  /** What that open link charges (deposit or full), for the next-step title. */
+  payAmountCents?: number | null;
   /**
    * L13 wave 2: the non-talent items of this conversation, for the dock's
    * Items tab. Lines are the POS shared draft (`orders` draft on this inquiry,
@@ -253,6 +257,9 @@ export type GuestChatErrorCode =
   | "db_unavailable"      // service-role client missing
   | "limit_reached"       // active-conversation trust gate tripped (U3)
   | "slot_taken"          // the requested time is no longer free
+  // WSF-C: the talent paused new work on this direct channel (§7/§8).
+  | "not_accepting_bookings"
+  | "not_accepting_inquiries"
   | "engine_error";       // catch-all engine/insert failure
 
 export type GuestChatFailure = {
@@ -345,6 +352,20 @@ export type StartGuestChatInput = {
     currency: string;
     price_type: string;
     kind: string;
+    /** Booking-sheet selection carried into Messages (optional). */
+    variant_id?: string | null;
+    variant_label?: string | null;
+    add_on_ids?: string[];
+    add_on_labels?: string[];
+    slot_label?: string | null;
+    starts_at?: string | null;
+    total_cents?: number | null;
+    /**
+     * Gridline G9b: the task the visitor picked in the task picker, with the
+     * note they kept or edited (-> source_context.offering.brief). Clamped
+     * server-side.
+     */
+    brief?: OfferingTaskBrief | null;
   } | null;
   /**
    * Signed service choice (`signTalentOfferingIntent`). The server reloads
@@ -353,6 +374,10 @@ export type StartGuestChatInput = {
   offeringIntent?: string | null;
   /** Guest locale for the hand-confirmation line. */
   locale?: string | null;
+  /** WSF D: "inquiry_form" when the chat-off form sheet sent it (→ source_context.entry_point). */
+  entryPoint?: "inquiry_form" | null;
+  /** WSF D: every service picked when more than one (→ source_context.lines). */
+  lines?: { offering_id: string; title: string; amount_cents: number | null; currency: string }[] | null;
 };
 
 export type StartGuestChatResult =
@@ -544,6 +569,10 @@ export type GuestChatOffering = {
   reserveMode: "full" | "deposit" | "free";
   depositPct: number | null;
   imageUrl: string | null;
+  /** The menu's own price line ("Desde $120 por uña"), so lists agree with the menu. Optional. */
+  priceLabel?: string | null;
+  /** Priced per unit: the unit replaces the duration in a list row. */
+  priceIsPerUnit?: boolean;
 };
 
 /** The resumable thread + prefill for the inline name/email gate. */
@@ -724,6 +753,8 @@ export type MiniChatBrand = {
   agencyName: string;
   /** Talent first name / display name used in the opener ("Hi — I'm {talentName}'s booking assistant"). */
   talentDisplayName: string;
+  /** The panel talks for ONE talent (her profile), not an agency roster: solo opener. */
+  soloTalent?: boolean;
   /**
    * Brand accent color (CSS color string) from agency_branding.theme_json
    * ("color.primary" / accent). Drives the launcher + send button. Optional —
@@ -732,6 +763,11 @@ export type MiniChatBrand = {
   accentColor?: string | null;
   /** Optional agency logo URL for the panel header. */
   logoUrl?: string | null;
+  /**
+   * Talent profile photo (talent vanity sites). The header avatar falls back to
+   * it when there is no logo, before the letter monogram (AUD-039).
+   */
+  photoUrl?: string | null;
   /**
    * Optional custom opener line (tenant_guest_chat_settings.greeting). When set,
    * replaces the default "Hi — I'm {talent}'s booking assistant…" opener.
@@ -750,12 +786,36 @@ export type MiniChatBrand = {
   dockCardsV5?: boolean;
   /** L13: the Items tab label per business ("Talent & services", "Your order", ...). */
   dockItemsLabel?: string | null;
+  /** Projects tab override when a trade sets `customers.chat_bookings` (chef → Mis eventos). */
+  dockProjectsLabel?: string | null;
   /** L13: the industry preset represents people (agency, act); false for a restaurant, venue, salon. */
   dockRepresentsPeople?: boolean;
   /** Progress-rail trade. Null keeps the numeric details chip. */
   dockIntake?: "beauty" | "chef" | "massage" | "agency" | null;
-  /** This talent's own services, grouped into catalogue chips by category name. */
-  dockServiceMenu?: readonly { title: string; category: string }[];
+  /**
+   * This talent's own services, grouped into catalogue chips by category name.
+   * `priceLabel` is the printed money line ("$500 MXN · ≈ US$28") when known.
+   */
+  dockServiceMenu?: readonly {
+    title: string;
+    category: string;
+    amountCents?: number | null;
+    currency?: string | null;
+    priceLabel?: string | null;
+    /** Derived CTA (deriveOfferingCta); drives the row button label. */
+    cta?: OfferingCtaKind | null;
+  }[];
+  /**
+   * Talent vanity / solo hosts: the panel speaks as the trade, not the platform.
+   * When true, guest-account copy omits the platform brand name (Tulala).
+   */
+  omitPlatformBrand?: boolean;
+  /**
+   * Agency public storefront dock (Impronta Talk), not hub and not talent vanity.
+   * Set only by AgencyChatLauncherMount when host kind is agency. Do not infer
+   * from dockIntake — intakeTradeForPreset maps custom/portfolio/act → "agency".
+   */
+  agencyPublicSurface?: boolean;
 };
 
 export type MiniChatPanelProps = {

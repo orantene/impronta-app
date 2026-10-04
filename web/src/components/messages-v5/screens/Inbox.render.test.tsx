@@ -40,7 +40,7 @@ test("desktop ready: header, count, New, segments, search, chips, one grp-h with
   const html = renderToStaticMarkup(<Inbox {...baseProps({ rows })} />);
   assert.match(html, /data-inbox-pane="desktop"/);
   assert.match(html, /<h2>Inbox<\/h2>/);
-  assert.match(html, /class="cnt-txt">1 conversations/);
+  assert.match(html, /class="cnt-txt">1 conversation</);
   assert.match(html, />New<\/button>/);
   assert.match(html, /role="tablist"/);
   assert.match(html, /class="search"/);
@@ -120,4 +120,82 @@ test("segment counts prefer the shell's counts over the computed fallback", () =
   const rows = [inboxRow({ id: "r1", conversationState: "needs_reply", ownerUserId: "u-1", nextAction: null })];
   const html = renderToStaticMarkup(<Inbox {...baseProps({ rows, counts: { needs: 99 } })} />);
   assert.match(html, /Needs action<span class="n">99<\/span>/);
+});
+
+const SELLER = {
+  quoteSubtitle: "q",
+  summaryTitle: "s",
+  summaryTotal: "t",
+  summaryDeposit: "d",
+  summaryBalance: "b",
+  inboxTitle: "Messages",
+  newConversation: "New conversation",
+  firstRunTitle: "No messages yet",
+  firstRunBody: "Share your link.",
+  firstRunAction: <span data-share-link>link</span>,
+  totalConversations: 0,
+};
+
+test("F35/F37: seller with zero conversations gets a first run and no filters", () => {
+  const html = renderToStaticMarkup(<Inbox {...baseProps({ rows: [], seller: true, sellerChrome: SELLER })} />);
+  assert.match(html, /<h2>Messages<\/h2>/);
+  assert.match(html, />New conversation<\/button>/);
+  assert.match(html, /data-inbox-first-run/);
+  assert.match(html, /No messages yet/);
+  assert.match(html, /data-share-link/);
+  assert.doesNotMatch(html, /Nothing needs you/);
+  assert.doesNotMatch(html, /data-inbox-chips/);
+  assert.doesNotMatch(html, /role="tablist"/);
+});
+
+test("F35: seller with conversations keeps segments, without team chips", () => {
+  const rows = [inboxRow({ id: "r1", conversationState: "needs_reply", ownerUserId: "u-1", nextAction: null })];
+  const html = renderToStaticMarkup(<Inbox {...baseProps({ rows, seller: true, sellerChrome: SELLER })} />);
+  assert.match(html, /role="tablist"/);
+  assert.doesNotMatch(html, /data-inbox-first-run/);
+  assert.doesNotMatch(html, />Mine</);
+  assert.doesNotMatch(html, />Unassigned</);
+});
+
+test("F54: an empty Needs action segment is not a first run when she has conversations", () => {
+  const html = renderToStaticMarkup(
+    <Inbox {...baseProps({ rows: [], filter: "needs", seller: true, sellerChrome: { ...SELLER, totalConversations: 1 } })} />,
+  );
+  assert.doesNotMatch(html, /data-inbox-first-run/);
+  assert.match(html, /role="tablist"/);
+});
+
+test("F54: total still unknown shows no first run", () => {
+  const html = renderToStaticMarkup(
+    <Inbox {...baseProps({ rows: [], seller: true, sellerChrome: { ...SELLER, totalConversations: null } })} />,
+  );
+  assert.doesNotMatch(html, /data-inbox-first-run/);
+});
+
+test("F54: her own new conversation (awaiting the client) is listed under All", () => {
+  const rows = [inboxRow({ id: "a64db5b5", conversationState: "awaiting_customer", ownerUserId: "u-sofia", nextAction: null })];
+  const html = renderToStaticMarkup(
+    <Inbox {...baseProps({ rows, filter: "all", seller: true, sellerChrome: { ...SELLER, totalConversations: 1 } })} />,
+  );
+  assert.match(html, /data-inbox-row="a64db5b5"/);
+  assert.doesNotMatch(html, /data-inbox-first-run/);
+});
+
+const SELLER_FILTERS = {
+  ...SELLER,
+  filters: { all: "All", needs: "Needs reply", quotes: "Quotes out", agency: "Agency" },
+  waitingOnYou: "{count} waiting on you",
+};
+
+test("msg_d: seller gets All / Needs reply / Quotes out / Agency and a waiting line", () => {
+  const rows = [
+    inboxRow({ id: "r1", conversationState: "needs_reply", ownerUserId: null, nextAction: null }),
+    inboxRow({ id: "r2", conversationState: "needs_reply", ownerUserId: null, nextAction: null, agency: true }),
+  ];
+  const html = renderToStaticMarkup(<Inbox {...baseProps({ rows, seller: true, sellerChrome: SELLER_FILTERS })} />);
+  assert.match(html, /data-inbox-seller-filters/);
+  for (const label of ["All", "Needs reply", "Quotes out", "Agency"]) assert.match(html, new RegExp(">" + label));
+  assert.match(html, /2 waiting on you/);
+  assert.doesNotMatch(html, /Needs action/);
+  assert.doesNotMatch(html, /data-inbox-chips/);
 });

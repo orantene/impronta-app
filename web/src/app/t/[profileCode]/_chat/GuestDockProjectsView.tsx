@@ -23,7 +23,7 @@ import {
 
 import { formatRelTime, hasNewInbound } from "./guest-thread-switcher-helpers";
 import { NewDot } from "./GuestThreadSwitcherParts";
-import { FONT, paletteFor, type SurfaceMode } from "./mini-chat-styles";
+import { FONT, paletteFor, readableOn, type SurfaceMode } from "./mini-chat-styles";
 
 export type GuestDockProjectsViewProps = {
   inquiries: GuestInquirySummary[];
@@ -36,6 +36,8 @@ export type GuestDockProjectsViewProps = {
   onSelect: (inquiryId: string) => void;
   /** Book again for a booked inquiry (token writer on the active thread). */
   onBookAgain?: (inquiryId: string) => void;
+  /** Card skin: the empty state offers a way to the Servicios tab. */
+  onBrowseServices?: () => void;
 };
 
 const SEGMENTS: readonly GuestInquirySegment[] = ["needs", "wait", "done"];
@@ -110,6 +112,7 @@ export function GuestDockProjectsView({
   t,
   onSelect,
   onBookAgain,
+  onBrowseServices,
 }: GuestDockProjectsViewProps) {
   const C = paletteFor(surfaceMode);
   const [segment, setSegment] = useState<GuestInquirySegment>("needs");
@@ -131,6 +134,17 @@ export function GuestDockProjectsView({
     }),
     [t],
   );
+
+  if (onBrowseServices && inquiries.length === 0) {
+    return (
+      <div data-guest-dock-view="projects" data-card-dock-empty="" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, padding: "24px 16px", textAlign: "center", background: C.surface, fontFamily: FONT }}>
+        <p style={{ margin: 0, maxWidth: 260, fontSize: 14, lineHeight: 1.45, color: C.inkMuted }}>{t("public.guestChat.cardNoBookings")}</p>
+        <button type="button" onClick={onBrowseServices} style={{ border: 0, borderRadius: 999, padding: "10px 18px", background: accent, color: readableOn(accent), font: `600 13.5px ${FONT}`, cursor: "pointer" }}>
+          {t("public.guestChat.cardSeeServices")}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -159,7 +173,7 @@ export function GuestDockProjectsView({
                 fontFamily: FONT,
                 padding: "6px 4px",
                 borderRadius: 999,
-                border: `1px solid ${on ? accent : C.borderSoft}`,
+                border: surfaceMode === "card" ? "none" : `1px solid ${on ? accent : C.borderSoft}`,
                 background: on ? `${accent}18` : C.surfaceFaint,
                 color: on ? accent : C.inkMuted,
                 cursor: "pointer",

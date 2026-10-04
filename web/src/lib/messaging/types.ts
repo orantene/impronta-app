@@ -61,6 +61,8 @@ export const CARD_STATES = [
   "unavailable",
   "price_changed",
   "cancelled",
+  "refunded",
+  "partially_refunded",
 ] as const;
 export type CardState = (typeof CARD_STATES)[number];
 
@@ -106,7 +108,8 @@ export type MessagingRefusal =
   | "no_payout_receiver";
 
 export type ActionOk<T extends Record<string, unknown> = Record<string, never>> = { ok: true } & T;
-export type ActionFail = { ok: false; reason: MessagingRefusal };
+/** `nextFreeTimes` is only set when a time pick comes back `unavailable` / slot taken. Empty = calendar has no open time; never invent one. */
+export type ActionFail = { ok: false; reason: MessagingRefusal; nextFreeTimes?: string[] };
 export type ActionResult<T extends Record<string, unknown> = Record<string, never>> = ActionOk<T> | ActionFail;
 
 export const NEXT_ACTIONS = ["reply", "assign", "collect", "follow_up"] as const;
@@ -134,6 +137,8 @@ export type InboxRow = {
   updatedAt: string;
   version: number;
   recordChips: readonly RecordChip[];
+  /** Talent inbox only: the thread belongs to an agency, not to her own site. */
+  agency?: boolean;
 };
 
 /**

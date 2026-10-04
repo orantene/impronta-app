@@ -1,38 +1,54 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { useDashboardText } from "./dashboard-i18n";
 import { EmptyState, Icon, useRovingTabindex } from "./primitives";
+import { TALENT_SIDEBAR_ICON } from "./talent-nav-icons";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGE_META, TALENT_TIER_META, useAdminShell, type TalentPage } from "./state";
-import { CalendarPage } from "./talent/pages/CalendarPage";
-import { MyProfilePage } from "./talent/pages/MyProfilePage";
-import { PublicPageEditor } from "./talent/pages/PublicPageEditor";
-import { ReviewsPage } from "./talent/pages/ReviewsPage";
-import { ServicesPage } from "./talent/pages/ServicesPage";
-import { SettingsPage } from "./talent/pages/SettingsPage";
-import { TalentPayoutsPage } from "./page-modules/TalentPayoutsPage";
-import { TalentTodayPage } from "./talent/pages/TodayPage";
-import { TalentMessagesPage } from "./talent/pages/messages/MessagesPage";
 import { PageHeader } from "./talent/shared/page-chrome-1";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
-import { MoneyPage } from "@/components/talent/money/MoneyPage";
-import { TalentClientsPage } from "./talent/pages/ClientsPage";
-import { AgendaAttentionPage } from "./talent/agenda/AgendaAttentionPage";
-import { AgendaCalendarPage } from "./talent/agenda/AgendaCalendarPage";
-import { AgendaAvailabilityPage } from "./talent/agenda/AgendaAvailabilityPage";
-import { AgendaBookingRecord } from "./talent/agenda/AgendaBookingRecord";
-import { AgendaNewBooking } from "./talent/agenda/AgendaNewBooking";
-import { buildAgendaListItemFromAgendaItem } from "./talent/agenda/view-model";
-import { isAgendaV2 } from "@/lib/talent-agenda/flag";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { tradeCalendarRules } from "@/lib/talent-agenda/trade-calendar";
+import { resolveTalentPublicPreviewDestinations } from "@/lib/talent/public-profile-href";
+import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
+import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
+import { bookingIdFromTalentPath } from "./state/talent-page-segment";
+import { WorkingHoursPanelHost, openWorkingHoursPanel } from "./talent/agenda/WorkingHoursPanel";
+import { NewBookingPanelHost, openNewBookingPanel } from "./talent/agenda/NewBookingPanel";
+import { SendQuotePanelHost } from "./talent/agenda/SendQuotePanel";
+import { pinNextConversation } from "./messages/conversation-pending";
+
+// ── Page bodies load ON DEMAND (perf/talent-dev-bundle) ──
+// Every talent page body used to be a static import here, so /talent/today
+// downloaded the site builder + edit-chrome (PublicPageEditor), the messages
+// v5 shell, Money, Agenda, etc. before it could hydrate (~30 MB of dev JS,
+// measured with curl on 2026-09-28). Each body is now its own chunk group,
+// fetched only when that page renders. `ssr` stays ON, so a hard load of any
+// route still paints the page on the server; `loading` renders nothing, the
+// same shape as `pages-dynamic.tsx` and `drawers.tsx`.
+const CalendarPage = dynamic(() => import("./talent/pages/CalendarPage").then((m) => ({ default: m.CalendarPage })), { loading: () => null });
+const MyProfilePage = dynamic(() => import("./talent/pages/MyProfilePage").then((m) => ({ default: m.MyProfilePage })), { loading: () => null });
+const PublicPageEditor = dynamic(() => import("./talent/pages/PublicPageEditor").then((m) => ({ default: m.PublicPageEditor })), { loading: () => null });
+const ReviewsPage = dynamic(() => import("./talent/pages/ReviewsPage").then((m) => ({ default: m.ReviewsPage })), { loading: () => null });
+const ServicesPage = dynamic(() => import("./talent/pages/ServicesPage").then((m) => ({ default: m.ServicesPage })), { loading: () => null });
+const SettingsPage = dynamic(() => import("./talent/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })), { loading: () => null });
+const TalentPayoutsPage = dynamic(() => import("./page-modules/TalentPayoutsPage").then((m) => ({ default: m.TalentPayoutsPage })), { loading: () => null });
+const TalentTodayPage = dynamic(() => import("./talent/pages/TodayPage").then((m) => ({ default: m.TalentTodayPage })), { loading: () => null });
+const TalentMessagesPage = dynamic(() => import("./talent/pages/messages/MessagesPage").then((m) => ({ default: m.TalentMessagesPage })), { loading: () => null });
+const MoneyPage = dynamic(() => import("@/components/talent/money/MoneyPage").then((m) => ({ default: m.MoneyPage })), { loading: () => null });
+const TalentClientsPage = dynamic(() => import("./talent/pages/ClientsPage").then((m) => ({ default: m.TalentClientsPage })), { loading: () => null });
+const AgendaAttentionPage = dynamic(() => import("./talent/agenda/AgendaAttentionPage").then((m) => ({ default: m.AgendaAttentionPage })), { loading: () => null });
+const AgendaCalendarPage = dynamic(() => import("./talent/agenda/AgendaCalendarPage").then((m) => ({ default: m.AgendaCalendarPage })), { loading: () => null });
+const AgendaAvailabilityPage = dynamic(() => import("./talent/agenda/AgendaAvailabilityPage").then((m) => ({ default: m.AgendaAvailabilityPage })), { loading: () => null });
+const BookingRecordRoute = dynamic(() => import("./talent/agenda/BookingRecordRoute").then((m) => ({ default: m.BookingRecordRoute })), { loading: () => null });
+const AgendaNewBooking = dynamic(() => import("./talent/agenda/AgendaNewBooking").then((m) => ({ default: m.AgendaNewBooking })), { loading: () => null });
 
 // ── Re-export barrel: public API preserved for external importers ──
-export { TalentMessagesPage } from "./talent/pages/messages/MessagesPage";
 export { CLIENT_MOCK_CONVERSATIONS_BY_PROFILE } from "./talent/shared/client-conversations-1";
 export type { Msg } from "./talent/shared/client-conversations-1";
 export { MOCK_THREAD } from "./talent/shared/client-conversations-2";
-export { ConversationThread, ParticipantsStack } from "./talent/shared/client-threads-1";
 export { useTalentConversations } from "./talent/shared/conversation-adapter-1";
 export { MOCK_CONVERSATIONS } from "./talent/shared/conversations-1";
 export type { ConvOutcome, ConvSource, Conversation, Participant } from "./talent/shared/conversations-1";
@@ -47,9 +63,14 @@ export function TalentSurface() {
   return (
     <div
       data-tulala-workspace-grid
-      className="grid min-h-[calc(100vh-56px-50px)] grid-cols-[240px_1fr] bg-admin-surface"
+      // Talent Studio primaries are the brand fill, not the workspace slate.
+      className="grid min-h-[calc(100vh-56px-50px)] grid-cols-[240px_1fr] bg-[var(--tc-canvas)] [--tulala-primary-fill:var(--tc-action)] [--tulala-primary-fill-deep:var(--tc-action-hover)]"
     >
-      <TalentSidebar />
+      {/* The column carries the rail background so it runs the full page
+          height; the sticky aside inside only pins the nav. */}
+      <div data-tulala-app-sidebar-col className="border-r border-[var(--tc-border)] bg-[var(--tc-canvas)]">
+        <TalentSidebar />
+      </div>
       <main
         id="tulala-talent-content"
         tabIndex={-1}
@@ -77,19 +98,6 @@ const TALENT_SIDEBAR_GROUPS: Array<{ label: string | null; pages: TalentPage[] }
   { label: "Presence", pages: ["profile", "public-page", "services", "reviews"] },
 ];
 
-const TALENT_SIDEBAR_ICON: Record<string, Parameters<typeof Icon>[0]["name"]> = {
-  today: "home",
-  messages: "mail",
-  calendar: "calendar",
-  clients: "team",
-  money: "credit",
-  profile: "user",
-  "public-page": "globe",
-  services: "briefcase",
-  reviews: "star",
-  settings: "settings",
-};
-
 function TalentSidebarNavButton({
   page,
   active,
@@ -112,8 +120,8 @@ function TalentSidebarNavButton({
       aria-current={active ? "page" : undefined}
       className={`flex w-full cursor-pointer items-center gap-[10px] rounded-[8px] border px-[10px] py-[8px] text-left font-admin-body text-[13px] tracking-[0.05px] [transition:background_var(--transition-admin-micro),color_var(--transition-admin-micro),box-shadow_var(--transition-admin-micro)] ${
         active
-          ? "border-admin-border-soft bg-white font-semibold text-admin-ink shadow-admin-rest"
-          : "border-transparent bg-transparent font-medium text-admin-ink-muted hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink"
+          ? "border-[var(--tc-action)] bg-[var(--tc-soft)] font-semibold text-[var(--tc-ink)]"
+          : "border-transparent bg-transparent font-medium text-[var(--tc-muted)] hover:bg-[var(--tc-soft)] hover:text-[var(--tc-ink)]"
       }`}
     >
       <Icon
@@ -129,7 +137,7 @@ function TalentSidebarNavButton({
         <span
           title={badgeTitle}
           aria-label={badgeTitle ?? `${badge}`}
-          className="inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-admin-brand px-[5px] text-[10px] font-bold leading-none text-white"
+          className="inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--tc-action)] px-[5px] text-[10px] font-bold leading-none text-white"
         >
           {badge > 99 ? "99+" : badge}
         </span>
@@ -139,6 +147,10 @@ function TalentSidebarNavButton({
 }
 
 function TalentSidebar() {
+  // The Support launcher portals into the rail slot only after this sidebar
+  // has hydrated; a portal child present during hydration is a mismatch.
+  const [supportSlotReady, setSupportSlotReady] = useState(false);
+  useEffect(() => setSupportSlotReady(true), []);
   const copy = useDashboardText();
   const { state, setTalentPage, openDrawer, bridgeTalentSelfProfile, bridgeTalentUnread, bridgeTalentPlanTrial } = useAdminShell();
   const studioV2 = useTalentStudioV2();
@@ -147,20 +159,35 @@ function TalentSidebar() {
   useRovingTabindex(railNavRef, "button");
 
   // Prefer bridge data so a freshly-provisioned talent sees their own
-  // public URL, not the demo talent's.
-  const previewUrl = bridgeTalentSelfProfile?.profileCode
-    ? `tulala.digital/t/${bridgeTalentSelfProfile.profileCode}`
-    : (bridgeTalentSelfProfile ? null : MY_TALENT_PROFILE.publicUrl);
+  // public URL, not the demo talent's. When a personal website is live,
+  // default there (same rule as the top-bar eye); hub remains available
+  // from the eye chooser / account menu.
+  const origin = useCurrentOrigin();
+  const siteLoad = useTalentSiteDashboardInitialLoad();
+  const previewResolved = bridgeTalentSelfProfile?.profileCode
+    ? resolveTalentPublicPreviewDestinations({
+        profileCode: bridgeTalentSelfProfile.profileCode,
+        publicSiteUrl: siteLoad?.ok ? siteLoad.state.publicSiteUrl : null,
+        currentOrigin: origin,
+      })
+    : null;
+  const previewHref = previewResolved
+    ? previewResolved.defaultHref
+    : bridgeTalentSelfProfile
+      ? null
+      : `https://${MY_TALENT_PROFILE.publicUrl}`;
+  const previewLabel =
+    previewResolved?.destinations[0]?.kind === "website" ? "Preview site" : "Preview profile";
 
   const tier = state.talentTier;
   const trialOn = studioV2 && bridgeTalentPlanTrial?.active === true;
-  const tierLabel = trialOn ? "Trial" : TALENT_TIER_META[tier].label;
+  const tierLabel = copy.t(trialOn ? "Trial" : TALENT_TIER_META[tier].label);
   const tierChipClass =
     tier === "max"
-      ? "bg-admin-ink text-white border border-admin-ink"
+      ? "border border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-action-ink)]"
       : tier === "pro"
-        ? "bg-[rgba(15,79,62,0.10)] text-admin-accent border border-[rgba(15,79,62,0.28)]"
-        : "bg-[rgba(11,11,13,0.05)] text-admin-ink-muted border border-[rgba(11,11,13,0.10)]";
+        ? "border border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-action-ink)]"
+        : "border border-[var(--tc-border)] bg-white text-[var(--tc-muted)]";
 
   const unread = bridgeTalentUnread ?? 0;
 
@@ -192,7 +219,7 @@ function TalentSidebar() {
   return (
     <aside
       data-tulala-app-sidebar
-      className="sticky top-[calc(var(--proto-cbar,50px)+56px)] flex h-[calc(100vh-var(--proto-cbar,50px)-56px)] flex-col gap-[12px] self-start overflow-y-auto border-r border-admin-border-soft bg-admin-surface-alt px-[10px] pb-[12px] pt-[14px] font-admin-body"
+      className="sticky top-[calc(var(--proto-cbar,50px)+56px)] flex h-[calc(100vh-var(--proto-cbar,50px)-56px)] flex-col gap-[12px] self-start overflow-y-auto bg-[var(--tc-canvas)] px-[10px] pb-[12px] pt-[14px] font-admin-body"
     >
       {/* Keyboard users can bypass the rail nav entirely. */}
       <a href="#tulala-talent-content" className="skip-to-main">
@@ -237,18 +264,25 @@ function TalentSidebar() {
             {tierLabel}
           </span>
         </button>
-        {previewUrl && (
+        <div aria-hidden className="mx-[10px] border-t border-admin-border" />
+        {previewHref && (
           <a
             data-tulala-talent-preview-link
-            href={`https://${previewUrl}`}
+            href={previewHref}
             target="_blank"
             rel="noreferrer"
             className="flex w-full items-center gap-[8px] rounded-[8px] px-[10px] py-[8px] font-admin-body text-[12.5px] font-medium text-admin-ink-muted no-underline hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink [transition:background_var(--transition-admin-micro),color_var(--transition-admin-micro)]"
           >
             <Icon name="external" size={12} stroke={1.7} color="currentColor" />
-            {copy.t("Preview profile")}
+            {copy.t(previewLabel)}
           </a>
         )}
+        {/* Support Center launcher portals in here instead of floating. */}
+        <div
+          data-tulala-support-slot="rail"
+          data-ready={supportSlotReady ? "" : undefined}
+          className="contents"
+        />
         {renderItem("settings")}
       </div>
     </aside>
@@ -259,8 +293,10 @@ function TalentSidebar() {
 // ─── Router ───────────────────────────────────────────────────────
 
 function TalentRouter() {
-  const { state, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgendaItems, bridgeTalentAgendaHours, bridgeTalentAgendaError, toast } = useAdminShell();
-  const agendaV2 = isAgendaV2(bridgeTalentSelfProfile?.id);
+  const dashboardCopy = useDashboardText();
+  const router = useRouter();
+  const { state, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgendaItems, bridgeTalentAgendaHours, bridgeTalentAgendaError, bridgeTalentAgendaV2, toast } = useAdminShell();
+  const agendaV2 = bridgeTalentAgendaV2;
   const agendaNow = readAgendaNowClient(new Date());
   const tradeRules = tradeCalendarRules(bridgeTalentSelfProfile?.primaryTypeLabel);
   const openAgendaPath = (path: string, fallbackPage: TalentPage) => {
@@ -274,9 +310,25 @@ function TalentRouter() {
       } catch {
         /* ignore */
       }
+      // Soft-nav keeps bridge agenda items in memory (full assign drops them
+      // for the QA clock window and hides Finish and collect on the stub).
+      setTalentPage("booking-record");
+      if (typeof window !== "undefined") {
+        const pinnedAgendaNow = new URLSearchParams(window.location.search).get("agendaNow");
+        const next = pinnedAgendaNow
+          ? `${href}${href.includes("?") ? "&" : "?"}agendaNow=${encodeURIComponent(pinnedAgendaNow)}`
+          : href;
+        window.history.pushState({}, "", next);
+      }
+      return;
     }
     if (typeof window !== "undefined") {
-      window.location.assign(href);
+      const pinnedAgendaNow = new URLSearchParams(window.location.search).get("agendaNow");
+      const withPin =
+        pinnedAgendaNow && !href.includes("agendaNow=")
+          ? `${href}${href.includes("?") ? "&" : "?"}agendaNow=${encodeURIComponent(pinnedAgendaNow)}`
+          : href;
+      window.location.assign(withPin);
       return;
     }
     setTalentPage(fallbackPage);
@@ -291,6 +343,8 @@ function TalentRouter() {
   const [initialPage] = useState(state.talentPage);
   const navigatedAway = state.talentPage !== initialPage;
   const [everNavigated, setEverNavigated] = useState(false);
+  // Bumped when Send quote opens the new conversation, so Messages remounts on it.
+  const [threadEpoch, setThreadEpoch] = useState(0);
   useEffect(() => { if (navigatedAway) setEverNavigated(true); }, [navigatedAway]);
   const animate = everNavigated || navigatedAway;
   let page: ReactNode = null;
@@ -328,8 +382,8 @@ function TalentRouter() {
             loadError={bridgeTalentAgendaError}
             tradeRules={tradeRules}
             onOpenToday={() => setTalentPage("today")}
-            onNewBooking={() => openAgendaPath("/talent/bookings/new", "bookings-new")}
-            onOpenAvailability={() => setTalentPage("calendar-availability")}
+            onNewBooking={openNewBookingPanel}
+            onOpenAvailability={openWorkingHoursPanel}
             onOpenRecord={(id) => openAgendaPath(`/talent/bookings/${id}`, "booking-record")}
             onOpenMessages={() => setTalentPage("messages")}
           />
@@ -356,60 +410,46 @@ function TalentRouter() {
           <AgendaNewBooking
             talentTypeSlug={bridgeTalentSelfProfile?.primaryTypeLabel}
             talentProfileId={bridgeTalentSelfProfile?.id}
+            agendaItems={bridgeTalentAgendaItems ?? []}
+            hours={bridgeTalentAgendaHours}
             onCancel={() => setTalentPage("calendar")}
-            onSaved={() => { toast("Booking saved"); setTalentPage("calendar"); }}
+            // F63: one outcome every time. Back to where she opened New booking (Today or
+            // Calendar), a "Booking saved" toast with View booking, and fresh agenda data (F42).
+            onSaved={(id) => {
+              toast(dashboardCopy.t("Booking saved"), id ? { action: { label: dashboardCopy.t("View booking"), onClick: () => openAgendaPath(`/talent/bookings/${id}`, "booking-record") } } : undefined);
+              if (window.history.length > 1) router.back();
+              else setTalentPage("calendar");
+              router.refresh();
+            }}
           />
         )
         : <TalentTodayPage />;
       break;
     case "booking-record": {
       const storedId = (() => {
+        // The URL leads (F44); sessionStorage only covers a soft nav without an id in the path.
+        const fromPath = typeof window !== "undefined" ? bookingIdFromTalentPath(window.location.pathname) : null;
+        if (fromPath) {
+          try {
+            sessionStorage.setItem("tulala:agenda:bookingId", fromPath);
+          } catch {
+            /* ignore */
+          }
+          return fromPath;
+        }
         try {
           const fromStore = sessionStorage.getItem("tulala:agenda:bookingId");
-          if (fromStore) return fromStore;
+          if (fromStore && fromStore !== "undefined") return fromStore;
         } catch {
           /* ignore */
         }
-        if (typeof window !== "undefined") {
-          const match = window.location.pathname.match(/\/talent\/bookings\/([^/?#]+)/);
-          if (match?.[1] && match[1] !== "new") {
-            try {
-              sessionStorage.setItem("tulala:agenda:bookingId", match[1]);
-            } catch {
-              /* ignore */
-            }
-            return match[1];
-          }
-        }
         return "";
       })();
-      const agendaItem = (bridgeTalentAgendaItems ?? []).find((e) => e.id === storedId);
       if (agendaV2) {
         page = (
-          <AgendaBookingRecord
-            bookingId={storedId || undefined}
-            isAgency={Boolean(agendaItem?.managedBy)}
-            refTable={agendaItem?.ref?.table}
-            refId={agendaItem?.ref?.id}
-            tradeSection={
-              agendaItem?.tradeSection
-                ? {
-                    kind: agendaItem.tradeSection.kind,
-                    payload: agendaItem.tradeSection.payload as Record<string, unknown>,
-                  }
-                : undefined
-            }
-            item={
-              agendaItem
-                ? buildAgendaListItemFromAgendaItem(agendaItem)
-                : {
-                    id: storedId || "unknown",
-                    title: "Booking",
-                    whenLabel: "-",
-                    whereLabel: "-",
-                    sourceLabel: "Direct",
-                  }
-            }
+          <BookingRecordRoute
+            bookingId={storedId}
+            snapshot={bridgeTalentAgendaItems ?? null}
             onBack={() => setTalentPage("calendar")}
             onMessage={() => setTalentPage("messages")}
           />
@@ -451,7 +491,7 @@ function TalentRouter() {
       break;
     case "public-page":
       // WS-8.2 — new canonical page
-      page = <PublicPageEditor />;
+      page = <PublicPageEditor locale={dashboardCopy.isSpanish ? "es" : "en"} />;
       break;
     case "settings":
       page = <SettingsPage />;
@@ -465,9 +505,22 @@ function TalentRouter() {
     page = <TalentRouterFallback talentPage={state.talentPage} />;
   }
   return (
-    <div key={state.talentPage} data-tulala-talent-page-anim style={animate ? { animation: "tulala-page-fade .22s cubic-bezier(.4,0,.2,1)" } : undefined}>
+    <div key={`${state.talentPage}:${threadEpoch}`} data-tulala-talent-page-anim style={animate ? { animation: "tulala-page-fade .22s cubic-bezier(.4,0,.2,1)" } : undefined}>
       <style>{`@keyframes tulala-page-fade { from { opacity: 0; } to { opacity: 1; } } @media (prefers-reduced-motion: reduce) { [data-tulala-talent-page-anim] { animation: none !important; } }`}</style>
       {page}
+      <WorkingHoursPanelHost />
+      <SendQuotePanelHost
+        onOpenThread={(inquiryId) => {
+          pinNextConversation(inquiryId);
+          setTalentPage("messages");
+          setThreadEpoch((n) => n + 1);
+        }}
+        onFallback={() => setTalentPage("messages")}
+      />
+      <NewBookingPanelHost
+        onOpenRecord={(id) => openAgendaPath(`/talent/bookings/${id}`, "booking-record")}
+        onFallback={() => openAgendaPath("/talent/bookings/new", "bookings-new")}
+      />
     </div>
   );
 }

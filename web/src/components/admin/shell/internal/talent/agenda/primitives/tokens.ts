@@ -2,25 +2,26 @@
 
 import type { CSSProperties } from "react";
 
-/** Agenda V2 visual tokens (D1: charcoal primary + indigo accent). */
+import { TALENT_VISUAL, TALENT_VISUAL_VARS } from "../../visual/tokens";
+
+/** Agenda V2 tokens. Ink is type. Action is the only solid fill. */
 export const TC = {
-  canvas: "#FAFAF7",
-  surface: "#FFFFFF",
-  ink: "#1A1A1A",
-  muted: "rgba(0,0,0,0.55)",
-  primary: "#1A1A1A",
-  accent: "#3B4CCA",
-  ok: "#1F7A4C",
-  warn: "#B45309",
-  risk: "#B42318",
+  canvas: TALENT_VISUAL.canvas,
+  surface: TALENT_VISUAL.surface,
+  ink: TALENT_VISUAL.ink,
+  muted: TALENT_VISUAL.muted,
+  primary: TALENT_VISUAL.ink,
+  action: TALENT_VISUAL.action,
+  accent: TALENT_VISUAL.action,
+  ok: TALENT_VISUAL.success,
+  warn: TALENT_VISUAL.warning,
+  risk: TALENT_VISUAL.error,
   hold: "#5B5B5B",
   hatch: "repeating-linear-gradient(135deg,#e8e8e4 0 4px,#f3f3ef 4px 8px)",
 } as const;
 
 export const TALENT_AGENDA_VARS: CSSProperties = {
-  ["--tc-accent" as string]: TC.accent,
-  ["--tc-primary" as string]: TC.primary,
-  ["--tc-canvas" as string]: TC.canvas,
+  ...TALENT_VISUAL_VARS,
   background: TC.canvas,
 };
 

@@ -14,6 +14,18 @@ import type {
 } from "../theme-catalog/types";
 import { validateDesign, validateLook } from "../theme-catalog/validate";
 import { loadTemplateHydrationTokens } from "./apply-template-core";
+import { placeMaisonTradeApps, tradesFromTypeLabels } from "../demos/app-placement";
+import {
+  refreshOriginFingerprints,
+  stampDesignOrigin,
+  tokenOriginMap,
+  type StampSource,
+} from "../theme-releases/origin";
+import { stripDesignKeys } from "../theme-releases/design-keys";
+import { designApplySummary, lookSummary } from "../history/copy";
+import type { HistoryActor } from "../history/types";
+import { writeSiteDraft } from "../history/writer";
+import { ensureSiteThemeUpdates } from "../theme-releases/lazy-fan-out.server";
 
 /**
  * Talent theme gallery: APPLY CORE (server-only, NOT "use server").
@@ -32,6 +44,8 @@ import { loadTemplateHydrationTokens } from "./apply-template-core";
  * Hydration reuses `apply-template-core.ts` (`loadTemplateHydrationTokens`:
  * `loadDefaultTalentFreeformContext` + `talentProfileTokens`, the Max badge
  * pruned) so a Design fills with exactly the data a starter template does.
+ * When tokens cannot load, `applyDesign` HARD-ERRORS: it never falls back to
+ * `fallbackHydrationTokens` (that empty bake left stock/blank heroes on LIVE).
  * Callers own auth: every writer trusts `siteId` / `talentProfileId`, which the
  * action layer resolves from the signed-in owner (site-action-gate).
  */
@@ -100,6 +114,9 @@ export function pruneEmptyHydratedNodes(tree: ReadonlyArray<BuilderNode>): Build
   const isEmpty = (node: BuilderNode): boolean => {
     const props = (node.props ?? {}) as Record<string, unknown>;
     if (node.kind === "heading" || node.kind === "paragraph") {
+      // A live line (follows her profile at render time) stays even with no data yet:
+      // it fills in the day she adds it (`liveText` keeps a zero-width placeholder).
+      if (props.liveText) return false;
       return typeof props.text === "string" && props.text.trim() === "";
     }
     if (node.kind === "button") {
@@ -107,9 +124,30 @@ export function pruneEmptyHydratedNodes(tree: ReadonlyArray<BuilderNode>): Build
     }
     return false;
   };
+  // A ticker word that hydrated to "" (no third service...) drops out; a ticker
+  // left with no words drops out entirely.
+  const dropEmptyItems = (node: BuilderNode): BuilderNode => {
+    const live = node.props as { liveText?: unknown; text?: unknown };
+    if ((node.kind === "heading" || node.kind === "paragraph") && live.liveText && typeof live.text === "string" && live.text.trim() === "") {
+      return { ...node, props: { ...(node.props as object), text: "​" } } as BuilderNode;
+    }
+    if (node.kind !== "marquee") return node;
+    const items = ((node.props ?? {}) as { items?: Array<{ text?: unknown }> }).items;
+    if (!Array.isArray(items)) return node;
+    const kept = items.filter((it) => typeof it?.text === "string" && it.text.trim() !== "");
+    return kept.length === items.length
+      ? node
+      : ({ ...node, props: { ...(node.props as object), items: kept } } as BuilderNode);
+  };
+  const emptyTicker = (node: BuilderNode): boolean =>
+    node.kind === "marquee" &&
+    Array.isArray((node.props as { items?: unknown[] }).items) &&
+    ((node.props as { items: unknown[] }).items.length === 0);
   const prune = (nodes: ReadonlyArray<BuilderNode>): BuilderNode[] =>
     nodes
       .filter((node) => !isEmpty(node))
+      .map(dropEmptyItems)
+      .filter((node) => !emptyTicker(node))
       .map((node) =>
         "children" in node && Array.isArray(node.children)
           ? ({ ...node, children: prune(node.children) } as BuilderNode)
@@ -131,12 +169,18 @@ export function buildDesignTrees(
   design: DesignPayload,
   tokens: TalentProfileTokens,
   year: number = new Date().getFullYear(),
+  origin?: StampSource,
 ): BuildDesignTreesResult {
+  // Theme releases: stamp the RAW design (tokens intact, so content-owned
+  // props are known), then re-fingerprint after validation (below).
+  // Template editor pins (`props.designKey`) shape the stamped keys, then are
+  // stripped: talent site trees never carry them.
+  const stamp = (tree: BuilderNode[]) => stripDesignKeys(origin ? stampDesignOrigin(tree, origin) : tree);
   const shell = pruneEmptyHydratedNodes(
-    hydrateTalentTree(resolveYearToken(design.shellTree, year), tokens),
+    hydrateTalentTree(resolveYearToken(stamp(design.shellTree), year), tokens),
   );
   const home = pruneEmptyHydratedNodes(
-    hydrateTalentTree(resolveYearToken(design.homeTree, year), tokens),
+    hydrateTalentTree(resolveYearToken(stamp(design.homeTree), year), tokens),
   );
   const shellCheck = validateBuilderNodeTree(shell);
   const homeCheck = validateBuilderNodeTree(home);
@@ -149,7 +193,12 @@ export function buildDesignTrees(
       ],
     };
   }
-  return { ok: true, shellTree: shellCheck.tree, homeTree: homeCheck.tree };
+  if (!origin) return { ok: true, shellTree: shellCheck.tree, homeTree: homeCheck.tree };
+  return {
+    ok: true,
+    shellTree: refreshOriginFingerprints(shellCheck.tree),
+    homeTree: refreshOriginFingerprints(homeCheck.tree),
+  };
 }
 
 /** Coerce a jsonb token column to a string map (junk entries dropped). */
@@ -171,6 +220,10 @@ export interface ApplyDesignInput {
   /** Fallback wordmark when the profile cannot be loaded. */
   displayName: string;
   userId?: string | null;
+  /** Theme releases Phase 2 — CAS on talent_sites.draft_rev (omit = no race check). */
+  expectedDraftRev?: number | null;
+  /** History actor (a Tulala-run demo rebuild passes "tulala"). */
+  actor?: HistoryActor;
 }
 
 export async function applyDesign(
@@ -184,48 +237,72 @@ export async function applyDesign(
     return { ok: false, code: "invalid_theme", error: "That design is not available." };
   }
 
-  const tokens =
-    (await loadTemplateHydrationTokens(input.talentProfileId)) ??
-    fallbackHydrationTokens(input.displayName);
-  const built = buildDesignTrees(design.payload, tokens);
+  const tokens = await loadTemplateHydrationTokens(input.talentProfileId);
+  if (!tokens) {
+    // Never silently bake an empty profile into a Design (stock/blank hero,
+    // pruned bands). Callers must fix the profile load, not fall back.
+    logServerError("talentTheme.applyDesign.hydrationMissing", {
+      slug: design.slug,
+      talentProfileId: input.talentProfileId,
+    });
+    return {
+      ok: false,
+      code: "server_error",
+      error: "Could not load this talent's profile content. Try again in a moment.",
+    };
+  }
+  const built = buildDesignTrees(design.payload, tokens, undefined, {
+    design: design.slug,
+    version: design.version,
+  });
   if (!built.ok) {
     logServerError("talentTheme.applyDesign.invalidTree", { slug: design.slug, errors: built.errors });
     return { ok: false, code: "server_error", error: "Could not build that design." };
   }
 
-  const now = new Date().toISOString();
-  const { error: siteErr, count: siteCount } = await admin
-    .from("talent_sites")
-    .update(
-      {
-        shell_tree: built.shellTree,
-        theme_design_slug: design.slug,
-        theme_design_version: design.version,
-        draft_updated_at: now,
-        updated_at: now,
-        ...(input.userId ? { updated_by: input.userId } : {}),
-      },
-      { count: "exact" },
-    )
-    .eq("id", input.siteId)
-    .eq("talent_profile_id", input.talentProfileId);
-  if (siteErr) {
-    logServerError("talentTheme.applyDesign.shell", siteErr);
+  // Trade apps (e.g. Nail Designer) belong after Menu for Maison v2 (same as demos).
+  const trades = tradesFromTypeLabels([
+    tokens.primaryTypeLabel,
+    tokens.secondaryType1,
+    tokens.secondaryType2,
+    tokens.secondaryType3,
+  ]);
+  const homeTree = placeMaisonTradeApps(built.homeTree, trades, { designSlug: design.slug }).tree;
+
+  // Theme releases Phase 2 — ONE atomic write (shell + home + pin + token
+  // origin + history entry), CAS on draft_rev when the caller sends it, so a
+  // publish can never land between the shell and the home page.
+  const summary = designApplySummary(design.title);
+  const res = await writeSiteDraft(admin, {
+    siteId: input.siteId,
+    expectedDraftRev: input.expectedDraftRev ?? null,
+    site: {
+      shell_tree: built.shellTree,
+      theme_design_slug: design.slug,
+      theme_design_version: design.version,
+      theme_token_origin: tokenOriginMap(design.payload.tokenDefaults),
+      ...(input.userId ? { updated_by: input.userId } : {}),
+    },
+    pages: [{ home: true, patch: { blocks: homeTree } }],
+    history: {
+      kind: "design_apply",
+      actor: input.actor ?? "talent",
+      summaryEn: summary.en,
+      summaryEs: summary.es,
+      report: { design: design.slug, version: design.version },
+      createdBy: input.userId ?? null,
+    },
+  });
+  if (!res.ok) {
+    if (res.code === "conflict") return { ok: false, code: "conflict", error: res.error };
+    if (res.code === "site_not_found") return { ok: false, code: "site_not_found", error: "Site not found." };
+    if (res.code === "page_not_found") return { ok: false, code: "page_not_found", error: "Home page not found." };
+    logServerError("talentTheme.applyDesign.write", res.error);
     return { ok: false, code: "server_error", error: "Could not apply the design." };
   }
-  if (!siteCount) return { ok: false, code: "site_not_found", error: "Site not found." };
 
-  const { error: homeErr, count: homeCount } = await admin
-    .from("talent_pages")
-    .update({ blocks: built.homeTree, updated_at: now }, { count: "exact" })
-    .eq("talent_profile_id", input.talentProfileId)
-    .eq("is_home", true);
-  if (homeErr) {
-    logServerError("talentTheme.applyDesign.home", homeErr);
-    return { ok: false, code: "server_error", error: "Could not apply the design home page." };
-  }
-  if (!homeCount) return { ok: false, code: "page_not_found", error: "Home page not found." };
-
+  // F108: a new apply can land below an open release; offer the update now.
+  await ensureSiteThemeUpdates(admin, input.talentProfileId);
   return { ok: true, data: { designSlug: design.slug, designVersion: design.version } };
 }
 
@@ -233,6 +310,9 @@ export interface ApplyLookInput {
   siteId: string;
   look: TalentThemeLookRow;
   userId?: string | null;
+  /** Theme releases Phase 2 — CAS on draft_rev (omit = CAS on the rev just read). */
+  expectedDraftRev?: number | null;
+  actor?: HistoryActor;
 }
 
 export async function applyLook(
@@ -248,7 +328,7 @@ export async function applyLook(
 
   const { data, error } = await admin
     .from("talent_sites")
-    .select("design_tokens_draft")
+    .select("design_tokens_draft, draft_rev")
     .eq("id", input.siteId)
     .maybeSingle();
   if (error) {
@@ -257,29 +337,36 @@ export async function applyLook(
   }
   if (!data) return { ok: false, code: "site_not_found", error: "Site not found." };
 
-  const draftTokens = mergeLookIntoTokens(
-    coerceTokenMap((data as { design_tokens_draft?: unknown }).design_tokens_draft),
-    look.payload.tokens,
-  );
-  const now = new Date().toISOString();
-  const { error: writeErr, count } = await admin
-    .from("talent_sites")
-    .update(
-      {
-        design_tokens_draft: draftTokens,
-        theme_look_slug: look.slug,
-        draft_updated_at: now,
-        updated_at: now,
-        ...(input.userId ? { updated_by: input.userId } : {}),
-      },
-      { count: "exact" },
-    )
-    .eq("id", input.siteId);
-  if (writeErr) {
-    logServerError("talentTheme.applyLook.write", writeErr);
+  const row = data as { design_tokens_draft?: unknown; draft_rev?: number | null };
+  const draftTokens = mergeLookIntoTokens(coerceTokenMap(row.design_tokens_draft), look.payload.tokens);
+  // Read-modify-write: CAS on the rev the tokens were read at, so a colour
+  // change in another tab between the read and the write is never lost.
+  const expected =
+    input.expectedDraftRev ?? (typeof row.draft_rev === "number" ? row.draft_rev : null);
+  const summary = lookSummary(look.title);
+  const res = await writeSiteDraft(admin, {
+    siteId: input.siteId,
+    expectedDraftRev: expected,
+    site: {
+      design_tokens_draft: draftTokens,
+      theme_look_slug: look.slug,
+      ...(input.userId ? { updated_by: input.userId } : {}),
+    },
+    history: {
+      kind: "colors",
+      actor: input.actor ?? "talent",
+      summaryEn: summary.en,
+      summaryEs: summary.es,
+      batchSeconds: 0,
+      createdBy: input.userId ?? null,
+    },
+  });
+  if (!res.ok) {
+    if (res.code === "conflict") return { ok: false, code: "conflict", error: res.error };
+    if (res.code === "site_not_found") return { ok: false, code: "site_not_found", error: "Site not found." };
+    logServerError("talentTheme.applyLook.write", res.error);
     return { ok: false, code: "server_error", error: "Could not apply the look." };
   }
-  if (!count) return { ok: false, code: "site_not_found", error: "Site not found." };
 
   return { ok: true, data: { lookSlug: look.slug, draftTokens } };
 }

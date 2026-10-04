@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import {
   getAppUrl,
+  isTalentSignupNext,
   normalizeNextPath,
   resolvePostAuthDestination,
 } from "@/lib/auth-flow";
@@ -24,6 +25,8 @@ import {
 import { NextResponse } from "next/server";
 import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
 import { claimTulalaBriefOnAuth } from "@/lib/tulala/brief-claim-auth";
+import { isFreshOAuthSignup } from "@/lib/legal/acceptances.core";
+import { hasSignupAcceptance } from "@/lib/legal/acceptances";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -88,7 +91,9 @@ export async function GET(request: Request) {
       // metadata through the provider, so we promote here when the next path
       // indicates a talent onboarding intent and the profile is freshly created
       // (app_role='client', account_status='onboarding').
-      if (user && next.startsWith("/onboarding/talent")) {
+      // next used to be `/onboarding/talent-location`; live talent register now
+      // uses `/talent/profile/fields` — match both.
+      if (user && isTalentSignupNext(next)) {
         const admin = createServiceRoleClient();
         if (admin) {
           await admin
@@ -120,7 +125,17 @@ export async function GET(request: Request) {
         });
       }
 
-      const destination = resolvePostAuthDestination(ensuredProfile, next);
+      let destination = resolvePostAuthDestination(ensuredProfile, next);
+      // Legal 2.2: a brand-new Google account has not ticked the 18+ and
+      // Terms box (the provider cannot carry it). Send it through a one-time
+      // step first. Unknown (feature off / table missing) never gates.
+      if (
+        user &&
+        isFreshOAuthSignup(user, Date.now()) &&
+        (await hasSignupAcceptance(user.id)) === false
+      ) {
+        destination = `/register/accept-terms?next=${encodeURIComponent(destination)}`;
+      }
       // Always redirect post-auth destinations to the app host.
       // The auth callback runs on whatever host the OAuth provider returns to
       // (could be tulala.digital — the marketing host) but /onboarding/role,

@@ -72,13 +72,21 @@ import type { TalentSiteSnapshot } from "@/lib/talent-site/types";
 import { WorkspaceTemplatePreview } from "./workspace-template-preview";
 import { LookPreview, parseSitePageRole } from "./look-preview";
 import { ThemeCatalogPreview } from "./theme-preview";
+import { LiveSitePreview } from "./live-site-preview";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 
 export const dynamic = "force-dynamic";
 
-function parseFamily(raw: string | undefined): TemplatePreviewFamily | "look" | "talent-theme" {
+// Previews are owner / operator surfaces, never search results.
+export const metadata = { robots: { index: false, follow: false } };
+
+function parseFamily(
+  raw: string | undefined,
+): TemplatePreviewFamily | "look" | "talent-theme" | "live-site" {
   if (raw === "look") return "look";
+  // The owner's current published site (My website live card thumbnail).
+  if (raw === "live-site") return "live-site";
   // Theme gallery (0.C): `key` is a published Design slug from
   // `talent_theme_catalog`, not a registry key — its own branch below.
   if (raw === "talent-theme") return "talent-theme";
@@ -105,10 +113,21 @@ export default async function TemplatePreviewPage({
     page?: string;
     locale?: string;
     bare?: string;
+    demo?: string;
+    source?: string;
   }>;
 }) {
   const [{ key }, sp] = await Promise.all([params, searchParams]);
   const family = parseFamily(sp.kind);
+
+  if (family === "live-site") {
+    return (
+      <LiveSitePreview
+        talentProfileId={sp.talent ?? sp.talentProfileId}
+        locale={sp.locale === "en" ? "en" : "es"}
+      />
+    );
+  }
 
   if (family === "talent-theme") {
     // Theme gallery (0.C) — `key` is a published Design slug; `?look=` an
@@ -120,6 +139,9 @@ export default async function TemplatePreviewPage({
         lookSlug={sp.look}
         talentProfileId={sp.talentProfileId ?? sp.talent}
         locale={sp.locale === "es" ? "es" : "en"}
+        localeExplicit={sp.locale === "es" || sp.locale === "en"}
+        demo={sp.demo ?? null}
+        source={sp.source ?? null}
       />
     );
   }

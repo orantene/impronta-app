@@ -38,6 +38,7 @@ import {
 } from "@/lib/site-admin/builder-node";
 import { ElementLibraryInsertPicker } from "./element-library-insert-picker";
 import { CHROME } from "./kit/tokens";
+import { useEditorLocale } from "./use-editor-locale";
 import {
   MENU_EYEBROW_COLOR,
   MENU_HOVER_FILL,
@@ -135,6 +136,7 @@ export function CanvasBetweenBlocksInsert({
   onInsert: (kind: BuilderNodeKind, index: number) => Promise<void>;
   onInsertSectionEmbed: (sectionTypeKey: string, index: number) => Promise<void>;
 }) {
+  const { t } = useEditorLocale();
   const [hoveredGap, setHoveredGap] = useState<GapTarget | null>(null);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
   // Suppress the hover indicator briefly after the picker is dismissed so
@@ -271,7 +273,7 @@ export function CanvasBetweenBlocksInsert({
           >
             <button
               type="button"
-              aria-label="Add block here"
+              aria-label={t("Add block here")}
               data-canvas-between-blocks-trigger=""
               style={{
                 display: "inline-flex",
@@ -325,7 +327,7 @@ export function CanvasBetweenBlocksInsert({
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              Add block
+              {t("Add block")}
             </button>
           </BuilderCoachmarkTip>
         </div>

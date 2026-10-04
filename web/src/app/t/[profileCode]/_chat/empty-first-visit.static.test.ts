@@ -25,3 +25,26 @@ test("Send stays hidden until an inquiry exists", () => {
   const panel = readFileSync(join(DIR, "MiniChatPanel.tsx"), "utf8");
   assert.match(panel, /onEnsureInquiry && inquiryId && !unified\.contactPromoted/);
 });
+
+test("empty Home still exposes the intake rail (Nada todavía) and paints Hablar active", () => {
+  const column = readFileSync(join(DIR, "MiniChatPanelColumn.tsx"), "utf8");
+  assert.match(column, /activeDockView === "chat" \|\| activeDockView === "home"/);
+  const nav = readFileSync(join(DIR, "GuestDockNav.tsx"), "utf8");
+  assert.match(nav, /active === "home" && view === "chat"/);
+});
+
+test("first open lands on Hablar chat, not the Home hub", () => {
+  const panel = readFileSync(join(DIR, "MiniChatPanel.tsx"), "utf8");
+  assert.match(panel, /normalizeDockView/);
+  assert.match(panel, /stored \? normalizeDockView\(stored\) : "chat"/);
+  assert.equal(panel.includes('hasActiveContext ? "chat" : "home"'), false);
+  assert.match(panel, /view === "home" \? "chat" : view/);
+});
+
+test("solo strip wires omitPlatformBrand so receipt Tulala cannot leak", () => {
+  const column = readFileSync(join(DIR, "MiniChatPanelColumn.tsx"), "utf8");
+  assert.match(column, /omitPlatformBrand=\{Boolean\(brand\.omitPlatformBrand\)\}/);
+  const strip = readFileSync(join(DIR, "ConversationStatusStrip.tsx"), "utf8");
+  assert.match(strip, /resolveStatusStripActor/);
+  assert.match(strip, /omitPlatformBrand/);
+});

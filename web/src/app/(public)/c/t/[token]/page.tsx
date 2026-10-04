@@ -8,6 +8,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadClientLinkBusiness, loadClientOfferSummaries, loadOpenPaymentCode } from "@/lib/messaging/client-link";
 import { customerVisibleMessages, loadMessagingThread } from "@/lib/messaging/thread";
 import { verifyThreadToken } from "@/lib/messaging/thread-token";
+import { threadTokenMatchesRequestHost } from "@/lib/messaging/thread-token-host";
 
 export const dynamic = "force-dynamic";
 
@@ -16,13 +17,16 @@ export const dynamic = "force-dynamic";
  * and the server render are unchanged from the POS-era page; the
  * presentation is the Messages v5 client thread, with the client's actions
  * wired through `lib/server-actions/messaging-client.ts`.
+ *
+ * Host↔tenant gate (Story 7): an agency/hub host must own the token's
+ * tenant. Marketing/app stay open for talent-site → tulala.digital links.
  */
 export default async function PublicConversationPage({
   params,
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ board?: string; kit?: string; screen?: string; lang?: string }>;
+  searchParams: Promise<{ board?: string; kit?: string; screen?: string; lang?: string; from?: string }>;
 }) {
   const { token } = await params;
   const query = await searchParams;
@@ -35,6 +39,8 @@ export default async function PublicConversationPage({
   }
   const verified = verifyThreadToken(decodeURIComponent(token));
   if (!verified.ok) notFound();
+  // Cross-tenant token replay on the wrong agency host → same as broken link.
+  if (!(await threadTokenMatchesRequestHost(verified.tenantId))) notFound();
   const admin = createServiceRoleClient();
   if (!admin) notFound();
   const scope = { tenantId: verified.tenantId, inquiryId: verified.inquiryId };
@@ -50,6 +56,8 @@ export default async function PublicConversationPage({
   // D-MSG-337: honor ?lang=es|fr for QA / share links; fall back to business.locale.
   const lang = (query.lang || "").toLowerCase();
   const locale = lang === "es" || lang === "fr" || lang === "en" ? lang : business.locale;
+  // Mockup `return` / from-email: `?from=email` on the save-to-email CTA (D-MSG-432).
+  const fromEmail = (query.from || "").toLowerCase() === "email";
   return (
     <ClientThread
       token={token}
@@ -59,6 +67,7 @@ export default async function PublicConversationPage({
       offers={offers}
       payCode={payCode}
       threadTokenExpiresAt={new Date(verified.expiresAtMs).toISOString()}
+      fromEmail={fromEmail}
     />
   );
 }

@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { TulalaBrandLockup } from "@/components/brand/tulala-logo";
+import { supportDeskOpenFromHqHref } from "@/lib/support/desk/desk-url";
 
 // ─── HQ design tokens (dark surface) ─────────────────────────────────────────
 
@@ -84,7 +85,14 @@ const BASE = "/platform/admin";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function PlatformTopbar({ supportOpenCount = 0 }: { supportOpenCount?: number }) {
+export function PlatformTopbar({
+  supportOpenCount = 0,
+  deskEnabled = false,
+}: {
+  supportOpenCount?: number;
+  /** Server-evaluated `isSupportDeskEnabled()` — Support tab becomes a portal redirect. */
+  deskEnabled?: boolean;
+}) {
   const pathname = usePathname();
   const t = useT();
   const locale = useDashboardLocale();
@@ -92,6 +100,7 @@ export function PlatformTopbar({ supportOpenCount = 0 }: { supportOpenCount?: nu
   // Active segment: /platform/admin/tenants → "tenants"
   const after = pathname.startsWith(BASE) ? pathname.slice(BASE.length) : "";
   const activeSegment = after.startsWith("/") ? after.slice(1).split("/")[0] : "";
+  const supportPortalHref = deskEnabled ? supportDeskOpenFromHqHref() : null;
 
   return (
     <header
@@ -199,8 +208,80 @@ export function PlatformTopbar({ supportOpenCount = 0 }: { supportOpenCount?: nu
                   </span>
                 )}
                 {group.tabs.map((tab) => {
-                  const href = `${BASE}/${tab.segment}`;
-                  const active = activeSegment === tab.segment;
+                  const portalSupport = tab.id === "support" && supportPortalHref;
+                  const href = portalSupport ? supportPortalHref : `${BASE}/${tab.segment}`;
+                  const active = !portalSupport && activeSegment === tab.segment;
+                  const linkStyle = {
+                    background: "transparent",
+                    cursor: "pointer",
+                    padding: "8px 12px",
+                    fontFamily: FONT_BODY,
+                    fontSize: 13,
+                    fontWeight: active ? 600 : 400,
+                    color: active ? HQ.ink : HQ.inkMuted,
+                    letterSpacing: 0.1,
+                    borderRadius: 7,
+                    position: "relative" as const,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    textDecoration: "none",
+                    whiteSpace: "nowrap" as const,
+                    transition: "color 100ms",
+                  };
+                  const badge =
+                    tab.id === "support" && supportOpenCount > 0 ? (
+                      <span
+                        style={{
+                          minWidth: 16,
+                          height: 16,
+                          padding: "0 5px",
+                          borderRadius: 999,
+                          background: "#C26A45",
+                          color: "#fff",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {supportOpenCount > 99 ? "99+" : supportOpenCount}
+                      </span>
+                    ) : null;
+                  const underline = (
+                    <span
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        bottom: -1,
+                        left: 8,
+                        right: 8,
+                        height: 2,
+                        background: HQ.ink,
+                        borderRadius: 2,
+                        opacity: active ? 1 : 0,
+                        transform: active ? "scaleX(1)" : "scaleX(0.4)",
+                        transformOrigin: "center",
+                        transition: "opacity 200ms, transform 280ms cubic-bezier(.4,0,.2,1)",
+                        pointerEvents: "none",
+                      }}
+                    />
+                  );
+
+                  if (portalSupport) {
+                    return (
+                      <a
+                        key={tab.id}
+                        href={href}
+                        style={linkStyle}
+                      >
+                        {t(tab.labelKey)}
+                        {badge}
+                        {underline}
+                      </a>
+                    );
+                  }
 
                   return (
                     <Link
@@ -208,64 +289,11 @@ export function PlatformTopbar({ supportOpenCount = 0 }: { supportOpenCount?: nu
                       href={href}
                       prefetch={false}
                       aria-current={active ? "page" : undefined}
-                      style={{
-                        background: "transparent",
-                        cursor: "pointer",
-                        padding: "8px 12px",
-                        fontFamily: FONT_BODY,
-                        fontSize: 13,
-                        fontWeight: active ? 600 : 400,
-                        color: active ? HQ.ink : HQ.inkMuted,
-                        letterSpacing: 0.1,
-                        borderRadius: 7,
-                        position: "relative",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        textDecoration: "none",
-                        whiteSpace: "nowrap",
-                        transition: "color 100ms",
-                      }}
+                      style={linkStyle}
                     >
                       {t(tab.labelKey)}
-                      {tab.id === "support" && supportOpenCount > 0 ? (
-                        <span
-                          style={{
-                            minWidth: 16,
-                            height: 16,
-                            padding: "0 5px",
-                            borderRadius: 999,
-                            background: "#C26A45",
-                            color: "#fff",
-                            fontSize: 10,
-                            fontWeight: 700,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          {supportOpenCount > 99 ? "99+" : supportOpenCount}
-                        </span>
-                      ) : null}
-
-                      {/* Active underline */}
-                      <span
-                        aria-hidden
-                        style={{
-                          position: "absolute",
-                          bottom: -1,
-                          left: 8,
-                          right: 8,
-                          height: 2,
-                          background: HQ.ink,
-                          borderRadius: 2,
-                          opacity: active ? 1 : 0,
-                          transform: active ? "scaleX(1)" : "scaleX(0.4)",
-                          transformOrigin: "center",
-                          transition: "opacity 200ms, transform 280ms cubic-bezier(.4,0,.2,1)",
-                          pointerEvents: "none",
-                        }}
-                      />
+                      {badge}
+                      {underline}
                     </Link>
                   );
                 })}

@@ -51,6 +51,8 @@ export function buildDefaultShellTree(
     },
     brandDisplay: input.logoUrl ? "image-and-text" : "text",
     navItems: [{ label: "Home", href: homeHref }],
+    // Seed English "Inquire"; SiteHeader localises the platform default for
+    // the visitor locale at render (AUD-027) so Spanish sites never show INQUIRE.
     primaryCta: { label: "Inquire", href: "/contact" },
     sticky: true,
     tone: "transparent",

@@ -48,25 +48,31 @@ Pin the agenda clock in QA with `?agendaNow=2026-09-23T09:50:00` on `/talent/tod
 ### Step 1 — Beta cohort (~20 talents)
 
 **Armed 2026-09-25 (Production):**
-- `TALENT_AGENDA_V2=talents`
-- `TALENT_AGENDA_V2_TALENTS=f9090640-e763-4f8c-8a0b-c2cc691defb2` (QA Agenda Jor only — **not** live Jor `f048e578-…`)
+- `TALENT_AGENDA_V2=talents` (later superseded by Step 2 `all`)
+- `TALENT_AGENDA_V2_TALENTS=f385fb27-0833-4e4f-a894-a1bd04a30907` (QA Agenda Jor after 2026-09-25 reseed; was `f9090640-…`)
 - `deploy:smoke` exit 0 after #2245 merge
 - Expand UUID list when adding real beta talents; keep live Jor off until Step 3
 
 Remaining for full Step 1:
-1. Add up to ~19 more beta talent UUIDs to `TALENT_AGENDA_V2_TALENTS` (owner).
-2. Confirm migration applied: `cd web && npm run db:check`.
-3. Monitor 48 h; collect feedback on Today, Calendar, booking-record.
+1. ~~Add up to ~19 more beta talent UUIDs~~ — **skipped 2026-09-25:** no owner UUID list; Step 2 `all` supersedes.
+2. [x] Confirm migration applied: `cd web && npm run db:check` — OK 2026-09-25 (869 local migrations all applied).
+3. ~~Monitor 48 h~~ — superseded by Step 2 the same day.
 
 ### Step 2 — Full rollout
 
-1. Set `TALENT_AGENDA_V2=all`.
-2. Keep legacy flag-off branches for one week (rollback = set `TALENT_AGENDA_V2=0`).
+**Armed 2026-09-25 (Production):**
+- [x] `TALENT_AGENDA_V2=all` (owner unlock via “do all”)
+- [x] Client bridge stamp merged (#2251) — shell reads `talentAgendaV2` from layout bridge
+- Rollback: set `TALENT_AGENDA_V2=0`
+- **Day-7 legacy clock starts:** 2026-09-25 → earliest Step 4 **2026-10-02**
+- Redeploy / promote after env + bridge so runtimes pick up `all`
 
 ### Step 3 — Jor demo (owner click-through)
 
-1. Add Jor's profile id to the allow-list **or** use `all` after Step 2.
-2. **Read-only first:** owner clicks; agents write nothing to her rows.
+**With Step 2 `all`, Jor is included.** Agents: **read-only only** — no writes to `f048e578-…` rows.
+1. [ ] Owner clicks Today / Calendar / a booking record on her account.
+2. [x] Agent SQL probe + note: `docs/plans/program/evidence/today-calendar/jor-readonly-probe-2026-09-25.md` (0 bookings / 0 booking_talent / 0 hours; no agent UI session). Refreshed 2026-09-25.
+3. Leave owner click open until confirmed.
 
 ### Step 4 — Delete legacy (separate PR, after ≥7 days green)
 

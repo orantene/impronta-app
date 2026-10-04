@@ -2,11 +2,8 @@
 
 import { z } from "zod";
 import { headers } from "next/headers";
-import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { findTenantMembership } from "@/lib/saas/tenant";
-import { userHasCapability } from "@/lib/access";
 import { enforceRoleLimit } from "@/lib/approvals/enforce";
 import { ensureCustomer } from "@/lib/customers/ensure-customer";
 import { sendEmailResult } from "@/lib/email";
@@ -24,6 +21,7 @@ import { mintAndDeliverForPaidOrder } from "@/lib/events/mint-and-deliver";
 import { admissionHoldersFromDeskContact } from "@/lib/pos/admission-holders";
 import { findActiveLinkByCode } from "@/lib/links/link-store";
 import { scanTarget } from "@/lib/pos/scan-code";
+import { posStaff, posStaffOrInquiryManager } from "@/lib/pos/staff-actor";
 
 /** Lock, tip, payment-link, and waitlist actions: `@/lib/server-actions/pos-engine`. */
 
@@ -37,21 +35,6 @@ export type PosCustomerHit = {
   phone: string | null;
 };
 
-type PosStaffCapability =
-  | "booking.payment.request"
-  | "booking.payment.refund"
-  | "booking.payment.mark_received";
-
-async function staff(capability: PosStaffCapability = "booking.payment.request") {
-  const guard = await requireWorkspaceStaffAction();
-  if (!guard.ok) return { ok: false as const, error: guard.error };
-  const allowed = await userHasCapability(capability, guard.tenantId);
-  if (!allowed) return { ok: false as const, error: "not_allowed" };
-  const admin = createServiceRoleClient();
-  if (!admin) return { ok: false as const, error: "unavailable" };
-  return { ok: true as const, tenantId: guard.tenantId, userId: guard.user.id, tenantSlug: guard.tenantSlug, admin };
-}
-
 /**
  * The actor's membership role, for the role limits (D-139). Null for a
  * caller with no membership row (a platform operator), who is not limited.
@@ -62,7 +45,7 @@ async function actorRole(tenantId: string): Promise<string | null> {
 }
 
 export async function posCreateDraft(context?: string) {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return g;
   return createDraftOrder(g.admin, {
     tenantId: g.tenantId,
@@ -80,9 +63,9 @@ export async function posAddLine(input: {
   variantId?: string | null;
   addonIds?: string[] | null;
   expectedVersion?: number;
+  /** Messages picker: inquiry managers (talent coordinators) may add the line. */
+  inquiryId?: string | null;
 }) {
-  const g = await staff();
-  if (!g.ok) return g;
   const parsed = z.object({
     orderId: uuid,
     offeringId: uuid,
@@ -91,8 +74,11 @@ export async function posAddLine(input: {
     variantId: z.string().uuid().nullable().optional(),
     addonIds: z.array(z.string().uuid()).max(20).optional(),
     expectedVersion: z.number().int().positive().optional(),
+    inquiryId: uuid.nullable().optional(),
   }).safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
+  const g = await posStaffOrInquiryManager(parsed.data.inquiryId);
+  if (!g.ok) return g;
   return addLine(g.admin, {
     tenantId: g.tenantId,
     orderId: parsed.data.orderId,
@@ -113,7 +99,7 @@ export async function posUpdateLine(input: {
   units: number;
   expectedVersion?: number;
 }) {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return g;
   const parsed = z.object({
     orderId: uuid,
@@ -126,7 +112,7 @@ export async function posUpdateLine(input: {
 }
 
 export async function posRemoveLine(input: { orderId: string; lineId: string; expectedVersion?: number }) {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return g;
   const parsed = z.object({
     orderId: uuid,
@@ -138,7 +124,7 @@ export async function posRemoveLine(input: { orderId: string; lineId: string; ex
 }
 
 export async function posReprice(input: { orderId: string; promoCode?: string; expectedVersion?: number }) {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return g;
   const parsed = z.object({
     orderId: uuid,
@@ -201,7 +187,7 @@ export async function posStartCollection(input: {
   idempotencyKey: string;
   expectedVersion?: number;
 }) {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return g;
   const parsed = z.object({
     orderId: uuid,
@@ -261,7 +247,7 @@ export async function posStartCollection(input: {
 }
 
 export async function posCancelSale(orderId: string, expectedVersion?: number) {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return g;
   if (!uuid.safeParse(orderId).success) return { ok: false as const, error: "invalid" };
   return finalizeOrCancel(g.admin, {
@@ -276,7 +262,7 @@ export async function posSubmitPrep(input: {
   destination?: "table" | "pickup" | "counter";
   promisedAt?: string | null;
 }) {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -320,7 +306,7 @@ export async function posSubmitPrep(input: {
  * never one that reads more.
  */
 export async function posSearchCustomers(query: string) {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return g;
   const cleaned = String(query ?? "")
     .replace(/[^\p{L}\p{N}@._+\- ]/gu, " ")
@@ -355,26 +341,26 @@ export async function posSearchCustomers(query: string) {
 }
 
 export async function posLoadOpen() {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return g;
   return listOpenPosSales(g.admin, g.tenantId);
 }
 
 export async function posLoadSale(orderId: string) {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return g;
   if (!uuid.safeParse(orderId).success) return { ok: false as const, error: "invalid" };
   return loadPosSale(g.admin, { tenantId: g.tenantId, orderId });
 }
 
 export async function posCurrentShift() {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return g;
   return currentShift(g.admin, { tenantId: g.tenantId });
 }
 
 export async function posOpenShift(openingCashCents: number) {
-  const g = await staff("booking.payment.mark_received");
+  const g = await posStaff("booking.payment.mark_received");
   if (!g.ok) return g;
   const parsed = z.number().int().nonnegative().safeParse(openingCashCents);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
@@ -392,7 +378,7 @@ export async function posAddCustomLine(input: {
   expectedVersion?: number;
   idempotencyKey: string;
 }) {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
   const parsed = z.object({
     orderId: uuid,
@@ -414,7 +400,7 @@ export async function posAddCustomLine(input: {
 }
 
 export async function posSetStaffPin(input: { userId: string; pin: string }) {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
   const parsed = z.object({ userId: uuid, pin: z.string().regex(/^[0-9]{4,6}$/) }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -428,13 +414,13 @@ export async function posSetStaffPin(input: { userId: string; pin: string }) {
 
 /** Settings › Roles & limits: the limit as it stands. */
 export async function posReadCustomAmountLimit() {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? ("not_allowed" as const) : ("unavailable" as const) };
   return readCustomAmountLimitCents(g.admin, g.tenantId);
 }
 
 export async function posSetCustomAmountLimit(limitCents: number) {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
   const parsed = z.number().int().nonnegative().safeParse(limitCents);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -460,7 +446,7 @@ export async function posApproveCustomAmount(input: {
   method?: "pin" | "session";
   approverUserId?: string;
 }) {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
   const parsed = z.object({
     orderId: uuid,
@@ -484,7 +470,7 @@ export async function posApproveCustomAmount(input: {
 
 /** `POSLinkBooking`: what this sale's customer could be paying for. */
 export async function posBookingCandidates(input: { orderId: string; customerId?: string | null }) {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? ("not_allowed" as const) : ("unavailable" as const) };
   const parsed = z.object({ orderId: uuid, customerId: uuid.nullable().optional() }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -497,7 +483,7 @@ export async function posCloseShift(input: {
   closeNote?: string;
   handedOverTo?: string;
 }) {
-  const g = await staff("booking.payment.mark_received");
+  const g = await posStaff("booking.payment.mark_received");
   if (!g.ok) return g;
   const parsed = z.object({
     closingCashCents: z.number().int().nonnegative(),
@@ -581,7 +567,7 @@ export type PosDisplayReadResult =
  * to show.
  */
 export async function posDisplayRead(input: { orderId: string | null }): Promise<PosDisplayReadResult> {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) return g;
   const orderId = uuid.safeParse(input.orderId).success ? input.orderId : null;
 
@@ -670,7 +656,7 @@ export type PosDisplayReceiptResult =
  * for an email that never left.
  */
 export async function posDisplayEmailReceipt(input: { orderId: string; email: string }): Promise<PosDisplayReceiptResult> {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) {
     return { ok: false, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable", error: g.error };
   }
@@ -756,7 +742,7 @@ export type PosScanResolveResult =
  * `posAddLine` like any tap on a tile, so the basket has one write path.
  */
 export async function posResolveScanCode(raw: string): Promise<PosScanResolveResult> {
-  const g = await staff();
+  const g = await posStaff();
   if (!g.ok) {
     return { ok: false, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable", error: g.error };
   }

@@ -26,15 +26,26 @@
  * Contract: web/src/lib/inquiry/guest-chat-contract.ts (pure types).
  */
 
+import { safePublicName } from "@/lib/messaging/public-name";
 import { loadGuestThreadV5Extras } from "./guest-thread-v5";
+import { anyDemoTalent, DEMO_SUBMIT_REFUSAL } from "@/lib/talent/demo-talent";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  draftFirstSendAllowed,
+  talentAcceptsNewThreads,
+} from "@/lib/talent/existing-client.server";
 import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { evaluateGuestConversationGate } from "@/lib/inquiry/guest-trust-gate";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 import { getPublicHostContext } from "@/lib/saas/scope";
+import { assertAcceptingNewContact, isDirectTalentChannel } from "@/lib/talent/accepting-readiness";
+import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
+import { verifyTalentOfferingIntent } from "@/lib/messaging/talent-offering-intent";
+import { clampTaskBrief } from "@/lib/talent/offering-task-brief";
+import { formatIntakeBlock } from "@/lib/talent/offering-intake";
 import { resolveTalentSiteHostTenant } from "@/lib/messaging/talent-inquiry-tenant.server";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract";
@@ -66,7 +77,7 @@ import {
   isReceiptVisibleStatus,
 } from "@/lib/inquiry/inquiry-receipt-data";
 import { getAppUrl } from "@/lib/auth-flow";
-import { CLIENT_CARD_KINDS } from "@/lib/messages-v5/client-thread-view";
+import { CLIENT_CARD_KINDS, isClientCardKind } from "@/lib/messages-v5/client-thread-view";
 import { resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
 import type {
   AddGuestClaimEmailInput,
@@ -298,8 +309,10 @@ function deriveAuthorRole(
   if (!row.sender_user_id && row.guest_session_id === thisGuestSessionId) {
     return "guest";
   }
-  // System / platform-authored (no sender, no guest) → system bubble.
-  if (!row.sender_user_id || row.message_kind === "payment_paid") {
+  // A3 / SHELL-REQUESTS: a payment_paid (or other client card) with no sender
+  // must still draw as a paid card, not a system note.
+  if (!row.sender_user_id) {
+    if (isClientCardKind(row.message_kind)) return "staff";
     return "system";
   }
   // Engine-authored lines ("Offer v3 sent", auto-ack) carry
@@ -379,7 +392,7 @@ async function loadParticipantIdentities(
       .select("id, display_name")
       .in("id", talentIds);
     for (const t of talents ?? []) {
-      talentNameById.set(t.id as string, (t.display_name as string | null) ?? null);
+      talentNameById.set(t.id as string, safePublicName(t.display_name as string | null));
     }
   }
 
@@ -614,6 +627,23 @@ async function readGuestVisibleMessages(
 // 3a. startGuestChatInquiry
 // ═════════════════════════════════════════════════════════════════════════════
 
+/** WSF C+D (§7): talent switches gate only the talent's own channels, never agency-routed chats. */
+async function onDirectTalentChannel(tenantId: string | null): Promise<boolean> {
+  const hostCtx = await getPublicHostContext();
+  return isDirectTalentChannel({ hostKind: hostCtx.kind, hostTenantId: hostCtx.tenantId, tenantId });
+}
+
+/** The stored "Requesting:" prefix is written in the visitor's language (e2e: it leaked English into ES threads). */
+function requestingWord(locale: string | null | undefined): string {
+  return locale === "es" ? "Solicito" : "Requesting";
+}
+
+function notAcceptingMessage(locale: string | null | undefined): string {
+  return locale === "es"
+    ? "Ahora no recibe mensajes nuevos. Si tienes una reserva, usa el enlace de tu email de confirmación."
+    : "This talent isn't taking new messages. If you have a booking, use the link in your confirmation email.";
+}
+
 export async function startGuestChatInquiry(
   input: StartGuestChatInput,
 ): Promise<StartGuestChatResult> {
@@ -632,16 +662,47 @@ export async function startGuestChatInquiry(
   // Storefront carry: when the guest clicked a specific offering, make the
   // request VISIBLE in the thread (coordinator + guest both see exactly what
   // was asked for) and persist the structured payload in source_context below.
-  const offering = input.offeringIntent ? null : (input.offering ?? null);
-  const offeringPrefix = offering
-    ? `Requesting: ${offering.title}${
-        offering.amount_cents != null
-          ? ` (${offering.currency} ${(offering.amount_cents / 100).toLocaleString()})`
-          : ""
-      }\n\n`
-    : "";
+  const rawOffering = input.offeringIntent ? null : (input.offering ?? null);
+  // G9b: the task-picker brief is visitor text; re-clamp, drop when empty.
+  const offeringBrief = clampTaskBrief(rawOffering?.brief);
+  const offering = rawOffering ? { ...rawOffering, brief: offeringBrief ?? undefined } : null;
   const rawFirstMessage = input.firstMessage?.trim() ?? "";
-  const firstMessage = rawFirstMessage ? `${offeringPrefix}${rawFirstMessage}` : rawFirstMessage;
+  // Skip server prefix when the client already stamped one (picker / booking-sheet
+  // chat handoff). Avoids "Requesting: …\n\nQuestion about …" double headers.
+  const clientPrefixed =
+    /^(requesting:|solicito:|question about|consulta sobre)/i.test(rawFirstMessage);
+  const selectionBits = offering
+    ? [
+        offering.variant_label,
+        ...(offering.add_on_labels ?? []),
+        offering.slot_label,
+      ].filter((b): b is string => typeof b === "string" && b.trim().length > 0)
+    : [];
+  const offeringTitle = offering
+    ? selectionBits.length
+      ? `${offering.title} · ${selectionBits.join(" · ")}`
+      : offering.title
+    : "";
+  const offeringAmount =
+    offering?.total_cents != null
+      ? offering.total_cents
+      : offering?.amount_cents != null
+        ? offering.amount_cents
+        : null;
+  const offeringPrefix =
+    offering && !clientPrefixed
+      ? `${requestingWord(input.locale)}: ${offeringTitle}${
+          offeringAmount != null
+            ? ` (${offering.currency} ${(offeringAmount / 100).toLocaleString()})`
+            : ""
+        }\n\n`
+      : "";
+  // G13: the service's intake answers, readable in the thread for both sides
+  // (the structured copy rides source_context.offering.brief.intake).
+  const intakeBlock = formatIntakeBlock(offeringBrief?.intake ?? [], input.locale ?? "en");
+  const firstMessage = rawFirstMessage
+    ? `${offeringPrefix}${rawFirstMessage}${intakeBlock ? `\n\n${intakeBlock}` : ""}`
+    : rawFirstMessage;
 
   const missing: string[] = [];
   if (!contactFirstName) missing.push("requester.first_name");
@@ -666,6 +727,10 @@ export async function startGuestChatInquiry(
   const tenantId = await resolveTenantIdBySlug(admin, input.tenantSlug);
   if (!tenantId) {
     return fail("tenant_unavailable", "We couldn't find this workspace.");
+  }
+
+  if (talentProfileId && (await anyDemoTalent(admin, [talentProfileId]))) {
+    return fail("talent_unavailable", DEMO_SUBMIT_REFUSAL);
   }
 
   // SECURITY (L1-F1): the targeted talent id is client-supplied and the insert
@@ -693,6 +758,31 @@ export async function startGuestChatInquiry(
         "talent_unavailable",
         "This talent is not taking inquiries here right now.",
       );
+    }
+  }
+
+  // ── WSF-C (§7/§8): a NEW conversation to the talent on a direct channel
+  // (their own site or the Tulala profile) respects their switches. A
+  // conversation carrying a time or a reserve intent is a new booking; any
+  // other is a new inquiry. Agency-routed conversations, and replies to
+  // existing threads (sendGuestMessageAction), are never gated here.
+  if (talentProfileId) {
+    const hostCtx = await getPublicHostContext();
+    if (isDirectTalentChannel({ hostKind: hostCtx.kind, hostTenantId: hostCtx.tenantId, tenantId })) {
+      const switches = await loadTalentSiteSwitches(admin, talentProfileId);
+      const verifiedIntent = input.offeringIntent ? verifyTalentOfferingIntent(input.offeringIntent) : null;
+      const isBookingRequest =
+        Boolean(input.offering?.starts_at || input.offering?.slot_label) ||
+        (verifiedIntent?.ok === true && verifiedIntent.payload.intent === "reserve");
+      const accepting = assertAcceptingNewContact(switches, isBookingRequest ? "booking_request" : "inquiry");
+      if (!accepting.ok) {
+        return fail(
+          accepting.reason,
+          accepting.reason === "not_accepting_bookings"
+            ? "Not taking new bookings right now. You can still send an inquiry."
+            : notAcceptingMessage(input.locale),
+        );
+      }
     }
   }
 
@@ -830,6 +920,8 @@ export async function startGuestChatInquiry(
       tenant_id: tenantId,
       ...(capture.eventType ? { ai_event_type: capture.eventType } : {}),
       ...(offering ? { offering } : {}),
+      ...(input.entryPoint === "inquiry_form" ? { entry_point: "inquiry_form" } : {}),
+      ...(input.lines && input.lines.length > 1 ? { lines: input.lines.slice(0, 12) } : {}),
     },
     requester: {
       name: contactName,
@@ -984,6 +1076,7 @@ export async function startGuestChatInquiry(
     autoAckEnabled: ackSettings == null ? true : ackSettings.auto_ack_enabled !== false,
     customAckMessage:
       typeof ackSettings?.auto_ack_message === "string" ? ackSettings.auto_ack_message : null,
+    locale: input.locale ?? null,
   });
 
   // GUEST → CLIENT CLAIM (best-effort): email the guest a magic-link so they can
@@ -1247,6 +1340,17 @@ export async function sendGuestMessageAction(
       return fail("forbidden", "You don't have access to this conversation.");
     }
     isRealContact = !isSeedContact(contactName, contactEmail);
+  }
+
+  // WSF D §8: an early draft becomes a real thread on its first send, so the
+  // not-taking-inquiries switch gates it too.
+  if (
+    owned.inquiry.status === "draft" &&
+    isRealContact &&
+    (await onDirectTalentChannel(owned.inquiry.tenantId)) &&
+    !(await draftFirstSendAllowed(admin, owned.inquiry.id))
+  ) {
+    return fail("not_accepting_inquiries", notAcceptingMessage(null));
   }
 
   // ── W2-I auto-scan: on the FIRST real send (still a draft, contact already
@@ -1863,6 +1967,10 @@ export async function ensureGuestChatInquiry(
 
     const talentProfileId = input.talentProfileId?.trim() || null;
 
+    if (talentProfileId && (await anyDemoTalent(admin, [talentProfileId]))) {
+      return fail("talent_unavailable", DEMO_SUBMIT_REFUSAL);
+    }
+
     // SECURITY (mirrors startGuestChatInquiry): the talent id is client-supplied
     // and the insert runs under the service-role client, so verify the talent is
     // on THIS tenant's publicly visible roster before seeding it into the row.
@@ -1933,6 +2041,16 @@ export async function ensureGuestChatInquiry(
           picked.row.contact_email as string | null,
         ),
       };
+    }
+
+    // WSF D §8: minting a new early row IS starting a new thread. Reuse of the
+    // guest's own existing draft above stays allowed.
+    if (
+      talentProfileId &&
+      (await onDirectTalentChannel(tenantId)) &&
+      !(await talentAcceptsNewThreads(admin, talentProfileId))
+    ) {
+      return fail("not_accepting_inquiries", notAcceptingMessage(null));
     }
 
     // No reusable partial — create the minimal early row. Placeholder contact

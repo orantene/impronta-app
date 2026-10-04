@@ -82,6 +82,32 @@ export function resolveSectionEmbedConfigTextValue(
   return typeof value === "string" ? value : null;
 }
 
+/**
+ * Widget blocks whose visible heading is their own `title` prop (not a child
+ * heading node). F120: double-clicking that heading must edit it in place like
+ * any other heading, through the same i18n-aware `title` prop path.
+ */
+export const TITLE_PROP_WIDGET_KINDS: ReadonlySet<string> = new Set([
+  "services_catalog",
+  "reviews",
+  "menu_board",
+  "faq",
+  "gallery",
+]);
+
+function resolveWidgetTitleTarget(
+  nodeEl: HTMLElement | null,
+  el: HTMLElement,
+  kind: string,
+  hasTitle: boolean,
+): { id: string; propKey: "title"; variant: "single" } | null {
+  if (!nodeEl || !TITLE_PROP_WIDGET_KINDS.has(kind) || !hasTitle) return null;
+  const heading = nodeEl.querySelector<HTMLElement>("h1, h2");
+  if (!heading || !(heading === el || heading.contains(el) || el.contains(heading))) return null;
+  const id = nodeEl.getAttribute("data-builder-node-id");
+  return id ? { id, propKey: "title", variant: "single" } : null;
+}
+
 export function resolveEditableBuilderNodeTextTarget(
   tree: BuilderNodeTree,
   el: HTMLElement,
@@ -132,6 +158,13 @@ export function resolveEditableBuilderNodeTextTarget(
   }
   const node = findBuilderNodeById(tree, nodeId);
   if (!node || node.kind === "section") return null;
+  const widgetTitle = resolveWidgetTitleTarget(
+    nodeEl,
+    el,
+    node.kind,
+    typeof (node.props as { title?: unknown }).title === "string",
+  );
+  if (widgetTitle) return widgetTitle;
   if (node.kind === "heading") return { id: node.id, propKey: "text", variant: "single" };
   if (node.kind === "paragraph") return { id: node.id, propKey: "text", variant: "multi" };
   if (node.kind === "rich_text") return { id: node.id, propKey: "text", variant: "multi" };

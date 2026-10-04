@@ -175,6 +175,8 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
       ...STAFF_WORDS,
       "menu.item": { en: "Treatment", es: "Tratamiento" },
       "menu.items": { en: "Treatments", es: "Tratamientos" },
+      // Catalogue tab (mockup Luz): not the hub "Talent & services" fallback.
+      "customers.chat_items": { en: "Treatments", es: "Tratamientos" },
       "appointments.item": { en: "Treatment", es: "Tratamiento" },
       "appointments.items": { en: "Treatments", es: "Tratamientos" },
       "appointments.provider": { en: "Therapist", es: "Terapeuta" },
@@ -447,6 +449,8 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
       "menu.item": { en: "Menu", es: "Menú" },
       "menu.items": { en: "Menus", es: "Menús" },
       "customers.chat_items": { en: "Menus", es: "Menús" },
+      // Bookings tab (mockup Mateo): Mis eventos, not Mis citas.
+      "customers.chat_bookings": { en: "Your events", es: "Mis eventos" },
       "appointments.item": { en: "Event", es: "Evento" },
       "appointments.items": { en: "Events", es: "Eventos" },
       "appointments.provider": { en: "Chef", es: "Chef" },
@@ -533,6 +537,10 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
     chatVoice: {
       en: "Tell us about the project and we will line up the right talent",
       es: "Cuéntanos del proyecto y te armamos el equipo",
+    },
+    chatVoiceSolo: {
+      en: "Tell me what you need and I will help you book",
+      es: "Cuéntame qué necesitas y te ayudo a reservar",
     },
     // Was null while a "Production agency" design sat in the registry unused.
     designId: "agency",

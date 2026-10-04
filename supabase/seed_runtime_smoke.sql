@@ -15,22 +15,18 @@ SET value = EXCLUDED.value,
     updated_at = now();
 
 -- Ensure baseline location exists.
+-- Accents preserved; never overwrite a curated name on conflict.
 INSERT INTO public.locations (
   country_code,
   city_slug,
-  display_name_en,
-  display_name_es
+  display_name_i18n
 )
 VALUES (
   'MX',
   'cancun',
-  'Cancun',
-  'Cancun'
+  '{"en":"Cancún","es":"Cancún"}'::jsonb
 )
-ON CONFLICT (country_code, city_slug) DO UPDATE
-SET display_name_en = EXCLUDED.display_name_en,
-    display_name_es = EXCLUDED.display_name_es,
-    updated_at = now();
+ON CONFLICT (country_code, city_slug) DO NOTHING;
 
 -- Featured public profile for homepage, directory, and profile page.
 INSERT INTO public.talent_profiles (

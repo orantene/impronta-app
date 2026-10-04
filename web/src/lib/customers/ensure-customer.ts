@@ -22,11 +22,15 @@ import {
  * A customer is an email or a phone number. `user_id` is something they GAIN if
  * they ever sign up, not a precondition for existing.
  *
+ * Owner scope (B2 / DECISIONS #3): when `ownerTalentProfileId` is set, match and
+ * insert only within that talent's private pool on the tenant. When null/omitted,
+ * match only the agency/tenant pool (`owner_talent_profile_id IS NULL`). Silent
+ * reuse is email of the SAME owner (and tenant); the two pools never cross.
+ *
  * Idempotent by construction: the unique indexes
- * `customers_tenant_email_key` and `customers_tenant_phone_key` are the
- * concurrency control, so two simultaneous first-orders from the same guest
- * converge on one row instead of racing. Writes run on the service role because
- * `customers` has no INSERT policy by design.
+ * `customers_tenant_email_agency_key` / `customers_tenant_email_owner_key` (and
+ * phone-only twins) are the concurrency control. Writes run on the service role
+ * because `customers` has no INSERT policy by design.
  */
 
 export type EnsureCustomerInput = {
@@ -37,6 +41,11 @@ export type EnsureCustomerInput = {
   /** Set only when the buyer is signed in. Never invented for a guest. */
   userId?: string | null;
   locale?: string | null;
+  /**
+   * Talent-private client pool. Null/undefined = agency-owned pool on the tenant.
+   * Silent email reuse is scoped to this owner only.
+   */
+  ownerTalentProfileId?: string | null;
 };
 
 export type EnsureCustomerResult =
@@ -65,6 +74,7 @@ export async function ensureCustomer(
     return { ok: false, reason: resolved.reason, error: resolved.message };
   }
   const identity = resolved.identity;
+  const ownerTalentProfileId = input.ownerTalentProfileId ?? null;
 
   const admin = deps.admin !== undefined ? deps.admin : createServiceRoleClient();
   if (!admin) {
@@ -73,8 +83,9 @@ export async function ensureCustomer(
   }
 
   // 1. Existing row? Email is the primary key for a human because it is the
-  //    one a receipt is sent to; phone is the fallback.
-  const existing = await findCustomer(admin, input.tenantId, identity);
+  //    one a receipt is sent to; phone is the fallback. Match only within the
+  //    same owner scope (agency pool vs this talent's private pool).
+  const existing = await findCustomer(admin, input.tenantId, identity, ownerTalentProfileId);
   if (existing.error) {
     logServerError("customers.ensureCustomer/find", existing.error);
     return { ok: false, reason: "unavailable", error: "Could not look up the customer." };
@@ -85,9 +96,9 @@ export async function ensureCustomer(
     // known value with null: a guest who orders once with a phone and once
     // without must not lose the phone.
     const patch: Record<string, unknown> = {};
-    // Safe: this customer has an email, so `customers_tenant_phone_only_key`
-    // (unique only where email IS NULL) does not apply and a shared household
-    // number cannot collide.
+    // Safe: this customer has an email, so phone-only unique keys (unique only
+    // where email IS NULL) do not apply and a shared household number cannot
+    // collide within this owner scope.
     if (identity.phoneE164 && !existing.phoneE164) patch.phone_e164 = identity.phoneE164;
     if (identity.email && !existing.email) patch.email = identity.email;
     if (identity.displayName && !existing.displayName) patch.display_name = identity.displayName;
@@ -115,6 +126,7 @@ export async function ensureCustomer(
       display_name: identity.displayName,
       user_id: input.userId ?? null,
       locale: input.locale ?? null,
+      owner_talent_profile_id: ownerTalentProfileId,
     })
     .select("id")
     .single();
@@ -127,7 +139,7 @@ export async function ensureCustomer(
   //    unique index did its job; re-read rather than surfacing a 23505 to a
   //    person who is trying to pay.
   if (error && isUniqueViolation(error)) {
-    const retry = await findCustomer(admin, input.tenantId, identity);
+    const retry = await findCustomer(admin, input.tenantId, identity, ownerTalentProfileId);
     if (retry.id) return { ok: true, customerId: retry.id, created: false, identity };
   }
 
@@ -150,6 +162,7 @@ async function findCustomer(
   admin: any,
   tenantId: string,
   identity: CustomerIdentity,
+  ownerTalentProfileId: string | null,
 ): Promise<FoundCustomer> {
   const empty: FoundCustomer = {
     id: null,
@@ -163,18 +176,7 @@ async function findCustomer(
   const columns = "id, email, phone_e164, display_name, user_id, locale";
 
   // EMAIL IS THE IDENTITY. Phone is a lookup key ONLY for a customer who has no
-  // email at all.
-  //
-  // Matching on phone whenever it is present looks harmless and is not. Six of
-  // the eight client profiles in production share one number, +52 998 400 1234,
-  // with six different people behind it — and that is the normal case, not a
-  // QA artifact: couples share a mobile, families share a landline, an office
-  // shares a switchboard. If this matched on phone for an email-bearing guest,
-  // the second person to give the household number would resolve to the FIRST
-  // person's customer row and silently inherit their order history, their spend
-  // total and their receipts. The same mistake in the backfill dropped five
-  // rows and was caught by counting; this one merges two strangers and would
-  // not be. See migration 20261228000141.
+  // email at all. Match only within the same owner scope.
   const lookups: ReadonlyArray<readonly [string, string]> = identity.email
     ? [["email", identity.email]]
     : identity.phoneE164
@@ -183,13 +185,26 @@ async function findCustomer(
 
   for (const [column, value] of lookups) {
     if (!value) continue;
-    const { data, error } = await admin
+    let q = admin
       .from("customers")
       .select(columns)
       .eq("tenant_id", tenantId)
       .eq(column, value)
-      .is("merged_into_id", null)
-      .maybeSingle();
+      .is("merged_into_id", null);
+
+    if (ownerTalentProfileId) {
+      q = q.eq("owner_talent_profile_id", ownerTalentProfileId);
+    } else {
+      q = q.is("owner_talent_profile_id", null);
+    }
+
+    // Phone-only silent reuse must not hit an email-bearing row that happens to
+    // share the number (00141 rule).
+    if (column === "phone_e164") {
+      q = q.is("email", null);
+    }
+
+    const { data, error } = await q.maybeSingle();
 
     if (error) return { ...empty, error };
     if (data) {

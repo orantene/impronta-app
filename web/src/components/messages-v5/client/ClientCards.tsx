@@ -6,9 +6,12 @@
  *   ClientTicketsCard  tickets_card once paid/issued (opens /q/<code> when the engine stamped one)
  *   ClientTimesCard    professional_times (pick holds the time, countdown, hold ended)
  *   ClientOfferCard    offer_event / offer_review (accept exact version, ask for a change, decline)
- *   ClientPaymentCard  payment_request (Pay opens /pay/<code>)
- *   ClientConfirmedCard order_confirmation / appointment_confirmation (Ask for a change, Receipt)
+ *   ClientPaymentCard  payment_request (Pay opens /pay/<code>) and payment_paid
+ *                      (total / paid / due when the shell stamped them)
+ *   ClientConfirmedCard order_confirmation / appointment_confirmation
+ *                      (Ask for a change, Receipt; Add to calendar when booked)
  *   ClientChangeCard   change_request / change_result, including cancel + refund sentences
+ *   ClientOutcomeCard  Declined / Pay failed / Refunded (front-door v27; engine producers only)
  *   ClientDraftCard    basket (read-only: what the client picked so far)
  *
  * Nothing here reads net, commission, payout, discount or tax: the payload
@@ -17,7 +20,10 @@
 
 import { useState } from "react";
 
+import { buildIcsEvent, downloadIcs } from "@/lib/ui/ics";
 import type { MessagingRefusal } from "@/lib/messaging/types";
+import type { GuestOutcomeKind } from "@/lib/messages-v5/guest-outcome";
+import { readGuestOutcome, readGuestOutcomeRefundAmount } from "@/lib/messages-v5/guest-outcome";
 import {
   formatClientDate,
   formatSlot,
@@ -25,16 +31,21 @@ import {
   money,
   offerCardState,
   offerDepositCents,
+  readPaidPayment,
+  readPayment,
   timesSlotOpen,
   timesState,
   type ChangeView,
   type ChoicesView,
   type ClientOfferSummary,
+  guestVisibleOfferVersion,
   type ConfirmationView,
   type PaymentView,
   type TicketsView,
   type TimesView,
 } from "@/lib/messages-v5/client-thread-view";
+
+import { EngineFeeLines } from "@/components/payments/FeeLines";
 
 import { Card, CardLine, CardTotal } from "../kit/Card";
 import { fill, type KitCopy } from "../kit/copy";
@@ -121,7 +132,27 @@ export function ClientTicketsCard({ view, copy, business, onOpen }: Omit<Common,
 
 /* ---------- times ---------- */
 
-export function ClientTimesCard({ view, copy, kit, business, locale, now, phase = "idle", refusal, onPick, onAsk, startReopened = false }: Common & { readonly view: TimesView; readonly now: Date; readonly onPick?: (startsAt: string) => void; readonly onAsk?: (text: string) => void; readonly startReopened?: boolean }) {
+export function ClientTimesCard({
+  view,
+  copy,
+  kit,
+  business,
+  locale,
+  now,
+  phase = "idle",
+  refusal,
+  nextFreeTimes,
+  onPick,
+  onAsk,
+  startReopened = false,
+}: Common & {
+  readonly view: TimesView;
+  readonly now: Date;
+  readonly nextFreeTimes?: readonly string[];
+  readonly onPick?: (startsAt: string) => void;
+  readonly onAsk?: (text: string) => void;
+  readonly startReopened?: boolean;
+}) {
   const state = timesState(view, now);
   const [reopened, setReopened] = useState(startReopened);
   const left = holdCountdown(view.holdExpiresAt, now);
@@ -144,6 +175,7 @@ export function ClientTimesCard({ view, copy, kit, business, locale, now, phase 
       {onAsk ? <Btn size="sm" onClick={() => onAsk(copy.times.askPrefill)} data-client-action="ask_hold">{copy.times.ask}</Btn> : null}
     </>
   ) : null;
+  const freeAlts = phase === "refused" && (refusal === "unavailable" || refusal === "hold_ended") ? (nextFreeTimes ?? []).filter((s) => s.length > 0) : [];
   return (
     <Card category="appt" label={copy.times.cat} title={view.professionalName ? fill(copy.times.titleWith, { name: view.professionalName }) : copy.times.title} variant="mobile" testId="client-times" busy={phase === "busy"} pills={pill} foot={foot} actions={endedActions}>
       {view.slots.map((s) => {
@@ -159,9 +191,28 @@ export function ClientTimesCard({ view, copy, kit, business, locale, now, phase 
         );
       })}
       {phase === "refused" && refusal ? (
-        <div className="cx-inline">
+        <div className="cx-inline" data-slot-taken="1">
           <RefusalLine code={refusal} copy={kit} variant="mobile" />
           {refusal === "unavailable" || refusal === "hold_ended" ? <CardLine muted label={fill(copy.times.taken, { business })} /> : null}
+          {freeAlts.length > 0 ? (
+            <div className="cx-stack" data-next-free-times="">
+              <CardLine muted label={copy.times.nextFree} />
+              {freeAlts.map((startsAt) => (
+                <button
+                  key={startsAt}
+                  type="button"
+                  className="cx-pick rad"
+                  disabled={!onPick}
+                  onClick={() => onPick?.(startsAt)}
+                  data-next-free={startsAt}
+                >
+                  <span className="tx">
+                    <b>{formatSlot(startsAt, locale, view.timezone)}</b>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </Card>
@@ -172,8 +223,10 @@ export function ClientTimesCard({ view, copy, kit, business, locale, now, phase 
 
 export type OfferMode = "view" | "change" | "decline";
 
-export function ClientOfferCard({ offer, copy, kit, business, locale, now, phase = "idle", refusal, payCode, onAccept, onDecline, onChange, onPay }: Common & {
+export function ClientOfferCard({ offer, offers, copy, kit, business, locale, now, phase = "idle", refusal, payCode, onAccept, onDecline, onChange, onPay }: Common & {
   readonly offer: ClientOfferSummary;
+  /** All guest-visible offers on the thread; drives the guest-facing version number. */
+  readonly offers?: readonly ClientOfferSummary[];
   readonly now: Date;
   readonly payCode?: string | null;
   readonly onAccept?: (offer: ClientOfferSummary) => void;
@@ -186,10 +239,23 @@ export function ClientOfferCard({ offer, copy, kit, business, locale, now, phase
   const state = offerCardState(offer, now);
   const deposit = offerDepositCents(offer);
   const busy = phase === "busy";
+  // Front-door brief: terminal states keep a pill; the live "sent" offer folds
+  // the version into the title ("Oferta · v1") so the chrome matches article.offer.
   const pill =
-    state === "accepted" ? <Pill tone="won">{copy.offer.accepted}</Pill> : state === "declined" ? <Pill tone="lost">{copy.offer.declined}</Pill> : state === "expired" ? <Pill tone="lost">{kit.card.state.expired}</Pill> : <Pill tone="opp">{fill(copy.offer.version, { version: offer.version })}</Pill>;
+    state === "accepted" ? (
+      <Pill tone="won">{copy.offer.accepted}</Pill>
+    ) : state === "declined" ? (
+      <Pill tone="lost">{copy.offer.declined}</Pill>
+    ) : state === "expired" ? (
+      <Pill tone="lost">{kit.card.state.expired}</Pill>
+    ) : null;
   const refundLine = offer.refundPolicy && offer.refundPolicy in copy.offer.refund ? fill(copy.offer.refund[offer.refundPolicy as keyof typeof copy.offer.refund], { business }) : null;
   const depositLabel = [offer.depositPct != null && offer.depositPct > 0 ? fill(copy.offer.depositPct, { pct: offer.depositPct }) : copy.offer.depositLine, refundLine].filter(Boolean).join(" · ");
+  const visibleVersion = guestVisibleOfferVersion(offer, offers);
+  const offerTitle =
+    state === "sent" && visibleVersion != null
+      ? fill(copy.offer.titleVersion, { version: visibleVersion })
+      : copy.offer.title;
 
   const foot =
     state === "accepted"
@@ -206,18 +272,21 @@ export function ClientOfferCard({ offer, copy, kit, business, locale, now, phase
 
   let actions: React.ReactNode = null;
   if (state === "sent" && mode === "view") {
+    // Brief row-actions: solid Aceptar + underlined Pedir un cambio / Rechazar.
     actions = (
-      <>
+      <div className="cx-row cx-offer-actions">
         {onAccept ? (
-          <Btn size="xl" variant="primary" fill busy={busy} onClick={() => onAccept(offer)} data-client-action="accept_offer">
-            {busy ? copy.offer.accepting : deposit != null ? fill(copy.offer.acceptPay, { amount: money(deposit, offer.currency) }) : copy.offer.accept}
+          <Btn size="sm" variant="primary" busy={busy} onClick={() => onAccept(offer)} data-client-action="accept_offer">
+            {busy ? copy.offer.accepting : copy.offer.accept}
           </Btn>
         ) : null}
-        <div className="cx-row">
-          <Btn size="sm" disabled={busy} onClick={() => setMode("change")} data-client-action="ask_change">{copy.offer.askChange}</Btn>
-          <Btn size="sm" disabled={busy} onClick={() => setMode("decline")} data-client-action="decline_offer">{copy.offer.decline}</Btn>
-        </div>
-      </>
+        <Btn size="sm" variant="ghost" className="cx-offer-ask" disabled={busy} onClick={() => setMode("change")} data-client-action="ask_change">
+          {copy.offer.askChange}
+        </Btn>
+        <Btn size="sm" variant="ghost" className="cx-offer-ask" disabled={busy} onClick={() => setMode("decline")} data-client-action="decline_offer">
+          {copy.offer.decline}
+        </Btn>
+      </div>
     );
   } else if (state === "sent" && mode === "change") {
     actions = (
@@ -250,7 +319,17 @@ export function ClientOfferCard({ offer, copy, kit, business, locale, now, phase
   }
 
   return (
-    <Card category="offer" label={copy.offer.cat} title={copy.offer.title} variant="mobile" testId="client-offer" busy={busy} pills={pill} foot={foot} actions={actions ? <div className="cx-stack">{actions}</div> : null}>
+    <Card
+      category="offer"
+      label={copy.offer.cat}
+      title={offerTitle}
+      variant="mobile"
+      testId="client-offer"
+      busy={busy}
+      pills={pill}
+      foot={foot}
+      actions={actions}
+    >
       {offer.lines.map((l, i) => (
         <CardLine key={i} label={l.units > 1 ? `${l.label} ${fill(copy.offer.unitsSuffix, { units: l.units })}` : l.label} amount={money(l.amountCents, offer.currency)} />
       ))}
@@ -266,10 +345,12 @@ export function ClientOfferCard({ offer, copy, kit, business, locale, now, phase
 /* ---------- payment ---------- */
 
 export function ClientPaymentCard({ view, copy, business, locale, now, onPay }: Omit<Common, "kit"> & { readonly view: PaymentView; readonly now: Date; readonly onPay?: (code: string) => void }) {
-  const paid = view.state === "paid";
+  // A3: paid + partially_refunded show money lines; refunded/cancelled/expired close Pay.
+  const paid = view.state === "paid" || view.state === "partially_refunded";
+  const refunded = view.state === "refunded";
   const cancelled = view.state === "cancelled";
   const expired = view.state === "expired" || (view.expiresAt ? Date.parse(view.expiresAt) < now.getTime() : false);
-  const closed = cancelled || expired;
+  const closed = cancelled || expired || refunded;
   const kind = view.amountKind === "deposit" ? copy.pay.deposit : copy.pay.full;
   const amount = view.amountCents != null ? money(view.amountCents, view.currency) : "";
   // Front-door v27 Paid: total / paid / due / method only when the shell stamped
@@ -306,6 +387,8 @@ export function ClientPaymentCard({ view, copy, business, locale, now, onPay }: 
             <Pill tone="won">{copy.pay.paid}</Pill>
             {methodLabel ? <Pill tone="money">{methodLabel}</Pill> : null}
           </>
+        ) : refunded ? (
+          <Pill tone="lost">{copy.cancel.refunded}</Pill>
         ) : cancelled ? (
           <Pill tone="lost">{copy.pay.cancelledPill}</Pill>
         ) : expired ? (
@@ -315,13 +398,15 @@ export function ClientPaymentCard({ view, copy, business, locale, now, onPay }: 
       foot={
         paid
           ? paidFoot
-          : cancelled
-            ? fill(copy.pay.cancelled, { business })
-            : expired
-              ? fill(copy.pay.expired, { business })
-              : view.expiresAt
-                ? fill(copy.pay.expiresAt, { date: formatClientDate(view.expiresAt, locale) })
-                : copy.pay.keepSlot
+          : refunded
+            ? copy.cancel.refunded
+            : cancelled
+              ? fill(copy.pay.cancelled, { business })
+              : expired
+                ? fill(copy.pay.expired, { business })
+                : view.expiresAt
+                  ? fill(copy.pay.expiresAt, { date: formatClientDate(view.expiresAt, locale) })
+                  : copy.pay.keepSlot
       }
       actions={!paid && !closed && view.code && onPay ? (
         <Btn size="sm" variant="primary" onClick={() => onPay(view.code as string)} data-client-action="pay">{fill(copy.pay.pay, { amount })}</Btn>
@@ -333,6 +418,24 @@ export function ClientPaymentCard({ view, copy, business, locale, now, onPay }: 
           <CardLine label={copy.pay.paidAmount} amount={money(view.paidCents, view.currency)} />
           {view.dueCents! > 0 ? <CardLine label={copy.pay.balanceDue} amount={money(view.dueCents, view.currency)} /> : null}
         </>
+      ) : view.feeLines.length > 0 && !paid && !closed ? (
+        <EngineFeeLines
+          lines={view.feeLines}
+          currency={view.currency}
+          locale={locale}
+          label={(c) =>
+            c === "service_subtotal"
+              ? copy.pay.feeService
+              : c === "base_reservation_fee"
+                ? copy.pay.feeReservation
+                : c === "platform_fee"
+                  ? copy.pay.feePlatform
+                  : c === "processing_fee"
+                    ? copy.pay.feeProcessing
+                    : copy.pay.feeTotal
+          }
+          nonRefundable={copy.pay.feeNonRefundable}
+        />
       ) : (
         <CardLine label={kind} amount={amount} />
       )}
@@ -347,6 +450,22 @@ export function ClientConfirmedCard({ view, kind, copy, business, locale, phase 
   const [text, setText] = useState("");
   const busy = phase === "busy";
   const order = kind === "order_confirmation";
+  const booked = Boolean(view.when);
+  function addToCalendar() {
+    if (!view.when) return;
+    const startsAt = new Date(view.when);
+    if (Number.isNaN(startsAt.getTime())) return;
+    const endsAt = new Date(startsAt.getTime() + 60 * 60 * 1000);
+    const summary = view.title ?? view.summary ?? (order ? copy.confirmed.catOrder : copy.confirmed.catBooking);
+    const payload = buildIcsEvent({
+      uid: view.recordId ?? `confirmed-${startsAt.toISOString()}`,
+      summary: summary || business,
+      description: view.summary ?? undefined,
+      startsAt,
+      endsAt,
+    });
+    downloadIcs("booking.ics", payload);
+  }
   return (
     <Card category={order ? "order" : "appt"} label={order ? copy.confirmed.catOrder : copy.confirmed.catBooking} title={view.title ?? view.summary ?? (order ? copy.confirmed.catOrder : copy.confirmed.catBooking)} variant="mobile" testId="client-confirmed"
       pills={<Pill tone="money">{copy.confirmed.pill}</Pill>}
@@ -363,6 +482,11 @@ export function ClientConfirmedCard({ view, kind, copy, business, locale, phase 
             </div>
           ) : (
             <div className="cx-row">
+              {booked ? (
+                <Btn size="sm" icon="cal" onClick={addToCalendar} data-client-action="add_calendar">
+                  {copy.confirmed.addToCalendar}
+                </Btn>
+              ) : null}
               {onChange ? <Btn size="sm" icon="refresh" onClick={() => setOpen(true)} data-client-action="ask_change">{copy.confirmed.askChange}</Btn> : null}
               <Btn size="sm" icon="file" disabled title={copy.confirmed.receiptSoon} data-client-action="receipt">{copy.confirmed.receipt}</Btn>
             </div>
@@ -375,6 +499,101 @@ export function ClientConfirmedCard({ view, kind, copy, business, locale, phase 
         <CardLine key={i} label={l.units > 1 ? `${l.label} × ${l.units}` : l.label} amount={money(l.amountCents, view.currency)} />
       ))}
       {view.summary && view.title ? <CardLine muted label={view.summary} /> : null}
+    </Card>
+  );
+}
+
+/* ---------- front-door outcome (declined / pay failed / refunded) ---------- */
+
+/**
+ * One canonical dispatch for Declined / Pay failed / Refunded: dock
+ * (`ClientCard`) and `/c/t/` (`ClientThreadView.renderCard`) both call this
+ * so a producer row never falls through to ClientChangeCard / ClientPaymentCard
+ * with raw engine English or `{amount}` placeholders.
+ */
+export function ClientOutcomeFromMessage({
+  kind,
+  payload,
+  body,
+  copy,
+  payCode = null,
+  onPay = null,
+}: {
+  readonly kind: string;
+  readonly payload: Record<string, unknown> | null;
+  readonly body?: string | null;
+  readonly copy: ClientCopy;
+  readonly payCode?: string | null;
+  readonly onPay?: ((code: string) => void) | null;
+}): React.ReactElement | null {
+  const outcome = readGuestOutcome({ kind, payload, body });
+  if (!outcome) return null;
+  const refund = readGuestOutcomeRefundAmount({ kind, payload, body });
+  const amountLabel = refund ? money(refund.cents, refund.currency) : null;
+  // Prefer the payment card's own amount when refund sync only flipped state.
+  const payAmount =
+    !amountLabel && (kind === "payment_request" || kind === "payment_paid")
+      ? (() => {
+          const view = kind === "payment_paid" ? readPaidPayment(payload) : readPayment(payload);
+          return view.amountCents != null ? money(view.amountCents, view.currency) : null;
+        })()
+      : null;
+  return (
+    <ClientOutcomeCard
+      outcome={outcome}
+      copy={copy}
+      amountLabel={amountLabel ?? payAmount}
+      onRetry={outcome === "pay_failed" && payCode && onPay ? () => onPay(payCode) : null}
+    />
+  );
+}
+
+export function ClientOutcomeCard({
+  outcome,
+  copy,
+  amountLabel = null,
+  onRetry = null,
+}: {
+  readonly outcome: GuestOutcomeKind;
+  readonly copy: ClientCopy;
+  /** Preformatted amount when the engine stamped refund cents. */
+  readonly amountLabel?: string | null;
+  /** Pay-failed only: reopen the pay link when one still exists. */
+  readonly onRetry?: (() => void) | null;
+}) {
+  const title =
+    outcome === "declined"
+      ? copy.outcome.declinedTitle
+      : outcome === "pay_failed"
+        ? copy.outcome.payFailedTitle
+        : copy.outcome.refundedTitle;
+  const label =
+    outcome === "declined" ? copy.offer.cat : copy.pay.cat;
+  const body =
+    outcome === "declined"
+      ? copy.outcome.declinedBody
+      : outcome === "pay_failed"
+        ? copy.outcome.payFailedBody
+        : amountLabel
+          ? fill(copy.outcome.refundedBodyAmount, { amount: amountLabel })
+          : copy.outcome.refundedBody;
+  const category = outcome === "pay_failed" ? "pay" : outcome === "refunded" ? "change" : "offer";
+  return (
+    <Card
+      category={category}
+      label={label}
+      title={title}
+      variant="mobile"
+      testId={`client-outcome-${outcome}`}
+      actions={
+        outcome === "pay_failed" && onRetry ? (
+          <Btn size="xl" variant="primary" fill onClick={onRetry} data-client-action="retry_pay">
+            {copy.outcome.payFailedRetry}
+          </Btn>
+        ) : null
+      }
+    >
+      <CardLine muted label={body} />
     </Card>
   );
 }

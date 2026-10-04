@@ -290,7 +290,9 @@ export async function reviewsEnabledForTenantAction(
 ): Promise<boolean> {
   const auth = await requireTalent();
   if (!auth.ok) return false;
+  // An unresolvable slug (a solo talent's own hub is not a public tenant) has
+  // no platform decision on it, so it gets the platform default like any
+  // missing entitlement row. Only an explicit stored false turns Reviews off.
   const tenantId = await resolveTenantId(auth.supabase, tenantSlug);
-  if (!tenantId) return false;
   return tenantReviewsEnabled(tenantId);
 }

@@ -1,9 +1,10 @@
 /**
  * Talent custom-domain (`kind: "talent_site"`) host path routing.
  *
- * A talent's custom domain serves a SMALL surface: the site home (`/`) and its
- * inner pages (`/<pageSlug>`), plus the shared static / API / compliance paths
- * that every host kind allows. Everything else 404s. This keeps a talent vanity
+ * A talent's custom domain serves a SMALL surface: the site home (`/`), its
+ * inner pages (`/<pageSlug>`), public payment checkout (`/pay/<code>`), guest
+ * threads (`/c/<id>`), plus the shared static / API / compliance paths that
+ * every host kind allows. Everything else 404s. This keeps a talent vanity
  * domain from exposing the workspace, the directory, auth, or any other tenant
  * surface.
  *
@@ -12,20 +13,31 @@
  * underscore that keeps this a ROUTE — a plain `_folder` is private in Next
  * and is excluded from routing), which reads the resolved
  * talent_profile_id from the host header and renders via `renderTalentMaxSite`.
+ *
+ * `/pay/<code>` (and `/link/<code>`) pass through to the shared payment-link
+ * page — the code is the credential; host is presentation (pay-link host rules).
  */
 
 export const TALENT_SITE_HOST_ROUTE_PREFIX = "/_talent-site" as const;
 
 /**
  * Shared, host-agnostic prefixes that must remain reachable on ANY host
- * (cron / webhooks / health probes / unsubscribe). Mirrors the
- * `SHARED_API_PREFIXES` + `COMPLIANCE_PREFIXES` allow-list intent so a talent
- * domain never breaks platform plumbing. Static files are matched separately.
+ * (cron / webhooks / health probes / unsubscribe / public pay checkout).
+ * Mirrors the `SHARED_API_PREFIXES` + `COMPLIANCE_PREFIXES` allow-list intent
+ * so a talent domain never breaks platform plumbing. Static files are matched
+ * separately.
  */
 const TALENT_SITE_PASSTHROUGH_PREFIXES = [
   "/api/",
   "/_next/",
   "/unsubscribe",
+  // Guest inquiry / instant-book result thread. Instant book redirects here
+  // (`/c/<inquiryId>?instant_booked=1`); without passthrough the vanity host
+  // 404s the booking result after a successful confirm (Path A).
+  "/c/",
+  // Branded free-website checkout (GAP-JOR-3 / pay-link host rules).
+  "/pay/",
+  "/link/",
 ] as const;
 
 const TALENT_SITE_STATIC_PATHS = ["/sitemap.xml", "/robots.txt", "/favicon.ico"] as const;
@@ -65,6 +77,10 @@ const RESERVED_TALENT_SITE_SLUGS = new Set([
   "posts",
   "models",
   "t",
+  // Payment checkout is passthrough via `/pay/<code>` / `/link/<code>` only —
+  // bare `/pay` or `/link` must not render as a talent page slug.
+  "pay",
+  "link",
 ]);
 
 export type TalentSiteHostPath =

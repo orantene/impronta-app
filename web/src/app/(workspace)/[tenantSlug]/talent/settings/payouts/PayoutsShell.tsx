@@ -17,6 +17,7 @@ import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbedded
 // Mexico yet" even though account creation works. Never re-inline this list.
 import { PAYOUT_COUNTRIES, isConnectPayoutCountry } from "@/lib/payments/payout-countries";
 import { PayoutAttentionPanel } from "@/components/payments/PayoutAttentionPanel";
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { GlobalPayoutsBankCard } from "./GlobalPayoutsBankCard";
 import { StablecoinPayoutCard } from "./StablecoinPayoutCard";
 import type { TalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
@@ -99,6 +100,7 @@ export function PayoutsShell({
   /** Load the payout snapshot client-side on mount (when no server prop is passed). */
   selfLoad?: boolean;
 }) {
+  const copy = useDashboardText();
   const router = useRouter();
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -218,15 +220,17 @@ export function PayoutsShell({
     <div data-msg-shell style={outerStyle}>
       {!embedded && (
         <>
-          <h1 style={{ margin: 0, fontSize: 21, fontWeight: 700, color: C.ink, letterSpacing: -0.3 }}>Payouts</h1>
+          <h1 style={{ margin: 0, fontSize: 21, fontWeight: 700, color: C.ink, letterSpacing: -0.3 }}>{copy.t("Payouts")}</h1>
           <p style={{ margin: "6px 0 20px", fontSize: 13, lineHeight: 1.55, color: C.inkMuted }}>
-            Get paid for your bookings, straight to your bank. Stripe handles the bank details and ID check, and we never see them.
+            {copy.t(
+              "Get paid for your bookings, straight to your bank. Stripe handles the bank details and ID check, and we never see them.",
+            )}
           </p>
         </>
       )}
 
       {selfLoad && !selfLoaded ? (
-        <div style={{ fontSize: 13, color: C.inkMuted, padding: "8px 2px" }}>Loading your payout status…</div>
+        <div style={{ fontSize: 13, color: C.inkMuted, padding: "8px 2px" }}>{copy.t("Loading your payout status…")}</div>
       ) : (
         <>
           {/* UNGATED on purpose. The old held-only banner rendered under
@@ -237,12 +241,12 @@ export function PayoutsShell({
 
           {justReturned && isEnabled && (
             <div role="status" style={{ marginBottom: 14, padding: "10px 12px", background: C.greenSoft, color: C.green, borderRadius: 10, fontSize: 12.5 }}>
-              ✓ All set. Your bank is connected and ready for payouts.
+              ✓ {copy.t("All set. Your bank is connected and ready for payouts.")}
             </div>
           )}
           {justRefreshed && (
             <div role="status" style={{ marginBottom: 14, padding: "10px 12px", background: C.surfaceAlt, color: C.inkMuted, borderRadius: 10, fontSize: 12.5 }}>
-              Status refreshed.
+              {copy.t("Status refreshed.")}
             </div>
           )}
           {loadError && (
@@ -254,6 +258,7 @@ export function PayoutsShell({
           {gpPrimary ? (
             // Non-Connect country / already on Global Payouts: GP is the only path.
             <>
+              <StablecoinPayoutCard position="top" />
               <GlobalPayoutsBankCard />
               {/* USDC opt-in (additive). Self-gates on stablecoin eligibility,
                   renders nothing when the talent's market isn't eligible. */}
@@ -261,10 +266,12 @@ export function PayoutsShell({
             </>
           ) : (
             <>
+          {/* Recommended markets (Argentina): USDC leads, bank is second. */}
+          {!showOnboarding && !needCountry && <StablecoinPayoutCard position="top" />}
           {/* PRIMARY: your bank */}
           {showOnboarding ? (
             <div style={card}>
-              <div style={sectionLabel}>Connect your bank</div>
+              <div style={sectionLabel}>{copy.t("Connect your bank")}</div>
               {/* No border/radius wrapper here: Stripe's embedded component
                   renders its OWN card chrome, so wrapping it produced a
                   triple-border look (our card > this box > Stripe's card >
@@ -274,17 +281,19 @@ export function PayoutsShell({
                 <ConnectEmbeddedOnboarding fetchClientSecret={() => createTalentAccountSession(country ? { country } : {})} onExit={handleExit} />
               </div>
               <button type="button" onClick={handleExit} style={{ ...ghostBtn, marginTop: 12 }}>
-                Done for now
+                {copy.t("Done for now")}
               </button>
             </div>
           ) : needCountry ? (
             <div style={card}>
-              <div style={sectionLabel}>One quick thing</div>
+              <div style={sectionLabel}>{copy.t("One quick thing")}</div>
               <label htmlFor="payout-country" style={{ display: "block", fontSize: 15, fontWeight: 600, color: C.ink, margin: "10px 0 6px", letterSpacing: -0.1 }}>
-                Please select your country of residence
+                {copy.t("Please select your country of residence")}
               </label>
               <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.5, color: C.inkMuted }}>
-                This is where you bank and get paid. We&apos;ll save it to your profile for tax and payout routing.
+                {copy.t(
+                  "This is where you bank and get paid. We'll save it to your profile for tax and payout routing.",
+                )}
               </p>
               <select
                 id="payout-country"
@@ -293,7 +302,7 @@ export function PayoutsShell({
                 onChange={(e) => setCountry(e.target.value)}
                 style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${C.border}`, fontFamily: FONT, fontSize: 13, color: C.ink, background: "#fff", marginBottom: 12 }}
               >
-                <option value="">Select your country…</option>
+                <option value="">{copy.t("Select your country…")}</option>
                 {PAYOUT_COUNTRIES.filter(
                   (c) => system !== "connect" || isConnectPayoutCountry(c.iso2),
                 ).map((c) => (
@@ -305,10 +314,10 @@ export function PayoutsShell({
               {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginBottom: 10 }}>{error}</div>}
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" onClick={onSubmitCountry} disabled={pending} style={primaryBtn(pending)}>
-                  {pending ? "Setting up…" : "Continue"}
+                  {pending ? copy.t("Setting up…") : copy.t("Continue")}
                 </button>
                 <button type="button" onClick={() => { setNeedCountry(false); setError(null); }} style={ghostBtn}>
-                  Cancel
+                  {copy.t("Cancel")}
                 </button>
               </div>
             </div>
@@ -320,27 +329,29 @@ export function PayoutsShell({
                 </span>
                 <div style={{ minWidth: 0 }}>
                   <div data-testid="talent-payout-status" style={{ fontSize: 14.5, fontWeight: 600, color: C.ink }}>
-                    You&apos;re set up to get paid
+                    {copy.t("You're set up to get paid")}
                   </div>
                   <div style={{ fontSize: 12.5, color: C.inkMuted, marginTop: 1 }}>
-                    Your share of each booking lands in your bank automatically.
+                    {copy.t("Your share of each booking lands in your bank automatically.")}
                   </div>
                 </div>
               </div>
               {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginTop: 12 }}>{error}</div>}
               <button type="button" data-testid="talent-connect-cta" onClick={onConnect} disabled={pending} style={{ ...ghostBtn, marginTop: 14 }}>
-                {pending ? "Opening…" : "Update bank or payout details"}
+                {pending ? copy.t("Opening…") : copy.t("Update bank or payout details")}
               </button>
             </div>
           ) : (
             <div style={card}>
-              <div style={sectionLabel}>Set up payouts</div>
+              <div style={sectionLabel}>{copy.t("Set up payouts")}</div>
               <p style={{ margin: "10px 0 14px", fontSize: 13, lineHeight: 1.55, color: C.inkMuted }}>
-                Connect your bank to receive booking payouts. It takes a few minutes, and Stripe verifies your identity and bank securely.
+                {copy.t(
+                  "Connect your bank to receive booking payouts. It takes a few minutes, and Stripe verifies your identity and bank securely.",
+                )}
               </p>
               {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginBottom: 10 }}>{error}</div>}
               <button type="button" data-testid="talent-connect-cta" onClick={onConnect} disabled={pending} style={primaryBtn(pending)}>
-                {pending ? "Opening…" : "Set up payouts"}
+                {pending ? copy.t("Opening…") : copy.t("Set up payouts")}
               </button>
             </div>
           )}
@@ -351,7 +362,7 @@ export function PayoutsShell({
           {!showOnboarding && system !== "connect" && (
             <div style={{ marginTop: 26 }}>
               <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase", color: C.inkDim, marginBottom: 10 }}>
-                {isEnabled ? "More ways to get paid" : "Get paid to your local bank, anywhere"}
+                {isEnabled ? copy.t("More ways to get paid") : copy.t("Get paid to your local bank, anywhere")}
               </div>
 
               <GlobalPayoutsBankCard />
@@ -366,8 +377,9 @@ export function PayoutsShell({
           )}
 
           <div style={{ marginTop: 24, fontSize: 11.5, lineHeight: 1.55, color: C.inkDim }}>
-            When a client pays for a booking you&apos;re on, your share transfers to you automatically, on Stripe&apos;s standard
-            schedule (typically 2 business days). You file your own taxes, and we hand you the year-end summary.
+            {copy.t(
+              "When a client pays for a booking you're on, your share transfers to you automatically, on Stripe's standard schedule (typically 2 business days). You file your own taxes, and we hand you the year-end summary.",
+            )}
           </div>
         </>
       )}

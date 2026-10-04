@@ -37,7 +37,20 @@ export type GuestThreadStateInput = {
   readonly showGate: boolean;
   /** The send animation is playing. */
   readonly showSentAirlock: boolean;
+  /**
+   * The guest has a delivered text message in the thread (see `hasSentGuestMessage`).
+   * A delivered message has reached the agency whatever the contact details look
+   * like, so the header must not keep saying "Not sent yet" (e2e P1).
+   */
+  readonly hasSentMessage?: boolean;
 };
+
+/** A guest-authored text row that is neither pending nor failed: it was delivered. */
+export function hasSentGuestMessage(
+  rows: readonly { authorRole: string; kind: string; pending?: boolean; failed?: boolean; isDeleted?: boolean }[],
+): boolean {
+  return rows.some((m) => m.authorRole === "guest" && m.kind === "text" && !m.pending && !m.failed && !m.isDeleted);
+}
 
 /**
  * A thread is a draft only while nothing has reached the agency.
@@ -51,6 +64,7 @@ export function isPrivateDraftThread(input: GuestThreadStateInput): boolean {
     !input.contactPromoted &&
     // A SENT INQUIRY IS NEVER A DRAFT, whatever the contact details look like.
     !input.hasReceipt &&
+    !input.hasSentMessage &&
     !input.showGate &&
     !input.showSentAirlock
   );
@@ -68,6 +82,6 @@ export function guestHeaderThreadState(input: GuestThreadStateInput): GuestHeade
   // A receipt is proof of sending on its own: it is non-null only once the
   // inquiry is genuinely sent, and it must not depend on `contactPromoted`,
   // which is what produced "Not sent yet" over a receipt in the first place.
-  if (input.inquiryRecordExists && (input.contactPromoted || input.hasReceipt)) return "sent";
+  if (input.inquiryRecordExists && (input.contactPromoted || input.hasReceipt || input.hasSentMessage)) return "sent";
   return "new";
 }

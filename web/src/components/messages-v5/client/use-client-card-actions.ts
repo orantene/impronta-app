@@ -22,7 +22,10 @@ import {
   messagingClientDeclineOffer,
   messagingClientPickTime,
   messagingClientRequestChange,
+  messagingClientRequestPayLink,
 } from "@/lib/server-actions/messaging-client";
+import { payLinkTarget } from "@/lib/payments/pay-link-target";
+import { resolvePayLinkPublicUrl } from "@/lib/server-actions/pay-link-public-url";
 
 import type { CardActivity } from "./ClientThreadView";
 
@@ -31,6 +34,8 @@ export type ClientCardActions = {
   readonly onChoose: (messageId: string, ids: readonly string[]) => Promise<void>;
   readonly onPickTime: (messageId: string, startsAt: string) => Promise<void>;
   readonly onPay: (code: string) => void;
+  /** Visitor asks for the payment link of the accepted offer; resolves true when a link now exists. */
+  readonly onRequestPayLink: () => Promise<boolean>;
   readonly onAcceptOffer: (offer: ClientOfferSummary) => Promise<void>;
   readonly onDeclineOffer: (offer: ClientOfferSummary, reason: string) => Promise<void>;
   readonly onChangeRecord: (recordKind: string, recordId: string, text: string, key?: string) => Promise<void>;
@@ -46,7 +51,15 @@ export function useClientCardActions(input: {
   const { token, messages, refresh, onTick } = input;
   const [activity, setActivity] = useState<Readonly<Record<string, CardActivity>>>({});
   const setAct = useCallback((key: string, a: CardActivity) => setActivity((prev) => ({ ...prev, [key]: a })), []);
-  const refused = useCallback((key: string, reason: MessagingRefusal) => setAct(key, { phase: "refused", refusal: reason }), [setAct]);
+  const refused = useCallback(
+    (key: string, reason: MessagingRefusal, nextFreeTimes?: readonly string[]) =>
+      setAct(key, {
+        phase: "refused",
+        refusal: reason,
+        ...(nextFreeTimes && nextFreeTimes.length > 0 ? { nextFreeTimes } : {}),
+      }),
+    [setAct],
+  );
   const noToken = useCallback((key: string) => refused(key, "not_allowed"), [refused]);
 
   const onChoose = useCallback(
@@ -80,7 +93,7 @@ export function useClientCardActions(input: {
       if (!token) return noToken(messageId);
       setAct(messageId, { phase: "busy" });
       const result = await messagingClientPickTime({ token, messageId, startsAt });
-      if (!result.ok) return refused(messageId, result.reason);
+      if (!result.ok) return refused(messageId, result.reason, result.nextFreeTimes);
       setAct(messageId, { phase: "done" });
       onTick?.();
       refresh();
@@ -89,7 +102,9 @@ export function useClientCardActions(input: {
   );
 
   const onPay = useCallback((code: string) => {
-    window.location.assign(`/pay/${encodeURIComponent(code)}`);
+    void resolvePayLinkPublicUrl({ code })
+      .catch(() => ({ url: null }))
+      .then((r) => window.location.assign(payLinkTarget(code, r.url)));
   }, []);
 
   const onAcceptOffer = useCallback(
@@ -104,6 +119,14 @@ export function useClientCardActions(input: {
     },
     [noToken, onPay, refresh, refused, setAct, token],
   );
+
+  const onRequestPayLink = useCallback(async (): Promise<boolean> => {
+    if (!token) return false;
+    const result = await messagingClientRequestPayLink({ token });
+    if (!result.ok || !result.payCode) return false;
+    onPay(result.payCode);
+    return true;
+  }, [onPay, token]);
 
   const onDeclineOffer = useCallback(
     async (offer: ClientOfferSummary, reason: string) => {
@@ -130,5 +153,5 @@ export function useClientCardActions(input: {
     [noToken, refresh, refused, setAct, token],
   );
 
-  return { activity, onChoose, onPickTime, onPay, onAcceptOffer, onDeclineOffer, onChangeRecord };
+  return { activity, onChoose, onPickTime, onPay, onRequestPayLink, onAcceptOffer, onDeclineOffer, onChangeRecord };
 }

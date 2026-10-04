@@ -28,6 +28,7 @@ import type {
 } from "@/lib/messaging/types";
 
 import type { KitCopy } from "../kit/copy";
+import type { SellerChrome } from "../shell/seller";
 import type { InboxFilterKey, InboxSegment } from "../kit/InboxSegments";
 
 /** Desktop grammar (also 1194) or the mobile kit (below 900). */
@@ -42,6 +43,10 @@ export type InboxFilter = InboxSegment;
 export type InboxLoadState = "idle" | "loading" | "ok" | "empty" | "failed";
 
 export type InboxProps = {
+  /** Talent seller mode: no owner / Unassigned metadata on rows (a solo talent has no team). */
+  readonly seller?: boolean;
+  /** Talent seller chrome (title, first-run empty state); null for staff. */
+  readonly sellerChrome?: SellerChrome | null;
   readonly rows: readonly InboxRow[];
   readonly filter: InboxFilter;
   readonly onFilter: (filter: InboxFilter) => void;
@@ -114,6 +119,7 @@ export type ContextPanelAction =
   | "create_offer"
   | "revise_offer"
   | "request_payment"
+  | "refund"
   | "confirm"
   | "remind"
   | "add_note"
@@ -278,10 +284,6 @@ export type ShellActionId =
   | "add_note"
   | "new_conversation"
   | "book_again"
-  /** L7 (D-MSG-14x), additive: the `CancelRefundSheet` seam. Not reachable
-   * from any wired button yet in this wave (no context-panel/tray action
-   * dispatches it) — the union entry plus the "coming" route exist so the
-   * registry can take over the moment a later lane wires a caller, the same
-   * pattern `request_payment` already followed for L7 itself. */
+  /** L7: `CancelRefundSheet` — Money panel Refund door when paid balance is zero. */
   | "cancel_record"
   | "refund";

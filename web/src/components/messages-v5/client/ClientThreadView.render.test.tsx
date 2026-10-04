@@ -28,6 +28,20 @@ const base: ClientThreadViewProps = {
     msg({ id: "e1", kind: "offer_event", senderUserId: "staff", body: "Offer sent to client.", payload: { status: "sent", offer_id: "of1", total_label: "3800.00 USD" }, createdAt: "2026-09-17T09:03:00.000Z" }),
     msg({ id: "c1", kind: "menu_options", senderUserId: "staff", payload: { offeringIds: ["a"], labels: ["Taco"], pricesCents: [900] }, createdAt: "2026-09-17T09:04:00.000Z" }),
     msg({ id: "p1", kind: "payment_request", senderUserId: "staff", payload: { paymentLinkCode: "abc", amountCents: 114000, amountKind: "deposit", state: "sent" }, createdAt: "2026-09-17T09:05:00.000Z" }),
+    msg({
+      id: "paid1",
+      kind: "payment_paid",
+      senderUserId: "staff",
+      payload: {
+        checkout_type: "deposit",
+        totalCents: 50000,
+        paidCents: 20000,
+        dueCents: 30000,
+        currency: "MXN",
+        method: "cash",
+      },
+      createdAt: "2026-09-17T09:05:30.000Z",
+    }),
     msg({ id: "k1", kind: "appointment_confirmation", senderUserId: "staff", payload: { recordKind: "appointment", recordId: "r1", when: "2026-09-20T15:00:00.000Z", title: "Balayage" }, createdAt: "2026-09-17T09:06:00.000Z" }),
     msg({ id: "q1", kind: "change_request", body: "Start later", payload: { state: "sent" }, createdAt: "2026-09-17T09:07:00.000Z" }),
     msg({ id: "s1", kind: "offer_state", body: "Accepted offer v2", payload: { offerId: "of1", offerStatus: "accepted" }, createdAt: "2026-09-17T09:08:00.000Z" }),
@@ -65,6 +79,8 @@ test("stream: staff bubble, client bubble as me, day separator, one card per kin
   assert.match(html, /data-card="client-offer"/);
   assert.match(html, /data-card="choices"/);
   assert.match(html, /data-card="client-pay"/);
+  assert.equal((html.match(/data-card="client-pay"/g) ?? []).length, 2);
+  assert.match(html, /Balance due/);
   assert.match(html, /data-card="client-confirmed"/);
   assert.match(html, /data-card="client-change"/);
   assert.match(html, /data-system-line[^>]*>.*Accepted offer v2/);
@@ -72,9 +88,14 @@ test("stream: staff bubble, client bubble as me, day separator, one card per kin
   assert.doesNotMatch(html, /net|commission|payout/i);
 });
 
-test("offer card actions read the live offer: sent shows Accept and pay deposit; accepted shows the pay button when a code exists", () => {
+test("offer card actions read the live offer: sent shows Accept + ask/decline row; accepted shows the pay button when a code exists", () => {
   const sent = renderToStaticMarkup(<ClientThreadView {...base} />);
-  assert.match(sent, /data-client-action="accept_offer"[^>]*>Accept and pay deposit · \$1,140\.00/);
+  // Front-door brief row: solid Accept (not acceptPay) + Ask for a change + Decline.
+  assert.match(sent, /data-client-action="accept_offer"[^>]*>Accept</);
+  assert.match(sent, /cx-offer-actions/);
+  assert.match(sent, /data-client-action="ask_change"[^>]*>Ask for a change</);
+  assert.match(sent, /data-client-action="decline_offer"[^>]*>Decline</);
+  assert.doesNotMatch(sent, /Accept and pay deposit/);
   const accepted = renderToStaticMarkup(<ClientThreadView {...base} offers={[{ ...offer, status: "accepted" }]} payCode="abc" />);
   assert.match(accepted, /Accepted\. Next: pay the deposit to confirm\./);
   assert.match(accepted, /data-client-action="pay"[^>]*>Pay \$1,140\.00/);
@@ -128,6 +149,23 @@ test("footer: secure line and a greyed Save to email when no writer is reachable
   assert.doesNotMatch(live, /disabled=""[^>]*data-client-action="save_to_email"/);
 });
 
+test("from-email: Volviste / You are back system line when fromEmail is set", () => {
+  const en = renderToStaticMarkup(<ClientThreadView {...base} fromEmail />);
+  assert.match(en, /data-client-from-email/);
+  assert.match(en, /You are back from the email link/);
+  const es = renderToStaticMarkup(<ClientThreadView {...base} copy={ES_CLIENT} locale="es" fromEmail />);
+  assert.match(es, /Volviste desde el correo/);
+});
+
+test("save-to-email feedback: sent ok line and failed retry", () => {
+  const sent = renderToStaticMarkup(<ClientThreadView {...base} onSaveToEmail={() => {}} saveEmail="sent" />);
+  assert.match(sent, /Link sent to your email/);
+  const failed = renderToStaticMarkup(<ClientThreadView {...base} onSaveToEmail={() => {}} saveEmail="failed" />);
+  assert.match(failed, /data-save-email-failed/);
+  assert.match(failed, /Could not email the link/);
+  assert.match(failed, />Try again</);
+});
+
 test("footer: link-expiry sentence only on /c/t/[token] when threadTokenExpiresAt is passed", () => {
   const dock = renderToStaticMarkup(<ClientThreadView {...base} />);
   assert.doesNotMatch(dock, /data-client-link-expiry/);
@@ -140,4 +178,67 @@ test("whole-thread refusal (expired link) is one catalogue sentence", () => {
   const html = renderToStaticMarkup(<ClientRefusal code="expired" kit={EN_KIT} />);
   assert.match(html, /data-refusal="expired"/);
   assert.match(html, /This link or offer has expired\./);
+});
+
+test("/c/t/ renderCard: Declined / Pay failed / Refunded use ClientOutcomeFromMessage (not change/pay cards)", () => {
+  const declined = msg({
+    id: "d1",
+    kind: "change_result",
+    senderUserId: "staff",
+    body: "Offer declined",
+    payload: { state: "declined", summary: "Offer declined", offerId: "of1" },
+    createdAt: "2026-09-17T09:10:00.000Z",
+  });
+  const failed = msg({
+    id: "f1",
+    kind: "change_result",
+    senderUserId: "staff",
+    body: "Payment failed",
+    payload: { state: "failed", summary: "Payment failed", reason: "card_declined" },
+    createdAt: "2026-09-17T09:11:00.000Z",
+  });
+  const refunded = msg({
+    id: "r1",
+    kind: "payment_request",
+    senderUserId: "staff",
+    body: "Refunded",
+    payload: { state: "refunded", amountCents: 20000, currency: "MXN", amountKind: "deposit" },
+    createdAt: "2026-09-17T09:12:00.000Z",
+  });
+
+  const en = renderToStaticMarkup(
+    <ClientThreadView {...base} messages={[declined, failed, refunded]} payCode="pay1" onPay={() => {}} />,
+  );
+  assert.match(en, /data-card="client-outcome-declined"/);
+  assert.match(en, /Offer declined/);
+  assert.match(en, /Nothing was charged/);
+  assert.match(en, /data-card="client-outcome-pay_failed"/);
+  assert.match(en, /Payment failed/);
+  assert.match(en, /data-client-action="retry_pay"/);
+  assert.match(en, /data-card="client-outcome-refunded"/);
+  assert.match(en, /Deposit returned/);
+  assert.match(en, /\$200\.00 is on its way back|200\.00 MXN is on its way back|MXN.*on its way back/);
+  assert.doesNotMatch(en, /data-card="client-change"/);
+  assert.doesNotMatch(en, /No es posible|Not possible/);
+  assert.doesNotMatch(en, /\{amount\}/);
+
+  const es = renderToStaticMarkup(
+    <ClientThreadView
+      {...base}
+      copy={ES_CLIENT}
+      locale="es"
+      messages={[declined, failed, refunded]}
+      payCode="pay1"
+      onPay={() => {}}
+    />,
+  );
+  assert.match(es, /data-card="client-outcome-declined"/);
+  assert.match(es, /Oferta rechazada/);
+  assert.match(es, /data-card="client-outcome-pay_failed"/);
+  assert.match(es, /El pago no pasó/);
+  assert.match(es, /data-card="client-outcome-refunded"/);
+  assert.match(es, /Seña devuelta/);
+  assert.doesNotMatch(es, /No es posible/);
+  assert.doesNotMatch(es, /\{amount\}/);
+  assert.doesNotMatch(es, /data-card="client-change"/);
 });

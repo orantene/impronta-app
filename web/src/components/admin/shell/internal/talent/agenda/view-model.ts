@@ -1,4 +1,6 @@
 import { formatDualTimezoneWhen } from "./present";
+import { serviceLabel } from "./calendar-view";
+import { CONFIRMED_AGENCY_NOW_BODY, CONFIRMED_NOW_BODY, isCompletedUnpaid, placeLabelFor } from "./record-actions";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import type { TalentCalendarEntry, TalentSelfProfile } from "../../data-bridge";
 import type {
@@ -158,50 +160,8 @@ export function buildTodaySections(
  * Builds an AgendaListItem from the Agenda V2 read model (preferred).
  * Includes T2.5 dual timezone when clientTz is set.
  */
-export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): AgendaListItem {
-  const whenLabel = formatDualTimezoneWhen(
-    item.startsAt,
-    item.endsAt,
-    item.tz,
-    item.clientTz,
-    item.allDay,
-  );
-  let nowTitle: string | undefined;
-  let nowBody: string | undefined;
-  let nowTone: AgendaListItem["nowTone"] = "info";
-  if (item.booking === "hold") {
-    nowTitle = "Calendar hold";
-    nowBody = "This slot is reserved while the client completes the booking.";
-    nowTone = "warn";
-  } else if (item.booking === "confirmed") {
-    nowTitle = "Confirmed";
-    nowBody = "This booking is confirmed. Mark complete after the work is done.";
-    nowTone = "ok";
-  } else if (item.booking === "cancelled") {
-    nowTitle = "Cancelled";
-    nowBody = "This booking was cancelled.";
-    nowTone = "risk";
-  } else if (item.booking === "requested") {
-    nowTitle = "Request";
-    nowBody = "Not blocking your time until you accept.";
-    nowTone = "warn";
-  }
-  return {
-    id: item.id,
-    title: item.title,
-    subtitle: item.client?.name,
-    who: item.client
-      ? {
-          name: item.client.name,
-          detail: item.managedBy ? "Agency client" : "Client",
-          meta: item.managedBy ? ["Agency-managed"] : ["Direct booking"],
-        }
-      : undefined,
-    whenLabel,
-    whereLabel: item.where.label || (item.allDay ? "Flexible timing" : "As agreed"),
-    sourceLabel: item.managedBy?.name ?? item.source,
-    bookingState: item.booking,
-    paymentState:
+function paymentStateOf(item: TalentAgendaItem): AgendaPaymentState {
+  return (
       item.payment === "awaiting"
         ? "awaiting_deposit"
         : item.payment === "checking"
@@ -218,24 +178,132 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
                     ? "refund_pending"
                     : item.payment === "agency"
                       ? "paid_by_agency"
-                      : "not_requested",
+                      : "not_requested"
+  );
+}
+
+function moneyText(cents: number, currency: string): string {
+  return `$${(cents / 100).toLocaleString("en-US", {
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  })} ${currency}`.trim();
+}
+
+/**
+ * Mockup tc_record "Agreed" card: one row per service line, then Total,
+ * deposit, what was paid and what is still due. Labels are EN keys; the record
+ * translates them. With no agreed price the card says so instead of going blank.
+ */
+export function agreedLines(item: Pick<TalentAgendaItem, "lines" | "money" | "payment" | "title" | "client" | "kind">): AgendaMoneyItem[] {
+  const currency = item.money.currency?.trim() || "MXN";
+  const total = item.money.totalCents;
+  if (total <= 0) {
+    return [
+      {
+        id: "unpriced",
+        label: serviceLabel(item) ?? "No service set",
+        value: "Price not set",
+        helper: "Agree a price with the client, then send a payment link.",
+      },
+    ];
+  }
+  const out: AgendaMoneyItem[] = [];
+  const priced = item.lines.filter((line) => line.cents > 0);
+  if (priced.length > 0) {
+    priced.forEach((line, i) =>
+      out.push({ id: `line-${i}`, label: line.label, value: moneyText(line.cents, currency) }),
+    );
+  } else {
+    out.push({ id: "line-0", label: serviceLabel(item) ?? "Agreed", value: moneyText(total, currency) });
+  }
+  out.push({ id: "total", label: "Total", value: moneyText(total, currency) });
+  const deposit = item.money.depositCents ?? 0;
+  if (deposit > 0) out.push({ id: "deposit", label: "Deposit", value: moneyText(deposit, currency) });
+  if (item.money.paidCents > 0) {
+    out.push({ id: "paid", label: "Paid", value: moneyText(item.money.paidCents, currency), tone: "success" });
+  }
+  if (item.money.dueCents > 0) {
+    out.push({
+      id: "due",
+      label: item.payment === "overdue" ? "Overdue" : "Balance due",
+      value: moneyText(item.money.dueCents, currency),
+      tone: "attention",
+    });
+  }
+  return out;
+}
+
+export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): AgendaListItem {
+  const whenLabel = formatDualTimezoneWhen(
+    item.startsAt,
+    item.endsAt,
+    item.tz,
+    item.clientTz,
+    item.allDay,
+  );
+  let nowTitle: string | undefined;
+  let nowBody: string | undefined;
+  let nowTone: AgendaListItem["nowTone"] = "info";
+  const pendingRescheduleId =
+    typeof item.tradeSection?.payload?.rescheduleRequestId === "string"
+      ? item.tradeSection.payload.rescheduleRequestId
+      : null;
+  const pendingRescheduleStatus = item.tradeSection?.payload?.rescheduleStatus;
+  const hasPendingReschedule =
+    Boolean(pendingRescheduleId) && pendingRescheduleStatus === "pending";
+
+  if (hasPendingReschedule) {
+    nowTitle = "Reschedule proposed";
+    nowBody = "Accept to move the booking. Decline keeps the current time.";
+    nowTone = "warn";
+  } else if (item.booking === "hold") {
+    nowTitle = "Calendar hold";
+    nowBody = "This slot is reserved while the client completes the booking.";
+    nowTone = "warn";
+  } else if (item.booking === "confirmed") {
+    nowTitle = "Confirmed";
+    nowBody = item.managedBy ? CONFIRMED_AGENCY_NOW_BODY : CONFIRMED_NOW_BODY;
+    nowTone = "ok";
+  } else if (item.booking === "completed" && isCompletedUnpaid("completed", paymentStateOf(item))) {
+    nowTitle = "Completed, not paid";
+    nowBody = "The work is done. Send the client a payment link.";
+    nowTone = "warn";
+  } else if (item.booking === "cancelled") {
+    nowTitle = "Cancelled";
+    nowBody = "This booking was cancelled.";
+    nowTone = "risk";
+  } else if (item.booking === "requested") {
+    nowTitle = "Request";
+    nowBody = "Not blocking your time until you accept.";
+    nowTone = "warn";
+  }
+  return {
+    id: item.id,
+    title: item.client?.name ?? item.title,
+    subtitle: serviceLabel(item) ?? undefined,
+    who: item.client
+      ? {
+          name: item.client.name,
+          detail: item.managedBy ? "Agency client" : "Client",
+          meta: item.managedBy ? ["Agency-managed"] : ["Direct booking"],
+        }
+      : undefined,
+    whenLabel,
+    whereLabel: placeLabelFor(item.where) ?? (item.allDay ? "Flexible timing" : ""),
+    sourceLabel: item.managedBy?.name ?? item.source,
+    bookingState: item.booking,
+    paymentState: paymentStateOf(item),
+    holdUntilIso: item.holdUntil,
     nowTitle,
     nowBody,
     nowTone,
-    moneyLines: item.money.totalCents
-      ? [
-          {
-            id: "total",
-            label: "Agreed",
-            value: `${(item.money.totalCents / 100).toFixed(2)} ${item.money.currency}`.trim(),
-          },
-        ]
-      : [],
+    moneyLines: agreedLines(item),
     dueCents: item.money.dueCents,
     currency: item.money.currency?.trim() || "MXN",
     orderId: item.orderId ?? null,
     paymentMethod: item.paymentMethod ?? null,
     startsAtIso: item.startsAt,
+    endsAtIso: item.endsAt,
     clientTz: item.clientTz,
     talentTz: item.tz,
     tradeSectionPayloads: (() => {
@@ -269,6 +337,18 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
       }
       return out.length > 0 ? out : undefined;
     })(),
+    pendingReschedule: hasPendingReschedule
+      ? {
+          requestId: pendingRescheduleId!,
+          newStartsAt: String(item.tradeSection?.payload?.newStartsAt ?? ""),
+          newEndsAt: String(item.tradeSection?.payload?.newEndsAt ?? ""),
+          feeCents:
+            typeof item.tradeSection?.payload?.feeCents === "number"
+              ? item.tradeSection.payload.feeCents
+              : 0,
+        }
+      : null,
+    history: item.history.map((h) => ({ at: h.at, label: h.text })),
     terms: undefined,
   };
 }
@@ -296,7 +376,7 @@ export function buildAgendaListItem(entry: TalentCalendarEntry): AgendaListItem 
     nowTone = "warn";
   } else if (entry.status === "confirmed") {
     nowTitle = "Confirmed";
-    nowBody = "This booking is confirmed. Mark complete after the work is done.";
+    nowBody = entry.tenantId ? CONFIRMED_AGENCY_NOW_BODY : CONFIRMED_NOW_BODY;
     nowTone = "ok";
   } else if (entry.status === "cancelled") {
     nowTitle = "Cancelled";
@@ -345,27 +425,27 @@ export function buildAgendaListItem(entry: TalentCalendarEntry): AgendaListItem 
 export function buildAgendaMoneyItems(
   _profile: TalentSelfProfile | null | undefined,
 ): AgendaMoneyItem[] {
-  // Live Today path prefers moneyFromEarnings + todayTotals; this helper is only
-  // a safe empty shell when no earnings bridge is present.
+  // Prefer AgendaTodayPage + todayMoneyTilesFromLedger (M3). This helper is a
+  // safe empty shell for surfaces that still call it without the Money ledger.
   return [
     {
       id: "collected",
-      label: "Collected this month",
+      label: "Collected in September",
       value: "—",
-      helper: "Appears when payout data is available.",
+      helper: "Appears when Money ledger data is available.",
     },
     {
-      id: "owed",
-      label: "Still to collect",
+      id: "due_by_today",
+      label: "Due by today",
       value: "—",
-      helper: "Computed from today’s due and overdue on the agenda.",
+      helper: "Overdue plus due today — opens Outstanding with that filter.",
       tone: "attention",
     },
     {
       id: "payout",
-      label: "Next payout",
+      label: "Next payout · estimated",
       value: "—",
-      helper: "Appears when card payouts are set up.",
+      helper: "Appears when the next platform payout is estimated.",
       tone: "success",
     },
   ];

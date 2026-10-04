@@ -7,6 +7,26 @@ import { reserveCollection, reservationTtlSeconds } from "@/lib/pos/collection-r
 import type { Admin } from "@/lib/pos/sale-rows";
 import { settleAtDoor } from "@/lib/orders/settle-at-door";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
+import { expireCheckoutSession } from "@/lib/payments/stripe-checkout";
+import { expireBoundSession } from "@/lib/payments/link-checkout";
+import { paymentLinkPublicUrl } from "@/lib/payments/pay-link-url";
+
+type PaymentEnv = Readonly<Record<string, string | undefined>>;
+
+/**
+ * Mock money is a demo, and on the production deployment it is refused
+ * outright: a mock link settles on `?confirm=mock`, so anyone holding its code
+ * could mark it paid with no money moving (audit 2026-09-25, defect #3).
+ */
+export function mockPaymentsAllowed(env: PaymentEnv = process.env): boolean {
+  return env.VERCEL_ENV !== "production";
+}
+
+/** Which provider a link is minted on; null when none may be used here. */
+export function paymentLinkProvider(env: PaymentEnv = process.env): "stripe" | "mock" | null {
+  if (env.STRIPE_SECRET_KEY) return "stripe";
+  return mockPaymentsAllowed(env) ? "mock" : null;
+}
 
 export type CreatePaymentLinkResult =
   | { ok: true; code: string; url: string; amountCents: number; expiresAt: string; already?: boolean }
@@ -30,6 +50,8 @@ export async function createPaymentLink(
     orderId: string;
     amountCents: number;
     idempotencyKey: string;
+    /** Tests only: the environment the provider is decided from. */
+    env?: PaymentEnv;
     /** Who minted the link; null for a flow with no signed-in operator (a guest paying their share). */
     actorUserId: string | null;
     publicOrigin: string;
@@ -60,18 +82,38 @@ export async function createPaymentLink(
   }
   if (existing) {
     const row = existing as { code: string; amount_cents: number; expires_at: string; status: string };
-    if (row.status === "expired" || row.status === "cancelled") return { ok: false, reason: "expired" };
-    if (input.inquiryId) {
-      await attachPaymentLinkInquiry(admin, { tenantId: input.tenantId, code: row.code, orderId: input.orderId, inquiryId: input.inquiryId });
+    // A2 / #14: an expired or cancelled key must never block a new mint.
+    // Callers send a fresh attempt id; this path is defensive when the same
+    // key still points at a dead row — free the unique key, then fall through.
+    if (row.status === "expired" || row.status === "cancelled") {
+      const freedKey = `${input.idempotencyKey.trim()}:was:${row.status}:${row.code}`;
+      const { error: freeErr } = await admin
+        .from("payment_links")
+        .update({ operation_key: freedKey.slice(0, 200) })
+        .eq("tenant_id", input.tenantId)
+        .eq("code", row.code);
+      if (freeErr) {
+        logServerError("payments.createPaymentLink.freeExpiredKey", freeErr);
+        return { ok: false, reason: "unavailable" };
+      }
+    } else {
+      if (input.inquiryId) {
+        await attachPaymentLinkInquiry(admin, {
+          tenantId: input.tenantId,
+          code: row.code,
+          orderId: input.orderId,
+          inquiryId: input.inquiryId,
+        });
+      }
+      return {
+        ok: true,
+        code: row.code,
+        url: paymentLinkPublicUrl(input.publicOrigin, row.code),
+        amountCents: Number(row.amount_cents),
+        expiresAt: row.expires_at,
+        already: true,
+      };
     }
-    return {
-      ok: true,
-      code: row.code,
-      url: `${input.publicOrigin.replace(/\/$/, "")}/pay/${row.code}`,
-      amountCents: Number(row.amount_cents),
-      expiresAt: row.expires_at,
-      already: true,
-    };
   }
 
   const { data: order, error } = await admin
@@ -86,6 +128,11 @@ export async function createPaymentLink(
   if (!order) return { ok: false, reason: "not_found" };
   const o = order as { tenant_id: string; status: string; currency: string };
   if (o.tenant_id !== input.tenantId) return { ok: false, reason: "wrong_tenant" };
+
+  // Decided BEFORE the balance is claimed: a link that could never be paid
+  // must not hold the order's money for half an hour.
+  const provider = paymentLinkProvider(input.env);
+  if (!provider) return { ok: false, reason: "provider_unavailable" };
 
   const claimed = await reserveCollection(admin, {
     tenantId: input.tenantId,
@@ -105,7 +152,6 @@ export async function createPaymentLink(
   }
 
   const code = generateOpaqueCode();
-  const provider = process.env.STRIPE_SECRET_KEY ? "stripe" : "mock";
   const expiresAt = claimed.expiresAt ?? new Date(Date.now() + 1980_000).toISOString();
   const { error: insErr } = await admin.from("payment_links").insert({
     tenant_id: input.tenantId,
@@ -134,7 +180,7 @@ export async function createPaymentLink(
   return {
     ok: true,
     code,
-    url: `${input.publicOrigin.replace(/\/$/, "")}/pay/${code}`,
+    url: paymentLinkPublicUrl(input.publicOrigin, code),
     amountCents: claimed.amountCents,
     expiresAt,
   };
@@ -267,10 +313,18 @@ export async function listPaymentLinks(
 
 export type MarkPaymentLinkPaidDeps = {
   settle?: typeof settleAtDoor;
+  /** Tests only: the environment the production refusal reads. */
+  env?: PaymentEnv;
 };
 
 /**
- * The provider says the customer paid: COLLECT THE SALE, then close the link.
+ * MOCK LINKS ONLY. A `?confirm=mock` on the pay page says the customer paid:
+ * COLLECT THE SALE, then close the link.
+ *
+ * A Stripe link is never settled here: its money arrives through the webhook
+ * and `markPaid`, which books the PaymentIntent and closes the link itself
+ * (`lib/payments/link-settlement.ts`). Settling a Stripe link from here would
+ * record a payment no charge stands behind. Refused on production entirely.
  *
  * D-135: this used to flip `payment_links.status` to `paid` and settle the
  * reservation with no transaction, and stop. The customer read "Paid", the
@@ -288,9 +342,10 @@ export async function markPaymentLinkPaid(
   input: { code: string; tenantId?: string },
   deps: MarkPaymentLinkPaidDeps = {},
 ): Promise<{ ok: true } | { ok: false; reason: "not_found" | "expired" | "unavailable" }> {
+  if (!mockPaymentsAllowed(deps.env)) return { ok: false, reason: "unavailable" };
   const { data, error } = await admin
     .from("payment_links")
-    .select("id, tenant_id, order_id, amount_cents, currency, created_by, operation_key, status, expires_at, reservation_id")
+    .select("id, tenant_id, order_id, amount_cents, currency, provider, created_by, operation_key, status, expires_at, reservation_id")
     .eq("code", input.code)
     .maybeSingle();
   if (error) {
@@ -304,6 +359,7 @@ export async function markPaymentLinkPaid(
     order_id: string;
     amount_cents: number;
     currency: string | null;
+    provider?: string | null;
     created_by: string | null;
     operation_key: string | null;
     status: string;
@@ -312,6 +368,7 @@ export async function markPaymentLinkPaid(
   };
   if (input.tenantId && row.tenant_id !== input.tenantId) return { ok: false, reason: "not_found" };
   if (row.status === "paid") return { ok: true };
+  if (row.provider === "stripe") return { ok: false, reason: "unavailable" };
   if (row.status !== "open" || Date.parse(row.expires_at) <= Date.now()) return { ok: false, reason: "expired" };
 
   const settle = deps.settle ?? settleAtDoor;
@@ -353,7 +410,8 @@ export async function markPaymentLinkPaid(
  */
 export async function cancelPaymentLink(
   admin: Admin,
-  input: { tenantId: string; linkId: string },
+  input: { tenantId: string; linkId: string; asReplaced?: boolean },
+  deps: { expireSession?: typeof expireCheckoutSession } = {},
 ): Promise<{ ok: true; already: boolean } | { ok: false; reason: "not_found" | "already_paid" | "unavailable" }> {
   const { data, error } = await admin
     .from("payment_links")
@@ -374,7 +432,19 @@ export async function cancelPaymentLink(
   if (!row || row.tenant_id !== input.tenantId) return { ok: false, reason: "not_found" };
   if (row.status === "paid") return { ok: false, reason: "already_paid" };
   if (row.status !== "open") return { ok: true, already: true };
-  const { error: updErr } = await admin.from("payment_links").update({ status: "cancelled" }).eq("id", row.id).eq("status", "open");
+  // THE SESSION DIES FIRST. Handing the balance back while the customer's
+  // Checkout page still works lets the same money be requested and taken
+  // again. A session that already completed means the customer paid: say so.
+  if (row.reservation_id) {
+    const killed = await expireBoundSession(admin, row.reservation_id, deps.expireSession ?? expireCheckoutSession);
+    if (!killed.ok) return { ok: false, reason: killed.reason === "complete" ? "already_paid" : "unavailable" };
+  }
+  const nextStatus = input.asReplaced ? "replaced" : "cancelled";
+  const { error: updErr } = await admin
+    .from("payment_links")
+    .update({ status: nextStatus })
+    .eq("id", row.id)
+    .eq("status", "open");
   if (updErr) {
     logServerError("payments.cancelPaymentLink.update", updErr);
     return { ok: false, reason: "unavailable" };

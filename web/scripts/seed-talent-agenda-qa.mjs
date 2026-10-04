@@ -252,11 +252,17 @@ async function seedWeekFixtures(talentProfileId, tenantId, createdByUserId) {
         status,
         payment_status: paymentStatus,
         currency_code: "MXN",
+        // Major units (A1): MXN 850.00 — NOT cents. Readers multiply ×100 for
+        // dueCents / pay-link mint. Writing 85000 here showed "Agreed 85000 MXN"
+        // and mint asked for 8_500_000 against an 85_000-cent shell → exceeds_outstanding.
+        total_client_revenue: 850,
         starts_at: startsAt,
         ends_at: endsAt,
         contact_name: clientName,
         source_type_snapshot: "manual",
         internal_notes: internalNotes ?? `${TAG} fixture`,
+        // Email so Finish→Card can ensureCustomer (orders need an identity).
+        contact_email: `${clientName.toLowerCase().replace(/[^a-z0-9]+/g, ".")}@qa.agenda.local`,
       })
       .select("id")
       .single();
@@ -273,10 +279,10 @@ async function seedWeekFixtures(talentProfileId, tenantId, createdByUserId) {
       units: 1,
       pricing_unit: "event",
       talent_cost_rate: 0,
-      client_charge_rate: 0,
+      client_charge_rate: 850,
       talent_cost_total: 0,
-      client_charge_total: 0,
-      gross_profit: 0,
+      client_charge_total: 850,
+      gross_profit: 850,
     });
     if (legErr) {
       console.warn(`[seed] booking_talent ${title}:`, legErr.message);

@@ -11,8 +11,7 @@
  * sheet). Front door to the POS engine: nothing is written from here that
  * the engine does not already write.
  */
-
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { draftStorageKey, readDraft, writeDraft } from "@/components/admin/pos/messages/draft-storage";
 import { useT } from "@/i18n/use-t";
@@ -31,7 +30,7 @@ import type { ConversationHistoryEntry, CustomerMatch, Essentials, InboxFilter, 
 
 import "../kit/tokens.css";
 import "./shell.css";
-
+import { sellerMenuItems, type SellerChrome } from "./seller";
 import { type InboxFilterKey, type InboxSegment } from "../kit/InboxSegments";
 import { Avatar, Btn } from "../kit/primitives";
 import { OkLine, RefusalLine } from "../kit/RefusalLine";
@@ -49,6 +48,7 @@ import { Thread, ThreadEmpty, type ThreadMenuItem } from "../screens/Thread";
 import { liveShellEngine, type ShellEngine } from "./engine";
 import { contextPlacement, layoutForWidth, shellClassName, variantForLayout, type MobilePane, type ShellLayout } from "./layout";
 import { AssignSheet, LinkSheet, LostSheet, NewConversationSheet } from "./ShellSheets";
+import { useStaffInquiryPresence } from "./use-staff-inquiry-presence";
 
 const SEGMENT_FILTER: Record<InboxSegment, InboxFilter> = { needs: "needs_reply", wait: "awaiting_customer", all: "all" };
 
@@ -87,6 +87,16 @@ export type MessagesV5ShellProps = {
   readonly hideInboxRail?: boolean;
   /** Talent inbox: the open conversation, so her approve or decline can follow it. */
   readonly onActiveInquiry?: (inquiryId: string | null) => void;
+  /**
+   * Talent studio Actions menu: expose shell dispatch so "+ Actions" can open
+   * the same sheets as the thread toolbar (create_offer, send_times, …).
+   */
+  readonly onDispatchReady?: (dispatch: (id: ShellActionId) => void) => void;
+  /** Optional chrome above the composer (talent "+ Actions"). */
+  readonly composerAccessory?: ReactNode;
+  /** Presence display name when publishing staff "viewing" on the open thread. */
+  readonly currentUserDisplayName?: string | null;
+  readonly seller?: SellerChrome | null; // talent seller mode: hides staff chrome, carries translated quote-builder copy
 };
 
 type SheetName = "assign" | "handover" | "lost" | "link" | "history" | "tasks" | "client" | "details" | "new" | null;
@@ -105,7 +115,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   const variant = variantForLayout(layout);
   const placement = contextPlacement(layout);
 
-  const [segment, setSegment] = useState<InboxSegment>("needs");
+  const [segment, setSegment] = useState<InboxSegment>(props.seller ? "all" : "needs"); // F54: her inbox loads every conversation; her filters narrow on the client
   const [chips, setChips] = useState<InboxFilterKey[]>([]);
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<InboxRow[]>([]);
@@ -140,6 +150,12 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   const [dupeBusy, setDupeBusy] = useState(false);
   const [dupeRefusal, setDupeRefusal] = useState<MessagingRefusal | null>(null);
   const [dupeDismissed, setDupeDismissed] = useState<ReadonlySet<string>>(() => new Set());
+
+  useStaffInquiryPresence({
+    inquiryId: activeId,
+    userId: props.currentUserId,
+    displayName: props.currentUserDisplayName,
+  });
 
   /* ------------------------------------------------------------ layout */
   useEffect(() => {
@@ -347,12 +363,12 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     rowsRef.current = rows;
   }, [rows]);
   useEffect(() => {
-    if (!activeId || !essentials) return;
+    if (props.seller || !activeId || !essentials) return; // merge is staff chrome: her engine refuses it
     const c = essentials.customer;
     if ((c.identityLevel !== "none" && c.identityLevel !== "linked") || (!c.phone && !c.email)) return;
     if (dupeDismissed.has(activeId)) return;
     let cancelled = false;
-    void engine.identity.match({ name: c.name, phone: c.phone ?? "", email: c.email ?? "" }).then((r) => {
+    void engine.identity.match({ inquiryId: activeId, name: c.name, phone: c.phone ?? "", email: c.email ?? "" }).then((r) => {
       if (cancelled || !r.ok) return;
       const others = rowsRef.current.filter((row) => row.id !== activeId && row.conversationState !== "resolved");
       const candidates = r.matches.map((m) => ({ match: m, other: others.find((row) => sameContact(row, m)) ?? null }));
@@ -363,7 +379,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     return () => {
       cancelled = true;
     };
-  }, [activeId, dupeDismissed, engine, essentials]);
+  }, [activeId, dupeDismissed, engine, essentials, props.seller]);
 
   /* ----------------------------------------------------- derived state */
   const recordChips = useMemo(() => essentials?.linked ?? activeRow?.recordChips ?? [], [essentials?.linked, activeRow?.recordChips]);
@@ -525,9 +541,13 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     [copy.kit.composer.attach, copyText, engine, withVersion],
   );
 
+  useEffect(() => {
+    props.onDispatchReady?.(dispatch);
+  }, [dispatch, props.onDispatchReady]);
+
   const onPanelAction = useCallback(
     (kind: ContextPanelAction) => {
-      const map: Record<ContextPanelAction, ShellActionId> = { reply: "reply", capture_identity: "capture_identity", open_client: "open_client", add_items: "add_items", create_offer: "create_offer", revise_offer: "revise_offer", request_payment: "request_payment", confirm: "confirm", remind: "remind", add_note: "add_note", add_file: "send_file", link_record: "link_record", open_record: "open_record", history: "history", reopen: "reopen" };
+      const map: Record<ContextPanelAction, ShellActionId> = { reply: "reply", capture_identity: "capture_identity", open_client: "open_client", add_items: "add_items", create_offer: "create_offer", revise_offer: "revise_offer", request_payment: "request_payment", refund: "refund", confirm: "confirm", remind: "remind", add_note: "add_note", add_file: "send_file", link_record: "link_record", open_record: "open_record", history: "history", reopen: "reopen" };
       setDrawerOpen(false);
       if (sheet === "details") setSheet(null);
       dispatch(map[kind]);
@@ -566,7 +586,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       onNew={() => dispatch("new_conversation")}
       currentUserId={props.currentUserId}
       copy={copy.kit}
-      variant={variant}
+      variant={variant} seller={Boolean(props.seller)} sellerChrome={props.seller ?? null}
     />
   );
 
@@ -599,7 +619,8 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       onMoreTasks={() => setSheet("tasks")}
       menuOpen={menuOpen}
       onMenu={setMenuOpen}
-      menuItems={menuItems}
+      menuItems={sellerMenuItems(menuItems, Boolean(props.seller))}
+      composerAccessory={props.composerAccessory} seller={Boolean(props.seller)}
       detailsAction={placement === "column" ? null : { label: copy.kit.thread.details, onClick: () => (placement === "drawer" ? setDrawerOpen(true) : setSheet("details")) }}
       notice={notice ? notice.kind === "refusal" ? <RefusalLine code={notice.code} copy={copy.kit} variant={variant} action={{ label: copy.kit.sheet.close, onClick: () => setNotice(null) }} /> : <OkLine text={notice.text} variant={variant} /> : null}
       renameSlot={
@@ -734,8 +755,8 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
         onStart={async (input) => {
           const r = await engine.startConversation(input);
           if (!r.ok) return r.reason;
-          await reloadInbox();
-          openThread(r.inquiryId);
+          openThread(r.inquiryId); // F54: a new thread waits on the client, so it is listed under All, not Needs action.
+          if (segment === "all") await reloadInbox(); else setSegment("all");
           return null;
         }}
       />
@@ -757,7 +778,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
           reloadInbox={reloadInbox}
           reloadThread={reloadActiveThread}
           notify={setNotice}
-          dispatch={dispatch}
+          dispatch={dispatch} seller={props.seller ?? null}
         />
       ) : null}
       {toast ? (

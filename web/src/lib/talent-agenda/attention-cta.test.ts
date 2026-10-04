@@ -34,12 +34,14 @@ describe("resolveAttentionCta", () => {
       "reply",
     );
   });
-  it("releases holds", () => {
-    assert.deepEqual(resolveAttentionCta(base({ kind: "hold", booking: "hold" })), {
-      kind: "release_hold",
-      label: "Release hold",
-      mutates: true,
+  it("asks for a deposit on holds, never releases them", () => {
+    const cta = resolveAttentionCta(base({ kind: "hold", booking: "hold" }));
+    assert.deepEqual(cta, {
+      kind: "request_deposit",
+      label: "Request deposit",
+      mutates: false,
     });
+    assert.notEqual(cta.kind, "release_hold");
   });
   it("collects overdue money", () => {
     assert.equal(
@@ -99,10 +101,25 @@ describe("resolveAttentionCta", () => {
       { kind: "collect", label: "Confirm transfer", mutates: true },
     );
   });
+
+  it("does not offer Confirm transfer for card-awaiting", () => {
+    const cta = resolveAttentionCta(
+      base({
+        booking: "completed",
+        payment: "awaiting",
+        paymentMethod: "card",
+        money: { totalCents: 100, paidCents: 0, dueCents: 100, currency: "MXN" },
+      }),
+    );
+    assert.notEqual(cta.label, "Confirm transfer");
+    assert.equal(cta.mutates, false);
+  });
 });
 
 describe("peekActionLabels", () => {
-  it("leads with release for holds", () => {
-    assert.equal(peekActionLabels(base({ kind: "hold", booking: "hold" }))[0], "Release hold");
+  it("leads with request deposit for holds and never offers release", () => {
+    const labels = peekActionLabels(base({ kind: "hold", booking: "hold" }));
+    assert.equal(labels[0], "Request deposit");
+    assert.ok(!labels.includes("Release hold"));
   });
 });

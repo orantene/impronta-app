@@ -29,9 +29,12 @@
  *     `refunded`. On a WON dispute we restore the transaction to `paid` (the
  *     talent keeps the money that was never reversed).
  *
- * Linkage: the embedded-checkout PaymentIntent carries metadata.transaction_id
- * + booking_id (see stripe-payment-intent.ts). The charge/dispute event only
- * gives us the PaymentIntent id, so we retrieve the PI to read that metadata.
+ * Linkage: the PaymentIntent carries metadata.transaction_id + booking_id
+ * (hosted Checkout via `payment_intent_data.metadata` in stripe-checkout.ts;
+ * embedded via stripe-payment-intent.ts). Older Checkout sessions left the PI
+ * metadata empty — for those, we fall back to
+ * `booking_transactions.provider_metadata.payment_intent_id` (stamped by
+ * `markPaid`). The charge/dispute event only gives us the PaymentIntent id.
  *
  * Everything here is best-effort and never throws: the refund/dispute already
  * happened at Stripe, so a bookkeeping hiccup must not 5xx the webhook into a
@@ -43,7 +46,8 @@
 import type Stripe from "stripe";
 import { markRefunded as markRefundedReal, markDisputed as markDisputedReal } from "@/lib/bookings/transactions";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
+import { loadBookingCommissionSnapshots, loadBookingCommissionSnapshotsForRefund } from "@/lib/billing/commission-engine";
+import { nonRefundableFeeCents } from "@/lib/billing/commission";
 import {
   reverseBookingPayouts,
   computeTalentProtectiveClawback,
@@ -111,10 +115,16 @@ function resolveRefundDeps(deps: RefundDeps): {
  * Retrieve the PaymentIntent and pull the booking linkage off its metadata.
  * Returns null when the PI isn't a booking charge (subscriptions, balance
  * top-ups, deposits) or can't be retrieved — callers then no-op.
+ *
+ * Hosted Checkout used to stamp `transaction_id` only on the *session*, so
+ * older PaymentIntents arrive with `metadata: {}`. `markPaid` still records
+ * the PI id on `booking_transactions.provider_metadata.payment_intent_id`,
+ * which is the fallback lookup below (same path `provider-disputes.ts` uses).
  */
 async function resolveBookingFromPaymentIntent(
   stripe: Stripe,
   paymentIntentId: string | null,
+  sb: SupabaseClient | null,
 ): Promise<BookingRef | null> {
   if (!paymentIntentId || paymentIntentId.startsWith("mock_pi_")) return null;
   let intent: Stripe.PaymentIntent;
@@ -124,13 +134,36 @@ async function resolveBookingFromPaymentIntent(
     logServerError("refunds.retrievePaymentIntent", err);
     return null;
   }
-  const transactionId = intent.metadata?.transaction_id ?? null;
-  if (!transactionId) return null; // not a booking PaymentIntent
-  return {
-    transactionId,
-    bookingId: intent.metadata?.booking_id ?? null,
-    chargeAmountCents: intent.amount ?? 0,
-  };
+  const fromMeta = intent.metadata?.transaction_id ?? null;
+  if (fromMeta) {
+    return {
+      transactionId: fromMeta,
+      bookingId: intent.metadata?.booking_id ?? null,
+      chargeAmountCents: intent.amount ?? 0,
+    };
+  }
+  if (!sb) return null;
+  try {
+    const { data, error } = await sb
+      .from("booking_transactions")
+      .select("id, booking_id")
+      .eq("provider_metadata->>payment_intent_id", paymentIntentId)
+      .maybeSingle();
+    if (error) {
+      logServerError("refunds.resolveBookingFromPaymentIntent.providerMeta", error);
+      return null;
+    }
+    if (!data) return null; // not a booking PaymentIntent
+    const row = data as { id: string; booking_id: string | null };
+    return {
+      transactionId: row.id,
+      bookingId: row.booking_id ?? null,
+      chargeAmountCents: intent.amount ?? 0,
+    };
+  } catch (err) {
+    logServerError("refunds.resolveBookingFromPaymentIntent.providerMeta", err);
+    return null;
+  }
 }
 
 /**
@@ -166,6 +199,63 @@ async function markBookingRefunded(sb: SupabaseClient, bookingId: string): Promi
     payment_status: "refunded",
     payout_lifecycle: "pending",
   });
+}
+
+/**
+ * Money rail + payment_request cards + order chip read `orders.status` /
+ * order-scoped `syncConversationRecord` — not `agency_bookings.payment_status`.
+ * Full-refund webhook used to flip only the booking, leaving Money / card / chip
+ * stuck on Paid. Stamp the linked order when one exists, then sync kind:"order"
+ * so `syncPaymentCardsForRecord` matches `payment_links.order_id`.
+ */
+export async function stampLinkedOrderRefunded(
+  sb: SupabaseClient,
+  input: { bookingId: string; transactionId: string },
+): Promise<void> {
+  const { data: bookingData, error: bookingErr } = await sb
+    .from("agency_bookings")
+    .select("order_id, tenant_id, tenant_id_snapshot")
+    .eq("id", input.bookingId)
+    .maybeSingle();
+  if (bookingErr) {
+    logServerError("refunds.stampLinkedOrderRefunded.booking", bookingErr);
+  }
+  const booking = bookingData as {
+    order_id?: string | null;
+    tenant_id?: string | null;
+    tenant_id_snapshot?: string | null;
+  } | null;
+
+  let orderId = booking?.order_id ?? null;
+  let tenantId = booking?.tenant_id ?? booking?.tenant_id_snapshot ?? null;
+
+  if (!orderId || !tenantId) {
+    const { data: txnData, error: txnErr } = await sb
+      .from("booking_transactions")
+      .select("order_id, source_tenant_id")
+      .eq("id", input.transactionId)
+      .maybeSingle();
+    if (txnErr) {
+      logServerError("refunds.stampLinkedOrderRefunded.txn", txnErr);
+      return;
+    }
+    const txn = txnData as { order_id?: string | null; source_tenant_id?: string | null } | null;
+    orderId = orderId ?? txn?.order_id ?? null;
+    tenantId = tenantId ?? txn?.source_tenant_id ?? null;
+  }
+
+  if (!orderId || !tenantId) return;
+
+  const { error } = await sb
+    .from("orders")
+    .update({ status: "refunded", updated_at: new Date().toISOString() })
+    .eq("id", orderId);
+  if (error) {
+    logServerError(`refunds.stampLinkedOrderRefunded.orders[order=${orderId}]`, error);
+    return;
+  }
+
+  await syncConversationRecord(sb, { tenantId, kind: "order", recordId: orderId });
 }
 
 /**
@@ -323,7 +413,12 @@ async function reconcilePartialRefund(
   }
 
   const snaps = await loadBookingCommissionSnapshots(sb, ref.bookingId);
-  const platformFeeCents = snaps.reduce((s, r) => s + (r.platform_fee_cents ?? 0), 0);
+  // pass_through rows: the platform fee is NON-REFUNDABLE, so it absorbs none of
+  // a refund (the whole refund comes back from the seller lanes).
+  const platformFeeCents = snaps.reduce(
+    (s, r) => s + (r.processing_mode === "pass_through" ? 0 : (r.platform_fee_cents ?? 0)),
+    0,
+  );
   const talentTotalCents = snaps.reduce((s, r) => s + (r.talent_net_cents ?? 0), 0);
   const workspaceLegs = snaps
     .filter((r) => (r.workspace_fee_cents ?? 0) > 0)
@@ -399,10 +494,22 @@ export async function handleBookingRefund(
   deps: RefundDeps = {},
 ): Promise<boolean> {
   const d = resolveRefundDeps(deps);
-  const ref = await resolveBookingFromPaymentIntent(stripe, input.paymentIntentId);
+  const ref = await resolveBookingFromPaymentIntent(stripe, input.paymentIntentId, d.resolveSupabase());
   if (!ref) return false;
 
-  const isFullRefund = ref.chargeAmountCents > 0 && input.refundedCents >= ref.chargeAmountCents;
+  // Fees are non-refundable (pass_through): the client's FULL refund is the
+  // service amount, i.e. the charge minus the platform + processing fee lines.
+  // 0 for legacy ('included') bookings, so their full-vs-partial test is unchanged.
+  let feesKeptCents = 0;
+  if (ref.bookingId) {
+    try {
+      const sbFees = d.resolveSupabase();
+      if (sbFees) feesKeptCents = nonRefundableFeeCents(await loadBookingCommissionSnapshotsForRefund(sbFees, ref.bookingId)) ?? 0;
+    } catch {
+      /* fall back to the legacy full-charge comparison */
+    }
+  }
+  const isFullRefund = ref.chargeAmountCents > 0 && input.refundedCents >= ref.chargeAmountCents - feesKeptCents;
   if (!isFullRefund) {
     // The individual refund slice drives the partial reconciliation; fall back
     // to the cumulative amount only if the routing layer couldn't enumerate the
@@ -415,6 +522,12 @@ export async function handleBookingRefund(
   const marked = await d.markRefunded(ref.transactionId, {
     providerReference: input.chargeId,
     refundNote: "Stripe charge.refunded (full)",
+    // Pass THIS event's slice + Stripe refund id so a partial→remainder
+    // completing path books the remainder row (not a duplicate full gross)
+    // and can dedup on re-delivery. Without these, markRefunded still books
+    // `remaining = gross − prior partials`, but loses the `re_...` key.
+    refundAmountCents: input.refundAmountCents ?? input.refundedCents,
+    providerRefundId: input.refundId ?? null,
   });
   if (!marked.ok) {
     // "already refunded" / bad-state transitions are expected on re-delivery —
@@ -429,6 +542,7 @@ export async function handleBookingRefund(
     const outcomes = await reverseBookingPayouts(ref.bookingId, { mode: "full", reference: `refund ${input.chargeId}` }, { sb, stripe });
     if (sb) {
       await markBookingRefunded(sb, ref.bookingId);
+      await stampLinkedOrderRefunded(sb, { bookingId: ref.bookingId, transactionId: ref.transactionId });
       await d.notifyBookingPayoutReversal(sb, ref.bookingId, outcomes, "refund");
     }
   }
@@ -465,7 +579,7 @@ export async function handleBookingDispute(
   deps: RefundDeps = {},
 ): Promise<boolean> {
   const d = resolveRefundDeps(deps);
-  const ref = await resolveBookingFromPaymentIntent(stripe, input.paymentIntentId);
+  const ref = await resolveBookingFromPaymentIntent(stripe, input.paymentIntentId, d.resolveSupabase());
   if (!ref) return false;
 
   // ── dispute opened: flag + alert, do NOT touch the money ──
@@ -528,6 +642,7 @@ export async function handleBookingDispute(
       );
       if (sb) {
         await markBookingRefunded(sb, ref.bookingId);
+        await stampLinkedOrderRefunded(sb, { bookingId: ref.bookingId, transactionId: ref.transactionId });
         await d.notifyBookingPayoutReversal(sb, ref.bookingId, outcomes, "dispute");
       }
     }

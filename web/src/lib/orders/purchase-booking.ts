@@ -61,6 +61,8 @@ export async function openPurchaseBooking(
     readonly subtotalCents: number;
     /** The order's currency. The row used to say "USD" whatever was sold. */
     readonly currency: string;
+    /** Talent policy version in force at checkout, when there is one. */
+    readonly policyVersionId?: string | null;
     readonly contact: {
       readonly displayName?: string | null;
       readonly email?: string | null;
@@ -94,6 +96,7 @@ export async function openPurchaseBooking(
       contact_phone: input.contact.phone ?? null,
       total_client_revenue: input.subtotalCents / 100,
       currency_code: input.currency,
+      ...(input.policyVersionId ? { policy_version_id: input.policyVersionId } : {}),
     })
     .select("id")
     .single();

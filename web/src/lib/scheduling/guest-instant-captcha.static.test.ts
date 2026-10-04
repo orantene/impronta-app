@@ -28,7 +28,31 @@ test("guest instant confirm surfaces render GuestCaptchaField", () => {
     join(SRC, "components/public-booking/GuestInstantContact.tsx"),
     "utf8",
   );
+  const catalogFilter = readFileSync(
+    join(SRC, "lib/site-admin/builder-node/services-catalog-filter.tsx"),
+    "utf8",
+  );
+  const catalogRender = readFileSync(
+    join(SRC, "lib/site-admin/builder-node/render.tsx"),
+    "utf8",
+  );
+  const maxSite = readFileSync(
+    join(SRC, "lib/talent-site/server/render-max-site.tsx"),
+    "utf8",
+  );
   assert.ok(contact.includes("GuestCaptchaField"));
   assert.ok(composer.includes("GuestInstantContact"));
   assert.ok(sheet.includes("GuestInstantContact"));
+  // Catalog vanity sheet must receive tenant captcha (same class as form nodes).
+  // Prefer bookingCaptcha (HQ-gated) with fallback to captcha for unsplit callers.
+  assert.ok(catalogFilter.includes("captcha={captcha}"));
+  assert.ok(
+    catalogRender.includes("captcha={options.bookingCaptcha ?? options.captcha") ||
+      catalogRender.includes("captcha={options.bookingCaptcha ?? options.captcha ?? null}"),
+    "services_catalog must prefer bookingCaptcha over form captcha",
+  );
+  assert.ok(
+    maxSite.includes('n.kind === "services_catalog"') || maxSite.includes("services_catalog"),
+    "vanity Max site must resolve captcha for services_catalog, not only form nodes",
+  );
 });

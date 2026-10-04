@@ -10,6 +10,7 @@
  * hostnames are hardcoded — an operator can rotate the app host in the DB
  * and this helper picks it up within `CACHE_TTL_MS`.
  */
+import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 type CacheEntry = { origin: string | null; expiresAt: number };
@@ -110,14 +111,39 @@ export async function getCanonicalAppHostOrigin(): Promise<string | null> {
 }
 
 /**
- * Build the canonical `/t/[profileCode]` URL — absolute, app-host, no
- * locale prefix. Used by metadata on every host kind that renders the
- * talent page.
+ * Map the app-host origin to the origin that OWNS public talent pages.
+ *
+ * The platform app host (`app.tulala.digital`) serves `Disallow: /` in
+ * robots.txt, because it carries login and workspace tooling. A canonical
+ * pointing there asks Google to consolidate every profile onto a URL it is
+ * forbidden to crawl, while sitemap.xml advertises the apex. Measured on
+ * production 2026-09-27: all 166 `/t/*` URLs in the sitemap canonicalised to
+ * the blocked host. The apex serves the same page (`/t/*` renders on the
+ * marketing host) and is crawlable, so it is the canonical owner.
+ *
+ * Any other origin (a white-label app host, local dev) passes through.
+ */
+export function talentCanonicalOrigin(appOrigin: string): string {
+  try {
+    const url = new URL(appOrigin);
+    if (url.hostname === `app.${TULALA_APEX_HOST}`) {
+      return `https://${TULALA_APEX_HOST}`;
+    }
+    return url.origin;
+  } catch {
+    return appOrigin;
+  }
+}
+
+/**
+ * Build the canonical `/t/[profileCode]` URL — absolute, no locale prefix,
+ * on the crawlable platform origin (see `talentCanonicalOrigin`). Used by
+ * metadata and JSON-LD on every host kind that renders the talent page.
  */
 export async function canonicalTalentUrl(
   profileCode: string,
 ): Promise<string | null> {
   const origin = await getCanonicalAppHostOrigin();
   if (!origin) return null;
-  return `${origin}/t/${encodeURIComponent(profileCode)}`;
+  return `${talentCanonicalOrigin(origin)}/t/${encodeURIComponent(profileCode)}`;
 }

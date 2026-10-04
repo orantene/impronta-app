@@ -1,0 +1,225 @@
+/**
+ * THEME RELEASES: the authored-notes registry and the ONE release-item
+ * generator (pure). A design + version with a module in `MODULES` gets:
+ *  - its `codeNotes` as `code` items (a renderer fix has no payload diff);
+ *  - its per-item notes prefilled (EN/ES) and its release summary;
+ *  - the candidates in `layoutKeys` (one talent-facing change, such as the
+ *    hero inset or the services layout, which shows up as a removal plus a
+ *    keyed replacement) collapsed into ONE item that covers both keys;
+ *  - critical marks: candidates in `criticalIds` become `critical` items, and
+ *    `criticalKeys` names the design keys each covers explicitly (so a site
+ *    that removed the block still gets the fix).
+ */
+import type { DesignPayload } from "../../theme-catalog/types";
+import { applyItemEdit } from "../manager/items";
+import { diffDesignPayloads, type CandidateItem } from "../diff-payload";
+import { swapGroupId } from "../swap";
+import type { ReleaseItem, ReleaseNotes } from "../types";
+import {
+  MAISON_V2_RELEASE_2_1,
+  MAISON_V2_RELEASE_2_2,
+  MAISON_V2_RELEASE_2_3,
+  MAISON_V2_RELEASE_2_4,
+  MAISON_V2_RELEASE_2_5,
+  MAISON_V2_RELEASE_2_6,
+  MAISON_V2_RELEASE_2_7,
+  MAISON_V2_RELEASE_2_8,
+  MAISON_V2_RELEASE_2_9,
+  type ReleaseNote,
+} from "./maison-v2";
+import { FOLIO_RELEASE_NEUTRAL, FOLIO_RELEASE_PARITY } from "./folio";
+
+export interface ReleaseNoteModule {
+  design: string;
+  toVersion: number;
+  notes: ReleaseNote;
+  codeNotes: ReadonlyArray<ReleaseNote>;
+  byItemId: Readonly<Record<string, ReleaseNote>>;
+  /** Candidate ids that together are ONE talent-facing layout change. */
+  layoutKeys?: ReadonlyArray<string>;
+  /** Id of the collapsed layout item (default `layout:<design>:hero-inset`). */
+  layoutGroupId?: string;
+  /**
+   * More collapsed layout items in the same release. Each group collapses its
+   * candidate ids into ONE item (`groupId`); `foldIds` pulls other candidates
+   * (for example the header link) into that same item so they apply or not
+   * together, `alsoKeys` adds keys the item must cover, and `swap` declares the
+   * atomic replacement the merge performs (see `SwapPair.ensure`).
+   */
+  extraGroups?: ReadonlyArray<{
+    keys: ReadonlyArray<string>;
+    groupId: string;
+    foldIds?: ReadonlyArray<string>;
+    alsoKeys?: ReadonlyArray<string>;
+    swap?: { from: string; to: string; ensure?: boolean };
+  }>;
+  /** Candidate ids the admin marks critical (forced, announced). */
+  criticalIds?: ReadonlyArray<string>;
+  /** Candidate id to the design keys its critical item names explicitly. */
+  criticalKeys?: Readonly<Record<string, ReadonlyArray<string>>>;
+  /**
+   * Candidate ids (by prefix) the release never offers. A block the design stops putting on
+   * its default page (Maison v2 2.8: Before and after, Aftercare tips) must not be removed from
+   * a talent who has it, so its removal is not an item: it stays out of the release entirely.
+   */
+  dropIdPrefixes?: ReadonlyArray<string>;
+}
+
+const MODULES: ReadonlyArray<ReleaseNoteModule> = [
+  MAISON_V2_RELEASE_2_1,
+  MAISON_V2_RELEASE_2_2,
+  MAISON_V2_RELEASE_2_3,
+  MAISON_V2_RELEASE_2_4,
+  MAISON_V2_RELEASE_2_5,
+  MAISON_V2_RELEASE_2_6,
+  MAISON_V2_RELEASE_2_7,
+  MAISON_V2_RELEASE_2_8,
+  MAISON_V2_RELEASE_2_9,
+  FOLIO_RELEASE_PARITY,
+  FOLIO_RELEASE_NEUTRAL,
+];
+
+export function releaseNotesFor(design: string, toVersion: number): ReleaseNoteModule | null {
+  return MODULES.find((m) => m.design === design && m.toVersion === toVersion) ?? null;
+}
+
+/** Collapse the candidates named in `layoutKeys` into one layout item. */
+export function groupLayoutItems(
+  items: ReadonlyArray<CandidateItem>,
+  layoutKeys: ReadonlyArray<string>,
+  groupId: string,
+): CandidateItem[] {
+  const hits = items.filter((i) => i.type === "layout" && i.id && layoutKeys.includes(i.id));
+  if (hits.length < 2) return [...items];
+  const tree = hits.every((h) => h.tree === hits[0]!.tree) ? hits[0]!.tree : undefined;
+  // A detected key swap stays ONE atomic choice in the merge (see `swap.ts`). The nodes
+  // inside a swapped block (a footer band's children) ride along in `keys` without a swap
+  // of their own, so ANY hit that carries the swap makes the grouped item the swap.
+  const swapped = hits.find((h) => h.swap);
+  const grouped: CandidateItem = {
+    id: groupId,
+    type: "layout",
+    key: hits[0]!.key,
+    keys: hits.map((h) => h.key),
+    ...(tree ? { tree } : {}),
+    layout: "nested-new",
+    detail: { layout: "nested-new", grouped: hits.map((h) => h.id) },
+    ...(swapped ? { swap: swapped.swap, ...(swapped.group ? { group: swapped.group } : {}) } : {}),
+  };
+  const out: CandidateItem[] = [];
+  let placed = false;
+  for (const it of items) {
+    if (hits.includes(it)) {
+      if (!placed) {
+        out.push(grouped);
+        placed = true;
+      }
+      continue;
+    }
+    out.push(it);
+  }
+  return out;
+}
+
+/**
+ * Pull `foldIds` candidates into the collapsed group item, extend what it
+ * covers, and declare its atomic swap. The folded candidates disappear as their
+ * own items (one choice, never half applied). The item then spans trees, so it
+ * carries no single `tree`.
+ */
+export function foldLayoutGroup(
+  items: CandidateItem[],
+  g: NonNullable<ReleaseNoteModule["extraGroups"]>[number],
+): CandidateItem[] {
+  const group = items.find((i) => i.id === g.groupId);
+  if (!group) return items;
+  const folded = items.filter((i) => i.id && g.foldIds?.includes(i.id));
+  const keys = [...(group.keys ?? [group.key]), ...folded.flatMap((i) => i.keys ?? [i.key]), ...(g.alsoKeys ?? [])];
+  const { tree: _tree, ...rest } = group;
+  void _tree;
+  const next: CandidateItem = {
+    ...rest,
+    keys: [...new Set(keys)],
+    ...(g.swap ? { swap: g.swap } : {}),
+    detail: { ...(group.detail as object), folded: folded.map((i) => i.id) } as CandidateItem["detail"],
+  };
+  return items.filter((i) => !folded.includes(i)).map((i) => (i === group ? next : i));
+}
+
+/**
+ * Attach the authored notes and apply the critical marks to candidate items.
+ * Unknown ids pass through untouched.
+ */
+export function withAuthoredNotes(
+  candidates: ReadonlyArray<ReleaseItem>,
+  mod: ReleaseNoteModule,
+  groupNote?: ReleaseNote,
+): ReleaseItem[] {
+  const groupId = mod.layoutGroupId ?? `layout:${mod.design}:hero-inset`;
+  return candidates.map((item) => {
+    const id = item.id ?? `${item.type}:${item.key}`;
+    const note = mod.byItemId[id] ?? (id === groupId ? groupNote : undefined);
+    let next: ReleaseItem = note && !item.note ? { ...item, note: { en: note.en, es: note.es } } : item;
+    if (mod.criticalIds?.includes(id)) {
+      next = applyItemEdit(next, { critical: true });
+      const keys = mod.criticalKeys?.[id];
+      if (keys) next = { ...next, keys: [...keys] };
+    }
+    return next;
+  });
+}
+
+export function generateReleaseItems(
+  design: string,
+  from: { payload: DesignPayload; version: number },
+  to: { payload: DesignPayload; version: number },
+): { items: ReleaseItem[]; notes: ReleaseNotes } {
+  const mod = releaseNotesFor(design, to.version);
+  let items: CandidateItem[] = diffDesignPayloads(design, from, to, mod?.codeNotes ?? []);
+  if (!mod) return { items, notes: {} };
+  const dropped = mod.dropIdPrefixes ?? [];
+  if (dropped.length > 0) items = items.filter((i) => !dropped.some((p) => (i.id ?? "").startsWith(p)));
+  const layoutKeys = mod.layoutKeys ?? [];
+  const groupId = mod.layoutGroupId ?? `layout:${design}:hero-inset`;
+  if (layoutKeys.length > 0) items = groupLayoutItems(items, layoutKeys, groupId);
+  for (const g of mod.extraGroups ?? []) items = foldLayoutGroup(groupLayoutItems(items, g.keys, g.groupId), g);
+  const groupNote = layoutKeys.map((k) => mod.byItemId[k]).find(Boolean);
+  const noted = withAuthoredNotes(items, mod, groupNote).map((i) => {
+    const g = (mod.extraGroups ?? []).find((x) => x.groupId === i.id);
+    const note = g ? g.keys.map((k) => mod.byItemId[k]).find(Boolean) : undefined;
+    return g && note && !i.note ? { ...i, note: { en: note.en, es: note.es } } : i;
+  });
+  return { items: noted, notes: { en: mod.notes.en, es: mod.notes.es } };
+}
+
+const idOf = (i: ReleaseItem) => i.id ?? `${i.type}:${i.key}`;
+
+/** The item's design key without its `tree:` prefix. */
+function bareKey(i: ReleaseItem): string {
+  return i.tree && i.key.startsWith(`${i.tree}:`) ? i.key.slice(i.tree.length + 1) : i.key;
+}
+
+/**
+ * Authored override for a pair `diffDesignPayloads` did not detect: members of
+ * each id group share one `group`, and a removed key plus a new key also get
+ * `swap`, so the merge treats them as one atomic swap.
+ */
+export function applyLayoutGroups(
+  items: ReadonlyArray<ReleaseItem>,
+  groups: ReadonlyArray<ReadonlyArray<string>>,
+): ReleaseItem[] {
+  let out = [...items];
+  for (const ids of groups) {
+    const members = out.filter((i) => ids.includes(idOf(i)));
+    if (members.length < 2) continue;
+    const removed = members.find((i) => idOf(i).endsWith(":removed"));
+    const added = members.find((i) => i !== removed && !idOf(i).endsWith(":removed"));
+    const swap = removed && added ? { from: bareKey(removed), to: bareKey(added) } : undefined;
+    const group = swap ? swapGroupId(removed!.tree ?? "home", swap) : `layout-group:${ids[0]}`;
+    out = out.map((i) => (members.includes(i) ? { ...i, group, ...(swap ? { swap } : {}) } : i));
+  }
+  return out;
+}
+
+/** Alias kept for callers that speak "authored release". */
+export const authoredRelease = releaseNotesFor;

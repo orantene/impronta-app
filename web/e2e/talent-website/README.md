@@ -1,19 +1,20 @@
-# Talent website E2E fixtures (Phase Q.3)
+# Talent website E2E fixtures (Phase Q.3 + Maison PR9)
 
-Fixture data for the talent-website Playwright suite described in
-[`web/docs/talent-website-execution-plan-2026-09-23.md`](../../docs/talent-website-execution-plan-2026-09-23.md)
-("Phase Q: agent QA infrastructure", section Q.3). This folder does not yet
-contain the Playwright specs themselves (that's Q.2's workflow +
-later-phase journeys per the plan) — just the seed script and the fixture
-identities Playwright specs will import.
+Fixture data and Playwright journeys for the talent-website suite
+([`web/docs/talent-website-execution-plan-2026-09-23.md`](../../docs/talent-website-execution-plan-2026-09-23.md)
+Phase Q.3) and Maison free-website journeys 1–6 (W77–W78).
 
 ## Files
 
 - `seed.ts` — idempotent seeder. Service-role script; creates/repairs every
-  row below. Run with `tsx`.
-- `fixtures.ts` — pure data: emails, profile codes, slugs, domains, and the
-  shared `FIXTURE_PASSWORD`. Import this from Playwright specs; don't
-  hardcode the identities twice.
+  row below. Writes `e2e/.auth/talent-website/ids.json` (talent_profile UUIDs).
+- `fixtures.ts` — emails, profile codes, slugs, domains, Vale/Iván personas,
+  `FIXTURE_PASSWORD`, and lazy `talentProfileId` from `ids.json`.
+- `helpers.ts` — `signInTalentFixture`, viewports, locale cookie, Unlock assert.
+- `auth.setup.ts` — one storage state per fixture (`talent-website-setup`).
+- `maison-journeys.spec.ts` — Maison journeys 1–6 EN+ES (gate `MAISON_JOURNEY_E2E=1`).
+- `jor-live-unlock.spec.ts` — read-only live Jor Unlock check (`JOR_LIVE_CHECK=1`).
+- Legacy `j0`–`j8` / `maison-profile` — Phase Q theme-gallery journeys.
 - `README.md` — this file.
 
 ## Running it

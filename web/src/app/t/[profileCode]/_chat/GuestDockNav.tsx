@@ -33,6 +33,8 @@ export type GuestDockNavProps = {
   itemsTab?: boolean;
   /** L13: per-business label for the Items tab; null → the i18n default. */
   itemsLabel?: string | null;
+  /** Per-trade label for the Projects tab; null → i18n (Mis citas / Yours). */
+  projectsLabel?: string | null;
   /** Live project (inquiry) count. 0 hides the badge. */
   projectsCount?: number;
 };
@@ -57,6 +59,7 @@ export function GuestDockNav({
   projectsCount = 0,
   itemsTab = true,
   itemsLabel = null,
+  projectsLabel = null,
 }: GuestDockNavProps) {
   const countFor = (view: GuestDockView): number =>
     view === "lineup" ? lineupCount : view === "projects" ? projectsCount : 0;
@@ -64,8 +67,11 @@ export function GuestDockNav({
   // services / Your order / Tickets & tables / Services / Items) and hidden
   // when the tenant switched it off.
   const tabs = itemsTab ? TABS : TABS.filter((tab) => tab.view !== "lineup");
-  const labelFor = (view: GuestDockView, labelKey: string): string =>
-    view === "lineup" && itemsLabel ? itemsLabel : t(labelKey);
+  const labelFor = (view: GuestDockView, labelKey: string): string => {
+    if (view === "lineup" && itemsLabel) return itemsLabel;
+    if (view === "projects" && projectsLabel) return projectsLabel;
+    return t(labelKey);
+  };
 
   return (
     <div
@@ -78,12 +84,17 @@ export function GuestDockNav({
         margin: "0 16px 8px",
         padding: 4,
         borderRadius: 999,
-        background: C.surfaceFaint,
+        // Front-door brief `.modes`: white track + hairline, not a grey fill.
+        background: C.surface,
+        border: `1px solid ${C.border}`,
         flexShrink: 0,
       }}
     >
       {tabs.map(({ view, labelKey, Icon }) => {
-        const isActive = view === active;
+        // Fresh visitors land on the Home hub, which has no nav tab of its own
+        // (empty-first-visit). Hablar is the closest control — paint it active
+        // and keep the intake rail ("Nada todavía") reachable from the header.
+        const isActive = view === active || (active === "home" && view === "chat");
         const count = countFor(view);
         return (
           <button
@@ -93,6 +104,10 @@ export function GuestDockNav({
             aria-selected={isActive}
             aria-label={labelFor(view, labelKey)}
             onClick={() => {
+              if (active === "home" && view === "chat") {
+                onChange("chat");
+                return;
+              }
               if (!isActive) onChange(view);
             }}
             style={{
@@ -104,14 +119,17 @@ export function GuestDockNav({
               alignItems: "center",
               justifyContent: "center",
               gap: 6,
-              padding: "8px 10px",
+              padding: "7px 10px",
               border: "none",
               borderRadius: 999,
-              background: isActive ? "#fff" : "transparent",
+              // DoR active = transparent fill + inset accent outline (not white pill).
+              background: "transparent",
+              boxShadow: isActive ? `inset 0 0 0 1.5px ${accent}` : "none",
               color: isActive ? accent : C.inkMuted,
-              cursor: isActive ? "default" : "pointer",
+              cursor: isActive && !(active === "home" && view === "chat") ? "default" : "pointer",
               fontFamily: FONT,
-              transition: "color 120ms",
+              fontWeight: isActive ? 600 : 500,
+              transition: "color 120ms, box-shadow 120ms",
             }}
           >
             <span style={{ position: "relative", display: "inline-flex" }}>

@@ -23,6 +23,11 @@ import { ageLabel } from "./messages/messages-shared";
 import { useDashboardText } from "./dashboard-i18n";
 import type { UserNotification } from "./data-bridge";
 import {
+  hubClickTarget,
+  scopeRealNotifications,
+  staffQueuesVisible,
+} from "./notification-hub-scope";
+import {
   markAllAdminNotificationsRead,
   markAdminNotificationRead,
 } from "@/lib/notifications/admin-notifications-actions";
@@ -100,8 +105,12 @@ export function NotificationsBell({
 }: {
   size?: "sm" | "md";
 }) {
-  const { state, openDrawer, pendingTalent, bridgeUserNotifications } = useAdminShell();
-  const realNotifications = bridgeUserNotifications;
+  const { state, openDrawer, pendingTalent, bridgeUserNotifications, adminBasePath } = useAdminShell();
+  const realNotifications = useMemo(
+    () => (bridgeUserNotifications ? scopeRealNotifications(bridgeUserNotifications, state.surface) : null),
+    [bridgeUserNotifications, state.surface],
+  );
+  const staffQueues = staffQueuesVisible(state.surface);
   const copy = useDashboardText();
   const popoverId = useId();
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -182,12 +191,25 @@ export function NotificationsBell({
   // workspaces show "Booking confirmed · Bvlgari" and a phantom "7" badge.
   const useRealData = Array.isArray(realNotifications);
 
+  // F72: a real row with a stored destination is a link, not a dead row.
+  const hubCta = useCallback((n: UserNotification): HubItem["cta"] => {
+    const t = hubClickTarget(n, adminBasePath);
+    if (!t) return undefined;
+    return {
+      label: copy.t("Open"),
+      run: () => {
+        if (t.kind === "href") window.location.assign(t.href);
+        else openDrawer(t.drawerId, t.payload);
+      },
+    };
+  }, [adminBasePath, copy, openDrawer]);
+
   const items: HubItem[] = useMemo(() => {
     const out: HubItem[] = [];
 
     // Action: pending approvals — derived from shell state, NOT routed
     // notifications. Stays regardless of which mode we're in.
-    pendingTalent.forEach((p) => {
+    (staffQueues ? pendingTalent : []).forEach((p) => {
       out.push({
         id: `pending-${p.id}`,
         bucket: "action",
@@ -214,6 +236,7 @@ export function NotificationsBell({
           title: n.title,
           body: n.body ?? "",
           whenLabel: n.ts,
+          cta: hubCta(n),
         });
       }
     } else {
@@ -252,7 +275,7 @@ export function NotificationsBell({
 
     // System: plan-cap nudge stays in both modes (it's not a notification,
     // it's a contextual prompt derived from the workspace plan).
-    if (state.plan === "free") {
+    if (staffQueues && state.plan === "free") {
       out.push({
         id: "plan-cap", bucket: "system", icon: "↑",
         title: copy.t("4 of 5 talent slots used"),
@@ -262,7 +285,7 @@ export function NotificationsBell({
       });
     }
     return out.filter(i => !dismissedState.has(i.id));
-  }, [copy, pendingTalent, state.plan, openDrawer, dismissedState, useRealData, realNotifications]);
+  }, [copy, pendingTalent, state.plan, openDrawer, dismissedState, useRealData, realNotifications, staffQueues, hubCta]);
 
   const unreadActionCount = items.filter(i => i.bucket === "action" && !readSetState.has(i.id)).length;
   const totalUnread = items.filter(i => !readSetState.has(i.id)).length;

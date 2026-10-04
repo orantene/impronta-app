@@ -17,6 +17,7 @@ import {
   assertTalentCanConnectCustomDomain,
   requireTalentSelf,
 } from "@/lib/server/talent-self-guard";
+import { loadTalentSubscriptionState } from "@/lib/stripe/talent-billing";
 import {
   loadTalentSiteDomain,
   loadTalentSiteDomains,
@@ -118,7 +119,19 @@ async function guardTalentDomainContext(): Promise<
   if (!assertTalentCanConnectCustomDomain(scope.planKey)) {
     return {
       ok: false,
-      error: "Connecting a custom domain is a Max feature. Upgrade to Max to use your own domain.",
+      error:
+        "Connecting a custom domain needs Web Office. Upgrade to Web Office to use your own domain.",
+    };
+  }
+  // Trial rule: custom domain stays locked while the Web Office trial is active.
+  const subscription = await loadTalentSubscriptionState(
+    scope.talentProfile.id,
+    scope.session.supabase,
+  );
+  if (subscription?.status === "trialing") {
+    return {
+      ok: false,
+      error: "Custom domains unlock after the Web Office trial ends.",
     };
   }
   return {
@@ -190,6 +203,7 @@ export async function connectTalentSiteDomainAction(
         verified_at: null,
         ssl_provisioned_at: null,
         failure_reason: null,
+        acquisition: "connected",
       })
       .eq("id", existing.id);
     if (error) {
@@ -207,6 +221,7 @@ export async function connectTalentSiteDomainAction(
       is_primary: false,
       status: "dns_verification_sent",
       verification_token: verificationToken,
+      acquisition: "connected",
     });
     if (error) {
       if ((error as { code?: string }).code === "23505") {

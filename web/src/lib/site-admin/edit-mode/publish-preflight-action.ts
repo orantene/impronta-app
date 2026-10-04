@@ -24,10 +24,7 @@ import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 import { runAriaLandmarkCheck } from "./aria-landmark-action";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { validateSectionProps } from "@/lib/site-admin/forms/sections";
-import {
-  findInvalidInquiryCtas,
-  isSectionHidden,
-} from "./publish-preflight-rules";
+import { findInvalidInquiryCtas, findSectionSwitcherIssues, isSectionHidden } from "./publish-preflight-rules";
 import {
   classifyCanonicalIssue,
   classifyHrefIssue,
@@ -60,6 +57,7 @@ import {
   collectFreePlanPublishNestedViolations,
 } from "@/lib/site-admin/builder-node/free-plan-builder-tree-guard";
 import { collectMobileOverflowPreflightIssues } from "./publish-preflight-mobile-overflow";
+import { collectAppPreflightIssues } from "./publish-preflight-apps";
 import { BRAND_IDENTITY_MESSAGE, brandIdentityAppliesTo, brandIdentityVerdict } from "./publish-preflight-brand-identity";
 import { isAdvancedElementLibraryEnabledForPlan } from "@/lib/site-admin/builder-node/element-library-policy";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
@@ -88,7 +86,8 @@ export interface PreflightIssue {
     | "layout"
     | "mobile_overflow"
     | "performance"
-    | "brand_identity";
+    | "brand_identity"
+    | "app_config";
   /** Optional sectionId for click-to-focus in the drawer. */
   sectionId?: string;
   /**
@@ -154,6 +153,64 @@ type PreflightPageContext = {
   publishedCompositionSnapshot: HomepageSnapshot | null;
 };
 
+/**
+ * Canvas-only preflight for talent personal sites (no agency tenant scope).
+ * Mirrors the builderTree validation branch used for CMS surfaces.
+ */
+function runTalentPagePublishPreflight(builderTreeInput: unknown): PreflightResult {
+  const issues: PreflightIssue[] = [];
+  const builderTree = Array.isArray(builderTreeInput) ? builderTreeInput : null;
+  if (!builderTree) {
+    return { ok: true, issues };
+  }
+  const validation = validateBuilderNodeTree(builderTree);
+  if (!validation.ok) {
+    // Talents get a plain message; the technical detail is for staff (server log).
+    logServerError(
+      "publish-preflight.talentPage.builderTree",
+      new Error(
+        validation.issues
+          .slice(0, 5)
+          .map((issue) => `${issue.path}: ${issue.message}`)
+          .join("; "),
+      ),
+    );
+    issues.push({
+      severity: "error",
+      category: "builder_payload",
+      message: "There is a problem with a section of your page. Save again or contact support.",
+    });
+    return { ok: true, issues };
+  }
+  for (const finding of collectBuilderPerformanceIssues(
+    collectBuilderPerformanceMetrics(validation.tree),
+  )) {
+    issues.push({
+      severity: finding.severity === "error" ? "error" : "warn",
+      category: "performance",
+      message: `Builder performance: ${finding.message}`,
+    });
+  }
+  for (const finding of collectBuilderTreeLayoutFindings(validation.tree)) {
+    const blocking = isBlockingLayoutFindingId(finding.id);
+    issues.push({
+      severity: blocking ? "error" : "warn",
+      category: "layout",
+      sectionId: finding.ownerSectionId ?? undefined,
+      nodeId: finding.nodeId ?? undefined,
+      autoFixable: blocking && finding.quickFixPatch != null,
+      message: blocking
+        ? `${finding.message} Resolve this layout issue before publish.`
+        : finding.message,
+    });
+  }
+  for (const issue of collectMobileOverflowPreflightIssues(validation.tree)) {
+    issues.push(issue);
+  }
+  for (const issue of collectAppPreflightIssues(validation.tree)) issues.push(issue);
+  return { ok: true, issues };
+}
+
 export async function runPublishPreflight(input?: {
   locale?: string;
   /**
@@ -173,7 +230,15 @@ export async function runPublishPreflight(input?: {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
-  if (!scope) return { ok: false, error: "Pick an agency workspace first." };
+  // Talent personal sites edit on `app.tulala.digital/talent/page-builder` with
+  // no agency tenant cookie. Preflight still runs for `talent_page` (see
+  // `isPublishPreflightSurface`) — do not demand an agency workspace.
+  if (!scope) {
+    if (input?.surfaceKind === "talent_page") {
+      return runTalentPagePublishPreflight(input?.builderTree);
+    }
+    return { ok: false, error: "Pick an agency workspace first." };
+  }
   const locale = input?.locale?.trim() || DEFAULT_PLATFORM_LOCALE;
   const workspacePlan = await loadBuilderWorkspacePlan(auth.supabase, scope.tenantId, {
     logTag: "publish-preflight",
@@ -374,6 +439,8 @@ export async function runPublishPreflight(input?: {
       });
     }
 
+    for (const message of findSectionSwitcherIssues(sectionName, r.section_type_key, props)) issues.push({ severity: "warn", category: "link_integrity", sectionId: r.id, message });
+
     // Generic link integrity audit.
     for (const candidate of collectLinkCandidates(props)) {
       const hrefIssue = classifyHrefIssue(candidate.href);
@@ -556,6 +623,7 @@ export async function runPublishPreflight(input?: {
         )) {
           issues.push(overflowIssue);
         }
+        for (const appIssue of collectAppPreflightIssues(validation.tree)) issues.push(appIssue);
 
         // Paid-plan blocks: social_feed is gated to paid workspaces. The Add
         // gallery already refuses the insert on free plans; this is the

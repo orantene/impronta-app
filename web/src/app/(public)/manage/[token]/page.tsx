@@ -6,9 +6,9 @@ import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { interpolate } from "@/i18n/interpolate";
 import { verifyBookingManageToken } from "@/lib/bookings/manage-token";
-import { readPolicyOverride } from "@/lib/bookings/policy-overrides";
 import { requestNowMs } from "@/lib/projects/request-clock";
-import { bookingOfferingId } from "@/lib/scheduling/cancel-booking";
+import { refundableCentsFromPolicy } from "@/lib/scheduling/cancel-booking";
+import { loadBookingCancelPolicy } from "@/lib/scheduling/booking-cancel-policy";
 import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import { getPublicHostContext } from "@/lib/saas/scope";
@@ -115,14 +115,10 @@ export default async function ManageBookingPage({ params }: Params) {
       if (x.status === "paid") paidCents += Number(x.gross_amount_cents) || 0;
     }
   }
-  // Same rule as `cancelBookingSet`: the offering is on the order's lines.
-  let cancelFreeHours: number | null = null;
-  const offeringId = booking.order_id ? await bookingOfferingId(admin, booking.order_id) : null;
-  if (offeringId) {
-    const override = await readPolicyOverride(admin, { tenantId: hostTenantId, offeringId });
-    if (override.ok) cancelFreeHours = override.row?.cancelFreeHours ?? null;
-  }
-  const window = resolveCancellationWindow({ cancellationHours: cancelFreeHours, startsAt: booking.starts_at, eventDate: null, nowMs: requestNowMs() });
+  // Same source as `cancelBookingSet`: the page cannot promise a window the
+  // engine does not apply.
+  const policy = await loadBookingCancelPolicy(admin, { tenantId: hostTenantId, orderId: booking.order_id });
+  const window = resolveCancellationWindow({ cancellationHours: policy.cancelFreeHours, startsAt: booking.starts_at, eventDate: null, nowMs: requestNowMs() });
   const currency = (booking.currency_code ?? "USD").toUpperCase();
   const zone = booking.timezone ?? "UTC";
   const when = (iso: string | null, opts: Intl.DateTimeFormatOptions) =>
@@ -145,7 +141,14 @@ export default async function ManageBookingPage({ params }: Params) {
         ? t("public.manageBooking.deadlinePassed")
         : interpolate(t("public.manageBooking.deadlineUntil"), { when: when(window.deadlineIso, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) ?? "" })
       : t("public.manageBooking.deadlineNone"),
-    refundIfCancelled: window.enforceable && window.insideWindow ? 0 : paidCents,
+    refundIfCancelled: refundableCentsFromPolicy({
+      paidCents,
+      cancelFreeHours: policy.cancelFreeHours,
+      startsAt: booking.starts_at,
+      nowMs: requestNowMs(),
+      lateCancelRefund: policy.lateCancelRefund,
+      depositCents: policy.depositCents,
+    }),
     paidCents,
     currency,
     timeZone: zone,

@@ -4,10 +4,24 @@
  * `sectionTypeKey: custom`). The generic `renderBuilderNodes` path skips
  * `section` nodes in freeform mode, so gallery inserts were invisible on
  * slot-free pages until this helper wraps and renders their children.
+ *
+ * Styles / fonts: each root block calls `renderBuilderNodes` with
+ * `includeRendererStyles: false` so we never emit N copies of the sheet. When
+ * the caller asks for styles (`includeRendererStyles: true`), this helper
+ * mounts ONE `<BuilderNodeRendererStyles>` (and fonts) around the tree — the
+ * same pattern `renderMaxSiteDocument` uses. Without that hoist, the talent
+ * page-builder canvas had no `.site-builder-node--split{display:grid}` rule and
+ * Maison heroes stacked instead of matching live (P0 builder≠live, 2026-09-29).
  */
 import type { ReactNode } from "react";
 
-import { renderBuilderNodes, type BuilderNodeRenderOptions } from "./render";
+import {
+  BuilderNodeFontLinks,
+  BuilderNodeRendererStyles,
+  collectPresentNodeKinds,
+  renderBuilderNodes,
+  type BuilderNodeRenderOptions,
+} from "./render";
 import {
   collectUnboundRootGalleryBlocks,
   isUnboundGallerySectionNode,
@@ -97,6 +111,10 @@ export function renderUnboundRootGalleryBlock(
  * Render the full freeform page root in `builderTree` order. Each root node
  * emits `data-cms-block` + `data-block-index` so drag-drop and between-block
  * inserts can target the correct root index.
+ *
+ * When `options.includeRendererStyles` / `includeFontLinks` are set, emits
+ * those assets ONCE for the whole tree (nested per-block renders keep them
+ * off so we do not duplicate the sheet).
  */
 export function renderFreeformPageRootTree(
   tree: BuilderNodeTree,
@@ -121,7 +139,24 @@ export function renderFreeformPageRootTree(
       </div>,
     );
   }
-  return blocks.length === 1 ? blocks[0] : blocks;
+  const body = blocks.length === 1 ? blocks[0] : blocks;
+  const hoistStyles = options.includeRendererStyles === true;
+  const hoistFonts = options.includeFontLinks === true;
+  if (!hoistStyles && !hoistFonts) return body;
+  const components = options.components ?? {};
+  return (
+    <>
+      {hoistStyles ? (
+        <BuilderNodeRendererStyles
+          kinds={collectPresentNodeKinds(tree, components)}
+          nodes={tree}
+          components={components}
+        />
+      ) : null}
+      {hoistFonts ? <BuilderNodeFontLinks nodes={tree} components={components} /> : null}
+      {body}
+    </>
+  );
 }
 
 /** Paint only Add Gallery custom root blocks (composition-slot pages). */

@@ -113,11 +113,16 @@ test("Projects is canonical at the list AND at the record; the Clients LIST is n
 test("platform-scoped talent routes still resolve", () => {
   assert.equal(pathIsCanonical("/talent/trust"), true);
   assert.equal(pathIsCanonical("/talent/discover"), true);
+  // Soft nav from My presence must yield the SPA so Edit site is bare.
+  assert.equal(pathIsCanonical("/talent/page-builder"), true);
+  assert.equal(pathIsCanonical("/talent/onboarding"), true);
+  assert.equal(pathIsCanonical("/talent/site"), false);
   // Agenda V2 bookings URLs sync into the talent shell (like /talent/today).
   assert.equal(pathIsCanonical("/talent/bookings/new"), false);
   assert.equal(pathIsCanonical("/talent/bookings/abc123"), false);
   assert.equal(pathIsCanonical("/talent/discover-agencies"), true);
   assert.equal(pathIsCanonical("/impronta/talent/trust"), true);
+  assert.equal(pathIsCanonical("/impronta/talent/page-builder"), true);
   assert.equal(pathIsCanonical("/impronta/talent/bookings/new"), false);
   assert.equal(pathIsCanonical("/impronta/talent/bookings/abc123"), false);
 });

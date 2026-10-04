@@ -60,6 +60,7 @@ export type AgendaMoneyItem = {
   value: string;
   helper?: string;
   tone?: "default" | "success" | "attention";
+  onClick?: () => void;
 };
 
 export type AgendaNowAction = {
@@ -95,10 +96,14 @@ export type AgendaListItem = {
   sourceLabel: string;
   /** ISO start for gating (no-show, etc.). */
   startsAtIso?: string;
+  /** ISO end — pre-fills the reschedule sheet. */
+  endsAtIso?: string;
   clientTz?: string;
   talentTz?: string;
   bookingState?: AgendaBookingState;
   paymentState?: AgendaPaymentState;
+  /** ISO end of a calendar hold (AUD-017b). */
+  holdUntilIso?: string;
   nowTitle?: string;
   nowBody?: string;
   nowTone?: "info" | "ok" | "warn" | "risk";
@@ -117,6 +122,16 @@ export type AgendaListItem = {
     type: "event" | "performance" | "intake" | "tz" | "estimate" | "project";
     data?: Record<string, string | number | null | undefined>;
   }>;
+  /**
+   * Pending reschedule proposal (talent proposed; waiting for accept/decline).
+   * When set, the booking record shows Accept / Decline for the new time.
+   */
+  pendingReschedule?: {
+    requestId: string;
+    newStartsAt: string;
+    newEndsAt: string;
+    feeCents: number;
+  } | null;
   history?: AgendaHistoryLine[];
   terms?: string;
 };

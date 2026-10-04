@@ -1,5 +1,6 @@
 import "server-only";
 
+import { ensureCustomer } from "@/lib/customers/ensure-customer";
 import { matchCustomers } from "@/lib/messaging/match-customers";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -106,23 +107,64 @@ async function resolveInquiry(
     return null;
   }
 
+  // B2 — stop discarding matchCustomers; link inquiries.customer_id.
+  // Agency WhatsApp channel → agency customer pool (owner null). Silent reuse
+  // is exact email of the same owner; phone-only still creates/links via
+  // ensureCustomer within that pool when E.164 is present.
+  const inquiryId = (created as { id: string }).id;
+  let customerId: string | null = null;
+
   const { data: customers, error: customersError } = await admin
     .from("customers")
     .select("id, display_name, email, phone_e164")
     .eq("tenant_id", input.tenantId)
+    .is("owner_talent_profile_id", null)
     .limit(80);
-  if (customersError) return created as { id: string };
-  matchCustomers({
-    name: input.pushName,
-    phone,
-    customers: (customers ?? []) as {
-      id: string;
-      display_name: string | null;
-      email: string | null;
-      phone_e164: string | null;
-    }[],
-  });
-  return created as { id: string };
+
+  if (!customersError) {
+    const matches = matchCustomers({
+      name: input.pushName,
+      phone,
+      customers: (customers ?? []) as {
+        id: string;
+        display_name: string | null;
+        email: string | null;
+        phone_e164: string | null;
+      }[],
+    });
+    const top = matches[0];
+    // Exact phone or exact email (matchCustomers tags email hits as level "phone"
+    // with score 0.92) → reuse. Name-only stays suggestion-only.
+    if (top?.customerId && top.level === "phone" && top.score >= 0.9) {
+      customerId = top.customerId;
+    }
+  }
+
+  if (!customerId && phone) {
+    const ensured = await ensureCustomer(
+      {
+        tenantId: input.tenantId,
+        phone,
+        displayName: input.pushName,
+        ownerTalentProfileId: null,
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      { admin: admin as any },
+    );
+    if (ensured.ok) customerId = ensured.customerId;
+  }
+
+  if (customerId) {
+    const { error: linkErr } = await admin
+      .from("inquiries")
+      .update({ customer_id: customerId })
+      .eq("id", inquiryId);
+    if (linkErr) {
+      logServerError("channels.whatsapp.linkCustomer", linkErr);
+    }
+  }
+
+  return { id: inquiryId };
 }
 
 async function alreadyDelivered(admin: Admin, providerRef: string): Promise<boolean> {

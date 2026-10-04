@@ -101,7 +101,10 @@ export async function loadTalentEarningsByCurrencyWithSupabase(
     };
   } catch (err) {
     logServerError("talent/earnings-by-currency.load", err);
-    return EMPTY_TALENT_EARNINGS_BY_CURRENCY;
+    return {
+      ...EMPTY_TALENT_EARNINGS_BY_CURRENCY,
+      loadError: "Could not load earnings.",
+    };
   }
 }
 
@@ -111,7 +114,12 @@ export const loadTalentEarningsByCurrency = cache(
     opts?: { sinceISO?: string },
   ): Promise<TalentEarningsByCurrency> => {
     const supabase = await createSupabaseServerClient();
-    if (!supabase) return EMPTY_TALENT_EARNINGS_BY_CURRENCY;
+    if (!supabase) {
+      return {
+        ...EMPTY_TALENT_EARNINGS_BY_CURRENCY,
+        loadError: "Could not load earnings.",
+      };
+    }
     return loadTalentEarningsByCurrencyWithSupabase(supabase, talentProfileId, opts);
   },
 );

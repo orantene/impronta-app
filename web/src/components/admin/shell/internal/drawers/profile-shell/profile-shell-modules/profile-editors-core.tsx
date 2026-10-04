@@ -4,7 +4,9 @@
 // findChild from ./profile-state and the talent-type pickers from
 // ./talent-type-picker — same shape the monolith used internally.
 "use client";
+import { recurringStatusForDow } from "@/lib/talent/website-eligibility-facts";
 import React, { useState } from "react";
+import { TalentBiosLocaleEditor } from "./talent-bios-locale-editor";
 import {
   AvailabilityCell,
   AvailabilityStatus,
@@ -364,10 +366,16 @@ export type BiosEditorProps = {
    *  paste-clipboard and regenerate buttons are all inert. Optional;
    *  defaults to unlocked. */
   disabled?: boolean;
+  /** PR 7: the talent's own languages. When set, tabs are restricted to them
+   *  (no "+ Add language" / "×"), with status dots and the AI button. */
+  talentLocales?: { primary: string; secondary: readonly string[] } | null;
 };
 
-export const BiosEditor = React.memo(function BiosEditor({ bios, activeLocale, onActivateLocale, onChange, onRegenerate, primaryLabel, disabled }: BiosEditorProps) {
+export const BiosEditor = React.memo(function BiosEditor({ bios, activeLocale, onActivateLocale, onChange, onRegenerate, primaryLabel, disabled, talentLocales }: BiosEditorProps) {
   const copy = useDashboardText();
+  if (talentLocales) {
+    return <TalentBiosLocaleEditor bios={bios} talentLocales={talentLocales} onChange={onChange} onRegenerate={onRegenerate} primaryLabel={primaryLabel} disabled={disabled} />;
+  }
   const ALL_LOCALES: LocaleCode[] = ["en", "es", "fr", "it", "pt", "de"];
   const ensureLocale = (l: LocaleCode) => {
     if (bios.some(b => b.locale === l)) return;
@@ -590,15 +598,17 @@ export const RatesEditor = React.memo(function RatesEditor({ rates, selectedType
 
 // ── Availability mini-grid (4 weeks) ────────────────────────────────
 
-export function AvailabilityGrid({ cells, onToggle }: {
+export function AvailabilityGrid({ cells, onToggle, recurring }: {
   cells: AvailabilityCell[];
   onToggle: (date: string) => void;
+  /** Recurring pattern preview: explicit day cells still win. */
+  recurring?: { kind?: string; busyDays?: number[] } | null;
 }) {
   const copy = useDashboardText();
   // Build 28 days starting from today
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const days: { date: string; label: string; isToday: boolean }[] = [];
+  const days: { date: string; label: string; isToday: boolean; dow: number }[] = [];
   for (let i = 0; i < 28; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
@@ -606,9 +616,12 @@ export function AvailabilityGrid({ cells, onToggle }: {
       date: d.toISOString().slice(0, 10),
       label: String(d.getDate()),
       isToday: i === 0,
+      dow: d.getDay(),
     });
   }
   const cellMap = new Map(cells.map(c => [c.date, c.status]));
+  const statusFor = (d: { date: string; dow: number }): AvailabilityStatus =>
+    cellMap.get(d.date) ?? recurringStatusForDow(recurring, d.dow) ?? "open";
 
   const colorFor = (s?: AvailabilityStatus) => {
     if (s === "busy")    return { bg: COLORS.amberSoft,    fg: COLORS.amberDeep,   border: COLORS.amberDeep };
@@ -618,7 +631,7 @@ export function AvailabilityGrid({ cells, onToggle }: {
 
   const counts = { open: 0, busy: 0, blocked: 0 };
   days.forEach(d => {
-    const s = cellMap.get(d.date) ?? "open";
+    const s = statusFor(d);
     counts[s] += 1;
   });
 
@@ -646,7 +659,7 @@ export function AvailabilityGrid({ cells, onToggle }: {
           <div key={`pad-${i}`} />
         ))}
         {days.map(d => {
-          const s = cellMap.get(d.date) ?? "open";
+          const s = statusFor(d);
           const c = colorFor(s);
           return (
             <button key={d.date} type="button" onClick={() => onToggle(d.date)} style={{

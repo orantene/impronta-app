@@ -271,7 +271,8 @@ export function GuestDockHomeView({
               preset chat voice was inert on every live tenant.
               The catalog string stays as the fallback for a tenant with no
               greeting and no preset, which is what it was written for. */}
-          {brand.greeting?.trim() || t("public.guestChat.homeHeroLine")}
+          {brand.greeting?.trim() ||
+            t(brand.omitPlatformBrand ? "public.guestChat.homeHeroLineSolo" : "public.guestChat.homeHeroLine")}
         </div>
       </div>
 
@@ -411,6 +412,7 @@ export function GuestDockHomeView({
             onCheckClaimEmail={onCheckClaimEmail}
             onGuestEmailUpdated={onGuestEmailUpdated}
             surfaceMode={surfaceMode}
+            omitPlatformBrand={Boolean(brand.omitPlatformBrand)}
           />
         </div>
       )}

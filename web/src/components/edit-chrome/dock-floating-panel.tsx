@@ -52,6 +52,8 @@ export interface DockFloatingPanelProps {
   floatingDrag?: FloatingDragBinding;
   zIndex?: number;
   dataEditOverlay?: string;
+  /** Below `md` the panel becomes a full-width bottom sheet (wide panels). */
+  compactBottomSheet?: boolean;
 }
 
 type ShellProps = Omit<DockFloatingPanelProps, "floatingDrag"> & {
@@ -81,6 +83,7 @@ function DockFloatingPanelShell({
   dockedToRail,
   zIndex = Z_INDEX.panels,
   dataEditOverlay,
+  compactBottomSheet = false,
 }: ShellProps) {
   const moved = floatingDrag.offset.x !== 0 || floatingDrag.offset.y !== 0;
 
@@ -104,6 +107,7 @@ function DockFloatingPanelShell({
       onReset={floatingDrag.reset}
       dataEditDrawer={panelId}
       dataEditOverlay={dataEditOverlay}
+      compactBottomSheetBelowLg={compactBottomSheet}
       ariaLabelledBy={resolvedTitleId}
       zIndex={zIndex}
       afterHandle={afterHandle}

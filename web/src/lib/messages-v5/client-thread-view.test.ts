@@ -16,6 +16,7 @@ import {
   readChange,
   readChoices,
   readConfirmation,
+  readPaidPayment,
   readPayment,
   readTickets,
   readTimes,
@@ -123,9 +124,23 @@ test("one offer card per offer: the LAST sent offer_event draws it; non-sent eve
   assert.deepEqual([...ids].sort(), ["e2", "r1"]);
 });
 
+test("AUD-008: a superseded offer's sent offer_event does not draw a card when the live summary says superseded", () => {
+  const ids = offerCardMessageIds(
+    [
+      msg({ id: "old", kind: "offer_event", payload: { status: "sent", offer_id: "of1" } }),
+      msg({ id: "new", kind: "offer_event", payload: { status: "sent", offer_id: "of2" } }),
+    ],
+    [
+      { id: "of1", status: "superseded" },
+      { id: "of2", status: "sent" },
+    ],
+  );
+  assert.deepEqual([...ids], ["new"]);
+});
+
 test("payment, confirmation and change readers read client-safe fields only", () => {
   const pay = readPayment({ paymentLinkCode: "abc", amountCents: 114000, amountKind: "deposit", expiresAt: "2026-09-20T00:00:00.000Z", state: "sent" });
-  assert.deepEqual(pay, { code: "abc", amountCents: 114000, currency: "USD", amountKind: "deposit", expiresAt: "2026-09-20T00:00:00.000Z", state: "sent", totalCents: null, paidCents: null, dueCents: null, method: null });
+  assert.deepEqual(pay, { code: "abc", amountCents: 114000, currency: "USD", amountKind: "deposit", expiresAt: "2026-09-20T00:00:00.000Z", state: "sent", totalCents: null, paidCents: null, dueCents: null, method: null, feeLines: [] /* client-safe: validated payer-facing fee lines only (validClientFeeLines), empty when none stamped */ });
   const conf = readConfirmation({ recordKind: "appointment", recordId: "r1", when: "2026-09-20T15:00:00.000Z", lines: [{ label: "Cut", units: 2, unitCents: 4000 }], currency: "USD" });
   assert.equal(conf.lines[0].amountCents, 8000);
   assert.equal(conf.recordId, "r1");
@@ -190,6 +205,40 @@ test("readPayment returns the paid money line", () => {
   assert.equal(view.paidCents, 2000);
   assert.equal(view.dueCents, 3000);
   assert.equal(view.method, "card");
+});
+
+test("payment_paid is a client card; readPaidPayment forces state paid and reads checkout_type", () => {
+  const items = buildClientStream([
+    msg({
+      id: "paid1",
+      kind: "payment_paid",
+      senderUserId: "staff",
+      payload: {
+        checkout_type: "deposit",
+        totalCents: 50000,
+        paidCents: 20000,
+        dueCents: 30000,
+        currency: "MXN",
+        method: "cash",
+      },
+    }),
+  ]);
+  const card = items.find((i) => i.kind === "card");
+  assert.ok(card && card.kind === "card");
+  assert.equal(card.cardKind, "payment_paid");
+  const view = readPaidPayment({
+    checkout_type: "deposit",
+    totalCents: 50000,
+    paidCents: 20000,
+    dueCents: 30000,
+    currency: "MXN",
+    method: "cash",
+  });
+  assert.equal(view.state, "paid");
+  assert.equal(view.amountKind, "deposit");
+  assert.equal(view.totalCents, 50000);
+  assert.equal(view.dueCents, 30000);
+  assert.equal(view.method, "cash");
 });
 
 test("a declined change_result stays declined", () => {

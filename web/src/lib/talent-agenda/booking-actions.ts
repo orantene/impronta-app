@@ -9,6 +9,18 @@
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { ensureAgendaOrderShell } from "./agenda-order-shell";
+import { totalClientRevenueToCents } from "@/lib/money/total-client-revenue";
+import { logBookingActivity } from "@/lib/server/commercial-audit";
+import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
+
+import {
+  recordManualPayment,
+  sumMoneyIn,
+  supabaseManualPaymentStore,
+  type ManualPaymentMethod,
+  type ManualPaymentResult,
+} from "@/lib/bookings/manual-payment";
 
 import { ownBookingGate, talentBookingMirrorEq } from "./ownership";
 import type { OwnBookingResult } from "./ownership";
@@ -46,6 +58,7 @@ export async function requireOwnBooking(bookingId: string): Promise<OwnBookingRe
     return ownBookingGate({
       bookingId,
       hasSessionUser: Boolean(user),
+      userId: user?.id ?? null,
       talentProfileId: talentId,
       onBookingTalent: false,
       ownsTalentBookingMirror: false,
@@ -84,6 +97,7 @@ export async function requireOwnBooking(bookingId: string): Promise<OwnBookingRe
   return ownBookingGate({
     bookingId,
     hasSessionUser: true,
+    userId: user.id,
     talentProfileId: talentId,
     onBookingTalent: Boolean(leg),
     ownsTalentBookingMirror: Boolean(tb),
@@ -154,6 +168,17 @@ export async function markBookingNoShow(input: {
     }
   }
 
+  await logBookingActivity(admin, {
+    bookingId: input.bookingId,
+    actorUserId: own.userId,
+    eventType: BOOKING_AUDIT.STATUS_CHANGED,
+    payload: {
+      from: row.status,
+      to: "no_show",
+      surface: "talent_agenda",
+    },
+  });
+
   return { ok: true };
 }
 
@@ -200,12 +225,74 @@ export async function completeBooking(input: {
     .eq("id", talentBookingMirrorEq(input.bookingId, own.talentId).id)
     .eq("talent_profile_id", own.talentId);
 
+  await logBookingActivity(admin, {
+    bookingId: input.bookingId,
+    actorUserId: own.userId,
+    eventType: BOOKING_AUDIT.STATUS_CHANGED,
+    payload: {
+      from: row.status,
+      to: "completed",
+      surface: "talent_agenda",
+    },
+  });
+
   return { ok: true };
 }
 
 /**
+ * Record money the talent received outside Tulala (cash, bank transfer, card
+ * on their own terminal, other) as ONE manual row in booking_transactions and
+ * update the booking balance. Partial payments allowed; the paid total is
+ * capped at the booking total; the same idempotencyKey never writes twice.
+ */
+export async function recordBookingPayment(input: {
+  bookingId: string;
+  amountCents: number;
+  method: ManualPaymentMethod;
+  idempotencyKey: string;
+}): Promise<ManualPaymentResult | AgendaActionFail> {
+  const own = await requireOwnBooking(input.bookingId);
+  if (!own.ok) return own;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, reason: "unavailable" };
+
+  let res: ManualPaymentResult;
+  try {
+    res = await recordManualPayment(supabaseManualPaymentStore(admin), {
+      bookingId: input.bookingId,
+      amountCents: input.amountCents,
+      method: input.method,
+      idempotencyKey: input.idempotencyKey,
+      actorUserId: own.userId,
+    });
+  } catch (err) {
+    logServerError("agenda.recordPayment", err);
+    return { ok: false, reason: "unavailable" };
+  }
+  if (!res.ok || res.already) return res;
+
+  await logBookingActivity(admin, {
+    bookingId: input.bookingId,
+    actorUserId: own.userId,
+    eventType: BOOKING_AUDIT.PAYMENT_STATE_CHANGED,
+    payload: {
+      surface: "talent_money",
+      payment_status: { to: res.paymentStatus },
+      payment_method: { to: input.method },
+      amountCents: input.amountCents,
+      transactionId: res.transactionId,
+    },
+  });
+
+  return res;
+}
+
+/**
  * T8.2 Talent records cash collected at the appointment (no POS shift).
- * Updates payment_status only — does not invent Stripe money.
+ * Writes the cash to the ledger as a manual row for what is still due (or
+ * amountCents when given). A booking with no price set has nothing to put on
+ * the ledger, so it only flips payment_status as before.
  */
 export async function recordBookingCashCollected(input: {
   bookingId: string;
@@ -219,7 +306,7 @@ export async function recordBookingCashCollected(input: {
 
   const { data: row, error } = await admin
     .from("agency_bookings")
-    .select("id, status, payment_status, total_client_revenue, deposit_amount_cents")
+    .select("id, status, payment_status, payment_method, total_client_revenue, deposit_amount_cents")
     .eq("id", input.bookingId)
     .maybeSingle();
   if (error) {
@@ -229,19 +316,33 @@ export async function recordBookingCashCollected(input: {
   if (!row) return { ok: false, reason: "not_found" };
   if (row.payment_status === "paid") return { ok: true, already: true };
 
-  const total = Math.max(0, Number(row.total_client_revenue) || 0);
-  const amount = input.amountCents != null ? Math.max(0, input.amountCents) : total;
-  const nextStatus =
-    total > 0 && amount > 0 && amount < total
-      ? "partial"
-      : amount > 0 || total === 0
-        ? "paid"
-        : "unpaid";
+  const total = totalClientRevenueToCents(row.total_client_revenue);
+  if (total > 0) {
+    const store = supabaseManualPaymentStore(admin);
+    let remaining = total;
+    try {
+      remaining = Math.max(0, total - sumMoneyIn(await store.listLedger(input.bookingId)));
+    } catch (err) {
+      logServerError("agenda.recordCash.ledger", err);
+      return { ok: false, reason: "unavailable" };
+    }
+    if (remaining === 0) return { ok: true, already: true };
+    const amount = input.amountCents != null ? Math.round(input.amountCents) : remaining;
+    const res = await recordBookingPayment({
+      bookingId: input.bookingId,
+      amountCents: amount,
+      method: "cash",
+      // One cash finish per booking + amount: a double tap replays, never doubles.
+      idempotencyKey: `agenda-cash:${input.bookingId}:${amount}:${total - remaining}`,
+    });
+    if (!res.ok) return { ok: false, reason: res.reason };
+    return res.already ? { ok: true, already: true } : { ok: true };
+  }
 
   const { error: upErr } = await admin
     .from("agency_bookings")
     .update({
-      payment_status: nextStatus,
+      payment_status: "paid",
       payment_method: "cash",
       payment_notes: "Cash collected by talent at appointment.",
     })
@@ -250,6 +351,19 @@ export async function recordBookingCashCollected(input: {
     logServerError("agenda.recordCash.update", upErr);
     return { ok: false, reason: "unavailable" };
   }
+
+  await logBookingActivity(admin, {
+    bookingId: input.bookingId,
+    actorUserId: own.userId,
+    eventType: BOOKING_AUDIT.PAYMENT_STATE_CHANGED,
+    payload: {
+      surface: "talent_agenda",
+      payment_status: { from: row.payment_status, to: "paid" },
+      payment_method: { from: row.payment_method ?? null, to: "cash" },
+      amountCents: 0,
+    },
+  });
+
   return { ok: true };
 }
 
@@ -293,11 +407,26 @@ export async function recordBookingTransferAwaiting(input: {
     logServerError("agenda.recordTransferAwaiting.update", upErr);
     return { ok: false, reason: "unavailable" };
   }
+
+  await logBookingActivity(admin, {
+    bookingId: input.bookingId,
+    actorUserId: own.userId,
+    eventType: BOOKING_AUDIT.PAYMENT_STATE_CHANGED,
+    payload: {
+      surface: "talent_agenda",
+      payment_status: { from: row.payment_status, to: row.payment_status },
+      payment_method: { from: row.payment_method ?? null, to: "transfer" },
+      awaiting: true,
+    },
+  });
+
   return { ok: true };
 }
 
 /**
  * Confirm a previously awaiting bank transfer was received.
+ * Routes through the manual ledger (same path as cash) so Money Collected
+ * sees the money; never flips payment_status alone.
  */
 export async function markBookingTransferReceived(input: {
   bookingId: string;
@@ -310,7 +439,7 @@ export async function markBookingTransferReceived(input: {
 
   const { data: row, error } = await admin
     .from("agency_bookings")
-    .select("id, payment_status, payment_method")
+    .select("id, payment_status, payment_method, total_client_revenue")
     .eq("id", input.bookingId)
     .maybeSingle();
   if (error) {
@@ -321,6 +450,27 @@ export async function markBookingTransferReceived(input: {
   if (row.payment_status === "paid") return { ok: true, already: true };
   if (row.payment_method !== "transfer") {
     return { ok: false, reason: "not_transfer" };
+  }
+
+  const total = totalClientRevenueToCents(row.total_client_revenue);
+  if (total > 0) {
+    const store = supabaseManualPaymentStore(admin);
+    let remaining = total;
+    try {
+      remaining = Math.max(0, total - sumMoneyIn(await store.listLedger(input.bookingId)));
+    } catch (err) {
+      logServerError("agenda.markTransferReceived.ledger", err);
+      return { ok: false, reason: "unavailable" };
+    }
+    if (remaining === 0) return { ok: true, already: true };
+    const res = await recordBookingPayment({
+      bookingId: input.bookingId,
+      amountCents: remaining,
+      method: "transfer",
+      idempotencyKey: `agenda-transfer-received:${input.bookingId}:${remaining}`,
+    });
+    if (!res.ok) return { ok: false, reason: res.reason };
+    return res.already ? { ok: true, already: true } : { ok: true };
   }
 
   const { error: upErr } = await admin
@@ -335,6 +485,19 @@ export async function markBookingTransferReceived(input: {
     logServerError("agenda.markTransferReceived.update", upErr);
     return { ok: false, reason: "unavailable" };
   }
+
+  await logBookingActivity(admin, {
+    bookingId: input.bookingId,
+    actorUserId: own.userId,
+    eventType: BOOKING_AUDIT.PAYMENT_STATE_CHANGED,
+    payload: {
+      surface: "talent_agenda",
+      payment_status: { from: row.payment_status, to: "paid" },
+      payment_method: { from: row.payment_method, to: "transfer" },
+      transfer_confirmed: true,
+    },
+  });
+
   return { ok: true };
 }
 
@@ -342,89 +505,7 @@ export type CreateAgendaPayLinkResult =
   | { ok: true; url: string; code: string; already?: boolean }
   | { ok: false; reason: string };
 
-/**
- * A1.1 — Find or create a minimal pending_payment order for a booking so Card
- * finish can mint a real `/pay/<code>` even when create-slot never set order_id.
- */
-async function ensureAgendaOrderShell(
-  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
-  input: {
-    bookingId: string;
-    tenantId: string;
-    talentId: string;
-    title: string | null;
-    amountCents: number;
-    currencyCode: string | null;
-    existingOrderId: string | null;
-  },
-): Promise<{ ok: true; orderId: string } | AgendaActionFail> {
-  if (input.existingOrderId) return { ok: true, orderId: String(input.existingOrderId) };
-  if (input.amountCents <= 0) return { ok: false, reason: "invalid_amount" };
 
-  const currency = (input.currencyCode?.trim() || "MXN").toUpperCase();
-  const { generateOpaqueCode } = await import("@/lib/links/code");
-
-  const { data: order, error: orderErr } = await admin
-    .from("orders")
-    .insert({
-      tenant_id: input.tenantId,
-      status: "pending_payment",
-      currency,
-      version: 1,
-      subtotal_cents: input.amountCents,
-      discount_cents: 0,
-      tax_cents: 0,
-      total_cents: input.amountCents,
-      receipt_code: generateOpaqueCode(),
-      source_channel: "talent_agenda",
-      source_page: "finish_collect_card",
-      payout_release_rule: "immediate",
-    })
-    .select("id")
-    .single();
-  if (orderErr || !order) {
-    logServerError("agenda.ensureOrderShell.order", orderErr);
-    return { ok: false, reason: "unavailable" };
-  }
-  const orderId = String((order as { id: string }).id);
-
-  const label = (input.title?.trim() || "Booking").slice(0, 120);
-  const { error: lineErr } = await admin.from("order_lines").insert({
-    order_id: orderId,
-    tenant_id: input.tenantId,
-    label,
-    units: 1,
-    unit_cents: input.amountCents,
-    total_cents: input.amountCents,
-    talent_profile_id: input.talentId,
-    sort_order: 0,
-    booking_id: input.bookingId,
-    booking_kind: "agency_booking",
-  });
-  if (lineErr) {
-    logServerError("agenda.ensureOrderShell.line", lineErr);
-    return { ok: false, reason: "unavailable" };
-  }
-
-  const { error: linkErr } = await admin
-    .from("agency_bookings")
-    .update({ order_id: orderId })
-    .eq("id", input.bookingId)
-    .is("order_id", null);
-  if (linkErr) {
-    // Race: another writer may have linked an order — re-read and use that.
-    const { data: raced, error: racedErr } = await admin
-      .from("agency_bookings")
-      .select("order_id")
-      .eq("id", input.bookingId)
-      .maybeSingle();
-    if (!racedErr && raced?.order_id) return { ok: true, orderId: String(raced.order_id) };
-    logServerError("agenda.ensureOrderShell.link", linkErr);
-    return { ok: false, reason: "unavailable" };
-  }
-
-  return { ok: true, orderId };
-}
 
 /**
  * Mint (or reuse) a payment link for a booking. Creates an order shell when
@@ -443,7 +524,9 @@ export async function createAgendaBookingPayLink(input: {
 
   const { data: row, error } = await admin
     .from("agency_bookings")
-    .select("id, tenant_id, order_id, title, total_client_revenue, currency_code, payment_status")
+    .select(
+      "id, tenant_id, order_id, title, total_client_revenue, currency_code, payment_status, contact_name, contact_email, contact_phone",
+    )
     .eq("id", input.bookingId)
     .maybeSingle();
   if (error) {
@@ -454,7 +537,7 @@ export async function createAgendaBookingPayLink(input: {
   if (!row.tenant_id) return { ok: false, reason: "no_tenant" };
   if (row.payment_status === "paid") return { ok: false, reason: "already_paid" };
 
-  const total = Math.max(0, Number(row.total_client_revenue) || 0);
+  const total = totalClientRevenueToCents(row.total_client_revenue);
   const amountCents =
     input.amountCents != null && input.amountCents > 0 ? input.amountCents : total;
   if (amountCents <= 0) return { ok: false, reason: "invalid_amount" };
@@ -467,17 +550,64 @@ export async function createAgendaBookingPayLink(input: {
     amountCents,
     currencyCode: row.currency_code ?? null,
     existingOrderId: row.order_id ? String(row.order_id) : null,
+    contactName: row.contact_name ?? null,
+    contactEmail: row.contact_email ?? null,
+    contactPhone: row.contact_phone ?? null,
   });
   if (!shell.ok) return shell;
 
+  // Criterion 4: a new Collect deposit link must kill prior open links so
+  // the old /pay/<code> page shows "replaced" and cannot take a second pay.
+  const { data: priorOpen, error: priorErr } = await admin
+    .from("payment_links")
+    .select("id")
+    .eq("tenant_id", String(row.tenant_id))
+    .eq("order_id", shell.orderId)
+    .eq("status", "open");
+  if (priorErr) {
+    logServerError("agenda.createPayLink.prior", priorErr);
+    return { ok: false, reason: "unavailable" };
+  }
+  if (priorOpen && priorOpen.length > 0) {
+    const { cancelPaymentLink } = await import("@/lib/payments/links");
+    for (const prior of priorOpen as { id: string }[]) {
+      const cancelled = await cancelPaymentLink(admin, {
+        tenantId: String(row.tenant_id),
+        linkId: prior.id,
+        asReplaced: true,
+      });
+      if (!cancelled.ok && cancelled.reason === "unavailable") {
+        return { ok: false, reason: "unavailable" };
+      }
+    }
+  }
+
+  const { resolveAgendaPayPublicOrigin } = await import("./pay-public-origin");
+  // Service-role client is wider than the helper's narrow AdminLike surface.
+  const publicOrigin = await resolveAgendaPayPublicOrigin(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- service-role Supabase client
+    admin as any,
+    String(row.tenant_id),
+    input.publicOrigin,
+    { talentProfileId: own.talentId },
+  );
+
   const { createPaymentLink } = await import("@/lib/payments/links");
+  const { agendaFinishCardPayKey, newPaymentRequestAttemptId } = await import(
+    "@/lib/payments/payment-request-attempt"
+  );
   const minted = await createPaymentLink(admin, {
     tenantId: String(row.tenant_id),
     orderId: shell.orderId,
     amountCents,
-    idempotencyKey: `agenda-finish-card-${input.bookingId}-${amountCents}`,
+    // Unique per mint so remints are not rebound to a cancelled/replaced row.
+    idempotencyKey: agendaFinishCardPayKey({
+      bookingId: input.bookingId,
+      amountCents,
+      attemptId: newPaymentRequestAttemptId(),
+    }),
     actorUserId: null,
-    publicOrigin: input.publicOrigin.replace(/\/$/, ""),
+    publicOrigin,
   });
   if (!minted.ok) return { ok: false, reason: minted.reason };
   return { ok: true, url: minted.url, code: minted.code, already: minted.already };

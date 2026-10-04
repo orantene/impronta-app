@@ -1,3 +1,6 @@
+import { HeaderDemoPill, HeaderSiteLocales, headerItemAttrs, headerItemMobileDefault } from "./header-site-chrome";
+import { SectionSwitcher } from "./SectionSwitcher";
+import { switcherLinksFrom, withSwitcherHome } from "./section-switcher-logic";
 import type { CSSProperties } from "react";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import {
@@ -7,7 +10,13 @@ import {
 import type { SectionComponentProps } from "../types";
 import type { SiteHeaderV1, HeaderItem } from "./schema";
 import { HeaderRegionLiveCount } from "./HeaderRegionLiveCount";
+import { HeaderHeightVar } from "./HeaderHeightVar";
 import { HeaderScrollObserver } from "./HeaderScrollObserver";
+import { NavChromeScrollSpy } from "@/lib/site-admin/builder-node/NavChromeScrollSpy";
+import {
+  navChromeNeedsScrollSpy,
+  normalizeNavChrome,
+} from "@/lib/site-admin/nav-chrome";
 import { ClusterIcon } from "./header-cluster-icon";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
@@ -35,11 +44,8 @@ import {
 } from "@/lib/site-admin/server/locale-resolver";
 
 /**
- * Phase 6B — the prototype `editorial-split` header has a bespoke right
- * zone (EN·ES + Saved + Inquiry + ☰ drawer) that the shared auth widgets
- * can't express. Resolve the SAME real destinations <HeaderAuthArea> uses
- * (no invented data) and hand them to the dedicated client surface.
- * Every other variant keeps <HeaderAuthArea> verbatim → zero regression.
+ * Phase 6B editorial-split right zone: real destinations only (no invented
+ * data). Other variants keep HeaderAuthArea unchanged.
  */
 async function renderRightZone(
   variant: string | undefined,
@@ -353,6 +359,7 @@ export async function SiteHeaderComponent({
     scrollTone,
     scrollThresholdPx,
     variant,
+    navChrome: navChromeRaw,
     authArea,
     socialLinks,
     contactLinks,
@@ -360,6 +367,7 @@ export async function SiteHeaderComponent({
     nodePresentation,
     presentation,
   } = props;
+  const navChrome = normalizeNavChrome(navChromeRaw);
   // Phase 6B — explicit section-prop links win; otherwise fall back to
   // the canonical identity store (what the operator edits in the
   // inspector's "Social & contact" area). Empty everywhere = nothing
@@ -377,20 +385,16 @@ export async function SiteHeaderComponent({
           : null,
     });
   const hasCluster = social.length > 0 || contacts.length > 0;
-  // Density attrs are emitted ONLY when explicitly set, so a tenant that
-  // never configured density keeps the verbatim existing CSS defaults.
+  // Density attrs only when set (unset = existing CSS defaults).
   const densityAttrs: Record<string, string> = {};
   if (density?.logoScale) densityAttrs["data-logo-scale"] = density.logoScale;
   if (density?.navDensity) densityAttrs["data-nav-density"] = density.navDensity;
-  if (density?.verticalPadding)
-    densityAttrs["data-vpad"] = density.verticalPadding;
-  if (density?.mobileMenuStyle)
-    densityAttrs["data-mobile-menu"] = density.mobileMenuStyle;
-  // 6C — single-source link resolution. Resolve nav + primary CTA once
-  // here; renderRightZone / EditorialSplitActions keep their string-href
-  // interface (resolved at this boundary → no client-component change,
-  // minimal blast radius). Deep-prefixer leaves LinkRef.value alone +
-  // prefixPublicHref is idempotent, so legacy + structured both resolve.
+  if (density?.verticalPadding) densityAttrs["data-vpad"] = density.verticalPadding;
+  if (density?.mobileMenuStyle) densityAttrs["data-mobile-menu"] = density.mobileMenuStyle;
+  const scrollSpy = navChromeNeedsScrollSpy(navChrome) ? (
+    <NavChromeScrollSpy />
+  ) : null;
+  // 6C — resolve nav + CTA once; LinkRef + prefixPublicHref stay idempotent.
   const linkCtx = { pathPrefix: publicPathPrefix ?? "", tenantId };
   const brandHref = resolveLinkLike(brand.href ?? "/", linkCtx).href;
   const navLinks = navItems.map((item) => {
@@ -467,25 +471,18 @@ export async function SiteHeaderComponent({
   // the existing resolved config (brand / navLinks / social / contacts /
   // primaryCta), so there is no duplicate content store.
   const regions = props.regions;
+  const demoPill = <HeaderDemoPill show={props.siteChrome?.demo} />; // demo talents' only marker
+  const siteLocales = props.siteChrome?.locales ?? []; // talent site languages, links to this page per locale
   if (regions) {
     const renderItem = (item: HeaderItem, idx: number) => {
-      const bp = item.responsive ?? {};
-      // Brand stays in the mobile bar by default; everything else collapses
-      // into the hamburger menu on mobile (the intelligent-responsive default).
-      const mobileDefault =
-        item.type === "wordmark" || item.type === "logo" ? "show" : "menu";
-      const attrs: Record<string, string | undefined> = {
-        "data-header-item": item.type,
-        "data-bp-desktop": bp.desktop ?? "show",
-        "data-bp-tablet": bp.tablet ?? bp.desktop ?? "show",
-        "data-bp-mobile": bp.mobile ?? mobileDefault,
-      };
+      const attrs = headerItemAttrs(item);
       const key = `${item.type}-${idx}`;
       switch (item.type) {
         case "wordmark":
           return brand.label ? (
             <a key={key} {...attrs} className="site-header__ritem site-header__brand" href={brandHref}>
               <span className="site-header__brand-label">{brand.label}</span>
+              {brandTagline ? <span className="site-header__brand-tagline">{brandTagline}</span> : null}
             </a>
           ) : null;
         case "logo":
@@ -562,6 +559,7 @@ export async function SiteHeaderComponent({
           );
         }
         case "language":
+          if (siteLocales.length > 1) return <HeaderSiteLocales key={key} locales={siteLocales} hrefs={props.siteChrome?.hrefs} locale={locale} attrs={attrs} />;
           return tenantLocaleSettings.supportedLocales.length > 1 ? (
             <div key={key} {...attrs} className="site-header__ritem site-header__lang">
               {tenantLocaleSettings.supportedLocales.map((code) => (
@@ -569,6 +567,14 @@ export async function SiteHeaderComponent({
               ))}
             </div>
           ) : null;
+        case "section_switcher": {
+          // H-4: phone section switcher over the in-page links of the Navigation list.
+          const own = switcherLinksFrom(navLinks);
+          const hashLinks = own.length > 0 ? withSwitcherHome(own, pickLocale(locale, { en: "Home", es: "Inicio" })) : own;
+          return hashLinks.length > 1 ? (
+            <SectionSwitcher key={key} links={hashLinks} showIndex={item.showIndex !== false} label={pickLocale(locale, { en: "Sections", es: "Secciones" })} attrs={attrs} />
+          ) : null;
+        }
         case "spacer":
           return <span key={key} {...attrs} className="site-header__ritem site-header__spacer" aria-hidden />;
         default:
@@ -576,6 +582,8 @@ export async function SiteHeaderComponent({
       }
     };
     const allItems = [...regions.left, ...regions.center, ...regions.right];
+    // Burger + panel only when an item actually folds into it on the phone.
+    const hasMobileMenu = allItems.some((i) => (i.responsive?.mobile ?? headerItemMobileDefault(i)) === "menu");
     return (
       <header
         className="site-header"
@@ -584,6 +592,7 @@ export async function SiteHeaderComponent({
         data-variant="freeform"
         data-tone={tone}
         data-sticky={sticky ? "true" : "false"}
+        data-nav-chrome={navChrome}
         {...(scrollTone ? { "data-scroll-tone": scrollTone } : {})}
         {...densityAttrs}
         {...presentationDataAttrs(presentation)}
@@ -593,18 +602,16 @@ export async function SiteHeaderComponent({
         {scrollTone ? (
           <HeaderScrollObserver thresholdPx={scrollThresholdPx ?? 40} />
         ) : null}
+        {scrollSpy}
+        <HeaderHeightVar />
         <div className="site-header__inner site-header__inner--freeform">
           <div className="site-header__region" data-region="left">{regions.left.map(renderItem)}</div>
           <div className="site-header__region" data-region="center">{regions.center.map(renderItem)}</div>
-          <div className="site-header__region" data-region="right">{regions.right.map(renderItem)}</div>
-          <input type="checkbox" id={`${sectionId}-menu`} className="site-header__menu-toggle" aria-hidden="true" tabIndex={-1} />
-          <label htmlFor={`${sectionId}-menu`} className="site-header__burger" aria-label="Menu">
-            <span /><span /><span />
-          </label>
+          <div className="site-header__region" data-region="right">{demoPill}{regions.right.map(renderItem)}</div>
+          {hasMobileMenu ? <input type="checkbox" id={`${sectionId}-menu`} className="site-header__menu-toggle" aria-hidden="true" tabIndex={-1} /> : null}
+          {hasMobileMenu ? <label htmlFor={`${sectionId}-menu`} className="site-header__burger" aria-label="Menu"><span /><span /><span /></label> : null}
         </div>
-        <div className="site-header__mobile-panel" data-mobile-panel="">
-          {allItems.map((item, i) => renderItem(item, i))}
-        </div>
+        {hasMobileMenu ? <div className="site-header__mobile-panel" data-mobile-panel="">{allItems.filter((i) => i.type !== "section_switcher").map((item, i) => renderItem(item, i))}</div> : null}
       </header>
     );
   }
@@ -617,6 +624,7 @@ export async function SiteHeaderComponent({
       data-variant={variant}
       data-tone={tone}
       data-sticky={sticky ? "true" : "false"}
+      data-nav-chrome={navChrome}
       data-has-cluster={hasCluster ? "true" : "false"}
       {...(scrollTone ? { "data-scroll-tone": scrollTone } : {})}
       {...densityAttrs}
@@ -624,12 +632,11 @@ export async function SiteHeaderComponent({
       style={presentationInlineStyles(presentation)}
     >
       {responsiveCss ? <style dangerouslySetInnerHTML={{ __html: responsiveCss }} /> : null}
-      {/* Noir & Or — drive the transparent→solid bar once the page scrolls past
-          the threshold. Only mounts when an operator set a scroll tone, so other
-          tenants pay nothing. Client island; self-discovers this header. */}
+      {/* Scroll-to-solid observer; mounts only when scrollTone is set. */}
       {scrollTone ? (
         <HeaderScrollObserver thresholdPx={scrollThresholdPx ?? 40} />
       ) : null}
+      {scrollSpy}
       <div className="site-header__inner">
         {hasCluster ? (
           <div className="site-header__cluster" data-cluster-zone="lead">
@@ -753,7 +760,7 @@ export async function SiteHeaderComponent({
             standard / minimal / split / editorial keep their exact prior
             flat layout; editorial-split promotes it to a real flex zone
             so the brand stays optically centred. */}
-        <div className="site-header__actions">
+        <div className="site-header__actions">{demoPill}
           {/* The v11 prototype's top bar has NO inline CTA — "Start an
               Inquiry" lives in the hero + the ☰ drawer, keeping the
               wordmark dead-centre with air around it. So for

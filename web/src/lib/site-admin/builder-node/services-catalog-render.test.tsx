@@ -163,6 +163,44 @@ test("empty catalogue renders the empty state, never a blank section", () => {
   assert.match(html, /No services are published yet\.|Todavía no hay servicios publicados\./);
 });
 
+test("talentOfferingsLoading paints dedicated loading skeleton (BRIEF-03)", () => {
+  const en = render([catalogNode()], { talentOfferingsLoading: true });
+  assert.match(en, /data-catalog-loading=""/);
+  assert.match(en, /aria-busy="true"/);
+  assert.match(en, /Loading services/);
+  assert.match(en, /site-builder-node--services-catalog-skel/);
+  assert.doesNotMatch(en, /No services are published yet/);
+  assert.doesNotMatch(en, /data-offering-cta=/);
+
+  const esHtml = renderToStaticMarkup(
+    renderBuilderNodes([catalogNode()], {
+      mode: "freeform",
+      includeRendererStyles: false,
+      includeFontLinks: false,
+      visitorLocale: "es",
+      dataSources: { talentOfferingsLoading: true },
+    }) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+  assert.match(esHtml, /Cargando servicios/);
+});
+
+test("talentOfferingsLoading wins over empty and over ready rows", () => {
+  const overEmpty = render([catalogNode()], {
+    talentOfferingsLoading: true,
+    talentOfferings: [],
+  });
+  assert.match(overEmpty, /data-catalog-loading=""/);
+  assert.doesNotMatch(overEmpty, /No services are published yet/);
+
+  const overReady = render([catalogNode()], {
+    talentOfferingsLoading: true,
+    talentOfferings: [offering({})],
+  });
+  assert.match(overReady, /data-catalog-loading=""/);
+  assert.doesNotMatch(overReady, /Gel pedicure/);
+  assert.doesNotMatch(overReady, /data-offering-cta=/);
+});
+
 test("a product's price row omits '· N min', a service's does not", () => {
   const html = render([catalogNode()], {
     talentOfferings: [
@@ -180,15 +218,26 @@ test("italic {i} markers render as em, never as raw braces", () => {
   assert.doesNotMatch(html, /\{i\}|\{\/i\}/);
 });
 
-test("ctaLabel overrides the OfferingCta text", () => {
+test("request / approval posture ignores CMS Seleccionar ctaLabel", () => {
+  // talentOfferingsConfirmsByHand defaults to true → force request_to_book.
+  // Mode wins over inspector ctaLabel (MODE-6 / #2357).
   const html = render([catalogNode({ ctaLabel: "Seleccionar" })], {
     talentOfferings: [offering({})],
+  });
+  assert.match(html, />Request appointment</);
+  assert.doesNotMatch(html, />Seleccionar</);
+});
+
+test("ctaLabel overrides the OfferingCta text on instant (no force-request)", () => {
+  const html = render([catalogNode({ ctaLabel: "Seleccionar" })], {
+    talentOfferings: [offering({})],
+    talentOfferingsConfirmsByHand: false,
   });
   assert.match(html, />Seleccionar</);
 });
 
-test("row with extras uses Elegir opciones unless inspector overrides", () => {
-  const html = render([catalogNode()], {
+test("row with extras uses Choose options even when inspector ctaLabel is Select", () => {
+  const html = render([catalogNode({ ctaLabel: "Select" })], {
     talentOfferings: [
       offering({
         addOns: [{ id: "x1", label: "French", amountCents: 8000 }],
@@ -196,7 +245,26 @@ test("row with extras uses Elegir opciones unless inspector overrides", () => {
     ],
   });
   assert.match(html, />Choose options</);
+  assert.doesNotMatch(html, />Select</);
   assert.match(html, /data-offering-cta=/);
+});
+
+test("ladder rows print Desde / From above region-aware money", () => {
+  const html = render([catalogNode()], {
+    talentOfferings: [
+      offering({
+        title: "Soft Gel",
+        amountCents: 50000,
+        variants: [
+          { id: "v2", label: "Largo #2", amountCents: 50000 },
+          { id: "v3", label: "Largo #3", amountCents: 55000 },
+        ],
+      }),
+    ],
+  });
+  assert.match(html, /<small>From<\/small>/);
+  assert.match(html, /\$500/);
+  assert.doesNotMatch(html, /500\s*MXN/);
 });
 
 test("the catalog island mounts the booking sheet and bar", () => {
@@ -217,4 +285,390 @@ test("category_order wins over first-seen order in the pill strip", () => {
   const pest = html.indexOf('data-catalog-tab="Pestañas"');
   const unas = html.indexOf('data-catalog-tab="Uñas"');
   assert.ok(pest >= 0 && unas >= 0 && pest < unas);
+});
+
+test("layout prop is emitted and cards layout uses a multi-column list", () => {
+  const html = render([catalogNode({ layout: "cards", columns: 2 })], {
+    talentOfferings: [offering({})],
+  });
+  assert.match(html, /data-layout="cards"/);
+  assert.match(html, /--svc-columns:\s*2/);
+});
+
+test("compact_list omits photos even when showPhoto is true", () => {
+  const html = render([catalogNode({ layout: "compact_list", showPhoto: true })], {
+    talentOfferings: [offering({})],
+  });
+  assert.match(html, /data-layout="compact_list"/);
+  assert.doesNotMatch(html, /gel-pedicure\.jpg/);
+});
+
+test("rate_card omits photos and emits hairline layout attrs", () => {
+  const html = render(
+    [
+      catalogNode({
+        layout: "rate_card",
+        showPhoto: true,
+        density: "compact",
+        categoryNav: "sections",
+        showDuration: true,
+        showPrice: true,
+      }),
+    ],
+    {
+      talentOfferings: [
+        offering({
+          id: "a",
+          title: "Editorial day",
+          category: "Studio",
+          durationMinutes: 480,
+          imageUrls: ["https://example.test/gel-pedicure.jpg"],
+        }),
+        offering({
+          id: "b",
+          title: "Half day",
+          category: "Studio",
+          durationMinutes: 240,
+          imageUrls: ["https://example.test/other.jpg"],
+        }),
+      ],
+    },
+  );
+  assert.match(html, /data-layout="rate_card"/);
+  assert.match(html, /data-density="compact"/);
+  assert.match(html, /data-show-photo="false"/);
+  assert.doesNotMatch(html, /gel-pedicure\.jpg/);
+  assert.match(html, /Editorial day/);
+  assert.match(html, /site-builder-node--services-catalog-duration/);
+  assert.match(html, /site-builder-node--services-catalog-price/);
+});
+
+test("tabs categoryNav uses distinct data-category-nav=tabs", () => {
+  const html = render([catalogNode({ categoryNav: "tabs" })], {
+    talentOfferings: [
+      offering({ id: "a", title: "Manicure", category: "Uñas" }),
+      offering({ id: "b", title: "Lash lift", category: "Pestañas" }),
+    ],
+  });
+  assert.match(html, /data-category-nav="tabs"/);
+});
+
+test("jump nav uses serializable nodeId-derived fragment ids", () => {
+  const html = render([catalogNode({ categoryNav: "jump_strip" })], {
+    talentOfferings: [
+      offering({ id: "a", title: "Manicure", category: "Uñas" }),
+      offering({ id: "b", title: "Lash lift", category: "Pestañas" }),
+    ],
+  });
+  // "Uñas" → slug "u-as" (ñ stripped); node id from catalogNode helper is cat-1.
+  assert.match(html, /href="#cat-1-u-as"/);
+  assert.match(html, /id="cat-1-u-as"/);
+  assert.match(html, /href="#cat-1-pesta-as"/);
+});
+
+test("catalog island props are JSON-serializable (RSC boundary)", () => {
+  // Reconstruct the props object the server renderer hands the client island.
+  // A function `jumpSlug` here is exactly what 500'd vanity hosts after #2272.
+  const nodeId = "mn-svc-catalog-golive";
+  const groups = [
+    {
+      name: "Uñas",
+      items: [offering({ id: "a", category: "Uñas" })],
+    },
+  ];
+  const props = {
+    groups,
+    locale: "es",
+    nav: "pills" as const,
+    showPhoto: true,
+    showDuration: true,
+    showUsdEquivalent: false,
+    confirmsByHand: true,
+    usdRates: null,
+    ctaLabel: "Seleccionar",
+    bookingMode: "live" as const,
+    tenantId: "tenant-1",
+    nodeId,
+  };
+  assert.doesNotThrow(() => JSON.stringify(props));
+  assert.equal(typeof props.nodeId, "string");
+  assert.equal("jumpSlug" in props, false);
+});
+
+test("golive-shaped services_catalog SSR markup has no __next_error__", () => {
+  const golive = catalogNode({
+    eyebrow: "EL MENÚ",
+    title: "Servicios {i}y precios{/i}",
+    subtitle: "Todos los precios en pesos mexicanos (MXN). Se paga en el estudio.",
+    ctaLabel: "Seleccionar",
+    categoryNav: "pills",
+    showUsdEquivalent: false,
+    anchorId: "servicios",
+  });
+  golive.id = "mn-svc-catalog-golive";
+  const html = render([golive], {
+    talentOfferings: [
+      offering({ id: "a", title: "Manicure", category: "Uñas" }),
+      offering({ id: "b", title: "Lash lift", category: "Pestañas" }),
+      offering({ id: "c", title: "Brow", category: "Cejas" }),
+      offering({ id: "d", title: "Wax", category: "Depilación" }),
+    ],
+    talentOfferingsConfirmsByHand: true,
+    catalogBookingLive: true,
+    tenantId: "tenant-1",
+  });
+  assert.match(html, /data-builder-node-kind="services_catalog"/);
+  assert.match(html, /mn-svc-catalog-golive/);
+  assert.match(html, /EL MEN/);
+  assert.match(html, /Seleccionar/);
+  assert.match(html, /class="cb-island"/);
+  assert.doesNotMatch(html, /__next_error__/);
+  assert.doesNotMatch(html, /Algo no cargó/);
+});
+
+test("selectionMode ids only renders selected eligible offerings", () => {
+  const html = render(
+    [
+      catalogNode({
+        selectionMode: "ids",
+        selectedOfferingIds: ["keep-me"],
+      }),
+    ],
+    {
+      talentOfferings: [
+        offering({ id: "keep-me", title: "Keep me" }),
+        offering({ id: "hide-me", title: "Hide me" }),
+      ],
+    },
+  );
+  assert.match(html, /Keep me/);
+  assert.doesNotMatch(html, /Hide me/);
+});
+
+test("mixed duration formats as hours and minutes", () => {
+  const html = render([catalogNode({ durationFormat: "auto" })], {
+    talentOfferings: [offering({ durationMinutes: 135, title: "Long service" })],
+  });
+  assert.match(html, /2 h 15 min · estimated duration/);
+});
+
+test("outline CTA variant is the default data attribute", () => {
+  const html = render([catalogNode()], { talentOfferings: [offering({})] });
+  assert.match(html, /data-cta-variant="outline"/);
+});
+
+test("solid CTA variant sets data-cta-variant solid", () => {
+  const html = render([catalogNode({ rowCtaVariant: "solid" })], {
+    talentOfferings: [offering({})],
+  });
+  assert.match(html, /data-cta-variant="solid"/);
+});
+
+test("solid CTA variant has dedicated CSS (not outline-only)", () => {
+  const html = renderToStaticMarkup(
+    renderBuilderNodes([catalogNode({ rowCtaVariant: "solid" })], {
+      mode: "freeform",
+      includeRendererStyles: true,
+      includeFontLinks: false,
+      dataSources: { talentOfferings: [offering({})] },
+    }) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+  assert.match(
+    html,
+    /data-cta-variant="solid"]\s*\.site-builder-node--services-catalog-cta\{background:var\(--token-color-ink\)/,
+  );
+});
+
+test("each layout sets a distinct data-layout attribute", () => {
+  for (const layout of [
+    "rows",
+    "cards",
+    "grid",
+    "compact_list",
+    "rate_card",
+    "editorial",
+    "featured",
+  ] as const) {
+    const html = render([catalogNode({ layout })], {
+      talentOfferings: [offering({ id: "a" }), offering({ id: "b", title: "Other" })],
+    });
+    assert.match(html, new RegExp(`data-layout="${layout}"`));
+  }
+});
+
+test("featured layout puts featuredOfferingIds first as hero", () => {
+  const html = render(
+    [
+      catalogNode({
+        layout: "featured",
+        featuredOfferingIds: ["hero"],
+        categoryNav: "pills",
+      }),
+    ],
+    {
+      talentOfferings: [
+        offering({ id: "other", title: "Other service", category: "A", sortOrder: 0 }),
+        offering({ id: "hero", title: "Hero service", category: "B", sortOrder: 1 }),
+      ],
+    },
+  );
+  assert.match(html, /data-layout="featured"/);
+  // Flat list for featured — hero title appears before other in markup
+  const heroAt = html.indexOf("Hero service");
+  const otherAt = html.indexOf("Other service");
+  assert.ok(heroAt >= 0 && otherAt >= 0 && heroAt < otherAt);
+});
+
+test("grid defaults to 3 columns via --svc-columns", () => {
+  const html = render([catalogNode({ layout: "grid" })], {
+    talentOfferings: [offering({})],
+  });
+  assert.match(html, /--svc-columns:\s*3/);
+});
+
+test("sections categoryNav omits jump strip", () => {
+  const html = render([catalogNode({ categoryNav: "sections" })], {
+    talentOfferings: [
+      offering({ id: "a", category: "Uñas" }),
+      offering({ id: "b", category: "Cejas", title: "Brow" }),
+    ],
+  });
+  assert.match(html, /data-builder-node-kind="services_catalog"[^>]*data-category-nav="sections"/);
+  // Jump strip is a <nav data-category-nav="jump"> — sections must not emit one.
+  assert.doesNotMatch(html, /<nav[^>]*data-category-nav="jump"/);
+  assert.match(html, /site-builder-node--services-catalog-group-title/);
+});
+
+test("jump_strip categoryNav renders jump strip", () => {
+  const html = render([catalogNode({ categoryNav: "jump_strip" })], {
+    talentOfferings: [
+      offering({ id: "a", category: "Uñas" }),
+      offering({ id: "b", category: "Cejas", title: "Brow" }),
+    ],
+  });
+  assert.match(html, /data-category-nav="jump"/);
+});
+
+/** W-01 Maison v2 — sticky desktop rail + phone chips (filter nav). */
+test("rail categoryNav emits data-category-nav=rail and body wrapper", () => {
+  const html = render([catalogNode({ categoryNav: "rail", layout: "rows" })], {
+    talentOfferings: [
+      offering({ id: "a", category: "Uñas", title: "Manicure", imageUrls: ["https://example.test/a.jpg"] }),
+      offering({ id: "b", category: "Cejas", title: "Brow", imageUrls: ["https://example.test/b.jpg"] }),
+    ],
+  });
+  assert.match(html, /data-builder-node-kind="services_catalog"[^>]*data-category-nav="rail"/);
+  assert.match(html, /data-layout="rows"/);
+  assert.match(html, /site-builder-node--services-catalog-body[^>]*data-category-nav="rail"/);
+  assert.match(html, /<nav[^>]*data-category-nav="rail"/);
+  assert.match(html, /data-catalog-tab="Uñas"/);
+  assert.match(html, /class="cb-island"/);
+  // Proposal row packing: photo + name + buy/CTA still present.
+  assert.match(html, /site-builder-node--services-catalog-photo/);
+  assert.match(html, /site-builder-node--services-catalog-name/);
+  assert.match(html, /site-builder-node--services-catalog-cta/);
+});
+
+/** Maison v2 rows: price inline after the duration, group heads with counts, pill dock. */
+test("pricePlacement meta + rail group heads + pill bar", () => {
+  const html = render(
+    [catalogNode({ categoryNav: "rail", layout: "rows", pricePlacement: "meta", mobileBar: "pill", categoryShowCounts: true, categoryShowAll: true })],
+    {
+      talentOfferings: [
+        offering({ id: "a", category: "Uñas", title: "Manicure", durationMinutes: 90, imageUrls: ["https://example.test/a.jpg"] }),
+        offering({ id: "b", category: "Cejas", title: "Brow", durationMinutes: 50, imageUrls: ["https://example.test/b.jpg"] }),
+      ],
+    },
+  );
+  assert.match(html, /data-price-in-meta="true"[\s\S]*?1 h 30 min/);
+  assert.doesNotMatch(html, /estimated duration/);
+  assert.match(html, /site-builder-node--services-catalog-group-count">1 service</);
+  assert.match(html, /site-builder-node--services-catalog-pill-count">1</);
+  assert.match(html, /data-bar-style="pill"[\s\S]*?cb-bar-chat[\s\S]*?See services/);
+});
+
+/** BLD five-settings — public SSR markers for change→publish verification. */
+test("five-settings: layout / categoryNav / showPhoto / search / stylePreset emit public attrs", () => {
+  const html = render(
+    [
+      catalogNode({
+        layout: "cards",
+        categoryNav: "tabs",
+        showPhoto: false,
+        enableCatalogSearch: true,
+        stylePreset: "image_led",
+      }),
+    ],
+    {
+      talentOfferings: [
+        offering({ id: "a", category: "Uñas", imageUrls: ["https://example.test/a.jpg"] }),
+        offering({ id: "b", category: "Cejas", title: "Brow", imageUrls: ["https://example.test/b.jpg"] }),
+      ],
+    },
+  );
+  assert.match(html, /data-layout="cards"/);
+  assert.match(html, /data-category-nav="tabs"/);
+  assert.match(html, /data-show-photo="false"/);
+  assert.match(html, /data-enable-catalog-search="true"/);
+  assert.match(html, /data-style-preset="image_led"/);
+  assert.doesNotMatch(html, /example\.test\/a\.jpg/);
+});
+
+test("five-settings: showPhoto true keeps photos and search defaults off", () => {
+  const html = render([catalogNode({ layout: "rows", showPhoto: true })], {
+    talentOfferings: [offering({ imageUrls: ["https://example.test/gel-pedicure.jpg"] })],
+  });
+  assert.match(html, /data-show-photo="true"/);
+  assert.match(html, /data-enable-catalog-search="false"/);
+  assert.doesNotMatch(html, /data-style-preset=/);
+  assert.match(html, /gel-pedicure\.jpg/);
+});
+
+/** MENU-P1 — authored blush binding survives useWebsiteTheme (no shared CSS paint). */
+test("useWebsiteTheme still paints authored style.backgroundColor band ground", () => {
+  const html = render(
+    [
+      catalogNode({
+        useWebsiteTheme: true,
+        style: { backgroundColor: "token:color.surface-raised" },
+      }),
+    ],
+    { talentOfferings: [offering({})] },
+  );
+  assert.match(
+    html,
+    /data-builder-node-kind="services_catalog"[^>]*style="[^"]*background-color:var\(--token-color-surface-raised/,
+    "live-bound surface-raised must paint when useWebsiteTheme is on",
+  );
+});
+
+test("useWebsiteTheme without authored backgroundColor does not force blush", () => {
+  const html = render([catalogNode({ useWebsiteTheme: true })], {
+    talentOfferings: [offering({})],
+  });
+  const section = html.match(
+    /<section[^>]*data-builder-node-kind="services_catalog"[^>]*>/,
+  )?.[0];
+  assert.ok(section, "catalog section must render");
+  assert.doesNotMatch(
+    section,
+    /background-color:var\(--token-color-surface-raised/,
+    "shared path must not invent blush without an authored binding",
+  );
+});
+
+// Maison v2 proposal: an INSTANT row with options reads "Select" (the tap opens
+// the option picker); an inspector rename never applies to an options row.
+test("instant row with extras says Select and ignores the inspector ctaLabel", () => {
+  const html = render([catalogNode({ ctaLabel: "Book it" })], {
+    talentOfferings: [
+      offering({
+        bookingMode: "instant",
+        addOns: [{ id: "x1", label: "French", amountCents: 8000 }],
+      }),
+    ],
+    talentOfferingsConfirmsByHand: false,
+  });
+  assert.match(html, />Select</);
+  assert.doesNotMatch(html, />Book it</);
 });

@@ -63,16 +63,42 @@ describe("G2.1 / A0 finish-collect honesty", () => {
     assert.match(src, /createAgendaBookingPayLink/);
     assert.match(src, /recordBookingCashCollected/);
     assert.match(src, /Card needs an amount due/);
+    assert.match(src, /invalid_amount/);
     assert.doesNotMatch(src, /Card needs a linked order/);
     assert.doesNotMatch(src, /Adjust lines/);
     assert.doesNotMatch(src, /adjustLines/);
   });
 
   it("createAgendaBookingPayLink ensures an order shell when missing", () => {
-    const src = readFileSync(join(root, "booking-actions.ts"), "utf8");
+    // The order shell lives in agenda-order-shell.ts; booking-actions calls it.
+    const src =
+      readFileSync(join(root, "booking-actions.ts"), "utf8") + readFileSync(join(root, "agenda-order-shell.ts"), "utf8");
     assert.match(src, /ensureAgendaOrderShell/);
     assert.match(src, /source_channel:\s*"talent_agenda"/);
+    assert.match(src, /guest_session_id/);
+    assert.match(src, /ensureCustomer/);
     assert.doesNotMatch(src, /reason:\s*"no_order"/);
+  });
+
+  it("createAgendaBookingPayLink rewrites app origin onto a tenant /pay host", () => {
+    const src = readFileSync(join(root, "booking-actions.ts"), "utf8");
+    assert.match(src, /resolveAgendaPayPublicOrigin/);
+    assert.match(src, /pay-public-origin/);
+    assert.match(src, /talentProfileId:\s*own\.talentId/);
+    // Must not pass a raw window origin straight into createPaymentLink.
+    assert.doesNotMatch(
+      src,
+      /createPaymentLink\([\s\S]*publicOrigin:\s*input\.publicOrigin\.replace/,
+    );
+  });
+
+  it("ensureAgendaOrderShell aligns a short unpaid talent_agenda shell before mint", () => {
+    const src = readFileSync(join(root, "agenda-order-shell.ts"), "utf8");
+    assert.match(src, /alignAgendaOrderShellToAmount/);
+    assert.match(src, /currentTotal >= input\.amountCents/);
+    assert.match(src, /state", "reserved"/);
+    // Must grow the shell to the owed mint amount — never zero it out.
+    assert.doesNotMatch(src, /total_cents:\s*0/);
   });
 
   it("New booking request_link copy does not claim a link was created", () => {

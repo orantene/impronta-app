@@ -15,6 +15,7 @@ import type { RefObject } from "react";
 import { FONT, paletteFor, primaryBtnStyle, type SurfaceMode } from "./mini-chat-styles";
 import { SendIcon } from "./MiniChatMessageBubble";
 import a11y from "./mini-chat-a11y.module.css";
+import composerCss from "./guest-composer.module.css";
 
 export type MiniChatComposerProps = {
   draft: string;
@@ -97,13 +98,15 @@ export function MiniChatComposer({
         placeholder={placeholder}
         rows={1}
         disabled={sending || inCooldown}
-        className={a11y.focusRing}
+        className={`${a11y.focusRing} ${composerCss.composerInput}`}
         style={{
           flex: 1,
-          minHeight: 40,
+          minWidth: 0,
+          // DoR F02/F04/F08 pill input: min-height 42, radius 21.
+          minHeight: 42,
           maxHeight: 132,
-          padding: "10px 12px",
-          borderRadius: 12,
+          padding: "11px 16px",
+          borderRadius: 21,
           border: `1px solid ${C.borderSoft}`,
           background: C.surfaceFaint,
           fontFamily: FONT,
@@ -124,16 +127,25 @@ export function MiniChatComposer({
         onClick={onSubmit}
         disabled={sendDisabled}
         aria-label="Send message"
+        data-send-state={sendDisabled ? "disabled" : "ready"}
         style={{
           ...primaryBtnStyle(accent, accentInk),
-          height: 40,
-          width: 46,
+          // Front-door brief `.send`: round solid control, 42px (DoR F02/F04/F08).
+          height: 42,
+          width: 42,
+          flexShrink: 0,
           padding: 0,
-          opacity: sendDisabled ? 0.45 : 1,
+          borderRadius: "50%",
+          // AUD-040b: empty reads as intentionally disabled (neutral grey), not a
+          // washed-out brand pink; with text it is the solid brand fill.
+          ...(sendDisabled
+            ? { background: C.surfaceCool, color: C.inkDim, border: "none", boxShadow: "none" }
+            : null),
+          opacity: 1,
           cursor: sendDisabled ? "not-allowed" : "pointer",
         }}
       >
-        {sending ? "…" : <SendIcon color={accentInk} />}
+        {sending ? "…" : <SendIcon color={sendDisabled ? C.inkDim : accentInk} />}
       </button>
     </div>
   );

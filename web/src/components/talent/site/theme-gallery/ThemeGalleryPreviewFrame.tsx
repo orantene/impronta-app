@@ -4,6 +4,7 @@
  * ThemeGalleryPreviewFrame — the live preview iframe shared by both gallery
  * steps. Visible loading / error / retry states (deliverable 0.C-1).
  */
+import { useEffect, useRef, useState } from "react";
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import type { ThemeGalleryLocale } from "./theme-gallery-i18n";
 import { themeGalleryCopy } from "./theme-gallery-i18n";
@@ -14,16 +15,42 @@ export function ThemeGalleryPreviewFrame({
   url,
   locale,
   title,
+  /** W71 — Maison setup uses exact fail copy; gallery keeps its own defaults. */
+  errorTitle,
+  errorBody,
+  retryLabel,
+  virtualWidth,
+  aspectRatio,
 }: {
+  /** Render the page at this width and scale it down to the box (desktop thumbnail). */
+  virtualWidth?: number;
+  /** Box shape, e.g. "4 / 3". Defaults to the phone-shaped 9 / 16. */
+  aspectRatio?: string;
   preview: ReturnType<typeof useThemePreview>;
   url: string;
   locale: ThemeGalleryLocale | string | undefined;
   title: string;
+  errorTitle?: string;
+  errorBody?: string;
+  retryLabel?: string;
 }) {
   const { iframeRef, loadState, attempt, onLoad, onError, beginLoad, retry } = preview;
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const [boxSize, setBoxSize] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    if (!virtualWidth || !boxRef.current) return;
+    const el = boxRef.current;
+    const measure = () => setBoxSize({ w: el.clientWidth, h: el.clientHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [virtualWidth]);
+  const scale = virtualWidth && boxSize && boxSize.w > 0 ? boxSize.w / virtualWidth : null;
 
   return (
     <div
+      ref={boxRef}
       data-theme-gallery-preview=""
       style={{
         position: "relative",
@@ -31,8 +58,8 @@ export function ThemeGalleryPreviewFrame({
         overflow: "hidden",
         border: `1px solid ${COLORS.borderSoft}`,
         background: "#fff",
-        minHeight: 320,
-        aspectRatio: "9 / 16",
+        minHeight: virtualWidth ? undefined : 320,
+        aspectRatio: aspectRatio ?? "9 / 16",
         maxHeight: 640,
       }}
     >
@@ -45,8 +72,10 @@ export function ThemeGalleryPreviewFrame({
         onError={onError}
         onLoadStart={beginLoad}
         style={{
-          width: "100%",
-          height: "100%",
+          width: scale ? virtualWidth : "100%",
+          height: scale && boxSize ? boxSize.h / scale : "100%",
+          transform: scale ? `scale(${scale})` : undefined,
+          transformOrigin: "0 0",
           border: "none",
           display: "block",
           background: "#fff",
@@ -62,12 +91,15 @@ export function ThemeGalleryPreviewFrame({
       ) : null}
 
       {loadState === "error" ? (
-        <PreviewOverlay>
-          <span style={{ ...overlayText, color: COLORS.criticalDeep }}>
-            {themeGalleryCopy(locale, "previewError")}
+        <PreviewOverlay data-testid="maison-preview-fail">
+          <span style={{ ...overlayText, color: COLORS.criticalDeep, fontWeight: 600 }}>
+            {errorTitle ?? themeGalleryCopy(locale, "previewError")}
           </span>
-          <button type="button" onClick={retry} style={retryBtn}>
-            {themeGalleryCopy(locale, "previewRetry")}
+          {errorBody ? (
+            <span style={{ ...overlayText, textAlign: "center", maxWidth: 220 }}>{errorBody}</span>
+          ) : null}
+          <button type="button" onClick={retry} style={retryBtn} data-testid="maison-preview-retry">
+            {retryLabel ?? themeGalleryCopy(locale, "previewRetry")}
           </button>
         </PreviewOverlay>
       ) : null}
@@ -75,10 +107,14 @@ export function ThemeGalleryPreviewFrame({
   );
 }
 
-function PreviewOverlay({ children }: { children: React.ReactNode }) {
+function PreviewOverlay({
+  children,
+  ...rest
+}: { children: React.ReactNode } & React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       role="status"
+      {...rest}
       style={{
         position: "absolute",
         inset: 0,

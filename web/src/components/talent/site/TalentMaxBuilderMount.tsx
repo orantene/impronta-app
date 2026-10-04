@@ -23,18 +23,18 @@
  */
 
 import { useEffect, useMemo, useRef } from "react";
-import { useRouter } from "next/navigation";
 
+import { FirstPaintTipBottomProvider } from "@/components/edit-chrome/first-paint-tip-context";
+import { TalentAiTranslateProvider } from "@/components/locale-field/talent-ai-context";
 import { BuilderEditorMount } from "@/lib/site-admin/builder-core/mount/BuilderEditorMount";
 import { buildTalentPageBuilderConfig } from "@/lib/site-admin/builder-core/config";
 import { createBoundTalentPageAdapter } from "@/lib/site-admin/builder-core/adapters/talent-page-adapter";
-import { CHROME } from "@/components/edit-chrome/kit/tokens";
 import { TALENT_LOCKED_OPERATION_EVENT } from "@/components/edit-chrome/talent-lock-broadcast";
 import { BuilderMediaScopeProvider } from "@/components/edit-chrome/builder-media-scope";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
+import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
 import type { TalentSiteCapabilities } from "@/lib/access/talent-membership";
-import { TalentBuilderPageSwitcher } from "./TalentBuilderPageSwitcher";
 
 export interface TalentMaxBuilderMountProps {
   /**
@@ -69,12 +69,17 @@ export interface TalentMaxBuilderMountProps {
   onExit?: () => void;
   /** Server-assembled in-editor canvas render data (data sources + islands). */
   canvasRenderData?: InEditorCanvasRenderData | null;
+  /** Server-primed page composition (the route reads the talent_pages row
+   *  once). When present the editor opens on it instead of a client load. */
+  initialComposition?: CompositionData | null;
   /**
    * The site's pages — when provided, the exit bar renders the multi-page
    * switcher (switch page / add page / jump to shell or manager). Omitted on the
    * legacy single-page entry, which keeps the plain display-name chip.
    */
   sitePages?: MaxSiteManagerPage[];
+  /** PR 7: talent languages -> builder defaultLocale / availableLocales. */
+  talentLocales?: { primary: string; secondary: readonly string[] };
 }
 
 export function TalentMaxBuilderMount({
@@ -88,7 +93,9 @@ export function TalentMaxBuilderMount({
   locale,
   onExit,
   canvasRenderData = null,
+  initialComposition = null,
   sitePages,
+  talentLocales,
 }: TalentMaxBuilderMountProps) {
   // Create a per-mount adapter with talentProfileId in closure.
   // Config rebuilds on talentProfileId, tier or capability record change.
@@ -107,7 +114,6 @@ export function TalentMaxBuilderMount({
   // card on Settings instead of leaving the event unheard. `navigatedRef`
   // stops a second denial (e.g. a repeated click while the toast is still up)
   // from firing a second navigation.
-  const router = useRouter();
   const navigatedRef = useRef(false);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -115,96 +121,33 @@ export function TalentMaxBuilderMount({
       if (navigatedRef.current) return;
       navigatedRef.current = true;
       // Give the existing denial toast a moment on screen before leaving.
-      timer = setTimeout(() => router.push("/talent/settings"), 1200);
+      // A HARD navigation: this route renders without the dashboard shell and
+      // a soft push keeps that bare layout, so the shell-only settings page
+      // would mount with no AdminShellProvider (the 2026-10-01 crash).
+      timer = setTimeout(() => window.location.assign("/talent/settings"), 1200);
     };
     window.addEventListener(TALENT_LOCKED_OPERATION_EVENT, onLocked);
     return () => {
       window.removeEventListener(TALENT_LOCKED_OPERATION_EVENT, onLocked);
       if (timer) clearTimeout(timer);
     };
-  }, [router]);
+  }, []);
 
   return (
     <BuilderMediaScopeProvider talentProfileId={talentProfileId}>
     <div data-talent-max-builder-mount>
-      {onExit && (
-        <div
-          data-talent-builder-exit-bar
-          style={{
-            position: "sticky",
-            top: 50,
-            zIndex: 41,
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "8px 16px",
-            background: CHROME.paper,
-            borderBottom: `1px solid ${CHROME.line}`,
-          }}
-        >
-          <button
-            type="button"
-            onClick={onExit}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "5px 12px",
-              borderRadius: 8,
-              border: `1px solid ${CHROME.controlBorder}`,
-              background: CHROME.controlFill,
-              color: CHROME.text,
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            ← Exit editor
-          </button>
-          {sitePages ? (
-            <TalentBuilderPageSwitcher
-              pages={sitePages}
-              currentSlug={pageSlug}
-              canAddPages={siteCapabilities?.personalSitePages ?? true}
-              locale={locale}
-            />
-          ) : (
-            talentDisplayName && (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 7,
-                  padding: "3px 10px",
-                  borderRadius: 999,
-                  background: CHROME.greenBg,
-                  color: CHROME.green,
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                }}
-              >
-                <span
-                  aria-hidden
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: CHROME.green,
-                  }}
-                />
-                {talentDisplayName}
-              </span>
-            )
-          )}
-        </div>
-      )}
-
+      {/* No exit chip / page switcher over the canvas: the builder top bar owns
+          exit, and talents have a single page. */}
+      <TalentAiTranslateProvider>
+<FirstPaintTipBottomProvider>
       <BuilderEditorMount
         surfaceConfig={surfaceConfig}
         // tenantId = the workspace/agency managing this talent (builder scope)
         tenantId={tenantId}
         workspacePlan={workspacePlan}
         locale={locale}
+        defaultLocale={talentLocales?.primary}
+        availableLocales={talentLocales ? [talentLocales.primary, ...talentLocales.secondary] : undefined}
         // pageId carries talentProfileId on talent_page surfaces (adapter contract)
         // pageSlug carries the talent_pages.slug
         pageSlug={pageSlug}
@@ -215,7 +158,14 @@ export function TalentMaxBuilderMount({
         }
         canInsertRawHtmlElements={false}
         canvasRenderData={canvasRenderData}
+        initialComposition={initialComposition}
+        // "lab" exit so the talent topbar Exit returns to My presence (soft nav
+        // out of a bare builder still reloads into the shell via the syncer).
+        headerVariant={onExit ? "lab" : "live"}
+        onExit={onExit}
       />
+      </FirstPaintTipBottomProvider>
+</TalentAiTranslateProvider>
     </div>
     </BuilderMediaScopeProvider>
   );

@@ -21,6 +21,7 @@ import {
   readChange,
   readChoices,
   readConfirmation,
+  readPaidPayment,
   readPayment,
   readTimes,
   type ClientCardKind,
@@ -32,13 +33,20 @@ import { fill, type KitCopy } from "../kit/copy";
 import { DaySeparator, MessageBubble, SystemLine } from "../kit/MessageBubble";
 import { Avatar, Btn, Icon } from "../kit/primitives";
 import { OkLine, RefusalLine } from "../kit/RefusalLine";
-import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientPaymentCard, ClientTimesCard, type CardPhase } from "./ClientCards";
+import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientOutcomeFromMessage, ClientPaymentCard, ClientTimesCard, type CardPhase } from "./ClientCards";
 import type { ClientCopy } from "./copy";
 
 export type ComposerPhase = "idle" | "sending" | "failed" | "sent";
+export type SaveEmailPhase = "idle" | "sending" | "sent" | "failed";
 
 /** `epoch` changes when a card's local form should reset (a change request was sent); the view keys the card on it. */
-export type CardActivity = { readonly phase: CardPhase; readonly refusal?: MessagingRefusal | null; readonly epoch?: number };
+/** `nextFreeTimes` is only set when a time pick is refused as taken — engine times only, never invented. */
+export type CardActivity = {
+  readonly phase: CardPhase;
+  readonly refusal?: MessagingRefusal | null;
+  readonly epoch?: number;
+  readonly nextFreeTimes?: readonly string[];
+};
 
 export type ClientThreadViewProps = {
   readonly copy: ClientCopy;
@@ -63,8 +71,12 @@ export type ClientThreadViewProps = {
   readonly onChangeOffer?: (offer: ClientOfferSummary, text: string) => void;
   readonly onChangeRecord?: (recordKind: string, recordId: string, text: string) => void;
   readonly onPay?: (code: string) => void;
-  /** Null hides the link; the current token thread has no reachable "save to email" writer (D-MSG-166), so the wrapper passes null and the line renders greyed. */
+  /** Null greys the footer control. The wrapper wires `messagingClientSaveToEmail` (D-MSG-432). */
   readonly onSaveToEmail?: (() => void) | null;
+  /** Feedback for the save-to-email write. */
+  readonly saveEmail?: SaveEmailPhase;
+  /** Mockup `return` / from-email: system line when the visitor opened via `?from=email`. */
+  readonly fromEmail?: boolean;
   /** ISO expiry of THIS `/c/t/[token]` link (D-MSG-208c). */
   readonly threadTokenExpiresAt?: string | null;
 };
@@ -72,9 +84,10 @@ export type ClientThreadViewProps = {
 export function ClientThreadView(p: ClientThreadViewProps) {
   const { copy, kit, locale, business, now } = p;
   const name = business.name;
-  const items = buildClientStream(p.messages);
-  const offerCards = offerCardMessageIds(p.messages);
+  const items = buildClientStream(p.messages, p.offers);
+  const offerCards = offerCardMessageIds(p.messages, p.offers);
   const act = (key: string): CardActivity => p.activity?.[key] ?? { phase: "idle" };
+  const savePhase = p.saveEmail ?? "idle";
 
   return (
     <div className="msgv5 cx-page" data-client-thread>
@@ -88,6 +101,11 @@ export function ClientThreadView(p: ClientThreadViewProps) {
         </header>
 
         <main className="cx-st" data-client-stream>
+          {p.fromEmail ? (
+            <div data-client-from-email>
+              <SystemLine text={copy.stream.backFromEmail} variant="mobile" />
+            </div>
+          ) : null}
           {p.loading ? (
             <div className="cx-empty" data-client-loading>
               <b>{copy.stream.loading}</b>
@@ -117,9 +135,17 @@ export function ClientThreadView(p: ClientThreadViewProps) {
         <div className="mx-cmp" data-client-footer>
           <div className="cx-foot">
             {copy.footer.secure} ·{" "}
-            <button type="button" onClick={p.onSaveToEmail ?? undefined} disabled={!p.onSaveToEmail} title={p.onSaveToEmail ? undefined : copy.footer.saveToEmailSoon} data-client-action="save_to_email">
+            <button type="button" onClick={p.onSaveToEmail ?? undefined} disabled={!p.onSaveToEmail || savePhase === "sending"} title={p.onSaveToEmail ? undefined : copy.footer.saveToEmailSoon} data-client-action="save_to_email" aria-busy={savePhase === "sending" || undefined}>
               {copy.footer.saveToEmail}
             </button>
+            {savePhase === "sent" ? <OkLine text={copy.footer.saveToEmailSent} variant="mobile" /> : null}
+            {savePhase === "failed" ? (
+              <div className="mx-line err" role="alert" data-save-email-failed>
+                <Icon name="alert" size={14} />
+                <span>{copy.footer.saveToEmailFailed}</span>
+                <Btn size="sm" onClick={p.onSaveToEmail ?? undefined}>{copy.composer.retry}</Btn>
+              </div>
+            ) : null}
             {p.threadTokenExpiresAt ? (
               <div data-client-link-expiry>
                 {fill(copy.footer.expires, { date: formatClientDate(p.threadTokenExpiresAt, locale) })}
@@ -136,6 +162,15 @@ function renderCard(p: ClientThreadViewProps, message: ThreadMessage, kind: Clie
   const { copy, kit, locale, business, now } = p;
   const name = business.name;
   const payload = message.payload;
+  const outcome = ClientOutcomeFromMessage({
+    kind,
+    payload,
+    body: message.body,
+    copy,
+    payCode: p.payCode,
+    onPay: p.onPay ?? null,
+  });
+  if (outcome) return outcome;
   switch (kind) {
     case "menu_options":
     case "service_card":
@@ -146,7 +181,7 @@ function renderCard(p: ClientThreadViewProps, message: ThreadMessage, kind: Clie
     }
     case "professional_times": {
       const a = act(message.id);
-      return <ClientTimesCard view={readTimes(payload)} copy={copy} kit={kit} business={name} locale={locale} now={now} phase={a.phase} refusal={a.refusal} onPick={p.onPickTime ? (startsAt) => p.onPickTime?.(message.id, startsAt) : undefined} onAsk={p.onComposerChange} />;
+      return <ClientTimesCard view={readTimes(payload)} copy={copy} kit={kit} business={name} locale={locale} now={now} phase={a.phase} refusal={a.refusal} nextFreeTimes={a.nextFreeTimes} onPick={p.onPickTime ? (startsAt) => p.onPickTime?.(message.id, startsAt) : undefined} onAsk={p.onComposerChange} />;
     }
     case "offer_event":
     case "offer_review":
@@ -157,10 +192,12 @@ function renderCard(p: ClientThreadViewProps, message: ThreadMessage, kind: Clie
         return <SystemLine key={message.id} text={message.body || copy.generic.message} variant="mobile" />;
       }
       const a = act(offer.id);
-      return <ClientOfferCard offer={offer} copy={copy} kit={kit} business={name} locale={locale} now={now} phase={a.phase} refusal={a.refusal} payCode={p.payCode} onAccept={p.onAcceptOffer} onDecline={p.onDeclineOffer} onChange={p.onChangeOffer} onPay={p.onPay} />;
+      return <ClientOfferCard offer={offer} offers={p.offers} copy={copy} kit={kit} business={name} locale={locale} now={now} phase={a.phase} refusal={a.refusal} payCode={p.payCode} onAccept={p.onAcceptOffer} onDecline={p.onDeclineOffer} onChange={p.onChangeOffer} onPay={p.onPay} />;
     }
     case "payment_request":
       return <ClientPaymentCard view={readPayment(payload)} copy={copy} business={name} locale={locale} now={now} onPay={p.onPay} />;
+    case "payment_paid":
+      return <ClientPaymentCard view={readPaidPayment(payload)} copy={copy} business={name} locale={locale} now={now} />;
     case "order_confirmation":
     case "appointment_confirmation": {
       const view = readConfirmation(payload);

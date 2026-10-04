@@ -85,7 +85,7 @@ export const GROUP_LABEL: Record<CatalogGroup, string> = {
 };
 
 /** Static group → ordered member views. For `structure` the gallery-tab portion
- *  (blocks/designs/data/shell) is the DESIGN-time order; at render time
+ *  (blocks/designs/data/apps/shell) is the DESIGN-time order; at render time
  *  `orderedViewsForGroup` filters those by presence + reorders to the live
  *  CODE_TAB_DEFS order, with `all` pinned first and `catalog_studio` last.
  *  design/admin are static. */
@@ -96,6 +96,7 @@ export const GROUP_VIEWS: Record<CatalogGroup, ReadonlyArray<CatalogView>> = {
     "designs",
     "data",
     "shell",
+    "apps",
     "catalog_studio",
   ],
   design: [

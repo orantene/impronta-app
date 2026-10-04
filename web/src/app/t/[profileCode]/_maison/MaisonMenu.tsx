@@ -25,14 +25,19 @@
  * works unchanged against the real instant-book and inquiry mounts.
  */
 
+import { intakeDetail } from "@/lib/talent/offering-intake";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { resolveOfferingCta } from "@/lib/talent/offerings-types";
+import { opensAskFlowOnly } from "@/lib/talent/offering-cta-derivation";
+import { openCatalogBookingChat } from "@/components/public-booking/catalog-booking-chat";
 import { formatMoney } from "@/lib/talent/offerings-money";
+import { durationLabel } from "@/lib/talent/duration-label";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import type { OfferingRequestDetail } from "../_shared/OfferingCta";
+import { offeringWhereFromAttributes } from "@/lib/talent/offering-request-detail";
 
 export type MaisonMenuCategory = { id: string; label: string; note?: string | null };
 
@@ -44,18 +49,13 @@ export type MaisonSelection = {
   currency: string;
 };
 
-export function durationLabel(minutes: number, locale: string): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h && m) return `${h} h ${m} min`;
-  if (h) return `${h} h`;
-  return `${m} min`;
-}
+export { durationLabel };
 
 /** The production event payload, built from an offering. */
 function detailFor(o: TalentOffering): OfferingRequestDetail {
   const cta = resolveOfferingCta(o);
   const instant = cta === "book_now" || cta === "buy_now";
+  const where = offeringWhereFromAttributes(o.attributes);
   return {
     offeringId: o.id,
     talentProfileId: o.talentProfileId,
@@ -78,6 +78,9 @@ function detailFor(o: TalentOffering): OfferingRequestDetail {
     // the shared sheet, so the seat cap silently stops applying.
     capacityPoolId: o.capacityPoolId,
     intent: instant ? "instant" : "request",
+    description: o.description,
+    where: where.length ? where : undefined,
+    ...intakeDetail(o.attributes),
   };
 }
 
@@ -118,13 +121,18 @@ export function railFor(
   return slotCanReceive && slotEligible ? "tulala:offering-slot" : "tulala:offering-request";
 }
 
-function dispatchOffering(
+export function dispatchOffering(
   o: TalentOffering,
   surface: "inquire" | "request" | "instant",
   step?: "when",
   inclusion?: string | null,
 ) {
   const detail = detailFor(o);
+  // Quote / inquiry service: ask flow only (unsent "Asking about" draft), never the booking sheet.
+  if (opensAskFlowOnly(resolveOfferingCta(o))) {
+    openCatalogBookingChat({ detail, askAbout: [detail.title], from: "menu" });
+    return;
+  }
   const name = railFor(o, detail, surface);
   window.dispatchEvent(
     new CustomEvent(name, { detail: { ...detail, startAt: step, inclusion: inclusion ?? null } }),

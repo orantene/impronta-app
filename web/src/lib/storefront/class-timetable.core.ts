@@ -372,7 +372,7 @@ async function bookSeat(
           payerEmail: email,
           inquiryId: result.inquiryId,
           bookingId: result.bookingId,
-          successUrl: receiptCode ? `${deps.origin}/r/${receiptCode}?paid=1` : `${deps.origin}/checkout/success`,
+          successUrl: receiptCode ? `${deps.origin}/r/${receiptCode}?paid=1` : `${deps.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${deps.origin}${input.sourcePage ?? "/"}`,
           description: session.title ?? "Class",
           locale: deps.locale,

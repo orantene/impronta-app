@@ -15,11 +15,17 @@ import { loadBuilderNodeDataSources } from "@/components/home/homepage-cms-data-
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
+import { isGuestCaptchaEnforced, splitGuestCaptchaConfigs } from "@/lib/platform/guest-captcha-enforcement";
 import {
   designTokensToCssVars,
   designTokensToDataAttrs,
 } from "@/lib/site-admin/tokens/resolve";
 import { GoogleFontsLink } from "@/app/google-fonts-link";
+import { designComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
+import {
+  isTalentShellLandmark,
+  renderTalentShellLandmark,
+} from "@/lib/talent-site/server/render-shell-landmark";
 
 /**
  * Public renderer for a FREEFORM talent Max snapshot (the platform-default
@@ -48,8 +54,20 @@ export async function TalentSiteFreeformRenderer({
   tree,
   locale,
   context,
+  dataSources: presetDataSources,
+  designSlug = null,
 }: {
   tree: BuilderNode[];
+  /**
+   * Theme preview: the caller's canvas root already projects this Design's
+   * Look tokens (`ThemeTokenPreviewFrame`). Set, this renderer inherits them
+   * instead of re-projecting the platform default on a nested canvas root
+   * (which painted every Design in the platform blue), uses the Design's own
+   * component shapes, and renders the header / footer landmarks.
+   */
+  designSlug?: string | null;
+  /** Pre-resolved sources (My content preview); skips the tenant load. */
+  dataSources?: import("@/lib/site-admin/builder-node/render").BuilderNodeRenderDataSources;
   locale: string;
   context?: {
     tenantId: string | null;
@@ -72,17 +90,26 @@ export async function TalentSiteFreeformRenderer({
     const n = nodes as { kind?: unknown; children?: unknown };
     return n.kind === "form" || hasForm(n.children);
   })(tree);
+  const pageHasServicesCatalog = (function hasCatalog(nodes: unknown): boolean {
+    if (Array.isArray(nodes)) return nodes.some(hasCatalog);
+    if (!nodes || typeof nodes !== "object") return false;
+    const n = nodes as { kind?: unknown; children?: unknown };
+    return n.kind === "services_catalog" || hasCatalog(n.children);
+  })(tree);
+  const resolveCaptcha = pageHasFormNode || pageHasServicesCatalog;
 
   // Data sources + live component instances — only load when the tree actually
   // binds them AND a managing tenant exists (the loaders are tenant-scoped
   // service-role reads). Empty objects are the no-op default. The platform-
   // default theme provides componentStyleDefaults + tokens (light Modern 2026)
   // so the page renders at parity with the published talent freeform page.
-  const [dataSources, components, platformDefault, experimentContext, pageCaptcha] =
+  const [dataSources, components, platformDefault, experimentContext, pageCaptcha, captchaEnforced] =
     await Promise.all([
-      tenantId
-        ? loadBuilderNodeDataSources(tree, tenantId, locale, null, context?.talentProfileId)
-        : Promise.resolve({}),
+      presetDataSources
+        ? Promise.resolve(presetDataSources)
+        : tenantId
+          ? loadBuilderNodeDataSources(tree, tenantId, locale, null, context?.talentProfileId)
+          : Promise.resolve({}),
       tenantId && treeHasInstances(tree)
         ? loadBuilderComponentsForTenant(tenantId)
         : Promise.resolve({}),
@@ -93,14 +120,18 @@ export async function TalentSiteFreeformRenderer({
         tenantId,
         surface: context?.experimentSurface ?? "talentSite",
       }),
-      tenantId && pageHasFormNode
+      tenantId && resolveCaptcha
         ? resolveTenantCaptcha(tenantId)
         : Promise.resolve(null),
+      isGuestCaptchaEnforced(),
     ]);
 
-  const captchaConfig = pageCaptcha
-    ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
-    : null;
+  // CMS forms keep tenant captcha regardless of HQ guest_captcha_enforced.
+  // Booking sheet alone follows the HQ switch.
+  const { formCaptchaConfig, bookingCaptchaConfig } = splitGuestCaptchaConfigs(
+    pageCaptcha,
+    captchaEnforced,
+  );
 
   // Curated section_embed nodes need a tenant render context. previewSubject
   // points the curated sections at THIS talent. NOTE: the default tree is
@@ -113,7 +144,7 @@ export async function TalentSiteFreeformRenderer({
           locale,
           publicPathPrefix,
           previewSubject: { kind: "talent", id: context.talentProfileId, locale },
-          captcha: captchaConfig,
+          captcha: formCaptchaConfig,
         })
       : null;
 
@@ -121,7 +152,9 @@ export async function TalentSiteFreeformRenderer({
   // `data-theme-canvas-root` wrapper so every bound node's `var(--token-x,
   // fallback)` resolves to the default theme rather than inheriting the host
   // tenant's tokens from <html>. Mirrors the `/t/[code]/[slug]` sibling page.
-  const tokens = platformDefault.tokens;
+  // A Design preview inherits its parent canvas instead (see `designSlug`).
+  const inherit = Boolean(designSlug);
+  const tokens = inherit ? {} : platformDefault.tokens;
   const hasTokens = Object.keys(tokens).length > 0;
   const cssVars = hasTokens ? designTokensToCssVars(tokens) : {};
   const headingFamily = tokens["typography.heading-font-family"]?.trim();
@@ -129,18 +162,67 @@ export async function TalentSiteFreeformRenderer({
   if (headingFamily) cssVars["--site-heading-font"] = headingFamily;
   if (bodyFamily) cssVars["--site-body-font"] = bodyFamily;
   const dataAttrs = hasTokens ? designTokensToDataAttrs(tokens) : {};
+  const componentStyleDefaults = designComponentStyleDefaults(
+    designSlug,
+    platformDefault.componentStyles,
+  );
+  const renderRun = (nodes: BuilderNode[]) =>
+    renderBuilderNodes(nodes, {
+      publicPathPrefix,
+      mode: "freeform",
+      includeRendererStyles: false,
+      includeFontLinks: false,
+      dataSources,
+      components,
+      componentStyleDefaults,
+      captcha: formCaptchaConfig,
+      bookingCaptcha: bookingCaptchaConfig,
+      visitorLocale: locale,
+      contentLocale: { locale, defaultLocale: "en", chain: [locale, "en"] },
+      ...experimentContext,
+      renderSectionEmbed,
+    });
+  // Landmarks render through their section Component; the rest in runs so the
+  // shared renderer still sees whole sibling groups.
+  const body: ReactNode[] = [];
+  if (inherit) {
+    let run: BuilderNode[] = [];
+    const flush = () => {
+      if (run.length) {
+        body.push(
+          <div key={`run-${body.length}`} style={{ display: "contents" }}>
+            {renderRun(run)}
+          </div>,
+        );
+      }
+      run = [];
+    };
+    for (const node of tree) {
+      if (isTalentShellLandmark(node)) {
+        flush();
+        body.push(renderTalentShellLandmark(node, { locale, tenantId, publicPathPrefix }));
+      } else {
+        run.push(node);
+      }
+    }
+    flush();
+  }
 
   return (
     <div
       data-talent-personal-site=""
       data-talent-personal-site-freeform=""
-      data-theme-canvas-root=""
+      {...(inherit ? {} : { "data-theme-canvas-root": "" })}
       {...dataAttrs}
-      style={{
-        ...(cssVars as React.CSSProperties),
-        backgroundColor: "var(--token-color-background, #ffffff)",
-        minHeight: "100vh",
-      }}
+      style={
+        inherit
+          ? undefined
+          : {
+              ...(cssVars as React.CSSProperties),
+              backgroundColor: "var(--token-color-background, #ffffff)",
+              minHeight: "100vh",
+            }
+      }
     >
       {/* REND-2 — public render: scope the renderer sheet to the kinds this
           talent-site page uses (incl. live-resolved instance kinds). Falls back
@@ -151,19 +233,7 @@ export async function TalentSiteFreeformRenderer({
       />
       <BuilderNodeFontLinks nodes={tree} components={components} />
       {hasTokens ? <GoogleFontsLink tokens={tokens} /> : null}
-      {renderBuilderNodes(tree, {
-        publicPathPrefix,
-        mode: "freeform",
-        includeRendererStyles: false,
-        includeFontLinks: false,
-        dataSources,
-        components,
-        componentStyleDefaults: platformDefault.componentStyles,
-        captcha: captchaConfig,
-        visitorLocale: locale,
-        ...experimentContext,
-        renderSectionEmbed,
-      })}
+      {inherit ? body : renderRun(tree)}
     </div>
   );
 }

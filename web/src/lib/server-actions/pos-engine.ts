@@ -137,7 +137,15 @@ export async function createPaymentLink(input: {
   const hdrs = await headers();
   const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";
   const proto = hdrs.get("x-forwarded-proto") === "http" ? "http" : "https";
-  const publicOrigin = host ? `${proto}://${host}` : "";
+  const requestedOrigin = host ? `${proto}://${host}` : "";
+  // Talents mint from app.tulala.digital; /pay is not allowed there (GAP-JOR-3).
+  const { resolveAgendaPayPublicOrigin } = await import("@/lib/talent-agenda/pay-public-origin");
+  const publicOrigin = await resolveAgendaPayPublicOrigin(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- service-role Supabase client
+    g.admin as any,
+    g.tenantId,
+    requestedOrigin,
+  );
   return mintPaymentLink(g.admin, {
     tenantId: g.tenantId,
     actorUserId: g.userId,

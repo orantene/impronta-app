@@ -1,5 +1,6 @@
 "use client";
 
+import { shouldCelebratePlan } from "./upgrade-celebration-gate";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
@@ -54,9 +55,6 @@ export function SurfaceRouter() {
 function UpgradeCelebration() {
   const { state } = useAdminShell();
   const t = useT();
-  const planRanks: Record<Plan, number> = {
-    free: 0, website: 1, studio: 2, agency: 3, network: 4,
-  };
   const SS_KEY = "tulala_prev_plan";
   const [showing, setShowing] = useState<Plan | null>(null);
 
@@ -73,13 +71,11 @@ function UpgradeCelebration() {
     try { prev = window.sessionStorage.getItem(SS_KEY) as Plan | null; } catch {}
     // Persist the "last seen plan" each time, regardless of celebration.
     try { window.sessionStorage.setItem(SS_KEY, key); } catch {}
-    if (!prev) return; // first time in session — don't celebrate
-    if (prev === key) return;
-    if (planRanks[key] <= planRanks[prev]) return; // downgrade or sideways
+    if (!shouldCelebratePlan(prev, key, state.surface)) return;
     setShowing(key);
     const t = setTimeout(() => setShowing(null), 6000);
     return () => clearTimeout(t);
-  }, [state.plan]);
+  }, [state.plan, state.surface]);
 
   if (!showing) return null;
 

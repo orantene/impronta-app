@@ -47,6 +47,7 @@ export function ContextPanel(props: ContextPanelProps) {
 
   const money = moneyOf(props.money);
   const main = mainRecordChip(chips);
+  const canRefund = chips.some((c) => c.paymentState === "paid" || c.paymentState === "partially_refunded");
 
   return (
     <div className="msgv5" data-context-panel>
@@ -133,9 +134,15 @@ export function ContextPanel(props: ContextPanelProps) {
         ) : (
           <EmptyState small title={copy.panel.money.none} />
         )}
-        <Btn size="sm" variant="primary" onClick={() => onAction("request_payment")} data-request-payment>
-          {copy.panel.money.requestPayment}
-        </Btn>
+        {canRefund ? (
+          <Btn size="sm" onClick={() => onAction("refund")} data-refund>
+            {copy.panel.money.refund}
+          </Btn>
+        ) : (
+          <Btn size="sm" variant="primary" onClick={() => onAction("request_payment")} data-request-payment>
+            {copy.panel.money.requestPayment}
+          </Btn>
+        )}
       </PanelSection>
 
       <PanelSection title={copy.panel.files.title} open={openFiles} count={props.filesCount ?? null} copy={copy} onToggle={() => setOpenFiles((v) => !v)}>

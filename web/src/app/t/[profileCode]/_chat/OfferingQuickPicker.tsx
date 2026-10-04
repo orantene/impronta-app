@@ -17,6 +17,7 @@ import type { Translator } from "@/i18n/interpolate";
 import { formatOfferingPrice } from "@/lib/talent/offerings-types";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { FONT, paletteFor, type SurfaceMode } from "./mini-chat-styles";
+import composerCss from "./guest-composer.module.css";
 
 export type ChatOffering = GuestChatOffering;
 
@@ -37,6 +38,10 @@ function titleEndsWithWord(title: string, word: string): boolean {
   return stripped.toLowerCase() === word.toLowerCase();
 }
 
+/**
+ * Chip money line for Hablar empty-home. Mockup shows "Soft Gel 500 MXN"
+ * (amount + code, no currency symbol). Other currencies keep Intl formatting.
+ */
 export function offeringChipPriceLabel(o: ChatOffering, locale: string): string {
   if (o.amountCents == null) {
     const label = pickLocale(locale, { en: "quote", es: "cotización" });
@@ -48,10 +53,23 @@ export function offeringChipPriceLabel(o: ChatOffering, locale: string): string 
     }
     return label;
   }
+  const cur = (o.currency || "USD").trim().toUpperCase() || "USD";
+  if (cur === "MXN") {
+    const amount = o.amountCents / 100;
+    const whole = Number.isInteger(amount);
+    const shown = amount.toLocaleString("en-US", {
+      minimumFractionDigits: whole ? 0 : 2,
+      maximumFractionDigits: whole ? 0 : 2,
+    });
+    return `${shown} MXN`;
+  }
   return formatOfferingPrice(o.amountCents, o.currency, locale);
 }
 
-export function offeringDraftPrefix(o: ChatOffering, locale: string): string {
+export function offeringDraftPrefix(
+  o: Pick<ChatOffering, "title" | "amountCents" | "currency">,
+  locale: string,
+): string {
   const price = o.amountCents != null ? ` (${formatOfferingPrice(o.amountCents, o.currency, locale)})` : "";
   return pickLocale(locale, {
     en: `Requesting: ${o.title}${price} — `,
@@ -85,7 +103,8 @@ export function OfferingQuickPicker({
       style={{
         padding: "8px 12px 10px",
         borderTop: `1px solid ${C.borderSoft}`,
-        background: C.surfaceFaint,
+        // AUD-040: same white surface as the composer, not a grey sunken band.
+        background: C.surface,
         fontFamily: FONT,
         flexShrink: 0,
       }}
@@ -103,10 +122,14 @@ export function OfferingQuickPicker({
         {label}
       </div>
       <div
+        className={composerCss.offeringRail}
+        data-offering-rail
         style={{
           display: "flex",
           gap: 6,
           overflowX: "auto",
+          // Room past the last chip so it can scroll clear of the edge fade.
+          paddingRight: 28,
           paddingBottom: 2,
           overscrollBehavior: "contain",
         }}
@@ -119,6 +142,7 @@ export function OfferingQuickPicker({
               type="button"
               onClick={() => onPick(o)}
               data-chat-offering={o.offeringId}
+              className={composerCss.offeringChip}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -136,7 +160,7 @@ export function OfferingQuickPicker({
                 whiteSpace: "nowrap",
               }}
             >
-              {o.title}
+              <span style={{ fontWeight: 700 }}>{o.title}</span>
               {priceLabel && (
                 <span style={{ fontWeight: 500, color: C.inkMuted }}>{priceLabel}</span>
               )}
@@ -144,6 +168,88 @@ export function OfferingQuickPicker({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Front-door brief sticky service chip (Offer screen: circular glyph + short
+ * name above the composer). Replaces the browse strip once a service is pinned
+ * or the thread is in offer posture.
+ */
+export function StickyOfferingChip({
+  title,
+  accent,
+  surfaceMode = "light",
+  onClear,
+  clearLabel,
+}: {
+  title: string;
+  accent: string;
+  surfaceMode?: SurfaceMode;
+  /** Optional dismiss — clears the pending offering / returns to browse. */
+  onClear?: () => void;
+  /** Localized aria-label for the dismiss control (en + es required). */
+  clearLabel?: string;
+}) {
+  const C = paletteFor(surfaceMode);
+  const short = title.split(/[+·|,]/)[0]?.trim() || title;
+  return (
+    <div
+      data-hablar-sticky-offering
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "8px 12px 0",
+        background: C.surface,
+        fontFamily: FONT,
+        flexShrink: 0,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: "50%",
+          background: `${accent}18`,
+          border: `1px solid ${accent}55`,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <span
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: accent,
+          }}
+        />
+      </span>
+      <span style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{short}</span>
+      {onClear ? (
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label={clearLabel || "Clear service"}
+          style={{
+            marginLeft: "auto",
+            border: "none",
+            background: "transparent",
+            color: C.inkMuted,
+            cursor: "pointer",
+            fontSize: 14,
+            lineHeight: 1,
+            padding: 4,
+          }}
+        >
+          ×
+        </button>
+      ) : null}
     </div>
   );
 }

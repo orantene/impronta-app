@@ -15,6 +15,7 @@ import "server-only";
  * ended up mixing furniture with barbers.
  */
 
+import { resolveEffectiveBookingMode } from "@/lib/scheduling/instant-book-gates";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -337,6 +338,18 @@ async function loadOfferings(
     logServerError("people.load.talent_offerings", error);
     return out;
   }
+  // WSF-B: a null mode inherits the person's default; resolve it once.
+  const defaultsRes = await client
+    .from("talent_profiles")
+    .select("id, selling_defaults")
+    .in("id", [...talentIds]);
+  if (defaultsRes.error) logServerError("people.load.selling_defaults", defaultsRes.error);
+  const sellingDefaults = new Map<string, unknown>(
+    ((defaultsRes.data ?? []) as Array<{ id: string; selling_defaults: unknown }>).map((d) => [
+      d.id,
+      d.selling_defaults ?? {},
+    ]),
+  );
   for (const row of (data ?? []) as Array<{
     id: string;
     talent_profile_id: string | null;
@@ -353,7 +366,10 @@ async function loadOfferings(
       title: row.title,
       priceDisplay: row.price_display ?? "",
       visibility: row.visibility ?? "public",
-      bookingMode: row.booking_mode ?? "request",
+      bookingMode: resolveEffectiveBookingMode({
+        offering: { bookingMode: row.booking_mode },
+        defaults: sellingDefaults.get(row.talent_profile_id) ?? {},
+      }).mode,
       status: row.status ?? "draft",
     });
     out.set(row.talent_profile_id, list);

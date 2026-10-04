@@ -29,6 +29,7 @@ import type { Brief } from "@/lib/tulala/brief-store";
 import { listFact, numberFact, stringFact } from "@/lib/tulala/brief-store";
 
 import { bioPassesRules, draftBio } from "./draft-bio";
+import { syncBiosToBioI18n } from "@/lib/translation/sync-bios-to-bio-i18n.server";
 import { proposeTalentType } from "./type-chip";
 import { loadTalentTypeTerms } from "./type-chip.server";
 
@@ -184,6 +185,8 @@ export async function writeTalentProfileFromBrief(input: {
   if (tenantId && bioOk) {
     try {
       await syncBlobFieldValuesToCatalog(admin, id, tenantId, { bios: [{ locale: input.locale, text: bio }] });
+      // F25: the public profile and site read bio_i18n; same mirror as the drawer save.
+      await syncBiosToBioI18n(admin, id, [{ locale: input.locale, text: bio }]);
       result.wrote.bio = "written";
       result.aiDrafted.push("bio");
     } catch (err) {

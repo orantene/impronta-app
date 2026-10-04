@@ -1,0 +1,282 @@
+/**
+ * Maison setup static contracts (PR4–PR5): W75, flag gate, tags, sheets,
+ * Use this design → applyMaisonDesignAction, Review/Publish chrome, W72.
+ */
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { maisonTagChipClassHint, maisonTagKind } from "./MaisonTagChips";
+
+const ROOT = join(process.cwd(), "src/components/talent/site/maison-setup");
+
+function read(name: string): string {
+  return readFileSync(join(ROOT, name), "utf8");
+}
+
+test("P3: Choose a design renders the browse gallery (supersedes W75)", () => {
+  const src = read("ChooseDesignScreen.tsx");
+  assert.match(src, /data-maison-choose-design/);
+  assert.match(src, /maison-gallery-back/);
+  assert.match(src, /<GalleryBrowseScreen/);
+  const gallery = read("GalleryBrowseScreen.tsx");
+  assert.match(gallery, /t\("Find your website style"\)/);
+  assert.match(gallery, /t\("Search a profession or theme"\)/);
+  assert.match(gallery, /t\("Reset filters"\)/);
+  assert.match(gallery, /t\("Last viewed"\)/);
+  assert.match(gallery, /visibleGalleryDesigns/);
+  assert.equal(/#[0-9a-fA-F]{3,8}\b/.test(gallery), false, "no hex literals");
+  assert.equal(gallery.includes("—"), false, "no em dashes");
+});
+
+test("cr_gallery chrome: Today back + close above the gallery hero", () => {
+  const src = read("ChooseDesignScreen.tsx");
+  assert.match(src, /maisonSetupT\(locale, "Today"\)/);
+  assert.match(src, /maison-gallery-close/);
+  const chooseIdx = src.indexOf('maisonSetupT(locale, "Choose a design")');
+  const galleryIdx = src.indexOf("<GalleryBrowseScreen");
+  assert.ok(chooseIdx > 0 && galleryIdx > chooseIdx);
+});
+
+test("PDF primary CTAs use admin-ink (black), not emerald", () => {
+  const detail = read("ThemeDetailScreen.tsx") + read("ColorsSheet.tsx") + read("DemosSheet.tsx");
+  assert.match(detail, /maison-use-design[\s\S]*?bg-admin-ink/);
+  assert.match(detail, /maison-use-design-phone[\s\S]*?bg-admin-ink/);
+  assert.match(detail, /maison-phone-colors-close/);
+  const review = read("ReviewWebsiteScreen.tsx");
+  assert.match(review, /maison-publish[\s\S]*?bg-admin-ink/);
+});
+
+test("W26: Maison tags map style→outlined and layout→filled", () => {
+  assert.equal(maisonTagKind("editorial"), "style");
+  assert.equal(maisonTagKind("warm"), "style");
+  assert.equal(maisonTagKind("menu"), "layout");
+  assert.equal(maisonTagKind("booking"), "layout");
+  assert.equal(maisonTagKind("portfolio"), "layout");
+  assert.equal(maisonTagChipClassHint("style"), "outlined");
+  assert.equal(maisonTagChipClassHint("layout"), "filled");
+  const chips = read("MaisonTagChips.tsx");
+  assert.match(chips, /data-maison-tag-kind/);
+});
+
+test("bootstrap is Maison-flag gated", () => {
+  const boot = read("maison-setup-bootstrap.ts");
+  assert.match(boot, /isTalentMaisonThemeEnabled/);
+  assert.match(boot, /enabled: false/);
+  assert.match(boot, /personalSiteEdit/);
+});
+
+test("host renders nothing when flag/bootstrap is off", () => {
+  const host = read("MaisonSetupHost.tsx");
+  assert.match(host, /enabled !== true/);
+  assert.match(host, /return null/);
+});
+
+test("W34: phone sheets are mutually exclusive state", () => {
+  const detail = read("ThemeDetailScreen.tsx") + read("ColorsSheet.tsx") + read("DemosSheet.tsx");
+  assert.match(detail, /phoneSheet/);
+  assert.match(detail, /data-maison-phone-sheet/);
+  assert.match(detail, /openSheet\("demos"\)/);
+  assert.match(detail, /openSheet\("colors"\)/);
+});
+
+test("W30–W32: Demo|My content, status words, five palettes", () => {
+  const detail =
+    read("ThemeDetailScreen.tsx") +
+    read("ThemeDetailChrome.tsx") +
+    read("ColorsSheet.tsx") +
+    read("DemosSheet.tsx");
+  assert.match(detail, /maison-mode-\$\{m\}/);
+  assert.match(detail, /\(\["demo", "mine"\]/);
+  assert.match(detail, /maison-status-word/);
+  // P4: palettes come from gallery-meta for every design (Maison included).
+  assert.match(detail, /design\.palettes\.map/);
+  assert.match(detail, /Choices saved/);
+});
+
+test("W35: Use this design calls applyMaisonDesignAction (no confirm table)", () => {
+  const detail = read("ThemeDetailScreen.tsx");
+  assert.match(detail, /maison-use-design/);
+  assert.match(detail, /applyMaisonDesignAction/);
+  assert.match(detail, /no summary\/confirm table/);
+  assert.equal(/applySiteDesignAction/.test(detail), false);
+  assert.equal(/confirm.*replace/i.test(detail), false);
+});
+
+test("W37–W42: Review + Publish + failure banner wired", () => {
+  const review = read("ReviewWebsiteScreen.tsx");
+  assert.match(review, /data-testid="maison-review"/);
+  assert.match(review, /maison-readiness/);
+  assert.match(review, /publishMaxSiteAction/);
+  assert.match(review, /maison-publish-failure/);
+  assert.match(review, /maison-undo-design/);
+  // F97: internal guidance wording must never ship as talent-facing copy.
+  assert.doesNotMatch(review, /No trial, plan, or price/);
+});
+
+test("W40: My website card has Live + View / Change / Design options", () => {
+  const card = read("MyWebsiteCard.tsx");
+  assert.match(card, /maison-my-website-card/);
+  assert.match(card, /maison-view-website/);
+  assert.match(card, /maison-change-design/);
+  assert.match(card, /maison-design-options/);
+  assert.match(card, /data-testid="maison-live-pill"/);
+  assert.match(card, /maison-edit-site/);
+  assert.match(card, /maison-restore-previous/);
+  assert.match(card, /liveCardDesignLabel/);
+  assert.match(card, /kind=live-site/);
+  assert.match(card, /DesignOptionsPanel/);
+  assert.equal(/Design options open in a later step/.test(card), false);
+});
+
+test("W67–W74: live pending + Design options + colors publish + preview fail copy", () => {
+  const apply = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-apply-actions.ts"),
+    "utf8",
+  );
+  assert.match(apply, /live_pending/);
+  assert.match(apply, /colors_only/);
+  assert.match(apply, /livePending: true/);
+  assert.equal(/Changing a live design lands in a later step/.test(apply), false);
+
+  const publish = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/site-management-actions.ts"),
+    "utf8",
+  );
+  assert.match(publish, /prepareMaisonSiteForPublish/);
+  assert.match(publish, /writeMaisonDesignPublishedRevision/);
+  assert.match(publish, /isTalentMaisonThemeEnabled/);
+
+  const options = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-options-actions.ts"),
+    "utf8",
+  );
+  assert.match(options, /discardMaisonLivePendingAction/);
+  assert.match(options, /resetMaisonColorsAction/);
+  assert.match(options, /reapplyMaisonDemoLayoutAction/);
+  assert.match(options, /restoreMaisonDesignRevisionAction/);
+  assert.match(options, /canDiscard/);
+
+  const panel = read("DesignOptionsPanel.tsx");
+  assert.match(panel, /maison-design-options/);
+  assert.match(panel, /maison-option-reset-colors/);
+  assert.match(panel, /maison-option-reapply-layout/);
+  assert.match(panel, /maison-option-refresh-profile/);
+  assert.match(panel, /Refresh from my profile/);
+  assert.match(panel, /maison-option-discard-idle/);
+  assert.match(panel, /maison-restore-list/);
+  assert.match(panel, /never a dead Discard button/);
+
+  const colorsDlg = read("PublishColorsDialog.tsx");
+  assert.match(colorsDlg, /maison-publish-colors-dialog/);
+  assert.match(colorsDlg, /Publish new colors\?/);
+  assert.match(colorsDlg, /Publish changes/);
+
+  const detail = read("ThemeDetailScreen.tsx");
+  assert.match(detail, /PublishColorsDialog/);
+  assert.match(detail, /Your choices are saved\. Try again\./);
+  assert.match(detail, /The preview didn't load/);
+});
+
+test("manager mounts MaisonSetupHost ahead of theme gallery", () => {
+  const manager = readFileSync(
+    join(process.cwd(), "src/components/talent/site/TalentMaxSiteManager.tsx"),
+    "utf8",
+  );
+  assert.match(manager, /MaisonSetupHost/);
+  assert.match(manager, /next\/dynamic/);
+  assert.match(manager, /maison-setup\/MaisonSetupHost/);
+  assert.match(manager, /MyWebsiteCard/);
+  const maisonIdx = manager.indexOf("<MaisonSetupHost");
+  const galleryIdx = manager.indexOf("<ManagerThemeGallery");
+  assert.ok(maisonIdx > 0 && galleryIdx > maisonIdx);
+});
+
+test("apply actions are Maison-flag gated", () => {
+  const apply = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-apply-actions.ts"),
+    "utf8",
+  );
+  assert.match(apply, /isTalentMaisonThemeEnabled/);
+  assert.match(apply, /feature_disabled/);
+  assert.match(apply, /pending_design/);
+  assert.match(apply, /captureMaisonDraftSnapshot/);
+});
+
+test("publishMaxSiteAction gates on Maison readiness when flag on", () => {
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/site-management-actions.ts"),
+    "utf8",
+  );
+  assert.match(src, /prepareMaisonSiteForPublish/);
+  assert.match(src, /writeMaisonDesignPublishedRevision/);
+  assert.match(src, /isTalentMaisonThemeEnabled/);
+  const prep = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-pending-apply.ts"),
+    "utf8",
+  );
+  assert.match(prep, /evaluateMaisonPublishReadiness/);
+  assert.match(prep, /readiness_blocked/);
+  assert.match(prep, /materializeMaisonLivePendingIfAny/);
+});
+
+test("W60–W65: Custom colors panel + Theme detail entry (no placeholder alert)", () => {
+  const panel = read("CustomColorsPanel.tsx");
+  assert.match(panel, /data-testid="maison-custom-colors-panel"/);
+  assert.match(panel, /maison-custom-field-\$\{meta\.key\}/);
+  assert.match(panel, /key: "page"/);
+  assert.match(panel, /key: "text"/);
+  assert.match(panel, /key: "accent"/);
+  assert.match(panel, /key: "section"/);
+  assert.match(panel, /maison-contrast-advisory/);
+  assert.match(panel, /maison-contrast-preview-suggestion/);
+  assert.match(panel, /maison-contrast-use-adjustment/);
+  assert.match(panel, /enterKeyHint="done"/);
+  assert.match(panel, /maison-custom-kbd-strip/);
+  const detail = read("ThemeDetailScreen.tsx");
+  assert.match(detail, /CustomColorsPanel/);
+  assert.match(detail, /openCustomColors/);
+  assert.equal(/Custom colors open in a later step/.test(detail), false);
+});
+
+test("W66: Review summary uses My colors when custom_palette applied", () => {
+  const review = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-review-actions.ts"),
+    "utf8",
+  );
+  assert.match(review, /customPalette/);
+  assert.match(review, /buildSummaryLine/);
+  assert.match(review, /My colors|customPalette\.name/);
+});
+
+test("AUD-023: setup choices persist server-side + Today resume card", () => {
+  const host = read("MaisonSetupHost.tsx");
+  assert.match(host, /saveMaisonSetupChoicesAction/);
+  assert.match(host, /setupChoices/);
+  const actions = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-choices-actions.ts"),
+    "utf8",
+  );
+  assert.match(actions, /setup_choices/);
+  assert.match(actions, /loadMaisonResumeCardAction/);
+  const today = readFileSync(
+    join(process.cwd(), "src/components/admin/shell/internal/talent/pages/TodayPage.tsx"),
+    "utf8",
+  );
+  // F23 / F34: the resume card became WebsiteTodayHero (preview state resumes
+  // at review, named from theme_design_slug / theme_look_slug).
+  assert.match(today, /WebsiteTodayHero/);
+  // Agenda V2 early-returns before classic Today mounts — card must also
+  // live on AgendaTodayPage (first-day + populated), or tip fixtures never see it.
+  const agendaToday = readFileSync(
+    join(process.cwd(), "src/components/admin/shell/internal/talent/agenda/AgendaTodayPage.tsx"),
+    "utf8",
+  );
+  assert.match(agendaToday, /WebsiteTodayHero/);
+  const card = readFileSync(
+    join(process.cwd(), "src/components/talent/website-reward/MaisonWebsiteResumeCard.tsx"),
+    "utf8",
+  );
+  assert.match(card, /maison-website-resume-card/);
+  assert.match(card, /Continue your website/);
+});

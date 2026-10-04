@@ -28,6 +28,7 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
+import { STYLE_TOKEN_BY_KEY, styleTokenValidator } from "@/lib/site-admin/tokens/style-tokens";
 import {
   firstFontFamily,
   resolveBuilderFont,
@@ -35,13 +36,14 @@ import {
 import { getGoogleFontMeta } from "@/lib/site-admin/builder-node/fonts-catalog";
 import { TOKEN_REGISTRY } from "@/lib/site-admin/tokens/registry";
 import { contrastRatio } from "@/lib/site-admin/tokens/contrast-pair";
+import { TALENT_KIT_ALT_SLOTS } from "./section-kit-alt-slots";
 import {
   TALENT_KIT_SECTIONS,
   TALENT_KIT_SECTION_ROLES,
   TALENT_KIT_SHELL,
   TALENT_KIT_SHELL_ROLES,
 } from "./section-kit";
-import { isLookOwnedTokenKey, LOOK_REQUIRED_TOKEN_KEYS } from "./look-layer";
+import { isLookOwnedTokenKey, isValidPaletteValue, LOOK_REQUIRED_TOKEN_KEYS } from "./look-layer";
 import type { ThemeValidationResult } from "./types";
 
 // ── Design ───────────────────────────────────────────────────────────────────
@@ -63,6 +65,29 @@ export const DESIGN_ALLOWED_NODE_KINDS: ReadonlySet<string> = new Set([
   "divider",
   "spacer",
   "icon",
+  // Maison free-website Design (PR 1 allowlist; PR 2 ports the real trees).
+  "tabs",
+  "tab_panel",
+  "accordion",
+  "accordion_item",
+  "reveal",
+  "services_catalog",
+  "portfolio",
+  "reviews",
+  "visit",
+  "contents",
+  "masthead",
+  "statement_footer",
+  "comp_card",
+  "spec_table",
+  "stats",
+  "utility_bar",
+  "alert_band",
+  "task_picker",
+  "app_nail_designer",
+  "next_free_chip",
+  // Maison v2 ticker (serif variant of the shared marquee).
+  "marquee",
 ]);
 
 /** Kinds rejected with a specific message (raw markup / third-party / agency data). */
@@ -218,7 +243,7 @@ function checkTopLevel(
       errors.push(`${path}: originRole "${originRole}" is not a kit section.`);
       return;
     }
-    if (KIT_SLOT_BY_ROLE.get(originRole) !== slotKey) {
+    if (KIT_SLOT_BY_ROLE.get(originRole) !== slotKey && !TALENT_KIT_ALT_SLOTS[originRole]?.includes(slotKey)) {
       errors.push(`${path}: slotKey "${slotKey}" does not match kit role "${originRole}".`);
     }
     if (slots.has(slotKey)) errors.push(`${path}: duplicate slotKey "${slotKey}".`);
@@ -263,6 +288,18 @@ export function validateDesign(payload: unknown): ThemeValidationResult {
     errors.push("homeTree: a Design needs a contact section.");
   }
 
+  const optional = record?.optionalBlocks;
+  if (optional !== undefined) {
+    if (!Array.isArray(optional)) {
+      errors.push("optionalBlocks: must be an array of kit sections.");
+    } else {
+      const check = validateBuilderNodeTree(optional as never);
+      if (!check.ok) for (const issue of check.issues) errors.push(`optionalBlocks.${issue.path}: ${issue.message}`);
+      checkTreeContent(optional as never, "optionalBlocks", errors);
+      checkTopLevel(optional as never, "optionalBlocks", TALENT_KIT_SECTION_ROLES, errors);
+    }
+  }
+
   const shellRoles = checkTopLevel(shellTree, "shellTree", TALENT_KIT_SHELL_ROLES, errors);
   for (const landmark of Object.values(TALENT_KIT_SHELL)) {
     if (!shellRoles.has(landmark.originRole)) {
@@ -270,7 +307,50 @@ export function validateDesign(payload: unknown): ThemeValidationResult {
     }
   }
 
+  checkDesignTokenDefaults(record?.tokenDefaults, errors);
+  checkDesignPalettes(record?.palettes, errors);
+
   return { ok: errors.length === 0, errors };
+}
+
+/**
+ * `tokenDefaults` (optional): site style token keys only, each value valid for
+ * its token. A Design's defaults never carry colours (the Look owns those).
+ */
+function checkDesignTokenDefaults(value: unknown, errors: string[]): void {
+  if (value === undefined) return;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    errors.push("tokenDefaults: must be an object of style token values.");
+    return;
+  }
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    const def = STYLE_TOKEN_BY_KEY.get(key);
+    if (!def) {
+      errors.push(`tokenDefaults.${key}: not a site style token.`);
+      continue;
+    }
+    if (typeof raw !== "string" || !styleTokenValidator(def).safeParse(raw).success) {
+      errors.push(`tokenDefaults.${key}: invalid value.`);
+    }
+  }
+}
+
+/** `palettes` (optional): `{ paletteKey: { "color.*": valid colour } }`. */
+function checkDesignPalettes(value: unknown, errors: string[]): void {
+  if (value === undefined) return;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    errors.push("palettes: must be an object of palette colour maps.");
+    return;
+  }
+  for (const [palette, map] of Object.entries(value as Record<string, unknown>)) {
+    if (!map || typeof map !== "object" || Array.isArray(map)) {
+      errors.push(`palettes.${palette}: must be an object of colours.`);
+      continue;
+    }
+    for (const [key, raw] of Object.entries(map as Record<string, unknown>)) {
+      if (!isValidPaletteValue(key, raw)) errors.push(`palettes.${palette}.${key}: not a valid colour.`);
+    }
+  }
 }
 
 // ── Look ─────────────────────────────────────────────────────────────────────

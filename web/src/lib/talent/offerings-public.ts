@@ -21,6 +21,12 @@ import {
   type TalentOffering,
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
+import { withEffectivePolicy, withPublicAvailability } from "@/lib/talent/offering-policy-resolver";
+import { loadTalentSiteSwitches, loadWorkingHoursPresence } from "@/lib/talent/site-switches-server";
+import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
+import { publicContactMode } from "@/lib/talent/accepting-readiness";
+import { loadSellingDefaultsByTalent } from "@/lib/talent/offering-policy-server";
+import { loadPlanAllowsInstant } from "@/lib/talent/plan-instant.server";
 
 export async function loadPublicOfferingsForProfile(
   talentProfileId: string,
@@ -38,6 +44,8 @@ export async function loadPublicOfferingsForProfile(
    * platform host), where showing everything they offer is correct.
    */
   tenantId?: string | null,
+  /** WSF-C §7: "agency" skips the talent's switches (default: direct unless tenantId). */
+  opts?: { channel?: "direct" | "agency"; chain?: readonly string[] },
 ): Promise<TalentOffering[]> {
   try {
     const admin = createServiceRoleClient();
@@ -83,15 +91,40 @@ export async function loadPublicOfferingsForProfile(
       images.set(r.offering_id, list);
     }
     // D4 — attach the public options/extras (RLS-mirrored child tables).
-    const children = await loadOfferingChildren(db, rows.map((r) => r.id));
+    const children = await loadOfferingChildren(db, rows.map((r) => r.id), { locale });
     const groups = await loadAddonGroupsForOfferings(
       db,
       talentProfileId,
       rows.map((r) => r.id),
+      { locale },
     );
     const addOnsByOffering = mergeAddonGroupsIntoAddOns(children.addOns, groups);
+    // The talent's Defaults (deposit, cancellation) apply where the offering
+    // left them unset, so the sheet says what checkout will charge.
+    const defaults = await loadSellingDefaultsByTalent(db, [talentProfileId]);
+    const sellingDefaults = defaults.ok ? (defaults.defaults.get(talentProfileId) ?? {}) : {};
+    // WSF-C: readiness everywhere; the talent's switches only on a direct
+    // channel (no agency context, §7).
+    const [switches, hours, plan] = await Promise.all([
+      tenantId || opts?.channel === "agency" ? Promise.resolve(null) : loadTalentSiteSwitches(db, talentProfileId),
+      loadWorkingHoursPresence(db, [talentProfileId]),
+      loadPlanAllowsInstant(db, [talentProfileId]),
+    ]);
+    const availability = {
+      switches,
+      hasWorkingHours: hours.get(talentProfileId) ?? null,
+      payoutsReady: isPlatformCheckoutReady(),
+      // F27: agency-routed catalogs follow the agency's plan, not hers.
+      planAllowsInstant: tenantId ? undefined : plan.get(talentProfileId),
+    };
+    const pause = switches ? publicContactMode(switches) : "open";
     return rows.map((r) => ({
-      ...rowToOffering(r, locale, images.get(r.id) ?? []),
+      ...(pause !== "open" ? { publicPause: pause } : {}),
+      ...withPublicAvailability(
+        withEffectivePolicy(rowToOffering(r, locale, images.get(r.id) ?? [], opts?.chain), sellingDefaults),
+        sellingDefaults,
+        availability,
+      ),
       variants: children.variants.get(r.id) ?? [],
       addOns: addOnsByOffering.get(r.id) ?? [],
     }));

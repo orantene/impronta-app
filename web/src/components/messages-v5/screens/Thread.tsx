@@ -10,6 +10,8 @@
 
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 
+import { localiseEngineLine } from "@/lib/messages-v5/engine-lines";
+
 import type { DerivedTask, Essentials, InboxRow, InquiryMessagingState, MessagingRefusal, RecordChip, ThreadMessage } from "@/lib/messaging/types";
 
 import { EssentialsStrip } from "../kit/EssentialsStrip";
@@ -64,10 +66,14 @@ export type ThreadProps = {
   readonly mergeSlot?: ReactNode;
   /** The composer's engine binding; the Thread mounts the NextStep bar above it on desktop. */
   readonly composer: Omit<ComposerWireProps, "above" | "variant" | "copy">;
+  /** Optional chrome above the composer (e.g. talent "+ Actions"). */
+  readonly composerAccessory?: ReactNode;
+  /** Talent seller mode: header drops owner / Resolve (her engine refuses them) and leads with the linked record. */
+  readonly seller?: boolean;
 };
 
 export function Thread(props: ThreadProps) {
-  const { row, essentials, messages, error, state, chips, tasks, currentUserId, copy, variant, locale = "en", now = new Date(), origin, headerBusy, nextBusy, onBack, onAction, onCopyText, onRetryLoad, onMoreTasks, menuOpen, onMenu, menuItems, detailsAction, notice, renameSlot, captureSlot, mergeSlot, composer } = props;
+  const { row, essentials, messages, error, state, chips, tasks, currentUserId, copy, variant, locale = "en", now = new Date(), origin, headerBusy, nextBusy, onBack, onAction, onCopyText, onRetryLoad, onMoreTasks, menuOpen, onMenu, menuItems, detailsAction, notice, renameSlot, captureSlot, mergeSlot, composer, composerAccessory, seller } = props;
   const kit = copy.kit;
   const shell = copy.shell;
   const mobile = variant === "mobile";
@@ -83,6 +89,26 @@ export function Thread(props: ThreadProps) {
     if (el) el.scrollIntoView({ block: target.startsWith("unread:") ? "center" : "end" });
     else host.scrollTop = host.scrollHeight;
   }, [target, row.id]);
+
+  // The "More" menu closes on Escape and on any press outside it (the scrim
+  // covers the pane, but a press on the header's own More button, or a key
+  // press with focus anywhere, must not leave the menu stuck open).
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onMenu(false);
+    };
+    const onPress = (e: PointerEvent) => {
+      const el = e.target instanceof Element ? e.target : null;
+      if (el && !el.closest("[data-thread-menu]") && !el.closest("button.more, .acts button")) onMenu(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPress);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPress);
+    };
+  }, [menuOpen, onMenu]);
 
   const clientName = essentials?.customer.name.trim() || row.contactName.trim() || kit.inbox.visitor;
   const headerEssentials = essentials ?? { name: row.subject || row.contactName, customer: { name: row.contactName, email: row.contactEmail, phone: row.contactPhone, identityLevel: "none" as const, identityMethod: null, request: null, source: null } };
@@ -105,6 +131,7 @@ export function Thread(props: ThreadProps) {
       onResolve={() => onAction("resolve")}
       onReopen={() => onAction("reopen")}
       onMore={() => onMenu(!menuOpen)}
+      seller={seller}
     />
   );
 
@@ -157,14 +184,14 @@ export function Thread(props: ThreadProps) {
         if (it.kind === "system") {
           return (
             <div key={it.key} data-stream-key={it.key}>
-              <SystemLine text={it.message.body || it.message.kind} variant={variant} />
+              <SystemLine text={localiseEngineLine(it.message.body || it.message.kind, kit)} variant={variant} />
             </div>
           );
         }
         if (it.kind === "card") {
           return (
             <div key={it.key} data-stream-key={it.key}>
-              <ThreadCard message={it.message} cardKind={it.cardKind} clientName={clientName} copy={copy} variant={variant} locale={locale} onAction={onAction} onCopyText={onCopyText} origin={origin} />
+              <ThreadCard message={it.message} cardKind={it.cardKind} clientName={clientName} copy={copy} variant={variant} locale={locale} onAction={onAction} onCopyText={onCopyText} origin={origin} hideVersion={Boolean(seller)} />
             </div>
           );
         }
@@ -185,6 +212,12 @@ export function Thread(props: ThreadProps) {
   );
 
   const next = <NextStepWire tasks={tasks} state={state} copy={copy} variant={variant} loading={messages === null && !error} busy={nextBusy} onAction={(id) => onAction(id)} onMoreTasks={onMoreTasks} />;
+  const above = (
+    <>
+      {composerAccessory}
+      {mobile ? null : next}
+    </>
+  );
 
   return (
     <section className="pane thread" data-thread={row.id} aria-label={kit.thread.details}>
@@ -203,7 +236,7 @@ export function Thread(props: ThreadProps) {
       {renameSlot}
       {stream}
       {mobile ? next : null}
-      <ComposerWire {...composer} copy={copy} variant={variant} above={mobile ? undefined : next} />
+      <ComposerWire {...composer} copy={copy} variant={variant} above={above} />
     </section>
   );
 }

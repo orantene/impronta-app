@@ -86,6 +86,26 @@ test("money: total/deposit/paid/balance render when `money` is passed", () => {
   assert.match(html, /\$3,800/);
   assert.match(html, /\$950/);
   assert.match(html, /\$2,850/);
+  assert.match(html, /data-request-payment/);
+});
+
+test("money: paid chip swaps Request payment for the Refund door", () => {
+  const html = renderToStaticMarkup(
+    <ContextPanel
+      essentials={ESSENTIALS}
+      state={STATE_NEEDS}
+      chips={[{ kind: "order", recordId: "ord-1", label: "#1 · $18", paymentState: "paid", fulfilmentState: "confirmed" }]}
+      tasks={[]}
+      itemsLabel="Items"
+      loading={false}
+      copy={EN_COPY}
+      variant="desktop"
+      onAction={noop}
+      money={{ totalLabel: "$18", depositLabel: null, paidLabel: "$18", balanceLabel: "$0", balanceDueCents: 0 }}
+    />,
+  );
+  assert.match(html, /data-refund/);
+  assert.doesNotMatch(html, /data-request-payment/);
 });
 
 test("follow-up: the next reminder shows as the collapsed section's count, not a fake zero when there is none", () => {

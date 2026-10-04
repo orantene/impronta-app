@@ -16,19 +16,16 @@ export function MoneyBlock({
   items: AgendaMoneyItem[];
 }) {
   return (
-    <section className="rounded-[18px] border border-[rgba(11,11,13,0.10)] bg-white px-4 py-4">
+    <section data-today-money="m3" className="rounded-[18px] border border-[rgba(11,11,13,0.10)] bg-white px-4 py-4">
       <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--tc-accent)]">
         {title}
       </div>
       <div className="mt-4 space-y-3">
         {items.map((item) => {
           const tone = item.tone ?? "default";
-          return (
-            <div
-              key={item.id}
-              className="flex items-start justify-between gap-3 rounded-[14px] border border-[rgba(11,11,13,0.08)] bg-[rgba(250,250,247,0.9)] px-3.5 py-3"
-            >
-              <div className="min-w-0">
+          const body = (
+            <>
+              <div className="min-w-0 text-left">
                 <div className="text-[13px] font-medium text-[var(--tc-primary)]">
                   {item.label}
                 </div>
@@ -39,6 +36,27 @@ export function MoneyBlock({
               <div className={`shrink-0 text-[15px] font-semibold ${TONE_CLASSNAME[tone]}`}>
                 {item.value}
               </div>
+            </>
+          );
+          if (item.onClick) {
+            return (
+              <button
+                key={item.id}
+                type="button"
+                data-today-money-tile={item.id}
+                onClick={item.onClick}
+                className="flex w-full items-start justify-between gap-3 rounded-[14px] border border-[rgba(11,11,13,0.08)] bg-[rgba(250,250,247,0.9)] px-3.5 py-3 text-left transition-colors hover:border-[rgba(11,11,13,0.16)]"
+              >
+                {body}
+              </button>
+            );
+          }
+          return (
+            <div
+              key={item.id}
+              className="flex items-start justify-between gap-3 rounded-[14px] border border-[rgba(11,11,13,0.08)] bg-[rgba(250,250,247,0.9)] px-3.5 py-3"
+            >
+              {body}
             </div>
           );
         })}

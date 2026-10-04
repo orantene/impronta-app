@@ -67,6 +67,8 @@ export const LOCALIZABLE_PROPS_BY_KIND: Partial<
   // renaming a table must not be able to rewrite the sentence that explains why
   // a booking was refused.
   reserve_table: ["venueName", "ctaVerb"],
+  // Apps: the Nail Designer's authored copy. Its own sentences ship en/es inside the island.
+  app_nail_designer: ["title", "intro", "ctaLabel"],
   // EVENT PROGRAM: the heading is the only authored string; item text is
   // localised by the row overlay on the server, block chrome ships es/en inline.
   event_program: ["eyebrow", "heading"],
@@ -120,6 +122,10 @@ export const LOCALIZABLE_PROPS_BY_KIND: Partial<
   sticky_scroll: ["eyebrow", "headline"],
   reveal: [],
   stats: ["eyebrow", "headline"],
+  // Talent site services block: its renderer already resolves these four via
+  // `resolveNodeLocalizedText`, so the overlay must be registered or a stored
+  // translation never appears (2026-09-29).
+  services_catalog: ["title", "eyebrow", "subtitle", "emptyMessage"],
   before_after: [
     "eyebrow",
     "headline",

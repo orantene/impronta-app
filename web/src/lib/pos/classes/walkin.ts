@@ -30,6 +30,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { PurchaseRefusalReason } from "@/lib/orders/purchase-types";
 import { parseBookingHours } from "@/lib/scheduling/hours-types";
+import { resolveEffectiveBookingMode } from "@/lib/scheduling/instant-book-gates";
 import { placeInstantPurchase } from "@/lib/scheduling/instant-purchase";
 import { loadBusyIntervals } from "@/lib/scheduling/load-busy";
 import { applySellingTimeToHours, computePublicSlots, type NoSlotsReason } from "@/lib/scheduling/public-slots";
@@ -60,7 +61,10 @@ export async function loadWalkInServices(
     .select("id, title, amount_cents, duration_minutes, talent_profile_id, allow_pay_in_person, kind, booking_mode")
     .eq("tenant_id", tenantId)
     .eq("status", "published")
-    .eq("booking_mode", "instant")
+    // WSF-B: a null mode inherits the talent default, so the SQL keeps
+    // explicit instant AND inheriting rows; the effective mode is resolved
+    // below with each person's selling_defaults (one resolver).
+    .or("booking_mode.eq.instant,booking_mode.is.null")
     .not("talent_profile_id", "is", null)
     .gt("duration_minutes", 0)
     .order("title", { ascending: true })
@@ -69,11 +73,15 @@ export async function loadWalkInServices(
     logServerError("pos.classes.walkin/services", read.error);
     return { ok: false, error: "Could not load the services." };
   }
-  const rows = (read.data ?? []).filter((r) => r.kind !== "product");
-  const talentIds = [...new Set(rows.map((r) => r.talent_profile_id).filter((id): id is string => typeof id === "string"))];
+  const candidates = (read.data ?? []).filter((r) => r.kind !== "product");
+  const talentIds = [...new Set(candidates.map((r) => r.talent_profile_id).filter((id): id is string => typeof id === "string"))];
   const names = new Map<string, string>();
+  const sellingDefaults = new Map<string, unknown>();
   if (talentIds.length > 0) {
-    const people = await admin.from("talent_profiles").select("id, display_name, first_name").in("id", talentIds);
+    const people = await admin
+      .from("talent_profiles")
+      .select("id, display_name, first_name, selling_defaults")
+      .in("id", talentIds);
     if (people.error) {
       logServerError("pos.classes.walkin/people", people.error);
       return { ok: false, error: "Could not load the services." };
@@ -81,8 +89,16 @@ export async function loadWalkInServices(
     for (const p of people.data ?? []) {
       const name = (typeof p.display_name === "string" && p.display_name.trim()) || (typeof p.first_name === "string" && p.first_name.trim()) || "";
       if (name) names.set(String(p.id), name);
+      sellingDefaults.set(String(p.id), p.selling_defaults ?? {});
     }
   }
+  const rows = candidates.filter(
+    (r) =>
+      resolveEffectiveBookingMode({
+        offering: { bookingMode: r.booking_mode },
+        defaults: typeof r.talent_profile_id === "string" ? sellingDefaults.get(r.talent_profile_id) : {},
+      }).mode === "instant",
+  );
   const services: WalkInService[] = [];
   for (const r of rows) {
     if (typeof r.talent_profile_id !== "string" || typeof r.duration_minutes !== "number") continue;
@@ -197,7 +213,14 @@ export async function loadWalkInSlots(
 export type WalkInBookingRefusal =
   | PurchaseRefusalReason
   | "invalid"
-  | "not_found";
+  | "not_found"
+  | "too_soon"
+  | "inquiry_only"
+  | "request_only"
+  | "not_accepting_bookings"
+  | "bad_duration"
+  | "beyond_horizon"
+  | "outside_hours";
 
 export type WalkInBookingResult =
   | {
@@ -272,6 +295,7 @@ export async function bookWalkInAppointment(
     sourcePage: "pos-classes",
     clientOrderKey: input.clientOrderKey,
     openThread: false,
+    staffDesk: true,
   });
   if (!placed.ok) return { ok: false, reason: placed.reason };
   return {

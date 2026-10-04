@@ -16,6 +16,9 @@
 
 import { PDFDocument, StandardFonts, rgb, PageSizes } from "pdf-lib";
 
+import type { FeeLine } from "@/lib/billing/processing-fee-payer";
+import { validClientFeeLines } from "./fee-lines-payload";
+
 export interface BookingConfirmationLineItem {
   label: string;
   talentName?: string | null;
@@ -38,6 +41,12 @@ export interface BookingConfirmationPdfInput {
   /** What the client actually paid = subtotal + service fee. */
   totalPaidCents: number;
   eventLabel?: string | null;
+  /**
+   * Client fee breakdown from the booking's commission snapshot. Used only when
+   * it sums exactly to totalPaidCents; otherwise the Subtotal / Service fee
+   * rows are shown as before.
+   */
+  feeLines?: readonly FeeLine[] | null;
   /** Tenant brand; defaults to "Tulala". */
   brandName?: string;
   /**
@@ -65,6 +74,38 @@ function fmtMoney(cents: number, currency: string): string {
   } catch {
     return `${Math.round(cents / 100).toLocaleString()} ${currency}`;
   }
+}
+
+function fmtMoneyExact(cents: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
+  } catch {
+    return `${(cents / 100).toFixed(2)} ${currency}`;
+  }
+}
+
+const PDF_FEE_LABELS: Record<string, string> = {
+  service_subtotal: "Service",
+  base_reservation_fee: "Reservation fee",
+  platform_fee: "Platform fee (1.5%)",
+  processing_fee: "Card processing",
+};
+
+/** Rows above "Total paid": the fee breakdown when it sums, else Subtotal + Service fee. */
+export function confirmationTotalRows(
+  input: Pick<BookingConfirmationPdfInput, "feeLines" | "currency" | "subtotalCents" | "serviceFeeCents" | "totalPaidCents">,
+): { label: string; value: string }[] {
+  const currency = input.currency || "USD";
+  const lines = validClientFeeLines(input.feeLines, input.totalPaidCents);
+  if (lines.length) {
+    return lines
+      .filter((l) => l.code !== "total_charged")
+      .map((l) => ({ label: PDF_FEE_LABELS[l.code] ?? l.code, value: fmtMoneyExact(l.cents, currency) }));
+  }
+  return [
+    { label: "Subtotal", value: fmtMoney(input.subtotalCents, currency) },
+    { label: "Service fee", value: fmtMoney(input.serviceFeeCents, currency) },
+  ];
 }
 
 function fmtDate(iso: string, timeZone: string): string {
@@ -197,12 +238,16 @@ export async function generateBookingConfirmationPdf(
     text(value, { size: bold ? 12 : 9.5, bold, color, x: colAmt, maxWidth: 70, align: "right" });
     cursor += bold ? 24 : 18;
   }
-  totalRow("Subtotal", fmtMoney(input.subtotalCents, currency));
-  totalRow("Service fee", fmtMoney(input.serviceFeeCents, currency));
+  const feeLines = validClientFeeLines(input.feeLines, input.totalPaidCents);
+  for (const r of confirmationTotalRows(input)) totalRow(r.label, r.value);
   cursor += 2;
   rule();
   cursor += 16;
   totalRow("Total paid", fmtMoney(input.totalPaidCents, currency), true, brandGreen);
+  if (feeLines.length) {
+    text("Fees are non-refundable.", { size: 8, color: muted, x: ML, maxWidth: CW, align: "right" });
+    cursor += 12;
+  }
 
   cursor += 8;
   text("PAID", { size: 9, bold: true, color: brandGreen });

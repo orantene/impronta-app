@@ -2,9 +2,14 @@
 //
 // Resolution order:
 //   1. Unauthenticated → /login?next=/talent (preserving query)
-//   2. Has talent profile → seed agency cookie, redirect /talent/today
-//   3. app_role=talent but no profile → unlinked-talent landing (no shell)
-//   4. No app_role → /onboarding/role
+//   2. Has a talent profile AND (an agency roster OR an own published site)
+//      → seed agency cookie when there is a roster, redirect /talent/today
+//   3. Talent with neither a roster nor an own site → the unrostered wall
+//   4. No talent profile and no talent app_role → /onboarding/role
+//
+// The wall is not a "profile lookup missed" screen. A service-role read can
+// fail while the shell's user-scoped read succeeds; that used to paint this
+// wall over Today for a talent who already had a site.
 
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -15,8 +20,27 @@ import {
   ACTIVE_TALENT_TENANT_COOKIE,
   loadPrimaryTalentAgency,
 } from "@/lib/talent/active-agency-context";
+import { loadTalentSelfProfileByUser } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
+import { loadUnrosteredWallFacts } from "@/lib/talent/unrostered-wall-load";
+import { unrosteredWallBypassesShell } from "@/lib/talent/unrostered-wall";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { buildQuerySuffix } from "@/lib/saas/redirect-query";
+
+async function resolveTalentProfileId(userId: string): Promise<string | null> {
+  const self = await loadTalentSelfProfileByUser(userId);
+  if (self?.id) return self.id;
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  // limit(1), not maybeSingle: two rows is an error from maybeSingle and
+  // used to fall through to the wall as if the profile did not exist.
+  const { data, error } = await admin
+    .from("talent_profiles")
+    .select("id")
+    .eq("user_id", userId)
+    .limit(1);
+  if (error || !data?.[0]?.id) return null;
+  return data[0].id as string;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -33,18 +57,16 @@ export default async function PlatformTalentRootPage({
     redirect(`/login?next=${encodeURIComponent(`/talent${querySuffix}`)}`);
   }
 
-  const admin = createServiceRoleClient();
-  if (admin) {
-    const { data: profile } = await admin
-      .from("talent_profiles")
-      .select("id")
-      .eq("user_id", session.user.id)
-      .maybeSingle();
-    if (profile?.id) {
+  const profileId = await resolveTalentProfileId(session.user.id);
+  if (profileId) {
+    const facts = await loadUnrosteredWallFacts(profileId);
+    // An unread gate is not proof of "no roster and no site".
+    // The same predicate tells the layout to skip the shell when it is true.
+    if (!unrosteredWallBypassesShell(facts)) {
       try {
         const store = await cookies();
         if (!store.get(ACTIVE_TALENT_TENANT_COOKIE)?.value) {
-          const primary = await loadPrimaryTalentAgency(profile.id as string);
+          const primary = await loadPrimaryTalentAgency(profileId);
           if (primary) {
             store.set(ACTIVE_TALENT_TENANT_COOKIE, primary.tenantId, {
               path: "/",
@@ -59,14 +81,14 @@ export default async function PlatformTalentRootPage({
       }
       redirect(`/talent/today${querySuffix}`);
     }
-  }
-
-  const supabase = await getCachedServerSupabase();
-  const profile = supabase
-    ? await loadAccessProfile(supabase, session.user.id).catch(() => null)
-    : null;
-  if (profile?.app_role !== "talent") {
-    redirect(`/onboarding/role${querySuffix}`);
+  } else {
+    const supabase = await getCachedServerSupabase();
+    const access = supabase
+      ? await loadAccessProfile(supabase, session.user.id).catch(() => null)
+      : null;
+    if (access?.app_role !== "talent") {
+      redirect(`/onboarding/role${querySuffix}`);
+    }
   }
 
   return (

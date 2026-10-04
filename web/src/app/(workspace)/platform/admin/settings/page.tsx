@@ -10,9 +10,11 @@ import { isMessagingChannelsEnabled } from "@/lib/channels/flag";
 import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
 import { PlatformMessagingChannelsCard } from "./PlatformMessagingChannelsCard";
 import { loadPrivateMediaAccessState } from "@/lib/platform/gated-media";
+import { loadGuestCaptchaEnforced } from "@/lib/platform/guest-captcha-enforcement";
 import { GATED_MEDIA_CDN_MAX_AGE_SECONDS } from "@/lib/media/private-access";
 import { PlatformWorkspaceUiCard } from "./PlatformWorkspaceUiCard";
 import { PlatformGatedMediaCard } from "./PlatformGatedMediaCard";
+import { PlatformGuestCaptchaCard } from "./PlatformGuestCaptchaCard";
 import { PlatformCurrencyCard } from "./PlatformCurrencyCard";
 import { PlatformCommercialDefaultsCard } from "./PlatformCommercialDefaultsCard";
 import { PlatformPayoutSystemCard } from "./PlatformPayoutSystemCard";
@@ -134,6 +136,7 @@ export default async function PlatformSettingsPage() {
   const workspaceUi = await loadPlatformWorkspaceUi();
   const messagingChannelsEnabled = await isMessagingChannelsEnabled();
   const gatedMedia = await loadPrivateMediaAccessState();
+  const guestCaptchaEnforced = await loadGuestCaptchaEnforced();
   // Rounded up: the card promises "within about N minutes", and rounding a
   // 5-minute lag down to 4 would understate it.
   const revocationLagMinutes = Math.ceil(GATED_MEDIA_CDN_MAX_AGE_SECONDS / 60);
@@ -238,6 +241,15 @@ export default async function PlatformSettingsPage() {
             current={gatedMedia}
             revocationLagMinutes={revocationLagMinutes}
           />
+        </HqCard>
+
+        {/* Guest booking captcha — temporary HQ off-switch for Continuar al pago */}
+        <HqCard
+          title={t("dashboard.platform.settings.guestCaptchaTitle")}
+          subtitle={t("dashboard.platform.settings.guestCaptchaSubtitle")}
+          iconId="features"
+        >
+          <PlatformGuestCaptchaCard current={guestCaptchaEnforced} />
         </HqCard>
 
         {/* HQ team — all users with platform staff role */}

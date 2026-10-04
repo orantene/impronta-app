@@ -35,7 +35,11 @@ function intervalFromRow(row: BusySourceRow): BusyInterval | null {
 
 export function busyFromHold(row: HoldBusyRow, now: Date = new Date()): BusyInterval | null {
   if (!isHoldUnexpired(row.expires_at, now)) return null;
-  return intervalFromRow(row);
+  const base = intervalFromRow(row);
+  if (!base) return null;
+  // RPC expands hold rows by buffer_before/after at write time — mark so
+  // generateSlots does not pad them a second time (BUF-1).
+  return { ...base, includesBuffers: true };
 }
 
 /** Expand a booking interval by travel before/after (T1.7). */

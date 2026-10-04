@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactElement, ReactNode } from "react";
+import { pauseBannerCopy, type PublicContactMode } from "@/lib/talent/accepting-readiness";
 import { Fragment, cloneElement, isValidElement, memo } from "react";
 
 import { nodeScopedCss } from "@/lib/site-admin/sections/shared/scoped-custom-css";
@@ -9,6 +10,12 @@ import {
   hoverV2ViewportRules,
 } from "./hover-style-css";
 import { BUILDER_NODE_NAV_CSS } from "./nav-css";
+import { NavChromeScrollSpy } from "./NavChromeScrollSpy";
+import {
+  DEFAULT_NAV_CHROME,
+  navChromeNeedsScrollSpy,
+  normalizeNavChrome,
+} from "@/lib/site-admin/nav-chrome";
 import { BuilderIconSvg } from "./builder-icon-svg";
 import type { BuilderIconName } from "./icon-registry";
 import { socialPlatformIconName } from "./social-platform-icons";
@@ -42,6 +49,7 @@ import { BuilderNodeCarouselTrack } from "./carousel";
 import { BuilderNodeTabsView } from "./tabs";
 import { carouselSlideVars } from "./carousel-slides-per-view";
 import { SocialFeedWidget } from "./social-feed";
+import { buildRevealArmingScript, buildScrollLaneRuntimeScript } from "./reveal-runtime";
 import { BuilderNodeCodeFrame } from "./code-frame";
 import { BuilderNodeLayoutMotion } from "./layout-motion";
 import type { BuilderSectionEmbedRenderer } from "./section-embed-renderer";
@@ -75,6 +83,7 @@ import {
   collectBuilderNodeFontUsage,
 } from "./fonts-registry";
 import { buildGoogleFontsHrefFromUsage } from "./fonts-catalog";
+import { toFontProxyHref } from "@/lib/fonts/google-proxy";
 import { getBuilderIconDefinition } from "./icon-registry";
 import { resolveStyleTokenRef } from "./style-token-bindings";
 import {
@@ -129,7 +138,7 @@ import type {
   BuilderNodeStyleValue,
 } from "./types";
 import type { BuilderImageMediaAsset } from "@/lib/site-admin/media/types";
-import { isRenderableEmptySection } from "./render-prune";
+import { isIncompleteBeforeAfter, isRenderableEmptySection } from "./render-prune";
 import { CaptchaThemeStamper } from "@/lib/site-admin/sections/contact_form/captcha-theme";
 import { FormResultBanner } from "./form-result-banner";
 import { MenuBoardIsland } from "./menu-board-island";
@@ -140,10 +149,37 @@ import { EventProgramIsland } from "./event-program-island";
 import { QrCodeBlock } from "./qr-code-block";
 import { menuBoardCopy } from "./menu-board-copy";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
+import { CatalogIslandBoundary } from "@/components/public-booking/catalog-island-boundary";
+import { resolveServicesCatalogSheetAccent } from "./services-catalog-defaults";
+import { renderStatsSpecBlock } from "./stats-spec-block";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
+import { SERVICES_CATALOG_ROW_CARD_CSS } from "./services-catalog-row-card-css";
+import { filterOfferingsForCatalog } from "./services-catalog-selection";
+import { ServicesCatalogLoadingSkeleton } from "./services-catalog-loading";
+import { ServicesCatalogStaticFallback } from "./services-catalog-static-fallback";
 import { orderCategoryNames, renderItalicMarkedTitle } from "./services-catalog-title";
+import { renderPortfolioBlock } from "./portfolio-block";
+import { ReviewsBlockView } from "./reviews-block";
+import { renderVisitBlock } from "./visit-block";
+import { renderContentsBlock } from "./contents-block";
+import { renderMastheadBlock } from "./masthead-block";
+import { renderStatementFooterBlock } from "./statement-footer-block";
+import { renderCompCardBlock } from "./comp-card-block";
+import { renderSpecTableBlock } from "./spec-table-block";
+import { renderUtilityBarBlock } from "./utility-bar-block";
+import { renderAlertBandBlock } from "./alert-band-block";
+import { renderTaskPickerBlock } from "./task-picker-block";
+import { renderNailDesignerBlock } from "./nail-designer-block";
+import { NextFreeChipView } from "./next-free-chip";
+import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 
 export interface BuilderNodeRenderDataSources {
+  /**
+   * G3b: the talent's live status ("Atiendo emergencias hoy"), read per request
+   * by renderTalentMaxSite. Absent = off. Widget contract (data-live-when
+   * markers) in lib/talent/live-status-render.ts.
+   */
+  liveStatus?: LiveStatusRenderContext;
   collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
   tenantId?: string;
   /**
@@ -275,14 +311,55 @@ export interface BuilderNodeRenderDataSources {
   };
   /**
    * Full `TalentOffering` rows (`loadPublicOfferingsForProfile`), not a
-   * narrowed projection — `services_catalog` reuses `OfferingCta`
-   * (`app/t/[profileCode]/_shared`), the SAME click-to-book island the hub
-   * profile's storefront uses, and that component reads reserveMode /
-   * depositPct / variants / addOns / talentProfileId off the full shape.
+   * narrowed projection — `services_catalog` builds the same click-to-book
+   * event payload the hub profile storefront uses (`OfferingRequestDetail`),
+   * and that shape needs reserveMode / depositPct / variants / addOns /
+   * talentProfileId off the full row.
    */
   talentOfferings?: ReadonlyArray<TalentOffering>;
+  /**
+   * W-12 Portfolio — live approved media shots for `portfolio` nodes.
+   * Resolved by the SERVER caller; the renderer never queries.
+   */
+  talentPortfolioShots?: ReadonlyArray<import("./portfolio-types").TalentPortfolioShot>;
+  /**
+   * W-14 Reviews — published talent_reviews quote cards for `reviews` nodes.
+   * Resolved by the SERVER caller; the renderer never invents quotes.
+   */
+  talentReviews?: ReadonlyArray<import("./reviews-types").TalentSiteReview>;
+  /**
+   * Visit facts — service areas / languages / hours for `visit` nodes.
+   * Resolved by the SERVER caller; the renderer never invents facts.
+   */
+  talentVisitFacts?: ReadonlyArray<import("./visit-types").TalentVisitFact>;
+  /** G4 public `tel:` link for the utility bar; absent/empty = no call button. */
+  callHref?: string;
+  /** Public-safe location (exact address present only in "public" mode). */
+  talentLocation?: import("@/lib/talent/location-settings").TalentLocationPublic | null;
+  /**
+   * Comp card — public profile field rows for the measure strip.
+   * Resolved by the SERVER caller; the renderer never invents measures.
+   */
+  talentCompCard?: import("./comp-card-types").TalentCompCardSource;
+  /**
+   * When true, `services_catalog` paints the dedicated loading skeleton
+   * (BRIEF-03 / §14) instead of the empty message or interactive list.
+   * Callers that await offerings before render leave this unset.
+   */
+  talentOfferingsLoading?: boolean;
   /** Plan-tier rule for this talent — mirrors `TalentStorefront`'s own DB read, precomputed here so the (sync) render dispatcher never needs one. */
   talentOfferingsConfirmsByHand?: boolean;
+  /**
+   * Talent selling defaults for sheet CTAs (default booking mode instant / request / inquiry + who-step
+   * vocabulary). Prep minutes live in the same JSON but are applied server-side
+   * in the slots route — not needed on the catalog island.
+   */
+  /** WSF-C §8: the talent's public contact state on a direct channel. */
+  talentSitePause?: PublicContactMode;
+  talentOfferingsBookingSettings?: {
+    bookingPosture: "instant" | "request" | "inquiry";
+    whoPrimaryCta: "confirm_now" | "contact" | "check_availability";
+  };
   /** Present only when at least one visible offering needs a "≈ US$" line; a failed/skipped fetch omits the field rather than guessing. */
   talentOfferingsUsdRates?: UsdRates;
   /** Saved `category_order` from the talent profile. Missing names append after. */
@@ -291,6 +368,23 @@ export interface BuilderNodeRenderDataSources {
   talentOfferingsCategoryNotes?: Record<string, string>;
   /** Published talent site: write bookings. Editor / draft: demo sheet. */
   catalogBookingLive?: boolean;
+  /**
+   * PAY-2 Option B — platform Checkout can charge (`STRIPE_SECRET_KEY`).
+   * When false and the offering requires online collect, who-step forces
+   * inquiry. Talent Connect is NOT part of this signal.
+   */
+  onlineCollectReady?: boolean;
+  /**
+   * Maison FAQ (W16) — published `talent_faq_items` for accordion
+   * `bindSource: "talent_faq_items"`. Absent ⇒ bound accordion stays empty
+   * (or falls back to authored children).
+   */
+  talentFaqItems?: ReadonlyArray<{
+    id: string;
+    question: string;
+    answer: string;
+    sort_order?: number;
+  }>;
   menuOfferings?: ReadonlyArray<{
     id: string;
     title: string;
@@ -425,7 +519,20 @@ export interface BuilderNodeRenderOptions {
   // widget sends no token and EVERY submission is rejected — which is exactly
   // what happened to improntamodels.com on 2026-08-16. Keying render and
   // enforcement off the same tenant signal makes them impossible to diverge.
+  //
+  // Do NOT gate this on `platform_settings.guest_captcha_enforced` — that HQ
+  // switch is booking-only. CMS form submit still demands a token when the
+  // tenant has a provider.
   captcha?: {
+    provider: "hcaptcha" | "turnstile" | "none";
+    siteKey: string | null;
+  } | null;
+  // Guest booking sheet captcha (`services_catalog` → CatalogBookingSheet).
+  // Callers that honor HQ `guest_captcha_enforced` pass null / provider none
+  // here when OFF so Continuar al pago skips the challenge; leave `captcha`
+  // alone so CMS forms keep their widget. Absent → falls back to `captcha`
+  // for callers that have not split the two yet.
+  bookingCaptcha?: {
     provider: "hcaptcha" | "turnstile" | "none";
     siteKey: string | null;
   } | null;
@@ -1033,11 +1140,12 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
 
 /** The frozen `marquee` section's separator glyphs, preserved verbatim. */
 const MARQUEE_SEPARATOR_GLYPH: Readonly<
-  Record<"dot" | "slash" | "diamond" | "none", string>
+  Record<"dot" | "slash" | "diamond" | "star" | "none", string>
 > = {
   dot: "·",
   slash: "/",
   diamond: "◆",
+  star: "✦",
   none: "",
 };
 
@@ -1130,36 +1238,6 @@ function HeaderWidgetGlyph({
       {HEADER_WIDGET_GLYPH_PATHS[fallback]}
     </svg>
   );
-}
-
-/**
- * The `reveal` arming script.
- *
- * WHY IT IS INLINE AND SELF-CONTAINED: the previous `revealOnView` shipped dead
- * on every published page because the markup relied on a runtime the published
- * page never injected. This script travels WITH the node it animates, so the
- * two can never be separated. It also only ever ARMS — it adds the class that
- * turns on the hidden start state — so if it never runs (no JavaScript, a CSP
- * that blocks it, React's `dangerouslySetInnerHTML` on the client canvas, which
- * does not execute scripts) the content stays exactly as the server rendered
- * it: visible.
- *
- * `prefers-reduced-motion` is honoured by bailing out before arming, which
- * again leaves the content visible rather than animating it into place.
- */
-function buildRevealArmingScript(config: {
-  threshold: number;
-  staggerMs: number;
-  once: boolean;
-}): string {
-  const threshold = Number.isFinite(config.threshold)
-    ? Math.min(1, Math.max(0, config.threshold))
-    : 0.2;
-  const stagger = Number.isFinite(config.staggerMs)
-    ? Math.min(1000, Math.max(0, Math.round(config.staggerMs)))
-    : 80;
-  const once = config.once ? "1" : "0";
-  return `(function(){var s=document.currentScript;if(!s)return;var r=s.parentElement;if(!r)return;if(!('IntersectionObserver' in window))return;try{if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;}catch(e){return;}var kids=[];for(var i=0;i<r.children.length;i++){var c=r.children[i];if(c!==s)kids.push(c);}if(!kids.length)return;for(var j=0;j<kids.length;j++){kids[j].style.setProperty('--bn-reveal-stagger',(j*${stagger})+'ms');}r.setAttribute('data-bn-reveal-armed','1');var once=${once}===1;var io=new IntersectionObserver(function(es){for(var k=0;k<es.length;k++){var e=es[k];if(e.isIntersecting){r.setAttribute('data-bn-reveal-in','1');if(once){io.disconnect();return;}}else if(!once){r.removeAttribute('data-bn-reveal-in');}}},{threshold:${threshold}});io.observe(r);})();`;
 }
 
 /**
@@ -1260,6 +1338,12 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node[data-builder-style-container-type]{container-type:var(--bn-container-type)}
 .site-builder-node[data-builder-style-container-name]{container-name:var(--bn-container-name)}
 .site-builder-node--container{width:100%;max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:var(--bn-gap,1.25rem);align-items:var(--bn-align,stretch)}
+/* AUD-029: on a talent site a container placed straight on the page with no
+   authored side padding rendered flush to x=0 on phones. Same gutter as the
+   top-level services_catalog (AUD-026, paddingX:"m"). Authored padding wins:
+   paddingX/paddingLeft/Right are inline styles and the mobile lane is
+   !important. Full-bleed and background-media blocks are untouched. */
+[data-talent-max-site-main] [data-cms-block]>.site-builder-node--container:not([data-builder-full-bleed]):not([data-bn-bg-media]){padding-inline:1.5rem}
 .site-builder-node--container[data-builder-layout="row"]{flex-direction:row;flex-wrap:wrap}
 .site-builder-node--container[data-builder-layout="grid"],.site-builder-node--container[data-builder-display="grid"]{display:grid;grid-template-columns:repeat(var(--bn-columns,2),minmax(0,1fr))}
 .site-builder-node--container[data-builder-display="slider"]{display:flex;flex-direction:row;flex-wrap:nowrap;gap:var(--bn-slider-gap,var(--bn-gap,16px));overflow-x:auto;scroll-snap-type:x mandatory}
@@ -1339,8 +1423,12 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--marquee-link{color:inherit;text-decoration:none;border-bottom:1px solid currentColor}
 .site-builder-node--marquee-tag{display:inline-flex;align-items:center;padding:0.35rem 0.85rem;border:1px solid color-mix(in oklab,currentColor 20%,transparent);border-radius:999px;font-size:0.82rem;letter-spacing:0.06em;text-transform:uppercase}
 .site-builder-node--marquee-sep{opacity:0.45}
+.site-builder-node--marquee[data-bn-marquee-variant="serif"]{border-block:1px solid var(--token-color-line,currentColor);padding:12px 0}
+.site-builder-node--marquee[data-bn-marquee-variant="serif"] .site-builder-node--marquee-item{gap:26px;padding-right:26px;font-family:var(--site-heading-font,Georgia,serif);font-style:italic;font-weight:400;font-size:clamp(22px,2.4vw,30px);line-height:1.54}
+.site-builder-node--marquee[data-bn-marquee-variant="serif"] .site-builder-node--marquee-sep{opacity:1;font-style:normal;font-size:14px;color:var(--token-color-accent,currentColor)}
 @keyframes bn-marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.site-builder-node--marquee-track{animation:none}}
+[data-harness] .site-builder-node--marquee-track{animation:none}
 .site-builder-node--directory[data-bn-directory-width="full"]{max-width:none}
 .site-builder-node--directory-filters{display:flex;flex-wrap:wrap;align-items:center;gap:0.6rem;width:100%}
 .site-builder-node--directory-filter-input{flex:1 1 16rem;min-width:0;padding:0.8rem 1rem;border:1px solid color-mix(in oklab,currentColor 20%,transparent);border-radius:999px;font:inherit;color:inherit;background:var(--token-color-surface-raised,#fff)}
@@ -1405,8 +1493,10 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-effect="blur"]>:not(script){filter:blur(10px)}
 .site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-effect="mask-up"]>:not(script){opacity:1;clip-path:inset(100% 0 0 0)}
 .site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-effect="none"]>:not(script){opacity:1}
-.site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-in="1"]>:not(script){opacity:1;transform:none;filter:none;clip-path:inset(0 0 0 0)}
-@media (prefers-reduced-motion:reduce){.site-builder-node--reveal[data-bn-reveal-armed="1"]>:not(script){opacity:1;transform:none;filter:none;clip-path:none;transition:none}}
+.site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-in="1"][data-bn-reveal-effect][data-bn-reveal-direction]>:not(script){opacity:1;transform:none;filter:none;clip-path:inset(0 0 0 0)}
+@keyframes bn-reveal-backstop{to{opacity:1;transform:none;filter:none;clip-path:inset(0 0 0 0)}}
+.site-builder-node--reveal[data-bn-reveal-armed="1"]:not([data-bn-reveal-in="1"])>:not(script){animation:bn-reveal-backstop 400ms ease-out 1500ms both}
+@media (prefers-reduced-motion:reduce){.site-builder-node--reveal[data-bn-reveal-armed="1"]>:not(script){opacity:1;transform:none;filter:none;clip-path:none;transition:none;animation:none}}
 .site-builder-node--stats[data-bn-stats-align="center"]{text-align:center}
 .site-builder-node--stats-grid{display:grid;grid-template-columns:repeat(var(--bn-stats-columns,3),minmax(0,1fr));gap:clamp(1.25rem,3vw,2.5rem);margin:0;width:100%}
 .site-builder-node--stats[data-bn-stats-variant="split"] .site-builder-node--stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -1751,142 +1841,7 @@ ${BACKGROUND_MEDIA_CSS}
 ${HOVER_V2_CSS}
 `;
 
-/**
- * Reveal-on-view runtime (2026-06-04). A tiny inline IntersectionObserver the
- * published page injects ONCE when any node opts into `revealOnView`. It:
- *   1. ARMS every `[data-bn-reveal]` node (`data-bn-reveal-armed`) — only after
- *      arming does the sheet apply the hidden/offset pose, so a no-JS / no-IO
- *      render shows the node at rest (no flash of hidden content, SEO-safe).
- *   2. Observes each node and sets `data-bn-revealed` the first time ≥12% of it
- *      enters the viewport, then unobserves it (reveal once, never replays).
- * Skips entirely when IntersectionObserver is unavailable (leaves nodes at rest)
- * and respects prefers-reduced-motion (reveals immediately, no transition — the
- * sheet's reduced-motion guard forces the rest pose). Self-contained, no deps.
- */
-/**
- * Entrance-animation "play once on scroll in" runtime.
- *
- * A DELIBERATE second observer rather than a widened `BUILDER_NODE_REVEAL_SCRIPT`.
- * That script is gated on `hasRevealOnViewNode` inside `renderBuilderNodes`, and
- * every real published route hoists the renderer sheet to page level with
- * `includeRendererStyles: false` per block -- so the gate never runs and the
- * reveal runtime is injected on NO production page today (only the dev QA
- * route mounts it by hand). Reusing that script would have meant either
- * inheriting a runtime that never ships, or reviving `revealOnView` on every
- * live page as a side effect of an unrelated feature. Neither belongs in this
- * change, so the Animation tab brings its own observer and leaves the reveal
- * lane exactly as it found it. The dead reveal runtime is a separate,
- * pre-existing bug and is written up as one.
- *
- * It ships alongside the sheet (`BuilderNodeRendererStyles`), which IS mounted
- * once on every page, so a route added later cannot forget it. That costs every
- * page a few hundred bytes of script it may not use; the script early-returns
- * on the first line when no node opts in, and a control that silently does
- * nothing is a worse trade.
- *
- *   1. ARMS the lane by APPENDING A STYLESHEET, not by writing an attribute
- *      onto each node. That distinction is load-bearing: this script runs at
- *      DOMContentLoaded, which fires BEFORE React hydrates, so an attribute
- *      written here is an attribute the server never rendered -- React reports
- *      a hydration mismatch ("this won't be patched up") on every node in the
- *      lane. Appending a fresh <style> to <head> touches nothing React owns.
- *      Until it lands the nodes render at rest, so no JS, no
- *      IntersectionObserver or reduced motion all mean the content is simply
- *      visible. Never a flash of hidden content, never text a crawler or a
- *      reader cannot see.
- *   2. Marks it `data-bn-revealed` the first time >= 12% of it is on screen,
- *      which is when the sheet applies the `--bn-anim` shorthand, then
- *      unobserves it. Plays once, exactly as the panel promises.
- */
-/**
- * Both scroll lanes (play-once and reveal) are the same machine with different
- * names: guard flag, armed sheet, IntersectionObserver. One builder, so a fix
- * to one lane cannot skip the other.
- *
- * The observer binds to EVERY node in the lane, present or future. The first
- * version only bound to the nodes it found at DOMContentLoaded, and that was
- * enough to hide a whole homepage: entering the builder swaps the canvas in
- * place, so every section became a new DOM node the observer had never seen,
- * while the armed sheet was still in <head> holding its replacement at
- * opacity 0. Guard flag set, sheet armed, zero nodes revealed, forever. The
- * same hole opens on any client-side route change or block re-render. So the
- * runtime also watches the body for added nodes and observes those too; a
- * node that already carries `data-bn-revealed` is left alone (moved, not new).
- */
-function buildScrollLaneRuntimeScript(lane: {
-  /** window flag so the second/third sheet mount on a page does not re-bind. */
-  flag: string;
-  /** attribute that opts a node into the lane. */
-  attr: string;
-  /** attribute on the injected <style> that holds the hidden pose. */
-  sheetAttr: string;
-  /** the hidden pose, applied only to un-revealed nodes. */
-  armedCss: string;
-}): string {
-  const sel = JSON.stringify(`[${lane.attr}]`);
-  return `(function(){
-  if(window.${lane.flag})return;
-  window.${lane.flag}=1;
-  var SEL=${sel};
-  function run(){
-    try{
-      var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      // Reduced motion / no IntersectionObserver: never arm. The poses live in
-      // the injected sheet, so skipping injection leaves every node at rest --
-      // no attribute writes, nothing for React to disagree with.
-      if(reduce||typeof IntersectionObserver==='undefined')return;
-      var io=new IntersectionObserver(function(entries){
-        for(var k=0;k<entries.length;k++){
-          var e=entries[k];
-          if(e.isIntersecting){
-            e.target.setAttribute('data-bn-revealed','');
-            io.unobserve(e.target);
-          }
-        }
-      },{threshold:0.12,rootMargin:'0px 0px -8% 0px'});
-      var armed=null;
-      function arm(){
-        if(armed)return;
-        armed=document.createElement('style');
-        armed.setAttribute(${JSON.stringify(lane.sheetAttr)},'');
-        armed.textContent=${JSON.stringify(lane.armedCss)};
-        document.head.appendChild(armed);
-      }
-      function watch(root){
-        if(!root||root.nodeType!==1)return;
-        var list=root.querySelectorAll(SEL);
-        var own=root.matches&&root.matches(SEL);
-        if(!own&&!list.length)return;
-        arm();
-        if(own&&!root.hasAttribute('data-bn-revealed'))io.observe(root);
-        for(var m=0;m<list.length;m++)if(!list[m].hasAttribute('data-bn-revealed'))io.observe(list[m]);
-      }
-      watch(document.body);
-      if(typeof MutationObserver!=='undefined'){
-        new MutationObserver(function(recs){
-          for(var r=0;r<recs.length;r++){
-            var added=recs[r].addedNodes;
-            for(var a=0;a<added.length;a++)watch(added[a]);
-          }
-        }).observe(document.body,{childList:true,subtree:true});
-      }
-    }catch(err){
-      // Anything went wrong: drop the poses so the content is visible.
-      var s2=document.querySelector('style['+${JSON.stringify(lane.sheetAttr)}+']');
-      if(s2&&s2.parentNode)s2.parentNode.removeChild(s2);
-    }
-  }
-  // The runtime ships with the SHEET, which is emitted in head order -- so at
-  // execution time the body it needs to query does not exist yet and a bare
-  // call would find zero nodes and quietly do nothing. Wait for the DOM.
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',run);
-  }else{
-    run();
-  }
-})();`;
-}
-
+// Scroll-lane runtimes: builder + AUD-045 safety rules live in ./reveal-runtime.
 const BUILDER_NODE_ANIM_ONCE_SCRIPT = buildScrollLaneRuntimeScript({
   flag: "__bnAnimOnceRuntime",
   attr: "data-bn-anim-once",
@@ -2568,7 +2523,7 @@ function styleColor(tone: BuilderNodeStyleValue["tone"]): string | undefined {
   // Theme-adaptive (AIQ-4): fall back to the old hardcoded values only when the
   // theme defines no token, so light themes look identical and dark themes stop
   // rendering muted/strong text near-black-on-dark.
-  if (tone === "muted") return "var(--token-color-muted, rgba(18, 18, 18, 0.62))";
+  if (tone === "muted") return MUTED_TONE_COLOR;
   if (tone === "strong") return "var(--token-color-ink, #111)";
   return undefined;
 }
@@ -3185,6 +3140,13 @@ function clampFreeWidthForMobile(value: string): string {
   return `min(${value.trim()}, 100%)`;
 }
 
+/**
+ * Muted tone: inside a band that sets its own ink (`--bn-ink`), fine print is
+ * that ink at 60%; elsewhere the theme's muted token (unchanged).
+ */
+const MUTED_TONE_COLOR =
+  "var(--bn-ink-muted, var(--token-color-muted, rgba(18, 18, 18, 0.62)))";
+
 export function inlineNodeStyle(
   style: BuilderNodeStyle | undefined,
   ...base: Array<CSSProperties | undefined>
@@ -3230,7 +3192,7 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
       "color-mix(in oklab, var(--token-color-surface-raised, #f6f1e8) 62%, var(--token-color-ink, #111) 4%)";
     out.color = "var(--token-color-ink, #111)";
   }
-  if (style.tone === "muted") out.color = "var(--token-color-muted, rgba(18, 18, 18, 0.62))";
+  if (style.tone === "muted") out.color = MUTED_TONE_COLOR;
   if (style.tone === "strong") out.color = "var(--token-color-ink,#111)";
   // Free-value escapes — applied last so they override the token presets above.
   // fontFamily may be a `token:typography.*-font-family` binding → resolved to
@@ -3260,8 +3222,24 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   }
   // Color emits — a `token:<key>` value binds to a Theme token (resolved to its
   // CSS var); a raw hex/rgb/keyword is emitted unchanged (flagship-identical).
-  if (style.textColor) out.color = styleToken(style.textColor);
-  if (style.backgroundColor) out.backgroundColor = styleToken(style.backgroundColor);
+  if (style.textColor) {
+    out.color = styleToken(style.textColor);
+    // Band ink: a container that sets its own text colour (a dark footer band)
+    // hands it down, so default paragraphs + muted fine print inside inherit a
+    // readable soft ink instead of the page ink (invisible on the dark band).
+    (out as Record<string, string>)["--bn-ink"] = String(out.color);
+    (out as Record<string, string>)["--bn-ink-muted"] =
+      `color-mix(in oklab, ${String(out.color)} 60%, transparent)`;
+  }
+  if (style.backgroundColor) {
+    out.backgroundColor = styleToken(style.backgroundColor);
+    // A new surface without its own ink resets the band ink (a light card
+    // inside a dark band reads the page ink again).
+    if (!style.textColor) {
+      (out as Record<string, string>)["--bn-ink"] = "initial";
+      (out as Record<string, string>)["--bn-ink-muted"] = "initial";
+    }
+  }
   if (style.borderColor || style.borderWidth || style.borderStyle) {
     out.borderStyle = style.borderStyle ?? "solid";
     out.borderWidth = style.borderWidth ?? "1px";
@@ -4416,7 +4394,14 @@ function withExperimentAttrs(
 // the cascade hands it `--token-color-ink`. Do not remove this without first
 // confirming the button still has a visible fill and legible text.
 const SERVICES_CATALOG_CSS = `
+/* No page-ground paint here — non-Maison catalogs must keep authored/parent bg.
+   Maison soft blush: Design services container OR an authored style.backgroundColor
+   on the catalog node (live binding; see useWebsiteTheme band exception). */
 .site-builder-node--services-catalog{color:var(--token-color-ink);font:inherit;--plt-ink:var(--token-color-ink);--plt-bg:var(--token-color-surface-raised, #fff);--plt-bg-raised:var(--token-color-surface-raised, #fff);--plt-muted:var(--token-color-muted);--plt-hairline-strong:var(--token-color-line)}
+/* AUD-026: a catalog dropped straight on the page (no padded container parent)
+   gets the same side gutter a paddingX:"m" container has. Inline authored
+   padding still wins; nested catalogs keep their parent's padding. */
+[data-cms-block]>.site-builder-node--services-catalog{padding-inline:1.5rem}
 .site-builder-node--services-catalog-header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.25rem;margin-bottom:1.5rem}
 .site-builder-node--services-catalog-eyebrow{margin:0 0 .35rem;font-size:.6875rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--token-color-primary,var(--token-color-ink))}
 .site-builder-node--services-catalog-title{margin:0;font-size:clamp(1.75rem,4vw,2.75rem);font-weight:500;line-height:1.1;font-family:var(--token-font-display,inherit)}
@@ -4427,24 +4412,178 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-stat strong{font-size:2rem;font-weight:500}
 .site-builder-node--services-catalog-stat span{margin-top:.35rem;font-size:.625rem;letter-spacing:.12em;text-transform:uppercase;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-empty{margin:0;padding:1.5rem 0;color:var(--token-color-muted);font-size:.9rem}
+.site-builder-node--services-catalog-pause{margin:0 0 1rem;padding:.75rem 1rem;border:1px solid currentColor;border-radius:.75rem;font-size:.9rem;opacity:.85}
+.site-builder-node--services-catalog-loading{margin:0}
+.site-builder-node--services-catalog-loading-label{margin:0 0 .85rem;font-size:.8125rem;font-weight:600;color:var(--token-color-muted)}
+.site-builder-node--services-catalog-skel{display:block;background:color-mix(in srgb,var(--token-color-ink) 8%,transparent);border-radius:8px;animation:svc-catalog-skel-pulse 1.2s ease-in-out infinite}
+.site-builder-node--services-catalog-skel-line{height:.75rem;margin:.2rem 0}
+.site-builder-node--services-catalog-skel-name{width:58%;height:.95rem}
+.site-builder-node--services-catalog-skel-desc{width:82%;height:.7rem}
+.site-builder-node--services-catalog-skel-meta{width:36%;height:.65rem}
+.site-builder-node--services-catalog-skel-price{width:4.5rem;height:.95rem}
+.site-builder-node--services-catalog-skel-cta{width:5.5rem;min-height:2rem;border-radius:10px;pointer-events:none}
+.site-builder-node--services-catalog-skel.site-builder-node--services-catalog-photo{background:color-mix(in srgb,var(--token-color-ink) 10%,transparent)}
+@keyframes svc-catalog-skel-pulse{0%,100%{opacity:.55}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.site-builder-node--services-catalog-skel{animation:none}}
 .site-builder-node--services-catalog-nav{display:flex;flex-wrap:wrap;gap:.5rem;margin:0 0 1.25rem}
+.site-builder-node--services-catalog-nav[data-category-nav="tabs"]{gap:0;border-bottom:1px solid var(--token-color-line);padding-bottom:0}
+.site-builder-node--services-catalog-nav[data-category-nav="tabs"] .site-builder-node--services-catalog-pill{border:0;border-radius:0;border-bottom:2px solid transparent;background:transparent;padding:.55rem .9rem;margin-bottom:-1px}
+.site-builder-node--services-catalog-nav[data-category-nav="tabs"] .site-builder-node--services-catalog-pill[data-active="true"]{background:transparent;color:var(--token-color-ink);border-bottom-color:var(--token-color-ink)}
+/* W-01 Maison v2: phone chips stay a horizontal strip; desktop becomes sticky rail. */
+.site-builder-node--services-catalog-body{display:block}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:.15rem;margin-bottom:1rem}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav::-webkit-scrollbar{display:none}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav .site-builder-node--services-catalog-pill{flex:0 0 auto}
 .site-builder-node--services-catalog-pill{display:inline-flex;align-items:center;border:1px solid var(--token-color-line);border-radius:999px;padding:.4rem 1rem;font-size:.75rem;font-weight:600;color:var(--token-color-ink);background:transparent;text-decoration:none;cursor:pointer}
 .site-builder-node--services-catalog-pill[data-active="true"]{background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff);border-color:var(--token-color-ink)}
 .site-builder-node--services-catalog-group{margin-bottom:0}
 .site-builder-node--services-catalog-group-title{margin:0 0 .75rem;font-size:1.05rem;font-weight:600;scroll-margin-top:5rem}
+.site-builder-node--services-catalog-accordion-trigger{appearance:none;width:100%;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.85rem 0;border:0;border-bottom:1px solid var(--token-color-line);background:transparent;cursor:pointer;font:inherit;font-weight:600;text-align:left;color:var(--token-color-ink)}
+.site-builder-node--services-catalog-accordion-trigger[aria-expanded="false"]+ .site-builder-node--services-catalog-list{display:none}
 .site-builder-node--services-catalog-list{list-style:none;margin:0;padding:0}
-.site-builder-node--services-catalog-row{display:grid;grid-template-columns:120px 1fr auto auto;gap:1.1rem;align-items:center;padding:1.1rem 0;border-bottom:1px solid var(--token-color-line);background:transparent}
-@media (max-width:560px){.site-builder-node--services-catalog-row{grid-template-columns:72px 1fr;grid-template-areas:"photo copy" "photo price" "cta cta"}.site-builder-node--services-catalog-row>:nth-child(1){grid-area:photo}.site-builder-node--services-catalog-row>:nth-child(2){grid-area:copy}.site-builder-node--services-catalog-row>:nth-child(3){grid-area:price;justify-self:start}.site-builder-node--services-catalog-row>:nth-child(4){grid-area:cta;justify-self:start}}
-.site-builder-node--services-catalog-photo{width:120px;height:120px;border-radius:0;object-fit:cover;flex-shrink:0;background:color-mix(in srgb,var(--token-color-ink) 6%,transparent)}
-@media (max-width:560px){.site-builder-node--services-catalog-photo{width:72px;height:72px}}
-.site-builder-node--services-catalog-copy{min-width:0;display:flex;flex-direction:column;gap:.25rem}
-.site-builder-node--services-catalog-name{font-weight:600;font-size:1rem;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
-.site-builder-node--services-catalog-desc{font-size:.8125rem;line-height:1.45;color:var(--token-color-muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.site-builder-node--services-catalog-duration{font-size:.75rem;color:var(--token-color-muted)}
-.site-builder-node--services-catalog-price{text-align:right;white-space:nowrap;font-size:1rem}
-.site-builder-node--services-catalog-usd{display:block;font-size:.75rem;color:var(--token-color-muted)}
-.site-builder-node--services-catalog-cta{appearance:none;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:.4rem .85rem;font-size:.75rem;font-weight:600;background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff)}
-.site-builder-node--services-catalog-cta[data-selected="true"]{background:transparent;color:var(--token-color-ink);border:1px solid var(--token-color-line)}
+/* BJ-10: Maison-like ticket rows — pack copy↔price/CTA (no cavernous 1fr middle). */
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row,
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px 12px;padding:.85rem 0;border-bottom:1px solid var(--token-color-line);background:transparent}
+.site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:.45rem .65rem;padding:.45rem 0;border-bottom:1px solid var(--token-color-line)}
+.site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-photo{display:none}
+/* W-01 Folio rate card: hairline name · duration · price rows (no photo). */
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;column-gap:1rem;row-gap:.2rem;padding:.5rem 0;border-bottom:1px solid var(--token-color-line);background:transparent}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-photo{display:none}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-copy{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;column-gap:.75rem;gap:.15rem .75rem;flex:none;min-width:0}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-name{font-weight:500;font-size:.875rem;letter-spacing:.01em}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-duration{justify-self:end;white-space:nowrap;font-size:.75rem;color:var(--token-color-muted)}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-desc,.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-meta,.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-badges{grid-column:1/-1}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-buy{flex:none;width:auto;min-width:0;justify-content:flex-end;gap:.65rem;align-items:baseline}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-price{align-items:flex-end;text-align:right;font-size:.875rem;font-weight:500}
+.site-builder-node--services-catalog[data-layout="rate_card"][data-density="compact"] .site-builder-node--services-catalog-row{padding-top:.4rem;padding-bottom:.4rem}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-group-title{margin:0 0 .35rem;font-size:.8125rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--token-color-muted)}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,2),minmax(0,1fr));gap:1.5rem}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,3),minmax(0,1fr));gap:.85rem}
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,2),minmax(0,1fr));gap:1.75rem}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-row,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.75rem;padding:0;border:1px solid var(--token-color-line);border-radius:12px;overflow:hidden;background:var(--token-color-surface-raised,#fff)}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.5rem;padding:0;border:0;border-radius:0;overflow:hidden;background:transparent}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-photo,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:4/3}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:1/1}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-copy,
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-copy,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-copy{padding:0 1rem}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-copy{padding:0}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-buy,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-buy{margin:0 1rem 1rem;flex:0 0 auto;min-width:0;width:auto;justify-content:flex-start;gap:.75rem}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-buy{margin:.25rem 0 0;flex:0 0 auto;justify-content:flex-start;gap:.5rem}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-price,
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-price,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-price{align-items:flex-start;text-align:left}
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-name{font-family:var(--token-font-display,inherit);font-size:1.15rem;font-weight:500}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-list{display:flex;flex-direction:column;gap:1rem}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:first-child{display:grid;grid-template-columns:minmax(180px,42%) 1fr;gap:1.5rem;padding:1.25rem;border:1px solid var(--token-color-line);border-radius:16px;margin-bottom:.5rem}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:first-child .site-builder-node--services-catalog-photo{width:100%;height:100%;min-height:200px;border-radius:12px}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child){display:flex;flex-wrap:nowrap;align-items:center;gap:1rem;padding:.85rem 0;border-bottom:1px solid var(--token-color-line)}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child) .site-builder-node--services-catalog-photo{width:72px;height:72px}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child) .site-builder-node--services-catalog-buy{flex:0 0 auto;min-width:0}
+.site-builder-node--services-catalog-nav[data-category-nav="jump"]{gap:.5rem;padding-bottom:.85rem;border-bottom:1px solid var(--token-color-line);margin-bottom:1.25rem}
+.site-builder-node--services-catalog[data-category-nav="sections"] .site-builder-node--services-catalog-group-title{margin-top:1.75rem;padding-top:.5rem;border-top:1px solid var(--token-color-line);font-size:1.15rem;letter-spacing:.02em}
+.site-builder-node--services-catalog[data-category-nav="sections"] .site-builder-node--services-catalog-group:first-of-type .site-builder-node--services-catalog-group-title{margin-top:0;padding-top:0;border-top:0}
+.site-builder-node--services-catalog-photo{width:64px;height:64px;border-radius:0;object-fit:cover;flex:0 0 auto;background:color-mix(in srgb,var(--token-color-ink) 6%,transparent)}
+.site-builder-node--services-catalog[data-photo-radius="soft"] .site-builder-node--services-catalog-photo{border-radius:12px}
+.site-builder-node--services-catalog[data-photo-radius="round"] .site-builder-node--services-catalog-photo{border-radius:999px}
+.site-builder-node--services-catalog-copy{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:.15rem}
+.site-builder-node--services-catalog-name{font-weight:600;font-size:.9375rem;line-height:1.25;overflow:hidden;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;word-break:break-word}
+.site-builder-node--services-catalog-name-text{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.site-builder-node--services-catalog[data-name-line-clamp="3"] .site-builder-node--services-catalog-name-text{-webkit-line-clamp:3;text-wrap:pretty}
+.site-builder-node--services-catalog[data-name-line-clamp="4"] .site-builder-node--services-catalog-name-text{-webkit-line-clamp:4;text-wrap:pretty}
+.site-builder-node--services-catalog-check{flex:0 0 auto;width:21px;height:21px;border-radius:99px;background:var(--token-color-primary,var(--token-color-accent,#A82458));color:#fff;display:inline-grid;place-items:center;font-size:.75rem;line-height:1}
+.site-builder-node--services-catalog-desc{font-size:.75rem;line-height:1.35;color:var(--token-color-muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-width:46ch}
+.site-builder-node--services-catalog-duration{font-size:.6875rem;color:var(--token-color-muted)}
+.site-builder-node--services-catalog-meta{font-size:.6875rem;color:var(--token-color-muted)}
+.site-builder-node--services-catalog-badges{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.15rem}
+.site-builder-node--services-catalog-mode{align-self:flex-start;display:inline-flex;font-size:10.5px;font-weight:600;letter-spacing:.04em;padding:2px 7px;border-radius:99px;background:var(--token-color-blush,color-mix(in srgb,var(--token-color-accent,var(--token-color-ink)) 12%,transparent));color:var(--token-color-accent,var(--token-color-ink))}
+.site-builder-node--services-catalog-badge{display:inline-flex;align-items:center;font-size:.65rem;font-weight:600;letter-spacing:.02em;padding:.15rem .45rem;border-radius:999px;border:1px solid var(--token-color-line);color:var(--token-color-ink);background:transparent}
+.site-builder-node--services-catalog-demo-toast{position:fixed;left:50%;bottom:96px;z-index:60;margin:0;padding:8px 14px;border-radius:99px;font-size:12.5px;font-weight:600;white-space:nowrap;background:var(--token-color-ink);color:var(--token-color-background);transform:translateX(-50%);pointer-events:none;opacity:0;transition:opacity .2s ease}
+.site-builder-node--services-catalog-demo-toast[data-show="true"]{opacity:1}
+.site-builder-node--services-catalog-demo{margin:0 0 .85rem;padding:.55rem .75rem;border-radius:10px;background:color-mix(in srgb,var(--token-color-primary,var(--token-color-ink)) 8%,transparent);color:var(--token-color-ink);font-size:.75rem;font-weight:600}.site-builder-node--services-catalog-search{display:flex;gap:.5rem;align-items:center;margin:0 0 1rem}
+.site-builder-node--services-catalog-search input{flex:1;min-height:2.5rem;border:1px solid var(--token-color-line);border-radius:10px;padding:0 .85rem;font:inherit;background:var(--token-color-surface-raised,#fff);color:var(--token-color-ink)}
+.site-builder-node--services-catalog-search button{appearance:none;border:0;background:transparent;cursor:pointer;font:inherit;font-size:.8125rem;font-weight:600;color:var(--token-color-ink);text-decoration:underline;min-height:44px}
+.site-builder-node--services-catalog-buy{flex:1 0 100%;display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
+.site-builder-node--services-catalog-price{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;white-space:nowrap;font-size:.9375rem;flex:0 0 auto}
+.site-builder-node--services-catalog-price small{font-size:.625rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--token-color-muted)}
+@media(max-width:480px){.site-builder-node--services-catalog-price{white-space:normal;text-wrap:balance;overflow-wrap:anywhere;min-width:0;flex:0 1 auto}}
+.site-builder-node--services-catalog-usd{display:block;font-size:.6875rem;color:var(--token-color-muted)}
+.site-builder-node--services-catalog-cta{appearance:none;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:.45rem 1rem;min-height:44px;font-size:.8125rem;font-weight:600;background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff);flex:0 0 auto;white-space:nowrap}
+.site-builder-node--services-catalog[data-cta-variant="outline"] .site-builder-node--services-catalog-cta{background:transparent;color:var(--token-color-ink);border:1px solid var(--token-color-line)}
+.site-builder-node--services-catalog[data-cta-variant="pill"] .site-builder-node--services-catalog-cta{min-height:34px;height:34px;padding:0 14px;border-radius:99px;border:1.5px solid var(--token-color-ink);background:transparent;color:var(--token-color-ink);font-size:13px;font-weight:600}
+.site-builder-node--services-catalog[data-cta-variant="pill"] .site-builder-node--services-catalog-cta:is([data-offering-cta^="request"],[data-offering-cta^="ask"]):not([data-selected="true"]){border:1px solid var(--token-color-line);background:var(--token-color-surface-raised,transparent)}
+.site-builder-node--services-catalog[data-content-width="full"] > :not(style){max-width:none}
+.site-builder-node--services-catalog[data-cta-variant="solid"] .site-builder-node--services-catalog-cta{background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff);border:1px solid var(--token-color-ink)}
+.site-builder-node--services-catalog-cta[data-selected="true"]{background:color-mix(in srgb,var(--token-color-primary,var(--token-color-accent,#A82458)) 14%,transparent);color:var(--token-color-ink);border:1px solid var(--token-color-primary,var(--token-color-accent,#A82458))}
+.site-builder-node--services-catalog[data-density="compact"] .site-builder-node--services-catalog-row{padding-top:.55rem;padding-bottom:.55rem}
+@media (max-width:560px){
+/* Phone: photo | copy / photo | buy — price+Seleccionar on one band under copy (not stacked full-bleed). */
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row[data-has-photo="true"],
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row[data-has-photo="true"]{display:grid;grid-template-columns:64px minmax(0,1fr);grid-template-areas:"photo copy" "photo buy";column-gap:12px;row-gap:8px;align-items:start;padding:.75rem 0}
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row[data-has-photo="true"] .site-builder-node--services-catalog-photo,
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row[data-has-photo="true"] .site-builder-node--services-catalog-photo{grid-area:photo;width:64px;height:64px}
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row[data-has-photo="true"] .site-builder-node--services-catalog-copy,
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row[data-has-photo="true"] .site-builder-node--services-catalog-copy{grid-area:copy}
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row[data-has-photo="true"] .site-builder-node--services-catalog-buy,
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row[data-has-photo="true"] .site-builder-node--services-catalog-buy{grid-area:buy;flex:none;width:100%;min-width:0;justify-content:space-between;gap:10px}
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row[data-has-photo="false"] .site-builder-node--services-catalog-buy,
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row[data-has-photo="false"] .site-builder-node--services-catalog-buy{flex:1 0 100%}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-list,
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{grid-template-columns:1fr}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:first-child{grid-template-columns:1fr}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child){display:grid;grid-template-columns:64px minmax(0,1fr);grid-template-areas:"photo copy" "photo buy";gap:8px 12px}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child) .site-builder-node--services-catalog-photo{grid-area:photo;width:64px;height:64px}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child) .site-builder-node--services-catalog-copy{grid-area:copy}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child) .site-builder-node--services-catalog-buy{grid-area:buy;flex:none;width:100%}
+}
+@media (min-width:561px){
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row,
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row{display:flex;flex-wrap:nowrap;align-items:center;gap:1.25rem 1.75rem;padding:1.15rem 0}
+.site-builder-node--services-catalog-photo{width:92px;height:92px}
+.site-builder-node--services-catalog-copy{flex:1 1 auto;max-width:46ch;gap:.25rem}
+.site-builder-node--services-catalog-name{font-size:1rem;line-height:1.3}
+.site-builder-node--services-catalog-desc{font-size:.8125rem;line-height:1.45}
+.site-builder-node--services-catalog-duration,.site-builder-node--services-catalog-meta{font-size:.75rem}
+.site-builder-node--services-catalog-buy{flex:0 0 auto;justify-content:flex-end;gap:1.25rem;min-width:0;width:auto}
+.site-builder-node--services-catalog-price{align-items:flex-end;text-align:right;min-width:5.5rem;font-size:1rem}
+.site-builder-node--services-catalog-cta{min-height:44px;padding:.5rem 1.05rem;font-size:.8125rem}
+.site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-row{flex-wrap:nowrap}
+.site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-copy{max-width:46ch}
+.site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-buy{flex:0 0 auto;margin-inline-start:.75rem}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-row{grid-template-columns:minmax(0,1fr) auto;align-items:baseline}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-copy{max-width:none}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-buy{margin-inline-start:0}
+}
+/* AUD-042: desktop menu reads as one centered column (same 1120px as
+   container/split/nav), not edge to edge. The section keeps painting the
+   full-bleed band; only its content is constrained. Author widths on the
+   section itself (inline style) are untouched. */
+.site-builder-node--services-catalog>:not(style){max-width:1120px;margin-inline:auto}
+@media (min-width:768px){
+/* List layout: [thumb 92px] [text 1fr] [price + CTA] so price/CTA pin to the
+   container's right edge and the text column fills. */
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row,
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row[data-has-photo="true"],
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row[data-has-photo="true"]{grid-template-columns:92px minmax(0,1fr) auto}
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-copy,
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-copy{max-width:none}
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-desc,
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-desc{max-width:62ch}
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-buy,
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-buy{justify-self:end}
+/* W-01: sticky category rail beside the menu rows (filter chips stay phone-only). */
+.site-builder-node--services-catalog-body[data-category-nav="rail"]{display:grid;grid-template-columns:10.5rem minmax(0,1fr);gap:1.75rem;align-items:start}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav{position:sticky;top:1rem;z-index:1;flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:.35rem;margin:0;padding:0;overflow:visible}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav .site-builder-node--services-catalog-pill{justify-content:flex-start;border-radius:10px;width:100%}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-groups{min-width:0}
+}
+.cb-island .cb-bar[data-bar-style="float"]{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+.cb-island .cb-bar[data-bar-style="hidden"]{display:none!important}
 `;
 
 function renderBuilderNode(
@@ -4506,6 +4645,10 @@ function renderBuilderNodeElement(
       // container without one — or with a URL that failed to parse — keeps
       // byte-identical markup.
       const bgMedia = renderBackgroundMediaLayer(node.props.backgroundMedia, node.id);
+      // F77: Before / After with an empty photo slot. Public: hidden until both
+      // are set. Builder: shown, with a prompt to choose the two photos.
+      const beforeAfterIncomplete = isIncompleteBeforeAfter(node);
+      if (beforeAfterIncomplete && !options.contentLocale?.editorPreview) return null;
       return (
         <ContainerTag
           key={node.id}
@@ -4530,6 +4673,24 @@ function renderBuilderNodeElement(
           style={containerStyle(node)}
         >
           {bgMedia}
+          {beforeAfterIncomplete ? (
+            <p
+              data-before-after-prompt=""
+              style={{
+                margin: 0,
+                padding: "12px 16px",
+                border: "1px dashed rgba(24,24,27,0.28)",
+                borderRadius: 12,
+                fontSize: 13,
+                lineHeight: 1.5,
+                color: "rgba(24,24,27,0.60)",
+              }}
+            >
+              {options.contentLocale?.locale === "es"
+                ? "Elige tus fotos de antes y después"
+                : "Choose your before and after photos"}
+            </p>
+          ) : null}
           {renderDataBoundContainerChildren(node, options)}
         </ContainerTag>
       );
@@ -4549,13 +4710,49 @@ function renderBuilderNodeElement(
           {renderChildren(node, options)}
         </div>
       );
-    case "accordion":
+    case "accordion": {
+      // Maison FAQ bind (W16): expand from published talent_faq_items when set.
+      const bindFaq = node.props.bindSource === "talent_faq_items";
+      const faqChildren = bindFaq
+        ? (() => {
+            const items = options.dataSources.talentFaqItems ?? [];
+            if (items.length === 0) {
+              return nodeChildren(node);
+            }
+            return items.map((item, index) => {
+              const id = `${node.id}-faq-${item.id || index}`;
+              const answer = item.answer?.trim() || "";
+              return {
+                id,
+                kind: "accordion_item" as const,
+                props: { title: item.question.trim() || "…" },
+                children: answer
+                  ? [
+                      {
+                        id: `${id}-a`,
+                        kind: "paragraph" as const,
+                        props: {
+                          text: answer,
+                          style: { tone: "muted" as const, size: "md" as const },
+                        },
+                      },
+                    ]
+                  : [],
+              };
+            });
+          })()
+        : null;
+      const accordionNode =
+        faqChildren != null
+          ? ({ ...node, children: faqChildren } as typeof node)
+          : node;
       return (
         <div
           key={node.id}
           {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
+          {...(bindFaq ? { "data-faq-bind": "talent_faq_items" } : {})}
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--accordion"
           style={inlineNodeStyle(node.props.style, CONTAINER_STYLE, {
@@ -4563,12 +4760,15 @@ function renderBuilderNodeElement(
             gap: GAP_BY_SIZE.m,
           })}
         >
-          {renderChildren(node, {
+          {renderChildren(accordionNode, {
             ...options,
-            accordionOpenIds: node.props.defaultOpenItemIds,
+            accordionOpenIds: node.props.startClosed
+              ? node.props.defaultOpenItemIds ?? []
+              : node.props.defaultOpenItemIds,
           })}
         </div>
       );
+    }
     case "accordion_item": {
       const titleResolved = resolveNodeLocalizedText(
         node,
@@ -5018,8 +5218,12 @@ function renderBuilderNodeElement(
         >
           <BuilderNodeCarouselTrack
             nodeId={node.id}
+            variant="rail"
             showArrows={node.props.showArrows}
             showDots={node.props.showDots}
+            autoplayMs={node.props.autoplayMs}
+            loop={node.props.loop}
+            pauseOnHover={node.props.pauseOnHover !== false}
           >
             {carouselItems}
           </BuilderNodeCarouselTrack>
@@ -5128,7 +5332,7 @@ function renderBuilderNodeElement(
             // #121212) this is byte-equivalent to the old color-mix(in oklab,currentColor 72%,transparent);
             // on dark themes it becomes soft LIGHT ink instead of near-black-on-
             // dark (default paragraphs were rendering invisible on noir).
-            color: "color-mix(in oklab, var(--token-color-ink, #121212) 72%, transparent)",
+            color: "color-mix(in oklab, var(--bn-ink, var(--token-color-ink, #121212)) 72%, transparent)",
             ...cue.style,
           })}
         >
@@ -5600,7 +5804,12 @@ function renderBuilderNodeElement(
     // why a re-read never reorders or re-groups what is emitted here.
     case "services_catalog": {
       const p = node.props;
-      const locale = options.contentLocale?.locale ?? "en";
+      // Talent Max vanity SSR passes visitorLocale (preferred_locale / resolved
+      // guest locale). The talent page builder also passes visitorLocale (= site
+      // locale) alongside contentLocale (editor language toggle, often "en").
+      // Prefer visitorLocale for catalog chrome (dock "Ver servicios") so the
+      // canvas matches the live site; fall back to contentLocale, then en.
+      const locale = options.visitorLocale ?? options.contentLocale?.locale ?? "en";
       const es = locale.startsWith("es");
       const text = (prop: string, value: string | undefined) =>
         value ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value : "";
@@ -5610,18 +5819,47 @@ function renderBuilderNodeElement(
       const subtitle = text("subtitle", p.subtitle);
       const ctaLabel = p.ctaLabel?.trim() || undefined;
       const bookingMode = options.dataSources.catalogBookingLive ? "live" : "demo";
+      const pauseLine = options.dataSources.talentSitePause
+        ? pauseBannerCopy(options.dataSources.talentSitePause, locale)
+        : null;
+      // Defensive re-filter + widget selection (references only).
+      const visible = filterOfferingsForCatalog(options.dataSources.talentOfferings ?? [], {
+        selectionMode: p.selectionMode,
+        selectedCategoryNames: p.selectedCategoryNames,
+        selectedOfferingIds: p.selectedOfferingIds,
+        autoIncludeNew: p.autoIncludeNew,
+        featuredOfferingIds: p.featuredOfferingIds,
+        sort: p.sort,
+        manualOrderIds:
+          p.sort === "manual"
+            ? (p.manualOrderIds ?? p.selectedOfferingIds)
+            : p.manualOrderIds,
+      });
       const emptyMessage =
         text("emptyMessage", p.emptyMessage) ||
-        (es ? "Todavía no hay servicios publicados." : "No services are published yet.");
-
-      // Defensive re-filter — `loadPublicOfferingsForProfile` already applies
-      // the public policy, but a render path never trusts a data source alone
-      // (same rule `TalentStorefront` follows on the hub profile).
-      const visible = (options.dataSources.talentOfferings ?? []).filter(
-        (o) => o.status === "published" && o.visibility !== "agency_only" && o.moderationState === "approved",
-      );
+        (visible.length === 0 && (p.selectionMode === "ids" || p.selectionMode === "categories")
+          ? es
+            ? "Ningún servicio elegible en esta selección."
+            : "No eligible offerings in this selection."
+          : es
+            ? "Todavía no hay servicios publicados."
+            : "No services are published yet.");
       const confirmsByHand = options.dataSources.talentOfferingsConfirmsByHand ?? true;
       const usdRates = options.dataSources.talentOfferingsUsdRates ?? null;
+      const layout = p.layout ?? "rows";
+      const useWebsiteTheme = p.useWebsiteTheme !== false;
+      // Live band ground: when useWebsiteTheme skips custom Style overrides,
+      // still honor an authored style.backgroundColor (token or raw). Jor's
+      // published catalog binds token:color.surface-raised here; Maison Design
+      // puts the same token on the parent services container. Shared CSS must
+      // not force surface-raised on every catalog.
+      const themedBandGround =
+        useWebsiteTheme && p.style?.backgroundColor
+          ? { backgroundColor: styleToken(p.style.backgroundColor) }
+          : undefined;
+      const columns =
+        p.columns ??
+        (layout === "grid" ? 3 : layout === "cards" || layout === "editorial" ? 2 : 1);
 
       // Categories: saved `category_order` first, then first-seen leftovers.
       const seen: string[] = [];
@@ -5631,10 +5869,17 @@ function renderBuilderNodeElement(
       }
       const categories = orderCategoryNames(seen, options.dataSources.talentOfferingsCategoryOrder);
       const showCategoryNav = p.categoryNav !== "none" && categories.length >= 2;
-      const filterNav = p.categoryNav === "tabs" || p.categoryNav === "pills" || p.categoryNav == null;
-      const slug = (c: string) => `${node.id}-${c.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
+      const categoryNav = p.categoryNav ?? "pills";
+      const filterNav =
+        categoryNav === "tabs" || categoryNav === "pills" || categoryNav === "rail";
+      const accordionNav = categoryNav === "accordion";
+      const jumpNav = categoryNav === "jump_strip";
+      const sectionsNav = categoryNav === "sections";
       const notes = options.dataSources.talentOfferingsCategoryNotes;
-      const groups: Array<{ name: string | null; items: TalentOffering[]; note?: string | null }> = showCategoryNav
+      // Featured layout needs a single flat list so CSS :first-child is the hero.
+      const groupByCategory =
+        layout !== "featured" && (showCategoryNav || accordionNav || jumpNav || sectionsNav);
+      const groups: Array<{ name: string | null; items: TalentOffering[]; note?: string | null }> = groupByCategory
         ? [
             ...categories.map((c) => ({
               name: c,
@@ -5647,17 +5892,57 @@ function renderBuilderNodeElement(
           ]
         : [{ name: null, items: visible }];
 
+      const navMode =
+        layout === "featured" || layout === "matrix"
+          ? "flat"
+          : !showCategoryNav && !accordionNav
+            ? "flat"
+            : filterNav
+              ? categoryNav === "tabs"
+                ? "tabs"
+                : categoryNav === "rail"
+                  ? "rail"
+                  : "pills"
+              : accordionNav
+                ? "accordion"
+                : sectionsNav
+                  ? "sections"
+                  : jumpNav
+                    ? "jump"
+                    : "flat";
+
       return (
         <section
           key={node.id}
           {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind="services_catalog"
-          {...builderNodeStyleAttrs(p.style)}
+          data-layout={layout}
+          data-photo-radius={p.photoRadius ?? "soft"}
+          data-cta-variant={p.rowCtaVariant ?? "outline"}
+          {...(p.rowStyle === "card" && layout === "rows" ? { "data-row-style": "card" } : {})}
+          {...(p.nameLineClamp && p.nameLineClamp !== 2
+            ? { "data-name-line-clamp": String(p.nameLineClamp) }
+            : {})}
+          {...(p.contentWidth === "full" ? { "data-content-width": "full" } : {})}
+          data-density={p.density ?? "comfortable"}
+          data-category-nav={categoryNav}
+          data-show-photo={
+            p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card" && layout !== "matrix"
+              ? "true"
+              : "false"
+          }
+          data-enable-catalog-search={p.enableCatalogSearch === true ? "true" : "false"}
+          {...(p.stylePreset ? { "data-style-preset": p.stylePreset } : {})}
+          {...(useWebsiteTheme ? {} : builderNodeStyleAttrs(p.style))}
           className="site-builder-node site-builder-node--services-catalog"
-          style={inlineNodeStyle(p.style, undefined)}
+          style={{
+            ...(useWebsiteTheme ? themedBandGround : inlineNodeStyle(p.style, undefined)),
+            ["--svc-columns" as string]: String(columns),
+          }}
         >
           <style>{SERVICES_CATALOG_CSS}</style>
+          {p.rowStyle === "card" && layout === "rows" ? <style>{SERVICES_CATALOG_ROW_CARD_CSS}</style> : null}
           <header className="site-builder-node--services-catalog-header">
             <div>
               {eyebrow ? <p className="site-builder-node--services-catalog-eyebrow">{eyebrow}</p> : null}
@@ -5680,33 +5965,193 @@ function renderBuilderNodeElement(
             ) : null}
           </header>
 
-          {visible.length === 0 ? (
+          {/* WSF-C §8: the talent paused new bookings (or everything). */}
+          {pauseLine ? (
+            <p className="site-builder-node--services-catalog-pause" role="status">
+              {pauseLine}
+            </p>
+          ) : null}
+
+          {options.dataSources.talentOfferingsLoading ? (
+            <ServicesCatalogLoadingSkeleton
+              locale={locale}
+              showPhoto={
+                p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card" && layout !== "matrix"
+              }
+              rows={Math.min(Math.max(visible.length, 4), 6)}
+            />
+          ) : visible.length === 0 ? (
             <p className="site-builder-node--services-catalog-empty">{emptyMessage}</p>
           ) : (
-            <ServicesCatalogFilter
-              groups={groups}
-              locale={locale}
-              nav={
-                showCategoryNav && filterNav
-                  ? p.categoryNav === "tabs"
-                    ? "tabs"
-                    : "pills"
-                  : showCategoryNav
-                    ? "jump"
-                    : "flat"
+            <CatalogIslandBoundary
+              fallback={
+                <ServicesCatalogStaticFallback
+                  groups={groups}
+                  locale={locale}
+                  showPhoto={
+                    p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card" && layout !== "matrix"
+                  }
+                  showDuration={p.showDuration !== false}
+                  showUsdEquivalent={p.showUsdEquivalent !== false}
+                  ctaLabel={ctaLabel}
+                />
               }
-              showPhoto={p.showPhoto !== false}
-              showDuration={p.showDuration !== false}
-              showUsdEquivalent={p.showUsdEquivalent !== false}
-              confirmsByHand={confirmsByHand}
-              usdRates={usdRates}
-              ctaLabel={ctaLabel}
-              bookingMode={bookingMode}
-              tenantId={options.dataSources.tenantId ?? null}
-              jumpSlug={slug}
-            />
+            >
+              <ServicesCatalogFilter
+                groups={groups}
+                locale={locale}
+                nav={navMode}
+                showPhoto={
+                  p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card" && layout !== "matrix"
+                }
+                showDescription={p.showDescription !== false}
+                showCategory={p.showCategory === true}
+                showDuration={p.showDuration !== false}
+                showDelivery={p.showDelivery === true}
+                showAvailability={p.showAvailability === true}
+                showPrice={p.showPrice !== false}
+                showUsdEquivalent={p.showUsdEquivalent !== false}
+                showBadges={p.showBadges === true}
+                showModeChip={p.showModeChip === true}
+                priceInMeta={p.pricePlacement === "meta"}
+                rowCard={p.rowStyle === "card" && layout === "rows"}
+                confirmsByHand={confirmsByHand}
+                usdRates={usdRates}
+                ctaLabel={ctaLabel}
+                bookingMode={bookingMode}
+                tenantId={options.dataSources.tenantId ?? null}
+                nodeId={node.id}
+                durationFormat={p.durationFormat ?? "auto"}
+                mobileBar={p.mobileBar ?? "float"}
+                showAskLink={p.showAskLink !== false}
+                // Both accents are live CSS (`data-sheet-accent`). Default is
+                // primary (Maison rose); ink is an explicit operator choice.
+                sheetAccent={resolveServicesCatalogSheetAccent(p.bookingSheet?.accent)}
+                categoryShowAll={p.categoryShowAll === true}
+                categoryShowCounts={p.categoryShowCounts === true}
+                enableCatalogSearch={p.enableCatalogSearch === true}
+                captcha={options.bookingCaptcha ?? options.captcha ?? null}
+                bookingSettings={options.dataSources.talentOfferingsBookingSettings}
+                onlineCollectReady={options.dataSources.onlineCollectReady}
+                matrix={layout === "matrix"}
+                liveStatus={options.dataSources.liveStatus ?? null}
+              />
+            </CatalogIslandBoundary>
           )}
         </section>
+      );
+    }
+    case "portfolio": {
+      return renderPortfolioBlock({
+        node,
+        shots: options.dataSources?.talentPortfolioShots ?? [],
+        offerings: options.dataSources?.talentOfferings,
+        confirmsByHand: options.dataSources?.talentOfferingsConfirmsByHand ?? true,
+        styleAttr: sharedNodeStyle(node.props.style),
+        styleDataAttrs: node.props.style?.responsive ? builderNodeStyleAttrs(node.props.style) : undefined,
+        locale: options.contentLocale?.locale ?? options.visitorLocale,
+      });
+    }
+    case "reviews": {
+      return (
+        <ReviewsBlockView
+          node={node}
+          reviews={options.dataSources?.talentReviews ?? []}
+          styleAttr={sharedNodeStyle(node.props.style)}
+          locale={options.contentLocale?.locale ?? options.visitorLocale}
+        />
+      );
+    }
+    case "visit": {
+      return renderVisitBlock({
+        node,
+        facts: options.dataSources?.talentVisitFacts ?? [],
+        location: options.dataSources?.talentLocation,
+        locale: options.visitorLocale ?? options.contentLocale?.locale,
+        policyHref: `${(options.publicPathPrefix ?? "").replace(/\/+$/, "")}/politicas`,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "contents": {
+      return renderContentsBlock({
+        node,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "masthead": {
+      // Prefer visitorLocale (site locale on talent page-builder) over the
+      // editor content-locale toggle — same contract as services_catalog — so
+      // magazine "Vol. · Otoño" matches live when the editor chrome is EN.
+      return renderMastheadBlock({
+        node,
+        styleAttr: sharedNodeStyle(node.props.style),
+        locale: options.visitorLocale ?? options.contentLocale?.locale,
+      });
+    }
+    case "statement_footer": {
+      return renderStatementFooterBlock({
+        node,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "utility_bar": {
+      return renderUtilityBarBlock({
+        node,
+        liveStatus: options.dataSources?.liveStatus,
+        callHref: options.dataSources?.callHref,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "alert_band": {
+      return renderAlertBandBlock({
+        node,
+        liveStatus: options.dataSources?.liveStatus,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "app_nail_designer": {
+      return renderNailDesignerBlock({
+        node,
+        locale: options.visitorLocale ?? options.contentLocale?.locale ?? "en",
+        text: (prop, value) =>
+          value ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value : "",
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "task_picker": {
+      return renderTaskPickerBlock({
+        node,
+        offerings: options.dataSources.talentOfferings ?? [],
+        locale: options.visitorLocale ?? options.contentLocale?.locale ?? "en",
+        confirmsByHand: options.dataSources.talentOfferingsConfirmsByHand ?? true,
+        bookingPosture: options.dataSources.talentOfferingsBookingSettings?.bookingPosture,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "spec_table": {
+      return renderSpecTableBlock({
+        node,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "comp_card": {
+      return renderCompCardBlock({
+        node,
+        rows: options.dataSources?.talentCompCard?.rows ?? [],
+        locale: options.contentLocale?.locale ?? options.visitorLocale,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "next_free_chip": {
+      // Prefer visitorLocale so the builder canvas chip ("Hoy a las…") matches
+      // live when contentLocale is the editor language toggle (often "en").
+      return (
+        <NextFreeChipView
+          node={node}
+          offerings={options.dataSources?.talentOfferings ?? []}
+          locale={options.visitorLocale ?? options.contentLocale?.locale}
+          styleAttr={sharedNodeStyle(node.props.style)}
+        />
       );
     }
     case "menu_board": {
@@ -5885,7 +6330,7 @@ function renderBuilderNodeElement(
             tenantId={options.dataSources.tenantId ?? ""}
             offerings={offerings}
             copy={menuBoardCopy(options.contentLocale, options.dataSources.menuWords)}
-            locale={options.contentLocale?.locale}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
             usdRates={options.dataSources.usdRates ?? null}
           />
         </section>
@@ -5922,7 +6367,7 @@ function renderBuilderNodeElement(
             tenantId={options.dataSources.tenantId ?? ""}
             offeringId={p.offeringId}
             title={text("title", p.title) || undefined}
-            locale={options.contentLocale?.locale}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
           />
         </div>
       );
@@ -5949,7 +6394,7 @@ function renderBuilderNodeElement(
             tenantId={options.dataSources.tenantId ?? ""}
             eventId={p.eventId}
             title={text("title", p.title) || undefined}
-            locale={options.contentLocale?.locale}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
             layout={p.layout}
             presentation={p.presentation}
             tiers={p.tiers}
@@ -5985,7 +6430,7 @@ function renderBuilderNodeElement(
             editor={options.contentLocale?.editorPreview === true}
             eyebrow={text("eyebrow", p.eyebrow) || undefined}
             heading={text("heading", p.heading) || undefined}
-            locale={options.contentLocale?.locale}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
             layout={p.layout}
             groupBy={p.groupBy}
             showTimes={p.showTimes}
@@ -6051,7 +6496,7 @@ function renderBuilderNodeElement(
             partyMax={p.partyMax ?? 8}
             cardNotice={p.cardNotice ?? null}
             notesEnabled={p.notesEnabled ?? true}
-            locale={options.contentLocale?.locale}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
           />
         </div>
       );
@@ -6541,7 +6986,7 @@ function renderBuilderNodeElement(
             // #121212) this is byte-equivalent to the old color-mix(in oklab,currentColor 72%,transparent);
             // on dark themes it becomes soft LIGHT ink instead of near-black-on-
             // dark (default paragraphs were rendering invisible on noir).
-            color: "color-mix(in oklab, var(--token-color-ink, #121212) 72%, transparent)",
+            color: "color-mix(in oklab, var(--bn-ink, var(--token-color-ink, #121212)) 72%, transparent)",
             whiteSpace: "pre-wrap",
             ...cue.style,
           })}
@@ -6921,6 +7366,9 @@ function renderBuilderNodeElement(
       const collapseAt = navProps.collapseAt ?? "mobile";
       const submenuVariant = navProps.submenuVariant ?? "dropdown";
       const mobileMenuVariant = navProps.mobileMenuVariant ?? "dropdown";
+      const navChrome = normalizeNavChrome(
+        navProps.navChrome ?? DEFAULT_NAV_CHROME,
+      );
       const menuLabel = navProps.menuLabel?.trim() || "Menu";
       const navAriaLabel = navProps.ariaLabel?.trim() || "Primary";
       const menuId = `${node.id}-menu`;
@@ -7165,6 +7613,7 @@ function renderBuilderNodeElement(
           data-bn-submenu={submenuVariant}
           data-bn-mobile-menu={mobileMenuVariant}
           data-bn-link-hover={navProps.linkHover ?? "underline"}
+          data-nav-chrome={navChrome}
           aria-label={navAriaLabel}
           className="site-builder-node site-builder-node--nav"
           // The menu's colours were documented as "overridable via the
@@ -7196,6 +7645,7 @@ function renderBuilderNodeElement(
               : {}),
           } as React.CSSProperties}
         >
+          {navChromeNeedsScrollSpy(navChrome) ? <NavChromeScrollSpy /> : null}
           {navBrand.value ? (
             <a
               className="site-builder-node--nav-brand"
@@ -7216,6 +7666,9 @@ function renderBuilderNodeElement(
             Both link sets render in full markup (never visibility:hidden-into-
             nothing), so the links stay reachable at the mobile breakpoint.
           */}
+          {/* No menu button for an empty or Home-only nav (one-page talent
+              sites showed an empty hamburger box under the brand at 390). */}
+          {links.length > 1 || links.some((l) => (l.children?.length ?? 0) > 0) || navMenuFooter ? (
           <details className="site-builder-node--nav-disclosure">
             <summary
               className="site-builder-node--nav-toggle"
@@ -7238,6 +7691,7 @@ function renderBuilderNodeElement(
               {navMenuFooter}
             </ul>
           </details>
+          ) : null}
         </nav>
       );
     }
@@ -7289,6 +7743,39 @@ function renderBuilderNodeElement(
       // An empty social row (no links, no bound data) renders nothing rather
       // than an empty <ul> — keeps the shell clean when nothing is configured.
       if (resolved.length === 0) return null;
+      if (socialProps.display === "text") {
+        // Fine-print variant: platform names inline, separated by " · ".
+        return (
+          <p
+            key={node.id}
+            {...anchorIdAttrs(node)}
+            data-builder-node-id={node.id}
+            data-builder-node-kind={node.kind}
+            data-bn-display="text"
+            {...builderNodeStyleAttrs(socialProps.style)}
+            aria-label={ariaLabel}
+            className="site-builder-node site-builder-node--social-text"
+            style={inlineNodeStyle(socialProps.style, MARGIN_ZERO, {
+              lineHeight: 1.5,
+              color: "color-mix(in oklab, var(--bn-ink, var(--token-color-ink, #121212)) 72%, transparent)",
+            })}
+          >
+            {resolved.map((link, i) => (
+              <Fragment key={`${node.id}:${link.key}`}>
+                {i > 0 ? " · " : null}
+                <a
+                  href={socialLinkHref(link.platform, link.href)}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  style={{ color: "inherit", textDecoration: "none" }}
+                >
+                  {link.label?.trim() || socialPlatformLabel(link.platform)}
+                </a>
+              </Fragment>
+            ))}
+          </p>
+        );
+      }
       return (
         <ul
           key={node.id}
@@ -8275,6 +8762,9 @@ function renderBuilderNodeElement(
       const items = p.items ?? [];
       const eyebrow = text("eyebrow", p.eyebrow);
       const headline = text("headline", p.headline);
+      if (p.variant === "spec") {
+        return renderStatsSpecBlock({ node, styleAttr: sharedNodeStyle(p.style) });
+      }
       const animate = p.animate !== false;
       return (
         <section
@@ -8534,6 +9024,8 @@ function normalizeBuilderNodeRenderOptions(
     // Absent in lighter contexts (tests, tenant-less previews) → the `form`
     // node renders no widget, exactly as before this option existed.
     captcha: options.captcha ?? null,
+    // Booking sheet only — null when HQ guest captcha is OFF (or unset).
+    bookingCaptcha: options.bookingCaptcha ?? null,
     mode: options.mode ?? "freeform",
     dataSources: options.dataSources ?? {},
     includeRendererStyles: options.includeRendererStyles ?? true,
@@ -8744,9 +9236,7 @@ export function BuilderNodeFontLinks({
   if (!href) return null;
   return (
     <>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-      <link rel="stylesheet" href={href} data-builder-node-fonts="" />
+      <link rel="stylesheet" href={toFontProxyHref(href)} data-builder-node-fonts="" />
     </>
   );
 }

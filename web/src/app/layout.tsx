@@ -2,13 +2,20 @@ import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { ClientSpeedInsights } from "@/components/analytics/client-speed-insights";
 import { AnalyticsScripts } from "@/components/analytics/analytics-scripts";
+import { AnalyticsConsentBanner } from "@/components/analytics/analytics-consent-banner";
 import { SpaPageViewTracker } from "@/components/analytics/spa-page-view-tracker";
 import { CspViolationReporter } from "@/components/csp-violation-reporter";
 import { EditChromeMount } from "@/components/edit-chrome/edit-chrome-mount";
 import { AdminQuickBarMount } from "@/components/edit-chrome/admin-quick-bar-mount";
 import { WebVitalsReporter } from "@/components/web-vitals-reporter";
 import { getLocaleMetadata } from "@/i18n/config";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { headers } from "next/headers";
+import {
+  getRequestLocale,
+  ORIGINAL_PATHNAME_HEADER,
+  ORIGINAL_SEARCH_HEADER,
+  resolveDocumentLocale,
+} from "@/i18n/request-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getPublicFontPreset } from "@/lib/site-font-preset";
 import { getSiteTheme } from "@/lib/site-theme";
@@ -155,7 +162,13 @@ export default async function RootLayout({
     getPublicFontPreset(),
     getPublicTenantScope(),
   ]);
-  const locale = await getRequestLocale();
+  const requestLocale = await getRequestLocale();
+  const reqHeaders = await headers();
+  const locale = resolveDocumentLocale(
+    requestLocale,
+    reqHeaders.get(ORIGINAL_PATHNAME_HEADER),
+    reqHeaders.get(ORIGINAL_SEARCH_HEADER),
+  );
   const { dir, hreflang } = getLocaleMetadata(locale);
 
   // M6 — Governed design tokens. Public scope is non-null only for
@@ -253,6 +266,8 @@ export default async function RootLayout({
         {/* SPA page_view — GA4/pixel parity for client-side navigations
             (gtag config above uses send_page_view:false; this owns it). */}
         <SpaPageViewTracker />
+        {/* Consent banner + reopen target for the footer "Privacy choices" link. */}
+        <AnalyticsConsentBanner locale={locale} />
         <WebVitalsReporter />
         <CspViolationReporter />
         {children}

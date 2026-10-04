@@ -219,7 +219,11 @@ export async function AgencyChatLauncherMount({
   // that conversation + receipt instead of a fresh re-draftable draft, and it
   // feeds the lifecycle label. autoAnchorLatest stays as the no-resume fallback.
   // L13: the tenant-wide dock switches + the per-business Items label.
-  const dockFlags = await loadGuestDockFlags(tenantId, locale);
+  // Agency public surface (not hub) drives DoR Browse + Talk journey chrome.
+  const agencyPublicSurface = !isHub;
+  const dockFlags = await loadGuestDockFlags(tenantId, locale, null, {
+    agencyPublicSurface,
+  });
   const resume = await getActiveGuestInquiry({ tenantSlug });
   const active = resume.ok ? resume.active : null;
   const lifecycle = await resolveLauncherLifecycleInputs({
@@ -244,6 +248,7 @@ export async function AgencyChatLauncherMount({
         brand={{
         agencyName,
         ...dockFlags,
+        agencyPublicSurface,
         // Drives the opener voice ("Hi — I'm {agency}'s booking assistant").
         talentDisplayName: agencyName,
         accentColor,

@@ -32,8 +32,11 @@ import {
   loadTalentPageAction,
   saveTalentPageAction,
   publishTalentPageAction,
-  restoreTalentPageRevisionAction,
 } from "./talent-page-actions";
+import {
+  loadTalentHistoryAction,
+  restoreTalentHistoryAction,
+} from "@/lib/talent-site/history/history-actions";
 
 export {
   createTalentPageAdapter,
@@ -49,7 +52,18 @@ const productionActions: TalentPageAdapterActions = {
   loadPage: loadTalentPageAction,
   savePage: saveTalentPageAction,
   publishPage: publishTalentPageAction,
-  restoreRevision: restoreTalentPageRevisionAction,
+  // Theme releases Phase 2 — the drawer lists the SITE's history timeline and
+  // restores an entry to the draft (a new entry; nothing is deleted).
+  restoreRevision: async ({ revisionId, expectedDraftRev }) => {
+    const res = await restoreTalentHistoryAction({
+      entryId: revisionId,
+      expectedDraftRev: expectedDraftRev ?? null,
+    });
+    return res.ok
+      ? { ok: true, updatedAt: new Date().toISOString(), draftRev: res.draftRev }
+      : { ok: false, error: res.error, code: res.code };
+  },
+  loadRevisions: ({ pageSlug }) => loadTalentHistoryAction({ pageSlug }),
 };
 
 /**

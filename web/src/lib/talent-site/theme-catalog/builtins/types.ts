@@ -45,6 +45,12 @@ interface BuiltinEntryBase {
 export interface BuiltinDesignEntry extends BuiltinEntryBase {
   kind: "design";
   category: BuiltinDesignCategory;
+  /**
+   * The payload as the code builds it, before any committed authored overlay
+   * (`collection/authored`). Absent = same as `buildPayload` (no overlay).
+   */
+  buildPayloadRaw?: () => DesignPayload;
+  /** What ships: `buildPayloadRaw` with the design's authored overlay applied. */
   buildPayload: () => DesignPayload;
 }
 
@@ -52,5 +58,7 @@ export interface BuiltinLookEntry extends BuiltinEntryBase {
   kind: "look";
   /** Looks are not filtered by category today; reserved for a future split. */
   category: string | null;
+  /** When set, this Look is valid only for that Design slug (Maison palettes). */
+  for_design?: string | null;
   buildPayload: () => LookPayload;
 }

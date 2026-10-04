@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { messagingCaptureIdentity, messagingMatchCustomers } from "@/lib/server-actions/messaging-engine";
+import { messagingCaptureIdentity, messagingMatchCustomers } from "@/lib/server-actions/messaging-identity";
 import { messagingCreateClientForThread } from "@/lib/server-actions/messaging-start";
 import type { ActionResult, CustomerMatch, Essentials, MessagingRefusal } from "@/lib/messaging/types";
 
@@ -18,13 +18,13 @@ import type { ScreenVariant } from "./contracts";
 import type { ScreenCopy } from "./copy";
 
 export type IdentityActions = {
-  readonly match: (input: { name: string; phone: string; email: string }) => Promise<ActionResult<{ matches: CustomerMatch[] }>>;
+  readonly match: (input: { inquiryId: string; name: string; phone: string; email: string }) => Promise<ActionResult<{ matches: CustomerMatch[] }>>;
   readonly capture: (input: { inquiryId: string; level: "linked" | "confirmed"; method: "phone" | "email" | "name_only"; customerId: string | null; expectedVersion: number }) => Promise<ActionResult<{ version?: number }>>;
   readonly createClient: (input: { inquiryId: string; name: string; phone: string | null; email: string | null; expectedVersion: number }) => Promise<ActionResult<{ version?: number }>>;
 };
 
 export const engineIdentityActions: IdentityActions = {
-  match: (input) => messagingMatchCustomers({ name: input.name || null, phone: input.phone || null, email: input.email || null }),
+  match: (input) => messagingMatchCustomers({ inquiryId: input.inquiryId, name: input.name || null, phone: input.phone || null, email: input.email || null }),
   capture: (input) => messagingCaptureIdentity(input),
   createClient: (input) => messagingCreateClientForThread(input),
 };
@@ -64,7 +64,7 @@ export function IdentityCaptureWire({ inquiryId, version, essentials, copy, vari
     const timer = setTimeout(() => {
       if (stateRef.current !== "idle") return;
       setState("matching");
-      void actions.match({ name: name.trim(), phone: phone.trim(), email: email.trim() }).then((result) => {
+      void actions.match({ inquiryId, name: name.trim(), phone: phone.trim(), email: email.trim() }).then((result) => {
         if (!alive) return;
         if (result.ok) {
           const found = result.matches.filter((m) => m.customerId);
@@ -78,7 +78,7 @@ export function IdentityCaptureWire({ inquiryId, version, essentials, copy, vari
       alive = false;
       clearTimeout(timer);
     };
-  }, [actions, name, phone, email]);
+  }, [actions, inquiryId, name, phone, email]);
 
   const save = async () => {
     if (state === "saving") return;

@@ -87,3 +87,23 @@ export function isFirstDayEligible(input: {
     input.completedStepIds.length < FIRST_DAY_STEPS.length
   );
 }
+
+/**
+ * P0 audit: the first-day main button names the next incomplete step's own
+ * action. Labels are EN keys for the agenda i18n catalog. Null when done.
+ */
+export const FIRST_DAY_ACTION_LABEL: Record<FirstDayStepId, string> = {
+  photo: "Add a photo",
+  services: "Add a service",
+  location: "Add where you work",
+  availability: "Set availability",
+  preview: "Preview your page",
+  website: "Create your website",
+};
+
+export function nextFirstDayStep(
+  completedStepIds: readonly string[],
+): { id: FirstDayStepId; label: string } | null {
+  const id = FIRST_DAY_STEPS.find((s) => !completedStepIds.includes(s));
+  return id ? { id, label: FIRST_DAY_ACTION_LABEL[id] } : null;
+}

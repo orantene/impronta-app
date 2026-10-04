@@ -13,6 +13,9 @@
  * the `inquiry_offer_line_items.pricing_unit` Postgres enum.
  */
 
+import { i18nPair, toI18nMap } from "@/lib/i18n/i18n-columns";
+import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
+import { inheritedInstantErrors } from "./offering-booking-rules";
 import { IDENTITY_REASONS, isIdentityReason, type IdentityReason } from "@/lib/orders/identity-requirement";
 import {
   SERVICE_PRICING_SUFFIX,
@@ -32,9 +35,14 @@ export const OFFERING_PRICE_DISPLAYS: readonly OfferingPriceDisplay[] = ["exact"
  *  - request: inquiry → chat → offer → booking (human-confirmed; default)
  *  - instant: direct booking / reserve right away (one exact price required,
  *    including $0 — complimentary class, table hold, free GA)
+ *  - inquiry: answered by conversation first ("Consultar")
+ * On a TalentOffering, `bookingMode: null` means the service INHERITS the
+ * talent default (`talent_offerings.booking_mode` is nullable since WSF-B).
+ * Resolve it with resolveEffectiveBookingMode / deriveOfferingCta; never
+ * read a null as request.
  */
-export type OfferingBookingMode = "request" | "instant";
-export const OFFERING_BOOKING_MODES: readonly OfferingBookingMode[] = ["request", "instant"];
+export type OfferingBookingMode = "request" | "instant" | "inquiry";
+export const OFFERING_BOOKING_MODES: readonly OfferingBookingMode[] = ["request", "instant", "inquiry"];
 
 /**
  * What a DIRECT booking collects up front (the talent's choice):
@@ -56,6 +64,8 @@ export type OfferingModerationState = "pending" | "approved" | "rejected";
 export type OfferingVariant = {
   id: string;
   label: string;
+  /** Per-locale label (talent_offering_variants.label_i18n); absent before the column exists. */
+  labelI18n?: LocalizedMap;
   amountCents: number | null;
 };
 
@@ -66,6 +76,8 @@ export type OfferingVariant = {
 export type OfferingAddOn = {
   id: string;
   label: string;
+  /** Per-locale label (talent_offering_addons.label_i18n); absent before the column exists. */
+  labelI18n?: LocalizedMap;
   amountCents: number;
   /** Minutes added when the guest selects this extra. Group extras carry this. */
   durationMinutes?: number | null;
@@ -88,12 +100,30 @@ export type TalentOffering = {
   kind: OfferingKind;
   title: string;
   description: string | null;
+  /**
+   * Every language of the title / description (`title_i18n` / `description_i18n`).
+   * Carried through the editor so a save keeps the languages it did not edit.
+   */
+  titleI18n?: LocalizedMap;
+  descriptionI18n?: LocalizedMap;
   priceType: ServicePricingType;
   priceDisplay: OfferingPriceDisplay;
   /** Major-unit price stored as cents. null only when quote/custom. */
   amountCents: number | null;
   currency: string;
-  bookingMode: OfferingBookingMode;
+  /** Explicit mode, or null = inherit the talent default. */
+  bookingMode: OfferingBookingMode | null;
+  /**
+   * WSF-C, public loaders only: the talent's switches leave this service no
+   * route (bookings and inquiries off, or an inquiry service with inquiries
+   * off). The storefront hides its button. Absent = shown.
+   */
+  publicCtaHidden?: boolean;
+  /**
+   * WSF-C, public loaders only: set when the talent paused new work on this
+   * direct channel, so any storefront can show the §8 banner.
+   */
+  publicPause?: "bookings_paused" | "inquiries_paused" | "portfolio_only";
   reserveMode: OfferingReserveMode;
   /** Percent of the total collected up front when reserveMode === 'deposit'. */
   depositPct: number | null;
@@ -168,7 +198,7 @@ export type TalentOfferingRow = {
   price_display: string;
   amount_cents: number | null;
   currency: string;
-  booking_mode: string;
+  booking_mode: string | null;
   reserve_mode: string;
   deposit_pct: number | null;
   allow_pay_in_person: boolean;
@@ -212,19 +242,33 @@ function isOneOf<T extends string>(v: unknown, all: readonly T[]): v is T {
   return typeof v === "string" && (all as readonly string[]).includes(v);
 }
 
-/** Locale-aware title/description (prefer i18n map, fall back to the column). */
+/**
+ * Locale-aware title/description: the i18n map walked along `chain`
+ * (default `[locale, "en"]`), then the plain column.
+ */
 export function offeringText(
   row: Pick<TalentOfferingRow, "title" | "description" | "title_i18n" | "description_i18n">,
   field: "title" | "description",
   locale: string,
+  chain: readonly string[] = [locale, "en"],
 ): string | null {
   const map = field === "title" ? row.title_i18n : row.description_i18n;
-  const fromMap = map?.[locale] ?? map?.en ?? null;
-  return str(fromMap, field === "title" ? MAX_TITLE : MAX_DESC) ?? (field === "title" ? row.title : row.description);
+  const clean = toI18nMap(map);
+  const max = field === "title" ? MAX_TITLE : MAX_DESC;
+  for (const code of [locale, ...chain]) {
+    const hit = str(clean[code], max);
+    if (hit) return hit;
+  }
+  return field === "title" ? row.title : row.description;
 }
 
 /** DB row → app shape. Tolerant of bad data (defaults, clamps). */
-export function rowToOffering(row: TalentOfferingRow, locale = "en", imageUrls: string[] = []): TalentOffering {
+export function rowToOffering(
+  row: TalentOfferingRow,
+  locale = "en",
+  imageUrls: string[] = [],
+  chain: readonly string[] = [locale, "en"],
+): TalentOffering {
   const priceType = isOneOf(row.price_type, SERVICE_PRICING_TYPES) ? row.price_type : "flat_package";
   const priceDisplay = isOneOf(row.price_display, OFFERING_PRICE_DISPLAYS) ? row.price_display : "exact";
   return {
@@ -233,13 +277,15 @@ export function rowToOffering(row: TalentOfferingRow, locale = "en", imageUrls: 
     ownerKind: row.owner_kind === "workspace" ? "workspace" : "talent",
     tenantId: row.tenant_id ?? null,
     kind: isOneOf(row.kind, OFFERING_KINDS) ? row.kind : "service",
-    title: offeringText(row, "title", locale) ?? row.title,
-    description: offeringText(row, "description", locale),
+    title: offeringText(row, "title", locale, chain) ?? row.title,
+    description: offeringText(row, "description", locale, chain),
+    titleI18n: toI18nMap(row.title_i18n),
+    descriptionI18n: toI18nMap(row.description_i18n),
     priceType,
     priceDisplay,
     amountCents: clampCents(row.amount_cents),
     currency: (row.currency || "USD").toUpperCase().slice(0, 8),
-    bookingMode: isOneOf(row.booking_mode, OFFERING_BOOKING_MODES) ? row.booking_mode : "request",
+    bookingMode: isOneOf(row.booking_mode, OFFERING_BOOKING_MODES) ? row.booking_mode : null,
     reserveMode: isOneOf(row.reserve_mode, OFFERING_RESERVE_MODES) ? row.reserve_mode : "full",
     depositPct:
       typeof row.deposit_pct === "number" && Number.isFinite(row.deposit_pct) && row.deposit_pct > 0 && row.deposit_pct < 100
@@ -286,9 +332,15 @@ export function rowToOffering(row: TalentOfferingRow, locale = "en", imageUrls: 
   };
 }
 
-/** App shape → DB patch (writers persist title + title_i18n.en together). */
+/**
+ * App shape → DB patch. The plain title / description are the PRIMARY-language
+ * value and are written into `title_i18n[primaryLocale]` / `description_i18n[...]`;
+ * every other language already in `o.titleI18n` / `o.descriptionI18n` survives.
+ * With no maps and the default "en" primary this is exactly `{ en: title }`.
+ */
 export function offeringToRowPatch(
   o: TalentOffering,
+  primaryLocale = "en",
 ): Omit<TalentOfferingRow, "id" | "talent_profile_id" | "inventory_qty"> {
   const title = str(o.title, MAX_TITLE) ?? "";
   const description = str(o.description, MAX_DESC);
@@ -328,9 +380,13 @@ export function offeringToRowPatch(
     is_featured: o.isFeatured === true,
     sort_order: o.sortOrder,
     attributes: o.attributes ?? {},
-    title_i18n: title ? { en: title } : null,
-    description_i18n: description ? { en: description } : null,
+    title_i18n: nullIfEmpty(i18nPair(o.titleI18n, title, primaryLocale)),
+    description_i18n: nullIfEmpty(i18nPair(o.descriptionI18n, description, primaryLocale)),
   };
+}
+
+function nullIfEmpty(map: Record<string, string>): Record<string, string> | null {
+  return Object.keys(map).length > 0 ? map : null;
 }
 
 /** The flag and its reason, always together. Mirrors the DB pairing CHECK. */
@@ -355,7 +411,7 @@ export { IDENTITY_REASONS };
 export type { IdentityReason };
 
 /** Validation errors for a save. [] = persistable. Mirrors the DB CHECKs. */
-export function validateOffering(o: TalentOffering): string[] {
+export function validateOffering(o: TalentOffering, defaultPosture?: string | null): string[] {
   const errors: string[] = [];
   if (!str(o.title, MAX_TITLE)) errors.push("Give it a name (e.g. “60-min massage”).");
   const quoteOnly = o.priceDisplay === "quote" || o.priceType === "custom";
@@ -376,6 +432,8 @@ export function validateOffering(o: TalentOffering): string[] {
   if (o.bookingMode === "instant" && o.reserveMode === "deposit" && (o.depositPct == null || o.depositPct <= 0 || o.depositPct >= 100)) {
     errors.push(`Set the deposit percent (1–99) for “${o.title}” — or switch it to full payment / free reserve.`);
   }
+  // WSF B2: an inherited Instant default is held to the same rules.
+  errors.push(...inheritedInstantErrors(o, o.bookingMode, defaultPosture));
   if (o.requiresIdentity && !isIdentityReason(o.identityReason)) {
     errors.push(`Say why “${o.title || "this item"}” needs the buyer's name.`);
   }
@@ -390,6 +448,7 @@ export function resolveOfferingCta(
 ): OfferingCtaKind {
   if (o.visibility === "on_request") return "request";
   if (o.priceDisplay === "quote" || o.priceType === "custom" || o.amountCents == null) return "ask_quote";
+  if (o.bookingMode === "inquiry") return "request";
   if (o.bookingMode === "instant") return o.kind === "product" ? "buy_now" : "book_now";
   return "request_to_book";
 }

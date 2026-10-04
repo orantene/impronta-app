@@ -13,7 +13,7 @@
  * (talent owner + workspace staff) takes effect. NEVER writes `cms_page_sections`.
  */
 
-import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { getCachedActorSession, getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { mergeStyleClassesPreservingDesign } from "@/lib/site-admin/edit-mode/talent-design-store";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
@@ -21,7 +21,16 @@ import { normalizeUnknownBuilderTreeLayout } from "@/lib/site-admin/builder-node
 import { assertFreeTalentSiteTreeMutation } from "@/lib/talent-site/free-site-tree-guard";
 import { stripTalentSiteSeoPatch } from "@/lib/talent-site/free-site-seo";
 import { loadTalentSiteSaveCapabilities } from "@/lib/talent-site/server/free-site-save-guard";
+import { publishTalentPageBodies } from "@/lib/talent-site/server/publish-talent-page-bodies";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { CONFLICT_COPY, editSummary, pick, summaryFor } from "@/lib/talent-site/history/copy";
+import { loadOwnedSiteRev, loadSiteRev } from "@/lib/talent-site/history/history.server";
+import { recordSiteHistory, writeSiteDraft } from "@/lib/talent-site/history/writer";
 
+import { delegateFirstPublish } from "@/lib/talent-site/server/first-publish-delegate";
+import { publishSiteChromeWithPage } from "@/lib/talent-site/server/publish-site-chrome-with-page";
+import { findDuplicatePublish, pageScopeHash } from "@/lib/talent-site/server/publish-idempotency";
 import type {
   TalentPageAdapterActions,
   TalentPageRow,
@@ -37,7 +46,9 @@ import type {
 const TALENT_PAGE_BASE_COLS =
   "id, talent_profile_id, slug, title, status, blocks, theme, required_talent_tier, published_at, updated_at, " +
   "meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld";
-const TALENT_PAGE_COLS = `${TALENT_PAGE_BASE_COLS}, style_classes, style_presets`;
+// `blocks_published` rides the graceful list too: the editor falls back to the
+// live body when the draft is empty (resolveTalentPageEditorTree).
+const TALENT_PAGE_COLS = `${TALENT_PAGE_BASE_COLS}, style_classes, style_presets, blocks_published`;
 
 /** SEO-1 — the metadata columns a talent-page save may write. Same convention as
  *  the STYLE-1 registries: `undefined` = leave the stored value alone (a
@@ -53,6 +64,14 @@ const META_PATCH_KEYS = [
   "json_ld",
 ] as const;
 
+/** Theme releases Phase 2 — the editor's CAS version is the site's draft_rev. */
+async function withDraftRev(row: TalentPageRow): Promise<TalentPageRow> {
+  const admin = createServiceRoleClient();
+  if (!admin) return row;
+  const site = await loadSiteRev(admin, row.talent_profile_id);
+  return site ? { ...row, draft_rev: site.draftRev } : row;
+}
+
 export async function loadTalentPageAction(
   input: Parameters<TalentPageAdapterActions["loadPage"]>[0],
 ): Promise<TalentPageRow | null> {
@@ -67,11 +86,11 @@ export async function loadTalentPageAction(
         .eq("slug", input.slug)
         .single();
     const { data, error } = await selectRow(TALENT_PAGE_COLS);
-    if (!error && data) return data as unknown as TalentPageRow;
+    if (!error && data) return withDraftRev(data as unknown as TalentPageRow);
     // STYLE-1 graceful fallback — style columns not yet migrated.
     const fallback = await selectRow(TALENT_PAGE_BASE_COLS);
     if (fallback.error || !fallback.data) return null;
-    return fallback.data as unknown as TalentPageRow;
+    return withDraftRev(fallback.data as unknown as TalentPageRow);
   } catch (err) {
     logServerError("talentPageAdapter/loadPage", err);
     return null;
@@ -108,7 +127,7 @@ export async function ensureTalentPageAction(
         existing = base.data;
       }
     }
-    if (existing) return existing as unknown as TalentPageRow;
+    if (existing) return withDraftRev(existing as unknown as TalentPageRow);
 
     // PHASE 1 — creating a page is Web Office (`personalSitePages`). This
     // action is a `"use server"` export, so it is callable directly with any
@@ -170,7 +189,7 @@ export async function ensureTalentPageAction(
       return null;
     }
 
-    return inserted.data as unknown as TalentPageRow;
+    return withDraftRev(inserted.data as unknown as TalentPageRow);
   } catch (err) {
     logServerError("talentPageAdapter/ensurePage", err);
     return null;
@@ -195,7 +214,7 @@ export async function saveTalentPageAction(
     // adapter-core factory — its page-content contract is unchanged.)
     const { data: existing } = await sb
       .from("talent_pages")
-      .select("theme, blocks")
+      .select("theme, blocks, title")
       .eq("id", pageId)
       .eq("talent_profile_id", talentProfileId)
       .maybeSingle();
@@ -272,6 +291,39 @@ export async function saveTalentPageAction(
       siteCaps ? siteCaps.personalSiteSeo : true,
     );
 
+    // Theme releases Phase 2 — the OWNER's page on a site writes through the
+    // atomic draft writer: CAS on draft_rev + the page body + a batched history
+    // entry in one transaction. Ownership is checked explicitly (a published
+    // page is publicly READABLE, so the RLS read above is not a write grant);
+    // workspace staff keep the RLS-scoped write below.
+    const admin = existing ? createServiceRoleClient() : null;
+    const actor = admin ? await getCachedActorSession() : null;
+    const site = admin ? await loadOwnedSiteRev(admin, talentProfileId, actor?.user?.id) : null;
+    if (admin && site) {
+      // The RPC stamps updated_at itself.
+      const pagePatch: Record<string, unknown> = { ...scopedPayload, ...stylePatch };
+      delete pagePatch.updated_at;
+      const summary = editSummary(
+        "page",
+        typeof patch.title === "string" ? patch.title : (existing as { title?: string }).title,
+      );
+      const res = await writeSiteDraft(admin, {
+        siteId: site.siteId,
+        expectedDraftRev: input.expectedDraftRev ?? null,
+        pages: [{ id: pageId, patch: pagePatch }],
+        history: { kind: "edit", summaryEn: summary.en, summaryEs: summary.es },
+      });
+      if (res.ok) return { ok: true as const, updatedAt: res.updatedAt, draftRev: res.draftRev };
+      if (res.code === "conflict") {
+        return {
+          ok: false as const,
+          code: "VERSION_CONFLICT",
+          error: pick(CONFLICT_COPY, await getRequestLocale()),
+        };
+      }
+      return { ok: false as const, error: res.error };
+    }
+
     let { data, error } = await runUpdate({ ...scopedPayload, ...stylePatch });
     // STYLE-1 graceful fallback — style columns not yet migrated → retry without.
     if (error && Object.keys(stylePatch).length > 0) {
@@ -295,21 +347,46 @@ export async function publishTalentPageAction(
     if (!sb) return { ok: false as const, error: "Supabase client unavailable." };
 
     const { talentProfileId, pageId } = input;
-    const now = new Date().toISOString();
-    const { data, error } = await sb
-      .from("talent_pages")
-      .update({ status: "published", published_at: now, updated_at: now })
-      .eq("id", pageId)
-      .eq("talent_profile_id", talentProfileId)
-      .select("published_at, updated_at")
-      .single();
-
-    if (error || !data)
-      return { ok: false as const, error: error?.message ?? "Talent page publish failed." };
+    // F104: same draft rev as the last publish means nothing changed since; a
+    // double submit returns the existing publish instead of publishing again.
+    const dupAdmin = createServiceRoleClient();
+    const pageHash = dupAdmin ? await pageScopeHash(dupAdmin, talentProfileId, pageId) : null;
+    const dup = dupAdmin ? await findDuplicatePublish(dupAdmin, talentProfileId, pageHash) : null;
+    if (dup) return { ok: true as const, publishedAt: dup.publishedAt, updatedAt: dup.publishedAt, draftRev: dup.draftRev };
+    // F96: first publish of the site runs the canonical site publish.
+    const first = await delegateFirstPublish(sb, talentProfileId, { contentHash: pageHash });
+    if (!first.ok) return { ok: false as const, error: first.error };
+    // Publish copies the draft body (`blocks`) into the live body
+    // (`blocks_published`). Saving never touches the live body, so an edit to a
+    // published page stays private until this runs.
+    const result = await publishTalentPageBodies(sb, { talentProfileId, pageId });
+    if (!result.ok) return { ok: false as const, error: result.error };
+    const page = result.pages[0];
+    if (!page) return { ok: false as const, error: "Talent page publish failed." };
+    // F134: the shared shell + theme tokens go live with the page when their
+    // drafts differ (a theme update rewrites them too); the chip counts them.
+    if (!first.delegated) {
+      const chrome = await publishSiteChromeWithPage(sb, talentProfileId);
+      if (!chrome.ok) return { ok: false as const, error: chrome.error };
+    }
+    const admin = createServiceRoleClient();
+    const site = admin ? await loadSiteRev(admin, talentProfileId) : null;
+    // The site publish already wrote the history entry when it ran.
+    if (admin && site && !first.delegated) {
+      const summary = summaryFor("publish");
+      await recordSiteHistory(admin, site.siteId, {
+        kind: "publish",
+        summaryEn: summary.en,
+        summaryEs: summary.es,
+        source: "published",
+        ...(pageHash ? { report: { contentHash: pageHash } } : {}),
+      });
+    }
     return {
       ok: true as const,
-      publishedAt: data.published_at as string,
-      updatedAt: data.updated_at as string,
+      publishedAt: page.publishedAt,
+      updatedAt: page.updatedAt,
+      draftRev: site?.draftRev ?? null,
     };
   } catch (err) {
     logServerError("talentPageAdapter/publishPage", err);

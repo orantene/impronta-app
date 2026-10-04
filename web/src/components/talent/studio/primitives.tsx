@@ -23,8 +23,10 @@ export function StatusChip({ tone, children }: { tone: ChipTone; children: React
 
 type BtnKind = "primary" | "sec" | "qt" | "dgr";
 
+/** Same fill contract as PrimaryButton (`--tulala-primary-fill` on the talent grid). */
 const BTN: Record<BtnKind, string> = {
-  primary: "bg-admin-brand text-white",
+  primary:
+    "border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)] disabled:opacity-40",
   sec: "border border-admin-border bg-white text-admin-ink",
   qt: "bg-transparent text-admin-ink-muted",
   dgr: "bg-[rgba(176,48,58,0.10)] text-[#B0303A]",

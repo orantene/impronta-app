@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { ClientOfferSummary } from "@/lib/messages-v5/client-thread-view";
 import { readChange, readChoices, readConfirmation, readPayment, readTickets, readTimes } from "@/lib/messages-v5/client-thread-view";
 
-import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientPaymentCard, ClientTicketsCard, ClientTimesCard } from "./ClientCards";
+import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientOutcomeCard, ClientPaymentCard, ClientTicketsCard, ClientTimesCard } from "./ClientCards";
 import { EN_CLIENT, EN_KIT, ES_CLIENT } from "./test-copy";
 
 const now = new Date("2026-09-17T10:00:00.000Z");
@@ -85,6 +85,28 @@ test("times: sent lets the client pick; picked shows the hold countdown and bloc
   const refused = renderToStaticMarkup(<ClientTimesCard {...base} view={times} now={now} phase="refused" refusal="unavailable" onPick={() => {}} />);
   assert.match(refused, /data-refusal="unavailable"/);
   assert.match(refused, /That time was just taken\. Pick another, or write to Impronta\./);
+  assert.doesNotMatch(refused, /data-next-free=/);
+  const refusedWithFree = renderToStaticMarkup(
+    <ClientTimesCard
+      {...base}
+      view={times}
+      now={now}
+      phase="refused"
+      refusal="unavailable"
+      nextFreeTimes={["2026-09-20T16:30:00.000Z", "2026-09-20T18:00:00.000Z"]}
+      onPick={() => {}}
+    />,
+  );
+  assert.match(refusedWithFree, /data-slot-taken="1"/);
+  assert.match(refusedWithFree, /data-next-free-times=/);
+  assert.match(refusedWithFree, /data-next-free="2026-09-20T16:30:00.000Z"/);
+  assert.match(refusedWithFree, /data-next-free="2026-09-20T18:00:00.000Z"/);
+  assert.match(refusedWithFree, /Next free times/);
+  // Empty engine list must not invent a clock time button.
+  const refusedEmptyFree = renderToStaticMarkup(
+    <ClientTimesCard {...base} view={times} now={now} phase="refused" refusal="unavailable" nextFreeTimes={[]} onPick={() => {}} />,
+  );
+  assert.doesNotMatch(refusedEmptyFree, /data-next-free=/);
   const empty = renderToStaticMarkup(<ClientTimesCard {...base} view={{ ...times, slots: [] }} now={now} onPick={() => {}} />);
   assert.match(empty, /No times to pick yet\./);
 });
@@ -108,10 +130,13 @@ const offer: ClientOfferSummary = {
   ],
 };
 
-test("offer sent: lines, total, deposit and refund rule, validity, version pill, Accept and pay deposit · $1,140.00, Ask for a change, Decline; never a net or commission word", () => {
+test("offer sent: lines, total, deposit and refund rule, validity, Oferta · vN title, Accept + Ask for a change + Decline row; never a net or commission word", () => {
   const html = renderToStaticMarkup(<ClientOfferCard {...base} offer={offer} now={now} onAccept={() => {}} onDecline={() => {}} onChange={() => {}} />);
-  assert.match(html, /class="cat">Offer</);
-  assert.match(html, />v3</);
+  // First visible offer: no version (internal drafts consumed v1..v2).
+  assert.doesNotMatch(html, /Offer · v\d/);
+  const revised = renderToStaticMarkup(<ClientOfferCard {...base} offer={offer} offers={[{ ...offer, id: "old", version: 2 }, offer]} now={now} onAccept={() => {}} />);
+  assert.match(revised, /Offer · v2/);
+  assert.doesNotMatch(html, /class="pill opp"/);
   assert.match(html, /Sofía Herrera · hostess × 2/);
   assert.match(html, /\$1,400\.00/);
   assert.match(html, /Total<\/span><span>\$3,800\.00/);
@@ -119,15 +144,35 @@ test("offer sent: lines, total, deposit and refund rule, validity, version pill,
   assert.match(html, /\$1,140\.00/);
   assert.match(html, /Valid until/);
   assert.match(html, /Note from Impronta: Travel included\./);
-  assert.match(html, /data-client-action="accept_offer"[^>]*>Accept and pay deposit · \$1,140\.00/);
-  assert.match(html, /data-client-action="ask_change"/);
-  assert.match(html, /data-client-action="decline_offer"/);
+  assert.match(html, /data-client-action="accept_offer"[^>]*>Accept</);
+  assert.match(html, /cx-offer-actions/);
+  assert.match(html, /data-client-action="ask_change"[^>]*>Ask for a change</);
+  assert.match(html, /data-client-action="decline_offer"[^>]*>Decline</);
   assert.doesNotMatch(html, /net|commission|payout|talent cost|discount|tax/i);
 });
 
-test("offer: no deposit rule reads Accept this offer; busy reads Accepting; refused shows the sentence", () => {
+test("offer ES: Oferta · vN + Aceptar / Pedir un cambio / Rechazar row", () => {
+  const html = renderToStaticMarkup(
+    <ClientOfferCard
+      {...base}
+      copy={ES_CLIENT}
+      offer={{ ...offer, version: 1, currency: "MXN", totalCents: 50000, depositPct: null, depositCents: 20000, noteToClient: null, lines: [{ label: "Set lifting + Lami Brows", units: 1, amountCents: 50000 }] }}
+      now={now}
+      onAccept={() => {}}
+      onDecline={() => {}}
+      onChange={() => {}}
+    />,
+  );
+  assert.doesNotMatch(html, /Oferta · v\d/);
+  assert.match(html, /data-client-action="accept_offer"[^>]*>Aceptar</);
+  assert.match(html, /data-client-action="ask_change"[^>]*>Pedir un cambio</);
+  assert.match(html, /data-client-action="decline_offer"[^>]*>Rechazar</);
+  assert.match(html, /cx-offer-actions/);
+});
+
+test("offer: no deposit rule still reads Accept; busy reads Accepting; refused shows the sentence", () => {
   const plain = renderToStaticMarkup(<ClientOfferCard {...base} offer={{ ...offer, depositPct: null }} now={now} onAccept={() => {}} />);
-  assert.match(plain, />Accept this offer</);
+  assert.match(plain, />Accept</);
   assert.doesNotMatch(plain, /Deposit/);
   const busy = renderToStaticMarkup(<ClientOfferCard {...base} offer={offer} now={now} phase="busy" onAccept={() => {}} />);
   assert.match(busy, /aria-busy="true"/);
@@ -199,17 +244,26 @@ test("payment: open link shows Pay with the amount and the expiry; paid shows th
 
 /* ---------- confirmation, change, draft ---------- */
 
-test("confirmation: Confirmed pill, when line, Ask for a change and a greyed Receipt", () => {
+test("confirmation: Confirmed pill, when line, Add to calendar, Ask for a change and a greyed Receipt", () => {
   const view = readConfirmation({ recordKind: "appointment", recordId: "r1", when: "2026-09-20T15:00:00.000Z", title: "Balayage with Dani", lines: [{ label: "Balayage", units: 1, unitCents: 12000 }], currency: "USD" });
   const html = renderToStaticMarkup(<ClientConfirmedCard {...base} view={view} kind="appointment_confirmation" onChange={() => {}} />);
   assert.match(html, /class="cat">Booked</);
   assert.match(html, />Confirmed</);
   assert.match(html, /Balayage with Dani/);
   assert.match(html, /When</);
+  assert.match(html, /data-client-action="add_calendar"/);
+  assert.match(html, /Add to calendar/);
   assert.match(html, /data-client-action="ask_change"/);
   assert.match(html, /data-client-action="receipt"[^>]*disabled|disabled[^>]*data-client-action="receipt"/);
   const order = renderToStaticMarkup(<ClientConfirmedCard {...base} view={view} kind="order_confirmation" />);
   assert.match(order, /class="cat">Order</);
+  assert.match(order, /data-client-action="add_calendar"/);
+  const noWhen = renderToStaticMarkup(
+    <ClientConfirmedCard {...base} view={{ ...view, when: null }} kind="appointment_confirmation" onChange={() => {}} />,
+  );
+  assert.doesNotMatch(noWhen, /data-client-action="add_calendar"/);
+  const es = renderToStaticMarkup(<ClientConfirmedCard {...base} copy={ES_CLIENT} view={view} kind="appointment_confirmation" onChange={() => {}} />);
+  assert.match(es, /Agregar al calendario/);
 });
 
 test("change request and result are read-only with the state", () => {
@@ -262,4 +316,28 @@ test("draft card: what the client picked so far, with a total", () => {
   assert.match(html, /Taco × 2/);
   assert.match(html, /\$18\.00/);
   assert.match(html, /Impronta confirms before anything is charged\./);
+});
+
+test("outcome cards match the front-door mockup sentences", () => {
+  const declined = renderToStaticMarkup(<ClientOutcomeCard outcome="declined" copy={EN_CLIENT} />);
+  assert.match(declined, /data-card="client-outcome-declined"/);
+  assert.match(declined, /Offer declined/);
+  assert.match(declined, /Nothing was charged\. You can start another request\./);
+  assert.doesNotMatch(declined, /data-client-action/);
+
+  const failed = renderToStaticMarkup(<ClientOutcomeCard outcome="pay_failed" copy={EN_CLIENT} onRetry={() => {}} />);
+  assert.match(failed, /data-card="client-outcome-pay_failed"/);
+  assert.match(failed, /Payment failed/);
+  assert.match(failed, /The card was declined\. Nothing was charged/);
+  assert.match(failed, /data-client-action="retry_pay"/);
+  assert.match(failed, />Try again</);
+
+  const refunded = renderToStaticMarkup(<ClientOutcomeCard outcome="refunded" copy={EN_CLIENT} amountLabel="$200.00" />);
+  assert.match(refunded, /data-card="client-outcome-refunded"/);
+  assert.match(refunded, /Deposit returned/);
+  assert.match(refunded, /\$200\.00 is on its way back/);
+
+  const es = renderToStaticMarkup(<ClientOutcomeCard outcome="declined" copy={ES_CLIENT} />);
+  assert.match(es, /Oferta rechazada/);
+  assert.match(es, /No se cobró nada\. Puedes pedir otro horario\./);
 });

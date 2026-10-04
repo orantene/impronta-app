@@ -23,7 +23,9 @@
  */
 
 import type Stripe from "stripe";
-import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
+import { getStripe, getStripeFor, isStripeConfigured } from "@/lib/stripe/client";
+import { resolveStripeAccountForSeller } from "@/lib/stripe/account-routing";
+import { loadAccountPlatform } from "@/lib/stripe/account-platform";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -132,8 +134,7 @@ export async function createOrGetTalentConnectedAccount(
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe not configured." };
   }
-  const stripe = getStripe();
-  if (!stripe) return { ok: false, error: "Stripe client unavailable." };
+  if (!getStripe()) return { ok: false, error: "Stripe client unavailable." };
 
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Database unavailable." };
@@ -204,7 +205,11 @@ export async function createOrGetTalentConnectedAccount(
     opts.businessUrl ??
     (tp.profile_code ? `https://tulala.digital/t/${tp.profile_code}` : undefined);
 
-  // 4. Create the Express account in the payee's country.
+  // 4. Create the Express account in the payee's country, on the platform the
+  //    router picks (MX sellers on the Mexico platform; USDC stays US).
+  const platform = resolveStripeAccountForSeller({ payoutCountry: country });
+  const stripe = getStripeFor(platform);
+  if (!stripe) return { ok: false, error: "Stripe client unavailable." };
   let account: Stripe.Account;
   try {
     account = await stripe.accounts.create({
@@ -254,7 +259,12 @@ export async function createOrGetTalentConnectedAccount(
   // 5. Persist the id.
   const { error: writeErr } = await admin
     .from("talent_profiles")
-    .update({ stripe_account_id: account.id })
+    // stripe_account_platform is written ONLY for mx, so the US path never
+    // touches a column whose migration may not be applied yet.
+    .update({
+      stripe_account_id: account.id,
+      ...(platform === "mx" ? { stripe_account_platform: "mx" } : {}),
+    })
     .eq("id", talentProfileId);
   if (writeErr) {
     logServerError("stripe-connect-talent.writeId", writeErr);
@@ -296,7 +306,7 @@ export async function createTalentOnboardingLink(
   const ensure = await createOrGetTalentConnectedAccount(talentProfileId);
   if (!ensure.ok) return { ok: false, error: ensure.error };
 
-  const stripe = getStripe();
+  const stripe = getStripeFor(await loadAccountPlatform("talent_profiles", { column: "id", value: talentProfileId }));
   if (!stripe) return { ok: false, error: "Stripe client unavailable." };
 
   const link = await stripe.accountLinks.create({
@@ -396,7 +406,7 @@ export async function getTalentConnectedAccountSnapshot(
 export async function refreshTalentAccountStatus(
   talentProfileId: string,
 ): Promise<TalentConnectResult<TalentConnectedAccountSnapshot>> {
-  const stripe = getStripe();
+  const stripe = getStripeFor(await loadAccountPlatform("talent_profiles", { column: "id", value: talentProfileId }));
   if (!stripe) return { ok: false, error: "Stripe is not configured." };
 
   const snap = await getTalentConnectedAccountSnapshot(talentProfileId);
@@ -451,7 +461,7 @@ export function canRouteTransfersToTalent(snap: TalentConnectedAccountSnapshot):
 export async function createTalentDashboardLink(
   talentProfileId: string,
 ): Promise<TalentConnectResult<{ url: string }>> {
-  const stripe = getStripe();
+  const stripe = getStripeFor(await loadAccountPlatform("talent_profiles", { column: "id", value: talentProfileId }));
   if (!stripe) return { ok: false, error: "Stripe client unavailable." };
 
   const snap = await getTalentConnectedAccountSnapshot(talentProfileId);

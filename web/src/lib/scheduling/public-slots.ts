@@ -11,11 +11,36 @@ import type { BookingHours } from "./hours-types";
 
 export const PUBLIC_SLOTS_DEFAULT_DAYS = 7;
 export const PUBLIC_SLOTS_MAX_DAYS = 60;
+/** Floor for `?duration=` — same floor as generateSlots' durationOrDefault. */
+export const PUBLIC_SLOTS_MIN_DURATION_MIN = 1;
+/** Cap for `?duration=` — a day of consecutive service is enough for any catalog extra stack. */
+export const PUBLIC_SLOTS_MAX_DURATION_MIN = 24 * 60;
 
 export function clampPublicSlotDays(raw: unknown): number {
   const n = typeof raw === "number" ? raw : typeof raw === "string" ? Number.parseInt(raw, 10) : NaN;
   if (!Number.isFinite(n)) return PUBLIC_SLOTS_DEFAULT_DAYS;
   return Math.min(Math.max(Math.trunc(n), 1), PUBLIC_SLOTS_MAX_DAYS);
+}
+
+/**
+ * Optional `?duration=` override (base offering + selected extras).
+ *
+ * Missing / garbage / out of range → `fallback` (usually the offering's
+ * duration_minutes). Clients that sum extras must send the total here so
+ * slot projection matches the hold window they will confirm.
+ */
+export function parsePublicSlotDuration(
+  raw: string | null | undefined,
+  fallback: number,
+): number {
+  if (raw == null || raw.trim() === "") return fallback;
+  const n = Number.parseInt(raw.trim(), 10);
+  if (!Number.isFinite(n)) return fallback;
+  const trunc = Math.trunc(n);
+  if (trunc < PUBLIC_SLOTS_MIN_DURATION_MIN || trunc > PUBLIC_SLOTS_MAX_DURATION_MIN) {
+    return fallback;
+  }
+  return trunc;
 }
 
 const YMD_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -73,13 +98,17 @@ export type PublicSlotsInput = {
   busy?: readonly BusyInterval[];
   /**
    * Talent selling defaults (`talent_profiles.selling_defaults`). When
-   * `bufferAfterMin` or `minNoticeMin` is a number, it replaces the hours-row
-   * value for this computation. Absent keys leave the hours row alone.
+   * `bufferBeforeMin`, `bufferAfterMin`, or `minNoticeMin` is a number, it
+   * replaces the hours-row value for this computation. Absent keys leave the
+   * hours row alone.
    */
   sellingDefaults?: unknown;
-  /** Per-service buffer. Wins over the defaults buffer when it is a number. */
+  /** Per-service cleanup buffer. Wins over the defaults buffer when it is a number. */
   offeringBufferAfterMin?: number | null;
+  /** Per-service prep buffer. Wins over defaults when set. */
+  offeringBufferBeforeMin?: number | null;
 };
+
 
 function finiteInt(v: unknown, min: number, max: number): number | null {
   if (typeof v !== "number" || !Number.isFinite(v)) return null;
@@ -91,31 +120,40 @@ function finiteInt(v: unknown, min: number, max: number): number | null {
 /**
  * Services defaults are saved on the profile, not on `talent_booking_hours`.
  * Slot generation only reads the hours object, so this copies the saved
- * buffer and minimum notice onto it before any start is offered.
+ * prep (before), buffer-after, and minimum notice onto it before any start
+ * is offered. Prep minutes block adjacent starts the same way the hours-row
+ * `bufferBeforeMin` does.
  */
 export function applySellingTimeToHours(
   hours: BookingHours,
   sellingDefaults: unknown,
   offeringBufferAfterMin?: number | null,
+  offeringBufferBeforeMin?: number | null,
 ): BookingHours {
   const raw =
     sellingDefaults && typeof sellingDefaults === "object" && !Array.isArray(sellingDefaults)
       ? (sellingDefaults as Record<string, unknown>)
       : null;
-  const fromDefaults = raw ? finiteInt(raw.bufferAfterMin, 0, 240) : null;
-  const fromOffering =
+  const fromDefaultsAfter = raw ? finiteInt(raw.bufferAfterMin, 0, 240) : null;
+  const fromDefaultsBefore = raw ? finiteInt(raw.bufferBeforeMin, 0, 240) : null;
+  const fromOfferingAfter =
     typeof offeringBufferAfterMin === "number" ? finiteInt(offeringBufferAfterMin, 0, 240) : null;
-  const buffer = fromOffering ?? fromDefaults;
+  const fromOfferingBefore =
+    typeof offeringBufferBeforeMin === "number" ? finiteInt(offeringBufferBeforeMin, 0, 240) : null;
+  const bufferAfter = fromOfferingAfter ?? fromDefaultsAfter;
+  const bufferBefore = fromOfferingBefore ?? fromDefaultsBefore;
   const notice = raw ? finiteInt(raw.minNoticeMin, 0, 60 * 24 * 30) : null;
-  if (buffer == null && notice == null) return hours;
+  if (bufferAfter == null && bufferBefore == null && notice == null) return hours;
   return {
     ...hours,
-    ...(buffer != null ? { bufferAfterMin: buffer } : {}),
+    ...(bufferBefore != null ? { bufferBeforeMin: bufferBefore } : {}),
+    ...(bufferAfter != null ? { bufferAfterMin: bufferAfter } : {}),
     ...(notice != null ? { minNoticeMin: notice } : {}),
   };
 }
 
-function hasAnyOpenWindow(hours: BookingHours): boolean {
+/** True when any weekly day or exception opens a window. Shared with the confirm re-check. */
+export function hoursHaveOpenWindow(hours: BookingHours): boolean {
   const weeklyOpen = Object.values(hours.weekly).some((windows) => windows.length > 0);
   if (weeklyOpen) return true;
   // A week closed every day can still be opened by an exception, which is how
@@ -127,9 +165,9 @@ function hasAnyOpenWindow(hours: BookingHours): boolean {
 /** Starts plus the reason there are none. `computePublicSlotStarts` is this, minus the reason. */
 export function computePublicSlots(input: PublicSlotsInput): PublicSlots {
   const timed = input.hours
-    ? applySellingTimeToHours(input.hours, input.sellingDefaults, input.offeringBufferAfterMin)
+    ? applySellingTimeToHours(input.hours, input.sellingDefaults, input.offeringBufferAfterMin, input.offeringBufferBeforeMin)
     : null;
-  if (!timed || !hasAnyOpenWindow(timed)) {
+  if (!timed || !hoursHaveOpenWindow(timed)) {
     return { starts: [], reason: "no_booking_hours" };
   }
   const days = clampPublicSlotDays(input.days);

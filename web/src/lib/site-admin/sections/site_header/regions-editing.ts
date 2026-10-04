@@ -43,6 +43,7 @@ export const HEADER_ITEM_KINDS = [
   "social",
   "phone",
   "language",
+  "section_switcher",
   "spacer",
 ] as const;
 export type HeaderItemKind = (typeof HEADER_ITEM_KINDS)[number];
@@ -63,6 +64,7 @@ const DEFAULT_PRIORITY: Record<HeaderItemKind, number> = {
   phone: 50,
   social: 40,
   language: 30,
+  section_switcher: 90,
   spacer: 0,
 };
 

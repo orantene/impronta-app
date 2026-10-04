@@ -1,0 +1,21 @@
+[
+  {
+    "url": "https://staging-qa-journeys.tulala.digital/talent/inbox"
+  },
+  {
+    "replyHints": 55
+  },
+  {
+    "sideItems": 1
+  },
+  {
+    "afterUrl": "https://staging-qa-journeys.tulala.digital/talent/inbox",
+    "hasClientTotal": false,
+    "hasDollarAmounts": [],
+    "snippet": ""
+  },
+  {
+    "ownerUrl": "https://staging-qa-journeys.tulala.digital/admin/messages",
+    "v5": 1
+  }
+]

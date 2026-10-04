@@ -4,8 +4,6 @@ import { cache } from "react";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { EMPTY_TALENT_EARNINGS, type TalentEarnings } from "@/lib/talent/earnings-types";
-import type { TalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency-types";
 
 export type PlatformOperatingCurrency = {
   /** ISO-4217 the platform runs in (default USD). */
@@ -81,28 +79,4 @@ export async function writePlatformOperatingCurrency(
   }
 }
 
-/**
- * When platform multi-currency display is OFF, collapse a talent's by-currency
- * earnings to the single operating currency — so the Money dashboard shows one
- * clean figure (e.g. USD $800) instead of EUR/USD tabs. Legacy rows in other
- * currencies are hidden (no FX is performed — display/operation only). When ON,
- * returns the input unchanged (the full multi-currency tab experience).
- */
-export function applyOperatingCurrencyToEarnings(
-  ec: TalentEarningsByCurrency,
-  setting: PlatformOperatingCurrency,
-): TalentEarningsByCurrency {
-  if (setting.multiCurrencyDisplayEnabled) return ec;
-  const op = setting.operatingCurrency.toUpperCase();
-  const bundle = ec.byCurrency.find((b) => b.totals.currency.toUpperCase() === op);
-  if (bundle) {
-    return { defaultCurrency: op, byCurrency: [bundle], currencies: [op] };
-  }
-  // No earnings in the operating currency yet → a single empty bundle stamped
-  // with it (length 1 ⇒ dashboard shows "USD $0", not the demo fixtures).
-  const empty: TalentEarnings = {
-    ...EMPTY_TALENT_EARNINGS,
-    totals: { ...EMPTY_TALENT_EARNINGS.totals, currency: op },
-  };
-  return { defaultCurrency: op, byCurrency: [empty], currencies: [op] };
-}
+export { applyOperatingCurrencyToEarnings } from "./operating-currency-apply";

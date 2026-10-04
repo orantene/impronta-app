@@ -23,6 +23,8 @@ import {
   toOfferLineDrafts,
   type OfferDraftLine,
   type OfferDraftState,
+  draftInternalSplit,
+  visibleRevisionNumber,
 } from "./offer-draft";
 
 function talentLine(over: Partial<OfferDraftLine> = {}): OfferDraftLine {
@@ -167,4 +169,24 @@ test("toOfferLineDrafts round-trips cents to dollars and drops removed lines", (
   assert.equal(d.discount_cents, 1000);
   assert.equal(d.tax_cents, 200);
   assert.equal(d.talent_profile_id, "tp1");
+});
+
+test("draftInternalSplit: solo talent selling her own service keeps most of 300 MXN (not 0 net, 100% platform)", () => {
+  const own = talentLine({ units: 1, unitPriceCents: 30000, talentCostCents: 0 });
+  const state = { ...baseState([own]), currencyCode: "MXN", coordinatorFeeCents: 0 };
+  const solo = draftInternalSplit(state, { soloTalent: true });
+  assert.ok(solo.talentNetCents > 0, "talent net is real money");
+  assert.ok(solo.platformFeeCents > 0 && solo.platformFeeCents < 30000, "platform takes its share, not all");
+  assert.equal(solo.coordinatorFeeCents, 0);
+  assert.equal(solo.talentNetCents + solo.platformFeeCents - Math.round(30000 * 0.03), 30000);
+  // Workspace offers keep the line-cost split.
+  const ws = draftInternalSplit(state, { soloTalent: false });
+  assert.equal(ws.talentNetCents, 0);
+});
+
+test("visibleRevisionNumber: a first offer is v1 whatever its lock counter says; newest-first list", () => {
+  assert.equal(visibleRevisionNumber([{ id: "a" }], "a"), 1);
+  assert.equal(visibleRevisionNumber([{ id: "c" }, { id: "b" }, { id: "a" }], "c"), 3);
+  assert.equal(visibleRevisionNumber([{ id: "c" }, { id: "b" }, { id: "a" }], "a"), 1);
+  assert.equal(visibleRevisionNumber([], "zzz"), 1);
 });

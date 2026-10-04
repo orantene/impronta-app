@@ -1,0 +1,123 @@
+/**
+ * Spanish for Maison free-website / reward / Finish-with-AI chrome (PR3 W17–W23).
+ *
+ * Kept out of dashboard-i18n.ts — that file is at its size-ratchet budget
+ * (3968). Same pattern as dashboard-i18n-links.ts / dashboard-i18n-rail.ts:
+ * fold into RAIL_ES_TEXT so the grandfathered map stays at one spread.
+ */
+
+
+export const WEBSITE_ES_TEXT: Record<string, string> = {
+  // Website settings entry row only; the screen's own strings load with the
+  // lazy screen (WEBSITE_SETTINGS_ES_TEXT) to keep the admin bundle lean.
+  "Website settings": "Ajustes del sitio",
+  "How clients book, timing, payments and cancelling": "Cómo reservan tus clientes, horarios, pagos y cancelaciones",
+  "Website reward": "Recompensa del sitio",
+  "What is left": "Lo que falta",
+  "Continue your profile": "Sigue tu perfil",
+  "Unlock your free website": "Desbloquea tu sitio gratis",
+  "Activate your website": "Activa tu sitio",
+  "Finish website setup": "Termina la configuración del sitio",
+  "Website live": "Sitio en vivo",
+  "Finish with AI": "Terminar con IA",
+  "Write it myself": "Lo escribo yo",
+  "Your free website is unlocked": "Tu sitio gratis está desbloqueado",
+  "Activate your free website": "Activa tu sitio gratis",
+  "Suggested address:": "Dirección sugerida:",
+  "checked when you publish": "se confirma al publicar",
+  "One thing left to unlock your free website:": "Te falta una cosa para desbloquear tu sitio gratis:",
+  "Finish your profile to unlock your free website.": "Termina tu perfil para desbloquear tu sitio gratis.",
+  "Intro saved · profile complete": "Presentación guardada · perfil completo",
+  "One thing left for your free website: a short intro clients will read.":
+    "Te falta una cosa para tu sitio gratis: una presentación corta que lean tus clientes.",
+  "Write a warm intro from what I already shared.": "Escribe una presentación cálida con lo que ya compartí.",
+  "Intro · public": "Presentación · pública",
+  "Nothing is saved until you choose Use this intro.": "Nada se guarda hasta que elijas Usar esta presentación.",
+  "Use this intro": "Usar esta presentación",
+  "No draft yet — tap Edit to write your own.": "Aún no hay borrador — toca Editar para escribir el tuyo.",
+  "Writing…": "Escribiendo…",
+  "Photos of your work": "Fotos de tu trabajo",
+  "Things clients can book or ask about": "Cosas que los clientes pueden reservar o preguntar",
+  "Your free website": "Tu sitio web gratis",
+  "A real page at your own address": "Una página real en tu propia dirección",
+  "Built from your profile and the things you sell. Free, and yours to keep.":
+    "Hecha con tu perfil y lo que vendes. Gratis, y es tuya.",
+  "Stop whenever you like. What you have written is saved and this sheet picks up where you left off.":
+    "Para cuando quieras. Lo que escribiste queda guardado y esta hoja sigue donde te quedaste.",
+  "Intro saved": "Presentación guardada",
+  "What unlocks your free website": "Qué desbloquea tu sitio gratis",
+  "Same score as Today and Where I appear.": "La misma puntuación que Hoy y Dónde aparezco.",
+  "Continue your website": "Continúa tu sitio",
+  "Pick a design, see it with your own services and photos, then publish when you are happy. Nothing goes live until you publish.":
+    "Elige un diseño, míralo con tus propios servicios y fotos, y publica cuando te guste. Nada sale en vivo hasta que publiques.",
+  "Could not load your website.": "No se pudo cargar tu sitio.",
+  "Loading your website…": "Cargando tu sitio…",
+  "Edit site": "Editar sitio",
+  // Avatar menu quick link to /talent/page-builder. Money, Messages, and
+  // Settings already have Spanish entries in the main dictionary.
+  "Builder": "Constructor",
+  "Publish site": "Publicar sitio",
+  "Back to My website": "Volver a Mi sitio web",
+  "Something went wrong.": "Algo salió mal.",
+  "Address, logo and pages": "Dirección, logo y páginas",
+  "Site address, logo, pages and custom domain": "Dirección del sitio, logo, páginas y dominio propio",
+  "Address, logo, pages, booking, payments and cancelling":
+    "Dirección, logo, páginas, reservas, pagos y cancelaciones",
+  // Custom domain unlock (Web Office) — kept here so dashboard-i18n.ts stays at 3968.
+  "Domain setup": "Configurar dominio",
+  "Buy a domain at the registrar price, connect one you own, or get help.": "Compra un dominio al precio del registrador, conecta uno propio, o pide ayuda.",
+  "No custom domain yet": "Aún no hay dominio personalizado",
+  "Live at {domain}": "En vivo en {domain}",
+  "Needs attention: {domain}": "Requiere atención: {domain}",
+  "Pending: {domain}": "Pendiente: {domain}",
+  "Custom domain needs Web Office": "El dominio personalizado requiere Web Office",
+  "Unlocks after the Web Office trial": "Se desbloquea al terminar la prueba de Web Office",
+  "Locked": "Bloqueado",
+  "Set up": "Configurar",
+  "See plans": "Ver planes",
+  "Choose how you want to set up your custom domain.": "Elige cómo quieres configurar tu dominio personalizado.",
+  "Buy domain": "Comprar dominio",
+  "Search here, pay the registrar price, we register it for you.": "Busca aquí, paga el precio del registrador, nosotros lo registramos.",
+  "Domain search and purchase are coming soon. Use Connect or Get help for now.":
+    "La búsqueda y compra de dominios estarán disponibles próximamente. Por ahora usa Conectar u Obtener ayuda.",
+  "Connect existing": "Conectar uno existente",
+  "Point a domain you already own at your website.": "Apunta un dominio que ya tengas a tu sitio.",
+  "Ask Tulala to help finish domain setup.": "Pide a Tulala que te ayude a terminar la configuración del dominio.",
+  "Payment received. We are registering and attaching your domain.": "Pago recibido. Estamos registrando y conectando tu dominio.",
+  "This usually finishes within a few minutes. You can close this drawer and check the Custom domain row.": "Suele terminar en unos minutos. Puedes cerrar este panel y revisar la fila de Dominio personalizado.",
+  "View domain status": "Ver estado del dominio",
+  "Tell us the domain and anything we should know.": "Cuéntanos el dominio y lo que debamos saber.",
+  "Hostname (optional)": "Nombre de host (opcional)",
+  "Notes (optional)": "Notas (opcional)",
+  "Support ticket #{n} created. We will follow up soon.": "Ticket de soporte #{n} creado. Te contactaremos pronto.",
+  "Create support ticket": "Crear ticket de soporte",
+  "Search for a domain. The price shown is the Vercel Registrar quote.": "Busca un dominio. El precio mostrado es la cotización de Vercel Registrar.",
+  "Available · {price} (Vercel price)": "Disponible · {price} (precio Vercel)",
+  "Registrant contact (required for the domain registry)": "Contacto del titular (obligatorio para el registro)",
+  "Phone (E.164)": "Teléfono (E.164)",
+  "Address line 2": "Dirección línea 2",
+  "State": "Estado",
+  "ZIP": "Código postal",
+  "Country (ISO)": "País (ISO)",
+  "Opening checkout…": "Abriendo el pago…",
+  "Buy": "Comprar",
+  "DNS": "DNS",
+  "Help": "Ayuda",
+  "Enter a valid email for the registrant.": "Ingresa un email válido para el titular.",
+  "Phone must be E.164 (e.g. +15551234567).": "El teléfono debe ser E.164 (ej. +15551234567).",
+  "Country must be a 2-letter ISO code (e.g. US).": "El país debe ser un código ISO de 2 letras (ej. US).",
+  // Connect panel (Domain setup drawer + standalone)
+  "Enter a domain to continue.": "Ingresa un dominio para continuar.",
+  "Connect domain": "Conectar dominio",
+  "Loading domains…": "Cargando dominios…",
+  "Connecting your own domain is a Web Office feature. Upgrade to Web Office to point a custom domain at your site.": "Conectar tu propio dominio es una función de Web Office. Mejora a Web Office para apuntar un dominio personalizado a tu sitio.",
+  "No custom domain yet. Add one above to serve your site from your own address. We will show the DNS records to add.": "Aún no hay dominio personalizado. Agrega uno arriba para servir tu sitio desde tu propia dirección. Te mostraremos los registros DNS a agregar.",
+  "Serve your site from your own domain": "Sirve tu sitio desde tu propio dominio",
+  "Awaiting TXT": "Esperando TXT",
+  "Provisioning SSL": "Provisionando SSL",
+  "Needs attention": "Requiere atención",
+  "Check routing": "Revisar enrutamiento",
+  "1. Add this TXT record to prove you own the domain": "1. Agrega este registro TXT para demostrar que eres el dueño del dominio",
+  "2. Then point the domain at Vercel": "2. Luego apunta el dominio a Vercel",
+  "Point the domain at Vercel": "Apunta el dominio a Vercel",
+};

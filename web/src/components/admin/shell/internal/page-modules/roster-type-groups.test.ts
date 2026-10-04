@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 
-import { groupChipsByParent } from "./roster-type-groups";
+import { SHORT_PARENT_LABEL } from "@/lib/taxonomy/parent-labels";
+
+import { PARENT_EMOJI } from "../skill-tokens";
+import { groupChipsByParent, parentCategoryEmoji } from "./roster-type-groups";
 
 /**
  * Roster category grouping — the rule this file exists to protect:
@@ -146,4 +151,46 @@ test("Spanish labels win when the locale is es", () => {
 
 test("no chips at all yields no groups (card renders its empty state)", () => {
   assert.deepEqual(groupChipsByParent([], "en", undefined), []);
+});
+
+/**
+ * Every hard-coded parent-category display table must know the six parents the
+ * 2026-09 taxonomy expansion added. A parent missing from these tables renders
+ * a bare bullet (the picker, the aspirations panel) or a raw slug (short label).
+ */
+const NEW_PARENTS = [
+  "professional-services",
+  "health-therapy",
+  "education-tutoring",
+  "design-digital",
+  "crafts-makers",
+  "pets-animal-care",
+] as const;
+
+test("new parent categories have an emoji in the roster card and skill panels", () => {
+  for (const slug of NEW_PARENTS) {
+    assert.ok(parentCategoryEmoji(slug), `roster-type-groups has no emoji for ${slug}`);
+    assert.ok(PARENT_EMOJI[slug], `skill-tokens PARENT_EMOJI has no emoji for ${slug}`);
+    assert.equal(parentCategoryEmoji(slug), PARENT_EMOJI[slug], `${slug}: the two tables disagree`);
+  }
+});
+
+test("new parent categories have a short label", () => {
+  for (const slug of NEW_PARENTS) {
+    const label = SHORT_PARENT_LABEL[slug];
+    assert.ok(label, `parent-labels has no short label for ${slug}`);
+    assert.ok(!/\u2014|\u2013/.test(label), `${slug} label must not contain a dash character`);
+  }
+});
+
+test("new parent categories have a picker emoji and helper in use-taxonomy", () => {
+  // use-taxonomy is a "use client" hook module; read it as text rather than
+  // pulling React and the browser Supabase client into the node:test lane.
+  const src = readFileSync(join(__dirname, "..", "use-taxonomy.ts"), "utf8");
+  const start = src.indexOf("const PARENT_DISPLAY_HINT");
+  assert.ok(start >= 0, "PARENT_DISPLAY_HINT not found");
+  const table = src.slice(start, src.indexOf("};", start));
+  for (const slug of NEW_PARENTS) {
+    assert.match(table, new RegExp(`"${slug}":\\s*\\{ emoji: "[^"]+", helper: "[^"]+" \\}`), `PARENT_DISPLAY_HINT lacks ${slug}`);
+  }
 });

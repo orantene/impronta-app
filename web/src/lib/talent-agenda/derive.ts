@@ -35,7 +35,7 @@ export function deriveBookingState(input: {
     return "hold";
   }
   const s = (input.status ?? "").toLowerCase();
-  if (s === "cancelled") return "cancelled";
+  if (s === "cancelled" || s === "canceled") return "cancelled";
   if (s === "completed") return "completed";
   if (s === "no_show" || s === "no-show") return "no_show";
   if (s === "confirmed" || s === "in_progress" || s === "tentative") return "confirmed";
@@ -62,8 +62,14 @@ export function derivePaymentState(input: {
   startsAt?: string | null;
 }): PaymentState {
   if (input.managedByAgency) return "agency";
+  // Paid after cancel (or an explicit refund-pending txn) must surface before
+  // the cancelled short-circuit — Money shows "Refund pending" / "Reembolso pendiente".
   if (input.refundPending || input.transactionStatus === "refund_pending") {
     return "refund_pending";
+  }
+  // Cancelled work is never owed / awaiting — Money "waiting" must not count it.
+  if (input.booking === "cancelled" || input.booking === "hold_expired" || input.booking === "no_show") {
+    return "none";
   }
   if (
     input.checking ||
@@ -139,15 +145,12 @@ export function needsAttention(
       rank = item.managedBy ? 50 : 10;
     } else if (item.booking === "hold" && (item.payment === "awaiting" || item.payment === "checking")) {
       rank = item.payment === "checking" ? 25 : 20;
-    } else if (item.history.some((h) => h.text === "Reschedule pending.")) {
-      rank = 22;
     } else if (item.payment === "overdue") rank = 30;
     else if (item.tradeSection?.kind === "intake" && item.tradeSection.payload.status === "pending") {
       rank = 40;
     } else if (
       item.tradeSection?.payload?.rescheduleRequestId ||
-      item.tradeSection?.payload?.rescheduleStatus === "pending" ||
-      item.history.some((h) => /reschedule pending/i.test(h.text))
+      item.tradeSection?.payload?.rescheduleStatus === "pending"
     ) {
       rank = 45;
     }

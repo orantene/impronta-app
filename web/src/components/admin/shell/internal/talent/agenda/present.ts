@@ -1,6 +1,9 @@
-import { formatCountdown, freeGaps, needsAttention } from "@/lib/talent-agenda/derive";
+import { blocksTime, formatCountdown, freeGaps, needsAttention } from "@/lib/talent-agenda/derive";
+import type { TradeCalendarRule } from "@/lib/talent-agenda/trade-calendar";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
+import type { MoneyLanding, TodayMoneyTile } from "@/lib/money/today-money-tiles";
 import type { TalentCalendarEntry } from "../../data-bridge";
+import { placeLabelFor } from "./record-actions";
 import type { AgendaMoneyItem, AgendaPaymentState, AgendaRowItem } from "./types";
 
 /** Hold tiles show wall-clock expiry (tc_cal), not a relative countdown. */
@@ -74,7 +77,7 @@ export function rowFromAgendaItem(
     durationLabel: durationLabel(item),
     title: item.title,
     person: item.client?.name,
-    whereLabel: item.where.label,
+    whereLabel: placeLabelFor(item.where),
     sourceLabel: item.managedBy?.name ?? item.source,
     note: request
       ? "Not blocking your time until you accept."
@@ -270,19 +273,113 @@ export function moneyFromEarnings(input: {
   ];
 }
 
-/** One optional rebook hint from a prior completed visit for the same client. */
+/**
+ * Today Money tiles (M3) — Collected / Due by today / Next payout · estimated
+ * from the Money read model. Click handlers open Money with the matching tab
+ * (Due by today → Outstanding filter `"today"` / `mc_out_today`).
+ */
+export function moneyFromLedger(input: {
+  tiles: readonly TodayMoneyTile[];
+  isSpanish?: boolean;
+  onOpen: (landing: MoneyLanding) => void;
+}): AgendaMoneyItem[] {
+  return input.tiles.map((tile) => ({
+    id: tile.id,
+    label: input.isSpanish ? tile.labelEs : tile.labelEn,
+    value: tile.amountLabel,
+    helper: input.isSpanish ? tile.linesEs : tile.linesEn,
+    tone: tile.tone,
+    onClick: () => input.onOpen(tile.landing),
+  }));
+}
+
+function clientKey(item: TalentAgendaItem): string | null {
+  const c = item.client;
+  if (!c?.name) return null;
+  return c.id ? `id:${c.id}` : `name:${c.name.trim().toLowerCase()}`;
+}
+
+const ACTIVE_FUTURE: ReadonlySet<TalentAgendaItem["booking"]> = new Set([
+  "requested",
+  "hold",
+  "confirmed",
+]);
+
+/**
+ * One optional rebook hint (P0 audit): a client with a COMPLETED past visit
+ * and NO upcoming booking in the loaded agenda. Cancelled and no-show visits
+ * never count. Anyone already booked (including the next-up client) is
+ * skipped. Most recent completed visit wins.
+ */
 export function rebookHint(
   items: readonly TalentAgendaItem[],
-  next: TalentAgendaItem | null,
+  now: Date,
 ): { clientName: string; lastService: string } | null {
-  if (!next?.client?.name) return null;
-  const name = next.client.name;
-  const prior = items.find(
-    (item) =>
-      item.id !== next.id &&
-      item.client?.name === name &&
-      (item.booking === "completed" || item.booking === "cancelled"),
-  );
-  if (!prior) return null;
-  return { clientName: name, lastService: prior.title };
+  const nowMs = now.getTime();
+  const booked = new Set<string>();
+  for (const item of items) {
+    const key = clientKey(item);
+    if (!key || !ACTIVE_FUTURE.has(item.booking)) continue;
+    const ends = Date.parse(item.endsAt || item.startsAt);
+    if (!Number.isFinite(ends) || ends >= nowMs) booked.add(key);
+  }
+  let best: TalentAgendaItem | null = null;
+  let bestMs = -Infinity;
+  for (const item of items) {
+    if (item.booking !== "completed") continue;
+    const key = clientKey(item);
+    if (!key || booked.has(key)) continue;
+    const ms = Date.parse(item.startsAt);
+    if (!Number.isFinite(ms) || ms > nowMs) continue;
+    if (ms > bestMs) {
+      best = item;
+      bestMs = ms;
+    }
+  }
+  if (!best?.client?.name) return null;
+  return { clientName: best.client.name, lastService: best.title };
+}
+
+export function shiftDays(date: Date, delta: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + delta);
+  return next;
+}
+
+/** "Week of Mon 21 Sep · 3 bookings" / "Semana del lun 21 sep · 3 citas" (AUD-016). */
+export function weekSubtitle(monday: Date, count: number, locale: "en" | "es"): string {
+  const es = locale === "es";
+  const date = monday.toLocaleDateString(es ? "es-MX" : "en-US", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  const noun = es ? (count === 1 ? "cita" : "citas") : count === 1 ? "booking" : "bookings";
+  return `${es ? "Semana del" : "Week of"} ${date} · ${count} ${noun}`;
+}
+
+/**
+ * AUD-036 / AUD-038: how a week-grid chip is placed and styled.
+ * - allDay: rendered in the dedicated all-day row under the day headers,
+ *   never positioned inside (or above) the timed grid.
+ * - done: completed bookings, solid muted card labeled "Done".
+ * - request: open, non-blocking requests, dashed card "Request · not blocking".
+ */
+export type WeekChipKind = "allDay" | "done" | "request" | "hold" | "booking";
+
+export function weekChipKind(
+  item: Pick<TalentAgendaItem, "kind" | "booking" | "blocksTime" | "allDay" | "tradeSection">,
+  tradeRules?: Pick<TradeCalendarRule, "onlyCallsBlock"> | null,
+): WeekChipKind {
+  if (item.allDay || item.kind === "deadline" || item.kind === "project") return "allDay";
+  if (item.booking === "completed") return "done";
+  const request =
+    !blocksTime(item) ||
+    (Boolean(tradeRules?.onlyCallsBlock) &&
+      item.tradeSection?.kind !== "estimate" &&
+      item.kind !== "hold" &&
+      item.kind !== "block");
+  if (request) return "request";
+  if (item.booking === "hold") return "hold";
+  return "booking";
 }

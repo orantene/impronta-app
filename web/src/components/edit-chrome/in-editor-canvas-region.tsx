@@ -26,9 +26,10 @@
  * flow under the overlay portal — the painted nodes carry those attributes.
  */
 
+import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
 import type { ReactNode } from "react";
 
-import { useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { CSSProperties } from "react";
 
 import { ClientBuilderCanvas } from "./client-builder-canvas";
@@ -36,7 +37,9 @@ import { useEditContext } from "./edit-context";
 import { PrintArtboard } from "./print-artboard";
 import { BuilderProfilerBoundary } from "./builder-profiler-boundary";
 import { EmptyCanvasStarter } from "./empty-canvas-starter";
+import { CHROME, EDIT_TOPBAR_H } from "./kit/tokens";
 import { useBuilderTree } from "./builder-tree-bridge";
+import { useEditorLocale } from "./use-editor-locale";
 import {
   isStorefrontBodyPresent,
   subscribeStorefrontBodyCanvas,
@@ -46,6 +49,10 @@ import {
   designTokensToDataAttrs,
 } from "@/lib/site-admin/tokens/resolve";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
+import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
+import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
+import { applyTalentLiveText, type TalentLiveText } from "@/lib/talent-site/live-text";
+import { hydratePlaceholders } from "@/lib/talent-site/theme-template/hydrate-placeholders";
 
 export interface InEditorCanvasRegionProps {
   /**
@@ -65,7 +72,12 @@ export function InEditorCanvasRegion({
   const tree = useBuilderTree();
   // Piece B slice 1c — a print design renders on a fixed physical artboard with
   // a persistent trim/safe guide, not a fluid page. Null for every other surface.
-  const { printArtboard } = useEditContext();
+  const {
+    printArtboard,
+    compositionLoaded,
+    compositionError,
+    refreshComposition,
+  } = useEditContext();
 
   // Wave-2 cms-page canvas — when the STOREFRONT BODY paints the tree at all
   // (the live `<StorefrontBodyCanvas>` in edit mode, OR — stale-body fix
@@ -94,6 +106,56 @@ export function InEditorCanvasRegion({
   // active SurfaceAdapter (undo + autosave inherited). The canvas still mounts
   // below so the first insert / applied design paints in place.
   const isEmpty = tree.length === 0;
+  // An empty tree is only an EMPTY PAGE once the composition has loaded. While
+  // the load is in flight, or after it failed, the tree is empty because
+  // nothing arrived, and offering "Describe your page / Start from scratch"
+  // there told a talent with a full live site that their page was blank (and
+  // invited them to overwrite it). A failed load now says so, with a retry.
+  const loadFailed = isEmpty && !!compositionError;
+  // F113: the builder-tree bridge is empty in the server HTML and until the
+  // provider publishes the seeded tree after hydration, so "empty" before mount
+  // is "not known yet", never "empty page". Until then paint a skeleton, and
+  // offer the starter only when the tree is truly empty on the client.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { t } = useEditorLocale();
+  const showStarter = mounted && isEmpty && compositionLoaded && !compositionError;
+  const showSkeleton = isEmpty && !showStarter && !loadFailed;
+
+  // talent_page: seeded labels follow the SITE locale + booking mode on the
+  // canvas, exactly as the live render localises them (render-time only).
+  const labelLocale = canvasRenderData?.labelLocale ?? null;
+  // Template Factory editor: the design keeps `{{placeholders}}`; the canvas fills them from the demo talent.
+  const placeholders = canvasRenderData?.placeholders ?? null;
+  const transformTree = useCallback(
+    (t: BuilderNodeTree): BuilderNodeTree => {
+      let out = t;
+      if (labelLocale) {
+        out = localiseSeededDesignLabels(
+          out as Parameters<typeof localiseSeededDesignLabels>[0],
+          labelLocale.locale,
+          labelLocale.ctaMode,
+          labelLocale.swaps,
+        ) as BuilderNodeTree;
+        // Lines that follow her profile show their live value, as on the live page.
+        if (labelLocale.live) {
+          out = applyTalentLiveText(
+            out as Parameters<typeof applyTalentLiveText>[0],
+            labelLocale.live as TalentLiveText,
+          ) as BuilderNodeTree;
+        }
+      }
+      if (placeholders) {
+        out = hydratePlaceholders(
+          out as Parameters<typeof hydratePlaceholders>[0],
+          placeholders,
+          labelLocale?.locale,
+        ) as BuilderNodeTree;
+      }
+      return out;
+    },
+    [labelLocale, placeholders],
+  );
 
   // Body-hosted page (freeform cms_page on the storefront): the visible canvas
   // lives in the page body — render NOTHING here so the page never paints
@@ -139,8 +201,17 @@ export function InEditorCanvasRegion({
       components={{}}
       componentStyleDefaults={canvasRenderData?.componentStyleDefaults}
       includeRendererStyles
+      transformTree={labelLocale || placeholders ? transformTree : undefined}
+      visitorLocale={labelLocale?.locale}
     />
   );
+
+  // talent_page: the site header / footer the live site wraps the page in.
+  // Read-only here (edited in the shell builder), so `inert` keeps their
+  // links and controls from navigating away or stealing canvas selection.
+  const shellHeader = canvasRenderData?.shellHeader ?? null;
+  const shellFooter = canvasRenderData?.shellFooter ?? null;
+  const shellSocket = canvasRenderData?.shellSocket ?? null;
 
   return (
     // `data-theme-canvas-root` makes this the projection target for the Theme
@@ -152,10 +223,80 @@ export function InEditorCanvasRegion({
     <div
       data-in-editor-canvas-region
       data-theme-canvas-root=""
+      data-talent-design={canvasRenderData?.designSlug ?? undefined}
       {...tokenDataAttrs}
-      style={{ ...canvasBackground, ...(tokenCssVars as CSSProperties) }}
+      style={{
+        ...canvasBackground,
+        ...(tokenCssVars as CSSProperties),
+        // The builder top bar is fixed over the top of the page; when the site
+        // header is shown, start the canvas below the bar (and pin the sticky
+        // header there) so it is never hidden underneath it.
+        ...(shellHeader ? { paddingTop: EDIT_TOPBAR_H } : null),
+      }}
     >
-      {isEmpty ? <EmptyCanvasStarter /> : null}
+      <TypeSystemStyle />
+      {canvasRenderData?.headNodes ?? null}
+      {shellHeader ? (
+        <div
+          data-talent-builder-shell="header"
+          data-talent-max-site-header=""
+          style={{ top: EDIT_TOPBAR_H }}
+          inert
+        >
+          {shellHeader}
+        </div>
+      ) : null}
+      {showStarter ? <EmptyCanvasStarter /> : null}
+      {showSkeleton ? (
+        <div
+          role="status"
+          aria-busy="true"
+          aria-label={t("Loading your page…")}
+          data-in-editor-canvas-skeleton=""
+          className="animate-pulse"
+          style={{ margin: "72px auto", maxWidth: 960, padding: "0 24px", display: "grid", gap: 20 }}
+        >
+          {[220, 120, 160].map((h) => (
+            <div key={h} style={{ height: h, borderRadius: 14, background: CHROME.paper2 }} />
+          ))}
+        </div>
+      ) : null}
+      {loadFailed ? (
+        <div
+          role="alert"
+          data-in-editor-load-error=""
+          style={{
+            margin: "48px auto",
+            maxWidth: 440,
+            padding: "20px 24px",
+            borderRadius: 12,
+            background: CHROME.paper,
+            border: `1px solid ${CHROME.line}`,
+            color: CHROME.text,
+            fontSize: 14,
+            lineHeight: 1.5,
+            textAlign: "center",
+          }}
+        >
+          <p style={{ margin: "0 0 12px" }}>
+            We could not open this page. Your site is safe and nothing was changed.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refreshComposition({ undoResetReason: "reload" })}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 8,
+              border: `1px solid ${CHROME.controlBorder}`,
+              background: CHROME.controlFill,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Try again
+          </button>
+        </div>
+      ) : null}
       <BuilderProfilerBoundary id="builder-canvas">
         {printArtboard ? (
           <PrintArtboard
@@ -169,6 +310,16 @@ export function InEditorCanvasRegion({
           canvas
         )}
       </BuilderProfilerBoundary>
+      {shellFooter ? (
+        <footer data-talent-builder-shell="footer" data-talent-max-site-footer="" inert>
+          {shellFooter}
+        </footer>
+      ) : null}
+      {shellSocket ? (
+        <div data-talent-builder-shell="socket" inert>
+          {shellSocket}
+        </div>
+      ) : null}
     </div>
   );
 }

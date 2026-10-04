@@ -139,6 +139,7 @@ export function ProfileHeader({
                   fill
                   className="object-cover"
                   sizes="(max-width: 640px) 80px, 112px"
+                  priority
                 />
               ) : null}
             </div>

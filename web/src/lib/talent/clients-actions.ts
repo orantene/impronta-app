@@ -1,19 +1,20 @@
 "use server";
 
+import { loadLedgerPaidByBooking } from "@/lib/bookings/ledger-paid";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { clientVisit } from "@/lib/talent/clients-directory";
+import { applyClientRecords, type ClientRecordOverlay } from "@/lib/talent/client-records";
+import {
+  upsertClient,
+  type TalentClientRow,
+} from "@/lib/talent/clients-merge";
 
-export type TalentClientRow = {
-  id: string;
-  name: string;
-  lastVisit: string | null;
-  visitCount: number;
-  amountOwedCents: number | null;
-  currency: string | null;
-  conversationHref: string | null;
-  source: "inquiry" | "booking";
-};
+// Do NOT `export type { TalentClientRow }` — a type re-export without `from`
+// in a "use server" file makes Next's SWC emit a runtime reference
+// ("TalentClientRow is not defined") and RSC 500s admin boot. Consumers
+// import the type from clients-merge.
 
 async function assertTalentOwner(talentProfileId: string): Promise<boolean> {
   const session = await getCachedActorSession();
@@ -29,6 +30,59 @@ async function assertTalentOwner(talentProfileId: string): Promise<boolean> {
   return data?.user_id === session.user.id;
 }
 
+function emptyRow(
+  partial: Pick<TalentClientRow, "id" | "name" | "source"> & Partial<TalentClientRow>,
+): TalentClientRow {
+  return {
+    lastVisit: null,
+    completedCount: 0,
+    visitCount: 0,
+    amountOwedCents: null,
+    currency: null,
+    conversationHref: null,
+    phone: null,
+    email: null,
+    nextStartsAt: null,
+    nextStatus: null,
+    nextBookingHref: null,
+    overdue: false,
+    ...partial,
+  };
+}
+
+/** The talent's own edits, notes and archives. A missing table is logged, not fatal. */
+async function loadClientOverlays(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  talentProfileId: string,
+): Promise<ClientRecordOverlay[]> {
+  const { data, error } = await admin
+    .from("talent_client_records")
+    .select("client_key, name, email, phone, note, archived_at")
+    .eq("talent_profile_id", talentProfileId)
+    .limit(1000);
+  if (error) {
+    logServerError("talent.clients.overlays", error);
+    return [];
+  }
+  return (data ?? []).map((r) => ({
+    clientKey: r.client_key as string,
+    name: (r.name as string | null) ?? null,
+    email: (r.email as string | null) ?? null,
+    phone: (r.phone as string | null) ?? null,
+    note: (r.note as string | null) ?? null,
+    archivedAt: (r.archived_at as string | null) ?? null,
+  }));
+}
+
+/**
+ * Clients list for the talent studio.
+ * `talent_bookings` columns are `client_label` / no money fields (see
+ * `talent_calendar_v1`). Commercial money lives on `agency_bookings` via
+ * `booking_talent`. Wrong column names previously hard-failed the whole page.
+ *
+ * Load order: agency (money + visits) → talent calendar (gap-fill) → inquiries.
+ * Merge key is inquiry id or bare booking uuid — never lower-cased name (A5).
+ */
 export async function loadTalentClients(
   talentProfileId: string,
 ): Promise<{ ok: true; items: TalentClientRow[] } | { ok: false; error: string }> {
@@ -40,10 +94,112 @@ export async function loadTalentClients(
     if (!admin) return { ok: false, error: "Server configuration error." };
 
     const byKey = new Map<string, TalentClientRow>();
+    const nowIso = new Date().toISOString();
+
+    // Agenda / commercial bookings (agency_bookings) linked through booking_talent.
+    const { data: legs, error: legsError } = await admin
+      .from("booking_talent")
+      .select(
+        "booking_id, client_charge_total, agency_bookings!inner ( id, title, contact_name, contact_phone, contact_email, starts_at, ends_at, currency_code, payment_status, total_client_revenue, deposit_amount_cents, source_inquiry_id, status )",
+      )
+      .eq("talent_profile_id", talentProfileId)
+      .limit(200);
+    if (legsError) {
+      logServerError("talent.clients.agencyBookings", legsError);
+      return { ok: false, error: "Could not load clients." };
+    }
+
+    // Ledger money per booking, so a part payment lowers what is owed by what
+    // was actually collected (not by the configured deposit).
+    const ledgerByBooking = await loadLedgerPaidByBooking(
+      admin,
+      [...new Set((legs ?? []).map((l) => l.booking_id as string).filter(Boolean))],
+    );
+
+    for (const leg of legs ?? []) {
+      const booking = Array.isArray(leg.agency_bookings)
+        ? leg.agency_bookings[0]
+        : leg.agency_bookings;
+      if (!booking) continue;
+      if (booking.status === "cancelled") continue;
+      const name = (booking.contact_name as string | null)?.trim() || "Client";
+      const start = (booking.starts_at as string | null) ?? null;
+      // total_client_revenue / client_charge_total are major units; deposit is cents.
+      const totalCents = Math.max(
+        0,
+        Math.round(Number(booking.total_client_revenue) * 100) || 0,
+      );
+      const deposit = Math.max(0, Number(booking.deposit_amount_cents) || 0);
+      const chargeCents = Math.max(
+        0,
+        Math.round(Number(leg.client_charge_total) * 100) || 0,
+      );
+      const basis = chargeCents > 0 ? chargeCents : totalCents;
+      let owed: number | null = null;
+      let overdue = false;
+      const ledgerPaid = ledgerByBooking.get(booking.id as string)?.paidCents ?? 0;
+      if (booking.payment_status === "paid") owed = 0;
+      else if (ledgerPaid > 0) owed = Math.max(0, basis - ledgerPaid);
+      else if (booking.payment_status === "partial") owed = Math.max(0, basis - deposit);
+      else if (basis > 0) owed = basis;
+      if (owed && owed > 0 && start && start < nowIso) overdue = true;
+      const inquiryId = booking.source_inquiry_id as string | null;
+      const visit = clientVisit({
+        status: booking.status as string | null,
+        startsAt: start,
+        endsAt: (booking.ends_at as string | null) ?? null,
+        nowIso,
+      });
+      const nextStatus = visit.state === "completed" ? null : visit.state;
+      const isFuture = visit.upcoming && nextStatus != null;
+      const isPast = visit.done;
+      upsertClient(
+        byKey,
+        emptyRow({
+          id: `agency:${booking.id}`,
+          name,
+          lastVisit: isPast ? start : null,
+          completedCount: isPast ? 1 : 0,
+          visitCount: isPast ? 1 : 0,
+          amountOwedCents: owed,
+          currency: (booking.currency_code as string | null) ?? null,
+          conversationHref: inquiryId ? `/talent/inbox/${inquiryId}` : null,
+          source: "booking",
+          phone: (booking.contact_phone as string | null)?.trim() || null,
+          email: (booking.contact_email as string | null)?.trim() || null,
+          nextStartsAt: isFuture ? start : null,
+          nextStatus: isFuture ? nextStatus : null,
+          nextBookingHref: isFuture ? `/talent/bookings/${booking.id}` : null,
+          overdue,
+          firstSeenAt: start,
+          history: start
+            ? [
+                {
+                  bookingId: booking.id as string,
+                  startsAt: start,
+                  amountCents: basis > 0 ? basis : null,
+                  currency: (booking.currency_code as string | null) ?? null,
+                  paymentStatus:
+                    booking.payment_status === "paid"
+                      ? "paid"
+                      : booking.payment_status === "partial"
+                        ? "partial"
+                        : "unpaid",
+                  past: isPast,
+                  href: `/talent/bookings/${booking.id}`,
+                  state: visit.state,
+                  title: (booking.title as string | null)?.trim() || null,
+                },
+              ]
+            : [],
+        }),
+        { inquiryId, accumulateVisit: true, countCompleted: isPast },
+      );
+    }
 
     const { data: bookings, error: bookingsError } = await admin
       .from("talent_bookings")
-      .select("id, client_name, starts_at, amount_cents, currency, inquiry_id, status")
+      .select("id, client_label, title, starts_at, ends_at, inquiry_id, status")
       .eq("talent_profile_id", talentProfileId)
       .order("starts_at", { ascending: false })
       .limit(200);
@@ -53,32 +209,65 @@ export async function loadTalentClients(
     }
 
     for (const row of bookings ?? []) {
-      const name = (row.client_name as string | null)?.trim() || "Client";
-      const key = name.toLowerCase();
-      const existing = byKey.get(key);
+      const name =
+        (row.client_label as string | null)?.trim() ||
+        (row.title as string | null)?.trim() ||
+        "Client";
       const start = (row.starts_at as string | null) ?? null;
-      if (!existing) {
-        byKey.set(key, {
+      const inquiryId = (row.inquiry_id as string | null) ?? null;
+      const visit = clientVisit({
+        status: row.status as string | null,
+        startsAt: start,
+        endsAt: (row.ends_at as string | null) ?? null,
+        nowIso,
+      });
+      const nextStatus = visit.state === "completed" ? null : visit.state;
+      const isFuture = visit.upcoming && nextStatus != null;
+      const title = (row.title as string | null)?.trim() || null;
+      // Do not accumulate visits — agency already counted commercial appointments;
+      // shared-PK mirrors would otherwise double every create-slot booking.
+      upsertClient(
+        byKey,
+        emptyRow({
           id: `booking:${row.id}`,
           name,
-          lastVisit: start,
-          visitCount: 1,
+          lastVisit: visit.done ? start : null,
+          completedCount: 0,
+          visitCount: 0,
           amountOwedCents: null,
-          currency: (row.currency as string | null) ?? null,
-          conversationHref: row.inquiry_id ? `/talent/inbox/${row.inquiry_id}` : null,
+          currency: null,
+          conversationHref: inquiryId ? `/talent/inbox/${inquiryId}` : null,
           source: "booking",
-        });
-      } else {
-        existing.visitCount += 1;
-        if (start && (!existing.lastVisit || start > existing.lastVisit)) {
-          existing.lastVisit = start;
-        }
-      }
+          nextStartsAt: isFuture ? start : null,
+          nextStatus: isFuture ? nextStatus : null,
+          nextBookingHref: isFuture ? `/talent/bookings/${row.id}` : null,
+          firstSeenAt: start,
+          history:
+            start && row.status !== "cancelled"
+              ? [
+                  {
+                    bookingId: row.id as string,
+                    startsAt: start,
+                    amountCents: null,
+                    currency: null,
+                    paymentStatus: null,
+                    past: visit.done,
+                    href: `/talent/bookings/${row.id}`,
+                    state: visit.state,
+                    title: title && title !== name ? title : null,
+                  },
+                ]
+              : [],
+        }),
+        { inquiryId, accumulateVisit: false },
+      );
     }
 
     const { data: participants, error: participantsError } = await admin
       .from("inquiry_participants")
-      .select("inquiry_id, inquiries!inner ( id, contact_name, company, created_at, status )")
+      .select(
+        "inquiry_id, inquiries!inner ( id, contact_name, contact_email, contact_phone, company, created_at, status )",
+      )
       .eq("talent_profile_id", talentProfileId)
       .eq("role", "talent")
       .neq("status", "removed")
@@ -95,31 +284,34 @@ export async function loadTalentClients(
         (inquiry.contact_name as string | null)?.trim() ||
         (inquiry.company as string | null)?.trim() ||
         "Client";
-      const key = name.toLowerCase();
-      const existing = byKey.get(key);
       const created = (inquiry.created_at as string | null) ?? null;
-      if (!existing) {
-        byKey.set(key, {
+      upsertClient(
+        byKey,
+        emptyRow({
           id: `inquiry:${inquiry.id}`,
           name,
           lastVisit: created,
+          completedCount: 0,
           visitCount: 0,
           amountOwedCents: null,
           currency: null,
           conversationHref: `/talent/inbox/${inquiry.id}`,
           source: "inquiry",
-        });
-      } else if (!existing.conversationHref) {
-        existing.conversationHref = `/talent/inbox/${inquiry.id}`;
-      }
+          phone: (inquiry.contact_phone as string | null)?.trim() || null,
+          email: (inquiry.contact_email as string | null)?.trim() || null,
+          firstSeenAt: created,
+        }),
+        { inquiryId: inquiry.id as string, accumulateVisit: false },
+      );
     }
 
     const items = Array.from(byKey.values()).sort((a, b) => {
-      const left = a.lastVisit ?? "";
-      const right = b.lastVisit ?? "";
+      const left = a.lastVisit ?? a.nextStartsAt ?? "";
+      const right = b.lastVisit ?? b.nextStartsAt ?? "";
       return right.localeCompare(left);
     });
-    return { ok: true, items };
+    const overlays = await loadClientOverlays(admin, talentProfileId);
+    return { ok: true, items: applyClientRecords(items, overlays) };
   } catch (err) {
     logServerError("talent.clients.load", err);
     return { ok: false, error: "Could not load clients." };

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { requireInquiryManagerAction, requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 /**
@@ -23,4 +23,28 @@ export async function messagingStaff() {
     admin,
     supabase: guard.supabase,
   };
+}
+
+/**
+ * Inquiry manager (staff OR active coordinator) with service-role admin.
+ * Staff fallback when the manager gate fails — admin Messages without a
+ * coordinator row. Used by shared-draft (and peers) so talent `/talent/inbox`
+ * coordinators are not refused with `not_allowed`.
+ */
+export async function messagingInquiryManager(inquiryId: string) {
+  const mgr = await requireInquiryManagerAction(inquiryId);
+  if (mgr.ok) {
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false as const, reason: "unavailable" as const };
+    return {
+      ok: true as const,
+      tenantId: mgr.tenantId,
+      tenantSlug: mgr.tenantSlug,
+      userId: mgr.user.id,
+      admin,
+      supabase: mgr.supabase,
+      isStaff: mgr.isStaff,
+    };
+  }
+  return messagingStaff();
 }

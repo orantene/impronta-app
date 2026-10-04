@@ -7,9 +7,13 @@
  * locations, directory shortcuts, media assets, collections), and fetches them
  * in one parallel batch — returning `{}` (no round-trips) when nothing is bound.
  */
+import { publicContactMode, servicesCatalogChannel } from "@/lib/talent/accepting-readiness";
+import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { headers } from "next/headers";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
+import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
 import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
+import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
 import { needsUsdRates } from "@/lib/pricing/usd-equivalent";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import {
@@ -37,6 +41,14 @@ import {
   fetchNativeFeaturedTalentByNodeId,
 } from "@/lib/site-admin/server/native-directory-source";
 import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
+import { loadPortfolioSources } from "@/lib/site-admin/builder-node/portfolio-sources";
+import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
+import { loadVisitSources } from "@/lib/site-admin/builder-node/visit-sources";
+import { loadCompCardSources } from "@/lib/site-admin/builder-node/comp-card-sources";
+import {
+  isPlatformCheckoutReady,
+  resolveOnlineCollectReady,
+} from "@/lib/talent/online-collect-ready";
 
 export { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
 
@@ -164,6 +176,10 @@ export async function loadBuilderNodeDataSources(
     !nativeNeeds.needsTalentCount &&
     !nativeNeeds.menuBoard &&
     !nativeNeeds.servicesCatalog &&
+    !nativeNeeds.portfolio &&
+    !nativeNeeds.reviews &&
+    !nativeNeeds.visit &&
+    !nativeNeeds.compCard &&
     nativeNeeds.disciplines == null &&
     nativeNeeds.directories.length === 0 &&
     mediaIds.length === 0 &&
@@ -348,7 +364,34 @@ export async function loadBuilderNodeDataSources(
       ? {}
       : { featuredTalentProfilesByNodeId }),
     ...(nativeNeeds.servicesCatalog && catalogTalentId
-      ? await loadServicesCatalogSources(catalogTalentId, locale)
+      ? await loadServicesCatalogSources(
+          catalogTalentId,
+          locale,
+          servicesCatalogChannel({ explicitTalentProfileId: talentProfileId }),
+        )
+      : nativeNeeds.portfolio && catalogTalentId
+        ? // Portfolio service links need OfferingCta payloads even without a
+          // services_catalog on the page.
+          await loadServicesCatalogSources(
+            catalogTalentId,
+            locale,
+            servicesCatalogChannel({ explicitTalentProfileId: talentProfileId }),
+          )
+        : {}),
+    ...(nativeNeeds.portfolio && catalogTalentId
+      ? await loadPortfolioSources(catalogTalentId)
+      : {}),
+    ...(nativeNeeds.reviews && catalogTalentId
+      ? await loadReviewsSources(catalogTalentId)
+      : {}),
+    ...(nativeNeeds.visit && catalogTalentId
+      ? await loadVisitSources(catalogTalentId, locale)
+      : {}),
+    ...(nativeNeeds.compCard && catalogTalentId
+      ? await loadCompCardSources(catalogTalentId, locale)
+      : {}),
+    ...(nativeNeeds.talentFaq && catalogTalentId
+      ? { talentFaqItems: await loadPublishedFaqForProfile(catalogTalentId) }
       : {}),
   };
 }
@@ -362,23 +405,36 @@ export async function loadBuilderNodeDataSources(
  * degrade to the safe default (confirm-by-hand; no USD line) on any failure,
  * never to a thrown error.
  */
-async function loadServicesCatalogSources(
+/**
+ * Public export for Max-site render when there is no managing agency tenant.
+ * Unrostered / free personal sites still need `services_catalog` rows; the
+ * builder-node data-source loader is otherwise gated on `tenantId`.
+ */
+export async function loadServicesCatalogSources(
   talentProfileId: string,
   locale: string,
+  /** WSF-C §7: "agency" never applies the talent's switches or banner. */
+  channel: "direct" | "agency" = "direct",
 ): Promise<
   Pick<
     BuilderNodeRenderDataSources,
     | "talentOfferings"
     | "talentOfferingsConfirmsByHand"
+    | "talentOfferingsBookingSettings"
     | "talentOfferingsUsdRates"
     | "talentOfferingsCategoryOrder"
     | "talentOfferingsCategoryNotes"
+    | "onlineCollectReady"
+    | "talentSitePause"
   >
 > {
-  const offerings = await loadPublicOfferingsForProfile(talentProfileId, locale);
+  const offerings = await loadPublicOfferingsForProfile(talentProfileId, locale, null, { channel });
   let confirmsByHand = true;
   let categoryOrder: string[] = [];
   let categoryNotes: Record<string, string> | undefined;
+  let bookingSettings:
+    | { bookingPosture: "instant" | "request" | "inquiry"; whoPrimaryCta: "confirm_now" | "contact" | "check_availability" }
+    | undefined;
   const admin = createServiceRoleClient();
   if (admin) {
     const { data, error } = await admin
@@ -401,14 +457,70 @@ async function loadServicesCatalogSources(
         }
         if (Object.keys(next).length) categoryNotes = next;
       }
+      const parsed = parseSellingBookingSettings(defaults);
+      bookingSettings = {
+        bookingPosture: parsed.bookingPosture,
+        whoPrimaryCta: parsed.whoPrimaryCta,
+      };
     }
   }
   const usdRates = needsUsdRates(offerings) ? await loadUsdRates() : null;
+  // WSF-C §8: the same switches the offerings loader applied, for the banner.
+  const talentSitePause = admin && channel === "direct"
+    ? publicContactMode(await loadTalentSiteSwitches(admin, talentProfileId))
+    : "open";
+  // PAY-2 Option B — platform Checkout only; Connect unfinished does not gate guests.
+  const onlineCollectReady = resolveOnlineCollectReady({
+    platformCheckoutReady: isPlatformCheckoutReady(),
+  });
   return {
     talentOfferings: offerings,
     talentOfferingsConfirmsByHand: confirmsByHand,
+    onlineCollectReady,
+    ...(bookingSettings ? { talentOfferingsBookingSettings: bookingSettings } : {}),
     ...(usdRates ? { talentOfferingsUsdRates: usdRates } : {}),
     ...(categoryOrder.length ? { talentOfferingsCategoryOrder: categoryOrder } : {}),
     ...(categoryNotes ? { talentOfferingsCategoryNotes: categoryNotes } : {}),
+    ...(talentSitePause !== "open" ? { talentSitePause } : {}),
   };
+}
+
+/**
+ * Personal Max sites with no managing agency tenant: load live-bound native
+ * widgets (catalog / portfolio / reviews / visit) by talent profile alone.
+ */
+export async function loadPersonalMaxNativeSources(args: {
+  talentProfileId: string;
+  locale: string;
+  servicesCatalog: boolean;
+  portfolio: boolean;
+  nextFreeChip: boolean;
+  reviews: boolean;
+  visit: boolean;
+  compCard?: boolean;
+  /** An accordion bound to `talent_faq_items` (the agency path already loads it). */
+  talentFaq?: boolean;
+}): Promise<BuilderNodeRenderDataSources> {
+  const needCatalog = args.servicesCatalog || args.portfolio || args.nextFreeChip;
+  if (
+    !needCatalog &&
+    !args.portfolio &&
+    !args.reviews &&
+    !args.visit &&
+    !args.compCard &&
+    !args.talentFaq
+  ) {
+    return {};
+  }
+  const [catalog, portfolio, reviews, visit, compCard, faq] = await Promise.all([
+    needCatalog ? loadServicesCatalogSources(args.talentProfileId, args.locale) : {},
+    args.portfolio ? loadPortfolioSources(args.talentProfileId) : {},
+    args.reviews ? loadReviewsSources(args.talentProfileId) : {},
+    args.visit ? loadVisitSources(args.talentProfileId, args.locale) : {},
+    args.compCard ? loadCompCardSources(args.talentProfileId, args.locale) : {},
+    args.talentFaq
+      ? loadPublishedFaqForProfile(args.talentProfileId).then((talentFaqItems) => ({ talentFaqItems }))
+      : {},
+  ]);
+  return { ...catalog, ...portfolio, ...reviews, ...visit, ...compCard, ...faq };
 }

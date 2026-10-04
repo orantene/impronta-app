@@ -30,6 +30,7 @@
  */
 
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { loadLegacyProfileTemplate } from "./legacy-profile-template";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
@@ -60,6 +61,12 @@ import { isMaxSiteTemplateKey } from "../max-site-templates/registry";
 import type { MaxSiteTemplateKey } from "../max-site-templates/types";
 import { buildAppliedTemplateTrees } from "./apply-template-core";
 import { publishSiteThemeForTalent } from "./theme-publish-hook";
+import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
+import { writeMaisonDesignPublishedRevision } from "./maison-design-revision";
+import { prepareMaisonSiteForPublish } from "./maison-pending-apply";
+import { siteScaffoldComplete } from "./site-scaffold-complete";
+import { publishTalentPageBodies } from "./publish-talent-page-bodies";
+import { recordSitePublish } from "../history/history.server";
 import type {
   MaxSiteManagerPage,
   MaxSiteManagerState,
@@ -69,8 +76,7 @@ import type {
 const PAGE_COLUMNS =
   "id, slug, title, nav_label, status, is_home, sort_order, published_at, updated_at";
 
-// Shared owner+Max gate lives in ./site-action-gate so the logo actions
-// (./site-logo-actions, a separate "use server" module) can reuse it.
+// Shared owner+Max gate lives in ./site-action-gate (reused by ./site-logo-actions).
 
 /**
  * The address the dashboard shows and links to. With the subdomain switch on the
@@ -148,42 +154,48 @@ export async function loadMaxSiteManagerAction(): Promise<
         sitePublishedAt: null,
         hasPublishedShell: false,
         publicSiteUrl: null,
+        themeDesignSlug: null,
+        themeLookSlug: null,
         pages: [],
       },
     };
   }
 
-  // Provision on open (idempotent) so the manager is never empty for a Max talent.
-  await provisionTalentMaxSite(scope.talentProfile.id, scope.session.user.id);
-
   const sb = await getCachedServerSupabase();
   if (!sb) return { ok: false, code: "server_error", error: "Not configured." };
 
-  const { data: siteRow, error: siteErr } = await sb
-    .from("talent_sites")
-    .select("site_slug, logo_url, site_published_at, shell_published")
-    .eq("talent_profile_id", scope.talentProfile.id)
-    .maybeSingle();
+  // F74 + F137: parallel reads first; provision only if the scaffold is incomplete.
+  const cols = "id, site_slug, logo_url, site_published_at, shell_published, shell_tree, theme_design_slug, theme_look_slug";
+  const readAll = () =>
+    Promise.all([
+      sb.from("talent_sites").select(cols).eq("talent_profile_id", scope.talentProfile.id).maybeSingle(),
+      sb.from("talent_pages").select(PAGE_COLUMNS).eq("talent_profile_id", scope.talentProfile.id).order("sort_order", { ascending: true }),
+      loadLegacyProfileTemplate(sb, scope.talentProfile.id),
+    ]);
+  let [siteRes, pagesRes, legacyProfileTemplate] = await readAll();
+  if (!siteScaffoldComplete(siteRes, pagesRes)) {
+    await provisionTalentMaxSite(scope.talentProfile.id, scope.session.user.id);
+    [siteRes, pagesRes, legacyProfileTemplate] = await readAll();
+  }
+  const { data: siteRow, error: siteErr } = siteRes;
+  const { data: pageRows, error: pagesErr } = pagesRes;
   if (siteErr) {
     logServerError("maxSiteManager.load.site", siteErr);
     return { ok: false, code: "server_error", error: "Could not load your site." };
   }
-
-  const { data: pageRows, error: pagesErr } = await sb
-    .from("talent_pages")
-    .select(PAGE_COLUMNS)
-    .eq("talent_profile_id", scope.talentProfile.id)
-    .order("sort_order", { ascending: true });
   if (pagesErr) {
     logServerError("maxSiteManager.load.pages", pagesErr);
     return { ok: false, code: "server_error", error: "Could not load your pages." };
   }
 
   const site = (siteRow ?? null) as {
+    id: string;
     site_slug: string | null;
     logo_url: string | null;
     site_published_at: string | null;
     shell_published: unknown;
+    theme_design_slug: string | null;
+    theme_look_slug: string | null;
   } | null;
 
   const pages: MaxSiteManagerPage[] = ((pageRows ?? []) as Array<{
@@ -222,6 +234,9 @@ export async function loadMaxSiteManagerAction(): Promise<
       hasPublishedShell:
         Array.isArray(site?.shell_published) && site!.shell_published.length > 0,
       publicSiteUrl: siteUrl(site?.site_slug ?? null),
+      themeDesignSlug: site?.theme_design_slug ?? null,
+      themeLookSlug: site?.theme_look_slug ?? null,
+      legacyProfileTemplate,
       pages,
     },
   };
@@ -576,7 +591,7 @@ export async function setMaxSiteSlugAction(input: {
  * talent currently holding Max + per-page `status='published'`, so all three
  * must land for the site to serve. Owner-RLS scoped throughout.
  */
-export async function publishMaxSiteAction(): Promise<
+export async function publishMaxSiteAction(opts?: { contentHash?: string | null }): Promise<
   MaxSiteActionResult<{ publishedAt: string }>
 > {
   const g = await gate("personalSiteEdit");
@@ -586,32 +601,64 @@ export async function publishMaxSiteAction(): Promise<
   if (!sb) return { ok: false, code: "server_error", error: "Not configured." };
 
   // Ensure the site exists (idempotent) before publishing.
-  await provisionTalentMaxSite(g.talentProfileId, g.userId);
+  const provisioned = await provisionTalentMaxSite(g.talentProfileId, g.userId);
+  if (!provisioned.ok) {
+    return { ok: false, code: "server_error", error: provisioned.error };
+  }
+
+  const { data: preSite, error: preErr } = await sb
+    .from("talent_sites")
+    .select("id, site_slug, shell_tree, theme_design_slug, pending_design")
+    .eq("talent_profile_id", g.talentProfileId)
+    .maybeSingle();
+  if (preErr) {
+    logServerError("maxSiteManager.publish.readPre", preErr);
+    return { ok: false, code: "server_error", error: "Could not read your site." };
+  }
+  if (!preSite) return { ok: false, code: "site_not_found", error: "Site not found." };
+
+  const prepared = await prepareMaisonSiteForPublish(sb, {
+    talentProfileId: g.talentProfileId,
+    userId: g.userId,
+    displayName: g.displayName,
+    pre: preSite as {
+      id: string;
+      site_slug: string | null;
+      shell_tree: unknown;
+      theme_design_slug: string | null;
+      pending_design: unknown;
+    },
+  });
+  if (!prepared.ok) {
+    return {
+      ok: false,
+      code: prepared.code,
+      error: prepared.error,
+      ...(prepared.blockers ? { blockers: prepared.blockers } : {}),
+    };
+  }
+  const pre = prepared.pre;
 
   const now = new Date().toISOString();
 
-  // 1. Publish every page.
-  const { error: pagesErr } = await sb
-    .from("talent_pages")
-    .update({ status: "published", published_at: now, updated_at: now })
-    .eq("talent_profile_id", g.talentProfileId);
-  if (pagesErr) {
-    logServerError("maxSiteManager.publish.pages", pagesErr);
-    return { ok: false, code: "server_error", error: "Could not publish your pages." };
+  // 1. Publish every page: status → published AND the draft body (`blocks`)
+  //    is copied into the live body (`blocks_published`). Until this runs,
+  //    saved edits stay private, the same as the shell and the theme tokens.
+  const pagesPublished = await publishTalentPageBodies(sb, {
+    talentProfileId: g.talentProfileId,
+    now,
+  });
+  if (!pagesPublished.ok) {
+    logServerError("maxSiteManager.publish.pages", pagesPublished.error);
+    return {
+      ok: false,
+      code: "server_error",
+      error: "Could not publish your pages. (pages)",
+    };
   }
 
-  // 2 + 3. Bake the shell + mark the site live. Read the current draft shell so
-  //        shell_published mirrors shell_tree exactly.
-  const { data: siteRow, error: readErr } = await sb
-    .from("talent_sites")
-    .select("shell_tree")
-    .eq("talent_profile_id", g.talentProfileId)
-    .maybeSingle();
-  if (readErr) {
-    logServerError("maxSiteManager.publish.readShell", readErr);
-    return { ok: false, code: "server_error", error: "Could not read your shell." };
-  }
-  const shellTree = (siteRow as { shell_tree: unknown } | null)?.shell_tree ?? [];
+  // 2 + 3. Bake the shell + mark the site live.
+  const shellTree = pre.shell_tree ?? [];
 
   const { error: siteErr, count } = await sb
     .from("talent_sites")
@@ -621,6 +668,7 @@ export async function publishMaxSiteAction(): Promise<
         site_published_at: now,
         status: "published",
         published_at: now,
+        pending_design: null,
         updated_at: now,
         updated_by: g.userId,
       },
@@ -629,7 +677,11 @@ export async function publishMaxSiteAction(): Promise<
     .eq("talent_profile_id", g.talentProfileId);
   if (siteErr) {
     logServerError("maxSiteManager.publish.site", siteErr);
-    return { ok: false, code: "server_error", error: "Could not publish your site." };
+    return {
+      ok: false,
+      code: "server_error",
+      error: `Could not publish your site. (${siteErr.code ?? "site"})`,
+    };
   }
   if (!count) return { ok: false, code: "site_not_found", error: "Site not found." };
 
@@ -640,7 +692,24 @@ export async function publishMaxSiteAction(): Promise<
     profileCode: g.profileCode,
   });
   if (!theme.ok) {
-    return { ok: false, code: "server_error", error: "Your pages are live, but the theme could not be published. Try again." };
+    return {
+      ok: false,
+      code: "server_error",
+      error: "Your pages are live, but the theme could not be published. Try again. (theme)",
+    };
+  }
+  await recordSitePublish(pre.id, g.userId, typeof opts?.contentHash === "string" ? opts.contentHash : null); // 4b. site history (theme releases Phase 2)
+  // 5. W41 — design version snapshot (Maison flag; best-effort, never fails publish).
+  if (isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    const admin = createServiceRoleClient();
+    if (admin) {
+      await writeMaisonDesignPublishedRevision(admin, {
+        talentProfileId: g.talentProfileId,
+        siteId: pre.id,
+        userId: g.userId,
+        publishedAt: now,
+      });
+    }
   }
 
   return { ok: true, data: { publishedAt: now } };

@@ -3,7 +3,7 @@
  * a closed record, fail-closed on unknown tiers. Does NOT touch
  * plan-capabilities.ts (still permissive).
  *
- *   free     → M1 (request)
+ *   free     → M2 (instant, pay later; owner decision 2026-10-01)
  *   website  → M2 (instant, pay later)
  *   studio   → M4 (full prepaid)
  *   agency / network / hub-network → M4 + sync + multiStaff + recurring
@@ -54,7 +54,7 @@ const CLOSED: AppointmentsPlanPolicy = {
 const APPOINTMENTS_PLAN_POLICY: Record<string, AppointmentsPlanPolicy> = {
   free: {
     plan: "free",
-    maxMode: "request",
+    maxMode: "instant",
     calendarSync: false,
     multiStaff: false,
     recurring: false,

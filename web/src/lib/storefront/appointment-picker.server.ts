@@ -60,7 +60,9 @@ async function bind(locale: string | null | undefined): Promise<AppointmentPicke
       return new Map(rows.filter((r) => r.thumb).map((r) => [r.id, r.thumb as string]));
     },
     loadBusy: (input) => loadBusyIntervals({ ...input, admin: input.admin as SupabaseClient }),
-    placePurchase: (client, input) => placeInstantPurchase(client as SupabaseClient, input),
+    // Agency storefront: the agency owns routing (WSF-C §7).
+    placePurchase: (client, input) =>
+      placeInstantPurchase(client as SupabaseClient, { ...input, agencyRouted: true }),
     createCheckout: (input) => createCheckoutSessionForTransaction(input),
     signManageToken: signBookingManageToken,
   };

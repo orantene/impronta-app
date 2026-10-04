@@ -12,6 +12,8 @@
  */
 
 import { useRouter } from "next/navigation";
+import { payLinkTarget } from "@/lib/payments/pay-link-target";
+import { resolvePayLinkPublicUrl } from "@/lib/server-actions/pay-link-public-url";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { translatorFor } from "@/i18n/use-t";
@@ -24,11 +26,13 @@ import {
   messagingClientPickTime,
   messagingClientReply,
   messagingClientRequestChange,
+  messagingClientSaveToEmail,
 } from "@/lib/server-actions/messaging-client";
 
 import { buildKitCopy } from "../kit/copy";
-import { ClientThreadView, type CardActivity, type ComposerPhase } from "./ClientThreadView";
+import { ClientThreadView, type CardActivity, type ComposerPhase, type SaveEmailPhase } from "./ClientThreadView";
 import { buildClientCopy } from "./copy";
+import { useClientThreadPaidRefresh } from "./use-client-thread-paid-refresh";
 
 export type ClientThreadProps = {
   readonly token: string;
@@ -38,6 +42,8 @@ export type ClientThreadProps = {
   readonly offers: readonly ClientOfferSummary[];
   readonly payCode: string | null;
   readonly threadTokenExpiresAt?: string | null;
+  /** True when the visitor opened this page from the save-to-email link (`?from=email`). */
+  readonly fromEmail?: boolean;
 };
 
 export function ClientThread(props: ClientThreadProps) {
@@ -52,6 +58,7 @@ export function ClientThread(props: ClientThreadProps) {
   const [optimistic, setOptimistic] = useState<readonly ThreadMessage[]>([]);
   const [activity, setActivity] = useState<Readonly<Record<string, CardActivity>>>({});
   const [now, setNow] = useState(() => new Date());
+  const [saveEmail, setSaveEmail] = useState<SaveEmailPhase>("idle");
 
   // A held time shows a countdown; tick once a second while any card is held.
   const anyHold = props.messages.some((m) => m.kind === "professional_times" && typeof m.payload?.holdExpiresAt === "string");
@@ -60,6 +67,12 @@ export function ClientThread(props: ClientThreadProps) {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, [anyHold]);
+
+  // Soft return from /pay: refresh while an unpaid Pay card can still flip.
+  const refresh = useCallback(() => {
+    router.refresh();
+  }, [router]);
+  useClientThreadPaidRefresh({ messages: props.messages, refresh });
 
   // Server rows win: drop optimistic bubbles once the refresh brings them back.
   const serverIds = useMemo(() => new Set(props.messages.map((m) => m.id)), [props.messages]);
@@ -73,24 +86,37 @@ export function ClientThread(props: ClientThreadProps) {
       if (!text) return;
       setPhase("sending");
       setLastBody(text);
-      const result = await messagingClientReply({ token: props.token, body: text });
-      if (!result.ok) {
+      try {
+        const result = await messagingClientReply({ token: props.token, body: text });
+        if (!result.ok) {
+          setPhase("failed");
+          return;
+        }
+        setOptimistic((prev) => [
+          ...prev,
+          { id: result.messageId, inquiryId: "", kind: "text", body: text, payload: null, senderUserId: null, guestSessionId: null, createdAt: new Date().toISOString(), editedAt: null, deletedAt: null, thread: "private", internal: false, delivery: null },
+        ]);
+        setValue("");
+        setPhase("sent");
+        router.refresh();
+        setTimeout(() => setPhase((p) => (p === "sent" ? "idle" : p)), 2500);
+      } catch {
+        // Transport / fetch rejection: leave the draft and surface Retry (D-MSG-432).
         setPhase("failed");
-        return;
       }
-      setOptimistic((prev) => [
-        ...prev,
-        { id: result.messageId, inquiryId: "", kind: "text", body: text, payload: null, senderUserId: null, guestSessionId: null, createdAt: new Date().toISOString(), editedAt: null, deletedAt: null, thread: "private", internal: false, delivery: null },
-      ]);
-      setValue("");
-      setPhase("sent");
-      router.refresh();
-      setTimeout(() => setPhase((p) => (p === "sent" ? "idle" : p)), 2500);
     },
     [props.token, router],
   );
 
-  const refused = useCallback((key: string, reason: MessagingRefusal) => setAct(key, { phase: "refused", refusal: reason }), [setAct]);
+  const refused = useCallback(
+    (key: string, reason: MessagingRefusal, nextFreeTimes?: readonly string[]) =>
+      setAct(key, {
+        phase: "refused",
+        refusal: reason,
+        ...(nextFreeTimes && nextFreeTimes.length > 0 ? { nextFreeTimes } : {}),
+      }),
+    [setAct],
+  );
 
   const onChoose = useCallback(
     async (messageId: string, ids: readonly string[]) => {
@@ -125,7 +151,8 @@ export function ClientThread(props: ClientThreadProps) {
       setAct(messageId, { phase: "busy" });
       const result = await messagingClientPickTime({ token: props.token, messageId, startsAt });
       if (!result.ok) {
-        refused(messageId, result.reason);
+        // Engine nextFreeTimes only — never invent a clock on the client link.
+        refused(messageId, result.reason, result.nextFreeTimes);
         return;
       }
       setAct(messageId, { phase: "done" });
@@ -136,7 +163,9 @@ export function ClientThread(props: ClientThreadProps) {
   );
 
   const onPay = useCallback((code: string) => {
-    window.location.assign(`/pay/${encodeURIComponent(code)}`);
+    void resolvePayLinkPublicUrl({ code })
+      .catch(() => ({ url: null }))
+      .then((r) => window.location.assign(payLinkTarget(code, r.url)));
   }, []);
 
   const onAcceptOffer = useCallback(
@@ -186,6 +215,23 @@ export function ClientThread(props: ClientThreadProps) {
     [props.token, refused, router, setAct],
   );
 
+  const onSaveToEmail = useCallback(async () => {
+    if (saveEmail === "sending") return;
+    setSaveEmail("sending");
+    try {
+      const origin = typeof window !== "undefined" ? window.location.origin : null;
+      const result = await messagingClientSaveToEmail({ token: props.token, requestOrigin: origin });
+      if (!result.ok) {
+        setSaveEmail("failed");
+        return;
+      }
+      setSaveEmail("sent");
+      setTimeout(() => setSaveEmail((p) => (p === "sent" ? "idle" : p)), 4000);
+    } catch {
+      setSaveEmail("failed");
+    }
+  }, [props.token, saveEmail]);
+
   return (
     <ClientThreadView
       copy={copy}
@@ -198,6 +244,8 @@ export function ClientThread(props: ClientThreadProps) {
       now={now}
       activity={activity}
       composer={{ value, phase }}
+      fromEmail={props.fromEmail === true}
+      saveEmail={saveEmail}
       onComposerChange={(v) => {
         setValue(v);
         if (phase === "failed" || phase === "sent") setPhase("idle");
@@ -211,8 +259,7 @@ export function ClientThread(props: ClientThreadProps) {
       onChangeOffer={(o, text) => void onChangeRecord("offer", o.id, text, o.id)}
       onChangeRecord={(k, id, text) => void onChangeRecord(k, id, text, id)}
       onPay={onPay}
-      // D-MSG-166: `sendGuestClaimToEmail` needs the guest cookie session that owns the inquiry; a link holder has none.
-      onSaveToEmail={null}
+      onSaveToEmail={() => void onSaveToEmail()}
       threadTokenExpiresAt={props.threadTokenExpiresAt}
     />
   );

@@ -30,6 +30,7 @@ import { TALENT_UNREAD } from "./WorkspaceTopbar";
 import { useWorkspaceNav } from "./workspace-nav";
 import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
+import { TalentPreviewEyeControl } from "./TalentPreviewEyeControl";
 
 
 export function TulalaIdentityBar() {
@@ -347,7 +348,7 @@ export function TulalaIdentityBar() {
               onClick={inTalent ? undefined : onActingClick}
               aria-label={copy.isSpanish ? `Actuando como ${actingLabel}` : `Acting as ${actingLabel}`}
               title={inTalent ? undefined : actingSubLabel}
-              className="tulala-acting-chip inline-flex cursor-pointer items-center gap-[8px] rounded-[999px] border border-admin-border-soft bg-white px-[10px] py-[5px] font-admin-body hover:bg-[rgba(11,11,13,0.04)] [transition:background_var(--transition-admin-micro)]"
+              className={`tulala-acting-chip ${inTalent ? "max-sm:hidden " : ""}inline-flex cursor-pointer items-center gap-[8px] rounded-[999px] border border-admin-border-soft bg-white px-[10px] py-[5px] font-admin-body hover:bg-[rgba(11,11,13,0.04)] [transition:background_var(--transition-admin-micro)]`}
             >
               {inWorkspace && (
               <span
@@ -396,36 +397,30 @@ export function TulalaIdentityBar() {
               />
             )}
 
+            {/* PR 7: talent language switch (ES | EN pill); also seeds the content locale. */}
+            {inTalent ? <LanguageMenu /> : null}
             <NotificationsBell />
 
-            {/* Preview. Studio v2 opens the talent's own public page.
-                The previous bar opened the agency homepage, and hid the
-                eye when the talent had no agency. */}
-            {(() => {
-              const ownPage = bridgeTalentSelfProfile?.profileCode
-                ? `https://tulala.digital/t/${bridgeTalentSelfProfile.profileCode}`
-                : null;
-              const show = studioV2
-                ? (inTalent ? Boolean(ownPage) : true)
-                : !(inTalent && agencyCount === 0);
-              if (!show) return null;
-              const href = studioV2 && inTalent && ownPage ? ownPage : (tenantSlug ? `/${tenantSlug}` : "/");
-              return (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Preview site"
-              title="Preview public site"
-              className="inline-flex h-[34px] w-[34px] cursor-pointer items-center justify-center rounded-[8px] border border-admin-border-soft bg-white text-admin-ink-muted no-underline hover:border-admin-border hover:text-admin-ink [transition:border-color_var(--transition-admin-micro),color_var(--transition-admin-micro)]"
-            >
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            </a>
-              );
-            })()}
+            {/* Preview. Studio v2: prefer the live personal website, with a
+                chooser when hub + website both exist. Pre-v2 still opens the
+                agency homepage and hides the eye when there is no agency. */}
+            {studioV2 && inTalent ? (
+              <TalentPreviewEyeControl profileCode={bridgeTalentSelfProfile?.profileCode} />
+            ) : !(inTalent && agencyCount === 0) ? (
+              <a
+                href={tenantSlug ? `/${tenantSlug}` : "/"}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={copy.t("Preview site")}
+                title={copy.t("Preview public site")}
+                className="inline-flex h-[34px] w-[34px] cursor-pointer items-center justify-center rounded-[8px] border border-admin-border-soft bg-white text-admin-ink-muted no-underline hover:border-admin-border hover:text-admin-ink [transition:border-color_var(--transition-admin-micro),color_var(--transition-admin-micro)]"
+              >
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </a>
+            ) : null}
 
             {/* User identity — avatar-only menu trigger; the full name + email
                 live in the dropdown header, the aria-label, and a tooltip. */}
@@ -466,7 +461,7 @@ function AccountMenuTrigger({
   /** Which edge the dropdown hugs — "right" when the trigger sits at the bar's right end. */
   align?: "left" | "right";
 }) {
-  const { state, openDrawer, bridgeTalentSelfProfile, bridgeTenantIdentity, tenantSlug, adminBasePath, bridgeSessionIdentity, supportedLocales, tenantDefaultLocale } = useAdminShell();
+  const { state, openDrawer, bridgeTalentSelfProfile, bridgeTenantIdentity, tenantSlug, adminBasePath, bridgeSessionIdentity, supportedLocales, tenantDefaultLocale, talentLocales } = useAdminShell();
   const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const [createTalentDialogOpen, setCreateTalentDialogOpen] = useState(false);
@@ -551,7 +546,10 @@ function AccountMenuTrigger({
       {open && (
         <div
           role="menu"
-          className={`absolute ${align === "right" ? "right-0" : "left-0"} top-[calc(100%_+_6px)] z-[200] min-w-[240px] rounded-[12px] border border-admin-border-soft bg-white p-[6px] font-admin-body shadow-[0_10px_40px_rgba(11,11,13,0.16)] [animation:tulala-menu-fade_.14s_ease]`}
+          // Viewport-bounded height + scroll so Sign out / lower controls
+          // stay reachable on short screens (Story 2 avatar rows + "Where I
+          // appear" can push the menu past the fold).
+          className={`absolute ${align === "right" ? "right-0" : "left-0"} top-[calc(100%_+_6px)] z-[200] max-h-[min(480px,calc(100dvh-72px))] min-w-[240px] overflow-x-hidden overflow-y-auto rounded-[12px] border border-admin-border-soft bg-white p-[6px] font-admin-body shadow-[0_10px_40px_rgba(11,11,13,0.16)] [animation:tulala-menu-fade_.14s_ease]`}
         >
           <style>{`@keyframes tulala-menu-fade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
           {isTalentSurface ? (
@@ -624,7 +622,7 @@ function AccountMenuTrigger({
           {isTalentSurface && (
             <AccountMenuItem
               label="Start a workspace"
-              sub="Run your own roster — free plan, 1 minute"
+              sub="Run your own roster. Free plan, 1 minute."
               onClick={() => { setOpen(false); fireOpenStartWorkspaceDialog(); }}
             />
           )}
@@ -641,8 +639,8 @@ function AccountMenuTrigger({
             </div>
             <DashboardLocaleToggle
               variant="prototype"
-              supportedLocales={supportedLocales}
-              defaultLocale={tenantDefaultLocale}
+              supportedLocales={talentLocales ? [talentLocales.primary, ...talentLocales.secondary] : supportedLocales}
+              defaultLocale={talentLocales?.primary ?? tenantDefaultLocale}
             />
           </div>
           <AccountMenuItem

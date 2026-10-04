@@ -102,12 +102,14 @@ test("client payload readers and the client offer type never carry a staff-only 
 test("token page renders the v5 client thread from the client reader; every client action verifies the token", () => {
   const page = read("app/(public)/c/t/[token]/page.tsx");
   assert.match(page, /verifyThreadToken\(/);
+  assert.match(page, /threadTokenMatchesRequestHost\(/, "page must refuse cross-agency token replay");
   assert.match(page, /customerVisibleMessages\(/);
   assert.match(page, /<ClientThread/);
   assert.doesNotMatch(page, /CustomerThread/);
   const actions = stripComments(read("lib/server-actions/messaging-client.ts"));
   assert.match(actions, /^"use server";/);
   assert.match(actions, /verifyThreadToken\(token\)/);
+  assert.match(actions, /threadTokenMatchesRequestHost\(/, "client writers must refuse cross-agency host");
   assert.doesNotMatch(actions, /requireWorkspaceStaffAction|staff\(\)/, "client actions never take the staff guard");
   const exported = actions.match(/export async function (\w+)/g) ?? [];
   assert.ok(exported.length >= 6, `expected the six client actions, got ${exported.length}`);

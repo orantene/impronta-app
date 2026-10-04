@@ -3,13 +3,15 @@
  * Callers fetch session + legs; this decides unauthorized vs own.
  */
 
-export type OwnBookingOk = { ok: true; talentId: string };
+export type OwnBookingOk = { ok: true; talentId: string; userId: string };
 export type OwnBookingFail = { ok: false; reason: string };
 export type OwnBookingResult = OwnBookingOk | OwnBookingFail;
 
 export type OwnBookingGateInput = {
   bookingId: string;
   hasSessionUser: boolean;
+  /** Auth user id — required when ownership succeeds (audit actor). */
+  userId?: string | null;
   talentProfileId: string | null | undefined;
   onBookingTalent: boolean;
   ownsTalentBookingMirror: boolean;
@@ -24,8 +26,11 @@ export function ownBookingGate(input: OwnBookingGateInput): OwnBookingResult {
   if (typeof input.talentProfileId !== "string" || input.talentProfileId.length === 0) {
     return { ok: false, reason: "unauthorized" };
   }
+  if (typeof input.userId !== "string" || input.userId.length === 0) {
+    return { ok: false, reason: "unauthorized" };
+  }
   if (input.onBookingTalent || input.ownsTalentBookingMirror) {
-    return { ok: true, talentId: input.talentProfileId };
+    return { ok: true, talentId: input.talentProfileId, userId: input.userId };
   }
   return { ok: false, reason: "unauthorized" };
 }

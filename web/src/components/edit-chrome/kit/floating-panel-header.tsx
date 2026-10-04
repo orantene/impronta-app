@@ -10,6 +10,7 @@
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
 import { FloatingDragGrip } from "../floating-panel";
+import { useEditorLocale } from "../use-editor-locale";
 import { CHROME } from "./tokens";
 import { FLOATING_PANEL_RADIUS_PX } from "./floating-panel-shell";
 
@@ -20,13 +21,14 @@ export function FloatingPanelCloseButton({
   onClose: () => void;
   ariaLabel?: string;
 }) {
+  const { t } = useEditorLocale();
   return (
     <button
       type="button"
       data-no-drag
       onClick={onClose}
-      title={ariaLabel}
-      aria-label={ariaLabel}
+      title={t(ariaLabel)}
+      aria-label={t(ariaLabel)}
       className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border-none transition-colors"
       style={{ background: "transparent", color: CHROME.muted }}
       onMouseEnter={(e) => {
@@ -57,13 +59,14 @@ export function FloatingPanelCloseButton({
 }
 
 function FloatingPanelResetButton({ onReset }: { onReset: () => void }) {
+  const { t } = useEditorLocale();
   return (
     <button
       type="button"
       data-no-drag
       onClick={onReset}
-      title="Snap back to home position"
-      aria-label="Snap panel back to home position"
+      title={t("Snap back to home position")}
+      aria-label={t("Snap panel back to home position")}
       className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border-none transition-colors"
       style={{ background: "transparent", color: CHROME.muted }}
     >
@@ -131,7 +134,7 @@ export function FloatingPanelHeader({
       <div
         data-floating-drag-handle=""
         onPointerDown={onPointerDown}
-        className="flex items-center gap-2.5 px-[18px] py-[14px]"
+        className="flex items-center gap-2 px-[16px] py-[11px]"
         style={{
           cursor: dragging ? "grabbing" : "grab",
           touchAction: "none",
@@ -145,8 +148,8 @@ export function FloatingPanelHeader({
         <FloatingDragGrip dragging={dragging} />
         <h2
           id={titleId}
-          className="m-0 min-w-0 truncate font-semibold tracking-[-0.01em]"
-          style={{ color: CHROME.ink, fontSize: 15, fontWeight: 600 }}
+          className="m-0 min-w-0 truncate tracking-[-0.015em]"
+          style={{ color: CHROME.ink, fontSize: 15, fontWeight: 650 }}
         >
           {title}
         </h2>
@@ -159,9 +162,10 @@ export function FloatingPanelHeader({
       </div>
       {meta ? (
         <div
-          className={`px-[18px] pb-[14px] ${metaWrap ? "" : "truncate"}`}
+          className={`px-[16px] pb-[10px] ${metaWrap ? "" : "truncate"}`}
           style={{
             fontSize: 11,
+            fontWeight: 550,
             color: CHROME.muted,
             borderBottom: titleRowBorder ? `1px solid ${CHROME.line}` : undefined,
           }}

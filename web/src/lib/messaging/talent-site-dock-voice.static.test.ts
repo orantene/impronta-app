@@ -44,7 +44,8 @@ test("the launcher and header carry the TALENT's name, not the inquiry tenant's"
 test("the dock is given a voice, so it cannot reach the catalog fallback", () => {
   const dock = dockSource();
   // Both halves matter: the opener line AND the vocabulary the tabs derive from.
-  assert.match(dock, /greeting=\{tradeVoice\}/);
+  // WSF D: her own chat_config.greeting wins; the trade voice is the default.
+  assert.match(dock, /greeting=\{resolveTalentChatGreeting\(switches, tradeVoice\)\}/);
   assert.match(dock, /talentSiteChatVoice\(/);
   assert.match(dock, /wordsPresetOverride=\{tradePreset\}/);
   assert.match(dock, /resolveTalentTradePreset\(/);
@@ -79,11 +80,16 @@ test("the override never poisons the cached tenant read", () => {
   assert.doesNotMatch(cached, /presetOverride/);
 });
 
-test("a talent with no known trade changes nothing", () => {
+test("a talent with no known trade defaults to the solo salon voice", () => {
   const dock = dockSource();
-  // "custom" is the pre-preset default and is not a voice; the agency mount makes
-  // the same exclusion. Without this guard a null-category talent would get an
-  // empty or generic opener where she previously got the tenant's.
-  assert.match(dock, /tradePreset && tradePreset !== "custom"/);
-  assert.match(dock, /: null;/);
+  // AUD-028: null/custom trade must NOT keep the hub agency opener
+  // ("asistente de reservas… talento ideal"). Solo salon speaks her voice
+  // and hides the agency lineup tab (representsPeople: false → Servicios).
+  assert.match(dock, /resolvedTrade && resolvedTrade !== "custom"/);
+  assert.match(dock, /"salon_barber"/);
+  assert.doesNotMatch(
+    dock,
+    /tradePreset && tradePreset !== "custom"[\s\S]*: null;/,
+    "null trade must not leave the tenant/agency preset in place",
+  );
 });

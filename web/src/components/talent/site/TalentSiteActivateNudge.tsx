@@ -1,24 +1,19 @@
 "use client";
 
 /**
- * TalentSiteActivateNudge — "activate your free website" onboarding card.
+ * TalentSiteActivateNudge — Today invite to activate / finish the free website.
  *
- * Phase 3. Shown on the talent Today page ONLY when the talent's plan grants
- * site editing AND they have not published a site yet. One tap routes to the
- * Public page tab, where `TalentMaxSiteManager` provisions the site on open.
- *
- * Why this exists: the free website engine works end to end, but nothing ever
- * TELLS a talent it is there. Without this card the site is reachable only by
- * someone who already knows to open Presence → Public page.
- *
- * Renders nothing while loading, on auth failure, without the capability, or
- * once the site is published, so it can never become wallpaper.
- * Session-dismissible, matching TalentServicesNudge.
+ * PR3 (W22): only shows once website eligibility is unlocked (100%). Published
+ * sites never see Unlock copy. Suggested address comes from the provisioned
+ * slug or a name-derived host (checked at publish).
  */
 
 import { useEffect, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { loadTalentSiteActivationStateAction } from "@/lib/talent-site/server/site-activation-state";
+import { talentSiteHost } from "@/lib/talent-site/site-public-url";
+import { useAdminShell } from "@/components/admin/shell/internal/state";
 
 const C = {
   ink: "#14161d",
@@ -29,11 +24,25 @@ const C = {
 };
 const FONT = "ui-sans-serif, system-ui, -apple-system, sans-serif";
 
+function suggestSlug(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48)
+    .replace(/-+$/g, "");
+}
+
 export function TalentSiteActivateNudge({ onOpenSite }: { onOpenSite: () => void }) {
   const [show, setShow] = useState(false);
   const [started, setStarted] = useState(false);
+  const [siteSlug, setSiteSlug] = useState<string | null>(null);
   const copy = useDashboardText();
   const [dismissed, setDismissed] = useState(false);
+  const eligibility = useWebsiteEligibility();
+  const { bridgeTalentSelfProfile } = useAdminShell();
 
   useEffect(() => {
     let live = true;
@@ -42,6 +51,7 @@ export function TalentSiteActivateNudge({ onOpenSite }: { onOpenSite: () => void
       if (s.canManage && !s.isPublished) {
         setShow(true);
         setStarted(s.hasSite);
+        setSiteSlug(s.siteSlug);
       }
     });
     return () => {
@@ -49,21 +59,29 @@ export function TalentSiteActivateNudge({ onOpenSite }: { onOpenSite: () => void
     };
   }, []);
 
+  // W22 / W23: never pitch Activate while the profile is unfinished or live.
   if (!show || dismissed) return null;
+  if (!eligibility.unlocked) return null;
 
-  // A talent who already has a provisioned (but unpublished) site is mid-way
-  // through, not starting: say so rather than re-pitching the feature.
+  const suggested =
+    talentSiteHost(siteSlug) ??
+    talentSiteHost(suggestSlug(bridgeTalentSelfProfile?.displayName ?? "")) ??
+    null;
+
   const title = started
-    ? copy.t("Finish your website")
-    : copy.t("Your website is ready to set up");
+    ? copy.t("Finish website setup")
+    : copy.t("Your free website is unlocked");
   const body = started
     ? copy.t("Your website exists but is not live yet. Publish it to give clients a real address to visit.")
-    : copy.t("A full website with its own link, header and footer, separate from your profile. It is included in your plan.");
-  const cta = started ? copy.t("Finish setup") : copy.t("Set up my website");
+    : suggested
+      ? `${copy.t("Suggested address:")} ${suggested} · ${copy.t("checked when you publish")}`
+      : copy.t("Activate it and we build it from your profile");
+  const cta = started ? copy.t("Finish setup") : copy.t("Activate your free website");
 
   return (
     <section
       data-talent-site-activate-nudge
+      data-testid="talent-site-activate-nudge"
       style={{
         display: "flex",
         alignItems: "center",

@@ -293,7 +293,15 @@ function makeDb(seed: Record<string, Row[]>): RecordingDb {
     const eqFilters: Array<[string, unknown]> = [];
     let pendingPatch: Row | null = null;
     let isDelete = false;
-    const matches = (r: Row) => eqFilters.every(([c, v]) => r[c] === v);
+    const matches = (r: Row) =>
+      eqFilters.every(([c, v]) => {
+        // PostgREST jsonb path filter used by refund / dispute PI fallback.
+        if (c === "provider_metadata->>payment_intent_id") {
+          const meta = r.provider_metadata as Record<string, unknown> | null | undefined;
+          return (meta?.payment_intent_id ?? null) === v;
+        }
+        return r[c] === v;
+      });
 
     // Apply a pending write (update/delete) to every matching row. Called from
     // the awaited terminal, so a chained `.eq().eq()` narrows the filter set
@@ -475,7 +483,14 @@ const talentLeg = (over: Partial<Row> = {}): Row => ({
 });
 
 test("e2e full refund: markRefunded + every leg reversed + booking flipped refunded + notified", async () => {
-  const db = makeDb({ booking_payouts: [talentLeg(), wsLeg()], agency_bookings: [{ id: E2E_BOOKING }] });
+  const orderId = "ord_e2e";
+  const tenantId = "ten_e2e";
+  const db = makeDb({
+    booking_payouts: [talentLeg(), wsLeg()],
+    agency_bookings: [{ id: E2E_BOOKING, order_id: orderId, tenant_id: tenantId }],
+    booking_transactions: [{ id: E2E_TXN, booking_id: E2E_BOOKING, order_id: orderId, source_tenant_id: tenantId }],
+    orders: [{ id: orderId, tenant_id: tenantId, status: "paid" }],
+  });
   const { deps, calls } = stubDeps(db);
   const { reversals, stripe } = makeStripe({
     transfers: [
@@ -499,6 +514,9 @@ test("e2e full refund: markRefunded + every leg reversed + booking flipped refun
   const bookingPatch = db.updates.find((u) => u.table === "agency_bookings")?.patch;
   assert.equal(bookingPatch?.payment_status, "refunded");
   assert.equal(bookingPatch?.client_revenue_lifecycle, "refunded");
+  const orderPatch = db.updates.find((u) => u.table === "orders")?.patch;
+  assert.equal(orderPatch?.status, "refunded", "linked order stamped refunded for Money rail");
+  assert.equal(db.tables.orders[0]?.status, "refunded");
   assert.deepEqual(calls.notifyReversal, [E2E_BOOKING], "reversal notified once");
 });
 
@@ -590,6 +608,66 @@ test("e2e two DISTINCT partials on one transfer → two reversals with DISTINCT 
   assert.equal(new Set(reversals.map((r) => r.key)).size, 2, "both keys unique");
 });
 
+test("e2e partial then remainder: markRefunded receives remainder slice + refund id (Story 3)", async () => {
+  // Organic prove FAIL: after a $400 partial row, the remainder webhook treated
+  // cumulative-full as markRefunded and refused ("linked refund already
+  // exists"). The handler must forward THIS event's slice + re_ id so
+  // markRefunded books the remainder and flips the parent.
+  const db = makeDb({
+    booking_transactions: [parentTxn()],
+    booking_commission_snapshot: [snap()],
+    booking_payouts: [talentLeg(), wsLeg()],
+    agency_bookings: [{ id: E2E_BOOKING }],
+  });
+  const markCalls: string[] = [];
+  const markOpts: Array<{
+    refundAmountCents?: number | null;
+    providerRefundId?: string | null;
+  }> = [];
+  const { deps } = stubDeps(db, {
+    markRefunded: async (txnId, opts) => {
+      markCalls.push(txnId);
+      markOpts.push({
+        refundAmountCents: opts?.refundAmountCents,
+        providerRefundId: opts?.providerRefundId,
+      });
+      return { ok: true as const, data: { id: txnId } as never };
+    },
+  });
+  const { stripe } = makeStripe();
+
+  // Partial $400 of $100000 charge — stays on partial path.
+  await handleBookingRefund(
+    stripe,
+    { paymentIntentId: E2E_PI, chargeId: E2E_CHARGE, refundedCents: 400, refundId: "re_partial", refundAmountCents: 400 },
+    deps,
+  );
+  assert.equal(markCalls.length, 0, "partial does not call markRefunded");
+
+  // Remainder brings cumulative to full → full path with remainder slice.
+  await handleBookingRefund(
+    stripe,
+    {
+      paymentIntentId: E2E_PI,
+      chargeId: E2E_CHARGE,
+      refundedCents: 100000,
+      refundId: "re_remain",
+      refundAmountCents: 99600,
+    },
+    deps,
+  );
+
+  assert.deepEqual(markCalls, [E2E_TXN], "remainder flips parent via markRefunded");
+  assert.equal(markOpts.length, 1);
+  assert.equal(markOpts[0].refundAmountCents, 99600, "forwards THIS event's slice, not cumulative");
+  assert.equal(markOpts[0].providerRefundId, "re_remain", "forwards Stripe refund id for dedup");
+  assert.equal(
+    db.inserts.filter((i) => i.table === "booking_transactions" && i.row.provider_refund_id === "re_partial").length,
+    1,
+    "partial row still booked",
+  );
+});
+
 test("e2e dispute.lost: markRefunded + payouts reversed + booking flipped + notified", async () => {
   const db = makeDb({ booking_payouts: [talentLeg(), wsLeg()], agency_bookings: [{ id: E2E_BOOKING }] });
   const { deps, calls } = stubDeps(db);
@@ -663,4 +741,32 @@ test("e2e non-booking charge → handler returns false (caller falls through)", 
     deps,
   );
   assert.equal(handled, false, "not a booking refund → caller handles the balance-top-up path");
+});
+
+test("e2e empty PI metadata → resolve via provider_metadata.payment_intent_id (hosted Checkout legacy)", async () => {
+  // Story 3 FAIL: Checkout stamped session metadata but left the PaymentIntent
+  // metadata {}, so charge.refunded no-op'd. markPaid still wrote the PI id
+  // onto provider_metadata — that is enough to book the refund.
+  const db = makeDb({
+    booking_transactions: [
+      {
+        ...parentTxn(),
+        provider_metadata: { payment_intent_id: E2E_PI },
+      },
+    ],
+    booking_payouts: [wsLeg(), talentLeg()],
+    booking_commission_snapshots: [snap()],
+  });
+  const { deps, calls } = stubDeps(db);
+  const { stripe, reversals } = makeStripe({ metadata: {} });
+
+  const handled = await handleBookingRefund(
+    stripe,
+    { paymentIntentId: E2E_PI, chargeId: E2E_CHARGE, refundedCents: 100000, refundId: "re_legacy", refundAmountCents: 100000 },
+    deps,
+  );
+
+  assert.equal(handled, true, "provider_metadata fallback finds the booking txn");
+  assert.deepEqual(calls.markRefunded, [E2E_TXN]);
+  assert.ok(reversals.length >= 1, "payouts reversed once the txn is resolved");
 });

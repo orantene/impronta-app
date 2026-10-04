@@ -26,15 +26,17 @@
  */
 
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { headers } from "next/headers";
 
+import { DocumentLang } from "@/components/i18n/DocumentLang";
 import { getRequestLocale } from "@/i18n/request-locale";
 import {
   HOST_CONTEXT_HEADER,
   HOST_NAME_HEADER,
   HOST_TALENT_PROFILE_HEADER,
 } from "@/lib/saas/host-context";
+import { LEGACY_PRIVACY_SLUG, POLICY_SLUG } from "@/lib/talent-policies/public";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
 import {
@@ -103,7 +105,7 @@ export async function generateMetadata({
   searchParams,
 }: {
   params: Promise<{ pageSlug?: string[] }>;
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<{ preview?: string; order?: string }>;
 }): Promise<Metadata> {
   if (!isSupabaseConfigured()) return {};
   const talentProfileId = await resolveTalentProfileId();
@@ -133,14 +135,14 @@ export default async function TalentSiteHostPage({
   searchParams,
 }: {
   params: Promise<{ pageSlug?: string[] }>;
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<{ preview?: string; order?: string }>;
 }) {
   if (!isSupabaseConfigured()) notFound();
   const talentProfileId = await resolveTalentProfileId();
   if (!talentProfileId) notFound();
 
   const { pageSlug } = await params;
-  const { preview } = await searchParams;
+  const { preview, order } = await searchParams;
   const [locale, canonicalOrigin] = await Promise.all([
     getRequestLocale(),
     resolveCanonicalOrigin(),
@@ -159,6 +161,9 @@ export default async function TalentSiteHostPage({
     canonicalOrigin,
     canonicalPath: apexPath(seg),
   });
+  // `/privacy` is the English word talents and footers guess; it used to 404
+  // unless authored. The policy page lives at `/privacidad`.
+  if (result.kind !== "render" && seg === LEGACY_PRIVACY_SLUG) permanentRedirect(`/${POLICY_SLUG.privacy}`);
   if (result.kind !== "render") notFound();
   const jsonLd = maxSiteJsonLdString(result.seo);
   return (
@@ -169,9 +174,10 @@ export default async function TalentSiteHostPage({
           dangerouslySetInnerHTML={{ __html: jsonLd }}
         />
       ) : null}
+      <DocumentLang locale={result.locale} />
       {result.node}
       <TalentOfferingIntentQuery />
-      <TalentSiteMessagesDock talentProfileId={talentProfileId} locale={locale} />
+      <TalentSiteMessagesDock talentProfileId={talentProfileId} locale={result.locale} orderId={order ?? null} />
     </>
   );
 }

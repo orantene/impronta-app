@@ -8,17 +8,8 @@
  * here — no one-off class strings in panel files.
  */
 
-import {
-  useId,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
-import {
-  useInspectorSearchFilter,
-  useInspectorSearchQuery,
-} from "./inspector-search";
+import { type CSSProperties, type ReactNode } from "react";
+import { useInspectorSearchFilter } from "./inspector-search";
 
 import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "../../kit/tokens";
 import { useEditContext } from "../../edit-context";
@@ -31,15 +22,17 @@ import { InspectorInfoTip, InspectorLabelWithInfo } from "./inspector-info-tip";
 import { BUILDER_VISUAL } from "./tokens";
 import type { OverrideDevice } from "../responsive-field-state";
 
+export { InspectorAccordion } from "./inspector-accordion";
+
 // ── Typography class strings (for legacy panel migration) ───────────────────
 
 /** Sentence-case section heading inside a tab body. */
 export const INSPECTOR_SECTION_TITLE_CLASS =
-  "text-[13px] font-semibold tracking-[-0.01em] text-stone-900";
+  "text-[13px] font-semibold tracking-[-0.015em] text-stone-900";
 
 /** Small field label above an input. */
 export const INSPECTOR_FIELD_LABEL_CLASS =
-  "text-[11.5px] font-semibold tracking-[-0.005em] text-stone-600";
+  "text-[11.5px] font-semibold tracking-[-0.005em] text-stone-700";
 
 /** Muted helper copy under a field or section. */
 export const INSPECTOR_HELP_TEXT_CLASS =
@@ -155,122 +148,6 @@ export function InspectorCard({
       }}
     >
       {children}
-    </div>
-  );
-}
-
-export function InspectorAccordion({
-  title,
-  description,
-  descriptionPlacement = "tip",
-  defaultOpen = true,
-  onToggle,
-  searchTerms,
-  children,
-}: {
-  title: string;
-  description?: string;
-  /** "tip" (default) hangs the description off an ⓘ beside the title. */
-  descriptionPlacement?: "tip" | "inline";
-  defaultOpen?: boolean;
-  /**
-   * Reports every user toggle with the NEW open state. The accordion stays
-   * uncontrolled; this exists so a wrapper (InspectorGroup) can persist the
-   * choice — before it, InspectorGroup's sessionStorage "persistence" only
-   * ever recorded the initial default, because no toggle reached its state.
-   */
-  onToggle?: (open: boolean) => void;
-  /**
-   * D5 (Inspector Reset P2) — extra keywords "Find a setting" matches beyond
-   * the visible title/description. Pass the labels of the fields the group
-   * CONTAINS (e.g. "shadow", "opacity" for Effects); without them, searching
-   * a field name hides the very group that holds the field. Matched both raw
-   * and through the translation boundary, so ES operators can search in
-   * Spanish where a catalog entry exists.
-   */
-  searchTerms?: ReadonlyArray<string>;
-  children: ReactNode;
-}) {
-  const { t, to } = useInspectorT();
-  const localizedTitle = t(title);
-  const localizedDescription = to(description);
-  // INS-3: auto-filter from the shared search context.
-  const hidden = useInspectorSearchFilter([
-    localizedTitle,
-    localizedDescription ?? "",
-    ...(searchTerms ?? []).flatMap((term) => [term, t(term)]),
-  ]);
-  const [open, setOpen] = useState(defaultOpen);
-  const searchQuery = useInspectorSearchQuery();
-  // Match stays open for the query only; do not persist via onToggle.
-  const shown = open || searchQuery.trim().length > 0;
-  const panelId = useId();
-  if (hidden) return null;
-
-  return (
-    <div
-      className="overflow-hidden rounded-xl"
-      style={{
-        border: `1px solid ${CHROME.line}`,
-        background: CHROME.surface,
-      }}
-    >
-      {/* The ⓘ is a real <button>, so it CANNOT sit inside the toggle button —
-          nested buttons are invalid HTML and blow up hydration. It rides
-          alongside the toggle in a flex row instead, and the row (not the
-          button) owns the hover tint so the whole header still highlights. */}
-      <div
-        className="flex w-full items-center pr-3"
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = CHROME.paper;
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "transparent";
-        }}
-      >
-        <button
-          type="button"
-          aria-expanded={shown}
-          aria-controls={panelId}
-          onClick={() => {
-            const next = !open;
-            setOpen(next);
-            onToggle?.(next);
-          }}
-          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-none bg-transparent px-3.5 py-3 text-left"
-          style={{ color: CHROME.ink }}
-        >
-          {shown ? (
-            <ChevronDown size={15} strokeWidth={2} aria-hidden style={{ color: CHROME.muted }} />
-          ) : (
-            <ChevronRight size={15} strokeWidth={2} aria-hidden style={{ color: CHROME.muted }} />
-          )}
-          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className={INSPECTOR_SECTION_TITLE_CLASS}>{localizedTitle}</span>
-            {localizedDescription && descriptionPlacement === "inline" && !shown ? (
-              <span className={`truncate ${INSPECTOR_HELP_TEXT_CLASS}`}>
-                {localizedDescription}
-              </span>
-            ) : null}
-          </span>
-        </button>
-        {/* Raw `description`/`title` — the tip translates at the boundary. */}
-        {description && descriptionPlacement === "tip" ? (
-          <InspectorInfoTip content={description} title={title} />
-        ) : null}
-      </div>
-      {shown ? (
-        <div
-          id={panelId}
-          className="flex flex-col border-t px-3.5 pb-3.5 pt-2"
-          style={{ borderColor: CHROME.line, gap: INSPECTOR_SECTION_GAP }}
-        >
-          {localizedDescription && descriptionPlacement === "inline" ? (
-            <p className={INSPECTOR_HELP_TEXT_CLASS}>{localizedDescription}</p>
-          ) : null}
-          {children}
-        </div>
-      ) : null}
     </div>
   );
 }

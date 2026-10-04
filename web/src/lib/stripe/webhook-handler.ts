@@ -42,7 +42,7 @@ import {
   WORKSPACE_PLAN_KEYS,
   type StripeAction,
 } from "@/lib/stripe/webhook-routing";
-import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
+import { getStripeFor, isStripeConfigured, type StripeAccountKey } from "@/lib/stripe/client";
 import { syncStripeSubscriptionToDb } from "@/lib/stripe/workspace-billing";
 import { syncTalentSubscriptionToDb } from "@/lib/stripe/talent-billing";
 import {
@@ -50,6 +50,7 @@ import {
   syncClientBalanceTopupToDb,
   syncClientBalanceRefundToDb,
 } from "@/lib/stripe/client-billing";
+import { fulfillTalentDomainPurchase } from "@/lib/stripe/talent-domain-billing";
 import {
   persistAccountSnapshot,
   findAgencyByStripeAccountId,
@@ -59,7 +60,7 @@ import {
   findTalentByStripeAccountId,
 } from "@/lib/payments/stripe-connect-talent";
 import { handleTalentStripeSubscriptionEvent } from "@/lib/payments/stripe-talent-subscription";
-import { markPaid } from "@/lib/bookings/transactions";
+import { closeCheckoutSession, settleCheckoutPayment } from "@/lib/stripe/webhook-card-settle";
 import { emitBookingConfirmation } from "@/lib/payments/booking-confirmation";
 import { releaseHeldPayouts, syncBookingPayoutLifecycle } from "@/lib/payments/booking-payouts-ledger";
 import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refunds";
@@ -152,9 +153,7 @@ async function markBookingDepositPaid(action: Extract<StripeAction, { kind: "boo
   if (error) throw new TransientWebhookError(`booking_deposit update failed: ${error.message ?? error}`);
 }
 
-async function persistConnectAccount(accountId: string, eventId: string): Promise<void> {
-  const stripe = getStripe();
-  if (!stripe) throw new TransientWebhookError("Stripe client unavailable for capability.updated");
+async function persistConnectAccount(stripe: Stripe, accountId: string, eventId: string): Promise<void> {
   // capability.updated only carries the capability; re-fetch the full account.
   let account: Stripe.Account;
   try {
@@ -203,21 +202,6 @@ async function persistAccountFromObject(account: Stripe.Account, eventId: string
     "stripe-webhook.account.unknown",
     `no agency or talent for stripe_account_id=${account.id} (event ${eventId})`,
   );
-}
-
-/** Audit #5: pull the actually-charged amount + currency from the settlement event
- *  (PaymentIntent or Checkout Session) so it can be reconciled against the booking
- *  transaction before payout. Returns null for event types without a clear amount. */
-function extractChargedAmount(event: Stripe.Event): { amountCents: number; currency: string } | null {
-  if (event.type === "payment_intent.succeeded") {
-    const pi = event.data.object as Stripe.PaymentIntent;
-    return { amountCents: pi.amount ?? 0, currency: pi.currency ?? "" };
-  }
-  if (event.type === "checkout.session.completed") {
-    const s = event.data.object as Stripe.Checkout.Session;
-    return { amountCents: s.amount_total ?? 0, currency: s.currency ?? "" };
-  }
-  return null;
 }
 
 /**
@@ -291,7 +275,12 @@ async function applyConnectTransferSettlement(
  * Execute the classified action. Throws `TransientWebhookError` for retryable
  * failures; logs + returns for permanent ones.
  */
-export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): Promise<void> {
+export async function processStripeEvent(
+  event: Stripe.Event,
+  stripe: Stripe,
+  /** Platform account this event arrived on; threaded to settle so the charge platform is recorded. */
+  account: StripeAccountKey = "us",
+): Promise<void> {
   const action = classifyStripeEvent(event);
 
   switch (action.kind) {
@@ -314,57 +303,48 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       );
       return;
 
+    case "talent_domain_purchase": {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const meta = (session.metadata ?? {}) as Record<string, string | undefined>;
+      ensureSyncOk(
+        "talent_domain_purchase",
+        await fulfillTalentDomainPurchase({
+          sessionId: action.sessionId,
+          talentProfileId: action.talentProfileId,
+          domain: action.domain,
+          expectedPriceCents: action.expectedPriceCents,
+          amountTotal: action.amountTotal,
+          currency: action.currency,
+          paymentIntentId: action.paymentIntentId,
+          metadata: meta,
+        }),
+      );
+      return;
+    }
+
     case "booking_payment": {
-      // Audit #5: verify the actually-charged amount + currency match the booking
-      // transaction BEFORE marking paid + disbursing. The PaymentIntent is
-      // idempotency-keyed at its first amount, so a later gross edit can silently
-      // diverge; auto-paying out on a mismatched charge would over/under-pay the
-      // talent. On mismatch, skip markPaid and flag for manual reconciliation
-      // (logged) instead of auto-paying the wrong amount.
-      const charged = extractChargedAmount(event);
-      if (charged) {
-        const sbGuard = createServiceRoleClient();
-        if (sbGuard) {
-          const { data: txnRow } = await sbGuard
-            .from("booking_transactions")
-            .select("gross_amount_cents, currency")
-            .eq("id", action.transactionId)
-            .maybeSingle();
-          if (
-            txnRow &&
-            (Number(txnRow.gross_amount_cents) !== charged.amountCents ||
-              String(txnRow.currency).toLowerCase() !== charged.currency.toLowerCase())
-          ) {
-            logServerError(
-              "stripe-webhook.booking_payment.amount_mismatch",
-              new Error(
-                `charged ${charged.amountCents} ${charged.currency} != txn ${txnRow.gross_amount_cents} ${txnRow.currency} (txn ${action.transactionId}) — skipped markPaid for manual reconciliation`,
-              ),
-            );
-            return;
-          }
-        }
-      }
-      // Thread the settling PaymentIntent onto the transaction so a refund can
-      // later be issued against the real charge (see markPaid).
-      const result = await markPaid(action.transactionId, {
-        paymentIntentId: action.paymentIntentId,
-      });
-      if (!result.ok) {
-        // markPaid is idempotent (sets status=paid); a failure here is almost
-        // always a transient DB blip. Retry rather than silently lose a paid
-        // booking — the idempotency claim is released before the 5xx.
-        throw new TransientWebhookError(`markPaid(${action.transactionId}): ${result.error}`);
-      }
+      // One settle path for invoices, POS card sales and payment links: the
+      // audit #5 amount guard, `markPaid`, and "already settled" acknowledged
+      // rather than retried (`webhook-card-settle.ts`).
+      const settled = await settleCheckoutPayment(event, action, account);
+      if (!settled.ok) throw new TransientWebhookError(settled.error);
       // Payment settled — fan out the confirmation (PDF → Files + email).
       // Best-effort + idempotent; never throws, so a confirmation hiccup
       // cannot fail the webhook and force a needless Stripe retry.
-      await emitBookingConfirmation(action.transactionId);
+      if (settled.outcome === "paid") await emitBookingConfirmation(action.transactionId);
       // The 3-way payout fan-out (talent + workspace; platform keeps its fee) now
       // happens INSIDE markPaid (audit #6), so every paid path disburses — incl. a
       // manual admin "Mark received", not just this webhook. Don't call it again
       // here (recordPayoutLeg plain-inserts, so a second run would duplicate ledger
       // rows; Stripe idempotency already prevents a double transfer).
+      return;
+    }
+
+    case "checkout_session_closed": {
+      // Stripe will never take money on this session again: a payment link's
+      // row fails, its balance goes back and the link reads expired.
+      const closed = await closeCheckoutSession(action);
+      if (!closed.ok) throw new TransientWebhookError(closed.error);
       return;
     }
 
@@ -461,7 +441,7 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       return;
 
     case "capability_updated":
-      await persistConnectAccount(action.accountId, event.id);
+      await persistConnectAccount(stripe, action.accountId, event.id);
       return;
 
     case "charge_dispute": {
@@ -699,9 +679,12 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
  * Insert-on-claim: INSERT first; ON CONFLICT (23505) means another delivery
  * already won. The handler runs only when we successfully claimed the row.
  */
-export async function claimEventForProcessing(event: Stripe.Event): Promise<boolean> {
+export async function claimEventForProcessing(
+  event: Stripe.Event,
+  account: StripeAccountKey = "us",
+): Promise<boolean> {
   return claimStripeEvent({
-    lane: "platform",
+    lane: account === "mx" ? "platform_mx" : "platform",
     eventId: event.id,
     eventType: event.type,
     livemode: event.livemode ?? null,
@@ -717,8 +700,8 @@ export async function claimEventForProcessing(event: Stripe.Event): Promise<bool
  * claim row outlives the failed attempt and Stripe's retry short-circuits as
  * "already processed" — silently dropping a paid event.
  */
-async function releaseEventClaim(eventId: string): Promise<void> {
-  return releaseStripeEventClaim({ lane: "platform", eventId });
+async function releaseEventClaim(eventId: string, account: StripeAccountKey = "us"): Promise<void> {
+  return releaseStripeEventClaim({ lane: account === "mx" ? "platform_mx" : "platform", eventId });
 }
 
 // ─── HTTP entry ────────────────────────────────────────────────────────────────
@@ -728,8 +711,13 @@ async function releaseEventClaim(eventId: string): Promise<void> {
  * thin shims over this, so EITHER configured URL behaves identically and shares
  * one idempotency ledger.
  */
-export async function handleStripeWebhook(req: Request): Promise<NextResponse> {
-  if (!isStripeConfigured()) {
+export async function handleStripeWebhook(
+  req: Request,
+  opts: { account?: StripeAccountKey } = {},
+): Promise<NextResponse> {
+  const account: StripeAccountKey = opts.account ?? "us";
+  const stripe = getStripeFor(account);
+  if (account === "us" ? !isStripeConfigured() : !stripe) {
     return NextResponse.json({ error: "Stripe not configured." }, { status: 503 });
   }
   // Stripe splits deliveries across TWO endpoint types and each carries its own
@@ -743,16 +731,18 @@ export async function handleStripeWebhook(req: Request): Promise<NextResponse> {
   // emitted account.updated on her account, we never received it, and her $80
   // stayed held until the next daily cron. Accept either secret so ONE URL can
   // serve both endpoints.
-  const webhookSecrets = [
-    process.env.STRIPE_WEBHOOK_SECRET,
-    process.env.STRIPE_WEBHOOK_SECRET_CONNECT,
-  ].filter((s): s is string => !!s && s.trim().length > 0);
+  const webhookSecrets = (account === "mx"
+    ? [process.env.STRIPE_MX_WEBHOOK_SECRET, process.env.STRIPE_MX_WEBHOOK_SECRET_CONNECT]
+    : [process.env.STRIPE_WEBHOOK_SECRET, process.env.STRIPE_WEBHOOK_SECRET_CONNECT]
+  ).filter((s): s is string => !!s && s.trim().length > 0);
   if (webhookSecrets.length === 0) {
-    logServerError("stripe-webhook", "STRIPE_WEBHOOK_SECRET not set");
+    logServerError(
+      "stripe-webhook",
+      account === "mx" ? "STRIPE_MX_WEBHOOK_SECRET not set" : "STRIPE_WEBHOOK_SECRET not set",
+    );
     return NextResponse.json({ error: "Webhook secret not configured." }, { status: 503 });
   }
 
-  const stripe = getStripe()!;
   const body = await req.text();
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
@@ -763,7 +753,7 @@ export async function handleStripeWebhook(req: Request): Promise<NextResponse> {
   let lastVerifyError: unknown = null;
   for (const secret of webhookSecrets) {
     try {
-      event = await stripe.webhooks.constructEventAsync(body, signature, secret);
+      event = await stripe!.webhooks.constructEventAsync(body, signature, secret);
       break;
     } catch (err) {
       lastVerifyError = err;
@@ -775,19 +765,19 @@ export async function handleStripeWebhook(req: Request): Promise<NextResponse> {
   }
 
   // Idempotency: claim the event id, short-circuit duplicates.
-  const alreadyProcessed = await claimEventForProcessing(event);
+  const alreadyProcessed = await claimEventForProcessing(event, account);
   if (alreadyProcessed) {
     return NextResponse.json({ received: true, idempotent: true });
   }
 
   try {
-    await processStripeEvent(event, stripe);
+    await processStripeEvent(event, stripe!, account);
   } catch (err) {
     logServerError(`stripe-webhook.${event.type}`, err);
     // Release the claim so the retry actually re-runs this handler. Both
     // transient and unexpected failures are treated as retryable — better to
     // retry an unknown failure than silently lose a paid event.
-    await releaseEventClaim(event.id);
+    await releaseEventClaim(event.id, account);
     return NextResponse.json(
       { error: "Processing failure; will retry." },
       { status: 503 },

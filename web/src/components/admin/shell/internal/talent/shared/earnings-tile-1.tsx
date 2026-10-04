@@ -169,8 +169,9 @@ export function EarningsTile({
                 border:      "none",
                 borderRadius: RADIUS.sm,
                 cursor:      "pointer",
-                background:  cycle === c ? COLORS.fill : "transparent",
-                color:       cycle === c ? "#fff" : COLORS.inkMuted,
+                background:  cycle === c ? "var(--tc-soft)" : "transparent",
+                color:       cycle === c ? "var(--tc-ink)" : "var(--tc-muted)",
+                boxShadow:   cycle === c ? "inset 0 0 0 1px var(--tc-action)" : "none",
                 fontFamily:  FONTS.body,
                 transition:  `background ${TRANSITION.micro}, color ${TRANSITION.micro}`,
               }}
@@ -253,7 +254,7 @@ export function EarningsTile({
             ))
           ) : (
             <p className="text-admin-ink-muted text-admin-12 py-2.5 px-0.5">
-              {copy.t("No paid bookings yet — your earnings will appear here once a client pays.")}
+              {copy.t("No paid bookings yet. Your earnings will appear here once a client pays.")}
             </p>
           )
         ) : (

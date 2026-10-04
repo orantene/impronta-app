@@ -4,15 +4,32 @@ import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { parseInPersonMethods, type InPersonMethod } from "@/lib/talent-policies/facts";
+import {
+  parseBookingPosture,
+  parseSellingBookingSettings,
+  PLATFORM_DEFAULT_BOOKING_POSTURE,
+  type TalentBookingPosture,
+  type WhoPrimaryCta,
+} from "@/lib/talent/selling-booking-settings";
+
 export type SellingDefaults = {
   depositPct: number | null;
   cancelHours: number | null;
   rescheduleHours: number | null;
   where: string[];
+  /** Accepted ways to pay at the visit (descriptive; the per-service switch stays the gate). */
+  inPersonMethods?: InPersonMethod[];
   travelRadiusKm: number | null;
   travelFeeCents: number | null;
+  /** Preparation minutes blocked before each start (slot engine). */
+  bufferBeforeMin: number | null;
   bufferAfterMin: number | null;
   minNoticeMin: number | null;
+  /** Default booking mode for services that inherit: instant / request / inquiry. */
+  bookingPosture: TalentBookingPosture;
+  /** Who-step primary CTA vocabulary. */
+  whoPrimaryCta: WhoPrimaryCta;
 };
 
 export type AddonGroup = {
@@ -55,6 +72,7 @@ export async function loadSellingDefaults(
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return auth;
   const raw = (auth.profile.selling_defaults ?? {}) as Record<string, unknown>;
+  const booking = parseSellingBookingSettings(raw);
   return {
     ok: true,
     defaults: {
@@ -62,10 +80,14 @@ export async function loadSellingDefaults(
       cancelHours: typeof raw.cancelHours === "number" ? raw.cancelHours : 24,
       rescheduleHours: typeof raw.rescheduleHours === "number" ? raw.rescheduleHours : 24,
       where: Array.isArray(raw.where) ? raw.where.filter((v): v is string => typeof v === "string") : ["studio"],
+      inPersonMethods: parseInPersonMethods(raw.inPersonMethods),
       travelRadiusKm: typeof raw.travelRadiusKm === "number" ? raw.travelRadiusKm : null,
       travelFeeCents: typeof raw.travelFeeCents === "number" ? raw.travelFeeCents : null,
+      bufferBeforeMin: booking.bufferBeforeMin,
       bufferAfterMin: typeof raw.bufferAfterMin === "number" ? raw.bufferAfterMin : null,
       minNoticeMin: typeof raw.minNoticeMin === "number" ? raw.minNoticeMin : null,
+      bookingPosture: booking.bookingPosture,
+      whoPrimaryCta: booking.whoPrimaryCta,
     },
   };
 }
@@ -76,9 +98,23 @@ export async function saveSellingDefaults(
 ): Promise<{ ok: boolean; error?: string }> {
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return auth;
+  const prev =
+    auth.profile.selling_defaults &&
+    typeof auth.profile.selling_defaults === "object" &&
+    !Array.isArray(auth.profile.selling_defaults)
+      ? (auth.profile.selling_defaults as Record<string, unknown>)
+      : {};
+  // Merge so non-form keys (e.g. categoryNotes) survive a Defaults save.
+  // Writers write the new three values only (legacy on_demand reads as request).
+  const selling_defaults = {
+    ...prev,
+    ...defaults,
+    inPersonMethods: parseInPersonMethods(defaults.inPersonMethods ?? prev.inPersonMethods),
+    bookingPosture: parseBookingPosture(defaults.bookingPosture) ?? PLATFORM_DEFAULT_BOOKING_POSTURE,
+  };
   const { error } = await auth.admin
     .from("talent_profiles")
-    .update({ selling_defaults: defaults, updated_at: new Date().toISOString() })
+    .update({ selling_defaults, updated_at: new Date().toISOString() })
     .eq("id", talentProfileId);
   if (error) {
     logServerError("talent.sellingDefaults.save", error);

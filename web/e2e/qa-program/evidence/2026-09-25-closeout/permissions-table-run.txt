@@ -1,0 +1,64 @@
+
+Running 2 tests using 2 workers
+
+[1A[2K[1/2] [chromium] › e2e/qa-program/capacity/table-overbook.spec.ts:53:7 › QA capacity — table overbook › table pool full → reserve refuses + Messages omits Tables chip
+[1A[2K[2/2] [chromium] › e2e/qa-program/isolation/permissions-money.spec.ts:35:7 › QA permissions — money gate › staff without money permission sees refusal on Refund
+[1A[2K  1) [chromium] › e2e/qa-program/capacity/table-overbook.spec.ts:53:7 › QA capacity — table overbook › table pool full → reserve refuses + Messages omits Tables chip 
+
+    Error: Invalid API key
+
+       at cases/_isolated-db.ts:754
+
+      752 |     .eq("source_channel", "reservation")
+      753 |     .in("status", ["paid", "pending_payment"]);
+    > 754 |   if (orderErr) throw new Error(orderErr.message);
+          |                       ^
+      755 |   const orderIds = (orders ?? []).map((o) => String(o.id));
+      756 |   if (orderIds.length === 0) return;
+      757 |
+        at releaseJourneyTableReservations (/Users/oranpersonal/Desktop/impronta-app/web/e2e/cases/_isolated-db.ts:754:23)
+        at fillTableGroupToCapacity (/Users/oranpersonal/Desktop/impronta-app/web/e2e/qa-program/capacity/table-overbook.spec.ts:27:3)
+        at /Users/oranpersonal/Desktop/impronta-app/web/e2e/qa-program/capacity/table-overbook.spec.ts:59:5
+
+    Error Context: test-results/qa-program-capacity-table--02b5c--Messages-omits-Tables-chip-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/qa-program-capacity-table--02b5c--Messages-omits-Tables-chip-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/qa-program-capacity-table--02b5c--Messages-omits-Tables-chip-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  2) [chromium] › e2e/qa-program/isolation/permissions-money.spec.ts:35:7 › QA permissions — money gate › staff without money permission sees refusal on Refund 
+
+    Error: staff_permissions upsert failed: Invalid API key
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoBeNull[2m()[22m
+
+    Received: [31m{"hint": "Double check your Supabase `anon` or `service_role` API key.", "message": "Invalid API key"}[39m
+
+      49 |       { onConflict: "user_id,permission" },
+      50 |     );
+    > 51 |     expect(grantErr, `staff_permissions upsert failed: ${grantErr?.message}`).toBeNull();
+         |                                                                               ^
+      52 |
+      53 |     // Prefer a thread that already shows Paid so the Refund door is present.
+      54 |     const { data: paidRec } = await sb
+        at /Users/oranpersonal/Desktop/impronta-app/web/e2e/qa-program/isolation/permissions-money.spec.ts:51:79
+
+    Error Context: test-results/qa-program-isolation-permi-294ee-sion-sees-refusal-on-Refund-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/qa-program-isolation-permi-294ee-sion-sees-refusal-on-Refund-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/qa-program-isolation-permi-294ee-sion-sees-refusal-on-Refund-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  2 failed
+    [chromium] › e2e/qa-program/capacity/table-overbook.spec.ts:53:7 › QA capacity — table overbook › table pool full → reserve refuses + Messages omits Tables chip 
+    [chromium] › e2e/qa-program/isolation/permissions-money.spec.ts:35:7 › QA permissions — money gate › staff without money permission sees refusal on Refund 

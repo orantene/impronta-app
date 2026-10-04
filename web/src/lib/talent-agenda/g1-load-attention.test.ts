@@ -70,11 +70,18 @@ describe("G1.1 travel / intake / reschedule attention", () => {
         kind: "event",
         payload: { rescheduleRequestId: "rr1", rescheduleStatus: "pending" },
       },
-      history: [{ at: now.toISOString(), text: "Reschedule pending." }],
     });
     const attn = needsAttention([item], now);
     assert.equal(attn.length, 1);
     assert.equal(attn[0]!.id, "b1");
+  });
+
+  it("needsAttention ignores history text for reschedule", () => {
+    const item = baseBooking({
+      history: [{ at: now.toISOString(), text: "Reschedule pending." }],
+    });
+    const attn = needsAttention([item], now);
+    assert.equal(attn.length, 0);
   });
 
   it("agency managedBy name is preserved for the chip", () => {

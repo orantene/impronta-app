@@ -208,6 +208,14 @@ export type BridgeData = {
   /** Set when loadTalentAgenda failed; null when ok or flag off. */
   talentAgendaError?: string | null;
   /**
+   * Server-evaluated Agenda V2 gate for this talent. Client shell must use
+   * this — `process.env.TALENT_AGENDA_V2` is not available in the browser
+   * bundle (non-NEXT_PUBLIC), so re-reading the flag on the client always
+   * looked "off" and kept legacy Today/Calendar even when Production env
+   * was set.
+   */
+  talentAgendaV2?: boolean;
+  /**
    * Phase D — talent earnings aggregated from commission snapshots. null = mock mode.
    * L49 (talent Money tabs): upgraded to `TalentEarningsByCurrency` so the Money
    * surface can render a per-currency tab strip when the talent has multi-currency
@@ -474,6 +482,8 @@ export type BridgeData = {
   clientFieldSource?: ClientFieldSourcePayload | null;
   /** Tenant locale settings (loadTenantLocaleSettings) — drives the shell chrome's DashboardLocaleToggle so registry-added languages show; omitted = mock mode → ["en","es"]. */
   localeSettings?: { supportedLocales: readonly import("@/i18n/config").Locale[]; defaultLocale: import("@/i18n/config").Locale } | null;
+  /** Talent surface: the talent's own primary + secondary languages (loadTalentLocaleSettings). */
+  talentLocales?: { primary: string; secondary: readonly string[] } | null;
 
   /**
    * Platform-wide workspace-UI switches (`platform_settings` singleton, set by

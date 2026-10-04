@@ -14,43 +14,13 @@
  * the money flows — the storefront itself never charges anything.
  */
 
-import { resolveOfferingCta, type TalentOffering } from "@/lib/talent/offerings-types";
-import { pickLocale } from "@/lib/i18n/pick-locale";
+import { intakeDetail } from "@/lib/talent/offering-intake";
+import { type TalentOffering } from "@/lib/talent/offerings-types";
+import { deriveOfferingCta, offeringCtaLabel } from "@/lib/talent/offering-cta-derivation";
+import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
+import { offeringWhereFromAttributes } from "@/lib/talent/offering-request-detail";
 
-export type OfferingRequestDetail = {
-  offeringId: string;
-  talentProfileId: string | null;
-  title: string;
-  kind: string;
-  priceType: string;
-  amountCents: number | null;
-  currency: string;
-  durationMinutes: number | null;
-  allowPayInPerson: boolean;
-  requireAccountToBook?: boolean;
-  reserveMode: "full" | "deposit" | "free";
-  depositPct: number | null;
-  cancellationHours?: number | null;
-  imageUrl: string | null;
-  /** D4 — selectable options (client picks one; null price = base applies). */
-  variants?: { id: string; label: string; amountCents: number | null }[];
-  /** D4 — stackable extras (client picks any). */
-  addOns?: { id: string; label: string; amountCents: number; durationMinutes?: number | null }[];
-  /** D5 — null = unlimited; products with stock cap the qty stepper. */
-  inventoryQty?: number | null;
-  /** Set when the offering sells from a capacity pool; null = unlimited. */
-  capacityPoolId?: string | null;
-  /** 'request' → inquiry/chat · 'instant' → direct booking */
-  intent: "request" | "instant";
-};
-
-const CTA_COPY: Record<string, { en: string; es: string }> = {
-  book_now: { en: "Book now", es: "Reservar ya" },
-  buy_now: { en: "Buy", es: "Comprar" },
-  request_to_book: { en: "Book", es: "Reservar" },
-  request: { en: "Request", es: "Solicitar" },
-  ask_quote: { en: "Ask for quote", es: "Pedir cotización" },
-};
+export type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 
 export function OfferingCta({
   offering,
@@ -58,6 +28,7 @@ export function OfferingCta({
   compact = false,
   confirmsByHand = false,
   label: labelOverride,
+  sellingDefaults,
 }: {
   offering: TalentOffering;
   locale: string;
@@ -66,23 +37,29 @@ export function OfferingCta({
   confirmsByHand?: boolean;
   /** Widget override (e.g. Seleccionar). Empty keeps the behavior label. */
   label?: string;
+  /**
+   * Talent selling_defaults, for an offering that still inherits (null mode).
+   * Public loaders already resolve the mode (withEffectiveBookingMode).
+   */
+  sellingDefaults?: unknown;
 }) {
-  const raw = resolveOfferingCta(offering);
-  const cta = confirmsByHand && (raw === "book_now" || raw === "buy_now") ? "request_to_book" : raw;
-  const instant = !confirmsByHand && (cta === "book_now" || cta === "buy_now");
-  const slotEligible =
-    cta === "request_to_book" &&
-    offering.kind !== "product" &&
-    (offering.durationMinutes ?? 0) > 0;
-  const label = labelOverride?.trim() || pickLocale(locale, CTA_COPY[cta]);
+  // One derivation with the catalog widget and the server (WSF-B).
+  const { cta, instant, eventName, hidden } = deriveOfferingCta({
+    offering,
+    defaults: sellingDefaults,
+    confirmsByHand,
+  });
+  const label = labelOverride?.trim() || offeringCtaLabel(cta, locale, "card");
 
   const onClick = () => {
+    const where = offeringWhereFromAttributes(offering.attributes);
     const detail: OfferingRequestDetail = {
       offeringId: offering.id,
       talentProfileId: offering.talentProfileId,
       title: offering.title,
       kind: offering.kind,
       priceType: offering.priceType,
+      priceDisplay: offering.priceDisplay,
       amountCents: offering.amountCents,
       currency: offering.currency,
       durationMinutes: offering.durationMinutes,
@@ -97,14 +74,15 @@ export function OfferingCta({
       inventoryQty: offering.inventoryQty,
       capacityPoolId: offering.capacityPoolId,
       intent: instant ? "instant" : "request",
+      description: offering.description,
+      where: where.length ? where : undefined,
+      ...intakeDetail(offering.attributes),
     };
-    const eventName = instant || (confirmsByHand && raw !== "ask_quote")
-      ? "tulala:offering-instant"
-      : slotEligible
-        ? "tulala:offering-slot"
-        : "tulala:offering-request";
     window.dispatchEvent(new CustomEvent(eventName, { detail }));
   };
+
+  // WSF-C §8: the talent's switches leave this service no route.
+  if (hidden) return null;
 
   return (
     <button

@@ -1,152 +1,73 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import { useAdminShell } from "@/components/admin/shell/internal/state";
-import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
-import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { PageHeader } from "@/components/admin/shell/internal/talent/shared/page-chrome-1";
-import { AdminFinancialsCurrencyTabs } from "@/components/admin/applications/AdminFinancialsCurrencyTabs";
-import type { TalentEarnings } from "@/lib/talent/earnings-types";
+import type { MoneyAction } from "@/lib/money/money-actions";
+import { buildMoneySpineView } from "@/lib/money/money-spine-view";
+import { LEDGER_CONTRACT_CLOCK } from "@/lib/money/september-ledger-contract";
 
-import { CollectMethodsPanel } from "./CollectMethodsPanel";
-import { EarningsLedger } from "./EarningsLedger";
-import { MoneyAgencyCards } from "./MoneyAgencyCards";
-import { MoneyKpiStrip } from "./MoneyKpiStrip";
-import { TalentActiveEarningsProvider } from "./TalentActiveEarningsContext";
-import { useResolvedTalentEarningsByCurrency } from "./use-resolved-talent-earnings-by-currency";
+import { MoneyBreakdownPanel } from "./MoneyBreakdownPanel";
+import { MoneyHomePage } from "./MoneyHomePage";
+import { MoneySpine, MoneySpineHeaderActions } from "./MoneySpine";
 
 /**
- * Single currency pane, wraps sub-components in TalentActiveEarningsProvider
- * so `useResolvedTalentEarnings()` inside them returns this bundle instead of
- * the bridge primary. Used for both single-currency and per-tab rendering.
+ * The spine below still reads the September ledger FIXTURE (one demo business's
+ * figures). Until it reads each talent's own ledger it is opt-in for demo/QA
+ * builds only; real talents get MoneyHomePage (mockup layout on their own data).
  */
-function MoneyPane({ earnings }: { earnings: TalentEarnings }) {
-  return (
-    <TalentActiveEarningsProvider earnings={earnings}>
-      <MoneyKpiStrip />
-      <div style={{ height: 24 }} />
-      <MoneyAgencyCards />
-      <div style={{ height: 24 }} />
-      <EarningsLedger />
-    </TalentActiveEarningsProvider>
-  );
+const SPINE_FIXTURE_ENABLED = process.env.NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE === "1";
+
+/**
+ * Talent Money — Stage C visual spine (M2–M5) + Stage D entry sheets (AUD-018).
+ * Driven by the M1 September ledger fixture + read model when the fixture flag
+ * is on; otherwise the real per-talent earnings page.
+ */
+export function MoneyPage() {
+  if (!SPINE_FIXTURE_ENABLED) return <MoneyHomePage />;
+  return <MoneySpineFixturePage />;
 }
 
-export function MoneyPage() {
-  const { openDrawer } = useAdminShell();
-  const earningsByCurrency = useResolvedTalentEarningsByCurrency();
-
-  const { byCurrency, currencies, defaultCurrency } = earningsByCurrency;
-  const isMultiCurrency = byCurrency.length > 1;
-  const hasBridgeData = byCurrency.length > 0;
-
-  let earningsContent: ReactNode;
-
-  if (isMultiCurrency) {
-    // Build per-currency panes keyed by ISO code. AdminFinancialsCurrencyTabs
-    // renders only the active tab's pane at a time.
-    const tabsChildren: Record<string, ReactNode> = {};
-    for (const bundle of byCurrency) {
-      tabsChildren[bundle.totals.currency] = <MoneyPane earnings={bundle} />;
+function MoneySpineFixturePage() {
+  const copy = useDashboardText();
+  const view = useMemo(() => buildMoneySpineView(), []);
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const router = useRouter();
+  // Record / request payment have no sheet of their own: the booking record's
+  // Finish and collect is the real writer (records the payment or mints the pay link).
+  // Refund / correct have no writer yet, so they have no entry point either.
+  // A success message without a write is never shown.
+  const setAction = (next: MoneyAction | null) => {
+    if (next?.kind === "record" || next?.kind === "request") {
+      const bookingId = next.prefill?.bookingId;
+      router.push(bookingId ? `/talent/bookings/${encodeURIComponent(bookingId)}?collect=1` : "/talent/calendar");
+      return;
     }
-    earningsContent = (
-      <AdminFinancialsCurrencyTabs
-        currencies={currencies}
-        defaultCurrency={defaultCurrency}
-      >
-        {tabsChildren}
-      </AdminFinancialsCurrencyTabs>
-    );
-  } else if (hasBridgeData) {
-    // Exactly one currency, no tab strip, single inline layout (no regression).
-    earningsContent = <MoneyPane earnings={byCurrency[0]!} />;
-  } else {
-    // Mock mode, bridge absent; sub-components fall back to EARNINGS_ROWS
-    // fixtures via useResolvedTalentEarnings() → mockTalentEarningsFromFixtures.
-    earningsContent = (
-      <>
-        <MoneyKpiStrip />
-        <div style={{ height: 24 }} />
-        <MoneyAgencyCards />
-        <div style={{ height: 24 }} />
-        <EarningsLedger />
-      </>
-    );
+  };
+
+  if (breakdownOpen) {
+    return <MoneyBreakdownPanel onBack={() => setBreakdownOpen(false)} />;
   }
 
   return (
     <>
       <PageHeader
-        title="Money"
-        subtitle="Your earnings, agency relationships and payout history, one place, every workspace."
+        title={copy.t("Money")}
+        subtitle={`${LEDGER_CONTRACT_CLOCK.tenantFixture} · ${copy.t("amounts in")} ${LEDGER_CONTRACT_CLOCK.currency}`}
         actions={
-          // "+ Log work" hidden until off-platform work-logging is built (the
-          // talent-add-event drawer is an unpersisted stub — was a dead CTA).
-          <>
-            <PrimaryButton size="sm" onClick={() => openDrawer("talent-payouts")}>
-              Payout settings
-            </PrimaryButton>
-          </>
+          <MoneySpineHeaderActions
+            onRecord={() => setAction({ kind: "record" })}
+            onRequest={() => setAction({ kind: "request" })}
+          />
         }
       />
+      <MoneySpine
+        onViewBreakdown={() => setBreakdownOpen(true)}
+        onOpenAction={setAction}
+      />
 
-      {earningsContent}
-      <CollectMethodsPanel />
-
-      <section
-        style={{
-          marginTop: 24,
-          padding: "14px 16px",
-          background: `${COLORS.criticalSoft}`,
-          border: `1px solid rgba(176,48,58,0.18)`,
-          borderRadius: 12,
-          fontFamily: FONTS.body,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ flex: "1 1 280px", minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 13.5,
-                fontWeight: 600,
-                color: COLORS.criticalDeep,
-                marginBottom: 4,
-              }}
-            >
-              Leave an agency
-            </div>
-            <div style={{ fontSize: 12.5, color: COLORS.criticalDeep, opacity: 0.85, lineHeight: 1.5 }}>
-              Ending representation is permanent and cancels any active holds or bookings assigned through that agency.
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => openDrawer("talent-leave-agency")}
-            style={{
-              flexShrink: 0,
-              background: "#fff",
-              border: `1px solid rgba(176,48,58,0.30)`,
-              borderRadius: 8,
-              padding: "7px 12px",
-              fontSize: 12,
-              fontWeight: 600,
-              color: COLORS.criticalDeep,
-              cursor: "pointer",
-              fontFamily: FONTS.body,
-            }}
-          >
-            Manage representation →
-          </button>
-        </div>
-      </section>
     </>
   );
 }

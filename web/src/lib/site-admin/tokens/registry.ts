@@ -30,6 +30,7 @@
  */
 
 import { z } from "zod";
+import { STYLE_TOKEN_DEFS, styleTokenValidator, type StyleTokenGroup } from "./style-tokens";
 
 /**
  * Hex color in the form "#rgb" or "#rrggbb". Accessibility contrast checks
@@ -109,6 +110,19 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     agencyConfigurable: false,
     validator: hexColor,
     defaultValue: "#ffffff",
+    group: "Brand colors",
+  },
+  // DERIVED, like `color.primary-on`: the accent made readable as TEXT on the
+  // page surface (`readableAccentText`). Registered so `token:color.accent-text`
+  // is bindable; not agency-configurable because it is computed from the accent
+  // and the ground and a stored value can never win (see `designTokensToCssVars`).
+  "color.accent-text": {
+    key: "color.accent-text",
+    label: "Accent for text",
+    scope: "color",
+    agencyConfigurable: false,
+    validator: hexColor,
+    defaultValue: "#0369a1",
     group: "Brand colors",
   },
   "color.secondary": {
@@ -1065,7 +1079,62 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     description:
       "`editorial-ivory` is the warm Muse Bridal canvas. `editorial-noir` is the black-canvas gold-serif register (original Impronta). `aurora` is the existing default radial glow. `plain` = neutral solid background.",
   },
+
+  // ── Guest chat look ─────────────────────────────────────────────────
+  "chat.variant": {
+    key: "chat.variant",
+    label: "Chat style",
+    scope: "background",
+    agencyConfigurable: true,
+    validator: z.enum(["standard", "card"]),
+    defaultValue: "standard",
+    group: "Site shell",
+    description:
+      "`standard` = the full messages dock (tabs, services rail, progress). `card` = a calm one-to-one chat card in the site's own colours and fonts: avatar + name, a greeting bubble and a message pill. Sending and booking work the same in both. A Design may set this as its default.",
+  },
+  "chat.help-bubble": {
+    key: "chat.help-bubble",
+    label: "Help bubble",
+    scope: "background",
+    agencyConfigurable: true,
+    validator: z.enum(["off", "on"]),
+    defaultValue: "off",
+    group: "Site shell",
+    description:
+      "`on` = once per visit, after the visitor scrolls, a small bubble above the chat button offers help choosing (photo, name, 'Can I help you choose?'). It never shows while the chat or the booking sheet is open, and never when chat or inquiries are paused.",
+  },
+  // Site style tokens (type roles, buttons, shape, spacing). Defaults are "",
+  // i.e. "use the Design default"; see style-tokens.ts.
+  ...styleTokenSpecs(),
 };
+
+function styleTokenSpecs(): Record<string, TokenSpec> {
+  const scopeOf: Record<StyleTokenGroup, TokenScope> = {
+    typography: "typography",
+    buttons: "radius",
+    shape: "radius",
+    spacing: "spacing",
+  };
+  const groupOf: Record<StyleTokenGroup, string> = {
+    typography: "Type roles",
+    buttons: "Buttons",
+    shape: "Shape",
+    spacing: "Spacing",
+  };
+  const out: Record<string, TokenSpec> = {};
+  for (const def of STYLE_TOKEN_DEFS) {
+    out[def.key] = {
+      key: def.key,
+      label: def.label.en,
+      scope: scopeOf[def.group],
+      agencyConfigurable: true,
+      validator: styleTokenValidator(def),
+      defaultValue: "",
+      group: groupOf[def.group],
+    };
+  }
+  return out;
+}
 
 export function getToken(key: string): TokenSpec | null {
   return TOKEN_REGISTRY[key] ?? null;

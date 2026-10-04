@@ -10,9 +10,11 @@
 import type { ThreadMessage } from "@/lib/messaging/types";
 import {
   clientOfferForMessage,
+  offerCardState,
   readChange,
   readChoices,
   readConfirmation,
+  readPaidPayment,
   readPayment,
   readTickets,
   readTimes,
@@ -24,7 +26,7 @@ import {
 import { Card, CardLine } from "../kit/Card";
 import type { KitCopy } from "../kit/copy";
 import { SystemLine } from "../kit/MessageBubble";
-import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientPaymentCard, ClientTicketsCard, ClientTimesCard } from "./ClientCards";
+import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientOutcomeCard, ClientOutcomeFromMessage, ClientPaymentCard, ClientTicketsCard, ClientTimesCard } from "./ClientCards";
 import type { CardActivity } from "./ClientThreadView";
 import type { ClientCopy } from "./copy";
 import type { ClientCardActions } from "./use-client-card-actions";
@@ -57,6 +59,15 @@ export function clientCardActivityKey(message: Pick<ThreadMessage, "id" | "paylo
 export function ClientCard({ message, kind, copy, kit, locale, business, now, offers, payCode, offerCards, actions, onAsk }: ClientCardProps) {
   const act = (key: string): CardActivity => actions.activity[key] ?? { phase: "idle" };
   const payload = message.payload;
+  const outcome = ClientOutcomeFromMessage({
+    kind,
+    payload,
+    body: message.body,
+    copy,
+    payCode,
+    onPay: actions.onPay,
+  });
+  if (outcome) return outcome;
   switch (kind) {
     case "tickets_card": {
       const tickets = readTickets(payload);
@@ -83,7 +94,7 @@ export function ClientCard({ message, kind, copy, kit, locale, business, now, of
     }
     case "professional_times": {
       const a = act(message.id);
-      return <ClientTimesCard view={readTimes(payload)} copy={copy} kit={kit} business={business} locale={locale} now={now} phase={a.phase} refusal={a.refusal} onPick={(startsAt) => void actions.onPickTime(message.id, startsAt)} onAsk={onAsk} />;
+      return <ClientTimesCard view={readTimes(payload)} copy={copy} kit={kit} business={business} locale={locale} now={now} phase={a.phase} refusal={a.refusal} nextFreeTimes={a.nextFreeTimes} onPick={(startsAt) => void actions.onPickTime(message.id, startsAt)} onAsk={onAsk} />;
     }
     case "offer_event":
     case "offer_review":
@@ -101,11 +112,16 @@ export function ClientCard({ message, kind, copy, kit, locale, business, now, of
         return <SystemLine text={copy.generic.message} variant="mobile" />;
       }
       if (!offerCards.has(message.id)) return null;
+      if (offerCardState(offer, now) === "declined") {
+        return <ClientOutcomeCard outcome="declined" copy={copy} />;
+      }
       const a = act(offer.id);
-      return <ClientOfferCard offer={offer} copy={copy} kit={kit} business={business} locale={locale} now={now} phase={a.phase} refusal={a.refusal} payCode={payCode} onAccept={actions.onAcceptOffer} onDecline={actions.onDeclineOffer} onChange={(o, text) => actions.onChangeRecord("offer", o.id, text, o.id)} onPay={actions.onPay} />;
+      return <ClientOfferCard offer={offer} offers={offers} copy={copy} kit={kit} business={business} locale={locale} now={now} phase={a.phase} refusal={a.refusal} payCode={payCode} onAccept={actions.onAcceptOffer} onDecline={actions.onDeclineOffer} onChange={(o, text) => actions.onChangeRecord("offer", o.id, text, o.id)} onPay={actions.onPay} />;
     }
     case "payment_request":
       return <ClientPaymentCard view={readPayment(payload)} copy={copy} business={business} locale={locale} now={now} onPay={actions.onPay} />;
+    case "payment_paid":
+      return <ClientPaymentCard view={readPaidPayment(payload)} copy={copy} business={business} locale={locale} now={now} />;
     case "order_confirmation":
     case "appointment_confirmation": {
       const view = readConfirmation(payload);

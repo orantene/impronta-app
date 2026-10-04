@@ -1,5 +1,9 @@
 import type { AddGalleryItem } from "./types";
 import { connected, section } from "./registry-helpers";
+import {
+  ADD_GALLERY_SECTIONS_CONNECTED_BOOKING_AFTER_ITEMS,
+  ADD_GALLERY_SECTIONS_CONNECTED_BOOKING_BEFORE_ITEMS,
+} from "./registry-catalog-sections-connected-booking";
 
 export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem> = [
   // ── Sections / Hero ─────────────────────────────────────────────────────
@@ -41,7 +45,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     id: "sec-hero-slider",
     label: "Hero Slider",
     description:
-      "Full-screen freeform slider — each slide is its own layout (columns, photo background, headings, buttons) with crossfade, Ken Burns, autoplay and dots.",
+      "Full-screen freeform slider - each slide is its own layout (columns, photo background, headings, buttons) with crossfade, Ken Burns, autoplay and dots.",
     category: "hero",
     icon: "hero-split",
     sectionTemplateId: "hero-slider",
@@ -86,7 +90,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     id: "sec-story-house",
     label: "Story House",
     description:
-      "Editorial origin story — 4:5 portrait in a gold inset frame beside a Cormorant heading, muted copy, italic gold pull-quote, and signature.",
+      "Editorial origin story - 4:5 portrait in a gold inset frame beside a Cormorant heading, muted copy, italic gold pull-quote, and signature.",
     category: "about",
     icon: "about-split",
     sectionTemplateId: "story-house",
@@ -174,7 +178,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     id: "sec-talent-discipline",
     label: "Talent by Discipline",
     description:
-      "Featured-pod category grid — Models, hosts, performers, and more.",
+      "Featured-pod category grid - Models, hosts, performers, and more.",
     category: "talent-roster",
     icon: "talent-grid",
     sectionTemplateId: "talent-discipline-wrapper",
@@ -295,13 +299,13 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
   }),
 
   // ── Connected / NATIVE data blocks (WS7 Phase 0) ────────────────────────
-  // These two are `nativeNode` inserts — a real BuilderNode kind, rendered by
+  // These two are `nativeNode` inserts - a real BuilderNode kind, rendered by
   // the shared builder renderer from server-resolved tenant data. They are the
   // native replacements for the `section_embed` round-trip to the curated
   // `hero_search` / `talent_type_grid` sections, which is why `sourceType` is
   // `native-freeform` rather than the `connected()` helper's `section-embed`
   // default. Insertion goes through `createNativeNodeForGalleryItem` →
-  // `createBuilderNode(kind)`, i.e. the builder tree only — the same path
+  // `createBuilderNode(kind)`, i.e. the builder tree only - the same path
   // `assertAddGalleryBuilderTreeOnly` polices.
   connected({
     id: "conn-hero-search-native",
@@ -344,7 +348,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     ],
   }),
 
-  // ── BUILDER 2027 · P2A — NATIVE roster bands ────────────────────────────
+  // ── BUILDER 2027 · P2A - NATIVE roster bands ────────────────────────────
   // The three cards here insert a real BuilderNode kind, not a `section_embed`
   // bridge into the frozen curated section of the same name. They sit beside
   // the existing `conn-directory-grid` / `conn-talent-search` embed cards for
@@ -433,7 +437,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     searchTerms: ["brand mark", "logo cloud"],
   }),
 
-  // ── Connected / Directory (dynamic embeds — Class C) ────────────────────
+  // ── Connected / Directory (dynamic embeds - Class C) ────────────────────
   connected({
     id: "conn-talent-search",
     label: "Talent Search Bar",
@@ -453,164 +457,34 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     connectedSource: "Talent Directory",
   }),
 
-  // ── Connected / Booking & Inquiry ─────────────────────────────────────────
+  ...ADD_GALLERY_SECTIONS_CONNECTED_BOOKING_BEFORE_ITEMS,
   connected({
-    id: "conn-inquiry-button",
-    label: "Inquiry Button",
-    description: "Compact inquiry CTA with editable copy.",
-    category: "booking",
-    icon: "inquiry",
-    insertMethod: "sectionTemplate",
-    sectionTemplateId: "inquiry-cta",
-    sourceType: "native-freeform",
-    connectedSource: "Inquiry Collection",
-  }),
-  connected({
-    id: "conn-booking-button",
-    label: "Booking Button",
-    description: "Embedded booking widget (dynamic embed).",
-    category: "booking",
-    icon: "booking",
-    sectionEmbedKey: "booking_widget",
-    connectedSource: "Booking",
-  }),
-  connected({
-    id: "conn-menu-board-native",
-    label: "Menu - orderable",
-    description: "Workspace menu with quantity steppers and an order form for published items.",
-    category: "booking",
-    icon: "booking",
-    insertMethod: "nativeNode",
-    nativeKind: "menu_board",
-    sourceType: "native-freeform",
-    connectedSource: "Workspace Menu",
-    searchTerms: ["menu board", "menu_order", "order food", "catering", "workspace menu"],
-  }),
-  connected({
-    id: "conn-services-catalog-native",
-    label: "Services menu",
-    description: "The talent's live catalogue of services, packages and products.",
-    category: "booking",
-    icon: "booking",
-    insertMethod: "nativeNode",
-    nativeKind: "services_catalog",
-    sourceType: "native-freeform",
-    connectedSource: "Your services",
-    searchTerms: ["services", "menu", "prices", "catalog", "offerings"],
-  }),
-  connected({
-    id: "conn-reserve-table-native",
-    label: "Reserve a table",
+    id: "conn-utility-bar-native",
+    label: "Utility bar",
     description:
-      "A guest picks party size, date and time and books a real table, held as an order the host stand can see.",
-    category: "booking",
-    icon: "booking",
+      "A dark header bar with your name, an emergencies status pill and a tap-to-call button. The call button shows only when you set a public number.",
+    category: "dynamic",
+    icon: "about",
     insertMethod: "nativeNode",
-    nativeKind: "reserve_table",
+    nativeKind: "utility_bar",
     sourceType: "native-freeform",
-    connectedSource: "Reservations",
-    searchTerms: [
-      "reserve",
-      "reservation",
-      "book a table",
-      "booking",
-      "restaurant",
-      "party size",
-      "availability",
-    ],
+    connectedSource: "Your profile",
+    searchTerms: ["utility bar", "header", "emergencies", "urgencias", "call", "llamar", "phone", "on call"],
   }),
   connected({
-    id: "conn-session-picker-native",
-    label: "Book a session",
+    id: "conn-alert-band-native",
+    label: "Alert band",
     description:
-      "A guest picks an upcoming session or class and books a seat, held as an order; the seat past capacity is refused.",
-    category: "booking",
-    icon: "booking",
+      "A hazard-tape band for same-day emergencies with a safety note. Shown only while emergencies today is on.",
+    category: "dynamic",
+    icon: "about",
     insertMethod: "nativeNode",
-    nativeKind: "session_picker",
+    nativeKind: "alert_band",
     sourceType: "native-freeform",
-    connectedSource: "Sessions",
-    searchTerms: [
-      "session",
-      "class",
-      "book a seat",
-      "booking",
-      "schedule",
-      "sign up",
-      "capacity",
-    ],
+    connectedSource: "Your availability",
+    searchTerms: ["alert", "emergency", "emergencia", "urgent", "same day", "hazard", "banner"],
   }),
-  connected({
-    id: "conn-ticket-picker-native",
-    label: "Buy tickets",
-    description:
-      "Tier cards with what each includes, a quantity bar with a live total, one details sheet, then card checkout. Optional sticky Buy button that opens a bottom sheet on phones. A seat past capacity is refused.",
-    category: "booking",
-    icon: "booking",
-    insertMethod: "nativeNode",
-    nativeKind: "ticket_picker",
-    sourceType: "native-freeform",
-    connectedSource: "Events",
-    searchTerms: [
-      "ticket",
-      "tickets",
-      "event",
-      "night",
-      "buy",
-      "checkout",
-      "door",
-      "tiers",
-      "vip",
-      "table",
-      "mesa",
-      "sheet",
-    ],
-  }),
-  connected({
-    id: "conn-event-program-native",
-    label: "Event program",
-    description:
-      "The event's timed program: sets, talks, doors and close by night, with performer and cover. Timeline, cards or compact. Binds to the event this page belongs to.",
-    category: "booking",
-    icon: "booking",
-    insertMethod: "nativeNode",
-    nativeKind: "event_program",
-    sourceType: "native-freeform",
-    connectedSource: "Events",
-    searchTerms: [
-      "program",
-      "programa",
-      "schedule",
-      "lineup",
-      "agenda",
-      "set times",
-      "timeline",
-      "performers",
-      "night",
-      "stage",
-    ],
-  }),
-  connected({
-    id: "conn-qr-code-native",
-    label: "QR code",
-    description:
-      "A scannable code for one of your links. Point a phone at it and it opens the link.",
-    category: "booking",
-    icon: "booking",
-    insertMethod: "nativeNode",
-    nativeKind: "qr_code",
-    sourceType: "native-freeform",
-    connectedSource: "QR & Links",
-    searchTerms: [
-      "qr",
-      "qr code",
-      "scan",
-      "link",
-      "print",
-      "table tent",
-      "share",
-    ],
-  }),
+  ...ADD_GALLERY_SECTIONS_CONNECTED_BOOKING_AFTER_ITEMS,
 
   // ── Connected / Dynamic Data ────────────────────────────────────────────
   connected({

@@ -233,13 +233,13 @@ export function guardBuilderNodeMutation(input: {
   nodeId?: string;
   parentId?: string | null;
   /**
-   * Phase 1 — a talent surface's `structuralEdits` capability
+   * Phase 1 / Track B — a talent surface's `structuralEdits` capability
    * (`personalSiteSections`). `undefined` on every non-talent surface, which
-   * keeps this check inert (the pre-Phase-1 behaviour). `false` denies the
-   * SAME operation set `assertAdvancedLibraryAllowsOperation` already denies
-   * (insert / paste / duplicate) — a Free-tier talent surface with the
-   * advanced library ON (it is, pre-launch, for everyone) still cannot add
-   * structure without Web Office.
+   * keeps this check inert (the pre-Phase-1 behaviour). `false` denies
+   * insert / paste / duplicate / move — a Free-tier talent surface with the
+   * advanced library ON (it is, pre-launch, for everyone) still cannot add or
+   * reorder structure without Web Office. Text / image edits and hide/show
+   * stay allowed.
    */
   structuralEdits?: boolean;
   /** Locale for the "Web Office" denial copy (`freeSiteSectionsLockedMessage`). */
@@ -272,7 +272,8 @@ export function guardBuilderNodeMutation(input: {
     input.structuralEdits === false &&
     (input.operation === "insert" ||
       input.operation === "paste" ||
-      input.operation === "duplicate")
+      input.operation === "duplicate" ||
+      input.operation === "move")
   ) {
     const message = freeSiteSectionsLockedMessage(input.locale);
     input.onLockedOperation?.({ operation: input.operation, message });

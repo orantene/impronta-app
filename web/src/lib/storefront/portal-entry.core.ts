@@ -9,6 +9,7 @@
  * the customer rows that carry this user.
  */
 
+import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
 import type { MeData } from "@/lib/me/shape-me";
 
 import type { StorefrontAdmin } from "./admin";
@@ -111,11 +112,21 @@ export async function actPortalEntryCore(deps: PortalEntryDeps, input: PortalEnt
   if (!input || !UUID.test(input.tenantId ?? "") || input.op !== "request_code") return mapEngineRefusal("invalid_request", deps.locale);
   const email = (input.email ?? "").trim().toLowerCase();
   if (!email.includes("@")) return mapEngineRefusal("invalid", deps.locale);
+  // Legal 2.2: the island that renders this sheet is not in this repo, so a
+  // missing tick must not refuse the request (that would break every
+  // storefront signup). When the island sends `ageTerms: true` it is passed to
+  // the OTP flow; when absent, the sign-in callback sends an account with no
+  // acceptance on file to /register/accept-terms.
+  const ageTerms = isAgeAndTermsConfirmed(input.ageTerms ? "on" : null);
   try {
     const form = new FormData();
     form.set("email", email);
     form.set("next", input.nextPath && input.nextPath.startsWith("/") ? input.nextPath : "/me");
     form.set("create", "1");
+    if (ageTerms) {
+      form.set("terms_form", "1");
+      form.set("age_terms", "on");
+    }
     form.set("locale", deps.locale);
     const state = await deps.requestCode(form);
     if (state && state.step === "sent") return { ok: true, op: "request_code", email: state.email, notice: state.notice };

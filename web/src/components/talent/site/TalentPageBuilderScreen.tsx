@@ -21,11 +21,16 @@ import { useCallback } from "react";
 
 import { TalentMaxBuilderMount } from "./TalentMaxBuilderMount";
 import { TalentSiteShellBuilderMount } from "./TalentSiteShellBuilderMount";
+import { EDITOR_CANVAS_REVEAL_CSS } from "./editor-canvas-reveal-css";
 import { CHROME } from "@/components/edit-chrome/kit/tokens";
 import { siteCapabilityDeniedMessageClient } from "@/lib/talent-site/free-site-capability-denied-copy";
 import type { TalentSiteCapabilities } from "@/lib/access/talent-membership";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
+import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
+import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
+import { TalentBuilderIdentityProvider } from "@/components/edit-chrome/talent-builder-identity";
+import { ThemeUpdateNotice } from "./theme-update/ThemeUpdateNotice";
 
 type Props = {
   talentProfileId: string;
@@ -38,13 +43,20 @@ type Props = {
   /** Phase 1 — the per-capability record (`buildTalentSiteCapabilities`). */
   siteCapabilities: TalentSiteCapabilities;
   talentDisplayName: string | null;
+  /** Profile photo for the top bar identity menu (initials when null). */
+  talentHeadshotUrl?: string | null;
   locale?: string;
   /** Server-assembled in-editor canvas render data (data sources + islands). */
   canvasRenderData?: InEditorCanvasRenderData | null;
+  /** Server-primed page composition (the route reads the talent_pages row
+   *  once). When present the editor opens on it instead of a client load. */
+  initialComposition?: CompositionData | null;
   /** When true, edit the SITE SHELL (header/logo/footer) instead of a page. */
   shellMode?: boolean;
   /** The site's pages — powers the in-editor page switcher. */
   sitePages?: MaxSiteManagerPage[];
+  /** PR 7: the talent's languages (builder pill + inspector tabs). */
+  talentLocales?: { primary: string; secondary: readonly string[] };
 };
 
 const UPSELL_HEADING = {
@@ -69,15 +81,25 @@ export function TalentPageBuilderScreen({
   talentPlanKey,
   siteCapabilities,
   talentDisplayName,
+  talentHeadshotUrl = null,
   locale,
   canvasRenderData = null,
+  initialComposition = null,
   shellMode = false,
+  talentLocales,
   sitePages,
 }: Props) {
   const router = useRouter();
 
   const handleExit = useCallback(() => {
-    // Back to the talent "My site" dashboard surface.
+    // Hard nav: a bare page-builder layout does not remount into the talent
+    // shell on soft push (see TalentPageRouteSyncer reloadIntoShellOnce).
+    // Draft flush happens in LabExitButton before this callback runs — do not
+    // assign here without that await (750ms autosave window / no keepalive).
+    if (typeof window !== "undefined") {
+      window.location.assign("/talent/site");
+      return;
+    }
     router.push("/talent/site");
   }, [router]);
 
@@ -196,6 +218,8 @@ export function TalentPageBuilderScreen({
   }
 
   return (
+    <DashboardLocaleProvider locale={locale ?? ""}>
+    <TalentBuilderIdentityProvider value={{ displayName: talentDisplayName, headshotUrl: talentHeadshotUrl }}>
     <div
       data-talent-page-builder-screen=""
       // Light "desk" behind the editor canvas (modern 2026 builder). The canvas
@@ -203,6 +227,10 @@ export function TalentPageBuilderScreen({
       // gap / behind the chrome. Was the legacy dark #0E0E11.
       style={{ minHeight: "100vh", background: CHROME.canvasWorkspace }}
     >
+      {/* AUD-035: canvas shows reveal-lane nodes at final state (editor only). */}
+      <style>{EDITOR_CANVAS_REVEAL_CSS}</style>
+      {/* Theme releases Phase 4: "Maison v2 has an update" (self-hiding). */}
+      <ThemeUpdateNotice surface="builder" locale={locale} />
       {shellMode ? (
         <TalentSiteShellBuilderMount
           talentProfileId={talentProfileId}
@@ -212,6 +240,7 @@ export function TalentPageBuilderScreen({
           locale={locale}
           onExit={handleExit}
           sitePages={sitePages}
+          talentLocales={talentLocales}
         />
       ) : (
         <TalentMaxBuilderMount
@@ -224,9 +253,13 @@ export function TalentPageBuilderScreen({
           locale={locale}
           onExit={handleExit}
           canvasRenderData={canvasRenderData}
+          initialComposition={initialComposition}
           sitePages={sitePages}
+          talentLocales={talentLocales}
         />
       )}
     </div>
+    </TalentBuilderIdentityProvider>
+    </DashboardLocaleProvider>
   );
 }

@@ -27,7 +27,7 @@ export function AgendaHoldOffer({
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          className="min-h-[44px] rounded-full bg-[var(--tc-primary)] px-4 text-[13px] text-white"
+          className="min-h-[44px] rounded-full bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)] px-4 text-[13px] text-white"
           onClick={() => onSend?.(picks)}
         >
           Send times

@@ -15,6 +15,7 @@ test("the payment request hands the conversation to the mint, which names it on 
   const fn = src.slice(src.indexOf("export async function messagingRequestPayment"));
   const body = fn.slice(0, fn.indexOf("\nexport async function", 10));
   assert.match(body, /createPaymentLink\(g\.admin, \{[\s\S]*?inquiryId: parsed\.data\.inquiryId,[\s\S]*?\}\)/);
+  assert.match(body, /resolveAgendaPayPublicOrigin/);
   // A reused link (same operation key) is attached too (D-150).
   assert.match(body, /reused: true/);
   assert.match(body, /attachPaymentLinkInquiry\(g\.admin, \{[\s\S]*?inquiryId: parsed\.data\.inquiryId,[\s\S]*?\}\)/);
@@ -24,7 +25,7 @@ test("the payment request hands the conversation to the mint, which names it on 
 });
 
 test("the pay page leads back to the link's conversation when the order names none", () => {
-  const src = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/page.tsx"), "utf8");
+  const src = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/pay-page.tsx"), "utf8");
   assert.match(src, /orderRow\?\.inquiry_id \?\? loaded\.inquiryId/);
   // The expired view hands the conversation over too (D-150).
   const expired = src.slice(src.indexOf('loaded.reason === "expired"'), src.indexOf("if (!loaded.ok) notFound();"));
@@ -39,7 +40,7 @@ test("the pay page leads back to the link's conversation when the order names no
 });
 
 test("Stripe confirm=stripe builds absolute success_url from request host when BASE_URL unset (D-MSG-329)", () => {
-  const src = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/page.tsx"), "utf8");
+  const src = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/pay-page.tsx"), "utf8");
   assert.match(src, /async function checkoutOrigin/);
   assert.match(src, /x-forwarded-host/);
   assert.match(src, /const origin = await checkoutOrigin\(\)/);

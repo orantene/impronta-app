@@ -29,8 +29,8 @@ import { useInspectorVisibleTabs } from "./use-inspector-visible-tabs";
 import { useEditorLocale } from "./use-editor-locale";
 
 const RAIL_RADIUS_PX = CHROME_RADII.xxl;
-const TAB_ICON_PX = 22;
-const TAB_LABEL_PX = 11;
+const TAB_ICON_PX = 20;
+const TAB_LABEL_PX = 10;
 const RAIL_SHADOW = CHROME_SHADOWS.railCard;
 
 function RailTabButton({
@@ -60,22 +60,22 @@ function RailTabButton({
       onClick={() => onSelect(tabKey)}
       title={hint}
       aria-label={label}
-      className="ec-rail-item relative flex w-full shrink-0 cursor-pointer flex-col items-center gap-[6px] rounded-[14px] border-none px-[4px] py-[11px] transition-colors"
+      className="ec-rail-item relative flex w-full shrink-0 cursor-pointer flex-col items-center gap-[5px] rounded-[12px] border-none px-[3px] py-[10px] transition-[background-color,color,box-shadow,transform] duration-150 motion-safe:active:scale-[0.97]"
     >
-      <Icon size={TAB_ICON_PX} strokeWidth={2} aria-hidden />
+      <Icon size={TAB_ICON_PX} strokeWidth={active ? 2.15 : 1.9} aria-hidden />
       <span
         aria-hidden
-        className="max-w-full truncate font-semibold leading-[1.15] tracking-[0.01em]"
-        style={{ fontSize: TAB_LABEL_PX, textAlign: "center", padding: "0 2px" }}
+        className="max-w-full truncate font-semibold leading-[1.1] tracking-[0.005em]"
+        style={{ fontSize: TAB_LABEL_PX, textAlign: "center", padding: "0 1px" }}
       >
         {label}
       </span>
       {active ? (
         <motion.span
           aria-hidden
-          layoutId="inspector-rail-active-underline"
+          layoutId="inspector-rail-active-indicator"
           initial={false}
-          className="absolute inset-x-2 bottom-1 h-[2px] rounded-full"
+          className="absolute left-0.5 top-2 bottom-2 w-[3px] rounded-full"
           style={{ background: CHROME.accent }}
           transition={
             reduceMotion
@@ -127,7 +127,7 @@ export function InspectorCommandRail() {
         borderBottom: railBorder,
         borderRight: railBorder,
         borderLeft: dockedToRail ? "none" : railBorder,
-        padding: "14px 8px 12px",
+        padding: "12px 7px 10px",
         transform,
         ...dockStyle,
       }}
@@ -135,7 +135,7 @@ export function InspectorCommandRail() {
       <div
         role="tablist"
         aria-orientation="vertical"
-        className="flex flex-col gap-1"
+        className="flex flex-col gap-0.5"
         style={{ borderRadius: 12 }}
       >
         {tabItems.map((item) => (

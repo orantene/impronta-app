@@ -197,6 +197,9 @@ const KEYS = [
   "public.thread.choose",
   "public.thread.configure",
   "public.thread.keepSlot",
+  "public.thread.keepSlotAppointment",
+  "public.thread.keepSlotNoTime",
+  "public.thread.keepSlotGeneric",
   "public.thread.waitlist",
   "public.thread.dateMismatch",
   "public.thread.accept",
@@ -213,6 +216,8 @@ const KEYS = [
   "public.thread.smsPlain",
   "public.thread.talentView",
   "public.thread.payBy",
+  "public.thread.payByNoTime",
+  "public.thread.closedMaybePaid",
 ] as const;
 
 export function messagesCopy(t: Translator) {

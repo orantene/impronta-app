@@ -20,7 +20,8 @@ describe("T9.6 legacy surfaces retained for rollback", () => {
     );
     assert.match(src, /TalentTodayPage/);
     assert.match(src, /CalendarPage/);
-    assert.match(src, /isAgendaV2/);
+    // The router branches on the bridged flag (bridgeTalentAgendaV2), not a local isAgendaV2 call.
+    assert.match(src, /bridgeTalentAgendaV2/);
   });
 
   it("flag defaults off so production stays on legacy until rollout", () => {

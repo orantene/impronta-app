@@ -1016,7 +1016,7 @@
   },
   "src/components/admin/shell/internal/talent-drawers/premium-pages.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 36
+      "count": 34
     }
   },
   "src/components/admin/shell/internal/talent-drawers/profile-essentials.tsx": {
@@ -1057,7 +1057,7 @@
   },
   "src/components/admin/shell/internal/talent/pages/MyProfilePage.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 19
+      "count": 8
     }
   },
   "src/components/admin/shell/internal/talent/pages/ReviewsPage.tsx": {
@@ -1070,14 +1070,9 @@
       "count": 1
     }
   },
-  "src/components/admin/shell/internal/talent/pages/SettingsPage.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 9
-    }
-  },
   "src/components/admin/shell/internal/talent/pages/TodayPage.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 16
+      "count": 10
     }
   },
   "src/components/admin/shell/internal/talent/pages/messages/Bubbles.tsx": {
@@ -1147,7 +1142,7 @@
   },
   "src/components/admin/shell/internal/talent/shared/page-chrome-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 6
+      "count": 5
     }
   },
   "src/components/admin/shell/internal/talent/shared/profile-1.tsx": {
@@ -1742,7 +1737,7 @@
   },
   "src/lib/server-actions/talent-self.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 5
+      "count": 4
     }
   },
   "src/lib/server-actions/talent-takeover.ts": {
