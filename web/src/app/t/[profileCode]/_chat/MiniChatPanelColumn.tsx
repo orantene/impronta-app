@@ -120,6 +120,9 @@ export type MiniChatPanelColumnProps = {
   onHoneypotChange: (v: string) => void;
   onSubmit: () => void;
   onFirstSend: () => void;
+  /** Nail Studio Save look preview (data URL) until upload on send. */
+  lookPreviewUrl?: string | null;
+  onClearLookPreview?: () => void;
   gateEmailNotice?: string | null;
   gateEmailBlocksSubmit?: boolean;
   onAddClaimEmail: AddClaimEmailCallback | null;
@@ -308,6 +311,8 @@ export function MiniChatPanelColumn({
   onHoneypotChange,
   onSubmit,
   onFirstSend,
+  lookPreviewUrl = null,
+  onClearLookPreview,
   gateEmailNotice = null,
   gateEmailBlocksSubmit = false,
   onAddClaimEmail,
@@ -757,6 +762,10 @@ export function MiniChatPanelColumn({
           accentInk={accentInk}
           surfaceMode={surfaceMode}
           textareaRef={textareaRef}
+          lookPreviewUrl={lookPreviewUrl}
+          onClearLookPreview={onClearLookPreview}
+          lookPreviewLabel={(brand.locale ?? "en").toLowerCase().startsWith("es") ? "Tu diseño" : "Your look"}
+          lookPreviewRemoveLabel={(brand.locale ?? "en").toLowerCase().startsWith("es") ? "Quitar diseño" : "Remove look"}
         />
       )}
 

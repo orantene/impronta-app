@@ -17,7 +17,7 @@
  */
 
 import { setPendingOffering } from "./pending-offering-store";
-import { setPendingDraftMessage } from "./pending-draft-message";
+import { useAskQuestionOpen } from "./use-ask-question-open";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { CSSProperties } from "react";
 
@@ -203,21 +203,12 @@ export function TalentProfileChatLauncher({
       setOpen(true);
     };
     window.addEventListener("tulala:open-guest-chat", onOpenClean);
-    const onAskQuestion = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { demo?: boolean; message?: unknown } | null;
-      // Demo harness panels consume the event without a live dock write.
-      if (detail?.demo === true) return;
-      // An on-page app (Nail Designer) hands over a starting message: pre-fill only.
-      if (typeof detail?.message === "string") setPendingDraftMessage(detail.message);
-      setOpen(true);
-    };
-    window.addEventListener("tulala:ask-question", onAskQuestion);
     return () => {
       window.removeEventListener("tulala:offering-request", onOfferingRequest);
       window.removeEventListener("tulala:open-guest-chat", onOpenClean);
-      window.removeEventListener("tulala:ask-question", onAskQuestion);
     };
   }, []);
+  useAskQuestionOpen(setOpen);
   // F4: expanded state — grows the panel into a 2-pane layout in-place.
   const [expanded, setExpanded] = useState(false);
   // When the +N chip / a rail avatar is tapped, open the panel scrolled to the

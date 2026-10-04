@@ -21,6 +21,7 @@
 imports no backend module.
  */
 
+import { attachPendingLookImage } from "./attach-pending-look-image";
 import { clearPendingOfferingIntent, peekPendingOfferingIntent } from "./pending-offering-intent";
 import { firstSendPlan } from "./retry-same-inquiry";
 import { clearPendingOffering, pendingOfferingPayload } from "./pending-offering-store";
@@ -48,6 +49,8 @@ export type MiniChatSendArgs = {
   firstName: string;
   lastName: string;
   email: string;
+  /** Clear the Save look composer chip after a successful attach attempt. */
+  onLookAttached?: () => void;
   phone: string;
   honeypot: string;
   inquiryId: string | null;
@@ -135,6 +138,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     promoteContact,
     onStartInquiry,
     onSendMessage,
+    onLookAttached,
     setRows,
     setDraft,
     setStage,
@@ -153,6 +157,12 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
   // Set when sendToAgency forced the ContactCard gate, so the gate's own submit
   // (handleFirstSend) fires the success note once it lands. Cleared on completion.
   const sendToAgencyPendingRef = useRef(false);
+
+  function flushLookImage(id: string) {
+    void attachPendingLookImage({ tenantSlug, inquiryId: id }).finally(() => {
+      onLookAttached?.();
+    });
+  }
 
   /**
    * Promote an existing early-partial row's placeholder contact to the real
@@ -197,6 +207,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
       if (!lastSeenIsoRef.current || iso > lastSeenIsoRef.current) {
         lastSeenIsoRef.current = iso;
       }
+      flushLookImage(earlyId);
       return true;
     } catch {
       setSending(false);
@@ -286,6 +297,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
       const seeded: GuestThreadMessage[] = [res.openingMessage];
       if (res.autoAckMessage) seeded.push(res.autoAckMessage);
       mergeServer(seeded);
+      flushLookImage(res.inquiryId);
       if (sendToAgencyPendingRef.current) {
         sendToAgencyPendingRef.current = false;
         onSent?.();
@@ -348,6 +360,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
       const seeded: GuestThreadMessage[] = [res.openingMessage];
       if (res.autoAckMessage) seeded.push(res.autoAckMessage);
       mergeServer(seeded);
+      flushLookImage(res.inquiryId);
       return true;
     } catch {
       setSending(false);
@@ -417,6 +430,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
       if (!lastSeenIsoRef.current || iso > lastSeenIsoRef.current) {
         lastSeenIsoRef.current = iso;
       }
+      flushLookImage(inquiryId);
     } catch {
       // Transport / fetch rejection: leave "Not sent" + restore the draft (D-MSG-432).
       setSending(false);

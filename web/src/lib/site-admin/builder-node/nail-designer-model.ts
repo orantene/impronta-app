@@ -69,6 +69,7 @@ export function nailStudioSummary(
     : `Hi, I'd like this nail design: ${detail}.`;
 }
 
+/** Save look → front-door chat/quote only (legacy save/share stay in-app). */
 const NAIL_STUDIO_HANDOFF_TYPES = new Set(["chat", "quote"]);
 
 /** Accept a front-door handoff only from our own iframe window and origin. */

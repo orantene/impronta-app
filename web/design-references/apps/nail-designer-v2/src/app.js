@@ -1318,6 +1318,23 @@
     var m = $('.nd-save-modal'); if (m) m.hidden = true;
     if (!silent) { var s = $('[data-act=savelook]'); if (s) s.focus(); }
   }
+
+  /** Quote / Add to chat: post design + clean PNG data URL for front-door moodboard. */
+  function emitHandoff(type) {
+    function send(imageDataUrl) {
+      emit(type, imageDataUrl ? { imageDataUrl: imageDataUrl } : {});
+      closeSaveLook();
+    }
+    (lastCleanBlob ? Promise.resolve(lastCleanBlob) : makeCleanPNG()).then(function (b) {
+      lastCleanBlob = b;
+      try {
+        var r = new FileReader();
+        r.onload = function () { send(typeof r.result === 'string' ? r.result : null); };
+        r.onerror = function () { send(null); };
+        r.readAsDataURL(b);
+      } catch (e) { send(null); }
+    }).catch(function () { send(null); });
+  }
   function saveToIdeas() {
     var look = { name: t('myLook', { n: S.looks.length + 1 }), shape: S.shape, length: S.length, skin: S.skin, nails: clone(S.nails) };
     S.looks.unshift(look); S.looks = S.looks.slice(0, 24); writeLooks();
@@ -1437,8 +1454,8 @@
       case 'closesave': closeSaveLook(); break;
       case 'dlimg': (lastBlob ? Promise.resolve(lastBlob) : makePNG()).then(saveBlob).catch(function () {}); break;
       case 'dlimg-clean': (lastCleanBlob ? Promise.resolve(lastCleanBlob) : makeCleanPNG()).then(saveBlob).catch(function () {}); break;
-      case 'quote': emit('quote'); closeSaveLook(); break;
-      case 'chat': emit('chat'); closeSaveLook(); break;
+      case 'quote': emitHandoff('quote'); break;
+      case 'chat': emitHandoff('chat'); break;
       case 'wa': window.open('https://wa.me/?text=' + encodeURIComponent(t('shareText') + ' · ' + summary() + '\n' + shareLink() + '\n' + t('madeWith')), '_blank', 'noopener'); break;
       case 'native': nativeShare(); break;
       case 'copylink': copyLink(); break;

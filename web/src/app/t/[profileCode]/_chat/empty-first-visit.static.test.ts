@@ -26,7 +26,7 @@ test("Send stays hidden until an inquiry exists", () => {
   assert.match(panel, /onEnsureInquiry && inquiryId && !unified\.contactPromoted/);
 });
 
-test("empty Home still exposes the intake rail (Nada todavía) and paints Hablar active", () => {
+test("empty Home still exposes the intake rail (Nada todav\u00eda) and paints Hablar active", () => {
   const column = readFileSync(join(DIR, "MiniChatPanelColumn.tsx"), "utf8");
   assert.match(column, /activeDockView === "chat" \|\| activeDockView === "home"/);
   const nav = readFileSync(join(DIR, "GuestDockNav.tsx"), "utf8");
@@ -35,10 +35,11 @@ test("empty Home still exposes the intake rail (Nada todavía) and paints Hablar
 
 test("first open lands on Hablar chat, not the Home hub", () => {
   const panel = readFileSync(join(DIR, "MiniChatPanel.tsx"), "utf8");
+  const session = readFileSync(join(DIR, "dock-view-session.ts"), "utf8");
   assert.match(panel, /normalizeDockView/);
-  assert.match(panel, /stored \? normalizeDockView\(stored\) : "chat"/);
+  assert.match(panel, /from "\.\/dock-view-session"/);
   assert.equal(panel.includes('hasActiveContext ? "chat" : "home"'), false);
-  assert.match(panel, /view === "home" \? "chat" : view/);
+  assert.match(session, /view === "home" \? "chat" : view/);
 });
 
 test("solo strip wires omitPlatformBrand so receipt Tulala cannot leak", () => {
