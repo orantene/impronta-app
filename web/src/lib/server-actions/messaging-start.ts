@@ -11,6 +11,7 @@ import { signThreadToken } from "@/lib/messaging/thread-token";
 import type { MessagingChannel } from "@/lib/messaging/types";
 
 import { messagingInquiryManager } from "@/lib/messaging/staff-guard";
+import { talentSellerPaymentActor } from "@/lib/messaging/talent-payment-actor";
 
 import { staff } from "./messaging-engine";
 
@@ -100,9 +101,10 @@ export async function messagingStartConversation(input: {
  * is linked to it through `messaging_set_identity`. Also updates the inquiry
  * contact so the header stops reading "Visitor".
  *
- * Auth: inquiry managers (staff OR active coordinator). Talent inbox is not
- * an admin surface — `staff()` alone refused Jorgelina's Capture identity Save
- * with `not_allowed` / "You cannot do that from here." (Ana Pagado, 2026-09-26).
+ * Auth: inquiry managers (staff OR active coordinator), then the hub talent
+ * seller — same fallback as `messagingRequestPayment`. Manager-only refused
+ * Soft Gel dock Capture identity Save with `not_allowed` (Tip Live Soft Gel,
+ * 2026-10-04): talent seller is not staff or coordinator.
  */
 export async function messagingCreateClientForThread(input: {
   inquiryId: string;
@@ -122,7 +124,8 @@ export async function messagingCreateClientForThread(input: {
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
   if (!parsed.data.email && !parsed.data.phone) return fail("invalid");
-  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  const gated = await messagingInquiryManager(parsed.data.inquiryId);
+  const g = gated.ok ? gated : await talentSellerPaymentActor(parsed.data.inquiryId);
   if (!g.ok) return g;
   const { ensureCustomer } = await import("@/lib/customers/ensure-customer");
   const customer = await ensureCustomer(

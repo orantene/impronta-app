@@ -3,9 +3,10 @@
 /**
  * Identity capture readers/writers for Messages v5 (D04 / M07).
  * Split out of `messaging-engine.ts` to keep that file under the max-lines
- * ratchet. Auth is `messagingInquiryManager` (staff OR active coordinator)
- * so talent inbox Capture identity Save is not refused with `not_allowed`
- * ("You cannot do that from here.") — same seam as catalog #2281 / offers.
+ * ratchet. Auth is `messagingInquiryManager` (staff OR active coordinator),
+ * then the hub talent seller via `talentSellerPaymentActor` — same fallback
+ * as `messagingRequestPayment`. Manager-only refused Soft Gel dock Capture
+ * identity Save with `not_allowed` (Tip Live Soft Gel, 2026-10-04).
  */
 
 import { z } from "zod";
@@ -16,6 +17,7 @@ import { normalizeEmail, normalizePhoneE164 } from "@/lib/customers/customer-ide
 import { matchCustomers } from "@/lib/messaging/match-customers";
 import { fail } from "@/lib/messaging/refusals";
 import { messagingInquiryManager } from "@/lib/messaging/staff-guard";
+import { talentSellerPaymentActor } from "@/lib/messaging/talent-payment-actor";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { ActionResult } from "@/lib/messaging/types";
 
@@ -54,7 +56,8 @@ export async function messagingMatchCustomers(input: {
     })
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
-  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  const gated = await messagingInquiryManager(parsed.data.inquiryId);
+  const g = gated.ok ? gated : await talentSellerPaymentActor(parsed.data.inquiryId);
   if (!g.ok) return g;
   // D-MSG-336: tenants can exceed 200 customers. An unordered `.limit(200)`
   // missed the fixture customer (446 on journeys) so Same person? never
@@ -102,7 +105,8 @@ export async function messagingCaptureIdentity(input: {
     })
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
-  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  const gated = await messagingInquiryManager(parsed.data.inquiryId);
+  const g = gated.ok ? gated : await talentSellerPaymentActor(parsed.data.inquiryId);
   if (!g.ok) return g;
   return callRpc(g.admin, "messaging_set_identity", {
     p_tenant_id: g.tenantId,
