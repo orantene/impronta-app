@@ -22,6 +22,8 @@ import {
 export {
   GUEST_CAPTCHA_ENFORCED_DEFAULT,
   resolveGuestCaptchaEnforced,
+  splitGuestCaptchaConfigs,
+  type GuestCaptchaRenderConfig,
 } from "./guest-captcha-enforcement-resolve";
 
 /** How long one server instance may reuse a read of the setting. */

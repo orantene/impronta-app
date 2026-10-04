@@ -43,7 +43,7 @@ import {
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
-import { isGuestCaptchaEnforced } from "@/lib/platform/guest-captcha-enforcement";
+import { isGuestCaptchaEnforced, splitGuestCaptchaConfigs } from "@/lib/platform/guest-captcha-enforcement";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
 import { designTokensToCssVars, designTokensToDataAttrs } from "@/lib/site-admin/tokens/resolve";
@@ -420,9 +420,7 @@ async function renderMaxSiteDocument(args: {
   const designTokens = designSlice.tokens;
   const talentComponentStyleDefaults = designSlice.componentStyles;
 
-  // Captcha for `form` nodes + live `services_catalog` booking: both submit paths enforce it per
-  // tenant, so a missing widget silently rejected every submit (2026-08-16, 2026-09-25). Only
-  // queried when the tree has a form or catalog; live booking needs the key off draft previews.
+  // Captcha for form + services_catalog (missing widget → silent reject; 2026-08-16).
   const pageNeedsCaptcha = (function needsCaptcha(nodes: unknown): boolean {
     if (Array.isArray(nodes)) return nodes.some(needsCaptcha);
     if (!nodes || typeof nodes !== "object") return false;
@@ -430,13 +428,9 @@ async function renderMaxSiteDocument(args: {
     return n.kind === "form" || n.kind === "services_catalog" || needsCaptcha(n.children);
   })([shellTree, blocks]);
 
-  // Data sources + live components for the PAGE body (tenant-scoped). The SHELL
-  // tree is the talent's own header/footer (logo/nav/copyright) — simple nodes
-  // with no tenant-scoped bindings — so it renders without a data-source load.
-  // Exception: unrostered / free personal Max sites have `tenantId === null`,
-  // which used to skip data sources entirely. Hablar/dock still loaded
-  // offerings, but `services_catalog` rendered the empty state. Load catalog
-  // sources by talent profile whenever the page tree needs them.
+  // PAGE body data sources (tenant-scoped). Shell is talent header/footer — no
+  // tenant bindings. Unrostered Max (`tenantId === null`) still loads catalog
+  // sources by talent profile when the tree needs offerings.
   const pageNeedsServicesCatalog =
     builderTreeHasKind(blocks, "services_catalog") || builderTreeHasKind(blocks, "task_picker");
   const pageNeedsPortfolio = builderTreeHasKind(blocks, "portfolio");
@@ -448,17 +442,14 @@ async function renderMaxSiteDocument(args: {
   const pageNeedsTalentOfferings =
     pageNeedsServicesCatalog || pageNeedsPortfolio || pageNeedsNextFreeChip;
 
-  // Codex P2 / ACCEPTANCE: loading offerings with catalogBookingLive=false mounts
-  // demo booking ("Preview: no real bookings") on published free vanity. Own-work
-  // Path A / inquiry uses the platform hub when there is no managing agency
-  // tenant — same as Agenda `resolveTalentOwnWorkTenant` / Path B hub pick.
+  // Codex P2: catalogBookingLive=false mounts demo booking on published free vanity.
+  // Own-work Path A uses platform hub when no managing agency — same as Agenda hub pick.
   let bookingTenantId: string | null = tenantId;
   if (!bookingTenantId && !draftPreview && pageNeedsTalentOfferings) {
     bookingTenantId = (await getPlatformHubTenant())?.tenantId ?? null;
   }
   const catalogBookingLive = Boolean(bookingTenantId) && !draftPreview;
-  // Published vanity with a booking tenant always runs catalogBookingLive —
-  // resolve captcha even if the tree scan missed a nested catalog.
+  // Published vanity with a booking tenant always resolves captcha for catalog.
   const resolveCaptcha = Boolean(bookingTenantId) && (pageNeedsCaptcha || !draftPreview);
 
   const [dataSources, components, platformDefault, experimentContext, pageCaptcha, captchaEnforced, talentOfferings, liveStatusRow, askVisible] =
@@ -526,8 +517,11 @@ async function renderMaxSiteDocument(args: {
     liveStatus,
   };
 
-  const captchaConfig =
-    pageCaptcha && captchaEnforced ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey } : null;
+  // Forms keep tenant captcha; booking alone follows HQ guest_captcha_enforced.
+  const { formCaptchaConfig, bookingCaptchaConfig } = splitGuestCaptchaConfigs(
+    pageCaptcha,
+    captchaEnforced,
+  );
 
   const renderSectionEmbed = tenantId
     ? makeSectionEmbedRenderer({
@@ -535,7 +529,7 @@ async function renderMaxSiteDocument(args: {
         locale,
         publicPathPrefix,
         previewSubject: { kind: "talent", id: talentProfileId, locale },
-        captcha: captchaConfig,
+        captcha: formCaptchaConfig,
       })
     : null;
 
@@ -619,7 +613,8 @@ async function renderMaxSiteDocument(args: {
                 includeRendererStyles: false,
                 includeFontLinks: false,
                 dataSources: { liveStatus },
-                captcha: captchaConfig,
+                captcha: formCaptchaConfig,
+                bookingCaptcha: bookingCaptchaConfig,
                 visitorLocale: locale,
                 contentLocale: args.localeCtx.contentLocale,
                 renderSectionEmbed,
@@ -636,7 +631,8 @@ async function renderMaxSiteDocument(args: {
           includeRendererStyles: false,
           includeFontLinks: false,
           dataSources: { liveStatus },
-          captcha: captchaConfig,
+          captcha: formCaptchaConfig,
+          bookingCaptcha: bookingCaptchaConfig,
           visitorLocale: locale,
           contentLocale: args.localeCtx.contentLocale,
           renderSectionEmbed,
@@ -742,7 +738,8 @@ async function renderMaxSiteDocument(args: {
               includeRendererStyles: false,
               includeFontLinks: false,
               dataSources: { liveStatus },
-              captcha: captchaConfig,
+              captcha: formCaptchaConfig,
+              bookingCaptcha: bookingCaptchaConfig,
               visitorLocale: locale,
               contentLocale: args.localeCtx.contentLocale,
               renderSectionEmbed,
@@ -761,7 +758,8 @@ async function renderMaxSiteDocument(args: {
           dataSources: pricedDataSources,
           components,
           componentStyleDefaults: readableButtonDefaults(componentStyleDefaults, effectiveTokens),
-          captcha: captchaConfig,
+          captcha: formCaptchaConfig,
+          bookingCaptcha: bookingCaptchaConfig,
           visitorLocale: locale,
           contentLocale: args.localeCtx.contentLocale,
           ...experimentContext,
@@ -776,7 +774,8 @@ async function renderMaxSiteDocument(args: {
             mode: "freeform", dataSources: { socialLinks: footerSocialLinks, liveStatus }, // her own links
             includeRendererStyles: false,
             includeFontLinks: false,
-            captcha: captchaConfig,
+            captcha: formCaptchaConfig,
+            bookingCaptcha: bookingCaptchaConfig,
             visitorLocale: locale,
             contentLocale: args.localeCtx.contentLocale,
             renderSectionEmbed,

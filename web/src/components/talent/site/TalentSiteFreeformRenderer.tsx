@@ -15,7 +15,7 @@ import { loadBuilderNodeDataSources } from "@/components/home/homepage-cms-data-
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
-import { isGuestCaptchaEnforced } from "@/lib/platform/guest-captcha-enforcement";
+import { isGuestCaptchaEnforced, splitGuestCaptchaConfigs } from "@/lib/platform/guest-captcha-enforcement";
 import {
   designTokensToCssVars,
   designTokensToDataAttrs,
@@ -90,6 +90,13 @@ export async function TalentSiteFreeformRenderer({
     const n = nodes as { kind?: unknown; children?: unknown };
     return n.kind === "form" || hasForm(n.children);
   })(tree);
+  const pageHasServicesCatalog = (function hasCatalog(nodes: unknown): boolean {
+    if (Array.isArray(nodes)) return nodes.some(hasCatalog);
+    if (!nodes || typeof nodes !== "object") return false;
+    const n = nodes as { kind?: unknown; children?: unknown };
+    return n.kind === "services_catalog" || hasCatalog(n.children);
+  })(tree);
+  const resolveCaptcha = pageHasFormNode || pageHasServicesCatalog;
 
   // Data sources + live component instances — only load when the tree actually
   // binds them AND a managing tenant exists (the loaders are tenant-scoped
@@ -113,16 +120,18 @@ export async function TalentSiteFreeformRenderer({
         tenantId,
         surface: context?.experimentSurface ?? "talentSite",
       }),
-      tenantId && pageHasFormNode
+      tenantId && resolveCaptcha
         ? resolveTenantCaptcha(tenantId)
         : Promise.resolve(null),
       isGuestCaptchaEnforced(),
     ]);
 
-  const captchaConfig =
-    pageCaptcha && captchaEnforced
-      ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
-      : null;
+  // CMS forms keep tenant captcha regardless of HQ guest_captcha_enforced.
+  // Booking sheet alone follows the HQ switch.
+  const { formCaptchaConfig, bookingCaptchaConfig } = splitGuestCaptchaConfigs(
+    pageCaptcha,
+    captchaEnforced,
+  );
 
   // Curated section_embed nodes need a tenant render context. previewSubject
   // points the curated sections at THIS talent. NOTE: the default tree is
@@ -135,7 +144,7 @@ export async function TalentSiteFreeformRenderer({
           locale,
           publicPathPrefix,
           previewSubject: { kind: "talent", id: context.talentProfileId, locale },
-          captcha: captchaConfig,
+          captcha: formCaptchaConfig,
         })
       : null;
 
@@ -166,7 +175,8 @@ export async function TalentSiteFreeformRenderer({
       dataSources,
       components,
       componentStyleDefaults,
-      captcha: captchaConfig,
+      captcha: formCaptchaConfig,
+      bookingCaptcha: bookingCaptchaConfig,
       visitorLocale: locale,
       contentLocale: { locale, defaultLocale: "en", chain: [locale, "en"] },
       ...experimentContext,

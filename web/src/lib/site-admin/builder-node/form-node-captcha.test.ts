@@ -134,7 +134,7 @@ test("talent and share freeform renderers thread resolveTenantCaptcha", () => {
     );
     assert.match(
       src,
-      /captcha:\s*(pageCaptcha|captchaConfig)/,
+      /captcha:\s*(pageCaptcha|captchaConfig|formCaptchaConfig)/,
       `${rel} must pass captcha into the renderer`,
     );
     assert.match(
@@ -161,8 +161,23 @@ test("talent Max/freeform guest captcha respects HQ enforcement switch", () => {
     );
     assert.match(
       src,
-      /captchaEnforced/,
-      `${rel} must gate captchaConfig on captchaEnforced`,
+      /bookingCaptchaConfig/,
+      `${rel} must build a booking-only captcha config`,
+    );
+    assert.match(
+      src,
+      /bookingCaptcha:\s*bookingCaptchaConfig/,
+      `${rel} must pass bookingCaptcha (not form captcha) into the booking gate`,
+    );
+    assert.match(
+      src,
+      /formCaptchaConfig/,
+      `${rel} must keep CMS form captcha ungated by HQ`,
+    );
+    assert.match(
+      src,
+      /splitGuestCaptchaConfigs/,
+      `${rel} must split form vs booking captcha via splitGuestCaptchaConfigs`,
     );
   }
 });
