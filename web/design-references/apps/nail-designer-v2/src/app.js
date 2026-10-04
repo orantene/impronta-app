@@ -964,8 +964,8 @@
     root.innerHTML =
       '<svg class="nd-defs" aria-hidden="true" focusable="false"><defs>' + DEFS + '</defs></svg>' +
       '<section class="nd-left">' +
-        '<header class="nd-head"><div class="nd-brandwrap"><a class="nd-brand" href="' + brandLink(BRAND.url, 'logo') + '" target="_blank" rel="noopener" aria-label="Tulala.digital">' + logoSVG('#121212', 32) + '</a><span class="nd-bsep" aria-hidden="true"></span><div><div class="nd-word">Nail <em>Studio</em></div><div class="nd-sub">' + t('sub') + '</div></div></div>' +
-          '<div class="nd-row"><button class="nd-pill nd-lang" data-act="lang" aria-label="' + t('switchLabel') + '" title="' + t('switchLabel') + '">' + t('switchTo') + '</button>' +
+        '<header class="nd-head"><div class="nd-brandwrap"><div><div class="nd-word">Nail <em>Studio</em></div><div class="nd-sub">' + t('sub') + '</div></div></div>' +
+          '<div class="nd-row"><a class="nd-brand nd-head-logo" href="' + brandLink(BRAND.url, 'logo') + '" target="_blank" rel="noopener" aria-label="Tulala.digital">' + logoSVG('#121212', 28) + '</a>' +
           '<button class="nd-pill" data-act="undo" aria-label="' + t('undo') + '" title="' + t('undo') + '">' + icon('undo') + '<span>' + t('undo') + '</span></button>' +
           '<button class="nd-pill" data-act="reset" aria-label="' + t('reset') + '" title="' + t('reset') + '">' + icon('reset') + '<span>' + t('reset') + '</span></button></div></header>' +
         '<div class="nd-stage"><svg class="nd-svg" viewBox="0 0 1000 800" preserveAspectRatio="xMidYMid meet" role="group"></svg>' +

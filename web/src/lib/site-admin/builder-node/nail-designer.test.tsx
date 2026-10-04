@@ -102,3 +102,17 @@ test("the public copy differs from the owner file only by the font link", () => 
   const pub = readFileSync(new URL("../../../../public/apps/nail-studio/index.html", import.meta.url), "utf8");
   assert.equal(pub, owner.replace("https://fonts.googleapis.com/css2?", "/api/fonts/css?"));
 });
+
+test("header is Nail Studio first, then Tulala logo + undo/reset (no in-app EN toggle)", () => {
+  const pub = readFileSync(new URL("../../../../public/apps/nail-studio/index.html", import.meta.url), "utf8");
+  const headStart = pub.indexOf("class=\"nd-head\"");
+  assert.ok(headStart >= 0);
+  const head = pub.slice(headStart, headStart + 700);
+  const titleAt = head.indexOf("Nail <em>Studio</em>");
+  const logoAt = head.indexOf("nd-head-logo");
+  const undoAt = head.indexOf('data-act="undo"');
+  const resetAt = head.indexOf('data-act="reset"');
+  assert.ok(titleAt >= 0 && logoAt > titleAt && undoAt > logoAt && resetAt > undoAt);
+  assert.equal(head.includes("nd-lang"), false);
+  assert.equal(head.includes('data-act="lang"'), false);
+});
