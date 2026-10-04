@@ -1,10 +1,10 @@
-Updated: 2026-10-04 17:53Z · Scoreboard: ✅ 12 / 🟡 57 / ❌ 15 / ⏸ 2 / ❓ 14
+Updated: 2026-10-04 17:58Z · Scoreboard: ✅ 12 / 🟡 57 / ❌ 15 / ⏸ 2 / ❓ 14
 Live SHA: 15e65e2d5091 · origin/production: 15e65e2d5091 · Main SHA: 15e65e2d5091
-**Ownership:** overnight done-board owner `bc-9c0ba4c9`. Sole STATUS writer on `status/done-board`. No Oran ping from this agent. **Do not start a second worker** on in-flight agent files.
+**Ownership:** overnight done-board owner `bc-9c0ba4c9`. Sole STATUS writer on `status/done-board`. No Oran ping (Desk test URL already sent). **Do not start a second worker** on in-flight agent files.
 Top 3 blockers right now
 1. **#45 fee-line** ❌ — prove on TAL-93900: seller-pays **$100** / client **$101.50**. Stay ❌ until live screenshots (money agent in-flight — do not steal).
-2. **In-flight (no second worker):** money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Messages inbox [`bc-0d5f4b2c`](https://cursor.com/agents/bc-0d5f4b2c) · PRs [#2532](https://github.com/orantene/impronta-app/pull/2532)/[#2534](https://github.com/orantene/impronta-app/pull/2534)/[#2535](https://github.com/orantene/impronta-app/pull/2535)/[#2536](https://github.com/orantene/impronta-app/pull/2536) (CI→merge when green).
-3. **LIVE READY:** Live=prod=main `15e65e2d5091` / `dpl_3QPTZnu8…` · **#94 ✅**. **Support Desk LIVE for Oran test:** https://support.tulala.digital/desk (platform admin). Handoff `docs/support-desk-test-ready-2026-10-04.md` ([`bc-867a8cbf`](https://cursor.com/agents/bc-867a8cbf)). #2477 closed superseded. Free+Lab ✅ · `maison-v2-demo` LIVE. #87 stays 🟡 until Oran/live screenshots. No Oran ping from board agent.
+2. **In-flight (no second worker):** money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Messages inbox [`bc-0d5f4b2c`](https://cursor.com/agents/bc-0d5f4b2c) · PRs [#2532](https://github.com/orantene/impronta-app/pull/2532)–[#2536](https://github.com/orantene/impronta-app/pull/2536) (structural CI still pending — merge when green).
+3. **LIVE READY:** Live=prod=main `15e65e2d5091` / `dpl_3QPTZnu8…` · **#94 ✅**. Desk LIVE for Oran (URL already sent). Free+Lab ✅ · `maison-v2-demo` LIVE. #87 stays 🟡 until Oran/live screenshots. No Oran ping from board agent.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with Live proof (see below).
 
@@ -177,7 +177,7 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | 97 | No open PR older than 2 days without an owner | ✅ | [#2477](https://github.com/orantene/impronta-app/pull/2477) closed superseded. Open: #2532/#2533/#2534/#2535/#2536 have active owners (Desk mockups #2536 → `bc-867a8cbf`). **Live proof N/A (ops)**. | — | S14 step 5 | — | 2026-10-04 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 17:53Z. Live=prod=main `15e65e2d5091`. **#94 ✅**. Desk LIVE for Oran test (`support.tulala.digital/desk`); #2477 closed; #2536 CI→merge. Free+Lab ✅. In-flight: money · inbox · #2532–36 — **no second worker**. #87 🟡 (await Oran screenshots). #45 ❌. ✅12. No Oran ping from board. | Board working note. | S14 step 5 | — | 2026-10-04 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 17:58Z standing wake. Live=prod=main `15e65e2d5091`. **#94 ✅**. Desk LIVE for Oran (URL sent). Free+Lab ✅. In-flight: money `bc-cbf5dc17` · inbox `bc-0d5f4b2c` · #2532–36 CI pending — **no second worker**. #87 🟡 · #45 ❌. ✅12. No Oran ping from board. | Board working note. | S14 step 5 | — | 2026-10-04 |
 
 ## No story yet
 
@@ -237,8 +237,8 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-STATUS 2026-10-04 17:53Z on `status/done-board` — Support Desk LIVE for Oran test. REPLIES.md stub. Sole STATUS writer `bc-9c0ba4c9`. No Oran ping from this agent.
-**Tip SHAs:** Live HTML sentry-release = prod = main = `15e65e2d5091` / `dpl_3QPTZnu8…`. **#94 ✅**. Scoreboard ✅ 12 / 🟡 57 (#87 stays 🟡 — ready ≠ proven).
-- **Support Desk [`bc-867a8cbf`](https://cursor.com/agents/bc-867a8cbf):** LIVE https://support.tulala.digital/desk (platform admin). Handoff `docs/support-desk-test-ready-2026-10-04.md`. [#2477](https://github.com/orantene/impronta-app/pull/2477) **closed superseded**. [#2536](https://github.com/orantene/impronta-app/pull/2536) mockups — CI→merge when green.
-- **Done:** Free #55/#57/#59 ✅ · Lab #64/#65 ✅ + Publish demos v24 · `maison-v2-demo` LIVE 200.
-- **In-flight:** money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Messages inbox [`bc-0d5f4b2c`](https://cursor.com/agents/bc-0d5f4b2c) · PRs #2532/#2534/#2535/#2536. Desk handoff **delivered** — no second Desk worker. **#45** ❌ still owed.
+STATUS 2026-10-04 17:58Z on `status/done-board` (standing 15m wake). REPLIES.md stub. Sole STATUS writer `bc-9c0ba4c9`. No Oran ping (Desk test URL already sent). **Do not start a second worker.**
+**Tip SHAs:** Live HTML sentry-release = prod = main = `15e65e2d5091` / `dpl_3QPTZnu8…`. **#94 ✅**. Scoreboard ✅ 12 / 🟡 57.
+- **Done:** Free+Lab ✅ · Desk LIVE for Oran · `maison-v2-demo` LIVE · #2477 closed.
+- **In-flight:** money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Messages inbox [`bc-0d5f4b2c`](https://cursor.com/agents/bc-0d5f4b2c) · PRs [#2532](https://github.com/orantene/impronta-app/pull/2532)–[#2536](https://github.com/orantene/impronta-app/pull/2536) (structural CI still pending — merge when green; #2532/#2534/#2536 undrafted).
+- #87 stays 🟡 until Oran/live screenshots. **#45** ❌ still owed.
