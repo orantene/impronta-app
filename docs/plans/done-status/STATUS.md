@@ -1,10 +1,10 @@
-Updated: 2026-10-04 17:27Z · Scoreboard: ✅ 10 / 🟡 59 / ❌ 15 / ⏸ 2 / ❓ 14
+Updated: 2026-10-04 17:30Z · Scoreboard: ✅ 10 / 🟡 59 / ❌ 15 / ⏸ 2 / ❓ 14
 Live SHA: 15e65e2d5091 · origin/production: 15e65e2d5091 · Main SHA: 15e65e2d5091
 **Ownership:** overnight done-board owner `bc-9c0ba4c9`. Sole STATUS writer on `status/done-board`. No Oran ping. **Do not start a second worker** on in-flight agent files.
 Top 3 blockers right now
 1. **#45 fee-line** ❌ — prove on TAL-93900: seller-pays **$100** / client **$101.50**. Stay ❌ until live screenshots (money agent in-flight — do not steal).
-2. **In-flight (no second worker):** money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Lab [`bc-cd5cf7c8`](https://cursor.com/agents/bc-cd5cf7c8) · [#2534](https://github.com/orantene/impronta-app/pull/2534) demo hosts (draft, CI in flight) · [#2532](https://github.com/orantene/impronta-app/pull/2532) Nail Studio header (draft).
-3. **LIVE READY:** Live=prod=main `15e65e2d5091` / `dpl_3QPTZnu8…` · **#94 ✅**. Free #55/#57/#59 ✅. **`maison-v2-demo` LIVE 200**. Merge lane empty (drafts only). [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. No Oran ping.
+2. **In-flight (no second worker):** money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Lab [`bc-cd5cf7c8`](https://cursor.com/agents/bc-cd5cf7c8) · [#2534](https://github.com/orantene/impronta-app/pull/2534) demo hosts (draft, CI pending) · [#2532](https://github.com/orantene/impronta-app/pull/2532) Nail Studio header (undrafted, mergeable=blocked — structural CI pending).
+3. **LIVE READY:** Live=prod=main `15e65e2d5091` / `dpl_3QPTZnu8…` · **#94 ✅**. Free #55/#57/#59 ✅. **`maison-v2-demo` LIVE 200**. Merge lane: wait green on #2532; do not merge #2477/#2533/#2534 drafts. Timer tip/`QA_JOR` blocked notes stale. No Oran ping.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with Live proof (see below).
 
@@ -177,7 +177,7 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 12:30Z: tip LIVE READY · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Overnight closed. **Live proof N/A (ops)**. | — | S14 step 5 | — | 2026-10-04 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 17:27Z standing wake. Live=prod=main `15e65e2d5091` / `dpl_3QPTZnu8…`. **#94 ✅**. Free #55/#57/#59 ✅. `maison-v2-demo` LIVE 200. In-flight: money `bc-cbf5dc17` · Lab `bc-cd5cf7c8` · #2534 · #2532 — **no second worker**. #45 ❌. ✅10. No Oran ping. | Board working note. | S14 step 5 | — | 2026-10-04 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 17:30Z standing wake. Live=prod=main `15e65e2d5091` / `dpl_3QPTZnu8…`. **#94 ✅**. Free #55/#57/#59 ✅. `maison-v2-demo` LIVE 200. In-flight: money `bc-cbf5dc17` · Lab `bc-cd5cf7c8` · #2534 · #2532 (undrafted, CI blocked) — **no second worker**. #45 ❌. ✅10. No Oran ping. | Board working note. | S14 step 5 | — | 2026-10-04 |
 
 ## No story yet
 
@@ -237,8 +237,8 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-STATUS 2026-10-04 17:27Z on `status/done-board` (standing 15m wake). REPLIES.md stub. **Never ✅ without live screenshots.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping. **Do not start a second worker.**
-**Tip SHAs:** Live HTML sentry-release = prod = main = `15e65e2d5091` / `dpl_3QPTZnu8…`. **#94 ✅**. Scoreboard ✅ 10 / 🟡 59.
+STATUS 2026-10-04 17:30Z on `status/done-board` (standing 15m wake). REPLIES.md stub. **Never ✅ without live screenshots.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping. **Do not start a second worker.**
+**Tip SHAs:** Live HTML sentry-release = prod = main = `15e65e2d5091` / `dpl_3QPTZnu8…`. Timer tip `7d30bb9d1` stale — ignored. **#94 ✅**. Scoreboard ✅ 10 / 🟡 59.
 - Free #55/#57/#59 ✅. **`maison-v2-demo` LIVE 200** (code ✅ deferred until #2534 merges+promotes).
-- **In-flight:** money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Lab [`bc-cd5cf7c8`](https://cursor.com/agents/bc-cd5cf7c8) · [#2534](https://github.com/orantene/impronta-app/pull/2534) demo hosts (draft, structural CI still pending) · [#2532](https://github.com/orantene/impronta-app/pull/2532) Nail header draft.
-- Merge lane empty (drafts only — do not merge #2477/#2532/#2533/#2534 yet). Wall/visual MERGED. Desk reuse `bc-11e25be7` — do not steal. **#45** ❌ still owed.
+- **In-flight:** money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Lab [`bc-cd5cf7c8`](https://cursor.com/agents/bc-cd5cf7c8) · [#2534](https://github.com/orantene/impronta-app/pull/2534) draft CI pending · [#2532](https://github.com/orantene/impronta-app/pull/2532) undrafted but `mergeable_state=blocked` (structural CI pending) — do not merge yet.
+- Timer “S5/S7 blocked on `QA_JOR_CLONE_PASSWORD`” is stale — money agent in-flight. [#2477](https://github.com/orantene/impronta-app/pull/2477)/#2533 drafts — do not merge. Desk reuse `bc-11e25be7` — do not steal. Wall/visual MERGED. **#45** ❌ still owed.
