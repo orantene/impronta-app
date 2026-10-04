@@ -1,10 +1,10 @@
-Updated: 2026-10-04 16:30Z · Scoreboard: ✅ 7 / 🟡 62 / ❌ 15 / ⏸ 2 / ❓ 14
+Updated: 2026-10-04 16:40Z · Scoreboard: ✅ 7 / 🟡 62 / ❌ 15 / ⏸ 2 / ❓ 14
 Live SHA: 15e65e2d5091 · origin/production: 15e65e2d5091 · Main SHA: 15e65e2d5091
 **Ownership:** overnight done-board owner `bc-9c0ba4c9` (~10h, Oran offline). Sole STATUS writer on `status/done-board`. No Oran ping.
 Top 3 blockers right now
 1. Parked — **#45 fee-line** ❌ (seller-pays $101.50 LIVE charge / D15 still unproven). Soft Gel Preview PAID + LIVE Guardar smoke PASS do **not** clear #45.
 2. Parked — Free **`QA_FREE_PASSWORD`** (Oran-only) blocks Free-persona drains that need that secret. Do not invent ✅.
-3. **LIVE READY:** Live=prod=main `15e65e2d5091` / `dpl_3QPTZnu8…`. **#94 ✅**. Open: refunds BLOCKED · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Portfolio: talent wall [`bc-73428b52`](https://cursor.com/agents/bc-73428b52-ec56-5670-bb98-eebbe2a889c0) IDLE — [#2490](https://github.com/orantene/impronta-app/pull/2490) MERGED on tip (no resume). Visual refresh [`bc-3c434583`](https://cursor.com/agents/bc-3c434583-99a4-513b-8bab-c9721cc398d6) IDLE — [#2491](https://github.com/orantene/impronta-app/pull/2491) MERGED on tip (no resume / no second worker). No Oran ping.
+3. **LIVE READY:** Live=prod=main `15e65e2d5091` / `dpl_3QPTZnu8…`. **#94 ✅**. Open: refunds BLOCKED · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge · S5/S7 waiting `QA_JOR_CLONE_PASSWORD`. Portfolio: talent wall [`bc-73428b52`](https://cursor.com/agents/bc-73428b52-ec56-5670-bb98-eebbe2a889c0) IDLE — [#2490](https://github.com/orantene/impronta-app/pull/2490) MERGED on tip (no resume). Visual refresh [`bc-3c434583`](https://cursor.com/agents/bc-3c434583-99a4-513b-8bab-c9721cc398d6) IDLE — [#2491](https://github.com/orantene/impronta-app/pull/2491) MERGED on tip (no resume / no second worker). No Oran ping.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with Live proof (see below).
 
@@ -177,7 +177,7 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 12:30Z: tip LIVE READY · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Overnight closed. **Live proof N/A (ops)**. | — | S14 step 5 | — | 2026-10-04 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 16:30Z standing wake. Live HTML sentry-release+`data-dpl-id` = prod = main `15e65e2d5091` / `dpl_3QPTZnu8…` READY. **#94 ✅**. Oran READY ping (not from board). Refunds BLOCKED. **Parked:** Free `QA_FREE_PASSWORD` · #45. REPLIES stub. ✅7. No Oran ping from this agent. | Board working note. | S14 step 5 | — | 2026-10-04 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 16:40Z standing wake. Live HTML sentry-release+`data-dpl-id` = prod = main `15e65e2d5091` / `dpl_3QPTZnu8…` READY. **#94 ✅**. Oran READY ping (not from board). Refunds BLOCKED. S5/S7 waiting `QA_JOR_CLONE_PASSWORD`. **Parked:** Free `QA_FREE_PASSWORD` · #45. REPLIES stub. ✅7. No Oran ping from this agent. | Board working note. | S14 step 5 | — | 2026-10-04 |
 
 ## No story yet
 
@@ -237,9 +237,9 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-STATUS 2026-10-04 16:30Z on `status/done-board` (standing 15m wake). REPLIES.md stub. **Never ✅ without Live proof.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping from this agent (Oran READY ping external).
+STATUS 2026-10-04 16:40Z on `status/done-board` (standing 15m wake). REPLIES.md stub. **Never ✅ without Live proof.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping from this agent (password / Publish demos / smoke already asked).
 **Tip SHAs:** Live HTML sentry-release = prod = main = `15e65e2d5091` / `dpl_3QPTZnu8…` READY. **#94 ✅**. Scoreboard ✅ 7 / 🟡 62.
-- Overnight **closed**. **Parked:** Free `QA_FREE_PASSWORD` · #45 fee-line ❌. Stripe S5/S7 still blocked on `QA_JOR_CLONE_PASSWORD` (Oran-only).
-- **LIVE steady:** tip `15e65e2d5091` / `dpl_3QPTZnu8…` reconfirmed (HTML). Timer note tip `7d30bb9d1` is stale — ignored. **#94 ✅**. No tip chase. Do not re-nag Publish demos/smoke.
+- Overnight **closed**. **Parked:** Free `QA_FREE_PASSWORD` · #45 fee-line ❌. Stripe S5/S7 waiting `QA_JOR_CLONE_PASSWORD` (Oran-only — do not re-ask).
+- **LIVE steady:** tip `15e65e2d5091` / `dpl_3QPTZnu8…` reconfirmed (HTML). **#94 ✅**. No tip chase. Do not re-nag Publish demos/smoke.
 - **Open:** refunds **BLOCKED** · [#2477](https://github.com/orantene/impronta-app/pull/2477) draft — do not merge. Merge lane empty (no other open PRs). Do not flip `SUPPORT_DESK_ENABLED`. Desk reuse owned by `bc-11e25be7` — do not steal.
 - **Portfolio:** wall `bc-73428b52` IDLE / #2490 MERGED — no resume. Visual `bc-3c434583` IDLE / #2491 MERGED — no resume (do not start second worker).
