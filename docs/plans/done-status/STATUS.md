@@ -1,1 +1,1 @@
-FILE_CONTENT_FROM_/tmp/mcp-create-args.json
+FILE_LOAD:/tmp/EXTRACTED_STATUS0645.md
