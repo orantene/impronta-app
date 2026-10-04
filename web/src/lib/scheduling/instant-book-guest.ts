@@ -14,6 +14,7 @@ import { checkGuestInquiryAbuse } from "@/lib/inquiry/guest-abuse-guard";
 import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { sendGuestClaimEmail } from "@/lib/inquiry/guest-claim-link";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
+import { isGuestCaptchaEnforced } from "@/lib/platform/guest-captcha-enforcement";
 import { logServerError } from "@/lib/server/safe-error";
 import { isDevGuestCaptchaSkipHostname } from "./guest-captcha-dev-skip";
 import {
@@ -70,6 +71,12 @@ async function verifyTenantCaptchaToken(input: {
     if (isDevGuestCaptchaSkipHostname(host)) {
       return { configured: false, ok: true };
     }
+  }
+  // HQ temporary testing switch (`platform_settings.guest_captcha_enforced`).
+  // Default / read failure stays enforced (fail closed). When OFF, treat as
+  // captcha not configured so Continuar al pago proceeds without a token.
+  if (!(await isGuestCaptchaEnforced())) {
+    return { configured: false, ok: true };
   }
   const captcha = await resolveTenantCaptcha(input.tenantId);
   if (captcha.provider === "none" || !captcha.siteKey) {
