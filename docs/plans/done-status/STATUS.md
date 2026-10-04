@@ -47,7 +47,7 @@ Every **✅ DONE** row requires **Live proof**:
 
 ## Story 3 — Jor services and money setup (S3)
 
-Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Services/Money/Inbox — no PROFILE CREATED wall. Pass C **#16 ✅**. **#44 ✅** — clone login Money shows **Stripe · verificada** (`media/cloud-stripe-s4-s7/t93900-03-money.png`; tip proved on `10698158d`, ancestor of live `c3214cac3`). S4 inquire PASS on custom site. **Paid S4–S7 still FAIL** — guest hCaptcha blocks Continuar al pago (`internal/cloud-money-s4-s7-live-prove.md`, `bc-0d95ddb3`). Prior Oran→TAL-JORGBEAUTY “Not set up” was wrong persona. **No paid ✅**.
+Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Services/Money/Inbox — no PROFILE CREATED wall. Pass C **#16 ✅**. **#44 ✅** — clone login Money shows **Stripe · verificada** (`media/cloud-stripe-s4-s7/t93900-03-money.png`; tip proved on `10698158d`, ancestor of live `c3214cac3`). S4 inquire PASS on custom site. Soft Gel TEST Checkout **PASS** on `qa-stripe-r2` (`cs_test_`/`dd7c`/`99db917d=paid`) — dock stamp still FAIL; tip still `cs_live_`; **#45 stays ❌**. Prior Oran→TAL-JORGBEAUTY “Not set up” was wrong persona.
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
