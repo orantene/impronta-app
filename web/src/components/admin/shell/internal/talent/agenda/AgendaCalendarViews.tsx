@@ -200,7 +200,7 @@ function TimeColumn({
             key={item.id}
             type="button"
             data-week-chip={kind}
-            aria-label={`${timeRange(item.startsAt, item.endsAt)} ${item.client?.name ?? item.title}`}
+            aria-label={`${timeRange(item.startsAt, item.endsAt)} ${copy.t(item.client?.name ?? item.title)}`}
             onClick={(event) => onOpen(item, event)}
             className={`absolute left-[var(--agenda-left)] top-[var(--agenda-top)] z-10 h-[var(--agenda-span)] w-[var(--agenda-w)] overflow-hidden rounded-md border px-1.5 py-0.5 text-left text-[11px] ${chipClass(item, kind)} ${
               hatch && item.kind !== "block" ? "shadow-[inset_0_-6px_0_rgba(11,11,13,0.06)]" : ""
@@ -214,7 +214,7 @@ function TimeColumn({
           >
             <div className={`tabular-nums ${MUTED}`}>{timeRange(item.startsAt, item.endsAt)}</div>
             <div className="truncate font-semibold">
-              {item.kind === "block" ? `${copy.t("Blocked")}${item.title ? ` · ${item.title}` : ""}` : (item.client?.name ?? item.title)}
+              {item.kind === "block" ? `${copy.t("Blocked")}${item.title ? ` · ${item.title}` : ""}` : copy.t(item.client?.name ?? item.title)}
             </div>
             {item.kind !== "block" && item.client?.name && h > 58 && serviceLabel(item) ? (
               <div className={`truncate ${MUTED}`}>{serviceLabel(item)}</div>
@@ -592,7 +592,7 @@ export function PhoneDayAgenda({
         const base = rowFromAgendaItem(item, clock, () => onOpen(item));
         const clash = requestOverlap(item, allItems);
         const note = clash
-          ? `${copy.t("Overlaps")} ${clash.client?.name ?? clash.title} ${timeRange(clash.startsAt, clash.endsAt)}. ${copy.t("Accepting would double book.")}`
+          ? `${copy.t("Overlaps")} ${copy.t(clash.client?.name ?? clash.title)} ${timeRange(clash.startsAt, clash.endsAt)}. ${copy.t("Accepting would double book.")}`
           : base.note
             ? copy.t(base.note)
             : undefined;

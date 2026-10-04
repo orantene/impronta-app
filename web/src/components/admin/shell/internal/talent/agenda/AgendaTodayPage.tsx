@@ -326,9 +326,9 @@ export function AgendaTodayPage({
   }
 
   const attentionTitle = (item: TalentAgendaItem): string => {
-    const who = item.client?.name ?? item.managedBy?.name ?? item.title;
+    const who = copy.t(item.client?.name ?? item.managedBy?.name ?? item.title);
     if (item.managedBy && (item.kind === "request" || item.booking === "requested")) {
-      return `${item.managedBy.name} ${copy.t("invited you to a job")}`;
+      return `${copy.t(item.managedBy.name)} ${copy.t("invited you to a job")}`;
     }
     if (item.kind === "request" || item.booking === "requested") return `${who} ${copy.t("is waiting")}`;
     if (item.kind === "hold" || item.booking === "hold") return `${who} · ${copy.t("deposit not paid")}`;
@@ -384,7 +384,7 @@ export function AgendaTodayPage({
           </span>
           <div className="min-w-0 flex-1">
             <div className="text-[14px] font-semibold text-[var(--tc-primary)]">
-              {item.client?.name ?? item.managedBy?.name ?? item.title}
+              {copy.t(item.client?.name ?? item.managedBy?.name ?? item.title)}
             </div>
             <div className="truncate text-[12.5px] text-black/70">{serviceLabel(item) ?? copy.t("No service set")}</div>
             {placeLabelFor(item.where) ? (
@@ -631,7 +631,7 @@ export function AgendaTodayPage({
                 </span>
               </CardHead>
               {noTime.map((item) => {
-                const who = item.client?.name ?? item.title;
+                const who = copy.t(item.client?.name ?? item.title);
                 return (
                   <div
                     key={item.id}

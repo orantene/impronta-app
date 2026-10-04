@@ -399,6 +399,7 @@ const ES_TEXT: Record<string, string> = {
   "Trial": "Prueba",
   "Step 3 of 4 · price, stock and handover": "Paso 3 de 4 · precio, stock y entrega",
   "Untitled": "Sin título",
+  "Untitled client": "Cliente sin nombre",
   "Leave empty if you make each one to order": "Déjalo vacío si lo haces por encargo",
   "When it hits zero": "Cuando llega a cero",
   "Show 'Sold out', keep the page": "Mostrar Agotado, dejar la página",

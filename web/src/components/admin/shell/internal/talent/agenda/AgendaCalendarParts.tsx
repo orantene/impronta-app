@@ -201,7 +201,7 @@ export function BlockTimeForm({
         <p className={`text-[13px] ${DANGER}`}>{copy.t("End must be after start.")}</p>
       ) : conflict ? (
         <p role="alert" className={`text-[13px] ${DANGER}`}>
-          {`${copy.t("Overlaps")} ${conflict.client?.name ?? conflict.title} ${timeRange(conflict.startsAt, conflict.endsAt)}. ${copy.t("Pick another time.")}`}
+          {`${copy.t("Overlaps")} ${copy.t(conflict.client?.name ?? conflict.title)} ${timeRange(conflict.startsAt, conflict.endsAt)}. ${copy.t("Pick another time.")}`}
         </p>
       ) : (
         <p className="rounded-lg bg-[rgba(11,11,13,0.04)] p-2 text-[13px]">
@@ -241,7 +241,7 @@ export function EventPeek({
       <button type="button" aria-label={copy.t("Close")} className="fixed inset-0 z-40 bg-black/10" onClick={onClose} />
       <div
         role="dialog"
-        aria-label={item.client?.name ?? item.title}
+        aria-label={copy.t(item.client?.name ?? item.title)}
         className="fixed left-[var(--peek-left)] top-[var(--peek-top)] z-50 w-[min(330px,calc(100vw-24px))] space-y-3 rounded-[16px] border border-[rgba(11,11,13,0.12)] bg-white p-4 shadow-lg"
         style={{
           "--peek-top": `${Math.max(12, anchor?.top ?? 120)}px`,
@@ -250,7 +250,7 @@ export function EventPeek({
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-[17px] font-semibold">{block ? copy.t("Blocked") : (item.client?.name ?? item.title)}</h2>
+            <h2 className="text-[17px] font-semibold">{block ? copy.t("Blocked") : copy.t(item.client?.name ?? item.title)}</h2>
             {item.client?.name || block ? <p className={`text-[14px] ${MUTED}`}>{item.title}</p> : null}
           </div>
           <button type="button" aria-label={copy.t("Close")} className="min-h-[44px] min-w-[44px]" onClick={onClose}>
@@ -379,7 +379,7 @@ export function CalendarList({
                   className={`grid min-h-[48px] w-full ${cols} items-center gap-3 rounded-xl border border-[rgba(11,11,13,0.08)] bg-white px-3 text-left text-[13px]`}
                 >
                   <span className="tabular-nums">{timeRange(item.startsAt, item.endsAt)}</span>
-                  <span className="truncate font-semibold">{item.client?.name ?? item.title}</span>
+                  <span className="truncate font-semibold">{copy.t(item.client?.name ?? item.title)}</span>
                   <span className={`truncate ${MUTED}`}>{serviceLabel(item) ?? copy.t("No service set")}</span>
                   <span>{r.bookingState ? <BookingStateChip state={r.bookingState} /> : null}</span>
                   <span>{r.paymentState ? <PaymentStateChip state={r.paymentState} /> : null}</span>
