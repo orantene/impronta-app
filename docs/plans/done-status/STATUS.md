@@ -1,10 +1,10 @@
-Updated: 2026-10-04 17:58Z · Scoreboard: ✅ 12 / 🟡 57 / ❌ 15 / ⏸ 2 / ❓ 14
-Live SHA: 15e65e2d5091 · origin/production: 15e65e2d5091 · Main SHA: 15e65e2d5091
-**Ownership:** overnight done-board owner `bc-9c0ba4c9`. Sole STATUS writer on `status/done-board`. No Oran ping (Desk test URL already sent). **Do not start a second worker** on in-flight agent files.
+Updated: 2026-10-04 18:01Z · Scoreboard: ✅ 11 / 🟡 58 / ❌ 15 / ⏸ 2 / ❓ 14
+Live SHA: 15e65e2d5091 · origin/production: 15e65e2d5091 · Main SHA: 948a78a55867
+**Ownership:** overnight done-board owner `bc-9c0ba4c9`. Sole STATUS writer on `status/done-board`. No Oran ping unless LIVE advances. **Do not start a second worker** on in-flight agent files.
 Top 3 blockers right now
 1. **#45 fee-line** ❌ — prove on TAL-93900: seller-pays **$100** / client **$101.50**. Stay ❌ until live screenshots (money agent in-flight — do not steal).
-2. **In-flight (no second worker):** money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Messages inbox [`bc-0d5f4b2c`](https://cursor.com/agents/bc-0d5f4b2c) · PRs [#2532](https://github.com/orantene/impronta-app/pull/2532)–[#2536](https://github.com/orantene/impronta-app/pull/2536) (structural CI still pending — merge when green).
-3. **LIVE READY:** Live=prod=main `15e65e2d5091` / `dpl_3QPTZnu8…` · **#94 ✅**. Desk LIVE for Oran (URL already sent). Free+Lab ✅ · `maison-v2-demo` LIVE. #87 stays 🟡 until Oran/live screenshots. No Oran ping from board agent.
+2. **Tip chase:** Live=prod `15e65e2d5091` / `dpl_3QPTZnu8…` · Main `948a78a55867` (#2532 Nail Studio header MERGED). Structural CI **in_progress** on new main — promote when green. **#94 🟡**. In-flight: money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · inbox [`bc-0d5f4b2c`](https://cursor.com/agents/bc-0d5f4b2c) · PRs [#2534](https://github.com/orantene/impronta-app/pull/2534)/[#2535](https://github.com/orantene/impronta-app/pull/2535)/[#2536](https://github.com/orantene/impronta-app/pull/2536).
+3. Desk LIVE for Oran (URL already sent). Free+Lab ✅ · `maison-v2-demo` LIVE. #87 stays 🟡 until Oran/live screenshots. No Oran ping from board agent.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with Live proof (see below).
 
@@ -171,13 +171,13 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | ✅ | Rechecked 2026-10-04 12:30Z: **Live HTML** (`tulala.digital` / `improntamodels.com`) = **`origin/production`** = **`origin/main`** = `15e65e2d5091` / `dpl_3QPTZnu8…` (#2526+#2530). All hosts including `app.tulala.digital` on tip. Overnight closed. **Live proof N/A (ops)**. | Tip aligned. Oran READY ping (external). | S14 step 1 | — | 2026-10-04 |
+| 94 | Main green, and production equals that green main | 🟡 | 2026-10-04 18:01Z: Live HTML + `origin/production` = `15e65e2d5091` / `dpl_3QPTZnu8…`. **Main** `948a78a55867` via [#2532](https://github.com/orantene/impronta-app/pull/2532) MERGED. Structural quality gate **in_progress** on new main (`actions/runs/37222715704`). Live ≠ Main. **Live proof N/A (ops)**. | Tip chase — await Structural green on `948a78a55867` → promote → Live. No Oran ping until LIVE advances. | S14 step 1 | — | 2026-10-04 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Cloud VM 2026-10-03 20:12Z on tip `7d30bb9d1` (`internal/deploy-smoke-2004.log`): HTTP/CSP/optimizer/Places/alias/auth-matrix/notification routes all ✓; **exit 1** — migration drift + taxonomy fail (no usable decrypted `SUPABASE_SERVICE_ROLE_KEY` / `.env.local` here); Resend domain ⚠ skipped (no `RESEND_API_KEY`). | Full exit 0 needs Mac/env with service role. HTTP production signals green — not ✅ until exit 0. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `e6e00420b` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | [#2477](https://github.com/orantene/impronta-app/pull/2477) closed superseded. Open: #2532/#2533/#2534/#2535/#2536 have active owners (Desk mockups #2536 → `bc-867a8cbf`). **Live proof N/A (ops)**. | — | S14 step 5 | — | 2026-10-04 |
+| 97 | No open PR older than 2 days without an owner | ✅ | [#2477](https://github.com/orantene/impronta-app/pull/2477) closed superseded. [#2532](https://github.com/orantene/impronta-app/pull/2532) MERGED. Open: #2533/#2534/#2535/#2536 have active owners. **Live proof N/A (ops)**. | — | S14 step 5 | — | 2026-10-04 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 17:58Z standing wake. Live=prod=main `15e65e2d5091`. **#94 ✅**. Desk LIVE for Oran (URL sent). Free+Lab ✅. In-flight: money `bc-cbf5dc17` · inbox `bc-0d5f4b2c` · #2532–36 CI pending — **no second worker**. #87 🟡 · #45 ❌. ✅12. No Oran ping from board. | Board working note. | S14 step 5 | — | 2026-10-04 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 18:01Z. Live=prod `15e65e2d5091` · Main `948a78a55867`. **#94 🟡** tip chase (Structural in_progress on main). #2532 MERGED. Desk LIVE for Oran. Free+Lab ✅. In-flight: money · inbox · #2534–36 — **no second worker**. #87 🟡 · #45 ❌. ✅11. No Oran ping unless LIVE advances. | Board working note. | S14 step 5 | — | 2026-10-04 |
 
 ## No story yet
 
@@ -237,8 +237,9 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-STATUS 2026-10-04 17:58Z on `status/done-board` (standing 15m wake). REPLIES.md stub. Sole STATUS writer `bc-9c0ba4c9`. No Oran ping (Desk test URL already sent). **Do not start a second worker.**
-**Tip SHAs:** Live HTML sentry-release = prod = main = `15e65e2d5091` / `dpl_3QPTZnu8…`. **#94 ✅**. Scoreboard ✅ 12 / 🟡 57.
+STATUS 2026-10-04 18:01Z on `status/done-board`. REPLIES.md stub. Sole STATUS writer `bc-9c0ba4c9`. No Oran ping unless LIVE advances.
+**Tip SHAs:** Live=prod `15e65e2d5091` / `dpl_3QPTZnu8…` · Main `948a78a55867`. **#94 🟡** tip chase. Scoreboard ✅ 11 / 🟡 58.
+- **Merged:** [#2532](https://github.com/orantene/impronta-app/pull/2532) Nail Studio header → main `948a78a55867`. Structural quality gate **in_progress** on new main — tip chase / promote when green; Live still `15e65e2d5091`.
 - **Done:** Free+Lab ✅ · Desk LIVE for Oran · `maison-v2-demo` LIVE · #2477 closed.
-- **In-flight:** money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Messages inbox [`bc-0d5f4b2c`](https://cursor.com/agents/bc-0d5f4b2c) · PRs [#2532](https://github.com/orantene/impronta-app/pull/2532)–[#2536](https://github.com/orantene/impronta-app/pull/2536) (structural CI still pending — merge when green; #2532/#2534/#2536 undrafted).
-- #87 stays 🟡 until Oran/live screenshots. **#45** ❌ still owed.
+- **In-flight:** money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Messages inbox [`bc-0d5f4b2c`](https://cursor.com/agents/bc-0d5f4b2c) · PRs [#2534](https://github.com/orantene/impronta-app/pull/2534)/[#2535](https://github.com/orantene/impronta-app/pull/2535)/[#2536](https://github.com/orantene/impronta-app/pull/2536).
+- #87 stays 🟡 until Oran screenshots. **#45** ❌ still owed.
