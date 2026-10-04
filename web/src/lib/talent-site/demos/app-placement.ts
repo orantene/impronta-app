@@ -1,13 +1,18 @@
 /**
- * Demo placement of library apps (demo CONTENT, not a design default). Pure:
- * takes a demo's home tree and returns a new one. A Maison v2 demo whose trade
- * has an app gets it as its own band right after the Menu section, built from
- * the design's own section kit (eyebrow + heading + intro, token styles only).
- * Deterministic ids, so an identical rerun yields an identical tree.
+ * Placement of library apps on Maison v2 home trees. Pure: takes a home tree
+ * and returns a new one. A Maison v2 site whose trade has an app gets it as its
+ * own band right after the Menu section, built from the design's own section
+ * kit (eyebrow + heading + intro, token styles only). Deterministic ids, so an
+ * identical rerun yields an identical tree.
+ *
+ * Used for demos AND real talents (apply + render fixup) — demos are not the
+ * only path that may carry Nail Designer.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
-import { appsForDemo } from "@/lib/site-admin/add-gallery/apps-registry";
+import { appsForDemo, appsForTrade } from "@/lib/site-admin/add-gallery/apps-registry";
+import { professionsForTerm } from "@/lib/talent-site/theme-catalog/gallery-meta";
+import { readOrigin } from "@/lib/talent-site/theme-releases/origin";
 
 export const NAIL_BAND_ID = "demo-app-nail-band";
 
@@ -74,6 +79,66 @@ export function nailBand(): BuilderNode {
   } as BuilderNode;
 }
 
+function treeHasNailApp(nodes: ReadonlyArray<BuilderNode>): boolean {
+  for (const n of nodes) {
+    if (n.kind === "app_nail_designer" || label(n) === "Nail designer" || n.id === NAIL_BAND_ID) {
+      return true;
+    }
+    const kids = "children" in n && Array.isArray(n.children) ? n.children : [];
+    if (treeHasNailApp(kids)) return true;
+  }
+  return false;
+}
+
+/** True when any node carries a Maison v2 design-origin stamp (or Menu + services_row_cards). */
+export function treeLooksMaisonV2(nodes: ReadonlyArray<BuilderNode>): boolean {
+  for (const n of nodes) {
+    if (readOrigin(n)?.design === "maison-v2") return true;
+    const kids = "children" in n && Array.isArray(n.children) ? n.children : [];
+    if (treeLooksMaisonV2(kids)) return true;
+  }
+  return false;
+}
+
+/** Insert the Nail Designer band after Menu when the tree does not already have it. */
+function placeNailBand(homeTree: BuilderNode[]): { tree: BuilderNode[]; placed: boolean } {
+  if (treeHasNailApp(homeTree)) return { tree: homeTree, placed: false };
+  const rest = homeTree.filter((n) => n.id !== NAIL_BAND_ID);
+  const at = rest.findIndex((n) => label(n) === "Menu");
+  if (at < 0) return { tree: homeTree, placed: false };
+  return { tree: [...rest.slice(0, at + 1), nailBand(), ...rest.slice(at + 1)], placed: true };
+}
+
+/**
+ * Home tree with trade apps placed for any Maison v2 site (demo or real).
+ * `trades` are gallery profession keys (`nails`, `lashes`, …).
+ */
+export function placeMaisonTradeApps(
+  homeTree: BuilderNode[],
+  trades: ReadonlyArray<string>,
+  opts?: { designSlug?: string | null },
+): { tree: BuilderNode[]; placed: boolean } {
+  const designOk =
+    opts?.designSlug === "maison-v2" ||
+    (!opts?.designSlug && treeLooksMaisonV2(homeTree));
+  if (!designOk) return { tree: homeTree, placed: false };
+  const wantsNail = trades.some((t) =>
+    appsForTrade(t).some((a) => a.nativeKind === "app_nail_designer"),
+  );
+  if (!wantsNail) return { tree: homeTree, placed: false };
+  return placeNailBand(homeTree);
+}
+
+/** Resolve gallery profession keys from talent type labels (primary + secondary). */
+export function tradesFromTypeLabels(labels: ReadonlyArray<string | null | undefined>): string[] {
+  const out = new Set<string>();
+  for (const label of labels) {
+    if (!label?.trim()) continue;
+    for (const p of professionsForTerm(label)) out.add(p);
+  }
+  return [...out];
+}
+
 /**
  * Home tree with the demo's trade apps placed. Only Maison v2 demos, only when
  * the trade has the app. Returns the same array when nothing applies.
@@ -84,8 +149,5 @@ export function placeDemoApps(
 ): { tree: BuilderNode[]; placed: boolean } {
   if (demo.design !== "maison-v2") return { tree: homeTree, placed: false };
   if (!appsForDemo(demo).some((a) => a.nativeKind === "app_nail_designer")) return { tree: homeTree, placed: false };
-  const rest = homeTree.filter((n) => n.id !== NAIL_BAND_ID);
-  const at = rest.findIndex((n) => label(n) === "Menu");
-  if (at < 0) return { tree: homeTree, placed: false };
-  return { tree: [...rest.slice(0, at + 1), nailBand(), ...rest.slice(at + 1)], placed: true };
+  return placeNailBand(homeTree);
 }

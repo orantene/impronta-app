@@ -3,9 +3,13 @@ import "server-only";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { contrastRatio } from "@/lib/site-admin/tokens/contrast-pair";
 import { localiseSeededDesignLabels, type SiteCtaMode } from "../design-label-locale";
+import { placeMaisonTradeApps, tradesFromTypeLabels } from "../demos/app-placement";
+import { applyTalentLiveMedia, treeHasLiveMediaCandidates } from "../live-media";
 import { applyTalentLiveText, treeHasLiveCandidates } from "../live-text";
+import { loadTalentLiveMedia } from "./load-live-media.server";
 import { loadTalentLiveText } from "./load-live-text.server";
 import { loadTalentLocaleSwaps } from "./talent-locale-swaps.server";
+import { loadTalentTypeLabels } from "./load-talent-trades.server";
 
 /**
  * Render-time fixups for talent Max sites built from catalog Designs. All are
@@ -15,6 +19,10 @@ import { loadTalentLocaleSwaps } from "./talent-locale-swaps.server";
  *  - live text (hero headline, eyebrow, tagline, proof line, footer columns)
  *    read from the profile at render time (`live-text.ts`), also on sites
  *    applied before the release;
+ *  - live media (hero photo, inset, about portrait) from current public media
+ *    so a wrong apply-time headshot pick heals for every talent;
+ *  - Maison v2 trade apps (Nail Designer) after Menu when the talent's types
+ *    match (demos already place these; real talents get the same band);
  *  - the site logo in a `site_header` that has none (it was dropped by apply).
  */
 export async function prepareTalentSiteTrees(input: {
@@ -26,17 +34,37 @@ export async function prepareTalentSiteTrees(input: {
   ctaMode?: SiteCtaMode | null;
   /** The talent's fallback chain for `locale` ([visitor, primary, ...]). */
   chain?: readonly string[];
+  /** When known, gates trade-app placement; otherwise origin-stamped trees detect Maison v2. */
+  designSlug?: string | null;
 }): Promise<{ shellTree: BuilderNode[]; body: BuilderNode[] }> {
-  const wantsLive = treeHasLiveCandidates([...input.shellTree, ...input.body]);
-  const [swaps, live] = await Promise.all([
+  const combined = [...input.shellTree, ...input.body];
+  const wantsLive = treeHasLiveCandidates(combined);
+  const wantsMedia = treeHasLiveMediaCandidates(combined);
+  const [swaps, live, media, typeLabels] = await Promise.all([
     loadTalentLocaleSwaps(input.talentProfileId, input.locale, input.chain ?? []),
-    wantsLive ? loadTalentLiveText(input.talentProfileId, input.locale, input.chain ?? []) : Promise.resolve(null),
+    wantsLive
+      ? loadTalentLiveText(input.talentProfileId, input.locale, input.chain ?? [])
+      : Promise.resolve(null),
+    wantsMedia ? loadTalentLiveMedia(input.talentProfileId) : Promise.resolve(null),
+    loadTalentTypeLabels(input.talentProfileId),
   ]);
-  const withLive = (tree: BuilderNode[]) => (live ? applyTalentLiveText(tree, live) : tree);
-  const shell = withLive(localiseSeededDesignLabels(input.shellTree, input.locale, input.ctaMode ?? null, swaps));
+  const withLive = (tree: BuilderNode[]) => {
+    let next = live ? applyTalentLiveText(tree, live) : tree;
+    if (media) next = applyTalentLiveMedia(next, media);
+    return next;
+  };
+  const trades = tradesFromTypeLabels(typeLabels);
+  const bodyWithApps = placeMaisonTradeApps(input.body, trades, {
+    designSlug: input.designSlug,
+  }).tree;
+  const shell = withLive(
+    localiseSeededDesignLabels(input.shellTree, input.locale, input.ctaMode ?? null, swaps),
+  );
   return {
     shellTree: input.logoUrl ? shell.map((n) => withHeaderLogo(n, input.logoUrl!)) : shell,
-    body: withLive(localiseSeededDesignLabels(input.body, input.locale, input.ctaMode ?? null, swaps)),
+    body: withLive(
+      localiseSeededDesignLabels(bodyWithApps, input.locale, input.ctaMode ?? null, swaps),
+    ),
   };
 }
 

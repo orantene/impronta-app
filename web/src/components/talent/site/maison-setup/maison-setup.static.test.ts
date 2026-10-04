@@ -161,6 +161,8 @@ test("W67–W74: live pending + Design options + colors publish + preview fail c
   assert.match(panel, /maison-design-options/);
   assert.match(panel, /maison-option-reset-colors/);
   assert.match(panel, /maison-option-reapply-layout/);
+  assert.match(panel, /maison-option-refresh-profile/);
+  assert.match(panel, /Refresh from my profile/);
   assert.match(panel, /maison-option-discard-idle/);
   assert.match(panel, /maison-restore-list/);
   assert.match(panel, /never a dead Discard button/);

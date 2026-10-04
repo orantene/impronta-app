@@ -671,11 +671,11 @@ export function CatalogRow({
     if (onSelect) onSelect();
     else dispatchOffering(item, confirmsByHand, undefined, undefined, bookingPosture);
   };
+  // Empty grey placeholders look like a repeated "stock" thumb on every row.
+  // Only paint a photo slot when the offering has a real public image.
   const photo = cover ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={cover} alt="" className="site-builder-node--services-catalog-photo" />
-  ) : showPhoto ? (
-    <span className="site-builder-node--services-catalog-photo" aria-hidden />
   ) : null;
   return (
     <li

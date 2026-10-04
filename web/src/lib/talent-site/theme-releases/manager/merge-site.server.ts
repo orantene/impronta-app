@@ -19,7 +19,6 @@ import { loadTemplateHydrationTokens } from "@/lib/talent-site/server/apply-temp
 import {
   buildDesignTrees,
   coerceTokenMap,
-  fallbackHydrationTokens,
 } from "@/lib/talent-site/server/theme-apply-core";
 import type { DesignPayload, TalentThemeDesignRow } from "@/lib/talent-site/theme-catalog/types";
 import { designPaletteTokens, paletteKeyForLook } from "@/lib/talent-site/theme-catalog/design-palettes";
@@ -95,7 +94,13 @@ export async function mergeSite(
   const { data: home, error: hErr } = homeRes;
   if (hErr) return { ok: false, error: hErr.message };
 
-  const tokens = hydration ?? fallbackHydrationTokens(site.displayName);
+  if (!hydration) {
+    return {
+      ok: false,
+      error: `Hydration tokens unavailable for ${site.displayName || site.talentProfileId}; refusing empty apply.`,
+    };
+  }
+  const tokens = hydration;
   // Demo content is ours: keep Before / After filled on demos (F77 ships it empty).
   const seedFor = (p: DesignPayload): DesignPayload => (site.isDemo ? seedDemoBeforeAfter(p) : p);
   const theirs = buildDesignTrees(seedFor(design.payload), tokens, undefined, {
