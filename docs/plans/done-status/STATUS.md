@@ -1,10 +1,10 @@
-Updated: 2026-10-04 08:00Z · Scoreboard: ✅ 7 / 🟡 62 / ❌ 15 / ⏸ 2 / ❓ 14
+Updated: 2026-10-04 08:07Z · Scoreboard: ✅ 7 / 🟡 62 / ❌ 15 / ⏸ 2 / ❓ 14
 Live SHA: 2982c647daf · origin/production: 2982c647daf · Main SHA: 2982c647daf
 **Ownership:** overnight done-board owner `bc-9c0ba4c9` (~10h, Oran offline). Sole STATUS writer on `status/done-board`. No Oran ping.
 Top 3 blockers right now
 1. Parked — **#45 fee-line** ❌ (seller-pays $101.50 LIVE charge / D15 still unproven). Soft Gel Preview PAID + LIVE Guardar smoke PASS do **not** clear #45.
 2. Parked — Free **`QA_FREE_PASSWORD`** (Oran-only) blocks Free-persona drains that need that secret. Do not invent ✅.
-3. Overnight **closed** — Handover **READY** · Soft Gel LIVE Guardar smoke **PASS** · Agenda LIVE PASS · captcha OFF+ON LIVE PASS · tip LIVE `2982c647`/`dpl_9JkaxLvk…` · **#94 ✅**. Tips **steady**. [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge.
+3. Active **non-board** (no ✅): demo host `{slug}-demo.tulala.digital` [`bc-345dbdcf`](bc-345dbdcf-d9e7-54a9-a775-663eee7f08c9) · Builder Lab↔demos mapping [`bc-abdc6901`](bc-abdc6901-14d0-5ac6-93f8-4bfdf552e652). Overnight **closed** · tip LIVE `2982c647`/`dpl_9JkaxLvk…` · **#94 ✅**. [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with Live proof (see below).
 
@@ -136,10 +136,10 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | 65 | Edit against the mockup and release (Theme Studio) | 🟡 | Lab edit and release exist. **Factory author BLOCKED** — admin password missing (`docs/theme-release-and-fresh-signup.md`). Consumer ThemeUpdateNotice path used already-open release. | **Do not ✅** — author → Publicar → Open to talents not walked. | S11 step 2 | — | 2026-10-04 |
 | 66 | “Update available” and a one-click upgrade | 🟡 | **Theme consumer tip-prove PASS** LIVE `07200ab`: TAL-93900 Maison v2 **21→23** — notice → preview → apply (`media/theme-release-signup/02-presence-notice.png`…`05-after-apply.png`; `docs/theme-release-and-fresh-signup.md`). | Tip-prove PASS; Factory author still BLOCKED — not full S11 ✅. Stay 🟡. | S11 step 3 | — | 2026-10-04 |
 | 67 | Upgrade keeps content, previews, and undoes | 🟡 | **Tip-prove PASS** LIVE `07200ab`: preview kept Jorg content; apply kept hero/services (`04b-draft-preview-content.png`, `05-after-apply.png`). Undo not separately walked. | Content/preview PASS; undo not proven. Stay 🟡. | S11 step 3 | — | 2026-10-04 |
-| 68 | Demos pick up the new template version | 🟡 | **Tip-prove PASS** LIVE `07200ab`: Alba + TAL-93020/02/03 pinned maison-v2 **v23** (`06d-demo-alba-host.png`, `06e-demo-profile.png`). | Tip-prove PASS on sample demos; not full rebuild walk. Stay 🟡. | S11 step 4 | — | 2026-10-04 |
+| 68 | Demos pick up the new template version | 🟡 | **Tip-prove PASS** LIVE `07200ab`: Alba + TAL-93020/02/03 pinned maison-v2 **v23** (`06d-demo-alba-host.png`, `06e-demo-profile.png`). **Active non-board:** Builder Lab↔demos mapping [`bc-abdc6901`](bc-abdc6901-14d0-5ac6-93f8-4bfdf552e652) (apply/rebuild click-path) — **do not invent ✅**. | Tip-prove PASS on sample demos; mapping/rebuild walk still open. Stay 🟡. | S11 step 4 | — | 2026-10-04 |
 | 69 | About 32 themes, distinct and mobile-clean | ❌ | Finished gallery slugs are 4: maison, maison-v2, folio, gridline (`FINISHED_GALLERY_SLUGS`). | Far short of ~32. Fixture and mobile issues are still in the gallery audit. | S11 step 5 | — | 2026-10-03 |
 | 72 | Free and generated images are platform stock | 🟡 | Platform stock library and HQ stock admin exist. AI files land in Lifestyle. | Talent picker is talent-scoped media, not stock-first. | S11 step 5 | — | 2026-10-03 |
-| 78 | 224 demos, each with a unique theme | ❌ | Workbook foundation targets 224. Curated live demos are about 11. Finished designs are 4, shared across demos. Sample `/t/TAL-91001` and `/t/lucia-navarro` were HTTP 200 on 2026-10-02. | They are not 224 unique live themes. | S11 step 5 | — | 2026-10-03 |
+| 78 | 224 demos, each with a unique theme | ❌ | Workbook foundation targets 224. Curated live demos are about 11. Finished designs are 4, shared across demos. Sample `/t/TAL-91001` and `/t/lucia-navarro` were HTTP 200 on 2026-10-02. **Active non-board:** `{slug}-demo.tulala.digital` host suffix [`bc-345dbdcf`](bc-345dbdcf-d9e7-54a9-a775-663eee7f08c9) (bare slugs live; `-demo` never seeded) — **do not invent ✅**. | They are not 224 unique live themes; `-demo` hosts not LIVE. | S11 step 5 | — | 2026-10-04 |
 | 79 | One command rebuilds demos only | 🟡 | `npm run demos:rebuild` refuses non-demo identities. | Not re-run this pass. | S11 step 4 | — | 2026-10-03 |
 | 80 | Demo pages show name, city, languages, mode, apps | 🟡 | Live profile fields feed the public page. Gallery cards still omit city, languages, booking mode, and apps. | Five random demos were not opened for that set. | S11 step 5 | — | 2026-10-03 |
 
@@ -171,13 +171,13 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | ✅ | Rechecked 2026-10-04 08:00Z: **Live HTML** sentry-release **`2982c647daf`** = **`origin/production`** = **`origin/main`** (#2525) READY **`dpl_9JkaxLvk…`**. Tips **steady**. Overnight closed. **Live proof N/A (ops)**. | None for tip equality. Parked: #45 fee-line · QA_FREE_PASSWORD. | S14 step 1 | — | 2026-10-04 |
+| 94 | Main green, and production equals that green main | ✅ | Rechecked 2026-10-04 08:07Z: **Live HTML** sentry-release **`2982c647daf`** = **`origin/production`** = **`origin/main`** (#2525) READY **`dpl_9JkaxLvk…`**. Tips **steady**. Overnight closed. **Live proof N/A (ops)**. | None for tip equality. Parked: #45 fee-line · QA_FREE_PASSWORD. | S14 step 1 | — | 2026-10-04 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Cloud VM 2026-10-03 20:12Z on tip `7d30bb9d1` (`internal/deploy-smoke-2004.log`): HTTP/CSP/optimizer/Places/alias/auth-matrix/notification routes all ✓; **exit 1** — migration drift + taxonomy fail (no usable decrypted `SUPABASE_SERVICE_ROLE_KEY` / `.env.local` here); Resend domain ⚠ skipped (no `RESEND_API_KEY`). | Full exit 0 needs Mac/env with service role. HTTP production signals green — not ✅ until exit 0. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `e6e00420b` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 08:00Z: [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. [#2525](https://github.com/orantene/impronta-app/pull/2525) **LIVE** + Guardar smoke **PASS**. Overnight closed. **Live proof N/A (ops)**. | None older than 2 days without owner. | S14 step 5 | — | 2026-10-04 |
+| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 08:07Z: [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. [#2525](https://github.com/orantene/impronta-app/pull/2525) **LIVE** + Guardar smoke **PASS**. Overnight closed. **Live proof N/A (ops)**. | None older than 2 days without owner. | S14 step 5 | — | 2026-10-04 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 08:00Z standing timer wake. Tips steady Live=prod=main `2982c647`/`dpl_9JkaxLvk`. Overnight **closed**. **Parked only:** Free `QA_FREE_PASSWORD` · #45 fee-line. REPLIES stub. ✅7. No fake ✅. No Oran ping. | Board working note. | S14 step 5 | — | 2026-10-04 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 08:07Z standing timer wake. Tips steady Live=prod=main `2982c647`/`dpl_9JkaxLvk`. Overnight **closed**. **Parked:** Free `QA_FREE_PASSWORD` · #45 fee-line. **Active non-board (no ✅):** `-demo` host suffix · Builder Lab↔demos. REPLIES stub. ✅7. No fake ✅. No Oran ping. | Board working note. | S14 step 5 | — | 2026-10-04 |
 
 ## No story yet
 
@@ -237,7 +237,8 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-STATUS 2026-10-04 08:00Z on `status/done-board` (standing 15m timer wake). REPLIES.md stub (no new Claude replies). **Never ✅ without Live proof.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping. Standing-orders tip `7d30bb9d1`/`✅12` **stale**.
+STATUS 2026-10-04 08:07Z on `status/done-board` (standing 15m timer wake). REPLIES.md stub (no new Claude replies). **Never ✅ without Live proof.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping. Standing-orders tip `7d30bb9d1`/`✅12` **stale**.
 **Tip SHAs:** Live=prod=main **`2982c647daf`** READY **`dpl_9JkaxLvk…`** — tips **steady** (HTML re-verified). **#94 ✅**. Scoreboard ✅ 7 / 🟡 62.
-- Overnight **closed** retained. **Parked only:** Free `QA_FREE_PASSWORD` · #45 fee-line ❌. No fake ✅. Full board kept (no stub).
-- Open PR: [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. No Oran ping.
+- Overnight **closed**. **Parked:** Free `QA_FREE_PASSWORD` · #45 fee-line ❌.
+- **Active non-board (no ✅):** demo host `{slug}-demo.tulala.digital` [`bc-345dbdcf`](bc-345dbdcf-d9e7-54a9-a775-663eee7f08c9) · Builder Lab↔demos mapping [`bc-abdc6901`](bc-abdc6901-14d0-5ac6-93f8-4bfdf552e652). Do not invent ✅ for those.
+- Open PR: [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Full board kept (no stub). No Oran ping.
