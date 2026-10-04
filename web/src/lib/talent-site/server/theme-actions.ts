@@ -109,7 +109,7 @@ export async function applySiteLookAction(input: {
 
 /**
  * Pull current profile photos into the EXISTING draft trees (hero / inset /
- * about). Never rebuilds from the catalog — section order, shell, copy, and
+ * about). Never rebuilds from the catalog: section order, shell, copy, and
  * authored image overrides stay. Render-time live binds heal the public site
  * without this; the action updates the draft canvas the talent is editing.
  */

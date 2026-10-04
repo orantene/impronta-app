@@ -22,7 +22,7 @@ import { loadTalentTypeLabels } from "./load-talent-trades.server";
  *  - live media (hero photo, inset, about portrait) from current public media
  *    so a wrong apply-time headshot pick heals for every talent;
  *  - Maison v2 trade apps (Nail Designer) after Menu when the talent's types
- *    match — demos already place these; real talents get the same band;
+ *    match (demos already place these; real talents get the same band);
  *  - the site logo in a `site_header` that has none (it was dropped by apply).
  */
 export async function prepareTalentSiteTrees(input: {

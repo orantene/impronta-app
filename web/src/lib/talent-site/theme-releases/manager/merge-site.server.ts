@@ -97,7 +97,7 @@ export async function mergeSite(
   if (!hydration) {
     return {
       ok: false,
-      error: `Hydration tokens unavailable for ${site.displayName || site.talentProfileId} — refusing empty apply.`,
+      error: `Hydration tokens unavailable for ${site.displayName || site.talentProfileId}; refusing empty apply.`,
     };
   }
   const tokens = hydration;

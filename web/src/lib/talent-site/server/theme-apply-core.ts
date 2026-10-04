@@ -44,7 +44,7 @@ import { ensureSiteThemeUpdates } from "../theme-releases/lazy-fan-out.server";
  * Hydration reuses `apply-template-core.ts` (`loadTemplateHydrationTokens`:
  * `loadDefaultTalentFreeformContext` + `talentProfileTokens`, the Max badge
  * pruned) so a Design fills with exactly the data a starter template does.
- * When tokens cannot load, `applyDesign` HARD-ERRORS — it never falls back to
+ * When tokens cannot load, `applyDesign` HARD-ERRORS: it never falls back to
  * `fallbackHydrationTokens` (that empty bake left stock/blank heroes on LIVE).
  * Callers own auth: every writer trusts `siteId` / `talentProfileId`, which the
  * action layer resolves from the signed-in owner (site-action-gate).
@@ -260,7 +260,7 @@ export async function applyDesign(
     return { ok: false, code: "server_error", error: "Could not build that design." };
   }
 
-  // Trade apps (e.g. Nail Designer) belong after Menu for Maison v2 — same as demos.
+  // Trade apps (e.g. Nail Designer) belong after Menu for Maison v2 (same as demos).
   const trades = tradesFromTypeLabels([
     tokens.primaryTypeLabel,
     tokens.secondaryType1,
