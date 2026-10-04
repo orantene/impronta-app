@@ -36,6 +36,11 @@ export type MiniChatComposerProps = {
   surfaceMode?: SurfaceMode;
   /** Focus target owned by the panel (focused when the panel opens). */
   textareaRef: RefObject<HTMLTextAreaElement | null>;
+  /** Nail Studio / Save look preview stashed for upload on send. */
+  lookPreviewUrl?: string | null;
+  onClearLookPreview?: () => void;
+  lookPreviewLabel?: string;
+  lookPreviewRemoveLabel?: string;
 };
 
 export function MiniChatComposer({
@@ -52,19 +57,60 @@ export function MiniChatComposer({
   accentInk,
   surfaceMode = "light",
   textareaRef,
+  lookPreviewUrl = null,
+  onClearLookPreview,
+  lookPreviewLabel = "Your look",
+  lookPreviewRemoveLabel = "Remove look",
 }: MiniChatComposerProps) {
   const C = paletteFor(surfaceMode);
   return (
     <div
       style={{
         display: "flex",
-        alignItems: "flex-end",
+        flexDirection: "column",
         gap: 8,
         padding: "10px 12px 12px",
         borderTop: `1px solid ${C.borderSoft}`,
         background: C.surface,
       }}
     >
+      {lookPreviewUrl ? (
+        <div
+          data-guest-look-preview=""
+          style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: FONT }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- data-URL preview, not a remote asset */}
+          <img
+            src={lookPreviewUrl}
+            alt={lookPreviewLabel}
+            width={48}
+            height={48}
+            style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover", flex: "0 0 auto" }}
+          />
+          <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600, color: C.ink }}>{lookPreviewLabel}</span>
+          {onClearLookPreview ? (
+            <button
+              type="button"
+              onClick={onClearLookPreview}
+              aria-label={lookPreviewRemoveLabel}
+              style={{
+                border: `1px solid ${C.borderSoft}`,
+                background: C.surfaceFaint,
+                color: C.inkDim,
+                borderRadius: 999,
+                padding: "4px 10px",
+                fontSize: 12,
+                fontWeight: 600,
+                fontFamily: FONT,
+                cursor: "pointer",
+              }}
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
       {/* Honeypot — hidden, off-screen, aria-hidden. Bots fill it; we reject. */}
       <input
         type="text"
@@ -147,6 +193,7 @@ export function MiniChatComposer({
       >
         {sending ? "…" : <SendIcon color={sendDisabled ? C.inkDim : accentInk} />}
       </button>
+    </div>
     </div>
   );
 }
