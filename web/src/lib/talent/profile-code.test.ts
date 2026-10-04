@@ -41,7 +41,7 @@ test("migration adds alias table, numeric check, and resolve RPC", () => {
 
 test("normalizeTalentProfileCodeInput trims and decodes", () => {
   assert.equal(normalizeTalentProfileCodeInput("  TAL-00001  "), "TAL-00001");
-  assert.equal(normalizeTalentProfileCodeInput("TAL-%39%3938"), "TAL-93938");
+  assert.equal(normalizeTalentProfileCodeInput("TAL-93938%20"), "TAL-93938");
 });
 
 test("talentProfileAliasRedirectPath rewrites /t/<old> to /t/<new>", () => {
