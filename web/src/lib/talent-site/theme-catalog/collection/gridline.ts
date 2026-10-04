@@ -70,6 +70,11 @@ export function buildGridlinePayload(): DesignPayload {
     showDescription: false,
     showDelivery: false,
     showCategory: false,
+    // Matrix needs the full desktop band: a 960 "wide" parent + AUD-042's 1120
+    // child cap leaves empty right space and keeps the @container under 720px
+    // (phone cards) on some desktop frames.
+    maxWidth: "full",
+    contentWidth: "full",
   });
 
   return {

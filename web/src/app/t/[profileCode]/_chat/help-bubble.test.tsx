@@ -24,6 +24,7 @@ import {
   HELP_BUBBLE_SCROLL_PX,
   HELP_BUBBLE_VISIBLE_MS,
   findHelpBubbleAnchor,
+  findHelpBubbleBarTops,
   helpBubbleBlocked,
   helpBubbleInitials,
   helpBubbleSessionKey,
@@ -291,6 +292,27 @@ test("anchor order: dock icon, then idle bar, then the floating button", () => {
   assert.ok(findHelpBubbleAnchor(doc)!.el.classList.contains("cb-bar-chat"));
   addChatButton("dock");
   assert.ok(findHelpBubbleAnchor(doc)!.el.classList.contains("cb-dock-ask"));
+  clearPage();
+});
+
+test("bar tops include the language suggestion strip and legacy Maison bar", () => {
+  clearPage();
+  const locale = doc.createElement("div");
+  locale.setAttribute("data-locale-suggestion", "en");
+  Object.defineProperty(locale, "getBoundingClientRect", {
+    value: () => ({ top: 640, bottom: 700, left: 0, right: 100, width: 100, height: 60, x: 0, y: 640, toJSON() {} }),
+  });
+  doc.body.append(locale);
+  const mn = doc.createElement("div");
+  mn.className = "mn-bar";
+  mn.setAttribute("data-show", "true");
+  Object.defineProperty(mn, "getBoundingClientRect", {
+    value: () => ({ top: 620, bottom: 700, left: 0, right: 100, width: 100, height: 80, x: 0, y: 620, toJSON() {} }),
+  });
+  doc.body.append(mn);
+  const tops = findHelpBubbleBarTops(doc);
+  assert.ok(tops.includes(640), "locale strip top");
+  assert.ok(tops.includes(620), "legacy Maison bar top");
   clearPage();
 });
 

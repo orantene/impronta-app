@@ -67,6 +67,10 @@ export type CatalogOpts = {
   columns?: 1 | 2 | 3;
   search?: boolean;
   band?: boolean;
+  /** Section band width token (`wide` = 960 default). Prefer `full` for matrix / wide menus. */
+  maxWidth?: "narrow" | "reading" | "wide" | "full";
+  /** Clears the renderer’s 1120px catalog child cap when `"full"` (AUD-042 escape hatch). */
+  contentWidth?: "contained" | "full";
 };
 
 export function servicesSection(makeId: KitIdFactory, o: CatalogOpts): BuilderNode {
@@ -79,7 +83,7 @@ export function servicesSection(makeId: KitIdFactory, o: CatalogOpts): BuilderNo
       align: "start",
       layerLabel: o.label,
       style: {
-        maxWidth: "wide",
+        maxWidth: o.maxWidth ?? "wide",
         paddingY: "l",
         paddingX: "m",
         ...(o.band ? { backgroundColor: styleTokenRef("color.surface-raised") } : {}),
@@ -110,6 +114,7 @@ export function servicesSection(makeId: KitIdFactory, o: CatalogOpts): BuilderNo
           ...(o.showCategory !== undefined ? { showCategory: o.showCategory } : {}),
           ...(o.columns ? { columns: o.columns } : {}),
           ...(o.search ? { enableCatalogSearch: true } : {}),
+          ...(o.contentWidth ? { contentWidth: o.contentWidth } : {}),
           mobileBar: "float",
           useWebsiteTheme: true,
           showAskLink: true,

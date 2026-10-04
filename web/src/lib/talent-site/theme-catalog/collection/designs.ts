@@ -331,6 +331,9 @@ export function buildFolioPayload(): DesignPayload {
             showDescription: false,
             showDelivery: false,
             showCategory: true,
+            // Magazine shell is already full-bleed; clear AUD-042's 1120 child cap
+            // so the Rates column can use the desktop band.
+            contentWidth: "full",
           }),
         ),
       ),

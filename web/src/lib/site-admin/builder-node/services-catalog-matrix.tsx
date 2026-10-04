@@ -89,6 +89,12 @@ export const SERVICES_MATRIX_CSS = `
   .sb-mx-scroll{display:block}
   .sb-mx-cards{display:none}
 }
+/* Viewport fallback: nested previews / padded bands can keep the container
+   under 720px on a desktop host — still show the comparison table. */
+@media (min-width:900px){
+  .sb-mx-scroll{display:block}
+  .sb-mx-cards{display:none}
+}
 `;
 
 type Props = {

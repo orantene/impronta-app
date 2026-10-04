@@ -198,17 +198,24 @@ test("MN-1..MN-4 payload: rows as cards in two columns under their own key, soft
 });
 
 test("MN-6 MN-7 MN-8: sticky phone chips under the header, desktop rail below it with an accent active chip, heading rule", () => {
-  assert.match(soft, /@media \(max-width:767px\)\{[^@]*nav\{position:sticky;top:calc\(var\(--site-header-h,0px\) - 1px\)/);
+  assert.match(soft, /@media \(max-width:767px\)\{[^@]*nav\{position:sticky;top:calc\(var\(--site-header-h,72px\) - 1px\)/);
   assert.match(soft, /backdrop-filter:blur\(10px\)/);
   assert.match(soft, /@media \(min-width:900px\)\{[^@]*nav\{top:calc\(var\(--site-header-h,72px\) \+ 24px\)\}/);
   assert.match(soft, /pill\[data-active="true"\]\{background:var\(--token-color-accent/);
   assert.match(soft, /group-title\{margin:26px 0 14px;padding-bottom:10px;border-bottom:var\(--token-shape-rule-width,1px\) solid var\(--token-color-line\)\}/);
+  assert.match(
+    soft,
+    /html:has\(\[data-theme-canvas-root\]\[data-token-shape-chrome="soft"\]\):has\(\.cb-dock\[data-show="true"\],\.cb-bar\[data-show="true"\]\)\{scroll-padding-bottom:calc\(92px/,
+  );
 });
 
 // ── FAQ (FQ-1) ───────────────────────────────────────────────────────────────
 
 test("FQ-1: each question is a raised card, '+' in a 32px tint circle that turns 45 degrees, two columns on desktop", () => {
-  assert.match(soft, /accordion-item\{background:var\(--token-color-surface-raised[^}]*border-radius:18px!important;padding:0 20px!important/);
+  assert.match(
+    soft,
+    /accordion-item\{background:color-mix\(in srgb,var\(--token-color-surface-raised,var\(--token-color-background\)\) 70%,var\(--token-color-blush,var\(--token-color-surface-raised\)\)\);border:0!important;border-radius:18px!important;padding:0 20px!important/,
+  );
   assert.match(soft, /summary\{align-items:center;min-height:64px;font-size:16px;color:var\(--token-color-ink\)\}/);
   assert.match(soft, /summary::after\{[^}]*width:32px;height:32px;border-radius:50%;background:var\(--token-color-blush/);
   assert.match(soft, /\[open\] > summary::after\{content:"\+";transform:rotate\(45deg\)\}/);
@@ -224,7 +231,7 @@ test("FQ-1: each question is a raised card, '+' in a 32px tint circle that turns
 // ── reviews (RV-2, RV-3) ─────────────────────────────────────────────────────
 
 test("RV-2 RV-3: no hairline on the card, 84% slides with an edge fade on phones, three cards and no arrows on desktop", () => {
-  assert.match(soft, /sb-reviews-card\[data-accent\]\{border-color:transparent/);
+  assert.match(soft, /sb-reviews-card\[data-accent\]\{border-color:transparent;background:color-mix\(in srgb,var\(--token-color-surface-raised/);
   assert.match(soft, /carousel-slide\{flex-basis:84%\}/);
   assert.match(soft, /mask-image:linear-gradient\(90deg,black 88%,transparent\)/);
   assert.match(soft, /carousel-controls\{display:none\}/);
