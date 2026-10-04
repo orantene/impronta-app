@@ -127,6 +127,11 @@ export const KNOWN_PLACEHOLDERS: ReadonlySet<string> = new Set([
   "gallery4",
   "gallery5",
   "maxSiteUrl",
+  // Maison v2 rich footer LIVE lines (also carry liveText; tokens keep canvas hydrate + publish preflight aligned).
+  "footerIntro",
+  "footerWhere",
+  "footerHours",
+  "footerContact",
 ]);
 
 const PLACEHOLDER_RE = /\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g;
