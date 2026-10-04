@@ -54,14 +54,17 @@ export function NailStudioFrame({
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (!isNailStudioMessage(e, ref.current?.contentWindow, window.location.origin)) return;
-      const data = e.data as { type?: string; design?: unknown };
+      const data = e.data as { type?: string; design?: unknown; imageDataUrl?: unknown };
       const design = data.design as Parameters<typeof nailStudioSummary>[0];
-      const handoff = data.type === "quote" ? "quote" : "chat";
-      window.dispatchEvent(
-        new CustomEvent("tulala:ask-question", {
-          detail: { message: nailStudioSummary(design, locale, handoff) },
-        }),
-      );
+      const handoff = data.type === "quote" ? ("quote" as const) : ("chat" as const);
+      const detail: { message: string; imageDataUrl?: string } = {
+        message: nailStudioSummary(design, locale, handoff),
+      };
+      // Save look PNG from the iframe (when the app emits it). Text-only otherwise.
+      if (typeof data.imageDataUrl === "string" && data.imageDataUrl.startsWith("data:image/")) {
+        detail.imageDataUrl = data.imageDataUrl;
+      }
+      window.dispatchEvent(new CustomEvent("tulala:ask-question", { detail }));
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
