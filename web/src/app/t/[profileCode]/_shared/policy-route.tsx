@@ -23,14 +23,23 @@ import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { choosePolicyLocale, POLICY_SLUG, type PolicyDoc } from "@/lib/talent-policies/public";
 import { resolveOrRedirectTalentProfileCode } from "@/lib/talent/profile-code-redirect.server";
+import { resolveTalentProfileCodeQuiet } from "@/lib/talent/profile-code-resolve.server";
 import { loadTalentPolicyModel, policyMainNode } from "@/lib/talent-site/server/policy-main";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
 import { maxSiteSeoToMetadata } from "@/lib/talent-site/server/site-metadata";
 
-async function talentIdForCode(profileCode: string, doc: PolicyDoc): Promise<string | null> {
-  const resolved = await resolveOrRedirectTalentProfileCode(profileCode, {
-    pathname: `/t/${profileCode}/${POLICY_SLUG[doc]}`,
-  });
+async function talentIdForCode(
+  profileCode: string,
+  doc: PolicyDoc,
+  opts?: { redirect?: boolean },
+): Promise<string | null> {
+  if (opts?.redirect) {
+    const resolved = await resolveOrRedirectTalentProfileCode(profileCode, {
+      pathname: `/t/${profileCode}/${POLICY_SLUG[doc]}`,
+    });
+    return resolved?.profileId ?? null;
+  }
+  const resolved = await resolveTalentProfileCodeQuiet(profileCode);
   return resolved?.profileId ?? null;
 }
 
@@ -60,7 +69,7 @@ function policyPath(profileCode: string, doc: PolicyDoc): string {
 
 export async function talentProfilePolicyMetadata(profileCode: string, doc: PolicyDoc, searchParams?: PolicySearchParams): Promise<Metadata> {
   if (!isSupabaseConfigured()) return {};
-  const talentProfileId = await talentIdForCode(profileCode, doc);
+  const talentProfileId = await talentIdForCode(profileCode, doc, { redirect: false });
   if (!talentProfileId) return { title: "Not found" };
   const locale = await resolvePolicyLocale(talentProfileId, searchParams);
   const model = await loadTalentPolicyModel(talentProfileId, doc, locale);
@@ -70,7 +79,7 @@ export async function talentProfilePolicyMetadata(profileCode: string, doc: Poli
 
 export async function TalentProfilePolicyPage({ profileCode, doc, searchParams }: { profileCode: string; doc: PolicyDoc; searchParams?: PolicySearchParams }) {
   if (!isSupabaseConfigured()) notFound();
-  const talentProfileId = await talentIdForCode(profileCode, doc);
+  const talentProfileId = await talentIdForCode(profileCode, doc, { redirect: true });
   if (!talentProfileId) notFound();
   const [locale, publicPathPrefix] = await Promise.all([resolvePolicyLocale(talentProfileId, searchParams), getPublicPathPrefix()]);
 

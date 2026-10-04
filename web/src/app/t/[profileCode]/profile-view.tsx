@@ -143,6 +143,7 @@ import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTale
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { resolvePlatformTalentSiteForProfile } from "@/lib/talent-site/resolve-platform-talent-site";
 import { resolveOrRedirectTalentProfileCode } from "@/lib/talent/profile-code-redirect.server";
+import { resolveTalentProfileCodeQuiet } from "@/lib/talent/profile-code-resolve.server";
 import { loadTalentMaxSiteLink } from "@/lib/talent-site/server/load-max-site-link";
 import { TALENT_SITE_TEMPLATES } from "@/lib/talent-site/templates/registry";
 import type { TalentSiteTemplateKey } from "@/lib/talent-site/templates/types";
@@ -1371,9 +1372,9 @@ export async function buildTalentProfileMetadata({
 
   const { profileCode: rawProfileCode } = await params;
   const { preview } = await searchParams;
-  const aliasResolved = await resolveOrRedirectTalentProfileCode(rawProfileCode, {
-    pathname: `/t/${rawProfileCode}`,
-  });
+  // Metadata must not permanentRedirect — that turns document navigations into
+  // soft RSC NEXT_REDIRECT payloads (HTTP 200). The page view redirects.
+  const aliasResolved = await resolveTalentProfileCodeQuiet(rawProfileCode);
   const profileCode = aliasResolved?.profileCode ?? rawProfileCode;
   const site =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "http://localhost:3000";
