@@ -1,8 +1,8 @@
-Updated: 2026-10-04 03:04Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
-Live SHA: 1e533011f · origin/production: 1e533011f · Main SHA: eb633d254
+Updated: 2026-10-04 03:05Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
+Live SHA: 1e533011f · origin/production: 1e533011f · Main SHA: 99f6f19d2
 Top 3 blockers right now
-1. TOP — **15min wake.** Live/prod/HTML `1e533011f`. Main tip `eb633d254` ([#2516](https://github.com/orantene/impronta-app/pull/2516)/[#2515](https://github.com/orantene/impronta-app/pull/2515)). Tip Structural: `37171149806` (`3a74`) **IN_PROGRESS** (~71/75 steps); `37172144940` (`eb633d`) **PENDING**. Not tip-green. Theme signup tip-prove pending tip advance. **#94 🟡**. Never ✅ without evidence.
-2. **Merge soon:** Edit [#2510](https://github.com/orantene/impronta-app/pull/2510) Structural **GREEN** + migration **GREEN** (mergeable clean). **Still open:** Captcha [#2520](https://github.com/orantene/impronta-app/pull/2520) · Part A [#2517](https://github.com/orantene/impronta-app/pull/2517) · [#2519](https://github.com/orantene/impronta-app/pull/2519) draft. Money blocked on #2520; captcha OFF until money PASS. Do not merge #2477; do not steal Desk.
+1. TOP — [#2510](https://github.com/orantene/impronta-app/pull/2510) **MERGED**. Live/prod/HTML still `1e533011f`. Main tip `99f6f19d2`. Structural: `37171149806` (`3a74`) **IN_PROGRESS**; tip Structural `37172975352` (`99f6`) **PENDING** (`eb633d` run cancelled). Not tip-green. Theme/Edit tip-prove pending tip advance. **#94 🟡**. Never ✅ without evidence.
+2. **Open gates:** Captcha [#2520](https://github.com/orantene/impronta-app/pull/2520) · Part A [#2517](https://github.com/orantene/impronta-app/pull/2517) · [#2519](https://github.com/orantene/impronta-app/pull/2519) draft. Money blocked on #2520; captcha OFF until money PASS. Do not merge #2477; do not steal Desk.
 3. Money S4–S7 — **KYC LIVE on TAL-93900**. **`guest_captcha_enforced` OFF** since **2026-10-04 00:19:41Z**. **No paid ✅** without Continuar al pago prod screenshot after #2520 tips.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with Live proof (see below).
@@ -170,13 +170,13 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | 🟡 | Rechecked 2026-10-04 03:04Z: **Live HTML** = `origin/production` = `1e533011f`. **`origin/main` = `eb633d254`**. Structural `37171149806` (`3a74`) IN_PROGRESS ~71/75; `37172144940` (`eb633d`) PENDING. Not tip-green. **Live proof N/A (ops)**. | Wait Structural drain → promote → HTML = `eb633d254`. | S14 step 1 | — | 2026-10-04 |
+| 94 | Main green, and production equals that green main | 🟡 | Rechecked 2026-10-04 03:05Z: **Live HTML** = `origin/production` = `1e533011f`. **`origin/main` = `99f6f19d2`** (#2510). Structural `37171149806` (`3a74`) IN_PROGRESS; tip Structural `37172975352` (`99f6`) PENDING. Not tip-green. **Live proof N/A (ops)**. | Wait Structural drain → promote → HTML = `99f6f19d2`. | S14 step 1 | — | 2026-10-04 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Cloud VM 2026-10-03 20:12Z on tip `7d30bb9d1` (`internal/deploy-smoke-2004.log`): HTTP/CSP/optimizer/Places/alias/auth-matrix/notification routes all ✓; **exit 1** — migration drift + taxonomy fail (no usable decrypted `SUPABASE_SERVICE_ROLE_KEY` / `.env.local` here); Resend domain ⚠ skipped (no `RESEND_API_KEY`). | Full exit 0 needs Mac/env with service role. HTTP production signals green — not ✅ until exit 0. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `e6e00420b` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 03:04Z: [#2510](https://github.com/orantene/impronta-app/pull/2510) CI green → merge soon · [#2520](https://github.com/orantene/impronta-app/pull/2520) · [#2517](https://github.com/orantene/impronta-app/pull/2517) · [#2519](https://github.com/orantene/impronta-app/pull/2519) draft · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. [#2515](https://github.com/orantene/impronta-app/pull/2515)/[#2516](https://github.com/orantene/impronta-app/pull/2516) merged (Main, not Live). **Live proof N/A (ops)**. | None older than 2 days without owner. | S14 step 5 | — | 2026-10-04 |
+| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 03:05Z: [#2520](https://github.com/orantene/impronta-app/pull/2520) · [#2517](https://github.com/orantene/impronta-app/pull/2517) · [#2519](https://github.com/orantene/impronta-app/pull/2519) draft · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. [#2510](https://github.com/orantene/impronta-app/pull/2510)/[#2515](https://github.com/orantene/impronta-app/pull/2515)/[#2516](https://github.com/orantene/impronta-app/pull/2516) merged (Main `99f6f19d2`, not Live). **Live proof N/A (ops)**. | None older than 2 days without owner. | S14 step 5 | — | 2026-10-04 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 03:04Z. Live `1e533` / Main `eb633d`. #94 🟡. #2510 CI green → merge soon. Open #2520/#2517/#2519. Captcha OFF until money PASS. Scoreboard ✅6; never ✅ without evidence. REPLIES stub. Sole STATUS writer. | Board working note. | S14 step 5 | — | 2026-10-04 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 03:05Z. Live `1e533` / Main `99f6f19d2`. #2510 MERGED. #94 🟡. Open #2520/#2517/#2519. Captcha OFF until money PASS. Scoreboard ✅6; never ✅ without evidence. REPLIES stub. Sole STATUS writer. | Board working note. | S14 step 5 | — | 2026-10-04 |
 
 ## No story yet
 
@@ -222,9 +222,8 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-15min wake 2026-10-04 03:04Z on `status/done-board` (plain push). REPLIES.md stub. **Never ✅ without evidence.** Sole STATUS writer.
-**Tip SHAs (honest):** Live = `origin/production` = HTML = `1e533011f`. Main tip = `eb633d254`. Tip Structural `37171149806` (`3a74`) IN_PROGRESS ~71/75; `37172144940` (`eb633d`) PENDING. Not tip-green. **#94 🟡**.
-- **[#2510](https://github.com/orantene/impronta-app/pull/2510)** Structural GREEN + migration GREEN (mergeable clean) → **merge soon**.
-- **Still open:** [#2520](https://github.com/orantene/impronta-app/pull/2520) · [#2517](https://github.com/orantene/impronta-app/pull/2517) · [#2519](https://github.com/orantene/impronta-app/pull/2519) draft. Theme signup tip-prove pending tip advance. Captcha OFF until money PASS.
+STATUS 2026-10-04 03:05Z on `status/done-board` (plain push). REPLIES.md stub. **Never ✅ without evidence.** Sole STATUS writer.
+**Tip SHAs (honest):** Live = `origin/production` = HTML = `1e533011f`. Main tip = `99f6f19d2` ([#2510](https://github.com/orantene/impronta-app/pull/2510) **MERGED**). Structural `37171149806` (`3a74`) IN_PROGRESS; tip Structural `37172975352` (`99f6`) PENDING. Not tip-green. **#94 🟡**.
+- **Open gates:** [#2520](https://github.com/orantene/impronta-app/pull/2520) · [#2517](https://github.com/orantene/impronta-app/pull/2517) · [#2519](https://github.com/orantene/impronta-app/pull/2519) draft. Tip-prove Edit/theme pending tip advance. Captcha OFF until money PASS.
 - Built-vs-Live DONE; `CRON_SECRET` still missing for flags smoke. Do not merge #2477. No notes.md rewrite.
-- Scoreboard ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14. Merges this wake: **none**.
+- Scoreboard ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14. Merges this wake: **#2510**.
