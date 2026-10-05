@@ -71,12 +71,16 @@ export default async function BookPage() {
     }
   }
 
-  const offerings = await loadPublicBookableOfferings({
+  const offeringsResult = await loadPublicBookableOfferings({
     tenantId: tenantId || null,
     talentProfileId: talentId,
     locale,
     host: { kind: host.kind, tenantId: host.kind === "agency" ? host.tenantId : tenantId || null },
   });
+  // An unanswerable read and an empty answer are different sentences, so they
+  // travel as different values rather than both arriving as an empty array.
+  const offerings = offeringsResult.ok ? offeringsResult.offerings : [];
+  const offeringsUnavailable = !offeringsResult.ok;
 
   let agencyName = t("public.bookPage.studioFallback");
   if (tenantId) {
@@ -98,6 +102,7 @@ export default async function BookPage() {
           tenantId={tenantId}
           agencyName={agencyName}
           offerings={offerings}
+          offeringsUnavailable={offeringsUnavailable}
           signedIn={guestChrome.signedIn}
           captcha={guestChrome.captcha}
         />

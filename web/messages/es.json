@@ -1408,7 +1408,8 @@
       "title": "Reserva un horario",
       "lead": "Elige un servicio y un horario. Confirmamos enseguida.",
       "chooseService": "Servicio",
-      "studioFallback": "el estudio"
+      "studioFallback": "el estudio",
+      "unavailable": "No pudimos cargar los horarios en este momento. No se reservo nada. Intenta de nuevo en un momento."
     },
     "siteShellSurface": {
       "title": "Encabezado y pie de página del sitio",

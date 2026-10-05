@@ -12,6 +12,7 @@ export function BookPageClient({
   tenantId,
   agencyName,
   offerings,
+  offeringsUnavailable = false,
   signedIn = false,
   captcha = null,
 }: {
@@ -19,6 +20,8 @@ export function BookPageClient({
   tenantId?: string | null;
   agencyName: string;
   offerings: Array<TalentOffering & { bookingMode?: "inquire" | "request" | "instant" }>;
+  /** The read failed. NOT the same as "nothing is bookable" and must not say so. */
+  offeringsUnavailable?: boolean;
   signedIn?: boolean;
   captcha?: GuestCaptchaConfig | null;
 }) {
@@ -35,7 +38,13 @@ export function BookPageClient({
   if (offerings.length === 0 || !bookable) {
     return (
       <p className="mt-6 text-sm text-[var(--token-color-muted,rgba(11,11,13,0.62))]">
-        {t("public.slotPicker.empty")}
+        {/* "No open times" is a claim about the world. We only get to make it
+            when a real filtered query came back empty. When the read itself
+            failed we say THAT, because a visitor told a studio is fully booked
+            for a fortnight leaves and never reports it. */}
+        {offeringsUnavailable
+          ? t("public.bookPage.unavailable")
+          : t("public.slotPicker.empty")}
       </p>
     );
   }

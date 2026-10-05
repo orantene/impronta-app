@@ -1408,7 +1408,8 @@
       "title": "Reserve a time",
       "lead": "Pick a service and a time. We will confirm shortly.",
       "chooseService": "Service",
-      "studioFallback": "the studio"
+      "studioFallback": "the studio",
+      "unavailable": "We could not load the booking times just now. Nothing was reserved. Please try again in a moment."
     },
     "siteShellSurface": {
       "title": "Site header & footer",
