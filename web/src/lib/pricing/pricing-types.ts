@@ -74,7 +74,33 @@ export type CompareTable = {
   tierSlugs: string[];
   /** Tier labels keyed by slug, for column headers. */
   tierLabels: Record<string, string>;
+  /**
+   * Rows that differ between plans. These are the comparison.
+   */
   sections: CompareTableSection[];
+  /**
+   * Rows every plan has, identically: included on every tier, with no differing
+   * value. Rendered ONCE above the table instead of four identical columns.
+   *
+   * WHY THIS IS DERIVED AND NOT A COLUMN ON THE ROW
+   * ----------------------------------------------
+   * A flag would have to be maintained by hand, and would be wrong the moment a
+   * capability became a real paid gate. Deriving it means a row moves into the
+   * comparison automatically on the day it starts differing, and moves back out
+   * when it stops. The table follows the product rather than a second opinion
+   * about the product.
+   *
+   * This is the "everything, on every plan" fact stated once and stated
+   * proudly. Repeated four times down a table it reads as filler; said once at
+   * the top it is the strongest sentence on the page.
+   */
+  sharedRows: SharedCapability[];
+};
+
+/** A capability every plan has, with no per-plan difference to show. */
+export type SharedCapability = {
+  label: string;
+  category: string;
 };
 
 /** Human-readable label for a `product_features.category` slug. */

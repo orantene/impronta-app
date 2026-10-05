@@ -23,7 +23,9 @@ import {
   type CompareTable,
   type CompareTableRow,
   type CompareTableSection,
+  type SharedCapability,
 } from "./pricing-types";
+import { splitSharedRows } from "./compare-table-split";
 
 type RawTier = {
   id: string;
@@ -185,10 +187,28 @@ export const loadCompareTable = cache(
       return { category: cat, rows };
     });
 
+    // Split "this differs between plans" from "every plan has this". Derived,
+    // never flagged: a row joins the comparison the day it starts differing and
+    // leaves the day it stops, so the page follows the product instead of a
+    // second opinion about the product.
+    const tierSlugs = tiers.map((t) => t.slug);
+    const sharedRows: SharedCapability[] = [];
+    const comparisonSections: CompareTableSection[] = [];
+    for (const section of sections) {
+      const { comparison, shared } = splitSharedRows(section.rows, tierSlugs);
+      sharedRows.push(...shared);
+      // A section with nothing left to compare is dropped: an empty heading
+      // reads as a category we withhold everything in.
+      if (comparison.length > 0) {
+        comparisonSections.push({ category: section.category, rows: comparison });
+      }
+    }
+
     return {
-      tierSlugs: tiers.map((t) => t.slug),
+      tierSlugs,
       tierLabels: Object.fromEntries(tiers.map((t) => [t.slug, t.name])),
-      sections,
+      sections: comparisonSections,
+      sharedRows,
     };
   },
 );

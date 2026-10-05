@@ -58,6 +58,43 @@ export async function PlanFeatureCompareTable({
   const gridTemplate = `1.5fr ${"1fr ".repeat(columnCount).trim()}`;
 
   return (
+    <>
+      {table.sharedRows.length > 0 ? (
+        <div
+          className="mb-6 rounded-[28px] border p-6 sm:p-8"
+          style={{
+            borderColor: "var(--plt-hairline)",
+            background: "var(--plt-bg-elevated)",
+          }}
+        >
+          {/*
+            Stated ONCE, at the top, and not as small print. These are the
+            capabilities every plan has. Repeated down four identical columns
+            they read as filler; said once here they are the strongest sentence
+            on the page.
+          */}
+          <p
+            className="text-[0.8125rem] font-medium uppercase tracking-[0.08em]"
+            style={{ color: "var(--plt-muted)" }}
+          >
+            In every plan
+          </p>
+          <ul
+            className="mt-4 grid gap-x-8 gap-y-2 sm:grid-cols-2 lg:grid-cols-3"
+            style={{ color: "var(--plt-ink)" }}
+          >
+            {table.sharedRows.map((row) => (
+              <li
+                key={`${row.category}|${row.label}`}
+                className="text-[0.9375rem] leading-relaxed"
+              >
+                {row.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
     <div
       className="overflow-hidden rounded-[28px] border"
       style={{
@@ -207,6 +244,7 @@ export async function PlanFeatureCompareTable({
         ))}
       </div>
     </div>
+    </>
   );
 }
 
