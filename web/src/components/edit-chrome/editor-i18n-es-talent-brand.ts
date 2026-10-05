@@ -17,4 +17,7 @@ export const ES_TALENT_BRAND_TEXT: Record<string, string> = {
   "Your name, logo, menu and footer are part of your site header and footer.":
     "Tu nombre, logo, menú y pie de página forman parte del encabezado y el pie de tu sitio.",
   "Edit header and footer": "Editar encabezado y pie",
+  "Theme": "Tema",
+  "Your site design. Changes apply to every page.":
+    "El diseño de tu sitio. Los cambios se aplican a todas las páginas.",
 };

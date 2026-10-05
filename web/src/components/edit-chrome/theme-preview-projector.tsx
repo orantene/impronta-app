@@ -55,6 +55,11 @@ export function ThemePreviewProjector(): ReactElement | null {
   // attribute didn't exist before we touched it).
   const appliedAttrsRef = useRef<Set<string>>(new Set());
   const attrSnapshotRef = useRef<Map<string, string | null> | null>(null);
+  // The canvas root's OWN inline value for each var before we first overrode
+  // it. A talent canvas root is server-painted with her effective site tokens
+  // as inline `--token-*` vars; removing them on clear would drop the canvas
+  // to the host <html> platform defaults. Restore the original instead.
+  const varSnapshotRef = useRef<WeakMap<HTMLElement, Map<string, string>>>(new WeakMap());
 
   useEffect(() => {
     // ── Channel 1: canvas-root CSS vars ──────────────────────────────────
@@ -72,10 +77,16 @@ export function ThemePreviewProjector(): ReactElement | null {
     }
     const nextVarKeys = new Set(Object.keys(nextVars));
     for (const root of roots) {
+      let snap = varSnapshotRef.current.get(root);
+      if (!snap) {
+        snap = new Map();
+        varSnapshotRef.current.set(root, snap);
+      }
       for (const varName of appliedVarsRef.current) {
-        if (!nextVarKeys.has(varName)) root.style.removeProperty(varName);
+        if (!nextVarKeys.has(varName)) restoreVar(root, varName, snap);
       }
       for (const [varName, value] of Object.entries(nextVars)) {
+        if (!snap.has(varName)) snap.set(varName, root.style.getPropertyValue(varName));
         root.style.setProperty(varName, value);
       }
     }
@@ -116,8 +127,10 @@ export function ThemePreviewProjector(): ReactElement | null {
       document
         .querySelectorAll<HTMLElement>(CANVAS_ROOT_SELECTOR)
         .forEach((root) => {
+          const snap = varSnapshotRef.current.get(root);
           for (const varName of appliedVarsRef.current) {
-            root.style.removeProperty(varName);
+            if (snap) restoreVar(root, varName, snap);
+            else root.style.removeProperty(varName);
           }
         });
       appliedVarsRef.current = new Set();
@@ -132,6 +145,14 @@ export function ThemePreviewProjector(): ReactElement | null {
   }, []);
 
   return null;
+}
+
+/** Restore a canvas-root var to its pre-preview inline value, then forget it. */
+function restoreVar(root: HTMLElement, varName: string, snap: Map<string, string>): void {
+  const original = snap.get(varName);
+  if (original) root.style.setProperty(varName, original);
+  else root.style.removeProperty(varName);
+  snap.delete(varName);
 }
 
 /** Restore a single data-attr from the snapshot, then forget it. */

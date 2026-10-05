@@ -57,6 +57,7 @@ import {
   type TalentSiteThemeState,
 } from "@/lib/talent-site/server/talent-site-theme-tokens.server";
 import { publishSiteThemeForTalent } from "@/lib/talent-site/server/theme-publish-hook";
+import { siteDesignLookLabel } from "@/lib/talent-site/theme-catalog/gallery-meta";
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -219,10 +220,12 @@ export async function loadTalentDesignAction(input: {
   try {
     const platformDefault = await loadPlatformDefaultTheme("talent");
     const slice = readTalentDesignSlice(resolved.row.theme);
-    const site = siteThemeMode()
-      ? await loadTalentSiteThemeState(resolved.row.talent_profile_id)
-      : null;
-    return snapshotFromSlice(slice, platformDefault.tokens, site, platformDefault.componentStyles);
+    const siteState = await loadTalentSiteThemeState(resolved.row.talent_profile_id);
+    const site = siteThemeMode() ? siteState : null;
+    const loaded = snapshotFromSlice(slice, platformDefault.tokens, site, platformDefault.componentStyles);
+    if (!loaded.ok) return loaded;
+    const designLabel = siteDesignLookLabel(siteState?.designSlug, siteState?.lookSlug);
+    return { ok: true, snapshot: { ...loaded.snapshot, designLabel } };
   } catch (error) {
     logServerError("talent-design/load", error);
     return { ok: false, error: "Failed to load theme." };

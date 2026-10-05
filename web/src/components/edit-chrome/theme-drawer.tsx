@@ -66,6 +66,7 @@ import {
   type SegmentedOption,
 } from "./kit";
 import { useEditContext } from "./edit-context";
+import { useEditorLocale } from "./use-editor-locale";
 // Direct file import, NOT the inspectors/kit barrel — avoids the barrel
 // module cycle documented in kit/field.tsx.
 import { InspectorInfoTip } from "./inspectors/kit/inspector-info-tip";
@@ -380,6 +381,7 @@ function patchesEqual(
 export function ThemeDrawer(): ReactElement | null {
   const { themeOpen, closeTheme, queueRouterRefresh, surfaceKind, pageSlug } =
     useEditContext();
+  const { t, locale } = useEditorLocale();
 
   // Surface-aware theme backend: talent_page → talent_pages.theme; everything
   // else → tenant agency_branding. Memoized so the action closures are stable
@@ -661,6 +663,14 @@ export function ThemeDrawer(): ReactElement | null {
       })
     : null;
 
+  // Talent site: name the Design + Look she wears, not the page slice's
+  // preset / publish counter (which never tracks her site theme).
+  const designLabel = snapshot?.designLabel
+    ? locale === "es"
+      ? snapshot.designLabel.es
+      : snapshot.designLabel.en
+    : null;
+
   if (!themeOpen) return null;
 
   return (
@@ -689,7 +699,9 @@ export function ThemeDrawer(): ReactElement | null {
         title={
           !snapshot && busy === "loading"
             ? "Theme · loading…"
-            : snapshot?.presetSlug
+            : designLabel
+              ? `${t("Theme")} · ${designLabel}`
+              : snapshot?.presetSlug
               ? `Theme · ${prettyPreset(snapshot.presetSlug)}`
               : "Theme · Custom"
         }
@@ -698,6 +710,8 @@ export function ThemeDrawer(): ReactElement | null {
         meta={
           !snapshot && busy === "loading" ? (
             <span style={{ color: CHROME.muted2 }}>Loading theme…</span>
+          ) : designLabel ? (
+            <span>{t("Your site design. Changes apply to every page.")}</span>
           ) : (
             <>
               {lastPublishedLabel ? `Published ${lastPublishedLabel}` : "Never published"}

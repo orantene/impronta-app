@@ -102,6 +102,13 @@ export interface ClientBuilderCanvasProps {
    * saved tree is never changed. Pass a stable function.
    */
   transformTree?: (tree: BuilderNodeTree) => BuilderNodeTree;
+  /**
+   * talent_page: the SITE locale. While the operator is on the default
+   * content locale, the canvas renders in this locale (system copy such as
+   * the services dock), the same way the live site does. The base props
+   * are her site's own language, so it is also the default locale.
+   */
+  siteLocale?: string | null;
 }
 
 function ClientBuilderCanvasInner({
@@ -114,6 +121,7 @@ function ClientBuilderCanvasInner({
   componentStyleDefaults,
   includeRendererStyles = false,
   transformTree,
+  siteLocale,
 }: ClientBuilderCanvasProps): ReactNode {
   // Subscribe to the live in-memory tree published by EditProvider. The
   // server snapshot is `null` (the bridge starts empty), so we fall back to
@@ -191,13 +199,21 @@ function ClientBuilderCanvasInner({
   // navigation / reload.
   const activeLocale = useActiveContentLocale();
   const contentLocale = useMemo(
-    () => ({
-      locale: activeLocale.locale,
-      defaultLocale: activeLocale.defaultLocale,
-      chain: activeLocale.chain,
-      editorPreview: true,
-    }),
-    [activeLocale.locale, activeLocale.defaultLocale, activeLocale.chain],
+    () =>
+      siteLocale && activeLocale.locale === activeLocale.defaultLocale
+        ? {
+            locale: siteLocale,
+            defaultLocale: siteLocale,
+            chain: [siteLocale],
+            editorPreview: true,
+          }
+        : {
+            locale: activeLocale.locale,
+            defaultLocale: activeLocale.defaultLocale,
+            chain: activeLocale.chain,
+            editorPreview: true,
+          },
+    [activeLocale.locale, activeLocale.defaultLocale, activeLocale.chain, siteLocale],
   );
 
   // W2-T1 — memoize the `renderBuilderNodes` options object. The only memo

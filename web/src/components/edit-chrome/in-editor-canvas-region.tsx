@@ -158,6 +158,7 @@ export function InEditorCanvasRegion({
       componentStyleDefaults={canvasRenderData?.componentStyleDefaults}
       includeRendererStyles
       transformTree={labelLocale ? transformTree : undefined}
+      siteLocale={labelLocale?.locale ?? null}
     />
   );
 

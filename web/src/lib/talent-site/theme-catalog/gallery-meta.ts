@@ -384,6 +384,24 @@ export function getGalleryDesign(slug: string): GalleryDesign | undefined {
   return GALLERY_DESIGNS.find((d) => d.slug === s);
 }
 
+/**
+ * Human label for the Design + Look a site wears ("Maison v2 · Rosé"), for
+ * editor chrome that names her theme. Look slugs are the design's own palette
+ * key or Maison's `maison-<palette>`. Null when the design is unknown.
+ */
+export function siteDesignLookLabel(
+  designSlug: string | null | undefined,
+  lookSlug: string | null | undefined,
+): Localized | null {
+  const d = designSlug ? getGalleryDesign(designSlug) : undefined;
+  if (!d) return null;
+  const rawKey = lookSlug?.trim().toLowerCase() ?? "";
+  const key = rawKey.startsWith("maison-") ? rawKey.slice("maison-".length) : rawKey;
+  const p = key ? d.palettes.find((x) => x.key === key || x.key === rawKey) : undefined;
+  if (!p) return { en: d.name, es: d.name };
+  return { en: `${d.name} · ${p.name.en}`, es: `${d.name} · ${p.name.es}` };
+}
+
 /** Look tokens for a palette, same keys as `maisonPaletteLookTokens`. */
 export function galleryPaletteLookTokens(slug: string, paletteKey: string): Record<string, string> | null {
   const d = getGalleryDesign(slug);

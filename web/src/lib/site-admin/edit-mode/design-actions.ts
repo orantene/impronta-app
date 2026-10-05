@@ -73,6 +73,9 @@ export interface DesignSnapshot {
    * the tenant has never set component defaults. */
   componentStylesDraft: ComponentStyleDefaults;
   componentStylesLive: ComponentStyleDefaults;
+  /** Talent site only: the Design + Look she wears ("Maison v2 · Rosé"),
+   * named in the drawer head instead of a preset / "Custom". */
+  designLabel?: { en: string; es: string } | null;
 }
 
 export type DesignLoadResult =
