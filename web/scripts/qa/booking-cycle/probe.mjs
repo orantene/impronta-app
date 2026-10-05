@@ -1,0 +1,12 @@
+import { chromium } from "playwright";
+const url = process.argv[2]; const out = process.argv[3];
+const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
+const p = await ctx.newPage();
+const r = await p.goto(url, { waitUntil: "domcontentloaded", timeout: 120000 });
+await p.waitForTimeout(6000);
+await p.addStyleTag({ content: "[data-consent-banner]{display:none!important}" });
+console.log("status", r?.status(), p.url());
+await p.screenshot({ path: out, fullPage: true });
+const btns = await p.$$eval("button,a", els => els.filter(e=>e.offsetParent).map(e => `${e.tagName}.${(e.className||"").toString().slice(0,40)} | ${e.textContent.trim().slice(0,50)}`));
+console.log([...new Set(btns)].slice(0,80).join("\n"));
+await b.close();
