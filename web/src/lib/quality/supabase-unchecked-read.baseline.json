@@ -295,7 +295,7 @@
   "src/lib/server/staff-api-route.ts": 1,
   "src/lib/site-admin/add-gallery/template-preview-url.ts": 1,
   "src/lib/site-admin/builder-core/adapters/cms-freeform-publish-core.ts": 1,
-  "src/lib/site-admin/builder-core/adapters/cms-page-actions.ts": 2,
+  "src/lib/site-admin/builder-core/adapters/cms-page-actions.ts": 1,
   "src/lib/site-admin/builder-core/adapters/site-shell-actions.ts": 6,
   "src/lib/site-admin/builder-core/adapters/talent-page-actions.ts": 2,
   "src/lib/site-admin/builder-core/adapters/talent-site-shell-actions.ts": 5,

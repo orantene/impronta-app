@@ -26,6 +26,7 @@ import { normalizeUnknownBuilderTreeLayout } from "@/lib/site-admin/builder-node
 import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
 import {
   publishCmsFreeformPageWithClient,
+  saveCmsFreeformPageWithClient,
   writeCmsFreeformRevision,
 } from "./cms-freeform-publish-core";
 import type { CmsFreeformPageRow } from "./cms-page-adapter-core";
@@ -120,78 +121,17 @@ export async function saveCmsFreeformPage(input: {
     return { ok: false, error: "You don't have permission to edit this page." };
   }
 
-  // C1 — server-trusted lock enforcement on the full-tree save. Load the current
-  // blocks and re-assert every admin lock so a crafted client can't persist an
-  // edit to a locked prop (the inspector strip alone is bypassable).
-  const { data: current } = await auth.supabase
-    .from("cms_pages")
-    .select("blocks")
-    .eq("id", input.pageId)
-    .eq("tenant_id", scope.tenantId)
-    .eq("is_freeform", true)
-    .maybeSingle()
-    .returns<{ blocks: unknown }>();
-  // Draft-save normalization gate (content-preserving; strict validate stays
-  // at publish). Runs at the same C1 chokepoint as the lock re-assert.
-  const enforcedBlocks = normalizeUnknownBuilderTreeLayout(
-    enforceLockedPropsOnTree(input.patch.blocks ?? [], current?.blocks),
-  );
-
-  const patch: Record<string, unknown> = {
-    blocks: enforcedBlocks,
-    updated_at: input.patch.updated_at,
-  };
-  if (typeof input.patch.title === "string" && input.patch.title.length > 0) {
-    patch.title = input.patch.title;
-  }
-  // STYLE-1 — only set the style columns when the caller actually touched them
-  // (`undefined` = leave the stored value alone). `null` clears the column.
-  const stylePatch: Record<string, unknown> = {};
-  if (input.patch.style_classes !== undefined) {
-    stylePatch.style_classes = input.patch.style_classes;
-  }
-  if (input.patch.style_presets !== undefined) {
-    stylePatch.style_presets = input.patch.style_presets;
-  }
-
-  const runUpdate = (payload: Record<string, unknown>) =>
-    auth.supabase
-      .from("cms_pages")
-      .update(payload)
-      .eq("id", input.pageId)
-      .eq("tenant_id", scope.tenantId)
-      .eq("is_freeform", true)
-      .select("updated_at")
-      .maybeSingle()
-      .returns<{ updated_at: string }>();
-
-  // REV-1 — checkpoint the saved freeform tree as a restorable draft revision.
-  // Best-effort, never blocks the save result.
-  const checkpoint = (updatedAt: string) =>
-    writeCmsFreeformRevision({
-      supabase: auth.supabase,
-      tenantId: scope.tenantId,
-      pageId: input.pageId,
-      title: (typeof input.patch.title === "string" && input.patch.title) || "Page",
-      blocks: enforcedBlocks,
-      kind: "draft",
-      actorProfileId: auth.user.id,
-    }).then(() => updatedAt);
-
-  const { data, error } = await runUpdate({ ...patch, ...stylePatch });
-  if (!error && data) return { ok: true, updatedAt: await checkpoint(data.updated_at) };
-
-  // STYLE-1 graceful fallback — if the style columns don't exist yet (migration
-  // unapplied) the update errors. Retry WITHOUT them so the tree still saves; the
-  // registry stays in the editor's localStorage seed until the migration lands.
-  if (Object.keys(stylePatch).length > 0) {
-    const retry = await runUpdate(patch);
-    if (!retry.error && retry.data) {
-      return { ok: true, updatedAt: await checkpoint(retry.data.updated_at) };
-    }
-    return { ok: false, error: retry.error?.message ?? "Could not save the page." };
-  }
-  return { ok: false, error: error?.message ?? "Could not save the page." };
+  // The write + C1 lock re-assert + draft normalization + REV-1 checkpoint live
+  // in `cms-freeform-publish-core.ts` so a session-less caller (the
+  // `page-i18n-split` maintenance script under the service role) saves through
+  // the identical sequence instead of a second implementation.
+  return saveCmsFreeformPageWithClient({
+    supabase: auth.supabase,
+    tenantId: scope.tenantId,
+    pageId: input.pageId,
+    patch: input.patch,
+    actorProfileId: auth.user.id,
+  });
 }
 
 /** Publish a freeform page (status=published, published_at=now()). */
