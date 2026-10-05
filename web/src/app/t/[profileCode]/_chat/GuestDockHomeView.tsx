@@ -212,9 +212,10 @@ export function GuestDockHomeView({
   onBookAgain,
 }: GuestDockHomeViewProps) {
   const isAccount = identity === "account";
+  const isTalentSite = brand.dockSurface === "talent_site";
   const startTitle = draftExists
-    ? t("public.guestChat.homeContinueTitle")
-    : t("public.guestChat.homeStartTitle");
+    ? t(isTalentSite ? "public.guestChat.homeContinueTitleSite" : "public.guestChat.homeContinueTitle")
+    : t(isTalentSite ? "public.guestChat.homeStartTitleSite" : "public.guestChat.homeStartTitle");
   const startSubtitle = draftExists
     ? t("public.guestChat.homeContinueSub")
     // FULL display name, not the first-name split. `talentFirst` is
@@ -229,9 +230,12 @@ export function GuestDockHomeView({
     // 13 of 13 live tenants — so today it would resolve to "custom" for
     // everyone and change nothing. The full name is never WRONG, only slightly
     // more formal for a person, so it is the correct fix to ship now.
-    : interpolate(t("public.guestChat.homeStartSub"), {
+    : interpolate(
+        t(isTalentSite ? "public.guestChat.homeStartSubSite" : "public.guestChat.homeStartSub"),
+        {
         name: brand.talentDisplayName || talentFirst,
-      });
+        },
+      );
 
   return (
     <div
@@ -287,8 +291,8 @@ export function GuestDockHomeView({
         />
         <ActionCard
           Icon={Sparkles}
-          title={t("public.guestChat.homeInquiriesTitle")}
-          subtitle={t("public.guestChat.homeInquiriesSub")}
+          title={t(isTalentSite ? "public.guestChat.homeInquiriesTitleSite" : "public.guestChat.homeInquiriesTitle")}
+          subtitle={t(isTalentSite ? "public.guestChat.homeInquiriesSubSite" : "public.guestChat.homeInquiriesSub")}
           count={inquiriesCount}
           accent={accent}
           C={C}
@@ -411,6 +415,7 @@ export function GuestDockHomeView({
             onCheckClaimEmail={onCheckClaimEmail}
             onGuestEmailUpdated={onGuestEmailUpdated}
             surfaceMode={surfaceMode}
+            omitPlatformName={isTalentSite}
           />
         </div>
       )}

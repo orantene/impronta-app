@@ -277,6 +277,7 @@ export function GuestConversationBody({
           onCheckClaimEmail={onCheckClaimEmail}
           onGuestEmailUpdated={onGuestEmailUpdated}
           surfaceMode={surfaceMode}
+          omitPlatformName={brand.dockSurface === "talent_site"}
           deemphasizeButton={
             threadStatus === "offer_pending" ||
             threadStatus === "approved" ||

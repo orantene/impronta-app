@@ -792,6 +792,11 @@ export function MiniChatPanelColumn({
           projectsCount={inquiries.length}
           itemsTab={brand.dockItemsTab !== false}
           itemsLabel={brand.dockItemsLabel ?? null}
+          projectsLabel={
+            brand.dockSurface === "talent_site"
+              ? t("public.guestChat.dockNavProjectsSite")
+              : null
+          }
         />
       )}
     </>

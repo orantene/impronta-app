@@ -749,6 +749,12 @@ export type MiniChatBrand = {
   dockItemsLabel?: string | null;
   /** L13: the industry preset represents people (agency, act); false for a restaurant, venue, salon. */
   dockRepresentsPeople?: boolean;
+  /**
+   * Three-way host gate. Talent vanity hosts are never the hub: vocabulary
+   * stays singular (services and appointments) and account copy does not
+   * sell the platform by name.
+   */
+  dockSurface?: "hub" | "agency" | "talent_site";
 };
 
 export type MiniChatPanelProps = {

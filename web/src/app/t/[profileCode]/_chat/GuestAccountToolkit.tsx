@@ -94,6 +94,8 @@ export type GuestAccountToolkitProps = {
    * required prop means a new call site cannot reintroduce that silently.
    */
   t: Translator;
+  /** Talent storefronts save the conversation without naming the platform. */
+  omitPlatformName?: boolean;
 };
 
 export function GuestAccountToolkit({
@@ -108,6 +110,7 @@ export function GuestAccountToolkit({
   deemphasizeButton = false,
   surfaceMode = "light",
   t,
+  omitPlatformName = false,
 }: GuestAccountToolkitProps) {
   const C = paletteFor(surfaceMode);
   const [sending, setSending] = useState(false);
@@ -179,7 +182,13 @@ export function GuestAccountToolkit({
         <span aria-hidden style={{ color: accent, fontWeight: 700 }}>
           ✓
         </span>
-        <span>{t("public.guestChat.accountSavedConfirm")}</span>
+        <span>
+          {t(
+            omitPlatformName
+              ? "public.guestChat.accountSavedConfirmSite"
+              : "public.guestChat.accountSavedConfirm",
+          )}
+        </span>
       </div>
     );
   }
@@ -294,8 +303,16 @@ export function GuestAccountToolkit({
         </div>
         <div style={{ fontSize: 11.5, lineHeight: 1.45, color: C.inkMuted }}>
           {email
-            ? t("public.guestChat.accountBodyWithEmail")
-            : t("public.guestChat.accountBodyNoEmail")}
+            ? t(
+                omitPlatformName
+                  ? "public.guestChat.accountBodyWithEmailSite"
+                  : "public.guestChat.accountBodyWithEmail",
+              )
+            : t(
+                omitPlatformName
+                  ? "public.guestChat.accountBodyNoEmailSite"
+                  : "public.guestChat.accountBodyNoEmail",
+              )}
         </div>
       </div>
 

@@ -8,6 +8,7 @@ import {
   talentOffersInstantBooking,
 } from "@/lib/talent-site/contact-channels";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { talentSiteGreeting } from "@/lib/inquiry/talent-site-dock-voice";
 
 import { TalentSiteContactBridge } from "./TalentSiteContactBridge";
 
@@ -76,9 +77,11 @@ export async function TalentSiteMessagesDock({
         tenantSlug={resolved.tenant.slug}
         tenantId={resolved.tenant.tenantId}
         exposeTenantToClient={false}
-        agencyName={resolved.tenant.displayName}
+        agencyName={displayName}
         sourcePage="/"
         locale={locale}
+        greeting={talentSiteGreeting(locale)}
+        dockSurface="talent_site"
       />
     </>
   );

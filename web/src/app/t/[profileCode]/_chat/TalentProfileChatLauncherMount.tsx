@@ -61,6 +61,8 @@ import {
 } from "@/app/t/[profileCode]/_actions/guest-roster-actions";
 import { ensureGuestChatInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
+import { talentSiteDockFlags } from "@/lib/inquiry/talent-site-dock-voice";
+import type { GuestDockSurface } from "@/lib/inquiry/talent-site-dock-voice";
 import { TalentOfferingIntentQuery } from "@/app/%5Ftalent-site/TalentOfferingIntentQuery";
 
 type TalentProfileChatLauncherMountProps = {
@@ -104,6 +106,8 @@ type TalentProfileChatLauncherMountProps = {
    * popping a white card on the dark page. Null/undefined → light (safe default).
    */
   backgroundMode?: string | null;
+  /** Talent vanity hosts pass talent_site so the dock is not the hub. */
+  dockSurface?: GuestDockSurface;
 };
 
 export async function TalentProfileChatLauncherMount({
@@ -121,6 +125,7 @@ export async function TalentProfileChatLauncherMount({
   greeting = null,
   locale = null,
   backgroundMode = null,
+  dockSurface = "agency",
 }: TalentProfileChatLauncherMountProps) {
   // Guest chat only makes sense on an agency surface (the thread is tenant-owned).
   if (!tenantSlug) return null;
@@ -135,7 +140,10 @@ export async function TalentProfileChatLauncherMount({
 
   const t = createTranslator(locale ?? "en");
   // L13: the tenant-wide dock switches + the per-business Items label.
-  const dockFlags = await loadGuestDockFlags(tenantId, locale);
+  const dockFlags =
+    dockSurface === "talent_site"
+      ? talentSiteDockFlags(locale)
+      : await loadGuestDockFlags(tenantId, locale);
 
   // Returning-guest resume (B1): reopen the live thread from the cookie instead
   // of starting fresh. Always { active } | failure; any failure → fresh start.
@@ -206,6 +214,7 @@ export async function TalentProfileChatLauncherMount({
         logoUrl,
         greeting,
         locale,
+        dockSurface,
       }}
       label={t("public.guestChat.bookNow")}
       // Returning guest → reopen the thread + prefill the gate (B1). null → fresh.
