@@ -108,6 +108,9 @@ export function SupportPanel({
       subject,
       status: "open",
       waitingOn: "support",
+      // The ticket you just created is by definition yours, so the row never
+      // needs an "opened by" line.
+      requesterName: null,
       category: null,
       lastMessageAt: new Date().toISOString(),
       lastMessagePreview: preview,
@@ -538,46 +541,50 @@ function TicketListView({
   onOpen: (id: string) => void;
 }) {
   const t = useT();
-  const [seg, setSeg] = useState<"mine" | "workspace">("mine");
-  const scoped =
-    canSeeWorkspace && seg === "workspace"
-      ? tickets
-      : tickets.filter((x) => x.requesterUserId === userId);
+  // ONE list, not two inboxes.
+  //
+  // This was a "Mine / Workspace" segmented control, and the owner's question on
+  // seeing it was simply "what does it mean?". Fair: the labels never said whose,
+  // "Workspace" reads as tickets ABOUT the workspace rather than a teammate's,
+  // and for a solo owner both tabs showed the identical list, so the control
+  // offered a choice between two identical things.
+  //
+  // Whose a ticket is now lives on the row, where it is a fact rather than a
+  // mode. The only thing left worth toggling is narrowing a busy list to your
+  // own, and that appears solely when somebody else's ticket is actually
+  // present, so it can never be a no-op switch.
+  const [onlyMine, setOnlyMine] = useState(false);
+  const visible = canSeeWorkspace ? tickets : tickets.filter((x) => x.requesterUserId === userId);
+  const othersCount = visible.filter((x) => x.requesterUserId !== userId).length;
+  const scoped = onlyMine ? visible.filter((x) => x.requesterUserId === userId) : visible;
   const open = scoped.filter((x) => x.status === "open");
   const resolved = scoped.filter((x) => x.status !== "open");
   return (
     <div style={{ padding: 16 }}>
-      {canSeeWorkspace ? (
-        <div
+      {othersCount > 0 ? (
+        <button
+          type="button"
+          onClick={() => setOnlyMine((v) => !v)}
           style={{
-            display: "flex",
-            background: COLORS.surfaceAlt,
-            borderRadius: 10,
-            padding: 3,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            minHeight: 34,
+            padding: "0 12px",
             marginBottom: 14,
+            borderRadius: 999,
+            border: `1px solid ${onlyMine ? COLORS.ink : COLORS.surfaceAlt}`,
+            background: onlyMine ? COLORS.ink : "transparent",
+            color: onlyMine ? COLORS.card : COLORS.inkMuted,
+            fontSize: 12.5,
+            fontWeight: 600,
+            cursor: "pointer",
           }}
         >
-          {(["mine", "workspace"] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setSeg(s)}
-              style={{
-                flex: 1,
-                border: "none",
-                background: seg === s ? COLORS.card : "transparent",
-                borderRadius: 8,
-                padding: "6px 8px",
-                fontSize: 12.5,
-                fontWeight: 600,
-                cursor: "pointer",
-                color: COLORS.ink,
-              }}
-            >
-              {s === "mine" ? t("dashboard.adminSupport.segMine") : t("dashboard.adminSupport.segWorkspace")}
-            </button>
-          ))}
-        </div>
+          {interpolate(t("dashboard.adminSupport.onlyMine"), {
+            count: String(visible.length - othersCount),
+          })}
+        </button>
       ) : null}
       {open.length === 0 && resolved.length === 0 ? (
         <div style={{ fontSize: 13, color: COLORS.inkMuted, padding: "24px 8px" }}>

@@ -11873,7 +11873,9 @@
       "ideaArea_reporting": "Informes",
       "delayTitle": "{agent} sigue con esto",
       "delayBody": "Esto está tardando más de lo previsto. No te hemos olvidado y no necesitas hacer nada de tu lado.",
-      "delayNextUpdate": "Próxima actualización: {when}"
+      "delayNextUpdate": "Próxima actualización: {when}",
+      "onlyMine": "Solo las mías ({count})",
+      "openedBy": "Abierto por {name}"
     },
     "adminMenu": {
       "title": "Menú",

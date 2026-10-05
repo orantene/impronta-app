@@ -11873,7 +11873,9 @@
       "ideaArea_reporting": "Reporting",
       "delayTitle": "{agent} is still on this",
       "delayBody": "This is taking longer than expected. You have not been forgotten, and nothing needs doing on your side.",
-      "delayNextUpdate": "Next update: {when}"
+      "delayNextUpdate": "Next update: {when}",
+      "onlyMine": "Only mine ({count})",
+      "openedBy": "Opened by {name}"
     },
     "adminMenu": {
       "title": "Menu",

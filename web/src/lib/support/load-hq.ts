@@ -229,6 +229,10 @@ export async function loadHqTicketDetail(ticketId: string): Promise<{
         lastMessageAt: row.lastMessageAt,
         lastMessagePreview: row.lastMessagePreview,
         unread: false,
+        // HQ's past-ticket strip shows the requester in its own header, so the
+        // row does not repeat it. Null rather than a lookup keeps this read
+        // cheap; it is a sidebar, not the ticket list.
+        requesterName: null,
         requesterUserId: row.requesterUserId,
         surface: row.surface,
       }));

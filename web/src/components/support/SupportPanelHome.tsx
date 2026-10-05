@@ -250,6 +250,13 @@ export function TicketRow({ row, onOpen }: { row: SupportTicketSummary; onOpen: 
         <span style={{ display: "block", fontSize: 12, color: COLORS.inkDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {row.lastMessagePreview}
         </span>
+        {/* Whose ticket this is, stated on the row. It used to be a tab you had
+            to switch to, which made the reader change mode to learn a fact. */}
+        {row.requesterName ? (
+          <span style={{ display: "block", fontSize: 11, color: COLORS.inkDim, marginTop: 2 }}>
+            {interpolate(t("dashboard.adminSupport.openedBy"), { name: row.requesterName })}
+          </span>
+        ) : null}
       </span>
       <span style={{ fontSize: 10.5, color: COLORS.inkDim, flexShrink: 0, whiteSpace: "nowrap" }}>
         {relTime(row.lastMessageAt)}

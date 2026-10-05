@@ -153,6 +153,15 @@ export type SupportTicketSummary = {
   lastMessagePreview: string | null;
   unread: boolean;
   requesterUserId: string | null;
+  /**
+   * Who opened it, when that is somebody other than the reader.
+   *
+   * The list used to split into "Mine" and "Workspace" tabs, which asked the
+   * reader to pick a mode to learn a fact that belongs on the row. Null for
+   * your own tickets and whenever a name cannot be resolved, so the row simply
+   * says nothing rather than inventing an attribution.
+   */
+  requesterName: string | null;
   surface: SupportSurface;
 };
 

@@ -36,6 +36,36 @@ export async function loadSupportTicketSummaries(
         r.last_read_at,
       ]),
     );
+    // Resolve who opened the tickets that are not the reader's own.
+    //
+    // The panel used to answer "whose ticket is this?" with a Mine/Workspace
+    // tab, which makes the reader change mode to learn a fact that belongs on
+    // the row. One query for the distinct other requesters; skipped entirely
+    // when every ticket is the reader's own, which is the common case.
+    const otherIds = [
+      ...new Set(
+        tickets
+          .map((r) => r.requesterUserId)
+          .filter((id): id is string => Boolean(id) && id !== userId),
+      ),
+    ];
+    const nameMap = new Map<string, string>();
+    if (otherIds.length > 0) {
+      const { data: people, error: peopleError } = await supabase
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", otherIds);
+      // A failed lookup must not cost the reader their ticket list: the rows
+      // still render, just without an attribution.
+      if (peopleError) logServerError("support.loadSummaries.names", peopleError);
+      // `display_name`, not `full_name`: profiles has no full_name column, and
+      // the query would have failed silently — logged, no names, a feature that
+      // looks implemented and does nothing. load-hq.ts already reads this one.
+      for (const p of (people ?? []) as Array<{ id: string; display_name: string | null }>) {
+        if (p.display_name?.trim()) nameMap.set(p.id, p.display_name.trim());
+      }
+    }
+
     return tickets.map((row) => ({
       id: row.id,
       ticketNumber: row.ticketNumber,
@@ -51,6 +81,10 @@ export async function loadSupportTicketSummaries(
         return new Date(row.lastMessageAt).getTime() > new Date(last).getTime();
       })(),
       requesterUserId: row.requesterUserId,
+      requesterName:
+        row.requesterUserId && row.requesterUserId !== userId
+          ? (nameMap.get(row.requesterUserId) ?? null)
+          : null,
       surface: row.surface,
     }));
   } catch (err) {
