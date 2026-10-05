@@ -15,7 +15,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
-import { loadMaisonCatalogRow } from "../../src/lib/talent-site/server/maison-catalog-row";
+import { collectionDesignRowFromCode, loadMaisonCatalogRow } from "../../src/lib/talent-site/server/maison-catalog-row";
 import { applyDesign, applyLook, publishSiteTheme } from "../../src/lib/talent-site/server/theme-apply-core";
 import { publishTalentPageBodies } from "../../src/lib/talent-site/server/publish-talent-page-bodies";
 import { MAISON_BUILTIN_DEMO } from "../../src/lib/talent-site/theme-catalog/maison/builtins";
@@ -97,7 +97,10 @@ for (const e of entries) {
   const look = galleryTokens ? null : await loadMaisonCatalogRow(admin, "look", `maison-${paletteKey}`);
   if (!galleryTokens && !look) throw new Error(`look maison-${paletteKey} not found`);
 
-  const design = await loadMaisonCatalogRow(admin, "design", designSlug);
+  // Collection designs come from code: the published DB catalog row can lag a
+  // code change (it did for Maison v2's round-5 header + footer).
+  const design =
+    collectionDesignRowFromCode(designSlug) ?? (await loadMaisonCatalogRow(admin, "design", designSlug));
   if (!design) throw new Error(`design ${designSlug} not found`);
   const d = await applyDesign(admin, {
     talentProfileId: e.talentProfileId,

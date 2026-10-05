@@ -15,7 +15,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
-import { loadMaisonCatalogRow } from "../../src/lib/talent-site/server/maison-catalog-row";
+import { collectionDesignRowFromCode, loadMaisonCatalogRow } from "../../src/lib/talent-site/server/maison-catalog-row";
 import { applyDesign, applyLook, publishSiteTheme } from "../../src/lib/talent-site/server/theme-apply-core";
 import { publishTalentPageBodies } from "../../src/lib/talent-site/server/publish-talent-page-bodies";
 import { MAISON_BUILTIN_DEMO } from "../../src/lib/talent-site/theme-catalog/maison/builtins";
@@ -37,6 +37,14 @@ if (!manifestPath) throw new Error("--manifest <path.json> is required");
 const only = opt("--only")?.split(",");
 const designSlug = opt("--design") ?? "maison";
 const keepLook = args.includes("--keep-look");
+// Collection designs (Maison v2, ...) need their gallery palette, the demo's
+// site copy and the code payload; apply-maison does all three. Applying one
+// here wrote a generic layout + a Maison Look over Alba, so refuse.
+if (collectionDesignRowFromCode(designSlug)) {
+  throw new Error(
+    `REFUSE: ${designSlug} is a collection design; run apply-maison.mts --manifest <path> --only <code> instead`,
+  );
+}
 
 const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
   auth: { persistSession: false, autoRefreshToken: false },

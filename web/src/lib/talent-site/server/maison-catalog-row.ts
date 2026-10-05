@@ -65,6 +65,18 @@ function maisonBuiltinRow<K extends TalentThemeKind>(
   return null;
 }
 
+/**
+ * A collection Design (Maison v2, ...) straight from code, never the DB row.
+ * Demo seeding uses this so a stale published catalog row (seeded before a
+ * code change to the Design's header/footer) cannot be re-applied.
+ */
+export function collectionDesignRowFromCode(
+  slug: string,
+): Extract<TalentThemeCatalogRow, { kind: "design" }> | null {
+  const collection = COLLECTION_DESIGNS.find((d) => d.slug === slug);
+  return collection ? (asPublishedRow(collection) as Extract<TalentThemeCatalogRow, { kind: "design" }>) : null;
+}
+
 export async function loadMaisonCatalogRow<K extends Exclude<TalentThemeKind, "demo">>(
   admin: SupabaseClient,
   kind: K,
