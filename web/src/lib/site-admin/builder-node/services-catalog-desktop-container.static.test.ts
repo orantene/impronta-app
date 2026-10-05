@@ -27,6 +27,27 @@ test("AUD-042: desktop list rows pin price + CTA right", () => {
   assert.match(block, /services-catalog-copy\{max-width:none\}/);
 });
 
+test("AUD-042 follow-up: .cb-island (rows live path) is capped and centred", () => {
+  assert.match(
+    css,
+    /\.site-builder-node--services-catalog\.site-builder-node--services-catalog>\.cb-island,[\s\S]*?\{box-sizing:border-box;width:100%;max-width:1120px;margin-inline:auto\}/,
+  );
+});
+
+test("AUD-042 follow-up: rows layout through .cb-island is a right-pinned grid", () => {
+  const block = css.slice(css.lastIndexOf("@media (min-width:768px){"));
+  assert.match(
+    block,
+    /\[data-layout="rows"\] \.cb-island \.site-builder-node--services-catalog-list>\.site-builder-node--services-catalog-row\[data-has-photo="true"\],[\s\S]*?\{grid-template-columns:92px minmax\(0,1fr\) auto\}/,
+  );
+  assert.match(block, /\[data-layout="rows"\] \.cb-island [^{]*services-catalog-buy,[\s\S]*?\{justify-self:end;width:auto;flex:none\}/);
+  for (const f of ["services-catalog-filter.tsx", "services-catalog-static-fallback.tsx"]) {
+    const tsx = readFileSync(path.join(__dirname, f), "utf8");
+    assert.ok(tsx.includes('className="cb-island"'), `${f} must render the .cb-island wrapper`);
+    assert.ok(tsx.includes('className="site-builder-node--services-catalog-list"'), `${f} list class`);
+  }
+});
+
 test("AUD-042: phone layout from AUD-026 untouched", () => {
   assert.ok(css.includes("@media (max-width:560px){"));
   assert.ok(css.includes("[data-cms-block]>.site-builder-node--services-catalog{padding-inline:1.5rem}"));

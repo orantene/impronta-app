@@ -4613,6 +4613,23 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-buy,
 .site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-buy{justify-self:end}
 }
+/* AUD-042 follow-up: live Jor measured the list inside .cb-island at full
+   width with flex rows. Name the real path (section > .cb-island > nav/group >
+   list > row) with doubled-class specificity so no generic rule wins. */
+.site-builder-node--services-catalog.site-builder-node--services-catalog>.site-builder-node--services-catalog-header,
+.site-builder-node--services-catalog.site-builder-node--services-catalog>.cb-island,
+.site-builder-node--services-catalog.site-builder-node--services-catalog>.site-builder-node--services-catalog-loading,
+.site-builder-node--services-catalog.site-builder-node--services-catalog>.site-builder-node--services-catalog-empty{box-sizing:border-box;width:100%;max-width:1120px;margin-inline:auto}
+@media (min-width:768px){
+.site-builder-node--services-catalog[data-layout="rows"] .cb-island .site-builder-node--services-catalog-list>.site-builder-node--services-catalog-row,
+.site-builder-node--services-catalog:not([data-layout]) .cb-island .site-builder-node--services-catalog-list>.site-builder-node--services-catalog-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:1.75rem}
+.site-builder-node--services-catalog[data-layout="rows"] .cb-island .site-builder-node--services-catalog-list>.site-builder-node--services-catalog-row[data-has-photo="true"],
+.site-builder-node--services-catalog:not([data-layout]) .cb-island .site-builder-node--services-catalog-list>.site-builder-node--services-catalog-row[data-has-photo="true"]{grid-template-columns:92px minmax(0,1fr) auto}
+.site-builder-node--services-catalog[data-layout="rows"] .cb-island .site-builder-node--services-catalog-row>.site-builder-node--services-catalog-copy,
+.site-builder-node--services-catalog:not([data-layout]) .cb-island .site-builder-node--services-catalog-row>.site-builder-node--services-catalog-copy{max-width:none}
+.site-builder-node--services-catalog[data-layout="rows"] .cb-island .site-builder-node--services-catalog-row>.site-builder-node--services-catalog-buy,
+.site-builder-node--services-catalog:not([data-layout]) .cb-island .site-builder-node--services-catalog-row>.site-builder-node--services-catalog-buy{justify-self:end;width:auto;flex:none}
+}
 .cb-island .cb-bar[data-bar-style="float"]{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
 .cb-island .cb-bar[data-bar-style="hidden"]{display:none!important}
 `;
