@@ -99,40 +99,18 @@ export function normalizeAnchorId(value: unknown): string | undefined {
  */
 export function anchorIdAttrs(node: {
   anchorId?: string;
-  slotKey?: unknown;
   props?: unknown;
-}): { id?: string; "data-parity-key"?: string } {
-  const parity = parityKeyAttrs(node);
+}): { id?: string } {
   // Base mirror first (validate keeps it in sync), then props — which is the
   // source of truth and the only place a freshly-patched value exists before
   // the next validate pass.
   const fromBase = normalizeAnchorId(node.anchorId);
-  if (fromBase) return { id: fromBase, ...parity };
+  if (fromBase) return { id: fromBase };
 
   const props =
     node.props && typeof node.props === "object" && !Array.isArray(node.props)
       ? (node.props as Record<string, unknown>)
       : undefined;
   const fromProps = normalizeAnchorId(props?.anchorId);
-  return fromProps ? { id: fromProps, ...parity } : { ...parity };
-}
-
-/**
- * Stable matching contract for the template factory's parity tool: a node that
- * carries a kit `slotKey` (a kit section, the shell header / footer) emits
- * `data-parity-key="<slotKey>"`. Unlike `id`, the key is never replaced by an
- * operator-typed anchor, so a design-agnostic parity map addresses a section
- * the same way in every design. Nodes without a slotKey emit nothing.
- */
-export function parityKeyAttrs(node: { slotKey?: unknown; props?: unknown }): {
-  "data-parity-key"?: string;
-} {
-  const props =
-    node.props && typeof node.props === "object" && !Array.isArray(node.props)
-      ? (node.props as Record<string, unknown>)
-      : undefined;
-  const raw = props?.slotKey ?? node.slotKey;
-  return typeof raw === "string" && /^[a-z0-9_-]{1,64}$/i.test(raw)
-    ? { "data-parity-key": raw }
-    : {};
+  return fromProps ? { id: fromProps } : {};
 }

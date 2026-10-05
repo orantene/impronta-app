@@ -1,32 +1,16 @@
 /**
- * Shared, design-agnostic constants for mockup parity. The per-design section maps
- * live next to each design reference: web/design-references/<slug>/parity-map.json
- * (keyed by the mockup data-w unit, matched to the product by data-parity-key).
+ * Section map: mockup selector <-> product selector, in mockup page order.
  *
- * A map section: { key, label, unit, parityKey, mockup[], fallback[], optional, expects[] }.
- *  - unit: the mockup data-w type (text before the first " ·"), resolved as [data-w^="unit ·"]
- *  - parityKey: the product slotKey; the product element is [data-parity-key="<parityKey>"]
- *  - mockup[]: extra mockup selectors, tried after the data-w unit
- *  - fallback[]: product selectors used ONLY when the page carries no data-parity-key at all
- * expects (shared by both sides) kinds: sel (>= min visible matches), text (regex on visible
- * text, re is a key of LOCALE_TEXT or a raw pattern), countText, plus eyebrow and ctaPair.
+ * Product anchors come from the kit: `stampKitSection` stamps `anchorId` = slotKey
+ * (hero, about, services, gallery, reviews, visit, location), so the product ids are
+ * #hero #gallery #services #reviews #about #location. FAQ, header and footer have no
+ * kit slot, so they resolve by structure (`fn:` resolvers, see analyze.mjs).
+ *
+ * `expects` are shared by both sides (the mockup is checked with the same rules as a
+ * self-test, so a rule that fails on the mockup is a bad rule, not a product bug).
+ * Kinds: sel (>= min visible matches), text (regex on visible text, `re` is a key of
+ * LOCALE_TEXT or a raw pattern), countText, plus the specials eyebrow and ctaPair.
  */
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-export const DESIGN_REFERENCES = join(HERE, "..", "..", "..", "design-references");
-
-/** Load a design map: { design, referenceDemo, mockup, order, sections }. */
-export function loadDesignMap(design) {
-  const p = join(DESIGN_REFERENCES, design, "parity-map.json");
-  if (!existsSync(p)) throw new Error("no parity map for design \"" + design + "\" (expected " + p + ")");
-  const map = JSON.parse(readFileSync(p, "utf8"));
-  if (map.design !== design) throw new Error(p + ": design field is \"" + map.design + "\"");
-  return map;
-}
-
 export const LOCALE_TEXT = {
   nextFree: "(hoy|mañana|today|tomorrow|pr[oó]xim|next|libre|available|disponible)",
   proof: "(años|years|reseñas|reviews)",
@@ -35,10 +19,131 @@ export const LOCALE_TEXT = {
   where: "(dónde|donde|where|ubicaci|location|visita|visit)",
   contact: "(contacto|contact|instagram|escrib|message)",
   policy: "(pol[ií]ticas|privacidad|t[eé]rminos|cookies|policies|privacy|terms)",
-  consult: "(consult|escrib|reserv|book|inquir|cotiz)",
   navCta: "(men[uú]|servicios|reserv|book|citas|services)",
   langSwitch: "(\\bES\\b[\\s\\S]*\\bEN\\b|\\bEN\\b[\\s\\S]*\\bES\\b)",
 };
+
+export const SECTIONS = [
+  {
+    key: "header",
+    label: "Header",
+    mockup: [".m-hdr", "#m-hdr"],
+    product: ["fn:header"],
+    expects: [
+      // phones collapse the links into one section-menu button (mockup behaviour)
+      { name: "section links (>= 3) or section menu", kind: "sel", sel: "a, button", min: 3, alt: "[aria-haspopup], [aria-expanded]" },
+      { name: "booking-mode CTA pill (desktop)", kind: "text", re: "navCta", minWidth: 1000 },
+      { name: "ES/EN switch", kind: "text", re: "langSwitch" },
+    ],
+  },
+  {
+    key: "hero",
+    label: "Hero",
+    mockup: ["section.hero", "#hero"],
+    product: ["#hero", "[data-slot-key='hero']", "[data-anchor-id='hero']"],
+    expects: [
+      { name: "eyebrow", kind: "eyebrow" },
+      { name: "headline (h1)", kind: "sel", sel: "h1", min: 1 },
+      { name: "lede paragraph", kind: "sel", sel: "p", min: 1 },
+      { name: "CTA pair (2 actions)", kind: "ctaPair" },
+      { name: "proof line", kind: "text", re: "proof" },
+      { name: "next-free chip", kind: "text", re: "nextFree" },
+      { name: "hero photo", kind: "sel", sel: "img", min: 1 },
+    ],
+  },
+  {
+    key: "work",
+    label: "Work / portfolio",
+    mockup: ["#s-work"],
+    product: ["#gallery", "#work", "#portfolio", "[data-slot-key='gallery']"],
+    optional: true,
+    expects: [
+      { name: "heading", kind: "sel", sel: "h2, h3", min: 1 },
+      { name: "photos (>= 3)", kind: "sel", sel: "img", min: 3 },
+    ],
+  },
+  {
+    key: "menu",
+    label: "Menu (#services)",
+    mockup: ["#s-menu"],
+    product: ["#services", "[data-slot-key='services']"],
+    expects: [
+      { name: "heading", kind: "sel", sel: "h2", min: 1 },
+      { name: "menu intro line (currency)", kind: "text", re: "menuIntro" },
+      { name: "row cards (>= 3 thumbs)", kind: "sel", sel: "img", min: 3 },
+      { name: "prices on rows", kind: "text", re: "price" },
+    ],
+  },
+  {
+    key: "reviews",
+    label: "Reviews",
+    mockup: ["#s-revs"],
+    product: ["#reviews", "[data-slot-key='reviews']"],
+    optional: true, // hidden without real reviews, by design
+    expects: [
+      { name: "heading", kind: "sel", sel: "h2", min: 1 },
+      { name: "review cards (>= 1)", kind: "sel", sel: "q, blockquote, figure", min: 1 },
+    ],
+  },
+  {
+    key: "about",
+    label: "About",
+    mockup: ["#s-about"],
+    product: ["#about", "[data-slot-key='about']"],
+    expects: [
+      { name: "heading", kind: "sel", sel: "h2", min: 1 },
+      { name: "portrait", kind: "sel", sel: "img", min: 1 },
+      { name: "actions (>= 1)", kind: "sel", sel: "a, button", min: 1 },
+    ],
+  },
+  {
+    key: "faq",
+    label: "FAQ",
+    mockup: ["#s-faq"],
+    product: ["#faq", "[data-slot-key='faq']", "fn:faq"],
+    optional: true,
+    expects: [
+      { name: "heading", kind: "sel", sel: "h2", min: 1 },
+      { name: "questions (>= 2)", kind: "sel", sel: "details, [aria-expanded]", min: 2 },
+    ],
+  },
+  {
+    key: "location",
+    label: "Location (#location)",
+    mockup: ["#s-loc"],
+    product: ["#location", "#visit", "[data-slot-key='location']", "[data-slot-key='visit']"],
+    expects: [
+      { name: "heading", kind: "sel", sel: "h2", min: 1 },
+      { name: "location rows (text)", kind: "text", re: "where" },
+      { name: "actions (directions / chat)", kind: "sel", sel: "a, button", min: 1 },
+    ],
+  },
+  {
+    key: "footer",
+    label: "Footer",
+    mockup: ["#s-foot"],
+    product: ["#s-foot", "fn:footer"],
+    expects: [
+      { name: "big line (h2)", kind: "sel", sel: "h2", min: 1 },
+      { name: "Where column", kind: "text", re: "where" },
+      { name: "Contact column", kind: "text", re: "contact" },
+      { name: "booking button", kind: "sel", sel: "a, button", min: 1 },
+    ],
+  },
+  {
+    key: "socket",
+    label: "Footer socket",
+    mockup: [".bstrip"],
+    product: [".tulala-socket", "fn:socket"],
+    expects: [
+      { name: "policy links (>= 3)", kind: "countText", re: "policy", min: 3, sel: "a, button" },
+      { name: "Tulala attribution", kind: "text", re: "(Tulala)" },
+    ],
+  },
+];
+
+/** Order the sections must appear in (document order), per the mockup. */
+export const ORDER = ["header", "hero", "work", "menu", "reviews", "about", "faq", "location", "footer", "socket"];
 
 /** Interaction states, driven in run.mjs. */
 export const STATE_KEYS = ["chat", "dock", "booking"];

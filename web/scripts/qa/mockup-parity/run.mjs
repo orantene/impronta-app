@@ -3,7 +3,7 @@
  * Mockup parity: headless visual + structural comparison of a talent's published
  * Maison v2 site against the approved mockup. Read-only (see docs/qa/mockup-parity.md).
  *
- *   npm run qa:mockup-parity -- [--design maison-v2|folio] [--talents alba,valeria,TAL-93020|--all-maison-v2]
+ *   npm run qa:mockup-parity -- [--talents alba,valeria,TAL-93020|--all-maison-v2]
  *     [--widths 390,360,1440] [--locale es|en] [--states static,chat,dock,booking]
  *     [--base-url http://localhost:3001] [--mockup-url http://localhost:3099/]
  *     [--include-drafts] [--storage-state file.json] [--out dir]
@@ -22,13 +22,16 @@ import { analyze } from "./analyze.mjs";
 import { fitImages, writeReport } from "./report.mjs";
 import { createImageTool, preparePage } from "./pixel.mjs";
 import { pixelThresholdFor } from "./pixel-thresholds.mjs";
-import { SECTION_UNITS, classify, compactTable, findingsOf } from "./classify.mjs";
+import { classify, compactTable, findingsOf } from "./classify.mjs";
 import { applyBaseline, loadBaseline } from "./baseline.mjs";
-import { ACCENT_DENYLIST, ES_DENYLIST, LOCALE_TEXT, NEVER_CLICK, loadDesignMap } from "./section-map.mjs";
+import { ACCENT_DENYLIST, ES_DENYLIST, LOCALE_TEXT, NEVER_CLICK, ORDER, SECTIONS } from "./section-map.mjs";
 
 loadEnvLocal();
 const HERE = dirname(fileURLToPath(import.meta.url));
 const WEB = join(HERE, "..", "..", "..");
+const ALBA_CODE = "TAL-93020";
+/** Demo key (gallery-meta) of each reference demo, per design, for `--source code`. 5f replaces this with the registry. */
+const DEMO_KEYS = { "maison-v2": { [ALBA_CODE]: "alba-nail-artist" } };
 
 // ---------------------------------------------------------------- args
 function parseArgs(argv) {
@@ -36,14 +39,13 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const v = () => argv[++i];
-    if (a === "--design") o.design = v();
-    else if (a === "--talents") o.talents = v().split(",").map((s) => s.trim()).filter(Boolean);
-    else if (a === "--all-maison-v2" || a === "--all-design") o.all = true;
+    if (a === "--talents") o.talents = v().split(",").map((s) => s.trim()).filter(Boolean);
+    else if (a === "--all-maison-v2") o.all = true;
     else if (a === "--widths") o.widths = v().split(",").map(Number).filter(Boolean);
     else if (a === "--locale") o.locale = v();
     else if (a === "--states") o.states = v().split(",").map((s) => s.trim());
     else if (a === "--base-url") o.baseUrl = v().replace(/\/$/, "");
-    else if (a === "--mockup-url") { o.mockupUrl = v(); o.mockupUrlSet = true; }
+    else if (a === "--mockup-url") o.mockupUrl = v();
     else if (a === "--include-drafts") o.drafts = true;
     else if (a === "--storage-state") o.storageState = v();
     else if (a === "--out") o.out = v();
@@ -58,32 +60,16 @@ function parseArgs(argv) {
     else if (a === "--help" || a === "-h") { console.log("see docs/qa/mockup-parity.md"); process.exit(0); }
     else { console.error(`unknown flag ${a}`); process.exit(2); }
   }
+  if (!o.talents.length && !o.all) o.talents = ["alba"];
   if (!["live", "code"].includes(o.source)) { console.error("--source must be live or code"); process.exit(2); }
+  for (const k of o.sections) if (!SECTIONS.some((x) => x.key === k)) { console.error(`--sections: unknown section "${k}" (have ${SECTIONS.map((x) => x.key).join(", ")})`); process.exit(2); }
   if (!["es", "en"].includes(o.locale)) { console.error("--locale must be es or en"); process.exit(2); }
   return o;
 }
 const opts = parseArgs(process.argv.slice(2));
-let tool = null; // canvas image tool (pixel diff, downscaled JPEGs)
-
-// The design map (web/design-references/<slug>/parity-map.json) drives sections, order, the mockup
-// driver and the reference demo (the demo whose content equals the mockup; see demos/registry.ts).
-const MAP = (() => {
-  try { return loadDesignMap(opts.design); } catch (e) { console.error(String(e.message || e)); process.exit(2); }
-})();
-const SECTIONS = MAP.sections;
-const ORDER = MAP.order;
-const REF_CODE = MAP.referenceDemo.profileCode;
-if (!opts.talents.length && !opts.all) opts.talents = [REF_CODE];
-if (!opts.mockupUrlSet) opts.mockupUrl = MAP.mockup.defaultUrl || opts.mockupUrl;
-// The classifier'"'"'s unit table follows the selected design'"'"'s map (key -> mockup data-w unit and kit slot).
-for (const k of Object.keys(SECTION_UNITS)) delete SECTION_UNITS[k];
-for (const sec of SECTIONS) {
-  const shell = /^(header|footer|footer_rich|socket)$/.test(sec.parityKey || "") ? sec.parityKey.replace("footer_rich", "footer") : null;
-  SECTION_UNITS[sec.key] = { wType: sec.unit || sec.key, ...(shell ? { shell } : { slot: sec.parityKey || null }) };
-}
-for (const k of opts.sections) if (!SECTIONS.some((x) => x.key === k)) { console.error(`--sections: unknown section "${k}" (have ${SECTIONS.map((x) => x.key).join(", ")})`); process.exit(2); }
 const ACTIVE = opts.sections.length ? SECTIONS.filter((x) => opts.sections.includes(x.key)) : SECTIONS;
 const ACTIVE_ORDER = ORDER.filter((k) => ACTIVE.some((x) => x.key === k));
+let tool = null; // canvas image tool (pixel diff, downscaled JPEGs)
 
 // Read-only guard: agents QA on local servers only (web/AGENTS.md, Verification).
 for (const u of [opts.baseUrl, opts.mockupUrl]) {
@@ -106,7 +92,7 @@ async function rest(path) {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function resolveTalents() {
-  const siteRows = await rest("talent_sites?select=talent_profile_id,status,site_slug,theme_design_slug&theme_design_slug=eq." + opts.design);
+  const siteRows = await rest("talent_sites?select=talent_profile_id,status,site_slug,theme_design_slug&theme_design_slug=eq.maison-v2");
   const siteBy = new Map(siteRows.map((s) => [s.talent_profile_id, s]));
   let profiles = [];
   if (opts.all) {
@@ -134,7 +120,7 @@ async function resolveTalents() {
     if (opts.all && !opts.talents.length && t.status !== "published" && !opts.drafts) { skippedDrafts.push(t); continue; }
     out.push(t);
   }
-  out.sort((a, b) => (a.code === REF_CODE ? -1 : b.code === REF_CODE ? 1 : a.code.localeCompare(b.code)));
+  out.sort((a, b) => (a.code === ALBA_CODE ? -1 : b.code === ALBA_CODE ? 1 : a.code.localeCompare(b.code)));
   return { talents: out, skippedDrafts };
 }
 
@@ -159,7 +145,6 @@ const hydratedFor = async (r, t) => {
   const first = (t.name || "").split(/\s+/)[0];
   return !!first && (await r.text().catch(() => "")).includes(first);
 };
-const analyses = []; // raw per-width product analyses (analysis.json)
 const stateCache = new Map(); // identity name -> storageState | null
 
 async function stateFor(browser, ident) {
@@ -228,7 +213,7 @@ async function lazyScroll(page) {
   });
   await page.waitForTimeout(400);
 }
-const analyzeArgs = (side, extra = {}) => ({ sections: ACTIVE, order: ACTIVE_ORDER, locale: opts.locale, side, textMap: LOCALE_TEXT, denyEs: ES_DENYLIST, denyAccent: ACCENT_DENYLIST, rootSel: MAP.mockup.root || "#site", ...extra });
+const analyzeArgs = (side, extra = {}) => ({ sections: ACTIVE, order: ACTIVE_ORDER, locale: opts.locale, side, textMap: LOCALE_TEXT, denyEs: ES_DENYLIST, denyAccent: ACCENT_DENYLIST, rootSel: "#site", ...extra });
 const failed = (checks) => (checks || []).filter((c) => !c.ok).map((c) => `${c.name}${c.detail ? `: ${c.detail}` : ""}`);
 
 function colorDiff(a, b) {
@@ -269,32 +254,30 @@ async function captureMockup(browser, width) {
   const wantStates = opts.states.some((x) => x !== "static");
   try {
     await page.goto(opts.mockupUrl, { waitUntil: "load", timeout: 20000 });
-    const drv = MAP.mockup;
-    const devBtn = drv.deviceButton.replace("{w}", String(width));
-    await page.waitForSelector(devBtn, { timeout: 8000 });
+    await page.waitForSelector("#devseg button", { timeout: 8000 });
     const prime = async (fn) => {
-      await page.locator(devBtn).click();
+      await page.locator(`#devseg button[data-d="${width}"]`).click();
       await page.evaluate(fn);
       await page.waitForTimeout(500);
     };
-    await page.locator(devBtn).click();
-    if (drv.stepButton) await page.locator(drv.stepButton).click();
+    await page.locator(`#devseg button[data-d="${width}"]`).click();
+    await page.locator('#steps button[data-step="0"]').click();
     await page.waitForTimeout(600);
     await page.evaluate(() => { const v = document.getElementById("vp"); if (v) { v.style.scrollBehavior = "auto"; } });
     await preparePage(page);
     out.analysis = await page.evaluate(analyze, analyzeArgs("mockup"));
     for (const sec of ACTIVE) {
-      out.png[sec.key] = out.analysis.sections[sec.key]?.present ? await safeShot(page.locator(`[data-parity-shot="${sec.key}"]`)) : null;
+      out.png[sec.key] = out.analysis.sections[sec.key]?.present ? await safeShot(page.locator(`[data-parity-key="${sec.key}"]`)) : null;
       out.shots[sec.key] = out.png[sec.key] ? await tool.jpeg(out.png[sec.key]) : null;
     }
     for (const sec of ACTIVE) {
       const r = out.analysis.sections[sec.key];
-      if (!r?.present) { if (!SECTIONS.find((x) => x.key === sec.key)?.productOnly) out.selfCheck.push(`${sec.key}: not found on mockup (${[sec.unit ? "data-w=" + sec.unit : null, ...(sec.mockup || [])].filter(Boolean).join(" | ")})`); continue; }
+      if (!r?.present) { out.selfCheck.push(`${sec.key}: not found on mockup (${sec.mockup.join(" | ")})`); continue; }
       for (const f of failed(r.structure)) out.selfCheck.push(`${sec.key}: ${f}`);
     }
     if (width <= 480 && (out.analysis.page.headerRows || 0) > 1) out.selfCheck.push(`header: mockup itself is on ${out.analysis.page.headerRows} rows (header-row rule needs tuning)`);
-    const site = page.locator(drv.root || "#site");
-    if (!wantStates || !drv.states) { await ctx.close(); return out; }
+    const site = page.locator("#site");
+    if (!wantStates) { await ctx.close(); return out; }
     await prime(() => { reset(); openService("lash4d"); S.draft.x = ["ret"]; chatOpen(S.draft); });
     out.shots.chat = await safeShot(site, 55);
     await prime(() => { reset(); S.sel = [{ id: "lash4d", v: "vol", x: ["ret"] }]; render(); });
@@ -326,7 +309,7 @@ const finish = (r) => { r.status = r.status === "BLOCKED" ? "BLOCKED" : r.reason
 
 async function scanStatic(ctx, talent, width, mock, rows) {
   const { page, error } = await loadProduct(ctx, talent, width);
-  const isAlba = talent.code === REF_CODE; // the reference demo: its content equals the mockup
+  const isAlba = talent.code === ALBA_CODE;
   if (error) {
     const r = row(talent, width, "page", "Page render");
     addFindings(r, [{ kind: "page", check: "page renders", evidence: `site did not render (${error})` }]);
@@ -338,7 +321,6 @@ async function scanStatic(ctx, talent, width, mock, rows) {
   await lazyScroll(page);
   await preparePage(page);
   const res = await page.evaluate(analyze, analyzeArgs("product"));
-  analyses.push({ code: talent.code, name: talent.name, width, keyed: res.page.keyed, sections: res.sections, page: res.page });
   const pr = row(talent, width, "page", "Page (global checks)");
   const pg = res.page;
   const pf = (check, evidence) => ({ kind: "page", check, evidence });
@@ -350,7 +332,6 @@ async function scanStatic(ctx, talent, width, mock, rows) {
   if (pg.fixedBottomBars.length > 1) pageFindings.push(pf("one fixed bottom bar", `${pg.fixedBottomBars.length} fixed bottom bars: ${pg.fixedBottomBars.join(" | ")}`));
   if (pg.chatLaunchers.length > 1) pageFindings.push(pf("one chat launcher", `${pg.chatLaunchers.length} chat launchers: ${pg.chatLaunchers.join(" | ")}`));
   if (pg.fixedOverlaps?.length) pageFindings.push(pf("fixed layers do not overlap", `fixed layers overlap: ${pg.fixedOverlaps.join(" | ")}`));
-  if (pg.keyed === false) pr.warnings.push("no data-parity-key on this page (the build predates the contract): matched through the map fallback selectors");
   addFindings(pr, pageFindings);
   if (pg.extraSections?.length) pr.warnings.push(`sections not in the mockup: ${pg.extraSections.join(", ")}`);
   if (talent.viaPublic) pr.warnings.push("rendered through the public host (no preview session)");
@@ -361,8 +342,8 @@ async function scanStatic(ctx, talent, width, mock, rows) {
     const r = row(talent, width, sec.key, sec.label);
     const a = res.sections[sec.key];
     if (!a?.present) {
-      if ((sec.optional && !isAlba) || sec.productOnly) r.warnings.push("absent (optional: hidden without data)");
-      else addFindings(r, [{ kind: "missing", check: "section present", evidence: `section not found (tried ${sec.parityKey ? "[data-parity-key=" + sec.parityKey + "] / " : ""}${(sec.fallback || []).join(" | ")})` }]);
+      if (sec.optional && !isAlba) r.warnings.push("absent (optional: hidden without data)");
+      else addFindings(r, [{ kind: "missing", check: "section present", evidence: `section not found (tried ${sec.product.join(" | ")})` }]);
     } else {
       addFindings(r, [
         ...checkFindings("structure", a.structure),
@@ -371,7 +352,7 @@ async function scanStatic(ctx, talent, width, mock, rows) {
       ]);
       if (a.order && !a.order.ok) addFindings(r, [{ kind: "order", check: "section order", evidence: `order: ${a.order.detail}` }]);
       if (isAlba) addFindings(r, styleDiffs(a.style, mock.analysis?.sections[sec.key]?.style));
-      const png = await safeShot(page.locator(`[data-parity-shot="${sec.key}"]`));
+      const png = await safeShot(page.locator(`[data-parity-key="${sec.key}"]`));
       const mpng = mock.png?.[sec.key];
       if (png) {
         // Pixel diff on the reference demo only: its content is exact, so every mismatch is the design's.
@@ -528,7 +509,7 @@ async function main() {
   mkdirSync(outDir, { recursive: true });
   const { talents, skippedDrafts } = await resolveTalents();
   if (!talents.length) { console.error("No talents to check."); process.exit(2); }
-  for (const t of talents) t.demoKey = t.code === REF_CODE ? MAP.referenceDemo.demoKey || null : null; // gallery-meta demo key, for --source code
+  for (const t of talents) t.demoKey = DEMO_KEYS[opts.design]?.[t.code] || null;
   if (opts.source === "code") {
     const missing = talents.filter((t) => !t.demoKey);
     if (missing.length) { console.error(`--source code needs a gallery demo key for ${missing.map((t) => t.code).join(", ")} in ${opts.design} (DEMO_KEYS in run.mjs).`); process.exit(2); }
@@ -582,8 +563,6 @@ async function main() {
     design: opts.design,
     source: opts.source,
     baseUrl: opts.baseUrl,
-    design: opts.design,
-    referenceDemo: MAP.referenceDemo,
     mockupUrl: opts.mockupUrl,
     locale: opts.locale,
     widths: opts.widths,
@@ -614,8 +593,6 @@ async function main() {
   const strip = (d) => { const { pixel, ...rest } = d; return { ...rest, ...(pixel ? { pixelRatio: +pixel.ratio.toFixed(4), pixelThreshold: pixel.threshold } : {}) }; };
   writeFileSync(deltasFile, JSON.stringify({ meta: { timestamp: ts, design: opts.design, source: opts.source, widths: opts.widths, sections: summary.sections }, deltas: deltas.map(strip), staleBaseline: stale }, null, 2));
   writeFileSync(join(outDir, "summary.json"), JSON.stringify(summary, null, 2));
-  // raw in-page analyses: input of the delta classifier (gap.mjs)
-  writeFileSync(join(outDir, "analysis.json"), JSON.stringify({ design: opts.design, referenceDemo: MAP.referenceDemo, widths: opts.widths, mockup: Object.fromEntries(Object.entries(mockups).map(([w, m]) => [w, m.analysis ? { sections: m.analysis.sections, page: m.analysis.page } : null])), product: analyses }));
 
   // images for the report / the loop
   mkdirSync(join(outDir, "img"), { recursive: true });
