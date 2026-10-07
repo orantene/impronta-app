@@ -1,10 +1,10 @@
-Updated: 2026-10-06 09:42Z · Scoreboard: ✅ 12 / 🟡 57 / ❌ 15 / ⏸ 2 / ❓ 14
-Live SHA: e62cd0d0c818 · origin/production: e62cd0d0c818 · Main SHA: e62cd0d0c818
+Updated: 2026-10-07 12:14Z · Scoreboard: ✅ 11 / 🟡 58 / ❌ 15 / ⏸ 2 / ❓ 14
+Live SHA: c57c2a888a61 · origin/production: 42658b47ee28 · Main SHA: d81189a6321b
 **Ownership:** overnight done-board owner `bc-9c0ba4c9`. Sole STATUS writer on `status/done-board`. No Oran ping (timer). **Do not start a second worker** on in-flight agent files.
 Top 3 blockers right now
 1. **#45 fee-line** ❌ — prove on TAL-93900: seller-pays **$100** / client **$101.50**. Stay ❌ until live screenshots. Do not steal money-agent files.
-2. **LIVE READY:** Live=prod=main `e62cd0d0c818` / `dpl_95RZVdHx…` (#2534 vanity `-demo` hosts + #2535 footer placeholders LIVE). **#94 ✅**. Open: [#2537](https://github.com/orantene/impronta-app/pull/2537) Structural **fail — do not merge** · [#2538](https://github.com/orantene/impronta-app/pull/2538) green/mergeable (Desk login next=/desk — **not merged this wake**; cookie rescope) · [#2539](https://github.com/orantene/impronta-app/pull/2539) docs handover green · [#2533](https://github.com/orantene/impronta-app/pull/2533) draft fail.
-3. Desk LIVE for Oran (URL already sent). Free+Lab ✅ · `maison-v2-demo` LIVE. #87 stays 🟡 until Oran/live screenshots. No Oran ping from board agent.
+2. **Tip chase:** Live HTML `c57c2a888a61` / `dpl_AvL72exL…` · prod `42658b47ee28` (#2558) · Main `d81189a6321b` (#2571+#2568). **#94 🟡**. Structural on main tip **in_progress** (await green → promote). #2532 Nail header already on main (ancestor). Open TUL lane green/mergeable but **not merged this wake** (tip lag). No Oran ping until LIVE advances.
+3. Desk LIVE for Oran (URL already sent; [#2538](https://github.com/orantene/impronta-app/pull/2538) MERGED). Free+Lab ✅ · `maison-v2-demo` LIVE. #87 stays 🟡 until Oran/live screenshots. No Oran ping from board agent.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with Live proof (see below).
 
@@ -163,7 +163,7 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | 84 | Transactional mail: right language and brand | 🟡 | EN/ES templates for booking, payment, reminder, and password reset are on main. | No booking or payment mail opened from a live talent flow. Reset send is rate-limited. | S13 step 6 | — | 2026-10-03 |
 | 85 | Talent can choose which notifications | 🟡 | `TalentNotificationsDrawer` saves prefs. Keys are `new-offer`, `hold-expiring`, and similar, not the catalog category ids the dispatcher reads. | Toggles may not change what is sent. Not proven with one real event. | S13 (own: toggle one pref, trigger the event) | — | 2026-10-03 |
 | 86 | Support from the dashboard or site: AI, then a human | 🟡 | Launchers and `/api/ai/support-chat` plus `requestHumanAction` are on main. `/support` was HTTP 200 on 2026-10-02. | Not walked as a talent or a guest through AI then human on production. | S13 steps 1–2 | — | 2026-10-03 |
-| 87 | Owner works support in the Desk, including hello@ | 🟡 | [`bc-867a8cbf`](https://cursor.com/agents/bc-867a8cbf): **LIVE for Oran test** at https://support.tulala.digital/desk (platform admin). Handoff `docs/support-desk-test-ready-2026-10-04.md`. [#2477](https://github.com/orantene/impronta-app/pull/2477) closed. Mockups [#2536](https://github.com/orantene/impronta-app/pull/2536) LIVE (ancestor of `e62cd0d0`). Auth fix [#2538](https://github.com/orantene/impronta-app/pull/2538) **green/mergeable** — not merged this wake (cookie rescope; Oran test URL already sent). | **Ready for Oran click-test.** Stay 🟡 until live screenshots (no invent ✅). | S13 step 3 | — | 2026-10-06 |
+| 87 | Owner works support in the Desk, including hello@ | 🟡 | **LIVE for Oran test** at https://support.tulala.digital/desk (platform admin). Handoff `docs/support-desk-test-ready-2026-10-04.md`. [#2477](https://github.com/orantene/impronta-app/pull/2477) closed. Mockups [#2536](https://github.com/orantene/impronta-app/pull/2536) LIVE. Auth [#2538](https://github.com/orantene/impronta-app/pull/2538) **MERGED**. Light theme [#2549](https://github.com/orantene/impronta-app/pull/2549) MERGED. | **Ready for Oran click-test.** Stay 🟡 until live screenshots (no invent ✅). | S13 step 3 | — | 2026-10-07 |
 | 88 | Tickets show plan, bookings, payments, errors | 🟡 | `TicketContextCard` has plan, recent bookings, payment status, and diagnostics. | No payments ledger panel. Talent-as-requester lookup is weak. Not opened on a live ticket. | S13 step 2 | — | 2026-10-03 |
 
 ## Story 14 — The platform is healthy (S14)
@@ -171,13 +171,13 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | ✅ | 2026-10-06 09:42Z: **Live HTML** sentry-release = `origin/production` = `origin/main` = `e62cd0d0c818` / `dpl_95RZVdHx…` (#2534+#2535). **Live proof N/A (ops)**. | Tip aligned. | S14 step 1 | — | 2026-10-06 |
+| 94 | Main green, and production equals that green main | 🟡 | 2026-10-07 12:14Z: Live HTML `c57c2a888a61` / `dpl_AvL72exL…` · prod `42658b47ee28` (promote ok) · Main `d81189a6321b` (#2571+#2568). Structural on main tip in_progress. Live lags prod; prod lags main. **Live proof N/A (ops)**. | Tip chase — await Structural green on main → promote → Live catch-up. No Oran ping unless LIVE advances. | S14 step 1 | — | 2026-10-07 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Cloud VM 2026-10-03 20:12Z on tip `7d30bb9d1` (`internal/deploy-smoke-2004.log`): HTTP/CSP/optimizer/Places/alias/auth-matrix/notification routes all ✓; **exit 1** — migration drift + taxonomy fail (no usable decrypted `SUPABASE_SERVICE_ROLE_KEY` / `.env.local` here); Resend domain ⚠ skipped (no `RESEND_API_KEY`). | Full exit 0 needs Mac/env with service role. HTTP production signals green — not ✅ until exit 0. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `e6e00420b` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | Closed/merged: #2477 · #2532 · #2534 · #2535 · #2536. Open with owners: [#2537](https://github.com/orantene/impronta-app/pull/2537) Structural fail · [#2538](https://github.com/orantene/impronta-app/pull/2538) green · [#2539](https://github.com/orantene/impronta-app/pull/2539) docs green · [#2533](https://github.com/orantene/impronta-app/pull/2533) draft fail. **Live proof N/A (ops)**. | — | S14 step 5 | — | 2026-10-06 |
+| 97 | No open PR older than 2 days without an owner | ✅ | Recent merges: #2533 · #2537 · #2538 · #2558 · #2559 · #2569 · #2571 · this wake [#2568](https://github.com/orantene/impronta-app/pull/2568). Open TUL queue owned (#2548–#2567). [#2539](https://github.com/orantene/impronta-app/pull/2539) closed unmerged. **Live proof N/A (ops)**. | — | S14 step 5 | — | 2026-10-07 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-06 09:42Z standing wake (~40h gap). Live=prod=main `e62cd0d0c818` / `dpl_95RZVdHx…`. **#94 ✅**. Free+Lab ✅. Desk LIVE. Open: #2537 fail · #2538 green (not merged) · #2539 docs · #2533 draft fail. #87 🟡 · #45 ❌. ✅12. No Oran ping. | Board working note. | S14 step 5 | — | 2026-10-06 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-07 12:14Z standing wake. Live `c57c2a888a61` · prod `42658b47ee28` · Main `d81189a6321b`. **#94 🟡** tip chase. Structural pending on main. Free+Lab ✅. Desk LIVE. Open TUL lane held. #87 🟡 · #45 ❌. ✅11. No Oran ping. | Board working note. | S14 step 5 | — | 2026-10-07 |
 
 ## No story yet
 
@@ -237,8 +237,10 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-STATUS 2026-10-06 09:42Z on `status/done-board` (standing 15m wake after ~40h gap). REPLIES.md stub. Sole STATUS writer `bc-9c0ba4c9`. No Oran ping (timer; Desk URL already sent).
-**Tip SHAs:** Live HTML sentry-release = prod = main = `e62cd0d0c818` / `dpl_95RZVdHx…`. **#94 🟡→✅**. Scoreboard ✅ 12 / 🟡 57.
-- **LIVE caught up:** [#2534](https://github.com/orantene/impronta-app/pull/2534) design vanity `-demo` + [#2535](https://github.com/orantene/impronta-app/pull/2535) footer placeholders now on Live. Ancestors #2532/#2536 also LIVE.
-- **Open PRs:** [#2537](https://github.com/orantene/impronta-app/pull/2537) inbox Structural **fail — do not merge**. [#2538](https://github.com/orantene/impronta-app/pull/2538) Desk login **green/mergeable** — not merged this wake (cookie rescope; no `SUPPORT_DESK_ENABLED` flip). [#2539](https://github.com/orantene/impronta-app/pull/2539) docs handover green. [#2533](https://github.com/orantene/impronta-app/pull/2533) draft fail.
-- Timer tip `7d30bb9d1` / S5/S7 password-blocked / do-not-merge #2477 stale. **#45** ❌ still owed. #87 🟡 until Oran screenshots. Desk reuse `bc-11e25be7` — do not steal.
+STATUS 2026-10-07 12:14Z on `status/done-board` (standing 15m wake). REPLIES.md stub. Sole STATUS writer `bc-9c0ba4c9`. No Oran ping (timer; Desk URL already sent; LIVE has not advanced).
+**Tip SHAs:** Live `c57c2a888a61` / `dpl_AvL72exL…` · prod `42658b47ee28` · Main `d81189a6321b`. **#94 🟡** tip chase. Scoreboard ✅ 11 / 🟡 58.
+- **#2532** Nail Studio header already on main (Structural green historically; ancestor of prod+main). Tip chase continues.
+- **Prior wake merged:** [#2568](https://github.com/orantene/impronta-app/pull/2568) TUL-52 D. Main tip `d81189a6321b` — Structural **in_progress** this wake (do not promote until green).
+- **Prod** at `42658b47ee28` (#2558); Live HTML still `c57c2a888a61` — alias/deploy lag. No Oran ping until LIVE advances.
+- **Open TUL lane held (green but tip lag):** #2548 · #2553–#2555 · #2557 · #2560 · #2563 (green) · #2562/#2564–#2567 (red/mixed). Do not flip `SUPPORT_DESK_ENABLED`. Desk reuse `bc-11e25be7` — do not steal.
+- Timer tip `7d30bb9d1` / S5/S7 password / do-not-merge #2477 stale. **#45** ❌ · #87 🟡.
