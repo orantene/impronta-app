@@ -50,6 +50,7 @@ import { resolveTalentSiteHostTenant } from "@/lib/messaging/talent-inquiry-tena
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract";
 import { sendMessage } from "@/lib/inquiry/inquiry-engine-messages";
+import { continueOpenGuestThread } from "@/lib/inquiry/guest-continue-thread";
 import { promoteEarlyInquiryToSubmitted } from "@/lib/inquiry/promote-early-inquiry";
 import { isSeedContact, shouldRefuseGuestSend } from "@/lib/inquiry/guest-send-gate";
 import {
@@ -829,6 +830,26 @@ export async function startGuestChatInquiry(
     contactEmail,
   });
   if (!gate.allowed) {
+    // F-11: at the cap, a guest who writes again is continuing the thread they
+    // already have. Join it; only refuse when there is nothing open to continue.
+    const joined = await continueOpenGuestThread(admin, { tenantId, guestSessionId, talentProfileId, body: firstMessage });
+    if (joined.kind === "sent") {
+      return {
+        ok: true,
+        inquiryId: joined.inquiryId,
+        openingMessage: synthOpeningMessage(joined.inquiryId, joined.messageId, firstMessage),
+        autoAckMessage: null,
+        guestEmail: contactEmail,
+        claimEmailSent: false,
+        guestActivation: provisioned.status,
+        continuedExisting: true,
+      };
+    }
+    if (joined.kind === "rate_limited") {
+      return fail("rate_limited", "You're sending messages too quickly — please wait a moment.", {
+        retryAfterMs: joined.retryAfterMs,
+      });
+    }
     return {
       ...fail(
         "limit_reached",

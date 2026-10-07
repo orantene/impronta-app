@@ -882,6 +882,10 @@
       }
     },
     "guestChat": {
+      "instantAnsPrice": "{title} costs {price}.",
+      "instantAnsDuration": "{title} lasts about {duration}.",
+      "instantAnsBoth": "{title}: {price}, about {duration}.",
+      "instantAnsMore": "Want to book, or would you like a person to reply? Share your name and email and we will pass it along.",
       "noMessagesYet": "No messages yet. Send the first one below and the team will reply by email.",
       "replyPlaceholder": "Write a reply…",
       "systemClusterMore": "{count} more updates",

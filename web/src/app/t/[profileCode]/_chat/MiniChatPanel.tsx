@@ -507,6 +507,7 @@ export function MiniChatPanel({
     talentProfileCode,
     sourcePage,
     locale: brand.locale,
+    offerings,
     t,
     contactPromoted: unified.contactPromoted,
     promoteContact: unified.promoteContact,
