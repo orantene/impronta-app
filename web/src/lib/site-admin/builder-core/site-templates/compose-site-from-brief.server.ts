@@ -459,8 +459,10 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   const hrefs = pageHrefsFor(family);
   // Links carry the site base path (`/w/<slug>` on the path host, none on a
   // subdomain or custom domain). Page SLUGS stay root-relative (`hrefs`).
-  const { data: domainRows } = await admin.from("agency_domains").select("hostname, kind, status, is_primary").eq("tenant_id", input.tenantId);
-  const linkHrefs = withSiteBasePath(hrefs, siteBasePath({ slug: agency.slug, planTier: agency.plan_tier, domains: (domainRows ?? []) as SiteDomainRow[] }));
+  const { data: domainRows, error: domainErr } = await admin.from("agency_domains").select("hostname, kind, status, is_primary").eq("tenant_id", input.tenantId);
+  // On a failed read keep root-relative links: the render-time guard prefixes them on the path host.
+  if (domainErr) notes.push(`domains not read: ${domainErr.message}`);
+  const linkHrefs = domainErr ? hrefs : withSiteBasePath(hrefs, siteBasePath({ slug: agency.slug, planTier: agency.plan_tier, domains: (domainRows ?? []) as SiteDomainRow[] }));
   const identity: SiteIdentity = {
     businessName,
     tagline: pick(identityRow?.tagline),

@@ -128,15 +128,18 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
     });
     // TUL-77 (#36): defaults from business family + country, not one
     // restaurant-shaped answer for every workspace.
-    const [{ data: agencyRow }, { data: identityRow }] = await Promise.all([
+    const [{ data: agencyRow, error: agencyErr }, { data: identityRow, error: identityErr }] = await Promise.all([
       admin.from("agencies").select("settings").eq("id", tenantId).maybeSingle<{ settings: unknown }>(),
       admin.from("agency_business_identity").select("address_country").eq("tenant_id", tenantId).maybeSingle<{ address_country: string | null }>(),
     ]);
-    const family = resolveTenantBusinessType(agencyRow?.settings).family;
+    // A failed read falls back to the neutral defaults (Service, platform currency).
+    if (agencyErr) logServerError("menu.offerings.defaults.agency", agencyErr);
+    if (identityErr) logServerError("menu.offerings.defaults.identity", identityErr);
+    const family = resolveTenantBusinessType(agencyErr ? null : agencyRow?.settings).family;
     return {
       ok: true,
       items,
-      defaultCurrency: defaultCurrencyForCountry(identityRow?.address_country, auth.defaultCurrency),
+      defaultCurrency: defaultCurrencyForCountry(identityErr ? null : identityRow?.address_country, auth.defaultCurrency),
       defaultCreateType: defaultCreateTypeForFamily(family),
     };
   } catch (err) {

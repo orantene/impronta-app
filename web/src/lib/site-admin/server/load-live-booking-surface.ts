@@ -44,6 +44,10 @@ export async function loadLiveBookingSurface(
       loadGuestInstantChrome(tenantId),
     ]);
     if (rowsRes.error) logServerError("public.liveBooking.catalog", rowsRes.error);
+    if (agencyRes.error) {
+      logServerError("public.liveBooking.agency", agencyRes.error);
+      return null;
+    }
     const published = ((rowsRes.data ?? []) as TalentOfferingRow[]).map((row) =>
       rowToOffering(row, locale, []),
     );
