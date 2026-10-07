@@ -130,7 +130,7 @@ describe("marquee render per language", () => {
       { id: "m1", kind: "marquee", props: { items: [{ text: "Lash lift" }, { text: "Tinte" }], i18n: OVERLAY } },
     ];
     const res = validateBuilderNodeTree(raw);
-    assert.equal(res.ok, true, JSON.stringify(res.issues));
+    if (!res.ok) assert.fail(JSON.stringify(res.issues));
     const out = html(res.tree[0], loc("en"));
     assert.ok(out.includes("<span>Classic extensions</span>"));
     assert.ok(out.includes("<span>Tinte</span>"));
