@@ -230,7 +230,7 @@ test("liveText may only be removed, not changed", async () => {
 
 test("a changed marquee item prop other than text refuses", async () => {
   const d = approvedDraft();
-  d[1].props.items[0].icon = "star";
+  (d[1].props.items as Array<Record<string, unknown>>)[0].icon = "star";
   const f = fake(snapshot({ draft: d }));
   const r = await run([], f.io);
   assert.equal(r.status, "refused");
@@ -257,7 +257,7 @@ test("a draft shell or token difference refuses", async () => {
 
 test("ambiguous headline (two h1 in the draft) is not approved", async () => {
   const d = approvedDraft();
-  d[0].children.push({ id: "h1b", kind: "heading", props: { level: 1, text: "extra" } });
+  d[0].children.push({ id: "h1b", kind: "heading", props: { level: 1, text: "extra" }, children: [] });
   const f = fake(snapshot({ draft: d }));
   assert.equal((await run([], f.io)).status, "refused");
 });
