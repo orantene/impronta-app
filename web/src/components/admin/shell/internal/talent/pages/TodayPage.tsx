@@ -59,11 +59,19 @@ export function TalentTodayPage() {
   const websiteEligibility = useWebsiteEligibility();
   // Client threads awaiting her reply: the SAME loader and rule as the inbox
   // "Needs reply" filter (talentShellEngine.loadInbox + countAwaitingReply).
-  const [awaitingReplyCount, setAwaitingReplyCount] = useState<number | null>(null);
+  // null while the read is in flight, "unavailable" when it failed: neither is 0.
+  // The read is a GET (not a server action), so it gets the GET budget, not the
+  // 4 s server-action stall budget that cut a 3-4 s cold read to "clear".
+  const [awaitingReplyCount, setAwaitingReplyCount] = useState<number | "unavailable" | null>(null);
   useEffect(() => {
     let cancelled = false;
-    void safeLoadInbox(talentShellEngine.loadInbox, { locationSlug: "all", filter: "all" }).then((r) => {
-      if (!cancelled) setAwaitingReplyCount(r.ok ? countAwaitingReply(r.rows) : null);
+    void safeLoadInbox(
+      talentShellEngine.loadInbox,
+      { locationSlug: "all", filter: "all" },
+      2000,
+      talentShellEngine.loadInboxBudgetMs,
+    ).then((r) => {
+      if (!cancelled) setAwaitingReplyCount(r.ok ? countAwaitingReply(r.rows) : "unavailable");
     });
     return () => {
       cancelled = true;

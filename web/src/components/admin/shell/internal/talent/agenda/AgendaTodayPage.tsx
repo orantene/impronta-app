@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { todayReplyState } from "@/lib/messages-v5/inbox-view";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { todayTotals } from "@/lib/talent-agenda/derive";
 import { loadTalentClients } from "@/lib/talent/clients-actions";
@@ -169,8 +170,8 @@ export function AgendaTodayPage({
   eligibility?: TodayEligibility | null;
   /** Non-archived services; null while loading. */
   bookableCount?: number | null;
-  /** Client threads awaiting her reply: the inbox "Needs reply" count (countAwaitingReply). */
-  awaitingReplyCount?: number | null;
+  /** Client threads awaiting her reply: the inbox "Needs reply" count (countAwaitingReply). null = still reading, "unavailable" = read failed. */
+  awaitingReplyCount?: number | "unavailable" | null;
   sitePublished?: boolean;
   siteUrl?: string | null;
   /** Paid this month from the earnings bridge; null when not loaded. */
@@ -207,7 +208,8 @@ export function AgendaTodayPage({
 
   const derived = todayFromAgenda(items, clock);
   const attention = derived.attention.filter((item) => !item.unscheduled);
-  const awaitingReply = awaitingReplyCount != null && awaitingReplyCount > 0 ? awaitingReplyCount : 0;
+  const replyState = todayReplyState(awaitingReplyCount);
+  const awaitingReply = replyState === "waiting" && typeof awaitingReplyCount === "number" ? awaitingReplyCount : 0;
   const noTime = unscheduledAgendaItems(items);
   const appointments = todayAppointments(items, clock).filter((item) => !item.unscheduled);
   const upNext = (() => {
@@ -618,7 +620,20 @@ export function AgendaTodayPage({
                 </span>
               </div>
             ) : null}
-            {attention.length === 0 && awaitingReply === 0 ? (
+            {attention.length === 0 && replyState === "checking" ? (
+              <div className={`border-t border-black/10 px-4 py-3 text-[13px] ${MUTED}`} data-testid="today-attention-checking">
+                {copy.t("Checking your messages")}
+              </div>
+            ) : null}
+            {replyState === "unavailable" ? (
+              <div className={`border-t border-black/10 px-4 py-3 text-[13px] ${MUTED}`} data-testid="today-attention-reply-unavailable">
+                {copy.t("Could not check your messages.")}{" "}
+                <Link href="/talent/inbox" className="font-semibold text-[var(--tc-accent)]">
+                  {copy.t("Open Messages")}
+                </Link>
+              </div>
+            ) : null}
+            {attention.length === 0 && replyState === "none" ? (
               <div className={`border-t border-black/10 px-4 py-3 text-[13px] ${MUTED}`}>
                 <span className="font-semibold text-[var(--tc-primary)]">{copy.t("Nothing needs attention")}</span>{" "}
                 {copy.t("You are clear for now.")}

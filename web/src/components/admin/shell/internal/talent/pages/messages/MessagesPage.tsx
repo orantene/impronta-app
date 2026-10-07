@@ -8,7 +8,6 @@ import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import type { SellerChrome } from "@/components/messages-v5/shell/seller";
 import { MessagesV5Shell } from "@/components/messages-v5/shell/MessagesV5Shell";
-import { safeLoadInbox } from "@/components/messages-v5/shell/safe-load-inbox";
 import { talentShellEngine } from "@/components/messages-v5/shell/talent-engine";
 import type { ShellActionId } from "@/components/messages-v5/screens/contracts";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
@@ -51,19 +50,10 @@ function TalentMessagesV5() {
   const [activeId, setActiveId] = useState<string | null>(initialInquiryId);
   const dispatchRef = useRef<(id: ShellActionId) => void>(() => undefined);
   const copy = useDashboardText();
-  // F54: the shell lists one segment at a time; the first run needs her total
-  // across all of them. Re-read when the open thread changes (a new
-  // conversation opens itself), so the first run leaves as soon as one exists.
+  // F54: the first run needs her total across every segment. The shell's own
+  // unfiltered read reports it (onInboxLoaded), including the reload after a
+  // new conversation, so this page never fetches the inbox a second time.
   const [totalConversations, setTotalConversations] = useState<number | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    void safeLoadInbox(talentShellEngine.loadInbox, { locationSlug: "all", filter: "all" }).then((r) => {
-      if (!cancelled) setTotalConversations(r.ok ? r.rows.length : null);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeId]);
   // Seller mode: a solo talent sees client, state and her own verbs, not staff chrome.
   const seller = useMemo<SellerChrome>(
     () => ({
@@ -111,6 +101,7 @@ function TalentMessagesV5() {
         onActiveInquiry={setActiveId}
         onDispatchReady={onDispatchReady}
         seller={seller}
+        onInboxLoaded={setTotalConversations}
         composerAccessory={
           <div className="flex items-center justify-start gap-2 px-3 pb-1 pt-2" data-talent-seller-actions>
             <button

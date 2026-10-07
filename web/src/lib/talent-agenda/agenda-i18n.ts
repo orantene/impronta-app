@@ -542,6 +542,8 @@ const ES: Record<string, string> = {
   "Send a payment link": "Enviar link de pago",
   "Check in": "Registrar",
   "You are clear for now.": "Todo al día por ahora.",
+  "Checking your messages": "Revisando tus mensajes",
+  "Could not check your messages.": "No pudimos revisar tus mensajes.",
   "1 client waiting for a reply": "1 cliente espera tu respuesta",
   "{n} clients waiting for a reply": "{n} clientes esperan tu respuesta",
   "Open Messages": "Abrir mensajes",

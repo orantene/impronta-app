@@ -16,6 +16,22 @@ import {
   searchInboxRows,
 } from "./inbox-view";
 
+/* ---------- Today "Needs attention" reply state ---------- */
+
+test("Today: an inbox read still in flight or failed is never 'You are clear'", async () => {
+  const { todayReplyState, countAwaitingReply } = await import("./inbox-view");
+  assert.equal(todayReplyState(null), "checking");
+  assert.equal(todayReplyState("unavailable"), "unavailable");
+  assert.equal(todayReplyState(0), "none");
+  // TAL-93938: two needs_reply threads under Messages "Needs reply" -> Today shows 2 waiting.
+  const rows = [
+    inboxRow({ id: "a", conversationState: "needs_reply" }),
+    inboxRow({ id: "b", conversationState: "needs_reply" }),
+    inboxRow({ id: "c", conversationState: "awaiting_customer" }),
+  ];
+  assert.equal(todayReplyState(countAwaitingReply(rows)), "waiting");
+});
+
 /* ---------- isNeedsAction ---------- */
 
 test("isNeedsAction: needs_reply is always needs action", () => {

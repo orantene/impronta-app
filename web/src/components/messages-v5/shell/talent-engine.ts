@@ -16,7 +16,7 @@ import {
 import type { MessagingRefusal } from "@/lib/messaging/types";
 
 import { engineComposerActions } from "../screens/ComposerWire";
-import { fetchTalentInbox } from "./talent-inbox-fetch";
+import { TALENT_INBOX_FETCH_BUDGET_MS, fetchTalentInbox } from "./talent-inbox-fetch";
 
 import { engineIdentityActions } from "../screens/IdentityCaptureWire";
 import type { ShellEngine } from "./engine";
@@ -37,6 +37,7 @@ const refused = (reason: MessagingRefusal = "not_allowed") => Promise.resolve({ 
 export const talentShellEngine: ShellEngine = {
   // GET, not the server action: a discarded action hung direct loads (route.ts).
   loadInbox: (input) => fetchTalentInbox(input),
+  loadInboxBudgetMs: TALENT_INBOX_FETCH_BUDGET_MS,
   loadThread: (input) => messagingTalentLoadThread(input),
   loadEssentials: (input) => messagingTalentLoadEssentials(input),
   loadContextLines: (input) => messagingTalentLoadContextLines(input),
