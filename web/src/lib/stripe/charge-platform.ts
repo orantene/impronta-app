@@ -66,8 +66,9 @@ const PLATFORM_UNRESOLVED = "Could not determine the seller's payment account. P
  * The platform a NEW charge for this transaction must be created on: the seller
  * of record's connected-account platform (payout receiver -> talent/agency,
  * falling back to the source workspace). FAILS CLOSED: any DB error, missing
- * client or missing row is an error, never 'us' (an MX seller must not be
- * charged on the US account). 'us' is returned only when the transaction has
+ * client or read error is an error, never 'us' (an MX seller must not be
+ * charged on the US account). A missing seller row is not an error: see
+ * loadAccountPlatformStrict ('us'). 'us' is returned only when the transaction has
  * no seller reference at all.
  */
 export async function resolveSellerPlatformForTransaction(
@@ -100,8 +101,8 @@ async function resolveSellerPlatformUnsafe(
       .select("owner_type, owner_id")
       .eq("id", t.payout_receiver_id)
       .maybeSingle();
-    if (paErr || !pa) return null;
-    const p = pa as { owner_type?: string; owner_id?: string };
+    if (paErr) return null;
+    const p = (pa ?? {}) as { owner_type?: string; owner_id?: string };
     if (p.owner_id && p.owner_type === "talent") {
       return loadAccountPlatformStrict("talent_profiles", { column: "id", value: p.owner_id }, sb);
     }

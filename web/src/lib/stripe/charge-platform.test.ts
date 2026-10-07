@@ -44,3 +44,29 @@ test("MX seller resolves to mx", async () => {
   );
   assert.deepEqual(r, { ok: true, key: "mx" });
 });
+test("missing seller row (no error), no country source, resolves to us", async () => {
+  const r = await resolve(
+    "t1",
+    fakeSb({
+      booking_transactions: { data: { source_tenant_id: "a1", payout_receiver_id: null }, error: null },
+      agencies: { data: null, error: null },
+    }),
+  );
+  assert.deepEqual(r, { ok: true, key: "us" });
+});
+test("thrown exception reading the seller account fails closed", async () => {
+  const sb = {
+    from: (t: string) => {
+      const q = {
+        select: () => q,
+        eq: () => q,
+        maybeSingle: async () => {
+          if (t === "agencies") throw new Error("net");
+          return { data: { source_tenant_id: "a1", payout_receiver_id: null }, error: null };
+        },
+      };
+      return q;
+    },
+  } as unknown as SupabaseClient;
+  assert.equal((await resolve("t1", sb)).ok, false);
+});

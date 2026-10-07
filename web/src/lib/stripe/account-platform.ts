@@ -24,9 +24,13 @@ export async function loadAccountPlatform(
 }
 
 /**
- * Fail-closed variant for NEW charges: returns null on a missing client, read
- * error or missing row instead of defaulting to 'us', so a DB failure can never
- * route an MX seller's charge to the US platform.
+ * Fail-closed variant for NEW charges: returns null on a missing client or a
+ * read ERROR (error set or thrown), so a DB failure can never route an MX
+ * seller's charge to the US platform. A MISSING ROW (no error, no data) is not
+ * a failure: it yields 'us'. No country source is readable for a seller whose
+ * row does not exist (payout_accounts has no country column, and the seller
+ * row itself is what is missing), so 'us' is the pre-MX default; an existing
+ * row carries stripe_account_platform explicitly.
  */
 export async function loadAccountPlatformStrict(
   table: "talent_profiles" | "agencies",
@@ -34,11 +38,14 @@ export async function loadAccountPlatformStrict(
   sb: SupabaseClient | null = createServiceRoleClient(),
 ): Promise<StripeAccountKey | null> {
   if (!sb) return null;
-  const { data, error } = await sb
-    .from(table)
-    .select("stripe_account_platform")
-    .eq(match.column, match.value)
-    .maybeSingle();
-  if (error || !data) return null;
+  let res;
+  try {
+    res = await sb.from(table).select("stripe_account_platform").eq(match.column, match.value).maybeSingle();
+  } catch {
+    return null;
+  }
+  const { data, error } = res;
+  if (error) return null;
+  if (!data) return "us";
   return (data as { stripe_account_platform?: string }).stripe_account_platform === "mx" ? "mx" : "us";
 }
