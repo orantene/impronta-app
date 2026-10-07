@@ -391,11 +391,12 @@ test("INVARIANT requireTalentSelfAction: OWNERSHIP (user_id) is the boundary —
   // Talent self-edit can run from the canonical /talent app route where no
   // admin workspace cookie exists; after ownership is proven, tenant scope may
   // be resolved from the talent's own active roster row.
-  assert.match(fn, /let tenantId = scope\?\.tenantId \?\? null/, "uses active tenant when present");
+  assert.match(fn, /pickTalentTenant\(\{/, "host tenant only trusted via roster-checked helper");
+  assert.doesNotMatch(fn, /let tenantId = scope\?\.tenantId/, "host tenant is never taken unchecked");
+  assert.match(fn, /rosterErr\s*\?\s*null/, "roster query error fails closed");
   assert.match(fn, /\.from\("agency_talent_roster"\)/, "falls back through the owned profile's roster row");
   assert.match(fn, /\.eq\("talent_profile_id", talent_profile_id\)/, "roster fallback is scoped to the owned profile");
   assert.match(fn, /\.eq\("status", "active"\)/, "roster fallback only accepts active roster rows");
-  assert.match(fn, /Talent is not on any active roster\./, "orphan profiles are refused");
   assert.match(fn, /if \(userErr \|\| !user\) return \{ ok: false/, "must be signed in");
   // The documented hybrid-user fix: it must NOT pre-gate on requireTalent()/role.
   assert.doesNotMatch(fn, /requireTalent\(\)/, "must not role-gate (hybrid admin-as-talent owns their profile)");
