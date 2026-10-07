@@ -36,6 +36,20 @@ export function movesFor(f: HowYouWorkFacts): HowYouWorkMove[] {
   return [f.hasTalentProfile ? "resume_bookings" : "add_provider"];
 }
 
+export type ProfileState = { workflow_status: string; visibility: string };
+
+/**
+ * A provider added later must end live, like the 100%-visible state of a
+ * bookable owner: draft/hidden is promoted to approved/public. Already live
+ * states (approved, published, public) are never touched or downgraded.
+ */
+export function planProfilePromotion(p: ProfileState): Partial<ProfileState> | null {
+  const patch: Partial<ProfileState> = {};
+  if (p.workflow_status === "draft" || p.workflow_status === "hidden") patch.workflow_status = "approved";
+  if (p.visibility === "hidden") patch.visibility = "public";
+  return Object.keys(patch).length ? patch : null;
+}
+
 type Fail = { ok: false; error: string };
 
 export type MoveDeps = {
@@ -45,6 +59,8 @@ export type MoveDeps = {
   addProvider(input: { tenantSlug: string; displayName: string }): Promise<{ ok: true; talentProfileId: string } | Fail>;
   /** ensureSelfRosterSiteVisible, the same function 1A uses. */
   ensureSelfRoster(tenantId: string, talentProfileId: string): Promise<{ ok: true } | Fail>;
+  /** Promote a draft/hidden talent profile to approved/public (planProfilePromotion). */
+  promoteProfileLive(talentProfileId: string): Promise<{ ok: true } | Fail>;
   /** Roster row to roster_only + direct booking off. Never a delete. */
   hideFromBooking(tenantId: string, talentProfileId: string): Promise<{ ok: true } | Fail>;
   setHomeSurface(surface: "talent" | "workspace"): Promise<{ ok: true } | Fail>;
@@ -73,6 +89,10 @@ export async function runHowYouWorkMove(
       location: (input.location ?? "").trim(),
     });
     if (!ws.ok) return fail(ws.error);
+    if (facts.talentProfileId) {
+      const live = await deps.promoteProfileLive(facts.talentProfileId);
+      if (!live.ok) return fail(live.error);
+    }
     const home = await deps.setHomeSurface(homeSurfaceForChoice("both"));
     if (!home.ok) warnings.push("home");
     return { ok: true, move, choice: "both", slug: ws.slug, warnings };
@@ -84,6 +104,8 @@ export async function runHowYouWorkMove(
     const name = (input.displayName ?? facts.displayName ?? "").trim();
     const tp = await deps.addProvider({ tenantSlug: facts.tenantSlug, displayName: name });
     if (!tp.ok) return fail(tp.error);
+    const live = await deps.promoteProfileLive(tp.talentProfileId);
+    if (!live.ok) return fail(live.error);
     const roster = await deps.ensureSelfRoster(facts.tenantId, tp.talentProfileId);
     if (!roster.ok) return fail(roster.error);
     return { ok: true, move, choice: "both", slug: facts.tenantSlug, warnings };
@@ -92,6 +114,8 @@ export async function runHowYouWorkMove(
   if (!facts.talentProfileId) return fail("No talent profile found.");
 
   if (move === "resume_bookings") {
+    const live = await deps.promoteProfileLive(facts.talentProfileId);
+    if (!live.ok) return fail(live.error);
     const roster = await deps.ensureSelfRoster(facts.tenantId, facts.talentProfileId);
     if (!roster.ok) return fail(roster.error);
     return { ok: true, move, choice: "both", slug: facts.tenantSlug, warnings };

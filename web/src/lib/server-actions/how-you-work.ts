@@ -13,7 +13,7 @@ import {
   type HowYouWorkMove,
   type MoveInput,
 } from "@/lib/onboarding/how-you-work";
-import { hideSelfFromBooking, loadFacts, setHomeSurfacePreference } from "@/lib/onboarding/how-you-work.server";
+import { hideSelfFromBooking, loadFacts, promoteTalentProfileLive, setHomeSurfacePreference } from "@/lib/onboarding/how-you-work.server";
 import type { OnboardingChoice } from "@/lib/onboarding/choice";
 import { ensureSelfRosterSiteVisible } from "@/lib/saas/ensure-self-roster";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -65,6 +65,7 @@ export async function runHowYouWorkMoveAction(move: HowYouWorkMove, input: MoveI
         const r = await ensureSelfRosterSiteVisible(admin, { tenantId, talentProfileId, addedBy: userId });
         return r.ok ? r : { ok: false, error: r.error };
       },
+      promoteProfileLive: (id) => promoteTalentProfileLive(admin, id),
       hideFromBooking: (tenantId, talentProfileId) => hideSelfFromBooking(admin, tenantId, talentProfileId),
       setHomeSurface: (surface) => setHomeSurfacePreference(admin, userId, surface),
     });
