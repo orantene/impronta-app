@@ -25,6 +25,7 @@ import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchas
 import { catalogBarPriceLabel, catalogRowPriceText } from "./services-catalog-bar-price";
 import { ServicesCatalogDemoToast, useDemoToast } from "./services-catalog-demo-toast";
 import { catalogDurationShort, railCount } from "./services-catalog-format";
+import { CatalogIdleBarGo, CatalogOverlayStyles } from "./services-catalog-idle-bar";
 import { CatalogMatrix } from "./services-catalog-matrix";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 import { ChatIcon, SelectionDock } from "@/components/public-booking/SelectionDock";
@@ -506,6 +507,7 @@ export function ServicesCatalogFilter({
       </div>
       </div>
 
+      <CatalogOverlayStyles />
       {/* Idle prompt only; once something is picked the AUD-044 dock takes over. */}
       <div
         className="cb-bar"
@@ -523,17 +525,7 @@ export function ServicesCatalogFilter({
             >
               <ChatIcon size={20} />
             </button>
-            <button
-              type="button"
-              className="cb-bar-go"
-              onClick={() =>
-                document
-                  .querySelector(`[data-builder-node-id="${nodeId}"]`)
-                  ?.scrollIntoView({ behavior: "smooth", block: "start" })
-              }
-            >
-              {es ? "Ver servicios" : "See services"}
-            </button>
+            <CatalogIdleBarGo nodeId={nodeId} es={es} />
           </>
         ) : (
           <div className="cb-bar-text">

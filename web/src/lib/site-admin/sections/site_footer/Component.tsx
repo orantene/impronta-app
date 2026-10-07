@@ -159,7 +159,7 @@ export async function SiteFooterComponent({
   publicPathPrefix = "",
   builderNodeBindings,
 }: SectionComponentProps<SiteFooterV1>) {
-  const { brand, brandDisplay, columns, social, legal, variant, tone, nodePresentation, presentation } = props;
+  const { brand = {}, brandDisplay, columns, social, legal = { links: [] }, variant, tone, nodePresentation, presentation } = props;
   // 6C — single-source link resolution (LinkRef object or legacy
   // string). Deep-prefixer leaves LinkRef.value alone; prefixPublicHref
   // is idempotent, so legacy + structured both resolve correctly.

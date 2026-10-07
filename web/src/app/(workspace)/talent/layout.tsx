@@ -13,6 +13,8 @@ import {
   loadTalentAgencies,
   loadTalentRepresentation,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
+import { loadTalentVisibleInquiryIds } from "@/lib/messaging/talent-inbox-rows";
+import { scopeTalentNotificationsToInbox } from "@/lib/notifications/talent-inbox-scope";
 import { loadTalentSurfaceNotifications } from "@/app/(workspace)/[tenantSlug]/_data-bridge/notifications";
 import { loadTalentCalendarEntries } from "@/components/admin/shell/internal/data-bridge";
 import { loadTalentAgenda } from "@/lib/talent-agenda/load";
@@ -229,7 +231,7 @@ export default async function PlatformTalentLayout({
     profileEditorLayout,
     clientFieldSource,
     talentLocaleState,
-    userNotifications,
+    userNotificationsAll,
     talentPageAnalytics,
     workspaceUi,
     talentDashboardLoad,
@@ -288,6 +290,10 @@ export default async function PlatformTalentLayout({
     // Never fatal: a load failure leaves the card on its old estimate.
     loadTalentDashboardData().catch(() => null),
   ]);
+
+  // The bell counts only conversations she can open in Messages (TUL-52 B).
+  const visibleInquiryIds = await loadTalentVisibleInquiryIds().catch(() => null);
+  const userNotifications = scopeTalentNotificationsToInbox(userNotificationsAll, visibleInquiryIds);
 
   // Platform currency policy: unless a super-admin has turned multi-currency
   // display ON, collapse the talent's earnings to the single operating currency

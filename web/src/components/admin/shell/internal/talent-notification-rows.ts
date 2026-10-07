@@ -59,6 +59,8 @@ export type TalentNotif = {
   title: string;
   sub?: string;
   when?: string;
+  /** Row timestamp (ISO). When set the UI formats the age itself, in the viewer's language. */
+  whenIso?: string;
   unread?: boolean;
   /** Sticky = no dismiss. Stays until the underlying action/state resolves. */
   sticky?: boolean;
@@ -183,6 +185,7 @@ export function talentNotifsFromBridge(
         title: n.title,
         sub: n.body ?? undefined,
         when: n.ts,
+        whenIso: n.createdAt,
         unread: !n.read,
         // Action rows stay until the loop closes; updates can be cleared.
         sticky: category === "action",

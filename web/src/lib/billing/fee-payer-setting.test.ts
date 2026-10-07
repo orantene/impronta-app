@@ -31,3 +31,10 @@ test("zero price is safe", () => {
   const l = previewFeeLines({ price: 0, currency: "MXN", feePayer: "client" });
   assert.equal(l.clientTotalMinor, 0);
 });
+
+test("formatFeeMoney: MXN carries the MX$ prefix, USD stays $", async () => {
+  const { formatFeeMoney } = await import("./fee-payer-setting");
+  assert.equal(formatFeeMoney(100000, "MXN"), "MX$1,000.00");
+  assert.equal(formatFeeMoney(10484, "usd"), "$104.84");
+  assert.equal(formatFeeMoney(5000, "EUR"), "50.00 EUR");
+});

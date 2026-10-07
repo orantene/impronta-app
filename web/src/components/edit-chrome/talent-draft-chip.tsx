@@ -14,6 +14,7 @@ import type { ReactElement } from "react";
 import { CHROME, PortaledOverlay } from "./kit";
 import { usePageVersion } from "./save-cycle-bridge";
 import { SITE_PUBLISHED_EVENT } from "./site-published-event";
+import { publishTalentDraftStatus, resolveTalentDraftStatus } from "./talent-draft-status";
 import { useEditorLocale } from "./use-editor-locale";
 import {
   CHROME_COPY,
@@ -64,6 +65,11 @@ export function TalentDraftChip(): ReactElement | null {
     const res = await loadTalentGoLiveAction().catch(() => null);
     if (res && res.ok) setSummary(res.summary);
   }, []);
+
+  // One source of truth: publish the server diff for the top-bar save control.
+  useEffect(() => {
+    if (enabled) publishTalentDraftStatus(resolveTalentDraftStatus(summary));
+  }, [enabled, summary]);
 
   // Refresh after saves land (pageVersion = the site's draft_rev).
   useEffect(() => {

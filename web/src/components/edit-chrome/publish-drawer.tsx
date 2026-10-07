@@ -570,7 +570,12 @@ export function PublishDrawer() {
     const totalSections = rows.reduce((sum, r) => sum + r.count, 0);
     const primaryCount = primary.reduce((sum, r) => sum + r.count, 0);
     const legacyCount = legacy.reduce((sum, r) => sum + r.count, 0);
-    const missing = rows.filter((r) => r.missingRequired);
+    // TUL-76: a freeform site (content in the builder tree, no curated body
+    // slots) is publishable; header/footer shell slots do not make it "curated".
+    const bodyCount = rows
+      .filter((r) => r.key !== "header" && r.key !== "footer")
+      .reduce((sum, r) => sum + r.count, 0);
+    const missing = bodyCount === 0 && builderTree.length > 0 ? [] : rows.filter((r) => r.missingRequired);
     return {
       rows,
       primary,
@@ -580,7 +585,7 @@ export function PublishDrawer() {
       legacyCount,
       missing,
     };
-  }, [slots, slotDefs]);
+  }, [slots, slotDefs, builderTree.length]);
 
   const publishDiff = useMemo(() => {
     const emptySummary: PublishDiffSummary = {

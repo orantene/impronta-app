@@ -23,13 +23,10 @@ function linkify(text: string): ReactNode[] {
   );
 }
 
-function versionLine(model: PolicyPageModel): string {
+/** The platform default is shown as a plain policy: no version line, never an "not published yet" admission. */
+export function versionLine(model: PolicyPageModel): string | null {
   const es = model.locale === "es";
-  if (model.isDefault) {
-    return es
-      ? "Texto general de la plataforma. Este sitio aún no publicó sus propias políticas."
-      : "General platform text. This site has not published its own policies yet.";
-  }
+  if (model.isDefault) return null;
   const when = model.publishedAt ? new Date(model.publishedAt).toISOString().slice(0, 10) : "";
   return es ? `Versión ${model.version}${when ? `, publicada el ${when}` : ""}` : `Version ${model.version}${when ? `, published ${when}` : ""}`;
 }
@@ -40,6 +37,7 @@ const LINE = "var(--token-color-line, color-mix(in srgb, CanvasText 16%, Canvas)
 
 export function TalentPolicyDocument({ model, headingTag = "h1" }: { model: PolicyPageModel; headingTag?: "h1" | "h2" }) {
   const Heading = headingTag;
+  const line = versionLine(model);
   const wrap: CSSProperties = {
     color: INK,
     fontFamily: "var(--site-body-font, inherit)",
@@ -49,9 +47,13 @@ export function TalentPolicyDocument({ model, headingTag = "h1" }: { model: Poli
   return (
     <article data-talent-policy-doc={model.doc} data-policy-default={model.isDefault ? "true" : "false"} lang={model.locale} style={wrap}>
       <Heading style={{ fontFamily: "var(--site-heading-font, inherit)", fontSize: 28, lineHeight: 1.2, margin: "0 0 6px" }}>{model.title}</Heading>
-      <p data-policy-version={model.version ?? "default"} style={{ margin: "0 0 24px", fontSize: 13, color: SOFT }}>
-        {versionLine(model)}
-      </p>
+      {line ? (
+        <p data-policy-version={model.version ?? "default"} style={{ margin: "0 0 24px", fontSize: 13, color: SOFT }}>
+          {line}
+        </p>
+      ) : (
+        <div aria-hidden style={{ height: 12 }} />
+      )}
       <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 18 }}>
         {model.clauses.map((c) => (
           <li key={c.n} style={{ borderTop: `1px solid ${LINE}`, paddingTop: 14 }}>

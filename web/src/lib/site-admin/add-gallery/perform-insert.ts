@@ -1,6 +1,7 @@
 import { recordTemplateUsage } from "@/lib/site-admin/builder-core/templates/template-usage-actions";
 
 import { resolveAddGalleryInsertAction } from "./insert";
+import type { TemplateCopyContext } from "./section-template-copy";
 import { getAddGalleryItemById } from "./registry";
 import type { AddGalleryItem } from "./types";
 
@@ -16,6 +17,8 @@ export interface AddGalleryInsertContext {
   tenantId?: string | null;
   surface?: string | null;
   pageRef?: string | null;
+  /** TUL-52 C: site kind + content locale for placeholder copy. */
+  copy?: TemplateCopyContext;
 }
 
 export interface AddGalleryInsertDeps {
@@ -48,7 +51,7 @@ export async function performAddGalleryInsert(
   // components, so it must not reach the server-only auth/scope helpers
   // (next/headers). Re-wire the cap in the server-only deps provider (the
   // "use server" action that supplies insertBuilderComponent) instead.
-  const action = resolveAddGalleryInsertAction(item);
+  const action = resolveAddGalleryInsertAction(item, context.copy);
   const { parentId, index } = target;
 
   switch (action.type) {

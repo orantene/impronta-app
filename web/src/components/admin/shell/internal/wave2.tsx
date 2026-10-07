@@ -31,6 +31,8 @@ import { useRouter } from "next/navigation";
 import { setActiveTalentAgencyAction } from "@/lib/talent/set-active-agency-action";
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
+import { useDashboardText } from "./dashboard-i18n";
+import { formatNotificationAge, localizeNotificationText } from "./notification-localize";
 import { setNotificationPrefs, getNotificationPrefs } from "@/lib/server-actions/user-prefs";
 import {
   MOCK_TALENT_NOTIFS,
@@ -1913,6 +1915,10 @@ function NotifRow({
   onDismiss?: () => void;
 }) {
   const [hover, setHover] = useState(false);
+  const { locale, t: tr, isSpanish } = useDashboardText();
+  const title = localizeNotificationText(notif.title, locale);
+  const sub = localizeNotificationText(notif.sub, locale);
+  const when = notif.whenIso ? formatNotificationAge(notif.whenIso, locale) : notif.when;
   const tonePalette = {
     coral: { bg: COLORS.coralSoft, fg: COLORS.coral },
     indigo: { bg: COLORS.indigoSoft, fg: COLORS.indigo },
@@ -1939,7 +1945,7 @@ function NotifRow({
       <button
         type="button"
         onClick={onOpen}
-        aria-label={`Open: ${notif.title}`}
+        aria-label={`${tr("Open")}: ${title}`}
         style={{
           all: "unset",
           display: "flex",
@@ -1973,11 +1979,11 @@ function NotifRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <span style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: -0.05, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }} className="text-admin-ink">
-              {notif.title}
+              {title}
             </span>
             {notif.mention && (
               <span
-                aria-label={`Tagged by ${notif.mention.from}`}
+                aria-label={`${isSpanish ? "Mencionado por" : "Tagged by"} ${notif.mention.from}`}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -1997,7 +2003,7 @@ function NotifRow({
             )}
             {notif.unread && (
               <span
-                aria-label="Unread"
+                aria-label={tr("Unread")}
                 style={{
                   width: 5,
                   height: 5,
@@ -2007,15 +2013,15 @@ function NotifRow({
                 }}
               />
             )}
-            {notif.when && (
+            {when && (
               <span style={{ fontSize: 10.5, flexShrink: 0, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-                {notif.when}
+                {when}
               </span>
             )}
           </div>
-          {notif.sub && (
+          {sub && (
             <div style={{ fontSize: 11.5, marginTop: 1, lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink-muted">
-              {notif.sub}
+              {sub}
             </div>
           )}
           {notif.progress && (
@@ -2057,7 +2063,7 @@ function NotifRow({
             e.stopPropagation();
             onDismiss();
           }}
-          aria-label={`Dismiss: ${notif.title}`}
+          aria-label={`${tr("Dismiss")}: ${title}`}
           style={{
             position: "absolute",
             top: 6,

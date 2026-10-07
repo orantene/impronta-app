@@ -300,9 +300,11 @@ export function DrawerShell({
       {/* panel */}
       <aside
         ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
+        role={open ? "dialog" : undefined}
+        aria-modal={open ? "true" : undefined}
+        aria-label={open ? title : undefined}
+        aria-hidden={open ? undefined : true}
+        inert={!open}
         data-tulala-drawer-panel
         style={{
           position: "fixed",

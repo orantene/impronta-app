@@ -34,6 +34,8 @@ export interface LiveTextSource {
   hoursDays?: string | null;
   /** Published Instagram URL, when she has one. */
   instagramHref?: string | null;
+  /** A wa.me link she set herself (never built from her private phone). */
+  whatsappHref?: string | null;
   /** Currency of her published services ("MXN"). */
   menuCurrency?: string | null;
 }
@@ -49,6 +51,17 @@ export function instagramHandle(href: string | null | undefined): string {
   } catch {
     return "";
   }
+}
+
+/** Footer contact line with real links (the paragraph renders `[text](url)`): Instagram handle, WhatsApp click-to-chat. */
+export function contactLine(handle: string, instagramHref?: string | null, whatsappHref?: string | null): string {
+  const parts: string[] = [];
+  if (handle) {
+    const url = instagramHref && /^https:\/\//i.test(instagramHref) ? instagramHref : `https://instagram.com/${handle.slice(1)}`;
+    parts.push(`Instagram · [${handle}](${url})`);
+  }
+  if (whatsappHref && /^https:\/\/(wa\.me|api\.whatsapp\.com)\//i.test(whatsappHref)) parts.push(`[WhatsApp](${whatsappHref})`);
+  return parts.join(" · ");
 }
 
 const lowerFirst = (s: string) => (s ? s.charAt(0).toLowerCase() + s.slice(1) : s);
@@ -107,7 +120,7 @@ export function buildTalentLiveText(
       footer_intro: intro,
       footer_where: src.place?.trim() ?? "",
       footer_hours: hours,
-      footer_contact: instagram ? `Instagram · ${instagram}` : "",
+      footer_contact: contactLine(instagram, src.instagramHref, src.whatsappHref),
     },
     // Only the lines that follow the profile on sites applied before 2.7 need their baked forms.
     seeds: {

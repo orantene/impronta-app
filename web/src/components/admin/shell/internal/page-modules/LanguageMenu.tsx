@@ -22,6 +22,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { readLocaleFromDocumentCookie, setLocaleCookie } from "@/components/dashboard-locale-toggle";
 import { getLocaleMetadata, type Locale } from "@/i18n/config";
 import { useDashboardText } from "../dashboard-i18n";
@@ -45,6 +46,7 @@ export function LanguageMenu() {
       : [tenantDefaultLocale];
   const defaultLocale: Locale = talentLocales?.primary ?? tenantDefaultLocale;
   const localesKey = locales.join(",");
+  const renderedLocale = useDashboardLocale();
   const [active, setActive] = useState<Locale>(talentLocales?.primary ?? tenantDefaultLocale);
 
   useEffect(() => {
@@ -70,7 +72,10 @@ export function LanguageMenu() {
 
   const pick = (next: Locale) => {
     setOpen(false);
-    if (next === active) return;
+    // Compare with the language actually RENDERED, not the pill's guess: with no
+    // cookie the pill defaulted to the primary while the page showed another
+    // language, so picking the visible-but-different one was swallowed (2nd click).
+    if (next === renderedLocale) return;
     setLocaleCookie(next);
     setActive(next);
     window.location.reload();

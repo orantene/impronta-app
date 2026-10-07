@@ -30,6 +30,7 @@ import { openWorkingHoursPanel } from "../agenda/WorkingHoursPanel";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { resolveTradeProfile } from "@/lib/talent-agenda/trades";
 import { type MoneyLanding } from "@/lib/money/today-money-tiles";
+import { safeLoadInbox } from "@/components/messages-v5/shell/safe-load-inbox";
 import { talentShellEngine } from "@/components/messages-v5/shell/talent-engine";
 import { countAwaitingReply } from "@/lib/messages-v5/inbox-view";
 
@@ -61,7 +62,7 @@ export function TalentTodayPage() {
   const [awaitingReplyCount, setAwaitingReplyCount] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
-    void talentShellEngine.loadInbox({ locationSlug: "all", filter: "all" }).then((r) => {
+    void safeLoadInbox(talentShellEngine.loadInbox, { locationSlug: "all", filter: "all" }).then((r) => {
       if (!cancelled) setAwaitingReplyCount(r.ok ? countAwaitingReply(r.rows) : null);
     });
     return () => {

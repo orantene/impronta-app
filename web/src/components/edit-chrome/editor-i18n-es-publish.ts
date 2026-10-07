@@ -17,6 +17,11 @@ export const ES_PUBLISH_TEXT: Record<string, string> = {
   "Fixed {count} mobile issue": "Se corrigió {count} problema de móvil",
   "Fixed {count} mobile issues": "Se corrigieron {count} problemas de móvil",
   "No fixable mobile issues": "No hay problemas de móvil corregibles",
+  // ── TUL-76 plain-language blockers ───────────────────────────────────────
+  "Your page needs a main title. Add a heading at the top, for example in your hero.":
+    "Tu página necesita un título principal. Agrega un encabezado arriba, por ejemplo en tu portada.",
+  "{section} has a field that needs attention. Open it and check that required fields are filled in.":
+    "{section} tiene un campo que necesita atención. Ábrelo y revisa que los campos obligatorios estén llenos.",
   // ── Tabs ────────────────────────────────────────────────────────────────
   "Checks": "Revisión",
   "Changes": "Cambios",

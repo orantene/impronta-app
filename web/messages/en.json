@@ -1650,6 +1650,7 @@
     "bookPage": {
       "title": "Reserve a time",
       "lead": "Pick a service and a time. We will confirm shortly.",
+      "bookCta": "Book",
       "chooseService": "Service",
       "studioFallback": "the studio"
     },

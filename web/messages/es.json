@@ -1650,6 +1650,7 @@
     "bookPage": {
       "title": "Reserva un horario",
       "lead": "Elige un servicio y un horario. Confirmamos enseguida.",
+      "bookCta": "Agendar",
       "chooseService": "Servicio",
       "studioFallback": "el estudio"
     },
@@ -12038,7 +12039,7 @@
         "kyc-verification": "Verificación de identidad",
         "media": "Biblioteca de medios",
         "navigation": "Navegación",
-        "new-booking": "Nueva reserva",
+        "new-booking": "Nueva cita",
         "new-inquiry": "Nueva consulta",
         "new-talent": "Agregar talento",
         "notifications": "Notificaciones",
@@ -13223,7 +13224,7 @@
       "tabHome": "Inicio",
       "tabTickets": "Tickets",
       "greeting": "Hola {name}",
-      "subline": "Pregunta lo que sea. Estamos aqui.",
+      "subline": "Pregunta lo que sea. Estamos aquí.",
       "askPlaceholder": "Como podemos ayudarte?",
       "send": "Enviar",
       "recent": "Recientes",
