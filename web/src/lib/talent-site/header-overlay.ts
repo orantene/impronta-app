@@ -25,7 +25,7 @@ const propsOf = (n: BuilderNode): Props => ((n as { props?: unknown }).props ?? 
 function firstBand(tree: ReadonlyArray<BuilderNode>): BuilderNode | null {
   let node: BuilderNode | undefined = tree[0];
   for (let depth = 0; node && depth < 3; depth++) {
-    const kids = (node as Loose).children;
+    const kids: BuilderNode[] | undefined = (node as Loose).children;
     const style = (propsOf(node).style ?? {}) as Props;
     const paints = Boolean(style.backgroundImage) || Boolean(propsOf(node).backgroundMedia);
     if (node.kind === "carousel" || paints || !Array.isArray(kids) || kids.length !== 1) return node;

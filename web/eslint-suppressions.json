@@ -1316,11 +1316,6 @@
       "count": 1
     }
   },
-  "src/components/edit-chrome/rich-editor/CanvasEditOverlay.tsx": {
-    "react-hooks/immutability": {
-      "count": 1
-    }
-  },
   "src/components/edit-chrome/selection-layer.tsx": {
     "max-lines": {
       "count": 1
