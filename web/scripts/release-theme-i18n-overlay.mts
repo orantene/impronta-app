@@ -44,7 +44,7 @@ const args = parsed.args;
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!targetRef || !url.includes(`${targetRef}.supabase.co`) || !key)) {
+if (!targetRef || !url.includes(`${targetRef}.supabase.co`) || !key) {
   console.error("REFUSED: set NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and a matching DEMO_SEED_TARGET_REF.");
   process.exit(2);
 }
