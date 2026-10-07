@@ -26,7 +26,8 @@
  */
 
 import type { Metadata } from "next";
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
+import { resolveGuestTokenResumeHref } from "@/app/t/[profileCode]/_actions/guest-order-resume-actions";
 import { headers } from "next/headers";
 
 import { DocumentLang } from "@/components/i18n/DocumentLang";
@@ -135,14 +136,20 @@ export default async function TalentSiteHostPage({
   searchParams,
 }: {
   params: Promise<{ pageSlug?: string[] }>;
-  searchParams: Promise<{ preview?: string; order?: string }>;
+  searchParams: Promise<{ preview?: string; order?: string; t?: string }>;
 }) {
   if (!isSupabaseConfigured()) notFound();
   const talentProfileId = await resolveTalentProfileId();
   if (!talentProfileId) notFound();
 
   const { pageSlug } = await params;
-  const { preview, order } = await searchParams;
+  const { preview, order, t: resumeToken } = await searchParams;
+  // TUL-11 B: a signed thread token is the only credential for a fresh-browser
+  // resume. Verified server-side; any failure falls through to the normal page.
+  if (resumeToken) {
+    const href = await resolveGuestTokenResumeHref({ token: resumeToken, orderId: order ?? null });
+    if (href) redirect(href);
+  }
   const [locale, canonicalOrigin] = await Promise.all([
     getRequestLocale(),
     resolveCanonicalOrigin(),
