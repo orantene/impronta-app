@@ -28,6 +28,7 @@ import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 import { arrivalFromStamp, parseArrivalStamp, type ArrivalPayload } from "./arrival";
 import { buildUnderstanding } from "./understanding";
 import { pathToChoice, resolveBuildPath } from "./choice";
+import { resolveEssentialsForBuild } from "./essentials-resolve";
 import { provisionForChoice } from "./provision-for-choice.server";
 import type { OnboardingPath, PersistedModuleState } from "./module-state";
 
@@ -76,7 +77,15 @@ export async function runOnboardingBuild(input: {
     name: stringFact(input.brief, "person.professional_name") ?? stringFact(input.brief, "person.name"),
     city: stringFact(input.brief, "person.city"),
   };
-  const services = listFact(input.brief, "work.services").length;
+  const essentials = resolveEssentialsForBuild({
+    essentials: input.state.essentials ?? null,
+    serviceFacts: listFact(input.brief, "work.services"),
+    discipline: stringFact(input.brief, "work.discipline") ?? stringFact(input.brief, "work.industry"),
+    tradeSlug: input.state.typeChoice?.slug ?? null,
+    country: stringFact(input.brief, "person.country"),
+    locale: input.locale,
+  });
+  const services = Math.max(listFact(input.brief, "work.services").length, essentials?.services.length ?? 0);
   const businessName = stringFact(input.brief, "business.name");
   const appUrl = getAppUrl();
 
@@ -94,6 +103,7 @@ export async function runOnboardingBuild(input: {
       requestHost: input.requestHost,
       talentTypeSlug: input.state.typeChoice?.kind === "talent" ? input.state.typeChoice.slug : null,
       linkSlug: input.state.linkSlug ?? null,
+      essentials,
     });
     if (!prov.ok) return failed(input, prov.code, prov.message);
     if (prov.warnings.length) logServerError("onboarding.build.warnings", new Error(prov.warnings.join(",")));

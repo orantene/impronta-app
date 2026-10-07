@@ -10,6 +10,8 @@
  * in `tulala_brief_facts` with provenance; this is progress and choices only.
  */
 
+import { parseEssentials, type Essentials } from "./essentials";
+
 export type OnboardingIntent = "talent" | "business" | "unknown";
 
 import { isOnboardingChoice, type OnboardingChoice } from "./choice";
@@ -90,6 +92,8 @@ export type PersistedModuleState = {
   styleChoice?: VisualDirection | null;
   /** "Looks right" tapped: assumed lines were accepted as they stand. */
   cardAccepted?: boolean;
+  /** TUL-84: services, hours, place, first provider the person confirmed (see essentials.ts). */
+  essentials?: Essentials | null;
   /** The build record (`lib/onboarding/build.server.ts` BuildStatus), opaque here. */
   build?: Record<string, unknown> | null;
   updatedAt?: string;
@@ -151,6 +155,8 @@ export function parsePersistedModuleState(raw: unknown): PersistedModuleState {
   if (typeof r.linkSlug === "string") out.linkSlug = r.linkSlug;
   if (isVisualDirection(r.styleChoice)) out.styleChoice = r.styleChoice;
   if (typeof r.cardAccepted === "boolean") out.cardAccepted = r.cardAccepted;
+  const essentials = parseEssentials(r.essentials);
+  if (essentials) out.essentials = essentials;
   if (r.build && typeof r.build === "object" && !Array.isArray(r.build)) out.build = r.build as Record<string, unknown>;
   if (typeof r.updatedAt === "string") out.updatedAt = r.updatedAt;
   return out;

@@ -55,6 +55,10 @@ export async function writeTalentProfileFromBrief(input: {
   /** The chip the person tapped, when any (`module_state.typeChoice`). */
   typeSlug: string | null;
   originDomain: string | null;
+  /** What the person asked clients to call them (essentials). Used before anything else but never the email. */
+  displayNameFallback?: string | null;
+  /** Essentials writes the confirmed catalog; do not also draft one title per AI service. */
+  skipDraftOfferings?: boolean;
 }): Promise<TalentWriteResult> {
   const { admin, brief } = input;
   const result: TalentWriteResult = {
@@ -67,7 +71,7 @@ export async function writeTalentProfileFromBrief(input: {
   };
 
   // ── profile row ───────────────────────────────────────────────────────────
-  const displayName = stringFact(brief, "person.professional_name") ?? stringFact(brief, "person.name") ?? (input.email?.split("@")[0] ?? "");
+  const displayName = input.displayNameFallback?.trim() || stringFact(brief, "person.professional_name") || stringFact(brief, "person.name") || "";
   const { data: existing, error: existingErr } = await admin.from("talent_profiles").select("id, profile_code").eq("user_id", input.userId).is("deleted_at", null).maybeSingle();
   if (existingErr) {
     logServerError("onboarding.talentWriter.lookup", existingErr);
@@ -160,7 +164,7 @@ export async function writeTalentProfileFromBrief(input: {
   }
 
   // ── offerings (one draft per stated service, price on request) ────────────
-  if (tenantId && services.length) {
+  if (tenantId && services.length && !input.skipDraftOfferings) {
     const { data: have, error: haveErr } = await admin.from("talent_offerings").select("title").eq("talent_profile_id", id).eq("tenant_id", tenantId);
     if (haveErr) {
       logServerError("onboarding.talentWriter.offeringsRead", haveErr);
