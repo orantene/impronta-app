@@ -51,12 +51,28 @@ test("markPaid gates confirm, booking sync, payout and order completion on the g
   for (const gate of [
     /sourceInquiryId && !paidAfterCancel/,
     /bookingId && !paidAfterCancel/,
-    /!isDeposit && !paidAfterCancel\) \{\s*try \{\s*await executeBookingTransfers/,
     /!isDeposit && !paidAfterCancel\) \{\s*notifyBookingConfirmed|sourceInquiryId && !isDeposit && !paidAfterCancel/,
     /paidAfterCancel\s*\?\s*\(\{ ok: false, reason: "no_order" \}/,
   ]) {
     assert.match(body, gate);
   }
+  // The payout fan-out must run ONLY inside an `if (!isDeposit && !paidAfterCancel) { ... }` block.
+  // Asserted structurally (brace-matched), not by layout, so steps added before the transfer call
+  // (e.g. the order-backed attribution heal) cannot silently break the check or hide a lost gate.
+  let transfersGated = false;
+  for (const m of body.matchAll(/if \(!isDeposit && !paidAfterCancel\) \{/g)) {
+    const open = (m.index ?? 0) + m[0].length - 1;
+    let depth = 0;
+    let end = -1;
+    for (let i = open; i < body.length; i++) {
+      if (body[i] === "{") depth++;
+      else if (body[i] === "}" && --depth === 0) { end = i; break; }
+    }
+    if (end > open && body.slice(open, end).includes("await executeBookingTransfers(")) transfersGated = true;
+  }
+  assert.ok(transfersGated, "executeBookingTransfers must be inside an `if (!isDeposit && !paidAfterCancel)` block");
+  // And it must not be called anywhere else in markPaid.
+  assert.equal(body.split("await executeBookingTransfers(").length - 1, 1, "markPaid has exactly one transfer call");
 });
 
 test("link checkout refuses a cancelled order and the pay page shows it as no longer available", () => {
