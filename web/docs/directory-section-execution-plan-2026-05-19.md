@@ -223,7 +223,7 @@ The launch look = **Atelier + Portrait + ai.heroBand + topBar.talentType + sideb
 - `meta.ts`: `{ key:"directory", category:"showcase", tag:"premium", inDefault:true, visibleToAgency:true, businessPurpose:"feature" }`.
 - `Component.tsx` (server): reads `props/tenantId/locale/preview/publicPathPrefix`, renders the Atelier shell wrapping `DirectoryDiscoverSection` + conditional `HeroSearch`.
 - Register: `registry.ts` (import block + `SectionRegistryEntry<DirectoryV1>` + map entry `directory: directorySection`), `registry-editors.ts`, `section-meta-registry.ts`.
-- **Gate:** `cd web && npx tsc --noEmit && npm run lint` green. Section appears in Add-section picker (showcase tab, "premium" pill).
+- **Gate:** `cd web && npm run typecheck && npm run lint` green. Section appears in Add-section picker (showcase tab, "premium" pill).
 
 ### Phase 1 — Canonical render (Atelier + Portrait + Editorial)
 - Atelier shell: centered `font-display` header, AI hero band slot, slim talent-type pill bar, sidebar off, 4-col 4:5 portrait grid.
@@ -289,7 +289,7 @@ No new DB migration required for Phases 0–3 (drawer writes to existing `direct
 `phase-1` is shared/multi-agent. Per repo CLAUDE.md + branch-governance memory:
 - `git pull --rebase origin phase-1` before every edit.
 - Scoped commits only; never touch other agents' in-flight work; **never force-push** `phase-1`.
-- `cd web && npx tsc --noEmit && npm run lint` before every commit (gate for the next agent).
+- `cd web && npm run typecheck && npm run lint` before every commit (gate for the next agent).
 - No new migration expected; if one is added, unique `date -u +%Y%m%d%H%M%S` + `npm run db:push` before commit (per schema-shipping protocol).
 - Pre-launch: ship straight to prod, one canonical version, no parallel mockups (the variation *system* is productized config, not throwaway mockups).
 - Report a status check (tsc/lint/smoke) before declaring each phase done; demonstrate visible QA-proven UX, not tsc-clean commits.

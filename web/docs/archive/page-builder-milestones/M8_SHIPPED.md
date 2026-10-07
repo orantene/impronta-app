@@ -116,7 +116,7 @@ All HTTP-verified against `http://127.0.0.1:3000/` with `Host: midnight.local`:
 - Homepage root: 200, contains all 9 section class markers
 - Profile page: 200, contains all data-profile-* markers + sticky bar
 - All 38 design tokens projected to `<html>`
-- Typecheck clean across all new code (`npx tsc --noEmit` passes excluding pre-existing `dev-revalidate/route.ts` error)
+- Typecheck clean across all new code (`npm run typecheck` passes excluding pre-existing `dev-revalidate/route.ts` error)
 
 ---
 

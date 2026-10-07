@@ -24,7 +24,7 @@ rewritten 2026-08-08 to match the CI-gated production pointer that went live
 ```
 git fetch origin && git switch -c <type>/<topic> origin/main
 # ...edit; run locally: cd web && npm run dev...
-cd web && npx tsc --noEmit && npm run lint     # gate — must be clean
+cd web && npm run typecheck && npm run lint     # gate — must be clean
 git add -A && git commit -m "..."
 git push -u origin <type>/<topic>              # → Vercel builds an SSO-gated preview
 gh pr create --base main                       # review, then merge
@@ -34,7 +34,7 @@ Merging the PR to `main` starts the release described in §4.
 
 ## 2. Before you commit — the gate
 
-`cd web && npx tsc --noEmit && npm run lint` — both clean. Don't commit a red
+`cd web && npm run typecheck && npm run lint` — both clean. Don't commit a red
 build.
 
 ## 3. Database migrations — the one hard rule
@@ -81,6 +81,22 @@ git push origin origin/main:production
 That is a fast-forward only. **Never force-push `production` or `main`**; to
 undo a bad release, roll forward or roll back per §7 instead of rewriting the
 pointer.
+
+### Branch protection (recorded 2026-10-07, TUL-215)
+
+Verified via `gh api repos/orantene/impronta-app/branches/<branch>/protection/required_status_checks`.
+
+- Required status checks on BOTH `main` and `production` are exactly:
+  "Structural quality gate", "Builder perf budget", "Fidelity goldens",
+  "Admin boot (prod build)".
+- Strict ("require branch to be up to date") is OFF on both.
+- `production` is a pointer branch, fast-forwarded by `promote-production.yml`
+  only when all four checks are green on that `main` commit.
+- Manual fallback is a fast-forward push of a green commit, never a force.
+
+Typecheck and lint go through `npm run typecheck` / `npm run lint` only (the
+typecheck routes through the machine-wide queue `web/scripts/tsc-queue.sh`);
+never call `tsc` or `eslint` directly.
 
 ## 5. Feature branches
 
@@ -147,7 +163,7 @@ git worktree add /private/tmp/impronta-my-lane -b feat/my-lane origin/main
 
 # Now work there:
 cd /private/tmp/impronta-my-lane/web
-NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit
+npm run typecheck
 npm run lint
 ```
 

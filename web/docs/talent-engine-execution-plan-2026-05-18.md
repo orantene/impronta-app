@@ -88,7 +88,7 @@ P0 is independent and urgent. P1 is the wedge (introduces `effectiveVisibility`)
 
 **Risks & rollback.** Risk: an over-tight predicate could break the admin Files drawer. Mitigation: derive the predicate from the exact roster check the server action already passes; stage on a scoped test before push. Rollback: revert the migration (re-adds old policies) — but treat that as a known-insecure state, not a resting place.
 
-**Governance.** Migration → `npm run db:push` → `npx tsc --noEmit && npm run lint` → path-scoped commit (the migration file) → **no push to prod, no promote** without explicit approval (deviates from CLAUDE.md auto-deploy because branch-governance/no-push is binding; flag to founder that the fix is local until they approve the remote apply).
+**Governance.** Migration → `npm run db:push` → `npm run typecheck && npm run lint` → path-scoped commit (the migration file) → **no push to prod, no promote** without explicit approval (deviates from CLAUDE.md auto-deploy because branch-governance/no-push is binding; flag to founder that the fix is local until they approve the remote apply).
 
 ---
 

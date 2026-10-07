@@ -435,7 +435,7 @@ Tasks marked **[PARALLEL]** have no intra-phase dependency on each other and can
 - Files: `web/src/lib/inquiry/guest-chat-contract.ts`.
 - Change: add `AvatarStackItem`, `GuestChipKind` (with `talent`/`brief`), `EnsureGuestInquiryInput`, `EnsureGuestInquiryResult` (§5.1).
 - Deps: none.
-- Acceptance: `NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit` clean.
+- Acceptance: `npm run typecheck` clean.
 - QA: type-only; no runtime.
 
 **P0-T2 [PARALLEL] — Accent-token fix for cueRing.**
@@ -599,7 +599,7 @@ Setup: two sessions — Session G (guest on `http://impronta.lvh.me:3114/directo
 - **Accent token, never hardcoded gold.** Use `accent` / `accentInk` / `var(--accent)` and the `C.*` tokens. The only literal ink/white is the neutral system chips (X, +N). Fix the existing `--impronta-gold` cueRing (P0-T2).
 - **Client language: never "buyer."** Use "client" / persona titles. Never "pay to DM."
 - **Localhost-first QA** on `http://impronta.lvh.me:3114` (directory `/directory`); Vercel previews are 5-10 min/cycle and `*.vercel.app` hosts 404 (not in `agency_domains`).
-- **Gate before every commit:** `cd web && NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit && npm run lint`. An OOM-crashed tsc is NOT clean.
+- **Gate before every commit:** `cd web && npm run typecheck && npm run lint`. An OOM-crashed tsc is NOT clean.
 - **Branch off latest `main`** into a short-lived feature branch; PR back; never commit to `main`. Never `git switch` in the shared checkout — `git worktree list` first; use `dev:webpack` in a worktree and copy `web/.env.local`.
 - **One migration timestamp** only if a migration is ever needed (`date -u +%Y%m%d%H%M%S`) + `npm run db:push` before merge. **This plan needs NO migration.**
 - **Stale `.next` wedge:** `rm -rf web/.next` and restart dev FIRST on any dev weirdness.

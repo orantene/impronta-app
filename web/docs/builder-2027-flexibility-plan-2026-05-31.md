@@ -107,7 +107,7 @@ These files are touched by many lanes and **cannot have two concurrent owners**:
 ## 5. Phase-by-phase execution plan
 
 > Each lane lists: **ID · owner(agent, model, effort) · deliverable · files · acceptance · depends-on.**
-> Every code lane ends in the standard gate: `NODE_OPTIONS="--max-old-space-size=8192" npx tsc --noEmit && npm run lint && npm run test:builder-node-bindings` (+ the suite it touches). Every PR is file-disjoint within its wave.
+> Every code lane ends in the standard gate: `NODE_OPTIONS="--max-old-space-size=8192" npm run typecheck && npm run lint && npm run test:builder-node-bindings` (+ the suite it touches). Every PR is file-disjoint within its wave.
 
 ### PHASE 1 — Instrument & Prove  *(2 waves · ~6 lane-sessions · 67→~70)*
 
@@ -243,7 +243,7 @@ Inherited from the marathon's multi-agent protocol (0 force-pushes across ~200 c
 1. **Branch off latest `main`** per lane: `git fetch origin && git switch -c <type>/<topic> origin/main`. Never commit to `main`.
 2. **File-disjoint within a wave.** One owner per hot file per wave (§4.3). Capability lanes serialize through `render.tsx`.
 3. **One migration per agent**, timestamp `date -u +%Y%m%d%H%M%S` at lane start. Park-restore on timestamp collision.
-4. **Gate before every commit:** `NODE_OPTIONS="--max-old-space-size=8192" npx tsc --noEmit && npm run lint` + touched test suites. (Plain `tsc` emits empty output on OOM crash → false "clean.")
+4. **Gate before every commit:** `NODE_OPTIONS="--max-old-space-size=8192" npm run typecheck && npm run lint` + touched test suites. (Plain `tsc` emits empty output on OOM crash → false "clean.")
 5. **Integrator does FF-only merges** into an integration branch, runs the full gate + render-regression + new tests on the combined tree, then PR→`main`.
 6. **Schema+code protocol:** if a lane includes a migration, `db:push` is part of the commit and must hit remote **before** the prod merge. `deploy:smoke` reports drift.
 7. **Deploy:** PR→merge→`main` auto-deploys → re-alias custom domains (post-deploy Action, or `deploy:promote` fallback) → **`deploy:smoke`**.

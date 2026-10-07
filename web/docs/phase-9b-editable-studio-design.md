@@ -797,7 +797,7 @@ These are the absolute rules of Phase 9B. Each appears in three places (the UI a
 
 ## 12. Implementation plan — slices
 
-Each slice is path-scoped, gate-validated (`npx tsc --noEmit && npm run lint`), and committed without push per branch governance. Migrations are part of the slice that introduces them. `npm run db:push` per CLAUDE.md.
+Each slice is path-scoped, gate-validated (`npm run typecheck && npm run lint`), and committed without push per branch governance. Migrations are part of the slice that introduces them. `npm run db:push` per CLAUDE.md.
 
 ### Slice 1 — Migration + read-only list view (~5h)
 

@@ -20,7 +20,7 @@ Four of the five marathon build/data lanes shipped cleanly on `phase-1`:
 | G4 — 7-vs-6 marker gap | `562dff210` | **Full close** — N(cards) = N(ownership) = N(availability) = 6 on both directory pages. Trust attr now also = 6 (was 0 at marathon start). |
 | Seed flip — `is_discoverable` for trust > basic | _not yet landed_ | **Carried forward** — orchestrator owns this. Current matview: 14/14 talents at `trust_tier='basic'`, 14/70 profiles discoverable. `data-card-trust` attribute now renders ("basic" for all six cards), but the badge stays hidden because `card.trustTier ? ...` is correctly gated against fabrication (per G4 commit reasoning). The buyer-visible signal of TN-1 will not appear until the seed-flip elevates some talents above basic. |
 
-**No new code regressions surfaced from any marathon lane.** `npx tsc --noEmit` is clean on the post-marathon tree. All 334 local migrations are applied to remote Supabase.
+**No new code regressions surfaced from any marathon lane.** `npm run typecheck` is clean on the post-marathon tree. All 334 local migrations are applied to remote Supabase.
 
 **One pre-existing discovery upgraded to a real gap** (was previously masked by a too-narrow probe heuristic in Lane Q'): the directory's results-region chrome (the layout-toggle, the sort selector, and the share-view modal) still uses `--impronta-gold` / `--impronta-gold-border` tokens. This is outside the scope Lane G1+G5 took on and survives the marathon.
 

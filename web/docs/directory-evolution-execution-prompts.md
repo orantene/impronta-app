@@ -106,7 +106,7 @@ Path β is recommended — InfiniteGrid carries legacy chrome you'd want to esca
 5. Empty state on resolved-zero-items: render an editorial "Our roster is fully booked this week — refine or check back" (not the error-y "No talent matches" copy).
 
 ### Gates (MUST pass before commit)
-- `npx tsc --noEmit` clean on your surface
+- `npm run typecheck` clean on your surface
 - `npx eslint <touched files>` exit 0
 - `npm run test:node-presentation` → 94/96 baseline preserved
 - **Chrome MCP verification (REQUIRED):**

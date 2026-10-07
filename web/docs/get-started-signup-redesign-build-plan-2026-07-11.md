@@ -141,7 +141,7 @@ success line.
    into the worktree).
 2. One migration timestamp; `npm run db:push` before merge (W1 note).
 3. Gate before every commit:
-   `cd web && NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit && npm run lint`
+   `cd web && npm run typecheck && npm run lint`
    (never run tsc while a dev server is up; never tsc+next build together).
 4. PR to `main`; squash-merge. Known-flaky CI: "Fidelity goldens" (storefront
    AA drift) and a pre-existing `edit-context.undo.test.tsx` failure in
