@@ -43,7 +43,9 @@ async function currentLeases() {
       aliasUid: a.uid,
       branch: d.meta?.githubCommitRef ?? "?",
       sha: (d.meta?.githubCommitSha ?? "").slice(0, 9),
-      createdAt: a.createdAt ?? Date.parse(a.created ?? 0),
+      // Lease age = when the alias was last re-pointed (updatedAt), not when the
+      // host alias was first created; otherwise every pool host looks stale.
+      createdAt: a.updatedAt ?? a.createdAt ?? Date.parse(a.created ?? 0),
     });
   }
   return out;
