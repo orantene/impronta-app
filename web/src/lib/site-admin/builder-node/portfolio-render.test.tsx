@@ -210,3 +210,12 @@ test("portfolio linkMode none does not emit offering CTA", () => {
   assert.doesNotMatch(html, /data-offering-id=/);
   assert.doesNotMatch(html, /data-portfolio-shot-link/);
 });
+
+test("TUL-59 C: a linked shot opens a lightbox first (booking only from its own button); closed state renders the same button", async () => {
+  const src = await import("node:fs").then((fs) => fs.readFileSync(new URL("./portfolio-shot-link.tsx", import.meta.url), "utf8"));
+  assert.match(src, /const onClick = lightbox \? \(\) => setOpen\(true\) : book;/);
+  assert.match(src, /data-portfolio-lightbox-book/);
+  const block = await import("node:fs").then((fs) => fs.readFileSync(new URL("./portfolio-block.tsx", import.meta.url), "utf8"));
+  assert.match(block, /Reservar este look/);
+  assert.match(block, /Book this look/);
+});

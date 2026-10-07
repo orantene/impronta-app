@@ -6,6 +6,7 @@ import { interpolate, type Translator } from "@/i18n/interpolate";
 
 import {
   HELP_BUBBLE_VISIBLE_MS,
+  helpBubbleBannerUp,
   findHelpBubbleAnchor,
   findHelpBubbleBarTops,
   helpBubbleBottom,
@@ -89,6 +90,7 @@ export function ChatHelpBubble({
     const onScroll = () => {
       if (shownRef.current) return;
       if (!shouldShowHelpBubble({ scrollY: window.scrollY, seen: readHelpBubbleSeen(storage, key), blocked: blockedRef.current })) return;
+      if (helpBubbleBannerUp(document)) return; // a banner owns the bottom of the screen
       const at = locate();
       if (!at) return; // no chat button on screen: nothing to point at
       if (otherHelpBubbleShown(document, null)) return; // one bubble only
