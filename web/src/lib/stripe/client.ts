@@ -12,6 +12,7 @@
 
 import "server-only";
 import Stripe from "stripe";
+import { logServerError } from "@/lib/server/safe-error";
 import { checkStripeKeyModes, shouldRefuseOnMismatch } from "./key-mode";
 
 let _modeLogged = false;
@@ -21,9 +22,9 @@ function keyModesAllowClient(): boolean {
   if (check.ok) return true;
   if (!_modeLogged) {
     _modeLogged = true;
-    console.error(
-      "[stripe] test/live key mode mismatch:",
-      check.mismatches.map((m) => `${m.name}=${m.mode}`).join(", "),
+    logServerError(
+      "stripe.key-mode-mismatch",
+      `test/live key mode mismatch: ${check.mismatches.map((m) => `${m.name}=${m.mode}`).join(", ")}`,
     );
   }
   return !shouldRefuseOnMismatch(check);

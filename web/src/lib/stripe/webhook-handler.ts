@@ -767,15 +767,9 @@ export async function handleStripeWebhook(
 
   // TUL-143: a test event on a live key (or vice versa) is acknowledged and
   // ignored so Stripe does not retry it. No secrets are logged.
-  if (
-    eventModeMismatch(
-      event.livemode,
-      account === "mx" ? process.env.STRIPE_MX_SECRET_KEY : process.env.STRIPE_SECRET_KEY,
-    )
-  ) {
-    console.error(
-      `[stripe-webhook] livemode mismatch, ignored: ${event.id} ${event.type} lane=${account} livemode=${event.livemode}`,
-    );
+  const modeKey = account === "mx" ? process.env.STRIPE_MX_SECRET_KEY : process.env.STRIPE_SECRET_KEY;
+  if (eventModeMismatch(event.livemode, modeKey)) {
+    logServerError("stripe-webhook.livemode-mismatch", `ignored ${event.id} ${event.type} lane=${account} livemode=${event.livemode}`);
     return NextResponse.json({ received: true, ignored: "livemode_mismatch" });
   }
 
