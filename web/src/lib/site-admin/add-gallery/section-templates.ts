@@ -1,3 +1,4 @@
+import { localizeSectionTemplate, type TemplateCopyContext } from "./section-template-copy";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { makeId } from "@/lib/site-admin/builder-node/create";
 import { buildTalentDisciplineDecomposedSection } from "@/lib/site-admin/builder-node/talent-discipline-freeform";
@@ -719,9 +720,10 @@ const SECTION_TEMPLATE_BUILDERS: Readonly<
 
 export function buildAddGallerySectionTemplate(
   templateId: string,
+  copy?: TemplateCopyContext,
 ): BuilderNode | null {
   const build = SECTION_TEMPLATE_BUILDERS[templateId];
-  return build ? build() : null;
+  return build ? localizeSectionTemplate(build(), copy) : null;
 }
 
 export function sectionTemplateIdForItem(
