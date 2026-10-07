@@ -1,7 +1,6 @@
 import type { CSSProperties } from "react";
 
 import { createTranslator } from "@/i18n/messages";
-import { BookPageClient } from "@/app/(public)/book/BookPageClient";
 
 import type { LiveBookingSurface, LiveServiceCard } from "./live-booking-markers";
 
@@ -95,7 +94,13 @@ export function LiveServicesBand({
   );
 }
 
-export function LiveBookingBand({
+/**
+ * Async on purpose: the booking flow's client chain reaches `server-only`
+ * modules, so it is imported lazily and only when a marked band renders. A
+ * static import would put it in every consumer of the renderer (the perf
+ * budget script, golden renders) for a band they never draw.
+ */
+export async function LiveBookingBand({
   nodeId,
   surface,
   tenantId,
@@ -104,6 +109,7 @@ export function LiveBookingBand({
   surface: LiveBookingSurface;
   tenantId: string;
 }) {
+  const { BookPageClient } = await import("@/app/(public)/book/BookPageClient");
   return (
     <div
       data-builder-node-id={nodeId}
