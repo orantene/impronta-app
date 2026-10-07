@@ -29,7 +29,7 @@ export const TALENT_GAPS_ES_TEXT: Record<string, string> = {
   "{people} · {due} due for a refill": "{people} · {due} tocan relleno",
   "List": "Lista",
   "Working hours could not load": "No se pudo cargar tu horario",
-  "New booking": "Nueva reserva",
+  "New booking": "Nueva cita",
   // Maison v2 2.7: the hero copy fields next to the tagline in Identity.
   "Website headline": "Titular del sitio",
   "The big line at the top of your website. Short and about what clients get.":
