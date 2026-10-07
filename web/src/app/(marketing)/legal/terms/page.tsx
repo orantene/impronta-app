@@ -139,8 +139,10 @@ export default async function TermsPage() {
                 being estimated.
               </p>
               <p>
-                {PLATFORM_BRAND.name} does not charge customers a separate booking fee.
-                Commission and fees for talents are disclosed in the plans.
+                Service fee: customers pay a {PLATFORM_BRAND.name} service fee of 1.5% on top of
+                the booking price. It is shown at checkout before the customer pays and is
+                separate from the card processing fee described above. Commission and fees for
+                talents are disclosed in the plans.
               </p>
             </>
           ),
