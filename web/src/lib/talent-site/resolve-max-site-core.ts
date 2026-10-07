@@ -23,6 +23,7 @@
 import { talentPlanGrantsSiteCapability } from "@/lib/access/talent-membership";
 import { readI18n } from "@/lib/i18n/i18n-columns";
 import type { BuilderNode, BuilderNavLink } from "@/lib/site-admin/builder-node/types";
+import { mirrorPropsI18nOntoNodes } from "@/lib/site-admin/builder-node/i18n-overlay";
 
 /** Effective tier for the gate. `talent_portfolio` is the Max plan key. */
 export const TALENT_MAX_PLAN_KEY = "talent_portfolio";
@@ -413,5 +414,5 @@ export function hydrateShellNav(
  * so a render paints nothing rather than throwing (degrade safe).
  */
 export function coerceTree(value: unknown): BuilderNode[] {
-  return Array.isArray(value) ? (value as BuilderNode[]) : [];
+  return Array.isArray(value) ? mirrorPropsI18nOntoNodes(value as BuilderNode[]) : [];
 }
