@@ -228,3 +228,38 @@ If anything shows, merge `origin/main` into your branch and re-run the full
 gate (tsc, lint, lanes, `next build`) BEFORE merging the PR — CI on the PR
 tests the merged tree, but your local prod-build/QA evidence is stale until
 you refresh it.
+
+## 12. Stacked PRs and the CI trigger (TUL-219)
+
+**Do not stack PRs.** Branch every PR off the latest `origin/main`
+(`web/AGENTS.md`, "Branches and worktrees": "Never stack branches").
+
+Why this matters for CI: `.github/workflows/ci.yml` runs on `pull_request`
+types `opened`, `synchronize`, `reopened`, `ready_for_review`, and only for
+PRs whose base is `main`. A stacked PR is opened against its parent branch, so
+no gate runs. When the parent merges and the child is retargeted to `main`,
+that is an `edited` event, which is not in the list. The child gets no gate
+until its next push.
+
+**Decision (2026-10-07): the `edited` trigger is deliberately NOT added**,
+neither bare nor guarded. Reasons:
+
+1. A bare `edited` fires on every title or body edit and queues a full
+   15-25 minute gate each time. Runner capacity is the constraint.
+2. The only filter is a job-level `if:` on `github.event.changes.base`. A
+   skipped job still starts a workflow run, and the workflow-level
+   `concurrency` group is keyed on the PR ref with `cancel-in-progress: true`.
+   A title edit made while the real gate is running would cancel the in-flight
+   gate and replace it with a run whose job is skipped. GitHub counts a
+   skipped check as passing, so a PR could end up green with no gate having
+   completed on its head. Making this safe needs a separate concurrency group
+   for `edited` runs: more logic in the workflow that gates production, to
+   serve a case the no-stacking rule already removes.
+
+**If you land in a retargeted stack anyway:** push any commit to the child
+branch (`git commit --allow-empty -m "ci: re-gate"` works), or close and
+reopen the PR. Either starts the gate against `main`. Do not merge a
+retargeted PR that shows no `Structural quality gate` check.
+
+`src/lib/quality/ci-pr-trigger-types.static.test.ts` pins this decision. If you
+revisit it, change the test and this section together.
