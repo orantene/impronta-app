@@ -16,6 +16,7 @@ import {
   type CurrentPolicy,
   type Io,
 } from "./load-clauses-plan";
+import { renderPublicPolicyPreview } from "./load-clauses-preview";
 
 const RAW: unknown = JSON.parse(readFileSync(new URL("./custom-clauses.json", import.meta.url), "utf8"));
 const CLAUSES = approvedClauses(RAW);
@@ -75,17 +76,19 @@ function fake(rows: CurrentPolicy[], over: Partial<Pick<Fake, "liveFactsValue" |
     },
     async publish({ answers, customClauses }) {
       f.publishCalls++;
-      const last = f.rows[f.rows.length - 1]!;
+      const last = f.rows[f.rows.length - 1];
+      const facts = last ? last.facts : f.liveFactsValue;
       const row: CurrentPolicy = {
-        version: last.version + 1,
-        contentHash: policyContentHash(last.facts as PolicyFacts, answers, customClauses),
+        version: (last?.version ?? 0) + 1,
+        contentHash: policyContentHash(facts as PolicyFacts, answers, customClauses),
         answers,
-        facts: last.facts,
+        facts,
         customClauses,
       };
       f.rows.push(row);
       return { ok: true, unchanged: false, version: row.version, contentHash: row.contentHash };
     },
+    render: ({ answers, customClauses }) => `FAKE-PREVIEW ${JSON.stringify(answers)} ${customClauses.es.length}/${customClauses.en.length}`,
     log: (l) => f.logs.push(l),
   };
   return f;
@@ -217,4 +220,84 @@ test("a publish error is reported as failed", async () => {
   const r = await run(["--apply", "--yes"], RAW, f);
   assert.equal(r.status, "failed");
   assert.equal(r.exitCode, 1);
+});
+
+test("DEFAULT_POLICY_ANSWERS is none / 15 (what version 1 is created with)", () => {
+  assert.deepEqual(DEFAULT_POLICY_ANSWERS, { late_cancel_refund: "none", late_tolerance_min: 15 });
+});
+
+test("no version and no flag: refused, naming the flag, nothing written", async () => {
+  const f = fake([]);
+  const r = await run(["--apply", "--yes"], RAW, f);
+  assert.equal(r.status, "refused");
+  assert.equal(f.publishCalls, 0);
+  assert.match(f.logs.join("\n"), /--create-first-version/);
+});
+
+test("flag + apply + yes with no version creates v1 with the default answers and the exact clauses", async () => {
+  const f = fake([]);
+  const r = await run(["--apply", "--yes", "--create-first-version"], RAW, f);
+  assert.equal(r.status, "applied");
+  assert.equal(r.exitCode, 0);
+  assert.equal(f.publishCalls, 1);
+  assert.equal(f.rows.length, 1);
+  const v1 = f.rows[0]!;
+  assert.equal(v1.version, 1);
+  assert.deepEqual(v1.answers, { late_cancel_refund: "none", late_tolerance_min: 15 });
+  assert.deepEqual(v1.customClauses, CLAUSES);
+  assert.match(f.logs.join("\n"), /PUBLIC \/politicas AFTER/);
+});
+
+test("the flag without --apply --yes is refused", async () => {
+  for (const argv of [["--create-first-version"], ["--apply", "--create-first-version"], ["--yes", "--create-first-version"]]) {
+    const f = fake([]);
+    const r = await run(argv, RAW, f);
+    assert.equal(r.status, "refused");
+    assert.equal(f.publishCalls, 0);
+  }
+});
+
+test("the flag with the wrong profile or site is refused", async () => {
+  for (const over of [{ profileCode: "TAL-93900" }, { siteSlug: "jorg-beauty-qa" }]) {
+    const f = fake([], over);
+    assert.equal((await run(["--apply", "--yes", "--create-first-version"], RAW, f)).status, "refused");
+    assert.equal(f.publishCalls, 0);
+  }
+  const f = fake([]);
+  assert.equal((await run(["--apply", "--yes", "--create-first-version", "--profile", "TAL-93900"], RAW, f)).status, "refused");
+  assert.equal(f.publishCalls, 0);
+});
+
+test("the flag with a current version: no-op if it has the clauses, else refused with 'use the normal path'", async () => {
+  const a = fake([version(1, CLAUSES)]);
+  assert.equal((await run(["--apply", "--yes", "--create-first-version"], RAW, a)).status, "no-op");
+  assert.equal(a.publishCalls, 0);
+  const b = fake([version(1, null)]);
+  const r = await run(["--apply", "--yes", "--create-first-version"], RAW, b);
+  assert.equal(r.status, "refused");
+  assert.match(b.logs.join("\n"), /use the normal path/);
+  assert.equal(b.publishCalls, 0);
+});
+
+test("dry run with no version prints the rendered public text and writes nothing", async () => {
+  const f = fake([]);
+  const r = await run([], RAW, f);
+  assert.equal(r.status, "dry-run");
+  assert.equal(r.exitCode, 0);
+  assert.equal(f.publishCalls, 0);
+  assert.equal(f.rows.length, 0);
+  const out = f.logs.join("\n");
+  assert.match(out, /FAKE-PREVIEW/);
+  assert.match(out, /--apply --yes --create-first-version/);
+});
+
+test("the real preview shows the generated policy, then the 7 ES and 7 EN studio rules", () => {
+  const text = renderPublicPolicyPreview({ facts: FACTS, answers: DEFAULT_POLICY_ANSWERS, customClauses: CLAUSES });
+  const es = text.indexOf("(ES)");
+  const en = text.indexOf("(EN)");
+  assert.ok(es >= 0 && en > es);
+  assert.ok(text.includes("Reglas del estudio") && text.includes("Studio rules"));
+  for (const l of [...CLAUSES.es, ...CLAUSES.en]) assert.ok(text.includes(l), l.slice(0, 30));
+  assert.ok(text.indexOf("1. ") < text.indexOf("Reglas del estudio"), "generated clauses come first");
+  assert.ok(text.includes("Roma Norte"), "built from her facts");
 });

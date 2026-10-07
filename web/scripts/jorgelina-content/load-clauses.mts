@@ -7,7 +7,9 @@
  *
  * Run (from web/), by the Project Manager:
  *   npm run qa:jorgelina-clauses                        # dry run
- *   npm run qa:jorgelina-clauses -- --apply --yes       # write
+ *   npm run qa:jorgelina-clauses -- --apply --yes       # write (needs an existing policy version)
+ *   npm run qa:jorgelina-clauses -- --apply --yes --create-first-version
+ *                                   # she has no version yet: creates version 1 with default answers
  */
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
@@ -15,6 +17,7 @@ import { readFileSync } from "node:fs";
 import { parseCustomClauses } from "../../src/lib/talent-policies/custom-clauses";
 import { loadPolicyFacts } from "../../src/lib/talent-policies/facts";
 import { loadPublishedPolicy, publishPolicy } from "../../src/lib/talent-policies/store";
+import { renderPublicPolicyPreview } from "./load-clauses-preview";
 import { run, type Io } from "./load-clauses-plan";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
@@ -53,6 +56,7 @@ const io: Io = {
     publishPolicy(admin, { talentProfileId: profileId, userId: null, answers, customClauses }).then((r) =>
       r.ok ? r : { ok: false as const, reason: r.reason },
     ),
+  render: renderPublicPolicyPreview,
   log: (line) => console.log(line),
 };
 

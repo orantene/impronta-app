@@ -11,7 +11,7 @@
  * branch's base; same values, same wording.
  */
 
-import type { PolicyAnswers } from "../../src/lib/talent-policies/answers";
+import { DEFAULT_POLICY_ANSWERS, type PolicyAnswers } from "../../src/lib/talent-policies/answers";
 import {
   CUSTOM_CLAUSES_MAX_ITEMS,
   CUSTOM_CLAUSE_MAX_CHARS,
@@ -61,10 +61,15 @@ export interface Io {
   readVersion(profileId: string, version: number): Promise<{ contentHash: string; customClauses: CustomClauses | null } | null>;
   /** The app's own `publishPolicy` (store.ts). Creates version N+1; never edits a row. */
   publish(input: { profileId: string; answers: PolicyAnswers; customClauses: CustomClauses }): Promise<PublishOutcome>;
+  /**
+   * The full public /politicas text a visitor would read after the change, ES then EN
+   * (the app's own `buildPolicyPage`, see load-clauses-preview.ts). Injected so the tests need no app code.
+   */
+  render(input: { facts: unknown; answers: PolicyAnswers; customClauses: CustomClauses }): string;
   log(line: string): void;
 }
 
-export interface Options { profileCode: string; apply: boolean; yes: boolean }
+export interface Options { profileCode: string; apply: boolean; yes: boolean; createFirstVersion: boolean }
 
 export class RefusedError extends Error {}
 
@@ -77,14 +82,15 @@ export function parseArgs(argv: readonly string[]): Options {
     const a = argv[i]!;
     if (a === "--profile") { profileCode = (argv[++i] ?? "").trim(); continue; }
     if (a.startsWith("--profile=")) { profileCode = a.slice("--profile=".length).trim(); continue; }
-    if (a !== "--apply" && a !== "--yes") throw new RefusedError(`unknown argument ${a}`);
+    if (a !== "--apply" && a !== "--yes" && a !== "--create-first-version") throw new RefusedError(`unknown argument ${a}`);
     flags.add(a);
   }
-  return { profileCode, apply: flags.has("--apply"), yes: flags.has("--yes") };
+  return { profileCode, apply: flags.has("--apply"), yes: flags.has("--yes"), createFirstVersion: flags.has("--create-first-version") };
 }
 
-/** Writing needs BOTH flags; either alone is refused. */
+/** Writing needs BOTH flags; either alone is refused. `--create-first-version` only means something when writing. */
 export function assertMode(o: Options): void {
+  if (o.createFirstVersion && !(o.apply && o.yes)) throw new RefusedError("--create-first-version only works together with --apply --yes");
   if (o.yes && !o.apply) throw new RefusedError("--yes without --apply does nothing; refusing");
   if (o.apply && !o.yes) throw new RefusedError("--apply needs --yes as well (dry run is the default)");
 }
@@ -172,49 +178,69 @@ export async function run(argv: readonly string[], rawClauses: unknown, io: Io):
   log(`custom_clauses after (${clauses.es.length} ES + ${clauses.en.length} EN):`);
   show(clauses).forEach(log);
 
-  if (!cur) return refuse("no published policy version exists; publish her generated policy first (this script only adds clauses to an existing version's facts and answers)");
-  if (sameCustomClauses(cur.customClauses, clauses)) {
+  if (cur && sameCustomClauses(cur.customClauses, clauses)) {
     log(`Nothing to do: version ${cur.version} already has exactly these clauses.`);
     return { exitCode: 0, status: "no-op" };
   }
-  const live = await io.liveFacts(before.profile.id);
-  if (live === null) return refuse("could not read the live policy facts");
-  if (!same(live, cur.facts)) {
-    return refuse("the live facts differ from the current version's facts; publishing now would also change them. Republish her generated policy first, then re-run");
+  if (cur && o.createFirstVersion) {
+    return refuse(`--create-first-version is only for a talent with no policy version, and version ${cur.version} exists; use the normal path (run without that flag)`);
+  }
+  if (!cur && !o.createFirstVersion && o.apply) {
+    return refuse("no published policy version exists; to create version 1 (default answers) with the clauses, re-run with --apply --yes --create-first-version");
   }
 
-  log(`Would create version ${cur.version + 1}: same facts and answers as version ${cur.version}, plus the clauses.`);
+  const live = await io.liveFacts(before.profile.id);
+  if (live === null) return refuse("could not read the live policy facts");
+  if (cur && !same(live, cur.facts)) {
+    return refuse("the live facts differ from the current version's facts; publishing now would also change them. Republish her generated policy first, then re-run");
+  }
+  // Version N+1 keeps the current answers; version 1 uses the app's defaults.
+  const answers = cur ? cur.answers : DEFAULT_POLICY_ANSWERS;
+  const baseFacts = cur ? cur.facts : live;
+  const nextVersion = (cur?.version ?? 0) + 1;
+
+  log(cur
+    ? `Would create version ${nextVersion}: same facts and answers as version ${cur.version}, plus the clauses.`
+    : `Would create version 1: her live facts, default answers (${JSON.stringify(answers)}), plus the clauses.`);
+  log("---- PUBLIC /politicas AFTER THE CHANGE (as a visitor sees it) ----");
+  io.render({ facts: live, answers, customClauses: clauses }).split("\n").forEach(log);
+  log("---- END PREVIEW ----");
+
   if (!o.apply) {
-    log("DRY RUN: nothing written. Add --apply --yes to write one new policy version.");
+    log(cur
+      ? "DRY RUN: nothing written. Add --apply --yes to write one new policy version."
+      : "DRY RUN: nothing written. She has no policy version yet; to create version 1 add --apply --yes --create-first-version.");
     return { exitCode: 0, status: "dry-run" };
   }
 
-  const res = await io.publish({ profileId: before.profile.id, answers: cur.answers, customClauses: clauses });
+  const res = await io.publish({ profileId: before.profile.id, answers, customClauses: clauses });
   if (!res.ok) { log(`FAILED: publish error: ${res.reason}`); return { exitCode: 1, status: "failed" }; }
   if (res.unchanged) { log("Nothing written: the store reports the content is already current."); return { exitCode: 0, status: "no-op" }; }
 
   const after = await io.load(o.profileCode);
-  const old = await io.readVersion(before.profile.id, cur.version);
+  const old = cur ? await io.readVersion(before.profile.id, cur.version) : null;
   const problems: string[] = [];
   const n = after?.current;
   if (!n) problems.push("could not re-read the current version");
   else {
-    if (n.version !== cur.version + 1) problems.push(`current version is ${n.version}, expected ${cur.version + 1}`);
+    if (n.version !== nextVersion) problems.push(`current version is ${n.version}, expected ${nextVersion}`);
     if (!sameCustomClauses(n.customClauses, clauses)) problems.push("new version's clauses differ from the approved ones");
-    if (!same(n.facts, cur.facts)) problems.push("facts changed");
-    if (!same(n.answers, cur.answers)) problems.push("answers changed");
-    const expected = policyContentHash(cur.facts as PolicyFacts, cur.answers, clauses);
-    if (n.contentHash !== expected) problems.push("content hash is not the hash of (old facts, old answers, clauses)");
+    if (!same(n.facts, baseFacts)) problems.push("facts changed");
+    if (!same(n.answers, answers)) problems.push("answers changed");
+    const expected = policyContentHash(baseFacts as PolicyFacts, answers, clauses);
+    if (n.contentHash !== expected) problems.push("content hash is not the hash of (facts, answers, clauses)");
   }
-  if (!old) problems.push(`version ${cur.version} is no longer readable`);
-  else if (old.contentHash !== cur.contentHash || !sameCustomClauses(old.customClauses, cur.customClauses)) {
-    problems.push(`version ${cur.version} was modified`);
+  if (cur) {
+    if (!old) problems.push(`version ${cur.version} is no longer readable`);
+    else if (old.contentHash !== cur.contentHash || !sameCustomClauses(old.customClauses, cur.customClauses)) {
+      problems.push(`version ${cur.version} was modified`);
+    }
   }
   if (problems.length > 0) {
     log("FAILED VERIFICATION:");
     problems.forEach((p) => log(`  ! ${p}`));
     return { exitCode: 1, status: "failed" };
   }
-  log(`Verified: version ${res.version} has exactly the clauses; facts and answers are unchanged; version ${cur.version} is untouched.`);
+  log(`Verified: version ${res.version} has exactly the clauses and answers; ${cur ? `facts unchanged; version ${cur.version} is untouched` : "facts match the live facts"}.`);
   return { exitCode: 0, status: "applied" };
 }
