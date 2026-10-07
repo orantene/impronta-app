@@ -20,8 +20,9 @@ import { useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { Icon } from "../../primitives";
 import { offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
-import { missingTitleLocale } from "@/lib/talent/offering-missing-translation";
-import { languageName } from "@/lib/i18n/locale-field-model";
+import { listLocales } from "@/lib/talent/offering-missing-translation";
+import { useAdminShell } from "../../state";
+import { MissingTranslationChip } from "./MissingTranslationChip";
 import { useTalentFieldLocales } from "@/components/locale-field/use-talent-field-locales";
 import type { OfferingsEditor } from "@/components/talent/services/use-offerings-editor";
 import { ActionButton, FilterChip, Outcome, StatePill, ToggleChip, UsedIn, type PillTone } from "../appointments-classes-ui";
@@ -61,6 +62,11 @@ const STATUS_KEY: Record<CatalogStatus, string> = {
 export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: CatalogNav }) {
   const t = useT();
   const locale = useDashboardLocale();
+  // The talent's languages come from the server-provided shell settings, not
+  // the client store alone (the store is empty until the top bar seeds it).
+  const { talentLocales } = useAdminShell();
+  const store = useTalentFieldLocales();
+  const { primary, locales } = listLocales(talentLocales, store);
   const [filters, setFilters] = useState<ListFilters>(DEFAULT_FILTERS);
   const [importOpen, setImportOpen] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
@@ -174,6 +180,8 @@ export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: Cat
               index={idx}
               count={rows.length}
               locale={locale}
+              primary={primary}
+              locales={locales}
               nav={nav}
               editor={editor}
               menuOpen={menuFor === o.id}
@@ -207,6 +215,8 @@ function CatalogRow({
   index,
   count,
   locale,
+  primary,
+  locales,
   nav,
   editor,
   menuOpen,
@@ -217,6 +227,8 @@ function CatalogRow({
   index: number;
   count: number;
   locale: string;
+  primary: string;
+  locales: string[];
   nav: CatalogNav;
   editor: OfferingsEditor;
   menuOpen: boolean;
@@ -224,13 +236,6 @@ function CatalogRow({
   onMenuClose: () => void;
 }) {
   const t = useT();
-  const { primary, locales } = useTalentFieldLocales();
-  const missingLang = missingTitleLocale(o, primary, locales);
-  const missingChip = missingLang ? (
-    <span title={t("dashboard.catalog.list.langMissingHint").replace("{language}", languageName(missingLang, locale))} data-testid="catalog-row-lang-missing">
-      <Chip>{t("dashboard.catalog.list.langMissing").replace("{lang}", missingLang.toUpperCase())}</Chip>
-    </span>
-  ) : null;
   const type = itemType(o);
   const channels = itemChannels(o);
   const avail = itemAvailability(o);
@@ -261,7 +266,7 @@ function CatalogRow({
           {channels.includes("pos") ? ` · ${t("dashboard.catalog.channel.posCounter")}` : ""}
           {channels.includes("website") ? ` · ${t("dashboard.catalog.channel.website")}` : ""}
         </span>
-        {missingChip ? <span className="mt-[3px] block">{missingChip}</span> : null}
+        <MissingTranslationChip item={o} primary={primary} locales={locales} uiLocale={locale} t={t} className="mt-[3px] block" />
       </span>
       <StatePill tone={STATUS_TONE[status]} state={status}>
         {t(STATUS_KEY[status])}
@@ -272,7 +277,7 @@ function CatalogRow({
         <Link href={nav.href({ item: o.id })} prefetch={false} className="min-w-0 truncate font-semibold text-admin-ink no-underline hover:underline" data-testid="catalog-row-title">
           {o.title || t("dashboard.catalog.untitled")}
         </Link>
-        {missingChip}
+        <MissingTranslationChip item={o} primary={primary} locales={locales} uiLocale={locale} t={t} />
       </span>
       <BlockPill tone="slate">{t(TYPE_KEY[type])}</BlockPill>
       <span className="flex flex-wrap items-center gap-x-[6px] gap-y-[4px]">

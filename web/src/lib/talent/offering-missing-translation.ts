@@ -11,7 +11,7 @@
  *   - An item with no title in either language is just "untitled" and already
  *     has its own cue, so it returns null here.
  */
-import { localeStatus } from "@/lib/i18n/locale-field-model";
+import { localeStatus, orderLocales } from "@/lib/i18n/locale-field-model";
 import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 
 export function missingTitleLocale(
@@ -24,4 +24,21 @@ export function missingTitleLocale(
   const map: LocalizedMap = { ...(item.titleI18n ?? {}), [primary]: item.title };
   const missing = locales.filter((code) => localeStatus(map, code) === "missing");
   return missing.length === 1 ? missing[0] : null;
+}
+
+/**
+ * The languages the list judges against. The server-provided talent settings
+ * (the talent layout's bridge data) win: they are present on first paint, so
+ * the cue never waits on the client content-locale store, which is only seeded
+ * by the top-bar language menu and reports ONE language until then. Without
+ * server settings (a workspace admin surface) the store snapshot is used.
+ */
+export function listLocales(
+  server: { primary: string; secondary: readonly string[] } | null | undefined,
+  store: { primary: string; locales: string[] },
+): { primary: string; locales: string[] } {
+  if (server?.primary) {
+    return { primary: server.primary, locales: orderLocales(server.primary, server.secondary) };
+  }
+  return store;
 }
