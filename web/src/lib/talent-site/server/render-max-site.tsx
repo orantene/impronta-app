@@ -97,7 +97,7 @@ import {
   loadTalentSiteIdentity,
 } from "./load-max-site";
 import { buildMaxSiteSeo } from "./max-site-seo.server";
-import { offeringsToJsonLdServices } from "@/lib/seo/talent-json-ld";
+import { loadMaxSiteSeoFacts } from "./max-site-seo-facts.server";
 import { loadTalentSiteLocaleContext, type TalentSiteLocaleContext } from "./talent-site-locale.server";
 import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links";
 import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main";
@@ -344,11 +344,10 @@ export async function renderTalentMaxSite(
       talentName: identity?.name ?? null,
     });
 
-    // Public services -> Person.makesOffer; a load failure means no services, never a failed render.
-    const jsonLdServices = offeringsToJsonLdServices(await loadPublicOfferingsForProfile(talentProfileId, locale, null).catch(() => []));
+    const seoFacts = await loadMaxSiteSeoFacts(talentProfileId, locale); // services, links, city; never throws
 
     const seo = buildMaxSiteSeo({
-      services: jsonLdServices,
+      ...seoFacts,
       site,
       // PHASE 1 — SEO is Web Office. A talent without `personalSiteSeo` renders
       // with their stored SEO IGNORED (never deleted), so a lapsed Web Office

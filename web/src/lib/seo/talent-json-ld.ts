@@ -120,7 +120,7 @@ function compact<T extends Record<string, JsonValue | undefined>>(o: T): Record<
   return out;
 }
 
-function buildServiceOffers(
+export function buildServiceOffers(
   services: TalentJsonLdService[] | null | undefined,
   personId: string,
 ): JsonValue[] {

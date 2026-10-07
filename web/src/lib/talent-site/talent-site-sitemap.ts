@@ -39,3 +39,13 @@ export function talentSiteSitemapPaths(
   }
   return out;
 }
+
+export function talentHostSitemapPaths(
+  pages: readonly Pick<MaxSitePageRow, "slug" | "isHome" | "status" | "sortOrder" | "noindex">[],
+): string[] {
+  // TUL-98: a published site with no page rows still serves its home at `/`
+  // (default tree), so the manifest is never an empty urlset for it. Pages that
+  // exist but are all noindex stay out on purpose.
+  if (!pages.some((p) => p.status === "published")) return ["/"];
+  return talentSiteSitemapPaths(pages);
+}
