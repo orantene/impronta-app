@@ -106,12 +106,26 @@ export function MyProfilePage() {
   const previewHref = ownPage?.href ?? null;
   const publicUrlLabel = ownPage ? ownPage.label : p.publicUrl;
 
+  // One header line: drop empty parts so no stray " · " separators appear (DS-34).
+  const headerSubtitle = [
+    bridgeTalentSelfProfile ? (bridgeTalentSelfProfile.primaryTypeLabel ?? t("dashboard.talentMyProfile.chooseTrade")) : roleSummary,
+    p.measurementsSummary,
+    bridgeTalentSelfProfile?.homeCity ?? p.city,
+  ]
+    .map((part) => (typeof part === "string" ? part.trim() : ""))
+    .filter(Boolean)
+    .join(" · ");
+
   return (
+    // The page body is ONE grid item. Its children used to be a bare fragment,
+    // so every card became its own grid cell and flowed into the right column
+    // (blank card, empty "Personal page" heading, status cards side by side;
+    // QA DS-33). 
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-    <>
+    <div className="min-w-0">
       <PageHeader
         title={bridgeTalentSelfProfile?.displayName ?? p.name}
-        subtitle={`${bridgeTalentSelfProfile ? (bridgeTalentSelfProfile.primaryTypeLabel ?? t("dashboard.talentMyProfile.chooseTrade")) : roleSummary}${p.measurementsSummary ? ` · ${p.measurementsSummary}` : ""}${(bridgeTalentSelfProfile?.homeCity ?? p.city) ? ` · ${bridgeTalentSelfProfile?.homeCity ?? p.city}` : ""}`}
+        subtitle={headerSubtitle}
         actions={
           // Header actions are intentionally compact (size="sm"). The
           // md size is for body-level CTAs; in a header alongside the
@@ -229,7 +243,7 @@ export function MyProfilePage() {
       {/* ── Personal page (premium subscription tier) ─────────────── */}
       <Divider label={t("dashboard.talentMyProfile.personalPage")} />
       <PersonalPageBand />
-    </>
+    </div>
     <aside className="hidden xl:block">
       <p className="mb-2 font-admin-body text-[12px] font-semibold uppercase tracking-wide text-admin-ink-muted">
         {t("dashboard.talentMyProfile.editor.previewAside")}

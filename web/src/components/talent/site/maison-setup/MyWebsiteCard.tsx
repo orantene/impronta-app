@@ -190,6 +190,7 @@ export function MyWebsiteCard({
   const [hasPending, setHasPending] = useState<boolean | null>(null);
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
   const [copied, setCopied] = useState(false);
+  const [thumbLoaded, setThumbLoaded] = useState(false);
   const hasNamedPalette =
     lookSlugToGalleryPaletteKey(themeDesignSlug, themeLookSlug) !== null;
   const talentId = useAdminShellOptional()?.bridgeTalentSelfProfile?.id ?? null;
@@ -344,10 +345,23 @@ export function MyWebsiteCard({
               height: viewport.h * scale,
             }}
           >
+            {/* Never a bare white box: the site's address sits under the frame
+                until it has painted (or when there is no preview to load). */}
+            {!thumbLoaded ? (
+              <div
+                data-testid="maison-live-thumb-placeholder"
+                aria-hidden
+                className="absolute inset-0 flex animate-pulse flex-col items-center justify-center gap-1.5 px-4 text-center"
+              >
+                <span className="text-[14px] font-semibold text-admin-ink">{address}</span>
+                <span className="text-[12px] text-admin-ink-muted">{t("Website preview")}</span>
+              </div>
+            ) : null}
             {thumbSrc ? (
               <iframe
                 src={thumbSrc}
                 title={t("Website preview")}
+                onLoad={() => setThumbLoaded(true)}
                 className="absolute left-0 top-0 border-0"
                 style={{
                   width: viewport.w,
