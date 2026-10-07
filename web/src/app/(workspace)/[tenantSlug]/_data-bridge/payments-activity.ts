@@ -1,5 +1,6 @@
 import "server-only";
 
+import { collectedByOrder } from "@/lib/orders/order-principal";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import type { TakingsSourceRow, DrawerSessionRow, OwedSourceRow } from "@/lib/payments/activity-shape";
@@ -157,7 +158,7 @@ export async function loadTenantOwedOrders(tenantId: string): Promise<OwedLoad> 
     const ids = orders.slice(i, i + OWED_PAGE).map((o) => o.id);
     const { data, error } = await admin
       .from("booking_transactions")
-      .select("order_id, gross_amount_cents")
+      .select("order_id, gross_amount_cents, net_amount_cents, status, refund_of_transaction_id")
       .in("order_id", ids)
       .eq("status", PAID);
     if (error) {
@@ -165,9 +166,9 @@ export async function loadTenantOwedOrders(tenantId: string): Promise<OwedLoad> 
       return { ok: false };
     }
     for (const raw of data ?? []) {
-      const row = raw as { order_id: string | null; gross_amount_cents: number | string | null };
+      const row = raw as TxRow;
       if (!row.order_id) continue;
-      collected.set(row.order_id, (collected.get(row.order_id) ?? 0) + num(row.gross_amount_cents));
+      for (const [k, v] of collectedByOrder([row])) collected.set(k, (collected.get(k) ?? 0) + v);
     }
   }
 
@@ -296,3 +297,11 @@ export async function loadTenantDrawerSessions(
   });
   return { ok: true, rows };
 }
+
+type TxRow = {
+  order_id: string | null;
+  gross_amount_cents: number | string | null;
+  net_amount_cents: number | null;
+  status: string | null;
+  refund_of_transaction_id: string | null;
+};

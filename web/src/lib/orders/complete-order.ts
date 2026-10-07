@@ -1,5 +1,6 @@
 import "server-only";
 
+import { orderRowPrincipalCents, type OrderMoneyRow } from "@/lib/orders/order-principal";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
@@ -138,20 +139,10 @@ export async function completeOrderForTransaction(
     // through Checkout stores principal in `net_amount_cents` and fees in the
     // gross surplus — summing gross would understate the outstanding balance
     // (or mark a high deposit paid early). Legacy rows have net === gross.
-    const collected = (paidRows ?? []).reduce((sum, r) => {
-      const row = r as {
-        gross_amount_cents?: number | null;
-        net_amount_cents?: number | null;
-      };
-      const gross = Number(row.gross_amount_cents ?? 0);
-      const net =
-        row.net_amount_cents == null ? null : Number(row.net_amount_cents);
-      const principal =
-        net != null && Number.isFinite(net) && net >= 0 && net <= gross
-          ? net
-          : gross;
-      return sum + principal;
-    }, 0);
+    const collected = (paidRows ?? []).reduce(
+      (sum, r) => sum + orderRowPrincipalCents(r as OrderMoneyRow),
+      0,
+    );
 
     if (collected < row.total_cents) {
       // Part-paid. The order stays where it is and the balance is still owed —

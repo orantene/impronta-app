@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { sumOrderCollectedCents, type OrderCollectionRow } from "@/lib/orders/order-principal";
 import { PublicFooter } from "@/components/public-footer";
 import { PublicHeader } from "@/components/public-header";
 import { createTranslator } from "@/i18n/messages";
@@ -106,14 +107,14 @@ export default async function ManageBookingPage({ params }: Params) {
 
   let paidCents = 0;
   if (booking.order_id) {
-    const { data: txns, error: txnErr } = await admin.from("booking_transactions").select("gross_amount_cents, status").eq("order_id", booking.order_id);
+    const { data: txns, error: txnErr } = await admin.from("booking_transactions").select("gross_amount_cents, net_amount_cents, status, refund_of_transaction_id").eq("order_id", booking.order_id);
     if (txnErr) {
       logServerError("manage.loadPaid", txnErr);
       return <Refused title={t("public.manageBooking.title")} sentence={engine.unavailable} name={name} />;
     }
-    for (const x of (txns ?? []) as Array<{ gross_amount_cents: number; status: string }>) {
-      if (x.status === "paid") paidCents += Number(x.gross_amount_cents) || 0;
-    }
+    paidCents = sumOrderCollectedCents(
+      ((txns ?? []) as OrderCollectionRow[]).filter((x) => x.status === "paid"),
+    );
   }
   // Same source as `cancelBookingSet`: the page cannot promise a window the
   // engine does not apply.

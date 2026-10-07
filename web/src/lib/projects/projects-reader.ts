@@ -24,6 +24,7 @@ import "server-only";
  * predicate is stated once, below, and used by every read here.
  */
 
+import { collectedByOrder } from "@/lib/orders/order-principal";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { minorUnitDivisor } from "@/lib/orders/money-format";
@@ -405,18 +406,14 @@ async function loadAttachedOrders(
   const [txRes, lineRes] = await Promise.all([
     admin
       .from("booking_transactions")
-      .select("order_id, gross_amount_cents")
+      .select("order_id, gross_amount_cents, net_amount_cents, status, refund_of_transaction_id")
       .in("order_id", ids)
       .eq("status", "paid"),
     admin.from("order_lines").select("order_id").in("order_id", ids),
   ]);
   if (txRes.error || lineRes.error) return { data: [], error: txRes.error ?? lineRes.error };
 
-  const collected = new Map<string, number>();
-  for (const t of (txRes.data ?? []) as Array<{ order_id: string | null; gross_amount_cents: number | null }>) {
-    if (!t.order_id) continue;
-    collected.set(t.order_id, (collected.get(t.order_id) ?? 0) + Number(t.gross_amount_cents ?? 0));
-  }
+  const collected = collectedByOrder((txRes.data ?? []) as TxRow[]);
   const lineCounts = new Map<string, number>();
   for (const l of (lineRes.data ?? []) as Array<{ order_id: string }>) {
     lineCounts.set(l.order_id, (lineCounts.get(l.order_id) ?? 0) + 1);
@@ -544,7 +541,7 @@ export async function loadClientRecord(
     orderIds.length > 0
       ? admin
           .from("booking_transactions")
-          .select("order_id, gross_amount_cents")
+          .select("order_id, gross_amount_cents, net_amount_cents, status, refund_of_transaction_id")
           .in("order_id", orderIds)
           .eq("status", "paid")
       : Promise.resolve({ data: [], error: null }),
@@ -580,11 +577,7 @@ export async function loadClientRecord(
     return { ok: false, reason: "unavailable" };
   }
 
-  const collected = new Map<string, number>();
-  for (const t of (txRes.data ?? []) as Array<{ order_id: string | null; gross_amount_cents: number | null }>) {
-    if (!t.order_id) continue;
-    collected.set(t.order_id, (collected.get(t.order_id) ?? 0) + Number(t.gross_amount_cents ?? 0));
-  }
+  const collected = collectedByOrder((txRes.data ?? []) as TxRow[]);
   const lineCounts = new Map<string, number>();
   for (const l of (lineRes.data ?? []) as Array<{ order_id: string }>) {
     lineCounts.set(l.order_id, (lineCounts.get(l.order_id) ?? 0) + 1);
@@ -786,3 +779,11 @@ export async function loadReplacementCandidates(tenantId: string): Promise<Repla
     .sort((a, b) => a.name.localeCompare(b.name));
   return { ok: true, candidates };
 }
+
+type TxRow = {
+  order_id: string | null;
+  gross_amount_cents: number | null;
+  net_amount_cents: number | null;
+  status: string | null;
+  refund_of_transaction_id: string | null;
+};

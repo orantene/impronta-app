@@ -1,5 +1,6 @@
 import "server-only";
 
+import { collectedByOrder } from "@/lib/orders/order-principal";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import type { OrderListRow } from "@/lib/orders/orders-list";
@@ -111,7 +112,7 @@ export async function loadWorkspaceOrders(
   const [linesRes, txRes, custRes] = await Promise.all([
     inBatches(orderIds, (ids) => admin.from("order_lines").select("order_id").in("order_id", ids)),
     inBatches(orderIds, (ids) =>
-      admin.from("booking_transactions").select("order_id, gross_amount_cents").in("order_id", ids).eq("status", PAID),
+      admin.from("booking_transactions").select("order_id, gross_amount_cents, net_amount_cents, status, refund_of_transaction_id").in("order_id", ids).eq("status", PAID),
     ),
     inBatches(customerIds, (ids) => admin.from("customers").select("id, display_name, email").in("id", ids)),
   ]);
@@ -129,11 +130,7 @@ export async function loadWorkspaceOrders(
     lineCounts.set(l.order_id, (lineCounts.get(l.order_id) ?? 0) + 1);
   }
 
-  const collected = new Map<string, number>();
-  for (const t of (txRes.data ?? []) as Array<{ order_id: string | null; gross_amount_cents: number | null }>) {
-    if (!t.order_id) continue;
-    collected.set(t.order_id, (collected.get(t.order_id) ?? 0) + Number(t.gross_amount_cents ?? 0));
-  }
+  const collected = collectedByOrder((txRes.data ?? []) as TxRow[]);
 
   const customers = new Map<string, { display_name: string | null; email: string | null }>();
   for (const c of (custRes.data ?? []) as Array<{ id: string; display_name: string | null; email: string | null }>) {
@@ -159,3 +156,11 @@ export async function loadWorkspaceOrders(
 
   return { ok: true, rows };
 }
+
+type TxRow = {
+  order_id: string | null;
+  gross_amount_cents: number | null;
+  net_amount_cents: number | null;
+  status: string | null;
+  refund_of_transaction_id: string | null;
+};

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { orderRowPrincipalCents } from "@/lib/orders/order-principal";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import type { OrderForCard } from "@/lib/orders/order-card";
@@ -68,17 +69,11 @@ export async function loadOrdersForThread(
   const collected = new Map<string, number>();
   for (const row of (paidRows ?? []) as Array<{
     order_id: string | null;
-    gross_amount_cents: number;
+    gross_amount_cents: number | null;
     net_amount_cents?: number | null;
   }>) {
     if (!row.order_id) continue;
-    const gross = Number(row.gross_amount_cents ?? 0);
-    const net =
-      row.net_amount_cents == null ? null : Number(row.net_amount_cents);
-    const principal =
-      net != null && Number.isFinite(net) && net >= 0 && net <= gross
-        ? net
-        : gross;
+    const principal = orderRowPrincipalCents(row);
     collected.set(row.order_id, (collected.get(row.order_id) ?? 0) + principal);
   }
 
