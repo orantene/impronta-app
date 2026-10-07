@@ -126,6 +126,7 @@ import {
 } from "@/lib/talent/agency-overlay";
 import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
 import { TalentProfileInstantBookButton } from "./talent-profile-instant-book-button";
+import { HubProfileCta } from "./hub-profile-book-cta";
 import { loadInstantBookEligibility } from "@/lib/scheduling/instant-book-eligibility";
 import { servicesMenuForPublicHost } from "@/lib/talent/services-menu-for-host";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
@@ -2263,7 +2264,7 @@ export async function TalentProfileView({
 
   const inquireButtons = (btnClass: string) =>
     showSlotPicker ? null : (
-      <>
+      <HubProfileCta platformHost={platformHost} maxSiteUrl={maxSiteUrl} locale={locale} className={btnClass}>
         {profileCtas.showLegacyInstantBook ? (
           <TalentProfileInstantBookButton
             talentId={profile.id}
@@ -2288,7 +2289,7 @@ export async function TalentProfileView({
           locale={locale}
           className={btnClass}
         /> : null}
-      </>
+      </HubProfileCta>
     );
 
   // Phase G PR 1 — schema.org ProfilePage + Person JSON-LD. Emitted as a

@@ -362,6 +362,7 @@
     },
     "profileCta": {
       "inquireAbout": "Consultar sobre {name}",
+      "bookCta": "Reservar",
       "bookNowPrice": "Reservar ahora · {price}",
       "bookInstantly": "Reservar a {name} al instante",
       "closeAria": "Cerrar",
