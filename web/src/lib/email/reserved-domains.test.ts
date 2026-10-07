@@ -38,11 +38,27 @@ describe("isReservedDomainAddress", () => {
       "orantene@gmail.com",
       "a@tulala.digital",
       "a@test.com",
-      "a@example.com",
+      "a@myexample.com",
+      "a@example.com.au",
+      "a@notexample.org",
       "a@testing.io",
       "Name <a@contest.mx>",
     ]) {
       assert.equal(isReservedDomainAddress(a), false, a);
+    }
+  });
+
+  it("flags RFC 2606 reserved second-level domains and their subdomains (TUL-108)", () => {
+    for (const a of [
+      "a@example.com",
+      "A@Example.COM",
+      "x@mail.example.com",
+      "x@example.net",
+      "x@example.org",
+      "Name <a@example.com>",
+      "a@example.com.",
+    ]) {
+      assert.equal(isReservedDomainAddress(a), true, a);
     }
   });
 
