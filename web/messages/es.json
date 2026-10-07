@@ -1650,6 +1650,7 @@
     "bookPage": {
       "title": "Reserva un horario",
       "lead": "Elige un servicio y un horario. Confirmamos enseguida.",
+      "bookCta": "Agendar",
       "chooseService": "Servicio",
       "studioFallback": "el estudio"
     },

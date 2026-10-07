@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 
+import { createTranslator } from "@/i18n/messages";
 import { BookPageClient } from "@/app/(public)/book/BookPageClient";
 
 import type { LiveBookingSurface, LiveServiceCard } from "./live-booking-markers";
@@ -9,7 +10,7 @@ import type { LiveBookingSurface, LiveServiceCard } from "./live-booking-markers
  * Both are presentational; the data comes from `dataSources.liveBooking`.
  */
 
-const MUTED = "var(--token-color-muted, rgba(11,11,13,0.62))";
+const MUTED = "var(--token-color-muted, color-mix(in srgb, currentColor 62%, transparent))";
 
 export function formatServicePrice(
   amountCents: number | null,
@@ -37,7 +38,7 @@ export function serviceMetaLine(card: LiveServiceCard, locale: string | undefine
 }
 
 const cardStyle: CSSProperties = {
-  border: "1px solid rgba(24,24,27,0.12)",
+  border: "1px solid color-mix(in srgb, currentColor 14%, transparent)",
   borderRadius: 12,
   padding: 16,
   display: "flex",
@@ -56,7 +57,7 @@ export function LiveServicesBand({
   locale?: string;
   bookHref: string;
 }) {
-  const es = locale === "es";
+  const t = createTranslator(locale === "es" ? "es" : "en");
   return (
     <div
       data-builder-node-id={nodeId}
@@ -83,7 +84,7 @@ export function LiveServicesBand({
               {s.description ? <p style={{ margin: 0 }}>{s.description}</p> : null}
               {s.bookable ? (
                 <a href={bookHref} style={{ marginTop: 8, fontWeight: 600 }}>
-                  {es ? "Agendar" : "Book"}
+                  {t("public.bookPage.bookCta")}
                 </a>
               ) : null}
             </li>
