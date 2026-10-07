@@ -17,7 +17,7 @@ import { redirect } from "next/navigation";
 
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
-import { frontDoorUrl } from "@/lib/onboarding/front-door";
+import { inAppFlowUrl } from "@/lib/onboarding/front-door";
 import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -104,7 +104,7 @@ const COPY: Record<"en" | "es", AgentChatCopy> = {
 export default async function TulalaAgentPage() {
   // One front door: the module reads a sentence better than this page did.
   if ((await getOnboardingFlags()).onboarding_module_enabled) {
-    redirect(frontDoorUrl("unknown", { locale: await getRequestLocale() }));
+    redirect(inAppFlowUrl("unknown", { locale: await getRequestLocale() }));
   }
   const flags = await getAiFeatureFlags();
   if (!flags.ai_master_enabled || !flags.ai_tulala_agent_enabled) {

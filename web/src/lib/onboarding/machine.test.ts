@@ -78,12 +78,23 @@ test("phase 3: card → accept → essentials → (style for a business) → rea
   assert.equal(legacy.step, "essentials");
 });
 
-test("phase 3: fork first when ambiguous; the choice leads to essentials", () => {
-  const u = { path: "talent", pathConfidence: "ambiguous", pathSource: "intent", lines: [], followUps: ["fork", "name"], typeChip: null, linkName: null, tooLittle: false } as never;
-  let s = run([{ type: "cardLoaded", understanding: u, chip: null, step: "understood" }]);
-  s = run([{ type: "cardAccepted", nextStep: "fork", followUps: ["fork", "name"] }], s);
-  assert.equal(s.step, "fork");
-  const u2 = { ...(u as object), path: "business", pathConfidence: "clear", followUps: ["kind_of_business"] } as never;
-  s = run([{ type: "pathChosen", understanding: u2, chip: null, path: "business" }], s);
-  assert.equal(s.step, "essentials");
+test("1B: choosing on screen 1 sets choice and intent and moves to step 2; back returns", () => {
+  let s = initialMachineState("unknown", "choose");
+  assert.equal(s.step, "choose");
+  assert.equal(s.choice, null);
+  s = run([{ type: "choiceChosen", choice: "studio" }], s);
+  assert.equal(s.step, "entry");
+  assert.equal(s.choice, "studio");
+  assert.equal(s.intent, "business");
+  s = run([{ type: "back" }], s);
+  assert.equal(s.step, "choose");
+  assert.equal(s.choice, "studio", "the choice is kept when going back");
+  assert.equal(run([{ type: "choiceChosen", choice: "myself" }], s).intent, "talent");
+});
+
+test("1B: resume restores the choice from module state", () => {
+  const snap = { briefId: "b1", isAuthenticated: false, email: null, state: { step: "entry" as const, choice: "both" as const } };
+  const s = run([{ type: "resumeLoaded", snapshot: snap }, { type: "resumeContinue" }], initialMachineState("unknown", "choose"));
+  assert.equal(s.step, "entry");
+  assert.equal(s.choice, "both");
 });

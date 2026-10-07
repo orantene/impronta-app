@@ -14,14 +14,33 @@ export type OnboardingIntent = "talent" | "business" | "unknown";
 
 export type OnboardingPath = "talent" | "business" | "both";
 
+/** The 1B "How do you work?" answer. Stored as `choice` in module state. */
+export type OnboardingChoice = "myself" | "studio" | "both";
+export const ONBOARDING_CHOICES: readonly OnboardingChoice[] = ["myself", "studio", "both"];
+export function isOnboardingChoice(v: unknown): v is OnboardingChoice {
+  return typeof v === "string" && (ONBOARDING_CHOICES as readonly string[]).includes(v);
+}
+/**
+ * Until `provisionForChoice` (feat/onboarding-1a-choices) lands, the choice
+ * rides the existing path field: myself = talent, studio = business, both = both.
+ */
+export function choiceToPath(choice: OnboardingChoice): OnboardingPath {
+  return choice === "myself" ? "talent" : choice === "studio" ? "business" : "both";
+}
+/** The intent the understand step reads: a studio or a hybrid is business-shaped. */
+export function choiceToIntent(choice: OnboardingChoice): OnboardingIntent {
+  return choice === "myself" ? "talent" : "business";
+}
+
 export type ModuleStep =
+  /** Screen 1 of 4: "How do you work?" (replaces the old `fork`). */
+  | "choose"
   | "entry"
   | "listening"
   | "confirmWords"
   | "reading"
   | "tooLittle"
   | "understood"
-  | "fork"
   /** Legacy (pre 2026-09-17): the one-question-per-screen sequence. Resumes as `essentials`. */
   | "question"
   /** One screen with every essential the site needs, prefilled from the words. */
@@ -46,11 +65,12 @@ export function isVisualDirection(v: unknown): v is VisualDirection {
 
 /** Steps a reopened module may resume at. Anything else restarts at entry. */
 export const RESUMABLE_STEPS: ReadonlySet<ModuleStep> = new Set<ModuleStep>([
+  "choose",
+  "entry",
   "confirmWords",
   "reading",
   "tooLittle",
   "understood",
-  "fork",
   "question",
   "essentials",
   "style",
@@ -67,6 +87,8 @@ export type PersistedModuleState = {
   step?: ModuleStep;
   input?: ModuleInput | null;
   path?: OnboardingPath | null;
+  /** "How do you work?" answer (1B). Survives sign-in: it lives on the brief. */
+  choice?: OnboardingChoice;
   questionIndex?: number;
   locale?: "en" | "es";
   /** The chip the person tapped (business type id or talent type slug). */
@@ -91,7 +113,7 @@ export type ResumeSnapshot = {
 };
 
 const STEPS: ReadonlySet<string> = new Set<ModuleStep>([
-  "entry", "listening", "confirmWords", "reading", "tooLittle", "understood", "fork",
+  "choose", "entry", "listening", "confirmWords", "reading", "tooLittle", "understood",
   "question", "essentials", "style", "readyToBuild", "save", "code", "building", "arrival",
 ]);
 
@@ -114,7 +136,9 @@ export function parsePersistedModuleState(raw: unknown): PersistedModuleState {
   if (isOnboardingIntent(r.intent)) out.intent = r.intent;
   // The question-per-screen sequence became one essentials screen; a brief
   // parked mid-sequence resumes there with everything it answered prefilled.
-  if (isModuleStep(r.step)) out.step = r.step === "question" ? "essentials" : r.step;
+  // `fork` was dropped in 1B (the choice is now screen 1): a brief parked there resumes at "choose".
+  if (r.step === "fork") out.step = "choose";
+  else if (isModuleStep(r.step)) out.step = r.step === "question" ? "essentials" : r.step;
   if (r.input && typeof r.input === "object") {
     const i = r.input as Record<string, unknown>;
     if ((i.kind === "text" || i.kind === "url") && typeof i.value === "string") {
@@ -122,6 +146,7 @@ export function parsePersistedModuleState(raw: unknown): PersistedModuleState {
     }
   }
   if (r.path === "talent" || r.path === "business" || r.path === "both") out.path = r.path;
+  if (isOnboardingChoice(r.choice)) out.choice = r.choice;
   if (typeof r.questionIndex === "number" && Number.isInteger(r.questionIndex) && r.questionIndex >= 0) {
     out.questionIndex = r.questionIndex;
   }
@@ -142,7 +167,10 @@ export function parsePersistedModuleState(raw: unknown): PersistedModuleState {
 
 /** True when a reopened module should offer "Continue" instead of a blank entry. */
 export function canResume(state: PersistedModuleState): boolean {
-  return !!state.step && RESUMABLE_STEPS.has(state.step) && !!state.input?.value;
+  if (!state.step) return false;
+  // Screens 1 and 2 of the 4-step flow hold no words yet: resumable once a choice was made.
+  if (state.step === "choose" || state.step === "entry") return !!state.choice;
+  return RESUMABLE_STEPS.has(state.step) && !!state.input?.value;
 }
 
 /** Twelve words is the floor below which the AI has nothing to work with. */
