@@ -22,7 +22,6 @@ import { AccountMenuItem, IdentityBarIconButton, ModeTogglePill } from "./Identi
 import { TalentAccountMenuSection } from "./TalentAccountMenuSection";
 import { WhatsAppTopBarButton } from "@/components/admin/channels/WhatsAppChrome";
 import { CreateMenu } from "./CreateMenu";
-import { actingAsLabel, shouldShowActingAs } from "./acting-as";
 import { LanguageMenu } from "./LanguageMenu";
 import { GLOBAL_SEARCH_OPEN_EVENT } from "./GlobalSearchOverlay";
 import { MobileChromeStyles } from "./MobileChromeStyles";
@@ -132,10 +131,7 @@ export function TulalaIdentityBar() {
   // hosting this rostered talent) over Marta's hardcoded primaryAgency.
   const actingLabel = inWorkspace
     ? effectiveTenant.name
-    : actingAsLabel({
-        impersonating: state.impersonating,
-        personName: talentBridgeName ?? realUserName ?? MY_TALENT_PROFILE.name,
-      });
+    : (talentBridgeName ?? realUserName ?? MY_TALENT_PROFILE.name);
   // Subtext stays terse — the plan tier now has its own badge inline,
   // so this just clarifies the role + entity context.
   const actingRoleLabel = bridgeSessionIdentity?.role ?? role;
@@ -347,7 +343,7 @@ export function TulalaIdentityBar() {
             {/* A talent with no agency has nothing to "act as"; the platform
                 hub is filtered out upstream (loadTalentAgencies). Hide the
                 block rather than show "Your agencies · 0 agencies". */}
-            {(inWorkspace || inTalent) && shouldShowActingAs({ surface, impersonating: state.impersonating }) && (
+            {(inWorkspace || inTalent) && (
             <button
               type="button"
               onClick={inTalent ? undefined : onActingClick}
