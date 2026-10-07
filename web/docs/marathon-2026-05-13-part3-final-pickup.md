@@ -109,7 +109,7 @@ Same recipe as `part2-pickup-note.md`:
 cd web && rm -rf .next && npm run dev   # if Turbopack panic'd earlier
 ```
 
-Then sign in as `qa-admin@impronta.test` / `Impronta-QA-Admin-2026!` and exercise:
+Then sign in as `qa-admin@impronta.test` / `<redacted-qa-password>` and exercise:
 
 1. **A1** — Create a manual inquiry via admin's +New form → check `inquiry_events` for an INQUIRY_SUBMITTED row (was missing before)
 2. **A9** — Click the bell → see real notifications (not the 5 hardcoded mocks)

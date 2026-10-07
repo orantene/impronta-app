@@ -12,7 +12,7 @@
  POST /client/messages 200 in 3.9s (next.js: 7ms, proxy.ts: 507ms, application-code: 3.4s)
   └─ ƒ submitInquiryNowAction({"kind":"idle"}, {}) in 2863ms src/app/(workspace)/[tenantSlug]/client/_actions/inquiry-intent-actions.ts
 {"ns":"impronta","event":"email.warn","requestId":"req-8ed7ffb7-071b-4ffd-adc4-a8b785b56ecb","ts":"2026-05-23T03:41:23.976Z","message":"[email] RESEND_API_KEY not set — skipping email:","input":"You've been assigned to QA Client One"}
- GET /api/dev/signin?email=qa-client-1%40impronta.test&password=Impronta-QA-Client-2026!&next=%2Fclient%2Fmessages%3Finquiry%3De44a38dc-90f4-4ca4-9625-c9db5f2ff18c 307 in 733ms (next.js: 6ms, proxy.ts: 6ms, application-code: 721ms)
+ GET /api/dev/signin?email=qa-client-1%40impronta.test&password=<redacted-qa-password>&next=%2Fclient%2Fmessages%3Finquiry%3De44a38dc-90f4-4ca4-9625-c9db5f2ff18c 307 in 733ms (next.js: 6ms, proxy.ts: 6ms, application-code: 721ms)
  GET /login?inquiry=e44a38dc-90f4-4ca4-9625-c9db5f2ff18c&next=%2Fclient%2Fmessages 200 in 449ms (next.js: 8ms, proxy.ts: 4ms, application-code: 436ms)
  GET /api/client/pitches/count 200 in 913ms (next.js: 56ms, proxy.ts: 658ms, application-code: 199ms)
  GET /api/discover/shortlists 200 in 923ms (next.js: 6ms, proxy.ts: 657ms, application-code: 260ms)
@@ -26,7 +26,7 @@
 {"ns":"impronta","event":"inquiry_engine","requestId":"req-03c6fc20-b977-4c9a-a6ac-e94074fcecc2","ts":"2026-05-23T03:41:57.921Z","action":"markThreadRead","inquiryId":"e44a38dc-90f4-4ca4-9625-c9db5f2ff18c","actorUserId":"bb31fa4c-bfcf-4e87-a7d7-67e28d048b78","result":"success","durationMs":674,"errorReason":""}
  POST /client/messages?inquiry=e44a38dc-90f4-4ca4-9625-c9db5f2ff18c 200 in 1978ms (next.js: 9ms, proxy.ts: 468ms, application-code: 1501ms)
   └─ ƒ markClientThreadReadAction("impronta", "e44a38dc-90f4-4ca4-9625-c9db5f2ff18c", "3b2ac626-d938-477e-a4e1-7a1c687e4768") in 1455ms src/app/(workspace)/[tenantSlug]/client/_actions/inquiry-message-actions.ts
- GET /api/dev/signin?email=qa-client-2%40impronta.test&password=Impronta-QA-Client-2026!&next=%2Fimpronta%2Fclient%2Fmessages%3Finquiry%3Db9948cb5-84bf-4ca2-a5f2-972a4a7dd57a 307 in 690ms (next.js: 10ms, proxy.ts: 16ms, application-code: 665ms)
+ GET /api/dev/signin?email=qa-client-2%40impronta.test&password=<redacted-qa-password>&next=%2Fimpronta%2Fclient%2Fmessages%3Finquiry%3Db9948cb5-84bf-4ca2-a5f2-972a4a7dd57a 307 in 690ms (next.js: 10ms, proxy.ts: 16ms, application-code: 665ms)
  GET /impronta/client/messages?inquiry=b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a 307 in 1079ms (next.js: 13ms, proxy.ts: 484ms, application-code: 583ms)
  GET /login?next=/impronta/client 200 in 276ms (next.js: 27ms, proxy.ts: 3ms, application-code: 246ms)
  GET /api/client/pitches/count 200 in 704ms (next.js: 54ms, proxy.ts: 477ms, application-code: 173ms)

@@ -390,7 +390,7 @@ async function main() {
   // Optional dedicated login for the primary beauty talent (never steals
   // IMPERSONATION_QA_TALENT_USER_ID — that user already owns another profile).
   const primaryPassword =
-    (process.env.QA_AGENDA_TALENT_PASSWORD ?? process.env.QA_TALENT_PASSWORD ?? "qa-agenda-v2-local").trim();
+    (process.env.QA_AGENDA_TALENT_PASSWORD ?? process.env.QA_TALENT_PASSWORD ?? (() => { throw new Error("QA_AGENDA_TALENT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()).trim();
 
   async function ensureLogin(email, displayName) {
     const target = email.toLowerCase();

@@ -37,7 +37,7 @@ const { Client: PgClient } = pg;
 // ---------------------------------------------------------------------------
 
 const QA_TENANT_ID = "22222222-2222-2222-2222-222222222222";
-const DEFAULT_PASSWORD = "Impronta-QA-P5-2026!";
+const DEFAULT_PASSWORD = (process.env.QA_PHASE5_PASSWORD?.trim() || (() => { throw new Error("QA_PHASE5_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })());
 
 /**
  * Five QA users for the Phase 5 walkthrough. Roles map:

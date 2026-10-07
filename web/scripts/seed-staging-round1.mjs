@@ -34,8 +34,8 @@
  *
  * Optional:
  *   STAGING_ADMIN_EMAIL              default: qa-admin@impronta.test
- *   STAGING_ADMIN_PASSWORD           default: Round1-Admin-2026!
- *   STAGING_OWNER_PASSWORD           default: Round1-Owner-2026!
+ *   STAGING_ADMIN_PASSWORD           no default; set via env
+ *   STAGING_OWNER_PASSWORD           no default; set via env
  *
  * Flags:
  *   --dry-run       Print the plan without writing anything.
@@ -114,9 +114,9 @@ const rootDomain = process.env.STAGING_ROOT_DOMAIN?.trim();
 const adminEmail =
   process.env.STAGING_ADMIN_EMAIL?.trim() || "qa-admin@impronta.test";
 const adminPassword =
-  process.env.STAGING_ADMIN_PASSWORD?.trim() || "Round1-Admin-2026!";
+  process.env.STAGING_ADMIN_PASSWORD?.trim() || (() => { throw new Error("STAGING_ADMIN_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })();
 const ownerPassword =
-  process.env.STAGING_OWNER_PASSWORD?.trim() || "Round1-Owner-2026!";
+  process.env.STAGING_OWNER_PASSWORD?.trim() || (() => { throw new Error("STAGING_OWNER_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })();
 
 if (!supabaseUrl || !serviceRoleKey) {
   console.error(

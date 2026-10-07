@@ -105,8 +105,8 @@ async function main() {
     ok("2. platform test balance funded by a real (test) card charge", pi.status === "succeeded", `${pi.id} ${pi.status}`);
 
     // ── 3. Real booking on the card rail (snapshot stays 'card') ──
-    const { data: c } = await clientSb.auth.signInWithPassword({ email: "qa-client-1@impronta.test", password: "Impronta-QA-Client-2026!" });
-    const { data: a } = await adminSb.auth.signInWithPassword({ email: "qa-admin@impronta.test", password: "Impronta-QA-Admin-2026!" });
+    const { data: c } = await clientSb.auth.signInWithPassword({ email: "qa-client-1@impronta.test", password: (process.env.QA_CLIENT_PASSWORD?.trim() || (() => { throw new Error("QA_CLIENT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()) });
+    const { data: a } = await adminSb.auth.signInWithPassword({ email: "qa-admin@impronta.test", password: (process.env.QA_ADMIN_PASSWORD?.trim() || (() => { throw new Error("QA_ADMIN_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()) });
     const clientUser = c!.user!.id, staffUser = a!.user!.id;
     const { data: tp } = await admin.from("talent_profiles").select("user_id").eq("id", TALENT).single();
     const talentUser = (tp as { user_id: string }).user_id;
