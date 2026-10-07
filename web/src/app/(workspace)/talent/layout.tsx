@@ -34,8 +34,6 @@ import { SupportLauncherShellMount } from "@/components/support/SupportLauncherS
 import type { TalentPage } from "@/components/admin/shell/internal/state";
 import { loadTenantIdentity, loadProfileDisplayName, type TenantIdentityPayload } from "../[tenantSlug]/_layout-identity";
 import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
-import { loadUnrosteredWallFacts } from "@/lib/talent/unrostered-wall-load";
-import { unrosteredWallBypassesShell } from "@/lib/talent/unrostered-wall";
 import { TalentSiteDashboardProvider } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/dashboard-state";
 import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
@@ -187,17 +185,6 @@ export default async function PlatformTalentLayout({
       return <>{children}</>;
     }
     notFound();
-  }
-
-  // The unrostered wall is the whole /talent page. TalentShellClient renders
-  // children and then Today, so a profile with no roster and no published
-  // site must not enter the shell. A talent who has either keeps the shell;
-  // an unproven read does too (the page sends them to Today).
-  if (isTalentRoot) {
-    const wallFacts = await loadUnrosteredWallFacts(baseProfile.id);
-    if (unrosteredWallBypassesShell(wallFacts)) {
-      return <>{children}</>;
-    }
   }
 
   const activeAgency = await getActiveTalentAgencyContext(baseProfile.id);
