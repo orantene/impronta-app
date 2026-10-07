@@ -653,7 +653,7 @@ export function tagCounts(results: readonly GallerySearchResult[]): {
 // ── Suggested designs from the talent's primary trade ───────────────────────
 
 const CHIP_SUGGESTIONS: Record<GalleryCategoryChip, string[]> = {
-  beauty: ["maison", "maison-v2"],
+  beauty: ["maison-v2", "maison"],
   models: ["folio", "frame"],
   music: ["frame", "folio"],
   food: ["maison-v2", "folio"],
