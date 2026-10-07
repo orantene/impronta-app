@@ -3,6 +3,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { ensureSoloTalentTenantId } from "@/lib/saas/solo-talent-tenant";
 import { requireTalentSelfAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
@@ -31,6 +33,10 @@ async function requireTalentServiceScope(talentProfileId: string) {
     .limit(1)
     .maybeSingle();
   if (!rosterRow?.tenant_id) {
+    // Solo talent (owner verified above) with no roster row: heal onto the hub.
+    const admin = createServiceRoleClient();
+    const soloTenantId = admin ? await ensureSoloTalentTenantId(admin, talentProfileId) : null;
+    if (soloTenantId) return { ...auth, tenantId: soloTenantId };
     return { ok: false as const, error: "Talent is not on any active roster." };
   }
   return { ...auth, tenantId: rosterRow.tenant_id };
