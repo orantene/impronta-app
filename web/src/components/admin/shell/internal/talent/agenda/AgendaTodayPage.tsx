@@ -40,6 +40,7 @@ import {
 import type { BookingHours } from "@/lib/scheduling/hours-types";
 import { useAgendaCopy } from "./use-agenda-copy";
 import { unscheduledAgendaItems } from "@/lib/talent-agenda/load-unscheduled";
+import { settleServerAction } from "@/lib/client/settle-server-action";
 
 const SLICE_LABEL: Record<WebsiteSliceKey, string> = {
   who: "Your name and what you do",
@@ -227,7 +228,7 @@ export function AgendaTodayPage({
   useEffect(() => {
     if (!profileId) return;
     let cancelled = false;
-    void loadTalentClients(profileId)
+    void settleServerAction(() => loadTalentClients(profileId), { label: "loadTalentClients", area: "talent-today" })
       .then((res) => {
         if (!cancelled) setLedgerClients(res.ok ? res.items : []);
       })
