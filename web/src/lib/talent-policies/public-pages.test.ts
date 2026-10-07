@@ -58,6 +58,7 @@ function publishedFrom(facts: PolicyFacts, version: number) {
     textEs: renderPolicyText(facts, DEFAULT_POLICY_ANSWERS, "es").text,
     textEn: renderPolicyText(facts, DEFAULT_POLICY_ANSWERS, "en").text,
     publishedAt: "2026-09-30T12:00:00.000Z",
+    customClauses: null,
   };
 }
 
