@@ -103,6 +103,7 @@ export async function loadTalentLiveText(
       menuCurrency,
       hoursDays: visit.talentVisitFacts.find((f) => f.icon === "hours")?.value ?? null,
       instagramHref: social.find((s) => s.platform === "instagram")?.href ?? null,
+      whatsappHref: social.find((s) => s.platform === "whatsapp")?.href ?? null,
     };
     return buildTalentLiveText(src, locale, chain);
   } catch (err) {

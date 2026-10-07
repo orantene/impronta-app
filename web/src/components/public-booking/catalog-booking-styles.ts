@@ -153,4 +153,8 @@ body:has(.cb-dock[data-show="true"]) [data-consent-banner],body:has(.cb-bar[data
 .cb-dock-unread{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--cb-primary);box-shadow:0 0 0 2px var(--cb-surface)}
 @media (min-width:720px){.cb-dock{left:auto;right:32px;bottom:32px;width:min(440px,calc(100vw - 64px))}.cb-dock-toast{bottom:112px}}
 @media (prefers-reduced-motion:reduce){.cb-dock,.cb-dock *,.cb-dock-toast,.cb-dock-go::after{transition:none!important;animation:none!important}}
+/* TUL-59 C: overlay discipline. One banner at a time: consent first, then the language suggestion; neither over a booking window. */
+body:has([data-consent-banner]) [data-locale-suggestion],body:has([role="dialog"][aria-modal="true"]) [data-consent-banner],body:has([role="dialog"][aria-modal="true"]) [data-locale-suggestion]{display:none}
+/* More air between the selection's x and the chat button. */
+.cb-dock{gap:16px}.cb-dock-stack{margin-left:6px}
 `;

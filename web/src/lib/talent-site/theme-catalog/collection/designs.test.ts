@@ -440,7 +440,7 @@ test("maison-v2 hero has one CTA row: primary booking + ghost See work", () => {
   assert.deepEqual(
     buttons.map((b) => [b.label, b.tone]),
     [
-      ["See services", "primary"],
+      ["Book an appointment", "primary"],
       ["See work", "secondary"],
     ],
   );
@@ -459,6 +459,6 @@ test("maison-v2 has the serif ticker and the staggered recent-work strip", () =>
   // Header carries section links, the booking CTA and the trade line.
   const header = payload.shellTree.find((n) => (n.props as { sectionTypeKey?: string }).sectionTypeKey === "site_header");
   const sp = (header!.props as { sectionProps: Record<string, unknown> }).sectionProps;
-  assert.deepEqual((sp.primaryCta as { label: string }).label, "Menu and prices");
+  assert.deepEqual((sp.primaryCta as { label: string }).label, "Book an appointment");
   assert.equal((sp.brand as { tagline?: string }).tagline, "{{primaryTypeLabel}}");
 });
