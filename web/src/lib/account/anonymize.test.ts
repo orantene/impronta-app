@@ -183,3 +183,132 @@ test("running twice issues the same writes (idempotent)", async () => {
   const first = writes(b.calls);
   assert.deepEqual(writes(a.calls), [...first, ...first]);
 });
+
+// ── payout_accounts ───────────────────────────────────────────────────────────
+
+const OTHER_USER = "99999999-2222-3333-4444-555555555555";
+const OTHER_TALENT = "bbbbbbbb-bbbb-cccc-dddd-eeeeeeeeeeee";
+
+test("payout accounts: profile and talent ops carry exactly those filters and only display_name", () => {
+  const plan = buildAnonymizationPlan({ userId: USER, email: null, talentProfileIds: [TALENT] }, NOW);
+  const prof = find(plan, "payout_accounts_profile");
+  const tal = find(plan, "payout_accounts_talent");
+  assert.equal(prof.table, "payout_accounts");
+  assert.equal(tal.table, "payout_accounts");
+  assert.deepEqual(prof.filters, [
+    { op: "eq", col: "owner_type", value: "profile" },
+    { op: "eq", col: "owner_id", value: USER },
+  ]);
+  assert.deepEqual(tal.filters, [
+    { op: "eq", col: "owner_type", value: "talent" },
+    { op: "in", col: "owner_id", value: [TALENT] },
+  ]);
+  for (const op of [prof, tal]) {
+    assert.equal(op.kind, "update");
+    if (op.kind !== "update") continue;
+    assert.deepEqual(op.patch, { display_name: DELETED_USER_LABEL });
+    for (const k of ["status", "provider", "provider_account_id", "id", "tenant_id", "owner_id", "owner_type", "amount_minor"]) {
+      assert.equal(k in op.patch, false, k);
+    }
+  }
+});
+
+test("payout accounts: a subject with no talent profiles gets only the profile op", () => {
+  const plan = buildAnonymizationPlan({ userId: USER, email: null, talentProfileIds: [] }, NOW);
+  const ops = plan.filter((o) => o.table === "payout_accounts");
+  assert.deepEqual(ops.map((o) => o.label), ["payout_accounts_profile"]);
+});
+
+test("payout accounts: no op targets owner_type agency, and other owners would not match", () => {
+  const plan = buildAnonymizationPlan({ userId: USER, email: null, talentProfileIds: [TALENT] }, NOW);
+  const ops = plan.filter((o) => o.table === "payout_accounts");
+  assert.equal(ops.length, 2);
+  const rows = [
+    { owner_type: "agency", owner_id: USER },
+    { owner_type: "agency", owner_id: TALENT },
+    { owner_type: "profile", owner_id: OTHER_USER },
+    { owner_type: "talent", owner_id: OTHER_TALENT },
+    { owner_type: "talent", owner_id: USER },
+    { owner_type: "profile", owner_id: TALENT },
+  ];
+  for (const row of rows) assert.equal(ops.some((o) => matches(row, o.filters)), false, JSON.stringify(row));
+  assert.ok(ops.some((o) => matches({ owner_type: "profile", owner_id: USER }, o.filters)));
+  assert.ok(ops.some((o) => matches({ owner_type: "talent", owner_id: TALENT }, o.filters)));
+});
+
+type Row = Record<string, unknown>;
+type PlanFilter = AnonymizeOp["filters"][number];
+
+function matches(row: Row, filters: PlanFilter[]): boolean {
+  return filters.every((f) => {
+    if (f.op === "eq") return row[f.col] === f.value;
+    if (f.op === "in") return f.value.includes(String(row[f.col]));
+    if (f.op === "isNull") return row[f.col] == null;
+    return false;
+  });
+}
+
+test("payout accounts: applying the plan to a fake store changes only display_name on matching rows", async () => {
+  const store: Row[] = [
+    { id: "p1", owner_type: "profile", owner_id: USER, display_name: "Ana IBAN 1234", provider: "manual_bank", provider_account_id: null, status: "connected" },
+    { id: "p2", owner_type: "talent", owner_id: TALENT, display_name: "Ana Chase 0001", provider: "stripe", provider_account_id: "acct_123", status: "pending_verification" },
+    { id: "p3", owner_type: "agency", owner_id: USER, display_name: "Agency Ltd", provider: "manual_bank", provider_account_id: null, status: "connected" },
+    { id: "p4", owner_type: "profile", owner_id: OTHER_USER, display_name: "Bo Bank", provider: "manual_bank", provider_account_id: null, status: "connected" },
+    { id: "p5", owner_type: "talent", owner_id: OTHER_TALENT, display_name: "Cy Bank", provider: "stripe", provider_account_id: "acct_999", status: "connected" },
+  ];
+  const before = store.map((r) => ({ ...r }));
+  const admin = {
+    from(table: string) {
+      return {
+        update: (patch: Row) => {
+          const filters: Array<[string, string, unknown]> = [];
+          const b: Record<string, unknown> = {};
+          for (const m of ["eq", "in", "ilike", "is"]) {
+            b[m] = (col: string, v: unknown) => {
+              filters.push([m, col, v]);
+              return b;
+            };
+          }
+          b.then = (res: (v: unknown) => unknown) => {
+            if (table === "payout_accounts") {
+              for (const row of store) {
+                const ok = filters.every(([m, col, v]) =>
+                  m === "eq" ? row[col] === v : m === "in" ? (v as unknown[]).includes(row[col]) : false,
+                );
+                if (ok) Object.assign(row, patch);
+              }
+            }
+            return Promise.resolve({ error: null }).then(res);
+          };
+          return b;
+        },
+        delete: () => {
+          const b: Record<string, unknown> = {};
+          for (const m of ["eq", "in", "ilike", "is"]) b[m] = () => b;
+          b.then = (res: (v: unknown) => unknown) => Promise.resolve({ error: null }).then(res);
+          return b;
+        },
+        select: () => {
+          const b: Record<string, unknown> = {};
+          for (const m of ["eq", "not"]) b[m] = () => b;
+          b.then = (res: (v: unknown) => unknown) => Promise.resolve({ data: [], error: null }).then(res);
+          return b;
+        },
+      };
+    },
+    storage: { from: () => ({ remove: async () => ({ error: null }) }) },
+  };
+
+  const run = async () =>
+    anonymizeUserData(admin as never, { userId: USER, email: null, talentProfileIds: [TALENT] }, {}, new Date(NOW));
+  assert.equal((await run()).ok, true);
+  const after = store.map((r) => ({ ...r }));
+  assert.equal(after[0].display_name, DELETED_USER_LABEL);
+  assert.equal(after[1].display_name, DELETED_USER_LABEL);
+  for (const i of [2, 3, 4]) assert.deepEqual(after[i], before[i]);
+  for (const i of [0, 1]) assert.deepEqual({ ...after[i], display_name: null }, { ...before[i], display_name: null });
+
+  // Re-running converges to the same state.
+  await run();
+  assert.deepEqual(store, after);
+});

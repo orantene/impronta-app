@@ -13,6 +13,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  *   - scrubs the payer email and cached receiver/talent names on money rows,
  *     WITHOUT deleting any of them (bookings + payment records are kept for
  *     3 years after last activity, anonymized);
+ *   - scrubs the free-text `display_name` on the payout accounts the user owns
+ *     (`owner_type` 'profile' = the user, 'talent' = their talent profiles),
+ *     because it can carry bank or account details. Agency-owned accounts,
+ *     `provider_account_id`, `status` and every id are kept (bookings,
+ *     payouts and refunds reference them; Stripe ids are opaque);
  *   - keeps message bodies (they are the other party's record too) but
  *     removes files the user uploaded (inquiry attachments + voice notes) and
  *     the voice payload on their messages. Sender names are resolved from
@@ -245,6 +250,32 @@ export function buildAnonymizationPlan(
     filters: [{ op: "in", col: "payout_receiver_id", value: [userId, ...talentProfileIds] }],
     patch: { payout_receiver_display_name: DELETED_USER_LABEL },
   });
+
+  // Payout accounts: display_name is free text (NOT NULL) and can carry bank
+  // details. Only the name is scrubbed; owner_type 'agency' rows, the provider
+  // account id, status and ids stay because bookings and payouts reference them.
+  ops.push({
+    kind: "update",
+    label: "payout_accounts_profile",
+    table: "payout_accounts",
+    filters: [
+      { op: "eq", col: "owner_type", value: "profile" },
+      { op: "eq", col: "owner_id", value: userId },
+    ],
+    patch: { display_name: DELETED_USER_LABEL },
+  });
+  if (hasTalent) {
+    ops.push({
+      kind: "update",
+      label: "payout_accounts_talent",
+      table: "payout_accounts",
+      filters: [
+        { op: "eq", col: "owner_type", value: "talent" },
+        { op: "in", col: "owner_id", value: talentProfileIds },
+      ],
+      patch: { display_name: DELETED_USER_LABEL },
+    });
+  }
 
   // Files they uploaded into conversations. Storage objects are removed by
   // the caller before this soft-delete (see removeUploadedInquiryFiles).
