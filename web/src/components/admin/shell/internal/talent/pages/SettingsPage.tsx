@@ -6,7 +6,9 @@ import { requestWebsiteSettingsView } from "@/components/talent/website-settings
 import { languageName } from "@/lib/i18n/locale-field-model";
 import { CommercialBookingTermsCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/CommercialBookingTermsCard";
 import { DefaultCurrencyCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/DefaultCurrencyCard";
-import { PreferredLanguageCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/PreferredLanguageCard";
+import { DashboardLanguagePanel } from "./DashboardLanguagePanel";
+import { getLocaleMetadata } from "@/i18n/config";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { ProfileVisibilityCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/ProfileVisibilityCard";
 import { TalentPlanCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentPlanCard";
 import { AccountDeletionCard } from "@/components/account/AccountDeletionCard";
@@ -117,6 +119,7 @@ export function SettingsPage() {
     };
   }, []);
   const copy = useDashboardText();
+  const dashboardLocale = useDashboardLocale();
   const { t: tx } = usePresenceText();
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
   const agencies = bridgeTalentAgencies ?? [];
@@ -180,30 +183,26 @@ export function SettingsPage() {
       onOpen: () => openSection("identity"),
     },
   ];
-  if (bridgeTalentSelfProfile && talentLocales && settingsOn) {
-    const own = (c: string) => languageName(c, c, true);
+  if (bridgeTalentSelfProfile) {
+    // TUL-96: this row is the DASHBOARD language (cookie + reload). Website
+    // languages are a separate link inside the panel, shown when that screen is on.
     account.push({
       key: "language",
       label: copy.t("Language"),
-      sub: copy.t("Change in Website settings"),
-      value:
-        talentLocales.secondary.length === 0
-          ? copy.t("{lang} only").replace("{lang}", own(talentLocales.primary))
-          : copy
-              .t("{primary} and {secondary}")
-              .replace("{primary}", own(talentLocales.primary))
-              .replace("{secondary}", talentLocales.secondary.map(own).join(", ")),
-      onOpen: () => {
-        requestWebsiteSettingsView("lang");
-        setTalentPage("public-page");
-      },
-    });
-  } else if (bridgeTalentSelfProfile) {
-    account.push({
-      key: "language",
-      label: tx("Language"),
-      sub: tx("Your dashboard. Your public pages follow the visitor."),
-      panel: <PreferredLanguageCard />,
+      sub: copy.t("Dashboard display language"),
+      value: getLocaleMetadata(dashboardLocale).label,
+      panel: (
+        <DashboardLanguagePanel
+          onManageWebsiteLanguages={
+            talentLocales && settingsOn
+              ? () => {
+                  requestWebsiteSettingsView("lang");
+                  setTalentPage("public-page");
+                }
+              : undefined
+          }
+        />
+      ),
     });
   }
   account.push(

@@ -5,6 +5,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { signOut } from "@/app/auth/actions";
 
 const START_WORKSPACE_EVENT = "tulala:open-start-workspace-dialog";
+import { DASHBOARD_LOCALES } from "../talent/pages/DashboardLanguagePanel";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
 import { CreateMyTalentProfileDialog } from "@/components/talent/create-my-talent-profile-dialog";
 import { StartFreeWorkspaceDialog } from "@/components/talent/start-free-workspace-dialog";
@@ -639,7 +640,7 @@ function AccountMenuTrigger({
             </div>
             <DashboardLocaleToggle
               variant="prototype"
-              supportedLocales={talentLocales ? [talentLocales.primary, ...talentLocales.secondary] : supportedLocales}
+              supportedLocales={talentLocales ? DASHBOARD_LOCALES : supportedLocales}
               defaultLocale={talentLocales?.primary ?? tenantDefaultLocale}
             />
           </div>
