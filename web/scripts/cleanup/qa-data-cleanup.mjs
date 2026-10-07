@@ -158,7 +158,7 @@ const tcr = await sql(`select id from talent_client_records where talent_profile
 addRoot("public.talent_client_records", ids(tcr));
 const cust = await sql(`select id from customers where owner_talent_profile_id=${lit(JOR)} and id <> all(${EXCL}) and (display_name ~* '^QA ' or display_name in ('Tip Oferta','To') or lower(email) like '%@impronta.test')`);
 addRoot("public.customers", ids(cust));
-const un = await sql(`select id from user_notifications where not coalesce(origin_inquiry_id = any(${EXCL}), false) and (origin_inquiry_id = any(${arr(ids(inq))}::uuid[]) or (user_id=${lit(jor.user_id)} and (coalesce(title,'')||' '||coalesce(body,'')) ~* '(^|[^a-z])QA ')))`);
+const un = await sql(`select id from user_notifications where not coalesce(origin_inquiry_id = any(${EXCL}), false) and (origin_inquiry_id = any(${arr(ids(inq))}::uuid[]) or (user_id=${lit(jor.user_id)} and (coalesce(title,'')||' '||coalesce(body,'')) ~* '(^|[^a-z])QA '))`);
 addRoot("public.user_notifications", ids(un));
 
 // (b) throwaway accounts
