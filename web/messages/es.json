@@ -1818,11 +1818,6 @@
       "chrome": {
         "close": "Cerrar",
         "back": "Atrás",
-        "step1": "1 · Cuéntanos",
-        "step2": "2 · Revisa",
-        "step3": "3 · Guarda",
-        "step4": "4 · Construye",
-        "step5": "5 · Listo",
         "savedToast": "Guardado en este teléfono. Vuelve cuando quieras.",
         "signedInAs": "Sesión iniciada como {email}",
         "guest": "Sin iniciar sesión",
@@ -1926,16 +1921,7 @@
         "laterValue": "Después, en tu sitio",
         "missingValue": "Lo preguntamos ahora"
       },
-      "fork": {
-        "title": "¿Para quién es esta página?",
-        "sub": "Mencionaste un negocio y tu propio trabajo. Elige uno; el otro se puede añadir después.",
-        "talent": "Para mí",
-        "talentSub": "Una página con lo que hago, mis servicios y mi ciudad",
-        "business": "Para el negocio",
-        "businessSub": "Un sitio con el nombre del negocio, horario, WhatsApp y lo que vendes",
-        "both": "Los dos",
-        "bothSub": "El sitio del negocio ahora, mi página como borrador"
-      },
+      "fork": {},
       "questions": {
         "basicsWhatTalentHint": "Busca: manicurista, fotógrafo, DJ…",
         "basicsWhatBusinessHint": "Busca: salón de uñas, restaurante, gimnasio…",
@@ -2063,7 +2049,6 @@
         "goToPanel": "Ir a mi panel",
         "bookPreview": "Reservar",
         "bookingsStartStudio": "Las reservas empiezan cuando agregues a un proveedor.",
-        "bookableService": "Reserva disponible: {service}",
         "urlDiffers": "Tu dirección quedó distinta a la que elegiste porque ya estaba en uso. Esta es la real."
       },
       "essentials": {
@@ -2075,13 +2060,7 @@
         "businessNameHint": "Cómo la gente conoce tu negocio",
         "yourName": "Tu nombre",
         "yourNameHint": "El nombre por el que te conocen",
-        "services": "Servicios",
-        "servicesHint": "Escribe un servicio y presiona Enter",
-        "addService": "Agregar un servicio…",
-        "remove": "Quitar",
         "location": "Tu ubicación",
-        "hours": "Horario",
-        "hoursCustomHint": "O escribe el tuyo, p. ej. Mar–Dom 1 pm a 11 pm",
         "whatsapp": "WhatsApp (opcional)",
         "whatsappHint": "Número mexicano sin lada; nosotros agregamos +52.",
         "continue": "Continuar",

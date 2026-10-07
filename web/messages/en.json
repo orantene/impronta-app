@@ -1818,11 +1818,6 @@
       "chrome": {
         "close": "Close",
         "back": "Back",
-        "step1": "1 · Tell us",
-        "step2": "2 · Check",
-        "step3": "3 · Save",
-        "step4": "4 · Build",
-        "step5": "5 · Done",
         "savedToast": "Saved on this phone. Come back any time.",
         "signedInAs": "Signed in as {email}",
         "guest": "Not signed in",
@@ -1926,16 +1921,7 @@
         "laterValue": "Later, in your site",
         "missingValue": "We'll ask next"
       },
-      "fork": {
-        "title": "Who is this page for?",
-        "sub": "You mentioned a business and your own work. Pick one; you can add the other later.",
-        "talent": "For me",
-        "talentSub": "A page with what I do, my services and my city",
-        "business": "For the business",
-        "businessSub": "A site with the business name, hours, WhatsApp and what you sell",
-        "both": "Both",
-        "bothSub": "The business site now, my own page drafted"
-      },
+      "fork": {},
       "questions": {
         "basicsWhatTalentHint": "Search: nail technician, photographer, DJ…",
         "basicsWhatBusinessHint": "Search: nail salon, restaurant, gym…",
@@ -2063,7 +2049,6 @@
         "goToPanel": "Go to my dashboard",
         "bookPreview": "Book",
         "bookingsStartStudio": "Bookings start when you add a provider.",
-        "bookableService": "Bookable now: {service}",
         "urlDiffers": "Your address came out different from the one you chose because it was already taken. This is the real one."
       },
       "essentials": {
@@ -2075,13 +2060,7 @@
         "businessNameHint": "How people know your business",
         "yourName": "Your name",
         "yourNameHint": "The name people know you by",
-        "services": "Services offered",
-        "servicesHint": "Type a service and press Enter",
-        "addService": "Add a service…",
-        "remove": "Remove",
         "location": "Your location",
-        "hours": "Business hours",
-        "hoursCustomHint": "Or write your own, e.g. Tue–Sun 1 pm to 11 pm",
         "whatsapp": "WhatsApp (optional)",
         "whatsappHint": "Mexican number without the country code; we add +52.",
         "continue": "Continue",

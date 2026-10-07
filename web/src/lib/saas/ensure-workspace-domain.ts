@@ -35,12 +35,16 @@ export async function ensureWorkspaceSubdomainRow(
       ? { ok: true, created: false }
       : { ok: false, error: "hostname_taken" };
   }
-  const { data: primary } = await admin
+  const { data: primary, error: primaryErr } = await admin
     .from("agency_domains")
     .select("id")
     .eq("tenant_id", args.tenantId)
     .eq("is_primary", true)
     .maybeSingle();
+  if (primaryErr) {
+    logServerError("ensure-workspace-domain.primaryRead", primaryErr);
+    return { ok: false, error: "domain_read_failed" };
+  }
   const { error: insertErr } = await admin.from("agency_domains").insert({
     tenant_id: args.tenantId,
     hostname,
