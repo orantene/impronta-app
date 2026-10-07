@@ -30,6 +30,7 @@ name: Talent website E2E
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
     paths:
       - "web/src/lib/talent-site/**"
       - "web/src/lib/talent-site/theme-catalog/**"
@@ -54,6 +55,9 @@ concurrency:
 jobs:
   migrations:
     name: Local Supabase + migration chain
+    # Heavy check: runs on main, manual runs, integration batch PRs (integ/*) and any PR labelled
+    # `full-ci`. Ordinary PRs run only the structural gate; the batch re-tests them (CI jam 2026-10-07).
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (startsWith(github.head_ref, 'integ/') || contains(github.event.pull_request.labels.*.name, 'full-ci')))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:

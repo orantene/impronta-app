@@ -3,6 +3,7 @@ name: Builder fidelity visual regression
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
   push:
     # `ci/seed-fidelity**` is the golden-reseed path. Dispatching this workflow
     # needs `actions:write`, which the working PAT does not have (403) — so the
@@ -26,6 +27,9 @@ permissions:
 jobs:
   fidelity:
     name: Fidelity goldens
+    # Heavy check: runs on main, manual runs, integration batch PRs (integ/*) and any PR labelled
+    # `full-ci`. Ordinary PRs run only the structural gate; the batch re-tests them (CI jam 2026-10-07).
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (startsWith(github.head_ref, 'integ/') || contains(github.event.pull_request.labels.*.name, 'full-ci')))
     runs-on: macos-14
     timeout-minutes: 15
     # `continue-on-error: true` used to live here (added when the Chromium
@@ -116,6 +120,9 @@ jobs:
 
   perf-budget:
     name: Builder perf budget
+    # Heavy check: runs on main, manual runs, integration batch PRs (integ/*) and any PR labelled
+    # `full-ci`. Ordinary PRs run only the structural gate; the batch re-tests them (CI jam 2026-10-07).
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (startsWith(github.head_ref, 'integ/') || contains(github.event.pull_request.labels.*.name, 'full-ci')))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
