@@ -12,7 +12,7 @@ import { loadBrief } from "@/lib/tulala/brief-store.server";
 import { listFact, stringFact } from "@/lib/tulala/brief-store";
 import { updateBriefModuleState } from "@/lib/tulala/brief-module-state.server";
 import { resolveBriefOwner } from "@/lib/tulala/owner.server";
-import { choiceToPath, parsePersistedModuleState } from "@/lib/onboarding/module-state";
+import { choiceToPath, localePatch, parsePersistedModuleState } from "@/lib/onboarding/module-state";
 import { choiceToIntent } from "@/lib/onboarding/module-state";
 import {
   parseEssentials,
@@ -70,7 +70,7 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
   return { ok: true, setup: { choice, country, essentials, saved: !!saved?.confirmed } };
 }
 
-export async function saveOnboardingSetup(input: { essentials: unknown }): Promise<SetupSaveResult> {
+export async function saveOnboardingSetup(input: { essentials: unknown; locale?: "en" | "es" }): Promise<SetupSaveResult> {
   const got = await owned();
   if ("error" in got && got.error) return { ok: false, code: got.error };
   const { brief, state } = got as Exclude<typeof got, { error: string }>;
@@ -83,6 +83,7 @@ export async function saveOnboardingSetup(input: { essentials: unknown }): Promi
     essentials,
     ...(choice ? { path: choiceToPath(choice) } : {}),
     step: talentOnly ? "readyToBuild" : "style",
+    ...localePatch(input.locale),
     updatedAt: new Date().toISOString(),
   });
   if (!saved.ok) return { ok: false, code: "save_failed" };

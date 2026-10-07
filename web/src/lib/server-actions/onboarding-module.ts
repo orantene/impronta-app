@@ -22,7 +22,7 @@ import { isDesignLookKey, type DesignLookKey } from "@/lib/onboarding/finish-url
 import { choiceToPath, isOnboardingChoice, pathToChoice, type OnboardingChoice } from "@/lib/onboarding/choice";
 import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { MAX_INPUT_CHARS, MIN_INPUT_WORDS, parsePersistedModuleState, wordCount, type ModuleInput, type ModuleStep, type OnboardingIntent, type PersistedModuleState, type ResumeSnapshot, isVisualDirection, type VisualDirection, choiceToIntent } from "@/lib/onboarding/module-state";
+import { MAX_INPUT_CHARS, MIN_INPUT_WORDS, localePatch, parsePersistedModuleState, wordCount, type ModuleInput, type ModuleStep, type OnboardingIntent, type PersistedModuleState, type ResumeSnapshot, isVisualDirection, type VisualDirection, choiceToIntent } from "@/lib/onboarding/module-state";
 import { detectLink } from "@/lib/tulala/detect-url";
 import { understandBrief, understandingFor, type UnderstandResult } from "@/lib/onboarding/understand.server";
 import {
@@ -151,6 +151,8 @@ export async function saveOnboardingChoice(input: {
 /** Persist a step change the client made without new data (back, confirm). */
 export async function saveOnboardingStep(input: {
   step: ModuleStep;
+  /** The flow language now on screen, so the build speaks it (C1-02). */
+  locale?: "en" | "es";
 }): Promise<{ ok: boolean }> {
   if (!(await moduleOn())) return { ok: false };
   const resolved = await resolveBriefOwner();
@@ -159,6 +161,7 @@ export async function saveOnboardingStep(input: {
   if (!brief) return { ok: false };
   const saved = await updateBriefModuleState(brief.id, {
     step: input.step,
+    ...localePatch(input.locale),
     updatedAt: new Date().toISOString(),
   });
   return { ok: saved.ok };
@@ -294,6 +297,8 @@ export async function chooseOnboardingChoice(input: { choice: OnboardingChoice }
 }
 
 export type EssentialsAnswer = {
+  /** The flow language now on screen, so the build speaks it (C1-02). */
+  locale?: "en" | "es";
   /** Picked from the taxonomy / catalogue (id set) or typed as "Other" (id empty). Null = unchanged. */
   type?: { kind: "talent" | "business"; id: string; slug: string; label: string } | null;
   city?: { id: string | null; slug: string; name: string; countryIso2: string } | null;
@@ -313,9 +318,9 @@ export type EssentialsAnswer = {
 export async function saveOnboardingEssentials(input: EssentialsAnswer): Promise<CardResult | { ok: false; code: "invalid_whatsapp" | "missing_required" }> {
   const got = await ownedBrief();
   if (got.error) return got.error;
-  const locale = got.state.locale ?? "en";
+  const locale = input.locale ?? got.state.locale ?? "en";
   const facts: Parameters<typeof recordFacts>[1] = [];
-  const statePatch: PersistedModuleState = { updatedAt: new Date().toISOString() };
+  const statePatch: PersistedModuleState = { ...localePatch(input.locale), updatedAt: new Date().toISOString() };
   const path = got.state.path ?? "talent";
   const business = path !== "talent";
 

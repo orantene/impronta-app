@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canResume, choiceToIntent, choiceToPath, parsePersistedModuleState, wordCount } from "./module-state";
+import { canResume, choiceToIntent, choiceToPath, localePatch, parsePersistedModuleState, wordCount } from "./module-state";
 import { EXAMPLE_SENTENCES, exampleAt } from "./example-bank";
 
 test("persisted state is re-validated field by field", () => {
