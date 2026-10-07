@@ -8,6 +8,11 @@
 
 
 export const WEBSITE_ES_TEXT: Record<string, string> = {
+  // Explicit site creation (TUL-179): opening My presence never creates a site.
+  "Create my own website": "Crear mi propio sitio web",
+  "Creating your website…": "Creando tu sitio web…",
+  "Your profile page stays as it is. A separate website of your own is only created when you choose to.": "Tu página de perfil sigue como está. Tu propio sitio web aparte solo se crea cuando tú lo decides.",
+  "Could not create your website. Try again.": "No pudimos crear tu sitio web. Inténtalo de nuevo.",
   // Website settings entry row only; the screen's own strings load with the
   // lazy screen (WEBSITE_SETTINGS_ES_TEXT) to keep the admin bundle lean.
   "Website settings": "Ajustes del sitio",

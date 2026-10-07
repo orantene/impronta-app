@@ -10,13 +10,11 @@ import {
   requireTalentSelfScope,
 } from "@/lib/server/talent-self-guard";
 import { listTemplatesForTier } from "@/lib/talent-site/templates/registry";
-import { provisionTalentPersonalSiteIfMissing } from "@/lib/talent-site/server/provision";
 import type { TalentSiteDashboardState, TalentSiteRow } from "@/lib/talent-site/types";
 import { parseTalentSiteSnapshot } from "@/lib/talent-site/validation";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
 import { maxSitePublicGate } from "@/lib/talent-site/resolve-max-site-core";
 import { talentSitePathUrl, talentSitePublicUrl } from "@/lib/talent-site/site-public-url";
-import { assertTalentCanEditPersonalSite } from "@/lib/server/talent-self-guard";
 
 function mapSiteRow(row: TalentSiteRow): TalentSiteDashboardState["site"] {
   const draftSnapshot = parseTalentSiteSnapshot(row.draft_snapshot);
@@ -91,13 +89,9 @@ export async function loadTalentPersonalSiteDashboardState(
   let templateKey: string | null = null;
   let compositionMode: TalentSiteDashboardState["compositionMode"] = null;
 
-  if (admin && assertTalentCanEditPersonalSite(scope.planKey) && profileCode) {
-    await provisionTalentPersonalSiteIfMissing(
-      scope.talentProfile.id,
-      scope.planKey,
-      scope.session.user.id,
-    );
-  }
+  // READ-ONLY (TUL-179): this runs in the talent layout on every page view, so
+  // it must never create a site. Creation is an explicit click
+  // (`ensureMaxSiteAction`).
 
   if (admin) {
     const [{ data }, demoRes] = await Promise.all([
