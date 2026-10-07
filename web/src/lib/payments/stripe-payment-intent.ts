@@ -23,6 +23,7 @@
 import type Stripe from "stripe";
 import { getStripeFor, getStripeMxPublishableKey, type StripeAccountKey } from "@/lib/stripe/client";
 import { recordChargePlatform, resolveSellerPlatformForTransaction } from "@/lib/stripe/charge-platform";
+import { paymentsMockAllowed } from "@/lib/payments/mock-guard";
 import { logServerError } from "@/lib/server/safe-error";
 import { sanitizeStatementDescriptorSuffix } from "@/lib/payments/statement-descriptor";
 
@@ -98,6 +99,10 @@ export async function createPaymentIntentForTransaction(
     // on the client. If either key is absent we mock — a real PaymentIntent
     // with no publishable key would strand the client on a config error.
     const hasPublishableKey = !!publishableKey;
+    if ((!stripe || !hasPublishableKey) && !paymentsMockAllowed()) {
+      console.error("[payments] Stripe keys missing in production; refusing mock payment intent", { transactionId: input.transactionId });
+      return { ok: false, error: "Payments are not configured." };
+    }
     if (!stripe || !hasPublishableKey) {
       // Mock mode — no usable live keys. Hand back a synthetic client secret
       // the drawer recognises (prefix `mock_pi_`) so it can simulate the confirm.

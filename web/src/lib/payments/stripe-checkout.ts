@@ -46,6 +46,7 @@
 import type Stripe from "stripe";
 import { getStripe, getStripeFor, withObjectPlatformFallback, type StripeAccountKey } from "@/lib/stripe/client";
 import { recordChargePlatform, resolveSellerPlatformForTransaction } from "@/lib/stripe/charge-platform";
+import { paymentsMockAllowed } from "@/lib/payments/mock-guard";
 import { logServerError } from "@/lib/server/safe-error";
 import { stripeCheckoutLocale } from "@/lib/i18n/vendor-locale";
 import { sanitizeStatementDescriptorSuffix } from "@/lib/payments/statement-descriptor";
@@ -176,6 +177,10 @@ export async function createCheckoutSessionForTransaction(
     const stripe = deps.stripe !== undefined ? deps.stripe : getStripeFor(platform);
     if (!stripe && platform === "mx") {
       return { ok: false, error: "Payments for this seller are not available right now.", uncertain: false };
+    }
+    if (!stripe && !paymentsMockAllowed()) {
+      console.error("[payments] STRIPE_SECRET_KEY missing in production; refusing mock checkout", { transactionId: input.transactionId });
+      return { ok: false, error: "Payments are not configured.", uncertain: false };
     }
     if (!stripe) {
       // Mock mode: skip Stripe entirely. The "session id" is synthetic so
