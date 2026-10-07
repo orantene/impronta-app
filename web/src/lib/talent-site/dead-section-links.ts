@@ -22,7 +22,7 @@ type AnyNode = BuilderNode & { children?: BuilderNode[] };
 /** Section anchors that stand in for each other (Location replaced the visit band). */
 const SIBLINGS: Readonly<Record<string, string>> = { location: "visit", visit: "location" };
 /** Targets that exist on every talent page without being a page section. */
-const ALWAYS_PRESENT = new Set(["talent-ask", "main-content", "top"]);
+const ALWAYS_PRESENT = new Set(["talent-ask", "book", "main-content", "top"]);
 
 function anchorsOf(tree: ReadonlyArray<BuilderNode>, out = new Set<string>()): Set<string> {
   for (const n of tree) {

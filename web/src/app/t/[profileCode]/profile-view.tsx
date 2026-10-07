@@ -2262,9 +2262,10 @@ export async function TalentProfileView({
     "inline-flex items-center justify-center rounded-full bg-[var(--plt-forest)] px-5 py-2.5 text-sm font-medium text-[var(--plt-forest-on)] shadow-[var(--plt-shadow-forest)] transition-[background,transform] hover:bg-[var(--plt-forest-deep)] hover:-translate-y-[1px]";
   const inquireBtnClassFull = `${inquireBtnClass} w-full`;
 
-  const inquireButtons = (btnClass: string) =>
-    showSlotPicker ? null : (
-      <HubProfileCta platformHost={platformHost} maxSiteUrl={maxSiteUrl} locale={locale} className={btnClass}>
+  // TUL-170: the hub Book CTA also shows when the slot picker replaces the Inquire controls.
+  const inquireButtons = (btnClass: string) => (
+      <HubProfileCta platformHost={platformHost} maxSiteUrl={maxSiteUrl} askEntry={talentAskEntry} locale={locale} className={btnClass}>
+        {showSlotPicker ? null : <>
         {profileCtas.showLegacyInstantBook ? (
           <TalentProfileInstantBookButton
             talentId={profile.id}
@@ -2289,6 +2290,7 @@ export async function TalentProfileView({
           locale={locale}
           className={btnClass}
         /> : null}
+        </>}
       </HubProfileCta>
     );
 

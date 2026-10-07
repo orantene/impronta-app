@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { isTalentOpenHash } from "@/lib/talent-site/contact-channels";
+
 /**
  * Keeps "Ask a question" on the talent's own site. Clicks on the in-page
  * anchor, and on older buttons that still point at the hub profile, open
@@ -47,8 +49,16 @@ export function TalentSiteContactBridge({
     // A cold load or a pasted `...#talent-ask` link opens the chat too (the click above only
     // covers links followed on the page).
     const onHash = () => {
-      if (window.location.hash === "#talent-ask") window.dispatchEvent(new Event("tulala:open-guest-chat"));
+      if (isTalentOpenHash(window.location.hash)) window.dispatchEvent(new Event("tulala:open-guest-chat"));
     };
+    // The initial fragment never fires `hashchange`, so a cold load of `...#book` (a custom-domain
+    // link opened in a new tab) must run the handler once itself. The dock mounts as a sibling and
+    // can attach its listener after this effect, so repeat once after it has had time to mount;
+    // opening is idempotent.
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    if (isTalentOpenHash(window.location.hash)) {
+      timers.push(setTimeout(onHash, 0), setTimeout(onHash, 800));
+    }
     document.addEventListener("click", onClick, true);
     window.addEventListener("hashchange", onHash);
     // WSF: entry "hidden" (chat off, inquiries off): no ask / inquire control stays on the page.
@@ -61,6 +71,7 @@ export function TalentSiteContactBridge({
     }
     setShowFallback(!pageAlreadyHasContactChrome());
     return () => {
+      timers.forEach(clearTimeout);
       observer?.disconnect();
       document.removeEventListener("click", onClick, true);
       window.removeEventListener("hashchange", onHash);
@@ -70,7 +81,12 @@ export function TalentSiteContactBridge({
   // `#talent-ask` is a real target on every talent page: the chat entry this bridge belongs to.
   // The click handler above opens the chat; this id keeps the link from being a dead anchor
   // (no-script visitors, crawlers and link checkers) and gives the hash somewhere to land.
-  const askTarget = <span id="talent-ask" data-talent-ask-target="" aria-hidden="true" />;
+  const askTarget = (
+    <>
+      <span id="talent-ask" data-talent-ask-target="" aria-hidden="true" />
+      <span id="book" data-talent-book-target="" aria-hidden="true" />
+    </>
+  );
 
   if (!showFallback) return askTarget;
 
@@ -101,7 +117,7 @@ export function TalentSiteContactBridge({
 
 /** Published contact band, ask anchor, or an ask CTA already on the page. */
 function pageAlreadyHasContactChrome(): boolean {
-  if (document.querySelector('a[href="#talent-ask"], a[href$="#talent-ask"]')) {
+  if (document.querySelector('a[href$="#talent-ask"], a[href$="#book"]')) {
     return true;
   }
   if (document.querySelector("[data-contact-layer], [data-talent-ask]")) {
@@ -150,6 +166,7 @@ const CONTACT_PATH = /^\/(?:[a-z]{2}\/)?contact(?:o)?\/?$/i;
 
 export function isAskHref(href: string): boolean {
   if (href === "#talent-ask" || href.endsWith("#talent-ask")) return true;
+  if (href === "#book" || href.endsWith("#book")) return true;
   const path = href.split(/[?#]/)[0] ?? "";
   if (CONTACT_PATH.test(path)) return true;
   if (href.startsWith("mailto:") || href.includes("wa.me") || href.includes("whatsapp.com")) {

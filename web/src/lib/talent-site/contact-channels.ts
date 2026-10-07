@@ -12,6 +12,18 @@ import {
 
 export const TALENT_ASK_HREF = "#talent-ask";
 
+/**
+ * Dedicated booking anchor (TUL-206). A link to `<site>#book` opens the guest
+ * entry (service pick, then the booking sheet) on a cold load, a pasted link,
+ * a hash change and a click. `#talent-ask` keeps working unchanged.
+ */
+export const TALENT_BOOK_HREF = "#book";
+
+/** True for a location hash that should open the guest booking / ask entry. */
+export function isTalentOpenHash(hash: string): boolean {
+  return hash === TALENT_ASK_HREF || hash === TALENT_BOOK_HREF;
+}
+
 export const CONTACT_LAYER = {
   ask: "Ask a question",
   whatsapp: "WhatsApp",
