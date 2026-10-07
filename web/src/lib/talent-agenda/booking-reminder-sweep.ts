@@ -62,7 +62,7 @@ export async function sweepTalentBookingReminders(
   const { startIso, endIso } = talentReminderCandidateWindow(now);
   const { data, error } = await admin
     .from("talent_bookings")
-    .select("id, tenant_id, talent_profile_id, inquiry_id, starts_at, status")
+    .select("id, tenant_id, talent_profile_id, inquiry_id, starts_at, status, title, location_text")
     .in("status", TALENT_BOOKING_REMINDABLE_STATUSES)
     .not("inquiry_id", "is", null)
     .gte("starts_at", startIso)
@@ -112,6 +112,10 @@ export async function sweepTalentBookingReminders(
         tenantId: r.tenant_id,
         inquiryId: r.inquiry_id as string,
         talentBookingId: r.id,
+        startsAt: r.starts_at as string,
+        timezone: r.timezone,
+        title: r.title ?? null,
+        location: r.location_text ?? null,
       }),
     ),
   );

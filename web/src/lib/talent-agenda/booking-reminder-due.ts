@@ -26,13 +26,16 @@ export type TalentBookingReminderRow = {
   inquiry_id: string | null;
   starts_at: string | null;
   status: string;
+  /** Service title and place, carried into the reminder (inquiries from a talent site have no event_date). */
+  title?: string | null;
+  location_text?: string | null;
 };
 
 export type TalentBookingZoneSource = "talent" | "workspace" | "utc";
 
 export type TalentBookingReminderDecision = {
-  /** Bookings to dispatch a reminder for now. */
-  due: TalentBookingReminderRow[];
+  /** Bookings to dispatch a reminder for now, with the zone they were judged in. */
+  due: Array<TalentBookingReminderRow & { timezone: string }>;
   /** Candidates the sweep looked at. */
   scanned: number;
   skippedNoInquiry: number;
@@ -100,7 +103,7 @@ export function decideTalentBookingReminders(input: {
     const tomorrow = today ? addUtcDays(today, 1) : null;
     if (!tomorrow || utcToZonedYmd(start, timezone) !== tomorrow) continue;
 
-    out.due.push(row);
+    out.due.push({ ...row, timezone });
     out.dueByZoneSource[source] += 1;
   }
   return out;

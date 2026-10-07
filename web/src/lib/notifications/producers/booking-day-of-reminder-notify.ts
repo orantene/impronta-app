@@ -48,12 +48,23 @@ export function notifyTalentBookingDayOfReminder(params: {
   tenantId: string;
   inquiryId: string;
   talentBookingId: string;
+  /** The appointment itself: a talent-site inquiry carries no event_date, so the email reads these. */
+  startsAt: string;
+  timezone: string;
+  title: string | null;
+  location: string | null;
 }): Promise<DispatchResult> {
   return dispatchEventNotifications({
     type: "booking.day_of_reminder",
     tenantId: params.tenantId,
     inquiryId: params.inquiryId,
     eventId: `talent-booking-reminder:${params.talentBookingId}`,
-    payload: { talentBookingId: params.talentBookingId },
+    payload: {
+      talentBookingId: params.talentBookingId,
+      appointmentStartsAt: params.startsAt,
+      appointmentTimezone: params.timezone,
+      appointmentTitle: params.title,
+      appointmentLocation: params.location,
+    },
   });
 }
