@@ -50,7 +50,9 @@ function copyStrings(tree: readonly BuilderNode[]): string[] {
     }
     if (v && typeof v === "object") {
       for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
-        if (k === "layerLabel") continue;
+        // `i18n` holds per-locale ALTERNATES (an English overlay beside the base copy), not what this
+        // locale renders; the base copy was already localised by `localiseSeededDesignLabels`.
+        if (k === "layerLabel" || k === "i18n") continue;
         walk(x, k);
       }
     }
