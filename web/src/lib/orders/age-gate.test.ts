@@ -6,6 +6,9 @@ import { join } from "node:path";
 import { ageGateStamp, ruleOnAgeGate, strictestAgeGate, type AgeGate } from "./age-gate";
 import { blankComments } from "@/lib/quality/supabase-unchecked-read";
 
+// The stamp time is passed in and echoed back; it is never compared to the clock.
+const STAMP_AT = new Date().toISOString();
+
 const event = (n: number): AgeGate => ({ minimumAge: n, source: "event", label: "Late Show" });
 const tier = (n: number): AgeGate => ({ minimumAge: n, source: "ticket_tier", label: "Bar package" });
 
@@ -101,11 +104,11 @@ test("the age check runs before the basket is priced", () => {
 test("what was told and what was answered are both snapshotted on the order", () => {
   const stamp = ageGateStamp(
     { ok: true, requiredMinimumAge: 18, confirmedAge: 30 },
-    "2026-09-09T04:00:00.000Z",
+    STAMP_AT,
   );
   assert.equal(stamp.age_gate_min_age, 18);
   assert.equal(stamp.age_gate_confirmed_age, 30);
-  assert.equal(stamp.age_gate_confirmed_at, "2026-09-09T04:00:00.000Z");
+  assert.equal(stamp.age_gate_confirmed_at, STAMP_AT);
 });
 
 test("the order takes all three age columns from one call, not three expressions", () => {
@@ -130,7 +133,7 @@ test("an ungated basket never writes a half-filled triple", () => {
   assert.equal(v.requiredMinimumAge, null);
   assert.equal(v.confirmedAge, null, "a volunteered age against no gate is discarded, not stored");
 
-  const stamp = ageGateStamp(v, "2026-09-09T04:00:00.000Z");
+  const stamp = ageGateStamp(v, STAMP_AT);
   assert.deepEqual(stamp, {
     age_gate_min_age: null,
     age_gate_confirmed_age: null,
@@ -149,7 +152,7 @@ test("the stamp is all three or none, for every verdict shape", () => {
     { requiredMinimumAge: 18, confirmedAge: 21 },
   ];
   for (const shape of shapes) {
-    const stamp = ageGateStamp({ ok: true, ...shape }, "2026-09-09T04:00:00.000Z");
+    const stamp = ageGateStamp({ ok: true, ...shape }, STAMP_AT);
     const set = [stamp.age_gate_min_age, stamp.age_gate_confirmed_age, stamp.age_gate_confirmed_at]
       .filter((v) => v !== null).length;
     assert.ok(
