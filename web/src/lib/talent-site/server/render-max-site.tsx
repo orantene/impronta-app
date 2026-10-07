@@ -190,6 +190,8 @@ export interface MaxSiteSeo {
   jsonLd?: unknown;
   /** PR 5 — canonical + hreflang (two or more talent languages only). */
   alternates?: { canonical: string; languages: Record<string, string> };
+  /** DS-18: the business's own tab icon (logo, avatar or generated initials). */
+  faviconUrl?: string;
 }
 
 export type RenderTalentMaxSiteResult =

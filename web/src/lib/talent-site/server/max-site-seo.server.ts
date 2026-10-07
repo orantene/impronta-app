@@ -12,6 +12,7 @@ import {
 
 import { buildTalentLocalBusinessJsonLd, withLocalBusiness } from "@/lib/talent-site/talent-local-business-json-ld";
 
+import { siteFaviconFor } from "@/lib/talent-site/site-favicon";
 import type { TalentSiteIdentity } from "./load-max-site";
 import type { MaxSiteSeo } from "./render-max-site";
 
@@ -109,8 +110,11 @@ export function buildMaxSiteSeo(args: {
   const jsonLd =
     page.jsonLd && typeof page.jsonLd === "object" ? page.jsonLd : withLocalBusiness(sharedJsonLd, businessLd);
 
+  const faviconUrl = siteFaviconFor({ logoUrl: site.logoUrl, displayName: identity?.name || pageTitle });
+
   return {
     title,
+    ...(faviconUrl ? { faviconUrl } : {}),
     ...(description ? { description } : {}),
     // The draft preview is ALWAYS noindex; on top of that the page's own
     // `noindex` column is honoured (it was loaded but never read before). NULL

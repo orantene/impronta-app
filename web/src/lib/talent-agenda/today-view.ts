@@ -206,3 +206,12 @@ export function greetingFor(now: Date): Greeting {
   if (h < 18) return "Good afternoon";
   return "Good evening";
 }
+
+/**
+ * DS-51: which of the two Today header buttons is the filled one. Booking-first
+ * is the default (a solo talent books far more often than she quotes); trades
+ * whose money pattern is a quote (events, gigs, projects) keep the quote first.
+ */
+export function todayPrimaryAction(moneyPattern: string | null | undefined): "booking" | "quote" {
+  return (moneyPattern ?? "").startsWith("quote") ? "quote" : "booking";
+}
