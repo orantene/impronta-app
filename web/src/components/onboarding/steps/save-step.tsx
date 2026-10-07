@@ -11,7 +11,7 @@ import { getSiteUrl } from "@/lib/auth-flow";
 import { useState } from "react";
 
 import { AuthGoogleButtonSurface } from "@/components/auth/auth-ui";
-import type { OnboardingPath } from "@/lib/onboarding/module-state";
+import type { OnboardingChoice, OnboardingPath } from "@/lib/onboarding/module-state";
 
 import { useGooglePopup } from "../use-google-popup";
 import { Notice, PrimaryButton, Sub, Title } from "../ui";
@@ -19,6 +19,7 @@ import { Notice, PrimaryButton, Sub, Title } from "../ui";
 export function SaveStep({
   t,
   path,
+  choice = null,
   busy,
   error,
   onEmail,
@@ -26,6 +27,8 @@ export function SaveStep({
 }: {
   t: (key: string) => string;
   path: OnboardingPath;
+  /** The screen-1 choice rides the Google `next` URL so it survives the redirect (TUL-82). */
+  choice?: OnboardingChoice | null;
   busy: boolean;
   error: string | null;
   onEmail: (email: string, ageTerms: boolean) => void;
@@ -37,7 +40,8 @@ export function SaveStep({
   const [ageTerms, setAgeTerms] = useState(false);
   // Talent (and both): the callback promotes the fresh profile to talent when
   // `next` is a talent onboarding path. The module ignores the destination.
-  const next = path === "business" ? "/" : "/talent/profile/fields";
+  const base = path === "business" ? "/" : "/talent/profile/fields";
+  const next = choice ? `${base}?choice=${choice}` : base;
   const google = useGooglePopup({ next, onSuccess: onGoogleSuccess });
   const googleError =
     google.error === "blocked" ? t("public.onboarding.save.popupBlocked")
