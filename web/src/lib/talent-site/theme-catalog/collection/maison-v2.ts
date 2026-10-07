@@ -294,6 +294,9 @@ function maisonV2Ticker(makeId: KitIdFactory): BuilderNode {
         { text: "{{service2}}" },
         { text: "{{service3}}" },
       ],
+      // Core default: follows her published services in the visitor's
+      // language at render time; the words above are the fallback.
+      source: "services",
       variant: "serif",
       separator: "star",
       speed: "medium",

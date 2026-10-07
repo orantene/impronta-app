@@ -1519,6 +1519,8 @@ const marqueePropsSchema = z.object({
     )
     .max(40)
     .optional(),
+  /** Optional and additive: absent = the literal `items` (every ticker saved before this field). */
+  source: z.enum(["services", "custom"]).optional(),
   speed: z.enum(["slow", "medium", "fast"]).optional(),
   direction: z.enum(["left", "right"]).optional(),
   separator: z.enum(["dot", "slash", "diamond", "star", "none"]).optional(),

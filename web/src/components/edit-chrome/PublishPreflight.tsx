@@ -44,6 +44,7 @@ const CATEGORY_LABEL: Record<PreflightIssue["category"], string> = {
   performance: "Performance",
   brand_identity: "Brand identity",
   app_config: "Apps",
+  ticker_source: "Ticker",
 };
 
 /** Wand — same glyph as MobileHealthPanel's fix action, so "one-click safe
@@ -398,7 +399,7 @@ export function PublishPreflight({
             </span>
           ) : null}
         </div>
-        <p className="leading-snug">{issue.category === "brand_identity" || issue.category === "headings" || issue.category === "builder_payload" || issue.category === "app_config" ? t(issue.message) : issue.message}</p>
+        <p className="leading-snug">{issue.category === "brand_identity" || issue.category === "headings" || issue.category === "builder_payload" || issue.category === "app_config" || issue.category === "ticker_source" ? t(issue.message) : issue.message}</p>
         {issue.category === "brand_identity" ? (
           <div className="mt-1.5 flex flex-wrap gap-2" data-testid="preflight-brand-identity">
             <Button

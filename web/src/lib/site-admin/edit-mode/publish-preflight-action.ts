@@ -59,6 +59,7 @@ import {
 } from "@/lib/site-admin/builder-node/free-plan-builder-tree-guard";
 import { collectMobileOverflowPreflightIssues } from "./publish-preflight-mobile-overflow";
 import { collectAppPreflightIssues } from "./publish-preflight-apps";
+import { collectTickerPreflightIssues } from "./publish-preflight-ticker";
 import { BRAND_IDENTITY_MESSAGE, brandIdentityAppliesTo, brandIdentityVerdict } from "./publish-preflight-brand-identity";
 import { isAdvancedElementLibraryEnabledForPlan } from "@/lib/site-admin/builder-node/element-library-policy";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
@@ -88,7 +89,8 @@ export interface PreflightIssue {
     | "mobile_overflow"
     | "performance"
     | "brand_identity"
-    | "app_config";
+    | "app_config"
+    | "ticker_source";
   /** Optional sectionId for click-to-focus in the drawer. */
   sectionId?: string;
   /**
@@ -212,6 +214,7 @@ function runTalentPagePublishPreflight(builderTreeInput: unknown): PreflightResu
     issues.push(issue);
   }
   for (const issue of collectAppPreflightIssues(validation.tree)) issues.push(issue);
+  for (const issue of collectTickerPreflightIssues(validation.tree)) issues.push(issue);
   return { ok: true, issues };
 }
 
@@ -619,6 +622,7 @@ export async function runPublishPreflight(input?: {
           issues.push(overflowIssue);
         }
         for (const appIssue of collectAppPreflightIssues(validation.tree)) issues.push(appIssue);
+        for (const tickerIssue of collectTickerPreflightIssues(validation.tree)) issues.push(tickerIssue);
 
         // Paid-plan blocks: social_feed is gated to paid workspaces. The Add
         // gallery already refuses the insert on free plans; this is the

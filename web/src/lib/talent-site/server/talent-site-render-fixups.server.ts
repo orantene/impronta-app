@@ -8,6 +8,8 @@ import { applyTalentLiveMedia, treeHasLiveMediaCandidates } from "../live-media"
 import { applyTalentLiveText, treeHasLiveCandidates } from "../live-text";
 import { loadTalentLiveMedia } from "./load-live-media.server";
 import { loadTalentLiveText } from "./load-live-text.server";
+import { loadTalentTickerWords } from "./load-ticker-services.server";
+import { applyTalentTickerServices, treeHasServicesTicker } from "../ticker-services";
 import { loadTalentLocaleSwaps } from "./talent-locale-swaps.server";
 import { loadTalentTypeLabels } from "./load-talent-trades.server";
 
@@ -40,18 +42,24 @@ export async function prepareTalentSiteTrees(input: {
   const combined = [...input.shellTree, ...input.body];
   const wantsLive = treeHasLiveCandidates(combined);
   const wantsMedia = treeHasLiveMediaCandidates(combined);
-  const [swaps, live, media, typeLabels] = await Promise.all([
+  const wantsTicker = treeHasServicesTicker(combined);
+  const [swaps, live, media, typeLabels, tickerWords] = await Promise.all([
     loadTalentLocaleSwaps(input.talentProfileId, input.locale, input.chain ?? []),
     wantsLive
       ? loadTalentLiveText(input.talentProfileId, input.locale, input.chain ?? [])
       : Promise.resolve(null),
     wantsMedia ? loadTalentLiveMedia(input.talentProfileId) : Promise.resolve(null),
     loadTalentTypeLabels(input.talentProfileId),
+    wantsTicker
+      ? loadTalentTickerWords(input.talentProfileId, input.locale, input.chain ?? [])
+      : Promise.resolve([] as string[]),
   ]);
   const withLive = (tree: BuilderNode[]) => {
     let next = live ? applyTalentLiveText(tree, live) : tree;
     if (media) next = applyTalentLiveMedia(next, media);
-    return next;
+    // A ticker that follows her services (the default): her published service
+    // names in the visitor's language; the literal items are the fallback.
+    return applyTalentTickerServices(next, tickerWords);
   };
   const trades = tradesFromTypeLabels(typeLabels);
   const bodyWithApps = placeMaisonTradeApps(input.body, trades, {
