@@ -1250,17 +1250,18 @@ export function AdminShellProvider({
     { id: "cf2", name: "Brand tier", kind: "Select",       appliesTo: "Client", required: true,  helper: "A — global / B — regional / C — local" },
     { id: "cf3", name: "Region",     kind: "Select",       appliesTo: "Client", required: false, helper: "EMEA / Americas / APAC" },
   ];
-  const [customFields, setCustomFields] = useState<WorkspaceCustomField[]>(() => {
-    if (typeof window === "undefined") return SEED_FIELDS;
+  // Seeded identically on server and first client render; the saved list is
+  // read in an effect (a localStorage read in the initializer is a #418).
+  const [customFields, setCustomFields] = useState<WorkspaceCustomField[]>(SEED_FIELDS);
+  useEffect(() => {
     try {
       const raw = window.localStorage.getItem(CUSTOM_FIELDS_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed as WorkspaceCustomField[];
+        if (Array.isArray(parsed)) setCustomFields(parsed as WorkspaceCustomField[]);
       }
     } catch {}
-    return SEED_FIELDS;
-  });
+  }, []);
   const addCustomField = useCallback((f: Omit<WorkspaceCustomField, "id">) => {
     setCustomFields(cs => {
       const next = [...cs, { ...f, id: `cf-${Date.now()}` }];
@@ -1285,14 +1286,13 @@ export function AdminShellProvider({
 
   // Per-workspace overrides on built-in field visibility.
   const FIELD_VIS_KEY = "tulala_field_visibility_v1";
-  const [fieldVisibilityOverrides, setFieldVisibilityOverrides] = useState<Partial<Record<ProfileFieldId, FieldVisibility>>>(() => {
-    if (typeof window === "undefined") return {};
+  const [fieldVisibilityOverrides, setFieldVisibilityOverrides] = useState<Partial<Record<ProfileFieldId, FieldVisibility>>>({});
+  useEffect(() => {
     try {
       const raw = window.localStorage.getItem(FIELD_VIS_KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) setFieldVisibilityOverrides(JSON.parse(raw));
     } catch {}
-    return {};
-  });
+  }, []);
   const setFieldVisibility = useCallback((id: ProfileFieldId, vis: FieldVisibility) => {
     // Hard-policy enforcement: financial / PII / compliance fields can
     // never go public. Required fields can never be hidden. Silently
