@@ -48,6 +48,16 @@ export const EMPTY_ACCOUNT_SUMMARY: AccountSummary = { nextVisit: null, unread: 
 
 const OWED = new Set(["unpaid", "partial"]);
 
+/** The zone actually used: the given IANA zone, or "UTC" when it is invalid. */
+export function effectiveZone(tz: string): string {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return tz;
+  } catch {
+    return "UTC";
+  }
+}
+
 function zoned(ms: number, tz: string, locale: string, opts: Intl.DateTimeFormatOptions): string {
   const loc = locale === "es" ? "es-MX" : "en-US";
   try {
@@ -86,10 +96,39 @@ export function shapeAccountSummary(input: {
       ? {
           service: next.v.title?.trim() || null,
           dateLabel: zoned(next.ms, input.timeZone, input.locale, { weekday: "short", day: "numeric", month: "short" }),
-          timeLabel: zoned(next.ms, input.timeZone, input.locale, { hour: "numeric", minute: "2-digit" }),
+          timeLabel:
+            zoned(next.ms, input.timeZone, input.locale, { hour: "numeric", minute: "2-digit" }) +
+            (effectiveZone(input.timeZone) === "UTC" ? " UTC" : ""),
         }
       : null,
     unread: Math.max(0, Math.floor(input.unread || 0)),
     balanceDue: currency && total > 0 ? { amountCents: total, currencyCode: currency } : null,
   };
+}
+
+/** Existing-session pre-check: a business session must never reach the code form or verify. */
+export function precheckSignIn(session: { signedIn: boolean; appRole: string | null | undefined }): "proceed" | "business_session" {
+  return session.signedIn && !isClientAccountEligible(session.appRole) ? "business_session" : "proceed";
+}
+
+/** After a successful verify of a non-client email: sign out only when there was no prior session. */
+export function shouldSignOutAfterVerify(hadPriorSession: boolean): boolean {
+  return !hadPriorSession;
+}
+
+/** Host for `origin_domain` and `client_auth_events.host`: the `host` header only (x-impronta-host-name is not trusted). */
+export function chooseTrustedHost(hostHeader: string | null | undefined): string | null {
+  const h = (hostHeader ?? "").trim().toLowerCase();
+  return h && /^[a-z0-9.-]+(:\d+)?$/.test(h) ? h : null;
+}
+
+/** Tenant source: only the proxy-set talent profile header on a talent_site host. Never a client value. */
+export function tenantSourceProfileId(hostContext: string | null | undefined, profileHeader: string | null | undefined): string | null {
+  if (hostContext !== "talent_site") return null;
+  return profileHeader?.trim() || null;
+}
+
+/** Per-IP verify rate-limit key. */
+export function verifyIpRateKey(ip: string): string {
+  return `auth-otp-verify-ip:${ip || "unknown"}`;
 }

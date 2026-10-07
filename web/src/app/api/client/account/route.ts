@@ -22,10 +22,11 @@ export async function GET(req: Request) {
   const session = await getCachedActorSession();
   const user = session.user;
   const headersOut = { "cache-control": "private, no-store" };
-  if (!user || !isClientAccountEligible(session.profile?.app_role)) {
-    return NextResponse.json({ signedIn: false }, { headers: headersOut });
+  if (!user) return NextResponse.json({ signedIn: false }, { headers: headersOut });
+  if (!isClientAccountEligible(session.profile?.app_role)) {
+    return NextResponse.json({ signedIn: false, signedInAs: "business" }, { headers: headersOut });
   }
-  const tenant = await resolveAccountTenant(url.searchParams.get("code"));
+  const tenant = await resolveAccountTenant();
   const summary = tenant
     ? await loadClientAccountSummary({ userId: user.id, tenantId: tenant.tenantId, timeZone: tenant.timeZone, locale })
     : { nextVisit: null, unread: 0, balanceDue: null };

@@ -85,3 +85,51 @@ test("mixed currencies never sum across currencies", () => {
   });
   assert.deepEqual(s.balanceDue, { amountCents: 100, currencyCode: "USD" });
 });
+
+import {
+  chooseTrustedHost,
+  precheckSignIn,
+  shouldSignOutAfterVerify,
+  tenantSourceProfileId,
+  verifyIpRateKey,
+} from "./pure";
+
+test("pre-check blocks business sessions only", () => {
+  assert.equal(precheckSignIn({ signedIn: true, appRole: "talent" }), "business_session");
+  assert.equal(precheckSignIn({ signedIn: true, appRole: "agency_staff" }), "business_session");
+  assert.equal(precheckSignIn({ signedIn: true, appRole: "super_admin" }), "business_session");
+  assert.equal(precheckSignIn({ signedIn: true, appRole: "client" }), "proceed");
+  assert.equal(precheckSignIn({ signedIn: false, appRole: "talent" }), "proceed");
+});
+
+test("sign out after a non-client verify only when no prior session", () => {
+  assert.equal(shouldSignOutAfterVerify(false), true);
+  assert.equal(shouldSignOutAfterVerify(true), false);
+});
+
+test("host choice ignores everything but a well-formed host header", () => {
+  assert.equal(chooseTrustedHost("Jor.Tulala.Digital"), "jor.tulala.digital");
+  assert.equal(chooseTrustedHost("localhost:3001"), "localhost:3001");
+  assert.equal(chooseTrustedHost(""), null);
+  assert.equal(chooseTrustedHost(null), null);
+  assert.equal(chooseTrustedHost("evil.com/x y"), null);
+});
+
+test("tenant source: proxy profile header on talent_site hosts only", () => {
+  assert.equal(tenantSourceProfileId("talent_site", " abc "), "abc");
+  assert.equal(tenantSourceProfileId("talent_site", ""), null);
+  assert.equal(tenantSourceProfileId("app", "abc"), null);
+  assert.equal(tenantSourceProfileId(null, "abc"), null);
+});
+
+test("IP verify key", () => {
+  assert.equal(verifyIpRateKey("1.2.3.4"), "auth-otp-verify-ip:1.2.3.4");
+  assert.equal(verifyIpRateKey(""), "auth-otp-verify-ip:unknown");
+});
+
+test("UTC fallback shows the zone label next to the time", () => {
+  const base = { upcoming: [{ title: null, eventDate: "2026-10-09T10:00:00Z", status: null, amountCents: null, currencyCode: null, paymentStatus: null }], unread: 0, nowMs: Date.parse("2026-10-07T12:00:00Z"), locale: "en" };
+  assert.match(shapeAccountSummary({ ...base, timeZone: "UTC" }).nextVisit!.timeLabel, /10:00.*UTC$/);
+  assert.match(shapeAccountSummary({ ...base, timeZone: "Bad/Zone" }).nextVisit!.timeLabel, /UTC$/);
+  assert.doesNotMatch(shapeAccountSummary({ ...base, timeZone: "America/Mexico_City" }).nextVisit!.timeLabel, /UTC/);
+});

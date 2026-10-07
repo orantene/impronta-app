@@ -2139,7 +2139,8 @@
       "logOut": "Cerrar sesión",
       "signedInAs": "Sesión iniciada como {email}",
       "genericError": "Algo salió mal. Inténtalo de nuevo.",
-      "notClient": "Este correo pertenece a una cuenta de equipo. Usa el inicio de sesión principal."
+      "notClient": "Este correo pertenece a una cuenta de equipo. Usa el inicio de sesión principal.",
+      "signedInAsTalent": "Iniciaste sesión con una cuenta de negocio. Cierra sesión en app.tulala.digital para usar una cuenta de cliente."
     }
   },
   "dashboard": {

@@ -34,7 +34,7 @@ import { createTranslator } from "@/i18n/messages";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 import { clientAccountEnabledFor } from "./flag";
-import { isClientAccountEligible } from "./pure";
+import { chooseTrustedHost, isClientAccountEligible, precheckSignIn, shouldSignOutAfterVerify, verifyIpRateKey } from "./pure";
 import { ensureTenantClientRelationship } from "./relationship.server";
 import { resolveAccountTenant } from "./tenant.server";
 
@@ -44,13 +44,22 @@ export type VerifyClientCodeResult =
 
 const VERIFY_WINDOW_MS = 15 * 60 * 1000;
 const VERIFY_PER_EMAIL = 10;
+const VERIFY_PER_IP = 30;
 
 async function requestHost(): Promise<string> {
   try {
-    const h = await headers();
-    return (h.get("x-impronta-host-name") ?? h.get("host") ?? "").trim().toLowerCase();
+    return chooseTrustedHost((await headers()).get("host")) ?? "";
   } catch {
     return "";
+  }
+}
+
+async function requestIp(): Promise<string> {
+  try {
+    const forwarded = (await headers()).get("x-forwarded-for") ?? "";
+    return forwarded.split(",")[0]?.trim() || "unknown";
+  } catch {
+    return "unknown";
   }
 }
 
@@ -58,7 +67,6 @@ export async function verifyClientAccountCode(input: {
   email: string;
   code: string;
   locale: string;
-  profileCode?: string | null;
   ageTerms: boolean;
 }): Promise<VerifyClientCodeResult> {
   const t = createTranslator(input.locale === "es" ? "es" : "en");
@@ -72,12 +80,27 @@ export async function verifyClientAccountCode(input: {
   if (!isCompleteOtpCode(code)) return { ok: false, error: t("public.auth.passwordless.errors.codeRequired") };
 
   const tooMany = { ok: false, error: t("public.auth.passwordless.errors.tooMany") } as const;
-  if (!tryConsumeRateLimit(`auth-otp-verify:${email}`, VERIFY_PER_EMAIL, VERIFY_WINDOW_MS)) return tooMany;
+  if (
+    !tryConsumeRateLimit(`auth-otp-verify:${email}`, VERIFY_PER_EMAIL, VERIFY_WINDOW_MS) ||
+    !tryConsumeRateLimit(verifyIpRateKey(await requestIp()), VERIFY_PER_IP, VERIFY_WINDOW_MS)
+  ) {
+    return tooMany;
+  }
   const durable = await checkAuthOtpVerifyByEmail(authOtpVerifyEmailKey(email));
   if (!durable.ok) return tooMany;
 
   const supabase = await getCachedServerSupabase();
   if (!supabase) return { ok: false, error: generic };
+  // Existing business session (talent, staff, platform): never verify over it.
+  const prior = await supabase.auth.getUser().catch(() => null);
+  const priorUser = prior?.data?.user ?? null;
+  if (priorUser) {
+    const priorProfile = await loadAccessProfile(supabase, priorUser.id);
+    if (precheckSignIn({ signedIn: true, appRole: priorProfile?.app_role }) === "business_session") {
+      return { ok: false, error: t("public.clientAccount.signedInAsTalent") };
+    }
+  }
+
   const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: "email" });
   if (error || !data.user) {
     if (error) logServerError("clientAccount/verifyCode", error);
@@ -88,7 +111,7 @@ export async function verifyClientAccountCode(input: {
   // A talent, staff or platform email is never treated as a client here.
   const profile = await loadAccessProfile(supabase, user.id);
   if (!isClientAccountEligible(profile?.app_role)) {
-    await supabase.auth.signOut();
+    if (shouldSignOutAfterVerify(priorUser !== null)) await supabase.auth.signOut();
     return { ok: false, error: t("public.clientAccount.notClient") };
   }
 
@@ -102,7 +125,7 @@ export async function verifyClientAccountCode(input: {
     );
   }
   const host = await requestHost();
-  const tenant = await resolveAccountTenant(input.profileCode);
+  const tenant = await resolveAccountTenant();
   if (tenant) {
     await ensureTenantClientRelationship({ userId: user.id, tenantId: tenant.tenantId, originDomain: host || null });
   }
@@ -145,6 +168,12 @@ export async function saveClientMarketingConsent(optIn: boolean): Promise<{ ok: 
 export async function signOutClientAccount(): Promise<{ ok: boolean }> {
   const supabase = await getCachedServerSupabase();
   if (!supabase) return { ok: false };
+  const got = await supabase.auth.getUser().catch(() => null);
+  const signedUser = got?.data?.user ?? null;
+  if (signedUser) {
+    const profile = await loadAccessProfile(supabase, signedUser.id);
+    if (!isClientAccountEligible(profile?.app_role)) return { ok: false };
+  }
   const { error } = await supabase.auth.signOut();
   revalidatePath("/", "layout");
   return { ok: !error };

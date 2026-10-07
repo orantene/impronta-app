@@ -23,7 +23,7 @@ import {
 } from "@/lib/client-account/actions";
 import { resendSecondsLeft, type AccountSummary } from "@/lib/client-account/pure";
 
-type Me = { signedIn: false } | { signedIn: true; email: string | null; initials: string; summary: AccountSummary };
+type Me = { signedIn: false; signedInAs?: "business" } | { signedIn: true; email: string | null; initials: string; summary: AccountSummary };
 type Step = "email" | "code" | "consent";
 
 const INK = "var(--token-color-ink, #111)";
@@ -51,11 +51,9 @@ function money(cents: number, currency: string, locale: string): string {
 export function ClientAccountButton({
   variant,
   locale,
-  profileCode,
 }: {
   variant: "dock" | "header";
   locale: string;
-  profileCode?: string | null;
 }) {
   const loc = locale === "es" ? "es" : "en";
   const t = createTranslator(loc);
@@ -75,14 +73,13 @@ export function ClientAccountButton({
   const refresh = useCallback(async () => {
     try {
       const qs = new URLSearchParams({ locale: loc });
-      if (profileCode) qs.set("code", profileCode);
       const res = await fetch(`/api/client/account?${qs.toString()}`, { credentials: "same-origin" });
       if (!res.ok) return;
       setMe((await res.json()) as Me);
     } catch {
       /* stays signed out */
     }
-  }, [loc, profileCode]);
+  }, [loc]);
 
   useEffect(() => {
     void refresh();
@@ -151,7 +148,7 @@ export function ClientAccountButton({
   async function verify() {
     setBusy(true);
     setError(null);
-    const res = await verifyClientAccountCode({ email, code, locale: loc, profileCode, ageTerms: true });
+    const res = await verifyClientAccountCode({ email, code, locale: loc, ageTerms: true });
     setBusy(false);
     if (!res.ok) {
       setError(res.error);
@@ -228,7 +225,11 @@ export function ClientAccountButton({
             <button type="button" onClick={close} aria-label={t("public.clientAccount.closeLabel")} style={{ ...linkBtn, alignSelf: "flex-end", textDecoration: "none", fontSize: 20, lineHeight: 1 }}>
               ×
             </button>
-            {me.signedIn && step !== "consent" ? (
+            {!me.signedIn && me.signedInAs === "business" ? (
+              <p role="alert" style={{ margin: 0, fontSize: 14 }}>
+                {t("public.clientAccount.signedInAsTalent")}
+              </p>
+            ) : me.signedIn && step !== "consent" ? (
               <>
                 <p style={{ margin: 0, fontSize: 13, opacity: 0.7 }}>{interpolate(t("public.clientAccount.signedInAs"), { email: me.email ?? "" })}</p>
                 <dl style={{ margin: 0, display: "grid", gap: 10 }}>
