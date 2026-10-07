@@ -87,8 +87,7 @@ describe("1. recipient: a signed-in non-client is never the guest client", () =>
       contactEmail: "orantene+qa-tul92@gmail.com",
       __hooks: { sessionIsClient: async () => false },
     });
-    assert.equal(actor.kind, "session");
-    if (actor.kind === "fail") return;
+    if (actor.kind !== "session") throw new Error(`expected a session actor, got ${actor.kind}`);
     assert.equal(actor.userId, null);
     assert.equal(actor.contactEmail, "orantene+qa-tul92@gmail.com");
   });
