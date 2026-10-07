@@ -6,8 +6,9 @@
 import { spawnSync } from "node:child_process";
 import { QA_HOSTS, pickHost, hostsToRelease, formatAge } from "./lib/qa-hosts.mjs";
 
-const TEAM = "oran-tenes-projects";
-const PROJECT = "tulala";
+// Vercel REST needs IDs, not slugs/names (slugs return 404 on /v4/aliases).
+const TEAM = "team_otRX11wclvw89c5ls7A7UsZd"; // oran-tenes-projects
+const PROJECT = "prj_oM9OZ4CLewpMPxpKfkacWs9nRcA2"; // tulala
 const API = "https://api.vercel.com";
 
 async function api(path, init = {}) {
