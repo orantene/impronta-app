@@ -34,11 +34,8 @@ type Photo = { id: string; url: string };
 type Where = "studio" | "client" | "remote" | "agreed";
 const WHERE: Where[] = ["studio", "client", "remote", "agreed"];
 
-// DS-36: one label style everywhere in the editor, sentence case.
-const LABEL = "font-admin-body text-[12px] font-medium tracking-[0.1px] text-admin-ink";
-// DS-36: numeric fields without the browser spinner arrows.
-const NO_SPINNER =
-  "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
+const LABEL = "font-admin-body text-[12px] font-medium tracking-[0.1px] text-admin-ink"; // DS-36: one label style, sentence case
+const NO_SPINNER = "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"; // DS-36: no spinner arrows
 const INPUT =
   "mt-1.5 w-full rounded-lg border border-admin-border-soft bg-white px-3 py-2.5 text-[15px] text-admin-ink outline-none focus:border-emerald-900/50";
 
