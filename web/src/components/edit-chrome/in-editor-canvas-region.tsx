@@ -40,6 +40,8 @@ import { EmptyCanvasStarter } from "./empty-canvas-starter";
 import { CHROME, EDIT_TOPBAR_H } from "./kit/tokens";
 import { useBuilderTree } from "./builder-tree-bridge";
 import { useEditorLocale } from "./use-editor-locale";
+import { useActiveContentLocale } from "./active-content-locale-bridge";
+import { resolveCanvasLabelLocale } from "./editing-locale";
 import {
   isStorefrontBodyPresent,
   subscribeStorefrontBodyCanvas,
@@ -127,18 +129,25 @@ export function InEditorCanvasRegion({
   const labelLocale = canvasRenderData?.labelLocale ?? null;
   // Template Factory editor: the design keeps `{{placeholders}}`; the canvas fills them from the demo talent.
   const placeholders = canvasRenderData?.placeholders ?? null;
+  // TUL-70 round 3: follow the builder's editing locale (the same store the
+  // inspector tabs and the top-bar pill use), not the fixed server site locale.
+  const editingLocale = useActiveContentLocale().locale;
+  const labelLoc = labelLocale ? resolveCanvasLabelLocale(labelLocale.locale, editingLocale) : null;
+  const labelLocaleCode = labelLoc?.locale;
+  const labelFollowsSite = labelLoc?.followsSite ?? true;
   const transformTree = useCallback(
     (t: BuilderNodeTree): BuilderNodeTree => {
       let out = t;
       if (labelLocale) {
         out = localiseSeededDesignLabels(
           out as Parameters<typeof localiseSeededDesignLabels>[0],
-          labelLocale.locale,
+          labelLocaleCode,
           labelLocale.ctaMode,
-          labelLocale.swaps,
+          labelFollowsSite ? labelLocale.swaps : {},
         ) as BuilderNodeTree;
         // Lines that follow her profile show their live value, as on the live page.
-        if (labelLocale.live) {
+        // Resolved server-side for the site locale only, so skipped in other locales.
+        if (labelLocale.live && labelFollowsSite) {
           out = applyTalentLiveText(
             out as Parameters<typeof applyTalentLiveText>[0],
             labelLocale.live as TalentLiveText,
@@ -149,12 +158,12 @@ export function InEditorCanvasRegion({
         out = hydratePlaceholders(
           out as Parameters<typeof hydratePlaceholders>[0],
           placeholders,
-          labelLocale?.locale,
+          labelLocaleCode ?? labelLocale?.locale,
         ) as BuilderNodeTree;
       }
       return out;
     },
-    [labelLocale, placeholders],
+    [labelLocale, placeholders, labelLocaleCode, labelFollowsSite],
   );
 
   // Body-hosted page (freeform cms_page on the storefront): the visible canvas
@@ -202,7 +211,7 @@ export function InEditorCanvasRegion({
       componentStyleDefaults={canvasRenderData?.componentStyleDefaults}
       includeRendererStyles
       transformTree={labelLocale || placeholders ? transformTree : undefined}
-      visitorLocale={labelLocale?.locale}
+      visitorLocale={labelLocaleCode ?? labelLocale?.locale}
     />
   );
 

@@ -65,6 +65,7 @@ import { useLastDraftSavedAt, useSaving } from "./save-cycle-bridge";
 import { navigateToEditSurface } from "./navigate-to-edit-surface";
 import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
 import { resolveLocaleToggleMode } from "./locale-toggle-mode";
+import { selectEditingLocale } from "./editing-locale";
 import { saveStatusWords, useTalentDraftStatus } from "./talent-draft-status";
 import { useEditorLocale } from "./use-editor-locale";
 import { useTopbarDraftReset } from "./use-topbar-draft-reset";
@@ -1033,11 +1034,7 @@ function ContentLocaleToggle({
   const selectLocale = useCallback(
     (code: string) => {
       if (code === activeContentLocale) return;
-      publishActiveContentLocale({
-        locale: code,
-        defaultLocale,
-        chain: buildContentFallbackChain(code, defaultLocale, orderedLocales),
-      });
+      selectEditingLocale(code, defaultLocale, orderedLocales);
     },
     [activeContentLocale, defaultLocale, orderedLocales],
   );
