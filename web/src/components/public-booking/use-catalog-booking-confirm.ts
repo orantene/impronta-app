@@ -50,6 +50,8 @@ export function useCatalogBookingConfirm(input: {
   setLiveStarts: Dispatch<SetStateAction<string | null>>;
   setStep: Dispatch<SetStateAction<Step>>;
   setWrote: Dispatch<SetStateAction<boolean>>;
+  /** TUL-92: where the done panel links the guest (their conversation), when the write returned one. */
+  setDoneHref?: Dispatch<SetStateAction<string | null>>;
   setSlotsRefreshKey: Dispatch<SetStateAction<number>>;
   /** DS-4: the notice shown on the time step after a taken-slot error. */
   setTakenNotice: Dispatch<SetStateAction<CatalogTakenSlotNotice | null>>;
@@ -145,6 +147,15 @@ export function useCatalogBookingConfirm(input: {
       }
       if (outcome.kind === "redirect") {
         input.setWrote(true);
+        // TUL-92: a booking with nothing to pay online returns the guest's own
+        // conversation (`/c/<id>`). Confirm on the page they are already on
+        // (a talent host serves no workspace routes) and offer the link.
+        // Only a real checkout (absolute URL) navigates away.
+        if (outcome.path.startsWith("/c/")) {
+          input.setDoneHref?.(outcome.path);
+          input.setStep("done");
+          return;
+        }
         window.location.href = outcome.path;
         return;
       }

@@ -63,7 +63,8 @@ export function GuestCaptchaField({
   useEffect(() => {
     const prev = (window as unknown as Record<string, unknown>)[CB];
     (window as unknown as Record<string, unknown>)[CB] = (token: string) => {
-      if (typeof token === "string" && token.trim()) onToken(token.trim());
+      // An empty string is the vendor's "token expired" signal: clear it.
+      if (typeof token === "string") onToken(token.trim());
     };
     return () => {
       (window as unknown as Record<string, unknown>)[CB] = prev;
@@ -73,22 +74,62 @@ export function GuestCaptchaField({
   const widgetRef = useRef<HTMLDivElement>(null);
   const active = provider !== "none" && Boolean(siteKey);
 
+  // TUL-92: the widget must mount EVERY time the field mounts (the details step
+  // remounts it after close/reopen and "Cambiar horario"). The vendor script can
+  // report loaded before its `render` exists, or fail once; so wait for the API
+  // (retrying the script) instead of silently skipping, and remove the widget on
+  // unmount so a stale instance never blocks the next render.
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
-    void preloadGuestCaptchaScript(provider).then(() => {
+    let widgetId: unknown;
+    let timer: number | undefined;
+    const w = window as unknown as {
+      hcaptcha?: CaptchaApi;
+      turnstile?: CaptchaApi;
+    };
+    const apiFor = () => (provider === "hcaptcha" ? w.hcaptcha : w.turnstile);
+    const tryRender = (attempt: number) => {
+      if (cancelled) return;
       const el = widgetRef.current;
-      if (cancelled || !el || el.childElementCount > 0) return;
-      const w = window as unknown as { hcaptcha?: CaptchaApi; turnstile?: CaptchaApi };
-      const api = provider === "hcaptcha" ? w.hcaptcha : w.turnstile;
-      api?.render(el, {
-        sitekey: siteKey,
-        callback: (t: string) => (window as unknown as Record<string, (t: string) => void>)[CB]?.(t),
-        ...(provider === "hcaptcha" ? { hl: hcaptchaLocale(locale) } : { language: turnstileLocale(locale) }),
-      });
-    });
+      const api = apiFor();
+      if (el && api && typeof api.render === "function") {
+        if (el.childElementCount > 0) return;
+        try {
+          widgetId = api.render(el, {
+            sitekey: siteKey,
+            callback: (t: string) =>
+              (window as unknown as Record<string, (t: string) => void>)[CB]?.(t),
+            "expired-callback": () =>
+              (window as unknown as Record<string, (t: string) => void>)[CB]?.(""),
+            ...(provider === "hcaptcha"
+              ? { hl: hcaptchaLocale(locale) }
+              : { language: turnstileLocale(locale) }),
+          });
+        } catch {
+          // fall through to a retry below
+          if (attempt < 40) timer = window.setTimeout(() => tryRender(attempt + 1), 250);
+        }
+        return;
+      }
+      if (attempt >= 40) return;
+      // The script tag may have died (blocked once): load it again at attempt 8.
+      if (attempt === 8 && !api) {
+        delete scriptPromises[provider];
+        void preloadGuestCaptchaScript(provider);
+      }
+      timer = window.setTimeout(() => tryRender(attempt + 1), 250);
+    };
+    void preloadGuestCaptchaScript(provider).then(() => tryRender(0));
     return () => {
       cancelled = true;
+      if (timer) window.clearTimeout(timer);
+      const api = apiFor() as unknown as { remove?: (id: unknown) => void } | undefined;
+      try {
+        if (widgetId !== undefined) api?.remove?.(widgetId);
+      } catch {
+        // vendor already tore the widget down
+      }
     };
   }, [active, provider, siteKey, locale]);
 
@@ -101,9 +142,6 @@ export function GuestCaptchaField({
         <div
           ref={widgetRef}
           className="h-captcha"
-          data-sitekey={siteKey}
-          data-hl={hcaptchaLocale(locale)}
-          data-callback={CB}
         />
       </div>
     );
@@ -114,9 +152,6 @@ export function GuestCaptchaField({
       <div
         ref={widgetRef}
         className="cf-turnstile"
-        data-sitekey={siteKey}
-        data-language={turnstileLocale(locale)}
-        data-callback={CB}
       />
     </div>
   );

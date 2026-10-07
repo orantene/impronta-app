@@ -27,6 +27,7 @@ import { runResolvedInstantBook } from "@/lib/scheduling/instant-book-run";
 import { resolveGuestSessionId } from "@/lib/guest/guest-session";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { unwindFailedCheckout } from "@/lib/orders/unwind-failed-checkout";
+import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
 
 export type {
   InstantBookActionResult,
@@ -206,6 +207,17 @@ export async function createInstantBookingAction(
             };
           }
           checkoutUrl = session.url;
+        } else if (booked.bookingId && booked.inquiryId) {
+          // TUL-93: nothing to collect online (free / pay in person), so
+          // `markPaid` never runs and its `booking.confirmed` never fires.
+          // Emit it here so the guest gets the confirmation email and the
+          // talent gets the new-booking notification. Paid bookings keep
+          // firing from `markPaid` (same stable eventId, so no duplicate).
+          notifyBookingConfirmed({
+            tenantId: engineInput.tenantId,
+            inquiryId: booked.inquiryId,
+            bookingId: booked.bookingId,
+          });
         }
         return {
           ok: true,

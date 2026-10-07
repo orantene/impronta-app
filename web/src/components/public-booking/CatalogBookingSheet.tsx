@@ -115,7 +115,7 @@ export function CatalogBookingSheet({
   const [email, setEmail] = useState("");
   const [touched, setTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [wrote, setWrote] = useState(false);
+  const [wrote, setWrote] = useState(false); const [doneHref, setDoneHref] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState("");
   const [askAttempted, setAskAttempted] = useState(false);
   const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
@@ -328,6 +328,7 @@ export function CatalogBookingSheet({
     setLiveStarts,
     setStep,
     setWrote,
+    setDoneHref,
     setSlotsRefreshKey,
     setTakenNotice,
   });
@@ -726,6 +727,7 @@ export function CatalogBookingSheet({
                 isRequest,
               })}
               showDemoNote={mode === "demo" || !wrote}
+              chatHref={wrote ? doneHref : null}
             />
           ) : null}
         </div>

@@ -209,10 +209,28 @@ export async function loadOfferTalentView(
 // them to addresses and dedupes.
 
 /** The inquiry client — the authenticated user if known, else the guest contact. */
-export const clientOrGuest = async (event: NotificationEvent): Promise<AudienceMember[]> => {
+export const clientOrGuest = async (
+  event: NotificationEvent,
+  ctx?: AudienceContext,
+): Promise<AudienceMember[]> => {
   const clientUserId = str(event.payload.clientUserId);
-  if (clientUserId) return [{ kind: "user", userId: clientUserId, role: "client" }];
   const email = str(event.payload.contactEmail);
+  if (clientUserId) {
+    // A guest-created client account can have no email on the auth user, which
+    // made the email channel skip with "no endpoint" (TUL-93). When the account
+    // has no address but the inquiry carries the contact email, mail the guest.
+    if (email && ctx) {
+      try {
+        const { data, error } = await ctx.admin.auth.admin.getUserById(clientUserId);
+        if (!error && data?.user && !data.user.email?.trim()) {
+          return [{ kind: "guest", email, displayName: str(event.payload.contactName), role: "client" }];
+        }
+      } catch {
+        // fall through to the user member; hydrateRecipient logs its own lookup failures
+      }
+    }
+    return [{ kind: "user", userId: clientUserId, role: "client" }];
+  }
   if (email) {
     return [
       { kind: "guest", email, displayName: str(event.payload.contactName), role: "client" },

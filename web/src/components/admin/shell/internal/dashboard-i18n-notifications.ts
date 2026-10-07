@@ -5,6 +5,8 @@
  */
 export const NOTIFICATIONS_ES_TEXT: Record<string, string> = {
   "You have an offer to review": "Tienes una oferta por revisar",
+  "New booking confirmed": "Nueva cita confirmada",
+  "A client booked a time with you.": "Un cliente reservó un horario contigo.",
   "A payment was disputed": "Se disputó un pago",
   "Payment received": "Pago recibido",
   "Deposit received": "Anticipo recibido",

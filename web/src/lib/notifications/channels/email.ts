@@ -66,6 +66,9 @@ export async function sendEmailNotification(
 ): Promise<EmailSendOutcome | null> {
   const cfg = entry.email;
   if (!cfg || !recipient.email) return null;
+  // A malformed address would make Resend throw "Invalid `to` field" and log a
+  // `failed` row; skip it with the standard "no endpoint" reason instead.
+  if (!/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(recipient.email.trim())) return null;
 
   // payload.platformFrom: platform-service mail (e.g. support) must send under
   // the PLATFORM identity even for a tenant-scoped event — a white-label
