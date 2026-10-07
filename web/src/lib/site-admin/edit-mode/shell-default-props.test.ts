@@ -38,4 +38,30 @@ describe("TUL-76 new site publish validation", () => {
     assert.equal(builderTreeHasH1(tree), true);
     assert.equal(builderTreeHasH1([{ kind: "heading", props: { level: 2, text: "x" } }]), false);
   });
+
+  const maisonV2Hero = (heading: Record<string, unknown>) => [
+    { kind: "split", props: {}, children: [
+      { kind: "container", props: {}, children: [
+        { kind: "paragraph", props: { text: "x" } },
+        { kind: "heading", props: { level: 1, ...heading } },
+      ] },
+      { kind: "image", props: {} },
+    ] },
+  ];
+
+  it("counts a Maison v2 hero heading bound to live text with empty text (TUL-76)", () => {
+    assert.equal(builderTreeHasH1(maisonV2Hero({ text: "", liveText: "hero_headline" })), true);
+    assert.equal(builderTreeHasH1(maisonV2Hero({ text: "\u200b", liveText: "hero_headline" })), true);
+  });
+
+  it("counts a field-bound or string-level hero heading", () => {
+    assert.equal(builderTreeHasH1(maisonV2Hero({ text: "", fieldBindings: { text: "displayName" } })), true);
+    assert.equal(builderTreeHasH1(maisonV2Hero({ text: "Hi", level: "1" })), true);
+  });
+
+  it("still fails with no h1 or an empty unbound h1", () => {
+    assert.equal(builderTreeHasH1(maisonV2Hero({ text: "", level: 2, liveText: "hero_headline" })), false);
+    assert.equal(builderTreeHasH1(maisonV2Hero({ text: "  \u200b" })), false);
+    assert.equal(builderTreeHasH1([]), false);
+  });
 });

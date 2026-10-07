@@ -44,6 +44,23 @@ export function withShellDefaults(typeKey: string, props: Record<string, unknown
 
 type TreeNodeLike = { kind?: string; props?: Record<string, unknown>; children?: unknown };
 
+function isLevelOne(level: unknown): boolean {
+  return level === 1 || level === "1";
+}
+
+/**
+ * A heading supplies text when it has authored text, a live line (`liveText`:
+ * a fresh Maison v2 hero headline is empty until render, then follows her
+ * profile), or a field binding for `text`.
+ */
+function headingHasVisibleText(props: Record<string, unknown> | undefined): boolean {
+  if (!props) return false;
+  if (typeof props.text === "string" && props.text.replace(/[\u200B-\u200D\uFEFF]/g, "").trim()) return true;
+  if (typeof props.liveText === "string" && props.liveText.trim()) return true;
+  const fb = props.fieldBindings as { text?: unknown } | undefined;
+  return typeof fb?.text === "string" && fb.text.trim().length > 0;
+}
+
 /**
  * True when the builder tree carries a level-1 heading with text anywhere,
  * including inside hero carousel slides. Hero/carousel headings count as H1.
@@ -54,7 +71,7 @@ export function builderTreeHasH1(tree: unknown): boolean {
   while (stack.length > 0) {
     const n = stack.pop() as TreeNodeLike | null;
     if (!n || typeof n !== "object") continue;
-    if (n.kind === "heading" && n.props?.level === 1 && typeof n.props.text === "string" && n.props.text.trim()) return true;
+    if (n.kind === "heading" && isLevelOne(n.props?.level) && headingHasVisibleText(n.props)) return true;
     if (Array.isArray(n.children)) stack.push(...n.children);
   }
   return false;
