@@ -10,7 +10,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { headers } from "next/headers";
 
-import { parseGuestOrderQuery } from "@/lib/inquiry/guest-order-resume";
+import { decideOrderResume, parseGuestOrderQuery } from "@/lib/inquiry/guest-order-resume";
 import { isSeedContact } from "@/lib/inquiry/guest-send-gate";
 import type {
   ActiveGuestInquiry,
@@ -120,7 +120,14 @@ export async function getGuestInquiryByOrder(input: {
     }
     if (!inq) return { ok: true, active: null };
     // Ownership gate — never open another session's thread from a shared URL.
-    if ((inq.guest_session_id as string | null) !== guestSessionId) {
+    if (
+      decideOrderResume({
+        parsedOrderId: orderId,
+        guestSessionId,
+        inquiryId: inq.id as string,
+        inquiryGuestSessionId: inq.guest_session_id as string | null,
+      }) !== "open"
+    ) {
       return { ok: true, active: null };
     }
 

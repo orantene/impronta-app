@@ -17,3 +17,18 @@ test("parseGuestOrderQuery rejects junk", () => {
   assert.equal(parseGuestOrderQuery("abc"), null);
   assert.equal(parseGuestOrderQuery("  "), null);
 });
+
+import { decideOrderResume } from "./guest-order-resume";
+
+const OID = "33330031-0000-4000-8000-0000000000b1";
+
+test("decideOrderResume opens only for the owning session", () => {
+  assert.equal(decideOrderResume({ parsedOrderId: OID, guestSessionId: "s1", inquiryId: "i1", inquiryGuestSessionId: "s1" }), "open");
+});
+
+test("decideOrderResume falls back safely otherwise", () => {
+  assert.equal(decideOrderResume({ parsedOrderId: null, guestSessionId: "s1", inquiryId: "i1", inquiryGuestSessionId: "s1" }), "fallback");
+  assert.equal(decideOrderResume({ parsedOrderId: OID, guestSessionId: null, inquiryId: "i1", inquiryGuestSessionId: "s1" }), "fallback");
+  assert.equal(decideOrderResume({ parsedOrderId: OID, guestSessionId: "s2", inquiryId: "i1", inquiryGuestSessionId: "s1" }), "fallback");
+  assert.equal(decideOrderResume({ parsedOrderId: OID, guestSessionId: "s1", inquiryId: null, inquiryGuestSessionId: null }), "fallback");
+});
