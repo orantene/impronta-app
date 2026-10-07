@@ -12,6 +12,7 @@
 import { isDeepStrictEqual } from "node:util";
 
 import { localizablePropsForKind } from "../src/lib/i18n/builder-i18n-props";
+import type { BuilderNodeKind } from "../src/lib/site-admin/builder-node/types";
 
 export const ALLOWED_SLUGS = [
   "maison-v2",
@@ -38,8 +39,16 @@ export const DEFAULT_MODE_LABELS: readonly string[] = [
 export const APPROVED_OPEN_DRAFT_SLUG = "maison-v2";
 
 // ── Tree helpers ─────────────────────────────────────────────────────────────
-// biome-ignore lint: loose tree nodes on purpose, the DB trees are authored JSON.
-export type TNode = Record<string, any>;
+/** A tree node from the authored DB JSON: the fields the script reads are typed, anything else stays `unknown`. */
+export interface TNode {
+  id?: string;
+  kind?: string;
+  props?: Record<string, unknown>;
+  children?: TNode[];
+  slides?: TNode[];
+  i18n?: unknown;
+  [key: string]: unknown;
+}
 export type Pair = { es: string; en: string };
 export type PayloadLike = { homeTree?: TNode[]; shellTree?: TNode[]; optionalBlocks?: TNode[] } & Record<
   string,
@@ -67,7 +76,7 @@ function eachNode(
   });
 }
 
-function propsOf(node: TNode): TNode {
+function propsOf(node: TNode): Record<string, unknown> {
   return node.props && typeof node.props === "object" ? node.props : {};
 }
 
@@ -79,7 +88,7 @@ function nonEmpty(v: unknown): v is string {
 export function textFields(node: TNode): Array<[string, string]> {
   const props = propsOf(node);
   const out: Array<[string, string]> = [];
-  for (const prop of localizablePropsForKind(node.kind)) {
+  for (const prop of localizablePropsForKind((node.kind ?? "") as BuilderNodeKind)) {
     const v = props[prop];
     if (typeof v === "string") out.push([prop, v]);
   }
