@@ -103,3 +103,14 @@ export function authPageBrand(input: {
   const name = (input.publicName ?? "").trim();
   return name ? { title: name } : null;
 }
+
+/**
+ * Where "My account" points. The marketing apex (`tulala.digital/t/<code>`)
+ * does not serve `/account`, so it links to the app host's page by absolute URL
+ * (`appUrl` comes from `getAppUrl()`, never a literal host). Every other host
+ * serves `/account` itself.
+ */
+export function accountHrefFor(hostKind: string | null | undefined, appUrl: string): string {
+  if (hostKind === "marketing") return `${appUrl.trim().replace(/\/$/, "")}/account`;
+  return "/account";
+}

@@ -52,9 +52,12 @@ function money(cents: number, currency: string, locale: string): string {
 export function ClientAccountButton({
   variant,
   locale,
+  accountHref = "/account",
 }: {
   variant: "dock" | "header";
   locale: string;
+  /** Where "My account" goes; absolute on the marketing apex (see `accountHrefFor`). */
+  accountHref?: string;
 }) {
   const loc = locale === "es" ? "es" : "en";
   const t = createTranslator(loc);
@@ -253,9 +256,9 @@ export function ClientAccountButton({
                     </div>
                   ) : null}
                 </dl>
-                <Link href="/account" style={{ ...primary, textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>
+                <a href={accountHref} style={{ ...primary, textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>
                   {t("public.clientAccount.myAccount")}
-                </Link>
+                </a>
                 <button type="button" onClick={logOut} disabled={busy} style={linkBtn}>
                   {t("public.clientAccount.logOut")}
                 </button>
