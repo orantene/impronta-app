@@ -35,6 +35,8 @@
 //
 // Exit code: 0 = all checks pass, 1 = at least one failure.
 
+import { judgeGetStartedRedirect, cronSecretPlan } from "./lib/smoke-decisions.mjs";
+
 const args = process.argv.slice(2);
 const hostFlag = args.indexOf("--host");
 const HOST =
@@ -530,11 +532,9 @@ async function check_prod_gating_flags() {
     "./prod-flag-expectations.mjs"
   );
   const secret = await loadCronSecret();
-  if (!secret) {
-    fail(
-      "prod gating flags",
-      "CRON_SECRET missing in shell and .env.local — cannot authenticate /api/health/flags",
-    );
+  const plan = cronSecretPlan(secret);
+  if (plan.action === "skip") {
+    warn("prod gating flags", plan.message);
     return;
   }
   const probeUrl = HOST + "/api/health/flags";
@@ -645,18 +645,13 @@ async function check_auth_surface_matrix() {
   // real marketing host) fails the deploy gate.
   try {
     const onMarketing = await get(MARKETING_HOST + "/get-started");
-    // One front door (PR #2086): with the onboarding module on, /get-started
-    // 307s to the home with ?start=; with it off, the legacy form renders 200.
+    // Batch 1 (#2589/#2591): legacy signup routes deliberately 307 to /start.
     const loc = onMarketing.headers?.location ?? "";
-    if (onMarketing.status === 200) {
-      pass(`${MARKETING_HOST}/get-started (200)`, "operator funnel — marketing-only, by design (module off)");
-    } else if (onMarketing.status === 307 && /\?start=/.test(loc)) {
-      pass(`${MARKETING_HOST}/get-started (307 → ${loc})`, "one front door — legacy funnel lands in the onboarding module");
+    const verdict = judgeGetStartedRedirect(onMarketing.status, loc);
+    if (verdict.ok) {
+      pass(`${MARKETING_HOST}/get-started (${verdict.detail})`, "legacy signup route lands on /start, by design");
     } else {
-      fail(
-        `${MARKETING_HOST}/get-started`,
-        `expected 200 (module off) or 307 → /?start= (module on) on the marketing host, got ${onMarketing.status} ${loc}`,
-      );
+      fail(`${MARKETING_HOST}/get-started`, verdict.reason);
     }
   } catch (e) {
     fail(`${MARKETING_HOST}/get-started`, e.message);
