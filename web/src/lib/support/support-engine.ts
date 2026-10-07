@@ -1,4 +1,3 @@
-import { SUPPORT_AGENT } from "@/lib/support/support-persona";
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -9,6 +8,7 @@ import {
 } from "./support-engine-db";
 import { auditHq, auditTenant, notify } from "./support-engine-emit";
 import { supportFrom } from "./support-from";
+import { requestSupportLocale, supportHandoffBody } from "./support-handoff-copy";
 import { assignEscalationOwner } from "./escalation-owner";
 import {
   mapEventRow,
@@ -565,7 +565,7 @@ export async function escalateTicket(input: {
     authorUserId: null,
     messageKind: "card",
     skipNotify: true,
-    body: `Your ticket is with ${SUPPORT_AGENT.name}.`,
+    body: supportHandoffBody(await requestSupportLocale()),
     cardPayload: {
       kind: "handoff",
       ticketId: ticket.id,

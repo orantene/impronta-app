@@ -89,3 +89,26 @@ export async function runProfileShellSaveSteps(
   if (failures.length > 0) return { ok: false, failures };
   return warnings.length > 0 ? { ok: true, warnings } : { ok: true };
 }
+
+/**
+ * Display-layer form of a save failure ("Services: Talent is not on any active
+ * roster. · Services: Talent is not on any active roster."): each "Section:
+ * message" part is run through the dashboard translator, and identical parts are
+ * shown once. Server error strings are unchanged; this only maps them for the
+ * header banner so Spanish dashboards no longer show raw English, doubled.
+ */
+export function localizeProfileShellSaveError(
+  message: string,
+  t: (value: string) => string,
+): string {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of message.split(" · ")) {
+    const idx = part.indexOf(": ");
+    const shown = idx > 0 ? `${t(part.slice(0, idx))}: ${t(part.slice(idx + 2))}` : t(part);
+    if (seen.has(shown)) continue;
+    seen.add(shown);
+    out.push(shown);
+  }
+  return out.join(" · ");
+}
