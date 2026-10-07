@@ -4,11 +4,12 @@
 
 ```
 cd web
-npm run qa:host -- claim factory/my-theme   # prints https://qa-N.tulala.digital
-npm run qa:host -- list                     # host -> branch, sha, age
+npm run qa:host -- claim factory/my-theme   # prints https://qa-N.tulala.digital/?_vercel_share=<token>
+npm run qa:host -- list                     # host -> branch, sha, age, share link + expiry
 npm run qa:host -- release factory/my-theme # or a host
 ```
 
+- `claim` also creates (or reuses, while at least 1h is left) a 23-hour Vercel share link for the deployment and prints it, so the QA Tester opens one URL with no manual bypass. If the share-link call fails, `claim` still succeeds, prints a one-line warning on stderr and falls back to the bare host URL. `list` shows each host's link and expiry; run `claim` again for a fresh link once it expires. The link is a credential for that preview: share it with QA only.
 - Needs `VERCEL_TOKEN` in the environment. Never print it.
 - The Vercel alias is the lease. A host is reusable when its branch is deleted or its alias is older than 24h. `factory/*` previews are claimed automatically by `.github/workflows/qa-host-pool.yml`, which posts the host as a `qa-host` commit status.
 - **These hosts use the PRODUCTION database.** Stay read-only: no writes, no checkout, no sign-up.
