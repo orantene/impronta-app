@@ -157,7 +157,7 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
       inset: true,
       italicAccent: true,
       nextFreeChip: true,
-      ctaRow: { primaryLabel: "Book an appointment", primaryHref: "#services", secondaryLabel: "See work" },
+      ctaRow: { primaryLabel: "See services", primaryHref: "#services", secondaryLabel: "See work" },
     }),
     {
       size: "display",
@@ -544,7 +544,7 @@ function maisonV2Header(node: BuilderNode): BuilderNode {
   const sp = (props.sectionProps ?? {}) as Props;
   const brand = (sp.brand ?? {}) as Props;
   const regions = (sp.regions ?? {}) as Record<string, unknown>;
-  const cta = { label: "Book an appointment", href: "#services" };
+  const cta = { label: "Menu and prices", href: "#services" };
   // `.m-hdr` right side: (Demo pill, painted by the site), ES / EN, the CTA pill.
   // No saved / inquiry icons in the proposal.
   const right = [

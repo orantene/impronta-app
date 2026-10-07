@@ -45,3 +45,15 @@ export function CatalogIdleBarGo({ nodeId, es }: { nodeId: string; es: boolean }
     </button>
   );
 }
+
+/**
+ * TUL-59 C overlay rules, kept out of the byte-pinned base booking stylesheet.
+ * One banner at a time (consent, then language suggestion), neither over a
+ * booking window; more air between the selection's x and the chat button.
+ */
+export const CATALOG_OVERLAY_CSS = `body:has([data-consent-banner]) [data-locale-suggestion],body:has([role="dialog"][aria-modal="true"]) [data-consent-banner],body:has([role="dialog"][aria-modal="true"]) [data-locale-suggestion]{display:none}
+.cb-dock{gap:16px}.cb-dock-stack{margin-left:6px}`;
+
+export function CatalogOverlayStyles() {
+  return <style>{CATALOG_OVERLAY_CSS}</style>;
+}
