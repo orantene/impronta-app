@@ -6,6 +6,7 @@ import { interpolate, type Translator } from "@/i18n/interpolate";
 
 import {
   HELP_BUBBLE_VISIBLE_MS,
+  shouldHideHelpBubbleOnScroll,
   helpBubbleBannerUp,
   findHelpBubbleAnchor,
   findHelpBubbleBarTops,
@@ -39,7 +40,8 @@ function locate(): Placement | null {
  * you choose?" appears just above the chat button wherever it is: the dock's
  * chat icon (with or without a selection), the idle bar's, or the floating one.
  * Tapping it opens the chat; the dark x closes only the bubble. Either way it
- * does not come back this visit. It never shows while the chat or a sheet is
+ * does not come back this visit. It hides on its own after 9 seconds, or as
+ * soon as the visitor keeps scrolling (48px). It never shows while the chat or a sheet is
  * open, or when no chat button is on screen. One CSS entrance, off under
  * `prefers-reduced-motion`.
  */
@@ -66,6 +68,7 @@ export function ChatHelpBubble({
   const blocked = helpBubbleBlocked({ chatOpen, sheetOpen });
   const blockedRef = useRef(blocked);
   const shownRef = useRef(false);
+  const shownAtYRef = useRef(0);
 
   useEffect(() => {
     blockedRef.current = blocked;
@@ -95,6 +98,7 @@ export function ChatHelpBubble({
       if (!at) return; // no chat button on screen: nothing to point at
       if (otherHelpBubbleShown(document, null)) return; // one bubble only
       shownRef.current = true;
+      shownAtYRef.current = window.scrollY;
       markHelpBubbleSeen(storage, key);
       setPlace(at);
       setVisible(true);
@@ -112,6 +116,10 @@ export function ChatHelpBubble({
   useEffect(() => {
     if (!visible) return;
     const follow = () => {
+      if (shouldHideHelpBubbleOnScroll(shownAtYRef.current, window.scrollY)) {
+        setVisible(false); // the visitor kept scrolling: get out of the way (DS-13)
+        return;
+      }
       const at = locate();
       if (!at) setVisible(false);
       else setPlace(at);
