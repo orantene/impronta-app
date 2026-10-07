@@ -23,6 +23,7 @@ import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 import { runAriaLandmarkCheck } from "./aria-landmark-action";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
+import { builderTreeHasH1, isShellSectionType, withShellDefaults } from "@/lib/site-admin/edit-mode/shell-default-props";
 import { validateSectionProps } from "@/lib/site-admin/forms/sections";
 import { findInvalidInquiryCtas, findSectionSwitcherIssues, isSectionHidden } from "./publish-preflight-rules";
 import {
@@ -111,6 +112,9 @@ export type PreflightResult =
   | { ok: false; error: string };
 
 // Section types that emit an H1 (others emit H2).
+/** Owner-facing (ES in editor-i18n-es-publish). No codes, no jargon. */
+const NO_H1_MESSAGE = "Your page needs a main title. Add a heading at the top, for example in your hero.";
+const PAYLOAD_INVALID_MESSAGE = "{section} has a field that needs attention. Open it and check that required fields are filled in.";
 const H1_TYPES = new Set(["hero", "hero_split", "blog_detail"]);
 
 // Section types whose section props carry image fields paired with alt
@@ -328,20 +332,11 @@ export async function runPublishPreflight(input?: {
     }
   }
 
-  // Heading hierarchy
+  // Heading hierarchy (the "no H1" verdict is issued after the builder tree
+  // loads: a hero / carousel heading in the tree counts as the H1).
   let h1Count = 0;
-  let firstHeadingSeen = false;
   for (const r of rows) {
     if (H1_TYPES.has(r.section_type_key)) h1Count += 1;
-    firstHeadingSeen = firstHeadingSeen || true;
-  }
-  if (firstHeadingSeen && h1Count === 0) {
-    issues.push({
-      severity: "error",
-      category: "headings",
-      message:
-        "No H1 on the page. Add a hero / hero_split / blog_detail section, or one will be implied from your first H2.",
-    });
   }
   if (h1Count > 1) {
     issues.push({
@@ -354,7 +349,8 @@ export async function runPublishPreflight(input?: {
   // Alt-text audits per section
   for (const r of rows) {
     if (r.status === "archived") continue;
-    const props = (r.props_jsonb as Record<string, unknown> | null) ?? {};
+    // TUL-76: legacy shell rows missing brand/legal get defaults, never a blocker.
+    const props = withShellDefaults(r.section_type_key, (r.props_jsonb as Record<string, unknown> | null) ?? {});
     const sectionName = cleanSectionName(r.name) || r.name;
 
     // Schema drift guard: preflight should surface invalid payloads before the
@@ -367,18 +363,13 @@ export async function runPublishPreflight(input?: {
       props,
     );
     if (!propsValidation.ok) {
-      const issueHint =
-        propsValidation.issues && propsValidation.issues.length > 0
-          ? propsValidation.issues
-              .slice(0, 2)
-              .map((i) => `${i.path.join(".") || "props"}: ${i.message}`)
-              .join("; ")
-          : propsValidation.message;
+      // System landmarks (header/footer) are never the owner's fault: skip.
+      if (isShellSectionType(r.section_type_key)) continue;
       issues.push({
         severity: "error",
         category: "builder_payload",
         sectionId: r.id,
-        message: `${sectionName}: invalid section payload (${propsValidation.code}). ${issueHint}`,
+        message: PAYLOAD_INVALID_MESSAGE.replace("{section}", sectionName),
       });
       // Skip secondary checks for payloads that don't parse safely.
       continue;
@@ -554,6 +545,10 @@ export async function runPublishPreflight(input?: {
     ) {
       builderTree = revisionRow.snapshot.builderTree;
     }
+  }
+  const treeHasH1 = builderTreeHasH1(builderTree);
+  if (h1Count === 0 && !treeHasH1 && (rows.length > 0 || (Array.isArray(builderTree) && builderTree.length > 0))) {
+    issues.push({ severity: "error", category: "headings", message: NO_H1_MESSAGE });
   }
   if (builderTree) {
       const validation = validateBuilderNodeTree(builderTree);

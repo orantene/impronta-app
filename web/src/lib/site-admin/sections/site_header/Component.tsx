@@ -350,7 +350,7 @@ export async function SiteHeaderComponent({
   builderNodeBindings,
 }: SectionComponentProps<SiteHeaderV1>) {
   const {
-    brand,
+    brand = {},
     brandDisplay,
     navItems,
     primaryCta,
