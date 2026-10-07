@@ -399,6 +399,8 @@ export type StartGuestChatResult =
       claimEmailSent: boolean;
       /** Guest-account provisioning outcome (mirrors GuestActivationStatus). */
       guestActivation: "matched" | "created" | "unlinked";
+      /** True when the message joined the guest's existing open thread instead of creating one (F-11). */
+      continuedExisting?: boolean;
     }
   | GuestChatFailure;
 

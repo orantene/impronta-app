@@ -138,6 +138,10 @@
       }
     },
     "guestChat": {
+      "instantAnsPrice": "{title} coûte {price}.",
+      "instantAnsDuration": "{title} dure environ {duration}.",
+      "instantAnsBoth": "{title} : {price}, environ {duration}.",
+      "instantAnsMore": "Vous souhaitez réserver, ou qu'une personne vous réponde ? Partagez votre nom et votre e-mail et nous transmettrons.",
       "noMessagesYet": "Aucun message pour l'instant. Envoyez le premier ci-dessous et l'équipe répondra par e-mail.",
       "replyPlaceholder": "Écrire une réponse…",
       "systemClusterMore": "{count} mises à jour de plus",

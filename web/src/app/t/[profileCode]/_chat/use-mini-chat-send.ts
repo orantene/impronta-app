@@ -24,11 +24,17 @@ imports no backend module.
 import { attachPendingLookImage } from "./attach-pending-look-image";
 import { clearPendingOfferingIntent, peekPendingOfferingIntent } from "./pending-offering-intent";
 import { firstSendPlan } from "./retry-same-inquiry";
+import {
+  buildInstantRows,
+  buildInstantServiceAnswer,
+  firstSendDecision,
+} from "./guest-instant-answer";
 import { clearPendingOffering, pendingOfferingPayload } from "./pending-offering-store";
 import { useRef } from "react";
 import type { MutableRefObject } from "react";
 
 import type {
+  GuestChatOffering,
   GuestIdentityTier,
   GuestThreadMessage,
   StartGuestChatInput,
@@ -62,6 +68,8 @@ export type MiniChatSendArgs = {
   talentProfileCode: string;
   sourcePage: string;
   locale?: string | null;
+  /** The talent's public services: the source for instant price/duration answers (F-09). */
+  offerings?: readonly GuestChatOffering[];
   t: Translator;
   // Unified record (early-row create + contact promotion).
   contactPromoted: boolean;
@@ -225,7 +233,25 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     // when the CTA did not initiate this send.
     const body = draft.trim() || (sendToAgencyPendingRef.current ? DEFAULT_FIRST_BODY : "");
     if (!body) return;
-    if (!firstName.trim() || !EMAIL_RE.test(email.trim())) {
+    const hasContact = Boolean(firstName.trim()) && EMAIL_RE.test(email.trim());
+    // F-09: a price/duration question is answered from the public services with
+    // no identity wall; contact is asked only to book or get a person's reply.
+    if (!hasContact && !inquiryId) {
+      const instant = buildInstantServiceAnswer({
+        text: body,
+        offerings: args.offerings ?? [],
+        locale: args.locale ?? "en",
+        t,
+      });
+      if (firstSendDecision({ hasContact, instantAnswer: instant }) === "answer" && instant) {
+        setRows((cur) => [...cur, ...buildInstantRows(body, instant)]);
+        setDraft("");
+        setError(null);
+        setStage("thread");
+        return;
+      }
+    }
+    if (!hasContact) {
       setStage("gate");
       setError(null);
       return;
@@ -287,7 +313,8 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
       }
       setInquiryId(res.inquiryId);
       setEmailedTo(res.claimEmailSent ? res.guestEmail : null);
-      if (!res.claimEmailSent && res.guestActivation !== "unlinked") {
+      // F-11: a message that joined the existing open thread owes no new sign-in link.
+      if (!res.claimEmailSent && res.guestActivation !== "unlinked" && !res.continuedExisting) {
         setError(
           "Your message was sent, but we couldn't email a sign-in link. Use \"Email me a sign-in link\" below to try again.",
         );
