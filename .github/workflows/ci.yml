@@ -75,6 +75,7 @@ permissions:
 jobs:
   gate:
     name: Structural quality gate
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     # 45, not 25. At 25 this job was killed mid-flight at 25m15s on a main
     # commit. GitHub reports a timeout as `cancelled`, not `failure`, and

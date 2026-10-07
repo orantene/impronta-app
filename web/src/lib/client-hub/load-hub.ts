@@ -17,6 +17,7 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { normaliseFocus, sortByFocus } from "./load-hub-focus";
 
 export type HubAgency = {
   tenantId: string;
@@ -41,6 +42,8 @@ export type HubInquiry = {
   eventLocation: string | null;
   createdAt: string;
   nextActionBy: string | null;
+  /** Profile codes (TAL-...) of the talent on this inquiry. */
+  talentCodes: string[];
 };
 
 export type HubBooking = {
@@ -54,6 +57,8 @@ export type HubBooking = {
   amountCents: number | null;
   currencyCode: string | null;
   paymentStatus: string | null;
+  /** Profile codes (TAL-...) of the talent on this booking. */
+  talentCodes: string[];
 };
 
 export type ClientHubData = {
@@ -91,7 +96,10 @@ const EMPTY: ClientHubData = {
  * One pass over the client's inquiries across ALL tenants, plus the linked
  * booking rows, folded into the hub view model.
  */
-export async function loadClientHubData(userId: string): Promise<ClientHubData> {
+export async function loadClientHubData(
+  userId: string,
+  opts?: { focus?: string },
+): Promise<ClientHubData> {
   if (!userId) return EMPTY;
   try {
     const admin = createServiceRoleClient();
@@ -136,6 +144,52 @@ export async function loadClientHubData(userId: string): Promise<ClientHubData> 
     };
 
     const rows = (data ?? []) as unknown as Row[];
+
+    // Talent codes per inquiry. Scoped to the client's own inquiry ids (from
+    // the filtered query above), so no other client's participants are read.
+    const talentCodesByInquiry = new Map<string, string[]>();
+    if (rows.length > 0) {
+      const { data: parts, error: partsErr } = await admin
+        .from("inquiry_participants")
+        .select("inquiry_id, talent_profiles ( profile_code )")
+        .in("inquiry_id", rows.map((r) => r.id))
+        .eq("role", "talent");
+      if (partsErr) {
+        logServerError("client-hub.loadHubData.participants", partsErr);
+      } else {
+        type PartRow = {
+          inquiry_id: string;
+          talent_profiles: { profile_code: string | null } | { profile_code: string | null }[] | null;
+        };
+        for (const p of (parts ?? []) as unknown as PartRow[]) {
+          const tp = Array.isArray(p.talent_profiles) ? p.talent_profiles[0] : p.talent_profiles;
+          const code = tp?.profile_code?.toUpperCase();
+          if (!code) continue;
+          const list = talentCodesByInquiry.get(p.inquiry_id) ?? [];
+          if (!list.includes(code)) list.push(code);
+          talentCodesByInquiry.set(p.inquiry_id, list);
+        }
+      }
+    }
+
+    // Focus may be an old vanity code; resolve it to the current code.
+    let focus = normaliseFocus(opts?.focus);
+    if (focus) {
+      const { data: alias, error: aliasErr } = await admin
+        .from("talent_profile_code_aliases")
+        .select("talent_profiles ( profile_code )")
+        .ilike("old_code", focus)
+        .maybeSingle();
+      if (aliasErr) {
+        logServerError("client-hub.loadHubData.alias", aliasErr);
+      } else if (alias) {
+        const tp = (alias as unknown as {
+          talent_profiles: { profile_code: string | null } | { profile_code: string | null }[] | null;
+        }).talent_profiles;
+        const cur = (Array.isArray(tp) ? tp[0] : tp)?.profile_code;
+        if (cur) focus = cur.toUpperCase();
+      }
+    }
 
     const agencyMap = new Map<string, HubAgency>();
     const needsYou: HubInquiry[] = [];
@@ -188,6 +242,7 @@ export async function loadClientHubData(userId: string): Promise<ClientHubData> 
           eventLocation: r.event_location,
           createdAt: r.created_at,
           nextActionBy: r.next_action_by,
+          talentCodes: talentCodesByInquiry.get(r.id) ?? [],
         });
       }
       agencyMap.set(r.tenant_id, entry);
@@ -218,6 +273,7 @@ export async function loadClientHubData(userId: string): Promise<ClientHubData> 
           amountCents,
           currencyCode,
           paymentStatus,
+          talentCodes: talentCodesByInquiry.get(r.id) ?? [],
         });
       }
     }
@@ -234,8 +290,8 @@ export async function loadClientHubData(userId: string): Promise<ClientHubData> 
 
     return {
       agencies,
-      needsYou,
-      upcoming: upcoming.slice(0, 12),
+      needsYou: sortByFocus(needsYou, focus),
+      upcoming: sortByFocus(upcoming, focus).slice(0, 12),
       dueByCurrency: [...dueMap.entries()]
         .map(([currency, cents]) => ({ currency, cents }))
         .sort((a, b) => b.cents - a.cents),

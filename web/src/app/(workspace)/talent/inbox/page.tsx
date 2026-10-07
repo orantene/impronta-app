@@ -1,22 +1,11 @@
-import { TalentInboxPrimer } from "@/components/messages-v5/shell/TalentInboxPrimer";
-import type { TalentInboxResult } from "@/components/messages-v5/shell/talent-inbox-fetch";
-import { messagingTalentLoadInbox } from "@/lib/server-actions/messaging-talent";
-
 import { TalentPageRouteSyncer } from "../_talent-page-route-syncer";
 
 export const dynamic = "force-dynamic";
 
+// The list is read by the Messages shell through GET /api/talent/inbox, the
+// SAME read Today and the bell use. A server-started first read used to be
+// streamed in here as a promise (#2574); on production it painted an empty
+// list while the counts (read over GET) said 2. One reader, one rule.
 export default function PlatformTalentInboxPage() {
-  // Server-start the first inbox read (same reader and session guard as
-  // GET /api/talent/inbox). Not awaited: the shell paints at once and its
-  // first load streams in with this promise instead of a second request.
-  const initial: Promise<TalentInboxResult> = messagingTalentLoadInbox({ locationSlug: "all", filter: "all" }).catch(
-    () => ({ ok: false as const, reason: "unavailable" as const }),
-  );
-  return (
-    <>
-      <TalentInboxPrimer initial={initial} />
-      <TalentPageRouteSyncer page="messages" />
-    </>
-  );
+  return <TalentPageRouteSyncer page="messages" />;
 }
