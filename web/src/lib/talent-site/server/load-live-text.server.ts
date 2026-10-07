@@ -3,9 +3,11 @@ import "server-only";
 import { loadVisitSources } from "@/lib/site-admin/builder-node/visit-sources";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
 import { zoneLabel } from "@/lib/talent/location-settings";
 import { readScalarFieldValuesFromCatalog } from "@/lib/talent/scalar-field-values-catalog";
 
+import { effectiveBioI18n } from "@/lib/translation/bios-to-bio-i18n";
 import { cityLabelFromPlaceText } from "@/lib/scheduling/timezone-from-place";
 import type { TalentLiveText } from "../live-text";
 import { buildTalentLiveText, type LiveTextSource } from "../live-text-values";
@@ -20,6 +22,7 @@ type Row = {
   first_name: string | null;
   profile_code: string | null;
   short_bio: string | null;
+  bio_i18n: LocalizedMapLike;
   preferred_locale: string | null;
   home_city_text: string | null;
   talent_profile_taxonomy:
@@ -53,7 +56,7 @@ export async function loadTalentLiveText(
     const { data, error } = await admin
       .from("talent_profiles")
       .select(`
-        display_name, first_name, profile_code, short_bio, preferred_locale, home_city_text,
+        display_name, first_name, profile_code, short_bio, bio_i18n, preferred_locale, home_city_text,
         talent_profile_taxonomy ( is_primary, display_order, taxonomy_terms ( kind, name_i18n ) ),
         talent_service_areas ( service_kind, locations ( display_name_i18n ) )
       `)
@@ -75,12 +78,13 @@ export async function loadTalentLiveText(
     const hint = cityLabelFromPlaceText(row.home_city_text);
     const cityRaw = pick(city, locale?.toLowerCase().startsWith("es") ? "es" : "en", chain) || hint || "";
     const cityLabel = cityRaw ? await canonicalCityLabel(admin, cityRaw, locale ?? "en", [hint]) : "";
-    const [scalars, proof, visit, social, menuCurrency] = await Promise.all([
+    const [scalars, proof, visit, social, menuCurrency, blobs] = await Promise.all([
       readScalarFieldValuesFromCatalog(admin, talentProfileId),
       loadProofInput(admin, talentProfileId),
       loadVisitSources(talentProfileId, locale ?? "en"),
       loadTalentSocialLinks(talentProfileId),
       loadMenuCurrency(admin, talentProfileId),
+      readBlobFieldValuesFromCatalog(admin, talentProfileId),
     ]);
     const src: LiveTextSource = {
       displayName: row.display_name?.trim() || row.first_name?.trim() || "",
@@ -92,6 +96,8 @@ export async function loadTalentLiveText(
       headlineI18n: scalars.headline_i18n ?? null,
       taglineI18n: scalars.tagline_i18n ?? null,
       shortBio: row.short_bio,
+      // TUL-230: the drawer's saved `bios` fill the locales bio_i18n lacks (same read as the locale swaps).
+      bioI18n: effectiveBioI18n(row.bio_i18n, blobs.bios),
       primaryLocale: row.preferred_locale,
       seedKey: row.profile_code,
       // `years_total` from the profile editor wins; the proof loader's read is the fallback.
