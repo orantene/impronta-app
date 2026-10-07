@@ -198,11 +198,6 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   "The language codes a visitor can switch between.":
     "Los códigos de idioma entre los que puede cambiar un visitante.",
   "Flexible gap": "Espacio flexible",
-  "Account button": "Botón de cuenta",
-  "A person icon (or initials once signed in) that opens the visitor's sign-in and account card.":
-    "Un ícono de persona (o las iniciales al iniciar sesión) que abre el inicio de sesión y la tarjeta de cuenta del visitante.",
-  "Only shows once client accounts are switched on for your site":
-    "Solo aparece cuando las cuentas de clientes están activadas en tu sitio",
   "Empty space that pushes whatever follows it further along.":
     "Espacio vacío que empuja hacia el final lo que venga después.",
 

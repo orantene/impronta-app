@@ -18,7 +18,6 @@ import {
   normalizeNavChrome,
 } from "@/lib/site-admin/nav-chrome";
 import { ClusterIcon } from "./header-cluster-icon";
-import { ClientAccountButton } from "@/components/client-account/ClientAccountButton";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import { HeaderAuthArea } from "@/components/site-shell/HeaderAuthArea";
@@ -558,13 +557,6 @@ export async function SiteHeaderComponent({
               {tenantLocaleSettings.supportedLocales.map((code) => (
                 <span key={code} className="site-header__lang-code" data-active={code === locale ? "" : undefined}>{code.toUpperCase()}</span>
               ))}
-            </div>
-          ) : null;
-        case "account":
-          // Client account: rendered only when the host flag put `account` on siteChrome.
-          return props.siteChrome?.account ? (
-            <div key={key} {...attrs} className="site-header__ritem site-header__account">
-              <ClientAccountButton variant="header" locale={locale} />
             </div>
           ) : null;
         case "section_switcher": {

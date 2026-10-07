@@ -2,7 +2,6 @@ import "server-only";
 
 import { anyDemoTalent, DEMO_SITE_FOOTER } from "@/lib/talent/demo-talent";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { resolveClientAccountMount } from "@/lib/client-account/gate";
 
 /** Demo talent (fictional theme example): true when this profile is a demo. */
 export async function loadMaxSiteIsDemo(talentProfileId: string): Promise<boolean> {
@@ -70,6 +69,6 @@ export function withHeaderSiteChrome(
   const list = locales.length > 1 ? locales.slice(0, 4) : [];
   return {
     ...(sectionProps as Record<string, unknown>),
-    siteChrome: { demo: isDemo, ...(resolveClientAccountMount("talent").headerItem ? { account: true } : {}), locales: list, ...(list.length > 1 && hrefs ? { hrefs } : {}) },
+    siteChrome: { demo: isDemo, locales: list, ...(list.length > 1 && hrefs ? { hrefs } : {}) },
   };
 }

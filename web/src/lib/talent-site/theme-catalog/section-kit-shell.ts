@@ -220,42 +220,12 @@ export function buildKitShell(
  * rich `site_header` landmark + footer) with kit provenance stamped on. The
  * footer copyright honours `year` so a Design payload can defer it.
  */
-/** Insert `{ type: "account" }` after the `language` item of the standard header regions (idempotent). */
-export function withAccountItem(header: BuilderNode | undefined): BuilderNode | undefined {
-  if (!header) return header;
-  const props = (header.props ?? {}) as Record<string, unknown>;
-  const sectionProps = (props.sectionProps ?? {}) as Record<string, unknown>;
-  const regions = sectionProps.regions as Record<string, unknown> | undefined;
-  if (!regions || typeof regions !== "object") return header;
-  const out: Record<string, unknown> = {};
-  const hasAccount = Object.values(regions).some(
-    (items) => Array.isArray(items) && items.some((i) => (i as { type?: string } | null)?.type === "account"),
-  );
-  if (hasAccount) return header;
-  let done = false;
-  for (const [zone, items] of Object.entries(regions)) {
-    if (!Array.isArray(items)) {
-      out[zone] = items;
-      continue;
-    }
-    const at = items.findIndex((i) => (i as { type?: string } | null)?.type === "language");
-    if (!done && at >= 0) {
-      out[zone] = [...items.slice(0, at + 1), { type: "account", responsive: { mobile: "show" } }, ...items.slice(at + 1)];
-      done = true;
-    } else out[zone] = items;
-  }
-  return { ...header, props: { ...props, sectionProps: { ...sectionProps, regions: out } } } as BuilderNode;
-}
-
 export function buildKitStandardShell(
   makeId: KitIdFactory,
   opts: Pick<
     KitShellOptions,
     "displayName" | "logoUrl" | "homeHref" | "year" | "navChrome" | "navLinks" | "primaryCtaLabel"
-  > & {
-    /** Add the client `account` header item right after `language` (renders only when the flag is on). */
-    accountItem?: boolean;
-  },
+  >,
 ): BuilderNode[] {
   const [rawHeader, footer, ...rest] = buildDefaultShellTree(
     { displayName: opts.displayName, logoUrl: opts.logoUrl, homeHref: opts.homeHref },
@@ -266,10 +236,6 @@ export function buildKitStandardShell(
   // its own navigation while wearing the platform header (logo, ES/EN, CTA,
   // mobile menu).
   const header = ((): BuilderNode | undefined => {
-    const base = opts.accountItem ? withAccountItem(rawHeader) : rawHeader;
-    return restyleHeader(base);
-  })();
-  function restyleHeader(rawHeader: BuilderNode | undefined): BuilderNode | undefined {
     if (!rawHeader) return rawHeader;
     const hasLinks = !!opts.navLinks && opts.navLinks.length > 0;
     const hasChrome = !!opts.navChrome && opts.navChrome !== "top_bar";
@@ -314,7 +280,7 @@ export function buildKitStandardShell(
         },
       },
     } as BuilderNode;
-  }
+  })();
   const withYear = (node: BuilderNode): BuilderNode => {
     if (opts.year === undefined || !("children" in node) || !Array.isArray(node.children)) {
       return node;

@@ -12,7 +12,6 @@ import type { TalentSiteSwitches } from "@/lib/talent/site-switches";
 import { TalentInquiryFormSheet } from "./TalentInquiryFormSheet";
 import { TalentIntakeNotice } from "./TalentIntakeNotice";
 import { TalentProfileChatLauncherMount } from "./TalentProfileChatLauncherMount";
-import { ClientAccountDock } from "@/components/client-account/ClientAccountDock";
 
 type LauncherProps = ComponentProps<typeof TalentProfileChatLauncherMount>;
 
@@ -39,7 +38,6 @@ export function TalentIntakeSurfaces({
   const locale = launcher.locale ?? "en";
   return (
     <>
-      <ClientAccountDock locale={locale} />
       {notice ? (
         <TalentIntakeNotice text={intakeNoticeCopy(notice, locale)} closeLabel={locale === "es" ? "Cerrar" : "Close"} />
       ) : null}
