@@ -44,6 +44,44 @@ export function withShellDefaults(typeKey: string, props: Record<string, unknown
 
 type TreeNodeLike = { kind?: string; props?: Record<string, unknown>; children?: unknown };
 
+function hasText(v: unknown): boolean {
+  return typeof v === "string" && v.replace(/[\u200B-\u200D\uFEFF]/g, "").trim().length > 0;
+}
+
+/**
+ * Nodes that render a real <h1> from their own props instead of a child heading
+ * (render.tsx): a hero carousel in shared content mode (`sharedContent.headingLead`
+ * / `headingAccent`, ~5085) and `hero_search` (`headline`, ~5712). Per-slide hero
+ * carousels keep their freeform slide headings, found by the child walk.
+ */
+function nodeEmitsH1FromProps(n: TreeNodeLike): boolean {
+  const p = n.props;
+  if (!p) return false;
+  if (n.kind === "carousel" && p.variant === "hero") {
+    const sc = p.sharedContent as { headingLead?: unknown; headingAccent?: unknown } | undefined;
+    return !!sc && (hasText(sc.headingLead) || hasText(sc.headingAccent));
+  }
+  if (n.kind === "hero_search") return hasText(p.headline);
+  return false;
+}
+
+function isLevelOne(level: unknown): boolean {
+  return level === 1 || level === "1";
+}
+
+/**
+ * A heading supplies text when it has authored text, a live line (`liveText`:
+ * a fresh Maison v2 hero headline is empty until render, then follows her
+ * profile), or a field binding for `text`.
+ */
+function headingHasVisibleText(props: Record<string, unknown> | undefined): boolean {
+  if (!props) return false;
+  if (typeof props.text === "string" && props.text.replace(/[\u200B-\u200D\uFEFF]/g, "").trim()) return true;
+  if (typeof props.liveText === "string" && props.liveText.trim()) return true;
+  const fb = props.fieldBindings as { text?: unknown } | undefined;
+  return typeof fb?.text === "string" && fb.text.trim().length > 0;
+}
+
 /**
  * True when the builder tree carries a level-1 heading with text anywhere,
  * including inside hero carousel slides. Hero/carousel headings count as H1.
@@ -54,7 +92,8 @@ export function builderTreeHasH1(tree: unknown): boolean {
   while (stack.length > 0) {
     const n = stack.pop() as TreeNodeLike | null;
     if (!n || typeof n !== "object") continue;
-    if (n.kind === "heading" && n.props?.level === 1 && typeof n.props.text === "string" && n.props.text.trim()) return true;
+    if (nodeEmitsH1FromProps(n)) return true;
+    if (n.kind === "heading" && isLevelOne(n.props?.level) && headingHasVisibleText(n.props)) return true;
     if (Array.isArray(n.children)) stack.push(...n.children);
   }
   return false;
