@@ -232,7 +232,7 @@ function MoneyHomePane(props: {
               : [money(owedCents, cur), ...owedSummary.others.map((o) => money(o.cents, o.currency))].join(" + ")
           }
           tone={owedCents > 0 ? "warn" : undefined}
-          lines={[
+          lines={props.clients == null ? "" : [
             outstandingCount > 0
               ? `${outstandingCount} ${t(outstandingCount === 1 ? "balance" : "balances")}${
                   view.overdueCents > 0 ? ` · ${money(view.overdueCents, cur)} ${t("overdue")}` : ""

@@ -21,6 +21,7 @@ import { COLORS, FONTS, useAdminShell, RICH_INQUIRIES } from "./state";
 import { MOCK_CONVERSATIONS } from "./talent/shared/conversations-1";
 import { ageLabel } from "./messages/messages-shared";
 import { useDashboardText } from "./dashboard-i18n";
+import { formatNotificationAge, localizeNotificationText } from "./notification-localize";
 import type { UserNotification } from "./data-bridge";
 import {
   hubClickTarget,
@@ -233,9 +234,9 @@ export function NotificationsBell({
           id: `notif-${n.id}`,
           bucket: bucketForKind(n.kind),
           icon: iconForKind(n.kind),
-          title: n.title,
-          body: n.body ?? "",
-          whenLabel: n.ts,
+          title: localizeNotificationText(n.title, copy.locale),
+          body: localizeNotificationText(n.body ?? "", copy.locale),
+          whenLabel: formatNotificationAge(n.createdAt, copy.locale) || n.ts,
           cta: hubCta(n),
         });
       }

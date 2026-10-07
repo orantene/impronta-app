@@ -375,7 +375,12 @@ export function MyWebsiteCard({
               onClick={() => void copyAddress()}
               className="grid h-11 w-11 place-items-center rounded-xl border border-admin-border-soft text-[14px]"
             >
-              {copied ? "✓" : "⧉"}
+              {copied ? "✓" : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="9" y="9" width="11" height="11" rx="2" />
+                  <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+                </svg>
+              )}
             </button>
             {publicSiteUrl ? (
               <Link

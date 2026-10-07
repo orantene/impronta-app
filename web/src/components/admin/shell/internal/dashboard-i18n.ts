@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { NOTIFICATIONS_ES_TEXT } from "./dashboard-i18n-notifications";
 import { QUOTE_ES_TEXT } from "./dashboard-i18n-quote";
 import { RAIL_ES_TEXT } from "./dashboard-i18n-rail";
 import { TALENT_EDITORS_ES_TEXT } from "./dashboard-i18n-talent-editors";
@@ -731,7 +732,7 @@ const ES_TEXT: Record<string, string> = {
   "New": "Nuevo",
   "New inquiry": "Nueva consulta",
   "Capture a lead from a client": "Captura un lead de un cliente",
-  "New booking": "Nueva reserva",
+  "New booking": "Nueva cita",
   "Confirmed job — skip the inquiry": "Trabajo confirmado, sin pasar por consulta",
   "Add talent": "Agregar talento",
   "Create a roster profile": "Crear perfil en la lista",
@@ -972,7 +973,6 @@ const ES_TEXT: Record<string, string> = {
   "← Back to categories": "← Volver a categorías",
   "No matching types.": "Sin tipos coincidentes.",
   "Done": "Listo",
-
   // Skill picker
   "← Back": "← Volver",
   "Pick a skill": "Elegir habilidad",
@@ -997,7 +997,6 @@ const ES_TEXT: Record<string, string> = {
   "Sending…": "Enviando...",
   "Send suggestion": "Enviar sugerencia",
   "✓ Skill suggestion sent. We'll review it and let you know.": "✓ Sugerencia enviada. La revisaremos y te avisaremos.",
-
   // Verification dialog
   "You're staking your agency's reputation on this assessment. Verified skills are surfaced to clients as trusted; only verify what you've witnessed firsthand or have evidence for.": "Estás respaldando esta evaluación con la reputación de tu agencia. Las habilidades verificadas se muestran a clientes como confiables; verifica solo lo que hayas visto de primera mano o puedas comprobar.",
   "Verifying at level": "Verificando en nivel",
@@ -3690,6 +3689,7 @@ const ES_TEXT: Record<string, string> = {
 
   // ── Lane R · profile shell: extras editors, photos, commercial terms, core editors ──
   ...TALENT_EDITORS_ES_TEXT,
+  ...NOTIFICATIONS_ES_TEXT,
 
 };
 
