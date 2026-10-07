@@ -43,6 +43,7 @@ import {
   type StripeAction,
 } from "@/lib/stripe/webhook-routing";
 import { getStripeFor, isStripeConfigured, type StripeAccountKey } from "@/lib/stripe/client";
+import { eventModeMismatch } from "@/lib/stripe/key-mode";
 import { syncStripeSubscriptionToDb } from "@/lib/stripe/workspace-billing";
 import { syncTalentSubscriptionToDb } from "@/lib/stripe/talent-billing";
 import {
@@ -762,6 +763,14 @@ export async function handleStripeWebhook(
   if (!event) {
     logServerError("stripe-webhook.verify", lastVerifyError);
     return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
+  }
+
+  // TUL-143: a test event on a live key (or vice versa) is acknowledged and
+  // ignored so Stripe does not retry it. No secrets are logged.
+  const modeKey = account === "mx" ? process.env.STRIPE_MX_SECRET_KEY : process.env.STRIPE_SECRET_KEY;
+  if (eventModeMismatch(event.livemode, modeKey)) {
+    logServerError("stripe-webhook.livemode-mismatch", `ignored ${event.id} ${event.type} lane=${account} livemode=${event.livemode}`);
+    return NextResponse.json({ received: true, ignored: "livemode_mismatch" });
   }
 
   // Idempotency: claim the event id, short-circuit duplicates.
