@@ -58,7 +58,7 @@ function sh(cmd) {
 /** Newest commit on main whose structural gate run concluded success. */
 export function resolveLastGreenMainGateSha() {
   const out = sh(
-    `gh run list --branch main --workflow "${MAIN_GATE_WORKFLOW}" --status success --limit 1 --json headSha --jq '.[0].headSha // ""'`,
+    `gh run list --branch main --workflow "${MAIN_GATE_WORKFLOW}" --event push --status success --limit 1 --json headSha --jq '.[0].headSha // ""'`,
   );
   return out || null;
 }

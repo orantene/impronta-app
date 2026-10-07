@@ -95,3 +95,33 @@ export function overlayHasProp(
   const v = overlay?.[locale]?.[prop];
   return typeof v === "string" && v.trim().length > 0;
 }
+
+type OverlayCarrier = { i18n?: unknown; props?: Record<string, unknown> | null; children?: unknown };
+
+/**
+ * A tree written straight to the database (a content script, a seed, a restore) never
+ * went through `validate.ts`, so it carries a translation overlay only on `props.i18n`
+ * (the source of truth) while the renderer reads `node.i18n`. The page then shows the
+ * base language in every locale. Mirror `props.i18n` onto `node.i18n` where the node has
+ * none; never overwrite an overlay already on the node. Pure and immutable: untouched
+ * subtrees keep their identity, and the same array comes back when nothing changed.
+ */
+export function mirrorPropsI18nOntoNodes<T>(nodes: readonly T[]): T[] {
+  let changed = false;
+  const out = nodes.map((node) => {
+    const n = node as unknown as OverlayCarrier | null;
+    if (!n || typeof n !== "object") return node;
+    let next: OverlayCarrier = n;
+    if (n.i18n === undefined && n.props && typeof n.props === "object") {
+      const overlay = normalizeNodeI18nOverlay(n.props.i18n);
+      if (overlay) next = { ...next, i18n: overlay };
+    }
+    if (Array.isArray(n.children) && n.children.length > 0) {
+      const kids = mirrorPropsI18nOntoNodes(n.children as unknown[]);
+      if (kids !== n.children) next = { ...next, children: kids };
+    }
+    if (next !== n) changed = true;
+    return next as unknown as T;
+  });
+  return changed ? out : (nodes as T[]);
+}
