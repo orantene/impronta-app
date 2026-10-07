@@ -1,5 +1,6 @@
 import type { TalentAgencyRow } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import type { EarningsRow } from "@/components/admin/shell/internal/state/types";
+import { formatDashboardMoney } from "@/lib/money/dashboard-money-format";
 import type { TalentEarnings, TalentEarningsRow } from "@/lib/talent/earnings-types";
 
 export type { TalentEarnings, TalentEarningsRow } from "@/lib/talent/earnings-types";
@@ -10,8 +11,8 @@ export type { TalentEarnings, TalentEarningsRow } from "@/lib/talent/earnings-ty
  * Renders `cents` in the booking's ACTUAL currency (`currencyCode`, an
  * ISO-4217 code from the commission snapshot — e.g. MXN, ARS, USD, GBP, EUR),
  * NOT a hardcoded euro. `Intl.NumberFormat` picks the right symbol/code per
- * currency: MXN → "MX$800", USD → "$800", EUR → "€800", GBP → "£800",
- * ARS → "ARS 800". This is what keeps a MXN booking from being mislabeled €
+ * currency: MXN → "$800 MXN", USD → "$800 USD", EUR → "€800 EUR", GBP → "£800 GBP",
+ * ARS → "$800 ARS". This is what keeps a MXN booking from being mislabeled €
  * (or, paired with the no-EUR-filter loader, dropped to 0) on the dashboard.
  *
  * Falls back to USD when the code is missing/blank (USD-first: the platform
@@ -19,17 +20,8 @@ export type { TalentEarnings, TalentEarningsRow } from "@/lib/talent/earnings-ty
  * rejects an unknown code, so a bad code never throws in render.
  */
 export function formatMoneyCents(cents: number, currencyCode?: string | null): string {
-  const code = (currencyCode || "USD").toUpperCase();
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: code,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(cents / 100);
-  } catch {
-    return `${code} ${Math.round(cents / 100).toLocaleString("en-US")}`;
-  }
+  // DS-17: one dashboard format, "$800 MXN" (see dashboard-money-format.ts).
+  return formatDashboardMoney(cents / 100, currencyCode, "en", { wholeUnits: true });
 }
 
 /**
