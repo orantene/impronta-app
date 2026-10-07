@@ -145,7 +145,7 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   "A newer version is live. Reload to keep editing.": "Hay una versión más reciente. Recargá para seguir editando.",
   Reload: "Recargar",
   "A newer version was published while this was open. Reload and try again.":
-    "Se publicó una versión más reciente mientras esto estaba abierto. Recargá e intentá de nuevo.",
+    "Se publicó una versión más reciente mientras esto estaba abierto. Recarga e intenta de nuevo.",
   // Talent avatar account menu — keep out of grandfathered dashboard-i18n.ts
   // (size ratchet 3842). IdentityBar AccountMenuItem keys copy.t(sub).
   "Run your own roster. Free plan, 1 minute.": "Administra tu propio roster. Plan gratis, 1 minuto.",
