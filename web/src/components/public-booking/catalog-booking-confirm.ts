@@ -94,6 +94,7 @@ export async function runCatalogConfirmWrite(input: {
       ...(input.brief ? { brief: input.brief } : {}),
       reservation,
       captchaToken: input.captchaToken,
+      locale: input.locale,
       sourcePage: typeof window !== "undefined" ? window.location.pathname : null,
     });
   });

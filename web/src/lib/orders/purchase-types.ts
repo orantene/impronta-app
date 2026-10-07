@@ -128,6 +128,11 @@ export type PurchaseInput = {
     poolId?: string | null;
     bufferBeforeSeconds?: number;
     bufferAfterSeconds?: number;
+    /**
+     * The talent's IANA zone (`talent_booking_hours.timezone`). Stamped on the
+     * booking so the appointment reads in the talent's clock, never "UTC".
+     */
+    timezone?: string | null;
   } | null;
   /**
    * Several people in one purchase (bridal group, couples massage). The

@@ -44,6 +44,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { hoursRowHasWorkingHours, loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { instantReadiness, readinessGaps, takesMoneyOnline } from "@/lib/talent/accepting-readiness";
 import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
+import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
 import { loadPlanAllowsInstant } from "@/lib/talent/plan-instant.server";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { loadLatestPolicyVersionId } from "@/lib/talent-policies/public";
@@ -443,6 +444,10 @@ export async function placeInstantPurchase(
           poolId,
           bufferBeforeSeconds,
           bufferAfterSeconds,
+          timezone:
+            typeof hoursRow?.timezone === "string" && isValidIanaTimeZone(hoursRow.timezone)
+              ? hoursRow.timezone
+              : null,
         }
       : null,
     // Several people (couples). Reserved with the primary slot as one set.

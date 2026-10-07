@@ -26,6 +26,8 @@ import { isDirectTalentChannel } from "@/lib/talent/accepting-readiness";
 import { runResolvedInstantBook } from "@/lib/scheduling/instant-book-run";
 import { resolveGuestSessionId } from "@/lib/guest/guest-session";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { loadTalentPreferredLocale } from "@/lib/site-admin/server/talent-locale";
+import { normalizeBookingLocale, resolveBookingLocale } from "@/lib/scheduling/booking-locale";
 import { unwindFailedCheckout } from "@/lib/orders/unwind-failed-checkout";
 import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
 
@@ -44,6 +46,18 @@ export async function createInstantBookingAction(
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
+    // TUL-93: the language the guest was browsing in (the sheet's own locale),
+    // then the talent's preferred locale, then the platform default. Stamped on
+    // the inquiry so the confirmation email renders in it.
+    const requestLocale = await getRequestLocale();
+    const bookingLocale = resolveBookingLocale({
+      browsing: payload.locale,
+      talentPreferred: normalizeBookingLocale(payload.locale)
+        ? null
+        : await loadTalentPreferredLocale(payload.talentProfileId),
+      platformDefault: requestLocale,
+    });
 
     const requireAccount = await loadOfferingRequireAccount(payload.offeringId);
     const actor = await resolveInstantBookActor({
@@ -112,7 +126,7 @@ export async function createInstantBookingAction(
           openThread: true,
           guestSessionId: await resolveGuestSessionId(),
           brief: payload.brief ?? null,
-          locale: await getRequestLocale(),
+          locale: bookingLocale,
         });
 
         if (!booked.ok) {
@@ -177,7 +191,7 @@ export async function createInstantBookingAction(
             successUrl: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
             cancelUrl: `${origin}/checkout/cancel`,
             description: "Booking deposit",
-            locale: await getRequestLocale(),
+            locale: bookingLocale,
           });
           if (!session.ok) {
             logServerError(

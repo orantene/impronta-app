@@ -1,5 +1,6 @@
 import "server-only";
 
+import { bookingConfirmedClient, loadBookingConfirmedView } from "./catalog-audiences-booking";
 import * as React from "react";
 import ClientInquiryReceived from "../../../emails/client/InquiryReceived";
 import ClientReplyReady from "../../../emails/client/ReplyReady";
@@ -227,8 +228,8 @@ const BOOKING_CONFIRMED_CLIENT: CatalogEntry = {
   defaultChannels: ["email"],
   required: false,
   triggers: ["booking.confirmed"],
-  hydrate: loadInquiryView,
-  resolveAudience: clientOrGuest,
+  hydrate: loadBookingConfirmedView,
+  resolveAudience: bookingConfirmedClient,
   email: {
     templateId: "client.booking_confirmed",
     subject: () => "Booking confirmed",
@@ -258,7 +259,7 @@ const BOOKING_CONFIRMED_TALENT: CatalogEntry = {
   defaultChannels: ["email", "in_app"],
   required: false,
   triggers: ["booking.confirmed"],
-  hydrate: loadInquiryView,
+  hydrate: loadBookingConfirmedView,
   resolveAudience: allRosterTalent,
   // TUL-93: the talent is told in-app too ("Nueva cita"), not only by email.
   in_app: {
