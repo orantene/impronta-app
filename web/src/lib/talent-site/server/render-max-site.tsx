@@ -442,8 +442,7 @@ async function renderMaxSiteDocument(args: {
   const pageNeedsTalentOfferings =
     pageNeedsServicesCatalog || pageNeedsPortfolio || pageNeedsNextFreeChip;
 
-  // Codex P2: catalogBookingLive=false mounts demo booking on published free vanity.
-  // Own-work Path A uses platform hub when no managing agency — same as Agenda hub pick.
+  // Codex P2: catalogBookingLive=false mounts demo booking on published free vanity; own-work Path A uses the platform hub (like Agenda).
   let bookingTenantId: string | null = tenantId;
   if (!bookingTenantId && !draftPreview && pageNeedsTalentOfferings) {
     bookingTenantId = (await getPlatformHubTenant())?.tenantId ?? null;
@@ -473,8 +472,7 @@ async function renderMaxSiteDocument(args: {
         ? loadBuilderComponentsForTenant(tenantId)
         : Promise.resolve({}),
       loadPlatformDefaultTheme("talent"),
-      // ABTEST-1 — stable per-visitor seed for any A/B CTA/form nodes on the
-      // talent's personal Max site.
+      // ABTEST-1 — stable per-visitor seed for any A/B CTA/form nodes on the talent's personal Max site.
       resolveExperimentRenderContext({ tenantId, surface: "talentSite" }),
       resolveCaptcha && bookingTenantId
         ? resolveTenantCaptcha(bookingTenantId)
