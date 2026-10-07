@@ -8472,6 +8472,53 @@
             "connect": "Cuentas de Connect",
             "products": "Productos de nivel",
             "coupons": "Cupones de descuento"
+          },
+          "wiring": {
+            "title": "Conexión de pagos",
+            "intro": "Revisión rápida de claves, secretos de webhook y dinero en curso. Solo muestra nombres, modos y conteos, nunca una clave.",
+            "readFailed": "No se pudo leer: {parts}. Esas filas pueden ser incorrectas.",
+            "status": {
+              "ok": "Correcto",
+              "warn": "Revisar",
+              "error": "Roto"
+            },
+            "rows": {
+              "keyModes": {
+                "label": "Modos de clave de Stripe",
+                "detail": "Todas las claves definidas usan el mismo modo."
+              },
+              "secret": {
+                "label": "{name}",
+                "set": "Definido",
+                "unset": "No definido"
+              },
+              "held": {
+                "label": "Pagos retenidos",
+                "detail": "{count} retenidos ahora."
+              },
+              "stuck": {
+                "label": "Solicitudes de pago atascadas",
+                "detail": "{count} esperando pago por más de 24 horas."
+              },
+              "laneUs": {
+                "label": "Último webhook de EE. UU."
+              },
+              "laneMx": {
+                "label": "Último webhook de MX"
+              },
+              "lane": {
+                "detail": "Horas desde el último evento: {hours}",
+                "none": "Aún no hay eventos registrados."
+              }
+            },
+            "fix": {
+              "keyModes": "Haz que todas las claves de Stripe en Vercel usen el mismo modo (todas de prueba o todas reales) y vuelve a desplegar.",
+              "secret": "Agrega este secreto de firma en Vercel desde el endpoint de webhook de Stripe que corresponde y vuelve a desplegar.",
+              "mxConnect": "Agrega el secreto de firma de MX Connect en Vercel. Mientras tanto, los eventos de MX Connect fallan la verificación de firma y los pagos retenidos solo se liberan en el cron diario.",
+              "held": "Abre la pestaña Ingresos para ver qué pagos están retenidos y por qué.",
+              "stuck": "Revisa estas transacciones en la lista de reservas; quizá el cliente necesite un nuevo enlace de pago.",
+              "lane": "Los periodos tranquilos son normales. Si esperas tráfico, revisa el endpoint en el panel de Stripe."
+            }
           }
         },
         "revenue": {

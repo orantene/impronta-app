@@ -8472,6 +8472,53 @@
             "connect": "Connect accounts",
             "products": "Tier products",
             "coupons": "Discount coupons"
+          },
+          "wiring": {
+            "title": "Payments wiring",
+            "intro": "Quick checks on keys, webhook secrets and money in flight. Shows names, modes and counts only, never a key.",
+            "readFailed": "Could not read: {parts}. Those rows may be wrong.",
+            "status": {
+              "ok": "OK",
+              "warn": "Check",
+              "error": "Broken"
+            },
+            "rows": {
+              "keyModes": {
+                "label": "Stripe key modes",
+                "detail": "All set keys use the same mode."
+              },
+              "secret": {
+                "label": "{name}",
+                "set": "Set",
+                "unset": "Not set"
+              },
+              "held": {
+                "label": "Held payouts",
+                "detail": "{count} held right now."
+              },
+              "stuck": {
+                "label": "Stuck payment requests",
+                "detail": "{count} waiting on payment for over 24 hours."
+              },
+              "laneUs": {
+                "label": "Last US webhook"
+              },
+              "laneMx": {
+                "label": "Last MX webhook"
+              },
+              "lane": {
+                "detail": "Hours since the last event: {hours}",
+                "none": "No events recorded yet."
+              }
+            },
+            "fix": {
+              "keyModes": "Make every Stripe key in Vercel use the same mode (all test or all live), then redeploy.",
+              "secret": "Add this signing secret in Vercel from the matching Stripe webhook endpoint, then redeploy.",
+              "mxConnect": "Add the MX Connect signing secret in Vercel. Until then MX Connect events fail signature checks and held payouts only release in the daily cron.",
+              "held": "Open the Revenue tab to see which payouts are held and why.",
+              "stuck": "Check these transactions in the booking list; the client may need a fresh payment link.",
+              "lane": "Quiet periods are normal. If you expect traffic, check the endpoint in the Stripe dashboard."
+            }
           }
         },
         "revenue": {
