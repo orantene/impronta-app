@@ -42,6 +42,11 @@ import {
   resolveEditSessionToken,
   type EditSessionEnv,
 } from "./edit-session-token";
+import {
+  PRESENCE_HEARTBEAT_MS,
+  dedupeEditorsByUser,
+  isPeerAlive,
+} from "./presence-liveness";
 
 // ── types ──────────────────────────────────────────────────────────────────────
 
@@ -61,9 +66,9 @@ export interface EditorPresence {
 }
 
 interface PresenceContextValue {
-  /** All editor tabs on the channel, self first. */
+  /** One entry PER USER on the channel, self first (avatars). Tabs of one user collapse. */
   editors: EditorPresence[];
-  /** Editors other than this tab (other people AND this user's other tabs). */
+  /** Every other live TAB (other people AND this user's other tabs; not deduped). */
   others: EditorPresence[];
   /** Whether the Realtime channel is subscribed (false = degraded/offline). */
   online: boolean;
@@ -271,6 +276,7 @@ export function PresenceProvider({
     [tabId, selfName, selfId],
   );
 
+  // RAW list: one entry per live tab. Deduped per user only in `value` below.
   const [editors, setEditors] = useState<EditorPresence[]>([self]);
   const [online, setOnline] = useState(false);
 
@@ -282,11 +288,18 @@ export function PresenceProvider({
 
   // Channel ref so we can re-track when async auth resolves (selfId/selfName)
   // without tearing down the Realtime subscription.
+  const lastStateRef = useRef<
+    Record<
+      string,
+      Array<{ tabId?: string; userId?: string; name?: string; ts?: number }>
+    >
+  >({});
   const channelRef = useRef<{
     track: (payload: {
       tabId: string;
       userId: string | null;
       name: string;
+      ts: number;
     }) => Promise<unknown>;
   } | null>(null);
 
@@ -303,15 +316,19 @@ export function PresenceProvider({
     (
       presenceState: Record<
         string,
-        Array<{ tabId?: string; userId?: string; name?: string }>
+        Array<{ tabId?: string; userId?: string; name?: string; ts?: number }>
       >,
     ): EditorPresence[] => {
+      const now = Date.now();
       // One entry per presence KEY (= tab). Self always included + first.
       const seen = new Map<string, EditorPresence>();
       seen.set(selfRef.current.id, selfRef.current);
 
       for (const [key, tracks] of Object.entries(presenceState)) {
         const track = tracks[0];
+        // A closed tab's entry lingers until its socket times out; its stale
+        // heartbeat tells us it is gone (TUL-81).
+        if (!isPeerAlive(track?.ts, now)) continue;
         const id =
           (typeof track?.tabId === "string" && track.tabId) || key || null;
         if (!id || seen.has(id)) continue;
@@ -358,14 +375,16 @@ export function PresenceProvider({
       config: { presence: { key: tabId } },
     });
     channelRef.current = channel;
+    lastStateRef.current = {};
 
     channel
       .on("presence", { event: "sync" }, () => {
         try {
           const state = channel.presenceState() as Record<
             string,
-            Array<{ tabId?: string; userId?: string; name?: string }>
+            Array<{ tabId?: string; userId?: string; name?: string; ts?: number }>
           >;
+          lastStateRef.current = state;
           setEditors(buildEditorList(state));
         } catch {
           // ignore
@@ -379,6 +398,7 @@ export function PresenceProvider({
               tabId,
               userId: selfRef.current.userId,
               name: selfRef.current.name,
+              ts: Date.now(),
             });
           } catch {
             // ignore — presence is decorative
@@ -392,7 +412,36 @@ export function PresenceProvider({
         }
       });
 
+    // Heartbeat: refresh our own stamp, and re-evaluate peers so a silent
+    // (closed) tab drops out within the TTL even if no sync event arrives.
+    const beat = window.setInterval(() => {
+      try {
+        void channel
+          .track({
+            tabId,
+            userId: selfRef.current.userId,
+            name: selfRef.current.name,
+            ts: Date.now(),
+          })
+          .catch(() => undefined);
+        setEditors(buildEditorList(lastStateRef.current));
+      } catch {
+        // ignore
+      }
+    }, PRESENCE_HEARTBEAT_MS);
+    // Say goodbye immediately when this tab goes away.
+    const bye = () => {
+      try {
+        void channel.untrack();
+      } catch {
+        // ignore
+      }
+    };
+    window.addEventListener("pagehide", bye);
+
     return () => {
+      window.clearInterval(beat);
+      window.removeEventListener("pagehide", bye);
       setOnline(false);
       channelRef.current = null;
       try {
@@ -415,13 +464,15 @@ export function PresenceProvider({
         tabId,
         userId: self.userId,
         name: self.name,
+        ts: Date.now(),
       })
       .catch(() => undefined);
   }, [self.userId, self.name, tabId, online]);
 
   const value = useMemo<PresenceContextValue>(() => {
     const others = editors.filter((e) => !e.isSelf);
-    return { editors, others, online };
+    // One avatar per user: two tabs of the same account count once (TUL-81).
+    return { editors: dedupeEditorsByUser(editors), others, online };
   }, [editors, online]);
 
   return (
