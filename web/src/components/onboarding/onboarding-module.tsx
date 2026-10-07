@@ -571,7 +571,7 @@ export function OnboardingModule({
       <ArrivalFailed
         t={t}
         message={state.buildFailed}
-        editorHref={path === "talent" ? "/talent/today" : undefined}
+        editorHref={path === "talent" ? "/talent/today" : "/"}
         busy={state.busy}
         onRetry={() => {
           dispatch({ type: "buildRetry" });
