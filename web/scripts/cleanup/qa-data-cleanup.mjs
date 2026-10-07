@@ -19,12 +19,18 @@
 //       - 5 cancelled test bookings (ids starting e3a272da, 6fc83d42, 7ff1b34e,
 //         61a33e00, 7d479e6b; must be status=cancelled, hers)
 //       - inquiries linked to her where contact name starts with "QA " or equals
-//         "Tip Oferta"/"To", or email is orantenemx@gmail.com or ends @impronta.test
+//         "Tip Oferta"/"To", or email ends @impronta.test
 //         (+ their threads/messages/offers/etc. and user_notifications raised by them)
-//       - her talent_client_records / customers that match the same patterns
+//       - her talent_client_records / customers (customers.owner_talent_profile_id
+//         = her, NOTHING else: the hub tenant is shared with 306 talents) that
+//         match the same patterns
 //       Her profile, services, site, settings and every non-matching client are
-//       never selected. Inquiries from other names (e.g. "Ana Prueba") are listed
-//       as "NOT TOUCHED" so you can decide.
+//       never selected. EXCLUDE_IDS (Oran's orantenemx@gmail.com test thread:
+//       inquiry f138f2e8..., customer 961e18ff...) are never roots and the run
+//       aborts if the closure reaches them. Her "Ana ..." inquiries are printed
+//       under "Proposed: test data" and are NEVER deleted by --apply.
+//   (a2) EXPLICIT_HUB_ROOTS: two hub-tenant rows deliberately requested by Oran
+//       (agency_bookings QA Test TUL-92, one order); each is verified to exist first.
 //   (b) throwaway accounts: TAL-93937 (qa-fresh-20261004-e@impronta.test),
 //       TAL-93943 (orantene+tulafresh1007@gmail.com), workspace qa-fresh-studio-2
 //       (orantene+tulabiz1007@gmail.com): auth users, profiles, sites, domains,
@@ -34,8 +40,11 @@
 // real foreign-key graph (rows that would be deleted by cascade, or that block
 // the delete via NO ACTION/RESTRICT, are included; SET NULL links are left).
 // --apply sends ONE script (BEGIN ... DELETE children-first ... COMMIT); any error
-// rolls everything back. Safety guard: it aborts if the expansion would reach
-// Jorgelina's profile, her auth user, or her workspace.
+// rolls everything back. Safety guards (abort, exit 2, even in dry-run): the
+// expansion reaches Jorgelina's profile/user/workspace or an EXCLUDE_IDS row, any
+// root resolves to an owner that is not Jorgelina or a throwaway account (except
+// EXPLICIT_HUB_ROOTS), or the closure touches a talent profile / customer /
+// agency outside the throwaway set. Dry-run sends read_only:true on every call.
 // NOT covered: Storage files (images) and Vercel/DNS domains; remove by hand.
 // ============================================================================
 
@@ -64,7 +73,7 @@ async function sql(query) {
   const r = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
     method: "POST",
     headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify(APPLY ? { query } : { query, read_only: true }),
   });
   const t = await r.text();
   if (!r.ok) throw new Error(`SQL failed (${r.status}): ${t.slice(0, 600)}`);
@@ -76,7 +85,14 @@ const arr = (ids) => `array[${ids.map(lit).join(",")}]::text[]`;
 // ---- constants ------------------------------------------------------------
 const JOR = "f048e578-cbae-45db-9a3b-34239abea136";
 const BOOKING_PREFIXES = ["e3a272da", "6fc83d42", "7ff1b34e", "61a33e00", "7d479e6b"];
-const NAME_RE = `(contact_name ~* '^QA ' or contact_name in ('Tip Oferta','To') or lower(contact_email) = 'orantenemx@gmail.com' or lower(contact_email) like '%@impronta.test')`;
+const NAME_RE = `(contact_name ~* '^QA ' or contact_name in ('Tip Oferta','To') or lower(contact_email) like '%@impronta.test')`;// Oran's own orantenemx@gmail.com test thread: kept for verifying an inbox fix.
+const EXCLUDE_IDS = new Set(["f138f2e8-d0ae-4ca2-a07b-38186565e412", "961e18ff-2b94-40a2-8d1c-d4539b51cf76"]);
+const EXCL = `${arr([...EXCLUDE_IDS])}::uuid[]`;
+// Hub-tenant rows Oran asked for by id (exempt from the owner check; existence verified first).
+const EXPLICIT_HUB_ROOTS = [
+  { table: "public.agency_bookings", id: "f2aab6ed-9bcf-4a5c-905e-e41e01625f1a", what: "agency_bookings QA Test TUL-92" },
+  { table: "public.orders", id: "5f190eb7-c0da-4da6-b4d4-2c902be748eb", what: "orders (QA order)" },
+];
 const THROWAWAY = [
   { code: "TAL-93937", email: "qa-fresh-20261004-e@impronta.test" },
   { code: "TAL-93943", email: "orantene+tulafresh1007@gmail.com" },
@@ -130,26 +146,30 @@ const bk = await sql(`select id, status, client_label from talent_bookings where
 addRoot("public.talent_bookings", ids(bk));
 notes.push(`bookings matched: ${bk.length}/5 (${bk.map((b) => b.id.slice(0, 8)).join(", ")})`);
 
-const inqSel = `from inquiries where ${NAME_RE} and id in (select inquiry_id from inquiry_participants where talent_profile_id=${lit(JOR)})`;
+const inqSel = `from inquiries where ${NAME_RE} and id <> all(${EXCL}) and id in (select inquiry_id from inquiry_participants where talent_profile_id=${lit(JOR)})`;
 const inq = await sql(`select id, contact_name, customer_id ${inqSel}`);
 addRoot("public.inquiries", ids(inq));
-const other = await sql(`select id, contact_name from inquiries where not ${NAME_RE} and id in (select inquiry_id from inquiry_participants where talent_profile_id=${lit(JOR)})`);
+const other = await sql(`select id, contact_name from inquiries where not ${NAME_RE} and id <> all(${EXCL}) and id in (select inquiry_id from inquiry_participants where talent_profile_id=${lit(JOR)})`);
+// Proposed (NOT roots): her "Ana ..." test inquiries. Printed in the report, never deleted.
+const proposed = await sql(`select id, contact_name, contact_email, created_at from inquiries where contact_name ~* '^Ana ' and not ${NAME_RE} and id <> all(${EXCL}) and id in (select inquiry_id from inquiry_participants where talent_profile_id=${lit(JOR)}) order by created_at`);
 notes.push(`inquiries matched: ${inq.length}; NOT TOUCHED (her other inquiries): ${other.length} [${[...new Set(other.map((o) => o.contact_name))].join(", ")}]`);
 
-const tcr = await sql(`select id from talent_client_records where talent_profile_id=${lit(JOR)} and (name ~* '^QA ' or name in ('Tip Oferta','To') or lower(email)='orantenemx@gmail.com' or lower(email) like '%@impronta.test')`);
+const tcr = await sql(`select id from talent_client_records where talent_profile_id=${lit(JOR)} and (name ~* '^QA ' or name in ('Tip Oferta','To') or lower(email) like '%@impronta.test')`);
 addRoot("public.talent_client_records", ids(tcr));
-const cust = await sql(`select id from customers where (tenant_id=${lit(jor.created_by_agency_id)} or owner_talent_profile_id=${lit(JOR)}) and (display_name ~* '^QA ' or display_name in ('Tip Oferta','To') or lower(email)='orantenemx@gmail.com' or lower(email) like '%@impronta.test')`);
+const cust = await sql(`select id from customers where owner_talent_profile_id=${lit(JOR)} and id <> all(${EXCL}) and (display_name ~* '^QA ' or display_name in ('Tip Oferta','To') or lower(email) like '%@impronta.test')`);
 addRoot("public.customers", ids(cust));
-const un = await sql(`select id from user_notifications where origin_inquiry_id = any(${arr(ids(inq))}::uuid[]) or (user_id=${lit(jor.user_id)} and (coalesce(title,'')||' '||coalesce(body,'')) ~* '(^|[^a-z])QA ')`);
+const un = await sql(`select id from user_notifications where not coalesce(origin_inquiry_id = any(${EXCL}), false) and (origin_inquiry_id = any(${arr(ids(inq))}::uuid[]) or (user_id=${lit(jor.user_id)} and (coalesce(title,'')||' '||coalesce(body,'')) ~* '(^|[^a-z])QA ')))`);
 addRoot("public.user_notifications", ids(un));
 
 // (b) throwaway accounts
 const throwUsers = [];
+const throwProfiles = [];
 for (const t of THROWAWAY) {
   const p = (await sql(`select tp.id, tp.user_id, u.email from talent_profiles tp left join auth.users u on u.id=tp.user_id where tp.profile_code=${lit(t.code)}`))[0];
   if (!p) { notes.push(`${t.code}: profile not found (already gone?)`); continue; }
   if ((p.email || "").toLowerCase() !== t.email) throw new Error(`${t.code} owner email mismatch; aborting`);
   addRoot("public.talent_profiles", [p.id]);
+  throwProfiles.push(p.id);
   addRoot("auth.users", [p.user_id]);
   throwUsers.push(p.user_id);
 }
@@ -159,6 +179,14 @@ if (ws) addRoot("public.agencies", [ws.id]); else notes.push("workspace qa-fresh
 if (wsUser) { addRoot("auth.users", [wsUser.id]); throwUsers.push(wsUser.id); } else notes.push("business admin auth user: not found");
 const extraTalent = throwUsers.length ? await sql(`select id from talent_profiles where user_id = any(${arr(throwUsers)}::uuid[])`) : [];
 addRoot("public.talent_profiles", ids(extraTalent));
+throwProfiles.push(...ids(extraTalent));
+
+// (c) explicit hub-tenant roots (verified to exist; skipped with a note if gone)
+const explicitIds = new Set(EXPLICIT_HUB_ROOTS.map((e) => e.id));
+for (const e of EXPLICIT_HUB_ROOTS) {
+  const r = await sql(`select id from ${q(e.table)} where id=${lit(e.id)}`);
+  if (r.length) addRoot(e.table, [e.id]); else notes.push(`explicit hub root ${e.what} ${e.id}: not found (already gone), skipped`);
+}
 
 // ---- FK closure -----------------------------------------------------------
 const found = new Map(); // table -> Set(key)   (also records discovery order)
@@ -199,10 +227,36 @@ while (frontier.size) {
 
 // ---- safety guard ---------------------------------------------------------
 const bad = [];
+for (const [t, ks] of found) for (const id of EXCLUDE_IDS) if (ks.has(id)) bad.push(`excluded row ${t} ${id}`);
 if (found.get("public.talent_profiles")?.has(JOR)) bad.push("Jorgelina profile");
 if (found.get("auth.users")?.has(jor.user_id)) bad.push("Jorgelina auth user");
 if (found.get("public.agencies")?.has(jor.created_by_agency_id)) bad.push("Jorgelina workspace");
-if (bad.length) { console.error("[qa-cleanup] ABORT, closure reaches: " + bad.join(", ")); process.exit(2); }
+// Owner resolution for every root (EXPLICIT_HUB_ROOTS exempt): must be Jorgelina or a throwaway.
+const okProfiles = [JOR, ...throwProfiles];
+const okUsers = [jor.user_id, ...throwUsers];
+const rootKeys = (t) => [...(roots.get(t) || [])].filter((k) => !explicitIds.has(k));
+const strays = async (label, query, keys) => {
+  if (!keys.length) return;
+  const rows = await sql(query);
+  for (const r of rows) bad.push(`${label} ${r.id} owned by ${r.owner ?? "unresolved"}`);
+};
+const A = (xs) => `${arr(xs)}::uuid[]`;
+await strays("inquiries", `select i.id, p.talent_profile_id::text owner from inquiries i left join inquiry_participants p on p.inquiry_id=i.id where i.id=any(${A(rootKeys("public.inquiries"))}) and (p.talent_profile_id is not null and p.talent_profile_id <> all(${A(okProfiles)}))`, rootKeys("public.inquiries"));
+await strays("talent_bookings", `select id, talent_profile_id::text owner from talent_bookings where id=any(${A(rootKeys("public.talent_bookings"))}) and (talent_profile_id is null or talent_profile_id <> all(${A(okProfiles)}))`, rootKeys("public.talent_bookings"));
+await strays("talent_client_records", `select id, talent_profile_id::text owner from talent_client_records where id=any(${A(rootKeys("public.talent_client_records"))}) and talent_profile_id <> all(${A(okProfiles)})`, rootKeys("public.talent_client_records"));
+await strays("customers", `select id, owner_talent_profile_id::text owner from customers where id=any(${A(rootKeys("public.customers"))}) and (owner_talent_profile_id is null or owner_talent_profile_id <> all(${A(okProfiles)}))`, rootKeys("public.customers"));
+await strays("user_notifications", `select id, user_id::text owner from user_notifications where id=any(${A(rootKeys("public.user_notifications"))}) and user_id <> all(${A(okUsers)}) and not coalesce(origin_inquiry_id = any(${A(rootKeys("public.inquiries"))}), false)`, rootKeys("public.user_notifications"));
+for (const id of rootKeys("public.talent_profiles")) if (!okProfiles.includes(id)) bad.push(`talent_profiles ${id} not a throwaway`);
+for (const id of rootKeys("auth.users")) if (!okUsers.includes(id)) bad.push(`auth.users ${id} not a throwaway`);
+for (const id of rootKeys("public.agencies")) if (id !== ws?.id) bad.push(`agencies ${id} not the throwaway workspace`);
+for (const t of roots.keys()) {
+  if (!["public.inquiries","public.talent_bookings","public.talent_client_records","public.customers","public.user_notifications","public.talent_profiles","auth.users","public.agencies"].includes(t) && rootKeys(t).length) bad.push(`root table ${t} has no owner check`);
+}
+// FK closure assertions
+for (const id of found.get("public.talent_profiles") || []) if (!throwProfiles.includes(id)) bad.push(`closure talent_profiles ${id} is not a throwaway profile`);
+for (const id of found.get("public.customers") || []) if (!(roots.get("public.customers") || new Set()).has(id)) bad.push(`closure customers ${id} is not a root`);
+for (const id of found.get("public.agencies") || []) if (id !== ws?.id) bad.push(`closure agencies ${id} is not the throwaway workspace`);
+if (bad.length) { console.error("[qa-cleanup] ABORT:\n  - " + bad.join("\n  - ")); process.exit(2); }
 
 // ---- report ---------------------------------------------------------------
 console.log(`[qa-cleanup] mode: ${APPLY ? "APPLY" : "DRY-RUN (no changes)"}`);
@@ -216,8 +270,28 @@ for (const t of order) {
   console.log(`  ${t.padEnd(46)} ${String(n).padStart(5)}${isRoot ? "  (root)" : ""}`);
 }
 console.log(`  ${"TOTAL".padEnd(46)} ${String(total).padStart(5)}`);
-console.log("\nRoot ids:");
-for (const [t, ks] of roots) console.log(`  ${t}: ${[...ks].map((k) => k.slice(0, 8)).join(", ")}`);
+console.log("\nRoot rows (full ids):");
+const LABEL = {
+  "public.inquiries": `select id, contact_name a, contact_email b from inquiries`,
+  "public.customers": `select id, display_name a, email::text b from customers`,
+  "public.talent_bookings": `select id, client_label a, null b from talent_bookings`,
+  "public.agency_bookings": `select id, to_jsonb(x)->>'title' a, null b from agency_bookings x`,
+  "public.orders": `select id, status::text a, total_cents::text b from orders`,
+};
+for (const [t, ks] of roots) {
+  console.log(`  ${t}:`);
+  const lab = new Map();
+  if (LABEL[t]) for (const r of await sql(`${LABEL[t]} where id::text = any(${arr([...ks])})`)) lab.set(r.id, r);
+  for (const k of ks) {
+    const r = lab.get(k);
+    const extra = r ? `  ${r.a ?? ""}${r.b ? "  <" + r.b + ">" : ""}` : "";
+    console.log(`    ${k}${extra}${explicitIds.has(k) ? "  (explicit hub root)" : ""}`);
+  }
+}
+console.log(`\nProposed: test data (NOT roots, never deleted by --apply): ${proposed.length}`);
+for (const r of proposed) console.log(`    ${r.id}  ${r.contact_name}  <${r.contact_email ?? ""}>  ${r.created_at}`);
+console.log(`\nExcluded (kept): ${[...EXCLUDE_IDS].join(", ")}`);
+console.log("touches other talents: 0");
 
 if (!APPLY) { console.log("\nDry-run only. Re-run with --apply to delete."); process.exit(0); }
 
