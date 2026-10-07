@@ -399,7 +399,8 @@ export function catalogTimezoneLabel(tz: string | null | undefined, es: boolean)
   const zone = (tz ?? "").trim();
   if (!zone) return "";
   const city = zone.includes("/") ? (zone.split("/").pop() ?? zone).replace(/_/g, " ") : zone;
-  return es ? `Hora de ${city}` : `${city} time`;
+  const shown = city === "Cancun" ? "Cancún" : city; // DS-07: accent in the label, never in the IANA id
+  return es ? `Hora de ${shown}` : `${shown} time`;
 }
 
 /** Local yyyy-mm-dd of a day, used to validate a restored day pick. */
