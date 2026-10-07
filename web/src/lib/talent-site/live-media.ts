@@ -35,6 +35,8 @@ export function shouldApplyLiveMediaSrc(props: Props, media: LiveMediaUrls): boo
   if (typeof props.mediaId === "string" && props.mediaId.trim()) return false;
   const src = typeof props.src === "string" ? props.src.trim() : "";
   if (!src) return true;
+  // Onboarding's platform-stock placeholder (DS-60): replaceable while untouched.
+  if (typeof props.stockSrc === "string" && props.stockSrc.trim() === src) return true;
   // Custom / pasted URL outside this talent's public library → authored override.
   return knownMediaUrls(media).has(src);
 }

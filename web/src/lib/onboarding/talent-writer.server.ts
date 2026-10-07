@@ -13,7 +13,7 @@ import "server-only";
  *   talent_profile_taxonomy primary_role from the type chip (validated slug)
  *   talent_languages        the brief's languages, else the module's language
  *   talent_offerings        one draft per stated service, quote price
- *   catalog `bios`          the drafted bio (≥ 30 chars, rules in draft-bio.ts)
+ *   catalog `bios`          the drafted bio in en + es (≥ 30 chars, rules in draft-bio.ts)
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -28,7 +28,7 @@ import { blankOffering, offeringToRowPatch, validateOffering } from "@/lib/talen
 import type { Brief } from "@/lib/tulala/brief-store";
 import { listFact, numberFact, stringFact } from "@/lib/tulala/brief-store";
 
-import { bioPassesRules, draftBio } from "./draft-bio";
+import { planBios } from "./bilingual-bio";
 import { syncBiosToBioI18n } from "@/lib/translation/sync-bios-to-bio-i18n.server";
 import { proposeTalentType } from "./type-chip";
 import { loadTalentTypeTerms } from "./type-chip.server";
@@ -110,13 +110,13 @@ export async function writeTalentProfileFromBrief(input: {
   const discipline = stringFact(brief, "work.discipline") ?? stringFact(brief, "work.industry");
   const services = listFact(brief, "work.services");
   const bioFacts = { name: displayName || null, discipline, city, services, yearsExperience: numberFact(brief, "work.years_experience") };
-  const bio = draftBio(bioFacts, input.locale);
-  const bioOk = bioPassesRules(bio, bioFacts).ok;
+  // E-02/E-14: both languages; the base text (`short_bio`) is the flow language.
+  const bioPlan = planBios(bioFacts, input.locale);
 
   const patch: Record<string, unknown> = {};
   if (city) patch.home_city_text = city;
   if (country) patch.home_country_text = country;
-  if (bioOk) patch.short_bio = bio;
+  if (bioPlan.base) patch.short_bio = bioPlan.base.text;
   if (input.email) patch.invitation_email = input.email;
   if (Object.keys(patch).length) {
     const { error } = await admin.from("talent_profiles").update(patch).eq("id", id);
@@ -186,11 +186,12 @@ export async function writeTalentProfileFromBrief(input: {
   }
 
   // ── bio (the catalog value the publish floor reads) ───────────────────────
-  if (tenantId && bioOk) {
+  if (tenantId && bioPlan.entries.length) {
     try {
-      await syncBlobFieldValuesToCatalog(admin, id, tenantId, { bios: [{ locale: input.locale, text: bio }] });
-      // F25: the public profile and site read bio_i18n; same mirror as the drawer save.
-      await syncBiosToBioI18n(admin, id, [{ locale: input.locale, text: bio }]);
+      // The catalog row holds the whole `bios` blob, so both languages go in one write.
+      await syncBlobFieldValuesToCatalog(admin, id, tenantId, { bios: bioPlan.entries });
+      // F25: the public profile and site read bio_i18n (merged per locale); same mirror as the drawer save.
+      await syncBiosToBioI18n(admin, id, bioPlan.entries);
       result.wrote.bio = "written";
       result.aiDrafted.push("bio");
     } catch (err) {
