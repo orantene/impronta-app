@@ -187,3 +187,52 @@ test("F5: a mock success URL that already has a query keeps it valid", async () 
   assert.ok(res.ok);
   if (res.ok) assert.match(res.url, /\?session_id=.*&mock=1&tx=t1$/);
 });
+
+function withEnv<T>(env: Record<string, string | undefined>, fn: () => Promise<T>): Promise<T> {
+  const saved: Record<string, string | undefined> = {};
+  const e = process.env as Record<string, string | undefined>;
+  for (const k of Object.keys(env)) {
+    saved[k] = e[k];
+    if (env[k] === undefined) delete e[k];
+    else e[k] = env[k];
+  }
+  return fn().finally(() => {
+    for (const k of Object.keys(saved)) {
+      if (saved[k] === undefined) delete e[k];
+      else e[k] = saved[k];
+    }
+  });
+}
+
+const mockInput = {
+  transactionId: "t1",
+  amountCents: 100,
+  currency: "usd",
+  payerEmail: null,
+  inquiryId: null,
+  bookingId: "b1",
+  successUrl: "https://x.test/ok",
+  cancelUrl: "https://x.test/c",
+};
+
+test("TUL-141: production + no Stripe key fails instead of faking success", async () => {
+  const res = await withEnv({ NODE_ENV: "production", PAYMENTS_MOCK: undefined }, () =>
+    createCheckoutSessionForTransaction(mockInput, { stripe: null }),
+  );
+  assert.equal(res.ok, false);
+});
+
+test("TUL-141: production + PAYMENTS_MOCK=1 still mocks", async () => {
+  const res = await withEnv({ NODE_ENV: "production", PAYMENTS_MOCK: "1" }, () =>
+    createCheckoutSessionForTransaction(mockInput, { stripe: null }),
+  );
+  assert.ok(res.ok);
+  if (res.ok) assert.equal(res.mock, true);
+});
+
+test("TUL-141: non-production + no Stripe key mocks (existing behavior)", async () => {
+  const res = await withEnv({ NODE_ENV: "development", PAYMENTS_MOCK: undefined }, () =>
+    createCheckoutSessionForTransaction(mockInput, { stripe: null }),
+  );
+  assert.ok(res.ok);
+});
