@@ -229,6 +229,12 @@ export type ClassifyInput = {
    * Undefined = no release (the default).
    */
   releasedProtectedPrefix?: (bucketId: string, storagePath: string) => boolean;
+  /**
+   * TUL-231. true = the object's owner is a PROVEN-deleted account, so the
+   * owner accounts for a row-less object (predicate (c)). Only reached after
+   * every external-reference, protected-prefix and live-row check.
+   */
+  ownerAccountsForObject?: (bucketId: string, storagePath: string) => boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -369,6 +375,10 @@ export function classifyStorageObjects(input: ClassifyInput): ReapPlan {
 
     // (c) No row at all — not positively accounted for.
     if (rows.length === 0) {
+      if (input.ownerAccountsForObject?.(obj.bucketId, obj.name)) {
+        eligible.push(base);
+        continue;
+      }
       if (!input.allowUnaccounted) {
         kept.push({ ...base, keepReason: "unaccounted_no_asset_row" });
         continue;

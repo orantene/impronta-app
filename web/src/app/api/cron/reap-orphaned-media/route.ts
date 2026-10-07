@@ -124,6 +124,8 @@ export async function GET(request: Request) {
           deletedAccountPrefixEligibleTalents: outcome.deletedAccountPrefix.eligibleDeletedTalents,
           deletedAccountPrefixReleasedCount: outcome.deletedAccountPrefix.releasedCount,
           deletedAccountPrefixReleasedBytes: outcome.deletedAccountPrefix.releasedBytes,
+          deletedAccountPrefixOwnerAccountedCount: outcome.deletedAccountPrefix.ownerAccountedCount,
+          deletedAccountPrefixOwnerAccountedBytes: outcome.deletedAccountPrefix.ownerAccountedBytes,
           deletedAccountPrefixStillUnaccountedCount: outcome.deletedAccountPrefix.stillUnaccountedCount,
           deletedAccountPrefixApplied: outcome.deletedAccountPrefix.applied,
           deletedAccountPrefixFailure: outcome.deletedAccountPrefix.error ?? null,

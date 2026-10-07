@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -54,7 +55,7 @@ function input(over: Partial<ClassifyInput> = {}): ClassifyInput {
     assets: [],
     externalReferences: [],
     now: NOW,
-    allowUnaccounted: true,
+    allowUnaccounted: false, // the global opt-in stays OFF in every test of this feature
     ...over,
   };
 }
@@ -120,8 +121,10 @@ describe("planWithDeletedAccountPrefixes", () => {
     assert.deepEqual(deletable(r), []);
     assert.equal(r.report.applied, false);
     assert.equal(r.report.eligibleDeletedTalents, 1);
-    assert.equal(r.report.releasedCount, 2);
-    assert.equal(r.report.releasedBytes, 200);
+    assert.equal(r.report.releasedCount, 1); // the originals file (has a soft-deleted row)
+    assert.equal(r.report.ownerAccountedCount, 1); // the row-less document
+    assert.equal(r.report.ownerAccountedBytes, 100);
+    assert.equal(r.report.stillUnaccountedCount, 0);
   });
 
   it("flag on: only the expired deleted talent's own prefix is released; live and within-grace stay", async () => {
@@ -148,10 +151,42 @@ describe("planWithDeletedAccountPrefixes", () => {
     assert.deepEqual(deletable(r), [`${DEAD}/documents/d.pdf`]);
   });
 
-  it("without the unaccounted opt-in, a row-less document is still kept and reported", async () => {
-    const r = await planWithDeletedAccountPrefixes({ admin: fakeAdmin(profiles), input: input({ objects, assets, allowUnaccounted: false }), enforce: true });
-    assert.deepEqual(deletable(r), [`${DEAD}/originals/o.jpg`]);
-    assert.equal(r.report.stillUnaccountedCount, 1);
+  it("(a) a deleted owner's row-less document is planned for deletion with the global opt-in OFF", async () => {
+    const r = await planWithDeletedAccountPrefixes({ admin: fakeAdmin(profiles), input: input({ objects, assets }), enforce: true });
+    assert.ok(deletable(r).includes(`${DEAD}/documents/d.pdf`));
+    assert.equal(r.report.ownerAccountedCount, 1);
+  });
+
+  it("(b) a live talent's row-less document is not deleted", async () => {
+    const r = await planWithDeletedAccountPrefixes({ admin: fakeAdmin(profiles), input: input({ objects, assets }), enforce: true });
+    assert.ok(!deletable(r).includes(`${LIVE}/documents/d.pdf`));
+    assert.ok(!deletable(r).includes(`${FRESH}/documents/d.pdf`));
+  });
+
+  it("(c) flag off: the document is kept but counted as owner-accounted", async () => {
+    const r = await planWithDeletedAccountPrefixes({ admin: fakeAdmin(profiles), input: input({ objects, assets }), enforce: false });
+    assert.ok(!deletable(r).includes(`${DEAD}/documents/d.pdf`));
+    assert.equal(r.report.ownerAccountedCount, 1);
+  });
+
+  it("(e) the row-less object of a talent whose lookup failed is not deleted", async () => {
+    const r = await planWithDeletedAccountPrefixes({ admin: fakeAdmin([], true), input: input({ objects, assets }), enforce: true });
+    assert.ok(!deletable(r).includes(`${DEAD}/documents/d.pdf`));
+  });
+
+  it("(g) a deleted owner inside the 29 day grace accounts for nothing", async () => {
+    const r = await planWithDeletedAccountPrefixes({ admin: fakeAdmin(profiles), input: input({ objects, assets }), enforce: true });
+    assert.ok(!deletable(r).includes(`${FRESH}/documents/d.pdf`));
+    assert.equal(r.report.ownerAccountedCount, 1);
+  });
+
+  it("(f) the global opt-in is never read or set by the new path", () => {
+    const dir = new URL(".", import.meta.url).pathname;
+    for (const f of ["deleted-account-prefixes.ts", "deleted-account-prefixes-io.ts", "deleted-account-prefix-pass.ts"]) {
+      const src = readFileSync(`${dir}${f}`, "utf8");
+      assert.ok(!src.includes("ALLOW_UNACCOUNTED"), f);
+      assert.ok(!src.includes("process.env"), f);
+    }
   });
 
   it("a failed id lookup releases nothing and reports the failure", async () => {
