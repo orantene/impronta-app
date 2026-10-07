@@ -32,6 +32,7 @@ import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { locateCanvasNode } from "./freeform-layer-row";
 import { useMaybeEditContext } from "./edit-context";
 import { useEditorLocale } from "./use-editor-locale";
+import { measureRenderedOverflow } from "@/lib/site-admin/builder-node/mobile-health-rendered";
 import { localiseMobileHealthMessage } from "./mobile-health-message-es";
 import { Button } from "./kit";
 import { CHROME } from "./kit";
@@ -131,9 +132,38 @@ export function MobileHealthPanel({ builderTree }: Props) {
   const [open, setOpen] = useState(false);
   const bodyId = useId();
 
-  const issues = useMemo(
+  const treeIssues = useMemo(
     () => runMobileHealthCheck(builderTree),
     [builderTree],
+  );
+
+  // TUL-79: the tree check cannot see the public header or wrapped copy, so
+  // also measure the rendered canvas and flag anything past the screen edge.
+  const [renderedIssues, setRenderedIssues] = useState<MobileHealthIssue[]>([]);
+  useEffect(() => {
+    const measure = () => {
+      try {
+        const frame = document.querySelector<HTMLIFrameElement>(
+          'iframe[data-device-tier][data-active="true"]',
+        );
+        const doc = frame ? frame.contentDocument : document;
+        const width = frame ? frame.clientWidth : window.innerWidth;
+        const next = doc ? measureRenderedOverflow(doc, width) : [];
+        setRenderedIssues((prev) =>
+          JSON.stringify(prev) === JSON.stringify(next) ? prev : next,
+        );
+      } catch {
+        /* cross-origin or detached frame: keep the tree result only */
+      }
+    };
+    measure();
+    const id = window.setInterval(measure, 1500);
+    return () => window.clearInterval(id);
+  }, [builderTree]);
+
+  const issues = useMemo(
+    () => [...treeIssues, ...renderedIssues],
+    [treeIssues, renderedIssues],
   );
 
   const grouped = useMemo(() => {
