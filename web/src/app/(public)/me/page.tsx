@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
+import { legacyClientEntryRedirectFor } from "@/lib/client-account/entry-redirect.server";
 import { EmailCodeForm } from "@/components/auth/email-code-form";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getPublicHostContext } from "@/lib/saas/scope";
@@ -86,6 +88,8 @@ function Section({
 }
 
 export default async function MePage() {
+  // TUL-64: with the client account flag on, /me is upgraded in place by /account.
+  if ((await legacyClientEntryRedirectFor()) === "account") redirect("/account");
   const locale = await getRequestLocale();
   const es = locale === "es";
   const ctx = await getPublicHostContext();

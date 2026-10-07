@@ -15,18 +15,22 @@ import {
 } from "./area-data.server";
 import { clientAccountEnabledFor } from "./flag";
 import { loadClientAccountSummary } from "./summary.server";
+import { renderTenantAccountPage } from "./render-tenant-area";
 import { resolveAccountTenant } from "./tenant.server";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Server entry for every `/account*` view on a talent site. Flag off, or any
- * host that is not a talent site, is a plain 404. The tenant comes from the
+ * Server entry for every `/account*` view. A talent site renders here (flag
+ * `talent`); every other host goes to `renderTenantAccountPage` (flag `app`).
+ * Flag off is a plain 404. The tenant comes from the
  * proxy-set host header only; every read below is scoped by the session user
  * id AND that tenant.
  */
 export async function renderClientAccountPage(view: AccountView) {
   const host = await readAccountHost();
+  // Agency, hub and app hosts (TUL-64) have their own renderer behind the `app` flag.
+  if (host.hostContext !== "talent_site") return renderTenantAccountPage(view, host.hostContext);
   const talentProfileId = resolveGatedTalentProfileId({ hostContext: host.hostContext, talentProfileId: host.talentProfileId });
   if (accountAreaGate({ flagOn: clientAccountEnabledFor("talent"), hostContext: host.hostContext }) !== "render" || !talentProfileId) {
     notFound();
