@@ -5,6 +5,7 @@ import {
   isLocaleSeedablePath,
   safeTalentNextPath,
   talentLocaleSeedHref,
+  talentLocaleSeedHopPossible,
   talentLocaleSeedPlan,
   talentLocaleSeedTarget,
 } from "./talent-locale-seed";
@@ -97,4 +98,12 @@ test("hop runs only on dashboard routes", () => {
   for (const p of ["/template-preview/live", "/talentx", "/es/talent", "/", "/t/site", null, undefined, ""]) {
     assert.equal(isLocaleSeedablePath(p), false, String(p));
   }
+});
+
+test("hop is possible only without an attempt cookie, with the header, on a dashboard path", () => {
+  const ok = { attemptCookie: undefined, originalPathnameHeader: "/talent/today", pathname: "/talent/today" };
+  assert.equal(talentLocaleSeedHopPossible(ok), true);
+  assert.equal(talentLocaleSeedHopPossible({ ...ok, attemptCookie: "1" }), false);
+  assert.equal(talentLocaleSeedHopPossible({ ...ok, originalPathnameHeader: null }), false);
+  assert.equal(talentLocaleSeedHopPossible({ ...ok, pathname: "/admin" }), false);
 });

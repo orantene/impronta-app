@@ -43,7 +43,7 @@ import { loadClientFieldSource } from "@/lib/field-engine/client-field-source";
 import { loadTalentLocaleState } from "@/lib/site-admin/server/talent-locale-settings";
 import {
   TALENT_LOCALE_SEED_ATTEMPT_COOKIE,
-  isLocaleSeedablePath,
+  talentLocaleSeedHopPossible,
   talentLocaleSeedHref,
   talentLocaleSeedPlan,
 } from "@/lib/site-admin/server/talent-locale-seed";
@@ -198,6 +198,11 @@ export default async function PlatformTalentLayout({
     if (unrosteredWallBypassesShell(wallFacts)) {
       return <>{children}</>;
     }
+    // TUL-129: /talent itself never paints the shell. Its page redirects a
+    // talent with a roster/site straight to /talent/today (which runs the full
+    // shell loads once). Running ~20 dashboard reads here too, only to throw
+    // the result away on that redirect, doubled the sign-in cost.
+    return <>{children}</>;
   }
 
   const activeAgency = await getActiveTalentAgencyContext(baseProfile.id);
@@ -207,6 +212,32 @@ export default async function PlatformTalentLayout({
     tenantId != null
       ? (await loadTalentSelfProfile(session.user.id, tenantId)) ?? baseProfile
       : baseProfile;
+
+  // TUL-129: decide the locale-seed hop BEFORE the heavy dashboard loads. The
+  // hop re-enters this layout, so deciding after them ran every read twice on
+  // each sign-in (sign-in clears the locale cookies, so the hop is the norm).
+  // The locale state is one cheap read that the batch below reuses.
+  const jar = await cookies();
+  const talentLocaleStatePromise = loadTalentLocaleState(talentSelfProfile.id);
+  if (
+    talentLocaleSeedHopPossible({
+      attemptCookie: jar.get(TALENT_LOCALE_SEED_ATTEMPT_COOKIE)?.value,
+      originalPathnameHeader: hdrs.get("x-impronta-original-pathname"),
+      pathname,
+    })
+  ) {
+    const early = await talentLocaleStatePromise;
+    const seedPlan = talentLocaleSeedPlan({
+      cookieLocale: jar.get(LOCALE_COOKIE)?.value ?? null,
+      cookieIsAuto: Boolean(jar.get(LOCALE_AUTO_COOKIE)?.value),
+      cookieOwner: jar.get(LOCALE_OWNER_COOKIE)?.value ?? null,
+      userId: session.user.id,
+      primary: early.seedPrimary,
+    });
+    if (seedPlan.locale || seedPlan.stamp) {
+      redirect(talentLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`));
+    }
+  }
 
   const initialTalentPage = derivePlatformTalentPage(pathname);
   // Evaluate once on the server and stamp onto the bridge — client
@@ -271,7 +302,7 @@ export default async function PlatformTalentLayout({
     // The talent's OWN languages (primary + secondary, bounded to platform
     // public locales) drive the shell's DashboardLocaleToggle / LanguageMenu.
     // No secondary = single locale, so the toggle hides. Never throws.
-    loadTalentLocaleState(talentSelfProfile.id),
+    talentLocaleStatePromise,
     // Talent-surface notifications (`user_notifications`, surface='talent').
     // Cross-agency on purpose — see the loader's comment. Without this the
     // shell's `bridgeUserNotifications` stayed null on the whole talent
@@ -302,28 +333,8 @@ export default async function PlatformTalentLayout({
   const operatingCurrency = await loadPlatformOperatingCurrency();
   const displayEarnings = applyOperatingCurrencyToEarnings(talentEarnings, operatingCurrency);
 
-  // Seed the dashboard `locale` cookie to the talent's primary when it is
-  // absent or auto-written. A deliberate choice is never overwritten. A layout
-  // cannot write cookies, so hop once through the seed route (which re-checks
-  // from the session and sets a 60 s attempt cookie so this can never loop).
+  // Locale seeding is decided above, before the heavy loads (TUL-129).
   const localeSettings = talentLocaleState.settings;
-  const jar = await cookies();
-  // Never guess the return URL: no original-pathname header, or a non-dashboard
-  // path, means no hop (the /talent/today fallback would hijack the request).
-  const seedPlan = jar.get(TALENT_LOCALE_SEED_ATTEMPT_COOKIE)?.value ||
-    !hdrs.get("x-impronta-original-pathname") ||
-    !isLocaleSeedablePath(pathname)
-    ? null
-    : talentLocaleSeedPlan({
-        cookieLocale: jar.get(LOCALE_COOKIE)?.value ?? null,
-        cookieIsAuto: Boolean(jar.get(LOCALE_AUTO_COOKIE)?.value),
-        cookieOwner: jar.get(LOCALE_OWNER_COOKIE)?.value ?? null,
-        userId: session.user.id,
-        primary: talentLocaleState.seedPrimary,
-      });
-  if (seedPlan && (seedPlan.locale || seedPlan.stamp)) {
-    redirect(talentLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`));
-  }
 
   // Seed client dashboard copy with the SERVER-resolved locale so the first
   // render is not English regardless of the cookie (use-dashboard-locale.ts).

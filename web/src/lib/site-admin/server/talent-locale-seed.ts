@@ -76,6 +76,22 @@ export function isLocaleSeedablePath(pathname: string | null | undefined): boole
 }
 
 /**
+ * Whether the layout may hop through the seed route at all: no recent attempt
+ * (loop breaker), a real original-pathname header (never guess the return
+ * URL), and a seedable dashboard path. Cheap, cookie/header-only, so the
+ * layout can decide the hop before any dashboard read (TUL-129).
+ */
+export function talentLocaleSeedHopPossible(input: {
+  attemptCookie: string | null | undefined;
+  originalPathnameHeader: string | null | undefined;
+  pathname: string | null | undefined;
+}): boolean {
+  if (input.attemptCookie) return false;
+  if (!input.originalPathnameHeader) return false;
+  return isLocaleSeedablePath(input.pathname);
+}
+
+/**
  * Same-origin relative return-URL guard for the seed route's `next` parameter.
  * Parses with `new URL()` against a sentinel origin (never trusts a bare
  * `startsWith("/")`), rejects absolute, protocol-relative, backslash and
