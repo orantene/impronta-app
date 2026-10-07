@@ -144,6 +144,8 @@ import { FormResultBanner } from "./form-result-banner";
 import { MenuBoardIsland } from "./menu-board-island";
 import { ReserveTableIsland } from "./reserve-table-island";
 import { SessionPickerIsland } from "./session-picker-island";
+import { isLiveBookingLabel, isLiveServicesLabel, type LiveBookingSurface } from "./live-booking-markers";
+import { LiveBookingBand, LiveServicesBand } from "./live-booking-bands";
 import { TicketPickerIsland } from "./ticket-picker-island";
 import { EventProgramIsland } from "./event-program-island";
 import { QrCodeBlock } from "./qr-code-block";
@@ -385,6 +387,8 @@ export interface BuilderNodeRenderDataSources {
     answer: string;
     sort_order?: number;
   }>;
+  /** TUL-77: live catalog + booking flow inputs for marked bands. */
+  liveBooking?: LiveBookingSurface | null;
   menuOfferings?: ReadonlyArray<{
     id: string;
     title: string;
@@ -4634,6 +4638,26 @@ function renderBuilderNodeElement(
         ? options.renderSectionEmbed(node)
         : null;
     case "container": {
+      // TUL-77: a band marked for the live catalog / real booking flow shows it
+      // when the tenant has something published; otherwise it falls through to
+      // the authored fallback children below.
+      const liveSurface = options.dataSources.liveBooking;
+      if (liveSurface && isLiveBookingLabel(node.props.layerLabel) && liveSurface.offerings.length > 0) {
+        return (
+          <LiveBookingBand key={node.id} nodeId={node.id} surface={liveSurface} tenantId={options.dataSources.tenantId ?? ""} />
+        );
+      }
+      if (liveSurface && isLiveServicesLabel(node.props.layerLabel) && liveSurface.services.length > 0) {
+        return (
+          <LiveServicesBand
+            key={node.id}
+            nodeId={node.id}
+            surface={liveSurface}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
+            bookHref={prefixPublicHref("/book", options.publicPathPrefix ?? "")}
+          />
+        );
+      }
       // REND-1: use the author-chosen semantic landmark tag (default: div).
       // All CSS classes, data-* attrs, and inline styles are preserved
       // regardless of tag — it is a pure drop-in replacement. Trees that
@@ -5074,7 +5098,7 @@ function renderBuilderNodeElement(
                   {sc.primaryCta?.label ? (
                     <a
                       className="site-bn-hero__btn site-bn-hero__btn--primary"
-                      href={sc.primaryCta.href || "#"}
+                      href={prefixPublicHref(sc.primaryCta.href || "#", options.publicPathPrefix ?? "")}
                     >
                       {sc.primaryCta.label}
                     </a>
@@ -5082,7 +5106,7 @@ function renderBuilderNodeElement(
                   {sc.secondaryCta?.label ? (
                     <a
                       className="site-bn-hero__btn site-bn-hero__btn--secondary"
-                      href={sc.secondaryCta.href || "#"}
+                      href={prefixPublicHref(sc.secondaryCta.href || "#", options.publicPathPrefix ?? "")}
                     >
                       {sc.secondaryCta.label}
                     </a>
