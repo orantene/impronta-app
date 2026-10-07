@@ -42,8 +42,12 @@ export function resolveGalleryInsertHint(
   ): GalleryInsertHint | null {
     for (let i = 0; i < nodes.length; i += 1) {
       const node = nodes[i]!;
-      const isRootSection = parentId === null && node.kind === "section";
-      const effectiveRootIdx = isRootSection ? i : rootSectionIndex;
+      // TUL-78: EVERY root-level node (section, section_embed, native bands...)
+      // owns its own page position. Counting only `kind === "section"` left
+      // embeds (Testimonials, FAQ, Gallery) at the initial index 0, so each
+      // insert landed at index 1: ABOVE the selected block, not after it.
+      const isRootNode = parentId === null;
+      const effectiveRootIdx = isRootNode ? i : rootSectionIndex;
 
       if (node.id === selectedNodeId) {
         // Prefer nested parent context when the selected node lives inside a
