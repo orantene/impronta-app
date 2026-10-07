@@ -43,6 +43,8 @@
     "test:alias-guard": "node --test scripts/lib/alias-guard.test.mjs",
     "deploy:smoke": "node scripts/post-deploy-smoke-test.mjs",
     "qa:host": "node scripts/qa-host.mjs",
+    "qa:sync-test-talent": "node scripts/sync-qa-talent-from-real.mjs",
+    "test:sync-test-talent": "node --test scripts/lib/sync-qa-talent.test.mjs",
     "test:qa-host": "node --test scripts/lib/qa-hosts.test.mjs",
     "stripe:status": "node scripts/stripe-target.mjs status",
     "stripe:sandbox": "node scripts/stripe-target.mjs sandbox",
