@@ -145,7 +145,7 @@ export async function loadWorkspaceCaptchaOverrides(): Promise<WorkspaceCaptchaV
 }
 
 /** Hand a workspace back to the platform default: remove its own captcha values. */
-export async function useWorkspacePlatformCaptcha(
+export async function resetWorkspaceCaptchaToPlatform(
   tenantId: string,
 ): Promise<CaptchaOverrideResult> {
   return disconnectWorkspaceCaptchaWith(

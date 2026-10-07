@@ -26,7 +26,7 @@ import {
   savePlatformGa4Id,
   savePlatformGoogleMapsKey,
 } from "./platform-integration-actions";
-import { useWorkspacePlatformCaptcha } from "./captcha-override-actions";
+import { resetWorkspaceCaptchaToPlatform } from "./captcha-override-actions";
 import type { WorkspaceCaptchaView } from "./captcha-override-actions";
 
 const HQ = {
@@ -358,7 +358,7 @@ function WorkspaceCaptchaList({ view }: { view: WorkspaceCaptchaView }) {
                 );
                 if (!ok) return;
                 run(
-                  () => useWorkspacePlatformCaptcha(row.tenantId),
+                  () => resetWorkspaceCaptchaToPlatform(row.tenantId),
                   t("dashboard.platform.integrations.captchaUseDefaultDone"),
                 );
               }}
