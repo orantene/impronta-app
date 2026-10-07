@@ -99,7 +99,7 @@ import {
 import { buildMaxSiteSeo } from "./max-site-seo.server";
 import { loadMaxSiteSeoFacts } from "./max-site-seo-facts.server";
 import { loadTalentSiteLocaleContext, type TalentSiteLocaleContext } from "./talent-site-locale.server";
-import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links";
+import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links"; import { webOfficeCtxFor, webOfficeFooter, type WebOfficeCtx } from "./web-office-footer"; import { webOfficeSocialEnabled } from "../web-office-social";
 import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main";
 import { policyDocForSlug } from "@/lib/talent-policies/public";
 
@@ -341,7 +341,7 @@ export async function renderTalentMaxSite(
       // removes it (same predicate as the /t/[code] profile footer).
       showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
       isDemo,
-      talentName: identity?.name ?? null,
+      talentName: identity?.name ?? null, webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), { canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL, canonicalPath: input.canonicalPath, siteSlug: site.siteSlug }),
     });
 
     const seoFacts = await loadMaxSiteSeoFacts(talentProfileId, locale); // services, links, city; never throws
@@ -400,7 +400,7 @@ async function renderMaxSiteDocument(args: {
   /** Fictional demo talent: a Demo pill above the header + a footer line. */
   isDemo?: boolean;
   /** The talent's display name: labels the first group of the Tulala strip. */
-  talentName?: string | null;
+  talentName?: string | null; /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -564,7 +564,7 @@ async function renderMaxSiteDocument(args: {
   const liveFooterTree = pruneDeadSectionLinks(footerTree, renderedBlocks, [headerTree], { homePath });
   // The header's section links get the same treatment (a talent with no reviews has no #reviews band, so the link goes).
   const liveHeaderTree = pruneDeadSectionLinks(headerTree, renderedBlocks, [footerTree], { homePath });
-  const footerSocialLinks = builderTreeHasKind(footerTree, "social_links") ? await loadTalentSocialLinks(talentProfileId) : [];
+  const hasSocialNode = builderTreeHasKind(footerTree, "social_links"); const { records: footerSocialLinks, strip: webOfficeStrip } = webOfficeFooter(args.webOffice, hasSocialNode || args.webOffice ? await loadTalentSocialLinks(talentProfileId) : [], hasSocialNode, locale);
   const socketModel = buildSocketModel({
     locale,
     publicPathPrefix,
@@ -784,7 +784,7 @@ async function renderMaxSiteDocument(args: {
             visitorLocale: locale,
             contentLocale: args.localeCtx.contentLocale,
             renderSectionEmbed,
-          })}
+          })}{webOfficeStrip}
         </footer>
       ) : null}
 
