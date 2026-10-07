@@ -27,7 +27,9 @@ import {
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { pickLocale } from "@/lib/i18n/pick-locale";
-import { hcaptchaLocale, turnstileLocale } from "@/lib/i18n/vendor-locale";
+import { hcaptchaLocale } from "@/lib/i18n/vendor-locale";
+import { turnstileDataAttrs } from "@/lib/captcha/widget-options";
+import { CaptchaFormGuard } from "@/lib/site-admin/sections/contact_form/captcha-form-guard";
 import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/FeaturedTalentCard";
 import { localeUrlSettings } from "@/i18n/pathnames";
 import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_talent/fetch";
@@ -7086,7 +7088,6 @@ function renderBuilderNodeElement(
           : null;
       const formCaptchaSiteKey = options.captcha?.siteKey ?? null;
       const formCaptchaHl = hcaptchaLocale(options.visitorLocale);
-      const formCaptchaLanguage = turnstileLocale(options.visitorLocale);
       const isInternal =
         !formProps.action || formProps.action.trim().toLowerCase() === "internal";
       const method =
@@ -7298,10 +7299,10 @@ function renderBuilderNodeElement(
             <>
               <div
                 className="cf-turnstile"
-                data-sitekey={formCaptchaSiteKey}
-                data-language={formCaptchaLanguage}
+                {...turnstileDataAttrs(formCaptchaSiteKey, options.visitorLocale)}
               />
               <CaptchaThemeStamper />
+              <CaptchaFormGuard locale={options.visitorLocale} />
               <script
                 src="https://challenges.cloudflare.com/turnstile/v0/api.js"
                 async
