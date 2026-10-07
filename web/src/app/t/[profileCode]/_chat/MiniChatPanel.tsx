@@ -17,6 +17,7 @@
  * functions are used (no manual useCallback/useMemo).
  */
 
+import { pollNeedsFullReload } from "./guest-paid-sync";
 import { useEffect, useRef, useState } from "react";
 
 import type {
@@ -397,6 +398,9 @@ export function MiniChatPanel({
           );
           mergeServer(res.messages);
           setThreadStatus(res.threadStatus);
+          // TUL-11: the webhook posted a settled-money row; reload so the
+          // items shelf / receipt (v5) flip with the server, never before.
+          if (pollNeedsFullReload(res.messages)) setReloadTick((n) => n + 1);
           if (res.typicalReplyLabel) setThreadMeta((m) => ({ ...m, typicalReply: res.typicalReplyLabel }));
           if (inbound.length > 0) {
             notifyInbound(inbound.length);
@@ -412,8 +416,16 @@ export function MiniChatPanel({
     };
 
     timer = setTimeout(tick, pollIntervalMs);
+    // Back from the pay tab: check now instead of waiting out the interval.
+    const onVisible = () => {
+      if (document.hidden || stopped) return;
+      if (timer) clearTimeout(timer);
+      void tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       stopped = true;
+      document.removeEventListener("visibilitychange", onVisible);
       if (timer) clearTimeout(timer);
     };
   }, [open, inquiryId, pollIntervalMs, fetchMessages, notifyInbound]);

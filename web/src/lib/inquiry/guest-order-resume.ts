@@ -13,3 +13,21 @@ export function parseGuestOrderQuery(raw: string | null | undefined): string | n
   const id = raw.trim();
   return UUID_RE.test(id) ? id : null;
 }
+
+export type OrderResumeDecision = "open" | "fallback";
+
+/**
+ * PURE: the ONE gate for `?order=` cold load. An order opens its conversation
+ * only for the guest session that owns that exact inquiry; everything else
+ * (bad code, no session, other session, unlinked order) is the safe fallback
+ * (fresh dock, no data about any thread).
+ */
+export function decideOrderResume(input: {
+  parsedOrderId: string | null;
+  guestSessionId: string | null;
+  inquiryId: string | null;
+  inquiryGuestSessionId: string | null;
+}): OrderResumeDecision {
+  if (!input.parsedOrderId || !input.guestSessionId || !input.inquiryId) return "fallback";
+  return input.inquiryGuestSessionId === input.guestSessionId ? "open" : "fallback";
+}
