@@ -24,6 +24,7 @@ import {
   type KitIdFactory,
 } from "../section-kit";
 import { MAISON_SEED } from "./seed";
+import { seedI18nPayload } from "../seed-i18n";
 
 function makeSeqIdFactory(prefix: string): KitIdFactory {
   let n = 0;
@@ -169,7 +170,12 @@ function maisonAboutBlock(makeId: KitIdFactory): BuilderNode {
  * Deterministic Maison Design payload. Calling twice returns byte-identical
  * trees so `syncBuiltinTalentThemes` hashing stays stable.
  */
+/** Seeded copy ships es + en (see seed-i18n.ts). */
 export function buildMaisonDesignPayload(): DesignPayload {
+  return seedI18nPayload(buildMaisonDesignPayloadUnseeded());
+}
+
+function buildMaisonDesignPayloadUnseeded(): DesignPayload {
   const makeId = makeSeqIdFactory("maison-design");
   // Standard talent header (logo, nav, ES/EN switch, primary CTA).
   const shellTree = buildKitStandardShell(makeId, {

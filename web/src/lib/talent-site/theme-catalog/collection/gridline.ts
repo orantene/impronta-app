@@ -31,6 +31,7 @@ import {
 } from "../section-kit";
 import { seqIds, servicesSection } from "./design-parts";
 import { GRIDLINE_STYLE_TOKEN_DEFAULTS } from "./gridline-defaults";
+import { seedI18nPayload } from "../seed-i18n";
 
 type Props = Record<string, unknown>;
 
@@ -53,7 +54,12 @@ function faqSection(makeId: () => string): BuilderNode {
   return withProps(band, { slotKey: "faq", anchorId: "faq" });
 }
 
+/** Seeded copy ships es + en (see seed-i18n.ts). */
 export function buildGridlinePayload(): DesignPayload {
+  return seedI18nPayload(buildGridlinePayloadUnseeded());
+}
+
+function buildGridlinePayloadUnseeded(): DesignPayload {
   const id = seqIds("gridline");
 
   const services = servicesSection(id, {
