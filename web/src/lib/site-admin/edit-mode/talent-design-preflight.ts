@@ -19,11 +19,16 @@ export async function talentDesignRequiredIssue(): Promise<PreflightIssue | null
     if (!g.ok || !isTalentMaisonThemeEnabled(g.talentProfileId)) return null;
     const sb = await getCachedServerSupabase();
     if (!sb) return null;
-    const { data } = await sb
+    const { data, error } = await sb
       .from("talent_sites")
       .select("theme_design_slug, site_published_at")
       .eq("talent_profile_id", g.talentProfileId)
       .maybeSingle();
+    if (error) {
+      // Fail open: the server-side publish gate stays the backstop.
+      logServerError("publish-preflight.talentPage.design.read", error);
+      return null;
+    }
     const row = data as { theme_design_slug: string | null; site_published_at: string | null } | null;
     if (!row || row.site_published_at) return null;
     const blocker = maisonDesignBlocker(row.theme_design_slug, "en");
