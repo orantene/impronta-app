@@ -27,6 +27,8 @@ export type InstantBookFormPayload = {
   reservation?: { startsAt: string; endsAt: string; timezone: string } | null;
   captchaToken?: string | null;
   honeypot?: string | null;
+  /** The language the guest is browsing in (the booking sheet's locale). TUL-93. */
+  locale?: string | null;
 };
 
 export type InstantBookActionResult =

@@ -17,6 +17,7 @@ import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 import { isGuestCaptchaEnforced } from "@/lib/platform/guest-captcha-enforcement";
 import { logServerError } from "@/lib/server/safe-error";
 import { isDevGuestCaptchaSkipHostname } from "./guest-captcha-dev-skip";
+import { loadSessionIsClient, resolveSessionBookingIdentity } from "./instant-book-session-identity";
 import {
   evaluateGuestInstantPolicy,
   resolveGuestBookingIdentity,
@@ -137,6 +138,12 @@ export async function loadOfferingRequireAccount(
   return (data as { require_account_to_book?: boolean } | null)?.require_account_to_book === true;
 }
 
+async function probeSessionIsClient(userId: string): Promise<boolean> {
+  const admin = createServiceRoleClient();
+  if (!admin) return false;
+  return loadSessionIsClient(admin, userId);
+}
+
 export async function resolveInstantBookActor(input: {
   user: { id: string; email?: string | null } | null;
   tenantId: string;
@@ -164,6 +171,7 @@ export async function resolveInstantBookActor(input: {
     checkAbuse?: typeof checkGuestInquiryAbuse;
     verifyCaptcha?: typeof verifyTenantCaptchaToken;
     ensureGuestClient?: typeof ensureGuestClientByEmail;
+    sessionIsClient?: (userId: string) => Promise<boolean>;
   };
 }): Promise<InstantBookActor | InstantBookActorFail> {
   const resolveClientIpFn = input.__hooks?.resolveClientIp ?? resolveTrustedClientIp;
@@ -173,11 +181,26 @@ export async function resolveInstantBookActor(input: {
   const ensureGuestClientFn = input.__hooks?.ensureGuestClient ?? ensureGuestClientByEmail;
 
   if (input.user) {
+    // TUL-93: the session cookie is shared across `.tulala.digital`, so the
+    // signed-in account is not necessarily the person booking. Only a real
+    // client is attached, and the confirmation goes to the TYPED address.
+    const sessionUserId = input.user.id;
+    const isClient = input.__hooks?.sessionIsClient
+      ? await input.__hooks.sessionIsClient(sessionUserId)
+      : await probeSessionIsClient(sessionUserId);
+    const who = resolveSessionBookingIdentity({
+      sessionUserId,
+      sessionEmail: input.user.email,
+      sessionIsClient: isClient,
+      typedEmail: input.contactEmail,
+      typedName: input.contactName,
+    });
+    if (!who.ok) return fail("validation", "Add your name and email to book.");
     return {
       kind: "session",
-      userId: input.user.id,
-      contactName: (input.contactName || input.user.email || "Client").toString(),
-      contactEmail: (input.contactEmail || input.user.email || "").toString(),
+      userId: who.userId,
+      contactName: who.contactName,
+      contactEmail: who.contactEmail,
       contactPhone: input.contactPhone ?? null,
       // `customers` has no INSERT policy; the purchase pipeline always needs
       // the service role for ensureCustomer, session or guest.

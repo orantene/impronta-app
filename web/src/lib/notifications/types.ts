@@ -79,8 +79,15 @@ export type RecipientRole =
  * guest (by raw email — e.g. an inquiry contact with no account).
  */
 export type AudienceMember =
-  | { kind: "user"; userId: string; role?: RecipientRole }
-  | { kind: "guest"; email: string; displayName?: string | null; role?: RecipientRole };
+  | { kind: "user"; userId: string; role?: RecipientRole; locale?: string }
+  | {
+      kind: "guest";
+      email: string;
+      displayName?: string | null;
+      role?: RecipientRole;
+      /** The language the guest was browsing in (TUL-93); beats the tenant default. */
+      locale?: string;
+    };
 
 /** A fully-hydrated recipient ready for channel dispatch. */
 export type ResolvedRecipient = {
@@ -89,6 +96,8 @@ export type ResolvedRecipient = {
   email: string | null;
   displayName: string | null;
   locale: string; // BCP-47, default "en"
+  /** True when `locale` came from the booking itself, not the "en" default. */
+  localeIsExplicit?: boolean;
   isPlatformAdmin: boolean;
   role: RecipientRole;
   /** Identity used in the dedupe key: userId, or `guest:<email>`. */
