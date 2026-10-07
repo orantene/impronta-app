@@ -26,13 +26,21 @@ type Call = { table: string; op: string; payload?: unknown };
 
 test("createPurchase keeps cookie guest_session_id even when actorUserId is set", () => {
   const thread = readFileSync(join(WEB_ROOT, "src/lib/orders/purchase-thread.ts"), "utf8");
+  // Scope to the `inquiries` insert: that row's guest_session_id is what /c/[id]
+  // ownership gates on. The intake `inquiry_messages` row below it legitimately
+  // follows the message-row convention (signed-in sender sets sender_user_id and
+  // leaves guest_session_id null; guest-authored rows are the inverse).
+  const start = thread.indexOf('.from("inquiries")');
+  const end = thread.indexOf('.select("id")', start);
+  assert.ok(start >= 0 && end > start, "inquiries insert block must be locatable");
+  const inquiryInsert = thread.slice(start, end);
   assert.doesNotMatch(
-    thread,
+    inquiryInsert,
     /guest_session_id:\s*input\.actorUserId\s*\?\s*null/,
     "clearing guest_session_id when signed-in is how /c/ 404s after instant book",
   );
   assert.match(
-    thread,
+    inquiryInsert,
     /guest_session_id:\s*input\.guestSessionId/,
     "thread insert must stamp the cookie session whenever it is present",
   );
@@ -178,7 +186,7 @@ function threadFakeAdmin() {
         starts_at: "2026-09-28T16:15:00.000Z",
         ends_at: "2026-09-28T16:30:00.000Z",
         title: "Bozo",
-        expires_at: "2026-09-27T18:30:00.000Z",
+        expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       });
       return {
         data: {
