@@ -209,6 +209,7 @@ export async function createOrGetConnectedAccount(
   const country = normalizePayoutCountry(opts.country) ?? PLATFORM_DEFAULT_COUNTRY;
   // MX workspaces are created on the Mexico platform account.
   const platform = resolveStripeAccountForSeller({ payoutCountry: country });
+  if (!platform) return { ok: false, error: "Mexico payments are not configured yet." };
   const stripe = getStripeFor(platform);
   if (!stripe) return { ok: false, error: "Stripe is not configured." };
 
