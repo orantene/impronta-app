@@ -72,5 +72,16 @@ export const POLICIES_ES: Record<string, string> = {
   "Settings": "Ajustes",
   Less: "Menos",
   More: "Más",
+  "Your own rules (optional)": "Tus propias reglas (opcional)",
+  "Write one rule per line. They appear after the points above, as a numbered list. Up to {n} rules, {c} characters each.":
+    "Escribe una regla por línea. Aparecen después de los puntos de arriba, en una lista numerada. Hasta {n} reglas, de {c} caracteres cada una.",
+  "If a language is empty, your clients read the other one.": "Si un idioma está vacío, tus clientas leen el otro.",
+  "Saved. Your rules are live.": "Guardado. Tus reglas ya están en vivo.",
+  "Too many rules. The most is {n} per language.": "Demasiadas reglas. El máximo es {n} por idioma.",
+  "One rule is too long. The most is {c} characters.": "Una regla es demasiado larga. El máximo es {c} caracteres.",
+  "Could not save. Try again in a moment.": "No se pudo guardar. Inténtalo de nuevo en un momento.",
+  Saving: "Guardando",
+  "Save rules": "Guardar reglas",
+  "Preview your policies page": "Ver tu página de políticas",
   "Language of the preview": "Idioma de la vista previa",
 };
