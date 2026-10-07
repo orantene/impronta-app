@@ -31,7 +31,7 @@ import {
   VacationWindow,
   Verifications,
   VideoSlot,
-  actionLoadTalentMediaBundle,
+  actionLoadTalentMediaBundleAll,
   getProfileById,
   loadTalentProfileEditorData,
   parseVideoUrl,
@@ -651,7 +651,7 @@ export function makeInitialProfileState(
 // after load refetches normally.
 
 export type _HydrationInFlight = {
-  media: ReturnType<typeof actionLoadTalentMediaBundle>;
+  media: ReturnType<typeof actionLoadTalentMediaBundleAll>;
   editor: ReturnType<typeof loadTalentProfileEditorData>;
 };
 
@@ -664,7 +664,7 @@ export function _getEditorHydration(
   const existing = _editorHydrationInFlight.get(tid);
   if (existing) return { entry: existing, reused: true };
   const entry: _HydrationInFlight = {
-    media: actionLoadTalentMediaBundle(tid),
+    media: actionLoadTalentMediaBundleAll(tid),
     editor: loadTalentProfileEditorData({ talentProfileId: tid, isSelf }),
   };
   _editorHydrationInFlight.set(tid, entry);
