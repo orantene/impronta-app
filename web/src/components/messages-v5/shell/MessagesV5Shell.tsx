@@ -97,6 +97,7 @@ export type MessagesV5ShellProps = {
   readonly composerAccessory?: ReactNode;
   /** Presence display name when publishing staff "viewing" on the open thread. */
   readonly currentUserDisplayName?: string | null;
+  readonly onInboxLoaded?: (total: number) => void; // unfiltered row count after each "all" read (seller first run)
   readonly seller?: SellerChrome | null; // talent seller mode: hides staff chrome, carries translated quote-builder copy
 };
 
@@ -179,27 +180,29 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
 
   /* ------------------------------------------------------------- inbox */
   const activeIdRef = useRef<string | null>(null);
+  // The host learns the unfiltered total from THIS read instead of fetching the inbox again.
+  const onInboxLoadedRef = useRef(props.onInboxLoaded);
+  useEffect(() => { onInboxLoadedRef.current = props.onInboxLoaded; }, [props.onInboxLoaded]);
   const reloadInbox = useCallback(async () => {
     const filter = SEGMENT_FILTER[segment];
-    const result = await safeLoadInbox(engine.loadInbox, { locationSlug, filter });
+    const result = await safeLoadInbox(engine.loadInbox, { locationSlug, filter }, 2000, engine.loadInboxBudgetMs);
     setInboxLoading(false);
     if (!result.ok) {
       setInboxError(result.reason);
       return;
     }
-    // The thread the operator is on stays listed when the segment no longer
-    // returns it (a reply moved it from Needs action to Waiting); its row is
-    // re-read from the unfiltered inbox so the next write sends the version
-    // the last one moved it to.
+    // The open thread stays listed when the segment drops it (a reply moved it from Needs action to Waiting);
+    // its row is re-read from the unfiltered inbox so the next write sends the version the last one moved it to.
     const active = activeIdRef.current;
     let fresh: InboxRow | null = null;
     if (active && filter !== "all" && !result.rows.some((row) => row.id === active)) {
-      const all = await safeLoadInbox(engine.loadInbox, { locationSlug, filter: "all" }, 0);
+      const all = await safeLoadInbox(engine.loadInbox, { locationSlug, filter: "all" }, 0, engine.loadInboxBudgetMs);
       if (all.ok) fresh = all.rows.find((row) => row.id === active) ?? null;
     }
     setInboxError(null);
     setRows((previous) => keepActiveRow(result.rows, active, previous, fresh));
     setUnreadTotal(result.unreadCount);
+    if (filter === "all") onInboxLoadedRef.current?.(result.rows.length);
   }, [engine, locationSlug, segment]);
 
   useEffect(() => {
@@ -395,8 +398,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       paymentIssue: failed ? "failed" : expired ? "expired" : null,
     }), copy.kit.taskWords);
   }, [activeRow, copy.kit.taskWords, essentials?.customer.identityLevel, holdExpiresAt, recordChips]);
-  // Solo talent fallback is Services (beauty/salon appointments), not the
-  // agency "Talent & services" label — that only applies when a preset says so.
+  // Solo talent fallback is Services (beauty/salon appointments), not the agency "Talent & services" label (preset only).
   const itemsLabel =
     props.industryPreset !== undefined && props.industryPreset !== null
       ? itemsLabelForPreset(props.industryPreset, copy.kit)
