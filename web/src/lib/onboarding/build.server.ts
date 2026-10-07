@@ -30,6 +30,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 
 import { arrivalFromStamp, parseArrivalStamp, type ArrivalPayload } from "./arrival";
+import { ensureOwnSitePublished } from "./publish-own-site";
+import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
+import { applyMaisonDesignAction } from "@/lib/talent-site/server/maison-apply-actions";
+import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
+import { MAISON_DEFAULT_PALETTE_KEY } from "@/lib/talent-site/theme-catalog/maison/seed";
 import { writeTalentProfileFromBrief } from "./talent-writer.server";
 import { buildUnderstanding } from "./understanding";
 import type { OnboardingPath, PersistedModuleState } from "./module-state";
@@ -90,7 +95,7 @@ export async function runOnboardingBuild(input: {
     await snapshotBrief(input.brief.id, { expectedVersion: input.brief.currentVersion, reason: "intake", createdBy: input.userId, engineVersion: ENGINE_VERSION });
 
     let talentProfileId: string | undefined;
-    let talent: { publicUrl: string | null; todayUrl: string } | null = null;
+    let talent: { publicUrl: string | null; todayUrl: string; siteUrl?: string | null } | null = null;
     if (path !== "business") {
       const tp = await writeTalentProfileFromBrief({
         userClient: input.userClient, admin, userId: input.userId, email: input.email, brief: input.brief,
@@ -100,7 +105,26 @@ export async function runOnboardingBuild(input: {
       if (tp.talentProfileId) {
         talentProfileId = tp.talentProfileId;
         await linkBriefObjects(input.brief.id, { talentProfileId: tp.talentProfileId });
-        talent = { publicUrl: tp.profileCode ? `${appUrl.replace(/^https?:\/\/app\./, "https://")}/t/${tp.profileCode}` : null, todayUrl: `${appUrl}/talent/today` };
+        const apex = appUrl.replace(/^https?:\/\/app\./, "https://");
+        talent = { publicUrl: tp.profileCode ? `${apex}/t/${tp.profileCode}` : null, todayUrl: `${appUrl}/talent/today`, siteUrl: null };
+        // TUL-32: onboarding ends on a published own URL. Idempotent, best-effort.
+        const profileId = tp.talentProfileId;
+        const own = await ensureOwnSitePublished({
+          subdomainsEnabled: isTalentSiteSubdomainsEnabled(),
+          pathOrigin: apex,
+          readSite: async () => {
+            const [site, prof] = await Promise.all([
+              admin.from("talent_sites").select("site_slug, site_published_at, theme_design_slug").eq("talent_profile_id", profileId).maybeSingle(),
+              admin.from("talent_profiles").select("is_demo").eq("id", profileId).maybeSingle(),
+            ]);
+            if (site.error) return { row: null, isDemo: false, error: site.error.message };
+            return { row: site.data ?? null, isDemo: Boolean((prof.data as { is_demo?: boolean } | null)?.is_demo) };
+          },
+          applyDefaultDesign: () => applyMaisonDesignAction({ paletteKey: MAISON_DEFAULT_PALETTE_KEY }),
+          publish: () => publishMaxSiteAction(),
+        }).catch((err) => ({ ok: false as const, error: String(err) }));
+        if (own.ok) talent.siteUrl = own.publicUrl;
+        else logServerError("onboarding.build.publishOwnSite", new Error(own.error));
       }
     }
 
