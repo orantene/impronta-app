@@ -297,7 +297,13 @@ function TalentRouter() {
   const router = useRouter();
   const { state, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgendaItems, bridgeTalentAgendaHours, bridgeTalentAgendaError, bridgeTalentAgendaV2, toast } = useAdminShell();
   const agendaV2 = bridgeTalentAgendaV2;
-  const agendaNow = readAgendaNowClient(new Date());
+  // The clock is read after hydration: `new Date()` in render differs between
+  // the server pass and the browser pass (React #418). Until it is known the
+  // two clock-driven agenda pages render nothing for a frame.
+  const [agendaNow, setAgendaNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setAgendaNow(readAgendaNowClient(new Date()));
+  }, []);
   const tradeRules = tradeCalendarRules(bridgeTalentSelfProfile?.primaryTypeLabel);
   const openAgendaPath = (path: string, fallbackPage: TalentPage) => {
     // Absolute /talent/… paths only. Relative "bookings/new" breaks under
@@ -372,7 +378,7 @@ function TalentRouter() {
       break;
     case "calendar":
       page = agendaV2
-        ? (
+        ? agendaNow === null ? null : (
           <AgendaCalendarPage
             items={bridgeTalentAgendaItems ?? []}
             hours={bridgeTalentAgendaHours}
@@ -392,7 +398,7 @@ function TalentRouter() {
       break;
     case "attention":
       page = agendaV2
-        ? (
+        ? agendaNow === null ? null : (
           <AgendaAttentionPage
             items={bridgeTalentAgendaItems ?? []}
             now={agendaNow}

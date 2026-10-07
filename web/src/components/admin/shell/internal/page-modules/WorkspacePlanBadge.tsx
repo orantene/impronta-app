@@ -42,6 +42,8 @@ function fmtDate(iso: string | null, spanish: boolean): string | null {
     year: "numeric",
     month: "long",
     day: "numeric",
+    // Explicit zone: server (UTC) and browser must format the same calendar day.
+    timeZone: "UTC",
   });
 }
 

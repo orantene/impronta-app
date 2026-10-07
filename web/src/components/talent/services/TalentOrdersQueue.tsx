@@ -119,7 +119,7 @@ export function TalentOrdersQueue({ talentId }: { talentId: string }) {
               <div style={{ minWidth: 0, flex: "1 1 220px" }}>
                 <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: C.ink }}>{o.title}</p>
                 <p style={{ margin: "2px 0 0", fontSize: 11.5, color: C.inkSoft }}>
-                  {o.paymentStatus === "paid" ? "Paid" : o.paymentStatus} · {new Date(o.createdAt).toLocaleDateString()}
+                  {o.paymentStatus === "paid" ? "Paid" : o.paymentStatus} · {new Date(o.createdAt).toLocaleDateString("en-US", { timeZone: "UTC" })}
                 </p>
               </div>
               <span
