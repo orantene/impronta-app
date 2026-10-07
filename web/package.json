@@ -40,7 +40,7 @@
     "deploy:promote": "node scripts/promote-and-alias.mjs",
     "deploy:check": "node scripts/promote-and-alias.mjs --check",
     "deploy:alias": "node scripts/promote-and-alias.mjs --alias-only",
-    "test:alias-guard": "node --test scripts/lib/alias-guard.test.mjs",
+    "test:alias-guard": "node --test scripts/lib/alias-guard.test.mjs scripts/lib/smoke-decisions.test.mjs",
     "deploy:smoke": "node scripts/post-deploy-smoke-test.mjs",
     "qa:host": "node scripts/qa-host.mjs",
     "test:qa-host": "node --test scripts/lib/qa-hosts.test.mjs",
