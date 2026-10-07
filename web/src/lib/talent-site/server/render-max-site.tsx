@@ -224,8 +224,7 @@ export async function renderTalentMaxSite(
 
     const talentProfileId = site.talentProfileId;
     const previewDraft = input.previewDraft === true;
-    // The talent's own languages: bounds the locale, feeds the header switch,
-    // the builder `node.i18n` overlays and the hreflang set (PR 4 + 5).
+    // The talent's own languages: bounds the locale, feeds the header switch, the `node.i18n` overlays and hreflang (PR 4 + 5).
     const localeCtx = await loadTalentSiteLocaleContext({ talentProfileId, requestedLocale: input.locale, hrefMode: input.hrefMode, pagePath: input.canonicalPath });
     const locale = localeCtx.locale;
 
@@ -239,8 +238,7 @@ export async function renderTalentMaxSite(
       isOwnerDraftPreview = Boolean(
         session.user && ownerUserId && session.user.id === ownerUserId,
       );
-      // A non-owner who appends ?preview=draft falls through to the PUBLIC gate
-      // (sees the published site, or 404) — never the draft.
+      // A non-owner who appends ?preview=draft falls through to the PUBLIC gate (published site, or 404), never the draft.
     }
 
     // ── Plan + publish gate ─────────────────────────────────────────────────
@@ -279,8 +277,7 @@ export async function renderTalentMaxSite(
     // Owner draft preview renders draft pages too; the public path requires
     // published (the pure core re-applies this — defense in depth over RLS).
     const requirePublished = !isOwnerDraftPreview;
-    // `/politicas` and `/privacidad` are platform pages: they take the site's
-    // shell and theme (the home page supplies both) and swap only the body.
+    // `/politicas` and `/privacidad` are platform pages: the site's shell and theme (from home), only the body swaps.
     const policyDoc = policyDocForSlug(input.pageSlug);
     const page = selectMaxSitePage(pages, {
       pageSlug: policyDoc ? null : input.pageSlug,
@@ -338,8 +335,7 @@ export async function renderTalentMaxSite(
       localeCtx,
       publicPathPrefix,
       draftPreview: isOwnerDraftPreview,
-      // PHASE 1 — a free site carries the "Made with Tulala" mark; a paid plan
-      // removes it (same predicate as the /t/[code] profile footer).
+      // PHASE 1 — a free site carries the "Made with Tulala" mark; a paid plan removes it (same predicate as /t/[code]).
       showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
       isDemo,
       talentName: identity?.name ?? null,
