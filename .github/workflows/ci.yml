@@ -423,6 +423,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:onboarding
 
+      - name: tests — Jorgelina clauses loader (TUL-73)
+        if: ${{ !cancelled() }}
+        run: npm run test:jorgelina-clauses
+
       - name: tests — fields
         if: ${{ !cancelled() }}
         run: npm run test:fields
