@@ -222,6 +222,13 @@ export type ClassifyInput = {
    * accounted for, and in production every such object was live data.
    */
   allowUnaccounted?: boolean;
+  /**
+   * TUL-231. true = the PREFIX protection (and only that) no longer applies to
+   * this object, because its owner's deletion completed and the grace passed.
+   * External references, live rows, grace and lineage all still apply.
+   * Undefined = no release (the default).
+   */
+  releasedProtectedPrefix?: (bucketId: string, storagePath: string) => boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -344,7 +351,7 @@ export function classifyStorageObjects(input: ClassifyInput): ReapPlan {
 
     // (a) A structurally protected prefix. Never reap, regardless of rows.
     const protectedRule = matchProtectedRule(obj.bucketId, obj.name);
-    if (protectedRule) {
+    if (protectedRule && !input.releasedProtectedPrefix?.(obj.bucketId, obj.name)) {
       kept.push({ ...base, keepReason: "protected_prefix", detail: protectedRule.id });
       continue;
     }

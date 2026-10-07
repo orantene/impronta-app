@@ -20,13 +20,16 @@ import {
   DEFAULT_GRACE_DAYS,
   DEFAULT_MAX_DELETIONS_PER_RUN,
   MANAGED_BUCKETS,
-  classifyStorageObjects,
   collectStorageRefsFromJson,
   type ExternalReference,
   type MediaAssetRow,
   type ReapPlan,
   type StorageObject,
 } from "@/lib/media/reap-orphaned-media";
+import {
+  planWithDeletedAccountPrefixes,
+  type DeletedAccountPrefixReport,
+} from "@/lib/media/deleted-account-prefix-pass";
 import { runMediaRowPurge, type RowPurgeReport } from "@/lib/media/media-row-purge-io";
 
 const PAGE_SIZE = 1000;
@@ -325,6 +328,12 @@ export type ReapOptions = {
    * their files are gone. false (default) = dry run: count and report only.
    */
   purgeRows?: boolean;
+  /**
+   * TUL-231. true = lift the PREFIX protection for a deleted account's own
+   * documents/originals once deletion completed + grace. false (default) =
+   * dry run: count and report only; classification is unchanged.
+   */
+  releaseDeletedAccountPrefixes?: boolean;
   now?: Date;
 };
 
@@ -343,6 +352,8 @@ export type ReapReport = {
   deleted: { count: number; bytes: number } | null;
   /** TUL-227 row purge (dry run unless MEDIA_ROW_PURGE_ENFORCE=true). */
   rowPurge: RowPurgeReport;
+  /** TUL-231 deleted-account prefix release (dry run unless MEDIA_DELETED_ACCOUNT_PREFIX_ENFORCE=true). */
+  deletedAccountPrefix: DeletedAccountPrefixReport;
   durationMs: number;
 };
 
@@ -359,6 +370,7 @@ export function reapOptionsFromEnv(env: NodeJS.ProcessEnv = process.env): ReapOp
     execute: env.MEDIA_REAPER_ENABLED === "true",
     allowUnaccounted: env.MEDIA_REAPER_ALLOW_UNACCOUNTED === "true",
     purgeRows: env.MEDIA_ROW_PURGE_ENFORCE === "true",
+    releaseDeletedAccountPrefixes: env.MEDIA_DELETED_ACCOUNT_PREFIX_ENFORCE === "true",
     graceDays: Number.isFinite(graceDays) && graceDays > 0 ? graceDays : DEFAULT_GRACE_DAYS,
     maxDeletions:
       Number.isFinite(maxDeletions) && maxDeletions > 0
@@ -406,15 +418,20 @@ export async function runMediaReaper(
   }
 
   // --- classify -------------------------------------------------------------
-  const plan: ReapPlan = classifyStorageObjects({
-    objects,
-    assets: assets.value,
-    externalReferences,
-    now: options.now ?? new Date(),
-    graceDays: options.graceDays,
-    maxDeletions: options.maxDeletions,
-    allowUnaccounted: options.allowUnaccounted,
-  });
+  const { plan, report: deletedAccountPrefix }: { plan: ReapPlan; report: DeletedAccountPrefixReport } =
+    await planWithDeletedAccountPrefixes({
+      admin,
+      enforce: options.releaseDeletedAccountPrefixes === true,
+      input: {
+        objects,
+        assets: assets.value,
+        externalReferences,
+        now: options.now ?? new Date(),
+        graceDays: options.graceDays,
+        maxDeletions: options.maxDeletions,
+        allowUnaccounted: options.allowUnaccounted,
+      },
+    });
 
   // --- execute (only when explicitly enabled) -------------------------------
   let deleted: ReapReport["deleted"] = null;
@@ -475,6 +492,7 @@ export async function runMediaReaper(
     samplePaths: plan.deletable.slice(0, 25).map((d) => `${d.bucketId}/${d.storagePath}`),
     deleted,
     rowPurge,
+    deletedAccountPrefix,
     durationMs: Date.now() - startedAt,
   };
 }
