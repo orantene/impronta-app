@@ -232,23 +232,23 @@ you refresh it.
 ## 12. Required checks on main
 
 Derived from `.github/workflows/*.yml` at `origin/main` `675dc62a6`
-(2026-10-07). This section records what the **repo** shows. Which of these
-checks GitHub actually **requires** is branch-protection configuration that
-lives in GitHub settings and cannot be read from the repo; see "To confirm in
-GitHub settings" below. Nothing here asserts what is or is not required.
+(2026-10-07). The workflow facts come from the repo. The "Required" marks and
+the recorded answers below come from the PM's answer to the admin checklist
+(TUL-215); they were not read from GitHub settings by the author of this
+section. Items the PM did not answer are listed as open at the end.
 
 ### Checks that exist
 
 "Check" is the job `name:` as GitHub shows it in the PR checks list. None of
 these workflows declares a `merge_group` trigger.
 
-| Workflow file | Job id (check) | Runs on | Skipped on draft PRs? |
-|---|---|---|---|
-| `ci.yml` | `gate` ("Structural quality gate") | PR to `main` (opened, synchronize, reopened, ready_for_review), push to `main`, manual | Yes: `if: github.event_name != 'pull_request' \|\| github.event.pull_request.draft == false` |
-| `admin-boot.yml` | `admin-boot` ("Admin boot (prod build)") | PR to `main` (same types plus labeled), push to `main` | Yes, and also skipped on ordinary PRs (see "Heavy checks") |
-| `builder-fidelity.yml` | `fidelity` ("Fidelity goldens") | PR to `main` (same types plus labeled), push to `main` and `ci/seed-fidelity**`, manual | Yes, plus the heavy-check rule |
-| `builder-fidelity.yml` | `perf-budget` ("Builder perf budget") | Same triggers as `fidelity` | Yes, plus the heavy-check rule |
-| `talent-website-e2e.yml` | `migrations` ("Local Supabase + migration chain") | PR (any base branch) touching the path filter below, manual. No push trigger | Yes, plus the heavy-check rule |
+| Workflow file | Job id (check) | Required (per PM) | Runs on | Skipped on draft PRs? |
+|---|---|---|---|---|
+| `ci.yml` | `gate` ("Structural quality gate") | Yes | PR to `main` (opened, synchronize, reopened, ready_for_review), push to `main`, manual | Yes: `if: github.event_name != 'pull_request' \|\| github.event.pull_request.draft == false` |
+| `admin-boot.yml` | `admin-boot` ("Admin boot (prod build)") | Yes | PR to `main` (same types plus labeled), push to `main` | Yes, and also skipped on ordinary PRs (see "Heavy checks") |
+| `builder-fidelity.yml` | `fidelity` ("Fidelity goldens") | Yes | PR to `main` (same types plus labeled), push to `main` and `ci/seed-fidelity**`, manual | Yes, plus the heavy-check rule |
+| `builder-fidelity.yml` | `perf-budget` ("Builder perf budget") | Yes | Same triggers as `fidelity` | Yes, plus the heavy-check rule |
+| `talent-website-e2e.yml` | `migrations` ("Local Supabase + migration chain") | Not in the PM's list | PR (any base branch) touching the path filter below, manual. No push trigger | Yes, plus the heavy-check rule |
 
 Path filter for `talent-website-e2e.yml`: `web/src/lib/talent-site/**`,
 `web/src/lib/site-admin/builder-core/**`, `web/src/lib/saas/host-context.ts`,
@@ -278,29 +278,32 @@ These run on other events and never report a status on a PR to `main`:
 | `guide-sync.yml` | `sync` | Push to `main` touching guide sources, Mondays 06:17 UTC, manual |
 | `builder-e2e.yml` | `builder-e2e` ("Builder smoke (dev-signin)") | Manual only |
 
-### To confirm in GitHub settings (admin)
+### Recorded answers (PM, TUL-215)
 
-The repo cannot show any of the following. Someone with admin access on
+- Required checks on `main` and on `production`: "Structural quality gate",
+  "Builder perf budget", "Fidelity goldens", "Admin boot (prod build)".
+- "Require branches to be up to date before merging" (strict) is **off**. Section 11 therefore
+  stays a manual discipline: GitHub does not force a rebase before merge.
+
+### Still open (admin)
+
+The PM did not answer these. Someone with admin access on
 `orantene/impronta-app` should check Settings, then Branches (or Rules), record
-the answers here, and delete this list.
+the answers here, and delete the item.
 
-- [ ] Whether a branch protection rule or ruleset exists for `main` at all.
-- [ ] Which status checks are marked **required**. Candidates from the table:
-      "Structural quality gate", "Admin boot (prod build)", "Fidelity goldens",
-      "Builder perf budget", "Local Supabase + migration chain".
 - [ ] Whether a **merge queue** is enabled. If it is, the required workflows
       need a `merge_group` trigger, and none has one today.
 - [ ] Whether a **skipped** job counts as passing for the required-check rule.
-      Relevant because every PR check above has an `if:` that skips it on
-      drafts, and four skip on ordinary PRs. Also whether a workflow that never
-      starts (for example `talent-website-e2e.yml` when no path matches) leaves
-      its check pending. Verify against the live rule; do not rely on this note.
-- [ ] Whether "Require branches to be up to date before merging" is on (see §11).
-- [ ] Whether admins can bypass the rules, and who may push to `production`.
-- [ ] The exact check names GitHub has recorded. Required checks match by name,
-      so a renamed job would stop satisfying the rule.
+      Relevant because three of the four required checks (Admin boot, Fidelity
+      goldens, Builder perf budget) are skipped on drafts and on ordinary PRs
+      (see "Heavy checks"), and the structural gate is skipped on drafts.
+      Verify against the live rule; do not rely on this note.
+- [ ] Who may push to `production`, and whether admins can bypass the rules.
+- [ ] Whether the check names above match the names GitHub has recorded.
+      Required checks match by name, so a renamed job would stop satisfying the
+      rule.
 
-Once confirmed, add a "Required" column to the first table, or script it: the
-rule can be read with `gh api repos/orantene/impronta-app/branches/main/protection`
-or `gh api repos/orantene/impronta-app/rules/branches/main` (admin rights may be
+The rule can be read with
+`gh api repos/orantene/impronta-app/branches/main/protection` or
+`gh api repos/orantene/impronta-app/rules/branches/main` (admin rights may be
 needed).
