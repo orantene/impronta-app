@@ -4,6 +4,8 @@ import type { NextRequest, NextResponse } from "next/server";
 import { authCoordinationOptions } from "@/lib/supabase/auth-coordination";
 import { cookieDomainForHost, isSupabaseAuthCookie } from "@/lib/supabase/cookie-domain";
 
+import { clientAccountEnabledFor } from "./flag";
+
 /**
  * Client-account session refresh on talent-site hosts (EPIC E, P0).
  *
@@ -39,15 +41,13 @@ import { cookieDomainForHost, isSupabaseAuthCookie } from "@/lib/supabase/cookie
  */
 
 /**
- * Talent kind of the `CLIENT_ACCOUNT_HOSTS` comma list. Same parsing as
- * `clientAccountEnabledFor("talent")` in PR #2553 (`lib/client-account/flag.ts`,
- * not on main yet): trim, case-insensitive, unset or empty means OFF, and no
- * NODE_ENV default. Swap to that helper once #2553 merges.
+ * Talent kind of the `CLIENT_ACCOUNT_HOSTS` comma list. With no argument this is
+ * exactly `clientAccountEnabledFor("talent")` (the canonical flag, #2553); the
+ * `raw` overload keeps the same parsing for unit tests: trim, case-insensitive,
+ * unset or empty means OFF, no NODE_ENV default.
  */
-export function clientAccountTalentHostsEnabled(
-  raw: string | undefined = process.env.CLIENT_ACCOUNT_HOSTS,
-): boolean {
-  if (!raw) return false;
+export function clientAccountTalentHostsEnabled(raw?: string): boolean {
+  if (raw === undefined) return clientAccountEnabledFor("talent");
   return raw.split(",").some((part) => part.trim().toLowerCase() === "talent");
 }
 
