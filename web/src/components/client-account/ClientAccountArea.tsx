@@ -10,7 +10,7 @@ import { formatOrderMoney } from "@/lib/orders/money-format";
 import type { AccountSummary } from "@/lib/client-account/pure";
 
 import { ClientAccountButton } from "./ClientAccountButton";
-import { LogOutButton, SettingsForm, VisitActions, btnPrimary, btnSecondary, type VisitActionsCopy } from "./AccountClientIslands";
+import { LogOutButton, SettingsForm, ThreadReply, VisitActions, btnPrimary, type VisitActionsCopy } from "./AccountClientIslands";
 
 const INK = "var(--token-color-ink, #111)";
 const BG = "var(--token-color-background, #fff)";
@@ -35,7 +35,6 @@ type Props = {
   audience: "signed_out" | "not_client" | "client";
   view: AccountView;
   talentName: string;
-  profileCode: string | null;
   email: string | null;
   timeZone: string;
   data: AreaData;
@@ -174,7 +173,18 @@ export function ClientAccountArea(props: Props) {
             </div>
           ))}
         </div>
-        <a href={`/c/${encodeURIComponent(props.view.id)}`} style={{ ...btnSecondary, display: "inline-flex", alignItems: "center", textDecoration: "none" }}>{a("openChat")}</a>
+        <ThreadReply
+          inquiryId={props.view.id}
+          copy={{
+            label: a("replyLabel"),
+            send: a("sendReply"),
+            errors: {
+              invalid: a("errGeneric"), unavailable: a("errGeneric"), failed: a("errGeneric"),
+              not_signed_in: a("replyErrSignedOut"), not_allowed: a("errNotAllowed"),
+              empty: a("replyErrEmpty"), too_long: a("replyErrTooLong"), rate_limited: a("replyErrRate"),
+            },
+          }}
+        />
       </>,
     );
   }

@@ -599,6 +599,10 @@ export const MARKETING_API_PREFIXES = [
   // saved yet" under a header badge of 1 (2026-09-17). Exactly this path;
   // the rest of `/api/directory` stays agency + app only.
   "/api/directory/talents-by-ids",
+  // Client account dock on the `/t/<code>` profile page (flag `app`): the
+  // tenant is the platform hub, resolved server side from the host. Exactly
+  // this path; the rest of `/api/client` stays agency + app only.
+  "/api/client/account",
 ] as const;
 
 /**

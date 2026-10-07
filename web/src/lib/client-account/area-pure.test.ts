@@ -143,7 +143,7 @@ test("booking actions: engine, tenant from the host, and the pure decision are a
   assert.match(src, /cancelBookingSet\(/);
   assert.match(src, /rescheduleBooking\(/);
   assert.match(src, /\.eq\("tenant_id", tenant\.tenantId\)/);
-  assert.match(src, /clientAccountEnabledFor\("talent"\)/);
+  assert.match(src, /accountSurfaceEnabledForRequest\(\)/);
   assert.doesNotMatch(src, /tenantId:\s*(input|parsed\.data)\.tenantId/);
 });
 
