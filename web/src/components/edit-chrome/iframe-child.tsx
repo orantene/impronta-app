@@ -92,7 +92,8 @@ export function IframeChild({
         operator wants to see the header at the device width.
       */}
       <style>{`
-        body { padding-top: 0 !important; padding-left: 0 !important; padding-right: 0 !important; max-width: none !important; margin: 0 !important; overflow-x: hidden !important; }
+        body { padding-top: 0 !important; padding-left: 0 !important; padding-right: 0 !important; max-width: none !important; margin: 0 !important; overflow-x: clip !important; }
+        html { overflow-x: clip !important; }
         header[data-public-header] { display: block !important; }
       `}</style>
       <EditProvider
