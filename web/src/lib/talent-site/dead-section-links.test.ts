@@ -10,7 +10,7 @@ import test from "node:test";
 
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { buildMaisonV2Payload } from "./theme-catalog/collection/designs";
-import { pruneDeadSectionLinks } from "./dead-section-links";
+import { homeAnchorHref, pruneDeadSectionLinks } from "./dead-section-links";
 import { pruneEmptyBoundSections } from "./my-content-prune";
 
 type AnyNode = BuilderNode & { children?: BuilderNode[] };
@@ -121,7 +121,26 @@ test("#talent-ask is never pruned: it is a real target on every talent page", ()
 
 test("the home page renders the header and footer through the pruner", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/talent-site/server/render-max-site.tsx"), "utf8");
-  assert.match(src, /pruneDeadSectionLinks\(headerTree, renderedBlocks, \[footerTree\]\)/);
-  assert.match(src, /pruneDeadSectionLinks\(footerTree, args\.mainOverride \? \[\] : renderedBlocks, \[headerTree\]\)/);
+  assert.match(src, /pruneDeadSectionLinks\(headerTree, renderedBlocks, \[footerTree\], \{ homePath \}\)/);
+  assert.match(src, /pruneDeadSectionLinks\(footerTree, renderedBlocks, \[headerTree\], \{ homePath \}\)/);
   assert.match(src, /renderBuilderNodes\(liveHeaderTree/);
+});
+
+test("off the home page nav anchors point back at the home page, locale-aware", () => {
+  const nav = (hs: string[]): BuilderNode[] => [
+    { id: "n", kind: "container", props: {}, children: hs.map(link) } as unknown as BuilderNode,
+  ];
+  const home = [section("services"), section("gallery")];
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(nav(["#services", "#reviews", "#gallery"]), home, [], { homePath: "/" })), ["/#services", "/#gallery"]);
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(nav(["#services"]), home, [], { homePath: "/en" })), ["/en/#services"]);
+  // the shell's own anchors and the always-present targets stay in-page
+  assert.deepEqual(hrefs(pruneDeadSectionLinks([...nav(["#s-foot", "#talent-ask"]), section("s-foot")], home, [], { homePath: "/" })), ["#s-foot", "#talent-ask"]);
+  // on the home page (no homePath) nothing is rewritten
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(nav(["#services", "#reviews"]), home)), ["#services"]);
+});
+
+test("homeAnchorHref", () => {
+  assert.equal(homeAnchorHref("/", "services"), "/#services");
+  assert.equal(homeAnchorHref("/en", "services"), "/en/#services");
+  assert.equal(homeAnchorHref("/en/", "about"), "/en/#about");
 });

@@ -151,7 +151,10 @@ function ShotFigure({
   wantLabel,
   framed,
   magazineIndex,
+  es,
 }: {
+  /** Visitor language is Spanish (platform strings such as the aria-label verb). */
+  es?: boolean;
   shot: TalentPortfolioShot;
   offering?: TalentOffering | null;
   showCaptions: boolean;
@@ -168,7 +171,7 @@ function ShotFigure({
     shot.caption?.trim() ||
     shot.offeringTitle?.trim() ||
     shot.alt ||
-    "Portfolio photo";
+    (es ? "Foto del portafolio" : "Portfolio photo");
   const serviceLine =
     wantLabel && shot.offeringId && shot.caption?.trim()
       ? wantLabel
@@ -185,7 +188,7 @@ function ShotFigure({
         confirmsByHand={confirmsByHand}
         className="sb-portfolio-shot"
         ariaLabel={
-          serviceLine ? `${label}. Opens ${serviceLine}` : label
+          serviceLine ? `${label}. ${es ? "Abre" : "Opens"} ${serviceLine}` : label
         }
       >
         <span className="sb-portfolio-frame" style={{ display: "block", overflow: "hidden" }}>
@@ -280,6 +283,7 @@ export function renderPortfolioBlock(args: {
       wantLabel={wantLabel}
       framed={framed}
       magazineIndex={magazine ? index + 1 : undefined}
+      es={es}
     />
   ));
 
