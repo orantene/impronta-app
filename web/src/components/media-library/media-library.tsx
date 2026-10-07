@@ -399,7 +399,7 @@ export function MediaLibrary(props: MediaLibraryProps) {
               tone="error"
               icon={<AlertCircle className="size-4" />}
               title={t("dashboard.mediaLibrary.errorTitle")}
-              detail={library.error}
+              detail={t("dashboard.mediaLibrary.errorDetail")}
               action={
                 <Button
                   type="button"

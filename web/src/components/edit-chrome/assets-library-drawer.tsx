@@ -48,7 +48,9 @@ import { useT } from "@/i18n/use-t";
 import { MediaLibrary } from "@/components/media-library/media-library";
 import { LibraryNotice } from "@/components/media-library/media-library-kit";
 import { useMediaLibrary } from "@/components/media-library/use-media-library";
-import { useMediaUpload } from "@/lib/media/use-media-upload";
+import { useBuilderMediaScope } from "./builder-media-scope";
+import { compressImage } from "@/lib/client/image-compress";
+import { useMediaUpload, type MediaUploadTransport } from "@/lib/media/use-media-upload";
 import { describeRejections } from "@/components/media-library/rejection-copy";
 import { scanAssetUsageAction } from "@/lib/site-admin/edit-mode/assets-actions";
 import type { MediaLibraryWireItem } from "@/lib/media/library-wire";
@@ -57,6 +59,7 @@ const TITLE_ID = "assets-drawer-title";
 
 
 /** Staff lane accepts everything the CMS upload route accepts. */
+const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
 const STAFF_ACCEPT = [
   "image/jpeg,image/png,image/webp,image/gif,image/avif,image/svg+xml",
   "video/mp4,video/quicktime,video/webm",
@@ -125,13 +128,20 @@ function useAssetUsage(items: ReadonlyArray<MediaLibraryWireItem>, active: boole
 export function AssetsLibraryDrawer() {
   const { assetsOpen, closeAssets, tenantId } = useEditContext();
   const t = useT();
+  // Solo talent (no agency workspace): the staff library API has no tenant for
+  // them ("Select an agency workspace first"). Read and write the talent's OWN
+  // library, the same endpoints the media picker uses.
+  const { talentProfileId } = useBuilderMediaScope();
+  const isTalentScope = !!talentProfileId;
 
   const library = useMediaLibrary({
-    source: { kind: "tenant", tenantId },
+    source: talentProfileId
+      ? { kind: "talent", talentProfileId }
+      : { kind: "tenant", tenantId },
     active: assetsOpen,
   });
 
-  const { usage, markUnused } = useAssetUsage(library.items, assetsOpen);
+  const { usage, markUnused } = useAssetUsage(library.items, assetsOpen && !isTalentScope);
 
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -153,12 +163,30 @@ export function AssetsLibraryDrawer() {
   const [cropSaving, setCropSaving] = useState(false);
   const [cropError, setCropError] = useState<string | null>(null);
 
+  const talentTransport = useCallback<MediaUploadTransport>(
+    async ({ file, onProgress }) => {
+      onProgress({ phase: "compressing" });
+      const compressed = await compressImage(file);
+      const form = new FormData();
+      form.set("talentProfileId", talentProfileId!);
+      form.set("file", compressed.file, compressed.file.name || file.name);
+      onProgress({ phase: "uploading", bytesTotal: compressed.file.size });
+      const res = await fetch("/api/talent/media/upload", { method: "POST", body: form });
+      const body = await res.json();
+      if (!res.ok || !body.ok) return { ok: false, error: body.error ?? `HTTP ${res.status}` };
+      return { ok: true, registered: body.item, publicUrl: body.item?.publicUrl };
+    },
+    [talentProfileId],
+  );
+
   const uploader = useMediaUpload({
-    purpose: { kind: "cms", tenantId },
+    purpose: isTalentScope
+      ? { kind: "custom", transport: talentTransport }
+      : { kind: "cms", tenantId },
     // STAFF_ACCEPT advertises video and documents and the CMS transport has a
     // lane for both, so the engine must clear them. Without this the drawer
     // takes a video, drops it in `prepareUploadFiles`, and reports nothing.
-    allowKinds: ["image", "video", "document"],
+    allowKinds: isTalentScope ? ["image"] : ["image", "video", "document"],
     onRejections: (rejections) => setUploadError(describeRejections(rejections, t)),
     onItemReady: (staged) => {
       const item = staged.registered as MediaLibraryWireItem | undefined;
@@ -204,22 +232,29 @@ export function AssetsLibraryDrawer() {
     async (item: MediaLibraryWireItem, patch: { alt?: string; tags?: string[] }) => {
       setSaveError(null);
       try {
-        const res = await fetch("/api/admin/media/library", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tenantId, id: item.id, ...patch }),
-        });
+        const res = await fetch(
+          isTalentScope ? "/api/talent/media/library" : "/api/admin/media/library",
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              isTalentScope
+                ? { talentProfileId, id: item.id, ...(patch.alt !== undefined ? { alt: patch.alt } : {}) }
+                : { tenantId, id: item.id, ...patch },
+            ),
+          },
+        );
         const body = await res.json();
         if (!res.ok || !body.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
         library.patchItem(item.id, {
           ...(patch.alt !== undefined ? { alt: body.item?.alt ?? patch.alt } : {}),
           ...(patch.tags !== undefined ? { tags: body.item?.tags ?? patch.tags } : {}),
         });
-      } catch (e) {
-        setSaveError(String(e).slice(0, 200));
+      } catch {
+        setSaveError(t("dashboard.mediaLibrary.errorDetail"));
       }
     },
-    [library, tenantId],
+    [isTalentScope, library, t, talentProfileId, tenantId],
   );
 
   const saveAlt = useCallback(
@@ -289,14 +324,14 @@ export function AssetsLibraryDrawer() {
       <DrawerBody>
         <MediaLibrary
           library={library}
-          variant="staff"
+          variant={isTalentScope ? "talent" : "staff"}
           selectionMode="none"
           selectedIds={[]}
           // Browse mode: the library itself opens the detail rail on activate.
           onActivate={() => {}}
           lockNoteFor={() => null}
           onSaveAlt={saveAlt}
-          onSaveTags={saveTags}
+          onSaveTags={isTalentScope ? undefined : saveTags}
           onCrop={(item) => {
             setCropError(null);
             setCropTarget(item);
@@ -308,7 +343,7 @@ export function AssetsLibraryDrawer() {
           uploading={uploading}
           uploadProgressPct={uploader.progressPct}
           uploadHint={t("dashboard.mediaLibrary.uploadHintAssets")}
-          uploadAccept={STAFF_ACCEPT}
+          uploadAccept={isTalentScope ? IMAGE_ACCEPT : STAFF_ACCEPT}
           header={
             uploadError || saveError ? (
               <LibraryNotice tone="error">{uploadError ?? saveError}</LibraryNotice>
