@@ -70,6 +70,7 @@ import { recordProviderInvoice } from "@/lib/payments/provider-invoices";
 import { notifyTrialWillEnd } from "@/lib/notifications/producers/trial-notify";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { reportLaneMismatch } from "@/lib/stripe/webhook-lane-mismatch";
 import { recordDiscountRedemption } from "@/lib/billing/record-discount-redemption";
 import { improntaLog } from "@/lib/server/structured-log";
 import { notifyNonBookingDispute } from "@/lib/payments/dispute-notify";
@@ -720,11 +721,9 @@ export async function handleStripeWebhook(
   if (account === "us" ? !isStripeConfigured() : !stripe) {
     return NextResponse.json({ error: "Stripe not configured." }, { status: 503 });
   }
-  // Stripe splits deliveries across TWO endpoint types and each carries its own
-  // signing secret:
-  //   • account endpoint  — platform events (payment_intent.*, charge.*, …)
-  //   • CONNECT endpoint  — connected-account events (account.updated,
-  //     capability.updated, account.external_account.*)
+  // Stripe splits deliveries across TWO endpoint types, each with its own
+  // signing secret: account (payment_intent.*, charge.*, …) and CONNECT
+  // (account.updated, capability.updated, account.external_account.*).
   // Connected-account events are what tell us a talent finished onboarding, which
   // is what releases their held payouts. Verified live 2026-08-09: with only the
   // account endpoint registered, a Mexican talent completed onboarding, Stripe
@@ -761,6 +760,7 @@ export async function handleStripeWebhook(
   }
   if (!event) {
     logServerError("stripe-webhook.verify", lastVerifyError);
+    await reportLaneMismatch({ expectedLane: account, body, signature, log: logServerError, verify: (b, sg, sec) => stripe!.webhooks.constructEventAsync(b, sg, sec) });
     return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
   }
 
