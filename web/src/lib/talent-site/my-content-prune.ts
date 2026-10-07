@@ -24,6 +24,8 @@
  */
 import { resolveCompCardDisplay } from "@/lib/site-admin/builder-node/comp-card-block";
 import { filterShotsForPortfolio } from "@/lib/site-admin/builder-node/portfolio-selection";
+import { filterOfferingsForCatalog } from "@/lib/site-admin/builder-node/services-catalog-selection";
+import { TALENT_ASK_HREF } from "@/lib/talent-site/contact-channels";
 import type { TalentPortfolioShot } from "@/lib/site-admin/builder-node/portfolio-types";
 import type { BuilderNodeRenderDataSources } from "@/lib/site-admin/builder-node/render";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
@@ -100,6 +102,16 @@ export function distributeChapterShots(
 /** Nodes that only label a section; a section left with only these is empty. */
 const LABEL_KINDS = new Set(["heading", "paragraph", "divider", "spacer"]);
 
+/**
+ * TUL-118 (DS-64): the FAQ band's "Ask a question" button only frames the
+ * accordion (it opens the ask sheet), so it counts as a label. Any other
+ * button, link or media is real content and keeps the band.
+ */
+function isFramingNode(n: BuilderNode): boolean {
+  if (LABEL_KINDS.has(n.kind)) return true;
+  return n.kind === "button" && propsOf(n).href === TALENT_ASK_HREF;
+}
+
 /** Data-bound blocks with nothing to show on the live site (F31). */
 function isEmptyBoundBlock(n: BuilderNode, ds: BuilderNodeRenderDataSources): boolean {
   const p = propsOf(n);
@@ -113,7 +125,42 @@ function isEmptyBoundBlock(n: BuilderNode, ds: BuilderNodeRenderDataSources): bo
     return (ds.talentVisitFacts ?? []).length === 0;
   }
   if (n.kind === "reviews") return (ds.talentReviews ?? []).length === 0;
+  // TUL-118 (DS-64): only when the source was actually loaded (an array), so a
+  // render path that never fetched it keeps the block.
+  if (n.kind === "services_catalog") {
+    if (!Array.isArray(ds.talentOfferings)) return false;
+    // A band marked for the live booking surface renders its own list.
+    if (ds.liveBooking && (ds.liveBooking.services.length > 0 || ds.liveBooking.offerings.length > 0)) return false;
+    return catalogVisibleCount(p, ds) === 0;
+  }
+  if (n.kind === "portfolio") {
+    if (!Array.isArray(ds.talentPortfolioShots)) return false;
+    return (
+      filterShotsForPortfolio(ds.talentPortfolioShots, {
+        selectionMode: p.selectionMode as "all" | "ids" | undefined,
+        selectedMediaIds: p.selectedMediaIds as string[] | undefined,
+        autoIncludeNew: p.autoIncludeNew as boolean | undefined,
+        albumId: p.albumId as string | undefined,
+      }).length === 0
+    );
+  }
   return false;
+}
+
+/** Offerings the catalog block would list, same filter the renderer uses. */
+function catalogVisibleCount(p: Props, ds: BuilderNodeRenderDataSources): number {
+  const sort = p.sort as Parameters<typeof filterOfferingsForCatalog>[1]["sort"];
+  return filterOfferingsForCatalog(ds.talentOfferings ?? [], {
+    selectionMode: p.selectionMode as "all" | "ids" | "categories" | undefined,
+    selectedCategoryNames: p.selectedCategoryNames as string[] | undefined,
+    selectedOfferingIds: p.selectedOfferingIds as string[] | undefined,
+    autoIncludeNew: p.autoIncludeNew as boolean | undefined,
+    featuredOfferingIds: p.featuredOfferingIds as string[] | undefined,
+    sort,
+    manualOrderIds: (sort === "manual"
+      ? (p.manualOrderIds ?? p.selectedOfferingIds)
+      : p.manualOrderIds) as string[] | undefined,
+  }).length;
 }
 
 /**
@@ -131,7 +178,7 @@ function pruneWith(
     if (Array.isArray(kids) && kids.length > 0) {
       const next = kids.map(keep).filter((k): k is BuilderNode => k !== null);
       if (next.length === 0) return null;
-      if (next.length < kids.length && next.every((k) => LABEL_KINDS.has(k.kind))) return null;
+      if (next.length < kids.length && next.every(isFramingNode)) return null;
       return next.length === kids.length && next.every((k, i) => k === kids[i])
         ? n
         : ({ ...n, children: next } as BuilderNode);
