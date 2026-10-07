@@ -186,3 +186,19 @@ test("groupInboxRows: omits empty groups", () => {
   const groups = groupInboxRows([reply], "needs", EN_COPY, NOW);
   assert.deepEqual(groups.map((g) => g.key), ["reply"]);
 });
+
+/* ---------- Today "Needs attention" and the inbox share ONE needs-reply rule ---------- */
+
+test("needs-reply: inbox filter count and Today card count agree for the same thread set", async () => {
+  const { countAwaitingReply, rowsForSellerFilter, sellerFilterCounts } = await import("./inbox-view");
+  const rows = [
+    inboxRow({ id: "a", conversationState: "needs_reply", ownerUserId: "u-1", nextAction: null }),
+    inboxRow({ id: "b", conversationState: "needs_reply", ownerUserId: "u-1", nextAction: null }),
+    inboxRow({ id: "c", conversationState: "awaiting_customer", ownerUserId: "u-1", nextAction: null }),
+    inboxRow({ id: "d", conversationState: "resolved", ownerUserId: "u-1", nextAction: null }),
+  ];
+  assert.equal(countAwaitingReply(rows), 2);
+  assert.equal(sellerFilterCounts(rows).needs, countAwaitingReply(rows));
+  assert.equal(rowsForSellerFilter(rows, "needs").length, countAwaitingReply(rows));
+  assert.equal(countAwaitingReply([]), 0);
+});
