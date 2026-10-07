@@ -12,6 +12,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
+import { ensureSoloTalentTenantId } from "@/lib/saas/solo-talent-tenant";
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { parseWeeklyHours, type WeeklyHours } from "./hours-types";
@@ -61,7 +62,9 @@ export async function resolveHoursTenantId(
     .limit(1)
     .maybeSingle();
   if (rosterErr) logServerError("hours-tenant.readRoster", rosterErr);
-  return typeof roster?.tenant_id === "string" ? roster.tenant_id : null;
+  if (typeof roster?.tenant_id === "string") return roster.tenant_id;
+  // Solo talent with no roster row (pre-1A account): their workspace is the hub.
+  return ensureSoloTalentTenantId(admin, talentProfileId);
 }
 
 /**
