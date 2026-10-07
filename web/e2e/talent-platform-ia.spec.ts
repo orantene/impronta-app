@@ -14,7 +14,7 @@ const QA_AUDIT_EMAIL = "qa-talent-dashboard-audit@impronta.test";
 const QA_AUDIT_PASSWORD = (process.env.QA_AUDIT_PASSWORD?.trim() || (() => { throw new Error("QA_AUDIT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })());
 const SOFIA_EMAIL = "tulum-talent-sofia@impronta.test";
 const SOFIA_PASSWORD = (process.env.QA_TALENT_PASSWORD?.trim() || (() => { throw new Error("QA_TALENT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })());
-const AUDIT_PROFILE_CODE = "TAL-AUDIT-0512";
+const AUDIT_PROFILE_CODE = "TAL-93941";
 
 async function dismissAnalyticsIfPresent(page: Page) {
   const btn = page.getByRole("button", { name: /decline/i });

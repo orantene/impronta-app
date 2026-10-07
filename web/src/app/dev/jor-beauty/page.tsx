@@ -206,7 +206,7 @@ export default async function JorBeautyMockupPage({
       experience: "Experiencia",
       details: "Detalles",
     },
-    canonicalShareUrl: "tulala.digital/t/TA-JORGBEAUTY",
+    canonicalShareUrl: "tulala.digital/t/TAL-93938",
     profileSourcePage: "/dev/jor-beauty",
     portalInquiryHref: null,
     resolvedPreview: true,

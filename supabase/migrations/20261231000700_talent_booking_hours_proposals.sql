@@ -243,7 +243,7 @@ BEGIN
   RETURNING id INTO v_tenant;
 
   INSERT INTO public.talent_profiles (profile_code, created_by_agency_id, profile_kind)
-  VALUES ('t1-07-proof-' || substr(gen_random_uuid()::text, 1, 8), v_tenant, 'person')
+  VALUES (public.generate_profile_code(), v_tenant, 'person')
   RETURNING id INTO v_talent;
 
   -- 1. No proposal yet: accept refuses not_found.

@@ -53,21 +53,21 @@ export const TALENT_FIXTURES: readonly TalentFixture[] = [
   {
     key: "t_incomplete",
     email: "qa-t-incomplete@impronta.test",
-    profileCode: "TAL-QA-INCOMPLETE",
+    profileCode: "TAL-95001",
     displayName: "Incomplete Ivy",
     talentPlanKey: "talent_basic",
   },
   {
     key: "t_ready",
     email: "qa-t-ready@impronta.test",
-    profileCode: "TAL-QA-READY",
+    profileCode: "TAL-95002",
     displayName: "Ready Renata",
     talentPlanKey: "talent_basic",
   },
   {
     key: "t_free_site",
     email: "qa-t-free-site@impronta.test",
-    profileCode: "TAL-QA-FREESITE",
+    profileCode: "TAL-95003",
     displayName: "Free Site Fiona",
     talentPlanKey: "talent_basic",
     siteSlug: "free-site-fiona",
@@ -76,7 +76,7 @@ export const TALENT_FIXTURES: readonly TalentFixture[] = [
   {
     key: "t_max",
     email: "qa-t-max@impronta.test",
-    profileCode: "TAL-QA-MAX",
+    profileCode: "TAL-95004",
     displayName: "Max Site Maxine",
     talentPlanKey: "talent_portfolio",
     siteSlug: "max-site-maxine",
@@ -85,14 +85,14 @@ export const TALENT_FIXTURES: readonly TalentFixture[] = [
   {
     key: "t_pro_legacy",
     email: "qa-t-pro-legacy@impronta.test",
-    profileCode: "TAL-QA-PROLEGACY",
+    profileCode: "TAL-95005",
     displayName: "Pro Legacy Priya",
     talentPlanKey: "talent_pro",
   },
   {
     key: "t_multi_roster",
     email: "qa-t-multi-roster@impronta.test",
-    profileCode: "TAL-QA-MULTIROSTER",
+    profileCode: "TAL-95006",
     displayName: "Multi Roster Mona",
     talentPlanKey: "talent_basic",
   },
@@ -100,7 +100,7 @@ export const TALENT_FIXTURES: readonly TalentFixture[] = [
   {
     key: "t_vale",
     email: "qa-t-vale@impronta.test",
-    profileCode: "TAL-QA-VALE",
+    profileCode: "TAL-95007",
     displayName: "Vale Montes",
     talentPlanKey: "talent_basic",
     siteSlug: "valemontes",
@@ -110,7 +110,7 @@ export const TALENT_FIXTURES: readonly TalentFixture[] = [
   {
     key: "t_ivan",
     email: "qa-t-ivan@impronta.test",
-    profileCode: "TAL-QA-IVAN",
+    profileCode: "TAL-95008",
     displayName: "Iván Lugo",
     talentPlanKey: "talent_basic",
     siteSlug: "ivanlugo",

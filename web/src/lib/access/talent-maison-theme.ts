@@ -12,7 +12,7 @@
  *
  * Prod (2026-10-04 Built-vs-Live): `TALENT_MAISON_THEME_ENABLED=all` so every
  * talent can apply Maison. The allow-list env is retained unused while
- * mode=all (legacy cohort: TAL-QAFIXFREE + TAL-93900). Prefer `all` over
+ * mode=all (legacy cohort: TAL-93939 + TAL-93900). Prefer `all` over
  * expanding the list for finished themes.
  */
 

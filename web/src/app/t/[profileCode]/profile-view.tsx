@@ -142,6 +142,7 @@ import { isTalentExclusiveToTenant } from "@/lib/agency/talent-exclusivity";
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { resolvePlatformTalentSiteForProfile } from "@/lib/talent-site/resolve-platform-talent-site";
+import { liveTalentProfileCode } from "@/lib/talent/profile-code-redirect.server";
 import { loadTalentMaxSiteLink } from "@/lib/talent-site/server/load-max-site-link";
 import { TALENT_SITE_TEMPLATES } from "@/lib/talent-site/templates/registry";
 import type { TalentSiteTemplateKey } from "@/lib/talent-site/templates/types";
@@ -1368,7 +1369,7 @@ export async function buildTalentProfileMetadata({
 }): Promise<Metadata> {
   if (!isSupabaseConfigured()) return {};
 
-  const { profileCode } = await params;
+  const profileCode = await liveTalentProfileCode((await params).profileCode, { quiet: true });
   const { preview } = await searchParams;
   const site =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "http://localhost:3000";
@@ -1509,7 +1510,7 @@ export type TalentProfileSearchParams = {
 };
 
 export async function TalentProfileView({
-  profileCode,
+  profileCode: rawProfileCode,
   sp,
   variant = "page",
 }: {
@@ -1517,8 +1518,8 @@ export async function TalentProfileView({
   sp: TalentProfileSearchParams;
   variant?: "page" | "modal";
 }) {
-  const isModal = variant === "modal";
-  const { preview } = sp;
+  const profileCode = await liveTalentProfileCode(rawProfileCode, { pathname: `/t/${rawProfileCode}` });
+  const isModal = variant === "modal", { preview } = sp;
   let locale = await getRequestLocale();
   let t = createTranslator(locale);
   const previewMode = preview === "1";

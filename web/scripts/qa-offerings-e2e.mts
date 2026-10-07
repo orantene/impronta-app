@@ -19,7 +19,7 @@ const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const TENANT = "00000000-0000-0000-0000-000000000001"; // impronta
 
-const MORENA_TALENT = "eb97dc64-af2b-4996-a48c-913a143cfa59"; // TAL-AUDIT-0512 makeup artist
+const MORENA_TALENT = "eb97dc64-af2b-4996-a48c-913a143cfa59"; // TAL-93941 makeup artist
 const OFF_BRIDAL_TRIAL = "0f0e0001-0000-4000-8000-000000000001"; // 120 EUR instant + cash ok
 const OFF_QUOTE = "0f0e0001-0000-4000-8000-000000000004"; // quote — must refuse
 const DJ_TALENT = "e2df1bd4-c768-464d-a377-d819d9b0ddcf"; // Popi TAL-00039
@@ -63,7 +63,7 @@ async function main() {
     actorUserId: user.id,
     contactName: "QA Client One",
     contactEmail: "qa-client-1@impronta.test",
-    sourcePage: "/t/TAL-AUDIT-0512",
+    sourcePage: "/t/TAL-93941",
     currencyCode: "EUR",
     offeringId: OFF_BRIDAL_TRIAL,
     payInPerson: false,
@@ -101,7 +101,7 @@ async function main() {
     actorUserId: user.id,
     contactName: "QA Client One",
     contactEmail: "qa-client-1@impronta.test",
-    sourcePage: "/t/TAL-AUDIT-0512",
+    sourcePage: "/t/TAL-93941",
     currencyCode: "EUR",
     offeringId: OFF_BRIDAL_TRIAL,
     payInPerson: true,

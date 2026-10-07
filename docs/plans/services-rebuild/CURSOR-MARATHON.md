@@ -74,7 +74,7 @@ For each: build what's missing, prove it on localhost against the PDF page, scre
 5. **Categories (p31, p32).** Typing "Unas" did not show the near-match warning. **That's a bug: fix it.** Fold accents and case with `foldAccent`, and warn that "Uñas" already exists. Also add "+ New category". Then rename one of her categories on localhost, confirm every item followed, and rename it back. Log both writes.
 6. **Category order.** Make the hub storefront and the widget sort by the saved `category_order`. Remove the "Category order is not saved yet" line from Organize.
 7. **Every action (p37).** On a test item, run every row action: Edit, Preview, Share (check the copied link), Duplicate, Hide, Show again, Archive, Restore, Delete forever (only from Archived, with confirmation), Move up, Move down. Each must appear only where it applies. Chips in `ItemStateChips.tsx` must match the p37 table.
-8. **Three surfaces agree (p38).** The same service, package and quote item must show the same name, price, duration, photo and CTA on the hub profile (`/t/TAL-JORGBEAUTY` on localhost), the widget (scratch page) and the directory card. Fix every mismatch.
+8. **Three surfaces agree (p38).** The same service, package and quote item must show the same name, price, duration, photo and CTA on the hub profile (`/t/TAL-93938` on localhost), the widget (scratch page) and the directory card. Fix every mismatch.
 9. **Phones.** Check 390×844 and 360×844 for p04, p07, p17 (the reward card is committed but has no screenshot), p24, p29 and p34.
 
 ### Step D. Smaller deviations (M)

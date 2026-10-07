@@ -5,7 +5,7 @@
  *
  * Rule: a rebuild only ever writes a talent that passes `assertDemoTarget`
  * (`talent_profiles.is_demo = true` AND `isDemoAccount(email, demo_batch)`).
- * Jor (TAL-JORGBEAUTY), the QA users (TAL-93900, TAL-93901, TAL-QAFIXFREE) and
+ * Jor (TAL-93938), the QA users (TAL-93900, TAL-93901, TAL-93939) and
  * every real talent are refused before any read of their site rows.
  */
 import type { ThemeDemoDesign } from "@/lib/talent-site/theme-catalog/theme-demos";

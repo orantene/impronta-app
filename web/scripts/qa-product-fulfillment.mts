@@ -12,7 +12,7 @@
  *      past the gate (processes the snapshot lane).
  *   5. A SERVICE booking is never deferred (control).
  *
- * Uses the makeup talent (TAL-AUDIT-0512) which has NO payout account, so the
+ * Uses the makeup talent (TAL-93941) which has NO payout account, so the
  * post-ship transfer attempt skips at disburse (no real money moves). Cleans up
  * every synthetic row.
  *
@@ -107,7 +107,7 @@ async function main() {
       actorUserId: user.id,
       contactName: "QA Client One",
       contactEmail: "qa-client-1@impronta.test",
-      sourcePage: "/t/TAL-AUDIT-0512",
+      sourcePage: "/t/TAL-93941",
       currencyCode: "EUR",
       offeringId,
     });

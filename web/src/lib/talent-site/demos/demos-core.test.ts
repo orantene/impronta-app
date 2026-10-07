@@ -56,7 +56,7 @@ test("guard: a registry demo with is_demo + demo account is allowed", () => {
 });
 
 test("guard: Jor, QA users and real talents are refused", () => {
-  for (const code of ["TAL-JORGBEAUTY", "TAL-93900", "TAL-93901", "TAL-QAFIXFREE"]) {
+  for (const code of ["TAL-93938", "TAL-93900", "TAL-93901", "TAL-93939"]) {
     assert.equal(findDemo(code), undefined, `${code} must not be in the registry`);
     const d = decideDemoTarget({ profileCode: code, inRegistry: !!findDemo(code), isDemoFlag: true, email: demoEmail, demoBatch: DEMO_BATCH });
     assert.equal(d.ok, false, code);
@@ -187,7 +187,7 @@ test("rebuild: one failing demo is marked failed and the run continues", async (
 
 test("rebuild: a code outside the registry is refused and nothing is read", async () => {
   const { admin, writes } = fakeAdmin();
-  const res = await rebuildDemos(admin, { only: ["TAL-JORGBEAUTY"], dryRun: false }, undefined, fakePorts({ draftSame: false, publishedInSync: false }));
+  const res = await rebuildDemos(admin, { only: ["TAL-93938"], dryRun: false }, undefined, fakePorts({ draftSame: false, publishedInSync: false }));
   assert.equal(res.rows[0]!.status, "refused");
   assert.deepEqual(writes, []);
 });
@@ -198,7 +198,7 @@ test("restore: refused for a non-demo target before any write", async () => {
     select: () => q,
     eq: () => q,
     update: () => (writes.push("update"), q),
-    maybeSingle: () => Promise.resolve({ data: { id: "r", profile_code: "TAL-JORGBEAUTY", status: "wrote", before: { talent_sites: { id: "s" }, talent_pages: [] } }, error: null }),
+    maybeSingle: () => Promise.resolve({ data: { id: "r", profile_code: "TAL-93938", status: "wrote", before: { talent_sites: { id: "s" }, talent_pages: [] } }, error: null }),
   };
   const res = await restoreDemoRun({ from: () => q } as never, "r", { assertTarget: async () => ({ ok: false, reason: "not a demo" }), bust: () => undefined });
   assert.equal(res.ok, false);

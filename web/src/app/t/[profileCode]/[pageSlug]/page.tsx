@@ -26,6 +26,8 @@ import { notFound } from "next/navigation";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { getPublicPathPrefix } from "@/lib/saas/scope";
+import { resolveOrRedirectTalentProfileCode } from "@/lib/talent/profile-code-redirect.server";
+import { resolveTalentProfileCodeQuiet } from "@/lib/talent/profile-code-resolve.server";
 import { loadPublishedTalentPage } from "@/lib/talent-site/published-talent-page";
 import {
   maxSiteJsonLdString,
@@ -75,7 +77,10 @@ export async function generateMetadata({
   params: Promise<{ profileCode: string; pageSlug: string }>;
 }): Promise<Metadata> {
   if (!isSupabaseConfigured()) return {};
-  const { profileCode, pageSlug } = await params;
+  const { profileCode: rawProfileCode, pageSlug } = await params;
+  // Quiet resolve only — page body owns the permanentRedirect.
+  const aliasResolved = await resolveTalentProfileCodeQuiet(rawProfileCode);
+  const profileCode = aliasResolved?.profileCode ?? rawProfileCode;
   const [locale, page] = await Promise.all([
     getRequestLocale(),
     loadPublishedTalentPage({
@@ -101,7 +106,11 @@ export default async function PublicTalentFreeformPage({
 }) {
   if (!isSupabaseConfigured()) notFound();
 
-  const { profileCode, pageSlug } = await params;
+  const { profileCode: rawProfileCode, pageSlug } = await params;
+  const aliasResolved = await resolveOrRedirectTalentProfileCode(rawProfileCode, {
+    pathname: `/t/${rawProfileCode}/${pageSlug}`,
+  });
+  const profileCode = aliasResolved?.profileCode ?? rawProfileCode;
   const [locale, publicPathPrefix] = await Promise.all([
     getRequestLocale(),
     getPublicPathPrefix(),

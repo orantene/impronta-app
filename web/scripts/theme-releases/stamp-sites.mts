@@ -15,7 +15,7 @@
  * talent-added, base keys missing, nodes already reading edited.
  *
  * DRY RUN by default (reads only). `--yes-write` needs `--allow <codes>` and
- * writes ONLY those profile codes (never TAL-JORGBEAUTY, never a site without
+ * writes ONLY those profile codes (never TAL-93938, never a site without
  * an exact base; a THEME_DEMOS code must also be a real demo account): draft
  * trees, plus the published copy when it equals the draft; a JSON backup of
  * each row is taken first. Idempotent: stamped nodes are left alone.
@@ -59,7 +59,7 @@ const demosOnly = args.includes("--demos-only");
 const only = opt("--only")?.split(",");
 // Writes need an explicit allow-list of profile codes; nothing else is ever written.
 const allow = new Set(opt("--allow")?.split(",").filter(Boolean) ?? []);
-const NEVER_WRITE = new Set(["TAL-JORGBEAUTY"]);
+const NEVER_WRITE = new Set(["TAL-93938"]);
 if (write && allow.size === 0) throw new Error("REFUSE: --yes-write needs --allow <codes>");
 const backupDir = opt("--backup-dir") ?? path.join(os.homedir(), "Desktop/tulala-exports/theme-releases/backups");
 

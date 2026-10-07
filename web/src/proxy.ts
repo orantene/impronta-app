@@ -37,6 +37,7 @@ import {
 } from "@/lib/saas/surface-allow-list";
 import { marketingWorkspacePathRedirect, workspacePathRedirect } from "@/lib/saas/workspace-path-redirects";
 import { resolveLegacyTalentPlatformPath } from "@/lib/talent/legacy-talent-redirect";
+import { talentProfileCodeAliasRedirectResponse } from "@/lib/talent/profile-code-alias-middleware";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { talentSiteHostResponse } from "@/lib/saas/talent-site-host-response";
 import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
@@ -544,6 +545,10 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(url, 308);
     }
   }
+
+  // Retired vanity TAL codes -> live TAL-<digits> (301); numeric codes skip the DB.
+  const aliasRedirect = await talentProfileCodeAliasRedirectResponse(request, originalPathname, originalHasLocalePrefix ? stripNonDefaultLocalePrefix(originalPathname, effectiveLangSettings) : undefined);
+  if (aliasRedirect) return aliasRedirect;
 
   if (originalHasLocalePrefix) {
     const inner = stripNonDefaultLocalePrefix(originalPathname, effectiveLangSettings);

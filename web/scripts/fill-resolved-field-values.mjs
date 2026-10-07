@@ -122,6 +122,6 @@ await run(SQL.replace("ON CONFLICT", "AND ( CASE\n    WHEN g.kind IN ('toggle','
 const after = await run("SELECT count(*) n FROM talent_profile_field_values");
 console.log("total field values AFTER:", JSON.stringify(after));
 const sample = await run(
-  "SELECT tp.display_name, count(*) vals FROM talent_profiles tp JOIN talent_profile_field_values v ON v.talent_profile_id=tp.id WHERE tp.profile_code IN ('TAL-00039','TAL-AUDIT-0512','TAL-00014','TAL-92001','TAL-00033') GROUP BY tp.display_name ORDER BY vals DESC",
+  "SELECT tp.display_name, count(*) vals FROM talent_profiles tp JOIN talent_profile_field_values v ON v.talent_profile_id=tp.id WHERE tp.profile_code IN ('TAL-00039','TAL-93941','TAL-00014','TAL-92001','TAL-00033') GROUP BY tp.display_name ORDER BY vals DESC",
 );
 console.log("sample (Popi/DJ, QA/photographer, Alba/model, Sofía, Tina):", JSON.stringify(sample));

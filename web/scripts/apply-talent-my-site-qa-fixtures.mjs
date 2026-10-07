@@ -56,4 +56,4 @@ if (!res.ok) {
   process.exit(1);
 }
 
-console.log("OK — talent My Site QA fixtures applied (TAL-92001 Free, TAL-92002 Pro, TAL-AUDIT-0512 Max, agency roster).");
+console.log("OK — talent My Site QA fixtures applied (TAL-92001 Free, TAL-92002 Pro, TAL-93941 Max, agency roster).");

@@ -60,7 +60,7 @@ test("isConfirmedChannelHref accepts real channels only", () => {
   assert.equal(isConfirmedChannelHref("mailto:hola@jorgbeauty.mx", "email"), true);
   assert.equal(
     isConfirmedChannelHref(
-      "https://tulala.digital/t/TAL-JORGBEAUTY#servicios",
+      "https://tulala.digital/t/TAL-93938#servicios",
       "whatsapp",
     ),
     false,
@@ -89,12 +89,12 @@ test("pruneUnconfirmedGuestStubs hides disclaimer + stub socials; keeps real WA"
       children: [
         btn("wa-stub", {
           label: "WhatsApp",
-          href: "https://tulala.digital/t/TAL-JORGBEAUTY#servicios",
+          href: "https://tulala.digital/t/TAL-93938#servicios",
           leadingIcon: "whatsapp",
         }),
         btn("ig-stub", {
           label: "@jorgbeauty",
-          href: "https://tulala.digital/t/TAL-JORGBEAUTY#servicios",
+          href: "https://tulala.digital/t/TAL-93938#servicios",
           leadingIcon: "instagram",
         }),
         btn("wa-real", {

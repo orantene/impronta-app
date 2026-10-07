@@ -65,7 +65,7 @@ const admin: SupabaseClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 });
 
 // ── Constants resolved from production 2026-09-23 ──────────────────────────
-const PROFILE_CODE = "TAL-JORGBEAUTY";
+const PROFILE_CODE = "TAL-93938";
 const TULALA_AGENCY_ID = "40081ec3-5ca8-43a0-b50b-31c927b2716b";
 const PLAYA_LOCATION_ID = "81d43258-5e71-41bd-80f5-182dd239d71b";
 const TERM_LASH = "cc236163-d174-3a25-2858-6bbf066333ed";

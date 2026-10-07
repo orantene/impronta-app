@@ -18,7 +18,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
 const MORE = "/t/TAL-00045"; // 5 offerings · categories Shoots/Licensing/Casting
-const MAKEUP = "/t/TAL-AUDIT-0512"; // Bridal trial: variants + extra + qty (per_contact)
+const MAKEUP = "/t/TAL-93941"; // Bridal trial: variants + extra + qty (per_contact)
 
 async function gotoProfile(page: Page, path: string) {
   await page.goto(path, { waitUntil: "domcontentloaded" });

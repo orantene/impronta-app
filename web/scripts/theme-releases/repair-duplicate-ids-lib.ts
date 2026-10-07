@@ -18,7 +18,7 @@ export function repairTree(tree: unknown): { tree: unknown; remapped: number } {
 }
 
 /** Non-demo QA accounts (is_demo=false). Everything else that is not a demo is "real". */
-export const QA_CODES = new Set(["TAL-93900", "TAL-93901", "TAL-QAFIXFREE"]);
+export const QA_CODES = new Set(["TAL-93900", "TAL-93901", "TAL-93939"]);
 
 /** Bucket by `talent_profiles.is_demo`, then the explicit QA allow-list. */
 export function classify(code: string, isDemo: boolean): "demo" | "qa" | "real" {

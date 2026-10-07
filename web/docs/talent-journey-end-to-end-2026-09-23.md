@@ -82,7 +82,7 @@ talent's bespoke design belongs on their *site* (step 5), not here.
 **Status: LIVE and verified.**
 
 ```
-https://tulala.digital/t/TAL-JORGBEAUTY   200
+https://tulala.digital/t/TAL-93938   200
 visible text: name, roles, location, bio, portfolio count, roster
 ```
 

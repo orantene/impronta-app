@@ -49,7 +49,7 @@ Same published service `28223093-53d2-40e7-bca4-28bc2dc555f7` (**Extensiones clÃ
 
 | Surface | Evidence | Notes |
 |---|---|---|
-| Hub `/es/t/TAL-JORGBEAUTY` | `p-phase6-hub.png`, `p-phase6-hub-desktop.png` | Row: name, 2 H, 700 MXN, Reservar ya |
+| Hub `/es/t/TAL-93938` | `p-phase6-hub.png`, `p-phase6-hub-desktop.png` | Row: name, 2 H, 700 MXN, Reservar ya |
 | Widget `/dev/jor-beauty?book=live` | `p-phase6-widget.png` | Same name/price/duration; Seleccionar CTA |
 | Directory card | `p-phase6-directory.png` | `tulala.digital/directory?q=Jorg` â€” talent card + Inquire (marketing directory has no catalogue line by design) |
 
