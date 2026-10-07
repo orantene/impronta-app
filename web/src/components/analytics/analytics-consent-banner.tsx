@@ -6,6 +6,7 @@ import { translatorFor } from "@/i18n/use-t";
 import { getSiteUrl } from "@/lib/auth-flow";
 import {
   PRIVACY_CHOICES_EVENT,
+  isConsentBannerSuppressedPath,
   isGpcEnabled,
   readStoredConsent,
   shouldShowBanner,
@@ -98,9 +99,7 @@ export function AnalyticsConsentBanner({ locale: rootLocale = "en" }: { locale?:
   // Prototype routes (e.g. /prototypes/drawer-preview) are designer/dev
   // sandboxes, not customer-facing; suppress on those paths.
   const pathname = usePathname();
-  const isPreviewRoute =
-    (pathname?.startsWith("/prototypes") ?? false) ||
-    (pathname?.startsWith("/template-preview") ?? false);
+  const isPreviewRoute = isConsentBannerSuppressedPath(pathname);
   const t = translatorFor(locale);
 
   useEffect(() => {
