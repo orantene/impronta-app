@@ -546,34 +546,9 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Retired vanity TAL codes → live TAL-<digits> (HTTP 301). Numeric codes
-  // short-circuit with no DB. Locale-prefixed /es/t/<code> uses the stripped
-  // canonicalPath below once locale handling has run; here we cover the
-  // unprefixed /t/<code> hot path after A1 locale strip above.
-  {
-    const aliasPath = originalHasLocalePrefix
-      ? stripNonDefaultLocalePrefix(originalPathname, effectiveLangSettings)
-      : originalPathname;
-    const aliasRedirect = await timed(
-      "proxy.talentCodeAlias",
-      talentProfileCodeAliasRedirectResponse(request, aliasPath),
-    );
-    if (aliasRedirect) {
-      if (originalHasLocalePrefix && aliasRedirect.headers.get("location")) {
-        // Preserve the visitor's locale prefix on the redirect target.
-        const loc = aliasRedirect.headers.get("location")!;
-        const localeSeg = originalPathname.split("/").filter(Boolean)[0];
-        if (localeSeg && loc.startsWith("/t/")) {
-          const url = request.nextUrl.clone();
-          const parsed = new URL(loc, request.nextUrl.origin);
-          url.pathname = `/${localeSeg}${parsed.pathname}`;
-          url.search = parsed.search;
-          return NextResponse.redirect(url, 301);
-        }
-      }
-      return aliasRedirect;
-    }
-  }
+  // Retired vanity TAL codes -> live TAL-<digits> (301); numeric codes skip the DB.
+  const aliasRedirect = await talentProfileCodeAliasRedirectResponse(request, originalPathname, originalHasLocalePrefix ? stripNonDefaultLocalePrefix(originalPathname, effectiveLangSettings) : undefined);
+  if (aliasRedirect) return aliasRedirect;
 
   if (originalHasLocalePrefix) {
     const inner = stripNonDefaultLocalePrefix(originalPathname, effectiveLangSettings);

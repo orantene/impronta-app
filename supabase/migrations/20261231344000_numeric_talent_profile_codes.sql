@@ -43,11 +43,16 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.talent_profile_code_aliases
 --    TAL-CLAIMQA; roster×1 + claim invite×1 on TAL-QACLAIM-01.
 -- ---------------------------------------------------------------------------
 
-DELETE FROM public.talent_claim_invitations
-WHERE talent_profile_id IN (
-  SELECT id FROM public.talent_profiles
-  WHERE profile_code IN ('TAL-CLAIMQA', 'TAL-QACLAIM-01')
-);
+DO $$
+BEGIN
+  IF to_regclass('public.talent_claim_invitations') IS NOT NULL THEN
+    DELETE FROM public.talent_claim_invitations
+    WHERE talent_profile_id IN (
+      SELECT id FROM public.talent_profiles
+      WHERE profile_code IN ('TAL-CLAIMQA', 'TAL-QACLAIM-01')
+    );
+  END IF;
+END $$;
 
 DELETE FROM public.talent_profiles
 WHERE profile_code IN ('TAL-CLAIMQA', 'TAL-QACLAIM-01');
@@ -64,26 +69,33 @@ BEGIN
   FOR r IN
     SELECT id, profile_code, public_slug_part
     FROM public.talent_profiles
-    WHERE profile_code IN (
-      'TAL-JORGBEAUTY',
-      'TAL-QAFIXFREE',
-      'TAL-QAFIXMAX',
-      'TAL-AUDIT-0512'
-    )
+    -- The four named keepers first (stable order), then ANY other
+    -- non-numeric row (fresh-chain replays leave migration proof rows such as
+    -- 't1-07-proof-*'; prod holds none), so the guard below always holds.
+    WHERE profile_code IS NULL OR profile_code !~ '^TAL-[0-9]+$'
     ORDER BY
       CASE profile_code
         WHEN 'TAL-JORGBEAUTY' THEN 1
         WHEN 'TAL-QAFIXFREE' THEN 2
         WHEN 'TAL-QAFIXMAX' THEN 3
         WHEN 'TAL-AUDIT-0512' THEN 4
-      END
+        ELSE 5
+      END,
+      created_at, id
   LOOP
-    INSERT INTO public.talent_profile_code_aliases (old_code, talent_profile_id)
-    VALUES (r.profile_code, r.id)
-    ON CONFLICT (old_code) DO UPDATE
-      SET talent_profile_id = EXCLUDED.talent_profile_id;
+    IF r.profile_code IS NOT NULL THEN
+      INSERT INTO public.talent_profile_code_aliases (old_code, talent_profile_id)
+      VALUES (r.profile_code, r.id)
+      ON CONFLICT (old_code) DO UPDATE
+        SET talent_profile_id = EXCLUDED.talent_profile_id;
+    END IF;
 
-    v_new := public.generate_profile_code();
+    LOOP
+      v_new := public.generate_profile_code();
+      EXIT WHEN NOT EXISTS (
+        SELECT 1 FROM public.talent_profiles WHERE profile_code = v_new
+      );
+    END LOOP;
 
     UPDATE public.talent_profiles
     SET

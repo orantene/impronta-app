@@ -28,8 +28,12 @@ export function matchTalentProfileCodePath(
  */
 export async function talentProfileCodeAliasRedirectResponse(
   request: NextRequest,
-  pathname: string,
+  originalPathname: string,
+  /** Locale-stripped path when the visitor used a non-default locale prefix. */
+  strippedPathname?: string,
 ): Promise<NextResponse | null> {
+  const pathname = strippedPathname ?? originalPathname;
+  const localeSeg = strippedPathname ? originalPathname.split("/").filter(Boolean)[0] : undefined;
   if (request.method !== "GET" && request.method !== "HEAD") return null;
 
   const matched = matchTalentProfileCodePath(pathname);
@@ -71,7 +75,7 @@ export async function talentProfileCodeAliasRedirectResponse(
 
     const target = request.nextUrl.clone();
     const parsed = new URL(targetPath, request.nextUrl.origin);
-    target.pathname = parsed.pathname;
+    target.pathname = localeSeg ? `/${localeSeg}${parsed.pathname}` : parsed.pathname;
     target.search = parsed.search;
     // Owner asked for 301 (permanent). Prefer that over Next's RSC soft redirect.
     return NextResponse.redirect(target, 301);
