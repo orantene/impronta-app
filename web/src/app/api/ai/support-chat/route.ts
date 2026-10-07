@@ -15,6 +15,8 @@ import { insightRowsToCorpus, retrieveHelpEntries } from "@/lib/support/help-cor
 import { loadConfirmedInsightCorpus } from "@/lib/support/insights/load";
 import { wantsHumanSupport } from "@/lib/support/support-human-prefilter";
 import { sanitizeSupportAiOutput } from "@/lib/support/support-ai-guardrails";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { supportAiLanguageDirective } from "@/lib/support/support-ai-language";
 import { supportFrom } from "@/lib/support/support-from";
 import {
   mapMessageRow,
@@ -143,7 +145,9 @@ export async function POST(request: Request) {
     });
 
     const adapter = await resolveAiChatAdapter();
+    const appLocale = await getRequestLocale().catch(() => "en");
     const userMessage = JSON.stringify({
+      appLocale,
       ticket: {
         subject: access.ticket.subject,
         category: access.ticket.category,
@@ -167,7 +171,7 @@ export async function POST(request: Request) {
 
     const completion = await Promise.race([
       adapter.chatCompletion({
-        systemPrompt: SYSTEM_PROMPT,
+        systemPrompt: `${SYSTEM_PROMPT} ${supportAiLanguageDirective(appLocale)}`,
         userMessage,
         temperature: 0.2,
         maxTokens: 700,
