@@ -24,6 +24,8 @@
 
 import { isTalentPortfolioTier } from "@/lib/access/talent-membership";
 
+import { isOwnCanonical } from "./canonical-own-host";
+
 /** The `talent_pages` SEO column set, camelCased. Every field degrades to null. */
 export interface TalentPageSeoColumns {
   title: string;
@@ -62,7 +64,7 @@ function trimmed(value: string | null | undefined): string {
  *
  * - `title` — `meta_title || title || fallback` (the platform-wide convention,
  *   mirroring `resolveMaxSiteTitles`).
- * - `canonical` — the page's explicit `canonical_url` wins; else
+ * - `canonical` — the page's explicit `canonical_url` wins ONLY on the site's own hosts (#201); else
  *   `canonicalOrigin + canonicalPath` (this page's own URL). Never invented.
  * - `noindex` — `true` only when the stored column is exactly `true`. NULL and
  *   `false` are indexable, matching the column comment.
@@ -78,6 +80,12 @@ export function buildTalentPageSeo(args: {
   canonicalOrigin?: string;
   /** Origin-relative path (leading slash) of this page. */
   canonicalPath?: string;
+  /**
+   * #201: the talent's other own hosts (custom domains, platform subdomain).
+   * An explicit `canonical_url` is honoured only on these or the
+   * `canonicalOrigin` host; absent, only the origin host counts.
+   */
+  ownHosts?: readonly string[];
 }): TalentPageSeoEnvelope {
   const { page } = args;
   const pageTitle = trimmed(page.title) || trimmed(args.fallbackTitle);
@@ -98,7 +106,11 @@ export function buildTalentPageSeo(args: {
   const rawPath = trimmed(args.canonicalPath);
   const path = rawPath ? (rawPath.startsWith("/") ? rawPath : `/${rawPath}`) : "";
   const builtCanonical = origin && path ? `${origin}${path}` : "";
-  const canonical = trimmed(page.canonicalUrl) || builtCanonical;
+  const explicit = trimmed(page.canonicalUrl);
+  const explicitIsOwn = explicit
+    ? isOwnCanonical(explicit, { origin, hosts: args.ownHosts ?? [] })
+    : false;
+  const canonical = (explicitIsOwn ? explicit : "") || builtCanonical;
 
   const jsonLd =
     page.jsonLd && typeof page.jsonLd === "object" ? page.jsonLd : undefined;

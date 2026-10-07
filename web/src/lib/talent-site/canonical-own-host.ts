@@ -4,6 +4,8 @@
  * and the QA site canonicalised to it. Pure: no I/O, no server graph.
  */
 
+import { talentSiteHost } from "./site-public-url";
+
 export interface OwnCanonicalHosts {
   /** The origin the built canonical uses (its host is always own). */
   origin: string;
@@ -37,4 +39,18 @@ export function isOwnCanonical(explicit: string, own: OwnCanonicalHosts): boolea
     if (b) allowed.add(b);
   }
   return allowed.has(host);
+}
+
+/**
+ * The platform subdomain a talent site is served at (`<site_slug>.tulala.digital`,
+ * `<site_slug>-demo.tulala.digital` for demos), built by the SAME helper the
+ * public URL uses so the root is the project's real config. Empty when the slug
+ * is not a usable host label.
+ */
+export function platformSiteHosts(
+  siteSlug: string | null | undefined,
+  opts: { isDemo?: boolean } = {},
+): string[] {
+  const host = talentSiteHost(siteSlug, undefined, { isDemo: opts.isDemo === true });
+  return host ? [host] : [];
 }
