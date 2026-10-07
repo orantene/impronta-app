@@ -48,7 +48,7 @@
 // NOT covered: Storage files (images) and Vercel/DNS domains; remove by hand.
 // ============================================================================
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, mkdirSync, writeFileSync, chmodSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -61,6 +61,18 @@ if (existsSync(envFile)) {
   }
 }
 const APPLY = process.argv.includes("--apply");
+// PHASE 1 (approved 2026-10-07): Jorgelina's QA rows + the 8 approved "Ana" test inquiries + the two
+// explicit hub roots. Throwaway accounts/workspace are NOT included (held for TUL-77 / TUL-157).
+const PHASE1 = process.argv.includes("--phase1");
+const bdIdx = process.argv.indexOf("--backup-dir");
+const BACKUP_DIR = bdIdx > -1 ? process.argv[bdIdx + 1] : null;
+if (APPLY && !PHASE1) { console.error("[qa-cleanup] --apply requires --phase1 (phase 2, the throwaway accounts, is held until TUL-77 and TUL-157 are Done)"); process.exit(2); }
+if (APPLY && !BACKUP_DIR) { console.error("[qa-cleanup] --apply requires --backup-dir <dir> (rows are exported before any delete)"); process.exit(2); }
+const APPROVED_ANA = [
+  "0243b469-402e-432f-a54f-786b38724dd9", "ae711bc6-9220-4c26-9777-f6d4cd390d0a", "ea651ce7-b062-4d23-ad76-7105ebd571d9",
+  "23c6ff93-86bf-449b-b054-e537a30cd560", "f4cc49ed-b552-4cbd-b293-8f22a0d445c1", "ed789bb0-a428-41ce-8147-ea2921b82973",
+  "9b5e47e7-2e35-472c-ac1e-4d0cab4c5965", "dd3ff652-38bb-4efe-869c-ea85c8771534",
+];
 const TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
 const URL_ = process.env.NEXT_PUBLIC_SUPABASE_URL;
 if (!TOKEN || !URL_) {
@@ -160,11 +172,19 @@ const cust = await sql(`select id from customers where owner_talent_profile_id=$
 addRoot("public.customers", ids(cust));
 const un = await sql(`select id from user_notifications where not coalesce(origin_inquiry_id = any(${EXCL}), false) and (origin_inquiry_id = any(${arr(ids(inq))}::uuid[]) or (user_id=${lit(jor.user_id)} and (coalesce(title,'')||' '||coalesce(body,'')) ~* '(^|[^a-z])QA '))`);
 addRoot("public.user_notifications", ids(un));
+// PHASE 1 approved test data: Jorgelina's "Ana ..." inquiries (+ notifications raised by them).
+if (PHASE1) {
+  const ana = await sql(`select id, contact_name from inquiries where id = any(${arr(APPROVED_ANA)}::uuid[]) and contact_name ~* '^Ana ' and id <> all(${EXCL}) and id in (select inquiry_id from inquiry_participants where talent_profile_id=${lit(JOR)})`);
+  notes.push(`approved Ana inquiries found: ${ana.length}/${APPROVED_ANA.length}`);
+  addRoot("public.inquiries", ids(ana));
+  if (ana.length) addRoot("public.user_notifications", ids(await sql(`select id from user_notifications where origin_inquiry_id = any(${arr(ids(ana))}::uuid[]) and origin_inquiry_id <> all(${EXCL})`)));
+  notes.push("PHASE 1: throwaway accounts and workspace NOT included (held for TUL-77 / TUL-157)");
+}
 
 // (b) throwaway accounts
 const throwUsers = [];
 const throwProfiles = [];
-for (const t of THROWAWAY) {
+if (!PHASE1) for (const t of THROWAWAY) {
   const p = (await sql(`select tp.id, tp.user_id, u.email from talent_profiles tp left join auth.users u on u.id=tp.user_id where tp.profile_code=${lit(t.code)}`))[0];
   if (!p) { notes.push(`${t.code}: profile not found (already gone?)`); continue; }
   if ((p.email || "").toLowerCase() !== t.email) throw new Error(`${t.code} owner email mismatch; aborting`);
@@ -173,10 +193,10 @@ for (const t of THROWAWAY) {
   addRoot("auth.users", [p.user_id]);
   throwUsers.push(p.user_id);
 }
-const ws = (await sql(`select id from agencies where slug=${lit(WS_SLUG)}`))[0];
-const wsUser = (await sql(`select id from auth.users where lower(email)=${lit(WS_EMAIL)}`))[0];
-if (ws) addRoot("public.agencies", [ws.id]); else notes.push("workspace qa-fresh-studio-2: not found");
-if (wsUser) { addRoot("auth.users", [wsUser.id]); throwUsers.push(wsUser.id); } else notes.push("business admin auth user: not found");
+const ws = PHASE1 ? undefined : (await sql(`select id from agencies where slug=${lit(WS_SLUG)}`))[0];
+const wsUser = PHASE1 ? undefined : (await sql(`select id from auth.users where lower(email)=${lit(WS_EMAIL)}`))[0];
+if (ws) addRoot("public.agencies", [ws.id]); else if (!PHASE1) notes.push("workspace qa-fresh-studio-2: not found");
+if (wsUser) { addRoot("auth.users", [wsUser.id]); throwUsers.push(wsUser.id); } else if (!PHASE1) notes.push("business admin auth user: not found");
 const extraTalent = throwUsers.length ? await sql(`select id from talent_profiles where user_id = any(${arr(throwUsers)}::uuid[])`) : [];
 addRoot("public.talent_profiles", ids(extraTalent));
 throwProfiles.push(...ids(extraTalent));
@@ -295,8 +315,29 @@ console.log("touches other talents: 0");
 
 if (!APPLY) { console.log("\nDry-run only. Re-run with --apply to delete."); process.exit(0); }
 
+// ---- backup: export every row to be deleted (JSON per table) before any delete ----
+mkdirSync(BACKUP_DIR, { recursive: true, mode: 0o700 });
+chmodSync(BACKUP_DIR, 0o700);
+let backedUp = 0;
+for (const t of order) {
+  const keys = [...found.get(t)];
+  const rows = [];
+  for (let i = 0; i < keys.length; i += 200) {
+    rows.push(...(await sql(`select to_jsonb(c) as row from ${q(t)} c where ${keyExpr(t, "c")} = any(${arr(keys.slice(i, i + 200))})`)));
+  }
+  if (rows.length !== keys.length) throw new Error(`backup mismatch for ${t}: ${rows.length}/${keys.length}; nothing deleted`);
+  writeFileSync(join(BACKUP_DIR, `${t}.json`), JSON.stringify(rows.map((r) => r.row)), { mode: 0o600 });
+  backedUp += rows.length;
+}
+console.log(`\n[qa-cleanup] backed up ${backedUp} rows to ${BACKUP_DIR}`);
+
 // ---- apply: children first, one transaction -------------------------------
 const stmts = ["begin;"];
+// Deleting an offer SET-NULLs inquiries.current_offer_id, which the enforce_inquiry_status_offer_pair
+// trigger rejects for offer_pending/approved/booked/converted. These inquiries are deleted in this same
+// transaction, so close them first (still all-or-nothing).
+const inqKeys = [...(found.get("public.inquiries") || [])];
+if (inqKeys.length) stmts.push(`update public.inquiries set current_offer_id = null, status = 'closed' where id = any(${arr(inqKeys)}::uuid[]) and current_offer_id is not null;`);
 for (const t of [...order].reverse()) {
   stmts.push(`delete from ${q(t)} c where ${keyExpr(t, "c")} = any(${arr([...found.get(t)])});`);
 }
