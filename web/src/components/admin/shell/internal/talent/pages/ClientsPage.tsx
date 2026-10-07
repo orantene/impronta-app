@@ -535,7 +535,11 @@ export function TalentClientsPage() {
         </p>
       )}
       {talentId && items === null && (
-        <p className="px-1 py-4 font-admin-body text-[13px] text-admin-ink-muted">{t("Loading")}</p>
+        <div role="status" aria-label={t("Loading")} className="flex flex-col gap-2 px-1 py-4" data-clients-skeleton>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-14 animate-pulse rounded-lg bg-admin-surface-alt" />
+          ))}
+        </div>
       )}
       {error && (
         <p className="px-1 py-4 font-admin-body text-[13px] text-admin-ink">
