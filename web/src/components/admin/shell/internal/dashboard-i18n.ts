@@ -3248,7 +3248,6 @@ const ES_TEXT: Record<string, string> = {
   "Your personal Tulala page": "Tu página personal de Tulala",
   "Manage your templates, media embeds, press band, media kit and custom domain on Public page.": "Administra tus plantillas, embeds de medios, banda de prensa, kit de medios y dominio propio en Página pública.",
   "Open Public page": "Abrir Página pública",
-  "Your roster page is live": "Tu página de roster está publicada",
   "It's published at": "Está publicada en",
   "Richer personal-page tiers with custom templates, embeds and your own domain are on the way, we'll let you know when they open.": "Vienen niveles de página personal más completos con plantillas propias, embeds y tu propio dominio; te avisaremos cuando abran.",
   "Pro template, social + video embeds, press band, and a downloadable media kit. Custom domain unlocks at Portfolio.": "Plantilla Pro, embeds sociales y de video, banda de prensa y un kit de medios descargable. El dominio propio se desbloquea con Portfolio.",

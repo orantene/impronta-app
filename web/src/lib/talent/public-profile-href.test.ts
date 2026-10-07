@@ -5,6 +5,7 @@ import { test } from "node:test";
 
 import {
   isLocalDevOrigin,
+  resolveTalentOwnPageState,
   resolveTalentPublicPreviewDestinations,
   talentPublicProfileHref,
   talentPublicProfileLabel,
@@ -91,4 +92,65 @@ test("the identity-bar eye uses the preview destination control", () => {
   );
   assert.match(src, /TalentPreviewEyeControl/);
   assert.equal(src.includes("talentPublicProfileHref(bridgeTalentSelfProfile.profileCode"), false);
+});
+
+test("TUL-90: a draft or hidden profile claims no address and is not live", () => {
+  for (const workflowStatus of ["draft", "invited", null]) {
+    const s = resolveTalentOwnPageState({ profileCode: "TAL-93943", workflowStatus, isPubliclyHidden: false });
+    assert.deepEqual(s, { live: false, href: null, label: null });
+  }
+  const hidden = resolveTalentOwnPageState({ profileCode: "TAL-1", workflowStatus: "published", isPubliclyHidden: true });
+  assert.equal(hidden.live, false);
+  const noCode = resolveTalentOwnPageState({ profileCode: " ", workflowStatus: "published", isPubliclyHidden: false });
+  assert.equal(noCode.live, false);
+});
+
+test("TUL-90: a published profile shows her own address, never a sample slug", () => {
+  const s = resolveTalentOwnPageState({ profileCode: "TAL-93943", workflowStatus: "published", isPubliclyHidden: false });
+  assert.deepEqual(s, { live: true, href: "https://tulala.digital/t/TAL-93943", label: "tulala.digital/t/TAL-93943" });
+  const local = resolveTalentOwnPageState({
+    profileCode: "TAL-9",
+    workflowStatus: "published",
+    isPubliclyHidden: false,
+    currentOrigin: "http://localhost:3001",
+  });
+  assert.equal(local.live && local.href, "http://localhost:3001/t/TAL-9");
+});
+
+test("TUL-90: no sample slug or 'live now' claim is hardcoded in the surfaces", () => {
+  const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
+  const card = read("src/components/admin/shell/internal/talent/shared/profile-sections-2.tsx");
+  assert.match(card, /resolveTalentOwnPageState/);
+  const settings = read("src/components/talent/website-settings/WebsiteSettingsScreen.tsx");
+  assert.equal(settings.includes("live now"), false);
+});
+
+test("TUL-90: every surface resolves her address through the one helper", () => {
+  const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
+  const myProfile = read("src/components/admin/shell/internal/talent/pages/MyProfilePage.tsx");
+  assert.match(myProfile, /resolveTalentOwnPageState/);
+  assert.equal(myProfile.includes("https://tulala.digital/t/${"), false);
+  const where = read("src/components/talent/site/TalentSiteAppearancesPanel.tsx");
+  assert.match(where, /resolveTalentOwnPageState/);
+  assert.equal(where.includes("https://tulala.digital/t/"), false);
+  const fallback = read("src/app/%5Fhost-unregistered/page.tsx");
+  assert.equal(fallback.includes("talent agency"), false);
+  const wave2 = read("src/components/admin/shell/internal/wave2.tsx");
+  assert.match(wave2, /copyTalentOwnPublicLink/);
+  assert.match(read("src/lib/talent/public-profile-href.ts"), /t\("Publish your profile first to get a public link"\)/);
+});
+
+test("TUL-90: new copy exists in es and says public page, not roster", () => {
+  const i18n = readFileSync(join(process.cwd(), "src/components/admin/shell/internal/dashboard-i18n-talent-editors.ts"), "utf8");
+  for (const key of [
+    "Your public page is live",
+    "Your public page is not published yet",
+    "Publish your profile first to get a public link",
+    "Publish your profile to get a public address you can share.",
+  ]) {
+    assert.ok(i18n.includes(`"${key}":`), key);
+  }
+  assert.ok(i18n.includes("Tu página pública está en línea"));
+  assert.ok(i18n.includes("Tu página pública aún no está publicada"));
+  assert.equal(i18n.includes("Your roster page is not published yet"), false);
 });
