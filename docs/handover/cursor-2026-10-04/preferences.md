@@ -1,0 +1,3 @@
+- When Cloud secrets are added or rotated, spawn a **new** cloud agent/VM — existing VMs will not see them. (added 2026-10-04)
+- Refunds E2E: create a fresh paid booking on TAL-93900 (4242/0077); do not chase old PIs or Linh login. (added 2026-10-04)
+- `deploy:smoke` flags check needing local `CRON_SECRET` is not a ship blocker when Claude already greened tip. (added 2026-10-04)
