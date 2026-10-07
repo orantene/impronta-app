@@ -133,7 +133,8 @@ export function withStockHero(tree: ReadonlyArray<BuilderNode>, nodeId: string, 
     const nextKids = Array.isArray(kids) ? kids.map(visit) : undefined;
     const kidsChanged = !!nextKids && nextKids.some((k, i) => k !== kids![i]);
     if (n.id === nodeId && n.kind === "image") {
-      return { ...n, props: { ...propsOf(n), src: pick.src, alt: pick.alt[locale] || pick.alt.en } } as BuilderNode;
+      // `stockSrc` marks the src as a placeholder, so her own photo replaces it later (live-media.ts).
+      return { ...n, props: { ...propsOf(n), src: pick.src, stockSrc: pick.src, alt: pick.alt[locale] || pick.alt.en } } as BuilderNode;
     }
     return kidsChanged ? ({ ...n, children: nextKids } as BuilderNode) : n;
   };

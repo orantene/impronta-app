@@ -120,6 +120,7 @@ test("set: only the hero node changes, in the flow language's alt, and the input
   const hero = findHeroImageNode(next)!;
   assert.equal((hero.props as Record<string, unknown>).src, "https://cdn.test/uni.jpg");
   assert.equal((hero.props as Record<string, unknown>).alt, "es uni");
+  assert.equal((hero.props as Record<string, unknown>).stockSrc, "https://cdn.test/uni.jpg", "marked as a replaceable placeholder");
   assert.equal((hero.props as Record<string, unknown>).layerLabel, "Hero photo");
   assert.equal(next[1], tree[1], "the about section keeps its identity");
   assert.equal((findHeroImageNode(tree)!.props as Record<string, unknown>).src, "", "the input is not mutated");
