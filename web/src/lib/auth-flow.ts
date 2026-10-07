@@ -107,6 +107,15 @@ export function isPostAuthNextAllowedForActiveUser(
     return true;
   }
 
+  // Support Desk portal — platform admins only. `next=/desk` must survive
+  // login on support.tulala.digital (otherwise they bounce to /admin → 404).
+  if (
+    appRole === "super_admin" &&
+    (path === "/desk" || path.startsWith("/desk/"))
+  ) {
+    return true;
+  }
+
   const dashboardBase =
     appRole === "super_admin" || appRole === "agency_staff"
       ? "/admin"

@@ -65,3 +65,25 @@ export function supportDeskPortalRedirectHref(opts?: {
   const qs = params.toString();
   return qs ? `${base}?${qs}` : base;
 }
+
+/**
+ * On Support Desk hosts, remap post-auth landings that 404 or miss the portal
+ * (`/admin`, `/`) onto `/desk`, preserving any query string.
+ * Non-desk hosts are unchanged (talent/agency `/admin` intact).
+ */
+export function supportDeskPostAuthDestination(
+  destination: string,
+  host: string | null | undefined,
+): string {
+  if (!isSupportDeskHost(host)) return destination;
+  if (!destination.startsWith("/") || destination.startsWith("//")) {
+    return destination;
+  }
+  const qIndex = destination.indexOf("?");
+  const path = qIndex === -1 ? destination : destination.slice(0, qIndex);
+  const query = qIndex === -1 ? "" : destination.slice(qIndex);
+  if (path === "/" || path === "/admin" || path.startsWith("/admin/")) {
+    return `${SUPPORT_DESK_HOST_PATH}${query}`;
+  }
+  return destination;
+}

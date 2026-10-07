@@ -82,3 +82,23 @@ export function supportDeskHostSurfaceResponse(
     status: 404,
   });
 }
+
+/**
+ * Bookmarks of `/admin` on the Desk host 404 (surface allow-list). Remap to
+ * `/desk` with a 308 so platform-admin entry works. Does not touch
+ * `app.tulala.digital/admin`. Only when the Desk flag is ON (dead gate already
+ * 404s the whole host when OFF).
+ */
+export function supportDeskAdminRedirectResponse(
+  request: NextRequest,
+  pathname: string,
+  host: string | null | undefined = request.headers.get("host"),
+  env: DeskFlagEnv = typeof process !== "undefined" ? process.env : {},
+): NextResponse | null {
+  if (!isSupportDeskHost(host)) return null;
+  if (!isSupportDeskEnabled(env)) return null;
+  if (pathname !== "/admin" && !pathname.startsWith("/admin/")) return null;
+  const url = request.nextUrl.clone();
+  url.pathname = "/desk";
+  return NextResponse.redirect(url, 308);
+}

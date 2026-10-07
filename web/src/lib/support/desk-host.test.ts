@@ -11,6 +11,7 @@ import {
   isPathAllowedOnSupportDeskHost,
   isSupportDeskHost,
   normalizeHostname,
+  supportDeskAdminRedirectResponse,
   supportDeskHostDeadResponse,
   supportDeskHostSurfaceResponse,
 } from "./desk-host";
@@ -105,12 +106,50 @@ test("proxy wires the support-desk dead-host gate after resolve", () => {
   const proxy = readFileSync("src/proxy.ts", "utf8");
   assert.match(proxy, /supportDeskHostDeadResponse/);
   assert.match(proxy, /supportDeskHostSurfaceResponse/);
+  assert.match(proxy, /supportDeskAdminRedirectResponse/);
   const resolveAt = proxy.indexOf("resolveTenantContext(request, hostHeader)");
   const deadAt = proxy.indexOf("supportDeskHostDeadResponse(");
+  const adminAt = proxy.indexOf("supportDeskAdminRedirectResponse(");
   assert.ok(resolveAt > 0 && deadAt > resolveAt, "gate runs after host resolve");
+  assert.ok(adminAt > deadAt, "/admin remap runs after dead gate");
   assert.ok(
     deadAt < proxy.indexOf('hostContext.kind === "talent_site"'),
     "runs before surface dispatch",
+  );
+});
+
+test("support host /admin → 308 /desk when flag on", () => {
+  const req = new NextRequest("https://support.tulala.digital/admin?next=1");
+  const res = supportDeskAdminRedirectResponse(
+    req,
+    "/admin",
+    "support.tulala.digital",
+    { SUPPORT_DESK_ENABLED: "1", VERCEL_ENV: "production" },
+  );
+  assert.ok(res);
+  assert.equal(res.status, 308);
+  assert.match(res.headers.get("location") ?? "", /\/desk\?next=1$/);
+});
+
+test("support host /admin remap skips when flag off", () => {
+  const req = new NextRequest("https://support.tulala.digital/admin");
+  assert.equal(
+    supportDeskAdminRedirectResponse(req, "/admin", "support.tulala.digital", {
+      SUPPORT_DESK_ENABLED: "0",
+      VERCEL_ENV: "production",
+    }),
+    null,
+  );
+});
+
+test("app host /admin is never remapped by Desk admin redirect", () => {
+  const req = new NextRequest("https://app.tulala.digital/admin");
+  assert.equal(
+    supportDeskAdminRedirectResponse(req, "/admin", "app.tulala.digital", {
+      SUPPORT_DESK_ENABLED: "1",
+      VERCEL_ENV: "production",
+    }),
+    null,
   );
 });
 
