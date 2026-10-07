@@ -310,6 +310,8 @@ export function AgendaTodayPage({
     return (
       <div style={TALENT_AGENDA_VARS} className="space-y-4" aria-busy="true">
         <PageHeader title={copy.t("Today")} subtitle={subtitle} />
+        <div className="h-28 animate-pulse rounded-2xl bg-black/[0.05]" />
+        <div className="h-44 animate-pulse rounded-2xl bg-black/[0.05]" />
       </div>
     );
   }
