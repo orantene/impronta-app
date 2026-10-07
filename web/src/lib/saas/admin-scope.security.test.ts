@@ -395,7 +395,11 @@ test("INVARIANT requireTalentSelfAction: OWNERSHIP (user_id) is the boundary —
   assert.match(fn, /\.from\("agency_talent_roster"\)/, "falls back through the owned profile's roster row");
   assert.match(fn, /\.eq\("talent_profile_id", talent_profile_id\)/, "roster fallback is scoped to the owned profile");
   assert.match(fn, /\.eq\("status", "active"\)/, "roster fallback only accepts active roster rows");
-  assert.match(fn, /Talent is not on any active roster\./, "orphan profiles are refused");
+  // 73dc873721: independent (self-registered) talents are on no roster and own
+  // their profile; tenantId stays null instead of refusing. Ownership is still
+  // the only gate, so there must be no roster-based refusal.
+  assert.doesNotMatch(fn, /not on any active roster/, "ownership proven => independent talent is not refused for lacking a roster");
+  assert.match(fn, /tenantId = rosterRow\?\.tenant_id \?\? null/, "no roster row => tenantId null, not an error");
   assert.match(fn, /if \(userErr \|\| !user\) return \{ ok: false/, "must be signed in");
   // The documented hybrid-user fix: it must NOT pre-gate on requireTalent()/role.
   assert.doesNotMatch(fn, /requireTalent\(\)/, "must not role-gate (hybrid admin-as-talent owns their profile)");
