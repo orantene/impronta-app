@@ -48,6 +48,7 @@ import { isGuestCaptchaEnforced, splitGuestCaptchaConfigs } from "@/lib/platform
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
 import { designTokensToCssVars, designTokensToDataAttrs } from "@/lib/site-admin/tokens/resolve";
+import { TalentSiteHtmlTokens } from "@/components/talent/site/TalentSiteHtmlTokens";
 import { GoogleFontsLink } from "@/app/google-fonts-link";
 import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
@@ -96,7 +97,7 @@ import {
   loadTalentSiteIdentity,
 } from "./load-max-site";
 import { buildMaxSiteSeo } from "./max-site-seo.server";
-import { offeringsToJsonLdServices } from "@/lib/seo/talent-json-ld";
+import { loadMaxSiteSeoFacts } from "./max-site-seo-facts.server";
 import { loadTalentSiteLocaleContext, type TalentSiteLocaleContext } from "./talent-site-locale.server";
 import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links";
 import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main";
@@ -343,11 +344,10 @@ export async function renderTalentMaxSite(
       talentName: identity?.name ?? null,
     });
 
-    // Public services -> Person.makesOffer; a load failure means no services, never a failed render.
-    const jsonLdServices = offeringsToJsonLdServices(await loadPublicOfferingsForProfile(talentProfileId, locale, null).catch(() => []));
+    const seoFacts = await loadMaxSiteSeoFacts(talentProfileId, locale); // services, links, city; never throws
 
     const seo = buildMaxSiteSeo({
-      services: jsonLdServices,
+      ...seoFacts,
       site,
       // PHASE 1 — SEO is Web Office. A talent without `personalSiteSeo` renders
       // with their stored SEO IGNORED (never deleted), so a lapsed Web Office
@@ -560,12 +560,9 @@ async function renderMaxSiteDocument(args: {
   // (an override page, such as a policy page, renders neither, so those links drop).
   const renderedBlocks = pruneEmptyBoundSections(blocks, pricedDataSources);
   // Off the home page (policy pages) the anchors point back at the home page: `/#services`, `/en#services`.
-  const homePath = args.mainOverride
-    ? talentSiteLocalePath("/", locale, args.localeCtx.settings.defaultLocale, args.localeCtx.settings.supportedLocales)
-    : undefined;
+  const homePath = args.mainOverride ? talentSiteLocalePath("/", locale, args.localeCtx.settings.defaultLocale, args.localeCtx.settings.supportedLocales) : undefined;
   const liveFooterTree = pruneDeadSectionLinks(footerTree, renderedBlocks, [headerTree], { homePath });
-  // The header's section links get the same treatment on the home page (a talent with no
-  // reviews has no #reviews band, so the link goes). Override pages keep their header as is.
+  // The header's section links get the same treatment (a talent with no reviews has no #reviews band, so the link goes).
   const liveHeaderTree = pruneDeadSectionLinks(headerTree, renderedBlocks, [footerTree], { homePath });
   const footerSocialLinks = builderTreeHasKind(footerTree, "social_links") ? await loadTalentSocialLinks(talentProfileId) : [];
   const socketModel = buildSocketModel({
@@ -675,6 +672,9 @@ async function renderMaxSiteDocument(args: {
         flexDirection: "column",
       }}
     >
+      {/* Client-account P0 — the same tokens on <html>, so sibling platform UI
+          (dock, socket) can inherit them. Additive; the vars above stay. */}
+      {hasTokens ? <TalentSiteHtmlTokens cssVars={cssVars} dataAttrs={dataAttrs} /> : null}
       {/* A11Y-2 — first focusable element on every talent Max site surface. */}
       <SkipToContent />
       {/* G3b: hide the variant the root's live status does not match; the

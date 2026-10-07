@@ -166,4 +166,10 @@ export const TALENT_EDITORS_ES_TEXT: Record<string, string> = {
   "At least one client on Tulala with funds on hold. Required for Gold.": "Al menos un cliente en Tulala con fondos retenidos. Necesario para Oro.",
   "Bookings completed on Tulala": "Reservas completadas en Tulala",
   "Verification status is managed by Tulala. Toggle when you complete each step.": "Tulala administra el estado de verificación. Activa cada opción cuando completes el paso.",
+
+  // TUL-90 own public page
+  "Your public page is live": "Tu página pública está en línea",
+  "Publish your profile first to get a public link": "Publica tu perfil primero para obtener un enlace público",
+  "Your public page is not published yet": "Tu página pública aún no está publicada",
+  "Publish your profile to get a public address you can share.": "Publica tu perfil para obtener una dirección pública que puedas compartir.",
 };

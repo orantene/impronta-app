@@ -25,6 +25,7 @@ import {
 import type { TalentSiteLocale } from "@/lib/talent-site/talent-site-i18n";
 import { PlacementShareTools } from "@/components/talent/studio/PlacementShareTools";
 import { usePresenceText } from "@/components/talent/studio/presence-i18n";
+import { resolveTalentOwnPageState } from "@/lib/talent/public-profile-href";
 
 type Placement = {
   id: string;
@@ -87,6 +88,14 @@ export function TalentSiteAppearancesPanel(_props: { locale?: TalentSiteLocale }
   const profileCode = bridgeTalentSelfProfile?.profileCode ?? null;
   const globalHidden = bridgeTalentSelfProfile?.isPubliclyHidden ?? false;
 
+  const ownPage = bridgeTalentSelfProfile
+    ? resolveTalentOwnPageState({
+        profileCode,
+        workflowStatus: bridgeTalentSelfProfile.workflowStatus,
+        isPubliclyHidden: false,
+      })
+    : null;
+
   const placements: Placement[] = [];
   if (profileCode) {
     placements.push({
@@ -94,8 +103,9 @@ export function TalentSiteAppearancesPanel(_props: { locale?: TalentSiteLocale }
       kind: "tulala",
       name: t("Tulala profile"),
       detail: t("Your profile on Tulala · managed by you"),
-      url: `https://tulala.digital/t/${encodeURIComponent(profileCode)}`,
-      status: globalHidden ? "hidden_everywhere" : "live",
+      // TUL-90: live only when published; a draft profile 404s at /t/<code>.
+      url: ownPage?.href ?? null,
+      status: globalHidden ? "hidden_everywhere" : ownPage?.live ? "live" : "not_published",
       isPrimary: false,
     });
   }

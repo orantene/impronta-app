@@ -20,6 +20,7 @@ import {
 import { MAGAZINE_ROOT_VARS } from "./magazine-edition";
 import { PORTFOLIO_FRAMED_CSS } from "./portfolio-framed-css";
 import { filterShotsForPortfolio } from "./portfolio-selection";
+import { buildPortfolioGallery, type PortfolioGallery } from "./portfolio-lightbox-logic";
 import { PortfolioShotLink } from "./portfolio-shot-link";
 import { PORTFOLIO_WORK_ORDER_CSS, WorkOrderFigure } from "./portfolio-work-order";
 import { renderItalicMarkedTitle } from "./services-catalog-title";
@@ -152,8 +153,11 @@ function ShotFigure({
   framed,
   magazineIndex,
   es,
+  gallery,
 }: {
   shot: TalentPortfolioShot;
+  /** A-06: every shot of this block, and where this one sits in it (lightbox next/back). */
+  gallery: PortfolioGallery;
   offering?: TalentOffering | null;
   showCaptions: boolean;
   confirmsByHand: boolean;
@@ -186,11 +190,13 @@ function ShotFigure({
         offeringId={shot.offeringId}
         confirmsByHand={confirmsByHand}
         className="sb-portfolio-shot"
+        shotId={shot.id}
         lightbox={{
-          src: shot.url,
-          alt: shot.alt || label,
+          gallery,
           bookLabel: es ? "Reservar este look" : "Book this look",
           closeLabel: es ? "Cerrar" : "Close",
+          prevLabel: es ? "Foto anterior" : "Previous photo",
+          nextLabel: es ? "Foto siguiente" : "Next photo",
         }}
         ariaLabel={
           serviceLine ? `${label}. ${es ? "Abre" : "Opens"} ${serviceLine}` : label
@@ -275,6 +281,7 @@ export function renderPortfolioBlock(args: {
   const magazine = isChapter && p.edition === "magazine";
 
   const workOrder = layout === "work_order";
+  const galleryItems = buildPortfolioGallery(visible, (id) => byOffering.has(id), es);
   const shotNodes = visible.map((shot, index) => workOrder ? (
     <WorkOrderFigure key={shot.id} shot={shot} />
   ) : (
@@ -289,6 +296,7 @@ export function renderPortfolioBlock(args: {
       framed={framed}
       magazineIndex={magazine ? index + 1 : undefined}
       es={es}
+      gallery={{ items: galleryItems, index }}
     />
   ));
 

@@ -307,13 +307,14 @@ export function WebsiteSettingsScreen({
         ‹ {view === "home" ? t("My website") : t("Settings")}
       </button>
       <h1 className="min-w-0 flex-1 text-[18px] max-[720px]:basis-[calc(100%-5rem)] min-[721px]:truncate font-semibold text-admin-ink">{titles[view]}</h1>
+      {/* TUL-90: chip says "Saved" only; it must not claim a site is published. */}
       {/* No chip until settings load: "Saved" would be a claim about nothing. */}
       {draft && saved ? (
       <StatusChip
         className="max-[720px]:order-last max-[720px]:basis-full max-[720px]:w-fit max-[720px]:flex-none"
         status={status}
         unsaved={unsaved}
-        labels={{ saved: t("Saved · live now"), unsaved: t("{n} unsaved"), saving: t("Saving…"), failed: partial ? t("Some changes saved") : t("Couldn’t save") }}
+        labels={{ saved: t("Saved"), unsaved: t("{n} unsaved"), saving: t("Saving…"), failed: partial ? t("Some changes saved") : t("Couldn’t save") }}
       />
       ) : null}
     </div>

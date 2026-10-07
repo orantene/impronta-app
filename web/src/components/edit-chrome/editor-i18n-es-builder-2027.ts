@@ -209,6 +209,8 @@ export const ES_BUILDER_2027_TEXT: Record<string, string> = {
   "Service cards in a responsive grid.": "Tarjetas de servicio en una cuadrícula adaptable.",
   "Block deleted": "Bloque eliminado",
   Loading: "Cargando",
+  "No text in {lang} yet. The canvas shows the base text.":
+    "Aún no hay texto en {lang}. El lienzo muestra el texto base.",
   "This block needs to sit inside a section. Add a section first, then drop it in.":
     "Este bloque debe ir dentro de una sección. Agrega una sección primero y colócalo ahí.",
 };

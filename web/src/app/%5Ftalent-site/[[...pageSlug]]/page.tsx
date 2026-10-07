@@ -122,13 +122,16 @@ export async function generateMetadata({
     talentProfileId,
     pageSlug: seg,
     locale,
+    // TUL-98: same URL grammar as the page itself (primary at root, secondaries
+    // prefixed). Without it the platform grammar made English the "root" and
+    // inverted canonical/hreflang on every Spanish-primary talent site.
+    hrefMode: "host-root",
     previewDraft: preview === "draft",
     canonicalOrigin,
     canonicalPath: apexPath(seg),
   });
   if (result.kind !== "render") return { title: "Not found" };
-  // Apex domain has no EN/ES path split — absolute canonical only, no hreflang.
-  return maxSiteSeoToMetadata(result.seo);
+  return maxSiteSeoToMetadata(result.seo, { ogLocale: result.locale });
 }
 
 export default async function TalentSiteHostPage({

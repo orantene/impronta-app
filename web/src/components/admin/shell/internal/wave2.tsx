@@ -68,6 +68,7 @@ import {
   FieldRow,
 } from "./primitives";
 import { pinNextConversation } from "./messages/conversation-pending";
+import { copyTalentOwnPublicLink } from "@/lib/talent/public-profile-href";
 import { MOCK_CONVERSATIONS } from "./talent/shared/conversations-1";
 
 // ════════════════════════════════════════════════════════════════════
@@ -3511,7 +3512,7 @@ export function OnboardingArc({
 
 /** Convenience: talent first-run arc — "profile → photos → availability → share". */
 export function TalentOnboardingArc() {
-  const { openDrawer, setTalentPage, toast } = useAdminShell();
+  const { openDrawer, setTalentPage, toast, bridgeTalentSelfProfile } = useAdminShell(), copy = useDashboardText();
   return (
     <OnboardingArc
       storageKey="tulala_onboard_talent"
@@ -3541,8 +3542,7 @@ export function TalentOnboardingArc() {
           label: "Copy your public link",
           description: "Share with your other agencies and on socials; bookings come from anywhere.",
           onOpen: () => {
-            navigator.clipboard?.writeText("https://tulala.digital/t/marta-reyes");
-            toast("Public link copied to clipboard");
+            copyTalentOwnPublicLink(bridgeTalentSelfProfile, toast, copy.t);
           },
         },
       ]}

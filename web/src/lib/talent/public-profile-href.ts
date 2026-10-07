@@ -31,6 +31,34 @@ export function talentPublicProfileHref(profileCode: string, currentOrigin?: str
   return `${base}/t/${encodeURIComponent(profileCode)}`;
 }
 
+export type TalentOwnPageState =
+  | { live: true; href: string; label: string }
+  | { live: false; href: null; label: null };
+
+/**
+ * TUL-90: the ONE answer to "is my public page live, and where?". A page is
+ * live only when the profile is published, not hidden, and has a profile
+ * code; then the address is her own `/t/<code>` (never a sample slug).
+ * Anything else is "not published yet": no address is claimed, because
+ * `/t/<code>` 404s for draft or hidden profiles.
+ */
+export function resolveTalentOwnPageState(input: {
+  profileCode: string | null | undefined;
+  workflowStatus: string | null | undefined;
+  isPubliclyHidden: boolean | null | undefined;
+  currentOrigin?: string | null;
+}): TalentOwnPageState {
+  const code = (input.profileCode ?? "").trim();
+  if (!code || input.workflowStatus !== "published" || input.isPubliclyHidden) {
+    return { live: false, href: null, label: null };
+  }
+  return {
+    live: true,
+    href: talentPublicProfileHref(code, input.currentOrigin),
+    label: talentPublicProfileLabel(code, input.currentOrigin),
+  };
+}
+
 /** The same link without the scheme, for display ("tulala.digital/t/abc"). */
 export function talentPublicProfileLabel(profileCode: string, currentOrigin?: string | null): string {
   return talentPublicProfileHref(profileCode, currentOrigin).replace(/^https?:\/\//, "");
@@ -125,4 +153,26 @@ function isHubProfileHref(href: string, profileCode: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** TUL-90: onboarding "Copy your public link": her own live address only, never a sample slug. */
+export function copyTalentOwnPublicLink(
+  self: { profileCode?: string | null; workflowStatus?: string | null; isPubliclyHidden?: boolean | null } | null | undefined,
+  toast: (message: string) => void,
+  t: (key: string) => string,
+): void {
+  const own = self
+    ? resolveTalentOwnPageState({
+        profileCode: self.profileCode,
+        workflowStatus: self.workflowStatus,
+        isPubliclyHidden: self.isPubliclyHidden,
+        currentOrigin: typeof window === "undefined" ? null : window.location.origin,
+      })
+    : null;
+  if (own && !own.live) {
+    toast(t("Publish your profile first to get a public link"));
+    return;
+  }
+  navigator.clipboard?.writeText(own?.href ?? "https://tulala.digital/t/marta-reyes");
+  toast("Public link copied to clipboard");
 }
