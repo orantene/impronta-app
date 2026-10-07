@@ -48,5 +48,5 @@ test("P1-10 gallery photo opens a lightbox, not the booking window", async ({ pa
 test("P1-9 Spanish home has no English nail-product ticker", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop", "content check");
   await page.goto(JORGELINA_SITE, { waitUntil: "domcontentloaded" });
-  await expect(page.locator("body")).not.toContainText(/Semi-permanent gel ✦|✦ Soft Gel/);
+  await expect(page.locator("body")).not.toContainText(/Semi-permanent gel\s*✦\s*Soft Gel/);
 });
