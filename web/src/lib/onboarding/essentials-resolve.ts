@@ -12,6 +12,26 @@ import {
   servicesFromFacts,
   type Essentials,
 } from "./essentials";
+import { timezoneFromPlaceText } from "@/lib/scheduling/timezone-from-place";
+import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
+
+/**
+ * TUL-77: the zone hours are written in. Confirmed zone first, then the city
+ * (+ country) the person typed, then the country default. Null only when
+ * nothing is known; hours are never written in a guessed UTC.
+ */
+export function resolveEssentialsTimezone(input: {
+  timezone: string | null | undefined;
+  city: string | null | undefined;
+  country: string | null | undefined;
+}): string | null {
+  const own = input.timezone?.trim();
+  if (own && isValidIanaTimeZone(own)) return own;
+  const place = [input.city, input.country].map((x) => x?.trim()).filter(Boolean).join(", ");
+  const fromPlace = place ? timezoneFromPlaceText(place) : null;
+  if (fromPlace && isValidIanaTimeZone(fromPlace)) return fromPlace;
+  return defaultTimezoneForCountry(input.country);
+}
 
 export function resolveEssentialsForBuild(input: {
   essentials: Essentials | null;
@@ -19,6 +39,8 @@ export function resolveEssentialsForBuild(input: {
   discipline: string | null;
   tradeSlug: string | null;
   country: string | null;
+  /** The city from the brief (`person.city`); feeds the timezone. */
+  city?: string | null;
   locale: "en" | "es";
 }): Essentials | null {
   const ctx = { trade: input.tradeSlug, discipline: input.discipline, country: input.country, locale: input.locale };
@@ -31,7 +53,7 @@ export function resolveEssentialsForBuild(input: {
     name: e?.name ?? null,
     services,
     hours: hoursHaveAnyOpenDay(e?.hours ?? null) ? e!.hours : defaultWeeklyHours(),
-    timezone: e?.timezone ?? defaultTimezoneForCountry(input.country),
+    timezone: resolveEssentialsTimezone({ timezone: e?.timezone, city: input.city, country: input.country }),
     place: e?.place ?? null,
     firstProviderEmail: e?.firstProviderEmail ?? null,
     firstProviderName: e?.firstProviderName ?? null,
