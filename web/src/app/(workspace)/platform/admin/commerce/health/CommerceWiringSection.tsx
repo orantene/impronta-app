@@ -8,7 +8,7 @@
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
-import type { CommerceHealthRow, HealthRowStatus } from "@/lib/payments/commerce-health";
+import { KEY_MODE_VARS, type CommerceHealthRow, type HealthRowStatus } from "@/lib/payments/commerce-health";
 import type { CommerceHealthResult } from "./load-commerce-health";
 import { HQ, F, FD } from "../_tokens";
 
@@ -62,6 +62,16 @@ const STATUS_KEYS: Record<HealthRowStatus, string> = {
   error: "dashboard.platform.commerce.health.wiring.status.error",
 };
 
+const MODE_WORD_KEYS: Record<string, string> = {
+  test: "dashboard.platform.commerce.health.wiring.rows.keyModes.mode.test",
+  live: "dashboard.platform.commerce.health.wiring.rows.keyModes.mode.live",
+  unset: "dashboard.platform.commerce.health.wiring.rows.keyModes.mode.unset",
+};
+const MX_SOURCE_KEY = "dashboard.platform.commerce.health.wiring.rows.keyModes.mxSource";
+const HELD_ERROR_KEY = "dashboard.platform.commerce.health.wiring.rows.held.readFailed";
+const HELD_ERROR_FIX_KEY = "dashboard.platform.commerce.health.wiring.fix.heldReadFailed";
+const HELD_CAPPED_KEY = "dashboard.platform.commerce.health.wiring.rows.held.capped";
+
 function rowKeys(row: CommerceHealthRow): Keys {
   if (typeof row.data?.name === "string") {
     return {
@@ -71,6 +81,12 @@ function rowKeys(row: CommerceHealthRow): Keys {
     };
   }
   const keys = KEYS[row.id];
+  if (row.id === "held-payouts" && row.data?.state === "error") {
+    return { ...keys, detail: HELD_ERROR_KEY, fix: HELD_ERROR_FIX_KEY };
+  }
+  if (row.id === "held-payouts" && row.data?.state === "capped") {
+    return { ...keys, detail: HELD_CAPPED_KEY };
+  }
   if (row.id.startsWith("last-webhook:") && row.data?.hours === null) {
     return { ...keys, detail: "dashboard.platform.commerce.health.wiring.rows.lane.none" };
   }
@@ -113,6 +129,8 @@ export async function CommerceWiringSection({ result }: { result: CommerceHealth
           const params: Record<string, string> = {
             name: String(row.data?.name ?? ""),
             count: String(row.data?.count ?? ""),
+            max: String(row.data?.count ?? ""),
+            source: String(row.data?.mxPublishableSource ?? ""),
             hours: String(row.data?.hours ?? ""),
             modes: row.status === "ok" && row.data?.mode ? String(row.data.mode) : "",
           };
@@ -127,7 +145,14 @@ export async function CommerceWiringSection({ result }: { result: CommerceHealth
                   </span>
                 </div>
                 <div style={{ color: HQ.inkMuted, overflowWrap: "anywhere", fontFamily: F }}>
-                  {row.id === "key-modes" ? row.detail : interpolate(t(k.detail), params)}
+                  {row.id === "key-modes"
+                    ? KEY_MODE_VARS.map((n) => `${n}: ${t(MODE_WORD_KEYS[String(row.data?.[`m:${n}`] ?? "unset")] ?? MODE_WORD_KEYS.unset)}`).join(", ")
+                    : interpolate(t(k.detail), params)}
+                </div>
+                <div style={{ color: HQ.inkMuted, overflowWrap: "anywhere", fontFamily: F }}>
+                  {row.id === "key-modes" && row.data?.mxPublishableSource && row.data.mxPublishableSource !== "none"
+                    ? interpolate(t(MX_SOURCE_KEY), params)
+                    : null}
                 </div>
                 {row.status !== "ok" && <div style={{ color: HQ.inkDim, marginTop: 2 }}>{interpolate(t(k.fix), params)}</div>}
               </div>

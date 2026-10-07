@@ -406,13 +406,47 @@ export async function countHeldTalentPayoutLegs(
   }
 }
 
+/** Row cap on the platform-wide held-payouts list. Hitting it is reported, never hidden. */
+export const HELD_PAYOUTS_CAP = 500;
+
+/**
+ * Discriminated result so a failed read can never be mistaken for "no held
+ * payouts". `capped` is true when more than HELD_PAYOUTS_CAP legs exist (rows
+ * then holds the newest HELD_PAYOUTS_CAP).
+ */
+export type HeldPayoutsResult =
+  | { ok: true; rows: HeldLedgerRow[]; capped: boolean }
+  | { ok: false; error: string };
+
+/** Pure: shape raw booking_payouts rows into a result, detecting the cap. */
+export function shapeHeldPayoutsRows(data: Array<Record<string, unknown>>): HeldPayoutsResult {
+  const capped = data.length > HELD_PAYOUTS_CAP;
+  const rows = (capped ? data.slice(0, HELD_PAYOUTS_CAP) : data).map((r) => ({
+    id: r.id as string,
+    bookingId: r.booking_id as string,
+    participantId: r.participant_id as string,
+    party: r.party as PayoutParty,
+    talentProfileId: (r.talent_profile_id as string | null) ?? null,
+    tenantId: (r.tenant_id as string | null) ?? null,
+    amountCents: r.amount_cents as number,
+    currency: r.currency as string,
+    status: r.status as string,
+    attempts: (r.attempts as number) ?? 0,
+    lastError: (r.last_error as string | null) ?? null,
+    createdAt: r.created_at as string,
+    releaseAfter: (r.release_after as string | null) ?? null,
+  }));
+  return { ok: true, rows, capped };
+}
+
 /**
  * All currently-held (and failed) payout legs across the platform — for the
  * platform-admin reconciliation list. Service-role read; newest first.
+ * A failed read returns `{ ok: false }`, never an empty list.
  */
-export async function listHeldPayouts(sbIn?: SupabaseClient | null): Promise<HeldLedgerRow[]> {
+export async function listHeldPayouts(sbIn?: SupabaseClient | null): Promise<HeldPayoutsResult> {
   const sb = sbIn ?? createServiceRoleClient();
-  if (!sb) return [];
+  if (!sb) return { ok: false, error: "service role unavailable" };
   try {
     const { data, error } = await sb
       .from("booking_payouts")
@@ -422,26 +456,16 @@ export async function listHeldPayouts(sbIn?: SupabaseClient | null): Promise<Hel
       )
       .in("status", ["held", "failed"])
       .order("created_at", { ascending: false })
-      .limit(500);
-    if (error || !data) return [];
-    return (data as Array<Record<string, unknown>>).map((r) => ({
-      id: r.id as string,
-      bookingId: r.booking_id as string,
-      participantId: r.participant_id as string,
-      party: r.party as PayoutParty,
-      talentProfileId: (r.talent_profile_id as string | null) ?? null,
-      tenantId: (r.tenant_id as string | null) ?? null,
-      amountCents: r.amount_cents as number,
-      currency: r.currency as string,
-      status: r.status as string,
-      attempts: (r.attempts as number) ?? 0,
-      lastError: (r.last_error as string | null) ?? null,
-      createdAt: r.created_at as string,
-      releaseAfter: (r.release_after as string | null) ?? null,
-    }));
+      // One past the cap, so "exactly 500" and "more than 500" are told apart.
+      .limit(HELD_PAYOUTS_CAP + 1);
+    if (error || !data) {
+      if (error) logServerError("booking-payouts.listHeld", error);
+      return { ok: false, error: error?.message ?? "no data" };
+    }
+    return shapeHeldPayoutsRows(data as Array<Record<string, unknown>>);
   } catch (err) {
     logServerError("booking-payouts.listHeld", err);
-    return [];
+    return { ok: false, error: err instanceof Error ? err.message : "read failed" };
   }
 }
 

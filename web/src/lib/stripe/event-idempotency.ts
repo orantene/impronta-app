@@ -31,16 +31,11 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { interpretClaimError } from "@/lib/stripe/webhook-routing";
+import { laneScopedEventKey, type WebhookLane } from "@/lib/stripe/webhook-lanes";
 
-/**
- * Which webhook route is claiming. `platform` is the unified handler and keeps
- * the bare event id for backwards compatibility with rows already in the table.
- */
-export type WebhookLane = "platform" | "platform_mx" | "discover_client_subscription";
-
-export function laneScopedEventKey(lane: WebhookLane, eventId: string): string {
-  return lane === "platform" ? eventId : `${lane}:${eventId}`;
-}
+// Lane vocabulary lives in webhook-lanes.ts (pure); re-exported for callers.
+export { laneScopedEventKey };
+export type { WebhookLane };
 
 /**
  * Claim an event for processing.
@@ -66,6 +61,8 @@ export async function claimStripeEvent(input: {
 
   const { error } = await sb.from("stripe_processed_events").insert({
     event_id: laneScopedEventKey(input.lane, input.eventId),
+    // Explicit lane for every claim; the health panel filters on this.
+    lane: input.lane,
     event_type: input.eventType,
     livemode: input.livemode ?? null,
     api_version: input.apiVersion ?? null,

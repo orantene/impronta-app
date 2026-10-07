@@ -60,7 +60,7 @@ export async function HealthView({ health }: { health: StripeHealth }) {
   const worst = worstOf(health);
 
   return (
-    <div style={{ fontFamily: F, color: HQ.ink, maxWidth: 900 }}>
+    <div style={{ fontFamily: F, color: HQ.ink }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span
           aria-hidden
