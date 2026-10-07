@@ -19,10 +19,7 @@
 
 import { requireSession } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
-import { getCachedServerSupabase } from "@/lib/server/request-cache";
-import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
-import { gate } from "@/lib/talent-site/server/site-action-gate";
-import { maisonDesignBlocker } from "@/lib/talent-site/server/maison-publish-readiness";
+import { talentDesignRequiredIssue } from "./talent-design-preflight";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 import { runAriaLandmarkCheck } from "./aria-landmark-action";
@@ -109,9 +106,7 @@ export interface PreflightIssue {
    * carries this flag.
    */
   autoFixable?: boolean;
-  /** Optional link for a one-click fix that lives outside the builder (TUL-89: "Choose a design"). */
-  fixHref?: string;
-  fixLabel?: string;
+  fixHref?: string; fixLabel?: string; // TUL-89: one-click fix link outside the builder
   message: string;
 }
 
@@ -166,48 +161,12 @@ type PreflightPageContext = {
 };
 
 /**
- * Blocker when the talent's never-published site has no design and the Maison
- * gate (`prepareMaisonSiteForPublish`) would refuse. Mirrors that gate: it only
- * runs on the first publish (`delegateFirstPublish`) and only when the Maison
- * flag is on. Fails open on read errors; the server stays the backstop.
- */
-async function talentDesignRequiredIssue(): Promise<PreflightIssue | null> {
-  try {
-    const g = await gate("personalSiteEdit");
-    if (!g.ok || !isTalentMaisonThemeEnabled(g.talentProfileId)) return null;
-    const sb = await getCachedServerSupabase();
-    if (!sb) return null;
-    const { data } = await sb
-      .from("talent_sites")
-      .select("theme_design_slug, site_published_at")
-      .eq("talent_profile_id", g.talentProfileId)
-      .maybeSingle();
-    const row = data as { theme_design_slug: string | null; site_published_at: string | null } | null;
-    if (!row || row.site_published_at) return null;
-    const blocker = maisonDesignBlocker(row.theme_design_slug, "en");
-    if (!blocker) return null;
-    return {
-      severity: "error",
-      category: "design",
-      message: blocker.message,
-      fixLabel: blocker.fixLabel,
-      fixHref: `/talent/site${blocker.fixHref}`,
-    };
-  } catch (err) {
-    logServerError("publish-preflight.talentPage.design", err);
-    return null;
-  }
-}
-
-/**
  * Canvas-only preflight for talent personal sites (no agency tenant scope).
  * Mirrors the builderTree validation branch used for CMS surfaces.
  */
 async function runTalentPagePublishPreflight(builderTreeInput: unknown): Promise<PreflightResult> {
   const issues: PreflightIssue[] = [];
-  // TUL-89: same rule the first-publish gate enforces server-side, so a site
-  // the server will refuse is told so here, before "Publish now".
-  const designIssue = await talentDesignRequiredIssue();
+  const designIssue = await talentDesignRequiredIssue(); // TUL-89: server's first-publish design rule
   if (designIssue) issues.push(designIssue);
   const builderTree = Array.isArray(builderTreeInput) ? builderTreeInput : null;
   if (!builderTree) {

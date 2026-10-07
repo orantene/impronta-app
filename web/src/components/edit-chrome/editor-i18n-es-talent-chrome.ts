@@ -57,7 +57,6 @@ export const ES_TALENT_CHROME_TEXT: Record<string, string> = {
   "There is a problem with a section of your page. Save again or contact support.":
     "Hay un problema con una sección de tu página. Guarda de nuevo o contacta a soporte.",
   "Apply a design before publishing.": "Aplica un diseño antes de publicar.",
-  "Design": "Diseño",
   "Choose a design": "Elige un diseño",
   "Tiny text": "Texto muy pequeño",
   "Tap target": "Zona de toque",
