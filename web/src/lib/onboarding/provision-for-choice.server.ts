@@ -10,6 +10,7 @@ import "server-only";
  *                                 (lead.provisioned_tenant_id, orphan rollback, free limit)
  *   domain row                  → ensureWorkspaceSubdomainRow
  *   self roster (bookable)      → ensureSelfRosterSiteVisible
+ *   profile live (both)         → promoteTalentProfileLive (shared with 1E)
  *   home                        → profiles.home_surface_preference
  */
 
@@ -37,6 +38,7 @@ import { ensureOwnSitePublished } from "./publish-own-site";
 import { createEssentialsStore, resolveTalentHubTenantId } from "./essentials.server";
 import { runEssentialsWrites, type Essentials } from "./essentials";
 import { writeTalentProfileFromBrief } from "./talent-writer.server";
+import { promoteTalentProfileLive } from "./talent-profile-promotion.server";
 
 export type WorkspaceDetail =
   | { kind: "provisioned"; result: Extract<ProvisionWorkspaceResult, { ok: true }> }
@@ -190,6 +192,11 @@ export async function provisionForChoice(
       }
       const r = await runEssentialsWrites(createEssentialsStore(admin), { choice: c, essentials, talent: talentCtx, workspace });
       return r.warnings;
+    },
+
+    async promoteTalentProfileLive(talentProfileId) {
+      const r = await promoteTalentProfileLive(admin, talentProfileId);
+      return r.ok ? { ok: true } : { ok: false, code: "talent_profile_publish_failed", message: r.error };
     },
 
     async setHomeSurface(surface) {

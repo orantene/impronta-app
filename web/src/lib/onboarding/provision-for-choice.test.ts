@@ -10,6 +10,7 @@ import {
   resolveBuildPath,
   type OnboardingChoice,
 } from "./choice";
+import { planProfilePromotion } from "./talent-profile-promotion";
 import { runChoiceProvisioning, type ChoiceProvisionDeps } from "./provision-for-choice";
 
 /**
@@ -18,7 +19,7 @@ import { runChoiceProvisioning, type ChoiceProvisionDeps } from "./provision-for
  */
 type Db = {
   profile: { app_role: string; account_status: string; home_surface_preference: string | null };
-  talent_profiles: { id: string; user_id: string }[];
+  talent_profiles: { id: string; user_id: string; workflow_status: string; visibility: string }[];
   talent_sites: { talent_profile_id: string }[];
   hub_roster: { talent_profile_id: string }[];
   agencies: { id: string; slug: string }[];
@@ -42,7 +43,7 @@ function fakeDeps(db: Db, opts: { failMembershipOnce?: boolean } = {}): ChoicePr
     },
     async ensureTalentProfile() {
       let tp = db.talent_profiles.find((r) => r.user_id === "u1");
-      if (!tp) { tp = { id: "tp1", user_id: "u1" }; db.talent_profiles.push(tp); }
+      if (!tp) { tp = { id: "tp1", user_id: "u1", workflow_status: "draft", visibility: "hidden" }; db.talent_profiles.push(tp); }
       if (!db.hub_roster.some((r) => r.talent_profile_id === tp.id)) db.hub_roster.push({ talent_profile_id: tp.id });
       return { ok: true, talentProfileId: tp.id, profileCode: "TAL-1" };
     },
@@ -76,6 +77,11 @@ function fakeDeps(db: Db, opts: { failMembershipOnce?: boolean } = {}): ChoicePr
       if (!db.roster.some((r) => r.tenant_id === tenantId && r.talent_profile_id === talentProfileId)) {
         db.roster.push({ tenant_id: tenantId, talent_profile_id: talentProfileId, direct_booking_enabled: true });
       }
+      return { ok: true };
+    },
+    async promoteTalentProfileLive(id) {
+      const tp = db.talent_profiles.find((r) => r.id === id)!;
+      Object.assign(tp, planProfilePromotion(tp) ?? {});
       return { ok: true };
     },
     async setHomeSurface(surface) {
@@ -114,6 +120,8 @@ for (const choice of ["myself", "studio", "both"] as const) {
     if (choice === "both") {
       assert.equal(db.roster[0].direct_booking_enabled, true);
       assert.equal(db.agency_domains[0].hostname, "studio.tulala.digital");
+      assert.equal(db.talent_profiles[0].workflow_status, "approved");
+      assert.equal(db.talent_profiles[0].visibility, "public");
     }
   });
 
@@ -193,4 +201,35 @@ test("choiceFromNext reads the Google next URL", () => {
   assert.equal(choiceFromNext("/onboarding?choice=admin"), null);
   assert.equal(choiceFromNext("/talent/profile"), null);
   assert.equal(choiceFromNext(null), null);
+});
+
+test("both: profile ends approved/public; a live profile is never downgraded", async () => {
+  assert.deepEqual(planProfilePromotion({ workflow_status: "draft", visibility: "hidden" }), { workflow_status: "approved", visibility: "public" });
+  assert.equal(planProfilePromotion({ workflow_status: "published", visibility: "public" }), null);
+  assert.deepEqual(planProfilePromotion({ workflow_status: "approved", visibility: "hidden" }), { visibility: "public" });
+  const db = freshDb();
+  db.talent_profiles.push({ id: "tp1", user_id: "u1", workflow_status: "published", visibility: "public" });
+  await runChoiceProvisioning("both", fakeDeps(db));
+  assert.equal(db.talent_profiles[0].workflow_status, "published");
+  assert.equal(db.roster[0].direct_booking_enabled, true);
+});
+
+test("both: a failed profile promotion fails the build (retry finishes it)", async () => {
+  const db = freshDb();
+  const deps = fakeDeps(db);
+  deps.promoteTalentProfileLive = async () => ({ ok: false, code: "talent_profile_publish_failed", message: "x" });
+  assert.equal((await runChoiceProvisioning("both", deps)).ok, false);
+  assert.equal((await runChoiceProvisioning("both", fakeDeps(db))).ok, true);
+  assert.equal(db.talent_profiles[0].visibility, "public");
+});
+
+test("myself and studio never call the promotion", async () => {
+  for (const c of ["myself", "studio"] as const) {
+    const db = freshDb();
+    const deps = fakeDeps(db);
+    let called = false;
+    deps.promoteTalentProfileLive = async () => { called = true; return { ok: true }; };
+    await runChoiceProvisioning(c, deps);
+    assert.equal(called, false, c);
+  }
 });
