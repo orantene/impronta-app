@@ -2,6 +2,7 @@ import { TalentPageRouteSyncer } from "../_talent-page-route-syncer";
 import { ClientsInitialSeed } from "./ClientsInitialSeed";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { logServerError } from "@/lib/server/safe-error";
 import { loadTalentClients } from "@/lib/talent/clients-actions";
 
 export const dynamic = "force-dynamic";
@@ -12,12 +13,16 @@ async function prefetchClients() {
     const session = await getCachedActorSession();
     const admin = createServiceRoleClient();
     if (!session.user || !admin) return null;
-    const { data } = await admin
+    const { data, error } = await admin
       .from("talent_profiles")
       .select("id")
       .eq("user_id", session.user.id)
       .limit(1)
       .maybeSingle();
+    if (error) {
+      logServerError("talent.clients.prefetch", error);
+      return null; // not seeding: the client falls back to its own fetch
+    }
     const talentId = (data?.id as string | undefined) ?? null;
     if (!talentId) return null;
     return { talentId, initial: await loadTalentClients(talentId) };
