@@ -35,13 +35,23 @@ test("P0-5 nav from /politicas leads back to home sections; no Reseñas link", a
   await expect(page.getByRole("link", { name: /reseñas/i })).toHaveCount(0);
 });
 
-test("P1-10 gallery photo opens a lightbox, not the booking window", async ({ page }, info) => {
+test("P1-10 gallery photo opens a full-screen lightbox with next/back, not the booking window", async ({ page }, info) => {
   await page.goto(JORGELINA_SITE, { waitUntil: "networkidle" });
   const gallery = page.locator("#gallery, [data-section='gallery'], section:has-text('Trabajos')").first();
   await gallery.scrollIntoViewIfNeeded();
-  await gallery.locator("img").first().click();
-  await expect(page.getByRole("dialog").first()).toBeVisible();
-  await expect(page.getByRole("dialog").first()).not.toContainText(/Continuar|Confirmar cita/);
+  const imgs = gallery.locator("img");
+  const count = await imgs.count();
+  await imgs.first().click();
+  const dialog = page.getByRole("dialog").first();
+  await expect(dialog).toBeVisible();
+  await expect(dialog).not.toContainText(/Continuar|Confirmar cita/);
+  const vp = page.viewportSize() ?? { width: 1280, height: 800 };
+  const box = await dialog.boundingBox();
+  await info.attach("lightbox-box", { body: JSON.stringify({ vp, box, count }), contentType: "application/json" });
+  expect(box && box.width >= vp.width * 0.9 && box.height >= vp.height * 0.9, "lightbox must cover the viewport").toBeTruthy();
+  if (count > 1) {
+    await expect(dialog.getByRole("button", { name: /siguiente|next|›|→/i }).first()).toBeVisible();
+  }
   await evidence(page, info, "gallery-lightbox");
 });
 
