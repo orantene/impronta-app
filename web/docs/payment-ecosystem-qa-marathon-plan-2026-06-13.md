@@ -188,7 +188,7 @@ For each of 2.10 / 6.3 / 6.4: migration (if any) → engine fn(s) → server act
 
 ## 6. Fixtures & reusable assets (the marathon reuses these)
 - Tenants: qa-agency `22222222-2222-2222-2222-222222222222`; Tulala hub `40081ec3-5ca8-43a0-b50b-31c927b2716b`.
-- Users: qa-admin `4b9e595d-…` (super_admin, pw `Impronta-QA-Admin-2026!`); qa-client-1 `bb31fa4c-…`; qa-client-2 `688787f4-…`.
+- Users: qa-admin `4b9e595d-…` (super_admin, pw `<redacted-qa-password>`); qa-client-1 `bb31fa4c-…`; qa-client-2 `688787f4-…`.
 - Talents (claimed): Sofía `878cb63f-…` (user 20057931, Impronta-primary), Luis `e68ffb51-…` (7ecf3011), Marco `de81316a-…` (428d1599, tulala-only), QA Free Seats TAL-92041..45 (unclaimed).
 - Transfer-ready connected accts (current platform): talent `acct_1Thlqb4Oz1p0TN0w`, agency `acct_1Thlqe7lgUYnVcw2`, spare `acct_1Ti08t5uRYUo0Duw`.
 - Test prices (test-mode Stripe): agency `price_1Ti0EQ7Oqi82ykAIzIueOkM0` ($29/mo), talent Pro `price_1Ti1fp7Oqi82ykAImkyGyoSK` ($19/mo). Env: `STRIPE_PRICE_AGENCY_MONTHLY`, `STRIPE_PRICE_TALENT_PRO_MONTHLY` in `.env.local`.

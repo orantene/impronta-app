@@ -94,8 +94,8 @@ test("password: one shared DEMO_PASSWORD, 16+ characters with upper, lower and a
     assert.ok(!message.includes(w), "the value is never echoed");
   }
   assert.equal(readDemoPassword({ DEMO_PASSWORD: strong }), strong);
-  assert.equal(readDemoPassword({ DEMO_PASSWORD: "Aa1aaaaaaaaaaaaa" }), "Aa1aaaaaaaaaaaaa", "exactly 16 is enough");
-  assert.throws(() => readDemoPassword({ DEMO_PASSWORD: "Aa1aaaaaaaaaaaa" }), /too weak/, "15 is not");
+  assert.equal(readDemoPassword({ DEMO_PASSWORD: "Aa1aaaaaaaaaaaaa" }), "Aa1aaaaaaaaaaaaa", "exactly 16 is enough"); // secret-scan:allow: password-length unit test
+  assert.throws(() => readDemoPassword({ DEMO_PASSWORD: "Aa1aaaaaaaaaaaa" }), /too weak/, "15 is not"); // secret-scan:allow: password-length unit test
   assert.equal(demoPasswordStatus({}), "unset");
   assert.equal(demoPasswordStatus({ DEMO_PASSWORD: "abc" }), "weak");
   assert.equal(demoPasswordStatus({ DEMO_PASSWORD: strong }), "ok");

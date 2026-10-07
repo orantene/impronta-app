@@ -97,7 +97,7 @@ composition keep rendering the legacy stack — zero regressions.
 
 `owner@midnightmuse.demo` promoted to `app_role='agency_staff'`,
 `account_status='active'`, onboarding marked complete. Password set to
-`Midnight-Muse-Owner-2026!`. Script `scripts/reset-midnight-owner.mjs`
+`<redacted-qa-password>`. Script `scripts/reset-midnight-owner.mjs`
 checked in for repeat resets.
 
 ---

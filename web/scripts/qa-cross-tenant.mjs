@@ -85,9 +85,9 @@ async function main() {
   //    cross-tenant) so we test 3 non-platform actors that should all be
   //    fenced to impronta:
   const personas = [
-    { name: "client (pure)", email: "qa-client-1@impronta.test", pw: "Impronta-QA-Client-2026!" },
-    { name: "coord (in impronta)", email: "qa-client-2@impronta.test", pw: "Impronta-QA-Client-2026!" },
-    { name: "talent-coord hybrid", email: "tulum-talent-sofia@impronta.test", pw: "Impronta-Tulum-Talent-2026!" },
+    { name: "client (pure)", email: "qa-client-1@impronta.test", pw: (process.env.QA_CLIENT_PASSWORD?.trim() || (() => { throw new Error("QA_CLIENT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()) },
+    { name: "coord (in impronta)", email: "qa-client-2@impronta.test", pw: (process.env.QA_CLIENT_PASSWORD?.trim() || (() => { throw new Error("QA_CLIENT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()) },
+    { name: "talent-coord hybrid", email: "tulum-talent-sofia@impronta.test", pw: (process.env.QA_TALENT_PASSWORD?.trim() || (() => { throw new Error("QA_TALENT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()) },
   ];
 
   for (const p of personas) {
@@ -154,7 +154,7 @@ async function main() {
   const c0 = createClient(url, anon, { auth: { persistSession: false } });
   const { data: signed0 } = await c0.auth.signInWithPassword({
     email: "qa-client-2@impronta.test",
-    password: "Impronta-QA-Client-2026!",
+    password: (process.env.QA_CLIENT_PASSWORD?.trim() || (() => { throw new Error("QA_CLIENT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()),
   });
   const { data: spoofUpd } = await c0
     .from("inquiries")

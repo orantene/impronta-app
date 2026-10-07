@@ -22,7 +22,7 @@
  *   NEXT_PUBLIC_SUPABASE_ANON_KEY
  *   SUPABASE_SERVICE_ROLE_KEY
  *   QA_ADMIN_EMAIL   (default: qa-admin@impronta.test)
- *   QA_ADMIN_PASSWORD (default: Impronta-QA-Admin-2026!)
+ *   QA_ADMIN_PASSWORD (no default; set via env)
  */
 
 import { readFileSync } from "node:fs";
@@ -102,7 +102,7 @@ const SUPABASE_URL = env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON_KEY = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SERVICE_ROLE_KEY = env.SUPABASE_SERVICE_ROLE_KEY;
 const QA_EMAIL = env.QA_ADMIN_EMAIL ?? "qa-admin@impronta.test";
-const QA_PASSWORD = env.QA_ADMIN_PASSWORD ?? "Impronta-QA-Admin-2026!";
+const QA_PASSWORD = env.QA_ADMIN_PASSWORD ?? (() => { throw new Error("QA_ADMIN_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })();
 
 assert(!!SUPABASE_URL, "NEXT_PUBLIC_SUPABASE_URL missing from .env.local");
 assert(!!ANON_KEY, "NEXT_PUBLIC_SUPABASE_ANON_KEY missing from .env.local");

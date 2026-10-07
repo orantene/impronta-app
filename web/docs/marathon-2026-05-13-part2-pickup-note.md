@@ -80,7 +80,7 @@ Until those land, the commission code is dormant: snapshots get created with `pa
 ## How to QA what shipped
 
 1. `cd web && rm -rf .next && npm run dev` if Turbopack cache misbehaves (it did earlier this session).
-2. Sign in as `qa-admin@impronta.test` / `Impronta-QA-Admin-2026!`.
+2. Sign in as `qa-admin@impronta.test` / `<redacted-qa-password>`.
 3. Try `?rt=1` on `/impronta/admin/messages` → admin inquiry detail renders through `<ReservationThread>` with 5 pills + sheets.
 4. Sign in as `qa-client-1@impronta.test` → open an inquiry → see Lineup / Offer / Event / Files pills + Approve/Decline/Counter action row when an offer is sent.
 5. View `/sitemap.xml` on an agency host → should include `/t/<code>` entries.

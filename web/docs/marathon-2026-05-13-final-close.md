@@ -77,7 +77,7 @@ Only three operational items:
 
 ## How to QA B2 (the call sheet editor)
 
-1. Sign in as `qa-admin@impronta.test` / `Impronta-QA-Admin-2026!`
+1. Sign in as `qa-admin@impronta.test` / `<redacted-qa-password>`
 2. Find any confirmed booking on `/impronta/admin/bookings`
 3. Directly navigate to `/impronta/admin/bookings/<booking-id>/call-sheet`
 4. Fill schedule + venue, add a talent row + contact, save
