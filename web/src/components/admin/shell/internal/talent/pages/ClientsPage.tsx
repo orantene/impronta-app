@@ -19,6 +19,7 @@ import { useAdminShell } from "../../state";
 import { PageHeader } from "../shared/page-chrome-1";
 import { restoreClient } from "@/lib/talent/client-records-actions";
 import { ClientArchiveSheet, ClientDetailsPanel, ClientNoteInline } from "./ClientPanels";
+import { settleServerAction } from "@/lib/client/settle-server-action";
 
 const FILTERS: { id: ClientsFilter; label: string }[] = [
   { id: "all", label: "All" },
@@ -396,15 +397,21 @@ export function TalentClientsPage() {
   useEffect(() => {
     if (!talentId) return;
     let cancelled = false;
-    void loadTalentClients(talentId).then((res) => {
-      if (cancelled) return;
-      if (!res.ok) {
-        setError(res.error);
+    void settleServerAction(() => loadTalentClients(talentId), { label: "loadTalentClients", area: "talent-clients" })
+      .then((res) => {
+        if (cancelled) return;
+        if (!res.ok) {
+          setError(res.error);
+          setItems([]);
+          return;
+        }
+        setItems(res.items);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setError("Could not load clients.");
         setItems([]);
-        return;
-      }
-      setItems(res.items);
-    });
+      });
     return () => {
       cancelled = true;
     };

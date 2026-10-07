@@ -30,3 +30,20 @@ test("two rejections resolve to the unavailable refusal instead of throwing", as
   assert.equal(calls, 2);
   assert.deepEqual(result, { ok: false, reason: "unavailable" });
 });
+
+test("direct load: a call discarded by a navigation never settles; the retry renders the rows", async () => {
+  let calls = 0;
+  const result = await safeLoadInbox(() => {
+    calls += 1;
+    // First call: Next discarded it (navigation during the action); never settles.
+    if (calls === 1) return new Promise(() => undefined);
+    return Promise.resolve({ ok: true as const, rows: [], unreadCount: 2 });
+  }, input, 0, 20);
+  assert.equal(calls, 2);
+  assert.deepEqual(result, { ok: true, rows: [], unreadCount: 2 });
+});
+
+test("two stalled calls end in the unavailable refusal, not an endless skeleton", async () => {
+  const result = await safeLoadInbox(() => new Promise(() => undefined), input, 0, 20);
+  assert.deepEqual(result, { ok: false, reason: "unavailable" });
+});
