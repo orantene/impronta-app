@@ -318,19 +318,11 @@ function ctaDecls(
 }
 
 /**
- * Phase 6B — inline brand-neutral icons for the social/contact cluster.
- * `currentColor` so the active theme token paints them; no external icon
- * dependency, no tenant hardcoding. Unknown platforms fall back to a
- * generic "link" glyph rather than rendering nothing.
- */
-/**
- * Icons lifted VERBATIM from the v11 prototype header (`.si` / `.ai`
- * SVGs) so the rendered cluster is pixel-faithful — WhatsApp/Instagram/
- * TikTok/phone are the prototype's exact markup (Instagram = rounded
- * rect + lens + flash dot; not a solid blob). Facebook/YouTube/LinkedIn/
- * X/email aren't in the prototype header, so they use clean glyphs in
- * the same register (24 view-box, currentColor). Stroke icons use the
- * prototype's 1.7 weight.
+ * Phase 6B: inline brand-neutral icons for the social/contact cluster (`currentColor`, no external icon
+ * dependency; unknown platforms fall back to a generic "link" glyph). WhatsApp/Instagram/TikTok/phone are
+ * lifted verbatim from the v11 prototype header (pixel-faithful); Facebook/YouTube/LinkedIn/X/email use
+ * clean glyphs in the same register (24 view-box, stroke weight 1.7).
+ *
  */
 // ClusterIcon moved to ./header-cluster-icon (shared by the classic cluster +
 // the WF-5 freeform region items; also keeps this file under the line cap).
