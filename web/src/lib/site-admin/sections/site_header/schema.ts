@@ -104,6 +104,8 @@ const headerItemSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("logo"), ...headerItemBase }),
   z.object({ type: z.literal("nav"), ...headerItemBase }),
   z.object({ type: z.literal("language"), ...headerItemBase }),
+  /** Client account avatar/icon. Renders only when the platform flag is on for the host. */
+  z.object({ type: z.literal("account"), ...headerItemBase }),
   z.object({
     type: z.literal("cta"),
     label: z.string().max(60).optional(),
@@ -337,6 +339,8 @@ export const siteHeaderSchemaV1 = z.object({
   siteChrome: z
     .object({
       demo: z.boolean().optional(),
+      /** Client account surface is on for this host (render-time, from the flag). */
+      account: z.boolean().optional(),
       locales: z.array(z.string().min(2).max(8)).max(4).optional(),
       /** Per-locale href of THIS page (talent URL grammar); else `?locale=`. */
       hrefs: z.record(z.string().min(2).max(8), z.string().max(512)).optional(),

@@ -43,6 +43,7 @@ export function shell(
   return buildKitStandardShell(makeId, {
     displayName: "{{displayName}}",
     year: "{{year}}",
+    accountItem: true,
     ...(opts.navChrome ? { navChrome: opts.navChrome } : {}),
     ...(opts.navLinks ? { navLinks: opts.navLinks } : {}),
     ...(opts.primaryCtaLabel ? { primaryCtaLabel: opts.primaryCtaLabel } : {}),
