@@ -486,6 +486,8 @@ export const MARKETING_PAGE_PREFIXES = [
   // `scripts/post-deploy-smoke-test.mjs` (P3), which asserts BOTH halves:
   // 200 on tulala.digital, 404 on improntamodels.com.
   "/get-started",
+  // Onboarding 1B front door: /get-started redirects here when the module is on.
+  "/start",
   "/discover-agencies",
   "/operators",
   "/agencies",
