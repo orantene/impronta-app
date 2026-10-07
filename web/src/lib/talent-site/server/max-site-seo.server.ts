@@ -10,6 +10,8 @@ import {
   type MaxSitePageRow,
 } from "@/lib/talent-site/resolve-max-site-core";
 
+import { buildTalentLocalBusinessJsonLd, withLocalBusiness } from "@/lib/talent-site/talent-local-business-json-ld";
+
 import type { TalentSiteIdentity } from "./load-max-site";
 import type { MaxSiteSeo } from "./render-max-site";
 
@@ -33,6 +35,9 @@ export function buildMaxSiteSeo(args: {
   noindex: boolean;
   /** Published catalog services for the Person's `makesOffer` (real data only). */
   services?: TalentJsonLdService[];
+  /** TUL-74: the talent's city and published links; both optional, never invented. */
+  addressLocality?: string | null;
+  sameAs?: readonly string[];
   canonicalOrigin?: string;
   canonicalPath?: string;
   /**
@@ -87,10 +92,22 @@ export function buildMaxSiteSeo(args: {
           createdAt: identity?.createdAt ?? null,
           updatedAt: identity?.updatedAt ?? null,
           services: args.services ?? null,
+          addressLocality: args.addressLocality ?? null,
+          sameAs: args.sameAs ? [...args.sameAs] : null,
         })
       : null;
+  const businessLd = buildTalentLocalBusinessJsonLd({
+    canonicalUrl: canonical,
+    name,
+    description: description ?? page.ogDescription?.trim() ?? null,
+    imageUrl: page.ogImageUrl?.trim() ?? site.logoUrl ?? null,
+    addressLocality: args.addressLocality,
+    sameAs: args.sameAs,
+    inLanguage: locale,
+    services: args.services,
+  });
   const jsonLd =
-    page.jsonLd && typeof page.jsonLd === "object" ? page.jsonLd : sharedJsonLd;
+    page.jsonLd && typeof page.jsonLd === "object" ? page.jsonLd : withLocalBusiness(sharedJsonLd, businessLd);
 
   return {
     title,

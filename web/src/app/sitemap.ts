@@ -38,7 +38,7 @@ import {
   maxSitePublicGate,
   scopeMaxSitePagesToPlan,
 } from "@/lib/talent-site/resolve-max-site-core";
-import { talentSiteSitemapPaths } from "@/lib/talent-site/talent-site-sitemap";
+import { talentHostSitemapPaths } from "@/lib/talent-site/talent-site-sitemap";
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
@@ -221,7 +221,7 @@ async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRout
   if (!site || !maxSitePublicGate({ sitePublishedAt: site.sitePublishedAt, planKey })) return [];
 
   const pages = scopeMaxSitePagesToPlan(await loadMaxSitePages(talentProfileId), planKey);
-  const paths = talentSiteSitemapPaths(pages);
+  const paths = talentHostSitemapPaths(pages);
   if (paths.length === 0) return [];
 
   const row = profile as {
@@ -244,7 +244,7 @@ async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRout
     talentProfileSitemapEntries({
       origin: base.origin,
       path,
-      urlDefault: platform.defaultLocale,
+      urlDefault: pair.primary, // TUL-98: the talent grammar, not the platform default
       locales: [pair.primary, ...pair.secondary],
       lastModified,
     }),

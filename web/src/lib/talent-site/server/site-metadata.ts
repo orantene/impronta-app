@@ -7,6 +7,19 @@ import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
 import type { MaxSiteSeo } from "./render-max-site";
 
+const OG_LOCALES: Record<string, string> = { en: "en_US", es: "es_MX" };
+
+/** og:locale for the page and og:locale:alternate for its other hreflang languages. */
+export function ogLocaleTags(
+  locale: string | undefined,
+  languages: Record<string, string> | undefined,
+): { locale?: string; alternateLocale?: string[] } {
+  const tag = (code: string) => OG_LOCALES[code] ?? code;
+  if (!locale) return {};
+  const others = Object.keys(languages ?? {}).filter((c) => c !== "x-default" && c !== locale);
+  return { locale: tag(locale), ...(others.length > 0 ? { alternateLocale: others.map(tag) } : {}) };
+}
+
 /**
  * SEO-2 — map the SHARED `MaxSiteSeo` envelope to a Next `Metadata` object.
  *
@@ -38,6 +51,8 @@ export function maxSiteSeoToMetadata(
     localePathWithoutLocale?: string;
     /** The visitor locale, required when `localePathWithoutLocale` is set. */
     locale?: Locale;
+    /** TUL-74: this page's language, for og:locale + og:locale:alternate. */
+    ogLocale?: string;
   } = {},
 ): Metadata {
   const ogImages = seo.ogImageUrl ? [{ url: seo.ogImageUrl }] : undefined;
@@ -53,6 +68,7 @@ export function maxSiteSeoToMetadata(
         ? { description: seo.ogDescription ?? seo.description }
         : {}),
       ...(seo.canonical ? { url: seo.canonical } : {}),
+      ...ogLocaleTags(opts.ogLocale, seo.alternates?.languages),
       ...(ogImages ? { images: ogImages } : {}),
     },
     twitter: {
