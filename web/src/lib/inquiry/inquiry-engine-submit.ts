@@ -509,17 +509,35 @@ export async function submitInquiry(
       });
     }
 
-    // Hub self-coordination (2026-06-02; talent-primary 2026-06-15). Each talent
+    // Hub self-coordination (2026-06-02; talent-primary 2026-06-15). A talent
     // whose owning party is THEMSELVES joins as a `coordinator` (alongside their
-    // `talent` lineup row) so they can broker the client on the private thread. The
-    // FIRST is already coordinator-of-record (seated above); this seeds ADDITIONAL
-    // self-coordinating talents (shortlist), deduped via coordSeen, keyed on user_id
-    // only, skipped for unclaimed accounts. No agency in the money path.
+    // `talent` lineup row) so they can broker the client on the private thread.
+    // Normally that talent is already coordinator-of-record (seated above).
+    //
+    // P0 2026-10-07 GUARD: an inquiry carries AT MOST ONE talent coordinator.
+    // Active coordinators read every offer, line item and the private thread of
+    // their inquiry (RLS), so seating a second self-coordinating talent leaked
+    // each talent's offer to the other. The Discover route now files one inquiry
+    // per independent talent, so the "extra talent" case is unreachable; if a
+    // caller ever passes 2+ self-coordinating talents again we seat none of the
+    // extras and log loudly instead of re-opening the leak.
     try {
+      let talentCoordSeated =
+        !!selfCoordPrimaryUserId && coordSeen.has(selfCoordPrimaryUserId);
       for (const tid of input.talent_profile_ids) {
         if (owningParties.get(tid)?.type !== "talent") continue;
         const uid = talentUserIdByProfile.get(tid) ?? null;
         if (!uid || coordSeen.has(uid)) continue;
+        if (talentCoordSeated) {
+          logServerError(
+            "inquiry-engine-submit.secondTalentCoordinatorRefused",
+            new Error(
+              `refused to seat a second talent coordinator on inquiry ${inquiryId}; independent talents must each get their own inquiry`,
+            ),
+          );
+          continue;
+        }
+        talentCoordSeated = true;
         coordSeen.add(uid);
         await supabase.from("inquiry_participants").insert({
           inquiry_id: inquiryId,
