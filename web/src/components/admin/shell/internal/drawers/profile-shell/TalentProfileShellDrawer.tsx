@@ -206,6 +206,8 @@ import {
 import { shouldShowPolaroidsSection } from "./profile-polaroids-policy";
 import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import { CommercialTermsEditor } from "./profile-shell-modules/profile-commercial-terms";
+import { detailsGroupHelperText } from "./profile-shell-modules/profile-shell-helper-text";
+import { localizePublishBlockerMessage } from "./profile-shell-modules/publish-requirement-label";
 import { DirectBookingRosterSwitch } from "@/components/appointments/DirectBookingRosterSwitch";
 import { TalentOfferingsManager } from "@/components/talent/services/TalentOfferingsManager";
 import { ProfileReviewsEditor } from "./profile-shell-modules/profile-reviews";
@@ -225,31 +227,6 @@ import {
   runProfileShellSaveSteps,
   type ProfileShellSaveStepResult,
 } from "@/lib/talent/profile-shell-save-feedback";
-
-function detailsGroupHelperText(label: string): string {
-  const normalized = label.toLowerCase();
-
-  if (normalized.includes("physical") || normalized.includes("casting")) {
-    return "Casting facts, measurements, and profile details used for matching.";
-  }
-  if (normalized.includes("equipment") || normalized.includes("tools")) {
-    return "Gear, tools, and setup details clients need before booking.";
-  }
-  if (normalized.includes("operational")) {
-    return "Practical requirements that keep bookings clear and predictable.";
-  }
-  if (normalized.includes("music")) {
-    return "Genres, set format, and music-specific booking details.";
-  }
-  if (normalized.includes("performer")) {
-    return "Act format, performance style, and production needs.";
-  }
-  if (normalized.includes("singer")) {
-    return "Vocal, repertoire, and live performance details.";
-  }
-
-  return "Type-specific profile fields for this category.";
-}
 
 // Phase 1d (remediation §4): the 3,546-LOC unified profile shell (its own
 // profileReducer + history/undo refs). Extracted LAST AND ALONE. Byte-for-byte;
@@ -2213,7 +2190,11 @@ export function TalentProfileShellDrawer() {
         patch({ profileStatus: prev });
         // Server names the exact blockers (e.g. "Add a bio, 1 language to
         // publish") — surface that, not a bare count.
-        toast(lastSaveErrorRef.current ?? addItemsToPublishText(missing.length));
+        toast(
+          lastSaveErrorRef.current
+            ? localizePublishBlockerMessage(lastSaveErrorRef.current, copy.t, copy.isSpanish)
+            : addItemsToPublishText(missing.length),
+        );
         return;
       }
       if (payload.talentId) clearPendingReview(payload.talentId);
@@ -2584,9 +2565,8 @@ export function TalentProfileShellDrawer() {
           [data-tulala-pshell] [data-details-rail-child-label] {
             flex: 1;
             min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            overflow-wrap: anywhere;
+            white-space: normal;
           }
           [data-tulala-pshell] [data-details-rail-child-count] {
             flex-shrink: 0;
@@ -2695,7 +2675,7 @@ export function TalentProfileShellDrawer() {
             background: "transparent", color: COLORS.ink, fontSize: 14, lineHeight: 1,
           }}>✕</button>
           <div className="flex-1 min-w-0">
-            <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
+            <div style={{ fontSize: 14, fontWeight: 600, overflowWrap: "anywhere", lineHeight: 1.25 }} className="text-admin-ink">
               {mode === "create" ? copy.t("New profile") : isSelf ? copy.t("Edit your profile") : (state.stageName || copy.t("Profile"))}
             </div>
             {mode !== "create" && payload.seed?.profileCode && (
@@ -3221,7 +3201,7 @@ export function TalentProfileShellDrawer() {
                                     : "rgba(11,11,13,0.12)",
                               }} />
                               <span aria-hidden style={{ fontSize: 13, lineHeight: 1, width: 16, textAlign: "center", flexShrink: 0 }}>{meta.emoji}</span>
-                              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copy.term(meta.label, meta.labelEs)}</span>
+                              <span title={copy.term(meta.label, meta.labelEs)} style={{ flex: 1, minWidth: 0, overflowWrap: "anywhere", lineHeight: 1.25 }}>{copy.term(meta.label, meta.labelEs)}</span>
                               {createGateBlockingSections.has(s) && (
                                 <span
                                   data-pshell-required-star
@@ -3319,7 +3299,7 @@ export function TalentProfileShellDrawer() {
                         background: "rgba(11,11,13,0.12)",
                       }} />
                       <span aria-hidden style={{ fontSize: 13, lineHeight: 1, width: 16, textAlign: "center", flexShrink: 0 }}>🕓</span>
-                      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copy.t("History")}</span>
+                      <span style={{ flex: 1, minWidth: 0, overflowWrap: "anywhere", lineHeight: 1.25 }}>{copy.t("History")}</span>
                     </button>
                   </div>
                 )}
