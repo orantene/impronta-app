@@ -62,7 +62,8 @@ tmp-*
 *.tmp
 
 # Claude Code & related agent runtime artifacts (never commit)
-.claude/
+.claude/*
+!.claude/settings.json
 .codex-artifacts/
 .worktree-owner
 docs/plans/impronta-lumina/sweep/*.png
