@@ -4,6 +4,8 @@ import { useDashboardText } from "../../dashboard-i18n";
 import { Icon, PrimaryCard, SecondaryCard, StatDot } from "../../primitives";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGE_TEMPLATES, TALENT_TIER_META, tierAllows, useAdminShell, type TalentBadge, type TalentCredit, type TalentLimit, type TalentReview, type TalentSkill, type TalentSubscriptionTier } from "../../state";
 import { Grid } from "./page-chrome-1";
+import { resolveTalentOwnPageState } from "@/lib/talent/public-profile-href";
+import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
 
 
 
@@ -20,6 +22,7 @@ export function PersonalPageBand() {
   const sub = p.subscription;
   // Tier from shared shell state — reflects live plan switches.
   const tier = state.talentTier;
+  const origin = useCurrentOrigin();
 
   // Real talent: the Pro/Max band below is fed entirely by the demo profile
   // (Marta's page URL, domain, embed/press counts, "6 sections"), and there's
@@ -45,6 +48,18 @@ export function PersonalPageBand() {
   // standard roster page is live, and richer personal-page tiers are on the
   // way. No fake pricing, no dead affordance.
   if (tier === "free") {
+    // TUL-90: a real talent sees her OWN address, only when it is live. The
+    // demo profile's sample URL is for standalone preview (no bridge) only.
+    const own = bridgeTalentSelfProfile
+      ? resolveTalentOwnPageState({
+          profileCode: bridgeTalentSelfProfile.profileCode,
+          workflowStatus: bridgeTalentSelfProfile.workflowStatus,
+          isPubliclyHidden: bridgeTalentSelfProfile.isPubliclyHidden,
+          currentOrigin: origin,
+        })
+      : null;
+    const live = own ? own.live : true;
+    const shownUrl = own ? own.label : sub.personalPageUrl;
     return (
       <div
         style={{
@@ -58,12 +73,18 @@ export function PersonalPageBand() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
           <Icon name="globe" size={13} stroke={1.7} color={COLORS.inkMuted} />
           <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
-            {copy.t("Your roster page is live")}
+            {copy.t(live ? "Your roster page is live" : "Your roster page is not published yet")}
           </div>
         </div>
         <div style={{ fontSize: 12, lineHeight: 1.55, maxWidth: 560 }} className="text-admin-ink-muted">
-          {copy.t("It's published at")}{" "}
-          <span style={{ fontFamily: FONTS.mono }}>{sub.personalPageUrl}</span>.{" "}
+          {live ? (
+            <>
+              {copy.t("It's published at")}{" "}
+              <span style={{ fontFamily: FONTS.mono }}>{shownUrl}</span>.{" "}
+            </>
+          ) : (
+            <>{copy.t("Publish your profile to get a public address you can share.")} </>
+          )}
           {copy.t("Richer personal-page tiers with custom templates, embeds and your own domain are on the way, we'll let you know when they open.")}
         </div>
       </div>

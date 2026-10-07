@@ -18,7 +18,6 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Services & booking": "Servicios y reservas",
   "Availability & timing": "Disponibilidad y horarios",
   "Client self-service": "Autogestión del cliente",
-  "Saved · live now": "Guardado · ya en vivo",
   "{n} unsaved": "{n} sin guardar",
   "Couldn’t save": "No se pudo guardar",
   "Retry save": "Reintentar guardar",

@@ -31,6 +31,34 @@ export function talentPublicProfileHref(profileCode: string, currentOrigin?: str
   return `${base}/t/${encodeURIComponent(profileCode)}`;
 }
 
+export type TalentOwnPageState =
+  | { live: true; href: string; label: string }
+  | { live: false; href: null; label: null };
+
+/**
+ * TUL-90: the ONE answer to "is my public page live, and where?". A page is
+ * live only when the profile is published, not hidden, and has a profile
+ * code; then the address is her own `/t/<code>` (never a sample slug).
+ * Anything else is "not published yet": no address is claimed, because
+ * `/t/<code>` 404s for draft or hidden profiles.
+ */
+export function resolveTalentOwnPageState(input: {
+  profileCode: string | null | undefined;
+  workflowStatus: string | null | undefined;
+  isPubliclyHidden: boolean | null | undefined;
+  currentOrigin?: string | null;
+}): TalentOwnPageState {
+  const code = (input.profileCode ?? "").trim();
+  if (!code || input.workflowStatus !== "published" || input.isPubliclyHidden) {
+    return { live: false, href: null, label: null };
+  }
+  return {
+    live: true,
+    href: talentPublicProfileHref(code, input.currentOrigin),
+    label: talentPublicProfileLabel(code, input.currentOrigin),
+  };
+}
+
 /** The same link without the scheme, for display ("tulala.digital/t/abc"). */
 export function talentPublicProfileLabel(profileCode: string, currentOrigin?: string | null): string {
   return talentPublicProfileHref(profileCode, currentOrigin).replace(/^https?:\/\//, "");

@@ -68,6 +68,7 @@ import {
   FieldRow,
 } from "./primitives";
 import { pinNextConversation } from "./messages/conversation-pending";
+import { resolveTalentOwnPageState } from "@/lib/talent/public-profile-href";
 import { MOCK_CONVERSATIONS } from "./talent/shared/conversations-1";
 
 // ════════════════════════════════════════════════════════════════════
@@ -3511,7 +3512,7 @@ export function OnboardingArc({
 
 /** Convenience: talent first-run arc — "profile → photos → availability → share". */
 export function TalentOnboardingArc() {
-  const { openDrawer, setTalentPage, toast } = useAdminShell();
+  const { openDrawer, setTalentPage, toast, bridgeTalentSelfProfile } = useAdminShell();
   return (
     <OnboardingArc
       storageKey="tulala_onboard_talent"
@@ -3541,7 +3542,20 @@ export function TalentOnboardingArc() {
           label: "Copy your public link",
           description: "Share with your other agencies and on socials; bookings come from anywhere.",
           onOpen: () => {
-            navigator.clipboard?.writeText("https://tulala.digital/t/marta-reyes");
+            // TUL-90: her own live address only; never a sample slug.
+            const own = bridgeTalentSelfProfile
+              ? resolveTalentOwnPageState({
+                  profileCode: bridgeTalentSelfProfile.profileCode,
+                  workflowStatus: bridgeTalentSelfProfile.workflowStatus,
+                  isPubliclyHidden: bridgeTalentSelfProfile.isPubliclyHidden,
+                  currentOrigin: typeof window === "undefined" ? null : window.location.origin,
+                })
+              : null;
+            if (own && !own.live) {
+              toast("Publish your profile first to get a public link");
+              return;
+            }
+            navigator.clipboard?.writeText(own?.href ?? "https://tulala.digital/t/marta-reyes");
             toast("Public link copied to clipboard");
           },
         },
