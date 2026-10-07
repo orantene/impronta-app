@@ -94,7 +94,7 @@ import {
   cloneNodeWithFreshIds,
   createBuilderMutationAuditEvent,
   createEditorDispatchAuditEvent,
-  createBuilderNode, wrapRootInsert,
+  createBuilderNode, wrapRootInsert, wrapRootInsertTracked,
   formatBuilderNodeMutationError,
   isBuilderMutationAuditEnabled,
   recordBuilderMutationAuditEvent,
@@ -3932,10 +3932,7 @@ export function EditProvider({
       } catch {
         return { ok: false, error: "That block could not be read." };
       }
-      // TUL-70: a leaf block (Texto...) at page root is auto-wrapped in a section.
-      const leaf = cloneNodeWithFreshIds(parsed);
-      const node = wrapRootInsert(parentId, leaf);
-      const insertedLeafId = leaf.id;
+      const { node, leafId: insertedLeafId } = wrapRootInsertTracked(parentId, cloneNodeWithFreshIds(parsed));
       const inserted = await executeBuilderNodeOperation({
         operation: "insert",
         nodeId: node.id,
@@ -4277,11 +4274,8 @@ export function EditProvider({
             nodeId,
           }),
       });
-      if (!removed.ok) {
-        return { ok: false, error: removed.error };
-      }
-      // TUL-70: delete is undoable. Raise the shared Undo toast (Undo calls undo()).
-      notifyTemplateApplied("Block deleted", { plain: true });
+      if (!removed.ok) return { ok: false, error: removed.error };
+      notifyTemplateApplied("Block deleted", { plain: true }); // TUL-70: undoable
       if (removingActiveNode) {
         // Keep section/canvas/inspector selection aligned immediately after
         // delete: prefer the section root builder node (honest selection).

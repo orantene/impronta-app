@@ -207,4 +207,8 @@ export const ES_BUILDER_2027_TEXT: Record<string, string> = {
   "Snap panel back to home position": "Volver el panel a su posición original",
   "Conversion band with headline and actions.": "Banda de conversión con titular y acciones.",
   "Service cards in a responsive grid.": "Tarjetas de servicio en una cuadrícula adaptable.",
+  "Block deleted": "Bloque eliminado",
+  Loading: "Cargando",
+  "This block needs to sit inside a section. Add a section first, then drop it in.":
+    "Este bloque debe ir dentro de una sección. Agrega una sección primero y colócalo ahí.",
 };
