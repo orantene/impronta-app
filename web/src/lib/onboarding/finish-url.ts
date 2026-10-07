@@ -32,8 +32,12 @@ export function resolveWorkspaceFinishUrl(input: { linkSlug: string | null; tena
   return { url, display: url.replace(/^https?:\/\//, ""), promised: same, differs: !!promised && !same };
 }
 
-/** The three looks offered to a talent: recommended first. */
-export const DESIGN_LOOK_KEYS = ["pink", "pearl", "sand"] as const;
+/**
+ * The three Maison v2 palettes offered to a talent: recommended first. Old
+ * stored v1 keys (pink / pearl / sand) fail this guard on purpose, so a
+ * resumed brief reads them as "no pick" and gets the default (rose).
+ */
+export const DESIGN_LOOK_KEYS = ["rose", "blush", "orchid"] as const;
 export type DesignLookKey = (typeof DESIGN_LOOK_KEYS)[number];
 
 export function isDesignLookKey(v: unknown): v is DesignLookKey {

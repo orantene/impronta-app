@@ -2088,9 +2088,9 @@
         "sub": "Tres estilos listos. Puedes cambiarlo después en el editor.",
         "recommended": "Recomendado",
         "keep": "Dejar el estilo por defecto",
-        "pink": "Rosa y labial",
-        "pearl": "Perla",
-        "sand": "Arena"
+        "rose": "Rosé",
+        "blush": "Rubor",
+        "orchid": "Orquídea"
       }
     },
     "consent": {

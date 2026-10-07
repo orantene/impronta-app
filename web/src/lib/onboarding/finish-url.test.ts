@@ -28,6 +28,9 @@ test("falls back to delivered when nothing was promised", () => {
 });
 
 test("validates look keys", () => {
-  assert.equal(isDesignLookKey("pink"), true);
+  assert.equal(isDesignLookKey("rose"), true);
+  assert.equal(isDesignLookKey("orchid"), true);
   assert.equal(isDesignLookKey("lilac"), false);
+  // Old v1 keys are no longer offered: a resumed brief reads them as "no pick".
+  assert.equal(isDesignLookKey("pink"), false);
 });
