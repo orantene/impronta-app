@@ -17,6 +17,7 @@ import {
   type ResumeSnapshot,
   type VisualDirection,
 } from "./module-state";
+import type { DesignLookKey } from "./finish-url";
 import type { ModuleQuestionId } from "./module-questions";
 import type { TypeChipProposal } from "./type-chip";
 import type { Understanding } from "./understanding";
@@ -59,6 +60,8 @@ export type MachineState = {
   followUps: ModuleQuestionId[];
   questionIndex: number;
   linkSlug: string | null;
+  /** 1D: the look a talent picked (null = keep default). */
+  designChoice: DesignLookKey | null;
   styleChoice: VisualDirection | null;
   linkAvailable: boolean | null;
   linkSuggestions: string[];
@@ -101,7 +104,8 @@ export type MachineEvent =
   | { type: "authed"; email: string | null }
   | { type: "buildDone"; arrival: ArrivalPayload }
   | { type: "buildFailed"; message: string }
-  | { type: "buildRetry" };
+  | { type: "buildRetry" }
+  | { type: "designPicked"; look: DesignLookKey | null };
 
 export function initialMachineState(intent: OnboardingIntent = "unknown"): MachineState {
   return {
@@ -121,6 +125,7 @@ export function initialMachineState(intent: OnboardingIntent = "unknown"): Machi
     followUps: [],
     questionIndex: 0,
     linkSlug: null,
+    designChoice: null,
     styleChoice: null,
     linkAvailable: null,
     linkSuggestions: [],
@@ -182,6 +187,7 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
         step: s.step ?? "entry",
         questionIndex: s.questionIndex ?? 0,
         linkSlug: s.linkSlug ?? null,
+        designChoice: s.designChoice ?? null,
         styleChoice: s.styleChoice ?? null,
       };
     }
@@ -272,6 +278,8 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
       return { ...state, busy: false, step: "arrival", arrival: event.arrival, buildFailed: null };
     case "buildFailed":
       return { ...state, busy: false, step: "arrival", arrival: null, buildFailed: event.message };
+    case "designPicked":
+      return { ...state, designChoice: event.look };
     case "buildRetry":
       return { ...state, busy: false, step: "building", arrival: null, buildFailed: null };
     default:

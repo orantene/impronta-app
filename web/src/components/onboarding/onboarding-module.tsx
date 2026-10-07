@@ -29,6 +29,7 @@ import {
   loadOnboardingResume,
   resetOnboardingDraft,
   saveOnboardingStep,
+  saveOnboardingDesign,
   setOnboardingLink,
   submitOnboardingInput,
   understandOnboardingInput,
@@ -479,6 +480,8 @@ export function OnboardingModule({
         linkSuggestions={state.linkSuggestions}
         busy={state.busy}
         onCheckLink={checkLink}
+        designChoice={state.designChoice}
+        onPickDesign={(look) => { dispatch({ type: "designPicked", look }); void saveOnboardingDesign({ look }); }}
         onBuild={() => {
           // Already signed in: nothing to save, straight to the build.
           const next: ModuleStep = state.isAuthenticated ? "building" : "save";
@@ -514,12 +517,23 @@ export function OnboardingModule({
   } else if (state.step === "building") {
     body = <BuildingStep t={t} path={path} />;
   } else if (state.step === "arrival" && state.arrival) {
-    body = <ArrivalStep t={t} arrival={state.arrival} />;
+    body = (
+      <ArrivalStep
+        t={t}
+        arrival={state.arrival}
+        busy={state.busy}
+        onRetry={() => {
+          dispatch({ type: "buildRetry" });
+          void saveOnboardingStep({ step: "building" });
+        }}
+      />
+    );
   } else if (state.step === "arrival" && state.buildFailed !== null) {
     body = (
       <ArrivalFailed
         t={t}
         message={state.buildFailed}
+        editorHref={path === "talent" ? "/talent/today" : undefined}
         busy={state.busy}
         onRetry={() => {
           dispatch({ type: "buildRetry" });

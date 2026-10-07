@@ -18,6 +18,7 @@
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 import { archiveBrief, ensureBrief, loadBrief, recordFacts } from "@/lib/tulala/brief-store.server";
 import { updateBriefModuleState } from "@/lib/tulala/brief-module-state.server";
+import { isDesignLookKey, type DesignLookKey } from "@/lib/onboarding/finish-url";
 import { choiceToPath, isOnboardingChoice, pathToChoice, type OnboardingChoice } from "@/lib/onboarding/choice";
 import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -369,6 +370,15 @@ export async function setOnboardingLink(input: { slug: string }): Promise<{ ok: 
   const check = await checkSubdomainAvailability(slug);
   if (check.available) await updateBriefModuleState(got.brief.id, { linkSlug: slug, updatedAt: new Date().toISOString() });
   return { ok: true, link: { slug, ...check } };
+}
+
+/** 1D: the look picked at "Ready to build" (null = keep the default). Applied before publish. */
+export async function saveOnboardingDesign(input: { look: DesignLookKey | null }): Promise<{ ok: boolean }> {
+  if (input.look !== null && !isDesignLookKey(input.look)) return { ok: false };
+  const got = await ownedBrief();
+  if (got.error) return { ok: false };
+  const saved = await updateBriefModuleState(got.brief.id, { designChoice: input.look, updatedAt: new Date().toISOString() });
+  return { ok: saved.ok };
 }
 
 /** The stored build record (resume on the building / arrival screens). */

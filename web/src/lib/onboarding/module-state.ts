@@ -10,6 +10,7 @@
  * in `tulala_brief_facts` with provenance; this is progress and choices only.
  */
 
+import { isDesignLookKey, type DesignLookKey } from "./finish-url";
 import { parseEssentials, type Essentials } from "./essentials";
 
 export type OnboardingIntent = "talent" | "business" | "unknown";
@@ -77,6 +78,8 @@ export type PersistedModuleState = {
   typeChoice?: { kind: "business" | "talent"; id: string; slug: string } | null;
   /** The link name chosen at "Ready to build" (checked for availability). */
   linkSlug?: string | null;
+  /** 1D: the look a talent picked at "Ready to build" (applied before publish). Null/absent = keep default. */
+  designChoice?: DesignLookKey | null;
   /** The style tile the person picked (also stored as the brand.visual_direction fact). */
   styleChoice?: VisualDirection | null;
   /** "Looks right" tapped: assumed lines were accepted as they stand. */
@@ -140,6 +143,7 @@ export function parsePersistedModuleState(raw: unknown): PersistedModuleState {
     }
   }
   if (typeof r.linkSlug === "string") out.linkSlug = r.linkSlug;
+  if (isDesignLookKey(r.designChoice)) out.designChoice = r.designChoice;
   if (isVisualDirection(r.styleChoice)) out.styleChoice = r.styleChoice;
   if (typeof r.cardAccepted === "boolean") out.cardAccepted = r.cardAccepted;
   const essentials = parseEssentials(r.essentials);

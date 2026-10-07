@@ -2039,12 +2039,10 @@
         "openMyWorkspace": "Open my workspace",
         "ownPageDrafted": "Your own page is drafted in the workspace.",
         "link": "Your link",
-        "failedTitle": "That didn't finish",
-        "failedSub": "Everything you told us is saved. Try again, or come back later from this same phone.",
         "retry": "Try again",
         "fallbackCopySub": "Your workspace is ready. The site copy needed another pass, so it opens with the Look's defaults; everything you told us is saved.",
         "fallbackPhotosSub": "{business} has a site with your words in it. The photos are still generic; open it to add yours or pick from the library.",
-        "readyBusiness": "Your website is ready",
+        "readyBusiness": "Your site is ready",
         "readyTalent": "Your page is ready",
         "visit": "Open",
         "nextSteps": "Next steps",
@@ -2057,7 +2055,16 @@
         "nextTalentBio": "Check your bio",
         "nextTalentShare": "Share your link",
         "viewMyWebsite": "View my website",
-        "customizeInBuilder": "Customize in builder"
+        "customizeInBuilder": "Customize in builder",
+        "draftTitle": "Your draft is saved",
+        "draftSub": "Everything you told us is saved, but your page does not open online yet. Try again or open it in the editor.",
+        "draftSubStudio": "Everything you told us is saved, but your site does not open online yet. Try again or open it in the editor.",
+        "openEditor": "Open the editor",
+        "goToPanel": "Go to my dashboard",
+        "bookPreview": "Book",
+        "bookingsStartStudio": "Bookings start when you add a provider.",
+        "bookableService": "Bookable now: {service}",
+        "urlDiffers": "Your address came out different from the one you chose because it was already taken. This is the real one."
       },
       "essentials": {
         "title": "Add the essentials",
@@ -2095,6 +2102,15 @@
         "notesHint": "Colours you love, a brand you admire, what to avoid…",
         "changeLater": "Your Look, colours and photos can all be changed in the builder.",
         "continue": "Continue"
+      },
+      "design": {
+        "title": "Pick how your page looks",
+        "sub": "Three ready looks. You can change it later in the editor.",
+        "recommended": "Recommended",
+        "keep": "Keep the default look",
+        "pink": "Pink and lipstick",
+        "pearl": "Pearl",
+        "sand": "Sand"
       }
     },
     "consent": {

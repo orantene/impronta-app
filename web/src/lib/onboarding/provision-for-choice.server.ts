@@ -30,6 +30,7 @@ import type { Brief } from "@/lib/tulala/brief-store";
 import { linkBriefObjects } from "@/lib/tulala/brief-store.server";
 import { upsertLeadForBrief } from "@/lib/tulala/approve.server";
 
+import type { DesignLookKey } from "./finish-url";
 import type { OnboardingChoice } from "./choice";
 import { runChoiceProvisioning, type ChoiceProvisionResult } from "./provision-for-choice";
 import { ensureOwnSitePublished } from "./publish-own-site";
@@ -58,6 +59,8 @@ export type ProvisionForChoiceInput = {
   linkSlug: string | null;
   /** TUL-84: the confirmed essentials (resolved from module state + brief facts); null skips the writes. */
   essentials?: Essentials | null;
+  /** 1D: the Maison palette the talent picked; applied before publish. Null = default. */
+  designPaletteKey?: DesignLookKey | null;
 };
 
 export type ProvisionForChoiceResult = ChoiceProvisionResult<WorkspaceDetail, TalentSiteDetail>;
@@ -116,7 +119,8 @@ export async function provisionForChoice(
           if (site.error) return { row: null, isDemo: false, error: site.error.message };
           return { row: site.data ?? null, isDemo: Boolean((prof.data as { is_demo?: boolean } | null)?.is_demo) };
         },
-        applyDefaultDesign: () => applyMaisonDesignAction({ paletteKey: MAISON_DEFAULT_PALETTE_KEY }),
+        forceDesign: !!input.designPaletteKey,
+        applyDefaultDesign: () => applyMaisonDesignAction({ paletteKey: input.designPaletteKey ?? MAISON_DEFAULT_PALETTE_KEY }),
         publish: () => publishMaxSiteAction(),
       }).catch((err) => ({ ok: false as const, error: String(err) }));
       if (!own.ok) {
