@@ -115,6 +115,8 @@
     "test:impronta-pages": "bash scripts/gate-queue.sh test 2 -- tsx --test scripts/impronta-rebuild/*.test.ts scripts/impronta-rebuild/pages/*.test.ts scripts/impronta-rebuild/shell/*.test.ts",
     "test:publish-preflight": "bash scripts/gate-queue.sh test 2 -- tsx --test src/lib/site-admin/edit-mode/publish-preflight-*.test.ts src/lib/site-admin/edit-mode/publish-diff.test.ts",
     "test:e2e": "bash scripts/gate-queue.sh test 2 -- playwright test",
+    "live:check": "bash scripts/gate-queue.sh test 2 -- playwright test -c playwright.live.config.ts",
+    "live:login": "playwright open --save-storage=e2e/.auth/live-tal93900.json https://app.tulala.digital/login",
     "test:e2e:browser-health": "bash scripts/gate-queue.sh test 2 -- playwright test e2e/browser-health.spec.ts",
     "test:e2e:registered-host": "bash scripts/gate-queue.sh test 2 -- playwright test e2e/registered-host.spec.ts",
     "test:e2e:impronta-local": "bash scripts/gate-queue.sh test 2 -- PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta login next lands on slugged admin and opens builder edit mode'",
