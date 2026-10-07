@@ -19,6 +19,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
 import { getAppUrl } from "@/lib/auth-flow";
+import { ensureHubRosterRow } from "@/lib/saas/ensure-hub-roster.server";
 import { ensureSelfRosterSiteVisible } from "@/lib/saas/ensure-self-roster";
 import { ensureWorkspaceSubdomainRow } from "@/lib/saas/ensure-workspace-domain";
 import { provisionWorkspaceFromLead, type ProvisionWorkspaceResult } from "@/lib/saas/workspace-signup.server";
@@ -103,6 +104,11 @@ export async function provisionForChoice(
         skipDraftOfferings: !!input.essentials?.services.length,
       });
       if (!tp.talentProfileId) return { ok: false, code: "talent_writer_failed", message: "Could not create your page." };
+      // TUL-157: the writer's hub step logs and moves on when it fails. Give it
+      // a second, idempotent chance so no sign-up leaves a talent roster-less.
+      if (tp.wrote.roster !== "written") {
+        await ensureHubRosterRow(admin, { talentProfileId: tp.talentProfileId, addedBy: userId });
+      }
       await linkBriefObjects(brief.id, { talentProfileId: tp.talentProfileId });
       return { ok: true, talentProfileId: tp.talentProfileId, profileCode: tp.profileCode };
     },
