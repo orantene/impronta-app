@@ -34,3 +34,21 @@ export function wallClockIn(now: Date, timeZone: string | null | undefined): Dat
   const [h, min] = hm.split(":").map(Number);
   return new Date(y, m - 1, d, h, min, now.getSeconds(), now.getMilliseconds());
 }
+
+/**
+ * The same agenda items with startsAt/endsAt re-expressed as talent wall-clock
+ * instants (same trick as `wallClockIn`), so the week/day grid's local-getter
+ * math (day bucket, top offset) places blocks in the talent's timezone, not the
+ * viewer's browser timezone. Use for GRID PLACEMENT only.
+ */
+export function itemsInTalentWallClock<T extends { startsAt: string; endsAt: string }>(
+  items: readonly T[],
+  timeZone: string | null | undefined,
+): T[] {
+  if (!timeZone) return [...items];
+  const shift = (iso: string) => {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? iso : wallClockIn(d, timeZone).toISOString();
+  };
+  return items.map((item) => ({ ...item, startsAt: shift(item.startsAt), endsAt: shift(item.endsAt) }));
+}

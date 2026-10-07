@@ -41,7 +41,7 @@ import {
   localYmd,
   sameDay,
 } from "./AgendaCalendarViews";
-import { wallClockIn } from "@/lib/talent-agenda/agenda-now";
+import { itemsInTalentWallClock, wallClockIn } from "@/lib/talent-agenda/agenda-now";
 import {
   daySummary,
   durationText,
@@ -105,9 +105,10 @@ export function AgendaCalendarPage({
   const router = useRouter();
   const clock = wallClockIn(now ?? new Date(), hours?.timezone);
   const locale = copy.locale === "es" ? "es-MX" : "en-US";
+  // TUL-66: place blocks by the talent's wall clock (same source as `clock`).
   const agenda = useMemo(
-    () => items ?? (entries ?? []).map(agendaItemFromCalendarEntry),
-    [items, entries],
+    () => itemsInTalentWallClock(items ?? (entries ?? []).map(agendaItemFromCalendarEntry), hours?.timezone),
+    [items, entries, hours?.timezone],
   );
   const ctaNav = useMemo(
     () => ({
