@@ -174,7 +174,7 @@ export default async function OnboardingRolePage({
         style={{ color: "var(--plt-muted)" }}
       >
         Pick how you want to start. This sets your home dashboard, and you
-        can&apos;t change it later from here.
+        can change it later in Settings.
       </p>
 
       {/* Card */}

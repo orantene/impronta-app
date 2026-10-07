@@ -23,6 +23,7 @@ import { IntegrationsSection } from "./IntegrationsSection";
 import { WorkspaceTypeCard } from "@/components/admin/settings/workspace-type-card";
 import { RunsEventsCard } from "@/components/admin/settings/runs-events-card";
 import { AppointmentsSettingsCard } from "@/components/appointments/AppointmentsSettingsCard";
+import { HowYouWorkCard } from "@/components/settings/how-you-work-card";
 import { IndustrySettingsCard } from "@/components/words/IndustrySettingsCard";
 import { VenueSettingsCard } from "@/components/spaces/VenueSettingsCard";
 import { BookingHoursCard } from "@/components/appointments/BookingHoursCard";
@@ -398,6 +399,7 @@ export function WorkspacePageView() {
                 its own file because this one is already past the 800-line
                 max-lines cap. */}
             <WorkspaceTypeCard currentType={state.workspaceType} canEdit={isOwner} />
+            {isOwner ? <HowYouWorkCard /> : null}
             {/* Owner-only, and the ONLY caller of `setRunsEvents`. */}
             <RunsEventsCard canEdit={isOwner} />
             <DefaultCurrencySettingsRow />

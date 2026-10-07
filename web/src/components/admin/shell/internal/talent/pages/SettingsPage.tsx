@@ -9,6 +9,8 @@ import { DefaultCurrencyCard } from "@/app/(workspace)/[tenantSlug]/talent/setti
 import { PreferredLanguageCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/PreferredLanguageCard";
 import { ProfileVisibilityCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/ProfileVisibilityCard";
 import { TalentPlanCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentPlanCard";
+import { HowYouWorkCard } from "@/components/settings/how-you-work-card";
+import { HYW_DESC, HYW_TITLE } from "@/components/settings/how-you-work-copy";
 import { AccountDeletionCard } from "@/components/account/AccountDeletionCard";
 import { usePresenceText } from "@/components/talent/studio/presence-i18n";
 import { useDashboardText } from "../../dashboard-i18n";
@@ -205,6 +207,10 @@ export function SettingsPage() {
       sub: tx("Your dashboard. Your public pages follow the visitor."),
       panel: <PreferredLanguageCard />,
     });
+  }
+  if (bridgeTalentSelfProfile) {
+    const l = copy.isSpanish ? "es" : "en";
+    account.push({ key: "how-you-work", label: HYW_TITLE[l], sub: HYW_DESC[l], panel: <HowYouWorkCard /> });
   }
   account.push(
     {
