@@ -23,11 +23,25 @@
 import { redirect } from "next/navigation";
 
 import { isStaffRole } from "@/lib/auth-flow";
+import { parseAccountTab } from "@/lib/client-account/area-pure";
+import { readAccountHost } from "@/lib/client-account/area-site.server";
+import { ACCOUNT_AREA_METADATA, renderClientAccountPage } from "@/lib/client-account/render-area";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 
 export const dynamic = "force-dynamic";
+export const metadata = ACCOUNT_AREA_METADATA;
 
-export default async function AccountRedirectPage() {
+export default async function AccountRedirectPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  // TUL-62: on a talent site this URL is the client account area (flag-gated,
+  // 404 when off). Every other host keeps the role redirect below, unchanged.
+  if ((await readAccountHost()).hostContext === "talent_site") {
+    const { tab } = await searchParams;
+    return renderClientAccountPage({ kind: "home", tab: parseAccountTab(tab) });
+  }
   const session = await getCachedActorSession();
 
   if (!session.supabase) {
