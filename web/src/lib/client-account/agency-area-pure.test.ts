@@ -5,6 +5,7 @@ import { test } from "node:test";
 
 import {
   accountFlagKindForHost,
+  accountHrefFor,
   accountHomeMode,
   agencyAccountTabs,
   authPageBrand,
@@ -115,4 +116,21 @@ test("legacy entry points are guarded by the pure redirect decision", () => {
     const src = readFileSync(p, "utf8");
     assert.match(src, /legacyClientEntryRedirectFor\(/, p);
   }
+});
+
+test("account link: absolute app URL only on the marketing apex", () => {
+  assert.equal(accountHrefFor("marketing", "https://app.tulala.digital"), "https://app.tulala.digital/account");
+  assert.equal(accountHrefFor("marketing", "https://app.tulala.digital/"), "https://app.tulala.digital/account");
+  for (const k of ["app", "agency", "hub", "talent_site", null, undefined]) {
+    assert.equal(accountHrefFor(k, "https://app.tulala.digital"), "/account");
+  }
+});
+
+test("popover account link goes through accountHrefFor, not a literal", () => {
+  const btn = readFileSync(join(__dirname, "..", "..", "components", "client-account", "ClientAccountButton.tsx"), "utf8");
+  assert.doesNotMatch(btn, /href="\/account"/);
+  assert.match(btn, /href=\{accountHref\}/);
+  const dock = readFileSync(join(__dirname, "..", "..", "components", "client-account", "ClientAccountDock.tsx"), "utf8");
+  assert.match(dock, /accountHrefFor\(/);
+  assert.match(dock, /getAppUrl\(\)/);
 });
