@@ -8393,7 +8393,9 @@
           "retryFailed": "Retry failed: {error}",
           "summaryWithScheduled": "{held} waiting on account · {scheduled} scheduled · {failed} failed",
           "scheduledBadge": "Scheduled",
-          "scheduledHint": "Not due yet. Releases on {date}, not before."
+          "scheduledHint": "Not due yet. Releases on {date}, not before.",
+          "readFailed": "Could not load held payouts. This is a read error, not an empty list. Reload to try again.",
+          "cappedNote": "Showing the newest {max} legs. More exist."
         },
         "commission": {
           "title": "Commission config",
@@ -8485,7 +8487,13 @@
             "rows": {
               "keyModes": {
                 "label": "Stripe key modes",
-                "detail": "All set keys use the same mode."
+                "detail": "All set keys use the same mode.",
+                "mode": {
+                  "test": "test",
+                  "live": "live",
+                  "unset": "not set"
+                },
+                "mxSource": "The MX publishable key is read from {source}."
               },
               "secret": {
                 "label": "{name}",
@@ -8494,7 +8502,9 @@
               },
               "held": {
                 "label": "Held payouts",
-                "detail": "{count} held right now."
+                "detail": "{count} held right now.",
+                "readFailed": "Could not read held payouts, so the count is unknown.",
+                "capped": "{max}+ held right now (showing the newest {max})."
               },
               "stuck": {
                 "label": "Stuck payment requests",
@@ -8517,7 +8527,8 @@
               "mxConnect": "Add the MX Connect signing secret in Vercel. Until then MX Connect events fail signature checks and held payouts only release in the daily cron.",
               "held": "Open the Revenue tab to see which payouts are held and why.",
               "stuck": "Check these transactions in the booking list; the client may need a fresh payment link.",
-              "lane": "Quiet periods are normal. If you expect traffic, check the endpoint in the Stripe dashboard."
+              "lane": "Quiet periods are normal. If you expect traffic, check the endpoint in the Stripe dashboard.",
+              "heldReadFailed": "Reload the page. If it keeps failing, check the booking_payouts table and the service role key."
             }
           }
         },

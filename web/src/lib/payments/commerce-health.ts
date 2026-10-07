@@ -11,6 +11,7 @@
  */
 
 import { checkStripeKeyModes, stripeKeyMode } from "@/lib/stripe/key-mode";
+import { WEBHOOK_LANES, laneForEventId, type WebhookLane } from "@/lib/stripe/webhook-lanes";
 
 export type HealthRowStatus = "ok" | "warn" | "error";
 export type KeyMode = "test" | "live" | "unset";
@@ -19,9 +20,19 @@ export const KEY_MODE_VARS = [
   "STRIPE_SECRET_KEY",
   "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
   "STRIPE_MX_SECRET_KEY",
+  // Same order getStripeMxPublishableKey (stripe/client.ts) reads them: the
+  // NEXT_PUBLIC_ name wins, the Vercel server-side name is the fallback.
+  // Pinned against client.ts by commerce-health.test.ts.
+  "NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY",
   "STRIPE_MX_PUBLISHABLE_KEY",
   "STRIPE_V2_SECRET_KEY",
 ] as const;
+
+/** MX publishable key env names in client read order (first non-empty wins). */
+export const MX_PUBLISHABLE_KEY_READ_ORDER = [
+  "NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY",
+  "STRIPE_MX_PUBLISHABLE_KEY",
+] as const satisfies readonly (typeof KEY_MODE_VARS)[number][];
 
 export const WEBHOOK_SECRET_VARS = [
   "STRIPE_WEBHOOK_SECRET",
@@ -33,10 +44,16 @@ export const WEBHOOK_SECRET_VARS = [
 export type KeyModeVar = (typeof KEY_MODE_VARS)[number];
 export type WebhookSecretVar = (typeof WEBHOOK_SECRET_VARS)[number];
 
+export type HeldPayoutsHealth =
+  | { state: "ok"; count: number }
+  | { state: "capped"; count: number }
+  | { state: "error" };
+
 export interface CommerceHealthInput {
   keyModes: Record<KeyModeVar, KeyMode>;
   webhookSecretsSet: Record<WebhookSecretVar, boolean>;
-  heldPayoutCount: number;
+  /** Held-payouts read: exact count, capped (lower bound), or a failed read. */
+  heldPayouts: HeldPayoutsHealth;
   /** Transactions in payment_requested for more than 24h. */
   stuckPaymentRequestedCount: number;
   /** ISO timestamps (or null when no events). */
@@ -55,6 +72,33 @@ export interface CommerceHealthRow {
 
 export const WEBHOOK_QUIET_HOURS = 24;
 
+/**
+ * Panel lane classification for a stripe_processed_events row.
+ * An explicit `lane` wins. A NULL lane is a legacy row (written before the lane
+ * column existed, or by old code still running during the deploy window) and
+ * falls back to the event_id prefix rule ONLY for those nulls: `platform_mx:` is
+ * MX, no colon is the US lane. A non-null lane is never second-guessed by id.
+ */
+export function classifyEventLane(row: {
+  lane: string | null | undefined;
+  event_id: string;
+}): WebhookLane | "other" {
+  if (row.lane != null) {
+    return (WEBHOOK_LANES as readonly string[]).includes(row.lane) ? (row.lane as WebhookLane) : "other";
+  }
+  return laneForEventId(row.event_id) ?? "other";
+}
+
+/**
+ * PostgREST `or()` filters the loader applies, kept next to classifyEventLane
+ * because they must express the same rule (tested for agreement). `*` is the
+ * PostgREST like-wildcard.
+ */
+export const LANE_FILTER_OR = {
+  platform: "lane.eq.platform,and(lane.is.null,event_id.not.like.*:*)",
+  platform_mx: "lane.eq.platform_mx,and(lane.is.null,event_id.like.platform_mx:*)",
+} as const;
+
 /** Reduce env to modes/booleans. The only function here that touches secrets. */
 export function snapshotKeyEnv(
   env: Record<string, string | undefined> = process.env,
@@ -64,6 +108,13 @@ export function snapshotKeyEnv(
   const webhookSecretsSet = {} as Record<WebhookSecretVar, boolean>;
   for (const n of WEBHOOK_SECRET_VARS) webhookSecretsSet[n] = Boolean(env[n]?.trim());
   return { keyModes, webhookSecretsSet };
+}
+
+/** Which env var the MX client actually reads, or "none". Mirrors client.ts's `||` chain. */
+export function effectiveMxPublishableVar(
+  keyModes: Record<KeyModeVar, KeyMode>,
+): (typeof MX_PUBLISHABLE_KEY_READ_ORDER)[number] | "none" {
+  return MX_PUBLISHABLE_KEY_READ_ORDER.find((n) => keyModes[n] !== "unset") ?? "none";
 }
 
 function keyModeRow(keyModes: Record<KeyModeVar, KeyMode>): CommerceHealthRow {
@@ -78,7 +129,13 @@ function keyModeRow(keyModes: Record<KeyModeVar, KeyMode>): CommerceHealthRow {
     id: "key-modes",
     status: check.ok ? "ok" : "error",
     detail: list,
-    data: { mixed: !check.ok, mode: check.mode },
+    data: {
+      mixed: !check.ok,
+      mode: check.mode,
+      mxPublishableSource: effectiveMxPublishableVar(keyModes),
+      // Per-variable modes so the UI can localize the list from data.
+      ...Object.fromEntries(KEY_MODE_VARS.map((n) => [`m:${n}`, keyModes[n]])),
+    },
   };
 }
 
@@ -126,15 +183,36 @@ function laneRow(
   };
 }
 
+function heldRow(h: HeldPayoutsHealth): CommerceHealthRow {
+  if (h.state === "error") {
+    // A failed read is an error row, never a silent zero.
+    return {
+      id: "held-payouts",
+      status: "error",
+      detail: "held payouts read failed",
+      data: { state: "error" },
+    };
+  }
+  if (h.state === "capped") {
+    return {
+      id: "held-payouts",
+      status: "warn",
+      detail: `${h.count}+ held`,
+      data: { state: "capped", count: h.count, capped: true },
+    };
+  }
+  return {
+    id: "held-payouts",
+    status: h.count > 0 ? "warn" : "ok",
+    detail: `${h.count} held`,
+    data: { state: "ok", count: h.count },
+  };
+}
+
 export function computeCommerceHealth(input: CommerceHealthInput): CommerceHealthRow[] {
   const rows: CommerceHealthRow[] = [keyModeRow(input.keyModes)];
   rows.push(...webhookSecretRows(input.webhookSecretsSet));
-  rows.push({
-    id: "held-payouts",
-    status: input.heldPayoutCount > 0 ? "warn" : "ok",
-    detail: `${input.heldPayoutCount} held`,
-    data: { count: input.heldPayoutCount },
-  });
+  rows.push(heldRow(input.heldPayouts));
   rows.push({
     id: "stuck-payment-requested",
     status: input.stuckPaymentRequestedCount > 0 ? "warn" : "ok",

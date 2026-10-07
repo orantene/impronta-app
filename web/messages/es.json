@@ -8393,7 +8393,9 @@
           "retryFailed": "Reintento fallido: {error}",
           "summaryWithScheduled": "{held} esperando cuenta · {scheduled} programados · {failed} fallidos",
           "scheduledBadge": "Programado",
-          "scheduledHint": "Aún no vence. Se libera el {date}, no antes."
+          "scheduledHint": "Aún no vence. Se libera el {date}, no antes.",
+          "readFailed": "No se pudieron cargar los pagos retenidos. Es un error de lectura, no una lista vacía. Recarga para reintentar.",
+          "cappedNote": "Se muestran los {max} tramos más recientes. Hay más."
         },
         "commission": {
           "title": "Configuración de comisiones",
@@ -8485,7 +8487,13 @@
             "rows": {
               "keyModes": {
                 "label": "Modos de clave de Stripe",
-                "detail": "Todas las claves definidas usan el mismo modo."
+                "detail": "Todas las claves definidas usan el mismo modo.",
+                "mode": {
+                  "test": "prueba",
+                  "live": "producción",
+                  "unset": "sin definir"
+                },
+                "mxSource": "La clave publicable de MX se lee de {source}."
               },
               "secret": {
                 "label": "{name}",
@@ -8494,7 +8502,9 @@
               },
               "held": {
                 "label": "Pagos retenidos",
-                "detail": "{count} retenidos ahora."
+                "detail": "{count} retenidos ahora.",
+                "readFailed": "No se pudieron leer los pagos retenidos, así que no se conoce el total.",
+                "capped": "{max}+ retenidos ahora (se muestran los {max} más recientes)."
               },
               "stuck": {
                 "label": "Solicitudes de pago atascadas",
@@ -8517,7 +8527,8 @@
               "mxConnect": "Agrega el secreto de firma de MX Connect en Vercel. Mientras tanto, los eventos de MX Connect fallan la verificación de firma y los pagos retenidos solo se liberan en el cron diario.",
               "held": "Abre la pestaña Ingresos para ver qué pagos están retenidos y por qué.",
               "stuck": "Revisa estas transacciones en la lista de reservas; quizá el cliente necesite un nuevo enlace de pago.",
-              "lane": "Los periodos tranquilos son normales. Si esperas tráfico, revisa el endpoint en el panel de Stripe."
+              "lane": "Los periodos tranquilos son normales. Si esperas tráfico, revisa el endpoint en el panel de Stripe.",
+              "heldReadFailed": "Recarga la página. Si sigue fallando, revisa la tabla booking_payouts y la clave de service role."
             }
           }
         },

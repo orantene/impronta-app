@@ -11,11 +11,13 @@
 import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { listHeldPayouts } from "@/lib/payments/booking-payouts-ledger";
+import { HELD_PAYOUTS_CAP, listHeldPayouts } from "@/lib/payments/booking-payouts-ledger";
 import {
+  LANE_FILTER_OR,
   computeCommerceHealth,
   snapshotKeyEnv,
   type CommerceHealthRow,
+  type HeldPayoutsHealth,
 } from "@/lib/payments/commerce-health";
 
 export interface CommerceHealthResult {
@@ -51,20 +53,21 @@ export async function loadCommerceHealth(): Promise<CommerceHealthResult> {
       stuck = stuckRes.count ?? 0;
     }
 
-    // Lanes: US events keep the bare event id; MX is prefixed `platform_mx:`
-    // (see laneScopedEventKey in stripe/event-idempotency.ts). Event ids from
-    // Stripe never contain a colon, so "no colon" is the US lane.
+    // Lanes: the explicit `lane` column (migration 20261231348000). Rows with a
+    // NULL lane were written by old code during the deploy window (or predate
+    // the column and were missed by the backfill); only those fall back to the
+    // old event_id prefix rule. See LANE_FILTER_OR / classifyEventLane.
     const [us, mx] = await Promise.all([
       sb
         .from("stripe_processed_events")
         .select("processed_at")
-        .not("event_id", "like", "%:%")
+        .or(LANE_FILTER_OR.platform)
         .order("processed_at", { ascending: false })
         .limit(1),
       sb
         .from("stripe_processed_events")
         .select("processed_at")
-        .like("event_id", "platform_mx:%")
+        .or(LANE_FILTER_OR.platform_mx)
         .order("processed_at", { ascending: false })
         .limit(1),
     ]);
@@ -82,12 +85,21 @@ export async function loadCommerceHealth(): Promise<CommerceHealthResult> {
     }
   }
 
-  // Reuse the Revenue tab's held-payouts query (it checks `error` itself).
-  const held = (await listHeldPayouts(sb)).filter((p) => p.status === "held").length;
+  // Reuse the Revenue tab's held-payouts query. A failed read is an error row,
+  // and a capped list reports a lower bound ("500+"), never a false exact count.
+  const heldRes = await listHeldPayouts(sb);
+  let heldPayouts: HeldPayoutsHealth;
+  if (!heldRes.ok) {
+    failedReads.push("held");
+    heldPayouts = { state: "error" };
+  } else {
+    const count = heldRes.rows.filter((p) => p.status === "held").length;
+    heldPayouts = heldRes.capped ? { state: "capped", count: HELD_PAYOUTS_CAP } : { state: "ok", count };
+  }
 
   const rows = computeCommerceHealth({
     ...snapshotKeyEnv(),
-    heldPayoutCount: held,
+    heldPayouts,
     stuckPaymentRequestedCount: stuck,
     lastWebhookAt: { platform: platformLast, platform_mx: mxLast },
     now,
