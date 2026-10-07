@@ -40,6 +40,10 @@ export const ES_MEDIA_TEXT: Record<string, string> = {
   "dashboard.mediaField.uploading": "Subiendo",
   "dashboard.mediaField.uploadFailed": "No se pudo subir",
   "dashboard.mediaField.loadingDimensions": "Cargando dimensiones...",
+  "dashboard.mediaField.imageSelected": "Imagen seleccionada",
+  "dashboard.mediaField.imageFallbackName": "Tu imagen",
+  "dashboard.mediaField.videoFallbackName": "Tu video",
+  "dashboard.mediaLibrary.unreachable": "No pudimos conectar con tu biblioteca de medios. Revisa tu conexión e inténtalo de nuevo.",
 
   // ── Assets surface on the shared library (2026-08-16) ─────────────────
   // The left rail's "Assets" entry used to open a second, worse media library

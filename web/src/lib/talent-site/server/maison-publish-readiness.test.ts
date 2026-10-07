@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   evaluateMaisonPublishReadiness,
+  maisonDesignBlocker,
   maisonReadinessHeadline,
 } from "./maison-publish-readiness";
 
@@ -81,5 +82,23 @@ describe("evaluateMaisonPublishReadiness", () => {
     assert.equal(r.blockers[1]?.fixLabel, "Elige un diseño");
     assert.equal(maisonReadinessHeadline(r, "es"), "2 cosas antes de publicar");
     for (const b of r.blockers) assert.doesNotMatch(b.message + b.fixLabel, /\u2014/);
+  });
+});
+
+describe("maisonDesignBlocker (TUL-89: preflight and publish share one rule)", () => {
+  test("no design, null, undefined and whitespace all block", () => {
+    for (const v of [null, undefined, "", "   "]) {
+      assert.equal(maisonDesignBlocker(v)?.id, "no_design");
+    }
+  });
+  test("a design clears it", () => {
+    assert.equal(maisonDesignBlocker("maison"), null);
+  });
+  test("evaluate and the shared rule agree, in English and Spanish", () => {
+    for (const locale of ["en", "es"] as const) {
+      const r = evaluateMaisonPublishReadiness({ siteSlug: "x", themeDesignSlug: null, locale });
+      assert.equal(r.blockers[0]?.message, maisonDesignBlocker(null, locale)?.message);
+    }
+    assert.equal(maisonDesignBlocker(null, "es")?.message, "Aplica un diseño antes de publicar.");
   });
 });

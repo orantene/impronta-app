@@ -36,6 +36,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { buildTalentSiteCapabilities } from "@/lib/access/talent-membership";
 import { gate } from "./site-action-gate";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { provisionTalentMaxSite } from "./provision-max-site";
 import { isDnsLabel, slugifySiteName } from "./derive-site-slug";
 import {
@@ -619,6 +620,7 @@ export async function publishMaxSiteAction(opts?: { contentHash?: string | null 
     talentProfileId: g.talentProfileId,
     userId: g.userId,
     displayName: g.displayName,
+    locale: (await getRequestLocale()) === "es" ? "es" : "en",
     pre: preSite as {
       id: string;
       site_slug: string | null;
