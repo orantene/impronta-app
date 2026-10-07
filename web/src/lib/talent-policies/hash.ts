@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { PolicyAnswers } from "./answers";
+import type { CustomClauses } from "./custom-clauses";
 import type { PolicyFacts } from "./facts";
 import { POLICY_TEMPLATE_VERSION, renderPolicyText } from "./render";
 
@@ -23,8 +24,11 @@ export function canonicalJson(value: unknown): string {
  * version and the rendered ES + EN text. Any change a client would read
  * changes the hash; nothing else does.
  */
-export function policyContentHash(facts: PolicyFacts, answers: PolicyAnswers): string {
+export function policyContentHash(facts: PolicyFacts, answers: PolicyAnswers, customClauses?: CustomClauses | null): string {
+  // `cc` joins the payload only when clauses exist, so a version without them
+  // hashes byte-identically to every version published before this field.
   const payload = {
+    ...(customClauses ? { cc: customClauses } : {}),
     t: POLICY_TEMPLATE_VERSION,
     facts,
     answers,
