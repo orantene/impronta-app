@@ -23,7 +23,7 @@ describe("agendaMoneyRows", () => {
       "utf8",
     );
     assert.equal(/className="[^"]*\bcapitalize\b/.test(src), false);
-    assert.match(src, /\$\{month\} de \$\{y\}/);
+    assert.match(src, /formatMonthLabel/);
   });
   it("lists holds awaiting a deposit as waiting requests, with no invented amount", () => {
     const out = agendaMoneyRows([{ ...base, id: "h1" }], now);
