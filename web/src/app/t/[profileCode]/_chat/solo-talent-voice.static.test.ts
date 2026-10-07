@@ -17,6 +17,14 @@ test("talent launcher marks the brand solo and the body picks the solo greeting"
   }
 });
 
-test("platform-host dock header uses the talent's name before the hub brand", () => {
-  assert.match(read("../profile-view.tsx"), /name\?\.trim\(\) \|\| chatHub\?\.displayName \|\| "Tulala"/);
+test("platform-host dock header uses the talent's name, never the hub brand", () => {
+  const view = read("../profile-view.tsx");
+  // chatBrandName: agency host -> the agency; platform host -> THIS talent's
+  // public name (the hub is a routing detail, not a brand the guest talks to).
+  const brand = view.slice(view.indexOf("const chatBrandName ="), view.indexOf("const chatBrandName =") + 400);
+  assert.match(brand, /hostCtx\.kind === "agency"/);
+  assert.match(brand, /: [^]*?publicNameOrGeneric\(displayName\(profile as TalentProfile\), locale \?\? "en"\)/);
+  assert.doesNotMatch(brand, /chatHub/, "the hub's display name must not reach the dock header");
+  // ...and that name is what the launcher is handed as the brand.
+  assert.match(view, /agencyName: chatBrandName/);
 });

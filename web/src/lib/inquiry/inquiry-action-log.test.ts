@@ -33,10 +33,11 @@ function makeThrowingClient(): unknown {
   };
 }
 
-// Silence console.error noise during the deliberate-failure tests so the test
-// runner output isn't polluted. Restored in the final test to prove the helper
-// does emit on failure.
+// Silence console noise during the deliberate-failure tests so the test runner
+// output isn't polluted. Failures are emitted as one structured JSON line via
+// improntaLog (console.info); the final test proves the helper does emit.
 const origError = console.error;
+const origInfo = console.info;
 
 test("logInquiryAction: happy path — inserts row and returns true", async () => {
   const calls: InsertCall[] = [];
@@ -95,6 +96,7 @@ test("logInquiryAction: null reason and metadata coerced correctly", async () =>
 
 test("logInquiryAction: DB error — returns false, never throws", async () => {
   console.error = () => {};
+  console.info = () => {};
   try {
     const calls: InsertCall[] = [];
     const client = makeStubClient(
@@ -110,11 +112,13 @@ test("logInquiryAction: DB error — returns false, never throws", async () => {
     assert.equal(ok, false);
   } finally {
     console.error = origError;
+    console.info = origInfo;
   }
 });
 
 test("logInquiryAction: synchronous client throw — returns false, never throws", async () => {
   console.error = () => {};
+  console.info = () => {};
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const client = makeThrowingClient() as any;
@@ -127,12 +131,13 @@ test("logInquiryAction: synchronous client throw — returns false, never throws
     assert.equal(ok, false);
   } finally {
     console.error = origError;
+    console.info = origInfo;
   }
 });
 
-test("logInquiryAction: DB error emits console.error with diagnostic fields", async () => {
-  const captured: unknown[] = [];
-  console.error = (...args: unknown[]) => captured.push(args);
+test("logInquiryAction: DB error emits a structured log line with diagnostic fields", async () => {
+  const captured: string[] = [];
+  console.info = (...args: unknown[]) => captured.push(String(args[0]));
   try {
     const calls: InsertCall[] = [];
     const client = makeStubClient(
@@ -147,13 +152,16 @@ test("logInquiryAction: DB error emits console.error with diagnostic fields", as
       reason: "not_allowed",
     });
     assert.equal(captured.length, 1);
-    const [args] = captured as [unknown[]];
-    assert.equal(args[0], "[inquiry_action_log] insert failed");
-    const fields = args[1] as Record<string, unknown>;
-    assert.equal(fields.actionType, "participant_moved_group");
-    assert.equal(fields.result, "failure");
-    assert.equal(fields.code, "42501");
+    const line = JSON.parse(captured[0]) as Record<string, unknown>;
+    assert.equal(line.event, "inquiry_action_log.error");
+    assert.equal(line.context, "[inquiry_action_log] insert failed");
+    assert.equal(line.inquiryId, "inquiry-1");
+    assert.equal(line.actionType, "participant_moved_group");
+    assert.equal(line.result, "failure");
+    assert.equal(line.code, "42501");
+    assert.equal(line.message, "rls denied");
   } finally {
     console.error = origError;
+    console.info = origInfo;
   }
 });
