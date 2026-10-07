@@ -20,6 +20,7 @@ import { loadClientPrimaryTenantSlug } from "@/lib/saas/role-tenant-resolver";
 import { logServerError } from "@/lib/server/safe-error";
 import { buildQuerySuffix } from "@/lib/saas/redirect-query";
 import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
+import { legacyClientEntryRedirectFor } from "@/lib/client-account/entry-redirect.server";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,8 @@ export default async function ClientRootPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // TUL-64: agency and hub hosts send clients to /account when the flag is on.
+  if ((await legacyClientEntryRedirectFor()) === "account") redirect("/account");
   const sp = (await searchParams) ?? {};
   const querySuffix = buildQuerySuffix(sp);
 

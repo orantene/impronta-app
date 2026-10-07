@@ -9,6 +9,8 @@ import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/
 import { loadPublicPageBySlug } from "@/lib/site-admin/server/pages-reads";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { authPageBrand } from "@/lib/client-account/agency-area-pure";
+import { clientAccountEnabledFor } from "@/lib/client-account/flag";
 import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { getMarketingCopy } from "@/lib/marketing/copy";
@@ -23,9 +25,28 @@ import {
 } from "./auth-shell-chrome";
 
 /** Auth screens should not be indexed; page titles use the root template. */
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-};
+const AUTH_ROBOTS: Metadata = { robots: { index: false, follow: false } };
+
+/**
+ * TUL-64: with the client account flag on, a whitelabel agency's own login page
+ * is titled with the agency's name, not "Tulala". Everything else is unchanged.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  if (!clientAccountEnabledFor("app")) return AUTH_ROBOTS;
+  const ctx = await getPublicHostContext();
+  if (ctx.kind !== "agency" && ctx.kind !== "hub") return AUTH_ROBOTS;
+  const [identity, whitelabel] = await Promise.all([
+    loadPublicIdentity(ctx.tenantId).catch(() => null),
+    loadTenantWhitelabel(ctx.tenantId).catch(() => false),
+  ]);
+  const brand = authPageBrand({
+    flagOn: true,
+    hostKind: ctx.kind,
+    whitelabel,
+    publicName: identity?.public_name,
+  });
+  return brand ? { ...AUTH_ROBOTS, title: { absolute: brand.title } } : AUTH_ROBOTS;
+}
 
 /** What the layout needs beyond the brand object itself. */
 type AuthShellResolution = {
