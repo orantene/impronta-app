@@ -68,8 +68,8 @@ function clientIp(request: NextRequest): string {
  * in `lib/supabase/middleware.ts`).
  */
 const HOST_CONTEXT_HEADERS_TO_STRIP = [
-  HOST_CONTEXT_HEADER,
-  HOST_TALENT_PROFILE_HEADER,
+  HOST_CONTEXT_HEADER, HOST_TALENT_PROFILE_HEADER, HOST_NAME_HEADER,
+  HOST_TENANT_SLUG_HEADER, TENANT_HEADER_NAME, PUBLIC_PATH_PREFIX_HEADER,
 ];
 
 function stripInboundHostContextHeaders(request: NextRequest): Headers {
@@ -731,7 +731,7 @@ export async function proxy(request: NextRequest) {
       pathnameForAuth,
       languageSettings: effectiveLangSettings,
       // Same surface the allow-list ran against: auth routing must not redirect to a path this surface 404s.
-      hostKind: effectiveHostContext.kind,
+      hostKind: effectiveHostContext.kind, resolvedHost: effectiveHostContext.hostname,
     }));
 
   if (sessionRes.headers.get("location")) {
