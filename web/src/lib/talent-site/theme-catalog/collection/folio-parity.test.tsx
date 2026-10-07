@@ -25,7 +25,7 @@ const PINS = {
   highlight: "f6ed134ba4b1cd9e",
   booking: "8f87f1ae1e51bc17",
   // Re-pinned: only added props.i18n (es + en seed copy), see seed-i18n.ts.
-  maison: "2e6b762c21d65f85",
+  maison: "037a115fb8931c8a", // #88: Book an appointment leads in header + hero (See services is the ghost)
   // Re-pinned after Gridline contentWidth/full + matrix viewport MQ (#2530), then es + en seed copy.
   gridline: "c3d78ff7449a8483",
 };
