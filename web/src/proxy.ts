@@ -40,6 +40,7 @@ import { resolveLegacyTalentPlatformPath } from "@/lib/talent/legacy-talent-redi
 import { talentProfileCodeAliasRedirectResponse } from "@/lib/talent/profile-code-alias-middleware";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { talentSiteHostResponse } from "@/lib/saas/talent-site-host-response";
+import { withTalentHostClientSession } from "@/lib/client-account/talent-host-session";
 import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
 import {
   PREVIEW_COOKIE_OPTIONS,
@@ -231,9 +232,8 @@ export async function proxy(request: NextRequest) {
   // reads the talent_profile_id from a host header set here, so a client can
   // never spoof it.
   if (hostContext.kind === "talent_site") {
-    // Talent languages + URL grammar live in the extracted helper (keeps proxy
-    // under max-lines): talent-site-host-response.ts.
-    return talentSiteHostResponse(request, pathname, sanitizedInboundHeaders, hostContext);
+    // Languages + URL grammar: talent-site-host-response.ts. Client session refresh (CLIENT_ACCOUNT_HOSTS): talent-host-session.ts.
+    return withTalentHostClientSession(request, hostContext, () => talentSiteHostResponse(request, pathname, sanitizedInboundHeaders, hostContext));
   }
 
   if (
