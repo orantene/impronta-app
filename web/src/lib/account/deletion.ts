@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { RETENTION_PERIODS } from "@/lib/legal/retention-config";
+
 import { sendDeletionEmail } from "./deletion-email";
 
 import {
@@ -16,7 +18,8 @@ import {
  * injected deps so they are unit-tested without a database.
  */
 
-export const DELETION_GRACE_DAYS = 14;
+/** Single source: RETENTION_PERIODS (the DB trigger on scheduled_for also fixes 14 days). */
+export const DELETION_GRACE_DAYS: number = RETENTION_PERIODS.deletedAccountGraceDays;
 export const DELETION_TABLE = "account_deletion_requests";
 
 /** Typed confirmation. Either language's word is accepted. */
