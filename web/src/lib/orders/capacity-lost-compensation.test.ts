@@ -2,10 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { linesNeedingCompensation } from "./capacity-lost-compensation";
 
+// Relative to now: the code only checks the timestamp is present, never its value.
+const LIVE_HOLD_EXPIRY = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+const LAPSED_HOLD_EXPIRY = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
 test("a live commit does not open compensation", () => {
   assert.equal(
     linesNeedingCompensation({
-      holdExpiresAt: "2026-09-08T12:00:00Z",
+      holdExpiresAt: LIVE_HOLD_EXPIRY,
       holdAllocationCount: 2,
       commitFailed: false,
       committed: 2,
@@ -17,7 +21,7 @@ test("a live commit does not open compensation", () => {
 test("commit refused after payment needs compensation", () => {
   assert.equal(
     linesNeedingCompensation({
-      holdExpiresAt: "2026-09-08T12:00:00Z",
+      holdExpiresAt: LIVE_HOLD_EXPIRY,
       holdAllocationCount: 1,
       commitFailed: true,
       committed: 0,
@@ -41,7 +45,7 @@ test("holds were present and none committed", () => {
 test("the hold already lapsed (timestamp still on the order, allocations gone)", () => {
   assert.equal(
     linesNeedingCompensation({
-      holdExpiresAt: "2026-09-08T11:00:00Z",
+      holdExpiresAt: LAPSED_HOLD_EXPIRY,
       holdAllocationCount: 0,
       commitFailed: false,
       committed: 0,

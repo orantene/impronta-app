@@ -21,6 +21,9 @@ const POOL = "33333333-3333-3333-3333-333333333333";
 const TALENT = "44444444-4444-4444-4444-444444444444";
 const GUEST = "55555555-5555-5555-5555-555555555555";
 const ACTOR = "66666666-6666-6666-6666-666666666666";
+// Dates relative to now so the fixture never rots into the past.
+const SLOT_START = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+const SLOT_END = new Date(Date.parse(SLOT_START) + 15 * 60 * 1000).toISOString();
 
 type Call = { table: string; op: string; payload?: unknown };
 
@@ -144,7 +147,7 @@ function threadFakeAdmin() {
       if (table === "talent_offerings") return resolve({ data: [offeringRow], error: null });
       if (table === "talent_profiles") {
         return resolve({
-          data: [{ id: TALENT, user_id: ACTOR, claimed_at: "2026-01-01T00:00:00Z" }],
+          data: [{ id: TALENT, user_id: ACTOR, claimed_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() }],
           error: null,
         });
       }
@@ -175,10 +178,10 @@ function threadFakeAdmin() {
         inquiry_id: null,
         talent_profile_id: TALENT,
         tenant_id: TENANT,
-        starts_at: "2026-09-28T16:15:00.000Z",
-        ends_at: "2026-09-28T16:30:00.000Z",
+        starts_at: SLOT_START,
+        ends_at: SLOT_END,
         title: "Bozo",
-        expires_at: "2026-09-27T18:30:00.000Z",
+        expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       });
       return {
         data: {
@@ -213,8 +216,8 @@ function threadInput(overrides: Partial<PurchaseInput> = {}): PurchaseInput {
     lines: [{ offeringId: OFFERING, units: 1 }],
     reservation: {
       talentProfileId: TALENT,
-      startsAt: "2026-09-28T16:15:00.000Z",
-      endsAt: "2026-09-28T16:30:00.000Z",
+      startsAt: SLOT_START,
+      endsAt: SLOT_END,
       title: "Bozo",
       poolId: POOL,
     },
