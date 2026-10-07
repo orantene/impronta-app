@@ -43,7 +43,7 @@ export type MyBookingRefusal =
 
 type Gate =
   | { ok: false; reason: MyBookingRefusal }
-  | { ok: true; tenantId: string; admin: NonNullable<ReturnType<typeof createServiceRoleClient>>; startsAt: string | null };
+  | { ok: true; tenantId: string; userId: string; admin: NonNullable<ReturnType<typeof createServiceRoleClient>>; startsAt: string | null };
 
 async function gate(bookingId: string): Promise<Gate> {
   if (!clientAccountEnabledFor("talent")) return { ok: false, reason: "unavailable" };
@@ -76,7 +76,7 @@ async function gate(bookingId: string): Promise<Gate> {
   if (!decision.ok) {
     return { ok: false, reason: decision.reason === "not_signed_in" ? "not_signed_in" : decision.reason === "closed" || decision.reason === "past" ? "not_cancellable" : "not_allowed" };
   }
-  return { ok: true, tenantId: tenant.tenantId, admin, startsAt: b.starts_at };
+  return { ok: true, tenantId: tenant.tenantId, userId: session.user.id, admin, startsAt: b.starts_at };
 }
 
 export async function cancelMyBooking(input: {
@@ -123,7 +123,8 @@ export async function rescheduleMyBooking(input: {
     bookingId: parsed.data.bookingId,
     newStartsAt: parsed.data.newStartsAt,
     newEndsAt: null,
-    actorUserId: "",
+    // The signed-in client, so the audit line says who moved the booking.
+    actorUserId: g.userId,
     operationKey: parsed.data.operationKey,
     expectedStartsAt: g.startsAt,
   });
