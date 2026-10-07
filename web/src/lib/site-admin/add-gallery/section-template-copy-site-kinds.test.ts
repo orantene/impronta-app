@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { ES_TEXT } from "@/components/edit-chrome/editor-i18n-es";
 import { buildAddGallerySectionTemplate } from "./section-templates";
 import { searchSections } from "./section-search";
 import { templateCopySiteKind, type TemplateCopyContext } from "./section-template-copy";
@@ -40,7 +39,9 @@ test("templateCopySiteKind honours workspace type business", () => {
   assert.equal(templateCopySiteKind("cms_page", "/x/admin", "talent"), "agency");
 });
 
-const tr = (en: string) => ES_TEXT[en] ?? en;
+// Fixture translator injected (lib must not import components/edit-chrome).
+const ES_FIXTURE: Record<string, string> = { "FAQ Accordion": "Acordeón de preguntas frecuentes" };
+const tr = (en: string) => ES_FIXTURE[en] ?? en;
 test("structure search finds sections by English name", () => {
   for (const q of ["testimon", "faq"]) assert.ok(searchSections(q, tr).length > 0, q);
 });
