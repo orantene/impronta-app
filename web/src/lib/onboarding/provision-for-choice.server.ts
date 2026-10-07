@@ -10,6 +10,7 @@ import "server-only";
  *                                 (lead.provisioned_tenant_id, orphan rollback, free limit)
  *   domain row                  → ensureWorkspaceSubdomainRow
  *   self roster (bookable)      → ensureSelfRosterSiteVisible
+ *   profile live (both)         → promoteTalentProfileLive (shared with 1E)
  *   home                        → profiles.home_surface_preference
  */
 
@@ -34,6 +35,7 @@ import type { OnboardingChoice } from "./choice";
 import { runChoiceProvisioning, type ChoiceProvisionResult } from "./provision-for-choice";
 import { ensureOwnSitePublished } from "./publish-own-site";
 import { writeTalentProfileFromBrief } from "./talent-writer.server";
+import { promoteTalentProfileLive } from "./talent-profile-promotion.server";
 
 export type WorkspaceDetail =
   | { kind: "provisioned"; result: Extract<ProvisionWorkspaceResult, { ok: true }> }
@@ -167,6 +169,11 @@ export async function provisionForChoice(
     async ensureSelfRoster(tenantId, talentProfileId) {
       const r = await ensureSelfRosterSiteVisible(admin, { tenantId, talentProfileId, addedBy: userId });
       return r.ok ? { ok: true } : { ok: false, code: "self_roster_failed", message: r.error };
+    },
+
+    async promoteTalentProfileLive(talentProfileId) {
+      const r = await promoteTalentProfileLive(admin, talentProfileId);
+      return r.ok ? { ok: true } : { ok: false, code: "talent_profile_publish_failed", message: r.error };
     },
 
     async setHomeSurface(surface) {
