@@ -10,6 +10,7 @@ import {
   type WebsiteEligibilityInput,
 } from "@/lib/talent/website-eligibility";
 import { combineAvailability, countBookableOfferings } from "@/lib/talent/website-eligibility-facts";
+import { shareInFlight } from "@/lib/talent/in-flight";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 
 type Cache = {
@@ -69,10 +70,11 @@ export function useWebsiteEligibility() {
     let cancelled = false;
     // F84: allSettled, so a failed hours read can never blank the services
     // fact (Promise.all dropped BOTH facts when one action threw).
-    void Promise.allSettled([
+    // TUL-220: Profile mounts two of these hooks at once; share the reads.
+    void shareInFlight(`website-eligibility:${talentId}`, () => Promise.allSettled([
       loadBookingHours(talentId),
       loadTalentOfferingsForEditor(talentId),
-    ]).then(
+    ])).then(
       ([hoursSettled, offeringsSettled]) => {
         if (cancelled) return;
         const hoursRes =
