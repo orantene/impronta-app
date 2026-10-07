@@ -7,6 +7,8 @@
 //
 //   node scripts/sync-qa-talent-from-real.mjs            # dry-run (SELECT only)
 //   node scripts/sync-qa-talent-from-real.mjs --apply    # writes TAL-93900 rows
+//   --exclude bookingPosture,inPersonMethods,qaOfferings  # skip those (comma list)
+//   --auto   # nightly mode; default exclusions: bookingPosture,inPersonMethods
 //
 // Never copied: bookings, inquiries, clients, messages, payments, media files.
 // Profile-owned media references are listed, not copied. Extra QA offerings
@@ -23,6 +25,7 @@ import {
   assertSelectOnly,
   assertOwnedWrites,
   buildDiff,
+  parseExclusions,
   formatReport,
   planWrites,
   writeToSql,
@@ -30,6 +33,7 @@ import {
 
 loadEnvLocal();
 const APPLY = process.argv.includes("--apply");
+const EXCLUDE = parseExclusions(process.argv);
 const HUB_TENANT_PREFIX = "40081ec3";
 
 const TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
@@ -82,15 +86,16 @@ for (const [label, t] of [["source", source], ["target", target]]) {
   if (!String(tenant).startsWith(HUB_TENANT_PREFIX)) console.warn(`[warn] ${label} tenant is ${tenant || "unknown"}, expected ${HUB_TENANT_PREFIX}…`);
 }
 
-const diff = buildDiff({ source, target });
+const diff = buildDiff({ source, target, exclude: EXCLUDE });
 console.log(`TUL-135 sync ${SOURCE_CODE} (source, read-only) -> ${TARGET_CODE} (target) [${APPLY ? "APPLY" : "DRY-RUN"}]`);
+if (EXCLUDE.size) console.log(`excluded: ${[...EXCLUDE].join(", ")}`);
 console.log(`source profile ${sourceProfileId}   target profile ${targetProfileId}`);
 console.log(formatReport(diff));
 console.log("\nSummary (differences per area; 'writable' = would be written by --apply):");
 for (const [area, c] of Object.entries(diff.counts)) console.log(`  ${area.padEnd(14)} ${String(c.total).padStart(3)} total, ${String(c.writable).padStart(3)} writable`);
 if (!Object.keys(diff.counts).length) console.log("  none: target already matches source");
 
-const writes = planWrites({ source, target, diff, targetProfileId, sourceProfileId });
+const writes = planWrites({ source, target, diff, targetProfileId, sourceProfileId, exclude: EXCLUDE });
 console.log(`\n${writes.length} guarded write(s) planned, all scoped to ${TARGET_CODE}.`);
 
 if (!APPLY) {

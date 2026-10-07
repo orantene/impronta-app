@@ -203,6 +203,36 @@ export function matchOfferings(sourceRows, targetRows) {
 
 const taxKey = (r) => `${r.kind}:${r.slug}|primary=${!!r.is_primary}|${r.relationship_type}`;
 
+// ── exclusions (--exclude bookingPosture,inPersonMethods,qaOfferings) ──────
+
+export const AUTO_EXCLUDE = ["bookingPosture", "inPersonMethods"];
+// Exclusion tokens that live as keys inside talent_profiles.selling_defaults.
+const SELLING_DEFAULT_KEYS = new Set(["bookingPosture", "inPersonMethods"]);
+
+/** argv -> Set of exclusion tokens. Explicit --exclude wins; --auto alone uses the defaults. */
+export function parseExclusions(argv) {
+  const i = argv.findIndex((a) => a === "--exclude" || a.startsWith("--exclude="));
+  if (i >= 0) {
+    const raw = argv[i].includes("=") ? argv[i].split("=")[1] : (argv[i + 1] ?? "");
+    return new Set(raw.split(",").map((x) => x.trim()).filter(Boolean));
+  }
+  return new Set(argv.includes("--auto") ? AUTO_EXCLUDE : []);
+}
+
+/** Copy of a profile row with excluded selling_defaults keys removed. */
+export function stripExcluded(profile, exclude) {
+  const sd = profile?.selling_defaults;
+  if (!sd || typeof sd !== "object" || ![...exclude].some((k) => SELLING_DEFAULT_KEYS.has(k))) return profile;
+  return { ...profile, selling_defaults: Object.fromEntries(Object.entries(sd).filter(([k]) => !exclude.has(k))) };
+}
+
+/** New selling_defaults = source minus excluded keys, plus the target's own excluded keys. */
+export function mergeSellingDefaults(sourceValue, targetValue, exclude) {
+  const keep = Object.fromEntries(Object.entries(targetValue ?? {}).filter(([k]) => exclude.has(k)));
+  const src = Object.fromEntries(Object.entries(sourceValue ?? {}).filter(([k]) => !exclude.has(k)));
+  return { ...src, ...keep };
+}
+
 // ── diff builder ────────────────────────────────────────────────────────────
 
 function fieldDiffs(fields, src, tgt, mask = false) {
@@ -223,9 +253,9 @@ function fieldDiffs(fields, src, tgt, mask = false) {
  * input: { source, target } each { profile, taxonomy:[{kind,slug,...}], offerings:[], hours, site }
  * returns { entries:[{area, field, source, target, ...}], offerings:{pairs,sourceOnly,targetOnly}, counts }
  */
-export function buildDiff({ source, target }) {
+export function buildDiff({ source, target, exclude = new Set() }) {
   const entries = [];
-  entries.push(...fieldDiffs(PROFILE_FIELDS, source.profile, target.profile));
+  entries.push(...fieldDiffs(PROFILE_FIELDS, stripExcluded(source.profile, exclude), stripExcluded(target.profile, exclude)));
 
   const sTax = new Set(source.taxonomy.map(taxKey));
   const tTax = new Set(target.taxonomy.map(taxKey));
@@ -243,13 +273,15 @@ export function buildDiff({ source, target }) {
   const off = matchOfferings(source.offerings, target.offerings);
   for (const { source: s, target: t } of off.pairs) {
     for (const d of fieldDiffs(OFFERING_FIELDS.map((f) => ({ ...f, area: "offerings" })), s, t)) {
+      // Never clear a target description: copy only when the source has one.
+      if (d.col === "description" && !String(d.source ?? "").trim()) continue;
       entries.push({ ...d, field: `[${s.title}] ${d.field}`, offeringId: t.id });
     }
   }
   for (const s of off.sourceOnly) {
     entries.push({ area: "offerings", field: `[${s.title}] (missing on target)`, source: "present", target: "absent", insert: s });
   }
-  for (const t of off.targetOnly) {
+  for (const t of exclude.has("qaOfferings") ? [] : off.targetOnly) {
     entries.push({ area: "offerings", field: `[${t.title}] (extra on target, left alone)`, source: "absent", target: `${t.status}`, extra: true });
   }
 
@@ -355,7 +387,7 @@ const OFFERING_INSERT_COLS = [
 ];
 
 /** Turn a diff into guarded write descriptors (target-only). */
-export function planWrites({ source, target, diff, targetProfileId, sourceProfileId }) {
+export function planWrites({ source, target, diff, targetProfileId, sourceProfileId, exclude = new Set() }) {
   const writes = [];
   const group = (entries, row) => {
     const set = {};
@@ -369,6 +401,7 @@ export function planWrites({ source, target, diff, targetProfileId, sourceProfil
         cur[e.path[e.path.length - 1]] = e.source;
         v = base;
       } else v = e.source;
+      if (e.col === "selling_defaults" && exclude.size) v = mergeSellingDefaults(e.source, row.selling_defaults, exclude);
       set[e.col] = { v: rewriteId(v, sourceProfileId, targetProfileId), kind: e.kind };
     }
     return set;
