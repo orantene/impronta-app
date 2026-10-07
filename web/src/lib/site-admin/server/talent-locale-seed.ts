@@ -69,6 +69,22 @@ export function talentLocaleSeedPlan(input: {
   };
 }
 
+/**
+ * True when `talentLocaleSeedPlan` could write anything for this cookie state,
+ * whatever the primary turns out to be: false only for a deliberate cookie the
+ * signed-in user owns. Lets a caller skip reading the stored language at all.
+ */
+export function localeSeedMayApply(input: {
+  cookieLocale: string | null | undefined;
+  cookieIsAuto: boolean;
+  cookieOwner: string | null | undefined;
+  userId: string;
+}): boolean {
+  if (!input.userId) return false;
+  if (input.cookieOwner !== input.userId) return true;
+  return !input.cookieLocale?.trim() || input.cookieIsAuto;
+}
+
 /** Dashboard routes the seed hop may run on. Everything else (template-preview, public sites) is excluded. */
 export function isLocaleSeedablePath(pathname: string | null | undefined): boolean {
   if (!pathname || typeof pathname !== "string") return false;

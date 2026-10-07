@@ -8,7 +8,8 @@ import "server-only";
  * Writes, table by table (see execution-plan Phase 5):
  *   talent_profiles         row via the onboarding RPC (display name only; the
  *                           legal identity is never asked here), then city,
- *                           country, short bio, contact email
+ *                           country, short bio, contact email, and the flow
+ *                           language as `preferred_locale` (only when NULL)
  *   agency_talent_roster    the platform hub roster (tenant scope for the rest)
  *   talent_profile_taxonomy primary_role from the type chip (validated slug)
  *   talent_languages        the brief's languages, else the module's language
@@ -31,6 +32,7 @@ import { listFact, numberFact, stringFact } from "@/lib/tulala/brief-store";
 import { bioPassesRules, draftBio } from "./draft-bio";
 import { syncBiosToBioI18n } from "@/lib/translation/sync-bios-to-bio-i18n.server";
 import { proposeTalentType } from "./type-chip";
+import { fillTalentPreferredLocale } from "./talent-preferred-locale";
 import { loadTalentTypeTerms } from "./type-chip.server";
 
 export type TalentWriteOutcome = "written" | "skipped" | "failed";
@@ -104,6 +106,8 @@ export async function writeTalentProfileFromBrief(input: {
   }
   result.talentProfileId = id;
   result.profileCode = profileCode;
+  // TUL-117: the flow language is the talent's language (only fills a NULL).
+  await fillTalentPreferredLocale(admin, id, input.locale);
 
   const city = stringFact(brief, "person.city");
   const country = stringFact(brief, "person.country");
