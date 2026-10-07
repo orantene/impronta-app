@@ -18,7 +18,7 @@
  * commits. The initial tab follows `activeContentLocale` (the top-bar pill).
  * Colours come from CHROME tokens (no hex literals in this file).
  */
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 import { LocaleTabsBadge, type LocaleTabsBadgeTheme } from "@/components/locale-field/LocaleTabsBadge";
 import type { TalentTranslateField } from "@/components/locale-field/translate-action";
@@ -27,6 +27,7 @@ import { localeMetadata } from "@/i18n/config";
 import { canAiTranslate, languageName, localeStatus, pickAiTarget } from "@/lib/i18n/locale-field-model";
 import { CHROME } from "../kit/tokens";
 import { useEditorLocale } from "../use-editor-locale";
+import { selectEditingLocale, showsMissingTranslationHint } from "../editing-locale";
 
 const THEME: LocaleTabsBadgeTheme = {
   tablist: "bg-black/[0.04]",
@@ -86,14 +87,11 @@ export function LocaleFieldTabs({
   const orderedLocales = [defaultLocale, ...supportedLocales.filter((l) => l !== defaultLocale)];
   // A stable boolean (not the recomputed array) so an unrelated re-render can't
   // reset a local tab click.
-  const activeLocaleSupported = orderedLocales.includes(activeContentLocale);
-  const [activeTab, setActiveTab] = useState(activeLocaleSupported ? activeContentLocale : defaultLocale);
-
-  // Follow the top-bar pill: flipping the page locale snaps every open field's
-  // tab to it. Local clicks still win until the pill changes again.
-  useEffect(() => {
-    if (activeLocaleSupported) setActiveTab(activeContentLocale);
-  }, [activeContentLocale, activeLocaleSupported]);
+  // TUL-70 round 3: the tab IS the editing locale (one store, no local copy),
+  // so picking a tab flips the canvas and the top-bar pill too, and flipping
+  // the pill moves every field.
+  const activeTab = orderedLocales.includes(activeContentLocale) ? activeContentLocale : defaultLocale;
+  const setActiveTab = (code: string) => selectEditingLocale(code, defaultLocale, orderedLocales);
 
   const aiHook = useAiTranslate(ai?.field ?? "builder_text");
   const map: Record<string, string> = {};
@@ -161,6 +159,11 @@ export function LocaleFieldTabs({
           }
         />
       </div>
+      {showsMissingTranslationHint(activeTab, defaultLocale, hasValueForLocale(activeTab)) ? (
+        <p className="m-0 text-[12px]" style={{ color: CHROME.muted }}>
+          {t("No text in {lang} yet. The canvas shows the base text.").replace("{lang}", inUi(activeTab))}
+        </p>
+      ) : null}
       {renderField(activeTab, activeTab === defaultLocale)}
     </div>
   );

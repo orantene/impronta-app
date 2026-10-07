@@ -475,7 +475,7 @@ function BuilderNodeContentInspectorBody({
       const next = nextValue.trim();
       if (!allowEmpty && next.length === 0) return;
       const normalized = allowEmpty ? next || undefined : next;
-      if (normalized === currentValue || (normalized ?? "") === currentValue) return;
+      if (normalized === currentValue || (normalized ?? "") === currentValue.trim()) return;
       await commitPatch({ [key]: normalized });
     };
 
