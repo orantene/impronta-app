@@ -17,6 +17,9 @@ import {
 
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
+/** The shape these tests edit: a page tree node (children always present in the fixtures). */
+interface TestNode { id?: string; kind?: string; props: Record<string, unknown>; children: TestNode[] }
+
 const PUBLISHED_HOME = [
   {
     id: "hero",
@@ -32,7 +35,7 @@ const PUBLISHED_HOME = [
 ];
 
 function approvedDraft() {
-  const d = clone(PUBLISHED_HOME) as any[];
+  const d = clone(PUBLISHED_HOME) as unknown as TestNode[];
   const [h1, lede] = d[0].children;
   h1.props.text = "Pestañas que enmarcan tu mirada.";
   h1.props.i18n = { es: { text: "Pestañas que enmarcan tu mirada." }, en: { text: "Lashes that frame your look." } };
@@ -292,11 +295,11 @@ test("a failed cache bust is a warning; the publish stands", async () => {
 });
 
 test("the hero lede is anchored by path even when the page has many other paragraphs (dry-run refusal regression)", () => {
-  const extra = (n: number) => ({ id: `p${n}`, kind: "paragraph", props: { text: `Parrafo ${n}` } });
-  const published = clone(PUBLISHED_HOME) as any[];
+  const extra = (n: number): TestNode => ({ id: `p${n}`, kind: "paragraph", props: { text: `Parrafo ${n}` }, children: [] });
+  const published = clone(PUBLISHED_HOME) as unknown as TestNode[];
   published[0].children.push(extra(1), extra(2));
   published.splice(1, 0, { id: "about", kind: "section", props: {}, children: [extra(3), extra(4)] });
-  const draft = clone(published) as any[];
+  const draft = clone(published) as unknown as TestNode[];
   const lede = draft[0].children[1];
   lede.props.text = "Lashista en Playa del Carmen";
   lede.props.i18n = { es: { text: "Lashista en Playa del Carmen" }, en: { text: "Lash artist in Playa del Carmen" } };
@@ -304,11 +307,11 @@ test("the hero lede is anchored by path even when the page has many other paragr
   const a = findAnchors(published, draft);
   assert.equal(a.lede, "[0].children[1]");
   // If the draft node at that path is not a paragraph, nothing is approved.
-  const broken = clone(draft) as any[];
-  broken[0].children[1] = { id: "lede", kind: "button", props: { label: "x" } };
+  const broken = clone(draft) as unknown as TestNode[];
+  broken[0].children[1] = { id: "lede", kind: "button", props: { label: "x" }, children: [] };
   assert.equal(findAnchors(published, broken).lede, null);
   // A different node id at the same path is not the same node.
-  const swapped = clone(draft) as any[];
+  const swapped = clone(draft) as unknown as TestNode[];
   swapped[0].children[1].id = "other";
   assert.equal(findAnchors(published, swapped).lede, null);
 });
