@@ -30,8 +30,12 @@ export type ArrivalPayload = {
   businessName: string | null;
   link: { display: string; href: string } | null;
   fact: { services: number; city: string | null; logo: boolean; hours: boolean; whatsapp: boolean; menuItems: number; photos: boolean };
-  primary: { label: "finish_my_page" | "open_my_website" | "open_my_workspace"; href: string };
+  primary: { label: "finish_my_page" | "open_my_site" | "open_my_website" | "open_my_workspace"; href: string };
   quiet: "signed_in_as" | "own_page_drafted" | null;
+  /** Talent path: the free site is published and `link` is its live address (TUL-32). */
+  siteLive?: boolean;
+  /** Talent path: where "Finish my page" goes (the Today deep link). */
+  finishHref?: string;
 };
 
 export function parseArrivalStamp(raw: unknown): ArrivalStamp {
@@ -54,7 +58,7 @@ export function arrivalFromStamp(input: {
   /** Public site URL (no params) and the builder deep link, when a tenant exists. */
   site: { publicUrl: string; editorUrl: string; adminPath: string } | null;
   /** Talent page URL and the Today deep link, when a profile exists. */
-  talent: { publicUrl: string | null; todayUrl: string } | null;
+  talent: { publicUrl: string | null; todayUrl: string; /** Published own-site URL (TUL-32), when live. */ siteUrl?: string | null } | null;
 }): ArrivalPayload {
   const placed = input.stamp?.placed ?? {};
   const fact = {
@@ -68,6 +72,21 @@ export function arrivalFromStamp(input: {
     // universal are the shared fallback and must not be claimed.
     photos: placed.photos?.hero === "type" || placed.photos?.hero === "owner",
   };
+
+  if (input.path === "talent" && input.talent?.siteUrl) {
+    const live = input.talent.siteUrl;
+    return {
+      variant: "talent",
+      headlineName: input.person.name,
+      businessName: null,
+      link: { display: live.replace(/^https?:\/\//, ""), href: live },
+      fact,
+      primary: { label: "open_my_site", href: live },
+      quiet: "signed_in_as",
+      siteLive: true,
+      finishHref: input.talent.todayUrl,
+    };
+  }
 
   if (input.path === "talent") {
     return {
