@@ -361,7 +361,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
                 durationNote: c.durationNote,
                 barIdleTitle: c.barIdleTitle,
                 barIdleHint: c.barIdleHint,
-                barSeeServices: c.barSeeServices,
+                barSeeServices: surfaceBooking === "inquire" ? c.barSeeServices : c.barBook,
                 barContinue: c.barContinue,
                 emptyTitle: c.menuEmptyTitle,
                 emptyBody: c.menuEmptyBody,
