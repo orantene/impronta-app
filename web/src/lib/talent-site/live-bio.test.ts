@@ -5,10 +5,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { renderToStaticMarkup } from "react-dom/server";
+
+import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
 import { resolveLiveBio, withBioHints } from "./live-bio";
-import { applyTalentLiveText } from "./live-text";
+import { applyTalentLiveText, treeHasLiveCandidates } from "./live-text";
 import { buildTalentLiveText, type LiveTextSource } from "./live-text-values";
 import { COLLECTION_DESIGNS } from "./theme-catalog/collection/designs";
 import { buildMaisonDesignPayload } from "./theme-catalog/maison/design-payload";
@@ -138,4 +141,67 @@ test("every released design binds its About paragraph to the live bio; no paragr
   }
   assert.deepEqual(unbound, [], "an unbound {{richBio}} paragraph would stay English for a Spanish visitor");
   assert.ok(bound.length >= 7, `bound designs: ${bound.join(", ")}`);
+});
+
+// ── Folio masthead blurb (block prop, not a paragraph) ──────────────────────
+
+const masthead = (extra: Record<string, unknown> = {}): BuilderNode =>
+  ({
+    id: "m",
+    kind: "masthead",
+    props: { lines: ["Alba"], edition: "magazine", bio: "baked blurb", ctaLabel: "Consultar", ctaHref: "#ask", liveText: "bio", ...extra },
+  }) as unknown as BuilderNode;
+const html = (nodes: BuilderNode[]): string =>
+  renderToStaticMarkup(
+    renderBuilderNodes(nodes, { mode: "freeform", includeRendererStyles: false, includeFontLinks: false, dataSources: {} }),
+  );
+
+test("masthead: an EN visitor reads the EN blurb, an ES visitor the ES blurb, no hint", () => {
+  const src = { ...SRC, bioI18n: BOTH };
+  const en = html(applyTalentLiveText([masthead()], buildTalentLiveText(src, "en", ["en", "es"])));
+  assert.match(en, /<p>I paint nails in Merida\.<\/p>/);
+  assert.doesNotMatch(en, /baked blurb|data-bio-hint|Text in/);
+  const es = html(applyTalentLiveText([masthead()], buildTalentLiveText(src, "es", ["es"])));
+  assert.match(es, /<p>Pinto uñas en Mérida\.<\/p>/);
+  assert.doesNotMatch(es, /data-bio-hint/);
+});
+
+test("masthead: the hint shows on a fallback only, right after the blurb", () => {
+  const live = buildTalentLiveText({ ...SRC, bioI18n: { es: BOTH.es } }, "en", ["en", "es"]);
+  const out = applyTalentLiveText([masthead()], live);
+  assert.match(html(out), /<p>Pinto uñas en Mérida\.<\/p><p data-bio-hint="1"[^>]*>\(Text in Spanish\)<\/p>/);
+  assert.equal(applyTalentLiveText(out, live), out, "idempotent");
+  // Back to the visitor's own language: a stale hint is dropped.
+  const own = applyTalentLiveText(out, buildTalentLiveText({ ...SRC, bioI18n: BOTH }, "en", ["en", "es"]));
+  assert.doesNotMatch(html(own), /data-bio-hint/);
+});
+
+test("masthead: no bio hides the blurb (no empty element), keeps the buttons; a failed load keeps the baked blurb", () => {
+  const none = html(applyTalentLiveText([masthead()], buildTalentLiveText({ ...SRC, bioI18n: {} }, "en", ["en"])));
+  assert.doesNotMatch(none, /baked blurb|<p><\/p>|data-bio-hint/);
+  assert.match(none, /Consultar/);
+  const tree = [masthead()];
+  assert.equal(applyTalentLiveText(tree, { values: {} }), tree);
+  assert.match(html(tree), /baked blurb/);
+});
+
+test("masthead: without liveText the tree is byte-identical and not a live candidate", () => {
+  const tree = [masthead({ liveText: undefined })];
+  const live = buildTalentLiveText({ ...SRC, bioI18n: BOTH }, "en", ["en", "es"]);
+  const before = JSON.stringify(tree);
+  const out = applyTalentLiveText(tree, live);
+  assert.equal(out, tree);
+  assert.equal(JSON.stringify(out), before);
+  assert.equal(treeHasLiveCandidates(tree), false);
+  assert.equal(treeHasLiveCandidates([masthead()]), true);
+});
+
+test("the Folio seed binds its masthead blurb to the live bio", () => {
+  const folio = COLLECTION_DESIGNS.find((d) => d.slug === "folio");
+  assert.ok(folio, "folio is a collection design");
+  const bound: unknown[] = [];
+  walk(folio.buildPayload().homeTree, (n) => {
+    if (n.kind === "masthead") bound.push((n.props as Record<string, unknown>).liveText);
+  });
+  assert.deepEqual(bound, ["bio"]);
 });
