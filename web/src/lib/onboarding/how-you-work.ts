@@ -36,20 +36,6 @@ export function movesFor(f: HowYouWorkFacts): HowYouWorkMove[] {
   return [f.hasTalentProfile ? "resume_bookings" : "add_provider"];
 }
 
-export type ProfileState = { workflow_status: string; visibility: string };
-
-/**
- * A provider added later must end live, like the 100%-visible state of a
- * bookable owner: draft/hidden is promoted to approved/public. Already live
- * states (approved, published, public) are never touched or downgraded.
- */
-export function planProfilePromotion(p: ProfileState): Partial<ProfileState> | null {
-  const patch: Partial<ProfileState> = {};
-  if (p.workflow_status === "draft" || p.workflow_status === "hidden") patch.workflow_status = "approved";
-  if (p.visibility === "hidden") patch.visibility = "public";
-  return Object.keys(patch).length ? patch : null;
-}
-
 type Fail = { ok: false; error: string };
 
 export type MoveDeps = {

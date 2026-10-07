@@ -7,7 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
 
-import { planProfilePromotion, type HowYouWorkFacts } from "./how-you-work";
+import type { HowYouWorkFacts } from "./how-you-work";
 
 type Admin = SupabaseClient;
 
@@ -75,18 +75,3 @@ export async function setHomeSurfacePreference(admin: Admin, userId: string, sur
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
-export async function promoteTalentProfileLive(admin: Admin, talentProfileId: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const { data, error } = await admin.from("talent_profiles").select("workflow_status, visibility").eq("id", talentProfileId).maybeSingle();
-  if (error || !data) {
-    logServerError("how-you-work.promote.read", error ?? new Error("no profile"));
-    return { ok: false, error: "Could not read your talent profile." };
-  }
-  const patch = planProfilePromotion(data as { workflow_status: string; visibility: string });
-  if (!patch) return { ok: true };
-  const { error: upErr } = await admin.from("talent_profiles").update(patch).eq("id", talentProfileId);
-  if (upErr) {
-    logServerError("how-you-work.promote.write", upErr);
-    return { ok: false, error: "Could not publish your talent profile." };
-  }
-  return { ok: true };
-}

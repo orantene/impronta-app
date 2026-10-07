@@ -4,13 +4,12 @@ import test from "node:test";
 import {
   deriveHowYouWork,
   movesFor,
-  planProfilePromotion,
-  type ProfileState,
   runHowYouWorkMove,
   type HowYouWorkFacts,
   type HowYouWorkMove,
   type MoveDeps,
 } from "./how-you-work";
+import { planProfilePromotion, type ProfileState } from "./talent-profile-promotion";
 
 const base: HowYouWorkFacts = {
   hasTalentProfile: false, ownsWorkspace: false, bookable: false,

@@ -13,7 +13,8 @@ import {
   type HowYouWorkMove,
   type MoveInput,
 } from "@/lib/onboarding/how-you-work";
-import { hideSelfFromBooking, loadFacts, promoteTalentProfileLive, setHomeSurfacePreference } from "@/lib/onboarding/how-you-work.server";
+import { hideSelfFromBooking, loadFacts, setHomeSurfacePreference } from "@/lib/onboarding/how-you-work.server";
+import { promoteTalentProfileLive } from "@/lib/onboarding/talent-profile-promotion.server";
 import type { OnboardingChoice } from "@/lib/onboarding/choice";
 import { ensureSelfRosterSiteVisible } from "@/lib/saas/ensure-self-roster";
 import { getCachedActorSession } from "@/lib/server/request-cache";
