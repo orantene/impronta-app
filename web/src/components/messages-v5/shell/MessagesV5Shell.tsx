@@ -182,9 +182,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   const activeIdRef = useRef<string | null>(null);
   // The host learns the unfiltered total from THIS read instead of fetching the inbox again.
   const onInboxLoadedRef = useRef(props.onInboxLoaded);
-  useEffect(() => {
-    onInboxLoadedRef.current = props.onInboxLoaded;
-  }, [props.onInboxLoaded]);
+  useEffect(() => { onInboxLoadedRef.current = props.onInboxLoaded; }, [props.onInboxLoaded]);
   const reloadInbox = useCallback(async () => {
     const filter = SEGMENT_FILTER[segment];
     const result = await safeLoadInbox(engine.loadInbox, { locationSlug, filter }, 2000, engine.loadInboxBudgetMs);
@@ -193,10 +191,8 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       setInboxError(result.reason);
       return;
     }
-    // The thread the operator is on stays listed when the segment no longer
-    // returns it (a reply moved it from Needs action to Waiting); its row is
-    // re-read from the unfiltered inbox so the next write sends the version
-    // the last one moved it to.
+    // The open thread stays listed when the segment drops it (a reply moved it from Needs action to Waiting);
+    // its row is re-read from the unfiltered inbox so the next write sends the version the last one moved it to.
     const active = activeIdRef.current;
     let fresh: InboxRow | null = null;
     if (active && filter !== "all" && !result.rows.some((row) => row.id === active)) {
@@ -402,8 +398,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       paymentIssue: failed ? "failed" : expired ? "expired" : null,
     }), copy.kit.taskWords);
   }, [activeRow, copy.kit.taskWords, essentials?.customer.identityLevel, holdExpiresAt, recordChips]);
-  // Solo talent fallback is Services (beauty/salon appointments), not the
-  // agency "Talent & services" label — that only applies when a preset says so.
+  // Solo talent fallback is Services (beauty/salon appointments), not the agency "Talent & services" label (preset only).
   const itemsLabel =
     props.industryPreset !== undefined && props.industryPreset !== null
       ? itemsLabelForPreset(props.industryPreset, copy.kit)
