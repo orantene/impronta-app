@@ -116,8 +116,8 @@ export function SupportCannedEditor({
           }}
           style={{
             border: "none",
-            background: "#F5F2EB",
-            color: "#0F0F11",
+            background: HQ.ink,
+            color: HQ.bg,
             borderRadius: 8,
             padding: "7px 12px",
             fontSize: 12,

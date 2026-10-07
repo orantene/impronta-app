@@ -76,7 +76,7 @@ export function TicketContextCard({
               padding: "6px 8px",
               borderRadius: 6,
               background: "rgba(194,106,69,0.18)",
-              color: "#C26A45",
+              color: "var(--color-admin-coral)",
               fontSize: 11,
               fontWeight: 700,
               letterSpacing: "0.04em",
@@ -114,7 +114,7 @@ export function TicketContextCard({
           <div style={{ fontSize: 13, color: HQ.ink, marginTop: 6 }}>{ticket.contactEmail}</div>
         ) : null}
         {ticket.callbackRequested ? (
-          <div style={{ color: "#C26A45", fontSize: 12, marginTop: 8 }}>
+          <div style={{ color: "var(--color-admin-coral)", fontSize: 12, marginTop: 8 }}>
             {t("dashboard.platform.support.callbackRequested")}
             {ticket.callbackPref ? ` · ${ticket.callbackPref}` : ""}
           </div>

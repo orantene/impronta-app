@@ -2,7 +2,7 @@
  * Support Desk portal — mirrors Platform HQ Support (`SupportHqShell`).
  *
  * Product guts stay in `platform/admin/support/*`. This file is host chrome
- * only (brand bar + HQ dark surface). Reuse HQ Support — no parallel inbox.
+ * only (brand bar + light admin surface (`.desk-light`, TUL-31)). Reuse HQ Support — no parallel inbox.
  */
 
 import { SupportHqShell } from "@/app/(workspace)/platform/admin/support/SupportHqShell";
@@ -37,7 +37,7 @@ export async function SupportDeskPortal({
 
   return (
     <div
-      className="platform-admin-root"
+      className="platform-admin-root desk-light"
       style={{
         minHeight: "100dvh",
         background: HQ.bg,

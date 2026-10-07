@@ -312,8 +312,8 @@ export function SupportTicketHqDrawer({
                   disabled={busy || !body.trim()}
                   onClick={() => void reply(false)}
                   style={{
-                    background: "#F5F2EB",
-                    color: "#0B0B0D",
+                    background: HQ.ink,
+                    color: HQ.bg,
                     border: "none",
                     borderRadius: 8,
                     padding: "8px 12px",
