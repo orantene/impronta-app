@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { CANONICAL_ROUTE_MATCHERS } from "@/components/admin/shell/canonical-routes";
+import { resolveWorkspaceAdminPage } from "@/app/(workspace)/[tenantSlug]/admin/workspace-page-routing";
 
 /**
  * The Orders desk, pinned at every layer that can silently drop it.
@@ -25,18 +27,17 @@ test("layer 1 — the canonical page file exists and is capability-gated", () =>
 });
 
 test("layer 2 — a canonical-route matcher claims /admin/orders", () => {
-  const src = read("src/components/admin/shell/canonical-routes.ts");
-  assert.match(
-    src,
-    /s\[0\] === "admin" && s\[1\] === "orders"/,
+  // The matchers are now a projection of the destination registry (no
+  // hand-written `s[1] === "orders"` line), so ask the real matcher list.
+  assert.ok(
+    CANONICAL_ROUTE_MATCHERS.some((match) => match(["admin", "orders"])),
     "without this the SPA renders its own body over the canonical page",
   );
 });
 
 test("layer 3 — 'orders' is an allowed workspace segment", () => {
-  const src = read("src/app/(workspace)/[tenantSlug]/admin/workspace-page-routing.ts");
-  const list = src.slice(src.indexOf("WORKSPACE_PAGE_SEGMENTS"), src.indexOf("export function"));
-  assert.ok(list.includes('"orders"'), "an unlisted segment resolves to overview, silently");
+  // The allow-list is now the registry; an unlisted segment resolves to overview.
+  assert.equal(resolveWorkspaceAdminPage("orders"), "orders", "an unlisted segment resolves to overview, silently");
 });
 
 test("layer 4 — something links to it", () => {

@@ -42,6 +42,7 @@ const EXEMPT: readonly (readonly [RegExp, string])[] = [
   [/^eval:/, "AI eval — needs model credentials and spends money per run"],
   [/:watch$/, "watch mode — never terminates"],
   [/:strict$|:full$/, "stricter variant of a lane that is itself wired"],
+  [/^test:orphans$/, "nightly-only lane (nightly-all-tests.yml), kept out of per-PR CI on purpose"],
   [/:selftest$/, "self-test of a guard whose main lane is wired"],
   [/^test:builder-capabilities:[ab]$/, "sub-lane of a wired aggregate"],
 ];
