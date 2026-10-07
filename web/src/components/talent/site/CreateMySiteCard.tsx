@@ -5,15 +5,19 @@
  * never writes a site row; this click is the only thing that does.
  */
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
+import { resetPublicPageBootstrap } from "@/components/talent/site/public-page-bootstrap";
+import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { ensureMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
 
-export function CreateMySiteCard({ onCreated }: { onCreated: () => Promise<void> }) {
+export function CreateMySiteCard({ onCreated }: { onCreated?: () => Promise<void> }) {
   const copy = useDashboardText();
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +30,15 @@ export function CreateMySiteCard({ onCreated }: { onCreated: () => Promise<void>
           setError(copy.t("Could not create your website. Try again."));
           return;
         }
-        await onCreated();
+        // TUL-214: drop every client cache that still says "no site" (the
+        // first-paint bootstrap slices, the eligibility facts behind the pill and
+        // the Today nudge), then re-run the server layout so the dashboard
+        // provider (Today nudge, preview links) gets the new state without a
+        // manual reload.
+        resetPublicPageBootstrap();
+        invalidateWebsiteEligibility();
+        router.refresh();
+        await onCreated?.();
       } catch {
         setError(copy.t("Could not create your website. Try again."));
       }

@@ -14,10 +14,9 @@
  * `personalSiteEdit` (`siteCapabilities`). While `TALENT_FREE_WEBSITE_ENABLED`
  * is off, `personalSiteEdit` resolves Max-only, so this is byte-identical to
  * the old "is Max" gate — only `talent_portfolio` ever reaches the editor. When
- * the switch is on, Free/Pro get `personalSiteEdit` too: this route
- * idempotently provisions their site (same scaffold as Max; Add/Move stay
- * locked via `personalSiteSections`) so Builder opens the locked editor
- * instead of bouncing to Public page / a hard upsell. A talent who cannot
+ * the switch is on, Free/Pro get `personalSiteEdit` too (Add/Move stay locked
+ * via `personalSiteSections`). This route is READ-ONLY (TUL-213): with no site
+ * it shows the explicit "Create my own website" control, never provisions. A talent who cannot
  * edit at all still sees the "Web Office" upsell (not a 404). An anonymous /
  * non-talent user is redirected to login by the talent layout's session guard.
  *
@@ -44,7 +43,8 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { buildTalentBuilderCanvasData } from "@/lib/talent-site/server/talent-builder-canvas.server";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
-import { provisionTalentMaxSite } from "@/lib/talent-site/server/provision-max-site";
+import { siteScaffoldComplete } from "@/lib/talent-site/server/site-scaffold-complete";
+import { PageBuilderCreateSite } from "@/components/talent/site/PageBuilderCreateSite";
 import { loadSiteRev } from "@/lib/talent-site/history/history.server";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
 import { buildTalentSiteCapabilities } from "@/lib/access/talent-membership";
@@ -100,31 +100,27 @@ async function resolveBuilderTenantId(profileId: string): Promise<string | null>
 }
 
 /**
- * "A site exists": any talent who can edit gets an idempotent provision
- * (`provisionTalentMaxSite` is capability-gated, not Max-hardcoded). Free with
- * the switch on must land in the locked editor — probing without provisioning
- * left Free talents stuck on Public page / 404 with no site row.
+ * "A site exists": READ-ONLY (TUL-213). Opening the builder never provisions a
+ * talent_sites row; a talent with no complete scaffold sees the explicit
+ * "Create my own website" control instead. Same
+ * completeness rule as the manager load (`siteScaffoldComplete`). A failed read
+ * counts as "no site" and is logged, never repaired by writing.
  */
-async function resolveSiteExists(input: {
-  profileId: string;
-  canEdit: boolean;
-  userId: string;
-}): Promise<boolean> {
+async function resolveSiteExists(input: { profileId: string; canEdit: boolean }): Promise<boolean> {
   if (!input.canEdit) return false;
-  const result = await provisionTalentMaxSite(input.profileId, input.userId);
-  if (result.ok) return true;
-  logServerError("talentPageBuilder/siteProvision", new Error(result.error));
-  // Fall back to a slug probe so a transient provision error does not hide an
-  // already-created site from the editor.
   const admin = createServiceRoleClient();
   if (!admin) return false;
-  const { data: siteRow, error: siteError } = await admin
-    .from("talent_sites")
-    .select("site_slug")
-    .eq("talent_profile_id", input.profileId)
-    .maybeSingle();
-  if (siteError) logServerError("talentPageBuilder/siteExistsProbe", siteError);
-  return !siteError && !!(siteRow as { site_slug: string | null } | null)?.site_slug;
+  const [siteRes, pagesRes] = await Promise.all([
+    admin
+      .from("talent_sites")
+      .select("site_slug, shell_tree")
+      .eq("talent_profile_id", input.profileId)
+      .maybeSingle(),
+    admin.from("talent_pages").select("is_home").eq("talent_profile_id", input.profileId),
+  ]);
+  if (siteRes.error) logServerError("talentPageBuilder/siteExistsProbe", siteRes.error);
+  if (pagesRes.error) logServerError("talentPageBuilder/pagesProbe", pagesRes.error);
+  return siteScaffoldComplete(siteRes, pagesRes);
 }
 
 /** The editor row for a slug, or the home page when `{ home: true }`. */
@@ -165,8 +161,8 @@ export default async function TalentPageBuilderRoute({
   const requestedPage = typeof sp.page === "string" ? sp.page : null;
 
   // F93 - the independent server loads run as ONE parallel batch instead of a
-  // 6-deep serial chain (locale, provision/site probe, agency tenant, talent
-  // locales). Only provision -> (pages, editor row) is a real dependency.
+  // 6-deep serial chain (locale, site probe, agency tenant, talent
+  // locales). Only the site probe -> (pages, editor row) is a real dependency.
   const siteCapabilities = buildTalentSiteCapabilities(profile.talentPlanKey);
   const canEdit = siteCapabilities.personalSiteEdit;
 
@@ -197,14 +193,14 @@ export default async function TalentPageBuilderRoute({
     // talent's own languages (primary first), not the managing agency's.
     loadTalentLocaleSettings(profile.id),
     resolveBuilderTenantId(profile.id),
-    resolveSiteExists({ profileId: profile.id, canEdit, userId: session.user.id }),
+    resolveSiteExists({ profileId: profile.id, canEdit }),
   ]);
 
-  // Phase 1 gate: edit capability + a provisioned site. Provision usually
-  // succeeds above; if it failed and no site row exists, Public page is the
-  // recovery surface (create/design flow), not an empty editor.
+  // Phase 1 gate: edit capability + an existing site. No site yet: show the
+  // explicit create control; never create one as a side effect of this render
+  // (TUL-213). A refresh after the click re-runs this route and opens the editor.
   if (canEdit && !siteExists) {
-    redirect("/talent/public-page");
+    return <PageBuilderCreateSite locale={locale} />;
   }
   const hasBuilderAccess = canEdit && siteExists;
 

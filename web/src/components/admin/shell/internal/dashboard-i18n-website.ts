@@ -12,6 +12,9 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "Create my own website": "Crear mi propio sitio web",
   "Creating your website…": "Creando tu sitio web…",
   "Your profile page stays as it is. A separate website of your own is only created when you choose to.": "Tu página de perfil sigue como está. Tu propio sitio web aparte solo se crea cuando tú lo decides.",
+  "Create your website to use the page builder": "Crea tu sitio web para usar el editor de páginas",
+  "Create your own website first. Its address, logo and pages will appear here.": "Primero crea tu propio sitio web. Su dirección, logo y páginas aparecerán aquí.",
+  "Back to my presence": "Volver a mi presencia",
   "Could not create your website. Try again.": "No pudimos crear tu sitio web. Inténtalo de nuevo.",
   // Website settings entry row only; the screen's own strings load with the
   // lazy screen (WEBSITE_SETTINGS_ES_TEXT) to keep the admin bundle lean.
