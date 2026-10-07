@@ -261,6 +261,9 @@ const ES: Record<string, string> = {
   Date: "Fecha",
   "Buffer (minutes)": "Buffer (minutos)",
   Timezone: "Zona horaria",
+  "Search time zones": "Buscar zonas horarias",
+  "Search, like Cancun or Madrid": "Busca, por ejemplo Cancún o Madrid",
+  "Pick a time zone": "Elige una zona horaria",
   "Weekly hours, time off, buffer, and timezone. Travel stays on each booking.":
     "Horario semanal, ausencias, buffer y zona. El viaje queda en cada reserva.",
   "Closed dates block bookings. Alternate windows replace that day's weekly hours.":

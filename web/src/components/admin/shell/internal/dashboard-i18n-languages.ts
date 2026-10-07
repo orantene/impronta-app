@@ -46,6 +46,11 @@ export const LANGUAGES_ES_TEXT: Record<string, string> = {
   "Hide it": "Ocultarlo",
   "{lang} added. Fields still in {primary} show a red {code} dot.":
     "{lang} agregado. Los campos que siguen en {primary} muestran un punto {code} rojo.",
+  "Currency": "Moneda",
+  "Dashboard language": "Idioma del dashboard",
+  "Applies to your dashboard only. Your website has its own languages.":
+    "Solo cambia tu dashboard. Tu sitio web tiene sus propios idiomas.",
+  "Manage website languages": "Gestionar idiomas del sitio web",
   "Change in Website settings": "Cambiar en Ajustes del sitio",
   "Your site's languages": "Los idiomas de tu sitio",
   "Primary": "Principal",

@@ -10,6 +10,7 @@ import {
 import type { BookingHours, HoursException, WeeklyHours } from "@/lib/scheduling/hours-types";
 import { TALENT_AGENDA_VARS } from "./primitives";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { TimezonePicker, isListedTimeZone } from "./TimezonePicker";
 
 const LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
@@ -144,7 +145,7 @@ export function AgendaAvailabilityPage({
   }, [talentProfileId, seeded]);
 
   const canSave = useMemo(
-    () => rows.some((r) => r.open) && Boolean(talentProfileId) && Boolean(tz.trim()),
+    () => rows.some((r) => r.open) && Boolean(talentProfileId) && isListedTimeZone(tz),
     [rows, talentProfileId, tz],
   );
 
@@ -379,11 +380,7 @@ export function AgendaAvailabilityPage({
         </label>
         <label className="block text-[13px]">
           {copy.t("Timezone")}
-          <input
-            className="mt-1 w-full rounded-xl border border-black/10 px-3 py-2"
-            value={tz}
-            onChange={(e) => setTz(e.target.value)}
-          />
+          <TimezonePicker value={tz} onChange={(z) => { setTz(z); setUnsaved(true); }} />
         </label>
       </section>
 

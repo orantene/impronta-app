@@ -25,7 +25,7 @@ export function WorkingHoursPanelHost() {
   const open = store.useOpen();
   const router = useRouter();
   const copy = useAgendaCopy();
-  const { setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgendaHours, bridgeTalentAgendaV2 } = useAdminShell();
+  const { setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgendaHours, bridgeTalentAgendaV2, toast } = useAdminShell();
   const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
   const eligible = Boolean(bridgeTalentAgendaV2 && talentProfileId);
 
@@ -48,6 +48,7 @@ export function WorkingHoursPanelHost() {
         onBack={store.close}
         onSaved={() => {
           store.close();
+          toast(copy.t("Availability saved."));
           router.refresh();
         }}
       />

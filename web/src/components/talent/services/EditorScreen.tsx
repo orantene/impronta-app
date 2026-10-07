@@ -18,6 +18,7 @@ import {
 import { publicationWord } from "@/lib/talent/publication-state";
 import { offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
 import { PLATFORM_DEFAULT_BOOKING_POSTURE } from "@/lib/talent/selling-booking-settings";
+import { CurrencyField } from "./CurrencyField";
 import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { useOfferingsEditor } from "./use-offerings-editor";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
@@ -341,6 +342,7 @@ export function EditorScreen({
                   </div>
                 </label>
               )}
+              <CurrencyField value={item.currency} label={copy.t("Currency")} labelClass={LABEL} inputClass={INPUT} onChange={(c) => patch({ currency: c })} />
               <>
                   <label className="block">
                     <span className={LABEL}>{copy.t("How long it takes")}</span>
