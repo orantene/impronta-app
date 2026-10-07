@@ -1,6 +1,6 @@
 import "server-only";
 
-import { orderRowPrincipalCents } from "@/lib/orders/order-principal";
+import { ORDER_MONEY_STATUSES, collectedByOrder } from "@/lib/orders/order-principal";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import type { OrderForCard } from "@/lib/orders/order-card";
@@ -60,22 +60,21 @@ export async function loadOrdersForThread(
   // than the full total — asking a client to pay a sum they have part-paid.
   const { data: paidRows, error: paidErr } = await db
     .from("booking_transactions")
-    .select("order_id, gross_amount_cents, net_amount_cents, status")
+    .select("order_id, gross_amount_cents, net_amount_cents, status, refund_of_transaction_id")
     .in("order_id", ids)
-    .eq("status", "paid");
+    .in("status", [...ORDER_MONEY_STATUSES]);
 
   if (paidErr) logServerError("orders.loadOrdersForThread/paid", paidErr);
 
-  const collected = new Map<string, number>();
-  for (const row of (paidRows ?? []) as Array<{
-    order_id: string | null;
-    gross_amount_cents: number | null;
-    net_amount_cents?: number | null;
-  }>) {
-    if (!row.order_id) continue;
-    const principal = orderRowPrincipalCents(row);
-    collected.set(row.order_id, (collected.get(row.order_id) ?? 0) + principal);
-  }
+  const collected = collectedByOrder(
+    (paidRows ?? []) as Array<{
+      order_id: string | null;
+      gross_amount_cents: number | null;
+      net_amount_cents?: number | null;
+      status?: string | null;
+      refund_of_transaction_id?: string | null;
+    }>,
+  );
 
   // ONE words read for the whole thread. D4: the customer-facing noun comes
   // from the tenant's words table with a default, never hardcoded. A failure

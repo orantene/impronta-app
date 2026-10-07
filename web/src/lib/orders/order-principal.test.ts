@@ -88,3 +88,41 @@ test("static: refund-execute still sums gross", () => {
   assert.match(src, /gross_amount_cents/);
   assert.doesNotMatch(src, /order-principal/);
 });
+
+// ── Payout statuses keep counting (balance due must not reappear) ──────────
+const PASS_THROUGH = { order_id: "o1", gross_amount_cents: 101500, net_amount_cents: 100000 };
+
+for (const status of ["payout_sent", "payout_pending", "payout"]) {
+  test(`MX$1,000 order, only row ${status}: collected 100000, balance 0`, () => {
+    const rows = [{ ...PASS_THROUGH, status, refund_of_transaction_id: null }];
+    const collected = sumOrderCollectedCents(rows);
+    assert.equal(collected, 100000);
+    assert.equal(100000 - collected, 0);
+    assert.equal(collectedByOrder(rows).get("o1"), 100000);
+  });
+}
+
+test("failed status collects nothing", () => {
+  const rows = [{ ...PASS_THROUGH, status: "failed", refund_of_transaction_id: null }];
+  assert.equal(sumOrderCollectedCents(rows), 0);
+});
+
+test("order collection readers no longer filter on status = paid", () => {
+  const files = [
+    "src/app/(workspace)/[tenantSlug]/_data-bridge/orders.ts",
+    "src/app/(workspace)/[tenantSlug]/_data-bridge/payments-activity.ts",
+    "src/lib/projects/projects-reader.ts",
+    "src/app/(workspace)/[tenantSlug]/admin/pos/_projects/projects-mode-loader.ts",
+    "src/app/(public)/manage/[token]/page.tsx",
+    "src/lib/orders/complete-order.ts",
+    "src/lib/orders/orders-for-thread.ts",
+  ];
+  for (const f of files) {
+    const src = read(f);
+    const owed = f.endsWith("payments-activity.ts")
+      ? src.slice(src.indexOf("owedCollected") - 600, src.indexOf("owedCollected") + 100)
+      : src;
+    assert.ok(!/\.eq\("status",\s*(PAID|"paid")\)/.test(owed), `${f} still filters .eq status paid`);
+    assert.ok(!/status === "paid"\)/.test(owed.replace(/row\.status === "paid"/g, "")), `${f} filters in code`);
+  }
+});

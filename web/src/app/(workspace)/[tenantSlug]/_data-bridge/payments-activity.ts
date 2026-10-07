@@ -1,6 +1,6 @@
 import "server-only";
 
-import { collectedByOrder } from "@/lib/orders/order-principal";
+import { ORDER_MONEY_STATUSES, collectedByOrder } from "@/lib/orders/order-principal";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import type { TakingsSourceRow, DrawerSessionRow, OwedSourceRow } from "@/lib/payments/activity-shape";
@@ -160,7 +160,7 @@ export async function loadTenantOwedOrders(tenantId: string): Promise<OwedLoad> 
       .from("booking_transactions")
       .select("order_id, gross_amount_cents, net_amount_cents, status, refund_of_transaction_id")
       .in("order_id", ids)
-      .eq("status", PAID);
+      .in("status", [...ORDER_MONEY_STATUSES]);
     if (error) {
       logServerError("dataBridge.paymentsActivity/owedCollected", error);
       return { ok: false };

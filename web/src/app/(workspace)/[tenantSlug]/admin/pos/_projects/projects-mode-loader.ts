@@ -18,7 +18,7 @@ import "server-only";
  * A READ ERROR IS NOT AN EMPTY LIST. Same discipline as the reader.
  */
 
-import { sumOrderCollectedCents, type OrderCollectionRow } from "@/lib/orders/order-principal";
+import { ORDER_MONEY_STATUSES, sumOrderCollectedCents, type OrderCollectionRow } from "@/lib/orders/order-principal";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { generateOpaqueCode } from "@/lib/links/code";
@@ -244,7 +244,7 @@ export async function findReceiptByCode(
     .from("booking_transactions")
     .select("gross_amount_cents, net_amount_cents, status, refund_of_transaction_id")
     .eq("order_id", row.id)
-    .eq("status", "paid");
+    .in("status", [...ORDER_MONEY_STATUSES]);
   if (tx.error) {
     logServerError("pos.projects.findReceiptByCode/tx", tx.error);
     return { ok: false, reason: "unavailable" };

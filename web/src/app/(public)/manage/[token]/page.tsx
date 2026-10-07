@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { sumOrderCollectedCents, type OrderCollectionRow } from "@/lib/orders/order-principal";
+import { ORDER_MONEY_STATUSES, sumOrderCollectedCents, type OrderCollectionRow } from "@/lib/orders/order-principal";
 import { PublicFooter } from "@/components/public-footer";
 import { PublicHeader } from "@/components/public-header";
 import { createTranslator } from "@/i18n/messages";
@@ -113,7 +113,7 @@ export default async function ManageBookingPage({ params }: Params) {
       return <Refused title={t("public.manageBooking.title")} sentence={engine.unavailable} name={name} />;
     }
     paidCents = sumOrderCollectedCents(
-      ((txns ?? []) as OrderCollectionRow[]).filter((x) => x.status === "paid"),
+      ((txns ?? []) as OrderCollectionRow[]).filter((x) => ORDER_MONEY_STATUSES.includes(x.status ?? "")),
     );
   }
   // Same source as `cancelBookingSet`: the page cannot promise a window the

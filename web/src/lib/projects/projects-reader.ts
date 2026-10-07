@@ -24,7 +24,7 @@ import "server-only";
  * predicate is stated once, below, and used by every read here.
  */
 
-import { collectedByOrder } from "@/lib/orders/order-principal";
+import { ORDER_MONEY_STATUSES, collectedByOrder } from "@/lib/orders/order-principal";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { minorUnitDivisor } from "@/lib/orders/money-format";
@@ -408,7 +408,7 @@ async function loadAttachedOrders(
       .from("booking_transactions")
       .select("order_id, gross_amount_cents, net_amount_cents, status, refund_of_transaction_id")
       .in("order_id", ids)
-      .eq("status", "paid"),
+      .in("status", [...ORDER_MONEY_STATUSES]),
     admin.from("order_lines").select("order_id").in("order_id", ids),
   ]);
   if (txRes.error || lineRes.error) return { data: [], error: txRes.error ?? lineRes.error };
@@ -543,7 +543,7 @@ export async function loadClientRecord(
           .from("booking_transactions")
           .select("order_id, gross_amount_cents, net_amount_cents, status, refund_of_transaction_id")
           .in("order_id", orderIds)
-          .eq("status", "paid")
+          .in("status", [...ORDER_MONEY_STATUSES])
       : Promise.resolve({ data: [], error: null }),
     orderIds.length > 0
       ? admin.from("order_lines").select("order_id").in("order_id", orderIds)

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { collectedByOrder } from "@/lib/orders/order-principal";
+import { ORDER_MONEY_STATUSES, collectedByOrder } from "@/lib/orders/order-principal";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import type { OrderListRow } from "@/lib/orders/orders-list";
@@ -35,7 +35,6 @@ export type OrdersLoad =
  * balance the completion logic disagrees with, and a staff member chases a
  * customer who already paid. Same source, same predicate, one rule.
  */
-const PAID = "paid";
 
 const IN_BATCH = 150;
 
@@ -112,7 +111,7 @@ export async function loadWorkspaceOrders(
   const [linesRes, txRes, custRes] = await Promise.all([
     inBatches(orderIds, (ids) => admin.from("order_lines").select("order_id").in("order_id", ids)),
     inBatches(orderIds, (ids) =>
-      admin.from("booking_transactions").select("order_id, gross_amount_cents, net_amount_cents, status, refund_of_transaction_id").in("order_id", ids).eq("status", PAID),
+      admin.from("booking_transactions").select("order_id, gross_amount_cents, net_amount_cents, status, refund_of_transaction_id").in("order_id", ids).in("status", [...ORDER_MONEY_STATUSES]),
     ),
     inBatches(customerIds, (ids) => admin.from("customers").select("id, display_name, email").in("id", ids)),
   ]);
