@@ -391,6 +391,34 @@ export async function removeUploadedInquiryFiles(admin: SupabaseClient, userId: 
   return steps;
 }
 
+/** Public bucket that holds profile pictures at `avatars/{userId}/avatar.<ext>`. */
+export const AVATAR_BUCKET = "media-public";
+const AVATAR_USER_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Remove the user's profile picture file(s). The avatar is keyed by the AUTH user
+ * id, which no longer maps to anyone once the executor deletes the auth user, and
+ * the media reaper protects the `avatars/` prefix, so this is the only moment the
+ * file can be found. Clearing `profiles.avatar_url` (the plan) does not delete the
+ * object, which would stay reachable by its public URL. Idempotent: listing an
+ * empty prefix is a no-op, and removing an already-removed object is not an error.
+ */
+export async function removeUserAvatarFiles(admin: SupabaseClient, userId: string): Promise<StepResult[]> {
+  // Never list `avatars/` itself: the id becomes a path segment, so it must be a uuid.
+  if (!AVATAR_USER_ID_RE.test(userId)) {
+    return [{ label: "avatar_files.list", ok: false, error: "invalid user id" }];
+  }
+  const prefix = `avatars/${userId}`;
+  const { data, error } = await admin.storage.from(AVATAR_BUCKET).list(prefix, { limit: 100 });
+  if (error) return [{ label: "avatar_files.list", ok: false, error: error.message }];
+  const paths = (data ?? [])
+    .filter((o) => typeof o.name === "string" && o.name.length > 0)
+    .map((o) => `${prefix}/${o.name}`);
+  if (paths.length === 0) return [{ label: "avatar_files.remove", ok: true }];
+  const { error: rmErr } = await admin.storage.from(AVATAR_BUCKET).remove(paths);
+  return [rmErr ? { label: "avatar_files.remove", ok: false, error: rmErr.message } : { label: "avatar_files.remove", ok: true }];
+}
+
 /**
  * Run the full scrub for one user. Does NOT touch the auth user; the caller
  * changes the auth email (admin anonymize) or deletes it (executor) only when
@@ -404,6 +432,7 @@ export async function anonymizeUserData(
 ): Promise<AnonymizeReport> {
   const steps: StepResult[] = [];
   steps.push(...(await removeUploadedInquiryFiles(admin, subject.userId)));
+  steps.push(...(await removeUserAvatarFiles(admin, subject.userId)));
   for (const op of buildAnonymizationPlan(subject, now.toISOString(), options)) {
     steps.push(await runAnonymizationOp(admin, op));
   }
