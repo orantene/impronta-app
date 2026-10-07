@@ -157,7 +157,7 @@ function isHubProfileHref(href: string, profileCode: string): boolean {
 
 /** TUL-90: onboarding "Copy your public link": her own live address only, never a sample slug. */
 export function copyTalentOwnPublicLink(
-  self: { profileCode: string; workflowStatus: string; isPubliclyHidden: boolean } | null | undefined,
+  self: { profileCode?: string | null; workflowStatus?: string | null; isPubliclyHidden?: boolean | null } | null | undefined,
   toast: (message: string) => void,
   t: (key: string) => string,
 ): void {
