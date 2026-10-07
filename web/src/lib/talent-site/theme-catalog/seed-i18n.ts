@@ -49,7 +49,6 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   Prices: "Precios",
   "Pick a service, pick a time": "Elige un servicio y una hora",
   "Sessions and prices": "Sesiones y precios",
-  Book: "Reserva",
   Rates: "Contratación",
   // FAQ / contact
   Questions: "Preguntas",
@@ -57,11 +56,9 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   "Good to know": "Conviene saber",
   "Before your session": "Antes de tu sesión",
   "When you are ready": "Cuando quieras",
-  "Book a session": "Reserva una sesión",
   "What I get {i}asked{/i}": "Lo que {i}me preguntan{/i}",
   // Footer
   "See you {i}soon.{/i}": "Nos vemos {i}pronto.{/i}",
-  "Book an appointment": "Reservar cita",
   Where: "Dónde",
   "See location": "Ver ubicación",
   Contact: "Contacto",
@@ -70,6 +67,23 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   After: "Después",
   "Write from this site": "Escribir por este sitio",
 };
+
+/**
+ * Seeded labels whose Spanish (and English) wording depends on the site's
+ * booking mode (instant / request / inquiry). They get NO seeded overlay: the
+ * render-time mode-aware map (`SEEDED_MODE_COPY` in design-label-locale.ts,
+ * driven by `resolveSiteCtaMode`) keeps handling them, and a fixed overlay
+ * would freeze the instant wording. The static test proves each one really is
+ * handled by that map, so this list cannot hide a real gap.
+ */
+export const MODE_DEPENDENT_LABELS: readonly string[] = [
+  "Inquire for bookings",
+  "Book a session",
+  "Book",
+  "Reserve a time",
+  "Booking",
+  "Book an appointment",
+];
 
 /** Text made only of `{{tokens}}`, digits and punctuation: profile data, no copy. */
 export function isTokenOnlyText(text: string): boolean {
@@ -122,6 +136,7 @@ function seedNode(node: BuilderNode): BuilderNode {
   };
   // `es` from the table when the node has none; `en` always repeats the base.
   const fill = (key: string, base: string): void => {
+    if (MODE_DEPENDENT_LABELS.includes(base.trim())) return;
     if (!present("es", key)) {
       const es = SEED_TEXT_ES[base.trim()];
       if (es) add.es[key] = es;

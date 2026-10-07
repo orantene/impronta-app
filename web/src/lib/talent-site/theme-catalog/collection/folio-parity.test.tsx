@@ -25,7 +25,7 @@ const PINS = {
   highlight: "f6ed134ba4b1cd9e",
   booking: "8f87f1ae1e51bc17",
   // Re-pinned: only added props.i18n (es + en seed copy), see seed-i18n.ts.
-  maison: "0a6e2dae64d9f75d",
+  maison: "2e6b762c21d65f85",
   // Re-pinned after Gridline contentWidth/full + matrix viewport MQ (#2530), then es + en seed copy.
   gridline: "c3d78ff7449a8483",
 };

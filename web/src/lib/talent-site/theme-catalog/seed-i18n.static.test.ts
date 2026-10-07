@@ -11,7 +11,8 @@ import type { DesignPayload } from "../types";
 import { FINISHED_GALLERY_SLUGS } from "./gallery-meta";
 import { COLLECTION_DESIGNS } from "./collection/designs";
 import { buildMaisonDesignPayload } from "./maison/design-payload";
-import { isTokenOnlyText, SEED_TEXT_ES } from "./seed-i18n";
+import { localiseOne } from "../design-label-locale";
+import { isTokenOnlyText, MODE_DEPENDENT_LABELS, SEED_TEXT_ES } from "./seed-i18n";
 
 const DESIGNS: ReadonlyArray<readonly [string, () => DesignPayload]> = [
   ["maison", buildMaisonDesignPayload],
@@ -49,7 +50,7 @@ function scan(slug: string, payload: DesignPayload): { problems: string[]; value
       const kind = node.kind as Parameters<typeof localizablePropsForKind>[0];
       for (const prop of localizablePropsForKind(kind)) {
         const text = props[prop];
-        if (typeof text !== "string" || isTokenOnlyText(text)) continue;
+        if (typeof text !== "string" || isTokenOnlyText(text) || MODE_DEPENDENT_LABELS.includes(text.trim())) continue;
         for (const lang of ["es", "en"] as const) {
           const v = overlayValue(props, lang, prop);
           if (v === undefined) problems.push(`${path}.${prop} missing i18n.${lang} (${JSON.stringify(text)})`);
@@ -59,7 +60,7 @@ function scan(slug: string, payload: DesignPayload): { problems: string[]; value
       if (node.kind === "marquee" && Array.isArray(props.items)) {
         props.items.forEach((it, n) => {
           const text = it && typeof it === "object" ? (it as { text?: unknown }).text : undefined;
-          if (typeof text !== "string" || isTokenOnlyText(text)) return;
+          if (typeof text !== "string" || isTokenOnlyText(text) || MODE_DEPENDENT_LABELS.includes(text.trim())) return;
           for (const lang of ["es", "en"] as const) {
             const v = overlayValue(props, lang, `items.${n}.text`);
             if (v === undefined) problems.push(`${path}.items.${n}.text missing i18n.${lang} (${JSON.stringify(text)})`);
@@ -106,4 +107,13 @@ test("the scanner flags a missing overlay (guard against a vacuous pass)", () =>
     homeTree: [{ kind: "heading", id: "x", props: { text: "Plain English" } }],
   } as unknown as DesignPayload;
   assert.equal(scan("fake", fake).problems.length, 2);
+});
+
+test("every MODE_DEPENDENT_LABELS exemption is really handled by the mode-aware map", () => {
+  for (const label of MODE_DEPENDENT_LABELS) {
+    const es = (["instant", "request", "inquiry"] as const).map((m) => localiseOne(label, "es", m));
+    assert.ok(es.every((v) => v !== null), `${label}: no mode-aware Spanish`);
+    assert.ok(new Set(es).size > 1, `${label}: Spanish does not change with the booking mode`);
+    assert.ok(!(label in SEED_TEXT_ES), `${label}: must not also be in the static seed table`);
+  }
 });
