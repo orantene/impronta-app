@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { todayTotals } from "@/lib/talent-agenda/derive";
 import { loadTalentClients } from "@/lib/talent/clients-actions";
@@ -138,6 +139,7 @@ export function AgendaTodayPage({
   hours,
   eligibility,
   bookableCount = null,
+  awaitingReplyCount = null,
   sitePublished = false,
   siteUrl = null,
   monthCollected = null,
@@ -166,6 +168,8 @@ export function AgendaTodayPage({
   eligibility?: TodayEligibility | null;
   /** Non-archived services; null while loading. */
   bookableCount?: number | null;
+  /** Client threads awaiting her reply: the inbox "Needs reply" count (countAwaitingReply). */
+  awaitingReplyCount?: number | null;
   sitePublished?: boolean;
   siteUrl?: string | null;
   /** Paid this month from the earnings bridge; null when not loaded. */
@@ -202,6 +206,7 @@ export function AgendaTodayPage({
 
   const derived = todayFromAgenda(items, clock);
   const attention = derived.attention.filter((item) => !item.unscheduled);
+  const awaitingReply = awaitingReplyCount != null && awaitingReplyCount > 0 ? awaitingReplyCount : 0;
   const noTime = unscheduledAgendaItems(items);
   const appointments = todayAppointments(items, clock).filter((item) => !item.unscheduled);
   const upNext = (() => {
@@ -575,9 +580,9 @@ export function AgendaTodayPage({
           <section className={CARD} data-testid="today-attention">
             <CardHead>
               <CardTitle>{copy.t("Needs attention")}</CardTitle>
-              {attention.length > 0 ? (
+              {attention.length + (awaitingReply > 0 ? 1 : 0) > 0 ? (
                 <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[12px] font-semibold text-amber-800">
-                  {attention.length}
+                  {attention.length + (awaitingReply > 0 ? 1 : 0)}
                 </span>
               ) : null}
               <span className="flex-1" />
@@ -591,13 +596,34 @@ export function AgendaTodayPage({
                 </button>
               ) : null}
             </CardHead>
-            {attention.length === 0 ? (
+            {awaitingReply > 0 ? (
+              <div
+                className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-black/10 px-4 py-3"
+                data-testid="today-attention-awaiting-reply"
+              >
+                <Link
+                  href="/talent/inbox?filter=needs-reply"
+                  className="min-w-[min(100%,14rem)] flex-1 basis-[14rem] text-left"
+                >
+                  <div className="text-[14px] font-semibold text-[var(--tc-primary)]">
+                    {awaitingReply === 1
+                      ? copy.t("1 client waiting for a reply")
+                      : copy.t("{n} clients waiting for a reply").replace("{n}", String(awaitingReply))}
+                  </div>
+                  <div className="mt-px text-[12.5px] text-black/70">{copy.t("Open Messages")}</div>
+                </Link>
+                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11.5px] font-medium text-amber-800">
+                  {copy.t("Needs reply")}
+                </span>
+              </div>
+            ) : null}
+            {attention.length === 0 && awaitingReply === 0 ? (
               <div className={`border-t border-black/10 px-4 py-3 text-[13px] ${MUTED}`}>
                 <span className="font-semibold text-[var(--tc-primary)]">{copy.t("Nothing needs attention")}</span>{" "}
                 {copy.t("You are clear for now.")}
               </div>
-            ) : (
-              attention.slice(0, attentionLimit).map((item, index) => {
+            ) : null}
+            {attention.slice(0, attentionLimit).map((item, index) => {
                 const act = todayAttentionAction(item);
                 return (
                   <div key={item.id} className="flex flex-wrap items-start gap-x-3 gap-y-2 border-t border-black/10 px-4 py-3">
@@ -618,8 +644,7 @@ export function AgendaTodayPage({
                     </div>
                   </div>
                 );
-              })
-            )}
+              })}
           </section>
 
           {noTime.length > 0 ? (
