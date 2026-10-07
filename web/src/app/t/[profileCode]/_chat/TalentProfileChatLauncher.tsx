@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import type { CSSProperties } from "react";
 
 import type {
+  GuestChatOffering,
   ScanGuestConversationCallback,
   TalentChatLauncherProps,
 } from "@/lib/inquiry/guest-chat-contract";
