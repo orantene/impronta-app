@@ -346,7 +346,7 @@ export const ADD_GALLERY_CARD_COPY: Readonly<
       "Use when motion or showreel footage should lead the first screen.",
   },
   "sec-about-simple": {
-    description: "Agency story with supporting copy.",
+    description: "Your story with supporting copy.",
     infoTooltip:
       "A straightforward about section with headline and narrative paragraphs.",
   },

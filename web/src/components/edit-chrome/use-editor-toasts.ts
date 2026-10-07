@@ -147,13 +147,15 @@ export function useEditorToasts(input: {
   // whole-page replace). The Undo button in the toast calls undo().
   const [templateAppliedToast, setTemplateAppliedToast] = useTransientState<{
     label: string;
+    plain?: boolean;
   }>(8000);
   const clearTemplateAppliedToast = useCallback(
     () => setTemplateAppliedToast(null),
     [setTemplateAppliedToast],
   );
   const notifyTemplateApplied = useCallback(
-    (label: string) => setTemplateAppliedToast({ label }),
+    (label: string, opts?: { plain?: boolean }) =>
+      setTemplateAppliedToast({ label, plain: opts?.plain }),
     [setTemplateAppliedToast],
   );
 

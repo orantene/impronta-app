@@ -73,7 +73,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
   section({
     id: "sec-about-simple",
     label: "About Simple",
-    description: "Agency story with supporting copy.",
+    description: "Your story with supporting copy.",
     category: "about",
     icon: "about",
     sectionTemplateId: "about",

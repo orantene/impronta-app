@@ -95,7 +95,7 @@ export function formatBuilderNodeMutationError(input: {
     case "PARENT_DOES_NOT_ALLOW_CHILDREN":
       return `${operationPrefix}. Invalid target: this parent does not accept child blocks.${detailSuffix}`;
     case "ROOT_KIND_NOT_ALLOWED":
-      return `${operationPrefix}. Invalid target: this block type cannot live at page root.${detailSuffix}`;
+      return "This block needs to sit inside a section. Add a section first, then drop it in.";
     case "CHILD_KIND_NOT_ALLOWED":
       return `${operationPrefix}. Invalid target: this parent does not allow that block type.${detailSuffix}`;
     case "INVALID_MOVE_TARGET": {

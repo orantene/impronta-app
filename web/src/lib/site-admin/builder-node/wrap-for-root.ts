@@ -24,3 +24,8 @@ export function wrapNodeForRootInsert(node: BuilderNode): BuilderNode | null {
 export function wrapRootInsert(parentId: string | null, node: BuilderNode): BuilderNode {
   return parentId === null ? (wrapNodeForRootInsert(node) ?? node) : node;
 }
+
+/** wrapRootInsert plus the id of the original (possibly wrapped) leaf, for selection. */
+export function wrapRootInsertTracked(parentId: string | null, leaf: BuilderNode) {
+  return { node: wrapRootInsert(parentId, leaf), leafId: leaf.id };
+}

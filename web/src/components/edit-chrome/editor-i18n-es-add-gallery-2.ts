@@ -190,7 +190,7 @@ export const ES_ADD_GALLERY_2: Record<string, string> = {
   "Hero Spotlight": "Portada destacada",
   "Full-bleed photo with a left-anchored headline, description, and actions.": "Foto a sangre con título, descripción y acciones alineados a la izquierda.",
   "About Simple": "Acerca de simple",
-  "Agency story with supporting copy.": "La historia de la agencia con texto de apoyo.",
+  "Your story with supporting copy.": "Tu historia con texto de apoyo.",
   "A straightforward about section with headline and narrative paragraphs.": "Una sección acerca de sencilla con título y párrafos narrativos.",
   "About Split Image": "Acerca de con imagen dividida",
   "Story beside portrait or brand imagery.": "Historia junto a un retrato o imágenes de marca.",

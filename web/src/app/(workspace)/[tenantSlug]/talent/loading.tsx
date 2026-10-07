@@ -9,11 +9,15 @@
  * Skeleton chrome mirrors the talent topbar so the transition feels like
  * the same surface "filling in" rather than a full reload.
  */
-export default function TalentLoading() {
+import { editorT } from "@/components/edit-chrome/editor-i18n";
+import { getRequestLocale } from "@/i18n/request-locale";
+
+export default async function TalentLoading() {
+  const locale = (await getRequestLocale()).toLowerCase().startsWith("es") ? "es" : "en";
   return (
     <div
       role="status"
-      aria-label="Loading talent surface"
+      aria-label={editorT("Loading", locale)}
       style={{
         display: "flex",
         flexDirection: "column",

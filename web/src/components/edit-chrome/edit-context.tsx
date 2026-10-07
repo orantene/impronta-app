@@ -94,7 +94,7 @@ import {
   cloneNodeWithFreshIds,
   createBuilderMutationAuditEvent,
   createEditorDispatchAuditEvent,
-  createBuilderNode, wrapRootInsert,
+  createBuilderNode, wrapRootInsert, wrapRootInsertTracked,
   formatBuilderNodeMutationError,
   isBuilderMutationAuditEnabled,
   recordBuilderMutationAuditEvent,
@@ -3932,7 +3932,7 @@ export function EditProvider({
       } catch {
         return { ok: false, error: "That block could not be read." };
       }
-      const node = cloneNodeWithFreshIds(parsed);
+      const { node, leafId: insertedLeafId } = wrapRootInsertTracked(parentId, cloneNodeWithFreshIds(parsed));
       const inserted = await executeBuilderNodeOperation({
         operation: "insert",
         nodeId: node.id,
@@ -3955,11 +3955,11 @@ export function EditProvider({
       );
       if (ownerSectionId) {
         setSelectedSectionId(ownerSectionId);
-        setSelectedBuilderNodeIdOverride(node.id);
-        markNavigatorAddition(ownerSectionId, node.id, "block");
+        setSelectedBuilderNodeIdOverride(insertedLeafId);
+        markNavigatorAddition(ownerSectionId, insertedLeafId, "block");
       }
       markNodeInserted(node.id);
-      return { ok: true, nodeId: node.id };
+      return { ok: true, nodeId: insertedLeafId };
     },
     [
       executeBuilderNodeOperation,
@@ -4274,9 +4274,8 @@ export function EditProvider({
             nodeId,
           }),
       });
-      if (!removed.ok) {
-        return { ok: false, error: removed.error };
-      }
+      if (!removed.ok) return { ok: false, error: removed.error };
+      notifyTemplateApplied("Block deleted", { plain: true }); // TUL-70: undoable
       if (removingActiveNode) {
         // Keep section/canvas/inspector selection aligned immediately after
         // delete: prefer the section root builder node (honest selection).
@@ -4293,6 +4292,7 @@ export function EditProvider({
       runBuilderNodeOp,
       focusSectionForEdit,
       setSelectedBuilderNodeIdOverride,
+      notifyTemplateApplied,
     ],
   );
   const duplicateBuilderNode = useCallback<
