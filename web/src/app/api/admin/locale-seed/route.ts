@@ -43,7 +43,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     secure: process.env.NODE_ENV === "production",
   });
 
-  // Membership is the gate: the slug must be one of the signed-in user's own workspaces.
+  // Not a membership check: the admin layout only hops here after its own
+  // canView gate. This handler writes nothing but the CALLER'S own locale
+  // cookie, from the tenant's public default language, so a signed-in user
+  // naming another slug can at most set their own cookie to that language.
   const [session, scope] = await Promise.all([getCachedActorSession(), getTenantScopeBySlug(slug)]);
   if (!session.user || !scope) return res;
 
