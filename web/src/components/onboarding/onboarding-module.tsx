@@ -500,6 +500,7 @@ export function OnboardingModule({
       <SaveStep
         t={t}
         path={path}
+        choice={state.choice}
         busy={state.busy}
         error={state.accountMessage}
         onEmail={(email, ageTerms) => void sendCode(email, false, ageTerms)}
