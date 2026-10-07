@@ -142,8 +142,7 @@ import { isTalentExclusiveToTenant } from "@/lib/agency/talent-exclusivity";
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { resolvePlatformTalentSiteForProfile } from "@/lib/talent-site/resolve-platform-talent-site";
-import { resolveOrRedirectTalentProfileCode } from "@/lib/talent/profile-code-redirect.server";
-import { resolveTalentProfileCodeQuiet } from "@/lib/talent/profile-code-resolve.server";
+import { liveTalentProfileCode } from "@/lib/talent/profile-code-redirect.server";
 import { loadTalentMaxSiteLink } from "@/lib/talent-site/server/load-max-site-link";
 import { TALENT_SITE_TEMPLATES } from "@/lib/talent-site/templates/registry";
 import type { TalentSiteTemplateKey } from "@/lib/talent-site/templates/types";
@@ -1370,12 +1369,8 @@ export async function buildTalentProfileMetadata({
 }): Promise<Metadata> {
   if (!isSupabaseConfigured()) return {};
 
-  const { profileCode: rawProfileCode } = await params;
+  const profileCode = await liveTalentProfileCode((await params).profileCode, { quiet: true });
   const { preview } = await searchParams;
-  // Metadata must not permanentRedirect — that turns document navigations into
-  // soft RSC NEXT_REDIRECT payloads (HTTP 200). The page view redirects.
-  const aliasResolved = await resolveTalentProfileCodeQuiet(rawProfileCode);
-  const profileCode = aliasResolved?.profileCode ?? rawProfileCode;
   const site =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "http://localhost:3000";
   const hostCtx = await getPublicHostContext();
@@ -1523,12 +1518,8 @@ export async function TalentProfileView({
   sp: TalentProfileSearchParams;
   variant?: "page" | "modal";
 }) {
-  const aliasResolved = await resolveOrRedirectTalentProfileCode(rawProfileCode, {
-    pathname: `/t/${rawProfileCode}`,
-  });
-  const profileCode = aliasResolved?.profileCode ?? rawProfileCode;
-  const isModal = variant === "modal";
-  const { preview } = sp;
+  const profileCode = await liveTalentProfileCode(rawProfileCode, { pathname: `/t/${rawProfileCode}` });
+  const isModal = variant === "modal", { preview } = sp;
   let locale = await getRequestLocale();
   let t = createTranslator(locale);
   const previewMode = preview === "1";

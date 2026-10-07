@@ -337,12 +337,12 @@ export async function isProfileCodeOnTenantRoster(
   try {
     // Resolve vanity aliases first so retired /t/<old-code> URLs still pass
     // the roster gate on agency hosts (same RPC the public profile uses).
-    const { data: resolvedRows } = await supabase.rpc("resolve_talent_profile_code", {
+    const { data: resolvedRows, error: resolveErr } = await supabase.rpc("resolve_talent_profile_code", {
       p_code: profileCode,
     });
     const resolved = Array.isArray(resolvedRows) ? resolvedRows[0] : resolvedRows;
     const liveCode =
-      typeof resolved?.profile_code === "string" && resolved.profile_code
+      !resolveErr && typeof resolved?.profile_code === "string" && resolved.profile_code
         ? resolved.profile_code
         : profileCode;
 

@@ -4,6 +4,7 @@ import { permanentRedirect } from "next/navigation";
 
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { resolveTalentProfileCodeQuiet } from "@/lib/talent/profile-code-resolve.server";
 import {
   normalizeTalentProfileCodeInput,
   resolveTalentProfileCode,
@@ -51,4 +52,18 @@ export async function resolveOrRedirectTalentProfileCode(
   }
 
   return resolved;
+}
+
+/**
+ * Live (numeric) code for a /t/<code> segment. `quiet` skips the permanent
+ * redirect (metadata must not redirect: it turns navigations into soft 200s).
+ */
+export async function liveTalentProfileCode(
+  rawCode: string,
+  opts: { quiet?: boolean; pathname?: string } = {},
+): Promise<string> {
+  const r = opts.quiet
+    ? await resolveTalentProfileCodeQuiet(rawCode)
+    : await resolveOrRedirectTalentProfileCode(rawCode, { pathname: opts.pathname });
+  return r?.profileCode ?? rawCode;
 }
