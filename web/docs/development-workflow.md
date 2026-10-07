@@ -228,3 +228,70 @@ If anything shows, merge `origin/main` into your branch and re-run the full
 gate (tsc, lint, lanes, `next build`) BEFORE merging the PR — CI on the PR
 tests the merged tree, but your local prod-build/QA evidence is stale until
 you refresh it.
+
+## 12. Stacked PRs and the CI gate
+
+*Research note for TUL-192, verified against the workflow files on `main` at
+`675dc62a6` (2026-10-07). No workflow was changed.*
+
+**Current behaviour.** Three PR workflows only fire for PRs whose base is
+`main`:
+
+| Workflow | Trigger |
+|---|---|
+| `.github/workflows/ci.yml` (structural gate) | `pull_request: branches: [main]`, lines 42-44 |
+| `.github/workflows/admin-boot.yml` | `pull_request: branches: [main]`, lines 18-20 |
+| `.github/workflows/builder-fidelity.yml` | `pull_request: branches: [main]`, lines 4-6 |
+
+`talent-website-e2e.yml` (lines 31-33) has no `branches` filter, but it is
+path-filtered and its job only runs for `integ/*` heads or the `full-ci` label
+(line 60), so it is not a general gate either.
+
+A stacked PR (base is another feature branch) therefore gets **no gate at all**
+on open or on any push: no tsc, lint, ratchets, or test lanes. Retargeting it to
+`main` does not start one either, because `ci.yml:44` lists
+`[opened, synchronize, reopened, ready_for_review]` and omits `edited`, which
+is the event GitHub emits for a base change. The first run appears on the next
+push to the branch. We did not test whether GitHub's automatic retarget after
+the parent branch is merged and deleted starts a run; do not rely on it.
+
+**Is it intended?** Nothing in the repo says so in as many words, and the
+ticket's premise needs one correction: root `CLAUDE.md` does not mention
+stacking. The relevant rule is `web/AGENTS.md:16`: "Fresh worktree per PR, off
+the LATEST `origin/main`. Never stack branches." The header of `ci.yml`
+(line 4) describes the gate as running "on every PR to `main` and every push to
+`main`". So the filter is consistent with the no-stacking rule, but it is a
+side effect of that filter, not a documented guarantee. It is a gap only for
+people who stack anyway.
+
+**Why it is acceptable.** The gate that decides what ships does not depend on
+PR runs:
+
+- `ci.yml:45-46` runs the same gate on every push to `main`, so the merged
+  state is always tested after it lands.
+- `promote-production.yml` advances `production` only when that run succeeded
+  on the exact commit (line 51, re-checked at lines 90-91 for manual runs).
+- `main-red-alert.yml` opens the pinned red-main issue when it fails.
+
+So an ungated stack cannot reach production. What it can do is turn `main`
+red, which per section 10 stops everyone else's merges until it is fixed. That
+cost, not a release risk, is why stacking is discouraged.
+
+**Recommended policy.**
+
+1. Do not stack. Branch every PR off the latest `origin/main`, as section 5
+   and `web/AGENTS.md` already say.
+2. If PR B truly depends on unmerged PR A, wait for A to merge, then rebase B
+   onto `origin/main` and open or retarget B only after that (section 11).
+3. If a stack already exists, retarget the PR to `main` and push a new commit
+   (a rebase push counts) so the gate runs on the final merged tree. Do not
+   merge until that run is green. Run `npm run gates` locally in the meantime.
+4. Do not widen the triggers (drop `branches: [main]`). Runner capacity is
+   already the constraint (see the draft-PR and `full-ci` skips added during the
+   2026-10-07 CI jam), and stacking is not a workflow we want to subsidise.
+   Revisit only if stacking becomes routine; the alternative would be a
+   dedicated lightweight `pull_request` job with no `branches` filter, which
+   would be a separate ticket.
+
+We could not read branch protection (the API returned 403 for this token), so
+whether any check is *required* on `main` was not verified.
