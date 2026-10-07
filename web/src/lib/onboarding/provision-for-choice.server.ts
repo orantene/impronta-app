@@ -19,6 +19,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
 import { getAppUrl } from "@/lib/auth-flow";
+import { bustAllTenantCaches } from "@/lib/site-admin/builder-core/site-templates/compose-cache-bust.server";
 import { ensureSelfRosterSiteVisible } from "@/lib/saas/ensure-self-roster";
 import { ensureWorkspaceSubdomainRow } from "@/lib/saas/ensure-workspace-domain";
 import { provisionWorkspaceFromLead, type ProvisionWorkspaceResult } from "@/lib/saas/workspace-signup.server";
@@ -191,6 +192,10 @@ export async function provisionForChoice(
         talentCtx = { talentProfileId: talent.talentProfileId, tenantId };
       }
       const r = await runEssentialsWrites(createEssentialsStore(admin), { choice: c, essentials, talent: talentCtx, workspace });
+      // TUL-77: the site was composed (and may already be cached) BEFORE these
+      // services and hours existed; bust it so the live catalog bands show
+      // them on the first public load instead of the static fallback.
+      if (workspace) bustAllTenantCaches(workspace.tenantId);
       return r.warnings;
     },
 
