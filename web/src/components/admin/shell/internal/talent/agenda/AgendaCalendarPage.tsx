@@ -41,7 +41,7 @@ import {
   localYmd,
   sameDay,
 } from "./AgendaCalendarViews";
-import { itemsInTalentWallClock, wallClockIn } from "@/lib/talent-agenda/agenda-now";
+import { itemsInTalentWallClock, talentWallClockToInstant, wallClockIn } from "@/lib/talent-agenda/agenda-now";
 import {
   daySummary,
   durationText,
@@ -106,9 +106,14 @@ export function AgendaCalendarPage({
   const clock = wallClockIn(now ?? new Date(), hours?.timezone);
   const locale = copy.locale === "es" ? "es-MX" : "en-US";
   // TUL-66: place blocks by the talent's wall clock (same source as `clock`).
+  // `rawAgenda` keeps real instants (all writes/sheets); `agenda` is grid-only.
+  const rawAgenda = useMemo(
+    () => items ?? (entries ?? []).map(agendaItemFromCalendarEntry),
+    [items, entries],
+  );
   const agenda = useMemo(
-    () => itemsInTalentWallClock(items ?? (entries ?? []).map(agendaItemFromCalendarEntry), hours?.timezone),
-    [items, entries, hours?.timezone],
+    () => itemsInTalentWallClock(rawAgenda, hours?.timezone),
+    [rawAgenda, hours?.timezone],
   );
   const ctaNav = useMemo(
     () => ({
@@ -167,7 +172,16 @@ export function AgendaCalendarPage({
     return () => window.clearTimeout(t);
   }, [undo]);
 
-  const allItems = useMemo(() => [...agenda, ...localBlocks], [agenda, localBlocks]);
+  const shiftedLocalBlocks = useMemo(
+    () => itemsInTalentWallClock(localBlocks, hours?.timezone),
+    [localBlocks, hours?.timezone],
+  );
+  const allItems = useMemo(() => [...agenda, ...shiftedLocalBlocks], [agenda, shiftedLocalBlocks]);
+  const rawById = useMemo(
+    () => new Map([...rawAgenda, ...localBlocks].map((row) => [row.id, row] as const)),
+    [rawAgenda, localBlocks],
+  );
+  const toRaw = (item: TalentAgendaItem) => rawById.get(item.id) ?? item;
   const peek = allItems.find((item) => item.id === peekId) ?? null;
   const weekItems = days.flatMap((day) => itemsOnDay(allItems, day));
   const counts = filterCounts(weekItems);
@@ -228,7 +242,7 @@ export function AgendaCalendarPage({
       setPeekId(null);
       return;
     }
-    await runPeekLabel(item, label);
+    await runPeekLabel(toRaw(item), label);
   }
 
   function openBlock(day: Date) {
@@ -242,12 +256,15 @@ export function AgendaCalendarPage({
     setSaving(true);
     setBlockError(null);
     const note = blockNote.trim();
+    // The grid shows talent wall-clock; convert back to the real instants.
+    const realStart = talentWallClockToInstant(blockRange.start, hours?.timezone);
+    const realEnd = talentWallClockToInstant(blockRange.end, hours?.timezone);
     const result = await createTalentAvailabilityBlock({
       talentProfileId,
       reason: note || "Personal",
       note: note || null,
-      startsAt: blockRange.start.toISOString(),
-      endsAt: blockRange.end.toISOString(),
+      startsAt: realStart.toISOString(),
+      endsAt: realEnd.toISOString(),
       allDay: false,
       visibility: blockAgencyVisible ? "agency_visible" : "private",
     });
@@ -262,8 +279,8 @@ export function AgendaCalendarPage({
       ref: { table: "block", id: result.id },
       title: note,
       lines: [],
-      startsAt: blockRange.start.toISOString(),
-      endsAt: blockRange.end.toISOString(),
+      startsAt: realStart.toISOString(),
+      endsAt: realEnd.toISOString(),
       allDay: false,
       tz: hours?.timezone ?? "UTC",
       where: { mode: "studio", label: "" },
@@ -738,12 +755,12 @@ export function AgendaCalendarPage({
       {sheet?.kind === "reschedule" ? (
         <div className="fixed inset-0 z-[60] overflow-y-auto bg-white/95 p-4">
           <AgendaRescheduleSheet
-            bookingId={sheet.item.ref?.id || sheet.item.id}
-            currentStartsAt={sheet.item.startsAt}
-            currentEndsAt={sheet.item.endsAt}
+            bookingId={toRaw(sheet.item).ref?.id || toRaw(sheet.item).id}
+            currentStartsAt={toRaw(sheet.item).startsAt}
+            currentEndsAt={toRaw(sheet.item).endsAt}
             onClose={() => setSheet(null)}
             onProposed={() => {
-              setAgendaAttentionConfirm(whoLabel(sheet.item));
+              setAgendaAttentionConfirm(whoLabel(toRaw(sheet.item)));
               setSheet(null);
               router.refresh();
             }}
@@ -754,7 +771,7 @@ export function AgendaCalendarPage({
       {sheet?.kind === "deposit" ? (
         <div className="fixed inset-0 z-[60] overflow-y-auto bg-white/95 p-4">
           <AgendaPayRequest
-            orderId={sheet.item.orderId}
+            orderId={toRaw(sheet.item).orderId}
             onClose={() => {
               setSheet(null);
               router.refresh();
@@ -766,10 +783,10 @@ export function AgendaCalendarPage({
       {sheet?.kind === "collect" ? (
         <div className="fixed inset-0 z-[60] overflow-y-auto bg-white/95 p-4">
           <AgendaPayRequest
-            orderId={sheet.item.ref?.id || sheet.item.id}
+            orderId={toRaw(sheet.item).ref?.id || toRaw(sheet.item).id}
             onClose={() => setSheet(null)}
             onLinkCreated={() => {
-              setAgendaAttentionConfirm(whoLabel(sheet.item));
+              setAgendaAttentionConfirm(whoLabel(toRaw(sheet.item)));
               setSheet(null);
               router.refresh();
             }}
