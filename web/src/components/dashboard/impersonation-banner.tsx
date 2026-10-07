@@ -9,6 +9,7 @@ export function ImpersonationBanner({
   readOnlyLine,
   v1ReadOnlyQaLine,
   returnCta,
+  ariaLabel = "Impersonation notice",
 }: {
   effectiveName: string;
   effectiveAvatarUrl?: string | null;
@@ -16,11 +17,12 @@ export function ImpersonationBanner({
   readOnlyLine: string;
   v1ReadOnlyQaLine: string;
   returnCta: string;
+  ariaLabel?: string;
 }) {
   return (
     <div
       role="region"
-      aria-label="Impersonation notice"
+      aria-label={ariaLabel}
       className="border-b border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-amber-950 dark:border-amber-400/30 dark:bg-amber-500/15 dark:text-amber-50"
     >
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between lg:max-w-none">

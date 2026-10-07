@@ -56,6 +56,9 @@ import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
 import { loadTalentPlanGrants } from "@/lib/plan-trials/talent-grants";
 import { talentStudioV2Enabled } from "@/lib/talent/studio-flag";
 import { logServerError } from "@/lib/server/safe-error";
+import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
+import { resolveTalentActingAs, talentActingAsBannerCopy } from "@/lib/impersonation/acting-as";
+import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -340,6 +343,11 @@ export default async function PlatformTalentLayout({
   // render is not English regardless of the cookie (use-dashboard-locale.ts).
   const requestLocale = await getRequestLocale();
 
+  // Real impersonation only (validated cookie). resolveDashboardIdentity may try
+  // to clear a stale cookie, which an RSC cannot do, so a throw means "not acting".
+  const impersonationIdentity = await resolveDashboardIdentity().catch(() => null);
+  const actingAs = resolveTalentActingAs(impersonationIdentity);
+
   const isHybrid = membership != null;
   const workspaceUnread: number | undefined = isHybrid ? workspaceUnreadRaw : undefined;
   const userPrefs: UserPrefs | null = isHybrid ? userPrefsRaw : null;
@@ -350,10 +358,25 @@ export default async function PlatformTalentLayout({
     role: membership?.role ?? "viewer",
     displayName: profileDisplayName,
     isPlatformAdmin: isPlatformAdmin(session.profile),
+    // TUL-164: set only for a validated impersonation cookie, never for an owner.
+    actingAs,
   };
+
+  const actingAsCopy = actingAs ? talentActingAsBannerCopy(requestLocale, actingAs.name) : null;
 
   return (
     <DashboardLocaleProvider locale={requestLocale}>
+    {actingAs && actingAsCopy ? (
+      <ImpersonationBanner
+        effectiveName={actingAsCopy.effectiveName}
+        effectiveAvatarUrl={impersonationIdentity?.effectiveProfile?.avatar_url ?? null}
+        roleLabel={actingAsCopy.roleLabel}
+        readOnlyLine={actingAsCopy.readOnlyLine}
+        v1ReadOnlyQaLine={actingAsCopy.v1ReadOnlyQaLine}
+        returnCta={actingAsCopy.returnCta}
+        ariaLabel={actingAsCopy.ariaLabel}
+      />
+    ) : null}
     <TalentSiteDashboardProvider initialLoad={talentSiteDashboardLoad}>
     <TalentShellClient
       tenantSlug={activeAgency?.slug}
