@@ -19,12 +19,18 @@ import { AIBriefInput } from "./ai-brief-input";
 import { useEditorLocale } from "./use-editor-locale";
 import { CHROME, CHROME_RADII } from "./kit";
 import type { BuilderNodeKind } from "@/lib/site-admin/builder-node";
+import { performAddGalleryInsert } from "@/lib/site-admin/add-gallery/perform-insert";
+import { templateCopySiteKind } from "@/lib/site-admin/add-gallery/section-template-copy";
+import { getActiveContentLocaleSnapshot } from "./active-content-locale-bridge";
+import { useEditContext } from "./edit-context";
 
 const ROOT_PADDING = 8;
 
 export interface FreeformInsertPopoverTarget {
   key: string;
   label: string;
+  /** Container the block lands in; lets the search insert ready-made sections here. */
+  parentId?: string | null;
   allowedKinds: ReadonlyArray<BuilderNodeKind>;
 }
 
@@ -50,6 +56,8 @@ export function FreeformInsertPopover({
 }) {
   const { t } = useEditorLocale();
   const [aiPending, setAiPending] = useState(false);
+  const { insertBuilderNode, insertBuilderSectionEmbed, insertBuilderComponent, surfaceKind, reportMutationError } =
+    useEditContext();
   return (
     <div
       data-freeform-insert-menu={target.key}
@@ -176,6 +184,25 @@ export function FreeformInsertPopover({
         allowedKinds={target.allowedKinds}
         onPick={(kind) => onPick(kind)}
         onPickSectionEmbed={(sectionTypeKey) => onPickSectionEmbed(sectionTypeKey)}
+        onPickSection={
+          target.parentId === undefined
+            ? undefined
+            : async (item) => {
+                const result = await performAddGalleryInsert(
+                  item,
+                  { parentId: target.parentId ?? null },
+                  { insertBuilderNode, insertBuilderSectionEmbed, insertBuilderComponent },
+                  {
+                    copy: {
+                      siteKind: templateCopySiteKind(surfaceKind, window.location.pathname),
+                      locale: getActiveContentLocaleSnapshot().locale,
+                    },
+                  },
+                );
+                if (!result.ok && result.error) reportMutationError(result.error);
+                else onDismiss();
+              }
+        }
       />
     </div>
   );
