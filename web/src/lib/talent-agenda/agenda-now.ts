@@ -2,7 +2,7 @@
  * Optional QA clock. Prefer an injected `now` prop; never call Date.now inside derive.
  * Dev/QA may pin with `?agendaNow=2026-09-24T09:50:00`.
  */
-import { utcToZonedHmm, utcToZonedYmd } from "@/lib/scheduling/tz";
+import { utcToZonedHmm, utcToZonedYmd, zonedLocalToUtc } from "@/lib/scheduling/tz";
 
 export function readAgendaNowFromSearch(search: string | null | undefined, fallback = new Date()): Date {
   if (!search) return fallback;
@@ -33,4 +33,36 @@ export function wallClockIn(now: Date, timeZone: string | null | undefined): Dat
   const [y, m, d] = ymd.split("-").map(Number);
   const [h, min] = hm.split(":").map(Number);
   return new Date(y, m - 1, d, h, min, now.getSeconds(), now.getMilliseconds());
+}
+
+/**
+ * The same agenda items with startsAt/endsAt re-expressed as talent wall-clock
+ * instants (same trick as `wallClockIn`), so the week/day grid's local-getter
+ * math (day bucket, top offset) places blocks in the talent's timezone, not the
+ * viewer's browser timezone. Use for GRID PLACEMENT only.
+ */
+export function itemsInTalentWallClock<T extends { startsAt: string; endsAt: string }>(
+  items: readonly T[],
+  timeZone: string | null | undefined,
+): T[] {
+  if (!timeZone) return [...items];
+  const shift = (iso: string) => {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? iso : wallClockIn(d, timeZone).toISOString();
+  };
+  return items.map((item) => ({ ...item, startsAt: shift(item.startsAt), endsAt: shift(item.endsAt) }));
+}
+
+/**
+ * Inverse of `wallClockIn`: a Date whose LOCAL getters read the talent's wall
+ * time (what the grid shows/produces) back to the real instant. Identity with
+ * no/invalid timezone; a nonexistent DST-gap time returns the input unchanged.
+ */
+export function talentWallClockToInstant(localDate: Date, timeZone: string | null | undefined): Date {
+  if (!timeZone) return localDate;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const ymd = `${localDate.getFullYear()}-${pad(localDate.getMonth() + 1)}-${pad(localDate.getDate())}`;
+  const real = zonedLocalToUtc(ymd, localDate.getHours() * 60 + localDate.getMinutes(), timeZone);
+  if (!real) return localDate;
+  return new Date(real.getTime() + localDate.getSeconds() * 1000 + localDate.getMilliseconds());
 }
