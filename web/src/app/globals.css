@@ -1899,3 +1899,28 @@ img[data-image-pending="true"] {
     display: none;
   }
 }
+
+/* TUL-31: Support Desk light theme. Re-points the Platform HQ palette
+ * (`HQ` in tenants/hq-kit.tsx reads `--hq-*`, dark by default) at the light
+ * admin tokens used by the talent dashboard. Scoped to `/desk` only; Platform
+ * HQ pages outside the Desk stay dark. */
+.desk-light {
+  color-scheme: light;
+  --hq-bg: var(--color-admin-surface);
+  --hq-card: var(--color-admin-card);
+  --hq-cardSoft: var(--color-admin-surface-alt);
+  --hq-cardSofter: var(--color-admin-surface);
+  --hq-border: var(--color-admin-border);
+  --hq-borderSoft: var(--color-admin-border-soft);
+  --hq-ink: var(--color-admin-ink);
+  --hq-inkMuted: var(--color-admin-ink-muted);
+  --hq-inkDim: var(--color-admin-ink-dim);
+  --hq-green: var(--color-admin-success);
+  --hq-greenSoft: var(--color-admin-success-soft);
+  --hq-amber: var(--color-admin-amber);
+  --hq-amberSoft: var(--color-admin-amber-soft);
+  --hq-red: var(--color-admin-critical);
+  --hq-redSoft: var(--color-admin-critical-soft);
+  --hq-purple: var(--color-admin-royal);
+  --hq-blue: var(--color-admin-indigo);
+}

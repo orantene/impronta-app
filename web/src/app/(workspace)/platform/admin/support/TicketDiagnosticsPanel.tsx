@@ -156,7 +156,7 @@ export function TicketDiagnosticsPanel({
             marginTop: 8,
             border: "none",
             background: HQ.green,
-            color: "#0F0F11",
+            color: HQ.bg,
             borderRadius: 7,
             padding: "6px 10px",
             fontSize: 12,

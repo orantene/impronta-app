@@ -156,7 +156,7 @@ export function SupportInsightsView({ data }: { data: HqInsightsDashboard }) {
               data.friction.map((f) => (
                 <div key={f.area} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
                   <span style={{ width: 150, fontSize: 11.5, color: HQ.inkMuted, flexShrink: 0 }}>{f.area}</span>
-                  <div style={{ flex: 1, height: 8, borderRadius: 4, background: "rgba(255,255,255,0.04)" }}>
+                  <div style={{ flex: 1, height: 8, borderRadius: 4, background: HQ.cardSoft }}>
                     <div
                       style={{
                         width: `${Math.round((f.count / maxFriction) * 100)}%`,

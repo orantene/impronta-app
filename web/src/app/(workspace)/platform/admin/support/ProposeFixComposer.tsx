@@ -131,8 +131,8 @@ export function ProposeFixComposer({
             })();
           }}
           style={{
-            background: "#F5F2EB",
-            color: "#0B0B0D",
+            background: HQ.ink,
+            color: HQ.bg,
             border: "none",
             borderRadius: 8,
             padding: "6px 10px",

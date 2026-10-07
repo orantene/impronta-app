@@ -275,7 +275,7 @@ export function SupportQueueClient({
             const waitingSupport = row.ticket.status === "open" && row.ticket.waitingOn === "support";
             const icon = surfaceIcon(row.ticket.surface);
             const left =
-              waitingSupport && ageH > 48 ? HQ.red : waitingSupport ? "#C26A45" : "transparent";
+              waitingSupport && ageH > 48 ? HQ.red : waitingSupport ? "var(--color-admin-coral)" : "transparent";
             return (
               <button
                 key={row.ticket.id}
@@ -287,7 +287,7 @@ export function SupportQueueClient({
                   textAlign: "left",
                   gap: 12,
                   padding: "12px 14px",
-                  background: i === cursor ? "rgba(255,255,255,0.04)" : "transparent",
+                  background: i === cursor ? HQ.cardSoft : "transparent",
                   border: "none",
                   borderBottom: `1px solid ${HQ.borderSoft}`,
                   borderLeft: `3px solid ${left}`,
@@ -319,7 +319,7 @@ export function SupportQueueClient({
                           background: "rgba(194,106,69,0.12)",
                           borderRadius: 999,
                           padding: "1px 7px",
-                          color: "#C26A45",
+                          color: "var(--color-admin-coral)",
                           whiteSpace: "nowrap",
                           flexShrink: 0,
                         }}
@@ -351,7 +351,7 @@ export function SupportQueueClient({
                 <span
                   style={{
                     fontSize: 11,
-                    color: waitingSupport && ageH > 24 ? "#C26A45" : HQ.inkDim,
+                    color: waitingSupport && ageH > 24 ? "var(--color-admin-coral)" : HQ.inkDim,
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -382,7 +382,7 @@ export function SupportQueueClient({
 
 function chipStyle(active: boolean): CSSProperties {
   return {
-    background: active ? "rgba(255,255,255,0.10)" : "transparent",
+    background: active ? HQ.border : "transparent",
     color: active ? HQ.ink : HQ.inkMuted,
     border: `1px solid ${active ? HQ.border : HQ.borderSoft}`,
     borderRadius: 999,
