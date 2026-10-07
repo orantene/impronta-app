@@ -387,6 +387,28 @@ export function catalogSlotDateLabel(date: Date, time: string, es: boolean): str
   return `${day} ${date.getDate()} ${es ? "de" : ""} ${month}, ${time}`.replace(/\s+/g, " ").trim();
 }
 
+/** TUL-59: persistent selected-date label above the slots, "Miércoles 7 oct" / "Wednesday Oct 7". */
+export function catalogSelectedDateLabel(date: Date, es: boolean): string {
+  const day = (es ? DAYS_ES : DAYS_EN)[date.getDay()] ?? "";
+  const month = (es ? MONTHS_ES : MONTHS_EN)[date.getMonth()] ?? "";
+  return es ? `${day} ${date.getDate()} ${month}` : `${day} ${month} ${date.getDate()}`;
+}
+
+/** TUL-59: "Hora de {city}" / "{city} time" from an IANA zone; falls back to the zone name. */
+export function catalogTimezoneLabel(tz: string | null | undefined, es: boolean): string {
+  const zone = (tz ?? "").trim();
+  if (!zone) return "";
+  const city = zone.includes("/") ? (zone.split("/").pop() ?? zone).replace(/_/g, " ") : zone;
+  return es ? `Hora de ${city}` : `${city} time`;
+}
+
+/** Local yyyy-mm-dd of a day, used to validate a restored day pick. */
+export function catalogDayKey(date: Date): string {
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${m}-${d}`;
+}
+
 /**
  * The unit a service is priced by ("uña" in "Desde $120 por uña"), from the
  * offering's long-tail `attributes.price_unit`: a plain string or `{ es, en }`.
