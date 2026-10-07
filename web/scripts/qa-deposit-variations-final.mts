@@ -57,10 +57,10 @@ async function settle(BK: string, INQ: string, payer: string, method: string, re
 async function main() {
   console.log("=== Deposit variations (with balance guard) ===\n");
   const clientSb = createClient(URL, ANON, { auth: { persistSession: false } });
-  const { data: c } = await clientSb.auth.signInWithPassword({ email: "qa-client-1@impronta.test", password: "Impronta-QA-Client-2026!" });
+  const { data: c } = await clientSb.auth.signInWithPassword({ email: "qa-client-1@impronta.test", password: (process.env.QA_CLIENT_PASSWORD?.trim() || (() => { throw new Error("QA_CLIENT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()) });
   const clientUser = c!.user!.id;
   const adminSb = createClient(URL, ANON, { auth: { persistSession: false } });
-  const { data: a } = await adminSb.auth.signInWithPassword({ email: "qa-admin@impronta.test", password: "Impronta-QA-Admin-2026!" });
+  const { data: a } = await adminSb.auth.signInWithPassword({ email: "qa-admin@impronta.test", password: (process.env.QA_ADMIN_PASSWORD?.trim() || (() => { throw new Error("QA_ADMIN_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()) });
   const staffUser = a!.user!.id;
 
   // baseline balances for the leak check at the end

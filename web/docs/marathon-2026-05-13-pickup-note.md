@@ -95,7 +95,7 @@ Without those, the code can ship but cannot transact.
 ## How to QA what shipped
 
 1. `cd web && rm -rf .next && npm run dev` (Turbopack cache must be cleared — the prior cache panic'd this session).
-2. Sign in as `qa-client-1@impronta.test` / `Impronta-QA-Client-2026!`.
+2. Sign in as `qa-client-1@impronta.test` / `<redacted-qa-password>`.
 3. Navigate to any inquiry from the Today page.
 4. Expected: thread shows header with stage strip, four pills (Lineup, Offer, Event, Files), real content in each sheet on tap.
 5. For an inquiry with a `sent` offer: action row appears above the composer with **Approve offer** (primary) / **Counter** / **Decline** (soft red).

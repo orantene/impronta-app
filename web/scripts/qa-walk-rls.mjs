@@ -35,11 +35,12 @@ if (!url || !anon || !service) {
 
 const admin = createClient(url, service, { auth: { persistSession: false } });
 
+// Passwords come from env (never committed). A missing one makes that persona fail with a clear error.
 const PASSWORDS = {
-  "qa-admin@impronta.test": "Impronta-QA-Admin-2026!",
-  "qa-client-1@impronta.test": "Impronta-QA-Client-2026!",
-  "qa-client-2@impronta.test": "Impronta-QA-Client-2026!",
-  "tulum-talent-sofia@impronta.test": "Impronta-Tulum-Talent-2026!",
+  "qa-admin@impronta.test": process.env.QA_ADMIN_PASSWORD?.trim(),
+  "qa-client-1@impronta.test": process.env.QA_CLIENT_PASSWORD?.trim(),
+  "qa-client-2@impronta.test": process.env.QA_CLIENT_PASSWORD?.trim(),
+  "tulum-talent-sofia@impronta.test": process.env.QA_TALENT_PASSWORD?.trim(),
 };
 
 const ROLES = [

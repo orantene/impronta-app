@@ -6,7 +6,7 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const client = createClient(url, anonKey);
 const { data, error } = await client.auth.signInWithPassword({
   email: "owner@midnightmuse.demo",
-  password: "Midnight-Muse-Owner-2026!",
+  password: (process.env.MIDNIGHT_OWNER_PASSWORD?.trim() || (() => { throw new Error("MIDNIGHT_OWNER_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()),
 });
 if (error) {
   console.error("LOGIN FAILED:", error.message);

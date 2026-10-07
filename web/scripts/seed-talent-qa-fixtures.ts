@@ -50,7 +50,7 @@ const admin: SupabaseClient = createClient(SUPABASE_URL, requireEnv("SUPABASE_SE
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const PASSWORD = process.env.TALENT_QA_FIXTURE_PASSWORD?.trim() || "Impronta-QA-Talent-2026!";
+const PASSWORD = process.env.TALENT_QA_FIXTURE_PASSWORD?.trim() || (() => { throw new Error("TALENT_QA_FIXTURE_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })();
 
 interface FixtureSpec {
   profileCode: string;

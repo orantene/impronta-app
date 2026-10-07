@@ -30,7 +30,7 @@ const TEST_CLIENTS = [
 ];
 
 const defaultPassword =
-  process.env.TEST_CLIENT_PASSWORD?.trim() || "Impronta-QA-Client-2026!";
+  process.env.TEST_CLIENT_PASSWORD?.trim() || (() => { throw new Error("TEST_CLIENT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })();
 
 const supabase = createClient(url, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },

@@ -19,6 +19,7 @@ import { join } from "node:path";
  * `.github/workflows/talent-website-e2e.yml`), never against a real project.
  * Exported so Playwright specs and `seed.ts` use one literal value.
  */
+// secret-scan:allow: hermetic throwaway CI Supabase only (documented in README.md)
 export const FIXTURE_PASSWORD = "TalentWebsiteE2E-2026!";
 
 /** One seeded talent identity. */
