@@ -100,7 +100,7 @@ export async function createPaymentIntentForTransaction(
     // with no publishable key would strand the client on a config error.
     const hasPublishableKey = !!publishableKey;
     if ((!stripe || !hasPublishableKey) && !paymentsMockAllowed()) {
-      console.error("[payments] Stripe keys missing in production; refusing mock payment intent", { transactionId: input.transactionId });
+      logServerError("payments.stripe.mockRefused", `Stripe keys missing in production; refusing mock payment intent (transaction ${input.transactionId})`);
       return { ok: false, error: "Payments are not configured." };
     }
     if (!stripe || !hasPublishableKey) {

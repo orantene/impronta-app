@@ -179,7 +179,7 @@ export async function createCheckoutSessionForTransaction(
       return { ok: false, error: "Payments for this seller are not available right now.", uncertain: false };
     }
     if (!stripe && !paymentsMockAllowed()) {
-      console.error("[payments] STRIPE_SECRET_KEY missing in production; refusing mock checkout", { transactionId: input.transactionId });
+      logServerError("payments.stripe.mockRefused", `STRIPE_SECRET_KEY missing in production; refusing mock checkout (transaction ${input.transactionId})`);
       return { ok: false, error: "Payments are not configured.", uncertain: false };
     }
     if (!stripe) {
