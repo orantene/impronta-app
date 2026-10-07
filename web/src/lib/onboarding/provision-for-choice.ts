@@ -11,7 +11,7 @@
  *   myself: promote(talent) → talent profile (+ hub roster) → talent site → home=talent
  *   studio: promote(agency_staff) → workspace (+ owner) → domain row → home=workspace
  *   both:   promote(talent) → talent profile (+ hub roster) → workspace (+ owner)
- *           → domain row → self roster (bookable) → home=workspace
+ *           → domain row → self roster (bookable) → profile approved/public → home=workspace
  *
  * Fatal: no talent profile (myself / both), no workspace (studio / both), no
  * self roster (both: she must be bookable). Non-fatal (reported as warnings,
@@ -43,6 +43,8 @@ export type ChoiceProvisionDeps<W, S> = {
   ensureWorkspace(opts: { withTalentProfile: boolean }): Promise<({ ok: true } & EnsuredWorkspace<W>) | StepFail>;
   ensureWorkspaceDomain(tenantId: string, tenantSlug: string): Promise<{ ok: true } | StepFail>;
   ensureSelfRoster(tenantId: string, talentProfileId: string): Promise<{ ok: true } | StepFail>;
+  /** draft/hidden → approved/public; never downgrades a live profile. */
+  promoteTalentProfileLive(talentProfileId: string): Promise<{ ok: true } | StepFail>;
   setHomeSurface(surface: "talent" | "workspace"): Promise<{ ok: true } | StepFail>;
 };
 
@@ -93,6 +95,9 @@ export async function runChoiceProvisioning<W, S>(
     if (talent) {
       const roster = await deps.ensureSelfRoster(ws.tenantId, talent.talentProfileId);
       if (!roster.ok) return { ...roster, choice };
+      // "both": she is publicly bookable on her workspace site from day one.
+      const live = await deps.promoteTalentProfileLive(talent.talentProfileId);
+      if (!live.ok) return { ...live, choice };
     }
   }
 
