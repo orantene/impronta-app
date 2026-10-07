@@ -21,6 +21,7 @@ import { getTalentConnectedAccountSnapshot, canRouteTransfersToTalent } from "@/
 import { getConnectedAccountSnapshotById } from "@/lib/payments/stripe-connect";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
+import { HELD_PAYOUTS_CAP, shapeHeldPayoutsRows, type HeldPayoutsResult } from "./held-payouts-shape";
 
 export type PayoutParty = "talent" | "workspace" | "channel_referral";
 export type PayoutStatus = "transferred" | "held" | "failed" | "reversed";
@@ -406,39 +407,6 @@ export async function countHeldTalentPayoutLegs(
   }
 }
 
-/** Row cap on the platform-wide held-payouts list. Hitting it is reported, never hidden. */
-export const HELD_PAYOUTS_CAP = 500;
-
-/**
- * Discriminated result so a failed read can never be mistaken for "no held
- * payouts". `capped` is true when more than HELD_PAYOUTS_CAP legs exist (rows
- * then holds the newest HELD_PAYOUTS_CAP).
- */
-export type HeldPayoutsResult =
-  | { ok: true; rows: HeldLedgerRow[]; capped: boolean }
-  | { ok: false; error: string };
-
-/** Pure: shape raw booking_payouts rows into a result, detecting the cap. */
-export function shapeHeldPayoutsRows(data: Array<Record<string, unknown>>): HeldPayoutsResult {
-  const capped = data.length > HELD_PAYOUTS_CAP;
-  const rows = (capped ? data.slice(0, HELD_PAYOUTS_CAP) : data).map((r) => ({
-    id: r.id as string,
-    bookingId: r.booking_id as string,
-    participantId: r.participant_id as string,
-    party: r.party as PayoutParty,
-    talentProfileId: (r.talent_profile_id as string | null) ?? null,
-    tenantId: (r.tenant_id as string | null) ?? null,
-    amountCents: r.amount_cents as number,
-    currency: r.currency as string,
-    status: r.status as string,
-    attempts: (r.attempts as number) ?? 0,
-    lastError: (r.last_error as string | null) ?? null,
-    createdAt: r.created_at as string,
-    releaseAfter: (r.release_after as string | null) ?? null,
-  }));
-  return { ok: true, rows, capped };
-}
-
 /**
  * All currently-held (and failed) payout legs across the platform — for the
  * platform-admin reconciliation list. Service-role read; newest first.
@@ -822,3 +790,7 @@ export async function reverseBookingPayouts(
 }
 
 export { isDue, laterHold }; // re-exported: ledger callers keep one import
+
+// Re-exported so existing importers keep working.
+export { HELD_PAYOUTS_CAP, shapeHeldPayoutsRows };
+export type { HeldPayoutsResult };
