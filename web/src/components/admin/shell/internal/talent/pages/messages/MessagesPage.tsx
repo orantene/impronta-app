@@ -10,6 +10,7 @@ import type { SellerChrome } from "@/components/messages-v5/shell/seller";
 import { MessagesV5Shell } from "@/components/messages-v5/shell/MessagesV5Shell";
 import { talentShellEngine } from "@/components/messages-v5/shell/talent-engine";
 import type { ShellActionId } from "@/components/messages-v5/screens/contracts";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 
 import { TalentMessagesShellLazy, useKeyboardInset } from "../../shared/client-threads-1";
 import { MessagesFirstRun } from "./MessagesFirstRun";
@@ -34,6 +35,7 @@ const SELLER_TO_SHELL: Record<TalentSellerActionId, ShellActionId> = {
 function TalentMessagesV5() {
   const { bridgeTenantIdentity, bridgeSessionIdentity } = useAdminShell();
   const tenantId = bridgeTenantIdentity?.tenantId ?? "";
+  const locale = useDashboardLocale();
   const searchParams = useSearchParams();
   // Match admin InboxPage: `/talent/inbox?inquiry=<uuid>` deep links.
   const linkedInquiry = searchParams.get("inquiry");
@@ -73,7 +75,7 @@ function TalentMessagesV5() {
       inboxTitle: copy.t("Messages"),
       newConversation: copy.t("New conversation"),
       filters: { all: copy.t("All"), needs: copy.t("Needs reply"), quotes: copy.t("Quotes out"), agency: copy.t("Agency") },
-      waitingOnYou: copy.t("{count} waiting on you"),
+      waitingOnYou: copy.t("{total} conversations · {needs} need a reply"),
       firstRunTitle: copy.t("No messages yet"),
       firstRunBody: copy.t("Clients write to you from your page. Share your link and new conversations show up here. You can also start one with + New conversation."),
       firstRunAction: <MessagesFirstRun />,
@@ -100,6 +102,8 @@ function TalentMessagesV5() {
         currentUserId={bridgeSessionIdentity?.userId ?? null}
         currentUserDisplayName={bridgeSessionIdentity?.displayName ?? null}
         workspaceType="talent"
+        industryPreset={bridgeTenantIdentity?.industryPreset ?? null}
+        locale={locale}
         engine={talentShellEngine}
         live={Boolean(tenantId)}
         initialInquiryId={initialInquiryId}
