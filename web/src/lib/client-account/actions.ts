@@ -33,10 +33,10 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createTranslator } from "@/i18n/messages";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
-import { clientAccountEnabledFor } from "./flag";
+import { marketingConsentPatch } from "./consent-pure";
 import { chooseTrustedHost, isClientAccountEligible, precheckSignIn, shouldSignOutAfterVerify, verifyIpRateKey } from "./pure";
 import { ensureTenantClientRelationship } from "./relationship.server";
-import { resolveAccountTenant } from "./tenant.server";
+import { accountSurfaceEnabledForRequest, resolveAccountTenant } from "./tenant.server";
 
 export type VerifyClientCodeResult =
   | { ok: true; firstSignIn: boolean }
@@ -72,7 +72,7 @@ export async function verifyClientAccountCode(input: {
   const t = createTranslator(input.locale === "es" ? "es" : "en");
   const generic = t("public.clientAccount.genericError");
   // Flag off: the surface does not exist, so the action refuses too.
-  if (!clientAccountEnabledFor("talent")) return { ok: false, error: generic };
+  if (!(await accountSurfaceEnabledForRequest())) return { ok: false, error: generic };
 
   const email = normalizeAuthEmail(input.email);
   const code = normalizeOtpCode(input.code);
@@ -148,15 +148,27 @@ export async function verifyClientAccountCode(input: {
 
 /** Asked once, at first sign-in. Unchecked by default; only ever writes the caller's own row. */
 export async function saveClientMarketingConsent(optIn: boolean): Promise<{ ok: boolean }> {
-  if (!clientAccountEnabledFor("talent")) return { ok: false };
+  if (!(await accountSurfaceEnabledForRequest())) return { ok: false };
   const supabase = await getCachedServerSupabase();
   const { data } = (await supabase?.auth.getUser().catch(() => null)) ?? { data: null };
   const userId = data?.user?.id;
   const admin = createServiceRoleClient();
   if (!userId || !admin) return { ok: false };
+  const { data: prior, error: priorErr } = await admin.from("client_profiles").select("marketing_opt_in").eq("user_id", userId).maybeSingle();
+  if (priorErr) {
+    logServerError("clientAccount/consentPrior", priorErr);
+    return { ok: false };
+  }
   const { error } = await admin
     .from("client_profiles")
-    .update({ marketing_opt_in: optIn === true, marketing_opt_in_at: optIn === true ? new Date().toISOString() : null })
+    .update({
+      marketing_opt_in: optIn === true,
+      ...marketingConsentPatch({
+        previous: (prior as { marketing_opt_in?: boolean | null } | null)?.marketing_opt_in,
+        next: optIn === true,
+        nowIso: new Date().toISOString(),
+      }),
+    })
     .eq("user_id", userId);
   if (error) {
     logServerError("clientAccount/consent", error);

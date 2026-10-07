@@ -7,16 +7,15 @@
 
 import { NextResponse } from "next/server";
 
-import { clientAccountEnabledFor } from "@/lib/client-account/flag";
 import { accountInitials, isClientAccountEligible } from "@/lib/client-account/pure";
 import { loadClientAccountSummary } from "@/lib/client-account/summary.server";
-import { resolveAccountTenant } from "@/lib/client-account/tenant.server";
+import { accountSurfaceEnabledForRequest, resolveAccountTenant } from "@/lib/client-account/tenant.server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  if (!clientAccountEnabledFor("talent")) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (!(await accountSurfaceEnabledForRequest())) return NextResponse.json({ error: "not_found" }, { status: 404 });
   const url = new URL(req.url);
   const locale = url.searchParams.get("locale") === "es" ? "es" : "en";
   const session = await getCachedActorSession();

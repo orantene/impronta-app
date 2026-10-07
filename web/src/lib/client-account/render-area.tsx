@@ -68,7 +68,6 @@ export async function renderClientAccountPage(view: AccountView) {
         audience={audience}
         view={view}
         talentName={site.talentName}
-        profileCode={site.profileCode}
         email={session.user?.email ?? null}
         timeZone={tenant.timeZone}
         data={data}
