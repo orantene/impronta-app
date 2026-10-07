@@ -20,6 +20,7 @@ import {
 import { fetchSurfaceGalleryItems } from "@/lib/site-admin/add-gallery/gallery-fetch-action";
 import { listCatalogStructure } from "@/lib/site-admin/add-gallery/catalog-structure-actions";
 import { performAddGalleryInsert } from "@/lib/site-admin/add-gallery/perform-insert";
+import { templateCopySiteKind } from "@/lib/site-admin/add-gallery/section-template-copy";
 import { applyShellVariantToWorkspaceAction } from "@/lib/site-admin/builder-core/templates/apply-shell-variant-action";
 import {
   armAddGalleryPointerDrag,
@@ -189,6 +190,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     selectBuilderNode,
     notifyTemplateApplied,
     gallerySurface,
+    surfaceKind,
     workspacePlan,
     queueRouterRefresh,
   } = useEditContext();
@@ -425,7 +427,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
           { insertBuilderNode, insertBuilderSectionEmbed, insertBuilderComponent },
           {
             copy: {
-              siteKind: window.location.pathname.startsWith("/talent/") ? "talent" : "agency",
+              siteKind: templateCopySiteKind(surfaceKind, window.location.pathname),
               locale: getActiveContentLocaleSnapshot().locale,
             },
           },
@@ -464,7 +466,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       insertBuilderSectionEmbed,
       insertBuilderComponent,
       reportMutationError,
-      workspacePlan, t,
+      workspacePlan, t, surfaceKind,
       gallerySurface.structuralEdits,
       selectBuilderNode,
       notifyTemplateApplied,

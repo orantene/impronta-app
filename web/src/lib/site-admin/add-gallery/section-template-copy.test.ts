@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { buildAddGallerySectionTemplate } from "./section-templates";
-import { localizeSectionTemplate } from "./section-template-copy";
+import { localizeSectionTemplate, templateCopySiteKind } from "./section-template-copy";
 
 const json = (n: unknown) => JSON.stringify(n);
 
@@ -30,4 +30,11 @@ test("ids and kinds are preserved", () => {
   const out = localizeSectionTemplate(node, { siteKind: "talent", locale: "es" });
   assert.equal(out.id, node.id);
   assert.equal(out.kind, node.kind);
+});
+
+test("templateCopySiteKind: talent surfaces and talent URLs are talent", () => {
+  assert.equal(templateCopySiteKind("talent_page", "/anything"), "talent");
+  assert.equal(templateCopySiteKind("homepage", "/t/site/jor"), "talent");
+  assert.equal(templateCopySiteKind("homepage", "/talent/site"), "talent");
+  assert.equal(templateCopySiteKind("cms_page", "/about"), "agency");
 });

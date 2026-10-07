@@ -21,3 +21,10 @@ test("a kind no section can hold returns null", () => {
   const n = createBuilderNode("accordion_item");
   assert.equal(wrapNodeForRootInsert(n), null);
 });
+
+test("wrapRootInsert wraps only at page root (Texto insert via gallery)", async () => {
+  const { wrapRootInsert } = await import("./wrap-for-root");
+  const n = createBuilderNode("paragraph");
+  assert.equal(wrapRootInsert(null, n).kind, "section");
+  assert.equal(wrapRootInsert("some-parent", n), n);
+});

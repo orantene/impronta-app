@@ -51,3 +51,24 @@ export function saveStatusWords(
   if (state !== "saved") return state;
   return status === "published" ? "published" : "draftSaved";
 }
+
+/**
+ * TUL-70: the moment the draft changes (edit, delete, undo) the last server
+ * diff is stale, so "published" must not be shown until a fresh diff lands.
+ * Returns the status to show: "published" only survives when no edit is pending.
+ */
+export function statusWhileEditPending(
+  status: TalentDraftStatus,
+  editPending: boolean,
+): TalentDraftStatus {
+  return editPending && status === "published" ? "unknown" : status;
+}
+
+/** Latest-wins guard so a slow, older diff can't overwrite a newer one. */
+export function createLatestGuard(): { next(): number; isLatest(id: number): boolean } {
+  let latest = 0;
+  return {
+    next: () => ++latest,
+    isLatest: (id) => id === latest,
+  };
+}

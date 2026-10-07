@@ -1605,8 +1605,14 @@ function TemplateAppliedToast() {
       }
     >
       <span className="max-w-[min(360px,calc(100vw-160px))]">
-        <span className="font-semibold">{templateAppliedToast.label}</span>{" "}
-        {t("applied")}.
+        {templateAppliedToast.plain ? (
+          <span className="font-semibold">{t(templateAppliedToast.label)}</span>
+        ) : (
+          <>
+            <span className="font-semibold">{templateAppliedToast.label}</span>{" "}
+            {t("applied")}.
+          </>
+        )}
       </span>
     </EditToast>
   );

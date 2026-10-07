@@ -11,6 +11,16 @@ export interface TemplateCopyContext {
   locale: string;
 }
 
+/** Site kind for placeholder copy: talent surfaces or talent URLs, else agency. */
+export function templateCopySiteKind(
+  surfaceKind: string | null | undefined,
+  pathname: string | null | undefined,
+): TemplateCopyContext["siteKind"] {
+  if (surfaceKind === "talent_page" || surfaceKind === "theme_template") return "talent";
+  const p = pathname ?? "";
+  return p.startsWith("/talent/") || p.startsWith("/t/") ? "talent" : "agency";
+}
+
 type Variant = { en: string; es: string };
 interface Row {
   agency: Variant;

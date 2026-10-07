@@ -8,13 +8,14 @@
  *
  * `useTalentPublishGate` blocks Publish while a design / look apply runs.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 
 import { CHROME, PortaledOverlay } from "./kit";
+import { useModalFocusTrap } from "./modal-focus-trap";
 import { usePageVersion } from "./save-cycle-bridge";
 import { SITE_PUBLISHED_EVENT } from "./site-published-event";
-import { publishTalentDraftStatus, resolveTalentDraftStatus } from "./talent-draft-status";
+import { createLatestGuard, publishTalentDraftStatus, resolveTalentDraftStatus } from "./talent-draft-status";
 import { useEditorLocale } from "./use-editor-locale";
 import {
   CHROME_COPY,
@@ -60,11 +61,21 @@ export function TalentDraftChip(): ReactElement | null {
   const [summary, setSummary] = useState<GoLiveSummary | null>(null);
   const [open, setOpen] = useState(false);
   const [toast, setToast] = useState(false);
+  // TUL-70: Escape closes the "What will go live" sheet (focus trap + restore).
+  const sheetRef = useModalFocusTrap<HTMLElement>(open, () => setOpen(false));
 
+  const guardRef = useRef(createLatestGuard());
   const load = useCallback(async () => {
+    const id = guardRef.current.next();
     const res = await loadTalentGoLiveAction().catch(() => null);
-    if (res && res.ok) setSummary(res.summary);
+    if (res && res.ok && guardRef.current.isLatest(id)) setSummary(res.summary);
   }, []);
+
+  // TUL-70: any draft change makes the last server diff stale. Drop "published"
+  // right away (delete, undo, edit) until the refreshed diff resolves it.
+  useEffect(() => {
+    if (enabled) publishTalentDraftStatus("unknown");
+  }, [enabled, pageVersion]);
 
   // One source of truth: publish the server diff for the top-bar save control.
   useEffect(() => {
@@ -171,6 +182,7 @@ export function TalentDraftChip(): ReactElement | null {
             className="fixed inset-0 z-[205] flex items-end justify-center bg-black/30 sm:items-stretch sm:justify-end"
           >
             <aside
+              ref={sheetRef}
               role="dialog"
               aria-modal="true"
               aria-label={copyOf("whatWillGoLive")}

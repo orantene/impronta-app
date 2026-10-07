@@ -419,6 +419,10 @@ export const ES_TEXT: Record<string, string> = {
   Undo: "Deshacer",
   applied: "aplicado",
   "Builder change blocked": "Cambio del editor bloqueado",
+  "Block deleted": "Bloque eliminado",
+  Loading: "Cargando",
+  "This block needs to sit inside a section. Add a section first, then drop it in.":
+    "Este bloque debe ir dentro de una sección. Agrega una sección primero y colócalo ahí.",
   // DEPTH-CAP HONESTY — the save had to flatten over-deep wrapper chains.
   "Layout changed on save": "El diseño cambió al guardar",
   "Next step:": "Siguiente paso:",

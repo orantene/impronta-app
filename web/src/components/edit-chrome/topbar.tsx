@@ -64,6 +64,7 @@ import {
 import { useLastDraftSavedAt, useSaving } from "./save-cycle-bridge";
 import { navigateToEditSurface } from "./navigate-to-edit-surface";
 import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
+import { resolveLocaleToggleMode } from "./locale-toggle-mode";
 import { saveStatusWords, useTalentDraftStatus } from "./talent-draft-status";
 import { useEditorLocale } from "./use-editor-locale";
 import { useTopbarDraftReset } from "./use-topbar-draft-reset";
@@ -2950,18 +2951,30 @@ export function TopBar({
   // ContentLocaleToggle + canvas + Content panel all read this bridge; seeding
   // here means the canvas resolves overlays for the correct locale immediately,
   // even before the operator touches the toggle. Re-runs only on a real change.
-  const seededLocale = activeLocale && availableLocales.includes(activeLocale) ? activeLocale : defaultLocale;
+  // TUL-70: the talent builder always toggles in place, fed by the talent's own
+  // languages; the composition's single-locale list must not hide the toggle.
+  const localeToggle = resolveLocaleToggleMode({
+    surfaceKind: editCtx?.surfaceKind,
+    talentBuilder: Boolean(talentIdentity),
+    availableLocales,
+    tenantLocales,
+  });
+  const toggleLocales = localeToggle.locales;
+  // Seed on a real change only: the lists arrive as fresh arrays on every
+  // render, and re-seeding on identity would snap an operator's EN pick back.
+  const toggleLocalesKey = toggleLocales.join("|");
+  const seededLocale = activeLocale && toggleLocales.includes(activeLocale) ? activeLocale : defaultLocale;
   useEffect(() => {
     const ordered = [
       defaultLocale,
-      ...availableLocales.filter((l) => l !== defaultLocale),
+      ...toggleLocalesKey.split("|").filter((l) => l && l !== defaultLocale),
     ];
     publishActiveContentLocale({
       locale: seededLocale,
       defaultLocale,
       chain: buildContentFallbackChain(seededLocale, defaultLocale, ordered),
     });
-  }, [seededLocale, defaultLocale, availableLocales]);
+  }, [seededLocale, defaultLocale, toggleLocalesKey]);
 
   // WS4-TASK1: Named checkpoint prompt state.
   const [namedDraftOpen, setNamedDraftOpen] = useState(false);
@@ -3045,7 +3058,7 @@ export function TopBar({
         <>{labHeaderActions}</>
       ) : null}
       {/* The in-session content-locale pill sits beside the viewport switcher (PR 7). */}
-      {availableLocales.length > 1 && editCtx?.surfaceKind !== "cms_page" ? null : tenantLocales.length > 1 ? (
+      {localeToggle.mode === "inplace" ? null : localeToggle.mode === "nav" ? (
         // Freeform locale comes from the URL segment (the body is server-
         // rendered, so an in-place flip would repaint nothing). This pill
         // navigates; edit mode is a cookie, so the editor stays open. Both URLs
@@ -3084,8 +3097,8 @@ export function TopBar({
 
       {/* ── Center — device preview controls ── */}
       <div className="inline-flex shrink-0 items-center gap-2">
-        {availableLocales.length > 1 && editCtx?.surfaceKind !== "cms_page" ? (
-          <ContentLocaleToggle defaultLocale={defaultLocale} availableLocales={availableLocales} />
+        {localeToggle.mode === "inplace" ? (
+          <ContentLocaleToggle defaultLocale={defaultLocale} availableLocales={toggleLocales} />
         ) : null}
         <ViewportSwitcher
           device={device}

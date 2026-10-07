@@ -121,3 +121,13 @@ test("formatBuilderNodeMutationError appends source details for missing-node err
   assert.match(message, /Details:/i);
   assert.match(message, /Missing node id "hero-1"/i);
 });
+
+test("ROOT_KIND_NOT_ALLOWED is friendly, with no dev wording", () => {
+  const message = formatBuilderNodeMutationError({
+    operation: "insert",
+    code: "ROOT_KIND_NOT_ALLOWED",
+    message: "x",
+  });
+  assert.doesNotMatch(message, /Invalid target|page root/i);
+  assert.match(message, /inside a section/i);
+});

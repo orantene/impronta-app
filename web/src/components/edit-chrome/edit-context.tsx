@@ -3932,7 +3932,10 @@ export function EditProvider({
       } catch {
         return { ok: false, error: "That block could not be read." };
       }
-      const node = cloneNodeWithFreshIds(parsed);
+      // TUL-70: a leaf block (Texto...) at page root is auto-wrapped in a section.
+      const leaf = cloneNodeWithFreshIds(parsed);
+      const node = wrapRootInsert(parentId, leaf);
+      const insertedLeafId = leaf.id;
       const inserted = await executeBuilderNodeOperation({
         operation: "insert",
         nodeId: node.id,
@@ -3955,11 +3958,11 @@ export function EditProvider({
       );
       if (ownerSectionId) {
         setSelectedSectionId(ownerSectionId);
-        setSelectedBuilderNodeIdOverride(node.id);
-        markNavigatorAddition(ownerSectionId, node.id, "block");
+        setSelectedBuilderNodeIdOverride(insertedLeafId);
+        markNavigatorAddition(ownerSectionId, insertedLeafId, "block");
       }
       markNodeInserted(node.id);
-      return { ok: true, nodeId: node.id };
+      return { ok: true, nodeId: insertedLeafId };
     },
     [
       executeBuilderNodeOperation,
@@ -4277,6 +4280,8 @@ export function EditProvider({
       if (!removed.ok) {
         return { ok: false, error: removed.error };
       }
+      // TUL-70: delete is undoable. Raise the shared Undo toast (Undo calls undo()).
+      notifyTemplateApplied("Block deleted", { plain: true });
       if (removingActiveNode) {
         // Keep section/canvas/inspector selection aligned immediately after
         // delete: prefer the section root builder node (honest selection).
@@ -4293,6 +4298,7 @@ export function EditProvider({
       runBuilderNodeOp,
       focusSectionForEdit,
       setSelectedBuilderNodeIdOverride,
+      notifyTemplateApplied,
     ],
   );
   const duplicateBuilderNode = useCallback<

@@ -3,11 +3,18 @@
  * The URL commits immediately; this skeleton fills the shell until the
  * layout queries settle. No count is shown: the number is not known yet.
  */
-export default function TalentLoading() {
+import { editorT } from "@/components/edit-chrome/editor-i18n";
+import { getRequestLocale } from "@/i18n/request-locale";
+
+export default async function TalentLoading() {
+  // TUL-70: the device-mode switch re-enters this boundary; it must follow the
+  // request locale instead of showing English "Loading" on a Spanish editor.
+  const locale = (await getRequestLocale()).toLowerCase().startsWith("es") ? "es" : "en";
+  const loading = editorT("Loading", locale);
   return (
     <div
       role="status"
-      aria-label="Loading"
+      aria-label={loading}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -37,7 +44,7 @@ export default function TalentLoading() {
         />
         <div style={{ flex: 1 }} />
         <p style={{ margin: 0, fontSize: 13, color: "var(--color-admin-ink-muted)" }}>
-          Loading
+          {loading}
         </p>
       </div>
       <div style={{ padding: 28 }}>
