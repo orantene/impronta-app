@@ -33,11 +33,29 @@ export function shouldShowTalentActingChip(actingAs: TalentActingAs | undefined)
   return actingAs != null;
 }
 
-export function talentActingAsBannerCopy(locale: string, name: string | null) {
+/**
+ * TUL-205. The user id a dashboard shell must load its data for: the person
+ * being acted as while staff really impersonate, otherwise the signed-in actor.
+ * Never the actor's id under impersonation, or the shell shows the staff
+ * member's own data (or none, which skips the shell and the banner).
+ */
+export function resolveShellUserId(
+  actorUserId: string,
+  identity: { isImpersonating: boolean; effectiveUserId: string } | null,
+): string {
+  if (!identity || !identity.isImpersonating) return actorUserId;
+  return identity.effectiveUserId || actorUserId;
+}
+
+export type ActingAsRole = "talent" | "client";
+
+export function actingAsBannerCopy(locale: string, name: string | null, role: ActingAsRole) {
   const es = locale.toLowerCase().startsWith("es");
+  const roleLabel =
+    role === "client" ? (es ? "Cliente" : "Client") : es ? "Talento" : "Talent";
   return {
     effectiveName: name ?? (es ? "otro usuario" : "another user"),
-    roleLabel: es ? "Talento" : "Talent",
+    roleLabel,
     readOnlyLine: es ? "Estás actuando como" : "You are acting as",
     v1ReadOnlyQaLine: es
       ? "Vista de solo lectura. Los cambios están desactivados mientras actúas como este usuario."
@@ -45,4 +63,8 @@ export function talentActingAsBannerCopy(locale: string, name: string | null) {
     returnCta: es ? "Salir y volver a admin" : "Exit and return to admin",
     ariaLabel: es ? "Aviso de suplantación" : "Impersonation notice",
   };
+}
+
+export function talentActingAsBannerCopy(locale: string, name: string | null) {
+  return actingAsBannerCopy(locale, name, "talent");
 }

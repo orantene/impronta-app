@@ -57,7 +57,7 @@ import { loadTalentPlanGrants } from "@/lib/plan-trials/talent-grants";
 import { talentStudioV2Enabled } from "@/lib/talent/studio-flag";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
-import { resolveTalentActingAs, talentActingAsBannerCopy } from "@/lib/impersonation/acting-as";
+import { resolveShellUserId, resolveTalentActingAs, talentActingAsBannerCopy } from "@/lib/impersonation/acting-as";
 import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
 
 export const dynamic = "force-dynamic";
@@ -178,7 +178,39 @@ export default async function PlatformTalentLayout({
     return <>{children}</>;
   }
 
-  const baseProfile = await loadTalentSelfProfileByUser(session.user.id);
+  // TUL-205: resolve the REAL impersonation first. The shell loads from the
+  // EFFECTIVE user (the person being acted as), and the banner must also paint
+  // on the no-shell returns below, e.g. when the target has no talent profile.
+  // resolveDashboardIdentity may try to clear a stale cookie, which an RSC
+  // cannot do, so a throw means "not acting".
+  const impersonationIdentity = await resolveDashboardIdentity().catch(() => null);
+  const actingAs = resolveTalentActingAs(impersonationIdentity);
+  const shellUserId = resolveShellUserId(session.user.id, impersonationIdentity);
+  const requestLocale = await getRequestLocale();
+  const actingAsCopy = actingAs ? talentActingAsBannerCopy(requestLocale, actingAs.name) : null;
+  const actingAsBanner =
+    actingAs && actingAsCopy ? (
+      <ImpersonationBanner
+        effectiveName={actingAsCopy.effectiveName}
+        effectiveAvatarUrl={impersonationIdentity?.effectiveProfile?.avatar_url ?? null}
+        roleLabel={actingAsCopy.roleLabel}
+        readOnlyLine={actingAsCopy.readOnlyLine}
+        v1ReadOnlyQaLine={actingAsCopy.v1ReadOnlyQaLine}
+        returnCta={actingAsCopy.returnCta}
+        ariaLabel={actingAsCopy.ariaLabel}
+      />
+    ) : null;
+  // No-shell render. Identical to `<>{children}</>` unless really impersonating.
+  const bareChildren = actingAsBanner ? (
+    <>
+      {actingAsBanner}
+      {children}
+    </>
+  ) : (
+    <>{children}</>
+  );
+
+  const baseProfile = await loadTalentSelfProfileByUser(shellUserId);
   if (!baseProfile) {
     // Root owns the wall / onboarding decision. Sub-routes used to call
     // notFound() here whenever the user-scoped profile read missed — that
@@ -187,7 +219,7 @@ export default async function PlatformTalentLayout({
     // Hand the page the children without shell so the route can still run;
     // a later navigation reloads the shell once the profile is readable.
     if (isTalentRoot || pathname.startsWith("/talent/")) {
-      return <>{children}</>;
+      return bareChildren;
     }
     notFound();
   }
@@ -199,13 +231,13 @@ export default async function PlatformTalentLayout({
   if (isTalentRoot) {
     const wallFacts = await loadUnrosteredWallFacts(baseProfile.id);
     if (unrosteredWallBypassesShell(wallFacts)) {
-      return <>{children}</>;
+      return bareChildren;
     }
     // TUL-129: /talent itself never paints the shell. Its page redirects a
     // talent with a roster/site straight to /talent/today (which runs the full
     // shell loads once). Running ~20 dashboard reads here too, only to throw
     // the result away on that redirect, doubled the sign-in cost.
-    return <>{children}</>;
+    return bareChildren;
   }
 
   const activeAgency = await getActiveTalentAgencyContext(baseProfile.id);
@@ -213,7 +245,7 @@ export default async function PlatformTalentLayout({
 
   const talentSelfProfile =
     tenantId != null
-      ? (await loadTalentSelfProfile(session.user.id, tenantId)) ?? baseProfile
+      ? (await loadTalentSelfProfile(shellUserId, tenantId)) ?? baseProfile
       : baseProfile;
 
   // TUL-129: decide the locale-seed hop BEFORE the heavy dashboard loads. The
@@ -277,7 +309,7 @@ export default async function PlatformTalentLayout({
     tenantId ? loadWorkspaceUnreadCount(tenantId) : Promise.resolve(0),
     loadUserPrefs(session.user.id),
     tenantId ? loadTenantIdentity(tenantId) : Promise.resolve(null),
-    loadProfileDisplayName(session.user.id),
+    loadProfileDisplayName(shellUserId),
     // Agenda V2: loadTalentAgenda behind the flag only. Flag off keeps the
     // legacy calendar bridge so Today/Calendar stay unchanged.
     talentAgendaV2
@@ -318,7 +350,7 @@ export default async function PlatformTalentLayout({
     // loader, and returns null for a Free talent so the surface shows the
     // upsell instead of zeros. Bridged here rather than fetched on mount: an
     // in-shell fetch on this surface has stuck on "Loading" before.
-    loadTalentPageAnalytics(session.user.id, talentSelfProfile.id),
+    loadTalentPageAnalytics(shellUserId, talentSelfProfile.id),
     loadPlatformWorkspaceUi(),
     // Real completeness for the Today card (same source as the guided wizard).
     // Never fatal: a load failure leaves the card on its old estimate.
@@ -341,12 +373,7 @@ export default async function PlatformTalentLayout({
 
   // Seed client dashboard copy with the SERVER-resolved locale so the first
   // render is not English regardless of the cookie (use-dashboard-locale.ts).
-  const requestLocale = await getRequestLocale();
-
-  // Real impersonation only (validated cookie). resolveDashboardIdentity may try
-  // to clear a stale cookie, which an RSC cannot do, so a throw means "not acting".
-  const impersonationIdentity = await resolveDashboardIdentity().catch(() => null);
-  const actingAs = resolveTalentActingAs(impersonationIdentity);
+  // (requestLocale, impersonationIdentity and actingAs are resolved above, TUL-205.)
 
   const isHybrid = membership != null;
   const workspaceUnread: number | undefined = isHybrid ? workspaceUnreadRaw : undefined;
@@ -362,21 +389,9 @@ export default async function PlatformTalentLayout({
     actingAs,
   };
 
-  const actingAsCopy = actingAs ? talentActingAsBannerCopy(requestLocale, actingAs.name) : null;
-
   return (
     <DashboardLocaleProvider locale={requestLocale}>
-    {actingAs && actingAsCopy ? (
-      <ImpersonationBanner
-        effectiveName={actingAsCopy.effectiveName}
-        effectiveAvatarUrl={impersonationIdentity?.effectiveProfile?.avatar_url ?? null}
-        roleLabel={actingAsCopy.roleLabel}
-        readOnlyLine={actingAsCopy.readOnlyLine}
-        v1ReadOnlyQaLine={actingAsCopy.v1ReadOnlyQaLine}
-        returnCta={actingAsCopy.returnCta}
-        ariaLabel={actingAsCopy.ariaLabel}
-      />
-    ) : null}
+    {actingAsBanner}
     <TalentSiteDashboardProvider initialLoad={talentSiteDashboardLoad}>
     <TalentShellClient
       tenantSlug={activeAgency?.slug}

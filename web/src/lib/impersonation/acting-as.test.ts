@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import {
+  actingAsBannerCopy,
+  resolveShellUserId,
   resolveTalentActingAs,
   shouldShowTalentActingChip,
   talentActingAsBannerCopy,
@@ -62,4 +64,48 @@ test("wiring: layout renders the banner from the real identity; chip is gated", 
   assert.doesNotMatch(bar, /\(inWorkspace \|\| inTalent\) && \(/);
   const dict = read("src/components/admin/shell/internal/dashboard-i18n.ts");
   assert.match(dict, /"Acting as another user": "Actuando como otro usuario"/);
+});
+
+// ── TUL-205: the shell loads from the EFFECTIVE user, banner survives no-shell ──
+
+test("resolveShellUserId: effective id only under real impersonation", () => {
+  assert.equal(resolveShellUserId("actor-1", null), "actor-1");
+  assert.equal(resolveShellUserId("actor-1", { isImpersonating: false, effectiveUserId: "actor-1" }), "actor-1");
+  // A non-impersonating identity never switches the id, whatever effectiveUserId says.
+  assert.equal(resolveShellUserId("actor-1", { isImpersonating: false, effectiveUserId: "other" }), "actor-1");
+  assert.equal(resolveShellUserId("actor-1", { isImpersonating: true, effectiveUserId: "target-9" }), "target-9");
+  assert.equal(resolveShellUserId("actor-1", { isImpersonating: true, effectiveUserId: "" }), "actor-1");
+});
+
+test("banner role label is per surface, en + es, no em dashes", () => {
+  assert.equal(actingAsBannerCopy("en", "A", "talent").roleLabel, "Talent");
+  assert.equal(actingAsBannerCopy("es", "A", "talent").roleLabel, "Talento");
+  assert.equal(actingAsBannerCopy("en", "A", "client").roleLabel, "Client");
+  assert.equal(actingAsBannerCopy("es-MX", "A", "client").roleLabel, "Cliente");
+  assert.deepEqual(talentActingAsBannerCopy("es", "A"), actingAsBannerCopy("es", "A", "talent"));
+  for (const v of Object.values(actingAsBannerCopy("es", null, "client"))) assert.ok(!/[—–]/.test(v), v);
+});
+
+test("wiring: talent layout resolves identity before the profile read and uses the effective id", () => {
+  const layout = read("src/app/(workspace)/talent/layout.tsx");
+  const identityAt = layout.search(/await resolveDashboardIdentity\(\)/);
+  assert.ok(identityAt > 0);
+  assert.ok(identityAt < layout.search(/loadTalentSelfProfileByUser\(shellUserId\)/));
+  assert.doesNotMatch(layout, /loadTalentSelfProfileByUser\(session\.user\.id\)/);
+  assert.match(layout, /resolveShellUserId\(session\.user\.id, impersonationIdentity\)/);
+  assert.match(layout, /loadTalentSelfProfile\(shellUserId, tenantId\)/);
+  assert.match(layout, /loadTalentPageAnalytics\(shellUserId,/);
+  // Every no-shell return keeps the banner; only the two focused-flow bypasses stay bare.
+  assert.equal((layout.match(/return bareChildren;/g) ?? []).length, 3);
+  assert.equal((layout.match(/return <>\{children\}<\/>;/g) ?? []).length, 2);
+  assert.match(layout, /\{actingAsBanner\}/);
+});
+
+test("wiring: client layout renders the banner (client role) and loads the effective profile", () => {
+  const layout = read("src/app/(workspace)/[tenantSlug]/client/layout.tsx");
+  assert.match(layout, /<ImpersonationBanner/);
+  assert.match(layout, /actingAsBannerCopy\(locale, actingAs\.name, "client"\)/);
+  assert.match(layout, /loadClientSelfProfile\(\s*resolveShellUserId\(session\.user\.id, impersonationIdentity\)/);
+  assert.doesNotMatch(layout, /loadClientSelfProfile\(session\.user\.id/);
+  assert.equal((layout.match(/\{actingAsBanner\}/g) ?? []).length, 2);
 });

@@ -42,6 +42,13 @@ import { loadMyNotifications } from "@/lib/server-actions/notifications-self";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { TULALA_BRAND } from "@/lib/brand/tulala";
+import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
+import {
+  actingAsBannerCopy,
+  resolveShellUserId,
+  resolveTalentActingAs,
+} from "@/lib/impersonation/acting-as";
+import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
 
 type LayoutParams = Promise<{ tenantSlug: string }>;
 
@@ -112,13 +119,36 @@ export default async function ClientLayout({
   // Phase E (F20) — instead of a branded 404, show a soft landing page that
   // surfaces the two most useful next actions: sign-in as a client or open
   // the admin dashboard (workspace owners land here by accident often).
-  const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
+  // TUL-205: real impersonation only (validated cookie). The portal loads the
+  // EFFECTIVE user's client profile, and the banner paints on the soft landing
+  // too. A throw means "not acting".
+  const impersonationIdentity = await resolveDashboardIdentity().catch(() => null);
+  const actingAs = resolveTalentActingAs(impersonationIdentity);
+  const actingAsCopy = actingAs ? actingAsBannerCopy(locale, actingAs.name, "client") : null;
+  const actingAsBanner =
+    actingAs && actingAsCopy ? (
+      <ImpersonationBanner
+        effectiveName={actingAsCopy.effectiveName}
+        effectiveAvatarUrl={impersonationIdentity?.effectiveProfile?.avatar_url ?? null}
+        roleLabel={actingAsCopy.roleLabel}
+        readOnlyLine={actingAsCopy.readOnlyLine}
+        v1ReadOnlyQaLine={actingAsCopy.v1ReadOnlyQaLine}
+        returnCta={actingAsCopy.returnCta}
+        ariaLabel={actingAsCopy.ariaLabel}
+      />
+    ) : null;
+  const clientProfile = await loadClientSelfProfile(
+    resolveShellUserId(session.user.id, impersonationIdentity),
+    scope.tenantId,
+  );
   if (!clientProfile) {
     const tenantDisplayName = tenantSlug
       .split(/[-_]/)
       .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" ");
     return (
+      <>
+      {actingAsBanner}
       <div style={{
         minHeight: "100dvh",
         display: "flex", alignItems: "center", justifyContent: "center",
@@ -173,6 +203,7 @@ export default async function ClientLayout({
           </div>
         </div>
       </div>
+      </>
     );
   }
 
@@ -219,6 +250,7 @@ export default async function ClientLayout({
 
   return (
     <>
+      {actingAsBanner}
       <style>{`
         .client-root {
           --admin-workspace-fg:  ${C.ink};
