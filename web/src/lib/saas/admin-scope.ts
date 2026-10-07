@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { pickTalentTenant } from "@/lib/saas/talent-self-tenant";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { requireSession } from "@/lib/server/action-guards";
@@ -368,18 +369,29 @@ export async function requireTalentSelfAction(
   // roster and has no tenant — that is NOT an error. They own their profile
   // (verified above by user_id) and can edit it; tenantId stays null and
   // agency-scoped reads/writes no-op for them.
-  let tenantId = scope?.tenantId ?? null;
-  if (!tenantId) {
-    const { data: rosterRow } = await supabase
-      .from("agency_talent_roster")
-      .select("tenant_id")
-      .eq("talent_profile_id", talent_profile_id)
-      .eq("status", "active")
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    tenantId = rosterRow?.tenant_id ?? null;
-  }
+  //
+  // SECURITY: the host/session scope is derived from the caller's STAFF
+  // memberships (getTenantScope), not the talent roster, so it is only used
+  // when the talent has an ACTIVE roster row on that tenant (pickTalentTenant).
+  // App-host decision: no platform-tenant exception is needed. The tenant
+  // header is stripped on app/marketing/talent-site hosts and a user with no
+  // memberships (every independent talent) gets scope null, so they already
+  // resolve to tenantId null today. Roster query error fails closed (never to
+  // the host tenant).
+  const { data: rosterRows, error: rosterErr } = await supabase
+    .from("agency_talent_roster")
+    .select("tenant_id")
+    .eq("talent_profile_id", talent_profile_id)
+    .eq("status", "active")
+    .order("created_at", { ascending: true });
+  const tenantId = pickTalentTenant({
+    scopeTenantId: scope?.tenantId ?? null,
+    rosterTenantIds: rosterErr
+      ? null
+      : ((rosterRows ?? []) as Array<{ tenant_id: string | null }>)
+          .map((r) => r.tenant_id)
+          .filter((t): t is string => typeof t === "string"),
+  });
 
   return {
     ok: true,

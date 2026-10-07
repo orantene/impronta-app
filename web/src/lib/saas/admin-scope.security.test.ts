@@ -391,14 +391,14 @@ test("INVARIANT requireTalentSelfAction: OWNERSHIP (user_id) is the boundary —
   // Talent self-edit can run from the canonical /talent app route where no
   // admin workspace cookie exists; after ownership is proven, tenant scope may
   // be resolved from the talent's own active roster row.
-  assert.match(fn, /let tenantId = scope\?\.tenantId \?\? null/, "uses active tenant when present");
+  assert.match(fn, /pickTalentTenant\(\{/, "host tenant only trusted via roster-checked helper");
+  assert.doesNotMatch(fn, /let tenantId = scope\?\.tenantId/, "host tenant is never taken unchecked");
+  assert.match(fn, /rosterErr\s*\?\s*null/, "roster query error fails closed");
   assert.match(fn, /\.from\("agency_talent_roster"\)/, "falls back through the owned profile's roster row");
   assert.match(fn, /\.eq\("talent_profile_id", talent_profile_id\)/, "roster fallback is scoped to the owned profile");
   assert.match(fn, /\.eq\("status", "active"\)/, "roster fallback only accepts active roster rows");
-  // Independent (self-registered) talents are on no roster: tenantId stays null
-  // (type `string | null`), never a seed/default tenant. Ownership is proven
-  // BEFORE the roster fallback runs, so a non-owner is always refused first.
-  assert.match(fn, /tenantId = rosterRow\?\.tenant_id \?\? null/, "no roster row → null tenant, never a default");
+  // Independent (self-registered) talents get tenantId null (pickTalentTenant), never a
+  // seed/default tenant. Ownership is proven BEFORE the roster lookup, so a non-owner is refused first.
   assert.doesNotMatch(fn, /LEGACY_TENANT_ID|00000000-0000-0000-0000-0000000000/, "no seed-tenant fallback");
   assert.ok(
     fn.indexOf('"Not your profile."') < fn.indexOf('.from("agency_talent_roster")'),
