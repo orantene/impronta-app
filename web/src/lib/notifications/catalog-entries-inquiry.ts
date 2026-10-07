@@ -255,11 +255,18 @@ const BOOKING_CONFIRMED_CLIENT: CatalogEntry = {
 const BOOKING_CONFIRMED_TALENT: CatalogEntry = {
   id: "booking.confirmed.talent",
   category: "bookings",
-  defaultChannels: ["email"],
+  defaultChannels: ["email", "in_app"],
   required: false,
   triggers: ["booking.confirmed"],
   hydrate: loadInquiryView,
   resolveAudience: allRosterTalent,
+  // TUL-93: the talent is told in-app too ("Nueva cita"), not only by email.
+  in_app: {
+    kind: "booking",
+    surface: "talent",
+    title: () => "New booking confirmed",
+    body: () => "A client booked a time with you.",
+  },
   email: {
     templateId: "talent.booking_confirmed",
     subject: () => "Booking confirmed",
