@@ -24,7 +24,7 @@ import {
 describe("formatMoneyCents — currency-aware, never a hardcoded euro", () => {
   it("MXN renders with the peso symbol, NOT €", () => {
     const out = formatMoneyCents(800_00, "MXN");
-    assert.ok(out.includes("MX$"), `expected MX$ in "${out}"`);
+    assert.ok(out.includes("$") && out.includes("MXN"), `expected $ and MXN in "${out}"`);
     assert.ok(!out.includes("€"), `MXN must not be relabeled euro: "${out}"`);
     assert.ok(out.includes("800"), `expected the amount in "${out}"`);
   });
@@ -52,7 +52,7 @@ describe("formatMoneyCents — currency-aware, never a hardcoded euro", () => {
 
   it("lower-case codes are normalized (the snapshot stored 'mxn')", () => {
     const out = formatMoneyCents(1_030_00, "mxn");
-    assert.ok(out.includes("MX$"), `expected MX$ in "${out}"`);
+    assert.ok(out.includes("MXN"), `expected MXN in "${out}"`);
   });
 
   it("missing/blank code falls back to USD (USD-first default)", () => {
@@ -81,7 +81,7 @@ describe("formatMoneyCents — currency-aware, never a hardcoded euro", () => {
 // ── primaryBundleOrEmpty — the "before" reads the home currency, not € ──────
 
 describe("primaryBundleOrEmpty — empty state honors defaultCurrency", () => {
-  it("no rows + MXN default → empty bundle denominated MXN (so 'before' = MX$0)", () => {
+  it("no rows + MXN default → empty bundle denominated MXN (so 'before' = $0 MXN)", () => {
     const byCurrency: TalentEarningsByCurrency = {
       defaultCurrency: "MXN",
       byCurrency: [],
@@ -91,7 +91,7 @@ describe("primaryBundleOrEmpty — empty state honors defaultCurrency", () => {
     assert.equal(bundle.totals.currency, "MXN");
     assert.equal(bundle.totals.ytdNetCents, 0);
     const rendered = formatMoneyCents(bundle.totals.ytdNetCents, bundle.totals.currency);
-    assert.ok(rendered.includes("MX$"), `'before' should read MX$0, got "${rendered}"`);
+    assert.ok(rendered.includes("$0") && rendered.includes("MXN"), `'before' should read $0 MXN, got "${rendered}"`);
     assert.ok(!rendered.includes("€"));
   });
 
@@ -117,8 +117,8 @@ describe("primaryBundleOrEmpty — empty state honors defaultCurrency", () => {
 
 // ── End-to-end of the pure layer: a MXN row survives + displays MX$ ─────────
 
-describe("MXN snapshot row → dashboard shows MX$, not dropped, not €", () => {
-  it("buildTalentEarnings(MXN) keeps the cents and stamps MXN; formats MX$", () => {
+describe("MXN snapshot row → dashboard shows $ + MXN, not dropped, not €", () => {
+  it("buildTalentEarnings(MXN) keeps the cents and stamps MXN; formats $ + MXN", () => {
     const earnings = buildTalentEarnings(
       [row({ currencyCode: "MXN", grossCents: 1_030_00, netCents: 800_00 })],
       { currency: "MXN" },
@@ -129,7 +129,7 @@ describe("MXN snapshot row → dashboard shows MX$, not dropped, not €", () =>
     assert.equal(earnings.totals.currency, "MXN");
     // Renders the peso, not the euro.
     const ytd = formatMoneyCents(earnings.totals.ytdNetCents, earnings.totals.currency);
-    assert.ok(ytd.includes("MX$") && ytd.includes("800"));
+    assert.ok(ytd.includes("$") && ytd.includes("MXN") && ytd.includes("800"));
     assert.ok(!ytd.includes("€"));
   });
 });

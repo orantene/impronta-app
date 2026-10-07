@@ -3,12 +3,13 @@
  * September weekday labels match prototype `mcD` (Tue=1 Sep 2026).
  */
 
+import { formatDashboardMoney } from "@/lib/money/dashboard-money-format";
+
 const WK = ["Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Mon"] as const;
 
 export function formatMoneyMajor(amount: number, currency = "MXN"): string {
-  const n = Math.round(amount);
-  const withCommas = n.toLocaleString("en-US");
-  return `$${withCommas} ${currency}`;
+  // DS-17: shared dashboard format ("$700 MXN").
+  return formatDashboardMoney(amount, currency, "en", { wholeUnits: true });
 }
 
 /** Compact amount without currency code — e.g. `$620`. */
