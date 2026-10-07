@@ -25,9 +25,10 @@ const PINS = {
   highlight: "f6ed134ba4b1cd9e",
   booking: "8f87f1ae1e51bc17",
   // Re-pinned: only added props.i18n (es + en seed copy), see seed-i18n.ts.
-  maison: "037a115fb8931c8a", // #88: Book an appointment leads in header + hero (See services is the ghost)
+  maison: "42d225e3c02a4810", // #88: Book an appointment leads in header + hero; #209: + es/en overlay on portfolio, reviews, header labels
   // Re-pinned after Gridline contentWidth/full + matrix viewport MQ (#2530), then es + en seed copy.
-  gridline: "c3d78ff7449a8483",
+  gridline: "428ba73e1fe694a3", // #209: + es/en overlay on utility bar, alert band, task picker, spec table, visit, portfolio
+
 };
 
 function kinds(nodes: BuilderNode[]): string[] {

@@ -26,7 +26,7 @@ import {
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { draftPreviewBannerText } from "@/lib/talent-site/draft-preview-copy";
-import { localiseTalentHeaderDefaults, stripHiddenAskHeaderCta } from "@/lib/talent-site/header-cta-locale";
+import { headerSectionProps, localiseTalentHeaderDefaults, stripHiddenAskHeaderCta } from "@/lib/talent-site/header-cta-locale";
 import { loadTalentAskVisible } from "./talent-ask-visible";
 import { prepareTalentSiteTrees, readableButtonDefaults } from "./talent-site-render-fixups.server";
 import { HeaderScrollObserver } from "@/lib/site-admin/sections/site_header/HeaderScrollObserver";
@@ -592,7 +592,7 @@ async function renderMaxSiteDocument(args: {
       const entry = getSectionType(root.props.sectionTypeKey);
       const schema = entry?.schemasByVersion[entry.currentVersion];
       const localised = stripHiddenAskHeaderCta(
-        localiseTalentHeaderDefaults(root.props.sectionProps ?? {}, locale),
+        localiseTalentHeaderDefaults(headerSectionProps(root, locale), locale),
         askVisible,
       );
       const parsed = schema?.safeParse(withHeaderSiteChrome(localised, root.props.sectionTypeKey, args.isDemo === true, args.localeCtx.settings.supportedLocales, args.localeCtx.switcherHrefs));

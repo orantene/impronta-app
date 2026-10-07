@@ -7,6 +7,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { localizablePropsForKind } from "@/lib/i18n/builder-i18n-props";
+import { listOverlayKey, localizableListSpecsForKind } from "@/lib/i18n/builder-i18n-list-props";
+import { HEADER_OVERLAY_PREFIX, headerLabelEntries } from "../header-i18n";
 import type { DesignPayload } from "../types";
 import { FINISHED_GALLERY_SLUGS } from "./gallery-meta";
 import { COLLECTION_DESIGNS } from "./collection/designs";
@@ -68,6 +70,34 @@ function scan(slug: string, payload: DesignPayload): { problems: string[]; value
           }
         });
       }
+      // Ticket #209: list items (spec table rows, masthead contents) ...
+      for (const spec of localizableListSpecsForKind(kind)) {
+        const items = props[spec.list];
+        if (!Array.isArray(items)) continue;
+        items.forEach((item, n) => {
+          for (const field of spec.fields) {
+            const text = item && typeof item === "object" ? (item as Record<string, unknown>)[field] : undefined;
+            if (typeof text !== "string" || isTokenOnlyText(text) || MODE_DEPENDENT_LABELS.includes(text.trim())) continue;
+            const key = listOverlayKey(spec.list, n, field);
+            for (const lang of ["es", "en"] as const) {
+              const v = overlayValue(props, lang, key);
+              if (v === undefined) problems.push(`${path}.${key} missing i18n.${lang} (${JSON.stringify(text)})`);
+              else values.push(v);
+            }
+          }
+        });
+      }
+      // ... and the header's nav and CTA labels, which live in sectionProps.
+      if (node.kind === "section" && props.sectionTypeKey === "site_header") {
+        for (const { key, text } of headerLabelEntries(props.sectionProps)) {
+          if (isTokenOnlyText(text) || MODE_DEPENDENT_LABELS.includes(text.trim())) continue;
+          for (const lang of ["es", "en"] as const) {
+            const v = overlayValue(props, lang, `${HEADER_OVERLAY_PREFIX}${key}`);
+            if (v === undefined) problems.push(`${path}.${HEADER_OVERLAY_PREFIX}${key} missing i18n.${lang} (${JSON.stringify(text)})`);
+            else values.push(v);
+          }
+        }
+      }
       // No em dash may hide in any overlay value, localizable or not.
       const i18n = props.i18n as Record<string, Record<string, unknown>> | undefined;
       for (const bagForLang of Object.values(i18n ?? {})) {
@@ -116,4 +146,38 @@ test("every MODE_DEPENDENT_LABELS exemption is really handled by the mode-aware 
     assert.ok(new Set(es).size > 1, `${label}: Spanish does not change with the booking mode`);
     assert.ok(!(label in SEED_TEXT_ES), `${label}: must not also be in the static seed table`);
   }
+});
+
+test("the new block kinds are registered and the scanner reaches them (#209)", () => {
+  const kinds = ["portfolio", "reviews", "alert_band", "task_picker", "spec_table", "visit", "masthead", "statement_footer", "comp_card", "utility_bar"] as const;
+  for (const kind of kinds) assert.ok(localizablePropsForKind(kind).length > 0, `${kind} has no localizable props`);
+  const seen = new Set<string>();
+  for (const [, build] of DESIGNS) {
+    const bag = build() as unknown as Record<string, unknown>;
+    for (const treeName of ["homeTree", "shellTree", "optionalBlocks"] as const) {
+      walk(bag[treeName], treeName, (_path, node) => void seen.add(String(node.kind)));
+    }
+  }
+  for (const kind of kinds) assert.ok(seen.has(kind), `no released design seeds a ${kind}, the test would be vacuous for it`);
+});
+
+test("the scanner flags a seeded English-only node of a new kind, a list row and a header label (#209)", () => {
+  const fake = {
+    shellTree: [
+      {
+        kind: "section",
+        id: "h",
+        props: { sectionTypeKey: "site_header", sectionProps: { navItems: [{ label: "Work", href: "#g" }], primaryCta: { label: "Inquire", href: "/c" } } },
+      },
+    ],
+    homeTree: [
+      { kind: "portfolio", id: "p", props: { title: "Recent work", emptyMessage: "No photos in your portfolio yet." } },
+      { kind: "spec_table", id: "s", props: { title: "How it works", rows: [{ label: "Response", value: "" }] } },
+    ],
+  } as unknown as DesignPayload;
+  const problems = scan("fake", fake).problems;
+  // portfolio: title + emptyMessage, spec_table: title + 1 row label, header: nav + cta; each x (es, en).
+  assert.equal(problems.length, 12, problems.join("\n"));
+  assert.ok(problems.some((p) => p.includes("rows.0.label")));
+  assert.ok(problems.some((p) => p.includes("sectionProps.navItems.0.label")));
 });
