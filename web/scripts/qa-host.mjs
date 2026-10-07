@@ -25,13 +25,21 @@ async function api(path, init = {}) {
 
 /** Current leases: pool aliases joined with their deployment's branch + sha. */
 async function currentLeases() {
-  const { aliases } = await api(`/v4/aliases?projectId=${PROJECT}&limit=200`);
-  const pool = (aliases ?? []).filter((a) => QA_HOSTS.includes(a.alias));
+  // Look each pool host up directly: /v4/aliases?projectId= is paginated (100
+  // per page, `limit` is capped), so a listing silently misses most leases.
   const out = [];
-  for (const a of pool) {
+  for (const host of QA_HOSTS) {
+    let a;
+    try {
+      a = await api(`/v4/aliases/${encodeURIComponent(host)}`);
+    } catch (e) {
+      if (String(e.message).endsWith("-> 404")) continue; // not aliased = free
+      throw e;
+    }
+    if (!a?.deploymentId) continue;
     const d = await api(`/v13/deployments/${a.deploymentId}`);
     out.push({
-      host: a.alias,
+      host,
       aliasUid: a.uid,
       branch: d.meta?.githubCommitRef ?? "?",
       sha: (d.meta?.githubCommitSha ?? "").slice(0, 9),
