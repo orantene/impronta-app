@@ -69,6 +69,15 @@ and only the first is yours:
    `app.tulala.digital` onto the new deployment, because the production
    pointer does not reliably reassign custom domains on its own.
 
+The promote job reconciles rather than promoting only its own trigger: on every
+gate completion and every 10 minutes it fast-forwards `production` to the
+**newest `main` commit whose gate run succeeded**, so a red, cancelled or
+still-queued newest head does not freeze the pointer. It never moves the
+pointer to a commit without a green gate and never backwards. Pacing: avoid
+stacking many merges in a few minutes; each main run takes ~11 min and an
+unfinished newest head simply waits while the pointer sits on the newest green
+one behind it.
+
 Then run the smoke test (§6).
 
 If the pointer needs moving by hand — the workflow was down, or you are
