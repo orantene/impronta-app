@@ -3,7 +3,9 @@
  *
  * The bubble offers help once per visit: after the visitor scrolls about 520px,
  * a one-line pill appears just above the chat button, then hides itself after 9
- * seconds. It never shows while the chat or a sheet is open, or when the chat
+ * seconds, or sooner: it hides as soon as the visitor keeps scrolling (48px
+ * from where it appeared), so it never sits over prices or buttons while the
+ * page moves (DS-13). It never shows while the chat or a sheet is open, or when the chat
  * button is hidden. The chat button is the dock's chat icon when the dock is up
  * (with or without a selection), the idle bar's chat button, or the floating
  * chat button, in that order.
@@ -11,6 +13,14 @@
 
 /** How far the visitor scrolls before the bubble may appear. */
 export const HELP_BUBBLE_SCROLL_PX = 520;
+
+/** Scrolling this far from where the bubble appeared hides it. */
+export const HELP_BUBBLE_HIDE_ON_SCROLL_PX = 48;
+
+/** True once the visitor has kept scrolling (either direction) past the hide distance. */
+export function shouldHideHelpBubbleOnScroll(shownAtY: number, scrollY: number): boolean {
+  return Math.abs(scrollY - shownAtY) >= HELP_BUBBLE_HIDE_ON_SCROLL_PX;
+}
 
 /** How long the bubble stays before it hides itself. */
 export const HELP_BUBBLE_VISIBLE_MS = 9000;

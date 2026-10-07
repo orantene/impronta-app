@@ -21,8 +21,10 @@ import { createRoot } from "react-dom/client";
 import { createTranslator } from "@/i18n/messages";
 import { ChatHelpBubble, HELP_BUBBLE_CSS } from "./ChatHelpBubble";
 import {
+  HELP_BUBBLE_HIDE_ON_SCROLL_PX,
   HELP_BUBBLE_SCROLL_PX,
   HELP_BUBBLE_VISIBLE_MS,
+  shouldHideHelpBubbleOnScroll,
   findHelpBubbleAnchor,
   findHelpBubbleBarTops,
   helpBubbleBlocked,
@@ -406,4 +408,28 @@ test("TUL-59 C: a consent or language banner on screen blocks the bubble (one ov
   assert.equal(helpBubbleBannerUp(dom.window.document), true);
   el.getBoundingClientRect = () => ({ width: 0, height: 0 }) as DOMRect;
   assert.equal(helpBubbleBannerUp(dom.window.document), false);
+});
+
+test("DS-13: pure rule hides the bubble once the visitor scrolls 48px either way", () => {
+  assert.equal(HELP_BUBBLE_HIDE_ON_SCROLL_PX, 48);
+  assert.equal(shouldHideHelpBubbleOnScroll(700, 700), false);
+  assert.equal(shouldHideHelpBubbleOnScroll(700, 747), false);
+  assert.equal(shouldHideHelpBubbleOnScroll(700, 748), true);
+  assert.equal(shouldHideHelpBubbleOnScroll(700, 652), true);
+  assert.equal(shouldHideHelpBubbleOnScroll(700, 653), false);
+});
+
+test("DS-13: the bubble hides as soon as the visitor keeps scrolling, and stays seen", () => {
+  clearPage();
+  addChatButton("dock");
+  const m = mount();
+  setScroll(700);
+  assert.ok(bubbleOf(m.host));
+  setScroll(730);
+  assert.ok(bubbleOf(m.host), "30px of drift keeps it");
+  setScroll(760);
+  assert.equal(bubbleOf(m.host), null);
+  setScroll(700);
+  assert.equal(bubbleOf(m.host), null, "does not come back this visit");
+  m.unmount();
 });

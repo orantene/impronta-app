@@ -214,8 +214,37 @@ test("portfolio linkMode none does not emit offering CTA", () => {
 test("TUL-59 C: a linked shot opens a lightbox first (booking only from its own button); closed state renders the same button", async () => {
   const src = await import("node:fs").then((fs) => fs.readFileSync(new URL("./portfolio-shot-link.tsx", import.meta.url), "utf8"));
   assert.match(src, /const onClick = lightbox \? \(\) => setOpen\(true\) : book;/);
-  assert.match(src, /data-portfolio-lightbox-book/);
+  const box = await import("node:fs").then((fs) => fs.readFileSync(new URL("./portfolio-lightbox.tsx", import.meta.url), "utf8"));
+  assert.match(box, /data-portfolio-lightbox-book/);
+  assert.match(box, /data-portfolio-lightbox\b/);
+  assert.match(box, /createPortal\(/);
+  assert.match(box, /document\.body/);
   const block = await import("node:fs").then((fs) => fs.readFileSync(new URL("./portfolio-block.tsx", import.meta.url), "utf8"));
   assert.match(block, /Reservar este look/);
   assert.match(block, /Book this look/);
+});
+
+test("A-06: every shot link gets the block's whole gallery and its own index", async () => {
+  const html = render([portfolioNode({ layout: "grid" })], {
+    talentPortfolioShots: [
+      shot({ id: "g1", offeringId: "off-1" }),
+      shot({ id: "g2" }),
+      shot({ id: "g3", offeringId: "off-1" }),
+    ],
+    talentOfferings: [offering()],
+    talentOfferingsConfirmsByHand: true,
+  });
+  const links = html.match(/<button[^>]*data-portfolio-shot-link[^>]*>/g) ?? [];
+  assert.equal(links.length, 2);
+  assert.match(links[0]!, /data-portfolio-gallery-index="0"/);
+  assert.match(links[0]!, /data-portfolio-gallery-size="3"/);
+  assert.match(links[1]!, /data-portfolio-gallery-index="2"/);
+  assert.match(links[1]!, /data-portfolio-gallery-size="3"/);
+  const { buildPortfolioGallery } = await import("./portfolio-lightbox-logic");
+  const items = buildPortfolioGallery(
+    [shot({ id: "g1", offeringId: "off-1" }), shot({ id: "g2" })],
+    (id) => id === "off-1",
+    true,
+  );
+  assert.deepEqual(items.map((i) => [i.id, i.canBook]), [["g1", true], ["g2", false]]);
 });
