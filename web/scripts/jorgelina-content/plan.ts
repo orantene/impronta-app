@@ -22,6 +22,7 @@ import {
   NAIL_NAMES_ES,
   NAIL_NOTE_ES,
   POLICIES_ES,
+  SERVICE_DESCRIPTIONS_EN,
   SERVICE_DESCRIPTIONS_ES,
   TICKER,
   TICKER_SEPARATOR,
@@ -63,6 +64,8 @@ export interface Options {
   applyDraft: boolean;
   yes: boolean;
   includeLiveFields: boolean;
+  /** Optional so existing callers are unchanged. Writes description_i18n.en only. */
+  includeEnglishDescriptions?: boolean;
 }
 
 export type Scope = "DRAFT" | "LIVE (immediately visible)";
@@ -73,6 +76,9 @@ export interface Plan {
   notApplied: string[];
   draftHome: { pageId: string; expectedUpdatedAt: string; before: Node[]; after: Node[] } | null;
   offeringPatches: Array<{ id: string; label: string; patch: Record<string, unknown> }>;
+  /** English descriptions (description_i18n.en only). Kept apart from `rows`; written only with --include-english-descriptions. */
+  englishRows: DiffRow[];
+  englishPatches: Array<{ id: string; label: string; patch: Record<string, unknown> }>;
   socialLinks: { profileId: string; before: unknown; after: unknown[] } | null;
 }
 
@@ -82,7 +88,7 @@ export class RefusedError extends Error {}
 
 export function parseArgs(argv: readonly string[]): Options {
   let profileCode = ALLOWED_PROFILE_CODE;
-  const known = new Set(["--apply-draft", "--yes", "--include-live-fields"]);
+  const known = new Set(["--apply-draft", "--yes", "--include-live-fields", "--include-english-descriptions"]);
   const flags = new Set<string>();
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
@@ -96,6 +102,7 @@ export function parseArgs(argv: readonly string[]): Options {
     applyDraft: flags.has("--apply-draft"),
     yes: flags.has("--yes"),
     includeLiveFields: flags.has("--include-live-fields"),
+    includeEnglishDescriptions: flags.has("--include-english-descriptions"),
   };
 }
 
@@ -105,6 +112,14 @@ export function assertMode(o: Options): void {
   if (o.applyDraft && !o.yes) throw new RefusedError("--apply-draft needs --yes as well (dry run is the default)");
   if (o.includeLiveFields && !(o.applyDraft && o.yes)) {
     throw new RefusedError("--include-live-fields only works together with --apply-draft --yes");
+  }
+  if (o.includeEnglishDescriptions && !o.includeLiveFields) {
+    throw new RefusedError(
+      "--include-english-descriptions writes offering fields, which are LIVE (immediately visible); it needs --apply-draft --yes --include-live-fields as well",
+    );
+  }
+  if (o.includeEnglishDescriptions && !(o.applyDraft && o.yes)) {
+    throw new RefusedError("--include-english-descriptions only works together with --apply-draft --yes --include-live-fields");
   }
 }
 
@@ -259,6 +274,33 @@ export function planOfferings(offerings: readonly OfferingRow[]) {
   return { rows, notApplied, patches };
 }
 
+// ---------------------------------------------------------------- English descriptions (LIVE)
+
+/**
+ * Plan description_i18n.en for the approved services. Same exact-title matching
+ * as planOfferings; mismatches and duplicates are reported and skipped. Merges
+ * into the existing object (es and any other locale preserved) and sets `en`
+ * only. When the ES planner already has a pending patch for the same offering,
+ * the merge starts from that patch so the sequential writes do not undo each other.
+ */
+export function planEnglishDescriptions(offerings: readonly OfferingRow[], pending: Plan["offeringPatches"] = []) {
+  const rows: DiffRow[] = [];
+  const notApplied: string[] = [];
+  const patches: Plan["offeringPatches"] = [];
+  for (const { title, description } of SERVICE_DESCRIPTIONS_EN) {
+    const found = offerings.filter((o) => norm(o.title) === norm(title) || norm(o.title_i18n?.es) === norm(title));
+    if (found.length === 0) { notApplied.push(`English description for "${title}": no offering with that exact title; NOT applied`); continue; }
+    if (found.length > 1) { notApplied.push(`English description for "${title}": ${found.length} offerings share that title; NOT applied (ambiguous)`); continue; }
+    const o = found[0]!;
+    const queued = pending.find((p) => p.id === o.id)?.patch.description_i18n;
+    const base = (queued && typeof queued === "object" ? queued : o.description_i18n ?? {}) as Record<string, string>;
+    if (o.description_i18n?.en === description) continue;
+    patches.push({ id: o.id, label: title, patch: { description_i18n: { ...base, en: description } } });
+    rows.push({ scope: "LIVE (immediately visible)", field: `Service "${title}" description_i18n.en`, before: show(o.description_i18n?.en), after: description });
+  }
+  return { rows, notApplied, patches };
+}
+
 // ---------------------------------------------------------------- contact (LIVE)
 
 type Link = Record<string, unknown>;
@@ -327,9 +369,12 @@ export async function computePlan(io: Io, o: Options): Promise<Plan> {
     }
   }
 
-  const off = planOfferings(await io.listOfferings(profile.id));
+  const offeringsList = await io.listOfferings(profile.id);
+  const off = planOfferings(offeringsList);
   rows.push(...off.rows);
   notApplied.push(...off.notApplied);
+  const en = planEnglishDescriptions(offeringsList, off.patches);
+  notApplied.push(...en.notApplied);
 
   const rawLinks = await io.readSocialLinks(profile.id);
   const social = planSocialLinks(rawLinks);
@@ -340,6 +385,8 @@ export async function computePlan(io: Io, o: Options): Promise<Plan> {
     notApplied,
     draftHome,
     offeringPatches: off.patches,
+    englishRows: en.rows,
+    englishPatches: en.patches,
     socialLinks: social.changed ? { profileId: profile.id, before: rawLinks, after: social.after } : null,
   };
 }
@@ -353,6 +400,11 @@ export function formatPlan(plan: Plan, o: Options): string {
     const live = r.scope !== "DRAFT";
     const skipped = live && !o.includeLiveFields ? "  [will NOT be written: needs --include-live-fields]" : "";
     out.push(`[${r.scope}] ${r.field}${skipped}`, `   before: ${r.before}`, `   after:  ${r.after}`);
+  }
+  if (plan.englishRows.length > 0) {
+    out.push("", "English service descriptions (description_i18n.en only):");
+    const skipEn = !(o.includeLiveFields && o.includeEnglishDescriptions) ? "  [will NOT be written: needs --include-live-fields --include-english-descriptions]" : "";
+    for (const r of plan.englishRows) out.push(`[${r.scope}] ${r.field}${skipEn}`, `   before: ${r.before}`, `   after:  ${r.after}`);
   }
   out.push("", "Not applied / report:");
   for (const n of plan.notApplied) out.push(`  - ${n}`);
@@ -393,6 +445,13 @@ export async function run(argv: readonly string[], io: Io, log: (s: string) => v
       const r = await io.updateOffering({ id: p.id, patch: p.patch });
       if (!r.ok) { log(`FAILED offering "${p.label}": ${r.error}`); return { exitCode: 1, plan, wrote }; }
       wrote.push(`live:offering:${p.label}`);
+    }
+    if (opts.includeEnglishDescriptions) {
+      for (const p of plan.englishPatches) {
+        const r = await io.updateOffering({ id: p.id, patch: p.patch });
+        if (!r.ok) { log(`FAILED English description "${p.label}": ${r.error}`); return { exitCode: 1, plan, wrote }; }
+        wrote.push(`live:offering-en:${p.label}`);
+      }
     }
     if (plan.socialLinks) {
       const r = await io.writeSocialLinks({ profileId: plan.socialLinks.profileId, after: plan.socialLinks.after });

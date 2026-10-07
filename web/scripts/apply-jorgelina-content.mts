@@ -12,6 +12,8 @@
  *   npm run qa:jorgelina-content                          # dry run
  *   npm run qa:jorgelina-content -- --apply-draft --yes   # draft only
  *   npm run qa:jorgelina-content -- --apply-draft --yes --include-live-fields
+ *   npm run qa:jorgelina-content -- --apply-draft --yes --include-live-fields --include-english-descriptions
+ *     (adds ONLY description_i18n.en for the approved services; es and other locales preserved)
  */
 import { createClient } from "@supabase/supabase-js";
 import { writeFileSync } from "node:fs";

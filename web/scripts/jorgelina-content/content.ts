@@ -77,6 +77,22 @@ export const SERVICE_DESCRIPTIONS_ES: ReadonlyArray<{ title: string; description
   { title: "Henna Brows", description: "Color y relleno que dura hasta 2 semanas en piel." },
 ];
 
+/**
+ * Approved ENGLISH service descriptions, keyed by the SAME Spanish titles as
+ * SERVICE_DESCRIPTIONS_ES (same exact-title matching). Stored in
+ * description_i18n.en only, behind --include-english-descriptions.
+ */
+export const SERVICE_DESCRIPTIONS_EN: ReadonlyArray<{ title: string; description: string }> = [
+  { title: "Extensiones clásicas", description: "One extension per natural lash. A natural result, like soft mascara." },
+  { title: "Efecto rímel", description: "Classic extensions with a mapping that mimics mascara: more definition without volume." },
+  { title: "Tecnológicas 2D", description: "Light fans of 2 extensions. More density, and they look natural." },
+  { title: "Tecnológicas 3D", description: "Fans of 3. A fuller look for everyday wear." },
+  { title: "Tecnológicas 4D o 5D", description: "Fans of 4 or 5. Pronounced volume, ideal for events." },
+  { title: "Volumen americano", description: "Maximum volume and darkness, a glam effect." },
+  { title: "Lifting de pestañas", description: "Curls and lifts your natural lashes, lasts 6 to 8 weeks." },
+  { title: "Set lifting + Lami Brows", description: "Lash lift and brow lamination in a single appointment." },
+];
+
 /** Nails keep their names; they must read in Spanish. Matched by title, never guessed. */
 export const NAIL_NAMES_ES: readonly string[] = ["Gel semipermanente", "Soft Gel", "Acrygel", "Rubber Gel"];
 export const NAIL_NOTE_ES = "Desde $500 = precio base; el diseño se cotiza al enviar tu foto o tu diseño.";
@@ -96,6 +112,7 @@ export function allUserFacingStrings(): string[] {
     ...POLICIES_ES.flatMap((c) => [c.title, c.body]),
     ...POLICIES_EN.flatMap((c) => [c.title, c.body]),
     ...SERVICE_DESCRIPTIONS_ES.flatMap((s) => [s.title, s.description]),
+    ...SERVICE_DESCRIPTIONS_EN.flatMap((s) => [s.title, s.description]),
     ...NAIL_NAMES_ES, NAIL_NOTE_ES,
     CONTACT.whatsappNumber, CONTACT.instagramHandle,
   ];

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { allUserFacingStrings, POLICIES_EN, POLICIES_ES, policyText, SERVICE_DESCRIPTIONS_ES } from "./content";
+import { allUserFacingStrings, POLICIES_EN, POLICIES_ES, policyText, SERVICE_DESCRIPTIONS_EN, SERVICE_DESCRIPTIONS_ES } from "./content";
 import { computePlan, run, type HomePageRow, type Io, type OfferingRow } from "./plan";
 
 const PROFILE = { id: "p-1", profile_code: "TAL-93938" };
@@ -190,5 +190,140 @@ test("a lost compare-and-swap fails the run without writing live fields", async 
 test("no em dash or en dash in any approved string", () => {
   for (const s of allUserFacingStrings()) {
     assert.ok(!/[—–]/.test(s), `dash in: ${s}`);
+  }
+});
+
+// ---------------------------------------------------------------- English descriptions
+
+const ALL = ["--apply-draft", "--yes", "--include-live-fields", "--include-english-descriptions"];
+const DRY = { profileCode: "TAL-93938", applyDraft: false, yes: false, includeLiveFields: false };
+
+test("English descriptions: en written, es and other locales preserved, base description untouched", async () => {
+  const f = new Fake();
+  f.offs = f.offs.map((o) => ({ ...o, description_i18n: { fr: "garde", es: "ya" } }));
+  const r = await run(ALL, f.io, quiet);
+  assert.equal(r.exitCode, 0);
+  const first = f.offs.find((o) => o.title === SERVICE_DESCRIPTIONS_EN[0]!.title)!;
+  assert.equal(first.description_i18n?.en, SERVICE_DESCRIPTIONS_EN[0]!.description);
+  // es is the approved Spanish text (written by the existing live step), fr preserved
+  assert.equal(first.description_i18n?.es, SERVICE_DESCRIPTIONS_ES[0]!.description);
+  assert.equal(first.description_i18n?.fr, "garde");
+  assert.equal(first.description, SERVICE_DESCRIPTIONS_ES[0]!.description);
+  for (const e of SERVICE_DESCRIPTIONS_EN) {
+    assert.equal(f.offs.find((o) => o.title === e.title)!.description_i18n?.en, e.description);
+  }
+});
+
+test("English descriptions: es is preserved even when the Spanish step has nothing to do", async () => {
+  const f = new Fake();
+  f.offs = f.offs.map((o) => {
+    const es = SERVICE_DESCRIPTIONS_ES.find((s) => s.title === o.title)!.description;
+    return { ...o, description: es, description_i18n: { es, de: "x" } };
+  });
+  const plan = await computePlan(f.io, DRY);
+  assert.deepEqual(plan.offeringPatches, []);
+  assert.equal(plan.englishPatches.length, SERVICE_DESCRIPTIONS_EN.length);
+  for (const p of plan.englishPatches) {
+    const i18n = p.patch.description_i18n as Record<string, string>;
+    assert.deepEqual(Object.keys(p.patch), ["description_i18n"]);
+    assert.ok(i18n.es && i18n.de === "x" && i18n.en);
+  }
+});
+
+test("English descriptions: without the new flag nothing English is written", async () => {
+  const f = new Fake();
+  await run(["--apply-draft", "--yes", "--include-live-fields"], f.io, quiet);
+  assert.ok(f.offs.every((o) => o.description_i18n?.en === "keep me"));
+  assert.ok(f.writes.every((w) => w === "draft" || w === "links" || w.startsWith("offering:")));
+});
+
+test("English descriptions: dry run prints before/after and writes nothing", async () => {
+  const f = new Fake();
+  const lines: string[] = [];
+  const r = await run([], f.io, (s) => lines.push(s));
+  assert.equal(r.exitCode, 0);
+  assert.deepEqual(f.writes, []);
+  const out = lines.join("\n");
+  assert.match(out, /description_i18n\.en/);
+  assert.match(out, /before: keep me/);
+  assert.match(out, /after:  Fans of 3\. A fuller look for everyday wear\./);
+});
+
+test("English descriptions: every bad flag combination is refused, LIVE named", async () => {
+  const bad = [
+    ["--include-english-descriptions"],
+    ["--include-english-descriptions", "--apply-draft"],
+    ["--include-english-descriptions", "--apply-draft", "--yes"],
+    ["--include-english-descriptions", "--include-live-fields"],
+    ["--include-english-descriptions", "--include-live-fields", "--apply-draft"],
+  ];
+  for (const argv of bad) {
+    const f = new Fake();
+    const lines: string[] = [];
+    const r = await run(argv, f.io, (s) => lines.push(s));
+    assert.equal(r.exitCode, 2, argv.join(" "));
+    assert.deepEqual(f.writes, []);
+  }
+  const f = new Fake();
+  const lines: string[] = [];
+  await run(["--include-english-descriptions", "--apply-draft", "--yes"], f.io, (s) => lines.push(s));
+  assert.match(lines.join("\n"), /LIVE/);
+});
+
+test("English descriptions: idempotent, second diff is empty and second run writes nothing", async () => {
+  const f = new Fake();
+  await run(ALL, f.io, quiet);
+  f.writes = [];
+  const plan = await computePlan(f.io, DRY);
+  assert.deepEqual(plan.englishRows, []);
+  assert.deepEqual(plan.englishPatches, []);
+  await run(ALL, f.io, quiet);
+  assert.deepEqual(f.writes, []);
+});
+
+test("English descriptions: title mismatch and duplicates are reported, never guessed", async () => {
+  const f = new Fake();
+  f.offs = f.offs.filter((o) => o.title !== "Tecnológicas 3D");
+  f.offs.push({ id: "x", title: "Tecnológicas 3D plus", description: "keep", title_i18n: null, description_i18n: null, status: "published" });
+  f.offs.push({ ...f.offs.find((o) => o.title === "Efecto rímel")!, id: "dup" });
+  const plan = await computePlan(f.io, DRY);
+  assert.ok(plan.notApplied.some((n) => n.startsWith('English description for "Tecnológicas 3D": no offering')));
+  assert.ok(plan.notApplied.some((n) => n.startsWith('English description for "Efecto rímel": 2 offerings')));
+  assert.ok(!plan.englishPatches.some((p) => p.id === "x" || p.id === "dup"));
+  assert.ok(!plan.englishPatches.some((p) => p.label === "Efecto rímel" || p.label === "Tecnológicas 3D"));
+});
+
+test("English descriptions: wrong profile is refused", async () => {
+  for (const code of ["TAL-93900", "TAL-00001"]) {
+    const f = new Fake();
+    const r = await run(["--profile", code, ...ALL], f.io, quiet);
+    assert.equal(r.exitCode, 2, code);
+    assert.deepEqual(f.writes, []);
+  }
+  const f = new Fake();
+  f.site.site_slug = "jorg-beauty-qa";
+  assert.equal((await run(ALL, f.io, quiet)).exitCode, 2);
+  assert.deepEqual(f.writes, []);
+});
+
+test("English descriptions: never touch title, title_i18n or prices", async () => {
+  const f = new Fake();
+  await run(ALL, f.io, quiet);
+  const plan = await computePlan(f.io, DRY);
+  void plan;
+  const seen = new Set<string>();
+  const f2 = new Fake();
+  f2.io.updateOffering = async (i) => { Object.keys(i.patch).forEach((k) => seen.add(k)); return { ok: true }; };
+  await run(ALL, f2.io, quiet);
+  assert.deepEqual([...seen].sort(), ["description", "description_i18n"]);
+});
+
+test("English constants are the approved eight and use no dashes", () => {
+  assert.equal(SERVICE_DESCRIPTIONS_EN.length, 8);
+  assert.deepEqual(SERVICE_DESCRIPTIONS_EN.map((s) => s.title), SERVICE_DESCRIPTIONS_ES.slice(0, 8).map((s) => s.title));
+  const all = allUserFacingStrings();
+  for (const e of SERVICE_DESCRIPTIONS_EN) {
+    assert.ok(all.includes(e.description), "covered by the no-dash test");
+    assert.ok(!/[—–]/.test(e.description) && !/[—–]/.test(e.title));
   }
 });
