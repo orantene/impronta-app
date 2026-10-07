@@ -116,7 +116,14 @@ export function createApplyFailure({
         activeCount: extra?.activeCount ?? 0,
         limit: extra?.limit ?? 0,
       });
-      setError(message);
+      // F-12: the server message is English-only; localise by tier here.
+      setError(
+        tier === "account"
+          ? t("public.guestChat.errLimitAccount")
+          : tier === "email_verified"
+            ? t("public.guestChat.errLimitCreateAccount")
+            : t("public.guestChat.errLimitVerifyEmail"),
+      );
       return;
     }
     setError(message || "Something went wrong. Please try again.");
