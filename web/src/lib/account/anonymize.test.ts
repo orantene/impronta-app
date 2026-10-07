@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   DELETED_USER_LABEL,
+  AVATAR_BUCKET,
   anonymizeUserData,
+  removeUserAvatarFiles,
   anonymizedEmailFor,
   buildAnonymizationPlan,
   escapeLikeLiteral,
@@ -105,9 +107,10 @@ test("inquiry contact email stays non-null (column is NOT NULL)", () => {
 
 type Call = { table: string; action: string; patch?: unknown; filters: Array<[string, string, unknown]> };
 
-function fakeAdmin(opts: { failTable?: string } = {}) {
+function fakeAdmin(opts: { failTable?: string; avatarFiles?: string[]; listError?: boolean; removeAvatarError?: boolean } = {}) {
   const calls: Call[] = [];
   const removed: string[][] = [];
+  const storageCalls: Array<{ bucket: string; op: "list" | "remove"; arg: unknown }> = [];
   function builder(table: string, action: string, patch?: unknown, rows: unknown[] = []) {
     const call: Call = { table, action, patch, filters: [] };
     calls.push(call);
@@ -135,15 +138,27 @@ function fakeAdmin(opts: { failTable?: string } = {}) {
       };
     },
     storage: {
-      from: () => ({
+      from: (bucket: string) => ({
+        list: async (prefix: string) => {
+          storageCalls.push({ bucket, op: "list", arg: prefix });
+          if (opts.listError) return { data: null, error: { message: "list boom" } };
+          // Only the avatar bucket has listable objects in these tests.
+          const names = bucket === AVATAR_BUCKET && prefix === `avatars/${USER}` ? (opts.avatarFiles ?? []) : [];
+          return { data: names.map((name) => ({ name })), error: null };
+        },
         remove: async (paths: string[]) => {
+          storageCalls.push({ bucket, op: "remove", arg: paths });
+          if (bucket === AVATAR_BUCKET) {
+            if (opts.removeAvatarError) return { error: { message: "rm boom" } };
+            return { error: null };
+          }
           removed.push(paths);
           return { error: null };
         },
       }),
     },
   };
-  return { admin, calls, removed };
+  return { admin, calls, removed, storageCalls };
 }
 
 test("anonymizeUserData removes uploaded files, runs every op, reports ok", async () => {
@@ -311,4 +326,49 @@ test("payout accounts: applying the plan to a fake store changes only display_na
   // Re-running converges to the same state.
   await run();
   assert.deepEqual(store, after);
+
+// ── avatar file removal ───────────────────────────────────────────────────────
+
+test("avatar: the user's own avatar file is removed from media-public, and nothing else", async () => {
+  const { admin, storageCalls } = fakeAdmin({ avatarFiles: ["avatar.jpg"] });
+  const steps = await removeUserAvatarFiles(admin as never, USER);
+  assert.deepEqual(steps, [{ label: "avatar_files.remove", ok: true }]);
+  assert.deepEqual(storageCalls, [
+    { bucket: AVATAR_BUCKET, op: "list", arg: `avatars/${USER}` },
+    { bucket: AVATAR_BUCKET, op: "remove", arg: [`avatars/${USER}/avatar.jpg`] },
+  ]);
+});
+
+test("avatar: no file is a no-op, and a second run changes nothing (idempotent)", async () => {
+  const { admin, storageCalls } = fakeAdmin({ avatarFiles: [] });
+  assert.deepEqual(await removeUserAvatarFiles(admin as never, USER), [{ label: "avatar_files.remove", ok: true }]);
+  assert.deepEqual(await removeUserAvatarFiles(admin as never, USER), [{ label: "avatar_files.remove", ok: true }]);
+  assert.equal(storageCalls.filter((c) => c.op === "remove").length, 0);
+});
+
+test("avatar: a non-uuid id never lists a shared prefix", async () => {
+  const { admin, storageCalls } = fakeAdmin();
+  for (const bad of ["", "../x", "avatars", "11111111-2222-3333-4444-55555555555"]) {
+    const steps = await removeUserAvatarFiles(admin as never, bad);
+    assert.equal(steps[0]?.ok, false, bad);
+  }
+  assert.equal(storageCalls.length, 0);
+});
+
+test("avatar: a storage failure is reported as a failing step (the executor then keeps the auth user and retries)", async () => {
+  const listFail = fakeAdmin({ listError: true });
+  assert.equal((await removeUserAvatarFiles(listFail.admin as never, USER))[0]?.ok, false);
+  const rmFail = fakeAdmin({ avatarFiles: ["avatar.png"], removeAvatarError: true });
+  assert.equal((await removeUserAvatarFiles(rmFail.admin as never, USER))[0]?.ok, false);
+});
+
+test("anonymizeUserData removes the avatar too, and a failed avatar removal makes the report not ok", async () => {
+  const good = fakeAdmin({ avatarFiles: ["avatar.webp"] });
+  const ok = await anonymizeUserData(good.admin as never, { userId: USER, email: null, talentProfileIds: [] }, {}, new Date(NOW));
+  assert.equal(ok.ok, true);
+  assert.ok(good.storageCalls.some((c) => c.bucket === AVATAR_BUCKET && c.op === "remove"));
+  const bad = fakeAdmin({ avatarFiles: ["avatar.webp"], removeAvatarError: true });
+  const report = await anonymizeUserData(bad.admin as never, { userId: USER, email: null, talentProfileIds: [] }, {}, new Date(NOW));
+  assert.equal(report.ok, false);
+  assert.ok(report.steps.some((s) => s.label === "avatar_files.remove" && !s.ok));
 });
