@@ -427,6 +427,9 @@ export async function runEssentialsWrites(store: EssentialsStore, input: Essenti
   }
 
   if (choice === "both" && workspace) {
+    // TUL-77: the owner is the bookable provider; the workspace shows her
+    // opening hours and place too (the same week she confirmed).
+    await step("businessInfo", () => store.setWorkspaceBusinessInfo(workspace.tenantId, { hours: weekly, place: e.place }));
     await step("appointments", async () => {
       await store.enableWorkspaceAppointments(workspace.tenantId, { timezone: e.timezone, presetId: "salon" });
       out.appointmentsEnabled = true;

@@ -85,6 +85,7 @@ export async function runOnboardingBuild(input: {
     discipline: stringFact(input.brief, "work.discipline") ?? stringFact(input.brief, "work.industry"),
     tradeSlug: input.state.typeChoice?.slug ?? null,
     country: stringFact(input.brief, "person.country"),
+    city: person.city,
     locale: input.locale,
   });
   const services = Math.max(listFact(input.brief, "work.services").length, essentials?.services.length ?? 0);
