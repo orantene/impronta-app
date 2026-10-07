@@ -109,8 +109,25 @@ export function TermsEs() {
                 disputa de los pagos futuros del talento.
               </p>
               <p>
-                Actualmente no hay una tarifa de reservación aparte para los clientes. Las
-                comisiones y tarifas se indican en los planes.
+                Comisiones de procesamiento de tarjeta: cada pago con tarjeta lleva una comisión
+                de procesamiento que las redes de tarjetas y Stripe no devuelven. Según la
+                configuración del talento, el talento absorbe esta comisión o se suma al total
+                del cliente. El monto completo, incluida cualquier comisión, siempre se muestra
+                antes de que el cliente pague.
+              </p>
+              <p>
+                Como las comisiones de procesamiento no se devuelven, un reembolso es el monto
+                reembolsable según la política de reembolso del talento menos las comisiones de
+                procesamiento de ese pago. Ni el talento ni {PLATFORM_BRAND.name} cubren esas
+                comisiones. Si todavía no se puede confirmar la comisión real, el reembolso
+                espera a que se pueda, en lugar de estimarse.
+              </p>
+              <p>
+                Tarifa de servicio: los clientes pagan una tarifa de servicio de{" "}
+                {PLATFORM_BRAND.name} de 1.5% sobre el precio de la reservación. Se muestra al
+                pagar, antes de que el cliente confirme, y es independiente de la comisión de
+                procesamiento de tarjeta descrita arriba. Las comisiones y tarifas para talentos
+                se indican en los planes.
               </p>
             </>
           ),
