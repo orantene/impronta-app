@@ -73,7 +73,7 @@ export function PersonalPageBand() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
           <Icon name="globe" size={13} stroke={1.7} color={COLORS.inkMuted} />
           <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
-            {copy.t(live ? "Your roster page is live" : "Your roster page is not published yet")}
+            {copy.t(live ? "Your public page is live" : "Your public page is not published yet")}
           </div>
         </div>
         <div style={{ fontSize: 12, lineHeight: 1.55, maxWidth: 560 }} className="text-admin-ink-muted">

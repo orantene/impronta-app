@@ -124,3 +124,32 @@ test("TUL-90: no sample slug or 'live now' claim is hardcoded in the surfaces", 
   const settings = read("src/components/talent/website-settings/WebsiteSettingsScreen.tsx");
   assert.equal(settings.includes("live now"), false);
 });
+
+test("TUL-90: every surface resolves her address through the one helper", () => {
+  const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
+  const myProfile = read("src/components/admin/shell/internal/talent/pages/MyProfilePage.tsx");
+  assert.match(myProfile, /resolveTalentOwnPageState/);
+  assert.equal(myProfile.includes("https://tulala.digital/t/${"), false);
+  const where = read("src/components/talent/site/TalentSiteAppearancesPanel.tsx");
+  assert.match(where, /resolveTalentOwnPageState/);
+  assert.equal(where.includes("https://tulala.digital/t/"), false);
+  const fallback = read("src/app/%5Fhost-unregistered/page.tsx");
+  assert.equal(fallback.includes("talent agency"), false);
+  const wave2 = read("src/components/admin/shell/internal/wave2.tsx");
+  assert.match(wave2, /copy\.t\("Publish your profile first to get a public link"\)/);
+});
+
+test("TUL-90: new copy exists in es and says public page, not roster", () => {
+  const i18n = readFileSync(join(process.cwd(), "src/components/admin/shell/internal/dashboard-i18n.ts"), "utf8");
+  for (const key of [
+    "Your public page is live",
+    "Your public page is not published yet",
+    "Publish your profile first to get a public link",
+    "Publish your profile to get a public address you can share.",
+  ]) {
+    assert.ok(i18n.includes(`"${key}":`), key);
+  }
+  assert.ok(i18n.includes("Tu página pública está en línea"));
+  assert.ok(i18n.includes("Tu página pública aún no está publicada"));
+  assert.equal(i18n.includes("Your roster page is not published yet"), false);
+});

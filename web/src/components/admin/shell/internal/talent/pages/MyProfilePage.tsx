@@ -8,6 +8,8 @@ import { PageHeader } from "../shared/page-chrome-1";
 import { ProfileEditorSections, ProfileReadyCard } from "./ProfileEditorPanel";
 import { AllSectionsGrid, EngagementStrip, ProfileHero } from "../shared/profile-sections-1";
 import { PersonalPageBand } from "../shared/profile-sections-2";
+import { resolveTalentOwnPageState } from "@/lib/talent/public-profile-href";
+import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
 
 
 
@@ -91,9 +93,18 @@ export function MyProfilePage() {
     ? `${primaryRoleLabel} · ${t("dashboard.talentMyProfile.roleAlso")} ${secondaryRoleLabels.join(" · ")}`
     : primaryRoleLabel;
 
-  const previewHref = bridgeTalentSelfProfile?.profileCode
-    ? `https://tulala.digital/t/${encodeURIComponent(bridgeTalentSelfProfile.profileCode)}`
+  // TUL-90: one source of truth for her public address and whether it is live.
+  const origin = useCurrentOrigin();
+  const ownPage = bridgeTalentSelfProfile
+    ? resolveTalentOwnPageState({
+        profileCode: bridgeTalentSelfProfile.profileCode,
+        workflowStatus: bridgeTalentSelfProfile.workflowStatus,
+        isPubliclyHidden: bridgeTalentSelfProfile.isPubliclyHidden,
+        currentOrigin: origin,
+      })
     : null;
+  const previewHref = ownPage?.href ?? null;
+  const publicUrlLabel = ownPage ? ownPage.label : p.publicUrl;
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -200,16 +211,16 @@ export function MyProfilePage() {
       <div className="mt-3">
         <SecondaryCard
           title={t("dashboard.talentMyProfile.publicProfileTitle")}
-          description={p.publicUrl
-            ? interpolate(t("dashboard.talentMyProfile.publicProfileLive"), { url: p.publicUrl })
+          description={publicUrlLabel
+            ? interpolate(t("dashboard.talentMyProfile.publicProfileLive"), { url: publicUrlLabel })
             : t("dashboard.talentMyProfile.publicProfileNotPublished")}
-          affordance={p.publicUrl ? t("dashboard.talentMyProfile.openInNewTab") : undefined}
-          onClick={p.publicUrl ? () => window.open(`https://${p.publicUrl}`, "_blank") : undefined}
+          affordance={publicUrlLabel ? t("dashboard.talentMyProfile.openInNewTab") : undefined}
+          onClick={publicUrlLabel ? () => window.open(ownPage?.href ?? `https://${publicUrlLabel}`, "_blank") : undefined}
         >
-          {p.publicUrl && (
+          {publicUrlLabel && (
             <div style={{ marginTop: 10, padding: "10px 14px", borderRadius: 10, border: `1px solid rgba(15,79,62,0.18)`, display: "flex", alignItems: "center", gap: 10 }} className="bg-admin-surface-alt">
               <Icon name="external" size={12} color={COLORS.accentDeep} />
-              <span style={{ fontFamily: FONTS.mono, fontSize: 11.5 }} className="text-admin-ink">{p.publicUrl}</span>
+              <span style={{ fontFamily: FONTS.mono, fontSize: 11.5 }} className="text-admin-ink">{publicUrlLabel}</span>
             </div>
           )}
         </SecondaryCard>

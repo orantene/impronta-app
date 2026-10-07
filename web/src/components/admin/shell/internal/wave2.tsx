@@ -3513,6 +3513,7 @@ export function OnboardingArc({
 /** Convenience: talent first-run arc — "profile → photos → availability → share". */
 export function TalentOnboardingArc() {
   const { openDrawer, setTalentPage, toast, bridgeTalentSelfProfile } = useAdminShell();
+  const copy = useDashboardText();
   return (
     <OnboardingArc
       storageKey="tulala_onboard_talent"
@@ -3552,7 +3553,7 @@ export function TalentOnboardingArc() {
                 })
               : null;
             if (own && !own.live) {
-              toast("Publish your profile first to get a public link");
+              toast(copy.t("Publish your profile first to get a public link"));
               return;
             }
             navigator.clipboard?.writeText(own?.href ?? "https://tulala.digital/t/marta-reyes");
