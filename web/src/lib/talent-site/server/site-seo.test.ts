@@ -194,3 +194,10 @@ test("no route hand-rolls a bespoke JSON-LD or locale-alternates fn", () => {
     );
   }
 });
+
+test("DS-18: faviconUrl on the envelope becomes the tab icon; absent keeps the platform icon", () => {
+  const base: MaxSiteSeo = { title: "Jorg Beauty", noindex: false };
+  const withIcon = maxSiteSeoToMetadata({ ...base, faviconUrl: "https://cdn.tulala.digital/logo.png" });
+  assert.deepEqual(withIcon.icons, { icon: [{ url: "https://cdn.tulala.digital/logo.png" }] });
+  assert.equal(maxSiteSeoToMetadata(base).icons, undefined);
+});
