@@ -222,9 +222,12 @@ test("INVARIANT getTenantScope: tampered tenant cookie is rejected + audit-logge
 test("INVARIANT scope.ts: no runtime seed-tenant fallback (no LEGACY id / all-ones / all-twos UUID)", () => {
   // Extends the tenant-isolation.test.ts LEGACY_TENANT_ID invariant to scope.ts
   // specifically: the read-side resolver must never hardcode a tenant.
-  assert.doesNotMatch(SCOPE_SRC, /LEGACY_TENANT_ID/, "scope.ts must not reference the seed tenant");
+  // Strip comments: a doc comment may MENTION the placeholder id (it explains
+  // why the UUID guard is shape-only); only executable code must not use it.
+  const CODE = SCOPE_SRC.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.doesNotMatch(CODE, /LEGACY_TENANT_ID/, "scope.ts must not reference the seed tenant");
   assert.doesNotMatch(
-    SCOPE_SRC,
+    CODE,
     /00000000-0000-0000-0000-0000000000(01|02)/,
     "scope.ts must not hardcode the seed/hub tenant UUID as a fallback",
   );
@@ -234,11 +237,12 @@ test("INVARIANT getPublicPathPrefix: slug is validated with an anchored ^/[a-z0-
   // This regex is the path-injection guard for /<tenantSlug>/ storefront
   // routing on hub/marketing hosts. Anchored + lowercased alnum/hyphen only →
   // rejects "/../", protocol-relative "//evil", uppercase, empty, over-length.
-  assert.match(
-    SCOPE_SRC,
-    /\/\^\\\/\[a-z0-9\]\[a-z0-9-\]\{1,62\}\$\//,
-    "getPublicPathPrefix must keep the anchored slug regex",
-  );
+  // The segment is now a shared const, used in two ANCHORED patterns:
+  // canonical `^/w/<seg>$` and the legacy flat `^/<seg>$` (301'd upstream).
+  assert.match(SCOPE_SRC, /const SEGMENT = "\[a-z0-9\]\[a-z0-9-\]\{1,62\}";/, "slug segment charset/length unchanged");
+  assert.match(SCOPE_SRC, /new RegExp\(`\^\/w\/\$\{SEGMENT\}\$`\)\.test\(prefix\)/, "canonical prefix is anchored");
+  assert.match(SCOPE_SRC, /new RegExp\(`\^\/\$\{SEGMENT\}\$`\)\.test\(prefix\)/, "legacy flat prefix is anchored");
+  assert.match(SCOPE_SRC, /isWorkspacePrefix \|\| isLegacyFlatPrefix \? prefix : ""/, "anything else → empty prefix");
 });
 
 test("INVARIANT getPublicTenantScope: trusts ONLY the x-impronta-tenant-id header, returns null when absent", () => {

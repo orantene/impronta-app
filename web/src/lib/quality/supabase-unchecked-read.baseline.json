@@ -244,7 +244,7 @@
   "src/lib/reviews/review-request-actions.ts": 3,
   "src/lib/reviews/review-token-actions.ts": 3,
   "src/lib/reviews/testimonial-actions.ts": 1,
-  "src/lib/saas/admin-scope.ts": 7,
+  "src/lib/saas/admin-scope.ts": 6,
   "src/lib/saas/canonical-hosts.ts": 1,
   "src/lib/saas/platform-hub.ts": 1,
   "src/lib/saas/representation-requests.ts": 1,

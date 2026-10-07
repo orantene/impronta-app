@@ -14,6 +14,8 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientPrimaryTenantSlug } from "@/lib/saas/role-tenant-resolver";
 import { loadClientSubscription } from "@/lib/discover/client-subscription";
 import { loadClientHubData, type HubBooking, type HubInquiry } from "@/lib/client-hub/load-hub";
+import { clientAccountEnabledFor } from "@/lib/client-account/flag";
+import { hubIsOpen } from "@/lib/client-hub/load-hub-focus";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 
@@ -48,7 +50,13 @@ function fmtDate(iso: string | null, fallback: string) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-export default async function ClientHubPage() {
+export default async function ClientHubPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ focus?: string | string[] }>;
+}) {
+  const sp = (await searchParams) ?? {};
+  const focus = typeof sp.focus === "string" ? sp.focus : undefined;
   const session = await getCachedActorSession();
   if (!session.user) redirect(`/login?next=${encodeURIComponent("/client/hub")}`);
 
@@ -64,11 +72,11 @@ export default async function ClientHubPage() {
     loadClientPrimaryTenantSlug(session.user.id).catch(() => null),
   ]);
 
-  const isPaid = subscription.tier === "pro" || subscription.tier === "enterprise";
+  const hubOpen = hubIsOpen(clientAccountEnabledFor("app"), subscription.tier);
   const backHref = primarySlug ? `/${primarySlug}/client/today` : "/client";
   const upgradeHref = primarySlug ? `/${primarySlug}/client/subscription` : "/client";
 
-  const hub = isPaid ? await loadClientHubData(session.user.id) : null;
+  const hub = hubOpen ? await loadClientHubData(session.user.id, { focus }) : null;
 
   return (
     <div style={{ minHeight: "100dvh", background: C.surface, fontFamily: FONT }}>
@@ -104,7 +112,7 @@ export default async function ClientHubPage() {
           )}
         </p>
 
-        {!isPaid ? (
+        {!hubOpen ? (
           <UpgradeWall upgradeHref={upgradeHref} tt={tt} />
         ) : hub && hub.totals.agencies === 0 ? (
           <div

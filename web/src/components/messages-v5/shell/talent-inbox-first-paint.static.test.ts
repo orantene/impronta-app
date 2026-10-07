@@ -13,10 +13,9 @@ test("Messages page does not read the inbox itself; the shell reports the total"
   assert.match(src, /onInboxLoaded=\{setTotalConversations\}/);
 });
 
-test("/talent/inbox server-starts the first read and primes the client reader", () => {
+test("/talent/inbox does NOT server-start its own list read: list and counts share the GET reader", () => {
   const src = read("app/(workspace)/talent/inbox/page.tsx");
-  assert.match(src, /messagingTalentLoadInbox\(\{ locationSlug: "all", filter: "all" \}\)/);
-  assert.match(src, /<TalentInboxPrimer initial=\{initial\} \/>/);
+  assert.doesNotMatch(src, /messagingTalentLoadInbox|TalentInboxPrimer/);
 });
 
 test("talent inbox reads get the GET budget, not the 4 s server-action stall budget", () => {
