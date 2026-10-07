@@ -184,3 +184,8 @@ export const MAX_INPUT_CHARS = 2000;
 export function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
+
+/** The current flow language as a state patch; anything but en/es adds nothing (the stored language stays). */
+export function localePatch(locale: unknown): { locale?: "en" | "es" } {
+  return locale === "en" || locale === "es" ? { locale } : {};
+}

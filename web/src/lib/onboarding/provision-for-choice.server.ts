@@ -27,12 +27,12 @@ import { logServerError } from "@/lib/server/safe-error";
 import { applyMaisonDesignAction } from "@/lib/talent-site/server/maison-apply-actions";
 import { provisionTalentPersonalSiteIfMissing } from "@/lib/talent-site/server/provision";
 import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
-import { MAISON_DEFAULT_PALETTE_KEY } from "@/lib/talent-site/theme-catalog/maison/seed";
 import type { Brief } from "@/lib/tulala/brief-store";
 import { linkBriefObjects } from "@/lib/tulala/brief-store.server";
 import { upsertLeadForBrief } from "@/lib/tulala/approve.server";
 
 import type { DesignLookKey } from "./finish-url";
+import { onboardingDesignApplyInput } from "./design-apply-input";
 import type { OnboardingChoice } from "./choice";
 import { runChoiceProvisioning, type ChoiceProvisionResult } from "./provision-for-choice";
 import { ensureOwnSitePublished } from "./publish-own-site";
@@ -128,7 +128,7 @@ export async function provisionForChoice(
           return { row: site.data ?? null, isDemo: Boolean((prof.data as { is_demo?: boolean } | null)?.is_demo) };
         },
         forceDesign: !!input.designPaletteKey,
-        applyDefaultDesign: () => applyMaisonDesignAction({ paletteKey: input.designPaletteKey ?? MAISON_DEFAULT_PALETTE_KEY }),
+        applyDefaultDesign: () => applyMaisonDesignAction(onboardingDesignApplyInput(input.designPaletteKey)),
         publish: () => publishMaxSiteAction(),
       }).catch((err) => ({ ok: false as const, error: String(err) }));
       if (!own.ok) {
