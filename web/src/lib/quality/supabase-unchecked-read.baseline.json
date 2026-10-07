@@ -112,7 +112,7 @@
   "src/app/api/payout-statement/[bookingId]/route.ts": 1,
   "src/app/api/public/booking/slots/route.ts": 1,
   "src/app/api/talent/media/library/route.ts": 4,
-  "src/app/auth/actions.ts": 2,
+  "src/app/auth/actions.ts": 1,
   "src/app/auth/callback/route.ts": 1,
   "src/app/auth/confirm/route.ts": 1,
   "src/app/not-found.tsx": 1,

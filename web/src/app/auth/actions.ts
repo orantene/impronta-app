@@ -160,7 +160,7 @@ export async function signInWithEmail(
   if (!supabase) {
     return { error: SUPABASE_ENV_HELP };
   }
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     // A wrong password is the user's outcome, not ours: warn, audit, no Sentry.
     if (isRejectedCredentials(error)) {
@@ -186,17 +186,18 @@ export async function signInWithEmail(
   }
 
   const nextPath = normalizeNextPath(String(formData.get("next") ?? "").trim());
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const profileData = user
-    ? await loadAccessProfile(supabase, user.id)
-    : null;
+  // TUL-129: the user comes from the sign-in response (the session just minted
+  // by Supabase), not a second getUser() round trip; the independent
+  // post-auth reads then run together instead of one after another.
+  const user = signInData?.user ?? null;
+  const [profileData] = await Promise.all([
+    user ? loadAccessProfile(supabase, user.id) : Promise.resolve(null),
+    user ? resetLocaleOnSignIn(user.id) : Promise.resolve(),
+    user ? claimGuestSupportOnAuth(user.id) : Promise.resolve(),
+    user ? claimTulalaBriefOnAuth(supabase, user.id) : Promise.resolve(),
+  ]);
 
   if (user) {
-    await resetLocaleOnSignIn(user.id);
-    await claimGuestSupportOnAuth(user.id);
-    await claimTulalaBriefOnAuth(supabase, user.id);
     const tenantId = await auditTenantId();
     if (tenantId) {
       scheduleWorkspaceAudit({
