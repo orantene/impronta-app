@@ -12,10 +12,10 @@
 
 import "server-only";
 import Stripe from "stripe";
-import { checkStripeKeyModes } from "./key-mode";
+import { checkStripeKeyModes, shouldRefuseOnMismatch } from "./key-mode";
 
 let _modeLogged = false;
-/** TUL-143: logs once (names + modes only); false on a test/live mix in production. */
+/** TUL-143: logs once (names + modes only); warn-only on a test/live mix; false only when STRIPE_ENFORCE_MODE_MATCH=1. */
 function keyModesAllowClient(): boolean {
   const check = checkStripeKeyModes();
   if (check.ok) return true;
@@ -26,7 +26,7 @@ function keyModesAllowClient(): boolean {
       check.mismatches.map((m) => `${m.name}=${m.mode}`).join(", "),
     );
   }
-  return process.env.NODE_ENV !== "production";
+  return !shouldRefuseOnMismatch(check);
 }
 
 export function isStripeConfigured(): boolean {

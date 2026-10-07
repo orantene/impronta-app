@@ -17,7 +17,9 @@ const KEY_VARS = [
   "STRIPE_SECRET_KEY",
   "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
   "STRIPE_MX_SECRET_KEY",
+  "STRIPE_MX_PUBLISHABLE_KEY",
   "NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY",
+  "STRIPE_V2_SECRET_KEY",
 ] as const;
 
 export interface StripeKeyModeCheck {
@@ -51,4 +53,15 @@ export function eventModeMismatch(
   const mode = stripeKeyMode(secretKey);
   if (!mode || typeof eventLivemode !== "boolean") return false;
   return (mode === "live") !== eventLivemode;
+}
+
+/**
+ * Warn-only by default: a mismatch is refused only when
+ * STRIPE_ENFORCE_MODE_MATCH=1.
+ */
+export function shouldRefuseOnMismatch(
+  check: StripeKeyModeCheck,
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  return !check.ok && env.STRIPE_ENFORCE_MODE_MATCH === "1";
 }

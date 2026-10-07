@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { stripeKeyMode, checkStripeKeyModes, eventModeMismatch } from "./key-mode";
+import { stripeKeyMode, checkStripeKeyModes, eventModeMismatch, shouldRefuseOnMismatch } from "./key-mode";
 
 describe("stripeKeyMode", () => {
   test("reads prefixes", () => {
@@ -48,5 +48,34 @@ describe("eventModeMismatch", () => {
   test("unknown key or livemode never mismatches", () => {
     assert.equal(eventModeMismatch(true, undefined), false);
     assert.equal(eventModeMismatch(undefined, "sk_live_a"), false);
+  });
+});
+
+describe("warn-only / enforce switch", () => {
+  const mixed = checkStripeKeyModes({ STRIPE_SECRET_KEY: "sk_live_a", STRIPE_MX_SECRET_KEY: "sk_test_b" });
+  test("mismatch without flag is allowed", () => {
+    assert.equal(shouldRefuseOnMismatch(mixed, {}), false);
+    assert.equal(shouldRefuseOnMismatch(mixed, { NODE_ENV: "production" }), false);
+  });
+  test("mismatch with STRIPE_ENFORCE_MODE_MATCH=1 is refused", () => {
+    assert.equal(shouldRefuseOnMismatch(mixed, { STRIPE_ENFORCE_MODE_MATCH: "1" }), true);
+  });
+  test("consistent keys never refused", () => {
+    const ok = checkStripeKeyModes({ STRIPE_SECRET_KEY: "sk_live_a" });
+    assert.equal(shouldRefuseOnMismatch(ok, { STRIPE_ENFORCE_MODE_MATCH: "1" }), false);
+  });
+  test("MX publishable unset + US live is ok", () => {
+    const r = checkStripeKeyModes({
+      STRIPE_SECRET_KEY: "sk_live_a",
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_live_a",
+    });
+    assert.equal(r.ok, true);
+  });
+  test("V2 and MX publishable keys are included", () => {
+    const r = checkStripeKeyModes({ STRIPE_SECRET_KEY: "sk_live_a", STRIPE_V2_SECRET_KEY: "sk_test_v" });
+    assert.equal(r.ok, false);
+    assert.deepEqual(r.mismatches[1], { name: "STRIPE_V2_SECRET_KEY", mode: "test" });
+    const r2 = checkStripeKeyModes({ STRIPE_SECRET_KEY: "sk_live_a", STRIPE_MX_PUBLISHABLE_KEY: "pk_test_m" });
+    assert.equal(r2.ok, false);
   });
 });
