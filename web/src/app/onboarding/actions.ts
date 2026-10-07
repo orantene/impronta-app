@@ -7,6 +7,7 @@ import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-se
 import { requireSession } from "@/lib/server/action-guards";
 import { getAppUrl, normalizeOptionalNextPath } from "@/lib/auth-flow";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { ensureHubRosterRow } from "@/lib/saas/ensure-hub-roster.server";
 import { applyRegistrationPolicy, ensurePlatformHubRoster } from "@/lib/saas/registration-policy";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -199,6 +200,22 @@ export async function chooseTalentRole(formData?: FormData): Promise<void> {
   if (error) {
     logServerError("onboarding/complete_talent_onboarding", error);
     redirect("/onboarding/role?error=failed");
+  }
+  // TUL-157: the profile exists now. A platform sign-up (no agency in `next`)
+  // lands on the hub roster here, so abandoning the location step cannot leave
+  // a roster-less talent. Agency sign-ups keep their registration policy.
+  if (!parsePortalNext(nextPath, "talent")?.tenantSlug) {
+    const hubAdmin = createServiceRoleClient();
+    if (hubAdmin) {
+      const { data: own, error: ownErr } = await hubAdmin
+        .from("talent_profiles")
+        .select("id")
+        .eq("user_id", auth.user.id)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (ownErr) logServerError("onboarding/chooseTalentRole.profile", ownErr);
+      else if (own?.id) await ensureHubRosterRow(hubAdmin, { talentProfileId: own.id as string, addedBy: auth.user.id });
+    }
   }
   const jar = await cookies();
   {

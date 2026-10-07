@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import type { LanguageSettings } from "@/lib/language-settings/types";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
+import { resolveAuthPageLocale } from "@/i18n/auth-page-locale";
 import { stripLocaleFromPathname, withLocalePath } from "@/i18n/pathnames";
 import { LOCALE_AUTO_COOKIE, LOCALE_COOKIE_MAX_AGE_SECONDS, LOCALE_OWNER_COOKIE } from "@/i18n/locale-cookies";
 
@@ -263,7 +264,16 @@ export function resolveLocaleForPathname(
     seg === "onboarding" ||
     seg === "update-password"
   ) {
-    return readLocaleCookie(request, settings) ?? ambientDefault;
+    // A visitor who never chose a language gets their browser's / country's
+    // (an auto-written `locale=en` is not a choice). See auth-page-locale.ts.
+    return resolveAuthPageLocale({
+      cookieLocale: readLocaleCookie(request, settings),
+      cookieIsAuto: localeCookieIsAutoWritten(request),
+      acceptLanguage: request.headers.get("accept-language"),
+      country: request.headers.get("x-vercel-ip-country"),
+      fallback: ambientDefault,
+      enabledLocales: [...settings.publicLocales, settings.defaultLocale],
+    });
   }
 
   if (isUnprefixedPublicDefaultPath(pathname, settings)) {

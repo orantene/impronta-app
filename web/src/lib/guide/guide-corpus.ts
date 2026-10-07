@@ -20,6 +20,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { DRAWER_HELP as REGISTRY } from "@/components/admin/shell/internal/help-registry";
 import { ADHOC_GUIDE_NODES } from "./adhoc-nodes";
 import { humanizeNodeId } from "./humanize";
+import { guideCategory, guidePurpose, guideStep, guideTitle } from "./guide-i18n";
 import type {
   GuideArticle,
   GuideArticleSections,
@@ -69,15 +70,15 @@ function parseSections(bodyMd: string): GuideArticleSections {
   }
 }
 
-function titleFor(nodeId: string): string {
+function titleFor(nodeId: string, locale: string): string {
   const entry = DRAWER_HELP[nodeId as keyof typeof DRAWER_HELP];
-  return entry?.shortTitle ?? humanizeNodeId(nodeId);
+  return guideTitle(nodeId, entry?.shortTitle ?? humanizeNodeId(nodeId), locale);
 }
 
 function rowToArticle(row: ArticleRow): GuideArticle {
   return {
     nodeId: row.node_id,
-    title: titleFor(row.node_id),
+    title: titleFor(row.node_id, row.locale),
     locale: row.locale as GuideLocale,
     status: row.status as GuideArticleStatus,
     sections: parseSections(row.body_md),
@@ -110,10 +111,10 @@ function rowToArticle(row: ArticleRow): GuideArticle {
 function registryFallback(nodeId: string, locale: GuideLocale): GuideArticle | null {
   const entry = DRAWER_HELP[nodeId as keyof typeof DRAWER_HELP];
   if (!entry) return null;
-  const oneSentence = entry.purpose;
+  const oneSentence = guidePurpose(nodeId, entry.purpose, locale);
   return {
     nodeId,
-    title: entry.shortTitle ?? humanizeNodeId(nodeId),
+    title: titleFor(nodeId, locale),
     locale,
     status: "short-version",
     // Only what the registry states: the purpose line and the "you can"
@@ -122,7 +123,7 @@ function registryFallback(nodeId: string, locale: GuideLocale): GuideArticle | n
     sections: {
       oneSentence,
       whatItIsFor: "",
-      steps: entry.youCanHere.map((text) => ({ text })),
+      steps: entry.youCanHere.map((text, i) => ({ text: guideStep(nodeId, i, text, locale) })),
       example: "",
       related: entry.relatedDrawers ?? [],
     },
@@ -181,13 +182,13 @@ export async function listGuideTopics(locale: GuideLocale): Promise<GuideTopicSu
   for (const [nodeId, entry] of Object.entries(DRAWER_HELP)) {
     if (!entry) continue;
     const row = generated.get(nodeId);
-    const oneSentence = row ? parseSections(row.body_md).oneSentence : entry.purpose;
+    const oneSentence = row ? parseSections(row.body_md).oneSentence : guidePurpose(nodeId, entry.purpose, locale);
     out.push({
       nodeId,
       kind: "page",
-      title: entry.shortTitle ?? humanizeNodeId(nodeId),
+      title: titleFor(nodeId, locale),
       oneSentence,
-      category: entry.category,
+      category: guideCategory(entry.category, locale),
       isShortVersion: !row || row.status === "short-version",
     });
   }

@@ -92,3 +92,18 @@ test("applyTalentLiveMedia preserves authored overrides (custom src, mediaId, li
   const heal = applyTalentLiveMedia([img("h", "Hero photo", "https://cdn/work1.jpg")], media);
   assert.equal((heal[0]!.props as { src: string }).src, "https://cdn/portrait.jpg");
 });
+
+test("a stock placeholder hero gives way to her own photo; a later custom pick does not", () => {
+  const stock = "https://cdn/stock/hero-nails.jpg";
+  const placeholder = { id: "h", kind: "image", props: { layerLabel: "Hero photo", src: stock, stockSrc: stock } } as unknown as BuilderNode;
+  const media = { headshotUrl: "https://cdn/portrait.jpg", insetUrl: "", aboutUrl: "", gallery: [] };
+  const out = applyTalentLiveMedia([placeholder], media);
+  assert.equal((out[0]!.props as { src: string }).src, "https://cdn/portrait.jpg");
+  // No photo yet: the stock stays.
+  const none = applyTalentLiveMedia([placeholder], { headshotUrl: "", insetUrl: "", aboutUrl: "", gallery: [] });
+  assert.equal((none[0]!.props as { src: string }).src, stock);
+  // She pasted her own URL after the stock: authored, left alone.
+  const custom = { id: "h", kind: "image", props: { layerLabel: "Hero photo", src: "https://elsewhere/me.jpg", stockSrc: stock } } as unknown as BuilderNode;
+  const kept = applyTalentLiveMedia([custom], media);
+  assert.equal((kept[0]!.props as { src: string }).src, "https://elsewhere/me.jpg");
+});

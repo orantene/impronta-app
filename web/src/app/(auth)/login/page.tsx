@@ -8,12 +8,17 @@ import {
 } from "@/components/auth/auth-ui";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
-import { normalizeOptionalNextPath } from "@/lib/auth-flow";
+import { getSiteUrl, isTalentSignupNext, normalizeOptionalNextPath } from "@/lib/auth-flow";
 import { readInviteFromCookieStore } from "@/lib/invites/cookie";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { prefersPasswordlessFirst } from "@/lib/auth/otp-flow";
 import { buildRegisterHref, readRegisterIntent } from "@/lib/auth/register-intent";
 import { EmailCodeForm } from "@/components/auth/email-code-form";
+import { AuthCardLocaleToggle } from "@/components/auth/auth-card-locale-toggle";
+import { getPublicHostContext } from "@/lib/saas/scope";
+import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
+import { legacySignupRedirect } from "@/lib/onboarding/legacy-signup-redirect";
+import { legacyFlowLang } from "@/lib/onboarding/legacy-signup-redirect.server";
 import { LoginForm } from "./login-form";
 import { LoginGoogleButton } from "./login-google-button";
 
@@ -69,6 +74,21 @@ export default async function LoginPage({
     ? t("public.auth.login.inviteDescription").replace("{agency}", inviterAgencyName)
     : t("public.auth.login.description");
 
+  // TUL-117: a pro's "create account" goes to the guided /start flow. Client
+  // links, invites and anything with a non-talent `next` keep /register.
+  const proStartUrl = passwordlessFirst
+    ? null
+    : legacySignupRedirect({
+        flagOn: (await getOnboardingFlags()).onboarding_module_enabled,
+        surface: "register",
+        siteUrl: getSiteUrl(),
+        lang: await legacyFlowLang(),
+        hostKind: (await getPublicHostContext()).kind,
+        intent: readRegisterIntent(params),
+        next: nextPath ?? null,
+        nextIsTalentSignup: nextPath ? isTalentSignupNext(nextPath) : false,
+      });
+
   // One copy of the sign-up line for both lanes. The client lane keeps its
   // intent on the href so /register stays passwordless-first too.
   const signUpFooter = (
@@ -79,7 +99,9 @@ export default async function LoginPage({
       {t("public.auth.login.noAccount")}{" "}
       <Link
         href={
-          passwordlessFirst
+          proStartUrl
+            ? proStartUrl
+            : passwordlessFirst
             ? buildRegisterHref("client", nextPath ? { next: nextPath } : {})
             : nextPath
               ? `/register?next=${encodeURIComponent(nextPath)}`
@@ -102,6 +124,7 @@ export default async function LoginPage({
       />
 
       <AuthCard>
+        <AuthCardLocaleToggle locale={locale} label={t("public.auth.language")} />
         {!error && reason === "session_expired" ? (
           <AuthNotice tone="info" align="center" className="mb-4">
             {t("public.auth.login.sessionExpired")}
