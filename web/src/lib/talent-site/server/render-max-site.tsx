@@ -7,8 +7,7 @@ import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill, withHeaderSiteCh
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
 import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
-import { pruneDeadSectionLinks } from "@/lib/talent-site/dead-section-links";
-import { headerOverlayAllowed } from "@/lib/talent-site/header-overlay";
+import { pruneDeadSectionLinks } from "@/lib/talent-site/dead-section-links"; import { headerOverlayAllowed } from "@/lib/talent-site/header-overlay";
 import { talentSiteLocalePath } from "@/lib/talent-site/talent-site-locale-routing";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
@@ -726,8 +725,7 @@ async function renderMaxSiteDocument(args: {
           // so the wrapper is a <div> (no duplicate banner). data-scrolled is
           // toggled by the observer; the token CSS paints the solid bar.
           <div
-            data-talent-max-site-header=""
-            {...overHeroAttr}
+            data-talent-max-site-header="" {...overHeroAttr}
             {...(headerScrollThreshold != null ? { "data-scrolled": "false" } : {})}
           >
             {liveHeaderTree.map((root) => renderShellRoot(root))}
