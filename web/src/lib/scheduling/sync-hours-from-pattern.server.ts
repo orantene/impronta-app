@@ -175,7 +175,8 @@ export async function upsertBookingHoursFromOnboarding(
   const timezone = (input.timezone && isValidIanaTimeZone(input.timezone) ? input.timezone : null)
     ?? (await resolveTalentTimezone(admin, input.talentProfileId, input.tenantId, null).catch(() => null));
   if (!timezone) return false;
-  const { error } = await tenantScopedQuery(admin as SupabaseClient, "talent_booking_hours", input.tenantId).upsert(
+  // One row per person: talent_profile_id is the primary key (a total unique index).
+  const { error } = await admin.from("talent_booking_hours").upsert(
     {
       talent_profile_id: input.talentProfileId,
       tenant_id: input.tenantId,
