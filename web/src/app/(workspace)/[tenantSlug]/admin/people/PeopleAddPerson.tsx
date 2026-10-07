@@ -21,6 +21,7 @@ import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { personNameOr } from "@/lib/people/display-name";
 import { PERSON_HATS, type PersonHat, type PersonRecord } from "@/lib/people/hats";
+import { BOOKING_TARGETS_CHANGED } from "@/components/appointments/booking-targets";
 import { invitePersonAccess, type PeopleActionResult } from "./people-actions";
 import { PEOPLE_INPUT, PEOPLE_NOTE, PEOPLE_REFUSAL } from "./people-classes";
 import { CARD, KeyValue, MutedChip } from "./people-ui";
@@ -96,6 +97,8 @@ export function PeopleAddPerson({
     startTransition(async () => {
       const r = await invitePersonAccess(trimmedEmail, "viewer");
       setResult(r);
+      // TUL-77 (#37): any open "Whose hours" list re-reads its targets.
+      if (typeof window !== "undefined") window.dispatchEvent(new Event(BOOKING_TARGETS_CHANGED));
     });
   };
 

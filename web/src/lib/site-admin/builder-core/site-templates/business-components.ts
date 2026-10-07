@@ -15,6 +15,7 @@
  * placement is always legal (D-TPL-10).
  */
 
+import { LIVE_BOOKING_LABEL, LIVE_SERVICES_LABEL } from "@/lib/site-admin/builder-node/live-booking-markers";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import {
   BUSINESS_TYPES,
@@ -67,10 +68,10 @@ function button(pair: Bilingual, href: string, ctx: ComponentContext, tone: "pri
   return node;
 }
 
-function empty(id: ComponentId, ctx: ComponentContext, extra: BuilderNode[] = []): BuilderNode[] {
+function empty(id: ComponentId, ctx: ComponentContext, extra: BuilderNode[] = [], layerLabel?: string): BuilderNode[] {
   const pair = COMPONENT_EMPTY_STATES[id];
   if (!pair || !pair.es) return [];
-  return [band([line(pair, ctx), ...extra], { paddingY: "l", maxWidth: "reading" })];
+  return [band([line(pair, ctx), ...extra], { paddingY: "l", maxWidth: "reading", ...(layerLabel ? { layerLabel } : {}) })];
 }
 
 function whatsappHref(ctx: ComponentContext): string | null {
@@ -241,10 +242,12 @@ const serviceList: BusinessComponent = {
   emptyState: COMPONENT_EMPTY_STATES.service_list,
   build(ctx) {
     const services = (ctx.services ?? []).map((s) => s.trim()).filter(Boolean).slice(0, 12);
-    if (services.length === 0) return empty("service_list", ctx, [ctas([button(label("book"), "/book", ctx), askButton(ctx)])]);
+    // The band is MARKED: at render time the live published catalog replaces
+    // these static children when the tenant has services (TUL-77, #30).
+    if (services.length === 0) return empty("service_list", ctx, [ctas([button(label("book"), "/book", ctx), askButton(ctx)])], LIVE_SERVICES_LABEL);
     // Names only, in the owner's words. Prices and durations are not facts we hold.
     const cards = services.map((name) => card([h(3, name)], "outline"));
-    return [band([grid(cards, services.length > 6 ? 3 : 2)], { paddingY: "l" })];
+    return [band([grid(cards, services.length > 6 ? 3 : 2)], { paddingY: "l", layerLabel: LIVE_SERVICES_LABEL })];
   },
 };
 
@@ -282,7 +285,9 @@ const bookingForm: BusinessComponent = {
             },
           },
         ],
-        { paddingY: "xl", maxWidth: "reading" },
+        // MARKED: the real booking flow replaces this inquiry form at render
+        // time when something is bookable (TUL-77, #31).
+        { paddingY: "xl", maxWidth: "reading", layerLabel: LIVE_BOOKING_LABEL },
       ),
     ];
   },
