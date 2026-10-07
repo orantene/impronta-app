@@ -395,7 +395,15 @@ test("INVARIANT requireTalentSelfAction: OWNERSHIP (user_id) is the boundary —
   assert.match(fn, /\.from\("agency_talent_roster"\)/, "falls back through the owned profile's roster row");
   assert.match(fn, /\.eq\("talent_profile_id", talent_profile_id\)/, "roster fallback is scoped to the owned profile");
   assert.match(fn, /\.eq\("status", "active"\)/, "roster fallback only accepts active roster rows");
-  assert.match(fn, /Talent is not on any active roster\./, "orphan profiles are refused");
+  // Independent (self-registered) talents are on no roster: tenantId stays null
+  // (type `string | null`), never a seed/default tenant. Ownership is proven
+  // BEFORE the roster fallback runs, so a non-owner is always refused first.
+  assert.match(fn, /tenantId = rosterRow\?\.tenant_id \?\? null/, "no roster row → null tenant, never a default");
+  assert.doesNotMatch(fn, /LEGACY_TENANT_ID|00000000-0000-0000-0000-0000000000/, "no seed-tenant fallback");
+  assert.ok(
+    fn.indexOf('"Not your profile."') < fn.indexOf('.from("agency_talent_roster")'),
+    "ownership refusal precedes the roster fallback",
+  );
   assert.match(fn, /if \(userErr \|\| !user\) return \{ ok: false/, "must be signed in");
   // The documented hybrid-user fix: it must NOT pre-gate on requireTalent()/role.
   assert.doesNotMatch(fn, /requireTalent\(\)/, "must not role-gate (hybrid admin-as-talent owns their profile)");
