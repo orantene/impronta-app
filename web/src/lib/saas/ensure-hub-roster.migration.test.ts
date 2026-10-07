@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DIR = join(fileURLToPath(new URL(".", import.meta.url)), "../../../../supabase/migrations");
-const FILE = "20261231346000_backfill_independent_talent_hub_roster.sql";
+const FILE = "20261231347000_backfill_independent_talent_hub_roster.sql";
 const SQL = readFileSync(join(DIR, FILE), "utf8");
 // Strip comments so prose cannot trip the keyword checks.
 const CODE = SQL.replace(/--.*$/gm, "");
