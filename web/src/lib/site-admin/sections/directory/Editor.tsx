@@ -640,6 +640,7 @@ export function DirectoryEditor({
               { value: "portrait", label: t("Portrait (editorial)") },
               { value: "editorial", label: t("Editorial (display name)") },
               { value: "profile", label: t("Cinematic (full-bleed statement)") },
+              { value: "showcase", label: t("Showcase (light caption panel)") },
             ]}
           />
           <FieldSelect
