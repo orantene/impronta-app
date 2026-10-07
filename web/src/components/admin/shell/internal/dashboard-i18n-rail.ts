@@ -31,6 +31,7 @@ import { MONEY_HOME_ES_TEXT } from "./dashboard-i18n-money-home";
 import { TALENT_CLIENT_PANELS_ES_TEXT } from "./dashboard-i18n-talent-client-panels";
 import { TALENT_GAPS_ES_TEXT } from "./dashboard-i18n-talent-gaps";
 import { DOMAIN_ERRORS_ES_TEXT } from "./dashboard-i18n-domain-errors";
+import { SPANISH_LEAKS_ES_TEXT } from "./dashboard-i18n-spanish-leaks";
 import { SWEEP_R1_ES_TEXT } from "./dashboard-i18n-sweep-r1";
 import { LEAKS_1007_ES_TEXT } from "./dashboard-i18n-leaks-1007";
 import { WEBSITE_ES_TEXT } from "./dashboard-i18n-website";
@@ -48,6 +49,7 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   ...TALENT_GAPS_ES_TEXT,
   ...SWEEP_R1_ES_TEXT,
   ...LEAKS_1007_ES_TEXT,
+  ...SPANISH_LEAKS_ES_TEXT,
   ...DOMAIN_ERRORS_ES_TEXT,
   ...LOCATION_ES_TEXT,
   ...LANGUAGES_ES_TEXT,

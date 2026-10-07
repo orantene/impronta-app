@@ -83,13 +83,10 @@ export function TalentOrdersQueue({ talentId }: { talentId: string }) {
     else setError(res.error);
   };
 
-  // The surface stays quiet until the talent actually has product orders.
-  if (orders === null) {
-    return (
-      <div style={{ marginTop: 28, fontSize: 13, color: C.inkSoft, fontFamily: FONT }}>{copy.t("Loading orders…")}</div>
-    );
-  }
-  if (orders.length === 0) return null;
+  // The surface stays quiet until the talent actually has product orders. It
+  // used to print a loading line here, in English and with the wrong noun for
+  // a talent who sells services only (TUL-146), so loading renders nothing.
+  if (orders === null || orders.length === 0) return null;
 
   return (
     <section style={{ marginTop: 32, fontFamily: FONT }} data-talent-orders>

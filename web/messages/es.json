@@ -76,9 +76,9 @@
         "title": "Crea tu cuenta",
         "operatorTitle": "Crea tu cuenta de operador",
         "inviteTitle": "Únete a {agency}",
-        "description": "Crea tu cuenta y luego cuéntanos cómo usarás Tulala: para ofrecer tus servicios o para reservar talento.",
-        "operatorDescription": "Usa el mismo correo que usaste en Comenzar. Abriremos tu workspace gratuito y crearemos su URL de Tulala automáticamente después del registro.",
-        "inviteDescription": "{agency} te invitó a unirte a su roster. Crea una cuenta en Tulala para reclamar tu perfil y empezar a recibir reservas.",
+        "description": "Después de registrarte elegirás si eres talento (para unirte a la lista de una agencia) o cliente (para reservar talento para eventos).",
+        "operatorDescription": "Usa el mismo correo que usaste en Comenzar. Abriremos tu espacio de trabajo gratuito y crearemos su URL de Tulala automáticamente después del registro.",
+        "inviteDescription": "{agency} te invitó a unirte a su lista de talento. Crea una cuenta en Tulala para reclamar tu perfil y empezar a recibir reservas.",
         "claimTitle": "Reclama tu perfil",
         "claimTitleAgency": "Reclama tu perfil en {agency}",
         "claimDescription": "{agency} te invitó a tomar el control de tu perfil. Crea tu cuenta con el correo al que llegó la invitación y todo lo que ya está configurado seguirá contigo.",
@@ -86,7 +86,7 @@
         "google": "Registrarse con Google",
         "googleContinue": "Continuar con Google",
         "emailSubmit": "Registrarse con correo",
-        "operatorSubmit": "Crear cuenta y abrir workspace",
+        "operatorSubmit": "Crear cuenta y abrir espacio de trabajo",
         "inviteSubmit": "Crear cuenta y reclamar perfil",
         "pending": "Creando cuenta…",
         "passwordHint": "Al menos 8 caracteres.",
@@ -95,7 +95,7 @@
         "eyebrow": "Empezar",
         "claimEyebrow": "Reclamar perfil",
         "inviteEyebrow": "Invitación",
-        "operatorEyebrow": "Abre tu workspace",
+        "operatorEyebrow": "Abre tu espacio de trabajo",
         "claimAgencyFallback": "Tu agencia",
         "ageTermsPrefix": "Tengo 18 años o más y acepto los",
         "ageTermsTerms": "Términos",
@@ -2703,7 +2703,8 @@
       "instantBookTitle": "Abierto a reserva instantánea",
       "instantBookHint": "Indica que aceptas ser reservado sin ida y vuelta. Que se ofrezca la reserva instantánea depende de tu Agency y del proyecto.",
       "saving": "Guardando…",
-      "saved": "Guardado"
+      "saved": "Guardado",
+      "loading": "Cargando tus condiciones de reserva…"
     },
     "clientOffer": {
       "loading": "Cargando oferta…",
@@ -12299,6 +12300,32 @@
           "purpose": "Confirma que tu método de cobro funciona con una autorización de Stripe que se reembolsa enseguida. Es de uso interno y mejora tu puntaje de confianza ante los clientes que valoran la fiabilidad en los pagos.",
           "b0": "Corre la verificación (retención de 1 euro y reembolso inmediato, el dinero nunca se mueve de verdad)",
           "b1": "Consulta el resultado en pantalla; se aprueba automáticamente si todo sale bien"
+        },
+        "support-ticket": {
+          "purpose": "Tu conversación con el soporte de Tulala. Cada ticket queda ligado a este espacio y a tu usuario.",
+          "b0": "Lee toda la conversación, incluidas las actualizaciones del sistema",
+          "b1": "Responde para que soporte pueda seguir ayudándote",
+          "b2": "Valora la solución cuando el ticket se marque como resuelto"
+        },
+        "support": {
+          "live-chat": {
+            "purpose": "El chat en vivo te conecta ahora mismo con una persona del equipo de Tulala, no con un bot.",
+            "b0": "Haz una pregunta y recibe respuesta de Oran o Vic, normalmente en minutos durante el día",
+            "b1": "Adjunta una grabación de pantalla de lo que salió mal si el replay está activado",
+            "b2": "Si no hay nadie en línea, se crea un ticket automáticamente"
+          },
+          "start-ticket": {
+            "purpose": "Crear un ticket abre una conversación escrita con el soporte de Tulala para algo que no es tan urgente como para el chat en vivo, o que pasó fuera de horario.",
+            "b0": "Cuenta qué pasó y elige una categoría",
+            "b1": "Agrega un teléfono si prefieres que te llamemos en lugar de una respuesta escrita",
+            "b2": "Recibe avisos por correo cuando soporte responda, con un enlace de regreso a esta conversación"
+          },
+          "guide-tab": {
+            "purpose": "La pestaña Guía es el manual integrado: artículos cortos sobre para qué sirve cada parte de Tulala y cómo usarla, en inglés y en español.",
+            "b0": "Busca escribiendo una palabra y elige entre los temas que coinciden",
+            "b1": "Abre los temas de Empieza aquí, las páginas más leídas",
+            "b2": "Activa el modo ayuda con el icono de la mira para ver qué partes de la página actual tienen un artículo"
+          }
         }
       },
       "drawerLabels": {
@@ -12418,7 +12445,41 @@
         "trust-verification-queue": "Cola de verificaciones",
         "whats-new": "Novedades",
         "widgets": "Widgets",
-        "workspace-settings": "Ajustes del espacio"
+        "workspace-settings": "Ajustes del espacio",
+        "awaiting-client": "Esperando al cliente",
+        "archived-work": "Trabajo archivado",
+        "day-detail": "Detalle del día",
+        "my-profile": "Mi perfil",
+        "tenant-summary": "Resumen del espacio",
+        "identity": "Identidad",
+        "activation-checklist": "Lista de activación",
+        "tenant-switcher": "Cambiar de espacio",
+        "storefront-visibility": "Visibilidad del sitio",
+        "talent-activity": "Actividad del talento",
+        "talent-today-pulse": "Pulso de hoy del talento",
+        "talent-booking-detail": "Detalle de la reserva",
+        "talent-limits": "Límites del talento",
+        "talent-travel": "Viajes del talento",
+        "talent-links": "Enlaces del talento",
+        "talent-reviews": "Reseñas del talento",
+        "talent-documents": "Documentos del talento",
+        "talent-media-kit": "Kit de medios del talento",
+        "talent-notifications": "Notificaciones del talento",
+        "talent-verification": "Verificación del talento",
+        "talent-voice-reply": "Respuesta por voz del talento",
+        "talent-chat-archive": "Archivo de chats del talento",
+        "talent-share-card": "Tarjeta para compartir del talento",
+        "payout-method-failure": "Falla en el método de cobro",
+        "subscription-lifecycle": "Ciclo de la suscripción",
+        "notification-detail": "Detalle de la notificación",
+        "ai-draft-assist": "Borrador con IA",
+        "ai-search-explain": "Explicación de la búsqueda con IA",
+        "support-ticket": "Ticket de soporte",
+        "support": {
+          "live-chat": "Chat en vivo",
+          "start-ticket": "Crear un ticket",
+          "guide-tab": "Pestaña Guía"
+        }
       },
       "categories": {
         "ai": "IA",
@@ -12436,7 +12497,8 @@
         "roster": "Lista",
         "security": "Seguridad",
         "settings": "Ajustes",
-        "today": "Hoy"
+        "today": "Hoy",
+        "support": "Soporte"
       },
       "audiences": {
         "workspaceAdmin": "Admin del espacio",
@@ -13558,7 +13620,7 @@
       "yesHelped": "Sí",
       "noHelped": "No",
       "offerHumanTitle": "¿Quieres que {agent} lo mire?",
-      "offerHumanBody": "He compartido lo que puedo de las guias. Una persona puede retomar esto si quieres.",
+      "offerHumanBody": "He compartido lo que puedo de las guías. Una persona puede retomar esto si quieres.",
       "requesterEyebrow": "SOLICITANTE",
       "staffEyebrow": "TULALA SUPPORT",
       "rateAriaN": "Valorar {n} de 5",
@@ -13591,7 +13653,7 @@
       "aiHandling": "La IA está ayudando, una persona está a un toque",
       "statusClosed": "Cerrado",
       "thinking1": "Leyendo tu pregunta",
-      "thinking2": "Revisando articulos de ayuda",
+      "thinking2": "Revisando artículos de ayuda",
       "thinking3": "Escribiendo una respuesta",
       "callbackConfirmed": "{agent} te llamará al {phone}.",
       "fixedTitle": "El problema que reportaste ya está resuelto",
@@ -13603,7 +13665,7 @@
       "oranTyping": "{agent} está escribiendo",
       "attachAria": "Adjuntar una imagen",
       "attachmentUnavailable": "Adjunto no disponible",
-      "askFeature": "Pedir una funcion",
+      "askFeature": "Pedir una función",
       "ideaHeading": "Cuéntanos qué necesitas",
       "ideaBlurb": "Las ideas de quienes usan Tulala definen lo que construimos. {agent} las lee todas.",
       "ideaTitleLabel": "¿Qué te gustaría poder hacer?",
@@ -13612,7 +13674,7 @@
       "ideaBodyPlaceholder": "Cuéntanos cómo trabajas hoy y qué te frena.",
       "ideaAreaLabel": "¿En qué parte de Tulala?",
       "ideaPhoneLabel": "Teléfono para seguimiento (opcional)",
-      "ideaPhonePlaceholder": "+34 600 00 00 00",
+      "ideaPhonePlaceholder": "+52 55 1234 5678",
       "ideaSubmit": "Enviar idea",
       "ideaSending": "Enviando",
       "ideaFootnote": "Puede que te llamemos o escribamos para entenderla mejor.",
@@ -13662,7 +13724,9 @@
       "guideAskSupport": "Preguntar a soporte",
       "whatIsThis": "¿Qué es esto?",
       "guideListen": "Escuchar",
-      "guidePause": "Pausa"
+      "guidePause": "Pausa",
+      "directMessageSubject": "Mensaje directo",
+      "supportRequestSubject": "Solicitud de soporte"
     },
     "adminMenu": {
       "noTenant": "No hay un espacio de trabajo activo.",

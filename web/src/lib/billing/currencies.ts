@@ -68,6 +68,26 @@ export const CURRENCY_LABELS: Record<DefaultCurrencyCode, string> = {
   AUD: "AUD · $ · Australian Dollar",
 };
 
+/** Spanish currency names for the same picker (TUL-146 C1-09). Same shape as CURRENCY_LABELS. */
+export const CURRENCY_LABELS_ES: Record<DefaultCurrencyCode, string> = {
+  EUR: "EUR · € · Euro",
+  USD: "USD · $ · Dólar estadounidense",
+  GBP: "GBP · £ · Libra esterlina",
+  MXN: "MXN · $ · Peso mexicano",
+  ARS: "ARS · $ · Peso argentino",
+  BRL: "BRL · R$ · Real brasileño",
+  COP: "COP · $ · Peso colombiano",
+  CLP: "CLP · $ · Peso chileno",
+  PEN: "PEN · S/ · Sol peruano",
+  CAD: "CAD · $ · Dólar canadiense",
+  AUD: "AUD · $ · Dólar australiano",
+};
+
+/** Picker label in the reader's language. */
+export function currencyLabel(code: DefaultCurrencyCode, spanish: boolean): string {
+  return spanish ? CURRENCY_LABELS_ES[code] : CURRENCY_LABELS[code];
+}
+
 /**
  * Picker label in the viewer's language: "MXN · $ · Peso mexicano" on a Spanish
  * dashboard. The static table above stays English (non-UI consumers, admin

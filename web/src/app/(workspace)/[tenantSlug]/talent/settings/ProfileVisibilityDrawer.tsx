@@ -17,6 +17,7 @@
  */
 
 import { Toggle } from "@/components/admin/shell/internal/primitives";
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 
 export type AgencySite = {
   /** agency id — also the tenant_id on the agency_talent_roster row. */
@@ -73,15 +74,19 @@ function AgencySiteRow({
   pending: boolean;
   onToggle: (nextVisible: boolean) => void;
 }) {
+  const copy = useDashboardText();
+  const es = copy.isSpanish;
   const shown = !siteHidden && !globalHidden;
   const eyeOff = agency.agencyVisibility === "roster_only";
   const note = globalHidden
-    ? "Paused — your profile is hidden everywhere"
+    ? copy.t("Paused: your profile is hidden everywhere")
     : eyeOff
-      ? `${agency.agencyName} hasn't listed you publicly yet — your choice is saved for when they do`
+      ? es
+        ? `${agency.agencyName} aún no te publica en su sitio. Tu elección queda guardada para cuando lo haga.`
+        : `${agency.agencyName} hasn't listed you publicly yet. Your choice is saved for when they do.`
       : siteHidden
-        ? "Hidden from this agency's site"
-        : "Shown on this agency's site";
+        ? copy.t("Hidden from this agency's site")
+        : copy.t("Shown on this agency's site");
 
   return (
     <div
@@ -104,7 +109,7 @@ function AgencySiteRow({
       <Toggle
         on={shown}
         onChange={(v) => { if (!globalHidden && !pending) onToggle(v); }}
-        label={`Show on ${agency.agencyName}'s site`}
+        label={es ? `Mostrar en el sitio de ${agency.agencyName}` : `Show on ${agency.agencyName}'s site`}
       />
     </div>
   );
@@ -135,6 +140,7 @@ export function ProfileVisibilityDrawer({
   onToggleSite: (agency: AgencySite, nextVisible: boolean) => void;
   errorMsg: string | null;
 }) {
+  const copy = useDashboardText();
   if (!open) return null;
   const visible = !globalHidden;
 
@@ -142,7 +148,7 @@ export function ProfileVisibilityDrawer({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Profile visibility"
+      aria-label={copy.t("Profile visibility")}
       style={{ position: "fixed", inset: 0, zIndex: 4000, fontFamily: FONT }}
     >
       {/* Backdrop */}
@@ -176,15 +182,15 @@ export function ProfileVisibilityDrawer({
           }}
         >
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>Profile visibility</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>{copy.t("Profile visibility")}</div>
             <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 1 }}>
-              Control where your profile appears.
+              {copy.t("Control where your profile appears.")}
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={copy.t("Close")}
             style={{
               width: 30,
               height: 30,
@@ -233,18 +239,18 @@ export function ProfileVisibilityDrawer({
             </span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>
-                Visible across Tulala
+                {copy.t("Visible across Tulala")}
               </div>
               <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 1, lineHeight: 1.45 }}>
                 {visible
-                  ? "Your profile can appear on agency directories, search and public pages."
-                  : "Hidden everywhere — you won't appear on any site until you turn this back on."}
+                  ? copy.t("Your profile can appear on agency directories, search and public pages.")
+                  : copy.t("Hidden everywhere. You won't appear on any site until you turn this back on.")}
               </div>
             </div>
             <Toggle
               on={visible}
               onChange={(v) => { if (!globalPending) onToggleGlobal(v); }}
-              label="Visible across Tulala"
+              label={copy.t("Visible across Tulala")}
             />
           </div>
 
@@ -260,16 +266,16 @@ export function ProfileVisibilityDrawer({
                 marginBottom: 2,
               }}
             >
-              Agency sites
+              {copy.t("Agency sites")}
             </div>
             <div style={{ fontSize: 11.5, color: C.inkMuted, lineHeight: 1.45, marginBottom: 4 }}>
               {globalHidden
-                ? "Turn your profile back on above to choose individual sites."
-                : "Choose which of your agencies may show you on their public site."}
+                ? copy.t("Turn your profile back on above to choose individual sites.")
+                : copy.t("Choose which of your agencies may show you on their public site.")}
             </div>
             {agencies.length === 0 ? (
               <div style={{ fontSize: 12, color: C.inkDim, padding: "12px 0" }}>
-                You&apos;re not on any agency roster yet.
+                {copy.t("You're not on any agency roster yet.")}
               </div>
             ) : (
               agencies.map((a) => (

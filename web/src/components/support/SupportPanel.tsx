@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useT } from "@/i18n/use-t";
+import { displaySupportPreview } from "./support-display";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { interpolate } from "@/i18n/interpolate";
@@ -181,12 +182,12 @@ export function SupportPanel({
       setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
       if (row.messageKind !== "note") {
         patchSummary(row.ticketId, {
-          lastMessagePreview: row.body.slice(0, 140),
+          lastMessagePreview: displaySupportPreview(row.body, t).slice(0, 140),
           lastMessageAt: row.createdAt,
         });
       }
     },
-    [patchSummary],
+    [patchSummary, t],
   );
   const onTicket = useCallback(
     (row: SupportTicketRow) => {
@@ -399,6 +400,7 @@ export function SupportPanel({
                   surface: contract.surface,
                   body: interpolate(t("dashboard.adminSupport.messageOranBody"), SUPPORT_AGENT_VARS),
                   messageOranDirectly: true,
+                  subject: t("dashboard.adminSupport.directMessageSubject"),
                   diagnostics: getDiagnosticsSnapshot(),
                 });
                 if (r.ok) {

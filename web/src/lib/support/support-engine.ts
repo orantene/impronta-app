@@ -69,8 +69,10 @@ export async function createTicket(input: {
     ? "human"
     : (input.handledBy ?? "human");
   const now = new Date().toISOString();
+  // A client-supplied subject wins even for a direct message, so the title is in
+  // the requester's language (TUL-146 F-05); the English literal is the fallback.
   const subject = input.messageOranDirectly
-    ? "Direct message"
+    ? (input.subject ?? "").trim() || "Direct message"
     : (input.subject ?? "").trim() || (input.body.trim().slice(0, 80) || "Support request");
 
   const insertRow: Record<string, unknown> = {

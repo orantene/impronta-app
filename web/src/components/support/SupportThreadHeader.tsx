@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { SupportAgentAvatar } from "./SupportAgentAvatar";
+import { displayTicketSubject } from "./support-display";
 import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS } from "./support-tokens";
@@ -157,7 +158,7 @@ export function SupportThreadHeader({
             whiteSpace: "nowrap",
           }}
         >
-          {ticket?.subject || t("dashboard.adminSupport.untitled")}
+          {displayTicketSubject(ticket?.subject, t)}
         </div>
         <SupportThreadStatusLine ticket={ticket} hqOnline={hqOnline} />
       </div>

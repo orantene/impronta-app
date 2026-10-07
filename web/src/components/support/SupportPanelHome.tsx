@@ -4,6 +4,7 @@ import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";
 import { Icon } from "@/components/admin/shell/internal/primitives";
+import { displayTicketSubject, displaySupportPreview } from "./support-display";
 import { COLORS, FONTS } from "./support-tokens";
 import { ReplayConsent } from "./ReplayConsent";
 import { relTime } from "./support-rel-time";
@@ -279,9 +280,9 @@ export function TicketRow({ row, onOpen }: { row: SupportTicketSummary; onOpen: 
         <span style={{ width: 8, height: 8, flexShrink: 0 }} />
       )}
       <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: "block", fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{row.subject || t("dashboard.adminSupport.untitled")}</span>
+        <span style={{ display: "block", fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{displayTicketSubject(row.subject, t)}</span>
         <span style={{ display: "block", fontSize: 12, color: COLORS.inkDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {row.lastMessagePreview}
+          {displaySupportPreview(row.lastMessagePreview, t)}
         </span>
       </span>
       <span style={{ fontSize: 10.5, color: COLORS.inkDim, flexShrink: 0, whiteSpace: "nowrap" }}>

@@ -2703,7 +2703,8 @@
       "instantBookTitle": "Open to instant booking",
       "instantBookHint": "Signals you're happy to be booked without a back-and-forth. Whether instant-book is offered still depends on your agency and the project.",
       "saving": "Saving…",
-      "saved": "Saved"
+      "saved": "Saved",
+      "loading": "Loading booking terms…"
     },
     "clientOffer": {
       "loading": "Loading offer…",
@@ -12299,6 +12300,32 @@
           "purpose": "Confirm a working payout method via a small Stripe authorization-then-refund. Internal-only, improves your trust score for clients who care about payment reliability.",
           "b0": "Run the verification (€1 hold + immediate refund, no money actually moves)",
           "b1": "See the result inline; auto-approves on success"
+        },
+        "support-ticket": {
+          "purpose": "Your conversation with Tulala support. Every ticket stays attached to this workspace and this user.",
+          "b0": "Read the full thread, including system updates",
+          "b1": "Reply so support can keep helping",
+          "b2": "Rate the resolution when the ticket is marked resolved"
+        },
+        "support": {
+          "live-chat": {
+            "purpose": "Start live chat connects you to a real person on the Tulala team right now, not a bot.",
+            "b0": "Ask a question and get a reply from Oran or Vic, usually within minutes during the day",
+            "b1": "Attach a screen recording of what went wrong if replay is enabled",
+            "b2": "Fall back to a ticket automatically if nobody is online"
+          },
+          "start-ticket": {
+            "purpose": "Start a ticket opens a written thread with Tulala support for something that isn't urgent enough for live chat, or happened outside working hours.",
+            "b0": "Describe what happened and pick a category",
+            "b1": "Add a phone number if you want a callback instead of a written reply",
+            "b2": "Get email notifications when support replies, with a link back into this thread"
+          },
+          "guide-tab": {
+            "purpose": "The Guide tab is the built-in manual: short articles on what each part of Tulala is for and how to use it, in English and Spanish.",
+            "b0": "Search by typing a word and picking from the topics that match",
+            "b1": "Open the topics listed under Start here, the most-read pages",
+            "b2": "Turn on Helper mode with the target icon to see which parts of the current page have an article"
+          }
         }
       },
       "drawerLabels": {
@@ -12418,7 +12445,41 @@
         "trust-verification-queue": "Verification queue",
         "whats-new": "What's new",
         "widgets": "Widgets",
-        "workspace-settings": "Workspace settings"
+        "workspace-settings": "Workspace settings",
+        "awaiting-client": "Awaiting client",
+        "archived-work": "Archived work",
+        "day-detail": "Day detail",
+        "my-profile": "My profile",
+        "tenant-summary": "Tenant summary",
+        "identity": "Identity",
+        "activation-checklist": "Activation checklist",
+        "tenant-switcher": "Tenant switcher",
+        "storefront-visibility": "Storefront visibility",
+        "talent-activity": "Talent activity",
+        "talent-today-pulse": "Talent today pulse",
+        "talent-booking-detail": "Talent booking detail",
+        "talent-limits": "Talent limits",
+        "talent-travel": "Talent travel",
+        "talent-links": "Talent links",
+        "talent-reviews": "Talent reviews",
+        "talent-documents": "Talent documents",
+        "talent-media-kit": "Talent media kit",
+        "talent-notifications": "Talent notifications",
+        "talent-verification": "Talent verification",
+        "talent-voice-reply": "Talent voice reply",
+        "talent-chat-archive": "Talent chat archive",
+        "talent-share-card": "Talent share card",
+        "payout-method-failure": "Payout method failure",
+        "subscription-lifecycle": "Subscription lifecycle",
+        "notification-detail": "Notification detail",
+        "ai-draft-assist": "AI draft assist",
+        "ai-search-explain": "AI search explanation",
+        "support-ticket": "Support ticket",
+        "support": {
+          "live-chat": "Live chat",
+          "start-ticket": "Start a ticket",
+          "guide-tab": "Guide tab"
+        }
       },
       "categories": {
         "ai": "AI",
@@ -12436,7 +12497,8 @@
         "roster": "Roster",
         "security": "Security",
         "settings": "Settings",
-        "today": "Today"
+        "today": "Today",
+        "support": "Support"
       },
       "audiences": {
         "workspaceAdmin": "Workspace admin",
@@ -13662,7 +13724,9 @@
       "guideAskSupport": "Ask support",
       "whatIsThis": "What is this?",
       "guideListen": "Listen",
-      "guidePause": "Pause"
+      "guidePause": "Pause",
+      "directMessageSubject": "Direct message",
+      "supportRequestSubject": "Support request"
     },
     "adminMenu": {
       "noTenant": "No active workspace.",

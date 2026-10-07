@@ -19,6 +19,7 @@
  */
 
 import { useState } from "react";
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { setOfferingImages, listTalentPortfolioPhotos, type PortfolioPhoto } from "@/lib/talent/offerings-actions";
 import { setMenuItemStockAction } from "@/lib/talent/menu-offerings-actions";
 import { useOfferingsEditor } from "./use-offerings-editor";
@@ -123,10 +124,11 @@ function needsAttention(i: TalentOffering): boolean {
 
 /** "What kind of thing?" — the first question of Add (talent). */
 function KindMenu({ onPick, onClose }: { onPick: (k: OfferingKind) => void; onClose: () => void }) {
+  const copy = useDashboardText();
   return (
     <div
       role="menu"
-      aria-label="What kind of thing?"
+      aria-label={copy.t("What kind of thing?")}
       onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
       style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 20, width: 320, maxWidth: "calc(100vw - 32px)", background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: "0 12px 32px rgba(11,11,13,0.14)", padding: 6 }}
     >
@@ -140,13 +142,13 @@ function KindMenu({ onPick, onClose }: { onPick: (k: OfferingKind) => void; onCl
           onMouseEnter={(e) => { e.currentTarget.style.background = C.surface; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
         >
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{KIND_ADD_LABEL[k]}</div>
-          <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2, lineHeight: 1.4 }}>{KIND_HELP[k].what}</div>
-          <div style={{ fontSize: 11, color: C.inkSoft, marginTop: 2 }}>For example: {KIND_HELP[k].eg}</div>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{copy.t(KIND_ADD_LABEL[k])}</div>
+          <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2, lineHeight: 1.4 }}>{copy.t(KIND_HELP[k].what)}</div>
+          <div style={{ fontSize: 11, color: C.inkSoft, marginTop: 2 }}>{copy.t("For example:")} {copy.t(KIND_HELP[k].eg)}</div>
         </button>
       ))}
       <div style={{ fontSize: 11.5, color: C.inkMuted, padding: "8px 12px 6px", borderTop: `1px solid ${C.borderSoft}`, marginTop: 4, lineHeight: 1.45 }}>
-        An extra, like glitter or nail art, is added inside the service it goes with: open the service, then Options &amp; extras.
+        {copy.t("An extra, like glitter or nail art, is added inside the service it goes with: open the service, then Options & extras.")}
       </div>
     </div>
   );
@@ -998,6 +1000,9 @@ export function TalentOfferingsManager(
   // Every load, save, delete, reorder and duplicate is the shared editor
   // hook's; this component only draws the talent's Services tab over it.
   const editor = useOfferingsEditor(owner);
+  const copy = useDashboardText();
+  const es = copy.isSpanish;
+  const lang = es ? "es" : "en";
   const {
     isWorkspace,
     talentId,
@@ -1052,7 +1057,7 @@ export function TalentOfferingsManager(
   function startAdd(starter?: (typeof STARTERS)[number]) {
     const seed: Partial<TalentOffering> = {};
     if (starter) {
-      seed.title = starter.title === "Custom quote" ? "" : starter.title;
+      seed.title = starter.title === "Custom quote" ? "" : copy.t(starter.title);
       seed.priceType = starter.priceType === "custom" ? "flat_package" : starter.priceType;
     }
     const b = editor.startAdd(seed);
@@ -1095,12 +1100,12 @@ export function TalentOfferingsManager(
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 4 }}>
         <div style={{ flex: "1 1 260px", minWidth: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>
-            {isWorkspace ? "Menu" : "Your catalogue"}
+            {isWorkspace ? copy.t("Menu") : copy.t("Your catalogue")}
           </div>
           <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 3, lineHeight: 1.5 }}>
             {isWorkspace
-              ? "What customers can order from your site. Each item belongs to the workspace, not to a person on the roster."
-              : "Everything clients can book or buy from your page: services, packages and products. A photo on each one is what gets it booked."}
+              ? copy.t("What customers can order from your site. Each item belongs to the workspace, not to a person on the roster.")
+              : copy.t("Everything clients can book or buy from your page: services, packages and products. A photo on each one is what gets it booked.")}
           </div>
         </div>
         {items.length > 0 && !isWorkspace && (
@@ -1113,7 +1118,7 @@ export function TalentOfferingsManager(
               data-testid="sell-add"
               style={{ padding: "9px 14px", borderRadius: 9, border: `1px solid ${C.accent}`, background: C.accent, color: "#fff", fontSize: 12.5, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}
             >
-              + Add something to sell
+              {copy.t("+ Add something to sell")}
             </button>
             {kindMenu && <KindMenu onPick={addKind} onClose={() => setKindMenu(false)} />}
           </div>
@@ -1125,7 +1130,7 @@ export function TalentOfferingsManager(
             onClick={() => startAdd()}
             style={{ padding: "9px 14px", borderRadius: 9, border: `1px solid ${C.accent}`, background: C.accent, color: "#fff", fontSize: 12.5, fontWeight: 600, fontFamily: FONT, cursor: "pointer", flexShrink: 0 }}
           >
-            {isWorkspace ? "+ Add a menu item" : "+ Add a service"}
+            {isWorkspace ? copy.t("+ Add a menu item") : copy.t("+ Add a service")}
           </button>
         )}
       </div>
@@ -1134,18 +1139,18 @@ export function TalentOfferingsManager(
       {items.length === 0 && !draft && (
         <div style={{ marginTop: 14, padding: "22px 18px", borderRadius: 12, background: C.surface, border: `1px dashed ${C.border}`, textAlign: "center" }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>
-            {isWorkspace ? "Build your menu" : "Show people what they can book"}
+            {isWorkspace ? copy.t("Build your menu") : copy.t("Show people what they can book")}
           </div>
           <div style={{ fontSize: 12.5, color: C.inkMuted, margin: "6px auto 14px", maxWidth: 380, lineHeight: 1.5 }}>
             {isWorkspace
-              ? "Add your first menu item. It will only appear on your site once you publish it."
-              : "Start with the one clients ask for most. Add a photo and a price; nothing shows publicly until you publish it."}
+              ? copy.t("Add your first menu item. It will only appear on your site once you publish it.")
+              : copy.t("Start with the one clients ask for most. Add a photo and a price. Nothing shows publicly until you publish it.")}
           </div>
           {!isWorkspace ? (
             <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
               {(["service", "package", "product"] as OfferingKind[]).map((k) => (
                 <button key={k} type="button" disabled={saving} onClick={() => addKind(k)} style={{ padding: "10px 16px", borderRadius: 9, border: `1px solid ${k === "service" ? C.accent : C.border}`, background: k === "service" ? C.accent : "#fff", color: k === "service" ? "#fff" : C.ink, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}>
-                  + {KIND_ADD_LABEL[k]}
+                  + {copy.t(KIND_ADD_LABEL[k])}
                 </button>
               ))}
             </div>
@@ -1156,12 +1161,12 @@ export function TalentOfferingsManager(
             onClick={() => startAdd()}
             style={{ padding: "10px 16px", borderRadius: 9, border: `1px solid ${C.accent}`, background: C.accent, color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}
           >
-            {isWorkspace ? "+ Add your first menu item" : "+ Add your first service"}
+            {isWorkspace ? copy.t("+ Add your first menu item") : copy.t("+ Add your first service")}
           </button> : null}
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginTop: 14 }}>
             {STARTERS.map((s) => (
               <button key={s.title} type="button" disabled={saving} onClick={() => startAdd(s)} style={{ ...pillStyle(false), borderRadius: 20 }}>
-                ＋ {s.title}
+                ＋ {copy.t(s.title)}
               </button>
             ))}
           </div>
@@ -1173,10 +1178,10 @@ export function TalentOfferingsManager(
                 onClick={importLegacy}
                 style={{ padding: "8px 13px", borderRadius: 8, border: `1px solid ${C.border}`, background: "#fff", color: C.accentDeep, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}
               >
-                Import my existing rates &amp; packages
+                {copy.t("Import my existing rates & packages")}
               </button>
               <div style={{ fontSize: 10.5, color: C.inkSoft, marginTop: 5 }}>
-                We&rsquo;ll turn your old rates, packages and menu into editable services.
+                {copy.t("We'll turn your old rates, packages and menu into editable services.")}
               </div>
             </div>
           )}
@@ -1186,7 +1191,7 @@ export function TalentOfferingsManager(
       {/* Filter + readiness (talent) */}
       {!isWorkspace && items.length > 0 && (
         <>
-          <div role="tablist" aria-label="Filter what you sell" style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
+          <div role="tablist" aria-label={copy.t("Filter what you sell")} style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
             {SELL_FILTERS.filter((f) => f.id === "all" || f.id === "attention" || counts[f.id] > 0).map((f) => (
               <button
                 key={f.id}
@@ -1196,16 +1201,24 @@ export function TalentOfferingsManager(
                 onClick={() => setFilter(f.id)}
                 style={{ ...pillStyle(filter === f.id), borderRadius: 20, padding: "5px 12px", fontSize: 12, ...(f.id === "attention" && counts.attention > 0 && filter !== f.id ? { color: C.amber, borderColor: C.amberSoft } : null) }}
               >
-                {f.label} · {counts[f.id]}
+                {copy.t(f.label)} · {counts[f.id]}
               </button>
             ))}
           </div>
           {(noPhoto > 0 || noPrice > 0) && (
             <div data-testid="sell-readiness" style={{ marginTop: 10, padding: "10px 12px", borderRadius: 10, background: C.amberSoft, fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>
               {[
-                noPhoto > 0 ? `${noPhoto} live ${noPhoto === 1 ? "item has" : "items have"} no photo. A photo is what clients tap on.` : null,
-                noPrice > 0 ? `${noPrice} ${noPrice === 1 ? "draft needs" : "drafts need"} a price before ${noPrice === 1 ? "it" : "they"} can go on your page.` : null,
-                hidden > 0 ? `${hidden} hidden from your page.` : null,
+                noPhoto > 0
+                  ? es
+                    ? `${noPhoto} ${noPhoto === 1 ? "servicio activo no tiene" : "servicios activos no tienen"} foto. La foto es lo que los clientes tocan.`
+                    : `${noPhoto} live ${noPhoto === 1 ? "item has" : "items have"} no photo. A photo is what clients tap on.`
+                  : null,
+                noPrice > 0
+                  ? es
+                    ? `${noPrice} ${noPrice === 1 ? "borrador necesita" : "borradores necesitan"} un precio antes de poder salir en tu página.`
+                    : `${noPrice} ${noPrice === 1 ? "draft needs" : "drafts need"} a price before ${noPrice === 1 ? "it" : "they"} can go on your page.`
+                  : null,
+                hidden > 0 ? (es ? `${hidden} oculto${hidden === 1 ? "" : "s"} en tu página.` : `${hidden} hidden from your page.`) : null,
               ].filter(Boolean).join(" ")}
             </div>
           )}
@@ -1215,7 +1228,7 @@ export function TalentOfferingsManager(
       {/* New-service composer */}
       {draft && (
         <div style={{ marginTop: 14, border: `1px solid ${C.accentLine}`, borderRadius: 12, padding: "14px 14px 16px", background: "#fff" }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.accentDeep, letterSpacing: 0.3, textTransform: "uppercase" }}>New {KIND_LABELS[draft.kind].toLowerCase()}</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.accentDeep, letterSpacing: 0.3, textTransform: "uppercase" }}>{es ? `Nuevo: ${copy.t(KIND_LABELS[draft.kind]).toLowerCase()}` : `New ${KIND_LABELS[draft.kind].toLowerCase()}`}</div>
           <OfferingForm
             value={draft}
             isDraft
@@ -1239,7 +1252,7 @@ export function TalentOfferingsManager(
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
           {shown.length === 0 && (
             <div style={{ fontSize: 12.5, color: C.inkMuted, padding: "10px 2px" }}>
-              {filter === "attention" ? "Nothing needs attention. Every live item has a photo and a price." : "Nothing here yet."}
+              {filter === "attention" ? copy.t("Nothing needs attention. Every live item has a photo and a price.") : copy.t("Nothing here yet.")}
             </div>
           )}
           {shown.map((it) => {
@@ -1258,10 +1271,10 @@ export function TalentOfferingsManager(
                     <button
                       type="button"
                       onClick={() => setOpenId(it.id)}
-                      aria-label={`Add a photo to ${it.title || "this item"}`}
+                      aria-label={es ? `Agregar una foto a ${it.title || "este elemento"}` : `Add a photo to ${it.title || "this item"}`}
                       style={{ width: 48, height: 48, borderRadius: 9, flexShrink: 0, border: `1.5px dashed ${C.border}`, background: C.surface, color: C.inkSoft, fontSize: 9.5, fontWeight: 600, lineHeight: 1.15, cursor: "pointer", fontFamily: FONT, padding: 2 }}
                     >
-                      ＋<br />photo
+                      ＋<br />{copy.t("photo")}
                     </button>
                   )}
                   <button
@@ -1270,8 +1283,8 @@ export function TalentOfferingsManager(
                     style={{ flex: 1, minWidth: 0, textAlign: "left", background: "transparent", border: "none", cursor: "pointer", padding: 0, fontFamily: FONT }}
                   >
                     <div style={{ fontSize: 14, fontWeight: 700, color: C.ink, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.title || "(untitled)"}</span>
-                      {it.isFeatured && <span title="Featured" style={{ color: C.amber, fontSize: 13 }}>★</span>}
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.title || copy.t("(untitled)")}</span>
+                      {it.isFeatured && <span title={copy.t("Featured")} style={{ color: C.amber, fontSize: 13 }}>★</span>}
                       <span
                         style={{
                           fontSize: 10,
@@ -1284,46 +1297,46 @@ export function TalentOfferingsManager(
                           color: live ? C.good : C.amber,
                         }}
                       >
-                        {live ? "Live" : "Hidden from page"}
+                        {live ? copy.t("Live") : copy.t("Hidden from page")}
                       </span>
                       {!isWorkspace && live && missingPhoto && (
-                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 8px", borderRadius: 20, background: C.amberSoft, color: C.amber }}>No photo</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 8px", borderRadius: 20, background: C.amberSoft, color: C.amber }}>{copy.t("No photo")}</span>
                       )}
                       {!isWorkspace && missingPrice && (
-                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 8px", borderRadius: 20, background: C.amberSoft, color: C.amber }}>Needs a price</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 8px", borderRadius: 20, background: C.amberSoft, color: C.amber }}>{copy.t("Needs a price")}</span>
                       )}
                       {it.kind === "product" && it.inventoryQty === 0 && (
-                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 8px", borderRadius: 20, background: "rgba(220,38,38,0.10)", color: C.error }}>Sold out</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 8px", borderRadius: 20, background: "rgba(220,38,38,0.10)", color: C.error }}>{copy.t("Sold out")}</span>
                       )}
                       {it.bookingMode === "instant" && (
                         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 8px", borderRadius: 20, background: C.accentSoft, color: C.accentDeep }}>
-                          Direct booking
-                          {it.reserveMode === "deposit" ? ` · ${it.depositPct ?? ""}% deposit` : it.reserveMode === "free" ? " · free reserve" : ""}
-                          {it.allowPayInPerson ? " · cash ok" : ""}
+                          {copy.t("Direct booking")}
+                          {it.reserveMode === "deposit" ? ` · ${it.depositPct ?? ""}% ${es ? "de depósito" : "deposit"}` : it.reserveMode === "free" ? ` · ${es ? "reserva gratis" : "free reserve"}` : ""}
+                          {it.allowPayInPerson ? ` · ${es ? "efectivo ok" : "cash ok"}` : ""}
                         </span>
                       )}
                     </div>
                     <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
-                      {KIND_LABELS[it.kind]}
+                      {copy.t(KIND_LABELS[it.kind])}
                       {it.durationMinutes ? ` · ${it.durationMinutes} min` : ""}
                       {it.category ? ` · ${it.category}` : ""}
                       {perf[it.id] && perf[it.id].timesQuoted > 0 ? (
                         <span style={{ color: C.accentDeep, fontWeight: 600 }}>
-                          {" "}· Quoted {perf[it.id].timesQuoted}× · Booked {perf[it.id].timesBooked}×
+                          {" "}· {es ? "Cotizado" : "Quoted"} {perf[it.id].timesQuoted}× · {es ? "Reservado" : "Booked"} {perf[it.id].timesBooked}×
                         </span>
                       ) : null}
                     </div>
                   </button>
                   <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
-                    {missingPrice ? "No price yet" : dashboardOfferingPriceLabel(it, "en")}
+                    {missingPrice ? copy.t("No price yet") : dashboardOfferingPriceLabel(it, "en")}
                     {(() => {
-                      const usd = missingPrice ? null : usdEquivalentLabel(it.amountCents, it.currency, usdRates, "en");
+                      const usd = missingPrice ? null : usdEquivalentLabel(it.amountCents, it.currency, usdRates, lang);
                       return usd ? <div style={{ fontSize: 11, fontWeight: 500, color: C.inkMuted, textAlign: "right" }}>{usd}</div> : null;
                     })()}
                   </div>
                   <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
-                    <button type="button" aria-label="Move up" disabled={saving || idx <= 0 || (!isWorkspace && filter !== "all")} onClick={() => move(it.id, -1)} style={{ ...inputStyle, padding: "5px 8px", cursor: "pointer", opacity: idx <= 0 ? 0.35 : 1 }}>↑</button>
-                    <button type="button" aria-label="Move down" disabled={saving || idx === items.length - 1 || (!isWorkspace && filter !== "all")} onClick={() => move(it.id, 1)} style={{ ...inputStyle, padding: "5px 8px", cursor: "pointer", opacity: idx === items.length - 1 ? 0.35 : 1 }}>↓</button>
+                    <button type="button" aria-label={copy.t("Move up")} disabled={saving || idx <= 0 || (!isWorkspace && filter !== "all")} onClick={() => move(it.id, -1)} style={{ ...inputStyle, padding: "5px 8px", cursor: "pointer", opacity: idx <= 0 ? 0.35 : 1 }}>↑</button>
+                    <button type="button" aria-label={copy.t("Move down")} disabled={saving || idx === items.length - 1 || (!isWorkspace && filter !== "all")} onClick={() => move(it.id, 1)} style={{ ...inputStyle, padding: "5px 8px", cursor: "pointer", opacity: idx === items.length - 1 ? 0.35 : 1 }}>↓</button>
                   </div>
                 </div>
 
@@ -1343,13 +1356,13 @@ export function TalentOfferingsManager(
                     />
                     <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap", borderTop: `1px dashed ${C.borderSoft}`, paddingTop: 12 }}>
                       <button type="button" disabled={saving} onClick={() => patchItem(it.id, { status: live ? "draft" : "published" })} style={{ ...pillStyle(false) }}>
-                        {live ? "Hide from page" : "Show on page"}
+                        {live ? copy.t("Hide from page") : copy.t("Show on page")}
                       </button>
                       <button type="button" disabled={saving} onClick={() => patchItem(it.id, { isFeatured: !it.isFeatured })} style={{ ...pillStyle(it.isFeatured) }}>
-                        ★ {it.isFeatured ? "Featured" : "Feature on top"}
+                        ★ {it.isFeatured ? copy.t("Featured") : copy.t("Feature on top")}
                       </button>
                       <button type="button" disabled={saving} onClick={() => duplicate(it)} style={{ ...pillStyle(false) }}>
-                        Duplicate
+                        {copy.t("Duplicate")}
                       </button>
                       <button
                         type="button"
@@ -1357,7 +1370,7 @@ export function TalentOfferingsManager(
                         onClick={() => removeItem(it.id)}
                         style={{ ...pillStyle(false), color: C.error, borderColor: C.errorSoft, marginLeft: "auto" }}
                       >
-                        Delete
+                        {copy.t("Delete")}
                       </button>
                     </div>
                   </div>
@@ -1369,8 +1382,8 @@ export function TalentOfferingsManager(
       )}
 
       <div style={{ minHeight: 16, marginTop: 10 }}>
-        {saving && <span style={{ fontSize: 11, color: C.inkMuted }}>Saving…</span>}
-        {savedOk && !saving && <span style={{ fontSize: 11, color: C.good }}>Saved</span>}
+        {saving && <span style={{ fontSize: 11, color: C.inkMuted }}>{copy.t("Saving…")}</span>}
+        {savedOk && !saving && <span style={{ fontSize: 11, color: C.good }}>{copy.t("Saved")}</span>}
         {error && <span style={{ fontSize: 11, color: C.error }}>{error}</span>}
       </div>
     </div>

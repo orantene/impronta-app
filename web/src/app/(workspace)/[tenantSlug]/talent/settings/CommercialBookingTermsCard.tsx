@@ -121,7 +121,7 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
   }
 
   if (loading) {
-    return <SettingsCardLoading label="Loading booking terms…" />;
+    return <SettingsCardLoading label={t("dashboard.talentBookingTerms.loading")} />;
   }
 
   const fieldStyle = (field: "rate" | "deposit" | "refund" | "instantBook") =>

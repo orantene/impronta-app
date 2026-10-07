@@ -17,6 +17,7 @@ import {
   resolveDocumentLocale,
 } from "@/i18n/request-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { brandTaglineFor } from "@/lib/brand/tagline";
 import { getPublicFontPreset } from "@/lib/site-font-preset";
 import { getSiteTheme } from "@/lib/site-theme";
 import { backgroundModeToPolarity } from "@/lib/site-admin/tokens/polarity";
@@ -65,13 +66,15 @@ import { PwaServiceWorkerRegister } from "@/components/pwa/sw-register";
 
 import "./globals.css";
 
-const BASE_METADATA: Metadata = {
+function buildBaseMetadata(locale: string): Metadata {
+  const tagline = brandTaglineFor(locale);
+  return {
   // Marketing apex base so the inherited `opengraph-image` file-route and any
   // relative canonical resolve to tulala.digital, not the request host. Every
   // non-marketing surface overrides this in its own generateMetadata.
   metadataBase: new URL(`https://${PLATFORM_BRAND.domain}`),
   title: {
-    default: `${PLATFORM_BRAND.name} · ${PLATFORM_BRAND.tagline}`,
+    default: `${PLATFORM_BRAND.name} · ${tagline}`,
     template: `%s · ${PLATFORM_BRAND.name}`,
   },
   description: PLATFORM_BRAND.description,
@@ -97,17 +100,18 @@ const BASE_METADATA: Metadata = {
   },
   openGraph: {
     siteName: PLATFORM_BRAND.name,
-    title: `${PLATFORM_BRAND.name} · ${PLATFORM_BRAND.tagline}`,
+    title: `${PLATFORM_BRAND.name} · ${tagline}`,
     description: PLATFORM_BRAND.description,
     url: `https://${PLATFORM_BRAND.domain}/`,
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: `${PLATFORM_BRAND.name} · ${PLATFORM_BRAND.tagline}`,
+    title: `${PLATFORM_BRAND.name} · ${tagline}`,
     description: PLATFORM_BRAND.description,
   },
-};
+  };
+}
 
 /**
  * Root metadata is a function (not a static export) for one reason: the
@@ -120,6 +124,9 @@ const BASE_METADATA: Metadata = {
  * calls it too, so this adds no extra query.
  */
 export async function generateMetadata(): Promise<Metadata> {
+  // The tab title follows the reader's language (TUL-146): a Spanish dashboard
+  // must not show the English tagline in the browser tab.
+  const BASE_METADATA = buildBaseMetadata(await getRequestLocale());
   const publicScope = await getPublicTenantScope();
   if (!publicScope) return BASE_METADATA;
   const branding = await loadPublicBranding(publicScope.tenantId);

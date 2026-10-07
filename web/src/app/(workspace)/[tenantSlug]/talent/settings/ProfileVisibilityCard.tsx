@@ -14,6 +14,7 @@
  */
 
 import { useState } from "react";
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { setTalentProfileVisibility, setTalentSiteVisibility } from "./actions";
 import { ProfileVisibilityDrawer, type AgencySite } from "./ProfileVisibilityDrawer";
 
@@ -43,6 +44,7 @@ export function ProfileVisibilityCard({
   /** When set (admin shell), opens the unified Representation drawer. */
   onOpenRepresentation?: () => void;
 }) {
+  const copy = useDashboardText();
   const [hidden, setHidden] = useState(initialHidden);
   const [siteHidden, setSiteHidden] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(agencies.map((a) => [a.id, a.talentSiteHidden])),
@@ -91,10 +93,12 @@ export function ProfileVisibilityCard({
   // Summary line.
   const shownSites = agencies.filter((a) => !(siteHidden[a.id] ?? a.talentSiteHidden)).length;
   const summary = hidden
-    ? "Hidden everywhere"
+    ? (copy.isSpanish ? "Oculto en todos lados" : "Hidden everywhere")
     : agencies.length > 0
-      ? `Visible across Tulala · on ${shownSites} of ${agencies.length} agency site${agencies.length === 1 ? "" : "s"}`
-      : "Visible across Tulala";
+      ? copy.isSpanish
+        ? `Visible en todo Tulala · en ${shownSites} de ${agencies.length} ${agencies.length === 1 ? "sitio de agencia" : "sitios de agencia"}`
+        : `Visible across Tulala · on ${shownSites} of ${agencies.length} agency site${agencies.length === 1 ? "" : "s"}`
+      : copy.t("Visible across Tulala");
 
   return (
     <>
@@ -145,13 +149,13 @@ export function ProfileVisibilityCard({
           )}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>Profile visibility</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{copy.t("Profile visibility")}</div>
           <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 1, lineHeight: 1.45 }}>
             {summary}
           </div>
         </div>
         <span style={{ fontSize: 12, fontWeight: 600, color: C.accentDeep, flexShrink: 0 }}>
-          Manage →
+          {copy.t("Manage")} →
         </span>
       </button>
 
