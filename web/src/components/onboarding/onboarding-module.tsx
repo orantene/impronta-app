@@ -295,11 +295,14 @@ export function OnboardingModule({
     if (!r || !r.ok) dispatch({ type: "cardFailed", code: "save_failed" });
   }, [locale]);
 
-  // Page variant: pick up where the person stopped (no "Continue?" card), else apply a URL choice.
+  // Page variant: a signed-in owner picks up where they stopped (no "Continue?"
+  // card; they are back from sign-in or a legacy route). A guest brief is only
+  // a cookie on this device, maybe someone else's, so it gets the card instead
+  // of jumping straight to a later step. Else apply a URL choice.
   useEffect(() => {
     if (!isPage) return;
-    if (state.resume) dispatch({ type: "resumeContinue" });
-  }, [isPage, state.resume]);
+    if (state.resume && state.isAuthenticated) dispatch({ type: "resumeContinue" });
+  }, [isPage, state.resume, state.isAuthenticated]);
   const startChoiceAppliedRef = useRef(false);
   useEffect(() => {
     if (!isPage || !startChoice || startChoiceAppliedRef.current || state.step !== "choose" || state.choice || state.resume) return;
