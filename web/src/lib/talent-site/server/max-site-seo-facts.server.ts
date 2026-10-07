@@ -15,6 +15,16 @@ export interface MaxSiteSeoFacts {
   services: TalentJsonLdService[];
   sameAs: string[];
   addressLocality: string | null;
+  /** #201: the talent's custom domains; hosts an explicit canonical may name. */
+  ownHosts: string[];
+}
+
+async function loadOwnHosts(talentProfileId: string): Promise<string[]> {
+  const admin = createServiceRoleClient();
+  if (!admin) return [];
+  const { data, error } = await admin.from("talent_site_domains").select("domain").eq("talent_profile_id", talentProfileId);
+  if (error) throw error;
+  return ((data ?? []) as Array<{ domain: string | null }>).map((r) => r.domain ?? "").filter(Boolean);
 }
 
 async function loadCity(talentProfileId: string, locale: string): Promise<string | null> {
@@ -37,17 +47,22 @@ async function loadCity(talentProfileId: string, locale: string): Promise<string
 }
 
 export async function loadMaxSiteSeoFacts(talentProfileId: string, locale: string): Promise<MaxSiteSeoFacts> {
-  const [offerings, social, city] = await Promise.all([
+  const [offerings, social, city, ownHosts] = await Promise.all([
     loadPublicOfferingsForProfile(talentProfileId, locale, null).catch(() => []),
     loadTalentSocialLinks(talentProfileId).catch(() => []),
     loadCity(talentProfileId, locale).catch((err) => {
       logServerError("talentSite.seoFacts.city", err);
       return null;
     }),
+    loadOwnHosts(talentProfileId).catch((err) => {
+      logServerError("talentSite.seoFacts.ownHosts", err);
+      return [] as string[];
+    }),
   ]);
   return {
     services: offeringsToJsonLdServices(offerings),
     sameAs: social.filter((s) => s.platform !== "whatsapp").map((s) => s.href),
     addressLocality: city,
+    ownHosts,
   };
 }
