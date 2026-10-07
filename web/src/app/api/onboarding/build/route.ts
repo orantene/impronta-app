@@ -18,6 +18,7 @@ import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 import { getCachedActorSession, getCachedServerSupabase } from "@/lib/server/request-cache";
 import { loadBrief } from "@/lib/tulala/brief-store.server";
 import { parsePersistedModuleState } from "@/lib/onboarding/module-state";
+import { essentialsReady } from "@/lib/onboarding/essentials";
 import { runOnboardingBuild } from "@/lib/onboarding/build.server";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +37,9 @@ export async function POST(request: NextRequest) {
   const brief = await loadBrief(owner);
   if (!brief) return NextResponse.json({ ok: false, code: "no_brief" }, { status: 404 });
   const state = parsePersistedModuleState(brief.moduleState);
-  if (!state.input) return NextResponse.json({ ok: false, code: "no_input" }, { status: 409 });
+  // TUL-84: the manual path ("I'll fill it in myself") has no description text,
+  // only confirmed essentials; that is enough to build.
+  if (!state.input && !essentialsReady(state.essentials ?? null)) return NextResponse.json({ ok: false, code: "no_input" }, { status: 409 });
 
   const profile = await loadAccessProfile(supabase, session.user.id);
   const requestHost = request.headers.get("x-impronta-host-name") ?? request.headers.get("host");

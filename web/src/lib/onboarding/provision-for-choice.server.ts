@@ -33,6 +33,8 @@ import { upsertLeadForBrief } from "@/lib/tulala/approve.server";
 import type { OnboardingChoice } from "./choice";
 import { runChoiceProvisioning, type ChoiceProvisionResult } from "./provision-for-choice";
 import { ensureOwnSitePublished } from "./publish-own-site";
+import { createEssentialsStore, resolveTalentHubTenantId } from "./essentials.server";
+import { runEssentialsWrites, type Essentials } from "./essentials";
 import { writeTalentProfileFromBrief } from "./talent-writer.server";
 
 export type WorkspaceDetail =
@@ -54,6 +56,8 @@ export type ProvisionForChoiceInput = {
   talentTypeSlug: string | null;
   /** The link name chosen at "Ready to build" (held for the lead). */
   linkSlug: string | null;
+  /** TUL-84: the confirmed essentials (resolved from module state + brief facts); null skips the writes. */
+  essentials?: Essentials | null;
 };
 
 export type ProvisionForChoiceResult = ChoiceProvisionResult<WorkspaceDetail, TalentSiteDetail>;
@@ -90,6 +94,8 @@ export async function provisionForChoice(
       const tp = await writeTalentProfileFromBrief({
         userClient: input.userClient, admin, userId, email: input.email, brief,
         locale: input.locale, typeSlug: input.talentTypeSlug, originDomain: input.requestHost,
+        displayNameFallback: input.essentials?.name ?? null,
+        skipDraftOfferings: !!input.essentials?.services.length,
       });
       if (!tp.talentProfileId) return { ok: false, code: "talent_writer_failed", message: "Could not create your page." };
       await linkBriefObjects(brief.id, { talentProfileId: tp.talentProfileId });
@@ -167,6 +173,19 @@ export async function provisionForChoice(
     async ensureSelfRoster(tenantId, talentProfileId) {
       const r = await ensureSelfRosterSiteVisible(admin, { tenantId, talentProfileId, addedBy: userId });
       return r.ok ? { ok: true } : { ok: false, code: "self_roster_failed", message: r.error };
+    },
+
+    async applyEssentials({ choice: c, talent, workspace }) {
+      const essentials = input.essentials;
+      if (!essentials || !essentials.services.length) return [];
+      let talentCtx: { talentProfileId: string; tenantId: string } | null = null;
+      if (talent) {
+        const tenantId = workspace?.tenantId ?? (await resolveTalentHubTenantId(admin, talent.talentProfileId));
+        if (!tenantId) return ["essentials:no_talent_tenant"];
+        talentCtx = { talentProfileId: talent.talentProfileId, tenantId };
+      }
+      const r = await runEssentialsWrites(createEssentialsStore(admin), { choice: c, essentials, talent: talentCtx, workspace });
+      return r.warnings;
     },
 
     async setHomeSurface(surface) {
