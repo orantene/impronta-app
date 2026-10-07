@@ -73,7 +73,26 @@ export function CaptchaThemeStamper() {
             if (api?.render) {
               const sitekey = container.getAttribute("data-sitekey") ?? "";
               container.innerHTML = "";
-              api.render(container, { sitekey, theme });
+              const g = window as unknown as Record<string, ((t?: string) => void) | undefined>;
+              const lang = container.getAttribute("data-language");
+              const turnstileOpts: Record<string, unknown> = {
+                sitekey,
+                theme,
+                appearance: "interaction-only",
+                retry: "auto",
+                "refresh-expired": "auto",
+                ...(lang ? { language: lang } : {}),
+                callback: (t: string) => g.__tulalaCaptchaDone?.(t),
+                "error-callback": () => g.__tulalaCaptchaError?.(),
+                "timeout-callback": () => g.__tulalaCaptchaError?.(),
+                "expired-callback": () => g.__tulalaCaptchaExpired?.(),
+              };
+              api.render(
+                container,
+                (container.classList.contains("cf-turnstile")
+                  ? turnstileOpts
+                  : { sitekey, theme }) as unknown as Record<string, string>,
+              );
             }
           }
         });

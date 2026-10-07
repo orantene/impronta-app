@@ -121,8 +121,8 @@ export async function loadPlatformIntegrationDefaults(): Promise<PlatformIntegra
   const capSiteKey = await platformConfigField(CAPTCHA_INTEGRATION_KEY, "site_key");
   const capSecret = await platformSecretStatus(CAPTCHA_INTEGRATION_KEY, "secret_key");
   const capEnv =
-    (process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY?.trim() ||
-      process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim()) ?? null;
+    (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ||
+      process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY?.trim()) ?? null;
 
   // ── Email-from (public from_address or domain) ──
   const emailFrom = await platformConfigField(EMAIL_DOMAIN_INTEGRATION_KEY, "from_address");

@@ -77,10 +77,11 @@ async function verifyTurnstile(token: string, secret: string, ip: string | null)
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: params,
     });
-    const j = (await r.json()) as { success?: boolean };
+    if (!r.ok) return false;
+    const j = (await r.json()) as { success?: boolean; "error-codes"?: string[] };
     return j.success === true;
   } catch {
-    return false;
+    return false; // fail CLOSED on network / parse errors
   }
 }
 
