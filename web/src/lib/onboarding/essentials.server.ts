@@ -16,6 +16,7 @@ import { normalizeTenantAppointmentsSettings } from "@/lib/scheduling/appointmen
 import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
 import { resolveHoursTenantId, upsertBookingHoursFromOnboarding } from "@/lib/scheduling/sync-hours-from-pattern.server";
 import type { WeeklyHours } from "@/lib/scheduling/hours-types";
+import { resolveOwnerTalentProfileId } from "@/lib/saas/ensure-self-roster";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 
 import type { EssentialsStore, OfferingOwnerRef } from "./essentials";
@@ -105,6 +106,15 @@ export function createEssentialsStore(admin: SupabaseClient): EssentialsStore {
     async hasActiveProvider(tenantId) {
       const r = must("providerCount", await tenantScopedQuery(admin, "agency_talent_roster", tenantId).select("id").eq("status", "active").limit(1));
       return (r.data ?? []).length > 0;
+    },
+
+    async ownerProvider(tenantId) {
+      const talentProfileId = await resolveOwnerTalentProfileId(admin, tenantId);
+      if (!talentProfileId) return null;
+      const r = must("ownerProviderRoster", await tenantScopedQuery(admin, "agency_talent_roster", tenantId).select("talent_profile_id").eq("status", "active"));
+      const ids = ((r.data ?? []) as Array<{ talent_profile_id: string }>).map((x) => x.talent_profile_id);
+      // Not on the roster as a provider: not a solo owner-provider, stay house-owned.
+      return ids.includes(talentProfileId) ? { talentProfileId, providerCount: ids.length } : null;
     },
 
     async inviteFirstProvider({ tenantSlug, email, name }) {

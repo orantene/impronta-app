@@ -13,6 +13,7 @@
  */
 
 import type { OnboardingChoice } from "./choice";
+import { offeringOwnerFor } from "./offering-owner";
 
 export type DayKey = "0" | "1" | "2" | "3" | "4" | "5" | "6";
 export type HourRange = { startMin: number; endMin: number };
@@ -368,6 +369,8 @@ export type EssentialsStore = {
   /** Merge `agencies.settings.appointments.enabled = true` without clobbering siblings. */
   enableWorkspaceAppointments(tenantId: string, opts: { timezone: string | null; presetId: "salon" | "default" }): Promise<void>;
   hasActiveProvider(tenantId: string): Promise<boolean>;
+  /** TUL-77b: the owner's talent profile + active roster provider count; null when the owner is not on the roster. Optional: absent = house offerings. */
+  ownerProvider?(tenantId: string): Promise<{ talentProfileId: string; providerCount: number } | null>;
   inviteFirstProvider(args: { tenantId: string; tenantSlug: string; email: string; name: string | null }): Promise<"invited" | "already" | "failed">;
 };
 
@@ -407,13 +410,28 @@ export async function runEssentialsWrites(store: EssentialsStore, input: Essenti
     try { await fn(); } catch (err) { out.warnings.push(`essentials:${label}:${err instanceof Error ? err.message : String(err)}`); }
   };
 
-  const writeOfferings = (owner: OfferingOwnerRef) => step("offerings", async () => {
-    const plan = planOfferingWrites(await store.listOfferings(owner), e.services);
+  const writeOfferings = (owner: OfferingOwnerRef, skipTitles?: ReadonlySet<string>) => step("offerings", async () => {
+    const services = skipTitles ? e.services.filter((s) => !skipTitles.has(norm(s.name))) : e.services;
+    const plan = planOfferingWrites(await store.listOfferings(owner), services);
     if (plan.insert.length) await store.insertOfferings(owner, plan.insert);
     for (const u of plan.update) await store.updateOffering(u.id, u.patch);
     out.offeringsCreated += plan.insert.length;
     out.offeringsUpdated += plan.update.length;
   });
+
+  // TUL-77b: a solo owner's services are the owner-provider's; a studio's stay house-owned.
+  const writeStudioOfferings = async (tenantId: string) => {
+    const solo: { id: string | null } = { id: null };
+    await step("ownerProvider", async () => {
+      const op = store.ownerProvider ? await store.ownerProvider(tenantId) : null;
+      if (op) solo.id = offeringOwnerFor({ choice, ownerTalentProfileId: op.talentProfileId, providerCount: op.providerCount + (e.firstProviderEmail ? 1 : 0) });
+    });
+    const soloId = solo.id;
+    if (!soloId) return writeOfferings({ kind: "workspace", tenantId });
+    // A house row with the same title already there is left alone (no second one).
+    const house = new Set((await store.listOfferings({ kind: "workspace", tenantId })).filter((o) => o.status !== "archived").map((o) => norm(o.title)));
+    return writeOfferings({ kind: "talent", talentProfileId: soloId, tenantId }, house);
+  };
 
   if (choice !== "studio" && talent) {
     const tenantId = choice === "both" && workspace ? workspace.tenantId : talent.tenantId;
@@ -437,7 +455,7 @@ export async function runEssentialsWrites(store: EssentialsStore, input: Essenti
   }
 
   if (choice === "studio" && workspace) {
-    await writeOfferings({ kind: "workspace", tenantId: workspace.tenantId });
+    await writeStudioOfferings(workspace.tenantId);
     await step("businessInfo", () => store.setWorkspaceBusinessInfo(workspace.tenantId, { hours: weekly, place: e.place }));
     if (e.firstProviderEmail) {
       const email = e.firstProviderEmail;
