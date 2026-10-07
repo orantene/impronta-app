@@ -12964,9 +12964,13 @@
       "uploading": "Uploading",
       "uploadFailed": "Upload failed",
       "loadingDimensions": "Loading dimensions...",
-      "videoSelected": "Video selected"
+      "videoSelected": "Video selected",
+      "imageSelected": "Image selected",
+      "imageFallbackName": "Your image",
+      "videoFallbackName": "Your video"
     },
     "mediaLibrary": {
+      "unreachable": "We could not reach your media library. Check your connection and try again.",
       "searchPlaceholder": "Search by file name, alt text or note",
       "searchLabel": "Search the media library",
       "clearSearch": "Clear search",

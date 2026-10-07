@@ -12964,9 +12964,13 @@
       "uploading": "Subiendo",
       "uploadFailed": "No se pudo subir",
       "loadingDimensions": "Cargando dimensiones...",
-      "videoSelected": "Video seleccionado"
+      "videoSelected": "Video seleccionado",
+      "imageSelected": "Imagen seleccionada",
+      "imageFallbackName": "Tu imagen",
+      "videoFallbackName": "Tu video"
     },
     "mediaLibrary": {
+      "unreachable": "No pudimos conectar con tu biblioteca de medios. Revisa tu conexión e inténtalo de nuevo.",
       "searchPlaceholder": "Busca por nombre de archivo, texto alternativo o nota",
       "searchLabel": "Buscar en la biblioteca de medios",
       "clearSearch": "Borrar búsqueda",
