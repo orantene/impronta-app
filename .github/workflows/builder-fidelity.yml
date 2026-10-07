@@ -3,6 +3,7 @@ name: Builder fidelity visual regression
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     # `ci/seed-fidelity**` is the golden-reseed path. Dispatching this workflow
     # needs `actions:write`, which the working PAT does not have (403) — so the
@@ -26,6 +27,7 @@ permissions:
 jobs:
   fidelity:
     name: Fidelity goldens
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: macos-14
     timeout-minutes: 15
     # `continue-on-error: true` used to live here (added when the Chromium
@@ -116,6 +118,7 @@ jobs:
 
   perf-budget:
     name: Builder perf budget
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
