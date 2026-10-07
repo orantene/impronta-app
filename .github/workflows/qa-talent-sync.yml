@@ -1,7 +1,7 @@
 name: QA talent sync
 
-# TUL-135. Keeps the QA twin (TAL-93900) identical to the real talent
-# (TAL-93938, read-only), then fails the run if either site is behind the
+# TUL-135. Reports drift of the QA twin (TAL-93900) from the real talent
+# (TAL-93938, read-only); a manual run with apply=true syncs it. Then fails the run if either site is behind the
 # latest published design release (GitHub notifies on failure).
 #
 # Secrets (repo settings): SUPABASE_ACCESS_TOKEN (already exists) and
@@ -12,6 +12,11 @@ on:
   schedule:
     - cron: "0 9 * * *" # 09:00 UTC daily
   workflow_dispatch:
+    inputs:
+      apply:
+        description: "Apply the sync to TAL-93900 (production write). Scheduled runs are always dry-run."
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -32,8 +37,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Sync TAL-93900 from TAL-93938 (prints the applied diff)
-        run: node web/scripts/sync-qa-talent-from-real.mjs --apply --auto
+      # Scheduled runs are READ-ONLY: they print the drift. Writing to TAL-93900
+      # needs a manual run with apply=true (Release Manager / PM).
+      - name: Sync TAL-93900 from TAL-93938 (dry-run unless apply=true)
+        run: node web/scripts/sync-qa-talent-from-real.mjs --auto ${{ (github.event_name == 'workflow_dispatch' && inputs.apply) && '--apply' || '' }}
       - name: Design drift monitor (fails if TAL-93900 / TAL-93938 is behind)
         if: always()
         run: node web/scripts/site-design-drift.mjs

@@ -80,6 +80,10 @@ const source = await loadTalent(SOURCE_CODE);
 const target = await loadTalent(TARGET_CODE);
 const sourceProfileId = source.profile.id;
 const targetProfileId = target.profile.id;
+// Hard stop: the only talent this script may ever write is the QA twin.
+if (TARGET_CODE !== "TAL-93900" || target.profile.profile_code !== "TAL-93900") {
+  throw new Error(`refusing: target must be exactly TAL-93900, got ${target.profile.profile_code}`);
+}
 
 for (const [label, t] of [["source", source], ["target", target]]) {
   const tenant = t.hours?.tenant_id ?? t.profile.created_by_agency_id ?? "";
