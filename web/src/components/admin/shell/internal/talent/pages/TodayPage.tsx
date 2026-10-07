@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BioHelperCard } from "@/components/talent/bio-helper-card";
 import Link from "next/link";
 import { logServerError } from "@/lib/server/safe-error";
@@ -30,6 +30,9 @@ import { openWorkingHoursPanel } from "../agenda/WorkingHoursPanel";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { resolveTradeProfile } from "@/lib/talent-agenda/trades";
 import { type MoneyLanding } from "@/lib/money/today-money-tiles";
+import { safeLoadInbox } from "@/components/messages-v5/shell/safe-load-inbox";
+import { talentShellEngine } from "@/components/messages-v5/shell/talent-engine";
+import { countAwaitingReply } from "@/lib/messages-v5/inbox-view";
 
 const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", MXN: "MX$" };
 
@@ -54,6 +57,18 @@ export function TalentTodayPage() {
   // single source read by Today, the header reward control and the website
   // card. Called above the agenda early return (hooks rule).
   const websiteEligibility = useWebsiteEligibility();
+  // Client threads awaiting her reply: the SAME loader and rule as the inbox
+  // "Needs reply" filter (talentShellEngine.loadInbox + countAwaitingReply).
+  const [awaitingReplyCount, setAwaitingReplyCount] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void safeLoadInbox(talentShellEngine.loadInbox, { locationSlug: "all", filter: "all" }).then((r) => {
+      if (!cancelled) setAwaitingReplyCount(r.ok ? countAwaitingReply(r.rows) : null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   // Live-site fact for Today's mode + live card (same source as the header
   // reward control). Above the agenda early return (hooks rule).
   const siteLoad = useTalentSiteDashboardInitialLoad();
@@ -133,6 +148,7 @@ export function TalentTodayPage() {
         completionMissingKeys={bridgeTalentCompletion?.missing.map((m) => m.key) ?? null}
         eligibility={websiteEligibility}
         bookableCount={websiteEligibility.bookableCount}
+        awaitingReplyCount={awaitingReplyCount}
         sitePublished={siteLoad?.ok ? siteLoad.state.site?.status === "published" : false}
         siteUrl={siteLoad?.ok ? siteLoad.state.publicSiteUrl ?? null : null}
         monthCollected={(() => {

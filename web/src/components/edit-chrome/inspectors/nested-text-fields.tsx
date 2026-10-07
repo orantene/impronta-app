@@ -24,6 +24,7 @@ import { useEditContext } from "../edit-context";
 import { useActiveContentLocale } from "../active-content-locale-bridge";
 import { KIT } from "./kit/tokens";
 import { LocaleFieldTabs } from "./locale-field-tabs";
+import { inspectorLocales } from "./inspector-locales";
 import { useTalentAiTranslateEnabled } from "@/components/locale-field/talent-ai-context";
 import type { BuilderNode } from "@/lib/site-admin/builder-node";
 import { deriveNestedTextFields } from "@/lib/site-admin/builder-node/nested-text-editor-model";
@@ -50,12 +51,11 @@ export function BuilderNodeNestedTextFields({ node }: { node: BuilderNode }) {
   // Tenant truth, never the adapter's per-row list: a freeform page reports one
   // locale by design, which is exactly what hid the locale tabs on these
   // surfaces in the first place.
-  const supported =
-    (tenantLocales?.length ?? 0) > 1
-      ? tenantLocales
-      : availableLocales.length > 0
-        ? availableLocales
-        : [defaultLocale];
+  const supported = inspectorLocales(
+    (tenantLocales?.length ?? 0) > 1 ? tenantLocales : availableLocales,
+    defaultLocale,
+    activeContentLocale,
+  );
   if (supported.length <= 1) return null;
 
   const props = (node as { props?: Record<string, unknown> }).props ?? {};

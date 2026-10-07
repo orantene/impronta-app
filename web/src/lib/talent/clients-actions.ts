@@ -88,23 +88,46 @@ export async function loadTalentClients(
   talentProfileId: string,
 ): Promise<{ ok: true; items: TalentClientRow[] } | { ok: false; error: string }> {
   try {
-    if (!(await assertTalentOwner(talentProfileId))) {
-      return { ok: false, error: "Forbidden." };
-    }
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
+
+    // All five reads are independent, so they run in ONE round trip instead of
+    // six sequential ones. Results are discarded unless the owner check passes.
+    const [owned, legsRes, bookingsRes, participantsRes, overlays] = await Promise.all([
+      assertTalentOwner(talentProfileId),
+      admin
+        .from("booking_talent")
+        .select(
+          "booking_id, client_charge_total, agency_bookings!inner ( id, title, contact_name, contact_phone, contact_email, starts_at, ends_at, currency_code, payment_status, total_client_revenue, deposit_amount_cents, source_inquiry_id, status )",
+        )
+        .eq("talent_profile_id", talentProfileId)
+        .limit(200),
+      admin
+        .from("talent_bookings")
+        .select("id, client_label, title, starts_at, ends_at, inquiry_id, status")
+        .eq("talent_profile_id", talentProfileId)
+        .order("starts_at", { ascending: false })
+        .limit(200),
+      admin
+        .from("inquiry_participants")
+        .select(
+          "inquiry_id, inquiries!inner ( id, contact_name, contact_email, contact_phone, company, created_at, status )",
+        )
+        .eq("talent_profile_id", talentProfileId)
+        .eq("role", "talent")
+        .neq("status", "removed")
+        .limit(200),
+      loadClientOverlays(admin, talentProfileId),
+    ]);
+    if (!owned) {
+      return { ok: false, error: "Forbidden." };
+    }
 
     const byKey = new Map<string, TalentClientRow>();
     const nowIso = new Date().toISOString();
 
     // Agenda / commercial bookings (agency_bookings) linked through booking_talent.
-    const { data: legs, error: legsError } = await admin
-      .from("booking_talent")
-      .select(
-        "booking_id, client_charge_total, agency_bookings!inner ( id, title, contact_name, contact_phone, contact_email, starts_at, ends_at, currency_code, payment_status, total_client_revenue, deposit_amount_cents, source_inquiry_id, status )",
-      )
-      .eq("talent_profile_id", talentProfileId)
-      .limit(200);
+    const { data: legs, error: legsError } = legsRes;
     if (legsError) {
       logServerError("talent.clients.agencyBookings", legsError);
       return { ok: false, error: "Could not load clients." };
@@ -198,12 +221,7 @@ export async function loadTalentClients(
       );
     }
 
-    const { data: bookings, error: bookingsError } = await admin
-      .from("talent_bookings")
-      .select("id, client_label, title, starts_at, ends_at, inquiry_id, status")
-      .eq("talent_profile_id", talentProfileId)
-      .order("starts_at", { ascending: false })
-      .limit(200);
+    const { data: bookings, error: bookingsError } = bookingsRes;
     if (bookingsError) {
       logServerError("talent.clients.bookings", bookingsError);
       return { ok: false, error: "Could not load clients." };
@@ -264,15 +282,7 @@ export async function loadTalentClients(
       );
     }
 
-    const { data: participants, error: participantsError } = await admin
-      .from("inquiry_participants")
-      .select(
-        "inquiry_id, inquiries!inner ( id, contact_name, contact_email, contact_phone, company, created_at, status )",
-      )
-      .eq("talent_profile_id", talentProfileId)
-      .eq("role", "talent")
-      .neq("status", "removed")
-      .limit(200);
+    const { data: participants, error: participantsError } = participantsRes;
     if (participantsError) {
       logServerError("talent.clients.participants", participantsError);
       return { ok: false, error: "Could not load clients." };
@@ -311,7 +321,6 @@ export async function loadTalentClients(
       const right = b.lastVisit ?? b.nextStartsAt ?? "";
       return right.localeCompare(left);
     });
-    const overlays = await loadClientOverlays(admin, talentProfileId);
     return { ok: true, items: applyClientRecords(items, overlays) };
   } catch (err) {
     logServerError("talent.clients.load", err);

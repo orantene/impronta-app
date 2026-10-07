@@ -92,7 +92,7 @@ test("zone only: shows the zone and a dashed area, never the address, never Como
 
 test("exact address after booking: says so, shows no address", () => {
   const html = render("after_booking");
-  assert.match(html, /once the booking is confirmed/);
+  assert.match(html, /We send you the exact location when you confirm/);
   assert.ok(!html.includes("Privada") && !html.includes("Piso"));
   assert.doesNotMatch(html, /Get directions/);
 });
@@ -157,7 +157,7 @@ test("details: the kind eyebrow, the zone as the title, 'Zona aproximada', then 
   assert.equal((html.match(/class="lucide lucide-(map-pin|lock|clock|door-open)/g) ?? []).length, 4, "four real icons");
   assert.doesNotMatch(html, /[◷◉○]/, "no glyph stand-ins");
   assert.match(html, /Lun a sáb · 9:00 a 20:00, con cita|Lun a s(á|&#xE1;)b · 9:00 a 20:00, con cita/);
-  assert.match(html, /\(aproximada\)/);
+  assert.doesNotMatch(html, /\(aproximada\)/, "TUL-59 C: the parenthetical is gone; the small line under the title says it once");
   // Actions: the outlined map button and the policy link, nothing else.
   assert.match(html, /sb-loc-btn"[^>]*>Ver zona en el mapa</);
   assert.doesNotMatch(html, /Escribir/);

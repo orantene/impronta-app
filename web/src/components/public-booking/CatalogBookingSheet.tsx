@@ -28,14 +28,13 @@ import {
 import {
   catalogBookingDurationMinutes,
   catalogCanContinueWhen,
+  catalogDayKey,
   catalogDetailIsPurchase,
-  catalogMonthShort,
   catalogNeedsOptions,
   catalogNextDays,
   catalogSelectedStartStillOpen,
   catalogSlotDateLabel,
   catalogTotalCents,
-  catalogWeekdayShort,
   demoSlotsFor,
   firstOpenDemoDayIndex,
   formatClock,
@@ -54,7 +53,9 @@ import {
 } from "./catalog-booking-live-slots";
 import { CATALOG_BOOKING_CSS } from "./catalog-booking-styles";
 import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
-import { CatalogLiveWhenPicker } from "./CatalogLiveWhenPicker";
+import { CatalogLiveWhenPicker, CatalogDemoWhenPicker } from "./CatalogLiveWhenPicker";
+import { bookingDraftKey, clearBookingDraft, loadBookingDraft } from "./booking-draft-store";
+import { CatalogWhoSummary, useBookingDraftEffects } from "./catalog-who-summary";
 import {
   BOOKING_RESUME_EVENT,
   clearBookingResume,
@@ -120,6 +121,7 @@ export function CatalogBookingSheet({
   const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
   const [takenNotice, setTakenNotice] = useState<CatalogTakenSlotNotice | null>(null);
   const liveStartsRef = useRef<string | null>(null);
+  const draftKey = bookingDraftKey(tenantId);
   const skipCaptcha = shouldSkipGuestCaptchaOnHost();
   const captchaRequired =
     !skipCaptcha && captcha != null && captcha.provider !== "none" && Boolean(captcha.siteKey);
@@ -149,14 +151,18 @@ export function CatalogBookingSheet({
       if (d.intent === "instant" && catalogDetailIsPurchase(d)) return;
       // G13: a picked task pre-selects matching intake chips (still editable).
       setDetail(d.intake?.length ? { ...d, answers: preselectIntakeFromTask(d.intake, d.task, d.answers) } : d);
-      setVariantId(null);
-      setAddOnIds([]);
-      setDayIndex(mode === "live" ? 0 : firstOpenDemoDayIndex(days));
-      setTime(null);
-      setLiveStarts(null);
-      setName("");
-      setPhone("");
-      setEmail("");
+      // TUL-59: same service reopened in this session keeps every pick and field.
+      const draft = loadBookingDraft(draftKey, d.offeringId);
+      const draftDay = draft && mode === "demo" ? days.findIndex((x) => catalogDayKey(x) === draft.dayKey) : -1;
+      setVariantId(draft?.variantId ?? null);
+      setAddOnIds(draft?.addOnIds ?? []);
+      setDayIndex(mode === "live" ? 0 : draftDay >= 0 ? draftDay : firstOpenDemoDayIndex(days));
+      setTime(draft?.time ?? null);
+      setLiveStarts(draft?.liveStarts ?? null);
+      liveStartsRef.current = draft?.liveStarts ?? null;
+      setName(draft?.name ?? "");
+      setPhone(draft?.phone ?? "");
+      setEmail(draft?.email ?? "");
       setTouched(false);
       setError(null);
       setWrote(false);
@@ -164,12 +170,15 @@ export function CatalogBookingSheet({
       setTakenNotice(null);
       clearBookingResume();
       const needsOption = catalogNeedsOptions(d);
-      setStep(d.startAt === "when" && !needsOption ? "when" : "choose");
+      // Live slots are re-fetched on the "when" step (which also re-validates the picked start), so a
+      // live draft that left from "who" resumes there rather than on a day the strip has not loaded.
+      const draftStep = draft ? (mode === "live" && draft.step === "who" ? "when" : draft.step) : null;
+      setStep(draftStep ?? (d.startAt === "when" && !needsOption ? "when" : "choose"));
     };
     const names = ["tulala:offering-instant", "tulala:offering-slot", "tulala:offering-request"];
     names.forEach((n) => window.addEventListener(n, open));
     return () => names.forEach((n) => window.removeEventListener(n, open));
-  }, [mode, days]);
+  }, [mode, days, draftKey]);
 
   // CH-3: "back to my booking" re-opens the sheet with every pick kept (G9b: the task note rides on detail).
   useEffect(() => {
@@ -232,6 +241,11 @@ export function CatalogBookingSheet({
   useEffect(() => {
     liveStartsRef.current = liveStarts;
   }, [liveStarts]);
+
+  useBookingDraftEffects({
+    detail, step, variantId, addOnIds, dayIndex, time, liveStarts, name, email, phone, mode, days, draftKey,
+    captchaRequired, captchaProvider: captcha?.provider,
+  });
 
   useEffect(() => {
     if (!detail || step !== "when" || mode !== "live") return;
@@ -348,6 +362,16 @@ export function CatalogBookingSheet({
   const chatNameValid = name.trim().length >= 2;
   const chatPhoneValid = phone.replace(/\D/g, "").length >= 8;
 
+  /** Explicit "Start over": drop the draft and every pick. */
+  const startOver = () => {
+    clearBookingDraft(draftKey);
+    setVariantId(null); setAddOnIds([]); setTime(null); setLiveStarts(null);
+    setDayIndex(mode === "live" ? 0 : firstOpenDemoDayIndex(days));
+    setName(""); setPhone(""); setEmail("");
+    setTouched(false); setError(null); setAskAttempted(false); setCaptchaToken(""); setTakenNotice(null);
+    setStep("choose");
+  };
+
   const slotLabel = time != null ? catalogSlotDateLabel(day, time, es) : null;
 
   const buildSelection = (): CatalogBookingSelection => ({
@@ -429,6 +453,11 @@ export function CatalogBookingSheet({
         />
 
         <div className="jb-body">
+          {step !== "choose" && step !== "done" ? (
+            <button type="button" className="jb-back-link" data-catalog-start-over="" onClick={startOver}>
+              {es ? "Empezar de nuevo" : "Start over"}
+            </button>
+          ) : null}
           {step === "choose" ? (
             <>
               <div className="jb-summary">
@@ -572,51 +601,18 @@ export function CatalogBookingSheet({
                   }}
                 />
               ) : (
-                <>
-                  <div className="jb-days" role="group" aria-label={es ? "Elige una fecha" : "Pick a date"}>
-                    {days.map((d, i) => {
-                      const closed = d.getDay() === 0;
-                      return (
-                        <button
-                          key={d.toISOString()}
-                          type="button"
-                          className="jb-day"
-                          data-on={i === dayIndex}
-                          disabled={closed}
-                          onClick={() => {
-                            setDayIndex(i);
-                            setTime(null);
-                          }}
-                        >
-                          <span>{catalogWeekdayShort(d, es)}</span>
-                          <b>{d.getDate()}</b>
-                          <small>{catalogMonthShort(d, es)}</small>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {demoTimes.length === 0 ? (
-                    <div className="jb-empty">
-                      <strong>{es ? "Sin horarios disponibles ese día." : "No times that day."}</strong>
-                      <p>{es ? "Elige otra fecha." : "Pick another date."}</p>
-                      {emptyConsultButton}
-                    </div>
-                  ) : (
-                    <div className="jb-times" role="group" aria-label={timeGroupLabel}>
-                      {demoTimes.map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          className="jb-time"
-                          data-on={t === time}
-                          onClick={() => setTime(t)}
-                        >
-                          {t}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </>
+                <CatalogDemoWhenPicker
+                  es={es}
+                  days={days}
+                  day={day}
+                  dayIndex={dayIndex}
+                  time={time}
+                  demoTimes={demoTimes}
+                  timeGroupLabel={timeGroupLabel}
+                  emptyConsultButton={emptyConsultButton}
+                  onPickDay={(i) => { setDayIndex(i); setTime(null); }}
+                  onPickTime={setTime}
+                />
               )}
             </>
           ) : null}
@@ -626,11 +622,14 @@ export function CatalogBookingSheet({
               <button type="button" className="jb-back-link" onClick={() => setStep("when")}>
                 {es ? "← Cambiar horario" : "← Change time"}
               </button>
-              <p className="jb-recap">
-                {time ? catalogSlotDateLabel(day, time, es) : null}
-                {isQuote ? "" : ` · ${money(total, detail.currency)}`}
-                {isQuote ? ` · ${es ? "A cotizar" : "Quote"}` : ""}
-              </p>
+              <CatalogWhoSummary
+                es={es}
+                service={variant ? `${detail.title} · ${variant.label}` : detail.title}
+                day={day}
+                time={time}
+                tz={mode === "live" ? liveTz : null}
+                total={isQuote ? (es ? "A cotizar" : "Quote") : money(total, detail.currency)}
+              />
               <label className="jb-field">
                 <span>{es ? "Nombre" : "Name"}</span>
                 <input

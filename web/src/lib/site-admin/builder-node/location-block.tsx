@@ -350,14 +350,14 @@ export function renderLocationBlock(args: {
               ) : (
                 <>
                   <Row icon={<MapPin {...iconProps} />} title={es ? "Zona" : "Area"}>
-                    <span>{es ? `${zone} (aproximada)` : `${zone} (approximate)`}</span>
+                    <span>{zone}</span>
                   </Row>
                   <Row icon={<Lock {...iconProps} />} title={es ? "Dirección exacta" : "Exact address"}>
                     <span>
                       {location.addressMode === "after_booking"
                         ? es
-                          ? "Te llega en tu confirmación cuando la cita queda confirmada."
-                          : "It reaches you in your confirmation once the booking is confirmed."
+                          ? "Te enviamos la ubicación exacta al confirmar."
+                          : "We send you the exact location when you confirm."
                         : es
                           ? "No se publica."
                           : "Not published."}

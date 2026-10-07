@@ -166,6 +166,7 @@ function ShotFigure({
   framed?: boolean;
   /** Magazine: 1-based plate number shown as "01 · caption". */
   magazineIndex?: number;
+  es?: boolean;
 }) {
   const label =
     shot.caption?.trim() ||
@@ -187,6 +188,12 @@ function ShotFigure({
         offeringId={shot.offeringId}
         confirmsByHand={confirmsByHand}
         className="sb-portfolio-shot"
+        lightbox={{
+          src: shot.url,
+          alt: shot.alt || label,
+          bookLabel: es ? "Reservar este look" : "Book this look",
+          closeLabel: es ? "Cerrar" : "Close",
+        }}
         ariaLabel={
           serviceLine ? `${label}. ${es ? "Abre" : "Opens"} ${serviceLine}` : label
         }

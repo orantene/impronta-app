@@ -41,6 +41,7 @@ import {
   localYmd,
   sameDay,
 } from "./AgendaCalendarViews";
+import { wallClockIn } from "@/lib/talent-agenda/agenda-now";
 import {
   daySummary,
   durationText,
@@ -102,7 +103,7 @@ export function AgendaCalendarPage({
 }) {
   const copy = useAgendaCopy();
   const router = useRouter();
-  const clock = now ?? new Date();
+  const clock = wallClockIn(now ?? new Date(), hours?.timezone);
   const locale = copy.locale === "es" ? "es-MX" : "en-US";
   const agenda = useMemo(
     () => items ?? (entries ?? []).map(agendaItemFromCalendarEntry),

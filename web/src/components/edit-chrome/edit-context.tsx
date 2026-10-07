@@ -94,7 +94,7 @@ import {
   cloneNodeWithFreshIds,
   createBuilderMutationAuditEvent,
   createEditorDispatchAuditEvent,
-  createBuilderNode,
+  createBuilderNode, wrapRootInsert,
   formatBuilderNodeMutationError,
   isBuilderMutationAuditEnabled,
   recordBuilderMutationAuditEvent,
@@ -3655,11 +3655,11 @@ export function EditProvider({
       // `createBuilderNode(kind)` for any kind the admin hasn't governed, and
       // never double-applies on the gallery path (which routes native inserts
       // through `insertBuilderComponent`, not here).
-      const node = governRawInsertNode(
+      const node = wrapRootInsert(parentId, governRawInsertNode(
         createBuilderNode(kind),
         kind,
         galleryItemsRef.current,
-      );
+      ));
       const inserted = await executeBuilderNodeOperation({
         operation: "insert",
         nodeId: node.id,

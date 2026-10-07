@@ -397,3 +397,13 @@ test("bubble clears a fixed bottom bar and only one renders", async () => {
   assert.equal(otherHelpBubbleShown(doc, x), false);
   x.remove();
 });
+
+test("TUL-59 C: a consent or language banner on screen blocks the bubble (one overlay at a time)", async () => {
+  const { helpBubbleBannerUp } = await import("./help-bubble-logic");
+  const dom = new JSDOM(`<div data-locale-suggestion="es"></div>`);
+  const el = dom.window.document.querySelector("[data-locale-suggestion]") as HTMLElement;
+  el.getBoundingClientRect = () => ({ width: 300, height: 40 }) as DOMRect;
+  assert.equal(helpBubbleBannerUp(dom.window.document), true);
+  el.getBoundingClientRect = () => ({ width: 0, height: 0 }) as DOMRect;
+  assert.equal(helpBubbleBannerUp(dom.window.document), false);
+});
