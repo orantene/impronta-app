@@ -15,13 +15,15 @@ const LINES = [
   { code: "total_charged", cents: 101_500 },
 ] as const;
 
-const BRAND: EmailBrand = {
+// `satisfies` (not an annotation): keeps the literal's required fields so it is also assignable to
+// the resolver's stricter EmailBrand (wordmark/accountName/footerDomain/homeHref required).
+const BRAND = {
   wordmark: "ZOE STUDIO",
   accountName: "Zoe Studio",
   footerDomain: "zoe.example",
   homeHref: "https://zoe.example",
   locale: "en",
-};
+} satisfies EmailBrand;
 
 const receipt = (extra: Record<string, unknown> = {}, brand: EmailBrand = BRAND) =>
   renderToStaticMarkup(
