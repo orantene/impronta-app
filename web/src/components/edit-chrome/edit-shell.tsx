@@ -1639,15 +1639,16 @@ function MutationErrorToast() {
 
   if (!mutationError) return null;
   const detailLines = mutationError.details?.slice(0, 3) ?? [];
-  const operationLabel = mutationError.operation
-    ? humanizeMutationOperation(mutationError.operation, locale)
-    : null;
-  const isConflict = mutationError.code === "VERSION_CONFLICT";
   // TUL-52 C: placement refusals never show the raw English dev text.
   const isPlacementCode =
     mutationError.code === "ROOT_KIND_NOT_ALLOWED" ||
     mutationError.code === "CHILD_KIND_NOT_ALLOWED" ||
     mutationError.code === "PARENT_DOES_NOT_ALLOW_CHILDREN";
+  const codeShown = isPlacementCode ? undefined : mutationError.code;
+  const operationLabel = mutationError.operation && !isPlacementCode
+    ? humanizeMutationOperation(mutationError.operation, locale)
+    : null;
+  const isConflict = mutationError.code === "VERSION_CONFLICT";
   const suggestion = mutationError.code && !isPlacementCode
     ? mutationCodeSuggestion(mutationError.code, locale)
     : null;
@@ -1703,9 +1704,9 @@ function MutationErrorToast() {
             ? t("This block can't go there. Select a section first, then add it inside.")
             : t(mutationError.message)}
       </span>
-      {isConflict || isPlacementCode ? null : operationLabel || mutationError.code ? (
+      {isConflict ? null : operationLabel || codeShown ? (
         <span className="mt-1 block text-[10px] uppercase tracking-[0.04em] opacity-80">
-          {[operationLabel, mutationError.code?.replaceAll("_", " ")]
+          {[operationLabel, codeShown?.replaceAll("_", " ")]
             .filter(Boolean)
             .join(" · ")}
         </span>

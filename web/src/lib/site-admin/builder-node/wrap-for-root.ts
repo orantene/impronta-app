@@ -19,3 +19,8 @@ export function wrapNodeForRootInsert(node: BuilderNode): BuilderNode | null {
   const section = createBuilderNode("section") as BuilderNode & { children?: BuilderNode[] };
   return { ...section, children: [...(section.children ?? []), node] } as BuilderNode;
 }
+
+/** Insert helper: at page root auto-wrap in a section, elsewhere (or if impossible) pass through. */
+export function wrapRootInsert(parentId: string | null, node: BuilderNode): BuilderNode {
+  return parentId === null ? (wrapNodeForRootInsert(node) ?? node) : node;
+}

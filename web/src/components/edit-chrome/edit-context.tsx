@@ -84,7 +84,6 @@ import {
   wrapNodeAsInstanceRoot,
   canConvertNodeToComponent,
 } from "@/lib/site-admin/builder-node/component-instances";
-import { wrapNodeForRootInsert } from "@/lib/site-admin/builder-node/wrap-for-root";
 import { useSectionLockActions } from "./use-section-lock-actions";
 import {
   applyBuilderNodeOperation,
@@ -95,7 +94,7 @@ import {
   cloneNodeWithFreshIds,
   createBuilderMutationAuditEvent,
   createEditorDispatchAuditEvent,
-  createBuilderNode,
+  createBuilderNode, wrapRootInsert,
   formatBuilderNodeMutationError,
   isBuilderMutationAuditEnabled,
   recordBuilderMutationAuditEvent,
@@ -3656,23 +3655,20 @@ export function EditProvider({
       // `createBuilderNode(kind)` for any kind the admin hasn't governed, and
       // never double-applies on the gallery path (which routes native inserts
       // through `insertBuilderComponent`, not here).
-      const node = governRawInsertNode(
+      const node = wrapRootInsert(parentId, governRawInsertNode(
         createBuilderNode(kind),
         kind,
         galleryItemsRef.current,
-      );
-      // TUL-52 C: at page root, auto-wrap a leaf block in a section.
-      const toInsert =
-        parentId === null ? (wrapNodeForRootInsert(node) ?? node) : node;
+      ));
       const inserted = await executeBuilderNodeOperation({
         operation: "insert",
-        nodeId: toInsert.id,
+        nodeId: node.id,
         parentId,
         run: (tree) =>
           runBuilderNodeOp({
             operation: "insert",
             tree,
-            node: toInsert,
+            node,
             parentId,
             index,
           }),
