@@ -31,3 +31,16 @@ test("left spill is flagged and zero viewport yields nothing", () => {
   assert.equal(findRenderedOverflow([box({ left: -40, right: 200 })], 390).length, 1);
   assert.equal(findRenderedOverflow([box({ left: 300, right: 470 })], 0).length, 0);
 });
+
+import { readFileSync } from "node:fs";
+
+test("header CTA is capped under 400px, canvas roots clip, no polling", () => {
+  const rd = (r: string) => readFileSync(new URL(r, import.meta.url), "utf8");
+  const hdr = rd("../../../components/public-header.tsx");
+  assert.match(hdr, /max-w-\[8\.5rem\][^"`]*min-\[400px\]:max-w-none/);
+  assert.match(hdr, /<span className="min-w-0 truncate">\{ctaLabel!\}/);
+  assert.match(rd("../../../components/edit-chrome/edit-chrome.tsx"), /overflow-x: clip !important/);
+  const panel = rd("../../../components/edit-chrome/MobileHealthPanel.tsx");
+  assert.doesNotMatch(panel, /setInterval/);
+  assert.match(panel, /MutationObserver/);
+});

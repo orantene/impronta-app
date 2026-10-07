@@ -140,26 +140,50 @@ export function MobileHealthPanel({ builderTree }: Props) {
   // TUL-79: the tree check cannot see the public header or wrapped copy, so
   // also measure the rendered canvas and flag anything past the screen edge.
   const [renderedIssues, setRenderedIssues] = useState<MobileHealthIssue[]>([]);
+  const device = useMaybeEditContext()?.device;
   useEffect(() => {
+    let timer: number | undefined;
+    let ro: ResizeObserver | null = null;
+    let mo: MutationObserver | null = null;
+    let observedDoc: Document | null = null;
+    const frame = document.querySelector<HTMLIFrameElement>(
+      'iframe[data-device-tier][data-active="true"]',
+    );
+    const schedule = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(measure, 300);
+    };
     const measure = () => {
       try {
-        const frame = document.querySelector<HTMLIFrameElement>(
-          'iframe[data-device-tier][data-active="true"]',
-        );
         const doc = frame ? frame.contentDocument : document;
         const width = frame ? frame.clientWidth : window.innerWidth;
         const next = doc ? measureRenderedOverflow(doc, width) : [];
         setRenderedIssues((prev) =>
           JSON.stringify(prev) === JSON.stringify(next) ? prev : next,
         );
+        if (doc && doc !== observedDoc && doc.body) {
+          observedDoc = doc;
+          mo?.disconnect();
+          mo = new MutationObserver(schedule);
+          mo.observe(doc.body, { childList: true, subtree: true, attributes: true });
+        }
       } catch {
         /* cross-origin or detached frame: keep the tree result only */
       }
     };
-    measure();
-    const id = window.setInterval(measure, 1500);
-    return () => window.clearInterval(id);
-  }, [builderTree]);
+    schedule();
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(schedule);
+      ro.observe(frame ?? document.documentElement);
+    }
+    frame?.addEventListener("load", schedule);
+    return () => {
+      window.clearTimeout(timer);
+      ro?.disconnect();
+      mo?.disconnect();
+      frame?.removeEventListener("load", schedule);
+    };
+  }, [builderTree, device]);
 
   const issues = useMemo(
     () => [...treeIssues, ...renderedIssues],

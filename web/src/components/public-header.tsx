@@ -601,7 +601,7 @@ export async function PublicHeader() {
           ) : null}
         </div>
 
-        <div className="flex items-center justify-end gap-0.5 sm:gap-1">
+        <div className="flex min-w-0 items-center justify-end gap-0.5 sm:gap-1">
           {navInRightCol.length > 0 ? (
             <nav
               className="public-header__nav public-header__nav--right mr-2 hidden min-w-0 items-center gap-2 overflow-x-auto md:flex lg:gap-3"
@@ -626,19 +626,19 @@ export async function PublicHeader() {
           {showCtaInDesktopBar ? (
             <Button
               size="sm"
-              className={`mr-1 hidden md:inline-flex ${showCtaInMobileBar ? "sm:inline-flex" : ""}${ctaSafePairClass}`}
+              className={`mr-1 hidden md:inline-flex min-w-0 max-w-[8.5rem] px-3 min-[400px]:max-w-none min-[400px]:px-4 ${showCtaInMobileBar ? "sm:inline-flex" : ""}${ctaSafePairClass}`}
               asChild
             >
-              <Link href={headerHref(ctaHref!)}>{ctaLabel!}</Link>
+              <Link href={headerHref(ctaHref!)}><span className="min-w-0 truncate">{ctaLabel!}</span></Link>
             </Button>
           ) : null}
           {showCtaInMobileBar && !showCtaInDesktopBar ? (
-            <Button size="sm" className={`mr-1 inline-flex md:hidden${ctaSafePairClass}`} asChild>
-              <Link href={headerHref(ctaHref!)}>{ctaLabel!}</Link>
+            <Button size="sm" className={`mr-1 inline-flex md:hidden min-w-0 max-w-[8.5rem] px-3 min-[400px]:max-w-none min-[400px]:px-4${ctaSafePairClass}`} asChild>
+              <Link href={headerHref(ctaHref!)}><span className="min-w-0 truncate">{ctaLabel!}</span></Link>
             </Button>
           ) : null}
           {showAutoRegisterCta ? (
-            <Button size="sm" className="mr-1 inline-flex" asChild>
+            <Button size="sm" className="mr-1 inline-flex min-w-0 max-w-[8.5rem] px-3 min-[400px]:max-w-none" asChild>
               <OpenTenantRegisterButton ariaLabel={autoRegisterLabel}>
                 {autoRegisterLabel}
               </OpenTenantRegisterButton>
