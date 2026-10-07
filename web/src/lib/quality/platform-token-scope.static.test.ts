@@ -34,11 +34,7 @@ const APP = join(WEB_ROOT, "src/app");
 const EXCLUDED_TOP = new Set(["(workspace)", "api", "%5Ftalent-site", "t", "@modal"]);
 
 /** Known offenders. Each needs a ticket; the test fails if one is fixed (shrink it). */
-const ALLOW_LIST = new Map<string, string>([
-  // /start renders StartFlow with no scope. Fixed by PR #2591 (adds app/start/layout.tsx);
-  // delete this entry when that merges (the stale-entry test below will tell you).
-  ["start", "#2591"],
-]);
+const ALLOW_LIST = new Map<string, string>([]);
 
 const USES_TOKENS = /var\(--(?:tl|plt)-|\bOnboardingModule\b|\bStartFlow\b/;
 const HAS_SCOPE = /data-platform-surface=["']marketing["']|\bMarketingShell\b/;
