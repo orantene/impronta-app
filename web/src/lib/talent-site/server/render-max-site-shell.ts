@@ -1,4 +1,6 @@
+import { resolveClientAccountMount } from "@/lib/client-account/gate";
 import type { BuilderNode } from "@/lib/site-admin/builder-node";
+import { withAccountItem } from "@/lib/talent-site/theme-catalog/section-kit-shell";
 
 /**
  * Split the shell tree into HEADER and FOOTER node sets. The default shell
@@ -8,7 +10,7 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node";
  * footer (any middle roots ride with the header). A single-root shell renders
  * entirely as the header (no footer), which is harmless. Pure + degrade-safe.
  */
-export function splitShell(shellTree: BuilderNode[]): [BuilderNode[], BuilderNode[]] {
+function splitShellRaw(shellTree: BuilderNode[]): [BuilderNode[], BuilderNode[]] {
   if (shellTree.length === 0) return [[], []];
 
   const labelOf = (n: BuilderNode): string =>
@@ -25,4 +27,16 @@ export function splitShell(shellTree: BuilderNode[]): [BuilderNode[], BuilderNod
   const header = shellTree.slice(0, shellTree.length - 1);
   const footer = shellTree.slice(shellTree.length - 1);
   return [header, footer];
+}
+
+/**
+ * `splitShellRaw`, then the client `account` item is added to the header AT RENDER
+ * TIME when CLIENT_ACCOUNT_HOSTS names talent sites (TUL-61). It is never baked
+ * into design payloads: authored-overlay hashes and published snapshots stay put,
+ * and with the flag off this is the identical split.
+ */
+export function splitShell(shellTree: BuilderNode[]): [BuilderNode[], BuilderNode[]] {
+  const [header, footer] = splitShellRaw(shellTree);
+  if (!resolveClientAccountMount("talent").headerItem) return [header, footer];
+  return [header.map((n) => withAccountItem(n) ?? n), footer];
 }

@@ -244,7 +244,7 @@ export function withAccountItem(header: BuilderNode | undefined): BuilderNode | 
       done = true;
     } else out[zone] = items;
   }
-  return { ...header, props: { ...props, sectionProps: { ...sectionProps, regions: out } } } as BuilderNode;
+  return { ...header, props: { ...props, sectionProps: { ...sectionProps, regions: out } } } as unknown as BuilderNode;
 }
 
 export function buildKitStandardShell(

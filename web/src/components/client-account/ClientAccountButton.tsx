@@ -10,6 +10,7 @@
  * Google and password are intentionally absent on talent hosts (see PR notes).
  */
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { requestEmailCode } from "@/app/auth/otp-actions";
@@ -252,9 +253,9 @@ export function ClientAccountButton({
                     </div>
                   ) : null}
                 </dl>
-                <a href="/account" style={{ ...primary, textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>
+                <Link href="/account" style={{ ...primary, textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>
                   {t("public.clientAccount.myAccount")}
-                </a>
+                </Link>
                 <button type="button" onClick={logOut} disabled={busy} style={linkBtn}>
                   {t("public.clientAccount.logOut")}
                 </button>

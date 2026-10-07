@@ -3,22 +3,16 @@ import { SectionSwitcher } from "./SectionSwitcher";
 import { switcherLinksFrom, withSwitcherHome } from "./section-switcher-logic";
 import type { CSSProperties } from "react";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
-import {
-  presentationDataAttrs,
-  presentationInlineStyles,
-} from "../shared/presentation";
+import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import type { SectionComponentProps } from "../types";
 import type { SiteHeaderV1, HeaderItem } from "./schema";
 import { HeaderRegionLiveCount } from "./HeaderRegionLiveCount";
 import { HeaderHeightVar } from "./HeaderHeightVar";
 import { HeaderScrollObserver } from "./HeaderScrollObserver";
 import { NavChromeScrollSpy } from "@/lib/site-admin/builder-node/NavChromeScrollSpy";
-import {
-  navChromeNeedsScrollSpy,
-  normalizeNavChrome,
-} from "@/lib/site-admin/nav-chrome";
+import { navChromeNeedsScrollSpy, normalizeNavChrome } from "@/lib/site-admin/nav-chrome";
 import { ClusterIcon } from "./header-cluster-icon";
-import { ClientAccountButton } from "@/components/client-account/ClientAccountButton";
+import { HeaderAccountItem } from "./HeaderAccountItem";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import { HeaderAuthArea } from "@/components/site-shell/HeaderAuthArea";
@@ -569,12 +563,7 @@ export async function SiteHeaderComponent({
             </div>
           ) : null;
         case "account":
-          // Client account: rendered only when the host flag put `account` on siteChrome.
-          return props.siteChrome?.account ? (
-            <div key={key} {...attrs} className="site-header__ritem site-header__account">
-              <ClientAccountButton variant="header" locale={locale} />
-            </div>
-          ) : null;
+          return props.siteChrome?.account ? <HeaderAccountItem key={key} attrs={attrs} locale={locale} /> : null;
         case "section_switcher": {
           // H-4: phone section switcher over the in-page links of the Navigation list.
           const own = switcherLinksFrom(navLinks);
