@@ -41,6 +41,7 @@ import {
   tuneHeading,
 } from "./design-parts";
 import { buildWithAuthoredOverlay } from "./authored";
+import { seedI18nPayload } from "../seed-i18n";
 import { buildGridlinePayload } from "./gridline";
 import { buildMaisonV2Payload } from "./maison-v2";
 
@@ -404,7 +405,9 @@ function entry(
     is_new_until: null,
     preview: {},
     buildPayloadRaw: buildPayload,
-    buildPayload: () => buildWithAuthoredOverlay(slug, buildPayload),
+    // Seeded copy ships es + en. Applied AFTER the authored overlay so the
+    // raw payload keeps reproducing the editor snapshot hash (see seed-i18n.ts).
+    buildPayload: () => seedI18nPayload(buildWithAuthoredOverlay(slug, buildPayload)),
   };
 }
 

@@ -51,6 +51,7 @@ import {
 import { seqIds, servicesSection, shell, tuneHeading } from "./design-parts";
 import { maisonV2RichFooter } from "./maison-v2-footer";
 import { MAISON_V2_TOKEN_DEFAULTS } from "./maison-v2-tokens";
+import { seedI18nPayload } from "../seed-i18n";
 
 export { MAISON_V2_TOKEN_DEFAULTS };
 
@@ -613,7 +614,12 @@ export function legacyMaisonV2VisitBand(makeId: KitIdFactory): BuilderNode {
   );
 }
 
+/** Seeded copy ships es + en (see seed-i18n.ts). */
 export function buildMaisonV2Payload(): DesignPayload {
+  return seedI18nPayload(buildMaisonV2PayloadUnseeded());
+}
+
+function buildMaisonV2PayloadUnseeded(): DesignPayload {
   const id = seqIds("maison-v2");
   return {
     tokenDefaults: { ...MAISON_V2_TOKEN_DEFAULTS },
