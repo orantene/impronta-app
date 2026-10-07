@@ -8,6 +8,7 @@
 // initialPage is derived from the request pathname so hard refreshes on
 // /admin/messages start on the correct surface without a flash.
 
+import { dashboardMetadata } from "@/i18n/dashboard-metadata";
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getTenantScopeBySlug, getTenantPortalScopeBySlug } from "@/lib/saas/scope";
@@ -41,8 +42,12 @@ import { clampWorkspacePage, normalizeWorkspaceType } from "@/lib/saas/workspace
 import { resolveWorkspaceAdminPage } from "./workspace-page-routing";
 import { RealIdentityBanner } from "./_real-identity-banner";
 import { loadTenantIdentity, loadProfileDisplayName } from "../_layout-identity";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
 
 export const dynamic = "force-dynamic";
+
+export const generateMetadata = dashboardMetadata;
 
 type LayoutParams = Promise<{ tenantSlug: string }>;
 
@@ -265,8 +270,12 @@ export default async function WorkspaceAdminLayout({
     isPlatformAdmin: isPlatformAdmin(session.profile),
   };
 
+  // Seed client dashboard copy with the SERVER-resolved locale so the first
+  // paint (rail wordmark tagline, labels) is not English on a Spanish cookie.
+  const requestLocale = await getRequestLocale();
+
   return (
-    <>
+    <DashboardLocaleProvider locale={requestLocale}>
       {/* Real-data diagnostic banner. Dev/preview only — never ships to
           production. It sits above the prototype chrome until the prototype's
           top-bar identity is migrated to consume the bridge.
@@ -335,6 +344,6 @@ export default async function WorkspaceAdminLayout({
         {/* PageRouteSyncer lives here — inside AdminShellProvider context, returns null */}
         {children}
       </AdminShellClient>
-    </>
+    </DashboardLocaleProvider>
   );
 }

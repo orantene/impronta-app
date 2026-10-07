@@ -2,6 +2,7 @@
 // Agenda V2 rollout: see docs/plans/today-calendar/ROLLOUT.md (TALENT_AGENDA_V2).
 // Legacy Today/Calendar remain behind isAgendaV2 until Step 4 delete PR.
 
+import { dashboardMetadata } from "@/i18n/dashboard-metadata";
 import { notFound, redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 
@@ -58,6 +59,8 @@ import { talentStudioV2Enabled } from "@/lib/talent/studio-flag";
 import { logServerError } from "@/lib/server/safe-error";
 
 export const dynamic = "force-dynamic";
+
+export const generateMetadata = dashboardMetadata;
 
 const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   today: "today",
