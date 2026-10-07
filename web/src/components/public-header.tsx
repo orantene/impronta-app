@@ -601,7 +601,7 @@ export async function PublicHeader() {
           ) : null}
         </div>
 
-        <div className="flex min-w-0 items-center justify-end gap-0.5 sm:gap-1">
+        <div className="flex items-center justify-end gap-0.5 sm:gap-1">
           {navInRightCol.length > 0 ? (
             <nav
               className="public-header__nav public-header__nav--right mr-2 hidden min-w-0 items-center gap-2 overflow-x-auto md:flex lg:gap-3"
