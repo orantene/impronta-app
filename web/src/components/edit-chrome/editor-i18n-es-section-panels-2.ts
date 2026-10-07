@@ -544,6 +544,5 @@ export const ES_SECTION_PANEL_TEXT_2: Record<string, string> = {
   "Youtube": "YouTube",
   "Zoom": "Zoom",
   "日本語": "日本語",
-  "Sections": "Secciones",
   "Ready-made sections: {names}. Add them from the Add panel, under Designs.": "Secciones listas: {names}. Agrégalas desde el panel Agregar, en Diseños.",
 };
