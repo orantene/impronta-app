@@ -157,7 +157,7 @@ export async function provisionForChoice(
       }
       await linkBriefObjects(brief.id, { signupLeadId: leadId });
 
-      const result = await provisionWorkspaceFromLead({ leadId, userId, userEmail: email, profile: input.profile });
+      const result = await provisionWorkspaceFromLead({ leadId, userId, userEmail: email, profile: input.profile, locale: input.locale });
       if (result.ok) {
         return { ok: true, tenantId: result.tenantId, tenantSlug: result.tenantSlug, reusedFreeWorkspace: false, detail: { kind: "provisioned", result } };
       }
