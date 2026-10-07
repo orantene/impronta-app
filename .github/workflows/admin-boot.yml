@@ -76,7 +76,14 @@ jobs:
 
       - name: Install Playwright Chromium
         if: steps.secrets.outputs.armed == 'true'
-        run: npx playwright install --with-deps chromium
+        # The browser/apt download sometimes hangs until the job timeout (cancelled at 25 min,
+        # seen twice on 2026-10-07). Cap each try at 5 min and retry, so a hang costs minutes.
+        run: |
+          for i in 1 2 3; do
+            timeout 300 npx playwright install --with-deps chromium && exit 0
+            echo "playwright install attempt $i failed or timed out"
+          done
+          exit 1
 
       - name: Build (production)
         if: steps.secrets.outputs.armed == 'true'
