@@ -9,21 +9,18 @@ import {
 } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
 import { acceptTalentInvitation, declineTalentInvitation } from "@/lib/inquiry/inquiry-engine-roster";
 import { loadMessagingEssentials } from "@/lib/messaging/essentials";
-import { loadMessagingInbox } from "@/lib/messaging/inbox";
 import { insertMessage } from "@/lib/messaging/insert-message";
 import { fail } from "@/lib/messaging/refusals";
 import { conversationHostKind, threadLinkUrl } from "@/lib/messaging/thread-link";
 import { refreshThreadToken } from "@/lib/messaging/thread-token";
-import { listTalentInquiryIds, loadOwnedTalentInquiry, loadTalentActor, loadTalentSale } from "@/lib/messaging/talent-actor";
+import { loadOwnedTalentInquiry, loadTalentActor, loadTalentSale } from "@/lib/messaging/talent-actor";
 import {
   messagesForTalent,
   projectTalentLines,
   projectTalentMoney,
-  talentIsSeller,
   talentReplyThread,
 } from "@/lib/messaging/talent-pov";
-import { filterQaFixtureInboxRows } from "@/lib/messages-v5/qa-fixture-row";
-import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { loadTalentInboxForActor } from "@/lib/messaging/talent-inbox-rows";
 import { loadMessagingThread } from "@/lib/messaging/thread";
 import type { InboxFilter } from "@/lib/messaging/types";
 
@@ -40,28 +37,7 @@ async function owned(inquiryId: string) {
 export async function messagingTalentLoadInbox(input: { locationSlug: string; filter: InboxFilter }) {
   const actor = await loadTalentActor();
   if (!actor.ok) return actor;
-  const listed = await listTalentInquiryIds(actor.admin, actor.talentProfileId);
-  if (!listed.ok) return listed;
-  const inbox = await loadMessagingInbox(actor.admin, {
-    tenantId: "",
-    locationSlug: "all",
-    filter: input.filter,
-    actorUserId: actor.userId,
-    onlyInquiryIds: listed.ids,
-  });
-  if (!inbox.ok) return inbox;
-  // Her own hub sales are hers; every other tenant's thread is an agency's.
-  const hub = await getPlatformHubTenant();
-  let rows = inbox.rows.map((row) => ({ ...row, agency: !talentIsSeller(row.tenantId, hub?.tenantId ?? null) }));
-  let unreadCount = inbox.unreadCount;
-  // Live talents: hide agent/journey fixture threads from the inbox. Demo
-  // talents keep them — that account is the fixture surface for QA.
-  if (!actor.isDemo) {
-    const filtered = filterQaFixtureInboxRows(rows);
-    rows = filtered.rows;
-    unreadCount = filtered.unreadCount;
-  }
-  return { ...inbox, rows, unreadCount };
+  return loadTalentInboxForActor(actor, input.filter);
 }
 
 export async function messagingTalentLoadThread(input: { inquiryId: string }) {
