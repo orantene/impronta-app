@@ -41,6 +41,8 @@ export type MiniChatComposerProps = {
   onClearLookPreview?: () => void;
   lookPreviewLabel?: string;
   lookPreviewRemoveLabel?: string;
+  /** Accessible name of the send button, in the guest's language. */
+  sendLabel?: string;
 };
 
 export function MiniChatComposer({
@@ -61,6 +63,7 @@ export function MiniChatComposer({
   onClearLookPreview,
   lookPreviewLabel = "Your look",
   lookPreviewRemoveLabel = "Remove look",
+  sendLabel = "Send message",
 }: MiniChatComposerProps) {
   const C = paletteFor(surfaceMode);
   return (
@@ -172,7 +175,7 @@ export function MiniChatComposer({
         type="button"
         onClick={onSubmit}
         disabled={sendDisabled}
-        aria-label="Send message"
+        aria-label={sendLabel}
         data-send-state={sendDisabled ? "disabled" : "ready"}
         style={{
           ...primaryBtnStyle(accent, accentInk),

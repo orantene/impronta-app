@@ -120,7 +120,9 @@ for (const { name, card } of SKINS) {
   test(`[${name}] send a message: composer, send button and the thread are all there`, () => {
     const html = column(card);
     assert.match(html, /<textarea/);
-    assert.match(html, /aria-label="Send message"/);
+    // BRAND.locale is "es": the send button is named in the guest's language.
+    assert.match(html, /aria-label="Enviar mensaje"/);
+    assert.doesNotMatch(html, /aria-label="Send message"/);
     assert.match(html, /Hola, quiero una cita/);
     assert.match(html, /Claro, tengo hueco el viernes/);
   });

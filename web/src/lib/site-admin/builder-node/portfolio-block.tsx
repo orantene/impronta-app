@@ -170,7 +170,7 @@ function ShotFigure({
     shot.caption?.trim() ||
     shot.offeringTitle?.trim() ||
     shot.alt ||
-    "Portfolio photo";
+    (es ? "Foto del portafolio" : "Portfolio photo");
   const serviceLine =
     wantLabel && shot.offeringId && shot.caption?.trim()
       ? wantLabel
@@ -193,7 +193,7 @@ function ShotFigure({
           closeLabel: es ? "Cerrar" : "Close",
         }}
         ariaLabel={
-          serviceLine ? `${label}. Opens ${serviceLine}` : label
+          serviceLine ? `${label}. ${es ? "Abre" : "Opens"} ${serviceLine}` : label
         }
       >
         <span className="sb-portfolio-frame" style={{ display: "block", overflow: "hidden" }}>

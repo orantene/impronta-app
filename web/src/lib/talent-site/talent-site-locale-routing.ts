@@ -113,7 +113,13 @@ export function talentSiteSwitcherHrefs(
 ): Record<string, string> | undefined {
   if (supported.length < 2) return undefined;
   const out: Record<string, string> = {};
-  for (const code of supported) out[code] = withLocalePath(pagePath || "/", code, grammar);
+  for (const code of supported) {
+    const href = withLocalePath(pagePath || "/", code, grammar);
+    // The primary lives on the unprefixed URL, which a stale `locale` cookie
+    // (e.g. `en` after visiting /en) would otherwise override. `?locale=` is an
+    // explicit choice: the proxy 302s to the clean URL and rewrites the cookie.
+    out[code] = code === grammar.defaultLocale ? `${href}${href.includes("?") ? "&" : "?"}locale=${code}` : href;
+  }
   return out;
 }
 

@@ -203,7 +203,7 @@ test("the document paints from theme tokens only: no hex, no em dash, both local
   const def = renderToStaticMarkup(createElement(TalentPolicyDocument, { model: buildPolicyPage({ doc: "privacy", locale: "en", published: null }) }));
   assert.match(def, /data-policy-default="true"/);
   assert.match(def, /href="https:\/\/tulala\.digital\/legal\/privacy"/);
-  assert.match(def, /has not published its own policies/);
+  assert.doesNotMatch(def, /not published|aún no publicó/i);
 });
 
 // ----------------------------------------------------------------- snapshot

@@ -7393,8 +7393,9 @@ function renderBuilderNodeElement(
       const navChrome = normalizeNavChrome(
         navProps.navChrome ?? DEFAULT_NAV_CHROME,
       );
-      const menuLabel = navProps.menuLabel?.trim() || "Menu";
-      const navAriaLabel = navProps.ariaLabel?.trim() || "Primary";
+      const navEs = (options.contentLocale?.locale ?? options.visitorLocale ?? "").toLowerCase().startsWith("es");
+      const menuLabel = navProps.menuLabel?.trim() || (navEs ? "Menú" : "Menu");
+      const navAriaLabel = navProps.ariaLabel?.trim() || (navEs ? "Principal" : "Primary");
       const menuId = `${node.id}-menu`;
       // A4 follow-up — when bound to a collection nav source (cms_page /
       // cms_posts) AND the SHELL/server caller supplied resolved records, auto-

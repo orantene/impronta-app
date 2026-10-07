@@ -8,6 +8,7 @@ import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
 import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
 import { pruneDeadSectionLinks } from "@/lib/talent-site/dead-section-links";
+import { talentSiteLocalePath } from "@/lib/talent-site/talent-site-locale-routing";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
@@ -558,10 +559,14 @@ async function renderMaxSiteDocument(args: {
   // Footer links to Location / Visit are decided against the sections this page really renders
   // (an override page, such as a policy page, renders neither, so those links drop).
   const renderedBlocks = pruneEmptyBoundSections(blocks, pricedDataSources);
-  const liveFooterTree = pruneDeadSectionLinks(footerTree, args.mainOverride ? [] : renderedBlocks, [headerTree]);
+  // Off the home page (policy pages) the anchors point back at the home page: `/#services`, `/en#services`.
+  const homePath = args.mainOverride
+    ? talentSiteLocalePath("/", locale, args.localeCtx.settings.defaultLocale, args.localeCtx.settings.supportedLocales)
+    : undefined;
+  const liveFooterTree = pruneDeadSectionLinks(footerTree, renderedBlocks, [headerTree], { homePath });
   // The header's section links get the same treatment on the home page (a talent with no
   // reviews has no #reviews band, so the link goes). Override pages keep their header as is.
-  const liveHeaderTree = args.mainOverride ? headerTree : pruneDeadSectionLinks(headerTree, renderedBlocks, [footerTree]);
+  const liveHeaderTree = pruneDeadSectionLinks(headerTree, renderedBlocks, [footerTree], { homePath });
   const footerSocialLinks = builderTreeHasKind(footerTree, "social_links") ? await loadTalentSocialLinks(talentProfileId) : [];
   const socketModel = buildSocketModel({
     locale,
