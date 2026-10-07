@@ -15,6 +15,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { parseReservationStamp } from "./reservation-intent";
+import { stampInquiryEventFromBooking } from "./inquiry-event-stamp";
 import { isExclusionViolation, releaseHoldsForInquiry } from "./reservation-hold";
 
 export type EnrichBookingFromReservationResult =
@@ -199,7 +200,7 @@ export async function enrichBookingFromReservation(
 
   const { data: existing } = await admin
     .from("talent_bookings")
-    .select("id")
+    .select("id, location_text")
     .eq("inquiry_id", input.inquiryId)
     .maybeSingle();
 
@@ -238,6 +239,15 @@ export async function enrichBookingFromReservation(
       }
     }
   }
+
+  // TUL-132: give the inquiry the booking's date + place (gaps only).
+  await stampInquiryEventFromBooking(admin, {
+    inquiryId: input.inquiryId,
+    talentProfileId: source.talentProfileId,
+    tenantId: source.tenantId,
+    startsAt: source.startsAt,
+    locationText: (existing as { location_text?: string | null } | null)?.location_text ?? null,
+  });
 
   if (source.holdId) {
     const { error: holdErr } = await admin.from("talent_holds").delete().eq("id", source.holdId);
