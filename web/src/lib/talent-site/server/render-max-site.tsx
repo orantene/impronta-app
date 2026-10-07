@@ -560,12 +560,9 @@ async function renderMaxSiteDocument(args: {
   // (an override page, such as a policy page, renders neither, so those links drop).
   const renderedBlocks = pruneEmptyBoundSections(blocks, pricedDataSources);
   // Off the home page (policy pages) the anchors point back at the home page: `/#services`, `/en#services`.
-  const homePath = args.mainOverride
-    ? talentSiteLocalePath("/", locale, args.localeCtx.settings.defaultLocale, args.localeCtx.settings.supportedLocales)
-    : undefined;
+  const homePath = args.mainOverride ? talentSiteLocalePath("/", locale, args.localeCtx.settings.defaultLocale, args.localeCtx.settings.supportedLocales) : undefined;
   const liveFooterTree = pruneDeadSectionLinks(footerTree, renderedBlocks, [headerTree], { homePath });
-  // The header's section links get the same treatment on the home page (a talent with no
-  // reviews has no #reviews band, so the link goes). Override pages keep their header as is.
+  // The header's section links get the same treatment (a talent with no reviews has no #reviews band, so the link goes).
   const liveHeaderTree = pruneDeadSectionLinks(headerTree, renderedBlocks, [footerTree], { homePath });
   const footerSocialLinks = builderTreeHasKind(footerTree, "social_links") ? await loadTalentSocialLinks(talentProfileId) : [];
   const socketModel = buildSocketModel({
