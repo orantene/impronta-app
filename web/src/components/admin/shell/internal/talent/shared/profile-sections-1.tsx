@@ -1,5 +1,6 @@
 "use client";
 
+import { profileIdentityMeta } from "./profile-identity-meta";
 import { useEffect, useRef, useState } from "react";
 import { useDashboardText } from "../../dashboard-i18n";
 import { Bullet, CapsLabel, Icon } from "../../primitives";
@@ -222,6 +223,7 @@ export function ProfileHero() {
     completeness: compHero.percent,
     missing: compHero.missing.map(m => m.label),
   };
+  const identityMeta = profileIdentityMeta(p.pronouns, p.age);
   const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: selfTalentId, section });
 
   // Load real cover + avatar photos from the DB, falling back to mock data.
@@ -362,9 +364,11 @@ export function ProfileHero() {
               <h2 style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 500, letterSpacing: -0.5, margin: 0 }} className="text-admin-ink">
                 {p.name}
               </h2>
+              {identityMeta ? (
               <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, padding: "2px 8px", background: "rgba(11,11,13,0.04)", borderRadius: 999 }} className="text-admin-ink-muted">
-                {p.pronouns} · {p.age}
+                {identityMeta}
               </span>
+              ) : null}
               <TierPill tier={p.subscription.tier} onClick={() => openDrawer("talent-tier-compare")} />
             </div>
             <div style={{ marginTop: 6, fontFamily: FONTS.body, fontSize: 13.5, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }} className="text-admin-ink-muted">

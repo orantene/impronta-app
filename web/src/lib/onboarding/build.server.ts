@@ -25,9 +25,12 @@ import { updateBriefModuleState } from "@/lib/tulala/brief-module-state.server";
 import { ENGINE_VERSION } from "@/lib/tulala/engine";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 
+import { resolveWorkspaceFinishUrl } from "./finish-url";
+import { verifyLivePageWithRetry } from "./verify-live";
 import { arrivalFromStamp, parseArrivalStamp, type ArrivalPayload } from "./arrival";
 import { buildUnderstanding } from "./understanding";
 import { pathToChoice, resolveBuildPath } from "./choice";
+import { resolveEssentialsForBuild } from "./essentials-resolve";
 import { provisionForChoice } from "./provision-for-choice.server";
 import type { OnboardingPath, PersistedModuleState } from "./module-state";
 
@@ -76,8 +79,17 @@ export async function runOnboardingBuild(input: {
     name: stringFact(input.brief, "person.professional_name") ?? stringFact(input.brief, "person.name"),
     city: stringFact(input.brief, "person.city"),
   };
-  const services = listFact(input.brief, "work.services").length;
+  const essentials = resolveEssentialsForBuild({
+    essentials: input.state.essentials ?? null,
+    serviceFacts: listFact(input.brief, "work.services"),
+    discipline: stringFact(input.brief, "work.discipline") ?? stringFact(input.brief, "work.industry"),
+    tradeSlug: input.state.typeChoice?.slug ?? null,
+    country: stringFact(input.brief, "person.country"),
+    locale: input.locale,
+  });
+  const services = Math.max(listFact(input.brief, "work.services").length, essentials?.services.length ?? 0);
   const businessName = stringFact(input.brief, "business.name");
+  const firstService = essentials?.services[0]?.name ?? listFact(input.brief, "work.services")[0] ?? null;
   const appUrl = getAppUrl();
 
   try {
@@ -94,6 +106,8 @@ export async function runOnboardingBuild(input: {
       requestHost: input.requestHost,
       talentTypeSlug: input.state.typeChoice?.kind === "talent" ? input.state.typeChoice.slug : null,
       linkSlug: input.state.linkSlug ?? null,
+      essentials,
+      designPaletteKey: input.state.designChoice ?? null,
     });
     if (!prov.ok) return failed(input, prov.code, prov.message);
     if (prov.warnings.length) logServerError("onboarding.build.warnings", new Error(prov.warnings.join(",")));
@@ -110,7 +124,10 @@ export async function runOnboardingBuild(input: {
       : null;
 
     if (!prov.workspace) {
-      const arrival = arrivalFromStamp({ path, stamp: null, person, businessName: null, services, site: null, talent });
+      // 1D: "ready" only when the real page opens with the person's own name.
+      const liveCheck = await verifyLivePageWithRetry({ url: talent?.siteUrl ?? null, name: person.name });
+      if (!liveCheck.ok) logServerError("onboarding.build.verifyLive", new Error(`talent:${liveCheck.reason}`));
+      const arrival = arrivalFromStamp({ path, stamp: null, person, businessName: null, services, site: null, talent, liveCheck, firstService });
       return done(input, { status: "done", path, talentProfileId, arrival, finishedAt: new Date().toISOString() });
     }
 
@@ -130,14 +147,20 @@ export async function runOnboardingBuild(input: {
     // A failed stamp read is reported as "no stamp" (fallback arrival), never as a composed site.
     if (agencyErr) logServerError("onboarding.build.stampRead", agencyErr);
     const stamp = agencyErr ? null : parseArrivalStamp((agency?.settings as Record<string, unknown> | null)?.site_compose);
-    const publicUrl = (await getTenantPreviewUrl(admin, result.tenantId, { requestHost: input.requestHost })) ?? result.publicUrl;
+    const deliveredUrl = (await getTenantPreviewUrl(admin, result.tenantId, { requestHost: input.requestHost })) ?? result.publicUrl;
+    // 1D: one source for the address: the promised link when the workspace got that slug.
+    const finish = resolveWorkspaceFinishUrl({ linkSlug: input.state.linkSlug ?? null, tenantSlug: result.tenantSlug, delivered: deliveredUrl });
+    const publicUrl = finish.url;
+    const finishName = businessName ?? result.tenantName;
+    const liveCheck = await verifyLivePageWithRetry({ url: publicUrl, name: finishName });
+    if (!liveCheck.ok) logServerError("onboarding.build.verifyLive", new Error(`workspace:${liveCheck.reason}`));
     const editorUrl = buildEditorPanelUrl({ editorBaseUrl: publicUrl, panel: "sections" }) ?? `${appUrl}${result.adminPath}`;
     // `reusedExisting` here is this lead's own crash-recovered workspace, not
     // the one-free-workspace refusal (handled above): a normal arrival.
     const arrival = arrivalFromStamp({
-      path, stamp, person, businessName: businessName ?? result.tenantName, services,
+      path, stamp, person, businessName: finishName, services,
       site: { publicUrl, editorUrl, adminPath: `${appUrl}${result.adminPath}` },
-      talent,
+      talent, liveCheck, urlDiffers: finish.differs, firstService,
     });
     return done(input, { status: "done", path, tenantId: result.tenantId, tenantSlug: result.tenantSlug, talentProfileId, arrival, finishedAt: new Date().toISOString() });
   } catch (err) {

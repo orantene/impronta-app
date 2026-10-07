@@ -19,6 +19,7 @@ import { DEFAULT_APPOINTMENT_DEFAULTS } from "@/lib/scheduling/appointments-sett
 import type { WeeklyHours } from "@/lib/scheduling/hours-types";
 import { PLATFORM_FALLBACK_TIMEZONE } from "@/lib/spaces/venue-timezone";
 import { useT } from "@/i18n/use-t";
+import { BOOKING_TARGETS_CHANGED, pickSelectedAfterRefresh } from "./booking-targets";
 
 const C = {
   ink: "#0B0B0D",
@@ -97,6 +98,7 @@ export function BookingHoursCard({
   const [acceptedOk, setAcceptedOk] = useState(false);
   const [, startTransition] = useTransition();
   // The latest callback, read inside the load effect without re-running it.
+  const refreshTargetsRef = useRef<(() => void) | null>(null);
   const onHoursChangeRef = useRef(onHoursChange);
   useEffect(() => {
     onHoursChangeRef.current = onHoursChange;
@@ -112,17 +114,34 @@ export function BookingHoursCard({
     if (talentProfileId) setSelectedId(talentProfileId);
   }, [talentProfileId]);
 
+  // TUL-77 (#37): the list is re-read whenever the owner could have added a
+  // person or resource (tab refocus, the dropdown opening, or an explicit
+  // BOOKING_TARGETS_CHANGED event), so "Add a person or resource first" never
+  // outlives the add.
   useEffect(() => {
+    if (!showTalentPicker) return;
     let cancelled = false;
-    if (showTalentPicker) {
+    const refresh = () => {
       listBookingHoursTargets().then((res) => {
         if (cancelled || !res.ok) return;
         setTargets(res.targets);
-        setSelectedId((cur) => cur ?? res.targets[0]?.id ?? null);
+        setSelectedId((cur) => pickSelectedAfterRefresh(cur, res.targets));
       });
-    }
+    };
+    refresh();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    window.addEventListener("focus", refresh);
+    window.addEventListener(BOOKING_TARGETS_CHANGED, refresh);
+    document.addEventListener("visibilitychange", onVisible);
+    refreshTargetsRef.current = refresh;
     return () => {
       cancelled = true;
+      refreshTargetsRef.current = null;
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener(BOOKING_TARGETS_CHANGED, refresh);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [showTalentPicker]);
 
@@ -275,6 +294,7 @@ export function BookingHoursCard({
             aria-label={t(`${K}.hoursWho`)}
             value={selectedId ?? ""}
             onChange={(e) => setSelectedId(e.target.value || null)}
+            onFocus={() => refreshTargetsRef.current?.()}
             style={{
               fontSize: 13,
               fontFamily: FONT,

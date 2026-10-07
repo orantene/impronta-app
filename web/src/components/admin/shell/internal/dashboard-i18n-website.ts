@@ -55,7 +55,7 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "Edit site": "Editar sitio",
   // Avatar menu quick link to /talent/page-builder. Money, Messages, and
   // Settings already have Spanish entries in the main dictionary.
-  "Builder": "Constructor",
+  "Builder": "Editar sitio",
   "Publish site": "Publicar sitio",
   "Back to My website": "Volver a Mi sitio web",
   "Something went wrong.": "Algo salió mal.",
@@ -70,8 +70,8 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "Live at {domain}": "En vivo en {domain}",
   "Needs attention: {domain}": "Requiere atención: {domain}",
   "Pending: {domain}": "Pendiente: {domain}",
-  "Custom domain needs Web Office": "El dominio personalizado requiere Web Office",
-  "Unlocks after the Web Office trial": "Se desbloquea al terminar la prueba de Web Office",
+  "Custom domain needs Web Office": "El dominio personalizado requiere Oficina Web",
+  "Unlocks after the Web Office trial": "Se desbloquea al terminar la prueba de Oficina Web",
   "Locked": "Bloqueado",
   "Set up": "Configurar",
   "See plans": "Ver planes",
@@ -110,7 +110,7 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "Enter a domain to continue.": "Ingresa un dominio para continuar.",
   "Connect domain": "Conectar dominio",
   "Loading domains…": "Cargando dominios…",
-  "Connecting your own domain is a Web Office feature. Upgrade to Web Office to point a custom domain at your site.": "Conectar tu propio dominio es una función de Web Office. Mejora a Web Office para apuntar un dominio personalizado a tu sitio.",
+  "Connecting your own domain is a Web Office feature. Upgrade to Web Office to point a custom domain at your site.": "Conectar tu propio dominio es una función de Oficina Web. Mejora a Oficina Web para apuntar un dominio personalizado a tu sitio.",
   "No custom domain yet. Add one above to serve your site from your own address. We will show the DNS records to add.": "Aún no hay dominio personalizado. Agrega uno arriba para servir tu sitio desde tu propia dirección. Te mostraremos los registros DNS a agregar.",
   "Serve your site from your own domain": "Sirve tu sitio desde tu propio dominio",
   "Awaiting TXT": "Esperando TXT",

@@ -36,11 +36,34 @@ function anchorsOf(tree: ReadonlyArray<BuilderNode>, out = new Set<string>()): S
   return out;
 }
 
+/**
+ * Off the home page (policy pages) an in-page anchor does nothing: the target
+ * lives on the home page. `home` is that page's locale-aware path ("/", "/en");
+ * `shell` the anchors the shell itself carries (they stay in-page).
+ */
+interface HomeCtx {
+  home: string;
+  shell: ReadonlySet<string>;
+}
+
+/** `/` + anchor, locale-aware: `homeHrefFor("/en", "services")` -> `/en#services`. Pure. */
+export function homeAnchorHref(homePath: string, id: string): string {
+  const base = !homePath || homePath === "/" ? "/" : homePath.replace(/\/+$/, "") + "/";
+  return `${base}#${id}`;
+}
+
 /** The href to keep for `href`, or null when it would be a dead anchor. */
-function resolveHref(href: string, anchors: ReadonlySet<string>): string | null {
+function resolveHref(href: string, anchors: ReadonlySet<string>, ctx?: HomeCtx): string | null {
   if (!href.startsWith("#") || href.length < 2) return href;
   const id = href.slice(1);
-  if (ALWAYS_PRESENT.has(id) || anchors.has(id)) return href;
+  if (ALWAYS_PRESENT.has(id)) return href;
+  if (ctx) {
+    if (ctx.shell.has(id)) return href;
+    if (anchors.has(id)) return homeAnchorHref(ctx.home, id);
+    const sib = SIBLINGS[id];
+    return sib && anchors.has(sib) ? homeAnchorHref(ctx.home, sib) : null;
+  }
+  if (anchors.has(id)) return href;
   const sibling = SIBLINGS[id];
   if (sibling && anchors.has(sibling)) return `#${sibling}`;
   return null;
@@ -48,14 +71,14 @@ function resolveHref(href: string, anchors: ReadonlySet<string>): string | null 
 
 type LinkItem = { href?: unknown };
 
-function fixItems<T extends LinkItem>(items: readonly T[], anchors: ReadonlySet<string>): T[] {
+function fixItems<T extends LinkItem>(items: readonly T[], anchors: ReadonlySet<string>, ctx?: HomeCtx): T[] {
   const out: T[] = [];
   for (const item of items) {
     if (typeof item?.href !== "string") {
       out.push(item);
       continue;
     }
-    const next = resolveHref(item.href, anchors);
+    const next = resolveHref(item.href, anchors, ctx);
     if (next === null) continue;
     out.push(next === item.href ? item : { ...item, href: next });
   }
@@ -63,11 +86,11 @@ function fixItems<T extends LinkItem>(items: readonly T[], anchors: ReadonlySet<
 }
 
 /** A header landmark's section props: nav links and region items with an in-page href. */
-function fixSectionProps(sp: Record<string, unknown>, anchors: ReadonlySet<string>): Record<string, unknown> {
+function fixSectionProps(sp: Record<string, unknown>, anchors: ReadonlySet<string>, ctx?: HomeCtx): Record<string, unknown> {
   let next = sp;
   if (Array.isArray(sp.navItems)) {
     const orig = sp.navItems as LinkItem[];
-    const items = fixItems(orig, anchors);
+    const items = fixItems(orig, anchors, ctx);
     if (items.length !== orig.length || items.some((it, i) => it !== orig[i])) next = { ...next, navItems: items };
   }
   const regions = sp.regions;
@@ -76,7 +99,7 @@ function fixSectionProps(sp: Record<string, unknown>, anchors: ReadonlySet<strin
     const fixed: Record<string, unknown> = {};
     for (const [name, items] of Object.entries(regions as Record<string, unknown>)) {
       if (Array.isArray(items)) {
-        const f = fixItems(items as LinkItem[], anchors);
+        const f = fixItems(items as LinkItem[], anchors, ctx);
         if (f.length !== items.length || f.some((it, i) => it !== items[i])) changed = true;
         fixed[name] = f;
       } else {
@@ -96,22 +119,31 @@ export function pruneDeadSectionLinks(
   shell: ReadonlyArray<BuilderNode>,
   page: ReadonlyArray<BuilderNode>,
   extraAnchorTrees: ReadonlyArray<ReadonlyArray<BuilderNode>> = [],
+  /** Set on a page that is not the home page: the home path to prefix kept anchors with. */
+  opts: { homePath?: string } = {},
 ): BuilderNode[] {
   const anchors = anchorsOf(page);
-  anchorsOf(shell, anchors);
-  for (const t of extraAnchorTrees) anchorsOf(t, anchors);
+  const shellAnchors = anchorsOf(shell);
+  for (const a of shellAnchors) anchors.add(a);
+  for (const t of extraAnchorTrees) {
+    for (const a of anchorsOf(t)) {
+      anchors.add(a);
+      shellAnchors.add(a);
+    }
+  }
+  const ctx: HomeCtx | undefined = opts.homePath === undefined ? undefined : { home: opts.homePath, shell: shellAnchors };
 
   const fix = (n: BuilderNode): BuilderNode | null => {
     let node = n;
     const props = (node.props ?? {}) as Record<string, unknown>;
     if (typeof props.href === "string") {
-      const next = resolveHref(props.href, anchors);
+      const next = resolveHref(props.href, anchors, ctx);
       if (next === null) return null;
       if (next !== props.href) node = { ...node, props: { ...props, href: next } } as BuilderNode;
     }
     const sp = props.sectionProps;
     if (sp && typeof sp === "object") {
-      const fixedSp = fixSectionProps(sp as Record<string, unknown>, anchors);
+      const fixedSp = fixSectionProps(sp as Record<string, unknown>, anchors, ctx);
       if (fixedSp !== sp) node = { ...node, props: { ...(node.props as object), sectionProps: fixedSp } } as BuilderNode;
     }
     const kids = (node as AnyNode).children;

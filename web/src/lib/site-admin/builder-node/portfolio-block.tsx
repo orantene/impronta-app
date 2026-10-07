@@ -151,6 +151,7 @@ function ShotFigure({
   wantLabel,
   framed,
   magazineIndex,
+  es,
 }: {
   shot: TalentPortfolioShot;
   offering?: TalentOffering | null;
@@ -163,12 +164,13 @@ function ShotFigure({
   framed?: boolean;
   /** Magazine: 1-based plate number shown as "01 · caption". */
   magazineIndex?: number;
+  es?: boolean;
 }) {
   const label =
     shot.caption?.trim() ||
     shot.offeringTitle?.trim() ||
     shot.alt ||
-    "Portfolio photo";
+    (es ? "Foto del portafolio" : "Portfolio photo");
   const serviceLine =
     wantLabel && shot.offeringId && shot.caption?.trim()
       ? wantLabel
@@ -184,8 +186,14 @@ function ShotFigure({
         offeringId={shot.offeringId}
         confirmsByHand={confirmsByHand}
         className="sb-portfolio-shot"
+        lightbox={{
+          src: shot.url,
+          alt: shot.alt || label,
+          bookLabel: es ? "Reservar este look" : "Book this look",
+          closeLabel: es ? "Cerrar" : "Close",
+        }}
         ariaLabel={
-          serviceLine ? `${label}. Opens ${serviceLine}` : label
+          serviceLine ? `${label}. ${es ? "Abre" : "Opens"} ${serviceLine}` : label
         }
       >
         <span className="sb-portfolio-frame" style={{ display: "block", overflow: "hidden" }}>
@@ -280,6 +288,7 @@ export function renderPortfolioBlock(args: {
       wantLabel={wantLabel}
       framed={framed}
       magazineIndex={magazine ? index + 1 : undefined}
+      es={es}
     />
   ));
 

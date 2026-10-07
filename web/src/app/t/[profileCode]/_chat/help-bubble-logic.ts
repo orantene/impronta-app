@@ -119,3 +119,11 @@ export function helpBubbleBottom(viewportH: number, anchorTop: number, barTops: 
 export function otherHelpBubbleShown(doc: Document, own: Element | null): boolean {
   return Array.from(doc.querySelectorAll("[data-help-bubble]")).some((el) => el !== own);
 }
+
+/** TUL-59 C: one overlay at a time. True while a consent or language banner is on screen. */
+export function helpBubbleBannerUp(doc: Document): boolean {
+  return Array.from(doc.querySelectorAll<HTMLElement>("[data-consent-banner], [data-locale-suggestion]")).some((el) => {
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  });
+}

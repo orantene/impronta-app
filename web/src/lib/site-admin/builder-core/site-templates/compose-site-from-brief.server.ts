@@ -43,6 +43,7 @@ import { confirmedFacts, listFact, numberFact, redactFactsForPrompt, stringFact,
 import { BUSINESS_TYPES, businessTypeById, searchBusinessTypes, type BusinessFamilyId } from "@/lib/words/business-types";
 
 import { buildComponentsForType } from "./business-components";
+import { siteBasePath, withSiteBasePath, type SiteDomainRow } from "./site-base-path";
 import { buildCopyPassPrompt, COPY_PASS_JSON_SCHEMA, COPY_PASS_KEYS, COPY_PASS_MAX_TOKENS, COPY_PASS_TIMEOUT_MS, screenCopyReply, type CopyPassFacts } from "./copy-pass";
 import { assignmentSourceForLevel, buildImageResolver, type AssignmentSource, type CandidateImage } from "./image-resolver";
 import { stockFactsFromBrief } from "./stock-prompts";
@@ -388,7 +389,7 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   if (!admin) return fail("service role client unavailable");
 
   // 1. Who is this business.
-  const { data: agency, error: agencyErr } = await admin.from("agencies").select("id, slug, display_name, settings, workspace_type, supported_locales").eq("id", input.tenantId).maybeSingle<{ id: string; slug: string; display_name: string | null; settings: unknown; workspace_type: string | null; supported_locales: string[] | null }>();
+  const { data: agency, error: agencyErr } = await admin.from("agencies").select("id, slug, display_name, settings, workspace_type, supported_locales, plan_tier").eq("id", input.tenantId).maybeSingle<{ id: string; slug: string; display_name: string | null; settings: unknown; workspace_type: string | null; supported_locales: string[] | null; plan_tier: string | null }>();
   if (agencyErr || !agency) return fail(`tenant not found: ${agencyErr?.message ?? input.tenantId}`);
   let identityRow = await loadIdentityForStaff(admin, input.tenantId);
   // The site is written in the tenant's own default locale: a home written in
@@ -456,6 +457,12 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   }
   const logoUrl = await resolveLogoUrl(admin, input.tenantId, facts);
   const hrefs = pageHrefsFor(family);
+  // Links carry the site base path (`/w/<slug>` on the path host, none on a
+  // subdomain or custom domain). Page SLUGS stay root-relative (`hrefs`).
+  const { data: domainRows, error: domainErr } = await admin.from("agency_domains").select("hostname, kind, status, is_primary").eq("tenant_id", input.tenantId);
+  // On a failed read keep root-relative links: the render-time guard prefixes them on the path host.
+  if (domainErr) notes.push(`domains not read: ${domainErr.message}`);
+  const linkHrefs = domainErr ? hrefs : withSiteBasePath(hrefs, siteBasePath({ slug: agency.slug, planTier: agency.plan_tier, domains: (domainRows ?? []) as SiteDomainRow[] }));
   const identity: SiteIdentity = {
     businessName,
     tagline: pick(identityRow?.tagline),
@@ -467,7 +474,7 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
     facebook: normalizeHandle(pick(facts ? stringFact(facts, "presence.facebook_url") : null, identityRow?.social_facebook), "https://facebook.com/"),
     hours: facts ? listFact(facts, "business.hours") : null,
     logoUrl,
-    pageHrefs: hrefs,
+    pageHrefs: linkHrefs,
   };
 
   // 5. Theme: the Look's patch, recoloured from the owner's palette when given.
@@ -711,7 +718,7 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   await ensureNav(admin, {
     tenantId: input.tenantId,
     locale,
-    items: (["catalogue", "transaction", "about", "gallery", "contact"] as const).map((r) => ({ label: titles[r][locale], href: hrefs[r] })),
+    items: (["catalogue", "transaction", "about", "gallery", "contact"] as const).map((r) => ({ label: titles[r][locale], href: linkHrefs[r] })),
   });
 
   // 11. Cost for this compose (success and failure rows both carry the id).

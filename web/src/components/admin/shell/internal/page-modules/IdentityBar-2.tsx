@@ -3,6 +3,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import dynamic from "next/dynamic";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { clearLocaleAutoMarkerLine } from "@/i18n/locale-cookies";
 import { LOCALE_COOKIE, localeCookieOptions } from "@/i18n/locale-middleware";
 import { useDashboardText } from "../dashboard-i18n";
@@ -86,6 +87,7 @@ export function LocaleToggle({
   supportedLocales?: readonly string[];
   defaultLocale?: string;
 } = {}) {
+  const renderedLocale = useDashboardLocale();
   const [locale, setLocale] = useState<string>(defaultLocale);
 
   // Use a joined string dep so the effect only re-runs when the actual
@@ -103,7 +105,7 @@ export function LocaleToggle({
   }, [defaultLocale, localesKey]);
 
   const pick = (next: string) => {
-    if (locale === next) return;
+    if (renderedLocale === next) return;
     persistLocaleCookie(next);
     setLocale(next);
     window.location.reload();

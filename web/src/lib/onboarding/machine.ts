@@ -9,6 +9,8 @@
 
 import {
   canResume,
+  choiceToIntent,
+  type OnboardingChoice,
   type ModuleInput,
   type ModuleStep,
   type OnboardingIntent,
@@ -17,6 +19,7 @@ import {
   type ResumeSnapshot,
   type VisualDirection,
 } from "./module-state";
+import type { DesignLookKey } from "./finish-url";
 import type { ModuleQuestionId } from "./module-questions";
 import type { TypeChipProposal } from "./type-chip";
 import type { Understanding } from "./understanding";
@@ -39,6 +42,8 @@ export type MachineErrorCode =
 
 export type MachineState = {
   intent: OnboardingIntent;
+  /** 1B screen 1 answer; null until the person picks. */
+  choice: OnboardingChoice | null;
   step: ModuleStep;
   /** The text box on the entry / confirm screens. */
   text: string;
@@ -59,6 +64,8 @@ export type MachineState = {
   followUps: ModuleQuestionId[];
   questionIndex: number;
   linkSlug: string | null;
+  /** 1D: the look a talent picked (null = keep default). */
+  designChoice: DesignLookKey | null;
   styleChoice: VisualDirection | null;
   linkAvailable: boolean | null;
   linkSuggestions: string[];
@@ -83,6 +90,7 @@ export type MachineEvent =
   | { type: "sendStarted" }
   | { type: "sendAccepted"; briefId: string; input: ModuleInput }
   | { type: "sendFailed"; code: MachineErrorCode }
+  | { type: "choiceChosen"; choice: OnboardingChoice }
   | { type: "back" }
   | { type: "clearError" }
   | { type: "cardLoaded"; understanding: Understanding; chip: TypeChipProposal | null; step?: ModuleStep }
@@ -91,6 +99,7 @@ export type MachineEvent =
   | { type: "pathChosen"; understanding: Understanding; chip: TypeChipProposal | null; path: OnboardingPath }
   | { type: "questionAnswered"; understanding: Understanding; chip: TypeChipProposal | null }
   | { type: "essentialsSaved"; understanding: Understanding; chip: TypeChipProposal | null }
+  | { type: "setupSaved"; talentOnly: boolean }
   | { type: "styleSaved"; direction: VisualDirection }
   | { type: "questionSkipped" }
   | { type: "jumpToQuestion"; questionId: ModuleQuestionId }
@@ -101,12 +110,14 @@ export type MachineEvent =
   | { type: "authed"; email: string | null }
   | { type: "buildDone"; arrival: ArrivalPayload }
   | { type: "buildFailed"; message: string }
-  | { type: "buildRetry" };
+  | { type: "buildRetry" }
+  | { type: "designPicked"; look: DesignLookKey | null };
 
-export function initialMachineState(intent: OnboardingIntent = "unknown"): MachineState {
+export function initialMachineState(intent: OnboardingIntent = "unknown", startStep: ModuleStep = "entry"): MachineState {
   return {
     intent,
-    step: "entry",
+    choice: null,
+    step: startStep,
     text: "",
     input: null,
     briefId: null,
@@ -121,6 +132,7 @@ export function initialMachineState(intent: OnboardingIntent = "unknown"): Machi
     followUps: [],
     questionIndex: 0,
     linkSlug: null,
+    designChoice: null,
     styleChoice: null,
     linkAvailable: null,
     linkSuggestions: [],
@@ -133,15 +145,16 @@ export function initialMachineState(intent: OnboardingIntent = "unknown"): Machi
 }
 
 /** Where "Back" goes from each step. Entry has no back (close instead). */
-const BACK: Partial<Record<ModuleStep, ModuleStep>> = {
+export const BACK: Partial<Record<ModuleStep, ModuleStep>> = {
   confirmWords: "entry",
   reading: "confirmWords",
   tooLittle: "entry",
-  fork: "understood",
+  entry: "choose",
   question: "understood",
   essentials: "understood",
-  style: "essentials",
-  readyToBuild: "essentials",
+  setup: "essentials",
+  style: "setup",
+  readyToBuild: "setup",
   save: "readyToBuild",
   code: "save",
 };
@@ -177,16 +190,18 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
         resume: null,
         briefId: snap.briefId,
         intent: s.intent ?? state.intent,
+        choice: s.choice ?? null,
         input: s.input ?? null,
         text: s.input?.value ?? "",
         step: s.step ?? "entry",
         questionIndex: s.questionIndex ?? 0,
         linkSlug: s.linkSlug ?? null,
+        designChoice: s.designChoice ?? null,
         styleChoice: s.styleChoice ?? null,
       };
     }
     case "resumeFresh":
-      return { ...initialMachineState(state.intent), isAuthenticated: state.isAuthenticated, email: state.email };
+      return { ...initialMachineState(state.intent, state.step === "choose" ? "choose" : "entry"), isAuthenticated: state.isAuthenticated, email: state.email };
     case "textChanged":
       return { ...state, text: event.text, error: null };
     case "dictation":
@@ -201,6 +216,8 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
       return { ...state, busy: false, briefId: event.briefId, input: event.input, step: "reading" };
     case "sendFailed":
       return { ...state, busy: false, error: event.code, step: event.code === "too_short" ? "tooLittle" : state.step };
+    case "choiceChosen":
+      return { ...state, choice: event.choice, intent: choiceToIntent(event.choice), step: "entry", error: null, busy: false };
     case "back": {
       if (state.step === "question" && state.questionIndex > 0) {
         return { ...state, questionIndex: state.questionIndex - 1, error: null };
@@ -249,11 +266,12 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
       return afterQuestion({ ...state, understanding: event.understanding, chip: event.chip });
     case "questionSkipped":
       return afterQuestion(state);
-    case "essentialsSaved": {
+    case "essentialsSaved":
+      // 1B: the basics lead to the step-3 setup screen (services, hours, place).
+      return { ...state, busy: false, error: null, understanding: event.understanding, chip: event.chip, step: "setup" };
+    case "setupSaved":
       // Talent goes straight to the summary; a business picks its look first.
-      const next: ModuleStep = event.understanding.path === "talent" ? "readyToBuild" : "style";
-      return { ...state, busy: false, error: null, understanding: event.understanding, chip: event.chip, step: next };
-    }
+      return { ...state, busy: false, error: null, step: event.talentOnly ? "readyToBuild" : "style" };
     case "styleSaved":
       return { ...state, busy: false, error: null, styleChoice: event.direction, step: "readyToBuild" };
     case "jumpToQuestion":
@@ -272,6 +290,8 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
       return { ...state, busy: false, step: "arrival", arrival: event.arrival, buildFailed: null };
     case "buildFailed":
       return { ...state, busy: false, step: "arrival", arrival: null, buildFailed: event.message };
+    case "designPicked":
+      return { ...state, designChoice: event.look };
     case "buildRetry":
       return { ...state, busy: false, step: "building", arrival: null, buildFailed: null };
     default:

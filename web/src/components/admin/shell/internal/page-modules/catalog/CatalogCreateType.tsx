@@ -50,7 +50,7 @@ const CARD_ICON: Record<CreateTypeCard["id"], LucideIcon> = {
 
 export function CatalogCreateType({ editor, nav }: { editor: OfferingsEditor; nav: CatalogNav }) {
   const t = useT();
-  const [picked, setPicked] = useState<CreateTypeCard["id"]>("product");
+  const [picked, setPicked] = useState<CreateTypeCard["id"]>(editor.defaultCreateType);
   const card = CREATE_TYPE_CARDS.find((c) => c.id === picked) ?? CREATE_TYPE_CARDS[0]!;
   const blocked = !card.seed && !card.destination;
   const continueLabel = `${t("dashboard.catalog.create.continue")} · ${t(CARD_KEY[card.id].title)}`;

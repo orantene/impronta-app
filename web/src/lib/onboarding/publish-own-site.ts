@@ -25,6 +25,8 @@ export type OwnSiteRow = {
 export type PublishOwnSiteDeps = {
   readSite: () => Promise<{ row: OwnSiteRow; isDemo: boolean; error?: string }>;
   applyDefaultDesign: () => Promise<{ ok: boolean; code?: string; error?: string }>;
+  /** 1D: the person picked a look; apply it before publish even when a design exists. */
+  forceDesign?: boolean;
   publish: () => Promise<{ ok: boolean; error?: string }>;
   /** Host address (`<slug>.tulala.digital`) when subdomains are on, else the `/t/site/<slug>` path. */
   subdomainsEnabled: boolean;
@@ -59,7 +61,7 @@ export async function ensureOwnSitePublished(deps: PublishOwnSiteDeps): Promise<
     if (url && first.row.site_slug) return { ok: true, siteSlug: first.row.site_slug, publicUrl: url, alreadyLive: true };
   }
 
-  if (!first.row?.theme_design_slug) {
+  if (!first.row?.theme_design_slug || deps.forceDesign) {
     const applied = await deps.applyDefaultDesign();
     // feature_disabled = the design flag is off: publish has no design gate then.
     if (!applied.ok && applied.code !== "feature_disabled") return { ok: false, error: applied.error ?? "design_failed" };

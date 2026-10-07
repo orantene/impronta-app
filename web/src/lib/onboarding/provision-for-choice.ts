@@ -43,6 +43,12 @@ export type ChoiceProvisionDeps<W, S> = {
   ensureWorkspace(opts: { withTalentProfile: boolean }): Promise<({ ok: true } & EnsuredWorkspace<W>) | StepFail>;
   ensureWorkspaceDomain(tenantId: string, tenantSlug: string): Promise<{ ok: true } | StepFail>;
   ensureSelfRoster(tenantId: string, talentProfileId: string): Promise<{ ok: true } | StepFail>;
+  /**
+   * TUL-84: persist services, hours, place, appointments and the first provider
+   * invite. Optional (a build without essentials skips it). Never fatal: returns
+   * warnings, and a retry finishes what failed because every write is an ensure.
+   */
+  applyEssentials?(ctx: { choice: OnboardingChoice; talent: EnsuredTalent | null; workspace: { tenantId: string; tenantSlug: string } | null }): Promise<string[]>;
   /** draft/hidden → approved/public; never downgrades a live profile. */
   promoteTalentProfileLive(talentProfileId: string): Promise<{ ok: true } | StepFail>;
   setHomeSurface(surface: "talent" | "workspace"): Promise<{ ok: true } | StepFail>;
@@ -98,6 +104,14 @@ export async function runChoiceProvisioning<W, S>(
       // "both": she is publicly bookable on her workspace site from day one.
       const live = await deps.promoteTalentProfileLive(talent.talentProfileId);
       if (!live.ok) return { ...live, choice };
+    }
+  }
+
+  if (deps.applyEssentials) {
+    try {
+      warnings.push(...(await deps.applyEssentials({ choice, talent, workspace: workspace ? { tenantId: workspace.tenantId, tenantSlug: workspace.tenantSlug } : null })));
+    } catch (err) {
+      warnings.push(`essentials:${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

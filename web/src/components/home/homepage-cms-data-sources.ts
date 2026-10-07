@@ -7,6 +7,7 @@
  * locations, directory shortcuts, media assets, collections), and fetches them
  * in one parallel batch — returning `{}` (no round-trips) when nothing is bound.
  */
+import { loadLiveBookingSurface } from "@/lib/site-admin/server/load-live-booking-surface";
 import { publicContactMode, servicesCatalogChannel } from "@/lib/talent/accepting-readiness";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { headers } from "next/headers";
@@ -175,6 +176,7 @@ export async function loadBuilderNodeDataSources(
     !needsSocialLinks &&
     !nativeNeeds.needsTalentCount &&
     !nativeNeeds.menuBoard &&
+    !nativeNeeds.liveBooking &&
     !nativeNeeds.servicesCatalog &&
     !nativeNeeds.portfolio &&
     !nativeNeeds.reviews &&
@@ -228,6 +230,7 @@ export async function loadBuilderNodeDataSources(
     directoryProfilesByNodeId,
     featuredTalentProfilesByNodeId,
     socialFeeds,
+    liveBooking,
   ] = await Promise.all([
     featuredLimit == null
       ? Promise.resolve(undefined)
@@ -323,6 +326,10 @@ export async function loadBuilderNodeDataSources(
     serviceSupabase && socialFeedProviders.length > 0
       ? resolveSocialFeedDataSources(serviceSupabase, tenantId, socialFeedProviders)
       : Promise.resolve(undefined),
+    // TUL-77: live published catalog + real booking flow inputs.
+    nativeNeeds.liveBooking
+      ? loadLiveBookingSurface(dataTenantId, locale)
+      : Promise.resolve(undefined),
   ]);
 
   const socialLinks = socialContact
@@ -357,6 +364,7 @@ export async function loadBuilderNodeDataSources(
     ...(talentDisciplines === undefined ? {} : { talentDisciplines }),
     ...(menuOfferings === undefined ? {} : { menuOfferings }),
     ...(menuWords === undefined ? {} : { menuWords }),
+    ...(liveBooking ? { liveBooking } : {}),
     ...(directoryProfilesByNodeId === undefined
       ? {}
       : { directoryProfilesByNodeId }),

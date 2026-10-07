@@ -20,7 +20,7 @@ export type ArrivalStamp = {
   };
 } | null;
 
-export type ArrivalVariant = "talent" | "business" | "both" | "fallback" | "existing_workspace";
+export type ArrivalVariant = "talent" | "business" | "both" | "fallback" | "existing_workspace" | "draft_saved";
 
 export type ArrivalPayload = {
   variant: ArrivalVariant;
@@ -36,6 +36,15 @@ export type ArrivalPayload = {
   siteLive?: boolean;
   /** Talent path: where "Finish my page" goes (the Today deep link). */
   finishHref?: string;
+  /** 1D: the page was fetched server-side and showed the person's own name. Absent = not checked. */
+  verified?: boolean;
+  /** 1D: "Personalizar en el editor" and "Ir a mi panel" targets. */
+  editorHref?: string;
+  panelHref?: string;
+  /** 1D: the address shown differs from the one promised at "Ready to build". */
+  urlDiffers?: boolean;
+  /** 1D: the first service the person listed (shown with a Book preview). */
+  firstService?: string | null;
 };
 
 export function parseArrivalStamp(raw: unknown): ArrivalStamp {
@@ -48,7 +57,7 @@ export function parseArrivalStamp(raw: unknown): ArrivalStamp {
   return { outcome, copySource, placed };
 }
 
-export function arrivalFromStamp(input: {
+type ArrivalInput = {
   path: OnboardingPath;
   stamp: ArrivalStamp;
   reusedExisting?: boolean;
@@ -59,7 +68,28 @@ export function arrivalFromStamp(input: {
   site: { publicUrl: string; editorUrl: string; adminPath: string } | null;
   /** Talent page URL and the Today deep link, when a profile exists. */
   talent: { publicUrl: string | null; todayUrl: string; /** Published own-site URL (TUL-32), when live. */ siteUrl?: string | null } | null;
-}): ArrivalPayload {
+  /** 1D: server-side check of the finish URL. Omitted = unchecked (legacy callers). */
+  liveCheck?: { ok: boolean } | null;
+  urlDiffers?: boolean;
+  firstService?: string | null;
+};
+
+/**
+ * "Ready" only when the real page was checked: a failed check turns the
+ * arrival into the honest draft state (`draft_saved`), never a false ready.
+ */
+export function arrivalFromStamp(input: ArrivalInput): ArrivalPayload {
+  const base = baseArrival(input);
+  const editorHref = input.site?.editorUrl ?? input.talent?.todayUrl;
+  const panelHref = input.path === "talent" ? input.talent?.todayUrl : (input.site?.adminPath ?? input.talent?.todayUrl);
+  const common = { editorHref, panelHref, firstService: input.firstService ?? null, urlDiffers: input.urlDiffers === true ? true : undefined };
+  if (input.liveCheck && !input.liveCheck.ok) {
+    return { ...base, ...common, variant: "draft_saved", siteLive: false, verified: false, fallbackReason: "failed" };
+  }
+  return { ...base, ...common, ...(input.liveCheck?.ok ? { verified: true } : {}) };
+}
+
+function baseArrival(input: ArrivalInput): ArrivalPayload {
   const placed = input.stamp?.placed ?? {};
   const fact = {
     services: input.services,

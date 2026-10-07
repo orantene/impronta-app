@@ -117,5 +117,6 @@ export function formatFeeMoney(minor: number, currency: string, locale = "en"): 
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  return code === "MXN" || code === "USD" ? `$${n}` : `${n} ${code}`;
+  if (code === "MXN") return `MX$${n}`;
+  return code === "USD" ? `$${n}` : `${n} ${code}`;
 }

@@ -8,6 +8,7 @@ import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import type { SellerChrome } from "@/components/messages-v5/shell/seller";
 import { MessagesV5Shell } from "@/components/messages-v5/shell/MessagesV5Shell";
+import { safeLoadInbox } from "@/components/messages-v5/shell/safe-load-inbox";
 import { talentShellEngine } from "@/components/messages-v5/shell/talent-engine";
 import type { ShellActionId } from "@/components/messages-v5/screens/contracts";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
@@ -56,7 +57,7 @@ function TalentMessagesV5() {
   const [totalConversations, setTotalConversations] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
-    void talentShellEngine.loadInbox({ locationSlug: "all", filter: "all" }).then((r) => {
+    void safeLoadInbox(talentShellEngine.loadInbox, { locationSlug: "all", filter: "all" }).then((r) => {
       if (!cancelled) setTotalConversations(r.ok ? r.rows.length : null);
     });
     return () => {

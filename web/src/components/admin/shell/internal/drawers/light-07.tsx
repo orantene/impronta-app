@@ -29,6 +29,7 @@ import {
 import { formatRecentActivity, groupRecentActivityByDay } from "../state";
 import { notificationDrawerFields } from "../notification-drawer-targets";
 import { useDashboardText } from "../dashboard-i18n";
+import { formatNotificationAge, localizeNotificationText } from "../notification-localize";
 
 // Phase 1d (remediation §4): 6 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -63,7 +64,6 @@ export function TodayPulseDrawer() {
       })),
   ]
     .sort((a, b) => b.ageDays - a.ageDays); // oldest-waiting first (matches the copy)
-
   return (
     <DrawerShell
       open onClose={closeDrawer}
@@ -336,9 +336,9 @@ export function NotificationsDrawer() {
           id: n.id,
           kind: n.kind as NotificationItem["kind"],
           inquiryId: n.originInquiryId ?? undefined,
-          title: n.title,
-          body: n.body ?? "",
-          ts: n.ts,
+          title: localizeNotificationText(n.title, copy.locale),
+          body: localizeNotificationText(n.body ?? "", copy.locale),
+          ts: formatNotificationAge(n.createdAt, copy.locale) || n.ts,
           read: n.read,
           actorName: "",
           actorInitials: n.actorInitials ?? "·",
@@ -347,7 +347,7 @@ export function NotificationsDrawer() {
         }));
     }
     return NOTIFICATIONS.filter((n) => n.surface === "workspace");
-  }, [bridgeUserNotifications, adminBasePath]);
+  }, [bridgeUserNotifications, adminBasePath, copy.locale]);
   const filtered = items.filter((n) => {
     if (filter === "unread") return !n.read;
     if (filter === "action") return ACTION_KINDS.includes(n.kind) && !n.read;

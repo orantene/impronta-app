@@ -4,6 +4,7 @@
  * Kept free of server / Next imports so unit tests under
  * `test:builder-node-bindings` (no `server-only` mock) can import it.
  */
+import { isLiveBookingLabel, isLiveServicesLabel } from "./live-booking-markers";
 import type { BuilderNode } from "./types";
 
 /**
@@ -60,6 +61,8 @@ export type NativeFeaturedTalentNeed = {
 export type NativeDataBlockNeeds = {
   needsTalentCount: boolean;
   menuBoard: boolean;
+  /** TUL-77: a band marked for the live catalog or the real booking flow. */
+  liveBooking: boolean;
   servicesCatalog: boolean;
   /** W-12 live portfolio media. */
   portfolio: boolean;
@@ -150,6 +153,7 @@ export function collectNativeDataBlockNeeds(
 ): NativeDataBlockNeeds {
   let needsTalentCount = false;
   let menuBoard = false;
+  let liveBooking = false;
   let servicesCatalog = false;
   let portfolio = false;
   let reviews = false;
@@ -175,6 +179,13 @@ export function collectNativeDataBlockNeeds(
     }
     if (node.kind === "menu_board") {
       menuBoard = true;
+    }
+    if (
+      node.kind === "container" &&
+      (isLiveServicesLabel(node.props.layerLabel) ||
+        isLiveBookingLabel(node.props.layerLabel))
+    ) {
+      liveBooking = true;
     }
     // task_picker reads the same live offerings (it recommends one by id).
     if (node.kind === "services_catalog" || node.kind === "task_picker") {
@@ -273,6 +284,7 @@ export function collectNativeDataBlockNeeds(
   return {
     needsTalentCount,
     menuBoard,
+    liveBooking,
     servicesCatalog,
     portfolio,
     reviews,

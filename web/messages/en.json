@@ -1650,6 +1650,7 @@
     "bookPage": {
       "title": "Reserve a time",
       "lead": "Pick a service and a time. We will confirm shortly.",
+      "bookCta": "Book",
       "chooseService": "Service",
       "studioFallback": "the studio"
     },
@@ -1818,11 +1819,6 @@
       "chrome": {
         "close": "Close",
         "back": "Back",
-        "step1": "1 · Tell us",
-        "step2": "2 · Check",
-        "step3": "3 · Save",
-        "step4": "4 · Build",
-        "step5": "5 · Done",
         "savedToast": "Saved on this phone. Come back any time.",
         "signedInAs": "Signed in as {email}",
         "guest": "Not signed in",
@@ -1926,16 +1922,7 @@
         "laterValue": "Later, in your site",
         "missingValue": "We'll ask next"
       },
-      "fork": {
-        "title": "Who is this page for?",
-        "sub": "You mentioned a business and your own work. Pick one; you can add the other later.",
-        "talent": "For me",
-        "talentSub": "A page with what I do, my services and my city",
-        "business": "For the business",
-        "businessSub": "A site with the business name, hours, WhatsApp and what you sell",
-        "both": "Both",
-        "bothSub": "The business site now, my own page drafted"
-      },
+      "fork": {},
       "questions": {
         "basicsWhatTalentHint": "Search: nail technician, photographer, DJ…",
         "basicsWhatBusinessHint": "Search: nail salon, restaurant, gym…",
@@ -2039,12 +2026,10 @@
         "openMyWorkspace": "Open my workspace",
         "ownPageDrafted": "Your own page is drafted in the workspace.",
         "link": "Your link",
-        "failedTitle": "That didn't finish",
-        "failedSub": "Everything you told us is saved. Try again, or come back later from this same phone.",
         "retry": "Try again",
         "fallbackCopySub": "Your workspace is ready. The site copy needed another pass, so it opens with the Look's defaults; everything you told us is saved.",
         "fallbackPhotosSub": "{business} has a site with your words in it. The photos are still generic; open it to add yours or pick from the library.",
-        "readyBusiness": "Your website is ready",
+        "readyBusiness": "Your site is ready",
         "readyTalent": "Your page is ready",
         "visit": "Open",
         "nextSteps": "Next steps",
@@ -2057,7 +2042,15 @@
         "nextTalentBio": "Check your bio",
         "nextTalentShare": "Share your link",
         "viewMyWebsite": "View my website",
-        "customizeInBuilder": "Customize in builder"
+        "customizeInBuilder": "Customize in builder",
+        "draftTitle": "Your draft is saved",
+        "draftSub": "Everything you told us is saved, but your page does not open online yet. Try again or open it in the editor.",
+        "draftSubStudio": "Everything you told us is saved, but your site does not open online yet. Try again or open it in the editor.",
+        "openEditor": "Open the editor",
+        "goToPanel": "Go to my dashboard",
+        "bookPreview": "Book",
+        "bookingsStartStudio": "Bookings start when you add a provider.",
+        "urlDiffers": "Your address came out different from the one you chose because it was already taken. This is the real one."
       },
       "essentials": {
         "title": "Add the essentials",
@@ -2068,13 +2061,7 @@
         "businessNameHint": "How people know your business",
         "yourName": "Your name",
         "yourNameHint": "The name people know you by",
-        "services": "Services offered",
-        "servicesHint": "Type a service and press Enter",
-        "addService": "Add a service…",
-        "remove": "Remove",
         "location": "Your location",
-        "hours": "Business hours",
-        "hoursCustomHint": "Or write your own, e.g. Tue–Sun 1 pm to 11 pm",
         "whatsapp": "WhatsApp (optional)",
         "whatsappHint": "Mexican number without the country code; we add +52.",
         "continue": "Continue",
@@ -2095,6 +2082,15 @@
         "notesHint": "Colours you love, a brand you admire, what to avoid…",
         "changeLater": "Your Look, colours and photos can all be changed in the builder.",
         "continue": "Continue"
+      },
+      "design": {
+        "title": "Pick how your page looks",
+        "sub": "Three ready looks. You can change it later in the editor.",
+        "recommended": "Recommended",
+        "keep": "Keep the default look",
+        "pink": "Pink and lipstick",
+        "pearl": "Pearl",
+        "sand": "Sand"
       }
     },
     "consent": {

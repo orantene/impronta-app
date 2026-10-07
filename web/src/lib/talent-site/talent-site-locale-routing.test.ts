@@ -66,8 +66,18 @@ test("bounding a requested locale never leaves the talent's set", () => {
 
 test("switcher hrefs point at this page per language; none for one language", () => {
   const grammar = talentSiteUrlSettings("es", ["es", "en"]);
-  assert.deepEqual(talentSiteSwitcherHrefs("/services", grammar, ["es", "en"]), { es: "/services", en: "/en/services" });
-  assert.deepEqual(talentSiteSwitcherHrefs("/", grammar, ["es", "en"]), { es: "/", en: "/en" });
+  assert.deepEqual(talentSiteSwitcherHrefs("/services", grammar, ["es", "en"]), { es: "/services?locale=es", en: "/en/services" });
+  assert.deepEqual(talentSiteSwitcherHrefs("/", grammar, ["es", "en"]), { es: "/?locale=es", en: "/en" });
   assert.equal(talentSiteSwitcherHrefs("/", talentSiteUrlSettings("en", ["en"]), ["en"]), undefined);
   assert.equal(talentSiteLocalePath("/about", "en", "es", ["es", "en"]), "/en/about");
+});
+
+test("clicking the primary switcher link beats a stale cookie and is remembered", () => {
+  const hrefs = talentSiteSwitcherHrefs("/", talentSiteUrlSettings("es", ["es", "en"]), ["es", "en"])!;
+  const d = decideTalentSiteLocale({ pathname: "/", queryLocale: new URL(hrefs.es, "https://x.test").searchParams.get("locale"), cookieLocale: "en", ...ALBA });
+  assert.equal(d.locale, "es");
+  assert.equal(d.explicit, true);
+  assert.equal(d.redirectPath, "/");
+  // and a bare unprefixed visit still honours the cookie
+  assert.equal(decideTalentSiteLocale({ pathname: "/", cookieLocale: "en", ...ALBA }).locale, "en");
 });

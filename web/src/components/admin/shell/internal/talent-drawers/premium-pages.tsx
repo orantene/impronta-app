@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { useDashboardText } from "../dashboard-i18n";
+import { personalPageLabel } from "./personal-page-label";
 import { interpolate } from "@/i18n/interpolate";
 import {
   COLORS,
@@ -112,7 +113,8 @@ function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier })
 // is the single source for the rows below AND the per-feature gates.
 
 export function TalentTierCompareDrawer() {
-  const { state, closeDrawer, setTalentTier } = useAdminShell();
+  const { state, closeDrawer, setTalentTier, bridgeTalentSelfProfile } = useAdminShell();
+  const profileCode = bridgeTalentSelfProfile?.profileCode ?? null;
   const t = useT();
   const copy = useDashboardText();
   const open = state.drawer.drawerId === "talent-tier-compare";
@@ -274,7 +276,7 @@ export function TalentTierCompareDrawer() {
                       alignItems: "center",
                     }}
                   >
-                    <span className="font-medium">{copy.t(f.label)}</span>
+                    <span className="font-medium">{personalPageLabel(copy.t(f.label), profileCode)}</span>
                     <FeatureCell value={f.free} />
                     <FeatureCell value={f.max} />
                   </div>
