@@ -27,6 +27,9 @@ export type DeletedAccountPrefixReport = {
   /** Row-less objects that become deletable because the proven-deleted owner accounts for them (pre-cap). */
   ownerAccountedCount: number;
   ownerAccountedBytes: number;
+  /** Of the above (released + owner-accounted), those under talent-site-logos/ or talent-portfolio/ (pre-cap). */
+  siteAssetsCount: number;
+  siteAssetsBytes: number;
   /** Objects under a released prefix still kept because they have no media_assets row. */
   stillUnaccountedCount: number;
   /** true = the release shaped the returned plan. */
@@ -41,6 +44,8 @@ const EMPTY: DeletedAccountPrefixReport = {
   releasedBytes: 0,
   ownerAccountedCount: 0,
   ownerAccountedBytes: 0,
+  siteAssetsCount: 0,
+  siteAssetsBytes: 0,
   stillUnaccountedCount: 0,
   applied: false,
 };
@@ -78,6 +83,9 @@ export async function planWithDeletedAccountPrefixes(args: {
     !rowKeys.has(`${v.bucketId} ${v.storagePath}`);
   const ownerAccounted = added.filter(isOwnerAccounted);
   const releasedOnly = added.filter((v) => !isOwnerAccounted(v));
+  const siteAssets = added.filter(
+    (v) => v.storagePath.startsWith("talent-site-logos/") || v.storagePath.startsWith("talent-portfolio/"),
+  );
   const stillUnaccounted = withRelease.kept.filter(
     (k) =>
       (k.keepReason === "unaccounted_no_asset_row" || k.keepReason === "unaccounted_within_grace") &&
@@ -94,6 +102,8 @@ export async function planWithDeletedAccountPrefixes(args: {
       releasedBytes: releasedOnly.reduce((n, v) => n + v.sizeBytes, 0),
       ownerAccountedCount: ownerAccounted.length,
       ownerAccountedBytes: ownerAccounted.reduce((n, v) => n + v.sizeBytes, 0),
+      siteAssetsCount: siteAssets.length,
+      siteAssetsBytes: siteAssets.reduce((n, v) => n + v.sizeBytes, 0),
       stillUnaccountedCount: stillUnaccounted.length,
       applied: enforce,
     },

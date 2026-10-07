@@ -93,7 +93,8 @@ describe("isPrefixReleasedForDeletedTalent", () => {
     assert.equal(isPrefixReleasedForDeletedTalent(ids, "media-public", `avatars/${DEAD}/avatar.jpg`), false);
     assert.equal(isPrefixReleasedForDeletedTalent(ids, "media-originals", `${DEAD}/staging/a.jpg`), false);
     assert.equal(isPrefixReleasedForDeletedTalent(ids, "media-originals", `${DEAD}/originals/reel/a.mp4`), false);
-    assert.equal(isPrefixReleasedForDeletedTalent(ids, "media-public", `talent-site-logos/${DEAD}/a.png`), false);
+    assert.equal(isPrefixReleasedForDeletedTalent(ids, "media-public", `talent/${DEAD}/a.png`), false);
+    assert.equal(isPrefixReleasedForDeletedTalent(ids, "media-public", `avatars/${DEAD}/a.png`), false);
   });
   it("releases nothing for an empty id set", () => {
     assert.equal(isPrefixReleasedForDeletedTalent(new Set(), "media-originals", `${DEAD}/documents/a.pdf`), false);
@@ -194,5 +195,66 @@ describe("planWithDeletedAccountPrefixes", () => {
     assert.deepEqual(deletable(r), []);
     assert.equal(r.report.ok, false);
     assert.equal(r.report.applied, false);
+  });
+});
+
+describe("site logos and portfolio (media-public, keyed by talent id in the 2nd segment)", () => {
+  const pub = (name: string) => obj(name, "media-public");
+  const objects = [
+    pub(`talent-site-logos/${DEAD}/l.png`),
+    pub(`talent-portfolio/${DEAD}/p.jpg`),
+    pub(`talent-site-logos/${LIVE}/l.png`),
+    pub(`talent-portfolio/${LIVE}/p.jpg`),
+    pub(`talent-portfolio/${FRESH}/p.jpg`),
+    pub(`talent/${DEAD}/legacy.jpg`),
+  ];
+  const profiles = [cand(DEAD), cand(FRESH, { deleted_at: daysAgo(29) }), cand(LIVE, { deleted_at: null })];
+  const del = (r: { plan: { deletable: { storagePath: string }[] } }) =>
+    r.plan.deletable.map((d) => d.storagePath).sort();
+
+  it("path check: only the deleted talent's own two prefixes", () => {
+    const ids = new Set([DEAD]);
+    assert.equal(isPrefixReleasedForDeletedTalent(ids, "media-public", `talent-site-logos/${DEAD}/l.png`), true);
+    assert.equal(isPrefixReleasedForDeletedTalent(ids, "media-public", `talent-portfolio/${DEAD}/p.jpg`), true);
+    assert.equal(isPrefixReleasedForDeletedTalent(ids, "media-public", `talent-portfolio/${LIVE}/p.jpg`), false);
+    assert.equal(isPrefixReleasedForDeletedTalent(ids, "media-public", `talent-portfolio/${DEAD}`), false);
+  });
+
+  it("flag on: the deleted talent's row-less logo and portfolio are deleted, nobody else's", async () => {
+    const r = await planWithDeletedAccountPrefixes({ admin: fakeAdmin(profiles), input: input({ objects }), enforce: true });
+    assert.deepEqual(del(r), [`talent-portfolio/${DEAD}/p.jpg`, `talent-site-logos/${DEAD}/l.png`]);
+  });
+
+  it("flag off: kept, but counted", async () => {
+    const r = await planWithDeletedAccountPrefixes({ admin: fakeAdmin(profiles), input: input({ objects }), enforce: false });
+    assert.deepEqual(del(r), []);
+    assert.equal(r.report.siteAssetsCount, 2);
+    assert.equal(r.report.siteAssetsBytes, 200);
+    assert.equal(r.report.ownerAccountedCount, 2);
+  });
+
+  it("a live reference, a live row and a cross-bucket pin still win", async () => {
+    const externalReferences = [{ bucketId: "media-public", storagePath: `talent-site-logos/${DEAD}/l.png`, source: "talent_sites" }];
+    const assets: MediaAssetRow[] = [
+      { id: "p1", bucketId: "media-public", storagePath: `talent-portfolio/${DEAD}/p.jpg`, deletedAt: null, sourceMediaAssetId: null, variantKind: "gallery" },
+    ];
+    const r = await planWithDeletedAccountPrefixes({ admin: fakeAdmin(profiles), input: input({ objects, externalReferences, assets }), enforce: true });
+    assert.deepEqual(del(r), []);
+    const pin: MediaAssetRow[] = [
+      { id: "p2", bucketId: "media-originals", storagePath: `talent-portfolio/${DEAD}/p.jpg`, deletedAt: null, sourceMediaAssetId: null, variantKind: "gallery" },
+    ];
+    const r2 = await planWithDeletedAccountPrefixes({ admin: fakeAdmin(profiles), input: input({ objects, assets: pin }), enforce: true });
+    assert.deepEqual(del(r2), [`talent-site-logos/${DEAD}/l.png`]);
+  });
+
+  it("a failed lookup deletes nothing", async () => {
+    const r = await planWithDeletedAccountPrefixes({ admin: fakeAdmin([], true), input: input({ objects }), enforce: true });
+    assert.deepEqual(del(r), []);
+  });
+
+  it("the deletion cap applies", async () => {
+    const r = await planWithDeletedAccountPrefixes({ admin: fakeAdmin(profiles), input: input({ objects, maxDeletions: 1 }), enforce: true });
+    assert.equal(r.plan.deletable.length, 1);
+    assert.equal(r.plan.cappedByLimit, true);
   });
 });

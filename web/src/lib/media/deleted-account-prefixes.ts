@@ -15,6 +15,9 @@
 // Path layout (first segment = talent_profiles.id):
 //   media-originals  {talentId}/documents/…   released here
 //   media-originals  {talentId}/originals/…   released here
+//   media-public     talent-site-logos/{talentId}/…   released here
+//   media-public     talent-portfolio/{talentId}/…    released here
+//                    (the sibling `talent/…` prefix is NOT keyed by talent id: stays)
 // Every other protected prefix stays protected.
 // ============================================================================
 
@@ -22,7 +25,27 @@ import { DELETED_USER_LABEL } from "@/lib/account/anonymize";
 import { DEFAULT_GRACE_DAYS, matchProtectedRule } from "@/lib/media/reap-orphaned-media";
 
 /** Protected-rule ids whose first path segment is the talent profile id. */
-export const RELEASABLE_PREFIX_RULE_IDS: readonly string[] = ["talent-documents", "private-originals"];
+export const RELEASABLE_PREFIX_RULE_IDS: readonly string[] = [
+  "talent-documents",
+  "private-originals",
+  "talent-site-logos",
+  "talent-portfolio",
+];
+
+/** Prefixes keyed by the talent id in the SECOND segment. */
+const SECOND_SEGMENT_PREFIXES = ["talent-site-logos", "talent-portfolio"] as const;
+
+/** The talent id an object path is keyed by, for the releasable rules only. */
+function keyedTalentId(ruleId: string, storagePath: string): string | null {
+  const parts = storagePath.split("/");
+  if (ruleId === "talent-site-logos" || ruleId === "talent-portfolio") {
+    // The `talent-portfolio` rule also matches `talent/…`, which is not talent-keyed.
+    return (SECOND_SEGMENT_PREFIXES as readonly string[]).includes(parts[0]) && parts.length > 2
+      ? parts[1]
+      : null;
+  }
+  return parts[0] || null;
+}
 
 export type DeletedTalentCandidate = {
   id: string;
@@ -61,6 +84,6 @@ export function isPrefixReleasedForDeletedTalent(
   // (e.g. `{id}/originals/reel/…`) stays protected.
   const rule = matchProtectedRule(bucketId, storagePath);
   if (!rule || !RELEASABLE_PREFIX_RULE_IDS.includes(rule.id)) return false;
-  const talentId = storagePath.split("/", 1)[0];
-  return eligibleTalentIds.has(talentId);
+  const talentId = keyedTalentId(rule.id, storagePath);
+  return talentId !== null && eligibleTalentIds.has(talentId);
 }
