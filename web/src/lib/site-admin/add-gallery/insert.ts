@@ -17,6 +17,7 @@ import {
   BACKGROUND_VARIANT_STYLES,
 } from "./registry-catalog-backgrounds";
 import { buildAddGallerySectionTemplate } from "./section-templates";
+import type { TemplateCopyContext } from "./section-template-copy";
 import type { AddGalleryInsertMethod, AddGalleryItem, AddGalleryNativeVariant } from "./types";
 
 const FORBIDDEN_INSERT_METHODS: ReadonlySet<AddGalleryInsertMethod> = new Set([
@@ -570,6 +571,7 @@ export type AddGalleryInsertAction =
 
 export function resolveAddGalleryInsertAction(
   item: AddGalleryItem,
+  copy?: TemplateCopyContext,
 ): AddGalleryInsertAction {
   assertAddGalleryBuilderTreeOnly(item);
 
@@ -588,7 +590,7 @@ export function resolveAddGalleryInsertAction(
       if (!templateId) {
         throw new Error(`sectionTemplate item "${item.id}" is missing sectionTemplateId.`);
       }
-      const node = buildAddGallerySectionTemplate(templateId);
+      const node = buildAddGallerySectionTemplate(templateId, copy);
       if (!node) {
         throw new Error(`Unknown section template "${templateId}".`);
       }

@@ -84,6 +84,7 @@ import {
   wrapNodeAsInstanceRoot,
   canConvertNodeToComponent,
 } from "@/lib/site-admin/builder-node/component-instances";
+import { wrapNodeForRootInsert } from "@/lib/site-admin/builder-node/wrap-for-root";
 import { useSectionLockActions } from "./use-section-lock-actions";
 import {
   applyBuilderNodeOperation,
@@ -3660,15 +3661,18 @@ export function EditProvider({
         kind,
         galleryItemsRef.current,
       );
+      // TUL-52 C: at page root, auto-wrap a leaf block in a section.
+      const toInsert =
+        parentId === null ? (wrapNodeForRootInsert(node) ?? node) : node;
       const inserted = await executeBuilderNodeOperation({
         operation: "insert",
-        nodeId: node.id,
+        nodeId: toInsert.id,
         parentId,
         run: (tree) =>
           runBuilderNodeOp({
             operation: "insert",
             tree,
-            node,
+            node: toInsert,
             parentId,
             index,
           }),

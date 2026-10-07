@@ -64,6 +64,7 @@ import {
 import { useLastDraftSavedAt, useSaving } from "./save-cycle-bridge";
 import { navigateToEditSurface } from "./navigate-to-edit-surface";
 import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
+import { saveStatusWords, useTalentDraftStatus } from "./talent-draft-status";
 import { useEditorLocale } from "./use-editor-locale";
 import { useTopbarDraftReset } from "./use-topbar-draft-reset";
 import { TranslationStatusButton } from "./translation-status-panel";
@@ -811,6 +812,7 @@ function SaveStatusButton({
   onSaveDraft?: () => void | Promise<unknown>;
 }) {
   const saving = useSaving(); const { t } = useEditorLocale();
+  const talentStatus = useTalentDraftStatus();
   const lastDraftSavedAt = useLastDraftSavedAt();
   const { mutationError } = useEditContext();
   const saveFailed =
@@ -858,17 +860,22 @@ function SaveStatusButton({
     : dirty
       ? "dirty"
       : "saved";
-  const publishNote = hasUnpublishedChanges
-    ? ` ${t("Visitors still see the last published version until you publish.")}`
-    : "";
+  // TUL-52 C: the draft chip's server diff wins over the timestamp guess.
+  const statusWords = saveStatusWords(talentStatus, state);
+  const publishNote =
+    hasUnpublishedChanges && talentStatus !== "published"
+      ? ` ${t("Visitors still see the last published version until you publish.")}`
+      : "";
   const words =
     state === "saving"
       ? t("Saving…")
       : state === "dirty"
         ? t("Unsaved draft")
-        : lastDraftSavedAt
-          ? `${t("Draft saved")} · ${formatSavedAgo(lastDraftSavedAt, t)}`
-          : t("Draft saved");
+        : statusWords === "published"
+          ? t("Published")
+          : lastDraftSavedAt
+            ? `${t("Draft saved")} · ${formatSavedAgo(lastDraftSavedAt, t)}`
+            : t("Draft saved");
   const title = onSaveDraft
     ? `${words}.${publishNote} ${t("Click to save now (⌘S).")}`
     : `${words}.${publishNote}`;

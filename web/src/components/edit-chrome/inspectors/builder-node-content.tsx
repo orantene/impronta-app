@@ -104,6 +104,7 @@ import {
   type Builder2027Node,
 } from "./builder-2027-node-content";
 import { LocaleFieldTabs } from "./locale-field-tabs";
+import { inspectorLocales } from "./inspector-locales";
 import { useTalentAiTranslateEnabled } from "@/components/locale-field/talent-ai-context";
 import { useActiveContentLocale } from "../active-content-locale-bridge";
 import {
@@ -5578,7 +5579,7 @@ export function BuilderNodeLocalizableTextField({
   const aiOn = talentAi && (fieldKind === "input" || fieldKind === "textarea");
 
   const overlay = node.i18n;
-  const supported = availableLocales.length > 0 ? availableLocales : [defaultLocale];
+  const supported = inspectorLocales(availableLocales, defaultLocale, activeContentLocale);
 
   // Value for a given locale: default → base prop; secondary → overlay entry.
   const valueForLocale = (locale: string): string => {

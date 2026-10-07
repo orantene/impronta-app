@@ -1643,7 +1643,12 @@ function MutationErrorToast() {
     ? humanizeMutationOperation(mutationError.operation, locale)
     : null;
   const isConflict = mutationError.code === "VERSION_CONFLICT";
-  const suggestion = mutationError.code
+  // TUL-52 C: placement refusals never show the raw English dev text.
+  const isPlacementCode =
+    mutationError.code === "ROOT_KIND_NOT_ALLOWED" ||
+    mutationError.code === "CHILD_KIND_NOT_ALLOWED" ||
+    mutationError.code === "PARENT_DOES_NOT_ALLOW_CHILDREN";
+  const suggestion = mutationError.code && !isPlacementCode
     ? mutationCodeSuggestion(mutationError.code, locale)
     : null;
   // W3-T2(c) — a recoverable conflict gets a real choice instead of a 5s
@@ -1694,9 +1699,11 @@ function MutationErrorToast() {
       <span className="block" style={{ color: CHROME.text2 }}>
         {isConflict
           ? t("This page changed in another tab. Your last change was not saved.")
-          : t(mutationError.message)}
+          : isPlacementCode
+            ? t("This block can't go there. Select a section first, then add it inside.")
+            : t(mutationError.message)}
       </span>
-      {isConflict ? null : operationLabel || mutationError.code ? (
+      {isConflict || isPlacementCode ? null : operationLabel || mutationError.code ? (
         <span className="mt-1 block text-[10px] uppercase tracking-[0.04em] opacity-80">
           {[operationLabel, mutationError.code?.replaceAll("_", " ")]
             .filter(Boolean)

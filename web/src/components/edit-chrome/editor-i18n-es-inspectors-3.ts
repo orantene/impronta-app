@@ -349,4 +349,6 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   // ── Site Diseño Marca / Tema entry (page-builder panel cleanup) ────────
   "Site colours used across every page. Tema opens the full editor.":
     "Colores del sitio en todas las páginas. Tema abre el editor completo.",
+  "This block can't go there. Select a section first, then add it inside.":
+    "Este bloque no puede ir ahí. Selecciona primero una sección y agrégalo dentro.",
 };
