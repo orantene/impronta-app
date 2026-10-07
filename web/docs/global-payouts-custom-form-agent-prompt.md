@@ -84,7 +84,7 @@ Render as a stepper. **Prefill every field from the talent profile, then let the
 3. **Never store bank credentials locally.** CLABE/account numbers go straight to Stripe via the helpers; persist only the returned `last4`/method id (Stripe-side) and `gp_recipient_account_id`.
 4. **Live-money guard:** `STRIPE_ALLOW_LIVE_PAYOUTS` stays false. This form creates recipients + payout methods only — it does NOT create OutboundPayments. Do not call `createOutboundPayment` from this form.
 5. **No new DB columns** unless strictly required (status is computed on-demand from Stripe; the only persisted field is `talent_profiles.gp_recipient_account_id`). If you must, write a migration with a unique `date -u +%Y%m%d%H%M%S` timestamp and run `npm run db:push` before committing.
-6. **Gate before every commit (from `web/`):** `NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit` (must be 0 errors — an OOM-crashed run is NOT clean), `npm run lint` (0), and `npm run test:billing` (which already includes `global-payouts.test.ts`, `global-payouts-onboarding.test.ts`, `talent-global-payouts`-adjacent tests). All green or do not commit.
+6. **Gate before every commit (from `web/`):** `npm run typecheck` (must be 0 errors — an OOM-crashed run is NOT clean), `npm run lint` (0), and `npm run test:billing` (which already includes `global-payouts.test.ts`, `global-payouts-onboarding.test.ts`, `talent-global-payouts`-adjacent tests). All green or do not commit.
 
 ## 6. Verification checklist (prove each step actually hit Stripe)
 

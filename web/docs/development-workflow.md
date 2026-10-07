@@ -24,7 +24,7 @@ rewritten 2026-08-08 to match the CI-gated production pointer that went live
 ```
 git fetch origin && git switch -c <type>/<topic> origin/main
 # ...edit; run locally: cd web && npm run dev...
-cd web && npx tsc --noEmit && npm run lint     # gate — must be clean
+cd web && npm run typecheck && npm run lint     # gate — must be clean
 git add -A && git commit -m "..."
 git push -u origin <type>/<topic>              # → Vercel builds an SSO-gated preview
 gh pr create --base main                       # review, then merge
@@ -34,7 +34,7 @@ Merging the PR to `main` starts the release described in §4.
 
 ## 2. Before you commit — the gate
 
-`cd web && npx tsc --noEmit && npm run lint` — both clean. Don't commit a red
+`cd web && npm run typecheck && npm run lint` (never bare `tsc` or `eslint`: they bypass the machine-wide queue) — both clean. Don't commit a red
 build.
 
 ## 3. Database migrations — the one hard rule
@@ -121,6 +121,7 @@ a host that is already seeded.
 - Force-push `main` or `production` (branch protection blocks `main` anyway).
   `production` only ever moves forward, by fast-forward.
 - Commit to `main` directly, or develop on `production`.
+- **Stack branches.** Every PR gets a fresh worktree off the latest `origin/main`.
 - Commit `.env*` files (gitignored — keep it that way).
 - Develop on `phase-1` / `stable-work` — both retired.
 - **Symlink `web/node_modules` into a worktree.** Turbopack rejects it with
@@ -147,7 +148,7 @@ git worktree add /private/tmp/impronta-my-lane -b feat/my-lane origin/main
 
 # Now work there:
 cd /private/tmp/impronta-my-lane/web
-NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit
+npm run typecheck
 npm run lint
 ```
 

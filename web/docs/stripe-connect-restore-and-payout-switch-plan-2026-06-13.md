@@ -407,7 +407,7 @@ webhook route, and `GlobalPayoutsBankCard.tsx` are untouched.
 
 1. `npm run db:push` (apply the migration to remote Supabase) → `npm run db:check` must report
    **0 drift**.
-2. `cd web && NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit` → clean.
+2. `cd web && npm run typecheck` → clean.
 3. `cd web && npm run lint` → clean; confirm the new **action** file triggers **no**
    `no-untenanted-from` error (proves the raw `.from()` write lives in the lib, not the action).
 4. `cd web && npm run test:billing` → existing `payout-rail-policy.test.ts` + the two new cases pass.
