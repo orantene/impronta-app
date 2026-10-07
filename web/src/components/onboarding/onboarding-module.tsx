@@ -42,6 +42,9 @@ import { requestOnboardingCode, verifyOnboardingCode } from "@/lib/server-action
 import { ConfirmWordsStep } from "./steps/confirm-words-step";
 import { EntryStep } from "./steps/entry-step";
 import { ChooseStep } from "./steps/choose-step";
+import { SetupStep } from "./steps/setup-step";
+import { loadOnboardingSetup, saveOnboardingSetup, type SetupPayload } from "@/lib/server-actions/onboarding-setup";
+import type { Essentials } from "@/lib/onboarding/essentials";
 import { EssentialsStep } from "./steps/essentials-step";
 import { StyleStep } from "./steps/style-step";
 import { ReadingStep } from "./steps/reading-step";
@@ -101,6 +104,7 @@ export function OnboardingModule({
   }, []);
   const cardRef = useRef<HTMLDivElement>(null);
   const [resumeChecked, setResumeChecked] = useState(false);
+  const [setupData, setSetupData] = useState<SetupPayload | null>(null);
 
   // Resume: what this owner already had. Opening creates nothing.
   useEffect(() => {
@@ -247,7 +251,7 @@ export function OnboardingModule({
   // Resume at a Phase 3 step: the card is recomputed from the brief.
   const cardLoadRef = useRef(false);
   useEffect(() => {
-    const phase3 = state.step === "understood" || state.step === "question" || state.step === "readyToBuild";
+    const phase3 = state.step === "understood" || state.step === "question" || state.step === "readyToBuild" || state.step === "essentials" || state.step === "setup";
     if (!phase3 || state.understanding || cardLoadRef.current) return;
     cardLoadRef.current = true;
     dispatch({ type: "sendStarted" });
@@ -256,6 +260,25 @@ export function OnboardingModule({
       applyCard(result, { step: state.step });
     });
   }, [state.step, state.understanding, applyCard]);
+
+  // 1B step 3: the setup screen's prefill (saved record, AI-read services or a trade pack).
+  useEffect(() => {
+    if (state.step !== "setup" || setupData) return;
+    let cancelled = false;
+    void loadOnboardingSetup().then((r) => {
+      if (!cancelled && r.ok) setSetupData(r.setup);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.step, setupData]);
+
+  const saveSetup = useCallback(async (essentials: Essentials) => {
+    dispatch({ type: "sendStarted" });
+    const r = await saveOnboardingSetup({ essentials }).catch(() => null);
+    if (r && r.ok) dispatch({ type: "setupSaved", talentOnly: r.talentOnly });
+    else dispatch({ type: "cardFailed", code: "save_failed" });
+  }, []);
 
   const accept = useCallback(async () => {
     dispatch({ type: "sendStarted" });
@@ -392,7 +415,7 @@ export function OnboardingModule({
   const stepLabel = CHOOSE_COPY[locale].step(flowN);
   const showBack = isPage
     ? state.step !== "building" && state.step !== "arrival"
-    : state.step === "confirmWords" || state.step === "tooLittle" || state.step === "entry" || state.step === "essentials" || state.step === "style" || state.step === "readyToBuild" || state.step === "save";
+    : state.step === "confirmWords" || state.step === "tooLittle" || state.step === "entry" || state.step === "essentials" || state.step === "setup" || state.step === "style" || state.step === "readyToBuild" || state.step === "save";
 
   let body: React.ReactNode;
   if (state.resume) {
@@ -473,6 +496,12 @@ export function OnboardingModule({
         }
         onSave={(a) => void saveEssentials(a)}
       />
+    );
+  } else if (state.step === "setup") {
+    body = setupData ? (
+      <SetupStep locale={locale} setup={setupData} busy={state.busy} saveFailed={state.error === "save_failed"} onSave={(e) => void saveSetup(e)} />
+    ) : (
+      <div aria-busy className="py-16 text-center text-[0.875rem]" style={{ color: "var(--tl-muted)" }} data-testid="onb-setup-loading">…</div>
     );
   } else if (state.step === "style") {
     body = <StyleStep t={t} initial={state.styleChoice} busy={state.busy} onChoose={(d, notes) => void chooseStyle(d, notes)} />;

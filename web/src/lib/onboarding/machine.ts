@@ -96,6 +96,7 @@ export type MachineEvent =
   | { type: "pathChosen"; understanding: Understanding; chip: TypeChipProposal | null; path: OnboardingPath }
   | { type: "questionAnswered"; understanding: Understanding; chip: TypeChipProposal | null }
   | { type: "essentialsSaved"; understanding: Understanding; chip: TypeChipProposal | null }
+  | { type: "setupSaved"; talentOnly: boolean }
   | { type: "styleSaved"; direction: VisualDirection }
   | { type: "questionSkipped" }
   | { type: "jumpToQuestion"; questionId: ModuleQuestionId }
@@ -146,8 +147,9 @@ export const BACK: Partial<Record<ModuleStep, ModuleStep>> = {
   entry: "choose",
   question: "understood",
   essentials: "understood",
-  style: "essentials",
-  readyToBuild: "essentials",
+  setup: "essentials",
+  style: "setup",
+  readyToBuild: "setup",
   save: "readyToBuild",
   code: "save",
 };
@@ -258,11 +260,12 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
       return afterQuestion({ ...state, understanding: event.understanding, chip: event.chip });
     case "questionSkipped":
       return afterQuestion(state);
-    case "essentialsSaved": {
+    case "essentialsSaved":
+      // 1B: the basics lead to the step-3 setup screen (services, hours, place).
+      return { ...state, busy: false, error: null, understanding: event.understanding, chip: event.chip, step: "setup" };
+    case "setupSaved":
       // Talent goes straight to the summary; a business picks its look first.
-      const next: ModuleStep = event.understanding.path === "talent" ? "readyToBuild" : "style";
-      return { ...state, busy: false, error: null, understanding: event.understanding, chip: event.chip, step: next };
-    }
+      return { ...state, busy: false, error: null, step: event.talentOnly ? "readyToBuild" : "style" };
     case "styleSaved":
       return { ...state, busy: false, error: null, styleChoice: event.direction, step: "readyToBuild" };
     case "jumpToQuestion":

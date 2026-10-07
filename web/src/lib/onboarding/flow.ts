@@ -26,6 +26,7 @@ export const FLOW_STEP_OF: Record<ModuleStep, FlowStepNumber> = {
   understood: 2,
   question: 3,
   essentials: 3,
+  setup: 3,
   style: 3,
   readyToBuild: 3,
   save: 4,

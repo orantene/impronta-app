@@ -38,6 +38,8 @@ export type ModuleStep =
   | "question"
   /** One screen with every essential the site needs, prefilled from the words. */
   | "essentials"
+  /** 1B step 3: services, weekly hours, place, first provider (essentials.ts). */
+  | "setup"
   /** Business only: pick the look (natural / modern / minimal / vibrant). */
   | "style"
   | "readyToBuild"
@@ -66,6 +68,7 @@ export const RESUMABLE_STEPS: ReadonlySet<ModuleStep> = new Set<ModuleStep>([
   "understood",
   "question",
   "essentials",
+  "setup",
   "style",
   "readyToBuild",
   "save",
@@ -109,7 +112,7 @@ export type ResumeSnapshot = {
 
 const STEPS: ReadonlySet<string> = new Set<ModuleStep>([
   "choose", "entry", "listening", "confirmWords", "reading", "tooLittle", "understood",
-  "question", "essentials", "style", "readyToBuild", "save", "code", "building", "arrival",
+  "question", "essentials", "setup", "style", "readyToBuild", "save", "code", "building", "arrival",
 ]);
 
 export function isModuleStep(value: unknown): value is ModuleStep {

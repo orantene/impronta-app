@@ -61,17 +61,21 @@ test("phase 3: card → accept → essentials → (style for a business) → rea
   assert.equal(s.step, "essentials");
   // Mariana is "both": a business picks its style before the summary.
   s = run([{ type: "essentialsSaved", understanding: u, chip: null }], s);
+  assert.equal(s.step, "setup");
+  s = run([{ type: "setupSaved", talentOnly: false }], s);
   assert.equal(s.step, "style");
   s = run([{ type: "styleSaved", direction: "vibrant" }], s);
   assert.equal(s.step, "readyToBuild");
   assert.equal(s.styleChoice, "vibrant");
+  s = run([{ type: "back" }], s);
+  assert.equal(s.step, "setup");
   s = run([{ type: "back" }], s);
   assert.equal(s.step, "essentials");
   s = run([{ type: "back" }], s);
   assert.equal(s.step, "understood");
   // A talent skips the style step.
   const talent = { ...u, path: "talent" as const };
-  const t = run([{ type: "cardLoaded", understanding: talent, chip: null, step: "essentials" }, { type: "essentialsSaved", understanding: talent, chip: null }]);
+  const t = run([{ type: "cardLoaded", understanding: talent, chip: null, step: "essentials" }, { type: "essentialsSaved", understanding: talent, chip: null }, { type: "setupSaved", talentOnly: true }]);
   assert.equal(t.step, "readyToBuild");
   // A brief parked mid-questions (legacy) resumes on the essentials screen.
   const legacy = run([{ type: "cardLoaded", understanding: u, chip: null, step: "question" }]);

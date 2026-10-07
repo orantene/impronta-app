@@ -354,7 +354,8 @@ export async function saveOnboardingEssentials(input: EssentialsAnswer): Promise
   if (missing.some((l) => l.id === "city") || (missing.length > 0 && !business && missing.some((l) => l.id === "what")) || (business && missing.some((l) => l.id === "kind"))) {
     return { ok: false, code: "missing_required" };
   }
-  statePatch.step = business ? "style" : "readyToBuild";
+  // 1B: the basics lead to the step-3 setup screen (services, hours, place).
+  statePatch.step = "setup";
   const saved = await updateBriefModuleState(got.brief.id, statePatch as Record<string, unknown>);
   if (!saved.ok) return { ok: false, code: "save_failed" };
   return { ok: true, card };
