@@ -55,6 +55,10 @@ export type MediaLibraryWireItem = {
   uploadedByUserId: string | null;
   /** True when this asset carries a per-image watermark override. */
   hasWatermarkOverride: boolean;
+  /** Primary-language caption (`metadata.caption`); the talent caption editor reads it. */
+  caption?: string | null;
+  /** Other-language captions (`metadata.caption_i18n`), keyed by locale. */
+  captionI18n?: Record<string, string>;
 };
 
 export type MediaLibraryWireFolder = {
@@ -96,6 +100,16 @@ export type MediaLibraryWireResponse = {
   }>;
 };
 
+function captionI18nOf(metadata: Record<string, unknown>): Record<string, string> {
+  const raw = metadata.caption_i18n;
+  const out: Record<string, string> = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "string") out[k] = v;
+  }
+  return out;
+}
+
 function sourceHintOf(metadata: Record<string, unknown>): string | null {
   if (typeof metadata.source === "string") return metadata.source;
   if (typeof metadata.seeded_by === "string") return metadata.seeded_by;
@@ -133,6 +147,8 @@ export function toMediaLibraryWireItem(
     purpose: photo.purpose ?? null,
     uploadedByUserId: photo.uploadedByUserId,
     hasWatermarkOverride: photo.hasOverride,
+    caption: typeof photo.metadata.caption === "string" ? photo.metadata.caption : null,
+    captionI18n: captionI18nOf(photo.metadata),
   };
 }
 

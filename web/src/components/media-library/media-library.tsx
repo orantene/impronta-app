@@ -63,6 +63,7 @@ import {
   LibraryStatePanel,
 } from "./media-library-kit";
 import { MediaLibraryDetail, type DetailLabels } from "./media-library-detail";
+import type { CaptionEditor, CaptionLabels } from "./media-library-captions";
 import { MediaLibraryTile } from "./media-library-tile";
 import { MediaLibraryToolbar, type ToolbarLabels } from "./media-library-toolbar";
 import { EMPTY_MEDIA_FILTERS, type UseMediaLibraryReturn } from "./use-media-library";
@@ -84,6 +85,8 @@ export type MediaLibraryProps = {
   /** Staff-gated alt/tag PATCH. Absent ⇒ the detail rail renders alt read-only. */
   onSaveAlt?: (item: MediaLibraryWireItem, alt: string) => Promise<void>;
   onSaveTags?: (item: MediaLibraryWireItem, tags: string[]) => Promise<void>;
+  /** Talent scope: per-language photo caption fields in the detail rail. */
+  captionEditor?: CaptionEditor;
   /**
    * Open a raster asset in the host's crop modal. Absent ⇒ the detail rail
    * shows no Crop action. Ported from the retired legacy assets drawer, which
@@ -287,6 +290,13 @@ export function MediaLibrary(props: MediaLibraryProps) {
     copied: t("dashboard.mediaLibrary.copiedUrl"),
     copyFailed: t("dashboard.mediaLibrary.copyUrlFailed"),
     crop: t("dashboard.mediaLibrary.crop"),
+  };
+
+  const captionLabels: CaptionLabels = {
+    section: t("dashboard.mediaLibrary.captionsSection"),
+    hint: t("dashboard.mediaLibrary.captionsHint"),
+    placeholder: t("dashboard.mediaLibrary.captionsPlaceholder"),
+    fieldLabel: t("dashboard.mediaLibrary.captionsFieldLabel"),
   };
 
   const activeFolder = library.folders.find(
@@ -530,6 +540,8 @@ export function MediaLibrary(props: MediaLibraryProps) {
             onSaveAlt={props.onSaveAlt}
             onSaveTags={props.onSaveTags}
             onCrop={props.onCrop}
+            captionEditor={props.captionEditor}
+            captionLabels={captionLabels}
           />
         ) : null}
       </div>
