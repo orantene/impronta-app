@@ -46,6 +46,7 @@ import { Thread, ThreadEmpty, type ThreadMenuItem } from "../screens/Thread";
 import { liveShellEngine, type ShellEngine } from "./engine";
 import { contextPlacement, layoutForWidth, shellClassName, variantForLayout, type MobilePane, type ShellLayout } from "./layout";
 import { AssignSheet, LinkSheet, LostSheet, NewConversationSheet } from "./ShellSheets";
+import { safeLoadInbox } from "./safe-load-inbox";
 import { useAutoSelectThread } from "./use-auto-select-thread";
 import { useOrderDeepLink } from "./use-order-deep-link";
 import { useStaffInquiryPresence } from "./use-staff-inquiry-presence";
@@ -180,7 +181,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   const activeIdRef = useRef<string | null>(null);
   const reloadInbox = useCallback(async () => {
     const filter = SEGMENT_FILTER[segment];
-    const result = await engine.loadInbox({ locationSlug, filter });
+    const result = await safeLoadInbox(engine.loadInbox, { locationSlug, filter });
     setInboxLoading(false);
     if (!result.ok) {
       setInboxError(result.reason);
@@ -193,7 +194,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     const active = activeIdRef.current;
     let fresh: InboxRow | null = null;
     if (active && filter !== "all" && !result.rows.some((row) => row.id === active)) {
-      const all = await engine.loadInbox({ locationSlug, filter: "all" });
+      const all = await safeLoadInbox(engine.loadInbox, { locationSlug, filter: "all" }, 0);
       if (all.ok) fresh = all.rows.find((row) => row.id === active) ?? null;
     }
     setInboxError(null);
