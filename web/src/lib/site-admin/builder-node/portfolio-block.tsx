@@ -153,8 +153,6 @@ function ShotFigure({
   magazineIndex,
   es,
 }: {
-  /** Visitor language is Spanish (platform strings such as the aria-label verb). */
-  es?: boolean;
   shot: TalentPortfolioShot;
   offering?: TalentOffering | null;
   showCaptions: boolean;
