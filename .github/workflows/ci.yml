@@ -47,6 +47,8 @@ on:
   workflow_dispatch:
 
 # Cancel superseded runs on a PR ref, so a second push doesn't stack up.
+# Only `pull_request` runs are ever cancelled (TUL-172). Push-to-main and
+# workflow_dispatch runs always queue to completion.
 #
 # NEVER cancel on `main`. The original comment here said main pushes cancelling
 # each other was "intentional — only the latest commit needs to be green", and
@@ -67,7 +69,7 @@ on:
 # being spent on runs that were thrown away.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -75,6 +77,15 @@ permissions:
 jobs:
   gate:
     name: Structural quality gate
+    # Draft PRs do not run the gate (TUL-172): every push to a draft or stacked
+    # PR used to queue the full 15-25 minute run and jam the runner queue ahead
+    # of deploys. Marking the PR ready fires `ready_for_review`, which runs it.
+    # Written so every non-PR event (push to main, workflow_dispatch) still runs:
+    # `pull_request.draft` is absent there, so test the event name first.
+    # A job skipped by `if` reports "skipped", which branch protection counts as
+    # passing, so a draft never leaves the required check pending. Drafts cannot
+    # merge anyway, and the gate always runs once the PR is ready.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     # 45, not 25. At 25 this job was killed mid-flight at 25m15s on a main
     # commit. GitHub reports a timeout as `cancelled`, not `failure`, and
