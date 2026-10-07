@@ -237,10 +237,12 @@ describe("runMediaRowPurge", () => {
 });
 
 describe("flag", () => {
+  // ProcessEnv requires NODE_ENV in the Next typings; these tests only set the flag.
+  const env = (v: Record<string, string>) => v as NodeJS.ProcessEnv;
   it("MEDIA_ROW_PURGE_ENFORCE defaults off and only the exact string true enables it", () => {
-    assert.equal(reapOptionsFromEnv({}).purgeRows, false);
-    assert.equal(reapOptionsFromEnv({ MEDIA_ROW_PURGE_ENFORCE: "1" }).purgeRows, false);
-    assert.equal(reapOptionsFromEnv({ MEDIA_ROW_PURGE_ENFORCE: "true" }).purgeRows, true);
-    assert.equal(reapOptionsFromEnv({ MEDIA_ROW_PURGE_ENFORCE: "true" }).execute, false);
+    assert.equal(reapOptionsFromEnv(env({})).purgeRows, false);
+    assert.equal(reapOptionsFromEnv(env({ MEDIA_ROW_PURGE_ENFORCE: "1" })).purgeRows, false);
+    assert.equal(reapOptionsFromEnv(env({ MEDIA_ROW_PURGE_ENFORCE: "true" })).purgeRows, true);
+    assert.equal(reapOptionsFromEnv(env({ MEDIA_ROW_PURGE_ENFORCE: "true" })).execute, false);
   });
 });
