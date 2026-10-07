@@ -67,6 +67,8 @@ export type PersistedModuleState = {
   step?: ModuleStep;
   input?: ModuleInput | null;
   path?: OnboardingPath | null;
+  /** TUL-82: the "How do you work?" answer. Wins over `path` and the AI reading. */
+  choice?: "myself" | "studio" | "both" | null;
   questionIndex?: number;
   locale?: "en" | "es";
   /** The chip the person tapped (business type id or talent type slug). */
@@ -122,6 +124,7 @@ export function parsePersistedModuleState(raw: unknown): PersistedModuleState {
     }
   }
   if (r.path === "talent" || r.path === "business" || r.path === "both") out.path = r.path;
+  if (r.choice === "myself" || r.choice === "studio" || r.choice === "both") out.choice = r.choice;
   if (typeof r.questionIndex === "number" && Number.isInteger(r.questionIndex) && r.questionIndex >= 0) {
     out.questionIndex = r.questionIndex;
   }

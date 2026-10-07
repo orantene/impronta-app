@@ -32,6 +32,7 @@ import { PLAN_SEAT_CAPS } from "@/lib/saas/plan-seat-caps";
 import { onboardStarterContent } from "@/lib/site-admin/server/onboard-starter-content";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { ensureSelfRosterSiteVisible } from "@/lib/saas/ensure-self-roster";
+import { ensureWorkspaceSubdomainRow } from "@/lib/saas/ensure-workspace-domain";
 import {
   isPlatformSubdomainLabelTaken,
   requestSubdomainNamespaceCopy,
@@ -196,14 +197,8 @@ export async function provisionFreeWorkspaceFromTalent(params: {
   // NOTE: if the agency_domains table schema differs, this is a best-effort
   // insert. If it fails we log and continue — the user can still navigate
   // to /{slug}/admin once the middleware is updated or a manual seed is done.
-  const { error: domainError } = await admin
-    .from("agency_domains")
-    .insert({
-      tenant_id: agency.id,
-      hostname: `${normalizedSlug}.tulala.digital`,
-      status: "active",
-      is_primary: true,
-    });
+  const domain = await ensureWorkspaceSubdomainRow(admin, { tenantId: agency.id, slug: normalizedSlug });
+  const domainError = domain.ok ? null : domain.error;
 
   if (domainError) {
     // Non-fatal: log but do not rollback — the workspace + membership are

@@ -23,6 +23,7 @@ import {
   expireParentDomainAuthCookies,
   isSupabaseAuthCookie,
 } from "@/lib/supabase/cookie-domain";
+import { choiceFromNext, freshAppRoleForChoice } from "@/lib/onboarding/choice";
 import { NextResponse } from "next/server";
 import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
 import { supportDeskPostAuthDestination } from "@/lib/support/desk/desk-url";
@@ -97,7 +98,21 @@ export async function GET(request: Request) {
       // (app_role='client', account_status='onboarding').
       // next used to be `/onboarding/talent-location`; live talent register now
       // uses `/talent/profile/fields` — match both.
-      if (user && isTalentSignupNext(next)) {
+      // TUL-82: an explicit "How do you work?" choice on `next` (Google sign-up
+      // from the onboarding) promotes the same way the build does. Additive:
+      // only a fresh client + onboarding account moves.
+      const nextChoice = user ? choiceFromNext(next) : null;
+      if (user && nextChoice) {
+        const admin = createServiceRoleClient();
+        if (admin) {
+          await admin
+            .from("profiles")
+            .update({ app_role: freshAppRoleForChoice(nextChoice) })
+            .eq("id", user.id)
+            .eq("app_role", "client")
+            .eq("account_status", "onboarding");
+        }
+      } else if (user && isTalentSignupNext(next)) {
         const admin = createServiceRoleClient();
         if (admin) {
           await admin

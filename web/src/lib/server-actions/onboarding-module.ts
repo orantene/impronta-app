@@ -18,6 +18,7 @@
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 import { archiveBrief, ensureBrief, loadBrief, recordFacts } from "@/lib/tulala/brief-store.server";
 import { updateBriefModuleState } from "@/lib/tulala/brief-module-state.server";
+import { choiceToPath, isOnboardingChoice, pathToChoice, type OnboardingChoice } from "@/lib/onboarding/choice";
 import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { MAX_INPUT_CHARS, MIN_INPUT_WORDS, parsePersistedModuleState, wordCount, type ModuleInput, type ModuleStep, type OnboardingIntent, type PersistedModuleState, type ResumeSnapshot, isVisualDirection, type VisualDirection } from "@/lib/onboarding/module-state";
@@ -235,10 +236,28 @@ export async function editUnderstoodFact(input: { factKey: string; value: string
 export async function chooseOnboardingPath(input: { path: OnboardingPath }): Promise<CardResult> {
   const got = await ownedBrief();
   if (got.error) return got.error;
-  const saved = await updateBriefModuleState(got.brief.id, { path: input.path, updatedAt: new Date().toISOString() });
-  const state = { ...got.state, path: input.path };
+  // The fork is a person's answer too: keep `choice` in step so it never disagrees.
+  const choice = pathToChoice(input.path);
+  const saved = await updateBriefModuleState(got.brief.id, { path: input.path, choice, updatedAt: new Date().toISOString() });
+  const state = { ...got.state, path: input.path, choice };
   if (!saved.ok) return { ok: false, code: "save_failed" };
   return { ok: true, card: await cardFor(got.brief.id, state, got.brief) };
+}
+
+/**
+ * TUL-82 · "How do you work?" (1B calls this). Stores the explicit choice and
+ * its path together; the build provisions exactly that choice.
+ */
+export async function chooseOnboardingChoice(input: { choice: OnboardingChoice }): Promise<{ ok: boolean }> {
+  if (!isOnboardingChoice(input.choice)) return { ok: false };
+  const got = await ownedBrief();
+  if (got.error) return { ok: false };
+  const saved = await updateBriefModuleState(got.brief.id, {
+    choice: input.choice,
+    path: choiceToPath(input.choice),
+    updatedAt: new Date().toISOString(),
+  });
+  return { ok: saved.ok };
 }
 
 export type EssentialsAnswer = {
