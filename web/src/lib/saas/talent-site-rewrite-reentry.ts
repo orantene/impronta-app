@@ -17,7 +17,7 @@ import { PUBLIC_PATH_PREFIX_HEADER, TENANT_HEADER_NAME } from "@/lib/saas/scope"
  * Next re-invokes proxy on the rewrite path. The first pass sets talent headers,
  * but an early short-circuit that forwarded only a stripped inbound clone wiped
  * `x-impronta-host-context` / `x-impronta-talent-profile` and 404ed every vanity
- * host (D-MSG-431). Re-resolve from the proxy-written host name (or Host) and
+ * host (D-MSG-431). Re-resolve from the Host header and
  * re-bind; never trust client-supplied talent headers alone.
  *
  * Also re-attach guest identity (D-MSG-422): a plain `next()` would replace the
@@ -28,10 +28,8 @@ export async function talentSiteRewriteReentryResponse(
   sanitizedInboundHeaders: Headers,
 ): Promise<NextResponse> {
   const rebound = new Headers(sanitizedInboundHeaders);
-  const candidateHost =
-    (request.headers.get(HOST_NAME_HEADER) ?? "").trim() ||
-    (request.headers.get("host") ?? "").split(":")[0]?.trim() ||
-    "";
+  // Host only: x-impronta-host-name is client-forgeable on this pass.
+  const candidateHost = (request.headers.get("host") ?? "").split(":")[0]?.trim() || "";
   let reboundTalentSite = false;
   if (candidateHost) {
     const reboundCtx = await resolveTenantContext(request, candidateHost);
