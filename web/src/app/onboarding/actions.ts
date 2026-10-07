@@ -8,7 +8,7 @@ import { requireSession } from "@/lib/server/action-guards";
 import { getAppUrl, normalizeOptionalNextPath } from "@/lib/auth-flow";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { ensureHubRosterRow } from "@/lib/saas/ensure-hub-roster.server";
-import { applyRegistrationPolicy, ensurePlatformHubRoster } from "@/lib/saas/registration-policy";
+import { applyRegistrationPolicy } from "@/lib/saas/registration-policy";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { verifyGuestCookie } from "@/lib/guest-cookie";
@@ -158,12 +158,12 @@ async function ensureTalentRosterForNext(
   // profile exists and the dashboard can still open.
   if (!parsed?.tenantSlug) {
     if (admin) {
-      const hub = await ensurePlatformHubRoster(admin, {
+      const hub = await ensureHubRosterRow(admin, {
         talentProfileId,
-        userId,
+        addedBy: userId,
         originDomain: await currentOriginDomain(),
       });
-      if (!hub.ok) logServerError("onboarding.platformHubRoster", new Error(hub.error));
+      if (!hub.ok) logServerError("onboarding.platformHubRoster", new Error(hub.reason));
     }
     return { destination: parsed?.destination ?? null };
   }
@@ -582,12 +582,12 @@ export async function completeTalentProfileInPlace(
       // ensureTalentRosterForNext for why, and why failure is not fatal).
       const admin = createServiceRoleClient();
       if (admin) {
-        const hub = await ensurePlatformHubRoster(admin, {
+        const hub = await ensureHubRosterRow(admin, {
           talentProfileId: tp.id,
-          userId: user.id,
+          addedBy: user.id,
           originDomain: await currentOriginDomain(),
         });
-        if (!hub.ok) logServerError("onboarding.platformHubRoster", new Error(hub.error));
+        if (!hub.ok) logServerError("onboarding.platformHubRoster", new Error(hub.reason));
       }
       if (parsed?.destination) dashboardUrl = `${getAppUrl()}${parsed.destination}`;
     }
