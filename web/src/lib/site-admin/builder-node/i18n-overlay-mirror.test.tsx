@@ -12,6 +12,9 @@ import { mirrorPropsI18nOntoNodes } from "./i18n-overlay";
 import { renderBuilderNodes } from "./render";
 import type { BuilderNode } from "./types";
 
+/** Loose test view of a node: children and the i18n overlay are all these assertions read. */
+type TestNode = { children: TestNode[]; i18n?: unknown };
+
 const OVERLAY = { es: { text: "Pestañas que enmarcan tu mirada." }, en: { text: "Lashes that frame your look." } };
 
 function heroTree(): BuilderNode[] {
@@ -55,18 +58,18 @@ test("the mirror is pure: same array when nothing to mirror, untouched subtrees 
   const plain = [{ id: "a", kind: "paragraph", props: { text: "x" } }] as unknown as BuilderNode[];
   assert.equal(mirrorPropsI18nOntoNodes(plain), plain);
   const tree = heroTree();
-  const other = (tree[0] as any).children[1];
+  const other = (tree[0] as unknown as TestNode).children[1];
   const out = mirrorPropsI18nOntoNodes(tree);
   assert.notEqual(out, tree);
-  assert.equal((out[0] as any).children[1], other);
-  assert.deepEqual((out[0] as any).children[0].i18n, OVERLAY);
-  assert.equal((tree[0] as any).children[0].i18n, undefined, "input is not mutated");
+  assert.equal((out[0] as unknown as TestNode).children[1], other);
+  assert.deepEqual((out[0] as unknown as TestNode).children[0].i18n, OVERLAY);
+  assert.equal((tree[0] as unknown as TestNode).children[0].i18n, undefined, "input is not mutated");
 });
 
 test("an overlay already on the node is never overwritten; junk overlays are ignored", () => {
   const node = { id: "n", kind: "heading", i18n: { en: { text: "Keep me" } }, props: { text: "base", i18n: OVERLAY } };
   const out = mirrorPropsI18nOntoNodes([node] as unknown[]);
-  assert.deepEqual((out[0] as any).i18n, { en: { text: "Keep me" } });
+  assert.deepEqual((out[0] as unknown as TestNode).i18n, { en: { text: "Keep me" } });
   const junk = [{ id: "j", kind: "heading", props: { text: "b", i18n: { en: { text: "   " }, es: "no" } } }] as unknown[];
   assert.equal(mirrorPropsI18nOntoNodes(junk), junk);
   assert.deepEqual(coerceTree("nope"), []);
