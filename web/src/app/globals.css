@@ -1145,6 +1145,9 @@ html[data-public-font-preset="editorial"] {
   --tl-forest-ring: rgba(30, 58, 45, 0.22);
   --tl-forest-glow: rgba(46, 107, 82, 0.18);
   --tl-forest-on: #f4efe6;
+  /* Lime: the onboarding "chosen" fill (1B). One use: the selected card. */
+  --tl-lime: #d9f27a;
+  --tl-lime-edge: #b5d63d;
 
   /* Brand accent. The logo's trail colour and the brand's only warm note.
      It existed as a JS constant in tulala-logo.tsx and as --plt-accent in the

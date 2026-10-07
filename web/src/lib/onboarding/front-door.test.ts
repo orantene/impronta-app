@@ -1,7 +1,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 
-import { frontDoorUrl, intentFromLegacyParams, intentFromStartParam } from "./front-door";
+import { frontDoorUrl, inAppFlowUrl, intentFromLegacyParams, intentFromStartParam } from "./front-door";
 
 describe("one front door", () => {
   test("legacy params map to an intent", () => {
@@ -24,5 +24,11 @@ describe("one front door", () => {
     assert.equal(intentFromStartParam("1"), "unknown");
     assert.equal(intentFromStartParam("nope"), null);
     assert.equal(intentFromStartParam(null), null);
+  });
+
+  test("1B: CTAs land in the in-app flow with the card preselected", () => {
+    assert.equal(inAppFlowUrl("talent"), "/start?choice=myself");
+    assert.equal(inAppFlowUrl("business", { locale: "es", promo: "X1" }), "/start?choice=studio&promo=X1&lang=es");
+    assert.equal(inAppFlowUrl("unknown", { locale: "en" }), "/start");
   });
 });

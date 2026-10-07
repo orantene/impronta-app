@@ -710,6 +710,11 @@ export async function provisionWorkspaceFromLead(params: {
 
   if (membershipError) {
     logServerError("workspace-signup.insertMembership", membershipError);
+    // TUL-82: never leave an ownerless workspace behind. The lead is not yet
+    // attached (provisioned_tenant_id unset), so a retry would otherwise find
+    // the slug taken and create a "-2" copy next to the orphan.
+    const { error: rollbackError } = await admin.from("agencies").delete().eq("id", agency.id);
+    if (rollbackError) logServerError("workspace-signup.rollbackOrphanAgency", rollbackError);
     await sendProvisioningFailureEmailOnce({ lead, kind: "provision_failed" });
     return {
       ok: false,

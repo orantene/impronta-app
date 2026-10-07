@@ -25,7 +25,7 @@ import type { OnboardingIntent } from "@/lib/onboarding/module-state";
 import { TALENT_MODAL_EVENT } from "@/components/marketing/talent-register-modal";
 
 import { ONBOARDING_MODULE_EVENT, type OnboardingModuleEventDetail } from "./onboarding-events";
-import { intentFromStartParam, START_PARAM } from "@/lib/onboarding/front-door";
+import { inAppFlowUrl, intentFromStartParam, START_PARAM } from "@/lib/onboarding/front-door";
 import { OnboardingModule, SavedToast } from "./onboarding-module";
 
 const GET_STARTED_PATH = "/get-started";
@@ -41,7 +41,13 @@ export function OnboardingModuleHost({ locale }: { locale: "en" | "es" }) {
   const [open, setOpen] = useState<OnboardingIntent | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const openWith = useCallback((intent: OnboardingIntent) => setOpen(intent), []);
+  // 1B: every CTA now goes to the in-app flow (/start); the modal is no longer the front door.
+  const openWith = useCallback(
+    (intent: OnboardingIntent) => {
+      window.location.assign(inAppFlowUrl(intent, { locale }));
+    },
+    [locale],
+  );
 
   useEffect(() => {
     const onModuleEvent = (e: Event) => {

@@ -162,6 +162,40 @@ export async function syncBookingHoursFromPattern(
   }
 }
 
+/**
+ * Onboarding essentials: the person confirmed her weekly hours at sign-up, so
+ * this is her own decision (T1-07). Upserts one row per person; a failure
+ * throws so the caller can warn. Never writes without a real timezone.
+ * Returns false when no timezone is known (nothing written).
+ */
+export async function upsertBookingHoursFromOnboarding(
+  admin: Admin,
+  input: { talentProfileId: string; tenantId: string; weekly: WeeklyHours; timezone: string | null },
+): Promise<boolean> {
+  const timezone = (input.timezone && isValidIanaTimeZone(input.timezone) ? input.timezone : null)
+    ?? (await resolveTalentTimezone(admin, input.talentProfileId, input.tenantId, null).catch(() => null));
+  if (!timezone) return false;
+  // One row per person: talent_profile_id is the primary key (a total unique index).
+  const { error } = await admin.from("talent_booking_hours").upsert(
+    {
+      talent_profile_id: input.talentProfileId,
+      tenant_id: input.tenantId,
+      timezone,
+      weekly: input.weekly,
+      exceptions: [],
+      slot_minutes: 30,
+      buffer_before_min: 0,
+      buffer_after_min: 0,
+      min_notice_min: 60,
+      horizon_days: 60,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "talent_profile_id" },
+  );
+  if (error) throw new Error(`upsertHours: ${error.message}`);
+  return true;
+}
+
 /** Hours row -> drawer pattern, when a pattern describes the saved days. */
 export async function syncPatternFromBookingHours(
   admin: Admin,

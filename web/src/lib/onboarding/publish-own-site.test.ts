@@ -69,3 +69,18 @@ test("path fallback while subdomains are off; unusable slug has no URL", () => {
   assert.equal(ownSiteUrl("rosa", { isDemo: true, subdomainsEnabled: true, pathOrigin: "x" }), "https://rosa-demo.tulala.digital");
   assert.equal(ownSiteUrl(null, { isDemo: false, subdomainsEnabled: true, pathOrigin: "x" }), null);
 });
+
+test("a picked look is applied before publish even when a design already exists", async () => {
+  const h = harness({ site_slug: "rosa", site_published_at: null, theme_design_slug: "maison" });
+  h.deps.forceDesign = true;
+  const r = await ensureOwnSitePublished(h.deps);
+  assert.equal(r.ok, true);
+  assert.equal(h.calls.apply, 1);
+  assert.equal(h.calls.publish, 1);
+});
+
+test("publish failure is an honest not-ok (never a live URL)", async () => {
+  const h = harness({ site_slug: "rosa", site_published_at: null, theme_design_slug: "maison" }, { publishOk: false });
+  const r = await ensureOwnSitePublished(h.deps);
+  assert.deepEqual(r, { ok: false, error: "boom" });
+});

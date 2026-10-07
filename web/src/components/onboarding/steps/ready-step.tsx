@@ -11,6 +11,8 @@ import type { OnboardingPath } from "@/lib/onboarding/module-state";
 import type { Understanding } from "@/lib/onboarding/understanding";
 import type { LinkCheck } from "@/lib/server-actions/onboarding-module";
 
+import { promisedHost, type DesignLookKey } from "@/lib/onboarding/finish-url";
+import { DesignPick } from "./design-pick";
 import { GhostLink, Notice, PrimaryButton, Sub, Title } from "../ui";
 
 export function ReadyStep({
@@ -23,6 +25,8 @@ export function ReadyStep({
   busy,
   onCheckLink,
   onBuild,
+  designChoice = null,
+  onPickDesign,
 }: {
   t: (key: string) => string;
   understanding: Understanding;
@@ -33,6 +37,9 @@ export function ReadyStep({
   busy: boolean;
   onCheckLink: (slug: string) => Promise<LinkCheck | null>;
   onBuild: () => void;
+  /** 1D: talent looks (myself / both). */
+  designChoice?: DesignLookKey | null;
+  onPickDesign?: (look: DesignLookKey | null) => void;
 }) {
   const talentOnly = path === "talent";
   const [editing, setEditing] = useState(false);
@@ -107,7 +114,7 @@ export function ReadyStep({
           ) : (
             <div className="mt-1 flex items-center justify-between gap-3">
               <span className="min-w-0 truncate text-[1rem] font-semibold" style={{ color: "var(--tl-ink)" }} data-testid="onb-link-value">
-                {shown ? `${shown}.tulala.digital` : "…"}
+                {promisedHost(shown) ?? "…"}
               </span>
               <span className="flex shrink-0 items-center gap-2 text-[0.75rem]">
                 {checking ? <span style={{ color: "var(--tl-muted)" }}>{t("public.onboarding.ready.linkChecking")}</span>
@@ -131,6 +138,8 @@ export function ReadyStep({
           ) : null}
         </div>
       ) : null}
+
+      {onPickDesign && path !== "business" ? <DesignPick t={t} value={designChoice} onPick={onPickDesign} /> : null}
 
       <div className="mt-5">
         <PrimaryButton onClick={onBuild} disabled={busy || (!talentOnly && linkAvailable !== true)} testId="onb-build">

@@ -1819,11 +1819,6 @@
       "chrome": {
         "close": "Cerrar",
         "back": "Atrás",
-        "step1": "1 · Cuéntanos",
-        "step2": "2 · Revisa",
-        "step3": "3 · Guarda",
-        "step4": "4 · Construye",
-        "step5": "5 · Listo",
         "savedToast": "Guardado en este teléfono. Vuelve cuando quieras.",
         "signedInAs": "Sesión iniciada como {email}",
         "guest": "Sin iniciar sesión",
@@ -1927,16 +1922,7 @@
         "laterValue": "Después, en tu sitio",
         "missingValue": "Lo preguntamos ahora"
       },
-      "fork": {
-        "title": "¿Para quién es esta página?",
-        "sub": "Mencionaste un negocio y tu propio trabajo. Elige uno; el otro se puede añadir después.",
-        "talent": "Para mí",
-        "talentSub": "Una página con lo que hago, mis servicios y mi ciudad",
-        "business": "Para el negocio",
-        "businessSub": "Un sitio con el nombre del negocio, horario, WhatsApp y lo que vendes",
-        "both": "Los dos",
-        "bothSub": "El sitio del negocio ahora, mi página como borrador"
-      },
+      "fork": {},
       "questions": {
         "basicsWhatTalentHint": "Busca: manicurista, fotógrafo, DJ…",
         "basicsWhatBusinessHint": "Busca: salón de uñas, restaurante, gimnasio…",
@@ -2040,12 +2026,10 @@
         "openMyWorkspace": "Abrir mi espacio",
         "ownPageDrafted": "Tu propia página está en borrador en el espacio de trabajo.",
         "link": "Tu enlace",
-        "failedTitle": "Eso no terminó",
-        "failedSub": "Todo lo que nos contaste está guardado. Inténtalo de nuevo o vuelve después desde este mismo teléfono.",
         "retry": "Intentar de nuevo",
         "fallbackCopySub": "Tu espacio de trabajo está listo. El texto del sitio necesitó otra pasada, así que abre con los valores del estilo; todo lo que nos contaste está guardado.",
         "fallbackPhotosSub": "{business} ya tiene sitio con tus palabras. Las fotos todavía son genéricas; ábrelo para añadir las tuyas o elegir de la biblioteca.",
-        "readyBusiness": "Tu sitio web está listo",
+        "readyBusiness": "Tu sitio está listo",
         "readyTalent": "Tu página está lista",
         "visit": "Abrir",
         "nextSteps": "Siguientes pasos",
@@ -2058,7 +2042,15 @@
         "nextTalentBio": "Revisa tu bio",
         "nextTalentShare": "Comparte tu enlace",
         "viewMyWebsite": "Ver mi sitio",
-        "customizeInBuilder": "Personalizar en el editor"
+        "customizeInBuilder": "Personalizar en el editor",
+        "draftTitle": "Tu borrador está guardado",
+        "draftSub": "Todo lo que nos contaste está guardado, pero tu página todavía no abre en línea. Inténtalo de nuevo o ábrela en el editor.",
+        "draftSubStudio": "Todo lo que nos contaste está guardado, pero tu sitio todavía no abre en línea. Inténtalo de nuevo o ábrelo en el editor.",
+        "openEditor": "Abrir el editor",
+        "goToPanel": "Ir a mi panel",
+        "bookPreview": "Reservar",
+        "bookingsStartStudio": "Las reservas empiezan cuando agregues a un proveedor.",
+        "urlDiffers": "Tu dirección quedó distinta a la que elegiste porque ya estaba en uso. Esta es la real."
       },
       "essentials": {
         "title": "Agrega lo esencial",
@@ -2069,13 +2061,7 @@
         "businessNameHint": "Cómo la gente conoce tu negocio",
         "yourName": "Tu nombre",
         "yourNameHint": "El nombre por el que te conocen",
-        "services": "Servicios",
-        "servicesHint": "Escribe un servicio y presiona Enter",
-        "addService": "Agregar un servicio…",
-        "remove": "Quitar",
         "location": "Tu ubicación",
-        "hours": "Horario",
-        "hoursCustomHint": "O escribe el tuyo, p. ej. Mar–Dom 1 pm a 11 pm",
         "whatsapp": "WhatsApp (opcional)",
         "whatsappHint": "Número mexicano sin lada; nosotros agregamos +52.",
         "continue": "Continuar",
@@ -2096,6 +2082,15 @@
         "notesHint": "Colores que te gustan, una marca que admiras, qué evitar…",
         "changeLater": "El estilo, los colores y las fotos se cambian en el editor.",
         "continue": "Continuar"
+      },
+      "design": {
+        "title": "Elige cómo se ve tu página",
+        "sub": "Tres estilos listos. Puedes cambiarlo después en el editor.",
+        "recommended": "Recomendado",
+        "keep": "Dejar el estilo por defecto",
+        "pink": "Rosa y labial",
+        "pearl": "Perla",
+        "sand": "Arena"
       }
     },
     "consent": {

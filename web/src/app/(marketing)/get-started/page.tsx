@@ -15,7 +15,7 @@ import { TulalaAgentInvite } from "@/components/marketing/tulala-agent-invite";
 import { redirect } from "next/navigation";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
-import { frontDoorUrl, intentFromLegacyParams } from "@/lib/onboarding/front-door";
+import { inAppFlowUrl, intentFromLegacyParams } from "@/lib/onboarding/front-door";
 import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { getAppUrl } from "@/lib/auth-flow";
 import { findOwnedFreeWorkspaceForUser } from "@/lib/saas/owned-free-workspace";
@@ -169,7 +169,7 @@ export default async function GetStartedPage({
   // it. The classic form stays for the flag-off case and nothing else.
   if ((await getOnboardingFlags()).onboarding_module_enabled) {
     const legacy = resolved as { tier?: string; audience?: string; intent?: string; promo?: string };
-    redirect(frontDoorUrl(intentFromLegacyParams(legacy), { promo: legacy.promo ?? null, locale: await getRequestLocale() }));
+    redirect(inAppFlowUrl(intentFromLegacyParams(legacy), { promo: legacy.promo ?? null, locale: await getRequestLocale() }));
   }
 
   // L50 Phase 2: read live pricing from the catalog with currency

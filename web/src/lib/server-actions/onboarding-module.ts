@@ -18,9 +18,11 @@
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 import { archiveBrief, ensureBrief, loadBrief, recordFacts } from "@/lib/tulala/brief-store.server";
 import { updateBriefModuleState } from "@/lib/tulala/brief-module-state.server";
+import { isDesignLookKey, type DesignLookKey } from "@/lib/onboarding/finish-url";
+import { choiceToPath, isOnboardingChoice, pathToChoice, type OnboardingChoice } from "@/lib/onboarding/choice";
 import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { MAX_INPUT_CHARS, MIN_INPUT_WORDS, parsePersistedModuleState, wordCount, type ModuleInput, type ModuleStep, type OnboardingIntent, type PersistedModuleState, type ResumeSnapshot, isVisualDirection, type VisualDirection } from "@/lib/onboarding/module-state";
+import { MAX_INPUT_CHARS, MIN_INPUT_WORDS, parsePersistedModuleState, wordCount, type ModuleInput, type ModuleStep, type OnboardingIntent, type PersistedModuleState, type ResumeSnapshot, isVisualDirection, type VisualDirection, choiceToIntent } from "@/lib/onboarding/module-state";
 import { detectLink } from "@/lib/tulala/detect-url";
 import { understandBrief, understandingFor, type UnderstandResult } from "@/lib/onboarding/understand.server";
 import {
@@ -93,6 +95,8 @@ export async function submitOnboardingInput(input: {
   // Archive it (never delete) and begin clean; resume never comes through
   // here, so a person continuing their own brief is untouched.
   const existing = await loadBrief(resolved.owner);
+  // The screen-1 choice outlives an archived draft: it is the person's, not the draft's.
+  const carriedChoice = existing ? parsePersistedModuleState(existing.moduleState).choice : undefined;
   if (existing) {
     const previous = parsePersistedModuleState(existing.moduleState);
     const hadContent = existing.facts.length > 0 || !!previous.input;
@@ -107,11 +111,41 @@ export async function submitOnboardingInput(input: {
     step: "reading",
     input: parsed,
     locale: input.locale,
+    ...(carriedChoice ? { choice: carriedChoice, path: choiceToPath(carriedChoice) } : {}),
     updatedAt: new Date().toISOString(),
   };
   const saved = await updateBriefModuleState(ensured.brief.id, patch);
   if (!saved.ok) return { ok: false, code: "save_failed" };
   return { ok: true, briefId: ensured.brief.id, input: parsed };
+}
+
+/**
+ * 1B screen 1: "How do you work?". Creates the brief for this owner when there
+ * is none (a choice is a commitment worth keeping across sign-in), stores
+ * `choice`, and carries it in the existing `path` field until
+ * `provisionForChoice` (feat/onboarding-1a-choices) replaces that mapping.
+ * The brief follows the person from guest to account, so the choice survives.
+ */
+export async function saveOnboardingChoice(input: {
+  choice: OnboardingChoice;
+  locale: "en" | "es";
+}): Promise<{ ok: true; briefId: string } | ModuleActionError> {
+  if (!(await moduleOn())) return { ok: false, code: "module_off" };
+  if (!isOnboardingChoice(input.choice)) return { ok: false, code: "save_failed" };
+  const resolved = await resolveBriefOwner();
+  if (!resolved) return { ok: false, code: "no_owner" };
+  const ensured = await ensureBrief(resolved.owner, { locale: input.locale });
+  if (!ensured.ok) return { ok: false, code: "no_brief" };
+  const saved = await updateBriefModuleState(ensured.brief.id, {
+    choice: input.choice,
+    path: choiceToPath(input.choice),
+    intent: choiceToIntent(input.choice),
+    step: "entry",
+    locale: input.locale,
+    updatedAt: new Date().toISOString(),
+  });
+  if (!saved.ok) return { ok: false, code: "save_failed" };
+  return { ok: true, briefId: ensured.brief.id };
 }
 
 /** Persist a step change the client made without new data (back, confirm). */
@@ -235,10 +269,28 @@ export async function editUnderstoodFact(input: { factKey: string; value: string
 export async function chooseOnboardingPath(input: { path: OnboardingPath }): Promise<CardResult> {
   const got = await ownedBrief();
   if (got.error) return got.error;
-  const saved = await updateBriefModuleState(got.brief.id, { path: input.path, updatedAt: new Date().toISOString() });
-  const state = { ...got.state, path: input.path };
+  // The fork is a person's answer too: keep `choice` in step so it never disagrees.
+  const choice = pathToChoice(input.path);
+  const saved = await updateBriefModuleState(got.brief.id, { path: input.path, choice, updatedAt: new Date().toISOString() });
+  const state = { ...got.state, path: input.path, choice };
   if (!saved.ok) return { ok: false, code: "save_failed" };
   return { ok: true, card: await cardFor(got.brief.id, state, got.brief) };
+}
+
+/**
+ * TUL-82 · "How do you work?" (1B calls this). Stores the explicit choice and
+ * its path together; the build provisions exactly that choice.
+ */
+export async function chooseOnboardingChoice(input: { choice: OnboardingChoice }): Promise<{ ok: boolean }> {
+  if (!isOnboardingChoice(input.choice)) return { ok: false };
+  const got = await ownedBrief();
+  if (got.error) return { ok: false };
+  const saved = await updateBriefModuleState(got.brief.id, {
+    choice: input.choice,
+    path: choiceToPath(input.choice),
+    updatedAt: new Date().toISOString(),
+  });
+  return { ok: saved.ok };
 }
 
 export type EssentialsAnswer = {
@@ -303,7 +355,8 @@ export async function saveOnboardingEssentials(input: EssentialsAnswer): Promise
   if (missing.some((l) => l.id === "city") || (missing.length > 0 && !business && missing.some((l) => l.id === "what")) || (business && missing.some((l) => l.id === "kind"))) {
     return { ok: false, code: "missing_required" };
   }
-  statePatch.step = business ? "style" : "readyToBuild";
+  // 1B: the basics lead to the step-3 setup screen (services, hours, place).
+  statePatch.step = "setup";
   const saved = await updateBriefModuleState(got.brief.id, statePatch as Record<string, unknown>);
   if (!saved.ok) return { ok: false, code: "save_failed" };
   return { ok: true, card };
@@ -332,9 +385,9 @@ export async function acceptUnderstoodCard(): Promise<{ ok: boolean; nextStep: M
   const followUps = card.understanding.followUps;
   // One essentials screen after the card (2026-09-17): every missing detail
   // on one page, prefilled, instead of a question per screen.
-  const nextStep: ModuleStep = followUps[0] === "fork" ? "fork" : "essentials";
-  // The path the card showed is the path we build, unless a fork follows.
-  const pathPatch = nextStep === "fork" ? {} : { path: card.understanding.path };
+  const nextStep: ModuleStep = "essentials";
+  // 1B: the path is the person's screen-1 choice when they made one; else what the card showed.
+  const pathPatch = { path: got.state.choice ? choiceToPath(got.state.choice) : card.understanding.path };
   const saved = await updateBriefModuleState(got.brief.id, { step: nextStep, cardAccepted: true, questionIndex: 0, ...pathPatch, updatedAt: new Date().toISOString() });
   return { ok: saved.ok, nextStep, followUps };
 }
@@ -350,6 +403,15 @@ export async function setOnboardingLink(input: { slug: string }): Promise<{ ok: 
   const check = await checkSubdomainAvailability(slug);
   if (check.available) await updateBriefModuleState(got.brief.id, { linkSlug: slug, updatedAt: new Date().toISOString() });
   return { ok: true, link: { slug, ...check } };
+}
+
+/** 1D: the look picked at "Ready to build" (null = keep the default). Applied before publish. */
+export async function saveOnboardingDesign(input: { look: DesignLookKey | null }): Promise<{ ok: boolean }> {
+  if (input.look !== null && !isDesignLookKey(input.look)) return { ok: false };
+  const got = await ownedBrief();
+  if (got.error) return { ok: false };
+  const saved = await updateBriefModuleState(got.brief.id, { designChoice: input.look, updatedAt: new Date().toISOString() });
+  return { ok: saved.ok };
 }
 
 /** The stored build record (resume on the building / arrival screens). */
