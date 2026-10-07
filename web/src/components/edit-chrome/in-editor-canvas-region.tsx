@@ -240,6 +240,7 @@ export function InEditorCanvasRegion({
         <div
           data-talent-builder-shell="header"
           data-talent-max-site-header=""
+          {...(canvasRenderData?.shellHeaderOverHero ? { "data-over-hero": "true" } : {})}
           style={{ top: EDIT_TOPBAR_H }}
           inert
         >

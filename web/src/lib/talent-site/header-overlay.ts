@@ -2,9 +2,10 @@
  * TUL-133: a `transparent` header paints WHITE text (token-presets.css), written
  * for Noir & Or, whose first band is a full-bleed dark photo with a scrim. Over a
  * light hero (a split hero, a centred type-only hero) the brand, nav and ES/EN
- * switch vanish. So the SERVER decides from the page tree: transparent only when
- * the first band is a full-bleed dark media hero, else the header renders as
- * `surface` (an ordinary opaque bar). Pure; no CSS change.
+ * switch vanish. So the server decides from the page tree whether the first band
+ * is a full-bleed dark media hero and stamps `data-over-hero="true"` on the header
+ * wrapper; the white-text rule is gated on it. Without the marker a transparent
+ * header inherits the theme ink. The tone itself is never changed. Pure.
  *
  * Qualifying first band (the hero kit's COVER hero and Noir's cinematic hero):
  *  - a hero carousel with a dark scrim, or
@@ -47,22 +48,8 @@ function isDarkMediaHero(node: BuilderNode): boolean {
   return fullWidth && typeof img === "string" && img.includes("url(") && img.includes("gradient(");
 }
 
-/** True when the page's first band is a full-bleed dark media hero (header may overlay it). */
+/** True when the page's first band is a full-bleed dark media hero (header may paint white over it). */
 export function headerOverlayAllowed(homeTree: ReadonlyArray<BuilderNode>): boolean {
   const band = firstBand(homeTree);
   return band ? isDarkMediaHero(band) : false;
-}
-
-/**
- * Rewrites a `transparent` site_header landmark to `surface` unless the page opens on a
- * dark media hero. Any other tone, and every non-header root, is returned untouched.
- */
-export function settleHeaderTone(headerTree: BuilderNode[], bodyTree: ReadonlyArray<BuilderNode>): BuilderNode[] {
-  if (headerOverlayAllowed(bodyTree)) return headerTree;
-  return headerTree.map((root) => {
-    const props = propsOf(root);
-    const sp = props.sectionProps as Props | undefined;
-    if (root.kind !== "section" || props.sectionTypeKey !== "site_header" || sp?.tone !== "transparent") return root;
-    return { ...root, props: { ...props, sectionProps: { ...sp, tone: "surface" } } } as BuilderNode;
-  });
 }

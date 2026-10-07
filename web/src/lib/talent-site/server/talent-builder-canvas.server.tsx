@@ -49,7 +49,7 @@ import {
 } from "@/lib/talent-site/footer-socket";
 import { talentSiteShowsPlatformBadge } from "@/lib/talent-site/free-site-badge";
 import { treeHasLiveCandidates } from "../live-text";
-import { settleHeaderTone } from "../header-overlay";
+import { headerOverlayAllowed } from "../header-overlay";
 import { loadTalentLiveText } from "./load-live-text.server";
 import { loadTalentLocaleSwaps } from "./talent-locale-swaps.server";
 import { loadPreviewDataSources } from "./preview-my-content.server";
@@ -202,7 +202,8 @@ export async function buildTalentBuilderCanvasData(input: {
         <TypeSystemStyle />
       </>
     ),
-    shellHeader: renderShell(settleHeaderTone(headerTree, input.tree)),
+    shellHeader: renderShell(headerTree),
+    shellHeaderOverHero: headerOverlayAllowed(input.tree),
     shellFooter: renderShell(footerTree),
     shellSocket: <TalentSiteSocket model={socketModel} hint={socketLockedHint(siteLocale)} clearDock={false} />,
     labelLocale: { locale: siteLocale, ctaMode, swaps, ...(live ? { live } : {}) },

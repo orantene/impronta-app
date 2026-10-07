@@ -8,7 +8,7 @@ import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
 import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
 import { pruneDeadSectionLinks } from "@/lib/talent-site/dead-section-links";
-import { settleHeaderTone } from "@/lib/talent-site/header-overlay";
+import { headerOverlayAllowed } from "@/lib/talent-site/header-overlay";
 import { talentSiteLocalePath } from "@/lib/talent-site/talent-site-locale-routing";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
@@ -567,8 +567,9 @@ async function renderMaxSiteDocument(args: {
   const liveFooterTree = pruneDeadSectionLinks(footerTree, renderedBlocks, [headerTree], { homePath });
   // The header's section links get the same treatment on the home page (a talent with no
   // reviews has no #reviews band, so the link goes). Override pages keep their header as is.
-  // TUL-133: a transparent header (white text) stays only over a full-bleed dark hero.
-  const liveHeaderTree = settleHeaderTone(pruneDeadSectionLinks(headerTree, renderedBlocks, [footerTree], { homePath }), renderedBlocks);
+  const liveHeaderTree = pruneDeadSectionLinks(headerTree, renderedBlocks, [footerTree], { homePath });
+  // TUL-133: a transparent header gets white text only over a dark full-bleed hero.
+  const overHeroAttr = headerOverlayAllowed(renderedBlocks) ? { "data-over-hero": "true" } : {};
   const footerSocialLinks = builderTreeHasKind(footerTree, "social_links") ? await loadTalentSocialLinks(talentProfileId) : [];
   const socketModel = buildSocketModel({
     locale,
@@ -730,6 +731,7 @@ async function renderMaxSiteDocument(args: {
           // toggled by the observer; the token CSS paints the solid bar.
           <div
             data-talent-max-site-header=""
+            {...overHeroAttr}
             {...(headerScrollThreshold != null ? { "data-scrolled": "false" } : {})}
           >
             {liveHeaderTree.map((root) => renderShellRoot(root))}
@@ -738,7 +740,7 @@ async function renderMaxSiteDocument(args: {
             ) : null}
           </div>
         ) : (
-          <header data-talent-max-site-header="">
+          <header data-talent-max-site-header="" {...overHeroAttr}>
             {renderBuilderNodes(liveHeaderTree, {
               publicPathPrefix,
               mode: "freeform",

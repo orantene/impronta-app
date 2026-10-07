@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, it } from "node:test";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
-import { headerOverlayAllowed, settleHeaderTone } from "./header-overlay";
+import { headerOverlayAllowed } from "./header-overlay";
 
 const n = (o: unknown) => o as BuilderNode;
 const COVER = "linear-gradient(180deg, rgba(0,0,0,.1), rgba(0,0,0,.7)), url({{headshotUrl}})";
@@ -9,10 +11,8 @@ const noirCover = n({ id: "h", kind: "container", props: { layerLabel: "Hero", s
 const noirCarousel = n({ id: "c", kind: "carousel", props: { variant: "hero", heightMode: "viewport", overlay: { scrim: true, tone: "dark" } } });
 const maisonV1Split = n({ id: "s", kind: "split", props: { layerLabel: "Hero", style: { maxWidth: "wide", minHeight: "70vh" } }, children: [n({ id: "a", kind: "container", props: {} }), n({ id: "b", kind: "image", props: { src: "x" } })] });
 const centered = n({ id: "z", kind: "container", props: { style: { maxWidth: "reading" } }, children: [n({ id: "y", kind: "heading", props: {} }), n({ id: "w", kind: "paragraph", props: {} })] });
-const header = (tone: string) => n({ id: "hd", kind: "section", props: { sectionTypeKey: "site_header", sectionProps: { tone, sticky: true } } });
-const toneOf = (t: BuilderNode[]) => ((t[0] as unknown as { props: { sectionProps: { tone: string } } }).props.sectionProps.tone);
 
-describe("headerOverlayAllowed", () => {
+describe("headerOverlayAllowed (marker is set only over a dark full-bleed hero)", () => {
   it("true for a full-bleed photo hero under a scrim (cover) and a dark hero carousel", () => {
     assert.equal(headerOverlayAllowed([noirCover]), true);
     assert.equal(headerOverlayAllowed([noirCarousel]), true);
@@ -38,20 +38,10 @@ describe("headerOverlayAllowed", () => {
   });
 });
 
-describe("settleHeaderTone", () => {
-  it("flips transparent to surface for a Maison-v1-like tree", () => {
-    assert.equal(toneOf(settleHeaderTone([header("transparent")], [maisonV1Split])), "surface");
-  });
-  it("keeps transparent for a Noir-like tree", () => {
-    assert.equal(toneOf(settleHeaderTone([header("transparent")], [noirCover])), "transparent");
-  });
-  it("flips for an empty body (policy pages) and leaves other tones alone", () => {
-    assert.equal(toneOf(settleHeaderTone([header("transparent")], [])), "surface");
-    assert.equal(toneOf(settleHeaderTone([header("solid")], [maisonV1Split])), "solid");
-  });
-  it("does not mutate its input", () => {
-    const h = [header("transparent")];
-    settleHeaderTone(h, [maisonV1Split]);
-    assert.equal(toneOf(h), "transparent");
+describe("white-text rule is gated on the over-hero marker", () => {
+  it("token-presets.css paints #fff on a transparent header only under [data-over-hero]", () => {
+    const css = readFileSync(path.join(process.cwd(), "src/app/token-presets.css"), "utf8");
+    assert.ok(css.includes('[data-talent-max-site-header]:where([data-over-hero="true"]) .site-header[data-tone="transparent"] { color: #fff; }'));
+    assert.ok(!css.includes('[data-talent-max-site-header] .site-header[data-tone="transparent"] { color: #fff; }'));
   });
 });
