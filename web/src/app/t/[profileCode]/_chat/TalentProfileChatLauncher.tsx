@@ -70,6 +70,8 @@ import type { ChatCardConfig } from "@/lib/talent-site/chat-card";
 // read-only guest-chat-contract. Threaded launcher → panel.
 type TalentProfileChatLauncherLocalProps = TalentChatLauncherProps & {
   surfaceMode?: SurfaceMode;
+  /** Every public service, for the instant price/duration answer only (chips keep `offerings`). */
+  answerOfferings?: readonly GuestChatOffering[];
   /** `chat.variant` = card (her own site): the one-to-one chat card. */
   chatCard?: ChatCardConfig | null;
   /** `chat.help-bubble` = on: the once-per-visit help bubble above the button (DK-3). */
