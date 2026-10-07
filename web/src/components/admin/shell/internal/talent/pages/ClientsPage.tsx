@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { loadTalentClients } from "@/lib/talent/clients-actions";
+import { takeInitialClients } from "@/lib/talent/clients-initial";
 import {
   clientInitials,
   clientsRowAction,
@@ -383,8 +384,15 @@ export function TalentClientsPage() {
   const dateLocale = copy.isSpanish ? "es-MX" : "en-US";
   const t = copy.t;
   const router = useRouter();
-  const [items, setItems] = useState<TalentClientRow[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const talentId = bridgeTalentSelfProfile?.id ?? null;
+  // Server-prefetched list (see talent/clients/page.tsx): first paint needs no
+  // request after mount. Refresh and edits still go through the effect below.
+  const [initial] = useState(() => takeInitialClients(talentId));
+  const [items, setItems] = useState<TalentClientRow[] | null>(
+    initial?.ok ? initial.items : initial ? [] : null,
+  );
+  const [error, setError] = useState<string | null>(initial && !initial.ok ? initial.error : null);
+  const skipFirstFetch = useRef(initial != null);
   const [filter, setFilter] = useState<ClientsFilter>("all");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -392,10 +400,13 @@ export function TalentClientsPage() {
     { kind: "add" } | { kind: "edit"; row: TalentClientRow } | { kind: "archive"; row: TalentClientRow } | null
   >(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const talentId = bridgeTalentSelfProfile?.id ?? null;
 
   useEffect(() => {
     if (!talentId) return;
+    if (skipFirstFetch.current) {
+      skipFirstFetch.current = false;
+      return;
+    }
     let cancelled = false;
     void settleServerAction(() => loadTalentClients(talentId), { label: "loadTalentClients", area: "talent-clients" })
       .then((res) => {
