@@ -18,6 +18,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Locale } from "@/i18n/config";
+import { defaultShellProps } from "@/lib/site-admin/edit-mode/shell-default-props";
 import { republishSiteShellSnapshot } from "@/lib/site-admin/edit-mode/site-shell-publish";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
@@ -44,7 +45,7 @@ async function ensureAnchor(admin: SupabaseClient, input: { tenantId: string; pa
   const { data: section, error: sectionErr } = await admin
     .from("cms_sections")
     // `cms_sections (tenant_id, name)` is unique: name the anchor per locale.
-    .insert({ tenant_id: input.tenantId, section_type_key: sectionTypeKey, schema_version: 1, name: `Site ${input.slotKey} (${input.locale})`, props_jsonb: {}, version: 1 })
+    .insert({ tenant_id: input.tenantId, section_type_key: sectionTypeKey, schema_version: 1, name: `Site ${input.slotKey} (${input.locale})`, props_jsonb: defaultShellProps(sectionTypeKey, input.businessName), version: 1 })
     .select("id")
     .single<{ id: string }>();
   if (sectionErr || !section) return { error: sectionErr?.message ?? "anchor insert failed" };

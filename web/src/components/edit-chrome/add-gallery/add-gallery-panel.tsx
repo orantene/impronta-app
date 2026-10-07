@@ -65,6 +65,7 @@ import { resolveInsertAnchor } from "./gallery-insert-hint";
 import { getViewportSectionNodeId } from "./viewport-section-anchor";
 import { locateCanvasNode } from "../freeform-layer-row";
 import { useEditorLocale } from "../use-editor-locale";
+import { getActiveContentLocaleSnapshot } from "../active-content-locale-bridge";
 
 const PANEL_WIDTH = 592;
 const PANEL_MAX_HEIGHT = "min(78vh, 640px)";
@@ -422,6 +423,12 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
           item,
           anchor,
           { insertBuilderNode, insertBuilderSectionEmbed, insertBuilderComponent },
+          {
+            copy: {
+              siteKind: window.location.pathname.startsWith("/talent/") ? "talent" : "agency",
+              locale: getActiveContentLocaleSnapshot().locale,
+            },
+          },
         );
         if (!result.ok && result.error) {
           reportMutationError(result.error);
