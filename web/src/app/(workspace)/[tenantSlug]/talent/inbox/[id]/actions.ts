@@ -200,6 +200,17 @@ export async function markTalentInquiryThreadRead(
   if (error) {
     logServerError("talent.thread.markRead", error);
   }
+  // Opening the thread also clears its bell rows, so the badge never keeps
+  // counting a conversation she has already read (TUL-52 B).
+  const { error: notifError } = await supabase
+    .from("user_notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("user_id", user.id)
+    .eq("origin_inquiry_id", inquiryId)
+    .is("read_at", null);
+  if (notifError) {
+    logServerError("talent.thread.markNotificationsRead", notifError);
+  }
 }
 
 // ─── Real thread load (talent group thread — text + money cards) ─────────────
