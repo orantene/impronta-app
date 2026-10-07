@@ -17532,6 +17532,8 @@
         "structureWeb": "Website menu page (collections)"
       },
       "list": {
+        "langMissing": "{lang} missing",
+        "langMissingHint": "No title in {language} yet",
         "title": "Catalog",
         "intro": "Everything the POS, the website and the profile can sell · one record per item",
         "import": "Import",

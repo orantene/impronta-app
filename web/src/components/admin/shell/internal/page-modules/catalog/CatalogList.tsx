@@ -20,6 +20,9 @@ import { useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { Icon } from "../../primitives";
 import { offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
+import { missingTitleLocale } from "@/lib/talent/offering-missing-translation";
+import { languageName } from "@/lib/i18n/locale-field-model";
+import { useTalentFieldLocales } from "@/components/locale-field/use-talent-field-locales";
 import type { OfferingsEditor } from "@/components/talent/services/use-offerings-editor";
 import { ActionButton, FilterChip, Outcome, StatePill, ToggleChip, UsedIn, type PillTone } from "../appointments-classes-ui";
 import { MenuImportPanel } from "../MenuImportPanel";
@@ -221,6 +224,13 @@ function CatalogRow({
   onMenuClose: () => void;
 }) {
   const t = useT();
+  const { primary, locales } = useTalentFieldLocales();
+  const missingLang = missingTitleLocale(o, primary, locales);
+  const missingChip = missingLang ? (
+    <span title={t("dashboard.catalog.list.langMissingHint").replace("{language}", languageName(missingLang, locale))} data-testid="catalog-row-lang-missing">
+      <Chip>{t("dashboard.catalog.list.langMissing").replace("{lang}", missingLang.toUpperCase())}</Chip>
+    </span>
+  ) : null;
   const type = itemType(o);
   const channels = itemChannels(o);
   const avail = itemAvailability(o);
@@ -251,15 +261,19 @@ function CatalogRow({
           {channels.includes("pos") ? ` · ${t("dashboard.catalog.channel.posCounter")}` : ""}
           {channels.includes("website") ? ` · ${t("dashboard.catalog.channel.website")}` : ""}
         </span>
+        {missingChip ? <span className="mt-[3px] block">{missingChip}</span> : null}
       </span>
       <StatePill tone={STATUS_TONE[status]} state={status}>
         {t(STATUS_KEY[status])}
       </StatePill>
     </Link>
     <ListRow cols={COLS} testId="catalog-row" className="relative max-[720px]:hidden">
-      <Link href={nav.href({ item: o.id })} prefetch={false} className="min-w-0 truncate font-semibold text-admin-ink no-underline hover:underline" data-testid="catalog-row-title">
-        {o.title || t("dashboard.catalog.untitled")}
-      </Link>
+      <span className="flex min-w-0 items-center gap-[8px]">
+        <Link href={nav.href({ item: o.id })} prefetch={false} className="min-w-0 truncate font-semibold text-admin-ink no-underline hover:underline" data-testid="catalog-row-title">
+          {o.title || t("dashboard.catalog.untitled")}
+        </Link>
+        {missingChip}
+      </span>
       <BlockPill tone="slate">{t(TYPE_KEY[type])}</BlockPill>
       <span className="flex flex-wrap items-center gap-x-[6px] gap-y-[4px]">
         {channels.length === 0 ? <span className="text-admin-ink-dim">{t("dashboard.catalog.channel.none")}</span> : null}

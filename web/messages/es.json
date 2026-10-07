@@ -17532,6 +17532,8 @@
         "structureWeb": "Página de menú del sitio (colecciones)"
       },
       "list": {
+        "langMissing": "Falta {lang}",
+        "langMissingHint": "Aún no tiene título en {language}",
         "title": "Catálogo",
         "intro": "Todo lo que el POS, el sitio web y el perfil pueden vender · un registro por artículo",
         "import": "Importar",
