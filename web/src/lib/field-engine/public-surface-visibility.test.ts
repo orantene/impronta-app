@@ -3,12 +3,15 @@
 // Cross-surface visibility property test for the three helpers in
 // public-surface-visibility.ts (Phase 1.5 / Lane C).
 //
-// Run (from web/):
-//   NEXT_RUNTIME='' npx tsx \
-//     --require ./src/lib/field-engine/__fixtures__/register-surface-vis-test.cjs \
-//     --test src/lib/field-engine/public-surface-visibility.test.ts
+// Run (from web/), no extra flags needed:
+//   npx tsx --test src/lib/field-engine/public-surface-visibility.test.ts
 //
-// Mocking seam: the --require hook redirects @/lib/supabase/admin to a CJS
+// The first import below installs the hook, so the test no longer depends on a
+// runner passing `--require` (the nightly orphan runner and the other node:test
+// lanes do not). It must stay the FIRST import: imports evaluate in order, and
+// the hook has to be in place before the module under test loads.
+//
+// Mocking seam: the hook redirects @/lib/supabase/admin to a CJS
 // stub (admin-mock-stub.cjs) that returns a mock Supabase client driven by
 // global.__SURFACE_VIS_MOCK__.canonicalDecisions. Tests call mock.set() to
 // control what the canonical resolver "finds" for bridged keys.
@@ -21,6 +24,7 @@
 // call re-invokes the mock client fresh. unstable_cache is a pass-through
 // with NEXT_RUNTIME=''.
 
+import "./__fixtures__/register-surface-vis-test.cjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 
