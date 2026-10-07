@@ -44,6 +44,8 @@ export async function authorizeForTalent(talentProfileId: string): Promise<AuthR
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, error: "Database unavailable." };
 
+  // The staff check does not depend on the profile row, so start it alongside.
+  const staffPending = requireWorkspaceStaffAction();
   const { data: tp, error } = await supabase
     .from("talent_profiles")
     .select("id, user_id, default_currency, preferred_locale")
@@ -51,6 +53,7 @@ export async function authorizeForTalent(talentProfileId: string): Promise<AuthR
     .maybeSingle();
 
   if (error || !tp) {
+    void staffPending.catch(() => {});
     if (error) logServerError("talent.offerings.authorize", error);
     return { ok: false, error: "Profile not found." };
   }
@@ -60,7 +63,7 @@ export async function authorizeForTalent(talentProfileId: string): Promise<AuthR
   // Prefer the active workspace when the actor is staff/owner there and the
   // talent is on that roster. is_primary-first inference would pin a studio
   // owner's new offerings to their exclusive agency.
-  const staff = await requireWorkspaceStaffAction();
+  const staff = await staffPending;
   let isStaff = false;
   let staffTenantId: string | null = null;
   if (staff.ok) {

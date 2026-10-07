@@ -120,13 +120,13 @@ export async function loadTalentOfferingsForEditor(talentProfileId: string): Pro
       return { ok: false, error: "Could not load your services." };
     }
     const rows = (data ?? []) as TalentOfferingRow[];
-    const images = await loadImageAssets(admin, rows.map((r) => r.id));
-    const children = await loadOfferingChildren(admin, rows.map((r) => r.id));
-    const groups = await loadAddonGroupsForOfferings(
-      admin,
-      talentProfileId,
-      rows.map((r) => r.id),
-    );
+    const rowIds = rows.map((r) => r.id);
+    // Three independent child reads: one round trip, not three in a row.
+    const [images, children, groups] = await Promise.all([
+      loadImageAssets(admin, rowIds),
+      loadOfferingChildren(admin, rowIds),
+      loadAddonGroupsForOfferings(admin, talentProfileId, rowIds),
+    ]);
     const addOnsByOffering = mergeAddonGroupsIntoAddOns(children.addOns, groups);
     const items = rows.map((r) => {
       const assets = images.get(r.id) ?? [];
