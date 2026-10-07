@@ -20,7 +20,7 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { localizablePropsForKind } from "@/lib/i18n/builder-i18n-props";
-import type { DesignPayload } from "../types";
+import type { DesignPayload } from "./types";
 
 export type SeedI18nOverlay = {
   es: Record<string, string>;

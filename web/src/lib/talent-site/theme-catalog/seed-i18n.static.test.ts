@@ -7,7 +7,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { localizablePropsForKind } from "@/lib/i18n/builder-i18n-props";
-import type { DesignPayload } from "../types";
+import type { DesignPayload } from "./types";
 import { FINISHED_GALLERY_SLUGS } from "./gallery-meta";
 import { COLLECTION_DESIGNS } from "./collection/designs";
 import { buildMaisonDesignPayload } from "./maison/design-payload";
