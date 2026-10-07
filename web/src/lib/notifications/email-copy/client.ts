@@ -69,6 +69,9 @@ export const CLIENT_EN = {
     button: "View receipt →",
     amountLabel: "Amount",
     dateLabel: "Date",
+    // Seller block + price breakdown (TUL-67).
+    sellerLabel: "Booked with",
+    breakdownTitle: "Payment breakdown",
   },
   "client.deposit_received": {
     subject: "Deposit received, balance due",
@@ -95,12 +98,19 @@ export const CLIENT_EN = {
     greeting: "Hi {name}, {message}",
     button: "View booking →",
     refundedLabel: "Refunded",
+    heading: "Payment refunded",
+    message: "your booking payment was refunded to your original payment method.",
+    disputeHeading: "Payment dispute closed",
+    disputeMessage: "the dispute on your booking payment was resolved and the charge was reversed.",
   },
   "client.partial_refund": {
     subject: "Partial refund issued",
     greeting: "Hi {name}, {message}",
     button: "View booking →",
     refundedLabel: "Refunded",
+    heading: "Partial refund issued",
+    // {amount} = refunded amount with currency.
+    message: "a partial refund of {amount} was issued to your original payment method.",
   },
   "client.welcome": {
     subject: "Welcome to Tulala",
@@ -166,6 +176,8 @@ export const CLIENT_ES: typeof CLIENT_EN = {
     button: "Ver recibo →",
     amountLabel: "Monto",
     dateLabel: "Fecha",
+    sellerLabel: "Reservado con",
+    breakdownTitle: "Desglose del pago",
   },
   "client.deposit_received": {
     subject: "Anticipo recibido, saldo pendiente",
@@ -185,12 +197,18 @@ export const CLIENT_ES: typeof CLIENT_EN = {
     greeting: "Hola {name}, {message}",
     button: "Ver reserva →",
     refundedLabel: "Reembolsado",
+    heading: "Pago reembolsado",
+    message: "el pago de tu reserva fue reembolsado a tu método de pago original.",
+    disputeHeading: "Disputa de pago cerrada",
+    disputeMessage: "la disputa sobre el pago de tu reserva se resolvió y el cargo fue revertido.",
   },
   "client.partial_refund": {
     subject: "Reembolso parcial emitido",
     greeting: "Hola {name}, {message}",
     button: "Ver reserva →",
     refundedLabel: "Reembolsado",
+    heading: "Reembolso parcial emitido",
+    message: "se emitió un reembolso parcial de {amount} a tu método de pago original.",
   },
   "client.welcome": {
     subject: "Te damos la bienvenida a Tulala",

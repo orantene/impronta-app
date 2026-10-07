@@ -8472,6 +8472,53 @@
             "connect": "Cuentas de Connect",
             "products": "Productos de nivel",
             "coupons": "Cupones de descuento"
+          },
+          "wiring": {
+            "title": "Conexión de pagos",
+            "intro": "Revisión rápida de claves, secretos de webhook y dinero en curso. Solo muestra nombres, modos y conteos, nunca una clave.",
+            "readFailed": "No se pudo leer: {parts}. Esas filas pueden ser incorrectas.",
+            "status": {
+              "ok": "Correcto",
+              "warn": "Revisar",
+              "error": "Roto"
+            },
+            "rows": {
+              "keyModes": {
+                "label": "Modos de clave de Stripe",
+                "detail": "Todas las claves definidas usan el mismo modo."
+              },
+              "secret": {
+                "label": "{name}",
+                "set": "Definido",
+                "unset": "No definido"
+              },
+              "held": {
+                "label": "Pagos retenidos",
+                "detail": "{count} retenidos ahora."
+              },
+              "stuck": {
+                "label": "Solicitudes de pago atascadas",
+                "detail": "{count} esperando pago por más de 24 horas."
+              },
+              "laneUs": {
+                "label": "Último webhook de EE. UU."
+              },
+              "laneMx": {
+                "label": "Último webhook de MX"
+              },
+              "lane": {
+                "detail": "Horas desde el último evento: {hours}",
+                "none": "Aún no hay eventos registrados."
+              }
+            },
+            "fix": {
+              "keyModes": "Haz que todas las claves de Stripe en Vercel usen el mismo modo (todas de prueba o todas reales) y vuelve a desplegar.",
+              "secret": "Agrega este secreto de firma en Vercel desde el endpoint de webhook de Stripe que corresponde y vuelve a desplegar.",
+              "mxConnect": "Agrega el secreto de firma de MX Connect en Vercel. Mientras tanto, los eventos de MX Connect fallan la verificación de firma y los pagos retenidos solo se liberan en el cron diario.",
+              "held": "Abre la pestaña Ingresos para ver qué pagos están retenidos y por qué.",
+              "stuck": "Revisa estas transacciones en la lista de reservas; quizá el cliente necesite un nuevo enlace de pago.",
+              "lane": "Los periodos tranquilos son normales. Si esperas tráfico, revisa el endpoint en el panel de Stripe."
+            }
           }
         },
         "revenue": {
@@ -19732,27 +19779,27 @@
       "badgeRecommended": "Recomendado",
       "badgeAvailable": "Disponible en {country}",
       "label": "USDC, dólares digitales",
-      "title": "Cobrá en USDC",
+      "title": "Cobra en USDC",
       "intro": "USDC es un dólar digital. Tu parte de cada reserva va directo a tu propia billetera.",
       "benefitFast": "Llega en minutos, no en días",
       "benefitStable": "Se mantiene en dólares (1 USDC = 1 USD)",
-      "benefitNoBank": "No necesitás una cuenta bancaria",
-      "benefitConvert": "Convertilo a pesos o a tu moneda local cuando quieras",
+      "benefitNoBank": "No necesitas una cuenta bancaria",
+      "benefitConvert": "Conviértelo a pesos o a tu moneda local cuando quieras",
       "howTitle": "Cómo funciona",
-      "step1Title": "Configurá tus cobros",
-      "step1Body": "Creá tu cuenta de cobro segura. Lleva unos minutos.",
-      "step2Title": "Vinculá tu billetera en Stripe",
-      "step2Body": "Agregá la dirección de tu billetera y elegí USDC como moneda de cobro.",
-      "step3Title": "Cobrá en USDC",
+      "step1Title": "Configura tus cobros",
+      "step1Body": "Crea tu cuenta de cobro segura. Toma unos minutos.",
+      "step2Title": "Vincula tu billetera en Stripe",
+      "step2Body": "Agrega la dirección de tu billetera y elige USDC como moneda de cobro.",
+      "step3Title": "Cobra en USDC",
       "step3Body": "El pago de cada reserva llega a tu billetera automáticamente.",
       "cta": "Vincular mi billetera en Stripe",
       "opening": "Abriendo...",
-      "bankHint": "¿Preferís un banco? Podés configurarlo más abajo.",
+      "bankHint": "¿Prefieres un banco? Puedes configurarlo más abajo.",
       "walletTitle": "¿Qué es una billetera?",
-      "walletBody1": "Una billetera es una app o cuenta que guarda dinero digital, como USDC, y tiene su propia dirección. Vos la elegís y vos la controlás.",
-      "walletBody2": "Para usarlo localmente, podés convertir tus USDC a pesos o a tu moneda local cuando quieras, con cualquier servicio que lo permita en tu país.",
-      "walletBody3": "Vinculá solo una dirección que sea tuya. Revisala bien antes de guardar.",
-      "checking": "Verificando si podés cobrar en USDC..."
+      "walletBody1": "Una billetera es una app o cuenta que guarda dinero digital, como USDC, y tiene su propia dirección. Tú la eliges y tú la controlas.",
+      "walletBody2": "Para usarlo localmente, puedes convertir tus USDC a pesos o a tu moneda local cuando quieras, con cualquier servicio que lo permita en tu país.",
+      "walletBody3": "Vincula solo una dirección que sea tuya. Revísala bien antes de guardar.",
+      "checking": "Verificando si puedes cobrar en USDC..."
     }
   },
   "admin": {

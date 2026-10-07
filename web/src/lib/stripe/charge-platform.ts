@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { loadAccountPlatform } from "./account-platform";
+import { loadAccountPlatform, loadAccountPlatformStrict } from "./account-platform";
 import { decideLegPlatform, normalizeStripePlatform, type LegPlatformDecision, type StripeAccountKey } from "./account-routing";
 
 /** Release/retry guard for a held leg: its booking's charge platform vs the recipient's account platform. */
@@ -57,33 +57,43 @@ export async function loadChargePlatformForBooking(
   }
 }
 
+/** Fail-closed result: callers must abort the charge on `ok: false`. */
+export type SellerPlatformResult = { ok: true; key: StripeAccountKey } | { ok: false; error: string };
+
+const PLATFORM_UNRESOLVED = "Could not determine the seller's payment account. Please try again.";
+
 /**
  * The platform a NEW charge for this transaction must be created on: the seller
  * of record's connected-account platform (payout receiver -> talent/agency,
- * falling back to the source workspace). Default 'us'.
+ * falling back to the source workspace). FAILS CLOSED: any DB error, missing
+ * client or read error is an error, never 'us' (an MX seller must not be
+ * charged on the US account). A missing seller row is not an error: see
+ * loadAccountPlatformStrict ('us'). 'us' is returned only when the transaction has
+ * no seller reference at all.
  */
 export async function resolveSellerPlatformForTransaction(
   transactionId: string,
   sb: SupabaseClient | null = createServiceRoleClient(),
-): Promise<StripeAccountKey> {
+): Promise<SellerPlatformResult> {
   try {
-    return await resolveSellerPlatformUnsafe(transactionId, sb);
+    const key = await resolveSellerPlatformUnsafe(transactionId, sb);
+    return key ? { ok: true, key } : { ok: false, error: PLATFORM_UNRESOLVED };
   } catch {
-    return "us";
+    return { ok: false, error: PLATFORM_UNRESOLVED };
   }
 }
 
 async function resolveSellerPlatformUnsafe(
   transactionId: string,
   sb: SupabaseClient | null,
-): Promise<StripeAccountKey> {
-  if (!sb) return "us";
+): Promise<StripeAccountKey | null> {
+  if (!sb) return null;
   const { data: txn, error } = await sb
     .from("booking_transactions")
     .select("source_tenant_id, payout_receiver_id")
     .eq("id", transactionId)
     .maybeSingle();
-  if (error || !txn) return "us";
+  if (error || !txn) return null;
   const t = txn as { source_tenant_id?: string | null; payout_receiver_id?: string | null };
   if (t.payout_receiver_id) {
     const { data: pa, error: paErr } = await sb
@@ -91,17 +101,16 @@ async function resolveSellerPlatformUnsafe(
       .select("owner_type, owner_id")
       .eq("id", t.payout_receiver_id)
       .maybeSingle();
-    // Same fallback as a failed transaction read above: the default platform.
-    if (paErr) return "us";
-    const p = pa as { owner_type?: string; owner_id?: string } | null;
-    if (p?.owner_id && p.owner_type === "talent") {
-      return loadAccountPlatform("talent_profiles", { column: "id", value: p.owner_id });
+    if (paErr) return null;
+    const p = (pa ?? {}) as { owner_type?: string; owner_id?: string };
+    if (p.owner_id && p.owner_type === "talent") {
+      return loadAccountPlatformStrict("talent_profiles", { column: "id", value: p.owner_id }, sb);
     }
-    if (p?.owner_id && p.owner_type === "agency") {
-      return loadAccountPlatform("agencies", { column: "id", value: p.owner_id });
+    if (p.owner_id && p.owner_type === "agency") {
+      return loadAccountPlatformStrict("agencies", { column: "id", value: p.owner_id }, sb);
     }
   }
-  if (t.source_tenant_id) return loadAccountPlatform("agencies", { column: "id", value: t.source_tenant_id });
+  if (t.source_tenant_id) return loadAccountPlatformStrict("agencies", { column: "id", value: t.source_tenant_id }, sb);
   return "us";
 }
 

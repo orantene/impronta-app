@@ -35,6 +35,8 @@ import { CatalogView } from "./catalog/CatalogView";
 import { DiscountsView } from "./discounts/DiscountsView";
 import type { DiscountTierOption } from "./discounts/discount-format";
 import { HealthView } from "./health/HealthView";
+import { CommerceWiringSection } from "./health/CommerceWiringSection";
+import { loadCommerceHealth } from "./health/load-commerce-health";
 import { RevenueView } from "./revenue/RevenueView";
 import { CommissionView } from "./commission/CommissionView";
 import { loadPlatformCommissionConfig } from "./commission/actions";
@@ -50,8 +52,16 @@ export async function TabBody({
   initialDrawerId?: string | null;
 }) {
   if (tab === "health") {
-    const health = await loadStripeHealth();
-    return <HealthView health={health} />;
+    const [health, wiring] = await Promise.all([
+      loadStripeHealth(),
+      loadCommerceHealth(),
+    ]);
+    return (
+      <div style={{ maxWidth: 900 }}>
+        <HealthView health={health} />
+        <CommerceWiringSection result={wiring} />
+      </div>
+    );
   }
 
   if (tab === "catalog") {
