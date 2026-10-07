@@ -31,7 +31,9 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { interpretClaimError } from "@/lib/stripe/webhook-routing";
-import { laneScopedEventKey, type WebhookLane } from "@/lib/stripe/webhook-lanes";
+import { isMissingLaneColumnError, laneScopedEventKey, type WebhookLane } from "@/lib/stripe/webhook-lanes";
+
+let laneColumnWarned = false;
 
 // Lane vocabulary lives in webhook-lanes.ts (pure); re-exported for callers.
 export { laneScopedEventKey };
@@ -59,14 +61,27 @@ export async function claimStripeEvent(input: {
   const sb = createServiceRoleClient();
   if (!sb) return false;
 
-  const { error } = await sb.from("stripe_processed_events").insert({
+  const row = {
     event_id: laneScopedEventKey(input.lane, input.eventId),
-    // Explicit lane for every claim; the health panel filters on this.
-    lane: input.lane,
     event_type: input.eventType,
     livemode: input.livemode ?? null,
     api_version: input.apiVersion ?? null,
-  });
+  };
+  // Explicit lane for every claim; the health panel filters on this.
+  let { error } = await sb.from("stripe_processed_events").insert({ ...row, lane: input.lane });
+  if (error && isMissingLaneColumnError(error)) {
+    // Deploy-order safety: if the `lane` column does not exist yet, a webhook must
+    // still claim its event (idempotency) and must never fail because of it. Log
+    // once per process, then claim without the lane (readers derive it from the id).
+    if (!laneColumnWarned) {
+      laneColumnWarned = true;
+      logServerError(
+        "stripe.event-idempotency.lane-column-missing",
+        "stripe_processed_events.lane is missing; claiming without it. Apply 20261231348000.",
+      );
+    }
+    ({ error } = await sb.from("stripe_processed_events").insert(row));
+  }
   if (!error) return false; // claimed; first delivery for this lane
   if (interpretClaimError(error) === "duplicate") return true;
   logServerError("stripe.event-idempotency.claim", error);

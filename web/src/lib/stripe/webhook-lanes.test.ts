@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import {
   BARE_ID_LANE,
   WEBHOOK_LANES,
+  isMissingLaneColumnError,
   laneForEventId,
   laneScopedEventKey,
   type WebhookLane,
@@ -50,7 +51,7 @@ describe("claim path writes the lane explicitly", () => {
   const src = readFileSync(new URL("./event-idempotency.ts", import.meta.url), "utf8");
 
   test("claimStripeEvent inserts lane: input.lane", () => {
-    assert.match(src, /lane: input\.lane,/);
+    assert.match(src, /\{ \.\.\.row, lane: input\.lane \}/);
   });
 
   test("every lane a caller passes is a known WebhookLane", () => {
@@ -63,5 +64,24 @@ describe("claim path writes the lane explicitly", () => {
     }
     const known: WebhookLane[] = ["platform", "platform_mx", "discover_client_subscription"];
     assert.deepEqual([...WEBHOOK_LANES], known);
+  });
+});
+
+describe("missing lane column tolerance", () => {
+  test("recognises the two shapes a missing column takes", () => {
+    assert.equal(isMissingLaneColumnError({ code: "42703", message: 'column "lane" of relation "stripe_processed_events" does not exist' }), true);
+    assert.equal(isMissingLaneColumnError({ code: "PGRST204", message: "Could not find the 'lane' column of 'stripe_processed_events' in the schema cache" }), true);
+  });
+  test("does not swallow real failures", () => {
+    assert.equal(isMissingLaneColumnError(null), false);
+    assert.equal(isMissingLaneColumnError({ code: "23505", message: 'duplicate key value violates unique constraint "stripe_processed_events_pkey"' }), false);
+    assert.equal(isMissingLaneColumnError({ code: "42703", message: 'column "livemode" does not exist' }), false);
+    assert.equal(isMissingLaneColumnError({ code: "42501", message: "permission denied for table stripe_processed_events (lane)" }), false);
+  });
+  test("claimStripeEvent retries without lane only on that error, once, and warns once", () => {
+    const src = readFileSync(new URL("./event-idempotency.ts", import.meta.url), "utf8");
+    assert.match(src, /isMissingLaneColumnError\(error\)/);
+    assert.match(src, /laneColumnWarned/);
+    assert.equal(src.split(".insert(row)").length - 1, 1, "exactly one lane-less retry");
   });
 });

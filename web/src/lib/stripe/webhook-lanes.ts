@@ -34,3 +34,22 @@ export function laneForEventId(storedEventId: string): WebhookLane | null {
   const prefix = storedEventId.slice(0, i);
   return (WEBHOOK_LANES as readonly string[]).includes(prefix) ? (prefix as WebhookLane) : null;
 }
+
+/**
+ * True when an insert failed ONLY because `stripe_processed_events.lane` does not exist yet
+ * (migration not applied). Postgres: 42703; PostgREST schema cache: PGRST204.
+ * Anything that does not name the lane column is NOT matched, so real failures still surface.
+ */
+export function isMissingLaneColumnError(
+  err: { code?: string | null; message?: string | null } | null | undefined,
+): boolean {
+  if (!err) return false;
+  const msg = (err.message ?? "").toLowerCase();
+  if (!msg.includes("lane")) return false;
+  return (
+    err.code === "42703" ||
+    err.code === "PGRST204" ||
+    /could not find the 'lane' column/.test(msg) ||
+    /column "?lane"? .*does not exist/.test(msg)
+  );
+}
