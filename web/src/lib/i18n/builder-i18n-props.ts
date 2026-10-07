@@ -152,5 +152,14 @@ export function isLocalizableProp(
   kind: BuilderNodeKind,
   prop: string,
 ): boolean {
+  if (kind === "marquee" && MARQUEE_ITEM_TEXT_KEY.test(prop)) return true;
   return (LOCALIZABLE_PROPS_BY_KIND[kind] ?? []).includes(prop);
 }
+
+/**
+ * Ticker (marquee) items are an array (`props.items[N].text`) but the overlay is
+ * flat strings, so item N's per-language text lives under the DOTTED key
+ * `items.N.text`. Matched here rather than listed because the item count is
+ * open-ended.
+ */
+const MARQUEE_ITEM_TEXT_KEY = /^items\.\d+\.text$/;
