@@ -12,6 +12,22 @@
 
 import "server-only";
 import Stripe from "stripe";
+import { checkStripeKeyModes } from "./key-mode";
+
+let _modeLogged = false;
+/** TUL-143: logs once (names + modes only); false on a test/live mix in production. */
+function keyModesAllowClient(): boolean {
+  const check = checkStripeKeyModes();
+  if (check.ok) return true;
+  if (!_modeLogged) {
+    _modeLogged = true;
+    console.error(
+      "[stripe] test/live key mode mismatch:",
+      check.mismatches.map((m) => `${m.name}=${m.mode}`).join(", "),
+    );
+  }
+  return process.env.NODE_ENV !== "production";
+}
 
 export function isStripeConfigured(): boolean {
   return !!process.env.STRIPE_SECRET_KEY;
@@ -25,6 +41,7 @@ let _stripe: Stripe | null = null;
  */
 export function getStripe(): Stripe | null {
   if (!process.env.STRIPE_SECRET_KEY) return null;
+  if (!keyModesAllowClient()) return null;
   if (!_stripe) {
     _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
       // Stripe 22.x API version — pin to the version shipped with this SDK.
@@ -48,6 +65,7 @@ let _stripeMx: Stripe | null = null;
 /** Mexico platform client, or null when STRIPE_MX_SECRET_KEY is unset. */
 export function getStripeMx(): Stripe | null {
   if (!process.env.STRIPE_MX_SECRET_KEY) return null;
+  if (!keyModesAllowClient()) return null;
   if (!_stripeMx) {
     _stripeMx = new Stripe(process.env.STRIPE_MX_SECRET_KEY, {
       apiVersion: "2026-04-22.dahlia",
