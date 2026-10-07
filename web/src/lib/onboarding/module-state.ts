@@ -12,21 +12,12 @@
 
 export type OnboardingIntent = "talent" | "business" | "unknown";
 
+import { isOnboardingChoice, type OnboardingChoice } from "./choice";
+
 export type OnboardingPath = "talent" | "business" | "both";
 
-/** The 1B "How do you work?" answer. Stored as `choice` in module state. */
-export type OnboardingChoice = "myself" | "studio" | "both";
-export const ONBOARDING_CHOICES: readonly OnboardingChoice[] = ["myself", "studio", "both"];
-export function isOnboardingChoice(v: unknown): v is OnboardingChoice {
-  return typeof v === "string" && (ONBOARDING_CHOICES as readonly string[]).includes(v);
-}
-/**
- * Until `provisionForChoice` (feat/onboarding-1a-choices) lands, the choice
- * rides the existing path field: myself = talent, studio = business, both = both.
- */
-export function choiceToPath(choice: OnboardingChoice): OnboardingPath {
-  return choice === "myself" ? "talent" : choice === "studio" ? "business" : "both";
-}
+/** The 1B "How do you work?" answer: the contract lives in `choice.ts` (1A). */
+export { ONBOARDING_CHOICES, choiceToPath, isOnboardingChoice, type OnboardingChoice } from "./choice";
 /** The intent the understand step reads: a studio or a hybrid is business-shaped. */
 export function choiceToIntent(choice: OnboardingChoice): OnboardingIntent {
   return choice === "myself" ? "talent" : "business";

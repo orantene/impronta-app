@@ -1747,7 +1747,7 @@
   },
   "src/lib/server-actions/talent-workspace-provision.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 8
+      "count": 7
     }
   },
   "src/lib/server-actions/team-management.ts": {
