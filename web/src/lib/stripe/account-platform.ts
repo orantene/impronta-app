@@ -1,4 +1,5 @@
 import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { StripeAccountKey } from "./client";
 
@@ -19,5 +20,25 @@ export async function loadAccountPlatform(
     .eq(match.column, match.value)
     .maybeSingle();
   if (error || !data) return "us";
+  return (data as { stripe_account_platform?: string }).stripe_account_platform === "mx" ? "mx" : "us";
+}
+
+/**
+ * Fail-closed variant for NEW charges: returns null on a missing client, read
+ * error or missing row instead of defaulting to 'us', so a DB failure can never
+ * route an MX seller's charge to the US platform.
+ */
+export async function loadAccountPlatformStrict(
+  table: "talent_profiles" | "agencies",
+  match: { column: "id" | "slug"; value: string },
+  sb: SupabaseClient | null = createServiceRoleClient(),
+): Promise<StripeAccountKey | null> {
+  if (!sb) return null;
+  const { data, error } = await sb
+    .from(table)
+    .select("stripe_account_platform")
+    .eq(match.column, match.value)
+    .maybeSingle();
+  if (error || !data) return null;
   return (data as { stripe_account_platform?: string }).stripe_account_platform === "mx" ? "mx" : "us";
 }

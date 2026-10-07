@@ -208,6 +208,7 @@ export async function createOrGetTalentConnectedAccount(
   // 4. Create the Express account in the payee's country, on the platform the
   //    router picks (MX sellers on the Mexico platform; USDC stays US).
   const platform = resolveStripeAccountForSeller({ payoutCountry: country });
+  if (!platform) return { ok: false, error: "Mexico payments are not configured yet." };
   const stripe = getStripeFor(platform);
   if (!stripe) return { ok: false, error: "Stripe client unavailable." };
   let account: Stripe.Account;

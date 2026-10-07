@@ -84,8 +84,15 @@ export async function createPaymentIntentForTransaction(
 
     // The seller of record's platform decides which Stripe account takes the
     // charge (default 'us' = unchanged behaviour).
-    const platform =
-      deps.platform ?? (deps.stripe !== undefined ? "us" : await resolveSellerPlatformForTransaction(input.transactionId));
+    let platform: StripeAccountKey;
+    if (deps.platform) platform = deps.platform;
+    else if (deps.stripe !== undefined) platform = "us";
+    else {
+      const resolved = await resolveSellerPlatformForTransaction(input.transactionId);
+      // Fail closed: never guess a platform (TUL-142).
+      if (!resolved.ok) return { ok: false, error: "Payments for this seller are not available right now." };
+      platform = resolved.key;
+    }
     const stripe = deps.stripe !== undefined ? deps.stripe : getStripeFor(platform);
     const publishableKey =
       platform === "mx" ? getStripeMxPublishableKey() : (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? null);
