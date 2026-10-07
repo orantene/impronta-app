@@ -6,6 +6,7 @@ import {
   assertProfileCode,
   assertSiteSlug,
   diffLeaves,
+  findAnchors,
   flatten,
   parseArgs,
   run,
@@ -288,4 +289,26 @@ test("a failed cache bust is a warning; the publish stands", async () => {
   assert.equal(r.status, "published");
   assert.equal(r.exitCode, 0);
   assert.match(f.logs.join("\n"), /WARN: cache not cleared/);
+});
+
+test("the hero lede is anchored by path even when the page has many other paragraphs (dry-run refusal regression)", () => {
+  const extra = (n: number) => ({ id: `p${n}`, kind: "paragraph", props: { text: `Parrafo ${n}` } });
+  const published = clone(PUBLISHED_HOME) as any[];
+  published[0].children.push(extra(1), extra(2));
+  published.splice(1, 0, { id: "about", kind: "section", props: {}, children: [extra(3), extra(4)] });
+  const draft = clone(published) as any[];
+  const lede = draft[0].children[1];
+  lede.props.text = "Lashista en Playa del Carmen";
+  lede.props.i18n = { es: { text: "Lashista en Playa del Carmen" }, en: { text: "Lash artist in Playa del Carmen" } };
+  delete lede.props.liveText;
+  const a = findAnchors(published, draft);
+  assert.equal(a.lede, "[0].children[1]");
+  // If the draft node at that path is not a paragraph, nothing is approved.
+  const broken = clone(draft) as any[];
+  broken[0].children[1] = { id: "lede", kind: "button", props: { label: "x" } };
+  assert.equal(findAnchors(published, broken).lede, null);
+  // A different node id at the same path is not the same node.
+  const swapped = clone(draft) as any[];
+  swapped[0].children[1].id = "other";
+  assert.equal(findAnchors(published, swapped).lede, null);
 });

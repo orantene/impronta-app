@@ -163,8 +163,35 @@ function anchor(published: unknown, draft: unknown, pred: (n: Node) => boolean, 
 
 export interface Anchors { headline: string | null; lede: string | null; marquee: string | null }
 
+/** The node at a `[0].children[1]...` path, or null. */
+function nodeAt(nodes: unknown, path: string): Node | null {
+  const idx = [...path.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1]));
+  let list: unknown = nodes;
+  let node: Node | null = null;
+  for (const i of idx) {
+    if (!Array.isArray(list) || !list[i] || typeof list[i] !== "object") return null;
+    node = list[i] as Node;
+    list = node.children;
+  }
+  return node;
+}
+
+/**
+ * The hero lede: exactly ONE published hero-lede paragraph, and the node at that very
+ * path in the draft must be a paragraph with the same id (when both carry one). The
+ * draft side is looked up BY PATH, never by "any paragraph" (a page has many).
+ */
+function ledeAnchor(published: unknown, draft: unknown): string | null {
+  const p = findPaths(published, isHeroLede);
+  if (p.length !== 1) return null;
+  const at = nodeAt(draft, p[0]!.path);
+  if (!at || at.kind !== "paragraph") return null;
+  if (p[0]!.node.id !== undefined && at.id !== undefined && p[0]!.node.id !== at.id) return null;
+  return p[0]!.path;
+}
+
 export function findAnchors(published: unknown, draft: unknown): Anchors {
-  const lede = anchor(published, draft, isHeroLede, (n) => n.kind === "paragraph");
+  const lede = ledeAnchor(published, draft);
   return {
     headline: anchor(published, draft, isH1),
     // The draft-side match is by kind only; require it to be the very node found in the published tree.
