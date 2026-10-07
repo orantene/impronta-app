@@ -136,11 +136,12 @@ test("TUL-90: every surface resolves her address through the one helper", () => 
   const fallback = read("src/app/%5Fhost-unregistered/page.tsx");
   assert.equal(fallback.includes("talent agency"), false);
   const wave2 = read("src/components/admin/shell/internal/wave2.tsx");
-  assert.match(wave2, /copy\.t\("Publish your profile first to get a public link"\)/);
+  assert.match(wave2, /copyTalentOwnPublicLink/);
+  assert.match(read("src/lib/talent/public-profile-href.ts"), /t\("Publish your profile first to get a public link"\)/);
 });
 
 test("TUL-90: new copy exists in es and says public page, not roster", () => {
-  const i18n = readFileSync(join(process.cwd(), "src/components/admin/shell/internal/dashboard-i18n.ts"), "utf8");
+  const i18n = readFileSync(join(process.cwd(), "src/components/admin/shell/internal/dashboard-i18n-talent-editors.ts"), "utf8");
   for (const key of [
     "Your public page is live",
     "Your public page is not published yet",

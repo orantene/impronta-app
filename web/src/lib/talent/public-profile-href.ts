@@ -154,3 +154,25 @@ function isHubProfileHref(href: string, profileCode: string): boolean {
     return false;
   }
 }
+
+/** TUL-90: onboarding "Copy your public link": her own live address only, never a sample slug. */
+export function copyTalentOwnPublicLink(
+  self: { profileCode: string; workflowStatus: string; isPubliclyHidden: boolean } | null | undefined,
+  toast: (message: string) => void,
+  t: (key: string) => string,
+): void {
+  const own = self
+    ? resolveTalentOwnPageState({
+        profileCode: self.profileCode,
+        workflowStatus: self.workflowStatus,
+        isPubliclyHidden: self.isPubliclyHidden,
+        currentOrigin: typeof window === "undefined" ? null : window.location.origin,
+      })
+    : null;
+  if (own && !own.live) {
+    toast(t("Publish your profile first to get a public link"));
+    return;
+  }
+  navigator.clipboard?.writeText(own?.href ?? "https://tulala.digital/t/marta-reyes");
+  toast("Public link copied to clipboard");
+}
