@@ -139,3 +139,28 @@ test("A1: stripNonDefaultLocalePrefix + isDashboardInnerPathForLocalePrefix toge
     );
   }
 });
+
+// ── TUL-117 C1-02 — auth pages follow the browser when nobody chose a language ──
+function reqWith(path: string, headers: Record<string, string>) {
+  return new NextRequest(new URL(`https://example.test${path}`), { headers: new Headers(headers) });
+}
+
+test("TUL-117: /login with no cookie and a Spanish browser renders Spanish", () => {
+  const r = reqWith("/login", { "accept-language": "es-MX,es;q=0.9" });
+  assert.equal(resolveLocaleForPathname("/login", r, S), "es");
+});
+
+test("TUL-117: /register with an auto-written en cookie and Mexico renders Spanish", () => {
+  const r = reqWith("/register", { cookie: "locale=en; locale_auto=1", "x-vercel-ip-country": "MX" });
+  assert.equal(resolveLocaleForPathname("/register", r, S), "es");
+});
+
+test("TUL-117: a deliberate en cookie still wins on /login", () => {
+  const r = reqWith("/login", { cookie: "locale=en", "accept-language": "es-MX" });
+  assert.equal(resolveLocaleForPathname("/login", r, S), "en");
+});
+
+test("TUL-117: dashboards are untouched (cookie or default only)", () => {
+  const r = reqWith("/talent/today", { "accept-language": "es-MX" });
+  assert.equal(resolveLocaleForPathname("/talent/today", r, S), "en");
+});
