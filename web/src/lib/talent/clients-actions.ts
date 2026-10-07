@@ -1,5 +1,6 @@
 "use server";
 
+import { isDeadBookingStatus } from "@/lib/money/money-rules";
 import { loadLedgerPaidByBooking } from "@/lib/bookings/ledger-paid";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -121,7 +122,7 @@ export async function loadTalentClients(
         ? leg.agency_bookings[0]
         : leg.agency_bookings;
       if (!booking) continue;
-      if (booking.status === "cancelled") continue;
+      if (isDeadBookingStatus(booking.status as string | null)) continue;
       const name = (booking.contact_name as string | null)?.trim() || "Client";
       const start = (booking.starts_at as string | null) ?? null;
       // total_client_revenue / client_charge_total are major units; deposit is cents.

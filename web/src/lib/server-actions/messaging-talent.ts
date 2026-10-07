@@ -22,6 +22,7 @@ import {
   talentIsSeller,
   talentReplyThread,
 } from "@/lib/messaging/talent-pov";
+import { filterQaFixtureInboxRows } from "@/lib/messages-v5/qa-fixture-row";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { loadMessagingThread } from "@/lib/messaging/thread";
 import type { InboxFilter } from "@/lib/messaging/types";
@@ -51,8 +52,16 @@ export async function messagingTalentLoadInbox(input: { locationSlug: string; fi
   if (!inbox.ok) return inbox;
   // Her own hub sales are hers; every other tenant's thread is an agency's.
   const hub = await getPlatformHubTenant();
-  const rows = inbox.rows.map((row) => ({ ...row, agency: !talentIsSeller(row.tenantId, hub?.tenantId ?? null) }));
-  return { ...inbox, rows };
+  let rows = inbox.rows.map((row) => ({ ...row, agency: !talentIsSeller(row.tenantId, hub?.tenantId ?? null) }));
+  let unreadCount = inbox.unreadCount;
+  // Live talents: hide agent/journey fixture threads from the inbox. Demo
+  // talents keep them — that account is the fixture surface for QA.
+  if (!actor.isDemo) {
+    const filtered = filterQaFixtureInboxRows(rows);
+    rows = filtered.rows;
+    unreadCount = filtered.unreadCount;
+  }
+  return { ...inbox, rows, unreadCount };
 }
 
 export async function messagingTalentLoadThread(input: { inquiryId: string }) {

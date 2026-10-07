@@ -3,7 +3,7 @@
 -- Run after core seeds + `npm run register:tulum-demo-talent` (links auth users).
 -- Apply via: `cd web && npm run seed:talent-my-site-qa`
 --
--- Accounts (password: Impronta-Tulum-Talent-2026! or TULUM_DEMO_TALENT_PASSWORD):
+-- Accounts (password: <redacted-qa-password> or TULUM_DEMO_TALENT_PASSWORD):
 --   Free Flow A: tulum-talent-sofia@impronta.test  → TAL-92001 (talent_basic)
 --   Pro Flow B:  tulum-talent-carmen@impronta.test → TAL-92002 (talent_pro)
 --   Max Flow C:  qa-talent-dashboard-audit@impronta.test → TAL-93941 (talent_portfolio)

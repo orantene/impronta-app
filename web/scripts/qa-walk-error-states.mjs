@@ -55,8 +55,8 @@ async function main() {
   }
   console.log(`Test inquiry: ${inq.id.slice(0, 8)}…  status=${inq.status}  version=${inq.version}\n`);
 
-  const coord = await asSession("qa-client-2@impronta.test", "Impronta-QA-Client-2026!");
-  const client = await asSession("qa-client-1@impronta.test", "Impronta-QA-Client-2026!");
+  const coord = await asSession("qa-client-2@impronta.test", (process.env.QA_CLIENT_PASSWORD?.trim() || (() => { throw new Error("QA_CLIENT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()));
+  const client = await asSession("qa-client-1@impronta.test", (process.env.QA_CLIENT_PASSWORD?.trim() || (() => { throw new Error("QA_CLIENT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()));
 
   // ─── 1. Stale version_conflict ────────────────────────────────────────────
   console.log("1. Stale version_conflict (expectedVersion = current-1)");

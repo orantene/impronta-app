@@ -44,3 +44,15 @@ test("talent arrival links to Today; both drafts the own page; an existing works
   assert.equal(ex.primary.href, "/el-paisa/admin");
   assert.equal(parseArrivalStamp({ outcome: "nope" }), null);
 });
+
+test("talent arrival with a published own site opens that URL; without one it is unchanged", () => {
+  const base = { path: "talent" as const, stamp: null, person: { name: "Rosa", city: null }, businessName: null, services: 0, site: null };
+  const live = arrivalFromStamp({ ...base, talent: { publicUrl: "https://tulala.digital/t/abc", todayUrl: "/talent/today", siteUrl: "https://rosa.tulala.digital" } });
+  assert.equal(live.siteLive, true);
+  assert.equal(live.primary.label, "open_my_site");
+  assert.equal(live.primary.href, "https://rosa.tulala.digital");
+  assert.equal(live.link?.display, "rosa.tulala.digital");
+  const none = arrivalFromStamp({ ...base, talent: { publicUrl: "https://tulala.digital/t/abc", todayUrl: "/talent/today", siteUrl: null } });
+  assert.equal(none.siteLive, undefined);
+  assert.equal(none.primary.label, "finish_my_page");
+});

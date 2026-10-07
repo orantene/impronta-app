@@ -18,8 +18,6 @@ import { useT } from "@/i18n/use-t";
 import { itemsLabelForPreset } from "@/lib/messages-v5/context-view";
 import { duplicateHint } from "@/lib/messages-v5/duplicates";
 import { latestHoldExpiresAt } from "@/lib/messages-v5/hold-expiry-from-messages";
-import { messagingResolveOrderThread } from "@/lib/server-actions/messaging-engine";
-import { findConversationForOrder } from "@/lib/messages-v5/pos-continuity";
 import { applyInboxRowPatch, useMessagingInboxLive } from "@/lib/messages-v5/use-inbox-live";
 import { keepActiveRow } from "@/lib/messaging/inbox-search";
 import { isGeneratedName } from "@/lib/messaging/inquiry-name-pure";
@@ -48,6 +46,8 @@ import { Thread, ThreadEmpty, type ThreadMenuItem } from "../screens/Thread";
 import { liveShellEngine, type ShellEngine } from "./engine";
 import { contextPlacement, layoutForWidth, shellClassName, variantForLayout, type MobilePane, type ShellLayout } from "./layout";
 import { AssignSheet, LinkSheet, LostSheet, NewConversationSheet } from "./ShellSheets";
+import { useAutoSelectThread } from "./use-auto-select-thread";
+import { useOrderDeepLink } from "./use-order-deep-link";
 import { useStaffInquiryPresence } from "./use-staff-inquiry-presence";
 
 const SEGMENT_FILTER: Record<InboxSegment, InboxFilter> = { needs: "needs_reply", wait: "awaiting_customer", all: "all" };
@@ -66,7 +66,7 @@ export type MessagesV5ShellProps = {
   readonly tenantSlug: string;
   readonly locationSlug?: string;
   readonly currentUserId: string | null;
-  /** "talent" workspaces see "Talent & services"; everything else sees "Items" (fallback when `industryPreset` is absent). */
+  /** "talent" workspaces fall back to "Services"; everything else sees "Items" (when `industryPreset` is absent). */
   readonly workspaceType?: string | null;
   /** `agencies.settings.industry_preset` when the mount knows it: L3's finer Items label (Talent & services / Services / Order items / Menu, D-MSG-90). */
   readonly industryPreset?: unknown;
@@ -299,36 +299,24 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     openThread(id);
   }, [openThread]);
 
-  const orderRef = useRef<string | null>(props.initialInquiryId ? null : props.initialOrderId ?? null);
-  // Fast path: the order already has a chip on a loaded row.
-  useEffect(() => {
-    const orderId = orderRef.current;
-    if (!orderId) return;
-    const id = findConversationForOrder(rows, orderId);
-    if (!id) return;
-    orderRef.current = null;
-    openThread(id);
-  }, [rows, openThread]);
+  useAutoSelectThread({
+    activeId,
+    inboxLoading,
+    inboxError,
+    rows,
+    layout,
+    seller: Boolean(props.seller),
+    skip: Boolean(props.initialInquiryId || props.initialOrderId),
+    openThread,
+  });
 
-  // D-MSG-343: the server resolve must NOT depend on `rows`. Keyed on rows it
-  // re-ran on every inbox patch and its cleanup aborted the in-flight action
-  // (visible as repeated ERR_ABORTED POSTs), so the deep link never opened -
-  // cancelled by exactly the row churn it exists to bypass. One shot, guarded
-  // by a ref, no cleanup: whichever path resolves first clears `orderRef`.
-  const orderResolveStarted = useRef(false);
-  useEffect(() => {
-    const orderId = orderRef.current;
-    if (!orderId || orderResolveStarted.current || props.live === false) return;
-    orderResolveStarted.current = true;
-    void (async () => {
-      const res = await messagingResolveOrderThread({ orderId });
-      if (orderRef.current !== orderId) return;
-      const resolved = res.ok ? res.inquiryId : null;
-      if (!resolved) return;
-      orderRef.current = null;
-      openThread(resolved);
-    })();
-  }, [openThread, props.live]);
+  useOrderDeepLink({
+    initialInquiryId: props.initialInquiryId,
+    initialOrderId: props.initialOrderId,
+    rows,
+    live: props.live,
+    openThread,
+  });
 
   useMessagingInboxLive({
     tenantId: props.live === false ? null : props.tenantId,
@@ -406,7 +394,16 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       paymentIssue: failed ? "failed" : expired ? "expired" : null,
     }), copy.kit.taskWords);
   }, [activeRow, copy.kit.taskWords, essentials?.customer.identityLevel, holdExpiresAt, recordChips]);
-  const itemsLabel = props.industryPreset !== undefined ? itemsLabelForPreset(props.industryPreset, copy.kit) : props.workspaceType === "talent" ? copy.shell.itemsTalent : copy.shell.itemsGeneric;
+  // Solo talent fallback is Services (beauty/salon appointments), not the
+  // agency "Talent & services" label — that only applies when a preset says so.
+  const itemsLabel =
+    props.industryPreset !== undefined && props.industryPreset !== null
+      ? itemsLabelForPreset(props.industryPreset, copy.kit)
+      : props.workspaceType === "talent"
+        ? copy.kit.panel.items.services
+        : props.industryPreset === null
+          ? itemsLabelForPreset(null, copy.kit)
+          : copy.shell.itemsGeneric;
   const counts = useMemo(() => ({ [segment]: rows.length }) as Partial<Record<InboxSegment, number>>, [segment, rows.length]);
 
   /* ------------------------------------------------------------ actions */

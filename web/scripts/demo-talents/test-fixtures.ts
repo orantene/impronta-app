@@ -10,6 +10,7 @@ import { FakeDb, fakeClient } from "./test-fake-supabase";
 
 export const HUB = "hub-tenant-1";
 /** A throwaway password that exists only inside the tests. */
+// secret-scan:allow: unit-test fixture, no real account
 export const PW = "Throwaway-Pass-1234";
 
 export function svc(over: Partial<FoundationService> = {}): FoundationService {

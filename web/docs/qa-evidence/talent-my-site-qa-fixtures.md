@@ -15,8 +15,8 @@ SQL source: `supabase/seed_talent_my_site_qa.sql`
 
 | Flow | Email | Password | Plan | Profile code |
 |------|-------|----------|------|----------------|
-| A Free | `tulum-talent-sofia@impronta.test` | `Impronta-Tulum-Talent-2026!` | `talent_basic` | `TAL-92001` |
-| B Pro | `tulum-talent-carmen@impronta.test` | `Impronta-Tulum-Talent-2026!` | `talent_pro` | `TAL-92002` |
+| A Free | `tulum-talent-sofia@impronta.test` | `<redacted-qa-password>` | `talent_basic` | `TAL-92001` |
+| B Pro | `tulum-talent-carmen@impronta.test` | `<redacted-qa-password>` | `talent_pro` | `TAL-92002` |
 | C Max | `qa-talent-dashboard-audit@impronta.test` | (see reference QA creds) | `talent_portfolio` | `TAL-93941` |
 
 Do **not** use `qa-admin@impronta.test` for talent-surface My Site QA — `app_role=super_admin` redirects to the admin workspace.

@@ -35,7 +35,8 @@ export function deriveBookingState(input: {
     return "hold";
   }
   const s = (input.status ?? "").toLowerCase();
-  if (s === "cancelled" || s === "canceled") return "cancelled";
+  if (s === "cancelled" || s === "canceled" || s === "void" || s === "voided" || s === "declined" || s === "rejected" || s === "refunded") return "cancelled";
+  if (s === "expired") return "hold_expired";
   if (s === "completed") return "completed";
   if (s === "no_show" || s === "no-show") return "no_show";
   if (s === "confirmed" || s === "in_progress" || s === "tentative") return "confirmed";

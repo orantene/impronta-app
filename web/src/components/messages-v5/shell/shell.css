@@ -42,7 +42,31 @@
 .msgv5 .pane.thread .stream { scroll-behavior: smooth; }
 .msgv5 .pane.panel { overflow: auto; }
 .msgv5 .pane.inbox .ib-head .row .btn { margin-left: 6px; }
-.msgv5 .thread-empty { flex: 1; display: flex; align-items: center; justify-content: center; }
+.msgv5 .thread-empty { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.msgv5 .thread-empty .empty { max-width: 320px; }
+.msgv5 .ib-waiting { margin: 0; font-size: 12.5px; color: var(--msgv5-ink-2); }
+.msgv5 .chip .needs-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--msgv5-rose, #d4536a);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.msgv5 [data-inbox-seller-filters] .chip.on:has(.needs-dot),
+.msgv5 [data-inbox-seller-filters] .chip:has(.needs-dot) {
+  border-color: color-mix(in srgb, var(--msgv5-rose, #d4536a) 45%, var(--msgv5-line));
+}
+.msgv5 [data-inbox-seller-filters] .chip.on:has(.needs-dot) {
+  background: color-mix(in srgb, var(--msgv5-rose, #d4536a) 12%, var(--msgv5-white));
+  color: var(--msgv5-rose-ink, #9b2c40);
+  border: 1.5px solid var(--msgv5-rose, #d4536a);
+  font-weight: 700;
+}
+.msgv5 .row-c.needs .when.wait-age,
+.msgv5 .mx-row.needs .wait-age { color: var(--msgv5-rose-ink, #9b2c40); font-weight: 600; }
+.msgv5 .row-c.on { box-shadow: inset 3px 0 0 var(--msgv5-green); }
 .msgv5 .thread-loading { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; }
 .msgv5 .thread-loading .sk { display: block; height: 14px; border-radius: 7px; margin-bottom: 8px; }
 

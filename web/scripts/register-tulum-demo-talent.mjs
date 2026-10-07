@@ -22,7 +22,7 @@ if (!url || !serviceRoleKey) {
 }
 
 const defaultPassword =
-  process.env.TULUM_DEMO_TALENT_PASSWORD?.trim() || "Impronta-Tulum-Talent-2026!";
+  process.env.TULUM_DEMO_TALENT_PASSWORD?.trim() || (() => { throw new Error("TULUM_DEMO_TALENT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })();
 
 const ACCOUNTS = [
   {

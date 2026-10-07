@@ -25,6 +25,7 @@ import {
   type MoneyAgendaRow,
   type MoneyMethodBucket,
 } from "@/lib/talent/money-home";
+import { formatMonthLabel, monthKeyInZone } from "@/lib/money/money-rules";
 import { refundOwnBookingPayment } from "@/lib/talent-agenda";
 import { AgendaPanelFrame } from "@/components/admin/shell/internal/talent/agenda/AgendaPanelFrame";
 import { MoneyRecordPaymentPanel } from "./MoneyRecordPaymentPanel";
@@ -55,21 +56,8 @@ function day(iso: string | null, locale: string): string {
   return d.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" });
 }
 
-function monthLabel(key: string, locale: string): string {
-  const d = new Date(`${key}-01T12:00:00`);
-  const label = d.toLocaleDateString(locale, { month: "long", year: "numeric" });
-  // Spanish locales often emit "octubre de 2026" or "Octubre de 2026". Never
-  // title-case the whole string (CSS capitalize turns "de" into "De").
-  if (!locale.toLowerCase().startsWith("es")) return label;
-  return label.replace(/^(\S+)\s+[Dd]e\s+(\d+)/, (_m, mo: string, y: string) => {
-    const month = mo.charAt(0).toLocaleUpperCase(locale) + mo.slice(1).toLocaleLowerCase(locale);
-    return `${month} de ${y}`;
-  });
-}
-
 function currentMonthKey(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return monthKeyInZone(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone);
 }
 
 const METHOD_LABEL: Record<MoneyMethodBucket, string> = {
@@ -199,7 +187,7 @@ function MoneyHomePane(props: {
         >
           {months.map((m) => (
             <option key={m} value={m}>
-              {monthLabel(m, locale)}
+              {formatMonthLabel(m, locale)}
             </option>
           ))}
         </select>

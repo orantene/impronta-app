@@ -19,6 +19,8 @@ export type TalentActor = {
   ok: true;
   userId: string;
   talentProfileId: string;
+  /** Demo/fixture talents keep journey threads in Messages; live talents hide them. */
+  isDemo: boolean;
   admin: SupabaseClient;
   supabase: SupabaseClient;
 };
@@ -34,13 +36,15 @@ export async function loadTalentActor(): Promise<TalentActor | { ok: false; reas
   if (!user) return fail("not_allowed");
   const admin = createServiceRoleClient();
   if (!admin) return fail("unavailable");
-  const { data, error } = await admin.from("talent_profiles").select("id").eq("user_id", user.id).maybeSingle();
+  const { data, error } = await admin.from("talent_profiles").select("id, is_demo").eq("user_id", user.id).maybeSingle();
   if (error) return fail("unavailable");
   if (!data) return fail("not_allowed");
+  const row = data as { id: string; is_demo?: boolean | null };
   return {
     ok: true,
     userId: user.id,
-    talentProfileId: (data as { id: string }).id,
+    talentProfileId: row.id,
+    isDemo: row.is_demo === true,
     admin,
     supabase,
   };

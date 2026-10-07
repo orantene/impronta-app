@@ -46,8 +46,17 @@ export function Inbox(props: InboxProps) {
   // Talent: her four filters (All, Needs reply, Quotes out, Agency) replace the staff segments and chips.
   const sellerFilters = sellerChrome?.filters ?? null;
   const [sellerFilter, setSellerFilter] = useState<SellerInboxFilter>("all");
+  const [sellerFilterTouched, setSellerFilterTouched] = useState(false);
   const sellerCounts = useMemo(() => sellerFilterCounts(rows), [rows]);
-  const waitingLine = sellerFilters && sellerChrome?.waitingOnYou && sellerCounts.needs > 0 ? fill(sellerChrome.waitingOnYou, { count: sellerCounts.needs }) : null;
+  // Default to Needs reply when she has waiting clients — strongest filter.
+  useEffect(() => {
+    if (!sellerFilters || sellerFilterTouched || loading) return;
+    if (sellerCounts.needs > 0) setSellerFilter("needs");
+  }, [loading, sellerCounts.needs, sellerFilterTouched, sellerFilters]);
+  const waitingLine =
+    sellerFilters && sellerChrome?.waitingOnYou && rows.length > 0
+      ? fill(sellerChrome.waitingOnYou, { total: rows.length, needs: sellerCounts.needs, count: sellerCounts.needs })
+      : null;
 
   const segmentRows = useMemo(() => (sellerFilters ? rowsForSellerFilter(rows, sellerFilter) : rowsForSegment(rows, filter, now)), [rows, filter, now, sellerFilters, sellerFilter]);
   const chipFilteredRows = useMemo(() => applyInboxFilters(segmentRows, chips, { currentUserId }), [segmentRows, chips, currentUserId]);
@@ -122,8 +131,21 @@ export function Inbox(props: InboxProps) {
       <div className="pane inbox mx" data-inbox-pane="mobile">
         <div className="mx-ih">
           <h1>{title}</h1>
-          {waitingLine && !firstRun ? <p data-inbox-waiting style={{ margin: 0, fontSize: 12.5, color: "var(--msgv5-ink-2)" }}>{waitingLine}</p> : null}
-          {firstRun ? null : sellerFilters ? <SellerFilters labels={sellerFilters} counts={sellerCounts} value={sellerFilter} onChange={setSellerFilter} variant="mobile" /> : <InboxSegments value={filter} counts={segmentCounts} copy={copy} variant="mobile" onChange={onFilter} />}
+          {waitingLine && !firstRun ? <p data-inbox-waiting className="ib-waiting">{waitingLine}</p> : null}
+          {firstRun ? null : sellerFilters ? (
+            <SellerFilters
+              labels={sellerFilters}
+              counts={sellerCounts}
+              value={sellerFilter}
+              onChange={(next) => {
+                setSellerFilterTouched(true);
+                setSellerFilter(next);
+              }}
+              variant="mobile"
+            />
+          ) : (
+            <InboxSegments value={filter} counts={segmentCounts} copy={copy} variant="mobile" onChange={onFilter} />
+          )}
           {firstRun ? null : <div className="tools">
             <div className="mx-search">
               <Icon name="search" size={16} />
@@ -160,15 +182,29 @@ export function Inbox(props: InboxProps) {
       <div className="ib-head">
         <div className="row">
           <h2>{title}</h2>
-          {firstRun ? null : <span className="cnt-txt">{fill(rows.length === 1 ? copy.inbox.threadsOne : copy.inbox.threads, { count: rows.length })}</span>}
+          {/* Seller waiting line already carries the conversation count. */}
+          {firstRun || waitingLine ? null : <span className="cnt-txt">{fill(rows.length === 1 ? copy.inbox.threadsOne : copy.inbox.threads, { count: rows.length })}</span>}
           <Btn size="sm" icon="plus" iconSize={13} onClick={onNew}>
             {sellerChrome?.newConversation ?? copy.inbox.newConversation}
           </Btn>
         </div>
         {firstRun ? null : (
           <>
-            {waitingLine ? <p data-inbox-waiting style={{ margin: 0, fontSize: 12.5, color: "var(--msgv5-ink-2)" }}>{waitingLine}</p> : null}
-            {sellerFilters ? <SellerFilters labels={sellerFilters} counts={sellerCounts} value={sellerFilter} onChange={setSellerFilter} variant="desktop" /> : <InboxSegments value={filter} counts={segmentCounts} copy={copy} variant="desktop" onChange={onFilter} />}
+            {waitingLine ? <p data-inbox-waiting className="ib-waiting">{waitingLine}</p> : null}
+            {sellerFilters ? (
+              <SellerFilters
+                labels={sellerFilters}
+                counts={sellerCounts}
+                value={sellerFilter}
+                onChange={(next) => {
+                  setSellerFilterTouched(true);
+                  setSellerFilter(next);
+                }}
+                variant="desktop"
+              />
+            ) : (
+              <InboxSegments value={filter} counts={segmentCounts} copy={copy} variant="desktop" onChange={onFilter} />
+            )}
             <div className="search">
               <Icon name="search" size={14} />
               <input type="search" value={search} placeholder={copy.inbox.search} aria-label={copy.inbox.search} onChange={(e) => onSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onSearchSubmit?.(search); }} />
@@ -192,12 +228,24 @@ function SellerFilters({ labels, counts, value, onChange, variant }: {
   const keys: readonly SellerInboxFilter[] = ["all", "needs", "quotes", "agency"];
   return (
     <div className={variant === "mobile" ? "mx-chips" : "chips"} role="group" data-inbox-seller-filters>
-      {keys.map((key) => (
-        <Chip key={key} soft on={value === key} onClick={() => onChange(key)}>
-          {labels[key]}
-          {key !== "all" && counts[key] > 0 ? ` · ${counts[key]}` : ""}
-        </Chip>
-      ))}
+      {keys.map((key) => {
+        const urgent = key === "needs" && counts.needs > 0;
+        const secondary = key !== "needs" && key !== "all";
+        return (
+          <Chip
+            key={key}
+            soft={!urgent}
+            on={value === key}
+            off={secondary && value !== key}
+            onClick={() => onChange(key)}
+            ariaLabel={urgent ? `${labels[key]} · ${counts.needs}` : undefined}
+          >
+            {urgent ? <i className="needs-dot" aria-hidden="true" /> : null}
+            {labels[key]}
+            {key !== "all" && counts[key] > 0 ? ` · ${counts[key]}` : ""}
+          </Chip>
+        );
+      })}
     </div>
   );
 }

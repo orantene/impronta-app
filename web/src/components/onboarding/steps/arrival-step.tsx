@@ -21,7 +21,8 @@ export function ArrivalStep({ t, arrival }: { t: (key: string) => string; arriva
   if (arrival.fact.photos) facts.push(t("public.onboarding.arrival.factPhotos"));
 
   const sub =
-    arrival.variant === "talent" ? t("public.onboarding.arrival.talentSub")
+    arrival.siteLive ? t("public.onboarding.arrival.talentLiveSub")
+    : arrival.variant === "talent" ? t("public.onboarding.arrival.talentSub")
     : arrival.variant === "both" ? t("public.onboarding.arrival.bothSub").replace("{business}", arrival.businessName ?? "")
     : arrival.variant === "business" ? t("public.onboarding.arrival.businessSub").replace("{business}", arrival.businessName ?? "")
     : arrival.variant === "existing_workspace" ? t("public.onboarding.arrival.existingSub")
@@ -30,13 +31,16 @@ export function ArrivalStep({ t, arrival }: { t: (key: string) => string; arriva
     : arrival.fallbackReason === "failed" ? t("public.onboarding.arrival.fallbackSub")
     : t("public.onboarding.arrival.businessSub").replace("{business}", arrival.businessName ?? "");
   const cta =
-    arrival.primary.label === "finish_my_page" ? t("public.onboarding.arrival.finishMyPage")
+    arrival.primary.label === "open_my_site" ? t("public.onboarding.arrival.openMySite")
+    : arrival.primary.label === "finish_my_page" ? t("public.onboarding.arrival.finishMyPage")
     : arrival.primary.label === "open_my_website" ? t("public.onboarding.arrival.openMyWebsite")
     : t("public.onboarding.arrival.openMyWorkspace");
 
   const business = arrival.variant === "business" || arrival.variant === "both" || arrival.variant === "fallback";
   const title = arrival.variant === "talent" ? t("public.onboarding.arrival.readyTalent") : business ? t("public.onboarding.arrival.readyBusiness") : t("public.onboarding.arrival.youreIn");
-  const nextSteps = business
+  const nextSteps = arrival.siteLive
+    ? [t("public.onboarding.arrival.nextTalentLive"), t("public.onboarding.arrival.nextTalentPhotos"), t("public.onboarding.arrival.nextTalentBio")]
+    : business
     ? [t("public.onboarding.arrival.nextVisit"), t("public.onboarding.arrival.nextCustomize"), t("public.onboarding.arrival.nextPhotos"), t("public.onboarding.arrival.nextDomain"), t("public.onboarding.arrival.nextPremium")]
     : [t("public.onboarding.arrival.nextTalentPhotos"), t("public.onboarding.arrival.nextTalentBio"), t("public.onboarding.arrival.nextTalentShare")];
 
@@ -91,9 +95,16 @@ export function ArrivalStep({ t, arrival }: { t: (key: string) => string; arriva
             </a>
           </>
         ) : (
-          <a href={arrival.primary.href} data-testid="onb-arrival-cta" className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold" style={{ background: "var(--tl-forest)", color: "var(--tl-forest-on)" }}>
-            {cta}
-          </a>
+          <>
+            <a href={arrival.primary.href} {...(arrival.siteLive ? { target: "_blank", rel: "noreferrer" } : {})} data-testid="onb-arrival-cta" className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold" style={{ background: "var(--tl-forest)", color: "var(--tl-forest-on)" }}>
+              {cta}
+            </a>
+            {arrival.siteLive ? (
+              <a href={arrival.finishHref ?? "/talent/today"} data-testid="onb-arrival-finish" className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline-strong)" }}>
+                {t("public.onboarding.arrival.finishMyPage")}
+              </a>
+            ) : null}
+          </>
         )}
       </div>
 

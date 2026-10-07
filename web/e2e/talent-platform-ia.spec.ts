@@ -4,16 +4,16 @@
  *   PLAYWRIGHT_BASE_URL=https://app.tulala.digital npx playwright test e2e/talent-platform-ia.spec.ts
  *
  * Credentials (Impronta QA fixtures):
- *   QA audit talent: qa-talent-dashboard-audit@impronta.test / Impronta-QA-Talent-2026!
- *   Tulum talent:    tulum-talent-sofia@impronta.test / Impronta-Tulum-Talent-2026!
+ *   QA audit talent: qa-talent-dashboard-audit@impronta.test / <redacted-qa-password>
+ *   Tulum talent:    tulum-talent-sofia@impronta.test / <redacted-qa-password>
  */
 
 import { test, expect, type Page } from "@playwright/test";
 
 const QA_AUDIT_EMAIL = "qa-talent-dashboard-audit@impronta.test";
-const QA_AUDIT_PASSWORD = "Impronta-QA-Talent-2026!";
+const QA_AUDIT_PASSWORD = (process.env.QA_AUDIT_PASSWORD?.trim() || (() => { throw new Error("QA_AUDIT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })());
 const SOFIA_EMAIL = "tulum-talent-sofia@impronta.test";
-const SOFIA_PASSWORD = "Impronta-Tulum-Talent-2026!";
+const SOFIA_PASSWORD = (process.env.QA_TALENT_PASSWORD?.trim() || (() => { throw new Error("QA_TALENT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })());
 const AUDIT_PROFILE_CODE = "TAL-93941";
 
 async function dismissAnalyticsIfPresent(page: Page) {

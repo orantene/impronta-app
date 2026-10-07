@@ -78,7 +78,7 @@ alter table public.inquiry_messages
 ### qaDriveRecipe
 **Prerequisites:**
 - Stripe sandbox acct_1ThlEN7Oqi82ykAI, `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
-- Sign in as qa-admin 4b9e595d (pw Impronta-QA-Admin-2026!)
+- Sign in as qa-admin 4b9e595d (pw <redacted-qa-password>)
 - A converted booking with an approved offer that has `deposit_pct=30`, `balance_collection_method='request_in_messages'`, `total_client_price=$1000` → `deposit_amount_cents=30000`, `gross_amount_cents=103000` (with surcharge).
 
 **Step 1 — Set up offer with deposit:**
@@ -356,7 +356,7 @@ SETUP (run once, before the drive):
    If on talent_pro/portfolio from a prior test, call removeTalentPlanOverride('878cb63f-...') from the admin UI or directly via:
      node -e "require('./web/src/app/(workspace)/platform/admin/users/actions-billing').removeTalentPlanOverride('878cb63f-...')"
 
-STEP 1 — Grant the trial (simulate: sign in as qa-admin 4b9e595d, pw Impronta-QA-Admin-2026!):
+STEP 1 — Grant the trial (simulate: sign in as qa-admin 4b9e595d, pw <redacted-qa-password>):
 Method A — UI: open /platform/admin/users, find Sofía, expand Billing & Subscriptions, click "Apply plan override", pick:
   - Plan: Pro (talent_pro)
   - Grant type: Trial

@@ -14,7 +14,7 @@
  *
  * Optional (fall back to QA defaults):
  *   QA_ADMIN_EMAIL    (default: qa-admin@impronta.test)
- *   QA_ADMIN_PASSWORD (default: Impronta-QA-Admin-2026!)
+ *   QA_ADMIN_PASSWORD (no default; set via env)
  *   QAX_INQUIRY_IDS   (comma-separated UUIDs; default: loaded from .qa-xtenant-ids.json)
  *
  * Run:  npx tsx --test src/lib/billing/commission-pipeline.integration.test.ts
@@ -69,7 +69,7 @@ const SUPABASE_URL = getEnv("NEXT_PUBLIC_SUPABASE_URL", dotenv);
 const ANON_KEY = getEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", dotenv);
 const SERVICE_ROLE_KEY = getEnv("SUPABASE_SERVICE_ROLE_KEY", dotenv);
 const QA_EMAIL = getEnv("QA_ADMIN_EMAIL", dotenv) ?? "qa-admin@impronta.test";
-const QA_PASSWORD = getEnv("QA_ADMIN_PASSWORD", dotenv) ?? "Impronta-QA-Admin-2026!";
+const QA_PASSWORD = getEnv("QA_ADMIN_PASSWORD", dotenv) ?? (() => { throw new Error("QA_ADMIN_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })();
 
 // QAX inquiry IDs — prefer env var, then .qa-xtenant-ids.json, then empty.
 function loadQaxIds(): string[] {

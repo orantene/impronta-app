@@ -8,6 +8,7 @@
 
 import type { TalentEarnings, TalentEarningsRow } from "./earnings-types";
 import type { TalentClientRow } from "./clients-merge";
+import { isDeadBookingStatus } from "@/lib/money/money-rules";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 
 export type MoneyMethodBucket = "card" | "cash" | "transfer" | "other";
@@ -235,12 +236,7 @@ export function agendaMoneyRows(
   const refundPending: MoneyAgendaRow[] = [];
   for (const item of items) {
     if (item.kind !== "booking" && item.kind !== "hold") continue;
-    if (
-      item.booking === "cancelled" ||
-      item.booking === "hold_expired" ||
-      item.booking === "no_show" ||
-      item.booking === "requested"
-    ) {
+    if (isDeadBookingStatus(item.booking) || item.booking === "requested") {
       // Cancelled still surfaces when money landed after cancel (refund pending).
       if (item.payment !== "refund_pending") continue;
     }
@@ -264,14 +260,7 @@ export function agendaMoneyRows(
       });
       continue;
     }
-    if (
-      item.booking === "cancelled" ||
-      item.booking === "hold_expired" ||
-      item.booking === "no_show" ||
-      item.booking === "requested"
-    ) {
-      continue;
-    }
+    if (isDeadBookingStatus(item.booking) || item.booking === "requested") continue;
     const unpaid = (item.money.paidCents ?? 0) === 0;
     const finishedUnpaid =
       item.booking === "completed" &&

@@ -1,6 +1,6 @@
 import { chromium } from "playwright";
 const BASE="http://localhost:3309", PAGE="/w/qa-agency-244988/p/wave2-canvas?edit=1";
-const SIGNIN=`${BASE}/api/dev/signin?email=qa-admin@impronta.test&password=${encodeURIComponent("Impronta-QA-Admin-2026!")}&next=${encodeURIComponent(PAGE)}`;
+const SIGNIN=`${BASE}/api/dev/signin?email=qa-admin@impronta.test&password=${encodeURIComponent((process.env.QA_ADMIN_PASSWORD?.trim() || (() => { throw new Error("QA_ADMIN_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()))}&next=${encodeURIComponent(PAGE)}`;
 const run=async()=>{const b=await chromium.launch({headless:true});const p=await b.newPage({viewport:{width:1600,height:1000}});
 p.setDefaultTimeout(90000);p.setDefaultNavigationTimeout(180000);
 await p.goto(SIGNIN,{waitUntil:"domcontentloaded"});
