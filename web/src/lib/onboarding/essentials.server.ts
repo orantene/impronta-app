@@ -14,7 +14,8 @@ import { logServerError } from "@/lib/server/safe-error";
 import { inviteRosterTalent } from "@/lib/server-actions/roster-invite";
 import { normalizeTenantAppointmentsSettings } from "@/lib/scheduling/appointments-settings-types";
 import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
-import { resolveHoursTenantId, resolveTalentTimezone } from "@/lib/scheduling/sync-hours-from-pattern.server";
+import { resolveHoursTenantId, upsertBookingHoursFromOnboarding } from "@/lib/scheduling/sync-hours-from-pattern.server";
+import type { WeeklyHours } from "@/lib/scheduling/hours-types";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 
 import type { EssentialsStore, OfferingOwnerRef } from "./essentials";
@@ -66,16 +67,8 @@ export function createEssentialsStore(admin: SupabaseClient): EssentialsStore {
     },
 
     async upsertTalentHours({ talentProfileId, tenantId, weekly, timezone }) {
-      const tz = (timezone && isValidIanaTimeZone(timezone) ? timezone : null)
-        ?? (await resolveTalentTimezone(admin, talentProfileId, tenantId, null).catch(() => null));
-      // Never write a guessed UTC (T1-07): no zone, no hours, and the caller warns.
-      if (!tz) return false;
-      must("upsertHours", await tenantScopedQuery(admin, "talent_booking_hours", tenantId).upsert({
-        talent_profile_id: talentProfileId, tenant_id: tenantId, timezone: tz, weekly,
-        exceptions: [], slot_minutes: 30, buffer_before_min: 0, buffer_after_min: 0, min_notice_min: 60, horizon_days: 60,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "talent_profile_id" }));
-      return true;
+      // The one allowed hours writer (booking-hours write-surface invariant, T1-07).
+      return upsertBookingHoursFromOnboarding(admin, { talentProfileId, tenantId, weekly: weekly as WeeklyHours, timezone });
     },
 
     async setTalentBookable(talentProfileId) {
