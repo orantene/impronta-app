@@ -47,6 +47,7 @@ import { isGuestCaptchaEnforced, splitGuestCaptchaConfigs } from "@/lib/platform
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
 import { designTokensToCssVars, designTokensToDataAttrs } from "@/lib/site-admin/tokens/resolve";
+import { TalentSiteHtmlTokens } from "@/components/talent/site/TalentSiteHtmlTokens";
 import { GoogleFontsLink } from "@/app/google-fonts-link";
 import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
@@ -670,6 +671,9 @@ async function renderMaxSiteDocument(args: {
         flexDirection: "column",
       }}
     >
+      {/* Client-account P0 — the same tokens on <html>, so sibling platform UI
+          (dock, socket) can inherit them. Additive; the vars above stay. */}
+      {hasTokens ? <TalentSiteHtmlTokens cssVars={cssVars} dataAttrs={dataAttrs} /> : null}
       {/* A11Y-2 — first focusable element on every talent Max site surface. */}
       <SkipToContent />
       {/* G3b: hide the variant the root's live status does not match; the
