@@ -1,4 +1,4 @@
-# TUL-20 — Talent Theme Studio (design)
+# TUL-20: Talent Theme Studio (design)
 
 **Status:** DESIGN ONLY. For PM review. No implementation in this PR.  
 **Board:** [TUL-20](https://app.notion.com/p/3ef2c5ee9743811895a4ead1faeb5a82) · Epic T (Themes & demos) · Done-checklist **#65**  
@@ -41,10 +41,10 @@ Without Theme Studio, finishing themes stays a multi-tool hop (editor → termin
 
 A **mode of Builder Lab** (not a separate product host) for talent Designs only:
 
-1. **Compare** — live canvas (reference demo content) next to the pinned Theme Review mockup (same widths: 390 / 360 / 1440).
-2. **Edit** — same talent design editor as today (sections, tokens, copy), with the mockup still visible.
-3. **Prove** — trigger or surface the latest mockup-parity run (pass / known baseline / open deltas by layer).
-4. **Ship** — same release actions: Publicar y actualizar demos → review release → Open to talents → pull authored overlay.
+1. **Compare:** live canvas (reference demo content) next to the pinned Theme Review mockup (same widths: 390 / 360 / 1440).
+2. **Edit:** same talent design editor as today (sections, tokens, copy), with the mockup still visible.
+3. **Prove:** trigger or surface the latest mockup-parity run (pass / known baseline / open deltas by layer).
+4. **Ship:** same release actions: Publicar y actualizar demos → review release → Open to talents → pull authored overlay.
 
 Agency / Studio starters never appear here. Same hard split as Factory today.
 
@@ -189,11 +189,11 @@ Widget gaps (still blocking unfinished designs): solace (rotating word, hero tog
 
 Implementation is out of this PR. Suggested slices once design is approved:
 
-### Phase 0 — Decisions (this doc)
+### Phase 0: Decisions (this doc)
 
 PM answers §8. No code.
 
-### Phase 1 — Studio chrome on Folio (M)
+### Phase 1: Studio chrome on Folio (M)
 
 - Side-by-side mockup iframe + existing editor for Folio only.
 - Finished checklist UI (read-only from filesystem / Factory row fields).
@@ -202,19 +202,19 @@ PM answers §8. No code.
 
 **Does not** change release semantics or talent gallery.
 
-### Phase 2 — Prove loop (L)
+### Phase 2: Prove loop (L)
 
 - Map open deltas to canvas sections (`parity-map.json`).
 - Optional "scroll sync" mockup ↔ canvas.
 - Attach report link on release page before Open to talents.
 - Human sync summary for Factory (overlaps TUL-330; can land here or as that card).
 
-### Phase 3 — Finish bar for maison-v2 / gridline (depends TUL-328)
+### Phase 3: Finish bar for maison-v2 / gridline (depends TUL-328)
 
 - Complete packs + overlays.
 - Studio checklist green path proven on all three finished collection designs.
 
-### Phase 4 — Unfinished designs (depends TUL-328 + widgets + TUL-37)
+### Phase 4: Unfinished designs (depends TUL-328 + widgets + TUL-37)
 
 - Solace / mono / frame enter Studio only after mockup packs exist.
 - Gallery stay hidden until checklist green + Open to talents.
