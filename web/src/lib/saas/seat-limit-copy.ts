@@ -97,13 +97,18 @@ export function seatLimitMessage(args: {
 }): string {
   const { kind, limit } = args;
   const es = (args.locale ?? "en") === "es";
-  const plan = (
-    args.planTier && args.planTier in PLAN_CATALOG ? args.planTier : "free"
-  ) as PlanKey;
-
   const noun = kind === "roster"
     ? (es ? "perfiles" : "profiles")
     : (es ? "lugares de equipo, incluidas las invitaciones pendientes" : "team seats, including pending invites");
+
+  // An unknown or missing plan tier must not be NAMED: it is not known to be Free, and "Free plan" or an
+  // upgrade suggestion would be a claim about what the customer has. Generic, no plan name, no upsell.
+  if (!args.planTier || !(args.planTier in PLAN_CATALOG)) {
+    return es
+      ? `Alcanzaste el límite de lugares de tu plan (${limit} ${noun}).`
+      : `You've reached your plan's seat limit (${limit} ${noun}).`;
+  }
+  const plan = args.planTier as PlanKey;
 
   const planName = PLAN_CATALOG[plan]?.displayName ?? "Free";
   const reached = es
