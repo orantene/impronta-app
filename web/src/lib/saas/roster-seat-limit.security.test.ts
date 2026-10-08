@@ -61,12 +61,18 @@ test("evaluateRosterSeatAvailability: the cap is inclusive (after <= limit) and 
   if (!bulkOver.ok) assert.equal(bulkOver.after, 8);
 });
 
-test("evaluateRosterSeatAvailability: non-free / null plan gets generic over-cap copy (no 'Free' wording)", () => {
-  const r = evaluateRosterSeatAvailability({ planTier: null, limit: 2, current: 2, additionalSeats: 1 });
-  assert.equal(r.ok, false);
-  if (!r.ok) {
-    assert.doesNotMatch(r.message, /Free plan/i);
-    assert.match(r.message, /plan limit/i);
+test("evaluateRosterSeatAvailability: an unknown/null plan gets the generic seat-limit copy (no plan name), a paid plan never says Free", () => {
+  const unknown = evaluateRosterSeatAvailability({ planTier: null, limit: 2, current: 2, additionalSeats: 1 });
+  assert.equal(unknown.ok, false);
+  if (!unknown.ok) {
+    assert.equal(unknown.message, "You've reached your plan's seat limit (2 profiles).");
+    assert.doesNotMatch(unknown.message, /Free plan/i);
+  }
+  const paid = evaluateRosterSeatAvailability({ planTier: "studio", limit: 2, current: 2, additionalSeats: 1 });
+  assert.equal(paid.ok, false);
+  if (!paid.ok) {
+    assert.doesNotMatch(paid.message, /Free plan/i);
+    assert.match(paid.message, /plan limit/i);
   }
 });
 
@@ -155,7 +161,12 @@ test("checkRosterSeatAvailability: the seat count is tenant-scoped (eq tenant_id
   const agencyQ = recorded.find((q) => q.table === "agencies");
   const rosterQ = recorded.find((q) => q.table === "agency_talent_roster");
   assert.deepEqual(agencyQ?.eqs, [["id", "tenant-Z"]], "agency looked up by tenant id");
-  assert.deepEqual(rosterQ?.eqs, [["tenant_id", "tenant-Z"]], "roster count is tenant-isolated");
+  // The count is tenant-isolated; since only people take a seat, it also filters the profile kind.
+  assert.deepEqual(
+    rosterQ?.eqs,
+    [["tenant_id", "tenant-Z"], ["talent_profiles.profile_kind", "person"]],
+    "roster count is tenant-isolated (and persons only)",
+  );
   assert.deepEqual(rosterQ?.neqs, [["status", "removed"]], "removed seats must not count toward the cap");
 });
 

@@ -1,0 +1,144 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Baseline schema check (card 272 / TUL-272)
+#
+# Builds a FRESH Postgres from `supabase/baseline/baseline.schema.sql`, then
+# replays only the migrations newer than `supabase/baseline/BASELINE_VERSION`
+# and smoke-checks the result. See `supabase/baseline/README.md` and
+# `docs/plans/baseline-schema-design.md`.
+#
+# NO-OP until the dump exists: when `baseline.schema.sql` is absent the job
+# passes with a notice, so this workflow can merge before the dump does.
+#
+# Uses no secrets. The Postgres password below is a throwaway for a container
+# that lives only for this job.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Baseline schema check
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/baseline/**'
+      - 'web/scripts/baseline/**'
+      - '.github/workflows/baseline-schema-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: baseline-schema-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    name: Detect baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      present: ${{ steps.detect.outputs.present }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Is there a baseline dump yet?
+        id: detect
+        run: |
+          if [ -f supabase/baseline/baseline.schema.sql ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Baseline schema check skipped::supabase/baseline/baseline.schema.sql does not exist yet (card 272, waiting on TUL-283). Passing as a no-op."
+          fi
+
+  replay:
+    name: Baseline + replay on Supabase Postgres
+    needs: detect
+    if: ${{ needs.detect.outputs.present == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        # Supabase image so auth/storage/vault schemas, platform roles and the
+        # pg_net / vector / supabase_vault extensions exist. Major 17 matches
+        # supabase/config.toml. Tag chosen offline, see baseline/README.md.
+        image: supabase/postgres:17.6.1.054
+        env:
+          POSTGRES_PASSWORD: ci-throwaway
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -h localhost"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: supabase_admin
+      PGPASSWORD: ci-throwaway
+      PGDATABASE: postgres
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Plan (validate baseline files, list migrations > V)
+        run: |
+          node web/scripts/baseline/baseline-plan.mjs
+          node web/scripts/baseline/baseline-plan.mjs --list-replay > "$RUNNER_TEMP/replay.txt"
+          echo "replay list: $(wc -l < "$RUNNER_TEMP/replay.txt") files"
+
+      - name: Wait for Postgres
+        run: |
+          psql --version
+          for i in $(seq 1 30); do
+            if psql -Atc 'select 1' >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          echo "Postgres did not become ready" >&2
+          exit 1
+
+      - name: Ensure platform roles exist (idempotent)
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          DECLARE r text;
+          BEGIN
+            FOREACH r IN ARRAY ARRAY['anon','authenticated','service_role','authenticator'] LOOP
+              IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
+                EXECUTE format('CREATE ROLE %I NOLOGIN', r);
+              END IF;
+            END LOOP;
+          END $$;
+          SQL
+
+      - name: Load baseline
+        run: psql -v ON_ERROR_STOP=1 -f supabase/baseline/baseline.schema.sql
+
+      - name: Replay migrations newer than BASELINE_VERSION
+        run: |
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            echo "::group::$f"
+            psql -v ON_ERROR_STOP=1 -f "supabase/migrations/$f"
+            echo "::endgroup::"
+          done < "$RUNNER_TEMP/replay.txt"
+
+      - name: Schema smoke check
+        run: |
+          tables=$(psql -Atc "select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'")
+          functions=$(psql -Atc "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public'")
+          policies=$(psql -Atc "select count(*) from pg_policies where schemaname='public'")
+          echo "public tables: $tables"
+          echo "public functions: $functions"
+          echo "public policies: $policies"
+          if [ "${tables:-0}" -le 0 ]; then
+            echo "::error::no tables in schema public after baseline + replay"
+            exit 1
+          fi

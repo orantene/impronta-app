@@ -1,6 +1,7 @@
 import "server-only";
 
 import { isOwnCanonical } from "@/lib/talent-site/canonical-own-host";
+import { seoTitleFallback } from "@/lib/talent-site/seo-title-fallback";
 import { buildLocaleAlternates } from "@/i18n/alternates";
 import { buildTalentProfileJsonLd, type TalentJsonLdService } from "@/lib/seo/talent-json-ld";
 import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
@@ -67,7 +68,17 @@ export function buildMaxSiteSeo(args: {
   // rather than added to `MaxSiteSeo`, so the shared `maxSiteSeoToMetadata`
   // mapper needs no change and all three talent-site routes pick it up in
   // lockstep — including og:title, which already falls back to `title`.
-  const { pageTitle, seoTitle: title } = resolveMaxSiteTitles(page, identity?.name || site.siteSlug || "", locale);
+  const { pageTitle, seoTitle: storedTitle } = resolveMaxSiteTitles(page, identity?.name || site.siteSlug || "", locale);
+  // A language she has not written a title for gets a neutral generated one, not the primary-language text.
+  const title =
+    seoTitleFallback({
+      locale,
+      primaryLocale: args.locales?.primary,
+      metaTitleI18n: page.metaTitleI18n,
+      titleI18n: page.titleI18n,
+      name: identity?.name,
+      city: args.addressLocality,
+    }) ?? storedTitle;
   const description = resolveMaxSiteDescription(page, locale);
 
   // Canonical — explicit column wins; else origin + path. Never the profile.
