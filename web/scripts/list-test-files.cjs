@@ -28,6 +28,13 @@
  * `scripts/test-quarantine.txt` entries removed — the same quarantine contract
  * the old `grep -vFf scripts/test-quarantine.txt` pipe enforced.
  *
+ * BRACKETED FOLDERS (TUL-288): this prints REAL paths on purpose. Node 22 globs
+ * every `--test` argument, so a literal `[profileCode]` path is silently
+ * skipped, and the `?` workaround cannot be printed here because `sh` would
+ * expand an unquoted `?` straight back to the bracket path. Lanes that can
+ * reach bracketed files run through scripts/lane-test.cjs (scripts/lane-paths.cjs),
+ * which converts to the form this Node accepts and fails on a zero-match argument.
+ *
  * --depth=1 restricts to files directly in the given directory (no descent),
  * for lanes that deliberately split a tree across several lanes.
  */
