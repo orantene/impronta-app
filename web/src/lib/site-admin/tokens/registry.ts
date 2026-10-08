@@ -732,11 +732,11 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     label: "Card layout",
     scope: "template",
     agencyConfigurable: true,
-    validator: z.enum(["portrait", "editorial", "profile"]),
+    validator: z.enum(["portrait", "editorial", "profile", "showcase"]),
     defaultValue: "portrait",
     group: "Template families",
     description:
-      "Tenant-wide DEFAULT for the card layout. A directory section that has its own layout set keeps it; sections left unset follow this. \"profile\" is Cinematic: full-bleed photo, large display name, a top availability/exclusivity pill, and a persistent Inquire button.",
+      "Tenant-wide DEFAULT for the card layout. A directory section that has its own layout set keeps it; sections left unset follow this. \"showcase\" is the light Showcase card (photo over a white caption panel with a fact strip). \"profile\" is Cinematic: full-bleed photo, large display name, a top availability/exclusivity pill, and a persistent Inquire button.",
   },
   "directory.card.aspect": {
     key: "directory.card.aspect",

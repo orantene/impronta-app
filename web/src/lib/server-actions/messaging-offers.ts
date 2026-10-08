@@ -72,6 +72,8 @@ export async function messagingCreateOffer(input: { inquiryId: string; expectedV
     actorUserId: g.userId,
     expectedVersion: currentVersion,
     currencyCode: parsed.data.currencyCode ?? "USD",
+    // No explicit currency from the sheet: the offer follows the seller (TUL-274).
+    followSeller: parsed.data.currencyCode === undefined,
   });
   if (!result.success) return offerEngineFail(result);
   const offerId = result.data?.offerId ?? "";

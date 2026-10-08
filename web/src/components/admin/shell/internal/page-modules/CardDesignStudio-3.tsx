@@ -82,7 +82,7 @@ export const SURFACE_RULES: Record<CardSurface, SurfaceRule> = {
 
 export const SURFACE_ORDER: CardSurface[] = ["directory", "pitch", "roster", "embedded"];
 
-export type CardStyle = "portrait" | "editorial" | "profile";
+export type CardStyle = "portrait" | "editorial" | "profile" | "showcase";
 export type CardAspect = "4:5" | "1:1" | "3:4" | "2:3" | "16:9";
 export type HoverBehavior = "reveal_traits" | "zoom" | "swap" | "none";
 

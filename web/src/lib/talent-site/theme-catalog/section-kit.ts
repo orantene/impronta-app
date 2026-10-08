@@ -548,6 +548,8 @@ export function aboutBlock(
       kind: "paragraph",
       props: {
         text: "{{richBio}}",
+        // TUL-230: live, her bio in the visitor's language (the baked token text is the fallback).
+        liveText: "bio",
         style: { size: "lg", maxWidth: "reading", ...alignStyle },
       },
     } as BuilderNode,
