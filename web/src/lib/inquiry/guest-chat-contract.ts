@@ -393,6 +393,11 @@ export type StartGuestChatResult =
        * "Got it — we'll reply in ~X" immediately when available.
        */
       autoAckMessage: GuestThreadMessage | null;
+      /**
+       * TUL-36 phase 1: booking-assistant system bubble (facts reply or handoff)
+       * when the talent toggle is on. Null when skipped / off / failed open.
+       */
+      assistantMessage?: GuestThreadMessage | null;
       /** Echo of the email used — drives identity + change-email prefill. */
       guestEmail: string;
       /** True only when the sign-in link email was accepted by Resend. */
@@ -425,6 +430,8 @@ export type SendGuestMessageResult =
       ok: true;
       /** The newly created message, in GuestThreadMessage shape, for optimistic reconcile. */
       message: GuestThreadMessage;
+      /** TUL-36 phase 1: optional assistant reply/handoff after the guest send. */
+      assistantMessage?: GuestThreadMessage | null;
     }
   | GuestChatFailure;
 
