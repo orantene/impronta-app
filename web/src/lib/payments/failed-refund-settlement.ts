@@ -5,6 +5,7 @@
  * Refunds shows a failed state a person can act on (TUL-144 half-2).
  */
 
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -99,8 +100,8 @@ export async function flagFailedRefundSettlement(
 }
 
 /**
- * Webhook entry: look up the refund row, stamp it, keep the loud server log.
- * Best-effort when no row exists (ack after logging). Does not auto-revert.
+ * Webhook entry: look up the refund row, stamp it. Best-effort when no row
+ * exists (ack after logging). Does not auto-revert.
  */
 export async function applyFailedRefundSettlement(
   admin: Admin,
@@ -123,6 +124,45 @@ export async function applyFailedRefundSettlement(
     transactionId: row.id,
   });
   return { flagged: result.ok, transactionId: row.id };
+}
+
+/**
+ * `refund_settlement` action from the Stripe webhook. Does NOT auto-revert
+ * books (funds are on the platform; a person arranges an alternative refund).
+ * Stamps Admin Payments visibility when a service-role client is available,
+ * and always emits the loud actionable server log.
+ */
+export async function handleFailedRefundWebhookAction(input: {
+  refundId: string;
+  status: string;
+  failureReason: string | null;
+  amount: number;
+  currency: string;
+  chargeId?: string | null;
+  paymentIntentId?: string | null;
+}): Promise<void> {
+  const settlement: FailedRefundSettlementInput = {
+    refundId: input.refundId,
+    status: input.status,
+    failureReason: input.failureReason,
+    amountCents: input.amount,
+    currency: input.currency,
+    chargeId: input.chargeId,
+    paymentIntentId: input.paymentIntentId,
+  };
+  const sb = createServiceRoleClient();
+  if (sb) await applyFailedRefundSettlement(sb, settlement);
+  logServerError(
+    "stripe-webhook.refund.failed",
+    new Error(
+      `Refund ${input.refundId} ${input.status.toUpperCase()} for ` +
+        `${(input.amount / 100).toFixed(2)} ${input.currency.toUpperCase()} ` +
+        `(charge=${input.chargeId ?? "unknown"}, payment_intent=${input.paymentIntentId ?? "unknown"}, ` +
+        `reason=${input.failureReason ?? "unspecified"}). ` +
+        `THE CUSTOMER HAS NOT BEEN PAID and the funds are back in the platform balance. ` +
+        `Our records still show this payment as refunded. Arrange an alternative refund manually.`,
+    ),
+  );
 }
 
 export function isFailedRefundAttention(metadata: unknown): boolean {
