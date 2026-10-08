@@ -5,8 +5,10 @@ import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import {
   carriesAtSlot,
+  chipCandidates,
   chipSlot,
   pickChipOffering,
+  findFirstFreeSlot,
   firstSlotStart,
   openAtNextSlot,
   pickSlotOffering,
@@ -145,4 +147,48 @@ test("TUL-275: the chip asks about an offering the sheet can open at a slot", ()
   );
   assert.equal(chipSlot("opt", [SLOT], false, NOW).slot, null);
   assert.equal(pickChipOffering([plain], "missing"), null);
+});
+
+test("TUL-346: chipCandidates orders slot-openable offerings first, pinned stays alone", () => {
+  const plain = offering({ id: "plain" });
+  const withOptions = offering({ id: "opts", variants: [{}] as never });
+  const list = [withOptions, plain];
+  assert.deepEqual(chipCandidates(list).map((c) => [c.offering.id, c.openable]), [
+    ["plain", true],
+    ["opts", false],
+  ]);
+  assert.deepEqual(chipCandidates(list, "opts").map((c) => c.offering.id), ["opts"]);
+  assert.deepEqual(chipCandidates(list, "missing"), []);
+});
+
+test("TUL-346: findFirstFreeSlot skips an offering with no slots and keeps shown = opened", async () => {
+  const future = new Date(Date.now() + 3_600_000).toISOString();
+  const calls: string[] = [];
+  const cands = chipCandidates([offering({ id: "tenantless" }), offering({ id: "bookable" })]);
+  const found = await findFirstFreeSlot(cands, async (id) => {
+    calls.push(id);
+    return id === "bookable"
+      ? { slots: [future], timezone: "America/Cancun" }
+      : { slots: [], timezone: "UTC" };
+  });
+  assert.deepEqual(calls, ["tenantless", "bookable"]);
+  assert.equal(found?.offeringId, "bookable");
+  assert.equal(found?.timezone, "America/Cancun");
+  const shown = chipSlot(found!.offeringId, found!.slots, found!.openable);
+  assert.equal(shown.when, future);
+  assert.deepEqual(shown.slot, { offeringId: "bookable", slotStart: future });
+});
+
+test("TUL-346: findFirstFreeSlot tolerates a throwing fetch and caps probes at 4", async () => {
+  const future = new Date(Date.now() + 3_600_000).toISOString();
+  const calls: string[] = [];
+  const cands = chipCandidates(["a", "b", "c", "d", "e"].map((id) => offering({ id })));
+  const none = await findFirstFreeSlot(cands, async (id) => {
+    calls.push(id);
+    if (id === "a") throw new Error("boom");
+    return id === "e" ? { slots: [future], timezone: "UTC" } : { slots: [], timezone: "UTC" };
+  });
+  assert.equal(none, null);
+  assert.deepEqual(calls, ["a", "b", "c", "d"]);
+  assert.equal(await findFirstFreeSlot([], async () => ({ slots: [future], timezone: "UTC" })), null);
 });
