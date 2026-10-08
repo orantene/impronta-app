@@ -1,9 +1,10 @@
 // D-MSG-422 (2026-09-24): a talent_site host's rewrite in proxy.ts returns
 // before `updateSession` ever runs, so x-impronta-guest never reached a
 // guest server action on ANY talent vanity host — every guest ask came back
-// "forbidden" and no client could message a talent. This pins the fix:
-// attachTalentSiteGuestIdentity must set the header AND, for a fresh guest,
-// carry the signed cookie on whatever response the branch returns.
+// "forbidden" and no client could message a talent.
+//
+// TUL-445: anonymous GETs must NOT Set-Cookie a fresh impronta_guest (CDN).
+// Returning guests still get the header; minting moves to guest write actions.
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { NextRequest, NextResponse } from "next/server";
@@ -12,10 +13,13 @@ import { GUEST_COOKIE_NAME, GUEST_HEADER_NAME, signGuestCookie } from "@/lib/gue
 
 const SECRET_ENV = "GUEST_COOKIE_SECRET";
 
-function req(cookie?: string): NextRequest {
+function req(cookie?: string, method = "GET"): NextRequest {
   const headers = new Headers();
   if (cookie) headers.set("cookie", `${GUEST_COOKIE_NAME}=${cookie}`);
-  return new NextRequest(new URL("https://book-jorgelina.tulala.digital/"), { headers });
+  return new NextRequest(new URL("https://book-jorgelina.tulala.digital/"), {
+    headers,
+    method,
+  });
 }
 
 describe("attachTalentSiteGuestIdentity", () => {
@@ -31,19 +35,15 @@ describe("attachTalentSiteGuestIdentity", () => {
     else process.env[SECRET_ENV] = previousSecret;
   });
 
-  it("a fresh guest (no cookie) gets the header set AND a Set-Cookie on the response — the exact defect this fixes", () => {
+  it("TUL-445: a fresh guest GET gets NO header and NO Set-Cookie (CDN-safe)", () => {
     const request = req();
     const talentHeaders = new Headers();
     const attach = attachTalentSiteGuestIdentity(request, talentHeaders);
 
-    // Before this fix, talentHeaders never got a guest header at all —
-    // this is the assertion that would have failed on the old proxy.ts.
-    assert.ok(talentHeaders.get(GUEST_HEADER_NAME), "guest header was not set");
+    assert.equal(talentHeaders.get(GUEST_HEADER_NAME), null);
 
     const res = attach(NextResponse.next());
-    const setCookie = res.cookies.get(GUEST_COOKIE_NAME);
-    assert.ok(setCookie, "no Set-Cookie was attached for a fresh guest — a second request could never reuse this id");
-    assert.equal(setCookie!.value.length > 0, true);
+    assert.equal(res.cookies.get(GUEST_COOKIE_NAME), undefined);
   });
 
   it("a returning guest with a validly-signed cookie keeps the same id and gets NO redundant Set-Cookie", () => {
@@ -59,16 +59,32 @@ describe("attachTalentSiteGuestIdentity", () => {
     assert.equal(res.cookies.get(GUEST_COOKIE_NAME), undefined);
   });
 
-  it("works on BOTH response kinds the talent_site branch returns: passthrough (NextResponse.next) and rewrite", () => {
-    const request = req();
+  it("a non-GET (server action) still mints + Set-Cookie for a fresh guest", () => {
+    const request = req(undefined, "POST");
+    const talentHeaders = new Headers();
+    const attach = attachTalentSiteGuestIdentity(request, talentHeaders);
+
+    assert.ok(talentHeaders.get(GUEST_HEADER_NAME), "guest header was not set on POST");
+
+    const res = attach(NextResponse.next());
+    const setCookie = res.cookies.get(GUEST_COOKIE_NAME);
+    assert.ok(setCookie, "no Set-Cookie on POST for a fresh guest");
+    assert.equal(setCookie!.value.length > 0, true);
+  });
+
+  it("works on BOTH response kinds the talent_site branch returns: passthrough and rewrite", () => {
+    const existingId = "33333333-3333-4333-8333-333333333333";
+    const signed = signGuestCookie(existingId);
+    const request = req(signed);
     const talentHeaders = new Headers();
     const attach = attachTalentSiteGuestIdentity(request, talentHeaders);
 
     const passthrough = attach(NextResponse.next({ request: { headers: talentHeaders } }));
-    assert.ok(passthrough.cookies.get(GUEST_COOKIE_NAME));
+    assert.equal(passthrough.cookies.get(GUEST_COOKIE_NAME), undefined);
+    assert.equal(talentHeaders.get(GUEST_HEADER_NAME), existingId);
 
     const rewriteUrl = new URL("https://book-jorgelina.tulala.digital/servicios");
     const rewritten = attach(NextResponse.rewrite(rewriteUrl, { request: { headers: talentHeaders } }));
-    assert.ok(rewritten.cookies.get(GUEST_COOKIE_NAME));
+    assert.equal(rewritten.cookies.get(GUEST_COOKIE_NAME), undefined);
   });
 });

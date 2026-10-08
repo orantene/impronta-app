@@ -114,7 +114,6 @@ src/lib/field-engine/sort-comparators.test.ts
 src/lib/field-engine/tenant-catalog-scope.test.ts
 src/lib/field-engine/workspace-field-settings-safety.test.ts
 src/lib/fields/coerce-select-value.test.ts
-src/lib/guest-cookie.test.ts
 src/lib/i18n/builder-i18n-props-coverage.static.test.ts
 src/lib/i18n/pick-locale.test.ts
 src/lib/inquiry/acceptance-summary.test.ts
@@ -191,7 +190,6 @@ src/lib/saas/signup-uses-the-brief.test.ts
 src/lib/saas/storefront-discovery.test.ts
 src/lib/saas/talent-demo-host-redirect.test.ts
 src/lib/saas/talent-self-tenant.test.ts
-src/lib/saas/talent-site-guest-identity.test.ts
 src/lib/saas/talent-site-host-context.test.ts
 src/lib/saas/talent-site-rewrite-reentry.test.ts
 src/lib/saas/workspace-path-redirects.test.ts

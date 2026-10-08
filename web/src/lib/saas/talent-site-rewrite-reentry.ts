@@ -8,6 +8,7 @@ import {
   HOST_TENANT_SLUG_HEADER,
   resolveTenantContext,
 } from "@/lib/saas/host-context";
+import { applyTalentSiteAnonCacheHeaders } from "@/lib/saas/talent-site-anon-cache";
 import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-identity";
 import { PUBLIC_PATH_PREFIX_HEADER, TENANT_HEADER_NAME } from "@/lib/saas/scope";
 
@@ -45,7 +46,10 @@ export async function talentSiteRewriteReentryResponse(
   }
   if (reboundTalentSite) {
     const attachGuest = attachTalentSiteGuestIdentity(request, rebound);
-    return attachGuest(NextRes.next({ request: { headers: rebound } }));
+    return applyTalentSiteAnonCacheHeaders(
+      attachGuest(NextRes.next({ request: { headers: rebound } })),
+      request,
+    );
   }
   return NextRes.next({ request: { headers: rebound } });
 }

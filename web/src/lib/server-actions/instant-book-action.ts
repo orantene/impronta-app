@@ -24,7 +24,7 @@ import { placeInstantPurchase } from "@/lib/scheduling/instant-purchase";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { isDirectTalentChannel } from "@/lib/talent/accepting-readiness";
 import { runResolvedInstantBook } from "@/lib/scheduling/instant-book-run";
-import { resolveGuestSessionId } from "@/lib/guest/guest-session";
+import { ensureGuestSessionId } from "@/lib/guest/guest-session";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadTalentPreferredLocale } from "@/lib/site-admin/server/talent-locale";
 import { normalizeBookingLocale, resolveBookingLocale } from "@/lib/scheduling/booking-locale";
@@ -136,7 +136,7 @@ export async function createInstantBookingAction(
           clientOrderKey: `instant:${engineInput.tenantId}:${offeringId}:${engineInput.contactEmail}`,
           // Instant bookings are worked in Messages exactly as before.
           openThread: true,
-          guestSessionId: await resolveGuestSessionId(),
+          guestSessionId: await ensureGuestSessionId(),
           brief: payload.brief ?? null,
           locale: bookingLocale,
           // TUL-426: the sheet's place, trimmed and capped here (visitor text).

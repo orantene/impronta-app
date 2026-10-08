@@ -81,7 +81,7 @@ import {
 } from "@/lib/inquiry/inquiry-receipt-data";
 import { getAppUrl } from "@/lib/auth-flow";
 import { CLIENT_CARD_KINDS, isClientCardKind } from "@/lib/messages-v5/client-thread-view";
-import { resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
+import { ensureGuestSessionId, resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
 import type {
   AddGuestClaimEmailInput,
   AddGuestClaimEmailResult,
@@ -139,7 +139,7 @@ type GuestContext = {
   guestSessionId: string;
 };
 
-async function resolveGuestContext(): Promise<
+async function resolveGuestContext(options: { mint?: boolean } = {}): Promise<
   { ok: true; ctx: GuestContext } | { ok: false; failure: GuestChatFailure }
 > {
   const admin = createServiceRoleClient();
@@ -147,7 +147,10 @@ async function resolveGuestContext(): Promise<
     return { ok: false, failure: fail("db_unavailable", "Messaging is temporarily unavailable.") };
   }
 
-  const guestSessionId = await resolveGuestSessionId();
+  // TUL-445: write actions mint lazily; SSR resume (getActiveGuestInquiry)
+  // peeks only so anonymous page views stay CDN-cacheable.
+  const guestSessionId =
+    options.mint === false ? await resolveGuestSessionId() : await ensureGuestSessionId();
   if (!guestSessionId) {
     return { ok: false, failure: fail("forbidden", "We couldn't identify your session. Please refresh and try again.") };
   }
@@ -1953,7 +1956,7 @@ export async function getActiveGuestInquiry(input: {
   talentProfileId?: string | null;
 }): Promise<GetActiveGuestInquiryResult> {
   try {
-    const guest = await resolveGuestContext();
+    const guest = await resolveGuestContext({ mint: false });
     // No cookie / no session row yet = first-time visitor. Any resolve failure
     // here means "nothing to resume", not an error to surface in the launcher.
     if (!guest.ok) return { ok: true, active: null };
