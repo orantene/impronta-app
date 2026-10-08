@@ -311,7 +311,7 @@ test("payout accounts: applying the plan to a fake store changes only display_na
         },
       };
     },
-    storage: { from: () => ({ remove: async () => ({ error: null }) }) },
+    storage: { from: () => ({ list: async () => ({ data: [], error: null }), remove: async () => ({ error: null }) }) },
   };
 
   const run = async () =>
@@ -326,6 +326,7 @@ test("payout accounts: applying the plan to a fake store changes only display_na
   // Re-running converges to the same state.
   await run();
   assert.deepEqual(store, after);
+});
 
 // ── avatar file removal ───────────────────────────────────────────────────────
 
