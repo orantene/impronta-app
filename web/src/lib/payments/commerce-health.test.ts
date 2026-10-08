@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
+  LANE_FILTER_OR,
+  MX_PUBLISHABLE_KEY_READ_ORDER,
+  classifyEventLane,
   computeCommerceHealth,
+  effectiveMxPublishableVar,
   snapshotKeyEnv,
   type CommerceHealthInput,
   type KeyMode,
@@ -17,6 +22,7 @@ function base(over: Partial<CommerceHealthInput> = {}): CommerceHealthInput {
       STRIPE_SECRET_KEY: m("live"),
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: m("live"),
       STRIPE_MX_SECRET_KEY: m("live"),
+      NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY: m("unset"),
       STRIPE_MX_PUBLISHABLE_KEY: m("live"),
       STRIPE_V2_SECRET_KEY: m("live"),
     },
@@ -26,7 +32,7 @@ function base(over: Partial<CommerceHealthInput> = {}): CommerceHealthInput {
       STRIPE_MX_WEBHOOK_SECRET: true,
       STRIPE_MX_WEBHOOK_SECRET_CONNECT: true,
     },
-    heldPayoutCount: 0,
+    heldPayouts: { state: "ok", count: 0 },
     stuckPaymentRequestedCount: 0,
     lastWebhookAt: { platform: hoursAgo(1), platform_mx: hoursAgo(2) },
     now: NOW,
@@ -56,6 +62,7 @@ test("unset keys are ignored for consistency", () => {
   const input = base();
   input.keyModes.STRIPE_MX_SECRET_KEY = "unset";
   input.keyModes.STRIPE_MX_PUBLISHABLE_KEY = "unset";
+  input.keyModes.NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY = "unset";
   input.keyModes.STRIPE_V2_SECRET_KEY = "unset";
   const row = byId(computeCommerceHealth(input), "key-modes");
   assert.equal(row.status, "ok");
@@ -77,7 +84,7 @@ test("missing base US webhook secret is an error", () => {
 });
 
 test("held and stuck counts warn only when above zero", () => {
-  const rows = computeCommerceHealth(base({ heldPayoutCount: 3, stuckPaymentRequestedCount: 1 }));
+  const rows = computeCommerceHealth(base({ heldPayouts: { state: "ok", count: 3 }, stuckPaymentRequestedCount: 1 }));
   assert.equal(byId(rows, "held-payouts").status, "warn");
   assert.equal(byId(rows, "held-payouts").data?.count, 3);
   assert.equal(byId(rows, "stuck-payment-requested").status, "warn");
@@ -100,6 +107,7 @@ test("output never contains key values", () => {
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_live_def456",
     STRIPE_MX_SECRET_KEY: "sk_test_ghi789",
     STRIPE_MX_PUBLISHABLE_KEY: "pk_test_jkl012",
+    NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY: "pk_test_pqr678",
     STRIPE_V2_SECRET_KEY: "sk_live_mno345",
     STRIPE_WEBHOOK_SECRET: "whsec_secret111",
     STRIPE_WEBHOOK_SECRET_CONNECT: "whsec_secret222",
@@ -112,7 +120,95 @@ test("output never contains key values", () => {
     computeCommerceHealth({ ...base(), ...snap, lastWebhookAt: { platform: null, platform_mx: null } }),
   );
   for (const v of Object.values(env)) assert.ok(!json.includes(v), `leaked ${v}`);
-  for (const frag of ["abc123", "def456", "ghi789", "secret111", "sk_live", "pk_test", "whsec"]) {
+  for (const frag of ["abc123", "def456", "ghi789", "pqr678", "secret111", "sk_live", "pk_test", "whsec"]) {
     assert.ok(!json.includes(frag), `leaked fragment ${frag}`);
   }
+});
+
+test("held payouts: read error is an error row, never a zero", () => {
+  const row = byId(computeCommerceHealth(base({ heldPayouts: { state: "error" } })), "held-payouts");
+  assert.equal(row.status, "error");
+  assert.match(row.detail, /read failed/);
+  assert.equal(row.data?.state, "error");
+  assert.equal(row.data?.count, undefined);
+});
+
+test("held payouts: capped is a warn with a 500+ lower bound", () => {
+  const row = byId(computeCommerceHealth(base({ heldPayouts: { state: "capped", count: 500 } })), "held-payouts");
+  assert.equal(row.status, "warn");
+  assert.equal(row.detail, "500+ held");
+  assert.equal(row.data?.capped, true);
+});
+
+test("held payouts: ok under the cap is unchanged (0 ok, n warn)", () => {
+  assert.equal(byId(computeCommerceHealth(base()), "held-payouts").status, "ok");
+  const row = byId(computeCommerceHealth(base({ heldPayouts: { state: "ok", count: 2 } })), "held-payouts");
+  assert.equal(row.status, "warn");
+  assert.equal(row.detail, "2 held");
+});
+
+// ---- MX publishable key name ------------------------------------------------
+
+test("MX publishable read order matches what stripe/client.ts really reads", () => {
+  const src = readFileSync(new URL("../stripe/client.ts", import.meta.url), "utf8");
+  const fn = src.slice(src.indexOf("export function getStripeMxPublishableKey"));
+  const body = fn.slice(0, fn.indexOf("\n}\n"));
+  const names = [...body.matchAll(/process\.env\.([A-Z0-9_]+)/g)].map((m) => m[1]);
+  assert.deepEqual(names, [...MX_PUBLISHABLE_KEY_READ_ORDER]);
+});
+
+test("effective MX publishable var: NEXT_PUBLIC wins, server name is the fallback, else none", () => {
+  const input = base();
+  // Production shape: only STRIPE_MX_PUBLISHABLE_KEY set.
+  assert.equal(effectiveMxPublishableVar(input.keyModes), "STRIPE_MX_PUBLISHABLE_KEY");
+  input.keyModes.NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY = "live";
+  assert.equal(effectiveMxPublishableVar(input.keyModes), "NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY");
+  input.keyModes.NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY = "unset";
+  input.keyModes.STRIPE_MX_PUBLISHABLE_KEY = "unset";
+  assert.equal(effectiveMxPublishableVar(input.keyModes), "none");
+});
+
+test("key-modes row carries per-var modes and the MX source in data", () => {
+  const row = byId(computeCommerceHealth(base()), "key-modes");
+  assert.equal(row.data?.mxPublishableSource, "STRIPE_MX_PUBLISHABLE_KEY");
+  assert.equal(row.data?.["m:STRIPE_MX_PUBLISHABLE_KEY"], "live");
+  assert.equal(row.data?.["m:NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY"], "unset");
+});
+
+test("a test NEXT_PUBLIC MX publishable key against a live MX secret is an error", () => {
+  const input = base();
+  input.keyModes.NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY = "test";
+  assert.equal(byId(computeCommerceHealth(input), "key-modes").status, "error");
+});
+
+test("snapshotKeyEnv reads the NEXT_PUBLIC MX name too", () => {
+  const snap = snapshotKeyEnv({ NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY: "pk_live_x" });
+  assert.equal(snap.keyModes.NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY, "live");
+  assert.equal(snap.keyModes.STRIPE_MX_PUBLISHABLE_KEY, "unset");
+});
+
+// ---- lane classification -----------------------------------------------------
+
+test("classifyEventLane: explicit lane wins over the id shape", () => {
+  assert.equal(classifyEventLane({ lane: "platform", event_id: "evt_1" }), "platform");
+  assert.equal(classifyEventLane({ lane: "platform_mx", event_id: "platform_mx:evt_1" }), "platform_mx");
+  // A non-null lane is never second-guessed by the id.
+  assert.equal(classifyEventLane({ lane: "platform", event_id: "platform_mx:evt_1" }), "platform");
+  assert.equal(classifyEventLane({ lane: "discover_client_subscription", event_id: "evt_1" }), "discover_client_subscription");
+  assert.equal(classifyEventLane({ lane: "something_new", event_id: "evt_1" }), "other");
+});
+
+test("classifyEventLane: NULL lane (legacy / deploy window) falls back to the prefix rule", () => {
+  assert.equal(classifyEventLane({ lane: null, event_id: "evt_1" }), "platform");
+  assert.equal(classifyEventLane({ lane: undefined, event_id: "evt_1" }), "platform");
+  assert.equal(classifyEventLane({ lane: null, event_id: "platform_mx:evt_1" }), "platform_mx");
+  assert.equal(classifyEventLane({ lane: null, event_id: "discover_client_subscription:evt_1" }), "discover_client_subscription");
+  assert.equal(classifyEventLane({ lane: null, event_id: "unknown:evt_1" }), "other");
+});
+
+test("loader filters express the same rule: explicit lane, null-only prefix fallback", () => {
+  assert.match(LANE_FILTER_OR.platform, /lane\.eq\.platform,and\(lane\.is\.null,event_id\.not\.like\.\*:\*\)/);
+  assert.match(LANE_FILTER_OR.platform_mx, /lane\.eq\.platform_mx,and\(lane\.is\.null,event_id\.like\.platform_mx:\*\)/);
+  // The prefix rule must only ever apply to legacy nulls.
+  for (const f of Object.values(LANE_FILTER_OR)) assert.match(f, /and\(lane\.is\.null,/);
 });

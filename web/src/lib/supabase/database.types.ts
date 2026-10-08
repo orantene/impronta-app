@@ -13150,6 +13150,7 @@ export type Database = {
           api_version: string | null
           event_id: string
           event_type: string
+          lane: string | null
           livemode: boolean | null
           processed_at: string
         }
@@ -13157,6 +13158,7 @@ export type Database = {
           api_version?: string | null
           event_id: string
           event_type: string
+          lane?: string | null
           livemode?: boolean | null
           processed_at?: string
         }
@@ -13164,6 +13166,7 @@ export type Database = {
           api_version?: string | null
           event_id?: string
           event_type?: string
+          lane?: string | null
           livemode?: boolean | null
           processed_at?: string
         }

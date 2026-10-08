@@ -18,7 +18,7 @@ import type {
   PlatformRevenueSummary,
 } from "@/lib/billing/platform-revenue";
 import type { PlatformMrrSnapshot } from "@/lib/billing/platform-mrr";
-import type { HeldLedgerRow } from "@/lib/payments/booking-payouts-ledger";
+import type { HeldPayoutsResult } from "@/lib/payments/booking-payouts-ledger";
 import type {
   PlatformStats,
   SubscriptionAttentionCounts,
@@ -50,7 +50,7 @@ export async function RevenueView({
   mrr: PlatformMrrSnapshot;
   attention: SubscriptionAttentionCounts;
   revenue: PlatformRevenueSummary;
-  heldPayouts: HeldLedgerRow[];
+  heldPayouts: HeldPayoutsResult;
 }) {
   const t = createTranslator(await getRequestLocale());
 
@@ -177,7 +177,7 @@ export async function RevenueView({
         )}
       </HqCard>
 
-      <HeldPayoutsSection rows={heldPayouts} />
+      <HeldPayoutsSection result={heldPayouts} />
     </>
   );
 }

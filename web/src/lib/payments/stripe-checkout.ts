@@ -46,6 +46,7 @@
 import type Stripe from "stripe";
 import { getStripe, getStripeFor, withObjectPlatformFallback, type StripeAccountKey } from "@/lib/stripe/client";
 import { recordChargePlatform, resolveSellerPlatformForTransaction } from "@/lib/stripe/charge-platform";
+import { paymentsMockAllowed } from "@/lib/payments/mock-guard";
 import { logServerError } from "@/lib/server/safe-error";
 import { stripeCheckoutLocale } from "@/lib/i18n/vendor-locale";
 import { sanitizeStatementDescriptorSuffix } from "@/lib/payments/statement-descriptor";
@@ -171,11 +172,22 @@ export async function createCheckoutSessionForTransaction(
   try {
     // The seller of record's platform decides which Stripe account takes the
     // charge (default 'us'). An injected client (tests) is used as-is.
-    const platform =
-      deps.platform ?? (deps.stripe !== undefined ? "us" : await resolveSellerPlatformForTransaction(input.transactionId));
+    let platform: StripeAccountKey;
+    if (deps.platform) platform = deps.platform;
+    else if (deps.stripe !== undefined) platform = "us";
+    else {
+      const resolved = await resolveSellerPlatformForTransaction(input.transactionId);
+      // Fail closed: never guess a platform (TUL-142).
+      if (!resolved.ok) return { ok: false, error: "Payments for this seller are not available right now.", uncertain: false };
+      platform = resolved.key;
+    }
     const stripe = deps.stripe !== undefined ? deps.stripe : getStripeFor(platform);
     if (!stripe && platform === "mx") {
       return { ok: false, error: "Payments for this seller are not available right now.", uncertain: false };
+    }
+    if (!stripe && !paymentsMockAllowed()) {
+      logServerError("payments.stripe.mockRefused", `STRIPE_SECRET_KEY missing in production; refusing mock checkout (transaction ${input.transactionId})`);
+      return { ok: false, error: "Payments are not configured.", uncertain: false };
     }
     if (!stripe) {
       // Mock mode: skip Stripe entirely. The "session id" is synthetic so

@@ -30,7 +30,15 @@ test("no UPDATE, DELETE, TRUNCATE, DROP or ALTER", () => {
   }
 });
 
-test("sorts after every other migration", () => {
-  const others = readdirSync(DIR).filter((f) => f.endsWith(".sql") && f !== FILE);
-  for (const f of others) assert.ok(FILE > f, `${FILE} must sort after ${f}`);
+// The backfill must run after every migration that existed when it was written
+// (newest then: 20261231346400). Later migrations may legitimately sort after it,
+// so the old "after every other migration" form broke the first time one landed.
+const NEWEST_AT_AUTHORING = "20261231346400";
+
+test("sorts after every migration that existed when it was written", () => {
+  const earlier = readdirSync(DIR).filter(
+    (f) => f.endsWith(".sql") && f !== FILE && f.slice(0, 14) <= NEWEST_AT_AUTHORING,
+  );
+  assert.ok(earlier.length > 0);
+  for (const f of earlier) assert.ok(FILE > f, `${FILE} must sort after ${f}`);
 });

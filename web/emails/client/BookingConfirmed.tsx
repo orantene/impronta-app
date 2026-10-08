@@ -11,6 +11,8 @@ interface Props {
   eventDate: string | null;
   eventLocation: string | null;
   bookingUrl: string;
+  /** The business the client booked with; shown under the brand mark. */
+  sellerName?: string | null;
   brand?: EmailBrand;
   unsubscribeUrl?: string;
   categoryLabel?: string;
@@ -22,6 +24,7 @@ export default function BookingConfirmed({
   eventDate,
   eventLocation,
   bookingUrl,
+  sellerName,
   brand,
   unsubscribeUrl,
   categoryLabel,
@@ -41,6 +44,7 @@ export default function BookingConfirmed({
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
+      sellerName={sellerName}
     >
       <Heading style={h2}>{t.heading}</Heading>
       <Text style={body}>{interpolate(t.intro, { name, event })}</Text>

@@ -21,7 +21,7 @@ import type { RecipientRole } from "./types";
  * NEXT_PUBLIC_SITE_URL and from stored domains, and one of them carrying a
  * trailing slash or a www must not change the answer.
  */
-function isMarketingHome(href: string): boolean {
+export function isMarketingHome(href: string): boolean {
   const site = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim();
   if (!site) return false;
   const host = (u: string) => {

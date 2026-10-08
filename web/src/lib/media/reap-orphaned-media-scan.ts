@@ -27,6 +27,7 @@ import {
   type ReapPlan,
   type StorageObject,
 } from "@/lib/media/reap-orphaned-media";
+import { runMediaRowPurge, type RowPurgeReport } from "@/lib/media/media-row-purge-io";
 
 const PAGE_SIZE = 1000;
 /** Guard against an unbounded walk if storage ever returns a cycle of prefixes. */
@@ -319,6 +320,11 @@ export type ReapOptions = {
   /** false (default) = dry run: report only, delete nothing. */
   execute?: boolean;
   allowUnaccounted?: boolean;
+  /**
+   * TUL-227. true = hard-delete eligible soft-deleted `media_assets` ROWS after
+   * their files are gone. false (default) = dry run: count and report only.
+   */
+  purgeRows?: boolean;
   now?: Date;
 };
 
@@ -335,6 +341,8 @@ export type ReapReport = {
   /** First 25 paths, so the report is legible without dumping thousands. */
   samplePaths: string[];
   deleted: { count: number; bytes: number } | null;
+  /** TUL-227 row purge (dry run unless MEDIA_ROW_PURGE_ENFORCE=true). */
+  rowPurge: RowPurgeReport;
   durationMs: number;
 };
 
@@ -350,6 +358,7 @@ export function reapOptionsFromEnv(env: NodeJS.ProcessEnv = process.env): ReapOp
   return {
     execute: env.MEDIA_REAPER_ENABLED === "true",
     allowUnaccounted: env.MEDIA_REAPER_ALLOW_UNACCOUNTED === "true",
+    purgeRows: env.MEDIA_ROW_PURGE_ENFORCE === "true",
     graceDays: Number.isFinite(graceDays) && graceDays > 0 ? graceDays : DEFAULT_GRACE_DAYS,
     maxDeletions:
       Number.isFinite(maxDeletions) && maxDeletions > 0
@@ -434,6 +443,21 @@ export async function runMediaReaper(
     deleted = { count, bytes };
   }
 
+  // --- TUL-227: soft-deleted media ROWS, after the files (own flag) ---------
+  // Reached only when every storage removal above succeeded (a failure
+  // returns early), so `plan.deletable` is exactly what was removed.
+  const rowPurge = await runMediaRowPurge({
+    admin,
+    rows: assets.value,
+    objects,
+    removed: execute ? plan.deletable : [],
+    externalReferences,
+    now: options.now ?? new Date(),
+    graceDays: plan.graceDays,
+    maxRows: plan.maxDeletions,
+    enforce: options.purgeRows === true,
+  });
+
   return {
     ok: true,
     dryRun: !execute,
@@ -450,6 +474,7 @@ export async function runMediaReaper(
     keptByReason: plan.keptByReason,
     samplePaths: plan.deletable.slice(0, 25).map((d) => `${d.bucketId}/${d.storagePath}`),
     deleted,
+    rowPurge,
     durationMs: Date.now() - startedAt,
   };
 }

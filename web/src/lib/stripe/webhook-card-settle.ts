@@ -17,6 +17,7 @@
  */
 
 import type Stripe from "stripe";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { markFailed, markPaid } from "@/lib/bookings/transactions";
 import { closePaymentLinkForClosedCheckout } from "@/lib/payments/link-settlement";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -43,8 +44,11 @@ export function extractChargedAmount(event: Stripe.Event): { amountCents: number
 const SETTLED_TRANSACTION_STATUSES = new Set(["paid", "payout_pending", "payout_sent"]);
 
 /** True when the money row has already moved past waiting for its payment. */
-async function transactionAlreadySettled(transactionId: string): Promise<boolean> {
-  const sb = createServiceRoleClient();
+async function transactionAlreadySettled(
+  transactionId: string,
+  getAdmin: () => SupabaseClient | null,
+): Promise<boolean> {
+  const sb = getAdmin();
   if (!sb) return false;
   const { data, error } = await sb
     .from("booking_transactions")
@@ -59,20 +63,37 @@ export type SettleCheckoutResult =
   | { ok: true; outcome: "paid" | "already_settled" | "amount_mismatch" }
   | { ok: false; error: string };
 
+/** Everything `settleCheckoutPayment` reaches outside itself. Each defaults to the
+ *  production import; tests pass fakes so the settle path runs without a database. */
+export type SettleDeps = {
+  markPaid: (
+    transactionId: string,
+    opts?: { paymentIntentId?: string | null },
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  recordChargePlatform: (transactionId: string, key: StripeAccountKey) => Promise<boolean>;
+  loadChargePlatformForTransaction: (transactionId: string) => Promise<StripeAccountKey>;
+  getAdmin: () => SupabaseClient | null;
+};
+
 export async function settleCheckoutPayment(
   event: Stripe.Event,
   action: { transactionId: string; paymentIntentId: string | null },
   /** Platform account the event arrived on. */
   account: StripeAccountKey = "us",
+  deps: Partial<SettleDeps> = {},
 ): Promise<SettleCheckoutResult> {
+  const markPaidFn = deps.markPaid ?? markPaid;
+  const recordPlatform = deps.recordChargePlatform ?? recordChargePlatform;
+  const loadPlatform = deps.loadChargePlatformForTransaction ?? loadChargePlatformForTransaction;
+  const getAdmin = deps.getAdmin ?? createServiceRoleClient;
   // The platform that delivered this settlement IS the platform that took the
   // charge. Record it BEFORE markPaid fans out payouts (transfers, refunds and
   // reversals all key off it), and flag a disagreement with what checkout stored.
   if (account === "mx") {
-    if (!(await recordChargePlatform(action.transactionId, "mx"))) {
+    if (!(await recordPlatform(action.transactionId, "mx"))) {
       return { ok: false, error: `could not record charge platform mx for ${action.transactionId}` };
     }
-  } else if ((await loadChargePlatformForTransaction(action.transactionId)) === "mx") {
+  } else if ((await loadPlatform(action.transactionId)) === "mx") {
     logServerError(
       "stripe-webhook.charge_platform_mismatch",
       new Error(`ALERT US-platform settlement for txn ${action.transactionId} recorded as an MX charge (event ${event.id})`),
@@ -86,7 +107,7 @@ export async function settleCheckoutPayment(
   // (logged) instead of auto-paying the wrong amount.
   const charged = extractChargedAmount(event);
   if (charged) {
-    const sbGuard = createServiceRoleClient();
+    const sbGuard = getAdmin();
     if (sbGuard) {
       const { data: txnRow, error: guardErr } = await sbGuard
         .from("booking_transactions")
@@ -113,7 +134,7 @@ export async function settleCheckoutPayment(
   }
   // Thread the settling PaymentIntent onto the transaction so a refund can
   // later be issued against the real charge (see markPaid).
-  const result = await markPaid(action.transactionId, { paymentIntentId: action.paymentIntentId });
+  const result = await markPaidFn(action.transactionId, { paymentIntentId: action.paymentIntentId });
   if (result.ok) return { ok: true, outcome: "paid" };
 
   // ALREADY SETTLED IS AN ANSWER, NOT A FAULT. `markPaid` refuses a row that is
@@ -122,7 +143,7 @@ export async function settleCheckoutPayment(
   // getting there first, `async_payment_succeeded` after `completed`) used to
   // turn that refusal into a 5xx that Stripe retried for three days against
   // money already booked. Settled once means acknowledged; nothing runs twice.
-  if (await transactionAlreadySettled(action.transactionId)) {
+  if (await transactionAlreadySettled(action.transactionId, getAdmin)) {
     void improntaLog("stripe_webhook.info", {
       message: `booking_payment already settled: transaction ${action.transactionId} (event ${event.id})`,
     });

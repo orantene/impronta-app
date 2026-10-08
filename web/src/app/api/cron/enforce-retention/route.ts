@@ -1,12 +1,24 @@
 /**
- * Cron — data retention (lib/account/retention.ts).
+ * Cron — data retention (lib/account/retention.ts). Periods come from
+ * lib/legal/retention-config.ts (RETENTION_PERIODS).
  *
- * Anonymizes guest contact data on inquiries idle 12 months and deletes
- * unbooked inquiries (with their messages) idle 24 months. Bookings and
- * payment records are never touched. DRY RUN unless RETENTION_ENFORCE is
- * exactly "true": the default run only logs the counts it would act on.
- * MEDIA_REAPER_ENABLED (deleted media, 30 days) is a separate switch and is
- * not read or changed here.
+ *  1. Guest contact data on inquiries idle 3 years is anonymized.
+ *  2. Unbooked inquiries (with their messages) idle 3 years are deleted.
+ *  3. Anonymised accounts (retention-account-purge.ts): the orphaned, scrubbed
+ *     talent profile of a COMPLETED account deletion is hard-deleted 30 days
+ *     after the deletion ran (which is after the 14-day grace), but only when
+ *     no booking, payout, order, ledger, subscription or media row still
+ *     references it.
+ *  4. analytics_events and notification_dispatch_log rows older than 90 days
+ *     are deleted in bounded batches (retention-log-trims.ts).
+ *
+ * BOOKINGS AND PAYMENT RECORDS ARE NEVER PURGED BY THIS JOB, pending the legal
+ * answer on tax record retention (TUL-43). workspace_audit_events has its own
+ * job (workspace-audit-trim, 180 days) and is not touched here.
+ *
+ * DRY RUN unless RETENTION_ENFORCE is exactly "true": the default run only
+ * logs the counts it would act on, for every step above. MEDIA_REAPER_ENABLED
+ * (deleted media, 30 days) is a separate switch and is not read or changed here.
  */
 
 import { NextResponse } from "next/server";
@@ -47,6 +59,18 @@ export async function GET(request: Request) {
     purgePurgeable: report.unbookedInquiries.purgeable,
     purgeDeleted: report.unbookedInquiries.deleted,
     purgeKept: report.unbookedInquiries.kept,
+    accountsCutoff: report.deletedAccounts.cutoff,
+    accountsCandidates: report.deletedAccounts.candidates,
+    accountsScanned: report.deletedAccounts.scanned,
+    accountsPurgeable: report.deletedAccounts.purgeable,
+    accountsDeleted: report.deletedAccounts.deleted,
+    accountsKept: report.deletedAccounts.kept,
+    accountsKeptByReason: JSON.stringify(report.deletedAccounts.keptByReason),
+    logsCutoff: report.analyticsEvents.cutoff,
+    analyticsOlderThan90d: report.analyticsEvents.olderThanCutoff,
+    analyticsDeleted: report.analyticsEvents.deleted,
+    dispatchLogOlderThan90d: report.notificationDispatchLog.olderThanCutoff,
+    dispatchLogDeleted: report.notificationDispatchLog.deleted,
     errors: report.errors.length,
   });
 
