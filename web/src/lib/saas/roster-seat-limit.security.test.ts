@@ -61,11 +61,13 @@ test("evaluateRosterSeatAvailability: the cap is inclusive (after <= limit) and 
   if (!bulkOver.ok) assert.equal(bulkOver.after, 8);
 });
 
-test("evaluateRosterSeatAvailability: the over-cap copy names the plan from the derived catalog; an unknown/null plan reads as Free (the default plan), a paid plan never says Free", () => {
-  // seat-limit-copy.ts derives the wording (#1821): an unknown or null tier is treated as the default Free plan.
+test("evaluateRosterSeatAvailability: an unknown/null plan gets the generic seat-limit copy (no plan name), a paid plan never says Free", () => {
   const unknown = evaluateRosterSeatAvailability({ planTier: null, limit: 2, current: 2, additionalSeats: 1 });
   assert.equal(unknown.ok, false);
-  if (!unknown.ok) assert.match(unknown.message, /Free plan limit/i);
+  if (!unknown.ok) {
+    assert.equal(unknown.message, "You've reached your plan's seat limit (2 profiles).");
+    assert.doesNotMatch(unknown.message, /Free plan/i);
+  }
   const paid = evaluateRosterSeatAvailability({ planTier: "studio", limit: 2, current: 2, additionalSeats: 1 });
   assert.equal(paid.ok, false);
   if (!paid.ok) {
