@@ -91,16 +91,36 @@ function vercelToken() {
 
 /** githubCommitSha of a deployment (URL or id), or null when unknown. */
 export async function resolveDeploymentCommitSha(deploymentUrlOrId, { teamId }) {
-  const token = vercelToken();
-  if (!token) return null;
   const id = String(deploymentUrlOrId).replace(/^https?:\/\//, "");
-  const res = await fetch(
-    `https://api.vercel.com/v13/deployments/${encodeURIComponent(id)}?teamId=${encodeURIComponent(teamId)}`,
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
-  if (!res.ok) return null;
-  const json = await res.json();
-  return json?.meta?.githubCommitSha ?? null;
+  const token = vercelToken();
+  if (token) {
+    const res = await fetch(
+      `https://api.vercel.com/v13/deployments/${encodeURIComponent(id)}?teamId=${encodeURIComponent(teamId)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ).catch(() => null);
+    if (res?.ok) {
+      const sha = (await res.json())?.meta?.githubCommitSha;
+      if (sha) return sha;
+    }
+  }
+  // Fallback (2026-10-08): the CLI's stored OAuth token can be refused by the raw
+  // REST call (403 "Not authorized") while the CLI itself still works. `vercel api`
+  // uses the CLI's own auth and scope handling, so ask it instead of refusing the
+  // alias as "untraceable". The verdict logic below is unchanged.
+  return resolveDeploymentCommitShaViaCli(id, teamId);
+}
+
+/** githubCommitSha via the Vercel CLI's authenticated `vercel api`, or null. */
+export function resolveDeploymentCommitShaViaCli(id, teamId, run = execSync) {
+  try {
+    const out = run(
+      `npx vercel api ${JSON.stringify(`/v13/deployments/${id}`)} --scope ${JSON.stringify(teamId)}`,
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 60_000 },
+    );
+    return JSON.parse(String(out))?.meta?.githubCommitSha ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** One call for the scripts: resolve everything and decide. */
