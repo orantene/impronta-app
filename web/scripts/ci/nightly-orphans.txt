@@ -101,7 +101,6 @@ src/lib/discover/hub-split-independent-talents.test.ts
 src/lib/discover/pro-gate.test.ts
 src/lib/email/order-confirmation.test.ts
 src/lib/email/reply-to.test.ts
-src/lib/email/resend-inbound-forward.test.ts
 src/lib/email/ticket-issued.test.ts
 src/lib/field-engine/canonical-shadow.test.ts
 src/lib/field-engine/client-field-source.test.ts
