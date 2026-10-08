@@ -1821,7 +1821,7 @@
         "notFound": "We could not find that.",
         "invalid": "Something about that did not look right. Check it and try again.",
         "channelUnavailable": "We could not send that just now. Try again in a moment.",
-        "currencyUnavailable": "This shop has no currency set up yet, so a cart cannot be started. Please contact the business.",
+        "currencyUnavailable": "This shop has no currency set up yet, so an order can't be started. Please contact the business.",
         "unavailable": "We could not do that just now. Nothing was changed. Try again."
       }
     },
