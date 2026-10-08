@@ -32,8 +32,9 @@ export type FeePreviewPlatformConfig = {
 type RpcClient = {
   rpc: (
     fn: string,
+    args?: Record<string, unknown>,
   ) => PromiseLike<{
-    data: PlatformProcessingModeRow | null;
+    data: unknown;
     error?: { message?: string } | null;
   }>;
 };
@@ -87,5 +88,5 @@ export async function readPlatformProcessingMode(
 ): Promise<PlatformProcessingModeRow | null> {
   const modeRes = await admin.rpc("engine_platform_processing_mode");
   if (modeRes.error) return null;
-  return modeRes.data ?? null;
+  return (modeRes.data as PlatformProcessingModeRow | null) ?? null;
 }

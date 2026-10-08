@@ -55,12 +55,14 @@ export async function getFeePreviewConfig(
     // engine's platform_config carries so a non-zero floor is previewed too.
     let takeFloorCents = 0;
     try {
-      const { data: floorRow } = await admin
+      const { data: floorRow, error: floorErr } = await admin
         .from("platform_commission_config")
         .select("default_take_floor_cents")
         .eq("singleton_key", true)
         .maybeSingle();
-      if (typeof floorRow?.default_take_floor_cents === "number") {
+      if (floorErr) {
+        logServerError("billing.getFeePreviewConfig/floor", floorErr);
+      } else if (typeof floorRow?.default_take_floor_cents === "number") {
         takeFloorCents = floorRow.default_take_floor_cents;
       }
     } catch {
