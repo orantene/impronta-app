@@ -311,7 +311,7 @@ export default async function CmsPublicPage({
     const tShell = createTranslator(locale);
     return (
       <>
-        <SkipToContent />
+        <SkipToContent locale={locale} />
         <PublicHeader />
         <main
           id="main-content"
@@ -576,7 +576,7 @@ export default async function CmsPublicPage({
         : { merged: pageJsonLd, extra: null };
       return (
         <>
-          <SkipToContent />
+          <SkipToContent locale={locale} />
           {/* ANALYTICS-2 — storefront page-view (freeform CMS page). Only on the
               published path (drafts render under preview; not counted). */}
           {freeformPage.status === "published" ? (
@@ -699,7 +699,7 @@ export default async function CmsPublicPage({
   if (sectionPage?.snapshot) {
     return (
       <>
-        <SkipToContent />
+        <SkipToContent locale={locale} />
         {/* ANALYTICS-2 — storefront page-view (section-composed CMS page). */}
         <SitePageViewAnalytics
           surface="storefront"
@@ -740,7 +740,7 @@ export default async function CmsPublicPage({
 
   return (
     <>
-      <SkipToContent />
+      <SkipToContent locale={locale} />
       {/* ANALYTICS-2 — storefront page-view (legacy published CMS page). */}
       <SitePageViewAnalytics
         surface="storefront"
