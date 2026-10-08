@@ -680,6 +680,7 @@
     },
     "profileCta": {
       "inquireAbout": "Demander pour {name}",
+      "bookCta": "Réserver",
       "bookNowPrice": "Réserver · {price}",
       "bookInstantly": "Réserver {name} immédiatement",
       "closeAria": "Fermer",

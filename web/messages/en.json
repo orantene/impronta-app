@@ -362,6 +362,7 @@
     },
     "profileCta": {
       "inquireAbout": "Inquire about {name}",
+      "bookCta": "Book",
       "bookNowPrice": "Book now · {price}",
       "bookInstantly": "Book {name} instantly",
       "closeAria": "Close",
