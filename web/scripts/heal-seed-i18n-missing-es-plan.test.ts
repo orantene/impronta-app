@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   collectMissingLeaves,
@@ -43,9 +44,17 @@ test("collectMissingLeaves finds English base without i18n.es", () => {
   assert.ok(!missing.some((m) => m.base === "About"));
 });
 
-test("formatHealSummary points at copy release", () => {
+test("formatHealSummary points at guarded copy release", () => {
   const text = formatHealSummary({ trees: 127, profiles: 43, leaves: 760, missing: [] }, "2026-10-08");
   assert.ok(text.includes("127"));
+  assert.ok(text.includes("43"));
   assert.ok(text.includes("qa:release-theme-i18n"));
   assert.ok(text.includes("Do not silent-migrate"));
+});
+
+test("inventory script is read-only (no apply / write path)", () => {
+  const src = readFileSync(new URL("./heal-seed-i18n-missing-es.mts", import.meta.url), "utf8");
+  assert.ok(/Never writes/i.test(src));
+  assert.ok(!/\b--apply\b/.test(src));
+  assert.ok(src.includes("qa:release-theme-i18n"));
 });
