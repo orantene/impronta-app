@@ -43,10 +43,7 @@ import {
   isPlatformSubdomainLabelTaken,
   requestSubdomainNamespaceCopy,
 } from "@/lib/saas/platform-subdomain-namespace.server";
-import { PAGE_COLUMNS, siteUrl } from "./site-management-helpers";
-import { resolveMyWebsiteTarget } from "@/lib/talent-site/my-website-target";
-import { loadOwnedBusinessWorkspace } from "@/lib/talent-site/server/workspace-site-context";
-import { resolveWorkspaceSitePublicUrl } from "@/lib/talent-site/workspace-site-editor-url";
+import { PAGE_COLUMNS, resolveManagerPublicSiteUrl, siteUrl } from "./site-management-helpers";
 import {
   derivePageSlug,
   isReservedPageSlug,
@@ -206,25 +203,12 @@ export async function loadMaxSiteManagerAction(): Promise<
     updatedAt: p.updated_at,
   }));
 
-  // TUL-77 / TUL-347: business owners see the workspace live URL as "My website",
-  // matching where Edit site opens (not the personal qa-fresh-studio host).
-  let publicSiteUrl = siteUrl(site?.site_slug ?? null, isDemo);
-  const adminForUrl = createServiceRoleClient();
-  if (adminForUrl && scope.session.user?.id) {
-    const owned = await loadOwnedBusinessWorkspace(adminForUrl, scope.session.user.id);
-    const target = resolveMyWebsiteTarget({
-      ownsBusinessWorkspace: owned.ownsBusinessWorkspace,
-      hasWorkspaceSite: owned.hasWorkspaceSite,
-      workspaceSlug: owned.workspaceSlug,
-      hasPersonalSite: siteExists,
-    });
-    if (target.kind === "workspace" && owned.tenantId) {
-      publicSiteUrl = await resolveWorkspaceSitePublicUrl(adminForUrl, {
-        tenantId: owned.tenantId,
-        slug: target.slug,
-      });
-    }
-  }
+  // TUL-77 / TUL-347: business owners see the workspace live URL as "My website".
+  const publicSiteUrl = await resolveManagerPublicSiteUrl({
+    personalSiteUrl: siteUrl(site?.site_slug ?? null, isDemo),
+    userId: scope.session.user?.id,
+    siteExists,
+  });
 
   return {
     ok: true,
