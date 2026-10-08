@@ -20,6 +20,20 @@ is not enough (TUL-134: the lightbox check passed while the lightbox was a
 | tul-123 | booking form: Turnstile, no visible hCaptcha puzzle |
 | timing-harness | TUL-290: cold render time of Today, Messages, Profile, Builder, Clients, Services as TAL-93900 (3 loads each) + #418 count |
 | builder-behaviour | TUL-78 / TUL-79 / TUL-87 builder behaviour as TAL-93900, DRAFT ONLY on `jorg-beauty-qa`, never Publish; snapshots and restores the draft, deletes its qa-harness media |
+| profile-media-and-phone | TUL-224 caption save timing as TAL-93900 (click-to-saved + server action response, original caption restored) and TUL-106 phone 390x844 tap on the sticky booking bar on `jorg-beauty-qa` (look only, never submits) |
+
+profile-media-and-phone (on demand). Env: `LIVE_MEDIA=1` (or `LIVE_TIMING=1`); the caption check also needs
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (production project).
+Run alone, desktop project only, no retries (the phone check opens its own 390x844 Chromium touch context):
+
+    cd web && set -a && . ./.env.local && set +a
+    LIVE_MEDIA=1 npx playwright test -c playwright.live.config.ts profile-media-and-phone --project=desktop --workers=1 --retries=0
+
+The caption check reads one image's `caption` / `caption_i18n` (keyed by profile id), saves `qa-harness-caption` three
+times through the real caption field, prints and attaches the durations, then restores the original in `finally` and
+`afterAll` (keyed on asset id and owner profile id, verified by reading back). The phone check scrolls with
+`window.scrollTo`, taps the bar, attaches screenshots, asserts the booking sheet opens, and stops: every tap goes
+through `assertSafeBookingAction` (refuses submit / book now / confirm / reserve / pay).
 
 builder-behaviour (on demand, writes to the TEST draft only). Env: `LIVE_BUILDER=1` (or `LIVE_TIMING=1`),
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (production project).
