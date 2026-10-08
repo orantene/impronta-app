@@ -21,6 +21,7 @@ import { attachReservationHoldToInquiry } from "@/lib/scheduling/reservation-hol
 import { enrichBookingFromReservation, type AppointmentOverride } from "@/lib/scheduling/reservation-convert";
 import { clampTaskBrief, type OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
 import { normalizeBookingLocale } from "@/lib/scheduling/booking-locale";
+import { cleanEventLocation } from "@/lib/scheduling/booking-event-location";
 import { formatIntakeBlock } from "@/lib/talent/offering-intake";
 
 export type OpenPurchaseThreadInput = {
@@ -47,6 +48,10 @@ export type OpenPurchaseThreadInput = {
    * the appointment by the buffer (TUL-93).
    */
   readonly appointment?: AppointmentOverride | null;
+  /** TUL-426: the place the booking sheet sent; becomes `inquiries.event_location`. */
+  readonly eventLocation?: string | null;
+  /** The booked offering, so the stamp can fall back to its delivery setting. */
+  readonly offeringId?: string | null;
 };
 
 export async function openPurchaseThread(
@@ -56,6 +61,7 @@ export async function openPurchaseThread(
   // Re-clamped here: the brief is visitor text from a public form.
   const brief = clampTaskBrief(input.brief);
   const bookingLocale = normalizeBookingLocale(input.locale);
+  const eventLocation = cleanEventLocation(input.eventLocation);
   const { data: inqRow, error: inqErr } = await admin
     .from("inquiries")
     .insert({
@@ -69,6 +75,8 @@ export async function openPurchaseThread(
       // gates on guest_session_id === cookie; clearing it when the buyer
       // happens to be signed in is how a confirmed instant book 404s.
       guest_session_id: input.guestSessionId,
+      // TUL-426: null when unknown, never "".
+      ...(eventLocation ? { event_location: eventLocation } : {}),
       // `locale` is the language the buyer was browsing in; the confirmation
       // email renders in it (TUL-93). Read back by `loadInquiryView`.
       ...(brief || bookingLocale
@@ -156,6 +164,9 @@ export async function openPurchaseThread(
       bookingId: input.bookingId,
       actorUserId: input.actorUserId,
       appointment: input.appointment ?? null,
+      requestedLocation: eventLocation,
+      offeringId: input.offeringId ?? null,
+      locale: input.locale ?? null,
     });
     if (!enriched.ok) {
       logServerError("orders.createPurchase/talent-mirror", enriched.error);

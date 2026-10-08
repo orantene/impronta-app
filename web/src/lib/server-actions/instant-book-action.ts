@@ -29,6 +29,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadTalentPreferredLocale } from "@/lib/site-admin/server/talent-locale";
 import { normalizeBookingLocale, resolveBookingLocale } from "@/lib/scheduling/booking-locale";
 import { unwindFailedCheckout } from "@/lib/orders/unwind-failed-checkout";
+import { cleanEventLocation } from "@/lib/scheduling/booking-event-location";
 import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
 
 export type {
@@ -129,6 +130,8 @@ export async function createInstantBookingAction(
           guestSessionId: await resolveGuestSessionId(),
           brief: payload.brief ?? null,
           locale: bookingLocale,
+          // TUL-426: the sheet's place, trimmed and capped here (visitor text).
+          eventLocation: cleanEventLocation(payload.eventLocation),
         });
 
         if (!booked.ok) {

@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
+import { offeringWhereFromAttributes } from "@/lib/talent/offering-request-detail";
 import { isValidIanaTimeZone, utcToZonedYmd } from "./tz";
+import { pickEventLocation, resolveServiceLocation } from "./booking-event-location";
 
 /**
  * TUL-132 — a talent-site booking mirrors into `talent_bookings`, but its
@@ -46,6 +48,11 @@ export async function stampInquiryEventFromBooking(
     tenantId: string;
     startsAt: string;
     locationText?: string | null;
+    /** TUL-426: the line the booking sheet sent (already cleaned), used when the booking has none. */
+    requestedLocation?: string | null;
+    /** TUL-426: the booked offering; its `attributes.where` + venue/home city give the setting-based location. */
+    offeringId?: string | null;
+    locale?: string | null;
   },
 ): Promise<void> {
   try {
@@ -73,13 +80,51 @@ export async function stampInquiryEventFromBooking(
       .maybeSingle();
     if (vErr) logServerError("inquiry-event-stamp/venue", vErr);
 
+    let fromSettings: string | null = null;
+    if (input.offeringId && !(current.event_location ?? "").trim()) {
+      const { data: off, error: oErr } = await admin
+        .from("talent_offerings")
+        .select("attributes")
+        .eq("id", input.offeringId)
+        .maybeSingle();
+      if (oErr) logServerError("inquiry-event-stamp/offering", oErr);
+      const attrs = (off as { attributes?: Record<string, unknown> | null } | null)?.attributes ?? null;
+      const where = offeringWhereFromAttributes(attrs);
+      if (where.length > 0) {
+        const { data: tp, error: tErr } = await admin
+          .from("talent_profiles")
+          .select("home_city_text")
+          .eq("id", input.talentProfileId)
+          .maybeSingle();
+        if (tErr) logServerError("inquiry-event-stamp/talent", tErr);
+        const { data: vl, error: vlErr } = await admin
+          .from("venues")
+          .select("address_line1, city")
+          .eq("tenant_id", input.tenantId)
+          .eq("is_default", true)
+          .maybeSingle();
+        if (vlErr) logServerError("inquiry-event-stamp/venue-address", vlErr);
+        const v = vl as { address_line1: string | null; city: string | null } | null;
+        fromSettings = resolveServiceLocation({
+          where,
+          venueText: [v?.address_line1, v?.city].filter((x) => x && x.trim()).join(", ") || null,
+          homeCity: (tp as { home_city_text: string | null } | null)?.home_city_text ?? null,
+          locale: input.locale ?? null,
+        });
+      }
+    }
+
     const patch = buildInquiryEventPatch(current, {
       eventDate: eventDateForBooking(
         input.startsAt,
         (hours as { timezone: string | null } | null)?.timezone,
         (venue as { timezone: string | null } | null)?.timezone,
       ),
-      location: input.locationText ?? null,
+      location: pickEventLocation({
+        bookingLocationText: input.locationText,
+        requested: input.requestedLocation,
+        fromSettings,
+      }),
     });
     if (Object.keys(patch).length === 0) return;
     const { error: upErr } = await admin.from("inquiries").update(patch).eq("id", input.inquiryId);

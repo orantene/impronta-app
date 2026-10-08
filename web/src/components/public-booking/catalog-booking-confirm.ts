@@ -46,6 +46,8 @@ export async function runCatalogConfirmWrite(input: {
   variantId: string | null;
   addOnIds: string[];
   brief?: OfferingTaskBrief | null;
+  /** TUL-426: where the service happens (the offering's delivery setting). */
+  eventLocation?: string | null;
   liveStarts: string | null;
   liveTz: string;
   bookingDurationMinutes: number;
@@ -92,6 +94,7 @@ export async function runCatalogConfirmWrite(input: {
       variantId: input.variantId,
       addOnIds: input.addOnIds,
       ...(input.brief ? { brief: input.brief } : {}),
+      ...(input.eventLocation ? { eventLocation: input.eventLocation } : {}),
       reservation,
       captchaToken: input.captchaToken,
       locale: input.locale,
