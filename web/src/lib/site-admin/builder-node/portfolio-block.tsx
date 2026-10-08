@@ -300,7 +300,7 @@ export function renderPortfolioBlock(args: {
     return captionLanguageHint({ caption: full?.caption, captionI18n: full?.captionI18n, locale: args.locale, primaryLocale: args.primaryLocale });
   } : undefined);
   const shotNodes = visible.map((shot, index) => workOrder ? (
-    <WorkOrderFigure key={shot.id} shot={shot} />
+    <WorkOrderFigure key={shot.id} shot={shot} locale={args.locale} />
   ) : (
     <ShotFigure
       key={shot.id}
