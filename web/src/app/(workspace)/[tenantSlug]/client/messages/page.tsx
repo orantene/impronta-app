@@ -5,14 +5,8 @@
 import { notFound } from "next/navigation";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  loadClientSelfProfile,
-  loadClientInquiries,
-  loadWorkspaceRosterLite,
-} from "../../_data-bridge";
-import { loadClientInquiryMessages } from "../../_data-bridge/inquiries-messages";
-import { loadClientInquiryDetails } from "../../_data-bridge/client-inquiry-details";
+import { clientPageReadCtx } from "../_data-bridge/client-read-ctx";
+import { loadMessagesPageData } from "../_data-bridge/client-page-loaders";
 import { ClientMessagesShell } from "./ClientMessagesShell";
 
 export const dynamic = "force-dynamic";
@@ -46,69 +40,25 @@ export default async function ClientMessagesPage({
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
-  const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
-  if (!clientProfile) notFound();
-
-  // Parallel load: inquiries + roster (lite — only the four fields the
-  // drawer's NewInquiryForm needs). Previously called the enriched roster
-  // which fanned out to media + signed-URL + language-count queries; that
-  // made every client page wait on a heavy join.
-  const [inquiries, roster] = await Promise.all([
-    loadClientInquiries(session.user.id, scope.tenantId),
-    loadWorkspaceRosterLite(scope.tenantId),
-  ]);
-
-  // Pick the active inquiry: ?inquiry= takes precedence, else first row.
-  //
-  // TRUST GUARD: every "View inquiry / Review your offer" email + notification
-  // deep-links here with ?inquiry=<id>. If that id is NOT in the loaded set
-  // (archived, no permission, or paginated out), we must NOT silently fall back
-  // to the client's first inquiry — that would open an unrelated thread on the
-  // money surface. Instead flag pinnedNotFound so the shell renders an explicit
-  // "this inquiry isn't available" notice while still listing their others.
-  const pinnedMatch = pinnedInquiry
-    ? inquiries.find((i) => i.id === pinnedInquiry)?.id ?? null
-    : null;
-  const pinnedNotFound = Boolean(pinnedInquiry) && pinnedMatch === null;
-  const initialActiveId = pinnedInquiry
-    ? pinnedMatch
-    : inquiries[0]?.id ?? null;
-
-  // The initial thread/details loaders are tenant-scoped (they filter
-  // inquiries.tenant_id). Under XTENANT_REHOME the active row may be one this
-  // client OWNS but that was re-homed onto a managing agency, so its real
-  // tenant_id differs from this hub's scope; preloading against the hub scope
-  // would render a blank first paint for a re-homed inquiry. Resolve the row's
-  // ACTUAL tenant (RLS gates this read to the client's own inquiry via
-  // client_user_id = auth.uid()) and preload against it. Gated on the flag so
-  // it is a strict no-op — zero extra round-trips — while re-home is off.
-  let activeTenantId = scope.tenantId;
-  if (initialActiveId && process.env.XTENANT_REHOME === "1") {
-    const supabase = await createSupabaseServerClient();
-    const { data: activeRow } = supabase
-      ? await supabase
-          .from("inquiries")
-          .select("tenant_id")
-          .eq("id", initialActiveId)
-          .eq("client_user_id", session.user.id)
-          .maybeSingle()
-      : { data: null };
-    if (activeRow?.tenant_id) activeTenantId = activeRow.tenant_id as string;
-  }
-
-  // Phase C — load Details payload + private-thread messages in parallel for
-  // the initial active inquiry. The shell mounts Details tab content from
-  // server data so the first paint is rich (no spinner-and-fetch).
-  // Private thread = agency + client; group thread is the talent fan-out.
-  // D-MSG-2: the client reader also drops staff internal notes.
-  const [initialMessages, initialDetails] = await Promise.all([
-    initialActiveId
-      ? loadClientInquiryMessages(activeTenantId, initialActiveId)
-      : Promise.resolve([]),
-    initialActiveId
-      ? loadClientInquiryDetails(activeTenantId, initialActiveId)
-      : Promise.resolve(null),
-  ]);
+  // Inquiry list + the pinned/first thread preload (TRUST GUARD for a pinned id
+  // outside the loaded set, and the re-home tenant lookup) live in the loader,
+  // keyed on the effective user.
+  const pageData = await loadMessagesPageData(
+    session.user.id,
+    scope.tenantId,
+    await clientPageReadCtx(session.user.id),
+    pinnedInquiry,
+  );
+  if (!pageData) notFound();
+  const {
+    inquiries,
+    roster,
+    initialActiveId,
+    pinnedNotFound,
+    initialMessages,
+    initialDetails,
+    read: { profile: clientProfile },
+  } = pageData;
 
   // Validate ?tab= against the allow-list. Any unknown value falls back to chat.
   const allowedTabs = new Set(["chat", "lineup", "offer", "details", "files"]);

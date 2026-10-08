@@ -14,6 +14,7 @@
  * coordinator fee + commission internals are not selected.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -68,9 +69,14 @@ function todayKey(): string {
 export async function loadClientUpcoming(
   userId: string,
   tenantId: string,
+  /**
+   * TUL-255: from `pickReadClient` only (client portal page loaders). Absent =
+   * the request's own RLS client, exactly as before.
+   */
+  readClient?: SupabaseClient | null,
 ): Promise<UpcomingBooking[]> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = readClient ?? (await createSupabaseServerClient());
     if (!supabase) return [];
     const admin = createServiceRoleClient();
     const readClient = admin ?? supabase;

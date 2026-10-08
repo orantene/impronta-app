@@ -20,8 +20,9 @@ import { notFound, redirect } from "next/navigation";
 import { CLIENT_PRO_PRICING_LIVE } from "@/lib/client-billing/pricing-flag";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadClientSubscription, type ClientSubscriptionTier }
-  from "@/lib/discover/client-subscription";
+import type { ClientSubscriptionTier } from "@/lib/discover/client-subscription";
+import { clientPageReadCtx } from "../_data-bridge/client-read-ctx";
+import { loadSubscriptionPageData } from "../_data-bridge/client-page-loaders";
 import { ClientPageHeader } from "../_components/ClientPageHeader";
 import { ProUpgradeButton } from "./ProUpgradeButton";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -132,7 +133,10 @@ export default async function ClientSubscriptionPage({ params }: { params: PageP
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
-  const sub = await loadClientSubscription(session.user.id);
+  const sub = await loadSubscriptionPageData(
+    session.user.id,
+    await clientPageReadCtx(session.user.id),
+  );
   const currentTier = sub.tier;
 
   return (
