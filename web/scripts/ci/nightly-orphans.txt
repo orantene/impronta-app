@@ -1,6 +1,7 @@
 # Orphan test files (run by no ci.yml lane) that PASS without env, run nightly by `npm run test:orphans`.
 # One path per line, relative to web/. Enroll a file into a real lane in package.json, then delete it here.
 # Failing orphans are NOT listed: see the PR body of the nightly-all-tests PR (TUL-185).
+scripts/ci/tap-counts.test.mjs
 scripts/demo-talents/foundation-locale.test.ts
 scripts/demo-talents/foundation-login-links.test.ts
 scripts/demo-talents/foundation-seed.test.ts
@@ -92,7 +93,6 @@ src/components/public-booking/talent-policy-document.test.tsx
 src/components/shared/ThreadShell.test.ts
 src/components/site-shell/shell-nav-data.static.test.ts
 src/components/support/support-deep-link.test.ts
-src/components/support/support-rel-time.test.ts
 src/components/talent-cards/card-actions-portrait.static.test.ts
 src/components/talent/site/maison-setup/gallery-apps.test.tsx
 src/components/talent/site/maison-setup/gallery-browse-state.test.ts
@@ -122,8 +122,13 @@ src/lib/ai/run-ai-directory-search.test.ts
 src/lib/analytics/consent.test.ts
 src/lib/auth/preview-qa-token.test.ts
 src/lib/booking/guest-booking-presentation.test.ts
+src/lib/bookings/cancellation-window.test.ts
+src/lib/bookings/commission.format.test.ts
+src/lib/bookings/manual-payment.test.ts
+src/lib/bookings/transactions.events.test.ts
 src/lib/catalog/entitlement-credits.test.ts
 src/lib/catalog/service-defaults.test.ts
+src/lib/client-hub/load-hub-focus.test.ts
 src/lib/client-integrations/client-trust-summary.test.ts
 src/lib/client/settle-server-action.test.ts
 src/lib/crm/segments.test.ts
@@ -136,6 +141,7 @@ src/lib/directory/filter-cap.test.ts
 src/lib/directory/humanize-enum-label.test.ts
 src/lib/directory/profile-codes.test.ts
 src/lib/directory/search-params.test.ts
+src/lib/discover/hub-split-independent-talents.test.ts
 src/lib/discover/pro-gate.test.ts
 src/lib/email/order-confirmation.test.ts
 src/lib/email/reply-to.test.ts
@@ -195,13 +201,36 @@ src/lib/master/contexts.test.ts
 src/lib/master/drawer-contract.test.ts
 src/lib/master/layers.test.ts
 src/lib/master/vocabulary.test.ts
+src/lib/media/tenant-image-job-staleness.test.ts
 src/lib/menu-import/menu-from-brief.test.ts
 src/lib/money/total-client-revenue.test.ts
+src/lib/notifications/copy-has-entry.static.test.ts
 src/lib/notifications/customer-copy-voice.static.test.ts
 src/lib/notifications/dispatcher-outcome.test.ts
 src/lib/notifications/envelope-log.test.ts
 src/lib/notifications/talent-inbox-scope.test.ts
+src/lib/orders/capacity-requests.test.ts
+src/lib/orders/display-currency.test.ts
+src/lib/orders/door-hold.test.ts
+src/lib/orders/money-format.test.ts
 src/lib/orders/orders-page-wire.static.test.ts
+src/lib/orders/promo-eligibility.test.ts
+src/lib/orders/purchase-booking-currency.test.ts
+src/lib/orders/receipt-code.test.ts
+src/lib/orders/refund-plan.test.ts
+src/lib/orders/unwind-failed-checkout.test.ts
+src/lib/payments/a2-rerequest.static.test.ts
+src/lib/payments/checkout-metadata.test.ts
+src/lib/payments/connect-locale.test.ts
+src/lib/payments/fee-lines-payload.test.ts
+src/lib/payments/pay-closed-money.test.ts
+src/lib/payments/pay-code-stripe-idempotency.static.test.ts
+src/lib/payments/pay-link-target.test.ts
+src/lib/payments/pay-link-url.test.ts
+src/lib/payments/payee-name.test.ts
+src/lib/payments/payment-request-attempt.test.ts
+src/lib/payments/payout-countries.test.ts
+src/lib/payments/statement-descriptor.test.ts
 src/lib/pitch/pitch-engine.deep.test.ts
 src/lib/pitch/pitch-engine.test.ts
 src/lib/pitch/pitch-plan-gate.test.ts
@@ -209,9 +238,12 @@ src/lib/pitch/pitch-share-token.test.ts
 src/lib/platform/default-template-chain.test.ts
 src/lib/platform/operating-currency.test.ts
 src/lib/platform/support-contact.static.test.ts
+src/lib/pos/check-partition.test.ts
+src/lib/pos/draft-talent-line.test.ts
 src/lib/pricing/usd-equivalent.test.ts
 src/lib/profile-fields-service.test.ts
 src/lib/qa/final-campaign-ready.static.test.ts
+src/lib/saas/admin-scope.security.test.ts
 src/lib/saas/agency-surface-roster-gate.static.test.ts
 src/lib/saas/canonical-hosts.test.ts
 src/lib/saas/custom-domain-actions.test.ts
@@ -223,11 +255,13 @@ src/lib/saas/off-roster-hard-404.static.test.ts
 src/lib/saas/redirect-query.security.test.ts
 src/lib/saas/redirect-query.test.ts
 src/lib/saas/roster-seat-limit.test.ts
+src/lib/saas/scope.security.test.ts
 src/lib/saas/seat-limit-copy.test.ts
 src/lib/saas/signup-uses-the-brief.test.ts
 src/lib/saas/solo-talent-tenant.test.ts
 src/lib/saas/storefront-discovery.test.ts
 src/lib/saas/talent-demo-host-redirect.test.ts
+src/lib/saas/talent-self-tenant.test.ts
 src/lib/saas/talent-site-guest-identity.test.ts
 src/lib/saas/talent-site-host-context.test.ts
 src/lib/saas/talent-site-host-routing.test.ts
