@@ -180,6 +180,17 @@ export function buildAnonymizationPlan(
       patch: { deleted_at: nowIso },
     });
 
+    // TUL-231: the site logo lives at talent-site-logos/{talentProfileId}/ and is
+    // named by talent_sites.logo_url (keyed by talent_profile_id, the same id as
+    // the path). Clearing it stops the media reaper treating it as a live reference.
+    ops.push({
+      kind: "update",
+      label: "talent_site_logo",
+      table: "talent_sites",
+      filters: [{ op: "in", col: "talent_profile_id", value: talentProfileIds }],
+      patch: { logo_url: null },
+    });
+
     ops.push({
       kind: "update",
       label: "booking_talent_names",

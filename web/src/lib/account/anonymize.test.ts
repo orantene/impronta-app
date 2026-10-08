@@ -373,3 +373,24 @@ test("anonymizeUserData removes the avatar too, and a failed avatar removal make
   assert.equal(report.ok, false);
   assert.ok(report.steps.some((s) => s.label === "avatar_files.remove" && !s.ok));
 });
+
+test("talent site logo_url is cleared, scoped to the subject's own talent ids only", () => {
+  const plan = buildAnonymizationPlan({ userId: USER, email: null, talentProfileIds: [TALENT] }, NOW);
+  const op = find(plan, "talent_site_logo");
+  assert.equal(op.kind, "update");
+  if (op.kind !== "update") return;
+  assert.equal(op.table, "talent_sites");
+  assert.deepEqual(op.patch, { logo_url: null });
+  assert.deepEqual(op.filters, [{ op: "in", col: "talent_profile_id", value: [TALENT] }]);
+});
+
+test("no talent profiles: no talent_sites op", () => {
+  const plan = buildAnonymizationPlan({ userId: USER, email: null, talentProfileIds: [] }, NOW);
+  assert.equal(plan.some((o) => o.table === "talent_sites"), false);
+});
+
+test("the talent_sites op is idempotent: two plans are identical", () => {
+  const subject = { userId: USER, email: null, talentProfileIds: [TALENT] };
+  const pick = () => buildAnonymizationPlan(subject, NOW).filter((o) => o.table === "talent_sites");
+  assert.deepEqual(pick(), pick());
+});
