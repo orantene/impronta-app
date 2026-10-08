@@ -246,15 +246,22 @@ export const HelloReelEditor = React.memo(function HelloReelEditor({ reel, onCha
 });
 
 
-export function AlbumsEditorPro({ albums, activeId, onActivate, onChange, loading }: {
+export function AlbumsEditorPro({ albums, activeId, onActivate, onChange, loading, totals, loadingMoreId, onLoadMore }: {
   albums: { id: string; name: string; items: PhotoMeta[] }[];
   activeId: string;
   onActivate: (id: string) => void;
   onChange: (a: { id: string; name: string; items: PhotoMeta[] }[]) => void;
   loading?: boolean;
+  /** Exact per-album counts + cursors from the server (TUL-277); absent = count what is loaded. */
+  totals?: Record<string, { total: number; nextOffset: number | null }>;
+  loadingMoreId?: string | null;
+  onLoadMore?: (albumId: string) => void;
 }) {
   const copy = useDashboardText();
   const [newName, setNewName] = useState("");
+  const countOf = (a: { id: string; items: PhotoMeta[] }) => totals?.[a.id]?.total ?? a.items.length;
+  const activeAlbum = albums.find(a => a.id === activeId);
+  const activeInfo = activeAlbum ? totals?.[activeAlbum.id] : undefined;
   const addAlbum = () => {
     const name = newName.trim();
     if (!name) return;
@@ -284,11 +291,24 @@ export function AlbumsEditorPro({ albums, activeId, onActivate, onChange, loadin
               fontSize: 11.5, fontWeight: 600, cursor: "pointer",
               display: "inline-flex", alignItems: "center", gap: 6,
             }}>
-              {a.name} <span style={{ fontWeight: 500 }} className="text-admin-ink-dim">· {loading ? "…" : a.items.length}</span>
+              {a.name} <span style={{ fontWeight: 500 }} className="text-admin-ink-dim">· {loading ? "…" : countOf(a)}</span>
             </button>
           );
         })}
       </div>
+      {activeAlbum && activeInfo && activeInfo.nextOffset != null && onLoadMore && (
+        <button type="button" data-testid="album-load-more" disabled={loadingMoreId === activeAlbum.id}
+          onClick={() => onLoadMore(activeAlbum.id)} style={{
+            marginBottom: 12, padding: "6px 14px", borderRadius: 999, fontFamily: FONTS.body,
+            border: `1px solid ${COLORS.borderSoft}`, background: "#fff", color: COLORS.ink,
+            fontSize: 11.5, fontWeight: 600, cursor: loadingMoreId === activeAlbum.id ? "default" : "pointer",
+            opacity: loadingMoreId === activeAlbum.id ? 0.6 : 1,
+          }}>
+          {loadingMoreId === activeAlbum.id
+            ? copy.t("Loading…")
+            : copy.t("Load more photos · {count} remaining").replace("{count}", String(Math.max(activeInfo.total - activeAlbum.items.length, 0)))}
+        </button>
+      )}
       <div style={{ padding: 14, borderRadius: 10, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface">
         <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 8 }} className="text-admin-ink">
           {copy.t("Manage albums")}
@@ -304,7 +324,7 @@ export function AlbumsEditorPro({ albums, activeId, onActivate, onChange, loadin
                   fontSize: 12.5, color: COLORS.ink, outline: "none", background: "#fff",
                 }}
               />
-              <span className="text-admin-ink-muted text-admin-11">{loading ? "…" : `${a.items.length} ${copy.t(a.items.length === 1 ? "photo" : "photos")}`}</span>
+              <span className="text-admin-ink-muted text-admin-11">{loading ? "…" : `${countOf(a)} ${copy.t(countOf(a) === 1 ? "photo" : "photos")}`}</span>
               {albums.length > 1 && (
                 <button type="button" onClick={() => deleteAlbum(a.id)} aria-label={copy.t("Delete album")} style={{
                   width: 24, height: 24, borderRadius: 6,

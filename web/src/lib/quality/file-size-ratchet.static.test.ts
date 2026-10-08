@@ -372,7 +372,7 @@ const BUDGETS: Record<string, number> = {
   // reload; onSkillsChanged / onContextsChanged and Save & exit's not-dirty
   // early return now queue the (coalesced) refresh. Three call sites plus the
   // comments explaining WHY these paths need it — nothing extractable.
-  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4761,
+  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4699,
   // 2026-08-15 talent-notifications de-mock — net +2. `TalentNotificationsDrawer`
   // rendered a hardcoded MOCK_TALENT_NOTIFS and never read
   // `bridgeUserNotifications`, so a talent saw none of their own rows. The
@@ -619,7 +619,7 @@ const BUDGETS: Record<string, number> = {
   // talent-document actions with one dual-auth helper (staff OR profile owner),
   // so the helper and its doc comment cost more lines than the four blocks it
   // deleted returned.
-  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2401,
+  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2385,
   // +16 — loads + passes the Pro/Portfolio embeds and press bands (the render
   // chrome itself lives in _shared/TalentExtrasBands.tsx, not here).
   // +17 — the agency-surface roster gate, called in generateMetadata AND the
