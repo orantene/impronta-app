@@ -371,6 +371,8 @@ export async function SiteHeaderComponent({
           ? (contactLinks as { type: ShellContactLink["type"]; value: string }[])
           : null,
     });
+  // TUL-240: a paid Web Office site's own links feed the header `social` item (render-time `siteChrome`).
+  const itemSocial = props.siteChrome?.social?.length ? props.siteChrome.social : social;
   const hasCluster = social.length > 0 || contacts.length > 0;
   // Density attrs only when set (unset = existing CSS defaults).
   const densityAttrs: Record<string, string> = {};
@@ -505,9 +507,9 @@ export async function SiteHeaderComponent({
           // is skipped rather than rendered as a dead icon.
           const socialShown = item.platforms?.length
             ? item.platforms.flatMap(
-                (p) => social.filter((s) => s.platform === p),
+                (p) => itemSocial.filter((s) => s.platform === p),
               )
-            : social;
+            : itemSocial;
           return socialShown.length > 0 ? (
             <div key={key} {...attrs} className="site-header__ritem site-header__ritem-social">
               {socialShown.map((s, i) => (
