@@ -14,8 +14,8 @@ import {
   resolveDeviceFrameHorizontalPadding,
 } from "./workspace-layout";
 
-/** Mirrors DeviceFrameTier — kept local so this module stays React-free. */
-export type DeviceFrameTier = "desktop" | "tablet" | "mobile";
+/** Same union as EditDevice (wide/compact preview tiers); local to stay React-free. */
+export type DeviceFrameTier = "desktop" | "tablet" | "mobile" | "wide" | "compact";
 
 /** Peak Ken-Burns scale on `.site-hero__slide` (globals.css hero-slide-fade). */
 export const HERO_SLIDE_PEAK_SCALE = 1.08;
@@ -114,7 +114,8 @@ export function shouldShowDeviceFrameSkeleton(input: {
   device: DeviceFrameTier;
   loadedTiers: ReadonlySet<DeviceFrameTier>;
 }): boolean {
-  if (input.device === "desktop") return false;
+  // desktop + wide share the live storefront DOM (no warm-kept iframe).
+  if (input.device === "desktop" || input.device === "wide") return false;
   return !isDeviceIframeReady(input.loadedTiers, input.device);
 }
 
