@@ -1,14 +1,19 @@
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { MARKETING_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { getRequestLocale } from "@/i18n/request-locale";
-import { getMarketingCopy, type MarketingCopy } from "@/lib/marketing/copy";
+import { getMarketingCopy } from "@/lib/marketing/copy";
+import {
+  getProductTourMockCopy,
+  type ProductTourMockCopy,
+} from "@/lib/marketing/product-tour-mock-copy";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 
 type TabCopy = { eyebrow: string; title: string; body: string };
-type TourCopy = MarketingCopy["tour"];
 
 export async function ProductTourSection() {
-  const copy = getMarketingCopy(await getRequestLocale()).tour;
+  const locale = await getRequestLocale();
+  const copy = getMarketingCopy(locale).tour;
+  const mock = getProductTourMockCopy(locale);
   return (
     <MarketingSection id="tour" className="overflow-hidden">
       <MarketingContainer size="wide">
@@ -36,10 +41,10 @@ export async function ProductTourSection() {
           </div>
           <div className="relative order-1 lg:order-2">
             <BrowserFrame>
-              <MockSite copy={copy} />
+              <MockSite mock={mock} />
             </BrowserFrame>
-            <MobileProfileCard copy={copy} />
-            <InboxOverlay copy={copy} />
+            <MobileProfileCard mock={mock} />
+            <InboxOverlay mock={mock} />
           </div>
         </div>
       </MarketingContainer>
@@ -128,7 +133,7 @@ function BrowserFrame({ children }: { children: React.ReactNode }) {
   );
 }
 
-function MockSite({ copy }: { copy: TourCopy }) {
+function MockSite({ mock }: { mock: ProductTourMockCopy }) {
   return (
     <div className="relative">
       <div
@@ -146,18 +151,18 @@ function MockSite({ copy }: { copy: TourCopy }) {
             className="plt-mono text-[0.6875rem] uppercase tracking-[0.22em]"
             style={{ color: "var(--plt-forest)" }}
           >
-            {copy.mockTagline}
+            {mock.mockTagline}
           </div>
         </div>
         <div className="hidden gap-5 text-[0.75rem] sm:flex" style={{ color: "var(--plt-ink-soft)" }}>
-          <span>{copy.mockNavRoster}</span>
-          <span>{copy.mockNavCasting}</span>
-          <span>{copy.mockNavAbout}</span>
+          <span>{mock.mockNavRoster}</span>
+          <span>{mock.mockNavCasting}</span>
+          <span>{mock.mockNavAbout}</span>
           <span
             className="relative"
             style={{ color: "var(--plt-forest)" }}
           >
-            {copy.mockNavInquiry}
+            {mock.mockNavInquiry}
             <span
               aria-hidden
               className="absolute -bottom-1 left-0 right-0 h-[1.5px] rounded-full"
@@ -173,19 +178,19 @@ function MockSite({ copy }: { copy: TourCopy }) {
             className="plt-mono text-[0.6875rem] font-medium uppercase tracking-[0.22em]"
             style={{ color: "var(--plt-forest)" }}
           >
-            {copy.mockFeatured}
+            {mock.mockFeatured}
           </div>
           <div
             className="plt-display mt-2 text-[1.5rem] font-medium leading-[1.05] tracking-[-0.02em] sm:text-[1.75rem]"
             style={{ color: "var(--plt-ink)" }}
           >
-            {copy.mockHeading}
+            {mock.mockHeading}
           </div>
           <div
             className="mt-3 text-[0.75rem] leading-[1.5]"
             style={{ color: "var(--plt-muted)" }}
           >
-            {copy.mockBody}
+            {mock.mockBody}
           </div>
         </div>
         <div
@@ -210,10 +215,10 @@ function MockSite({ copy }: { copy: TourCopy }) {
       </div>
 
       <div className="grid grid-cols-4 gap-3 px-6 pb-6 sm:px-8 sm:pb-8">
-        <RosterTile name="Sofía" photo={MARKETING_PHOTOS.talentBooking} available={copy.mockAvailable} />
-        <RosterTile name="Nadia" photo={MARKETING_PHOTOS.servicePros} available={copy.mockAvailable} />
-        <RosterTile name="Rami" photo={MARKETING_PHOTOS.heroServices} available={copy.mockAvailable} />
-        <RosterTile name="Ines" photo={MARKETING_PHOTOS.hubDiscovery} available={copy.mockAvailable} />
+        <RosterTile name="Sofía" photo={MARKETING_PHOTOS.talentBooking} available={mock.mockAvailable} />
+        <RosterTile name="Nadia" photo={MARKETING_PHOTOS.servicePros} available={mock.mockAvailable} />
+        <RosterTile name="Rami" photo={MARKETING_PHOTOS.heroServices} available={mock.mockAvailable} />
+        <RosterTile name="Ines" photo={MARKETING_PHOTOS.hubDiscovery} available={mock.mockAvailable} />
       </div>
     </div>
   );
@@ -262,7 +267,7 @@ function RosterTile({
   );
 }
 
-function MobileProfileCard({ copy }: { copy: TourCopy }) {
+function MobileProfileCard({ mock }: { mock: ProductTourMockCopy }) {
   return (
     <div
       className="pointer-events-none absolute -bottom-10 -left-4 hidden w-[224px] rotate-[-5deg] overflow-hidden rounded-[28px] sm:block"
@@ -333,13 +338,13 @@ function MobileProfileCard({ copy }: { copy: TourCopy }) {
             color: "var(--plt-ink-soft)",
           }}
         >
-          <span className="font-medium">{copy.mockRequest}</span>
+          <span className="font-medium">{mock.mockRequest}</span>
           <span className="inline-flex items-center gap-1">
             <span
               className="inline-block h-1.5 w-1.5 rounded-full"
               style={{ background: "var(--plt-forest-bright)" }}
             />
-            {copy.mockAvailable}
+            {mock.mockAvailable}
           </span>
         </div>
       </div>
@@ -347,7 +352,7 @@ function MobileProfileCard({ copy }: { copy: TourCopy }) {
   );
 }
 
-function InboxOverlay({ copy }: { copy: TourCopy }) {
+function InboxOverlay({ mock }: { mock: ProductTourMockCopy }) {
   return (
     <div
       className="pointer-events-none absolute -right-6 -top-6 hidden w-[264px] rotate-[3deg] rounded-2xl p-4 sm:block"
@@ -363,7 +368,7 @@ function InboxOverlay({ copy }: { copy: TourCopy }) {
           className="plt-mono text-[0.625rem] font-medium uppercase tracking-[0.22em]"
           style={{ color: "var(--plt-forest)" }}
         >
-          {copy.mockInboxTitle}
+          {mock.mockInboxTitle}
         </span>
         <span
           className="plt-mono rounded-full px-2 py-0.5 text-[0.625rem] font-medium"
@@ -373,13 +378,13 @@ function InboxOverlay({ copy }: { copy: TourCopy }) {
             border: "1px solid var(--plt-hairline-strong)",
           }}
         >
-          {copy.mockInboxBadge}
+          {mock.mockInboxBadge}
         </span>
       </div>
       <div className="mt-3 space-y-2">
-        <InboxRow name="Cosmo Studio" status={copy.mockStatusNew} tone="new" detail="Editorial · Sofía · Nov 10" />
-        <InboxRow name="Vela Films" status={copy.mockStatusOffer} tone="ink" detail="Brand · Rami · Nov 6" />
-        <InboxRow name="Canto Agency" status={copy.mockStatusBooked} tone="booked" detail="Campaign · Julián" />
+        <InboxRow name="Cosmo Studio" status={mock.mockStatusNew} tone="new" detail="Editorial · Sofía · Nov 10" />
+        <InboxRow name="Vela Films" status={mock.mockStatusOffer} tone="ink" detail="Brand · Rami · Nov 6" />
+        <InboxRow name="Canto Agency" status={mock.mockStatusBooked} tone="booked" detail="Campaign · Julián" />
       </div>
     </div>
   );

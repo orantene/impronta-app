@@ -8,7 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
-import { getMarketingCopy } from "./copy";
+import { getProductTourMockCopy } from "./product-tour-mock-copy";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const COMPONENT = join(
@@ -16,12 +16,17 @@ const COMPONENT = join(
   "src/components/marketing/product-tour-section.tsx",
 );
 
-test("product tour mock wires tour.copy mock keys (no EN hardcodes)", () => {
+test("product tour mock wires getProductTourMockCopy (no EN hardcodes)", () => {
   const src = readFileSync(COMPONENT, "utf8");
-  assert.match(src, /copy\.mockFeatured/, "Featured label must come from tour copy.");
-  assert.match(src, /copy\.mockHeading/, "Mock heading must come from tour copy.");
-  assert.match(src, /copy\.mockNavInquiry/, "Inquiry nav must come from tour copy.");
-  assert.match(src, /copy\.mockInboxTitle/, "Inbox title must come from tour copy.");
+  assert.match(
+    src,
+    /getProductTourMockCopy/,
+    "Mock chrome must load from product-tour-mock-copy.",
+  );
+  assert.match(src, /mock\.mockFeatured/, "Featured label must come from mock copy.");
+  assert.match(src, /mock\.mockHeading/, "Mock heading must come from mock copy.");
+  assert.match(src, /mock\.mockNavInquiry/, "Inquiry nav must come from mock copy.");
+  assert.match(src, /mock\.mockInboxTitle/, "Inbox title must come from mock copy.");
   assert.doesNotMatch(
     src,
     />Featured roster</,
@@ -40,7 +45,7 @@ test("product tour mock wires tour.copy mock keys (no EN hardcodes)", () => {
 });
 
 test("ES product tour mock chrome is Spanish", () => {
-  const es = getMarketingCopy("es").tour;
+  const es = getProductTourMockCopy("es");
   assert.equal(es.mockFeatured, "Catálogo destacado");
   assert.equal(es.mockHeading, "Gente que vale la pena reservar.");
   assert.equal(es.mockAvailable, "Disponible");
@@ -56,7 +61,7 @@ test("ES product tour mock chrome is Spanish", () => {
   assert.equal(es.mockStatusBooked, "Reservada");
   assert.ok(!es.mockBody.includes("—"), "ES mock body must not use em dashes.");
 
-  const en = getMarketingCopy("en").tour;
+  const en = getProductTourMockCopy("en");
   assert.equal(en.mockFeatured, "Featured roster");
   assert.equal(en.mockNavInquiry, "Inquiry");
   assert.equal(en.mockInboxTitle, "Inquiry inbox");
