@@ -22,7 +22,7 @@ test("client mode: card processing line and grossed-up total", () => {
     <FeeLines lines={previewFeeLines({ price: 100, currency: "USD", feePayer: "client" })} estimate />,
   );
   assert.match(html, /Card processing/);
-  assert.match(html, /about \$104\.8[34]/);
+  assert.match(html, /about \$104\.84/);
 });
 
 test("EngineFeeLines renders engine codes via the label map, total strong, non-refundable note", () => {
