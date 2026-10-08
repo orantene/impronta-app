@@ -59,6 +59,24 @@ test("the marquee's baked English service titles swap to the locale's title (pla
   assert.deepEqual(en, {});
 });
 
+test("a ticker baked from the plain title column swaps like the English map entry, and a one-language title keeps its text (TUL-189)", () => {
+  const offerings = [
+    // Plain column differs from the English map entry: either spelling may be baked.
+    { title: "Soft gel extensions", titleI18n: { en: "Soft gel extensions (new set)", es: "Extensiones de gel blando" } },
+    // Only English stored: no Spanish name to swap in, so the baked text stays.
+    { title: "Semi-permanent gel", titleI18n: { en: "Semi-permanent gel" } },
+    // No map at all.
+    { title: "Pedicure", titleI18n: null },
+  ];
+  const es = buildTalentLocaleSwaps({ bioI18n: null, typeNames: [], homeCity: null, offerings }, "es");
+  assert.equal(es["Soft gel extensions"], "Extensiones de gel blando");
+  assert.equal(es["Soft gel extensions (new set)"], "Extensiones de gel blando");
+  assert.ok(!("Semi-permanent gel" in es));
+  assert.ok(!("Pedicure" in es));
+  const en = buildTalentLocaleSwaps({ bioI18n: null, typeNames: [], homeCity: null, offerings }, "en");
+  assert.equal(en["Soft gel extensions"], "Soft gel extensions (new set)");
+});
+
 test("an ASCII-folded baked city swaps to its accented form, alone and in the eyebrow (data)", () => {
   const src = {
     bioI18n: null,
