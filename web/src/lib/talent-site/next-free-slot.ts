@@ -33,6 +33,42 @@ export function carriesAtSlot(o: TalentOffering): boolean {
   return isSlotEligibleOffering(o) && (o.variants ?? []).length === 0 && (o.addOns ?? []).length === 0;
 }
 
+/**
+ * TUL-275: which offering the next-free chip asks the slots API about. It must be one the sheet
+ * can open at a slot (`carriesAtSlot`, the same rule that registers offerings), otherwise the
+ * chip shows a time it can never open and the tap falls back to the `#services` anchor.
+ * `openable: false` means no such offering exists, so the chip keeps its old link behaviour.
+ */
+export function pickChipOffering(
+  offerings: ReadonlyArray<TalentOffering>,
+  offeringId?: string | null,
+): { offering: TalentOffering; openable: boolean } | null {
+  const id = offeringId?.trim();
+  if (id) {
+    const match = offerings.find((o) => o.id === id);
+    if (!match || !isSlotEligibleOffering(match)) return null;
+    return { offering: match, openable: carriesAtSlot(match) };
+  }
+  const carries = offerings.find(carriesAtSlot);
+  if (carries) return { offering: carries, openable: true };
+  const any = offerings.find(isSlotEligibleOffering);
+  return any ? { offering: any, openable: false } : null;
+}
+
+/**
+ * The one slot the chip both SHOWS and OPENS: the first real future instant (a same-day slot
+ * counts like any other). Showing `slots[0]` while opening `firstSlotStart` let the two disagree.
+ */
+export function chipSlot(
+  offeringId: string,
+  slots: readonly string[],
+  openable: boolean,
+  now: Date = new Date(),
+): { when: string | null; slot: NextSlot | null } {
+  const start = firstSlotStart(slots, now);
+  return { when: start, slot: start && openable ? { offeringId, slotStart: start } : null };
+}
+
 /** Idempotent: re-registering the same offering replaces the same registry entry. */
 export function registerSlotOffering(offering: TalentOffering, detail: OfferingRequestDetail): boolean {
   if (!carriesAtSlot(offering)) return false;

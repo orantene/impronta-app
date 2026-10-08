@@ -88,6 +88,8 @@ const ES: Record<string, string> = {
   "Publish new colors?": "¿Publicar colores nuevos?",
   "Publish changes": "Publicar cambios",
   "Keep editing": "Seguir editando",
+  "Change design in draft": "Cambiar diseño en el borrador",
+  "Change and publish now": "Cambiar y publicar ahora",
   "Only colors change. Your services, photos, text, sections and layout stay exactly as they are.":
     "Solo cambian los colores. Tus servicios, fotos, textos, secciones y diseño se quedan exactamente igual.",
   "Your live site stays as it is until you publish.":
