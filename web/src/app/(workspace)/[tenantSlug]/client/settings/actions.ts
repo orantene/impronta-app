@@ -15,6 +15,7 @@
 // verification email; the actual change lands once the new address is
 // confirmed.
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireSession } from "@/lib/server/action-guards";
@@ -33,6 +34,8 @@ const profileSchema = z.object({
 export async function updateClientSelfProfile(
   input: { tenantSlug: string; displayName: string; company: string },
 ): Promise<ClientProfileResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -76,6 +79,8 @@ const emailSchema = z.object({
 export async function updateClientSelfEmail(
   input: { newEmail: string },
 ): Promise<ClientProfileResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -109,6 +114,8 @@ const passwordSchema = z
 export async function updateClientSelfPassword(
   input: { newPassword: string; confirmPassword: string },
 ): Promise<ClientProfileResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 

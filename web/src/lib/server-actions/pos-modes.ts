@@ -48,6 +48,7 @@ import { readLocationModes, readPosModes, writeLocationModes, writePosModes } fr
 // `"use server"` files may export nothing but async functions, so the id list
 // lives in a pure module both this action and its card import.
 import type { PosModesRefusal } from "@/lib/settings/refusals";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const CAPABILITY = "manage_billing" as const;
 
@@ -71,6 +72,7 @@ export async function getPosModes(): Promise<PosModesResult> {
 }
 
 export async function setPosModes(input: { modes: string[] }): Promise<PosModesResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction({ capability: CAPABILITY });
   if (!auth.ok) {
     logServerError("pos-modes.setPosModes.denied", auth.error);
@@ -145,6 +147,7 @@ export async function getLocationModes(input: { slug: string }): Promise<PosMode
 }
 
 export async function setLocationModes(input: { slug: string; modes: string[] }): Promise<PosModesResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction({ capability: CAPABILITY });
   if (!auth.ok) {
     logServerError("pos-modes.setLocationModes.denied", auth.error);

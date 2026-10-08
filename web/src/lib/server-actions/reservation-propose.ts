@@ -23,6 +23,7 @@ import { emitStandardEngineEvent, ENGINE_EVENT_TYPES } from "@/lib/inquiry/inqui
 import { normalizeTenantAppointmentsSettings } from "@/lib/scheduling/appointments-settings-types";
 import { terminologyCopy } from "@/lib/scheduling/terminology";
 import { assertTalentReservationAllowed } from "@/lib/scheduling/booking-surface";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -78,6 +79,8 @@ export async function proposeReservationTimeAction(raw: {
   offeringId?: string | null;
   talentProfileId?: string | null;
 }): Promise<ReservationProposeResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const staff = await requireWorkspaceStaffAction();
   if (!staff.ok) return { ok: false, error: "Not allowed." };
   if (staff.tenantSlug !== raw.tenantSlug.trim().toLowerCase()) {
@@ -223,6 +226,8 @@ export async function confirmReservationTimeAction(raw: {
   tenantSlug: string;
   inquiryId: string;
 }): Promise<ReservationProposeResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   if (!UUID_RE.test(raw.inquiryId)) return { ok: false, error: "Invalid inquiry." };
   const client = await requireOwningClient(raw.tenantSlug, raw.inquiryId);
   if (!client.ok) return { ok: false, error: client.error };
@@ -260,6 +265,8 @@ export async function declineReservationTimeAction(raw: {
   tenantSlug: string;
   inquiryId: string;
 }): Promise<ReservationProposeResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   if (!UUID_RE.test(raw.inquiryId)) return { ok: false, error: "Invalid inquiry." };
   const client = await requireOwningClient(raw.tenantSlug, raw.inquiryId);
   if (!client.ok) return { ok: false, error: client.error };

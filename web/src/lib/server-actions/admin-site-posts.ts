@@ -35,6 +35,7 @@ import {
   unpublishPost,
   type PostEditorRecord,
 } from "@/lib/site-admin/server/posts";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type PostActionResult =
   | { ok: true; id: string }
@@ -76,6 +77,8 @@ function forbiddenOr(error: unknown, fallback: string): { ok: false; error: stri
  * `createDraftPageAction`.
  */
 export async function createDraftPostAction(): Promise<PostActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const g = await guard();
   if (!g.ok) return { ok: false, error: g.error };
 
@@ -130,6 +133,8 @@ export async function savePostAction(input: {
   metaTitle: string | null;
   metaDescription: string | null;
 }): Promise<PostActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const g = await guard();
   if (!g.ok) return { ok: false, error: g.error };
 
@@ -163,6 +168,8 @@ export async function savePostAction(input: {
 // ---- publish / unpublish ---------------------------------------------------
 
 export async function publishPostAction(postId: string): Promise<PostActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const g = await guard();
   if (!g.ok) return { ok: false, error: g.error };
 
@@ -181,6 +188,8 @@ export async function publishPostAction(postId: string): Promise<PostActionResul
 }
 
 export async function unpublishPostAction(postId: string): Promise<PostActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const g = await guard();
   if (!g.ok) return { ok: false, error: g.error };
 
@@ -201,6 +210,8 @@ export async function unpublishPostAction(postId: string): Promise<PostActionRes
 // ---- delete ----------------------------------------------------------------
 
 export async function deletePostAction(postId: string): Promise<PostActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const g = await guard();
   if (!g.ok) return { ok: false, error: g.error };
 

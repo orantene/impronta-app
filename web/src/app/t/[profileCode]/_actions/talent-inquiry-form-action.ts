@@ -13,6 +13,7 @@
 import type { StartGuestChatInput } from "@/lib/inquiry/guest-chat-contract";
 
 import { startGuestChatInquiry } from "./guest-chat-actions";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type TalentInquiryFormResult =
   | { ok: true; inquiryId: string; guestEmail: string }
@@ -21,6 +22,7 @@ export type TalentInquiryFormResult =
 export async function submitTalentInquiryForm(
   input: StartGuestChatInput,
 ): Promise<TalentInquiryFormResult> {
+  await requireNotImpersonating();
   const res = await startGuestChatInquiry({ ...input, entryPoint: "inquiry_form" });
   if (!res.ok) return { ok: false, code: res.code, message: res.message };
   return { ok: true, inquiryId: res.inquiryId, guestEmail: res.guestEmail };

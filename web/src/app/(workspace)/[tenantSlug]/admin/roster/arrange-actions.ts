@@ -26,6 +26,7 @@ import { userHasCapability } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type SaveDirectoryOrderResult =
   | { ok: true; updatedCount: number }
@@ -43,6 +44,8 @@ export async function saveDirectoryOrder(
   tenantSlug: string,
   orderedTalentIds: string[],
 ): Promise<SaveDirectoryOrderResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   if (orderedTalentIds.length === 0) return { ok: true, updatedCount: 0 };
   if (orderedTalentIds.length > MAX_ORDER_SIZE) {
     return { ok: false, error: "Too many talents in one reorder." };
@@ -121,6 +124,8 @@ export async function saveDirectoryOrder(
 export async function clearDirectoryOrder(
   tenantSlug: string,
 ): Promise<SaveDirectoryOrderResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not authenticated." };
 

@@ -11,6 +11,7 @@ import {
   type ClientDetailsInput,
   type ClientRecordErrorCode,
 } from "@/lib/talent/client-records";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Writers behind the Clients panels: Add client, Edit details, private Note,
@@ -51,6 +52,7 @@ export async function createClientRecord(
   talentProfileId: string,
   input: ClientDetailsInput,
 ): Promise<ClientRecordResult> {
+  await requireNotImpersonating();
   const parsed = parseClientDetails(input);
   if (!parsed.ok) return parsed;
   const admin = await ownerClient(talentProfileId);
@@ -72,6 +74,7 @@ export async function updateClientDetails(
   clientKey: string,
   input: ClientDetailsInput,
 ): Promise<ClientRecordResult> {
+  await requireNotImpersonating();
   if (!validKey(clientKey)) return { ok: false, code: "not_found" };
   const parsed = parseClientDetails(input);
   if (!parsed.ok) return parsed;
@@ -97,6 +100,7 @@ export async function saveClientNote(
   clientKey: string,
   note: string | null,
 ): Promise<ClientRecordResult> {
+  await requireNotImpersonating();
   if (!validKey(clientKey)) return { ok: false, code: "not_found" };
   const parsed = parseClientNote(note);
   if (!parsed.ok) return parsed;
@@ -138,9 +142,11 @@ async function setArchived(
 }
 
 export async function archiveClient(talentProfileId: string, clientKey: string): Promise<ClientRecordResult> {
+  await requireNotImpersonating();
   return setArchived(talentProfileId, clientKey, true);
 }
 
 export async function restoreClient(talentProfileId: string, clientKey: string): Promise<ClientRecordResult> {
+  await requireNotImpersonating();
   return setArchived(talentProfileId, clientKey, false);
 }

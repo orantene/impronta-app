@@ -15,6 +15,7 @@ import { loadTalentActor } from "@/lib/messaging/talent-actor";
 import { computeBookingTalentRowTotals } from "@/lib/booking-pricing";
 import { resolveTalentOwnWorkTenant } from "@/lib/talent-agenda/own-work-tenant";
 import { openBookingOrderForAgenda } from "@/lib/talent-agenda/open-booking-order";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ConvertOwnHoldResult =
   | { ok: true; bookingId: string; already?: boolean; orderId?: string }
@@ -26,6 +27,7 @@ export type ConvertOwnHoldResult =
  * order (custom line from hold title) linked via `agency_bookings.order_id`.
  */
 export async function convertOwnTalentHold(holdId: string): Promise<ConvertOwnHoldResult> {
+  await requireNotImpersonating();
   if (!holdId) return { ok: false, reason: "missing" };
   const actor = await loadTalentActor();
   if (!actor.ok) return { ok: false, reason: "unauthorized" };

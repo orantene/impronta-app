@@ -37,6 +37,7 @@ import {
 // reference for a re-exported binding, throwing `X is not defined`. Types are
 // imported here for local use only; consumers import them from `taxonomy-shape`).
 import type { TemplateTaxonomy } from "./taxonomy-shape";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -104,6 +105,7 @@ export async function renameTemplateTag(
   from: string,
   to: string,
 ): Promise<TaxonomyActionResult<{ updatedCount: number }>> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
@@ -146,6 +148,7 @@ export async function renameTemplateCategory(
   from: string,
   to: string,
 ): Promise<TaxonomyActionResult<{ updatedCount: number }>> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
@@ -193,6 +196,7 @@ export async function mergeTemplateTags(
   from: string[],
   into: string,
 ): Promise<TaxonomyActionResult<{ updatedCount: number }>> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
@@ -236,6 +240,7 @@ export async function mergeTemplateTags(
 export async function deleteTemplateTag(
   tag: string,
 ): Promise<TaxonomyActionResult<{ updatedCount: number }>> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 

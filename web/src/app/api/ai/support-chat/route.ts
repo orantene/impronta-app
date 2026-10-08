@@ -29,6 +29,7 @@ import {
   SUPPORT_CHAT_SCHEMA,
   parseSupportChatModel,
 } from "@/lib/support/support-chat-shared";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const bodySchema = z.object({ ticketId: z.string().uuid() });
 
@@ -65,6 +66,8 @@ async function failOpen(ticketId: string): Promise<void> {
 }
 
 export async function POST(request: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   try {
     const flags = await getAiFeatureFlags();
     if (!flags.ai_master_enabled || !flags.ai_support_enabled) {

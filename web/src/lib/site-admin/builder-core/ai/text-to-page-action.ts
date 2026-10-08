@@ -31,6 +31,7 @@ import {
   composePageFromBrief,
   type TextToPageSurface,
 } from "./text-to-page";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ComposePageActionState =
   | {
@@ -116,6 +117,7 @@ export async function composePageFromBriefAction(input: {
   surface: TextToPageSurface;
   locale?: string;
 }): Promise<ComposePageActionState> {
+  await requireNotImpersonating();
   // Gate to authenticated editing sessions (cost / abuse), matching the bake
   // action's session guard.
   const auth = await requireSession();

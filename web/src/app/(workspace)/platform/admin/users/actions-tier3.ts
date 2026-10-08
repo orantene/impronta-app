@@ -22,6 +22,7 @@ import {
   firstFailure,
   loadAnonymizeSubject,
 } from "@/lib/account/anonymize";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -57,6 +58,8 @@ export async function deletePlatformUserAccount(
   userId: string,
   confirmName: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -136,6 +139,8 @@ export async function gdprAnonymizePlatformUser(
   userId: string,
   confirmName: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -214,6 +219,8 @@ export async function unclaimTalentProfile(
   talentProfileId: string,
   confirmName: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 

@@ -15,6 +15,7 @@ import { actPackageSelectorCore, readPackageSelectorCore, type PackageSelectorDe
 import type { PackageSelectorData, PackageSelectorInput, PackageSelectorProps, PackageSelectorResult } from "./package-selector.types";
 import { mapEngineRefusal } from "./refusals";
 import { publicOrigin, resolveStorefrontIdentity, storefrontLocale } from "./request-context";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 async function bind(locale: string | null | undefined): Promise<PackageSelectorDeps | null> {
   const admin = createServiceRoleClient();
@@ -47,6 +48,7 @@ export async function readPackageSelector(
 }
 
 export async function actPackageSelector(input: PackageSelectorInput, _expectedVersion?: number): Promise<PackageSelectorResult> {
+  await requireNotImpersonating();
   try {
     const deps = await bind(input.locale);
     if (!deps) return mapEngineRefusal("unavailable", "en");

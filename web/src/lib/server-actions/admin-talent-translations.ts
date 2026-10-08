@@ -20,6 +20,7 @@ import {
   saveTalentBioTranslationCenterLive,
 } from "@/lib/translation/talent-bio-translation-service";
 import { BIO_I18N_SELECT, flattenBioColumns, type BioI18nColumns } from "@/lib/translation/bio-i18n-columns";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const idSchema = z.object({
   talent_profile_id: pgUuidSchema(),
@@ -51,6 +52,7 @@ async function assertBioPersonalEditable(
 export async function adminAiFillMissingSpanishBio(
   input: z.infer<typeof idSchema>,
 ): Promise<TranslationActionResult> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
@@ -73,6 +75,7 @@ export async function adminAiFillMissingSpanishBio(
 }
 
 export async function adminAiUpdateSpanishBio(input: z.infer<typeof idSchema>): Promise<TranslationActionResult> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
@@ -96,6 +99,7 @@ const manualSchema = idSchema.extend({
 export async function adminSaveManualSpanishBio(
   input: z.infer<typeof manualSchema>,
 ): Promise<TranslationActionResult> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = manualSchema.safeParse(input);
@@ -121,6 +125,7 @@ export async function adminSaveManualSpanishBio(
 export async function adminApproveSpanishBioDraft(
   input: z.infer<typeof idSchema>,
 ): Promise<TranslationActionResult> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
@@ -145,6 +150,7 @@ export async function adminApproveSpanishBioDraft(
 export async function adminApproveEnglishBioDraft(
   input: z.infer<typeof idSchema>,
 ): Promise<TranslationActionResult> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
@@ -182,6 +188,7 @@ const translationCenterBioLiveSchema = idSchema.extend({
 export async function adminSaveTalentBioQuickEdit(
   input: z.infer<typeof quickBioSchema>,
 ): Promise<TranslationActionResult> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = quickBioSchema.safeParse(input);
@@ -208,6 +215,7 @@ export async function adminSaveTalentBioQuickEdit(
 export async function adminSaveTalentBioTranslationCenterLive(
   input: z.infer<typeof translationCenterBioLiveSchema>,
 ): Promise<TranslationActionResult> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = translationCenterBioLiveSchema.safeParse(input);
@@ -233,6 +241,7 @@ export async function adminSaveTalentBioTranslationCenterLive(
 export async function adminMarkSpanishBioReviewed(
   input: z.infer<typeof idSchema>,
 ): Promise<TranslationActionResult> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);

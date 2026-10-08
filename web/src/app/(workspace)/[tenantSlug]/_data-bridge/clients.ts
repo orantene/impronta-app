@@ -4,6 +4,16 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadClientTrustStatesForTenant } from "@/lib/client-trust/evaluator";
+import {
+  isVerifiedImpersonationOf,
+  type EffectiveReadContext,
+  type ReadDeps,
+} from "@/lib/impersonation/effective-read";
+
+const DEFAULT_READ_DEPS: ReadDeps = {
+  rlsClient: () => createSupabaseServerClient(),
+  adminClient: () => createServiceRoleClient(),
+};
 
 /**
  * _data-bridge/clients.ts — client-related loaders (workspace + client pov).
@@ -248,14 +258,25 @@ export type ClientSelfProfile = {
 export async function loadClientSelfProfile(
   userId: string,
   tenantId: string,
+  /**
+   * TUL-245: from `effectiveReadContext` only. When it is a verified
+   * impersonation of exactly `userId`, the `client_profiles` read goes through
+   * the service client (RLS would deny the staff actor); otherwise it stays on
+   * the RLS client.
+   */
+  ctx?: EffectiveReadContext,
+  deps: ReadDeps = DEFAULT_READ_DEPS,
 ): Promise<ClientSelfProfile | null> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = await deps.rlsClient();
     if (!supabase) return null;
-    const trusted = createServiceRoleClient();
+    const trusted = deps.adminClient();
+    const viaAdmin = isVerifiedImpersonationOf(ctx?.actorUserId ?? "", userId, ctx);
+    const profileReader = viaAdmin ? trusted : supabase;
+    if (!profileReader) return null;
 
     const [profileRes, agencyRes] = await Promise.all([
-      supabase
+      profileReader
         .from("client_profiles")
         .select("id, company_name, profiles!inner(display_name)")
         .eq("user_id", userId)

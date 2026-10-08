@@ -12,6 +12,7 @@ import {
 import { normalizeCustomDomainHostname } from "@/app/(workspace)/[tenantSlug]/admin/settings/domain-utils";
 import { logServerError } from "@/lib/server/safe-error";
 import type { ServerActionResult } from "./result";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * F.3 — Add alternate domain (multi-domain support).
@@ -52,6 +53,7 @@ export type AddAlternateDomainResult = ServerActionResult<{
 export async function addAlternateDomain(
   rawHostname: string,
 ): Promise<AddAlternateDomainResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
@@ -188,6 +190,7 @@ export async function addAlternateDomain(
 export async function removeAlternateDomain(
   domainId: string,
 ): Promise<ServerActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };

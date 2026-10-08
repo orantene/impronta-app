@@ -13,6 +13,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPlatformRole } from "@/lib/access/platform-role";
 import { logServerError } from "@/lib/server/safe-error";
 import { releaseHeldPayouts } from "@/lib/payments/booking-payouts-ledger";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type RetryResult =
   | { ok: true; released: number; stillHeld: number; failed: number }
@@ -34,6 +35,8 @@ async function requireSuperAdmin(): Promise<{ ok: true } | { ok: false; error: s
 export async function retryHeldPayoutsForPayee(
   target: { talentProfileId?: string | null; tenantId?: string | null },
 ): Promise<RetryResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const guard = await requireSuperAdmin();
     if (!guard.ok) return guard;

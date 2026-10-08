@@ -13,6 +13,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { normalizeWorkspaceType } from "@/lib/saas/workspace-type";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type StaffResource = {
   id: string;
@@ -84,6 +85,8 @@ const createSchema = z.object({
 type CreateResult = { ok: true; resource: StaffResource } | { ok: false; error: string };
 
 export async function createStaffResource(name: string): Promise<CreateResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireBusinessWorkspace();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = createSchema.safeParse({ name });
@@ -127,6 +130,8 @@ export async function createStaffResource(name: string): Promise<CreateResult> {
 type ArchiveResult = { ok: true } | { ok: false; error: string };
 
 export async function archiveStaffResource(resourceId: string): Promise<ArchiveResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireBusinessWorkspace();
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!/^[0-9a-f-]{36}$/i.test(resourceId)) return { ok: false, error: "Invalid resource." };

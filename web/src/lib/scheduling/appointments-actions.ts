@@ -78,6 +78,7 @@ import {
   type JoinWaitlistResult,
   type WaitlistDeskResult,
 } from "@/lib/scheduling/waitlist-desk";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /** How far ahead the board looks. Ninety days matches the materialiser. */
 const HORIZON_DAYS = 90;
@@ -259,6 +260,7 @@ export async function rescheduleAppointment(input: {
   expectedStartsAt: string | null;
   expectedEndsAt: string | null;
 }): Promise<RescheduleAppointmentResult> {
+  await requireNotImpersonating();
   try {
     const scoped = await scopedTo(input.tenantId);
     if (!scoped.ok) {
@@ -368,6 +370,7 @@ export async function promoteFromWaitlist(input: {
   entryId: string;
   expectedStatus: WaitlistStoredStatus;
 }): Promise<PromoteResult> {
+  await requireNotImpersonating();
   try {
     const scoped = await scopedTo(input.tenantId);
     if (!scoped.ok) return { ok: false, refusalKey: "notFound", outstandingOffers: null };
@@ -413,6 +416,7 @@ export async function acceptWaitlistPlace(input: {
   entryId: string;
   expectedStatus: WaitlistStoredStatus;
 }): Promise<AcceptWaitlistOfferResult> {
+  await requireNotImpersonating();
   try {
     const scoped = await scopedTo(input.tenantId);
     if (!scoped.ok) return { ok: false, refusalKey: "notFound" };
@@ -456,6 +460,7 @@ export async function releaseWaitlistPlace(input: {
   holding: "offer" | "seat";
   expectedStatus: WaitlistStoredStatus;
 }): Promise<ReleaseWaitlistPlaceResult> {
+  await requireNotImpersonating();
   try {
     const scoped = await scopedTo(input.tenantId);
     if (!scoped.ok) return { ok: false, refusalKey: "notFound" };
@@ -492,6 +497,7 @@ export async function joinSessionWaitlist(input: {
   customerName: string;
   customerEmail: string | null;
 }): Promise<JoinWaitlistResult> {
+  await requireNotImpersonating();
   try {
     const scoped = await scopedTo(input.tenantId);
     if (!scoped.ok) return { ok: false, refusalKey: "notFound", seatsRemaining: null };

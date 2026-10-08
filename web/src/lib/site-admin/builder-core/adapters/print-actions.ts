@@ -22,6 +22,7 @@ import type {
   PrintDesignRow,
   PrintDesignSaveOutcome,
 } from "./print-adapter-core";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const EDIT_PRINT_CAPABILITY = "agency.site_admin.pages.edit" as const;
 
@@ -42,6 +43,8 @@ export async function createPrintDesignAction(input?: {
   name?: string;
   size?: PrintSizeKeyLite;
 }): Promise<CreatePrintDesignOutcome> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireWorkspaceStaffAction({
     capability: EDIT_PRINT_CAPABILITY,
   });
@@ -135,6 +138,7 @@ export async function savePrintDesignAction(input: {
   builderTree: BuilderNodeTree;
   expectedVersion: number;
 }): Promise<PrintDesignSaveOutcome> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction({
     capability: EDIT_PRINT_CAPABILITY,
   });

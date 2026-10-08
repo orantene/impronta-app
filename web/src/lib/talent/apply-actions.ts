@@ -26,6 +26,7 @@ import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { requireSession } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
 import { emitNotification, emitNotificationToUsers } from "@/lib/notifications/emit";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /** Look up profile_ids for all active staff of a tenant (owner/admin/coordinator). */
 async function getStaffUserIds(tenantId: string): Promise<string[]> {
@@ -216,6 +217,7 @@ export async function submitAgencyApplication(
   targetTenantId: string,
   message?: string,
 ): Promise<SubmitApplicationResult> {
+  await requireNotImpersonating();
   return submitApplication("agency", targetTenantId, message);
 }
 
@@ -224,6 +226,7 @@ export async function submitHubApplication(
   targetTenantId: string,
   message?: string,
 ): Promise<SubmitApplicationResult> {
+  await requireNotImpersonating();
   return submitApplication("hub", targetTenantId, message);
 }
 
@@ -240,6 +243,7 @@ export async function decideTalentApplication(
   decision: "approved" | "rejected",
   decisionNote?: string,
 ): Promise<DecideApplicationResult> {
+  await requireNotImpersonating();
   const session = await requireSession();
   if (!session.ok) {
     return { ok: false, code: "not_authenticated", error: session.error };
@@ -306,6 +310,7 @@ export async function withdrawOwnApplication(
   kind: ApplyKind,
   applicationId: string,
 ): Promise<{ ok: true } | { ok: false; code: "not_authenticated" | "not_found" | "db_error"; error: string }> {
+  await requireNotImpersonating();
   const guard = await requireTalentSelf();
   if (!guard.ok) {
     return { ok: false, code: guard.code === "not_authenticated" ? "not_authenticated" : "not_found", error: guard.error };

@@ -27,6 +27,7 @@ import {
   setBrandImageRole,
   type BrandingMediaAsset,
 } from "@/lib/site-admin/server/brand-library";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type { BrandAssetRole, BrandingMediaAsset } from "@/lib/site-admin/server/brand-library";
 
@@ -56,6 +57,8 @@ export async function actionListBrandingMedia(): Promise<ActionResult<ListBrandi
 export async function actionCreateBrandingMediaUploadUrl(
   ext: string,
 ): Promise<{ ok: true; uploadUrl: string; storagePath: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.branding.edit",
   });
@@ -86,6 +89,8 @@ export async function actionRegisterBrandingMediaUpload(input: {
   /** Set when this upload is a crop of an existing asset (provenance + revert). */
   sourceMediaAssetId?: string | null;
 }): Promise<ActionResult<BrandingMediaAsset>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.branding.edit",
   });
@@ -123,6 +128,8 @@ export async function actionSetBrandImageRole(
   assetId: string,
   role: "wordmark" | "favicon",
 ): Promise<ActionResult<{ publicUrl: string }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.branding.edit",
   });
@@ -153,6 +160,8 @@ export async function actionSetBrandImageRole(
 export async function actionDeleteBrandingMediaAsset(
   assetId: string,
 ): Promise<ActionResult<null>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.branding.edit",
   });

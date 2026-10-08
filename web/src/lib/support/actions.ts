@@ -10,6 +10,7 @@ import {
 import { resolveSupportRequester, assertTicketAccess } from "./support-access";
 import { supportEngine } from "./support-engine";
 import type { SupportCallbackPref, SupportSurface } from "./support-types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
@@ -86,6 +87,7 @@ export async function createSupportTicketAction(
   // narrows or drops it at runtime.
   raw: Omit<z.infer<typeof createSchema>, "diagnostics"> & { diagnostics?: unknown },
 ): Promise<SupportActionOk<{ ticketId: string; ticketNumber: number }> | SupportActionFail> {
+  await requireNotImpersonating();
   const parsed = createSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
 
@@ -140,6 +142,7 @@ export async function sendSupportMessageAction(raw: {
   ticketId: string;
   body: string;
 }): Promise<SupportActionOk<{ messageId: string }> | SupportActionFail> {
+  await requireNotImpersonating();
   const parsed = z
     .object({ ticketId: uuid, body: z.string().trim().min(1).max(8000) })
     .safeParse(raw);
@@ -167,6 +170,7 @@ export async function sendSupportMessageAction(raw: {
 export async function markSupportTicketReadAction(raw: {
   ticketId: string;
 }): Promise<SupportActionOk | SupportActionFail> {
+  await requireNotImpersonating();
   const parsed = z.object({ ticketId: uuid }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const session = await resolveUserId();
@@ -184,6 +188,7 @@ export async function markSupportTicketReadAction(raw: {
 export async function requestHumanAction(raw: {
   ticketId: string;
 }): Promise<SupportActionOk | SupportActionFail> {
+  await requireNotImpersonating();
   const parsed = z.object({ ticketId: uuid }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const session = await resolveUserId();
@@ -204,6 +209,7 @@ export async function rateSupportTicketAction(raw: {
   rating: number;
   comment?: string;
 }): Promise<SupportActionOk | SupportActionFail> {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       ticketId: uuid,
@@ -229,6 +235,7 @@ export async function rateSupportTicketAction(raw: {
 export async function resolveSupportTicketAction(raw: {
   ticketId: string;
 }): Promise<SupportActionOk | SupportActionFail> {
+  await requireNotImpersonating();
   const parsed = z.object({ ticketId: uuid }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const session = await resolveUserId();
@@ -249,6 +256,7 @@ export async function resolveSupportTicketAction(raw: {
 export async function keepTicketOpenAction(raw: {
   ticketId: string;
 }): Promise<SupportActionOk | SupportActionFail> {
+  await requireNotImpersonating();
   const parsed = z.object({ ticketId: uuid }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const session = await resolveUserId();
@@ -266,6 +274,7 @@ export async function keepTicketOpenAction(raw: {
 export async function closeSupportTicketAction(raw: {
   ticketId: string;
 }): Promise<SupportActionOk | SupportActionFail> {
+  await requireNotImpersonating();
   const parsed = z.object({ ticketId: uuid }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const session = await resolveUserId();
@@ -289,6 +298,7 @@ export async function updateTicketContactAction(raw: {
   callbackRequested?: boolean;
   callbackPref?: SupportCallbackPref;
 }): Promise<SupportActionOk | SupportActionFail> {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       ticketId: uuid,

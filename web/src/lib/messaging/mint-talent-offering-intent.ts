@@ -1,5 +1,6 @@
 "use server";
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { z } from "zod";
 
 import { signTalentOfferingIntent, type TalentOfferingIntentKind } from "@/lib/messaging/talent-offering-intent";
@@ -18,6 +19,8 @@ export async function mintTalentOfferingIntent(input: {
   addonIds?: string[];
   intent: TalentOfferingIntentKind;
 }): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = z
     .object({
       talentProfileId: uuid,

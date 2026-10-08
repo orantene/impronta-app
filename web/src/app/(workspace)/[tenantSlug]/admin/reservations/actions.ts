@@ -29,6 +29,7 @@ import { markReservationSeated } from "@/lib/visits/seat-reservation";
 import { loadDefaultVenue } from "@/lib/spaces/venues";
 import { loadVenueServiceConfig, seatWalkIn } from "@/lib/reservations/store";
 import { planWalkIn } from "@/lib/reservations";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const seatInput = z.object({
   admissionId: z.string().uuid(),
@@ -53,6 +54,7 @@ export async function reservationsSeatBooking(input: {
   spaceId: string;
   partySize: number;
 }): Promise<DeskSeatResult> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return { ok: false, reason: "not_allowed" };
   const allowed = await userHasCapability("view_dashboard", guard.tenantId);
@@ -109,6 +111,7 @@ export async function reservationsTakeWalkIn(input: {
   holderName: string;
   partySize: number;
 }): Promise<DeskWalkInResult> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return { ok: false, reason: "not_allowed" };
   const allowed = await userHasCapability("view_dashboard", guard.tenantId);

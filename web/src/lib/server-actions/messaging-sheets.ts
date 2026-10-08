@@ -25,6 +25,7 @@ import { refreshThreadToken } from "@/lib/messaging/thread-token";
 import { cancelPaymentLink } from "@/lib/payments/links";
 import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 const version = z.number().int().positive();
@@ -48,6 +49,7 @@ export async function messagingLoadDelivery(input: { inquiryId: string }) {
 
 /** Delivery › Retry: the cron's own resend, for one failed row, now. */
 export async function messagingRetryDelivery(input: { deliveryId: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ deliveryId: uuid }).safeParse(input);
@@ -87,6 +89,7 @@ export async function messagingLoadOffers(input: { inquiryId: string }) {
  * change it. Withdraw has no engine (D-POS-121) and is not here.
  */
 export async function messagingReviseOffer(input: { inquiryId: string; offerId: string; expectedVersion: number }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, offerId: uuid, expectedVersion: version }).safeParse(input);
@@ -119,6 +122,7 @@ export async function messagingLoadBasketDiff(input: { inquiryId: string }) {
 
 /** Diff › Take theirs: the open page comes down so the new basket can be requested. */
 export async function messagingCancelPaymentLink(input: { linkId: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ linkId: uuid }).safeParse(input);
@@ -134,6 +138,7 @@ export async function messagingCancelPaymentLink(input: { linkId: string }) {
  * is refunded by itself. Reschedule needs a slot and lives on Appointments.
  */
 export async function messagingCancelBooking(input: { inquiryId: string; bookingId: string; reason: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, bookingId: uuid, reason: z.string().trim().max(200) }).safeParse(input);
@@ -158,6 +163,7 @@ export async function messagingCancelBooking(input: { inquiryId: string; booking
  * to the caller's tenant.
  */
 export async function messagingThreadLink(input: { inquiryId: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);

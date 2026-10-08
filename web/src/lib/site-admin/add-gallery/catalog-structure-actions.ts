@@ -30,6 +30,7 @@ import {
   type CatalogStructureMap,
   type CatalogStructureRow,
 } from "./catalog-structure";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type StructureActionResult<T = void> =
   | { ok: true; data: T }
@@ -165,6 +166,7 @@ export async function setTabOverride(input: {
   sort_order?: number | null;
   hidden?: boolean;
 }): Promise<StructureActionResult> {
+  await requireNotImpersonating();
   if (!input.tabId) return fail("Missing tab id.");
   if (!isKnownTab(input.tabId)) return fail(`Unknown tab "${input.tabId}".`);
   const tabId = toCanonicalTab(input.tabId);
@@ -190,6 +192,7 @@ export async function setCategoryOverride(input: {
   hidden?: boolean;
   created?: boolean;
 }): Promise<StructureActionResult> {
+  await requireNotImpersonating();
   if (!input.categoryId) return fail("Missing category id.");
   if (input.parent_tab && !isKnownTab(input.parent_tab)) {
     return fail(`Unknown parent tab "${input.parent_tab}".`);
@@ -217,6 +220,7 @@ export async function setCategoryOverride(input: {
 export async function reorderTabs(
   orderedTabIds: string[],
 ): Promise<StructureActionResult> {
+  await requireNotImpersonating();
   const unknown = orderedTabIds.find((id) => !isKnownTab(id));
   if (unknown) return fail(`Unknown tab "${unknown}".`);
   return commitRows(
@@ -233,6 +237,7 @@ export async function reorderCategories(
   parentTab: string,
   orderedCategoryIds: string[],
 ): Promise<StructureActionResult> {
+  await requireNotImpersonating();
   if (!isKnownTab(parentTab)) return fail(`Unknown tab "${parentTab}".`);
   return commitRows(
     orderedCategoryIds.map((catId, i) => ({
@@ -250,6 +255,7 @@ export async function moveItem(input: {
   parent_tab: string;
   category_override: string;
 }): Promise<StructureActionResult> {
+  await requireNotImpersonating();
   if (!input.itemId) return fail("Missing item id.");
   if (!isKnownTab(input.parent_tab)) return fail(`Unknown tab "${input.parent_tab}".`);
   if (!input.category_override.trim()) return fail("A target category is required.");
@@ -267,6 +273,7 @@ export async function moveItem(input: {
 export async function deleteStructureRow(
   ref: string,
 ): Promise<StructureActionResult> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
   if (!/^(tab|cat|item):.+/.test(ref)) return fail("Invalid structure ref.");

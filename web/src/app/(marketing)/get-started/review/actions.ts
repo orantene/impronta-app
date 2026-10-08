@@ -32,6 +32,7 @@ import {
   type ApprovedChoice,
 } from "@/lib/tulala/approve.server";
 import type { Recommendation } from "@/lib/tulala/engine";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ReviewActionState = { error: string | null };
 
@@ -46,6 +47,7 @@ export async function acceptRecommendation(
   _prev: ReviewActionState,
   formData: FormData,
 ): Promise<ReviewActionState> {
+  await requireNotImpersonating();
   const resolved = await resolveBriefOwner();
   if (!resolved) return { error: "Your session expired. Start again?" };
 

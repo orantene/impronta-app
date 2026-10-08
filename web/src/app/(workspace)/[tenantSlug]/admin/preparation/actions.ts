@@ -18,6 +18,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { userHasCapability } from "@/lib/access";
 import { acknowledgeTicket, markTicketReady, recordHandoff } from "@/lib/preparation/tickets";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
@@ -50,6 +51,7 @@ async function staff() {
 }
 
 export async function prepAcknowledge(ticketId: string): Promise<PrepActionResult> {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   if (!uuid.safeParse(ticketId).success) return { ok: false, reason: "invalid" };
@@ -58,6 +60,7 @@ export async function prepAcknowledge(ticketId: string): Promise<PrepActionResul
 }
 
 export async function prepReady(ticketId: string): Promise<PrepActionResult> {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   if (!uuid.safeParse(ticketId).success) return { ok: false, reason: "invalid" };
@@ -66,6 +69,7 @@ export async function prepReady(ticketId: string): Promise<PrepActionResult> {
 }
 
 export async function prepHandoff(ticketId: string): Promise<PrepActionResult> {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   if (!uuid.safeParse(ticketId).success) return { ok: false, reason: "invalid" };

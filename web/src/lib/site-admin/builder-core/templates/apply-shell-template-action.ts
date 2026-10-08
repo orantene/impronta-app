@@ -43,6 +43,7 @@ import {
   applyShellTemplateToTree,
   asShellTemplateKind,
 } from "./apply-shell-template-core";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ApplyShellTemplateResult =
   | { ok: true; pageId: string; slot: "header" | "footer" }
@@ -67,6 +68,8 @@ export async function applyShellTemplateToTenant(
   tenantId: string,
   locale?: string,
 ): Promise<ApplyShellTemplateResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   // ── Gate: super-admin only (mirrors registry-actions.ts) ─────────────────
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not signed in." };

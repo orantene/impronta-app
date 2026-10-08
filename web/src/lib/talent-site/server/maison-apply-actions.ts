@@ -6,6 +6,7 @@
  * pending_design for Undo. Live sites write ONLY `pending_design` (colors_only).
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -74,6 +75,8 @@ export async function applyMaisonDesignAction(input: {
    */
   galleryPaletteKey?: string | null;
 }): Promise<ThemeActionResult<MaisonApplyResult>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
   if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
@@ -334,6 +337,8 @@ export async function applyMaisonDesignAction(input: {
 export async function undoMaisonDesignAction(): Promise<
   ThemeActionResult<{ restored: true }>
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
   if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {

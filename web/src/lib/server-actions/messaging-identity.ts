@@ -20,6 +20,7 @@ import { messagingInquiryManager } from "@/lib/messaging/staff-guard";
 import { talentSellerPaymentActor } from "@/lib/messaging/talent-payment-actor";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { ActionResult } from "@/lib/messaging/types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 const version = z.number().int().nonnegative();
@@ -108,6 +109,7 @@ export async function messagingCaptureIdentity(input: {
   customerId: string | null;
   expectedVersion: number;
 }) {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       inquiryId: uuid,

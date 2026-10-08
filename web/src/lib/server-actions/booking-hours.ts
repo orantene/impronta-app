@@ -34,6 +34,7 @@ import {
   syncPatternFromBookingHours,
 } from "@/lib/scheduling/sync-hours-from-pattern.server";
 import { recurringFromAvailabilityData, weeklyFromAvailabilityPattern } from "@/lib/scheduling/pattern-hours";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const weeklySchema = z.record(
   z.string(),
@@ -316,6 +317,8 @@ export async function acceptBookingHoursProposal(
   talentProfileId: string,
   input: { timezone: string },
 ): Promise<AcceptProposalResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeHours(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!auth.canEditHours) {
@@ -356,6 +359,8 @@ export async function saveBookingHours(
     exceptions?: unknown;
   },
 ): Promise<SaveHoursResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeHours(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!auth.canEditHours) {
@@ -435,6 +440,8 @@ export async function setTalentDirectBookingOptIn(
   talentProfileId: string,
   optIn: boolean,
 ): Promise<OptInResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeHours(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();

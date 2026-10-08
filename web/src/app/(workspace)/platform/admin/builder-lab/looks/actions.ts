@@ -6,6 +6,7 @@ import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { importLook, setLookStatus, syncBuiltinLooks } from "@/lib/site-admin/builder-core/site-templates/site-looks.server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const PATH = "/platform/admin/builder-lab/looks";
 type Result<T = null> = { ok: true; data: T } | { ok: false; error: string };
@@ -18,6 +19,7 @@ async function gate(): Promise<{ ok: true; userId: string } | { ok: false; error
 }
 
 export async function actionSyncBuiltinLooks(): Promise<Result<{ created: number; updated: number }>> {
+  await requireNotImpersonating();
   const g = await gate();
   if (!g.ok) return g;
   const admin = createServiceRoleClient();
@@ -30,6 +32,7 @@ export async function actionSyncBuiltinLooks(): Promise<Result<{ created: number
 
 /** Import a PortableLook pasted or uploaded as JSON. */
 export async function actionImportLook(fd: FormData): Promise<Result<{ slug: string }>> {
+  await requireNotImpersonating();
   const g = await gate();
   if (!g.ok) return g;
   const admin = createServiceRoleClient();
@@ -50,6 +53,7 @@ export async function actionImportLook(fd: FormData): Promise<Result<{ slug: str
 }
 
 export async function actionSetLookStatus(id: string, status: "draft" | "published" | "archived"): Promise<Result> {
+  await requireNotImpersonating();
   const g = await gate();
   if (!g.ok) return g;
   const admin = createServiceRoleClient();

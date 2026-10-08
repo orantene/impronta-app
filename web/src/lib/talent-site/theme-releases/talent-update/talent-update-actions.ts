@@ -6,6 +6,7 @@
  * scoped to the gated talent's own profile id (never an id from input beyond
  * the update row, which is re-checked against that profile).
  */
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { CONFLICT_COPY, pick } from "@/lib/talent-site/history/copy";
 import { gate } from "@/lib/talent-site/server/site-action-gate";
@@ -62,6 +63,8 @@ export async function applyThemeUpdateAction(input: {
   updateId: string;
   expectedDraftRev: number | null;
 }): Promise<UpdateResult<ApplyOutcome>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "read_only", error: readOnly.error };
   if (!UUID_RE.test(input.updateId)) return BAD;
   const g = await gate("personalSiteEdit");
   if (!g.ok) return { ok: false, code: g.code, error: g.error };
@@ -82,6 +85,8 @@ export async function applyCriticalFixAction(input: {
   updateId: string;
   expectedDraftRev: number | null;
 }): Promise<UpdateResult<ApplyOutcome>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "read_only", error: readOnly.error };
   if (!UUID_RE.test(input.updateId)) return BAD;
   const g = await gate("personalSiteEdit");
   if (!g.ok) return { ok: false, code: g.code, error: g.error };
@@ -98,6 +103,8 @@ export async function applyCriticalFixAction(input: {
 }
 
 export async function dismissThemeUpdateAction(input: { updateId: string }): Promise<UpdateResult<null>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "read_only", error: readOnly.error };
   if (!UUID_RE.test(input.updateId)) return BAD;
   const g = await gate("personalSiteEdit");
   if (!g.ok) return { ok: false, code: g.code, error: g.error };
@@ -112,6 +119,8 @@ export async function addThemeUpdateBlockAction(input: {
   afterId: string | null;
   expectedDraftRev: number | null;
 }): Promise<UpdateResult<{ draftRev: number }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "read_only", error: readOnly.error };
   if (!UUID_RE.test(input.updateId) || !ITEM_RE.test(input.itemId)) return BAD;
   if (input.afterId !== null && !NODE_ID_RE.test(input.afterId)) return BAD;
   const g = await gate("personalSiteEdit");

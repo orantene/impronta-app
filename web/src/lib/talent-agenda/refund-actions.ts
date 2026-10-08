@@ -17,6 +17,7 @@ import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import { LEDGER_SETTLED_STATUSES } from "./cancel-money";
 import { requireOwnBooking } from "./booking-actions";
 import type { AgendaActionResult } from "./booking-actions";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type RefundOwnBookingResult =
   | { ok: true; refundedCents: number; currency: string; already?: boolean }
@@ -38,6 +39,7 @@ type TxnRow = {
 export async function refundOwnBookingPayment(input: {
   bookingId: string;
 }): Promise<RefundOwnBookingResult> {
+  await requireNotImpersonating();
   const own = await requireOwnBooking(input.bookingId);
   if (!own.ok) return own;
 

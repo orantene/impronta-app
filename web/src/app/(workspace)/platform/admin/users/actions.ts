@@ -16,6 +16,7 @@ import { getPlatformRole } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { logPlatformAdminAction } from "@/lib/platform/audit";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -40,6 +41,8 @@ async function requirePlatformAdmin(): Promise<
 export async function confirmPlatformUserEmail(
   userId: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -191,6 +194,8 @@ export async function getPlatformUserActivity(
 export async function resendPlatformUserConfirmation(
   userId: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -234,6 +239,8 @@ export async function resendPlatformUserConfirmation(
 export async function sendPlatformUserPasswordReset(
   userId: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -284,6 +291,8 @@ export async function setPlatformUserTempPassword(
   userId: string,
   newPassword: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -322,6 +331,8 @@ export async function setPlatformUserTempPassword(
 export async function forcePlatformUserSignOut(
   userId: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -360,6 +371,7 @@ export async function openPlatformSupportMode(
   targetId: string,
   targetKind: "human" | "unclaimed_talent",
 ): Promise<SupportModeResult> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -409,6 +421,8 @@ export async function sendPlatformClaimInvite(
   talentProfileId: string,
   email: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 

@@ -10,6 +10,7 @@ import { createPurchase } from "@/lib/orders/purchase";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * One line the board submits.
@@ -62,6 +63,7 @@ export type SubmitMenuOrderResult =
 export async function submitMenuOrder(
   input: SubmitMenuOrderInput,
 ): Promise<SubmitMenuOrderResult> {
+  await requireNotImpersonating();
   try {
     const email = input.contactEmail?.trim().toLowerCase() ?? "";
     const name = input.contactName?.trim() ?? "";

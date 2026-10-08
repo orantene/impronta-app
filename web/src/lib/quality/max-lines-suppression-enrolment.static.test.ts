@@ -132,7 +132,6 @@ const NOT_YET_ENROLLED: readonly string[] = [
   "src/components/admin/shell/internal/talent-drawers/events.tsx",
   "src/app/(workspace)/[tenantSlug]/_data-bridge/talent.ts",
   "src/lib/dashboard/admin-dashboard-data.ts",
-  "src/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions.ts",
   "src/components/inquiry-cart/InquiryAttachmentsUploader.tsx",
 ];
 

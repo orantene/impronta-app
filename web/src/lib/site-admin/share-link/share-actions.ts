@@ -50,6 +50,7 @@ import {
   SHARE_JWT_MIN_TTL_SECONDS,
   type ShareCommentPermission,
 } from "./jwt";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export interface CreateShareLinkInput {
   /** Locale of the page to share. Defaults to "en" if omitted. */
@@ -100,6 +101,7 @@ const HOURS_TO_SECONDS = 60 * 60;
 export async function createShareLinkAction(
   input: CreateShareLinkInput = {},
 ): Promise<CreateShareLinkResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 

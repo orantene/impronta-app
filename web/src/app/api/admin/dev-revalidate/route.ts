@@ -14,11 +14,14 @@ import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 
 import { tagFor } from "@/lib/site-admin/cache-tags";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   if (process.env.NODE_ENV === "production") {
     return NextResponse.json({ ok: false, error: "dev only" }, { status: 404 });
   }

@@ -20,6 +20,7 @@ import {
   normalizeCallSheetPayload,
   type CallSheetPayload,
 } from "./types";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /** Field-level audit map for call-sheet payload keys (Details v3 §4.3).
  *  Maps each scalar payload key to its activity-feed group + visibility
@@ -88,6 +89,8 @@ export async function saveBookingCallSheet(
   bookingId: string,
   payload: CallSheetPayload,
 ): Promise<ServerActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   try {
     if (!bookingId) return { ok: false, error: "Missing booking id." };
 
@@ -192,6 +195,8 @@ export async function saveBookingCallSheet(
 export async function clearBookingCallSheet(
   bookingId: string,
 ): Promise<ServerActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   try {
     if (!bookingId) return { ok: false, error: "Missing booking id." };
 

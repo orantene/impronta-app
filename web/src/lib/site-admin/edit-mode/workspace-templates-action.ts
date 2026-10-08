@@ -50,6 +50,7 @@ import {
   type WorkspaceTemplateSnapshot,
   type WorkspaceTemplateSnapshotEntry,
 } from "@/lib/site-admin/edit-mode/workspace-template-rows";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type {
   WorkspaceTemplateRow,
@@ -107,6 +108,8 @@ export async function saveCurrentHomepageAsTemplate(input: {
   /** When true, snapshot the live composition; otherwise the draft. */
   fromLive?: boolean;
 }): Promise<SaveTemplateResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -255,6 +258,8 @@ export async function listWorkspaceTemplates(input?: {
 export async function applyWorkspaceTemplate(input: {
   templateId: string;
 }): Promise<ApplyTemplateResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -385,6 +390,8 @@ export async function applyWorkspaceTemplate(input: {
 export async function deleteWorkspaceTemplate(input: {
   templateId: string;
 }): Promise<SimpleResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -409,6 +416,8 @@ export async function promoteWorkspaceTemplate(input: {
   templateId: string;
   toPlatform: boolean;
 }): Promise<SimpleResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
