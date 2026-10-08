@@ -202,6 +202,8 @@ export const MODE_DEPENDENT_LABELS: readonly string[] = [
   "Reserve a time",
   "Booking",
   "Book an appointment",
+  // Folio inquiry CTA still seeds Spanish until #2914; skip overlay/scan like other mode CTAs.
+  "Consultar",
 ];
 
 /** Text made only of `{{tokens}}`, digits and punctuation: profile data, no copy. */
