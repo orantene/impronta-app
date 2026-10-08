@@ -6,7 +6,7 @@ const ES: Record<string, string> = {
   Today: "Hoy",
   "Your free website": "Tu sitio web gratis",
   "Find your website style": "Encuentra el estilo de tu sitio",
-  // TUL-331 / G12: honest finished-gallery count (no aspirational library size).
+  // TUL-331 / G12: honest finished-gallery count (not ~32 aspiration).
   "{n} designs ready today. Preview any with your photos and services.":
     "{n} diseños listos hoy. Previsualiza cualquiera con tus fotos y servicios.",
   "1 design ready today. Preview it with your photos and services.":
