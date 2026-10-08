@@ -228,3 +228,82 @@ If anything shows, merge `origin/main` into your branch and re-run the full
 gate (tsc, lint, lanes, `next build`) BEFORE merging the PR — CI on the PR
 tests the merged tree, but your local prod-build/QA evidence is stale until
 you refresh it.
+
+## 12. Required checks on main
+
+Derived from `.github/workflows/*.yml` at `origin/main` `675dc62a6`
+(2026-10-07). The workflow facts come from the repo. The "Required" marks and
+the recorded answers below come from the PM's answer to the admin checklist
+(TUL-215); they were not read from GitHub settings by the author of this
+section. Items the PM did not answer are listed as open at the end.
+
+### Checks that exist
+
+"Check" is the job `name:` as GitHub shows it in the PR checks list. None of
+these workflows declares a `merge_group` trigger.
+
+| Workflow file | Job id (check) | Required (per PM) | Runs on | Skipped on draft PRs? |
+|---|---|---|---|---|
+| `ci.yml` | `gate` ("Structural quality gate") | Yes | PR to `main` (opened, synchronize, reopened, ready_for_review), push to `main`, manual | Yes: `if: github.event_name != 'pull_request' \|\| github.event.pull_request.draft == false` |
+| `admin-boot.yml` | `admin-boot` ("Admin boot (prod build)") | Yes | PR to `main` (same types plus labeled), push to `main` | Yes, and also skipped on ordinary PRs (see "Heavy checks") |
+| `builder-fidelity.yml` | `fidelity` ("Fidelity goldens") | Yes | PR to `main` (same types plus labeled), push to `main` and `ci/seed-fidelity**`, manual | Yes, plus the heavy-check rule |
+| `builder-fidelity.yml` | `perf-budget` ("Builder perf budget") | Yes | Same triggers as `fidelity` | Yes, plus the heavy-check rule |
+| `talent-website-e2e.yml` | `migrations` ("Local Supabase + migration chain") | Not in the PM's list | PR (any base branch) touching the path filter below, manual. No push trigger | Yes, plus the heavy-check rule |
+
+Path filter for `talent-website-e2e.yml`: `web/src/lib/talent-site/**`,
+`web/src/lib/site-admin/builder-core/**`, `web/src/lib/saas/host-context.ts`,
+`web/src/proxy.ts`, `web/src/components/talent/**`,
+`web/src/components/admin/shell/**`, `web/e2e/talent-website/**`,
+`supabase/migrations/**`, `supabase/ci/**`, and the workflow file itself.
+
+### Heavy checks (admin-boot, fidelity, perf-budget, talent-website-e2e)
+
+On a pull request these jobs run only when the PR is not a draft **and** its
+head branch starts with `integ/` **or** it carries the `full-ci` label.
+Otherwise the job is skipped (its `if:` is false). On push to `main` and on
+manual runs they always run. So on an ordinary PR the only check that actually
+executes is the structural gate.
+
+### Not PR checks
+
+These run on other events and never report a status on a PR to `main`:
+
+| Workflow file | Job id | Trigger |
+|---|---|---|
+| `promote-production.yml` | `promote` | `workflow_run` of the structural gate on `main` (acts only on success), manual |
+| `main-red-alert.yml` | `alert` | `workflow_run` of the structural gate, fidelity and admin boot on `main` |
+| `db-push.yml` | `push` ("Dry run" or "Apply" migrations) | Manual only, and only on `main` |
+| `vercel-post-deploy-alias.yml` | `alias` | `deployment_status` success on the Production environment |
+| `qa-host-pool.yml` | `claim` | `deployment_status` success on a `factory/*` preview |
+| `guide-sync.yml` | `sync` | Push to `main` touching guide sources, Mondays 06:17 UTC, manual |
+| `builder-e2e.yml` | `builder-e2e` ("Builder smoke (dev-signin)") | Manual only |
+
+### Recorded answers (PM, TUL-215)
+
+- Required checks on `main` and on `production`: "Structural quality gate",
+  "Builder perf budget", "Fidelity goldens", "Admin boot (prod build)".
+- "Require branches to be up to date before merging" (strict) is **off**. Section 11 therefore
+  stays a manual discipline: GitHub does not force a rebase before merge.
+
+### Still open (admin)
+
+The PM did not answer these. Someone with admin access on
+`orantene/impronta-app` should check Settings, then Branches (or Rules), record
+the answers here, and delete the item.
+
+- [ ] Whether a **merge queue** is enabled. If it is, the required workflows
+      need a `merge_group` trigger, and none has one today.
+- [ ] Whether a **skipped** job counts as passing for the required-check rule.
+      Relevant because three of the four required checks (Admin boot, Fidelity
+      goldens, Builder perf budget) are skipped on drafts and on ordinary PRs
+      (see "Heavy checks"), and the structural gate is skipped on drafts.
+      Verify against the live rule; do not rely on this note.
+- [ ] Who may push to `production`, and whether admins can bypass the rules.
+- [ ] Whether the check names above match the names GitHub has recorded.
+      Required checks match by name, so a renamed job would stop satisfying the
+      rule.
+
+The rule can be read with
+`gh api repos/orantene/impronta-app/branches/main/protection` or
+`gh api repos/orantene/impronta-app/rules/branches/main` (admin rights may be
+needed).
