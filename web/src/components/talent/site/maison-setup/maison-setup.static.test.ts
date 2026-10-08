@@ -21,6 +21,11 @@ test("P3: Choose a design renders the browse gallery (supersedes W75)", () => {
   assert.match(src, /<GalleryBrowseScreen/);
   const gallery = read("GalleryBrowseScreen.tsx");
   assert.match(gallery, /t\("Find your website style"\)/);
+  assert.match(gallery, /gallery-finished-count/);
+  assert.match(
+    gallery,
+    /t\("\{n\} designs ready today\. Preview any with your photos and services\."/,
+  );
   assert.match(gallery, /t\("Search a profession or theme"\)/);
   assert.match(gallery, /t\("Reset filters"\)/);
   // The last-viewed design is marked on its card (ring + data attribute), not
@@ -30,6 +35,27 @@ test("P3: Choose a design renders the browse gallery (supersedes W75)", () => {
   assert.match(gallery, /visibleGalleryDesigns/);
   assert.equal(/#[0-9a-fA-F]{3,8}\b/.test(gallery), false, "no hex literals");
   assert.equal(gallery.includes("—"), false, "no em dashes");
+});
+
+test("TUL-331 G12: honest finished-theme count in gallery copy (en+es)", () => {
+  const copy = read("maison-setup-copy.ts");
+  assert.match(copy, /\{n\} designs ready today\. Preview any with your photos and services\./);
+  assert.match(copy, /\{n\} diseños listos hoy\. Previsualiza cualquiera con tus fotos y servicios\./);
+  assert.equal(copy.includes("~32"), false, "no aspirational ~32 in talent copy");
+  const designStep = readFileSync(
+    join(process.cwd(), "src/components/talent/site/theme-gallery/DesignStep.tsx"),
+    "utf8",
+  );
+  assert.match(designStep, /themeGalleryDesignStepSubtitle/);
+  assert.match(designStep, /theme-gallery-finished-count/);
+  assert.equal(designStep.includes("40+"), false, "no 40+ library implication");
+  const i18n = readFileSync(
+    join(process.cwd(), "src/components/talent/site/theme-gallery/theme-gallery-i18n.ts"),
+    "utf8",
+  );
+  assert.match(i18n, /designStepSubtitle: "\{n\} designs ready/);
+  assert.match(i18n, /emptyFilter: "No designs in this category\."/);
+  assert.equal(i18n.includes("in this category yet"), false, "emptyFilter must not imply more later");
 });
 
 test("cr_gallery chrome: Today back + close above the gallery hero", () => {
