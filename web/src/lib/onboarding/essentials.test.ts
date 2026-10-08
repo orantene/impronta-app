@@ -101,7 +101,7 @@ test("quote service is request-to-book with no number", () => {
 test("both: her offerings and hours under the workspace, bookable, workspace appointments ON, no invite", async () => {
   const db = fresh();
   const r = await runEssentialsWrites(fakeStore(db), { choice: "both", essentials: ess({ firstProviderEmail: "x@y.com" }), talent, workspace });
-  assert.ok(db.offerings.every((o) => o.ownerKey === "t:tp1"));
+  assert.ok(db.offerings.some((o) => o.ownerKey === "t:tp1"));
   assert.ok(db.bookable.has("tp1") && db.apptEnabled.has("ws1") && r.appointmentsEnabled);
   assert.equal(db.invites.length, 0);
 });
@@ -224,4 +224,27 @@ test("solo studio: an existing row with no open day is filled in", async () => {
   const r = await runEssentialsWrites(ownerStore(db, { talentProfileId: "own1", providerCount: 1 }), studioInput());
   assert.equal(r.ownerHoursWritten, true);
   assert.ok(Object.values(db.hours.own1 as Record<string, unknown[]>).some((d) => d.length > 0));
+});
+
+test("three choices: target owner of the offerings written", async () => {
+  const keys = async (choice: "myself" | "studio" | "both") => {
+    const db = fresh();
+    await runEssentialsWrites(fakeStore(db), { choice, essentials: ess(), talent: choice === "studio" ? null : talent, workspace: choice === "myself" ? null : workspace });
+    return db.offerings.map((o) => o.ownerKey);
+  };
+  const n = ess().services.length;
+  assert.deepEqual(await keys("myself"), Array(n).fill("t:tp1"));
+  assert.deepEqual(await keys("studio"), Array(n).fill("w:ws1"));
+  const both = await keys("both");
+  assert.equal(both.filter((k) => k === "t:tp1").length, n, "owner-provider rows kept");
+  assert.equal(both.filter((k) => k === "w:ws1").length, n, "workspace-owned rows written");
+});
+
+test("both: a retry writes no duplicates", async () => {
+  const db = fresh();
+  const input = { choice: "both" as const, essentials: ess(), talent, workspace };
+  await runEssentialsWrites(fakeStore(db), input);
+  const before = db.offerings.length;
+  await runEssentialsWrites(fakeStore(db), input);
+  assert.equal(db.offerings.length, before);
 });
