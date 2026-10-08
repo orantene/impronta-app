@@ -48,7 +48,7 @@ export function RemoteCursorsLayer() {
 
 function RemoteCursorsLayerInner() {
   const { pageId, locale, device } = useEditContext();
-  const { editors } = usePagePresence();
+  const { editors, others } = usePagePresence();
   const selectedNodeId = useSelectedBuilderNodeId();
 
   const self = editors.find((e) => e.isSelf) ?? null;
@@ -201,8 +201,8 @@ function RemoteCursorsLayerInner() {
 
   // ── Prune cursors of editors who left (presence is the source of truth) ───
   useEffect(() => {
-    reconcileRemoteCursors(new Set(editors.map((e) => e.id)));
-  }, [editors]);
+    reconcileRemoteCursors(new Set([...editors, ...others].map((e) => e.id)));
+  }, [editors, others]);
 
   // ── Prune cursors that simply stopped broadcasting ────────────────────────
   // Presence only reconciles on a real leave. A peer who stops moving their

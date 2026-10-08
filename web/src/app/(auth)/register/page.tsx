@@ -11,7 +11,12 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
-import { getAppUrl, normalizeOptionalNextPath } from "@/lib/auth-flow";
+import {
+  getAppUrl,
+  getSiteUrl,
+  isTalentSignupNext,
+  normalizeOptionalNextPath,
+} from "@/lib/auth-flow";
 import {
   readRegisterIntent,
   registerCopyKeys,
@@ -24,6 +29,10 @@ import {
 import { loadWorkspaceLeadEmail } from "@/lib/saas/workspace-signup-lead.server";
 import { readInviteFromCookieStore } from "@/lib/invites/cookie";
 import { getPublicHostContext } from "@/lib/saas/scope";
+import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
+import { legacySignupRedirect } from "@/lib/onboarding/legacy-signup-redirect";
+import { legacyFlowLang } from "@/lib/onboarding/legacy-signup-redirect.server";
+import { AuthCardLocaleToggle } from "@/components/auth/auth-card-locale-toggle";
 import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { prefersPasswordlessFirst } from "@/lib/auth/otp-flow";
@@ -183,6 +192,25 @@ export default async function RegisterPage({
   const requestedIntent = readRegisterIntent(params);
   const explicitNext = normalizeOptionalNextPath(next);
 
+  // TUL-117: a plain pro signup goes to the guided /start flow (marketing
+  // host, in the visitor's language) instead of this English form + raw
+  // profile editor. Client, claim, invite and workspace signups stay here.
+  if ((await getOnboardingFlags()).onboarding_module_enabled) {
+    const target = legacySignupRedirect({
+      flagOn: true,
+      surface: "register",
+      siteUrl: getSiteUrl(),
+      lang: await legacyFlowLang(),
+      hostKind: (await getPublicHostContext()).kind,
+      intent: requestedIntent,
+      next: explicitNext ?? null,
+      nextIsTalentSignup: explicitNext ? isTalentSignupNext(explicitNext) : false,
+      hasWorkspaceLead: workspaceSignup || Boolean(workspaceLeadId),
+      hasClaimInvite: Boolean(claimInvitationId),
+    });
+    if (target) redirect(target);
+  }
+
   // Post-auth destination, per flow. Each branch is the behaviour the retired
   // route had, unchanged — an explicit valid `?next=` always wins over the
   // per-intent default.
@@ -259,6 +287,7 @@ export default async function RegisterPage({
       />
 
       <AuthCard>
+        <AuthCardLocaleToggle locale={locale} label={t("public.auth.language")} />
         {error ? (
           <AuthNotice tone="error" align="center" className="mb-4">
             {decodeURIComponent(error)}

@@ -75,7 +75,7 @@
         "title": "Create your account",
         "operatorTitle": "Create your operator account",
         "inviteTitle": "Join {agency}",
-        "description": "After signing up you'll choose whether you're Talent (join the agency roster) or a Client (book talent for events).",
+        "description": "Create your account, then tell us how you'll use Tulala: to offer your services or to book talent.",
         "operatorDescription": "Use the same email you used on Get Started. We'll open your free workspace and create its Tulala URL automatically after signup.",
         "inviteDescription": "{agency} invited you to join their roster. Create a Tulala account to claim your profile and start receiving bookings.",
         "claimTitle": "Claim your profile",
@@ -2092,9 +2092,9 @@
         "sub": "Three ready looks. You can change it later in the editor.",
         "recommended": "Recommended",
         "keep": "Keep the default look",
-        "pink": "Pink and lipstick",
-        "pearl": "Pearl",
-        "sand": "Sand"
+        "rose": "Rosé",
+        "blush": "Blush",
+        "orchid": "Orchid"
       }
     },
     "consent": {

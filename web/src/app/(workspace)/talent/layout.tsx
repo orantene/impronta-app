@@ -2,6 +2,7 @@
 // Agenda V2 rollout: see docs/plans/today-calendar/ROLLOUT.md (TALENT_AGENDA_V2).
 // Legacy Today/Calendar remain behind isAgendaV2 until Step 4 delete PR.
 
+import { dashboardMetadata } from "@/i18n/dashboard-metadata";
 import { notFound, redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 
@@ -34,8 +35,6 @@ import { SupportLauncherShellMount } from "@/components/support/SupportLauncherS
 import type { TalentPage } from "@/components/admin/shell/internal/state";
 import { loadTenantIdentity, loadProfileDisplayName, type TenantIdentityPayload } from "../[tenantSlug]/_layout-identity";
 import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
-import { loadUnrosteredWallFacts } from "@/lib/talent/unrostered-wall-load";
-import { unrosteredWallBypassesShell } from "@/lib/talent/unrostered-wall";
 import { TalentSiteDashboardProvider } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/dashboard-state";
 import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
@@ -61,6 +60,8 @@ import { resolveTalentActingAs, talentActingAsBannerCopy } from "@/lib/impersona
 import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
 
 export const dynamic = "force-dynamic";
+
+export const generateMetadata = dashboardMetadata;
 
 const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   today: "today",
@@ -192,19 +193,10 @@ export default async function PlatformTalentLayout({
     notFound();
   }
 
-  // The unrostered wall is the whole /talent page. TalentShellClient renders
-  // children and then Today, so a profile with no roster and no published
-  // site must not enter the shell. A talent who has either keeps the shell;
-  // an unproven read does too (the page sends them to Today).
+  // TUL-129: /talent itself never paints the shell. Its page redirects a talent straight to
+  // /talent/today (which runs the full shell loads once), so running ~20 dashboard reads here
+  // only to throw the result away on that redirect doubled the sign-in cost.
   if (isTalentRoot) {
-    const wallFacts = await loadUnrosteredWallFacts(baseProfile.id);
-    if (unrosteredWallBypassesShell(wallFacts)) {
-      return <>{children}</>;
-    }
-    // TUL-129: /talent itself never paints the shell. Its page redirects a
-    // talent with a roster/site straight to /talent/today (which runs the full
-    // shell loads once). Running ~20 dashboard reads here too, only to throw
-    // the result away on that redirect, doubled the sign-in cost.
     return <>{children}</>;
   }
 

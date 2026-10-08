@@ -69,6 +69,27 @@ export const CURRENCY_LABELS: Record<DefaultCurrencyCode, string> = {
 };
 
 /**
+ * Picker label in the viewer's language: "MXN · $ · Peso mexicano" on a Spanish
+ * dashboard. The static table above stays English (non-UI consumers, admin
+ * tools); this swaps only the trailing currency NAME via Intl.DisplayNames, and
+ * returns the English label untouched for English or when Intl cannot name it.
+ */
+export function localizedCurrencyLabel(code: DefaultCurrencyCode, locale: string): string {
+  const english = CURRENCY_LABELS[code];
+  const lang = locale.trim().toLowerCase().split("-")[0];
+  if (!lang || lang === "en") return english;
+  try {
+    const name = new Intl.DisplayNames([locale], { type: "currency" }).of(code);
+    if (!name || name === code) return english;
+    const parts = english.split(" · ");
+    parts[parts.length - 1] = name.charAt(0).toLocaleUpperCase(locale) + name.slice(1);
+    return parts.join(" · ");
+  } catch {
+    return english;
+  }
+}
+
+/**
  * UI fallback when a stored `default_currency` is null/unknown. USD-first:
  * the platform operates in USD (see `platform_settings.operating_currency`),
  * so the picker lands on USD rather than a legacy EUR. (The SQL columns still

@@ -24,6 +24,7 @@ import type { BusinessFamilyId } from "@/lib/words/business-types";
 
 import { clearPending, markAssignmentsPending, swapAssignment } from "./asset-assignments.server";
 import { swapImageSrcInTenantPages } from "./page-image-swap.server";
+import { isStaleImageJob, STALE_JOB_ERROR } from "./tenant-image-job-staleness";
 import { generateStockAsset } from "./stock-engine.server";
 
 export type JobSlotStatus = "queued" | "done" | "failed" | "blocked" | "skipped" | "user_won";
@@ -247,6 +248,41 @@ export async function runTenantImageJobs(admin: SupabaseClient, options: { budge
   }
   if (report.stoppedBy === "empty" && now() >= deadline) report.stoppedBy = "budget_ms";
   return report;
+}
+
+/**
+ * TUL-140: settle jobs a dead invocation left `running` (or that sat `queued`
+ * for days) as `failed` / "timed out", close their unfinished slots, and drop
+ * the builder's "being made" flag. Runs at the top of each cron tick. Returns
+ * the number reaped; read/update errors are logged, never thrown.
+ */
+export async function reapStaleTenantImageJobs(admin: SupabaseClient, nowMs: number = Date.now()): Promise<number> {
+  const { data, error } = await admin.from("tenant_image_jobs").select("id, tenant_id, status, slots, created_at, started_at").in("status", ["running", "queued"]).order("created_at", { ascending: true }).limit(50);
+  if (error) {
+    logServerError("tenant-image-jobs.reap-read", error);
+    return 0;
+  }
+  type Row = { id: string; tenant_id: string; status: string; slots: JobSlot[] | null; created_at: string | null; started_at: string | null };
+  let reaped = 0;
+  for (const job of (data ?? []) as Row[]) {
+    if (!isStaleImageJob(job, nowMs)) continue;
+    const slots = (job.slots ?? []).map((s) => (s.status === "queued" ? { ...s, status: "failed" as const, reason: STALE_JOB_ERROR } : s));
+    const { data: updated, error: updateError } = await admin
+      .from("tenant_image_jobs")
+      .update({ status: "failed", error: STALE_JOB_ERROR, finished_at: new Date(nowMs).toISOString(), slots })
+      .eq("id", job.id)
+      .eq("status", job.status)
+      .select("id");
+    if (updateError) {
+      logServerError("tenant-image-jobs.reap-update", updateError);
+      continue;
+    }
+    // Conditional update matched nothing: the job moved on meanwhile; leave it.
+    if (!updated || updated.length === 0) continue;
+    await clearPending(admin, { tenantId: job.tenant_id, jobId: job.id });
+    reaped += 1;
+  }
+  return reaped;
 }
 
 async function claimNextJob(admin: SupabaseClient): Promise<JobRow | null> {
