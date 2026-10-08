@@ -3,8 +3,12 @@
  * Selection + due check live here so cron route stays thin and testable.
  */
 
+import { timingSafeEqual } from "node:crypto";
+
 import {
   createNotionMirrorPage,
+  findNotionMirrorPageByTicketId,
+  findNotionMirrorPageByTicketNumber,
   updateNotionMirrorPage,
   type NotionFetch,
   type NotionWriteResult,
@@ -12,10 +16,11 @@ import {
 import type { NotionMirrorConfig } from "./config";
 import {
   buildNotionMirrorProperties,
+  deskLinkForTicket,
   type NotionMirrorTicketInput,
 } from "./payload";
 
-export const NOTION_MIRROR_SCAN_LIMIT = 200;
+/** Max tickets processed per cron run (SQL limit + Notion rate budget). */
 export const NOTION_MIRROR_BATCH_LIMIT = 50;
 
 export type MirrorTicketRow = NotionMirrorTicketInput & {
@@ -33,6 +38,7 @@ export function needsNotionMirror(row: {
   return Date.parse(row.updatedAt) > Date.parse(row.notionSyncedAt);
 }
 
+/** @deprecated Prefer SQL due list; kept for unit tests of the due predicate. */
 export function pickDueMirrorTickets(
   rows: MirrorTicketRow[],
   limit = NOTION_MIRROR_BATCH_LIMIT,
@@ -66,20 +72,47 @@ export function mapDbMirrorRow(raw: Record<string, unknown>): MirrorTicketRow | 
   };
 }
 
+/**
+ * Push one ticket. Before create, query Notion by ticket id (Desk link) then
+ * ticket number so a lost writeback cannot spawn a duplicate page.
+ */
 export async function pushTicketToNotion(opts: {
   config: NotionMirrorConfig;
   ticket: MirrorTicketRow;
   fetchImpl?: NotionFetch;
 }): Promise<NotionWriteResult> {
   const properties = buildNotionMirrorProperties(opts.ticket);
-  if (opts.ticket.notionPageId) {
+  let pageId = opts.ticket.notionPageId;
+
+  if (!pageId) {
+    const byId = await findNotionMirrorPageByTicketId({
+      config: opts.config,
+      deskLink: deskLinkForTicket(opts.ticket.id),
+      fetchImpl: opts.fetchImpl,
+    });
+    if (!byId.ok) return byId;
+    pageId = byId.pageId;
+
+    if (!pageId) {
+      const byNumber = await findNotionMirrorPageByTicketNumber({
+        config: opts.config,
+        ticketNumber: opts.ticket.ticketNumber,
+        fetchImpl: opts.fetchImpl,
+      });
+      if (!byNumber.ok) return byNumber;
+      pageId = byNumber.pageId;
+    }
+  }
+
+  if (pageId) {
     return updateNotionMirrorPage({
       config: opts.config,
-      pageId: opts.ticket.notionPageId,
+      pageId,
       properties,
       fetchImpl: opts.fetchImpl,
     });
   }
+
   return createNotionMirrorPage({
     config: opts.config,
     properties,
@@ -87,13 +120,19 @@ export async function pushTicketToNotion(opts: {
   });
 }
 
-/** Cron Authorization: Bearer check (same contract as other /api/cron routes). */
+function sameSecret(a: string, b: string): boolean {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}
+
+/** Cron Authorization: Bearer check (constant-time; matches other /api/cron routes). */
 export function checkCronBearer(
   authorizationHeader: string | null | undefined,
   expectedSecret: string,
 ): { authorized: boolean } {
   if (!authorizationHeader || !expectedSecret) return { authorized: false };
-  const token = authorizationHeader.replace(/^Bearer\s+/i, "");
-  if (token === authorizationHeader) return { authorized: false };
-  return { authorized: token === expectedSecret };
+  const match = /^Bearer\s+(.+)$/i.exec(authorizationHeader);
+  if (!match) return { authorized: false };
+  return { authorized: sameSecret(match[1], expectedSecret) };
 }

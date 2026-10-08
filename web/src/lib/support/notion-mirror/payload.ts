@@ -9,6 +9,9 @@
 
 export const NOTION_SUBJECT_MAX = 80;
 
+/** Status values allowed into the Notion select (matches support_tickets check). */
+export const NOTION_MIRROR_STATUSES = ["open", "resolved", "closed"] as const;
+
 /** Property names expected on the Notion "Support tickets" database. */
 export const NOTION_MIRROR_PROPERTY_NAMES = [
   "Ticket",
@@ -19,6 +22,25 @@ export const NOTION_MIRROR_PROPERTY_NAMES = [
   "Updated",
   "Desk link",
 ] as const;
+
+const EMAIL_RE = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
+const PHONE_RE = /\+?\d[\d\s().-]{7,}\d/g;
+
+/** Strip obvious emails/phones from free-text subject before mirroring. */
+export function redactSubjectPii(subject: string): string {
+  return subject
+    .replace(EMAIL_RE, "[redacted-email]")
+    .replace(PHONE_RE, "[redacted-phone]")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function allowListedStatus(status: string): string {
+  const normalized = status.trim().toLowerCase();
+  return (NOTION_MIRROR_STATUSES as readonly string[]).includes(normalized)
+    ? normalized
+    : "open";
+}
 
 export type NotionMirrorTicketInput = {
   id: string;
@@ -48,7 +70,7 @@ export function trimSubject(subject: string, max = NOTION_SUBJECT_MAX): string {
 }
 
 export function mirrorTitle(ticketNumber: number, subject: string): string {
-  const short = trimSubject(subject);
+  const short = trimSubject(redactSubjectPii(subject));
   return short ? `#${ticketNumber} · ${short}` : `#${ticketNumber}`;
 }
 
@@ -64,16 +86,16 @@ export function buildNotionMirrorProperties(
   ticket: NotionMirrorTicketInput,
 ): NotionMirrorProperties {
   const title = mirrorTitle(ticket.ticketNumber, ticket.subject);
-  const category = (ticket.category ?? "").trim();
+  const category = (ticket.category ?? "").trim().slice(0, 100);
   return {
     Ticket: {
       title: [{ type: "text", text: { content: title } }],
     },
     "Ticket number": { number: ticket.ticketNumber },
-    Status: { select: { name: ticket.status } },
+    Status: { select: { name: allowListedStatus(ticket.status) } },
     Category: {
       rich_text: category
-        ? [{ type: "text", text: { content: category.slice(0, 100) } }]
+        ? [{ type: "text", text: { content: category } }]
         : [],
     },
     Created: { date: { start: ticket.createdAt } },
