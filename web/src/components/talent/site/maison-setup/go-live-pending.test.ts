@@ -4,7 +4,20 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { goLiveHasPending } from "./go-live-pending";
-import { sitePublishEntryState } from "./site-publish-entry";
+import { sitePublishEntryState, sitePublishEntryTarget, SITE_PUBLISH_BUILDER_HREF } from "./site-publish-entry";
+
+test("TUL-427: review host off links to the builder publish panel, never a dead button", () => {
+  for (const st of ["fix-first", "publish", "republish"] as const) {
+    const off = sitePublishEntryTarget(st, false);
+    assert.equal(off.kind, "link");
+    assert.ok(off.kind === "link" && off.href.length > 0 && off.href === SITE_PUBLISH_BUILDER_HREF);
+    assert.equal(sitePublishEntryTarget(st, true).kind, "button");
+  }
+  assert.match(SITE_PUBLISH_BUILDER_HREF, /^\/talent\/page-builder\?panel=publish$/);
+  assert.equal(sitePublishEntryTarget("published", false).kind, "button");
+  const src = readFileSync(join(process.cwd(), "src/components/talent/site/maison-setup/SitePublishEntry.tsx"), "utf8");
+  assert.match(src, /target\.kind === "link"[\s\S]*data-testid="talent-site-publish"/);
+});
 
 test("F137: changed header + new location block counts as pending", () => {
   assert.equal(goLiveHasPending({ unpublishedCount: 2, firstPublish: null }), true);

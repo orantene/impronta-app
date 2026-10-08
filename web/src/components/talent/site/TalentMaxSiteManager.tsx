@@ -307,6 +307,7 @@ function ManagerBody({
             setMaisonForceScreen("gallery");
           }}
           onOpenReview={() => openSetup("review")}
+          hasReviewHost={maisonSetupEnabled}
           onRestoredToReview={() => {
             setMaisonForceReason("restored");
             setMaisonForceScreen("review");
@@ -337,6 +338,7 @@ function ManagerBody({
             })}
             publicSiteUrl={null}
             onOpenReview={() => openSetup("review")}
+            hasReviewHost={maisonSetupEnabled}
           />
           {/* Pre-publish: Domain / Questions / Settings / Apps stay reachable
               when MyWebsiteCard (live-only) is not mounted. */}

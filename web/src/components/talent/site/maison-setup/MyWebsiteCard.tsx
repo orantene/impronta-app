@@ -44,6 +44,8 @@ type Props = {
   onChangeDesign: () => void;
   /** Opens the Review (publish) step. */
   onOpenReview?: () => void;
+  /** False when the Review host is off: Republish links to the builder. */
+  hasReviewHost?: boolean;
   onRestoredToReview?: () => void;
   liveToast?: string | null;
   onLiveToastDone?: () => void;
@@ -180,6 +182,7 @@ export function MyWebsiteCard({
   contentModeLabel = "mine",
   onChangeDesign,
   onOpenReview,
+  hasReviewHost = true,
   onRestoredToReview,
   liveToast = null,
   onLiveToastDone,
@@ -439,6 +442,7 @@ export function MyWebsiteCard({
               state={sitePublishEntryState({ published: true, publishable: true, hasPending })}
               publicSiteUrl={publicSiteUrl}
               onOpenReview={onOpenReview}
+              hasReviewHost={hasReviewHost}
             />
           ) : null}
 
