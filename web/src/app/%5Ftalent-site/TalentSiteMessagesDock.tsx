@@ -27,6 +27,7 @@ import { TalentIntakeNotice } from "@/app/t/[profileCode]/_chat/TalentIntakeNoti
 import { getActiveGuestInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 
+import { loadBookEntry } from "@/lib/talent-site/server/load-book-entry";
 import { TalentSiteContactBridge } from "./TalentSiteContactBridge";
 import {
   chatCardColorsFromTokens,
@@ -222,6 +223,8 @@ export async function TalentSiteMessagesDock({
   });
   const t = createTranslator(locale);
   const instant = talentOffersInstantBooking(profile?.talent_plan_key);
+  // TUL-246: `#book` opens the booking sheet itself when she has exactly one bookable service.
+  const bookEntry = await loadBookEntry({ talentProfileId, locale, confirmsByHand: !instant });
 
   // Her trade, or the solo salon default when the taxonomy does not know it
   // (most profiles carry no category). Never fall through to the hub "agency"
@@ -261,6 +264,7 @@ export async function TalentSiteMessagesDock({
         )}
         whatsappHref={hrefs.whatsappHref}
         emailHref={hrefs.emailHref}
+        bookEntry={bookEntry}
       />
       {/* AUD-037: keep the last row CTA clear of the fixed launcher on phones. */}
       <style>{GUEST_CHAT_LAUNCHER_CLEARANCE_CSS}</style>

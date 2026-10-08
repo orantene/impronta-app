@@ -43,7 +43,7 @@ export type Def = {
   topSub: string;
   call: string;
   urgency?: { statusOn: string; statusOff: string; title: string; lead: string; safety: string; on: string; off: string; serviceId: string };
-  hero: { eyebrow: string; headline: string; facts: Array<[string, string]>; badges: string[]; ctas: [string, string] };
+  hero: { eyebrow: string; headline: string; facts: Array<[string, string]>; /** The spec cells in English, for a Spanish-primary demo. */ factsEn?: Array<[string, string]>; badges: string[]; ctas: [string, string] };
   tasks: { title: string; hint: string; items: Task[]; fallback: { kicker: string; badge: string; serviceId: string; body: string } };
   spec: Array<[string, string]>;
   jobs: Array<[string, string]>;
@@ -244,6 +244,7 @@ export const RAMON: Def = {
     eyebrow: "Agenda abierta · Mazatlán",
     headline: "Esos pendientes de la casa, {i}resueltos con precio claro.{/i}",
     facts: [["Respuesta", "En 1 o 2 días"], ["Visita", "$400"], ["Por hora", "$350"], ["Precio", "Antes de empezar"]],
+    factsEn: [["Response", "Within 1 or 2 days"], ["Visit", "$400"], ["Per hour", "$350"], ["Price", "Before I start"]],
     badges: ["Casas y departamentos", "Herramienta incluida"],
     ctas: ["Ver horarios", "¿Qué necesitas?"],
   },

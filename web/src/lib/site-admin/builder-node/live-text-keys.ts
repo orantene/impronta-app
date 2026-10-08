@@ -21,6 +21,8 @@ export const LIVE_TEXT_KEYS = [
   "footer_where",
   "footer_hours",
   "footer_contact",
+  /** The About paragraph: her bio in the visitor's language (`talent-site/live-bio.ts`). */
+  "bio",
 ] as const;
 
 export type LiveTextKey = (typeof LIVE_TEXT_KEYS)[number];

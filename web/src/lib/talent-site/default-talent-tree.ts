@@ -662,6 +662,8 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
             // Full published bio (token falls back to the short bio / tagline /
             // welcome line in talentProfileTokens), rendered as a real paragraph.
             text: "{{richBio}}",
+            // TUL-230: live, her bio in the visitor's language.
+            liveText: "bio",
             style: { size: "lg", maxWidth: "reading" },
           },
         },

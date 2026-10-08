@@ -20,6 +20,11 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { localizablePropsForKind } from "@/lib/i18n/builder-i18n-props";
+import {
+  listOverlayKey,
+  localizableListSpecsForKind,
+} from "@/lib/i18n/builder-i18n-list-props";
+import { HEADER_OVERLAY_PREFIX, headerLabelEntries } from "../header-i18n";
 import type { DesignPayload } from "./types";
 
 export type SeedI18nOverlay = {
@@ -66,6 +71,48 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   Before: "Antes",
   After: "Después",
   "Write from this site": "Escribir por este sitio",
+  // Ticket #209: block kinds and header labels that can now hold a translation.
+  Home: "Inicio",
+  Menu: "Menú",
+  Work: "Trabajos",
+  "Menu and prices": "Menú y precios",
+  Reviews: "Reseñas",
+  Location: "Ubicación",
+  Space: "Espacio",
+  Inquire: "Escríbeme",
+  "Recent work": "Trabajo reciente",
+  "Recent {i}work{/i}": "Trabajo {i}reciente{/i}",
+  "What they {i}say{/i}": "Lo que {i}dicen{/i}",
+  "The space": "El espacio",
+  "Selected work": "Trabajos elegidos",
+  "More work": "Más trabajos",
+  "Recent jobs": "Trabajos recientes",
+  "No photos in your portfolio yet.": "Aún no hay fotos en el portafolio.",
+  "Where I work": "Dónde trabajo",
+  "Measures · Comp card": "Medidas · Comp card",
+  "Next issue.": "Siguiente número.",
+  "In this issue": "En este número",
+  "See the book": "Ver el libro",
+  "Rates and dates": "Tarifas y fechas",
+  "Same-day emergency": "Emergencia el mismo día",
+  "Meanwhile:": "Mientras tanto:",
+  "Request now": "Pedir ahora",
+  "What do you need?": "¿Qué necesitas?",
+  "How it works": "Cómo funciona",
+  Response: "Respuesta",
+  Warranty: "Garantía",
+  Price: "Precio",
+  Payment: "Pago",
+  Review: "Revisión",
+};
+
+/**
+ * Seeds authored in SPANISH (Folio's cover and header action) -> the English
+ * line an English visitor reads. The Spanish side repeats the base. Wording
+ * matches `design-label-locale.ts`.
+ */
+export const SEED_TEXT_EN_FROM_ES: Readonly<Record<string, string>> = {
+  Consultar: "Ask about this",
 };
 
 /**
@@ -137,6 +184,12 @@ function seedNode(node: BuilderNode): BuilderNode {
   // `es` from the table when the node has none; `en` always repeats the base.
   const fill = (key: string, base: string): void => {
     if (MODE_DEPENDENT_LABELS.includes(base.trim())) return;
+    const enFromEs = SEED_TEXT_EN_FROM_ES[base.trim()];
+    if (enFromEs) {
+      if (!present("es", key)) add.es[key] = base;
+      if (!present("en", key)) add.en[key] = enFromEs;
+      return;
+    }
     if (!present("es", key)) {
       const es = SEED_TEXT_ES[base.trim()];
       if (es) add.es[key] = es;
@@ -154,6 +207,24 @@ function seedNode(node: BuilderNode): BuilderNode {
       if (typeof text !== "string" || isTokenOnlyText(text)) return;
       fill(`items.${i}.text`, text);
     });
+  }
+  for (const spec of localizableListSpecsForKind(node.kind)) {
+    const items = props[spec.list];
+    if (!Array.isArray(items)) continue;
+    items.forEach((item, i) => {
+      if (!item || typeof item !== "object") return;
+      for (const field of spec.fields) {
+        const text = (item as Record<string, unknown>)[field];
+        if (typeof text !== "string" || isTokenOnlyText(text)) continue;
+        fill(listOverlayKey(spec.list, i, field), text);
+      }
+    });
+  }
+  if (node.kind === "section" && props.sectionTypeKey === "site_header") {
+    for (const { key, text } of headerLabelEntries(props.sectionProps)) {
+      if (isTokenOnlyText(text)) continue;
+      fill(`${HEADER_OVERLAY_PREFIX}${key}`, text);
+    }
   }
   const kids = (node as { children?: unknown }).children;
   const children = Array.isArray(kids) ? (kids as BuilderNode[]).map(seedNode) : null;

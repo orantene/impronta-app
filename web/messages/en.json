@@ -6746,6 +6746,7 @@
       "stylePortrait": "Portrait",
       "styleEditorial": "Editorial",
       "styleCinematic": "Cinematic",
+      "styleShowcase": "Showcase",
       "imageAspectLabel": "Image aspect",
       "hoverBehaviorLabel": "Hover behavior",
       "rowName": "Name",
