@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate, type Translator } from "@/i18n/interpolate";
+import { currencyFromMoneyText, formatOfferMoney } from "@/lib/inquiry/offer-currency";
 import { OverflowMenu } from "@/components/chat-interactions";
 import { StatusSheet } from "@/components/messages-status-sheet/StatusSheet";
 import { COLORS, RADIUS, FONTS, TRANSITION, type ClientTrustLevel } from "../state";
@@ -77,11 +78,11 @@ export function TalentJobShellHeader({
   // Take-home breakdown (mirror of the old TakeHomeCard math)
   const numeric = parseFloat(yourRate.replace(/[^0-9.]/g, ""));
   const isReal = !isNaN(numeric) && numeric > 0;
-  const currency = yourRate.match(/[€£$]/)?.[0] ?? "€";
+  const currency = currencyFromMoneyText(yourRate);
   const gross = isReal ? numeric / 0.80 : 0;
   const agencyFee = isReal ? gross * 0.15 : 0;
   const platformFee = isReal ? gross * 0.05 : 0;
-  const fmt = (n: number) => `${currency}${Math.round(n).toLocaleString()}`;
+  const fmt = (n: number) => formatOfferMoney(n, currency, { maximumFractionDigits: 0 });
 
   const metaLine = [
     interpolate(t("dashboard.talentThread.via"), { agency: conv.agency }),

@@ -35,7 +35,7 @@ import { safeLoadInbox } from "@/components/messages-v5/shell/safe-load-inbox";
 import { talentShellEngine } from "@/components/messages-v5/shell/talent-engine";
 import { countAwaitingReply } from "@/lib/messages-v5/inbox-view";
 
-const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", MXN: "MX$" };
+const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", MXN: "$" };
 
 const subscribeNever = () => () => {};
 
@@ -248,10 +248,12 @@ export function TalentTodayPage() {
   // instead of the old hard-coded €6,800 demo total.
   let paidThisMonthTotal: number;
   let paidThisMonthCurrency: string;
+  let paidThisMonthCode: string | undefined;
   if (bridgeTalentEarnings != null) {
     const ptm = computePaidThisMonth(bridgeTalentEarnings);
     paidThisMonthTotal = ptm.totalCents / 100;
     paidThisMonthCurrency = CURRENCY_SYMBOL[ptm.currency.toUpperCase()] ?? ptm.currency.toUpperCase();
+    paidThisMonthCode = ptm.currency;
   } else {
     const fixtureRows = EARNINGS_ROWS.filter((e) => e.payoutDate.includes("Apr"));
     paidThisMonthTotal = fixtureRows.reduce((sum, e) => {
@@ -564,6 +566,7 @@ export function TalentTodayPage() {
         nextBookingDate={upcoming[0]?.date}
         paidThisMonth={paidThisMonthTotal}
         paidCurrency={paidThisMonthCurrency}
+        paidCurrencyCode={paidThisMonthCode}
         profileCompleteness={completionPercent}
         currentLocation={profile.currentLocation}
         availableForWork={profile.availableForWork}

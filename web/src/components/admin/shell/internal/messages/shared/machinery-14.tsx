@@ -6,6 +6,7 @@ import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { uploadInquiryAttachmentSigned } from "@/lib/client/signed-upload";
 import { loadInquiryAttachments, deleteInquiryAttachment, uploadInquiryAttachment, duplicateInquiryBooking, type InquiryAttachment } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { moneySymbol } from "@/lib/inquiry/offer-currency";
 import { useAdminShell, FONTS, COLORS, RICH_INQUIRIES } from "../../state";
 import { type Conversation } from "../../talent";
 import { BreakdownRow } from "../client-1";
@@ -300,7 +301,7 @@ export function SubmitRateSheet({
             </div>
           </div>
           <div>
-            <FieldLabel>{interpolate(t("dashboard.adminTabs.rateSheet.yourRate"), { symbol: currency === "EUR" ? "€" : currency === "USD" ? "$" : "£" })}</FieldLabel>
+            <FieldLabel>{interpolate(t("dashboard.adminTabs.rateSheet.yourRate"), { symbol: moneySymbol(currency) })}</FieldLabel>
             <div style={{
               display: "flex", alignItems: "center", gap: 0,
               border: `1.5px solid ${overBudget ? COLORS.amber : COLORS.border}`, borderRadius: 10,
@@ -308,7 +309,7 @@ export function SubmitRateSheet({
               transition: "border-color .12s",
             }}>
               <span className="text-admin-ink-muted text-sm font-semibold">
-                {currency === "EUR" ? "€" : currency === "USD" ? "$" : "£"}
+                {moneySymbol(currency)}
               </span>
               <input
                 type="number" min={0} step={50} value={amount}

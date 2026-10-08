@@ -57,7 +57,7 @@ export function ProfileReadyCard({ openSection }: { openSection: (section: strin
   const mode = profileQualityMode({ published: flow.state === "published", unlocked: eligibility.unlocked, percent: pct });
   const line =
     mode === "live"
-      ? copy.isSpanish ? "Tu sitio está en línea" : "Your website is live"
+      ? copy.t("Your website is live")
       : mode === "unlocked"
         ? t("dashboard.talentMyProfile.editor.qualityUnlocked")
         : mode === "unknown"

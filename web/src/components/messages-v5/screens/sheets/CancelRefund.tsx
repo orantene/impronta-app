@@ -32,6 +32,7 @@ import { useEffect, useState } from "react";
 import type { CancelPreview } from "@/lib/messaging/money";
 import type { MessagingRefusal, RecordKind } from "@/lib/messaging/types";
 import { cancelTargetsFrom, defaultCancelTarget, partialAmountValid, refundOptions, type RefundChoice, type RefundMode } from "@/lib/messages-v5/payment-view";
+import { recordCurrency } from "@/lib/messages-v5/record-money";
 import { messagingCancelRecord, messagingLoadRefundableTransaction, messagingPreviewCancel, messagingRefund } from "@/lib/server-actions/messaging-money-actions";
 
 import { fill } from "../../kit/copy";
@@ -48,6 +49,7 @@ function CancelRefundSheetImpl(props: ActionSheetProps, mode: CancelRefundMode) 
   const [preview, setPreview] = useState<CancelPreview | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [refundableCents, setRefundableCents] = useState(0);
+  const [refundCurrency, setRefundCurrency] = useState<string | null>(null);
   const [refundMode, setRefundMode] = useState<RefundMode>("full");
   const [partialAmountInput, setPartialAmountInput] = useState("");
   const [reason, setReason] = useState("");
@@ -89,6 +91,7 @@ function CancelRefundSheetImpl(props: ActionSheetProps, mode: CancelRefundMode) 
         }
         setPaymentId(result.paymentId);
         setRefundableCents(result.refundableCents);
+        setRefundCurrency(result.currencyCode);
         setRefundMode("full");
         setPhase(result.paymentId ? "idle" : "refused");
         if (!result.paymentId) setRefusalCode("payment_unknown");
@@ -192,6 +195,7 @@ function CancelRefundSheetImpl(props: ActionSheetProps, mode: CancelRefundMode) 
       reason={reason}
       onReasonChange={setReason}
       effectAmountCents={effectAmountCents}
+      currencyCode={recordCurrency(mode === "cancel" ? previewOk?.currency : refundCurrency)}
       phase={phase}
       refusalCode={refusalCode}
       canSubmit={canSubmit}

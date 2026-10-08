@@ -102,6 +102,9 @@ export type PersistedModuleState = {
   essentials?: Essentials | null;
   /** The build record (`lib/onboarding/build.server.ts` BuildStatus), opaque here. */
   build?: Record<string, unknown> | null;
+  /** 18+ confirmation before a public talent page goes live (age-gate.ts). */
+  age18ConfirmedAt?: string;
+  age18ConfirmedBy?: string;
   updatedAt?: string;
 };
 
@@ -165,6 +168,8 @@ export function parsePersistedModuleState(raw: unknown): PersistedModuleState {
   const essentials = parseEssentials(r.essentials);
   if (essentials) out.essentials = essentials;
   if (r.build && typeof r.build === "object" && !Array.isArray(r.build)) out.build = r.build as Record<string, unknown>;
+  if (typeof r.age18ConfirmedAt === "string" && Number.isFinite(Date.parse(r.age18ConfirmedAt))) out.age18ConfirmedAt = r.age18ConfirmedAt;
+  if (typeof r.age18ConfirmedBy === "string") out.age18ConfirmedBy = r.age18ConfirmedBy;
   if (typeof r.updatedAt === "string") out.updatedAt = r.updatedAt;
   return out;
 }

@@ -40,6 +40,7 @@
 import type { OfferRow } from "@/lib/messaging/sheets";
 import type { RecordChip } from "@/lib/messaging/types";
 import { majorToMinorForDisplay } from "@/lib/inquiry/offer-minor-units";
+import { recordCurrency } from "@/lib/messages-v5/record-money";
 
 export type ConfirmSourceKind = "offer" | "draft";
 
@@ -50,6 +51,8 @@ export type ConfirmSourceOption = {
   readonly label: string;
   readonly version: number | null;
   readonly totalCents: number | null;
+  /** The record's own ISO currency; `totalCents` is shown in it. */
+  readonly currencyCode: string;
   readonly paymentState: string | null;
 };
 
@@ -76,6 +79,7 @@ export function confirmSourceOptions(chips: readonly RecordChip[], offers: reado
       label: `v${offer.version}`,
       version: offer.version,
       totalCents: majorToMinorForDisplay(offer.totalClientPrice, offer.currencyCode),
+      currencyCode: offer.currencyCode,
       paymentState: chip?.paymentState ?? null,
     });
   }
@@ -83,7 +87,7 @@ export function confirmSourceOptions(chips: readonly RecordChip[], offers: reado
     if (chip.kind !== "order") continue;
     if (chip.paymentState === "paid") continue;
     if (chip.fulfilmentState && ORDER_ALREADY_CONFIRMED_FULFILMENT.has(chip.fulfilmentState)) continue;
-    options.push({ source: "draft", id: chip.recordId, label: chip.label, version: null, totalCents: null, paymentState: chip.paymentState });
+    options.push({ source: "draft", id: chip.recordId, label: chip.label, version: null, totalCents: null, currencyCode: recordCurrency(null), paymentState: chip.paymentState });
   }
   return options;
 }

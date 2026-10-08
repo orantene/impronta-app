@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { DetailsTabContainer } from "@/components/details-tab/DetailsTabContainer";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { currencyFromMoneyText, formatOfferMoney } from "@/lib/inquiry/offer-currency";
 import { useAdminShell, COLORS, FONTS, TRANSITION } from "../state";
 import { type Conversation, type Participant } from "../talent";
 import { buildInquiryTabs, convToInquiry } from "./shared/machinery-1";
@@ -224,11 +225,11 @@ export function TakeHomeCard({ takeHome, stage }: { takeHome: string; stage: str
   // Talent take-home is the headline; everything else derives.
   const numeric = parseFloat(takeHome.replace(/[^0-9.]/g, ""));
   const isReal = !isNaN(numeric) && numeric > 0;
-  const currency = takeHome.match(/[€£$]/)?.[0] ?? "€";
+  const currency = currencyFromMoneyText(takeHome);
   const gross = isReal ? numeric / 0.80 : 0; // talent's 80% of gross
   const agencyFee = isReal ? gross * 0.15 : 0;
   const platformFee = isReal ? gross * 0.05 : 0;
-  const fmt = (n: number) => `${currency}${Math.round(n).toLocaleString()}`;
+  const fmt = (n: number) => formatOfferMoney(n, currency, { maximumFractionDigits: 0 });
 
   return (
     <div style={{ border: `1px solid ${COLORS.success}30`, padding: 16, fontFamily: FONTS.body }} className="bg-admin-success-soft rounded-admin-md">

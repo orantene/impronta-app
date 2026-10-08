@@ -153,9 +153,9 @@ test("every engine CardKind renders as a kit card (typed cards by kind, the rest
   const accepted = renderToStaticMarkup(<ThreadCard message={msg("o", "2026-09-17T10:00:00Z", { kind: "offer_state", payload: PAYLOAD.offer_state })} cardKind="offer_state" clientName="Valentina" copy={EN_SCREEN} variant="desktop" onAction={noop} onCopyText={noop} />);
   assert.match(accepted, /data-offer-action="request_deposit"/);
   const pay = renderToStaticMarkup(<ThreadCard message={msg("p", "2026-09-17T10:00:00Z", { kind: "payment_request", payload: PAYLOAD.payment_request })} cardKind="payment_request" clientName="Valentina" copy={EN_SCREEN} variant="desktop" onAction={noop} onCopyText={noop} />);
-  assert.match(pay, /\$1,140/);
+  assert.match(pay, /\$1,140 USD/);
   assert.match(pay, /data-payment-action="copy_link"/);
   const basket = renderToStaticMarkup(<ThreadCard message={msg("b", "2026-09-17T10:00:00Z", { kind: "basket", payload: PAYLOAD.basket })} cardKind="basket" clientName="Valentina" copy={EN_SCREEN} variant="mobile" onAction={noop} onCopyText={noop} />);
-  assert.match(basket, /\$39\.00/);
+  assert.match(basket, /\$39 USD/);
   assert.match(basket, /data-order-action="confirm"/);
 });

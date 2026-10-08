@@ -76,3 +76,17 @@ test("rewrite path targets the internal host route", () => {
     `${TALENT_SITE_HOST_ROUTE_PREFIX}/about`,
   );
 });
+
+test("client account area (TUL-62): exact /account and the three detail families pass through", () => {
+  for (const p of ["/account", "/account/visits/abc", "/account/messages/abc", "/account/receipts/CODE"]) {
+    assert.deepEqual(isTalentSiteHostPathAllowed(p), { kind: "passthrough" }, p);
+  }
+});
+
+test("client account area (TUL-62): nothing else under /account is reachable on a talent host", () => {
+  for (const p of ["/account/brief", "/account/", "/account/brief/agent", "/account/visits"]) {
+    assert.equal(isTalentSiteHostPathAllowed(p), null, p);
+  }
+  // `/accounts` is an ordinary page slug, not the account area.
+  assert.deepEqual(isTalentSiteHostPathAllowed("/accounts"), { kind: "render", pageSlug: "accounts" });
+});

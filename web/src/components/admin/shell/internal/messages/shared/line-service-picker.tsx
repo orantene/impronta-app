@@ -26,6 +26,7 @@ import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { isServiceOfferPriceable } from "@/lib/talent/services-menu-offer";
 import { SERVICE_PRICING_LABELS, type ServiceMenuItem, type ServicePricingType } from "@/lib/talent/services-menu-types";
 import { useT } from "@/i18n/use-t";
+import { formatOfferMoney } from "@/lib/inquiry/offer-currency";
 
 /**
  * DEFAULT rate templates: every talent is offer-able even with zero configured
@@ -33,7 +34,8 @@ import { useT } from "@/i18n/use-t";
  * types the number. Used for the genuinely-empty state, and offered under a
  * "generic templates" group when real services exist.
  */
-const DEFAULT_RATE_TEMPLATES: ServiceMenuItem[] = (
+function buildDefaultRateTemplates(currency: string): ServiceMenuItem[] {
+  return (
   [
     { id: "default-hourly", name: "Hourly booking", pricingType: "hour" },
     { id: "default-half-day", name: "Half-day booking", pricingType: "half_day" },
@@ -47,7 +49,9 @@ const DEFAULT_RATE_TEMPLATES: ServiceMenuItem[] = (
   description: null,
   pricingType: t.pricingType,
   amountCents: null,
-  currency: "USD",
+  // Templates carry no price; they inherit the OFFER's currency so a pick
+  // never reads as a currency switch (TUL-281).
+  currency,
   taxonomyTermIds: null,
   addOns: [],
   tiers: [],
@@ -57,6 +61,7 @@ const DEFAULT_RATE_TEMPLATES: ServiceMenuItem[] = (
   isInstantBook: false,
   childServiceIds: null,
 }));
+}
 
 type LoadState =
   | { status: "loading" }
@@ -65,9 +70,12 @@ type LoadState =
 
 export function LineServicePicker({
   talentProfileId,
+  currency,
   onPick,
 }: {
   talentProfileId: string;
+  /** The offer's currency code: unpriced templates inherit it. */
+  currency: string;
   onPick: (svc: ServiceMenuItem) => void;
 }) {
   const t = useT();
@@ -142,6 +150,7 @@ export function LineServicePicker({
 
   const real = state.services.filter((it) => it.isActive && isServiceOfferPriceable(it));
   const hasReal = real.length > 0;
+  const defaultTemplates = buildDefaultRateTemplates(currency);
 
   return (
     <div className="flex items-center gap-1.5">
@@ -151,7 +160,7 @@ export function LineServicePicker({
       <select
         defaultValue=""
         onChange={(e) => {
-          const pick = [...real, ...DEFAULT_RATE_TEMPLATES].find((it) => it.id === e.target.value);
+          const pick = [...real, ...defaultTemplates].find((it) => it.id === e.target.value);
           if (pick) onPick(pick);
           e.currentTarget.value = "";
         }}
@@ -167,13 +176,13 @@ export function LineServicePicker({
             {real.map((it) => (
               <option key={it.id} value={it.id}>
                 {it.name} · {SERVICE_PRICING_LABELS[it.pricingType]}
-                {it.amountCents != null ? ` · ${(it.amountCents / 100).toLocaleString()} ${it.currency}` : ""}
+                {it.amountCents != null ? ` · ${formatOfferMoney(it.amountCents / 100, it.currency)}` : ""}
               </option>
             ))}
           </optgroup>
         ) : null}
         <optgroup label={t("dashboard.adminTabs.lineup.svcGenericTemplates")}>
-          {DEFAULT_RATE_TEMPLATES.map((it) => (
+          {defaultTemplates.map((it) => (
             <option key={it.id} value={it.id}>
               {it.name} · {SERVICE_PRICING_LABELS[it.pricingType]}
             </option>

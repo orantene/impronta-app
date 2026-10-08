@@ -13,8 +13,8 @@ import {
   overrideReasonValid,
 } from "./confirm-view";
 
-const OFFER_ACCEPTED: OfferRow = { id: "of-1", status: "accepted", version: 2, totalClientPrice: 38, updatedAt: "2026-09-17T10:00:00Z", depositPct: 30, depositAmountCents: null };
-const OFFER_DRAFT: OfferRow = { id: "of-2", status: "draft", version: 1, totalClientPrice: 10, updatedAt: "2026-09-17T09:00:00Z", depositPct: null, depositAmountCents: null };
+const OFFER_ACCEPTED: OfferRow = { id: "of-1", status: "accepted", version: 2, totalClientPrice: 38, updatedAt: "2026-09-17T10:00:00Z", depositPct: 30, depositAmountCents: null, currencyCode: "MXN" };
+const OFFER_DRAFT: OfferRow = { id: "of-2", status: "draft", version: 1, totalClientPrice: 10, updatedAt: "2026-09-17T09:00:00Z", depositPct: null, depositAmountCents: null, currencyCode: "USD" };
 
 function chip(over: Partial<RecordChip>): RecordChip {
   return { kind: "offer", recordId: "of-1", label: "Offer v2", paymentState: null, fulfilmentState: null, ...over };
@@ -23,7 +23,7 @@ function chip(over: Partial<RecordChip>): RecordChip {
 test("confirmSourceOptions: only accepted offers, carrying the chip's payment state", () => {
   const options = confirmSourceOptions([chip({ paymentState: "unpaid" })], [OFFER_ACCEPTED, OFFER_DRAFT]);
   assert.equal(options.length, 1);
-  assert.deepEqual(options[0], { source: "offer", id: "of-1", label: "v2", version: 2, totalCents: 3800, paymentState: "unpaid" });
+  assert.deepEqual(options[0], { source: "offer", id: "of-1", label: "v2", version: 2, totalCents: 3800, currencyCode: "MXN", paymentState: "unpaid" });
 });
 
 test("confirmSourceOptions: an order chip already paid or past draft is not a candidate", () => {
@@ -94,4 +94,9 @@ test("createdListFor: offer with no people skips assignments and calendar blocks
 test("checkedCategoriesFor: an offer checks people and resources, a draft only resources", () => {
   assert.deepEqual(checkedCategoriesFor("offer"), ["people", "resources"]);
   assert.deepEqual(checkedCategoriesFor("draft"), ["resources"]);
+});
+
+test("TUL-281: an order draft with no currency on its chip falls back to the platform currency", () => {
+  const options = confirmSourceOptions([chip({ kind: "order", recordId: "or-9", label: "#1203", paymentState: null })], []);
+  assert.equal(options[0].currencyCode, "USD");
 });

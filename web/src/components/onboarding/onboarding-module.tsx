@@ -31,6 +31,7 @@ import {
   resetOnboardingDraft,
   saveOnboardingStep,
   saveOnboardingDesign,
+  saveOnboardingAge18,
   setOnboardingLink,
   submitOnboardingInput,
   understandOnboardingInput,
@@ -366,6 +367,7 @@ export function OnboardingModule({
   // Phase 4.2 · the build. One POST per entry into "building"; idempotent on
   // the server, so a reload or a second tap returns the stored record.
   const buildStartedRef = useRef(false);
+  const [ageRequired, setAgeRequired] = useState(false);
   useEffect(() => {
     if (state.step !== "building" || buildStartedRef.current) return;
     buildStartedRef.current = true;
@@ -382,6 +384,12 @@ export function OnboardingModule({
         const res = await fetch("/api/onboarding/build", { method: "POST", headers: { "content-type": "application/json" } });
         const body = (await res.json().catch(() => null)) as { ok?: boolean; build?: Record<string, unknown>; code?: string } | null;
         if (res.ok && body?.ok) finish(body.build ?? null);
+        else if (body?.code === "age_18_required") {
+          // Nothing was built: back to the step that asks for the 18+ confirmation.
+          setAgeRequired(true);
+          dispatch({ type: "toStep", step: "readyToBuild" });
+          void saveOnboardingStep({ step: "readyToBuild", locale });
+        }
         else {
           // The route may have finished after a client-side timeout: read the record.
           const stored = await getOnboardingBuildStatus();
@@ -522,6 +530,8 @@ export function OnboardingModule({
         onCheckLink={checkLink}
         designChoice={state.designChoice}
         onPickDesign={(look) => { dispatch({ type: "designPicked", look }); void saveOnboardingDesign({ look }); }}
+        onConfirmAge18={saveOnboardingAge18}
+        ageRequiredNotice={ageRequired}
         onBuild={() => {
           // Already signed in: nothing to save, straight to the build.
           const next: ModuleStep = state.isAuthenticated ? "building" : "save";

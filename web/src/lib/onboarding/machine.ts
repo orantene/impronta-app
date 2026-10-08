@@ -36,6 +36,8 @@ export type MachineErrorCode =
   | "ai_off"
   | "rate_limit"
   | "import_failed"
+  | "ai_not_configured"
+  | "ai_failed"
   | "failed"
   | "invalid_whatsapp"
   | "missing_required";
