@@ -14,7 +14,13 @@ import { FINISHED_GALLERY_SLUGS } from "./gallery-meta";
 import { COLLECTION_DESIGNS } from "./collection/designs";
 import { buildMaisonDesignPayload } from "./maison/design-payload";
 import { localiseOne } from "../design-label-locale";
-import { isTokenOnlyText, MODE_DEPENDENT_LABELS, SEED_TEXT_ES } from "./seed-i18n";
+import {
+  isTokenOnlyText,
+  looksLikeSpanishSeedBase,
+  MODE_DEPENDENT_LABELS,
+  SEED_TEXT_ES,
+  THEME_SEED_BASE_LOCALE,
+} from "./seed-i18n";
 
 const DESIGNS: ReadonlyArray<readonly [string, () => DesignPayload]> = [
   ["maison", buildMaisonDesignPayload],
@@ -117,6 +123,63 @@ for (const [slug, build] of DESIGNS) {
   });
 }
 
+test(`theme seed base locale is ${THEME_SEED_BASE_LOCALE}`, () => {
+  assert.equal(THEME_SEED_BASE_LOCALE, "en");
+});
+
+for (const [slug, build] of DESIGNS) {
+  test(`${slug}: every seeded base text is English (TUL-369)`, () => {
+    const problems: string[] = [];
+    const bag = build() as unknown as Record<string, unknown>;
+    for (const treeName of ["homeTree", "shellTree", "optionalBlocks"] as const) {
+      walk(bag[treeName], `${slug}.${treeName}`, (path, node) => {
+        const props = (node.props ?? {}) as Record<string, unknown>;
+        const kind = node.kind as Parameters<typeof localizablePropsForKind>[0];
+        for (const prop of localizablePropsForKind(kind)) {
+          const text = props[prop];
+          if (typeof text !== "string") continue;
+          if (looksLikeSpanishSeedBase(text)) {
+            problems.push(`${path}.${prop} Spanish base ${JSON.stringify(text)}`);
+          }
+        }
+        if (node.kind === "marquee" && Array.isArray(props.items)) {
+          props.items.forEach((it, n) => {
+            const text = it && typeof it === "object" ? (it as { text?: unknown }).text : undefined;
+            if (typeof text === "string" && looksLikeSpanishSeedBase(text)) {
+              problems.push(`${path}.items.${n}.text Spanish base ${JSON.stringify(text)}`);
+            }
+          });
+        }
+        for (const spec of localizableListSpecsForKind(kind)) {
+          const items = props[spec.list];
+          if (!Array.isArray(items)) continue;
+          items.forEach((item, n) => {
+            for (const field of spec.fields) {
+              const text =
+                item && typeof item === "object" ? (item as Record<string, unknown>)[field] : undefined;
+              if (typeof text === "string" && looksLikeSpanishSeedBase(text)) {
+                problems.push(
+                  `${path}.${listOverlayKey(spec.list, n, field)} Spanish base ${JSON.stringify(text)}`,
+                );
+              }
+            }
+          });
+        }
+        if (node.kind === "section" && props.sectionTypeKey === "site_header") {
+          for (const { key, text } of headerLabelEntries(props.sectionProps)) {
+            if (looksLikeSpanishSeedBase(text)) {
+              problems.push(
+                `${path}.${HEADER_OVERLAY_PREFIX}${key} Spanish base ${JSON.stringify(text)}`,
+              );
+            }
+          }
+        }
+      });
+    }
+    assert.deepEqual(problems, [], `\n${problems.join("\n")}`);
+  });
+}
+
 test("the released gallery designs are all covered by this test", () => {
   const covered = new Set(DESIGNS.map(([slug]) => slug));
   for (const slug of FINISHED_GALLERY_SLUGS) assert.ok(covered.has(slug), `${slug} is not scanned`);
@@ -128,7 +191,25 @@ test("the seed Spanish table has no em dash and no voseo", () => {
     assert.ok(!/\b(vos|tenés|podés|querés|escribime|mirá)\b/i.test(es), `${en}`);
     // A token must survive translation.
     assert.deepEqual(es.match(/\{\{\w+\}\}/g) ?? [], en.match(/\{\{\w+\}\}/g) ?? [], `${en}`);
+    // Keys are English bases (TUL-369): no Spanish-looking key.
+    assert.ok(!looksLikeSpanishSeedBase(en), `SEED_TEXT_ES key looks Spanish: ${en}`);
   }
+});
+
+test("design-label-locale no longer keeps a parallel CODE_SEEDED_LABELS_ES map (TUL-369)", async () => {
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const src = fs.readFileSync(path.join(__dirname, "../design-label-locale.ts"), "utf8");
+  assert.ok(src.includes("SEED_TEXT_ES"), "must import SEED_TEXT_ES");
+  assert.ok(!src.includes("CODE_SEEDED_LABELS_ES"), "guess map retired");
+});
+
+test("header-cta-locale no longer keeps CTA_LABEL_BY_LOCALE (TUL-369)", async () => {
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const src = fs.readFileSync(path.join(__dirname, "../header-cta-locale.ts"), "utf8");
+  assert.ok(src.includes("SEED_TEXT_ES"), "must import SEED_TEXT_ES");
+  assert.ok(!src.includes("CTA_LABEL_BY_LOCALE"), "guess map retired");
 });
 
 test("the scanner flags a missing overlay (guard against a vacuous pass)", () => {

@@ -231,8 +231,8 @@ export function buildFolioPayload(): DesignPayload {
               bio: "{{bio}}",
               // TUL-230: live, her bio in the visitor's language (the baked token text is the fallback).
               liveText: "bio",
-              // Folio artifact cover CTA is Consultar (inquiry), not mode-swapped Book.
-              ctaLabel: "Consultar",
+              // Folio cover CTA: English base (TUL-369); ES overlay is Consultar.
+              ctaLabel: "Ask about this",
               ctaHref: TALENT_ASK_HREF,
               bookLabel: "See the book",
               bookHref: "#chapter-1",
@@ -257,8 +257,8 @@ export function buildFolioPayload(): DesignPayload {
         ...FOLIO_CHAPTER_SEEDS.map((c, i) => ({ label: c.heading, href: `#chapter-${i + 1}` })),
         { label: "Rates", href: "#services" },
       ],
-      // Folio artifact header CTA reads Consultar (inquiry), not Inquire/Escríbeme.
-      primaryCtaLabel: "Consultar",
+      // Folio header CTA: English base (TUL-369); ES overlay is Consultar.
+      primaryCtaLabel: "Ask about this",
     }),
     tokenDefaults: { ...FOLIO_STYLE_TOKEN_DEFAULTS },
     homeTree: [
@@ -377,7 +377,7 @@ function withFooterCta(node: BuilderNode): BuilderNode {
             ...k,
             props: {
               ...(k.props as Record<string, unknown>),
-              ctaLabel: "Consultar",
+              ctaLabel: "Ask about this",
               ctaHref: TALENT_ASK_HREF,
             },
           } as BuilderNode)

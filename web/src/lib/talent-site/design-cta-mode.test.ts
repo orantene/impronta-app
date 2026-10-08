@@ -84,13 +84,15 @@ for (const [name, build] of Object.entries(PAYLOADS)) {
   });
 }
 
-test("folio: chapter nav + Consultar CTA (tip Folio magazine)", () => {
+test("folio: chapter nav + Ask about this CTA (English base, ES overlay Consultar)", () => {
   const p = buildFolioPayload();
   const nav = JSON.stringify(p.shellTree);
   assert.ok(nav.includes('"label":"Selected work","href":"#chapter-1"'));
   assert.ok(nav.includes('"label":"More work","href":"#chapter-2"'));
   assert.ok(nav.includes('"label":"Rates","href":"#services"'));
-  assert.ok(nav.includes('"label":"Consultar"') || nav.includes("Consultar"));
+  assert.ok(nav.includes("Ask about this"), "English base CTA");
+  assert.ok(nav.includes("Consultar"), "Spanish overlay");
+  assert.ok(!/"label":"Consultar"/.test(nav), "base label must not be Spanish");
   assert.ok(!nav.includes('"label":"Book","href":"#gallery"'));
   // Legacy applied Folio trees still carry "Book" -> #gallery.
   const legacy = [
@@ -111,7 +113,7 @@ test("folio footer line per mode per locale", () => {
     assert.equal(localiseSeededDesignLabel("Inquire for bookings", "en", mode), en);
     assert.equal(localiseSeededDesignLabel("Inquire for bookings", "es", mode), es);
   }
-  // Tip Folio stamps Consultar (not mode-swapped Inquire); the contact line ships empty
+  // Tip Folio stamps Ask about this (ES overlay Consultar); contact line ships empty
   // (demo wording lives in demos/folio-site-copy.ts, never the payload).
   const tip = rendered(buildFolioPayload, "es", "inquiry");
   assert.ok(
@@ -119,7 +121,9 @@ test("folio footer line per mode per locale", () => {
     "tip Folio carries no editorial claim",
   );
   assert.ok(!tip.includes("Reserva en línea"));
-  assert.ok(JSON.stringify(buildFolioPayload()).includes("Consultar"));
+  const payload = JSON.stringify(buildFolioPayload());
+  assert.ok(payload.includes("Ask about this"));
+  assert.ok(payload.includes("Consultar"));
 });
 
 test("talent-edited copy is never rewritten", () => {
