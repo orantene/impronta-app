@@ -34,7 +34,17 @@ function AppCard({
       <span className="text-[20px]" aria-hidden>
         🧩
       </span>
-      <span className="text-[16px] font-semibold text-admin-ink">{appName(app, locale)}</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[16px] font-semibold text-admin-ink">{appName(app, locale)}</span>
+        {app.premium ? (
+          <span
+            data-testid="gallery-app-pro"
+            className="rounded-full bg-admin-ink px-2 py-0.5 text-[10.5px] font-bold text-white"
+          >
+            {galleryAppsT(locale, "pro")}
+          </span>
+        ) : null}
+      </div>
       <span className="line-clamp-2 text-[13px] leading-snug text-admin-ink-muted">
         {appPitch(app, locale)}
       </span>
