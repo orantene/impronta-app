@@ -19,8 +19,10 @@
  * The base prop stays the English seed and `en` repeats it.
  *
  * Stored trees that still have an English seed base and no `i18n.es` now
- * render English on `/es` (maps deleted). Heal them via a copy release, not
- * a silent migration — see the count in the TUL-369 PR / Notion Last move.
+ * render English on `/es` (maps deleted). Prod inventory (2026-10-08):
+ * **127 trees / 43 profiles** (draft+published shells/pages). Recount with
+ * `scripts/heal-seed-i18n-missing-es.mts` (dry-run). Heal via copy release
+ * (`npm run qa:release-theme-i18n`), not a silent migration.
  *
  * Generic by trade: the Spanish below is neutral Mexican Spanish, tuteo, no
  * em dashes, and carries no talent-specific words. A text that is only
