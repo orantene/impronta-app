@@ -321,19 +321,6 @@ test("apply: toast copy says how many edits were kept (EN + ES, no em dash)", ()
   for (const s of [appliedToast(1, "en"), appliedToast(1, "es"), line]) assert.ok(!s.includes("—"));
 });
 
-test("TUL-325: post-apply Publish CTA copy (EN + ES, no em dash)", () => {
-  assert.equal(UPDATE_COPY.publishCta.en, "Publish site");
-  assert.equal(UPDATE_COPY.publishCta.es, "Publicar sitio");
-  assert.equal(UPDATE_COPY.unpublishedPill.en, "Unpublished changes");
-  assert.equal(UPDATE_COPY.unpublishedPill.es, "Cambios sin publicar");
-  for (const s of [
-    ...Object.values(UPDATE_COPY.publishCta),
-    ...Object.values(UPDATE_COPY.unpublishedPill),
-  ] as string[]) {
-    assert.ok(!s.includes("—"), s);
-  }
-});
-
 test("F78: Apply merges automatic + layout items only; a new block is never inserted", async () => {
   const db = world();
   const res = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
@@ -372,6 +359,9 @@ test("F78: sheet copy states what Apply will do (EN + ES, no em dash)", () => {
   for (const g of Object.values(GROUP_COPY)) assert.ok(!JSON.stringify(g).includes("—"));
   assert.match(GROUP_COPY.blocks.hintEn, /Apply never adds them/);
   assert.ok(!JSON.stringify(UPDATE_COPY).includes("—"));
+  // TUL-325: post-apply Publish CTA (exact EN/ES; em-dash covered above).
+  assert.deepEqual(UPDATE_COPY.publishCta, { en: "Publish site", es: "Publicar sitio" });
+  assert.deepEqual(UPDATE_COPY.unpublishedPill, { en: "Unpublished changes", es: "Cambios sin publicar" });
 });
 
 test("F78: a release of only new blocks has nothing for Apply", async () => {
