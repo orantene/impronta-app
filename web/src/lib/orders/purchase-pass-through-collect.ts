@@ -20,12 +20,16 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  PASS_THROUGH_DEFAULT_TAKE_BPS,
   resolveBookingCommissions,
   type ProcessingFeePayer,
   type ProcessorFeeRates,
   type SellerOfRecord,
 } from "@/lib/billing/commission";
+import {
+  processorFeeRatesFromTable,
+  readPlatformProcessingMode,
+  resolvePassThroughTakeBps,
+} from "@/lib/billing/platform-processing-mode";
 import {
   resolveOwningPartyForTalent,
   type OwningParty,
@@ -232,12 +236,6 @@ export function purchaseSellerForCollect(
   return null;
 }
 
-type ProcessingModeRow = {
-  processing_mode?: string | null;
-  pass_through_take_bps?: number | null;
-  processor_fee_rates?: Record<string, ProcessorFeeRates> | null;
-};
-
 async function inflateOnePayee(
   admin: PassThroughCollectRpc,
   input: {
@@ -296,33 +294,26 @@ export async function resolvePassThroughCollectCents(
   if (process.env.COMMISSION_PROCESSING_PASS_THROUGH !== "1") return base;
 
   try {
-    const modeRes = (await admin.rpc("engine_platform_processing_mode")) as {
-      data: ProcessingModeRow | null;
-      error?: { message?: string } | null;
-    };
-
-    if (modeRes.error) {
-      logServerError("orders.passThroughCollect/mode", modeRes.error);
+    const modeRow = await readPlatformProcessingMode(admin);
+    if (!modeRow) {
+      logServerError("orders.passThroughCollect/mode", "engine_platform_processing_mode empty");
       return base;
     }
-    if (modeRes.data?.processing_mode !== "pass_through") return base;
+    if (modeRow.processing_mode !== "pass_through") return base;
 
-    const ratesTable = modeRes.data.processor_fee_rates ?? null;
-    const currencyKey = String(input.currencyCode ?? "").toLowerCase();
-    const processorFeeRates =
-      ratesTable?.[currencyKey] ?? ratesTable?.default ?? null;
+    const processorFeeRates = processorFeeRatesFromTable(
+      modeRow.processor_fee_rates,
+      input.currencyCode,
+    );
     if (!processorFeeRates) {
       logServerError(
         "orders.passThroughCollect/rates",
-        `no processor_fee_rates for ${currencyKey}`,
+        `no processor_fee_rates for ${String(input.currencyCode ?? "").toLowerCase()}`,
       );
       return base;
     }
 
-    const passThroughTakeBps =
-      typeof modeRes.data.pass_through_take_bps === "number"
-        ? modeRes.data.pass_through_take_bps
-        : PASS_THROUGH_DEFAULT_TAKE_BPS;
+    const passThroughTakeBps = resolvePassThroughTakeBps(modeRow);
 
     let total = 0;
     for (const payee of input.sellers) {
