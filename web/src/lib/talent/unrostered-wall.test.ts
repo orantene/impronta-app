@@ -1,69 +1,36 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
-import {
-  showUnrosteredTalentWall,
-  talentSiteRowIsOwnSite,
-  unrosteredWallBypassesShell,
-} from "./unrostered-wall";
+// TUL-117 (C1-12, DS-41): the "Profile created, you're in" roster wall is
+// retired. Every pro has a dashboard, so /talent always lands on Today.
 
-test("the wall is only for no roster and no own site", () => {
-  assert.equal(showUnrosteredTalentWall({ hasRoster: false, hasOwnSite: false }), true);
-  assert.equal(showUnrosteredTalentWall({ hasRoster: true, hasOwnSite: false }), false);
-  assert.equal(showUnrosteredTalentWall({ hasRoster: false, hasOwnSite: true }), false);
-  assert.equal(showUnrosteredTalentWall({ hasRoster: true, hasOwnSite: true }), false);
+test("the wall modules are gone", () => {
+  assert.equal(existsSync(join(process.cwd(), "src/lib/talent/unrostered-wall.ts")), false);
+  assert.equal(existsSync(join(process.cwd(), "src/lib/talent/unrostered-wall-load.ts")), false);
 });
 
-test("the shell is skipped only for a proven empty roster and site", () => {
-  assert.equal(
-    unrosteredWallBypassesShell({ proven: true, hasRoster: false, hasOwnSite: false }),
-    true,
-  );
-  assert.equal(
-    unrosteredWallBypassesShell({ proven: false, hasRoster: false, hasOwnSite: false }),
-    false,
-  );
-  assert.equal(
-    unrosteredWallBypassesShell({ proven: true, hasRoster: true, hasOwnSite: false }),
-    false,
-  );
-  assert.equal(
-    unrosteredWallBypassesShell({ proven: true, hasRoster: false, hasOwnSite: true }),
-    false,
-  );
-});
-
-test("a published personal site is an own site; a draft row is not", () => {
-  assert.equal(talentSiteRowIsOwnSite(null), false);
-  assert.equal(talentSiteRowIsOwnSite({ status: "draft" }), false);
-  assert.equal(talentSiteRowIsOwnSite({ status: "published" }), true);
-  assert.equal(talentSiteRowIsOwnSite({ sitePublishedAt: "2026-10-01T00:00:00Z" }), true);
-  assert.equal(talentSiteRowIsOwnSite({ hasPublishedSnapshot: true }), true);
-});
-
-test("the talent root decides the wall from roster and site, not a missed profile read", () => {
+test("the talent root redirects a profiled talent to Today and renders no wall", () => {
   const page = readFileSync(
     join(process.cwd(), "src/app/(workspace)/talent/page.tsx"),
     "utf8",
   );
-  assert.match(page, /unrosteredWallBypassesShell/);
   assert.match(page, /loadTalentSelfProfileByUser/);
-  assert.match(page, /loadUnrosteredWallFacts/);
+  assert.match(page, /redirect\(`\/talent\/today\$\{querySuffix\}`\)/);
+  assert.doesNotMatch(page, /unrostered/i);
+  assert.doesNotMatch(page, /you&apos;re in|you're in/);
+  assert.doesNotMatch(page, /<h1/);
   assert.doesNotMatch(page, /\.maybeSingle\(\)/);
 });
 
-test("the talent layout skips the shell when the wall is the correct state", () => {
+test("the talent layout never skips the shell for the talent root", () => {
   const layout = readFileSync(
     join(process.cwd(), "src/app/(workspace)/talent/layout.tsx"),
     "utf8",
   );
-  assert.match(layout, /unrosteredWallBypassesShell/);
-  assert.match(layout, /loadUnrosteredWallFacts/);
-  const gateAt = layout.indexOf("if (unrosteredWallBypassesShell(wallFacts))");
-  const shellAt = layout.indexOf("<TalentShellClient");
-  assert.ok(gateAt > 0 && shellAt > gateAt);
+  assert.doesNotMatch(layout, /unrostered/i);
+  assert.match(layout, /<TalentShellClient/);
 });
 
 test("platform talent routes keep the path, so Money is not rewritten onto Today", () => {

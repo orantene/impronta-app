@@ -35,7 +35,9 @@
  *             branch of `syncLocaleCookieForPath`, and
  *             `seedTalentDashboardLocaleCookie` (the talent dashboard seeding
  *             the talent's own primary language, only over an absent or
- *             already-auto cookie; 2026-09-29).
+ *             already-auto cookie; 2026-09-29). The workspace admin seed route
+ *             (`/api/admin/locale-seed`, TUL-117) reuses that same writer with
+ *             the tenant's default language, under the same absent-or-auto rule.
  *
  *   DELIBERATE write `locale` AND clear `locale_auto`.
  *             Everything else: the public language switcher (which persists

@@ -30,10 +30,16 @@ const INTENTIONALLY_UNCLAIMED: Record<string, string> = {
   // recovery, email change). The copy is exported to the auth-email hook and
   // rendered by templates outside the catalog, so no entry is expected.
   "auth.signup": "rendered by the Supabase auth-email hook, not the catalog",
-  "auth.magic_link": "rendered by the Supabase auth-email hook, not the catalog",
+  // Key is "auth.magiclink" (no underscore) to match Supabase's
+  // email_action_type; see copyKeyFor() in api/hooks/auth-email/route.ts.
+  "auth.magiclink": "rendered by the Supabase auth-email hook, not the catalog",
   "auth.recovery": "rendered by the Supabase auth-email hook, not the catalog",
   "auth.email_change": "rendered by the Supabase auth-email hook, not the catalog",
   "auth.invite": "rendered by the Supabase auth-email hook, not the catalog",
+  // Digest.tsx reads its greeting frame via getEmailCopy(...)["notifications.digest"].
+  // The digest sweep (digest.ts) and the message.new catalog fallback render it
+  // with per-batch props; it is never dispatched under its own static templateId.
+  "notifications.digest": "rendered by the digest sweep / message.new fallback, not its own catalog entry",
   // Shared chrome, not a message: layout/footer strings live under these keys.
   "common.layout": "shared layout chrome, not a dispatchable message",
 };

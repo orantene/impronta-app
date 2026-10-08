@@ -19,6 +19,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
 import { getAppUrl } from "@/lib/auth-flow";
+import { ensureHubRosterRow } from "@/lib/saas/ensure-hub-roster.server";
+import { bustAllTenantCaches } from "@/lib/site-admin/builder-core/site-templates/compose-cache-bust.server";
 import { ensureSelfRosterSiteVisible } from "@/lib/saas/ensure-self-roster";
 import { ensureWorkspaceSubdomainRow } from "@/lib/saas/ensure-workspace-domain";
 import { provisionWorkspaceFromLead, type ProvisionWorkspaceResult } from "@/lib/saas/workspace-signup.server";
@@ -26,12 +28,12 @@ import { logServerError } from "@/lib/server/safe-error";
 import { applyMaisonDesignAction } from "@/lib/talent-site/server/maison-apply-actions";
 import { provisionTalentPersonalSiteIfMissing } from "@/lib/talent-site/server/provision";
 import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
-import { MAISON_DEFAULT_PALETTE_KEY } from "@/lib/talent-site/theme-catalog/maison/seed";
 import type { Brief } from "@/lib/tulala/brief-store";
 import { linkBriefObjects } from "@/lib/tulala/brief-store.server";
 import { upsertLeadForBrief } from "@/lib/tulala/approve.server";
 
 import type { DesignLookKey } from "./finish-url";
+import { onboardingDesignApplyInput } from "./design-apply-input";
 import type { OnboardingChoice } from "./choice";
 import { runChoiceProvisioning, type ChoiceProvisionResult } from "./provision-for-choice";
 import { ensureOwnSitePublished } from "./publish-own-site";
@@ -103,6 +105,11 @@ export async function provisionForChoice(
         skipDraftOfferings: !!input.essentials?.services.length,
       });
       if (!tp.talentProfileId) return { ok: false, code: "talent_writer_failed", message: "Could not create your page." };
+      // TUL-157: the writer's hub step logs and moves on when it fails. Give it
+      // a second, idempotent chance so no sign-up leaves a talent roster-less.
+      if (tp.wrote.roster !== "written") {
+        await ensureHubRosterRow(admin, { talentProfileId: tp.talentProfileId, addedBy: userId });
+      }
       await linkBriefObjects(brief.id, { talentProfileId: tp.talentProfileId });
       return { ok: true, talentProfileId: tp.talentProfileId, profileCode: tp.profileCode };
     },
@@ -122,7 +129,7 @@ export async function provisionForChoice(
           return { row: site.data ?? null, isDemo: Boolean((prof.data as { is_demo?: boolean } | null)?.is_demo) };
         },
         forceDesign: !!input.designPaletteKey,
-        applyDefaultDesign: () => applyMaisonDesignAction({ paletteKey: input.designPaletteKey ?? MAISON_DEFAULT_PALETTE_KEY }),
+        applyDefaultDesign: () => applyMaisonDesignAction(onboardingDesignApplyInput(input.designPaletteKey)),
         publish: () => publishMaxSiteAction(),
       }).catch((err) => ({ ok: false as const, error: String(err) }));
       if (!own.ok) {
@@ -151,7 +158,7 @@ export async function provisionForChoice(
       }
       await linkBriefObjects(brief.id, { signupLeadId: leadId });
 
-      const result = await provisionWorkspaceFromLead({ leadId, userId, userEmail: email, profile: input.profile });
+      const result = await provisionWorkspaceFromLead({ leadId, userId, userEmail: email, profile: input.profile, locale: input.locale });
       if (result.ok) {
         return { ok: true, tenantId: result.tenantId, tenantSlug: result.tenantSlug, reusedFreeWorkspace: false, detail: { kind: "provisioned", result } };
       }
@@ -191,6 +198,10 @@ export async function provisionForChoice(
         talentCtx = { talentProfileId: talent.talentProfileId, tenantId };
       }
       const r = await runEssentialsWrites(createEssentialsStore(admin), { choice: c, essentials, talent: talentCtx, workspace });
+      // TUL-77: the site was composed (and may already be cached) BEFORE these
+      // services and hours existed; bust it so the live catalog bands show
+      // them on the first public load instead of the static fallback.
+      if (workspace) bustAllTenantCaches(workspace.tenantId);
       return r.warnings;
     },
 

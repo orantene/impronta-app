@@ -11,7 +11,7 @@
 
 import { NextResponse } from "next/server";
 
-import { runTenantImageJobs } from "@/lib/media/tenant-image-jobs.server";
+import { reapStaleTenantImageJobs, runTenantImageJobs } from "@/lib/media/tenant-image-jobs.server";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -32,8 +32,9 @@ export async function GET(request: Request) {
   if (!admin) return NextResponse.json({ error: "Service role unavailable" }, { status: 503 });
 
   try {
+    const reaped = await reapStaleTenantImageJobs(admin);
     const report = await runTenantImageJobs(admin, { budgetMs: 50_000 });
-    return NextResponse.json({ ok: true, ...report });
+    return NextResponse.json({ ok: true, reaped, ...report });
   } catch (error) {
     logServerError("cron/tenant-images", error);
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });

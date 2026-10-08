@@ -196,8 +196,8 @@ export function OnboardingModule({
       return;
     }
     const to = BACK[state.step];
-    if (to) void saveOnboardingStep({ step: to });
-  }, [state.step]);
+    if (to) void saveOnboardingStep({ step: to, locale });
+  }, [state.step, locale]);
 
   // Phase 3 · the card. Runs the understand step once the words are sent
   // (reading screen), or reloads the card from the brief on resume.
@@ -276,10 +276,10 @@ export function OnboardingModule({
 
   const saveSetup = useCallback(async (essentials: Essentials) => {
     dispatch({ type: "sendStarted" });
-    const r = await saveOnboardingSetup({ essentials }).catch(() => null);
+    const r = await saveOnboardingSetup({ essentials, locale }).catch(() => null);
     if (r && r.ok) dispatch({ type: "setupSaved", talentOnly: r.talentOnly });
     else dispatch({ type: "cardFailed", code: "save_failed" });
-  }, []);
+  }, [locale]);
 
   const accept = useCallback(async () => {
     dispatch({ type: "sendStarted" });
@@ -314,14 +314,14 @@ export function OnboardingModule({
 
   const saveEssentials = useCallback(async (a: EssentialsAnswer) => {
     dispatch({ type: "sendStarted" });
-    const r = await saveOnboardingEssentials(a);
+    const r = await saveOnboardingEssentials({ ...a, locale });
     if (r.ok) {
       dispatch({ type: "essentialsSaved", understanding: r.card.understanding, chip: r.card.chip });
     } else {
       const code: MachineErrorCode = r.code === "invalid_whatsapp" || r.code === "missing_required" ? r.code : "save_failed";
       dispatch({ type: "cardFailed", code });
     }
-  }, []);
+  }, [locale]);
 
   const chooseStyle = useCallback(async (direction: VisualDirection, notes: string | null) => {
     dispatch({ type: "sendStarted" });
@@ -350,18 +350,18 @@ export function OnboardingModule({
     if (r.ok) {
       dispatch({ type: "authed", email: r.email });
       trackRef.current("onboarding_account_created", { method: "code" });
-      void saveOnboardingStep({ step: "building" });
+      void saveOnboardingStep({ step: "building", locale });
     } else dispatch({ type: "accountFailed", message: r.code === "module_off" ? t("public.onboarding.errors.moduleOff") : r.message });
   }, [state.codeEmail, locale, path, t]);
 
   const onGoogleSuccess = useCallback(() => {
     dispatch({ type: "authed", email: null });
     trackRef.current("onboarding_account_created", { method: "google" });
-    void saveOnboardingStep({ step: "building" });
+    void saveOnboardingStep({ step: "building", locale });
     void loadOnboardingResume().then((snapshot) => {
       if (snapshot?.email) dispatch({ type: "authed", email: snapshot.email });
     });
-  }, []);
+  }, [locale]);
 
   // Phase 4.2 · the build. One POST per entry into "building"; idempotent on
   // the server, so a reload or a second tap returns the stored record.
@@ -526,7 +526,7 @@ export function OnboardingModule({
           // Already signed in: nothing to save, straight to the build.
           const next: ModuleStep = state.isAuthenticated ? "building" : "save";
           dispatch({ type: "toStep", step: next });
-          void saveOnboardingStep({ step: next });
+          void saveOnboardingStep({ step: next, locale });
         }}
       />
     );
@@ -565,7 +565,7 @@ export function OnboardingModule({
         busy={state.busy}
         onRetry={() => {
           dispatch({ type: "buildRetry" });
-          void saveOnboardingStep({ step: "building" });
+          void saveOnboardingStep({ step: "building", locale });
         }}
       />
     );
@@ -578,7 +578,7 @@ export function OnboardingModule({
         busy={state.busy}
         onRetry={() => {
           dispatch({ type: "buildRetry" });
-          void saveOnboardingStep({ step: "building" });
+          void saveOnboardingStep({ step: "building", locale });
         }}
       />
     );

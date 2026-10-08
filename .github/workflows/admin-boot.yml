@@ -17,6 +17,7 @@ name: CI — admin boot (prod build)
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
   push:
     branches: [main]
 
@@ -24,12 +25,15 @@ permissions:
   contents: read
 
 concurrency:
-  group: admin-boot-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: admin-boot-${{ github.workflow }}-${{ github.event.pull_request.number || (github.ref == 'refs/heads/main' && github.sha || github.ref) }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   admin-boot:
     name: Admin boot (prod build)
+    # Heavy check: runs on main, manual runs, integration batch PRs (integ/*) and any PR labelled
+    # `full-ci`. Ordinary PRs run only the structural gate; the batch re-tests them (CI jam 2026-10-07).
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (startsWith(github.head_ref, 'integ/') || contains(github.event.pull_request.labels.*.name, 'full-ci')))
     runs-on: ubuntu-latest
     timeout-minutes: 25
     defaults:
@@ -74,7 +78,14 @@ jobs:
 
       - name: Install Playwright Chromium
         if: steps.secrets.outputs.armed == 'true'
-        run: npx playwright install --with-deps chromium
+        # The browser/apt download sometimes hangs until the job timeout (cancelled at 25 min,
+        # seen twice on 2026-10-07). Cap each try at 5 min and retry, so a hang costs minutes.
+        run: |
+          for i in 1 2 3; do
+            timeout 300 npx playwright install --with-deps chromium && exit 0
+            echo "playwright install attempt $i failed or timed out"
+          done
+          exit 1
 
       - name: Build (production)
         if: steps.secrets.outputs.armed == 'true'

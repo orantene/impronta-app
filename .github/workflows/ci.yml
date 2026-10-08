@@ -66,7 +66,7 @@ on:
 # Runs on main now queue instead of cancelling. The cost is compute already
 # being spent on runs that were thrown away.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
@@ -75,6 +75,7 @@ permissions:
 jobs:
   gate:
     name: Structural quality gate
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     # 45, not 25. At 25 this job was killed mid-flight at 25m15s on a main
     # commit. GitHub reports a timeout as `cancelled`, not `failure`, and
