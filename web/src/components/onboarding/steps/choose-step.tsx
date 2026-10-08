@@ -90,6 +90,14 @@ export function ChooseStep({
       >
         {c.agencyLink}
       </button>
+      <a
+        href="/directory"
+        data-testid="onb-book-link"
+        className="mt-1 inline-flex min-h-11 items-center text-[0.875rem] font-medium underline underline-offset-4 sm:ml-5"
+        style={{ color: "var(--tl-ink-soft)" }}
+      >
+        {c.bookLink}
+      </a>
       {agencyOpen ? (
         <p className="mt-1 text-[0.875rem] leading-[1.5]" style={{ color: "var(--tl-ink-soft)" }} data-testid="onb-agency-note">{c.agencyNote}</p>
       ) : null}

@@ -3,12 +3,13 @@
  * the marketing host ONLY (see MARKETING_PAGE_PREFIXES for why a tenant's own
  * branded domain must not offer it). Pros still land on the platform's other
  * doors, though: `app.tulala.digital/start` and any `/signup` link returned the
- * branded 404. This is the one decision, pure so it is tested without a request.
+ * branded 404, a dead end (TUL-163: talent sign-up lives only on tulala.digital).
+ * This is the one decision, pure so it is tested without a request.
  *
- * - platform app host: `/start` and `/signup` go to the marketing `/start`.
+ * - platform app host, agency hosts and talent sites: `/start` and `/signup`
+ *   go to the marketing `/start`.
  * - marketing host: `/signup` goes to `/start` (no `/signup` page exists).
- * - everything else (talent hosts, agency custom domains, hub) returns `null`
- *   and keeps the 404, which is the intended behavior.
+ * - everything else (hub, unregistered hosts) returns `null`.
  *
  * The query string is kept so `?lang=` and `?choice=` survive the hop.
  */
@@ -23,6 +24,7 @@ export type StartDoorInput = {
   marketingOrigin: string;
 };
 
+const REDIRECT_KINDS = new Set(["app", "agency", "talent_site"]);
 const DOOR_PATHS = new Set(["/start", "/signup"]);
 
 export function startDoorRedirect(input: StartDoorInput): string | null {
@@ -33,7 +35,7 @@ export function startDoorRedirect(input: StartDoorInput): string | null {
   const origin = input.marketingOrigin.replace(/\/$/, "");
   const search = input.search && input.search !== "?" ? input.search : "";
 
-  if (input.hostKind === "app") return `${origin}/start${search}`;
+  if (REDIRECT_KINDS.has(input.hostKind)) return `${origin}/start${search}`;
   if (input.hostKind === "marketing" && path === "/signup") return `${origin}/start${search}`;
   return null;
 }

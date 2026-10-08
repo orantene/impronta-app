@@ -23,8 +23,15 @@ test("marketing host: only /signup redirects; /start is served", () => {
   assert.equal(startDoorRedirect({ ...base, pathname: "/start", hostKind: "marketing" }), null);
 });
 
-test("talent hosts, agency custom domains and the hub keep the 404", () => {
-  for (const hostKind of ["talent", "agency", "hub", "not_found"]) {
+test("agency hosts and talent sites redirect too (TUL-163: a 404 is a dead end)", () => {
+  for (const hostKind of ["agency", "talent_site"]) {
+    assert.equal(startDoorRedirect({ ...base, pathname: "/start", hostKind }), "https://tulala.digital/start", hostKind);
+    assert.equal(startDoorRedirect({ ...base, pathname: "/signup", hostKind }), "https://tulala.digital/start", hostKind);
+  }
+});
+
+test("the hub and unregistered hosts are left alone", () => {
+  for (const hostKind of ["hub", "not_found"]) {
     assert.equal(startDoorRedirect({ ...base, pathname: "/start", hostKind }), null, hostKind);
     assert.equal(startDoorRedirect({ ...base, pathname: "/signup", hostKind }), null, hostKind);
   }
