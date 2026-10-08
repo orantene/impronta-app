@@ -131,6 +131,7 @@ import {
 import { resolveLocalized } from "@/lib/i18n/resolve-localized";
 import { isLocalizableProp } from "@/lib/i18n/builder-i18n-props";
 import { localizeBlockNode } from "./block-i18n";
+import { categoryLabelFor } from "./catalog-category-label";
 import type {
   BuilderNavLink,
   BuilderNode,
@@ -5842,7 +5843,7 @@ function renderBuilderNodeElement(
       const title = renderItalicMarkedTitle(rawTitle);
       const eyebrow = text("eyebrow", p.eyebrow);
       const subtitle = text("subtitle", p.subtitle);
-      const ctaLabel = p.ctaLabel?.trim() || undefined;
+      const ctaLabel = text("ctaLabel", p.ctaLabel?.trim()) || undefined;
       const bookingMode = options.dataSources.catalogBookingLive ? "live" : "demo";
       const pauseLine = options.dataSources.talentSitePause
         ? pauseBannerCopy(options.dataSources.talentSitePause, locale)
@@ -5904,10 +5905,11 @@ function renderBuilderNodeElement(
       // Featured layout needs a single flat list so CSS :first-child is the hero.
       const groupByCategory =
         layout !== "featured" && (showCategoryNav || accordionNav || jumpNav || sectionsNav);
-      const groups: Array<{ name: string | null; items: TalentOffering[]; note?: string | null }> = groupByCategory
+      const groups: Array<{ name: string | null; label?: string; items: TalentOffering[]; note?: string | null }> = groupByCategory
         ? [
             ...categories.map((c) => ({
               name: c,
+              ...(categoryLabelFor(visible, c) ? { label: categoryLabelFor(visible, c) } : {}),
               note: notes?.[c] ?? null,
               items: visible.filter((o) => o.category?.trim() === c),
             })),
@@ -8785,11 +8787,13 @@ function renderBuilderNodeElement(
         value
           ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
           : "";
-      const items = p.items ?? [];
+      // TUL-207: the cells (`items.N.label`...) carry a per-language version.
+      const statsNode = localizeBlockNode(node, options.contentLocale);
+      const items = statsNode.props.items ?? [];
       const eyebrow = text("eyebrow", p.eyebrow);
       const headline = text("headline", p.headline);
       if (p.variant === "spec") {
-        return renderStatsSpecBlock({ node, styleAttr: sharedNodeStyle(p.style) });
+        return renderStatsSpecBlock({ node: statsNode, styleAttr: sharedNodeStyle(p.style) });
       }
       const animate = p.animate !== false;
       return (

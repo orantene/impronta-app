@@ -15,6 +15,8 @@ import { catalogDurationPhrase } from "@/lib/site-admin/builder-node/services-ca
 
 export type CatalogStaticGroup = {
   name: string | null;
+  /** The category as the visitor reads it (per language); `name` stays the key. */
+  label?: string | null;
   items: ReadonlyArray<TalentOffering>;
   note?: string | null;
 };
@@ -49,7 +51,7 @@ export function ServicesCatalogStaticFallback({
           className="site-builder-node--services-catalog-group"
         >
           {g.name ? (
-            <h3 className="site-builder-node--services-catalog-group-title">{g.name}</h3>
+            <h3 className="site-builder-node--services-catalog-group-title">{g.label ?? g.name}</h3>
           ) : null}
           <ul className="site-builder-node--services-catalog-list">
             {g.items.map((item) => {

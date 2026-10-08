@@ -26,6 +26,10 @@ export const LOCALIZABLE_LIST_PROPS_BY_KIND: Partial<
 > = {
   spec_table: [{ list: "rows", fields: ["label", "value"] }],
   masthead: [{ list: "contents", fields: ["label", "credit"] }],
+  // TUL-207: stats cells (`items.0.label`). `value` serves the spec variant,
+  // whose value is typed text ("En 1 o 2 dias"); a count-up number has no
+  // letters and never gets an overlay.
+  stats: [{ list: "items", fields: ["label", "value", "caption", "prefix", "suffix"] }],
 };
 
 export function localizableListSpecsForKind(
