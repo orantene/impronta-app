@@ -24,6 +24,7 @@ function setup(over: Partial<CartCheckoutDeps> = {}, rows: FakeStore = {}) {
     order_lines: [{ id: uuid(20), order_id: CART, offering_id: TACO, variant_id: null, addon_ids: [], label: "Taco", units: 2, unit_cents: 300, total_cents: 600, sort_order: 0 }],
     customers: [{ id: CUSTOMER, tenant_id: TENANT, display_name: "Ana", email: "ana@example.com", phone_e164: null, user_id: null }],
     tenant_promo_codes: [{ id: PROMO, code: "HOLA10" }],
+    agencies: [{ id: TENANT, default_currency: "usd" }],
     ...rows,
   });
   const memory = memoryIdempotentRunner();
@@ -198,14 +199,20 @@ test("act start_payment: an empty cart and a stale version are refused before th
   assert.equal(purchases.length, 0);
 });
 
-test("TUL-284 create: a new cart takes the WORKSPACE currency; an unreadable workspace falls back to USD", async () => {
+test("TUL-284 create: a new cart takes the WORKSPACE currency; an unreadable workspace currency FAILS CLOSED (no USD fallback)", async () => {
   const id = { guestKey: "mx-guest", userId: null, email: null, displayName: null };
   const { deps: mx, store: mxStore } = setup({ identity: id }, { agencies: [{ id: TENANT, default_currency: "mxn" }] });
   const made = await actCartCheckoutCore(mx, { op: "create", tenantId: TENANT });
   assert.ok(made.ok);
   assert.equal(mxStore.orders!.find((o) => o.guest_session_id === "web:mx-guest")!.currency, "MXN");
-  // No workspace row, then a throwing read: both fall back to USD (the charge guard still fails closed).
-  assert.equal(await workspaceCartCurrency(setup().deps, TENANT), "USD");
+  // No workspace row, a blank currency, then a throwing read: the cart is refused, never priced in USD.
+  assert.equal(await workspaceCartCurrency(setup({}, { agencies: [] }).deps, TENANT), null);
+  const blank = setup({ identity: id }, { agencies: [{ id: TENANT, default_currency: "" }] });
+  const ordersBefore = blank.store.orders!.length;
+  assert.equal(await workspaceCartCurrency(blank.deps, TENANT), null);
   const throwing = { ...setup().deps, admin: { from: () => { throw new Error("boom"); } } as never };
-  assert.equal(await workspaceCartCurrency(throwing, TENANT), "USD");
+  assert.equal(await workspaceCartCurrency(throwing, TENANT), null);
+  const refused = await actCartCheckoutCore(blank.deps, { op: "create", tenantId: TENANT });
+  assert.ok(!refused.ok);
+  assert.equal(blank.store.orders!.length, ordersBefore, "no draft order is created when the workspace currency is unreadable");
 });

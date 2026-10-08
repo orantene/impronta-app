@@ -1821,6 +1821,7 @@
         "notFound": "No pudimos encontrar eso.",
         "invalid": "Algo en eso no se veía bien. Revísalo e inténtalo de nuevo.",
         "channelUnavailable": "No pudimos enviar eso ahora mismo. Inténtalo en un momento.",
+        "currencyUnavailable": "Este negocio aún no tiene una moneda configurada, así que no se puede iniciar un carrito. Escribe al negocio.",
         "unavailable": "No pudimos hacer eso ahora mismo. No se cambió nada. Inténtalo de nuevo."
       }
     },

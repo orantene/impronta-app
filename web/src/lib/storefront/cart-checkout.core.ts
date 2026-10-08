@@ -213,19 +213,20 @@ async function shape(deps: CartCheckoutDeps, order: OrderRow, lines: LineRow[]):
 
 /**
  * TUL-284: a new cart is priced in the WORKSPACE's currency, never a hard-coded
- * USD. An unreadable workspace falls back to USD here, and the charge guard
- * (seller-currency-guard.ts) still fails closed at checkout on the lane.
+ * USD. An unreadable or invalid workspace currency returns null and the cart
+ * FAILS CLOSED (the caller refuses to create the draft order), like every other
+ * money path: no fallback currency is ever invented.
  */
-export async function workspaceCartCurrency(deps: CartCheckoutDeps, tenantId: string): Promise<string> {
+export async function workspaceCartCurrency(deps: CartCheckoutDeps, tenantId: string): Promise<string | null> {
   // `agencies` IS the tenants table (its id is the tenant id); a variable table
   // name mirrors account-platform.ts, which the untenanted-from rule accepts.
   const table: "agencies" | "orders" = "agencies";
   try {
     const { data, error } = await deps.admin.from(table).select("default_currency").eq("id", tenantId).maybeSingle();
-    if (error) return "USD";
-    return normalizeCurrencyCode((data as { default_currency?: unknown } | null)?.default_currency) ?? "USD";
+    if (error) return null;
+    return normalizeCurrencyCode((data as { default_currency?: unknown } | null)?.default_currency) ?? null;
   } catch {
-    return "USD";
+    return null;
   }
 }
 
@@ -284,6 +285,7 @@ export async function actCartCheckoutCore(
         if (!guestKey && !customerId) return refuse("identity_required");
         const mode = input.fulfilment && MODES.includes(input.fulfilment) ? input.fulfilment : null;
         const currency = await workspaceCartCurrency(deps, input.tenantId);
+        if (!currency) return refuse("currency_unavailable");
         const { data, error } = await deps.admin
           .from("orders")
           .insert({
