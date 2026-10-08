@@ -282,11 +282,20 @@ export function PipelineFilterDrawer({ filter }: { filter: "drafts" | "awaiting"
 
 // WS-11.2 — notification batching types
 
+/** Full notification center (TUL-390 "See all" / NotificationCenterDrawer). */
+export function NotificationCenterDrawer() {
+  return <NotificationsDrawer />;
+}
+
 export function NotificationsDrawer() {
-  const { closeDrawer, openDrawer, toast, bridgeUserNotifications, bridgeTenantIdentity, adminBasePath } = useAdminShell();
+  const { closeDrawer, openDrawer, toast, bridgeUserNotifications, bridgeTenantIdentity, adminBasePath, state } = useAdminShell();
   const copy = useDashboardText();
   const tt = copy.t;
   const [marking, setMarking] = useState(false);
+  // TUL-390 — bell "See all" / bubble click can open with { category }.
+  const payloadCategory = typeof state.drawer.payload?.category === "string"
+    ? state.drawer.payload.category
+    : null;
   const handleMarkAllRead = useCallback(async () => {
     const tenantId = bridgeTenantIdentity?.tenantId;
     if (!tenantId) {
@@ -349,6 +358,10 @@ export function NotificationsDrawer() {
     return NOTIFICATIONS.filter((n) => n.surface === "workspace");
   }, [bridgeUserNotifications, adminBasePath, copy.locale]);
   const filtered = items.filter((n) => {
+    if (payloadCategory === "messages" && n.kind !== "message") return false;
+    if (payloadCategory === "money" && n.kind !== "payment") return false;
+    if (payloadCategory === "attention" && !["approval", "offer", "booking", "ticket"].includes(n.kind)) return false;
+    if (payloadCategory === "updates" && !["system", "profile"].includes(n.kind)) return false;
     if (filter === "unread") return !n.read;
     if (filter === "action") return ACTION_KINDS.includes(n.kind) && !n.read;
     return true;
