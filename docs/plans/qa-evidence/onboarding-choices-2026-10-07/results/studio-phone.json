@@ -15,14 +15,12 @@
     {
       "n": 3,
       "name": "build + DB accounts and essentials",
-      "status": "FAIL",
-      "detail": "build ended on the arrival-failed screen (accounts asserted above)"
+      "status": "PASS"
     },
     {
       "n": 4,
       "name": "finish screen + URL is real",
-      "status": "FAIL",
-      "detail": "no arrival screen"
+      "status": "PASS"
     },
     {
       "n": 5,
@@ -34,37 +32,36 @@
       "n": 6,
       "name": "guest books a service",
       "status": "FAIL",
-      "detail": "no finish URL to open"
+      "detail": "an available slot |  | \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed |  | Locator: locator('[data-testid=slot-picker] button').first() | Expected: visible"
     }
   ],
   "facts": {
     "h1Contrast": 15.36,
-    "sentence": "Soy Estudio studio phone yxhljp. Tengo un estudio de limpieza de casas en Playa del Carmen con un equipo de tres personas. Hacemos limpieza profunda y ligera, de lunes a sábado.",
-    "readyLink": "estudio-studio-phone-yxhljp.tulala.digital",
-    "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
-    "userId": "3d097179-6a34-418a-8a29-882c68b049cb",
-    "firstBuildEndedOnFailedScreen": true,
-    "arrival": "arrival-failed screen (build did not finish)",
+    "sentence": "Soy Estudio studio phone zadjif. Tengo un estudio de limpieza de casas en Playa del Carmen con un equipo de tres personas. Hacemos limpieza profunda y ligera, de lunes a sábado.",
+    "readyLink": "estudio-studio-phone-zadjif.tulala.digital",
+    "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: No pudimos enviar tu código. Revisa el correo e inténtalo de nuevo.",
+    "userId": "9619c4a4-bb79-47ed-8496-1c55a945942f",
+    "arrival": "arrival screen",
     "profile": {
       "app_role": "agency_staff",
       "home_surface_preference": "workspace",
       "account_status": "active"
     },
     "brief": {
-      "id": "3cc39356-fd58-45f3-9a4a-cc9d88cf6b5f",
+      "id": "257e7ada-a56e-4d57-b99c-a4bb5706c794",
       "choice": "studio",
       "locale": "es"
     },
     "memberships": [
       {
-        "tenant_id": "577a3ace-ce37-47c6-8b80-b74eef8f7b11",
+        "tenant_id": "f25d3593-f44f-4325-b709-0111f37c8a52",
         "role": "owner",
         "status": "active"
       }
     ],
     "workspace": {
-      "id": "577a3ace-ce37-47c6-8b80-b74eef8f7b11",
-      "slug": "estudio-studio-phone-yxhljp"
+      "id": "f25d3593-f44f-4325-b709-0111f37c8a52",
+      "slug": "estudio-studio-phone-zadjif"
     },
     "businessIdentity": {
       "default_locale": "es"
@@ -79,12 +76,13 @@
         "amount_cents": 50000
       }
     ],
-    "visibleAtFail3": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
-    "visibleAtFail4": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
-    "landingMs": 90254,
-    "landingPath": "/estudio-studio-phone-yxhljp/admin",
-    "sawEnglishInterstitial": false,
+    "finishButtonText": "Ver mi sitio",
+    "finishHost": "estudio-studio-phone-zadjif.tulala.digital",
+    "landingMs": 90181,
+    "landingPath": "/estudio-studio-phone-zadjif/admin",
+    "sawEnglishInterstitial": true,
     "visibleAtFail5": "",
+    "guestUrl": "estudio-studio-phone-zadjif.tulala.digital/",
     "visibleAtFail6": ""
   }
 }

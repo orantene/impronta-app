@@ -39,10 +39,10 @@
   ],
   "facts": {
     "h1Contrast": 15.36,
-    "sentence": "Me llamo Rosa myself phone yxdfih. Soy limpiadora de casas en Playa del Carmen. Hago limpieza profunda y ligera, de lunes a sábado.",
+    "sentence": "Me llamo Rosa myself phone yzxdmd. Soy limpiadora de casas en Playa del Carmen. Hago limpieza profunda y ligera, de lunes a sábado.",
     "readyLink": null,
     "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
-    "userId": "52b3317c-7744-4384-abb7-35447fbbf4c0",
+    "userId": "5dfbdbab-f29b-47b4-943d-1f2138c7581d",
     "firstBuildEndedOnFailedScreen": true,
     "arrival": "arrival-failed screen (build did not finish)",
     "profile": {
@@ -51,13 +51,13 @@
       "account_status": "active"
     },
     "brief": {
-      "id": "fb96f061-7b98-4660-895a-30ddadfda15c",
+      "id": "e392e369-47ad-4c38-ba73-1d965cddaf35",
       "choice": "myself",
       "locale": "es"
     },
     "talent": {
-      "id": "5e4ef4a7-9e1f-45d1-b525-e9ccd0a06dca",
-      "code": "TAL-93040",
+      "id": "b6a27f72-4013-4cfd-b21b-8aa09b3f2bc3",
+      "code": "TAL-93045",
       "preferred_locale": "es",
       "bioLocales": [
         "en",
@@ -66,9 +66,9 @@
     },
     "hubRoster": 1,
     "talentSite": {
-      "site_slug": "rosa-myself-phone-yxdfih",
+      "site_slug": "rosa-myself-phone-yzxdmd",
       "theme_design_slug": "maison-v2",
-      "site_published_at": "2026-10-08T02:30:05.555+00:00"
+      "site_published_at": "2026-10-08T03:48:52.509+00:00"
     },
     "talentOfferings": [
       {
@@ -89,7 +89,7 @@
     },
     "visibleAtFail3": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
     "visibleAtFail4": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
-    "landingMs": 90179,
+    "landingMs": 90329,
     "landingPath": "/talent/today",
     "sawEnglishInterstitial": false,
     "visibleAtFail5": "",
