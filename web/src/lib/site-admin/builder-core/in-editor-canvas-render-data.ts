@@ -100,6 +100,8 @@ export interface InEditorCanvasRenderData {
       values: Partial<Record<string, string>>;
       seeds?: Partial<Record<string, ReadonlyArray<string>>>;
     };
+    /** Her published service names (site locale) for tickers that follow her services; see `ticker-services.ts`. */
+    tickerWords?: string[];
   } | null;
 }
 

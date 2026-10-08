@@ -1225,6 +1225,10 @@ export const mastheadPropsSchema = z.object({
   coverLine: z.string().max(160).optional(),
   coverStatement: z.string().max(160).optional(),
   bio: z.string().max(600).optional(),
+  /** `"bio"`: the blurb follows her bio in the visitor's language (TUL-230, live-text-keys.ts). */
+  liveText: z.literal("bio").optional(),
+  /** Muted "(Text in Spanish)" line after the blurb; written by the live-bio pass only. */
+  bioHint: z.string().max(80).optional(),
   ctaLabel: z.string().max(60).optional(),
   ctaHref: z.string().max(500).optional(),
   bookLabel: z.string().max(60).optional(),
@@ -1519,6 +1523,8 @@ const marqueePropsSchema = z.object({
     )
     .max(40)
     .optional(),
+  /** Optional and additive: absent = the literal `items` (every ticker saved before this field). */
+  source: z.enum(["services", "custom"]).optional(),
   speed: z.enum(["slow", "medium", "fast"]).optional(),
   direction: z.enum(["left", "right"]).optional(),
   separator: z.enum(["dot", "slash", "diamond", "star", "none"]).optional(),

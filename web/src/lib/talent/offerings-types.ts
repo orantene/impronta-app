@@ -147,6 +147,12 @@ export type TalentOffering = {
   durationMinutes: number | null;
   category: string | null;
   /**
+   * The category in the visitor's language (`category_i18n`), set by
+   * `rowToOffering` only when it differs from `category`. `category` stays the
+   * grouping key.
+   */
+  categoryLabel?: string;
+  /**
    * Remaining stock. null = unlimited.
    *
    * Since capacity 0.3a this is a MIRROR of the offering's capacity pool, kept
@@ -209,6 +215,8 @@ export type TalentOfferingRow = {
   free_reserve_expires_days: number | null;
   duration_minutes: number | null;
   category: string | null;
+  /** Per-locale category label; absent before migration 20261231299520. */
+  category_i18n?: Record<string, string> | null;
   inventory_qty: number | null;
   capacity_pool_id?: string | null;
   consumes_units?: number | null;
@@ -262,6 +270,24 @@ export function offeringText(
   return field === "title" ? row.title : row.description;
 }
 
+/**
+ * The category text for `locale` along `chain` (`category_i18n`), as
+ * `{ categoryLabel }` only when it differs from the plain category; `{}`
+ * otherwise, so a row with no stored translation maps exactly as before.
+ */
+function categoryLabelField(
+  row: Pick<TalentOfferingRow, "category" | "category_i18n">,
+  locale: string,
+  chain: readonly string[],
+): { categoryLabel?: string } {
+  const map = toI18nMap(row.category_i18n);
+  for (const code of [locale, ...chain]) {
+    const hit = str(map[code], 80);
+    if (hit) return hit === str(row.category, 80) ? {} : { categoryLabel: hit };
+  }
+  return {};
+}
+
 /** DB row → app shape. Tolerant of bad data (defaults, clamps). */
 export function rowToOffering(
   row: TalentOfferingRow,
@@ -307,6 +333,7 @@ export function rowToOffering(
     freeReserveExpiresDays: posInt(row.free_reserve_expires_days),
     durationMinutes: posInt(row.duration_minutes),
     category: str(row.category, 80),
+    ...categoryLabelField(row, locale, chain),
     inventoryQty:
       typeof row.inventory_qty === "number" && Number.isFinite(row.inventory_qty) && row.inventory_qty >= 0
         ? Math.round(row.inventory_qty)

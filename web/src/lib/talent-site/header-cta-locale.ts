@@ -17,6 +17,9 @@ function localeKey(locale: string | null | undefined): string {
   return (locale ?? "").trim().toLowerCase().slice(0, 2);
 }
 
+// Ticket #209: the overlay half of the header labels lives in header-i18n.ts.
+export { headerSectionProps } from "./header-i18n";
+
 /** The header CTA label for a locale ("Inquire" / "Escríbeme"). */
 export function talentHeaderCtaLabel(locale: string | null | undefined): string {
   return CTA_LABEL_BY_LOCALE[localeKey(locale)] ?? "Inquire";
