@@ -32,7 +32,7 @@ import {
   otpVerifyErrorKey,
 } from "@/lib/auth/otp-flow";
 import { claimInquiriesByConfirmedEmail } from "@/lib/inquiry/claim-by-email";
-import { recordSignupAcceptance } from "@/lib/legal/acceptances";
+import { hasSignupAcceptance, recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import {
   authGoogleFinalizeUserKey,
@@ -168,7 +168,18 @@ async function completeClientAccountSignIn(input: {
     }
   }
 
-  if (input.ageTerms) await recordSignupAcceptance(input.userId);
+  // Age/terms: record ONLY when the UI checkbox was ticked (never hard-code).
+  // New clients without a prior acceptance must tick; returning clients who
+  // already accepted may proceed without re-ticking.
+  if (input.ageTerms === true) {
+    await recordSignupAcceptance(input.userId);
+  } else {
+    const already = await hasSignupAcceptance(input.userId);
+    if (already === false) {
+      if (input.signOutIfNotClient) await supabase.auth.signOut();
+      return { ok: false, error: t("public.auth.actions.ageTermsRequired") };
+    }
+  }
 
   const admin = createServiceRoleClient();
   const host = await requestHost();

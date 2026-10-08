@@ -25,11 +25,20 @@ test("popover wires Google popup + password action + code verify", () => {
   assert.doesNotMatch(ui, /navigateToAuthPopupDestination/);
   assert.match(ui, /usePassword/);
   assert.match(ui, /step === "password"/);
-  // Do not hard-code ageTerms:true without UI consent.
-  assert.match(ui, /finalizeClientAccountGoogleSession\(\{ locale: loc, ageTerms: false \}/);
-  assert.match(ui, /signInClientAccountPassword\(\{ email, password, locale: loc, ageTerms: false \}/);
-  assert.match(ui, /verifyClientAccountCode\(\{ email, code, locale: loc, ageTerms: false \}/);
-  assert.doesNotMatch(ui, /ageTerms: true/);
+});
+
+test("age/terms checkbox: tick-only ageTerms, never hard-coded true", () => {
+  const ui = read("src/components/client-account/ClientAccountButton.tsx");
+  assert.match(ui, /data-testid="client-account-age-terms"/);
+  assert.match(ui, /requireAgeTermsTick/);
+  assert.match(ui, /ageTerms: ageTerms === true/);
+  assert.match(ui, /ageTerms: ageTermsRef\.current === true/);
+  assert.match(ui, /public\.auth\.register\.ageTermsPrefix/);
+  assert.doesNotMatch(ui, /ageTerms:\s*true/);
+  // age_terms FormData only after requireAgeTermsTick (checkbox path)
+  assert.match(ui, /if \(!requireAgeTermsTick\(\)\) return;/);
+  assert.match(ui, /fd\.set\("age_terms", "on"\)/);
+  assert.doesNotMatch(ui, /ageTerms:\s*true\s*[,}]/);
 });
 
 test("password and Google actions never redirect; share attach path", () => {
@@ -53,6 +62,10 @@ test("password and Google actions never redirect; share attach path", () => {
   assert.match(actions, /userHasGoogleIdentity/);
   assert.match(actions, /genericNotClientError: true/);
   assert.match(actions, /signInGeneric/);
+  assert.match(actions, /hasSignupAcceptance/);
+  assert.match(actions, /recordSignupAcceptance/);
+  assert.match(actions, /input\.ageTerms === true/);
+  assert.match(actions, /ageTermsRequired/);
 });
 
 test("talent hosts allow-list only /auth/apple|/auth/google|/auth/callback", () => {

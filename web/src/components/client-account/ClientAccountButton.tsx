@@ -79,10 +79,17 @@ export function ClientAccountButton({
   const [sentAt, setSentAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [optIn, setOptIn] = useState(false);
+  /** 18+ / terms — never hard-coded; only true when the user ticks the box. */
+  const [ageTerms, setAgeTerms] = useState(false);
+  const ageTermsRef = useRef(false);
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const popupRef = useRef<Window | null>(null);
   const closeWatcherRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    ageTermsRef.current = ageTerms;
+  }, [ageTerms]);
 
   const refresh = useCallback(async () => {
     try {
@@ -137,8 +144,10 @@ export function ClientAccountButton({
       void (async () => {
         setBusy(true);
         setError(null);
-        // Do not record age/terms without UI consent on this path.
-        const res = await finalizeClientAccountGoogleSession({ locale: loc, ageTerms: false });
+        const res = await finalizeClientAccountGoogleSession({
+          locale: loc,
+          ageTerms: ageTermsRef.current === true,
+        });
         setBusy(false);
         if (!res.ok) {
           setError(res.error);
@@ -181,7 +190,14 @@ export function ClientAccountButton({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, close, step, me.signedIn]);
 
+  function requireAgeTermsTick(): boolean {
+    if (ageTerms === true) return true;
+    setError(t("public.auth.actions.ageTermsRequired"));
+    return false;
+  }
+
   async function send(resend: boolean) {
+    if (!requireAgeTermsTick()) return;
     setBusy(true);
     setError(null);
     const fd = new FormData();
@@ -189,6 +205,7 @@ export function ClientAccountButton({
     fd.set("locale", loc);
     fd.set("create", "1");
     fd.set("terms_form", "1");
+    // Only when ticked — never hard-code "on".
     fd.set("age_terms", "on");
     fd.set("next", "/");
     if (resend) fd.set("resend", "1");
@@ -204,10 +221,15 @@ export function ClientAccountButton({
   }
 
   async function verify() {
+    if (!requireAgeTermsTick()) return;
     setBusy(true);
     setError(null);
-    // Do not record age/terms without an explicit consent control.
-    const res = await verifyClientAccountCode({ email, code, locale: loc, ageTerms: false });
+    const res = await verifyClientAccountCode({
+      email,
+      code,
+      locale: loc,
+      ageTerms: ageTerms === true,
+    });
     setBusy(false);
     if (!res.ok) {
       setError(res.error);
@@ -217,10 +239,15 @@ export function ClientAccountButton({
   }
 
   async function passwordSignIn() {
+    if (!requireAgeTermsTick()) return;
     setBusy(true);
     setError(null);
-    // Do not record age/terms without UI consent on this path.
-    const res = await signInClientAccountPassword({ email, password, locale: loc, ageTerms: false });
+    const res = await signInClientAccountPassword({
+      email,
+      password,
+      locale: loc,
+      ageTerms: ageTerms === true,
+    });
     setBusy(false);
     if (!res.ok) {
       setError(res.error);
@@ -231,6 +258,7 @@ export function ClientAccountButton({
   }
 
   function startGoogle() {
+    if (!requireAgeTermsTick()) return;
     setError(null);
     const W = 520;
     const H = 640;
@@ -333,18 +361,27 @@ export function ClientAccountButton({
   } as const;
   const linkBtn = { background: "none", border: 0, color: INK, textDecoration: "underline", cursor: "pointer", padding: 4, fontSize: 14 } as const;
 
-  const legal = (
-    <p style={{ margin: 0, fontSize: 12, opacity: 0.75 }}>
-      {t("public.clientAccount.legalPrefix")}{" "}
-      <a href={`${site}/legal/terms`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
-        {t("public.clientAccount.legalTerms")}
-      </a>{" "}
-      {t("public.clientAccount.legalAnd")}{" "}
-      <a href={`${site}/legal/privacy`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
-        {t("public.clientAccount.legalPrivacy")}
-      </a>
-      .
-    </p>
+  const ageTermsBox = (
+    <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, lineHeight: 1.4 }}>
+      <input
+        type="checkbox"
+        checked={ageTerms}
+        onChange={(e) => setAgeTerms(e.target.checked)}
+        required
+        data-testid="client-account-age-terms"
+        style={{ marginTop: 2, flexShrink: 0 }}
+      />
+      <span>
+        {t("public.auth.register.ageTermsPrefix")}{" "}
+        <a href={`${site}/legal/terms`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
+          {t("public.auth.register.ageTermsTerms")}
+        </a>{" "}
+        {t("public.auth.register.ageTermsAnd")}{" "}
+        <a href={`${site}/legal/privacy`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
+          {t("public.auth.register.ageTermsPrivacy")}
+        </a>
+      </span>
+    </label>
   );
 
   return (
@@ -511,7 +548,7 @@ export function ClientAccountButton({
                     {t("public.clientAccount.useCode")}
                   </button>
                 ) : null}
-                {legal}
+                {ageTermsBox}
               </form>
             )}
           </div>
