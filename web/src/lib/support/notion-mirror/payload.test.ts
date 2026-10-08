@@ -63,7 +63,7 @@ test("buildNotionMirrorProperties only emits allow-listed keys", () => {
   assert.deepEqual(keys, [...NOTION_MIRROR_PROPERTY_NAMES].sort());
   for (const forbidden of FORBIDDEN_MIRROR_KEYS) {
     assert.equal(
-      keys.includes(forbidden),
+      keys.some((k) => k === forbidden),
       false,
       `must not include ${forbidden}`,
     );
