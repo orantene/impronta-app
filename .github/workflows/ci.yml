@@ -451,6 +451,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:jorgelina-content
 
+      - name: tests — demo English data script (TUL-207)
+        if: ${{ !cancelled() }}
+        run: npm run test:demo-english-data
+
       - name: tests — QA test-talent sync + design drift (TUL-135)
         if: ${{ !cancelled() }}
         run: npm run test:sync-test-talent
