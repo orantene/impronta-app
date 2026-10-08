@@ -8,6 +8,7 @@ import {
   POPOVER_LIST_LIMIT,
   hubUiCategoryForBucket,
   hubUiCategoryForKind,
+  matchesHubPayloadCategory,
   notificationCenterDrawerId,
   selectPopoverList,
   shouldShowSeeAllNotifications,
@@ -70,6 +71,14 @@ test("TUL-390: drawer id follows shell surface", () => {
   assert.equal(notificationCenterDrawerId("workspace"), "notifications");
   assert.equal(notificationCenterDrawerId("talent"), "talent-notifications");
   assert.equal(notificationCenterDrawerId("client"), "notifications");
+});
+
+test("TUL-390: drawer payload category matches hub kind map", () => {
+  assert.equal(matchesHubPayloadCategory("message", null), true);
+  assert.equal(matchesHubPayloadCategory("message", "messages"), true);
+  assert.equal(matchesHubPayloadCategory("payment", "messages"), false);
+  assert.equal(matchesHubPayloadCategory("approval", "attention"), true);
+  assert.equal(matchesHubPayloadCategory("system", "updates"), true);
 });
 
 test("TUL-390: i18n label keys exist for every category + owner tab", () => {
