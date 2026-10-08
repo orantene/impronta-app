@@ -3,6 +3,7 @@
 import React, { useTransition, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useT } from "@/i18n/use-t";
+import { currencyFromMoneyText, formatOfferMoney } from "@/lib/inquiry/offer-currency";
 import { interpolate, type Translator } from "@/i18n/interpolate";
 import { StatusSheet, type StatusSheetData } from "@/components/messages-status-sheet/StatusSheet";
 import { DetailsTabContainer } from "@/components/details-tab/DetailsTabContainer";
@@ -351,8 +352,8 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
           const talentPayout = talentRow.units * talentRow.costRate;
           const coordShare = combined - talentPayout;
           // Format using the same currency as the talent rate.
-          const currency = yourRate.match(/[€£$]/)?.[0] ?? "€";
-          return interpolate(t("dashboard.talentThread.coordSuffix"), { amount: `${currency}${Math.round(coordShare).toLocaleString()}` });
+          const currency = offer.clientBudget?.currency ?? currencyFromMoneyText(yourRate);
+          return interpolate(t("dashboard.talentThread.coordSuffix"), { amount: formatOfferMoney(coordShare, currency, { maximumFractionDigits: 0 }) });
         })()}
         onStatusClick={() => setStatusSheetOpen(true)}
         toast={toast}

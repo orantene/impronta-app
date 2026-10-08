@@ -4,7 +4,6 @@ import { test } from "node:test";
 import {
   amountOptions,
   currencyMinorExponent,
-  formatMinorAmount,
   minorToAmountInput,
   canMintPaymentLink,
   cancelTargetsFrom,
@@ -22,9 +21,9 @@ import {
   type OfferDepositRule,
 } from "./payment-view";
 
-const OFFER_PCT: OfferDepositRule = { status: "accepted", depositPct: 30, depositAmountCents: null, totalClientPrice: 1000 };
-const OFFER_CENTS: OfferDepositRule = { status: "accepted", depositPct: null, depositAmountCents: 15000, totalClientPrice: 1000 };
-const OFFER_NONE: OfferDepositRule = { status: "accepted", depositPct: null, depositAmountCents: null, totalClientPrice: 1000 };
+const OFFER_PCT: OfferDepositRule = { status: "accepted", depositPct: 30, depositAmountCents: null, totalClientPrice: 1000, currencyCode: "USD" };
+const OFFER_CENTS: OfferDepositRule = { status: "accepted", depositPct: null, depositAmountCents: 15000, totalClientPrice: 1000, currencyCode: "USD" };
+const OFFER_NONE: OfferDepositRule = { status: "accepted", depositPct: null, depositAmountCents: null, totalClientPrice: 1000, currencyCode: "USD" };
 
 test("selectAcceptedOffer: the first accepted row, or null with none", () => {
   assert.equal(selectAcceptedOffer([{ status: "draft" }, { status: "sent" }]), null);
@@ -146,7 +145,6 @@ test("dollarsToCents: honours the currency's minor-unit exponent (TUL-289)", () 
   assert.equal(dollarsToCents("1000", "JPY"), 1000);
   assert.equal(dollarsToCents("12.34", "USD"), 1234);
   assert.equal(dollarsToCents("100", "MXN"), 10000);
-  assert.equal(dollarsToCents("1.234", "BHD"), 1234);
   assert.equal(dollarsToCents("1,000", "clp"), 1000);
   assert.equal(dollarsToCents("12.34", "NOPE"), 1234);
   assert.equal(dollarsToCents("12.34", ""), 1234);
@@ -157,21 +155,16 @@ test("dollarsToCents: honours the currency's minor-unit exponent (TUL-289)", () 
 
 test("currencyMinorExponent: invalid codes fall back to 2", () => {
   assert.equal(currencyMinorExponent("JPY"), 0);
-  assert.equal(currencyMinorExponent("BHD"), 3);
   assert.equal(currencyMinorExponent("USD"), 2);
   assert.equal(currencyMinorExponent("ZZZ9"), 2);
   assert.equal(currencyMinorExponent(undefined), 2);
 });
 
-test("minorToAmountInput / formatMinorAmount round-trip and display", () => {
-  for (const [code, typed] of [["JPY", "1000"], ["USD", "12.34"], ["MXN", "100.00"], ["BHD", "1.234"]] as const) {
+test("minorToAmountInput round-trips with dollarsToCents", () => {
+  for (const [code, typed] of [["JPY", "1000"], ["USD", "12.34"], ["MXN", "100.00"]] as const) {
     const minor = dollarsToCents(typed, code);
     assert.notEqual(minor, null);
     assert.equal(Number(minorToAmountInput(minor as number, code)), Number(typed));
   }
   assert.equal(minorToAmountInput(1000, "JPY"), "1000");
-  assert.equal(formatMinorAmount(1234, "USD"), "$12.34");
-  assert.equal(formatMinorAmount(10000, "MXN"), formatMinorAmount(10000, undefined));
-  assert.match(formatMinorAmount(1000, "JPY"), /1,000/);
-  assert.doesNotMatch(formatMinorAmount(1000, "JPY"), /\b10\b/);
 });

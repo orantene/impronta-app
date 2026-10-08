@@ -11,6 +11,7 @@
  */
 
 import type { GuestConversationItems, GuestRecordChip } from "@/lib/inquiry/guest-chat-contract";
+import { PLATFORM_FALLBACK_CURRENCY } from "@/lib/inquiry/offer-currency";
 import { formatHoldCountdown, holdCountdown, cardPropsFromMessage } from "@/lib/messages-v5/record-cards";
 import { readTimes } from "@/lib/messages-v5/client-thread-view";
 
@@ -116,7 +117,7 @@ export function decorateHoldChips(
       holdExpiresAt: overlay.holdExpiresAt,
     });
   }
-  if (!items) return { currency: "USD", lines: [], records };
+  if (!items) return { currency: PLATFORM_FALLBACK_CURRENCY, lines: [], records };
   return { ...items, records };
 }
 

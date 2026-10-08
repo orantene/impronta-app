@@ -10,8 +10,8 @@ import { ConfirmRecordView, type ConfirmRecordPhase } from "./ConfirmRecord";
 
 const noop = () => {};
 
-const OFFER_OPTION: ConfirmSourceOption = { source: "offer", id: "of-1", label: "v2", version: 2, totalCents: 380000, paymentState: "unpaid" };
-const DRAFT_OPTION: ConfirmSourceOption = { source: "draft", id: "or-9", label: "#1203 · $48.50", version: null, totalCents: null, paymentState: null };
+const OFFER_OPTION: ConfirmSourceOption = { source: "offer", id: "of-1", label: "v2", version: 2, totalCents: 380000, currencyCode: "USD", paymentState: "unpaid" };
+const DRAFT_OPTION: ConfirmSourceOption = { source: "draft", id: "or-9", label: "#1203 · $48.50", version: null, totalCents: null, currencyCode: "USD", paymentState: null };
 
 const NO_GATE: DepositGate = { due: false, paid: false, needsOverride: false };
 const GATE_BLOCKED: DepositGate = { due: true, paid: false, needsOverride: true };

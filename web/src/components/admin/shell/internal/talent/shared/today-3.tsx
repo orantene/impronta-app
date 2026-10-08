@@ -303,7 +303,7 @@ function ConversationReplyRow({
           {copy.t("Reply →")}
         </span>
       )}
-      <span
+      <span suppressHydrationWarning
         style={{
           fontFamily: FONTS.body,
           fontSize: 11.5,
@@ -439,7 +439,7 @@ function RequestRow({
           {copy.t("Reply →")}
         </span>
       )}
-      <span
+      <span suppressHydrationWarning
         style={{
           fontFamily: FONTS.body,
           fontSize: 11.5,

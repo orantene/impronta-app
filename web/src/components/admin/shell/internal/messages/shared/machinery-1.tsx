@@ -1,4 +1,5 @@
 import { ReservationThread } from "@/components/reservation-thread";
+import { moneySymbol } from "@/lib/inquiry/offer-currency";
 import { RICH_INQUIRIES, toInquiry, type InquiryRecord, type RichInquiry, type InquiryTalentInvite } from "../../state";
 import { type Conversation, type Participant } from "../../talent";
 import type { TabDef } from "./machinery-8";
@@ -18,24 +19,8 @@ import type { Offer } from "./machinery-9";
  */
 function currencySymbol(code: string | undefined): string {
   if (!code) return "•";
-  const explicit: Record<string, string> = {
-    USD: "$", EUR: "€", GBP: "£", JPY: "¥", AUD: "$",
-    CAD: "$", CHF: "CHF", MXN: "$", BRL: "R$", INR: "₹",
-  };
-  const upper = code.toUpperCase();
-  if (explicit[upper]) return explicit[upper];
-  try {
-    // Derive the symbol by formatting 0 and stripping digits/spaces.
-    const parts = new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: upper,
-      maximumFractionDigits: 0,
-    }).formatToParts(0);
-    const sym = parts.find((p) => p.type === "currency")?.value;
-    return sym && sym.length <= 3 ? sym : "•";
-  } catch {
-    return "•";
-  }
+  const sym = moneySymbol(code);
+  return sym.length <= 3 ? sym : "•";
 }
 
 /**

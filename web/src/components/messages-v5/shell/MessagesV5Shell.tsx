@@ -34,7 +34,7 @@ import { Avatar, Btn } from "../kit/primitives";
 import { OkLine, RefusalLine } from "../kit/RefusalLine";
 import { holdSlotLabelFromMessages } from "@/lib/messages-v5/client-thread-view";
 import type { ContextItemLine, ContextMoney, ContextPanelAction, ShellActionId } from "../screens/contracts";
-import { formatCents } from "@/lib/bookings/commission";
+import { formatRecordMoney } from "@/lib/messages-v5/record-money";
 import { buildScreenCopy } from "../screens/copy";
 import { IdentityCaptureWire } from "../screens/IdentityCaptureWire";
 import { TASK_ACTION, routeShellAction } from "../screens/NextStep";
@@ -243,8 +243,8 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       }
       if (ess.ok) setEssentials(ess.essentials);
       if (ctxLines && ctxLines.ok) {
-        const currency = ctxLines.money?.currency || "USD";
-        const moneyLabel = (cents: number) => formatCents(cents, currency);
+        const currency = ctxLines.money?.currency;
+        const moneyLabel = (cents: number) => formatRecordMoney(cents, currency);
         setContextItems(
           ctxLines.lines
             ? ctxLines.lines.map((l) => ({ id: l.id, name: l.label, units: String(l.units), price: moneyLabel(l.unitCents * l.units), proposedBy: l.proposedBy, confirmed: l.confirmed }))
