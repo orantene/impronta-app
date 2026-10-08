@@ -32,6 +32,7 @@ import { getPublicHostContext } from "@/lib/saas/scope";
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 import { legacySignupRedirect } from "@/lib/onboarding/legacy-signup-redirect";
 import { legacyFlowLang } from "@/lib/onboarding/legacy-signup-redirect.server";
+import { resolveShowCardLocaleToggle } from "@/lib/auth/card-locale-toggle.server";
 import { AuthCardLocaleToggle } from "@/components/auth/auth-card-locale-toggle";
 import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
@@ -167,6 +168,7 @@ export default async function RegisterPage({
   const { error, intent, lead, next, invitation, email } = params;
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
+  const showCardToggle = await resolveShowCardLocaleToggle();
   const workspaceLeadId = typeof lead === "string" && lead ? lead : null;
   const workspaceSignup = Boolean(
     intent === WORKSPACE_SIGNUP_INTENT && workspaceLeadId,
@@ -287,7 +289,9 @@ export default async function RegisterPage({
       />
 
       <AuthCard>
-        <AuthCardLocaleToggle locale={locale} label={t("public.auth.language")} />
+        {showCardToggle ? (
+          <AuthCardLocaleToggle locale={locale} label={t("public.auth.language")} />
+        ) : null}
         {error ? (
           <AuthNotice tone="error" align="center" className="mb-4">
             {decodeURIComponent(error)}

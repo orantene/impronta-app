@@ -18,6 +18,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 import { legacySignupRedirect } from "@/lib/onboarding/legacy-signup-redirect";
@@ -30,14 +31,9 @@ import {
   shouldHoldOnboardingBounce,
 } from "@/lib/auth/onboarding-bounce";
 
-const ONBOARDING_ERROR_COPY: Record<string, string> = {
-  failed: "Something went wrong. Please try again.",
-  unknown: "Something went wrong. Please try again.",
-};
-
-function onboardingErrorMessage(code: string | undefined): string | null {
-  if (!code) return null;
-  return ONBOARDING_ERROR_COPY[code] ?? ONBOARDING_ERROR_COPY.failed;
+// Any error code shows the same generic line (unknown codes fall back to it).
+function hasOnboardingError(code: string | undefined): boolean {
+  return Boolean(code);
 }
 
 export default async function OnboardingRolePage({
@@ -173,6 +169,8 @@ export default async function OnboardingRolePage({
     await chooseTalentRole(fd);
   }
 
+  const t = createTranslator(await getRequestLocale());
+
   return (
     <div className="mx-auto w-full max-w-[520px] px-5 py-12 sm:py-16">
       {/* Eyebrow */}
@@ -180,7 +178,7 @@ export default async function OnboardingRolePage({
         className="plt-mono text-center text-[0.625rem] font-semibold uppercase tracking-[0.22em]"
         style={{ color: "var(--plt-forest)" }}
       >
-        Step 1 of 2 · Role
+        {t("public.onboarding.role.eyebrow")}
       </p>
 
       {/* Title */}
@@ -188,15 +186,14 @@ export default async function OnboardingRolePage({
         className="plt-display mt-2 text-center text-[1.875rem] font-semibold leading-[1.15] tracking-[-0.02em] sm:text-[2.25rem]"
         style={{ color: "var(--plt-ink)" }}
       >
-        How will you use{" "}
+        {t("public.onboarding.role.titleLead")}{" "}
         <span style={{ color: "var(--plt-forest)" }}>{PLATFORM_BRAND.name}?</span>
       </h1>
       <p
         className="mx-auto mt-3 max-w-[380px] text-center text-[0.9375rem] leading-[1.5]"
         style={{ color: "var(--plt-muted)" }}
       >
-        Pick how you want to start. This sets your home dashboard, and you
-        can&apos;t change it later from here.
+        {t("public.onboarding.role.intro")}
       </p>
 
       {/* Card */}
@@ -209,7 +206,7 @@ export default async function OnboardingRolePage({
             "0 24px 60px -28px rgba(15,23,20,0.32), 0 2px 6px -2px rgba(15,23,20,0.06)",
         }}
       >
-        {onboardingErrorMessage(error) ? (
+        {hasOnboardingError(error) ? (
           <p
             className="mb-4 rounded-xl px-3 py-2 text-center text-[0.8125rem]"
             style={{
@@ -218,7 +215,7 @@ export default async function OnboardingRolePage({
               border: "1px solid rgba(180, 35, 24, 0.18)",
             }}
           >
-            {onboardingErrorMessage(error)}
+            {t("public.onboarding.role.error")}
           </p>
         ) : null}
 
@@ -227,8 +224,8 @@ export default async function OnboardingRolePage({
             {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
             <RoleChoice
               glyph={<TalentGlyph />}
-              title="I'm Talent"
-              description="Model, performer, artist, or creative. Get a profile, share one link, and let bookings come to you."
+              title={t("public.onboarding.role.talentTitle")}
+              description={t("public.onboarding.role.talentBody")}
             />
           </form>
 
@@ -236,8 +233,8 @@ export default async function OnboardingRolePage({
             {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
             <RoleChoice
               glyph={<ClientGlyph />}
-              title="I'm a Client"
-              description="Brand, producer, event planner, or casting director. Browse the directory and send booking requests."
+              title={t("public.onboarding.role.clientTitle")}
+              description={t("public.onboarding.role.clientBody")}
             />
           </form>
 
@@ -250,8 +247,8 @@ export default async function OnboardingRolePage({
           <RoleChoiceLink
             href={`${getSiteUrl()}/get-started`}
             glyph={<WorkspaceGlyph />}
-            title="I run a business"
-            description="Agency, studio, band, team, or just you. Set up a workspace with your own site, roster, bookings, and payments."
+            title={t("public.onboarding.role.businessTitle")}
+            description={t("public.onboarding.role.businessBody")}
           />
         </div>
 
@@ -259,7 +256,7 @@ export default async function OnboardingRolePage({
           className="mt-5 text-center text-[0.75rem]"
           style={{ color: "var(--plt-muted)" }}
         >
-          Staff accounts are assigned by the agency directly.
+          {t("public.onboarding.role.staffNote")}
         </p>
       </div>
     </div>

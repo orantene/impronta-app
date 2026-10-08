@@ -14,6 +14,7 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { prefersPasswordlessFirst } from "@/lib/auth/otp-flow";
 import { buildRegisterHref, readRegisterIntent } from "@/lib/auth/register-intent";
 import { EmailCodeForm } from "@/components/auth/email-code-form";
+import { resolveShowCardLocaleToggle } from "@/lib/auth/card-locale-toggle.server";
 import { AuthCardLocaleToggle } from "@/components/auth/auth-card-locale-toggle";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
@@ -58,6 +59,7 @@ export default async function LoginPage({
   const { error, next, email, reason } = params;
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
+  const showCardToggle = await resolveShowCardLocaleToggle();
   const nextPath = normalizeOptionalNextPath(next);
   // P4 — a booker who arrived from the client funnel (/register?as=client, the
   // talent-portal inquiry CTA, a client-side "sign in" link) gets the emailed
@@ -124,7 +126,9 @@ export default async function LoginPage({
       />
 
       <AuthCard>
-        <AuthCardLocaleToggle locale={locale} label={t("public.auth.language")} />
+        {showCardToggle ? (
+          <AuthCardLocaleToggle locale={locale} label={t("public.auth.language")} />
+        ) : null}
         {!error && reason === "session_expired" ? (
           <AuthNotice tone="info" align="center" className="mb-4">
             {t("public.auth.login.sessionExpired")}
