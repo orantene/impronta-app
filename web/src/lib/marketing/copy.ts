@@ -99,6 +99,8 @@ const en = {
     accountSettings: "Account settings",
     /** Accessible name + heading for the header's globe language menu. */
     language: "Language",
+    /** Logo link to the marketing home; `{name}` is PLATFORM_BRAND.name. */
+    homeAria: "{name} home",
     /** Placeholder + accessible name for the mobile menu's directory search. */
     searchTalent: "Search talent…",
     /** Reassurance line under the mobile menu's Get started CTA. */
@@ -492,6 +494,8 @@ const es: MarketingCopy = {
     savedTalent: "Talento guardado",
     accountSettings: "Configuración de cuenta",
     language: "Idioma",
+    /** Logo link to the marketing home; `{name}` is PLATFORM_BRAND.name. */
+    homeAria: "Inicio de {name}",
     searchTalent: "Busca talento…",
     stageNote: "Espacios de trabajo gratis · Sin tarjeta · dirigido por su fundador",
   },
