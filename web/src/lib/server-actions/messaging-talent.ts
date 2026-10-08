@@ -23,6 +23,7 @@ import {
 import { loadTalentInboxForActor } from "@/lib/messaging/talent-inbox-rows";
 import { loadMessagingThread } from "@/lib/messaging/thread";
 import type { InboxFilter } from "@/lib/messaging/types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
@@ -107,6 +108,7 @@ export async function messagingTalentReply(input: {
   body: string;
   expectedVersion: number;
 }) {
+  await requireNotImpersonating();
   const parsed = z
     .object({ inquiryId: uuid, body: z.string().trim().min(1).max(8000), expectedVersion: z.number() })
     .safeParse(input);
@@ -128,6 +130,7 @@ export async function messagingTalentReply(input: {
 }
 
 export async function messagingTalentThreadLink(input: { inquiryId: string }) {
+  await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const gate = await owned(parsed.data.inquiryId);
@@ -153,6 +156,7 @@ export async function messagingTalentThreadLink(input: { inquiryId: string }) {
 }
 
 export async function messagingTalentInvitation(input: { inquiryId: string }) {
+  await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const gate = await owned(parsed.data.inquiryId);
@@ -163,6 +167,7 @@ export async function messagingTalentInvitation(input: { inquiryId: string }) {
 }
 
 export async function messagingTalentDecide(input: { inquiryId: string; decision: "accept" | "decline" }) {
+  await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid, decision: z.enum(["accept", "decline"]) }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const gate = await owned(parsed.data.inquiryId);
@@ -184,6 +189,7 @@ export async function messagingTalentDecide(input: { inquiryId: string; decision
 }
 
 export async function messagingTalentMarkRead(input: { inquiryId: string }) {
+  await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return;
   await markTalentInquiryThreadRead("talent", parsed.data.inquiryId);

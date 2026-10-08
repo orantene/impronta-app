@@ -22,6 +22,7 @@
  *   `inquiry_attachments_client_insert` policy guards it.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -62,6 +63,8 @@ export type ClientAttachmentRemoveResult =
 export async function uploadInquiryAttachmentAsClient(
   formData: FormData,
 ): Promise<ClientAttachmentActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const inquiryId = String(formData.get("inquiryId") ?? "").trim();
     const kindRaw = String(formData.get("attachmentKind") ?? "").trim();
@@ -243,6 +246,8 @@ export async function listInquiryAttachmentsAsClient(
 export async function removeInquiryAttachmentAsClient(
   attachmentId: string,
 ): Promise<ClientAttachmentRemoveResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     if (!attachmentId) return { ok: false, error: "Missing attachmentId." };
 

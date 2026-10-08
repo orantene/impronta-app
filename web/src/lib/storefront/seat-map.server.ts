@@ -13,6 +13,7 @@ import { mapEngineRefusal } from "./refusals";
 import { resolveStorefrontIdentity, storefrontLocale } from "./request-context";
 import { actSeatMapCore, readSeatMapCore, type SeatMapDeps } from "./seat-map.core";
 import type { SeatMapData, SeatMapInput, SeatMapProps, SeatMapResult } from "./seat-map.types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 async function bind(locale: string | null | undefined): Promise<SeatMapDeps | null> {
   const admin = createServiceRoleClient();
@@ -43,6 +44,7 @@ export async function readSeatMap(
 }
 
 export async function actSeatMap(input: SeatMapInput, _expectedVersion?: number): Promise<SeatMapResult> {
+  await requireNotImpersonating();
   try {
     const deps = await bind(input.locale);
     if (!deps) return mapEngineRefusal("unavailable", "en");

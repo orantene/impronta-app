@@ -21,6 +21,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { revalidatePath } from "next/cache";
 import { PAYOUTS_OWNER_ONLY_ERROR } from "./payouts-access-copy";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type BaseFeeResult<T = void> =
   | { ok: true; data: T }
@@ -91,6 +92,7 @@ export async function saveWorkspaceBaseFee(
   tenantSlug: string,
   input: { baseFeeCents: number | null; baseFeeBps: number | null },
 ): Promise<BaseFeeResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceEditor(tenantSlug);
   if (!auth.ok) return auth;
   const { sb, tenantId, actorId } = auth;

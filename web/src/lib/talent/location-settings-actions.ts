@@ -1,5 +1,6 @@
 "use server";
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -51,6 +52,8 @@ export async function saveLocationSettings(
   talentProfileId: string,
   input: LocationSettings,
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return auth;
   const settings = parseLocationSettings(input);

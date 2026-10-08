@@ -38,6 +38,8 @@ import {
   type CaptchaOverrideResult,
 } from "@/lib/integrations/captcha-override-core";
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+
 const REVALIDATE_PATH = "/platform/admin/integrations";
 
 export type WorkspaceCaptchaRow = {
@@ -148,6 +150,8 @@ export async function loadWorkspaceCaptchaOverrides(): Promise<WorkspaceCaptchaV
 export async function resetWorkspaceCaptchaToPlatform(
   tenantId: string,
 ): Promise<CaptchaOverrideResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   return disconnectWorkspaceCaptchaWith(
     {
       guard: requirePlatformAdmin,

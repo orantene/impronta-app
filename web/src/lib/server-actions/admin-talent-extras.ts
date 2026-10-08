@@ -21,6 +21,7 @@ import { z } from "zod";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ─── Trust badges ───────────────────────────────────────────────────────────
 
@@ -58,6 +59,8 @@ const createTrustBadgeSchema = z.object({
 export async function createTrustBadge(
   input: z.input<typeof createTrustBadgeSchema>,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
@@ -104,6 +107,8 @@ const updateTrustBadgeSchema = z.object({
 export async function updateTrustBadge(
   input: z.input<typeof updateTrustBadgeSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
@@ -189,6 +194,8 @@ const createPermissionRequestSchema = z.object({
 export async function createPermissionRequest(
   input: z.input<typeof createPermissionRequestSchema>,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
@@ -247,6 +254,8 @@ const respondToPermissionRequestSchema = z.object({
 export async function respondToPermissionRequest(
   input: z.input<typeof respondToPermissionRequestSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, user } = auth;
@@ -325,6 +334,8 @@ export async function revokeDataGrant(input: {
   grant_id: string;
   reason?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
@@ -354,6 +365,8 @@ const addCalendarSchema = z.object({
 export async function addExternalCalendar(
   input: z.input<typeof addCalendarSchema>,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
@@ -397,6 +410,8 @@ export async function addExternalCalendar(
 export async function removeExternalCalendar(input: {
   calendar_id: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
@@ -463,6 +478,8 @@ const addAgencyMediaSchema = z.object({
 export async function addAgencyMedia(
   input: z.input<typeof addAgencyMediaSchema>,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
@@ -502,6 +519,8 @@ export async function addAgencyMedia(
 export async function removeAgencyMedia(input: {
   agency_talent_media_id: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
@@ -529,6 +548,8 @@ const reorderAgencyMediaSchema = z.object({
 export async function reorderAgencyMedia(
   input: z.input<typeof reorderAgencyMediaSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
@@ -575,6 +596,8 @@ export async function reorderAgencyMedia(
 export async function computeProfileCompleteness(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true; pct: number } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
@@ -661,6 +684,8 @@ export async function computeProfileCompleteness(input: {
 export async function touchTalentLastActive(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;

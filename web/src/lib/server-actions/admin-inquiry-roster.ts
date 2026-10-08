@@ -12,6 +12,7 @@ import { requireWorkspaceStaffAction, requireInquiryManagerAction } from "@/lib/
 import { CLIENT_ERROR } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { Database } from "@/lib/supabase/database.types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // T2b Phase C batch 1 — narrow inquiry_participants row type, sourced from
 // the canonical generated schema (Phase A). The tenantScopedQuery helper's
@@ -41,6 +42,7 @@ function mapRosterEngineFailure(res: EngineErr): ActionResult {
 }
 
 export async function rosterAddTalent(formData: FormData): Promise<ActionResult> {
+  await requireNotImpersonating();
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const auth = await requireInquiryManagerAction(inquiryId);
   if (!auth.ok) {
@@ -76,6 +78,7 @@ export async function rosterAddTalent(formData: FormData): Promise<ActionResult>
 }
 
 export async function rosterRemoveParticipant(formData: FormData): Promise<ActionResult> {
+  await requireNotImpersonating();
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const auth = await requireInquiryManagerAction(inquiryId);
   if (!auth.ok) {
@@ -107,6 +110,7 @@ export async function rosterRemoveParticipant(formData: FormData): Promise<Actio
 }
 
 export async function rosterMoveParticipant(formData: FormData): Promise<ActionResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };

@@ -6,10 +6,13 @@ import { revalidatePath } from "next/cache";
 import { ACTIVE_TALENT_TENANT_COOKIE } from "@/lib/talent/active-agency-context";
 import { requirePlatformTalentContext } from "@/lib/talent/platform-talent-context";
 import { listTalentAgencyContexts } from "@/lib/talent/active-agency-context";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export async function setActiveTalentAgencyAction(
   tenantId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const ctx = await requirePlatformTalentContext();
   const roster = await listTalentAgencyContexts(ctx.talentProfileId);
   if (!roster.some((r) => r.tenantId === tenantId)) {

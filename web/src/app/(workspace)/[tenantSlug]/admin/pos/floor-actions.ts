@@ -30,6 +30,7 @@ import { loadDefaultVenue, resolveTenantTimezone } from "@/lib/spaces/venues";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 import type { FloorReserveResult, FloorReserveTimes } from "@/components/admin/floor/floor-types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 async function staff() {
   const guard = await requireWorkspaceStaffAction();
@@ -100,6 +101,7 @@ export async function floorCreateReservation(input: {
   email: string;
   phone: string;
 }): Promise<FloorReserveResult> {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = createInput.safeParse(input);

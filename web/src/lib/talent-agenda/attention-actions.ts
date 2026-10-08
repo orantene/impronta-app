@@ -10,6 +10,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { completeBooking, markBookingNoShow } from "./booking-actions";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type AttentionActionResult =
   | { ok: true; already?: boolean }
@@ -34,6 +35,7 @@ async function ownTalentProfileId(): Promise<string | null> {
 
 /** Release a hold the signed-in talent owns. */
 export async function releaseOwnTalentHold(holdId: string): Promise<AttentionActionResult> {
+  await requireNotImpersonating();
   if (!holdId) return { ok: false, reason: "missing" };
   const talentId = await ownTalentProfileId();
   if (!talentId) return { ok: false, reason: "unauthorized" };
@@ -88,6 +90,7 @@ export async function releaseOwnTalentHold(holdId: string): Promise<AttentionAct
 
 /** Complete a booking the talent is on (agency_bookings id). Ownership via requireOwnBooking. */
 export async function completeOwnAgendaBooking(bookingId: string): Promise<AttentionActionResult> {
+  await requireNotImpersonating();
   if (!bookingId) return { ok: false, reason: "missing" };
   const result = await completeBooking({ bookingId });
   if (result.ok) revalidatePath("/", "layout");
@@ -96,6 +99,7 @@ export async function completeOwnAgendaBooking(bookingId: string): Promise<Atten
 
 /** Mark no-show when start is in the past. Same ownership as complete (leg or mirror). */
 export async function markOwnAgendaNoShow(bookingId: string): Promise<AttentionActionResult> {
+  await requireNotImpersonating();
   if (!bookingId) return { ok: false, reason: "missing" };
   const result = await markBookingNoShow({ bookingId });
   if (result.ok) revalidatePath("/", "layout");

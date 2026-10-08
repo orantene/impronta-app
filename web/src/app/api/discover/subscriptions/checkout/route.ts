@@ -18,12 +18,15 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClientProCheckoutSession } from "@/lib/stripe/client-billing";
 import { deriveAppBaseUrl } from "@/lib/stripe/utils";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const dynamic = "force-dynamic";
 
 type Body = { tenantSlug?: string };
 
 export async function POST(req: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   const session = await getCachedActorSession();
   if (!session.user) {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });

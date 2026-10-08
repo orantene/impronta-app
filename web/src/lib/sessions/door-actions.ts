@@ -49,6 +49,7 @@ import {
   doorOutcomeForToken,
   type DoorOutcome,
 } from "@/lib/sessions/door";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ScanResult = { outcome: DoorOutcome };
 
@@ -71,6 +72,7 @@ export async function scanAdmission(
   rawToken: string,
   units = 1,
 ): Promise<ScanResult> {
+  await requireNotImpersonating();
   try {
     // ── 1. The signature, before anything reaches the database ──────────────
     const verdict = verifyAdmissionToken(rawToken);

@@ -4,6 +4,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { revalidatePath } from "next/cache";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type ReactionResult = { ok: true } | { ok: false; error: string };
 
@@ -11,6 +12,8 @@ export async function addReaction(
   messageId: string,
   emoji: string,
 ): Promise<ReactionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const session = await getCachedActorSession();
     if (!session?.user) return { ok: false, error: "Not authenticated." };
@@ -41,6 +44,8 @@ export async function removeReaction(
   messageId: string,
   emoji: string,
 ): Promise<ReactionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const session = await getCachedActorSession();
     if (!session?.user) return { ok: false, error: "Not authenticated." };

@@ -26,6 +26,7 @@ import type {
   SubscribeLocale,
   SubscribeResult,
 } from "./types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // Deliberately permissive but real: rejects the obvious garbage (no @, spaces,
 // missing TLD) without trying to fully parse RFC 5322. A zod schema would be
@@ -73,6 +74,7 @@ function buildUnsubscribeUrl(token: string, locale: SubscribeLocale): string {
 export async function subscribeToNewsletter(
   input: SubscribeInput,
 ): Promise<SubscribeResult> {
+  await requireNotImpersonating();
   // Honeypot: a filled `company` means a bot. Return `ok` so it learns nothing;
   // write nothing.
   if (input.company && input.company.trim() !== "") {
@@ -149,6 +151,7 @@ export async function subscribeToNewsletter(
  * "link not recognised" state without leaking whether the token ever existed.
  */
 export async function unsubscribeByToken(token: string): Promise<boolean> {
+  await requireNotImpersonating();
   const trimmed = (token ?? "").trim();
   // UUID shape guard — avoids a pointless DB round-trip on obvious junk.
   if (!/^[0-9a-f-]{36}$/i.test(trimmed)) return false;

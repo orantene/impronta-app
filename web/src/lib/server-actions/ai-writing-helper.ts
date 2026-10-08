@@ -7,6 +7,7 @@
  * it passes the same floor the deterministic bio passes. Per-tenant daily cap.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { resolveRoutedChat } from "@/lib/ai/call-routing.server";
 import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
 import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
@@ -28,6 +29,8 @@ export type WriteResult = { ok: true; text: string } | { ok: false; code: "not_a
 
 /** One helper call. Returns the draft only; nothing is saved until `saveMyBio`. */
 export async function aiWriteMyBio(input: { op: WritingOp; tone?: WritingTone | null; text: string; locale: Locale }): Promise<WriteResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "failed", message: readOnly.error };
   if (!WRITING_OPS.includes(input.op)) return { ok: false, code: "failed" };
   if (input.tone && !WRITING_TONES.includes(input.tone)) return { ok: false, code: "failed" };
   const self = await selfFacts();
@@ -59,6 +62,7 @@ export async function aiWriteMyBio(input: { op: WritingOp; tone?: WritingTone | 
 }
 
 export async function saveMyBio(input: { text: string; locale: Locale }): Promise<{ ok: true } | { ok: false; code: "no_profile" | "invalid" | "failed" }> {
+  if (!(await assertNotImpersonating()).ok) return { ok: false, code: "failed" };
   const text = input.text.replace(/\s+/g, " ").trim();
   if (text.length === 0 || text.length > BIO_MAX_CHARS || /[—–]/.test(text)) return { ok: false, code: "invalid" };
   const self = await selfFacts();

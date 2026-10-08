@@ -13,6 +13,7 @@
  * an owner/admin guard and its own action; not wired in this talent-first slice.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -40,6 +41,8 @@ export async function getFeePayer(): Promise<FeePayer> {
 }
 
 export async function setFeePayer(value: FeePayer): Promise<SetFeePayerResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     if (value !== "seller" && value !== "client") return { ok: false, error: "invalid_payer" };
     const guard = await requireTalentSelf();

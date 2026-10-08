@@ -6,12 +6,15 @@ import { NextResponse } from "next/server";
 import { rebuildDemos } from "@/lib/talent-site/demos/demo-rebuild.server";
 import { parseRebuildBody } from "@/lib/talent-site/demos/rebuild-entry";
 import { runDemoRoute } from "@/lib/talent-site/demos/rebuild-route-handler";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   return runDemoRoute(request, "platform/demos/rebuild", async (admin, raw, auth) => {
     const parsed = parseRebuildBody(raw);
     if (!parsed.ok) return NextResponse.json({ ok: false, error: "bad_input" }, { status: 400 });

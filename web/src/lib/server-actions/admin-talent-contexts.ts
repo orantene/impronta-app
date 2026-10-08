@@ -26,6 +26,7 @@ import {
   type ContextCatalogGroup,
   type ResolvedContext,
 } from "./admin-talent-contexts.types";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ─── Read: a talent's resolved contexts ────────────────────────────────────
 
@@ -242,6 +243,8 @@ export async function setTalentProfileContexts(
   | { ok: true; contexts: ResolvedContext[] }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;

@@ -8,6 +8,7 @@
  * (which imports `server-only`) is never pulled into a client bundle.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import {
   loadMyNotifications as loadMyNotificationsImpl,
   markNotificationsRead as markNotificationsReadImpl,
@@ -21,5 +22,6 @@ export async function loadMyNotifications(limit?: number): Promise<MyNotificatio
 export async function markNotificationsRead(
   ids: string[] | "all",
 ): Promise<{ ok: boolean }> {
+  if (!(await assertNotImpersonating()).ok) return { ok: false };
   return markNotificationsReadImpl(ids);
 }

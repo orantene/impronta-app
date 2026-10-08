@@ -22,6 +22,8 @@ import { sanitizeWorkspaceFieldCatalogOverride } from "@/lib/field-engine/worksp
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import type { FieldOverrideSnapshot, GroupOverrideSnapshot, ScopeDefRow, ScopeRecRow, ScopeTermRow, ScopeSettingRow } from "./admin-workspace-field-settings-types";
 
 // ── Phase 7a — audit helpers ────────────────────────────────────────────
 // Tiny shaping helpers so the before/after snapshots stored in
@@ -29,27 +31,6 @@ import { pgUuidSchema } from "@/lib/site-admin/validators";
 // in this file (not in engine-audit.ts) — they're tied to *this* table's
 // column set, not to the audit log itself.
 
-type FieldOverrideSnapshot = {
-  enabled_override: boolean | null;
-  required_override: boolean | null;
-  show_in_public_override: boolean | null;
-  admin_only_override: boolean | null;
-  default_visibility_override: string[] | null;
-  custom_label: string | null;
-  custom_helper: string | null;
-  display_order_override: number | null;
-};
-
-type GroupOverrideSnapshot = {
-  is_enabled: boolean | null;
-  custom_label: string | null;
-  display_order: number | null;
-};
-
-type ScopeDefRow = { id: string; tier: string | null; field_group_id?: string | null };
-type ScopeRecRow = { field_definition_id: string; taxonomy_term_id: string };
-type ScopeTermRow = { id: string; parent_id: string | null; is_active: boolean | null };
-type ScopeSettingRow = { taxonomy_term_id: string; is_enabled: boolean | null };
 
 function scopeCatalogDefs<Field extends ScopeDefRow>(defs: readonly Field[], recs: readonly ScopeRecRow[], terms: readonly ScopeTermRow[], settings: readonly ScopeSettingRow[]): Field[] {
   return filterTenantCatalogFieldsByEnabledTaxonomy(defs, recs, terms, settings);
@@ -305,6 +286,8 @@ export async function getWorkspaceFieldSettings(): Promise<
 export async function setWorkspaceFieldVisibility(
   input: z.infer<typeof visibilitySchema>,
 ): Promise<OkResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = visibilitySchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid request." };
   const { field_definition_id, visibility } = parsed.data;
@@ -396,6 +379,8 @@ export async function setWorkspaceFieldVisibility(
 export async function resetWorkspaceFieldVisibility(
   input: z.infer<typeof fieldIdSchema>,
 ): Promise<OkResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = fieldIdSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid request." };
 
@@ -627,6 +612,8 @@ export async function getWorkspaceFieldCatalog(): Promise<
 export async function setWorkspaceFieldCatalog(
   input: z.infer<typeof catalogFieldSchema>,
 ): Promise<OkResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = catalogFieldSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid request." };
   const { field_definition_id, custom_label, helper, display_order } = parsed.data;
@@ -725,6 +712,8 @@ export async function setWorkspaceFieldCatalog(
 export async function setWorkspaceFieldGroup(
   input: z.infer<typeof catalogGroupSchema>,
 ): Promise<OkResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = catalogGroupSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid request." };
   const { field_group_id, is_enabled, custom_label, display_order } = parsed.data;

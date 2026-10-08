@@ -15,6 +15,7 @@ import { getPlatformRole } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { PLAN_SEAT_CAPS } from "@/lib/saas/plan-seat-caps";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type TenantActionResult<T = void> =
   | { ok: true; data: T }
@@ -98,6 +99,7 @@ export async function actionUpdateTenantSettings(input: {
   displayName?: string;
   kind?: string;
 }): Promise<TenantActionResult> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;
@@ -140,6 +142,7 @@ export async function actionSetTenantStatus(input: {
   status: string;
   reason?: string | null;
 }): Promise<TenantActionResult> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;
@@ -192,6 +195,7 @@ export async function actionDeleteTenant(input: {
   tenantId: string;
   confirmSlug: string;
 }): Promise<TenantActionResult> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;
@@ -236,6 +240,7 @@ export async function actionAddDomain(input: {
   hostname: string;
   kind: string;
 }): Promise<TenantActionResult> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;
@@ -296,6 +301,7 @@ export async function actionRemoveDomain(input: {
   tenantId: string;
   domainId: string;
 }): Promise<TenantActionResult> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;
@@ -337,6 +343,7 @@ export async function actionSetPrimaryDomain(input: {
   tenantId: string;
   domainId: string;
 }): Promise<TenantActionResult> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;
@@ -383,6 +390,7 @@ export async function actionCreateTenant(input: {
   kind: string;
   ownerEmail?: string | null;
 }): Promise<TenantActionResult<{ id: string }>> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;

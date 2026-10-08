@@ -16,6 +16,7 @@ import {
   loadWhatsAppConnectionRow,
   mapPublicRow,
 } from "./whatsapp-connection";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
@@ -79,6 +80,7 @@ export async function loadWhatsAppConnection(): Promise<
 }
 
 export async function startWhatsAppPairing(input: { consented: boolean }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   if (!(await isMessagingChannelsEnabledForTenant({ tenantId: g.tenantId })))
@@ -106,6 +108,7 @@ export async function startWhatsAppPairing(input: { consented: boolean }) {
 }
 
 export async function requestWhatsAppPairingCode(input: { phone: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   if (!(await isMessagingChannelsEnabledForTenant({ tenantId: g.tenantId })))
@@ -128,6 +131,7 @@ export async function requestWhatsAppPairingCode(input: { phone: string }) {
 }
 
 export async function unlinkWhatsApp() {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   if (!(await isMessagingChannelsEnabledForTenant({ tenantId: g.tenantId })))
@@ -151,6 +155,7 @@ export async function unlinkWhatsApp() {
 }
 
 export async function askOwnerToConnectWhatsApp() {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   if (!(await isMessagingChannelsEnabledForTenant({ tenantId: g.tenantId })))

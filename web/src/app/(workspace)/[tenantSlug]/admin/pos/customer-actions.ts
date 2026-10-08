@@ -12,6 +12,7 @@ import { ensureCustomer } from "@/lib/customers/ensure-customer";
 import { attachDraftCustomer } from "@/lib/pos/attach-customer";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
@@ -39,6 +40,7 @@ export async function posAttachCustomer(input: {
   phone?: string | null;
   displayName?: string | null;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({

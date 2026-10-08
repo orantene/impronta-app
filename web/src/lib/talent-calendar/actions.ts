@@ -3,6 +3,7 @@
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { revalidatePath } from "next/cache";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Talent-side calendar write actions (B.3).
@@ -25,6 +26,8 @@ export type CreateBlockInput = {
 export async function createTalentAvailabilityBlock(
   input: CreateBlockInput,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     if (!input.talentProfileId) return { ok: false, error: "Missing talent profile." };
     if (!input.reason.trim()) return { ok: false, error: "Reason is required." };
@@ -65,6 +68,7 @@ export async function createTalentAvailabilityBlock(
 export async function deleteTalentAvailabilityBlock(
   blockId: string,
 ): Promise<{ ok: boolean }> {
+  await requireNotImpersonating();
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false };
@@ -103,6 +107,8 @@ export type UpdateBlockInput = {
 export async function updateTalentAvailabilityBlock(
   input: UpdateBlockInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, error: "Service unavailable." };
@@ -241,6 +247,8 @@ export async function bulkSaveTalentAvailabilityBlocks(input: {
     visibility?: "private" | "agency_visible";
   }>;
 }): Promise<{ ok: true; replaced: number } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, error: "Service unavailable." };

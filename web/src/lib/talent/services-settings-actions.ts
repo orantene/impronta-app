@@ -1,5 +1,6 @@
 "use server";
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -96,6 +97,8 @@ export async function saveSellingDefaults(
   talentProfileId: string,
   defaults: SellingDefaults,
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return auth;
   const prev =
@@ -136,6 +139,8 @@ export async function saveCategoryOrder(
   talentProfileId: string,
   order: string[],
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return auth;
   const { error } = await auth.admin
@@ -152,6 +157,8 @@ export async function renameCategory(
   from: string,
   to: string,
 ): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return auth;
   const next = to.trim().slice(0, 80);
@@ -190,6 +197,8 @@ export async function mergeCategories(
   from: string,
   into: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   return (await renameCategory(talentProfileId, from, into)).ok
     ? { ok: true }
     : { ok: false, error: "Could not merge." };
@@ -303,6 +312,8 @@ export async function upsertAddonGroup(
     mediaAssetId?: string | null;
   },
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return auth;
   const name = input.name.trim().slice(0, 80);

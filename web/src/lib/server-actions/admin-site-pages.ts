@@ -49,6 +49,7 @@ import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { resolveAdditionalPageDenial } from "@/lib/site-admin/server/page-quota";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ---- shared state shape --------------------------------------------------
 
@@ -140,6 +141,7 @@ export async function deletePageAction(
   _prev: PageActionState,
   formData: FormData,
 ): Promise<PageActionState> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
@@ -186,6 +188,7 @@ export async function publishPageAction(
   _prev: PageActionState,
   formData: FormData,
 ): Promise<PageActionState> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
@@ -237,6 +240,7 @@ export async function archivePageAction(
   _prev: PageActionState,
   formData: FormData,
 ): Promise<PageActionState> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
@@ -288,6 +292,7 @@ export async function restorePageRevisionAction(
   _prev: PageActionState,
   formData: FormData,
 ): Promise<PageActionState> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
@@ -349,6 +354,7 @@ export async function startPagePreviewAction(
   _prev: PageActionState,
   formData: FormData,
 ): Promise<PageActionState> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
@@ -414,6 +420,7 @@ export async function endPagePreviewAction(
   _prev: PageActionState,
   _formData: FormData,
 ): Promise<PageActionState> {
+  await requireNotImpersonating();
   void _prev;
   void _formData;
   const auth = await requireSession();
@@ -490,6 +497,8 @@ export async function listPagesForPickerAction(): Promise<
 export async function createDraftPageAction(): Promise<
   { ok: true; id: string; slug: string; locale: string } | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
@@ -605,6 +614,8 @@ export async function createDraftPageAction(): Promise<
 export async function duplicatePageAction(
   sourceId: string,
 ): Promise<{ ok: true; id: string; slug: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);

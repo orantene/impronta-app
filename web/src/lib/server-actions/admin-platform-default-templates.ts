@@ -34,6 +34,7 @@ import {
   type LabRevalidateTarget,
 } from "@/lib/site-admin/builder-core/templates/lab-cache-paths";
 import type { BuilderTemplateTarget } from "@/lib/site-admin/builder-core/templates/registry-rows";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /** A lightweight published-template option for the Default-surfaces select. */
 export interface DefaultSurfaceTemplateOption {
@@ -130,6 +131,8 @@ export async function savePlatformDefaultTemplatePointerAction(input: {
   surface: PlatformTemplateSurface;
   templateId: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requireSuperAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 
@@ -153,6 +156,8 @@ export async function savePlatformDefaultTemplatePointerAction(input: {
 export async function savePlatformDefaultTalentFreeformAction(input: {
   enabled: boolean;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requireSuperAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 

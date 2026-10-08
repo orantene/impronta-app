@@ -38,6 +38,7 @@ import {
   type SaveScheduleItemResult,
   type SearchPerformersResult,
 } from "@/lib/events/schedule/staff-store";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // One line on purpose: `scripts/check-server-actions.mjs` classifies an export by its first line.
 export type { DeleteScheduleItemResult, ImportLineupResult, ListEventSpacesResult, ListScheduleItemsResult, ReorderScheduleItemsResult, SaveEventProgramSettingsResult, SaveScheduleItemResult, SearchPerformersResult } from "@/lib/events/schedule/staff-store";
@@ -66,6 +67,7 @@ export async function listScheduleItems(input: { eventId: string }): Promise<Lis
 
 /** Create (no `id`) or update (`id`). The store parses the whole shape and checks every foreign key inside the tenant. */
 export async function saveScheduleItem(input: unknown): Promise<SaveScheduleItemResult> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction({ capability: CAPABILITY });
   if (!guard.ok) return { ok: false, error: guard.error };
   const admin = createServiceRoleClient();
@@ -81,6 +83,7 @@ export async function saveScheduleItem(input: unknown): Promise<SaveScheduleItem
 }
 
 export async function deleteScheduleItem(input: { id: string }): Promise<DeleteScheduleItemResult> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction({ capability: CAPABILITY });
   if (!guard.ok) return { ok: false, error: guard.error };
   const parsed = itemIdSchema.safeParse(input);
@@ -99,6 +102,7 @@ export async function deleteScheduleItem(input: { id: string }): Promise<DeleteS
 
 /** A draft copy titled "<title> (copia)", placed right after the original. */
 export async function duplicateScheduleItem(input: { id: string }): Promise<SaveScheduleItemResult> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction({ capability: CAPABILITY });
   if (!guard.ok) return { ok: false, error: guard.error };
   const parsed = itemIdSchema.safeParse(input);
@@ -119,6 +123,7 @@ const reorderSchema = z.object({ eventId: uuidWire, orderedIds: z.array(uuidWire
 
 /** `sort_order = index` for every id; refused whole when any id is not an item of this event. */
 export async function reorderScheduleItems(input: { eventId: string; orderedIds: string[] }): Promise<ReorderScheduleItemsResult> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction({ capability: CAPABILITY });
   if (!guard.ok) return { ok: false, error: guard.error };
   const parsed = reorderSchema.safeParse(input);
@@ -137,6 +142,7 @@ export async function reorderScheduleItems(input: { eventId: string; orderedIds:
 
 /** `events.program`: the switch, the heading, set-times-public, group-by. Partial: unnamed keys keep their value. */
 export async function saveEventProgramSettings(input: { eventId: string; settings: unknown }): Promise<SaveEventProgramSettingsResult> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction({ capability: CAPABILITY });
   if (!guard.ok) return { ok: false, error: guard.error };
   const parsed = eventIdSchema.safeParse(input);
@@ -155,6 +161,7 @@ export async function saveEventProgramSettings(input: { eventId: string; setting
 
 /** "Añadir desde el cartel": one draft `set` item per BOOKED act, time TBA; idempotent by performer. */
 export async function importLineupAsScheduleItems(input: { eventId: string }): Promise<ImportLineupResult> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction({ capability: CAPABILITY });
   if (!guard.ok) return { ok: false, error: guard.error };
   const parsed = eventIdSchema.safeParse(input);

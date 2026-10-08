@@ -16,6 +16,7 @@
  * profile, not a role) — the same guard the talent-self media uploads use.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidateTag } from "next/cache";
 
 import { hubTalentMediaTag } from "@/lib/media/talent-media-for-hub";
@@ -71,6 +72,8 @@ export async function actionRequestMediaRelease(input: {
   assetIds: string[];
   message?: string | null;
 }): Promise<ActionResult<ReleaseRequestOutcome>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   if (!UUID_RE.test(input.talentProfileId)) return { ok: false, error: "Invalid request." };
   if (!UUID_RE.test(input.ownerTenantId)) return { ok: false, error: "Invalid request." };
   if (input.targetTenantId !== null && !UUID_RE.test(input.targetTenantId)) {
@@ -127,6 +130,8 @@ export async function actionWithdrawMediaReleaseRequest(input: {
   talentProfileId: string;
   requestId: string;
 }): Promise<ActionResult<ReleaseWithdrawOutcome>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   if (!UUID_RE.test(input.talentProfileId)) return { ok: false, error: "Invalid request." };
   if (!UUID_RE.test(input.requestId)) return { ok: false, error: "Invalid request." };
 

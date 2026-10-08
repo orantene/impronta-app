@@ -1,5 +1,6 @@
 "use server";
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { isTalentWebsiteSettingsEnabled } from "@/lib/access/talent-website-settings";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -33,6 +34,7 @@ export async function loadCallNumberAction(): Promise<{ number: string | null } 
 export async function saveCallNumberAction(
   input: string,
 ): Promise<{ ok: true; number: string | null } | { ok: false; error: "forbidden" | "disabled" | "unavailable" | "invalid_number" | "write_failed" }> {
+  if (!(await assertNotImpersonating()).ok) return { ok: false, error: "forbidden" };
   const scope = await requireTalentSelf();
   if (!scope.ok) return { ok: false, error: "forbidden" };
   if (!isTalentWebsiteSettingsEnabled(scope.talentProfile.id)) return { ok: false, error: "disabled" };

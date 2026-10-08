@@ -30,6 +30,7 @@ import {
 } from "@/lib/payments/refund-execute";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type Context = {
   tenantId: string;
@@ -152,6 +153,7 @@ async function mutateStatus(
 }
 
 export async function createTransactionDraftAction(formData: FormData): Promise<never> {
+  await requireNotImpersonating();
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
   const inquiryId = String(formData.get("inquiryId") ?? "");
 
@@ -228,6 +230,7 @@ export async function createTransactionDraftAction(formData: FormData): Promise<
 }
 
 export async function requestPaymentAction(formData: FormData): Promise<never> {
+  await requireNotImpersonating();
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
   const inquiryId = String(formData.get("inquiryId") ?? "");
   const transactionId = String(formData.get("transactionId") ?? "");
@@ -243,6 +246,7 @@ export async function requestPaymentAction(formData: FormData): Promise<never> {
 }
 
 export async function markPendingAction(formData: FormData): Promise<never> {
+  await requireNotImpersonating();
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
   const inquiryId = String(formData.get("inquiryId") ?? "");
   const transactionId = String(formData.get("transactionId") ?? "");
@@ -257,6 +261,7 @@ export async function markPendingAction(formData: FormData): Promise<never> {
 }
 
 export async function selectPayoutReceiverAction(formData: FormData): Promise<never> {
+  await requireNotImpersonating();
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
   const inquiryId = String(formData.get("inquiryId") ?? "");
   const transactionId = String(formData.get("transactionId") ?? "");
@@ -319,6 +324,7 @@ export async function selectPayoutReceiverAction(formData: FormData): Promise<ne
 }
 
 export async function markPaidAction(formData: FormData): Promise<never> {
+  await requireNotImpersonating();
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
   const inquiryId = String(formData.get("inquiryId") ?? "");
   const transactionId = String(formData.get("transactionId") ?? "");
@@ -333,6 +339,7 @@ export async function markPaidAction(formData: FormData): Promise<never> {
 }
 
 export async function initiatePayoutAction(formData: FormData): Promise<never> {
+  await requireNotImpersonating();
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
   const inquiryId = String(formData.get("inquiryId") ?? "");
   const transactionId = String(formData.get("transactionId") ?? "");
@@ -347,6 +354,7 @@ export async function initiatePayoutAction(formData: FormData): Promise<never> {
 }
 
 export async function markPayoutSentAction(formData: FormData): Promise<never> {
+  await requireNotImpersonating();
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
   const inquiryId = String(formData.get("inquiryId") ?? "");
   const transactionId = String(formData.get("transactionId") ?? "");
@@ -367,6 +375,7 @@ export async function markPayoutSentAction(formData: FormData): Promise<never> {
 }
 
 export async function cancelTransactionAction(formData: FormData): Promise<never> {
+  await requireNotImpersonating();
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
   const inquiryId = String(formData.get("inquiryId") ?? "");
   const transactionId = String(formData.get("transactionId") ?? "");
@@ -381,6 +390,7 @@ export async function cancelTransactionAction(formData: FormData): Promise<never
 }
 
 export async function markFailedAction(formData: FormData): Promise<never> {
+  await requireNotImpersonating();
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
   const inquiryId = String(formData.get("inquiryId") ?? "");
   const transactionId = String(formData.get("transactionId") ?? "");
@@ -395,6 +405,7 @@ export async function markFailedAction(formData: FormData): Promise<never> {
 }
 
 export async function markDisputedAction(formData: FormData): Promise<never> {
+  await requireNotImpersonating();
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
   const inquiryId = String(formData.get("inquiryId") ?? "");
   const transactionId = String(formData.get("transactionId") ?? "");
@@ -426,6 +437,7 @@ export async function markDisputedAction(formData: FormData): Promise<never> {
  * refunded can now issue the real thing.
  */
 export async function refundTransactionAction(formData: FormData): Promise<never> {
+  await requireNotImpersonating();
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
   const inquiryId = String(formData.get("inquiryId") ?? "");
   const transactionId = String(formData.get("transactionId") ?? "");
@@ -497,6 +509,7 @@ export async function refundTransactionAction(formData: FormData): Promise<never
  * real.
  */
 export async function markRefundedAction(formData: FormData): Promise<never> {
+  await requireNotImpersonating();
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
   const inquiryId = String(formData.get("inquiryId") ?? "");
   const transactionId = String(formData.get("transactionId") ?? "");
@@ -529,6 +542,7 @@ export async function markRefundedAction(formData: FormData): Promise<never> {
 }
 
 export async function createAgencyPayoutAccountAction(formData: FormData): Promise<never> {
+  await requireNotImpersonating();
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
   const inquiryId = String(formData.get("inquiryId") ?? "");
 
