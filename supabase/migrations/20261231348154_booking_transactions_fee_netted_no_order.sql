@@ -11,7 +11,10 @@
 -- overcollection of the real principal.
 --
 -- Distinguisher: fee-netted is the only shape with platform_fee_basis_points > 0.
--- Do not key on platform_fee_cents > 0 — pass-through stores the surcharge there.
+-- Do not key on platform_fee_cents > 0 — pass-through stores the surcharge there
+-- with bps left at 0. Fee-netted writers must snapshot bps via
+-- feeNettedBasisPoints() so a 1¢ commission on a large gross cannot round to 0
+-- and slip into the pass-through lane (see Codex P2 on PR #2763).
 
 BEGIN;
 

@@ -29,7 +29,11 @@ import {
   describeTransactionTransitionEvent,
 } from "@/lib/bookings/transaction-events";
 import { planMarkRefundedLinkedRow } from "@/lib/bookings/mark-refunded-plan";
-import { guardFeeNettedOrderId } from "@/lib/bookings/fee-netted-order-guard";
+import {
+  feeNettedBasisPoints,
+  guardFeeNettedOrderId,
+  isFeeNettedBpsInconsistent,
+} from "@/lib/bookings/fee-netted-order-guard";
 import {
   notifyDepositReceived,
   notifyInvoiceIssued,
@@ -448,12 +452,26 @@ export async function createBookingTransaction(opts: {
             grossCents: grossAmountCents,
             feeCents: override,
             netCents: grossAmountCents - override,
-            feeBasisPoints: Math.round((override / grossAmountCents) * 10_000),
+            // TUL-154 / Codex P2: never round a positive commission to 0 bps
+            // (1¢ on gross > $200 would otherwise look like pass-through).
+            feeBasisPoints: feeNettedBasisPoints(override, grossAmountCents),
           }
         : calculateTransactionAmountsForBasisPoints(
             grossAmountCents,
             await loadPlatformTakeBps(opts.planTier),
           );
+
+    if (
+      isFeeNettedBpsInconsistent({
+        platformFeeCents: amounts.feeCents,
+        platformFeeBasisPoints: amounts.feeBasisPoints,
+      })
+    ) {
+      return {
+        ok: false,
+        error: "Fee-netted transactions with a positive platform fee must snapshot basis points ≥ 1.",
+      };
+    }
 
     // TUL-154: this writer is fee-netted (net = gross − platform commission).
     // Never attach order_id — order_collected_cents credits net as principal.

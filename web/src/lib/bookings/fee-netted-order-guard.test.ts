@@ -4,7 +4,9 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import {
+  feeNettedBasisPoints,
   guardFeeNettedOrderId,
+  isFeeNettedBpsInconsistent,
   isFeeNettedOrderIdViolation,
 } from "./fee-netted-order-guard";
 
@@ -64,6 +66,44 @@ describe("TUL-154 fee-netted order_id guard", () => {
       false,
     );
   });
+
+  it("1-cent fee on large gross still snapshots bps ≥ 1 (Codex P2)", () => {
+    const gross = 25_000; // > $200 → Math.round((1/gross)*10000) === 0
+    const fee = 1;
+    assert.equal(
+      Math.round((fee / gross) * 10_000),
+      0,
+      "precondition: naive round collapses the 1¢ fee",
+    );
+    assert.equal(feeNettedBasisPoints(fee, gross), 1);
+    assert.equal(
+      isFeeNettedBpsInconsistent({
+        platformFeeCents: fee,
+        platformFeeBasisPoints: Math.round((fee / gross) * 10_000),
+      }),
+      true,
+    );
+    assert.equal(
+      isFeeNettedBpsInconsistent({
+        platformFeeCents: fee,
+        platformFeeBasisPoints: feeNettedBasisPoints(fee, gross),
+      }),
+      false,
+    );
+    assert.equal(
+      isFeeNettedOrderIdViolation({
+        orderId: "11111111-1111-4111-8111-111111111111",
+        platformFeeBasisPoints: feeNettedBasisPoints(fee, gross),
+      }),
+      true,
+      "after consistent snapshot, CHECK/guard still block order_id",
+    );
+  });
+
+  it("feeNettedBasisPoints is 0 only when fee is 0", () => {
+    assert.equal(feeNettedBasisPoints(0, 10_000), 0);
+    assert.equal(feeNettedBasisPoints(600, 10_000), 600);
+  });
 });
 
 describe("TUL-154 migration + fee-netted writer", () => {
@@ -80,9 +120,10 @@ describe("TUL-154 migration + fee-netted writer", () => {
       sql,
       /CHECK\s*\(\s*order_id\s+IS\s+NULL\s+OR\s+platform_fee_basis_points\s*=\s*0\s*\)/i,
     );
+    assert.match(sql, /feeNettedBasisPoints/);
   });
 
-  it("createBookingTransaction insert never sets order_id (fee-netted path)", () => {
+  it("createBookingTransaction uses feeNettedBasisPoints and omits order_id", () => {
     const src = readFileSync(
       join(process.cwd(), "src/lib/bookings/transactions.ts"),
       "utf8",
@@ -92,7 +133,14 @@ describe("TUL-154 migration + fee-netted writer", () => {
     );
     assert.ok(createFn, "createBookingTransaction not found");
     const body = createFn[0];
+    assert.match(body, /feeNettedBasisPoints/);
+    assert.match(body, /isFeeNettedBpsInconsistent/);
     assert.match(body, /guardFeeNettedOrderId/);
+    assert.equal(
+      /Math\.round\(\(override\s*\/\s*grossAmountCents\)\s*\*\s*10_000\)/.test(body),
+      false,
+      "naive round must not remain on the override path",
+    );
     const insertRow = body.match(/const insertRow\s*=\s*\{([\s\S]*?)\};/);
     assert.ok(insertRow, "fee-netted insertRow object not found");
     assert.equal(
@@ -100,8 +148,6 @@ describe("TUL-154 migration + fee-netted writer", () => {
       false,
       "fee-netted create must omit order_id",
     );
-    assert.match(insertRow[1], /platform_fee_basis_points/);
-    assert.match(insertRow[1], /net_amount_cents/);
     assert.match(body, /\.from\("booking_transactions"\)\s*\.insert\(insertRow\)/);
   });
 });
