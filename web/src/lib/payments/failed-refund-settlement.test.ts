@@ -55,6 +55,21 @@ test("flagFailedRefundSettlement stamps needs_attention=refund_failed with actio
   assert.ok(!String(meta.needs_attention_note).includes("USD"));
 });
 
+test("needs_attention_note is zero-decimal aware (TUL-375)", async () => {
+  const s = refundStore();
+  await flagFailedRefundSettlement(s.admin, {
+    ...baseInput,
+    transactionId: "rx1",
+    amountCents: 4500,
+    currency: "jpy",
+  });
+  const note = String(
+    (s.tables.booking_transactions[0]!.metadata as Record<string, unknown>).needs_attention_note,
+  );
+  assert.match(note, /4,500 JPY/);
+  assert.doesNotMatch(note, /45\.00/);
+});
+
 test("flagging twice is idempotent", async () => {
   const s = refundStore();
   await flagFailedRefundSettlement(s.admin, { ...baseInput, transactionId: "rx1" });

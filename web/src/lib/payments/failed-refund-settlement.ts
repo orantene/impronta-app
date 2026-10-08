@@ -7,6 +7,10 @@
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  buildFailedRefundAttentionNote,
+  formatFailedRefundMoney,
+} from "@/lib/payments/failed-refund-attention-note";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = { from: (table: string) => any };
@@ -26,16 +30,7 @@ export type FailedRefundSettlementInput = {
 };
 
 function attentionNote(input: FailedRefundSettlementInput): string {
-  const code = (input.currency || "").trim().toUpperCase();
-  const amount = Number.isFinite(input.amountCents)
-    ? (input.amountCents / 100).toFixed(2)
-    : "?";
-  const money = code ? `${amount} ${code}` : amount;
-  const reason = input.failureReason?.trim() || "unspecified";
-  return (
-    `Stripe refund ${input.refundId} ${input.status.toUpperCase()} ` +
-    `(${money}; reason=${reason}). Customer was not paid. Arrange an alternative refund.`
-  );
+  return buildFailedRefundAttentionNote(input);
 }
 
 /**
@@ -152,11 +147,12 @@ export async function handleFailedRefundWebhookAction(input: {
   };
   const sb = createServiceRoleClient();
   if (sb) await applyFailedRefundSettlement(sb, settlement);
+  const money = formatFailedRefundMoney(input.amount, input.currency);
   logServerError(
     "stripe-webhook.refund.failed",
     new Error(
       `Refund ${input.refundId} ${input.status.toUpperCase()} for ` +
-        `${(input.amount / 100).toFixed(2)} ${input.currency.toUpperCase()} ` +
+        `${money} ` +
         `(charge=${input.chargeId ?? "unknown"}, payment_intent=${input.paymentIntentId ?? "unknown"}, ` +
         `reason=${input.failureReason ?? "unspecified"}). ` +
         `THE CUSTOMER HAS NOT BEEN PAID and the funds are back in the platform balance. ` +
