@@ -128,7 +128,7 @@ export function FeePayerCard({ currency, showTip: tipAllowed = true }: { currenc
     : t("Loading fee estimate…");
 
   const serviceNote = lines
-    ? t("Includes a {pct} Tulala service fee ({fee}), shown as its own line at checkout.")
+    ? t("The client also pays a {pct} Tulala service fee ({fee}) on top of your price, shown as its own line at checkout. \"I pay it\" only decides who covers the card fee, so the client total is higher than your price.")
         .replace("{pct}", formatTakePercent(lines.platformTakeBps))
         .replace("{fee}", formatFeeCardMoney(lines.platformFeeMinor, currency, locale))
     : null;
