@@ -35,8 +35,28 @@ export type FolioSiteCopy = {
   shoeLabel: { en: string; es: string };
 };
 
+<<<<<<< HEAD
 /** One language of a spec table (all parts optional; only the parts given become overlay keys). */
 export type SpecTableText = { eyebrow?: string; title?: string; rows?: Array<{ label: string; value: string }> };
+=======
+/**
+ * Second-language Gridline chrome. Written onto `props.i18n.<lang>` so a
+ * Spanish-primary site still serves English on `/en` (and the reverse).
+ */
+export type GridlineSiteCopyOverlay = {
+  topBar?: { subtitle?: string; statusOn?: string; statusOff?: string; callLabel?: string };
+  alert?: { title?: string; safetyLead?: string; safety?: string; ctaLabel?: string };
+  hero?: {
+    kicker?: string;
+    headline?: string;
+    badges?: string[];
+    ctas?: [string, string];
+  };
+  tasks?: { title?: string };
+  specTable?: { eyebrow?: string; title?: string; rows?: Array<{ label: string; value: string }> };
+  services?: { title?: string; subtitle?: string };
+};
+>>>>>>> 37c400eaf (talent/: Gridline EN overlays on seed chrome and bilingual site-copy (TUL-302))
 
 /** Gridline page copy: design-owned editable defaults the demo fills the way a talent would in the builder. */
 export type GridlineSiteCopy = {
@@ -68,6 +88,8 @@ export type GridlineSiteCopy = {
     i18n?: Partial<Record<"en" | "es", SpecTableText>>;
   };
   services?: { title?: string; subtitle?: string };
+  /** Per-language overlays for every chrome field this copy writes (TUL-302). */
+  overlays?: Partial<Record<"en" | "es", GridlineSiteCopyOverlay>>;
 };
 
 type Node = { id: string; kind: string; props?: Record<string, unknown>; children?: Node[] };
@@ -118,7 +140,7 @@ export function specTableOverlay(
 }
 
 /** Existing node overlay plus `add`, language by language; `{}` when there is nothing to set. */
-function mergeI18n(
+export function mergeI18n(
   existing: unknown,
   add: Record<string, Record<string, string>> | undefined,
 ): { i18n?: Record<string, Record<string, string>> } {
@@ -131,8 +153,49 @@ function mergeI18n(
   return { i18n: out };
 }
 
+/** Flat prop overlays from every language bag in `overlays` that provides `pick`. */
+function flatOverlay(
+  overlays: GridlineSiteCopy["overlays"],
+  pick: (o: GridlineSiteCopyOverlay) => Record<string, string | undefined> | undefined,
+): Record<string, Record<string, string>> | undefined {
+  if (!overlays) return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [lang, bag] of Object.entries(overlays)) {
+    const props = pick(bag as GridlineSiteCopyOverlay);
+    if (!props) continue;
+    const row: Record<string, string> = {};
+    for (const [k, v] of Object.entries(props)) if (typeof v === "string" && v.trim()) row[k] = v;
+    if (Object.keys(row).length) out[lang] = row;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** Spec-table row overlays (`rows.N.label` / `rows.N.value`) from every language bag. */
+function rowsOverlay(
+  overlays: GridlineSiteCopy["overlays"],
+): Record<string, Record<string, string>> | undefined {
+  if (!overlays) return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [lang, bag] of Object.entries(overlays)) {
+    const rows = (bag as GridlineSiteCopyOverlay).specTable?.rows;
+    if (!rows?.length) continue;
+    const row: Record<string, string> = {};
+    rows.forEach((r, i) => {
+      if (r.label.trim()) row[`rows.${i}.label`] = r.label;
+      if (r.value.trim()) row[`rows.${i}.value`] = r.value;
+    });
+    if (Object.keys(row).length) out[lang] = row;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** One mono badge under the who-card bio (the same card the hero spec kit stamps). */
-function badgeNode(text: string, id: string, textId: string): Node {
+function badgeNode(
+  text: string,
+  id: string,
+  textId: string,
+  textI18n?: Record<string, Record<string, string>>,
+): Node {
   return {
     id,
     kind: "card",
@@ -140,17 +203,44 @@ function badgeNode(text: string, id: string, textId: string): Node {
       variant: "outline",
       style: { radius: "sm", paddingX: "s", paddingY: "s", backgroundColor: styleTokenRef("color.surface-raised") },
     },
-    children: [{ id: textId, kind: "paragraph", props: { text, style: { fontSize: "11px", letterSpacing: ".02em", tone: "muted" } } }],
+    children: [
+      {
+        id: textId,
+        kind: "paragraph",
+        props: {
+          text,
+          style: { fontSize: "11px", letterSpacing: ".02em", tone: "muted" },
+          ...mergeI18n(undefined, textI18n),
+        },
+      },
+    ],
   };
+}
+
+/** Badge paragraph overlays keyed by language (`text` prop). */
+function badgeTextOverlay(
+  overlays: GridlineSiteCopy["overlays"],
+  index: number,
+): Record<string, Record<string, string>> | undefined {
+  if (!overlays) return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [lang, bag] of Object.entries(overlays)) {
+    const text = (bag as GridlineSiteCopyOverlay).hero?.badges?.[index];
+    if (typeof text === "string" && text.trim()) out[lang] = { text };
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 /**
  * Gridline: fill the text the design ships empty. Each rule finds its node by
  * kind and the kit's own layer label, so a talent who rearranged the page still
- * gets the copy, and anything it cannot find is left alone.
+ * gets the copy, and anything it cannot find is left alone. When `overlays`
+ * carries a second language, that language is written onto `props.i18n` so
+ * every Gridline site (not only the demo) can serve English on `/en`.
  */
 function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, newId: () => string): Node {
   const p = n.props ?? {};
+  const ov = g.overlays;
   switch (n.kind) {
     case "utility_bar": {
       const t = g.topBar;
@@ -160,6 +250,19 @@ function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, ne
         ...(t.statusOn ? { statusOnLabel: t.statusOn } : {}),
         ...(t.statusOff ? { statusOffLabel: t.statusOff } : {}),
         ...(t.callLabel ? { callLabel: t.callLabel } : {}),
+        ...mergeI18n(
+          p.i18n,
+          flatOverlay(ov, (o) =>
+            o.topBar
+              ? {
+                  subtitle: o.topBar.subtitle,
+                  statusOnLabel: o.topBar.statusOn,
+                  statusOffLabel: o.topBar.statusOff,
+                  callLabel: o.topBar.callLabel,
+                }
+              : undefined,
+          ),
+        ),
       });
     }
     case "alert_band": {
@@ -170,6 +273,19 @@ function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, ne
         safetyLabel: a.safetyLead,
         safetyNote: a.safety,
         ...(a.ctaLabel ? { ctaLabel: a.ctaLabel } : {}),
+        ...mergeI18n(
+          p.i18n,
+          flatOverlay(ov, (o) =>
+            o.alert
+              ? {
+                  title: o.alert.title,
+                  safetyLabel: o.alert.safetyLead,
+                  safetyNote: o.alert.safety,
+                  ctaLabel: o.alert.ctaLabel,
+                }
+              : undefined,
+          ),
+        ),
       });
     }
     case "task_picker": {
@@ -183,22 +299,43 @@ function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, ne
         defaultKickerEs: t.defaultKickerEs,
         defaultHint: t.defaultHint,
         defaultHintEs: t.defaultHintEs,
+        ...mergeI18n(p.i18n, flatOverlay(ov, (o) => (o.tasks?.title ? { title: o.tasks.title } : undefined))),
       });
     }
     case "spec_table": {
       const s = g.specTable;
       if (!s) return n;
+<<<<<<< HEAD
+=======
+      const titleOv = flatOverlay(ov, (o) =>
+        o.specTable ? { eyebrow: o.specTable.eyebrow, title: o.specTable.title } : undefined,
+      );
+      const mergedRows = mergeI18n(titleOv, rowsOverlay(ov)).i18n;
+>>>>>>> 37c400eaf (talent/: Gridline EN overlays on seed chrome and bilingual site-copy (TUL-302))
       return withProps(n, {
         ...(s.eyebrow ? { eyebrow: s.eyebrow } : {}),
         ...(s.title ? { title: s.title } : {}),
         rows: s.rows.map((r) => ({ ...r })),
+<<<<<<< HEAD
         ...mergeI18n(p.i18n, specTableOverlay(s.i18n).i18n),
+=======
+        ...mergeI18n(p.i18n, mergedRows),
+>>>>>>> 37c400eaf (talent/: Gridline EN overlays on seed chrome and bilingual site-copy (TUL-302))
       });
     }
     case "services_catalog": {
       const s = g.services;
       if (!s) return n;
-      return withProps(n, { ...(s.title ? { title: s.title } : {}), ...(s.subtitle ? { subtitle: s.subtitle } : {}) });
+      return withProps(n, {
+        ...(s.title ? { title: s.title } : {}),
+        ...(s.subtitle ? { subtitle: s.subtitle } : {}),
+        ...mergeI18n(
+          p.i18n,
+          flatOverlay(ov, (o) =>
+            o.services ? { title: o.services.title, subtitle: o.services.subtitle } : undefined,
+          ),
+        ),
+      });
     }
     case "stats": {
       if (!ctx.inHero || p.variant !== "spec" || !g.hero?.facts) return n;
@@ -209,24 +346,43 @@ function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, ne
     }
     case "heading": {
       if (!ctx.inHero || p.level !== 1 || !g.hero?.headline) return n;
-      return withProps(n, { text: g.hero.headline });
+      return withProps(n, {
+        text: g.hero.headline,
+        ...mergeI18n(
+          p.i18n,
+          flatOverlay(ov, (o) => (o.hero?.headline ? { text: o.hero.headline } : undefined)),
+        ),
+      });
     }
     case "container": {
       const label = p.layerLabel;
       const kids = n.children ?? [];
       if (label === "Kicker" && g.hero?.kicker) {
-        return { ...n, children: kids.map((k) => (k.kind === "paragraph" ? withProps(k, { text: g.hero!.kicker }) : k)) };
+        const kickerOv = flatOverlay(ov, (o) => (o.hero?.kicker ? { text: o.hero.kicker } : undefined));
+        return {
+          ...n,
+          children: kids.map((k) =>
+            k.kind === "paragraph"
+              ? withProps(k, { text: g.hero!.kicker, ...mergeI18n(k.props?.i18n, kickerOv) })
+              : k,
+          ),
+        };
       }
       if (label === "Hero actions" && g.hero?.ctas) {
         const [primary, secondary] = g.hero.ctas;
         const buttons = kids.filter((k) => k.kind === "button");
+        const ctaOv = (index: 0 | 1) =>
+          flatOverlay(ov, (o) => {
+            const labelText = o.hero?.ctas?.[index];
+            return labelText ? { label: labelText } : undefined;
+          });
         return {
           ...n,
           children: kids.map((k) =>
             k === buttons[0]
-              ? withProps(k, { label: primary, layerLabel: primary })
+              ? withProps(k, { label: primary, layerLabel: primary, ...mergeI18n(k.props?.i18n, ctaOv(0)) })
               : k === buttons[1]
-                ? withProps(k, { label: secondary })
+                ? withProps(k, { label: secondary, ...mergeI18n(k.props?.i18n, ctaOv(1)) })
                 : k,
           ),
         };
@@ -240,7 +396,7 @@ function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, ne
               id: newId(),
               kind: "container",
               props: { layout: "row", gap: "s", align: "start", layerLabel: "Badges", style: { flexWrap: "wrap" } },
-              children: g.hero.badges.map((b) => badgeNode(b, newId(), newId())),
+              children: g.hero.badges.map((b, i) => badgeNode(b, newId(), newId(), badgeTextOverlay(ov, i))),
             },
           ],
         };
