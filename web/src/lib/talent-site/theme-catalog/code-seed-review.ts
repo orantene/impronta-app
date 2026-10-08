@@ -6,14 +6,16 @@
  *
  * Pure: no I/O. Server wiring lives in `code-seed-review.server.ts`.
  */
+import { isDeepStrictEqual } from "node:util";
 import type { DesignPayload } from "./types";
 import {
   AuthoredOverlayError,
   applyAuthoredOverlay,
   diffToOverlay,
+  recoverCodeBaseFromAuthored,
   type AuthoredOverlayFile,
 } from "./collection/authored/overlay";
-import { isCtaAllowedSlug } from "./code-seed-cta";
+import { isCtaAllowedSlug, stripDesignKey } from "./code-seed-cta";
 
 export type CodeSeedRebaseOk = {
   ok: true;
@@ -56,6 +58,36 @@ export function findPayloadByCodeHash(
 ): DesignPayload | null {
   for (const c of candidates) if (c.hash === codeHash) return c.payload;
   return null;
+}
+
+/**
+ * Recover the editor's old code seed from a committed overlay when history
+ * no longer has that code_hash (Folio and other overlay-only designs).
+ * Removed nodes are restored from `newCode` when still present.
+ * Round-trip through applyAuthoredOverlay is the acceptance check (hash of the
+ * recovered canonical form may differ from the original raw seed's code_hash).
+ */
+export function recoverBaseCodeFromOverlay(input: {
+  authored: DesignPayload;
+  overlay: AuthoredOverlayFile;
+  newCode: DesignPayload;
+}): DesignPayload | null {
+  try {
+    return recoverCodeBaseFromAuthored(input.authored, input.overlay, input.newCode);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True when an open draft's payload differs from its base snapshot (ignoring
+ * props.designKey stamps). Matches the retired script's refuse guard.
+ */
+export function openDraftDiffersFromBase(
+  draftPayload: DesignPayload,
+  basePayload: DesignPayload,
+): boolean {
+  return !isDeepStrictEqual(stripDesignKey(draftPayload), stripDesignKey(basePayload));
 }
 
 export type CodeSeedReviewKind = "rebase" | "maison_cta" | "noop";

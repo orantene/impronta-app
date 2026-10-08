@@ -7,20 +7,23 @@ import {
   applyMaisonCtaSeedPatch,
   BOOK_LABEL,
   patchMaisonCtaTrees,
+  type CtaNode,
 } from "./code-seed-cta";
 import {
   factoryNeedsCodeSeedReview,
   findPayloadByCodeHash,
+  openDraftDiffersFromBase,
   planCodeSeedReviewDraft,
   rebaseAuthoredOntoCodeSeed,
+  recoverBaseCodeFromOverlay,
 } from "./code-seed-review";
-import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { canonicalOverlayPayload, diffToOverlay } from "./collection/authored/overlay";
 
 type Rec = Record<string, unknown>;
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
-const props = (n: BuilderNode): Rec => (n.props ?? {}) as Rec;
+const props = (n: CtaNode): Rec => (n.props ?? {}) as Rec;
 
-function find(nodes: BuilderNode[], pred: (n: BuilderNode) => boolean): BuilderNode | null {
+function find(nodes: CtaNode[], pred: (n: CtaNode) => boolean): CtaNode | null {
   for (const n of nodes) {
     if (pred(n)) return n;
     const hit = find(n.children ?? [], pred);
@@ -32,7 +35,7 @@ function find(nodes: BuilderNode[], pred: (n: BuilderNode) => boolean): BuilderN
 /** Pre-#88 Maison shape: See services + See work, header "Menu and prices". */
 function oldAuthored(): DesignPayload {
   const p = clone(buildMaisonV2Payload());
-  const row = find(p.homeTree ?? [], (n) => props(n).layerLabel === "Hero actions")!;
+  const row = find((p.homeTree ?? []) as CtaNode[], (n) => props(n).layerLabel === "Hero actions")!;
   const [a, b] = row.children!;
   a!.props = {
     ...props(a!),
@@ -47,7 +50,7 @@ function oldAuthored(): DesignPayload {
     layerLabel: "See work",
     i18n: { es: { label: "Ver trabajos" }, en: { label: "See work" } },
   };
-  const header = (p.shellTree ?? []).find((n) => props(n).sectionTypeKey === "site_header")!;
+  const header = ((p.shellTree ?? []) as CtaNode[]).find((n) => props(n).sectionTypeKey === "site_header")!;
   const sp = props(header).sectionProps as Rec;
   (sp.primaryCta as Rec).label = "Menu and prices";
   const right = (sp.regions as { right: Rec[] }).right;
@@ -120,26 +123,73 @@ test("planCodeSeedReviewDraft: Maison CTA seed patch when baseCode is missing", 
   assert.equal(plan.ok, true);
   if (!plan.ok) return;
   assert.equal(plan.kind, "maison_cta");
-  const row = find(plan.payload.homeTree ?? [], (n) => props(n).layerLabel === "Hero actions")!;
+  const row = find((plan.payload.homeTree ?? []) as CtaNode[], (n) => props(n).layerLabel === "Hero actions")!;
   assert.equal(props(row.children![0]!).label, BOOK_LABEL);
 });
 
-test("planCodeSeedReviewDraft: rebase when baseCode is recoverable", () => {
+test("planCodeSeedReviewDraft: rebase succeeds with a single outcome (token overlay)", () => {
   const baseCode = oldAuthored();
   const authored = clone(baseCode);
-  // Editor-only tweak: change a token so the overlay is non-empty.
   authored.tokenDefaults = { ...(authored.tokenDefaults ?? {}), "--test-token": "1" };
   const newCode = buildMaisonV2Payload();
   const plan = planCodeSeedReviewDraft({
     newCode,
     authored,
     baseCode,
-    seedPatch: (a, c) => applyMaisonCtaSeedPatch(a, c),
+    // No seedPatch: must be rebase, not fall-through.
   });
-  // Rebase may succeed (token overlay) or fall through to CTA if kit collision.
   assert.equal(plan.ok, true);
   if (!plan.ok) return;
-  assert.ok(plan.kind === "rebase" || plan.kind === "maison_cta" || plan.kind === "noop");
+  assert.equal(plan.kind, "rebase");
+  assert.equal(plan.payload.tokenDefaults?.["--test-token"], "1");
+});
+
+test("planCodeSeedReviewDraft: collision without seedPatch refuses; with seedPatch falls through", () => {
+  // Overlay removes a token that is absent from newCode → applyAuthoredOverlay collides.
+  const authored = oldAuthored();
+  const baseCode = clone(authored);
+  baseCode.tokenDefaults = { ...(baseCode.tokenDefaults ?? {}), "--ghost": "1" };
+  const newCode = buildMaisonV2Payload();
+
+  const refused = planCodeSeedReviewDraft({ newCode, authored, baseCode });
+  assert.equal(refused.ok, false);
+  if (refused.ok) return;
+  assert.equal(refused.code, "collision");
+
+  const fell = planCodeSeedReviewDraft({
+    newCode,
+    authored,
+    baseCode,
+    seedPatch: (a, c) => applyMaisonCtaSeedPatch(a, c),
+  });
+  assert.equal(fell.ok, true);
+  if (!fell.ok) return;
+  assert.equal(fell.kind, "maison_cta");
+  const hero = find((fell.payload.homeTree ?? []) as CtaNode[], (n) => props(n).layerLabel === "Hero actions")!;
+  assert.equal(props(hero.children![0]!).label, BOOK_LABEL);
+});
+test("openDraftDiffersFromBase: ignores designKey; catches real edits", () => {
+  const base = oldAuthored();
+  const stamped = clone(base);
+  const n0 = stamped.homeTree![0] as CtaNode;
+  n0.props = { ...props(n0), designKey: "draft-stamp" };
+  assert.equal(openDraftDiffersFromBase(stamped, base), false);
+  const edited = clone(base);
+  edited.tokenDefaults = { ...(edited.tokenDefaults ?? {}), a: "1" };
+  assert.equal(openDraftDiffersFromBase(edited, base), true);
+});
+
+test("recoverBaseCodeFromOverlay: round-trips a token-only overlay (Folio-style)", () => {
+  const baseCode = oldAuthored();
+  const authored = clone(baseCode);
+  authored.tokenDefaults = { ...(authored.tokenDefaults ?? {}), "--x": "y" };
+  const overlay = diffToOverlay(baseCode, authored);
+  const donor = clone(baseCode);
+  donor.tokenDefaults = { ...(donor.tokenDefaults ?? {}), "--seed": "1" };
+  const recovered = recoverBaseCodeFromOverlay({ authored, overlay, newCode: donor });
+  assert.ok(recovered);
+  assert.deepEqual(canonicalOverlayPayload(recovered!), canonicalOverlayPayload(baseCode));
+  assert.equal(recovered!.tokenDefaults?.["--x"], undefined);
 });
 
 test("rebaseAuthoredOntoCodeSeed: replays overlay onto new seed", () => {
@@ -165,8 +215,8 @@ test("findPayloadByCodeHash: returns matching candidate", () => {
 test("patchMaisonCtaTrees: idempotent on current code seed", () => {
   const seed = buildMaisonV2Payload();
   const once = patchMaisonCtaTrees(seed, {
-    shellTree: clone(seed.shellTree ?? []),
-    homeTree: clone(seed.homeTree ?? []),
+    shellTree: clone(seed.shellTree ?? []) as CtaNode[],
+    homeTree: clone(seed.homeTree ?? []) as CtaNode[],
   });
   assert.equal(once.alreadyDone, true);
   assert.deepEqual(once.refusals, []);

@@ -14,8 +14,10 @@ import type { DesignPayload } from "./types";
 import {
   factoryNeedsCodeSeedReview,
   findPayloadByCodeHash,
+  openDraftDiffersFromBase,
   planAuthoredOverlayExport,
   planCodeSeedReviewDraft,
+  recoverBaseCodeFromOverlay,
 } from "./code-seed-review";
 import { applyMaisonCtaSeedPatch, isCtaAllowedSlug } from "./code-seed-cta";
 
@@ -29,6 +31,7 @@ import { themeTemplateEditHref } from "../theme-template/types";
 import { payloadHash } from "../theme-template/publish-core";
 import { decideAuthoredSync } from "./authored-sync-rule";
 import { authoredOverlayVersion } from "./collection/authored";
+import { loadThemeVersionPayload } from "../theme-releases/theme-versions.server";
 
 type SnapRow = {
   version: number;
@@ -37,7 +40,12 @@ type SnapRow = {
   meta: { code_hash?: unknown; payload_hash?: unknown } | null;
 };
 
-async function loadLatestAuthored(
+/**
+ * True latest snapshot (version DESC limit 1). Never pick an older authored
+ * row while a newer non-authored version sits above it — that would set
+ * base_version to the new tip while building from stale payload.
+ */
+async function loadLatestSnapshot(
   admin: SupabaseClient,
   design: string,
 ): Promise<SnapRow | null> {
@@ -46,13 +54,13 @@ async function loadLatestAuthored(
     .select("version, payload, source, meta")
     .eq("design", design)
     .order("version", { ascending: false })
-    .limit(12);
+    .limit(1);
   if (error) {
     logServerError("themeCatalog.codeSeedReview.history", error);
     return null;
   }
   const rows = (data ?? []) as SnapRow[];
-  return rows.find((r) => r.source === "authored") ?? rows[0] ?? null;
+  return rows[0] ?? null;
 }
 
 async function loadHistoryPayloads(
@@ -84,18 +92,19 @@ function resolveBaseCode(
   codeHash: string | null,
   history: Array<{ payload: DesignPayload; hash: string }>,
   newCode: DesignPayload,
+  authored: DesignPayload,
 ): DesignPayload | null {
   if (!codeHash) return null;
   const fromHistory = findPayloadByCodeHash(history, codeHash);
   if (fromHistory) return fromHistory;
-  // Committed overlay was computed against this code hash: reconstruct base by
-  // inverting is not available; if current code still matches, there is no conflict.
   if (hashBuiltinPayload(newCode) === codeHash) return newCode;
   const overlay = loadAuthoredOverlayFile(slug);
   if (overlay && overlay.codeHash === codeHash) {
-    // Overlay's `from` sides describe the old code leaves we need; we cannot
-    // rebuild full base without history. Leave null so Maison CTA can fall through.
-    return null;
+    return recoverBaseCodeFromOverlay({
+      authored,
+      overlay,
+      newCode,
+    });
   }
   return null;
 }
@@ -115,6 +124,7 @@ export type OpenCodeSeedReviewResult =
 /**
  * Open (or refresh) the Builder Lab draft with code-seed changes for review.
  * Never publishes. Never touches talent sites.
+ * Refuses when an open draft differs from its base (no silent overwrite).
  */
 export async function openCodeSeedReviewDraft(
   admin: SupabaseClient,
@@ -126,12 +136,21 @@ export async function openCodeSeedReviewDraft(
     return { ok: false, error: `Unknown collection design "${design}".`, errorEs: "Diseño desconocido." };
   }
   const newCode = (entry.buildPayloadRaw ?? entry.buildPayload)();
-  const latest = await loadLatestAuthored(admin, design);
+  const latest = await loadLatestSnapshot(admin, design);
   if (!latest) {
     return {
       ok: false,
       error: "No theme version found for this design.",
       errorEs: "No hay versión de tema para este diseño.",
+    };
+  }
+  if (latest.source !== "authored") {
+    return {
+      ok: false,
+      error:
+        "Latest snapshot is not editor-authored. Use Sync catalog for a normal code-ahead draft release.",
+      errorEs:
+        "La última versión no es autorada en el editor. Usa Sincronizar catálogo para un lanzamiento normal.",
     };
   }
   const decision = decideAuthoredSync({
@@ -168,7 +187,7 @@ export async function openCodeSeedReviewDraft(
   const history = await loadHistoryPayloads(admin, design);
   const baseCode =
     decision.kind === "authored_pending"
-      ? resolveBaseCode(design, codeHash, history, newCode)
+      ? resolveBaseCode(design, codeHash, history, newCode, latest.payload)
       : null;
 
   const plan = planCodeSeedReviewDraft({
@@ -181,6 +200,34 @@ export async function openCodeSeedReviewDraft(
   });
   if (!plan.ok) {
     return { ok: false, error: plan.error, errorEs: plan.errorEs };
+  }
+
+  const existing = await loadThemeDraft(admin, design);
+  if (existing.ok) {
+    if (existing.value.baseVersion !== latest.version) {
+      return {
+        ok: false,
+        error:
+          `Open draft is based on v${existing.value.baseVersion} but latest authored is v${latest.version}. ` +
+          "Publish or discard the draft first.",
+        errorEs:
+          `El borrador abierto se basa en v${existing.value.baseVersion} pero lo autorado es v${latest.version}. ` +
+          "Publica o descarta el borrador primero.",
+      };
+    }
+    const baseAtDraft = await loadThemeVersionPayload(admin, design, existing.value.baseVersion);
+    const basePayload = baseAtDraft ?? latest.payload;
+    if (openDraftDiffersFromBase(existing.value.payload, basePayload)) {
+      return {
+        ok: false,
+        error:
+          `Open draft (rev ${existing.value.rev}, base v${existing.value.baseVersion}) differs from its base. ` +
+          "Publish or discard it first — code-seed review will not overwrite in-progress edits.",
+        errorEs:
+          `El borrador abierto (rev ${existing.value.rev}, base v${existing.value.baseVersion}) difiere de su base. ` +
+          "Publícalo o descártalo primero; la revisión de semilla no sobrescribe ediciones en curso.",
+      };
+    }
   }
 
   const opened = await openThemeDraft(admin, design, actorId);
@@ -234,7 +281,7 @@ export async function exportAuthoredOverlayForGit(
   const entry = codeEntry(design);
   if (!entry) return { ok: false, error: `Unknown design "${design}".` };
   const raw = (entry.buildPayloadRaw ?? entry.buildPayload)();
-  const latest = await loadLatestAuthored(admin, design);
+  const latest = await loadLatestSnapshot(admin, design);
   if (!latest || latest.source !== "authored") {
     return { ok: false, error: "Latest version is not editor-authored." };
   }

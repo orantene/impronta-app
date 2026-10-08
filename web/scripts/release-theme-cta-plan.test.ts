@@ -252,7 +252,7 @@ function fakePorts(opts: { draft?: DraftInfo | null; released?: PayloadLike } = 
   const calls: string[] = [];
   const logs: string[] = [];
   const released = { version: 24, payload: opts.released ?? oldPayload() };
-  let draft: DraftInfo | null = opts.draft === undefined ? null : opts.draft;
+  const draft: DraftInfo | null = opts.draft === undefined ? null : opts.draft;
   const ports: CtaPorts = {
     seed: seedTrees,
     log: (l) => logs.push(l),
