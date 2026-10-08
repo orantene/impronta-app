@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useDashboardText } from "./dashboard-i18n";
 import { EmptyState, Icon, useRovingTabindex } from "./primitives";
 import { TALENT_SIDEBAR_ICON } from "./talent-nav-icons";
+import { RailModeSwitch } from "./page-modules/RailModeSwitch";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGE_META, TALENT_TIER_META, useAdminShell, type TalentPage } from "./state";
 import { PageHeader } from "./talent/shared/page-chrome-1";
 import { ProfilePageSkeleton } from "./talent/pages/ProfilePageSkeleton";
@@ -156,7 +157,7 @@ function TalentSidebar() {
   const [supportSlotReady, setSupportSlotReady] = useState(false);
   useEffect(() => setSupportSlotReady(true), []);
   const copy = useDashboardText();
-  const { state, setTalentPage, openDrawer, bridgeTalentSelfProfile, bridgeTalentUnread, bridgeTalentPlanTrial } = useAdminShell();
+  const { state, setTalentPage, openDrawer, flipMode, bridgeTalentSelfProfile, bridgeTalentUnread, bridgeTalentPlanTrial, bridgeWorkspaceUnread } = useAdminShell();
   const studioV2 = useTalentStudioV2();
   // WS-12.6 — roving tabindex on the rail: arrow keys move between pages.
   const railNavRef = useRef<HTMLElement | null>(null);
@@ -225,6 +226,16 @@ function TalentSidebar() {
       data-tulala-app-sidebar
       className="sticky top-[calc(var(--proto-cbar,50px)+56px)] flex h-[calc(100vh-var(--proto-cbar,50px)-56px)] flex-col gap-[12px] self-start overflow-y-auto bg-[var(--tc-canvas)] px-[10px] pb-[12px] pt-[14px] font-admin-body"
     >
+      {/* Talent | Admin switch, same component and position as the admin rail
+          (top of the rail). Dual owners only: a person who also runs a
+          workspace; the top-bar pill uses the same flag. */}
+      {state.alsoTalent && (
+        <RailModeSwitch
+          active="talent"
+          adminUnread={bridgeWorkspaceUnread ?? 0}
+          onSwitch={flipMode}
+        />
+      )}
       <nav ref={railNavRef} aria-label={copy.t("Talent sections")} className="flex flex-col gap-[2px]">
         {TALENT_SIDEBAR_GROUPS.map((group, gi) => (
           <div key={group.label ?? `group-${gi}`} className="flex flex-col gap-[2px]">
