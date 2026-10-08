@@ -61,9 +61,12 @@ test("buildNotionMirrorProperties only emits allow-listed keys", () => {
   const props = buildNotionMirrorProperties(SAMPLE);
   const keys = collectPropertyKeys(props).sort();
   assert.deepEqual(keys, [...NOTION_MIRROR_PROPERTY_NAMES].sort());
+  // Cast: keys is allow-list-shaped at runtime; forbidden keys are a disjoint
+  // string union, so a typed `===` is TS2367. Compare as plain strings.
+  const keyStrings: string[] = keys;
   for (const forbidden of FORBIDDEN_MIRROR_KEYS) {
     assert.equal(
-      keys.some((k) => k === forbidden),
+      keyStrings.includes(forbidden),
       false,
       `must not include ${forbidden}`,
     );
