@@ -93,29 +93,29 @@ Priority: **P0** = wrong content / trust break / wipe risk · **P1** = blocks go
 
 | ID | Gap | Evidence | Fix direction | Triage |
 |---|---|---|---|---|
-| **G1** | Dual change-design UIs: Maison keep/change publish dialog vs Manager `window.confirm` draft-only apply | `ManagerThemeGallery.tsx` confirm; `PublishDesignDialog` | One safety model for all cohorts | [board](https://app.notion.com/p/3f32c5ee97438161aec4fbd67d50bca4) (also covers G9) |
-| **G2** | Soft-nav / RSC cache: navigating between `*-demo.tulala.digital` hosts can render the previous talent until hard reload | `camila-nails-ERROR-shows-alex-content.png` et al.; curl titles correct | Host-scoped cache / full navigation for talent hosts | [board](https://app.notion.com/p/3f32c5ee974381669f2cd57cba9a35c4) |
-| **G3** | Most finished demos `/en` → 404 (Alex, Mateo, Camila). Alba `/en` works but Spanish hero leaks | curl 404; `alex-trevino-1440-en-404-spanish-leak.png`; Alba HTML still has "Manos que" | Locale enablement per demo + seed EN copy (Gridline EN seed also morning item 4; do not duplicate Nail Designer title work in #2826/#2827) | [board](https://app.notion.com/p/3f32c5ee974381d696ccc5caee6562cf) |
+| **G1** | Dual change-design UIs: Maison keep/change publish dialog vs Manager `window.confirm` draft-only apply | `ManagerThemeGallery.tsx` confirm; `PublishDesignDialog` | One safety model for all cohorts | [TUL-321](https://app.notion.com/p/3f32c5ee97438161aec4fbd67d50bca4) (+G9) |
+| **G2** | Soft-nav / RSC cache: navigating between `*-demo.tulala.digital` hosts can render the previous talent until hard reload | `camila-nails-ERROR-shows-alex-content.png` et al.; curl titles correct | Host-scoped cache / full navigation for talent hosts | [TUL-322](https://app.notion.com/p/3f32c5ee974381669f2cd57cba9a35c4) |
+| **G3** | Most finished demos `/en` → 404 (Alex, Mateo, Camila). Alba `/en` works but Spanish hero leaks | curl 404; `alex-trevino-1440-en-404-spanish-leak.png`; Alba HTML still has "Manos que" | Locale enablement per demo + seed EN copy (Gridline EN seed also morning item 4; do not duplicate Nail Designer title work in #2826/#2827) | [TUL-323](https://app.notion.com/p/3f32c5ee974381d696ccc5caee6562cf) |
 
 ### P1
 
 | ID | Gap | Evidence | Fix direction | Triage |
 |---|---|---|---|---|
-| **G4** | Manager gallery ES titles/summaries fall back to English for collection designs | `theme-gallery-builtin-copy.ts` only old slugs; ES lives in `COLLECTION_DESIGN_SUMMARY_ES` | Wire collection summaries into Manager path | [board](https://app.notion.com/p/3f32c5ee97438120a866dbb0e1d6e70b) |
-| **G5** | Theme update / gallery apply leave draft live until separate Publish; easy to think it is done | `ThemeUpdateNotice`, Manager applySuccess copy | Strong post-apply Publish CTA; unify draft vs live messaging with G1 | [board](https://app.notion.com/p/3f32c5ee974381119f93fc782fb357dc) |
-| **G6** | Publish-disabled reasons hardcoded English in builder | `publish-drawer.tsx` ~843–870 | Route through editor i18n (es) | [board](https://app.notion.com/p/3f32c5ee9743813b9d16fa420e85da87) |
-| **G7** | Planned gallery demos silently fall back to featured demo | `gallery-meta.ts` `planned(...)`; `ThemeDetailScreen` | Hide planned or show empty state | [board](https://app.notion.com/p/3f32c5ee974381bcb8d9c0f513a6ea18) |
-| **G8** | Theme Review packs incomplete for finished + unfinished set | Folder checklist above | Complete maison-v2 `kit.js` + overlays; README row for gridline; **solace/mono/frame need full mockups** (unblocks TUL-37) | [board](https://app.notion.com/p/3f32c5ee97438147accbc413ba72a720) |
-| **G9** | Draft-first vs publish-immediate design switch depends on which gallery opened | Maison `PublishDesignDialog` vs Manager draft apply | Single product rule + matching copy | bundled into G1 card |
+| **G4** | Manager gallery ES titles/summaries fall back to English for collection designs | `theme-gallery-builtin-copy.ts` only old slugs; ES lives in `COLLECTION_DESIGN_SUMMARY_ES` | Wire collection summaries into Manager path | [TUL-324](https://app.notion.com/p/3f32c5ee97438120a866dbb0e1d6e70b) |
+| **G5** | Theme update / gallery apply leave draft live until separate Publish; easy to think it is done | `ThemeUpdateNotice`, Manager applySuccess copy | Strong post-apply Publish CTA; unify draft vs live messaging with G1 | [TUL-325](https://app.notion.com/p/3f32c5ee974381119f93fc782fb357dc) |
+| **G6** | Publish-disabled reasons hardcoded English in builder | `publish-drawer.tsx` ~843–870 | Route through editor i18n (es) | [TUL-326](https://app.notion.com/p/3f32c5ee9743813b9d16fa420e85da87) |
+| **G7** | Planned gallery demos silently fall back to featured demo | `gallery-meta.ts` `planned(...)`; `ThemeDetailScreen` | Hide planned or show empty state | [TUL-327](https://app.notion.com/p/3f32c5ee974381bcb8d9c0f513a6ea18) |
+| **G8** | Theme Review packs incomplete for finished + unfinished set | Folder checklist above | Complete maison-v2 `kit.js` + overlays; README row for gridline; **solace/mono/frame need full mockups** (unblocks TUL-37) | [TUL-328](https://app.notion.com/p/3f32c5ee97438147accbc413ba72a720) |
+| **G9** | Draft-first vs publish-immediate design switch depends on which gallery opened | Maison `PublishDesignDialog` vs Manager draft apply | Single product rule + matching copy | bundled into [TUL-321](https://app.notion.com/p/3f32c5ee97438161aec4fbd67d50bca4) |
 
 ### P2
 
 | ID | Gap | Evidence | Fix direction | Triage |
 |---|---|---|---|---|
-| **G10** | PresenceLiveFallback chrome thinner than Maison setup; Apps→design closes | `PresenceLiveFallback.tsx` | Match Maison overlay chrome | [board](https://app.notion.com/p/3f32c5ee9743811baf50fcd604574264) |
-| **G11** | Factory sync shows raw JSON; catalog version can lag opt-in releases | Factory tab; prior release-chain audit | Human sync summary; show "open to talents" vs catalog default | [board](https://app.notion.com/p/3f32c5ee97438190b7f9d82e4440d505) |
-| **G12** | Only 4 finished designs; product aspiration ~32; unfinished correctly hidden | `FINISHED_GALLERY_SLUGS` | Keep hidden until G8 + widgets; honest copy about count | [board](https://app.notion.com/p/3f32c5ee9743811eabb4ffaf8bb6a362) |
-| **G13** | Font proxy 400s observed on Alba (console) | Browser console during capture | Investigate `/api/fonts/file` for demo hosts | [board](https://app.notion.com/p/3f32c5ee974381bebd85cf0e5651559f) |
+| **G10** | PresenceLiveFallback chrome thinner than Maison setup; Apps→design closes | `PresenceLiveFallback.tsx` | Match Maison overlay chrome | [TUL-329](https://app.notion.com/p/3f32c5ee9743811baf50fcd604574264) |
+| **G11** | Factory sync shows raw JSON; catalog version can lag opt-in releases | Factory tab; prior release-chain audit | Human sync summary; show "open to talents" vs catalog default | [TUL-330](https://app.notion.com/p/3f32c5ee97438190b7f9d82e4440d505) |
+| **G12** | Only 4 finished designs; product aspiration ~32; unfinished correctly hidden | `FINISHED_GALLERY_SLUGS` | Keep hidden until G8 + widgets; honest copy about count | [TUL-331](https://app.notion.com/p/3f32c5ee9743811eabb4ffaf8bb6a362) |
+| **G13** | Font proxy 400s observed on Alba (console) | Browser console during capture | Investigate `/api/fonts/file` for demo hosts | [TUL-332](https://app.notion.com/p/3f32c5ee974381bebd85cf0e5651559f) |
 
 ---
 
