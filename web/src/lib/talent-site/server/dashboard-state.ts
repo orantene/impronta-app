@@ -16,9 +16,10 @@ import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomai
 import { maxSitePublicGate } from "@/lib/talent-site/resolve-max-site-core";
 import { talentSitePathUrl, talentSitePublicUrl } from "@/lib/talent-site/site-public-url";
 import type { EffectiveReadContext } from "@/lib/impersonation/effective-read";
-import { resolveMyWebsiteTarget } from "@/lib/talent-site/my-website-target";
+import { resolveMyWebsiteTarget, workspaceSiteBuilderHref } from "@/lib/talent-site/my-website-target";
 import { loadOwnedBusinessWorkspace } from "@/lib/talent-site/server/workspace-site-context";
 import { resolveWorkspaceSitePublicUrl } from "@/lib/talent-site/workspace-site-editor-url";
+import { getTenantPreviewUrl } from "@/lib/site-admin/server/tenant-hosts";
 
 function mapSiteRow(row: TalentSiteRow): TalentSiteDashboardState["site"] {
   const draftSnapshot = parseTalentSiteSnapshot(row.draft_snapshot);
@@ -89,6 +90,8 @@ export async function loadTalentPersonalSiteDashboardState(
    */
   ctx?: EffectiveReadContext,
   deps: PersonalSiteStateDeps = DEFAULT_STATE_DEPS,
+  /** TUL-180: request host for workspace preview URL resolution. */
+  options?: { requestHost?: string | null },
 ): Promise<
   | { ok: true; state: TalentSiteDashboardState }
   | { ok: false; code: string; error: string }
@@ -109,13 +112,14 @@ export async function loadTalentPersonalSiteDashboardState(
   let personalSiteUrl: string | null = null;
   let templateKey: string | null = null;
   let compositionMode: TalentSiteDashboardState["compositionMode"] = null;
+  let workspaceSite: TalentSiteDashboardState["workspaceSite"] = null;
 
   // READ-ONLY (TUL-179): this runs in the talent layout on every page view, so
   // it must never create a site. Creation is an explicit click
   // (`ensureMaxSiteAction`).
 
   if (admin) {
-    const [{ data }, demoRes] = await Promise.all([
+    const [{ data }, demoRes, ownedWorkspace] = await Promise.all([
       admin
         .from("talent_sites")
         .select(
@@ -124,6 +128,7 @@ export async function loadTalentPersonalSiteDashboardState(
         .eq("talent_profile_id", scope.talentProfile.id)
         .maybeSingle(),
       admin.from("talent_profiles").select("is_demo").eq("id", scope.talentProfile.id).maybeSingle(),
+      loadOwnedBusinessWorkspace(admin, scope.session.user.id),
     ]);
     const isDemo = (demoRes.data as { is_demo?: boolean } | null)?.is_demo === true;
 
@@ -170,6 +175,24 @@ export async function loadTalentPersonalSiteDashboardState(
         isDemo,
       });
     }
+
+    // TUL-180: business workspace site for dual-owner "My website" primary.
+    if (
+      ownedWorkspace.ownsBusinessWorkspace &&
+      ownedWorkspace.hasWorkspaceSite &&
+      ownedWorkspace.workspaceSlug &&
+      ownedWorkspace.tenantId
+    ) {
+      const publicUrl = await getTenantPreviewUrl(admin, ownedWorkspace.tenantId, {
+        requestHost: options?.requestHost,
+      });
+      workspaceSite = {
+        slug: ownedWorkspace.workspaceSlug,
+        publicUrl,
+        adminHref: workspaceSiteBuilderHref(ownedWorkspace.workspaceSlug),
+        tenantId: ownedWorkspace.tenantId,
+      };
+    }
   }
 
   const availableTemplates = listTemplatesForTier(membership.tier).map((t) => ({
@@ -210,6 +233,9 @@ export async function loadTalentPersonalSiteDashboardState(
     profileCode,
     talentProfileId: scope.talentProfile.id,
     publicSiteUrl,
+    personalPublicSiteUrl: personalSiteUrl,
+    workspaceSite,
+    isDualSiteOwner: Boolean(workspaceSite && site),
     // `preview=1` forces the standard profile renderer when a published site exists.
     publicProfileUrl: profileCode ? `/t/${profileCode}?preview=1` : null,
     isPubliclyHidden: scope.talentProfile.isPubliclyHidden,
