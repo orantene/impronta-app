@@ -262,20 +262,41 @@ function renderedEs(base: string, esOverlay: string | undefined, href?: unknown)
 
 /**
  * Intentional Spanish wording that differs from the deleted
- * `CODE_SEEDED_LABELS_ES` / `CTA_LABEL_BY_LOCALE` maps (empty = full
- * equivalence for overlapping keys). Document any future drift here.
+ * `CODE_SEEDED_LABELS_ES` / `CTA_LABEL_BY_LOCALE` maps for overlapping keys
+ * (empty = full equivalence). Document any future drift here.
  */
 const SPANISH_RENDER_DIFFS_FROM_OLD_MAPS: ReadonlyArray<{ en: string; oldEs: string; newEs: string }> = [];
 
+/**
+ * Seed-table wording that changed when `SEED_TEXT_ES` absorbed the guess maps
+ * (pre-TUL-369 seed → current). Listed so the Spanish-render bounce is auditable
+ * even when guess-map overlap diffs are empty.
+ */
+const SEED_TEXT_ES_WORDING_CHANGES: ReadonlyArray<{ en: string; oldEs: string; newEs: string }> = [
+  {
+    en: "No photos in your portfolio yet.",
+    oldEs: "Aún no hay fotos en el portafolio.",
+    newEs: "Aún no hay fotos en tu portafolio.",
+  },
+];
+
 test("Spanish render diffs vs deleted guess maps are listed (TUL-369)", () => {
-  for (const { en, newEs } of SPANISH_RENDER_DIFFS_FROM_OLD_MAPS) {
+  assert.deepEqual(
+    SPANISH_RENDER_DIFFS_FROM_OLD_MAPS,
+    [],
+    "overlapping guess-map keys must stay equivalent or be listed",
+  );
+  for (const { en, oldEs, newEs } of SEED_TEXT_ES_WORDING_CHANGES) {
     assert.equal(SEED_TEXT_ES[en], newEs, en);
+    assert.notEqual(newEs, oldEs, en);
   }
 });
 
 for (const [slug, build] of DESIGNS) {
   test(`${slug}: Spanish render via seed overlays leaves no seeded English labels (TUL-369)`, () => {
     const leaks: string[] = [];
+    /** Overlay applications this design's seed actually changes (en → es). */
+    const changed: Array<{ path: string; en: string; es: string }> = [];
     const bag = build() as unknown as Record<string, unknown>;
     const contentLocale = { locale: "es", defaultLocale: "en", chain: ["es", "en"] as const };
     for (const treeName of ["homeTree", "shellTree", "optionalBlocks"] as const) {
@@ -294,7 +315,10 @@ for (const [slug, build] of DESIGNS) {
           const shown = renderedEs(base, i18nEs?.[prop]);
           if (base.trim() in SEED_TEXT_ES) {
             if (shown === base) leaks.push(`${path}.${prop} still English ${JSON.stringify(base)}`);
-            else assert.equal(shown, SEED_TEXT_ES[base.trim()], `${path}.${prop}`);
+            else {
+              assert.equal(shown, SEED_TEXT_ES[base.trim()], `${path}.${prop}`);
+              changed.push({ path: `${path}.${prop}`, en: base.trim(), es: shown });
+            }
             // localizeBlockNode must surface the same Spanish for registered props.
             if (typeof props[prop] === "string") assert.equal(props[prop], shown, `${path}.${prop} localizeBlockNode`);
           } else if (MODE_DEPENDENT_LABELS.includes(base.trim()) && shown === base) {
@@ -311,7 +335,10 @@ for (const [slug, build] of DESIGNS) {
             const shown = renderedEs(base, i18nEs?.[key]);
             if (base.trim() in SEED_TEXT_ES) {
               if (shown === base) leaks.push(`${path}.${key} still English ${JSON.stringify(base)}`);
-              else assert.equal(shown, SEED_TEXT_ES[base.trim()], `${path}.${key}`);
+              else {
+                assert.equal(shown, SEED_TEXT_ES[base.trim()], `${path}.${key}`);
+                changed.push({ path: `${path}.${key}`, en: base.trim(), es: shown });
+              }
             }
           });
         }
@@ -330,7 +357,10 @@ for (const [slug, build] of DESIGNS) {
               const shown = renderedEs(base, i18nEs?.[key]);
               if (base.trim() in SEED_TEXT_ES) {
                 if (shown === base) leaks.push(`${path}.${key} still English ${JSON.stringify(base)}`);
-                else assert.equal(shown, SEED_TEXT_ES[base.trim()], `${path}.${key}`);
+                else {
+                  assert.equal(shown, SEED_TEXT_ES[base.trim()], `${path}.${key}`);
+                  changed.push({ path: `${path}.${key}`, en: base.trim(), es: shown });
+                }
               }
             }
           });
@@ -350,7 +380,10 @@ for (const [slug, build] of DESIGNS) {
             const esEntry = headerLabelEntries(esSp).find((e) => e.key === key);
             if (text.trim() in SEED_TEXT_ES) {
               if (shown === text) leaks.push(`${path}.${overlayKey} still English ${JSON.stringify(text)}`);
-              else assert.equal(shown, SEED_TEXT_ES[text.trim()], `${path}.${overlayKey}`);
+              else {
+                assert.equal(shown, SEED_TEXT_ES[text.trim()], `${path}.${overlayKey}`);
+                changed.push({ path: `${path}.${overlayKey}`, en: text.trim(), es: shown });
+              }
               if (esEntry) assert.equal(esEntry.text, shown, `${path}.${overlayKey} headerSectionProps`);
             } else if (MODE_DEPENDENT_LABELS.includes(text.trim()) && shown === text) {
               leaks.push(`${path}.${overlayKey} mode label still English ${JSON.stringify(text)}`);
@@ -360,6 +393,12 @@ for (const [slug, build] of DESIGNS) {
       });
     }
     assert.deepEqual(leaks, [], `\n${leaks.join("\n")}`);
+    // Non-vacuous: every released design must change at least one seeded string via overlay.
+    assert.ok(
+      changed.length > 0,
+      `${slug}: seed overlay changed zero strings (test would be vacuous)\n` +
+        changed.map((c) => `${c.path}: ${c.en} → ${c.es}`).join("\n"),
+    );
   });
 }
 
