@@ -11,14 +11,17 @@
  *   Staging: export JOURNEY_MARKETING_ORIGIN / JOURNEY_APP_ORIGIN / JOURNEY_TALENT_HOST_TEMPLATE (no defaults), drop JOURNEY_TARGET.
  *
  *   One test (`run5 evidence`) signs up THREE fresh throwaway accounts through the real front door (A = myself, M2 = myself,
- *   S = studio; qa-r5-* emails, desktop 1440x900), then runs every card step below in order. A failing step is recorded
+ *   S = studio; TUL-89 adds a fourth, D = myself, on demand; qa-r5-* emails, desktop 1440x900), then runs every card step below in order. A failing step is recorded
  *   (status FAIL + screenshot + DB facts) and the run CONTINUES. Anything not deterministic records BLOCKED / NOT_POSSIBLE
  *   with a reason, never a silent skip. The test itself fails only if some step is FAIL (BLOCKED / NOT_POSSIBLE do not fail it).
  *   Output: ONB_EVIDENCE_DIR/results/run5-<CARD>-<nn>.json (one per step: card, step, status, detail, facts, screenshots),
  *   ONB_EVIDENCE_DIR/results/run5-summary.json, screenshots ONB_EVIDENCE_DIR/run5-<CARD>-<nn>-<label>.jpg.
  *   Needs: `npx tsx` (TUL-108/136/67 render the real email catalog in a child process via e2e/onboarding/_run5-render.mts).
- *   Filter one card: add `-g` is NOT possible (single test); instead set RUN5_ONLY="TUL-76,TUL-93" (comma list of card ids;
- *   SETUP steps always run).
+ *   Filter cards: `-g` is NOT possible (single test); instead set RUN5_ONLY="TUL-76,TUL-93" (comma list; a step runs when its
+ *   card label CONTAINS one of the entries, so "TUL-123" matches "TUL-123/138" and "TUL-12" would match TUL-120/123/125).
+ *   SETUP steps always run (signup A, M2, S and the shared guest booking), so every card step has its accounts. The extra
+ *   account D for TUL-89 is created lazily inside that step only (not in SETUP), and TUL-31 creates + deletes its own admin.
+ *   Examples: RUN5_ONLY="TUL-89" | RUN5_ONLY="TUL-87,TUL-31" | RUN5_ONLY="TUL-118,TUL-125".
  *
  * CARD -> STEP NAME -> WHAT IT ASSERTS
  *   (setup)     SETUP signup A/M2/S ........ front door -> sentence -> setup -> look (2nd palette) -> email code -> build -> arrival
@@ -39,6 +42,17 @@
  *                       offering seeded on the ISOLATED project only (copied from account A), then a guest books it.
  *   TUL-115     TUL-115 publish + Horario saves ........... talent site published; Settings "Horario y dias libres" saves timezone and
  *                       hours, reload shows them, talent_booking_hours row has them.
+ *   TUL-118     TUL-118 fresh site: bio + /en + header + Reservar + stock hero ... on A's fresh site: bio_i18n has the primary language
+ *                       (stop-word check) AND the other language (not a copy); public h1 recorded; /en h1 differs from the Spanish h1 (or a
+ *                       "Text in ..." marker exists, recorded); <header> shows the person/business name; a Reservar button/link exists; hero
+ *                       image set (DB blocks + rendered DOM) and, with no own photo, resolves to a platform stock asset (platform_stock_images
+ *                       -> media_assets). Findings are recorded as facts even when it passes.
+ *   TUL-89      TUL-89 never-published site: design blocker ... fresh account D rewound to a never-published draft (service role, isolated
+ *                       only). Builder Publish drawer: with a design applied there is NO "Apply a design before publishing"; after clearing
+ *                       talent_sites.theme_design_slug the blocker (en/es copy from maison-publish-readiness.ts) + "preflight-fix-design"
+ *                       button show and "Publish now" is disabled; then a design is applied (UI attempted, else the key is restored and
+ *                       that is recorded) and the blocker is gone and "Publish now" enabled. BLOCKED if the Publish control is unreachable;
+ *                       FAIL (with a hint) if TALENT_MAISON_THEME_ENABLED is off so no blocker ever shows.
  *   TUL-157     TUL-157 hub roster, media, services, hero, languages ... agency_talent_roster active; a PNG uploaded in the dashboard
  *                       lands in media_assets; talent_offerings rows listed on /talent/services; home page hero image set; talent_languages rows.
  *   TUL-125     TUL-125 bilingual bio + stock hero ........ bio_i18n.es and .en non-empty; home hero has an image and (no own photo) it is a
@@ -60,6 +74,13 @@
  *                       submit with the captcha script blocked (no token) creates no inquiry/order. Records configured/not configured.
  *   TUL-123/138 TUL-123/138 captcha on chat ............... chat captcha slot [data-guest-chat-captcha-slot]; it only renders after the server
  *                       asks for it (velocity), so BLOCKED with the reason unless it appears.
+ *   TUL-87      TUL-87 builder Assets panel ........... studio owner S opens <hub>/w/<slug>?edit=1&panel=assets: [data-testid=assets-drawer] +
+ *                       [data-testid=media-library] mount, skeleton settles, NO role=alert (error card / notice) inside, no failing
+ *                       /api/(admin|talent)/media/* call. BLOCKED if the drawer never opens (edit-mode entry unknown for a fresh studio).
+ *   TUL-31      TUL-31 Support Desk light design ........... throwaway super_admin (profiles.app_role) created and DELETED on the isolated
+ *                       project; /platform/admin/support (redirects to the Desk when SUPPORT_DESK_ENABLED) -> .desk-light surface has a light
+ *                       computed background (luminance > 0.7), color-scheme light, no dark class. BLOCKED when the Desk flag is off (page is
+ *                       the dark HQ page by design; recorded).
  *   TUL-120     TUL-120 no error banner + Messages empty state ... fresh login lands on the Spanish dashboard without an error
  *                       banner; /talent/messages shows an empty state, no error, 0 threads.
  *   TUL-120     TUL-120 sign-out .......................... account menu / POST /auth/sign-out clears the auth cookies; /talent/today -> login.
@@ -648,6 +669,91 @@ async function guestBook(browser: Browser, rec: Rec, o: { finishHref: string; na
 }
 
 // ---------------------------------------------------------------------------
+// Shared helpers for the TUL-118 / TUL-89 / TUL-87 / TUL-31 steps
+// ---------------------------------------------------------------------------
+/** Image URLs (absolute or Supabase storage paths) inside a JSON blob (home page blocks). */
+function imageUrlsIn(blob: string): string[] {
+  return Array.from(blob.matchAll(/https?:\\?\/\\?\/[^"\\]+?\.(?:jpe?g|png|webp)|\/storage\/v1\/object\/[^"\\]+/gi)).map((m) => m[0].replace(/\\\//g, "/"));
+}
+
+/**
+ * Does any of these URLs point at a platform stock image? Stock bytes live in media_assets rows (tulala tenant);
+ * platform_stock_images is only the manifest (asset_id -> media_assets.id), so the match goes through media_assets
+ * (storage_path / public_url / id), never through the manifest's own columns.
+ */
+async function stockMatchFor(urls: string[]): Promise<{ stockRows: number; matchedAssetId: string | null; matchedPath: string | null }> {
+  const admin = isolatedService();
+  const { data: stock } = await admin.from("platform_stock_images").select("asset_id").is("retired_at", null).limit(1000);
+  const ids = (stock ?? []).map((r) => (r as Row).asset_id as string);
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data: assets } = await admin.from("media_assets").select("id, storage_path, public_url").in("id", ids.slice(i, i + 100));
+    for (const m of (assets ?? []) as Row[]) {
+      const path = String(m.storage_path ?? "");
+      const pub = String(m.public_url ?? "");
+      const hit = urls.find((u) => (path.length > 8 && u.includes(path)) || (pub.length > 8 && u === pub) || u.includes(String(m.id)));
+      if (hit) return { stockRows: ids.length, matchedAssetId: String(m.id), matchedPath: path || pub };
+    }
+  }
+  return { stockRows: ids.length, matchedAssetId: null, matchedPath: null };
+}
+
+/** The slot row of a booking: talent_bookings (confirmed) first, else talent_holds (pending payment). */
+async function slotRowFor(inquiryId: string): Promise<{ table: string; row: Row | null }> {
+  const admin = isolatedService();
+  const b = await admin.from("talent_bookings").select("*").eq("inquiry_id", inquiryId).limit(1);
+  if ((b.data ?? []).length) return { table: "talent_bookings", row: b.data![0] as Row };
+  const h = await admin.from("talent_holds").select("*").eq("inquiry_id", inquiryId).limit(1);
+  return { table: "talent_holds", row: ((h.data ?? [])[0] as Row | undefined) ?? null };
+}
+
+/** Relative luminance 0..1 of a CSS rgb()/rgba() string; null when transparent or unparsable. */
+function luminanceOf(css: string): number | null {
+  const m = css.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+))?/);
+  if (!m) return null;
+  if (m[4] !== undefined && Number(m[4]) === 0) return null;
+  const [r, g, b] = [Number(m[1]), Number(m[2]), Number(m[3])].map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** The two real copies of the TUL-89 "design required" blocker (maison-publish-readiness.ts + editor-i18n-es-talent-chrome.ts). */
+const NO_DESIGN_RE = /Apply a design before publishing|Aplica un diseño antes de publicar/i;
+
+/**
+ * Open the talent builder (/talent/site -> editor) and its Publish drawer. Returns the drawer text and the state of the
+ * "Publish now" button. Same entry guess as the TUL-76 step; throws Blocked when the topbar Publish control is unreachable.
+ */
+async function openPublishDrawer(page: Page): Promise<{ text: string; publishNowEnabled: boolean | null; publishNowLabel: string; fixButton: boolean }> {
+  await page.goto(`${APP_BASE}/talent/site`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+  await page.waitForTimeout(10_000);
+  const open = page.getByRole("link", { name: /Editar (mi )?sitio|Personalizar|Abrir (el )?editor|Edit (my )?site/i }).or(page.getByRole("button", { name: /Editar (mi )?sitio|Personalizar|Abrir (el )?editor|Edit (my )?site/i })).first();
+  if (await open.isVisible().catch(() => false)) {
+    await open.click({ timeout: 10_000 }).catch(() => undefined);
+    await page.waitForTimeout(8_000);
+  }
+  const topbarPublish = page.getByRole("button", { name: /^(Publicar|Publish)$/ }).first();
+  if (!(await topbarPublish.isVisible({ timeout: 20_000 }).catch(() => false))) {
+    throw new Blocked("blocked: the builder topbar Publish button (aria-label Publish/Publicar) was not reachable from /talent/site; the entry into the editor is guessed (same as TUL-76)");
+  }
+  await topbarPublish.click({ timeout: 10_000 });
+  const publishNow = page.getByRole("button", { name: /Publicar ahora|Publish now/i }).first();
+  await expect(publishNow, "publish drawer open").toBeVisible({ timeout: 30_000 });
+  // The checks run async ("Running publish checks…"): wait until they settle.
+  await poll(async () => ((await page.getByText(/Running publish checks|Ejecutando las verificaciones/i).count()) === 0 ? true : null), 40_000, 1_000);
+  await page.waitForTimeout(1_500);
+  const drawer = page.locator('[role="dialog"], [data-testid="publish-drawer"], aside').filter({ has: publishNow }).first();
+  const text = ((await drawer.innerText().catch(() => "")) || (await page.locator("body").innerText())).replace(/\s+/g, " ");
+  return {
+    text,
+    publishNowEnabled: await publishNow.isEnabled().catch(() => null),
+    publishNowLabel: (await publishNow.getAttribute("aria-label").catch(() => null)) ?? (await publishNow.getAttribute("title").catch(() => null)) ?? "",
+    fixButton: (await page.locator('[data-testid="preflight-fix-design"]').count()) > 0,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 if (TARGET.local) test.use({ launchOptions: { args: ["--host-resolver-rules=MAP *.tulala.digital 127.0.0.1"] } });
@@ -730,13 +836,177 @@ test.describe("run 5 evidence · isolated journeys stack", () => {
       rec.fact("ownPhotos", (own ?? []).length);
       const { data: page } = await admin.from("talent_pages").select("blocks, blocks_published").eq("talent_profile_id", a.talentId!).eq("is_home", true).maybeSingle();
       const blob = JSON.stringify([page?.blocks, page?.blocks_published]);
-      const imgs = Array.from(blob.matchAll(/https?:\\?\/\\?\/[^"\\]+?\.(?:jpe?g|png|webp)|\/storage\/v1\/object\/[^"\\]+/gi)).map((m) => m[0]);
+      const imgs = imageUrlsIn(blob);
       rec.fact("homeImageUrlsFound", imgs.slice(0, 5));
       expect(imgs.length, "home page carries a hero image").toBeGreaterThan(0);
-      const { data: stock } = await admin.from("platform_stock_images").select("*").limit(300);
-      const hit = (stock ?? []).find((r) => Object.values(r as Row).some((v) => typeof v === "string" && v.length > 12 && blob.includes(v)));
-      rec.fact("matchesPlatformStockRow", hit ? (hit as Row).id : null);
-      if ((own ?? []).length === 0) expect(hit, "no own photo, so the hero must be a platform_stock_images row").toBeTruthy();
+      // platform_stock_images has NO url column (asset_id -> media_assets): match through media_assets.
+      const stock = await stockMatchFor([...imgs, blob]);
+      rec.fact("platformStockManifestRows", stock.stockRows);
+      rec.fact("matchesPlatformStockAsset", stock.matchedAssetId);
+      rec.fact("matchedStockPath", stock.matchedPath);
+      if ((own ?? []).length === 0) expect(stock.matchedAssetId, "no own photo, so the hero must be a platform stock image (platform_stock_images -> media_assets)").toBeTruthy();
+    });
+
+    // ---- TUL-118 (extras on A's fresh site) ---------------------------------------------------------------------
+    await rec.step("TUL-118", "fresh site: bio in primary language + other language, /en hero, header name, Reservar, stock hero", async () => {
+      const a = requireAcct(A, "A");
+      // Primary language: the native talent_languages row, else Spanish (the whole signup runs in es).
+      const { data: langs } = await admin.from("talent_languages").select("language_code, is_native").eq("talent_profile_id", a.talentId!);
+      const primary = String(((langs ?? []).find((l) => l.is_native)?.language_code as string | undefined) ?? "es").toLowerCase().slice(0, 2);
+      const other = primary === "es" ? "en" : "es";
+      rec.fact("primaryLanguage", primary);
+      rec.fact("primaryLanguageSource", (langs ?? []).some((l) => l.is_native) ? "talent_languages.is_native" : "assumed es (no native language row)");
+      const { data: tp } = await admin.from("talent_profiles").select("bio_i18n, short_bio, display_name").eq("id", a.talentId!).maybeSingle();
+      const bio = (tp?.bio_i18n ?? {}) as Record<string, unknown>;
+      rec.fact("bio_i18n", { es: String(bio.es ?? "").slice(0, 160), en: String(bio.en ?? "").slice(0, 160) });
+      rec.fact("short_bio", String(tp?.short_bio ?? "").slice(0, 160));
+      expect(String(bio[primary] ?? "").trim().length, `bio_i18n.${primary} (primary language)`).toBeGreaterThan(0);
+      expect(String(bio[other] ?? "").trim().length, `bio_i18n.${other} (the other language exists)`).toBeGreaterThan(0);
+      const stopES = (s: string) => (s.toLowerCase().match(/\b(de|la|el|en|y|con|para|que|una?|los|las)\b/g) ?? []).length;
+      const stopEN = (s: string) => (s.toLowerCase().match(/\b(the|and|with|for|in|of|a|an|is|her|she)\b/g) ?? []).length;
+      const primaryText = String(bio[primary] ?? "");
+      const looksPrimary = primary === "es" ? stopES(primaryText) > stopEN(primaryText) : stopEN(primaryText) > stopES(primaryText);
+      rec.fact("primaryBioLooksLikePrimaryLanguage", looksPrimary);
+      expect(looksPrimary, `bio_i18n.${primary} is written in ${primary} (stop-word heuristic)`).toBe(true);
+      rec.fact("otherBioDiffersFromPrimary", String(bio[other] ?? "") !== primaryText);
+      expect(String(bio[other] ?? ""), "the other-language bio is a real translation, not a copy").not.toBe(primaryText);
+
+      const ctx = await browser.newContext({ viewport: VIEWPORT, locale: "es-MX" });
+      await armBypass(ctx);
+      const p = await ctx.newPage();
+      rec.page = p;
+      try {
+        const base = siteUrl(a.siteSlug!);
+        const res = await p.goto(base, { waitUntil: "domcontentloaded" });
+        expect(res?.status(), "public site status").toBe(200);
+        await p.waitForTimeout(3_000);
+        const h1Es = ((await p.locator("h1").first().innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+        rec.fact("h1_es", h1Es);
+        // Header shows the business/person name.
+        const headerText = ((await p.locator("header").first().innerText().catch(() => "")) || "").replace(/\s+/g, " ");
+        rec.fact("headerText", headerText.slice(0, 200));
+        const nameRoot = a.displayName.split(" ")[0];
+        expect(headerText.toLowerCase(), `header shows the person/business name ("${a.displayName}")`).toContain(a.displayName.toLowerCase());
+        void nameRoot;
+        // A 'Reservar' (es) button/link.
+        const reservar = p.getByRole("button", { name: /Reservar/i }).or(p.getByRole("link", { name: /Reservar/i }));
+        const reservarCount = await reservar.count();
+        rec.fact("reservarControls", reservarCount);
+        expect(reservarCount, "a Reservar button/link is present").toBeGreaterThan(0);
+        // Hero image: DB reference + the rendered <img>/background, and whether it is platform stock.
+        const { data: home } = await admin.from("talent_pages").select("blocks, blocks_published").eq("talent_profile_id", a.talentId!).eq("is_home", true).maybeSingle();
+        const blob = JSON.stringify([home?.blocks_published, home?.blocks]);
+        const dbImgs = imageUrlsIn(blob);
+        const domImgs = await p.evaluate(() => {
+          const out: string[] = [];
+          document.querySelectorAll("main img, section img").forEach((i) => out.push((i as HTMLImageElement).currentSrc || (i as HTMLImageElement).src));
+          document.querySelectorAll<HTMLElement>("main [style*='background-image'], section [style*='background-image']").forEach((e) => {
+            const m = e.style.backgroundImage.match(/url\(["']?([^"')]+)/);
+            if (m) out.push(m[1]);
+          });
+          return out;
+        });
+        rec.fact("heroImageUrlsInDb", dbImgs.slice(0, 4));
+        rec.fact("heroImageUrlsInDom", domImgs.slice(0, 4));
+        rec.fact("heroImageHosts", Array.from(new Set([...dbImgs, ...domImgs].map((u) => { try { return new URL(u, base).host; } catch { return u.slice(0, 40); } }))));
+        expect(dbImgs.length + domImgs.length, "the hero image is set").toBeGreaterThan(0);
+        const { data: own } = await admin.from("media_assets").select("id").eq("owner_talent_profile_id", a.talentId!).is("deleted_at", null).limit(1);
+        const stock = await stockMatchFor([...dbImgs, ...domImgs.map((u) => { try { return decodeURIComponent(u); } catch { return u; } }), blob]);
+        rec.fact("ownPhotos", (own ?? []).length);
+        rec.fact("heroIsPlatformStock", Boolean(stock.matchedAssetId));
+        rec.fact("heroStockAsset", stock.matchedAssetId);
+        rec.fact("heroStockPath", stock.matchedPath);
+        await rec.shot(p, "site-es");
+        if (!(own ?? []).length) expect(stock.matchedAssetId, "no own photo: the hero image comes from platform stock").toBeTruthy();
+
+        // /en: the hero headline is not the Spanish headline (or a clear fallback marker exists).
+        await p.goto(`${base.replace(/\/$/, "")}/en`, { waitUntil: "domcontentloaded" });
+        await p.waitForTimeout(3_000);
+        const h1En = ((await p.locator("h1").first().innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+        const marker = await p.getByText(/\(Text in |\(Texto en |Text in Spanish|Texto en español/i).first().innerText().catch(() => "");
+        rec.fact("h1_en", h1En);
+        rec.fact("enFallbackMarker", marker || "(none)");
+        rec.fact("enHtmlLang", await p.locator("html").getAttribute("lang"));
+        await rec.shot(p, "site-en");
+        expect(h1En.length, "/en renders a hero headline").toBeGreaterThan(0);
+        rec.fact("h1EnDiffersFromEs", h1En !== h1Es);
+        expect(h1En !== h1Es || marker.length > 0, "/en hero headline is not the Spanish one, or a fallback marker explains it").toBe(true);
+      } finally {
+        await ctx.close();
+      }
+    });
+
+    // ---- TUL-89 (publish blocker is the right one; own fresh account D, lazily created) ----------------------------
+    await rec.step("TUL-89", "never-published site: design blocker only when no design; applying one enables Publish", async () => {
+      const d = await provision(browser, rec, "myself", "D");
+      requireAcct(d, "D");
+      const { data: before } = await admin.from("talent_sites").select("theme_design_slug, status, site_published_at, site_slug").eq("talent_profile_id", d.talentId!).maybeSingle();
+      rec.fact("siteAfterSignup", before);
+      // The design rule only fires for a NEVER-published site (talent-design-preflight.ts: row.site_published_at => null issue),
+      // and only when the Maison flag is on for the talent. Fresh signups are auto-published, so rewind to a never-published draft.
+      const appliedSlug = (before?.theme_design_slug as string | null) ?? "maison-v2";
+      const rewind = await admin.from("talent_sites").update({ status: "draft", site_published_at: null, theme_design_slug: appliedSlug }).eq("talent_profile_id", d.talentId!);
+      if (rewind.error) throw new Blocked(`blocked: could not rewind the isolated site to never-published: ${rewind.error.message}`);
+      rec.fact("rewind", { status: "draft", site_published_at: null, theme_design_slug: appliedSlug });
+
+      const { ctx, page } = await openAs(browser, d);
+      rec.page = page;
+      try {
+        // Phase 1: a design IS applied -> the false "Apply a design" blocker must NOT show.
+        const withDesign = await openPublishDrawer(page);
+        rec.fact("phase1_designApplied_drawerExcerpt", withDesign.text.slice(0, 500));
+        rec.fact("phase1_publishNowEnabled", withDesign.publishNowEnabled);
+        await rec.shot(page, "phase1-design-applied");
+        expect(NO_DESIGN_RE.test(withDesign.text), "with a design applied the publish checks must NOT say 'Apply a design'").toBe(false);
+        expect(withDesign.fixButton, "no 'Choose a design' fix button while a design is applied").toBe(false);
+
+        // Phase 2: clear the applied design key (talent_sites.theme_design_slug) -> the RIGHT blocker shows, Publish disabled.
+        const clear = await admin.from("talent_sites").update({ theme_design_slug: null }).eq("talent_profile_id", d.talentId!);
+        if (clear.error) throw new Error(`could not clear theme_design_slug on the isolated project: ${clear.error.message}`);
+        const noDesign = await openPublishDrawer(page);
+        rec.fact("phase2_noDesign_drawerExcerpt", noDesign.text.slice(0, 500));
+        rec.fact("phase2_publishNowEnabled", noDesign.publishNowEnabled);
+        rec.fact("phase2_publishNowReason", noDesign.publishNowLabel);
+        rec.fact("phase2_fixButton(preflight-fix-design)", noDesign.fixButton);
+        await rec.shot(page, "phase2-no-design");
+        if (!NO_DESIGN_RE.test(noDesign.text)) {
+          rec.fact("hint", "no design blocker: either TALENT_MAISON_THEME_ENABLED is off on the app under test (talentDesignRequiredIssue returns null) or the check failed open");
+        }
+        expect(NO_DESIGN_RE.test(noDesign.text), "with NO design the blocker is 'Apply a design before publishing' (es: 'Aplica un diseño antes de publicar')").toBe(true);
+        expect(noDesign.fixButton, "the blocker offers the design fix button").toBe(true);
+        expect(noDesign.publishNowEnabled, "Publish now is disabled while the design blocker is present").toBe(false);
+
+        // Phase 3: apply a design through the UI (best effort), else restore the key with the service role (recorded).
+        await page.locator('[data-testid="preflight-fix-design"] button').first().click({ timeout: 10_000 }).catch(() => undefined);
+        await page.waitForTimeout(8_000);
+        const card = page.locator('[data-testid="maison-explore-theme"], [data-testid^="design-explore-"]').first();
+        let uiApplied = false;
+        if (await card.isVisible({ timeout: 15_000 }).catch(() => false)) {
+          await card.click({ timeout: 10_000 }).catch(() => undefined);
+          await page.waitForTimeout(4_000);
+          const apply = page.getByRole("button", { name: /^(Usar|Aplicar|Elegir|Apply|Use|Choose)( este| this)?( diseño| design)?$/i }).first();
+          if (await apply.isVisible({ timeout: 10_000 }).catch(() => false)) {
+            await apply.click({ timeout: 10_000 }).catch(() => undefined);
+            uiApplied = Boolean(await poll(async () => ((await admin.from("talent_sites").select("theme_design_slug").eq("talent_profile_id", d.talentId!).maybeSingle()).data?.theme_design_slug ? true : null), 45_000));
+          }
+        }
+        await rec.shot(page, "phase3-after-ui-apply-attempt");
+        rec.fact("designAppliedThroughUi", uiApplied);
+        if (!uiApplied) {
+          const restore = await admin.from("talent_sites").update({ theme_design_slug: appliedSlug }).eq("talent_profile_id", d.talentId!);
+          if (restore.error) throw new Error(`could not restore theme_design_slug: ${restore.error.message}`);
+          rec.fact("designRestoredViaServiceRole", appliedSlug);
+        }
+        const applied = await openPublishDrawer(page);
+        rec.fact("phase3_drawerExcerpt", applied.text.slice(0, 500));
+        rec.fact("phase3_publishNowEnabled", applied.publishNowEnabled);
+        rec.fact("phase3_publishNowReason", applied.publishNowLabel);
+        await rec.shot(page, "phase3-design-applied");
+        expect(NO_DESIGN_RE.test(applied.text), "the design blocker is gone after applying a design").toBe(false);
+        expect(applied.publishNowEnabled, `Publish now becomes enabled (reason if not: ${applied.publishNowLabel || "none"})`).toBe(true);
+      } finally {
+        await ctx.close();
+      }
     });
 
     // ---- TUL-157 -------------------------------------------------------------------------------------------------
@@ -960,12 +1230,7 @@ test.describe("run 5 evidence · isolated journeys stack", () => {
       const a = requireAcct(A, "A");
       if (!guest?.inquiry) throw new Blocked("blocked: no guest inquiry from the shared booking step");
       const iid = guest.inquiry.id as string;
-      let table = "talent_bookings";
-      let { data: slot } = await admin.from("talent_bookings").select("*").eq("inquiry_id", iid).maybeSingle();
-      if (!slot) {
-        table = "talent_holds";
-        ({ data: slot } = await admin.from("talent_holds").select("*").eq("inquiry_id", iid).maybeSingle());
-      }
+      const { table, row: slot } = await slotRowFor(iid);
       rec.fact("slotTable", table);
       rec.fact("slotRow", slot);
       expect(slot, "a talent_bookings (confirmed) or talent_holds (pending payment) row for the inquiry").toBeTruthy();
@@ -986,14 +1251,15 @@ test.describe("run 5 evidence · isolated journeys stack", () => {
       if (!guest?.inquiry) throw new Blocked("blocked: no guest inquiry from the shared booking step");
       const { data: inq } = await admin.from("inquiries").select("id, status, event_date, event_location").eq("id", guest.inquiry.id as string).maybeSingle();
       rec.fact("inquiry", inq);
-      const { data: tb } = await admin.from("talent_bookings").select("id").eq("inquiry_id", guest.inquiry.id as string).maybeSingle();
+      const { data: tbRows } = await admin.from("talent_bookings").select("id").eq("inquiry_id", guest.inquiry.id as string).limit(1);
+      const tb = (tbRows ?? [])[0];
       rec.fact("talent_bookings_mirror_exists", Boolean(tb));
       if (!tb) rec.fact("note", "the stamp (stampInquiryEventFromBooking) runs on hold->booking conversion in reservation-convert.ts, i.e. after payment; a pending_payment guest booking may legitimately not be stamped yet");
       expect(inq?.event_date, "inquiries.event_date").toBeTruthy();
       expect(String(inq?.event_location ?? "").trim().length, "inquiries.event_location").toBeGreaterThan(0);
       if (guest.chip) {
-        const { data: slot } = await admin.from("talent_holds").select("starts_at").eq("inquiry_id", guest.inquiry.id as string).maybeSingle();
-        const iso = (slot as Row | null)?.starts_at as string | undefined;
+        const { row: slot } = await slotRowFor(guest.inquiry.id as string);
+        const iso = slot?.starts_at as string | undefined;
         if (iso) expect(String(inq?.event_date), "event_date is the slot's date in the talent zone").toBe(wallDate(iso, talentTz));
       }
     });
@@ -1325,6 +1591,129 @@ test.describe("run 5 evidence · isolated journeys stack", () => {
       const g = await guestBook(browser, rec, { finishHref: s.finishHref, name: s.displayName, email: `qa-r5-studio-guest-${STAMP}@impronta.test`, timezoneId: tz });
       rec.fact("guest", { chip: g.chip, inquiry: g.inquiry?.id, order: g.order ? { id: g.order.id, status: g.order.status } : null, confirmationSeen: g.confirmationSeen });
       expect(g.inquiry ?? g.order, "a booking row (inquiry or order) exists for the studio booking").toBeTruthy();
+    });
+
+    // ---- TUL-87 (studio owner S: builder Assets panel on the hub workspace site) ----------------------------------
+    await rec.step("TUL-87", "page builder Assets panel loads the media grid with no error card", async () => {
+      const s = requireAcct(S, "S");
+      if (!s.tenantSlug) throw new Blocked("blocked: studio workspace slug unknown");
+      const { ctx, page } = await openAs(browser, s);
+      rec.page = page;
+      try {
+        const bad: string[] = [];
+        page.on("response", (r) => {
+          const u = new URL(r.url());
+          if (/\/api\/(admin|talent)\/media\//.test(u.pathname) && r.status() >= 400) bad.push(`${r.status()} ${u.pathname}`);
+        });
+        // TUL-87: a workspace without a custom domain is edited at <hub>/w/<slug>?edit=1 (host kind hub); panel=assets is the deep link.
+        const candidates = [`${MARKETING_BASE}/w/${s.tenantSlug}?edit=1&panel=assets`, `${APP_BASE}/${s.tenantSlug}?edit=1&panel=assets`];
+        const drawer = page.locator('[data-testid="assets-drawer"]');
+        let usedUrl = "";
+        for (const url of candidates) {
+          await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90_000 }).catch(() => undefined);
+          if (await drawer.waitFor({ state: "visible", timeout: 45_000 }).then(() => true, () => false)) {
+            usedUrl = url;
+            break;
+          }
+        }
+        rec.fact("triedUrls", candidates);
+        rec.fact("usedUrl", usedUrl || "(none opened the panel)");
+        await rec.shot(page, "assets-panel");
+        if (!usedUrl) throw new Blocked("blocked: the Assets drawer ([data-testid=assets-drawer]) did not open from /w/<slug>?edit=1&panel=assets or <app>/<slug>?edit=1&panel=assets (edit mode entry for a fresh studio not reachable; check the screenshot)");
+        const lib = drawer.locator('[data-testid="media-library"]');
+        await expect(lib, "the media library mounted inside the Assets panel").toBeVisible({ timeout: 30_000 });
+        // Loading settles (skeleton gone), then there is either a grid of tiles or the calm empty state, never the error card.
+        await poll(async () => ((await drawer.locator('[data-testid="media-library-skeleton"]').count()) === 0 ? true : null), 45_000, 1_000);
+        await page.waitForTimeout(1_500);
+        // The error card is LibraryStatePanel tone="error" (role=alert, title dashboard.mediaLibrary.errorTitle); an upload/save
+        // failure uses LibraryNotice tone="error" (also role=alert). Both are role=alert inside the drawer.
+        const alerts = await drawer.locator('[role="alert"]').allInnerTexts();
+        const text = (await drawer.innerText()).replace(/\s+/g, " ");
+        rec.fact("alertsInPanel", alerts.map((t) => t.replace(/\s+/g, " ").slice(0, 160)));
+        rec.fact("tilesInGrid", await lib.locator("img").count());
+        rec.fact("panelExcerpt", text.slice(0, 300));
+        rec.fact("mediaApiErrors", bad);
+        rec.fact("skeletonStillShown", (await drawer.locator('[data-testid="media-library-skeleton"]').count()) > 0);
+        await rec.shot(page, "assets-panel-settled");
+        expect(alerts, "no red error card / alert in the Assets panel").toHaveLength(0);
+        expect(text, "no raw developer error in the panel").not.toMatch(/<!DOCTYPE|Unexpected token|JSON\.parse|\[object Object\]/i);
+        expect(bad, "no failing media API call from the panel").toHaveLength(0);
+        expect(await drawer.locator('[data-testid="media-library-skeleton"]').count(), "the grid finished loading").toBe(0);
+      } finally {
+        await ctx.close();
+      }
+    });
+
+    // ---- TUL-31 (throwaway platform admin, ISOLATED project only) -------------------------------------------------
+    await rec.step("TUL-31", "Support Desk renders the light design (platform admin, throwaway)", async () => {
+      assertIsolatedJourneysTarget(process.env); // re-assert right before touching profiles.app_role
+      const email = `qa-r5-admin-${STAMP}@impronta.test`;
+      const created = await admin.auth.admin.createUser({ email, email_confirm: true });
+      const uid = created.data.user?.id;
+      if (!uid) throw new Error(`could not create the throwaway admin user: ${created.error?.message}`);
+      rec.fact("throwawayAdminUserId", uid);
+      let ctx: BrowserContext | null = null;
+      try {
+        // Platform admin = profiles.app_role 'super_admin' (src/lib/access/platform-role.ts isPlatformAdmin; profiles has no platform_role column).
+        // The profile row is created by the auth trigger; upsert covers a missing row. Service role is not subject to guard_profile_self_update.
+        const up = await admin.from("profiles").upsert({ id: uid, app_role: "super_admin", account_status: "active", onboarding_completed_at: new Date().toISOString() }, { onConflict: "id" });
+        if (up.error) throw new Blocked(`blocked: could not promote the throwaway user on the isolated project: ${up.error.message}`);
+        const { data: prof } = await admin.from("profiles").select("app_role").eq("id", uid).maybeSingle();
+        rec.fact("profileAfterPromote", prof);
+        expect(prof?.app_role, "throwaway user is super_admin on the isolated project").toBe("super_admin");
+
+        ctx = await browser.newContext({ viewport: VIEWPORT, locale: "es-MX" });
+        await armBypass(ctx);
+        await addSession(ctx, email);
+        const page = await ctx.newPage();
+        page.setDefaultTimeout(30_000);
+        rec.page = page;
+        // With SUPPORT_DESK_ENABLED on, /platform/admin/support redirects to the Desk portal (.desk-light). Flag off: it is the dark HQ page.
+        await page.goto(`${APP_BASE}/platform/admin/support`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+        await page.waitForTimeout(8_000);
+        let finalPath = new URL(page.url()).pathname;
+        rec.fact("landedOn", `${finalPath}${new URL(page.url()).search}`);
+        let light = page.locator(".desk-light").first();
+        if (!(await light.count())) {
+          await page.goto(`${APP_BASE}/platform/admin/support/desk`, { waitUntil: "domcontentloaded", timeout: 90_000 }).catch(() => undefined);
+          await page.waitForTimeout(6_000);
+          finalPath = new URL(page.url()).pathname;
+          rec.fact("alsoTried", `/platform/admin/support/desk -> ${finalPath}`);
+          light = page.locator(".desk-light").first();
+        }
+        await rec.shot(page, "support");
+        const probe = await page.evaluate(() => {
+          const chain: string[] = [];
+          const root = document.querySelector(".desk-light") ?? document.querySelector(".platform-admin-root") ?? document.body;
+          for (let el: Element | null = root; el; el = el.parentElement) chain.push(getComputedStyle(el).backgroundColor);
+          return {
+            rootClass: (document.querySelector(".desk-light") ?? document.querySelector(".platform-admin-root"))?.className ?? "(none)",
+            htmlClass: document.documentElement.className,
+            htmlDataTheme: document.documentElement.getAttribute("data-theme"),
+            colorScheme: getComputedStyle(root).colorScheme,
+            bgChain: chain,
+            hqBg: getComputedStyle(root).getPropertyValue("--hq-bg").trim(),
+          };
+        });
+        rec.fact("probe", probe);
+        const firstSolid = probe.bgChain.map(luminanceOf).find((l) => l !== null) ?? null;
+        rec.fact("backgroundLuminance(0 dark..1 light)", firstSolid);
+        const hasDeskLight = String(probe.rootClass).includes("desk-light");
+        if (!hasDeskLight) {
+          throw new Blocked(`blocked: no .desk-light surface rendered (landed on ${finalPath}). The light design is the Support Desk (SUPPORT_DESK_ENABLED=1 on the app under test); with the flag off /platform/admin/support is the dark Platform HQ page by design (bg luminance ${firstSolid}). Enable the flag on the isolated stack to prove TUL-31.`);
+        }
+        expect(firstSolid, "page background resolves to a solid colour").not.toBeNull();
+        expect(firstSolid as number, "page background is light (relative luminance > 0.7)").toBeGreaterThan(0.7);
+        expect(/dark/i.test(`${probe.htmlClass} ${probe.rootClass}`) || probe.htmlDataTheme === "dark", "no dark theme class / data-theme on the surface").toBe(false);
+        expect(probe.colorScheme, "color-scheme is light").toMatch(/light/);
+      } finally {
+        await ctx?.close().catch(() => undefined);
+        // Always remove the throwaway admin (also demotes it first in case the delete is blocked by FKs).
+        await admin.from("profiles").update({ app_role: "talent" }).eq("id", uid);
+        const del = await admin.auth.admin.deleteUser(uid);
+        rec.fact("throwawayAdminDeleted", !del.error);
+        if (del.error) rec.fact("throwawayAdminDeleteError", del.error.message);
+      }
     });
 
     // ---- TUL-120 -------------------------------------------------------------------------------------------------
