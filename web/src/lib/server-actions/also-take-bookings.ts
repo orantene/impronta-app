@@ -18,6 +18,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { provisionTalentProfileSelf } from "./talent-self-provision";
 
 export type AlsoTakeBookingsResult =
@@ -26,6 +27,7 @@ export type AlsoTakeBookingsResult =
 
 export async function alsoTakeBookingsAction(): Promise<AlsoTakeBookingsResult> {
   const none = { completed: [] as AlsoBookableStep[], pending: [] as AlsoBookableStep[] };
+  if (!(await assertNotImpersonating()).ok) return { ok: false, error: "Read-only while acting as another user.", ...none };
   const session = await getCachedActorSession();
   const admin = createServiceRoleClient();
   if (!session.user || !admin) return { ok: false, error: "You must be signed in.", ...none };
