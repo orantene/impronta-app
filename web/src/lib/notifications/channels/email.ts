@@ -22,6 +22,7 @@ import {
   interpolateOverride,
 } from "../overlay";
 import { getEmailSubject, interpolate } from "../email-copy";
+import { bookingNoun } from "../booking-noun";
 import type { EmailBrand } from "@/lib/brand/resolve-tenant-brand";
 import { logServerError } from "@/lib/server/safe-error";
 /**
@@ -226,7 +227,7 @@ function resolveLocalizedSubject(
   recipient: ResolvedRecipient,
   brand: EmailBrand,
 ): string {
-  const localized = getEmailSubject(brand.locale, cfg.templateId);
+  const localized = getEmailSubject(brand.locale, cfg.templateId, bookingNoun(event.payload));
   if (localized) return interpolate(localized, subjectVars(event, recipient, brand));
   return cfg.subject(event, recipient);
 }
