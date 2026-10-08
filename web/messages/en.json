@@ -13116,6 +13116,7 @@
       "tagPlaceholder": "Add tag + Enter",
       "removeTag": "Remove tag {tag}",
       "errorTitle": "Could not load the media library",
+      "errorDetail": "Something went wrong while loading your files. Try again in a moment.",
       "emptyTitle": "No assets yet",
       "emptyDetail": "Upload a file, or drop one anywhere in this panel.",
       "noMatchesTitle": "Nothing matches those filters",

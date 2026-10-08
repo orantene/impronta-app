@@ -17,6 +17,8 @@
  */
 
 export const ES_MEDIA_TEXT: Record<string, string> = {
+  "dashboard.mediaLibrary.errorDetail":
+    "Algo salió mal al cargar tus archivos. Inténtalo de nuevo en un momento.",
   // ── Media picker two-key locks (phase 3, 2026-08-14) ──────────────────
   "dashboard.mediaPickerLock.badge": "Bloqueada",
   "dashboard.mediaPickerLock.aWorkspace": "un espacio de trabajo",
