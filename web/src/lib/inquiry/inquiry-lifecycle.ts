@@ -33,7 +33,10 @@ export type TransitionBlockReason =
   /** The one-talent-one-time exclusion refused the booking mirror after the
    * pre-write check passed (D-MSG-312). The convert rolls back and the caller
    * refuses; it is a conflict, not a validation error. */
-  | "talent_double_booked";
+  | "talent_double_booked"
+  /** TUL-313: a new offer has no resolvable currency (participant, solo owner-talent
+   * and workspace default all missing); the engine refuses instead of guessing. */
+  | "offer_currency_unresolved";
 
 export type TransitionCheck =
   | { ok: true }
