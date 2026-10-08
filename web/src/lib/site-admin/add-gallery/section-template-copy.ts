@@ -26,6 +26,37 @@ export function templateCopySiteKind(
   return p.startsWith("/talent/") || p.startsWith("/t/") ? "talent" : "agency";
 }
 
+/**
+ * Language for inserted placeholder copy. The active content-locale store is
+ * only published by the top bar; until then it holds its "en" boot default,
+ * which made a Spanish site get English copy (TUL-80 / Grokbot B-9). When the
+ * store's tenant default does not match the editor's real tenant default it
+ * was never published for this site, so the site default wins.
+ */
+export function resolveCopyLocale(
+  active: { locale: string; defaultLocale: string },
+  siteDefaultLocale: string | null | undefined,
+): string {
+  const site = (siteDefaultLocale ?? "").trim();
+  if (!site) return active.locale || "en";
+  const published = active.defaultLocale.toLowerCase() === site.toLowerCase();
+  return published && active.locale ? active.locale : site;
+}
+
+/** One place that builds the context both insert call sites pass. */
+export function buildTemplateCopyContext(input: {
+  surfaceKind: string | null | undefined;
+  pathname: string | null | undefined;
+  workspaceType?: string | null;
+  active: { locale: string; defaultLocale: string };
+  siteDefaultLocale?: string | null;
+}): TemplateCopyContext {
+  return {
+    siteKind: templateCopySiteKind(input.surfaceKind, input.pathname, input.workspaceType),
+    locale: resolveCopyLocale(input.active, input.siteDefaultLocale),
+  };
+}
+
 type Row = CopyRow;
 
 const BASE_ROWS: Record<string, Row> = {
