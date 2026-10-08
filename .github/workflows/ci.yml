@@ -463,6 +463,9 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:sync-test-talent
 
+      - name: tests — live timing harness pure parts (TUL-290)
+        if: ${{ !cancelled() }}
+        run: npm run test:live-timing
       - name: tests — talent public app routes (bracketed folders, TUL-288 follow-up)
         if: ${{ !cancelled() }}
         run: npm run test:talent-public-app
