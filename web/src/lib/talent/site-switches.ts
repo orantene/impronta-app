@@ -8,6 +8,11 @@
 export type TalentChatConfig = {
   greeting: string | null;
   browseServices: boolean;
+  /**
+   * TUL-36: AI booking assistant in the guest dock. Default off (cost +
+   * control). Distinct from `chatEnabled` (dock visible vs hidden).
+   */
+  aiBookingAssistantEnabled: boolean;
 };
 
 export type TalentSiteSwitches = {
@@ -21,7 +26,7 @@ export const DEFAULT_TALENT_SITE_SWITCHES: TalentSiteSwitches = {
   acceptingBookings: true,
   acceptingInquiries: true,
   chatEnabled: true,
-  chatConfig: { greeting: null, browseServices: true },
+  chatConfig: { greeting: null, browseServices: true, aiBookingAssistantEnabled: false },
 };
 
 const GREETING_MAX = 280;
@@ -39,6 +44,8 @@ export function parseTalentChatConfig(raw: unknown): TalentChatConfig {
   return {
     greeting: g ? g.slice(0, GREETING_MAX) : null,
     browseServices: bool(obj.browseServices, true),
+    // Explicit true only; missing / junk stays off (PM: default OFF).
+    aiBookingAssistantEnabled: obj.aiBookingAssistantEnabled === true,
   };
 }
 

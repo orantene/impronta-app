@@ -70,6 +70,7 @@ import {
 import { isBlocked } from "@/lib/inquiry/recipient-safety";
 import { resolveInquiryRecipients } from "@/lib/notifications/recipients";
 import { emitGuestAutoAck } from "@/lib/inquiry/guest-auto-ack";
+import { maybeRunBookingAssistantTurn } from "@/lib/ai/booking-assistant/turn.server";
 import { nextFreeTimesForTalent } from "@/lib/scheduling/next-free-times";
 import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
 import { sendGuestClaimEmail } from "@/lib/inquiry/guest-claim-link";
@@ -1164,11 +1165,24 @@ export async function startGuestChatInquiry(
   const autoAckMessage =
     emittedAutoAck ?? messages.find((m) => m.authorRole === "system") ?? null;
 
+  // TUL-36 phase 1: facts reply or handoff when the talent AI toggle is on.
+  // Instant-answer already ran client-side before identity; this path is the
+  // post-inquiry miss (booking intent, human ask, or catalog LLM).
+  const assistantMessage = await maybeRunBookingAssistantTurn({
+    inquiryId,
+    tenantId,
+    talentProfileId,
+    guestMessage: firstMessage,
+    locale: input.locale ?? null,
+    instantAnswered: false,
+  });
+
   return {
     ok: true,
     inquiryId,
     openingMessage,
     autoAckMessage,
+    assistantMessage,
     guestEmail: contactEmail,
     claimEmailSent,
     guestActivation: provisioned.status,
@@ -1449,15 +1463,40 @@ export async function sendGuestMessageAction(
     .eq("tenant_id", owned.inquiry.tenantId)
     .maybeSingle();
 
+  let assistantTalentId: string | null = null;
+  {
+    const { data: talentPart } = await admin
+      .from("inquiry_participants")
+      .select("talent_profile_id")
+      .eq("inquiry_id", owned.inquiry.id)
+      .eq("role", "talent")
+      .not("talent_profile_id", "is", null)
+      .limit(1)
+      .maybeSingle();
+    assistantTalentId = (talentPart?.talent_profile_id as string | null) ?? null;
+  }
+  const assistantMessage = await maybeRunBookingAssistantTurn({
+    inquiryId: owned.inquiry.id,
+    tenantId: owned.inquiry.tenantId,
+    talentProfileId: assistantTalentId,
+    guestMessage: body,
+    locale: null,
+    instantAnswered: false,
+  });
+
   if (rawRow) {
     const row = rawRow as unknown as RawMessageRow;
     // A guest's own send is always authorRole "guest".
     const message = toGuestThreadMessage(row, "guest", new Map());
-    return { ok: true, message };
+    return { ok: true, message, assistantMessage };
   }
 
   // Fallback synthetic echo (insert succeeded but read-back failed).
-  return { ok: true, message: synthOpeningMessage(owned.inquiry.id, messageId, body) };
+  return {
+    ok: true,
+    message: synthOpeningMessage(owned.inquiry.id, messageId, body),
+    assistantMessage,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -17,11 +17,32 @@ test("explicit false is kept; junk falls back to on", () => {
   assert.equal(s.acceptingBookings, false);
   assert.equal(s.acceptingInquiries, true);
   assert.equal(s.chatEnabled, false);
-  assert.deepEqual(s.chatConfig, { greeting: "Hola", browseServices: false });
+  assert.deepEqual(s.chatConfig, {
+    greeting: "Hola",
+    browseServices: false,
+    aiBookingAssistantEnabled: false,
+  });
 });
 
 test("greeting is capped and blank greeting is null", () => {
   assert.equal(parseTalentSiteSwitches({ chat_config: { greeting: "   " } }).chatConfig.greeting, null);
   assert.equal(parseTalentSiteSwitches({ chat_config: { greeting: "x".repeat(400) } }).chatConfig.greeting?.length, 280);
   assert.equal(parseTalentSiteSwitches({ chat_config: [] }).chatConfig.browseServices, true);
+});
+
+test("ai booking assistant defaults off; only explicit true enables", () => {
+  assert.equal(
+    parseTalentSiteSwitches({ chat_config: {} }).chatConfig.aiBookingAssistantEnabled,
+    false,
+  );
+  assert.equal(
+    parseTalentSiteSwitches({ chat_config: { aiBookingAssistantEnabled: true } }).chatConfig
+      .aiBookingAssistantEnabled,
+    true,
+  );
+  assert.equal(
+    parseTalentSiteSwitches({ chat_config: { aiBookingAssistantEnabled: "yes" } }).chatConfig
+      .aiBookingAssistantEnabled,
+    false,
+  );
 });
