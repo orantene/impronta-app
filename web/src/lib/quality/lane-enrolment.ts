@@ -45,6 +45,7 @@ const EXEMPT: readonly (readonly [RegExp, string])[] = [
   [/^test:orphans$/, "nightly-only lane (nightly-all-tests.yml), kept out of per-PR CI on purpose"],
   [/:selftest$/, "self-test of a guard whose main lane is wired"],
   [/^test:builder-capabilities:[ab]$/, "sub-lane of a wired aggregate"],
+  [/^test:wt$/, "local worktree helper (scripts/dev/test-in-worktree.sh); needs file args, runs no fixed tests"],
 ];
 
 const LANE_PREFIX = /^(test|check|verify|eval):/;
