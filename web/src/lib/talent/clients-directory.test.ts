@@ -84,6 +84,21 @@ describe("clients-directory", () => {
     assert.equal(counts.fresh, 2); // Cora + Dani (done === 0; request still counts as New)
   });
 
+  it("TUL-359 / DS-49: hides New filter chip at zero (and refill unless enabled)", () => {
+    const empty: Record<"all" | "upcoming" | "outstanding" | "follow" | "fresh", number> = {
+      all: 0,
+      upcoming: 0,
+      outstanding: 0,
+      follow: 0,
+      fresh: 0,
+    };
+    assert.equal(showClientsFilterChip("all", empty, false), true);
+    assert.equal(showClientsFilterChip("fresh", empty, false), false);
+    assert.equal(showClientsFilterChip("follow", empty, false), false);
+    assert.equal(showClientsFilterChip("follow", empty, true), true);
+    assert.equal(showClientsFilterChip("fresh", { ...empty, fresh: 1 }, false), true);
+  });
+
   it("due for a refill: a repeat service whose last visit is older than its cycle", () => {
     const now = "2026-09-28T12:00:00.000Z";
     const visit = (id: string, startsAt: string, title: string | null) => ({
