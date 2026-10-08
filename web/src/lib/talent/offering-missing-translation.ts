@@ -21,7 +21,17 @@ export function missingTitleLocale(
 ): string | null {
   if (locales.length !== 2 || !locales.includes(primary)) return null;
   // The plain `title` always mirrors the primary language (see OfferingNameField).
-  const map: LocalizedMap = { ...(item.titleI18n ?? {}), [primary]: item.title };
+  const i18n = item.titleI18n ?? {};
+  const map: LocalizedMap = { ...i18n, [primary]: item.title };
+  // Real data: an item written in the other language (title_i18n has only that
+  // language, the plain title is the same words) has NO primary-language title
+  // yet; the mirrored plain title would hide it. Same words under another
+  // language's key, and none stored under the primary key, means primary is missing.
+  const norm = (v: unknown) => (typeof v === "string" ? v.trim().toLowerCase() : "");
+  if (norm(i18n[primary]) === "" && norm(item.title) !== "") {
+    const other = locales.find((code) => code !== primary);
+    if (other && norm(i18n[other]) === norm(item.title)) map[primary] = "";
+  }
   const missing = locales.filter((code) => localeStatus(map, code) === "missing");
   return missing.length === 1 ? missing[0] : null;
 }

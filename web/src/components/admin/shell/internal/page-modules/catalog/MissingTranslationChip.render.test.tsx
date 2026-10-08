@@ -42,3 +42,11 @@ test("listLocales: server wins and puts the primary first; store is the fallback
   assert.deepEqual(listLocales({ primary: "es", secondary: ["en", "es"] }, emptyStore), { primary: "es", locales: ["es", "en"] });
   assert.deepEqual(listLocales(null, emptyStore), emptyStore);
 });
+
+test("TAL-93938 shape: es primary + en secondary, 'Semi-permanent gel' stored only in English: the chip says Falta ES", () => {
+  const es = { primary: "es", secondary: ["en"] };
+  const html = render({ title: "Semi-permanent gel", titleI18n: { en: "Semi-permanent gel" } }, es);
+  assert.match(html, /data-testid="catalog-row-lang-missing"/);
+  assert.match(html, /Falta ES/);
+  assert.equal(render({ title: "Gel semipermanente", titleI18n: { en: "Semi-permanent gel" } }, es), "");
+});
