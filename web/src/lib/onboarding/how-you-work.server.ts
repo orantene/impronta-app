@@ -17,6 +17,8 @@ export async function loadFacts(admin: Admin, userId: string): Promise<{ facts: 
     admin.from("agency_memberships").select("tenant_id").eq("profile_id", userId).eq("role", "owner").eq("status", "active"),
     admin.from("profiles").select("display_name").eq("id", userId).maybeSingle(),
   ]);
+  // Unchecked-read ratchet: a failed read must leave a trace, never a silent empty name.
+  if (account.error) logServerError("how-you-work.loadFacts.profile", account.error);
   const talentProfileId = typeof tp.data?.id === "string" ? tp.data.id : null;
   const tenantIds = ((mem.data ?? []) as { tenant_id: string }[]).map((m) => m.tenant_id);
 
