@@ -11,7 +11,7 @@ import {
 } from "@/lib/money/total-client-revenue";
 
 import { blocksTime, deriveBookingState, derivePaymentState } from "./derive";
-import { mapAgencyBookingPayment, mapDeliverableDeadline } from "./load-map";
+import { mapAgencyBookingPayment, mapDeliverableDeadline, openInquiriesWithoutBooking } from "./load-map";
 import { loadUnscheduledDraftsForTalent, txRefundPending } from "./load-unscheduled";
 import { summarizeCommercialEvent } from "@/lib/commercial-activity-summary";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
@@ -673,7 +673,7 @@ export async function loadTalentAgenda(
       items.push(item);
     }
 
-    for (const inquiry of (inquiriesRes.data ?? []) as Array<{
+    for (const inquiry of openInquiriesWithoutBooking((inquiriesRes.data ?? []) as Array<{
       id: string;
       contact_name: string;
       contact_email: string;
@@ -684,7 +684,7 @@ export async function loadTalentAgenda(
       message: string | null;
       created_at: string;
       booked_at: string | null;
-    }>) {
+    }>, { bookings, holds })) {
       const timeZone = inquiry.event_timezone ?? hours?.timezone ?? "UTC";
       const window = requestWindow(inquiry.event_date, timeZone);
       if (!window) continue;
