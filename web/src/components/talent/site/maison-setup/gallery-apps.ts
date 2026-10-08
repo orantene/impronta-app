@@ -18,7 +18,9 @@ export const GALLERY_APPS_COPY = {
     tipOne: "Includes the {names} app · Try it in the theme",
     tipMany: "Includes the apps {names} · Try them in the theme",
     apps: "Apps",
-    pro: "Pro",
+    // Badge names the same paid tier the server gate uses (Web Office /
+    // personalSiteSections / talent_portfolio) — not the folded talent_pro SKU.
+    pro: "Web Office",
     empty: "No apps for this theme yet.",
     play: "Try it here",
     suggested: "Suggested for your trade",
@@ -45,7 +47,7 @@ export const GALLERY_APPS_COPY = {
     tipOne: "Incluye la app {names} · Pruébala en el tema",
     tipMany: "Incluye las apps {names} · Pruébalas en el tema",
     apps: "Apps",
-    pro: "Pro",
+    pro: "Oficina Web",
     empty: "Este tema aún no tiene apps.",
     play: "Pruébala aquí",
     suggested: "Sugeridas para tu oficio",

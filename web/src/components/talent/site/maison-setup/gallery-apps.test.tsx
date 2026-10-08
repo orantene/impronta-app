@@ -55,7 +55,7 @@ test("demo apps follow the demo trades", () => {
   assert.equal(appsForDetail(designWithApp, { professions: ["nails"] }).length, 1);
 });
 
-test("Apps tab lists Nail Designer with playground and Pro pill (premium)", () => {
+test("Apps tab lists Nail Designer with playground and Web Office pill (premium)", () => {
   assert.equal(nail.premium, true);
   const html = renderToStaticMarkup(<AppsTab apps={[nail]} locale="es" />);
   assert.match(html, /Diseñador de uñas/);
@@ -63,6 +63,7 @@ test("Apps tab lists Nail Designer with playground and Pro pill (premium)", () =
   assert.match(html, /<iframe[^>]*src="\/apps\/nail-studio\/index\.html\?lang=es(?:&amp;layout=desktop)?"/);
   assert.match(html, /data-gallery-app-device="desktop"/);
   assert.match(html, /gallery-app-pro/);
+  assert.match(html, /Oficina Web/);
 });
 
 test("Apps tab phone device forces phone layout on the playground", () => {
@@ -71,9 +72,11 @@ test("Apps tab phone device forces phone layout on the playground", () => {
   assert.match(html, /layout=phone/);
 });
 
-test("Pro pill shows only for premium apps", () => {
+test("Web Office pill shows only for premium apps", () => {
   const free: AppLibraryEntry = { ...nail, premium: false };
-  assert.match(renderToStaticMarkup(<AppsTab apps={[nail]} locale="en" />), /gallery-app-pro/);
+  const premiumHtml = renderToStaticMarkup(<AppsTab apps={[nail]} locale="en" />);
+  assert.match(premiumHtml, /gallery-app-pro/);
+  assert.match(premiumHtml, /Web Office/);
   assert.doesNotMatch(renderToStaticMarkup(<AppsTab apps={[free]} locale="en" />), /gallery-app-pro/);
   assert.match(renderToStaticMarkup(<AppsTab apps={[]} locale="en" />), /gallery-apps-empty/);
 });

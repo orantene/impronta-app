@@ -8,7 +8,10 @@
 import Link from "next/link";
 import { useAdminShellOptional } from "@/components/admin/shell/internal/state";
 import { requestBuilderAppIntent } from "@/components/edit-chrome/builder-app-intent";
-import { canAddLibraryApp } from "@/lib/site-admin/add-gallery/app-plan-gate";
+import {
+  canAddLibraryApp,
+  isPremiumApp,
+} from "@/lib/site-admin/add-gallery/app-plan-gate";
 import { GALLERY_LOCKED_UPGRADE_HREF } from "@/lib/site-admin/add-gallery/structural-lock";
 import { NailStudioFrame } from "@/lib/site-admin/builder-node/nail-designer-frame";
 import {
@@ -54,7 +57,10 @@ export function AppDetailScreen({
   const designs = app ? designsThatSuitApp(app) : [];
   const play = app ? PLAYGROUND[app.nativeKind] : null;
   const bridgePlan = useAdminShellOptional()?.bridgeTalentSelfProfile?.talentPlanKey ?? null;
-  const canAdd = canAddApps ?? canAddLibraryApp(bridgePlan);
+  // Gate only premium apps (`isPremiumApp && !canAdd` → Upgrade). `canAddApps`
+  // is a test/host override for the Web Office capability.
+  const planAllowsPremium = canAddApps ?? canAddLibraryApp(bridgePlan);
+  const canAdd = app ? (!isPremiumApp(app) || planAllowsPremium) : false;
 
   if (!app) {
     return (

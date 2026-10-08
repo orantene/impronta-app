@@ -5,10 +5,12 @@
  * zero-config today).
  *
  * Plan backstop: when the talent lacks Web Office (`personalSiteSections`),
- * publishing a tree that still holds a premium app kind is refused. The
- * gallery + draft save already block new inserts; this covers downgrades /
- * imported trees. Pass `canUsePremiumApps: null` (or omit) to skip the gate
- * (agency surfaces, staff saves where free-site rules do not apply).
+ * publishing a tree that still holds a premium app kind is refused. Draft save
+ * already blocks new inserts via `refuseTalentPremiumAppTreeMutation`; this
+ * covers downgrades / imported trees.
+ *
+ * Talent publish fails CLOSED: unknown / missing plan → refuse premium kinds.
+ * Agency surfaces and staff (non-talent-owner) skip the plan gate.
  */
 
 import {
@@ -26,7 +28,8 @@ export interface AppPreflightIssue {
 
 export type CollectAppPreflightOptions = {
   /**
-   * `false` → refuse premium app kinds. `true` / `null` / omitted → no plan gate.
+   * `false` → refuse premium app kinds. `true` → allow. `null` / omitted →
+   * skip the plan gate (agency / staff non-owner surfaces).
    */
   canUsePremiumApps?: boolean | null;
   locale?: string | null;
@@ -79,15 +82,17 @@ export function collectAppPreflightIssues(
   return issues;
 }
 
-/** Talent publish: load free-site caps, then gate leftover premium apps. */
+/** Talent publish: fail-closed premium-app plan gate for the owning talent. */
 export async function collectTalentAppPreflightIssues(
   tree: unknown,
 ): Promise<AppPreflightIssue[]> {
-  const { loadTalentSiteSaveCapabilities } = await import(
-    "@/lib/talent-site/server/free-site-save-guard"
+  const { loadTalentPremiumAppSaveGate } = await import(
+    "@/lib/talent-site/server/premium-app-save-guard"
   );
-  const siteCaps = await loadTalentSiteSaveCapabilities(null);
+  const gate = await loadTalentPremiumAppSaveGate(null);
+  // Non-talent-owner (staff / agency) → no talent plan gate.
+  if (gate == null) return collectAppPreflightIssues(tree);
   return collectAppPreflightIssues(tree, {
-    canUsePremiumApps: siteCaps == null ? null : siteCaps.personalSiteSections,
+    canUsePremiumApps: gate.canUsePremiumApps,
   });
 }
