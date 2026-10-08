@@ -6,7 +6,7 @@ import { toI18nMap } from "@/lib/i18n/i18n-columns";
 import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
 import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
 import { loadWorkingHoursPresence } from "@/lib/talent/site-switches-server";
-import { resolveSiteCtaMode, type SiteCtaMode } from "@/lib/talent-site/design-label-locale";
+import { resolveSiteCtaMode, type SiteCtaMode } from "@/lib/talent-site/design-cta-mode";
 import { resolveDesignSource } from "@/lib/talent-site/theme-template/design-lineage.server";
 import type {
   MaxSitePageRow,
