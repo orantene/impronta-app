@@ -1,3 +1,4 @@
+import { languageToggleGroupLabel } from "@/i18n/language-toggle-label";
 import type { HeaderItem } from "./schema";
 
 /** How an item behaves on each breakpoint when the owner has not chosen (phone: brand stays, rest folds into the menu). */
@@ -32,9 +33,6 @@ export function HeaderDemoPill({ show }: { show: boolean | undefined }) {
   ) : null;
 }
 
-/** Group label for the language switch, in the page's language. */
-const LANGUAGE_LABEL = { en: "Language", es: "Idioma" } as const;
-
 export function HeaderSiteLocales({
   locales,
   hrefs,
@@ -47,7 +45,7 @@ export function HeaderSiteLocales({
   attrs: Record<string, string | undefined>;
 }) {
   if (locales.length < 2) return null;
-  const label = locale.toLowerCase().startsWith("es") ? LANGUAGE_LABEL.es : LANGUAGE_LABEL.en;
+  const label = languageToggleGroupLabel(locale);
   return (
     <div {...attrs} role="group" aria-label={label} className="site-header__ritem site-header__lang">
       {locales.map((code, i) => (
