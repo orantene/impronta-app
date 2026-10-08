@@ -76,6 +76,43 @@ async function get(url, opts = {}) {
   return { status: res.status, headers, body: opts.body ? null : await res.text().catch(() => "") };
 }
 
+// Served build == production pointer (TUL-268). The post-deploy alias workflow runs
+// once per Production deploy; runs for other deployment_status events show up as
+// "skipped" by design, so a skipped row proves nothing either way. What proves the
+// domains followed the pointer is the release the live HTML carries (baggage
+// `sentry-release=<sha>`) equalling origin/production. A fresh push is allowed up
+// to GRACE_MIN minutes to build and alias before a mismatch is a failure.
+async function check_served_release_matches_production() {
+  console.log("\nServed release vs production pointer");
+  const GRACE_MIN = 20;
+  const REPO = "https://api.github.com/repos/orantene/impronta-app";
+  try {
+    const page = await get(HOST + "/login");
+    const served = /sentry-release=([0-9a-f]{40})/.exec(page.body ?? "")?.[1];
+    if (!served) {
+      warn("served release", `no sentry-release in ${HOST}/login (Sentry baggage off?)`);
+      return;
+    }
+    const ref = await (await fetch(`${REPO}/git/ref/heads/production`, { headers: { "user-agent": "tulala-smoke" } })).json();
+    const prod = ref?.object?.sha;
+    if (!prod) {
+      warn("served release", "could not read the production branch from GitHub (rate limit?)");
+      return;
+    }
+    if (served === prod) {
+      pass(`served release ${served.slice(0, 9)} == production pointer`);
+      return;
+    }
+    const commit = await (await fetch(`${REPO}/commits/${prod}`, { headers: { "user-agent": "tulala-smoke" } })).json();
+    const ageMin = (Date.now() - Date.parse(commit?.commit?.committer?.date ?? 0)) / 60000;
+    const detail = `served ${served.slice(0, 9)} but production pointer is ${prod.slice(0, 9)} (${Math.round(ageMin)} min old)`;
+    if (ageMin < GRACE_MIN) warn("served release", `${detail}; inside the ${GRACE_MIN} min build+alias window`);
+    else fail("served release", `${detail}; domains lag the pointer. Run: npm run deploy:alias -- <latest production deployment url>`);
+  } catch (e) {
+    warn("served release", `check skipped: ${e.message}`);
+  }
+}
+
 // 1) Root reachable
 async function check_root_reachable() {
   console.log("\nDomain reachability");
@@ -737,6 +774,7 @@ for (const check of [
   check_guest_chat_antispam,
   check_prod_gating_flags,
   check_auth_surface_matrix,
+  check_served_release_matches_production,
 ]) {
   await check();
 }
