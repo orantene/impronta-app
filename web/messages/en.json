@@ -20127,6 +20127,9 @@
         "mediaGallery": {
           "dialogLabel": "Photo gallery",
           "title": "Photo gallery",
+          "loadMore": "Load more",
+          "loadMoreLoading": "Loading...",
+          "loadMoreHint": "Load all photos to reorder them. Showing {shown} of {total}.",
           "focusAvatar": "Select a photo to use as your profile (1:1)",
           "focusHero": "Select a photo to use as your cover (16:9 banner)",
           "coverStateNone": "No cover set yet, tap a photo below to choose one.",

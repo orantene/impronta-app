@@ -235,7 +235,7 @@ export function ProfileHero() {
     if (!bridgeTalentSelfProfile?.id) return;
     if (loadedForRef.current === bridgeTalentSelfProfile.id) return;
     loadedForRef.current = bridgeTalentSelfProfile.id;
-    void actionLoadTalentMediaBundle(bridgeTalentSelfProfile.id).then((res) => {
+    void actionLoadTalentMediaBundle(bridgeTalentSelfProfile.id, { galleryLimit: 1 }).then((res) => {
       if (!res.ok) return;
       if (res.data.card?.url) setDbAvatarUrl(res.data.card.url);
       if (res.data.hero?.url) setDbHeroUrl(res.data.hero.url);

@@ -20127,6 +20127,9 @@
         "mediaGallery": {
           "dialogLabel": "Galería de fotos",
           "title": "Galería de fotos",
+          "loadMore": "Cargar más",
+          "loadMoreLoading": "Cargando...",
+          "loadMoreHint": "Carga todas las fotos para reordenarlas. Mostrando {shown} de {total}.",
           "focusAvatar": "Selecciona una foto para usar como perfil (1:1)",
           "focusHero": "Selecciona una foto para usar como portada (banner 16:9)",
           "coverStateNone": "Aún no hay portada, toca una foto abajo para elegir una.",
