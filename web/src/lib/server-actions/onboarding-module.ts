@@ -38,6 +38,7 @@ import { normalizeWorkspaceSlugCandidate } from "@/lib/saas/workspace-signup";
 import { validateFactValue } from "@/lib/tulala/fact-keys";
 import type { OnboardingPath } from "@/lib/onboarding/module-state";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ModuleActionError = {
   ok: false;
@@ -435,6 +436,7 @@ export async function saveOnboardingDesign(input: { look: DesignLookKey | null }
 
 /** 18+ confirmation (owner decision 2026-10-01): server-stamped, kept on the brief, read by the build route. */
 export async function saveOnboardingAge18(): Promise<{ ok: boolean }> {
+  if (!(await assertNotImpersonating()).ok) return { ok: false };
   const got = await ownedBrief();
   if (got.error) return { ok: false };
   const session = await getCachedActorSession();

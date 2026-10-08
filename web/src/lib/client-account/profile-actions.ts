@@ -15,8 +15,10 @@ import { isClientAccountEligible } from "@/lib/client-account/pure";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export async function saveAccountSettings(input: Partial<AccountSettingsInput>): Promise<{ ok: boolean }> {
+  if (!(await assertNotImpersonating()).ok) return { ok: false };
   if (!(await accountSurfaceEnabledForRequest())) return { ok: false };
   const clean = normalizeAccountSettings(input);
   const session = await getCachedActorSession();

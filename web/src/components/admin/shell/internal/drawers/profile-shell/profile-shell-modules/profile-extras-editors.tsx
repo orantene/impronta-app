@@ -298,12 +298,8 @@ export function AlbumsEditorPro({ albums, activeId, onActivate, onChange, loadin
       </div>
       {activeAlbum && activeInfo && activeInfo.nextOffset != null && onLoadMore && (
         <button type="button" data-testid="album-load-more" disabled={loadingMoreId === activeAlbum.id}
-          onClick={() => onLoadMore(activeAlbum.id)} style={{
-            marginBottom: 12, padding: "6px 14px", borderRadius: 999, fontFamily: FONTS.body,
-            border: `1px solid ${COLORS.borderSoft}`, background: "#fff", color: COLORS.ink,
-            fontSize: 11.5, fontWeight: 600, cursor: loadingMoreId === activeAlbum.id ? "default" : "pointer",
-            opacity: loadingMoreId === activeAlbum.id ? 0.6 : 1,
-          }}>
+          onClick={() => onLoadMore(activeAlbum.id)}
+          className="mb-3 cursor-pointer rounded-full border border-admin-border-soft bg-white px-3.5 py-1.5 text-[11.5px] font-semibold text-admin-ink disabled:cursor-default disabled:opacity-60">
           {loadingMoreId === activeAlbum.id
             ? copy.t("Loading…")
             : copy.t("Load more photos · {count} remaining").replace("{count}", String(Math.max(activeInfo.total - activeAlbum.items.length, 0)))}
