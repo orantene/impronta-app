@@ -326,7 +326,10 @@ test("TUL-325: post-apply Publish CTA copy (EN + ES, no em dash)", () => {
   assert.equal(UPDATE_COPY.publishCta.es, "Publicar sitio");
   assert.equal(UPDATE_COPY.unpublishedPill.en, "Unpublished changes");
   assert.equal(UPDATE_COPY.unpublishedPill.es, "Cambios sin publicar");
-  for (const s of Object.values(UPDATE_COPY.publishCta).concat(Object.values(UPDATE_COPY.unpublishedPill))) {
+  for (const s of [
+    ...Object.values(UPDATE_COPY.publishCta),
+    ...Object.values(UPDATE_COPY.unpublishedPill),
+  ] as string[]) {
     assert.ok(!s.includes("—"), s);
   }
 });
