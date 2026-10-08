@@ -223,7 +223,6 @@ test("both: a failed profile promotion fails the build (retry finishes it)", asy
   assert.equal(db.talent_profiles[0].visibility, "public");
 });
 
-<<<<<<< HEAD
 test("myself: the profile ends approved/public; studio never promotes", async () => {
   const db = freshDb();
   const r = await runChoiceProvisioning("myself", fakeDeps(db));
@@ -246,7 +245,8 @@ test("myself: a failed promotion fails the build so Finish never says ready on a
   assert.equal((await runChoiceProvisioning("myself", deps)).ok, false);
   assert.equal((await runChoiceProvisioning("myself", fakeDeps(db))).ok, true);
   assert.equal(db.talent_profiles[0].visibility, "public");
-=======
+});
+
 test("both: her own talent site is created after the profile is live and returned", async () => {
   const db = freshDb();
   const deps = fakeDeps(db);
@@ -278,16 +278,4 @@ test("studio never creates a talent site", async () => {
   const db = freshDb();
   await runChoiceProvisioning("studio", fakeDeps(db));
   assert.equal(db.talent_sites.length, 0);
-});
-
-test("myself and studio never call the promotion", async () => {
-  for (const c of ["myself", "studio"] as const) {
-    const db = freshDb();
-    const deps = fakeDeps(db);
-    let called = false;
-    deps.promoteTalentProfileLive = async () => { called = true; return { ok: true }; };
-    await runChoiceProvisioning(c, deps);
-    assert.equal(called, false, c);
-  }
->>>>>>> refs/b6/2741
 });

@@ -102,20 +102,6 @@ export async function runChoiceProvisioning<W, S>(
     if (talent) {
       const roster = await deps.ensureSelfRoster(ws.tenantId, talent.talentProfileId);
       if (!roster.ok) return { ...roster, choice };
-<<<<<<< HEAD
-=======
-      // "both": she is publicly bookable on her workspace site from day one.
-      const live = await deps.promoteTalentProfileLive(talent.talentProfileId);
-      if (!live.ok) return { ...live, choice };
-      // "both" owns a talent site too (the same Maison site "myself" gets). It
-      // needs the profile live, so it follows the promotion; a failure is a
-      // warning the build turns into an honest "not ready", never a false ready.
-      if (choice === "both") {
-        const s = await deps.ensureTalentSite(talent.talentProfileId);
-        if (s.ok) site = s.site;
-        else warnings.push(`site:${s.code}`);
-      }
->>>>>>> refs/b6/2741
     }
   }
 
@@ -128,6 +114,14 @@ export async function runChoiceProvisioning<W, S>(
   if (talent) {
     const live = await deps.promoteTalentProfileLive(talent.talentProfileId);
     if (!live.ok) return { ...live, choice };
+    // "both" owns a talent site too (the same Maison site "myself" gets). It needs
+    // the profile live, so it follows the promotion; a failure is a warning the
+    // build turns into an honest "not ready", never a false ready.
+    if (choice === "both") {
+      const s = await deps.ensureTalentSite(talent.talentProfileId);
+      if (s.ok) site = s.site;
+      else warnings.push(`site:${s.code}`);
+    }
   }
 
   if (deps.applyEssentials) {
