@@ -133,7 +133,7 @@ const BUDGETS: Record<string, number> = {
   // that COULD leave did: the CustomEvent payload lives in the new
   // `edit-chrome/talent-lock-broadcast.ts`, not in this file.
   // Wave 4 Apps deep-link: openAddMenu on context value (+3).
-  "src/components/edit-chrome/edit-context.tsx": 6312,
+  "src/components/edit-chrome/edit-context.tsx": 6311,
   // P2 (style-panel reset): D1 deleted the mis-scoped Surface/Custom-color
   // block outright, so this budget goes DOWN, 5896 -> 5809. Lowering locks the
   // reduction in; the guard can never drift back up silently.
