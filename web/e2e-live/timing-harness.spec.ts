@@ -1,5 +1,5 @@
 /**
- * TUL-290: render-to-content timing of Today, Messages, Profile and Builder as the TEST talent TAL-93900, in a
+ * TUL-290: render-to-content timing of Today, Messages, Profile, Builder, Clients and Services as the TEST talent TAL-93900, in a
  * headless Chromium (rAF fires, the page is visible), 3 loads per page, plus console hydration errors (#418).
  *
  * ON DEMAND ONLY. It signs in with a service-role minted session (no password), so it needs:

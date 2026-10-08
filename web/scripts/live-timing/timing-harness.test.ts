@@ -105,3 +105,10 @@ test("the table prints timings and counts only (no tokens), one row per page", (
   assert.match(out, /never/);
   assert.ok(!/eyJ|base64-|access_token/.test(out));
 });
+
+test("the timed pages include clients and services (TUL-290 extension)", () => {
+  const keys = TIMED_PAGES.map((p) => p.key);
+  assert.ok(keys.includes("clients") && keys.includes("services"));
+  assert.equal(TIMED_PAGES.find((p) => p.key === "clients")!.path, "/talent/clients");
+  assert.equal(TIMED_PAGES.find((p) => p.key === "services")!.path, "/talent/services");
+});

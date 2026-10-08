@@ -23,7 +23,7 @@ export const PROD_SUPABASE_REF = "pluhdapdnuiulvxmyspd";
 export const APP_HOST = "https://app.tulala.digital";
 
 export interface TimedPage {
-  key: "today" | "messages" | "profile" | "builder";
+  key: "today" | "messages" | "profile" | "builder" | "clients" | "services";
   path: string;
 }
 export const TIMED_PAGES: readonly TimedPage[] = [
@@ -31,6 +31,8 @@ export const TIMED_PAGES: readonly TimedPage[] = [
   { key: "messages", path: "/talent/messages" },
   { key: "profile", path: "/talent/profile" },
   { key: "builder", path: "/talent/page-builder" },
+  { key: "clients", path: "/talent/clients" },
+  { key: "services", path: "/talent/services" },
 ];
 export const LOADS_PER_PAGE = 3;
 export const CONTENT_TIMEOUT_MS = 90_000;
