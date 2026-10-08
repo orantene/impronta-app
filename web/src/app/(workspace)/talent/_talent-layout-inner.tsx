@@ -266,7 +266,7 @@ export async function TalentLayoutInner({
     loadTalentRepresentation(talentSelfProfile.id, talentSelfProfile.profileCode),
     tenantId ? findTenantMembership(tenantId) : Promise.resolve(null),
     tenantId ? loadWorkspaceUnreadCount(tenantId) : Promise.resolve(0),
-    // TUL-387 — talent chrome badge counts (fixes prior totalUnread: 0 hardcode).
+    // TUL-387 — talent chrome badge counts (replaces the prior hard-coded zero).
     tenantId
       ? loadShellCounts("talent", {
           tenantId,

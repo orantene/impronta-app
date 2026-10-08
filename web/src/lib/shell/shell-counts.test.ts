@@ -153,6 +153,12 @@ test("admin layout loads shellCounts and stamps totalUnread from messages", () =
 
 test("talent layout no longer hardcodes totalUnread: 0; uses loadShellCounts", () => {
   const src = read("src/app/(workspace)/talent/_talent-layout-inner.tsx");
+  // Strip comments so a doc line naming the old hardcode cannot fail the guard.
+  const code = src
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("//"))
+    .join("\n");
   assert.ok(
     /from\s+"@\/lib\/shell\/shell-counts"/.test(src),
     "talent layout must import loadShellCounts",
@@ -167,7 +173,7 @@ test("talent layout no longer hardcodes totalUnread: 0; uses loadShellCounts", (
   );
   // The bug this card fixes: a literal zero on the bridge.
   assert.ok(
-    !/totalUnread:\s*0\b/.test(src),
+    !/totalUnread:\s*0\b/.test(code),
     "talent layout must not hardcode totalUnread: 0",
   );
   assert.ok(
