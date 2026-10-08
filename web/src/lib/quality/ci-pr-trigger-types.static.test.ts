@@ -55,7 +55,7 @@ test("PR concurrency still cancels superseded runs and never cancels main", () =
 });
 
 test("the decision is documented and the no-stacking rule is in CLAUDE.md", () => {
-  assert.match(doc, /## 12\. Stacked PRs and the CI trigger/);
+  assert.match(doc, /## \d+\. Stacked PRs and the CI trigger/);
   assert.match(doc, /deliberately NOT added/);
   assert.match(claudeMd, /Never stack PRs/);
   assert.match(claudeMd, /web\/AGENTS\.md/);
