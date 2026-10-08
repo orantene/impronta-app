@@ -28,13 +28,11 @@ function fakeSupabase(talents: TalentRow[]): SupabaseClient {
 const mx: TalentRow = { id: "t-mx", default_currency: "MXN", stripe_account_platform: "mx" };
 const us: TalentRow = { id: "t-us", default_currency: "USD", stripe_account_platform: "us" };
 
-describe("resolveNewOfferCurrency (the value createOffer inserts as currency_code)", () => {
+describe("resolveNewOfferCurrency, participant step (full order in offer-currency-fallback.test.ts)", () => {
   const run = (talents: TalentRow[], followSeller = true) =>
-    resolveNewOfferCurrency(fakeSupabase(talents), { inquiryId: "i1", platformCurrency: "USD", followSeller });
+    resolveNewOfferCurrency(fakeSupabase(talents), { inquiryId: "i1", tenantId: "t1", explicitCurrency: "USD", followSeller });
   it("MXN seller -> MXN", async () => assert.equal(await run([mx]), "MXN"));
   it("USD seller -> USD", async () => assert.equal(await run([us]), "USD"));
-  it("mixed sellers -> platform currency", async () => assert.equal(await run([mx, us]), "USD"));
-  it("no sellers -> platform currency", async () => assert.equal(await run([]), "USD"));
   it("followSeller=false keeps the caller's explicit currency (counter offers)", async () =>
     assert.equal(await run([mx], false), "USD"));
 });
