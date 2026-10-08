@@ -5,6 +5,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { computeProviderStatuses, readProviderStatusEnv } from "@/lib/payments/provider-status";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import { pickAProfessional } from "@/lib/people/hats";
+import { fetchOwnerTalentIds, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
 import type { SetupItem } from "@/lib/overview/model";
 import { loadPeopleSurface } from "../admin/people/people-data";
 
@@ -72,12 +73,13 @@ export async function loadSetupItems(tenantId: string, agency: AgencySetupRow | 
   let performer: string | null = null;
 
   if (admin) {
+    const memberIds = await fetchOwnerTalentIds(admin, tenantId);
     const [items, hoursRes, pages, people] = await Promise.all([
       admin
         .from("talent_offerings")
         .select("title, amount_cents, currency")
         .eq("tenant_id", tenantId)
-        .eq("owner_kind", "workspace")
+        .or(workspaceOfferingOrFilter(memberIds))
         .order("created_at", { ascending: true })
         .limit(1),
       admin.from("talent_booking_hours").select("talent_profile_id", { count: "exact", head: true }).eq("tenant_id", tenantId),
