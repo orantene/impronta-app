@@ -286,7 +286,7 @@ export default async function RootLayout({
             (crawlers get identical HTML minus the banner) — see
             @/i18n/locale-suggestion. Mounted here because public HTML comes out
             of four different shells; this is the one node they share. */}
-        <LocaleSuggestionBanner />
+        <LocaleSuggestionBanner renderLocale={locale} />
         <EditChromeMount />
         {/* Wave 6.1 — the admin quick bar mounts independently of the editor so
             it reaches every public page of a tenant's own site, not just the
