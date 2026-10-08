@@ -450,7 +450,8 @@ export async function setPrivacyPrefs(
  * hours ago" remains worth being able to say.
  */
 export async function requestDataExport(): Promise<{ ok: boolean; error?: string; url?: string }> {
-  await requireNotImpersonating();
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const stamped = await setPrivacyPrefs({ dataExportRequestedAt: new Date().toISOString() });
   if (!stamped.ok) return stamped;
   return { ok: true, url: ACCOUNT_EXPORT_PATH };

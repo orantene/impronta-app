@@ -85,11 +85,6 @@
       "count": 1
     }
   },
-  "src/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions.ts": {
-    "max-lines": {
-      "count": 1
-    }
-  },
   "src/app/(workspace)/platform/platform-data.ts": {
     "prefer-const": {
       "count": 1

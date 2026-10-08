@@ -75,7 +75,7 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
 import { mergeFooterProps, readFooterValue } from "./config-merge";
 import type { SiteFooterConfig, SiteFooterPatchInput } from "./types";
-import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type ActionResult<T> =
   | ({ ok: true } & T)
@@ -254,7 +254,8 @@ export async function saveFooterSectionAction(input: {
   expectedVersion: number;
   patch: SiteFooterPatchInput;
 }): Promise<ActionResult<{ version: number }>> {
-  await requireNotImpersonating();
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);

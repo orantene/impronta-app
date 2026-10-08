@@ -22,12 +22,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import type { ServerActionResult } from "@/lib/server-actions/result";
-import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export async function markAdminNotificationRead(
   notificationId: string,
 ): Promise<ServerActionResult> {
-  await requireNotImpersonating();
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not authenticated." };
 
@@ -49,7 +50,8 @@ export async function markAdminNotificationRead(
 }
 
 export async function markAllAdminNotificationsRead(): Promise<ServerActionResult<{ count: number }>> {
-  await requireNotImpersonating();
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not authenticated." };
 

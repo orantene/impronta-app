@@ -27,7 +27,7 @@ import { requireSession } from "@/lib/server/action-guards";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
 import { isLocale, type Locale } from "@/lib/site-admin/locales";
-import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ── shared types ────────────────────────────────────────────────────────
 
@@ -263,7 +263,8 @@ export type AddCommentResult =
 export async function addCommentAction(
   input: AddCommentInput,
 ): Promise<AddCommentResult> {
-  await requireNotImpersonating();
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
@@ -384,7 +385,8 @@ export type EditCommentResult =
 export async function editCommentAction(
   input: EditCommentInput,
 ): Promise<EditCommentResult> {
-  await requireNotImpersonating();
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
@@ -472,7 +474,8 @@ export type ResolveCommentResult =
 export async function resolveCommentAction(
   input: ResolveCommentInput,
 ): Promise<ResolveCommentResult> {
-  await requireNotImpersonating();
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
@@ -538,7 +541,8 @@ export type DeleteCommentResult =
 export async function deleteCommentAction(
   input: DeleteCommentInput,
 ): Promise<DeleteCommentResult> {
-  await requireNotImpersonating();
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 

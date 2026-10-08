@@ -51,7 +51,7 @@ import {
   asShellTemplateKind,
 } from "./apply-shell-template-core";
 import type { BuilderTemplateRow } from "./registry-rows";
-import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ApplyShellVariantResult =
   | { ok: true; slot: "header" | "footer"; replacedChildCount: number }
@@ -68,7 +68,8 @@ const CAPABILITY = "agency.site_admin.pages.edit";
 export async function applyShellVariantToWorkspaceAction(
   templateId: string,
 ): Promise<ApplyShellVariantResult> {
-  await requireNotImpersonating();
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 

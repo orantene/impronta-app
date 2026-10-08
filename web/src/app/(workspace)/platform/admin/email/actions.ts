@@ -24,7 +24,7 @@ import { sendEmailResult } from "@/lib/email";
 import { createResendDomain, fetchResendDomain } from "@/lib/integrations/email-domain";
 import { setIntegrationConfig, getTenantIntegration } from "@/lib/integrations/repository";
 import { EMAIL_DOMAIN_INTEGRATION_KEY } from "@/lib/integrations/catalog";
-import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const REVALIDATE_PATH = "/platform/admin/email";
 
@@ -129,7 +129,8 @@ export async function sendTestEmail(input: {
   to: string;
   tenantId?: string | null;
 }): Promise<TestSendResult> {
-  await requireNotImpersonating();
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const to = (input.to ?? "").trim();

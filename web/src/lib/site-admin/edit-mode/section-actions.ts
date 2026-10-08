@@ -29,7 +29,7 @@ import {
   loadSectionByIdForStaffCached,
 } from "@/lib/site-admin/server/sections-reads";
 import { logServerError } from "@/lib/server/safe-error";
-import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type EditLoadResult =
   | {
@@ -218,7 +218,8 @@ export async function setSectionVisibilityAction(input: {
   sectionId: string;
   visibility: SectionVisibility;
 }): Promise<SetSectionVisibilityResult> {
-  await requireNotImpersonating();
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);

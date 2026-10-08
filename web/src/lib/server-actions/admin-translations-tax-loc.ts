@@ -8,7 +8,7 @@ import { revalidateTaxonomyCaches } from "@/lib/revalidate-public";
 import { requireStaff } from "@/lib/server/action-guards";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
-import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const idSchema = z.object({ id: pgUuidSchema() });
 const bulkSchema = z.object({ ids: z.array(pgUuidSchema()).max(500) });
@@ -113,7 +113,8 @@ export type BulkTaxLocSummary = { processed: number; failed: { id: string; messa
 export async function adminBulkMarkTaxonomyTranslated(
   input: z.infer<typeof bulkSchema>,
 ): Promise<ServerActionResult<BulkTaxLocSummary>> {
-  await requireNotImpersonating();
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = bulkSchema.safeParse(input);
@@ -136,7 +137,8 @@ export async function adminBulkMarkTaxonomyTranslated(
 export async function adminBulkMarkLocationTranslated(
   input: z.infer<typeof bulkSchema>,
 ): Promise<ServerActionResult<BulkTaxLocSummary>> {
-  await requireNotImpersonating();
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = bulkSchema.safeParse(input);
