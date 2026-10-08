@@ -52,7 +52,7 @@ const es: FlagshipMockCopy = {
     trackInquiry: "Solicitud",
     trackOffer: "Oferta",
     trackDeposit: "Anticipo",
-    trackBooked: "Reservada",
+    trackBooked: "Confirmada",
   },
 };
 

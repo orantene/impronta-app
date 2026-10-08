@@ -54,7 +54,7 @@ test("ES flagship mock chrome is Spanish", () => {
   assert.equal(es.messenger.trackInquiry, "Solicitud");
   assert.equal(es.messenger.trackOffer, "Oferta");
   assert.equal(es.messenger.trackDeposit, "Anticipo");
-  assert.equal(es.messenger.trackBooked, "Reservada");
+  assert.equal(es.messenger.trackBooked, "Confirmada");
   assert.match(es.messenger.hello, /¿Estás libre/);
   assert.match(es.messenger.done, /anticipo enviado/);
 
