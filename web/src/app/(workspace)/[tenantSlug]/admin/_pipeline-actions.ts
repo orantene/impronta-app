@@ -2342,6 +2342,8 @@ export async function createOfferAction(
         actorUserId: user.id,
         expectedVersion: (inq.version as number | null) ?? 1,
         currencyCode: resolvedCurrency,
+        // No explicit currency from the caller: follow the seller (TUL-274).
+        followSeller: currencyCode == null,
       });
       if (!result.success) {
         const reason = (result as { reason?: string }).reason;

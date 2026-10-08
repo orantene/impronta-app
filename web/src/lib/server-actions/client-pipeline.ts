@@ -17,6 +17,8 @@ import { logServerError } from "@/lib/server/safe-error";
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 import { clientRejectOffer } from "@/lib/inquiry/inquiry-engine-offers";
 import { loadActiveBookingTransaction } from "@/lib/bookings/transactions";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { checkInquiryCurrencyMatchesSeller } from "@/lib/inquiry/offer-currency-seller";
 import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
 import { createPaymentIntentForTransaction } from "@/lib/payments/stripe-payment-intent";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
@@ -233,6 +235,14 @@ export async function startInquiryCheckout(
       return { ok: false, error: "This invoice is already paid." };
     }
 
+    // TUL-274: never start a charge in a currency the single seller does not charge in.
+    // Sellers are read with the service client: the client's own session cannot see talent rows.
+    const curCheck = await checkInquiryCurrencyMatchesSeller(createServiceRoleClient() ?? ctx.supabase, {
+      inquiryId,
+      currency: txn.currency || (booking.currency_code as string | null) || "USD",
+    });
+    if (!curCheck.ok) return { ok: false, error: curCheck.message };
+
     // Build success/cancel URLs. Prefer NEXT_PUBLIC_BASE_URL but fall
     // back to the request's origin so local dev works without env vars.
     const hdrs = await headers();
@@ -320,6 +330,10 @@ export async function createInquiryPaymentIntent(
     }
 
     const currency = txn.currency || (booking.currency_code as string | null) || "USD";
+
+    // TUL-274: never start a charge in a currency the single seller does not charge in.
+    const curCheck = await checkInquiryCurrencyMatchesSeller(createServiceRoleClient() ?? ctx.supabase, { inquiryId, currency });
+    if (!curCheck.ok) return { ok: false, error: curCheck.message };
 
     const result = await createPaymentIntentForTransaction({
       transactionId: txn.id,

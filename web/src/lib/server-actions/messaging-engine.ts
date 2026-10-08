@@ -680,7 +680,10 @@ export async function messagingSendOffer(input: { inquiryId: string; offerId: st
     inquiryExpectedVersion: Number((inquiry as { version?: number } | null)?.version ?? 1),
     offerExpectedVersion: Number(o?.version ?? 1),
   });
-  if (!sent.success) return fail("unavailable");
+  if (!sent.success) {
+    if (sent.error === "offer_currency_seller_mismatch") return fail("offer_currency_seller_mismatch", sent.reason);
+    return fail("unavailable");
+  }
   // The offer card in the stream (D06): the client link renders it with
   // Accept / Ask for changes / Decline; the operator sees Sent → Viewed → ....
   await insertMessage(g.admin, {

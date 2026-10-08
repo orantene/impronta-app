@@ -4448,6 +4448,7 @@
         "lineNotePlaceholder": "Qué incluye (opcional)",
         "svcLoading": "Cargando servicios…",
         "svcLoadError": "No se pudieron cargar los servicios.",
+        "svcCurrencyBlocked": "Este servicio tiene precio en {service}; la oferta está en {offer}. Quita las otras líneas con precio para cambiar la moneda de la oferta.",
         "fromMenu": "Del menú",
         "svcPrefill": "Precargar desde servicios…",
         "svcNoneUseTemplate": "Sin servicios aún, usa una plantilla…",

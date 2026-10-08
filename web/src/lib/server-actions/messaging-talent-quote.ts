@@ -147,7 +147,10 @@ export async function messagingTalentQuoteSend(input: {
     inquiryExpectedVersion: inquiryVersionNow,
     offerExpectedVersion: offerVersion,
   });
-  if (!sent.success) return fail(sent.forbidden ? "not_allowed" : "unavailable");
+  if (!sent.success) {
+    if (sent.error === "offer_currency_seller_mismatch") return fail("offer_currency_seller_mismatch", sent.reason);
+    return fail(sent.forbidden ? "not_allowed" : "unavailable");
+  }
 
   // The offer card the client link renders (Accept / Ask for changes / Decline).
   // The body is a neutral key-free line; the reader localises the card and

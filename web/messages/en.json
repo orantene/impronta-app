@@ -4448,6 +4448,7 @@
         "lineNotePlaceholder": "What's included (optional)",
         "svcLoading": "Loading services…",
         "svcLoadError": "Couldn't load services.",
+        "svcCurrencyBlocked": "This service is priced in {service}; the offer is in {offer}. Remove the other priced lines to switch the offer currency.",
         "fromMenu": "From menu",
         "svcPrefill": "Prefill from services…",
         "svcNoneUseTemplate": "No services yet, use a template…",

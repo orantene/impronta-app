@@ -18,6 +18,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { formatDateOnly } from "@/lib/date-only";
+import { formatOfferMoney } from "@/lib/inquiry/offer-currency";
 import { useActionState } from "react";
 import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-details";
 import {
@@ -1314,15 +1315,8 @@ const errorBoxStyle: React.CSSProperties = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatMoney(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: currency || "USD",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } catch {
-    return `${amount} ${currency}`;
-  }
+  // Always carries the ISO code: a bare "$" is ambiguous between USD and MXN.
+  return formatOfferMoney(amount, currency, { maximumFractionDigits: 0 });
 }
 
 function formatDateTime(iso: string): string {
