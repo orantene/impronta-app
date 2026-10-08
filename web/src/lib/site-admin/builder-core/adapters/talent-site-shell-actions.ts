@@ -241,6 +241,7 @@ export async function saveTalentSiteShellRow(
         talentProfileId: gate.talentProfileId,
         previousTree: currentRow?.shell_tree,
         nextTree: enforced,
+        locale: await getRequestLocale(),
       });
       if (premiumErr) {
         return { ok: false as const, error: premiumErr };
@@ -513,6 +514,7 @@ export async function restoreTalentSiteShellRevisionAction(
         talentProfileId: gate.talentProfileId,
         previousTree: siteRow.shell_tree,
         nextTree: enforced,
+        locale: await getRequestLocale(),
       });
       if (premiumErr) {
         return { ok: false as const, error: premiumErr };
