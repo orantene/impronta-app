@@ -65,6 +65,7 @@ import { publishSiteThemeForTalent } from "@/lib/talent-site/server/theme-publis
 import { liveDesignName } from "@/components/talent/site/maison-setup/maison-live-summary";
 import { paletteDisplayName } from "@/components/talent/site/maison-setup/live-design-change";
 import { getGalleryDesign } from "@/lib/talent-site/theme-catalog/gallery-meta";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -288,6 +289,7 @@ export async function saveTalentDesignDraftAction(input: {
   /** Theme releases Phase 2 — the builder's draft_rev (same-tab adopted). */
   expectedDraftRev?: number | null;
 }): Promise<DesignSaveResult> {
+  await requireNotImpersonating();
   const resolved = await resolveOwnTalentPageRow(input.pageSlug);
   if (!resolved.ok) return { ok: false, error: resolved.error, code: resolved.code };
 
@@ -345,6 +347,7 @@ export async function saveTalentComponentStylesDraftAction(input: {
   componentStyles: ComponentStyleDefaults;
   expectedVersion: number;
 }): Promise<ComponentStylesSaveResult> {
+  await requireNotImpersonating();
   const resolved = await resolveOwnTalentPageRow(input.pageSlug);
   if (!resolved.ok) return { ok: false, error: resolved.error, code: resolved.code };
 
@@ -391,6 +394,7 @@ export async function applyTalentThemePresetAction(input: {
   expectedVersion: number;
   expectedDraftRev?: number | null;
 }): Promise<DesignPresetResult> {
+  await requireNotImpersonating();
   const preset = getThemePreset(input.presetSlug);
   if (!preset) {
     return { ok: false, error: "Unknown theme preset.", code: "NOT_FOUND" };
@@ -452,6 +456,7 @@ export async function publishTalentDesignAction(input: {
   pageSlug: string;
   expectedVersion: number;
 }): Promise<DesignPublishResult> {
+  await requireNotImpersonating();
   const resolved = await resolveOwnTalentPageRow(input.pageSlug);
   if (!resolved.ok) return { ok: false, error: resolved.error, code: resolved.code };
 

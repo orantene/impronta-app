@@ -12,6 +12,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { createDraftPageAction } from "./admin-site-pages";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -38,6 +39,8 @@ export async function setPageRoleAction(
   role: PageRole,
   slug: string | null,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   if (!PAGE_ROLES.includes(role)) return { ok: false, error: "Unknown role." };
 
   const auth = await requireSession();
@@ -96,6 +99,8 @@ export async function setPageRoleAction(
 export async function convertLegacyHomepageToPageAction(): Promise<
   { ok: true; slug: string } | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);

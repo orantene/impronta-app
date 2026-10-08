@@ -20,6 +20,7 @@ import {
   NEW_PAGE_STARTER_SLOT_KEY,
   buildNewPageStarterBuilderTree,
 } from "./new-page-starter-tree";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export async function seedNewPageStarterComposition(input: {
   supabase: SupabaseClient;
@@ -30,6 +31,8 @@ export async function seedNewPageStarterComposition(input: {
   pageVersion: number;
   title: string;
 }): Promise<{ ok: true; pageVersion: number } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const defaults = getLibraryDefault("blank_section");
   const parsed = sectionUpsertSchema.safeParse({
     tenantId: input.tenantId,

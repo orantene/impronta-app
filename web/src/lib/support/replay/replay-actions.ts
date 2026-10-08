@@ -10,6 +10,7 @@ import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { assertHqAccess, assertTicketAccess } from "../support-access";
 import { supportFrom } from "../support-from";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const BUCKET = "support-replays";
 const uuid = z.string().uuid();
@@ -39,6 +40,8 @@ export async function loadSupportReplayBufferSetting(): Promise<
 export async function saveSupportReplayBufferSetting(raw: {
   enabled: boolean;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = z.object({ enabled: z.boolean() }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const auth = await requireWorkspaceStaffAction();
@@ -75,6 +78,8 @@ export async function mintReplayUploadAction(raw: {
     }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = z
     .object({
       ticketId: uuid,
@@ -139,6 +144,8 @@ export async function mintLiveSessionUploadAction(raw: {
   | { ok: true; sessionId: string; uploads: Array<{ index: number; path: string; signedUrl: string }> }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = z
     .object({ sessionId: uuid, chunkCount: z.number().int().min(1).max(80) })
     .safeParse(raw);
@@ -180,6 +187,8 @@ export async function completeReplayUploadAction(raw: {
   durationMs: number;
   eventCount: number;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = z
     .object({
       sessionId: uuid,
@@ -268,6 +277,8 @@ export async function hqViewReplayAction(raw: { sessionId: string }): Promise<
   | { ok: true; urls: string[] }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = z.object({ sessionId: uuid }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const hq = await assertHqAccess();

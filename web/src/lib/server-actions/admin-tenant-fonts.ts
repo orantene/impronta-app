@@ -40,6 +40,7 @@ import {
   sniffTenantFontFormat,
   type TenantFontFamily,
 } from "@/lib/site-admin/builder-node/tenant-fonts";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const BUCKET = "media-public";
 const CAPABILITY = "agency.site_admin.branding.edit";
@@ -62,6 +63,8 @@ export async function actionListTenantFonts(): Promise<ActionResult<TenantFontFa
 export async function actionCreateTenantFontUploadUrl(
   ext: string,
 ): Promise<{ ok: true; uploadUrl: string; storagePath: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction({ capability: CAPABILITY });
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -101,6 +104,7 @@ export async function actionRegisterTenantFont(input: {
   weightMax?: number | null;
   style?: string;
 }): Promise<ActionResult<TenantFontFamily[]>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction({ capability: CAPABILITY });
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -203,6 +207,7 @@ export async function actionRegisterTenantFont(input: {
 export async function actionDeleteTenantFontFamily(
   family: string,
 ): Promise<ActionResult<TenantFontFamily[]>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction({ capability: CAPABILITY });
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();

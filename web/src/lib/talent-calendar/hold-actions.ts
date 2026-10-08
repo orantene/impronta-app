@@ -22,6 +22,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 import { unexpiredHoldOrFilter } from "@/lib/scheduling/hold-expiry";
 import { revalidatePath } from "next/cache";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type HoldStrength = "soft" | "firm";
 
@@ -76,6 +77,7 @@ function defaultExpiry(strength: HoldStrength): string {
 export async function placeTalentHold(
   input: PlaceHoldInput,
 ): Promise<ServerActionResult<{ holdId: string }>> {
+  await requireNotImpersonating();
   try {
     if (!input.talentProfileId) return { ok: false, error: "Missing talent." };
     if (!input.title.trim()) return { ok: false, error: "Hold title required." };
@@ -159,6 +161,7 @@ export async function placeTalentHold(
 export async function releaseTalentHold(
   holdId: string,
 ): Promise<ServerActionResult> {
+  await requireNotImpersonating();
   try {
     if (!holdId) return { ok: false, error: "Missing hold id." };
     const auth = await requireWorkspaceStaffAction();

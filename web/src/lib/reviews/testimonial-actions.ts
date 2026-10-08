@@ -24,6 +24,7 @@ import { requireSession } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { TestimonialSource } from "./review-types";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const VALID_SOURCES: readonly TestimonialSource[] = [
   "requested",
@@ -65,6 +66,8 @@ export async function createTestimonialAction(input: {
   rating?: number;
   source?: TestimonialSource;
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, user } = auth;

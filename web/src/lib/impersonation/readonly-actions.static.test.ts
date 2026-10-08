@@ -240,11 +240,7 @@ function allowedFor(file: string): Map<string, string> {
 
 function portalFiles(): string[] {
   const files: string[] = [];
-  for (const tree of ROUTE_TREES) {
-    const abs = join(WEB_ROOT, tree);
-    if (existsSync(abs)) walk(abs, files);
-  }
-  for (const f of PORTAL_LIB_FILES) files.push(join(WEB_ROOT, f));
+  walk(join(WEB_ROOT, "src"), files);
   return files.map((f) => relative(WEB_ROOT, f));
 }
 

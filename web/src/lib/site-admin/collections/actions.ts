@@ -40,6 +40,7 @@ import {
   type ContentCollection,
   type ContentCollectionWithItems,
 } from "./types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type CollectionActionResult<T> =
   | { ok: true; data: T }
@@ -112,6 +113,7 @@ export async function createCollectionAction(input: {
   description?: string;
   fields?: ReadonlyArray<{ key?: string; label: string; type: string }>;
 }): Promise<CollectionActionResult<ContentCollection>> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.pages.edit",
   });
@@ -181,6 +183,7 @@ export async function updateCollectionAction(input: {
   description?: string | null;
   fields?: ReadonlyArray<{ key?: string; label: string; type: string }>;
 }): Promise<CollectionActionResult<{ id: string }>> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.pages.edit",
   });
@@ -225,6 +228,7 @@ export async function updateCollectionAction(input: {
 export async function deleteCollectionAction(input: {
   collectionId: string;
 }): Promise<CollectionActionResult<{ id: string }>> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.pages.edit",
   });
@@ -266,6 +270,7 @@ export async function addCollectionItemAction(input: {
   collectionId: string;
   data?: Record<string, unknown>;
 }): Promise<CollectionActionResult<{ id: string }>> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.pages.edit",
   });
@@ -314,6 +319,7 @@ export async function updateCollectionItemAction(input: {
   itemId: string;
   data: Record<string, unknown>;
 }): Promise<CollectionActionResult<{ id: string }>> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.pages.edit",
   });
@@ -344,6 +350,7 @@ export async function updateCollectionItemAction(input: {
 export async function deleteCollectionItemAction(input: {
   itemId: string;
 }): Promise<CollectionActionResult<{ id: string }>> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.pages.edit",
   });
@@ -367,6 +374,7 @@ export async function reorderCollectionItemsAction(input: {
   collectionId: string;
   orderedItemIds: ReadonlyArray<string>;
 }): Promise<CollectionActionResult<{ id: string }>> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.pages.edit",
   });

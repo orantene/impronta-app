@@ -40,6 +40,7 @@ import {
   emitStandardEngineEvent,
 } from "@/lib/inquiry/inquiry-events";
 import type { VoiceNoteMeta } from "@/lib/messages/voice-types";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const MAX_BYTES = 100 * 1024 * 1024; // matches inquiry-files bucket cap
 const MAX_DURATION_MS = 10 * 60 * 1000; // 10 min sanity ceiling
@@ -195,6 +196,8 @@ export async function createVoiceNoteUploadUrl(
   | { ok: true; data: { uploadUrl: string; storagePath: string } }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const cleanId = String(inquiryId ?? "").trim();
     if (!cleanId) return { ok: false, error: "Missing inquiry_id." };
@@ -249,6 +252,8 @@ export async function finalizeVoiceNote(input: {
   storagePath: string;
   mimeType?: string | null;
 }): Promise<{ ok: true; messageId: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const inquiryId = String(input.inquiryId ?? "").trim();
     const threadType = parseThreadType(String(input.threadType ?? "").trim());
@@ -322,6 +327,8 @@ export async function finalizeVoiceNote(input: {
 export async function uploadAndSendVoiceNote(
   formData: FormData,
 ): Promise<{ ok: true; messageId: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
     const threadType = parseThreadType(

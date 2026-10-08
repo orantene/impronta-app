@@ -44,6 +44,7 @@ import type {
 import { invalidateTenantPricingDefaults } from "@/lib/directory/pricing-defaults";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { recordCommerceAudit, COMMERCE_AUDIT } from "@/lib/billing/commerce-audit";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const amount = z
   .number()
@@ -63,6 +64,7 @@ const schema = z
 export async function updateTenantPricingDefaults(
   input: TenantPricingDefaults,
 ): Promise<UpdatePricingDefaultsResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId, tenantSlug, user } = auth;

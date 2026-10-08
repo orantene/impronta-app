@@ -29,6 +29,7 @@ import {
   loadSectionByIdForStaffCached,
 } from "@/lib/site-admin/server/sections-reads";
 import { logServerError } from "@/lib/server/safe-error";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type EditLoadResult =
   | {
@@ -117,6 +118,7 @@ export interface EditSaveInput {
 export async function saveSectionDraftAction(
   input: EditSaveInput,
 ): Promise<EditSaveResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -216,6 +218,7 @@ export async function setSectionVisibilityAction(input: {
   sectionId: string;
   visibility: SectionVisibility;
 }): Promise<SetSectionVisibilityResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);

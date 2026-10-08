@@ -30,6 +30,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { markAttendance } from "@/lib/sessions/attendance";
 import { loadDefaultVenue, resolveTenantTimezone } from "@/lib/spaces/venues";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
@@ -51,6 +52,7 @@ export async function classesCheckIn(input: {
   bookingId: string;
   expectedState: string;
 }): Promise<ClassesCheckInResult> {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ bookingId: uuid, expectedState: z.string().min(1).max(20) }).safeParse(input);
@@ -68,6 +70,7 @@ export async function classesCheckIn(input: {
 export type ClassesAttendanceResult = { ok: true; admittedCount: number } | Refused;
 
 export async function classesMarkAttendance(input: { admissionId: string }): Promise<ClassesAttendanceResult> {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ admissionId: uuid }).safeParse(input);
@@ -136,6 +139,7 @@ export async function classesMoveSlots(input: {
   bookingId: string;
   dayOffset: number;
 }): Promise<ClassesMoveSlotsResult> {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ bookingId: uuid, dayOffset: z.number().int().min(-14).max(14) }).safeParse(input);
@@ -203,6 +207,7 @@ export async function classesBookWalkIn(input: {
   /** Minted ONCE by the client when the form opens, so a double tap replays. */
   attemptKey: string;
 }): Promise<ClassesWalkInResult> {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -244,6 +249,7 @@ export async function classesHoldSeat(input: {
   offeringId: string;
   variantId: string | null;
 }): Promise<ClassesWalkInResult> {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -285,6 +291,7 @@ export async function classesNameSeatHolders(input: {
   orderId: string;
   name: string;
 }): Promise<{ ok: true; named: number } | Refused> {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ orderId: uuid, name: z.string().trim().min(1).max(120) }).safeParse(input);

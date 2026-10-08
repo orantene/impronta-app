@@ -58,6 +58,7 @@ import {
 } from "@/lib/site-admin/server/media-grants";
 import { loadWorkspaceDisplayName } from "@/lib/site-admin/server/media-ownership";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -117,6 +118,7 @@ export async function actionDecideMediaReleaseRequest(input: {
   approve: boolean;
   watermarkRequired?: boolean;
 }): Promise<ActionResult<ReleaseDecisionOutcome>> {
+  await requireNotImpersonating();
   if (!UUID_RE.test(input.requestId)) return { ok: false, error: "Invalid request." };
 
   const auth = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
@@ -296,6 +298,7 @@ export async function actionRetryReleaseWatermarkBake(input: {
   requestId: string;
   assetIds: string[];
 }): Promise<ActionResult<ReleaseBakeRetryOutcome>> {
+  await requireNotImpersonating();
   if (!UUID_RE.test(input.requestId)) return { ok: false, error: "Invalid request." };
   if (!Array.isArray(input.assetIds) || input.assetIds.length === 0) {
     return { ok: false, error: "Nothing to retry." };
@@ -396,6 +399,7 @@ export async function actionRevokeMediaRelease(input: {
   /** The hub to end the release to. Null/omitted = end it everywhere. */
   targetTenantId?: string | null;
 }): Promise<ActionResult<ReleaseRevokeOutcome>> {
+  await requireNotImpersonating();
   if (!UUID_RE.test(input.talentProfileId)) return { ok: false, error: "Invalid request." };
   if (
     input.targetTenantId !== undefined &&

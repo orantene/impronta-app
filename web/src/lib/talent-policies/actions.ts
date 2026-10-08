@@ -10,6 +10,7 @@ import { parsePolicyAnswers, type PolicyAnswers } from "./answers";
 import { linesFromText, type CustomClauses } from "./custom-clauses";
 import { loadPolicyFacts, type PolicyFacts } from "./facts";
 import { loadPublishedPolicy, loadSavedAnswers, publishPolicy, type PublishResult } from "./store";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type PolicyScreenData = {
   facts: PolicyFacts;
@@ -80,6 +81,7 @@ export async function publishPolicyAnswers(
   talentProfileId: string,
   answers: PolicyAnswers,
 ): Promise<PublishResult | { ok: false; reason: "forbidden" }> {
+  await requireNotImpersonating();
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return { ok: false, reason: "forbidden" };
   const result = await publishPolicy(auth.admin, {

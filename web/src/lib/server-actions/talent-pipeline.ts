@@ -26,6 +26,7 @@ import {
 import {
   talentRespondToOffer,
 } from "@/lib/inquiry/inquiry-engine-approvals";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // A.4 INTENTIONAL DIVERGENCE: align with canonical `ServerActionResult<T>` — currently kept
 // as a structurally compatible local type so `withInquiryContext` can return
@@ -75,6 +76,8 @@ async function withInquiryContext<T>(
  * Engine: `acceptTalentInvitation` — flips the participant row to active.
  */
 export async function acceptInquiryInvitation(inquiryId: string): Promise<TalentActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const result = await withInquiryContext(inquiryId, async ({ supabase, userId, tenantId, inquiryVersion }) => {
     const r = await acceptTalentInvitation(supabase, {
       inquiryId,
@@ -108,6 +111,8 @@ export async function respondToInquiryOffer(
   inquiryId: string,
   decision: "accepted" | "rejected",
 ): Promise<TalentActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const result = await withInquiryContext(inquiryId, async ({ supabase, userId, tenantId, inquiryVersion }) => {
     // Offer resolution (current pointer → latest SENT) lives in the engine so
     // this server action stays free of raw tenant-scoped reads.
@@ -142,6 +147,8 @@ export async function declineInquiryInvitation(
   inquiryId: string,
   reason?: string,
 ): Promise<TalentActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const result = await withInquiryContext(inquiryId, async ({ supabase, userId, tenantId, inquiryVersion }) => {
     const r = await declineTalentInvitation(supabase, {
       inquiryId,
@@ -174,6 +181,8 @@ export async function submitMyRateForInquiry(
   inquiryId: string,
   talentCost: number,
 ): Promise<TalentActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   if (!Number.isFinite(talentCost) || talentCost < 0) {
     return { ok: false, error: "Rate must be a positive number." };
   }
@@ -233,6 +242,8 @@ export async function sendInquiryMessageAsTalent(
   inquiryId: string,
   body: string,
 ): Promise<TalentActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const trimmed = body.trim();
     if (!trimmed) return { ok: false, error: "Message body is empty." };
@@ -303,6 +314,8 @@ export async function submitMyRate(
   lineItemId: string,
   talentCost: number,
 ): Promise<TalentActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   if (!Number.isFinite(talentCost) || talentCost < 0) {
     return { ok: false, error: "Rate must be a positive number." };
   }
@@ -357,6 +370,8 @@ export async function submitMyCounterRate(
   proposedRate: number,
   note?: string | null,
 ): Promise<TalentActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   if (!Number.isFinite(proposedRate) || proposedRate < 0) {
     return { ok: false, error: "Rate must be a positive number." };
   }
@@ -382,6 +397,7 @@ export async function submitMyCounterRate(
 export async function uploadInquiryAttachmentAsTalent(
   formData: FormData,
 ): Promise<TalentActionResult & { data?: { attachmentId: string } }> {
+  await requireNotImpersonating();
   try {
     const inquiryId = String(formData.get("inquiryId") ?? "");
     const description = String(formData.get("description") ?? "").trim() || null;

@@ -52,6 +52,7 @@ import {
   isTalentSiteShellRevisionSnapshot,
   nextTalentSiteShellRevisionVersion,
 } from "./talent-site-shell-revision-snapshot";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Resolve the signed-in talent + assert `personalSiteEdit` + assert the requested
@@ -195,6 +196,7 @@ export async function loadTalentSiteShellRow(
 export async function saveTalentSiteShellRow(
   input: Parameters<TalentSiteShellAdapterActions["saveShell"]>[0],
 ): ReturnType<TalentSiteShellAdapterActions["saveShell"]> {
+  await requireNotImpersonating();
   try {
     const gate = await gateOwner(input.talentProfileId);
     if (!gate.ok) return { ok: false as const, error: gate.error };
@@ -322,6 +324,7 @@ export async function saveTalentSiteShellRow(
 export async function publishTalentSiteShellRow(
   input: Parameters<TalentSiteShellAdapterActions["publishShell"]>[0],
 ): ReturnType<TalentSiteShellAdapterActions["publishShell"]> {
+  await requireNotImpersonating();
   try {
     const gate = await gateOwner(input.talentProfileId);
     if (!gate.ok) return { ok: false as const, error: gate.error };
@@ -432,6 +435,7 @@ export async function publishTalentSiteShellRow(
 export async function restoreTalentSiteShellRevisionAction(
   input: Parameters<NonNullable<TalentSiteShellAdapterActions["restoreRevision"]>>[0],
 ): ReturnType<NonNullable<TalentSiteShellAdapterActions["restoreRevision"]>> {
+  await requireNotImpersonating();
   try {
     const gate = await gateOwner(input.talentProfileId);
     if (!gate.ok) return { ok: false as const, error: gate.error };

@@ -82,6 +82,7 @@ import { clientAcceptOffer, staffAcceptOfferForTalent } from "@/lib/inquiry/inqu
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
 import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type PipelineActionResult<T = undefined> =
   | { ok: true; data?: T }
@@ -104,6 +105,7 @@ export async function convertInquiryToBookingAction(
   _tenantSlug: string,
   inquiryId: string,
 ): Promise<PipelineActionResult<{ bookingId: string }>> {
+  await requireNotImpersonating();
   try {
     const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -168,6 +170,7 @@ export async function submitTalentRate(
   lineItemId: string,
   talentCost: number,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -218,6 +221,7 @@ export async function counterOfferAction(
   inquiryId: string,
   previousOfferId: string | null,
 ): Promise<PipelineActionResult<{ offerId: string }>> {
+  await requireNotImpersonating();
   try {
     const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -351,6 +355,7 @@ export async function markInquiryPaymentReceived(
   _tenantSlug: string,
   inquiryId: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   const wrapped = await withInquiryBooking<void>(inquiryId, async ({ supabase, bookingId }) => {
     const txn = await loadActiveBookingTransaction(bookingId, supabase);
     if (!txn) throw new Error("No active transaction.");
@@ -364,6 +369,7 @@ export async function markInquiryPaymentPending(
   _tenantSlug: string,
   inquiryId: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   const wrapped = await withInquiryBooking<void>(inquiryId, async ({ supabase, bookingId }) => {
     const txn = await loadActiveBookingTransaction(bookingId, supabase);
     if (!txn) throw new Error("No active transaction.");
@@ -377,6 +383,7 @@ export async function markInquiryPaymentDisputed(
   _tenantSlug: string,
   inquiryId: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   const wrapped = await withInquiryBooking<void>(inquiryId, async ({ supabase, bookingId }) => {
     const txn = await loadActiveBookingTransaction(bookingId, supabase);
     if (!txn) throw new Error("No active transaction.");
@@ -391,6 +398,7 @@ export async function markInquiryPaymentFailed(
   inquiryId: string,
   reason: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   const wrapped = await withInquiryBooking<void>(inquiryId, async ({ supabase, bookingId }) => {
     const txn = await loadActiveBookingTransaction(bookingId, supabase);
     if (!txn) throw new Error("No active transaction.");
@@ -404,6 +412,7 @@ export async function cancelInquiryTransaction(
   _tenantSlug: string,
   inquiryId: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   const wrapped = await withInquiryBooking<void>(inquiryId, async ({ supabase, bookingId }) => {
     const txn = await loadActiveBookingTransaction(bookingId, supabase);
     if (!txn) throw new Error("No active transaction.");
@@ -427,6 +436,7 @@ export async function createInquiryTransactionDraft(
   // client charge in one go (default, unchanged behaviour).
   checkoutType: "deposit" | "balance" | "full" = "full",
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -555,6 +565,7 @@ export async function requestInquiryPayment(
   _tenantSlug: string,
   inquiryId: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   const wrapped = await withInquiryBooking<void>(inquiryId, async ({ supabase, bookingId }) => {
     const txn = await loadActiveBookingTransaction(bookingId, supabase);
     if (!txn) throw new Error("No active transaction.");
@@ -572,6 +583,7 @@ export async function initiateInquiryPayout(
   _tenantSlug: string,
   inquiryId: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   const wrapped = await withInquiryBooking<void>(inquiryId, async ({ supabase, bookingId }) => {
     const txn = await loadActiveBookingTransaction(bookingId, supabase);
     if (!txn) throw new Error("No active transaction.");
@@ -589,6 +601,7 @@ export async function markInquiryPayoutSent(
   inquiryId: string,
   providerReference?: string | null,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   const wrapped = await withInquiryBooking<void>(inquiryId, async ({ supabase, bookingId }) => {
     const txn = await loadActiveBookingTransaction(bookingId, supabase);
     if (!txn) throw new Error("No active transaction.");
@@ -608,6 +621,7 @@ export async function sendOfferAction(
   inquiryId: string,
   offerId: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -656,6 +670,7 @@ export async function approveOfferAction(
   inquiryId: string,
   offerId: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -705,6 +720,7 @@ export async function acceptOfferForTalentAction(
    *  roster. Pass an id to approve a single talent. */
   talentProfileId?: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -815,6 +831,7 @@ export async function rejectOfferAction(
   offerId: string,
   reasonText: string | null,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -868,6 +885,7 @@ export async function patchAgencySettingsNamespace(
   namespace: "theme" | "seo" | "navigation" | "languages" | "visibility" | "filters" | "domain",
   value: Record<string, unknown> | null,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -960,6 +978,7 @@ export async function rescheduleInquiry(
   inquiryId: string,
   eventDateIso: string | null,
 ): Promise<PipelineActionResult<{ eventDate: string | null }>> {
+  await requireNotImpersonating();
   try {
     if (eventDateIso != null) {
       // Loose validation — must look like YYYY-MM-DD. Anything else
@@ -1134,6 +1153,7 @@ export async function updateInquiryJobFields(
   expectedVersion: number,
   patch: InquiryDetailsPatch,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -1192,6 +1212,7 @@ export async function updateBookingJobFields(
   inquiryId: string,
   patch: BookingJobFieldsPatch,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   const wrapped = await withInquiryBooking<void>(inquiryId, async ({ supabase, userId, tenantId, bookingId }) => {
     const update: Record<string, unknown> = {};
     const changedKeys: string[] = [];
@@ -1297,12 +1318,15 @@ async function setInquiryUserFlag(
 // "use server" files allow only `async function` exports — these wrappers
 // must be functions, not const arrows, or Turbopack will refuse to bundle.
 export async function setInquiryPinned(_slug: string, inquiryId: string, value: boolean) {
+  await requireNotImpersonating();
   return setInquiryUserFlag(inquiryId, "pinned", value);
 }
 export async function setInquiryArchived(_slug: string, inquiryId: string, value: boolean) {
+  await requireNotImpersonating();
   return setInquiryUserFlag(inquiryId, "archived", value);
 }
 export async function setInquiryManuallyUnread(_slug: string, inquiryId: string, value: boolean) {
+  await requireNotImpersonating();
   return setInquiryUserFlag(inquiryId, "manually_unread", value);
 }
 
@@ -1317,6 +1341,7 @@ export async function duplicateInquiryBooking(
   _tenantSlug: string,
   inquiryId: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -1442,6 +1467,7 @@ export async function removeInquiryLineupParticipant(
   inquiryId: string,
   participantId: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -1488,6 +1514,7 @@ export async function addInquiryLineupTalent(
   inquiryId: string,
   talentProfileId: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -1609,6 +1636,7 @@ export async function loadInquiryAttachments(
 export async function uploadInquiryAttachment(
   formData: FormData,
 ): Promise<PipelineActionResult<{ attachmentId: string }>> {
+  await requireNotImpersonating();
   try {
     const inquiryId = String(formData.get("inquiryId") ?? "");
     const description = String(formData.get("description") ?? "").trim() || null;
@@ -1697,6 +1725,7 @@ export async function deleteInquiryAttachment(
   _tenantSlug: string,
   attachmentId: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -1951,6 +1980,7 @@ export async function saveOfferDraft(
     } | null;
   },
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     // Resolve the inquiry the offer belongs to BEFORE the guard so a talent
     // coordinator is checked against the RIGHT inquiry. Narrow service-role id
@@ -2080,6 +2110,7 @@ export async function setInquiryPayoutReceiver(
   inquiryId: string,
   payoutAccountId: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     if (!payoutAccountId.trim()) {
       return { ok: false, error: "Choose a payout receiver." };
@@ -2116,6 +2147,7 @@ export async function reorderInquiryLineup(
   inquiryId: string,
   participantIdsInOrder: string[],
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -2167,6 +2199,7 @@ export async function bulkNudgeInquiries(
   inquiryIds: string[],
   body?: string,
 ): Promise<PipelineActionResult<{ ok: number; failed: number }>> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -2220,6 +2253,7 @@ export async function bulkReassignInquiriesToMe(
   _tenantSlug: string,
   inquiryIds: string[],
 ): Promise<PipelineActionResult<{ ok: number; failed: number }>> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -2254,6 +2288,7 @@ export async function bulkSetInquiryArchived(
   inquiryIds: string[],
   archived: boolean,
 ): Promise<PipelineActionResult<{ ok: number; failed: number }>> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -2297,6 +2332,7 @@ export async function createOfferAction(
   // inquiry→offer→booking→payment→payout flow runs in one currency.
   currencyCode?: string,
 ): Promise<PipelineActionResult<{ offerId: string }>> {
+  await requireNotImpersonating();
   // Hard timeout — the 2026-05-12 audit reported the button hanging on
   // "Starting…" forever. Wrap the whole flow so any silent block surfaces
   // as a toast instead of locking the button.
@@ -2680,6 +2716,7 @@ export async function reassignCoordinatorAction(
   newCoordinatorUserId: string,
   handoffNote: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -2737,6 +2774,7 @@ export async function addSecondaryCoordinatorAction(
   userId: string,
   showHistory: boolean = true,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -2772,6 +2810,7 @@ export async function removeSecondaryCoordinatorAction(
   inquiryId: string,
   userId: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -2806,6 +2845,7 @@ export async function promoteToPrimaryCoordinatorAction(
   inquiryId: string,
   userId: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -2914,6 +2954,7 @@ export async function markBookingPaymentMethodAction(
   method: PaymentMethod,
   reason?: string | null,
 ): Promise<PipelineActionResult<{ snapshots: PersistedBookingCommissionSnapshot[] }>> {
+  await requireNotImpersonating();
   try {
     if (!VALID_PAYMENT_METHODS.includes(method)) {
       return { ok: false, error: "Invalid payment method." };
@@ -3033,6 +3074,7 @@ export async function markInquiryPaidInCash(
   // unchanged behaviour for existing callers).
   checkoutType: "deposit" | "balance" | "full" = "full",
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   if (!VALID_PAYMENT_METHODS.includes(method) || !isOffPlatformPaymentMethod(method)) {
     return { ok: false, error: "Cash settlement requires an off-platform method (cash, wire, venue, crypto, other)." };
   }
@@ -3091,6 +3133,7 @@ export async function requestPlatformRateOverrideAction(
   requestedTakeBps: number,
   note: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     if (!Number.isInteger(requestedTakeBps) || requestedTakeBps < 0 || requestedTakeBps > 5000) {
       return { ok: false, error: "Requested rate must be between 0% and 50%." };
@@ -3175,6 +3218,7 @@ export async function placeTalentHoldAction(
     expiresAt?: string | null;
   },
 ): Promise<PipelineActionResult<{ holdId: string }>> {
+  await requireNotImpersonating();
   try {
     const { placeTalentHold } = await import("@/lib/talent-calendar/hold-actions");
     const r = await placeTalentHold({
@@ -3201,6 +3245,7 @@ export async function releaseTalentHoldAction(
   _tenantSlug: string,
   holdId: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const { releaseTalentHold } = await import("@/lib/talent-calendar/hold-actions");
     const r = await releaseTalentHold(holdId);
@@ -3259,6 +3304,7 @@ export async function cancelBookingAction(
   bookingId: string,
   reason: string | null,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -3372,6 +3418,7 @@ export async function rescheduleBookingAction(
   expectedStartsAt?: string | null,
   expectedEndsAt?: string | null,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -3430,6 +3477,7 @@ export async function reopenOfferAction(
   inquiryId: string,
   offerId: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  await requireNotImpersonating();
   try {
     const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -3485,6 +3533,7 @@ export async function closeBookingAction(
   bookingId: string,
   completionNote?: string | null,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };

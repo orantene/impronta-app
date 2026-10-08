@@ -14,8 +14,10 @@
 import { redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { applyCategoryUnsubscribe } from "@/lib/notifications/unsubscribe";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export async function confirmUnsubscribeAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const token = String(formData.get("token") ?? "").trim();
   const cat = String(formData.get("cat") ?? "").trim();
 

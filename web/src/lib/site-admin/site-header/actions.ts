@@ -67,6 +67,7 @@ import type {
   SiteHeaderConfig,
   SiteHeaderNavItemInput,
 } from "./types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * WF-6 — read a stored `regions` blob back through the SECTION schema.
@@ -252,6 +253,7 @@ export async function saveHeaderSectionAction(input: {
    */
   regions?: HeaderRegions | null;
 }): Promise<ActionResult<{ version: number }>> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
@@ -592,6 +594,7 @@ interface IdentityPatchInput {
 export async function saveHeaderIdentityAction(
   input: IdentityPatchInput,
 ): Promise<ActionResult<{ version: number }>> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -710,6 +713,7 @@ interface BrandingPatchInput {
 export async function saveHeaderBrandingAction(
   input: BrandingPatchInput,
 ): Promise<ActionResult<{ version: number }>> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -812,6 +816,7 @@ interface TokenPatchInput {
 export async function saveHeaderTokenAction(
   input: TokenPatchInput,
 ): Promise<ActionResult<{ version: number; theme: Record<string, string> }>> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -922,6 +927,7 @@ interface NavBulkResult {
 export async function saveHeaderNavigationAction(
   input: NavBulkInput,
 ): Promise<ActionResult<NavBulkResult>> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 

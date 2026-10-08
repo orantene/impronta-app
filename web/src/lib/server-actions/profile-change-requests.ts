@@ -6,6 +6,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { logServerError } from "@/lib/server/safe-error";
 import { revalidatePath } from "next/cache";
 import type { ServerActionResult } from "./result";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * F.8 — Talent profile change request review actions.
@@ -53,6 +54,7 @@ export type SubmitProfileChangeInput = {
 export async function submitProfileChangeRequest(
   input: SubmitProfileChangeInput,
 ): Promise<ServerActionResult<{ requestId: string }>> {
+  await requireNotImpersonating();
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, error: "Service unavailable.", reason: "unexpected" };
@@ -149,6 +151,7 @@ export async function submitProfileChangeRequest(
 export async function acceptProfileChangeRequests(
   requestIds: string[],
 ): Promise<ServerActionResult<{ accepted: number; failed: number }>> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
@@ -210,6 +213,7 @@ export async function rejectProfileChangeRequests(
   requestIds: string[],
   note?: string,
 ): Promise<ServerActionResult<{ rejected: number }>> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };

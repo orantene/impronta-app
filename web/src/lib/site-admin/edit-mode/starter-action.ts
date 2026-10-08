@@ -65,6 +65,7 @@ import { requireSession } from "@/lib/server/action-guards";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { randomBytes } from "node:crypto";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type StarterActionState =
   | { ok: true; createdSections: number; skipped: number; presetSlug: string }
@@ -808,6 +809,7 @@ export async function addEmptyCanvasHeroAction(
   _prevState: EmptyCanvasQuickInsertState,
   formData: FormData,
 ): Promise<EmptyCanvasQuickInsertState> {
+  await requireNotImpersonating();
   const locale = String(formData.get("locale") ?? DEFAULT_PLATFORM_LOCALE);
   const composition = await loadHomepageCompositionAction({ locale });
   if (!composition.ok) {
@@ -850,6 +852,7 @@ export async function applyStarterComposition(
   _prev: StarterActionState,
   formData: FormData,
 ): Promise<StarterActionState> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);

@@ -33,6 +33,7 @@ import {
   setHubMediaVisibility,
   type HubFaceState,
 } from "@/lib/site-admin/server/talent-hub-face";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type { HubFacePhoto, HubFaceState } from "@/lib/site-admin/server/talent-hub-face";
 
@@ -61,6 +62,7 @@ export async function actionSetTalentHubCover(
   talentProfileId: string,
   assetId: string | null,
 ): Promise<ActionResult<{ coverAssetId: string | null }>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!UUID_RE.test(talentProfileId)) return { ok: false, error: "Invalid request." };
@@ -87,6 +89,7 @@ export async function actionSetTalentHubSelection(
   talentProfileId: string,
   orderedAssetIds: string[],
 ): Promise<ActionResult<{ selectedAssetIds: string[]; coverAssetId: string | null }>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!UUID_RE.test(talentProfileId)) return { ok: false, error: "Invalid request." };
@@ -123,6 +126,7 @@ export async function actionSetTalentHubMediaCaption(
   assetId: string,
   caption: string | null,
 ): Promise<ActionResult<{ caption: string | null }>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!UUID_RE.test(talentProfileId)) return { ok: false, error: "Invalid request." };
@@ -161,6 +165,7 @@ export async function actionSetTalentHubMediaVisibility(
   assetId: string,
   visible: boolean,
 ): Promise<ActionResult<{ visible: boolean }>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!UUID_RE.test(talentProfileId)) return { ok: false, error: "Invalid request." };
@@ -196,6 +201,7 @@ export async function actionReorderTalentHubMedia(
   talentProfileId: string,
   orderedAssetIds: string[],
 ): Promise<ActionResult<{ orderedAssetIds: string[] }>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!UUID_RE.test(talentProfileId)) return { ok: false, error: "Invalid request." };

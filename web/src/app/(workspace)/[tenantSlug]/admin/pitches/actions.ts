@@ -42,6 +42,7 @@ import type {
   SentPitchOutput,
   UpdatePitchDraftInput,
 } from "@/lib/pitch/pitch-types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const CAPABILITY = "agency.pitch.manage";
 
@@ -103,6 +104,7 @@ export async function createPitchDraftAction(
   tenantSlug: string,
   input: Omit<CreatePitchDraftInput, "tenantId" | "actorUserId">,
 ): Promise<PitchResult<{ pitchId: string }>> {
+  await requireNotImpersonating();
   const auth = await authorise(tenantSlug);
   if (!auth.ok) return { ok: false, reason: auth.reason };
 
@@ -124,6 +126,7 @@ export async function updatePitchDraftAction(
   tenantSlug: string,
   input: Omit<UpdatePitchDraftInput, "tenantId" | "actorUserId">,
 ): Promise<PitchResult<void>> {
+  await requireNotImpersonating();
   const auth = await authorise(tenantSlug);
   if (!auth.ok) return { ok: false, reason: auth.reason };
 
@@ -146,6 +149,7 @@ export async function sendPitchAction(
   pitchId: string,
   channel: PitchShareChannel,
 ): Promise<PitchResult<SentPitchOutput>> {
+  await requireNotImpersonating();
   const auth = await authorise(tenantSlug);
   if (!auth.ok) return { ok: false, reason: auth.reason };
 
@@ -168,6 +172,7 @@ export async function cancelPitchAction(
   tenantSlug: string,
   pitchId: string,
 ): Promise<PitchResult<void>> {
+  await requireNotImpersonating();
   const auth = await authorise(tenantSlug);
   if (!auth.ok) return { ok: false, reason: auth.reason };
 
@@ -321,6 +326,7 @@ export async function regeneratePitchShareLinkAction(
   tenantSlug: string,
   pitchId: string,
 ): Promise<PitchResult<RegeneratedPitchLink>> {
+  await requireNotImpersonating();
   const auth = await authorise(tenantSlug);
   if (!auth.ok) return { ok: false, reason: auth.reason };
 

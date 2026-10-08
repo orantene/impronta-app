@@ -23,6 +23,7 @@ import {
   SECTION_REGISTRY,
   type SectionTypeKey,
 } from "@/lib/site-admin/sections/registry";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // Reuse the same in-memory rate bucket as the rewrite action would —
 // we re-declare it here to avoid an import cycle. Per-tenant cap of
@@ -74,6 +75,7 @@ Never invent specific facts (real names, phone numbers, addresses, prices) unles
 export async function generateSectionWithAi(
   input: GenerateSectionInput,
 ): Promise<GenerateSectionResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -237,6 +239,7 @@ export async function generateAltTextWithAi(
   imageUrl: string,
   context: string,
 ): Promise<AltTextResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);

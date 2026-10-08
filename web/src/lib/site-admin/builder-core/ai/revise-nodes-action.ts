@@ -37,6 +37,7 @@ import {
   resolveGenerationModel,
   type GenerationModelId,
 } from "@/lib/ai/ai-generation-model";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ReviseNodeActionState =
   | { ok: true; node: BuilderNode; nodeCount?: number; source: "model" }
@@ -145,6 +146,7 @@ export async function reviseBuilderNodeAction(input: {
   /** The active theme's `data-token-background-mode` (AIQ-12), read from the builder DOM. */
   backgroundMode?: string;
 }): Promise<ReviseNodeActionState> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 

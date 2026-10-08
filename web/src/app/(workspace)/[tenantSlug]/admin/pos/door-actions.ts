@@ -49,6 +49,7 @@ import { signAdmissionToken } from "@/lib/sessions/admission-token";
 import type { DoorOutcome } from "@/lib/sessions/door";
 
 import { admitAtDoor } from "../_door-actions";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
@@ -99,6 +100,7 @@ export async function posDoorOpenTicketSale(input: {
   /** Tickets of this tier (E02's quantity). Defaults to one. */
   units?: number;
 }): Promise<OpenTicketSaleResult> {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -175,6 +177,7 @@ export async function posDoorAddTicketLine(input: {
   units: number;
   expectedVersion: number;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -253,6 +256,7 @@ export async function posDoorReadSale(orderId: string): Promise<{ ok: true; sale
  * dead row (refunded, void) is refused: naming it would make it look valid.
  */
 export async function posDoorNameTicket(input: { admissionId: string; holderName: string; replace?: boolean }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -352,6 +356,7 @@ export async function posDoorIssuedTickets(orderId: string) {
 }
 
 export async function posDoorCancelTicketSale(orderId: string, expectedVersion?: number) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   if (!uuid.safeParse(orderId).success) return { ok: false as const, error: "invalid" };
@@ -412,6 +417,7 @@ export async function posDoorCollectTicket(input: {
   attendeeNames?: string[];
   admitNow: boolean;
 }): Promise<CollectTicketResult> {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z

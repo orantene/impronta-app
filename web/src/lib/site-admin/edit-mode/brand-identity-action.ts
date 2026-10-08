@@ -15,10 +15,13 @@ import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type BrandIdentityActionResult = { ok: true } | { ok: false; error: string };
 
 export async function setBrandIdentityWordmark(): Promise<BrandIdentityActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);

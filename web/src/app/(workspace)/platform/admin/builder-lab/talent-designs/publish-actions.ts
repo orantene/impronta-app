@@ -20,6 +20,7 @@ import {
   publishThemeDraft,
 } from "@/lib/talent-site/theme-template/publish.server";
 import type { ThemeDraftPublishPreview } from "@/lib/talent-site/theme-template/types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const RELEASES = "/platform/admin/builder-lab/themes";
 
@@ -73,6 +74,7 @@ export async function actionPublishDesign(
   design: string,
   expectedRev: number,
 ): Promise<Result<{ version: number; releaseId: string; href: string }>> {
+  await requireNotImpersonating();
   const slug = cleanSlug(design);
   const rev = cleanRev(expectedRev);
   if (!slug || rev === null) return { ok: false, error: "Unknown design or draft revision." };
@@ -88,6 +90,7 @@ export async function actionPublishDesignAndUpdateDemos(
   design: string,
   expectedRev: number,
 ): Promise<Result<{ version: number; releaseId: string; href: string; demosApplied: number; warnings: string[] }>> {
+  await requireNotImpersonating();
   const slug = cleanSlug(design);
   const rev = cleanRev(expectedRev);
   if (!slug || rev === null) return { ok: false, error: "Unknown design or draft revision." };

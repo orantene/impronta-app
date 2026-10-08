@@ -29,6 +29,7 @@ import {
   type FlagControl,
   type FlagKey,
 } from "./flags-registry";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type FlagWriteResult = { ok: true } | { ok: false; error: string };
 
@@ -91,6 +92,8 @@ export async function saveFlag(
   key: FlagKey,
   raw: string,
 ): Promise<FlagWriteResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const def = FLAG_REGISTRY[key];
   if (!def) return { ok: false, error: "Unknown setting." };
 

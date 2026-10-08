@@ -48,6 +48,7 @@ import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { isValidRating } from "./review-eligibility";
 import { insertOrEditTalentReview } from "./review-write";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /** Statuses that mean the invite can no longer be used. */
 const TERMINAL_STATUSES = new Set(["completed", "expired"]);
@@ -293,6 +294,7 @@ export async function submitReviewViaTokenAction(
   | { ok: false; needsAuth: true }
   | { ok: false; error: string }
 > {
+  await requireNotImpersonating();
   const t = cleanToken(token);
   if (!t) return { ok: false, error: "This review link is not valid." };
 

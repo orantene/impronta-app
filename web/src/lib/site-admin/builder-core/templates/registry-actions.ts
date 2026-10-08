@@ -73,6 +73,7 @@ import { maybeAutoCaptureThumbnail } from "./auto-thumbnail";
 import { loadComponentUsageTally } from "@/lib/site-admin/add-gallery/component-usage-action";
 import { usageCountForItem } from "@/lib/site-admin/add-gallery/component-usage-scan";
 import type { BuilderNodeKind } from "@/lib/site-admin/builder-node/types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -287,6 +288,7 @@ async function publishRowCore(
 export async function createTemplateDraft(
   input: CreateTemplateDraftInput,
 ): Promise<TemplateActionResult<BuilderTemplateRow>> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
@@ -335,6 +337,7 @@ export async function createTemplateDraft(
 export async function updateTemplateDraft(
   input: UpdateTemplateDraftInput,
 ): Promise<TemplateActionResult<BuilderTemplateRow>> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
@@ -406,6 +409,7 @@ export async function setTemplateRollout(
   templateId: string,
   input: SetTemplateRolloutInput,
 ): Promise<TemplateActionResult<BuilderTemplateRow>> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
@@ -455,6 +459,7 @@ export async function setTemplateRollout(
 export async function submitTemplateForReview(
   templateId: string,
 ): Promise<TemplateActionResult<BuilderTemplateRow>> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
@@ -494,6 +499,7 @@ export async function rejectToDraft(
   templateId: string,
   reason?: string | null,
 ): Promise<TemplateActionResult<BuilderTemplateRow>> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
@@ -541,6 +547,7 @@ export async function publishTemplate(
   templateId: string,
   changelog?: string | null,
 ): Promise<TemplateActionResult<PublishTemplateResult>> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
@@ -684,6 +691,7 @@ export async function getPublishDiff(
 export async function unpublishTemplate(
   templateId: string,
 ): Promise<TemplateActionResult<BuilderTemplateRow>> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
@@ -913,6 +921,7 @@ export async function archiveTemplate(
   templateId: string,
   options?: ArchiveTemplateOptions,
 ): Promise<TemplateActionResult<BuilderTemplateRow>> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
@@ -983,6 +992,7 @@ export async function duplicateTemplate(
   templateId: string,
   overrides?: Partial<Pick<CreateTemplateDraftInput, "title" | "slug">>,
 ): Promise<TemplateActionResult<BuilderTemplateRow>> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
@@ -1068,6 +1078,7 @@ export async function restoreTemplateRevision(
   templateId: string,
   revisionVersion: number,
 ): Promise<TemplateActionResult<BuilderTemplateRow>> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
@@ -1133,6 +1144,7 @@ export async function rollbackToRevision(
   templateId: string,
   version: number,
 ): Promise<TemplateActionResult<{ version: number }>> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 

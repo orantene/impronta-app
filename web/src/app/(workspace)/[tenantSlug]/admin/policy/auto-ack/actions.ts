@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Update the workspace auto-acknowledgement policy. Gated on owner / admin
@@ -14,6 +15,7 @@ import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
  * to "Thanks, we'll get back to you within 4 hours." (no em dash).
  */
 export async function updateAutoAckPolicy(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     redirect(`/admin/policy/auto-ack?err=${encodeURIComponent(auth.error)}`);

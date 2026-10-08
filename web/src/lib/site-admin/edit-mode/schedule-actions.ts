@@ -32,6 +32,7 @@ import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
 import { isLocale, type Locale } from "@/lib/site-admin/locales";
 import { resolveEditorPage } from "@/lib/site-admin/server/editor-page-ref";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Page identity forwarded by the Schedule drawer. Both fields are optional and
@@ -75,6 +76,7 @@ function parsePublishAt(raw: string): Date | null {
 export async function schedulePublishAction(
   input: SchedulePublishInput,
 ): Promise<SchedulePublishResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
@@ -154,6 +156,7 @@ export type CancelScheduledPublishResult =
 export async function cancelScheduledPublishAction(
   input: SchedulePageRefInput & { locale?: string } = {},
 ): Promise<CancelScheduledPublishResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
