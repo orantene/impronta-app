@@ -30,15 +30,16 @@ export function isMaisonDesign(slug: string): boolean {
   return slug === MAISON_SLUG;
 }
 
-/** Built demos first, in catalog order; planned after. */
+/** Built demos only, in catalog order. Planned placeholders stay out of the strip (TUL-327). */
 export function orderedDemos(design: GalleryDesign): GalleryDemo[] {
-  return [
-    ...design.demos.filter((d) => d.status === "built"),
-    ...design.demos.filter((d) => d.status !== "built"),
-  ];
+  return design.demos.filter((d) => d.status === "built");
 }
 
-/** The demo the preview shows: the chosen one when built, else the featured built demo. */
+/**
+ * The demo the preview shows. Only built demos are selectable; a planned or
+ * unknown key is ignored and the featured built demo is shown (no silent
+ * "you picked X but see Y" fallback note).
+ */
 export function resolveActiveDemo(
   design: GalleryDesign,
   demoKey: string | null,
@@ -48,7 +49,9 @@ export function resolveActiveDemo(
   if (requested && requested.status === "built") {
     return { demo: requested, requested, plannedFallback: false };
   }
-  return { demo: featured, requested, plannedFallback: requested !== null };
+  // Planned / missing: treat as no selection so the UI never claims a trade
+  // while painting the featured demo.
+  return { demo: featured, requested: null, plannedFallback: false };
 }
 
 /** `?demo=` value for the preview route (demo-talent + maison-seed). */
