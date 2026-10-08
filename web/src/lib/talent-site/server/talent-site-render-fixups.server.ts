@@ -5,7 +5,7 @@ import { withHeaderLogo } from "@/lib/talent-site/header-logo";
 import { withShellBrandName } from "../header-brand-name";
 import { loadTalentDisplayName } from "./load-header-brand-name.server";
 import { contrastRatio } from "@/lib/site-admin/tokens/contrast-pair";
-import { localiseSeededDesignLabels, type SiteCtaMode } from "../design-label-locale";
+import { localiseSeededDesignLabels, type SiteCtaMode } from "../design-cta-mode";
 import { placeMaisonTradeApps, tradesFromTypeLabels } from "../demos/app-placement";
 import { applyTalentLiveMedia, treeHasLiveMediaCandidates } from "../live-media";
 import { applyTalentLiveText, treeHasLiveCandidates } from "../live-text";

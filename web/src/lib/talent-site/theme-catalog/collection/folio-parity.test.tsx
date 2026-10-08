@@ -25,9 +25,9 @@ const PINS = {
   highlight: "f6ed134ba4b1cd9e",
   booking: "8f87f1ae1e51bc17",
   // Re-pinned: only added props.i18n (es + en seed copy), see seed-i18n.ts.
-  maison: "ff484407b68ec492", // was ca897a06ce5564b6; TUL-345: aftercare + before-after seed explicit en overlays. Before (42d225e3c02a4810): TUL-230: the About paragraph is liveText "bio". Before: #88 Book an appointment leads in header + hero; #209: + es/en overlay on portfolio, reviews, header labels
+  maison: "ff484407b68ec492", // was ca897a06ce5564b6; TUL-345 on main + TUL-369 EN base (re-pin if folio-parity fails)
   // Re-pinned after Gridline contentWidth/full + matrix viewport MQ (#2530), then es + en seed copy.
-  gridline: "3651b5df563fe3b0", // was 428ba73e1fe694a3; TUL-230: the About paragraph is liveText "bio". Before: #209: + es/en overlay on utility bar, alert band, task picker, spec table, visit, portfolio
+  gridline: "284229ba182b97e1", // was 3651b5df563fe3b0; TUL-369: SEED_TEXT_ES expanded (EN base + es/en overlays)
 
 };
 

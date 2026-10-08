@@ -17,7 +17,7 @@ import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
-import { headerSectionProps, localiseTalentHeaderDefaults } from "@/lib/talent-site/header-cta-locale";
+import { headerSectionProps } from "@/lib/talent-site/header-i18n";
 import {
   buildMaxSiteNav,
   coerceTree,
@@ -230,7 +230,7 @@ export function renderShellRoot(root: BuilderNode, localeCtx: TalentSiteLocaleCo
   ) {
     const entry = getSectionType(root.props.sectionTypeKey);
     const schema = entry?.schemasByVersion[entry.currentVersion];
-    const localised = localiseTalentHeaderDefaults(headerSectionProps(root, locale), locale);
+    const localised = headerSectionProps(root, locale);
     const parsed = schema?.safeParse(
       withHeaderSiteChrome(localised, root.props.sectionTypeKey, isDemo, localeCtx.settings.supportedLocales, localeCtx.switcherHrefs),
     );

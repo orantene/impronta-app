@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 
 import { askEntryPointsVisible, resolveTalentAskEntry } from "@/lib/talent/chat-entry";
 import { isAskControl, isAskHref } from "@/app/%5Ftalent-site/TalentSiteContactBridge";
-import { resolveSiteCtaMode } from "@/lib/talent-site/design-label-locale";
+import { resolveSiteCtaMode } from "@/lib/talent-site/design-cta-mode";
 import { bookingModeLabel } from "@/lib/talent/publication-state";
 import { resolveEffectiveBookingMode } from "@/lib/scheduling/instant-book-gates";
 import { opensAskFlowOnly } from "@/lib/talent/offering-cta-derivation";

@@ -1,80 +1,20 @@
 /**
- * Render-time localisation for catalog Design labels.
+ * Site-wide booking CTA mode + render-time remaps that depend on it.
  *
- * TUL-369: the EN→ES guess map that used to live here is retired. Seeded
- * English→Spanish wording lives in `theme-catalog/seed-i18n.ts` (`SEED_TEXT_ES`).
- * This module still:
- *   - applies that table (plus authored-overlay `labelsEs`) as a legacy
- *     fallback for trees applied before seed overlays shipped;
+ * TUL-369 deletes the EN↔ES guess maps that lived in `design-label-locale.ts`
+ * and `header-cta-locale.ts`. Seeded copy carries `props.i18n.es` /
+ * `props.i18n.en` (see `theme-catalog/seed-i18n.ts`); the renderer overlays
+ * win. This module only:
+ *   - resolves the site CTA mode (posture + plan ceiling);
  *   - rewrites mode-dependent action copy (`SEEDED_MODE_COPY`);
+ *   - remaps Folio's legacy "Book" → #gallery nav to Work / Trabajos;
  *   - applies per-talent locale swaps.
  *
- * New seeds carry `props.i18n.es` / `props.i18n.en` and English bases; the
- * renderer overlays win when present. A label the talent edited no longer
- * matches the seed exactly and is never rewritten.
+ * A label the talent edited no longer matches a seed exactly and is never
+ * rewritten.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
-import { registeredAuthoredOverlays } from "./theme-catalog/collection/authored";
-import { SEED_TEXT_ES } from "./theme-catalog/seed-i18n";
-
-/**
- * Seed table plus the `labelsEs` of every committed authored overlay
- * (`theme-catalog/collection/authored`): labels a template-editor version
- * seeded are localised like code seeds. An overlay entry wins a clash.
- */
-const SEEDED_LABELS_ES: Readonly<Record<string, string>> = (() => {
-  const out: Record<string, string> = { ...SEED_TEXT_ES };
-  for (const [, o] of registeredAuthoredOverlays()) Object.assign(out, o.labelsEs);
-  return out;
-})();
-
-/**
- * Seeded labels with a `{{token}}` (e.g. "Hello, I'm {{displayName}}") are
- * saved hydrated ("Hello, I'm Alba"), so they are matched as patterns: the
- * token becomes a capture carried into the Spanish line.
- */
-const SEEDED_PATTERNS_ES: ReadonlyArray<{ re: RegExp; es: string }> = Object.entries(SEEDED_LABELS_ES)
-  .filter(([en]) => en.includes("{{"))
-  .map(([en, es]) => {
-    const tokens: string[] = [];
-    const source = en
-      .split(/(\{\{\w+\}\})/)
-      .map((part) => {
-        const m = /^\{\{(\w+)\}\}$/.exec(part);
-        if (m) {
-          tokens.push(m[1]!);
-          return "(.+?)";
-        }
-        return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      })
-      .join("");
-    let i = 0;
-    const out = es.replace(/\{\{\w+\}\}/g, () => `$${(i += 1)}`);
-    return { re: new RegExp(`^${source}$`), es: tokens.length ? out : es };
-  });
-
-/**
- * Inverse table: a Spanish-primary talent's site that still carries these
- * exact Spanish labels (legacy trees) reads in English for an English
- * visitor. Derived once from `SEEDED_LABELS_ES` (first English key wins on a
- * shared Spanish value; identical pairs and token patterns are skipped).
- */
-const SEEDED_LABELS_EN: Readonly<Record<string, string>> = (() => {
-  const out: Record<string, string> = {};
-  for (const [en, es] of Object.entries(SEEDED_LABELS_ES)) {
-    if (en === es || en.includes("{{") || es in out) continue;
-    out[es] = en;
-  }
-  return out;
-})();
-
-function localisePattern(value: string): string | null {
-  for (const p of SEEDED_PATTERNS_ES) {
-    if (p.re.test(value)) return value.replace(p.re, p.es);
-  }
-  return null;
-}
 
 /** The talent's site-wide booking mode (posture after the plan ceiling). */
 export type SiteCtaMode = "instant" | "request" | "inquiry";
@@ -231,9 +171,8 @@ export function labelTarget(locale: string | null | undefined): LabelTarget {
 }
 
 /**
- * Localised replacement for one seeded string in `target`, or null when it
- * stays as is. EN seeds -> es via `SEEDED_LABELS_ES`; ES seeds -> en via
- * `SEEDED_LABELS_EN`; action copy follows the booking mode either way.
+ * Mode-aware / Folio-gallery replacement for one seeded string, or null when
+ * it stays as is. No EN↔ES guess table (TUL-369): seeded overlays carry that.
  */
 export function localiseOne(
   value: string,
@@ -249,8 +188,6 @@ export function localiseOne(
     const out = target === "es" ? line.es : line.en;
     return out === value ? null : out;
   }
-  if (target === "es") return SEEDED_LABELS_ES[key] ?? localisePattern(key);
-  if (target === "en") return SEEDED_LABELS_EN[key] ?? null;
   return null;
 }
 
@@ -264,10 +201,11 @@ export function localiseSeededDesignLabel(
 }
 
 /**
- * Returns a copy of `tree` with seeded design labels localised, seeded
- * action copy matched to the booking `mode` (null reads as instant, the
- * legacy wording), plus optional per-talent `swaps` (seeded English profile
- * copy -> site locale). Returns the input unchanged when there is nothing to do.
+ * Returns a copy of `tree` with mode-dependent seeded action copy matched to
+ * the booking `mode` (null reads as instant), plus optional per-talent
+ * `swaps`. Returns the input unchanged when there is nothing to do.
+ *
+ * TUL-369: no EN↔ES guess rewrite — that lives in `props.i18n` overlays.
  */
 export function localiseSeededDesignLabels(
   tree: BuilderNode[],
