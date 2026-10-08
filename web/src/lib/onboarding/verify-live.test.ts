@@ -63,8 +63,15 @@ test("origin: VERCEL_ENV production or preview refuses the override", () => {
   assert.equal(resolveLiveCheckOrigin({ ...base, override: LOCAL, vercelEnv: "preview" }), DEF);
 });
 
-test("origin: NODE_ENV production refuses the override", () => {
-  assert.equal(resolveLiveCheckOrigin({ ...base, override: LOCAL, nodeEnv: "production" }), DEF);
+test("origin: NODE_ENV production refuses a non-loopback override", () => {
+  assert.equal(resolveLiveCheckOrigin({ ...base, override: "https://staging.example.com", nodeEnv: "production" }), DEF);
+});
+
+test("origin: NODE_ENV production accepts a loopback override off Vercel only", () => {
+  const prod = { ...base, nodeEnv: "production" };
+  assert.equal(resolveLiveCheckOrigin({ ...prod, override: "http://127.0.0.1:3008" }), "http://127.0.0.1:3008");
+  assert.equal(resolveLiveCheckOrigin({ ...prod, override: "https://evil.example.com" }), DEF);
+  assert.equal(resolveLiveCheckOrigin({ ...prod, vercelEnv: "production", override: "http://127.0.0.1:3008" }), DEF);
 });
 
 test("origin: garbage override refused", () => {
