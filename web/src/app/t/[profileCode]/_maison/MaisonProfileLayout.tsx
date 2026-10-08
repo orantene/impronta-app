@@ -568,6 +568,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
         <ProfileFooterSocket
           locale={locale}
           whitelabel={props.whitelabel}
+          profileCode={props.profileCode}
           tokens={{ surface: "var(--mn-white)", ink: "var(--mn-ink)", line: "var(--mn-line)" }}
         />
       ) : null}

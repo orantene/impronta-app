@@ -75,6 +75,7 @@ import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import {
   buildSocketModel,
   headerShowsLanguageSwitch,
+  siteHostFromOrigin,
   socketConsentToolingEnabled,
   stripDesignCredits,
 } from "@/lib/talent-site/footer-socket";
@@ -309,7 +310,10 @@ async function renderTalentMaxSiteUnguarded(
       // PHASE 1 — a free site carries the "Made with Tulala" mark; a paid plan removes it (same predicate as /t/[code]).
       showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
       isDemo,
-      talentName: identity?.name ?? null, webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), { canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL, canonicalPath: input.canonicalPath, siteSlug: site.siteSlug }),
+      talentName: identity?.name ?? null,
+      profileCode: identity?.profileCode ?? null,
+      siteHost: siteHostFromOrigin(input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL),
+      webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), { canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL, canonicalPath: input.canonicalPath, siteSlug: site.siteSlug }),
     });
 
     const seoFacts = await pSeoFacts; // services, links, city; never throws
@@ -369,7 +373,12 @@ async function renderMaxSiteDocument(args: {
   /** Fictional demo talent: a Demo pill above the header + a footer line. */
   isDemo?: boolean;
   /** The talent's display name: labels the first group of the Tulala strip. */
-  talentName?: string | null; /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
+  talentName?: string | null;
+  /** Public talent code for footer Help → support ticket attach (TUL-310). */
+  profileCode?: string | null;
+  /** Site hostname (from canonical origin) for the same Help link. */
+  siteHost?: string | null;
+  /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -545,6 +554,9 @@ async function renderMaxSiteDocument(args: {
     consentTooling: socketConsentToolingEnabled(),
     talentName: args.talentName,
     headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),
+    helpContext: args.profileCode
+      ? { profileCode: args.profileCode, siteHost: args.siteHost ?? null }
+      : null,
   });
 
   // Render one shell root. A `site_header`/`site_footer` SECTION LANDMARK carries
