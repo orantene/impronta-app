@@ -47,7 +47,7 @@
     "test:release-theme-cta": "NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test scripts/release-theme-cta-plan.test.ts",
     "check:build-chunks": "node scripts/ci/check-build-chunks.mjs",
     "test:build-chunks": "node --test scripts/ci/check-build-chunks.test.mjs scripts/ci/prune-phantom-loadable-chunks.test.mjs",
-    "test:alias-guard": "node --test scripts/lib/alias-guard.test.mjs scripts/lib/smoke-decisions.test.mjs",
+    "test:alias-guard": "node --test scripts/lib/alias-guard.test.mjs scripts/lib/smoke-decisions.test.mjs scripts/baseline/gen-baseline.test.mjs",
     "deploy:smoke": "node scripts/post-deploy-smoke-test.mjs",
     "qa:host": "node scripts/qa-host.mjs",
     "qa:sync-test-talent": "node scripts/sync-qa-talent-from-real.mjs",
