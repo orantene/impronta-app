@@ -24,7 +24,7 @@ const INQ = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const TALENT = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const TENANT = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const OFFERING = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
-const STARTS = "2026-10-20T16:00:00Z";
+const STARTS = "2027-10-20T16:00:00Z";
 
 type Rows = Record<string, Record<string, unknown> | null>;
 type Op = { table: string; op: "update" | "insert"; payload: Record<string, unknown> };
@@ -107,7 +107,7 @@ test("capture: the sheet sends the offering's delivery label (es + en), and omit
     liveStarts: STARTS,
     liveTz: "America/Mexico_City",
     bookingDurationMinutes: 30,
-    day: new Date("2026-10-20T00:00:00Z"),
+    day: new Date("2027-10-20T00:00:00Z"),
     time: null,
     captchaToken: null,
     bookFn: async (p: InstantBookFormPayload) => {
@@ -132,7 +132,7 @@ test("stamp, instant book: offering where=studio + default venue fills a blank e
   await stampInquiryEventFromBooking(admin, {
     inquiryId: INQ, talentProfileId: TALENT, tenantId: TENANT, startsAt: STARTS, offeringId: OFFERING, locale: "es",
   });
-  assert.deepEqual(inquiryUpdate(ops), { event_date: "2026-10-20", event_location: "Calle 1, CDMX" });
+  assert.deepEqual(inquiryUpdate(ops), { event_date: "2027-10-20", event_location: "Calle 1, CDMX" });
 });
 
 test("stamp, request path: the stamped offering is remote, so the label is stamped (es)", async () => {
@@ -155,13 +155,13 @@ test("stamp, guest chat booking: a location the guest already gave is never over
     inquiryId: INQ, talentProfileId: TALENT, tenantId: TENANT, startsAt: STARTS, offeringId: OFFERING, requestedLocation: "At studio",
   });
   const patch = inquiryUpdate(ops);
-  assert.equal(patch?.event_date, "2026-10-20");
+  assert.equal(patch?.event_date, "2027-10-20");
   assert.equal(patch ? "event_location" in patch : false, false);
 });
 
 test("stamp, location absent: nothing is written as a location (no empty string, no invention)", async () => {
   const { admin, ops } = fakeAdmin({
-    inquiries: { event_date: "2026-10-20", event_location: null },
+    inquiries: { event_date: "2027-10-20", event_location: null },
     talent_offerings: { attributes: {} },
     talent_profiles: { home_city_text: "Puebla" },
     venues: { timezone: null, address_line1: "Calle 1", city: "CDMX" },
@@ -174,7 +174,7 @@ test("stamp, location absent: nothing is written as a location (no empty string,
 
 test("stamp, several service locations: the label names all of them", async () => {
   const { admin, ops } = fakeAdmin({
-    inquiries: { event_date: "2026-10-20", event_location: null },
+    inquiries: { event_date: "2027-10-20", event_location: null },
     talent_offerings: { attributes: { where: ["studio", "client"] } },
     venues: { timezone: null, address_line1: "Calle 1", city: "CDMX" },
   });

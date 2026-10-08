@@ -338,7 +338,6 @@ export function CatalogBookingSheet({
     if (detail) return;
     resetConfirmGuards();
   }, [detail, resetConfirmGuards]);
-
   if (!detail) return <style>{CATALOG_BOOKING_CSS}</style>;
 
   const demoTimes = demoSlotsFor(day, bookingDurationMinutes);

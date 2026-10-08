@@ -7,11 +7,12 @@ export async function loadTalentDisplayName(talentProfileId: string): Promise<st
   const admin = createServiceRoleClient();
   if (!admin || !talentProfileId) return "";
   try {
-    const { data } = await admin
+    const { data, error } = await admin
       .from("talent_profiles")
       .select("display_name, first_name")
       .eq("id", talentProfileId)
       .maybeSingle();
+    if (error) return "";
     const row = data as { display_name: string | null; first_name: string | null } | null;
     return row?.display_name?.trim() || row?.first_name?.trim() || "";
   } catch {
