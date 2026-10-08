@@ -1,5 +1,4 @@
 import "server-only";
-
 import type { ReactNode } from "react";
 import { loadHistoryPreviewSnapshot } from "../history/history.server";
 import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/talent-update.server";
@@ -11,10 +10,8 @@ import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-ki
 import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
 import { pruneDeadSectionLinks } from "@/lib/talent-site/dead-section-links"; import { headerOverlayAllowed } from "@/lib/talent-site/header-overlay";
 import { talentSiteLocalePath } from "@/lib/talent-site/talent-site-locale-routing";
-
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
-
 import {
   BuilderNodeFontLinks,
   BuilderNodeRendererStyles,
@@ -56,7 +53,6 @@ import { TypeSystemStyle, typeSystemSheetsForTokens } from "@/lib/talent-site/th
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 import { typeSystemComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-type-system";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-
 import {
   buildMaxSiteNav,
   coerceTree,
@@ -87,7 +83,6 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { DEFAULT_TALENT_LIVE_STATUS, loadTalentLiveStatus } from "@/lib/talent/live-status";
 import { LIVE_STATUS_CSS, liveStatusRootAttrs, toLiveStatusRenderContext } from "@/lib/talent/live-status-render";
 import { LiveStatusExpiry } from "@/components/talent-site/LiveStatusExpiry";
-
 import {
   loadMaxSiteByProfileId,
   loadMaxSiteBySlug,
@@ -127,7 +122,6 @@ export type { MaxSiteSeo };
  *
  * NEVER throws to the visitor — every resolution miss degrades to `not_found`.
  */
-
 export interface RenderTalentMaxSiteInput {
   /** Resolve the site by its globally-unique slug (the /t/site/<slug> path). */
   siteSlug?: string;
@@ -374,9 +368,8 @@ async function renderMaxSiteDocument(args: {
   isDemo?: boolean;
   /** The talent's display name: labels the first group of the Tulala strip. */
   talentName?: string | null;
-  /** Public talent code for footer Help → support ticket attach (TUL-310). */
+  /** TUL-310 footer Help context. */
   profileCode?: string | null;
-  /** Site hostname (from canonical origin) for the same Help link. */
   siteHost?: string | null;
   /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
 }): Promise<ReactNode> {
@@ -554,9 +547,7 @@ async function renderMaxSiteDocument(args: {
     consentTooling: socketConsentToolingEnabled(),
     talentName: args.talentName,
     headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),
-    helpContext: args.profileCode
-      ? { profileCode: args.profileCode, siteHost: args.siteHost ?? null }
-      : null,
+    helpContext: args.profileCode ? { profileCode: args.profileCode, siteHost: args.siteHost ?? null } : null,
   });
 
   // Render one shell root. A `site_header`/`site_footer` SECTION LANDMARK carries
