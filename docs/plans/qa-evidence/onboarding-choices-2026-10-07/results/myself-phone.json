@@ -16,7 +16,7 @@
       "n": 3,
       "name": "build + DB accounts and essentials",
       "status": "FAIL",
-      "detail": "talent_sites.theme_design_slug |  | \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m |  | Expected: \u001b[32m\"maison-v2\"\u001b[39m | Received: \u001b[31mnull\u001b[39m"
+      "detail": "build ended on the arrival-failed screen (accounts asserted above)"
     },
     {
       "n": 4,
@@ -39,11 +39,10 @@
   ],
   "facts": {
     "h1Contrast": 15.36,
-    "sentence": "Me llamo Rosa myself phone yvbwfi. Soy limpiadora de casas en Playa del Carmen. Hago limpieza profunda y ligera, de lunes a sábado.",
-    "aiRead": "off: too-little dead end; facts seeded with the service role",
+    "sentence": "Me llamo Rosa myself phone yxdfih. Soy limpiadora de casas en Playa del Carmen. Hago limpieza profunda y ligera, de lunes a sábado.",
     "readyLink": null,
     "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
-    "userId": "1bcafb3b-0edb-4aec-addd-295a3abf0e1e",
+    "userId": "52b3317c-7744-4384-abb7-35447fbbf4c0",
     "firstBuildEndedOnFailedScreen": true,
     "arrival": "arrival-failed screen (build did not finish)",
     "profile": {
@@ -52,13 +51,13 @@
       "account_status": "active"
     },
     "brief": {
-      "id": "093ed5f0-0fcb-43a5-ab88-4e1513672542",
+      "id": "fb96f061-7b98-4660-895a-30ddadfda15c",
       "choice": "myself",
       "locale": "es"
     },
     "talent": {
-      "id": "ed0c3e93-6385-4f75-a956-a9607f8e5c17",
-      "code": "TAL-93020",
+      "id": "5e4ef4a7-9e1f-45d1-b525-e9ccd0a06dca",
+      "code": "TAL-93040",
       "preferred_locale": "es",
       "bioLocales": [
         "en",
@@ -67,13 +66,30 @@
     },
     "hubRoster": 1,
     "talentSite": {
-      "site_slug": "rosa-myself-phone-yvbwfi",
-      "theme_design_slug": null,
-      "site_published_at": null
+      "site_slug": "rosa-myself-phone-yxdfih",
+      "theme_design_slug": "maison-v2",
+      "site_published_at": "2026-10-08T02:30:05.555+00:00"
+    },
+    "talentOfferings": [
+      {
+        "title": "Limpieza profunda",
+        "amount_cents": 85000,
+        "duration_minutes": 90
+      },
+      {
+        "title": "Limpieza ligera",
+        "amount_cents": 50000,
+        "duration_minutes": 60
+      }
+    ],
+    "bookingHoursRows": 1,
+    "place": {
+      "area": "Centro",
+      "mode": "studio"
     },
     "visibleAtFail3": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
     "visibleAtFail4": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
-    "landingMs": 90160,
+    "landingMs": 90179,
     "landingPath": "/talent/today",
     "sawEnglishInterstitial": false,
     "visibleAtFail5": "",

@@ -16,7 +16,7 @@
       "n": 3,
       "name": "build + DB accounts and essentials",
       "status": "FAIL",
-      "detail": "talent_sites.theme_design_slug |  | \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m |  | Expected: \u001b[32m\"maison-v2\"\u001b[39m | Received: \u001b[31mnull\u001b[39m"
+      "detail": "build ended on the arrival-failed screen (accounts asserted above)"
     },
     {
       "n": 4,
@@ -28,7 +28,7 @@
       "n": 5,
       "name": "sign out and back in lands on the Spanish dashboard",
       "status": "FAIL",
-      "detail": "Spanish dashboard within ~15 s |  | \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThanOrEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m |  | Expected: <= \u001b[32m15000\u001b[39m | Received:    \u001b[31m17667\u001b[39m"
+      "detail": "Spanish dashboard within ~15 s |  | \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThanOrEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m |  | Expected: <= \u001b[32m15000\u001b[39m | Received:    \u001b[31m19343\u001b[39m"
     },
     {
       "n": 6,
@@ -39,11 +39,10 @@
   ],
   "facts": {
     "h1Contrast": 15.36,
-    "sentence": "Me llamo Rosa myself desktop yuwunj. Soy limpiadora de casas en Playa del Carmen. Hago limpieza profunda y ligera, de lunes a sábado.",
-    "aiRead": "off: too-little dead end; facts seeded with the service role",
+    "sentence": "Me llamo Rosa myself desktop ywxcij. Soy limpiadora de casas en Playa del Carmen. Hago limpieza profunda y ligera, de lunes a sábado.",
     "readyLink": null,
-    "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
-    "userId": "61e399e7-185c-462e-8d4d-60ba6abc4779",
+    "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: No pudimos enviar tu código. Revisa el correo e inténtalo de nuevo.",
+    "userId": "f4ef1108-532d-4490-b275-5a37b1caf8f8",
     "firstBuildEndedOnFailedScreen": true,
     "arrival": "arrival-failed screen (build did not finish)",
     "profile": {
@@ -52,13 +51,13 @@
       "account_status": "active"
     },
     "brief": {
-      "id": "dab07f54-cc63-462d-ad9d-93f78dd1563a",
+      "id": "97cf9ceb-29ed-462a-9a8c-b74ab5978922",
       "choice": "myself",
       "locale": "es"
     },
     "talent": {
-      "id": "dd108ad8-14e5-4904-bde9-864525c502c1",
-      "code": "TAL-93018",
+      "id": "6e15b1c9-c5c0-4f65-91c6-eb65f101bab5",
+      "code": "TAL-93038",
       "preferred_locale": "es",
       "bioLocales": [
         "en",
@@ -67,13 +66,30 @@
     },
     "hubRoster": 1,
     "talentSite": {
-      "site_slug": "rosa-myself-desktop-yuwunj",
-      "theme_design_slug": null,
-      "site_published_at": null
+      "site_slug": "rosa-myself-desktop-ywxcij",
+      "theme_design_slug": "maison-v2",
+      "site_published_at": "2026-10-08T02:25:07.17+00:00"
+    },
+    "talentOfferings": [
+      {
+        "title": "Limpieza profunda",
+        "amount_cents": 85000,
+        "duration_minutes": 90
+      },
+      {
+        "title": "Limpieza ligera",
+        "amount_cents": 50000,
+        "duration_minutes": 60
+      }
+    ],
+    "bookingHoursRows": 1,
+    "place": {
+      "area": "Centro",
+      "mode": "studio"
     },
     "visibleAtFail3": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
     "visibleAtFail4": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
-    "landingMs": 17667,
+    "landingMs": 19343,
     "landingPath": "/talent/today",
     "sawEnglishInterstitial": false,
     "visibleAtFail5": "",
