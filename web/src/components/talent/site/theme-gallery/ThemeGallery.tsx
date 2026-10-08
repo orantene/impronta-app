@@ -31,6 +31,9 @@ export interface ThemeGalleryProps {
   currentLookSlug?: string | null;
   mode: ThemeGalleryMode;
   onApply: (input: ThemeGalleryApplyInput) => Promise<ThemeGalleryApplyResult>;
+  /** TUL-325: primary post-apply CTA so draft apply does not look finished. */
+  onPublish?: () => void | Promise<void>;
+  publishPending?: boolean;
   talentProfileId: string;
   locale?: ThemeGalleryLocale | string;
 }
@@ -42,6 +45,8 @@ export function ThemeGallery({
   currentLookSlug,
   mode,
   onApply,
+  onPublish,
+  publishPending = false,
   talentProfileId,
   locale = "en",
 }: ThemeGalleryProps) {
@@ -187,7 +192,47 @@ export function ThemeGallery({
           </div>
 
           {applyError ? <p style={errorTextStyle}>{applyError}</p> : null}
-          {applySuccess ? <p style={successTextStyle}>{themeGalleryCopy(locale, "applySuccess")}</p> : null}
+          {applySuccess ? (
+            <div data-theme-gallery-apply-success="" style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
+              <span
+                data-theme-gallery-unpublished=""
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  width: "fit-content",
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  background: COLORS.surfaceAlt,
+                  color: COLORS.ink,
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  fontFamily: FONTS.body,
+                }}
+              >
+                <span
+                  aria-hidden
+                  style={{ width: 6, height: 6, borderRadius: 999, background: COLORS.inkMuted }}
+                />
+                {themeGalleryCopy(locale, "unpublishedPill")}
+              </span>
+              <p style={{ ...successTextStyle, margin: 0 }}>{themeGalleryCopy(locale, "applySuccess")}</p>
+              {onPublish ? (
+                <button
+                  type="button"
+                  data-theme-gallery-publish=""
+                  disabled={publishPending || applying}
+                  onClick={() => void onPublish()}
+                  style={{ ...primaryBtnStyle, opacity: publishPending || applying ? 0.6 : 1 }}
+                >
+                  {publishPending
+                    ? themeGalleryCopy(locale, "publishing")
+                    : themeGalleryCopy(locale, "publishCta")}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <div style={{ flex: "1 1 220px", minWidth: 220, maxWidth: 320 }}>

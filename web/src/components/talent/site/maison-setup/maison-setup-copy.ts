@@ -58,6 +58,7 @@ const ES: Record<string, string> = {
   "Ready to publish": "Listo para publicar",
   "1 thing before publishing": "1 cosa antes de publicar",
   Publish: "Publicar",
+  "Publish site": "Publicar sitio",
   "Publishing…": "Publicando…",
   Undo: "Deshacer",
   "Design applied to your draft": "Diseño aplicado a tu borrador",
