@@ -10,13 +10,16 @@
  * cancellation, refund manually from Money.
  */
 
+import "server-only";
+
 import { logServerError } from "@/lib/server/safe-error";
 import { notifyPaymentNeedsAttention } from "@/lib/notifications/producers/payment-notify";
+import { PAID_AFTER_CANCEL_ATTENTION } from "@/lib/payments/paid-after-cancel-attention";
+
+export { PAID_AFTER_CANCEL_ATTENTION } from "@/lib/payments/paid-after-cancel-attention";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = { from: (table: string) => any };
-
-export const PAID_AFTER_CANCEL_ATTENTION = "paid_after_cancellation" as const;
 
 /** True when the booking or the order behind this money row was cancelled. */
 export async function isPaidAfterCancellation(
