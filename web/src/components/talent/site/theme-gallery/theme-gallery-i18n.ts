@@ -38,7 +38,7 @@ const COPY = {
     applyErrorGeneric: "Something went wrong. Try again.",
     fontSample: "Aa",
     designStepHeading: "Pick a design",
-    // TUL-331 / G12: {n} = finished designs handed to the step (not ~32).
+    // TUL-331 / G12: {n} = finished designs handed to the step (no aspirational library size).
     designStepSubtitle: "{n} designs ready. Choose the layout for your shell and home page.",
     designStepSubtitleOne: "1 design ready. Choose the layout for your shell and home page.",
     lookStepHeading: "Pick a look",
