@@ -120,3 +120,16 @@ export function notificationCenterDrawerId(
 ): "notifications" | "talent-notifications" {
   return surface === "talent" ? "talent-notifications" : "notifications";
 }
+
+/**
+ * Drawer payload `{ category }` from bell "See all" / count bubbles.
+ * `null` / unknown → keep row; known HubUiCategory → kind must match.
+ */
+export function matchesHubPayloadCategory(
+  kind: string,
+  category: string | null | undefined,
+): boolean {
+  if (!category) return true;
+  if (!(HUB_UI_CATEGORIES as readonly string[]).includes(category)) return true;
+  return hubUiCategoryForKind(kind) === category;
+}

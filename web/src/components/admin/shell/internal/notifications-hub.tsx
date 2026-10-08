@@ -41,6 +41,7 @@ import {
   markAllAdminNotificationsRead,
   markAdminNotificationRead,
 } from "@/lib/notifications/admin-notifications-actions";
+import { cn } from "@/lib/utils";
 
 /** Bucket inference from the structured `kind` column on user_notifications.
  *  - approval, offer (when awaiting decision) → action
@@ -119,7 +120,7 @@ export function NotificationsBell({
 }: {
   size?: "sm" | "md";
 }) {
-  const { state, openDrawer, pendingTalent, bridgeUserNotifications, adminBasePath, alsoTalent } = useAdminShell();
+  const { state, openDrawer, pendingTalent, bridgeUserNotifications, adminBasePath } = useAdminShell();
   const [categoryTab, setCategoryTab] = useState<HubUiCategory | "all">("all");
   const [ownerTab, setOwnerTab] = useState<HubOwnerSurface | "all">("all");
   const realNotifications = useMemo(
@@ -366,7 +367,7 @@ export function NotificationsBell({
   }, [dismissedState]);
 
   // TUL-390 — category + dual-owner filters, then cap at 8 with See all.
-  const dualOwner = alsoTalent;
+  const dualOwner = state.alsoTalent;
   const list = selectPopoverList(items, {
     category: categoryTab,
     owner: dualOwner ? ownerTab : "all",
@@ -469,7 +470,7 @@ export function NotificationsBell({
             role="tablist"
             aria-label={copy.t("Workspace")}
             data-tulala-notif-owner-tabs
-            style={{ display: "flex", gap: 4, padding: "8px 12px 0", borderBottom: `1px solid ${COLORS.borderSoft}` }}
+            className="flex gap-1 border-b border-admin-border-soft px-3 pt-2 font-admin-body"
           >
             {(["all", "admin", "talent"] as const).map((key) => {
               const active = ownerTab === key;
@@ -481,12 +482,12 @@ export function NotificationsBell({
                   role="tab"
                   aria-selected={active}
                   onClick={() => setOwnerTab(key)}
-                  style={{
-                    flex: 1, padding: "6px 8px", borderRadius: 8, border: "none", cursor: "pointer",
-                    fontSize: 11.5, fontWeight: active ? 700 : 500, fontFamily: FONTS.body,
-                    background: active ? "rgba(91,107,160,0.12)" : "transparent",
-                    color: active ? COLORS.ink : COLORS.inkMuted,
-                  }}
+                  className={cn(
+                    "flex-1 cursor-pointer rounded-lg border-0 px-2 py-1.5 text-[11.5px]",
+                    active
+                      ? "bg-admin-indigo-soft font-bold text-admin-ink"
+                      : "bg-transparent font-medium text-admin-ink-muted",
+                  )}
                 >{label}</button>
               );
             })}
@@ -498,7 +499,7 @@ export function NotificationsBell({
           role="tablist"
           aria-label={copy.t("Notifications")}
           data-tulala-notif-category-tabs
-          style={{ display: "flex", gap: 4, padding: "8px 10px", flexWrap: "wrap", borderBottom: `1px solid ${COLORS.borderSoft}` }}
+          className="flex flex-wrap gap-1 border-b border-admin-border-soft px-2.5 py-2 font-admin-body"
         >
           {(["all", ...HUB_UI_CATEGORIES] as const).map((key) => {
             const active = categoryTab === key;
@@ -511,12 +512,12 @@ export function NotificationsBell({
                 aria-selected={active}
                 data-notif-category-tab={key}
                 onClick={() => setCategoryTab(key)}
-                style={{
-                  padding: "4px 9px", borderRadius: 999, border: "none", cursor: "pointer",
-                  fontSize: 11, fontWeight: active ? 700 : 500, fontFamily: FONTS.body,
-                  background: active ? COLORS.fill : "rgba(11,11,13,0.04)",
-                  color: active ? "#fff" : COLORS.ink,
-                }}
+                className={cn(
+                  "cursor-pointer rounded-full border-0 px-2.5 py-1 text-[11px]",
+                  active
+                    ? "bg-admin-fill font-bold text-white"
+                    : "bg-[rgba(11,11,13,0.04)] font-medium text-admin-ink",
+                )}
               >{label}</button>
             );
           })}
@@ -543,16 +544,12 @@ export function NotificationsBell({
           )}
 
           {list.showSeeAll && (
-            <div style={{ padding: "6px 10px 10px" }}>
+            <div className="px-2.5 pt-1.5 pb-2.5">
               <button
                 type="button"
                 data-tulala-notif-see-all
                 onClick={openNotificationCenter}
-                style={{
-                  width: "100%", padding: "9px 12px", borderRadius: 10, cursor: "pointer",
-                  border: `1px solid ${COLORS.borderSoft}`, background: "rgba(91,107,160,0.06)",
-                  fontSize: 12, fontWeight: 600, fontFamily: FONTS.body, color: COLORS.indigoDeep,
-                }}
+                className="w-full cursor-pointer rounded-[10px] border border-admin-border-soft bg-admin-indigo-soft px-3 py-2.5 font-admin-body text-xs font-semibold text-admin-indigo-deep"
               >
                 {copy.t("See all notifications")} →
               </button>

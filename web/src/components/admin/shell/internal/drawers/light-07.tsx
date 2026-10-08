@@ -30,6 +30,7 @@ import { formatRecentActivity, groupRecentActivityByDay } from "../state";
 import { notificationDrawerFields } from "../notification-drawer-targets";
 import { useDashboardText } from "../dashboard-i18n";
 import { formatNotificationAge, localizeNotificationText } from "../notification-localize";
+import { matchesHubPayloadCategory } from "../notification-hub-popover";
 
 // Phase 1d (remediation §4): 6 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -276,16 +277,7 @@ export function PipelineFilterDrawer({ filter }: { filter: "drafts" | "awaiting"
   );
 }
 
-// ════════════════════════════════════════════════════════════════════
-// Notifications & activity feeds
-// ════════════════════════════════════════════════════════════════════
-
-// WS-11.2 — notification batching types
-
-/** Full notification center (TUL-390 "See all" / NotificationCenterDrawer). */
-export function NotificationCenterDrawer() {
-  return <NotificationsDrawer />;
-}
+// Notifications & activity feeds (WS-11.2 batching)
 
 export function NotificationsDrawer() {
   const { closeDrawer, openDrawer, toast, bridgeUserNotifications, bridgeTenantIdentity, adminBasePath, state } = useAdminShell();
@@ -293,9 +285,7 @@ export function NotificationsDrawer() {
   const tt = copy.t;
   const [marking, setMarking] = useState(false);
   // TUL-390 — bell "See all" / bubble click can open with { category }.
-  const payloadCategory = typeof state.drawer.payload?.category === "string"
-    ? state.drawer.payload.category
-    : null;
+  const payloadCategory = typeof state.drawer.payload?.category === "string" ? state.drawer.payload.category : null;
   const handleMarkAllRead = useCallback(async () => {
     const tenantId = bridgeTenantIdentity?.tenantId;
     if (!tenantId) {
@@ -358,10 +348,7 @@ export function NotificationsDrawer() {
     return NOTIFICATIONS.filter((n) => n.surface === "workspace");
   }, [bridgeUserNotifications, adminBasePath, copy.locale]);
   const filtered = items.filter((n) => {
-    if (payloadCategory === "messages" && n.kind !== "message") return false;
-    if (payloadCategory === "money" && n.kind !== "payment") return false;
-    if (payloadCategory === "attention" && !["approval", "offer", "booking", "ticket"].includes(n.kind)) return false;
-    if (payloadCategory === "updates" && !["system", "profile"].includes(n.kind)) return false;
+    if (!matchesHubPayloadCategory(n.kind, payloadCategory)) return false;
     if (filter === "unread") return !n.read;
     if (filter === "action") return ACTION_KINDS.includes(n.kind) && !n.read;
     return true;
