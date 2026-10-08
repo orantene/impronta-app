@@ -36,3 +36,18 @@ export function majorToMinor(major: number, currency: string | null | undefined)
   if (minor === null) throw new OfferCurrencyUnreadableError();
   return minor;
 }
+
+/**
+ * DISPLAY / card side only (never a charge path): the divisor for an offer's
+ * currency, 100 when the currency is absent or unreadable (the legacy
+ * behaviour for USD and MXN). Charge paths use `majorToMinor`, which refuses.
+ */
+export function displayMinorDivisor(currency: string | null | undefined): number {
+  const code = normalizeCurrencyCode(currency);
+  return code ? minorUnitDivisor(code) : 100;
+}
+
+/** Display-side `majorToMinor`: unreadable currency keeps divisor 100. */
+export function majorToMinorForDisplay(major: number, currency: string | null | undefined): number {
+  return Math.round(major * displayMinorDivisor(currency));
+}

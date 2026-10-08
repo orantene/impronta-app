@@ -39,6 +39,7 @@
 
 import type { OfferRow } from "@/lib/messaging/sheets";
 import type { RecordChip } from "@/lib/messaging/types";
+import { majorToMinorForDisplay } from "@/lib/inquiry/offer-minor-units";
 
 export type ConfirmSourceKind = "offer" | "draft";
 
@@ -74,7 +75,7 @@ export function confirmSourceOptions(chips: readonly RecordChip[], offers: reado
       id: offer.id,
       label: `v${offer.version}`,
       version: offer.version,
-      totalCents: Math.round(offer.totalClientPrice * 100),
+      totalCents: majorToMinorForDisplay(offer.totalClientPrice, offer.currencyCode),
       paymentState: chip?.paymentState ?? null,
     });
   }

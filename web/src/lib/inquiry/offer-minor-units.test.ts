@@ -3,7 +3,7 @@
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { OfferCurrencyUnreadableError, majorToMinor, tryMajorToMinor } from "./offer-minor-units";
+import { OfferCurrencyUnreadableError, displayMinorDivisor, majorToMinor, majorToMinorForDisplay, tryMajorToMinor } from "./offer-minor-units";
 
 describe("majorToMinor", () => {
   it("USD and MXN keep divisor 100 (byte-identical to Math.round(x * 100))", () => {
@@ -27,5 +27,18 @@ describe("majorToMinor", () => {
       assert.throws(() => majorToMinor(10, c), OfferCurrencyUnreadableError);
       assert.equal(tryMajorToMinor(10, c), null);
     }
+  });
+});
+
+describe("display-side helpers", () => {
+  it("USD, MXN, absent and unreadable currencies keep divisor 100", () => {
+    for (const c of ["USD", "MXN", null, undefined, "", "bad"]) {
+      assert.equal(displayMinorDivisor(c), 100);
+      assert.equal(majorToMinorForDisplay(10.005, c), Math.round(10.005 * 100));
+    }
+  });
+  it("zero-decimal currencies use divisor 1", () => {
+    assert.equal(majorToMinorForDisplay(1000, "JPY"), 1000);
+    assert.equal(displayMinorDivisor("krw"), 1);
   });
 });

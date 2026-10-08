@@ -6,6 +6,7 @@
  */
 
 import { formatCentsUSD } from "@/lib/bookings/commission";
+import { displayMinorDivisor, majorToMinorForDisplay } from "@/lib/inquiry/offer-minor-units";
 import type { RecordChip } from "@/lib/messaging/types";
 
 /* ------------------------------------------------------------- Deposit / amount */
@@ -17,6 +18,8 @@ export type OfferDepositRule = {
   readonly depositPct: number | null;
   readonly depositAmountCents: number | null;
   readonly totalClientPrice: number;
+  /** ISO code of the offer. Absent: the legacy divisor 100 (USD/MXN) applies. */
+  readonly currencyCode?: string | null;
 };
 
 /** The inquiry's own accepted offer, or null. `loadInquiryOffers` already
@@ -42,7 +45,7 @@ export function depositFor(offer: OfferDepositRule | null): DepositAmount | null
     return { amountCents: Math.round(offer.depositAmountCents), pct: offer.depositPct ?? null };
   }
   if (offer.depositPct && offer.depositPct > 0) {
-    return { amountCents: Math.round(offer.totalClientPrice * 100 * (offer.depositPct / 100)), pct: offer.depositPct };
+    return { amountCents: Math.round(offer.totalClientPrice * displayMinorDivisor(offer.currencyCode) * (offer.depositPct / 100)), pct: offer.depositPct };
   }
   return null;
 }
@@ -51,7 +54,7 @@ export function depositFor(offer: OfferDepositRule | null): DepositAmount | null
  * then reads as a bare label; the engine still resolves the order's own
  * total server-side when `amountCents` is sent as 0, D-row messaging-engine.ts). */
 export function fullAmountCentsFor(offer: OfferDepositRule | null): number | null {
-  return offer ? Math.round(offer.totalClientPrice * 100) : null;
+  return offer ? majorToMinorForDisplay(offer.totalClientPrice, offer.currencyCode) : null;
 }
 
 export type AmountKind = "deposit" | "full" | "other";
