@@ -2268,7 +2268,11 @@
       "signedInAs": "Signed in as {email}",
       "genericError": "Something went wrong. Try again.",
       "notClient": "This email belongs to a team account. Use the main sign in instead.",
-      "signedInAsTalent": "You're signed in as a business account. Sign out on app.tulala.digital to use a client account."
+      "signedInAsTalent": "You're signed in as a business account. Sign out on app.tulala.digital to use a client account.",
+      "legalPrefix": "By continuing you confirm you are 18 or older and agree to the",
+      "legalTerms": "Terms",
+      "legalAnd": "and the",
+      "legalPrivacy": "Privacy Policy"
     }
   },
   "dashboard": {
