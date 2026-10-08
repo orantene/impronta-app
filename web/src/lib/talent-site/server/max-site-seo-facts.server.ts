@@ -7,6 +7,7 @@ import { cityLabelFromPlaceText } from "@/lib/scheduling/timezone-from-place";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 
 import { pick, type LocalizedMapLike } from "../talent-locale-swaps";
+import { loadOwnHosts } from "./own-hosts.server";
 import { canonicalCityLabel } from "./city-label.server";
 import { loadTalentSocialLinks } from "./talent-social-links";
 
@@ -15,16 +16,8 @@ export interface MaxSiteSeoFacts {
   services: TalentJsonLdService[];
   sameAs: string[];
   addressLocality: string | null;
-  /** #201: the talent's custom domains; hosts an explicit canonical may name. */
+  /** #201: the talent's custom domains + platform subdomain; hosts an explicit canonical may name. */
   ownHosts: string[];
-}
-
-async function loadOwnHosts(talentProfileId: string): Promise<string[]> {
-  const admin = createServiceRoleClient();
-  if (!admin) return [];
-  const { data, error } = await admin.from("talent_site_domains").select("domain").eq("talent_profile_id", talentProfileId);
-  if (error) throw error;
-  return ((data ?? []) as Array<{ domain: string | null }>).map((r) => r.domain ?? "").filter(Boolean);
 }
 
 async function loadCity(talentProfileId: string, locale: string): Promise<string | null> {

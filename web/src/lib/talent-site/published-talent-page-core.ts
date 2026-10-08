@@ -113,6 +113,12 @@ export interface PublishedTalentPageActions {
     talentProfileId: string;
     slug: string;
   }) => Promise<PublishedTalentPageRow | null>;
+  /**
+   * #201: hosts an explicit canonical may name (custom domains + platform
+   * subdomain). Optional and fail-safe: absent or throwing means only the
+   * origin host counts.
+   */
+  loadOwnHosts?: (talentProfileId: string) => Promise<string[]>;
 }
 
 /**
@@ -168,6 +174,11 @@ export async function resolvePublishedTalentPage(
   // path can never leak a draft through this public renderer.
   if (row.status !== "published") return null;
 
+  const ownHosts =
+    row.canonical_url && actions.loadOwnHosts
+      ? await actions.loadOwnHosts(talent.id).catch(() => [] as string[])
+      : [];
+
   const designSlice = readTalentDesignSlice(row.theme);
   return {
     pageId: row.id,
@@ -198,6 +209,7 @@ export async function resolvePublishedTalentPage(
       fallbackTitle: talent.displayName ?? "",
       canonicalOrigin: input.canonicalOrigin,
       canonicalPath: input.canonicalPath,
+      ownHosts,
     }),
   };
 }
