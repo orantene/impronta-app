@@ -137,6 +137,83 @@ test("plan: draft must equal released apart from props.designKey", () => {
   assert.match(p.refusals.join("|"), /differs from released v24/);
 });
 
+/** An i18n overlay as release-theme-i18n-overlay.mts saves it: added to props.i18n and the node mirror. */
+function withOverlay(payload: PayloadLike): PayloadLike {
+  const p = clone(payload);
+  const sub = find(p.homeTree ?? [], (n) => n.kind === "heading" || n.kind === "text");
+  assert.ok(sub, "fixture has a text-ish node to overlay");
+  const bag = { es: { text: "Hola" }, en: { text: "Hello" } };
+  sub!.props = { ...props(sub!), i18n: bag };
+  sub!.i18n = bag;
+  return p;
+}
+const strip = (v: unknown) => JSON.parse(JSON.stringify(v, (k, x) => (k === "i18n" ? undefined : x)));
+
+test("plan: a draft carrying an additive i18n overlay is accepted and the overlay survives the patch", () => {
+  const released = { version: 24, payload: oldPayload() };
+  const draft = withOverlay(released.payload);
+  const p = planCta("maison-v2", released, draftOf(draft), seedTrees());
+  assert.deepEqual(p.refusals, []);
+  assert.equal(p.draftDiffersByAdditiveI18nOnly, true);
+  assert.equal(p.patch.edits.length, 3);
+  // Patch is computed on the draft: the overlaid node is byte-identical, the rest matches the plain patch.
+  const overlaid = find(draft.homeTree!, (n) => n.kind === "heading" || n.kind === "text")!;
+  const after = find(p.patch.trees.homeTree, (n) => n.id === overlaid.id)!;
+  assert.equal(JSON.stringify(after), JSON.stringify(overlaid));
+  const plain = patchTrees(released.payload, seedTrees());
+  assert.deepEqual(strip(p.patch.trees), strip(plain.trees));
+});
+
+test("plan: a draft with a non-i18n change (or a changed i18n value) is refused", () => {
+  const released = { version: 24, payload: oldPayload() };
+  const bad = withOverlay(released.payload);
+  bad.tokenDefaults = { a: "1" };
+  assert.match(planCta("maison-v2", released, draftOf(bad), seedTrees()).refusals.join("|"), /differs from released v24/);
+
+  const rewritten = clone(released.payload);
+  const btn = find(rewritten.homeTree!, (n) => n.kind === "button")!;
+  (props(btn).i18n as Rec) = { es: { label: "Cambiado" }, en: { label: "Changed" } };
+  assert.match(planCta("maison-v2", released, draftOf(rewritten), seedTrees()).refusals.join("|"), /differs from released/);
+});
+
+test("plan: overlay-free draft reports i18n-only: no and behaves as before", () => {
+  const released = { version: 24, payload: oldPayload() };
+  const p = planCta("maison-v2", released, draftOf(clone(released.payload)), seedTrees());
+  assert.deepEqual(p.refusals, []);
+  assert.equal(p.draftDiffersByAdditiveI18nOnly, false);
+  assert.equal(p.patch.edits.length, 3);
+});
+
+test("plan: idempotent on an i18n draft that already carries the CTA", () => {
+  const released = { version: 24, payload: oldPayload() };
+  const once = planCta("maison-v2", released, draftOf(withOverlay(released.payload)), seedTrees());
+  const layered = { ...withOverlay(released.payload), ...once.patch.trees };
+  const again = planCta("maison-v2", released, draftOf(layered, 5), seedTrees());
+  assert.deepEqual(again.refusals, []);
+  assert.equal(again.patch.alreadyDone, true);
+});
+
+test("run --apply: layers on an i18n draft, saves trees keeping the overlay, publishes once", async () => {
+  const draft = draftOf(withOverlay(oldPayload()));
+  const f = fakePorts({ draft });
+  assert.equal(await run(baseArgs({ apply: true, yes: true }), f.ports), 0);
+  assert.deepEqual(f.calls, ["save:shell@3", "save:home@4", "preview", "publishDemos"]);
+  assert.ok(!f.calls.includes("openDraft"));
+});
+
+test("run: dry run prints the additive-i18n line; rerun on an already patched i18n draft writes nothing", async () => {
+  const f = fakePorts({ draft: draftOf(withOverlay(oldPayload())) });
+  assert.equal(await run(baseArgs(), f.ports), 0);
+  assert.match(f.logs.join("\n"), /additive i18n only: yes/);
+  assert.deepEqual(f.calls, []);
+
+  const done = patchTrees(withOverlay(oldPayload()), seedTrees());
+  const g = fakePorts({ draft: draftOf({ ...withOverlay(oldPayload()), ...done.trees }, 5) });
+  assert.equal(await run(baseArgs({ apply: true, yes: true }), g.ports), 0);
+  assert.deepEqual(g.calls, []);
+  assert.match(g.logs.join("\n"), /Nothing to patch/);
+});
+
 test("plan: only maison-v2 is allowed", () => {
   const p = planCta("folio", { version: 1, payload: oldPayload() }, null, seedTrees());
   assert.match(p.refusals.join("|"), /not on the allow-list/);
