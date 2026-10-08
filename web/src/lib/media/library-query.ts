@@ -171,6 +171,8 @@ export type MediaLibraryQueryResult = {
   portfolioAssetIds: string[];
   /** True when the underlying query failed — lets a UI tell "empty" from "broken". */
   errored: boolean;
+  /** Failure class + message when `errored`, for the server log only. */
+  errorDetail?: string;
 };
 
 /**
@@ -575,8 +577,9 @@ export async function queryTenantMediaLibrary(
           : [],
       errored: false,
     };
-  } catch {
-    return { ...empty, errored: true };
+  } catch (error) {
+    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    return { ...empty, errored: true, errorDetail: detail.slice(0, 300) };
   }
 }
 
