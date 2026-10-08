@@ -1,0 +1,76 @@
+{
+  "choice": "both",
+  "viewport": "desktop",
+  "results": [
+    {
+      "n": 1,
+      "name": "front door",
+      "status": "PASS"
+    },
+    {
+      "n": 2,
+      "name": "screens + email code",
+      "status": "PASS"
+    },
+    {
+      "n": 3,
+      "name": "build + DB accounts and essentials",
+      "status": "FAIL",
+      "detail": "talent_sites.theme_design_slug |  | \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m |  | Expected: \u001b[32m\"maison-v2\"\u001b[39m | Received: \u001b[31mundefined\u001b[39m"
+    },
+    {
+      "n": 4,
+      "name": "finish screen + URL is real",
+      "status": "FAIL",
+      "detail": "no arrival screen"
+    },
+    {
+      "n": 5,
+      "name": "sign out and back in lands on the Spanish dashboard",
+      "status": "PASS"
+    },
+    {
+      "n": 6,
+      "name": "guest books a service",
+      "status": "FAIL",
+      "detail": "no finish URL to open"
+    }
+  ],
+  "facts": {
+    "h1Contrast": 15.36,
+    "sentence": "Soy Rosa both desktop yvagsq. Tengo un estudio de limpieza en Playa del Carmen con un equipo, y también limpio casas yo misma. Hacemos limpieza profunda y ligera, de lunes a sábado.",
+    "aiRead": "off: too-little dead end; facts seeded with the service role",
+    "readyLink": "rosa-both-desktop-yvagsq.tulala.digital",
+    "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+    "userId": "521e5e9e-5014-4b71-bf3e-ea1499cc6e9b",
+    "firstBuildEndedOnFailedScreen": true,
+    "arrival": "arrival-failed screen (build did not finish)",
+    "profile": {
+      "app_role": "talent",
+      "home_surface_preference": "workspace",
+      "account_status": "active"
+    },
+    "brief": {
+      "id": "904dd903-e3aa-4d19-9ee7-ab807d6e0afe",
+      "choice": "both",
+      "locale": "es"
+    },
+    "talent": {
+      "id": "5005713e-657c-4361-bfbe-e312cfe76dd1",
+      "code": "TAL-93019",
+      "preferred_locale": "es",
+      "bioLocales": [
+        "en",
+        "es"
+      ]
+    },
+    "hubRoster": 2,
+    "talentSite": null,
+    "visibleAtFail3": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
+    "visibleAtFail4": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
+    "landingMs": 12551,
+    "landingPath": "/rosa-both-desktop-yvagsq/admin",
+    "sawEnglishInterstitial": false,
+    "visibleAtFail6": ""
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "choice": "myself",
+  "viewport": "desktop",
+  "results": [
+    {
+      "n": 1,
+      "name": "front door",
+      "status": "PASS"
+    },
+    {
+      "n": 2,
+      "name": "screens + email code",
+      "status": "PASS"
+    },
+    {
+      "n": 3,
+      "name": "build + DB accounts and essentials",
+      "status": "FAIL",
+      "detail": "talent_sites.theme_design_slug |  | \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m |  | Expected: \u001b[32m\"maison-v2\"\u001b[39m | Received: \u001b[31mnull\u001b[39m"
+    },
+    {
+      "n": 4,
+      "name": "finish screen + URL is real",
+      "status": "FAIL",
+      "detail": "no arrival screen"
+    },
+    {
+      "n": 5,
+      "name": "sign out and back in lands on the Spanish dashboard",
+      "status": "FAIL",
+      "detail": "Spanish dashboard within ~15 s |  | \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThanOrEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m |  | Expected: <= \u001b[32m15000\u001b[39m | Received:    \u001b[31m17667\u001b[39m"
+    },
+    {
+      "n": 6,
+      "name": "guest books a service",
+      "status": "FAIL",
+      "detail": "no finish URL to open"
+    }
+  ],
+  "facts": {
+    "h1Contrast": 15.36,
+    "sentence": "Me llamo Rosa myself desktop yuwunj. Soy limpiadora de casas en Playa del Carmen. Hago limpieza profunda y ligera, de lunes a sábado.",
+    "aiRead": "off: too-little dead end; facts seeded with the service role",
+    "readyLink": null,
+    "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+    "userId": "61e399e7-185c-462e-8d4d-60ba6abc4779",
+    "firstBuildEndedOnFailedScreen": true,
+    "arrival": "arrival-failed screen (build did not finish)",
+    "profile": {
+      "app_role": "talent",
+      "home_surface_preference": "talent",
+      "account_status": "active"
+    },
+    "brief": {
+      "id": "dab07f54-cc63-462d-ad9d-93f78dd1563a",
+      "choice": "myself",
+      "locale": "es"
+    },
+    "talent": {
+      "id": "dd108ad8-14e5-4904-bde9-864525c502c1",
+      "code": "TAL-93018",
+      "preferred_locale": "es",
+      "bioLocales": [
+        "en",
+        "es"
+      ]
+    },
+    "hubRoster": 1,
+    "talentSite": {
+      "site_slug": "rosa-myself-desktop-yuwunj",
+      "theme_design_slug": null,
+      "site_published_at": null
+    },
+    "visibleAtFail3": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
+    "visibleAtFail4": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
+    "landingMs": 17667,
+    "landingPath": "/talent/today",
+    "sawEnglishInterstitial": false,
+    "visibleAtFail5": "",
+    "visibleAtFail6": ""
+  }
+}

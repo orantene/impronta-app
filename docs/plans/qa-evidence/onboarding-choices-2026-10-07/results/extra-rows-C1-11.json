@@ -1,0 +1,7 @@
+[
+  {
+    "row": "C1-11",
+    "ok": false,
+    "detail": "Servicios page never loaded its catalog: \"Seguimos intentando\" still shown after 15 s"
+  }
+]

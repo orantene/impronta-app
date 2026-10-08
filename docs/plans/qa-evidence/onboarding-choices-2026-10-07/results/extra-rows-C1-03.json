@@ -1,0 +1,7 @@
+[
+  {
+    "row": "C1-03",
+    "ok": true,
+    "detail": "try 1: cookie cleared after 2037 ms; try 1: auth cookies left=0, /talent/today -> /login; try 2: cookie cleared after 3075 ms; try 2: auth cookies left=0, /talent/today -> /login; try 3: cookie cleared after 1011 ms; try 3: auth cookies left=0, /talent/today -> /login"
+  }
+]
