@@ -51,6 +51,10 @@ export const UPDATE_COPY = {
     en: "Block added to your draft. Publish when you are ready.",
     es: "Bloque agregado a tu borrador. Publica cuando estés lista.",
   },
+  /** TUL-325: matches MyWebsiteCard unpublished pill wording. */
+  unpublishedPill: { en: "Unpublished changes", es: "Cambios sin publicar" },
+  publishCta: { en: "Publish site", es: "Publicar sitio" },
+  publishing: { en: "Publishing…", es: "Publicando…" },
   close: { en: "Close", es: "Cerrar" },
   cancel: { en: "Cancel", es: "Cancelar" },
   loading: { en: "Checking your site…", es: "Revisando tu sitio…" },

@@ -56,11 +56,16 @@ export function themeErrorCopyKey(code: ThemeActionErrorCode | string): ThemeGal
 export function ManagerThemeGallery({
   locale,
   onApplied,
+  onPublish,
+  publishPending = false,
   fallback,
   wrap,
 }: {
   locale: ThemeGalleryLocale;
   onApplied: () => Promise<void>;
+  /** TUL-325: post-apply primary Publish CTA. */
+  onPublish?: () => void | Promise<void>;
+  publishPending?: boolean;
   fallback: React.ReactNode;
   wrap: (gallery: React.ReactNode) => React.ReactNode;
 }) {
@@ -148,6 +153,8 @@ export function ManagerThemeGallery({
           talentProfileId={current.talentProfileId}
           locale={locale}
           onApply={onApply}
+          onPublish={onPublish}
+          publishPending={publishPending}
         />,
       )}
       {ask ? (
