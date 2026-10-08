@@ -181,6 +181,28 @@ test("offer: no deposit rule still reads Accept; busy reads Accepting; refused s
   assert.match(stale, /data-refusal="version_stale"/);
 });
 
+test("TUL-280 offer: unsigned guest sees Sign in to accept label; open panel replaces actions (never not_allowed)", () => {
+  const labeled = renderToStaticMarkup(
+    <ClientOfferCard {...base} offer={offer} now={now} onAccept={() => {}} acceptLabel="Sign in to accept" />,
+  );
+  assert.match(labeled, /data-client-action="accept_offer"[^>]*>Sign in to accept</);
+  assert.doesNotMatch(labeled, /You cannot do that from here/);
+  const panel = renderToStaticMarkup(
+    <ClientOfferCard
+      {...base}
+      offer={offer}
+      now={now}
+      onAccept={() => {}}
+      acceptLabel="Sign in to accept"
+      signInPanel={<div data-guest-offer-sign-in="">email code</div>}
+    />,
+  );
+  assert.match(panel, /data-client-offer-sign-in/);
+  assert.match(panel, /data-guest-offer-sign-in/);
+  assert.doesNotMatch(panel, /data-client-action="accept_offer"/);
+  assert.doesNotMatch(panel, /data-refusal/);
+});
+
 test("offer accepted: Accepted pill, next step names the deposit, Pay button when a link exists, otherwise the business sends one; declined and expired read their lines with no buttons", () => {
   const withLink = renderToStaticMarkup(<ClientOfferCard {...base} offer={{ ...offer, status: "accepted" }} now={now} payCode="abc" onPay={() => {}} onAccept={() => {}} />);
   assert.match(withLink, />Accepted</);

@@ -7,6 +7,8 @@
  * from `useClientCardActions`.
  */
 
+import type { ReactNode } from "react";
+
 import type { ThreadMessage } from "@/lib/messaging/types";
 import {
   clientOfferForMessage,
@@ -46,6 +48,12 @@ export type ClientCardProps = {
   readonly actions: ClientCardActions;
   /** Prefills the composer. The expired-hold Ask button uses it. */
   readonly onAsk?: (text: string) => void;
+  /** Guest dock (TUL-280): label when accept requires a signed-in client. */
+  readonly offerAcceptLabel?: string;
+  /** Guest dock: offer id currently showing the inline sign-in form. */
+  readonly offerSignInOfferId?: string | null;
+  /** Guest dock: inline email-code panel for that offer. */
+  readonly offerSignInPanel?: ReactNode;
 };
 
 /** The activity key a card reads: its message id, or the offer / record it is about. */
@@ -56,7 +64,7 @@ export function clientCardActivityKey(message: Pick<ThreadMessage, "id" | "paylo
   return offerId ?? recordId ?? message.id;
 }
 
-export function ClientCard({ message, kind, copy, kit, locale, business, now, offers, payCode, offerCards, actions, onAsk }: ClientCardProps) {
+export function ClientCard({ message, kind, copy, kit, locale, business, now, offers, payCode, offerCards, actions, onAsk, offerAcceptLabel, offerSignInOfferId, offerSignInPanel }: ClientCardProps) {
   const act = (key: string): CardActivity => actions.activity[key] ?? { phase: "idle" };
   const payload = message.payload;
   const outcome = ClientOutcomeFromMessage({
@@ -116,7 +124,26 @@ export function ClientCard({ message, kind, copy, kit, locale, business, now, of
         return <ClientOutcomeCard outcome="declined" copy={copy} />;
       }
       const a = act(offer.id);
-      return <ClientOfferCard offer={offer} offers={offers} copy={copy} kit={kit} business={business} locale={locale} now={now} phase={a.phase} refusal={a.refusal} payCode={payCode} onAccept={actions.onAcceptOffer} onDecline={actions.onDeclineOffer} onChange={(o, text) => actions.onChangeRecord("offer", o.id, text, o.id)} onPay={actions.onPay} />;
+      return (
+        <ClientOfferCard
+          offer={offer}
+          offers={offers}
+          copy={copy}
+          kit={kit}
+          business={business}
+          locale={locale}
+          now={now}
+          phase={a.phase}
+          refusal={a.refusal}
+          payCode={payCode}
+          onAccept={actions.onAcceptOffer}
+          onDecline={actions.onDeclineOffer}
+          onChange={(o, text) => actions.onChangeRecord("offer", o.id, text, o.id)}
+          onPay={actions.onPay}
+          acceptLabel={offerAcceptLabel}
+          signInPanel={offerSignInOfferId === offer.id ? offerSignInPanel : null}
+        />
+      );
     }
     case "payment_request":
       return <ClientPaymentCard view={readPayment(payload)} copy={copy} business={business} locale={locale} now={now} onPay={actions.onPay} />;
