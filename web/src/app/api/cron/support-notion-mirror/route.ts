@@ -19,6 +19,7 @@ import {
 import {
   NOTION_MIRROR_BATCH_LIMIT,
   checkCronBearer,
+  isPermanentNotionMirrorFailure,
   mapDbMirrorRow,
   pushTicketToNotion,
   shouldStopForElapsedBudget,
@@ -132,9 +133,13 @@ export async function GET(request: Request) {
           "cron/support-notion-mirror.push",
           `ticket ${ticket.ticketNumber}: ${result.status} ${result.message}`,
         );
-        const { error: failErr } = await markMirrorFailed(admin, ticket.id);
-        if (failErr) {
-          logServerError("cron/support-notion-mirror.mark-failed", failErr);
+        // Dead-letter only on permanent 4xx. 429/5xx (and other transients)
+        // stay due so a Notion outage cannot burn the 5-strike budget.
+        if (isPermanentNotionMirrorFailure(result.status)) {
+          const { error: failErr } = await markMirrorFailed(admin, ticket.id);
+          if (failErr) {
+            logServerError("cron/support-notion-mirror.mark-failed", failErr);
+          }
         }
         if (result.status === 429) {
           stats.stopped = result.retryAfterSec != null
@@ -146,23 +151,17 @@ export async function GET(request: Request) {
       }
       const { error: writeErr } = await markMirrored(admin, ticket.id, result.pageId);
       if (writeErr) {
+        // Local writeback failure is not a permanent Notion 4xx — retry later.
         stats.failed += 1;
         logServerError("cron/support-notion-mirror.writeback", writeErr);
-        const { error: failErr } = await markMirrorFailed(admin, ticket.id);
-        if (failErr) {
-          logServerError("cron/support-notion-mirror.mark-failed", failErr);
-        }
         continue;
       }
       if (hadPageId) stats.updated += 1;
       else stats.created += 1;
     } catch (err) {
+      // Timeouts / network errors: do not advance fail_count.
       stats.failed += 1;
       logServerError("cron/support-notion-mirror.push", err);
-      const { error: failErr } = await markMirrorFailed(admin, ticket.id);
-      if (failErr) {
-        logServerError("cron/support-notion-mirror.mark-failed", failErr);
-      }
     }
   }
 

@@ -26,6 +26,15 @@ export const NOTION_MIRROR_BATCH_LIMIT = 50;
 /** Soft wall-clock budget so a slow Notion run cannot blow the cron window. */
 export const NOTION_MIRROR_ELAPSED_BUDGET_MS = 45_000;
 
+/**
+ * Only permanent Notion client errors advance fail_count / dead-letter.
+ * 429 and 5xx are transient (outage / rate limit) and must not burn the
+ * 5-strike budget; network/timeouts have no status and also do not count.
+ */
+export function isPermanentNotionMirrorFailure(status: number): boolean {
+  return status >= 400 && status < 500 && status !== 429;
+}
+
 /** True when the cron batch should stop before the next ticket. */
 export function shouldStopForElapsedBudget(
   startedAtMs: number,

@@ -2,10 +2,11 @@
 -- Keeps 20261231349000_support_tickets_notion_mirror.sql untouched (already applied).
 -- PM applies before merge via: cd web && npm run db:push
 --
--- Timestamp: valid 14-digit stamp in the format of `date -u +%Y%m%d%H%M%S`.
--- Wall-clock today sorts before the future-dated band on main (head
--- 20261231349151), so this file uses 20261231415100 (after head). Renamed from
--- typo 202612314150957 (15 digits).
+-- Timestamp: valid 14-digit stamp in the format of `date -u +%Y%m%d%H%M%S`
+-- (hour 00–23). Wall-clock today sorts before the future-dated band on main
+-- (head 20261231349151), and open #2818 owns 20261231350656 (Apple auth
+-- events), so this file uses 20261231351000 — after both. Renamed from
+-- 20261231415100 (invalid hour 41) / earlier typo 202612314150957 (15 digits).
 
 -- 0) Failure bookkeeping: backoff while retrying; dead-letter after 5 failures
 --    so permanently bad rows cannot starve the oldest-first due page (limit 50).

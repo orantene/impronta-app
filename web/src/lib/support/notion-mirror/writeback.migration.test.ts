@@ -34,10 +34,20 @@ const SERVICE_ROLE_DEFINERS = [
 test("writeback migration version is a 14-digit timestamp (not 15)", () => {
   assert.match(VERSION, /^\d{14}$/);
   assert.notEqual(VERSION.length, 15);
-  // Must sort after the already-applied bookkeeping migration on main.
+  // After bookkeeping on main AND after Apple client_auth_events on #2818.
+  // Do not leap to 2026123141xxxx (invalid hour-41 stamp) — that applied
+  // before #2818's 350656 and made Apple's file out-of-order on db:push.
   assert.ok(
     VERSION > "20261231349000",
     `expected ${VERSION} > 20261231349000`,
+  );
+  assert.ok(
+    VERSION > "20261231350656",
+    `expected ${VERSION} > 20261231350656 (Apple #2818)`,
+  );
+  assert.ok(
+    VERSION < "20261231400000",
+    `expected ${VERSION} in the 202612313xxxxx band (not hour-41 415100 leap)`,
   );
 });
 
