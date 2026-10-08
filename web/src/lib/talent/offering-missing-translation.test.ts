@@ -35,3 +35,14 @@ test("primary not among the locales fails closed", () => {
 test("the plain title wins over a stale primary entry in the map", () => {
   assert.equal(missingTitleLocale({ title: "New", titleI18n: { en: "", es: "Nuevo" } }, "en", ["en", "es"]), null);
 });
+
+test("es-primary talent, en secondary: a service whose title exists only in English is missing ES (TAL-93938 shape)", () => {
+  const item = { title: "Semi-permanent gel", titleI18n: { en: "Semi-permanent gel" } };
+  assert.equal(missingTitleLocale(item, "es", ["es", "en"]), "es");
+});
+
+test("the same words stored under both keys, or a real Spanish title, are not flagged", () => {
+  assert.equal(missingTitleLocale({ title: "Gel", titleI18n: { es: "Gel", en: "Gel" } }, "es", ["es", "en"]), null);
+  assert.equal(missingTitleLocale({ title: "Gel semipermanente", titleI18n: { en: "Semi-permanent gel" } }, "es", ["es", "en"]), null);
+  assert.equal(missingTitleLocale({ title: "Pestañas", titleI18n: null }, "es", ["es", "en"]), "en");
+});
