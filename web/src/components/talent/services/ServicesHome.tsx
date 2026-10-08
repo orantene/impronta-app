@@ -30,7 +30,7 @@ import {
 import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { useOfferingsEditor } from "./use-offerings-editor";
 import { resolveOfferingEditorSaveStatus } from "./offering-editor-save";
-import { ItemStateChips } from "./ItemStateChips";
+import { ServicesHomeItemChips } from "./ServicesHomeItemChips";
 import { useLocationSettings } from "./LocationSettingsCard";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import {
@@ -624,7 +624,7 @@ export function ServicesHome({
                 </span>
               </span>
             </button>
-            <ItemStateChips item={item} locale={locale} hideFailed={hideFailedIds.has(item.id)} instantReady={hasBookableHours !== false} />
+            <ServicesHomeItemChips item={item} locale={locale} hideFailed={hideFailedIds.has(item.id)} instantReady={hasBookableHours !== false} />
             <button type="button" aria-label={copy.t("Row menu")} className="px-2" onClick={() => setMenuId(menuId === item.id ? null : item.id)}>
               ⋯
             </button>
