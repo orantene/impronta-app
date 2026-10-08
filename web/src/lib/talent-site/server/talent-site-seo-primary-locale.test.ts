@@ -79,6 +79,56 @@ test("secondary page uses its own title and description", () => {
   assert.equal(es.description, "Manicura de lujo");
 });
 
+test("TUL-411: scrubbed/empty meta description falls back to Spanish bio, not English platform copy", () => {
+  const blank = {
+    ...page,
+    metaDescription: null,
+    metaDescriptionI18n: undefined,
+  } as unknown as MaxSitePageRow;
+  const out = buildMaxSiteSeo({
+    site,
+    page: blank,
+    identity: { name: "Rosa r5a", firstName: "Rosa", lastName: null, profileCode: "TAL-1", createdAt: null, updatedAt: null },
+    locale: "es",
+    noindex: false,
+    canonicalOrigin: ORIGIN,
+    canonicalPath: "/",
+    addressLocality: "Playa del Carmen",
+    bio: "Rosa es manicurista en Playa del Carmen. Citas a domicilio.",
+    talentType: "Manicurista",
+    locales: { primary: "es", urlDefault: "es", supported: ["es", "en"] },
+  });
+  assert.ok(out.description);
+  assert.match(out.description!, /Rosa|manicurista|Playa/i);
+  assert.doesNotMatch(out.description!, /booking request/i);
+  const md = maxSiteSeoToMetadata(out, { ogLocale: "es" });
+  assert.ok(md.description);
+  assert.equal(md.description, out.description);
+});
+
+test("TUL-411: empty bio still emits Spanish structured meta, never omits description", () => {
+  const blank = {
+    ...page,
+    metaDescription: null,
+    metaDescriptionI18n: undefined,
+  } as unknown as MaxSitePageRow;
+  const out = buildMaxSiteSeo({
+    site,
+    page: blank,
+    identity: { name: "Rosa", firstName: "Rosa", lastName: null, profileCode: "TAL-1", createdAt: null, updatedAt: null },
+    locale: "es",
+    noindex: false,
+    canonicalOrigin: ORIGIN,
+    canonicalPath: "/",
+    addressLocality: "Mérida",
+    bio: null,
+    talentType: "Manicurista",
+  });
+  assert.ok(out.description);
+  assert.match(out.description!, /solicitud de reserva|portafolio/i);
+  assert.doesNotMatch(out.description!, /booking request/i);
+});
+
 test("sitemap: ES-primary lists / and /en with matching alternates, never /es", () => {
   const entries = talentProfileSitemapEntries({
     origin: ORIGIN,
