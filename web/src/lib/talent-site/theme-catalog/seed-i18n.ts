@@ -159,7 +159,6 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   "Up close": "De cerca",
   Portraits: "Retratos",
   "Natural light": "Luz natural",
-  Editorial: "Editorial",
   Lookbook: "Lookbook",
   "Studio session": "Sesión de estudio",
   "Seasonal story": "Historia de temporada",
