@@ -76,14 +76,28 @@ jobs:
         if: steps.secrets.outputs.armed == 'true'
         run: npm ci
 
+      - name: Cache Playwright browsers
+        if: steps.secrets.outputs.armed == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+
       - name: Install Playwright Chromium
         if: steps.secrets.outputs.armed == 'true'
-        # The browser/apt download sometimes hangs until the job timeout (cancelled at 25 min,
-        # seen twice on 2026-10-07). Cap each try at 5 min and retry, so a hang costs minutes.
+        # The apt step of `--with-deps` failed with exit 100 on 2026-10-07 (and the download
+        # hung twice). Browser download is cached; system libs are installed separately with
+        # an apt refresh and retries, so one flaky mirror no longer fails the job.
         run: |
           for i in 1 2 3; do
-            timeout 300 npx playwright install --with-deps chromium && exit 0
-            echo "playwright install attempt $i failed or timed out"
+            timeout 300 npx playwright install chromium && break
+            echo "playwright browser download attempt $i failed or timed out"
+            [ "$i" = 3 ] && exit 1
+          done
+          for i in 1 2 3; do
+            sudo apt-get update -o Acquire::Retries=3 || true
+            timeout 300 sudo npx playwright install-deps chromium && exit 0
+            echo "playwright install-deps attempt $i failed or timed out"
           done
           exit 1
 
