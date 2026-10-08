@@ -39,7 +39,7 @@ function withToken(p: DesignPayload, key: string, value: string): DesignPayload 
 function withCopy(p: DesignPayload): DesignPayload {
   const n = clone(p);
   const first = n.homeTree[0]!;
-  first.props = { ...(first.props ?? {}), i18n: { es: { label: "Reservar cita" } } };
+  first.props = { ...(first.props ?? {}), i18n: { es: { label: "Reservar cita" } } } as unknown as typeof first.props;
   return n;
 }
 
