@@ -25,6 +25,11 @@ gives you the RULES. Every line here exists because skipping it cost a wave.
 - **Check REAL exit codes.** `cmd; echo $?` reports the echo, and a pipe reports
   the last stage. `npm run x > out 2>&1; echo $?` is the honest form.
 - A gate you did not run is a gate that failed. Say so in the report.
+- **Worktree test helper.** Run targeted tests with
+  `npm run test:wt -- <files>` (or `-- --lane <name>`): it links the main
+  checkout's `node_modules`, runs `tsx --test`, and removes the link on exit.
+  Local gates are CI's job: no tsc, no eslint, no next build/dev, no npm ci;
+  use `npm run test:wt`. The helper refuses those requests (exit 2).
 
 ## Migrations
 - The repo FUTURE-DATES migrations. Yours must sort AFTER the newest existing
