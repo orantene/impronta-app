@@ -218,9 +218,30 @@ test("TUL-121 theme8: missing meta description follows page language (not Englis
   assert.equal(en.description, TULALA_BRAND.description);
   assert.equal(en.description, platformBrandDescription("en"));
 
+  // Codex P2: platform request EN + rendered ES → Spanish pitch (ogLocale wins).
+  const bounded = maxSiteSeoToMetadata(bare, {
+    locale: "en",
+    localePathWithoutLocale: "/t/site/qa",
+    ogLocale: "es",
+  });
+  assert.equal(bounded.description, PLATFORM_DESCRIPTION_ES);
+
   const custom: MaxSiteSeo = { title: "Studio", description: "Mi estudio en Cancún.", noindex: false };
   assert.equal(maxSiteSeoToMetadata(custom, { ogLocale: "es" }).description, "Mi estudio en Cancún.");
 
   const noLocale = maxSiteSeoToMetadata(bare);
   assert.equal(noLocale.description, undefined);
+});
+
+test("TUL-121 theme8 Codex P2: /t/site metadata passes result.locale as ogLocale", () => {
+  const home = readFileSync(resolve(APP, "t/site/[siteSlug]/page.tsx"), "utf8");
+  const inner = readFileSync(resolve(APP, "t/site/[siteSlug]/[pageSlug]/page.tsx"), "utf8");
+  const host = readFileSync(resolve(APP, "%5Ftalent-site/[[...pageSlug]]/page.tsx"), "utf8");
+  for (const [label, src] of [
+    ["/t/site/[siteSlug]", home],
+    ["/t/site/[siteSlug]/[pageSlug]", inner],
+    ["_talent-site", host],
+  ] as const) {
+    assert.match(src, /ogLocale:\s*result\.locale/, `${label} must pass result.locale as ogLocale`);
+  }
 });

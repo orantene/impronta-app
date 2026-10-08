@@ -59,10 +59,12 @@ export function maxSiteSeoToMetadata(
   const ogImages = seo.ogImageUrl ? [{ url: seo.ogImageUrl }] : undefined;
   // TUL-121 theme8: pages without meta_description used to omit `description`
   // and inherit the English root-layout PLATFORM_BRAND pitch on ES talent
-  // sites. Fill from the visitor/page language so share cards match the page.
+  // sites. Prefer ogLocale (the language the Max-site body actually rendered
+  // in after talent-locale bounding) over the platform request locale, so a
+  // Spanish-only site at unprefixed /t/site/… does not keep an English pitch.
   const description = resolvePublicMetaDescription(
     seo.description,
-    opts.locale ?? opts.ogLocale,
+    opts.ogLocale ?? opts.locale,
   );
   const socialDescription = seo.ogDescription ?? description;
 
