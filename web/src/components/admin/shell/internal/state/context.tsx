@@ -18,7 +18,7 @@ import {
   workspaceLiveHost,
 } from "@/lib/saas/workspace-live-url";
 import { createTranslator } from "@/i18n/messages";
-import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import type { ToastTone } from "../primitives";
 import type { BridgeData, WorkspaceInquiryForMessages, CalendarEvent as BridgeCalendarEvent, WorkspaceOverviewMetrics, WorkspaceBookingRow, WorkspacePitchRow, TalentSelfProfile as BridgeTalentSelfProfile, TalentInquiryRow, TalentAgencyRow, WorkspaceMediaPhoto as BridgeMediaPhoto, WorkspaceMediaFolder as BridgeMediaFolder, RecentActivityItem } from "../data-bridge";
 // Type-only — erased at compile time, so importing from the `"use server"`
@@ -971,11 +971,9 @@ export function AdminShellProvider({
     adminBasePathRef.current = adminBasePath;
   }, [tenantSlug, platformTalentRoutes, adminBasePath]);
 
-  const [locale, setLocale] = useState("en");
-  useEffect(() => {
-    const m = document.cookie.match(new RegExp(`(?:^|; )${LOCALE_COOKIE}=([^;]*)`));
-    if (m) setLocale(decodeURIComponent(m[1]));
-  }, []);
+  // TUL-303: the server request locale (DashboardLocaleProvider) is the single
+  // source; the cookie is only a fallback outside a provider.
+  const locale = useDashboardLocale();
 
   // P3.4 — Prefetch all talent tab routes on mount so cold tab-switches
   // feel instant. Only fires when we're in production talent mode (slug

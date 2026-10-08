@@ -33,12 +33,35 @@ export function initialDashboardLocale(serverLocale: string | null | undefined):
   return serverLocale?.trim() ? serverLocale.trim() : "en";
 }
 
+/**
+ * One source of truth (TUL-303): inside a provider the SERVER request locale
+ * wins and the cookie is never re-read on the client. The proxy already folds
+ * the deliberate cookie (and the seeded primary) into that server locale, and
+ * the toggle writes the cookie then reloads. Re-reading the cookie after
+ * hydration flipped widgets to English for a Spanish talent whose cookies were
+ * cleared at sign-in, while the chrome stayed Spanish. Outside a provider the
+ * cookie is still the only source.
+ */
+export function resolveDashboardLocale(
+  serverLocale: string | null | undefined,
+  cookieLocale: string | null | undefined,
+): string {
+  if (serverLocale?.trim()) return serverLocale.trim();
+  return cookieLocale?.trim() ? cookieLocale.trim() : "en";
+}
+
+export function readLocaleCookie(): string | null {
+  const m = document.cookie.match(new RegExp(`(?:^|; )${LOCALE_COOKIE}=([^;]*)`));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
 export function useDashboardLocale(): string {
   const serverLocale = useContext(DashboardLocaleContext);
-  const [locale, setLocale] = useState(() => initialDashboardLocale(serverLocale));
+  const [cookieLocale, setCookieLocale] = useState<string | null>(null);
+  const hasServerLocale = !!serverLocale?.trim();
   useEffect(() => {
-    const m = document.cookie.match(new RegExp(`(?:^|; )${LOCALE_COOKIE}=([^;]*)`));
-    if (m) setLocale(decodeURIComponent(m[1]));
-  }, []);
-  return locale;
+    if (hasServerLocale) return;
+    setCookieLocale(readLocaleCookie());
+  }, [hasServerLocale]);
+  return resolveDashboardLocale(serverLocale, cookieLocale);
 }

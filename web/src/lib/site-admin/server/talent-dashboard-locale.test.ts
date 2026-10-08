@@ -66,3 +66,16 @@ test("client copy hook starts from the server locale, not 'en'", () => {
   assert.equal(initialDashboardLocale("es"), "es");
   assert.equal(initialDashboardLocale(null), "en");
 });
+
+test("TUL-303: the server request locale wins; a missing or disagreeing cookie never flips Today", async () => {
+  const { resolveDashboardLocale } = await import("@/i18n/use-dashboard-locale");
+  // Cookie cleared at sign-in (no cookie): server es stays es.
+  assert.equal(resolveDashboardLocale("es", null), "es");
+  // Cookie disagrees with the server locale: server wins (chrome and widgets agree).
+  assert.equal(resolveDashboardLocale("es", "en"), "es");
+  assert.equal(resolveDashboardLocale("en", "es"), "en");
+  // No provider: the cookie is the only source, else en.
+  assert.equal(resolveDashboardLocale(null, "es"), "es");
+  assert.equal(resolveDashboardLocale(undefined, null), "en");
+  assert.equal(resolveDashboardLocale("  ", "es"), "es");
+});
