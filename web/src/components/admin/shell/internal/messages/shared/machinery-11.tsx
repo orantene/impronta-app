@@ -676,7 +676,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
             {li.talentProfileId ? (
               <div className="col-span-full">
                 <LineServicePicker
-                  talentProfileId={li.talentProfileId}
+                  talentProfileId={li.talentProfileId} currency={snapshot.currencyCode}
                   onPick={(svc) => {
                     // TUL-274: an amount never crosses currencies silently.
                     const plan = planServicePick({ offerCurrency: snapshot.currencyCode, lines: snapshot.lineItems, lineId: li.id, labelTouched: labelTouched.has(li.id), service: svc });

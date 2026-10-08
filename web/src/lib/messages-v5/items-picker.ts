@@ -19,6 +19,7 @@ import { resolveIndustryPreset } from "@/lib/words/presets";
 import type { IdentityLevel } from "@/lib/messaging/types";
 
 import { tableChoicePayload } from "./record-cards";
+import { PLATFORM_FALLBACK_CURRENCY } from "@/lib/inquiry/offer-currency";
 
 export type ItemCategory = "talent" | "package" | "service" | "class" | "ticket" | "table" | "menu";
 
@@ -321,7 +322,7 @@ function optionCalls(selected: readonly Selection[], timezone: string): EngineCa
         talentProfileIds: serviceLike.map((s) => s.row.talentProfileId ?? "").filter(Boolean),
         labels: serviceLike.map((s) => serviceLineLabel(s)),
         pricesCents: serviceLike.map((s) => lineAmountCents(s)),
-        currency: serviceLike.find((s) => s.row.currency)?.row.currency ?? "USD",
+        currency: serviceLike.find((s) => s.row.currency)?.row.currency ?? PLATFORM_FALLBACK_CURRENCY,
       },
     });
   }
@@ -334,7 +335,7 @@ function optionCalls(selected: readonly Selection[], timezone: string): EngineCa
         offeringIds: menu.map((s) => s.row.offeringId ?? "").filter(Boolean),
         labels: menu.map((s) => serviceLineLabel(s)),
         pricesCents: menu.map((s) => lineAmountCents(s) ?? 0),
-        currency: menu.find((s) => s.row.currency)?.row.currency ?? "USD",
+        currency: menu.find((s) => s.row.currency)?.row.currency ?? PLATFORM_FALLBACK_CURRENCY,
       },
     });
   }
@@ -366,7 +367,7 @@ function optionCalls(selected: readonly Selection[], timezone: string): EngineCa
         title: row.title,
         startsAt: row.startsAt,
         tiers: (row.tiers ?? []).map((t) => ({ id: t.variantId, label: t.label, priceCents: t.amountCents })),
-        currency: "USD",
+        currency: PLATFORM_FALLBACK_CURRENCY,
       },
     });
   }

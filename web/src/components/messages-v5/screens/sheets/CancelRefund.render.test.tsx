@@ -40,6 +40,7 @@ function baseProps(over: Partial<CancelRefundViewProps> = {}): CancelRefundViewP
     reason: "",
     onReasonChange: noop,
     effectAmountCents: 4850,
+    currencyCode: "USD",
     phase: "idle",
     refusalCode: null,
     canSubmit: true,
@@ -109,4 +110,20 @@ test("refund-only mode: no cancel window/frees, footer reads Refund $X, no 'keep
 test("a refusal after a failed submit draws the sentence, not free text", () => {
   const html = renderToStaticMarkup(<CancelRefundView {...baseProps({ refusalCode: "not_allowed" })} />);
   assert.match(html, /data-refusal="not_allowed"/);
+});
+
+test("TUL-281: an MXN order shows the refund choices and the footer as '$48.50 MXN'", () => {
+  const html = renderToStaticMarkup(<CancelRefundView {...baseProps({ currencyCode: "MXN" })} />);
+  assert.match(html, /\$48\.50 MXN/);
+  assert.doesNotMatch(html, /USD/);
+});
+
+test("TUL-281: a USD order shows '$48.50 USD'; an unknown currency falls back with the code shown", () => {
+  assert.match(renderToStaticMarkup(<CancelRefundView {...baseProps()} />), /\$48\.50 USD/);
+  assert.match(renderToStaticMarkup(<CancelRefundView {...baseProps({ currencyCode: "nope" })} />), /\$48\.50 USD/);
+});
+
+test("TUL-281: refund-only mode footer carries the order currency", () => {
+  const html = renderToStaticMarkup(<CancelRefundView {...baseProps({ mode: "refundOnly", refundChoices: REFUND_ONLY_CHOICES, currencyCode: "MXN" })} />);
+  assert.match(html, /\$48\.50 MXN/);
 });

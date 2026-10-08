@@ -13,7 +13,8 @@
  */
 
 import type { MessagingRefusal } from "@/lib/messaging/types";
-import { dollarsToCents, formatMinorAmount, type AmountKind, type AmountOption, type PaymentTargetChip } from "@/lib/messages-v5/payment-view";
+import { formatRecordMoney } from "@/lib/messages-v5/record-money";
+import { dollarsToCents, type AmountKind, type AmountOption, type PaymentTargetChip } from "@/lib/messages-v5/payment-view";
 
 import { fill, type KitCopy } from "../../kit/copy";
 import { OptionRow } from "../../kit/OptionRow";
@@ -47,8 +48,8 @@ export type PaymentRequestViewProps = {
   readonly selectedTargetId: string | null;
   readonly onSelectTarget: (recordId: string) => void;
   readonly canMintLink: boolean;
-  /** ISO code of the accepted offer; absent = USD (2 decimals). */
-  readonly currencyCode?: string | null;
+  /** The offer's ISO currency; every amount on the sheet is shown in it. */
+  readonly currencyCode: string;
   readonly amountOptions: readonly AmountOption[];
   readonly amountKind: AmountKind;
   readonly onSelectAmountKind: (kind: AmountKind) => void;
@@ -108,9 +109,9 @@ export function PaymentRequestView(props: PaymentRequestViewProps) {
       : opt.kind === "full"
         ? c.amountFull
         : c.amountOther;
-  const amountSubFor = (opt: AmountOption): string | null => (opt.amountCents != null ? formatMinorAmount(opt.amountCents, currencyCode) : null);
+  const amountSubFor = (opt: AmountOption): string | null => (opt.amountCents != null ? formatRecordMoney(opt.amountCents, currencyCode) : null);
   const pickedAmountCents = amountCentsForKind(amountKind, options, otherAmountInput, currencyCode);
-  const messagePreview = amountKind === "full" ? c.messagePreviewFull : fill(c.messagePreview, { amount: pickedAmountCents != null ? formatMinorAmount(pickedAmountCents, currencyCode) : "" });
+  const messagePreview = amountKind === "full" ? c.messagePreviewFull : fill(c.messagePreview, { amount: pickedAmountCents != null ? formatRecordMoney(pickedAmountCents, currencyCode) : "" });
 
   return (
     <Sheet

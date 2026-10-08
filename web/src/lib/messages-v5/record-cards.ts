@@ -1,4 +1,5 @@
 import type { LadderStep } from "@/components/messages-v5/kit/PaymentLadder";
+import { PLATFORM_FALLBACK_CURRENCY } from "@/lib/inquiry/offer-currency";
 import type { RecordChip, RecordKind } from "@/lib/messaging/types";
 
 /**
@@ -116,7 +117,7 @@ export function tableChoicePayload(rows: readonly TableChoiceRow[]): Record<stri
     variant: "table",
     offeringIds: [],
     labels: rows.map((r) => r.label),
-    currency: "USD",
+    currency: PLATFORM_FALLBACK_CURRENCY,
     tables: rows.map((r) => ({ label: r.label, partySize: r.partySize, startsAt: r.startsAt, spaceId: r.spaceId ?? null })),
   };
 }

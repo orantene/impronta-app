@@ -32,6 +32,7 @@
  */
 
 import { resolveBookingCommissions, type PlatformCommissionConfig } from "@/lib/billing/commission";
+import { PLATFORM_FALLBACK_CURRENCY } from "@/lib/inquiry/offer-currency";
 
 export type OfferDraftLineKind = "talent" | "house" | "custom";
 
@@ -179,7 +180,7 @@ export function draftInternalSplit(
     tenantId: "display",
     workspacePlan: "free",
     offerLineItems: [{ line_total_cents: total, talent_cost_total_cents: 0 }],
-    currencyCode: state.currencyCode.length === 3 ? state.currencyCode : "USD",
+    currencyCode: state.currencyCode.length === 3 ? state.currencyCode : PLATFORM_FALLBACK_CURRENCY,
     paymentMethod: "card",
     sellerOfRecord: "talent",
     platformConfig: opts.platformConfig ?? DISPLAY_PLATFORM_CONFIG,

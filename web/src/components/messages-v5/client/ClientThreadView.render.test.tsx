@@ -98,7 +98,7 @@ test("offer card actions read the live offer: sent shows Accept + ask/decline ro
   assert.doesNotMatch(sent, /Accept and pay deposit/);
   const accepted = renderToStaticMarkup(<ClientThreadView {...base} offers={[{ ...offer, status: "accepted" }]} payCode="abc" />);
   assert.match(accepted, /Accepted\. Next: pay the deposit to confirm\./);
-  assert.match(accepted, /data-client-action="pay"[^>]*>Pay \$1,140\.00/);
+  assert.match(accepted, /data-client-action="pay"[^>]*>Pay \$1,140 USD/);
 });
 
 test("activity: a busy choice card, a refused offer card", () => {

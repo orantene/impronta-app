@@ -64,7 +64,7 @@ import {
 import { uploadInquiryAttachmentAsClient } from "@/lib/server-actions/client-inquiry-attachments";
 import { uploadInquiryAttachmentSigned } from "@/lib/client/signed-upload";
 import { useT } from "@/i18n/use-t";
-import { interpolate } from "@/i18n/interpolate";
+import { interpolate } from "@/i18n/interpolate"; import { formatOfferMoney } from "@/lib/inquiry/offer-currency";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
@@ -1277,7 +1277,7 @@ const NEXT_STEP_KEY_FROM_STATUS: Record<string, string> = {
 function clientChargeLabel(details: ClientInquiryDetails | null): string | null {
   const p = details?.payment;
   if (!p || p.amount_major == null) return null;
-  return `${p.currency ?? "USD"} ${Number(p.amount_major).toLocaleString()}`;
+  return formatOfferMoney(Number(p.amount_major), p.currency);
 }
 
 function buildClientStatusSheetData(
@@ -1291,7 +1291,7 @@ function buildClientStatusSheetData(
     : "No offer";
   const offerTotal =
     details?.offer?.exists && details.offer.total_client_price != null
-      ? `${details.offer.currency ?? "USD"} ${Number(details.offer.total_client_price).toLocaleString()}`
+      ? formatOfferMoney(Number(details.offer.total_client_price), details.offer.currency)
       : undefined;
 
   const talents: TalentParticipationRow[] = (details?.talent.selected ?? []).map((t) => ({

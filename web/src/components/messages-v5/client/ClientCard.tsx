@@ -32,6 +32,7 @@ import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, Cl
 import type { CardActivity } from "./ClientThreadView";
 import type { ClientCopy } from "./copy";
 import type { ClientCardActions } from "./use-client-card-actions";
+import { PLATFORM_FALLBACK_CURRENCY } from "@/lib/inquiry/offer-currency";
 
 export type ClientCardProps = {
   readonly message: ThreadMessage;
@@ -160,7 +161,7 @@ export function ClientCard({ message, kind, copy, kit, locale, business, now, of
       return <ClientChangeCard view={readChange(kind, payload, message.body)} copy={copy} business={business} />;
     case "basket": {
       const lines = Array.isArray(payload?.lines) ? (payload?.lines as Array<Record<string, unknown>>) : [];
-      return <ClientDraftCard lines={lines.map((l) => ({ label: String(l.label ?? ""), units: typeof l.units === "number" ? l.units : 1, unitCents: typeof l.unitCents === "number" ? l.unitCents : 0 }))} currency={typeof payload?.currency === "string" ? payload.currency : "USD"} copy={copy} business={business} />;
+      return <ClientDraftCard lines={lines.map((l) => ({ label: String(l.label ?? ""), units: typeof l.units === "number" ? l.units : 1, unitCents: typeof l.unitCents === "number" ? l.unitCents : 0 }))} currency={typeof payload?.currency === "string" ? payload.currency : PLATFORM_FALLBACK_CURRENCY} copy={copy} business={business} />;
     }
     default:
       return (

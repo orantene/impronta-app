@@ -18,9 +18,10 @@
  */
 
 import type { ThreadMessage } from "@/lib/messaging/types";
-import { formatOrderMoney } from "@/lib/orders/money-format";
+import { formatRecordMoney } from "./record-money";
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
 import { validClientFeeLines } from "@/lib/payments/fee-lines-payload";
+import { PLATFORM_FALLBACK_CURRENCY } from "@/lib/inquiry/offer-currency";
 
 export const CLIENT_GROUP_WINDOW_MS = 3 * 60 * 1000;
 
@@ -119,7 +120,7 @@ export function buildClientStream(
 /* ---------- formatting ---------- */
 
 export function money(cents: unknown, currency: unknown): string {
-  return formatOrderMoney(typeof cents === "number" && Number.isFinite(cents) ? Math.round(cents) : 0, typeof currency === "string" && currency ? currency : "USD");
+  return formatRecordMoney(typeof cents === "number" && Number.isFinite(cents) ? Math.round(cents) : 0, typeof currency === "string" ? currency : null);
 }
 
 export function formatClientTime(iso: string, locale = "en", timeZone?: string | null): string {
@@ -215,7 +216,7 @@ export type ChoicesView = {
 /** menu_options / service_card carry parallel arrays; class_card / tickets_card carry one item (tiers become options). */
 export function readChoices(kind: ClientCardKind, payload: Record<string, unknown> | null): ChoicesView {
   const p = payload ?? {};
-  const currency = str(p.currency) ?? "USD";
+  const currency = str(p.currency) ?? PLATFORM_FALLBACK_CURRENCY;
   const chosenIds = strList(p.chosenIds);
   if (kind === "class_card") {
     const id = str(p.offeringId) ?? str(p.sessionId) ?? "";
@@ -386,7 +387,7 @@ export function readPayment(payload: Record<string, unknown> | null): PaymentVie
   return {
     code: str(p.paymentLinkCode),
     amountCents: num(p.amountCents),
-    currency: str(p.currency) ?? "USD",
+    currency: str(p.currency) ?? PLATFORM_FALLBACK_CURRENCY,
     amountKind,
     expiresAt: str(p.expiresAt),
     state: str(p.state) ?? "sent",
@@ -416,7 +417,7 @@ export function readConfirmation(payload: Record<string, unknown> | null): Confi
     summary: str(p.summary),
     receiptCode: str(p.receiptCode),
     lines: rawLines.map((l) => ({ label: str(l.label) ?? "", units: num(l.units) ?? 1, amountCents: (num(l.unitCents) ?? 0) * (num(l.units) ?? 1) })),
-    currency: str(p.currency) ?? "USD",
+    currency: str(p.currency) ?? PLATFORM_FALLBACK_CURRENCY,
   };
 }
 
@@ -478,7 +479,7 @@ export function readChange(kind: ClientCardKind, payload: Record<string, unknown
   const p = payload ?? {};
   const raw = str(p.state);
   const refundedCents = num(p.refundedCents);
-  const currency = str(p.currency) ?? "USD";
+  const currency = str(p.currency) ?? PLATFORM_FALLBACK_CURRENCY;
   let state: ChangeView["state"];
   if (kind === "change_result" && isCancelOrRefundPayload(p)) {
     state = "cancelled";
