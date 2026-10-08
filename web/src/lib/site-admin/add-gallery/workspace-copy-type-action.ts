@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 export async function fetchWorkspaceTypeForCopy(tenantId: string): Promise<string | null> {
   if (!tenantId) return null;
   const supabase = await createClient();
+  if (!supabase) return null;
   const { data, error } = await supabase
     .from("agencies")
     .select("workspace_type")
