@@ -293,6 +293,7 @@ import {
 import {
   hasNativeTextSelection,
   isEditableKeyboardTarget,
+  keyboardFocusIsInPanel,
   keyboardFocusIsOnCanvas,
 } from "./builder-keyboard";
 
@@ -3697,7 +3698,7 @@ export function SelectionLayer() {
     function onTab(e: KeyboardEvent) {
       if (e.key !== "Tab") return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (isEditableKeyboardTarget(e.target) || !keyboardFocusIsOnCanvas()) return;
+      if (isEditableKeyboardTarget(e.target) || !keyboardFocusIsOnCanvas() || keyboardFocusIsInPanel(document.activeElement)) return; // TUL-78 #11
       if (contextMenu) return;
       if (!selectedCanvasNodeId) return;
       const order = flattenBuilderNodeIdsInOrder(builderTree);
@@ -5972,10 +5973,12 @@ export function SelectionLayer() {
                 onDuplicate={() => {
                   const ids = getAllSelectedIds();
                   if (ids.length === 0) return;
-                  // Fire all duplicate actions in parallel; promote the
-                  // first new id to primary so the inspector follows the
-                  // operator's intent. The multi-set clears as a side
-                  // effect of setSelectedSectionId.
+                  // TUL-78 B-2: one section goes through the duplicate router (root,
+                  // nested, or node) and a failure is always shown, never silent.
+                  if (ids.length === 1 && selectedSectionNodeId && !builderTree.some((n) => n.id === selectedSectionNodeId)) {
+                    void duplicateBuilderNode(selectedSectionNodeId).then((r) => { if (!r.ok) reportMutationError(r.error || "Duplicate did not finish. Try again."); });
+                    return;
+                  }
                   const promises = ids.map((id) => duplicateSection(id));
                   void Promise.all(promises).then((results) => {
                     const firstNew = results.find(
