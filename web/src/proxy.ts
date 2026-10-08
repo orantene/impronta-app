@@ -52,6 +52,7 @@ import { ensureExperimentVisitorCookie } from "@/lib/site-admin/builder-node/exp
 import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
 import { timed } from "@/lib/server/perf-trace";
 import { startDoorRedirect } from "@/lib/onboarding/start-door-redirect";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 
 function clientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -203,7 +204,7 @@ export async function proxy(request: NextRequest) {
     search: request.nextUrl.search,
     method: request.method,
     hostKind: hostContext.kind,
-    marketingOrigin: `https://${TULALA_APEX_HOST}`,
+    marketingOrigin: resolveMarketingOrigin(),
   });
   if (startDoor) return NextResponse.redirect(startDoor, 308);
 
