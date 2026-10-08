@@ -432,7 +432,8 @@ async function check_guest_chat_antispam() {
 const AUTH_ROUTES = [
   // Always renders 200 for an unauthenticated visitor.
   { path: "/login", statuses: [200] },
-  { path: "/register", statuses: [200] },
+  // Batch 1 (#2589/#2591): /register hands off to the /start front door with a 307.
+  { path: "/register", statuses: [200, 307] },
   { path: "/forgot-password", statuses: [200] },
   // P2 (#1059) — /register is the SINGLE signup page; these three are now
   // permanent redirects into it carrying `?as=<intent>` plus every inbound
