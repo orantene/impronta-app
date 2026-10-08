@@ -189,7 +189,7 @@ export function authOtpVerifyEmailKey(email: string | null | undefined): string 
   return `auth_otp_verify_email:${authKeySegment(normalizeEmailForKey(email))}`;
 }
 
-/** Per-address password sign-in key (online guessing surface; same budget as OTP verify). */
+/** Per-address password sign-in key (same budget as OTP verify). */
 export function authPasswordEmailKey(email: string | null | undefined): string {
   return `auth_password_email:${authKeySegment(normalizeEmailForKey(email))}`;
 }
@@ -199,12 +199,12 @@ export function authPasswordIpKey(ip: string | null | undefined): string {
   return `auth_password_ip:${authKeySegment(ip)}`;
 }
 
-/** Per-user Google finalize key (stops replaying attach / auth-event inserts). */
+/** Per-user Google finalize key (attach / auth-event spam bound). */
 export function authGoogleFinalizeUserKey(userId: string | null | undefined): string {
   return `auth_google_finalize_user:${authKeySegment(userId)}`;
 }
 
-/** Per-user Apple finalize key (stops replaying attach / auth-event inserts). */
+/** Per-user Apple finalize key (attach / auth-event spam bound). */
 export function authAppleFinalizeUserKey(userId: string | null | undefined): string {
   return `auth_apple_finalize_user:${authKeySegment(userId)}`;
 }
@@ -243,13 +243,9 @@ interface KvLimiter {
   checkAuthOtpSendByIp(key: string): Promise<KvRateLimitResult>;
   /** Auth OTP: verify attempts per normalized email address. */
   checkAuthOtpVerifyByEmail(key: string): Promise<KvRateLimitResult>;
-  /** Auth password: attempts per normalized email address. */
   checkAuthPasswordByEmail(key: string): Promise<KvRateLimitResult>;
-  /** Auth password: attempts per client IP. */
   checkAuthPasswordByIp(key: string): Promise<KvRateLimitResult>;
-  /** Client Google finalize: attempts per auth user id. */
   checkAuthGoogleFinalizeByUser(key: string): Promise<KvRateLimitResult>;
-  /** Client Apple finalize: attempts per auth user id. */
   checkAuthAppleFinalizeByUser(key: string): Promise<KvRateLimitResult>;
   /** Support tickets: 5 creates / 60 min / user. */
   checkSupportTicketCreate(key: string): Promise<KvRateLimitResult>;
@@ -443,34 +439,25 @@ async function getLimiter(): Promise<KvLimiter> {
       analytics: false,
     });
 
-    // ── Auth password (client popover / online guessing) ─────────────────────
-    // Budgets MATCH the in-memory counters in client-account/actions.ts
-    // (10 / email, 30 / IP per 15 min). Same rationale as OTP: in-memory alone
-    // silently multiplies by instance count.
+    // Auth password (10/email, 30/IP / 15m) + Google/Apple finalize (10/user / 15m).
     const authPasswordEmailLimiter = new Ratelimit({
       redis,
       limiter: Ratelimit.slidingWindow(10, "15 m"),
       prefix: "rl:auth_password_email",
       analytics: false,
     });
-
     const authPasswordIpLimiter = new Ratelimit({
       redis,
       limiter: Ratelimit.slidingWindow(30, "15 m"),
       prefix: "rl:auth_password_ip",
       analytics: false,
     });
-
-    // Google finalize: attach + auth-event insert. Bound per user so a stolen
-    // session cannot spam claims/events. 10 / 15 min.
     const authGoogleFinalizeUserLimiter = new Ratelimit({
       redis,
       limiter: Ratelimit.slidingWindow(10, "15 m"),
       prefix: "rl:auth_google_finalize_user",
       analytics: false,
     });
-
-    // Apple finalize: same bind as Google (TUL-65).
     const authAppleFinalizeUserLimiter = new Ratelimit({
       redis,
       limiter: Ratelimit.slidingWindow(10, "15 m"),
@@ -741,42 +728,25 @@ export async function checkAuthOtpVerifyByEmail(key: string): Promise<KvRateLimi
   return limiter.checkAuthOtpVerifyByEmail(key);
 }
 
-/**
- * Auth password — can this ADDRESS attempt another sign-in? 10 / 15 min.
- * Cross-instance ceiling on online password guessing.
- *
- * @param key Key from `authPasswordEmailKey(email)`.
- */
+/** Auth password by email — 10 / 15 min. Key: `authPasswordEmailKey`. */
 export async function checkAuthPasswordByEmail(key: string): Promise<KvRateLimitResult> {
   const limiter = await getLimiter();
   return limiter.checkAuthPasswordByEmail(key);
 }
 
-/**
- * Auth password — can this IP attempt another sign-in? 30 / 15 min.
- *
- * @param key Key from `authPasswordIpKey(ip)`.
- */
+/** Auth password by IP — 30 / 15 min. Key: `authPasswordIpKey`. */
 export async function checkAuthPasswordByIp(key: string): Promise<KvRateLimitResult> {
   const limiter = await getLimiter();
   return limiter.checkAuthPasswordByIp(key);
 }
 
-/**
- * Client Google finalize — can this user re-run attach? 10 / 15 min.
- *
- * @param key Key from `authGoogleFinalizeUserKey(userId)`.
- */
+/** Client Google finalize — 10 / 15 min. Key: `authGoogleFinalizeUserKey`. */
 export async function checkAuthGoogleFinalizeByUser(key: string): Promise<KvRateLimitResult> {
   const limiter = await getLimiter();
   return limiter.checkAuthGoogleFinalizeByUser(key);
 }
 
-/**
- * Client Apple finalize — can this user re-run attach? 10 / 15 min.
- *
- * @param key Key from `authAppleFinalizeUserKey(userId)`.
- */
+/** Client Apple finalize — 10 / 15 min. Key: `authAppleFinalizeUserKey`. */
 export async function checkAuthAppleFinalizeByUser(key: string): Promise<KvRateLimitResult> {
   const limiter = await getLimiter();
   return limiter.checkAuthAppleFinalizeByUser(key);

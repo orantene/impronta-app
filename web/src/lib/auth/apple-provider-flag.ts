@@ -19,9 +19,14 @@ function readRaw(env: AppleProviderFlagEnv): string {
 }
 
 /** True when Apple OAuth may be offered on /login and the client popover. */
-export function isAppleAuthProviderEnabled(
-  env: AppleProviderFlagEnv = typeof process !== "undefined" ? process.env : {},
-): boolean {
-  const raw = readRaw(env);
+export function isAppleAuthProviderEnabled(env?: AppleProviderFlagEnv): boolean {
+  // Optional arg (not a defaulted ProcessEnv) so callers can pass `{}` in tests
+  // without ProcessEnv's index signature fighting AppleProviderFlagEnv (TS2322).
+  const resolved: AppleProviderFlagEnv =
+    env ??
+    (typeof process !== "undefined"
+      ? (process.env as AppleProviderFlagEnv)
+      : {});
+  const raw = readRaw(resolved);
   return raw === "1" || raw === "true" || raw === "on" || raw === "yes";
 }
