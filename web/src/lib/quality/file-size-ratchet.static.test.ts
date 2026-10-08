@@ -658,7 +658,7 @@ const BUDGETS: Record<string, number> = {
   //        `sections/contact_form/attachment-render.test.ts` rather than here.
   "src/lib/site-admin/sections/node-presentation-render.test.ts": 2638,
   "src/lib/site-admin/server/homepage.ts": 2397,
-  "src/lib/site-admin/edit-mode/composition-actions.ts": 2267,
+  "src/lib/site-admin/edit-mode/composition-actions.ts": 2153,
 };
 
 test("no file is claimed by two ratchet tables at once", () => {
