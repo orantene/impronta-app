@@ -1477,6 +1477,10 @@ export interface BuilderMastheadNode extends BuilderNodeBase {
     coverStatement?: string;
     /** Magazine: serif bio beside the cover. */
     bio?: string;
+    /** `"bio"`: the blurb is her live per-language bio (TUL-230); `bio` is the baked fallback. */
+    liveText?: "bio";
+    /** Magazine: the "(Text in Spanish)" line after the blurb, set by the live-bio pass on a fallback. */
+    bioHint?: string;
     /** Magazine: primary CTA. */
     ctaLabel?: string;
     ctaHref?: string;

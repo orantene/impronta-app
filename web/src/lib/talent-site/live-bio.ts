@@ -78,3 +78,22 @@ export function withBioHints(nodes: BuilderNode[], hint: string | undefined): Bu
   });
   return out.length === nodes.length ? nodes : out;
 }
+
+/** A Folio-style masthead whose blurb (`props.bio`) follows the live bio (`props.liveText: "bio"`). */
+export const isLiveBioMasthead = (n: BuilderNode): boolean => n.kind === "masthead" && (n.props as Props | undefined)?.liveText === "bio";
+
+/**
+ * Resolve the blurb of a live-bio masthead: the bio in the visitor's language; "" when she has none
+ * (the blurb disappears, the block stays); the language hint rides in `bioHint`, only on a fallback.
+ * `bio` undefined = not loaded: the baked blurb stays. Identity preserving; idempotent.
+ */
+export function applyMastheadBio(node: BuilderNode, bio: string | undefined, hint: string | undefined): BuilderNode {
+  if (bio === undefined) return node;
+  const props = (node.props ?? {}) as Props;
+  const text = bio.trim();
+  const nextHint = text ? (hint ?? "") : "";
+  if ((props.bio ?? "") === text && (props.bioHint ?? "") === nextHint) return node;
+  const rest: Props = { ...props };
+  delete rest.bioHint;
+  return { ...node, props: { ...rest, bio: text, ...(nextHint ? { bioHint: nextHint } : {}) } } as unknown as BuilderNode;
+}

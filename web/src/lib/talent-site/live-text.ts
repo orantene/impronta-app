@@ -27,7 +27,7 @@ import {
   type LiveTextKey,
 } from "@/lib/site-admin/builder-node/live-text-keys";
 
-import { withBioHints } from "./live-bio";
+import { applyMastheadBio, isLiveBioMasthead, withBioHints } from "./live-bio";
 import { readOrigin } from "./theme-releases/origin";
 
 export interface TalentLiveText {
@@ -167,6 +167,8 @@ export function applyTalentLiveText(tree: BuilderNode[], live: TalentLiveText): 
       }
       return LIVE_TEXT_KEEPS_FALLBACK.has(key) ? node : null;
     }
+    // A masthead blurb bound to the live bio (Folio cover, TUL-230).
+    if (isLiveBioMasthead(node)) return applyMastheadBio(node, live.values.bio, live.bioHint);
     // The header lockup under her name: the trade, in the visitor's language, while it still reads the baked trade.
     if (node.kind === "section" && propsOf(node).sectionTypeKey === "site_header" && live.tradeLabel) {
       const sp = (propsOf(node).sectionProps ?? {}) as Record<string, unknown>;
@@ -230,6 +232,7 @@ export function treeHasLiveCandidates(tree: readonly BuilderNode[]): boolean {
     if (n.kind === "services_catalog" && maisonKey(n)?.startsWith("services")) return true;
     if (n.kind === "section" && propsOf(n).sectionTypeKey === "site_header") return true;
     if (maisonKey(n) === "hero/container") return true;
+    if (isLiveBioMasthead(n)) return true;
     if (n.kind === "heading" || n.kind === "paragraph") {
       if (isLiveTextKey(propsOf(n).liveText)) return true;
       const origin = readOrigin(n);
