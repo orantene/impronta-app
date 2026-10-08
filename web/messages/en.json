@@ -1965,7 +1965,7 @@
         "build": "Save and build",
         "buildTalent": "Save my page",
         "buildBoth": "Save and build",
-        "nextPhase": "Next: your account (coming in the next step of this build).",
+        "nextPhase": "Next: your account.",
         "age18Label": "I am 18 or older",
         "age18Required": "Please confirm you are 18 or older to put your page online."
       },
