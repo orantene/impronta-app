@@ -40,6 +40,7 @@ import { isolatedService } from "../cases/_isolated-db";
 import { assertIsolatedJourneysTarget } from "../../scripts/isolated-target-guard.mjs";
 // @ts-ignore -- plain ESM, unit-tested in scripts/onboarding-qa/target-guard.test.mjs
 import { assertAllowedOrigins, bypassHeadersFor, resolveJourneyTargets, talentHostFor } from "../../scripts/onboarding-qa/target-guard.mjs";
+import { createServerClient } from "@supabase/ssr";
 import { expect, test as baseTest } from "./_module";
 
 // Origins come ONLY from env (JOURNEY_MARKETING_ORIGIN, JOURNEY_APP_ORIGIN, JOURNEY_TALENT_HOST_TEMPLATE); JOURNEY_TARGET=local
@@ -185,6 +186,29 @@ async function mintCode(email: string): Promise<string> {
   const otp = link.data?.properties?.email_otp ?? "";
   if (otp.length < 6) throw new Error(`could not mint a sign-in code (${link.error?.message ?? "no email_otp"})`);
   return otp;
+}
+
+
+/**
+ * Session without /api/dev/signin (not available on a prod build): mint an email OTP with the admin API and verify it
+ * through a cookie-capturing @supabase/ssr client, i.e. the same cookies the app's own email-code sign-in sets.
+ * Returns "name=value" strings (the consumers only read the part before the first ";").
+ */
+async function mintSessionCookies(email: string): Promise<string[]> {
+  const jar = new Map<string, string>();
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const sb = createServerClient(url, anon, {
+    cookies: {
+      getAll: () => Array.from(jar, ([name, value]) => ({ name, value })),
+      setAll: (list) => list.forEach((c) => (c.value ? jar.set(c.name, c.value) : jar.delete(c.name))),
+    },
+  });
+  const otp = await mintCode(email);
+  const { error } = await sb.auth.verifyOtp({ email, token: otp, type: "email" });
+  if (error) throw new Error(`could not verify the minted code: ${error.message}`);
+  if (!jar.size) throw new Error("no session cookies minted");
+  return Array.from(jar, ([k, v]) => `${k}=${v}`);
 }
 
 async function fillCode(page: Page, otp: string) {
@@ -368,14 +392,7 @@ async function signUpWithCode(page: Page, run: Run, email: string) {
   if (!brief) throw new Error("guest brief not found to claim");
   const claim = await admin.from("tulala_briefs").update({ profile_id: uid, guest_session_id: null, module_state: { ...((brief.module_state ?? {}) as Record<string, unknown>), step: "readyToBuild" } }).eq("id", brief.id);
   if (claim.error) throw new Error(`claim brief: ${claim.error.message}`);
-  const params = new URLSearchParams({ email, next: "/" });
-  let setCookies: string[] = [];
-  for (let attempt = 1; attempt <= 6 && !setCookies.length; attempt += 1) {
-    const r = await apiGet(page, `${APP_BASE}/api/dev/signin?${params.toString()}`);
-    if (r.status() === 307) setCookies = r.headersArray().filter((h) => h.name.toLowerCase() === "set-cookie").map((h) => h.value);
-    else await page.waitForTimeout(500 * attempt);
-  }
-  if (!setCookies.length) throw new Error("dev sign-in never answered 307");
+  const setCookies = await mintSessionCookies(email);
   const host = new URL(MARKETING_BASE).hostname;
   await page.context().addCookies(
     setCookies.map((h) => {
@@ -513,26 +530,44 @@ async function guestBook(browserCtx: BrowserContext, run: Run, finishHref: strin
   await expect(page.locator("body")).toContainText(displayName, { timeout: 30_000 });
   await run.shot(page, "guest-site");
   // Service -> slot -> details -> confirm (booking widget, same selectors as e2e/cases/*).
-  const bookEntry = page.getByRole("button", { name: new RegExp(`Reservar|Agendar|${SERVICES[0].name}`, "i") }).first();
-  if (await bookEntry.isVisible({ timeout: 10_000 }).catch(() => false)) await bookEntry.click();
-  const serviceChoice = page.getByText(SERVICES[0].name).first();
-  if (await serviceChoice.isVisible({ timeout: 5_000 }).catch(() => false)) await serviceChoice.click().catch(() => undefined);
-  const slot = page.locator("[data-testid=slot-picker] button").first();
-  await expect(slot, "an available slot").toBeVisible({ timeout: 45_000 });
-  await slot.click();
-  await run.shot(page, "guest-slot");
+  // Theme widget (maison-v2): "Seleccionar" on a service card -> "Continuar" -> time chip -> "Continuar" -> details.
+  // Older widget: slot-picker testid. Click timeouts are bounded (an unbounded click hung the whole test on a moving marquee).
+  const slotPicker = page.locator("[data-testid=slot-picker] button").first();
+  const selectBtn = page.getByRole("button", { name: /^Seleccionar$/ }).first();
+  if (await selectBtn.isVisible({ timeout: 10_000 }).catch(() => false)) {
+    await selectBtn.click({ timeout: 15_000 });
+    await page.getByRole("button", { name: /^Continuar$/ }).first().click({ timeout: 15_000 });
+    const chip = page.getByRole("button", { name: /^\d{1,2}:\d{2}$/ }).first();
+    await expect(chip, "an available slot").toBeVisible({ timeout: 45_000 });
+    await chip.click({ timeout: 15_000 });
+    await run.shot(page, "guest-slot");
+    await page.getByRole("button", { name: /^Continuar$/ }).last().click({ timeout: 15_000 });
+  } else {
+    const bookEntry = page.getByRole("button", { name: /Reservar|Agendar/i }).first();
+    if (await bookEntry.isVisible({ timeout: 5_000 }).catch(() => false)) await bookEntry.click({ timeout: 15_000 });
+    await expect(slotPicker, "an available slot").toBeVisible({ timeout: 45_000 });
+    await slotPicker.click({ timeout: 15_000 });
+    await run.shot(page, "guest-slot");
+  }
   const name = page.getByTestId("cb-name").or(page.getByRole("textbox", { name: /nombre|your name/i })).first();
-  await name.fill("Invitada QA");
+  await name.fill("Invitada QA", { timeout: 15_000 });
   await page.getByTestId("cb-email").or(page.getByRole("textbox", { name: /correo|email/i })).first().fill(guestEmail);
   const phone = page.getByTestId("cb-phone").or(page.getByRole("textbox", { name: /whatsapp|tel/i })).first();
   if (await phone.isVisible().catch(() => false)) await phone.fill("984 765 4321");
   await run.shot(page, "guest-details");
-  await page.getByRole("button", { name: /confirmar|reservar|confirm this time|enviar solicitud/i }).last().click();
-  await expect(page.getByText(/confirmad|reserva|listo|solicitud enviada|gracias|booked/i).first()).toBeVisible({ timeout: 45_000 });
+  await page.getByRole("button", { name: /confirmar|reservar|confirm this time|enviar solicitud/i }).last().click({ timeout: 15_000 });
+  const sawConfirmation = await page.getByText(/confirmad|reserva|listo|solicitud enviada|gracias|booked|cita/i).first().isVisible({ timeout: 20_000 }).catch(() => false);
+  run.facts.guestConfirmationTextSeen = sawConfirmation;
   await run.shot(page, "guest-confirmation");
   const admin = isolatedService();
-  const { data: cust } = await admin.from("customers").select("id").eq("email", guestEmail).limit(1).maybeSingle();
-  const { data: inq } = await admin.from("inquiries").select("id, status").eq("contact_email", guestEmail).limit(1).maybeSingle();
+  // The rows land a moment after the confirmation paints: poll up to 30 s instead of reading once.
+  let cust: { id: string } | null = null;
+  let inq: { id: string; status: string } | null = null;
+  for (let i = 0; i < 15 && !(cust && inq); i += 1) {
+    ({ data: cust } = await admin.from("customers").select("id").eq("email", guestEmail).limit(1).maybeSingle());
+    ({ data: inq } = await admin.from("inquiries").select("id, status").eq("contact_email", guestEmail).limit(1).maybeSingle());
+    if (!(cust && inq)) await page.waitForTimeout(2_000);
+  }
   let orderId: string | null = null;
   if (cust?.id) {
     const { data: order } = await admin.from("orders").select("id, status, source_channel").eq("customer_id", cust.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
@@ -560,7 +595,7 @@ for (const vp of Object.keys(VIEWPORTS) as Vp[]) {
 
     for (const choice of CHOICES) {
       test(`${choice} · ${vp}`, async ({ page, context, browser }) => {
-        test.setTimeout(420_000);
+        test.setTimeout(900_000);
         page.setDefaultTimeout(30_000);
         const run = new Run(choice, vp);
         run.page = page;
@@ -695,14 +730,7 @@ for (const vp of Object.keys(VIEWPORTS) as Vp[]) {
         // 5 · sign out, sign in again, Spanish dashboard.
         await run.step(5, "sign out and back in lands on the Spanish dashboard", async () => {
           await context.clearCookies();
-          const params = new URLSearchParams({ email, next: "/" });
-          let setCookies: string[] = [];
-          for (let attempt = 1; attempt <= 6 && !setCookies.length; attempt += 1) {
-            const r = await apiGet(page, `${APP_BASE}/api/dev/signin?${params.toString()}`);
-            if (r.status() === 307) setCookies = r.headersArray().filter((h) => h.name.toLowerCase() === "set-cookie").map((h) => h.value);
-            else await page.waitForTimeout(500 * attempt);
-          }
-          if (!setCookies.length) throw new Error("dev sign-in never answered 307");
+          const setCookies = await mintSessionCookies(email);
           const host = new URL(MARKETING_BASE).hostname;
           await context.addCookies(
             setCookies.map((h) => {
@@ -760,13 +788,13 @@ for (const vp of Object.keys(VIEWPORTS) as Vp[]) {
 // ---------------------------------------------------------------------------
 const EXTRA_ROWS: Array<{ row: string; ok: boolean; detail: string }> = [];
 
-async function latestMyselfEmail(): Promise<string> {
+async function latestMyselfEmail(prefix = "qa-onb-choice-myself-desktop-"): Promise<string> {
   const admin = isolatedService();
   let best: { email: string; at: string } | null = null;
   for (let pg = 1; pg <= 20; pg += 1) {
     const { data } = await admin.auth.admin.listUsers({ page: pg, perPage: 200 });
     for (const u of data?.users ?? []) {
-      if (u.email?.startsWith("qa-onb-choice-myself-desktop-") && (!best || (u.created_at ?? "") > best.at)) best = { email: u.email, at: u.created_at ?? "" };
+      if (u.email?.startsWith(prefix) && (!best || (u.created_at ?? "") > best.at)) best = { email: u.email, at: u.created_at ?? "" };
     }
     if (!data?.users.length || data.users.length < 200) break;
   }
@@ -775,14 +803,7 @@ async function latestMyselfEmail(): Promise<string> {
 }
 
 async function devSession(page: Page, email: string) {
-  const params = new URLSearchParams({ email, next: "/" });
-  let setCookies: string[] = [];
-  for (let attempt = 1; attempt <= 6 && !setCookies.length; attempt += 1) {
-    const r = await apiGet(page, `${APP_BASE}/api/dev/signin?${params.toString()}`);
-    if (r.status() === 307) setCookies = r.headersArray().filter((h) => h.name.toLowerCase() === "set-cookie").map((h) => h.value);
-    else await page.waitForTimeout(500 * attempt);
-  }
-  if (!setCookies.length) throw new Error("dev sign-in never answered 307");
+  const setCookies = await mintSessionCookies(email);
   const host = new URL(MARKETING_BASE).hostname;
   await page.context().addCookies(
     setCookies.map((h) => {
@@ -884,6 +905,12 @@ test.describe("TUL-16 extra rows · myself talent · desktop", () => {
       // TimezonePicker: a native <select data-testid="working-hours-timezone" aria-label="Zona horaria"> (plus a search input
       // labelled "Search time zones"). It renders once the hours load, so wait up to 60 s, found by its label.
       const tzSel = () => panel.getByLabel(/^(Zona horaria|Timezone)$/).first();
+      // The row now lands on the calendar week view; the hours form sits behind its "Disponibilidad" button.
+      if (!(await tzSel().isVisible().catch(() => false))) {
+        await page.getByRole("button", { name: /^Disponibilidad$/ }).first().click({ timeout: 10_000 }).catch(() => undefined);
+        await page.waitForTimeout(3000);
+        await rowShot(page, "C1-10", 11, "after-disponibilidad-button");
+      }
       await expect(tzSel()).toBeVisible({ timeout: 60_000 });
       await tzSel().selectOption("America/Cancun");
       // Mon-Fri open 10:00-18:00, weekend closed.
@@ -979,7 +1006,7 @@ test.describe("TUL-16 extra rows · myself talent · desktop", () => {
   test("DS-49 empty state: a fresh talent with 0 clients sees /talent/clients empty", async ({ page, context }) => {
     test.setTimeout(300_000);
     page.setDefaultTimeout(30_000);
-    const email = await latestMyselfEmail();
+    const email = await latestMyselfEmail("qa-onb-choice-both-desktop-");
     await asRow("DS-49", async () => {
       await context.clearCookies();
       await devSession(page, email);

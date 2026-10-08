@@ -1,0 +1,89 @@
+{
+  "choice": "studio",
+  "viewport": "phone",
+  "results": [
+    {
+      "n": 1,
+      "name": "front door",
+      "status": "PASS"
+    },
+    {
+      "n": 2,
+      "name": "screens + email code",
+      "status": "PASS"
+    },
+    {
+      "n": 3,
+      "name": "build + DB accounts and essentials",
+      "status": "PASS"
+    },
+    {
+      "n": 4,
+      "name": "finish screen + URL is real",
+      "status": "PASS"
+    },
+    {
+      "n": 5,
+      "name": "sign out and back in lands on the Spanish dashboard",
+      "status": "FAIL",
+      "detail": "Spanish dashboard reached within 90 s |  | \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m |  | Expected: \u001b[32mtrue\u001b[39m | Received: \u001b[31mfalse\u001b[39m"
+    },
+    {
+      "n": 6,
+      "name": "guest books a service",
+      "status": "FAIL",
+      "detail": "an available slot |  | \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed |  | Locator: locator('[data-testid=slot-picker] button').first() | Expected: visible"
+    }
+  ],
+  "facts": {
+    "h1Contrast": 15.36,
+    "sentence": "Soy Estudio studio phone zthrbn. Tengo un estudio de limpieza de casas en Playa del Carmen con un equipo de tres personas. Hacemos limpieza profunda y ligera, de lunes a sábado.",
+    "readyLink": "estudio-studio-phone-zthrbn.tulala.digital",
+    "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+    "userId": "0fcf422f-8b82-4496-b0a4-10eeb7bd05c7",
+    "arrival": "arrival screen",
+    "profile": {
+      "app_role": "agency_staff",
+      "home_surface_preference": "workspace",
+      "account_status": "active"
+    },
+    "brief": {
+      "id": "ca81c1ec-4bdf-4161-bacf-ec05e11120c9",
+      "choice": "studio",
+      "locale": "es"
+    },
+    "memberships": [
+      {
+        "tenant_id": "059f9eb5-f158-460a-a0f0-88414d363e35",
+        "role": "owner",
+        "status": "active"
+      }
+    ],
+    "workspace": {
+      "id": "059f9eb5-f158-460a-a0f0-88414d363e35",
+      "slug": "estudio-studio-phone-zthrbn"
+    },
+    "businessIdentity": {
+      "default_locale": "es"
+    },
+    "workspaceOfferings": [
+      {
+        "title": "Limpieza profunda",
+        "amount_cents": 85000
+      },
+      {
+        "title": "Limpieza ligera",
+        "amount_cents": 50000
+      }
+    ],
+    "finishText": "✓ Tu página está lista para recibir solicitudes Ya pueden enviarte solicitudes. Las reservas empiezan cuando agregues a un integrante del equipo. Agrega a tu primer integrante para empezar a recibir reservas También quiero recibir reservas yo estudio-studio-phone-zthrbn.tulala.digital",
+    "finishButtonText": "Agrega a tu primer integrante para empezar a recibir reservas",
+    "finishHost": "estudio-studio-phone-zthrbn.tulala.digital",
+    "landingMs": 90117,
+    "landingPath": "/estudio-studio-phone-zthrbn/admin",
+    "sawEnglishInterstitial": true,
+    "visibleAtFail5": "",
+    "guestUrl": "estudio-studio-phone-zthrbn.tulala.digital/",
+    "visibleAtFail6": ""
+  }
+}

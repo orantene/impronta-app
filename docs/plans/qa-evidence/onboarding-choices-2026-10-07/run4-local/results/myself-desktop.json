@@ -1,0 +1,108 @@
+{
+  "choice": "myself",
+  "viewport": "desktop",
+  "results": [
+    {
+      "n": 1,
+      "name": "front door",
+      "status": "PASS"
+    },
+    {
+      "n": 2,
+      "name": "screens + email code",
+      "status": "PASS"
+    },
+    {
+      "n": 3,
+      "name": "build + DB accounts and essentials",
+      "status": "PASS"
+    },
+    {
+      "n": 4,
+      "name": "finish screen + URL is real",
+      "status": "PASS"
+    },
+    {
+      "n": 5,
+      "name": "sign out and back in lands on the Spanish dashboard",
+      "status": "PASS"
+    },
+    {
+      "n": 6,
+      "name": "guest books a service",
+      "status": "PASS"
+    }
+  ],
+  "facts": {
+    "h1Contrast": 15.36,
+    "sentence": "Me llamo Rosa myself desktop ztwsfb. Soy limpiadora de casas en Playa del Carmen. Hago limpieza profunda y ligera, de lunes a sábado.",
+    "readyLink": null,
+    "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+    "userId": "318a6ec0-e00e-4e4d-a441-eda04a4ba2b8",
+    "arrival": "arrival screen",
+    "profile": {
+      "app_role": "talent",
+      "home_surface_preference": "talent",
+      "account_status": "active"
+    },
+    "brief": {
+      "id": "9d9b7d13-abb2-4ecc-b92d-4b3560f60387",
+      "choice": "myself",
+      "locale": "es"
+    },
+    "talent": {
+      "id": "f0b30af8-a8c2-4bb3-bc3a-65b43bf1cac6",
+      "code": "TAL-93057",
+      "preferred_locale": "es",
+      "bioLocales": [
+        "en",
+        "es"
+      ]
+    },
+    "hubRoster": 1,
+    "talentSite": {
+      "site_slug": "rosa-myself-desktop-ztwsfb",
+      "theme_design_slug": "maison-v2",
+      "site_published_at": "2026-10-08T17:48:18.553+00:00"
+    },
+    "talentOfferings": [
+      {
+        "title": "Limpieza profunda",
+        "amount_cents": 85000,
+        "duration_minutes": 90
+      },
+      {
+        "title": "Limpieza ligera",
+        "amount_cents": 50000,
+        "duration_minutes": 60
+      }
+    ],
+    "bookingHoursRows": 1,
+    "place": {
+      "area": "Centro",
+      "mode": "studio"
+    },
+    "finishButtonText": "Abrir mi sitio",
+    "finishHost": "rosa-myself-desktop-ztwsfb.tulala.digital",
+    "publication": {
+      "workflow_status": "approved",
+      "visibility": "public",
+      "site_slug": "rosa-myself-desktop-ztwsfb",
+      "site_published_at": "2026-10-08T17:48:18.553+00:00"
+    },
+    "landingMs": 4487,
+    "landingPath": "/talent/today",
+    "sawEnglishInterstitial": false,
+    "guestUrl": "rosa-myself-desktop-ztwsfb.tulala.digital/",
+    "guestConfirmationTextSeen": true,
+    "guestOrder": {
+      "id": "f47f0920-2505-4073-8420-853469644db5",
+      "status": "pending_payment",
+      "channel": "instant_book"
+    },
+    "guestInquiry": {
+      "id": "91e19618-0364-4a44-ad2f-5745379b2490",
+      "status": "new"
+    }
+  }
+}

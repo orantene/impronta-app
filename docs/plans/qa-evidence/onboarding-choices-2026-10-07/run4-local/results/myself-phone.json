@@ -1,0 +1,110 @@
+{
+  "choice": "myself",
+  "viewport": "phone",
+  "results": [
+    {
+      "n": 1,
+      "name": "front door",
+      "status": "PASS"
+    },
+    {
+      "n": 2,
+      "name": "screens + email code",
+      "status": "PASS"
+    },
+    {
+      "n": 3,
+      "name": "build + DB accounts and essentials",
+      "status": "PASS"
+    },
+    {
+      "n": 4,
+      "name": "finish screen + URL is real",
+      "status": "PASS"
+    },
+    {
+      "n": 5,
+      "name": "sign out and back in lands on the Spanish dashboard",
+      "status": "FAIL",
+      "detail": "Spanish dashboard reached within 90 s |  | \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m |  | Expected: \u001b[32mtrue\u001b[39m | Received: \u001b[31mfalse\u001b[39m"
+    },
+    {
+      "n": 6,
+      "name": "guest books a service",
+      "status": "PASS"
+    }
+  ],
+  "facts": {
+    "h1Contrast": 15.36,
+    "sentence": "Me llamo Rosa myself phone ztwsfb. Soy limpiadora de casas en Playa del Carmen. Hago limpieza profunda y ligera, de lunes a sábado.",
+    "readyLink": null,
+    "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+    "userId": "f7d0c50d-44eb-4fa8-85c0-8fd7ccdcd394",
+    "arrival": "arrival screen",
+    "profile": {
+      "app_role": "talent",
+      "home_surface_preference": "talent",
+      "account_status": "active"
+    },
+    "brief": {
+      "id": "34a215cc-30ce-4e56-b464-100199806bd6",
+      "choice": "myself",
+      "locale": "es"
+    },
+    "talent": {
+      "id": "64634e61-5cfa-497d-88e8-16d908f09df0",
+      "code": "TAL-93058",
+      "preferred_locale": "es",
+      "bioLocales": [
+        "en",
+        "es"
+      ]
+    },
+    "hubRoster": 1,
+    "talentSite": {
+      "site_slug": "rosa-myself-phone-ztwsfb",
+      "theme_design_slug": "maison-v2",
+      "site_published_at": "2026-10-08T17:50:02.015+00:00"
+    },
+    "talentOfferings": [
+      {
+        "title": "Limpieza profunda",
+        "amount_cents": 85000,
+        "duration_minutes": 90
+      },
+      {
+        "title": "Limpieza ligera",
+        "amount_cents": 50000,
+        "duration_minutes": 60
+      }
+    ],
+    "bookingHoursRows": 1,
+    "place": {
+      "area": "Centro",
+      "mode": "studio"
+    },
+    "finishButtonText": "Abrir mi sitio",
+    "finishHost": "rosa-myself-phone-ztwsfb.tulala.digital",
+    "publication": {
+      "workflow_status": "approved",
+      "visibility": "public",
+      "site_slug": "rosa-myself-phone-ztwsfb",
+      "site_published_at": "2026-10-08T17:50:02.015+00:00"
+    },
+    "landingMs": 90087,
+    "landingPath": "/talent/today",
+    "sawEnglishInterstitial": false,
+    "visibleAtFail5": "",
+    "guestUrl": "rosa-myself-phone-ztwsfb.tulala.digital/",
+    "guestConfirmationTextSeen": false,
+    "guestOrder": {
+      "id": "6801beef-4750-4071-aee3-a16133380ca9",
+      "status": "pending_payment",
+      "channel": "instant_book"
+    },
+    "guestInquiry": {
+      "id": "cab4e0df-39de-43f3-bce5-245bc6d95fe4",
+      "status": "new"
+    }
+  }
+}

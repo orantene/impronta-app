@@ -1,0 +1,89 @@
+{
+  "choice": "studio",
+  "viewport": "desktop",
+  "results": [
+    {
+      "n": 1,
+      "name": "front door",
+      "status": "PASS"
+    },
+    {
+      "n": 2,
+      "name": "screens + email code",
+      "status": "PASS"
+    },
+    {
+      "n": 3,
+      "name": "build + DB accounts and essentials",
+      "status": "PASS"
+    },
+    {
+      "n": 4,
+      "name": "finish screen + URL is real",
+      "status": "PASS"
+    },
+    {
+      "n": 5,
+      "name": "sign out and back in lands on the Spanish dashboard",
+      "status": "FAIL",
+      "detail": "Spanish dashboard within ~15 s |  | \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThanOrEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m |  | Expected: <= \u001b[32m15000\u001b[39m | Received:    \u001b[31m37388\u001b[39m"
+    },
+    {
+      "n": 6,
+      "name": "guest books a service",
+      "status": "FAIL",
+      "detail": "an available slot |  | \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed |  | Locator: locator('[data-testid=slot-picker] button').first() | Expected: visible"
+    }
+  ],
+  "facts": {
+    "h1Contrast": 15.36,
+    "sentence": "Soy Estudio studio desktop ztihet. Tengo un estudio de limpieza de casas en Playa del Carmen con un equipo de tres personas. Hacemos limpieza profunda y ligera, de lunes a sábado.",
+    "readyLink": "estudio-studio-desktop-ztihet.tulala.digital",
+    "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+    "userId": "0706726f-add0-473a-840f-9c3d178f6f36",
+    "arrival": "arrival screen",
+    "profile": {
+      "app_role": "agency_staff",
+      "home_surface_preference": "workspace",
+      "account_status": "active"
+    },
+    "brief": {
+      "id": "93e9b708-2991-4c49-922c-74a7f5895e36",
+      "choice": "studio",
+      "locale": "es"
+    },
+    "memberships": [
+      {
+        "tenant_id": "74a291b8-be92-4a04-a3a7-26c91b2564b9",
+        "role": "owner",
+        "status": "active"
+      }
+    ],
+    "workspace": {
+      "id": "74a291b8-be92-4a04-a3a7-26c91b2564b9",
+      "slug": "estudio-studio-desktop-ztihet"
+    },
+    "businessIdentity": {
+      "default_locale": "es"
+    },
+    "workspaceOfferings": [
+      {
+        "title": "Limpieza profunda",
+        "amount_cents": 85000
+      },
+      {
+        "title": "Limpieza ligera",
+        "amount_cents": 50000
+      }
+    ],
+    "finishText": "✓ Tu página está lista para recibir solicitudes Ya pueden enviarte solicitudes. Las reservas empiezan cuando agregues a un integrante del equipo. Agrega a tu primer integrante para empezar a recibir reservas También quiero recibir reservas yo estudio-studio-desktop-ztihet.tulala.digital",
+    "finishButtonText": "Agrega a tu primer integrante para empezar a recibir reservas",
+    "finishHost": "estudio-studio-desktop-ztihet.tulala.digital",
+    "landingMs": 37388,
+    "landingPath": "/estudio-studio-desktop-ztihet/admin",
+    "sawEnglishInterstitial": true,
+    "visibleAtFail5": "",
+    "guestUrl": "estudio-studio-desktop-ztihet.tulala.digital/",
+    "visibleAtFail6": ""
+  }
+}
