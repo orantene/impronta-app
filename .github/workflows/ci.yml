@@ -451,6 +451,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:orphans-enrolled-core
 
+      - name: tests — previously orphaned money and auth tests, enrolled
+        if: ${{ !cancelled() }}
+        run: npm run test:orphans-enrolled-money-auth
+
       - name: tests — fields
         if: ${{ !cancelled() }}
         run: npm run test:fields
