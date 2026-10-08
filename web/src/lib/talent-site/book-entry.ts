@@ -23,13 +23,24 @@ export type BookEntry =
   | { kind: "picker" }
   | { kind: "inquire" };
 
+export type BookableEntry = { offering: TalentOffering; eventName: string; detail: OfferingRequestDetail };
+
 export function resolveBookEntry(input: {
   offerings: readonly TalentOffering[];
   /** Talent selling_defaults, for offerings that inherit their booking mode. */
   defaults?: unknown;
   confirmsByHand?: boolean;
 }): BookEntry {
-  const bookable: Array<{ offering: TalentOffering; eventName: string; detail: OfferingRequestDetail }> = [];
+  return bookEntryFrom(listBookableOfferings(input));
+}
+
+/** The services a visitor can open the booking sheet for, in menu order. */
+export function listBookableOfferings(input: {
+  offerings: readonly TalentOffering[];
+  defaults?: unknown;
+  confirmsByHand?: boolean;
+}): BookableEntry[] {
+  const bookable: BookableEntry[] = [];
   for (const offering of input.offerings) {
     const derived = deriveOfferingCta({
       offering,
@@ -43,6 +54,10 @@ export function resolveBookEntry(input: {
     if (catalogDetailIsPurchase(detail)) continue;
     bookable.push({ offering, eventName: derived.eventName, detail });
   }
+  return bookable;
+}
+
+export function bookEntryFrom(bookable: readonly BookableEntry[]): BookEntry {
   const only = bookable.length === 1 ? bookable[0] : undefined;
   if (only) {
     return { kind: "sheet", offeringId: only.offering.id, eventName: only.eventName, detail: only.detail };

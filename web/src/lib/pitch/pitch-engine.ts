@@ -38,6 +38,7 @@ import {
   type SentPitchOutput,
   type UpdatePitchDraftInput,
 } from "./pitch-types";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -410,7 +411,7 @@ export async function sendPitch(
     .eq("tenant_id", input.tenantId);
   if (upErr) return { ok: false, reason: "internal_error", message: upErr.message };
 
-  const baseUrl = process.env.PITCH_PUBLIC_BASE_URL ?? "https://tulala.digital";
+  const baseUrl = process.env.PITCH_PUBLIC_BASE_URL ?? resolveMarketingOrigin();
   const shareUrl = buildPitchShareUrl(signed.token, baseUrl);
   const agencyName = await loadAgencyName(supabase, pitch.tenant_id);
   const recipient = pitch.recipient_contact ?? {};

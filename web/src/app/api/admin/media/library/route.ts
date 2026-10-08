@@ -48,6 +48,9 @@ import {
 } from "@/lib/media/library-item";
 import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
+import { getCurrentUserTenants } from "@/lib/saas/tenant";
+import { decideLibraryTenant } from "@/lib/media/library-tenant-decision";
+import { logServerError } from "@/lib/server/safe-error";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const runtime = "nodejs";
@@ -77,27 +80,47 @@ function readLimit(value: string | null): number {
   return Math.min(parsed, MEDIA_LIBRARY_MAX_PAGE_SIZE);
 }
 
+/**
+ * The requested tenant, proven against the caller's own memberships when the
+ * header/cookie scope points elsewhere (see library-tenant-decision.ts).
+ * Failures are logged with their class so "Could not load" is diagnosable.
+ */
+async function resolveTenant(requestedTenantId: string | null) {
+  const scope = await requireTenantScope().catch(() => null);
+  const memberships =
+    scope && scope.tenantId === requestedTenantId
+      ? []
+      : await getCurrentUserTenants().catch(() => []);
+  const decision = decideLibraryTenant({
+    requestedTenantId,
+    scopeTenantId: scope?.tenantId ?? null,
+    memberships,
+  });
+  if (!decision.ok) {
+    logServerError(
+      "api/admin/media/library.tenant",
+      new Error(
+        `${decision.reason} (status ${decision.status}, scope ${scope ? "resolved" : "none"}, memberships ${memberships.length})`,
+      ),
+    );
+  }
+  return decision;
+}
+
 export async function GET(req: Request) {
   const auth = await requireSession();
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
   }
-  const scope = await requireTenantScope().catch(() => null);
-  if (!scope) {
-    return NextResponse.json(
-      { ok: false, error: "Select an agency workspace first." },
-      { status: 400 },
-    );
-  }
-
   const url = new URL(req.url);
-  const requestedTenant = url.searchParams.get("tenantId");
-  if (!requestedTenant || requestedTenant !== scope.tenantId) {
+  const decision = await resolveTenant(url.searchParams.get("tenantId"));
+  if (!decision.ok) {
     return NextResponse.json(
-      { ok: false, error: "tenantId mismatch" },
-      { status: 403 },
+      { ok: false, error: decision.error },
+      { status: decision.status },
     );
   }
+  const scope = { tenantId: decision.tenantId };
 
   const requestedId = url.searchParams.get("id");
   if (requestedId && !UUID_RE.test(requestedId)) {
@@ -147,6 +170,10 @@ export async function GET(req: Request) {
   });
 
   if (result.errored) {
+    logServerError(
+      "api/admin/media/library.query",
+      new Error(result.errorDetail ?? "queryTenantMediaLibrary errored"),
+    );
     return NextResponse.json(
       { ok: false, error: "Could not load the media library." },
       { status: 500 },
@@ -173,14 +200,6 @@ export async function PATCH(req: Request) {
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
   }
-  const scope = await requireTenantScope().catch(() => null);
-  if (!scope) {
-    return NextResponse.json(
-      { ok: false, error: "Select an agency workspace first." },
-      { status: 400 },
-    );
-  }
-
   let body: Record<string, unknown>;
   try {
     body = (await req.json()) as Record<string, unknown>;
@@ -188,13 +207,16 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ ok: false, error: "Malformed JSON." }, { status: 400 });
   }
 
-  const requestedTenant = typeof body.tenantId === "string" ? body.tenantId : null;
-  if (!requestedTenant || requestedTenant !== scope.tenantId) {
+  const decision = await resolveTenant(
+    typeof body.tenantId === "string" ? body.tenantId : null,
+  );
+  if (!decision.ok) {
     return NextResponse.json(
-      { ok: false, error: "tenantId mismatch" },
-      { status: 403 },
+      { ok: false, error: decision.error },
+      { status: decision.status },
     );
   }
+  const scope = { tenantId: decision.tenantId };
 
   const assetId = typeof body.id === "string" ? body.id : "";
   if (!UUID_RE.test(assetId)) {

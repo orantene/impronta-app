@@ -29,6 +29,7 @@ import { BILLING_EN, BILLING_ES } from "./email-copy/billing";
 import { NOTIF_EN, NOTIF_ES } from "./email-copy/notifications";
 import { PLATFORM_EN, PLATFORM_ES } from "./email-copy/platform";
 import { REVIEWS_EN, REVIEWS_ES } from "./email-copy/reviews";
+import { SUPPORT_EN, SUPPORT_ES } from "./email-copy/support";
 
 export type EmailLocale = "en" | "es";
 
@@ -48,6 +49,7 @@ const en = {
   ...NOTIF_EN,
   ...PLATFORM_EN,
   ...REVIEWS_EN,
+  ...SUPPORT_EN,
 };
 
 const es = {
@@ -59,6 +61,7 @@ const es = {
   ...NOTIF_ES,
   ...PLATFORM_ES,
   ...REVIEWS_ES,
+  ...SUPPORT_ES,
 };
 
 export type EmailCopy = typeof en;

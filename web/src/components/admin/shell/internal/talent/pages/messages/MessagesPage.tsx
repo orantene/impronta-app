@@ -17,6 +17,7 @@ import { MessagesFirstRun } from "./MessagesFirstRun";
 import { openSendQuotePanel } from "../../agenda/SendQuotePanel";
 import { MessagesSettingsDrawer } from "@/components/talent/money/MessagesSettingsDrawer";
 import { TalentDecisionBar } from "./TalentDecisionBar";
+import { TalentConfirmBookingBar } from "@/components/messages-v5/talent/TalentConfirmBookingBar";
 import {
   TalentSellerActions,
   type TalentSellerActionId,
@@ -33,7 +34,7 @@ const SELLER_TO_SHELL: Record<TalentSellerActionId, ShellActionId> = {
 };
 
 function TalentMessagesV5() {
-  const { bridgeTenantIdentity, bridgeSessionIdentity } = useAdminShell();
+  const { bridgeTenantIdentity, bridgeSessionIdentity, toast } = useAdminShell();
   const tenantId = bridgeTenantIdentity?.tenantId ?? "";
   const locale = useDashboardLocale();
   const searchParams = useSearchParams();
@@ -87,6 +88,7 @@ function TalentMessagesV5() {
         <MessagesSettingsDrawer />
       </div>
       <TalentDecisionBar inquiryId={activeId} />
+      <TalentConfirmBookingBar inquiryId={activeId} locale={locale} onToast={toast} />
       <MessagesV5Shell
         tenantId={tenantId || "talent"}
         tenantSlug={bridgeTenantIdentity?.slug || "talent"}

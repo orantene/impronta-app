@@ -31,6 +31,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { improntaLog } from "@/lib/server/structured-log";
 import { logServerError } from "@/lib/server/safe-error";
 import { processResendInboundEmail } from "@/lib/email/resend-inbound-forward";
+import { appendInboundSupportReply } from "@/lib/support/support-inbound-append.server";
 import {
   applyResendEvent,
   verifyResendSignature,
@@ -85,6 +86,8 @@ export async function POST(req: NextRequest) {
           { status: 500 },
         );
       }
+      // Thread append is best-effort and never throws; the row is already stored.
+      await appendInboundSupportReply(event.data?.email_id);
       return NextResponse.json({ received: true, inbound });
     } catch (err) {
       logServerError("webhooks.resend.inbound", err);

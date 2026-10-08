@@ -17,7 +17,12 @@
  *   - Talent profile        (/t/[profileCode]/page.tsx)
  *   - Talent Max site       (render-max-site.tsx — both /t/site and /_talent-site)
  */
-export function SkipToContent() {
+/** The link text in the page's language; any locale but Spanish reads English. */
+export function skipToContentLabel(locale?: string | null): string {
+  return (locale ?? "").toLowerCase().startsWith("es") ? "Saltar al contenido" : "Skip to content";
+}
+
+export function SkipToContent({ locale }: { locale?: string | null } = {}) {
   return (
     <a
       href="#main-content"
@@ -46,7 +51,7 @@ export function SkipToContent() {
         "focus:outline-none",
       ].join(" ")}
     >
-      Skip to content
+      {skipToContentLabel(locale)}
     </a>
   );
 }

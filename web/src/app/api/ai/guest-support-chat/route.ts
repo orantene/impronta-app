@@ -1,5 +1,6 @@
 import { SUPPORT_AGENT } from "@/lib/support/support-persona";
 import { NextResponse } from "next/server";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { z } from "zod";
 
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
@@ -20,7 +21,7 @@ import { wantsHumanSupport } from "@/lib/support/support-human-prefilter";
 import { sanitizeGuestAiOutput } from "@/lib/support/support-ai-guardrails";
 import { supportFrom } from "@/lib/support/support-from";
 import {
-  SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY,
+  supportChatFailOpenBody,
   SUPPORT_CHAT_REASONS,
   SUPPORT_CHAT_SCHEMA,
   parseSupportChatModel,
@@ -75,7 +76,7 @@ async function failOpen(ticketId: string, stage: string, detail?: string): Promi
     ticketId,
     authorKind: "system",
     authorUserId: null,
-    body: SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY,
+    body: supportChatFailOpenBody(await getRequestLocale().catch(() => "en"), true),
     messageKind: "system",
     skipNotify: true,
   });

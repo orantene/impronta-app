@@ -50,6 +50,44 @@ const NAIL_BAND_STYLE = {
 /** Drop a stale surface-raised / wide constraint on an already-placed nail band. */
 export function normalizeNailBand(node: BuilderNode): BuilderNode {
   if (node.id !== NAIL_BAND_ID || node.kind !== "container") return node;
+  return healNailBandCopy(healNailBandLayout(node));
+}
+
+type CopyKey = keyof typeof COPY;
+const COPY_CHILD: ReadonlyArray<readonly [string, CopyKey]> = [
+  [`${NAIL_BAND_ID}-eyebrow`, "eyebrow"],
+  [`${NAIL_BAND_ID}-heading`, "heading"],
+  [`${NAIL_BAND_ID}-intro`, "intro"],
+];
+
+/** Add the missing `en`/`es` overlay to a baked band's copy (a band placed before both languages were written). */
+function healNailBandCopy(band: BuilderNode): BuilderNode {
+  const kids = (band as { children?: BuilderNode[] }).children;
+  if (!Array.isArray(kids)) return band;
+  let changed = false;
+  const next = kids.map((kid) => {
+    const hit = COPY_CHILD.find(([id]) => id === kid.id);
+    if (!hit) return kid;
+    const key = hit[1];
+    const want = { es: { text: COPY[key].es }, en: { text: COPY[key].en } };
+    const props = (kid.props ?? {}) as Record<string, unknown>;
+    const onNode = (kid as { i18n?: Record<string, Record<string, string>> }).i18n ?? {};
+    const onProps = (props.i18n as Record<string, Record<string, string>> | undefined) ?? {};
+    const need = (m: Record<string, Record<string, string>>) => !m.en?.text || !m.es?.text;
+    if (!need(onNode) && !need(onProps)) return kid;
+    changed = true;
+    // Only ADD a missing language: whatever the talent already wrote for a language stays.
+    const merged = (m: Record<string, Record<string, string>>) => ({
+      ...m,
+      es: m.es?.text ? m.es : want.es,
+      en: m.en?.text ? m.en : want.en,
+    });
+    return { ...kid, i18n: merged(onNode), props: { ...props, i18n: merged(onProps) } } as unknown as BuilderNode;
+  });
+  return changed ? ({ ...band, children: next } as BuilderNode) : band;
+}
+
+function healNailBandLayout(node: BuilderNode): BuilderNode {
   const props = (node.props ?? {}) as Record<string, unknown>;
   const prev = (props.style as Record<string, unknown> | undefined) ?? {};
   const { backgroundColor: _bg, paddingY: _py, ...rest } = prev;
@@ -67,7 +105,9 @@ export function normalizeNailBand(node: BuilderNode): BuilderNode {
 
 /** The Nail Designer band: a Maison-style section holding the app node. */
 export function nailBand(): BuilderNode {
-  const es = (k: keyof typeof COPY) => ({ es: { text: COPY[k].es } });
+  // BOTH languages: a Spanish-primary site's /en walk must find an `en` overlay, or it falls through the
+  // primary-language (`es`) overlay and an English visitor reads Spanish.
+  const es = (k: keyof typeof COPY) => ({ es: { text: COPY[k].es }, en: { text: COPY[k].en } });
   // The renderer reads `node.i18n` (the validate-time mirror of `props.i18n`). A tree
   // that reaches the live renderer without a validate pass carries only props.i18n, so
   // the Spanish copy never resolved and the band showed English. Write BOTH.
