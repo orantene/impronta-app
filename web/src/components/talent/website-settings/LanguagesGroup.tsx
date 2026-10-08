@@ -12,6 +12,7 @@ import { StatusPill } from "@/components/admin/shell/internal/primitives/chips";
 import { languageName } from "@/lib/i18n/locale-field-model";
 import { loadTranslationCoverage } from "@/lib/talent/translation-coverage-actions";
 import { COMING_SOON_LOCALES, LIVE_SITE_LOCALES, toggleSecondary, withPrimary, type LanguagesDraft } from "./languages-model";
+import { AddEnglishCard } from "./AddEnglishCard";
 import { ChoiceCard, SettingsCard } from "./primitives";
 
 type T = (s: string) => string;
@@ -177,6 +178,8 @@ export function LanguagesGroup({
           ))}
         </ul>
       </SettingsCard>
+
+      {saved.primary !== "en" && saved.secondary.includes("en") ? <AddEnglishCard t={t} /> : null}
 
       {confirmRemove ? (
         <ConfirmSheet
