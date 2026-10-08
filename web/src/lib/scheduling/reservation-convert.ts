@@ -61,6 +61,8 @@ export type AppointmentMirrorSource = {
   timezone: string;
   title: string;
   holdId: string | null;
+  /** The stamped offering (storefront / request path); null on the hold-only path. */
+  offeringId?: string | null;
 };
 
 type LiveHoldRow = {
@@ -155,6 +157,7 @@ export async function resolveAppointmentMirrorSource(
           timezone: stamp.timezone,
           title,
           holdId: stamp.hold_id ?? null,
+          offeringId: stamp.offering_id,
         },
       };
     }
@@ -198,6 +201,10 @@ export async function enrichBookingFromReservation(
     bookingId: string;
     actorUserId?: string | null;
     appointment?: AppointmentOverride | null;
+    /** TUL-426: what the booking sheet sent for the place, the booked offering and the buyer's locale. */
+    requestedLocation?: string | null;
+    offeringId?: string | null;
+    locale?: string | null;
   },
 ): Promise<EnrichBookingFromReservationResult> {
   if (!input.inquiryId || !input.bookingId) {
@@ -288,6 +295,9 @@ export async function enrichBookingFromReservation(
     tenantId: source.tenantId,
     startsAt: source.startsAt,
     locationText: (existing as { location_text?: string | null } | null)?.location_text ?? null,
+    requestedLocation: input.requestedLocation ?? null,
+    offeringId: input.offeringId ?? source.offeringId ?? null,
+    locale: input.locale ?? null,
   });
 
   if (source.holdId) {
