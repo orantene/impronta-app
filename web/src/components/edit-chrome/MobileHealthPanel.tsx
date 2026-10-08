@@ -146,17 +146,41 @@ export function MobileHealthPanel({ builderTree }: Props) {
     let ro: ResizeObserver | null = null;
     let mo: MutationObserver | null = null;
     let observedDoc: Document | null = null;
-    const frame = document.querySelector<HTMLIFrameElement>(
-      'iframe[data-device-tier][data-active="true"]',
-    );
+    let observedFrame: HTMLIFrameElement | null = null;
+    let retries = 0;
+    // Resolve the active device iframe on EVERY measure: the frame mounts after
+    // a device switch and remounts on each saved draft (its key carries the page
+    // version), so a node captured once goes stale and reads as "All clear".
+    const activeFrame = () =>
+      document.querySelector<HTMLIFrameElement>(
+        'iframe[data-device-tier][data-active="true"]',
+      );
     const schedule = () => {
       window.clearTimeout(timer);
       timer = window.setTimeout(measure, 300);
     };
     const measure = () => {
       try {
+        const frame = activeFrame();
+        if (frame !== observedFrame) {
+          observedFrame?.removeEventListener("load", schedule);
+          ro?.disconnect();
+          observedFrame = frame;
+          frame?.addEventListener("load", schedule);
+          if (typeof ResizeObserver !== "undefined") {
+            ro = new ResizeObserver(schedule);
+            ro.observe(frame ?? document.documentElement);
+          }
+        }
         const doc = frame ? frame.contentDocument : document;
         const width = frame ? frame.clientWidth : window.innerWidth;
+        // Phone/tablet frame not mounted or not loaded yet: measuring the
+        // parent page here would report the desktop shell. Retry a few times.
+        if (device && device !== "desktop" && (!frame || !doc?.body?.firstElementChild)) {
+          if (retries++ < 20) schedule();
+          return;
+        }
+        retries = 0;
         const next = doc ? measureRenderedOverflow(doc, width) : [];
         setRenderedIssues((prev) =>
           JSON.stringify(prev) === JSON.stringify(next) ? prev : next,
@@ -172,16 +196,11 @@ export function MobileHealthPanel({ builderTree }: Props) {
       }
     };
     schedule();
-    if (typeof ResizeObserver !== "undefined") {
-      ro = new ResizeObserver(schedule);
-      ro.observe(frame ?? document.documentElement);
-    }
-    frame?.addEventListener("load", schedule);
     return () => {
       window.clearTimeout(timer);
       ro?.disconnect();
       mo?.disconnect();
-      frame?.removeEventListener("load", schedule);
+      observedFrame?.removeEventListener("load", schedule);
     };
   }, [builderTree, device]);
 
