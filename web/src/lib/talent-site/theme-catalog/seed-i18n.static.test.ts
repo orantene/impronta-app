@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 
 import { localizablePropsForKind } from "@/lib/i18n/builder-i18n-props";
 import { listOverlayKey, localizableListSpecsForKind } from "@/lib/i18n/builder-i18n-list-props";
-import { HEADER_OVERLAY_PREFIX, headerLabelEntries } from "../header-i18n";
+import { HEADER_OVERLAY_PREFIX, headerLabelEntries, headerSectionProps } from "../header-i18n";
 import type { DesignPayload } from "./types";
 import { FINISHED_GALLERY_SLUGS } from "./gallery-meta";
 import { COLLECTION_DESIGNS } from "./collection/designs";
@@ -245,29 +245,125 @@ test("looksLikeSpanishSeedBase is language-based (no accent regex) (TUL-369)", (
   assert.equal(looksLikeSpanishSeedBase("Café"), false);
 });
 
-test("seeded design renders Spanish on es via props.i18n overlays (TUL-369)", () => {
-  const maison = buildMaisonDesignPayload();
-  let portfolio: BuilderNode | null = null;
-  walk(maison.homeTree, "maison.homeTree", (_path, node) => {
-    if (node.kind === "portfolio") portfolio = node as unknown as BuilderNode;
+/**
+ * Render-time Spanish for one seeded string: props.i18n.es when present,
+ * else mode-aware CTA map, else the base (maps deleted — no EN↔ES guess).
+ */
+function renderedEs(base: string, esOverlay: string | undefined, href?: unknown): string {
+  if (typeof esOverlay === "string" && esOverlay.trim()) return esOverlay;
+  if (MODE_DEPENDENT_LABELS.includes(base.trim())) {
+    return localiseOne(base, "es", "instant", href) ?? base;
+  }
+  if (base.trim() === "Book" && href === "#gallery") {
+    return localiseOne(base, "es", "instant", href) ?? base;
+  }
+  return base;
+}
+
+/**
+ * Intentional Spanish wording that differs from the deleted
+ * `CODE_SEEDED_LABELS_ES` / `CTA_LABEL_BY_LOCALE` maps (empty = full
+ * equivalence for overlapping keys). Document any future drift here.
+ */
+const SPANISH_RENDER_DIFFS_FROM_OLD_MAPS: ReadonlyArray<{ en: string; oldEs: string; newEs: string }> = [];
+
+test("Spanish render diffs vs deleted guess maps are listed (TUL-369)", () => {
+  for (const { en, newEs } of SPANISH_RENDER_DIFFS_FROM_OLD_MAPS) {
+    assert.equal(SEED_TEXT_ES[en], newEs, en);
+  }
+});
+
+for (const [slug, build] of DESIGNS) {
+  test(`${slug}: Spanish render via seed overlays leaves no seeded English labels (TUL-369)`, () => {
+    const leaks: string[] = [];
+    const bag = build() as unknown as Record<string, unknown>;
+    const contentLocale = { locale: "es", defaultLocale: "en", chain: ["es", "en"] as const };
+    for (const treeName of ["homeTree", "shellTree", "optionalBlocks"] as const) {
+      walk(bag[treeName], `${slug}.${treeName}`, (path, node) => {
+        const kind = node.kind as Parameters<typeof localizablePropsForKind>[0];
+        const localized = localizeBlockNode(node as unknown as BuilderNode, contentLocale);
+        const props = (localized.props ?? {}) as Record<string, unknown>;
+        const i18nEs = ((node.props as Record<string, unknown> | undefined)?.i18n as
+          | { es?: Record<string, string> }
+          | undefined)?.es;
+
+        for (const prop of localizablePropsForKind(kind)) {
+          const base = (node.props as Record<string, unknown> | undefined)?.[prop];
+          if (typeof base !== "string" || isTokenOnlyText(base)) continue;
+          if (isPendingFolioSpanishBase(slug, base)) continue;
+          const shown = renderedEs(base, i18nEs?.[prop]);
+          if (base.trim() in SEED_TEXT_ES) {
+            if (shown === base) leaks.push(`${path}.${prop} still English ${JSON.stringify(base)}`);
+            else assert.equal(shown, SEED_TEXT_ES[base.trim()], `${path}.${prop}`);
+            // localizeBlockNode must surface the same Spanish for registered props.
+            if (typeof props[prop] === "string") assert.equal(props[prop], shown, `${path}.${prop} localizeBlockNode`);
+          } else if (MODE_DEPENDENT_LABELS.includes(base.trim()) && shown === base) {
+            leaks.push(`${path}.${prop} mode label still English ${JSON.stringify(base)}`);
+          }
+        }
+
+        if (node.kind === "marquee" && Array.isArray(((node.props as Record<string, unknown>) ?? {}).items)) {
+          const rawItems = ((node.props as Record<string, unknown>).items ?? []) as unknown[];
+          rawItems.forEach((raw, n) => {
+            const base = raw && typeof raw === "object" ? (raw as { text?: unknown }).text : undefined;
+            if (typeof base !== "string" || isTokenOnlyText(base) || isPendingFolioSpanishBase(slug, base)) return;
+            const key = `items.${n}.text`;
+            const shown = renderedEs(base, i18nEs?.[key]);
+            if (base.trim() in SEED_TEXT_ES) {
+              if (shown === base) leaks.push(`${path}.${key} still English ${JSON.stringify(base)}`);
+              else assert.equal(shown, SEED_TEXT_ES[base.trim()], `${path}.${key}`);
+            }
+          });
+        }
+
+        for (const spec of localizableListSpecsForKind(kind)) {
+          const rawItems = ((node.props as Record<string, unknown>)?.[spec.list] ?? []) as unknown[];
+          if (!Array.isArray(rawItems)) continue;
+          rawItems.forEach((raw, n) => {
+            for (const field of spec.fields) {
+              const base =
+                raw && typeof raw === "object" ? (raw as Record<string, unknown>)[field] : undefined;
+              if (typeof base !== "string" || isTokenOnlyText(base) || isPendingFolioSpanishBase(slug, base)) {
+                continue;
+              }
+              const key = listOverlayKey(spec.list, n, field);
+              const shown = renderedEs(base, i18nEs?.[key]);
+              if (base.trim() in SEED_TEXT_ES) {
+                if (shown === base) leaks.push(`${path}.${key} still English ${JSON.stringify(base)}`);
+                else assert.equal(shown, SEED_TEXT_ES[base.trim()], `${path}.${key}`);
+              }
+            }
+          });
+        }
+
+        if (node.kind === "section" && (node.props as Record<string, unknown>)?.sectionTypeKey === "site_header") {
+          const rawSp = (node.props as Record<string, unknown>).sectionProps;
+          const esSp = headerSectionProps(node as unknown as BuilderNode, "es");
+          for (const { key, text } of headerLabelEntries(rawSp)) {
+            if (isTokenOnlyText(text) || isPendingFolioSpanishBase(slug, text)) continue;
+            const href =
+              key === "primaryCta.label" && rawSp && typeof rawSp === "object"
+                ? (rawSp as { primaryCta?: { href?: unknown } }).primaryCta?.href
+                : undefined;
+            const overlayKey = `${HEADER_OVERLAY_PREFIX}${key}`;
+            const shown = renderedEs(text, i18nEs?.[overlayKey], href);
+            const esEntry = headerLabelEntries(esSp).find((e) => e.key === key);
+            if (text.trim() in SEED_TEXT_ES) {
+              if (shown === text) leaks.push(`${path}.${overlayKey} still English ${JSON.stringify(text)}`);
+              else assert.equal(shown, SEED_TEXT_ES[text.trim()], `${path}.${overlayKey}`);
+              if (esEntry) assert.equal(esEntry.text, shown, `${path}.${overlayKey} headerSectionProps`);
+            } else if (MODE_DEPENDENT_LABELS.includes(text.trim()) && shown === text) {
+              leaks.push(`${path}.${overlayKey} mode label still English ${JSON.stringify(text)}`);
+            }
+          }
+        }
+      });
+    }
+    assert.deepEqual(leaks, [], `\n${leaks.join("\n")}`);
   });
-  assert.ok(portfolio, "maison seeds a portfolio");
-  const props = (portfolio!.props ?? {}) as {
-    title?: string;
-    emptyMessage?: string;
-    i18n?: { es?: { title?: string; emptyMessage?: string } };
-  };
-  assert.equal(props.title, "Recent work");
-  assert.equal(props.i18n?.es?.title, "Trabajo reciente");
-  const es = localizeBlockNode(portfolio!, {
-    locale: "es",
-    defaultLocale: "en",
-    chain: ["es", "en"],
-  });
-  const esProps = es.props as { title?: string; emptyMessage?: string };
-  assert.equal(esProps.title, "Trabajo reciente");
-  assert.equal(esProps.emptyMessage, "Aún no hay fotos en tu portafolio.");
-  // Without an overlay the deleted guess maps must not invent Spanish.
+}
+
+test("without overlays the deleted guess maps do not invent Spanish (TUL-369)", () => {
   const bare = {
     kind: "portfolio",
     id: "bare",
