@@ -31,6 +31,7 @@ export const SCHEDULING_ENGINE_REFUSAL_CODES = [
   "not_allowed",
   "unavailable",
   "offer_currency_seller_mismatch",
+  "offer_currency_unresolved",
 ] as const;
 
 export type SchedulingEngineRefusal = (typeof SCHEDULING_ENGINE_REFUSAL_CODES)[number];
@@ -64,6 +65,7 @@ export const SCHEDULING_ENGINE_REFUSALS: Readonly<Record<SchedulingEngineRefusal
   not_allowed: "dashboard.scheduling.engine.refusal.not_allowed",
   unavailable: "dashboard.scheduling.engine.refusal.unavailable",
   offer_currency_seller_mismatch: "dashboard.scheduling.engine.refusal.offer_currency_seller_mismatch",
+  offer_currency_unresolved: "dashboard.scheduling.engine.refusal.offer_currency_unresolved",
 };
 
 /** Every refusal sentence, translated once on the server and handed to a client component. */
@@ -99,6 +101,7 @@ export function schedulingEngineSentences(tr: (key: string) => string): Scheduli
     not_allowed: tr(SCHEDULING_ENGINE_REFUSALS.not_allowed),
     unavailable: tr(SCHEDULING_ENGINE_REFUSALS.unavailable),
     offer_currency_seller_mismatch: tr(SCHEDULING_ENGINE_REFUSALS.offer_currency_seller_mismatch),
+    offer_currency_unresolved: tr(SCHEDULING_ENGINE_REFUSALS.offer_currency_unresolved),
   };
 }
 

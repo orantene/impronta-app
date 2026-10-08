@@ -466,9 +466,12 @@ export async function createOffer(
 
     const offerCurrency = await resolveNewOfferCurrency(supabase, {
       inquiryId: ctx.inquiryId,
-      platformCurrency: ctx.currencyCode ?? "USD",
+      tenantId: ctx.tenantId,
+      explicitCurrency: ctx.currencyCode ?? null,
       followSeller: ctx.followSeller === true,
     });
+    // TUL-313 money path: never guess a currency. Unresolvable -> refuse.
+    if (!offerCurrency) return { success: false, reason: "offer_currency_unresolved" };
 
     const { data: offer, error } = await supabase
       .from("inquiry_offers")

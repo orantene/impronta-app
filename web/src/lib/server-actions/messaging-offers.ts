@@ -40,6 +40,7 @@ type OfferGuardOk = Extract<Awaited<ReturnType<typeof messagingInquiryManager>>,
  */
 function offerEngineFail(result: { success: false; forbidden?: boolean; conflict?: boolean; rateLimited?: boolean; error?: string; reason?: string }) {
   if (result.rateLimited) return fail("rate_limited");
+  if (result.reason === "offer_currency_unresolved") return fail("offer_currency_unresolved");
   if (result.forbidden) return fail("not_allowed");
   if (result.conflict || result.error === "version_conflict") return fail("version_stale");
   if (result.error === "offer_not_found") return fail("not_found");
