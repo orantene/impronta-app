@@ -93,7 +93,8 @@ function siteUrl(slug: string | null, isDemo = false): string | null {
 
 /**
  * Provision the talent's Max site if missing (idempotent), then return its id +
- * slug. Called on first open of `/talent/site`. Uses the service-role
+ * slug. Called ONLY from the explicit "Create my own website" click on
+ * `/talent/site` (never from a page load, TUL-179). Uses the service-role
  * provisioning helper (slug de-dup must span all sites); the Max gate is checked
  * here AND inside the helper.
  */
@@ -112,9 +113,9 @@ export async function ensureMaxSiteAction(): Promise<
 // ── Load manager state ───────────────────────────────────────────────────────
 
 /**
- * Load everything the `/talent/site` dashboard renders. Provisions the site
- * first (so a brand-new Max talent lands on a populated dashboard), then reads
- * the site row + every page via the cookie-session client (owner RLS).
+ * Load everything the `/talent/site` dashboard renders: the site row + every page via the
+ * cookie-session client (owner RLS). READ-ONLY (TUL-179): a missing or incomplete scaffold comes
+ * back as `siteExists: false`; the talent creates it with `ensureMaxSiteAction` from an explicit click.
  */
 export async function loadMaxSiteManagerAction(): Promise<
   MaxSiteActionResult<MaxSiteManagerState>
@@ -150,6 +151,7 @@ export async function loadMaxSiteManagerAction(): Promise<
         logoUrl: null,
         sitePublishedAt: null,
         hasPublishedShell: false,
+        siteExists: false,
         publicSiteUrl: null,
         themeDesignSlug: null,
         themeLookSlug: null,
@@ -161,7 +163,7 @@ export async function loadMaxSiteManagerAction(): Promise<
   const sb = await getCachedServerSupabase();
   if (!sb) return { ok: false, code: "server_error", error: "Not configured." };
 
-  // F74 + F137: parallel reads first; provision only if the scaffold is incomplete.
+  // F74: parallel reads. No provisioning on load (TUL-179).
   const cols = "id, site_slug, logo_url, site_published_at, shell_published, shell_tree, theme_design_slug, theme_look_slug";
   const readAll = () =>
     Promise.all([
@@ -170,11 +172,8 @@ export async function loadMaxSiteManagerAction(): Promise<
       loadLegacyProfileTemplate(sb, scope.talentProfile.id),
       sb.from("talent_profiles").select("is_demo").eq("id", scope.talentProfile.id).maybeSingle(),
     ]);
-  let [siteRes, pagesRes, legacyProfileTemplate, demoRes] = await readAll();
-  if (!siteScaffoldComplete(siteRes, pagesRes)) {
-    await provisionTalentMaxSite(scope.talentProfile.id, scope.session.user.id);
-    [siteRes, pagesRes, legacyProfileTemplate, demoRes] = await readAll();
-  }
+  const [siteRes, pagesRes, legacyProfileTemplate, demoRes] = await readAll();
+  const siteExists = siteScaffoldComplete(siteRes, pagesRes);
   const { data: siteRow, error: siteErr } = siteRes;
   const { data: pageRows, error: pagesErr } = pagesRes;
   if (siteErr) {
@@ -230,6 +229,7 @@ export async function loadMaxSiteManagerAction(): Promise<
       siteSlug: site?.site_slug ?? null,
       logoUrl: site?.logo_url ?? null,
       sitePublishedAt: site?.site_published_at ?? null,
+      siteExists,
       hasPublishedShell:
         Array.isArray(site?.shell_published) && site!.shell_published.length > 0,
       publicSiteUrl: siteUrl(site?.site_slug ?? null, isDemo),

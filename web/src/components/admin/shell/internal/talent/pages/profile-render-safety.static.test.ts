@@ -39,7 +39,7 @@ test("the Profile page chunk shows a skeleton, never null, while it loads", () =
 });
 
 test("the talent layout loads its independent reads in one batch", () => {
-  const src = read("app/(workspace)/talent/layout.tsx");
+  const src = read("app/(workspace)/talent/_talent-layout-inner.tsx");
   assert.doesNotMatch(src, /=\s*await loadTalentVisibleInquiryIds/);
   assert.doesNotMatch(src, /=\s*await loadTalentPlanGrants/);
   assert.doesNotMatch(src, /=\s*await loadPlatformOperatingCurrency/);

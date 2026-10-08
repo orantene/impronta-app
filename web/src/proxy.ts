@@ -51,6 +51,7 @@ import { readPreviewFromQueryParam } from "@/lib/site-admin/preview/middleware";
 import { ensureExperimentVisitorCookie } from "@/lib/site-admin/builder-node/experiment-visitor-cookie";
 import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
 import { timed } from "@/lib/server/perf-trace";
+import { startDoorRedirect } from "@/lib/onboarding/start-door-redirect";
 
 function clientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -194,6 +195,17 @@ export async function proxy(request: NextRequest) {
       { status: 404 },
     );
   }
+
+  // TUL-117: `/start` is marketing-host only; send the platform app host and
+  // `/signup` there instead of the 404. Tenant-branded hosts keep the 404.
+  const startDoor = startDoorRedirect({
+    pathname: request.nextUrl.pathname,
+    search: request.nextUrl.search,
+    method: request.method,
+    hostKind: hostContext.kind,
+    marketingOrigin: `https://${TULALA_APEX_HOST}`,
+  });
+  if (startDoor) return NextResponse.redirect(startDoor, 308);
 
   // Support Desk host: DEAD while SUPPORT_DESK_ENABLED is off — even when
   // support.tulala.digital is seeded in agency_domains (Phase 1a). When the
@@ -352,18 +364,10 @@ export async function proxy(request: NextRequest) {
     return res;
   }
 
-  // Phase 5 / M1 — per-tenant locale enforcement. A tenant publishes a subset
-  // of platform locales (`agency_business_identity.supported_locales`). When
-  // the URL carries an explicit locale prefix that the tenant does NOT
-  // support, redirect to the tenant's default locale instead of serving a page
-  // that would 404 or fall back silently. This is temporary safety — M7+ Site
-  // Health surfaces missing-locale warnings to operators.  2026-08-16 — this
-  // was gated on `hostContext.kind === "agency"`, so hub tenants AND every
-  // path-based `/w/<slug>` tenant got NO enforcement at all: an unsupported
-  // `/fr/w/<slug>` fell through to the surface allow-list and 404'd instead of
-  // redirecting to the tenant's own default locale. Gate on the EFFECTIVE
-  // tenant context instead (`agency` or `hub`, host- or path-resolved).
-  // Non-tenant contexts (marketing / app) still skip it, exactly as before.
+  // Phase 5 / M1 — per-tenant locale enforcement. When the URL carries an explicit locale prefix the
+  // tenant does NOT support, redirect to the tenant's default locale rather than 404 or silently fall
+  // back. Gated on the EFFECTIVE tenant context (`agency` or `hub`, host- or path-resolved), so hub
+  // tenants and `/w/<slug>` paths are covered; marketing / app contexts still skip it.
   if (isTenantHostContext(effectiveHostContext) && effectiveTenantLocaleSettings) {
     const firstSegment = parts[1];
     const isPlatformLocale = langSettings.publicLocales.some(
@@ -454,18 +458,10 @@ export async function proxy(request: NextRequest) {
     );
   }
 
-  // Phase 9 v2 — share-link viewer rate limit. Token verification is cheap
-  // (HMAC + a single supabase read), but a fuzzer hammering `/share/<random>`
-  // 100×/sec would still consume edge cycles + DB round-trips against a
-  // guaranteed-invalid token. 60 requests / minute / IP is comfortably above
-  // any realistic visitor pattern (a real recipient opens the link once, maybe
-  // refreshes a few times) and catches drive-by scanning. Per-page asset reads
-  // load through the CMS section dispatcher with their own caching so they
-  // don't re-hit this gate. `/q/` joins this budget (QR & Links Q1): a printed
-  // link code is short and typeable, therefore deliberately guessable, so
-  // enumeration is answered by a rate limit rather than by a secrecy the code
-  // cannot have. Separate bucket keys so a scanner cannot exhaust a share
-  // recipient's allowance, or vice versa.
+  // Phase 9 v2 — share-link viewer rate limit. A fuzzer hammering `/share/<random>` would burn edge
+  // cycles and DB reads on a guaranteed-invalid token; 60 req/min/IP is well above any real visitor.
+  // `/q/` joins this budget (QR & Links Q1): printed link codes are short and typeable, so enumeration
+  // is answered by a rate limit. Separate bucket keys keep a scanner from exhausting a recipient's allowance.
   if ((pathname.startsWith("/share/") || pathname.startsWith("/q/")) && request.method === "GET") {
     const bucket = pathname.startsWith("/q/") ? "link-scan" : "share";
     if (!tryConsumeRateLimit(`${bucket}:${ip}`, 60, 60_000)) {
