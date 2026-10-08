@@ -330,6 +330,8 @@ const en = {
       "Illustrative stories that show what's possible today. Real customer pages connect here as they launch.",
     filters: ["All stories", "Talent", "Business", "Hubs", "Hybrid"],
     readStory: "Read the story",
+    /** Card button aria; `{name}` is the persona. */
+    readStoryAria: "Read {name}'s story",
     challengeLabel: "The challenge",
     approachLabel: "How they use Tulala",
     resultLabel: "The result",
@@ -716,6 +718,8 @@ const es: MarketingCopy = {
       "Historias ilustrativas de lo que ya es posible hoy. Las páginas de clientes reales se conectan aquí conforme se lanzan.",
     filters: ["Todas", "Talento", "Negocios", "Hubs", "Híbrido"],
     readStory: "Leer la historia",
+    /** Card button aria; `{name}` is the persona. */
+    readStoryAria: "Leer la historia de {name}",
     challengeLabel: "El reto",
     approachLabel: "Cómo usan Tulala",
     resultLabel: "El resultado",
@@ -782,4 +786,9 @@ const es: MarketingCopy = {
 
 export function getMarketingCopy(locale: string): MarketingCopy {
   return pickLocale(locale, { en, es });
+}
+
+/** Case-study card open control: "Read Ana's story" / "Leer la historia de Ana". */
+export function readStoryAriaLabel(locale: string, persona: string): string {
+  return getMarketingCopy(locale).stories.readStoryAria.replace("{name}", persona);
 }
