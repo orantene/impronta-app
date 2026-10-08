@@ -24,6 +24,7 @@ import {
   normalizeRosterCardBadges,
   type RosterCardBadgePrefs,
 } from "@/lib/talent-cards/roster-card-badges";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const rosterCardBadgesSchema = z
   .object({
@@ -68,6 +69,8 @@ export type SetRosterCardBadgesResult =
 export async function setRosterCardBadges(
   input: SetRosterCardBadgesInput,
 ): Promise<SetRosterCardBadgesResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.design.edit",
   });

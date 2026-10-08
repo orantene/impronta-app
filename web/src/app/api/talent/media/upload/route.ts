@@ -33,6 +33,7 @@ import {
 import { validateImageUpload } from "@/lib/site-admin/media/validation";
 import { talentOwnedStamp } from "@/lib/media/ownership";
 import { checkTalentUploadQuota } from "@/lib/media/talent-storage-usage";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,6 +43,8 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(req: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   let form: FormData;
   try {
     form = await req.formData();

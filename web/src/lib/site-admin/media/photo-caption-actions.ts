@@ -11,6 +11,7 @@
 import { requireTalentSelfAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
 import type { PhotoMetadata } from "./photo-caption-edit";
 import {
@@ -84,6 +85,8 @@ export async function saveTalentPhotoCaptionAction(input: {
   locale: string;
   text: string;
 }): Promise<TalentPhotoCaptionSaveResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const deps = realDeps();
   if (!deps) return { ok: false, error: "Server configuration error." };
   const res = await savePhotoCaption(deps, input);

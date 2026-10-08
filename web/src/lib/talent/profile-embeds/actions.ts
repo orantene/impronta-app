@@ -30,6 +30,7 @@ import {
   type TalentPressItemRow,
   type TalentProfileEmbedRow,
 } from "./repository";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Talent self-service for the Pro/Portfolio profile extras.
@@ -206,6 +207,8 @@ export async function fetchTalentProfileExtrasAction(): Promise<
 export async function addTalentProfileEmbedAction(
   input: z.input<typeof addEmbedSchema>,
 ): Promise<{ ok: true; embed: TalentProfileEmbed } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const s = await scope();
   if (!s.ok) return { ok: false, error: s.error };
   if (!s.scope.canManage) {
@@ -260,6 +263,8 @@ export async function addTalentProfileEmbedAction(
 export async function updateTalentProfileEmbedAction(
   input: z.input<typeof updateEmbedSchema>,
 ): Promise<{ ok: true; embed: TalentProfileEmbed } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const s = await scope();
   if (!s.ok) return { ok: false, error: s.error };
   if (!s.scope.canManage) {
@@ -287,6 +292,8 @@ export async function updateTalentProfileEmbedAction(
 export async function removeTalentProfileEmbedAction(
   input: z.input<typeof idSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const s = await scope();
   if (!s.ok) return { ok: false, error: s.error };
   const parsed = idSchema.safeParse(input);
@@ -310,6 +317,8 @@ export async function removeTalentProfileEmbedAction(
 export async function reorderTalentProfileEmbedsAction(
   input: z.input<typeof reorderSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const s = await scope();
   if (!s.ok) return { ok: false, error: s.error };
   if (!s.scope.canManage) {
@@ -337,6 +346,8 @@ export async function reorderTalentProfileEmbedsAction(
 export async function addTalentPressItemAction(
   input: z.input<typeof addPressSchema>,
 ): Promise<{ ok: true; item: TalentPressItem } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const s = await scope();
   if (!s.ok) return { ok: false, error: s.error };
   if (!s.scope.canManage) {
@@ -376,6 +387,8 @@ export async function addTalentPressItemAction(
 export async function updateTalentPressItemAction(
   input: z.input<typeof updatePressSchema>,
 ): Promise<{ ok: true; item: TalentPressItem } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const s = await scope();
   if (!s.ok) return { ok: false, error: s.error };
   if (!s.scope.canManage) {
@@ -417,6 +430,8 @@ export async function updateTalentPressItemAction(
 export async function removeTalentPressItemAction(
   input: z.input<typeof idSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const s = await scope();
   if (!s.ok) return { ok: false, error: s.error };
   const parsed = idSchema.safeParse(input);
@@ -435,6 +450,8 @@ export async function removeTalentPressItemAction(
 export async function reorderTalentPressItemsAction(
   input: z.input<typeof reorderSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const s = await scope();
   if (!s.ok) return { ok: false, error: s.error };
   if (!s.scope.canManage) {

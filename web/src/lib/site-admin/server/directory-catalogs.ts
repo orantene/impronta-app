@@ -79,6 +79,7 @@ import {
 import { DIRECTORY_CARD_CANDIDATE_REGISTRY } from "@/lib/field-engine/directory-field-catalog-registry";
 import { OLD_TO_NEW_KEY } from "@/lib/fields/legacy-mirror";
 import { byLabel } from "@/lib/field-engine/sort-comparators";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // Map a legacy directory field key → canonical System B `field_key`. Covers the
 // 17 value-bridge keys (OLD_TO_NEW_KEY) + the self-mapping taxonomy keys + the
@@ -276,6 +277,8 @@ export type SidebarLayoutInput = z.input<typeof sidebarLayoutInput>;
 export async function saveDirectorySidebarLayout(
   raw: SidebarLayoutInput,
 ): Promise<CatalogActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await guardCatalogScope();
   if (!guard.ok) return guard;
   const { admin, tenantId } = guard.scope;
@@ -361,6 +364,8 @@ export async function setDirectoryFieldSidebarVisibility(
   fieldKey: string,
   visible: boolean,
 ): Promise<CatalogActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const key = String(fieldKey ?? "").trim();
   if (!key) return { ok: false, error: "fieldKey required" };
 
@@ -387,6 +392,8 @@ export async function setDirectoryFieldSidebarVisibility(
 export async function setDirectorySidebarItemOrder(
   itemOrder: string[],
 ): Promise<CatalogActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const snap = await readDirectoryLiveCatalogSnapshot();
   if (!snap.ok) return snap;
 
@@ -403,6 +410,8 @@ export async function setDirectorySidebarItemOrder(
 export async function setDirectoryTopBarFacetKey(
   topBarFacetKey: string | null,
 ): Promise<CatalogActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const snap = await readDirectoryLiveCatalogSnapshot();
   if (!snap.ok) return snap;
 
@@ -419,6 +428,8 @@ export async function setDirectoryTopBarFacetKey(
 export async function setDirectoryFilterOptionSearchVisible(
   visible: boolean,
 ): Promise<CatalogActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const snap = await readDirectoryLiveCatalogSnapshot();
   if (!snap.ok) return snap;
 
@@ -436,6 +447,8 @@ export async function setDirectorySectionCollapsedDefault(
   sectionKey: string,
   collapsed: boolean,
 ): Promise<CatalogActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const key = String(sectionKey ?? "").trim();
   if (!key) return { ok: false, error: "sectionKey required" };
 
@@ -561,6 +574,8 @@ export async function setFieldCardVisible(
   cardVisible: boolean,
   tenantSlug?: string,
 ): Promise<CatalogActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await guardCatalogScope(tenantSlug, {
     requireCapability: "agency.site_admin.design.edit",
   });
@@ -580,6 +595,8 @@ export async function setFieldDirectoryFilterVisible(
   fieldKey: string,
   directoryFilterVisible: boolean,
 ): Promise<CatalogActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await guardCatalogScope(undefined, {
     requireCapability: "agency.site_admin.design.edit",
   });

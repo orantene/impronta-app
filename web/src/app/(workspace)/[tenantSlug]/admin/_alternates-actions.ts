@@ -11,6 +11,7 @@ import type { EngineErr } from "@/lib/inquiry/inquiry-engine.types";
 import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR } from "@/lib/server/safe-error";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // Deep-plan W9 — "use server" wrappers for the inquiry waitlist / alternates
 // engine. Staff-authorized (requireWorkspaceStaffAction), tenant-scoped, and they
@@ -45,6 +46,7 @@ function mapAlternateEngineFailure(res: EngineErr): ActionResult {
 }
 
 export async function addAlternateAction(formData: FormData): Promise<ActionResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
@@ -78,6 +80,7 @@ export async function addAlternateAction(formData: FormData): Promise<ActionResu
 }
 
 export async function removeAlternateAction(formData: FormData): Promise<ActionResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
@@ -106,6 +109,7 @@ export async function removeAlternateAction(formData: FormData): Promise<ActionR
 }
 
 export async function reorderAlternatesAction(formData: FormData): Promise<ActionResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
@@ -153,6 +157,7 @@ export async function reorderAlternatesAction(formData: FormData): Promise<Actio
 }
 
 export async function promoteAlternateAction(formData: FormData): Promise<ActionResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };

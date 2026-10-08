@@ -52,6 +52,7 @@ import {
   writeTenantTrackingId,
 } from "@/lib/site-admin/server/tracking-settings";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type TrackingReadResult =
   | { ok: true; config: TenantTrackingConfig }
@@ -92,6 +93,8 @@ export async function saveTrackingId(input: {
   provider: string;
   value: string;
 }): Promise<TrackingSaveResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await guard();
   if (!auth.ok) return { ok: false, error: auth.error };
 

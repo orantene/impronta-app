@@ -36,6 +36,7 @@ import {
   fetchResendDomain,
   type ResendDnsRecord,
 } from "@/lib/integrations/email-domain";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type IntegrationActionResult = { ok: true } | { ok: false; error: string };
 
@@ -86,6 +87,8 @@ export async function saveCustomCode(
   tenantSlug: string,
   input: { head_html: string; body_html: string },
 ): Promise<IntegrationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireEntitledSettingsManager(
     tenantSlug,
     "custom_css_allowed",
@@ -139,6 +142,8 @@ export async function saveCaptcha(
   tenantSlug: string,
   input: { provider: "hcaptcha" | "turnstile"; site_key: string; secret_key: string },
 ): Promise<IntegrationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireSettingsManager(tenantSlug);
   if (!guard.ok) return guard;
 
@@ -241,6 +246,8 @@ export async function saveEmailDomain(
   tenantSlug: string,
   domain: string,
 ): Promise<IntegrationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireEntitledSettingsManager(
     tenantSlug,
     "white_label_email",
@@ -311,6 +318,8 @@ export type VerifyEmailDomainResult =
 export async function verifyEmailDomain(
   tenantSlug: string,
 ): Promise<VerifyEmailDomainResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireEntitledSettingsManager(
     tenantSlug,
     "white_label_email",

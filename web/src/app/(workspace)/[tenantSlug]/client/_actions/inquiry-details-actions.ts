@@ -12,6 +12,7 @@
  * cancelled) are rejected by the engine; this wrapper forwards that error.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -47,6 +48,8 @@ export async function updateClientInquiryDetailsAction(
   inquiryId: string,
   patch: UpdateInquiryDetailsPatch,
 ): Promise<UpdateClientInquiryDetailsResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     if (!tenantSlug) return { ok: false, error: "Missing tenantSlug." };
     if (!inquiryId) return { ok: false, error: "Missing inquiryId." };

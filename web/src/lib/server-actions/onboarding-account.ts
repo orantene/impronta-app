@@ -33,6 +33,7 @@ import { promoteFreshProfileToTalent } from "@/lib/auth/promote-talent-signup";
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 import { claimTulalaBriefOnAuth } from "@/lib/tulala/brief-claim-auth";
 import type { OnboardingPath } from "@/lib/onboarding/module-state";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const VERIFY_WINDOW_MS = 15 * 60 * 1000;
 const VERIFY_PER_EMAIL = 10;
@@ -48,6 +49,7 @@ export async function requestOnboardingCode(input: {
   /** The 18+ and Terms/Privacy checkbox on the save step (Legal 2.2). */
   ageTerms?: boolean;
 }): Promise<RequestCodeResult> {
+  await requireNotImpersonating();
   if (!(await getOnboardingFlags()).onboarding_module_enabled) {
     return { ok: false, code: "module_off", message: "" };
   }
@@ -87,6 +89,7 @@ export async function verifyOnboardingCode(input: {
   /** Same tick as the request step; the acceptance is recorded once the account exists. */
   ageTerms?: boolean;
 }): Promise<VerifyCodeResult> {
+  await requireNotImpersonating();
   if (!(await getOnboardingFlags()).onboarding_module_enabled) {
     return { ok: false, code: "module_off", message: "" };
   }

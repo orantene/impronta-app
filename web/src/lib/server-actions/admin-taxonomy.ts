@@ -26,6 +26,7 @@ import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { localizedValue } from "@/lib/i18n/resolve-localized";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { byLabel } from "@/lib/field-engine/sort-comparators";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // Keep legacy type import paths working while the field engine owns the shapes.
 // Use direct type re-export; Turbopack emitted runtime references for local re-export.
@@ -463,6 +464,8 @@ export async function setTaxonomyEnabled(input: {
   taxonomy_term_id: string;
   is_enabled: boolean;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
@@ -558,6 +561,8 @@ const setFlagsSchema = z.object({
 export async function setTaxonomyFlags(
   input: z.infer<typeof setFlagsSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
@@ -669,6 +674,8 @@ export async function addCustomSubType(input: {
   name_es?: string | null;
   helper_text?: string | null;
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
@@ -750,6 +757,8 @@ const removeCustomSchema = z.object({
 export async function removeCustomSubType(input: {
   id: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;

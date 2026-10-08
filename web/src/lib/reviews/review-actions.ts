@@ -36,6 +36,7 @@ import {
   isValidRating,
 } from "./review-eligibility";
 import { insertOrEditTalentReview } from "./review-write";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type BookingRow = {
   id: string;
@@ -143,6 +144,8 @@ export async function submitTalentReviewAction(
   body: string,
   standing?: TalentReviewStanding,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireClient();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, user } = auth;
@@ -443,6 +446,8 @@ export async function submitClientReviewAction(
   rating: number,
   body: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalent();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, user } = auth;
@@ -688,6 +693,8 @@ export async function reportReviewAction(
   kind: ReviewSubjectKind,
   reviewId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, user } = auth;
@@ -828,6 +835,8 @@ export async function adminHideReviewAction(
   hidden: boolean,
   reasonCode?: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, user } = auth;

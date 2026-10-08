@@ -5,11 +5,14 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { SUPPORTED_CURRENCIES, type CurrencyCode } from "./currency-options";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export async function setCurrencyPreferenceAction(
   tenantSlug: string,
   currency: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) return { ok: false, error: "Workspace not found." };
 

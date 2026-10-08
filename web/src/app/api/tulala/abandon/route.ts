@@ -20,6 +20,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { recordAbandonment } from "@/lib/tulala/turn.server";
 import { loadBrief, type BriefOwner } from "@/lib/tulala/brief-store.server";
 import { packForBrief } from "@/lib/tulala/pack-for-brief";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const BodySchema = z.object({
   pendingQuestionId: z.string().max(80).nullable().default(null),
@@ -28,6 +29,8 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: Request): Promise<Response> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   let body: z.infer<typeof BodySchema>;
   try {
     // sendBeacon posts a bare string with no content-type we control, so parse

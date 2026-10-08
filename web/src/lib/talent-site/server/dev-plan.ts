@@ -8,6 +8,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import type { TalentSiteActionResult } from "@/lib/talent-site/types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Dev-only: mirror Compare-plans tier switch onto talent_profiles.talent_plan_key
@@ -16,6 +17,7 @@ import type { TalentSiteActionResult } from "@/lib/talent-site/types";
 export async function devSetTalentPlanTierForSelfAction(
   tier: TalentPlanTier,
 ): Promise<TalentSiteActionResult<{ planKey: string }>> {
+  await requireNotImpersonating();
   if (process.env.NODE_ENV === "production") {
     return { ok: false, code: "server_error", error: "Not available in production." };
   }

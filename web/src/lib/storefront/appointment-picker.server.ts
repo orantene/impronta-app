@@ -38,6 +38,7 @@ import type {
 import { commandIdempotentRunner } from "./idempotent";
 import { mapEngineRefusal } from "./refusals";
 import { publicOrigin, resolveStorefrontIdentity, storefrontLocale } from "./request-context";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 async function bind(locale: string | null | undefined): Promise<AppointmentPickerDeps | null> {
   const admin = createServiceRoleClient();
@@ -86,6 +87,7 @@ export async function actAppointmentPicker(
   input: AppointmentPickerInput,
   _expectedVersion?: number,
 ): Promise<AppointmentPickerResult> {
+  await requireNotImpersonating();
   try {
     const deps = await bind(input.locale);
     if (!deps) return mapEngineRefusal("unavailable", "en");

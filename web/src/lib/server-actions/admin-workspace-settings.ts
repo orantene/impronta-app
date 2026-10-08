@@ -35,6 +35,8 @@ import { invalidateTenantLocaleSettings } from "@/lib/site-admin/server/locale-r
 import { fetchLanguageSettings } from "@/lib/language-settings/fetch-language-settings";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { auditEvent } from "@/lib/audit/emit";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { HEX_COLOR, watermarkPresetSchema } from "./admin-workspace-settings-schemas";
 
 // Audits a settings save, naming the fields that actually changed (undefined = untouched).
 function auditSettingsSave(tenantId: string, action: string, verb: string, values: object) {
@@ -51,23 +53,6 @@ function auditSettingsSave(tenantId: string, action: string, verb: string, value
 // rarely queried — JSONB is cheaper than 7 ALTER TABLE migrations + the
 // resulting RLS reapproval. Future migration can extract specific fields
 // (logo_url, primary_color) into typed columns if a query needs them.
-
-const HEX_COLOR = z
-  .string()
-  .regex(/^#[0-9a-fA-F]{6}$/u, "Color must be a 6-digit hex like #0B0B0D");
-
-const WATERMARK_POSITIONS = [
-  "tl", "tc", "tr", "ml", "mc", "mr", "bl", "bc", "br",
-] as const;
-
-const watermarkPresetSchema = z.object({
-  enabled:     z.boolean(),
-  position:    z.enum(WATERMARK_POSITIONS),
-  size_pct:    z.number().min(4).max(25),
-  opacity:     z.number().min(0).max(1),
-  padding_pct: z.number().min(0).max(10),
-  variant:     z.enum(["light", "dark"]),
-}).optional();
 
 const updateBrandingSchema = z
   .object({
@@ -99,6 +84,8 @@ export type UpdateBrandingResult =
 export async function updateAgencyBranding(
   input: UpdateBrandingInput,
 ): Promise<UpdateBrandingResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
@@ -189,6 +176,8 @@ export type UpdateAccountInput = z.infer<typeof updateAccountSchema>;
 export async function updateWorkspaceAccount(
   input: UpdateAccountInput,
 ): Promise<UpdateBrandingResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
@@ -275,6 +264,8 @@ export type UpdateWorkspaceFieldsInput = z.infer<typeof updateWorkspaceFieldsSch
 export async function updateWorkspaceFields(
   input: UpdateWorkspaceFieldsInput,
 ): Promise<UpdateBrandingResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
@@ -492,6 +483,8 @@ export type UpdateWatermarkOverrideInput = z.infer<typeof overrideSchema>;
 export async function updateMediaWatermarkOverride(
   input: UpdateWatermarkOverrideInput,
 ): Promise<UpdateBrandingResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
@@ -542,6 +535,8 @@ export type UpdateAutoAckResult = { ok: true } | { ok: false; error: string };
 export async function updateAgencyAutoAck(
   input: UpdateAutoAckInput,
 ): Promise<UpdateAutoAckResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;

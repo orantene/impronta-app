@@ -23,6 +23,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
 import { appendBuilderLabAudit } from "./builder-lab-audit";
 import { clampRollout } from "./rollout-ramp";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ── Result type (local; mirrors registry-actions' TemplateActionResult shape) ──
 
@@ -85,6 +86,8 @@ export async function setRolloutRamp(
   templateId: string,
   input: SetRolloutRampInput,
 ): Promise<RampActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 

@@ -20,11 +20,14 @@ import { loadBrief } from "@/lib/tulala/brief-store.server";
 import { parsePersistedModuleState } from "@/lib/onboarding/module-state";
 import { essentialsReady } from "@/lib/onboarding/essentials";
 import { runOnboardingBuild } from "@/lib/onboarding/build.server";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   if (!(await getOnboardingFlags()).onboarding_module_enabled) {
     return NextResponse.json({ ok: false, code: "module_off" }, { status: 404 });
   }

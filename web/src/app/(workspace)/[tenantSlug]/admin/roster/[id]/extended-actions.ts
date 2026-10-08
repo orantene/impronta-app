@@ -22,6 +22,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { workspaceOwnedStamp } from "@/lib/media/ownership";
 import { checkTalentUploadQuota } from "@/lib/media/talent-storage-usage";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type Result<T = null> = { ok: true; data?: T } | { ok: false; error: string };
 
@@ -75,6 +76,7 @@ export async function addTalentTaxonomyTerm(
   termId: string,
   relationshipType: string,
 ): Promise<Result<null>> {
+  await requireNotImpersonating();
   try {
     const r = await gate(tenantSlug);
     if (!r.ok) return r;
@@ -143,6 +145,7 @@ export async function removeTalentTaxonomyTerm(
   termId: string,
   relationshipType: string,
 ): Promise<Result<null>> {
+  await requireNotImpersonating();
   try {
     const r = await gate(tenantSlug);
     if (!r.ok) return r;
@@ -183,6 +186,7 @@ export async function addTalentLanguage(
     canTeach?: boolean;
   },
 ): Promise<Result<{ id: string }>> {
+  await requireNotImpersonating();
   try {
     const r = await gate(tenantSlug);
     if (!r.ok) return r;
@@ -256,6 +260,7 @@ export async function updateTalentLanguage(
     canTeach: boolean;
   }>,
 ): Promise<Result<null>> {
+  await requireNotImpersonating();
   try {
     const r = await gate(tenantSlug);
     if (!r.ok) return r;
@@ -294,6 +299,7 @@ export async function removeTalentLanguage(
   talentId: string,
   languageId: string,
 ): Promise<Result<null>> {
+  await requireNotImpersonating();
   try {
     const r = await gate(tenantSlug);
     if (!r.ok) return r;
@@ -339,6 +345,7 @@ export async function addTalentServiceArea(
     travelFeeRequired?: boolean;
   },
 ): Promise<Result<null>> {
+  await requireNotImpersonating();
   try {
     const r = await gate(tenantSlug);
     if (!r.ok) return r;
@@ -396,6 +403,7 @@ export async function removeTalentServiceArea(
   talentId: string,
   serviceAreaId: string,
 ): Promise<Result<null>> {
+  await requireNotImpersonating();
   try {
     const r = await gate(tenantSlug);
     if (!r.ok) return r;
@@ -437,6 +445,7 @@ export async function registerPortfolioPhoto(
     mimeType?: string;
   },
 ): Promise<Result<{ id: string }>> {
+  await requireNotImpersonating();
   try {
     const r = await gate(tenantSlug);
     if (!r.ok) return r;
@@ -512,6 +521,7 @@ export async function removePortfolioPhoto(
   talentId: string,
   mediaAssetId: string,
 ): Promise<Result<null>> {
+  await requireNotImpersonating();
   try {
     const r = await gate(tenantSlug);
     if (!r.ok) return r;
@@ -561,6 +571,7 @@ export async function removeTalentFromRoster(
   tenantSlug: string,
   talentId: string,
 ): Promise<Result<null>> {
+  await requireNotImpersonating();
   try {
     const r = await gate(tenantSlug);
     if (!r.ok) return r;
@@ -597,6 +608,7 @@ export async function setTalentAvatar(
   talentId: string,
   mediaAssetId: string,
 ): Promise<Result<null>> {
+  await requireNotImpersonating();
   try {
     const r = await gate(tenantSlug);
     if (!r.ok) return r;
@@ -639,6 +651,7 @@ export async function setTalentHero(
   talentId: string,
   mediaAssetId: string,
 ): Promise<Result<null>> {
+  await requireNotImpersonating();
   try {
     const r = await gate(tenantSlug);
     if (!r.ok) return r;
@@ -685,6 +698,7 @@ export async function hardDeleteTalent(
   tenantSlug: string,
   talentId: string,
 ): Promise<Result<null>> {
+  await requireNotImpersonating();
   try {
     const r = await gate(tenantSlug, "agency.roster.manage");
     if (!r.ok) return r;

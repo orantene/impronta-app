@@ -9,6 +9,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { rebuildDemos, restoreDemoRun } from "@/lib/talent-site/demos/demo-rebuild.server";
 import { restoreOutcome } from "@/lib/talent-site/demos/rebuild-entry";
 import type { DemoDesign, DemoRebuildResult } from "@/lib/talent-site/demos/types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const BASE = "/platform/admin/builder-lab/themes";
 type Result<T = null> = { ok: true; data: T } | { ok: false; error: string };
@@ -25,6 +26,7 @@ const DESIGNS: readonly string[] = ["maison-v2", "folio", "gridline"];
 
 /** dryRun true reads and plans only; false rebuilds and publishes the design's demos. */
 export async function actionRebuildDemos(design: string, dryRun: boolean): Promise<Result<DemoRebuildResult>> {
+  await requireNotImpersonating();
   const g = await gate();
   if (!g.ok) return g;
   if (!DESIGNS.includes(design)) return { ok: false, error: "Unknown design." };
@@ -41,6 +43,7 @@ export async function actionRebuildDemos(design: string, dryRun: boolean): Promi
 }
 
 export async function actionRestoreDemoRun(runId: string): Promise<Result> {
+  await requireNotImpersonating();
   const g = await gate();
   if (!g.ok) return g;
   if (!/^[0-9a-f-]{36}$/i.test(runId)) return { ok: false, error: "Bad run id." };

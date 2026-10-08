@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/server/action-guards";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -13,6 +14,8 @@ export type AvatarUploadResult =
 export async function actionUploadAvatar(
   formData: FormData,
 ): Promise<AvatarUploadResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const session = await requireSession();
   if (!session.ok) return { ok: false, error: session.error };
 

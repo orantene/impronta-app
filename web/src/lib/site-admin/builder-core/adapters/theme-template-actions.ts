@@ -20,6 +20,7 @@ import type {
   ThemeTemplateLoaded,
   ThemeTemplateSaveOutcome,
 } from "./theme-template-adapter-core";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // Not imported from the core: a "use server" file may only export async functions.
 const THEME_TEMPLATE_TABLE = "talent_theme_drafts";
@@ -68,6 +69,7 @@ export async function saveThemeTemplateTreeAction(input: {
   nodes: BuilderNodeTree;
   expectedRev: number;
 }): Promise<ThemeTemplateSaveOutcome> {
+  await requireNotImpersonating();
   assertNoLegacyBuilderWrite("theme_template", THEME_TEMPLATE_TABLE);
   const g = await gate();
   if (!g.ok) return g;

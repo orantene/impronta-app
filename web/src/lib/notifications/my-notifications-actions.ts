@@ -16,6 +16,7 @@ import {
   markNotificationsRead as markNotificationsReadImpl,
 } from "@/lib/notifications/self";
 import type { MyNotification } from "@/lib/notifications/self-types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Load the calling user's most recent notifications across all tenants /
@@ -37,5 +38,6 @@ export async function loadMyNotifications(
 export async function markNotificationsRead(
   ids: string[] | "all",
 ): Promise<{ ok: boolean }> {
+  await requireNotImpersonating();
   return markNotificationsReadImpl(ids);
 }

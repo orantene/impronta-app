@@ -12,6 +12,7 @@ import { isRefundEffect, refundReasonForEffect } from "@/lib/orders/refund-effec
 import { refundDeskOutcome, type RefundDeskOutcome } from "@/lib/orders/refund-desk-copy";
 import { packageRefundShare } from "@/lib/catalog/packages";
 import { logServerError } from "@/lib/server/safe-error";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * EVERY ANSWER FROM THIS FILE IS A CODE, NEVER A SENTENCE.
@@ -146,6 +147,7 @@ const schema = z.object({
 });
 
 export async function refundOrderAtDesk(input: z.infer<typeof schema>): Promise<RefundDeskResult> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return { ok: false, outcome: "not_allowed" };
   const allowed = await userHasCapability("manage_billing", guard.tenantId);

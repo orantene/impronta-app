@@ -25,6 +25,7 @@ import {
 import { ownBookingGate, talentBookingMirrorEq } from "./ownership";
 import type { OwnBookingResult } from "./ownership";
 import { resolveAgendaPayLinkBooking } from "./resolve-agenda-pay-booking";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type AgendaActionOk = { ok: true; already?: boolean };
 export type AgendaActionFail = { ok: false; reason: string };
@@ -113,6 +114,7 @@ export async function markBookingNoShow(input: {
   bookingId: string;
   now?: Date;
 }): Promise<AgendaActionResult> {
+  await requireNotImpersonating();
   const own = await requireOwnBooking(input.bookingId);
   if (!own.ok) return own;
 
@@ -190,6 +192,7 @@ export async function markBookingNoShow(input: {
 export async function completeBooking(input: {
   bookingId: string;
 }): Promise<AgendaActionResult> {
+  await requireNotImpersonating();
   const own = await requireOwnBooking(input.bookingId);
   if (!own.ok) return own;
 
@@ -252,6 +255,7 @@ export async function recordBookingPayment(input: {
   method: ManualPaymentMethod;
   idempotencyKey: string;
 }): Promise<ManualPaymentResult | AgendaActionFail> {
+  await requireNotImpersonating();
   const own = await requireOwnBooking(input.bookingId);
   if (!own.ok) return own;
 
@@ -299,6 +303,7 @@ export async function recordBookingCashCollected(input: {
   bookingId: string;
   amountCents?: number;
 }): Promise<AgendaActionResult> {
+  await requireNotImpersonating();
   const own = await requireOwnBooking(input.bookingId);
   if (!own.ok) return own;
 
@@ -376,6 +381,7 @@ const TRANSFER_AWAITING_NOTE = "Transfer awaiting confirmation.";
 export async function recordBookingTransferAwaiting(input: {
   bookingId: string;
 }): Promise<AgendaActionResult> {
+  await requireNotImpersonating();
   const own = await requireOwnBooking(input.bookingId);
   if (!own.ok) return own;
 
@@ -432,6 +438,7 @@ export async function recordBookingTransferAwaiting(input: {
 export async function markBookingTransferReceived(input: {
   bookingId: string;
 }): Promise<AgendaActionResult> {
+  await requireNotImpersonating();
   const own = await requireOwnBooking(input.bookingId);
   if (!own.ok) return own;
 
@@ -520,6 +527,7 @@ export async function createAgendaBookingPayLink(input: {
   amountCents?: number;
   publicOrigin: string;
 }): Promise<CreateAgendaPayLinkResult> {
+  await requireNotImpersonating();
   const own = await requireOwnBooking(input.bookingId);
   if (!own.ok) return own;
 

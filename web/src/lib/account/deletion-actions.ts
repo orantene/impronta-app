@@ -15,6 +15,7 @@ import {
   type DeletionStatus,
   type DeletionSurface,
 } from "./deletion";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Self-serve account deletion: request, cancel, read status. The table is
@@ -88,6 +89,8 @@ export async function requestAccountDeletion(input: {
   confirm: string;
   surface: DeletionSurface;
 }): Promise<DeletionStatusResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const userId = await currentUserId();
   if (!userId) return { ok: false, error: "not_signed_in" };
   if (!isDeletionConfirmation(input.confirm ?? "")) return { ok: false, error: "confirm_mismatch" };
@@ -136,6 +139,8 @@ export async function requestAccountDeletion(input: {
 }
 
 export async function cancelAccountDeletion(): Promise<DeletionStatusResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const userId = await currentUserId();
   if (!userId) return { ok: false, error: "not_signed_in" };
   const admin = createServiceRoleClient();

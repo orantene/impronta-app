@@ -19,6 +19,7 @@
  * old code never wrote, so replaced logos stop being invisible orphans.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -153,6 +154,8 @@ async function persistMaxSiteLogoUrl(input: {
 export async function uploadMaxSiteLogoAction(
   formData: FormData,
 ): Promise<MaxSiteActionResult<{ logoUrl: string }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
@@ -220,6 +223,8 @@ export async function uploadMaxSiteLogoAction(
 export async function createMaxSiteLogoUploadUrlAction(
   ext: string,
 ): Promise<MaxSiteActionResult<{ uploadUrl: string; storagePath: string }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
@@ -253,6 +258,8 @@ export async function createMaxSiteLogoUploadUrlAction(
 export async function finalizeMaxSiteLogoAction(
   storagePath: string,
 ): Promise<MaxSiteActionResult<{ logoUrl: string }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
@@ -321,6 +328,8 @@ export async function finalizeMaxSiteLogoAction(
 export async function uploadMaxSiteLogoSvgAction(
   svgText: string,
 ): Promise<MaxSiteActionResult<{ logoUrl: string }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
@@ -374,6 +383,8 @@ export async function uploadMaxSiteLogoSvgAction(
 
 /** Remove the site logo (clears `talent_sites.logo_url`). */
 export async function removeMaxSiteLogoAction(): Promise<MaxSiteActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
   const sb = await getCachedServerSupabase();

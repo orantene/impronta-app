@@ -15,6 +15,7 @@ import { parseTalentSiteSnapshot } from "@/lib/talent-site/validation";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
 import { maxSitePublicGate } from "@/lib/talent-site/resolve-max-site-core";
 import { talentSitePathUrl, talentSitePublicUrl } from "@/lib/talent-site/site-public-url";
+import type { EffectiveReadContext } from "@/lib/impersonation/effective-read";
 
 function mapSiteRow(row: TalentSiteRow): TalentSiteDashboardState["site"] {
   const draftSnapshot = parseTalentSiteSnapshot(row.draft_snapshot);
@@ -66,15 +67,32 @@ function publishedPersonalSiteUrl(input: {
   return talentSitePathUrl(slug);
 }
 
+export type PersonalSiteStateDeps = {
+  requireTalentSelf: typeof requireTalentSelf;
+  admin: () => ReturnType<typeof createServiceRoleClient>;
+};
+
+const DEFAULT_STATE_DEPS: PersonalSiteStateDeps = {
+  requireTalentSelf,
+  admin: () => createServiceRoleClient(),
+};
+
 export async function loadTalentPersonalSiteDashboardState(
   tenantSlug?: string,
+  /**
+   * TUL-245: from `effectiveReadContext` only. Under a verified impersonation
+   * the state is the acted-as talent's, and the first-visit provisioning WRITE
+   * is skipped (impersonation is read-only).
+   */
+  ctx?: EffectiveReadContext,
+  deps: PersonalSiteStateDeps = DEFAULT_STATE_DEPS,
 ): Promise<
   | { ok: true; state: TalentSiteDashboardState }
   | { ok: false; code: string; error: string }
 > {
   const scope = tenantSlug
-    ? await requireTalentSelfScope(tenantSlug)
-    : await requireTalentSelf();
+    ? await requireTalentSelfScope(tenantSlug, ctx)
+    : await deps.requireTalentSelf(ctx);
   if (!scope.ok) {
     return { ok: false, code: scope.code, error: scope.error };
   }
@@ -82,7 +100,7 @@ export async function loadTalentPersonalSiteDashboardState(
   const membership: TalentMembershipState = buildTalentMembershipState(scope.planKey);
   const profileCode = scope.talentProfile.profileCode;
 
-  const admin = createServiceRoleClient();
+  const admin = deps.admin();
   let site: TalentSiteDashboardState["site"] = null;
   /** Published personal website (custom domain / vanity host / path), if any. */
   let personalSiteUrl: string | null = null;

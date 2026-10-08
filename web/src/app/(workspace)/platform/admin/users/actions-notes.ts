@@ -14,6 +14,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPlatformRole } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -110,6 +111,8 @@ export async function addPlatformUserNote(
   targetKind: "human" | "unclaimed_talent",
   body: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -150,6 +153,8 @@ export async function addPlatformUserNote(
  * Any super_admin may delete any note.
  */
 export async function deletePlatformUserNote(noteId: string): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 

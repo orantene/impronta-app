@@ -22,6 +22,7 @@ import {
   type SupportMessageRow,
   type SupportTicketRow,
 } from "./support-types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type GuestSupportFail = { ok: false; error: string };
 export type GuestSupportOk<T extends object = object> = { ok: true } & T;
@@ -80,6 +81,7 @@ export async function startGuestSupportChatAction(input: {
   locale?: "en" | "es";
   honeypot?: string | null;
 }): Promise<GuestSupportOk<{ ticketId: string; ticketNumber: number }> | GuestSupportFail> {
+  await requireNotImpersonating();
   const body = (input.body ?? "").trim();
   if (!body || body.length > 8000) return { ok: false, error: "Write a short question to start." };
 
@@ -128,6 +130,7 @@ export async function sendGuestSupportMessageAction(input: {
   body: string;
   honeypot?: string | null;
 }): Promise<GuestSupportOk<{ messageId: string }> | GuestSupportFail> {
+  await requireNotImpersonating();
   const body = (input.body ?? "").trim();
   if (!body || body.length > 8000) return { ok: false, error: "Message is empty." };
   const ident = await requireSignedGuest();
@@ -196,6 +199,7 @@ export async function attachGuestContactAction(input: {
   name?: string | null;
   honeypot?: string | null;
 }): Promise<GuestSupportOk<{ resumePath: string }> | GuestSupportFail> {
+  await requireNotImpersonating();
   const ident = await requireSignedGuest();
   if (!ident.ok) return ident;
   if (input.honeypot && input.honeypot.trim()) {
@@ -244,6 +248,7 @@ export async function attachGuestContactAction(input: {
 export async function requestGuestHumanAction(input: {
   ticketId: string;
 }): Promise<GuestSupportOk | GuestSupportFail> {
+  await requireNotImpersonating();
   const ident = await requireSignedGuest();
   if (!ident.ok) return ident;
   const ticket = await loadOwnedGuestTicket(ident.admin, input.ticketId, {
@@ -263,6 +268,7 @@ export async function requestGuestHumanAction(input: {
 export async function markGuestThreadReadAction(input: {
   ticketId: string;
 }): Promise<GuestSupportOk | GuestSupportFail> {
+  await requireNotImpersonating();
   const ident = await requireSignedGuest();
   if (!ident.ok) return ident;
   const ticket = await loadOwnedGuestTicket(ident.admin, input.ticketId, {
@@ -279,6 +285,7 @@ export async function markGuestThreadReadAction(input: {
 export async function resumeGuestThreadAction(input: {
   token: string;
 }): Promise<GuestSupportOk<{ ticketId: string }> | GuestSupportFail> {
+  await requireNotImpersonating();
   const ident = await requireSignedGuest();
   if (!ident.ok) return ident;
   const verified = verifyGuestResumeToken(input.token);
@@ -311,6 +318,7 @@ export async function resumeGuestThreadAction(input: {
 export async function appendGuestContactCardAction(input: {
   ticketId: string;
 }): Promise<GuestSupportOk | GuestSupportFail> {
+  await requireNotImpersonating();
   const ident = await requireSignedGuest();
   if (!ident.ok) return ident;
   const ticket = await loadOwnedGuestTicket(ident.admin, input.ticketId, {
@@ -351,6 +359,7 @@ export async function submitMarketingContactAction(input: {
   honeypot?: string | null;
   locale?: "en" | "es";
 }): Promise<GuestSupportOk<{ ticketId: string }> | GuestSupportFail> {
+  await requireNotImpersonating();
   const ident = await requireSignedGuest();
   if (!ident.ok) return ident;
   const ip = await resolveClientIp();

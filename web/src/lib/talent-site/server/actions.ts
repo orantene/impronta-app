@@ -30,6 +30,7 @@ import type {
   TalentSiteSnapshotSection,
 } from "@/lib/talent-site/types";
 import { validateTalentSiteSnapshot } from "@/lib/talent-site/validation";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export async function fetchTalentPersonalSiteDashboardStateAction() {
   return loadTalentPersonalSiteDashboardState();
@@ -91,6 +92,7 @@ function clampSnapshotForPublish(
 export async function createTalentPersonalSiteDraftAction(): Promise<
   TalentSiteActionResult<{ siteId: string; version: number }>
 > {
+  await requireNotImpersonating();
   const scope = await requireTalentSelf();
   if (!scope.ok) {
     return { ok: false, code: scope.code, error: scope.error };
@@ -188,6 +190,7 @@ export type SaveTalentPersonalSiteDraftInput = {
 export async function saveTalentPersonalSiteDraftAction(
   input: SaveTalentPersonalSiteDraftInput,
 ): Promise<TalentSiteActionResult<{ version: number }>> {
+  await requireNotImpersonating();
   const scope = await requireTalentSelf();
   if (!scope.ok) {
     return { ok: false, code: scope.code, error: scope.error };
@@ -294,6 +297,7 @@ export type PublishTalentPersonalSiteInput = {
 export async function publishTalentPersonalSiteAction(
   input: PublishTalentPersonalSiteInput,
 ): Promise<TalentSiteActionResult<{ version: number; publishedAt: string }>> {
+  await requireNotImpersonating();
   const scope = await requireTalentSelf();
   if (!scope.ok) {
     return { ok: false, code: scope.code, error: scope.error };
@@ -395,6 +399,7 @@ export async function publishTalentPersonalSiteAction(
 }
 
 export async function unpublishTalentPersonalSiteAction(): Promise<TalentSiteActionResult> {
+  await requireNotImpersonating();
   const scope = await requireTalentSelf();
   if (!scope.ok) {
     return { ok: false, code: scope.code, error: scope.error };
@@ -465,6 +470,7 @@ export type ApplyTalentSiteTemplateInput = {
 export async function applyTalentSiteTemplateAction(
   input: ApplyTalentSiteTemplateInput,
 ): Promise<TalentSiteActionResult<{ version: number }>> {
+  await requireNotImpersonating();
   const scope = await requireTalentSelf();
   if (!scope.ok) {
     return { ok: false, code: scope.code, error: scope.error };
@@ -600,6 +606,7 @@ export type SetTalentSiteCompositionModeInput = {
 export async function setTalentSiteCompositionModeAction(
   input: SetTalentSiteCompositionModeInput,
 ): Promise<TalentSiteActionResult<{ version: number }>> {
+  await requireNotImpersonating();
   const scope = await requireTalentSelf();
   if (!scope.ok) {
     return { ok: false, code: scope.code, error: scope.error };
@@ -671,6 +678,7 @@ export type SaveTalentSiteCompositionInput = {
 export async function saveTalentSiteCompositionAction(
   input: SaveTalentSiteCompositionInput,
 ): Promise<TalentSiteActionResult<{ version: number }>> {
+  await requireNotImpersonating();
   const scope = await requireTalentSelf();
   if (!scope.ok) {
     return { ok: false, code: scope.code, error: scope.error };

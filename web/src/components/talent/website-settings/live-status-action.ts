@@ -1,5 +1,6 @@
 "use server";
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import {
@@ -44,6 +45,8 @@ export async function setEmergenciesTodayAction(
   on: boolean,
   browserTimeZone?: string,
 ): Promise<{ ok: true; status: LiveStatusSnapshot } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const scope = await requireTalentSelf();
   if (!scope.ok) return { ok: false, error: "forbidden" };
   const admin = createServiceRoleClient();

@@ -18,6 +18,7 @@ import {
   runDryRun,
 } from "@/lib/talent-site/theme-releases/manager/release-manager.server";
 import type { DryRunReport } from "@/lib/talent-site/theme-releases/manager/dry-run";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const BASE = "/platform/admin/builder-lab/themes";
 type Result<T = null> = { ok: true; data: T } | { ok: false; error: string };
@@ -59,6 +60,7 @@ export async function actionSaveRelease(
   releaseId: string,
   input: { itemEdits: Array<{ id: string } & ItemEdit>; notesEn?: string; notesEs?: string },
 ): Promise<Result> {
+  await requireNotImpersonating();
   return withRelease(releaseId, async (admin, release) => {
     if (release.status === "archived") return { ok: false, error: "This release is archived." };
     let items = release.items ?? [];
@@ -78,6 +80,7 @@ export async function actionSaveRelease(
 
 /** READ-ONLY merge of the release into every site on the design. */
 export async function actionRunDryRun(releaseId: string): Promise<Result<DryRunReport>> {
+  await requireNotImpersonating();
   return withRelease(releaseId, async (admin, release) => {
     const res = await runDryRun(admin, release);
     return res.ok ? { ok: true, data: res.report } : res;
@@ -89,6 +92,7 @@ export async function actionChangeChannel(
   releaseId: string,
   target: ReleaseChannel,
 ): Promise<Result<{ channel: ReleaseChannel; demosApplied: number; updates: number; bells: number; warnings: string[] }>> {
+  await requireNotImpersonating();
   return withRelease(releaseId, async (admin, release) => {
     if (target !== "demos" && target !== "optin" && target !== "default") {
       return { ok: false, error: "Unknown channel." };
@@ -100,6 +104,7 @@ export async function actionChangeChannel(
 
 /** Re-sync demos: every demo still below to_version, any channel after draft. */
 export async function actionResyncDemos(releaseId: string): Promise<Result<{ applied: number; warnings: string[] }>> {
+  await requireNotImpersonating();
   return withRelease(releaseId, async (admin, release) => {
     const res = await resyncDemos(admin, release);
     return res.ok ? { ok: true, data: { applied: res.applied, warnings: res.warnings } } : res;
@@ -107,6 +112,7 @@ export async function actionResyncDemos(releaseId: string): Promise<Result<{ app
 }
 
 export async function actionSetRollout(releaseId: string, pct: number): Promise<Result<{ updates: number; bells: number }>> {
+  await requireNotImpersonating();
   return withRelease(releaseId, async (admin, release) => {
     const res = await changeRollout(admin, release, pct);
     return res.ok ? { ok: true, data: { updates: res.updates, bells: res.bells } } : res;
@@ -115,6 +121,7 @@ export async function actionSetRollout(releaseId: string, pct: number): Promise<
 
 /** Pause hides the release from talents; resume also fans out to sites that became eligible meanwhile (F126). */
 export async function actionSetPaused(releaseId: string, paused: boolean): Promise<Result<{ updates: number; bells: number }>> {
+  await requireNotImpersonating();
   return withRelease(releaseId, async (admin, release) => {
     const res = await setReleasePaused(admin, release, paused);
     return res.ok ? { ok: true, data: { updates: res.updates, bells: res.bells } } : res;

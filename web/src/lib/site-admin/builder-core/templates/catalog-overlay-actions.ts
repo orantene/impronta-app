@@ -48,6 +48,7 @@ import {
   buildOverlayPayload,
   checkSurfaceGuard,
 } from "./catalog-overlay-payload";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type OverlayActionResult<T = void> =
   | { ok: true; data: T }
@@ -229,6 +230,7 @@ async function fetchTemplateTargetContext(
 export async function setComponentOverlay(
   input: SetCatalogOverlayInput,
 ): Promise<OverlayActionResult> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
@@ -311,6 +313,7 @@ export async function setComponentOverlay(
 export async function clearComponentOverlay(
   itemRef: string,
 ): Promise<OverlayActionResult> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
   if (!itemRef) return fail("Missing item reference.");
@@ -390,6 +393,7 @@ export type BatchItemResult = OverlayActionResult & { item_ref: string };
 export async function setComponentOverlayBatch(
   inputs: SetCatalogOverlayInput[],
 ): Promise<OverlayActionResult<BatchItemResult[]>> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
   if (!inputs.length) return ok([]);
@@ -505,6 +509,7 @@ export async function setComponentOverlayBatch(
 export async function clearComponentOverlayBatch(
   refs: string[],
 ): Promise<OverlayActionResult<BatchItemResult[]>> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
   if (!refs.length) return ok([]);
@@ -586,6 +591,7 @@ export async function loadOverlayHistory(
 export async function revertOverlayToAudit(
   auditId: string,
 ): Promise<OverlayActionResult> {
+  await requireNotImpersonating();
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
   if (!auditId) return fail("Missing audit reference.");

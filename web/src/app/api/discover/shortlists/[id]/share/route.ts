@@ -19,10 +19,13 @@ import {
   signShortlistToken,
   buildShortlistShareUrl,
 } from "@/lib/discover/shortlist-share-token";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   const session = await getCachedActorSession();
   if (!session.user) {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });

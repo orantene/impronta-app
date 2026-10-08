@@ -1,5 +1,6 @@
 "use server";
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { randomBytes } from "node:crypto";
 
 import {
@@ -162,6 +163,8 @@ export async function loadTalentSiteDomainsForPanel(): Promise<TalentSiteDomainA
 export async function connectTalentSiteDomainAction(
   rawHostname: string,
 ): Promise<TalentSiteDomainActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await guardTalentDomainContext();
   if (!guard.ok) return { ok: false, error: guard.error };
   const { ctx } = guard;
@@ -267,6 +270,8 @@ export async function connectTalentSiteDomainAction(
 export async function verifyTalentSiteDomainAction(
   rawHostname: string,
 ): Promise<TalentSiteDomainActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await guardTalentDomainContext();
   if (!guard.ok) return { ok: false, error: guard.error };
   const { ctx } = guard;
@@ -336,6 +341,8 @@ export async function verifyTalentSiteDomainAction(
 export async function checkTalentSiteDomainProvisioningAction(
   rawHostname: string,
 ): Promise<TalentSiteDomainActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await guardTalentDomainContext();
   if (!guard.ok) return { ok: false, error: guard.error };
   const { ctx } = guard;
@@ -406,6 +413,8 @@ export async function checkTalentSiteDomainProvisioningAction(
 export async function setPrimaryTalentSiteDomainAction(
   rawHostname: string,
 ): Promise<TalentSiteDomainActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await guardTalentDomainContext();
   if (!guard.ok) return { ok: false, error: guard.error };
   const { ctx } = guard;
@@ -481,6 +490,8 @@ export async function setPrimaryTalentSiteDomainAction(
 export async function removeTalentSiteDomainAction(
   rawHostname: string,
 ): Promise<TalentSiteDomainActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await guardTalentDomainContext();
   if (!guard.ok) return { ok: false, error: guard.error };
   const { ctx } = guard;

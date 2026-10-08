@@ -24,6 +24,7 @@ import { sendEmailResult } from "@/lib/email";
 import { createResendDomain, fetchResendDomain } from "@/lib/integrations/email-domain";
 import { setIntegrationConfig, getTenantIntegration } from "@/lib/integrations/repository";
 import { EMAIL_DOMAIN_INTEGRATION_KEY } from "@/lib/integrations/catalog";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const REVALIDATE_PATH = "/platform/admin/email";
 
@@ -46,6 +47,8 @@ export type RetryActionResult =
   | { ok: false; error: string };
 
 export async function retryEmailRow(rowId: string): Promise<RetryActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const admin = createServiceRoleClient();
@@ -68,6 +71,8 @@ export async function addSuppression(input: {
   email: string;
   notes?: string;
 }): Promise<SuppressionActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const email = (input.email ?? "").trim().toLowerCase();
@@ -91,6 +96,8 @@ export async function addSuppression(input: {
 }
 
 export async function removeSuppression(email: string): Promise<SuppressionActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const addr = (email ?? "").trim().toLowerCase();
@@ -122,6 +129,8 @@ export async function sendTestEmail(input: {
   to: string;
   tenantId?: string | null;
 }): Promise<TestSendResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const to = (input.to ?? "").trim();
@@ -176,6 +185,8 @@ export async function setEventOverlay(input: {
   channel: "email" | "in_app";
   enabled: boolean;
 }): Promise<ToggleActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const entryId = (input.catalogEntryId ?? "").trim();
@@ -220,6 +231,8 @@ export async function setTemplateOverride(input: {
   body: string;
   enabled: boolean;
 }): Promise<ToggleActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const entryId = (input.catalogEntryId ?? "").trim();
@@ -256,6 +269,8 @@ export async function clearTemplateOverride(input: {
   catalogEntryId: string;
   locale?: string;
 }): Promise<ToggleActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const entryId = (input.catalogEntryId ?? "").trim();
@@ -294,6 +309,8 @@ export async function addSendingDomain(input: {
   tenantId: string;
   domain: string;
 }): Promise<SendingDomainActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const tenantId = (input.tenantId ?? "").trim();
@@ -331,6 +348,8 @@ export async function addSendingDomain(input: {
 
 /** Re-check a tenant domain's DNS with Resend and update its stored status + records. */
 export async function verifySendingDomain(input: { tenantId: string }): Promise<SendingDomainActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const tenantId = (input.tenantId ?? "").trim();
@@ -362,6 +381,8 @@ export async function verifySendingDomain(input: { tenantId: string }): Promise<
 
 /** Disconnect a tenant's white-label domain (reverts that tenant to the platform sender). */
 export async function removeSendingDomain(input: { tenantId: string }): Promise<SendingDomainActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const tenantId = (input.tenantId ?? "").trim();

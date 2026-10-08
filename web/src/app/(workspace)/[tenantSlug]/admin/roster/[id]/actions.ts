@@ -26,6 +26,7 @@ import { residenceCityPatchFromText } from "@/lib/residence-city-sync";
 import { notifyTalentProfileApproved } from "@/lib/notifications/producers/talent-profile-approved-notify";
 import { assertTalentReadyForPublicListing } from "@/lib/field-engine/profile-publish-server-gate";
 import { workspaceOwnedStamp } from "@/lib/media/ownership";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -167,6 +168,7 @@ export async function updateRosterTalentProfile(
   _prev: RosterTalentEditState,
   formData: FormData,
 ): Promise<RosterTalentEditState> {
+  await requireNotImpersonating();
   const ctx = await resolveEditContext(tenantSlug, talentId);
   if (!ctx.ok) return { error: ctx.error };
 
@@ -457,6 +459,8 @@ export async function registerRosterTalentPhoto(
   width: number,
   height: number,
 ): Promise<RegisterPhotoResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const ctx = await resolveEditContext(tenantSlug, talentId);
   if (!ctx.ok) return { ok: false, error: ctx.error };
 
@@ -543,6 +547,7 @@ export async function updateRosterTalentWorkflow(
   _prev: RosterTalentEditState,
   formData: FormData,
 ): Promise<RosterTalentEditState> {
+  await requireNotImpersonating();
   const ctx = await resolveEditContext(tenantSlug, talentId);
   if (!ctx.ok) return { error: ctx.error };
 
@@ -635,6 +640,7 @@ export async function setRosterTalentSiteVisibility(
   talentId: string,
   visible: boolean,
 ): Promise<RosterTalentEditState> {
+  await requireNotImpersonating();
   const ctx = await resolveEditContext(tenantSlug, talentId);
   if (!ctx.ok) return { error: ctx.error };
 

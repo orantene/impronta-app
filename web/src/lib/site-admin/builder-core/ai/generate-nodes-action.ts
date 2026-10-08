@@ -43,6 +43,7 @@ import {
   resolveGenerationModel,
   type GenerationModelId,
 } from "@/lib/ai/ai-generation-model";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type GenerateNodesActionState =
   | {
@@ -190,6 +191,7 @@ export async function generateBuilderNodesAction(input: {
    */
   backgroundMode?: string;
 }): Promise<GenerateNodesActionState> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 

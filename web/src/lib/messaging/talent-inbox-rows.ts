@@ -4,7 +4,9 @@ import { loadMessagingInbox } from "@/lib/messaging/inbox";
 import { filterQaFixtureInboxRows } from "@/lib/messages-v5/qa-fixture-row";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 
-import { loadTalentActor, listTalentInquiryIds } from "./talent-actor";
+import type { EffectiveReadContext } from "@/lib/impersonation/effective-read";
+
+import { loadTalentActor, listTalentInquiryIds, type TalentActorDeps } from "./talent-actor";
 import { talentIsSeller } from "./talent-pov";
 import type { InboxFilter } from "./types";
 
@@ -42,8 +44,12 @@ export async function loadTalentInboxForActor(actor: Actor, filter: InboxFilter)
 }
 
 /** Inquiry ids that appear in this talent's Messages list; null when it cannot be resolved. */
-export async function loadTalentVisibleInquiryIds(): Promise<Set<string> | null> {
-  const actor = await loadTalentActor();
+export async function loadTalentVisibleInquiryIds(
+  /** TUL-245: from `effectiveReadContext` only. */
+  ctx?: EffectiveReadContext,
+  deps?: TalentActorDeps,
+): Promise<Set<string> | null> {
+  const actor = await loadTalentActor(ctx, deps);
   if (!actor.ok) return null;
   const inbox = await loadTalentInboxForActor(actor, "all");
   if (!inbox.ok) return null;

@@ -6,6 +6,8 @@ import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 
+import { readUserId, type EffectiveReadContext } from "@/lib/impersonation/effective-read";
+
 import { fail } from "./refusals";
 import { inquiryIsHers, talentIdsOnInquiry, talentIsSeller, type TalentOrderLine } from "./talent-pov";
 
@@ -25,8 +27,26 @@ export type TalentActor = {
   supabase: SupabaseClient;
 };
 
-export async function loadTalentActor(): Promise<TalentActor | { ok: false; reason: MessagingRefusal }> {
-  const supabase = await createSupabaseServerClient();
+export type TalentActorDeps = {
+  rlsClient: () => Promise<SupabaseClient | null>;
+  adminClient: () => SupabaseClient | null;
+};
+
+const DEFAULT_ACTOR_DEPS: TalentActorDeps = {
+  rlsClient: () => createSupabaseServerClient(),
+  adminClient: () => createServiceRoleClient(),
+};
+
+/**
+ * The signed-in talent. `ctx` (TUL-245) is for READ loaders only: a verified
+ * impersonation resolves the talent being acted as. Every messaging mutation
+ * calls this with no context and keeps resolving the real session user.
+ */
+export async function loadTalentActor(
+  ctx?: EffectiveReadContext,
+  deps: TalentActorDeps = DEFAULT_ACTOR_DEPS,
+): Promise<TalentActor | { ok: false; reason: MessagingRefusal }> {
+  const supabase = await deps.rlsClient();
   if (!supabase) return fail("unavailable");
   const {
     data: { user },
@@ -34,15 +54,16 @@ export async function loadTalentActor(): Promise<TalentActor | { ok: false; reas
   } = await supabase.auth.getUser();
   if (authError) return fail("unavailable");
   if (!user) return fail("not_allowed");
-  const admin = createServiceRoleClient();
+  const admin = deps.adminClient();
   if (!admin) return fail("unavailable");
-  const { data, error } = await admin.from("talent_profiles").select("id, is_demo").eq("user_id", user.id).maybeSingle();
+  const subjectId = readUserId(user.id, ctx);
+  const { data, error } = await admin.from("talent_profiles").select("id, is_demo").eq("user_id", subjectId).maybeSingle();
   if (error) return fail("unavailable");
   if (!data) return fail("not_allowed");
   const row = data as { id: string; is_demo?: boolean | null };
   return {
     ok: true,
-    userId: user.id,
+    userId: subjectId,
     talentProfileId: row.id,
     isDemo: row.is_demo === true,
     admin,

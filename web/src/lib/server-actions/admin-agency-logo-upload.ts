@@ -33,6 +33,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { sanitizeSvgLogoBuffer } from "@/lib/site-admin/sanitize-svg-upload";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const BUCKET = "media-public";
 const LOGO_PREFIX = "agency-logos";
@@ -54,6 +55,8 @@ export type AgencyLogoSignedUrlResult =
 export async function actionCreateAgencyLogoUploadUrl(
   ext: string,
 ): Promise<AgencyLogoSignedUrlResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   // The signed URL bakes `auth.tenantId` into the storage path, so this must
   // resolve the workspace being administered, not the operator's preferred
   // tenant — otherwise the object is minted under the wrong tenant's prefix.
@@ -90,6 +93,8 @@ export async function actionCreateAgencyLogoUploadUrl(
 export async function actionFinalizeAgencyLogo(
   storagePath: string,
 ): Promise<AgencyLogoUploadResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   // Branding surface — graded above the workspace baseline to the
   // membership-role capability the Phase-5 matrix assigns it (admin/owner).
   const auth = await requireWorkspaceStaffAction({
@@ -150,6 +155,8 @@ export async function actionFinalizeAgencyLogo(
 export async function actionUploadAgencyLogoSvg(
   svgText: string,
 ): Promise<AgencyLogoUploadResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.branding.edit",
   });

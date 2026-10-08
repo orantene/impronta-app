@@ -11,6 +11,7 @@
  * released only now, on hand-off.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -81,6 +82,8 @@ export async function markBookingFulfillment(
   bookingId: string,
   input: { status: FulfillmentStatus; carrier?: string | null; trackingNumber?: string | null; notes?: string | null },
 ): Promise<MarkFulfillmentResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     if (!FULFILLMENT_STATUSES.includes(input.status)) return { ok: false, error: "Unknown status." };
     const auth = await authorizeForBooking(bookingId);

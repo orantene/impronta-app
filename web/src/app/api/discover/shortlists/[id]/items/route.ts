@@ -15,10 +15,13 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   const session = await getCachedActorSession();
   if (!session.user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
 

@@ -19,6 +19,7 @@ import { getPublicTenantScope, getPublicHostContext } from "@/lib/saas/scope";
 import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 import { loadClientTrustState } from "@/lib/client-trust/evaluator";
 import { projectCartChangeToInquiry } from "@/lib/inquiry/cart-selected-ids-projection";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const GUEST_HEADER = "x-impronta-guest";
 
@@ -106,6 +107,8 @@ export async function setTalentFavorited(
   talentProfileId: string,
   favorited: boolean,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const supabase = await getCachedServerSupabase();
 
   if (supabase) {
@@ -158,6 +161,8 @@ export async function setTalentSaved(
   talentProfileId: string,
   saved: boolean,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guestKey = (await headers()).get(GUEST_HEADER);
   const supabase = await getCachedServerSupabase();
   const pub = createPublicSupabaseClient();
@@ -337,6 +342,7 @@ export async function submitClientInquiry(
   _prev: InquiryFormState,
   formData: FormData,
 ): Promise<InquiryFormState> {
+  await requireNotImpersonating();
   const t = createTranslator(await getRequestLocale());
   const publicSettings = await getPublicSettings();
   if (!publicSettings.inquiriesOpen) {
@@ -522,6 +528,7 @@ export async function submitGuestInquiry(
   _prev: InquiryFormState,
   formData: FormData,
 ): Promise<InquiryFormState> {
+  await requireNotImpersonating();
   const t = createTranslator(await getRequestLocale());
   const publicSettings = await getPublicSettings();
   if (!publicSettings.inquiriesOpen) {

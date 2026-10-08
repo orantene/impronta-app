@@ -21,6 +21,7 @@ import {
   type ClientIntegrationRow,
 } from "./repository";
 import { resolveClientConnectionTenant } from "@/lib/connection-oauth/ownership";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ClientConnectionProviderState = {
   key: string;
@@ -155,6 +156,8 @@ export async function saveClientIntegrationControlsAction(
   | { ok: true; provider: ClientConnectionProviderState | null }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireClient();
   if (!guard.ok) return { ok: false, error: guard.error };
 
@@ -188,6 +191,8 @@ export async function connectManualClientIntegrationAction(
   | { ok: true; provider: ClientConnectionProviderState | null }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireClient();
   if (!guard.ok) return { ok: false, error: guard.error };
 
@@ -243,6 +248,8 @@ export async function disconnectClientIntegrationAction(
   | { ok: true; provider: ClientConnectionProviderState | null }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireClient();
   if (!guard.ok) return { ok: false, error: guard.error };
 

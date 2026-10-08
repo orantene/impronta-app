@@ -25,6 +25,7 @@ import {
   recordImageGenerationUsage,
   uploadGeneratedImageBytes,
 } from "@/lib/ai/ai-image-generation";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type GenerateNodeImageState =
   | { ok: true; url: string; mediaId: string; remaining: number }
@@ -33,6 +34,7 @@ export type GenerateNodeImageState =
 export async function generateNodeImageAction(input: {
   subject: string;
 }): Promise<GenerateNodeImageState> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 

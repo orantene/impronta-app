@@ -28,6 +28,7 @@ import {
   type TalentTranslateField,
   type TalentTranslateLocale,
 } from "@/lib/translation/talent-field-translate";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type TranslateTalentFieldInput = {
   field: TalentTranslateField;
@@ -47,6 +48,7 @@ function fail(code: TranslateTalentFieldErrorCode, message: string): TranslateTa
 }
 
 export async function translateTalentField(input: TranslateTalentFieldInput): Promise<TranslateTalentFieldResult> {
+  await requireNotImpersonating();
   const v = validateTranslateInput(input ?? { field: null, from: null, to: null, text: null });
   if (!v) return fail("invalid", "Invalid translate request.");
 

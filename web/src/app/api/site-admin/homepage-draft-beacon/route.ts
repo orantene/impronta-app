@@ -5,6 +5,7 @@ import { requireStaffApi } from "@/lib/server/staff-api-route";
 import { applyHomepageDraftBeaconAction } from "@/lib/site-admin/edit-mode/composition-actions";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Marathon W1-T5(c) — keepalive draft-flush endpoint.
@@ -53,6 +54,8 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   const auth = await requireStaffApi();
   if ("error" in auth) return auth.error;
 

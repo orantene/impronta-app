@@ -75,6 +75,7 @@ import {
 } from "@/lib/auth/otp-flow";
 import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
 import { recordSignupAcceptance } from "@/lib/legal/acceptances";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /** `sent` drives the form's step; `email` is echoed back into the code screen. */
 export type EmailCodeState =
@@ -156,6 +157,7 @@ export async function requestEmailCode(
   _prev: EmailCodeState,
   formData: FormData,
 ): Promise<EmailCodeState> {
+  await requireNotImpersonating();
   const t = otpT(formData);
   const email = normalizeAuthEmail(formData.get("email"));
   const resent = String(formData.get("resend") ?? "") === "1";
@@ -257,6 +259,7 @@ export async function submitEmailCode(
   _prev: EmailCodeState,
   formData: FormData,
 ): Promise<EmailCodeState> {
+  await requireNotImpersonating();
   const t = otpT(formData);
   const email = normalizeAuthEmail(formData.get("email"));
   const code = normalizeOtpCode(formData.get("code"));
@@ -382,6 +385,7 @@ export async function resendSignupCode(
   _prev: EmailCodeState,
   formData: FormData,
 ): Promise<EmailCodeState> {
+  await requireNotImpersonating();
   const t = otpT(formData);
   const email = normalizeAuthEmail(formData.get("email"));
 
