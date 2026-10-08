@@ -31,6 +31,7 @@ import {
   supportedLocalesSchema,
   type Locale,
 } from "@/lib/site-admin/locales";
+import { invalidateWorkspaceSeedPrimary } from "@/lib/site-admin/server/workspace-locale-seed.server";
 import { invalidateTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { fetchLanguageSettings } from "@/lib/language-settings/fetch-language-settings";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
@@ -468,6 +469,7 @@ async function updateCanonicalWorkspaceLanguageSettings({
   }
 
   invalidateTenantLocaleSettings(tenantId);
+  invalidateWorkspaceSeedPrimary(tenantId);
   return { ok: true };
 }
 
