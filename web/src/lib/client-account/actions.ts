@@ -214,7 +214,7 @@ async function refuseIfBusinessSession(
 ): Promise<ClientAccountSignInResult | null> {
   const t = createTranslator(locale === "es" ? "es" : "en");
   const generic = t("public.clientAccount.genericError");
-  if (!clientAccountEnabledFor("talent")) return { ok: false, error: generic };
+  if (!(await accountSurfaceEnabledForRequest())) return { ok: false, error: generic };
   const supabase = await getCachedServerSupabase();
   if (!supabase) return { ok: false, error: generic };
   const prior = await supabase.auth.getUser().catch(() => null);
@@ -296,7 +296,7 @@ export async function signInClientAccountPassword(input: {
   if (!readOnly.ok) return readOnly;
   const t = createTranslator(input.locale === "es" ? "es" : "en");
   const generic = t("public.clientAccount.genericError");
-  if (!clientAccountEnabledFor("talent")) return { ok: false, error: generic };
+  if (!(await accountSurfaceEnabledForRequest())) return { ok: false, error: generic };
 
   const email = normalizeAuthEmail(input.email);
   const password = String(input.password ?? "");
@@ -359,7 +359,7 @@ export async function finalizeClientAccountGoogleSession(input: {
   if (!readOnly.ok) return readOnly;
   const t = createTranslator(input.locale === "es" ? "es" : "en");
   const generic = t("public.clientAccount.genericError");
-  if (!clientAccountEnabledFor("talent")) return { ok: false, error: generic };
+  if (!(await accountSurfaceEnabledForRequest())) return { ok: false, error: generic };
 
   const supabase = await getCachedServerSupabase();
   if (!supabase) return { ok: false, error: generic };
