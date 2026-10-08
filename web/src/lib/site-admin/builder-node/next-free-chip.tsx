@@ -8,13 +8,9 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
 import { fetchLiveSlots } from "@/components/public-booking/catalog-booking-live-slots";
-import {
-  isSlotEligibleOffering,
-  pickBookableOffering,
-} from "@/components/public-booking/pick-bookable-offering";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
-import { firstSlotStart, openAtNextSlot, type NextSlot } from "@/lib/talent-site/next-free-slot";
+import { chipSlot, openAtNextSlot, pickChipOffering, type NextSlot } from "@/lib/talent-site/next-free-slot";
 
 import { safeChipHref } from "./next-free-chip-href";
 import type { BuilderNextFreeChipNode } from "./types";
@@ -110,17 +106,13 @@ export function NextFreeChipIsland({
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      const picked =
-        offeringId && offeringId.trim()
-          ? (() => {
-              const match = offerings.find((o) => o.id === offeringId);
-              if (!match || !isSlotEligibleOffering(match)) return null;
-              return {
-                offeringId: match.id,
-                durationMinutes: match.durationMinutes as number,
-              };
-            })()
-          : pickBookableOffering([...offerings]);
+      const chosen = pickChipOffering(offerings, offeringId);
+      const picked = chosen
+        ? {
+            offeringId: chosen.offering.id,
+            durationMinutes: chosen.offering.durationMinutes as number,
+          }
+        : null;
       if (!picked) {
         if (!cancelled) {
           setWhen(null);
@@ -136,7 +128,9 @@ export function NextFreeChipIsland({
         );
         // days prop reserved for a future slots API days param; fetchLiveSlots uses 14 today.
         void days;
-        const first = slots[0];
+        // TUL-275: show and open the SAME slot (first future instant, same-day included).
+        const shown = chipSlot(picked.offeringId, slots, chosen?.openable === true);
+        const first = shown.when;
         const formatted = first
           ? variant === "stacked"
             ? formatSlotRelative(first, timezone, loc)
@@ -144,8 +138,7 @@ export function NextFreeChipIsland({
           : "";
         if (!cancelled) {
           setWhen(formatted || null);
-          const start = firstSlotStart(slots);
-          setSlot(start ? { offeringId: picked.offeringId, slotStart: start } : null);
+          setSlot(shown.slot);
           setReady(true);
         }
       } catch {

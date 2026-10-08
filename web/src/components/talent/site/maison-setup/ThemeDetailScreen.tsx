@@ -123,8 +123,8 @@ export function ThemeDetailScreen({
   const design = detailDesign(choices.designSlug);
   const maison = isMaisonDesign(design.slug);
   const demos = orderedDemos(design);
-  const { demo, requested, plannedFallback } = resolveActiveDemo(design, choices.demoKey);
-  const selectedDemoKey = requested?.key ?? demo?.key ?? null;
+  const { demo, plannedFallback } = resolveActiveDemo(design, choices.demoKey);
+  const selectedDemoKey = demo?.key ?? null;
   const detailApps = appsForDetail(design, demo);
   // Wave 4: Apps tab on every finished design (Folio + Gridline included),
   // even when this design has no recommended apps yet.
@@ -697,6 +697,13 @@ export function ThemeDetailScreen({
           pending={pending}
           error={publishDesignError}
           onPublish={handlePublishDesign}
+          onKeepInDraft={() => {
+            // The design is already applied to the draft; just keep it there.
+            setDesignDialog(null);
+            setPublishDesignError(null);
+            onChange({ status: "Draft saved", phoneSheet: null, screen: "review" });
+            onAppliedToReview();
+          }}
           onKeepEditing={() => {
             setDesignDialog(null);
             setPublishDesignError(null);
