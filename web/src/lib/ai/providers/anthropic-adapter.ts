@@ -20,11 +20,12 @@ function modelId(override?: string): string {
 }
 
 /**
- * The Opus 4.7+ / Sonnet 5 / Fable 5 family REMOVED the sampling parameters —
- * sending `temperature` / `top_p` / `top_k` returns a 400. Older models (incl.
- * the current default and Opus/Sonnet 4.6 and earlier) still accept them. We
- * therefore only send `temperature` when the resolved model accepts it, so a
- * caller pinning e.g. `claude-opus-4-8` (the builder generator) does not 400.
+ * The Opus 4.7+ / Sonnet 5 / Haiku 5 / Fable 5 family REMOVED the sampling
+ * parameters — sending `temperature` / `top_p` / `top_k` returns a 400. Older
+ * models (incl. Haiku 4.5 and Opus/Sonnet 4.6 and earlier) still accept them.
+ * We therefore only send `temperature` when the resolved model accepts it, so
+ * a caller pinning e.g. `claude-haiku-5-5` (TUL-36 booking assistant) does not
+ * 400.
  */
 function modelRejectsSamplingParams(model: string): boolean {
   const m = model.toLowerCase();
@@ -32,6 +33,7 @@ function modelRejectsSamplingParams(model: string): boolean {
     m.startsWith("claude-opus-4-8") ||
     m.startsWith("claude-opus-4-7") ||
     m.startsWith("claude-sonnet-5") ||
+    m.startsWith("claude-haiku-5") ||
     m.startsWith("claude-fable-5") ||
     m.startsWith("claude-mythos-5")
   );

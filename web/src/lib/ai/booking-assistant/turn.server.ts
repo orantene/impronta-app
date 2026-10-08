@@ -11,6 +11,7 @@ import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
 import { resolveAnthropicApiKey } from "@/lib/ai/resolve-api-keys";
 import { adapterForProvider } from "@/lib/ai/resolve-provider";
 import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
+import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
@@ -199,6 +200,10 @@ export async function maybeRunBookingAssistantTurn(
     if (!args.talentProfileId) return null;
     const admin = createServiceRoleClient();
     if (!admin) return null;
+
+    // Design §5: platform kill switch — master off means the assistant never runs.
+    const flags = await getAiFeatureFlags();
+    if (!flags.ai_master_enabled) return null;
 
     const switches = await loadTalentSiteSwitches(admin, args.talentProfileId);
     const enabled = switches.chatConfig.aiBookingAssistantEnabled === true;
