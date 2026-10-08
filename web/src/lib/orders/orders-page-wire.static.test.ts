@@ -24,6 +24,7 @@ test("layer 1 — the canonical page file exists and is capability-gated", () =>
   const page = read("src/app/(workspace)/[tenantSlug]/admin/orders/page.tsx");
   assert.match(page, /userHasCapability\(/, "the Orders page must gate on a capability");
   assert.match(page, /loadWorkspaceOrders/, "the page must read through the data bridge");
+  assert.match(page, /OrdersDoorMockList/, "TUL-434: the desk renders the order-door mock list");
 });
 
 test("layer 2 — a canonical-route matcher claims /admin/orders", () => {
