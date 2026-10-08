@@ -21,11 +21,19 @@ import { sameStable } from "./stable";
 export const ALBA_TAGLINE =
   "Manicura rusa, pestañas hechas a mano y cejas con diseño. Un estudio privado donde cada cita es solo tuya.";
 
+/** Alba's tagline in English (same meaning as ALBA_TAGLINE). */
+export const ALBA_TAGLINE_EN =
+  "Russian manicure, hand-applied lashes and designed brows. A private studio where every appointment is yours alone.";
+
 export interface HeroFacts {
   /** `identity.headline`: the big line (the site puts one italic accent word in it). */
   headline: string;
   /** `identity.tagline`, only where the demo has none yet. */
   tagline?: string;
+  /** English `en` key of `identity.headline_i18n`. Add-only: a non-empty English value is never overwritten. */
+  headlineEn?: string;
+  /** English `en` key of `identity.tagline_i18n`. Add-only. */
+  taglineEn?: string;
   /** `experience.years_total`, only where the demo has none yet. */
   years?: number;
   /** Spoken languages in order (English names), only where the demo has none yet. */
@@ -38,17 +46,19 @@ export const HERO_FACTS: Readonly<Record<string, HeroFacts>> = {
   // Alba (proposal): nothing but the Instagram existed.
   "TAL-93020": {
     headline: "Manos que hablan por ti.",
+    headlineEn: "Hands that speak for you.",
     tagline: ALBA_TAGLINE,
+    taglineEn: ALBA_TAGLINE_EN,
     years: 9,
     languages: ["Spanish", "English"],
     instagram: "alba.unas.demo",
   },
   // The guide demos already carry tagline, years and languages.
-  "TAL-93002": { headline: "Pestañas que enmarcan tu mirada.", instagram: "renata.pestanas.demo" },
-  "TAL-93003": { headline: "Uñas hechas a mano, a tu medida.", instagram: "camila.nails.demo" },
+  "TAL-93002": { headline: "Pestañas que enmarcan tu mirada.", headlineEn: "Lashes that frame your look.", instagram: "renata.pestanas.demo" },
+  "TAL-93003": { headline: "Uñas hechas a mano, a tu medida.", headlineEn: "Nails finished by hand, made to fit you.", instagram: "camila.nails.demo" },
   "TAL-93103": { headline: "Soft gel and lash lifts, made for you.", instagram: "linh.tran.demo" },
   "TAL-93104": { headline: "Brows shaped to frame your face.", instagram: "leo.haddad.demo" },
-  "TAL-93105": { headline: "Maquillaje que te hace brillar.", instagram: "sofia.rinaldi.demo" },
+  "TAL-93105": { headline: "Maquillaje que te hace brillar.", headlineEn: "Makeup that makes you glow.", instagram: "sofia.rinaldi.demo" },
   "TAL-93106": { headline: "Curls cut to show their shape.", instagram: "marcus.bell.demo" },
   "TAL-93107": { headline: "Clean lines, sharp from start to finish.", instagram: "coleman.cuts.demo" },
 };
@@ -61,6 +71,28 @@ async function definitionIds(admin: Db, keys: string[]): Promise<Map<string, str
   const { data, error } = await admin.from("profile_field_definitions").select("id, field_key").in("field_key", keys);
   if (error) throw error;
   return new Map((data ?? []).map((r) => [(r as { field_key: string }).field_key, (r as { id: string }).id]));
+}
+
+/** A clean `{ locale: text }` map out of a stored field value, or an empty one. */
+function localeMapOf(raw: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) if (typeof v === "string" && v.trim()) out[k] = v;
+  }
+  return out;
+}
+
+/**
+ * The next `{ locale: text }` map with the English line added, or null when
+ * nothing should be written (no English line given, or a non-empty `en` is
+ * already there). Pure. Every other key of the stored map stays as it is.
+ */
+export function addEnglishLine(stored: unknown, en: string | undefined): Record<string, string> | null {
+  const line = en?.trim();
+  if (!line) return null;
+  const map = localeMapOf(stored);
+  if (map.en) return null;
+  return { ...map, en: line };
 }
 
 export interface HeroFactsResult {
@@ -114,6 +146,41 @@ export async function applyHeroFacts(
         talent_profile_id: profile.id,
         field_definition_id: defId,
         value,
+        workflow_state: "live",
+        last_edited_role: "platform",
+        updated_at: now,
+      },
+      { onConflict: "talent_profile_id,field_definition_id" },
+    );
+    if (upErr) throw upErr;
+  }
+
+  // English hero lines: the `en` key of the per-language maps. Add-only, idempotent.
+  const i18n: Array<[string, string | undefined]> = [
+    ["identity.headline_i18n", facts.headlineEn],
+    ["identity.tagline_i18n", facts.taglineEn],
+  ];
+  for (const [key, en] of i18n) {
+    if (!en?.trim()) continue;
+    const defId = (await definitionIds(admin, [key])).get(key);
+    if (!defId) throw new Error(`field definition ${key} is missing (is migration 20261231299640 applied?)`);
+    const { data: have, error: haveErr } = await admin
+      .from("talent_profile_field_values")
+      .select("id, value")
+      .eq("talent_profile_id", profile.id)
+      .eq("field_definition_id", defId)
+      .maybeSingle();
+    if (haveErr) throw haveErr;
+    const next = addEnglishLine((have as { value: unknown } | null)?.value, en);
+    if (!next) continue;
+    wrote.push(key);
+    if (!input.write) continue;
+    const { error: upErr } = await admin.from("talent_profile_field_values").upsert(
+      {
+        tenant_id: input.hubTenantId,
+        talent_profile_id: profile.id,
+        field_definition_id: defId,
+        value: next,
         workflow_state: "live",
         last_edited_role: "platform",
         updated_at: now,
