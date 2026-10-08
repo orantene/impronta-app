@@ -1763,6 +1763,7 @@
       "expired": "Esta pagina de pago esta cerrada. Pide un enlace nuevo al negocio.",
       "cancelled": "Este pago ya no está disponible. No se tomó nada.",
       "unknown": "El estado del pago es desconocido. No pagues de nuevo. El negocio lo confirma.",
+      "currencyMismatch": "Este enlace de pago está en {linkCurrency}, pero el pedido que paga está en {orderCurrency}. No se cobró nada. Pide al negocio un enlace nuevo en {orderCurrency}.",
       "paid": "Pagado",
       "refunded": "Reembolsado. El dinero esta en camino de vuelta.",
       "receipt": "Ver recibo",
@@ -1820,6 +1821,7 @@
         "notFound": "No pudimos encontrar eso.",
         "invalid": "Algo en eso no se veía bien. Revísalo e inténtalo de nuevo.",
         "channelUnavailable": "No pudimos enviar eso ahora mismo. Inténtalo en un momento.",
+        "currencyUnavailable": "Esta tienda aún no tiene moneda configurada, así que no se puede iniciar un pedido. Contacta al negocio.",
         "unavailable": "No pudimos hacer eso ahora mismo. No se cambió nada. Inténtalo de nuevo."
       }
     },
@@ -13897,6 +13899,7 @@
           "wrong_tenant": "Ese registro no esta en este espacio.",
           "invalid": "Eso no se puede guardar.",
           "unavailable": "Esto no se pudo completar. Intentalo de nuevo.",
+          "offer_currency_seller_mismatch": "Esta oferta esta en una moneda distinta a la que cobra quien vende. Cambia la moneda de la oferta a la de quien vende y vuelve a enviarla.",
           "not_allowed": "No tienes permiso para hacer esto aquí.",
           "not_reschedulable": "Esta reserva no se puede mover.",
           "slot_taken": "Ese horario ya no está libre."

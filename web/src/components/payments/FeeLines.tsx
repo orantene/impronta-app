@@ -7,7 +7,7 @@
  * default keeps the component testable without a locale provider.
  */
 
-import { formatFeeMoney, PLATFORM_FEE_RATE, type FeeLines as FeeLinesData } from "@/lib/billing/fee-payer-setting";
+import { formatFeeMoney, type FeeLines as FeeLinesData } from "@/lib/billing/fee-payer-setting";
 import type { FeeLine as EngineFeeLine } from "@/lib/billing/processing-fee-payer";
 
 export function FeeLines({
@@ -23,11 +23,14 @@ export function FeeLines({
   estimate?: boolean;
 }) {
   const fmt = (m: number) => formatFeeMoney(m, lines.currency, locale);
+  // Label from the same bps the charge path used (150 → "1.5%"), not a
+  // hardcoded fraction that can drift from pass_through_take_bps.
+  const platformPctLabel = `${(lines.platformTakeBps / 100).toString()}%`;
   const rows: { key: string; label: string; value: string; strong?: boolean }[] = [
     { key: "service", label: t("Service"), value: fmt(lines.serviceMinor) },
     {
       key: "platform",
-      label: `${t("Platform fee")} (${PLATFORM_FEE_RATE * 100}%)`,
+      label: `${t("Platform fee")} (${platformPctLabel})`,
       value: fmt(lines.platformFeeMinor),
     },
   ];

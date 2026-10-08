@@ -57,4 +57,12 @@ describe("offer currency wiring", () => {
   it("the service preload goes through planServicePick", () => {
     assert.match(read("src/components/admin/shell/internal/messages/shared/machinery-11.tsx"), /planServicePick\(/);
   });
+  it("the scheduling amendment send maps the currency refusal to its own sentence (TUL-282)", () => {
+    const eng = read("src/lib/server-actions/scheduling-engine.ts");
+    assert.match(eng, /result\.error === "offer_currency_seller_mismatch"/);
+    assert.match(eng, /reason: "offer_currency_seller_mismatch" as const/);
+    const refusals = read("src/lib/scheduling/engine-refusals.ts");
+    assert.match(refusals, /"offer_currency_seller_mismatch",\n\] as const/);
+    assert.match(refusals, /dashboard\.scheduling\.engine\.refusal\.offer_currency_seller_mismatch/);
+  });
 });
