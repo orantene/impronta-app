@@ -3,8 +3,11 @@
  * PUBLIC and PR comments / job summaries / logs are readable, so the QA host
  * pool must never print, comment or summarise one.
  *
- * Static check over the workflow and the claim script: no line that emits
- * output may mention the share token or a variable holding a share URL.
+ * Static check over the CI workflow only: no line that emits output may
+ * mention the share token or a variable holding a share URL. The local
+ * qa-host.mjs CLI is deliberately out of scope: since #2655 it prints the
+ * share link to the operator's own terminal by design; the workflow strips
+ * the query string before anything becomes public.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -13,10 +16,7 @@ import { test } from "node:test";
 
 import { WEB_ROOT } from "../quality/supabase-unchecked-read";
 
-const FILES = [
-  join(WEB_ROOT, "..", ".github", "workflows", "qa-host-pool.yml"),
-  join(WEB_ROOT, "scripts", "qa-host.mjs"),
-];
+const FILES = [join(WEB_ROOT, "..", ".github", "workflows", "qa-host-pool.yml")];
 
 /** Lines that can reach a comment, summary, log or status description. */
 const EMITTER =
@@ -33,8 +33,8 @@ function numbered(file: string) {
 for (const file of FILES) {
   const name = file.split("/").slice(-2).join("/");
 
-  test(`${name}: never names _vercel_share`, () => {
-    const hits = numbered(file).filter(({ line }) => /_vercel_share/.test(line));
+  test(`${name}: never names _vercel_share outside a comment`, () => {
+    const hits = numbered(file).filter(({ line }) => !line.startsWith("#") && /_vercel_share/.test(line));
     assert.deepEqual(hits, []);
   });
 
