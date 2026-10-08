@@ -17,7 +17,7 @@ is not enough (TUL-134: the lightbox check passed while the lightbox was a
 | tul-107 | /start Spanish, readable, three choices |
 | tul-118 | fresh site: no empty services/gallery/FAQ bands |
 | tul-119 | /en + ES/EN switch (A-01), lightbox (A-06), help bubble hides on scroll (DS-13) |
-| tul-123 | booking form: Turnstile, no visible hCaptcha puzzle |
+| tul-123 | booking form: no hCaptcha request and no visible captcha puzzle (captcha is off by decision; Turnstile optional) |
 
 TUL-108 has no spec on purpose: it is not a browser check. It is proved from
 the `notification_dispatch_log` table, not from the page.

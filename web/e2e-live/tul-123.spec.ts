@@ -1,14 +1,16 @@
 /**
- * TUL-123 (A-04): the booking form uses Cloudflare Turnstile, not the hCaptcha
- * puzzle. Look only: opens the booking sheet up to the details step, never submits.
- * Passes only after PR #2606 deploys AND the Turnstile key is saved on the Tulala workspace.
+ * TUL-123 (A-04): the booking form never shows the hCaptcha image puzzle. Decision 2026-10-07: captcha
+ * is OFF (HQ switch `guest_captcha_enforced`), Turnstile ships dark; if a Turnstile key is saved and the
+ * switch is turned on, Turnstile (mostly invisible) may load, never hCaptcha. Look only: opens the
+ * booking sheet up to the details step, never submits.
  */
 import { expect, test } from "@playwright/test";
 import { QA_TALENT_SITE, evidence } from "./_live";
 
 // Catches (old failure): the booking sheet loaded hcaptcha.com and showed the hCaptcha image-puzzle
-// frame. Fails on any hcaptcha request, any visible captcha iframe with a non-zero box, or no Turnstile.
-test("booking page loads Turnstile and no hCaptcha", async ({ page }, info) => {
+// frame. Fails on any hcaptcha request or any visible captcha iframe with a non-zero box. Turnstile is
+// NOT required (captcha is off by decision); it is recorded in the attachment for the evidence trail.
+test("booking page never loads hCaptcha or shows a captcha puzzle", async ({ page }, info) => {
   const vendors: string[] = [];
   page.on("request", (r) => {
     const u = r.url();
@@ -21,7 +23,6 @@ test("booking page loads Turnstile and no hCaptcha", async ({ page }, info) => {
   await page.waitForTimeout(4000);
   await info.attach("captcha-vendors", { body: JSON.stringify(vendors), contentType: "application/json" });
   expect(vendors, "no hCaptcha requests").not.toContain("hcaptcha");
-  expect(vendors, "Turnstile loaded").toContain("turnstile");
   const frames = page.locator('iframe[src*="hcaptcha"], iframe[title*="captcha" i]');
   const visibleBoxes: { src: string | null; w: number; h: number }[] = [];
   for (let i = 0; i < (await frames.count()); i++) {
