@@ -71,7 +71,11 @@ test("no message carries a price, in any locale", () => {
   }
 });
 
-test("an unknown or null plan tier degrades to Free rather than throwing", () => {
-  assert.match(seatLimitMessage({ kind: "roster", planTier: null, limit: 5 }), /Free plan limit/);
-  assert.match(seatLimitMessage({ kind: "roster", planTier: "nonsense", limit: 5 }), /Free plan limit/);
+test("an unknown or null plan tier gets a generic message: no plan name, no upsell, never throws", () => {
+  for (const planTier of [null, "nonsense", ""]) {
+    const en = seatLimitMessage({ kind: "roster", planTier, limit: 5 });
+    assert.equal(en, "You've reached your plan's seat limit (5 profiles).");
+    assert.doesNotMatch(en, /Free|Studio|Upgrade/);
+  }
+  assert.match(seatLimitMessage({ kind: "team", planTier: null, limit: 2, locale: "es" }), /^Alcanzaste el límite de lugares de tu plan \(2 /);
 });
