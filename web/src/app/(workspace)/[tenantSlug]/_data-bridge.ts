@@ -8,6 +8,8 @@ import {
   loadClientTrustState,
   type ClientTrustState,
 } from "@/lib/client-trust/evaluator";
+import { isVerifiedImpersonationOf, type EffectiveReadContext } from "@/lib/impersonation/effective-read";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadFieldCatalog } from "@/lib/profile-fields-service";
 import { loadWorkspaceSubscriptionState, type WorkspaceSubscriptionState } from "@/lib/stripe/workspace-billing";
 import { loadTalentSubscriptionState, type TalentSubscriptionState } from "@/lib/stripe/talent-billing";
@@ -304,8 +306,16 @@ export type { ClientTrustState };
 export async function loadClientTrustBillingState(
   userId: string,
   tenantId: string,
+  /** TUL-245: from `effectiveReadContext` only (verified impersonation of exactly `userId`). */
+  ctx?: EffectiveReadContext,
+  loadState: typeof loadClientTrustState = loadClientTrustState,
+  adminClient: () => SupabaseClient | null = createServiceRoleClient,
 ): Promise<ClientTrustState> {
-  const state = await loadClientTrustState(userId, tenantId);
+  const viaAdmin = isVerifiedImpersonationOf(ctx?.actorUserId ?? "", userId, ctx);
+  const admin = viaAdmin ? adminClient() : null;
+  // Verified impersonation without an admin client: read nothing (the safe default below).
+  const state =
+    viaAdmin && !admin ? null : await loadState(userId, tenantId, admin ?? undefined);
   return state ?? {
     userId,
     tenantId,
