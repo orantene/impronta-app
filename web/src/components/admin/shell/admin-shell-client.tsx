@@ -1175,6 +1175,7 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
 
 function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
   const { bridgeTenantIdentity, workspaceFabEnabled, state } = useAdminShell();
+  const copy = useDashboardText();
   const talentVisual = state.surface === "talent";
   // Whitelabel accent — only set for whitelabel-tier tenants (the loader
   // already gates + hex-validates it). When present, `--tulala-accent` and
@@ -2129,9 +2130,14 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             flexDirection: "column",
           }}
         >
-          {/* Skip-to-main link for keyboard users (visible on focus only) */}
-          <a href="#tulala-main" className="skip-to-main">
-            Skip to main content
+          {/* The ONE skip link on this page (TUL-278), in the page language.
+              It jumps past the surface rail straight to that surface's
+              <main>; the per-rail duplicates were removed. */}
+          <a
+            href={state.surface === "talent" ? "#tulala-talent-content" : "#tulala-workspace-content"}
+            className="skip-to-main"
+          >
+            {copy.t("Skip to main content")}
           </a>
 
           {/* Top: prototype control bar (dark, sticky). Hidden on
