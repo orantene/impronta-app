@@ -2130,15 +2130,8 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             flexDirection: "column",
           }}
         >
-          {/* The ONE skip link on this page (TUL-278), in the page language.
-              It jumps past the surface rail straight to that surface's
-              <main>; the per-rail duplicates were removed. */}
-          <a
-            href={state.surface === "talent" ? "#tulala-talent-content" : "#tulala-workspace-content"}
-            className="skip-to-main"
-          >
-            {copy.t("Skip to main content")}
-          </a>
+          {/* ONE skip link per page (TUL-278), localized; targets the surface main. */}
+          <a href={state.surface === "talent" ? "#tulala-talent-content" : "#tulala-workspace-content"} className="skip-to-main">{copy.t("Skip to main content")}</a>
 
           {/* Top: prototype control bar (dark, sticky). Hidden on
               non-dev URLs so the prototype demos look like the real
