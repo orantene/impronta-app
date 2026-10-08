@@ -6,7 +6,7 @@
 --
 -- TUL-261: secondary_locales is added later (20261231299510). Guarded so a
 -- fresh database replaying the chain in version order does not fail with
--- 42703; on such a DB this is a no-op and 20261231349000 applies the data fix.
+-- 42703; on such a DB this is a no-op (the fixture row does not exist there anyway).
 -- Where the column exists the effect is unchanged.
 
 DO $$
