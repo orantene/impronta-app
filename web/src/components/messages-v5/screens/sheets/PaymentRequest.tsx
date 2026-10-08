@@ -108,7 +108,7 @@ export function PaymentRequestSheet(props: ActionSheetProps) {
   const options = amountOptions(offer);
   const openRequest = openRequestFor(ctx.chips);
   const identityConfirmed = ctx.essentials?.customer.identityLevel === "confirmed" || ctx.essentials?.customer.identityLevel === "granted";
-  const amountCents = amountCentsForKind(amountKind, options, otherAmountInput);
+  const amountCents = amountCentsForKind(amountKind, options, otherAmountInput, offer?.currencyCode);
 
   const canSend =
     how === "link"

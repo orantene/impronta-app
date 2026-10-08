@@ -32,8 +32,8 @@ export const OUTSIDE_METHODS: readonly OutsideMethod[] = ["cash", "transfer", "t
 /** The concrete cents figure for the picked amount kind. "Other" parses the
  * typed dollars; deposit/full read the offer-derived option. Null when the
  * kind has no resolvable figure yet (no offer, or nothing typed). */
-export function amountCentsForKind(kind: AmountKind, options: readonly AmountOption[], otherInput: string): number | null {
-  if (kind === "other") return dollarsToCents(otherInput);
+export function amountCentsForKind(kind: AmountKind, options: readonly AmountOption[], otherInput: string, currencyCode?: string | null): number | null {
+  if (kind === "other") return dollarsToCents(otherInput, currencyCode);
   return options.find((o) => o.kind === kind)?.amountCents ?? null;
 }
 
@@ -110,7 +110,7 @@ export function PaymentRequestView(props: PaymentRequestViewProps) {
         ? c.amountFull
         : c.amountOther;
   const amountSubFor = (opt: AmountOption): string | null => (opt.amountCents != null ? formatRecordMoney(opt.amountCents, currencyCode) : null);
-  const pickedAmountCents = amountCentsForKind(amountKind, options, otherAmountInput);
+  const pickedAmountCents = amountCentsForKind(amountKind, options, otherAmountInput, currencyCode);
   const messagePreview = amountKind === "full" ? c.messagePreviewFull : fill(c.messagePreview, { amount: pickedAmountCents != null ? formatRecordMoney(pickedAmountCents, currencyCode) : "" });
 
   return (
