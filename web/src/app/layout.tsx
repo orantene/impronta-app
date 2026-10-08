@@ -250,9 +250,10 @@ export default async function RootLayout({
         {/* Phase 5 — global scroll-reveal observer (no-op when no targets). */}
         <ScrollReveal />
         {/* W5-T6 — built-in extra breakpoint tiers (wide ≤1280 / compact ≤480).
-            Renders a single <style>; reaches both the editor and published
-            storefront so section data-section-<tier>-* overrides take effect. */}
-        <BreakpointStyleEngine tiers={BUILTIN_EXTRA_TIERS} />
+            Section presentation rules only here (~6 KB). Freeform node-lane
+            CSS (~12 KB/tier) mounts from the editor / renderer when a tree
+            actually authors `style.responsive.<tier>` (TUL-446). */}
+        <BreakpointStyleEngine tiers={BUILTIN_EXTRA_TIERS} includeFreeform={false} />
         <AnalyticsScripts
           gaId={tenantAnalytics?.gaId}
           gtmId={tenantAnalytics?.gtmId}

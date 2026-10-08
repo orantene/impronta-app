@@ -50,7 +50,7 @@ import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
 import { designTokensToCssVars, designTokensToDataAttrs } from "@/lib/site-admin/tokens/resolve";
 import { TalentSiteHtmlTokens } from "@/components/talent/site/TalentSiteHtmlTokens";
 import { GoogleFontsLink } from "@/app/google-fonts-link";
-import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
+import { TypeSystemStyle, typeSystemSheetsForTokens } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 import { typeSystemComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-type-system";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -700,7 +700,7 @@ async function renderMaxSiteDocument(args: {
       />
       <BuilderNodeFontLinks nodes={[...shellTree, ...blocks]} components={components} />
       {hasTokens ? <GoogleFontsLink tokens={effectiveTokens} /> : null}
-      <TypeSystemStyle />
+      <TypeSystemStyle systems={typeSystemSheetsForTokens(effectiveTokens)} />
 
       {draftPreview ? (
         <div
