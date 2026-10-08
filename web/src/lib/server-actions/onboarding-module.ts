@@ -419,6 +419,20 @@ export async function saveOnboardingDesign(input: { look: DesignLookKey | null }
   return { ok: saved.ok };
 }
 
+/** 18+ confirmation (owner decision 2026-10-01): server-stamped, kept on the brief, read by the build route. */
+export async function saveOnboardingAge18(): Promise<{ ok: boolean }> {
+  const got = await ownedBrief();
+  if (got.error) return { ok: false };
+  const session = await getCachedActorSession();
+  const at = new Date().toISOString();
+  const saved = await updateBriefModuleState(got.brief.id, {
+    age18ConfirmedAt: got.state.age18ConfirmedAt ?? at,
+    ...(session.user?.id ? { age18ConfirmedBy: session.user.id } : {}),
+    updatedAt: at,
+  });
+  return { ok: saved.ok };
+}
+
 /** The stored build record (resume on the building / arrival screens). */
 export async function getOnboardingBuildStatus(): Promise<{ ok: true; build: Record<string, unknown> | null } | ModuleActionError> {
   const got = await ownedBrief();

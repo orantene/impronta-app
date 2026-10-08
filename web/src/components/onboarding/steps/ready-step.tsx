@@ -27,6 +27,8 @@ export function ReadyStep({
   onBuild,
   designChoice = null,
   onPickDesign,
+  onConfirmAge18,
+  ageRequiredNotice = false,
 }: {
   t: (key: string) => string;
   understanding: Understanding;
@@ -40,8 +42,16 @@ export function ReadyStep({
   /** 1D: talent looks (myself / both). */
   designChoice?: DesignLookKey | null;
   onPickDesign?: (look: DesignLookKey | null) => void;
+  /** 18+ (owner decision 2026-10-01): records the confirmation; shown for myself / both only. */
+  onConfirmAge18?: () => Promise<{ ok: boolean }>;
+  /** The build route refused for a missing confirmation: say so here. */
+  ageRequiredNotice?: boolean;
 }) {
   const talentOnly = path === "talent";
+  const needsAge = path !== "business" && !!onConfirmAge18;
+  const [age18, setAge18] = useState(false);
+  const [ageSaving, setAgeSaving] = useState(false);
+  const [ageFailed, setAgeFailed] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(linkSlug ?? understanding.linkName?.slug ?? "");
   const [checking, setChecking] = useState(false);
@@ -68,6 +78,19 @@ export function ReadyStep({
       setReason(r?.reason);
     });
   }, [talentOnly, linkAvailable, shown, onCheckLink]);
+
+  const submit = async () => {
+    if (needsAge) {
+      if (!age18 || !onConfirmAge18) return;
+      setAgeSaving(true);
+      const r = await onConfirmAge18().catch(() => ({ ok: false }));
+      if (!mountedRef.current) return;
+      setAgeSaving(false);
+      if (!r.ok) { setAgeFailed(true); return; }
+      setAgeFailed(false);
+    }
+    onBuild();
+  };
 
   const check = async () => {
     setChecking(true);
@@ -141,8 +164,25 @@ export function ReadyStep({
 
       {onPickDesign && path !== "business" ? <DesignPick t={t} value={designChoice} onPick={onPickDesign} /> : null}
 
+      {needsAge ? (
+        <div className="mt-5" data-testid="onb-age18">
+          <label className="flex items-start gap-3 text-[0.9375rem]" style={{ color: "var(--tl-ink)" }}>
+            <input
+              type="checkbox"
+              checked={age18}
+              onChange={(e) => { setAge18(e.target.checked); setAgeFailed(false); }}
+              className="mt-0.5 h-5 w-5 shrink-0"
+              data-testid="onb-age18-checkbox"
+            />
+            <span>{t("public.onboarding.ready.age18Label")}</span>
+          </label>
+          {ageRequiredNotice && !age18 ? <Notice tone="warn" testId="onb-age18-required">{t("public.onboarding.ready.age18Required")}</Notice> : null}
+          {ageFailed ? <Notice tone="error" testId="onb-age18-failed">{t("public.onboarding.errors.saveFailed")}</Notice> : null}
+        </div>
+      ) : null}
+
       <div className="mt-5">
-        <PrimaryButton onClick={onBuild} disabled={busy || (!talentOnly && linkAvailable !== true)} testId="onb-build">
+        <PrimaryButton onClick={() => void submit()} disabled={busy || ageSaving || (needsAge && !age18) || (!talentOnly && linkAvailable !== true)} testId="onb-build">
           {talentOnly ? t("public.onboarding.ready.buildTalent") : path === "both" ? t("public.onboarding.ready.buildBoth") : t("public.onboarding.ready.build")}
         </PrimaryButton>
         <p className="mt-3 text-center text-[0.75rem]" style={{ color: "var(--tl-muted)" }}>{t("public.onboarding.ready.nextPhase")}</p>
