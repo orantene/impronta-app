@@ -678,6 +678,7 @@ export async function sendOffer(
     const curCheck = await checkInquiryCurrencyMatchesSeller(supabase, {
       inquiryId: ctx.inquiryId,
       currency: (curRow as { currency_code?: string | null } | null)?.currency_code,
+      mode: "send",
     });
     if (!curCheck.ok) return { success: false, error: curCheck.code, reason: curCheck.message };
     // A5 — stamp the offer's expiry window at send time. engine_send_offer flips

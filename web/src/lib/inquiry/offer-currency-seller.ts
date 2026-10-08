@@ -18,45 +18,64 @@ export type InquirySeller = {
   platform: string | null;
 };
 
-/** Active talent participants of the inquiry with their currency and lane. */
+/** A seller read that distinguishes "read FAILED" from "no sellers / unknown currency". */
+export type InquirySellersRead = { ok: true; sellers: InquirySeller[] } | { ok: false };
+
+export async function loadInquirySellersChecked(
+  supabase: SupabaseClient,
+  inquiryId: string,
+): Promise<InquirySellersRead> {
+  try {
+    const { data: parts, error } = await supabase
+      .from("inquiry_participants")
+      .select("talent_profile_id")
+      .eq("inquiry_id", inquiryId)
+      .eq("role", "talent")
+      .eq("status", "active");
+    if (error) {
+      logServerError("offer-currency-seller.participants", error);
+      return { ok: false };
+    }
+    const ids = [
+      ...new Set(
+        (parts ?? [])
+          .map((p) => (p as { talent_profile_id: string | null }).talent_profile_id)
+          .filter((v): v is string => typeof v === "string" && v.length > 0),
+      ),
+    ];
+    if (!ids.length) return { ok: true, sellers: [] };
+    const { data: tps, error: tpErr } = await supabase
+      .from("talent_profiles")
+      .select("id, default_currency, stripe_account_platform")
+      .in("id", ids);
+    if (tpErr) {
+      logServerError("offer-currency-seller.talent_profiles", tpErr);
+      return { ok: false };
+    }
+    return {
+      ok: true,
+      sellers: (tps ?? []).map((r) => {
+        const row = r as { id: string; default_currency?: string | null; stripe_account_platform?: string | null };
+        return {
+          talentProfileId: row.id,
+          defaultCurrency: normalizeCurrencyCode(row.default_currency),
+          platform: row.stripe_account_platform ?? null,
+        };
+      }),
+    };
+  } catch (err) {
+    logServerError("offer-currency-seller.read_threw", err);
+    return { ok: false };
+  }
+}
+
+/** Active talent participants of the inquiry; a failed read reads as no sellers. */
 export async function loadInquirySellers(
   supabase: SupabaseClient,
   inquiryId: string,
 ): Promise<InquirySeller[]> {
-  const { data: parts, error } = await supabase
-    .from("inquiry_participants")
-    .select("talent_profile_id")
-    .eq("inquiry_id", inquiryId)
-    .eq("role", "talent")
-    .eq("status", "active");
-  if (error) {
-    logServerError("offer-currency-seller.participants", error);
-    return [];
-  }
-  const ids = [
-    ...new Set(
-      (parts ?? [])
-        .map((p) => (p as { talent_profile_id: string | null }).talent_profile_id)
-        .filter((v): v is string => typeof v === "string" && v.length > 0),
-    ),
-  ];
-  if (!ids.length) return [];
-  const { data: tps, error: tpErr } = await supabase
-    .from("talent_profiles")
-    .select("id, default_currency, stripe_account_platform")
-    .in("id", ids);
-  if (tpErr) {
-    logServerError("offer-currency-seller.talent_profiles", tpErr);
-    return [];
-  }
-  return (tps ?? []).map((r) => {
-    const row = r as { id: string; default_currency?: string | null; stripe_account_platform?: string | null };
-    return {
-      talentProfileId: row.id,
-      defaultCurrency: normalizeCurrencyCode(row.default_currency),
-      platform: row.stripe_account_platform ?? null,
-    };
-  });
+  const read = await loadInquirySellersChecked(supabase, inquiryId);
+  return read.ok ? read.sellers : [];
 }
 
 /**
@@ -75,19 +94,37 @@ export async function resolveNewOfferCurrency(
   });
 }
 
+export const SELLER_CURRENCY_UNREADABLE = "seller_currency_unreadable" as const;
+
+export type SellerCurrencyCheck =
+  | OfferSellerCurrencyCheck
+  | { ok: false; code: typeof SELLER_CURRENCY_UNREADABLE; message: string };
+
 /**
- * Hard guard used at send and at charge creation: the currency being offered
- * or charged must equal the single seller's default_currency. Mixed or unknown
- * sellers pass (platform currency, as before). The seller read FAILS OPEN to
- * "no sellers known" on a DB error (logged), matching the prior behaviour, so
- * a transient read failure cannot block every payment; a known mismatch never
- * passes.
+ * Hard guard at send and at charge creation: the currency being offered or
+ * charged must equal the single seller's default_currency. Mixed, none or
+ * unknown sellers resolved WITHOUT error pass (platform currency, as before).
+ *
+ * `mode` decides what a seller-READ ERROR means:
+ *  - "send":   fail OPEN (logged). A draft can be re-sent; the charge guard is
+ *              the backstop.
+ *  - "charge": fail CLOSED (retryable). Money must not move on a guess. A null
+ *              client (service role missing) counts as a read error.
  */
 export async function checkInquiryCurrencyMatchesSeller(
-  supabase: SupabaseClient,
-  input: { inquiryId: string; currency: string | null | undefined },
-): Promise<OfferSellerCurrencyCheck> {
-  const sellers = await loadInquirySellers(supabase, input.inquiryId);
+  supabase: SupabaseClient | null,
+  input: { inquiryId: string; currency: string | null | undefined; mode: "send" | "charge" },
+): Promise<SellerCurrencyCheck> {
+  const read = supabase ? await loadInquirySellersChecked(supabase, input.inquiryId) : ({ ok: false } as const);
+  if (!read.ok) {
+    if (input.mode === "send") return { ok: true };
+    return {
+      ok: false,
+      code: SELLER_CURRENCY_UNREADABLE,
+      message: "We could not confirm the seller's payment currency. Please try again in a moment.",
+    };
+  }
+  const { sellers } = read;
   const check = checkOfferMatchesSeller({
     offerCurrency: input.currency,
     sellerCurrencies: sellers.map((s) => s.defaultCurrency),
@@ -96,7 +133,7 @@ export async function checkInquiryCurrencyMatchesSeller(
     logServerError(
       "offer.currency_seller_mismatch",
       new Error(
-        `inquiry=${input.inquiryId} currency=${check.offerCurrency} sellerCurrency=${check.sellerCurrency} platform=${sellers[0]?.platform ?? "unknown"}`,
+        `inquiry=${input.inquiryId} mode=${input.mode} currency=${check.offerCurrency} sellerCurrency=${check.sellerCurrency} platform=${sellers[0]?.platform ?? "unknown"}`,
       ),
     );
   }

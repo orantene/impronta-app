@@ -34,6 +34,21 @@ describe("offer currency wiring", () => {
     assert.equal(calls, 2);
     assert.ok(src.indexOf("checkInquiryCurrencyMatchesSeller(") < src.indexOf("createCheckoutSessionForTransaction({"));
   });
+  it("charge entry points fail CLOSED: charge mode, service client only, no session-client fallback", () => {
+    const src = read("src/lib/server-actions/client-pipeline.ts");
+    assert.equal(src.split('mode: "charge"').length - 1, 2);
+    assert.equal(src.split("checkInquiryCurrencyMatchesSeller(createServiceRoleClient(),").length - 1, 2);
+    assert.doesNotMatch(src, /createServiceRoleClient\(\) \?\? ctx\.supabase/);
+    assert.match(read("src/lib/inquiry/inquiry-engine-offers.ts"), /mode: "send"/);
+  });
+  it("request-payment adapter guards inquiry charges before Stripe, fail closed", () => {
+    const src = read("src/lib/payments/stripe-collection.ts");
+    const guard = src.indexOf('mode: "charge"');
+    assert.ok(guard > 0, "guard present");
+    assert.ok(guard < src.indexOf("createStripeTerminalPaymentRequest(input)"), "guard before terminal");
+    assert.ok(guard < src.indexOf("createCheckoutSessionForTransaction("), "guard before checkout");
+    assert.match(src, /if \(input\.inquiryId\)/);
+  });
   it("the editor and the client card show the currency code", () => {
     assert.match(read("src/components/admin/offer/offer-money-split.tsx"), /formatOfferMoney\(total, currencyCode/);
     assert.match(read("src/components/admin/offer/offer-money-split.tsx"), /formatOfferMoney\(n, currencyCode\)/);

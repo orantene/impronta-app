@@ -237,9 +237,11 @@ export async function startInquiryCheckout(
 
     // TUL-274: never start a charge in a currency the single seller does not charge in.
     // Sellers are read with the service client: the client's own session cannot see talent rows.
-    const curCheck = await checkInquiryCurrencyMatchesSeller(createServiceRoleClient() ?? ctx.supabase, {
+    // Fails CLOSED on a read error, or when the service client is missing.
+    const curCheck = await checkInquiryCurrencyMatchesSeller(createServiceRoleClient(), {
       inquiryId,
       currency: txn.currency || (booking.currency_code as string | null) || "USD",
+      mode: "charge",
     });
     if (!curCheck.ok) return { ok: false, error: curCheck.message };
 
@@ -332,7 +334,7 @@ export async function createInquiryPaymentIntent(
     const currency = txn.currency || (booking.currency_code as string | null) || "USD";
 
     // TUL-274: never start a charge in a currency the single seller does not charge in.
-    const curCheck = await checkInquiryCurrencyMatchesSeller(createServiceRoleClient() ?? ctx.supabase, { inquiryId, currency });
+    const curCheck = await checkInquiryCurrencyMatchesSeller(createServiceRoleClient(), { inquiryId, currency, mode: "charge" });
     if (!curCheck.ok) return { ok: false, error: curCheck.message };
 
     const result = await createPaymentIntentForTransaction({

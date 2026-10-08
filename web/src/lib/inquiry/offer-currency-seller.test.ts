@@ -39,9 +39,44 @@ describe("resolveNewOfferCurrency (the value createOffer inserts as currency_cod
     assert.equal(await run([mx], false), "USD"));
 });
 
+describe("seller read ERROR: send fails open, charge fails closed", () => {
+  const failing = {
+    from: () => {
+      const b: Record<string, unknown> = {};
+      for (const m of ["select", "eq", "in"]) b[m] = () => b;
+      b.then = (resolve: (v: { data: null; error: { message: string } }) => unknown) =>
+        resolve({ data: null, error: { message: "db down" } });
+      return b;
+    },
+  } as unknown as SupabaseClient;
+  const throwing = {
+    from: () => {
+      throw new Error("boom");
+    },
+  } as unknown as SupabaseClient;
+
+  it("send mode: a read error does not block", async () => {
+    assert.deepEqual(await checkInquiryCurrencyMatchesSeller(failing, { inquiryId: "i1", currency: "USD", mode: "send" }), { ok: true });
+    assert.deepEqual(await checkInquiryCurrencyMatchesSeller(throwing, { inquiryId: "i1", currency: "USD", mode: "send" }), { ok: true });
+  });
+  it("charge mode: a read error, a thrown read or a missing client is refused", async () => {
+    for (const sb of [failing, throwing, null]) {
+      const r = await checkInquiryCurrencyMatchesSeller(sb, { inquiryId: "i1", currency: "USD", mode: "charge" });
+      assert.equal(r.ok, false);
+      if (!r.ok) assert.equal(r.code, "seller_currency_unreadable");
+    }
+  });
+  it("charge mode: no sellers resolved WITHOUT error is still not refused", async () => {
+    assert.deepEqual(
+      await checkInquiryCurrencyMatchesSeller(fakeSupabase([]), { inquiryId: "i1", currency: "USD", mode: "charge" }),
+      { ok: true },
+    );
+  });
+});
+
 describe("checkInquiryCurrencyMatchesSeller (send and charge creation)", () => {
   const check = (talents: TalentRow[], currency: string) =>
-    checkInquiryCurrencyMatchesSeller(fakeSupabase(talents), { inquiryId: "i1", currency });
+    checkInquiryCurrencyMatchesSeller(fakeSupabase(talents), { inquiryId: "i1", currency, mode: "charge" });
   it("matching currency passes", async () => assert.deepEqual(await check([mx], "MXN"), { ok: true }));
   it("USD offer to an MXN seller is refused (send guard)", async () => {
     const r = await check([mx], "USD");
