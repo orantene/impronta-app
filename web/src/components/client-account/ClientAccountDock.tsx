@@ -1,3 +1,6 @@
+import { getAppUrl } from "@/lib/auth-flow";
+import { accountHrefFor } from "@/lib/client-account/agency-area-pure";
+import { readAccountHost } from "@/lib/client-account/area-site.server";
 import { resolveClientAccountMount } from "@/lib/client-account/gate";
 
 import { ClientAccountButton } from "./ClientAccountButton";
@@ -8,8 +11,9 @@ import { ClientAccountButton } from "./ClientAccountButton";
  * - `profile_page` (`/t/<code>`, not a website): the account belongs to the hub
  *   or agency whose host it is (flag `app`), never to the talent.
  * Flag off (the default) renders null, so nothing visible changes anywhere.
+ * On the marketing apex "My account" links to the app host (it has no /account).
  */
-export function ClientAccountDock({
+export async function ClientAccountDock({
   locale,
   surface = "talent_site",
 }: {
@@ -17,5 +21,6 @@ export function ClientAccountDock({
   surface?: "talent_site" | "profile_page";
 }) {
   if (!resolveClientAccountMount(surface === "profile_page" ? "app" : "talent").dock) return null;
-  return <ClientAccountButton variant="dock" locale={locale} />;
+  const { hostContext } = await readAccountHost();
+  return <ClientAccountButton variant="dock" locale={locale} accountHref={accountHrefFor(hostContext, getAppUrl())} />;
 }

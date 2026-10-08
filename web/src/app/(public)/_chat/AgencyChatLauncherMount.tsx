@@ -22,6 +22,8 @@
 
 import { Suspense } from "react";
 
+import { ClientAccountDock } from "@/components/client-account/ClientAccountDock";
+
 import { TalentProfileChatLauncher } from "@/app/t/[profileCode]/_chat/TalentProfileChatLauncher";
 import { DirectoryInquiryUrlSync } from "@/components/directory/directory-inquiry-url-sync";
 import { surfaceModeFromBackgroundMode } from "@/app/t/[profileCode]/_chat/mini-chat-styles";
@@ -285,6 +287,9 @@ export async function AgencyChatLauncherMount({
         unreadCoordinatorReply={lifecycle.unreadCoordinatorReply}
         ctaIdentity="guest"
       />
+      {/* TUL-64: client account button above the launcher on agency and hub
+          pages. Renders null unless CLIENT_ACCOUNT_HOSTS lists `app`. */}
+      <ClientAccountDock locale={locale} surface="profile_page" />
       {/* After the launcher so registerChatLauncher wins the same paint as
           `?inquiry=open`. Suspense because it reads search params. */}
       <Suspense fallback={null}>

@@ -38,6 +38,8 @@ type Props = {
   email: string | null;
   timeZone: string;
   data: AreaData;
+  /** Agency hosts only: links to the agency's existing client pages, shown after the four tabs. */
+  extraTabs?: ReadonlyArray<{ key: "quotes" | "shortlists" | "approvals"; href: string }>;
 };
 
 const wrap: CSSProperties = {
@@ -223,6 +225,7 @@ export function ClientAccountArea(props: Props) {
   const tabLabel: Record<AccountTab, string> = {
     visits: a("tabVisits"), messages: a("tabMessages"), payments: a("tabPayments"), settings: a("tabSettings"),
   };
+  const extraLabel = { quotes: a("tabQuotes"), shortlists: a("tabShortlists"), approvals: a("tabApprovals") };
   const nav = (
     <nav aria-label={a("title")} style={{ display: "flex", gap: 6, overflowX: "auto", margin: "20px 0", paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
       {ACCOUNT_TABS.map((k) => (
@@ -239,6 +242,18 @@ export function ClientAccountArea(props: Props) {
           }}
         >
           {tabLabel[k]}
+        </Link>
+      ))}
+      {(props.extraTabs ?? []).map((x) => (
+        <Link
+          key={x.key}
+          href={x.href}
+          style={{
+            flex: "0 0 auto", minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 16px", whiteSpace: "nowrap",
+            borderRadius: RADIUS, textDecoration: "none", fontWeight: 600, border: `1px solid ${LINE}`, color: INK,
+          }}
+        >
+          {extraLabel[x.key]}
         </Link>
       ))}
     </nav>
