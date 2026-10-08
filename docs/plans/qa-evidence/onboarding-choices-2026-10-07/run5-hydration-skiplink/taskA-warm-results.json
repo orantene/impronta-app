@@ -1,0 +1,3284 @@
+[
+ {
+  "cond": "default",
+  "route": "/talent/services",
+  "i": 0,
+  "surl": "http://localhost:3106/talent/services",
+  "errs": [],
+  "nS": 53,
+  "nC": 86,
+  "onlyServer": [
+   {
+    "t": "Tus servicios se están cargando.",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "Cargando",
+    "path": "p<div.mt-6<div.font-admin-body<div"
+   },
+   {
+    "t": "Tus servicios se están cargando. No se muestra un número hasta que lleguen.",
+    "path": "p.mt-1<div.mt-6<div.font-admin-body<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Administra tus servicios, paquetes y productos · 2 artículos",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2 elementos necesitan atención: 2 sin foto.",
+    "path": "p<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Mostrarlos",
+    "path": "button.font-semibold<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "El mismo catálogo que tu sitio.",
+    "path": "span.font-semibold<p.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño del sitio queda en borrador hasta que publiques la página.",
+    "path": "p.mt-4<div.font-admin-body<div<div"
+   },
+   {
+    "t": "Limpieza profunda",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "90 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$850 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$47",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "Limpieza ligera",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "60 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$500 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$28",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   }
+  ]
+ },
+ {
+  "cond": "default",
+  "route": "/talent/services",
+  "i": 1,
+  "surl": "http://localhost:3106/talent/services",
+  "errs": [],
+  "nS": 53,
+  "nC": 86,
+  "onlyServer": [
+   {
+    "t": "Tus servicios se están cargando.",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "Cargando",
+    "path": "p<div.mt-6<div.font-admin-body<div"
+   },
+   {
+    "t": "Tus servicios se están cargando. No se muestra un número hasta que lleguen.",
+    "path": "p.mt-1<div.mt-6<div.font-admin-body<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Administra tus servicios, paquetes y productos · 2 artículos",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2 elementos necesitan atención: 2 sin foto.",
+    "path": "p<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Mostrarlos",
+    "path": "button.font-semibold<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "El mismo catálogo que tu sitio.",
+    "path": "span.font-semibold<p.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño del sitio queda en borrador hasta que publiques la página.",
+    "path": "p.mt-4<div.font-admin-body<div<div"
+   },
+   {
+    "t": "Limpieza profunda",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "90 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$850 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$47",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "Limpieza ligera",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "60 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$500 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$28",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   }
+  ]
+ },
+ {
+  "cond": "default",
+  "route": "/talent/services",
+  "i": 2,
+  "surl": "http://localhost:3106/talent/services",
+  "errs": [],
+  "nS": 53,
+  "nC": 86,
+  "onlyServer": [
+   {
+    "t": "Tus servicios se están cargando.",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "Cargando",
+    "path": "p<div.mt-6<div.font-admin-body<div"
+   },
+   {
+    "t": "Tus servicios se están cargando. No se muestra un número hasta que lleguen.",
+    "path": "p.mt-1<div.mt-6<div.font-admin-body<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Administra tus servicios, paquetes y productos · 2 artículos",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2 elementos necesitan atención: 2 sin foto.",
+    "path": "p<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Mostrarlos",
+    "path": "button.font-semibold<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "El mismo catálogo que tu sitio.",
+    "path": "span.font-semibold<p.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño del sitio queda en borrador hasta que publiques la página.",
+    "path": "p.mt-4<div.font-admin-body<div<div"
+   },
+   {
+    "t": "Limpieza profunda",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "90 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$850 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$47",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "Limpieza ligera",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "60 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$500 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$28",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   }
+  ]
+ },
+ {
+  "cond": "default",
+  "route": "/talent/clients",
+  "i": 0,
+  "surl": "http://localhost:3106/talent/clients",
+  "errs": [],
+  "nS": 62,
+  "nC": 70,
+  "onlyServer": [],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   }
+  ]
+ },
+ {
+  "cond": "default",
+  "route": "/talent/clients",
+  "i": 1,
+  "surl": "http://localhost:3106/talent/clients",
+  "errs": [],
+  "nS": 62,
+  "nC": 70,
+  "onlyServer": [],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   }
+  ]
+ },
+ {
+  "cond": "default",
+  "route": "/talent/clients",
+  "i": 2,
+  "surl": "http://localhost:3106/talent/clients",
+  "errs": [],
+  "nS": 62,
+  "nC": 70,
+  "onlyServer": [],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   }
+  ]
+ },
+ {
+  "cond": "default",
+  "route": "/talent/today",
+  "i": 0,
+  "surl": "http://localhost:3106/talent/today",
+  "errs": [],
+  "nS": 138,
+  "nC": 151,
+  "onlyServer": [
+   {
+    "t": "27",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Escríbela por mí",
+    "path": "button[bio-write].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "0 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "27%",
+    "path": "span<div<button<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "42",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Soy Rosa myself desktop ztwsfb, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas.",
+    "path": "textarea[today-bio-text].w-full<div.relative<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Reescribir",
+    "path": "button[bio-rewrite].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más corta",
+    "path": "button[bio-shorten].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más larga",
+    "path": "button[bio-expand].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más cálida",
+    "path": "button[bio-tone-warm].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más profesional",
+    "path": "button[bio-tone-professional].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "104 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "42%",
+    "path": "span<div<button<div"
+   }
+  ]
+ },
+ {
+  "cond": "default",
+  "route": "/talent/today",
+  "i": 1,
+  "surl": "http://localhost:3106/talent/today",
+  "errs": [],
+  "nS": 138,
+  "nC": 146,
+  "onlyServer": [
+   {
+    "t": "27",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "27%",
+    "path": "span<div<button<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "42",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "42%",
+    "path": "span<div<button<div"
+   }
+  ]
+ },
+ {
+  "cond": "default",
+  "route": "/talent/today",
+  "i": 2,
+  "surl": "http://localhost:3106/talent/today",
+  "errs": [],
+  "nS": 138,
+  "nC": 151,
+  "onlyServer": [
+   {
+    "t": "27",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Escríbela por mí",
+    "path": "button[bio-write].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "0 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "27%",
+    "path": "span<div<button<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "42",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Soy Rosa myself desktop ztwsfb, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas.",
+    "path": "textarea[today-bio-text].w-full<div.relative<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Reescribir",
+    "path": "button[bio-rewrite].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más corta",
+    "path": "button[bio-shorten].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más larga",
+    "path": "button[bio-expand].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más cálida",
+    "path": "button[bio-tone-warm].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más profesional",
+    "path": "button[bio-tone-professional].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "104 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "42%",
+    "path": "span<div<button<div"
+   }
+  ]
+ },
+ {
+  "cond": "LA-enUS",
+  "route": "/talent/services",
+  "i": 0,
+  "surl": "http://localhost:3106/talent/services",
+  "errs": [],
+  "nS": 53,
+  "nC": 86,
+  "onlyServer": [
+   {
+    "t": "Tus servicios se están cargando.",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "Cargando",
+    "path": "p<div.mt-6<div.font-admin-body<div"
+   },
+   {
+    "t": "Tus servicios se están cargando. No se muestra un número hasta que lleguen.",
+    "path": "p.mt-1<div.mt-6<div.font-admin-body<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Administra tus servicios, paquetes y productos · 2 artículos",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2 elementos necesitan atención: 2 sin foto.",
+    "path": "p<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Mostrarlos",
+    "path": "button.font-semibold<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "El mismo catálogo que tu sitio.",
+    "path": "span.font-semibold<p.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño del sitio queda en borrador hasta que publiques la página.",
+    "path": "p.mt-4<div.font-admin-body<div<div"
+   },
+   {
+    "t": "Limpieza profunda",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "90 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$850 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$47",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "Limpieza ligera",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "60 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$500 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$28",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   }
+  ]
+ },
+ {
+  "cond": "LA-enUS",
+  "route": "/talent/services",
+  "i": 1,
+  "surl": "http://localhost:3106/talent/services",
+  "errs": [],
+  "nS": 53,
+  "nC": 86,
+  "onlyServer": [
+   {
+    "t": "Tus servicios se están cargando.",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "Cargando",
+    "path": "p<div.mt-6<div.font-admin-body<div"
+   },
+   {
+    "t": "Tus servicios se están cargando. No se muestra un número hasta que lleguen.",
+    "path": "p.mt-1<div.mt-6<div.font-admin-body<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Administra tus servicios, paquetes y productos · 2 artículos",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2 elementos necesitan atención: 2 sin foto.",
+    "path": "p<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Mostrarlos",
+    "path": "button.font-semibold<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "El mismo catálogo que tu sitio.",
+    "path": "span.font-semibold<p.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño del sitio queda en borrador hasta que publiques la página.",
+    "path": "p.mt-4<div.font-admin-body<div<div"
+   },
+   {
+    "t": "Limpieza profunda",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "90 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$850 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$47",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "Limpieza ligera",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "60 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$500 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$28",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   }
+  ]
+ },
+ {
+  "cond": "LA-enUS",
+  "route": "/talent/clients",
+  "i": 0,
+  "surl": "http://localhost:3106/talent/clients",
+  "errs": [],
+  "nS": 62,
+  "nC": 70,
+  "onlyServer": [],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   }
+  ]
+ },
+ {
+  "cond": "LA-enUS",
+  "route": "/talent/clients",
+  "i": 1,
+  "surl": "http://localhost:3106/talent/clients",
+  "errs": [],
+  "nS": 62,
+  "nC": 70,
+  "onlyServer": [],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   }
+  ]
+ },
+ {
+  "cond": "LA-enUS",
+  "route": "/talent/today",
+  "i": 0,
+  "surl": "http://localhost:3106/talent/today",
+  "errs": [],
+  "nS": 138,
+  "nC": 151,
+  "onlyServer": [
+   {
+    "t": "27",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Escríbela por mí",
+    "path": "button[bio-write].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "0 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "27%",
+    "path": "span<div<button<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "42",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Soy Rosa myself desktop ztwsfb, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas.",
+    "path": "textarea[today-bio-text].w-full<div.relative<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Reescribir",
+    "path": "button[bio-rewrite].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más corta",
+    "path": "button[bio-shorten].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más larga",
+    "path": "button[bio-expand].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más cálida",
+    "path": "button[bio-tone-warm].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más profesional",
+    "path": "button[bio-tone-professional].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "104 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "42%",
+    "path": "span<div<button<div"
+   }
+  ]
+ },
+ {
+  "cond": "LA-enUS",
+  "route": "/talent/today",
+  "i": 1,
+  "surl": "http://localhost:3106/talent/today",
+  "errs": [],
+  "nS": 138,
+  "nC": 151,
+  "onlyServer": [
+   {
+    "t": "27",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Escríbela por mí",
+    "path": "button[bio-write].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "0 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "27%",
+    "path": "span<div<button<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "42",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Soy Rosa myself desktop ztwsfb, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas.",
+    "path": "textarea[today-bio-text].w-full<div.relative<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Reescribir",
+    "path": "button[bio-rewrite].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más corta",
+    "path": "button[bio-shorten].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más larga",
+    "path": "button[bio-expand].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más cálida",
+    "path": "button[bio-tone-warm].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más profesional",
+    "path": "button[bio-tone-professional].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "104 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "42%",
+    "path": "span<div<button<div"
+   }
+  ]
+ },
+ {
+  "cond": "Tokyo-enUS",
+  "route": "/talent/services",
+  "i": 0,
+  "surl": "http://localhost:3106/talent/services",
+  "errs": [],
+  "nS": 53,
+  "nC": 86,
+  "onlyServer": [
+   {
+    "t": "Tus servicios se están cargando.",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "Cargando",
+    "path": "p<div.mt-6<div.font-admin-body<div"
+   },
+   {
+    "t": "Tus servicios se están cargando. No se muestra un número hasta que lleguen.",
+    "path": "p.mt-1<div.mt-6<div.font-admin-body<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Administra tus servicios, paquetes y productos · 2 artículos",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2 elementos necesitan atención: 2 sin foto.",
+    "path": "p<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Mostrarlos",
+    "path": "button.font-semibold<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "El mismo catálogo que tu sitio.",
+    "path": "span.font-semibold<p.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño del sitio queda en borrador hasta que publiques la página.",
+    "path": "p.mt-4<div.font-admin-body<div<div"
+   },
+   {
+    "t": "Limpieza profunda",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "90 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$850 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$47",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "Limpieza ligera",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "60 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$500 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$28",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   }
+  ]
+ },
+ {
+  "cond": "Tokyo-enUS",
+  "route": "/talent/services",
+  "i": 1,
+  "surl": "http://localhost:3106/talent/services",
+  "errs": [],
+  "nS": 53,
+  "nC": 86,
+  "onlyServer": [
+   {
+    "t": "Tus servicios se están cargando.",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "Cargando",
+    "path": "p<div.mt-6<div.font-admin-body<div"
+   },
+   {
+    "t": "Tus servicios se están cargando. No se muestra un número hasta que lleguen.",
+    "path": "p.mt-1<div.mt-6<div.font-admin-body<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Administra tus servicios, paquetes y productos · 2 artículos",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2 elementos necesitan atención: 2 sin foto.",
+    "path": "p<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Mostrarlos",
+    "path": "button.font-semibold<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "El mismo catálogo que tu sitio.",
+    "path": "span.font-semibold<p.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño del sitio queda en borrador hasta que publiques la página.",
+    "path": "p.mt-4<div.font-admin-body<div<div"
+   },
+   {
+    "t": "Limpieza profunda",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "90 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$850 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$47",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "Limpieza ligera",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "60 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$500 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$28",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   }
+  ]
+ },
+ {
+  "cond": "Tokyo-enUS",
+  "route": "/talent/clients",
+  "i": 0,
+  "surl": "http://localhost:3106/talent/clients",
+  "errs": [],
+  "nS": 62,
+  "nC": 70,
+  "onlyServer": [
+   {
+    "t": "jue 8 de oct",
+    "path": "div.text-[13.5px]<div.group<div.hidden<div.flex"
+   },
+   {
+    "t": "Próxima: jue 8 de oct · Confirmado",
+    "path": "span.mt-0.5<span.min-w-0<button.flex<div.p-3.5"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "vie 9 de oct",
+    "path": "div.text-[13.5px]<div.group<div.hidden<div.flex"
+   },
+   {
+    "t": "Próxima: vie 9 de oct · Confirmado",
+    "path": "span.mt-0.5<span.min-w-0<button.flex<div.p-3.5"
+   }
+  ]
+ },
+ {
+  "cond": "Tokyo-enUS",
+  "route": "/talent/clients",
+  "i": 1,
+  "surl": "http://localhost:3106/talent/clients",
+  "errs": [],
+  "nS": 62,
+  "nC": 70,
+  "onlyServer": [
+   {
+    "t": "jue 8 de oct",
+    "path": "div.text-[13.5px]<div.group<div.hidden<div.flex"
+   },
+   {
+    "t": "Próxima: jue 8 de oct · Confirmado",
+    "path": "span.mt-0.5<span.min-w-0<button.flex<div.p-3.5"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "vie 9 de oct",
+    "path": "div.text-[13.5px]<div.group<div.hidden<div.flex"
+   },
+   {
+    "t": "Próxima: vie 9 de oct · Confirmado",
+    "path": "span.mt-0.5<span.min-w-0<button.flex<div.p-3.5"
+   }
+  ]
+ },
+ {
+  "cond": "Tokyo-enUS",
+  "route": "/talent/today",
+  "i": 0,
+  "surl": "http://localhost:3106/talent/today",
+  "errs": [],
+  "nS": 138,
+  "nC": 151,
+  "onlyServer": [
+   {
+    "t": "27",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Escríbela por mí",
+    "path": "button[bio-write].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "0 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "27%",
+    "path": "span<div<button<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "42",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Soy Rosa myself desktop ztwsfb, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas.",
+    "path": "textarea[today-bio-text].w-full<div.relative<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Reescribir",
+    "path": "button[bio-rewrite].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más corta",
+    "path": "button[bio-shorten].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más larga",
+    "path": "button[bio-expand].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más cálida",
+    "path": "button[bio-tone-warm].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más profesional",
+    "path": "button[bio-tone-professional].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "104 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "42%",
+    "path": "span<div<button<div"
+   }
+  ]
+ },
+ {
+  "cond": "Tokyo-enUS",
+  "route": "/talent/today",
+  "i": 1,
+  "surl": "http://localhost:3106/talent/today",
+  "errs": [],
+  "nS": 138,
+  "nC": 146,
+  "onlyServer": [
+   {
+    "t": "27",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "27%",
+    "path": "span<div<button<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "42",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "42%",
+    "path": "span<div<button<div"
+   }
+  ]
+ },
+ {
+  "cond": "LA-esMX",
+  "route": "/talent/services",
+  "i": 0,
+  "surl": "http://localhost:3106/talent/services",
+  "errs": [],
+  "nS": 53,
+  "nC": 86,
+  "onlyServer": [
+   {
+    "t": "Tus servicios se están cargando.",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "Cargando",
+    "path": "p<div.mt-6<div.font-admin-body<div"
+   },
+   {
+    "t": "Tus servicios se están cargando. No se muestra un número hasta que lleguen.",
+    "path": "p.mt-1<div.mt-6<div.font-admin-body<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Administra tus servicios, paquetes y productos · 2 artículos",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2 elementos necesitan atención: 2 sin foto.",
+    "path": "p<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Mostrarlos",
+    "path": "button.font-semibold<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "El mismo catálogo que tu sitio.",
+    "path": "span.font-semibold<p.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño del sitio queda en borrador hasta que publiques la página.",
+    "path": "p.mt-4<div.font-admin-body<div<div"
+   },
+   {
+    "t": "Limpieza profunda",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "90 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$850 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$47",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "Limpieza ligera",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "60 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$500 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$28",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   }
+  ]
+ },
+ {
+  "cond": "LA-esMX",
+  "route": "/talent/services",
+  "i": 1,
+  "surl": "http://localhost:3106/talent/services",
+  "errs": [],
+  "nS": 53,
+  "nC": 86,
+  "onlyServer": [
+   {
+    "t": "Tus servicios se están cargando.",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "Cargando",
+    "path": "p<div.mt-6<div.font-admin-body<div"
+   },
+   {
+    "t": "Tus servicios se están cargando. No se muestra un número hasta que lleguen.",
+    "path": "p.mt-1<div.mt-6<div.font-admin-body<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Administra tus servicios, paquetes y productos · 2 artículos",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2 elementos necesitan atención: 2 sin foto.",
+    "path": "p<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Mostrarlos",
+    "path": "button.font-semibold<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "El mismo catálogo que tu sitio.",
+    "path": "span.font-semibold<p.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño del sitio queda en borrador hasta que publiques la página.",
+    "path": "p.mt-4<div.font-admin-body<div<div"
+   },
+   {
+    "t": "Limpieza profunda",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "90 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$850 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$47",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "Limpieza ligera",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "60 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$500 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$28",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   }
+  ]
+ },
+ {
+  "cond": "LA-esMX",
+  "route": "/talent/clients",
+  "i": 0,
+  "surl": "http://localhost:3106/talent/clients",
+  "errs": [],
+  "nS": 62,
+  "nC": 70,
+  "onlyServer": [],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   }
+  ]
+ },
+ {
+  "cond": "LA-esMX",
+  "route": "/talent/clients",
+  "i": 1,
+  "surl": "http://localhost:3106/talent/clients",
+  "errs": [],
+  "nS": 62,
+  "nC": 70,
+  "onlyServer": [],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   }
+  ]
+ },
+ {
+  "cond": "LA-esMX",
+  "route": "/talent/today",
+  "i": 0,
+  "surl": "http://localhost:3106/talent/today",
+  "errs": [],
+  "nS": 138,
+  "nC": 151,
+  "onlyServer": [
+   {
+    "t": "27",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Escríbela por mí",
+    "path": "button[bio-write].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "0 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "27%",
+    "path": "span<div<button<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "42",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Soy Rosa myself desktop ztwsfb, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas.",
+    "path": "textarea[today-bio-text].w-full<div.relative<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Reescribir",
+    "path": "button[bio-rewrite].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más corta",
+    "path": "button[bio-shorten].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más larga",
+    "path": "button[bio-expand].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más cálida",
+    "path": "button[bio-tone-warm].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más profesional",
+    "path": "button[bio-tone-professional].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "104 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "42%",
+    "path": "span<div<button<div"
+   }
+  ]
+ },
+ {
+  "cond": "LA-esMX",
+  "route": "/talent/today",
+  "i": 1,
+  "surl": "http://localhost:3106/talent/today",
+  "errs": [],
+  "nS": 138,
+  "nC": 151,
+  "onlyServer": [
+   {
+    "t": "27",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Escríbela por mí",
+    "path": "button[bio-write].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "0 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "27%",
+    "path": "span<div<button<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "42",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Soy Rosa myself desktop ztwsfb, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas.",
+    "path": "textarea[today-bio-text].w-full<div.relative<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Reescribir",
+    "path": "button[bio-rewrite].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más corta",
+    "path": "button[bio-shorten].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más larga",
+    "path": "button[bio-expand].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más cálida",
+    "path": "button[bio-tone-warm].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más profesional",
+    "path": "button[bio-tone-professional].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "104 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "42%",
+    "path": "span<div<button<div"
+   }
+  ]
+ },
+ {
+  "cond": "Tokyo-esMX",
+  "route": "/talent/services",
+  "i": 0,
+  "surl": "http://localhost:3106/talent/services",
+  "errs": [],
+  "nS": 53,
+  "nC": 85,
+  "onlyServer": [
+   {
+    "t": "Tus servicios se están cargando.",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "Cargando",
+    "path": "p<div.mt-6<div.font-admin-body<div"
+   },
+   {
+    "t": "Tus servicios se están cargando. No se muestra un número hasta que lleguen.",
+    "path": "p.mt-1<div.mt-6<div.font-admin-body<div"
+   },
+   {
+    "t": "Cargando pedidos…",
+    "path": "div<div<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Administra tus servicios, paquetes y productos · 2 artículos",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2 elementos necesitan atención: 2 sin foto.",
+    "path": "p<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Mostrarlos",
+    "path": "button.font-semibold<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "El mismo catálogo que tu sitio.",
+    "path": "span.font-semibold<p.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño del sitio queda en borrador hasta que publiques la página.",
+    "path": "p.mt-4<div.font-admin-body<div<div"
+   },
+   {
+    "t": "Limpieza profunda",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "90 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$850 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$47",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "Limpieza ligera",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "60 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$500 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$28",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   }
+  ]
+ },
+ {
+  "cond": "Tokyo-esMX",
+  "route": "/talent/services",
+  "i": 1,
+  "surl": "http://localhost:3106/talent/services",
+  "errs": [],
+  "nS": 53,
+  "nC": 85,
+  "onlyServer": [
+   {
+    "t": "Tus servicios se están cargando.",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "Cargando",
+    "path": "p<div.mt-6<div.font-admin-body<div"
+   },
+   {
+    "t": "Tus servicios se están cargando. No se muestra un número hasta que lleguen.",
+    "path": "p.mt-1<div.mt-6<div.font-admin-body<div"
+   },
+   {
+    "t": "Cargando pedidos…",
+    "path": "div<div<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Administra tus servicios, paquetes y productos · 2 artículos",
+    "path": "p.text-[13px]<div<div.flex<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "0",
+    "path": "button.rounded-full<div.flex<div.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "2 elementos necesitan atención: 2 sin foto.",
+    "path": "p<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Mostrarlos",
+    "path": "button.font-semibold<div.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "El mismo catálogo que tu sitio.",
+    "path": "span.font-semibold<p.mt-4<div.font-admin-body<div"
+   },
+   {
+    "t": "Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño del sitio queda en borrador hasta que publiques la página.",
+    "path": "p.mt-4<div.font-admin-body<div<div"
+   },
+   {
+    "t": "Limpieza profunda",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "90 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$850 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$47",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   },
+   {
+    "t": "Limpieza ligera",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "60 min · agrega una foto",
+    "path": "span.block<span.min-w-0<button.flex<li.relative"
+   },
+   {
+    "t": "$500 MXN",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "≈ US$28",
+    "path": "span.block<span.shrink-0<button.flex<li.relative"
+   },
+   {
+    "t": "Reserva instantánea",
+    "path": "span.text-[11px]<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "En vivo",
+    "path": "span.rounded-full<span.inline-flex<li.relative<ul.mt-4"
+   },
+   {
+    "t": "⋯",
+    "path": "button.px-2<li.relative<ul.mt-4<div.font-admin-body"
+   }
+  ]
+ },
+ {
+  "cond": "Tokyo-esMX",
+  "route": "/talent/clients",
+  "i": 0,
+  "surl": "http://localhost:3106/talent/clients",
+  "errs": [],
+  "nS": 62,
+  "nC": 70,
+  "onlyServer": [
+   {
+    "t": "jue 8 de oct",
+    "path": "div.text-[13.5px]<div.group<div.hidden<div.flex"
+   },
+   {
+    "t": "Próxima: jue 8 de oct · Confirmado",
+    "path": "span.mt-0.5<span.min-w-0<button.flex<div.p-3.5"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "vie 9 de oct",
+    "path": "div.text-[13.5px]<div.group<div.hidden<div.flex"
+   },
+   {
+    "t": "Próxima: vie 9 de oct · Confirmado",
+    "path": "span.mt-0.5<span.min-w-0<button.flex<div.p-3.5"
+   }
+  ]
+ },
+ {
+  "cond": "Tokyo-esMX",
+  "route": "/talent/clients",
+  "i": 1,
+  "surl": "http://localhost:3106/talent/clients",
+  "errs": [],
+  "nS": 62,
+  "nC": 70,
+  "onlyServer": [
+   {
+    "t": "jue 8 de oct",
+    "path": "div.text-[13.5px]<div.group<div.hidden<div.flex"
+   },
+   {
+    "t": "Próxima: jue 8 de oct · Confirmado",
+    "path": "span.mt-0.5<span.min-w-0<button.flex<div.p-3.5"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "·",
+    "path": "span<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "vie 9 de oct",
+    "path": "div.text-[13.5px]<div.group<div.hidden<div.flex"
+   },
+   {
+    "t": "Próxima: vie 9 de oct · Confirmado",
+    "path": "span.mt-0.5<span.min-w-0<button.flex<div.p-3.5"
+   }
+  ]
+ },
+ {
+  "cond": "Tokyo-esMX",
+  "route": "/talent/today",
+  "i": 0,
+  "surl": "http://localhost:3106/talent/today",
+  "errs": [],
+  "nS": 138,
+  "nC": 151,
+  "onlyServer": [
+   {
+    "t": "27",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Escríbela por mí",
+    "path": "button[bio-write].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "0 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "27%",
+    "path": "span<div<button<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "42",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Soy Rosa myself desktop ztwsfb, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas.",
+    "path": "textarea[today-bio-text].w-full<div.relative<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Reescribir",
+    "path": "button[bio-rewrite].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más corta",
+    "path": "button[bio-shorten].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más larga",
+    "path": "button[bio-expand].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más cálida",
+    "path": "button[bio-tone-warm].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más profesional",
+    "path": "button[bio-tone-professional].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "104 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "42%",
+    "path": "span<div<button<div"
+   }
+  ]
+ },
+ {
+  "cond": "Tokyo-esMX",
+  "route": "/talent/today",
+  "i": 1,
+  "surl": "http://localhost:3106/talent/today",
+  "errs": [],
+  "nS": 138,
+  "nC": 151,
+  "onlyServer": [
+   {
+    "t": "27",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Escríbela por mí",
+    "path": "button[bio-write].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "0 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "27%",
+    "path": "span<div<button<div"
+   }
+  ],
+  "onlyClient": [
+   {
+    "t": "Cookies y analítica",
+    "path": "p.plt-display<div.flex<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "×",
+    "path": "span.text-lg<button.grid<div.flex<div.rounded-[var(--tl-radius-lg,22px)]"
+   },
+   {
+    "t": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+    "path": "p.mt-2<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de privacidad",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Política de cookies",
+    "path": "a.underline<p.mt-2.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Rechazar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "Aceptar",
+    "path": "button.h-10<div.mt-3.5<div.rounded-[var(--tl-radius-lg,22px)]<div.site-theme-platform"
+   },
+   {
+    "t": "42",
+    "path": "div.text-admin-accent-deep<div.flex<div<div"
+   },
+   {
+    "t": "Soy Rosa myself desktop ztwsfb, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas.",
+    "path": "textarea[today-bio-text].w-full<div.relative<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Reescribir",
+    "path": "button[bio-rewrite].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más corta",
+    "path": "button[bio-shorten].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más larga",
+    "path": "button[bio-expand].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más cálida",
+    "path": "button[bio-tone-warm].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "Más profesional",
+    "path": "button[bio-tone-professional].rounded-full<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "104 / 600",
+    "path": "span.text-admin-11h<div.flex<section[today-bio-helper].flex<div"
+   },
+   {
+    "t": "42%",
+    "path": "span<div<button<div"
+   }
+  ]
+ }
+]
