@@ -2,6 +2,8 @@ import "server-only";
 
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { withHeaderLogo } from "@/lib/talent-site/header-logo";
+import { withShellBrandName } from "../header-brand-name";
+import { loadTalentDisplayName } from "./load-header-brand-name.server";
 import { contrastRatio } from "@/lib/site-admin/tokens/contrast-pair";
 import { localiseSeededDesignLabels, type SiteCtaMode } from "../design-label-locale";
 import { placeMaisonTradeApps, tradesFromTypeLabels } from "../demos/app-placement";
@@ -39,6 +41,8 @@ export async function prepareTalentSiteTrees(input: {
   chain?: readonly string[];
   /** When known, gates trade-app placement; otherwise origin-stamped trees detect Maison v2. */
   designSlug?: string | null;
+  /** Last-resort header name when the profile has none. */
+  siteSlug?: string | null;
 }): Promise<{ shellTree: BuilderNode[]; body: BuilderNode[] }> {
   const combined = [...input.shellTree, ...input.body];
   const wantsLive = treeHasLiveCandidates(combined);
@@ -62,6 +66,7 @@ export async function prepareTalentSiteTrees(input: {
     // names in the visitor's language; the literal items are the fallback.
     return applyTalentTickerServices(next, tickerWords);
   };
+  const brandName = input.logoUrl ? "" : await loadTalentDisplayName(input.talentProfileId);
   const trades = tradesFromTypeLabels(typeLabels);
   const bodyWithApps = placeMaisonTradeApps(input.body, trades, {
     designSlug: input.designSlug,
@@ -70,7 +75,9 @@ export async function prepareTalentSiteTrees(input: {
     localiseSeededDesignLabels(input.shellTree, input.locale, input.ctaMode ?? null, swaps),
   );
   return {
-    shellTree: input.logoUrl ? shell.map((n) => withHeaderLogo(n, input.logoUrl!)) : shell,
+    shellTree: input.logoUrl
+      ? shell.map((n) => withHeaderLogo(n, input.logoUrl!))
+      : withShellBrandName(shell, [brandName, input.siteSlug]),
     body: withLive(
       localiseSeededDesignLabels(bodyWithApps, input.locale, input.ctaMode ?? null, swaps),
     ),
