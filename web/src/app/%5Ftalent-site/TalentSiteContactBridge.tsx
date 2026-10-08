@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { intentForHref, openIntentFor, type BookEntry } from "@/lib/talent-site/book-entry";
 import { isTalentOpenHash } from "@/lib/talent-site/contact-channels";
 import { requestTalentOpen } from "@/lib/talent-site/open-intent-client";
+import { openDeepLinkFromLocation } from "@/lib/talent-site/open-booking-at-slot";
 
 /** The URL whose fragment already opened the entry: the effect re-runs must not re-open it. */
 let coldLoadHandledFor = "";
@@ -59,21 +60,37 @@ export function TalentSiteContactBridge({
     };
     // A cold load or a pasted `...#book` link opens the entry too (the click above only covers
     // links followed on the page).
-    const onHash = () => {
-      const intent = isTalentOpenHash(window.location.hash)
-        ? intentForHref(window.location.hash, bookEntry)
-        : null;
+    // TUL-232: `?book=<offering>&slot=<ISO>#book` opens the booking sheet at that slot. The offering
+    // registers when its card mounts, which can be after this effect, so a deep link that cannot
+    // resolve yet is retried once; only the final try falls back to the plain entry, and `sheetOpen`
+    // stops a retry from resetting an open sheet.
+    // TUL-246: the plain entry is queued and handed over when its target (dock or sheet) announces it
+    // is listening, so there is no mount-timing retry for it.
+    let sheetOpen = false;
+    const onSheet = (e: Event) => {
+      sheetOpen = Boolean((e as CustomEvent<{ open?: boolean }>).detail?.open);
+    };
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const onHash = (final = true) => {
+      if (!isTalentOpenHash(window.location.hash)) return;
+      const deep = openDeepLinkFromLocation(window.location, { alreadyOpen: () => sheetOpen });
+      if (deep === "opened") return;
+      if (deep === "unresolved" && !final) {
+        timers.push(setTimeout(() => onHash(true), 800));
+        return;
+      }
+      const intent = intentForHref(window.location.hash, bookEntry);
       if (intent) requestTalentOpen(intent);
     };
     // The initial fragment never fires `hashchange`, so a cold load runs the handler once itself.
-    // The dock and the booking sheet mount as siblings in no fixed order, so the intent is queued
-    // and handed over when its target announces it is listening (no mount-timing retry).
     if (coldLoadHandledFor !== window.location.href) {
       coldLoadHandledFor = window.location.href;
-      onHash();
+      onHash(false);
     }
     document.addEventListener("click", onClick, true);
-    window.addEventListener("hashchange", onHash);
+    const onHashChange = () => onHash();
+    window.addEventListener("hashchange", onHashChange);
+    window.addEventListener("tulala:maison-sheet", onSheet);
     // WSF: entry "hidden" (chat off, inquiries off): no ask / inquire control stays on the page.
     let observer: MutationObserver | null = null;
     if (!showAsk) {
@@ -85,8 +102,10 @@ export function TalentSiteContactBridge({
     setShowFallback(!pageAlreadyHasContactChrome());
     return () => {
       observer?.disconnect();
+      timers.forEach(clearTimeout);
       document.removeEventListener("click", onClick, true);
-      window.removeEventListener("hashchange", onHash);
+      window.removeEventListener("hashchange", onHashChange);
+      window.removeEventListener("tulala:maison-sheet", onSheet);
     };
   }, [showAsk, bookEntry]);
 
