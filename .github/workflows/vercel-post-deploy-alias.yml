@@ -23,14 +23,20 @@ on:
 #
 # Two defenses:
 #  1. `concurrency` serializes runs (no parallel clobber). cancel-in-progress is
-#     false so no run is dropped, each one re-asserts the alias in turn.
+#     true (TUL-412): a newer alias run cancels a still-queued/superseded one.
+#     Safe because every run re-queries the newest READY production deploy —
+#     only the latest alias pass matters. Leaving cancel false left a
+#     2026-10-07 run QUEUED for a day behind PR gates.
 #  2. The step aliases to the QUERIED newest READY production deployment, not the
 #     triggering event's target_url. This makes it order-independent and
 #     self-healing: even a late/out-of-order run re-points the domains at the
 #     true latest. target_url is only a fallback if the query returns empty.
+#
+# Optional dedicated runner: set repo variable ALIAS_RUNNER (or reuse
+# PROMOTE_RUNNER) to take this off the shared ubuntu-latest pool.
 concurrency:
   group: vercel-alias-production
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   alias:
@@ -38,7 +44,7 @@ jobs:
     if: >-
       github.event.deployment_status.state == 'success' &&
       github.event.deployment_status.environment == 'Production'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.ALIAS_RUNNER || vars.PROMOTE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
     steps:
       - name: Install Vercel CLI

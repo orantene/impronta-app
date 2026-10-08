@@ -28,12 +28,15 @@
 #     target must be a descendant of the current pointer (never backwards);
 #   - the target is always a main commit with a green gate run, never a commit
 #     that merely lacks a verdict;
-#   - own concurrency group, cancel-in-progress false, shared with no PR
-#     workflow. A pending run replaced by a newer one is harmless: every run
-#     recomputes the newest green commit.
+#   - own concurrency group, shared with no PR workflow. cancel-in-progress is
+#     true (TUL-412): a newer promote cancels a still-queued/superseded one.
+#     Safe because every run RECONCILES to the newest green main commit — a
+#     cancelled promote is no longer a frozen pointer.
 # Runner priority: GitHub offers none. The job is tiny and shares no queue
 # group with PR CI, but ubuntu-latest capacity is a shared pool. Set the repo
 # variable PROMOTE_RUNNER to a dedicated runner label to take it off the pool.
+# Ordinary PR gates share one concurrency slot (see ci.yml) so they cannot
+# saturate the pool ahead of main / integ / this job (TUL-412).
 #
 # MANUAL RUNS (added 2026-08-30). This workflow can also be started by hand.
 # It was not, and that cost hours: a Vercel builder froze mid-deploy, and with
@@ -68,10 +71,12 @@ permissions:
   contents: write
   actions: read
 
-# Dedicated group. Never cancel: a cancelled promote is a frozen pointer.
+# Dedicated group. Cancel superseded runs: reconcile makes replacement safe
+# (TUL-412). A stuck queued promote behind a flood of PR gates used to sit for
+# 30-50 min; cancelling the stale one lets the newest run take the runner.
 concurrency:
   group: promote-production
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   GATE_WORKFLOW: "CI — structural quality gate"

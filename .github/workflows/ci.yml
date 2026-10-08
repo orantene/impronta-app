@@ -46,28 +46,31 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Cancel superseded runs on a PR ref, so a second push doesn't stack up.
+# Concurrency priority (TUL-412) so main / integ / promote / alias are not
+# starved by a flood of ordinary PR gates on the shared ubuntu-latest pool:
 #
-# NEVER cancel on `main`. The original comment here said main pushes cancelling
-# each other was "intentional — only the latest commit needs to be green", and
-# that reasoning is wrong in a way that only shows up under load:
-# `promote-production.yml` advances the production pointer ONLY on a run that
-# PASSED on that exact commit. A cancelled run has no verdict, so the pointer
-# cannot advance past it.
+#   - main: per-sha group, NEVER cancel. A cancelled main gate has no verdict,
+#     so promote-production.yml cannot advance the pointer past that commit
+#     (measured 2026-09-03: eight main runs cancelled → production froze).
+#   - integ/* PRs: per-ref group, cancel superseded pushes on that integ branch.
+#     Integration batches keep their own slot; they are the merge path.
+#   - ordinary PRs: ONE shared group (`…-ordinary-pr-pool`). Only one ordinary
+#     PR gate runs at a time; the rest queue. cancel-in-progress is false on
+#     that shared slot so a push on PR A cannot cancel PR B's in-flight gate.
+#     Draft PRs still skip the job entirely (below). Convert held ready PRs
+#     back to draft so they stop enqueueing.
 #
-# Measured 2026-09-03: the structural gate takes 15-17 minutes and this repo was
-# merging to main every 2-5 minutes. Eight consecutive main runs were cancelled
-# — one of them at 15m15s, a minute short — every promote run reported
-# `skipped`, and EIGHT merged commits sat undeployed while every check on every
-# PR was green and no alert fired. Nobody's PR was red and nobody's merge was
-# wrong; the platform simply stopped shipping, and it got worse the more work
-# the team landed.
-#
-# Runs on main now queue instead of cancelling. The cost is compute already
-# being spent on runs that were thrown away.
+# GitHub has no runner-priority API. The shared ordinary-PR slot is the lever
+# that keeps main/integ/promote from waiting 30-50 min behind dozens of PR runs.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: >-
+    ${{
+      github.ref == 'refs/heads/main' && format('{0}-{1}', github.workflow, github.sha)
+      || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'integ/') && format('{0}-{1}', github.workflow, github.ref))
+      || (github.event_name == 'pull_request' && format('{0}-ordinary-pr-pool', github.workflow))
+      || format('{0}-{1}', github.workflow, github.ref)
+    }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && (github.event_name != 'pull_request' || startsWith(github.head_ref, 'integ/')) }}
 
 permissions:
   contents: read

@@ -289,6 +289,23 @@ Otherwise the job is skipped (its `if:` is false). On push to `main` and on
 manual runs they always run. So on an ordinary PR the only check that actually
 executes is the structural gate.
 
+### CI priority (TUL-412)
+
+GitHub has no runner-priority API; `ubuntu-latest` is one shared pool. To keep
+`main`, `integ/*`, `promote-production` and `vercel-post-deploy-alias` from
+waiting 30–50 minutes behind ordinary PR gates:
+
+1. Ordinary PR structural gates share **one** concurrency slot
+   (`CI — structural quality gate-ordinary-pr-pool`). Only one runs at a time.
+2. `integ/*` keeps a per-ref slot; `main` stays per-sha and never cancels.
+3. Promote and alias cancel superseded queued runs (`cancel-in-progress: true`);
+   both reconcile / re-query, so cancellation cannot freeze production.
+4. Draft PRs still skip the gate. **Convert held ready PRs back to draft** so
+   idle work stops enqueueing. Mark ready again when you want a fresh gate.
+
+Optional: set repo variables `PROMOTE_RUNNER` / `ALIAS_RUNNER` to a dedicated
+runner label to take those tiny jobs off the shared pool entirely.
+
 ### Not PR checks
 
 These run on other events and never report a status on a PR to `main`:
