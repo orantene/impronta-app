@@ -3,6 +3,7 @@ import "server-only";
 import type { Metadata } from "next";
 
 import type { Locale } from "@/i18n/config";
+import { resolvePublicMetaDescription } from "@/lib/brand/platform-brand-locale";
 import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
 import type { MaxSiteSeo } from "./render-max-site";
@@ -56,19 +57,25 @@ export function maxSiteSeoToMetadata(
   } = {},
 ): Metadata {
   const ogImages = seo.ogImageUrl ? [{ url: seo.ogImageUrl }] : undefined;
+  // TUL-121 theme8: pages without meta_description used to omit `description`
+  // and inherit the English root-layout PLATFORM_BRAND pitch on ES talent
+  // sites. Fill from the visitor/page language so share cards match the page.
+  const description = resolvePublicMetaDescription(
+    seo.description,
+    opts.locale ?? opts.ogLocale,
+  );
+  const socialDescription = seo.ogDescription ?? description;
 
   const base: Metadata = {
     title: seo.title,
-    ...(seo.description ? { description: seo.description } : {}),
+    ...(description ? { description } : {}),
     ...(seo.noindex ? { robots: { index: false, follow: false } } : {}),
     // DS-18: the business's own tab icon replaces the platform icon from the root layout.
     ...(seo.faviconUrl ? { icons: { icon: [{ url: seo.faviconUrl }] } } : {}),
     openGraph: {
       type: "website",
       title: seo.ogTitle ?? seo.title,
-      ...(seo.ogDescription ?? seo.description
-        ? { description: seo.ogDescription ?? seo.description }
-        : {}),
+      ...(socialDescription ? { description: socialDescription } : {}),
       ...(seo.canonical ? { url: seo.canonical } : {}),
       ...ogLocaleTags(opts.ogLocale, seo.alternates?.languages),
       ...(ogImages ? { images: ogImages } : {}),
@@ -76,9 +83,7 @@ export function maxSiteSeoToMetadata(
     twitter: {
       card: "summary_large_image",
       title: seo.ogTitle ?? seo.title,
-      ...(seo.ogDescription ?? seo.description
-        ? { description: seo.ogDescription ?? seo.description }
-        : {}),
+      ...(socialDescription ? { description: socialDescription } : {}),
       ...(ogImages ? { images: ogImages } : {}),
     },
   };

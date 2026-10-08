@@ -4,6 +4,11 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
+import {
+  PLATFORM_DESCRIPTION_ES,
+  platformBrandDescription,
+} from "@/lib/brand/platform-brand-locale";
+import { TULALA_BRAND } from "@/lib/brand/tulala";
 import { buildTalentProfileJsonLd } from "@/lib/seo/talent-json-ld";
 import type { MaxSiteSeo } from "@/lib/talent-site/server/render-max-site";
 import {
@@ -200,4 +205,22 @@ test("DS-18: faviconUrl on the envelope becomes the tab icon; absent keeps the p
   const withIcon = maxSiteSeoToMetadata({ ...base, faviconUrl: "https://cdn.tulala.digital/logo.png" });
   assert.deepEqual(withIcon.icons, { icon: [{ url: "https://cdn.tulala.digital/logo.png" }] });
   assert.equal(maxSiteSeoToMetadata(base).icons, undefined);
+});
+
+test("TUL-121 theme8: missing meta description follows page language (not English root inherit)", () => {
+  const bare: MaxSiteSeo = { title: "QA Fresh Studio", noindex: false };
+  const es = maxSiteSeoToMetadata(bare, { ogLocale: "es" });
+  assert.equal(es.description, PLATFORM_DESCRIPTION_ES);
+  assert.equal((es.openGraph as { description?: string }).description, PLATFORM_DESCRIPTION_ES);
+  assert.equal((es.twitter as { description?: string }).description, PLATFORM_DESCRIPTION_ES);
+
+  const en = maxSiteSeoToMetadata(bare, { locale: "en", localePathWithoutLocale: "/t/site/qa" });
+  assert.equal(en.description, TULALA_BRAND.description);
+  assert.equal(en.description, platformBrandDescription("en"));
+
+  const custom: MaxSiteSeo = { title: "Studio", description: "Mi estudio en Cancún.", noindex: false };
+  assert.equal(maxSiteSeoToMetadata(custom, { ogLocale: "es" }).description, "Mi estudio en Cancún.");
+
+  const noLocale = maxSiteSeoToMetadata(bare);
+  assert.equal(noLocale.description, undefined);
 });
