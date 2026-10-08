@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
 
 import {
   PERSONAL_SITE_BUILDER_HREF,
   resolveTalentDashboardMyWebsite,
 } from "./dashboard-my-website";
+import { resolveMyWebsiteTarget } from "./my-website-target";
 
 const personalSite = {
   id: "s1",
@@ -93,4 +96,29 @@ test("no site yet points at create", () => {
 
 test("personal builder escape hatch keeps ?site=personal", () => {
   assert.equal(PERSONAL_SITE_BUILDER_HREF, "/talent/page-builder?site=personal");
+});
+
+test("?site=personal is honored: dual owner stays on personal builder", () => {
+  const qs = new URL(PERSONAL_SITE_BUILDER_HREF, "https://app.example").searchParams;
+  assert.equal(qs.get("site"), "personal");
+  // Same flag page-builder sets from `sp.site === "personal"`.
+  const target = resolveMyWebsiteTarget({
+    ownsBusinessWorkspace: true,
+    hasWorkspaceSite: true,
+    workspaceSlug: "maison",
+    hasPersonalSite: true,
+    explicitPersonal: qs.get("site") === "personal",
+  });
+  assert.equal(target.kind, "personal");
+  assert.equal(target.href, "/talent/page-builder");
+});
+
+test("page-builder wires sp.site === personal to explicitPersonal", () => {
+  const src = readFileSync(
+    join(process.cwd(), "src/app/(workspace)/talent/page-builder/page.tsx"),
+    "utf8",
+  );
+  assert.match(src, /sp\.site\s*===\s*["']personal["']/);
+  assert.match(src, /explicitPersonal\s*:/);
+  assert.match(src, /resolveMyWebsiteTarget/);
 });
