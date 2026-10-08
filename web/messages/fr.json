@@ -810,6 +810,7 @@
       "expired": "Cette page de paiement est fermee. Demandez un nouveau lien au commerce.",
       "cancelled": "Ce paiement a ete annule. Rien n a ete pris.",
       "unknown": "Le statut du paiement est inconnu. Ne payez pas une seconde fois. Le commerce confirmera.",
+      "currencyMismatch": "Ce lien de paiement est en {linkCurrency}, mais la commande qu il regle est en {orderCurrency}. Rien n a ete debite. Demandez au commerce un nouveau lien en {orderCurrency}.",
       "paid": "Paye",
       "refunded": "Rembourse. L argent est en chemin.",
       "receipt": "Voir le recu",
@@ -2007,6 +2008,7 @@
           "wrong_tenant": "Cet enregistrement n'appartient pas a cet espace.",
           "invalid": "Cela ne peut pas etre enregistre.",
           "unavailable": "Impossible de terminer. Reessayez.",
+          "offer_currency_seller_mismatch": "Cette offre est dans une autre devise que celle du vendeur. Changez la devise de l offre pour celle du vendeur et renvoyez la.",
           "not_allowed": "Vous n'êtes pas autorisé à faire cela ici.",
           "not_reschedulable": "Cette réservation ne peut pas être déplacée.",
           "slot_taken": "Ce créneau n'est plus libre."

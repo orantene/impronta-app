@@ -26,9 +26,9 @@
  * - a talent with NO public catalog gets a standard "Day rate" service
  *   CREATED on save (roster-membership re-checked server-side) — the earlier
  *   behaviour dropped the input silently while reporting success
- * - created rates are ALWAYS USD (the product is USD-only per the owner's
- *   2026-07-11 ruling; see feedback_primary_currency_usd) — never derive the
- *   currency from talent/tenant default_currency columns
+ * - created rates use the talent's own default_currency (MXN or USD since the
+ *   2026-09-23 currency ruling; the DDL default is USD); an unreadable value
+ *   refuses the save rather than guessing USD
  * - amounts are bounded, so a fat-fingered 999999 can't publish
  *
  * Eslint note: `.from("agencies")` is the tenants table (its `id` IS the
@@ -118,7 +118,7 @@ export async function loadRosterRates(): Promise<LoadRosterRatesResult> {
     tenantId,
   )
     .select(
-      "talent_profile_id, talent_profiles ( display_name ), status, removed_at",
+      "talent_profile_id, talent_profiles ( display_name, default_currency ), status, removed_at",
     )
     .eq("status", "active")
     .is("removed_at", null);
@@ -131,16 +131,19 @@ export async function loadRosterRates(): Promise<LoadRosterRatesResult> {
   type RosterJoin = {
     talent_profile_id: string;
     talent_profiles:
-      | { display_name: string | null }
-      | { display_name: string | null }[]
+      | { display_name: string | null; default_currency?: string | null }
+      | { display_name: string | null; default_currency?: string | null }[]
       | null;
   };
   const names = new Map<string, string>();
+  const talentCurrency = new Map<string, string>();
   for (const row of roster as RosterJoin[]) {
     const tp = Array.isArray(row.talent_profiles)
       ? row.talent_profiles[0]
       : row.talent_profiles;
     names.set(row.talent_profile_id, tp?.display_name ?? "Untitled");
+    const code = (tp?.default_currency ?? "").trim().toUpperCase();
+    if (/^[A-Z]{3}$/.test(code)) talentCurrency.set(row.talent_profile_id, code);
   }
   const ids = [...names.keys()];
   if (ids.length === 0) return { ok: true, rows: [], currency: "USD" };
@@ -231,10 +234,10 @@ export async function loadRosterRates(): Promise<LoadRosterRatesResult> {
       displayName: names.get(id) ?? "Untitled",
       roleLabel: roles.get(id) ?? null,
       headlineCents: headline?.amountCents ?? null,
-      // USD-only product (owner ruling 2026-07-11, reaffirmed 2026-08-06):
-      // an unpriced row is always labelled — and later created — in USD.
-      // Existing priced rows keep their stored currency (all USD in prod).
-      currency: headline?.currency ?? "USD",
+      // An unpriced row is labelled - and later created - in the talent's own
+      // default_currency (a legacy talent without one reads as USD, display only).
+      // Existing priced rows keep their stored currency.
+      currency: headline?.currency ?? talentCurrency.get(id) ?? "USD",
       quoteOnly,
       targetTitle: target?.title ?? null,
       // No public catalog at all → a save CREATES a "Day rate" service.
@@ -346,6 +349,27 @@ export async function saveRosterRates(
       // standard "Day rate" service instead — same defaults the storefront
       // and directory already understand (published/public/approved).
       // tenantScopedQuery forces tenant_id onto the inserted row.
+      // The talent's currency is read through the tenant-scoped roster join
+      // (the same membership the save already re-checked), not a raw table read.
+      const { data: tp, error: tpErr } = await tenantScopedQuery(
+        admin,
+        "agency_talent_roster",
+        tenantId,
+      )
+        .select("talent_profiles ( default_currency )")
+        .eq("talent_profile_id", change.talentProfileId)
+        .eq("status", "active")
+        .is("removed_at", null)
+        .maybeSingle();
+      const tpJoin = (tp as { talent_profiles?: { default_currency?: string | null } | { default_currency?: string | null }[] | null } | null)?.talent_profiles;
+      const tpRow = Array.isArray(tpJoin) ? tpJoin[0] : tpJoin;
+      const createCurrency = String(tpRow?.default_currency ?? "")
+        .trim()
+        .toUpperCase();
+      if (tpErr || !/^[A-Z]{3}$/.test(createCurrency)) {
+        logServerError("admin-roster-rates.currency", tpErr ?? "talent default_currency unreadable");
+        return { ok: false, error: CLIENT_ERROR.update };
+      }
       const { error: insErr } = await tenantScopedQuery(
         admin,
         "talent_offerings",
@@ -358,11 +382,8 @@ export async function saveRosterRates(
         price_type: "day",
         price_display: "exact",
         amount_cents: change.amountCents,
-        // USD-only product (owner ruling 2026-07-11, reaffirmed 2026-08-06
-        // after this path briefly honoured talent_profiles.default_currency —
-        // whose DDL default was the buggy 'EUR', fixed in migration
-        // 20260806151524). Created rates are always dollars.
-        currency: "USD",
+        // The talent's own default_currency (resolved above; fails closed).
+        currency: createCurrency,
         sort_order: 0,
       });
       if (insErr) {
