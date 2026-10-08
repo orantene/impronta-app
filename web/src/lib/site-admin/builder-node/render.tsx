@@ -33,6 +33,7 @@ import { CaptchaFormGuard } from "@/lib/site-admin/sections/contact_form/captcha
 import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/FeaturedTalentCard";
 import { localeUrlSettings } from "@/i18n/pathnames";
 import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_talent/fetch";
+import { formatMoney } from "@/lib/talent/offerings-money";
 import {
   isSafeRichTextHref,
   renderInlineRich,
@@ -6229,7 +6230,6 @@ function renderBuilderNodeElement(
           return "Quote on request";
         }
         // TUL-383: one public money format (`$700 MXN`) via shared formatter.
-        const { formatMoney } = require("@/lib/talent/offerings-money") as typeof import("@/lib/talent/offerings-money");
         const locale = options.contentLocale?.locale ?? "en";
         const es = locale.toLowerCase().startsWith("es");
         const formatted = formatMoney(item.amountCents, item.currency, locale);
