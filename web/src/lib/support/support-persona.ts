@@ -12,13 +12,13 @@
  * and nothing else.
  */
 export const SUPPORT_AGENT = {
-  /** First name shown to customers. Used in copy via the `{agent}` placeholder. */
-  name: "Orlando",
+  /** Brand-voice name shown to customers (no personal names, PM ruling 2026-10-08). Used in copy via the `{agent}` placeholder. */
+  name: "Tulala Support",
   /**
    * Initial for the avatar fallback. Kept explicit rather than derived, because
    * a derived initial breaks on names that do not start with a Latin letter.
    */
-  initial: "O",
+  initial: "T",
   /**
    * Optional real photograph. Null renders the illustrated avatar instead.
    *

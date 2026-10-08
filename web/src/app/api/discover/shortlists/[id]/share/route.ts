@@ -20,6 +20,7 @@ import {
   buildShortlistShareUrl,
 } from "@/lib/discover/shortlist-share-token";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +61,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const baseUrl =
     process.env.PITCH_PUBLIC_BASE_URL ??
     process.env.NEXT_PUBLIC_APP_URL ??
-    "https://tulala.digital";
+    resolveMarketingOrigin();
   const url = buildShortlistShareUrl(signed.token, baseUrl);
 
   return NextResponse.json({

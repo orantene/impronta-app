@@ -18,6 +18,7 @@ import {
   resolveWorkspacePublicAddress,
   type WorkspaceUrlPlan,
 } from "@/lib/saas/workspace-public-url";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 
 type DomainRow = {
   hostname: string;
@@ -102,7 +103,7 @@ function workspacePathPreviewUrl(
   const isDev = options?.isDev ?? process.env.NODE_ENV !== "production";
   const base = isDev
     ? `http://localhost:${devPortFromRequestHost(options?.requestHost)}`
-    : "https://tulala.digital";
+    : resolveMarketingOrigin();
   return `${base}/${slug}`;
 }
 

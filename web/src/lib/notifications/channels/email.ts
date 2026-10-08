@@ -6,6 +6,7 @@ import { resolveTenantBrand } from "@/lib/brand/resolve-tenant-brand";
 import { renderEmailHtml } from "@/lib/email/render";
 import { sendEmailResult } from "@/lib/email";
 import { resolveTenantReplyTo } from "@/lib/email/resend-client";
+import { supportOutboundThreading } from "@/lib/support/support-outbound-threading";
 import { Layout } from "../../../../emails/components/Layout";
 import {
   buildUnsubscribeApiUrl,
@@ -172,7 +173,12 @@ export async function sendEmailNotification(
   // bounces and nobody learns it happened. Undefined for a tenant with no
   // contact email, which leaves the header unset rather than inventing one.
   // Platform sends (no tenant) never carry a tenant's address.
-  const replyTo = await resolveTenantReplyTo(platformSend ? null : event.tenantId);
+  const tenantReplyTo = await resolveTenantReplyTo(platformSend ? null : event.tenantId);
+  // Support mail: signed Reply-To plus-token + stable Message-ID so an emailed
+  // reply threads back onto the ticket (support-inbound-append.server.ts).
+  const threading = supportOutboundThreading(entry.id, event.payload, event.eventId);
+  const replyTo = threading?.replyTo ?? tenantReplyTo;
+  if (threading) headers = { ...headers, ...threading.headers };
 
   const result = await sendEmailResult({
     to: recipient.email,

@@ -76,6 +76,7 @@ const PORTAL_LIB_FILES = [
   "src/lib/server-actions/messaging-sheets.ts",
   "src/lib/server-actions/messaging-start.ts",
   "src/lib/server-actions/messaging-talent-quote.ts",
+  "src/lib/server-actions/messaging-talent-confirm-booking.ts",
   "src/lib/server-actions/messaging-talent-writes.ts",
   "src/lib/server-actions/messaging-talent.ts",
   "src/lib/server-actions/onboarding-account.ts",

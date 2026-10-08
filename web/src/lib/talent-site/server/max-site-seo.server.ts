@@ -50,6 +50,11 @@ export function buildMaxSiteSeo(args: {
    */
   ownHosts?: readonly string[];
   /**
+   * Platform pages (`/politicas`, `/privacidad`) render inside the HOME page's row, so the home's
+   * explicit `canonical_url` must never apply to them: each is self-canonical with its own hreflang pair.
+   */
+  ignoreExplicitCanonical?: boolean;
+  /**
    * PR 5 — the talent's languages. With two or more, every language version
    * is self-canonical (primary unprefixed, each secondary prefixed) with
    * reciprocal hreflang + x-default on the unprefixed URL. One language: no
@@ -93,7 +98,7 @@ export function buildMaxSiteSeo(args: {
   // An operator's explicit canonical_url describes the primary-language page;
   // a translated version stays self-canonical so its hreflang is honoured.
   const isPrimary = !args.locales || locale === args.locales.primary;
-  const explicit = isPrimary ? page.canonicalUrl?.trim() : "";
+  const explicit = isPrimary && !args.ignoreExplicitCanonical ? page.canonicalUrl?.trim() : "";
   const explicitIsOwn = explicit ? isOwnCanonical(explicit, { origin, hosts: args.ownHosts ?? [] }) : false;
   if (explicit && !explicitIsOwn && process.env.NODE_ENV !== "production") {
     // Silent-failure signal (AGENTS.md): name the row and the host, never throw.
