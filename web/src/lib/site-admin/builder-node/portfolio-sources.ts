@@ -11,6 +11,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { logServerError } from "@/lib/server/safe-error";
 
 import { resolvePortfolioAlt, resolvePortfolioCaption } from "./portfolio-i18n";
+import { captionMapField } from "./portfolio-caption-hint";
 import type { TalentPortfolioShot } from "./portfolio-types";
 
 const BUCKET = "media-public";
@@ -133,6 +134,9 @@ export async function loadPortfolioSources(
       }),
       // Talent-written caption (media metadata), resolved for the visitor's language.
       caption,
+      // TUL-15: the per-language captions, so the renderer can say when the
+      // caption shown is not in the visitor's language. Absent when none.
+      ...captionMapField(r.metadata),
       offeringId: linked?.id ?? null,
       offeringTitle: linked?.title ?? null,
       albumId: metaAlbum || null,
