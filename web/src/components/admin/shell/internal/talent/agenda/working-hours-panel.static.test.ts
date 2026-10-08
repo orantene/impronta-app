@@ -19,6 +19,26 @@ test("Working hours opens as ONE shared panel from Settings, Calendar and Today/
   assert.match(router, /case "calendar-availability":/);
 });
 
+test("TUL-358: Horario panel opens on profile id alone (never week calendar without hours)", () => {
+  const panel = read("talent/agenda/WorkingHoursPanel.tsx");
+  assert.match(panel, /const eligible = Boolean\(talentProfileId\)/);
+  assert.doesNotMatch(panel, /bridgeTalentAgendaV2 && talentProfileId/);
+  const router = read("talent.tsx");
+  // calendar-availability must prefer AgendaAvailabilityPage when a profile id exists.
+  assert.match(
+    router,
+    /case "calendar-availability":[\s\S]*?bridgeTalentSelfProfile\?\.id[\s\S]*?AgendaAvailabilityPage/,
+  );
+  assert.doesNotMatch(
+    router,
+    /case "calendar-availability":[\s\S]*?agendaV2 && bridgeTalentSelfProfile/,
+  );
+  // Legacy Calendar Disponibilidad CTA opens the hours panel, not block-dates.
+  const legacyCal = read("talent/pages/CalendarPage.tsx");
+  assert.match(legacyCal, /openWorkingHoursPanel/);
+  assert.doesNotMatch(legacyCal, /openDrawer\("talent-block-dates"\)/);
+});
+
 test("the panel is a drawer on desktop and a bottom sheet on a phone, and closes after a real save", () => {
   const panel = read("talent/agenda/WorkingHoursPanel.tsx");
   assert.match(read("talent/agenda/AgendaPanelFrame.tsx"), /role="dialog"/);
