@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 
-import { actionLoadProfileShellMedia, type ProfileShellMediaOverview } from "@/app/(workspace)/[tenantSlug]/admin/media/profile-shell-media-actions";
+import { actionLoadProfileShellMedia } from "@/app/(workspace)/[tenantSlug]/admin/media/profile-shell-media-actions";
+import type { ProfileShellMediaOverview } from "@/lib/media/profile-shell-media-overview.server";
 import type { MediaAsset } from "@/components/talent/media-gallery-drawer";
 import { useGalleryLoadMore } from "@/components/talent/use-gallery-load-more";
 

@@ -8,15 +8,14 @@
 import {
   loadProfileShellAlbumPage,
   loadProfileShellMediaOverview,
-  type AlbumPage,
-  type AlbumSummary,
-  type ProfileShellMediaOverview,
+} from "@/lib/media/profile-shell-media-overview.server";
+import type {
+  AlbumPage,
+  ProfileShellMediaOverview,
 } from "@/lib/media/profile-shell-media-overview.server";
 import { authorizeTalentMediaRead } from "@/lib/media/talent-media-read-auth.server";
 
 type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
-
-export type { AlbumPage, AlbumSummary, ProfileShellMediaOverview };
 
 /** Albums with counts + covers, singletons and the gallery's first page. */
 export async function actionLoadProfileShellMedia(
