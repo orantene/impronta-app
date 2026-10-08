@@ -53,6 +53,8 @@ export function notifyTalentBookingDayOfReminder(params: {
   timezone: string;
   title: string | null;
   location: string | null;
+  /** TUL-259: the talent's type, group and parent category slugs (most specific first). Drives appointment vs event wording. */
+  tradeSlugs?: string[];
 }): Promise<DispatchResult> {
   return dispatchEventNotifications({
     type: "booking.day_of_reminder",
@@ -65,6 +67,9 @@ export function notifyTalentBookingDayOfReminder(params: {
       appointmentTimezone: params.timezone,
       appointmentTitle: params.title,
       appointmentLocation: params.location,
+      ...(params.tradeSlugs && params.tradeSlugs.length > 0
+        ? { talentTradeSlugs: params.tradeSlugs }
+        : {}),
     },
   });
 }

@@ -4,6 +4,7 @@ import type { createServiceRoleClient } from "@/lib/supabase/admin";
 import { notifyTalentBookingDayOfReminder } from "@/lib/notifications/producers/booking-day-of-reminder-notify";
 import type { DispatchResult } from "@/lib/notifications/types";
 import { logServerError } from "@/lib/server/safe-error";
+import { loadTalentTradeSlugs } from "./talent-trade-slugs";
 import {
   TALENT_BOOKING_REMINDABLE_STATUSES,
   decideTalentBookingReminders,
@@ -96,6 +97,10 @@ export async function sweepTalentBookingReminders(
     talentZones.set(h.talent_profile_id, h.timezone);
   }
 
+  // TUL-259: trade slugs pick appointment vs event wording. A failed read
+  // degrades to the source-based default (appointment); it never blocks reminders.
+  const tradeSlugs = await loadTalentTradeSlugs(admin, profileIds);
+
   const decision = decideTalentBookingReminders({ now, rows, talentZones, tenantZones });
   summary.talentBookingsScanned = decision.scanned;
   summary.talentBookingsReminded = decision.due.length;
@@ -116,6 +121,7 @@ export async function sweepTalentBookingReminders(
         timezone: r.timezone,
         title: r.title ?? null,
         location: r.location_text ?? null,
+        tradeSlugs: tradeSlugs.get(r.talent_profile_id),
       }),
     ),
   );
