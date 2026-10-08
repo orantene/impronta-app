@@ -13,6 +13,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { resolveAgendaPayPublicOrigin } from "@/lib/talent-agenda/pay-public-origin";
 
+import { findAdoptableOfferOrder, stampAdoptedOfferOrder } from "./accept-offer-order-adopt";
 import { ensureOfferBooking, orderLinesFromOffer, type OfferBookingStore } from "./accept-offer-booking-core";
 import { planAcceptCollection, type AcceptCollection, type AcceptPolicyLine } from "./accept-offer-collection";
 import { runAcceptOfferPayment, type AcceptOfferForPayment, type AcceptPaymentResult, type AcceptPaymentStore } from "./accept-offer-payment-core";
@@ -270,7 +271,17 @@ function productionStore(c: Ctx, offer: AcceptOfferForPayment): AcceptPaymentSto
         .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle();
-      return (data as { id?: string } | null)?.id ?? null;
+      const byKey = (data as { id?: string } | null)?.id ?? null;
+      if (byKey) return byKey;
+      // TUL-429: the booking's own order is THE order; never a second one.
+      const adopted = await findAdoptableOfferOrder(c.admin, {
+        tenantId: c.tenantId,
+        inquiryId: c.inquiryId,
+        totalCents: offer.totalCents,
+        currency: offer.currency,
+      });
+      if (adopted) await stampAdoptedOfferOrder(c.admin, { tenantId: c.tenantId, orderId: adopted, orderKey });
+      return adopted;
     },
 
     async createOfferOrder({ orderKey, totalCents, currency }) {
