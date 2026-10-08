@@ -43,6 +43,7 @@ import {
   type StripeAction,
 } from "@/lib/stripe/webhook-routing";
 import { getStripeFor, isStripeConfigured, type StripeAccountKey } from "@/lib/stripe/client";
+import { eventModeMismatch } from "@/lib/stripe/key-mode";
 import { syncStripeSubscriptionToDb } from "@/lib/stripe/workspace-billing";
 import { syncTalentSubscriptionToDb } from "@/lib/stripe/talent-billing";
 import {
@@ -70,6 +71,7 @@ import { recordProviderInvoice } from "@/lib/payments/provider-invoices";
 import { notifyTrialWillEnd } from "@/lib/notifications/producers/trial-notify";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { reportLaneMismatch } from "@/lib/stripe/webhook-lane-mismatch";
 import { recordDiscountRedemption } from "@/lib/billing/record-discount-redemption";
 import { improntaLog } from "@/lib/server/structured-log";
 import { notifyNonBookingDispute } from "@/lib/payments/dispute-notify";
@@ -720,11 +722,9 @@ export async function handleStripeWebhook(
   if (account === "us" ? !isStripeConfigured() : !stripe) {
     return NextResponse.json({ error: "Stripe not configured." }, { status: 503 });
   }
-  // Stripe splits deliveries across TWO endpoint types and each carries its own
-  // signing secret:
-  //   • account endpoint  — platform events (payment_intent.*, charge.*, …)
-  //   • CONNECT endpoint  — connected-account events (account.updated,
-  //     capability.updated, account.external_account.*)
+  // Stripe splits deliveries across TWO endpoint types, each with its own
+  // signing secret: account (payment_intent.*, charge.*, …) and CONNECT
+  // (account.updated, capability.updated, account.external_account.*).
   // Connected-account events are what tell us a talent finished onboarding, which
   // is what releases their held payouts. Verified live 2026-08-09: with only the
   // account endpoint registered, a Mexican talent completed onboarding, Stripe
@@ -761,7 +761,16 @@ export async function handleStripeWebhook(
   }
   if (!event) {
     logServerError("stripe-webhook.verify", lastVerifyError);
+    await reportLaneMismatch({ expectedLane: account, body, signature, log: logServerError, verify: (b, sg, sec) => stripe!.webhooks.constructEventAsync(b, sg, sec) });
     return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
+  }
+
+  // TUL-143: a test event on a live key (or vice versa) is acknowledged and
+  // ignored so Stripe does not retry it. No secrets are logged.
+  const modeKey = account === "mx" ? process.env.STRIPE_MX_SECRET_KEY : process.env.STRIPE_SECRET_KEY;
+  if (eventModeMismatch(event.livemode, modeKey)) {
+    logServerError("stripe-webhook.livemode-mismatch", `ignored ${event.id} ${event.type} lane=${account} livemode=${event.livemode}`);
+    return NextResponse.json({ received: true, ignored: "livemode_mismatch" });
   }
 
   // Idempotency: claim the event id, short-circuit duplicates.

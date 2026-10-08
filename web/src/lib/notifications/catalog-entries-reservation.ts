@@ -173,6 +173,7 @@ const RESERVATION_CONFIRMED_CLIENT: CatalogEntry = {
         eventDate: str(event.payload.startsAt) ?? str(event.payload.eventDate),
         eventLocation: str(event.payload.eventLocation),
         bookingUrl: pageUrl(brand, `/client/inquiries/${event.inquiryId}`),
+        sellerName: brand.accountName,
         brand,
         unsubscribeUrl,
         categoryLabel: "booking",

@@ -31,16 +31,13 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { interpretClaimError } from "@/lib/stripe/webhook-routing";
+import { isMissingLaneColumnError, laneScopedEventKey, type WebhookLane } from "@/lib/stripe/webhook-lanes";
 
-/**
- * Which webhook route is claiming. `platform` is the unified handler and keeps
- * the bare event id for backwards compatibility with rows already in the table.
- */
-export type WebhookLane = "platform" | "platform_mx" | "discover_client_subscription";
+let laneColumnWarned = false;
 
-export function laneScopedEventKey(lane: WebhookLane, eventId: string): string {
-  return lane === "platform" ? eventId : `${lane}:${eventId}`;
-}
+// Lane vocabulary lives in webhook-lanes.ts (pure); re-exported for callers.
+export { laneScopedEventKey };
+export type { WebhookLane };
 
 /**
  * Claim an event for processing.
@@ -64,12 +61,27 @@ export async function claimStripeEvent(input: {
   const sb = createServiceRoleClient();
   if (!sb) return false;
 
-  const { error } = await sb.from("stripe_processed_events").insert({
+  const row = {
     event_id: laneScopedEventKey(input.lane, input.eventId),
     event_type: input.eventType,
     livemode: input.livemode ?? null,
     api_version: input.apiVersion ?? null,
-  });
+  };
+  // Explicit lane for every claim; the health panel filters on this.
+  let { error } = await sb.from("stripe_processed_events").insert({ ...row, lane: input.lane });
+  if (error && isMissingLaneColumnError(error)) {
+    // Deploy-order safety: if the `lane` column does not exist yet, a webhook must
+    // still claim its event (idempotency) and must never fail because of it. Log
+    // once per process, then claim without the lane (readers derive it from the id).
+    if (!laneColumnWarned) {
+      laneColumnWarned = true;
+      logServerError(
+        "stripe.event-idempotency.lane-column-missing",
+        "stripe_processed_events.lane is missing; claiming without it. Apply 20261231348000.",
+      );
+    }
+    ({ error } = await sb.from("stripe_processed_events").insert(row));
+  }
   if (!error) return false; // claimed; first delivery for this lane
   if (interpretClaimError(error) === "duplicate") return true;
   logServerError("stripe.event-idempotency.claim", error);

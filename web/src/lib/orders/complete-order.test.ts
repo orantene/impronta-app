@@ -60,6 +60,8 @@ function fakeAdmin(opts: {
               const net = opts.paidTxnNets?.[i];
               return {
                 gross_amount_cents: c,
+                status: "paid",
+                refund_of_transaction_id: null,
                 net_amount_cents: net === undefined ? c : net,
               };
             }),

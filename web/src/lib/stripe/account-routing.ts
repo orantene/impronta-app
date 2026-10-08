@@ -6,7 +6,8 @@
  *
  *   MX seller + any rail except USDC  -> 'mx'
  *   everything else (incl. USDC)      -> 'us'  (stablecoin payouts are US-only)
- *   'mx' but the MX key is missing    -> 'us' + a warning (fail safe)
+ *   'mx' but the MX key is missing    -> production: refuse (null) + console.error;
+ *                                        elsewhere: 'us' + a warning
  */
 
 import type { StripeAccountKey } from "./client";
@@ -21,12 +22,22 @@ export function resolveStripeAccountForSeller(input: {
   /** Defaults to the real env check; injectable for tests. */
   mxConfigured?: boolean;
   warn?: (msg: string) => void;
-}): StripeAccountKey {
+  /** Defaults to NODE_ENV === "production"; injectable for tests. */
+  isProduction?: boolean;
+  error?: (msg: string) => void;
+}): StripeAccountKey | null {
   const country = (input.payoutCountry ?? "").trim().toUpperCase();
   const rail = (input.payoutRail ?? "").trim().toLowerCase();
   if (country !== "MX" || USDC_RAILS.has(rail)) return "us";
   const mxOk = input.mxConfigured ?? !!process.env.STRIPE_MX_SECRET_KEY;
   if (!mxOk) {
+    if (input.isProduction ?? process.env.NODE_ENV === "production") {
+      // eslint-disable-next-line no-console -- pure module; intentional operator error
+      (input.error ?? ((m) => console.error(m)))(
+        "[stripe-account-routing] MX seller but STRIPE_MX_SECRET_KEY is unset in production; refusing (never charge an MX seller on the US platform)",
+      );
+      return null;
+    }
     // eslint-disable-next-line no-console -- pure module; intentional operator warning
     (input.warn ?? ((m) => console.warn(m)))(
       "[stripe-account-routing] MX seller but STRIPE_MX_SECRET_KEY is unset; falling back to the US platform",
