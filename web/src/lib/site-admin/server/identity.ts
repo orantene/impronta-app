@@ -18,6 +18,7 @@
  */
 
 import { improntaLog } from "@/lib/server/structured-log";
+import { invalidateWorkspaceSeedPrimary } from "@/lib/site-admin/server/workspace-locale-seed.server";
 import { randomUUID, createHash } from "node:crypto";
 import { updateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -274,6 +275,8 @@ export async function saveIdentity(
   // by updateTag). Bust it explicitly so a save immediately affects locale
   // resolution on the next request.
   invalidateTenantLocaleSettings(tenantId);
+  // TUL-131: the admin dashboard's seeded language is cached 60 s; drop it too.
+  invalidateWorkspaceSeedPrimary(tenantId);
 
   return ok({ version: nextVersion });
 }
