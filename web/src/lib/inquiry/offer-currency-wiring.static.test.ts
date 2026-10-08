@@ -54,6 +54,18 @@ describe("offer currency wiring", () => {
     assert.match(read("src/components/admin/offer/offer-money-split.tsx"), /formatOfferMoney\(n, currencyCode\)/);
     assert.match(read("src/app/(workspace)/[tenantSlug]/client/messages/OfferTab.tsx"), /return formatOfferMoney\(amount, currency/);
   });
+  it("TUL-382: offer panel totals route through formatDashboardMoney (not bare Intl currency)", () => {
+    const bridge = read("src/app/(workspace)/[tenantSlug]/_data-bridge/inquiries-messages.ts");
+    assert.match(bridge, /formatDashboardMoneyCents\(/);
+    assert.match(bridge, /from "@\/lib\/money\/dashboard-money-format"/);
+    // Strip comments so a doc mention of the old Intl form cannot false-pass.
+    const code = bridge.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+    assert.doesNotMatch(code, /NumberFormat\(/);
+    assert.doesNotMatch(code, /style\s*:\s*["']currency["']/);
+    const coord = read("src/app/(workspace)/[tenantSlug]/talent/inbox/[id]/coordinator-offer-loader.ts");
+    assert.match(coord, /formatMoneyCents\(/);
+    assert.match(coord, /from "@\/lib\/talent\/earnings-view"/);
+  });
   it("the service preload goes through planServicePick", () => {
     assert.match(read("src/components/admin/shell/internal/messages/shared/machinery-11.tsx"), /planServicePick\(/);
   });
