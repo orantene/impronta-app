@@ -27,6 +27,12 @@
 import { redirect } from "next/navigation";
 
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
+import {
+  effectiveReadContext,
+  pickReadClient,
+  readUserId,
+} from "@/lib/impersonation/effective-read";
 import { loadTalentSelfProfileByUser } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
 import { getRequestLocale } from "@/i18n/request-locale";
