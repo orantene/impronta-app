@@ -503,7 +503,7 @@ export async function createInquiryTransactionDraft(
       planTier,
       grossAmountCents,
       platformFeeCentsOverride: platformFeeOverride,
-      currency: (booking.currency_code as string | null) ?? "USD",
+      currency: (booking.currency_code as string | null) ?? undefined,
       payerUserId: (booking.client_user_id as string | null) ?? null,
       payerEmail: (booking.contact_email as string | null) ?? null,
       createdByProfileId: null,
