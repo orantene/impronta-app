@@ -30,7 +30,7 @@
  */
 
 import {
-  useCallback,
+  useCallback, useDeferredValue,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -314,7 +314,7 @@ export function NavigatorPanel() {
   const selectedBuilderNodeId = useSelectedBuilderNodeId();
   const additionalSelectedIds = useAdditionalSelectedIds();
 
-  const [search, setSearch] = useState("");
+  const [rawSearch, setSearch] = useState(""); const search = useDeferredValue(rawSearch); // typing stays instant, tree filtering is deferred
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [pendingMoveKey, setPendingMoveKey] = useState<string | null>(null);
   // Sprint 4 — inline rename. When `renamingId` is set, that row's label
@@ -1715,7 +1715,7 @@ export function NavigatorPanel() {
           </svg>
           <input
             type="text"
-            value={search}
+            value={rawSearch}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={
               viewMode === "outline"

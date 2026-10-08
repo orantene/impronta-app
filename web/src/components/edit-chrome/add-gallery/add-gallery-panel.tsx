@@ -20,7 +20,8 @@ import {
 import { fetchSurfaceGalleryItems } from "@/lib/site-admin/add-gallery/gallery-fetch-action";
 import { listCatalogStructure } from "@/lib/site-admin/add-gallery/catalog-structure-actions";
 import { performAddGalleryInsert } from "@/lib/site-admin/add-gallery/perform-insert";
-import { buildTemplateCopyContext } from "@/lib/site-admin/add-gallery/section-template-copy";
+import { buildTemplateCopyContext, templateCopySiteKind } from "@/lib/site-admin/add-gallery/section-template-copy";
+import { filterGalleryItemsForSiteKind } from "@/lib/site-admin/add-gallery/site-kind-visibility";
 import { applyShellVariantToWorkspaceAction } from "@/lib/site-admin/builder-core/templates/apply-shell-variant-action";
 import {
   armAddGalleryPointerDrag,
@@ -238,8 +239,17 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     const app = codeSeed.find((i) => i.tab === "apps" && i.id === intent);
     if (app) setQuery(app.label);
   }, [open, codeSeed]);
-  const [mergedItems, setMergedItems] =
+  const [allMergedItems, setMergedItems] =
     useState<ReadonlyArray<AddGalleryItem>>(codeSeed);
+  // TUL-80: roster categories (Featured Talent / Talent Roster) are agency-only.
+  const rosterSiteKind =
+    workspaceCopyType === "talent"
+      ? "talent"
+      : templateCopySiteKind(surfaceKind, typeof window === "undefined" ? null : window.location.pathname, workspaceCopyType);
+  const mergedItems = useMemo(
+    () => filterGalleryItemsForSiteKind(allMergedItems, rosterSiteKind),
+    [allMergedItems, rosterSiteKind],
+  );
   // Admin-editable catalog structure; empty until open-effect fetch resolves.
   const [structure, setStructure] = useState<CatalogStructureMap>({});
   const fetchSeqRef = useRef(0);
