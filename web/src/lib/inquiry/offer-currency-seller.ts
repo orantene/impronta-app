@@ -8,7 +8,6 @@ import { logServerError } from "@/lib/server/safe-error";
 import {
   checkOfferMatchesSeller,
   normalizeCurrencyCode,
-  resolveOfferCurrency,
   type OfferSellerCurrencyCheck,
 } from "./offer-currency";
 
@@ -79,19 +78,86 @@ export async function loadInquirySellers(
 }
 
 /**
- * Currency for a NEW offer. `followSeller=false` keeps the caller's explicit
- * currency untouched (counter offers inherit the prior offer's currency).
+ * Solo workspace: a `workspace_type='talent'` tenant with exactly one active
+ * owner whose person talent profile is the seller (TUL-313). Returns that
+ * owner-talent's default_currency, or null when the tenant is not solo or the
+ * currency is unknown. A read error also yields null (the caller then falls to
+ * the workspace default, and finally refuses).
+ */
+export async function loadSoloOwnerTalentCurrency(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<string | null> {
+  try {
+    // supabase-read-unchecked-ok: a failed read yields null by design (see doc above); the caller falls to the workspace default, then refuses.
+    const { data: ag } = await supabase
+      .from("agencies")
+      .select("workspace_type")
+      .eq("id", tenantId)
+      .maybeSingle();
+    if ((ag as { workspace_type?: string } | null)?.workspace_type !== "talent") return null;
+    // supabase-read-unchecked-ok: a failed read yields no owners, so null; the caller falls to the workspace default, then refuses.
+    const { data: owners } = await supabase
+      .from("agency_memberships")
+      .select("profile_id")
+      .eq("tenant_id", tenantId)
+      .eq("role", "owner")
+      .eq("status", "active");
+    const ownerIds = (owners ?? []).map((o) => (o as { profile_id: string }).profile_id);
+    if (ownerIds.length !== 1) return null;
+    // supabase-read-unchecked-ok: a failed read yields null currency; the caller falls to the workspace default, then refuses.
+    const { data: tp } = await supabase
+      .from("talent_profiles")
+      .select("default_currency")
+      .eq("user_id", ownerIds[0])
+      .eq("profile_kind", "person")
+      .is("deleted_at", null)
+      .limit(1)
+      .maybeSingle();
+    return normalizeCurrencyCode((tp as { default_currency?: string | null } | null)?.default_currency);
+  } catch (err) {
+    logServerError("offer-currency-seller.solo_owner", err);
+    return null;
+  }
+}
+
+/** The seller workspace's own default_currency (agencies.default_currency), or null. */
+export async function loadWorkspaceDefaultCurrency(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<string | null> {
+  try {
+    // supabase-read-unchecked-ok: a failed read yields null; createOffer then refuses (never a silent platform currency).
+    const { data } = await supabase.from("agencies").select("default_currency").eq("id", tenantId).maybeSingle();
+    return normalizeCurrencyCode((data as { default_currency?: string | null } | null)?.default_currency);
+  } catch (err) {
+    logServerError("offer-currency-seller.workspace_default", err);
+    return null;
+  }
+}
+
+/**
+ * Currency for a NEW offer (TUL-313). Order:
+ *  1. active talent participants, when they all share one currency;
+ *  2. the solo workspace's owner-talent;
+ *  3. the seller workspace's agencies.default_currency;
+ *  4. null: the caller REFUSES. The platform currency is never a silent default.
+ * `followSeller=false` keeps the caller's explicit currency (counter offers
+ * inherit the prior offer's currency).
  */
 export async function resolveNewOfferCurrency(
   supabase: SupabaseClient,
-  input: { inquiryId: string; platformCurrency: string; followSeller: boolean },
-): Promise<string> {
-  if (!input.followSeller) return input.platformCurrency;
-  const sellers = await loadInquirySellers(supabase, input.inquiryId);
-  return resolveOfferCurrency({
-    sellerCurrencies: sellers.map((s) => s.defaultCurrency),
-    platformCurrency: input.platformCurrency,
-  });
+  input: { inquiryId: string; tenantId: string; explicitCurrency?: string | null; followSeller: boolean },
+): Promise<string | null> {
+  if (!input.followSeller) return normalizeCurrencyCode(input.explicitCurrency);
+  const read = await loadInquirySellersChecked(supabase, input.inquiryId);
+  if (!read.ok) return null;
+  const known = read.sellers.map((s) => s.defaultCurrency).filter((c): c is string => c !== null);
+  if (known.length > 0 && known.every((c) => c === known[0])) return known[0];
+  return (
+    (await loadSoloOwnerTalentCurrency(supabase, input.tenantId)) ??
+    (await loadWorkspaceDefaultCurrency(supabase, input.tenantId))
+  );
 }
 
 export const SELLER_CURRENCY_UNREADABLE = "seller_currency_unreadable" as const;

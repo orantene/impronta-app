@@ -127,3 +127,28 @@ export function mapDeliverableDeadline(
     history: [],
   };
 }
+
+/**
+ * TUL-360: an instant-book purchase opens an `inquiries` row as its message
+ * thread (Messages / `/c/[id]`), and the same purchase writes the booking
+ * (`talent_bookings` mirror, or a hold). The agenda lists open inquiries as
+ * "Booking request" rows, so the thread inquiry showed up as a second,
+ * inquiry-labelled item beside (or instead of) the reserved booking.
+ *
+ * An inquiry already linked from a booking or hold is that booking's thread,
+ * not an open request: the booking row carries the state (reserved, payment
+ * pending, paid). A pure inquiry (no linked booking/hold) is kept.
+ */
+export function openInquiriesWithoutBooking<T extends { id: string }>(
+  inquiries: readonly T[],
+  linked: {
+    bookings: readonly { inquiry_id: string | null }[];
+    holds: readonly { inquiry_id: string | null }[];
+  },
+): T[] {
+  const taken = new Set<string>();
+  for (const row of [...linked.bookings, ...linked.holds]) {
+    if (row.inquiry_id) taken.add(row.inquiry_id);
+  }
+  return inquiries.filter((inquiry) => !taken.has(inquiry.id));
+}

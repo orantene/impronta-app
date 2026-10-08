@@ -3,6 +3,7 @@ import "server-only";
 import { logServerError } from "@/lib/server/safe-error";
 
 import type { PaymentState } from "./lifecycle";
+import { majorToMinorForDisplay } from "@/lib/inquiry/offer-minor-units";
 
 /**
  * D-MSG-338 + A3 / audit §0.5 / SHELL-REQUESTS:
@@ -261,7 +262,8 @@ export async function loadSaleTotal(
   if (bookingRow && bookingRow.total_client_revenue != null && bookingRow.total_client_revenue !== "") {
     const major = Number(bookingRow.total_client_revenue);
     if (Number.isFinite(major)) {
-      return { totalCents: Math.round(major * 100), currency: bookingRow.currency_code || "USD" };
+      const bookingCurrency = bookingRow.currency_code || "USD";
+      return { totalCents: majorToMinorForDisplay(major, bookingCurrency), currency: bookingCurrency };
     }
   }
   return null;
@@ -285,8 +287,8 @@ export async function stampInquiryPaidCards(
   if (!row || row.total_client_revenue == null) return;
   const major = Number(row.total_client_revenue);
   if (!Number.isFinite(major)) return;
-  const totalCents = Math.round(major * 100);
   const currency = row.currency_code || "USD";
+  const totalCents = majorToMinorForDisplay(major, currency);
   const { data: cards } = await from("inquiry_messages")
     .select("id, card_payload")
     .eq("tenant_id", input.tenantId)

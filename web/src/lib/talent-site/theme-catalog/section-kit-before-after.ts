@@ -20,7 +20,7 @@ function caption(makeId: MaxSiteTemplateIdFactory, text: string, es: string): Bu
     kind: "paragraph",
     props: {
       text,
-      i18n: { es: { text: es } },
+      i18n: { en: { text }, es: { text: es } },
       style: { textTransform: "uppercase", letterSpacing: "0.18em", size: "sm", tone: "muted" },
     },
   } as BuilderNode;
@@ -73,7 +73,7 @@ export function beforeAfterBlock(
         kind: "paragraph",
         props: {
           text: opts.eyebrow ?? "The difference",
-          i18n: { es: { text: "La diferencia" } },
+          i18n: { en: { text: opts.eyebrow ?? "The difference" }, es: { text: "La diferencia" } },
           style: { textTransform: "uppercase", letterSpacing: "0.18em", size: "sm", textColor: "token:color.ink" },
         },
       },

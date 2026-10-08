@@ -8,6 +8,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 
 import { readUserId, type EffectiveReadContext } from "@/lib/impersonation/effective-read";
 
+import { majorToMinorForDisplay } from "@/lib/inquiry/offer-minor-units";
 import { fail } from "./refusals";
 import { inquiryIsHers, talentIdsOnInquiry, talentIsSeller, type TalentOrderLine } from "./talent-pov";
 
@@ -261,7 +262,7 @@ export async function loadTalentSale(
     if (offerErr) return fail("unavailable");
     if (offerLines && offerLines.length > 0) {
       const major = (offerLines as { talent_cost: number | null }[]).reduce((sum, row) => sum + (Number(row.talent_cost) || 0), 0);
-      if (major > 0) offerNet = Math.round(major * 100);
+      if (major > 0) offerNet = majorToMinorForDisplay(major, sale.currency);
     }
   }
   const lineNet = raw

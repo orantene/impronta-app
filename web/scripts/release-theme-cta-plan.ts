@@ -13,8 +13,12 @@
  *   2. shell tree: the site_header cta item (and `primaryCta`) -> the same
  *      booking label/href; a cta item is added from the code seed when absent.
  *
- * The draft must equal the released version (ignoring `props.designKey`), and
- * the computed change must touch nothing outside those nodes. Nothing here
+ * The draft must equal the released version (ignoring `props.designKey`), OR
+ * differ from it only by ADDITIVE i18n (an overlay saved by
+ * release-theme-i18n-overlay.mts, which cannot publish on its own because i18n
+ * is not design-owned). In that case the patch is computed against the draft
+ * trees so the overlay is preserved, and the one published version carries both.
+ * The computed change must touch nothing outside those nodes. Nothing here
  * touches a database: every effect goes through the injected `CtaPorts`.
  *
  * Exit codes: 0 ok, 1 error, 2 REFUSED (a guard fired, nothing unsafe done).
@@ -22,6 +26,7 @@
 import { isDeepStrictEqual } from "node:util";
 
 import {
+  isI18nOnlyAdditive,
   parseArgs,
   type Args,
   type DraftInfo,
@@ -275,6 +280,8 @@ export interface CtaPlan {
   releasedVersion: number | null;
   draft: { rev: number; updatedAt: string; updatedBy: string | null; baseVersion: number } | null;
   willOpenDraft: boolean;
+  /** The open draft differs from the released version, and only by added i18n (modulo designKey). */
+  draftDiffersByAdditiveI18nOnly: boolean;
   patch: CtaPatch;
   refusals: string[];
 }
@@ -285,11 +292,24 @@ export function planCta(slug: string, released: Released | null, draft: DraftInf
     refusals.push(`"${slug}" is not on the allow-list (${CTA_ALLOWED_SLUGS.join(", ")}).`);
   }
   if (!released) refusals.push("No released version found for this design.");
-  if (draft && released && !isDeepStrictEqual(stripDesignKey(draft.payload), stripDesignKey(released.payload))) {
-    refusals.push(
-      `Open draft (rev ${draft.rev}, updated ${draft.updatedAt} by ${draft.updatedBy ?? "unknown"}, base v${draft.baseVersion}) ` +
-        `differs from released v${released.version} by more than props.designKey. Release or discard it first.`,
-    );
+  let i18nOnly = false;
+  if (draft && released) {
+    const d = stripDesignKey(draft.payload);
+    const r = stripDesignKey(released.payload);
+    if (!isDeepStrictEqual(d, r)) {
+      i18nOnly = isI18nOnlyAdditive(r, d);
+      // A rerun: the CTA is already saved on the draft, so it equals released + CTA patch (+ additive i18n).
+      const ctaApplied = (): boolean => {
+        const want = stripDesignKey({ ...released.payload, ...patchTrees(released.payload as PayloadLike, seed).trees });
+        return isDeepStrictEqual(d, want) || isI18nOnlyAdditive(want, d);
+      };
+      if (!i18nOnly && !ctaApplied()) {
+        refusals.push(
+          `Open draft (rev ${draft.rev}, updated ${draft.updatedAt} by ${draft.updatedBy ?? "unknown"}, base v${draft.baseVersion}) ` +
+            `differs from released v${released.version} by more than props.designKey and additive i18n. Release or discard it first.`,
+        );
+      }
+    }
   }
   const base = (draft?.payload ?? released?.payload ?? {}) as PayloadLike;
   const patch = patchTrees(base, seed);
@@ -299,6 +319,7 @@ export function planCta(slug: string, released: Released | null, draft: DraftInf
     releasedVersion: released?.version ?? null,
     draft: draft ? { rev: draft.rev, updatedAt: draft.updatedAt, updatedBy: draft.updatedBy, baseVersion: draft.baseVersion } : null,
     willOpenDraft: !draft,
+    draftDiffersByAdditiveI18nOnly: i18nOnly,
     patch,
     refusals,
   };
@@ -312,7 +333,8 @@ export function printCtaPlan(p: CtaPlan, log: (l: string) => void): void {
       ? `open draft: yes, rev ${p.draft.rev}, base v${p.draft.baseVersion}, last change ${p.draft.updatedAt} by ${p.draft.updatedBy ?? "unknown"}`
       : "open draft: none (apply would open one from the released version)",
   );
-  log(`edits: ${p.patch.edits.length}`);
+  log(`open draft differs from released by additive i18n only: ${p.draftDiffersByAdditiveI18nOnly ? "yes" : "no"}`);
+  log(`edits (CTA nodes only): ${p.patch.edits.length}`);
   for (const e of p.patch.edits) {
     log(`  ${e.prefix} [${e.what}]\n    - ${JSON.stringify(e.before)}\n    + ${JSON.stringify(e.after)}`);
   }
@@ -336,7 +358,7 @@ function checkArgs(args: Args, log: (l: string) => void): number | null {
     return 2;
   }
   if (args.includeOpenDraft.length > 0) {
-    log("REFUSED: --include-open-draft is not supported here; the draft must equal the released version.");
+    log("REFUSED: --include-open-draft is not supported here; the draft must equal the released version (or differ by additive i18n only).");
     return 2;
   }
   if (args.apply && !args.yes) {

@@ -33,7 +33,12 @@ test("menu_board public fetcher scopes by tenant_id and owner_kind=workspace", (
     "utf8",
   );
   assert.ok(source.includes('.eq("tenant_id", tenantId)'));
-  assert.ok(source.includes('.eq("owner_kind", "workspace")'));
+  // House rows only, or the shared scope helper (house rows plus the OWNER's
+  // own talent rows, tenant_id still pinned above).
+  assert.ok(
+    source.includes('.eq("owner_kind", "workspace")') ||
+      source.includes(".or(workspaceOfferingOrFilter("),
+  );
   // Do not gate menu on roster membership — workspace items have no talent.
   assert.ok(!/loadMenu[\s\S]{0,800}listTalentIdsOnTenantRoster/.test(source));
 });

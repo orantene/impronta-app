@@ -32,6 +32,7 @@ import { listFact, numberFact, stringFact } from "@/lib/tulala/brief-store";
 import { planBios } from "./bilingual-bio";
 import { syncBiosToBioI18n } from "@/lib/translation/sync-bios-to-bio-i18n.server";
 import { proposeTalentType } from "./type-chip";
+import { resolveTradeType } from "./trade-label";
 import { fillTalentPreferredLocale } from "./talent-preferred-locale";
 import { loadTalentTypeTerms } from "./type-chip.server";
 
@@ -151,12 +152,9 @@ export async function writeTalentProfileFromBrief(input: {
 
   // ── primary type ──────────────────────────────────────────────────────────
   if (tenantId) {
-    let slug = input.typeSlug;
-    if (!slug && discipline) {
-      const proposal = typeProposal ?? proposeTalentType(discipline, typeTerms);
-      slug = proposal.proposed?.slug ?? null;
-      if (slug) result.aiDrafted.push("primary_role");
-    }
+    // TUL-349: one deterministic trade; no confident trade writes no type (the hero tag stays neutral).
+    const slug = resolveTradeType({ typeSlug: input.typeSlug ?? null, discipline, terms: typeTerms }).slug;
+    if (slug && !input.typeSlug) result.aiDrafted.push("primary_role");
     if (slug) {
       const r = await syncTalentTypeTaxonomyFromShellSlugs(admin, { tenantId, talentProfileId: id, primarySlug: slug, secondarySlugs: [] });
       result.wrote.type = r.ok ? "written" : "failed";

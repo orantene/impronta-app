@@ -18,6 +18,7 @@
  * only export async functions, so the pure helpers cannot share it).
  */
 
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import {
   PASS_THROUGH_DEFAULT_TAKE_BPS,
   DEFAULT_PROCESSOR_FEE_RATES,
@@ -196,4 +197,19 @@ export function formatFeeMoney(minor: number, currency: string, locale = "en"): 
   });
   if (code === "MXN") return `MX$${n}`;
   return code === "USD" ? `$${n}` : `${n} ${code}`;
+}
+
+/**
+ * Dashboard-format money for the Money-page fee card: `<symbol><amount> <CODE>`
+ * for every currency ("$100 USD", "$101.50 USD", "$1,000 MXN", "$0 USD").
+ * Routes through the shared dashboard formatter so the card agrees with every
+ * other figure on the page. Checkout fee lines keep {@link formatFeeMoney}.
+ */
+export function formatFeeCardMoney(minor: number, currency: string, locale = "en"): string {
+  return formatDashboardMoneyCents(minor, currency, locale);
+}
+
+/** Platform service-fee rate as a display percent: 150 bps -> "1.5%". */
+export function formatTakePercent(takeBps: number): string {
+  return `${Number((takeBps / 100).toFixed(2))}%`;
 }
