@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { dayGroupLabel, formatAgeHours, formatClockTime } from "./locale-time";
+import { dayGroupLabel, formatAgeHours, formatClockTime, formatShortDate } from "./locale-time";
 
 // 2026-10-08T07:41:00Z is 01:41 in America/Mexico_City (UTC-6, no DST in Oct 2026).
 const AT = "2026-10-08T07:41:00Z";
@@ -51,5 +51,30 @@ describe("dayGroupLabel", () => {
   it("en uses Today / Yesterday", () => {
     assert.equal(dayGroupLabel("today", "en"), "Today");
     assert.equal(dayGroupLabel("older", "en"), "Older");
+  });
+});
+
+describe("formatShortDate", () => {
+  it("es renders '8 oct' without the trailing period", () => {
+    assert.equal(formatShortDate("2026-10-08", "es"), "8 oct");
+    assert.equal(formatShortDate("2026-09-01", "es-MX"), "1 sep");
+  });
+  it("en renders 'Oct 8'", () => {
+    assert.equal(formatShortDate("2026-10-08", "en"), "Oct 8");
+  });
+  it("date-only ISO never shifts with the zone", () => {
+    assert.equal(formatShortDate("2026-10-08", "en", "Pacific/Auckland"), "Oct 8");
+  });
+  it("timestamps use the explicit time zone", () => {
+    assert.equal(formatShortDate("2026-10-08T02:00:00Z", "en", "America/Mexico_City"), "Oct 7");
+    assert.equal(formatShortDate("2026-10-08T02:00:00Z", "es", "UTC"), "8 oct");
+  });
+  it("accepts Date input", () => {
+    assert.equal(formatShortDate(new Date("2026-10-08T12:00:00Z"), "es", "UTC"), "8 oct");
+  });
+  it("unparseable or free-text strings pass through untouched", () => {
+    assert.equal(formatShortDate("May 14", "es"), "May 14");
+    assert.equal(formatShortDate("TBD", "es"), "TBD");
+    assert.equal(formatShortDate("May 14\u201315", "en"), "May 14\u201315");
   });
 });

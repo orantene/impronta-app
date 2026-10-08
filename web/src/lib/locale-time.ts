@@ -63,3 +63,45 @@ export function dayGroupLabel(
   }
   return { today: "Today", yesterday: "Yesterday", week: "This week", older: "Older" }[bucket];
 }
+
+const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/;
+
+/**
+ * Short calendar date: es "8 oct", en "Oct 8".
+ *
+ * Accepts a Date, an epoch number, or an ISO date ("2026-10-08") / ISO
+ * timestamp. A date-only ISO string is a calendar day, so it is formatted in
+ * UTC and never shifts with the zone. A timestamp is formatted in `timeZone`
+ * (default UTC). Any other string (free text such as "May 14") is returned
+ * untouched, so stored and mock data is never rewritten.
+ */
+export function formatShortDate(
+  input: TimeInput,
+  locale: string | null | undefined,
+  timeZone: string = "UTC",
+): string {
+  let d: Date | null;
+  let zone = timeZone;
+  if (typeof input === "string") {
+    const raw = input.trim();
+    if (ISO_DATE_ONLY.test(raw)) {
+      zone = "UTC";
+      d = toDate(raw);
+    } else if (ISO_TIMESTAMP.test(raw)) {
+      d = toDate(raw);
+    } else {
+      return input;
+    }
+  } else {
+    d = toDate(input);
+  }
+  if (!d) return typeof input === "string" ? input : "";
+  const es = isSpanishLocale(locale);
+  const out = new Intl.DateTimeFormat(es ? "es-MX" : "en-US", {
+    day: "numeric",
+    month: "short",
+    timeZone: zone,
+  }).format(d);
+  return es ? out.replace(/\./g, "").replace(/\s+/g, " ").trim() : out;
+}

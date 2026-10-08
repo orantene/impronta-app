@@ -1,7 +1,11 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { isSpanishLocale } from "@/lib/locale-time";
+import { formatShortDate, isSpanishLocale } from "@/lib/locale-time";
+
+// Row dates that arrive as ISO (live inquiries) get the localized short form;
+// free-text dates ("May 14") are stored data and pass through unchanged.
+const ISO_DATE_LIKE = /^\d{4}-\d{2}-\d{2}/;
 import { COLORS, FONTS, useAdminShell } from "../state";
 import { useDashboardText } from "../dashboard-i18n";
 import { Avatar, useKeyboardListNav } from "../primitives";
@@ -228,7 +232,7 @@ export function TalentJobRow({
   const briefMentionsCity = cityLabel && conv.brief.toLowerCase().includes(cityLabel.toLowerCase());
   const subtitleParts = [
     conv.brief,
-    dateLabel ? withWeekday(dateLabel, copy.locale) : null,
+    dateLabel ? (ISO_DATE_LIKE.test(dateLabel.trim()) ? formatShortDate(dateLabel, copy.locale) : withWeekday(dateLabel, copy.locale)) : null,
     !briefMentionsCity ? cityLabel : null,
   ].filter(Boolean);
 
