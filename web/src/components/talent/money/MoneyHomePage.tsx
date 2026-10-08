@@ -192,19 +192,27 @@ function MoneyHomePane(props: {
           ))}
         </select>
         <span className="flex-1" />
-        <span className="font-admin-body text-[13px] text-admin-ink-muted">
-          {t("Payout account")}:{" "}
-          <span className="font-semibold text-admin-ink">
-            {props.payout.state === "verified"
-              ? t("Stripe · verified")
-              : props.payout.state === "pending"
-                ? t("Stripe · setup not finished")
-                : t("Not set up")}
-          </span>{" "}
+        {/* Status text and its action are two separate controls with a gap,
+            not one run-on line (QA DS-50). Presentation only. */}
+        <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1 font-admin-body text-[13px] text-admin-ink-muted">
+          <span>
+            {t("Payout account")}:{" "}
+            <span className="font-semibold text-admin-ink">
+              {props.payout.state === "verified"
+                ? t("Stripe · verified")
+                : props.payout.state === "pending"
+                  ? t("Stripe · setup not finished")
+                  : t("Not set up")}
+            </span>
+          </span>
           <button
             type="button"
             onClick={props.onManagePayouts}
-            className="min-h-[32px] font-semibold text-admin-accent"
+            className={
+              props.payout.state === "none"
+                ? "inline-flex min-h-[32px] items-center rounded-full border border-admin-accent px-3 font-semibold text-admin-accent"
+                : "min-h-[32px] font-semibold text-admin-accent"
+            }
           >
             {props.payout.state === "none" ? t("Set up") : t("Manage")}
           </button>
@@ -625,7 +633,7 @@ export function MoneyHomePage() {
           </div>
         }
       />
-      <FeePayerCard currency={fallbackCurrency} />
+      <FeePayerCard currency={fallbackCurrency} showTip={false} />
       {loadError ? (
         <p className="rounded-[12px] border border-admin-border-soft bg-admin-critical-soft px-4 py-3 font-admin-body text-[13.5px] text-admin-critical">
           {t("Could not load Money.")} {t("Refresh the page and try again.")}

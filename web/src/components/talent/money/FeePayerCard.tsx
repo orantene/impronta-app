@@ -69,7 +69,11 @@ function useFeePayer() {
   return { feePayer, change, error };
 }
 
-export function FeePayerCard({ currency }: { currency: string }) {
+/**
+ * `showTip={false}` where the selector is already on screen next to the tip
+ * (Money page): the promo only repeats the choice below it (QA DS-50).
+ */
+export function FeePayerCard({ currency, showTip: tipAllowed = true }: { currency: string; showTip?: boolean }) {
   const t = useDashboardText().t;
   const { feePayer, change, error } = useFeePayer();
   const [tipOpen, setTipOpen] = useState(false);
@@ -112,7 +116,7 @@ export function FeePayerCard({ currency }: { currency: string }) {
     </button>
   );
 
-  const showTip = tipOpen && feePayer === "seller";
+  const showTip = tipAllowed && tipOpen && feePayer === "seller";
 
   return (
     <section
