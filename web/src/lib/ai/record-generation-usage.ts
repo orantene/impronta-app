@@ -31,8 +31,15 @@ export async function recordAiGenerationUsage(input: {
   tenantId?: string | null;
   /** Extra `context_jsonb` keys (e.g. `site_compose_id`) for per-site cost roll-ups. */
   context?: Record<string, unknown>;
+  /**
+   * When false, skip `ai_usage_monthly` roll-up for this tenant. Booking
+   * assistant bills per-talent (context.talent_profile_id) and must never
+   * charge the hub/platform inquiry tenant.
+   */
+  rollupMonthlyTenantSpend?: boolean;
 }): Promise<void> {
   const tenantId = input.tenantId || DEFAULT_AI_TENANT_ID;
+  const rollup = input.rollupMonthlyTenantSpend !== false;
   try {
     const supabase = await createServiceRoleClient();
     if (!supabase) return;
@@ -61,7 +68,7 @@ export async function recordAiGenerationUsage(input: {
     // Also roll the spend into ai_usage_monthly so the tenant spend-cap gate
     // (assertAiInvocationAllowed) sees this generation. Only successful, costed
     // calls count. min 1 cent so a near-zero call still registers a request.
-    if (input.ok && costUsd > 0) {
+    if (rollup && input.ok && costUsd > 0) {
       await recordAiUsageEstimate(tenantId, Math.max(1, Math.round(costUsd * 100)));
     }
   } catch (err) {

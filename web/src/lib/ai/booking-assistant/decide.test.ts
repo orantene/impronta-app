@@ -66,6 +66,26 @@ test("booking intent hands off in phase 1 (no book tools)", () => {
   assert.deepEqual(d, { action: "handoff", reason: "unsure" });
 });
 
+test("ES price ask with quiero does not hand off (llm facts)", () => {
+  const d = decideBookingAssistantTurn({
+    enabled: true,
+    guestMessage: "quiero saber el precio",
+    priorMessages: [],
+    instantAnswered: false,
+  });
+  assert.deepEqual(d, { action: "llm_facts" });
+});
+
+test("ES availability ask without booking verb goes to llm facts", () => {
+  const d = decideBookingAssistantTurn({
+    enabled: true,
+    guestMessage: "estas disponible el viernes?",
+    priorMessages: [],
+    instantAnswered: false,
+  });
+  assert.deepEqual(d, { action: "llm_facts" });
+});
+
 test("otherwise routes to llm facts", () => {
   const d = decideBookingAssistantTurn({
     enabled: true,

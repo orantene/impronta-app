@@ -1,0 +1,29 @@
+/**
+ * Guest send actions must schedule the booking assistant after the response
+ * (`after()`), never await the LLM inline.
+ */
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const ACTIONS = resolve(
+  process.cwd(),
+  "src/app/t/[profileCode]/_actions/guest-chat-actions.ts",
+);
+const TURN = resolve(process.cwd(), "src/lib/ai/booking-assistant/turn.server.ts");
+
+test("guest-chat-actions schedules assistant; does not await maybeRun", () => {
+  const src = readFileSync(ACTIONS, "utf8");
+  assert.match(src, /scheduleBookingAssistantTurn/);
+  assert.doesNotMatch(src, /await\s+maybeRunBookingAssistantTurn/);
+  assert.doesNotMatch(src, /from\s+"@\/lib\/ai\/booking-assistant\/turn\.server".*maybeRunBookingAssistantTurn/s);
+});
+
+test("scheduleBookingAssistantTurn uses next/server after()", () => {
+  const src = readFileSync(TURN, "utf8");
+  assert.match(src, /from\s+"next\/server"/);
+  assert.match(src, /after\(run\)/);
+  assert.match(src, /AbortController|signal:\s*controller\.signal/);
+  assert.match(src, /LLM_TIMEOUT_MS\s*=\s*5_000/);
+});

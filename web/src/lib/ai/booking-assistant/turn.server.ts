@@ -3,11 +3,14 @@ import "server-only";
 /**
  * TUL-36 phase 1: after a guest message lands, optionally post a facts-only
  * AI reply or a handoff system_event. No book / pay-link tools.
+ *
+ * Guest send actions MUST schedule this via `scheduleBookingAssistantTurn`
+ * (Next `after()`), never await it inline — the LLM path can take seconds.
  */
 
+import { after } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
 import { resolveAnthropicApiKey } from "@/lib/ai/resolve-api-keys";
 import { adapterForProvider } from "@/lib/ai/resolve-provider";
 import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
@@ -19,14 +22,23 @@ import type { GuestThreadMessage } from "@/lib/inquiry/guest-chat-contract";
 import { catalogTenantForPublicHost } from "./catalog-tenant";
 import { decideBookingAssistantTurn } from "./decide";
 import {
+  bookingAssistantDisclosureLabel,
   bookingAssistantHandoffCopy,
   normalizeBookingAssistantLocale,
   type BookingHandoffReason,
 } from "./handoff";
 import { sanitizeBookingAssistantOutput } from "./guardrails";
+import { BOOKING_ASSISTANT_MODEL } from "./model";
+import { offeringPriceLabel } from "./price-label";
+import {
+  bookingAssistantMonthlyCapCents,
+  bookingAssistantMonthlyCapReached,
+} from "./credits";
 
-/** PM: Claude Haiku 5.5 through our Anthropic adapter. */
-export const BOOKING_ASSISTANT_MODEL = "claude-haiku-5-5";
+export { BOOKING_ASSISTANT_MODEL } from "./model";
+
+/** Hard cut for deferred LLM work (guest already got their send response). */
+const LLM_TIMEOUT_MS = 5_000;
 
 const SYSTEM_PROMPT = `You are a booking assistant on a talent's public site chat.
 Answer ONLY from the SERVICE_CATALOG JSON. Never invent a price, duration, or availability.
@@ -43,7 +55,7 @@ export type BookingAssistantOfferingGround = {
 
 export type MaybeRunBookingAssistantTurnArgs = {
   inquiryId: string;
-  /** Inquiry / credits tenant (hub or seller). Not used to scope the catalog. */
+  /** Inquiry tenant (hub or seller). Used for message insert + log association only — never for AI spend. */
   tenantId: string;
   talentProfileId: string | null | undefined;
   guestMessage: string;
@@ -59,15 +71,35 @@ export type MaybeRunBookingAssistantTurnArgs = {
   instantAnswered?: boolean;
 };
 
+/**
+ * Schedule the assistant after the guest send response flushes. Prefer this
+ * from server actions so the guest never waits on the model. Falls back to a
+ * floating promise only when `after()` is unavailable (non-request contexts).
+ */
+export function scheduleBookingAssistantTurn(args: MaybeRunBookingAssistantTurnArgs): void {
+  const run = () => {
+    void maybeRunBookingAssistantTurn(args).catch((err) => {
+      logServerError("booking-assistant/schedule", err);
+    });
+  };
+  try {
+    after(run);
+  } catch {
+    void run();
+  }
+}
+
 async function insertSystemEvent(input: {
   inquiryId: string;
   tenantId: string;
   body: string;
   systemEventType: "booking_assistant_reply" | "booking_assistant_handoff";
   reason?: string;
+  locale: "en" | "es";
 }): Promise<GuestThreadMessage | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
+  const disclosure = bookingAssistantDisclosureLabel(input.locale);
   const { data: row, error } = await admin
     .from("inquiry_messages")
     .insert({
@@ -80,6 +112,9 @@ async function insertSystemEvent(input: {
       metadata: {
         system_event_type: input.systemEventType,
         channel: "guest_popup",
+        from_ai: true,
+        author_kind: "booking_assistant",
+        disclosure_label: disclosure,
         ...(input.reason ? { handoff_reason: input.reason } : {}),
       },
     })
@@ -94,7 +129,7 @@ async function insertSystemEvent(input: {
     id: r.id,
     inquiryId: input.inquiryId,
     authorRole: "system",
-    authorLabel: null,
+    authorLabel: disclosure,
     authorAvatarUrl: null,
     body: input.body,
     kind: "system_event",
@@ -145,29 +180,51 @@ async function resolveCatalogTenantId(
   return catalogTenantForPublicHost(hostCtx.kind, hostCtx.tenantId);
 }
 
-function catalogGrounding(offerings: readonly BookingAssistantOfferingGround[]): string {
-  return JSON.stringify(
-    offerings.slice(0, 40).map((o) => ({
-      title: o.title,
-      price: o.priceLabel ?? null,
-      durationMinutes: o.durationMinutes ?? null,
-    })),
-  );
+async function loadTalentPlanKey(talentProfileId: string): Promise<string | null> {
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { data, error } = await admin
+    .from("talent_profiles")
+    .select("talent_plan_key")
+    .eq("id", talentProfileId)
+    .maybeSingle();
+  if (error) {
+    logServerError("booking-assistant/plan", error);
+    return null;
+  }
+  const key = (data as { talent_plan_key?: string | null } | null)?.talent_plan_key;
+  return typeof key === "string" && key ? key : null;
 }
 
-function offeringPriceLabel(
-  amountCents: number | null,
-  currency: string,
-  visibility: string,
-): string | null {
-  if (visibility === "on_request") return null;
-  if (amountCents == null || !Number.isFinite(amountCents) || amountCents <= 0) return null;
-  const amount = amountCents / 100;
-  const fig = amount.toLocaleString("en-US", {
-    minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
-    maximumFractionDigits: Number.isInteger(amount) ? 0 : 2,
-  });
-  return `$${fig} ${(currency || "USD").toUpperCase()}`;
+/** Sum successful booking-assistant spend for this talent in the UTC month. */
+async function loadTalentBookingAssistantSpendCentsThisMonth(
+  talentProfileId: string,
+): Promise<number> {
+  const admin = createServiceRoleClient();
+  if (!admin) return 0;
+  const now = new Date();
+  const since = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01T00:00:00.000Z`;
+  const { data, error } = await admin
+    .from("cms_ai_usage_log")
+    .select("context_jsonb, ok")
+    .eq("ok", true)
+    .gte("created_at", since)
+    .contains("context_jsonb", {
+      feature: "booking_assistant",
+      talent_profile_id: talentProfileId,
+    })
+    .limit(5000);
+  if (error) {
+    logServerError("booking-assistant/talent-spend", error);
+    return 0;
+  }
+  let cents = 0;
+  for (const row of data ?? []) {
+    const ctx = (row as { context_jsonb?: { cost_usd?: unknown } | null }).context_jsonb;
+    const usd = typeof ctx?.cost_usd === "number" ? ctx.cost_usd : 0;
+    if (usd > 0) cents += Math.max(1, Math.round(usd * 100));
+  }
+  return cents;
 }
 
 async function loadGroundingOfferings(
@@ -184,14 +241,24 @@ async function loadGroundingOfferings(
   );
   return publicRows.map((o) => ({
     title: o.title,
-    priceLabel: offeringPriceLabel(o.amountCents, o.currency, o.visibility),
+    priceLabel: offeringPriceLabel(o.amountCents, o.currency, o.visibility, locale),
     durationMinutes: o.durationMinutes,
   }));
 }
 
+function catalogGrounding(offerings: readonly BookingAssistantOfferingGround[]): string {
+  return JSON.stringify(
+    offerings.slice(0, 40).map((o) => ({
+      title: o.title,
+      price: o.priceLabel ?? null,
+      durationMinutes: o.durationMinutes ?? null,
+    })),
+  );
+}
+
 /**
  * Best-effort: never throws to the guest send path. Returns the system message
- * when one was posted so the opener can merge it immediately.
+ * when one was posted (callers that schedule via `after()` ignore the return).
  */
 export async function maybeRunBookingAssistantTurn(
   args: MaybeRunBookingAssistantTurnArgs,
@@ -202,6 +269,7 @@ export async function maybeRunBookingAssistantTurn(
     if (!admin) return null;
 
     // Design §5: platform kill switch — master off means the assistant never runs.
+    // Distinct from per-talent monthly credits (below): master off is silent skip.
     const flags = await getAiFeatureFlags();
     if (!flags.ai_master_enabled) return null;
 
@@ -226,10 +294,11 @@ export async function maybeRunBookingAssistantTurn(
         body: bookingAssistantHandoffCopy(decision.reason, locale),
         systemEventType: "booking_assistant_handoff",
         reason: decision.reason,
+        locale,
       });
     }
 
-    // llm_facts — PM: Claude Haiku 5.5 via our Anthropic provider layer + credits gate.
+    // llm_facts — PM: Claude Haiku 5.5; bill the TALENT monthly cap, never hub.
     const anthropicKey = (await resolveAnthropicApiKey())?.trim() || null;
     if (!anthropicKey) {
       return insertSystemEvent({
@@ -238,20 +307,22 @@ export async function maybeRunBookingAssistantTurn(
         body: bookingAssistantHandoffCopy("gated", locale),
         systemEventType: "booking_assistant_handoff",
         reason: "gated",
+        locale,
       });
     }
 
-    const gate = await assertAiInvocationAllowed(args.tenantId);
-    if (!gate.ok) {
+    const planKey = await loadTalentPlanKey(args.talentProfileId);
+    const usedCents = await loadTalentBookingAssistantSpendCentsThisMonth(args.talentProfileId);
+    if (bookingAssistantMonthlyCapReached(usedCents, planKey)) {
       return insertSystemEvent({
         inquiryId: args.inquiryId,
         tenantId: args.tenantId,
         body: bookingAssistantHandoffCopy("gated", locale),
         systemEventType: "booking_assistant_handoff",
         reason: "gated",
+        locale,
       });
     }
-
     const catalogTenantId = await resolveCatalogTenantId(args.catalogTenantId);
     const offerings = await loadGroundingOfferings(
       args.talentProfileId,
@@ -262,8 +333,11 @@ export async function maybeRunBookingAssistantTurn(
     const grounding = catalogGrounding(offerings);
     const adapter = adapterForProvider("anthropic", anthropicKey);
     const started = Date.now();
-    const completion = await Promise.race([
-      adapter.chatCompletion({
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
+    let completion: Awaited<ReturnType<typeof adapter.chatCompletion>>;
+    try {
+      completion = await adapter.chatCompletion({
         systemPrompt: SYSTEM_PROMPT,
         userMessage: [
           "SERVICE_CATALOG_BEGIN",
@@ -278,11 +352,20 @@ export async function maybeRunBookingAssistantTurn(
         maxTokens: 500,
         thinking: false,
         model: BOOKING_ASSISTANT_MODEL,
-      }),
-      new Promise<{ ok: false; code: string; message: string }>((resolve) => {
-        setTimeout(() => resolve({ ok: false, code: "timeout", message: "timeout" }), 15_000);
-      }),
-    ]);
+        signal: controller.signal,
+      });
+    } catch (err) {
+      const aborted =
+        controller.signal.aborted ||
+        (err instanceof Error && (err.name === "AbortError" || /aborted/i.test(err.message)));
+      completion = {
+        ok: false,
+        code: aborted ? "timeout" : "api_error",
+        message: aborted ? "timeout" : err instanceof Error ? err.message : "error",
+      };
+    } finally {
+      clearTimeout(timer);
+    }
 
     await recordAiGenerationUsage({
       provider: adapter.id,
@@ -293,7 +376,15 @@ export async function maybeRunBookingAssistantTurn(
       scope: "booking_assistant",
       latencyMs: Date.now() - started,
       tenantId: args.tenantId,
-      context: { feature: "booking_assistant", inquiry_id: args.inquiryId },
+      // Per-talent monthly gate above; never roll into tenant/hub ai_usage_monthly.
+      rollupMonthlyTenantSpend: false,
+      context: {
+        feature: "booking_assistant",
+        inquiry_id: args.inquiryId,
+        talent_profile_id: args.talentProfileId,
+        plan_key: planKey,
+        monthly_cap_cents: bookingAssistantMonthlyCapCents(planKey),
+      },
     });
 
     if (!completion.ok) {
@@ -303,6 +394,7 @@ export async function maybeRunBookingAssistantTurn(
         body: bookingAssistantHandoffCopy("unsure", locale),
         systemEventType: "booking_assistant_handoff",
         reason: "unsure",
+        locale,
       });
     }
 
@@ -315,6 +407,7 @@ export async function maybeRunBookingAssistantTurn(
         body: bookingAssistantHandoffCopy(reason, locale),
         systemEventType: "booking_assistant_handoff",
         reason,
+        locale,
       });
     }
 
@@ -323,6 +416,7 @@ export async function maybeRunBookingAssistantTurn(
       tenantId: args.tenantId,
       body: sanitized.text.trim(),
       systemEventType: "booking_assistant_reply",
+      locale,
     });
   } catch (err) {
     logServerError("booking-assistant/maybeRun", err);
