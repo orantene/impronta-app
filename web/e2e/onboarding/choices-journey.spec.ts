@@ -742,7 +742,8 @@ for (const vp of Object.keys(VIEWPORTS) as Vp[]) {
           const t0 = Date.now();
           await page.goto(`${APP_BASE}/`, { waitUntil: "domcontentloaded", timeout: 90_000 });
           // Poll for the Spanish dashboard (a talent "Hoy" or the workspace "Resumen") and note any English interstitial on the way.
-          const spanishDashboard = page.getByText(/^(Hoy|Resumen)$/).or(page.getByRole("heading", { name: /^(Buenos días|Buenas tardes|Buenas noches|Hoy)/ })).first();
+          // Visible match only: on a phone the desktop sidebar "Hoy" exists but is hidden, so a bare .first() waited on it forever (run 4 phone false fail; the bottom-nav "Hoy" was on screen).
+          const spanishDashboard = page.getByText(/^(Hoy|Resumen)$/).or(page.getByRole("heading", { name: /^(Buenos días|Buenas tardes|Buenas noches|Hoy)/ })).filter({ visible: true }).first();
           let sawEnglishInterstitial = false;
           let landed = false;
           while (Date.now() - t0 < 90_000 && !landed) {
