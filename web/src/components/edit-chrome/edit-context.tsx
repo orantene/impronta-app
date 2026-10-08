@@ -4297,8 +4297,7 @@ export function EditProvider({
       const route = resolveDuplicateRoute(builderTreeRef.current, nodeId); // TUL-78
       if (route.route === "unsupported") return { ok: false, error: route.message }; // caller shows it
       if (route.route === "section") {
-        const r = await duplicateSectionRef.current?.(route.sectionId);
-        return r?.ok ? { ok: true, nodeId: r.newSectionId } : { ok: false, error: r?.error ?? "Duplicate did not finish. Try again." };
+        const r = await duplicateSectionRef.current?.(route.sectionId); return r?.ok ? { ok: true, nodeId: r.newSectionId } : { ok: false, error: r?.error ?? "Duplicate did not finish. Try again." };
       }
       const duplicated = await executeBuilderNodeOperation({
         operation: "duplicate",
