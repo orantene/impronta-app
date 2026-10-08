@@ -8,12 +8,46 @@
 
 import type { ArrivalPayload } from "@/lib/onboarding/arrival";
 
+import { finishPlan, type FinishPlan } from "@/lib/onboarding/finish-plan";
+
 import { PrimaryButton, Sub, Title } from "../ui";
+
+/**
+ * TUL-16 · Studio with no provider yet: honest "ready for requests", then ONE
+ * primary action (add the first team member) and one small secondary link.
+ * Never says "bookable".
+ */
+function InquiryOnlyArrival({ t, arrival, plan }: { t: (key: string) => string; arrival: ArrivalPayload; plan: Extract<FinishPlan, { kind: "inquiry_only" }> }) {
+  return (
+    <div data-testid="onb-arrival" data-variant={arrival.variant} data-finish="inquiry_only">
+      <div className="mb-3 flex justify-center" aria-hidden>
+        <span className="grid size-12 place-items-center rounded-full text-[1.25rem]" style={{ background: "var(--tl-forest-soft)", color: "var(--tl-forest)" }}>✓</span>
+      </div>
+      <Title size={30}>{t(plan.titleKey)}</Title>
+      <Sub>{t(plan.subKey)}</Sub>
+      <div className="mt-5 flex flex-col items-center gap-3">
+        <a href={plan.primary.href} data-testid="onb-arrival-add-member" className="inline-flex min-h-12 w-full items-center justify-center rounded-full px-6 py-2 text-center text-[0.9375rem] font-semibold" style={{ background: "var(--tl-forest)", color: "var(--tl-forest-on)" }}>
+          {t(plan.primary.labelKey)}
+        </a>
+        <a href={plan.secondary.href} data-testid="onb-arrival-also-book" className="text-[0.8125rem] font-semibold underline underline-offset-2" style={{ color: "var(--tl-ink-soft)" }}>
+          {t(plan.secondary.labelKey)}
+        </a>
+      </div>
+      {arrival.link ? (
+        <p className="mt-6 text-center text-[0.8125rem]" style={{ color: "var(--tl-muted)" }} data-testid="onb-arrival-link">
+          <a href={arrival.link.href} target="_blank" rel="noreferrer" className="underline underline-offset-2" data-testid="onb-arrival-visit">{arrival.link.display}</a>
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: string) => string; arrival: ArrivalPayload; onRetry?: () => void; busy?: boolean }) {
   if (arrival.variant === "draft_saved") {
     return <DraftSaved t={t} arrival={arrival} onRetry={onRetry} busy={busy} />;
   }
+  const plan = finishPlan(arrival);
+  if (plan.kind === "inquiry_only") return <InquiryOnlyArrival t={t} arrival={arrival} plan={plan} />;
   const facts: string[] = [];
   if (arrival.fact.services > 0) facts.push(t("public.onboarding.arrival.factServices").replace("{n}", String(arrival.fact.services)));
   if (arrival.fact.city) facts.push(t("public.onboarding.arrival.factCity").replace("{city}", arrival.fact.city));

@@ -2057,6 +2057,10 @@
         "goToPanel": "Ir a mi panel",
         "bookPreview": "Reservar",
         "bookingsStartStudio": "Las reservas empiezan cuando agregues a un proveedor.",
+        "inquiryTitle": "Tu página está lista para recibir solicitudes",
+        "inquirySub": "Ya pueden enviarte solicitudes. Las reservas empiezan cuando agregues a un integrante del equipo.",
+        "addFirstMember": "Agrega a tu primer integrante para empezar a recibir reservas",
+        "alsoBookMyself": "También quiero recibir reservas yo",
         "urlDiffers": "Tu dirección quedó distinta a la que elegiste porque ya estaba en uso. Esta es la real."
       },
       "essentials": {
