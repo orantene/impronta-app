@@ -5,6 +5,8 @@ import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import {
   carriesAtSlot,
+  chipSlot,
+  pickChipOffering,
   firstSlotStart,
   openAtNextSlot,
   pickSlotOffering,
@@ -107,4 +109,40 @@ test("runSlotTap through the real emitter dispatches with slotStart once registe
   assert.equal(events.length, 1);
   assert.equal((events[0].detail as OfferingRequestDetail).slotStart, SLOT);
   assert.equal(events[0].type, "tulala:offering-instant");
+});
+
+test("TUL-275: a same-day slot is shown AND opened at that slot, not left to the anchor fallback", () => {
+  const today = "2026-10-08T18:00:00.000Z"; // same UTC day as NOW, later than NOW
+  const o = offering({ id: "reg-today" });
+  registerSlotOffering(o, detailOf(o));
+  const { when, slot } = chipSlot("reg-today", [today, SLOT], true, NOW);
+  assert.equal(when, today);
+  assert.deepEqual(slot, { offeringId: "reg-today", slotStart: today });
+
+  const events: CustomEvent[] = [];
+  const target = { dispatchEvent: (e: Event) => (events.push(e as CustomEvent), true) };
+  const open = ((i: Parameters<typeof openBookingAtSlot>[0]) => openBookingAtSlot(i, target)) as typeof openBookingAtSlot;
+  assert.equal(openAtNextSlot(slot, open), true); // true => the chip calls preventDefault, no #services scroll
+  assert.equal((events[0].detail as OfferingRequestDetail).slotStart, today);
+});
+
+test("TUL-275: the chip never shows a past slot it cannot open", () => {
+  const past = "2026-10-08T09:00:00.000Z";
+  const { when, slot } = chipSlot(ID, [past, "2026-10-08T18:00:00.000Z"], true, NOW);
+  assert.equal(when, "2026-10-08T18:00:00.000Z");
+  assert.equal(slot?.slotStart, when);
+  assert.deepEqual(chipSlot(ID, [past], true, NOW), { when: null, slot: null });
+});
+
+test("TUL-275: the chip asks about an offering the sheet can open at a slot", () => {
+  const withOptions = offering({ id: "opt", variants: [{}] as never });
+  const plain = offering({ id: "plain" });
+  assert.equal(pickChipOffering([withOptions, plain])?.offering.id, "plain");
+  assert.equal(pickChipOffering([withOptions, plain])?.openable, true);
+  assert.deepEqual(
+    [pickChipOffering([withOptions])?.offering.id, pickChipOffering([withOptions])?.openable],
+    ["opt", false],
+  );
+  assert.equal(chipSlot("opt", [SLOT], false, NOW).slot, null);
+  assert.equal(pickChipOffering([plain], "missing"), null);
 });
