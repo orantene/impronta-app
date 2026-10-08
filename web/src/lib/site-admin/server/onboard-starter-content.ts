@@ -38,6 +38,7 @@ import {
 } from "./onboard-starter-content-policy";
 import { seedFreeStarterRosterProfiles } from "./onboard-starter-roster";
 import { persistSignupBusinessDescription } from "./onboard-signup-description";
+import { withoutPlatformAudit } from "@/lib/site-admin/audit";
 import { publishSection, upsertSection } from "./sections";
 import {
   ensureHomepageRow,
@@ -520,7 +521,16 @@ async function seedFreeStarterHomepage(params: {
  * Currently this is just the homepage row (draft, no sections). As we add
  * starter templates (about page, contact page, default nav) those go here too.
  */
-export async function onboardStarterContent(
+export function onboardStarterContent(
+  client: SupabaseClient,
+  input: OnboardStarterContentInput,
+): Promise<OnboardStarterContentResult> {
+  // Service-role provisioning has no staff caller: skip the staff-only
+  // platform audit RPC (workspace activity log still records the writes).
+  return withoutPlatformAudit(() => onboardStarterContentInner(client, input));
+}
+
+async function onboardStarterContentInner(
   client: SupabaseClient,
   input: OnboardStarterContentInput,
 ): Promise<OnboardStarterContentResult> {
