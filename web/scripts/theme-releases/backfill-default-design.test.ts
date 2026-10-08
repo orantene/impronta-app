@@ -22,6 +22,7 @@ function site(over: Partial<SiteCandidate> = {}): SiteCandidate {
     sitePublishedAt: null,
     hasLivePages: false,
     hasTalentEdits: false,
+    hasHomePage: true,
     isDemo: false,
     isTestAccount: false,
     ...over,
@@ -89,6 +90,10 @@ describe("planBackfill", () => {
     assert.equal(planBackfill([site({ sitePublishedAt: "2026-10-01T00:00:00Z" })], opts)[0]!.reason, "published_site");
     assert.equal(planBackfill([site({ hasLivePages: true })], opts)[0]!.reason, "live_pages");
     assert.equal(planBackfill([site({ hasTalentEdits: true })], opts)[0]!.reason, "talent_edited_draft");
+    // A signup that never got a home page cannot take a design (applyDesign fails page_not_found): SKIP, never touch.
+    const noHome = planBackfill([site({ hasHomePage: false })], opts)[0]!;
+    assert.equal(noHome.action, "skip");
+    assert.equal(noHome.reason, "no_home_page");
   });
 });
 

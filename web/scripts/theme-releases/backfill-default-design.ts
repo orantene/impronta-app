@@ -38,6 +38,8 @@ export interface SiteCandidate {
   hasLivePages: boolean;
   /** Any talent_site_history row of kind 'edit'. */
   hasTalentEdits: boolean;
+  /** A talent_pages row with is_home = true. Without one applyDesign fails with page_not_found, so the site is skipped. */
+  hasHomePage: boolean;
   isDemo: boolean | null;
   isTestAccount: boolean | null;
 }
@@ -48,6 +50,7 @@ export type SkipReason =
   | "published_site"
   | "live_pages"
   | "talent_edited_draft"
+  | "no_home_page"
   | "demo_or_test"
   | "not_in_only";
 
@@ -118,6 +121,7 @@ export function planBackfill(candidates: readonly SiteCandidate[], opts: Pick<Op
     if (c.sitePublishedAt) return skip("published_site");
     if (c.hasLivePages) return skip("live_pages");
     if (c.hasTalentEdits) return skip("talent_edited_draft");
+    if (!c.hasHomePage) return skip("no_home_page");
     return { candidate: c, action: "touch" };
   });
   return entries.sort((a, b) => a.candidate.profileCode.localeCompare(b.candidate.profileCode));
@@ -129,6 +133,7 @@ export const REASON_TEXT: Record<SkipReason, string> = {
   published_site: "site is published; a design swap would change the live site, needs a human",
   live_pages: "has a live page body of its own; left alone",
   talent_edited_draft: "talent edited the draft; applying would overwrite their work",
+  no_home_page: "no home page, the signup never got a site; needs its own fix (nothing to apply a design to)",
   demo_or_test: "demo or test account (use --include-test to include)",
   not_in_only: "not in --only",
 };

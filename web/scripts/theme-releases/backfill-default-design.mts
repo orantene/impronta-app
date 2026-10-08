@@ -97,9 +97,10 @@ async function loadCandidates(): Promise<SiteCandidate[]> {
   const byProfile = new Map(profiles.map((p) => [p.id, p]));
   const siteIds = sites.map((s) => s.id);
   const pages = must(
-    await admin.from("talent_pages").select("talent_profile_id, status, blocks_published").in("talent_profile_id", ids).limit(20000),
+    await admin.from("talent_pages").select("talent_profile_id, status, blocks_published, is_home").in("talent_profile_id", ids).limit(20000),
     "pages read",
-  ) as Array<{ talent_profile_id: string; status: string | null; blocks_published: unknown }>;
+  ) as Array<{ talent_profile_id: string; status: string | null; blocks_published: unknown; is_home: boolean | null }>;
+  const hasHome = new Set(pages.filter((p) => p.is_home === true).map((p) => p.talent_profile_id));
   const livePages = new Set(
     pages
       .filter((p) => p.status === "published" || (Array.isArray(p.blocks_published) && p.blocks_published.length > 0))
@@ -124,6 +125,7 @@ async function loadCandidates(): Promise<SiteCandidate[]> {
       sitePublishedAt: s.site_published_at,
       hasLivePages: livePages.has(p.id),
       hasTalentEdits: edited.has(s.id),
+      hasHomePage: hasHome.has(p.id),
       isDemo: p.is_demo,
       isTestAccount: p.is_test_account,
     });
