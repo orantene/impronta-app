@@ -2058,6 +2058,10 @@
         "goToPanel": "Go to my dashboard",
         "bookPreview": "Book",
         "bookingsStartStudio": "Bookings start when you add a provider.",
+        "inquiryTitle": "Your page is ready for requests",
+        "inquirySub": "People can send you requests now. Bookings start when you add a team member.",
+        "addFirstMember": "Add your first team member to start taking bookings",
+        "alsoBookMyself": "Also take bookings yourself",
         "urlDiffers": "Your address came out different from the one you chose because it was already taken. This is the real one."
       },
       "essentials": {
