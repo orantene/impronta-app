@@ -211,7 +211,7 @@ export async function createTransactionDraftAction(formData: FormData): Promise<
     sourceInquiryId: context.inquiryId,
     planTier,
     grossAmountCents,
-    currency: context.booking.currency_code ?? "USD",
+    currency: context.booking.currency_code ?? undefined,
     payerUserId: context.booking.client_user_id ?? null,
     payerEmail: context.booking.contact_email ?? null,
     createdByProfileId: null,
