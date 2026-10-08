@@ -26,7 +26,7 @@ test("the talent root redirects a profiled talent to Today and renders no wall",
 
 test("the talent layout never skips the shell for the talent root", () => {
   const layout = readFileSync(
-    join(process.cwd(), "src/app/(workspace)/talent/layout.tsx"),
+    join(process.cwd(), "src/app/(workspace)/talent/_talent-layout-inner.tsx"),
     "utf8",
   );
   assert.doesNotMatch(layout, /unrostered/i);

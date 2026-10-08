@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const LAYOUT = readFileSync(
-  join(process.cwd(), "src/app/(workspace)/talent/layout.tsx"),
+  join(process.cwd(), "src/app/(workspace)/talent/_talent-layout-inner.tsx"),
   "utf8",
 );
 

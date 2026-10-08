@@ -1,0 +1,4 @@
+{
+  "_comment": "TUL-288. Explicit allow-list of test files removed from their lane by scripts/lane-test.cjs because they fail once the bracketed-path fix makes them run. Entry shape: { file, lane, reason (one line), owner, card }. Pinned by src/lib/quality/lane-bracket-paths.static.test.ts: adding or leaving a stale entry fails the gate. Empty = nothing quarantined.",
+  "entries": []
+}
