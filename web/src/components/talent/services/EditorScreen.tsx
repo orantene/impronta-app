@@ -29,6 +29,7 @@ import { IntakeFields } from "./IntakeFields";
 import { ProductEditorCard } from "./ProductEditorCard";
 import { categoryNearMatch } from "@/lib/talent/publication-state";
 import { localizeOfferingSaveError } from "./offering-editor-save";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 type Photo = { id: string; url: string };
 type Where = "studio" | "client" | "remote" | "agreed";
@@ -672,7 +673,7 @@ function ClientCard({ item, locale, rates, depositCents, cancelHours, sellerName
   const cover = item.imageUrls[0];
   const quote = item.priceDisplay === "quote";
   const usd = quote ? null : usdEquivalentLabel(item.amountCents, item.currency, rates ?? null, locale);
-  const price = offeringPriceLabel(item, locale);
+  const price = offeringPriceLabel(item, locale, formatDashboardMoneyCents);
   const cta = quote
     ? es ? "Pedir cotización" : "Ask for a quote"
     : item.kind === "product"

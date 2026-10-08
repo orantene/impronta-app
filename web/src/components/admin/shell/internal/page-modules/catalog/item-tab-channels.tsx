@@ -17,16 +17,12 @@
 
 import { useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
-import {
-  formatOfferingPrice,
-  IDENTITY_REASONS,
-  type IdentityReason,
-  type TalentOffering,
-} from "@/lib/talent/offerings-types";
+import { IDENTITY_REASONS, type IdentityReason, type TalentOffering } from "@/lib/talent/offerings-types";
 import { Icon } from "../../primitives";
 import type { TabProps } from "./CatalogItemEditor";
 import { itemChannels } from "./catalog-model";
 import { CARD, ChannelRow, Eyebrow, Field, INPUT, Note, SectionHead, SELECT, SelectShell, Switch } from "./catalog-ui";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 const IDENTITY_KEY: Record<IdentityReason, string> = {
   attendee_names: "dashboard.catalog.policies.identity.attendee_names",
@@ -37,7 +33,7 @@ const IDENTITY_KEY: Record<IdentityReason, string> = {
 export function ChannelsTab({ item, patch, saving }: TabProps) {
   const t = useT();
   const locale = useDashboardLocale();
-  const price = item.amountCents == null ? t("dashboard.catalog.dash") : formatOfferingPrice(item.amountCents, item.currency, locale);
+  const price = item.amountCents == null ? t("dashboard.catalog.dash") : formatDashboardMoneyCents(item.amountCents, item.currency, locale);
   const published = item.status === "published";
   const onWebsite = item.visibility !== "agency_only";
   const reason = t("dashboard.catalog.channels.reason");

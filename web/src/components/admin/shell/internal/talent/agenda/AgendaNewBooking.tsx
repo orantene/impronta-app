@@ -15,6 +15,7 @@ import { TaskShell } from "./primitives/TaskShell";
 import { AgendaEventQuote, AgendaProjectQuote } from "./AgendaQuotes";
 import { dayWindows } from "./AgendaCalendarViews";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 type PayChoice = "received" | "due_later" | "request_link" | null;
 
