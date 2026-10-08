@@ -23,10 +23,7 @@ import { TULALA_APEX_HOST } from "./tulala";
 
 export const DEFAULT_MARKETING_ORIGIN = `https://${TULALA_APEX_HOST}`;
 
-type MarketingOriginEnv = {
-  TULALA_MARKETING_ORIGIN?: string | undefined;
-  VERCEL_ENV?: string | undefined;
-};
+type MarketingOriginEnv = Readonly<Record<string, string | undefined>>;
 
 export function resolveMarketingOrigin(env: MarketingOriginEnv = process.env): string {
   if (env.VERCEL_ENV === "production") return DEFAULT_MARKETING_ORIGIN;
