@@ -21,6 +21,7 @@ import {
 } from "@/lib/onboarding/signup-defaults";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type OnboardingActionState = { error?: string } | void;
 
@@ -184,6 +185,7 @@ async function ensureTalentRosterForNext(
 }
 
 export async function chooseTalentRole(formData?: FormData): Promise<void> {
+  await requireNotImpersonating();
   const nextPath = nextFromForm(formData);
   const auth = await requireSession();
   if (!auth.ok) {
@@ -227,6 +229,7 @@ export async function chooseTalentRole(formData?: FormData): Promise<void> {
 }
 
 export async function chooseClientRole(formData?: FormData): Promise<void> {
+  await requireNotImpersonating();
   const nextPath = nextFromForm(formData);
   const auth = await requireSession();
   if (!auth.ok) {
@@ -358,6 +361,7 @@ export async function completeTalentLocationOnboarding(
   _prev: OnboardingActionState,
   formData: FormData,
 ): Promise<OnboardingActionState> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) {
     return {
@@ -490,6 +494,7 @@ export async function completeTalentProfileInPlace(
   _prev: TalentProfileInPlaceState,
   formData: FormData,
 ): Promise<TalentProfileInPlaceState> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) {
     return {
@@ -636,6 +641,8 @@ export type RequestTenantRegistrationState =
 export async function requestTenantRegistration(
   tenantSlug: string,
 ): Promise<RequestTenantRegistrationState> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) {
     return { ok: false, error: "Please sign in to apply." };

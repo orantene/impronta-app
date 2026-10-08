@@ -4,6 +4,7 @@ import { join, relative } from "node:path";
 import { test } from "node:test";
 
 import { WEB_ROOT } from "../quality/supabase-unchecked-read";
+import { EXTRA_ALLOW, READ, type AllowEntry } from "./readonly-actions.allow";
 
 /**
  * TUL-256. Staff impersonation is READ-ONLY for the target. Every exported async
@@ -20,6 +21,7 @@ const ROUTE_TREES = [
   "src/app/(workspace)/[tenantSlug]/client",
   "src/app/(workspace)/[tenantSlug]/talent",
   "src/app/(workspace)/talent",
+  "src/app/onboarding",
 ];
 
 /** Portal-only `"use server"` files that live under lib/ or components/. */
@@ -60,12 +62,52 @@ const PORTAL_LIB_FILES = [
   "src/lib/server-actions/talent-workspace-provision.ts",
   "src/lib/server-actions/talent-media-release.ts",
   "src/lib/server-actions/ai-writing-helper.ts",
+  "src/lib/reviews/review-actions.ts",
+  "src/lib/server-actions/client-pipeline.ts",
+  "src/lib/server-actions/message-reactions.ts",
+  "src/lib/server-actions/messaging-client.ts",
+  "src/lib/server-actions/messaging-confirm.ts",
+  "src/lib/server-actions/messaging-engine.ts",
+  "src/lib/server-actions/messaging-identity.ts",
+  "src/lib/server-actions/messaging-items.ts",
+  "src/lib/server-actions/messaging-money-actions.ts",
+  "src/lib/server-actions/messaging-offers.ts",
+  "src/lib/server-actions/messaging-sheets.ts",
+  "src/lib/server-actions/messaging-start.ts",
+  "src/lib/server-actions/messaging-talent-quote.ts",
+  "src/lib/server-actions/messaging-talent-writes.ts",
+  "src/lib/server-actions/messaging-talent.ts",
+  "src/lib/server-actions/onboarding-account.ts",
+  "src/lib/server-actions/onboarding-lookups.ts",
+  "src/lib/server-actions/onboarding-module.ts",
+  "src/lib/server-actions/onboarding-setup.ts",
+  "src/lib/server-actions/talent-self-profile-sections.ts",
+  "src/lib/server-actions/talent-self-services.ts",
+  "src/lib/server-actions/talent-self.ts",
+  "src/lib/server-actions/user-prefs.ts",
+  "src/lib/talent-agenda/attention-actions.ts",
+  "src/lib/talent-agenda/booking-actions.ts",
+  "src/lib/talent-agenda/convert-hold.ts",
+  "src/lib/talent-agenda/create-quote.ts",
+  "src/lib/talent-agenda/create-slot.ts",
+  "src/lib/talent-agenda/load-record-item.ts",
+  "src/lib/talent-agenda/refund-actions.ts",
+  "src/lib/talent-site/history/history-actions.ts",
+  "src/lib/talent-site/server/actions.ts",
+  "src/lib/talent-site/server/dev-plan.ts",
+  "src/lib/talent-site/server/site-management-actions.ts",
+  "src/lib/talent/apply-actions.ts",
+  "src/lib/talent/client-records-actions.ts",
+  "src/lib/talent/clients-actions.ts",
+  "src/lib/talent/menu-offerings-actions.ts",
+  "src/lib/talent/offerings-actions.ts",
+  "src/lib/talent/services-menu-actions.ts",
+  "src/lib/talent/set-active-agency-action.ts",
+  "src/lib/talent/talent-booking-terms-actions.ts",
 ];
 
-const READ = "pure loader: reads only, no write path, nothing for read-only mode to protect";
-
 /** Allow-list: [file suffix, function names, reason]. */
-const ALLOW: Array<[string, string[], string]> = [
+const BASE_ALLOW: AllowEntry[] = [
   ["lib/server-actions/notifications-self.ts", ["loadMyNotifications"], READ],
   ["lib/server-actions/client-inquiry-attachments.ts", ["listInquiryAttachmentsAsClient"], READ],
   ["talent/settings/actions.ts", ["loadTalentDefaultCurrency"], READ],
@@ -74,7 +116,8 @@ const ALLOW: Array<[string, string[], string]> = [
     ["loadTalentPayoutSnapshot", "loadTalentStablecoinEligibility", "loadTalentGpStatus", "loadTalentGpPrefillAction", "loadTalentGpMethods"],
     READ,
   ],
-  ["talent/inbox/[id]/actions.ts", ["loadTalentInquiryThread", "loadTalentInquiryLineupCount", "loadTalentInquiryGuestTrust"], READ],
+  ["talent/inbox/[id]/actions.ts", ["loadTalentInquiryThread", "loadTalentInquiryLineupCount"], READ],
+  ["talent/inbox/[id]/guest-trust-loader.ts", ["loadTalentInquiryGuestTrust"], READ],
   [
     "talent/inbox/[id]/coordinator-offer-loader.ts",
     ["loadCoordinatorInquiryOffer"],
@@ -111,6 +154,8 @@ const ALLOW: Array<[string, string[], string]> = [
   ["lib/server-actions/talent-media-release.ts", ["actionLoadTalentMediaLocks"], READ],
   ["lib/server-actions/ai-writing-helper.ts", ["loadMyBio"], READ],
 ];
+
+const ALLOW: AllowEntry[] = [...BASE_ALLOW, ...EXTRA_ALLOW];
 
 export type Finding = { name: string; guarded: boolean };
 

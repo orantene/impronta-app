@@ -40,6 +40,7 @@ import {
   type LegacyRateSources,
 } from "@/lib/talent/services-menu-legacy";
 import { parseTalentBookingTerms } from "@/lib/billing/commercial-terms";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type AuthResult =
   | {
@@ -235,6 +236,8 @@ export async function updateTalentServicesMenu(
   talentProfileId: string,
   items: ServiceMenuItem[],
 ): Promise<UpdateResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const auth = await authorizeForTalent(talentProfileId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -287,6 +290,8 @@ export async function updateTalentServicesMenu(
  * normalize + validate + dual-write treatment.
  */
 export async function importLegacyServicesMenu(talentProfileId: string): Promise<UpdateResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const auth = await authorizeForTalent(talentProfileId);
     if (!auth.ok) return { ok: false, error: auth.error };

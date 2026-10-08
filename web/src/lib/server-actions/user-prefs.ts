@@ -28,6 +28,7 @@ import {
   loadHomePreference,
   saveHomePreference,
 } from "@/lib/tulala/structure-model.server";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /** F.12 — Full channel matrix per event. Email + push remain primary
  * (canonical signals); inApp/sms/digest extend the matrix for adopters
@@ -195,6 +196,7 @@ export async function loadUserPrefs(userId: string): Promise<UserPrefs | null> {
 export async function setPreferredSurface(
   surface: "talent" | "workspace",
 ): Promise<void> {
+  await requireNotImpersonating();
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return;
@@ -218,6 +220,7 @@ export async function setPreferredSurface(
  * Auth required — reads user from session cookie.
  */
 export async function markToggleTipSeen(): Promise<void> {
+  await requireNotImpersonating();
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return;
@@ -249,6 +252,7 @@ export async function markToggleTipSeen(): Promise<void> {
  * from the client. Auth required — reads user from session cookie.
  */
 export async function markTalentChecklistDismissed(): Promise<void> {
+  await requireNotImpersonating();
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return;
@@ -330,6 +334,7 @@ async function mergeNotificationPrefs(patch: Record<string, unknown>): Promise<v
 export async function setNotificationPrefs(
   prefs: Record<string, NotificationChannelPrefs>,
 ): Promise<void> {
+  await requireNotImpersonating();
   await mergeNotificationPrefs(prefs);
 }
 
@@ -354,6 +359,7 @@ export type CategoryNotificationPrefs = {
 export async function setCategoryNotificationPrefs(
   catPrefs: Record<string, CategoryNotificationPrefs>,
 ): Promise<void> {
+  await requireNotImpersonating();
   await mergeNotificationPrefs(catPrefs);
 }
 
@@ -390,6 +396,8 @@ export async function getNotificationPrefs(): Promise<Record<string, Notificatio
 export async function setPrivacyPrefs(
   patch: Partial<PrivacyPrefs>,
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, error: "Service unavailable." };
@@ -442,6 +450,7 @@ export async function setPrivacyPrefs(
  * hours ago" remains worth being able to say.
  */
 export async function requestDataExport(): Promise<{ ok: boolean; error?: string; url?: string }> {
+  await requireNotImpersonating();
   const stamped = await setPrivacyPrefs({ dataExportRequestedAt: new Date().toISOString() });
   if (!stamped.ok) return stamped;
   return { ok: true, url: ACCOUNT_EXPORT_PATH };

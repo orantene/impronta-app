@@ -79,8 +79,8 @@ test("guard: no request scope (cookie read throws) is not an impersonation", asy
 });
 
 test("guard: the refusal is bilingual and the throwing form throws a typed error", async () => {
-  assert.match(IMPERSONATION_READ_ONLY_REFUSAL, /read-only/i);
-  assert.match(IMPERSONATION_READ_ONLY_REFUSAL, /solo lectura/i);
+  assert.ok(IMPERSONATION_READ_ONLY_REFUSAL.startsWith("Exit 'viewing as' to make changes"));
+  assert.ok(IMPERSONATION_READ_ONLY_REFUSAL.endsWith("Sal de 'ver como' para hacer cambios"));
   setReadOnlyProbeForTests(probe({ cookie: true, impersonating: true }).p);
   await assert.rejects(requireNotImpersonating(), ImpersonationReadOnlyError);
   setReadOnlyProbeForTests(probe({ cookie: false }).p);

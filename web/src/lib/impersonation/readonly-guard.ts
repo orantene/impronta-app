@@ -15,7 +15,7 @@ import { IMPERSONATION_READ_ONLY_ERROR } from "@/lib/impersonation/write-policy"
  * HttpOnly cookie, verified server-side by `resolveDashboardIdentity`.
  */
 
-export const IMPERSONATION_READ_ONLY_REFUSAL = `${IMPERSONATION_READ_ONLY_ERROR} / Esta cuenta es de solo lectura mientras la ves como otro usuario.`;
+export const IMPERSONATION_READ_ONLY_REFUSAL = `${IMPERSONATION_READ_ONLY_ERROR} / Sal de 'ver como' para hacer cambios`;
 
 export type ReadOnlyGuardResult = { ok: true } | { ok: false; error: string };
 

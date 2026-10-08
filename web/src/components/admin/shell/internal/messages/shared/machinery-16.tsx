@@ -21,12 +21,12 @@ import { RealThreadStream } from "@/components/talent/talent-thread-stream";
 import { VoiceRecorderButton } from "@/components/chat-interactions/VoiceRecorderButton";
 import {
   loadTalentInquiryThread,
-  loadTalentInquiryGuestTrust,
   blockInquirySenderAsTalent,
   reportInquirySenderAsTalent,
   type TalentThreadMessage,
   type TalentGuestTrustChipData,
 } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
+import { loadTalentInquiryGuestTrust } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/guest-trust-loader";
 import { GuestTrustChip } from "@/components/inquiry/GuestTrustChip";
 import { useThreadPresence } from "@/lib/realtime/presence";
 import { TypingRow } from "@/components/messages/thread-enhancements";
