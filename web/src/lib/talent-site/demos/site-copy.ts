@@ -35,10 +35,10 @@ export type FolioSiteCopy = {
   shoeLabel: { en: string; es: string };
 };
 
-<<<<<<< HEAD
 /** One language of a spec table (all parts optional; only the parts given become overlay keys). */
 export type SpecTableText = { eyebrow?: string; title?: string; rows?: Array<{ label: string; value: string }> };
-=======
+
+
 /**
  * Second-language Gridline chrome. Written onto `props.i18n.<lang>` so a
  * Spanish-primary site still serves English on `/en` (and the reverse).
@@ -56,7 +56,6 @@ export type GridlineSiteCopyOverlay = {
   specTable?: { eyebrow?: string; title?: string; rows?: Array<{ label: string; value: string }> };
   services?: { title?: string; subtitle?: string };
 };
->>>>>>> 37c400eaf (talent/: Gridline EN overlays on seed chrome and bilingual site-copy (TUL-302))
 
 /** Gridline page copy: design-owned editable defaults the demo fills the way a talent would in the builder. */
 export type GridlineSiteCopy = {
@@ -305,22 +304,16 @@ function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, ne
     case "spec_table": {
       const s = g.specTable;
       if (!s) return n;
-<<<<<<< HEAD
-=======
       const titleOv = flatOverlay(ov, (o) =>
         o.specTable ? { eyebrow: o.specTable.eyebrow, title: o.specTable.title } : undefined,
       );
-      const mergedRows = mergeI18n(titleOv, rowsOverlay(ov)).i18n;
->>>>>>> 37c400eaf (talent/: Gridline EN overlays on seed chrome and bilingual site-copy (TUL-302))
+      const fromOverlays = mergeI18n(titleOv, rowsOverlay(ov)).i18n;
+      const fromNested = specTableOverlay(s.i18n).i18n;
       return withProps(n, {
         ...(s.eyebrow ? { eyebrow: s.eyebrow } : {}),
         ...(s.title ? { title: s.title } : {}),
         rows: s.rows.map((r) => ({ ...r })),
-<<<<<<< HEAD
-        ...mergeI18n(p.i18n, specTableOverlay(s.i18n).i18n),
-=======
-        ...mergeI18n(p.i18n, mergedRows),
->>>>>>> 37c400eaf (talent/: Gridline EN overlays on seed chrome and bilingual site-copy (TUL-302))
+        ...mergeI18n(p.i18n, mergeI18n(fromOverlays, fromNested).i18n),
       });
     }
     case "services_catalog": {

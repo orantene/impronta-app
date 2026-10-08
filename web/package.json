@@ -268,10 +268,6 @@
     "demos:rebuild": "node scripts/demo-talents/rebuild.mjs",
     "manual:demo-rebuild-entry": "node --test scripts/demo-talents/rebuild-lib.test.mjs && NODE_OPTIONS=--require=./scripts/register-server-only-test.cjs tsx --test src/lib/talent-site/demos/rebuild-entry.test.ts src/lib/talent-site/demos/gridline-demos.test.ts src/lib/talent-site/demos/gridline-chrome-i18n.test.ts && tsx --test scripts/demo-talents/unique-theme-seed.test.ts",
     "manual:gridline-fixture": "tsx --test src/lib/talent-site/demos/gridline-fixture.test.ts src/lib/talent-site/demos/content-fixture.test.ts",
-<<<<<<< HEAD
-=======
-    "manual:demo-rebuild-entry": "node --test scripts/demo-talents/rebuild-lib.test.mjs && NODE_OPTIONS=--require=./scripts/register-server-only-test.cjs tsx --test src/lib/talent-site/demos/rebuild-entry.test.ts src/lib/talent-site/demos/gridline-demos.test.ts src/lib/talent-site/demos/gridline-chrome-i18n.test.ts && tsx --test scripts/demo-talents/unique-theme-seed.test.ts",
->>>>>>> ae1e67cd1 (talent/: clear leftover rebase markers in package.json (#2837))
     "gates": "npm run typecheck && npm run lint && npm run test:size-ratchet && npm run test:phase1-i18n",
     "typecheck:incremental": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit --incremental --tsBuildInfoFile .tsbuildinfo",
     "qa:mockup-parity": "node scripts/qa/mockup-parity/run.mjs",
