@@ -10,7 +10,6 @@
  * Google and password are intentionally absent on talent hosts (see PR notes).
  */
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { requestEmailCode } from "@/app/auth/otp-actions";
