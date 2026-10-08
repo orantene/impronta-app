@@ -13702,6 +13702,8 @@
       "emptyBody": "Cuando alguien pida desde tu menú o reserve un horario, aparecerá aquí.",
       "emptyTitle": "Aún no hay pedidos",
       "lineCount": "artículos",
+      "lineCountOne": "artículo",
+      "lineCountOther": "artículos",
       "noCustomer": "Sin nombre registrado",
       "openThread": "Abrir conversación",
       "pageIntro": "Todos los pedidos de este espacio de trabajo, en un solo lugar.",
