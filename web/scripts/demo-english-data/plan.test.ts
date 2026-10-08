@@ -340,11 +340,13 @@ test("shipped content: English is present, has no em dash, and every service/FAQ
 
 // ---------------------------------------------------------------- the entry file
 
-test("the entry file parses, writes only through the plan, and never deletes or inserts", () => {
+test("the entry file parses, writes only through the plans, and never deletes or upserts", () => {
   const src = readFileSync(join(HERE, "apply-demo-english-data.mts"), "utf8");
   const out = transformSync(src, { loader: "ts", format: "esm", target: "esnext" });
   assert.ok(out.code.length > 0);
-  assert.doesNotMatch(src, /\.(delete|insert|upsert|rpc)\(/);
-  assert.equal((src.match(/\.update\(/g) ?? []).length, 1);
+  assert.doesNotMatch(src, /\.(delete|upsert|rpc)\(/);
+  // Two updates (English seed, Renata description) and one insert (Sofia FAQ rows, --content-fixes only).
+  assert.equal((src.match(/\.update\(/g) ?? []).length, 2);
+  assert.equal((src.match(/\.insert\(/g) ?? []).length, 1);
   assert.match(src, /process\.exit\(result\.exitCode\)/);
 });

@@ -16,12 +16,18 @@
  *   npx tsx --env-file=.env.local scripts/demo-english-data/apply-demo-english-data.mts
  *   npx tsx --env-file=.env.local scripts/demo-english-data/apply-demo-english-data.mts --apply --yes
  *   (optional) --only TAL-93020,TAL-93002
+ *
+ * Content fixes (Renata's lash lift text, Sofia Campos's missing FAQs), a
+ * separate mode that leaves the English seed above untouched:
+ *   npx tsx --env-file=.env.local scripts/demo-english-data/apply-demo-english-data.mts --content-fixes
+ *   npx tsx --env-file=.env.local scripts/demo-english-data/apply-demo-english-data.mts --content-fixes --apply --yes
  */
 import { createClient } from "@supabase/supabase-js";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { runContentFixes, type ContentFixIo, type FaqFullRow, type FaqInsert } from "./content-fixes";
 import { run, type FaqRow, type Io, type OfferingRow, type ProfileRow } from "./plan";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
@@ -78,5 +84,45 @@ const io: Io = {
   },
 };
 
-const result = await run(process.argv.slice(2), io);
+const contentFixIo: ContentFixIo = {
+  findProfile: io.findProfile,
+  findSiteSlug: io.findSiteSlug,
+  listOfferings: io.listOfferings,
+  async listFaqFull(profileId) {
+    const { data, error } = await admin
+      .from("talent_faq_items")
+      .select("id, talent_profile_id, question, answer, status, sort_order, question_i18n, answer_i18n")
+      .eq("talent_profile_id", profileId)
+      .limit(1000);
+    if (error) throw new Error(`faq read failed: ${error.message}`);
+    return (data ?? []) as FaqFullRow[];
+  },
+  async updateOfferingDescription({ profileId, id, description, description_i18n }) {
+    const { data, error } = await admin
+      .from("talent_offerings")
+      .update({ description, description_i18n })
+      .eq("id", id)
+      .eq("talent_profile_id", profileId)
+      .select("id");
+    if (error) return { ok: false, error: error.message };
+    if (!data || data.length !== 1) return { ok: false, error: "row not updated (no match)" };
+    return { ok: true };
+  },
+  async insertFaqRows({ profileId, rows }) {
+    // Every row must carry the resolved profile id; a stray one is refused here too.
+    if (rows.some((r: FaqInsert) => r.talent_profile_id !== profileId)) return { ok: false, ids: [], error: "row for another profile refused" };
+    const { data, error } = await admin.from("talent_faq_items").insert(rows).select("id");
+    if (error) return { ok: false, ids: [], error: error.message };
+    return { ok: true, ids: ((data ?? []) as Array<{ id: string }>).map((r) => r.id) };
+  },
+  writeBackup(label, data) {
+    mkdirSync(BACKUP_DIR, { recursive: true });
+    const file = join(BACKUP_DIR, `${label}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
+    writeFileSync(file, JSON.stringify(data, null, 2));
+    return file;
+  },
+};
+
+const argv = process.argv.slice(2);
+const result = argv.includes("--content-fixes") ? await runContentFixes(argv, contentFixIo) : await run(argv, io);
 process.exit(result.exitCode);
