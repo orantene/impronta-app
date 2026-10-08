@@ -7,6 +7,7 @@ import {
   overlayTree,
   parseArgs,
   planDesign,
+  stripDesignKey,
   run,
   type Args,
   type DraftInfo,
@@ -288,4 +289,23 @@ test("the release script entry (.mts) parses", async () => {
   const { transformSync } = await import("esbuild");
   const src = readFileSync(new URL("./release-theme-i18n-overlay.mts", import.meta.url), "utf8");
   assert.doesNotThrow(() => transformSync(src, { loader: "ts", format: "esm" }));
+});
+
+test("TUL-222: an open draft that differs only by props.designKey has no changes (no flag needed)", () => {
+  const stamped = JSON.parse(JSON.stringify(dbPayload())) as Record<string, unknown>;
+  const stamp = (n: unknown): void => {
+    if (Array.isArray(n)) return n.forEach(stamp);
+    if (n && typeof n === "object") {
+      const o = n as Record<string, unknown>;
+      if (o.props && typeof o.props === "object") (o.props as Record<string, unknown>).designKey = "folio";
+      Object.values(o).forEach(stamp);
+    }
+  };
+  stamp(stamped);
+  assert.notDeepEqual(stamped, dbPayload());
+  assert.deepEqual(stripDesignKey(stamped), dbPayload());
+  assert.deepEqual(planDesign("folio", released, draftOf(stamped as PayloadLike), lookup, { includeOpenDraft: [] }).refusals, []);
+  // a real change next to a designKey is still refused
+  const real = { ...stamped, tokenDefaults: { a: "2" } } as PayloadLike;
+  assert.equal(planDesign("folio", released, draftOf(real), lookup, { includeOpenDraft: [] }).refusals.length, 1);
 });

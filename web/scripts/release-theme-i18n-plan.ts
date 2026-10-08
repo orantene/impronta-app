@@ -219,6 +219,20 @@ export function overlayTree(
   return { tree: walk(tree, treeName), changes, unmatched };
 }
 
+/** The editor stamps `props.designKey` on every node of a saved draft; it is not a content change (TUL-222). */
+export function stripDesignKey<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(stripDesignKey) as unknown as T;
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (k === "designKey") continue;
+      out[k] = stripDesignKey(v);
+    }
+    return out as T;
+  }
+  return value;
+}
+
 // ── Safety: the diff must be added i18n keys and nothing else ────────────────
 export function stripI18n<T>(value: T): T {
   if (Array.isArray(value)) return value.map(stripI18n) as unknown as T;
@@ -304,7 +318,7 @@ export function planDesign(
   }
   if (!released && !draft) refusals.push("No released version and no open draft found for this design.");
   const base: PayloadLike = (draft?.payload ?? released?.payload ?? {}) as PayloadLike;
-  const hasChanges = draft && released ? !isDeepStrictEqual(draft.payload, released.payload) : !!draft && !released;
+  const hasChanges = draft && released ? !isDeepStrictEqual(stripDesignKey(draft.payload), stripDesignKey(released.payload)) : !!draft && !released;
   if (draft) {
     const approved = slug === APPROVED_OPEN_DRAFT_SLUG || opts.includeOpenDraft.includes(slug);
     if (hasChanges && !approved) {
