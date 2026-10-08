@@ -17,4 +17,8 @@ describe("placeReservationHold agenda busy check (Track D6)", () => {
     assert.match(src, /stillFree/);
     assert.match(src, /from\("talent_holds"\)\.delete\(\)\.eq\("id"/);
   });
+
+  it("post-insert re-check excludes the hold just created (TUL-433)", () => {
+    assert.match(src, /excludeHoldIds:\s*\[\s*data\.id/);
+  });
 });

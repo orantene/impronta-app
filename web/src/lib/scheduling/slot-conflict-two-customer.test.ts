@@ -25,16 +25,25 @@ type InsertResult = {
   error: { code: string; message: string } | null;
 };
 
-/** Chainable empty-read builder for the busy pre-check (holds/bookings/blocks). */
-function emptySelect() {
-  // Thenable chain: every filter returns the builder; awaiting it resolves empty.
+type BusyRow = {
+  id?: string;
+  starts_at: string;
+  ends_at: string;
+  expires_at?: string | null;
+  status?: string | null;
+  travel_before_min?: number | null;
+  travel_after_min?: number | null;
+};
+
+/** Chainable select builder that resolves to the given rows. */
+function selectRows(rows: BusyRow[]) {
   const terminal: {
     select: () => typeof terminal;
     eq: () => typeof terminal;
     lt: () => typeof terminal;
     gt: () => typeof terminal;
     or: () => typeof terminal;
-    then: Promise<{ data: never[]; error: null }>["then"];
+    then: Promise<{ data: BusyRow[]; error: null }>["then"];
   } = {
     select: () => terminal,
     eq: () => terminal,
@@ -42,29 +51,40 @@ function emptySelect() {
     gt: () => terminal,
     or: () => terminal,
     then: (resolve, reject) =>
-      Promise.resolve({ data: [], error: null }).then(resolve, reject),
+      Promise.resolve({ data: rows, error: null }).then(resolve, reject),
   };
   return terminal;
 }
 
-/** Mock admin: first insert wins; every later insert hits firm-hold exclusion. */
+const WINNER_HOLD_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+
+/** Mock admin: first insert wins; every later insert hits firm-hold exclusion.
+ * After the winner inserts, hold selects return that row so a naive post-insert
+ * busy re-check would self-collide without excludeHoldIds (TUL-433). */
 function racingHoldClient() {
   let inserts = 0;
+  let liveHold: BusyRow | null = null;
   return {
     from: (table: string) => {
       if (table === "talent_bookings" || table === "talent_availability_blocks") {
-        return emptySelect();
+        return selectRows([]);
       }
       assert.equal(table, "talent_holds");
       return {
-        select: () => emptySelect(),
+        select: () => selectRows(liveHold ? [liveHold] : []),
         insert: () => ({
           select: () => ({
             single: async (): Promise<InsertResult> => {
               inserts += 1;
               if (inserts === 1) {
+                liveHold = {
+                  id: WINNER_HOLD_ID,
+                  starts_at: SLOT.startsAt,
+                  ends_at: SLOT.endsAt,
+                  expires_at: null,
+                };
                 return {
-                  data: { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" },
+                  data: { id: WINNER_HOLD_ID },
                   error: null,
                 };
               }
@@ -78,6 +98,12 @@ function racingHoldClient() {
               };
             },
           }),
+        }),
+        delete: () => ({
+          eq: async () => {
+            liveHold = null;
+            return { data: null, error: null };
+          },
         }),
       };
     },

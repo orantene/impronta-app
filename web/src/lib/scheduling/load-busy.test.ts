@@ -187,6 +187,57 @@ test("23P01 maps to slot_taken; other errors stay unavailable", () => {
   assert.equal(other.code, "unavailable");
 });
 
+test("loadBusyIntervals excludeHoldIds drops the named hold (TUL-433)", async () => {
+  const { loadBusyIntervals } = await import("./load-busy");
+  const holdRow = {
+    id: "hold-self",
+    starts_at: "2026-03-09T10:00:00.000Z",
+    ends_at: "2026-03-09T10:30:00.000Z",
+    expires_at: null,
+  };
+  const otherHold = {
+    id: "hold-other",
+    starts_at: "2026-03-09T11:00:00.000Z",
+    ends_at: "2026-03-09T11:30:00.000Z",
+    expires_at: null,
+  };
+  const chain = (rows: unknown[]) => {
+    const terminal: {
+      select: () => typeof terminal;
+      eq: () => typeof terminal;
+      lt: () => typeof terminal;
+      gt: () => typeof terminal;
+      or: () => typeof terminal;
+      then: Promise<{ data: unknown[]; error: null }>["then"];
+    } = {
+      select: () => terminal,
+      eq: () => terminal,
+      lt: () => terminal,
+      gt: () => terminal,
+      or: () => terminal,
+      then: (resolve, reject) =>
+        Promise.resolve({ data: rows, error: null }).then(resolve, reject),
+    };
+    return terminal;
+  };
+  const admin = {
+    from: (table: string) => {
+      if (table === "talent_holds") return chain([holdRow, otherHold]);
+      return chain([]);
+    },
+  };
+  const busy = await loadBusyIntervals({
+    admin: admin as never,
+    talentProfileId: "t1",
+    from: new Date("2026-03-09T00:00:00.000Z"),
+    to: new Date("2026-03-10T00:00:00.000Z"),
+    now: NOW,
+    excludeHoldIds: ["hold-self"],
+  });
+  assert.equal(busy.length, 1);
+  assert.equal(busy[0]!.startsAt.toISOString(), "2026-03-09T11:00:00.000Z");
+});
+
 test("clampPublicSlotDays and parsePublicSlotFrom stay bounded", () => {
   assert.equal(clampPublicSlotDays("0"), 1);
   assert.equal(clampPublicSlotDays("99"), 60);

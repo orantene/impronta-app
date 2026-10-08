@@ -184,11 +184,14 @@ export async function placeReservationHold(
 
   // TOCTOU: a booking can land between the busy check and the hold insert.
   // Holds do not share an exclusion constraint with talent_bookings, so
-  // re-check and release if the window is no longer free.
+  // re-check and release if the window is no longer free. Exclude this hold
+  // id — loadBusyIntervals would otherwise see the row we just inserted and
+  // always report slot_taken (TUL-433).
   const stillFree = await checkReservationWindowFree(admin, {
     talentProfileId: input.talentProfileId,
     startsAt,
     endsAt,
+    excludeHoldIds: [data.id as string],
   });
   if (!stillFree.ok) {
     await admin.from("talent_holds").delete().eq("id", data.id);
