@@ -260,9 +260,10 @@ function row(extra: Record<string, unknown>): TalentOfferingRow {
 }
 
 test("rowToOffering: category_i18n gives categoryLabel only when it differs", () => {
-  assert.equal(rowToOffering(row({}), "en").categoryLabel, undefined);
+  // A category outside the platform dictionary with no stored translation stays as written (TUL-15).
+  assert.equal(rowToOffering(row({ category: "Cuidado" }), "en").categoryLabel, undefined);
   assert.equal(rowToOffering(row({ category_i18n: { es: "Uñas", en: "Nails" } }), "en").categoryLabel, "Nails");
   assert.equal(rowToOffering(row({ category_i18n: { es: "Uñas", en: "Nails" } }), "es").categoryLabel, undefined);
-  assert.equal(rowToOffering(row({ category_i18n: { es: "Uñas" } }), "en", [], ["en"]).categoryLabel, undefined);
+  assert.equal(rowToOffering(row({ category: "Cuidado", category_i18n: { es: "Cuidado" } }), "en", [], ["en"]).categoryLabel, undefined);
   assert.equal(rowToOffering(row({ category_i18n: { es: "Uñas", en: "Nails" } }), "en").category, "Uñas", "the grouping key is untouched");
 });

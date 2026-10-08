@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
+import { pickSlotOffering, registerSlotOfferings, runSlotTap } from "@/lib/talent-site/next-free-slot";
 import type { TalentBookingPosture } from "@/lib/talent/selling-booking-settings";
 import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
+
+import { useNextFreeSlot } from "./use-next-free-slot";
 
 /**
  * TUL-59 C item 3: the idle bar's main button follows context. Away from the
@@ -55,15 +59,41 @@ function useMenuInView(nodeId: string): boolean {
   return inView;
 }
 
-export function CatalogIdleBarGo({ nodeId, es, takesBookings = false }: { nodeId: string; es: boolean; takesBookings?: boolean }) {
+export function CatalogIdleBarGo({
+  nodeId,
+  es,
+  takesBookings: takesBookingsProp,
+  groups,
+  settings,
+  buildDetail,
+}: {
+  nodeId: string;
+  es: boolean;
+  takesBookings?: boolean;
+  /** TUL-232: with these, a tap opens booking at the next free slot when one is known. */
+  groups?: ReadonlyArray<{ items: ReadonlyArray<TalentOffering> }>;
+  settings?: { confirmsByHand?: boolean; bookingPosture?: TalentBookingPosture };
+  buildDetail?: (o: TalentOffering) => OfferingRequestDetail;
+}) {
   const inView = useMenuInView(nodeId);
+  const items = useMemo(() => (groups ? groups.flatMap((g) => g.items) : []), [groups]);
+  const takesBookings = takesBookingsProp ?? catalogTakesBookings(items, settings ?? {});
+  const picked = takesBookings && buildDetail ? pickSlotOffering(items, settings ?? {}) : null;
+  // Idempotent registry writes; the sheet needs the full detail to open at a slot.
+  useEffect(() => {
+    if (buildDetail) registerSlotOfferings(items, buildDetail);
+  });
+  const slot = useNextFreeSlot(picked?.id ?? null, picked?.durationMinutes ?? null);
   return (
     <button
       type="button"
       className="cb-bar-go"
       data-in-services={inView ? "true" : undefined}
+      data-next-slot={slot?.slotStart}
       onClick={() =>
-        document.querySelector(`[data-builder-node-id="${nodeId}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" })
+        runSlotTap(slot, inView, () =>
+          document.querySelector(`[data-builder-node-id="${nodeId}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        )
       }
     >
       {idleBarLabel(es, inView, takesBookings)}

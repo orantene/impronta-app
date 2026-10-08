@@ -149,6 +149,7 @@ export async function messagingCancelBooking(input: { inquiryId: string; booking
     operationKey: `msg-cancel-${parsed.data.inquiryId}-${parsed.data.bookingId}`,
     reason: parsed.data.reason,
     by: "staff",
+    actorUserId: g.userId,
   });
   if (!result.ok) return { ok: false as const, reason: result.reason };
   return { ok: true as const, refundableCents: result.refundableCents, already: result.already === true };

@@ -244,9 +244,12 @@ export async function startInquiryCheckout(
     // TUL-274: never start a charge in a currency the single seller does not charge in.
     // Sellers are read with the service client: the client's own session cannot see talent rows.
     // Fails CLOSED on a read error, or when the service client is missing.
+    // No silent USD on a charge: an unreadable currency refuses.
+    const chargeCurrencyA = txn.currency || (booking.currency_code as string | null);
+    if (!chargeCurrencyA) return { ok: false, error: "This invoice has no currency yet - ask the agency to resend it." };
     const curCheck = await checkInquiryCurrencyMatchesSeller(createServiceRoleClient(), {
       inquiryId,
-      currency: txn.currency || (booking.currency_code as string | null) || "USD",
+      currency: chargeCurrencyA,
       mode: "charge",
     });
     if (!curCheck.ok) return { ok: false, error: curCheck.message };
@@ -274,7 +277,7 @@ export async function startInquiryCheckout(
     const result = await createCheckoutSessionForTransaction({
       transactionId: txn.id,
       amountCents: txn.grossAmountCents,
-      currency: txn.currency || (booking.currency_code as string | null) || "USD",
+      currency: chargeCurrencyA,
       payerEmail: txn.payerEmail ?? (booking.contact_email as string | null) ?? null,
       inquiryId,
       bookingId: booking.id as string,
@@ -338,7 +341,8 @@ export async function createInquiryPaymentIntent(
       return { ok: false, error: "This invoice is already paid." };
     }
 
-    const currency = txn.currency || (booking.currency_code as string | null) || "USD";
+    const currency = txn.currency || (booking.currency_code as string | null);
+    if (!currency) return { ok: false, error: "This invoice has no currency yet - ask the agency to resend it." };
 
     // TUL-274: never start a charge in a currency the single seller does not charge in.
     const curCheck = await checkInquiryCurrencyMatchesSeller(createServiceRoleClient(), { inquiryId, currency, mode: "charge" });

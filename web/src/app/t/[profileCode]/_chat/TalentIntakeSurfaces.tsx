@@ -39,7 +39,7 @@ export function TalentIntakeSurfaces({
   const locale = launcher.locale ?? "en";
   return (
     <>
-      <ClientAccountDock locale={locale} />
+      <ClientAccountDock locale={locale} surface="profile_page" />
       {notice ? (
         <TalentIntakeNotice text={intakeNoticeCopy(notice, locale)} closeLabel={locale === "es" ? "Cerrar" : "Close"} />
       ) : null}

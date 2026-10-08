@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { LEFTOVERS_ES_TEXT } from "./dashboard-i18n-leftovers";
 import { NOTIFICATIONS_ES_TEXT } from "./dashboard-i18n-notifications";
 import { QA_FORMATS_ES_TEXT } from "./dashboard-i18n-qa-formats";
 import { QUOTE_ES_TEXT } from "./dashboard-i18n-quote";
@@ -14,8 +15,7 @@ function isSpanish(locale: string): boolean {
 }
 
 const ES_TEXT: Record<string, string> = {
-  ...RAIL_ES_TEXT,
-  ...QUOTE_ES_TEXT, ...QA_FORMATS_ES_TEXT,
+  ...RAIL_ES_TEXT, ...LEFTOVERS_ES_TEXT, ...QUOTE_ES_TEXT, ...QA_FORMATS_ES_TEXT,
   // Global chrome / nav
   "Prototype control bar": "Barra de control del prototipo",
   "Workspace sections": "Secciones del espacio de trabajo",
@@ -2906,7 +2906,7 @@ const ES_TEXT: Record<string, string> = {
   "Show info panel": "Mostrar panel de información",
   "Show smart replies": "Mostrar respuestas inteligentes",
   "Sign contract": "Firmar contrato",
-  "Skip to page content": "Saltar al contenido de la página",
+  "Skip to main content": "Saltar al contenido principal",
   "Smart replies (AI suggestions)": "Respuestas inteligentes (sugerencias de IA)",
   "Snooze, pin, mark read, and archive need a real inbox mutation path before they appear here.": "Posponer, fijar, marcar como leído y archivar necesitan una ruta real de mutación de bandeja antes de aparecer aquí.",
   "Sounds good": "Suena bien",

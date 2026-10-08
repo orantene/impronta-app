@@ -110,7 +110,7 @@ jobs:
         run: |
           # VERCEL_ENV=preview enables the dev-signin route on a production
           # build (its guard allows dev OR preview; plain prod 403s).
-          VERCEL_ENV=preview npx next start -p 3000 &
+          VERCEL_ENV=preview npx next start -p 3000 > /tmp/next-start.log 2>&1 &
           for i in $(seq 1 60); do
             code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ || true)
             [ "$code" = "200" ] || [ "$code" = "307" ] || [ "$code" = "308" ] && exit 0
@@ -122,3 +122,10 @@ jobs:
       - name: Admin boot spec
         if: steps.secrets.outputs.armed == 'true'
         run: npx playwright test e2e/admin-boot.spec.ts --project=chromium --workers=1
+
+      # The page error in production is "An error occurred in the Server Components
+      # render" with the message omitted; the real error and digest are only in the
+      # server log. Print its tail when the spec fails so a red is diagnosable.
+      - name: Server log (on failure)
+        if: failure() && steps.secrets.outputs.armed == 'true'
+        run: tail -n 200 /tmp/next-start.log || true

@@ -163,3 +163,65 @@ test("AI facts are kept: names stay as said, pack match adds duration/price, nev
   assert.equal(servicesFromFacts(["a", "A", " "], { locale: "en" }).length, 1);
   assert.ok(defaultWeeklyHours()["0"].length === 0);
 });
+
+// ── #178: solo studio owner's own booking hours ────────────────────────────
+
+function ownerStore(db: Db, owner: { talentProfileId: string; providerCount: number } | null, tz = true): EssentialsStore {
+  return {
+    ...fakeStore(db, tz),
+    async ownerProvider() { return owner; },
+    async talentHasOpenHours(id) { const w = db.hours[id] as Record<string, unknown[]> | undefined; return !!w && Object.values(w).some((d) => d.length > 0); },
+  };
+}
+const studioInput = (over: Partial<Essentials> = {}) => ({ choice: "studio" as const, essentials: ess(over), talent: null, workspace });
+
+test("solo studio: the owner-provider's booking hours are written with the typed hours", async () => {
+  const db = fresh();
+  const typed = { ...defaultWeeklyHours(), "0": [], "6": [{ startMin: 600, endMin: 840 }] };
+  const r = await runEssentialsWrites(ownerStore(db, { talentProfileId: "own1", providerCount: 1 }), studioInput({ hours: typed }));
+  assert.equal(r.ownerHoursWritten, true);
+  assert.deepEqual(db.hours.own1, typed);
+  assert.ok(db.businessInfo.has("ws1"));
+});
+
+test("studio with several providers (or a pending invite): no owner hours", async () => {
+  for (const [owner, over] of [
+    [{ talentProfileId: "own1", providerCount: 2 }, {}],
+    [{ talentProfileId: "own1", providerCount: 1 }, { firstProviderEmail: "pro@studio.com" }],
+    [null, {}],
+  ] as const) {
+    const db = fresh();
+    const r = await runEssentialsWrites(ownerStore(db, owner), studioInput(over));
+    assert.equal(r.ownerHoursWritten, false);
+    assert.deepEqual(db.hours, {});
+  }
+});
+
+test("solo studio with no timezone known: skipped and reported, the rest still written", async () => {
+  const db = fresh();
+  const r = await runEssentialsWrites(ownerStore(db, { talentProfileId: "own1", providerCount: 1 }, false), studioInput({ timezone: null }));
+  assert.equal(r.ownerHoursWritten, false);
+  assert.ok(r.warnings.includes("essentials:ownerHours:no_timezone"));
+  assert.deepEqual(db.hours, {});
+  assert.ok(db.businessInfo.has("ws1"));
+});
+
+test("solo studio: second run is idempotent and owner-edited hours are never overwritten", async () => {
+  const db = fresh();
+  const s = ownerStore(db, { talentProfileId: "own1", providerCount: 1 });
+  await runEssentialsWrites(s, studioInput());
+  const edited = { ...defaultWeeklyHours(), "1": [{ startMin: 720, endMin: 780 }] };
+  db.hours.own1 = edited;
+  const again = await runEssentialsWrites(s, studioInput());
+  assert.equal(again.ownerHoursWritten, false);
+  assert.equal(db.hours.own1, edited);
+  assert.equal(Object.keys(db.hours).length, 1);
+});
+
+test("solo studio: an existing row with no open day is filled in", async () => {
+  const db = fresh();
+  db.hours.own1 = { "0": [], "1": [], "2": [], "3": [], "4": [], "5": [], "6": [] };
+  const r = await runEssentialsWrites(ownerStore(db, { talentProfileId: "own1", providerCount: 1 }), studioInput());
+  assert.equal(r.ownerHoursWritten, true);
+  assert.ok(Object.values(db.hours.own1 as Record<string, unknown[]>).some((d) => d.length > 0));
+});
