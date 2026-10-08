@@ -25,7 +25,7 @@ export const TALENT_INQUIRY_TO_CONV: Record<string, string> = {
 // ─── Talent Today helpers ──────────────────────────────────────────
 
 function paidCurrencyAndTotal(currency: string, total: number) {
-  return `${currency}${total.toLocaleString()}`;
+  return `${currency}${total.toLocaleString("en-US")}`;
 }
 
 

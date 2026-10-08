@@ -657,7 +657,7 @@ test("expanded two-pane: the header text takes the card ink, never the page colo
 test("the offer editor formats money in the offer's own currency, never a hard-coded USD", () => {
   const editor = readFileSync(join(here, "../../../../components/messages-v5/screens/sheets/OfferEditor.tsx"), "utf8");
   assert.doesNotMatch(editor, /from "@\/lib\/bookings\/commission"/);
-  assert.match(editor, /formatOrderMoney\(cents, draft\.currencyCode\)/);
+  assert.match(editor, /formatRecordMoney\(cents, draft\.currencyCode\)/);
   assert.match(editor, /currency=\{draft\.currencyCode\}/);
 });
 

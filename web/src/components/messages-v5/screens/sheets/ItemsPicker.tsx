@@ -21,7 +21,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { formatCents, formatCentsUSD } from "@/lib/bookings/commission";
 import {
   categoryOrderForPreset,
   filterCatalog,
@@ -40,6 +39,7 @@ import {
   type Selection,
 } from "@/lib/messages-v5/items-picker";
 import type { ItemsCatalog } from "@/lib/messages-v5/items-catalog";
+import { formatRecordMoney } from "@/lib/messages-v5/record-money";
 import type { MessagingRefusal } from "@/lib/messaging/types";
 
 import { fill, type KitCopy } from "../../kit/copy";
@@ -137,10 +137,9 @@ export function ItemsPickerView(p: ItemsPickerViewProps) {
   const present = useMemo(() => new Set(groupCatalog(rows, order).map((g) => g.category)), [rows, order]);
   const total = selectionTotal(p.selected, p.custom);
   const totalCurrency = p.selected.find((s) => s.row.currency)?.row.currency ?? null;
-  const money = (cents: number, currency?: string | null) => {
-    const code = (currency ?? totalCurrency)?.trim().toUpperCase();
-    return code && code !== "USD" ? formatCents(cents, code) : formatCentsUSD(cents);
-  };
+  // A row shows in its own currency; a custom amount and the running total
+  // follow the first priced row. No currency anywhere: platform currency, code shown.
+  const money = (cents: number, currency?: string | null) => formatRecordMoney(cents, currency ?? totalCurrency);
   const selectedIds = useMemo(() => new Map(p.selected.map((s) => [s.row.id, s])), [p.selected]);
   const busy = p.phase === "busy";
   const totalLabel = total.count === 0 ? c.none : fill(total.partial ? c.selectedPartial : c.selected, { count: total.count, total: money(total.totalCents, totalCurrency) });
@@ -206,7 +205,7 @@ export function ItemsPickerView(p: ItemsPickerViewProps) {
                         <select id={`tier-${row.id}`} className="in" value={sel.variantId ?? ""} disabled={busy} onChange={(e) => p.onTier(row, e.target.value)}>
                           {row.tiers.map((t) => (
                             <option key={t.variantId} value={t.variantId} disabled={t.seatsLeft !== null && t.seatsLeft <= 0}>
-                              {t.label} · {formatCentsUSD(t.amountCents)}
+                              {t.label} · {money(t.amountCents, row.currency)}
                               {t.seatsLeft == null ? "" : ` · ${fill(c.left, { count: t.seatsLeft })}`}
                             </option>
                           ))}
@@ -272,7 +271,7 @@ export function ItemsPickerView(p: ItemsPickerViewProps) {
             disabled={busy}
             title={c.custom}
             sub={c.customSub}
-            amount={p.custom ? formatCentsUSD(p.custom.amountCents) : null}
+            amount={p.custom ? money(p.custom.amountCents) : null}
             leading={<Avatar name={null} icon="sparkle" size={mobile ? "lg" : "sm"} />}
             onSelect={() => {
               if (p.custom) p.onCustom(null);

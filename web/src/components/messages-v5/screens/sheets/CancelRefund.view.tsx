@@ -9,8 +9,8 @@
  * strip that import for a render test.
  */
 
-import { formatCentsUSD } from "@/lib/bookings/commission";
 import type { MessagingRefusal } from "@/lib/messaging/types";
+import { formatRecordMoney } from "@/lib/messages-v5/record-money";
 import { footerLabelKindFor, type PaymentTargetChip, type RefundChoice, type RefundMode } from "@/lib/messages-v5/payment-view";
 
 import { fill, type KitCopy } from "../../kit/copy";
@@ -42,6 +42,8 @@ export type CancelRefundViewProps = {
   readonly reason: string;
   readonly onReasonChange: (value: string) => void;
   readonly effectAmountCents: number;
+  /** The record's ISO currency (order / transaction); every amount here is in it. */
+  readonly currencyCode: string;
   readonly phase: CancelRefundPhase;
   readonly refusalCode: MessagingRefusal | null;
   readonly canSubmit: boolean;
@@ -68,6 +70,7 @@ export function CancelRefundView(props: CancelRefundViewProps) {
     reason,
     onReasonChange,
     effectAmountCents,
+    currencyCode,
     phase,
     refusalCode,
     canSubmit,
@@ -78,9 +81,9 @@ export function CancelRefundView(props: CancelRefundViewProps) {
 
   const footerLabel =
     mode === "refundOnly"
-      ? fill(c.footerRefundOnly, { amount: formatCentsUSD(effectAmountCents) })
+      ? fill(c.footerRefundOnly, { amount: formatRecordMoney(effectAmountCents, currencyCode) })
       : footerLabelKindFor(refundMode, effectAmountCents) === "cancelAndRefund"
-        ? fill(c.footerCancelAndRefund, { amount: formatCentsUSD(effectAmountCents) })
+        ? fill(c.footerCancelAndRefund, { amount: formatRecordMoney(effectAmountCents, currencyCode) })
         : c.footerCancelOnly;
 
   return (
@@ -126,7 +129,7 @@ export function CancelRefundView(props: CancelRefundViewProps) {
                   control="radio"
                   selected={refundMode === choice.mode}
                   title={choice.mode === "full" ? c.refundFull : choice.mode === "partial" ? c.refundPartial : c.refundKeep}
-                  amount={choice.mode !== "keep" && choice.maxCents > 0 ? formatCentsUSD(choice.maxCents) : null}
+                  amount={choice.mode !== "keep" && choice.maxCents > 0 ? formatRecordMoney(choice.maxCents, currencyCode) : null}
                   disabled={busy || !choice.enabled}
                   onSelect={choice.enabled ? () => onSelectRefundMode(choice.mode) : undefined}
                   variant={variant}
@@ -156,7 +159,7 @@ export function CancelRefundView(props: CancelRefundViewProps) {
             <section data-cancel-effects>
               <h4>{c.effectsTitle}</h4>
               <ul>
-                {effectAmountCents > 0 ? <li>{fill(c.effectRefund, { amount: formatCentsUSD(effectAmountCents) })}</li> : <li>{c.effectKeep}</li>}
+                {effectAmountCents > 0 ? <li>{fill(c.effectRefund, { amount: formatRecordMoney(effectAmountCents, currencyCode) })}</li> : <li>{c.effectKeep}</li>}
                 {mode === "cancel" && freesCount > 0 ? <li>{c.effectFrees}</li> : null}
               </ul>
             </section>

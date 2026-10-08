@@ -13,7 +13,9 @@ describe("Today payouts row", () => {
   it("routes the not-set-up state to onSetUpPayouts and falls back to non-interactive", () => {
     const agenda = readFileSync(join(base, "agenda/AgendaTodayPage.tsx"), "utf8");
     assert.match(agenda, /notSetUp\s*\n?\s*\?\s*onSetUpPayouts/);
-    assert.match(agenda, /<div className="flex w-full items-center gap-2\.5 px-4 py-3 text-left">\{body\}<\/div>/);
+    // The row class is shared by the button and the non-interactive fallback (a plain div, never a dead button).
+    assert.match(agenda, /const row = "flex w-full items-center gap-2\.5 px-4 py-3 text-left";/);
+    assert.match(agenda, /onActivate \? <button type="button" onClick=\{onActivate\} className=\{row\}>\{body\}<\/button> : <div className=\{row\}>\{body\}<\/div>/);
   });
   it("TodayPage wires it to the same drawer Money opens", () => {
     const today = readFileSync(join(base, "pages/TodayPage.tsx"), "utf8");

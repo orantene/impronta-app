@@ -21,6 +21,7 @@ import {
   type GuestOutcomeKind,
   type GuestOutcomeMessage,
 } from "./guest-outcome";
+import { PLATFORM_FALLBACK_CURRENCY } from "@/lib/inquiry/offer-currency";
 
 export type GuestNextStepKind =
   | "pay"
@@ -150,7 +151,7 @@ export function deriveGuestNextStep(input: GuestNextStepInput): GuestNextStep | 
       kind: "pay",
       payCode: input.payCode,
       payKind: guestPayKind(amount, about?.totalCents ?? null),
-      values: { amount: amount != null && about ? input.money(amount, about.currency) : amount != null ? input.money(amount, "USD") : "" },
+      values: { amount: amount != null && about ? input.money(amount, about.currency) : amount != null ? input.money(amount, PLATFORM_FALLBACK_CURRENCY) : "" },
     };
   }
   if (!offer) {

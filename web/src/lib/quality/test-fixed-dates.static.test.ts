@@ -40,6 +40,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const ALLOWLIST: Readonly<Record<string, string>> = {
   "src/lib/bookings/cancellation-window.test.ts": "pins NOW constant and feeds it as nowMs to the code under test",
   "src/lib/scheduling/load-busy.test.ts": "pins NOW constant and passes it as now to loadBusy",
+  "src/lib/scheduling/inquiry-event-stamp.test.ts": "pure local-date and zone arithmetic over explicit stamps, never reads the clock",
+  "src/lib/scheduling/tul-93-guest-confirmation.test.ts": "explicit booking stamps and an explicit `from` date are fed to the code; no clock comparison",
   "src/lib/scheduling/reservation-window.test.ts": "pins now and passes it to the reservation-window rules",
   "src/lib/scheduling/slots.test.ts": "pure timezone and DST arithmetic on explicit dates, never reads the clock",
   "src/lib/scheduling/reservation-intent.test.ts": "pure conversion of an explicit starts_at/ends_at stamp, never reads the clock",

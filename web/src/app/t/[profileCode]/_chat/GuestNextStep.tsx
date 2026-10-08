@@ -128,6 +128,12 @@ export function GuestNextStep({
       : step.kind === "pay" && step.payKind === "full"
         ? "public.guestChat.nextPayFullSub"
         : SUB_KEY[step.kind];
+  const acceptNeedsSignIn = step.kind === "accept_offer" && model.requireSignInToAccept;
+  // Form lives on the offer card (one place). Next-step only opens it via onAcceptOffer.
+  const acceptSignInOpen =
+    step.kind === "accept_offer" &&
+    step.offer != null &&
+    model.offerSignInOfferId === step.offer.id;
   const busy =
     step.kind === "accept_offer" && step.offer
       ? model.actions.activity[step.offer.id]?.phase === "busy"
@@ -158,7 +164,8 @@ export function GuestNextStep({
       ? BUTTON_KEY[step.kind]
       : null;
   // Pay-failed without a live pay code still shows the card; hide a dead button.
-  const showButton = Boolean(onClick && buttonKey && !(step.kind === "pay_failed" && !model.payCode));
+  // When the inline sign-in form is open on the next-step, hide the CTA too.
+  const showButton = Boolean(onClick && buttonKey && !(step.kind === "pay_failed" && !model.payCode) && !acceptSignInOpen);
 
   return (
     <>
@@ -169,7 +176,7 @@ export function GuestNextStep({
     >
       <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkMuted }}>{t("public.guestChat.nextLabel")}</div>
       <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, letterSpacing: -0.2 }}>{interpolate(t(titleKey), values)}</div>
-      <div style={{ fontSize: 12.5, color: C.inkDim, marginBottom: showButton ? 6 : 0 }}>{interpolate(t(step.kind === "pay_link_ask" && askPhase === "failed" ? "public.guestChat.payLinkAskFailed" : subKey), values)}</div>
+      <div style={{ fontSize: 12.5, color: C.inkDim, marginBottom: showButton || acceptSignInOpen ? 6 : 0 }}>{interpolate(t(step.kind === "pay_link_ask" && askPhase === "failed" ? "public.guestChat.payLinkAskFailed" : subKey), values)}</div>
       {showButton && onClick && buttonKey && (
         <button
           type="button"
@@ -177,11 +184,19 @@ export function GuestNextStep({
           disabled={busy}
           aria-busy={busy || undefined}
           data-guest-next-step-action
+          data-guest-next-step-needs-sign-in={acceptNeedsSignIn || undefined}
           style={{ width: "100%", border: "none", borderRadius: 12, padding: "12px 14px", background: accent, color: accentInk, fontSize: 14, fontWeight: 700, cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1, fontFamily: FONT }}
         >
-          {interpolate(t(step.kind === "pay_link_ask" && askPhase === "busy" ? "public.guestChat.payLinkAsking" : buttonKey), values)}
+          {acceptNeedsSignIn
+            ? model.signInToAcceptLabel
+            : interpolate(t(step.kind === "pay_link_ask" && askPhase === "busy" ? "public.guestChat.payLinkAsking" : buttonKey), values)}
         </button>
       )}
+      {acceptSignInOpen ? (
+        <div style={{ fontSize: 12.5, color: C.inkDim }} data-guest-next-step-sign-in-hint="">
+          {t("public.guestChat.signInToAcceptHint")}
+        </div>
+      ) : null}
     </div>
     </>
   );

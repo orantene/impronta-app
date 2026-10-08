@@ -17,6 +17,7 @@ import { updateClientInquiryDetailsAction } from "../_actions/inquiry-details-ac
 import { ClientConfirmDialog } from "../_components/ConfirmDialog";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { formatOfferMoney } from "@/lib/inquiry/offer-currency";
 import { TabLoadingSkeleton } from "./TabLoadingSkeleton";
 
 type Translator = (key: string) => string;
@@ -435,7 +436,7 @@ export function DetailsTab({
         {details.budget.amount != null && (
           <KV
             label={t("client.messages.detailsAmount")}
-            value={`${details.budget.amount.toLocaleString()} ${details.budget.currency ?? ""}`.trim()}
+            value={formatOfferMoney(details.budget.amount, details.budget.currency)}
           />
         )}
         {details.budget.notes && <KV label={t("client.messages.detailsNotes")} value={details.budget.notes} multiline />}
