@@ -58,8 +58,7 @@ export function WeekRhythmStrip() {
       <section
         aria-busy="true"
         data-testid="week-rhythm-placeholder"
-        style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, padding: "14px 18px", marginBottom: 0, minHeight: 112 }}
-        className="rounded-admin-lg"
+        className="mb-0 min-h-[112px] rounded-admin-lg border border-admin-border-soft bg-white px-[18px] py-[14px]"
       />
     );
   }
