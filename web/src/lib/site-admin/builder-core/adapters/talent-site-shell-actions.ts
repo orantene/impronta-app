@@ -33,6 +33,7 @@ import { requireTalentSelf, assertTalentCanEditSite } from "@/lib/server/talent-
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
 import { assertFreeTalentSiteTreeMutation } from "@/lib/talent-site/free-site-tree-guard";
 import { loadTalentSiteSaveCapabilities } from "@/lib/talent-site/server/free-site-save-guard";
+import { refuseTalentPremiumAppTreeMutation } from "@/lib/talent-site/server/premium-app-save-guard";
 import { normalizeUnknownBuilderTreeLayout } from "@/lib/site-admin/builder-node/normalize-tree-layout";
 import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
 import { resolveBuilderTreeClassRefs } from "@/lib/site-admin/builder-node/style-classes";
@@ -231,6 +232,18 @@ export async function saveTalentSiteShellRow(
       });
       if (!structural.ok) {
         return { ok: false as const, error: structural.message };
+      }
+    }
+
+    // TUL-39 — premium apps: fail-closed on talent-owner install (flag-independent).
+    {
+      const premiumErr = await refuseTalentPremiumAppTreeMutation({
+        talentProfileId: gate.talentProfileId,
+        previousTree: currentRow?.shell_tree,
+        nextTree: enforced,
+      });
+      if (premiumErr) {
+        return { ok: false as const, error: premiumErr };
       }
     }
 
@@ -492,6 +505,17 @@ export async function restoreTalentSiteShellRevisionAction(
       });
       if (!structural.ok) {
         return { ok: false as const, error: structural.message };
+      }
+    }
+
+    {
+      const premiumErr = await refuseTalentPremiumAppTreeMutation({
+        talentProfileId: gate.talentProfileId,
+        previousTree: siteRow.shell_tree,
+        nextTree: enforced,
+      });
+      if (premiumErr) {
+        return { ok: false as const, error: premiumErr };
       }
     }
 

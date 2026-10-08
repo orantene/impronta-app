@@ -30,9 +30,11 @@ function read(name: string): string {
   return readFileSync(join(ROOT, name), "utf8");
 }
 
-test("G4-LIB: suggested + all apps copy and library screen with Pro badge", () => {
+test("G4-LIB: suggested + all apps copy and library screen with Web Office badge", () => {
   assert.equal(galleryAppsT("es", "suggested"), "Sugeridas para tu oficio");
   assert.equal(galleryAppsT("es", "allApps"), "Todas las apps");
+  assert.equal(galleryAppsT("en", "pro"), "Web Office");
+  assert.equal(galleryAppsT("es", "pro"), "Oficina Web");
   assert.deepEqual(Object.keys(GALLERY_APPS_COPY.en).sort(), Object.keys(GALLERY_APPS_COPY.es).sort());
   for (const lang of ["en", "es"] as const) {
     for (const v of Object.values(GALLERY_APPS_COPY[lang])) assert.ok(!v.includes("—"));
@@ -46,7 +48,8 @@ test("G4-LIB: suggested + all apps copy and library screen with Pro badge", () =
   assert.match(html, /Sugeridas para tu oficio/);
   assert.match(html, /Todas las apps/);
   assert.match(html, /gallery-app-pro/);
-  assert.match(html, />Pro</);
+  assert.match(html, />Oficina Web</);
+  assert.doesNotMatch(html, />Pro</);
 });
 
 test("G4-APP: free plan sees Upgrade to use (preview stays); paid sees Add", () => {
@@ -72,6 +75,7 @@ test("G4-APP: free plan sees Upgrade to use (preview stays); paid sees Add", () 
   assert.doesNotMatch(freeHtml, /app-detail-add-to-site/);
   assert.doesNotMatch(freeHtml, /app-detail-see-plans/);
   assert.match(freeHtml, /gallery-app-pro/);
+  assert.match(freeHtml, /Oficina Web/);
 
   const paidHtml = renderToStaticMarkup(
     <AppDetailScreen
@@ -92,6 +96,18 @@ test("G4-APP: free plan sees Upgrade to use (preview stays); paid sees Add", () 
   const detail = read("AppDetailScreen.tsx");
   assert.match(detail, /requestBuilderAppIntent/);
   assert.match(detail, /canAddLibraryApp/);
+  assert.match(detail, /isPremiumApp/);
+  // Draft-save chokepoints must refuse premium inserts server-side.
+  const pageActions = readFileSync(
+    join(process.cwd(), "src/lib/site-admin/builder-core/adapters/talent-page-actions.ts"),
+    "utf8",
+  );
+  const shellActions = readFileSync(
+    join(process.cwd(), "src/lib/site-admin/builder-core/adapters/talent-site-shell-actions.ts"),
+    "utf8",
+  );
+  assert.match(pageActions, /refuseTalentPremiumAppTreeMutation/);
+  assert.match(shellActions, /refuseTalentPremiumAppTreeMutation/);
 });
 
 test("G4-BACK: App↔templates + library patches", () => {
