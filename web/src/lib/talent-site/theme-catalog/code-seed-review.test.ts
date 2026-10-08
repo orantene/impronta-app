@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { buildMaisonV2Payload } from "./collection/maison-v2";
+import { COLLECTION_DESIGNS } from "./collection/designs";
+import { loadAuthoredOverlayFile } from "./collection/authored";
 import type { DesignPayload } from "./types";
 import {
   applyMaisonCtaSeedPatch,
@@ -17,7 +19,11 @@ import {
   rebaseAuthoredOntoCodeSeed,
   recoverBaseCodeFromOverlay,
 } from "./code-seed-review";
-import { canonicalOverlayPayload, diffToOverlay } from "./collection/authored/overlay";
+import {
+  applyAuthoredOverlay,
+  canonicalOverlayPayload,
+  diffToOverlay,
+} from "./collection/authored/overlay";
 
 type Rec = Record<string, unknown>;
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
@@ -190,6 +196,42 @@ test("recoverBaseCodeFromOverlay: round-trips a token-only overlay (Folio-style)
   assert.ok(recovered);
   assert.deepEqual(canonicalOverlayPayload(recovered!), canonicalOverlayPayload(baseCode));
   assert.equal(recovered!.tokenDefaults?.["--x"], undefined);
+});
+
+test("recoverBaseCodeFromOverlay: real folio.overlay.json recovers (or explicit unsupported)", () => {
+  const folio = COLLECTION_DESIGNS.find((d) => d.slug === "folio");
+  assert.ok(folio, "folio collection entry");
+  const overlay = loadAuthoredOverlayFile("folio");
+  assert.ok(overlay, "committed folio.overlay.json must load");
+  assert.ok((overlay.removed?.length ?? 0) > 0, "real Folio overlay removes nodes");
+
+  const raw = (folio.buildPayloadRaw ?? folio.buildPayload)();
+  const authored = applyAuthoredOverlay(raw, overlay);
+  const recovered = recoverBaseCodeFromOverlay({
+    authored,
+    overlay,
+    newCode: raw,
+  });
+
+  if (recovered === null) {
+    // Explicit unsupported path: plan without baseCode must refuse (no Maison seedPatch).
+    const plan = planCodeSeedReviewDraft({ newCode: raw, authored, baseCode: null });
+    assert.equal(plan.ok, false);
+    if (plan.ok) return;
+    assert.equal(plan.code, "unsupported");
+    return;
+  }
+
+  assert.deepEqual(
+    canonicalOverlayPayload(applyAuthoredOverlay(recovered, overlay)),
+    canonicalOverlayPayload(authored),
+  );
+  const moved = clone(raw);
+  moved.tokenDefaults = { ...(moved.tokenDefaults ?? {}), "--seed-moved": "1" };
+  const plan = planCodeSeedReviewDraft({ newCode: moved, authored, baseCode: recovered });
+  assert.equal(plan.ok, true);
+  if (!plan.ok) return;
+  assert.equal(plan.kind, "rebase");
 });
 
 test("rebaseAuthoredOntoCodeSeed: replays overlay onto new seed", () => {
