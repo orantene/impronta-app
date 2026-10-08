@@ -4,9 +4,11 @@
  * Pure: applies the code seed's header + hero booking buttons onto an
  * authored / released payload. Used by Builder Lab's code-seed review path
  * so the change ships draft → demos → talents with no release-theme-patch-cta script.
+ *
+ * Trees use a loose JSON node shape (DB / seed JSON), not the strict BuilderNode
+ * discriminated union — the patch only reads/writes a few props.
  */
 import { isDeepStrictEqual } from "node:util";
-import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { DesignPayload } from "./types";
 
 export const CTA_ALLOWED_SLUGS = ["maison-v2"] as const;
@@ -16,10 +18,18 @@ export const BOOK_HREF = "#services";
 const OLD_HEADER_LABELS: readonly string[] = ["Menu and prices", BOOK_LABEL];
 
 type Rec = Record<string, unknown>;
-type TNode = BuilderNode;
+/** Loose tree node from seed / authored JSON (not the strict BuilderNode union). */
+export type CtaNode = {
+  id?: string;
+  kind?: string;
+  props?: Rec;
+  children?: CtaNode[];
+  i18n?: unknown;
+  [key: string]: unknown;
+};
 const rec = (v: unknown): Rec => (v && typeof v === "object" && !Array.isArray(v) ? (v as Rec) : {});
 
-export type SeedTrees = { shellTree: TNode[]; homeTree: TNode[] };
+export type SeedTrees = { shellTree: CtaNode[]; homeTree: CtaNode[] };
 
 export function stripDesignKey<T>(value: T): T {
   if (Array.isArray(value)) return value.map(stripDesignKey) as unknown as T;
@@ -60,15 +70,15 @@ export interface CtaEdit {
 }
 
 export interface CtaPatch {
-  trees: { shellTree: TNode[]; homeTree: TNode[] };
+  trees: { shellTree: CtaNode[]; homeTree: CtaNode[] };
   edits: CtaEdit[];
   alreadyDone: boolean;
   refusals: string[];
 }
 
-function seedHeroButtons(seed: SeedTrees): TNode[] | null {
-  let found: TNode[] | null = null;
-  const walk = (nodes: TNode[] | undefined) => {
+function seedHeroButtons(seed: SeedTrees): CtaNode[] | null {
+  let found: CtaNode[] | null = null;
+  const walk = (nodes: CtaNode[] | undefined) => {
     for (const n of nodes ?? []) {
       if (n.kind === "container" && rec(n.props).layerLabel === "Hero actions") {
         found = (n.children ?? []).filter((c) => c.kind === "button");
@@ -79,7 +89,7 @@ function seedHeroButtons(seed: SeedTrees): TNode[] | null {
     }
   };
   walk(seed.homeTree);
-  const buttons = found as TNode[] | null;
+  const buttons = found as CtaNode[] | null;
   if (!buttons || buttons.length !== 2) return null;
   return buttons;
 }
@@ -94,7 +104,7 @@ function seedHeaderCta(seed: SeedTrees): Rec | null {
   return null;
 }
 
-function retargetButton(live: TNode, seedButton: TNode): TNode {
+function retargetButton(live: CtaNode, seedButton: CtaNode): CtaNode {
   const props = rec(live.props);
   const sprops = rec(seedButton.props);
   const { label: _l, href: _h, tone: _t, layerLabel: _ll, i18n: _i, ...keep } = props;
@@ -107,7 +117,7 @@ function retargetButton(live: TNode, seedButton: TNode): TNode {
     layerLabel: sprops.layerLabel,
     ...(sprops.i18n ? { i18n: sprops.i18n } : {}),
   };
-  const out: TNode = { ...live, props: next };
+  const out: CtaNode = { ...live, props: next };
   if ("i18n" in live) {
     if (sprops.i18n) out.i18n = sprops.i18n;
     else delete out.i18n;
@@ -115,14 +125,14 @@ function retargetButton(live: TNode, seedButton: TNode): TNode {
   return out;
 }
 
-function patchHero(home: readonly TNode[], seed: SeedTrees, edits: CtaEdit[], refusals: string[]): TNode[] {
+function patchHero(home: readonly CtaNode[], seed: SeedTrees, edits: CtaEdit[], refusals: string[]): CtaNode[] {
   const sb = seedHeroButtons(seed);
   if (!sb) {
     refusals.push("The code seed has no two-button Hero actions row (wrong seed build?).");
     return [...home];
   }
   let rows = 0;
-  const walk = (nodes: readonly TNode[], path: string): TNode[] =>
+  const walk = (nodes: readonly CtaNode[], path: string): CtaNode[] =>
     nodes.map((n, i) => {
       const here = `${path}[${i}]`;
       if (n.kind === "container" && rec(n.props).layerLabel === "Hero actions") {
@@ -133,7 +143,7 @@ function patchHero(home: readonly TNode[], seed: SeedTrees, edits: CtaEdit[], re
           refusals.push(`${here}: Hero actions must hold exactly 2 buttons, found ${kids.length} children.`);
           return n;
         }
-        const [first, second] = kids as [TNode, TNode];
+        const [first, second] = kids as [CtaNode, CtaNode];
         const l1 = rec(first.props).label;
         const l2 = rec(second.props).label;
         const done = l1 === BOOK_LABEL && l2 === "See services";
@@ -177,7 +187,7 @@ function patchHero(home: readonly TNode[], seed: SeedTrees, edits: CtaEdit[], re
   return out;
 }
 
-function patchHeader(shell: readonly TNode[], seed: SeedTrees, edits: CtaEdit[], refusals: string[]): TNode[] {
+function patchHeader(shell: readonly CtaNode[], seed: SeedTrees, edits: CtaEdit[], refusals: string[]): CtaNode[] {
   const seedCta = seedHeaderCta(seed);
   if (!seedCta) {
     refusals.push("The code seed header has no cta item (wrong seed build?).");
@@ -235,16 +245,18 @@ function patchHeader(shell: readonly TNode[], seed: SeedTrees, edits: CtaEdit[],
 
 /** Pure: patched trees + edits. Never mutates its input. */
 export function patchMaisonCtaTrees(
-  base: Pick<DesignPayload, "shellTree" | "homeTree">,
+  base: Pick<DesignPayload, "shellTree" | "homeTree"> | SeedTrees,
   seed: SeedTrees,
 ): CtaPatch {
   const edits: CtaEdit[] = [];
   const refusals: string[] = [];
-  const homeTree = patchHero(base.homeTree ?? [], seed, edits, refusals);
-  const shellTree = patchHeader(base.shellTree ?? [], seed, edits, refusals);
+  const homeIn = (base.homeTree ?? []) as CtaNode[];
+  const shellIn = (base.shellTree ?? []) as CtaNode[];
+  const homeTree = patchHero(homeIn, seed, edits, refusals);
+  const shellTree = patchHeader(shellIn, seed, edits, refusals);
   for (const [name, before, after] of [
-    ["homeTree", base.homeTree ?? [], homeTree],
-    ["shellTree", base.shellTree ?? [], shellTree],
+    ["homeTree", homeIn, homeTree],
+    ["shellTree", shellIn, shellTree],
   ] as const) {
     const prefixes = edits.filter((e) => e.tree === name).map((e) => e.prefix);
     for (const leaf of diffLeaves(before, after, name)) {
@@ -269,8 +281,8 @@ export function applyMaisonCtaSeedPatch(
   | { ok: true; payload: DesignPayload; alreadyDone: boolean; summary: string; summaryEs: string }
   | { ok: false; error: string; errorEs: string } {
   const seed: SeedTrees = {
-    shellTree: structuredClone(newCode.shellTree ?? []),
-    homeTree: structuredClone(newCode.homeTree ?? []),
+    shellTree: structuredClone(newCode.shellTree ?? []) as CtaNode[],
+    homeTree: structuredClone(newCode.homeTree ?? []) as CtaNode[],
   };
   const patch = patchMaisonCtaTrees(authored, seed);
   if (patch.refusals.length > 0) {
@@ -282,8 +294,8 @@ export function applyMaisonCtaSeedPatch(
   }
   const payload: DesignPayload = {
     ...authored,
-    shellTree: patch.trees.shellTree,
-    homeTree: patch.trees.homeTree,
+    shellTree: patch.trees.shellTree as DesignPayload["shellTree"],
+    homeTree: patch.trees.homeTree as DesignPayload["homeTree"],
   };
   return {
     ok: true,

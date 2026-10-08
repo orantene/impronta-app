@@ -5,6 +5,7 @@
  * and ships through Builder Lab (Factory → Review code seed → demos → talents).
  * This module re-exports the pure patch helpers for unit tests and keeps a
  * thin `planCta` diagnostic. `run()` always refuses apply/publish.
+ * The former `scripts/release-theme-patch-cta.mts` entry point was deleted.
  *
  * Exit codes: 2 REFUSED (retired).
  */
@@ -113,7 +114,7 @@ export { parseArgs };
 /** Retired: always refuses. Use Factory → Review code seed in Builder Lab. */
 export async function run(args: Args, ports: CtaPorts): Promise<number> {
   const log = ports.log;
-  log("REFUSED: scripts/release-theme-patch-cta.mts is retired (TUL-366 / THEME CORE P0-3).");
+  log("REFUSED: release-theme-patch-cta is retired (TUL-366 / THEME CORE P0-3).");
   log(
     "Ship Maison booking CTA via Builder Lab: Talent Template Factory → Review code seed → publish demos → open to talents.",
   );
