@@ -80,3 +80,14 @@ test("writeback leaves the applied bookkeeping migration untouched", () => {
   assert.match(book, /add column if not exists notion_page_id/);
   assert.doesNotMatch(SQL, /drop column.*notion_page_id/i);
 });
+
+test("writeback dead-letters after 5 failures with backoff (cannot block queue)", () => {
+  assert.match(SQL, /notion_sync_fail_count integer not null default 0/i);
+  assert.match(SQL, /t\.notion_sync_fail_count < 5/i);
+  assert.match(SQL, /make_interval\(mins => least\(60,/i);
+  assert.match(
+    SQL,
+    /notion_sync_fail_count = case[\s\S]*then 1[\s\S]*\+ 1/i,
+  );
+  assert.match(SQL, /notion_sync_fail_count = 0/);
+});
