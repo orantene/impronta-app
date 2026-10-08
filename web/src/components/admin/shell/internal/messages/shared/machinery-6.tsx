@@ -3,6 +3,7 @@
 import React, { useState, useTransition, useEffect, type CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate, type Translator } from "@/i18n/interpolate";
+import { formatOfferMoney } from "@/lib/inquiry/offer-currency";
 import { CallSheetEditorSheet } from "@/components/admin/call-sheet-editor/CallSheetEditorSheet";
 import { setInquiryPayoutReceiver, loadInquiryPayoutReceiverCandidates, loadInquiryPaymentState, requestInquiryPayment, markInquiryPaymentPending, markInquiryPaymentReceived, initiateInquiryPayout, markInquiryPaymentDisputed, markInquiryPayoutSent, markInquiryPaymentFailed, cancelInquiryTransaction, createInquiryTransactionDraft, type PayoutReceiverOption, type InquiryPaymentState } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { useAdminShell, COLORS, FONTS, type InquiryRecord } from "../../state";
@@ -215,14 +216,9 @@ export function PayoutReceiverPicker({
   );
 }
 
-export function formatCents(cents: number | null, currency: string): string {
+export function formatCents(cents: number | null, currency: string | null | undefined): string {
   if (cents == null) return "—";
-  try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 2 })
-      .format(cents / 100);
-  } catch {
-    return `${(cents / 100).toFixed(2)} ${currency}`;
-  }
+  return formatOfferMoney(cents / 100, currency, { maximumFractionDigits: 2 });
 }
 
 /** Localize a booking-transaction status via the additive KEYS map, falling
