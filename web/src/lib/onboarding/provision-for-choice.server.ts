@@ -39,6 +39,7 @@ import { runChoiceProvisioning, type ChoiceProvisionResult } from "./provision-f
 import { ensureOwnSitePublished } from "./publish-own-site";
 import { createEssentialsStore, resolveTalentHubTenantId } from "./essentials.server";
 import { runEssentialsWrites, type Essentials } from "./essentials";
+import { essentialsSkipWarning } from "./essentials-resolve";
 import { writeTalentProfileFromBrief } from "./talent-writer.server";
 import { promoteTalentProfileLive } from "./talent-profile-promotion.server";
 
@@ -190,7 +191,8 @@ export async function provisionForChoice(
 
     async applyEssentials({ choice: c, talent, workspace }) {
       const essentials = input.essentials;
-      if (!essentials || !essentials.services.length) return [];
+      const skip = essentialsSkipWarning(essentials);
+      if (skip || !essentials) return skip ? [skip] : [];
       let talentCtx: { talentProfileId: string; tenantId: string } | null = null;
       if (talent) {
         const tenantId = workspace?.tenantId ?? (await resolveTalentHubTenantId(admin, talent.talentProfileId));

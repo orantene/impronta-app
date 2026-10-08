@@ -108,7 +108,7 @@ function counts(db: Db) {
 const EXPECTED: Record<OnboardingChoice, ReturnType<typeof counts>> = {
   myself: { app_role: "talent", home: "talent", talent_profiles: 1, talent_sites: 1, hub_roster: 1, agencies: 0, owner_memberships: 0, agency_domains: 0, self_roster: 0 },
   studio: { app_role: "agency_staff", home: "workspace", talent_profiles: 0, talent_sites: 0, hub_roster: 0, agencies: 1, owner_memberships: 1, agency_domains: 1, self_roster: 0 },
-  both: { app_role: "talent", home: "workspace", talent_profiles: 1, talent_sites: 0, hub_roster: 1, agencies: 1, owner_memberships: 1, agency_domains: 1, self_roster: 1 },
+  both: { app_role: "talent", home: "workspace", talent_profiles: 1, talent_sites: 1, hub_roster: 1, agencies: 1, owner_memberships: 1, agency_domains: 1, self_roster: 1 },
 };
 
 for (const choice of ["myself", "studio", "both"] as const) {
@@ -221,6 +221,39 @@ test("both: a failed profile promotion fails the build (retry finishes it)", asy
   assert.equal((await runChoiceProvisioning("both", deps)).ok, false);
   assert.equal((await runChoiceProvisioning("both", fakeDeps(db))).ok, true);
   assert.equal(db.talent_profiles[0].visibility, "public");
+});
+
+test("both: her own talent site is created after the profile is live and returned", async () => {
+  const db = freshDb();
+  const deps = fakeDeps(db);
+  const seen: string[] = [];
+  const site = deps.ensureTalentSite;
+  const live = deps.promoteTalentProfileLive;
+  deps.promoteTalentProfileLive = async (id) => { seen.push("live"); return live(id); };
+  deps.ensureTalentSite = async (id) => { seen.push("site"); return site(id); };
+  const r = await runChoiceProvisioning("both", deps);
+  assert.equal(r.ok, true);
+  assert.deepEqual(seen, ["live", "site"]);
+  assert.ok(r.ok && r.site);
+});
+
+test("both: a failed talent site is a warning (not fatal) and a retry finishes it", async () => {
+  const db = freshDb();
+  const deps = fakeDeps(db);
+  deps.ensureTalentSite = async () => ({ ok: false, code: "site_publish_failed", message: "x" });
+  const r = await runChoiceProvisioning("both", deps);
+  assert.ok(r.ok);
+  assert.ok(r.ok && r.warnings.includes("site:site_publish_failed"));
+  assert.equal(r.ok && r.site, null);
+  assert.equal(db.talent_sites.length, 0);
+  assert.equal((await runChoiceProvisioning("both", fakeDeps(db))).ok, true);
+  assert.equal(db.talent_sites.length, 1);
+});
+
+test("studio never creates a talent site", async () => {
+  const db = freshDb();
+  await runChoiceProvisioning("studio", fakeDeps(db));
+  assert.equal(db.talent_sites.length, 0);
 });
 
 test("myself and studio never call the promotion", async () => {
