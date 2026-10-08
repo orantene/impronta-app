@@ -35,8 +35,12 @@ function assertIsolated(): void {
   const supa = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   if (process.env.JOURNEYS_ISOLATED !== "1") throw new Error("REFUSED: set JOURNEYS_ISOLATED=1");
   if (!supa.includes(ISOLATED_REF) || supa.includes(PROD_REF)) throw new Error("REFUSED: NEXT_PUBLIC_SUPABASE_URL is not the isolated fxlank project");
+  // Allowed targets: the deployed isolated hosts, or a LOCAL stack that runs against fxlank (the Supabase guard above is what
+  // makes a local host safe: it must be the isolated project). Anything else is refused.
   for (const b of [BASE, AGENCY_BASE].filter(Boolean)) {
-    if (!/^https:\/\/staging-qa-[a-z0-9-]+\.tulala\.digital$/.test(b)) throw new Error(`REFUSED: ${b} is not a staging-qa host`);
+    const staging = /^https:\/\/staging-qa-[a-z0-9-]+\.tulala\.digital$/.test(b);
+    const local = /^http:\/\/(localhost|127\.0\.0\.1|[a-z0-9-]+\.localhost)(:\d+)?$/.test(b);
+    if (!staging && !local) throw new Error(`REFUSED: ${b} is neither a staging-qa host nor a local host`);
   }
   if (!/@impronta\.test$/i.test(EMAIL)) throw new Error("REFUSED: CLIENT_QA_EMAIL must be an @impronta.test throwaway");
 }
