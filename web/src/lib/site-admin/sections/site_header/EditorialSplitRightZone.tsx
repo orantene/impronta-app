@@ -7,6 +7,7 @@
 import { EditorialSplitActions } from "./EditorialSplitActions";
 import { HeaderAuthArea } from "@/components/site-shell/HeaderAuthArea";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { siteHeaderChromeAria } from "./header-chrome-aria";
 import { getLocaleMetadata, type Locale } from "@/i18n/config";
 import { headers } from "next/headers";
 import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
@@ -58,6 +59,7 @@ export async function renderRightZone(
         href: withLocalePath(pathnameWithoutLocale, code, pathSettings),
       }))
     : [];
+  const chromeAria = siteHeaderChromeAria(locale);
   return (
     <EditorialSplitActions
       localeLinks={localeLinks}
@@ -70,10 +72,10 @@ export async function renderRightZone(
       savedCount={savedIds.length}
       favoritesCount={favoriteIds.length}
       copy={{
-        menu: pickLocale(locale, { en: "Menu", es: "Menú" }),
+        menu: chromeAria.menu,
         close: pickLocale(locale, { en: "Close", es: "Cerrar" }),
-        saved: pickLocale(locale, { en: "Saved", es: "Guardados" }),
-        inquiry: pickLocale(locale, { en: "Your inquiry", es: "Tu solicitud" }),
+        saved: chromeAria.saved,
+        inquiry: chromeAria.inquiry,
         startInquiry: pickLocale(locale, { en: "Start an inquiry", es: "Iniciar solicitud" }),
         exploreTalent: pickLocale(locale, { en: "Explore talent", es: "Explorar talento" }),
         language: pickLocale(locale, { en: "Language", es: "Idioma" }),

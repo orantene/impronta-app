@@ -15,6 +15,7 @@ import { ClusterIcon } from "./header-cluster-icon";
 import { HeaderAccountItem } from "./HeaderAccountItem";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
+import { siteHeaderChromeAria } from "./header-chrome-aria";
 import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
 import { resolveShellBrandTagline } from "@/lib/site-admin/server/shell-brand-tagline";
 import {
@@ -354,6 +355,7 @@ export async function SiteHeaderComponent({
   // platform fallback (single "en", switcher hidden) which is safe here since
   // the site_header section only renders for tenant snapshots.
   const tenantLocaleSettings = await loadTenantLocaleSettings(tenantId ?? "");
+  const chromeAria = siteHeaderChromeAria(locale);
   const bd = brandDisplay ?? "image-and-text";
   const showBrandImage = (bd === "image" || bd === "image-and-text") && !!brandLogoUrl;
   const showBrandText = (bd === "text" || bd === "image-and-text") && !!brand.label;
@@ -417,7 +419,7 @@ export async function SiteHeaderComponent({
           ) : null;
         case "nav":
           return navLinks.length > 0 ? (
-            <nav key={key} {...attrs} className="site-header__ritem site-header__nav" aria-label="Primary">
+            <nav key={key} {...attrs} className="site-header__ritem site-header__nav" aria-label={chromeAria.primaryNav}>
               <ul className="site-header__nav-list">
                 {navLinks.map((l, i) => (
                   <li key={i} className="site-header__nav-item">
@@ -470,7 +472,7 @@ export async function SiteHeaderComponent({
         case "inquiry": {
           const href = resolveRosterSafeHref(item.href, hasRoster, inquiryFallback);
           return (
-            <a key={key} {...attrs} className="site-header__ritem site-header__inquiry" href={href} aria-label="Your inquiry">
+            <a key={key} {...attrs} className="site-header__ritem site-header__inquiry" href={href} aria-label={chromeAria.inquiry}>
               <ClusterIcon name="inquiry" />
               {item.showCount === false ? null : <HeaderRegionLiveCount kind="saved" />}
             </a>
@@ -479,7 +481,7 @@ export async function SiteHeaderComponent({
         case "saved": {
           const href = resolveRosterSafeHref(item.href, hasRoster, inquiryFallback);
           return (
-            <a key={key} {...attrs} className="site-header__ritem site-header__saved" href={href} aria-label="Saved">
+            <a key={key} {...attrs} className="site-header__ritem site-header__saved" href={href} aria-label={chromeAria.saved}>
               <ClusterIcon name="saved" />
               <HeaderRegionLiveCount kind="favorites" />
             </a>
@@ -538,7 +540,7 @@ export async function SiteHeaderComponent({
           <div className="site-header__region" data-region="center">{regions.center.map(renderItem)}</div>
           <div className="site-header__region" data-region="right">{demoPill}{regions.right.map(renderItem)}</div>
           {hasMobileMenu ? <input type="checkbox" id={`${sectionId}-menu`} className="site-header__menu-toggle" aria-hidden="true" tabIndex={-1} /> : null}
-          {hasMobileMenu ? <label htmlFor={`${sectionId}-menu`} className="site-header__burger" aria-label="Menu"><span /><span /><span /></label> : null}
+          {hasMobileMenu ? <label htmlFor={`${sectionId}-menu`} className="site-header__burger" aria-label={chromeAria.menu}><span /><span /><span /></label> : null}
         </div>
         {hasMobileMenu ? <div className="site-header__mobile-panel" data-mobile-panel="">{allItems.filter((i) => i.type !== "section_switcher").map((item, i) => renderItem(item, i))}</div> : null}
       </header>
@@ -668,7 +670,7 @@ export async function SiteHeaderComponent({
           ) : null}
         </a>
         {navLinks.length > 0 ? (
-          <nav className="site-header__nav" aria-label="Primary">
+          <nav className="site-header__nav" aria-label={chromeAria.primaryNav}>
             <ul className="site-header__nav-list">
               {navLinks.map((item, i) => (
                 <li key={i} className="site-header__nav-item">
