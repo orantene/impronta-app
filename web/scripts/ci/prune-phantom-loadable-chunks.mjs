@@ -10,6 +10,12 @@
  * chunks per route that 404 (P0). This drops only the entries whose file is not
  * on disk, so the preload is never emitted; a name that exists is untouched.
  * Never fails a build: any error is logged and the exit code stays 0.
+ *
+ * TEMPORARY WORKAROUND for a Next.js 16.2.3 + Turbopack bug (pinned in
+ * package.json). REMOVE this step (and its postbuild hook) once an upgraded Next
+ * stops listing unemitted chunks: a build log line
+ * `check-build-chunks NOTE: ... react-loadable-manifest.json are absent` with
+ * this script disabled is the signal that the bug is gone.
  */
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
