@@ -41,7 +41,9 @@ import {
   type MintPorts,
 } from "../scripts/live-timing/timing-harness";
 
-test.describe.configure({ mode: "serial", retries: 0 });
+// Default (not serial) mode: one selector miss must not skip the other cards.
+// Tests in this file still share one worker, so beforeAll mints one session.
+test.describe.configure({ retries: 0 });
 
 const CONTENT_MS = 60_000;
 let statePath: string | null = null;
@@ -141,9 +143,14 @@ test("TUL-166: Hours drawer shows the weekly hours; the New service form opens (
     await safeClick(open, "Working hours");
     const panel = page.locator("[data-working-hours-panel]");
     await expect(panel, "Working hours panel opens").toBeVisible({ timeout: 20_000 });
-    await expect(panel.locator('input[type="checkbox"]'), "one open/closed row per weekday").toHaveCount(7, { timeout: 30_000 });
-    await expect(panel).toContainText(/monday|lunes/i);
-    await expect(panel).toContainText(/sunday|domingo/i);
+    // Anchor on the 7 weekday labels (full or abbreviated, ES or EN), not on a
+    // control count: closed days render differently from open ones.
+    await expect(panel).toContainText(/\b(lun|mon)/i, { timeout: 30_000 });
+    const panelText = (await panel.innerText()).toLowerCase();
+    const es = [/\blun/, /\bmar/, /\bmi[eé]/, /\bjue/, /\bvie/, /\bs[aá]b/, /\bdom/];
+    const en = [/\bmon/, /\btue/, /\bwed/, /\bthu/, /\bfri/, /\bsat/, /\bsun/];
+    const found = (set: RegExp[]) => set.filter((re) => re.test(panelText)).length;
+    expect(Math.max(found(es), found(en)), "all 7 weekdays are listed in the Hours panel").toBe(7);
     await page.keyboard.press("Escape");
     if (await panel.isVisible().catch(() => false)) await safeClick(page.locator("[data-working-hours-panel]").getByRole("button", { name: /close|cerrar/i }).first(), "Close");
   });
