@@ -7,9 +7,10 @@
  * service names therefore follow the profile with no exact-string swap.
  *
  * Rules:
- *  - `custom` or an absent source keeps the literal `items` untouched (every
- *    ticker saved before this field), and those still go through the exact
- *    string swaps in `talent-locale-swaps.ts` exactly as before;
+ *  - `services` (or an absent source: Maison and create default) fills from
+ *    published offerings in the visitor's language;
+ *  - explicit `custom` keeps the literal `items` untouched, and those still
+ *    go through the exact string swaps in `talent-locale-swaps.ts`;
  *  - a `services` ticker for a talent with no published services keeps its
  *    literal `items` as the fallback, so it never runs empty;
  *  - an unknown source value fails CLOSED (reads as `custom`) with a dev-only
@@ -31,11 +32,15 @@ type Props = Record<string, unknown>;
 
 const propsOf = (n: BuilderNode): Props => (n.props ?? {}) as Props;
 
-/** The source a marquee follows. Unknown values fail closed to `custom`. */
+/**
+ * The source a marquee follows. Absent source means services (TUL-189: live
+ * Maison trees applied before the field still follow offerings). Only an
+ * explicit `custom` keeps free text. Unknown values fail closed to `custom`.
+ */
 export function tickerSourceOf(node: BuilderNode): TickerSource {
   const source = propsOf(node).source;
-  if (source === undefined || source === "custom") return "custom";
-  if (source === "services") return "services";
+  if (source === "custom") return "custom";
+  if (source === undefined || source === null || source === "services") return "services";
   if (process.env.NODE_ENV !== "production") {
     // eslint-disable-next-line no-console
     console.warn(
@@ -48,7 +53,7 @@ export function tickerSourceOf(node: BuilderNode): TickerSource {
 /** True when any marquee in the tree follows her services (decides whether to load them). */
 export function treeHasServicesTicker(tree: readonly BuilderNode[]): boolean {
   return tree.some((n) => {
-    if (n.kind === "marquee" && propsOf(n).source === "services") return true;
+    if (n.kind === "marquee" && tickerSourceOf(n) === "services") return true;
     const kids = (n as AnyNode).children;
     return Array.isArray(kids) && treeHasServicesTicker(kids);
   });
