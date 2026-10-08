@@ -38,7 +38,7 @@ const MAX_ROWS = 2000;
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const readOnly = await assertNotImpersonating();
-  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
+  if (!readOnly.ok) return NextResponse.json({ error: readOnly.error }, { status: 403 });
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: "Not authenticated" }, { status: 401 });
