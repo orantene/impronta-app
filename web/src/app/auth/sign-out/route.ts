@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
+import { guestCookieExpiryHeader } from "@/lib/guest-cookie";
 import { authCookieExpiryHeaders } from "@/lib/supabase/cookie-domain";
 
 /**
@@ -46,6 +47,8 @@ export async function POST(request: Request) {
   )) {
     res.headers.append("set-cookie", h);
   }
+  // TUL-401: the guest thread cookie outlives the auth session unless expired here.
+  res.headers.append("set-cookie", guestCookieExpiryHeader());
   res.headers.set("cache-control", "no-store");
   return res;
 }

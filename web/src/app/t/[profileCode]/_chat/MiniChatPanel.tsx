@@ -18,6 +18,7 @@
  */
 
 import { pollNeedsFullReload } from "./guest-paid-sync";
+import { stageAfterThreadLoad } from "./guest-first-send";
 import { useEffect, useRef, useState } from "react";
 
 import type {
@@ -373,7 +374,8 @@ export function MiniChatPanel({
       mergeServer(res.messages);
       setThreadStatus(res.threadStatus);
       setThreadMeta({ typicalReply: res.typicalReplyLabel, receipt: res.receipt, v5: res.v5 ?? null });
-      setStage("thread");
+      // TUL-401: never close the contact gate the guest is filling in.
+      setStage(stageAfterThreadLoad);
     })();
     return () => {
       cancelled = true;

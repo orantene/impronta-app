@@ -130,6 +130,35 @@ export const GUEST_COOKIE_OPTIONS = {
   secure: process.env.NODE_ENV === "production",
 };
 
+/**
+ * Attributes that expire the guest cookie. They MUST match
+ * `GUEST_COOKIE_OPTIONS` (host-only, path `/`, httpOnly, same secure flag) or
+ * the browser keeps the original. TUL-401: sign-out never cleared this
+ * httpOnly cookie, so a new visitor on a shared browser resumed the previous
+ * person's guest thread.
+ */
+export const GUEST_COOKIE_EXPIRY_OPTIONS = {
+  httpOnly: GUEST_COOKIE_OPTIONS.httpOnly,
+  sameSite: GUEST_COOKIE_OPTIONS.sameSite,
+  path: GUEST_COOKIE_OPTIONS.path,
+  maxAge: 0,
+  secure: GUEST_COOKIE_OPTIONS.secure,
+};
+
+/** Raw `Set-Cookie` header value that expires the guest cookie. */
+export function guestCookieExpiryHeader(): string {
+  const o = GUEST_COOKIE_EXPIRY_OPTIONS;
+  return [
+    `${GUEST_COOKIE_NAME}=`,
+    `Path=${o.path}`,
+    "Max-Age=0",
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    "HttpOnly",
+    "SameSite=Lax",
+    ...(o.secure ? ["Secure"] : []),
+  ].join("; ");
+}
+
 export interface GuestIdentity {
   /** The plain guest id — travels downstream on the `x-impronta-guest` header. */
   guestKey: string;

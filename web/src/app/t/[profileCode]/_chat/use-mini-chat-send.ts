@@ -24,6 +24,7 @@ imports no backend module.
 import { attachPendingLookImage } from "./attach-pending-look-image";
 import { clearPendingOfferingIntent, peekPendingOfferingIntent } from "./pending-offering-intent";
 import { firstSendPlan } from "./retry-same-inquiry";
+import { firstSendRoute } from "./guest-first-send";
 import {
   buildInstantRows,
   buildInstantServiceAnswer,
@@ -236,22 +237,26 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     const hasContact = Boolean(firstName.trim()) && EMAIL_RE.test(email.trim());
     // F-09: a price/duration question is answered from the public services with
     // no identity wall; contact is asked only to book or get a person's reply.
-    if (!hasContact && !inquiryId) {
-      const instant = buildInstantServiceAnswer({
-        text: body,
-        offerings: args.offerings ?? [],
-        locale: args.locale ?? "en",
-        t,
-      });
-      if (firstSendDecision({ hasContact, instantAnswer: instant }) === "answer" && instant) {
-        setRows((cur) => [...cur, ...buildInstantRows(body, instant)]);
-        setDraft("");
-        setError(null);
-        setStage("thread");
-        return;
-      }
+    const instant =
+      !hasContact && !inquiryId
+        ? buildInstantServiceAnswer({ text: body, offerings: args.offerings ?? [], locale: args.locale ?? "en", t })
+        : null;
+    const route = firstSendRoute({
+      draft: body,
+      hasContact,
+      inquiryId,
+      contactPromoted,
+      hasInstantAnswer: Boolean(instant) && firstSendDecision({ hasContact, instantAnswer: instant }) === "answer",
+    });
+    if (route === "answer" && instant) {
+      setRows((cur) => [...cur, ...buildInstantRows(body, instant)]);
+      setDraft("");
+      setError(null);
+      setStage("thread");
+      return;
     }
-    if (!hasContact) {
+    // TUL-401: no identity yet = show the contact gate and keep the draft.
+    if (route === "gate") {
       setStage("gate");
       setError(null);
       return;
