@@ -12,6 +12,8 @@ export type ReleaseItemType =
   | "variant-default"
   | "new-block"
   | "layout"
+  /** Default copy: base text and its `i18n` translations (per leaf, never over her edit). */
+  | "copy"
   | "critical";
 
 /** One typed change inside a release. `key` is the stable design key (slotKey or slotKey/path) or token key. */

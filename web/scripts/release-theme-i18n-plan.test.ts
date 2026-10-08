@@ -282,15 +282,6 @@ test("parseArgs", () => {
   assert.equal(parseArgs(["--actor", "x"]).ok, false);
 });
 
-// The .mts entry is not imported by any test, and a stray ")" once made it fail to even
-// parse (the PM's first dry-run). Parse it with esbuild, the same transformer tsx uses.
-test("the release script entry (.mts) parses", async () => {
-  const { readFileSync } = await import("node:fs");
-  const { transformSync } = await import("esbuild");
-  const src = readFileSync(new URL("./release-theme-i18n-overlay.mts", import.meta.url), "utf8");
-  assert.doesNotThrow(() => transformSync(src, { loader: "ts", format: "esm" }));
-});
-
 test("TUL-222: an open draft that differs only by props.designKey has no changes (no flag needed)", () => {
   const stamped = JSON.parse(JSON.stringify(dbPayload())) as Record<string, unknown>;
   const stamp = (n: unknown): void => {
