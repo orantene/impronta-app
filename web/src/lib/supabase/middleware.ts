@@ -42,6 +42,11 @@ import { stripLocaleFromPathname } from "@/i18n/pathnames";
 
 const LOCALE_HEADER = "x-impronta-locale";
 
+/** Session refreshed => forward @supabase/ssr's Cache-Control private/no-store set so a CDN never caches Set-Cookie. */
+export function applyRefreshCacheHeaders(res: NextResponse, h: Record<string, string>): void {
+  for (const [k, v] of Object.entries(h)) res.headers.set(k, v);
+}
+
 /**
  * Sprint 2.1 — request-scoped actor forwarding from middleware to RSCs/server
  * actions. Middleware already calls `supabase.auth.getUser()` + a profile read
@@ -198,6 +203,8 @@ export async function updateSession(
      * on the marketing apex). See `AuthRoutingInput.hostKind`.
      */
     hostKind?: string | null;
+    /** Host the proxy resolved (never a client header); drives the auth cookie domain. */
+    resolvedHost?: string | null;
   },
 ): Promise<UpdateSessionResult> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -255,10 +262,11 @@ export async function updateSession(
   // Scope auth cookies to the shared parent domain (".tulala.digital") so a
   // session rotated/created on any first-party subdomain is visible across all
   // of them. `undefined` for hosts we don't share across → host-only as before.
-  const requestHost =
-    request.headers.get("x-impronta-host-name") ?? request.headers.get("host");
+  // Never read x-impronta-host-name here: it is client-forgeable.
+  const requestHost = options?.resolvedHost ?? request.headers.get("host");
   const authCookieDomain = cookieDomainForHost(requestHost);
 
+  let refreshCacheHeaders: Record<string, string> = {};
   const supabase = createServerClient(url, anon, {
     // Flag-gated refresh-token coordination. OFF (default) →
     // `authCoordinationOptions()` is `undefined`, the spread is a no-op, and the
@@ -271,7 +279,8 @@ export async function updateSession(
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet, cacheHeaders) {
+        refreshCacheHeaders = cacheHeaders ?? {};
         cookiesToSet.forEach(({ name, value }) =>
           request.cookies.set(name, value),
         );
@@ -330,6 +339,7 @@ export async function updateSession(
     .some((c) => isSupabaseAuthCookie(c.name));
   const shouldClearStaleAuth = !user && isAuthEntryRoute && hasStaleAuthCookie;
   const clearStaleAuthCookies = (res: NextResponse): NextResponse => {
+    applyRefreshCacheHeaders(res, refreshCacheHeaders);
     if (!shouldClearStaleAuth) return res;
     const names = new Set<string>();
     for (const c of request.cookies.getAll()) {
