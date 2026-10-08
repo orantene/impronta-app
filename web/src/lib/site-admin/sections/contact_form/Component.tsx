@@ -1,5 +1,6 @@
 import { createTranslator } from "@/i18n/messages";
-import { hcaptchaLocale, turnstileLocale } from "@/lib/i18n/vendor-locale";
+import { hcaptchaLocale } from "@/lib/i18n/vendor-locale";
+import { turnstileDataAttrs } from "@/lib/captcha/widget-options";
 import { neutralizeFormAction } from "@/lib/saas/public-hrefs";
 import {
   CONTACT_ATTACHMENT_ACCEPT,
@@ -15,6 +16,7 @@ import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { ContactFormV1 } from "./schema";
 import { CaptchaThemeStamper } from "./captcha-theme";
+import { CaptchaFormGuard } from "./captcha-form-guard";
 import {
   buttonSize,
   ctaDecls,
@@ -117,15 +119,17 @@ export function ContactFormComponent({
       ? resolvedCaptcha.provider
       : null;
   const tenantSiteKey = resolvedCaptcha?.siteKey ?? null;
-  const hcaptchaKey =
-    (tenantProvider === "hcaptcha" ? tenantSiteKey : null) ??
-    process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
-  const turnstileKey =
-    (tenantProvider === "turnstile" ? tenantSiteKey : null) ??
-    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-  const captchaActive =
-    (captcha === "hcaptcha" && hcaptchaKey) ||
-    (captcha === "turnstile" && turnstileKey);
+  // TUL-123: one source of truth. The resolved tenant config (which already
+  // folds in the platform default and env fallback) is the ONLY key read here.
+  const hcaptchaKey = tenantProvider === "hcaptcha" ? tenantSiteKey : null;
+  const turnstileKey = tenantProvider === "turnstile" ? tenantSiteKey : null;
+  // The widget follows the RESOLVED provider (what /api/cms/forms/submit
+  // enforces), not the section's own pick, so a Turnstile switch in admin
+  // never leaves a form demanding a token it cannot produce.
+  const captchaActive = Boolean(
+    captcha !== "none" && (hcaptchaKey || turnstileKey),
+  );
+  const activeProvider = turnstileKey ? "turnstile" : hcaptchaKey ? "hcaptcha" : null;
   // Widget language. Both providers default to the VISITOR'S BROWSER language,
   // so a Spanish storefront handed an English-browser visitor an English
   // challenge. `locale` is the locale this page was rendered for, which is the
@@ -134,7 +138,6 @@ export function ContactFormComponent({
   // omitted and the provider keeps its own default rather than being handed a
   // tag it would reject.
   const hcaptchaHl = hcaptchaLocale(locale);
-  const turnstileLanguage = turnstileLocale(locale);
 
   // Phase 8 — when the operator picks `internal:auto` (or just leaves
   // the action blank with a non-null sectionId), route the form to
@@ -563,7 +566,7 @@ export function ContactFormComponent({
             );
           })}
 
-          {captchaActive && captcha === "hcaptcha" ? (
+          {captchaActive && activeProvider === "hcaptcha" ? (
             <>
               <div
                 className="h-captcha"
@@ -575,14 +578,14 @@ export function ContactFormComponent({
               <script src="https://js.hcaptcha.com/1/api.js" async defer />
             </>
           ) : null}
-          {captchaActive && captcha === "turnstile" ? (
+          {captchaActive && activeProvider === "turnstile" ? (
             <>
               <div
                 className="cf-turnstile"
-                data-sitekey={turnstileKey}
-                data-language={turnstileLanguage}
+                {...turnstileDataAttrs(turnstileKey as string, locale)}
               />
               <CaptchaThemeStamper />
+              <CaptchaFormGuard locale={locale} />
               <script
                 src="https://challenges.cloudflare.com/turnstile/v0/api.js"
                 async

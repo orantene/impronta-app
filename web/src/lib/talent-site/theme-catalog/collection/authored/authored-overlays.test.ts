@@ -7,6 +7,7 @@ import { hashBuiltinPayload, planBuiltinSync } from "../../sync-builtins.server"
 import { payloadHash } from "../../../theme-template/publish-core";
 import { withDesignKey } from "../../../theme-releases/design-keys";
 import type { DesignPayload } from "../../types";
+import { seedI18nPayload } from "../../seed-i18n";
 import { designTokenDefaults } from "../design-token-defaults";
 import { COLLECTION_DESIGNS } from "../designs";
 import { authoredOverlayVersion, registeredAuthoredOverlays } from ".";
@@ -36,9 +37,9 @@ test("every registered overlay applies to current code and reproduces its snapsh
     assert.ok(overlay.authoredVersion > 0, `${slug}: authoredVersion`);
     const applied = applyAuthoredOverlay(rawOf(slug), overlay);
     assert.equal(payloadHash(applied), overlay.payloadHash, `${slug}: apply(raw, overlay) must hash to the authored snapshot`);
-    // What ships is exactly that payload.
+    // What ships is that payload plus the es + en seed overlay (seed-i18n.ts), applied last.
     const shipped = COLLECTION_DESIGNS.find((d) => d.slug === slug)!.buildPayload();
-    assert.equal(hashBuiltinPayload(shipped), hashBuiltinPayload(applied), `${slug}: buildPayload is the overlaid payload`);
+    assert.equal(hashBuiltinPayload(shipped), hashBuiltinPayload(seedI18nPayload(applied)), `${slug}: buildPayload is the overlaid payload`);
   }
 });
 

@@ -19,6 +19,7 @@
 
 import { requireSession } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
+import { talentDesignRequiredIssue } from "./talent-design-preflight";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 import { runAriaLandmarkCheck } from "./aria-landmark-action";
@@ -90,6 +91,7 @@ export interface PreflightIssue {
     | "performance"
     | "brand_identity"
     | "app_config"
+    | "design"
     | "ticker_source";
   /** Optional sectionId for click-to-focus in the drawer. */
   sectionId?: string;
@@ -106,6 +108,7 @@ export interface PreflightIssue {
    * carries this flag.
    */
   autoFixable?: boolean;
+  fixHref?: string; fixLabel?: string; // TUL-89: one-click fix link outside the builder
   message: string;
 }
 
@@ -163,8 +166,10 @@ type PreflightPageContext = {
  * Canvas-only preflight for talent personal sites (no agency tenant scope).
  * Mirrors the builderTree validation branch used for CMS surfaces.
  */
-function runTalentPagePublishPreflight(builderTreeInput: unknown): PreflightResult {
+async function runTalentPagePublishPreflight(builderTreeInput: unknown): Promise<PreflightResult> {
   const issues: PreflightIssue[] = [];
+  const designIssue = await talentDesignRequiredIssue(); // TUL-89: server's first-publish design rule
+  if (designIssue) issues.push(designIssue);
   const builderTree = Array.isArray(builderTreeInput) ? builderTreeInput : null;
   if (!builderTree) {
     return { ok: true, issues };
@@ -242,7 +247,7 @@ export async function runPublishPreflight(input?: {
   // `isPublishPreflightSurface`) — do not demand an agency workspace.
   if (!scope) {
     if (input?.surfaceKind === "talent_page") {
-      return runTalentPagePublishPreflight(input?.builderTree);
+      return await runTalentPagePublishPreflight(input?.builderTree);
     }
     return { ok: false, error: "Pick an agency workspace first." };
   }

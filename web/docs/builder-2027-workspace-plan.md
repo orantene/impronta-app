@@ -114,7 +114,7 @@ value after Waves 0–4 ship.
 - **Parallelism:** Wave 2A/2B/2C are new files → run **concurrently** (isolated
   worktrees), integrate serially. Waves 0, 1, 3 share `selection-layer.tsx` /
   `edit-context.tsx` → **serial**.
-- **Gate (every wave):** `npx tsc --noEmit` 0 errors · `lint` vs the 33-baseline
+- **Gate (every wave):** `npm run typecheck` 0 errors · `lint` vs the 33-baseline
   (prune stale suppressions) · **live-verify in the builder** (the real test).
 - **Commits:** one squash-ish commit per sub-wave on `feat/builder-2027-fullpage`,
   pushed. No deploy to prod without an explicit go (pre-launch).

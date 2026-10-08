@@ -167,6 +167,8 @@ function ItemSummary({
       return t("Icon with a live count");
     case "language":
       return t("Only shows when the site has more than one language");
+    case "account":
+      return t("Only shows once client accounts are switched on for your site");
     case "section_switcher": {
       const n = config.navigation.items.filter((i) => i.visible && i.href.startsWith("#")).length;
       return n > 1

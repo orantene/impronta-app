@@ -63,8 +63,6 @@ const ALLOW: Record<string, string> = {
   // Resolver-first, env-fallback modules (already correct).
   "lib/email/resend-client.ts": "reads platformConfigField first, env as fallback",
   "lib/email/index.ts": "env fallback beneath the resolved from-address",
-  "lib/captcha/verify.ts":
-    "guest-abuse captcha path (own lifecycle, not the CMS forms endpoint)",
   "components/analytics/analytics-scripts.tsx":
     "props from the server resolver win; env const is the standalone fallback",
 };

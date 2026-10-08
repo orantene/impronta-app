@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { countByteDifferences } from "./screenshot";
+import { countByteDifferences } from "./byte-diff";
 
 test("countByteDifferences: identical buffers → 0", () => {
   assert.equal(countByteDifferences(Buffer.from("ab"), Buffer.from("ab")), 0);

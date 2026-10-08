@@ -22,6 +22,7 @@ import {
   interpolateOverride,
 } from "../overlay";
 import { getEmailSubject, interpolate } from "../email-copy";
+import { bookingNoun } from "../booking-noun";
 import type { EmailBrand } from "@/lib/brand/resolve-tenant-brand";
 import { logServerError } from "@/lib/server/safe-error";
 /**
@@ -75,7 +76,12 @@ export async function sendEmailNotification(
   // tenant's branded from-address on "Oran replied [Tulala #N]" both leaks
   // the platform through the white-label and misattributes the sender.
   const platformSend = event.payload?.platformFrom === true;
-  const brand = await resolveTenantBrand(platformSend ? null : event.tenantId);
+  const tenantBrand = await resolveTenantBrand(platformSend ? null : event.tenantId);
+  // TUL-93: a booking made on the ES site is confirmed in Spanish whatever the
+  // workspace default is. Only an EXPLICIT recipient locale overrides it.
+  const brand = recipient.localeIsExplicit
+    ? { ...tenantBrand, locale: recipient.locale }
+    : tenantBrand;
 
   let unsubscribeUrl: string | undefined;
   let headers: Record<string, string> | undefined;
@@ -226,7 +232,7 @@ function resolveLocalizedSubject(
   recipient: ResolvedRecipient,
   brand: EmailBrand,
 ): string {
-  const localized = getEmailSubject(brand.locale, cfg.templateId);
+  const localized = getEmailSubject(brand.locale, cfg.templateId, bookingNoun(event.payload));
   if (localized) return interpolate(localized, subjectVars(event, recipient, brand));
   return cfg.subject(event, recipient);
 }

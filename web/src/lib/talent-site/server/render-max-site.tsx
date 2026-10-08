@@ -7,7 +7,7 @@ import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill, withHeaderSiteCh
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
 import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
-import { pruneDeadSectionLinks } from "@/lib/talent-site/dead-section-links";
+import { pruneDeadSectionLinks } from "@/lib/talent-site/dead-section-links"; import { headerOverlayAllowed } from "@/lib/talent-site/header-overlay";
 import { talentSiteLocalePath } from "@/lib/talent-site/talent-site-locale-routing";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
@@ -99,7 +99,7 @@ import {
 import { buildMaxSiteSeo } from "./max-site-seo.server";
 import { loadMaxSiteSeoFacts } from "./max-site-seo-facts.server";
 import { loadTalentSiteLocaleContext, type TalentSiteLocaleContext } from "./talent-site-locale.server";
-import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links";
+import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links"; import { webOfficeCtxFor, webOfficeFooter, type WebOfficeCtx } from "./web-office-footer"; import { webOfficeSocialEnabled } from "../web-office-social";
 import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main";
 import { policyDocForSlug } from "@/lib/talent-policies/public";
 
@@ -190,6 +190,8 @@ export interface MaxSiteSeo {
   jsonLd?: unknown;
   /** PR 5 — canonical + hreflang (two or more talent languages only). */
   alternates?: { canonical: string; languages: Record<string, string> };
+  /** DS-18: the business's own tab icon (logo, avatar or generated initials). */
+  faviconUrl?: string;
 }
 
 export type RenderTalentMaxSiteResult =
@@ -223,8 +225,7 @@ export async function renderTalentMaxSite(
 
     const talentProfileId = site.talentProfileId;
     const previewDraft = input.previewDraft === true;
-    // The talent's own languages: bounds the locale, feeds the header switch,
-    // the builder `node.i18n` overlays and the hreflang set (PR 4 + 5).
+    // The talent's own languages: bounds the locale, feeds the header switch, the `node.i18n` overlays and hreflang (PR 4 + 5).
     const localeCtx = await loadTalentSiteLocaleContext({ talentProfileId, requestedLocale: input.locale, hrefMode: input.hrefMode, pagePath: input.canonicalPath });
     const locale = localeCtx.locale;
 
@@ -238,8 +239,7 @@ export async function renderTalentMaxSite(
       isOwnerDraftPreview = Boolean(
         session.user && ownerUserId && session.user.id === ownerUserId,
       );
-      // A non-owner who appends ?preview=draft falls through to the PUBLIC gate
-      // (sees the published site, or 404) — never the draft.
+      // A non-owner who appends ?preview=draft falls through to the PUBLIC gate (published site, or 404), never the draft.
     }
 
     // ── Plan + publish gate ─────────────────────────────────────────────────
@@ -278,8 +278,7 @@ export async function renderTalentMaxSite(
     // Owner draft preview renders draft pages too; the public path requires
     // published (the pure core re-applies this — defense in depth over RLS).
     const requirePublished = !isOwnerDraftPreview;
-    // `/politicas` and `/privacidad` are platform pages: they take the site's
-    // shell and theme (the home page supplies both) and swap only the body.
+    // `/politicas` and `/privacidad` are platform pages: the site's shell and theme (from home), only the body swaps.
     const policyDoc = policyDocForSlug(input.pageSlug);
     const page = selectMaxSitePage(pages, {
       pageSlug: policyDoc ? null : input.pageSlug,
@@ -337,11 +336,10 @@ export async function renderTalentMaxSite(
       localeCtx,
       publicPathPrefix,
       draftPreview: isOwnerDraftPreview,
-      // PHASE 1 — a free site carries the "Made with Tulala" mark; a paid plan
-      // removes it (same predicate as the /t/[code] profile footer).
+      // PHASE 1 — a free site carries the "Made with Tulala" mark; a paid plan removes it (same predicate as /t/[code]).
       showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
       isDemo,
-      talentName: identity?.name ?? null,
+      talentName: identity?.name ?? null, webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), { canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL, canonicalPath: input.canonicalPath, siteSlug: site.siteSlug }),
     });
 
     const seoFacts = await loadMaxSiteSeoFacts(talentProfileId, locale); // services, links, city; never throws
@@ -400,7 +398,7 @@ async function renderMaxSiteDocument(args: {
   /** Fictional demo talent: a Demo pill above the header + a footer line. */
   isDemo?: boolean;
   /** The talent's display name: labels the first group of the Tulala strip. */
-  talentName?: string | null;
+  talentName?: string | null; /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -443,8 +441,7 @@ async function renderMaxSiteDocument(args: {
   const pageNeedsTalentOfferings =
     pageNeedsServicesCatalog || pageNeedsPortfolio || pageNeedsNextFreeChip;
 
-  // Codex P2: catalogBookingLive=false mounts demo booking on published free vanity.
-  // Own-work Path A uses platform hub when no managing agency — same as Agenda hub pick.
+  // Codex P2: catalogBookingLive=false mounts demo booking on published free vanity; own-work Path A uses the platform hub (like Agenda).
   let bookingTenantId: string | null = tenantId;
   if (!bookingTenantId && !draftPreview && pageNeedsTalentOfferings) {
     bookingTenantId = (await getPlatformHubTenant())?.tenantId ?? null;
@@ -474,8 +471,7 @@ async function renderMaxSiteDocument(args: {
         ? loadBuilderComponentsForTenant(tenantId)
         : Promise.resolve({}),
       loadPlatformDefaultTheme("talent"),
-      // ABTEST-1 — stable per-visitor seed for any A/B CTA/form nodes on the
-      // talent's personal Max site.
+      // ABTEST-1 — stable per-visitor seed for any A/B CTA/form nodes on the talent's personal Max site.
       resolveExperimentRenderContext({ tenantId, surface: "talentSite" }),
       resolveCaptcha && bookingTenantId
         ? resolveTenantCaptcha(bookingTenantId)
@@ -564,7 +560,9 @@ async function renderMaxSiteDocument(args: {
   const liveFooterTree = pruneDeadSectionLinks(footerTree, renderedBlocks, [headerTree], { homePath });
   // The header's section links get the same treatment (a talent with no reviews has no #reviews band, so the link goes).
   const liveHeaderTree = pruneDeadSectionLinks(headerTree, renderedBlocks, [footerTree], { homePath });
-  const footerSocialLinks = builderTreeHasKind(footerTree, "social_links") ? await loadTalentSocialLinks(talentProfileId) : [];
+  // TUL-133: a transparent header gets white text only over a dark full-bleed hero.
+  const overHeroAttr = headerOverlayAllowed(renderedBlocks) ? { "data-over-hero": "true" } : {};
+  const hasSocialNode = builderTreeHasKind(footerTree, "social_links"); const { records: footerSocialLinks, strip: webOfficeStrip } = webOfficeFooter(args.webOffice, hasSocialNode || args.webOffice ? await loadTalentSocialLinks(talentProfileId) : [], hasSocialNode, locale);
   const socketModel = buildSocketModel({
     locale,
     publicPathPrefix,
@@ -727,7 +725,7 @@ async function renderMaxSiteDocument(args: {
           // so the wrapper is a <div> (no duplicate banner). data-scrolled is
           // toggled by the observer; the token CSS paints the solid bar.
           <div
-            data-talent-max-site-header=""
+            data-talent-max-site-header="" {...overHeroAttr}
             {...(headerScrollThreshold != null ? { "data-scrolled": "false" } : {})}
           >
             {liveHeaderTree.map((root) => renderShellRoot(root))}
@@ -736,7 +734,7 @@ async function renderMaxSiteDocument(args: {
             ) : null}
           </div>
         ) : (
-          <header data-talent-max-site-header="">
+          <header data-talent-max-site-header="" {...overHeroAttr}>
             {renderBuilderNodes(liveHeaderTree, {
               publicPathPrefix,
               mode: "freeform",
@@ -784,7 +782,7 @@ async function renderMaxSiteDocument(args: {
             visitorLocale: locale,
             contentLocale: args.localeCtx.contentLocale,
             renderSectionEmbed,
-          })}
+          })}{webOfficeStrip}
         </footer>
       ) : null}
 

@@ -116,7 +116,10 @@ test("#talent-ask is never pruned: it is a real target on every talent page", ()
   assert.match(src, /if \(!showFallback\) return askTarget;/);
   // The click still opens the chat, and so does landing on the hash.
   assert.match(src, /dispatchEvent\(new Event\("tulala:open-guest-chat"\)\)/);
-  assert.match(src, /window\.location\.hash === "#talent-ask"/);
+  assert.match(src, /isTalentOpenHash\(window\.location\.hash\)/);
+  // `#book` (TUL-206) is a real target too; `#talent-ask` stays for old links.
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(footer("#book"), [])), ["#book"]);
+  assert.match(src, /<span id="book" data-talent-book-target=""/);
 });
 
 test("the home page renders the header and footer through the pruner", () => {

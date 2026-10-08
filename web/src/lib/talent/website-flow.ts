@@ -125,3 +125,21 @@ export function websiteFlowCopy(
 export function websiteFlowPending(percent: number | null, activationLoaded: boolean): boolean {
   return percent != null && percent >= 100 && !activationLoaded;
 }
+
+/**
+ * Pill detail line + whether to draw the progress bar for the not-ready state.
+ * A 0% value with an empty bar reads as a dead meter (QA DS-35): at 0 the pill
+ * shows the first step ("Step 1 of N") and no bar; from 1% up it shows the
+ * percentage with its bar.
+ */
+export function websitePillProgress(
+  percent: number,
+  requiredTotal: number,
+  es: boolean,
+): { detail: string; showBar: boolean } {
+  if (percent > 0) return { detail: `${percent}%`, showBar: true };
+  if (requiredTotal > 0) {
+    return { detail: es ? `Paso 1 de ${requiredTotal}` : `Step 1 of ${requiredTotal}`, showBar: false };
+  }
+  return { detail: es ? "Empieza por tu perfil" : "Start with your profile", showBar: false };
+}

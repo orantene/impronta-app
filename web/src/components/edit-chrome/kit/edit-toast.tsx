@@ -21,8 +21,26 @@
  */
 
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 
+import { useEditorLocale } from "../use-editor-locale";
 import { CHROME, Z_INDEX } from "./tokens";
+
+/**
+ * Opaque surface for a toast tone (TUL-81). The palette backgrounds are 10%
+ * translucent tints, which let the hero / dialog scrim bleed through and made
+ * the green "Draft saved" text unreadable. Layer the tint over solid white so
+ * the tone text (all >= 4.5:1 on white) keeps AA contrast on any backdrop.
+ */
+export function editToastSurface(bg: string): {
+  backgroundColor: string;
+  backgroundImage: string;
+} {
+  return {
+    backgroundColor: "#ffffff",
+    backgroundImage: `linear-gradient(${bg}, ${bg})`,
+  };
+}
 
 /**
  * Mobile compaction (W2-C2 follow-up).
@@ -166,9 +184,10 @@ export function EditToast({
   children,
   ...dataAttrs
 }: EditToastProps) {
+  const { t } = useEditorLocale();
   const palette = editToastPalette(tone);
   const resolvedIcon = icon === undefined ? CheckIcon : icon;
-  return (
+  const toast = (
     <>
       {/* Scoped to [data-edit-toast-shell] and gated behind max-width: 640px —
           desktop appearance is byte-for-byte unchanged. */}
@@ -182,7 +201,7 @@ export function EditToast({
         className={`pointer-events-auto fixed left-1/2 top-[66px] flex -translate-x-1/2 items-start gap-2 rounded-md border px-3 py-2 text-xs font-medium shadow-lg ${className ?? ""}`}
         style={{
           zIndex: Z_INDEX.toast,
-          background: palette.bg,
+          ...editToastSurface(palette.bg),
           borderColor: palette.border,
           color: palette.text,
         }}
@@ -209,8 +228,8 @@ export function EditToast({
             onClick={onDismiss}
             className="ml-0.5 shrink-0 rounded-sm px-1 opacity-70 transition hover:opacity-100"
             style={{ color: palette.text }}
-            aria-label="Dismiss"
-            title="Dismiss"
+            aria-label={t("Dismiss")}
+            title={t("Dismiss")}
           >
             <svg
               width="12"
@@ -229,5 +248,15 @@ export function EditToast({
         ) : null}
       </div>
     </>
+  );
+  // Portal to <body>, inside a `display: contents` chrome marker: the toast must
+  // never be trapped in a lower stacking context than a dialog or the canvas,
+  // and `data-edit-chrome` keeps the canvas zoom rule from scaling it.
+  if (typeof document === "undefined") return toast;
+  return createPortal(
+    <div data-edit-chrome style={{ display: "contents" }}>
+      {toast}
+    </div>,
+    document.body,
   );
 }

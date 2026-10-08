@@ -25,6 +25,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { useT } from "@/i18n/use-t";
+import { humanizeMediaError, readMediaJson } from "@/lib/media/humanize-media-error";
+
 import type {
   MediaLibraryKindFilter,
   MediaLibraryOwnershipFilter,
@@ -134,6 +137,7 @@ export function useMediaLibrary(input: {
   initialKind?: MediaLibraryKindFilter;
 }) {
   const { active } = input;
+  const t = useT();
   // The caller builds `input.source` inline, so it is a fresh object on every
   // render. Rebuild it from its primitives here: that makes `runFetch` — and
   // therefore the refetch effect below — depend on the source's IDENTITY
@@ -211,7 +215,7 @@ export function useMediaLibrary(input: {
           cache: "no-store",
           signal: controller.signal,
         });
-        const body = (await res.json()) as {
+        const body = await readMediaJson<{
           ok?: boolean;
           error?: string;
           items?: MediaLibraryWireItem[];
@@ -223,7 +227,7 @@ export function useMediaLibrary(input: {
           nextCursor?: string | null;
           totalCount?: number;
           pendingCount?: number;
-        };
+        }>(res);
         if (!res.ok || !body.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
         // A superseded response must never land, even successfully.
         if (requestIdRef.current !== requestId) return;
@@ -254,11 +258,14 @@ export function useMediaLibrary(input: {
           ...prev,
           loading: false,
           loadingMore: false,
-          error: String(err).slice(0, 200),
+          error: humanizeMediaError(
+            err instanceof Error ? err.message : String(err),
+            t,
+          ).slice(0, 200),
         }));
       }
     },
-    [source, filters],
+    [source, filters, t],
   );
 
   // Refetch from page one whenever the surface opens, the source changes, or

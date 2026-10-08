@@ -38,6 +38,7 @@ import { GlobalSearch } from "./_components/GlobalSearch";
 import { ClientKeyboardShortcuts, type KeyboardShortcutLabels } from "./_keyboard-shortcuts";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
+import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
 import { loadMyNotifications } from "@/lib/server-actions/notifications-self";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
@@ -217,8 +218,10 @@ export default async function ClientLayout({
 
   const userInitials = initials(clientProfile.displayName);
 
+  // Seed client dashboard copy with the SERVER-resolved locale (as the admin
+  // layout does) so the first paint is not English on a Spanish cookie.
   return (
-    <>
+    <DashboardLocaleProvider locale={locale}>
       <style>{`
         .client-root {
           --admin-workspace-fg:  ${C.ink};
@@ -466,6 +469,6 @@ export default async function ClientLayout({
         tenantSlug={tenantSlug}
         tenantId={scope.tenantId}
       />
-    </>
+    </DashboardLocaleProvider>
   );
 }

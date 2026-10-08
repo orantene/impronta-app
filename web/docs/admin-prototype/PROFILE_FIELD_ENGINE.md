@@ -229,7 +229,7 @@ node -e 'import("./scripts/_pg-via-mgmt-api.mjs").then(async ({runSql})=>{
 });'
 
 # Frontend type-check (excludes 3 pre-existing _messages.tsx errors)
-cd web && npx tsc --noEmit 2>&1 | grep -v "_messages\|.next/dev"
+cd web && npm run typecheck 2>&1 | grep -v "_messages\|.next/dev"
 # Expected: empty + exit 0
 ```
 
@@ -739,7 +739,7 @@ Same field catalog, same drawer shell, same hydration. Differences:
 `exit 0` excluding 3 pre-existing errors in `_messages.tsx` (Property 'seen' does not exist on type 'RichInquiry') — confirmed via `git stash` isolation test, unrelated to this work.
 
 ```
-cd web && npx tsc --noEmit 2>&1 | grep -v "_messages\|.next/dev"
+cd web && npm run typecheck 2>&1 | grep -v "_messages\|.next/dev"
 # expected: empty + exit 0
 ```
 
@@ -819,7 +819,7 @@ If you're picking this up:
 2. Read `web/docs/admin-prototype/MASTER_FIELD_CATALOG.md` (Phase D specifics).
 3. Read `docs/handoffs/taxonomy-v2-handoff-2026-04-30.md` (taxonomy substrate Phase D depends on).
 4. Read `web/AGENTS.md` and `web/CLAUDE.md`.
-5. Run `cd web && npx tsc --noEmit 2>&1 | grep -v "_messages\|.next/dev"` — should be empty (exit 0).
+5. Run `cd web && npm run typecheck 2>&1 | grep -v "_messages\|.next/dev"` — should be empty (exit 0).
 6. Open the prototype at `/prototypes/admin-shell` — click roster cards for Marta (t1), Kai (t2), Tomás (t3) — confirm the same edit drawer opens for each, with their data hydrated.
 7. Verify Phase G: open Marta's edit drawer → identity row → top-right shows compact visibility pill (not the wide row). Open Settings → Workspace field settings → toggle a field required → registration wizard now gates on it.
 8. Tell me which next pass you're picking up:

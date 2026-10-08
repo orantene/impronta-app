@@ -30,6 +30,15 @@ import {
  *                                        row (default OFF; see the scan module)
  *   MEDIA_REAPER_ALERT_THRESHOLD=250     wouldDelete count that pages platform
  *                                        admins in-app (A10)
+ *   MEDIA_ROW_PURGE_ENFORCE=true         TUL-227: also hard-delete eligible
+ *                                        soft-deleted media_assets ROWS whose
+ *                                        files are gone (default OFF = dry
+ *                                        run; counts are in the log line)
+ *   MEDIA_DELETED_ACCOUNT_PREFIX_ENFORCE=true  TUL-231: lift the prefix
+ *                                        protection on a deleted account's own
+ *                                        documents/originals (completed
+ *                                        deletion + grace). Default OFF = dry
+ *                                        run; deletedAccountPrefix* log fields
  *
  * With the flag off the run reports exactly what it WOULD delete and deletes
  * nothing. Any reference lookup that fails aborts the run with a 500 and
@@ -100,6 +109,28 @@ export async function GET(request: Request) {
           cappedByLimit: outcome.cappedByLimit,
           keptByReason: JSON.stringify(outcome.keptByReason),
           samplePaths: JSON.stringify(outcome.samplePaths),
+          rowPurgeEnforce: outcome.rowPurge.enforce,
+          rowPurgeOk: outcome.rowPurge.ok,
+          rowPurgeSoftDeletedRows: outcome.rowPurge.softDeletedRows,
+          rowPurgeEligibleCount: outcome.rowPurge.eligibleCount,
+          rowPurgeWouldPurgeCount: outcome.rowPurge.wouldPurgeCount,
+          rowPurgeCappedByLimit: outcome.rowPurge.cappedByLimit,
+          rowPurgePurgedCount: outcome.rowPurge.purgedCount,
+          rowPurgeErrorCount: outcome.rowPurge.errorCount,
+          rowPurgeKeptByReason: JSON.stringify(outcome.rowPurge.keptByReason),
+          rowPurgeFailure: outcome.rowPurge.error ?? null,
+          deletedAccountPrefixEnforce: outcome.deletedAccountPrefix.enforce,
+          deletedAccountPrefixOk: outcome.deletedAccountPrefix.ok,
+          deletedAccountPrefixEligibleTalents: outcome.deletedAccountPrefix.eligibleDeletedTalents,
+          deletedAccountPrefixReleasedCount: outcome.deletedAccountPrefix.releasedCount,
+          deletedAccountPrefixReleasedBytes: outcome.deletedAccountPrefix.releasedBytes,
+          deletedAccountPrefixOwnerAccountedCount: outcome.deletedAccountPrefix.ownerAccountedCount,
+          deletedAccountPrefixOwnerAccountedBytes: outcome.deletedAccountPrefix.ownerAccountedBytes,
+          deletedAccountPrefixSiteAssetsCount: outcome.deletedAccountPrefix.siteAssetsCount,
+          deletedAccountPrefixSiteAssetsBytes: outcome.deletedAccountPrefix.siteAssetsBytes,
+          deletedAccountPrefixStillUnaccountedCount: outcome.deletedAccountPrefix.stillUnaccountedCount,
+          deletedAccountPrefixApplied: outcome.deletedAccountPrefix.applied,
+          deletedAccountPrefixFailure: outcome.deletedAccountPrefix.error ?? null,
           durationMs: outcome.durationMs,
         });
 

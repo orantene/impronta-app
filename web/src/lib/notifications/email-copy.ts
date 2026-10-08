@@ -79,9 +79,13 @@ export function getEmailCopy(locale: string | undefined | null): EmailCopy {
 export function getEmailSubject(
   locale: string | undefined | null,
   templateId: string,
+  noun: "appointment" | "event" = "event",
 ): string | undefined {
-  const map = getEmailCopy(locale) as Record<string, { subject?: string }>;
-  return map[templateId]?.subject;
+  const map = getEmailCopy(locale) as Record<string, { subject?: string; apptSubject?: string }>;
+  const entry = map[templateId];
+  // TUL-136: an entry may carry an appointment-wording subject for talent-site bookings.
+  if (noun === "appointment" && entry?.apptSubject) return entry.apptSubject;
+  return entry?.subject;
 }
 
 /** Fill `{key}` placeholders from a vars bag (missing keys → empty string). */

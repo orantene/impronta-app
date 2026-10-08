@@ -53,7 +53,7 @@ Resolver (single read path): `web/src/lib/field-engine/resolve-talent-fields.ts`
 - **The talent editor drawer (`TalentProfileShellDrawer`) will NOT open via automated/synthetic clicks** — it opens via an `openDrawer()` React-context action (`TalentPage-1.tsx` `openProfile`) that doesn't fire from MCP/Preview clicks (verified across Chrome MCP + Preview MCP, card + "Continue editing"). It opens instantly for a human. So for drawer-visual checks: drive it another way, ask the human to click+screenshot, or verify the underlying data/logic and mark the visual human-pending.
 - **Raw `*.vercel.app` previews 404** (middleware gates on `agency_domains`). QA on real domains; promote/alias a preview to test it.
 - **Migrations**: `npm run db:push` often fails on history drift — fallback `node --env-file=.env.vercel.local scripts/apply-migration.mjs <file>`; `npm run db:check` lists unapplied. Any new migration MUST be applied to remote before the dependent code merges.
-- Gate before every commit: `cd web && npx tsc --noEmit && npm run lint`. Tests: `tsx --test <file>` (NOT `node --test` — can't load .ts) or `npm run test:components` (vitest).
+- Gate before every commit: `cd web && npm run typecheck && npm run lint`. Tests: `tsx --test <file>` (NOT `node --test` — can't load .ts) or `npm run test:components` (vitest).
 
 ## PART 1 — QA EVERY SURFACE (PASS/FAIL + evidence)
 A. **Platform-admin Profile Fields hub** — `app.tulala.digital/platform/admin/catalog`. Walk all tabs (types, groups, fields, editor, sections, section-fields). Confirm **"Section Fields" = mapped == total active, unmapped == 0** (the single-source invariant); badges/reorder/group-assignment work; no console errors.

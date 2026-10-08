@@ -259,7 +259,7 @@ const ES: Record<string, string> = {
   Sat: "Sáb",
   to: "a",
   Date: "Fecha",
-  "Buffer (minutes)": "Buffer (minutos)",
+  "Buffer (minutes)": "Margen entre citas (minutos)",
   Timezone: "Zona horaria",
   "Search time zones": "Buscar zonas horarias",
   "Search, like Cancun or Madrid": "Busca, por ejemplo Cancún o Madrid",

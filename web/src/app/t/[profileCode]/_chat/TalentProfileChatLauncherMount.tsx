@@ -214,26 +214,29 @@ export async function TalentProfileChatLauncherMount({
     loadTalentPlanKey(talentProfileId),
   ]);
   const confirmsByHand = !talentOffersInstantBooking(planKey);
+  const toChatOffering = (o: (typeof publicOfferings)[number]): GuestChatOffering => ({
+      offeringId: o.id,
+      // Talent-profile public load always returns talent-owned rows; fall
+      // back to the mount's profile id if a row somehow lacks one.
+      talentProfileId: o.talentProfileId ?? talentProfileId,
+      title: o.title,
+      kind: o.kind,
+      priceType: o.priceType,
+      amountCents: o.visibility === "on_request" ? null : o.amountCents,
+      currency: o.currency,
+      durationMinutes: o.durationMinutes,
+      allowPayInPerson: o.allowPayInPerson,
+      reserveMode: o.reserveMode,
+      depositPct: o.depositPct,
+      imageUrl: o.imageUrls[0] ?? null,
+      priceLabel: catalogRowPriceText(o, locale ?? "en"),
+      priceIsPerUnit: Boolean(offeringPriceUnit(o.attributes, locale ?? "en")),
+    });
+  // The chips show the first 8; the instant price/duration answer (dock) matches against ALL of them (#116).
+  const answerOfferings: GuestChatOffering[] = publicOfferings.map(toChatOffering);
   const chatOfferings: GuestChatOffering[] =
     publicOfferings.length > 0
-      ? publicOfferings.slice(0, 8).map((o) => ({
-          offeringId: o.id,
-          // Talent-profile public load always returns talent-owned rows; fall
-          // back to the mount's profile id if a row somehow lacks one.
-          talentProfileId: o.talentProfileId ?? talentProfileId,
-          title: o.title,
-          kind: o.kind,
-          priceType: o.priceType,
-          amountCents: o.visibility === "on_request" ? null : o.amountCents,
-          currency: o.currency,
-          durationMinutes: o.durationMinutes,
-          allowPayInPerson: o.allowPayInPerson,
-          reserveMode: o.reserveMode,
-          depositPct: o.depositPct,
-          imageUrl: o.imageUrls[0] ?? null,
-          priceLabel: catalogRowPriceText(o, locale ?? "en"),
-          priceIsPerUnit: Boolean(offeringPriceUnit(o.attributes, locale ?? "en")),
-        }))
+      ? publicOfferings.slice(0, 8).map(toChatOffering)
       : [
           {
             offeringId: "default-custom-quote",
@@ -300,6 +303,7 @@ export async function TalentProfileChatLauncherMount({
       prefill={active?.prefill ?? null}
       forceOpen={forceOpen}
       offerings={chatOfferings}
+      answerOfferings={answerOfferings}
       onAttachOffering={attachOfferingToGuestInquiry}
       onStartInquiry={startGuestChatInquiry}
       onSendMessage={sendGuestMessageAction}

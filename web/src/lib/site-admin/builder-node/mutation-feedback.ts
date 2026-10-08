@@ -71,6 +71,17 @@ export function summarizeBuilderNodeIssues(
     .slice(0, 3);
 }
 
+/** Failure payload: legacy English `details` plus the raw `issues` the toast localizes. */
+export function mutationFailureDetails(input: {
+  issues?: ReadonlyArray<BuilderNodeMutationIssue>;
+  details?: ReadonlyArray<string>;
+}): { details: ReadonlyArray<string>; issues?: ReadonlyArray<BuilderNodeMutationIssue> } {
+  return {
+    details: input.details ?? summarizeBuilderNodeIssues(input.issues),
+    issues: input.issues,
+  };
+}
+
 export function formatBuilderNodeMutationError(input: {
   operation: BuilderNodeOperationKind;
   code: BuilderNodeMutationCode;

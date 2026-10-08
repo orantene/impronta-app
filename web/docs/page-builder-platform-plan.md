@@ -16,7 +16,7 @@
 2. **Freeform builderTree everywhere.** No new `composition[]` writes. **No new `cms_page_sections` writes from any new surface.** Page templates, section templates, and connected templates MUST become editable freeform layers after insertion (every node carries `data-builder-node-id`, immediately editable; never a locked page).
 3. **Homepage stays byte-identical in Phase 1–3.** The existing homepage path (`server/homepage.ts`, the only legacy `cms_page_sections` writer) is *frozen and wrapped*, not changed, until Phase 4.
 4. **Branch off latest `main`** (`git fetch origin && git switch -c <type>/<topic> origin/main`); never commit to `main`. One migration per agent (`date -u +%Y%m%d%H%M%S` for the timestamp). `npm run db:push` before merge if you add a migration.
-5. **Gate before every commit:** `cd web && npx tsc --noEmit && npm run lint` + the builder-node + edit-chrome test suites. Tests use the node runner: `node_modules/.bin/tsx --test <file>` (NOT vitest).
+5. **Gate before every commit:** `cd web && npm run typecheck && npm run lint` + the builder-node + edit-chrome test suites. Tests use the node runner: `node_modules/.bin/tsx --test <file>` (NOT vitest).
 6. **Worktree `.env.local` carries prod secrets** — never commit it; remove after QA.
 7. If you change behavior an agent downstream depends on, document the exact new signature in your handoff summary.
 

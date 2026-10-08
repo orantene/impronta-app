@@ -216,7 +216,7 @@ Confirm the drawer covers everything an admin currently relies on from the stand
 - Replace `roster/[id]/page.tsx` with a server redirect to the roster list (defensive, for any stray bookmark) — or a thin page that auto-opens the drawer for that `talentId`.
 - Delete `TalentEditForm.tsx`, `EditorSections.tsx`, `CompletenessDial.tsx`/`completeness.ts`, `WorkflowPipe.tsx`, `talent-data.ts`, `curated-city-field.tsx`, and the **scalar** `actions.ts` (`updateRosterTalentProfile`, `updateRosterTalentWorkflow`).
 - **DO NOT delete `extended-actions.ts`** — its `setTalentAvatar` / `setTalentHero` / `registerPortfolioPhoto` / `setRosterTalentSiteVisibility` (in `actions.ts`) are **imported by the drawer and other surfaces** (`drawer-shared.tsx`, `representation.tsx`, `profile-essentials.tsx`, `TalentPage-3.tsx`). Before deleting `actions.ts`/`extended-actions.ts` wholesale, **move the still-imported actions to a neutral module** (e.g. `lib/server-actions/admin-talent-roster.ts`, which already exists and notes it parallels these) and update imports. This is the trickiest mechanical step — the standalone route's `extended-actions.ts` is load-bearing for the drawer.
-- **Risk:** medium — import-graph surgery. `npx tsc --noEmit && npm run lint` gates it; the shared-action move must be verified with a grep of all importers.
+- **Risk:** medium — import-graph surgery. `npm run typecheck && npm run lint` gates it; the shared-action move must be verified with a grep of all importers.
 
 ### Phase 4 — Cleanup + docs
 - Delete the orphaned i18n keys under `admin.talent.edit.*` that only the standalone used (verify none are shared with the drawer first).

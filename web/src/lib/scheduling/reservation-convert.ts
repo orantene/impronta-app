@@ -15,11 +15,42 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { parseReservationStamp } from "./reservation-intent";
+import { stampInquiryEventFromBooking } from "./inquiry-event-stamp";
 import { isExclusionViolation, releaseHoldsForInquiry } from "./reservation-hold";
 
 export type EnrichBookingFromReservationResult =
   | { ok: true; applied: boolean }
   | { ok: false; error: string; reason?: "talent_double_booked" };
+
+/**
+ * The REAL appointment (TUL-93). The `talent_holds` row is buffer-padded at
+ * write time, so a mirror taken from the hold alone is the appointment moved
+ * by the buffer. When the caller knows the real window it passes it here; the
+ * hold then only vouches for the calendar. The buffer stays in the availability
+ * layer (`generateSlots` pads every raw booking by the hours buffers).
+ */
+export type AppointmentOverride = {
+  startsAt: string;
+  endsAt: string;
+  /** The talent's IANA zone; null falls back to the inquiry's, then UTC. */
+  timezone?: string | null;
+};
+
+/**
+ * The override is trusted only when it sits inside the (padded) hold: that is
+ * what proves it is the same appointment and not a stale or foreign window.
+ */
+export function overrideFitsHold(
+  override: AppointmentOverride,
+  hold: { starts_at: string; ends_at: string },
+): boolean {
+  const s = Date.parse(override.startsAt);
+  const e = Date.parse(override.endsAt);
+  const hs = Date.parse(hold.starts_at);
+  const he = Date.parse(hold.ends_at);
+  if (![s, e, hs, he].every(Number.isFinite) || e <= s) return false;
+  return s >= hs && e <= he;
+}
 
 /** The talent + window we will mirror onto talent_bookings. */
 export type AppointmentMirrorSource = {
@@ -87,6 +118,7 @@ export async function resolveAppointmentMirrorSource(
     tenantId: string | null;
     sourceContext: unknown;
     eventTimezone?: string | null;
+    appointment?: AppointmentOverride | null;
   },
 ): Promise<
   | { ok: true; source: AppointmentMirrorSource | null }
@@ -139,15 +171,19 @@ export async function resolveAppointmentMirrorSource(
     return { ok: true, source: null };
   }
 
+  const override =
+    input.appointment && overrideFitsHold(input.appointment, held.hold) ? input.appointment : null;
   const timezone =
-    (typeof input.eventTimezone === "string" && input.eventTimezone.trim()) || "UTC";
+    (override && typeof override.timezone === "string" && override.timezone.trim()) ||
+    (typeof input.eventTimezone === "string" && input.eventTimezone.trim()) ||
+    "UTC";
   return {
     ok: true,
     source: {
       talentProfileId: held.hold.talent_profile_id,
       tenantId: held.hold.tenant_id || input.tenantId || "",
-      startsAt: new Date(held.hold.starts_at).toISOString(),
-      endsAt: new Date(held.hold.ends_at).toISOString(),
+      startsAt: new Date(override ? override.startsAt : held.hold.starts_at).toISOString(),
+      endsAt: new Date(override ? override.endsAt : held.hold.ends_at).toISOString(),
       timezone,
       title: (held.hold.title && held.hold.title.trim()) || "Reservation",
       holdId: held.hold.id,
@@ -157,7 +193,12 @@ export async function resolveAppointmentMirrorSource(
 
 export async function enrichBookingFromReservation(
   admin: SupabaseClient,
-  input: { inquiryId: string; bookingId: string; actorUserId?: string | null },
+  input: {
+    inquiryId: string;
+    bookingId: string;
+    actorUserId?: string | null;
+    appointment?: AppointmentOverride | null;
+  },
 ): Promise<EnrichBookingFromReservationResult> {
   if (!input.inquiryId || !input.bookingId) {
     return { ok: false, error: "Missing inquiry or booking." };
@@ -179,6 +220,7 @@ export async function enrichBookingFromReservation(
     tenantId: (inquiry as { tenant_id?: string | null }).tenant_id ?? null,
     sourceContext: (inquiry as { source_context?: unknown }).source_context,
     eventTimezone: (inquiry as { event_timezone?: string | null }).event_timezone ?? null,
+    appointment: input.appointment ?? null,
   });
   if (!resolved.ok) return { ok: false, error: resolved.error };
   const source = resolved.source;
@@ -199,7 +241,7 @@ export async function enrichBookingFromReservation(
 
   const { data: existing } = await admin
     .from("talent_bookings")
-    .select("id")
+    .select("id, location_text")
     .eq("inquiry_id", input.inquiryId)
     .maybeSingle();
 
@@ -238,6 +280,15 @@ export async function enrichBookingFromReservation(
       }
     }
   }
+
+  // TUL-132: give the inquiry the booking's date + place (gaps only).
+  await stampInquiryEventFromBooking(admin, {
+    inquiryId: input.inquiryId,
+    talentProfileId: source.talentProfileId,
+    tenantId: source.tenantId,
+    startsAt: source.startsAt,
+    locationText: (existing as { location_text?: string | null } | null)?.location_text ?? null,
+  });
 
   if (source.holdId) {
     const { error: holdErr } = await admin.from("talent_holds").delete().eq("id", source.holdId);

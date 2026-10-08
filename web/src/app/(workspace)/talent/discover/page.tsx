@@ -25,6 +25,8 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { resolveTalentPageScope } from "@/lib/talent/platform-talent-context";
 import { logServerError } from "@/lib/server/safe-error";
 import { SmartImage } from "@/components/ui/smart-image";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { discoverCopy } from "./_discover-copy";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug?: string }>;
@@ -72,6 +74,7 @@ type TalentDiscoverData = {
 async function loadTalentDiscover(
   userId: string,
   tenantId: string,
+  locale: string,
 ): Promise<TalentDiscoverData | null> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
@@ -144,7 +147,7 @@ async function loadTalentDiscover(
       | { taxonomy_terms: { name_i18n: Record<string, string | null> | null } | { name_i18n: Record<string, string | null> | null }[] | null }
       | undefined;
     const term = catRow ? (Array.isArray(catRow.taxonomy_terms) ? catRow.taxonomy_terms[0] : catRow.taxonomy_terms) : null;
-    categoryLabel = term?.name_i18n?.en ?? null;
+    categoryLabel = (locale.toLowerCase().startsWith("es") ? term?.name_i18n?.es : null) ?? term?.name_i18n?.en ?? null;
 
     const rosterRow = (rosterRes.data ?? [])[0] as
       | { is_primary: boolean; agencies: { display_name: string | null; plan_tier: string | null } | { display_name: string | null; plan_tier: string | null }[] | null }
@@ -185,7 +188,7 @@ async function loadTalentDiscover(
   const displayName =
     ((tp.display_name as string | null) ?? "").trim()
     || `${(tp.first_name as string | null) ?? ""} ${(tp.last_name as string | null) ?? ""}`.trim()
-    || "Unnamed";
+    || discoverCopy(locale).unnamed;
 
   return {
     displayName,
@@ -216,13 +219,15 @@ export default async function PlatformTalentDiscoverPage() {
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
-  const d = await loadTalentDiscover(session.user.id, tenantId);
+  const locale = await getRequestLocale();
+  const c = discoverCopy(locale);
+  const d = await loadTalentDiscover(session.user.id, tenantId, locale);
   if (!d) {
     return (
       <div style={{ fontFamily: FONT, padding: "32px 28px", maxWidth: 720 }}>
-        <h1 style={{ margin: 0, fontSize: 24, color: C.ink, fontWeight: 600 }}>Discover</h1>
+        <h1 style={{ margin: 0, fontSize: 24, color: C.ink, fontWeight: 600 }}>{c.discover}</h1>
         <div style={{ marginTop: 12, fontSize: 13.5, color: C.inkMuted, lineHeight: 1.55 }}>
-          You don&apos;t have a talent profile yet. Create one to appear on Discover.
+          {c.noProfile}
         </div>
       </div>
     );
@@ -236,17 +241,16 @@ export default async function PlatformTalentDiscoverPage() {
     <div style={{ fontFamily: FONT, padding: "24px 28px", maxWidth: 980 }}>
       <div style={{ marginBottom: 18 }}>
         <Link href={talentSubHref(tenantSlug, "profile", platformRoutes)} style={{ fontSize: 11.5, color: C.inkMuted, textDecoration: "none" }}>
-          ← Back to profile
+          {c.backToProfile}
         </Link>
       </div>
 
       <div style={{ marginBottom: 22 }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 600, color: C.ink, letterSpacing: -0.3 }}>
-          Your Discover presence
+          {c.presenceTitle}
         </h1>
         <div style={{ fontSize: 13, color: C.inkMuted, marginTop: 6, lineHeight: 1.5, maxWidth: 620 }}>
-          How clients find you on Tulala Discover — your card preview,
-          travel reach, and 30-day performance.
+          {c.presenceLede}
         </div>
       </div>
 
@@ -261,14 +265,14 @@ export default async function PlatformTalentDiscoverPage() {
         <span style={{ fontSize: 16 }} aria-hidden>{liveOnDiscover ? "✓" : "○"}</span>
         <span style={{ color: C.ink, fontWeight: 600 }}>
           {liveOnDiscover
-            ? "You're live on Discover"
+            ? c.liveOnDiscover
             : d.isDiscoverable
-              ? "Discover enabled — pending profile approval"
-              : "Not on Discover yet"}
+              ? c.pendingApproval
+              : c.notOnDiscover}
         </span>
         {!d.isDiscoverable && (
           <span style={{ color: C.inkMuted, fontWeight: 500 }}>
-            · enable it from your profile&apos;s Identity section
+            · {c.enableHint}
           </span>
         )}
       </div>
@@ -277,7 +281,7 @@ export default async function PlatformTalentDiscoverPage() {
         {/* T2 — card preview */}
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 10 }}>
-            Card preview
+            {c.cardPreview}
           </div>
           <div style={{
             background: C.cardBg, border: `1px solid ${C.border}`,
@@ -319,14 +323,13 @@ export default async function PlatformTalentDiscoverPage() {
               )}
               {d.agencyName && (
                 <div style={{ fontSize: 10.5, color: C.inkDim, marginTop: 4 }}>
-                  🏛 {d.agencyName}{d.isExclusive ? " · exclusive" : ""}
+                  🏛 {d.agencyName}{d.isExclusive ? ` · ${c.exclusive}` : ""}
                 </div>
               )}
             </div>
           </div>
           <div style={{ fontSize: 11, color: C.inkDim, marginTop: 8, lineHeight: 1.5 }}>
-            This is the card clients see in the Discover grid. Add a hero
-            photo + primary category to make it complete.
+            {c.cardPreviewHint}
           </div>
         </div>
 
@@ -338,17 +341,15 @@ export default async function PlatformTalentDiscoverPage() {
             borderRadius: 12, padding: "16px 20px",
           }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 14 }}>
-              Last 30 days
+              {c.last30Days}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-              <Stat label="Favorited by" value={d.favoritesCount} hint="clients" />
-              <Stat label="On shortlists" value={d.shortlistAppearances} hint="appearances" />
-              <Stat label="Discover inquiries" value={d.discoverInquiries} hint="received" />
+              <Stat label={c.favoritedBy} value={d.favoritesCount} hint={c.clients} />
+              <Stat label={c.onShortlists} value={d.shortlistAppearances} hint={c.appearances} />
+              <Stat label={c.discoverInquiries} value={d.discoverInquiries} hint={c.received} />
             </div>
             <div style={{ fontSize: 11, color: C.inkDim, marginTop: 14, lineHeight: 1.5 }}>
-              Favorites + shortlist counts are all-time totals; inquiries
-              are the last 30 days. Per-impression analytics roll out with
-              the discover-index event pipeline.
+              {c.statsNote}
             </div>
           </div>
 
@@ -358,29 +359,28 @@ export default async function PlatformTalentDiscoverPage() {
             borderRadius: 12, padding: "16px 20px",
           }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 12 }}>
-              Travel reach
+              {c.travelReach}
             </div>
             <KvRow
-              label="Home base"
-              value={[d.homeCity, d.homeCountry].filter(Boolean).join(", ") || "Not set"}
+              label={c.homeBase}
+              value={[d.homeCity, d.homeCountry].filter(Boolean).join(", ") || c.notSet}
             />
             <KvRow
-              label="Travel radius"
+              label={c.travelRadius}
               value={
                 d.remoteOnly
-                  ? "Remote only — no travel"
+                  ? c.remoteNoTravel
                   : d.travelRadiusKm != null
-                    ? `${d.travelRadiusKm} km from home base`
-                    : "Not set (clients can't filter you by distance)"
+                    ? c.kmFromHome(d.travelRadiusKm)
+                    : c.radiusNotSet
               }
             />
             <KvRow
-              label="Remote work"
-              value={d.remoteOnly ? "Remote-only" : "Open to in-person + remote"}
+              label={c.remoteWork}
+              value={d.remoteOnly ? c.remoteOnly : c.openInPersonRemote}
             />
             <div style={{ fontSize: 11, color: C.inkDim, marginTop: 10, lineHeight: 1.5 }}>
-              Set travel radius + home base in your profile&apos;s Service
-              Areas section so clients filtering by location can find you.
+              {c.travelHint}
             </div>
           </div>
         </div>
@@ -392,7 +392,7 @@ export default async function PlatformTalentDiscoverPage() {
           padding: "9px 14px", background: C.accent, color: "#fff",
           borderRadius: 8, fontSize: 12.5, fontWeight: 600, textDecoration: "none",
         }}>
-          ✎ Edit profile
+          {c.editProfile}
         </Link>
         {d.profileCode && (
           <a
@@ -406,7 +406,7 @@ export default async function PlatformTalentDiscoverPage() {
               borderRadius: 8, fontSize: 12.5, fontWeight: 600, textDecoration: "none",
             }}
           >
-            ↗ View public page
+            {c.viewPublicPage}
           </a>
         )}
         <Link href={talentSubHref(tenantSlug, "trust", platformRoutes)} style={{
@@ -415,7 +415,7 @@ export default async function PlatformTalentDiscoverPage() {
           color: C.ink, border: `1px solid ${C.border}`,
           borderRadius: 8, fontSize: 12.5, fontWeight: 600, textDecoration: "none",
         }}>
-          🛡 Trust signals
+          {c.trustSignals}
         </Link>
       </div>
     </div>

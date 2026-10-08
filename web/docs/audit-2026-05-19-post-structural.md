@@ -201,7 +201,7 @@ recorded. T2d work would meaningfully move this dimension.
 **The number that didn't move.**
 - **`.github/workflows` files: 0** — measured.
 - T2a (structural CI gate) was prompted but **never landed**.
-- `npx tsc --noEmit` and `npm run lint` are runnable *locally*; there is
+- `npm run typecheck` and `npm run lint` are runnable *locally*; there is
   no PR-blocking gate, no auto-fail on regression.
 
 The disciplined manual verify-each + FF-only pattern I ran across 15+

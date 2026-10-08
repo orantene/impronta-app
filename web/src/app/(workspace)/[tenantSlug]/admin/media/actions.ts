@@ -28,6 +28,7 @@ import {
   workspaceOwnedStamp,
   type MediaOwnershipStamp,
 } from "@/lib/media/ownership";
+import { loadTalentMediaBundle, type TalentMediaBundle } from "@/lib/media/talent-media-bundle.server";
 import { checkTalentUploadQuota } from "@/lib/media/talent-storage-usage";
 
 type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string };
@@ -1366,46 +1367,24 @@ export async function actionDeleteTalentDocument(
 
 // ─── Load full media set for a single talent (drawer hydration) ──────────────
 
-export type TalentMediaItem = {
-  id: string;
-  url: string;
-  variantKind: string;
-  sortOrder: number;
-  metadata: Record<string, unknown>;
-  /** Parent asset id when this row is a crop / baked-watermark derivative.
-   *  Drives "Revert to original" in the lightbox. */
-  sourceMediaAssetId: string | null;
-};
-
-export type TalentMediaBundle = {
-  /** Gallery photos — sorted by sort_order. */
-  gallery: TalentMediaItem[];
-  /** Hero image (4:5 portrait) — at most one (singleton). */
-  hero: TalentMediaItem | null;
-  /** Card / headshot — at most one (singleton). */
-  card: TalentMediaItem | null;
-  /** Polaroids keyed by their slot id (e.g. "front", "side", "smile"). */
-  polaroids: Record<string, TalentMediaItem>;
-  /** Hello reel — at most one video (singleton). */
-  reel: TalentMediaItem | null;
-};
+export type { TalentMediaItem, TalentMediaBundle } from "@/lib/media/talent-media-bundle.server";
 
 /** Per-variant gallery loader kept for backwards-compat (the drawer's
- *  gallery section calls this). For full hydration use actionLoadTalentMediaBundle. */
+ *  gallery section calls this). Loads the whole gallery via ...BundleAll. */
 export type TalentGalleryItem = { id: string; url: string; sortOrder: number };
 
 export async function actionLoadTalentGallery(
   talentProfileId: string,
 ): Promise<ActionResult<TalentGalleryItem[]>> {
-  const bundle = await actionLoadTalentMediaBundle(talentProfileId);
+  const bundle = await actionLoadTalentMediaBundleAll(talentProfileId);
   if (!bundle.ok) return bundle;
   return { ok: true, data: bundle.data.gallery.map((g) => ({ id: g.id, url: g.url, sortOrder: g.sortOrder })) };
 }
 
-export async function actionLoadTalentMediaBundle(
+/** Auth shared by both bundle loaders: roster staff OR the owning talent. */
+async function authorizeTalentMediaRead(
   talentProfileId: string,
-): Promise<ActionResult<TalentMediaBundle>> {
-  // Staff of the rostering tenant OR the owning talent (uploads accept both).
+): Promise<{ ok: true; admin: SupabaseClient } | { ok: false; error: string }> {
   const staff = await requireWorkspaceStaffAction();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
@@ -1416,55 +1395,36 @@ export async function actionLoadTalentMediaBundle(
   } else if (!(await requireTalentSelfAction(talentProfileId)).ok) {
     return { ok: false, error: staff.error };
   }
+  return { ok: true, admin };
+}
 
-  const { data, error } = await admin
-    .from("media_assets")
-    .select("id, bucket_id, storage_path, variant_kind, sort_order, metadata, source_media_asset_id, created_at")
-    .eq("owner_talent_profile_id", talentProfileId)
-    .is("deleted_at", null)
-    .order("sort_order", { ascending: true });
+/** PAGED bundle: singletons (hero/card/reel/polaroids) + ONE gallery page
+ *  (default 60) with `galleryTotal` / `galleryHasMore` / `galleryNextOffset`.
+ *  Pass `galleryOffset` for the next page. Use this where only a preview or
+ *  the hero/card is needed; editors that need every row use ...All. */
+export async function actionLoadTalentMediaBundle(
+  talentProfileId: string,
+  opts?: { galleryOffset?: number; galleryLimit?: number },
+): Promise<ActionResult<TalentMediaBundle>> {
+  const auth = await authorizeTalentMediaRead(talentProfileId);
+  if (!auth.ok) return auth;
+  const bundle = await loadTalentMediaBundle(auth.admin, talentProfileId, {
+    offset: opts?.galleryOffset,
+    limit: opts?.galleryLimit,
+  });
+  if (!bundle) return { ok: false, error: "Could not load media." };
+  return { ok: true, data: bundle };
+}
 
-  if (error) {
-    logServerError("media.actions.loadTalentMediaBundle", error);
-    return { ok: false, error: "Could not load media." };
-  }
-
-  type Row = {
-    id: string;
-    bucket_id: string;
-    storage_path: string;
-    variant_kind: string;
-    sort_order: number | null;
-    metadata: Record<string, unknown> | null;
-    source_media_asset_id: string | null;
-    created_at: string;
-  };
-
-  const bundle: TalentMediaBundle = { gallery: [], hero: null, card: null, polaroids: {}, reel: null };
-
-  for (const r of (data as Row[] | null ?? [])) {
-    const item: TalentMediaItem = {
-      id: r.id,
-      url: admin.storage.from(r.bucket_id).getPublicUrl(r.storage_path).data.publicUrl,
-      variantKind: r.variant_kind,
-      sortOrder: r.sort_order ?? 0,
-      metadata: r.metadata ?? {},
-      sourceMediaAssetId: r.source_media_asset_id,
-    };
-    if (r.variant_kind === "polaroid") {
-      const slot = (item.metadata.polaroidSlot ?? item.metadata.slot ?? r.id) as string;
-      bundle.polaroids[slot] = item;
-    } else if (r.variant_kind === "hero") {
-      if (!bundle.hero) bundle.hero = item;
-    } else if (r.variant_kind === "card") {
-      if (!bundle.card) bundle.card = item;
-    } else if (r.variant_kind === "reel") {
-      if (!bundle.reel) bundle.reel = item;
-    } else if (r.variant_kind === "gallery") {
-      bundle.gallery.push(item);
-    }
-  }
-
+/** FULL bundle: the whole gallery, read server-side in chunks of 500. For
+ *  editors that reorder / delete / group by album and need every row. */
+export async function actionLoadTalentMediaBundleAll(
+  talentProfileId: string,
+): Promise<ActionResult<TalentMediaBundle>> {
+  const auth = await authorizeTalentMediaRead(talentProfileId);
+  if (!auth.ok) return auth;
+  const bundle = await loadTalentMediaBundle(auth.admin, talentProfileId, { all: true });
+  if (!bundle) return { ok: false, error: "Could not load media." };
   return { ok: true, data: bundle };
 }
 

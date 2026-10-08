@@ -185,7 +185,7 @@ Events to fire (added to `track()` registry per WS-0.5):
 ### 11. Definition of done
 
 - [ ] All acceptance criteria pass
-- [ ] `npx tsc --noEmit` returns 0 errors
+- [ ] `npm run typecheck` returns 0 errors
 - [ ] Lint passes
 - [ ] Storybook story added or updated
 - [ ] Decision-log entries written

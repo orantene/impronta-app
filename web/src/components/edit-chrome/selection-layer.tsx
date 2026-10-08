@@ -3796,18 +3796,10 @@ export function SelectionLayer() {
   ]);
   const canInsertIntoSelectedNode =
     !!selectedCanvasNodeId && selectedNodeAllowedKinds.length > 0;
-  const canRemoveSelectedNode =
-    !!selectedCanvasNodeId &&
-    !!    selectedBuilderNode &&
-    !isSectionShell(selectedBuilderNode, nodeCapCtx) &&
-    selectedCanvasNodeId !== selectedSectionNodeId;
-  const canUngroupSelectedNode =
-    !!selectedBuilderNode &&
-    selectedBuilderNode.kind === "container" &&
-    selectedNodeIsEditableBlock;
-  const showMultiSelectionToolbar =
-    (multiNodeSelectionActive || canUngroupSelectedNode) &&
-    !dragChromeSuppressed;
+  const canRemoveSelectedNode = !!selectedCanvasNodeId && !!selectedBuilderNode && !isSectionShell(selectedBuilderNode, nodeCapCtx) && selectedCanvasNodeId !== selectedSectionNodeId;
+  const canUngroupSelectedNode = !!selectedBuilderNode && selectedBuilderNode.kind === "container" && selectedNodeIsEditableBlock;
+  // TUL-78 #15: one toolbar; a single container no longer adds a "1 selected" bar.
+  const showMultiSelectionToolbar = multiNodeSelectionActive && !dragChromeSuppressed;
   // Nested-blocks scope. Selecting a CHILD used to empty the panel (a text
   // block has no children of its own), so the picker vanished the moment you
   // clicked into it. Fall back to the parent's child list — the operator keeps
@@ -7557,14 +7549,17 @@ function BlockChipOverflowMenu({
     const onPointerDown = (event: PointerEvent) => {
       if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
     };
+    // TUL-78 #15: Escape closes only this menu (capture + stop), never selects the parent.
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      setOpen(false);
     };
     document.addEventListener("pointerdown", onPointerDown, true);
-    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keydown", onKeyDown, true);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown, true);
-      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keydown", onKeyDown, true);
     };
   }, [open]);
 

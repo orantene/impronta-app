@@ -5,7 +5,9 @@ import { useState } from "react";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { Btn } from "@/components/messages-v5/kit";
-import { useTalentPublicProfileHref } from "@/lib/talent/use-public-profile-href";
+import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
+import { resolveTalentPublicPreviewDestinations } from "@/lib/talent/public-profile-href";
+import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
 
 /**
  * F35: a brand-new talent's inbox. Instead of "Nothing needs you" over
@@ -15,7 +17,15 @@ import { useTalentPublicProfileHref } from "@/lib/talent/use-public-profile-href
 export function MessagesFirstRun() {
   const { bridgeTalentSelfProfile } = useAdminShell();
   const copy = useDashboardText();
-  const href = useTalentPublicProfileHref(bridgeTalentSelfProfile?.profileCode);
+  const origin = useCurrentOrigin();
+  const siteLoad = useTalentSiteDashboardInitialLoad();
+  // DS-48: one canonical link, the same source as the top-bar eye: her own
+  // published site when there is one, else the hub profile URL.
+  const href = resolveTalentPublicPreviewDestinations({
+    profileCode: bridgeTalentSelfProfile?.profileCode,
+    publicSiteUrl: siteLoad?.ok ? siteLoad.state.publicSiteUrl : null,
+    currentOrigin: origin,
+  }).defaultHref;
   const [copied, setCopied] = useState(false);
   if (!href) return null;
   const label = href.replace(/^https?:\/\//, "");

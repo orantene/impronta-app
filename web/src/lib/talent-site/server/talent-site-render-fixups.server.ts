@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { withHeaderLogo } from "@/lib/talent-site/header-logo";
 import { contrastRatio } from "@/lib/site-admin/tokens/contrast-pair";
 import { localiseSeededDesignLabels, type SiteCtaMode } from "../design-label-locale";
 import { placeMaisonTradeApps, tradesFromTypeLabels } from "../demos/app-placement";
@@ -25,7 +26,7 @@ import { loadTalentTypeLabels } from "./load-talent-trades.server";
  *    so a wrong apply-time headshot pick heals for every talent;
  *  - Maison v2 trade apps (Nail Designer) after Menu when the talent's types
  *    match (demos already place these; real talents get the same band);
- *  - the site logo in a `site_header` that has none (it was dropped by apply).
+ *  - the site logo in `site_header` (overrides the theme default; replaces a regions wordmark).
  */
 export async function prepareTalentSiteTrees(input: {
   talentProfileId: string;
@@ -74,25 +75,6 @@ export async function prepareTalentSiteTrees(input: {
       localiseSeededDesignLabels(bodyWithApps, input.locale, input.ctaMode ?? null, swaps),
     ),
   };
-}
-
-function withHeaderLogo(node: BuilderNode, logoUrl: string): BuilderNode {
-  const props = node.props as Record<string, unknown>;
-  if (node.kind !== "section" || props.sectionTypeKey !== "site_header") return node;
-  const sp = (props.sectionProps ?? {}) as Record<string, unknown>;
-  const brand = (sp.brand ?? {}) as Record<string, unknown>;
-  if (typeof brand.logoUrl === "string" && brand.logoUrl.trim()) return node;
-  return {
-    ...node,
-    props: {
-      ...props,
-      sectionProps: {
-        ...sp,
-        brand: { ...brand, logoUrl },
-        brandDisplay: sp.brandDisplay === "text" || !sp.brandDisplay ? "image-and-text" : sp.brandDisplay,
-      },
-    },
-  } as unknown as BuilderNode;
 }
 
 const AA = 4.5;

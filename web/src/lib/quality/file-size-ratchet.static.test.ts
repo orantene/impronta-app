@@ -232,7 +232,7 @@ const BUDGETS: Record<string, number> = {
   // the list grows each time another panel earns its own chunk. Re-baselined to
   // the measured value, per this guard's own procedure.
   // Wave 4: ?panel=add|apps&app=… → openAddMenu + builder-app-intent (+7).
-  "src/components/edit-chrome/edit-shell.tsx": 2369,
+  "src/components/edit-chrome/edit-shell.tsx": 2298,
   // +16 (per-device carousel slides, 2026-08-17): "Slides per view" now writes
   // `responsive[tier]` when a non-desktop viewport is active instead of
   // silently rewriting the desktop base, plus its override dot and reset. The
@@ -372,7 +372,7 @@ const BUDGETS: Record<string, number> = {
   // reload; onSkillsChanged / onContextsChanged and Save & exit's not-dirty
   // early return now queue the (coalesced) refresh. Three call sites plus the
   // comments explaining WHY these paths need it — nothing extractable.
-  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4782,
+  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4761,
   // 2026-08-15 talent-notifications de-mock — net +2. `TalentNotificationsDrawer`
   // rendered a hardcoded MOCK_TALENT_NOTIFS and never read
   // `bridgeUserNotifications`, so a talent saw none of their own rows. The
@@ -619,7 +619,7 @@ const BUDGETS: Record<string, number> = {
   // talent-document actions with one dual-auth helper (staff OR profile owner),
   // so the helper and its doc comment cost more lines than the four blocks it
   // deleted returned.
-  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2417,
+  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2377,
   // +16 — loads + passes the Pro/Portfolio embeds and press bands (the render
   // chrome itself lives in _shared/TalentExtrasBands.tsx, not here).
   // +17 — the agency-surface roster gate, called in generateMetadata AND the
@@ -630,7 +630,7 @@ const BUDGETS: Record<string, number> = {
   // +37 — option labels keep their English key AND their unit; without this
   // the public profile discarded both (TS also needs unit on NewDefEmbed).
   // 2026-09-24 services-rebuild: +11 (2682). Measured wc -l.
-  "src/app/t/[profileCode]/profile-view.tsx": 2681,
+  "src/app/t/[profileCode]/profile-view.tsx": 2684,
   // 2026-08-16 T4 attachments off the Server Action body: +123. Files used to
   // ride the submit FormData, which put the whole inquiry behind the ~4 MB
   // body cap while the drawer advertised 10 x 20 MB. Added:

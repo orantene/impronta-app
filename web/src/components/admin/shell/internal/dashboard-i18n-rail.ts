@@ -30,6 +30,7 @@ import { TALENT_CLIENT_PANELS_ES_TEXT } from "./dashboard-i18n-talent-client-pan
 import { TALENT_GAPS_ES_TEXT } from "./dashboard-i18n-talent-gaps";
 import { DOMAIN_ERRORS_ES_TEXT } from "./dashboard-i18n-domain-errors";
 import { SWEEP_R1_ES_TEXT } from "./dashboard-i18n-sweep-r1";
+import { LEAKS_1007_ES_TEXT } from "./dashboard-i18n-leaks-1007";
 import { WEBSITE_ES_TEXT } from "./dashboard-i18n-website";
 
 export const RAIL_ES_TEXT: Record<string, string> = {
@@ -43,6 +44,7 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   ...CLIENTS_ES_TEXT,
   ...TALENT_GAPS_ES_TEXT,
   ...SWEEP_R1_ES_TEXT,
+  ...LEAKS_1007_ES_TEXT,
   ...DOMAIN_ERRORS_ES_TEXT,
   ...LOCATION_ES_TEXT,
   ...LANGUAGES_ES_TEXT,
@@ -142,10 +144,10 @@ export const RAIL_ES_TEXT: Record<string, string> = {
     "Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño del sitio queda en borrador hasta que publiques la página.",
   "Your website Services menu widget shows the same catalog - add an offering here and it can appear on your page without rebuilding the menu.":
     "El widget de menú de Servicios de tu sitio muestra el mismo catálogo: agrega una oferta aquí y puede aparecer en tu página sin reconstruir el menú.",
-  "A newer version is live. Reload to keep editing.": "Hay una versión más reciente. Recargá para seguir editando.",
+  "A newer version is live. Reload to keep editing.": "Hay una versión más reciente. Recarga para seguir editando.",
   Reload: "Recargar",
   "A newer version was published while this was open. Reload and try again.":
-    "Se publicó una versión más reciente mientras esto estaba abierto. Recargá e intentá de nuevo.",
+    "Se publicó una versión más reciente mientras esto estaba abierto. Recarga e intenta de nuevo.",
   // Talent avatar account menu — keep out of grandfathered dashboard-i18n.ts
   // (size ratchet 3842). IdentityBar AccountMenuItem keys copy.t(sub).
   "Run your own roster. Free plan, 1 minute.": "Administra tu propio roster. Plan gratis, 1 minuto.",

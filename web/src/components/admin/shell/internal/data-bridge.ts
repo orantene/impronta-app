@@ -440,6 +440,8 @@ export type BridgeData = {
     /** Server-resolved `manage_agency_domains` (owner-only) — gates the
      *  Website domain manager's action affordances. */
     canManageDomains?: boolean;
+    /** Talent surface: set ONLY while staff really impersonate (TUL-164). */
+    actingAs?: { name: string | null } | null;
   } | null;
 
   // ── Media gallery + watermark (Agency tier) ────────────────────────────────

@@ -372,6 +372,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:media-ownership
 
+      - name: tests — account lifecycle (anonymize, deletion, retention purge)
+        # PII erasure and retention purge decide what we keep about a person.
+        # These suites existed (anonymize, deletion, retention) but sat in no
+        # lane, so a regression in what gets scrubbed or purged gated nothing.
+        if: ${{ !cancelled() }}
+        run: npm run test:account-lifecycle
+
       - name: tests — taxonomy guard (selftest only; the DB probe runs in deploy:smoke)
         # Proves check:taxonomy still MEASURES the bugs it was written for —
         # in particular that a parent-category expansion reaching `specialty`
@@ -423,6 +430,18 @@ jobs:
       - name: tests — onboarding
         if: ${{ !cancelled() }}
         run: npm run test:onboarding
+
+      - name: tests — Jorgelina publish script (TUL-73b)
+        if: ${{ !cancelled() }}
+        run: npm run test:jorgelina-publish
+
+      - name: tests — Jorgelina content script (TUL-73)
+        if: ${{ !cancelled() }}
+        run: npm run test:jorgelina-content
+
+      - name: tests — QA test-talent sync + design drift (TUL-135)
+        if: ${{ !cancelled() }}
+        run: npm run test:sync-test-talent
 
       - name: tests — fields
         if: ${{ !cancelled() }}

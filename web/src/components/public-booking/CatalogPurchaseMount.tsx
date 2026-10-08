@@ -220,6 +220,7 @@ export function CatalogPurchaseMount({
         contactEmail: guestEmail,
         captchaToken: captchaToken || null,
         honeypot,
+        locale,
       });
       if (!res.ok) {
         if (res.needsAuth) {

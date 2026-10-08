@@ -20,6 +20,11 @@
  * consistent guard/validation ordering** (validate-first vs auth-first vs
  * db-config-first all coexist). Behavior is characterized, not judged.
  */
+// FIRST import, on purpose: the action modules below reach `import "server-only"`
+// transitively (admin-billing and client-pipeline both do now). Plain `tsx
+// --test` cannot resolve it, so install the same resolver shim every node:test
+// lane uses. Imports evaluate in order, so this runs before the dynamic imports.
+import "../../../scripts/register-server-only-test.cjs";
 import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
 
@@ -164,32 +169,18 @@ describe("admin-clients form-state: requireStaff precedes zod parse", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────
-// client-pipeline — TESTABILITY BOUNDARY (not a bug; characterized as-is)
+// client-pipeline — DB-CONFIG-FIRST (createClient()-null before input/auth)
 //
 // `client-pipeline.ts` transitively `import "server-only"` (via
-// `@/lib/bookings/transactions`). `server-only` is NOT an installed
-// package — Next.js aliases it to a build-time stub. Under `tsx --test`
-// (raw Node, no Next bundler) the import chain throws MODULE_NOT_FOUND at
-// resolution, BEFORE any action logic runs. So its DB-config-first
-// guard-fail behavior cannot be unit-characterized here. We PIN the
-// boundary instead (so the next owner knows exactly why, and is alerted
-// if the import graph ever changes), and skip the behavioral cases.
+// `@/lib/bookings/transactions`). Under raw `tsx --test` that import cannot be
+// resolved, which used to make this module un-loadable here (the old test
+// pinned that MODULE_NOT_FOUND and skipped both behavioural cases). With the
+// server-only shim installed above it loads, so the behaviour is characterized
+// directly and nothing is skipped.
 // ─────────────────────────────────────────────────────────────────────────
 
-describe("client-pipeline: server-only import boundary (pinned)", () => {
-  it("importing client-pipeline rejects with the server-only MODULE_NOT_FOUND boundary", async () => {
-    await assert.rejects(
-      () => import("./client-pipeline"),
-      (err: unknown) => {
-        const msg = String((err as { message?: string })?.message ?? err);
-        assert.match(msg, /server-only/);
-        return true;
-      },
-      "client-pipeline is expected to be non-loadable under tsx --test",
-    );
-  });
-
-  it.skip("clientApproveCurrentOffer('') → 'Database unavailable.' — BLOCKED: server-only import boundary (see pinned test above)", async () => {
+describe("client-pipeline: db-config-first guard-fail path", () => {
+  it("clientApproveCurrentOffer('') → 'Database unavailable.'", async () => {
     const { clientApproveCurrentOffer } = await import("./client-pipeline");
     const e = await assertResolvesToPreDbError("clientApproveCurrentOffer('')", () =>
       clientApproveCurrentOffer(""),
@@ -197,7 +188,7 @@ describe("client-pipeline: server-only import boundary (pinned)", () => {
     assert.equal(e, "Database unavailable.");
   });
 
-  it.skip("clientRejectCurrentOffer('iq') → 'Database unavailable.' — BLOCKED: server-only import boundary (see pinned test above)", async () => {
+  it("clientRejectCurrentOffer('iq') → 'Database unavailable.'", async () => {
     const { clientRejectCurrentOffer } = await import("./client-pipeline");
     assert.equal(
       await assertResolvesToPreDbError("clientRejectCurrentOffer('iq')", () =>
@@ -233,12 +224,11 @@ describe("META: guard/validation ordering is inconsistent across the layer (pinn
     assert.equal(form?.error, "Not configured.");
 
     // A 4th ordering (db-config-first: createClient()-null before input
-    // AND before auth — `client-pipeline.ts`) is real but characterized
-    // separately: that module can't load here (server-only boundary,
-    // pinned in the test above). Its header doc states the contract.
+    // AND before auth — `client-pipeline.ts`) is characterized in its own
+    // describe block above.
 
-    // The invariant that DOES hold for every LOADABLE path above: nothing
-    // threw, every path returned a pre-DB sentinel → zero DB access on
-    // every guard/validation-fail path.
+    // The invariant that holds for every path above: nothing threw, every
+    // path returned a pre-DB sentinel → zero DB access on every
+    // guard/validation-fail path.
   });
 });

@@ -11,6 +11,9 @@ import {
 } from "@/lib/server/talent-self-guard";
 import { listTemplatesForTier } from "@/lib/talent-site/templates/registry";
 import { provisionTalentPersonalSiteIfMissing } from "@/lib/talent-site/server/provision";
+import { shouldAutoCreatePersonalSite } from "@/lib/talent-site/my-website-target";
+import { loadOwnedBusinessWorkspace } from "@/lib/talent-site/server/workspace-site-context";
+import { logServerError } from "@/lib/server/safe-error";
 import type { TalentSiteDashboardState, TalentSiteRow } from "@/lib/talent-site/types";
 import { parseTalentSiteSnapshot } from "@/lib/talent-site/validation";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
@@ -92,11 +95,27 @@ export async function loadTalentPersonalSiteDashboardState(
   let compositionMode: TalentSiteDashboardState["compositionMode"] = null;
 
   if (admin && assertTalentCanEditPersonalSite(scope.planKey) && profileCode) {
-    await provisionTalentPersonalSiteIfMissing(
-      scope.talentProfile.id,
-      scope.planKey,
-      scope.session.user.id,
-    );
+    // TUL-77: a business owner's website is the workspace site. Never create
+    // a personal site silently for them; the "create your website" path
+    // (/talent/public-page) makes one when they choose to.
+    const [existingSite, owned] = await Promise.all([
+      admin.from("talent_sites").select("id").eq("talent_profile_id", scope.talentProfile.id).maybeSingle(),
+      loadOwnedBusinessWorkspace(admin, scope.session.user.id),
+    ]);
+    if (existingSite.error) logServerError("talentSite.dashboard.siteProbe", existingSite.error);
+    if (
+      !existingSite.error &&
+      shouldAutoCreatePersonalSite({
+        ownsBusinessWorkspace: owned.ownsBusinessWorkspace,
+        hasPersonalSite: !!existingSite.data,
+      })
+    ) {
+      await provisionTalentPersonalSiteIfMissing(
+        scope.talentProfile.id,
+        scope.planKey,
+        scope.session.user.id,
+      );
+    }
   }
 
   if (admin) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { attentionSummary } from "./attention-summary";
 import { useEffect, useMemo, useState } from "react";
 import {
   deleteTalentOfferingForever,
@@ -21,15 +22,11 @@ import {
   type SellingDefaults,
 } from "@/lib/talent/services-settings-actions";
 import { foldAccent, publicationLabel, publicationWord } from "@/lib/talent/publication-state";
-import {
-  blankOffering,
-  type OfferingKind,
-  type TalentOffering,
-} from "@/lib/talent/offerings-types";
+import { blankOffering, type OfferingKind, type TalentOffering } from "@/lib/talent/offerings-types";
 import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { useOfferingsEditor } from "./use-offerings-editor";
 import { resolveOfferingEditorSaveStatus } from "./offering-editor-save";
-import { ItemStateChips } from "./ItemStateChips";
+import { ServicesHomeItemChips } from "./ServicesHomeItemChips";
 import { useLocationSettings } from "./LocationSettingsCard";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import {
@@ -46,6 +43,7 @@ import { listCategoryUndos, popCategoryUndo, pushCategoryUndo } from "@/lib/tale
 import { ExtraScreen } from "./ExtraScreen";
 import { DuplicateReviewScreen } from "./DuplicateReviewScreen";
 import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
+import { useServicesWebsitePublished } from "./useServicesWebsitePublished";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import {
   ServicesHoursNeededBanner,
@@ -84,6 +82,7 @@ export function ServicesHome({
   const [menuId, setMenuId] = useState<string | null>(null);
   const [bannerId, setBannerId] = useState<string | null>(null);
   const [destinations, setDestinations] = useState<OfferingDestination[]>([]);
+  const websitePublished = useServicesWebsitePublished();
   const [defaults, setDefaults] = useState<SellingDefaults | null>(null);
   const loc = useLocationSettings(talentId);
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
@@ -495,7 +494,7 @@ export function ServicesHome({
       {attentionTotal > 0 && filter !== "attention" && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-[12px] border border-admin-border-soft bg-white px-4 py-3 text-[13px]">
           <p>
-            {attentionTotal} {copy.t("items need attention.")} {attention.noPhoto} {copy.t("have no photo")}, {attention.noPrice} {copy.t("have no price yet")}, {attention.soldOut} {copy.t("is sold out.")} {copy.t("Some have more than one of these.")}
+            {attentionSummary({ total: attentionTotal, ...attention }, copy.locale)}
           </p>
           <button type="button" className="font-semibold text-admin-brand" onClick={() => setFilter("attention")}>
             {copy.t("Show them")}
@@ -507,6 +506,7 @@ export function ServicesHome({
         <PublishedBanner
           item={items.find((i) => i.id === bannerId) ?? null}
           destinations={destinations}
+          websitePublished={websitePublished}
           onClose={() => setBannerId(null)}
           onAddAnother={() => {
             setBannerId(null);
@@ -612,7 +612,7 @@ export function ServicesHome({
                 </span>
               </span>
             </button>
-            <ItemStateChips item={item} locale={locale} hideFailed={hideFailedIds.has(item.id)} instantReady={hasBookableHours !== false} />
+            <ServicesHomeItemChips item={item} locale={locale} hideFailed={hideFailedIds.has(item.id)} instantReady={hasBookableHours !== false} />
             <button type="button" aria-label={copy.t("Row menu")} className="px-2" onClick={() => setMenuId(menuId === item.id ? null : item.id)}>
               ⋯
             </button>

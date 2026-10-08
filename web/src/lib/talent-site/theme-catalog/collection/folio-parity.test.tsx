@@ -24,9 +24,10 @@ const PINS = {
   utility: "d46adc1808b45b81", // re-pinned after the Gridline FAQ heading fix
   highlight: "f6ed134ba4b1cd9e",
   booking: "8f87f1ae1e51bc17",
-  maison: "bb197b26f7793574",
-  // Re-pinned after Gridline contentWidth/full + matrix viewport MQ (#2530).
-  gridline: "b8598c1d2e2ac0fa",
+  // Re-pinned: only added props.i18n (es + en seed copy), see seed-i18n.ts.
+  maison: "22e95b53c8d78371",
+  // Re-pinned after Gridline contentWidth/full + matrix viewport MQ (#2530), then es + en seed copy.
+  gridline: "c3d78ff7449a8483",
 };
 
 function kinds(nodes: BuilderNode[]): string[] {

@@ -2,6 +2,7 @@
 
 import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { useEffect, useMemo, useState } from "react";
+import { AlertCircle } from "lucide-react";
 import {
   loadBookingHours,
   saveBookingHours,
@@ -10,6 +11,8 @@ import {
 import type { BookingHours, HoursException, WeeklyHours } from "@/lib/scheduling/hours-types";
 import { TALENT_AGENDA_VARS } from "./primitives";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { formatHoursDate, formatHoursRange } from "@/lib/talent-agenda/hours-display-format";
+import { HoursDateField, HoursTimeField } from "./HoursFields";
 import { TimezonePicker, isListedTimeZone } from "./TimezonePicker";
 
 const LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -90,6 +93,8 @@ export function AgendaAvailabilityPage({
   const [newEnd, setNewEnd] = useState("14:00");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // DS-39: a failure reads as a red alert beside Save; "saved" stays quiet.
+  const [messageIsError, setMessageIsError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -153,6 +158,7 @@ export function AgendaAvailabilityPage({
     if (!canSave || saving) return;
     setSaving(true);
     setMessage(null);
+    setMessageIsError(false);
     try {
       const weekly = emptyWeekly();
       for (const r of rows) {
@@ -172,15 +178,18 @@ export function AgendaAvailabilityPage({
         ...(exceptionsLoaded ? { exceptions } : {}),
       });
       if (!result.ok) {
+        setMessageIsError(true);
         setMessage(result.error || "Could not save. Try again.");
       } else {
         setExceptions(result.hours.exceptions ?? []);
         setUnsaved(false);
+        setMessageIsError(false);
         setMessage("Availability saved.");
         invalidateWebsiteEligibility();
         onSaved?.();
       }
     } catch {
+      setMessageIsError(true);
       setMessage("Could not save. Check your hours and try again.");
     } finally {
       setSaving(false);
@@ -193,12 +202,14 @@ export function AgendaAvailabilityPage({
     const res = await setTalentDirectBookingOptIn(talentProfileId, next);
     if (!res.ok) {
       setOptIn(!next);
+      setMessageIsError(true);
       setMessage(res.error || "Could not update direct booking.");
     }
   }
 
   function addException() {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+      setMessageIsError(true);
       setMessage("Pick a date for time off or a one-day schedule.");
       return;
     }
@@ -242,8 +253,11 @@ export function AgendaAvailabilityPage({
 
       <section className="space-y-3 rounded-2xl border border-black/8 bg-white p-4">
         {rows.map((row, idx) => (
-          <div key={row.day} className="flex flex-wrap items-center gap-2">
-            <label className="flex min-w-[72px] items-center gap-2 text-[14px]">
+          <div
+            key={row.day}
+            className="grid grid-cols-[minmax(72px,88px)_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2"
+          >
+            <label className="flex items-center gap-2 text-[14px]">
               <input
                 type="checkbox"
                 checked={row.open}
@@ -257,30 +271,34 @@ export function AgendaAvailabilityPage({
             </label>
             {row.open ? (
               <>
-                <input
-                  type="time"
-                  className="rounded-xl border border-black/10 px-2 py-2"
+                <HoursTimeField
+                  locale={copy.locale}
+                  label={`${copy.t(row.label)}: ${copy.t("Start time")}`}
+                  hourLabel={copy.t("Hour")}
+                  minuteLabel={copy.t("Minute")}
                   value={row.start}
-                  onChange={(e) => {
+                  onChange={(v) => {
                     const next = [...rows];
-                    next[idx] = { ...row, start: e.target.value };
+                    next[idx] = { ...row, start: v };
                     setRows(next);
                   }}
                 />
-                <span className="text-[13px] text-[#5F6368]">{copy.t("to")}</span>
-                <input
-                  type="time"
-                  className="rounded-xl border border-black/10 px-2 py-2"
+                <span className="text-center text-[13px] text-[#5F6368]">{copy.t("to")}</span>
+                <HoursTimeField
+                  locale={copy.locale}
+                  label={`${copy.t(row.label)}: ${copy.t("End time")}`}
+                  hourLabel={copy.t("Hour")}
+                  minuteLabel={copy.t("Minute")}
                   value={row.end}
-                  onChange={(e) => {
+                  onChange={(v) => {
                     const next = [...rows];
-                    next[idx] = { ...row, end: e.target.value };
+                    next[idx] = { ...row, end: v };
                     setRows(next);
                   }}
                 />
               </>
             ) : (
-              <span className="text-[13px] text-[#5F6368]">{copy.t("Closed")}</span>
+              <span className="col-span-3 text-[13px] text-[#5F6368]">{copy.t("Closed")}</span>
             )}
           </div>
         ))}
@@ -303,12 +321,12 @@ export function AgendaAvailabilityPage({
                 className="flex min-h-[44px] flex-wrap items-center justify-between gap-2 rounded-xl border border-black/5 px-3 py-2 text-[14px]"
               >
                 <span>
-                  {ex.date}
+                  {formatHoursDate(ex.date, copy.locale)}
                   {" · "}
                   {ex.closed
                     ? copy.t("Closed")
                     : ex.windows
-                        .map((w) => `${fromMin(w.startMin)}–${fromMin(w.endMin)}`)
+                        .map((w) => formatHoursRange(fromMin(w.startMin), fromMin(w.endMin), copy.locale))
                         .join(", ")}
                 </span>
                 <button
@@ -325,11 +343,11 @@ export function AgendaAvailabilityPage({
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-[13px]">
             {copy.t("Date")}
-            <input
-              type="date"
-              className="mt-1 block rounded-xl border border-black/10 px-3 py-2"
+            <HoursDateField
+              locale={copy.locale}
+              label={copy.t("Date")}
               value={newDate}
-              onChange={(e) => setNewDate(e.target.value)}
+              onChange={setNewDate}
             />
           </label>
           <label className="flex items-center gap-2 text-[13px]">
@@ -342,18 +360,22 @@ export function AgendaAvailabilityPage({
           </label>
           {!newClosed ? (
             <>
-              <input
-                type="time"
-                className="rounded-xl border border-black/10 px-2 py-2"
+              <HoursTimeField
+                locale={copy.locale}
+                label={copy.t("Start time")}
+                hourLabel={copy.t("Hour")}
+                minuteLabel={copy.t("Minute")}
                 value={newStart}
-                onChange={(e) => setNewStart(e.target.value)}
+                onChange={setNewStart}
               />
               <span className="text-[13px] text-[#5F6368]">{copy.t("to")}</span>
-              <input
-                type="time"
-                className="rounded-xl border border-black/10 px-2 py-2"
+              <HoursTimeField
+                locale={copy.locale}
+                label={copy.t("End time")}
+                hourLabel={copy.t("Hour")}
+                minuteLabel={copy.t("Minute")}
                 value={newEnd}
-                onChange={(e) => setNewEnd(e.target.value)}
+                onChange={setNewEnd}
               />
             </>
           ) : null}
@@ -404,14 +426,32 @@ export function AgendaAvailabilityPage({
         </button>
       </section>
 
-      {message ? <p className="text-[13px] text-[#5F6368]">{copy.t(message)}</p> : null}
-
-      <div className="flex justify-end">
+      <div
+        className={
+          embedded
+            ? "sticky bottom-0 z-10 -mx-5 -mb-4 flex flex-wrap items-center justify-end gap-3 border-t border-black/10 bg-white px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]"
+            : "flex flex-wrap items-center justify-end gap-3"
+        }
+      >
+        {message ? (
+          messageIsError ? (
+            <p
+              role="alert"
+              data-testid="availability-error"
+              className="flex min-w-0 flex-1 items-start gap-1.5 text-[13px] font-medium text-red-700"
+            >
+              <AlertCircle aria-hidden className="mt-[1px] h-4 w-4 shrink-0" />
+              <span>{copy.t(message)}</span>
+            </p>
+          ) : (
+            <p role="status" className="min-w-0 flex-1 text-[13px] text-[#5F6368]">{copy.t(message)}</p>
+          )
+        ) : null}
         <button
           type="button"
           disabled={!canSave || saving}
           onClick={() => void save()}
-          className="min-h-[44px] rounded-full bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)] px-5 text-[13px] text-white disabled:opacity-40"
+          className="min-h-[44px] shrink-0 rounded-full bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)] px-5 text-[13px] text-white disabled:opacity-40"
         >
           {saving ? copy.t("Saving…") : copy.t("Save availability")}
         </button>

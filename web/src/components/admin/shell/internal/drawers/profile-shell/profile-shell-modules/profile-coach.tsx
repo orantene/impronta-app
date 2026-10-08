@@ -12,6 +12,7 @@ import {
   useDashboardText,
 } from "../../drawer-shared";
 import { ProfileSectionId } from "./profile-state";
+import { addRequirementText } from "./publish-requirement-label";
 
 export function RequiredCoach({ missing, onJump }: {
   missing: { id: string; label: string; met: boolean }[];
@@ -32,7 +33,7 @@ export function RequiredCoach({ missing, onJump }: {
             fontFamily: FONTS.body,
           }}>
             <span style={{ width: 16, height: 16, borderRadius: "50%", border: `1.5px solid ${COLORS.indigoDeep}`, flexShrink: 0, }} />
-            <span style={{ fontSize: 12, flex: 1 }} className="text-admin-ink">{copy.isSpanish ? `Agregar ${copy.t(m.label)}` : `Add ${m.label}`}</span>
+            <span style={{ fontSize: 12, flex: 1 }} className="text-admin-ink">{addRequirementText(m.label, copy.t, copy.isSpanish)}</span>
             <span className="text-admin-indigo-deep text-sm">›</span>
           </button>
         ))}
@@ -138,7 +139,7 @@ export function HeaderPublishCoach({ missing, onJump }: {
                 width: 14, height: 14, borderRadius: "50%",
                 border: `1.5px solid ${COLORS.indigoDeep}`, flexShrink: 0,
               }} />
-              <span style={{ fontSize: 12.5, flex: 1 }} className="text-admin-ink">{copy.isSpanish ? `Agregar ${copy.t(m.label)}` : `Add ${m.label}`}</span>
+              <span style={{ fontSize: 12.5, flex: 1 }} className="text-admin-ink">{addRequirementText(m.label, copy.t, copy.isSpanish)}</span>
               <span aria-hidden style={{ color: COLORS.indigoDeep, fontSize: 13 }}>›</span>
             </button>
           ))}

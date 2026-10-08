@@ -7,6 +7,9 @@ import {
   type CapacityNeed,
 } from "./capacity-requests";
 
+// Echoed through unchanged; relative to now so the fixture never rots.
+const OTHER_LINE_START = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
 const need = (over: Partial<CapacityNeed> = {}): CapacityNeed => ({
   offeringId: "off1", poolId: "pool1", startsAt: null, endsAt: null, units: 1,
   // Existing cases all cover the SEATED branch; the pooled branch is new below.
@@ -35,7 +38,7 @@ test("each request carries the line attribution", () => {
 
 test("two lines keep their own attribution and window", () => {
   const r = buildCapacityRequests(
-    [need({ units: 2 }), need({ offeringId: "off2", poolId: "pool2", units: 1, startsAt: "2026-01-01T00:00:00Z" })],
+    [need({ units: 2 }), need({ offeringId: "off2", poolId: "pool2", units: 1, startsAt: OTHER_LINE_START })],
     lines,
   );
   assert.equal(r.ok, true);
@@ -44,7 +47,7 @@ test("two lines keep their own attribution and window", () => {
   assert.equal(r.requests.filter((q) => q.orderLineId === "line1").length, 2);
   const other = r.requests.find((q) => q.orderLineId === "line2");
   assert.equal(other?.poolId, "pool2");
-  assert.equal(other?.startsAt, "2026-01-01T00:00:00Z");
+  assert.equal(other?.startsAt, OTHER_LINE_START);
 });
 
 test("a FRACTIONAL units REFUSES — it must never round", () => {

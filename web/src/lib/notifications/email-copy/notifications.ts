@@ -28,6 +28,12 @@ export const NOTIF_EN = {
     button: "View details →",
     dateLabel: "Date",
     locationLabel: "Location",
+    // TUL-136: talent-site bookings (see booking-noun.ts) read "appointment".
+    apptSubject: "Reminder: your appointment is tomorrow",
+    apptPreview: "Reminder: your appointment is tomorrow",
+    apptHeading: "Your appointment is tomorrow",
+    apptIntro: "Hi {name}, this is a reminder that you have an appointment tomorrow. Here are the details:",
+    apptNote: "Open your booking for the details and any final notes.",
   },
   // DayOfReminder.tsx — talent surface (same shared template + copy).
   "talent.booking_day_of_reminder": {
@@ -39,6 +45,11 @@ export const NOTIF_EN = {
     button: "View details →",
     dateLabel: "Date",
     locationLabel: "Location",
+    apptSubject: "Reminder: your appointment is tomorrow",
+    apptPreview: "Reminder: your appointment is tomorrow",
+    apptHeading: "Your appointment is tomorrow",
+    apptIntro: "Hi {name}, this is a reminder that you have an appointment tomorrow. Here are the details:",
+    apptNote: "Open your booking for the details and any final notes.",
   },
   // InquiryCancelled.tsx
   "inquiry.cancelled": {
@@ -69,6 +80,11 @@ export const NOTIF_ES: typeof NOTIF_EN = {
     button: "Ver detalles →",
     dateLabel: "Fecha",
     locationLabel: "Ubicación",
+    apptSubject: "Recordatorio: tu cita es mañana",
+    apptPreview: "Recordatorio: tu cita es mañana",
+    apptHeading: "Tu cita es mañana",
+    apptIntro: "Hola {name}, te recordamos que tienes una cita mañana. Estos son los detalles:",
+    apptNote: "Abre tu reservación para ver los detalles y cualquier nota final.",
   },
   "talent.booking_day_of_reminder": {
     subject: "Recordatorio: tu evento es mañana",
@@ -79,6 +95,11 @@ export const NOTIF_ES: typeof NOTIF_EN = {
     button: "Ver detalles →",
     dateLabel: "Fecha",
     locationLabel: "Ubicación",
+    apptSubject: "Recordatorio: tu cita es mañana",
+    apptPreview: "Recordatorio: tu cita es mañana",
+    apptHeading: "Tu cita es mañana",
+    apptIntro: "Hola {name}, te recordamos que tienes una cita mañana. Estos son los detalles:",
+    apptNote: "Abre tu reservación para ver los detalles y cualquier nota final.",
   },
   "inquiry.cancelled": {
     subject: "Se canceló una solicitud",

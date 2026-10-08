@@ -15,6 +15,7 @@ import BillingTrialWillEnd from "../../../emails/billing/TrialWillEnd";
 import BillingDiscountEnding from "../../../emails/billing/DiscountEnding";
 import BillingTrialStarted from "../../../emails/billing/TrialStarted";
 import type { CatalogEntry } from "./types";
+import type { FeeLine } from "@/lib/billing/processing-fee-payer";
 import { PAYMENT_DISPUTE_OPENED_PLATFORM } from "./catalog-entries-disputes";
 import {
   invitedTalent,
@@ -29,6 +30,8 @@ import {
   workspaceOwner,
 } from "./catalog-audiences";
 import { formatDateLabel, formatMoneyCents, pageUrl, planLabel } from "./catalog-render";
+import { loadInquiryViewWithFeeLines } from "./catalog-fee-lines";
+import { clientManageUrl } from "./client-visit-url";
 
 /**
  * Stripe payment + billing catalog entries (spec §6.5 / §6.6, Slice 15.4) —
@@ -65,7 +68,7 @@ const PAYMENT_RECEIVED_CLIENT: CatalogEntry = {
   defaultChannels: ["email", "in_app"],
   required: false,
   triggers: ["payment.received"],
-  hydrate: loadInquiryView,
+  hydrate: loadInquiryViewWithFeeLines,
   // 6.3 deposits: a deposit gets the dedicated deposit_received email instead of
   // this generic receipt (so the client gets exactly one, balance-aware email).
   resolveAudience: (event) =>
@@ -92,10 +95,15 @@ const PAYMENT_RECEIVED_CLIENT: CatalogEntry = {
         contactName: str(event.payload.contactName),
         amountPaid: formatMoneyCents(num(event.payload.grossAmountCents), str(event.payload.currency)),
         paymentDate: formatDateLabel(str(event.payload.paidAt)) ?? "",
-        receiptUrl: pageUrl(
+        receiptUrl: clientManageUrl(
           brand,
+          bookingId,
           bookingId ? `/client/bookings/${bookingId}?tab=payment` : "/client/bookings",
         ),
+        sellerName: brand.accountName,
+        feeLines: event.payload.feeLines as FeeLine[] | undefined,
+        amountCents: num(event.payload.grossAmountCents),
+        currency: str(event.payload.currency),
         brand,
         unsubscribeUrl,
         categoryLabel: "payments",
@@ -373,15 +381,17 @@ const PAYMENT_REFUNDED_CLIENT: CatalogEntry = {
     subject: (event) =>
       str(event.payload.reason) === "dispute" ? "Payment dispute closed" : "Payment refunded",
     render: ({ event, recipient, brand, unsubscribeUrl }) => {
-      const isDispute = str(event.payload.reason) === "dispute";
+      const bookingId = str(event.payload.bookingId);
       return React.createElement(ClientPaymentRefunded, {
         clientName: recipient.displayName,
-        heading: isDispute ? "Payment dispute closed" : "Payment refunded",
-        message: isDispute
-          ? "the dispute on your booking payment was resolved and the charge was reversed."
-          : "your booking payment was refunded to your original payment method.",
+        isDispute: str(event.payload.reason) === "dispute",
+        sellerName: brand.accountName,
         amount: null,
-        bookingUrl: pageUrl(brand, "/client/bookings"),
+        bookingUrl: clientManageUrl(
+          brand,
+          bookingId,
+          bookingId ? `/client/bookings/${bookingId}` : "/client/bookings",
+        ),
         brand,
         unsubscribeUrl,
         categoryLabel: "payments",
@@ -414,12 +424,16 @@ const PAYMENT_PARTIAL_REFUND_CLIENT: CatalogEntry = {
     subject: () => "Partial refund issued",
     render: ({ event, recipient, brand, unsubscribeUrl }) => {
       const amount = formatMoneyCents(num(event.payload.refundedCents), str(event.payload.currency));
+      const bookingId = str(event.payload.bookingId);
       return React.createElement(ClientPaymentRefunded, {
         clientName: recipient.displayName,
-        heading: "Partial refund issued",
-        message: `a partial refund of ${amount} was issued to your original payment method.`,
+        sellerName: brand.accountName,
         amount,
-        bookingUrl: pageUrl(brand, "/client/bookings"),
+        bookingUrl: clientManageUrl(
+          brand,
+          bookingId,
+          bookingId ? `/client/bookings/${bookingId}` : "/client/bookings",
+        ),
         brand,
         unsubscribeUrl,
         categoryLabel: "payments",

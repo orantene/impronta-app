@@ -71,7 +71,7 @@ three sessions don't share cookies.
 Console + network must be clean on all three. Then run the gate:
 
 ```bash
-cd web && npx tsc --noEmit && npm run lint
+cd web && npm run typecheck && npm run lint
 ```
 
 ## Notes

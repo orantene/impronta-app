@@ -26,6 +26,11 @@
  * talent roster via `allRosterTalent`, both keyed on the inquiry. A booking
  * with no source inquiry is skipped (counted, not errored).
  *
+ * Talent-site guest appointments live in `talent_bookings` and are swept in
+ * the same run, each judged at its TALENT's own 8am (TUL-108): see
+ * `lib/talent-agenda/booking-reminder-sweep.ts`. Their eventId prefix is
+ * `talent-booking-reminder:` so it cannot collide with an agency booking id.
+ *
  * Idempotent: the producer's stable `eventId` (`booking-reminder:<bookingId>`)
  * + the dispatch_log unique index collapse a duplicate send to a no-op, so an
  * extra run (or a booking whose date straddles two runs) never double-reminds.
@@ -48,6 +53,7 @@ import {
   type TenantSweep,
 } from "@/lib/spaces/reminder-schedule";
 import { pickTimezone } from "@/lib/spaces/venue-timezone";
+import { sweepTalentBookingReminders } from "@/lib/talent-agenda/booking-reminder-sweep";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -209,6 +215,19 @@ export async function GET(request: Request) {
       }
     }
 
+    // Talent-site guest appointments (`talent_bookings`, TUL-108): judged in
+    // each TALENT's own 8am, not a workspace's. Never throws; a failure is in
+    // the summary and does not touch the agency totals' semantics.
+    const talentSweep = await sweepTalentBookingReminders(
+      admin,
+      now,
+      new Map(clocks.map((c) => [c.tenantId, c.timezone])),
+    );
+    totals.dispatched += talentSweep.totals.dispatched;
+    totals.suppressed += talentSweep.totals.suppressed;
+    totals.failed += talentSweep.totals.failed;
+    totals.queued += talentSweep.totals.queued;
+
     // Piggyback the STANDING review-request reminder sweep on this daily run
     // (no dedicated review cron — see review-request-reminder-notify.ts). It is
     // idempotent (reminded_at cursor + dispatch_log dedupe) and best-effort: a
@@ -235,6 +254,7 @@ export async function GET(request: Request) {
       bookingsScanned,
       bookingsReminded,
       bookingsSkippedNoInquiry,
+      ...talentSweep.summary,
       reviewSweepDue,
       reviewRequestsScanned: reviewReminders.scanned,
       reviewRequestsReminded: reviewReminders.reminded,

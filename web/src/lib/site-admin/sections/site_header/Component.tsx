@@ -3,21 +3,16 @@ import { SectionSwitcher } from "./SectionSwitcher";
 import { switcherLinksFrom, withSwitcherHome } from "./section-switcher-logic";
 import type { CSSProperties } from "react";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
-import {
-  presentationDataAttrs,
-  presentationInlineStyles,
-} from "../shared/presentation";
+import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import type { SectionComponentProps } from "../types";
 import type { SiteHeaderV1, HeaderItem } from "./schema";
 import { HeaderRegionLiveCount } from "./HeaderRegionLiveCount";
 import { HeaderHeightVar } from "./HeaderHeightVar";
 import { HeaderScrollObserver } from "./HeaderScrollObserver";
 import { NavChromeScrollSpy } from "@/lib/site-admin/builder-node/NavChromeScrollSpy";
-import {
-  navChromeNeedsScrollSpy,
-  normalizeNavChrome,
-} from "@/lib/site-admin/nav-chrome";
+import { navChromeNeedsScrollSpy, normalizeNavChrome } from "@/lib/site-admin/nav-chrome";
 import { ClusterIcon } from "./header-cluster-icon";
+import { HeaderAccountItem } from "./HeaderAccountItem";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import { HeaderAuthArea } from "@/components/site-shell/HeaderAuthArea";
@@ -317,19 +312,11 @@ function ctaDecls(
 }
 
 /**
- * Phase 6B — inline brand-neutral icons for the social/contact cluster.
- * `currentColor` so the active theme token paints them; no external icon
- * dependency, no tenant hardcoding. Unknown platforms fall back to a
- * generic "link" glyph rather than rendering nothing.
- */
-/**
- * Icons lifted VERBATIM from the v11 prototype header (`.si` / `.ai`
- * SVGs) so the rendered cluster is pixel-faithful — WhatsApp/Instagram/
- * TikTok/phone are the prototype's exact markup (Instagram = rounded
- * rect + lens + flash dot; not a solid blob). Facebook/YouTube/LinkedIn/
- * X/email aren't in the prototype header, so they use clean glyphs in
- * the same register (24 view-box, currentColor). Stroke icons use the
- * prototype's 1.7 weight.
+ * Phase 6B: inline brand-neutral icons for the social/contact cluster (`currentColor`, no external icon
+ * dependency; unknown platforms fall back to a generic "link" glyph). WhatsApp/Instagram/TikTok/phone are
+ * lifted verbatim from the v11 prototype header (pixel-faithful); Facebook/YouTube/LinkedIn/X/email use
+ * clean glyphs in the same register (24 view-box, stroke weight 1.7).
+ *
  */
 // ClusterIcon moved to ./header-cluster-icon (shared by the classic cluster +
 // the WF-5 freeform region items; also keeps this file under the line cap).
@@ -567,6 +554,8 @@ export async function SiteHeaderComponent({
               ))}
             </div>
           ) : null;
+        case "account":
+          return props.siteChrome?.account ? <HeaderAccountItem key={key} attrs={attrs} locale={locale} /> : null;
         case "section_switcher": {
           // H-4: phone section switcher over the in-page links of the Navigation list.
           const own = switcherLinksFrom(navLinks);

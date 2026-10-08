@@ -12,6 +12,8 @@
 
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
+import { loadOwnHosts } from "./server/own-hosts.server";
+
 import {
   resolvePublishedTalentPage,
   type PublishedTalentPageActions,
@@ -96,6 +98,8 @@ export async function loadPublishedTalentPage(input: {
       if (error || !data) return null;
       return data as unknown as PublishedTalentPageRow;
     },
+
+    loadOwnHosts,
   };
 
   return resolvePublishedTalentPage(actions, input);

@@ -18,6 +18,7 @@ import {
   type PortfolioLayout,
 } from "./portfolio-defaults";
 import { MAGAZINE_ROOT_VARS } from "./magazine-edition";
+import { eyebrowDuplicatesHeading } from "./portfolio-eyebrow";
 import { PORTFOLIO_FRAMED_CSS } from "./portfolio-framed-css";
 import { filterShotsForPortfolio } from "./portfolio-selection";
 import { buildPortfolioGallery, type PortfolioGallery } from "./portfolio-lightbox-logic";
@@ -273,7 +274,7 @@ export function renderPortfolioBlock(args: {
   );
   const byOffering = new Map((args.offerings ?? []).map((o) => [o.id, o]));
   const title = (p.title ?? PORTFOLIO_DEFAULT_PROPS.title)?.trim() || "Recent work";
-  const eyebrow = p.eyebrow?.trim() || "";
+  const eyebrow = eyebrowDuplicatesHeading(p.eyebrow, title) ? "" : p.eyebrow?.trim() || "";
   const empty = (p.emptyMessage ?? PORTFOLIO_DEFAULT_PROPS.emptyMessage) as string;
   const credit = p.creditLine?.trim() || "";
   const roman = portfolioChapterRoman(p.chapterNumber);

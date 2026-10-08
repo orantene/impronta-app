@@ -638,17 +638,17 @@ export async function uploadCmsMedia(opts: {
       error: body?.error ?? `HTTP ${initRes.status}`,
     };
   }
-  const initBody = (await initRes.json()) as {
+  const initBody = (await safeJson(initRes)) as {
     ok: boolean;
     uploadUrl?: string;
     storagePath?: string;
     error?: string;
-  };
-  if (!initBody.ok || !initBody.uploadUrl || !initBody.storagePath) {
+  } | null;
+  if (!initBody?.ok || !initBody.uploadUrl || !initBody.storagePath) {
     return {
       ok: false,
       fallbackToLegacy: false,
-      error: initBody.error ?? "Could not start upload.",
+      error: initBody?.error ?? "Could not start upload.",
     };
   }
 

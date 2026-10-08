@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   DELETED_USER_LABEL,
+  AVATAR_BUCKET,
   anonymizeUserData,
+  removeUserAvatarFiles,
   anonymizedEmailFor,
   buildAnonymizationPlan,
   escapeLikeLiteral,
@@ -105,9 +107,10 @@ test("inquiry contact email stays non-null (column is NOT NULL)", () => {
 
 type Call = { table: string; action: string; patch?: unknown; filters: Array<[string, string, unknown]> };
 
-function fakeAdmin(opts: { failTable?: string } = {}) {
+function fakeAdmin(opts: { failTable?: string; avatarFiles?: string[]; listError?: boolean; removeAvatarError?: boolean } = {}) {
   const calls: Call[] = [];
   const removed: string[][] = [];
+  const storageCalls: Array<{ bucket: string; op: "list" | "remove"; arg: unknown }> = [];
   function builder(table: string, action: string, patch?: unknown, rows: unknown[] = []) {
     const call: Call = { table, action, patch, filters: [] };
     calls.push(call);
@@ -135,15 +138,27 @@ function fakeAdmin(opts: { failTable?: string } = {}) {
       };
     },
     storage: {
-      from: () => ({
+      from: (bucket: string) => ({
+        list: async (prefix: string) => {
+          storageCalls.push({ bucket, op: "list", arg: prefix });
+          if (opts.listError) return { data: null, error: { message: "list boom" } };
+          // Only the avatar bucket has listable objects in these tests.
+          const names = bucket === AVATAR_BUCKET && prefix === `avatars/${USER}` ? (opts.avatarFiles ?? []) : [];
+          return { data: names.map((name) => ({ name })), error: null };
+        },
         remove: async (paths: string[]) => {
+          storageCalls.push({ bucket, op: "remove", arg: paths });
+          if (bucket === AVATAR_BUCKET) {
+            if (opts.removeAvatarError) return { error: { message: "rm boom" } };
+            return { error: null };
+          }
           removed.push(paths);
           return { error: null };
         },
       }),
     },
   };
-  return { admin, calls, removed };
+  return { admin, calls, removed, storageCalls };
 }
 
 test("anonymizeUserData removes uploaded files, runs every op, reports ok", async () => {
@@ -182,4 +197,200 @@ test("running twice issues the same writes (idempotent)", async () => {
   const writes = (cs: Call[]) => cs.filter((c) => c.action !== "select").map((c) => JSON.stringify(c));
   const first = writes(b.calls);
   assert.deepEqual(writes(a.calls), [...first, ...first]);
+});
+
+// ── payout_accounts ───────────────────────────────────────────────────────────
+
+const OTHER_USER = "99999999-2222-3333-4444-555555555555";
+const OTHER_TALENT = "bbbbbbbb-bbbb-cccc-dddd-eeeeeeeeeeee";
+
+test("payout accounts: profile and talent ops carry exactly those filters and only display_name", () => {
+  const plan = buildAnonymizationPlan({ userId: USER, email: null, talentProfileIds: [TALENT] }, NOW);
+  const prof = find(plan, "payout_accounts_profile");
+  const tal = find(plan, "payout_accounts_talent");
+  assert.equal(prof.table, "payout_accounts");
+  assert.equal(tal.table, "payout_accounts");
+  assert.deepEqual(prof.filters, [
+    { op: "eq", col: "owner_type", value: "profile" },
+    { op: "eq", col: "owner_id", value: USER },
+  ]);
+  assert.deepEqual(tal.filters, [
+    { op: "eq", col: "owner_type", value: "talent" },
+    { op: "in", col: "owner_id", value: [TALENT] },
+  ]);
+  for (const op of [prof, tal]) {
+    assert.equal(op.kind, "update");
+    if (op.kind !== "update") continue;
+    assert.deepEqual(op.patch, { display_name: DELETED_USER_LABEL });
+    for (const k of ["status", "provider", "provider_account_id", "id", "tenant_id", "owner_id", "owner_type", "amount_minor"]) {
+      assert.equal(k in op.patch, false, k);
+    }
+  }
+});
+
+test("payout accounts: a subject with no talent profiles gets only the profile op", () => {
+  const plan = buildAnonymizationPlan({ userId: USER, email: null, talentProfileIds: [] }, NOW);
+  const ops = plan.filter((o) => o.table === "payout_accounts");
+  assert.deepEqual(ops.map((o) => o.label), ["payout_accounts_profile"]);
+});
+
+test("payout accounts: no op targets owner_type agency, and other owners would not match", () => {
+  const plan = buildAnonymizationPlan({ userId: USER, email: null, talentProfileIds: [TALENT] }, NOW);
+  const ops = plan.filter((o) => o.table === "payout_accounts");
+  assert.equal(ops.length, 2);
+  const rows = [
+    { owner_type: "agency", owner_id: USER },
+    { owner_type: "agency", owner_id: TALENT },
+    { owner_type: "profile", owner_id: OTHER_USER },
+    { owner_type: "talent", owner_id: OTHER_TALENT },
+    { owner_type: "talent", owner_id: USER },
+    { owner_type: "profile", owner_id: TALENT },
+  ];
+  for (const row of rows) assert.equal(ops.some((o) => matches(row, o.filters)), false, JSON.stringify(row));
+  assert.ok(ops.some((o) => matches({ owner_type: "profile", owner_id: USER }, o.filters)));
+  assert.ok(ops.some((o) => matches({ owner_type: "talent", owner_id: TALENT }, o.filters)));
+});
+
+type Row = Record<string, unknown>;
+type PlanFilter = AnonymizeOp["filters"][number];
+
+function matches(row: Row, filters: PlanFilter[]): boolean {
+  return filters.every((f) => {
+    if (f.op === "eq") return row[f.col] === f.value;
+    if (f.op === "in") return f.value.includes(String(row[f.col]));
+    if (f.op === "isNull") return row[f.col] == null;
+    return false;
+  });
+}
+
+test("payout accounts: applying the plan to a fake store changes only display_name on matching rows", async () => {
+  const store: Row[] = [
+    { id: "p1", owner_type: "profile", owner_id: USER, display_name: "Ana IBAN 1234", provider: "manual_bank", provider_account_id: null, status: "connected" },
+    { id: "p2", owner_type: "talent", owner_id: TALENT, display_name: "Ana Chase 0001", provider: "stripe", provider_account_id: "acct_123", status: "pending_verification" },
+    { id: "p3", owner_type: "agency", owner_id: USER, display_name: "Agency Ltd", provider: "manual_bank", provider_account_id: null, status: "connected" },
+    { id: "p4", owner_type: "profile", owner_id: OTHER_USER, display_name: "Bo Bank", provider: "manual_bank", provider_account_id: null, status: "connected" },
+    { id: "p5", owner_type: "talent", owner_id: OTHER_TALENT, display_name: "Cy Bank", provider: "stripe", provider_account_id: "acct_999", status: "connected" },
+  ];
+  const before = store.map((r) => ({ ...r }));
+  const admin = {
+    from(table: string) {
+      return {
+        update: (patch: Row) => {
+          const filters: Array<[string, string, unknown]> = [];
+          const b: Record<string, unknown> = {};
+          for (const m of ["eq", "in", "ilike", "is"]) {
+            b[m] = (col: string, v: unknown) => {
+              filters.push([m, col, v]);
+              return b;
+            };
+          }
+          b.then = (res: (v: unknown) => unknown) => {
+            if (table === "payout_accounts") {
+              for (const row of store) {
+                const ok = filters.every(([m, col, v]) =>
+                  m === "eq" ? row[col] === v : m === "in" ? (v as unknown[]).includes(row[col]) : false,
+                );
+                if (ok) Object.assign(row, patch);
+              }
+            }
+            return Promise.resolve({ error: null }).then(res);
+          };
+          return b;
+        },
+        delete: () => {
+          const b: Record<string, unknown> = {};
+          for (const m of ["eq", "in", "ilike", "is"]) b[m] = () => b;
+          b.then = (res: (v: unknown) => unknown) => Promise.resolve({ error: null }).then(res);
+          return b;
+        },
+        select: () => {
+          const b: Record<string, unknown> = {};
+          for (const m of ["eq", "not"]) b[m] = () => b;
+          b.then = (res: (v: unknown) => unknown) => Promise.resolve({ data: [], error: null }).then(res);
+          return b;
+        },
+      };
+    },
+    storage: { from: () => ({ list: async () => ({ data: [], error: null }), remove: async () => ({ error: null }) }) },
+  };
+
+  const run = async () =>
+    anonymizeUserData(admin as never, { userId: USER, email: null, talentProfileIds: [TALENT] }, {}, new Date(NOW));
+  assert.equal((await run()).ok, true);
+  const after = store.map((r) => ({ ...r }));
+  assert.equal(after[0].display_name, DELETED_USER_LABEL);
+  assert.equal(after[1].display_name, DELETED_USER_LABEL);
+  for (const i of [2, 3, 4]) assert.deepEqual(after[i], before[i]);
+  for (const i of [0, 1]) assert.deepEqual({ ...after[i], display_name: null }, { ...before[i], display_name: null });
+
+  // Re-running converges to the same state.
+  await run();
+  assert.deepEqual(store, after);
+});
+
+// ── avatar file removal ───────────────────────────────────────────────────────
+
+test("avatar: the user's own avatar file is removed from media-public, and nothing else", async () => {
+  const { admin, storageCalls } = fakeAdmin({ avatarFiles: ["avatar.jpg"] });
+  const steps = await removeUserAvatarFiles(admin as never, USER);
+  assert.deepEqual(steps, [{ label: "avatar_files.remove", ok: true }]);
+  assert.deepEqual(storageCalls, [
+    { bucket: AVATAR_BUCKET, op: "list", arg: `avatars/${USER}` },
+    { bucket: AVATAR_BUCKET, op: "remove", arg: [`avatars/${USER}/avatar.jpg`] },
+  ]);
+});
+
+test("avatar: no file is a no-op, and a second run changes nothing (idempotent)", async () => {
+  const { admin, storageCalls } = fakeAdmin({ avatarFiles: [] });
+  assert.deepEqual(await removeUserAvatarFiles(admin as never, USER), [{ label: "avatar_files.remove", ok: true }]);
+  assert.deepEqual(await removeUserAvatarFiles(admin as never, USER), [{ label: "avatar_files.remove", ok: true }]);
+  assert.equal(storageCalls.filter((c) => c.op === "remove").length, 0);
+});
+
+test("avatar: a non-uuid id never lists a shared prefix", async () => {
+  const { admin, storageCalls } = fakeAdmin();
+  for (const bad of ["", "../x", "avatars", "11111111-2222-3333-4444-55555555555"]) {
+    const steps = await removeUserAvatarFiles(admin as never, bad);
+    assert.equal(steps[0]?.ok, false, bad);
+  }
+  assert.equal(storageCalls.length, 0);
+});
+
+test("avatar: a storage failure is reported as a failing step (the executor then keeps the auth user and retries)", async () => {
+  const listFail = fakeAdmin({ listError: true });
+  assert.equal((await removeUserAvatarFiles(listFail.admin as never, USER))[0]?.ok, false);
+  const rmFail = fakeAdmin({ avatarFiles: ["avatar.png"], removeAvatarError: true });
+  assert.equal((await removeUserAvatarFiles(rmFail.admin as never, USER))[0]?.ok, false);
+});
+
+test("anonymizeUserData removes the avatar too, and a failed avatar removal makes the report not ok", async () => {
+  const good = fakeAdmin({ avatarFiles: ["avatar.webp"] });
+  const ok = await anonymizeUserData(good.admin as never, { userId: USER, email: null, talentProfileIds: [] }, {}, new Date(NOW));
+  assert.equal(ok.ok, true);
+  assert.ok(good.storageCalls.some((c) => c.bucket === AVATAR_BUCKET && c.op === "remove"));
+  const bad = fakeAdmin({ avatarFiles: ["avatar.webp"], removeAvatarError: true });
+  const report = await anonymizeUserData(bad.admin as never, { userId: USER, email: null, talentProfileIds: [] }, {}, new Date(NOW));
+  assert.equal(report.ok, false);
+  assert.ok(report.steps.some((s) => s.label === "avatar_files.remove" && !s.ok));
+});
+
+test("talent site logo_url is cleared, scoped to the subject's own talent ids only", () => {
+  const plan = buildAnonymizationPlan({ userId: USER, email: null, talentProfileIds: [TALENT] }, NOW);
+  const op = find(plan, "talent_site_logo");
+  assert.equal(op.kind, "update");
+  if (op.kind !== "update") return;
+  assert.equal(op.table, "talent_sites");
+  assert.deepEqual(op.patch, { logo_url: null });
+  assert.deepEqual(op.filters, [{ op: "in", col: "talent_profile_id", value: [TALENT] }]);
+});
+
+test("no talent profiles: no talent_sites op", () => {
+  const plan = buildAnonymizationPlan({ userId: USER, email: null, talentProfileIds: [] }, NOW);
+  assert.equal(plan.some((o) => o.table === "talent_sites"), false);
+});
+
+test("the talent_sites op is idempotent: two plans are identical", () => {
+  const subject = { userId: USER, email: null, talentProfileIds: [TALENT] };
+  const pick = () => buildAnonymizationPlan(subject, NOW).filter((o) => o.table === "talent_sites");
+  assert.deepEqual(pick(), pick());
 });

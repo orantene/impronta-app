@@ -82,6 +82,7 @@ import { ShortcutOverlay } from "./shortcut-overlay";
 import { TopBar } from "./topbar";
 import { CanvasLinkInterceptor } from "./canvas-link-interceptor";
 import { IframeBridgeParent } from "./iframe-bridge";
+import { describeBuilderNodeIssues, describeMutationError } from "@/lib/site-admin/builder-node/mutation-error-reason";
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { isEditableKeyboardTarget, tryHistoryShortcut } from "./builder-keyboard";
 import { copySharePreviewLinkToClipboard } from "./copy-share-preview-link";
@@ -1644,20 +1645,14 @@ function MutationErrorToast() {
   }, [clearMutationError, mutationError]);
 
   if (!mutationError) return null;
-  const detailLines = mutationError.details?.slice(0, 3) ?? [];
-  // TUL-52 C: placement refusals never show the raw English dev text.
-  const isPlacementCode =
-    mutationError.code === "ROOT_KIND_NOT_ALLOWED" ||
-    mutationError.code === "CHILD_KIND_NOT_ALLOWED" ||
-    mutationError.code === "PARENT_DOES_NOT_ALLOW_CHILDREN";
-  const codeShown = isPlacementCode ? undefined : mutationError.code;
-  const operationLabel = mutationError.operation && !isPlacementCode
-    ? humanizeMutationOperation(mutationError.operation, locale)
-    : null;
+  // TUL-81: every line is kept (the box scrolls); no silent truncation.
+  const detailLines = describeBuilderNodeIssues(mutationError.issues, locale);
+  const described = describeMutationError({
+    code: mutationError.code,
+    operation: mutationError.operation,
+    locale,
+  });
   const isConflict = mutationError.code === "VERSION_CONFLICT";
-  const suggestion = mutationError.code && !isPlacementCode
-    ? mutationCodeSuggestion(mutationError.code, locale)
-    : null;
   // W3-T2(c) — a recoverable conflict gets a real choice instead of a 5s
   // disappearing act: take the just-reloaded latest, or re-apply the rejected
   // edit on top of it. `hasConflictRecovery` is only true after a builder-tree
@@ -1699,30 +1694,22 @@ function MutationErrorToast() {
       className="max-w-[min(92vw,680px)]"
     >
       {isConflict ? null : (
-        <span className="block text-[10px] uppercase tracking-[0.06em] opacity-80">
-          {t("Builder change blocked")}
+        <span className="block text-[12px] font-semibold">
+          {described.headline}
         </span>
       )}
       <span className="block" style={{ color: CHROME.text2 }}>
         {isConflict
           ? t("This page changed in another tab. Your last change was not saved.")
-          : isPlacementCode
-            ? t("This block can't go there. Select a section first, then add it inside.")
-            : t(mutationError.message)}
+          : described.reason}
       </span>
-      {isConflict ? null : operationLabel || codeShown ? (
-        <span className="mt-1 block text-[10px] uppercase tracking-[0.04em] opacity-80">
-          {[operationLabel, codeShown?.replaceAll("_", " ")]
-            .filter(Boolean)
-            .join(" · ")}
-        </span>
-      ) : null}
-      {suggestion && !isConflict ? (
+      {isConflict ? (
         <span
           className="mt-1 block text-[11px] font-normal"
           style={{ color: CHROME.text2 }}
         >
-          {t("Next step:")} {suggestion}
+          {t("Next step:")}{" "}
+          {t("Pick one: Reload latest to take the other change, or Keep editing this copy to save yours over it.")}
         </span>
       ) : null}
       {conflictWho ? (
@@ -1779,9 +1766,9 @@ function MutationErrorToast() {
           style={{ color: CHROME.muted }}
         >
           <span className="block text-[10px] uppercase tracking-[0.04em] opacity-90">
-            Details
+            {locale === "es" ? "Detalles" : "Details"}
           </span>
-          <span className="mt-0.5 block">
+          <span className="mt-0.5 block max-h-32 overflow-y-auto pr-1">
             {detailLines.map((line, index) => (
               <span key={`${line}-${index}`} className="block break-words">
                 • {line}
@@ -1824,57 +1811,6 @@ function PresenceBannerInner() {
       <span className="truncate">{message}</span>
     </div>
   );
-}
-
-function humanizeMutationOperation(
-  operation: string,
-  locale: EditorLocale = "en",
-): string {
-  switch (operation) {
-    case "insert":
-      return editorT("Insert", locale);
-    case "move":
-      return editorT("Move", locale);
-    case "remove":
-      return editorT("Delete", locale);
-    case "duplicate":
-      return editorT("Duplicate", locale);
-    case "paste":
-      return editorT("Paste", locale);
-    case "patch":
-      return editorT("Update", locale);
-    default:
-      return operation.charAt(0).toUpperCase() + operation.slice(1);
-  }
-}
-
-function mutationCodeSuggestion(
-  code: string,
-  locale: EditorLocale = "en",
-): string | null {
-  switch (code) {
-    case "NODE_NOT_FOUND":
-      return editorT("This block is stale or already removed. Refresh and try the action again.", locale);
-    case "PARENT_NOT_FOUND":
-      return editorT("Destination container no longer exists. Pick a different target or refresh.", locale);
-    case "INVALID_MOVE_TARGET":
-      return editorT("Choose another destination or move the parent group first.", locale);
-    case "CHILD_KIND_NOT_ALLOWED":
-    case "PARENT_DOES_NOT_ALLOW_CHILDREN":
-      return editorT("Pick a compatible container/section for this block type.", locale);
-    case "ROOT_KIND_NOT_ALLOWED":
-      return editorT("Insert this block inside a section or layout group.", locale);
-    case "VALIDATION_FAILED":
-      return editorT("Adjust incompatible settings, then try again.", locale);
-    case "GUARDED_NODE":
-      return editorT("This area is protected by plan or shell rules.", locale);
-    case "VERSION_CONFLICT":
-      return editorT("Pick one: Reload latest to take the other change, or Keep editing this copy to save yours over it.", locale);
-    case "SAVE_FAILED":
-      return editorT("Try again. If it persists, reload the editor.", locale);
-    default:
-      return null;
-  }
 }
 
 /**

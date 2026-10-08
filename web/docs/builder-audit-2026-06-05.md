@@ -231,7 +231,7 @@ Ordered by **impact ÷ effort**. Flag-off SSR path preserved throughout.
 | **E3** Undo → inverse patches (drop full-tree stringify) | Opus | L | E1 |
 | **E4** Marquee rect index + rAF throttle | Opus | M | — |
 | **E5** Section inspector optimistic preview OR mini client patch for `presentation` | Opus | L | E1 |
-| Gate: `cd web && NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit && npm run lint` | — | — | Fast ≥85 measured |
+| Gate: `cd web && npm run typecheck && npm run lint` | — | — | Fast ≥85 measured |
 
 ### Phase 2 — Easy: one style engine (2–3 weeks, parallel after E1 starts)
 

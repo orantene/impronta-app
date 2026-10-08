@@ -187,3 +187,32 @@ export function mapBookingStatusToNext(
   if (!s || s === "cancelled" || s === "canceled" || s === "hold_expired") return null;
   return "confirmed";
 }
+
+/** DS-49: a client counts as "new" for this many days after first appearing. */
+export const NEW_CLIENT_BADGE_DAYS = 14;
+
+/**
+ * The only badge a Clients row may carry. "new" means a first-seen date within
+ * the last 14 days AND no completed booking yet; everyone else gets none (26
+ * identical badges say nothing). `firstSeenAt` is the earliest booking or
+ * message on file; with no date there is no claim of newness.
+ */
+export function clientBadgeFor(
+  row: Pick<TalentClientRow, "firstSeenAt" | "completedCount">,
+  nowMs: number = Date.now(),
+): "new" | null {
+  if (row.completedCount > 0) return null;
+  if (!row.firstSeenAt) return null;
+  const seen = Date.parse(row.firstSeenAt);
+  if (!Number.isFinite(seen)) return null;
+  const ageDays = (nowMs - seen) / 86_400_000;
+  return ageDays <= NEW_CLIENT_BADGE_DAYS ? "new" : null;
+}
+
+/**
+ * The "N of M clients" line repeats the subtitle ("M people ...") unless the
+ * list is narrowed, so show it only then (or when a filter adds its own note).
+ */
+export function showClientsCountLine(opts: { visible: number; total: number; filter: ClientsFilter; query: string }): boolean {
+  return opts.visible !== opts.total || opts.filter === "follow" || opts.query.trim() !== "";
+}

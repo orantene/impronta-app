@@ -16,7 +16,7 @@ Two workstreams:
 - **Builder Lab:** http://localhost:3000/platform/admin/builder-lab
 - **Impronta home editor:** http://localhost:3000/impronta?edit=1 (after signin). If scope is missing, set cookie `impronta.active_tenant_id=00000000-0000-0000-0000-000000000001` via JS, then reload.
 - **Prod Supabase ref:** `pluhdapdnuiulvxmyspd` — **this is PRODUCTION** (`.env.local` points here). Read-only introspection via Supabase MCP `execute_sql` with `project_id=pluhdapdnuiulvxmyspd`.
-- **Gate before every commit:** `cd web && NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit` (default heap OOMs → FALSE green; always use the big heap) **+** lint: `node -r ./scripts/eslint-node-polyfill.cjs ./node_modules/eslint/bin/eslint.js <files> --quiet --suppressions-location eslint-suppressions.json`.
+- **Gate before every commit:** `cd web && npm run typecheck` (default heap OOMs → FALSE green; always use the big heap) **+** lint: `node -r ./scripts/eslint-node-polyfill.cjs ./node_modules/eslint/bin/eslint.js <files> --quiet --suppressions-location eslint-suppressions.json`.
 - **DB writes are classifier-gated.** Prod `UPDATE`s and the home **Publish** get blocked unless the user explicitly authorizes — never circumvent (don't route a blocked publish through a raw script).
 - **Branch workflow:** branch off latest `main`; `main` auto-deploys to Vercel. `main` is also checked out in a sibling worktree (`/Users/oranpersonal/Desktop/impronta-app-email`), so `gh pr merge --delete-branch` fails the *local* cleanup step — merge **without** `--delete-branch` (the remote merge still succeeds).
 

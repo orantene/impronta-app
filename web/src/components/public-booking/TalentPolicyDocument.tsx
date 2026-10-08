@@ -64,6 +64,18 @@ export function TalentPolicyDocument({ model, headingTag = "h1" }: { model: Poli
           </li>
         ))}
       </ol>
+      {model.custom ? (
+        <section data-policy-custom="" style={{ marginTop: model.clauses.length > 0 ? 28 : 0 }}>
+          <h2 style={{ fontFamily: "var(--site-heading-font, inherit)", fontSize: 20, lineHeight: 1.3, margin: "0 0 10px" }}>{model.custom.heading}</h2>
+          <ol style={{ margin: 0, paddingLeft: 22, display: "grid", gap: 8 }}>
+            {model.custom.items.map((line, i) => (
+              <li key={i} style={{ overflowWrap: "anywhere" }}>
+                {linkify(line)}
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
     </article>
   );
 }

@@ -40,6 +40,7 @@ import { resolveLegacyTalentPlatformPath } from "@/lib/talent/legacy-talent-redi
 import { talentProfileCodeAliasRedirectResponse } from "@/lib/talent/profile-code-alias-middleware";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { talentSiteHostResponse } from "@/lib/saas/talent-site-host-response";
+import { withTalentHostClientSession } from "@/lib/client-account/talent-host-session";
 import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
 import {
   PREVIEW_COOKIE_OPTIONS,
@@ -68,8 +69,8 @@ function clientIp(request: NextRequest): string {
  * in `lib/supabase/middleware.ts`).
  */
 const HOST_CONTEXT_HEADERS_TO_STRIP = [
-  HOST_CONTEXT_HEADER,
-  HOST_TALENT_PROFILE_HEADER,
+  HOST_CONTEXT_HEADER, HOST_TALENT_PROFILE_HEADER, HOST_NAME_HEADER,
+  HOST_TENANT_SLUG_HEADER, TENANT_HEADER_NAME, PUBLIC_PATH_PREFIX_HEADER,
 ];
 
 function stripInboundHostContextHeaders(request: NextRequest): Headers {
@@ -231,9 +232,8 @@ export async function proxy(request: NextRequest) {
   // reads the talent_profile_id from a host header set here, so a client can
   // never spoof it.
   if (hostContext.kind === "talent_site") {
-    // Talent languages + URL grammar live in the extracted helper (keeps proxy
-    // under max-lines): talent-site-host-response.ts.
-    return talentSiteHostResponse(request, pathname, sanitizedInboundHeaders, hostContext);
+    // Languages + URL grammar: talent-site-host-response.ts. Client session refresh (CLIENT_ACCOUNT_HOSTS): talent-host-session.ts.
+    return withTalentHostClientSession(request, hostContext, () => talentSiteHostResponse(request, pathname, sanitizedInboundHeaders, hostContext));
   }
 
   if (
@@ -731,7 +731,7 @@ export async function proxy(request: NextRequest) {
       pathnameForAuth,
       languageSettings: effectiveLangSettings,
       // Same surface the allow-list ran against: auth routing must not redirect to a path this surface 404s.
-      hostKind: effectiveHostContext.kind,
+      hostKind: effectiveHostContext.kind, resolvedHost: effectiveHostContext.hostname,
     }));
 
   if (sessionRes.headers.get("location")) {

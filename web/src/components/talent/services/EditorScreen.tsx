@@ -1,7 +1,7 @@
 "use client";
 
 import { BOOKING_MODE_CHOICES, BOOKING_MODE_LABELS } from "@/lib/talent/booking-mode-labels";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ChangeEvent, type ReactNode } from "react";
 import { useBeforeUnloadGuard } from "@/components/locale-field/use-before-unload-guard";
 import { OfferingDescriptionField, OfferingNameField } from "./OfferingTextFields";
 import {
@@ -19,6 +19,7 @@ import { publicationWord } from "@/lib/talent/publication-state";
 import { offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
 import { PLATFORM_DEFAULT_BOOKING_POSTURE } from "@/lib/talent/selling-booking-settings";
 import { CurrencyField } from "./CurrencyField";
+import { formatDashboardMoney } from "@/lib/money/dashboard-money-format";
 import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { useOfferingsEditor } from "./use-offerings-editor";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
@@ -33,7 +34,8 @@ type Photo = { id: string; url: string };
 type Where = "studio" | "client" | "remote" | "agreed";
 const WHERE: Where[] = ["studio", "client", "remote", "agreed"];
 
-const LABEL = "text-[11px] font-semibold uppercase tracking-[0.1em] text-admin-ink-dim";
+const LABEL = "font-admin-body text-[12px] font-medium tracking-[0.1px] text-admin-ink"; // DS-36: one label style, sentence case
+const NO_SPINNER = "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"; // DS-36: no spinner arrows
 const INPUT =
   "mt-1.5 w-full rounded-lg border border-admin-border-soft bg-white px-3 py-2.5 text-[15px] text-admin-ink outline-none focus:border-emerald-900/50";
 
@@ -42,8 +44,9 @@ function attr<T>(item: TalentOffering, key: string, fallback: T): T {
   return v === undefined || v === null ? fallback : (v as T);
 }
 
-function money(cents: number, currency: string): string {
-  return `${Math.round(cents / 100).toLocaleString("en-US")} ${currency}`;
+function money(cents: number, currency: string, locale = "en"): string {
+  // DS-17: the shared dashboard money format ("$700 MXN").
+  return formatDashboardMoney(cents / 100, currency, locale, { wholeUnits: true });
 }
 
 function Card({ title, sub, children }: { title: string; sub: string; children: ReactNode }) {
@@ -159,6 +162,17 @@ export function EditorScreen({
     }
   };
 
+  const onPickPhotoFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    const up = await uploadTalentMedia({ file, variantKind: "gallery", talentProfileId: talentId });
+    setUploading(false);
+    if (up.ok) await syncPhotos([...photos, { id: up.id, url: up.publicUrl }]);
+    else setError(copy.t("That photo did not upload. Try another one."));
+  };
+
   const save = async (publish: boolean) => {
     if (busy) return;
     setBusy(publish ? "publish" : "draft");
@@ -254,7 +268,7 @@ export function EditorScreen({
               <p className={LABEL}>
                 {copy.t("Photos")} <span className="ml-1 normal-case tracking-normal text-admin-ink-dim">{copy.t("the first one is the cover")}</span>
               </p>
-              <div className="mt-2 flex flex-wrap items-center gap-2.5">
+              <div className="mt-2 flex flex-wrap items-start gap-2.5">
                 {photos.map((p, i) => (
                   <div key={p.id + i} className={`group relative h-[68px] w-[68px] overflow-hidden rounded-lg ${i === 0 ? "ring-2 ring-emerald-900" : ""}`}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -269,36 +283,20 @@ export function EditorScreen({
                     <button type="button" aria-label={copy.t("Remove photo")} onClick={() => void syncPhotos(photos.filter((_, j) => j !== i))} className="absolute right-1 top-1 hidden h-5 w-5 place-items-center rounded-full bg-white/90 text-[12px] leading-none text-admin-ink group-hover:grid">×</button>
                   </div>
                 ))}
-                <label className="grid h-[68px] w-[68px] cursor-pointer place-items-center rounded-lg border border-dashed border-admin-border-soft text-[20px] text-admin-ink-dim" aria-label={copy.t("Upload")}>
-                  {uploading ? "…" : "+"}
-                  <input type="file" accept="image/*" className="sr-only" onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = "";
-                    if (!file) return;
-                    setUploading(true);
-                    const up = await uploadTalentMedia({ file, variantKind: "gallery", talentProfileId: talentId });
-                    setUploading(false);
-                    if (up.ok) await syncPhotos([...photos, { id: up.id, url: up.publicUrl }]);
-                    else setError(copy.t("That photo did not upload. Try another one."));
-                  }} />
-                </label>
-                <div className="flex flex-col gap-2">
-                  <label className="cursor-pointer rounded-lg border border-admin-border-soft bg-white px-7 py-1.5 text-center text-[13px] font-semibold text-admin-ink">
-                    {copy.t("Upload")}
-                    <input type="file" accept="image/*" className="sr-only" onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      e.target.value = "";
-                      if (!file) return;
-                      setUploading(true);
-                      const up = await uploadTalentMedia({ file, variantKind: "gallery", talentProfileId: talentId });
-                      setUploading(false);
-                      if (up.ok) await syncPhotos([...photos, { id: up.id, url: up.publicUrl }]);
-                      else setError(copy.t("That photo did not upload. Try another one."));
-                    }} />
+                <div className="flex w-[196px] flex-col gap-1.5">
+                  <label className="grid h-[68px] w-full cursor-pointer place-items-center rounded-lg border border-dashed border-admin-border-soft text-[20px] text-admin-ink-dim" aria-label={copy.t("Upload")}>
+                    {uploading ? "…" : "+"}
+                    <input type="file" accept="image/*" className="sr-only" onChange={onPickPhotoFile} />
                   </label>
-                  <button type="button" className="rounded-lg border border-admin-border-soft bg-white px-3 py-1.5 text-[13px] font-semibold text-admin-ink" onClick={() => setPhotosOpen(true)}>
-                    {copy.t("From portfolio")}
-                  </button>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <label className="cursor-pointer rounded-lg border border-admin-border-soft bg-white px-2 py-1.5 text-center text-[12.5px] font-semibold text-admin-ink">
+                      {copy.t("Upload")}
+                      <input type="file" accept="image/*" className="sr-only" onChange={onPickPhotoFile} />
+                    </label>
+                    <button type="button" className="rounded-lg border border-admin-border-soft bg-white px-2 py-1.5 text-[12.5px] font-semibold text-admin-ink" onClick={() => setPhotosOpen(true)}>
+                      {copy.t("From portfolio")}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -317,7 +315,10 @@ export function EditorScreen({
               </label>
               <label className="block">
                 <span className={LABEL}>{copy.t("Category")}</span>
-                <input list="services-category-names" className={INPUT} maxLength={80} value={item.category ?? ""} onChange={(e) => patch({ category: e.target.value || null })} />
+                <div className="relative">
+                  <input list="services-category-names" className={`${INPUT} pr-9 [&::-webkit-calendar-picker-indicator]:opacity-0`} maxLength={80} placeholder={copy.t("Choose a category")} value={item.category ?? ""} onChange={(e) => patch({ category: e.target.value || null })} />
+                  <svg aria-hidden viewBox="0 0 20 20" className="pointer-events-none absolute right-3 top-1/2 mt-[3px] h-4 w-4 -translate-y-1/2 text-admin-ink-dim" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 8l5 5 5-5" /></svg>
+                </div>
                 <datalist id="services-category-names">
                   {(catalogNames ?? []).map((name) => (
                     <option key={name} value={name} />
@@ -337,7 +338,7 @@ export function EditorScreen({
                 <label className="block">
                   <span className={LABEL}>{copy.t("Price")}</span>
                   <div className="relative">
-                    <input type="number" min={0} inputMode="decimal" className={`${INPUT} pr-14`} value={item.amountCents != null ? item.amountCents / 100 : ""} onChange={(e) => patch({ amountCents: e.target.value ? Math.round(Number(e.target.value) * 100) : null })} />
+                    <input type="number" min={0} inputMode="decimal" className={`${INPUT} ${NO_SPINNER} pr-14`} value={item.amountCents != null ? item.amountCents / 100 : ""} onChange={(e) => patch({ amountCents: e.target.value ? Math.round(Number(e.target.value) * 100) : null })} />
                     <span className="pointer-events-none absolute right-3 top-1/2 mt-[3px] -translate-y-1/2 text-[14px] text-admin-ink-dim">{item.currency}</span>
                   </div>
                 </label>
@@ -347,21 +348,21 @@ export function EditorScreen({
                   <label className="block">
                     <span className={LABEL}>{copy.t("How long it takes")}</span>
                     <div className="relative">
-                      <input type="number" min={0} className={`${INPUT} pr-12`} value={item.durationMinutes ?? ""} onChange={(e) => patch({ durationMinutes: e.target.value ? Number(e.target.value) : null })} />
+                      <input type="number" min={0} className={`${INPUT} ${NO_SPINNER} pr-12`} value={item.durationMinutes ?? ""} onChange={(e) => patch({ durationMinutes: e.target.value ? Number(e.target.value) : null })} />
                       <span className="pointer-events-none absolute right-3 top-1/2 mt-[3px] -translate-y-1/2 text-[14px] text-admin-ink-dim">min</span>
                     </div>
                   </label>
                   <label className="block">
                     <span className={LABEL}>{copy.t("Prep before")}</span>
                     <div className="relative">
-                      <input type="number" min={0} className={`${INPUT} pr-12`} value={bufferBefore ?? ""} onChange={(e) => patchAttr("bufferBeforeMin", e.target.value === "" ? null : Number(e.target.value))} />
+                      <input type="number" min={0} className={`${INPUT} ${NO_SPINNER} pr-12`} value={bufferBefore ?? ""} onChange={(e) => patchAttr("bufferBeforeMin", e.target.value === "" ? null : Number(e.target.value))} />
                       <span className="pointer-events-none absolute right-3 top-1/2 mt-[3px] -translate-y-1/2 text-[14px] text-admin-ink-dim">min</span>
                     </div>
                   </label>
                   <label className="block">
                     <span className={LABEL}>{copy.t("Buffer after")}</span>
                     <div className="relative">
-                      <input type="number" min={0} className={`${INPUT} pr-12`} value={bufferAfter ?? ""} onChange={(e) => patchAttr("bufferAfterMin", e.target.value === "" ? null : Number(e.target.value))} />
+                      <input type="number" min={0} className={`${INPUT} ${NO_SPINNER} pr-12`} value={bufferAfter ?? ""} onChange={(e) => patchAttr("bufferAfterMin", e.target.value === "" ? null : Number(e.target.value))} />
                       <span className="pointer-events-none absolute right-3 top-1/2 mt-[3px] -translate-y-1/2 text-[14px] text-admin-ink-dim">min</span>
                     </div>
                   </label>
@@ -459,7 +460,7 @@ export function EditorScreen({
                   title={copy.t("Deposit")}
                   line={
                     depositPct
-                      ? `${depositOwn ? copy.t("Just for this item:") : copy.t("Uses your default:")} ${depositPct}%${depositCents && item.amountCents ? ` · ${money(depositCents, item.currency)} ${es ? "de" : "of"} ${Math.round(item.amountCents / 100)}, ${es ? "quedan" : "leaving"} ${Math.round((item.amountCents - depositCents) / 100)} ${es ? "en el estudio" : "at the studio"}` : ""}`
+                      ? `${depositOwn ? copy.t("Just for this item:") : copy.t("Uses your default:")} ${depositPct}%${depositCents && item.amountCents ? ` · ${money(depositCents, item.currency, locale)} ${es ? "de" : "of"} ${Math.round(item.amountCents / 100)}, ${es ? "quedan" : "leaving"} ${Math.round((item.amountCents - depositCents) / 100)} ${es ? "en el estudio" : "at the studio"}` : ""}`
                       : `${depositOwn ? copy.t("Just for this item:") : copy.t("Uses your default:")} ${copy.t("No deposit")}`
                   }
                   open={openRule === "deposit"}
@@ -512,7 +513,7 @@ export function EditorScreen({
                         <span>
                           <span className="block text-[14px] font-semibold text-admin-ink">{g.name}</span>
                           <span className="block text-[12.5px] text-admin-ink-dim">
-                            +{money(g.amountCents, item.currency)}{g.durationMinutes ? ` · +${g.durationMinutes} min` : ""} · {g.offeringIds.length} {copy.t("services")}
+                            +{money(g.amountCents, item.currency, locale)}{g.durationMinutes ? ` · +${g.durationMinutes} min` : ""} · {g.offeringIds.length} {copy.t("services")}
                           </span>
                         </span>
                         <button type="button" disabled={!item.id} onClick={async () => {
@@ -679,7 +680,7 @@ function ClientCard({ item, locale, rates, depositCents, cancelHours, sellerName
       : item.bookingMode === "inquiry"
         ? es ? "Consultar" : "Ask about this"
       : item.bookingMode === "instant"
-        ? depositCents ? `${es ? "Reservar" : "Book"} · ${money(depositCents, item.currency)} ${es ? "de depósito" : "deposit"}` : es ? "Reservar" : "Book"
+        ? depositCents ? `${es ? "Reservar" : "Book"} · ${money(depositCents, item.currency, locale)} ${es ? "de depósito" : "deposit"}` : es ? "Reservar" : "Book"
         : es ? "Pedir reserva" : "Request to book";
   return (
     <div className="overflow-hidden rounded-2xl border border-admin-border-soft bg-white">
@@ -700,9 +701,8 @@ function ClientCard({ item, locale, rates, depositCents, cancelHours, sellerName
           ) : (
             <>
               {item.priceDisplay === "from" && <span className="text-[14px] text-admin-ink-muted">{es ? "Desde" : "From"}</span>}
-              <span className="text-[24px] font-semibold text-admin-ink">${Math.round(item.amountCents / 100).toLocaleString("en-US")}</span>
+              <span className="text-[24px] font-semibold text-admin-ink">{money(item.amountCents, item.currency, locale)}</span>
               <span>
-                {item.currency}
                 {item.durationMinutes && item.kind !== "product" ? ` · ${item.durationMinutes} min` : ""}
               </span>
             </>
