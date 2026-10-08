@@ -25,6 +25,11 @@ test("popover wires Google popup + password action + code verify", () => {
   assert.doesNotMatch(ui, /navigateToAuthPopupDestination/);
   assert.match(ui, /usePassword/);
   assert.match(ui, /step === "password"/);
+  // Do not hard-code ageTerms:true without UI consent.
+  assert.match(ui, /finalizeClientAccountGoogleSession\(\{ locale: loc, ageTerms: false \}/);
+  assert.match(ui, /signInClientAccountPassword\(\{ email, password, locale: loc, ageTerms: false \}/);
+  assert.match(ui, /verifyClientAccountCode\(\{ email, code, locale: loc, ageTerms: false \}/);
+  assert.doesNotMatch(ui, /ageTerms: true/);
 });
 
 test("password and Google actions never redirect; share attach path", () => {
@@ -40,10 +45,29 @@ test("password and Google actions never redirect; share attach path", () => {
   assert.match(actions, /isClientAccountEligible/);
   assert.match(actions, /claimInquiriesByConfirmedEmail/);
   assert.match(actions, /ensureTenantClientRelationship/);
+  assert.match(actions, /shouldClaimInquiriesForSignIn/);
+  assert.match(actions, /isAuthEmailConfirmedForClaim/);
+  assert.match(actions, /checkAuthPasswordByEmail/);
+  assert.match(actions, /checkAuthPasswordByIp/);
+  assert.match(actions, /checkAuthGoogleFinalizeByUser/);
+  assert.match(actions, /userHasGoogleIdentity/);
+  assert.match(actions, /genericNotClientError: true/);
+  assert.match(actions, /signInGeneric/);
 });
 
-test("talent hosts passthrough /auth/ for same-origin Google OAuth", () => {
+test("talent hosts allow-list only /auth/apple|/auth/google|/auth/callback", () => {
   const routing = read("src/lib/saas/talent-site-host-routing.ts");
-  assert.match(routing, /"\/auth\/"/);
+  assert.match(routing, /"\/auth\/apple"/);
+  assert.match(routing, /"\/auth\/google"/);
+  assert.match(routing, /"\/auth\/callback"/);
+  assert.doesNotMatch(routing, /"\/auth\/"/);
   assert.match(routing, /"auth"/);
+});
+
+test("oauth next is normalized; callback uses host-safe destination", () => {
+  const google = read("src/app/auth/google/route.ts");
+  const callback = read("src/app/auth/callback/route.ts");
+  assert.match(google, /normalizeNextPath/);
+  assert.match(callback, /normalizeNextPath/);
+  assert.match(callback, /hostSafeRedirectDestination/);
 });

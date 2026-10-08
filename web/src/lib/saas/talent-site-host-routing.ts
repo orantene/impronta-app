@@ -3,10 +3,11 @@
  *
  * A talent's custom domain serves a SMALL surface: the site home (`/`), its
  * inner pages (`/<pageSlug>`), public payment checkout (`/pay/<code>`), guest
- * threads (`/c/<id>`), client Google OAuth (`/auth/*`, TUL-173), plus the
- * shared static / API / compliance paths that every host kind allows.
- * Everything else 404s. This keeps a talent vanity domain from exposing the
- * workspace, the directory, login/register pages, or any other tenant surface.
+ * threads (`/c/<id>`), client OAuth (`/auth/google`, `/auth/apple`,
+ * `/auth/callback` only — TUL-173 / TUL-65), plus the shared static / API /
+ * compliance paths that every host kind allows. Everything else 404s. This
+ * keeps a talent vanity domain from exposing the workspace, the directory,
+ * login/register pages, SSO, sign-out, confirm, or any other tenant surface.
  *
  * The matched request is internally rewritten to the host route at
  * `app/%5Ftalent-site/[[...pageSlug]]/page.tsx` (the `%5F` is the encoded
@@ -44,11 +45,18 @@ const TALENT_SITE_PASSTHROUGH_PREFIXES = [
   "/account/visits/",
   "/account/messages/",
   "/account/receipts/",
-  // Client account Google OAuth (TUL-173). Same-origin popup needs
-  // `/auth/google` + `/auth/callback` on the talent host; bare `/auth` stays
-  // reserved below and still 404s. Login/register pages stay reserved.
-  "/auth/",
 ] as const;
+
+/**
+ * Exact auth paths for client OAuth on talent hosts (TUL-173 Google; Apple via
+ * TUL-65 if present). Allow-list ONLY these — never the whole `/auth/` prefix
+ * (sign-out, confirm, SSO must stay 404 on vanity domains).
+ */
+const TALENT_SITE_PASSTHROUGH_EXACT = new Set([
+  "/auth/apple",
+  "/auth/google",
+  "/auth/callback",
+]);
 
 // `/account` itself is an exact path (a `/account` prefix would also pass `/accounts`).
 const TALENT_SITE_STATIC_PATHS = ["/sitemap.xml", "/robots.txt", "/favicon.ico", "/account"] as const;
@@ -109,6 +117,7 @@ export function isTalentSiteHostPathAllowed(
   // Shared plumbing + static assets pass straight through untouched.
   if (
     TALENT_SITE_STATIC_PATHS.includes(pathname as (typeof TALENT_SITE_STATIC_PATHS)[number]) ||
+    TALENT_SITE_PASSTHROUGH_EXACT.has(pathname) ||
     TALENT_SITE_PASSTHROUGH_PREFIXES.some((p) => pathname === p || pathname.startsWith(p))
   ) {
     return { kind: "passthrough" };

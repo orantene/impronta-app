@@ -12,6 +12,11 @@
  *
  * TUL-173: Google (after same-origin `/auth/google?popup=1`) and password use
  * the same non-redirecting attach path. No new account types.
+ *
+ * Session note (Google popup): completing OAuth on this host replaces any prior
+ * session cookie on the same host. If a talent/staff was signed in, finalize
+ * with `signOutIfNotClient: true` signs that business session out after the
+ * eligibility check — intentional, but operators should know.
  */
 
 import { revalidatePath } from "next/cache";
@@ -29,7 +34,16 @@ import {
 import { claimInquiriesByConfirmedEmail } from "@/lib/inquiry/claim-by-email";
 import { recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
-import { authOtpVerifyEmailKey, checkAuthOtpVerifyByEmail } from "@/lib/rate-limit-kv";
+import {
+  authGoogleFinalizeUserKey,
+  authOtpVerifyEmailKey,
+  authPasswordEmailKey,
+  authPasswordIpKey,
+  checkAuthGoogleFinalizeByUser,
+  checkAuthOtpVerifyByEmail,
+  checkAuthPasswordByEmail,
+  checkAuthPasswordByIp,
+} from "@/lib/rate-limit-kv";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logServerError, logServerExpected } from "@/lib/server/safe-error";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
@@ -39,10 +53,13 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { marketingConsentPatch } from "./consent-pure";
 import {
   chooseTrustedHost,
+  isAuthEmailConfirmedForClaim,
   isClientAccountEligible,
   isClientAuthMethod,
   precheckSignIn,
+  shouldClaimInquiriesForSignIn,
   shouldSignOutAfterVerify,
+  userHasGoogleIdentity,
   type ClientAuthMethod,
   verifyIpRateKey,
 } from "./pure";
@@ -61,6 +78,8 @@ const VERIFY_PER_IP = 30;
 const PASSWORD_WINDOW_MS = 15 * 60 * 1000;
 const PASSWORD_PER_EMAIL = 10;
 const PASSWORD_PER_IP = 30;
+const GOOGLE_FINALIZE_WINDOW_MS = 15 * 60 * 1000;
+const GOOGLE_FINALIZE_PER_USER = 10;
 
 async function requestHost(): Promise<string> {
   try {
@@ -89,6 +108,12 @@ function isRejectedCredentials(error: unknown): boolean {
 /**
  * Shared post-auth attach for code / password / Google. Caller already has a
  * verified Supabase session for `userId`. Never creates a new account type.
+ *
+ * Claim / relink only run when the email is confirmed (OTP proves it;
+ * password / Google / Apple must pass `emailConfirmed`). Apple private-relay
+ * addresses skip claim. Sign-in still succeeds if claim is skipped.
+ *
+ * Shared by Google + password now; Apple (#2818) rebases onto this helper.
  */
 async function completeClientAccountSignIn(input: {
   userId: string;
@@ -96,8 +121,17 @@ async function completeClientAccountSignIn(input: {
   locale: string;
   ageTerms: boolean;
   method: ClientAuthMethod;
+  /** OTP proves email; password/Google/Apple supply `isAuthEmailConfirmedForClaim`. */
+  emailConfirmed: boolean;
+  /** When true (email-code path), claim even if email_confirmed_at lags. */
+  otpProven?: boolean;
   /** When true, sign out a non-client session that this call just minted. */
   signOutIfNotClient: boolean;
+  /**
+   * Password path: never reveal account-type to the client (oracle). Log the
+   * distinction server-side only and return the generic sign-in error.
+   */
+  genericNotClientError?: boolean;
 }): Promise<ClientAccountSignInResult> {
   const t = createTranslator(input.locale === "es" ? "es" : "en");
   const generic = t("public.clientAccount.genericError");
@@ -107,20 +141,36 @@ async function completeClientAccountSignIn(input: {
   const profile = await loadAccessProfile(supabase, input.userId);
   if (!isClientAccountEligible(profile?.app_role)) {
     if (input.signOutIfNotClient) await supabase.auth.signOut();
+    if (input.genericNotClientError) {
+      logServerExpected("clientAccount/notClient", {
+        message: `role=${profile?.app_role ?? "null"} method=${input.method}`,
+      });
+      return { ok: false, error: t("public.auth.actions.signInGeneric") };
+    }
     return { ok: false, error: t("public.clientAccount.notClient") };
   }
 
-  await relinkFirstConfirmedClaim(input.userId);
-  if (input.ageTerms) await recordSignupAcceptance(input.userId);
-  const admin = createServiceRoleClient();
-  const email = normalizeAuthEmail(input.email ?? "");
-  if (admin && email) {
-    await claimInquiriesByConfirmedEmail({
-      admin,
-      userId: input.userId,
-      verifiedEmail: email,
-    }).catch((e) => logServerError("clientAccount/claimByEmail", e));
+  const mayClaim = shouldClaimInquiriesForSignIn({
+    otpProven: input.otpProven === true,
+    email: input.email,
+    emailConfirmed: input.emailConfirmed,
+  });
+  if (mayClaim) {
+    await relinkFirstConfirmedClaim(input.userId);
+    const adminForClaim = createServiceRoleClient();
+    const claimEmail = normalizeAuthEmail(input.email ?? "");
+    if (adminForClaim && claimEmail) {
+      await claimInquiriesByConfirmedEmail({
+        admin: adminForClaim,
+        userId: input.userId,
+        verifiedEmail: claimEmail,
+      }).catch((e) => logServerError("clientAccount/claimByEmail", e));
+    }
   }
+
+  if (input.ageTerms) await recordSignupAcceptance(input.userId);
+
+  const admin = createServiceRoleClient();
   const host = await requestHost();
   const tenant = await resolveAccountTenant();
   if (tenant) {
@@ -138,10 +188,10 @@ async function completeClientAccountSignIn(input: {
       .select("id", { count: "exact", head: true })
       .eq("user_id", input.userId);
     firstSignIn = !countErr && (count ?? 0) === 0;
-    const method = isClientAuthMethod(input.method) ? input.method : "email_code";
+    const authMethod = isClientAuthMethod(input.method) ? input.method : "email_code";
     const { error: insErr } = await admin
       .from("client_auth_events")
-      .insert({ user_id: input.userId, host: host || "unknown", method });
+      .insert({ user_id: input.userId, host: host || "unknown", method: authMethod });
     if (insErr) logServerError("clientAccount/authEvent", insErr);
   }
   revalidatePath("/", "layout");
@@ -214,6 +264,9 @@ export async function verifyClientAccountCode(input: {
     locale: input.locale,
     ageTerms: input.ageTerms,
     method: "email_code",
+    // OTP proves the mailbox; claim may run even if email_confirmed_at lags.
+    emailConfirmed: true,
+    otpProven: true,
     signOutIfNotClient: shouldSignOutAfterVerify(priorUser !== null),
   });
 }
@@ -241,12 +294,17 @@ export async function signInClientAccountPassword(input: {
   }
 
   const tooMany = { ok: false, error: t("public.auth.passwordless.errors.tooMany") } as const;
+  const ip = await requestIp();
   if (
     !tryConsumeRateLimit(`auth-password:${email}`, PASSWORD_PER_EMAIL, PASSWORD_WINDOW_MS) ||
-    !tryConsumeRateLimit(`auth-password-ip:${await requestIp()}`, PASSWORD_PER_IP, PASSWORD_WINDOW_MS)
+    !tryConsumeRateLimit(`auth-password-ip:${ip}`, PASSWORD_PER_IP, PASSWORD_WINDOW_MS)
   ) {
     return tooMany;
   }
+  const durableEmail = await checkAuthPasswordByEmail(authPasswordEmailKey(email));
+  if (!durableEmail.ok) return tooMany;
+  const durableIp = await checkAuthPasswordByIp(authPasswordIpKey(ip));
+  if (!durableIp.ok) return tooMany;
 
   const business = await refuseIfBusinessSession(input.locale);
   if (business) return business;
@@ -269,13 +327,18 @@ export async function signInClientAccountPassword(input: {
     locale: input.locale,
     ageTerms: input.ageTerms,
     method: "password",
+    emailConfirmed: isAuthEmailConfirmedForClaim(data.user),
     signOutIfNotClient: true,
+    genericNotClientError: true,
   });
 }
 
 /**
  * After the Google popup writes a session on this host, attach the client
  * account side-effects without navigating away.
+ *
+ * Requires a real Google identity on the session. Rate-limited per user so
+ * repeated finalize calls cannot spam `client_auth_events` / claims.
  */
 export async function finalizeClientAccountGoogleSession(input: {
   locale: string;
@@ -293,12 +356,31 @@ export async function finalizeClientAccountGoogleSession(input: {
   const user = got?.data?.user ?? null;
   if (!user) return { ok: false, error: t("public.clientAccount.googleFailed") };
 
+  if (!userHasGoogleIdentity(user)) {
+    logServerExpected("clientAccount/googleFinalize", { message: "missing_google_identity" });
+    return { ok: false, error: t("public.clientAccount.googleFailed") };
+  }
+
+  const tooMany = { ok: false, error: t("public.auth.passwordless.errors.tooMany") } as const;
+  if (
+    !tryConsumeRateLimit(
+      `auth-google-finalize:${user.id}`,
+      GOOGLE_FINALIZE_PER_USER,
+      GOOGLE_FINALIZE_WINDOW_MS,
+    )
+  ) {
+    return tooMany;
+  }
+  const durable = await checkAuthGoogleFinalizeByUser(authGoogleFinalizeUserKey(user.id));
+  if (!durable.ok) return tooMany;
+
   return completeClientAccountSignIn({
     userId: user.id,
     email: user.email ?? null,
     locale: input.locale,
     ageTerms: input.ageTerms,
     method: "google",
+    emailConfirmed: isAuthEmailConfirmedForClaim(user),
     signOutIfNotClient: true,
   });
 }

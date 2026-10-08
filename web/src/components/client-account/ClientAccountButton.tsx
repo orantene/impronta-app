@@ -137,7 +137,8 @@ export function ClientAccountButton({
       void (async () => {
         setBusy(true);
         setError(null);
-        const res = await finalizeClientAccountGoogleSession({ locale: loc, ageTerms: true });
+        // Do not record age/terms without UI consent on this path.
+        const res = await finalizeClientAccountGoogleSession({ locale: loc, ageTerms: false });
         setBusy(false);
         if (!res.ok) {
           setError(res.error);
@@ -205,7 +206,8 @@ export function ClientAccountButton({
   async function verify() {
     setBusy(true);
     setError(null);
-    const res = await verifyClientAccountCode({ email, code, locale: loc, ageTerms: true });
+    // Do not record age/terms without an explicit consent control.
+    const res = await verifyClientAccountCode({ email, code, locale: loc, ageTerms: false });
     setBusy(false);
     if (!res.ok) {
       setError(res.error);
@@ -217,7 +219,8 @@ export function ClientAccountButton({
   async function passwordSignIn() {
     setBusy(true);
     setError(null);
-    const res = await signInClientAccountPassword({ email, password, locale: loc, ageTerms: true });
+    // Do not record age/terms without UI consent on this path.
+    const res = await signInClientAccountPassword({ email, password, locale: loc, ageTerms: false });
     setBusy(false);
     if (!res.ok) {
       setError(res.error);
