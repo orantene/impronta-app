@@ -79,4 +79,23 @@ export const LANGUAGES_ES_TEXT: Record<string, string> = {
   "Saved": "Guardado",
   "Couldn't save. Try again.": "No se pudo guardar. Inténtalo de nuevo.",
   "Tagline": "Frase corta",
+
+  // Add English (TUL-361)
+  "Add English": "Agregar inglés",
+  "{n} fields have no English yet": "{n} campos aún no tienen inglés",
+  "Ask for a suggestion, edit it, then save. Your own text is never changed.":
+    "Pide una sugerencia, edítala y guárdala. Tu texto nunca se modifica.",
+  "Review fields": "Revisar campos",
+  "Hide list": "Ocultar lista",
+  "Photo caption": "Pie de foto",
+  "Service name": "Nombre del servicio",
+  "Service category": "Categoría del servicio",
+  "Ticker word": "Palabra del ticker",
+  "Suggest English": "Sugerir inglés",
+  "Working...": "Trabajando...",
+  "English (review before saving)": "Inglés (revísalo antes de guardar)",
+  "Save English": "Guardar inglés",
+  "This already has English.": "Esto ya tiene inglés.",
+  "You are viewing as someone else. Changes are turned off.":
+    "Estás viendo como otra persona. Los cambios están desactivados.",
 };
