@@ -19,6 +19,7 @@ import { createPortal } from "react-dom";
 import { CASE_STUDY_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { getMarketingCopy, type MarketingCopy } from "@/lib/marketing/copy";
+import { marketingModalCloseLabel } from "@/lib/marketing/modal-close-aria";
 import { getCaseStudies, type CaseStudy, type Motion } from "./case-studies-data";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { EditorialFrame } from "./editorial-image";
@@ -112,7 +113,12 @@ export function CaseStudiesSection({ locale = "en" }: { locale?: string }) {
       </MarketingContainer>
 
       {active ? (
-        <CaseStudyModal study={active} onClose={() => setOpenKey(null)} labels={copy} />
+        <CaseStudyModal
+          study={active}
+          onClose={() => setOpenKey(null)}
+          labels={copy}
+          closeLabel={marketingModalCloseLabel(locale)}
+        />
       ) : null}
     </MarketingSection>
   );
@@ -218,10 +224,12 @@ function CaseStudyModal({
   study,
   onClose,
   labels,
+  closeLabel,
 }: {
   study: CaseStudy;
   onClose: () => void;
   labels: StoriesCopy;
+  closeLabel: string;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -270,7 +278,7 @@ function CaseStudyModal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={closeLabel}
             className="absolute right-4 top-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full transition-transform hover:scale-105"
             style={{
               background: "var(--plt-bg-elevated)",
