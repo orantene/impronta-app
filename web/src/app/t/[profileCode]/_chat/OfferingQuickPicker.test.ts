@@ -23,7 +23,8 @@ function offering(over: Partial<ChatOffering> = {}): ChatOffering {
 
 describe("offeringChipPriceLabel", () => {
   it("formats a real amount as currency", () => {
-    assert.equal(offeringChipPriceLabel(offering({ amountCents: 50000, currency: "USD" }), "en"), "$500");
+    // TUL-383: one public format — symbol + amount + code (never bare $500).
+    assert.equal(offeringChipPriceLabel(offering({ amountCents: 50000, currency: "USD" }), "en"), "$500 USD");
   });
 
   it("formats MXN chips as amount + code (Hablar mockup)", () => {
