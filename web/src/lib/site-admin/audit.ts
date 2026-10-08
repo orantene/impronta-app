@@ -24,10 +24,26 @@ import {
   type WorkspaceAuditCategory,
 } from "@/lib/audit/workspace-audit";
 import { createHash } from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { after } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const AUDIT_DIFF_SUMMARY_MAX = 240;
+
+/**
+ * Owner-initiated provisioning (the onboarding Estudio / Ambos build) writes
+ * through the service-role client, so `auth.uid()` is null inside
+ * `record_phase5_audit` and its `is_staff_of_tenant` gate correctly refuses:
+ * every build logged "caller not staff". The RPC is NOT weakened. Instead the
+ * provisioning entry point runs inside `withoutPlatformAudit`, which skips only
+ * the staff-only platform RPC; the per-tenant workspace activity log mirror
+ * still records the event.
+ */
+const platformAuditSuppressed = new AsyncLocalStorage<true>();
+
+export function withoutPlatformAudit<T>(fn: () => Promise<T>): Promise<T> {
+  return platformAuditSuppressed.run(true, fn);
+}
 
 export interface Phase5AuditEvent {
   tenantId: string;
@@ -87,7 +103,9 @@ function mirrorToWorkspaceLog(event: Phase5AuditEvent): void {
 async function emitPlatformAuditRow(
   supabase: SupabaseClient,
   event: Phase5AuditEvent,
+  suppressed = platformAuditSuppressed.getStore() === true,
 ): Promise<void> {
+  if (suppressed) return;
   const { error } = await supabase.rpc("record_phase5_audit", {
     p_tenant_id: event.tenantId,
     p_action: event.action,
@@ -136,7 +154,9 @@ export function scheduleAuditEvent(
   // Mirror to the workspace log NOW (request scope still alive — see
   // emitAuditEvent), but let the platform-audit RPC ride behind the response.
   mirrorToWorkspaceLog(event);
+  // Read the flag NOW: the after() callback may run outside this async scope.
+  const suppressed = platformAuditSuppressed.getStore() === true;
   after(async () => {
-    await emitPlatformAuditRow(supabase, event);
+    await emitPlatformAuditRow(supabase, event, suppressed);
   });
 }
