@@ -10,8 +10,12 @@
  * Precedence for the locale a request renders in:
  *   1. a `/<locale>/` prefix in the talent's set (explicit choice);
  *   2. `?locale=<code>` in the set: 302 to the prefixed URL (explicit);
- *   3. the `locale` cookie when it names a language in the set;
- *   4. the talent's primary.
+ *   3. the talent's primary.
+ * The URL decides the language. The `locale` cookie is deliberately NOT an
+ * input: an unprefixed URL always renders the primary, so a cookie left by an
+ * earlier visit to `/en` can never flip `/` to English (TUL-363). The cookie
+ * only records explicit choices (see `explicit`) for the platform's suggestion
+ * banner; it never picks the render language on a talent host.
  * A language outside the talent's set never renders on their site.
  */
 
@@ -22,8 +26,6 @@ export interface TalentSiteLocaleInput {
   pathname: string;
   /** Raw `?locale=` value, if any. */
   queryLocale?: string | null;
-  /** Raw `locale` cookie value, if any. */
-  cookieLocale?: string | null;
   primary: string;
   supported: readonly string[];
 }
@@ -85,10 +87,6 @@ export function decideTalentSiteLocale(input: TalentSiteLocaleInput): TalentSite
     };
   }
 
-  const c = norm(input.cookieLocale);
-  if (c && supported.includes(c)) {
-    return { locale: c, innerPath: path, redirectPath: null, explicit: false };
-  }
   return { locale: primary, innerPath: path, redirectPath: null, explicit: false };
 }
 

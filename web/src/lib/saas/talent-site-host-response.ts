@@ -31,8 +31,8 @@ import { decideTalentSiteLocale } from "@/lib/talent-site/talent-site-locale-rou
  * here, so a client can never spoof it.
  *
  * Language (PR 4, 2026-09-29): the talent's OWN languages and URL grammar,
- * decided by `decideTalentSiteLocale` (prefix > `?locale=` 302 > cookie >
- * primary). An explicit choice is remembered in the `locale` cookie.
+ * decided by `decideTalentSiteLocale` (prefix > `?locale=` 302 >
+ * primary; the cookie never overrides the URL). An explicit choice is remembered in the `locale` cookie.
  */
 export async function talentSiteHostResponse(
   request: NextRequest,
@@ -74,7 +74,6 @@ export async function talentSiteHostResponse(
   const talentLocale = decideTalentSiteLocale({
     pathname,
     queryLocale: request.nextUrl.searchParams.get("locale"),
-    cookieLocale: request.cookies.get(LOCALE_COOKIE)?.value,
     primary: talentLocales.defaultLocale,
     supported: talentLocales.supportedLocales,
   });
