@@ -21,7 +21,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 import { logServerError } from "@/lib/server/safe-error";
-import { ensurePlatformHubRoster } from "@/lib/saas/registration-policy";
+import { ensureHubRosterRow } from "@/lib/saas/ensure-hub-roster.server";
 import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell-taxonomy-sync";
 import { buildTalentLanguageRpcRows } from "@/lib/talent/talent-profile-shell-persistence";
 import { syncBlobFieldValuesToCatalog } from "@/lib/talent/blob-field-values-catalog";
@@ -131,13 +131,17 @@ export async function writeTalentProfileFromBrief(input: {
   }
 
   // ── hub roster (tenant scope for everything below) ────────────────────────
-  const hub = await ensurePlatformHubRoster(admin, { talentProfileId: id, userId: input.userId, originDomain: input.originDomain });
+  // One rule (ensureHubRosterRow): the hub row is added only when the talent has
+  // no roster row at all. A talent already on an agency roster keeps that
+  // tenant as the scope for the writes below (null when they have no ACTIVE row,
+  // in which case the tenant-scoped steps are skipped).
+  const hub = await ensureHubRosterRow(admin, { talentProfileId: id, addedBy: input.userId, originDomain: input.originDomain });
   if (!hub.ok) {
-    logServerError("onboarding.talentWriter.hubRoster", new Error(hub.error));
+    logServerError("onboarding.talentWriter.hubRoster", new Error(hub.reason));
     result.wrote.roster = "failed";
   } else {
     result.hubTenantId = hub.tenantId;
-    result.wrote.roster = "written";
+    result.wrote.roster = hub.outcome === "skipped_has_roster" ? "skipped" : "written";
   }
   const tenantId = result.hubTenantId;
 

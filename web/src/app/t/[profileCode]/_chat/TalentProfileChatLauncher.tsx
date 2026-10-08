@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import type { CSSProperties } from "react";
 
 import type {
+  GuestChatOffering,
   ScanGuestConversationCallback,
   TalentChatLauncherProps,
 } from "@/lib/inquiry/guest-chat-contract";
@@ -70,6 +71,8 @@ import type { ChatCardConfig } from "@/lib/talent-site/chat-card";
 // read-only guest-chat-contract. Threaded launcher → panel.
 type TalentProfileChatLauncherLocalProps = TalentChatLauncherProps & {
   surfaceMode?: SurfaceMode;
+  /** Every public service, for the instant price/duration answer only (chips keep `offerings`). */
+  answerOfferings?: readonly GuestChatOffering[];
   /** `chat.variant` = card (her own site): the one-to-one chat card. */
   chatCard?: ChatCardConfig | null;
   /** `chat.help-bubble` = on: the once-per-visit help bubble above the button (DK-3). */
@@ -131,6 +134,7 @@ export function TalentProfileChatLauncher({
   existingContactPromoted = null,
   prefill = null,
   offerings = [],
+  answerOfferings,
   onAttachOffering = null,
   onStartInquiry,
   onSendMessage,
@@ -715,6 +719,7 @@ export function TalentProfileChatLauncher({
 
       <MiniChatPanel
         offerings={offerings}
+        answerOfferings={answerOfferings}
         onAttachOffering={onAttachOffering}
         open={open}
         onClose={() => {

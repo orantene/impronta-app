@@ -94,10 +94,19 @@ interface LayoutProps {
   unsubscribeUrl?: string;
   /** Human category label shown next to the unsubscribe link. */
   categoryLabel?: string;
+  /**
+   * Optional seller line under the brand mark ("Booked with {seller}"). Absent
+   * renders exactly as before.
+   */
+  sellerName?: string | null;
   children: React.ReactNode;
 }
 
-export function Layout({ preview, brand, unsubscribeUrl, categoryLabel, children }: LayoutProps) {
+function sellerLine(locale: string, seller: string): string {
+  return locale === "es" ? `Reservado con ${seller}` : `Booked with ${seller}`;
+}
+
+export function Layout({ preview, brand, unsubscribeUrl, categoryLabel, sellerName, children }: LayoutProps) {
   const b = { ...DEFAULTS, ...brand };
 
   return (
@@ -123,6 +132,7 @@ export function Layout({ preview, brand, unsubscribeUrl, categoryLabel, children
                 b.wordmark
               )}
             </Link>
+            {sellerName ? <Text style={sellerStyle}>{sellerLine(b.locale ?? "en", sellerName)}</Text> : null}
           </Section>
 
           {/* Card */}
@@ -174,6 +184,12 @@ const wordmark: React.CSSProperties = {
   color: "#1a1a1a",
   textDecoration: "none",
   fontWeight: 600,
+};
+
+const sellerStyle: React.CSSProperties = {
+  margin: "8px 0 0",
+  fontSize: "13px",
+  color: "#777777",
 };
 
 const mark: React.CSSProperties = {

@@ -1,0 +1,20 @@
+{
+  "es": [
+    "Confirmación: Tu cita queda confirmada al reservar. Te escribo por WhatsApp un día antes.",
+    "Cambios y cancelaciones: Avísame con al menos 24 horas para cambiar o cancelar sin problema.",
+    "Retraso: Hay 15 minutos de tolerancia. Después puedo acortar el servicio o reprogramar.",
+    "No asistir: Si no llegas sin avisar dos veces, te pediré un anticipo para la siguiente cita.",
+    "Retoques de pestañas: Se agendan entre 2 y 3 semanas después de la aplicación y con al menos 40% de pestañas puestas; si no, se cobra como aplicación nueva.",
+    "Pago: En el estudio, en efectivo o transferencia. No se cobra nada al reservar.",
+    "Salud: Avísame de alergias, embarazo o tratamientos en los ojos antes de la cita."
+  ],
+  "en": [
+    "Confirmation: Your appointment is confirmed when you book. I message you on WhatsApp a day before.",
+    "Changes and cancellations: Let me know at least 24 hours ahead to change or cancel with no problem.",
+    "Late arrival: There are 15 minutes of tolerance. After that I may shorten the service or reschedule.",
+    "No-shows: If you miss two appointments without letting me know, I will ask for a deposit for the next one.",
+    "Lash touch-ups: They are booked 2 to 3 weeks after the application and with at least 40% of the lashes still in place; otherwise they are charged as a new application.",
+    "Payment: At the studio, in cash or by transfer. Nothing is charged when you book.",
+    "Health: Tell me about allergies, pregnancy or eye treatments before the appointment."
+  ]
+}

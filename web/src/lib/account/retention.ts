@@ -3,14 +3,21 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { RETENTION_PERIODS } from "@/lib/legal/retention-config";
 
 import { ANONYMIZED_EMAIL_DOMAIN, DELETED_USER_LABEL } from "./anonymize";
+import { runAccountPurge, type AccountPurgeReport } from "./retention-account-purge";
+import { runLogTrims, type LogTrimReport } from "./retention-log-trims";
 
 /**
  * Data retention (legal plan 3.4). periods are the owner
  * decisions of 2026-10-01 (src/lib/legal/retention-config.ts):
  *   - guest contact data on inquiries: anonymized 3 years after last activity;
  *   - unbooked inquiries and their messages: deleted 3 years after last activity;
- *   - bookings and payment records: kept 3 years after last activity; this job
- *     never touches them (no booking purge exists yet).
+ *   - bookings and payment records: NEVER purged by this job (kept until the
+ *     legal answer on tax record retention, TUL-43).
+ * Also (same RETENTION_ENFORCE flag, dry run by default):
+ *   - anonymised accounts hard-deleted 30 days after the deletion completed
+ *     (retention-account-purge.ts), only when nothing financial references them;
+ *   - analytics_events and notification_dispatch_log trimmed at 90 days
+ *     (retention-log-trims.ts).
  * Deleted media (30 days) is the media reaper's job, still behind
  * MEDIA_REAPER_ENABLED, which this module does NOT flip.
  *
@@ -71,6 +78,10 @@ export type RetentionReport = {
   enforce: boolean;
   guestContact: { cutoff: string; matched: number; anonymized: number };
   unbookedInquiries: { cutoff: string; scanned: number; purgeable: number; deleted: number; kept: number };
+  /** Anonymised accounts past grace + 30 days (retention-account-purge.ts). */
+  deletedAccounts: AccountPurgeReport;
+  analyticsEvents: LogTrimReport;
+  notificationDispatchLog: LogTrimReport;
   errors: string[];
 };
 
@@ -209,5 +220,20 @@ export async function runRetention(
     errors.push(`unbooked_inquiries: ${e instanceof Error ? e.message : String(e)}`);
   }
 
-  return { enforce, guestContact: guest, unbookedInquiries: purge, errors };
+  // ── 3. anonymised accounts, grace + 30 days ───────────────────────────
+  // Each step collects its own failures into `errors`; one never stops the others.
+  const deletedAccounts = await runAccountPurge(admin, { now, enforce, errors });
+
+  // ── 4. logs, 90 days ──────────────────────────────────────────────────
+  const { analyticsEvents, notificationDispatchLog } = await runLogTrims(admin, { now, enforce, errors });
+
+  return {
+    enforce,
+    guestContact: guest,
+    unbookedInquiries: purge,
+    deletedAccounts,
+    analyticsEvents,
+    notificationDispatchLog,
+    errors,
+  };
 }

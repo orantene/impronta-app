@@ -40,6 +40,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { isEmbeddedInFrame } from "./embedded-frame";
 import { useEditorLocale } from "./use-editor-locale";
 import { resolveWorkspaceAdminBaseForLocation } from "./workspace-admin-base";
 
@@ -100,7 +101,8 @@ export function AdminQuickBar({ workspaceSlug, siteLabel }: AdminQuickBarProps) 
     } catch {
       /* private mode / storage disabled: show the bar */
     }
-    setHidden(dismissed);
+    // A framed preview (onboarding arrival thumbnail) never shows owner chrome.
+    setHidden(dismissed || isEmbeddedInFrame(window));
     setReady(true);
   }, [storageKey]);
 

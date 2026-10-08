@@ -362,6 +362,7 @@
     },
     "profileCta": {
       "inquireAbout": "Inquire about {name}",
+      "bookCta": "Book",
       "bookNowPrice": "Book now · {price}",
       "bookInstantly": "Book {name} instantly",
       "closeAria": "Close",
@@ -906,6 +907,9 @@
       "aboutTalent": "About {name}",
       "errRateLimited": "You're sending a little fast. Give it a moment.",
       "errBlocked": "This conversation can't continue.",
+      "errLimitAccount": "You've reached your open-conversation limit. Wrap up or close one to start another.",
+      "errLimitCreateAccount": "You have a few conversations going. Create a free account to start more.",
+      "errLimitVerifyEmail": "You have a conversation going. Verify your email to start more.",
       "errGeneric": "Something went wrong. Please try again.",
       "tryAgainIn": "Try again in {secs}s.",
       "sendMessageAria": "Send message",
@@ -2054,6 +2058,10 @@
         "goToPanel": "Go to my dashboard",
         "bookPreview": "Book",
         "bookingsStartStudio": "Bookings start when you add a provider.",
+        "inquiryTitle": "Your page is ready for requests",
+        "inquirySub": "People can send you requests now. Bookings start when you add a team member.",
+        "addFirstMember": "Add your first team member to start taking bookings",
+        "alsoBookMyself": "Also take bookings yourself",
         "urlDiffers": "Your address came out different from the one you chose because it was already taken. This is the real one."
       },
       "essentials": {
@@ -2095,6 +2103,19 @@
         "rose": "Rosé",
         "blush": "Blush",
         "orchid": "Orchid"
+      },
+      "role": {
+        "eyebrow": "Step 1 of 2 · Role",
+        "titleLead": "How will you use",
+        "intro": "Pick how you want to start. This sets your home dashboard, and you can't change it later from here.",
+        "talentTitle": "I'm Talent",
+        "talentBody": "Model, performer, artist, or creative. Get a profile, share one link, and let bookings come to you.",
+        "clientTitle": "I'm a Client",
+        "clientBody": "Brand, producer, event planner, or casting director. Browse the directory and send booking requests.",
+        "businessTitle": "I run a business",
+        "businessBody": "Agency, studio, band, team, or just you. Set up a workspace with your own site, roster, bookings, and payments.",
+        "staffNote": "Staff accounts are assigned by the agency directly.",
+        "error": "Something went wrong. Please try again."
       }
     },
     "consent": {
@@ -2107,6 +2128,40 @@
       "decline": "Decline",
       "closeLabel": "Close and decide later",
       "privacyChoices": "Privacy choices"
+    },
+    "clientAccount": {
+      "signIn": "Sign in",
+      "account": "Account",
+      "openLabel": "Open account menu",
+      "closeLabel": "Close",
+      "title": "Sign in or create an account",
+      "subtitle": "We email you a code. No password needed.",
+      "emailLabel": "Email",
+      "sendCode": "Send code",
+      "codeLabel": "Code",
+      "verify": "Continue",
+      "resend": "Resend code",
+      "resendIn": "Resend in {s}s",
+      "sentTo": "We sent a code to {email}.",
+      "changeEmail": "Use a different email",
+      "legalPrefix": "By continuing you confirm you are 18 or older and agree to the",
+      "legalTerms": "Terms",
+      "legalAnd": "and the",
+      "legalPrivacy": "Privacy Policy",
+      "consentLabel": "Send me news and offers by email (optional)",
+      "consentSave": "Save",
+      "consentSkip": "Not now",
+      "consentTitle": "One last thing",
+      "nextVisit": "Next visit",
+      "noVisit": "No upcoming visits",
+      "unread": "Unread messages",
+      "balanceDue": "Balance due",
+      "myAccount": "My account",
+      "logOut": "Log out",
+      "signedInAs": "Signed in as {email}",
+      "genericError": "Something went wrong. Try again.",
+      "notClient": "This email belongs to a team account. Use the main sign in instead.",
+      "signedInAsTalent": "You're signed in as a business account. Sign out on app.tulala.digital to use a client account."
     }
   },
   "dashboard": {
@@ -7352,6 +7407,14 @@
         "captchaSecretPlaceholder": "Secret key",
         "captchaSaved": "Saved. Tenants without their own captcha inherit this.",
         "captchaCleared": "Cleared. Reverted to env fallback.",
+        "captchaProviderNone": "Not set",
+        "captchaOverridesTitle": "Workspaces with their own captcha",
+        "captchaOverridesTip": "A workspace's own captcha setting overrides the platform default for that workspace.",
+        "captchaEffectiveLabel": "uses {provider}",
+        "captchaNoSecret": "no secret saved",
+        "captchaUseDefault": "Use platform default",
+        "captchaUseDefaultConfirm": "Switch {name} to the platform default captcha? Its own captcha keys will be removed.",
+        "captchaUseDefaultDone": "Done. That workspace now uses the platform default.",
         "emailFromLabel": "Default from-address (full)",
         "emailDomainLabel": "…or a default sending domain (noreply@domain)",
         "emailSaved": "Saved. Outbound mail without a white-label domain uses this.",
@@ -8393,7 +8456,9 @@
           "retryFailed": "Retry failed: {error}",
           "summaryWithScheduled": "{held} waiting on account · {scheduled} scheduled · {failed} failed",
           "scheduledBadge": "Scheduled",
-          "scheduledHint": "Not due yet. Releases on {date}, not before."
+          "scheduledHint": "Not due yet. Releases on {date}, not before.",
+          "readFailed": "Could not load held payouts. This is a read error, not an empty list. Reload to try again.",
+          "cappedNote": "Showing the newest {max} legs. More exist."
         },
         "commission": {
           "title": "Commission config",
@@ -8472,6 +8537,62 @@
             "connect": "Connect accounts",
             "products": "Tier products",
             "coupons": "Discount coupons"
+          },
+          "wiring": {
+            "title": "Payments wiring",
+            "intro": "Quick checks on keys, webhook secrets and money in flight. Shows names, modes and counts only, never a key.",
+            "readFailed": "Could not read: {parts}. Those rows may be wrong.",
+            "status": {
+              "ok": "OK",
+              "warn": "Check",
+              "error": "Broken"
+            },
+            "rows": {
+              "keyModes": {
+                "label": "Stripe key modes",
+                "detail": "All set keys use the same mode.",
+                "mode": {
+                  "test": "test",
+                  "live": "live",
+                  "unset": "not set"
+                },
+                "mxSource": "The MX publishable key is read from {source}."
+              },
+              "secret": {
+                "label": "{name}",
+                "set": "Set",
+                "unset": "Not set"
+              },
+              "held": {
+                "label": "Held payouts",
+                "detail": "{count} held right now.",
+                "readFailed": "Could not read held payouts, so the count is unknown.",
+                "capped": "{max}+ held right now (showing the newest {max})."
+              },
+              "stuck": {
+                "label": "Stuck payment requests",
+                "detail": "{count} waiting on payment for over 24 hours."
+              },
+              "laneUs": {
+                "label": "Last US webhook"
+              },
+              "laneMx": {
+                "label": "Last MX webhook"
+              },
+              "lane": {
+                "detail": "Hours since the last event: {hours}",
+                "none": "No events recorded yet."
+              }
+            },
+            "fix": {
+              "keyModes": "Make every Stripe key in Vercel use the same mode (all test or all live), then redeploy.",
+              "secret": "Add this signing secret in Vercel from the matching Stripe webhook endpoint, then redeploy.",
+              "mxConnect": "Add the MX Connect signing secret in Vercel. Until then MX Connect events fail signature checks and held payouts only release in the daily cron.",
+              "held": "Open the Revenue tab to see which payouts are held and why.",
+              "stuck": "Check these transactions in the booking list; the client may need a fresh payment link.",
+              "lane": "Quiet periods are normal. If you expect traffic, check the endpoint in the Stripe dashboard.",
+              "heldReadFailed": "Reload the page. If it keeps failing, check the booking_payouts table and the service role key."
+            }
           }
         },
         "revenue": {
@@ -12968,9 +13089,13 @@
       "uploading": "Uploading",
       "uploadFailed": "Upload failed",
       "loadingDimensions": "Loading dimensions...",
-      "videoSelected": "Video selected"
+      "videoSelected": "Video selected",
+      "imageSelected": "Image selected",
+      "imageFallbackName": "Your image",
+      "videoFallbackName": "Your video"
     },
     "mediaLibrary": {
+      "unreachable": "We could not reach your media library. Check your connection and try again.",
       "searchPlaceholder": "Search by file name, alt text or note",
       "searchLabel": "Search the media library",
       "clearSearch": "Clear search",
@@ -12995,6 +13120,7 @@
       "tagPlaceholder": "Add tag + Enter",
       "removeTag": "Remove tag {tag}",
       "errorTitle": "Could not load the media library",
+      "errorDetail": "Something went wrong while loading your files. Try again in a moment.",
       "emptyTitle": "No assets yet",
       "emptyDetail": "Upload a file, or drop one anywhere in this panel.",
       "noMatchesTitle": "Nothing matches those filters",
@@ -13010,6 +13136,10 @@
       "ownerLabel": "Owner",
       "savingLabel": "Saving",
       "noAltYet": "No alt text yet",
+      "captionsSection": "Captions",
+      "captionsHint": "Shown under the photo on your site",
+      "captionsPlaceholder": "Add a caption",
+      "captionsFieldLabel": "Caption in {language}",
       "talentAll": "All talent",
       "talentFilterLabel": "Filter by talent",
       "talentSearchPlaceholder": "Type a talent name",
@@ -17532,6 +17662,8 @@
         "structureWeb": "Website menu page (collections)"
       },
       "list": {
+        "langMissing": "{lang} missing",
+        "langMissingHint": "No title in {language} yet",
         "title": "Catalog",
         "intro": "Everything the POS, the website and the profile can sell · one record per item",
         "import": "Import",

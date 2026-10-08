@@ -30,6 +30,7 @@ import { makeBaseResolver } from "./base-resolver.server";
 import { mergeSite, writeMergedDraft, type SiteRef } from "./merge-site.server";
 import { runAutoImprove } from "../talent-update/auto-improve.server";
 import { makeSiteMerge } from "../talent-update/talent-update.server";
+import { isDesignAutoUpgradeEnabled, upgradePublishedSites } from "../../design-upgrade.server";
 
 const CHUNK = 100;
 
@@ -338,6 +339,9 @@ async function autoImproveAll(admin: SupabaseClient, release: ThemeRelease) {
     .eq("slug", release.design_slug)
     .maybeSingle();
   const title = (d?.title as string | undefined) ?? release.design_slug;
+  // DESIGN_AUTO_UPGRADE (default off): the whole release reaches every published
+  // talent site (pin moved, her edits kept) instead of only the safe items.
+  if (isDesignAutoUpgradeEnabled()) return upgradePublishedSites(admin, release, title);
   // Demos are updated by Publish to demos; only talents and QA users are auto-improved.
   const sites = talentSitesOnly(await collectSites(admin, release.design_slug));
   return runAutoImprove(

@@ -4,6 +4,8 @@
  * Kept out of dashboard-i18n.ts — size-ratchet. Fold into RAIL_ES_TEXT.
  */
 
+import { QA_MINORS_1007_ES_TEXT } from "./dashboard-i18n-qa-minors-1007";
+
 export const CLIENTS_ES_TEXT: Record<string, string> = {
   "People who booked or messaged you": "Personas con quienes trabajaste o hablaste",
   "people you have worked with or talked to": "personas con quienes trabajaste o hablaste",
@@ -70,4 +72,5 @@ export const CLIENTS_ES_TEXT: Record<string, string> = {
   "None yet": "Aún nada",
   "First visit": "Primera visita",
   "Last visit": "Última visita",
+  ...QA_MINORS_1007_ES_TEXT,
 };

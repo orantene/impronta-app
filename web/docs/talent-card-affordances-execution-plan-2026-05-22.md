@@ -119,7 +119,7 @@ Critical path: **G → B → D → E**. Lane C delivers visible UX in Wave 1 wit
 
 - Each lane branches off the latest `main`; isolated worktree; per-lane branch; FF-only integration; never force-push `main`.
 - One migration per agent — `date -u +%Y%m%d%H%M%S` at start; park-restore on timestamp collision.
-- `cd web && npx tsc --noEmit && npm run lint` before every commit.
+- `cd web && npm run typecheck && npm run lint` before every commit.
 - New migration ⇒ `npm run db:push` is part of the commit, before merge.
 
 ---

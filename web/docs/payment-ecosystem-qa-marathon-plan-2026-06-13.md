@@ -211,7 +211,7 @@ Expected at finish: qa_agency `tier=free coord=NULL stripe=NULL`, marco `stripe=
 ## 8. Ship discipline (every code change)
 Branch off latest `main` → fix → if migration: `npm run db:push` (or MCP `execute_sql` + register
 `schema_migrations` if history-drift blocks) BEFORE merge → gate `cd web && NODE_OPTIONS=--max-old-space-size=8192
-npx tsc --noEmit && npm run lint && npm run test:billing` → commit ONLY the changed files (the tree has
+npm run typecheck && npm run lint && npm run test:billing` → commit ONLY the changed files (the tree has
 unrelated changes — leave them; never commit `scripts/_sandbox/*` or `.env.local`) → PR → merge → `npm run
 deploy:smoke` (re-alias domains if drift). Report each ship.
 

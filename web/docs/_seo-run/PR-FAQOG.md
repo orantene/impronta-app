@@ -496,7 +496,7 @@ After deploy: `curl -I https://tulala.digital/faq/opengraph-image` and `.../twit
 
 ## 5. Gate
 
-`cd web && NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit && npm run lint` after implementation. No new runtime deps introduced (all new files use `next/og`, `@/lib/*` already-present imports).
+`cd web && npm run typecheck && npm run lint` after implementation. No new runtime deps introduced (all new files use `next/og`, `@/lib/*` already-present imports).
 
 ## 6. Honest limits of this spec
 

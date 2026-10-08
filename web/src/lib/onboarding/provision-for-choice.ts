@@ -8,10 +8,11 @@
  * is missing, so a retry after any failure finishes the job without a second
  * workspace or a "-2" slug.
  *
- *   myself: promote(talent) → talent profile (+ hub roster) → talent site → home=talent
+ *   myself: promote(talent) → talent profile (+ hub roster) → talent site → profile approved/public → home=talent
  *   studio: promote(agency_staff) → workspace (+ owner) → domain row → home=workspace
  *   both:   promote(talent) → talent profile (+ hub roster) → workspace (+ owner)
- *           → domain row → self roster (bookable) → profile approved/public → home=workspace
+ *           → domain row → self roster (bookable) → profile approved/public
+ *           → her own talent site (published) → home=workspace
  *
  * Fatal: no talent profile (myself / both), no workspace (studio / both), no
  * self roster (both: she must be bookable). Non-fatal (reported as warnings,
@@ -101,9 +102,25 @@ export async function runChoiceProvisioning<W, S>(
     if (talent) {
       const roster = await deps.ensureSelfRoster(ws.tenantId, talent.talentProfileId);
       if (!roster.ok) return { ...roster, choice };
-      // "both": she is publicly bookable on her workspace site from day one.
-      const live = await deps.promoteTalentProfileLive(talent.talentProfileId);
-      if (!live.ok) return { ...live, choice };
+    }
+  }
+
+  // A talent profile ends live for EVERY choice that makes one. "both" is
+  // publicly bookable on her workspace site; "myself" owns a Tulala page and a
+  // site that Finish calls ready, so the profile behind them cannot stay
+  // draft/hidden (the hub /t/ page only serves approved/published, and the
+  // services and slots read paths agree with the profile being live). Fatal:
+  // a profile we could not publish must not reach a "ready" Finish.
+  if (talent) {
+    const live = await deps.promoteTalentProfileLive(talent.talentProfileId);
+    if (!live.ok) return { ...live, choice };
+    // "both" owns a talent site too (the same Maison site "myself" gets). It needs
+    // the profile live, so it follows the promotion; a failure is a warning the
+    // build turns into an honest "not ready", never a false ready.
+    if (choice === "both") {
+      const s = await deps.ensureTalentSite(talent.talentProfileId);
+      if (s.ok) site = s.site;
+      else warnings.push(`site:${s.code}`);
     }
   }
 

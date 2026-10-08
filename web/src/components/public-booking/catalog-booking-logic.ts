@@ -394,11 +394,23 @@ export function catalogSelectedDateLabel(date: Date, es: boolean): string {
   return es ? `${day} ${date.getDate()} ${month}` : `${day} ${month} ${date.getDate()}`;
 }
 
+/** IANA city names whose Spanish/English display needs an accent (QA DS-07: "Hora de Cancun"). */
+const ZONE_CITY_DISPLAY: Record<string, string> = {
+  Cancun: "Cancún",
+  Merida: "Mérida",
+  Mazatlan: "Mazatlán",
+  Bogota: "Bogotá",
+  Asuncion: "Asunción",
+  Sao_Paulo: "São Paulo",
+  Port_of_Spain: "Port of Spain",
+};
+
 /** TUL-59: "Hora de {city}" / "{city} time" from an IANA zone; falls back to the zone name. */
 export function catalogTimezoneLabel(tz: string | null | undefined, es: boolean): string {
   const zone = (tz ?? "").trim();
   if (!zone) return "";
-  const city = zone.includes("/") ? (zone.split("/").pop() ?? zone).replace(/_/g, " ") : zone;
+  const raw = zone.includes("/") ? (zone.split("/").pop() ?? zone) : zone;
+  const city = ZONE_CITY_DISPLAY[raw] ?? raw.replace(/_/g, " ");
   return es ? `Hora de ${city}` : `${city} time`;
 }
 

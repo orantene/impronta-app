@@ -26,7 +26,7 @@ import { ENGINE_VERSION } from "@/lib/tulala/engine";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 
 import { resolveWorkspaceFinishUrl } from "./finish-url";
-import { verifyLivePageWithRetry } from "./verify-live";
+import { combineLiveChecks, verifyLivePageWithRetry, type LiveCheck } from "./verify-live";
 import { arrivalFromStamp, parseArrivalStamp, type ArrivalPayload } from "./arrival";
 import { buildUnderstanding } from "./understanding";
 import { pathToChoice, resolveBuildPath } from "./choice";
@@ -86,6 +86,7 @@ export async function runOnboardingBuild(input: {
     discipline: stringFact(input.brief, "work.discipline") ?? stringFact(input.brief, "work.industry"),
     tradeSlug: input.state.typeChoice?.slug ?? null,
     country: stringFact(input.brief, "person.country"),
+    city: person.city,
     locale: input.locale,
   });
   const services = Math.max(listFact(input.brief, "work.services").length, essentials?.services.length ?? 0);
@@ -155,8 +156,15 @@ export async function runOnboardingBuild(input: {
     const finish = resolveWorkspaceFinishUrl({ linkSlug: input.state.linkSlug ?? null, tenantSlug: result.tenantSlug, delivered: deliveredUrl });
     const publicUrl = finish.url;
     const finishName = businessName ?? result.tenantName;
-    const liveCheck = await verifyLivePageWithRetry({ url: publicUrl, name: finishName });
-    if (!liveCheck.ok) logServerError("onboarding.build.verifyLive", new Error(`workspace:${liveCheck.reason}`));
+    const wsCheck = await verifyLivePageWithRetry({ url: publicUrl, name: finishName });
+    if (!wsCheck.ok) logServerError("onboarding.build.verifyLive", new Error(`workspace:${wsCheck.reason}`));
+    // "both" also owns a talent site: it must exist and open with her name, or the finish is not "ready".
+    let talentCheck: LiveCheck | null = null;
+    if (choice === "both") {
+      talentCheck = await verifyLivePageWithRetry({ url: talent?.siteUrl ?? null, name: person.name ?? finishName });
+      if (!talentCheck.ok) logServerError("onboarding.build.verifyLive", new Error(`talent:${talentCheck.reason}`));
+    }
+    const liveCheck = combineLiveChecks(wsCheck, talentCheck);
     const editorUrl = buildEditorPanelUrl({ editorBaseUrl: publicUrl, panel: "sections" }) ?? `${appUrl}${result.adminPath}`;
     // `reusedExisting` here is this lead's own crash-recovered workspace, not
     // the one-free-workspace refusal (handled above): a normal arrival.

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
+import { LiveTextField } from "./live-text-field";
 import {
   BUILDER_ICON_REGISTRY,
   BUILDER_NODE_COMPOSITION_PRESETS,
@@ -5623,36 +5624,17 @@ export function BuilderNodeLocalizableTextField({
         />
       );
     }
-    if (fieldKind === "textarea") {
-      return (
-        <textarea
-          key={fieldKey}
-          defaultValue={fieldValue}
-          className={className}
-          placeholder={ghost(isDefault)}
-          aria-label={`${ariaLabel}${isDefault ? "" : ` (${locale})`}`}
-          onBlur={(event) => {
-            void commit(event.currentTarget.value);
-          }}
-        />
-      );
-    }
+    // TUL-78 #11: plain fields save live (debounced) and keep focus across saves.
     return (
-      <input
-        key={fieldKey}
-        defaultValue={fieldValue}
+      <LiveTextField
+        key={`${node.id}:${prop}:${locale}`}
+        multiline={fieldKind === "textarea"}
+        value={fieldValue}
+        allowEmpty={!isDefault}
         className={className}
         placeholder={ghost(isDefault)}
-        aria-label={`${ariaLabel}${isDefault ? "" : ` (${locale})`}`}
-        onBlur={(event) => {
-          void commit(event.currentTarget.value);
-        }}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter" || event.shiftKey) return;
-          event.preventDefault();
-          void commit(event.currentTarget.value);
-          event.currentTarget.blur();
-        }}
+        ariaLabel={`${ariaLabel}${isDefault ? "" : ` (${locale})`}`}
+        onCommit={commit}
       />
     );
   };

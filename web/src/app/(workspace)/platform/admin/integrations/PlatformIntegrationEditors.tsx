@@ -26,6 +26,8 @@ import {
   savePlatformGa4Id,
   savePlatformGoogleMapsKey,
 } from "./platform-integration-actions";
+import { resetWorkspaceCaptchaToPlatform } from "./captcha-override-actions";
+import type { WorkspaceCaptchaView } from "./captcha-override-actions";
 
 const HQ = {
   card: "#16161A",
@@ -297,7 +299,101 @@ function Ga4Editor({ item }: { item: PlatformIntegrationDefault }) {
 
 // ─── Captcha (provider + site_key public, secret_key secret) ─────────────────
 
-function CaptchaEditor({ item }: { item: PlatformIntegrationDefault }) {
+function providerLabel(p: string, t: (key: string) => string): string {
+  if (p === "hcaptcha") return t("dashboard.platform.integrations.captchaProviderHcaptcha");
+  if (p === "turnstile") return t("dashboard.platform.integrations.captchaProviderTurnstile");
+  return t("dashboard.platform.integrations.captchaProviderNone");
+}
+
+/** Compact list of workspaces whose OWN captcha overrides the platform default. */
+function WorkspaceCaptchaList({ view }: { view: WorkspaceCaptchaView }) {
+  const t = useT();
+  const { pending, result, run } = useSaver();
+  if (!view.ok || view.rows.length === 0) return null;
+  return (
+    <div style={{ borderTop: `1px solid ${HQ.borderSoft}`, paddingTop: 12 }}>
+      <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 600, color: HQ.ink }}>
+        {t("dashboard.platform.integrations.captchaOverridesTitle")}{" "}
+        <span
+          title={t("dashboard.platform.integrations.captchaOverridesTip")}
+          aria-label={t("dashboard.platform.integrations.captchaOverridesTip")}
+          style={{ color: HQ.inkDim, cursor: "help", fontWeight: 400 }}
+        >
+          (i)
+        </span>
+      </p>
+      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6 }}>
+        {view.rows.map((row) => (
+          <li
+            key={row.tenantId}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+              fontSize: 12,
+              color: HQ.inkMuted,
+            }}
+          >
+            <span style={{ minWidth: 0 }}>
+              <span style={{ color: HQ.ink }}>{row.name}</span>
+              {": "}
+              {providerLabel(row.ownProvider, t)}
+              {" → "}
+              {interpolate(t("dashboard.platform.integrations.captchaEffectiveLabel"), {
+                provider: providerLabel(row.effectiveProvider, t),
+              })}
+              {row.usesOwn && !row.hasSecret
+                ? ` · ${t("dashboard.platform.integrations.captchaNoSecret")}`
+                : ""}
+            </span>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                const ok = window.confirm(
+                  interpolate(t("dashboard.platform.integrations.captchaUseDefaultConfirm"), {
+                    name: row.name,
+                  }),
+                );
+                if (!ok) return;
+                run(
+                  () => resetWorkspaceCaptchaToPlatform(row.tenantId),
+                  t("dashboard.platform.integrations.captchaUseDefaultDone"),
+                );
+              }}
+              style={{
+                background: "transparent",
+                border: `1px solid ${HQ.border}`,
+                borderRadius: 6,
+                color: HQ.ink,
+                fontSize: 11.5,
+                padding: "3px 8px",
+                cursor: pending ? "default" : "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {t("dashboard.platform.integrations.captchaUseDefault")}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {result && (
+        <p style={{ margin: "8px 0 0", fontSize: 11.5, color: result.ok ? HQ.green : HQ.red }}>
+          {result.msg}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function CaptchaEditor({
+  item,
+  overrides,
+}: {
+  item: PlatformIntegrationDefault;
+  overrides?: WorkspaceCaptchaView;
+}) {
   const t = useT();
   const [provider, setProvider] = useState<"hcaptcha" | "turnstile">(
     item.config.provider === "turnstile" ? "turnstile" : "hcaptcha",
@@ -369,6 +465,7 @@ function CaptchaEditor({ item }: { item: PlatformIntegrationDefault }) {
         }
       />
       {envNote(item.envFallbackNote, t)}
+      {overrides && <WorkspaceCaptchaList view={overrides} />}
     </div>
   );
 }
@@ -427,7 +524,13 @@ function EmailFromEditor({ item }: { item: PlatformIntegrationDefault }) {
 
 // ─── Card shell + dispatcher ─────────────────────────────────────────────────
 
-export function PlatformIntegrationCard({ item }: { item: PlatformIntegrationDefault }) {
+export function PlatformIntegrationCard({
+  item,
+  captchaOverrides,
+}: {
+  item: PlatformIntegrationDefault;
+  captchaOverrides?: WorkspaceCaptchaView;
+}) {
   return (
     <section
       style={{
@@ -452,7 +555,7 @@ export function PlatformIntegrationCard({ item }: { item: PlatformIntegrationDef
       </div>
       {item.key === "google_maps" && <GoogleMapsEditor item={item} />}
       {item.key === "ga4" && <Ga4Editor item={item} />}
-      {item.key === "captcha" && <CaptchaEditor item={item} />}
+      {item.key === "captcha" && <CaptchaEditor item={item} overrides={captchaOverrides} />}
       {item.key === "email_domain" && <EmailFromEditor item={item} />}
     </section>
   );

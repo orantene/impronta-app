@@ -1,15 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { loadTalentClients } from "@/lib/talent/clients-actions";
+import { takeInitialClients } from "@/lib/talent/clients-initial";
 import {
+  clientBadgeFor,
   clientInitials,
   clientsRowAction,
   countClientsByFilter,
   filterClientsDirectory,
   hasRepeatServices,
+  showClientsCountLine,
   type ClientsFilter,
   type ClientsRowAction,
 } from "@/lib/talent/clients-directory";
@@ -107,14 +110,11 @@ function historyStateLabel(h: HistoryEntry, t: (s: string) => string): string {
 }
 
 function StatusTag({ row, t }: { row: TalentClientRow; t: (s: string) => string }) {
-  const returning = row.completedCount > 0;
+  // DS-49: only a genuinely new client carries a badge (14 days, nothing completed).
+  if (clientBadgeFor(row) !== "new") return null;
   return (
-    <span
-      className={`ml-1.5 inline-flex h-5 items-center rounded-full px-2 align-middle text-[11px] font-semibold ${
-        returning ? "bg-black/[0.05] text-admin-ink-muted" : "bg-admin-accent/10 text-admin-accent"
-      }`}
-    >
-      {returning ? t("Returning") : t("New")}
+    <span className="ml-1.5 inline-flex h-5 items-center rounded-full bg-admin-accent/10 px-2 align-middle text-[11px] font-semibold text-admin-accent">
+      {t("New")}
     </span>
   );
 }
@@ -383,8 +383,15 @@ export function TalentClientsPage() {
   const dateLocale = copy.isSpanish ? "es-MX" : "en-US";
   const t = copy.t;
   const router = useRouter();
-  const [items, setItems] = useState<TalentClientRow[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const talentId = bridgeTalentSelfProfile?.id ?? null;
+  // Server-prefetched list (see talent/clients/page.tsx): first paint needs no
+  // request after mount. Refresh and edits still go through the effect below.
+  const [initial] = useState(() => takeInitialClients(talentId));
+  const [items, setItems] = useState<TalentClientRow[] | null>(
+    initial?.ok ? initial.items : initial ? [] : null,
+  );
+  const [error, setError] = useState<string | null>(initial && !initial.ok ? initial.error : null);
+  const skipFirstFetch = useRef(initial != null);
   const [filter, setFilter] = useState<ClientsFilter>("all");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -392,10 +399,13 @@ export function TalentClientsPage() {
     { kind: "add" } | { kind: "edit"; row: TalentClientRow } | { kind: "archive"; row: TalentClientRow } | null
   >(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const talentId = bridgeTalentSelfProfile?.id ?? null;
 
   useEffect(() => {
     if (!talentId) return;
+    if (skipFirstFetch.current) {
+      skipFirstFetch.current = false;
+      return;
+    }
     let cancelled = false;
     void settleServerAction(() => loadTalentClients(talentId), { label: "loadTalentClients", area: "talent-clients" })
       .then((res) => {
@@ -535,7 +545,11 @@ export function TalentClientsPage() {
         </p>
       )}
       {talentId && items === null && (
-        <p className="px-1 py-4 font-admin-body text-[13px] text-admin-ink-muted">{t("Loading")}</p>
+        <div role="status" aria-label={t("Loading")} className="flex flex-col gap-2 px-1 py-4" data-clients-skeleton>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-14 animate-pulse rounded-lg bg-admin-surface-alt" />
+          ))}
+        </div>
       )}
       {error && (
         <p className="px-1 py-4 font-admin-body text-[13px] text-admin-ink">
@@ -559,19 +573,41 @@ export function TalentClientsPage() {
 
           <FilterChips filter={filter} counts={counts} onChange={setFilter} t={t} showRefill={showRefill} />
 
-          <p className="px-0.5 font-admin-body text-[13.5px] text-admin-ink-muted">
-            {visible.length} {t("of")} {total} {t("clients")}
-            {filter === "follow"
-              ? ` · ${t("Based on how often each client repeats a service.")}`
-              : ""}
-          </p>
+          {showClientsCountLine({ visible: visible.length, total, filter, query }) ? (
+            <p className="px-0.5 font-admin-body text-[13.5px] text-admin-ink-muted">
+              {visible.length} {t("of")} {total} {t("clients")}
+              {filter === "follow"
+                ? ` · ${t("Based on how often each client repeats a service.")}`
+                : ""}
+            </p>
+          ) : null}
 
           {visible.length === 0 ? (
-            <p className="rounded-[12px] border border-dashed border-admin-border-soft px-4 py-6 text-center font-admin-body text-[14px] text-admin-ink-muted">
-              {query.trim()
-                ? t("No matching clients")
-                : t("No one has booked or messaged you yet.")}
-            </p>
+            <div
+              className="flex flex-col items-center gap-3 rounded-[12px] border border-dashed border-admin-border-soft px-4 py-8 text-center"
+              data-clients-empty
+            >
+              <p className="font-admin-body text-[14px] text-admin-ink-muted">
+                {query.trim()
+                  ? t("No matching clients")
+                  : t("No one has booked or messaged you yet.")}
+              </p>
+              {!query.trim() && total === 0 ? (
+                <>
+                  <p className="max-w-[360px] font-admin-body text-[13px] text-admin-ink-muted">
+                    {t("Add the people you already work with. New clients appear here when they book or message you.")}
+                  </p>
+                  <button
+                    type="button"
+                    className="inline-flex h-10 items-center rounded-full border border-[var(--tc-action)] bg-[var(--tc-action)] px-4 font-admin-body text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-40"
+                    onClick={() => setPanel({ kind: "add" })}
+                    disabled={!talentId}
+                  >
+                    {t("Add a client")}
+                  </button>
+                </>
+              ) : null}
+            </div>
           ) : (
             <>
               {/* Desktop table */}
@@ -588,7 +624,7 @@ export function TalentClientsPage() {
                   return (
                     <div
                       key={row.id}
-                      className="grid grid-cols-[1.5fr_1.4fr_1.1fr_0.8fr_190px] items-center gap-3.5 border-t border-admin-border-soft px-4 py-3"
+                      className="group grid grid-cols-[1.5fr_1.4fr_1.1fr_0.8fr_190px] items-center gap-3.5 border-t border-admin-border-soft px-4 py-3"
                     >
                       <button
                         type="button"
@@ -646,7 +682,14 @@ export function TalentClientsPage() {
                       <div className="text-right">
                         <button
                           type="button"
-                          className="inline-flex h-9 items-center rounded-full border border-admin-border-soft px-3 font-admin-body text-[13px] font-semibold text-admin-ink"
+                          // DS-49: the plain "Book appointment" is a quiet row action (hover or
+                          // keyboard focus on a pointer device, always visible on touch); a
+                          // specific next step (review, payment, view) stays visible.
+                          className={`inline-flex h-9 items-center rounded-full border border-admin-border-soft px-3 font-admin-body text-[13px] font-semibold text-admin-ink ${
+                            action.kind === "book_appointment"
+                              ? "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100 focus-visible:opacity-100"
+                              : ""
+                          }`}
                           onClick={() => {
                             router.push(action.kind === "book_appointment" ? "/talent/bookings/new" : action.href || "/talent/calendar");
                           }}
@@ -723,7 +766,11 @@ export function TalentClientsPage() {
                         ) : (
                           <button
                             type="button"
-                            className="mt-2.5 inline-flex h-11 w-full items-center justify-center rounded-full border border-admin-border-soft font-admin-body text-[14px] font-semibold text-admin-ink"
+                            className={
+                              action.kind === "book_appointment"
+                                ? "mt-1.5 inline-flex h-11 items-center font-admin-body text-[14px] font-semibold text-admin-accent"
+                                : "mt-2.5 inline-flex h-11 w-full items-center justify-center rounded-full border border-admin-border-soft font-admin-body text-[14px] font-semibold text-admin-ink"
+                            }
                             onClick={() => {
                               if (action.href) router.push(action.href);
                             }}

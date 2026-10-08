@@ -222,6 +222,19 @@ export type ClassifyInput = {
    * accounted for, and in production every such object was live data.
    */
   allowUnaccounted?: boolean;
+  /**
+   * TUL-231. true = the PREFIX protection (and only that) no longer applies to
+   * this object, because its owner's deletion completed and the grace passed.
+   * External references, live rows, grace and lineage all still apply.
+   * Undefined = no release (the default).
+   */
+  releasedProtectedPrefix?: (bucketId: string, storagePath: string) => boolean;
+  /**
+   * TUL-231. true = the object's owner is a PROVEN-deleted account, so the
+   * owner accounts for a row-less object (predicate (c)). Only reached after
+   * every external-reference, protected-prefix and live-row check.
+   */
+  ownerAccountsForObject?: (bucketId: string, storagePath: string) => boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -344,7 +357,7 @@ export function classifyStorageObjects(input: ClassifyInput): ReapPlan {
 
     // (a) A structurally protected prefix. Never reap, regardless of rows.
     const protectedRule = matchProtectedRule(obj.bucketId, obj.name);
-    if (protectedRule) {
+    if (protectedRule && !input.releasedProtectedPrefix?.(obj.bucketId, obj.name)) {
       kept.push({ ...base, keepReason: "protected_prefix", detail: protectedRule.id });
       continue;
     }
@@ -362,6 +375,10 @@ export function classifyStorageObjects(input: ClassifyInput): ReapPlan {
 
     // (c) No row at all — not positively accounted for.
     if (rows.length === 0) {
+      if (input.ownerAccountsForObject?.(obj.bucketId, obj.name)) {
+        eligible.push(base);
+        continue;
+      }
       if (!input.allowUnaccounted) {
         kept.push({ ...base, keepReason: "unaccounted_no_asset_row" });
         continue;

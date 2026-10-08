@@ -1176,7 +1176,7 @@ Production maps these to a `notification_preferences` table per user with a `qui
 
 | Check | Result |
 |---|---|
-| `npx tsc --noEmit` | exit 0 |
+| `npm run typecheck` | exit 0 |
 | `npm run test:prototype-csv` | 14/14 pass |
 | Browser walkthrough at desktop (1316×922) | ✓ FAB popover anchored, ✓ Notifications bell anchored, ✓ URL redirect to edit-profile drawer works, ✓ PasskeysCard renders, ✓ GalleryFxCard shows status `LIVE`, ✓ Wide layout 3-pane on RI-201, ✓ MinorProtectionBanner surfaces with all guardian/protection fields |
 | Mobile viewport (375pt) | **NOT verified in-browser this sprint.** `useViewport()` returns "phone" at <768; `PhoneWorkspaceLayout` already shipped + worked previously. Re-verify before live handoff |
@@ -1385,7 +1385,7 @@ this commit.
 
 ### 26.8 Verification
 
-- `npx tsc --noEmit` → exit 0 (was 3 pre-existing)
+- `npm run typecheck` → exit 0 (was 3 pre-existing)
 - Browser walkthrough at desktop (1456×821):
   - Workspace overview: all primary buttons report `rgb(77, 72, 85)`
     post-hover ✓
@@ -1782,7 +1782,7 @@ hand-rolled mapping. The unification is worth it for two reasons:
 
 ### 27.9 Verification
 
-- `cd web && npx tsc --noEmit` → exit 0, 0 lines of output.
+- `cd web && npm run typecheck` → exit 0, 0 lines of output.
 - All numbers in the Performance fixture reconcile:
   - Per-page byPage7d sum: 1216 + 1842 + 412 + 287 = 3,757 visits;
     11 + 6 + 4 + 2 = 23 inquiries; 4 + 1 + 1 + 0 = 6 bookings.
@@ -1910,7 +1910,7 @@ self-issued one.
 
 **Verification:**
 
-- `cd web && npx tsc --noEmit` → exit 0, 0 lines of output
+- `cd web && npm run typecheck` → exit 0, 0 lines of output
 - Workspace surface: Roster nav now shows only slate + blue pills
   (verifications no longer leak onto workspace)
 - Platform surface: Operations tab shows indigo pill with
@@ -2058,7 +2058,7 @@ Top 4 talent shown, ranked by **revenue** (not visits — for talent the commerc
 
 ### 28.6 Verification
 
-- `npx tsc --noEmit` → exit 0 (only the 3 pre-existing `_messages.tsx` errors remain — unchanged from §26)
+- `npm run typecheck` → exit 0 (only the 3 pre-existing `_messages.tsx` errors remain — unchanged from §26)
 - DOM probe via preview tools confirms:
   - Workspace topbar now has ONE search chip (`aria-label="Search anything (⌘K)"`)
   - Website page renders the new "Top performers" header with Pages | Talent tab strip

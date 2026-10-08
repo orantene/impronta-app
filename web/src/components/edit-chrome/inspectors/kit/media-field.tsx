@@ -43,6 +43,7 @@ import { FilmIcon, ImageIcon } from "lucide-react";
 import { useT } from "@/i18n/use-t";
 import { MediaPickerDrawer } from "@/components/edit-chrome/media-picker-drawer";
 import { useMediaUpload } from "@/lib/media/use-media-upload";
+import { humanizeMediaError, isOpaqueFilename } from "@/lib/media/humanize-media-error";
 
 import { KIT } from "./tokens";
 
@@ -159,12 +160,17 @@ export function MediaField({
   const [open, setOpen] = useState(false);
   const [urlMode, setUrlMode] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  // `null` = still probing, `""` = probe failed (stop saying "Loading").
   const [dimensions, setDimensions] = useState<string | null>(null);
   const dropCounter = useRef(0);
 
   const has = hasMediaValue(value);
   const url = has ? value.url : "";
-  const filename = useMemo(() => (has ? filenameFromUrl(url) : null), [has, url]);
+  const filename = useMemo(() => {
+    if (!has) return null;
+    const raw = filenameFromUrl(url);
+    return isOpaqueFilename(raw) ? null : raw;
+  }, [has, url]);
 
   // ONE place resolves a pick into a value. Every layout routes through it, so
   // a change to pick semantics is a one-line edit rather than the four-place
@@ -216,7 +222,7 @@ export function MediaField({
     }
     const img = new Image();
     img.onload = () => setDimensions(`${img.naturalWidth} × ${img.naturalHeight}`);
-    img.onerror = () => setDimensions(null);
+    img.onerror = () => setDimensions("");
     img.src = url;
   }, [has, url, layout, isVideo]);
 
@@ -266,7 +272,9 @@ export function MediaField({
 
   const uploadError = failed ? (
     <p className="text-[11px] leading-snug text-rose-600">
-      {failed.errorMsg ?? t("dashboard.mediaField.uploadFailed")}
+      {failed.errorMsg
+        ? humanizeMediaError(failed.errorMsg, t)
+        : t("dashboard.mediaField.uploadFailed")}
     </p>
   ) : null;
 
@@ -417,7 +425,10 @@ export function MediaField({
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[12px] font-medium text-stone-800">
-              {filename ?? (isVideo ? "video" : "image")}
+              {filename ??
+                (isVideo
+                  ? t("dashboard.mediaField.videoFallbackName")
+                  : t("dashboard.mediaField.imageFallbackName"))}
             </p>
             <p className="text-[11px] text-stone-500">
               {inFlight
@@ -426,7 +437,9 @@ export function MediaField({
                   ? // No dimension probe on the video lane (see the effect above),
                     // so name the kind rather than leave the line empty.
                     t("dashboard.mediaField.videoSelected")
-                  : (dimensions ?? t("dashboard.mediaField.loadingDimensions"))}
+                  : dimensions === null
+                    ? t("dashboard.mediaField.loadingDimensions")
+                    : dimensions || t("dashboard.mediaField.imageSelected")}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">

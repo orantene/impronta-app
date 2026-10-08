@@ -45,6 +45,8 @@ import { logServerError } from "@/lib/server/safe-error";
 import { buildTalentBuilderCanvasData } from "@/lib/talent-site/server/talent-builder-canvas.server";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { provisionTalentMaxSite } from "@/lib/talent-site/server/provision-max-site";
+import { resolveMyWebsiteTarget } from "@/lib/talent-site/my-website-target";
+import { loadOwnedBusinessWorkspace } from "@/lib/talent-site/server/workspace-site-context";
 import { loadSiteRev } from "@/lib/talent-site/history/history.server";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
 import { buildTalentSiteCapabilities } from "@/lib/access/talent-membership";
@@ -109,11 +111,15 @@ async function resolveSiteExists(input: {
   profileId: string;
   canEdit: boolean;
   userId: string;
+  /** TUL-77: false for a business owner; the visit must not create a personal site. */
+  autoCreate: boolean;
 }): Promise<boolean> {
   if (!input.canEdit) return false;
-  const result = await provisionTalentMaxSite(input.profileId, input.userId);
-  if (result.ok) return true;
-  logServerError("talentPageBuilder/siteProvision", new Error(result.error));
+  if (input.autoCreate) {
+    const result = await provisionTalentMaxSite(input.profileId, input.userId);
+    if (result.ok) return true;
+    logServerError("talentPageBuilder/siteProvision", new Error(result.error));
+  }
   // Fall back to a slug probe so a transient provision error does not hide an
   // already-created site from the editor.
   const admin = createServiceRoleClient();
@@ -191,13 +197,35 @@ export default async function TalentPageBuilderRoute({
     redirect(talentLocaleSeedHref(`/talent/page-builder${query ? `?${query}` : ""}`));
   }
 
+  // TUL-77: for the owner of a business workspace the workspace site IS the
+  // website; this entry opens it and never creates a personal site silently.
+  const probe = createServiceRoleClient();
+  let ownsBusinessWorkspace = false;
+  if (probe) {
+    const [owned, personalRes] = await Promise.all([
+      loadOwnedBusinessWorkspace(probe, session.user.id),
+      probe.from("talent_sites").select("id").eq("talent_profile_id", profile.id).maybeSingle(),
+    ]);
+    if (personalRes.error) logServerError("talentPageBuilder/personalProbe", personalRes.error);
+    ownsBusinessWorkspace = owned.ownsBusinessWorkspace;
+    const target = resolveMyWebsiteTarget({
+      ownsBusinessWorkspace: owned.ownsBusinessWorkspace,
+      hasWorkspaceSite: owned.hasWorkspaceSite,
+      workspaceSlug: owned.workspaceSlug,
+      hasPersonalSite: !!personalRes.data,
+      explicitPersonal:
+        sp.site === "personal" || shellMode || requestedPage !== null || typeof sp.panel === "string" || typeof sp.app === "string",
+    });
+    if (target.kind === "workspace") redirect(target.href);
+  }
+
   const [locale, talentLocale, tenantId, siteExists] = await Promise.all([
     getRequestLocale(),
     // PR 7: the builder's content-locale pill + inspector tabs follow the
     // talent's own languages (primary first), not the managing agency's.
     loadTalentLocaleSettings(profile.id),
     resolveBuilderTenantId(profile.id),
-    resolveSiteExists({ profileId: profile.id, canEdit, userId: session.user.id }),
+    resolveSiteExists({ profileId: profile.id, canEdit, userId: session.user.id, autoCreate: !ownsBusinessWorkspace }),
   ]);
 
   // Phase 1 gate: edit capability + a provisioned site. Provision usually

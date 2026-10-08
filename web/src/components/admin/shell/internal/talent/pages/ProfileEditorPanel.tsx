@@ -12,6 +12,9 @@
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
+import { useWebsiteFlow } from "@/components/talent/website-reward/useWebsiteFlow";
+import { useDashboardText } from "../../dashboard-i18n";
+import { profileQualityMode } from "@/lib/talent/profile-quality-mode";
 import {
   SLICE_SHELL_SECTION,
   buildProfileEditorSections,
@@ -45,14 +48,21 @@ function stateChip(state: ProfileEditorSection["state"]): { key: string; cls: st
 
 export function ProfileReadyCard({ openSection }: { openSection: (section: string) => void }) {
   const t = useT();
-  const eligibility = useWebsiteEligibility();
+  const copy = useDashboardText();
+  // Same flow value as the top bar pill, so "Website live" and this card agree.
+  const flow = useWebsiteFlow();
+  const eligibility = flow.eligibility;
   const sum = summarizeEligibility(eligibility);
   const pct = sum.percent;
-  const line = eligibility.unlocked
-    ? t("dashboard.talentMyProfile.editor.qualityUnlocked")
-    : pct == null
-      ? t("dashboard.talentMyProfile.editor.qualityUnknown")
-      : interpolate(t(sum.left === 1 ? "dashboard.talentMyProfile.editor.qualityLeftOne" : "dashboard.talentMyProfile.editor.qualityLeftMany"), { count: sum.left });
+  const mode = profileQualityMode({ published: flow.state === "published", unlocked: eligibility.unlocked, percent: pct });
+  const line =
+    mode === "live"
+      ? copy.isSpanish ? "Tu sitio está en línea" : "Your website is live"
+      : mode === "unlocked"
+        ? t("dashboard.talentMyProfile.editor.qualityUnlocked")
+        : mode === "unknown"
+          ? t("dashboard.talentMyProfile.editor.qualityUnknown")
+          : interpolate(t(sum.left === 1 ? "dashboard.talentMyProfile.editor.qualityLeftOne" : "dashboard.talentMyProfile.editor.qualityLeftMany"), { count: sum.left });
   return (
     <section
       data-testid="profile-ready-card"
@@ -69,7 +79,7 @@ export function ProfileReadyCard({ openSection }: { openSection: (section: strin
         <rect width="100%" height="100%" className="fill-admin-surface-alt" />
         <rect width={`${pct ?? 0}%`} height="100%" rx="3" className="fill-admin-accent" />
       </svg>
-      {sum.firstOpen && (
+      {sum.firstOpen && mode !== "live" && (
         <button
           type="button"
           onClick={() => openSection(SLICE_SHELL_SECTION[sum.firstOpen!])}

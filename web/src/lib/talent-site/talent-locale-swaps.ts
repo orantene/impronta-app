@@ -108,8 +108,15 @@ export function buildTalentLocaleSwaps(
     }
   }
   for (const o of src.offerings ?? []) {
-    const en = (o.titleI18n?.en ?? o.title ?? "").trim();
-    if (en) add(en, pick(o.titleI18n, key, chain));
+    // Either spelling may be what got baked into a ticker or card: the English
+    // map entry, or the plain column (the primary language's title, which can
+    // differ from `title_i18n.en`). Both swap to the same visitor-language title.
+    // A language the service has no title in simply keeps the baked text.
+    const target = pick(o.titleI18n, key, chain);
+    for (const baked of new Set([o.titleI18n?.en, o.title])) {
+      const from = baked?.trim();
+      if (from && target) add(from, target);
+    }
   }
   // The hero eyebrow is the trade and the city joined ("Nail Artist · Mérida"): a value of its own.
   const tradeEn = src.typeNames[0]?.en?.trim();

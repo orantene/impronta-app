@@ -5,8 +5,17 @@
  * CMS form node: render when the tenant (or platform inherit) has a site key.
  */
 
-import { useEffect, useRef } from "react";
-import { hcaptchaLocale, turnstileLocale } from "@/lib/i18n/vendor-locale";
+import { useCallback, useEffect, useReducer, useRef } from "react";
+import {
+  CAPTCHA_MIN_HEIGHT_PX,
+  captchaReservedHeightPx,
+  captchaRetryCopy,
+  hcaptchaRenderOptions,
+  nextCaptchaUiState,
+  turnstileRenderOptions,
+  type CaptchaUiEvent,
+  type CaptchaUiState,
+} from "@/lib/captcha/widget-options";
 
 export type GuestCaptchaConfig = {
   provider: "hcaptcha" | "turnstile" | "none";
@@ -16,7 +25,7 @@ export type GuestCaptchaConfig = {
 const CB = "__tulalaGuestInstantCaptcha";
 
 /** TUL-59: the widget's rendered height, reserved up front so nothing shifts when it paints. */
-export const CAPTCHA_MIN_HEIGHT_PX = 78;
+export { CAPTCHA_MIN_HEIGHT_PX };
 
 type CaptchaApi = { render: (el: HTMLElement, opts: Record<string, unknown>) => unknown };
 
@@ -72,6 +81,16 @@ export function GuestCaptchaField({
   }, [onToken]);
 
   const widgetRef = useRef<HTMLDivElement>(null);
+  const [uiState, dispatch] = useReducer(
+    (st: CaptchaUiState, ev: CaptchaUiEvent) => nextCaptchaUiState(st, ev),
+    "loading" as CaptchaUiState,
+  );
+  // Bumped by the retry button: re-runs the render effect from scratch.
+  const [attemptKey, bumpAttempt] = useReducer((n: number) => n + 1, 0);
+  const onRetry = useCallback(() => {
+    dispatch("retry");
+    bumpAttempt();
+  }, []);
   const active = provider !== "none" && Boolean(siteKey);
 
   // TUL-92: the widget must mount EVERY time the field mounts (the details step
@@ -96,23 +115,45 @@ export function GuestCaptchaField({
       if (el && api && typeof api.render === "function") {
         if (el.childElementCount > 0) return;
         try {
-          widgetId = api.render(el, {
-            sitekey: siteKey,
-            callback: (t: string) =>
-              (window as unknown as Record<string, (t: string) => void>)[CB]?.(t),
-            "expired-callback": () =>
-              (window as unknown as Record<string, (t: string) => void>)[CB]?.(""),
-            ...(provider === "hcaptcha"
-              ? { hl: hcaptchaLocale(locale) }
-              : { language: turnstileLocale(locale) }),
-          });
+          const cbToken = (t: string) => {
+            (window as unknown as Record<string, (t: string) => void>)[CB]?.(t);
+            if (t) dispatch("token");
+          };
+          const onExpired = () => {
+            (window as unknown as Record<string, (t: string) => void>)[CB]?.("");
+            dispatch("expired");
+          };
+          const onError = () => {
+            (window as unknown as Record<string, (t: string) => void>)[CB]?.("");
+            dispatch("error");
+          };
+          widgetId = api.render(
+            el,
+            provider === "hcaptcha"
+              ? hcaptchaRenderOptions(siteKey as string, locale, {
+                  callback: cbToken,
+                  onExpired,
+                  onError,
+                })
+              : turnstileRenderOptions(siteKey as string, locale, {
+                  callback: cbToken,
+                  onExpired,
+                  onError,
+                  onTimeout: onError,
+                }),
+          );
         } catch {
           // fall through to a retry below
           if (attempt < 40) timer = window.setTimeout(() => tryRender(attempt + 1), 250);
+          else dispatch("script_failed");
         }
         return;
       }
-      if (attempt >= 40) return;
+      if (attempt >= 40) {
+        // The vendor script never produced a usable API: never a dead end.
+        dispatch("script_failed");
+        return;
+      }
       // The script tag may have died (blocked once): load it again at attempt 8.
       if (attempt === 8 && !api) {
         delete scriptPromises[provider];
@@ -131,28 +172,27 @@ export function GuestCaptchaField({
         // vendor already tore the widget down
       }
     };
-  }, [active, provider, siteKey, locale]);
+  }, [active, provider, siteKey, locale, attemptKey]);
 
   if (!active) return null;
-  const reserve = { minHeight: CAPTCHA_MIN_HEIGHT_PX } as const;
-
-  if (provider === "hcaptcha") {
-    return (
-      <div data-guest-instant-captcha="hcaptcha" style={reserve}>
-        <div
-          ref={widgetRef}
-          className="h-captcha"
-        />
-      </div>
-    );
-  }
+  const reservedHeight = captchaReservedHeightPx(provider);
+  const reserve = reservedHeight > 0 ? ({ minHeight: reservedHeight } as const) : undefined;
+  const copy = captchaRetryCopy(locale);
 
   return (
-    <div data-guest-instant-captcha="turnstile" style={reserve}>
+    <div data-guest-instant-captcha={provider} style={reserve}>
       <div
         ref={widgetRef}
-        className="cf-turnstile"
+        className={provider === "hcaptcha" ? "h-captcha" : "cf-turnstile"}
       />
+      {uiState === "failed" ? (
+        <div role="alert" data-guest-captcha-error="" className="text-sm">
+          <p>{copy.message}</p>
+          <button type="button" onClick={onRetry} className="mt-1 underline">
+            {copy.retry}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

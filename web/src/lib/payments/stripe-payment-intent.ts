@@ -23,6 +23,7 @@
 import type Stripe from "stripe";
 import { getStripeFor, getStripeMxPublishableKey, type StripeAccountKey } from "@/lib/stripe/client";
 import { recordChargePlatform, resolveSellerPlatformForTransaction } from "@/lib/stripe/charge-platform";
+import { paymentsMockAllowed } from "@/lib/payments/mock-guard";
 import { logServerError } from "@/lib/server/safe-error";
 import { sanitizeStatementDescriptorSuffix } from "@/lib/payments/statement-descriptor";
 
@@ -84,8 +85,15 @@ export async function createPaymentIntentForTransaction(
 
     // The seller of record's platform decides which Stripe account takes the
     // charge (default 'us' = unchanged behaviour).
-    const platform =
-      deps.platform ?? (deps.stripe !== undefined ? "us" : await resolveSellerPlatformForTransaction(input.transactionId));
+    let platform: StripeAccountKey;
+    if (deps.platform) platform = deps.platform;
+    else if (deps.stripe !== undefined) platform = "us";
+    else {
+      const resolved = await resolveSellerPlatformForTransaction(input.transactionId);
+      // Fail closed: never guess a platform (TUL-142).
+      if (!resolved.ok) return { ok: false, error: "Payments for this seller are not available right now." };
+      platform = resolved.key;
+    }
     const stripe = deps.stripe !== undefined ? deps.stripe : getStripeFor(platform);
     const publishableKey =
       platform === "mx" ? getStripeMxPublishableKey() : (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? null);
@@ -98,6 +106,10 @@ export async function createPaymentIntentForTransaction(
     // on the client. If either key is absent we mock — a real PaymentIntent
     // with no publishable key would strand the client on a config error.
     const hasPublishableKey = !!publishableKey;
+    if ((!stripe || !hasPublishableKey) && !paymentsMockAllowed()) {
+      logServerError("payments.stripe.mockRefused", `Stripe keys missing in production; refusing mock payment intent (transaction ${input.transactionId})`);
+      return { ok: false, error: "Payments are not configured." };
+    }
     if (!stripe || !hasPublishableKey) {
       // Mock mode — no usable live keys. Hand back a synthetic client secret
       // the drawer recognises (prefix `mock_pi_`) so it can simulate the confirm.

@@ -34,7 +34,10 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           REF: ${{ github.event.deployment.ref }}
         run: |
-          host=$(node web/scripts/qa-host.mjs claim "$REF")
+          # claim prints a share URL carrying a 23h preview credential
+          # (?_vercel_share=...). Commit statuses are public to repo readers,
+          # so publish only the bare host: drop the query string and fragment.
+          host=$(node web/scripts/qa-host.mjs claim "$REF" | sed 's/[?#].*//')
           echo "host=$host" >> "$GITHUB_OUTPUT"
       - name: Post commit status
         env:

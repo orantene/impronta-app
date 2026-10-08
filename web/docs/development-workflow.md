@@ -24,7 +24,7 @@ rewritten 2026-08-08 to match the CI-gated production pointer that went live
 ```
 git fetch origin && git switch -c <type>/<topic> origin/main
 # ...edit; run locally: cd web && npm run dev...
-cd web && npx tsc --noEmit && npm run lint     # gate — must be clean
+cd web && npm run typecheck && npm run lint     # gate — must be clean
 git add -A && git commit -m "..."
 git push -u origin <type>/<topic>              # → Vercel builds an SSO-gated preview
 gh pr create --base main                       # review, then merge
@@ -34,7 +34,7 @@ Merging the PR to `main` starts the release described in §4.
 
 ## 2. Before you commit — the gate
 
-`cd web && npx tsc --noEmit && npm run lint` — both clean. Don't commit a red
+`cd web && npm run typecheck && npm run lint` — both clean. Don't commit a red
 build.
 
 ## 3. Database migrations — the one hard rule
@@ -69,6 +69,15 @@ and only the first is yours:
    `app.tulala.digital` onto the new deployment, because the production
    pointer does not reliably reassign custom domains on its own.
 
+The promote job reconciles rather than promoting only its own trigger: on every
+gate completion and every 10 minutes it fast-forwards `production` to the
+**newest `main` commit whose gate run succeeded**, so a red, cancelled or
+still-queued newest head does not freeze the pointer. It never moves the
+pointer to a commit without a green gate and never backwards. Pacing: avoid
+stacking many merges in a few minutes; each main run takes ~11 min and an
+unfinished newest head simply waits while the pointer sits on the newest green
+one behind it.
+
 Then run the smoke test (§6).
 
 If the pointer needs moving by hand — the workflow was down, or you are
@@ -81,6 +90,22 @@ git push origin origin/main:production
 That is a fast-forward only. **Never force-push `production` or `main`**; to
 undo a bad release, roll forward or roll back per §7 instead of rewriting the
 pointer.
+
+### Branch protection (recorded 2026-10-07, TUL-215)
+
+Verified via `gh api repos/orantene/impronta-app/branches/<branch>/protection/required_status_checks`.
+
+- Required status checks on BOTH `main` and `production` are exactly:
+  "Structural quality gate", "Builder perf budget", "Fidelity goldens",
+  "Admin boot (prod build)".
+- Strict ("require branch to be up to date") is OFF on both.
+- `production` is a pointer branch, fast-forwarded by `promote-production.yml`
+  only when all four checks are green on that `main` commit.
+- Manual fallback is a fast-forward push of a green commit, never a force.
+
+Typecheck and lint go through `npm run typecheck` / `npm run lint` only (the
+typecheck routes through the machine-wide queue `web/scripts/tsc-queue.sh`);
+never call `tsc` or `eslint` directly.
 
 ## 5. Feature branches
 
@@ -147,7 +172,7 @@ git worktree add /private/tmp/impronta-my-lane -b feat/my-lane origin/main
 
 # Now work there:
 cd /private/tmp/impronta-my-lane/web
-NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit
+npm run typecheck
 npm run lint
 ```
 
@@ -228,3 +253,184 @@ If anything shows, merge `origin/main` into your branch and re-run the full
 gate (tsc, lint, lanes, `next build`) BEFORE merging the PR — CI on the PR
 tests the merged tree, but your local prod-build/QA evidence is stale until
 you refresh it.
+
+## 12. Required checks on main
+
+Derived from `.github/workflows/*.yml` at `origin/main` `675dc62a6`
+(2026-10-07). The workflow facts come from the repo. The "Required" marks and
+the recorded answers below come from the PM's answer to the admin checklist
+(TUL-215); they were not read from GitHub settings by the author of this
+section. Items the PM did not answer are listed as open at the end.
+
+### Checks that exist
+
+"Check" is the job `name:` as GitHub shows it in the PR checks list. None of
+these workflows declares a `merge_group` trigger.
+
+| Workflow file | Job id (check) | Required (per PM) | Runs on | Skipped on draft PRs? |
+|---|---|---|---|---|
+| `ci.yml` | `gate` ("Structural quality gate") | Yes | PR to `main` (opened, synchronize, reopened, ready_for_review), push to `main`, manual | Yes: `if: github.event_name != 'pull_request' \|\| github.event.pull_request.draft == false` |
+| `admin-boot.yml` | `admin-boot` ("Admin boot (prod build)") | Yes | PR to `main` (same types plus labeled), push to `main` | Yes, and also skipped on ordinary PRs (see "Heavy checks") |
+| `builder-fidelity.yml` | `fidelity` ("Fidelity goldens") | Yes | PR to `main` (same types plus labeled), push to `main` and `ci/seed-fidelity**`, manual | Yes, plus the heavy-check rule |
+| `builder-fidelity.yml` | `perf-budget` ("Builder perf budget") | Yes | Same triggers as `fidelity` | Yes, plus the heavy-check rule |
+| `talent-website-e2e.yml` | `migrations` ("Local Supabase + migration chain") | Not in the PM's list | PR (any base branch) touching the path filter below, manual. No push trigger | Yes, plus the heavy-check rule |
+
+Path filter for `talent-website-e2e.yml`: `web/src/lib/talent-site/**`,
+`web/src/lib/site-admin/builder-core/**`, `web/src/lib/saas/host-context.ts`,
+`web/src/proxy.ts`, `web/src/components/talent/**`,
+`web/src/components/admin/shell/**`, `web/e2e/talent-website/**`,
+`supabase/migrations/**`, `supabase/ci/**`, and the workflow file itself.
+
+### Heavy checks (admin-boot, fidelity, perf-budget, talent-website-e2e)
+
+On a pull request these jobs run only when the PR is not a draft **and** its
+head branch starts with `integ/` **or** it carries the `full-ci` label.
+Otherwise the job is skipped (its `if:` is false). On push to `main` and on
+manual runs they always run. So on an ordinary PR the only check that actually
+executes is the structural gate.
+
+### Not PR checks
+
+These run on other events and never report a status on a PR to `main`:
+
+| Workflow file | Job id | Trigger |
+|---|---|---|
+| `promote-production.yml` | `promote` | `workflow_run` of the structural gate on `main` (acts only on success), manual |
+| `main-red-alert.yml` | `alert` | `workflow_run` of the structural gate, fidelity and admin boot on `main` |
+| `db-push.yml` | `push` ("Dry run" or "Apply" migrations) | Manual only, and only on `main` |
+| `vercel-post-deploy-alias.yml` | `alias` | `deployment_status` success on the Production environment |
+| `qa-host-pool.yml` | `claim` | `deployment_status` success on a `factory/*` preview |
+| `guide-sync.yml` | `sync` | Push to `main` touching guide sources, Mondays 06:17 UTC, manual |
+| `builder-e2e.yml` | `builder-e2e` ("Builder smoke (dev-signin)") | Manual only |
+
+### Recorded answers (PM, TUL-215)
+
+- Required checks on `main` and on `production`: "Structural quality gate",
+  "Builder perf budget", "Fidelity goldens", "Admin boot (prod build)".
+- "Require branches to be up to date before merging" (strict) is **off**. Section 11 therefore
+  stays a manual discipline: GitHub does not force a rebase before merge.
+
+### Still open (admin)
+
+The PM did not answer these. Someone with admin access on
+`orantene/impronta-app` should check Settings, then Branches (or Rules), record
+the answers here, and delete the item.
+
+- [ ] Whether a **merge queue** is enabled. If it is, the required workflows
+      need a `merge_group` trigger, and none has one today.
+- [ ] Whether a **skipped** job counts as passing for the required-check rule.
+      Relevant because three of the four required checks (Admin boot, Fidelity
+      goldens, Builder perf budget) are skipped on drafts and on ordinary PRs
+      (see "Heavy checks"), and the structural gate is skipped on drafts.
+      Verify against the live rule; do not rely on this note.
+- [ ] Who may push to `production`, and whether admins can bypass the rules.
+- [ ] Whether the check names above match the names GitHub has recorded.
+      Required checks match by name, so a renamed job would stop satisfying the
+      rule.
+
+The rule can be read with
+`gh api repos/orantene/impronta-app/branches/main/protection` or
+`gh api repos/orantene/impronta-app/rules/branches/main` (admin rights may be
+needed).
+
+## 13. Stacked PRs and the CI gate
+
+*Research note for TUL-192, verified against the workflow files on `main` at
+`675dc62a6` (2026-10-07). No workflow was changed.*
+
+**Current behaviour.** Three PR workflows only fire for PRs whose base is
+`main`:
+
+| Workflow | Trigger |
+|---|---|
+| `.github/workflows/ci.yml` (structural gate) | `pull_request: branches: [main]`, lines 42-44 |
+| `.github/workflows/admin-boot.yml` | `pull_request: branches: [main]`, lines 18-20 |
+| `.github/workflows/builder-fidelity.yml` | `pull_request: branches: [main]`, lines 4-6 |
+
+`talent-website-e2e.yml` (lines 31-33) has no `branches` filter, but it is
+path-filtered and its job only runs for `integ/*` heads or the `full-ci` label
+(line 60), so it is not a general gate either.
+
+A stacked PR (base is another feature branch) therefore gets **no gate at all**
+on open or on any push: no tsc, lint, ratchets, or test lanes. Retargeting it to
+`main` does not start one either, because `ci.yml:44` lists
+`[opened, synchronize, reopened, ready_for_review]` and omits `edited`, which
+is the event GitHub emits for a base change. The first run appears on the next
+push to the branch. We did not test whether GitHub's automatic retarget after
+the parent branch is merged and deleted starts a run; do not rely on it.
+
+**Is it intended?** Nothing in the repo says so in as many words, and the
+ticket's premise needs one correction: root `CLAUDE.md` does not mention
+stacking. The relevant rule is `web/AGENTS.md:16`: "Fresh worktree per PR, off
+the LATEST `origin/main`. Never stack branches." The header of `ci.yml`
+(line 4) describes the gate as running "on every PR to `main` and every push to
+`main`". So the filter is consistent with the no-stacking rule, but it is a
+side effect of that filter, not a documented guarantee. It is a gap only for
+people who stack anyway.
+
+**Why it is acceptable.** The gate that decides what ships does not depend on
+PR runs:
+
+- `ci.yml:45-46` runs the same gate on every push to `main`, so the merged
+  state is always tested after it lands.
+- `promote-production.yml` advances `production` only when that run succeeded
+  on the exact commit (line 51, re-checked at lines 90-91 for manual runs).
+- `main-red-alert.yml` opens the pinned red-main issue when it fails.
+
+So an ungated stack cannot reach production. What it can do is turn `main`
+red, which per section 10 stops everyone else's merges until it is fixed. That
+cost, not a release risk, is why stacking is discouraged.
+
+**Recommended policy.**
+
+1. Do not stack. Branch every PR off the latest `origin/main`, as section 5
+   and `web/AGENTS.md` already say.
+2. If PR B truly depends on unmerged PR A, wait for A to merge, then rebase B
+   onto `origin/main` and open or retarget B only after that (section 11).
+3. If a stack already exists, retarget the PR to `main` and push a new commit
+   (a rebase push counts) so the gate runs on the final merged tree. Do not
+   merge until that run is green. Run `npm run gates` locally in the meantime.
+4. Do not widen the triggers (drop `branches: [main]`). Runner capacity is
+   already the constraint (see the draft-PR and `full-ci` skips added during the
+   2026-10-07 CI jam), and stacking is not a workflow we want to subsidise.
+   Revisit only if stacking becomes routine; the alternative would be a
+   dedicated lightweight `pull_request` job with no `branches` filter, which
+   would be a separate ticket.
+
+We could not read branch protection (the API returned 403 for this token), so
+whether any check is *required* on `main` was not verified.
+
+## 14. Stacked PRs and the CI trigger (TUL-219)
+
+**Do not stack PRs.** Branch every PR off the latest `origin/main`
+(`web/AGENTS.md`, "Branches and worktrees": "Never stack branches").
+
+Why this matters for CI: `.github/workflows/ci.yml` runs on `pull_request`
+types `opened`, `synchronize`, `reopened`, `ready_for_review`, and only for
+PRs whose base is `main`. A stacked PR is opened against its parent branch, so
+no gate runs. When the parent merges and the child is retargeted to `main`,
+that is an `edited` event, which is not in the list. The child gets no gate
+until its next push.
+
+**Decision (2026-10-07): the `edited` trigger is deliberately NOT added**,
+neither bare nor guarded. Reasons:
+
+1. A bare `edited` fires on every title or body edit and queues a full
+   15-25 minute gate each time. Runner capacity is the constraint.
+2. The only filter is a job-level `if:` on `github.event.changes.base`. A
+   skipped job still starts a workflow run, and the workflow-level
+   `concurrency` group is keyed on the PR ref with `cancel-in-progress: true`.
+   A title edit made while the real gate is running would cancel the in-flight
+   gate and replace it with a run whose job is skipped. GitHub counts a
+   skipped check as passing, so a PR could end up green with no gate having
+   completed on its head. Making this safe needs a separate concurrency group
+   for `edited` runs: more logic in the workflow that gates production, to
+   serve a case the no-stacking rule already removes.
+
+**If you land in a retargeted stack anyway:** push any commit to the child
+branch (`git commit --allow-empty -m "ci: re-gate"` works), or close and
+reopen the PR. Either starts the gate against `main`. Do not merge a
+retargeted PR that shows no `Structural quality gate` check.
+
+`src/lib/quality/ci-pr-trigger-types.static.test.ts` pins this decision. If you
+revisit it, change the test and this section together.

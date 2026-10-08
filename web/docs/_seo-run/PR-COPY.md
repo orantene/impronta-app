@@ -382,7 +382,7 @@ grep -rn '—\|\\u2014' \
 # Expect zero matches once user-facing rewrites land (comment cleanups are optional
 # and can trail behind without failing this check's intent).
 
-npx tsc --noEmit && npm run lint
+npm run typecheck && npm run lint
 ```
 
 Human read-through after the mechanical grep: confirm every rewritten sentence still reads as natural spoken English/Spanish (not a comma-spliced run-on), and that ES rewrites keep natural "tú" register, not a literal translation of the EN fix.

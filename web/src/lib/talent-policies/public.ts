@@ -11,6 +11,7 @@
 
 import { logServerError } from "@/lib/server/safe-error";
 
+import { CUSTOM_CLAUSES_HEADING, customClausesFor } from "./custom-clauses";
 import { loadPublishedPolicy, type PublishedPolicy } from "./store";
 import { TULALA_DOC_LINKS, type PolicyClause, type PolicyLocale } from "./render";
 
@@ -63,6 +64,8 @@ export type PolicyPageModel = {
   version: number | null;
   publishedAt: string | null;
   isDefault: boolean;
+  /** The talent's own rules, rendered after the generated clauses. Absent when she wrote none. */
+  custom?: { heading: string; items: string[] };
 };
 
 const TITLES: Record<PolicyDoc, Record<PolicyLocale, string>> = {
@@ -150,10 +153,13 @@ export function buildPolicyPage(input: {
   if (input.doc === "privacy") {
     clauses = clauses.filter((c) => PRIVACY_TITLES.has(c.title)).map((c, i) => ({ ...c, n: i + 1 }));
   }
-  if (!input.published || clauses.length === 0) {
+  const items = input.doc === "booking" && input.published ? customClausesFor(input.published.customClauses, locale) : [];
+  const custom = items.length > 0 ? { custom: { heading: CUSTOM_CLAUSES_HEADING[locale], items } } : {};
+  // Her own rules alone are a real policy: no platform placeholder next to them.
+  if (!input.published || (clauses.length === 0 && items.length === 0)) {
     return { doc: input.doc, locale, title, clauses: defaultClauses(input.doc, locale), version: null, publishedAt: null, isDefault: true };
   }
-  return { doc: input.doc, locale, title, clauses, version: input.published.version, publishedAt: input.published.publishedAt, isDefault: false };
+  return { doc: input.doc, locale, title, clauses, version: input.published.version, publishedAt: input.published.publishedAt, isDefault: false, ...custom };
 }
 
 export async function loadPolicyPage(

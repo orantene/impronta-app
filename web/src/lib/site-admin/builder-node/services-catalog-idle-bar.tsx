@@ -2,16 +2,41 @@
 
 import { useEffect, useState } from "react";
 
+import type { TalentBookingPosture } from "@/lib/talent/selling-booking-settings";
+import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
+import type { TalentOffering } from "@/lib/talent/offerings-types";
+
 /**
  * TUL-59 C item 3: the idle bar's main button follows context. Away from the
- * menu it says "Ver servicios" and scrolls to it; once the menu is on screen
+ * menu it says "Reservar cita" / "Book an appointment" on a site that takes
+ * bookings (TUL-72; "Ver servicios" on an inquiry-only site) and scrolls to it; once the menu is on screen
  * it says "Elige un servicio" (nothing to scroll to) and just scrolls the list
  * into place. Once a service is picked, the selection dock ("Continuar") takes
  * over, so this label never has to say it.
  */
-export function idleBarLabel(es: boolean, menuInView: boolean): string {
+export function idleBarLabel(es: boolean, menuInView: boolean, takesBookings = false): string {
   if (menuInView) return es ? "Elige un servicio" : "Choose a service";
+  if (takesBookings) return es ? "Reservar cita" : "Book an appointment";
   return es ? "Ver servicios" : "See services";
+}
+
+/**
+ * TUL-72: does this menu take bookings? True when at least one visible service
+ * resolves (same derivation as the rows) to book / buy / request-to-book.
+ * Inquiry-only and quote-only menus stay "Ver servicios".
+ */
+export function catalogTakesBookings(
+  items: ReadonlyArray<TalentOffering>,
+  opts: { confirmsByHand?: boolean; bookingPosture?: TalentBookingPosture },
+): boolean {
+  return items.some((offering) => {
+    const d = deriveOfferingCta({
+      offering,
+      defaults: opts.bookingPosture ? { bookingPosture: opts.bookingPosture } : {},
+      confirmsByHand: opts.confirmsByHand,
+    });
+    return !d.hidden && (d.cta === "book_now" || d.cta === "buy_now" || d.cta === "request_to_book");
+  });
 }
 
 /** True while at least a third of the menu is visible. Stays false without IntersectionObserver. */
@@ -30,7 +55,7 @@ function useMenuInView(nodeId: string): boolean {
   return inView;
 }
 
-export function CatalogIdleBarGo({ nodeId, es }: { nodeId: string; es: boolean }) {
+export function CatalogIdleBarGo({ nodeId, es, takesBookings = false }: { nodeId: string; es: boolean; takesBookings?: boolean }) {
   const inView = useMenuInView(nodeId);
   return (
     <button
@@ -41,7 +66,7 @@ export function CatalogIdleBarGo({ nodeId, es }: { nodeId: string; es: boolean }
         document.querySelector(`[data-builder-node-id="${nodeId}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" })
       }
     >
-      {idleBarLabel(es, inView)}
+      {idleBarLabel(es, inView, takesBookings)}
     </button>
   );
 }

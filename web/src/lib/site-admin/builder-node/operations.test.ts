@@ -661,6 +661,18 @@ test("duplicateBuilderNode rejects section nodes", () => {
   assert.equal(duplicated.code, "NODE_KIND_NOT_DUPLICABLE");
 });
 
+test("duplicateBuilderNode clones a freeform section that has no section row (TUL-78)", () => {
+  const tree: BuilderNodeTree = [
+    { id: "free-1", kind: "section", props: { sectionTypeKey: "freeform" }, children: [] } as unknown as BuilderNodeTree[number],
+  ];
+  const duplicated = duplicateBuilderNode({ tree, nodeId: "free-1" });
+  assert.equal(duplicated.ok, true);
+  if (!duplicated.ok) return;
+  assert.equal(duplicated.tree.length, 2);
+  assert.equal(duplicated.tree[0]?.id, "free-1");
+  assert.equal(duplicated.tree[1]?.id, duplicated.nodeId);
+});
+
 test("duplicateBuilderNode returns actionable missing-node issues", () => {
   const duplicated = duplicateBuilderNode({
     tree: fixtureTree(),

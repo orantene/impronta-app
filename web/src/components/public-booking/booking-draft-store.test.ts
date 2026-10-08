@@ -76,6 +76,8 @@ test("selected date label is localized", () => {
 test("timezone label uses the city, falling back to the zone name", () => {
   assert.equal(catalogTimezoneLabel("America/Mexico_City", true), "Hora de Mexico City");
   assert.equal(catalogTimezoneLabel("America/Mexico_City", false), "Mexico City time");
+  assert.equal(catalogTimezoneLabel("America/Cancun", true), "Hora de Cancún");
+  assert.equal(catalogTimezoneLabel("America/Cancun", false), "Cancún time");
   assert.equal(catalogTimezoneLabel("UTC", false), "UTC time");
   assert.equal(catalogTimezoneLabel("", true), "");
 });

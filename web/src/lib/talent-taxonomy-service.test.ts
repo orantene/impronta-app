@@ -62,7 +62,11 @@ test("tenant talent type availability blocks disabled parent categories", () => 
   });
 
   assert.equal(result.ok, false);
-  if (!result.ok) assert.match(result.error, /Models is disabled/);
+  if (!result.ok) {
+    // The message names the disabled node and says what the operator can do.
+    assert.match(result.error, /"Models" was saved on the profile but will not show on this workspace/);
+    assert.match(result.error, /not enabled for your agency/);
+  }
 });
 
 test("tenant talent type availability blocks disabled category groups", () => {
@@ -74,7 +78,11 @@ test("tenant talent type availability blocks disabled category groups", () => {
   });
 
   assert.equal(result.ok, false);
-  if (!result.ok) assert.match(result.error, /Fashion Models is disabled/);
+  if (!result.ok) {
+    // The message names the disabled node and says what the operator can do.
+    assert.match(result.error, /"Fashion Models" was saved on the profile but will not show on this workspace/);
+    assert.match(result.error, /not enabled for your agency/);
+  }
 });
 
 test("tenant talent type availability respects primary and secondary gates", () => {

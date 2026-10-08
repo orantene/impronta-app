@@ -5,6 +5,7 @@ import { type OfferingDestination } from "@/lib/talent/services-settings-actions
 import { publicationWord } from "@/lib/talent/publication-state";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { bannerDestinations } from "@/lib/talent/website-published-truth";
 
 /**
  * "Services · item published" (designer PDF p09). Says exactly where the item
@@ -14,17 +15,21 @@ import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i1
  */
 export function PublishedBanner({
   item,
-  destinations,
+  destinations: rawDestinations,
+  websitePublished,
   onClose,
   onAddAnother,
 }: {
   item: TalentOffering | null;
   destinations: OfferingDestination[];
+  /** The same published flag the top-bar website pill reads. */
+  websitePublished: boolean;
   onClose: () => void;
   onAddAnother?: () => void;
 }) {
   const copy = useDashboardText();
   const [shared, setShared] = useState(false);
+  const destinations = bannerDestinations(rawDestinations, websitePublished);
   if (!item || publicationWord(item) !== "live") return null;
 
   const placeName = (d: OfferingDestination) => {

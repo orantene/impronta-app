@@ -9,7 +9,7 @@ QA + iterative design-study rounds. No user questions; self-approved; audited at
 - **Worktree:** `/Users/oranpersonal/Desktop/impronta-marathon` (isolated; node_modules symlinked; `.env.local` copied)
 - **Dev server (QA):** `dev:webpack` on `:3200`; proxy `scripts/marathon-proxy.mjs 3210 impronta.lvh.me 3200` → host `impronta.lvh.me`
 - **QA method:** `preview_eval` / `preview_inspect` (computed styles + DOM geometry via `preview_resize` to a real viewport). Raster screenshots are DENIED this session, so design study = measured DOM/CSS, not pixels.
-- **Gate before every commit:** `NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit && npm run lint` (in `web/`).
+- **Gate before every commit:** `npm run typecheck && npm run lint` (in `web/`).
 - **Prod-data guardrail:** localhost dev talks to **prod Supabase**. Do NOT overwrite the live `published_homepage_snapshot`. Home improvements ship as CODE (section components, tokens, CSS) + a *ready-to-apply* re-authoring package — never an autonomous prod-tree write.
 
 ## Scope truth (from the 7-agent audit)

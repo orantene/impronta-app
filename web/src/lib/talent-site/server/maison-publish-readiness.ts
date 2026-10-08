@@ -72,6 +72,25 @@ const COPY = {
   },
 } as const;
 
+/**
+ * The ONE "design required" rule. The publish gate (`prepareMaisonSiteForPublish`),
+ * the Review screen and the builder's Publish checks all call this, so the
+ * preflight can never say "ready" while the server refuses (TUL-89).
+ */
+export function maisonDesignBlocker(
+  themeDesignSlug: string | null | undefined,
+  locale: MaisonReadinessLocale = "en",
+): MaisonPublishBlocker | null {
+  if (themeDesignSlug?.trim()) return null;
+  const c = COPY[locale === "es" ? "es" : "en"];
+  return {
+    id: "no_design",
+    message: c.noDesign,
+    fixLabel: c.noDesignFix,
+    fixHref: "#maison-setup-host",
+  };
+}
+
 export function evaluateMaisonPublishReadiness(
   input: MaisonPublishReadinessInput,
 ): MaisonPublishReadiness {
@@ -93,14 +112,8 @@ export function evaluateMaisonPublishReadiness(
       fixHref: "#maison-site-address",
     });
   }
-  if (!input.themeDesignSlug) {
-    blockers.push({
-      id: "no_design",
-      message: c.noDesign,
-      fixLabel: c.noDesignFix,
-      fixHref: "#maison-setup-host",
-    });
-  }
+  const designBlocker = maisonDesignBlocker(input.themeDesignSlug, input.locale);
+  if (designBlocker) blockers.push(designBlocker);
 
   const suggestions: MaisonPublishSuggestion[] = [];
   if (

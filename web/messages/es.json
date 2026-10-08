@@ -362,6 +362,7 @@
     },
     "profileCta": {
       "inquireAbout": "Consultar sobre {name}",
+      "bookCta": "Reservar",
       "bookNowPrice": "Reservar ahora · {price}",
       "bookInstantly": "Reservar a {name} al instante",
       "closeAria": "Cerrar",
@@ -906,6 +907,9 @@
       "aboutTalent": "Sobre {name}",
       "errRateLimited": "Estás enviando un poco rápido. Dale un momento.",
       "errBlocked": "Esta conversación no puede continuar.",
+      "errLimitAccount": "Llegaste al límite de conversaciones abiertas. Termina o cierra una para empezar otra.",
+      "errLimitCreateAccount": "Tienes varias conversaciones abiertas. Crea una cuenta gratis para empezar más.",
+      "errLimitVerifyEmail": "Tienes una conversación abierta. Verifica tu correo para empezar más.",
       "errGeneric": "Algo salió mal. Inténtalo de nuevo.",
       "tryAgainIn": "Inténtalo de nuevo en {secs}s.",
       "sendMessageAria": "Enviar mensaje",
@@ -1117,7 +1121,7 @@
       "syncSaving": "Guardando…",
       "syncSaved": "Guardado",
       "syncRetry": "No se pudo guardar, toca para reintentar.",
-      "draftSubline": "Se guarda automaticamente. Envialo cuando estes listo y {agency} lo recibira.",
+      "draftSubline": "Se guarda automaticamente. Envíalo cuando estes listo y {agency} lo recibira.",
       "draftSaving": "Guardando...",
       "draftSaved": "Se guarda automaticamente.",
       "draftSaveError": "No pudimos guardar tu ultimo cambio. Toca para reintentar.",
@@ -1150,7 +1154,7 @@
       "headerAssigning": "{agency} . asignando un coordinador",
       "stripInConversation": "En conversacion con {actor}",
       "stripCoordinatorWorking": "{actor} lo está viendo",
-      "stripOfferReady": "{agency} te envio una oferta. Revisala",
+      "stripOfferReady": "{agency} te envio una oferta. Revísala",
       "stripReviewOffer": "Ver oferta",
       "stripApproved": "Aprobado. Estamos confirmando tu reserva",
       "stripBooked": "Reservado. Ya esta todo listo",
@@ -2054,6 +2058,10 @@
         "goToPanel": "Ir a mi panel",
         "bookPreview": "Reservar",
         "bookingsStartStudio": "Las reservas empiezan cuando agregues a un proveedor.",
+        "inquiryTitle": "Tu página está lista para recibir solicitudes",
+        "inquirySub": "Ya pueden enviarte solicitudes. Las reservas empiezan cuando agregues a un integrante del equipo.",
+        "addFirstMember": "Agrega a tu primer integrante para empezar a recibir reservas",
+        "alsoBookMyself": "También quiero recibir reservas yo",
         "urlDiffers": "Tu dirección quedó distinta a la que elegiste porque ya estaba en uso. Esta es la real."
       },
       "essentials": {
@@ -2095,6 +2103,19 @@
         "rose": "Rosé",
         "blush": "Rubor",
         "orchid": "Orquídea"
+      },
+      "role": {
+        "eyebrow": "Paso 1 de 2 · Rol",
+        "titleLead": "¿Cómo vas a usar",
+        "intro": "Elige cómo quieres empezar. Esto define tu panel de inicio y no podrás cambiarlo después desde aquí.",
+        "talentTitle": "Soy talento",
+        "talentBody": "Modelo, artista, intérprete o creativo. Crea tu perfil, comparte un solo enlace y deja que las reservas lleguen a ti.",
+        "clientTitle": "Soy cliente",
+        "clientBody": "Marca, productor, organizador de eventos o director de casting. Explora el directorio y envía solicitudes de reserva.",
+        "businessTitle": "Tengo un negocio",
+        "businessBody": "Agencia, estudio, banda, equipo o solo tú. Crea un espacio de trabajo con tu propio sitio, elenco, reservas y pagos.",
+        "staffNote": "Las cuentas del personal las asigna directamente la agencia.",
+        "error": "Algo salió mal. Inténtalo de nuevo."
       }
     },
     "consent": {
@@ -2107,6 +2128,40 @@
       "decline": "Rechazar",
       "closeLabel": "Cerrar y decidir después",
       "privacyChoices": "Opciones de privacidad"
+    },
+    "clientAccount": {
+      "signIn": "Iniciar sesión",
+      "account": "Cuenta",
+      "openLabel": "Abrir menú de cuenta",
+      "closeLabel": "Cerrar",
+      "title": "Inicia sesión o crea tu cuenta",
+      "subtitle": "Te enviamos un código por correo. No necesitas contraseña.",
+      "emailLabel": "Correo electrónico",
+      "sendCode": "Enviar código",
+      "codeLabel": "Código",
+      "verify": "Continuar",
+      "resend": "Reenviar código",
+      "resendIn": "Reenviar en {s} s",
+      "sentTo": "Enviamos un código a {email}.",
+      "changeEmail": "Usar otro correo",
+      "legalPrefix": "Al continuar confirmas que tienes 18 años o más y aceptas los",
+      "legalTerms": "Términos",
+      "legalAnd": "y la",
+      "legalPrivacy": "Política de privacidad",
+      "consentLabel": "Quiero recibir novedades y ofertas por correo (opcional)",
+      "consentSave": "Guardar",
+      "consentSkip": "Ahora no",
+      "consentTitle": "Una cosa más",
+      "nextVisit": "Próxima visita",
+      "noVisit": "Sin visitas próximas",
+      "unread": "Mensajes sin leer",
+      "balanceDue": "Saldo pendiente",
+      "myAccount": "Mi cuenta",
+      "logOut": "Cerrar sesión",
+      "signedInAs": "Sesión iniciada como {email}",
+      "genericError": "Algo salió mal. Inténtalo de nuevo.",
+      "notClient": "Este correo pertenece a una cuenta de equipo. Usa el inicio de sesión principal.",
+      "signedInAsTalent": "Iniciaste sesión con una cuenta de negocio. Cierra sesión en app.tulala.digital para usar una cuenta de cliente."
     }
   },
   "dashboard": {
@@ -3495,7 +3550,7 @@
       "coordChipTitleAssigned": "Coordinador: {name} · haz clic para reasignar o asignar un talento",
       "coordChipTitleUnassigned": "Asignar un coordinador (staff o talento del roster).",
       "proposeTime": "Proponer una hora",
-      "proposeTimeHint": "Reserva un horario y envialo al cliente para que confirme.",
+      "proposeTimeHint": "Reserva un horario y envíalo al cliente para que confirme.",
       "proposeStarts": "Inicio",
       "proposeEnds": "Fin",
       "proposeTimeSubmit": "Proponer",
@@ -3962,7 +4017,7 @@
         "adminWaitingRatesIdle": "A la espera de las tarifas del Talent.",
         "adminAllRatesIn": "Tarifas completas · revisa margenes y envia al cliente.",
         "adminOfferWithClient": "Oferta con el cliente · a la espera de su decision.",
-        "adminClientCountered": "El cliente hizo una contraoferta · revisala con el Talent y responde.",
+        "adminClientCountered": "El cliente hizo una contraoferta · revísala con el Talent y responde.",
         "adminAccepted": "Aceptada · prepara la hoja de llamada para cerrar la reserva.",
         "ctaCallSheet": "Hoja de llamada",
         "adminClosedWhy": "Cerrada · {closureWhy}",
@@ -5034,7 +5089,7 @@
         },
         "businessTypeTitle": "Que tipo de negocio es?",
         "businessTypeDesc": "Define tus horarios, la duracion de la visita y el aviso. Puedes cambiarlo despues.",
-        "offSummary": "Los clientes envian un mensaje y tu respondes. Activalo para que puedan elegir una hora.",
+        "offSummary": "Los clientes envian un mensaje y tu respondes. Actívalo para que puedan elegir una hora.",
         "advanced": "Avanzado",
         "advancedDesc": "La mayoria de los negocios nunca los necesita.",
         "slotMinutesPlain": "Cuanto dura una visita?",
@@ -7352,6 +7407,14 @@
         "captchaSecretPlaceholder": "Clave secreta",
         "captchaSaved": "Guardado. Los tenants sin su propio captcha heredan este.",
         "captchaCleared": "Borrado. Se restauró el respaldo de entorno.",
+        "captchaProviderNone": "Sin configurar",
+        "captchaOverridesTitle": "Espacios con su propio captcha",
+        "captchaOverridesTip": "El captcha propio de un espacio reemplaza al predeterminado de la plataforma para ese espacio.",
+        "captchaEffectiveLabel": "usa {provider}",
+        "captchaNoSecret": "sin clave secreta",
+        "captchaUseDefault": "Usar el de la plataforma",
+        "captchaUseDefaultConfirm": "¿Cambiar {name} al captcha predeterminado de la plataforma? Se quitarán sus claves de captcha propias.",
+        "captchaUseDefaultDone": "Listo. Ese espacio ahora usa el predeterminado de la plataforma.",
         "emailFromLabel": "Dirección de remitente predeterminada (completa)",
         "emailDomainLabel": "…o un dominio de envío predeterminado (noreply@dominio)",
         "emailSaved": "Guardado. El correo saliente sin dominio de marca blanca usa este.",
@@ -8393,7 +8456,9 @@
           "retryFailed": "Reintento fallido: {error}",
           "summaryWithScheduled": "{held} esperando cuenta · {scheduled} programados · {failed} fallidos",
           "scheduledBadge": "Programado",
-          "scheduledHint": "Aún no vence. Se libera el {date}, no antes."
+          "scheduledHint": "Aún no vence. Se libera el {date}, no antes.",
+          "readFailed": "No se pudieron cargar los pagos retenidos. Es un error de lectura, no una lista vacía. Recarga para reintentar.",
+          "cappedNote": "Se muestran los {max} tramos más recientes. Hay más."
         },
         "commission": {
           "title": "Configuración de comisiones",
@@ -8472,6 +8537,62 @@
             "connect": "Cuentas de Connect",
             "products": "Productos de nivel",
             "coupons": "Cupones de descuento"
+          },
+          "wiring": {
+            "title": "Conexión de pagos",
+            "intro": "Revisión rápida de claves, secretos de webhook y dinero en curso. Solo muestra nombres, modos y conteos, nunca una clave.",
+            "readFailed": "No se pudo leer: {parts}. Esas filas pueden ser incorrectas.",
+            "status": {
+              "ok": "Correcto",
+              "warn": "Revisar",
+              "error": "Roto"
+            },
+            "rows": {
+              "keyModes": {
+                "label": "Modos de clave de Stripe",
+                "detail": "Todas las claves definidas usan el mismo modo.",
+                "mode": {
+                  "test": "prueba",
+                  "live": "producción",
+                  "unset": "sin definir"
+                },
+                "mxSource": "La clave publicable de MX se lee de {source}."
+              },
+              "secret": {
+                "label": "{name}",
+                "set": "Definido",
+                "unset": "No definido"
+              },
+              "held": {
+                "label": "Pagos retenidos",
+                "detail": "{count} retenidos ahora.",
+                "readFailed": "No se pudieron leer los pagos retenidos, así que no se conoce el total.",
+                "capped": "{max}+ retenidos ahora (se muestran los {max} más recientes)."
+              },
+              "stuck": {
+                "label": "Solicitudes de pago atascadas",
+                "detail": "{count} esperando pago por más de 24 horas."
+              },
+              "laneUs": {
+                "label": "Último webhook de EE. UU."
+              },
+              "laneMx": {
+                "label": "Último webhook de MX"
+              },
+              "lane": {
+                "detail": "Horas desde el último evento: {hours}",
+                "none": "Aún no hay eventos registrados."
+              }
+            },
+            "fix": {
+              "keyModes": "Haz que todas las claves de Stripe en Vercel usen el mismo modo (todas de prueba o todas reales) y vuelve a desplegar.",
+              "secret": "Agrega este secreto de firma en Vercel desde el endpoint de webhook de Stripe que corresponde y vuelve a desplegar.",
+              "mxConnect": "Agrega el secreto de firma de MX Connect en Vercel. Mientras tanto, los eventos de MX Connect fallan la verificación de firma y los pagos retenidos solo se liberan en el cron diario.",
+              "held": "Abre la pestaña Ingresos para ver qué pagos están retenidos y por qué.",
+              "stuck": "Revisa estas transacciones en la lista de reservas; quizá el cliente necesite un nuevo enlace de pago.",
+              "lane": "Los periodos tranquilos son normales. Si esperas tráfico, revisa el endpoint en el panel de Stripe.",
+              "heldReadFailed": "Recarga la página. Si sigue fallando, revisa la tabla booking_payouts y la clave de service role."
+            }
           }
         },
         "revenue": {
@@ -12968,9 +13089,13 @@
       "uploading": "Subiendo",
       "uploadFailed": "No se pudo subir",
       "loadingDimensions": "Cargando dimensiones...",
-      "videoSelected": "Video seleccionado"
+      "videoSelected": "Video seleccionado",
+      "imageSelected": "Imagen seleccionada",
+      "imageFallbackName": "Tu imagen",
+      "videoFallbackName": "Tu video"
     },
     "mediaLibrary": {
+      "unreachable": "No pudimos conectar con tu biblioteca de medios. Revisa tu conexión e inténtalo de nuevo.",
       "searchPlaceholder": "Busca por nombre de archivo, texto alternativo o nota",
       "searchLabel": "Buscar en la biblioteca de medios",
       "clearSearch": "Borrar búsqueda",
@@ -12995,6 +13120,7 @@
       "tagPlaceholder": "Agregar etiqueta + Enter",
       "removeTag": "Quitar etiqueta {tag}",
       "errorTitle": "No se pudo cargar la biblioteca de medios",
+      "errorDetail": "Algo salió mal al cargar tus archivos. Inténtalo de nuevo en un momento.",
       "emptyTitle": "Aún no hay archivos",
       "emptyDetail": "Sube un archivo o suelta uno en cualquier parte de este panel.",
       "noMatchesTitle": "Nada coincide con esos filtros",
@@ -13010,6 +13136,10 @@
       "ownerLabel": "Propietario",
       "savingLabel": "Guardando",
       "noAltYet": "Aún sin texto alternativo",
+      "captionsSection": "Pies de foto",
+      "captionsHint": "Se muestra bajo la foto en tu sitio",
+      "captionsPlaceholder": "Agrega un pie de foto",
+      "captionsFieldLabel": "Pie de foto en {language}",
       "talentAll": "Todo el talento",
       "talentFilterLabel": "Filtrar por talento",
       "talentSearchPlaceholder": "Escribe el nombre de un talento",
@@ -14913,7 +15043,7 @@
             "pay": "Pago",
             "payAtEnd": "Al final · {amount} en efectivo",
             "payNothing": "Nada que cobrar",
-            "payHint": "O cobralo ahora, justo despues de reservar",
+            "payHint": "O cóbralo ahora, justo despues de reservar",
             "bookNow": "Reservar con {name} · {time}",
             "close": "Cerrar",
             "withPerson": "{name} · {minutes} min · {amount}",
@@ -15950,7 +16080,7 @@
           "ask": "Preguntar",
           "matchExisting": "Buscar existente",
           "noProfile": "Sin perfil",
-          "saveSuggested": "Guardalos solo si confirmas que son suyos.",
+          "saveSuggested": "Guárdalos solo si confirmas que son suyos.",
           "guestOrder": "Un pedido de invitado necesita un nombre y como avisar que esta listo. No hace falta ficha de cliente.",
           "nameNotGiven": "Sin dato",
           "webChatOnly": "solo chat web",
@@ -16470,7 +16600,7 @@
           "unavailable": "No se pudo ofrecer ese lugar. Intentalo de nuevo.",
           "nameRequired": "Esta persona necesita un nombre antes de poder guardarle un lugar.",
           "alreadyWaiting": "Ya estan en esta lista.",
-          "seatsAvailable": "Esta sesion todavia tiene {left} libres. Reservalos en vez de empezar una cola.",
+          "seatsAvailable": "Esta sesion todavia tiene {left} libres. Resérvalos en vez de empezar una cola.",
           "notOffered": "Nadie le ha ofrecido una plaza a esta persona todavia. Ofrecela primero.",
           "offerExpired": "Esa oferta caduco. Vuelve a ofrecer la plaza si sigue libre.",
           "seatJustTaken": "Esa plaza se ocupo antes de que esta pudiera tomarla. Ofrece otra cuando quede libre.",
@@ -17532,6 +17662,8 @@
         "structureWeb": "Página de menú del sitio (colecciones)"
       },
       "list": {
+        "langMissing": "Falta {lang}",
+        "langMissingHint": "Aún no tiene título en {language}",
         "title": "Catálogo",
         "intro": "Todo lo que el POS, el sitio web y el perfil pueden vender · un registro por artículo",
         "import": "Importar",
@@ -19732,27 +19864,27 @@
       "badgeRecommended": "Recomendado",
       "badgeAvailable": "Disponible en {country}",
       "label": "USDC, dólares digitales",
-      "title": "Cobrá en USDC",
+      "title": "Cobra en USDC",
       "intro": "USDC es un dólar digital. Tu parte de cada reserva va directo a tu propia billetera.",
       "benefitFast": "Llega en minutos, no en días",
       "benefitStable": "Se mantiene en dólares (1 USDC = 1 USD)",
-      "benefitNoBank": "No necesitás una cuenta bancaria",
-      "benefitConvert": "Convertilo a pesos o a tu moneda local cuando quieras",
+      "benefitNoBank": "No necesitas una cuenta bancaria",
+      "benefitConvert": "Conviértelo a pesos o a tu moneda local cuando quieras",
       "howTitle": "Cómo funciona",
-      "step1Title": "Configurá tus cobros",
-      "step1Body": "Creá tu cuenta de cobro segura. Lleva unos minutos.",
-      "step2Title": "Vinculá tu billetera en Stripe",
-      "step2Body": "Agregá la dirección de tu billetera y elegí USDC como moneda de cobro.",
-      "step3Title": "Cobrá en USDC",
+      "step1Title": "Configura tus cobros",
+      "step1Body": "Crea tu cuenta de cobro segura. Toma unos minutos.",
+      "step2Title": "Vincula tu billetera en Stripe",
+      "step2Body": "Agrega la dirección de tu billetera y elige USDC como moneda de cobro.",
+      "step3Title": "Cobra en USDC",
       "step3Body": "El pago de cada reserva llega a tu billetera automáticamente.",
       "cta": "Vincular mi billetera en Stripe",
       "opening": "Abriendo...",
-      "bankHint": "¿Preferís un banco? Podés configurarlo más abajo.",
+      "bankHint": "¿Prefieres un banco? Puedes configurarlo más abajo.",
       "walletTitle": "¿Qué es una billetera?",
-      "walletBody1": "Una billetera es una app o cuenta que guarda dinero digital, como USDC, y tiene su propia dirección. Vos la elegís y vos la controlás.",
-      "walletBody2": "Para usarlo localmente, podés convertir tus USDC a pesos o a tu moneda local cuando quieras, con cualquier servicio que lo permita en tu país.",
-      "walletBody3": "Vinculá solo una dirección que sea tuya. Revisala bien antes de guardar.",
-      "checking": "Verificando si podés cobrar en USDC..."
+      "walletBody1": "Una billetera es una app o cuenta que guarda dinero digital, como USDC, y tiene su propia dirección. Tú la eliges y tú la controlas.",
+      "walletBody2": "Para usarlo localmente, puedes convertir tus USDC a pesos o a tu moneda local cuando quieras, con cualquier servicio que lo permita en tu país.",
+      "walletBody3": "Vincula solo una dirección que sea tuya. Revísala bien antes de guardar.",
+      "checking": "Verificando si puedes cobrar en USDC..."
     }
   },
   "admin": {
@@ -20568,7 +20700,7 @@
         "alreadyOnThisWorkspace": "Esa persona ya tiene acceso a este espacio.",
         "checkTheDetails": "Revisa los datos e intenta de nuevo.",
         "seatLimit": "Este espacio no tiene lugares libres para otra persona con acceso. Mejora el plan o quita el acceso a alguien primero.",
-        "noAccountYet": "Esta persona todavia no creo una cuenta, asi que no hay con que iniciar sesion. Invitala por correo.",
+        "noAccountYet": "Esta persona todavia no creo una cuenta, asi que no hay con que iniciar sesion. Invítala por correo.",
         "notOnRoster": "Esta persona no esta en tu lista en este espacio.",
         "personSetsTheirOwnBooking": "Tu parte esta activada. Esta persona inicia sesion por su cuenta, asi que todavia tiene que aceptar recibir reservas desde su propia cuenta. Hasta entonces no aparecera en Elegir profesional.",
         "cannotChangeYourOwnRole": "No puedes cambiar tu propio rol. Pideselo a otro propietario o administrador.",

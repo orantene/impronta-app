@@ -1,9 +1,11 @@
 import "server-only";
 
+import { bookingConfirmedClient, loadBookingConfirmedView } from "./catalog-audiences-booking";
 import * as React from "react";
 import ClientInquiryReceived from "../../../emails/client/InquiryReceived";
 import ClientReplyReady from "../../../emails/client/ReplyReady";
 import ClientOfferReady from "../../../emails/client/OfferReady";
+import { clientManageUrl } from "./client-visit-url";
 import ClientBookingConfirmed from "../../../emails/client/BookingConfirmed";
 import TalentInquiryInvited from "../../../emails/talent/InquiryInvited";
 import TalentOfferReady from "../../../emails/talent/OfferReady";
@@ -227,8 +229,8 @@ const BOOKING_CONFIRMED_CLIENT: CatalogEntry = {
   defaultChannels: ["email"],
   required: false,
   triggers: ["booking.confirmed"],
-  hydrate: loadInquiryView,
-  resolveAudience: clientOrGuest,
+  hydrate: loadBookingConfirmedView,
+  resolveAudience: bookingConfirmedClient,
   email: {
     templateId: "client.booking_confirmed",
     subject: () => "Booking confirmed",
@@ -239,10 +241,12 @@ const BOOKING_CONFIRMED_CLIENT: CatalogEntry = {
         contactName: str(event.payload.contactName),
         eventDate: str(event.payload.eventDate),
         eventLocation: str(event.payload.eventLocation),
-        bookingUrl: pageUrl(
+        bookingUrl: clientManageUrl(
           brand,
+          bookingId,
           bookingId ? `/client/bookings/${bookingId}` : `/client/inquiries/${event.inquiryId}`,
         ),
+        sellerName: brand.accountName,
         brand,
         unsubscribeUrl,
         categoryLabel: "booking",
@@ -258,7 +262,7 @@ const BOOKING_CONFIRMED_TALENT: CatalogEntry = {
   defaultChannels: ["email", "in_app"],
   required: false,
   triggers: ["booking.confirmed"],
-  hydrate: loadInquiryView,
+  hydrate: loadBookingConfirmedView,
   resolveAudience: allRosterTalent,
   // TUL-93: the talent is told in-app too ("Nueva cita"), not only by email.
   in_app: {

@@ -108,3 +108,24 @@ export function expireParentDomainAuthCookies(
     }
   }
 }
+
+/**
+ * Raw `Set-Cookie` header values that expire a Supabase auth cookie at EVERY
+ * scope a browser may hold it: host-only (legacy cookies from before parent
+ * scoping) and, on shared hosts, the `.tulala.digital` parent. A name-keyed
+ * cookie jar carries only one scope per name, so a sign-out through it leaves
+ * the other scope alive and the user stays signed in (TUL-120 C1-03).
+ */
+export function authCookieExpiryHeaders(
+  names: Iterable<string>,
+  host: string | null | undefined,
+): string[] {
+  const domain = cookieDomainForHost(host);
+  const out: string[] = [];
+  for (const name of names) {
+    if (!isSupabaseAuthCookie(name)) continue;
+    out.push(`${name}=; Path=/; Max-Age=0`);
+    if (domain) out.push(`${name}=; Path=/; Max-Age=0; Domain=${domain}`);
+  }
+  return out;
+}

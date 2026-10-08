@@ -4,7 +4,10 @@
 // The Vercel alias IS the lease (no extra state). Needs VERCEL_TOKEN in env
 // (never printed). These hosts use the PRODUCTION database: stay read-only.
 import { spawnSync } from "node:child_process";
-import { QA_HOSTS, pickHost, hostsToRelease, formatAge } from "./lib/qa-hosts.mjs";
+import {
+  QA_HOSTS, pickHost, hostsToRelease, formatAge,
+  SHARE_TTL_SECONDS, shareLinksFrom, pickShareLink, buildShareUrl, formatExpiry,
+} from "./lib/qa-hosts.mjs";
 
 // Vercel REST needs IDs, not slugs/names (slugs return 404 on /v4/aliases).
 const TEAM = "team_otRX11wclvw89c5ls7A7UsZd"; // oran-tenes-projects
@@ -46,6 +49,7 @@ async function currentLeases() {
       // Lease age = when the alias was last re-pointed (updatedAt), not when the
       // host alias was first created; otherwise every pool host looks stale.
       createdAt: a.updatedAt ?? a.createdAt ?? Date.parse(a.created ?? 0),
+      shareLinks: shareLinksFrom(d.protectionBypass),
     });
   }
   return out;
@@ -55,6 +59,28 @@ function liveBranches() {
   const r = spawnSync("git", ["ls-remote", "--heads", "origin"], { encoding: "utf8" });
   if (r.status !== 0) return null;
   return new Set(r.stdout.split("\n").map((l) => l.split("refs/heads/")[1]).filter(Boolean));
+}
+
+/**
+ * Reuse an unexpired share link or mint a 23h one. Returns the openable URL or
+ * null. Never throws: the lease is already in place, so a failure is a warning.
+ * The share token is part of the printed URL by design; no other secret is logged.
+ */
+async function shareUrlFor(host, deploymentId, existing) {
+  try {
+    const reuse = pickShareLink(existing, Date.now());
+    if (reuse) return buildShareUrl(host, reuse.token);
+    const res = await api(`/aliases/${deploymentId}/protection-bypass`, {
+      method: "PATCH",
+      body: JSON.stringify({ ttl: SHARE_TTL_SECONDS }),
+    });
+    const made = pickShareLink(shareLinksFrom(res?.protectionBypass), Date.now());
+    if (!made) throw new Error("response had no shareable link");
+    return buildShareUrl(host, made.token);
+  } catch (e) {
+    console.error(`[qa-host] warning: no share link (${e.message}); ${host} will show the Vercel login wall`);
+    return null;
+  }
 }
 
 async function claim(branch) {
@@ -69,7 +95,9 @@ async function claim(branch) {
   const host = pickHost({ branch, leases, liveBranches: live ?? new Set(leases.map((l) => l.branch)), now: Date.now() });
   if (!host) throw new Error("no free QA host (all 6 leased, none stale)");
   await api(`/v2/deployments/${dep.uid}/aliases`, { method: "POST", body: JSON.stringify({ alias: host }) });
-  console.log(`https://${host}`);
+  const d = await api(`/v13/deployments/${dep.uid}`).catch(() => null);
+  const url = await shareUrlFor(host, dep.uid, shareLinksFrom(d?.protectionBypass));
+  console.log(url ?? `https://${host}`);
 }
 
 async function release(arg) {
@@ -88,7 +116,17 @@ async function list() {
   const leases = await currentLeases();
   for (const h of QA_HOSTS) {
     const l = leases.find((x) => x.host === h);
-    console.log(l ? `${h} -> ${l.branch}  ${l.sha}  ${formatAge(Date.now() - l.createdAt)}` : `${h} -> (free)`);
+    if (!l) {
+      console.log(`${h} -> (free)`);
+      continue;
+    }
+    console.log(`${h} -> ${l.branch}  ${l.sha}  ${formatAge(Date.now() - l.createdAt)}`);
+    const link = pickShareLink(l.shareLinks, Date.now());
+    console.log(
+      link
+        ? `    ${buildShareUrl(h, link.token)}  (${formatExpiry(link.expiresAt, Date.now())})`
+        : "    (no valid share link; run claim again to mint one)",
+    );
   }
 }
 
