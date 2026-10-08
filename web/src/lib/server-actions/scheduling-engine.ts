@@ -139,7 +139,8 @@ export async function cancelBookingSetAction(input: {
   bookingId: string;
   operationKey: string;
   reason: string;
-  by: "staff" | "customer";
+  /** Staff UI historically sent staff|customer; customer is accepted as client. */
+  by: "staff" | "customer" | "client" | "talent" | "system";
 }) {
   await requireNotImpersonating();
   const g = await staff();
@@ -149,11 +150,16 @@ export async function cancelBookingSetAction(input: {
       bookingId: uuid,
       operationKey: opKey,
       reason: z.string().max(200),
-      by: z.enum(["staff", "customer"]),
+      by: z.enum(["staff", "customer", "client", "talent", "system"]),
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
-  return cancelBookingSet(g.admin, { tenantId: g.tenantId, ...parsed.data });
+  return cancelBookingSet(g.admin, {
+    tenantId: g.tenantId,
+    ...parsed.data,
+    // Desk cancel: the signed-in staff member is the audit actor.
+    actorUserId: g.userId,
+  });
 }
 
 export async function signBookingManageTokenAction(input: {
@@ -196,7 +202,9 @@ export async function cancelBookingByManageToken(input: {
     bookingId: verified.payload.bookingId,
     operationKey: parsed.data.operationKey,
     reason: parsed.data.reason,
-    by: "customer",
+    // Signed manage link: role is client; no session user on the token.
+    by: "client",
+    actorUserId: null,
   });
 }
 
