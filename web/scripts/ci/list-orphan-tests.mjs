@@ -80,10 +80,15 @@ export function computeOrphans({ extraCovered = [] } = {}) {
   const dirExpansions = [];
   for (const text of texts) {
     // Explicit paths and globs (strip shell quoting/substitution punctuation).
-    for (const raw of text.split(/[\s'"`$()]+/)) {
-      const tok = raw.replace(/^\.\//, "").replace(/^web\//, "");
+    // `$(` opens a substitution; real path parentheses ("(workspace)") must survive, so only an
+    // UNBALANCED trailing ")" is stripped from a token (a closing substitution).
+    for (const raw of text.replace(/\$\(/g, " ").split(/[\s'"`]+/)) {
+      let tok = raw.replace(/^\.\//, "").replace(/^web\//, "").replace(/^\(+(?=src\/|scripts\/)/, "");
+      while (tok.endsWith(")") && (tok.match(/\(/g) ?? []).length < (tok.match(/\)/g) ?? []).length) tok = tok.slice(0, -1);
       if (!/\.test\.(?:tsx?|mjs|cjs|js)$/.test(tok)) continue;
-      if (tok.includes("*")) globs.push(globToRegExp(tok));
+      // `?` is the single-character wildcard lane-test.cjs uses for bracketed folders (TUL-288):
+      // `src/app/t/?profileCode?/x.test.ts` covers `src/app/t/[profileCode]/x.test.ts`.
+      if (tok.includes("*") || tok.includes("?")) globs.push(globToRegExp(tok));
       else covered.add(tok);
     }
     // list-test-files.cjs expansions: `[--depth=N] dir...`.
