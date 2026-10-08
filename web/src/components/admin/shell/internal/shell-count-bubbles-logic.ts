@@ -11,11 +11,11 @@ export type ShellBubbleCount = {
 
 const ORDER: readonly ShellBubbleKind[] = ["messages", "money", "attention"];
 
-/** Brand fills — coral / forest / slate (no gold or rust). */
+/** Brand fills — coral / forest / slate via admin tokens (no gold or rust). */
 export const SHELL_BUBBLE_FILL_CLASS: Record<ShellBubbleKind, string> = {
-  messages: "bg-[#C26A45] text-white border-white",
-  money: "bg-[#2E7D5B] text-white border-white",
-  attention: "bg-[#52606D] text-white border-white",
+  messages: "bg-admin-coral text-white border-white",
+  money: "bg-admin-green text-white border-white",
+  attention: "bg-admin-amber text-white border-white",
 };
 
 export function formatShellBubbleCount(count: number): string {

@@ -63,11 +63,11 @@ describe("visibleShellCountBubbles", () => {
 });
 
 describe("shell bubble fills", () => {
-  it("uses coral / forest / slate — no gold or rust", () => {
+  it("uses coral / forest / slate tokens — no gold or rust", () => {
     assert.equal(shellBubbleFillsAvoidGoldRust(), true);
-    assert.match(SHELL_BUBBLE_FILL_CLASS.messages, /C26A45/);
-    assert.match(SHELL_BUBBLE_FILL_CLASS.money, /2E7D5B/);
-    assert.match(SHELL_BUBBLE_FILL_CLASS.attention, /52606D/);
+    assert.match(SHELL_BUBBLE_FILL_CLASS.messages, /bg-admin-coral/);
+    assert.match(SHELL_BUBBLE_FILL_CLASS.money, /bg-admin-green/);
+    assert.match(SHELL_BUBBLE_FILL_CLASS.attention, /bg-admin-amber/);
   });
 });
 
