@@ -263,8 +263,9 @@ test("ladder rows print Desde / From above region-aware money", () => {
     ],
   });
   assert.match(html, /<small>From<\/small>/);
-  assert.match(html, /\$500/);
-  assert.doesNotMatch(html, /500\s*MXN/);
+  // TUL-383: one public format — symbol + amount + code (never bare $500 / MX$500).
+  assert.match(html, /\$500 MXN/);
+  assert.doesNotMatch(html, /MX\$500/);
 });
 
 test("the catalog island mounts the booking sheet and bar", () => {
