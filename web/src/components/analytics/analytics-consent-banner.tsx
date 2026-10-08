@@ -181,7 +181,7 @@ export function AnalyticsConsentBanner({ locale: rootLocale = "en" }: { locale?:
               aria-label={t("public.consent.closeLabel")}
               title={t("public.consent.closeLabel")}
               className="grid size-8 shrink-0 place-items-center rounded-[var(--tl-radius-sm,8px)] transition-colors"
-              style={{ color: "var(--tl-muted, #6b7065)" }}
+              style={{ color: "var(--tl-muted, #666b60)" }}
             >
               <span aria-hidden className="text-lg leading-none font-normal">
                 ×

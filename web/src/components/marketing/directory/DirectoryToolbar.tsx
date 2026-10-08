@@ -69,7 +69,7 @@ export function DirectoryToolbar({
               style={{
                 border: "1px solid var(--plt-hairline-strong)",
                 background:
-                  "var(--plt-bg-raised) url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%236b7065' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\") no-repeat right 0.9rem center",
+                  "var(--plt-bg-raised) url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23666b60' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\") no-repeat right 0.9rem center",
                 color: "var(--plt-ink)",
                 appearance: "none",
                 WebkitAppearance: "none",
