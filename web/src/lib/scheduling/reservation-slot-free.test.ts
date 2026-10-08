@@ -68,7 +68,7 @@ test("excludeHoldIds is forwarded to the busy loader (TUL-433)", async () => {
       excludeHoldIds: ["hold-self"],
     },
     {
-      loadBusy: (async (input) => {
+      loadBusy: (async (input: { excludeHoldIds?: readonly string[] }) => {
         seen = input.excludeHoldIds;
         // Mimic loadBusyIntervals filtering out the excluded hold.
         return [];
