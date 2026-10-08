@@ -97,11 +97,18 @@ const SEEDED_HOME_NAV_LABEL: Readonly<Record<"en" | "es", string>> = {
   es: "Inicio",
 };
 
-/** Localise the seeded home nav label for the visitor locale; other labels pass through. */
+/**
+ * Localise the seeded home nav label for the visitor locale.
+ * Only the current home item (`isHome`) is rewritten — after "Set home", a
+ * former home can stay in the nav with `navLabel: "Home"` and `isHome: false`;
+ * rewriting every Home/Inicio label would mislabel that page.
+ */
 export function localiseMaxSiteNavLabel(
   label: string,
   locale: string | null | undefined,
+  isHome = false,
 ): string {
+  if (!isHome) return label;
   const key = (locale ?? "").trim().toLowerCase().slice(0, 2);
   const target = key === "es" ? "es" : key === "en" ? "en" : null;
   if (!target) return label;
@@ -239,7 +246,7 @@ export function buildMaxSiteNav(
       const raw = p.navLabel?.trim() || title?.trim() || p.slug;
       return {
         slug: p.slug,
-        label: localiseMaxSiteNavLabel(raw, loc),
+        label: localiseMaxSiteNavLabel(raw, loc, p.isHome),
         isHome: p.isHome,
       };
     });

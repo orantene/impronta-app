@@ -153,16 +153,20 @@ test("nav: published pages ordered by sort then slug; label fallbacks", () => {
 
 // ── localiseMaxSiteNavLabel / ES Home → Inicio (TUL-121) ─────────────────────
 
-test("localiseMaxSiteNavLabel: Home ↔ Inicio; custom labels pass through", () => {
-  assert.equal(localiseMaxSiteNavLabel("Home", "es"), "Inicio");
-  assert.equal(localiseMaxSiteNavLabel("Home", "es-MX"), "Inicio");
-  assert.equal(localiseMaxSiteNavLabel("Inicio", "en"), "Home");
-  assert.equal(localiseMaxSiteNavLabel("Inicio", "en-US"), "Home");
-  assert.equal(localiseMaxSiteNavLabel("Home", "en"), "Home");
-  assert.equal(localiseMaxSiteNavLabel("Inicio", "es"), "Inicio");
-  assert.equal(localiseMaxSiteNavLabel("Galería", "es"), "Galería");
-  assert.equal(localiseMaxSiteNavLabel("Home", null), "Home");
-  assert.equal(localiseMaxSiteNavLabel("Home", "fr"), "Home");
+test("localiseMaxSiteNavLabel: Home ↔ Inicio only when isHome; custom pass through", () => {
+  assert.equal(localiseMaxSiteNavLabel("Home", "es", true), "Inicio");
+  assert.equal(localiseMaxSiteNavLabel("Home", "es-MX", true), "Inicio");
+  assert.equal(localiseMaxSiteNavLabel("Inicio", "en", true), "Home");
+  assert.equal(localiseMaxSiteNavLabel("Inicio", "en-US", true), "Home");
+  assert.equal(localiseMaxSiteNavLabel("Home", "en", true), "Home");
+  assert.equal(localiseMaxSiteNavLabel("Inicio", "es", true), "Inicio");
+  assert.equal(localiseMaxSiteNavLabel("Galería", "es", true), "Galería");
+  assert.equal(localiseMaxSiteNavLabel("Home", null, true), "Home");
+  assert.equal(localiseMaxSiteNavLabel("Home", "fr", true), "Home");
+  // Non-home items keep the literal label (former home after "Set home").
+  assert.equal(localiseMaxSiteNavLabel("Home", "es", false), "Home");
+  assert.equal(localiseMaxSiteNavLabel("Inicio", "en", false), "Inicio");
+  assert.equal(localiseMaxSiteNavLabel("Home", "es"), "Home");
 });
 
 test("nav: ES locale rewrites seeded Home title so hydrateShellNav keeps Inicio", () => {
@@ -192,6 +196,31 @@ test("nav: ES locale rewrites seeded Home title so hydrateShellNav keeps Inicio"
     [
       ["Inicio", "/"],
       ["Gallery", "/gallery"],
+    ],
+  );
+});
+
+test("nav: former home keeps navLabel Home when isHome is false (Codex P2)", () => {
+  // After "Set home", the old home page can remain published with
+  // navLabel/title "Home" but isHome: false — must not become Inicio.
+  const nav = buildMaxSiteNav(
+    [
+      page({ slug: "about", isHome: true, sortOrder: 0, title: "About" }),
+      page({
+        slug: "old-home",
+        isHome: false,
+        sortOrder: 1,
+        title: "Home",
+        navLabel: "Home",
+      }),
+    ],
+    "es-MX",
+  );
+  assert.deepEqual(
+    nav.map((n) => [n.slug, n.label, n.isHome]),
+    [
+      ["about", "About", true],
+      ["old-home", "Home", false],
     ],
   );
 });
