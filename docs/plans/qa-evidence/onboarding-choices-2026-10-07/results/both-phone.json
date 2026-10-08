@@ -21,8 +21,7 @@
     {
       "n": 4,
       "name": "finish screen + URL is real",
-      "status": "FAIL",
-      "detail": "no arrival screen"
+      "status": "PASS"
     },
     {
       "n": 5,
@@ -34,30 +33,29 @@
       "n": 6,
       "name": "guest books a service",
       "status": "FAIL",
-      "detail": "no finish URL to open"
+      "detail": "an available slot |  | \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed |  | Locator: locator('[data-testid=slot-picker] button').first() | Expected: visible"
     }
   ],
   "facts": {
     "h1Contrast": 15.36,
-    "sentence": "Soy Rosa both phone yxbjcc. Tengo un estudio de limpieza en Playa del Carmen con un equipo, y también limpio casas yo misma. Hacemos limpieza profunda y ligera, de lunes a sábado.",
-    "readyLink": "rosa-both-phone-yxbjcc.tulala.digital",
-    "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
-    "userId": "d168dd75-f418-4781-afab-3b88b2bf3d64",
-    "firstBuildEndedOnFailedScreen": true,
-    "arrival": "arrival-failed screen (build did not finish)",
+    "sentence": "Soy Rosa both phone zaiawf. Tengo un estudio de limpieza en Playa del Carmen con un equipo, y también limpio casas yo misma. Hacemos limpieza profunda y ligera, de lunes a sábado.",
+    "readyLink": "rosa-both-phone-zaiawf.tulala.digital",
+    "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: No pudimos enviar tu código. Revisa el correo e inténtalo de nuevo.",
+    "userId": "7173ac13-af93-4172-af96-2fa6ea18b8e6",
+    "arrival": "arrival screen",
     "profile": {
       "app_role": "talent",
       "home_surface_preference": "workspace",
       "account_status": "active"
     },
     "brief": {
-      "id": "d867c7b2-d5d8-498f-a4f2-fddaf75b20d9",
+      "id": "3407b83d-2c22-49fa-9185-f75376be726a",
       "choice": "both",
       "locale": "es"
     },
     "talent": {
-      "id": "98a37eb2-ad1b-4576-a9c1-6505f29b98fb",
-      "code": "TAL-93041",
+      "id": "ab23ff0d-a9cb-4172-b536-8df8d0228ab4",
+      "code": "TAL-93046",
       "preferred_locale": "es",
       "bioLocales": [
         "en",
@@ -66,12 +64,14 @@
     },
     "hubRoster": 2,
     "talentSite": null,
-    "visibleAtFail3": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
-    "visibleAtFail4": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
-    "landingMs": 90022,
-    "landingPath": "/rosa-both-phone-yxbjcc/admin",
-    "sawEnglishInterstitial": false,
+    "visibleAtFail3": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival,onb-arrival-fact,onb-arrival-link,onb-arrival-visit,onb-arrival-service,onb-arrival-view,onb-arrival-cta",
+    "finishButtonText": "Ver mi sitio",
+    "finishHost": "rosa-both-phone-zaiawf.tulala.digital",
+    "landingMs": 90183,
+    "landingPath": "/rosa-both-phone-zaiawf/admin",
+    "sawEnglishInterstitial": true,
     "visibleAtFail5": "",
+    "guestUrl": "rosa-both-phone-zaiawf.tulala.digital/",
     "visibleAtFail6": ""
   }
 }

@@ -2,6 +2,6 @@
   {
     "row": "C1-11",
     "ok": false,
-    "detail": "Servicios page never loaded its catalog: \"Seguimos intentando\" still shown after 15 s"
+    "detail": "a category to pick |  | expect(locator).toBeVisible() failed |  | Locator: locator('[role=\"option\"], [data-testid*=\"category\"], button[aria-pressed]').first() | Expected: visible | Timeout: 30000ms | Error: element(s) not found"
   }
 ]

@@ -96,3 +96,32 @@ So verifyLivePage with LIVE_CHECK_ORIGIN cannot work via fetch. Fix options: nod
 ### ENV notes
 - /api/dev/signin answered 404 on two dev boots (first request after boot) and 400 (route reached) on the third; the first attempt failed with "dev sign-in never answered 307" and was aborted (evidence discarded). A fresh restart whose first request is /api/dev/signin worked (flaky Edge-env quirk already noted in Run 1).
 - Step 5 over 15 s is the cold dev compile, as before.
+
+## Run 5 (LIVE_CHECK_ORIGIN, node:http fix from PR #2737 b2d74402f)
+Branch qa/onb-journey-run2 = PR #2737 (with the node:http Host-honouring verify) + qa commits. Stack: dev.sh (next dev :3008, isolated fxlankepwnvelxjrahwk), process env: ANTHROPIC_/OPENAI_ names only, LIVE_CHECK_ORIGIN=http://127.0.0.1:3008, VERCEL_ENV unset, NODE_ENV development. Values never recorded.
+Para mi desktop PASSES the build and the finish URL for the first time (no verifyLive warning). Then all roles and C1-03/10/11 ran. Two sessions: 9 tests on the first boot (dev sign-in answered 307 for 4 calls, then 404 for the rest of the boot, the known Edge-env quirk, so 7 tests failed at step 2 with "dev sign-in never answered 307"), then a clean restart and a rerun of 8 tests (studio desktop, both desktop, 3 phone, C1-03/10/11). The table is the final state per role (results/*.json).
+
+| Role | 1 front door | 2 screens + code | 3 build + DB | 4 finish | 5 sign out/in | 6 guest booking |
+|---|---|---|---|---|---|---|
+| Para mi, desktop (3.8 m) | PASS | PASS | PASS | PASS | FAIL (19.0 s > 15 s) | FAIL (no slot in picker) |
+| Para mi, phone (4.8 m) | PASS | PASS | FAIL (arrival-failed, verifyLive talent:network) | FAIL | FAIL | FAIL |
+| Estudio, desktop (7.0 m) | PASS | PASS | PASS | PASS | FAIL (25.6 s > 15 s) | FAIL (browser context closed) |
+| Estudio, phone (3.7 m) | PASS | PASS | PASS | PASS | FAIL (no dashboard in 90 s) | FAIL (no slot in picker) |
+| Ambos, desktop (2.7 m) | PASS | PASS | FAIL (no talent_sites row, theme_design_slug undefined) | PASS | FAIL (30.1 s > 15 s) | FAIL (no slot in picker) |
+| Ambos, phone (3.4 m) | PASS | PASS | FAIL (same) | PASS | FAIL (>90 s) | FAIL (no slot in picker) |
+
+| Check | Result |
+|---|---|
+| C1-03 account menu sign out | PASS (3 of 3 tries, cookie cleared about 1.0 s, /talent/today -> /login) |
+| C1-10 Settings working hours | FAIL: no "Zona horaria" combobox on /talent/calendar/availability (the page reached) |
+| C1-11 Profile > Servicios | FAIL: /talent/services shows 0 items and no category control to pick |
+
+### Classification
+- Fixed by #2737: the fetch Host problem. Builds now end on the real finish screen (Para mi desktop, Estudio x2, Ambos x2 step 4 PASS).
+- Step 5 over 15 s (desktop) and over 90 s (phone): ENV, cold dev compile of the first dashboard route on a fresh dev server (same as Runs 1-3).
+- Para mi phone step 3: ENV-likely. Log: `[onboarding.build.verifyLive] talent:network` (the 8 s fetch timed out three times while the talent-site route compiled cold). Not reproduced on Para mi desktop, which compiled it earlier in the same boot.
+- Ambos step 3: PRODUCT or spec to confirm. No talent_sites row after an Ambos build (seen in Runs 2 and 3 too), so the spec's maison-v2 check fails while the finish screen still reports ready.
+- Step 6 (no slot in slot-picker): not classified. Likely the seeded services/hours of the new account do not produce a bookable slot on the isolated stack; the booking page itself opens.
+- C1-10 / C1-11: not classified. C1-11 shows an empty Servicios list for the C1 account (0 items), so the category step has nothing to act on.
+- Noise (PRODUCT, minor, unchanged): `record_phase5_audit: caller not staff of tenant` warns during homepage compose/publish.
+- Harness: the first-boot dev sign-in 404 quirk cost one full pass; a clean restart where /api/dev/signin is the first request fixes it. A stale next-server from an earlier restart can keep :3008 and make fresh boots return 404 (kill by PID, check `lsof -iTCP:3008`).

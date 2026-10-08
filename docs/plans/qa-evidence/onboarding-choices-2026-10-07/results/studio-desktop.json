@@ -15,56 +15,53 @@
     {
       "n": 3,
       "name": "build + DB accounts and essentials",
-      "status": "FAIL",
-      "detail": "build ended on the arrival-failed screen (accounts asserted above)"
+      "status": "PASS"
     },
     {
       "n": 4,
       "name": "finish screen + URL is real",
-      "status": "FAIL",
-      "detail": "no arrival screen"
+      "status": "PASS"
     },
     {
       "n": 5,
       "name": "sign out and back in lands on the Spanish dashboard",
       "status": "FAIL",
-      "detail": "Spanish dashboard within ~15 s |  | \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThanOrEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m |  | Expected: <= \u001b[32m15000\u001b[39m | Received:    \u001b[31m16659\u001b[39m"
+      "detail": "Spanish dashboard within ~15 s |  | \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThanOrEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m |  | Expected: <= \u001b[32m15000\u001b[39m | Received:    \u001b[31m25553\u001b[39m"
     },
     {
       "n": 6,
       "name": "guest books a service",
       "status": "FAIL",
-      "detail": "no finish URL to open"
+      "detail": "browserContext.close: Target page, context or browser has been closed"
     }
   ],
   "facts": {
     "h1Contrast": 15.36,
-    "sentence": "Soy Estudio studio desktop ywzngd. Tengo un estudio de limpieza de casas en Playa del Carmen con un equipo de tres personas. Hacemos limpieza profunda y ligera, de lunes a sábado.",
-    "readyLink": "estudio-studio-desktop-ywzngd.tulala.digital",
+    "sentence": "Soy Estudio studio desktop yzkfah. Tengo un estudio de limpieza de casas en Playa del Carmen con un equipo de tres personas. Hacemos limpieza profunda y ligera, de lunes a sábado.",
+    "readyLink": "estudio-studio-desktop-yzkfah.tulala.digital",
     "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
-    "userId": "29943f0f-6b91-4879-83e4-84f21fa60963",
-    "firstBuildEndedOnFailedScreen": true,
-    "arrival": "arrival-failed screen (build did not finish)",
+    "userId": "d845bb9f-054a-4aa2-a40f-60eb304dfbd9",
+    "arrival": "arrival screen",
     "profile": {
       "app_role": "agency_staff",
       "home_surface_preference": "workspace",
       "account_status": "active"
     },
     "brief": {
-      "id": "b150345e-c79e-4477-80b9-b895ec5df6b3",
+      "id": "6552d229-55bc-4e18-8201-3209da1ff50f",
       "choice": "studio",
       "locale": "es"
     },
     "memberships": [
       {
-        "tenant_id": "582f7efa-2321-45d8-a409-9ea64f457d57",
+        "tenant_id": "03492b9a-96a5-448e-87a6-7abad96bd76f",
         "role": "owner",
         "status": "active"
       }
     ],
     "workspace": {
-      "id": "582f7efa-2321-45d8-a409-9ea64f457d57",
-      "slug": "estudio-studio-desktop-ywzngd"
+      "id": "03492b9a-96a5-448e-87a6-7abad96bd76f",
+      "slug": "estudio-studio-desktop-yzkfah"
     },
     "businessIdentity": {
       "default_locale": "es"
@@ -79,12 +76,13 @@
         "amount_cents": 50000
       }
     ],
-    "visibleAtFail3": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
-    "visibleAtFail4": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
-    "landingMs": 16659,
-    "landingPath": "/estudio-studio-desktop-ywzngd/admin",
-    "sawEnglishInterstitial": false,
+    "finishButtonText": "Ver mi sitio",
+    "finishHost": "estudio-studio-desktop-yzkfah.tulala.digital",
+    "landingMs": 25553,
+    "landingPath": "/estudio-studio-desktop-yzkfah/admin",
+    "sawEnglishInterstitial": true,
     "visibleAtFail5": "",
+    "guestUrl": "estudio-studio-desktop-yzkfah.tulala.digital/",
     "visibleAtFail6": ""
   }
 }
