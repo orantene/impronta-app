@@ -1669,7 +1669,8 @@
         "notAccepting": "Por ahora no se aceptan reservas nuevas. Envía una consulta.",
         "tooSoon": "Ese horario es muy pronto. Elige uno más tarde.",
         "slotTaken": "Ese horario acaba de ocuparse. Elige otro."
-      }
+      },
+      "captchaRequired": "Completa la verificación para continuar."
     },
     "bookPage": {
       "title": "Reserva un horario",
