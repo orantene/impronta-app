@@ -552,7 +552,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
         : "draft_cta";
       if (stubView !== "draft_cta") {
         return (
-          <div style={{ padding: 18, fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="flex flex-col gap-3 p-[18px] font-body">
             <TalentOfferApprovalCard inquiryId={conv.id} view={stubView} takeHome={takeHome} />
           </div>
         );
@@ -614,7 +614,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
       : "draft_cta";
     if (talentView !== "draft_cta") {
       return (
-        <div style={{ padding: 18, fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="flex flex-col gap-3 p-[18px] font-body">
           <TalentOfferApprovalCard inquiryId={conv.id} view={talentView} takeHome={takeHome} />
         </div>
       );

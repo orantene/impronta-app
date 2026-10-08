@@ -6,7 +6,7 @@ import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { respondToInquiryOffer } from "@/lib/server-actions/talent-pipeline";
 import { fmtMoney } from "./machinery-10";
-import { useAdminShell, COLORS, FONTS } from "../../state";
+import { useAdminShell, COLORS } from "../../state";
 import { primaryBtn, ghostBtn } from "./machinery-13";
 import type { TalentOfferViewState } from "./talent-offer-view";
 
@@ -46,11 +46,10 @@ export function TalentOfferApprovalCard({
     <div
       data-testid="talent-offer-approval-card"
       data-view={view}
-      style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, padding: 16, display: "flex", flexDirection: "column", gap: 10, fontFamily: FONTS.body }}
-      className="rounded-admin-md"
+      className="flex flex-col gap-2.5 rounded-admin-md border border-admin-border-soft bg-white p-4 font-body"
     >
       <div className="text-admin-ink text-admin-13h font-bold">{heading}</div>
-      <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">{body}</div>
+      <div className="text-[12.5px] leading-[1.5] text-admin-ink-muted">{body}</div>
       {takeHome && (
         <div className="text-admin-ink-muted text-admin-13h">
           {t("dashboard.talentThread.offerCardTakeHome")}{" "}
@@ -58,7 +57,7 @@ export function TalentOfferApprovalCard({
         </div>
       )}
       {view === "approve_pending" && (
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <button type="button" disabled={pending} onClick={() => respond("accepted")} style={primaryBtn(COLORS.accent)}>
             {t("dashboard.talentThread.actionApproveOffer")}
           </button>
