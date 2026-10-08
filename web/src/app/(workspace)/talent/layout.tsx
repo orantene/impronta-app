@@ -261,6 +261,10 @@ export default async function PlatformTalentLayout({
     talentPageAnalytics,
     workspaceUi,
     talentDashboardLoad,
+    visibleInquiryIds,
+    talentPlanGrants,
+    operatingCurrency,
+    requestLocale,
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
@@ -315,17 +319,21 @@ export default async function PlatformTalentLayout({
     // Real completeness for the Today card (same source as the guided wizard).
     // Never fatal: a load failure leaves the card on its old estimate.
     loadTalentDashboardData().catch(() => null),
+    // TUL-220: these four used to be awaited one after another AFTER the batch
+    // above, stacking four round trips onto every talent page before the shell
+    // could stream. None depends on the batch, so they ride in it.
+    // The bell counts only conversations she can open in Messages (TUL-52 B).
+    loadTalentVisibleInquiryIds().catch(() => null),
+    loadTalentPlanGrants(talentSelfProfile.id).catch(() => null),
+    loadPlatformOperatingCurrency(),
+    getRequestLocale(),
   ]);
 
-  // The bell counts only conversations she can open in Messages (TUL-52 B).
-  const visibleInquiryIds = await loadTalentVisibleInquiryIds().catch(() => null);
   const userNotifications = scopeTalentNotificationsToInbox(userNotificationsAll, visibleInquiryIds);
 
   // Platform currency policy: unless a super-admin has turned multi-currency
   // display ON, collapse the talent's earnings to the single operating currency
   // (default USD) so the dashboard shows one clean figure, not EUR/USD tabs.
-  const talentPlanGrants = await loadTalentPlanGrants(talentSelfProfile.id).catch(() => null);
-  const operatingCurrency = await loadPlatformOperatingCurrency();
   const displayEarnings = applyOperatingCurrencyToEarnings(talentEarnings, operatingCurrency);
 
   // Locale seeding is decided above, before the heavy loads (TUL-129).
@@ -333,7 +341,6 @@ export default async function PlatformTalentLayout({
 
   // Seed client dashboard copy with the SERVER-resolved locale so the first
   // render is not English regardless of the cookie (use-dashboard-locale.ts).
-  const requestLocale = await getRequestLocale();
 
   // Real impersonation only (validated cookie). resolveDashboardIdentity may try
   // to clear a stale cookie, which an RSC cannot do, so a throw means "not acting".
