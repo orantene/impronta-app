@@ -103,18 +103,23 @@ type LoadResult =
 /** Editor load: ALL statuses (drafts included), hero-first images resolved. */
 export async function loadTalentOfferingsForEditor(talentProfileId: string): Promise<LoadResult> {
   try {
-    const auth = await authorizeForTalent(talentProfileId);
-    if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
+    // The offerings read does not depend on the auth result (it is filtered by
+    // talent_profile_id and discarded unless auth passes), so it overlaps auth.
+    const [auth, listRes] = await Promise.all([
+      authorizeForTalent(talentProfileId),
+      offeringsTable(admin)
+        .select("*")
+        .eq("talent_profile_id", talentProfileId)
+        .order("sort_order", { ascending: true }),
+    ]);
+    if (!auth.ok) return { ok: false, error: auth.error };
     // Started now, awaited last: the rate feed is cached for hours and never
     // blocks the list, and a failure only removes the "≈ US$" preview.
     const usdRatesPending = loadUsdRates().catch(() => null);
 
-    const { data, error } = await offeringsTable(admin)
-      .select("*")
-      .eq("talent_profile_id", talentProfileId)
-      .order("sort_order", { ascending: true });
+    const { data, error } = listRes;
     if (error) {
       logServerError("talent.offerings.load", error);
       return { ok: false, error: "Could not load your services." };
