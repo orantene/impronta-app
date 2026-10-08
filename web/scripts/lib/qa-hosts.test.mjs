@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isAllowedParityBaseUrl, bypassHeaders, pickHost, isQaPoolHost, isQaPoolUrl, hostsToRelease, QA_HOSTS, LEASE_TTL_MS, shareLinksFrom, pickShareLink, buildShareUrl, formatExpiry, SHARE_MIN_REMAINING_MS } from "./qa-hosts.mjs";
+import { isAllowedParityBaseUrl, bypassHeaders, pickHost, isQaPoolHost, isQaPoolUrl, hostsToRelease, QA_HOSTS, LEASE_TTL_MS, shareLinksFrom, shareLinksFromAliasAndDeployment, pickShareLink, buildShareUrl, formatExpiry, SHARE_MIN_REMAINING_MS } from "./qa-hosts.mjs";
 
 const now = 1_000_000_000_000;
 const lease = (n, branch, ageMs) => ({ host: QA_HOSTS[n - 1], branch, createdAt: now - ageMs });
@@ -99,4 +99,15 @@ test("formatExpiry", () => {
   assert.equal(formatExpiry(null, now), "no expiry");
   assert.equal(formatExpiry(now - 1, now), "expired");
   assert.equal(formatExpiry(now + 22 * 3600_000, now), "expires in 22h");
+});
+
+test("share links are read from the alias object as well as the deployment (Vercel puts them on the alias)", () => {
+  const alias = { protectionBypass: { tokA: { scope: "shareable-link", expires: 1791488071 }, auto: { scope: "automation-bypass" } } };
+  const links = shareLinksFromAliasAndDeployment(alias, { protectionBypass: undefined });
+  assert.deepEqual(links, [{ token: "tokA", expiresAt: 1791488071 * 1000 }]);
+  // the deployment alone, and neither, still work
+  assert.equal(shareLinksFromAliasAndDeployment(null, { protectionBypass: { tokB: { scope: "shareable-link" } } }).length, 1);
+  assert.deepEqual(shareLinksFromAliasAndDeployment(null, null), []);
+  // an automation secret is never surfaced from either side
+  assert.deepEqual(shareLinksFromAliasAndDeployment({ protectionBypass: { s: { scope: "automation-bypass" } } }, { protectionBypass: { t: { scope: "automation-bypass" } } }), []);
 });
