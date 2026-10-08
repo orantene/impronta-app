@@ -8,15 +8,14 @@
 import {
   loadProfileShellAlbumPage,
   loadProfileShellMediaOverview,
-  type AlbumPage,
-  type AlbumSummary,
-  type ProfileShellMediaOverview,
 } from "@/lib/media/profile-shell-media-overview.server";
+// Types come in through a SEPARATE `import type` and are NEVER re-exported from this "use server" file:
+// Turbopack leaves a runtime reference for `export type { X }` of an inline-imported type, and the
+// compiled server then throws "ReferenceError: X is not defined" at module evaluation (the admin 500s).
+import type { AlbumPage, ProfileShellMediaOverview } from "@/lib/media/profile-shell-media-overview.server";
 import { authorizeTalentMediaRead } from "@/lib/media/talent-media-read-auth.server";
 
 type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
-
-export type { AlbumPage, AlbumSummary, ProfileShellMediaOverview };
 
 /** Albums with counts + covers, singletons and the gallery's first page. */
 export async function actionLoadProfileShellMedia(
