@@ -65,8 +65,7 @@ import { closeCheckoutSession, settleCheckoutPayment } from "@/lib/stripe/webhoo
 import { emitBookingConfirmation } from "@/lib/payments/booking-confirmation";
 import { releaseHeldPayouts, syncBookingPayoutLifecycle } from "@/lib/payments/booking-payouts-ledger";
 import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refunds";
-import { formatFailedRefundMoney } from "@/lib/payments/failed-refund-attention-note";
-import { applyFailedRefundSettlement } from "@/lib/payments/failed-refund-settlement";
+import { handleFailedRefundWebhookAction } from "@/lib/payments/failed-refund-settlement";
 import { recordProviderPayout } from "@/lib/payments/provider-payouts";
 import { recordProviderDispute } from "@/lib/payments/provider-disputes";
 import { recordProviderInvoice } from "@/lib/payments/provider-invoices";
@@ -595,46 +594,10 @@ export async function processStripeEvent(
       await applyConnectTransferSettlement(action);
       return;
 
-    case "refund_settlement": {
-      // The refund did NOT reach the customer. Stripe has returned the money to
-      // the PLATFORM balance, while our records already say this booking was
-      // refunded and its payouts were reversed.
-      //
-      // This deliberately does NOT auto-revert that state. Un-reversing would
-      // move real money on the strength of a rare event no human has looked at,
-      // and Stripe's own guidance is that a failed refund needs an alternative
-      // arrangement with the customer rather than an automatic retry. The
-      // correct action is a loud, actionable alert; a person decides how the
-      // customer actually gets paid.
-      //
-      // Alerting is therefore the whole job here: stamp the refund row so Admin
-      // Payments shows it, and keep the loud server log with every id needed
-      // to act without going digging.
-      const sb = createServiceRoleClient();
-      if (sb) {
-        await applyFailedRefundSettlement(sb, {
-          refundId: action.refundId,
-          status: action.status,
-          failureReason: action.failureReason,
-          amountCents: action.amount,
-          currency: action.currency,
-          chargeId: action.chargeId,
-          paymentIntentId: action.paymentIntentId,
-        });
-      }
-      logServerError(
-        "stripe-webhook.refund.failed",
-        new Error(
-          `Refund ${action.refundId} ${action.status.toUpperCase()} for ` +
-            `${formatFailedRefundMoney(action.amount, action.currency)} ` +
-            `(charge=${action.chargeId ?? "unknown"}, payment_intent=${action.paymentIntentId ?? "unknown"}, ` +
-            `reason=${action.failureReason ?? "unspecified"}). ` +
-            `THE CUSTOMER HAS NOT BEEN PAID and the funds are back in the platform balance. ` +
-            `Our records still show this payment as refunded. Arrange an alternative refund manually.`,
-        ),
-      );
+    case "refund_settlement":
+      // Failed refund: no auto-revert. Stamp admin visibility + loud log (TUL-144).
+      await handleFailedRefundWebhookAction(action);
       return;
-    }
 
     case "invoice_payment_succeeded": {
       // Record before the re-sync, so the register is complete even if the

@@ -100,16 +100,22 @@ test("isFailedRefundAttention and note helpers", () => {
   assert.equal(failedRefundAttentionNote({ needs_attention: "other" }), null);
 });
 
-test("webhook-handler refund_settlement calls applyFailedRefundSettlement and keeps the loud log", () => {
+test("webhook-handler refund_settlement delegates to handleFailedRefundWebhookAction (no auto-revert)", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/stripe/webhook-handler.ts"), "utf8");
-  assert.match(src, /applyFailedRefundSettlement/);
+  assert.match(src, /handleFailedRefundWebhookAction/);
   assert.match(src, /from "@\/lib\/payments\/failed-refund-settlement"/);
   const start = src.indexOf('case "refund_settlement"');
   assert.ok(start > 0);
   const body = src.slice(start, src.indexOf("case \"invoice_payment_succeeded\"", start));
-  assert.match(body, /logServerError\(\s*"stripe-webhook\.refund\.failed"/);
-  assert.match(body, /applyFailedRefundSettlement\(/);
+  assert.match(body, /handleFailedRefundWebhookAction\(/);
   assert.ok(!/status:\s*["']paid["']/.test(body), "must not auto-revert refunded state");
+
+  const settlement = readFileSync(
+    join(process.cwd(), "src/lib/payments/failed-refund-settlement.ts"),
+    "utf8",
+  );
+  assert.match(settlement, /logServerError\(\s*"stripe-webhook\.refund\.failed"/);
+  assert.match(settlement, /applyFailedRefundSettlement\(/);
 });
 
 test("admin RefundsTab shows coral failed state for refund_failed attention", () => {
