@@ -24,6 +24,7 @@ import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ReplyRefusal = "invalid" | "unavailable" | "not_signed_in" | "not_allowed" | "empty" | "too_long" | "rate_limited" | "failed";
 
@@ -34,6 +35,7 @@ export async function replyToMyThread(input: {
   inquiryId: string;
   body: string;
 }): Promise<{ ok: true } | { ok: false; reason: ReplyRefusal }> {
+  if (!(await assertNotImpersonating()).ok) return { ok: false, reason: "unavailable" };
   const parsed = z.object({ inquiryId: z.string().uuid(), body: z.string().max(20_000) }).safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid" };
   if (!(await accountSurfaceEnabledForRequest())) return { ok: false, reason: "unavailable" };
