@@ -75,3 +75,24 @@ Ambos has no talent_sites row because the Ambos build stops at the workspace ste
 - Email code: still "Hook requires authorization token" then "email rate limit exceeded" (ENV, isolated auth hook). Spec falls back to createUser + dev sign-in.
 - Dead end "too little" screen still appears even with AI vars set (AI read did not succeed on the isolated stack); spec seeds facts with the service role.
 - C1-10 / C1-11: not classified (ENV vs PRODUCT) because the account never completes the build; needs a rerun once verifyLive is bypassed on the isolated stack.
+
+## Run 4 (LIVE_CHECK_ORIGIN) - stopped after Para mi desktop
+Branch qa/onb-journey-run2 = PR #2737 (resolveLiveCheckOrigin) + the qa commits. Stack: dev.sh (next dev :3008, isolated fxlankepwnvelxjrahwk), process env: ANTHROPIC_/OPENAI_ names only, LIVE_CHECK_ORIGIN=http://127.0.0.1:3008, VERCEL_ENV unset, NODE_ENV development. Values never recorded. Only Para mi desktop ran (first role failed at build, so the rest was not run, as instructed). C1-03/10/11 not run.
+
+| Role | 1 front door | 2 screens + code | 3 build + DB | 4 finish | 5 sign out/in | 6 guest booking |
+|---|---|---|---|---|---|---|
+| Para mi, desktop | PASS | PASS | FAIL (arrival-failed) | FAIL | FAIL (>15 s, cold compile) | FAIL (no finish URL) |
+| Para mi phone, Estudio x2, Ambos x2, C1-03/10/11 | not run | | | | | |
+
+Evidence: results/myself-desktop.json, myself-desktop-*.jpg. Test 1 took about 1.7 min (build fails fast; no 180 s wait now).
+
+### Cause (PRODUCT, in the #2737 fix): Node fetch ignores the Host override
+Dev log: `[onboarding.build.verifyLive] talent:name_missing`. The override worked on the URL side (status is now 200, not 404), but the response was the marketing home page, not the site. Measured against the running server with the existing slug host rosa-myself-desktop-ywxcij.tulala.digital:
+- `curl -H 'Host: <slug host>' http://127.0.0.1:3008/`: 200, 1.30 MB, contains the name (site routed correctly).
+- `http.get` with a host header: 200, 1.30 MB, contains the name.
+- Node `fetch` (undici) with `headers: { host, "x-forwarded-host" }`: 200, 0.20 MB, name absent (marketing page). Host is a forbidden header in fetch, and x-forwarded-host alone is not used for routing.
+So verifyLivePage with LIVE_CHECK_ORIGIN cannot work via fetch. Fix options: node:http(s).request for the override path, an undici Agent with a custom connect (keep the URL host, connect to 127.0.0.1:3008), or fetch a path-based route on the local origin.
+
+### ENV notes
+- /api/dev/signin answered 404 on two dev boots (first request after boot) and 400 (route reached) on the third; the first attempt failed with "dev sign-in never answered 307" and was aborted (evidence discarded). A fresh restart whose first request is /api/dev/signin worked (flaky Edge-env quirk already noted in Run 1).
+- Step 5 over 15 s is the cold dev compile, as before.

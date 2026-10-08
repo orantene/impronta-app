@@ -28,7 +28,7 @@
       "n": 5,
       "name": "sign out and back in lands on the Spanish dashboard",
       "status": "FAIL",
-      "detail": "Spanish dashboard within ~15 s |  | \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThanOrEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m |  | Expected: <= \u001b[32m15000\u001b[39m | Received:    \u001b[31m19343\u001b[39m"
+      "detail": "Spanish dashboard within ~15 s |  | \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThanOrEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m |  | Expected: <= \u001b[32m15000\u001b[39m | Received:    \u001b[31m17731\u001b[39m"
     },
     {
       "n": 6,
@@ -39,10 +39,10 @@
   ],
   "facts": {
     "h1Contrast": 15.36,
-    "sentence": "Me llamo Rosa myself desktop ywxcij. Soy limpiadora de casas en Playa del Carmen. Hago limpieza profunda y ligera, de lunes a sábado.",
+    "sentence": "Me llamo Rosa myself desktop yyhmfc. Soy limpiadora de casas en Playa del Carmen. Hago limpieza profunda y ligera, de lunes a sábado.",
     "readyLink": null,
-    "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: No pudimos enviar tu código. Revisa el correo e inténtalo de nuevo.",
-    "userId": "f4ef1108-532d-4490-b275-5a37b1caf8f8",
+    "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+    "userId": "11ae0343-3be9-45a8-8439-9451171a38bd",
     "firstBuildEndedOnFailedScreen": true,
     "arrival": "arrival-failed screen (build did not finish)",
     "profile": {
@@ -51,13 +51,13 @@
       "account_status": "active"
     },
     "brief": {
-      "id": "97cf9ceb-29ed-462a-9a8c-b74ab5978922",
+      "id": "5ca2a711-db4b-4100-827e-c0a96cc53366",
       "choice": "myself",
       "locale": "es"
     },
     "talent": {
-      "id": "6e15b1c9-c5c0-4f65-91c6-eb65f101bab5",
-      "code": "TAL-93038",
+      "id": "fa3284f7-9876-42a5-93e6-c0fb83259b2e",
+      "code": "TAL-93042",
       "preferred_locale": "es",
       "bioLocales": [
         "en",
@@ -66,9 +66,9 @@
     },
     "hubRoster": 1,
     "talentSite": {
-      "site_slug": "rosa-myself-desktop-ywxcij",
+      "site_slug": "rosa-myself-desktop-yyhmfc",
       "theme_design_slug": "maison-v2",
-      "site_published_at": "2026-10-08T02:25:07.17+00:00"
+      "site_published_at": "2026-10-08T03:01:07.648+00:00"
     },
     "talentOfferings": [
       {
@@ -89,7 +89,7 @@
     },
     "visibleAtFail3": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
     "visibleAtFail4": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
-    "landingMs": 19343,
+    "landingMs": 17731,
     "landingPath": "/talent/today",
     "sawEnglishInterstitial": false,
     "visibleAtFail5": "",
