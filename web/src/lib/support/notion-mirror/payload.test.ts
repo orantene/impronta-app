@@ -22,11 +22,13 @@ import {
   readNotionMirrorConfig,
 } from "./config";
 import {
+  NOTION_MIRROR_ELAPSED_BUDGET_MS,
   checkCronBearer,
   mapDbMirrorRow,
   needsNotionMirror,
   pickDueMirrorTickets,
   pushTicketToNotion,
+  shouldStopForElapsedBudget,
 } from "./sync";
 
 const SAMPLE = {
@@ -206,6 +208,14 @@ test("checkCronBearer requires Bearer prefix and matching secret", () => {
   assert.equal(checkCronBearer("bearer s", "s").authorized, true);
   // Length mismatch must not throw (timingSafeEqual requirement).
   assert.equal(checkCronBearer("Bearer longer-secret", "s").authorized, false);
+});
+
+test("shouldStopForElapsedBudget enforces the ~45s cron wall", () => {
+  assert.equal(NOTION_MIRROR_ELAPSED_BUDGET_MS, 45_000);
+  const start = 1_000_000;
+  assert.equal(shouldStopForElapsedBudget(start, start + 44_999), false);
+  assert.equal(shouldStopForElapsedBudget(start, start + 45_000), true);
+  assert.equal(shouldStopForElapsedBudget(start, start + 60_000), true);
 });
 
 test("pushTicketToNotion creates when no page id, updates when present", async () => {

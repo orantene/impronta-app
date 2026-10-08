@@ -23,6 +23,18 @@ import {
 /** Max tickets processed per cron run (SQL limit + Notion rate budget). */
 export const NOTION_MIRROR_BATCH_LIMIT = 50;
 
+/** Soft wall-clock budget so a slow Notion run cannot blow the cron window. */
+export const NOTION_MIRROR_ELAPSED_BUDGET_MS = 45_000;
+
+/** True when the cron batch should stop before the next ticket. */
+export function shouldStopForElapsedBudget(
+  startedAtMs: number,
+  nowMs: number,
+  budgetMs = NOTION_MIRROR_ELAPSED_BUDGET_MS,
+): boolean {
+  return nowMs - startedAtMs >= budgetMs;
+}
+
 export type MirrorTicketRow = NotionMirrorTicketInput & {
   notionPageId: string | null;
   notionSyncedAt: string | null;

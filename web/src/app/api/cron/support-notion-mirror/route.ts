@@ -21,6 +21,7 @@ import {
   checkCronBearer,
   mapDbMirrorRow,
   pushTicketToNotion,
+  shouldStopForElapsedBudget,
   type MirrorTicketRow,
 } from "@/lib/support/notion-mirror/sync";
 
@@ -56,6 +57,17 @@ async function markMirrored(
   const { error } = await (admin as any).rpc("mark_support_ticket_notion_mirrored", {
     p_id: ticketId,
     p_page_id: pageId,
+  });
+  return { error };
+}
+
+async function markMirrorFailed(
+  admin: AdminClient,
+  ticketId: string,
+): Promise<{ error: unknown }> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (admin as any).rpc("mark_support_ticket_notion_mirror_failed", {
+    p_id: ticketId,
   });
   return { error };
 }
@@ -104,7 +116,13 @@ export async function GET(request: Request) {
     stopped: null as string | null,
   };
 
+  const startedAtMs = Date.now();
+
   for (const ticket of due) {
+    if (shouldStopForElapsedBudget(startedAtMs, Date.now())) {
+      stats.stopped = "elapsed_budget";
+      break;
+    }
     const hadPageId = Boolean(ticket.notionPageId);
     try {
       const result = await pushTicketToNotion({ config, ticket });
@@ -114,6 +132,10 @@ export async function GET(request: Request) {
           "cron/support-notion-mirror.push",
           `ticket ${ticket.ticketNumber}: ${result.status} ${result.message}`,
         );
+        const { error: failErr } = await markMirrorFailed(admin, ticket.id);
+        if (failErr) {
+          logServerError("cron/support-notion-mirror.mark-failed", failErr);
+        }
         if (result.status === 429) {
           stats.stopped = result.retryAfterSec != null
             ? `rate_limited_retry_after_${result.retryAfterSec}s`
@@ -126,6 +148,10 @@ export async function GET(request: Request) {
       if (writeErr) {
         stats.failed += 1;
         logServerError("cron/support-notion-mirror.writeback", writeErr);
+        const { error: failErr } = await markMirrorFailed(admin, ticket.id);
+        if (failErr) {
+          logServerError("cron/support-notion-mirror.mark-failed", failErr);
+        }
         continue;
       }
       if (hadPageId) stats.updated += 1;
@@ -133,6 +159,10 @@ export async function GET(request: Request) {
     } catch (err) {
       stats.failed += 1;
       logServerError("cron/support-notion-mirror.push", err);
+      const { error: failErr } = await markMirrorFailed(admin, ticket.id);
+      if (failErr) {
+        logServerError("cron/support-notion-mirror.mark-failed", failErr);
+      }
     }
   }
 
