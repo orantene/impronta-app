@@ -54,6 +54,11 @@ function overlayValue(props: Record<string, unknown>, lang: "es" | "en", key: st
   return typeof v === "string" && v.trim() ? v : undefined;
 }
 
+/** Folio still seeds Spanish CTA bases until #2914; skip overlay + English-base scans. */
+function isPendingFolioSpanishBase(slug: string, text: string): boolean {
+  return slug === "folio" && FOLIO_SPANISH_BASE_PENDING_2914.has(text.trim());
+}
+
 function scan(slug: string, payload: DesignPayload): { problems: string[]; values: string[] } {
   const problems: string[] = [];
   const values: string[] = [];
@@ -64,7 +69,13 @@ function scan(slug: string, payload: DesignPayload): { problems: string[]; value
       const kind = node.kind as Parameters<typeof localizablePropsForKind>[0];
       for (const prop of localizablePropsForKind(kind)) {
         const text = props[prop];
-        if (typeof text !== "string" || isTokenOnlyText(text) || MODE_DEPENDENT_LABELS.includes(text.trim())) continue;
+        if (
+          typeof text !== "string" ||
+          isTokenOnlyText(text) ||
+          MODE_DEPENDENT_LABELS.includes(text.trim()) ||
+          isPendingFolioSpanishBase(slug, text)
+        )
+          continue;
         for (const lang of ["es", "en"] as const) {
           const v = overlayValue(props, lang, prop);
           if (v === undefined) problems.push(`${path}.${prop} missing i18n.${lang} (${JSON.stringify(text)})`);
@@ -74,7 +85,13 @@ function scan(slug: string, payload: DesignPayload): { problems: string[]; value
       if (node.kind === "marquee" && Array.isArray(props.items)) {
         props.items.forEach((it, n) => {
           const text = it && typeof it === "object" ? (it as { text?: unknown }).text : undefined;
-          if (typeof text !== "string" || isTokenOnlyText(text) || MODE_DEPENDENT_LABELS.includes(text.trim())) return;
+          if (
+            typeof text !== "string" ||
+            isTokenOnlyText(text) ||
+            MODE_DEPENDENT_LABELS.includes(text.trim()) ||
+            isPendingFolioSpanishBase(slug, text)
+          )
+            return;
           for (const lang of ["es", "en"] as const) {
             const v = overlayValue(props, lang, `items.${n}.text`);
             if (v === undefined) problems.push(`${path}.items.${n}.text missing i18n.${lang} (${JSON.stringify(text)})`);
@@ -89,7 +106,13 @@ function scan(slug: string, payload: DesignPayload): { problems: string[]; value
         items.forEach((item, n) => {
           for (const field of spec.fields) {
             const text = item && typeof item === "object" ? (item as Record<string, unknown>)[field] : undefined;
-            if (typeof text !== "string" || isTokenOnlyText(text) || MODE_DEPENDENT_LABELS.includes(text.trim())) continue;
+            if (
+              typeof text !== "string" ||
+              isTokenOnlyText(text) ||
+              MODE_DEPENDENT_LABELS.includes(text.trim()) ||
+              isPendingFolioSpanishBase(slug, text)
+            )
+              continue;
             const key = listOverlayKey(spec.list, n, field);
             for (const lang of ["es", "en"] as const) {
               const v = overlayValue(props, lang, key);
@@ -102,7 +125,12 @@ function scan(slug: string, payload: DesignPayload): { problems: string[]; value
       // ... and the header's nav and CTA labels, which live in sectionProps.
       if (node.kind === "section" && props.sectionTypeKey === "site_header") {
         for (const { key, text } of headerLabelEntries(props.sectionProps)) {
-          if (isTokenOnlyText(text) || MODE_DEPENDENT_LABELS.includes(text.trim())) continue;
+          if (
+            isTokenOnlyText(text) ||
+            MODE_DEPENDENT_LABELS.includes(text.trim()) ||
+            isPendingFolioSpanishBase(slug, text)
+          )
+            continue;
           for (const lang of ["es", "en"] as const) {
             const v = overlayValue(props, lang, `${HEADER_OVERLAY_PREFIX}${key}`);
             if (v === undefined) problems.push(`${path}.${HEADER_OVERLAY_PREFIX}${key} missing i18n.${lang} (${JSON.stringify(text)})`);
@@ -132,10 +160,6 @@ for (const [slug, build] of DESIGNS) {
 test(`theme seed base locale is ${THEME_SEED_BASE_LOCALE}`, () => {
   assert.equal(THEME_SEED_BASE_LOCALE, "en");
 });
-
-function isPendingFolioSpanishBase(slug: string, text: string): boolean {
-  return slug === "folio" && FOLIO_SPANISH_BASE_PENDING_2914.has(text.trim());
-}
 
 for (const [slug, build] of DESIGNS) {
   test(`${slug}: every seeded base text is English (TUL-369)`, () => {

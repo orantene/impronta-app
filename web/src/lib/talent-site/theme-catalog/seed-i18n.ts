@@ -159,7 +159,6 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   "Up close": "De cerca",
   Portraits: "Retratos",
   "Natural light": "Luz natural",
-  Lookbook: "Lookbook",
   "Studio session": "Sesión de estudio",
   "Seasonal story": "Historia de temporada",
   "Base rates in MXN. Ad use and travel are quoted separately.":
@@ -201,8 +200,6 @@ export const MODE_DEPENDENT_LABELS: readonly string[] = [
   "Reserve a time",
   "Booking",
   "Book an appointment",
-  // Folio inquiry CTA still seeds Spanish until #2914; skip overlay/scan like other mode CTAs.
-  "Consultar",
 ];
 
 /** Text made only of `{{tokens}}`, digits and punctuation: profile data, no copy. */
