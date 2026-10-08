@@ -789,8 +789,7 @@ async function renderMaxSiteDocument(args: {
 
       {args.isDemo ? <MaxSiteDemoFooter locale={locale} /> : null}
 
-      {/* Global Tulala footer socket: one shared bottom strip under every
-          design's own footer (replaces the scattered "Made with Tulala"). */}
+      {/* Global Tulala footer socket under every design's own footer. */}
       <TalentSiteSocket model={socketModel} />
     </div>
   );
