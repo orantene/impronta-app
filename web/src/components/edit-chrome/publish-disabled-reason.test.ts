@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
+import { blankComments } from "../../lib/quality/supabase-unchecked-read";
 import { editorT } from "./editor-i18n";
 import {
   formatPublishDisabledReason,
@@ -138,7 +139,7 @@ test("hard-block overflow reasons use count templates in both locales", () => {
 });
 
 test("publish drawer routes disabled reasons through the shared helper", () => {
-  const src = readFileSync(join(HERE, "publish-drawer.tsx"), "utf8");
+  const src = blankComments(readFileSync(join(HERE, "publish-drawer.tsx"), "utf8"));
   assert.ok(src.includes("resolvePublishDisabledReason"));
   assert.ok(src.includes("formatPublishDisabledReason"));
   assert.ok(!src.includes('return "Publishing. Please wait."'));
