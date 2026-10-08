@@ -70,6 +70,8 @@ export async function verifyClientAccountCode(input: {
   locale: string;
   ageTerms: boolean;
 }): Promise<VerifyClientCodeResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const t = createTranslator(input.locale === "es" ? "es" : "en");
   const generic = t("public.clientAccount.genericError");
   // Flag off: the surface does not exist, so the action refuses too.

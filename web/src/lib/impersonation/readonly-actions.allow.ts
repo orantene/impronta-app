@@ -10,10 +10,8 @@ export type AllowEntry = [suffix: string, names: string[], reason: string];
 export const EXTRA_ALLOW: AllowEntry[] = [
   ["app/(workspace)/[tenantSlug]/admin/media/actions.ts", ["actionLoadTalentMediaBundleAll"], READ],
   ["app/(workspace)/platform/admin/integrations/captcha-override-actions.ts", ["loadWorkspaceCaptchaOverrides"], READ],
-  ["app/(workspace)/platform/admin/integrations/captcha-override-actions.ts", ["resetWorkspaceCaptchaToPlatform"], "PLATFORM ADMIN: gated by requirePlatformAdmin, a staff-only surface with no target portal to protect"],
   ["lib/server-actions/how-you-work.ts", ["loadHowYouWork"], READ],
   ["lib/site-admin/media/photo-caption-actions.ts", ["loadTalentPhotoCaptionLocalesAction"], READ],
-  ["lib/client-account/actions.ts", ["verifyClientAccountCode"], "SIGN-IN: establishes the caller's own client session by one-time code; writes nothing for an impersonation target"],
   ["lib/client-account/actions.ts", ["signOutClientAccount"], "SIGN-OUT: ends the session; must keep working while impersonating (PM exception)"],
   ["lib/reviews/review-actions.ts", ["loadReviewableBookingsAction", "loadClientReviewablesAction"], READ],
   ["lib/server-actions/messaging-engine.ts", ["staff", "messagingLoadInbox", "messagingResolveOrderThread", "messagingLoadThread", "messagingLoadEssentials", "loadConversationHistory", "messagingResolve", "messagingRelinkImpact", "messagingSearch"], READ],
