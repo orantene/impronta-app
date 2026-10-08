@@ -46,7 +46,7 @@ import {
   type TalentBookingPosture,
 } from "@/lib/talent/selling-booking-settings";
 
-export type CatalogGroup = { name: string | null; items: TalentOffering[]; note?: string | null };
+export type CatalogGroup = { name: string | null; label?: string | null; items: TalentOffering[]; note?: string | null };
 
 export type CatalogNavMode = "pills" | "tabs" | "rail" | "jump" | "sections" | "accordion" | "flat";
 
@@ -398,7 +398,7 @@ export function ServicesCatalogFilter({
                 data-active={selected ? "true" : "false"}
                 onClick={() => setActive(g.name)}
               >
-                {g.name}
+                {g.label ?? g.name}
                 {categoryShowCounts ? railCount(nav, count) : ""}
               </button>
             );
@@ -416,7 +416,7 @@ export function ServicesCatalogFilter({
               href={`#${catalogCategoryJumpId(nodeId, g.name ?? "_")}`}
               className="site-builder-node--services-catalog-pill"
             >
-              {g.name ?? (es ? "Otros" : "Other")}
+              {g.label ?? g.name ?? (es ? "Otros" : "Other")}
             </a>
           ))}
         </nav>
@@ -441,7 +441,7 @@ export function ServicesCatalogFilter({
           >
             {showGroupHeading ? (
               <h3 className="site-builder-node--services-catalog-group-title">
-                {g.name ?? (es ? "Otros" : "Other")}
+                {g.label ?? g.name ?? (es ? "Otros" : "Other")}
                 {nav === "rail" ? (
                   <small className="site-builder-node--services-catalog-group-count">
                     {es
@@ -458,7 +458,7 @@ export function ServicesCatalogFilter({
                 aria-expanded={accordionOpen}
                 onClick={() => setOpenAccordion(accordionOpen ? null : g.name)}
               >
-                <span>{g.name}</span>
+                <span>{g.label ?? g.name}</span>
                 <span aria-hidden>{accordionOpen ? "−" : "+"}</span>
               </button>
             ) : null}
@@ -702,7 +702,7 @@ export function CatalogRow({
           ) : null}
         </strong>
         {showCategory && item.category ? (
-          <span className="site-builder-node--services-catalog-meta">{item.category}</span>
+          <span className="site-builder-node--services-catalog-meta">{item.categoryLabel ?? item.category}</span>
         ) : null}
         {showDescription && item.description ? (
           <span className="site-builder-node--services-catalog-desc">{item.description}</span>

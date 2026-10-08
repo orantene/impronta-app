@@ -181,3 +181,49 @@ test("the scanner flags a seeded English-only node of a new kind, a list row and
   assert.ok(problems.some((p) => p.includes("rows.0.label")));
   assert.ok(problems.some((p) => p.includes("sectionProps.navItems.0.label")));
 });
+
+test("FAQ, stats and services catalog kinds are registered and the scanner reaches the seeded ones (TUL-207)", () => {
+  for (const kind of ["accordion_item", "stats", "services_catalog"] as const) {
+    assert.ok(
+      localizablePropsForKind(kind).length > 0 || localizableListSpecsForKind(kind).length > 0,
+      `${kind} has nothing registered`,
+    );
+  }
+  assert.ok(localizablePropsForKind("services_catalog").includes("ctaLabel"));
+  assert.deepEqual(localizableListSpecsForKind("stats").map((s) => s.list), ["items"]);
+  const seen = new Set<string>();
+  for (const [, build] of DESIGNS) {
+    const bag = build() as unknown as Record<string, unknown>;
+    for (const treeName of ["homeTree", "shellTree", "optionalBlocks"] as const) {
+      walk(bag[treeName], treeName, (_path, node) => void seen.add(String(node.kind)));
+    }
+  }
+  // The released FAQ is a bound accordion (its rows are live data), so the
+  // scanner is proven on accordion_item by the fake payload below.
+  for (const kind of ["stats", "services_catalog", "accordion"] as const) {
+    assert.ok(seen.has(kind), `no released design seeds a ${kind}`);
+  }
+});
+
+test("the scanner flags a seeded FAQ item, stats cell and catalog string lacking es or en (TUL-207)", () => {
+  const fake = {
+    shellTree: [],
+    homeTree: [
+      {
+        kind: "accordion",
+        id: "f",
+        props: {},
+        children: [{ kind: "accordion_item", id: "q", props: { title: "How long does it last?" } }],
+      },
+      { kind: "stats", id: "s", props: { variant: "spec", items: [{ label: "Response", value: "Within a day" }] } },
+      { kind: "services_catalog", id: "c", props: { title: "Rates", ctaLabel: "Book now" } },
+    ],
+  } as unknown as DesignPayload;
+  const problems = scan("fake", fake).problems;
+  // accordion_item title, stats label + value, catalog title + ctaLabel; each x (es, en).
+  assert.equal(problems.length, 10, problems.join("\n"));
+  assert.ok(problems.some((p) => p.includes("items.0.label")));
+  assert.ok(problems.some((p) => p.includes("items.0.value")));
+  assert.ok(problems.some((p) => p.includes("accordion_item") && p.includes(".title")));
+  assert.ok(problems.some((p) => p.includes("services_catalog") && p.includes(".ctaLabel")));
+});

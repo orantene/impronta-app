@@ -175,6 +175,9 @@ function fixture(d: Def): DemoContentFixture {
       headline: d.hero.headline,
       ctas: d.hero.ctas,
       facts: d.hero.facts.map(([label, value]) => ({ label, value })),
+      ...(d.hero.factsEn
+        ? { factsI18n: { en: d.hero.factsEn.map(([label, value]) => ({ label, value })) } }
+        : {}),
       badges: d.hero.badges,
     },
     menu: { eyebrow: null, title: c.menuTitle, subtitle: c.prices(d.currency) },
@@ -408,6 +411,7 @@ const MADERA: Def = {
     eyebrow: "Agenda abierta · Morelia y alrededores",
     headline: "Muebles a tu medida, {i}con precio y dibujo antes de empezar.{/i}",
     facts: [["Respuesta", "En 2 días"], ["Garantía", "6 meses"], ["Precio", "Antes de empezar"], ["Visita", "$400"]],
+    factsEn: [["Response", "Within 2 days"], ["Warranty", "6 months"], ["Price", "Before I start"], ["Visit", "$400"]],
     badges: ["Pino y parota", "Taller propio"],
     ctas: ["Ver horarios", "¿Qué necesitas?"],
   },
@@ -494,6 +498,7 @@ const KARLA: Def = {
     eyebrow: "Agenda abierta · Hermosillo",
     headline: "Tu aparato funcionando de nuevo, {i}con el precio antes de reparar.{/i}",
     facts: [["Respuesta", "Mismo día o siguiente"], ["Garantía", "3 meses en reparación"], ["Precio", "Antes de reparar"], ["Diagnóstico", "$450"]],
+    factsEn: [["Response", "Same or next day"], ["Warranty", "3 months on repairs"], ["Price", "Before I repair"], ["Diagnostic", "$450"]],
     badges: ["Minisplit y línea blanca", "Refacciones con factura"],
     ctas: ["Ver horarios", "¿Qué necesitas?"],
   },

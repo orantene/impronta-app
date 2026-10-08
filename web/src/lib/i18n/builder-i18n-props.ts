@@ -125,7 +125,9 @@ export const LOCALIZABLE_PROPS_BY_KIND: Partial<
   // Talent site services block: its renderer already resolves these four via
   // `resolveNodeLocalizedText`, so the overlay must be registered or a stored
   // translation never appears (2026-09-29).
-  services_catalog: ["title", "eyebrow", "subtitle", "emptyMessage"],
+  // TUL-207: `ctaLabel` is the row button wording. The category tab labels are
+  // NOT here: they come from each service's category (`category_i18n`).
+  services_catalog: ["title", "eyebrow", "subtitle", "emptyMessage", "ctaLabel"],
   before_after: [
     "eyebrow",
     "headline",
