@@ -27,7 +27,7 @@ export type SlotFreeResult = { ok: true } | { ok: false; code: "slot_taken" | "u
 /** Fails closed: a busy read that errors is not a free slot. */
 export async function checkReservationWindowFree(
   admin: SupabaseClient,
-  input: { talentProfileId: string; startsAt: string; endsAt: string; now?: Date },
+  input: { talentProfileId: string; startsAt: string; endsAt: string; now?: Date; excludeHoldId?: string | null },
   deps: { loadBusy?: typeof loadBusyIntervals } = {},
 ): Promise<SlotFreeResult> {
   const load = deps.loadBusy ?? loadBusyIntervals;
@@ -43,6 +43,7 @@ export async function checkReservationWindowFree(
       from: new Date(s - 86_400_000),
       to: new Date(e + 86_400_000),
       now: input.now,
+      excludeHoldId: input.excludeHoldId,
     });
   } catch {
     return { ok: false, code: "unavailable" };

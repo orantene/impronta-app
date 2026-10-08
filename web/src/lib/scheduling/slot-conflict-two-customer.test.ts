@@ -34,6 +34,7 @@ function emptySelect() {
     lt: () => typeof terminal;
     gt: () => typeof terminal;
     or: () => typeof terminal;
+    neq: () => typeof terminal;
     then: Promise<{ data: never[]; error: null }>["then"];
   } = {
     select: () => terminal,
@@ -41,6 +42,7 @@ function emptySelect() {
     lt: () => terminal,
     gt: () => terminal,
     or: () => terminal,
+    neq: () => terminal,
     then: (resolve, reject) =>
       Promise.resolve({ data: [], error: null }).then(resolve, reject),
   };

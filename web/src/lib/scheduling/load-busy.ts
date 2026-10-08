@@ -90,20 +90,25 @@ export async function loadBusyIntervals(input: {
   from: Date;
   to: Date;
   now?: Date;
+  /** A hold this very request just inserted: it must not count as someone else's claim on the time. */
+  excludeHoldId?: string | null;
 }): Promise<BusyInterval[]> {
   const now = input.now ?? new Date();
   const fromIso = input.from.toISOString();
   const toIso = input.to.toISOString();
   const liveHolds = unexpiredHoldOrFilter(now);
 
+  let holdsQuery = input.admin
+    .from("talent_holds")
+    .select("starts_at, ends_at, expires_at")
+    .eq("talent_profile_id", input.talentProfileId)
+    .lt("starts_at", toIso)
+    .gt("ends_at", fromIso)
+    .or(liveHolds);
+  if (input.excludeHoldId) holdsQuery = holdsQuery.neq("id", input.excludeHoldId);
+
   const [holdsRes, bookingsRes, blocksRes] = await Promise.all([
-    input.admin
-      .from("talent_holds")
-      .select("starts_at, ends_at, expires_at")
-      .eq("talent_profile_id", input.talentProfileId)
-      .lt("starts_at", toIso)
-      .gt("ends_at", fromIso)
-      .or(liveHolds),
+    holdsQuery,
     input.admin
       .from("talent_bookings")
       .select("starts_at, ends_at, status, travel_before_min, travel_after_min")
