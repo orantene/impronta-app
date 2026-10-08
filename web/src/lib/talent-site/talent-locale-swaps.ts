@@ -136,14 +136,36 @@ export function buildTalentLocaleSwaps(
   if (seed && key === "es") add(accentHeadline(seed.en), accentHeadline(seed.es));
   if (src.proof && key === "es") {
     add(formatHeroProofLine(src.proof, "en"), formatHeroProofLine(src.proof, "es"));
-    // About `{{languagesLine}}` bakes "Languages: Spanish · English" from raw
-    // talent_languages names (token-projection). Swap prefix + names for ES.
+    // About `{{languagesLine}}` bakes "Languages: …" from talent_languages at
+    // apply time. Prefer the pattern helper below for the render pass: an exact
+    // swap keyed only on *current* proof languages misses a stale baked line
+    // after the talent adds/removes/reorders languages (Codex P2 on #2791).
     const spoken = (src.proof.languages ?? []).map((n) => n.trim()).filter(Boolean);
     if (spoken.length) {
       const enLine = `Languages: ${spoken.join(" · ")}`;
-      const esNames = spoken.map((n) => languageEndonym(n, "es")).filter(Boolean);
-      if (esNames.length) add(enLine, `Idiomas: ${esNames.join(" · ")}`);
+      const es = localiseBakedLanguagesLine(enLine, "es");
+      if (es) add(enLine, es);
     }
   }
   return out;
+}
+
+/**
+ * Translate a baked About languages line ("Languages: Spanish · English") to
+ * Spanish ("Idiomas: Español · Inglés") by recognising the seed prefix and
+ * endonymising each name. Independent of the talent's *current* language list
+ * so a tree baked before a profile edit still swaps. Null when not that seed.
+ */
+export function localiseBakedLanguagesLine(
+  text: string,
+  locale: string | null | undefined,
+): string | null {
+  if (localeKey(locale) !== "es") return null;
+  const m = text.trim().match(/^Languages:\s*(.+)$/);
+  if (!m) return null;
+  const names = m[1]!.split(/\s*·\s*/).map((n) => n.trim()).filter(Boolean);
+  if (!names.length) return null;
+  const esNames = names.map((n) => languageEndonym(n, "es")).filter(Boolean);
+  if (!esNames.length) return null;
+  return `Idiomas: ${esNames.join(" · ")}`;
 }

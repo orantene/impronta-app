@@ -10,6 +10,7 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
 import { registeredAuthoredOverlays } from "./theme-catalog/collection/authored";
+import { localiseBakedLanguagesLine } from "./talent-locale-swaps";
 
 /** Seeded English label -> Spanish. Keys are exact seed strings. */
 const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
@@ -393,8 +394,11 @@ export function localiseSeededDesignLabels(
 ): BuilderNode[] {
   const target = labelTarget(locale);
   if (target === "other" && mode === null && Object.keys(swaps).length === 0) return tree;
+  // Languages line: pattern-match the baked "Languages: …" seed so a stale
+  // About node (languages changed after apply) still becomes Idiomas, even
+  // when `swaps` only carries the *current* proof list (Codex P2 / TUL-121).
   const one = (v: string, href?: unknown): string | null =>
-    swaps[v.trim()] ?? localiseOne(v, target, mode, href);
+    swaps[v.trim()] ?? localiseBakedLanguagesLine(v, locale) ?? localiseOne(v, target, mode, href);
   const visit = (node: BuilderNode): BuilderNode => {
     const props = (node.props ?? {}) as Record<string, unknown>;
     let next: Record<string, unknown> | null = null;
