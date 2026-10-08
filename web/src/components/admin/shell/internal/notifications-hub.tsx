@@ -14,7 +14,8 @@
  *
  * TUL-389: read state for real rows is `user_notifications.read_at`
  * (mapped to `UserNotification.read` by the data-bridge). localStorage
- * is no longer the source of truth for unread badges.
+ * is no longer the source of truth for unread badges. A one-shot mount
+ * migrates any leftover `tulala_notif_read_v1` ids onto server `read_at`.
  */
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
@@ -38,6 +39,12 @@ import {
   markAllAdminNotificationsRead,
   markAdminNotificationRead,
 } from "@/lib/notifications/admin-notifications-actions";
+import { markNotificationsRead } from "@/lib/notifications/my-notifications-actions";
+import {
+  LEGACY_NOTIF_READ_KEY,
+  parseLegacyReadIdSet,
+  realNotificationIdsFromLegacyReadIds,
+} from "@/lib/notifications/migrate-local-read";
 
 /** Display section for the popover (TUL-390 will replace with category tabs).
  *  Derived from the shared kind→UI-category map so bubbles and the hub agree. */
@@ -132,6 +139,26 @@ export function NotificationsBell({
   useEffect(() => {
     const gone = readSet(DISMISSED_KEY);
     if (gone.size > 0) setDismissedState((prev) => new Set([...prev, ...gone]));
+
+    // One-shot: flush pre-TUL-389 localStorage reads onto server `read_at`
+    // so cutover does not resurrect unread badges. Clear the key immediately
+    // so this never re-runs (same fire-and-forget tolerance as mark-all-read).
+    try {
+      const raw = window.localStorage.getItem(LEGACY_NOTIF_READ_KEY);
+      const legacy = parseLegacyReadIdSet(raw);
+      if (legacy.size === 0) {
+        if (raw !== null) window.localStorage.removeItem(LEGACY_NOTIF_READ_KEY);
+        return;
+      }
+      window.localStorage.removeItem(LEGACY_NOTIF_READ_KEY);
+      setOptimisticRead((prev) => new Set([...prev, ...legacy]));
+      const realIds = realNotificationIdsFromLegacyReadIds(legacy);
+      if (realIds.length > 0) {
+        void markNotificationsRead(realIds);
+      }
+    } catch {
+      // localStorage / mark failures must not break the bell.
+    }
   }, []);
   const [, force] = useState(0);
 
