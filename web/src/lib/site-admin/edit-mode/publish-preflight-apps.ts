@@ -91,10 +91,13 @@ export async function collectTalentAppPreflightIssues(
     loadTalentPremiumAppSaveGate,
     talentProfileLookupFailedMessage,
   } = await import("@/lib/talent-site/server/premium-app-save-guard");
+  // Null id: staff/agency (no talent profile) → gate.status "skip".
+  // Talent own-profile miss still fails closed when a row id is supplied
+  // (draft-save); publish uses null and only denies on auth/workspace miss.
   const gate = await loadTalentPremiumAppSaveGate(null);
-  // Non-talent-owner (staff / agency) → no talent plan gate.
+  // Non-talent caller (staff / agency) → no talent plan gate.
   if (gate.status === "skip") return collectAppPreflightIssues(tree);
-  // Own-profile miss → deny publish with retryable copy (PM #2778).
+  // Auth / workspace miss → deny publish with retryable copy (PM #2778).
   if (gate.status === "lookup_failed") {
     return [
       {

@@ -3,9 +3,10 @@
  *
  * Unlike `loadTalentSiteSaveCapabilities`, this does NOT short-circuit when
  * `TALENT_FREE_WEBSITE_ENABLED` is off. A talent owner is always plan-checked
- * (fail closed). Returns `skip` only when the actor is clearly not the owning
- * talent (workspace staff on another talent's row). A talent cannot bypass via
- * the free-website flag, a null plan, or a transient own-profile load miss —
+ * (fail closed). Returns `skip` when the actor is clearly not the owning
+ * talent (workspace staff on another talent's row, or a null-id publish by a
+ * non-talent staff/agency caller). A talent cannot bypass via the free-website
+ * flag, a null plan, or a transient own-profile load miss — with a row id,
  * profile lookup failure denies with a retryable message (PM ruling on #2778).
  *
  * Plain module (no `"use server"` / `server-only`) so tsx lanes can import it.
@@ -81,8 +82,9 @@ export function talentProfileLookupFailedMessage(
 /**
  * Resolve the premium-app save gate for this actor + row.
  *
- * Own-profile miss / not found → `lookup_failed` (fail closed).
+ * Own-profile miss / not found (with a row id) → `lookup_failed` (fail closed).
  * Signed-in staff on another talent's row → `skip`.
+ * Null row id + no talent profile (staff/agency publish) → `skip`.
  */
 export async function loadTalentPremiumAppSaveGate(
   talentProfileId: string | null | undefined,
@@ -101,8 +103,15 @@ export async function loadTalentPremiumAppSaveGate(
     };
   }
 
-  // Self / publish context with no row id: cannot prove staff skip.
-  if (!talentProfileId) return { status: "lookup_failed" };
+  // Publish preflight calls this with a null id. A failed self-scope with
+  // `talent_profile_not_found` means the caller is not a talent (staff /
+  // agency) — skip the plan gate. Save chokepoints always pass a profile id,
+  // where own-miss still returns `lookup_failed` via classify below.
+  if (!talentProfileId) {
+    if (scope.code === "talent_profile_not_found") return { status: "skip" };
+    // not_authenticated / workspace_not_found → deny.
+    return { status: "lookup_failed" };
+  }
 
   if (scope.code === "talent_profile_not_found") {
     const who = await deps.classifyTalentRowActor(talentProfileId);
