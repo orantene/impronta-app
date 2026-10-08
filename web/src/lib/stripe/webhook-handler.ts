@@ -66,6 +66,7 @@ import { emitBookingConfirmation } from "@/lib/payments/booking-confirmation";
 import { releaseHeldPayouts, syncBookingPayoutLifecycle } from "@/lib/payments/booking-payouts-ledger";
 import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refunds";
 import { formatFailedRefundMoney } from "@/lib/payments/failed-refund-attention-note";
+import { applyFailedRefundSettlement } from "@/lib/payments/failed-refund-settlement";
 import { recordProviderPayout } from "@/lib/payments/provider-payouts";
 import { recordProviderDispute } from "@/lib/payments/provider-disputes";
 import { recordProviderInvoice } from "@/lib/payments/provider-invoices";
@@ -606,8 +607,21 @@ export async function processStripeEvent(
       // correct action is a loud, actionable alert; a person decides how the
       // customer actually gets paid.
       //
-      // Alerting is therefore the whole job here, and it must carry every id
-      // needed to act without going digging.
+      // Alerting is therefore the whole job here: stamp the refund row so Admin
+      // Payments shows it, and keep the loud server log with every id needed
+      // to act without going digging.
+      const sb = createServiceRoleClient();
+      if (sb) {
+        await applyFailedRefundSettlement(sb, {
+          refundId: action.refundId,
+          status: action.status,
+          failureReason: action.failureReason,
+          amountCents: action.amount,
+          currency: action.currency,
+          chargeId: action.chargeId,
+          paymentIntentId: action.paymentIntentId,
+        });
+      }
       logServerError(
         "stripe-webhook.refund.failed",
         new Error(
@@ -616,7 +630,7 @@ export async function processStripeEvent(
             `(charge=${action.chargeId ?? "unknown"}, payment_intent=${action.paymentIntentId ?? "unknown"}, ` +
             `reason=${action.failureReason ?? "unspecified"}). ` +
             `THE CUSTOMER HAS NOT BEEN PAID and the funds are back in the platform balance. ` +
-            `Our records still show this payment as refunded — arrange an alternative refund manually.`,
+            `Our records still show this payment as refunded. Arrange an alternative refund manually.`,
         ),
       );
       return;
