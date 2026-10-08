@@ -63,16 +63,16 @@ type Props = {
 };
 
 const C = {
-  ink: "#0B0B0D",
-  inkMuted: "rgba(11,11,13,0.55)",
-  inkDim: "rgba(11,11,13,0.35)",
-  border: "rgba(24,24,27,0.08)",
-  cardBg: "#ffffff",
-  surface: "rgba(11,11,13,0.02)",
-  green: "#2E7D5B",
-  amber: "#B45309",
-  newRing: "rgba(180,83,9,0.45)",
-  newBg: "rgba(180,83,9,0.08)",
+  ink: "var(--color-admin-ink)",
+  inkMuted: "var(--color-admin-ink-muted)",
+  inkDim: "var(--color-admin-ink-dim)",
+  border: "var(--color-admin-border)",
+  cardBg: "var(--color-admin-card)",
+  surface: "var(--color-admin-surface)",
+  green: "var(--color-admin-green)",
+  amber: "var(--color-admin-coral)",
+  newRing: "color-mix(in srgb, var(--color-admin-coral) 45%, transparent)",
+  newBg: "var(--color-admin-coral-soft)",
 } as const;
 
 function NewChip({ label }: { label: string }) {
