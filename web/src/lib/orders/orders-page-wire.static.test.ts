@@ -24,7 +24,11 @@ test("layer 1 — the canonical page file exists and is capability-gated", () =>
   const page = read("src/app/(workspace)/[tenantSlug]/admin/orders/page.tsx");
   assert.match(page, /userHasCapability\(/, "the Orders page must gate on a capability");
   assert.match(page, /loadWorkspaceOrders/, "the page must read through the data bridge");
-  assert.match(page, /OrdersDoorMockList/, "TUL-434: the desk renders the order-door mock list");
+  // TUL-434 PM HOLD: mock door is opt-in; default desk stays the live list.
+  assert.match(page, /isDoorPreview/, "TUL-434: door mock is gated by isDoorPreview");
+  assert.match(page, /OrdersDoorMockList/, "TUL-434: preview path mounts OrdersDoorMockList");
+  assert.match(page, /OrdersRefundForm/, "default desk keeps the live refund form");
+  assert.match(page, /<table/, "default desk keeps the live table");
 });
 
 test("layer 2 — a canonical-route matcher claims /admin/orders", () => {

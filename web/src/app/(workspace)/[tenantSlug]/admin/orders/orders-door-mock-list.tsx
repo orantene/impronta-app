@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * TUL-434 slice 1 — Pedidos order-door mockup on the live `/admin/orders` desk.
+ * TUL-434 slice 1 — Pedidos order-door mockup, mounted only when the page
+ * sees `?door=preview`. Default `/admin/orders` stays the live flat list.
  *
  * Keeps today's columns and refund path. What is NEW (chevron, door shell,
  * nested sections, deep link, phone sheet) is marked with a "New" chip so Oran
@@ -123,6 +124,8 @@ export function OrdersDoorMockList({
   const writeOrderParam = useCallback(
     (id: string | null) => {
       const next = new URLSearchParams();
+      // Stay on the preview gate — dropping `door=preview` would unmount this mock.
+      next.set("door", "preview");
       if (bucket && bucket !== "all") next.set("bucket", bucket);
       if (query) next.set("q", query);
       if (id) next.set("order", shortOrderCode(id));
