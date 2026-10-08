@@ -312,7 +312,8 @@ export function applyDemoSiteCopy(
       return url ? withProps(n, { src: url }) : n;
     }
     if (n.kind === "marquee" && copy.ticker?.length) {
-      return withProps(n, { items: copy.ticker.map((text) => ({ text })) });
+      // A demo's ticker is its own copy, not the (fictional) talent's services.
+      return withProps(n, { items: copy.ticker.map((text) => ({ text })), source: "custom" });
     }
     if (n.kind === "services_catalog" && copy.menuSubtitle) {
       return withProps(n, { subtitle: copy.menuSubtitle });
