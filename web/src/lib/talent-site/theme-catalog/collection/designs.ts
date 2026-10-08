@@ -229,6 +229,8 @@ export function buildFolioPayload(): DesignPayload {
               coverStatement: "",
               mastRight: "{{locationLine}}",
               bio: "{{bio}}",
+              // TUL-230: live, her bio in the visitor's language (the baked token text is the fallback).
+              liveText: "bio",
               // Folio artifact cover CTA is Consultar (inquiry), not mode-swapped Book.
               ctaLabel: "Consultar",
               ctaHref: TALENT_ASK_HREF,

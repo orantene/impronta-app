@@ -56,6 +56,11 @@ export type OfferingRequestDetail = {
   intake?: IntakeQuestion[];
   /** The visitor's answers so far (kept on detail so the CH-3 resume keeps them). */
   answers?: IntakeAnswers;
+  /**
+   * TUL-232: ISO-8601 UTC instant the visitor picked elsewhere (next-free-slot chip, deep link).
+   * Absent means the sheet behaves exactly as before. Live mode only; never persisted.
+   */
+  slotStart?: string;
 };
 
 /** Read `attributes.where` without inventing schema. Unknown entries are dropped. */

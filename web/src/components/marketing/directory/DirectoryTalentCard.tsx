@@ -15,6 +15,7 @@ import {
   cardDesignToCssVars,
   DEFAULT_CARD_DESIGN,
   resolveCardShow,
+  resolveHubCardStyle,
 } from "@/lib/site-admin/server/card-design-shape";
 import type { DirectoryCardRow } from "./shared";
 import { toCanonicalCardData } from "./shared";
@@ -62,10 +63,9 @@ export function DirectoryTalentCard({
   const data = toCanonicalCardData(talent);
   // The tenant's explicit Card Design layout defaults win; the family only
   // decides the render branch when no explicit style was published.
-  // Phase 1 of the hub card redesign: the public grid renders the Showcase
-  // card regardless of the hub workspace's published style. Phase 2 makes
-  // Showcase a selectable Card Design style and removes this override.
-  const style = "showcase" as const;
+  // Phase 2 (TUL-19): Showcase or Cinematic, chosen in Card Design. Unset
+  // keeps the Phase 1 Showcase render (see resolveHubCardStyle).
+  const style = resolveHubCardStyle(design);
   // Platform grid crop: 3:4 unless the hub published its own aspect. The
   // caption sits BELOW the photo on this surface's kits, so a 4:5 portrait
   // plus caption ran taller than a phone viewport per card.
@@ -88,7 +88,11 @@ export function DirectoryTalentCard({
   const traitLines = pickAttributeLines(data.cardAttributes, [], 3, 3);
   const traitSlot =
     design.showAttributes !== "off" && (fitChips.length > 0 || traitLines.length > 0) ? (
-      <CardFactStrip fitChips={fitChips} traitLines={traitLines} tone="light" />
+      <CardFactStrip
+        fitChips={style === "profile" ? [] : fitChips}
+        traitLines={traitLines}
+        tone={style === "profile" ? "scrim" : "light"}
+      />
     ) : undefined;
 
   const handleClickCapture =

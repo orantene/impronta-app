@@ -315,6 +315,9 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
             { text: "Editorial and commercial" },
             { text: "Booked in 40 cities" },
           ],
+          // Core default: a new ticker follows her published services (the
+          // words above are the fallback until she has some).
+          source: "services",
           speed: "medium",
           direction: "left",
           separator: "dot",

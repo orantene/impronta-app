@@ -20,6 +20,8 @@
  * percentages in the editor would drift silently the moment they are tuned.
  */
 
+import { formatOfferMoney } from "@/lib/inquiry/offer-currency";
+
 export type OfferSplitLine = {
   talentProfileId: string | null;
   units: number;
@@ -72,8 +74,7 @@ export function OfferMoneySplit({
     platformNote: t("dashboard.adminTabs.lineup.splitPlatformNote"),
     talentUnpaid: t("dashboard.adminTabs.lineup.splitTalentUnpaid"),
   };
-  const money = (n: number) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: currencyCode }).format(n);
+  const money = (n: number) => formatOfferMoney(n, currencyCode);
 
   const talentFull = lineItems.reduce(
     (sum, li) => sum + (Number(li.units) || 0) * (Number(li.talentCost) || 0),
@@ -152,7 +153,7 @@ export function OfferEditorFooter({
       <span className="flex-1" />
       <label className="text-admin-11 text-admin-ink-muted">{t("dashboard.adminTabs.lineup.total")}</label>
       <span title={t("dashboard.adminTabs.lineup.totalTitle")} className="min-w-[90px] whitespace-nowrap px-1.5 py-1 text-right text-[13px] font-bold text-admin-ink">
-        {new Intl.NumberFormat("en-US", { style: "currency", currency: currencyCode, maximumFractionDigits: 0 }).format(total)}
+        {formatOfferMoney(total, currencyCode, { maximumFractionDigits: 0 })}
       </span>
       <label htmlFor="offer-agency-fee" title={t("dashboard.adminTabs.lineup.feeTitle")} className="text-admin-11 text-admin-ink-muted">
         {t("dashboard.adminTabs.lineup.feeExtra")}

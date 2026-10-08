@@ -1,3 +1,4 @@
+import { defaultFlowLocale } from "@/lib/onboarding/flow";
 import { cookies, headers } from "next/headers";
 import type { Locale } from "@/i18n/config";
 import { defaultLocale } from "@/i18n/config";
@@ -75,7 +76,20 @@ export function resolveDocumentLocale(
   requestLocale: string,
   pathname: string | null | undefined,
   search: string | null | undefined,
+  /** Request hints, used only for `/start` (see below). */
+  hints?: { acceptLanguage?: string | null; country?: string | null },
 ): string {
+  // `/start` picks its flow language from `?lang`, then the visitor's country
+  // and browser, the same way `app/start/page.tsx` does. The server HTML must
+  // say so too, or a Spanish flow ships `<html lang="en">` until the client runs.
+  if (pathname && /^\/start\/?$/.test(pathname)) {
+    const raw = (search ?? "").replace(/^\?/, "");
+    return defaultFlowLocale({
+      saved: new URLSearchParams(raw).get("lang"),
+      acceptLanguage: hints?.acceptLanguage ?? null,
+      country: hints?.country ?? null,
+    });
+  }
   if (!pathname || !/^\/(?:dev\/)?template-preview(?:\/|$)/.test(pathname)) return requestLocale;
   const raw = (search ?? "").replace(/^\?/, "");
   const explicit = new URLSearchParams(raw).get("locale");
