@@ -101,6 +101,7 @@ export async function savePolicyCustomClauses(
   talentProfileId: string,
   text: { es: string; en: string },
 ): Promise<PublishResult | { ok: false; reason: "forbidden" }> {
+  await requireNotImpersonating();
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return { ok: false, reason: "forbidden" };
   const [published, saved] = await Promise.all([

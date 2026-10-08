@@ -8,6 +8,13 @@ export const READ = "pure loader: reads only, no write path, nothing for read-on
 export type AllowEntry = [suffix: string, names: string[], reason: string];
 
 export const EXTRA_ALLOW: AllowEntry[] = [
+  ["app/(workspace)/[tenantSlug]/admin/media/actions.ts", ["actionLoadTalentMediaBundleAll"], READ],
+  ["app/(workspace)/platform/admin/integrations/captcha-override-actions.ts", ["loadWorkspaceCaptchaOverrides"], READ],
+  ["app/(workspace)/platform/admin/integrations/captcha-override-actions.ts", ["resetWorkspaceCaptchaToPlatform"], "PLATFORM ADMIN: gated by requirePlatformAdmin, a staff-only surface with no target portal to protect"],
+  ["lib/server-actions/how-you-work.ts", ["loadHowYouWork"], READ],
+  ["lib/site-admin/media/photo-caption-actions.ts", ["loadTalentPhotoCaptionLocalesAction"], READ],
+  ["lib/client-account/actions.ts", ["verifyClientAccountCode"], "SIGN-IN: establishes the caller's own client session by one-time code; writes nothing for an impersonation target"],
+  ["lib/client-account/actions.ts", ["signOutClientAccount"], "SIGN-OUT: ends the session; must keep working while impersonating (PM exception)"],
   ["lib/reviews/review-actions.ts", ["loadReviewableBookingsAction", "loadClientReviewablesAction"], READ],
   ["lib/server-actions/messaging-engine.ts", ["staff", "messagingLoadInbox", "messagingResolveOrderThread", "messagingLoadThread", "messagingLoadEssentials", "loadConversationHistory", "messagingResolve", "messagingRelinkImpact", "messagingSearch"], READ],
   ["lib/server-actions/messaging-identity.ts", ["messagingMatchCustomers"], READ],
@@ -261,6 +268,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
  * with a one-line reason. Everything else under src/app must call the guard first.
  */
 export const ROUTE_ALLOW: Array<[suffix: string, reason: string]> = [
+  ["auth/sign-out/route.ts", "SIGN-OUT: ends the session; must keep working while impersonating (PM exception)"],
   ["api/discover/subscriptions/webhook/route.ts", "webhook: Stripe-signature authenticated, no user session"],
   ["api/webhooks/stripe-v2/route.ts", "webhook: Stripe-signature authenticated, no user session"],
   ["api/webhooks/stripe-mx/route.ts", "webhook: Stripe-signature authenticated, no user session"],
