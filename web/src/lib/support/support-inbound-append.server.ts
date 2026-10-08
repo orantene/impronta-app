@@ -221,9 +221,17 @@ export function buildDefaultAppendDeps(): AppendDeps {
   };
 }
 
+/** Reply threading is on only when a Resend receiving domain is configured. */
+export function inboundThreadingEnabled(env: { SUPPORT_INBOUND_DOMAIN?: string | undefined } = process.env): boolean {
+  return !!env.SUPPORT_INBOUND_DOMAIN?.trim();
+}
+
 /** Route hook: safe to await, never throws. */
 export async function appendInboundSupportReply(emailId: string | undefined): Promise<void> {
   if (!emailId) return;
+  // Inert until a receiving domain exists: no outbound mail carries a token before
+  // then, so skip the extra Resend call for every inbound email.
+  if (!inboundThreadingEnabled()) return;
   try {
     await appendInboundReplyToTicket(emailId, buildDefaultAppendDeps());
   } catch (err) {

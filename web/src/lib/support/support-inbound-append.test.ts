@@ -138,3 +138,11 @@ test("route calls the hook only after the stored check, before the 200", () => {
   const ok = src.indexOf("return NextResponse.json({ received: true, inbound })");
   assert.ok(storedCheck > 0 && hook > storedCheck && ok > hook);
 });
+
+import { inboundThreadingEnabled } from "./support-inbound-append.server";
+
+test("reply threading is inert unless SUPPORT_INBOUND_DOMAIN is set", () => {
+  assert.equal(inboundThreadingEnabled({}), false);
+  assert.equal(inboundThreadingEnabled({ SUPPORT_INBOUND_DOMAIN: "  " }), false);
+  assert.equal(inboundThreadingEnabled({ SUPPORT_INBOUND_DOMAIN: "in.example.com" }), true);
+});
