@@ -103,7 +103,7 @@ export function NotificationBubbleAnchor({
   bubble?: NotificationBubbleCount | null;
 }): ReactNode {
   return (
-    <span style={{ position: "relative", display: "inline-flex" }}>
+    <span className="relative inline-flex">
       {children}
       {bubble && bubble.count > 0 ? (
         <NotificationCountBubble kind={bubble.kind} count={bubble.count} />
