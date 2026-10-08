@@ -13895,6 +13895,7 @@
           "wrong_tenant": "Ese registro no esta en este espacio.",
           "invalid": "Eso no se puede guardar.",
           "unavailable": "Esto no se pudo completar. Intentalo de nuevo.",
+          "offer_currency_seller_mismatch": "Esta oferta esta en una moneda distinta a la que cobra quien vende. Cambia la moneda de la oferta a la de quien vende y vuelve a enviarla.",
           "not_allowed": "No tienes permiso para hacer esto aquí.",
           "not_reschedulable": "Esta reserva no se puede mover.",
           "slot_taken": "Ese horario ya no está libre."

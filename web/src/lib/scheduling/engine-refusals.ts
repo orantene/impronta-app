@@ -30,6 +30,7 @@ export const SCHEDULING_ENGINE_REFUSAL_CODES = [
   "invalid",
   "not_allowed",
   "unavailable",
+  "offer_currency_seller_mismatch",
 ] as const;
 
 export type SchedulingEngineRefusal = (typeof SCHEDULING_ENGINE_REFUSAL_CODES)[number];
@@ -62,6 +63,7 @@ export const SCHEDULING_ENGINE_REFUSALS: Readonly<Record<SchedulingEngineRefusal
   invalid: "dashboard.scheduling.engine.refusal.invalid",
   not_allowed: "dashboard.scheduling.engine.refusal.not_allowed",
   unavailable: "dashboard.scheduling.engine.refusal.unavailable",
+  offer_currency_seller_mismatch: "dashboard.scheduling.engine.refusal.offer_currency_seller_mismatch",
 };
 
 /** Every refusal sentence, translated once on the server and handed to a client component. */

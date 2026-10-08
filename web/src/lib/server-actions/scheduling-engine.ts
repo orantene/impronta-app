@@ -295,6 +295,11 @@ export async function amendmentSend(input: {
   if (result.success) return { ok: true as const, offerId: parsed.data.offerId };
   if (result.conflict) return { ok: false as const, reason: "conflict" as const };
   if (result.forbidden) return { ok: false as const, reason: "not_found" as const };
+  // TUL-282: the offer is priced in a currency its seller does not charge in; say so
+  // instead of the generic "unavailable".
+  if (result.error === "offer_currency_seller_mismatch") {
+    return { ok: false as const, reason: "offer_currency_seller_mismatch" as const };
+  }
   return { ok: false as const, reason: "unavailable" as const };
 }
 
