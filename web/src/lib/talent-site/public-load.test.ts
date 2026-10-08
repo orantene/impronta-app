@@ -83,4 +83,9 @@ test("dashboard public URL prefers the published personal site, then hub /t/code
   assert.match(dashState, /talentSitePathUrl/);
   assert.match(dashState, /maxSitePublicGate/);
   assert.equal(dashState.includes("`/t/${profileCode}/site`"), false);
+  // TUL-180: personal field stays personal; workspace loaded for dual primary.
+  assert.match(dashState, /personalPublicSiteUrl: personalSiteUrl/);
+  assert.match(dashState, /loadOwnedBusinessWorkspace/);
+  assert.match(dashState, /getTenantPreviewUrl/);
+  assert.match(dashState, /isDualSiteOwner: Boolean\(workspaceSite && site\)/);
 });

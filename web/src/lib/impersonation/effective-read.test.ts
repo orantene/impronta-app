@@ -383,7 +383,7 @@ test("talent layout: shell loaders take the effective context, not session.user.
   const src = read("src/app/(workspace)/talent/_talent-layout-inner.tsx");
   assert.match(src, /effectiveReadContext\(/);
   assert.match(src, /loadTalentSelfProfileByUser\(subjectUserId\)/);
-  assert.match(src, /loadTalentPersonalSiteDashboardState\(undefined, readCtx\)/);
+  assert.match(src, /loadTalentPersonalSiteDashboardState\(undefined, readCtx/);
   assert.match(src, /loadTalentSurfaceNotifications\(readCtx\)/);
   assert.match(src, /loadTalentVisibleInquiryIds\(readCtx\)/);
   assert.doesNotMatch(src, /loadTalentSelfProfileByUser\(session\.user\.id\)/);
