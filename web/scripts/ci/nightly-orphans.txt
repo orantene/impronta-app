@@ -48,7 +48,6 @@ src/components/admin/shell/internal/talent/agenda/view-model-reschedule.test.ts
 src/components/admin/shell/internal/talent/agenda/working-hours-panel.static.test.ts
 src/components/admin/shell/internal/talent/pages/messages/MessagesPage.actions.static.test.ts
 src/components/admin/shell/internal/talent/pages/messages/TalentDecisionBar.static.test.ts
-src/components/admin/shell/internal/talent/pages/today-hydration.static.test.ts
 src/components/admin/shell/internal/talent/shared/profile-identity-meta.test.ts
 src/components/appointments/booking-targets.test.ts
 src/components/consent/consent-embed-logic.test.ts
