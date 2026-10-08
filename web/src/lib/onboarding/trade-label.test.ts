@@ -72,3 +72,42 @@ test("a tapped chip slug wins over the words", () => {
   const r = resolveTradeType({ typeSlug: "cleaner", discipline: "something else", terms: TERMS });
   assert.equal(r.slug, "cleaner");
 });
+
+test("keyword table: barber, DJ, nail artist and makeup each map to their own trade", () => {
+  const cases: Array<[string, string]> = [
+    ["barber", "hair"], ["Barbería", "hair"], ["barber shop owner", "hair"],
+    ["DJ", "music"], ["wedding DJ", "music"], ["dj para bodas", "music"],
+    ["nail artist", "nails"], ["nail technician", "nails"], ["manicurista", "nails"],
+    ["makeup artist", "makeup"], ["maquillaje de novias", "makeup"], ["make up", "makeup"],
+  ];
+  for (const [said, trade] of cases) {
+    const got = classifyTrade(said);
+    assert.equal(got, trade, said);
+    assert.notEqual(got, "cleaning", said);
+    assert.notEqual(got, "design_3d", said);
+  }
+});
+
+test("keyword table: these trades never pull a cleaning or design term from the catalogue", () => {
+  for (const said of ["barber", "DJ", "nail artist", "makeup artist"]) {
+    const r = resolveTradeType({ typeSlug: null, discipline: said, terms: TERMS });
+    assert.ok(!/clean|limpi|3d/i.test(`${r.slug ?? ""} ${r.label.en} ${r.label.es}`), `${said} -> ${r.slug}`);
+    assert.notEqual(r.trade, "cleaning", said);
+    assert.notEqual(r.trade, "design_3d", said);
+  }
+});
+
+test("no pack and no match: the stock pick sets NO image, never a random one", () => {
+  // Production has no universal/neutral hero pack: every photo is typed.
+  const typedOnly = [
+    photo("chef", { businessType: "private-chef", family: "dining" }),
+    photo("makeup", { businessType: "makeup-artist", family: "beauty" }),
+    photo("clean", { businessType: "house-cleaner", family: "professional" }),
+  ];
+  for (const slug of [null, "dj", "barber", "zzqx-unknown"]) {
+    const q = stockQueryForTalentType({ slug, labelEn: slug });
+    if (q.businessType === null) assert.equal(pickStockHero(typedOnly, q), null, String(slug));
+  }
+  assert.equal(pickStockHero(typedOnly, { businessType: null, family: "custom" }), null);
+  assert.equal(pickStockHero([], { businessType: null, family: "custom" }), null);
+});
