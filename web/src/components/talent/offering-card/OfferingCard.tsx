@@ -23,6 +23,8 @@ export function OfferingCard({
   showCancellation = true,
   ctaLabel,
   onSelect,
+  primary,
+  locales,
 }: {
   item: TalentOffering;
   locale: string;
@@ -34,6 +36,9 @@ export function OfferingCard({
   showCancellation?: boolean;
   ctaLabel?: string;
   onSelect?: () => void;
+  /** The talent's languages (from the server settings); both are needed for the missing-translation chip. */
+  primary?: string;
+  locales?: readonly string[];
 }) {
   const es = locale.startsWith("es");
   const price = offeringPriceLabel(item, locale);
@@ -80,7 +85,7 @@ export function OfferingCard({
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-admin-display text-[16px] font-semibold text-admin-ink">{item.title}</h3>
-          <ItemStateChips item={item} locale={locale} showBooking={false} />
+          <ItemStateChips item={item} locale={locale} showBooking={false} primary={primary} locales={locales} />
         </div>
         {item.description && (
           <p className="mt-1 line-clamp-2 text-[13px] text-admin-ink-muted">{item.description}</p>
