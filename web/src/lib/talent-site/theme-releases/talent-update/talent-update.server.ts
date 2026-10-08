@@ -22,14 +22,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { supersedeStaleUpdateRows } from "@/lib/talent-site/theme-releases/superseded-rows.server";
-import { isSupersededReport } from "@/lib/talent-site/theme-releases/superseded-rows";
 import { applyThemeUpdateToDraft, siteBasePath } from "@/lib/talent-site/history/history.server";
 import type { HistorySnapshot } from "@/lib/talent-site/history/types";
 import type { WriteSiteDraftResult } from "@/lib/talent-site/history/writer";
 import { assertFreeTalentSiteTreeMutation } from "@/lib/talent-site/free-site-tree-guard";
 import { loadTalentSiteSaveCapabilities } from "@/lib/talent-site/server/free-site-save-guard";
-import { ensureSiteThemeUpdates } from "../lazy-fan-out.server";
+import { ensureSiteThemeUpdates, isSupersededReport, supersedeStaleUpdateRows } from "../lazy-fan-out.server";
 import { resolveBellsForRows } from "../theme-bells.server";
 import { noBaseOfferItems, offerActionableFor, withoutPresentBlocks } from "../offer-actionable.server";
 import { loadReleaseDesign } from "../release-design.server";
@@ -631,10 +629,7 @@ export async function applyThemeUpdate(
       report: { ...summarizeReport(m.result.report), addedBlocks: ctx.addedBlocks },
     });
   }
-  // THEME CORE P1: older open rows of this design at or below the new pin close too.
-  await supersedeStaleUpdateRows(deps.admin, [
-    { siteId: ctx.siteId, talentProfileId: ctx.talentProfileId, designSlug: ctx.release.design_slug, pin: ctx.release.to_version },
-  ]);
+  await supersedeStaleUpdateRows(deps.admin, [{ siteId: ctx.siteId, talentProfileId: ctx.talentProfileId, designSlug: ctx.release.design_slug, pin: ctx.release.to_version }]); // older open rows at or below the new pin close too
   return { ok: true, value: { draftRev: res.draftRev, kept: countParts(editedKept(m.result.report.kept)), historyId: res.historyId } };
 }
 
@@ -790,8 +785,7 @@ export async function loadAvailableBlocks(admin: SupabaseClient, talentProfileId
   const ordered = [...list].sort((a, b) => (releases.get(b.release_id)?.to_version ?? 0) - (releases.get(a.release_id)?.to_version ?? 0));
   for (const row of ordered) {
     const rel = releases.get(row.release_id);
-    if (!rel || rel.status !== "published") continue;
-    if (isSupersededReport(row.report)) continue; // closed by a newer pin: offers no blocks of its own
+    if (!rel || rel.status !== "published" || isSupersededReport(row.report)) continue; // a row closed by a newer pin offers no blocks
     const added = new Set(Array.isArray(row.report?.addedBlocks) ? (row.report!.addedBlocks as unknown[]) : []);
     for (const item of Array.isArray(rel.items) ? rel.items : []) {
       if (item.type !== "new-block") continue;

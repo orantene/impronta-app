@@ -226,3 +226,4 @@ export async function ensureSiteThemeUpdates(
     return none;
   }
 }
+export { isSupersededReport, supersedeStaleUpdateRows } from "./superseded-rows.server";

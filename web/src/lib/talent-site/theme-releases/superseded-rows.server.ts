@@ -88,3 +88,4 @@ export async function supersedeStaleUpdateRows(admin: SupabaseClient, sites: Rea
     return 0;
   }
 }
+export { isSupersededReport } from "./superseded-rows";

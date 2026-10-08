@@ -68,13 +68,13 @@ type Backup = {
   snapshots: Array<{ design: string; version: number }>;
 };
 
-type Query = ReturnType<ReturnType<typeof admin.from>["select"]>;
+type Cond = readonly ["in", string, readonly string[]] | readonly ["eq", string, string];
 
-async function page<T>(table: string, cols: string, filter?: (q: Query) => Query): Promise<T[]> {
+async function page<T>(table: string, cols: string, conds: readonly Cond[] = []): Promise<T[]> {
   const out: T[] = [];
   for (let from = 0; ; from += 500) {
     let q = admin.from(table).select(cols);
-    if (filter) q = filter(q);
+    for (const c of conds) q = c[0] === "in" ? q.in(c[1], [...c[2]]) : q.eq(c[1], c[2]);
     const { data, error } = await q.range(from, from + 499);
     if (error) throw new Error(`${table}: ${error.message}`);
     out.push(...((data ?? []) as unknown as T[]));
@@ -114,7 +114,7 @@ if (restoreFile) {
 }
 
 // The protected profile is looked up only to be excluded from every read below.
-const protectedProfiles = await page<{ id: string }>("talent_profiles", "id", (q) => q.in("profile_code", [...PROTECTED_PROFILE_CODES]));
+const protectedProfiles = await page<{ id: string }>("talent_profiles", "id", [["in", "profile_code", PROTECTED_PROFILE_CODES]]);
 const protectedIds = new Set(protectedProfiles.map((p) => p.id));
 
 const profiles = await page<{ id: string; profile_code: string; is_demo: boolean | null }>("talent_profiles", "id, profile_code, is_demo");
@@ -149,13 +149,13 @@ const sites = siteRows
 const updateRows = await page<{ id: string; talent_site_id: string; release_id: string; state: string; report: Record<string, unknown> | null }>(
   "talent_site_theme_updates",
   "id, talent_site_id, release_id, state, report",
-  (q) => q.in("state", [...OPEN_UPDATE_STATES]),
+  [["in", "state", OPEN_UPDATE_STATES]],
 );
 const releases = await page<{ id: string; design_slug: string; to_version: number; channel: string; status: string }>(
   "talent_theme_releases",
   "id, design_slug, to_version, channel, status",
 );
-const catalog = await page<{ slug: string; version: number; payload: unknown }>("talent_theme_catalog", "slug, version, payload", (q) => q.eq("kind", "design"));
+const catalog = await page<{ slug: string; version: number; payload: unknown }>("talent_theme_catalog", "slug, version, payload", [["eq", "kind", "design"]]);
 const snaps = await page<{ design: string; version: number; payload: unknown }>("talent_theme_versions", "design, version, payload");
 
 const seeds = new Map<string, unknown>();
