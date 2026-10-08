@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { extractClientChunkRefs, findMissingClientChunks } from "./check-build-chunks.mjs";
+import { extractClientChunkRefs, findMissingByKind, findMissingClientChunks } from "./check-build-chunks.mjs";
 
 const manifest = (...refs) =>
   `globalThis.__RSC_MANIFEST["/x/page"]={"clientModules":{"a":{"chunks":[${refs
@@ -56,4 +56,15 @@ test("CLI: --warn never fails (exit 0) and says WARN on a directory that is not 
   const r = spawnSync(process.execPath, [CLI, dir, "--warn"], { encoding: "utf8" });
   assert.equal(r.status, 0);
   assert.match(r.stderr, /check-build-chunks WARN/);
+});
+
+test("findMissingByKind groups absent chunks by manifest kind and ignores present ones", () => {
+  const files = {
+    "/n/build-manifest.json": '{"rootMainFiles":["static/chunks/ok-1.js","static/chunks/gone-2.js"]}',
+    "/n/server/app/x/page.html": '<link rel="preload" href="/_next/static/chunks/gone-3.js" as="script"/>',
+    "/n/server/app/y/page_client-reference-manifest.js": "static/chunks/never-read.js",
+  };
+  delete files["/n/server/app/y/page_client-reference-manifest.js"];
+  const byKind = findMissingByKind({ files, staticChunks: new Set(["ok-1.js"]) });
+  assert.deepEqual(byKind, { "build-manifest.json": ["gone-2.js"], "prerendered-html": ["gone-3.js"] });
 });
