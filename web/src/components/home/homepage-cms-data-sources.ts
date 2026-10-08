@@ -29,7 +29,7 @@ import { resolveCollectionDataSources } from "@/lib/site-admin/collections/serve
 import { resolveSocialFeedDataSources } from "@/lib/social-embed/feed-cache";
 import { collectSocialFeedProviders } from "@/lib/site-admin/builder-node/social-feed-source";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { withSecondaryReadDegrade } from "@/lib/supabase/bounded-fetch";
+import { withSecondaryReadDegrade } from "@/lib/supabase/bounded-fetch-scope";
 import { getHomepageData } from "@/lib/home-data";
 import { resolveShellSocialContact } from "@/lib/site-admin/server/shell-social-contact";
 import {
