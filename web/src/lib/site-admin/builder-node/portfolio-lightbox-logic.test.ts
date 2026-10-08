@@ -10,6 +10,8 @@ import {
   nextIndex,
   swipeDirection,
   claimPortfolioBook,
+  generalBookLabel,
+  lightboxCtas,
 } from "./portfolio-lightbox-logic";
 
 test("nextIndex wraps at both ends", () => {
@@ -47,4 +49,12 @@ test("TUL-139: a photo in two portfolio blocks books once per tap", () => {
   assert.deepEqual(booked, ["a", "a"]);
   assert.equal(claimPortfolioBook(new CustomEvent("x", { detail: { shotId: "s2" } }), "s1"), false);
   assert.equal(claimPortfolioBook(new Event("x"), "s1"), false);
+});
+
+test("TUL-440: unlinked + bookable shows the general CTA only; linked shows the look CTA only", () => {
+  assert.deepEqual(lightboxCtas({ canBook: false, hasBookableOffering: true }), { look: false, general: true });
+  assert.deepEqual(lightboxCtas({ canBook: true, hasBookableOffering: true }), { look: true, general: false });
+  assert.deepEqual(lightboxCtas({ canBook: false, hasBookableOffering: false }), { look: false, general: false });
+  assert.equal(generalBookLabel(true), "Reservar cita");
+  assert.equal(generalBookLabel(false), "Book an appointment");
 });

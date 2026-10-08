@@ -21,7 +21,10 @@ import { MAGAZINE_ROOT_VARS } from "./magazine-edition";
 import { eyebrowDuplicatesHeading } from "./portfolio-eyebrow";
 import { PORTFOLIO_FRAMED_CSS } from "./portfolio-framed-css";
 import { filterShotsForPortfolio } from "./portfolio-selection";
-import { buildPortfolioGallery, type PortfolioGallery } from "./portfolio-lightbox-logic";
+import { bookEntryFrom, listBookableOfferings } from "@/lib/talent-site/book-entry";
+import type { OpenIntent } from "@/lib/talent-site/open-intent-queue";
+import { stickyBarAction, stickyBarIntent } from "@/lib/talent-site/sticky-bar-tap";
+import { buildPortfolioGallery, generalBookLabel, type PortfolioGallery } from "./portfolio-lightbox-logic";
 import { captionLanguageHint } from "./portfolio-caption-hint";
 import { PortfolioShotLink } from "./portfolio-shot-link";
 import { PORTFOLIO_WORK_ORDER_CSS, WorkOrderFigure } from "./portfolio-work-order";
@@ -157,7 +160,10 @@ function ShotFigure({
   es,
   gallery,
   captionHint,
+  generalIntent,
 }: {
+  /** TUL-440: what the lightbox's general "Book an appointment" opens; null = nothing bookable. */
+  generalIntent?: OpenIntent | null;
   shot: TalentPortfolioShot;
   /** A-06: every shot of this block, and where this one sits in it (lightbox next/back). */
   gallery: PortfolioGallery;
@@ -207,6 +213,7 @@ function ShotFigure({
           closeLabel: es ? "Cerrar" : "Close",
           prevLabel: es ? "Foto anterior" : "Previous photo",
           nextLabel: es ? "Foto siguiente" : "Next photo",
+          ...(generalIntent ? { generalBook: { label: generalBookLabel(es === true), intent: generalIntent } } : {}),
         }}
         ariaLabel={
           offering && serviceLine
@@ -297,6 +304,9 @@ export function renderPortfolioBlock(args: {
   const magazine = isChapter && p.edition === "magazine";
 
   const workOrder = layout === "work_order";
+  // TUL-440: the header CTA's decision (one service: its sheet; several: the picker; none: hidden).
+  const bookable = listBookableOfferings({ offerings: args.offerings ?? [], confirmsByHand: args.confirmsByHand ?? true });
+  const generalIntent = stickyBarIntent(stickyBarAction(bookable.length), bookEntryFrom(bookable));
   const galleryItems = buildPortfolioGallery(visible, (id) => byOffering.has(id), es, showCaptions ? (shot) => {
     const full = visible.find((v) => v.id === shot.id);
     return captionLanguageHint({ caption: full?.caption, captionI18n: full?.captionI18n, locale: args.locale, primaryLocale: args.primaryLocale });
@@ -326,6 +336,7 @@ export function renderPortfolioBlock(args: {
           : null
       }
       gallery={{ items: galleryItems, index }}
+      generalIntent={generalIntent}
     />
   ));
 
