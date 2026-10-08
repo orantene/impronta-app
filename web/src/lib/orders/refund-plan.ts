@@ -78,6 +78,13 @@ export function planRefund(input: {
    * refunded (a whole-order refund). A partial refund leaves the tip.
    */
   tipCents?: number;
+  /**
+   * Cap the refund at this many minor units (TUL-431). Omit / null = refund
+   * every remaining cent on the picked lines. Must be a positive integer and
+   * must not exceed the lines' remaining total — over asks refuse rather than
+   * silently shrinking, same as `exceeds_captured` on the charge side.
+   */
+  amountCents?: number | null;
 }): RefundPlan {
   const byId = new Map(input.lines.map((l) => [l.id, l]));
   const targets: RefundableLine[] = [];
@@ -88,7 +95,7 @@ export function planRefund(input: {
   }
   if (targets.length === 0) return { ok: false, reason: "nothing_to_refund" };
 
-  const perLine = targets.map((l) => ({
+  const perLineFull = targets.map((l) => ({
     id: l.id,
     amountCents: refundableCentsFor(l, input.lines, input.scope, input.discountCents),
   }));
@@ -101,11 +108,36 @@ export function planRefund(input: {
   // whether its ticket was cancelled; that truth lives on the admission, and
   // the execute layer refuses a free-only plan whose tickets are all already
   // stamped. Without this, no comp could ever be cancelled (D-175).
-  if (perLine.some((p) => p.amountCents <= 0 && (byId.get(p.id)?.totalCents ?? 0) > 0)) {
+  if (perLineFull.some((p) => p.amountCents <= 0 && (byId.get(p.id)?.totalCents ?? 0) > 0)) {
     return { ok: false, reason: "line_already_refunded" };
   }
 
-  const totalCents = perLine.reduce((s, p) => s + p.amountCents, 0);
+  const fullCents = perLineFull.reduce((s, p) => s + p.amountCents, 0);
+  let perLine = perLineFull;
+  let totalCents = fullCents;
+
+  if (input.amountCents != null) {
+    const asked = Math.trunc(input.amountCents);
+    if (!Number.isFinite(asked) || asked <= 0) {
+      return { ok: false, reason: "nothing_to_refund" };
+    }
+    if (asked > fullCents) return { ok: false, reason: "exceeds_captured" };
+    // Drain picked lines in order until the asked amount is allocated. A
+    // single line for MX$300 of a larger service is the common desk case;
+    // multi-line picks still get a deterministic split without inventing shares.
+    // Lines that received $0 of the cap are dropped so a partial money refund
+    // does not stamp tickets on untouched lines.
+    let left = asked;
+    perLine = [];
+    for (const p of perLineFull) {
+      if (left <= 0) break;
+      const take = Math.min(p.amountCents, left);
+      if (take <= 0) continue;
+      perLine.push({ id: p.id, amountCents: take });
+      left -= take;
+    }
+    totalCents = asked;
+  }
 
   // ── Gap 2: spread across transactions, oldest first.
   //

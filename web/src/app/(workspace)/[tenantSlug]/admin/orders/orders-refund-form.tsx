@@ -20,9 +20,16 @@
  * THE EFFECT DESCRIPTIONS ARE COPY TOO. They were a hardcoded English record
  * here, on the one control that decides whether a seat comes back and whether a
  * ticket still admits. They now come from the same catalogue.
+ *
+ * TUL-431: an amount field (default = full remaining) so a partial refund such
+ * as MX$300 is possible; service orders default to `adjustment_after_service`
+ * instead of ticket wording; success refreshes the list so status flips without
+ * a manual reload.
  */
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { deskRefundAmountDefault, parseDeskRefundAmount } from "@/lib/orders/desk-refund-amount";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import { REFUND_EFFECTS, type RefundEffect } from "@/lib/orders/refund-effects";
 import type { RefundDeskOutcome } from "@/lib/orders/refund-desk-copy";
@@ -32,6 +39,10 @@ export type RefundFormCopy = {
   readonly refund: string;
   readonly effect: string;
   readonly confirm: string;
+  /** Amount field label (TUL-431). */
+  readonly amount: string;
+  /** Hint under the amount field, with {max} for the remaining formatted. */
+  readonly amountHint: string;
   /** P06: "Split by component share" over a package line. */
   readonly componentShare: string;
   /** One sentence per effect, in the reader's language. */
@@ -49,16 +60,31 @@ export function OrdersRefundForm({
   currency: string;
   copy: RefundFormCopy;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [lines, setLines] = useState<Array<{ id: string; name: string; totalCents: number; components: Array<{ name: string; cents: number }> | null }>>([]);
+  const [lines, setLines] = useState<Array<{ id: string; name: string; totalCents: number; refundedCents: number; components: Array<{ name: string; cents: number }> | null }>>([]);
   const [picked, setPicked] = useState<string[]>([]);
-  const [effect, setEffect] = useState<RefundEffect>("cancel_ticket");
+  const [effect, setEffect] = useState<RefundEffect>("adjustment_after_service");
+  const [amountText, setAmountText] = useState("");
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<RefundDeskOutcome | null>(null);
+
+  const maxCents = lines
+    .filter((l) => picked.includes(l.id))
+    .reduce((sum, l) => sum + Math.max(0, l.totalCents - l.refundedCents), 0);
+
+  function syncAmountDefault(nextPicked: string[], nextLines: typeof lines) {
+    const nextMax = nextLines
+      .filter((l) => nextPicked.includes(l.id))
+      .reduce((sum, l) => sum + Math.max(0, l.totalCents - l.refundedCents), 0);
+    setAmountText(nextMax > 0 ? deskRefundAmountDefault(nextMax, currency) : "");
+  }
 
   async function openForm() {
     setOpen(true);
     setOutcome(null);
+    setPicked([]);
+    setAmountText("");
     const res = await loadOrderLinesForDesk(orderId);
     if (!res.ok) {
       setOutcome(res.outcome);
@@ -66,7 +92,9 @@ export function OrdersRefundForm({
     }
     // A free line ($0 comp) has no money left by definition; it still has a
     // ticket to cancel, so it stays pickable (D-175).
-    setLines(res.lines.filter((l) => l.totalCents > l.refundedCents || l.totalCents === 0));
+    const next = res.lines.filter((l) => l.totalCents > l.refundedCents || l.totalCents === 0);
+    setLines(next);
+    setEffect(res.defaultEffect);
   }
 
   return (
@@ -83,15 +111,29 @@ export function OrdersRefundForm({
               setOutcome("pick_a_line");
               return;
             }
+            const parsed = parseDeskRefundAmount(amountText, currency, maxCents);
+            if (!parsed.ok) {
+              setOutcome(parsed.reason === "exceeds" ? "exceeds_captured" : "invalid");
+              return;
+            }
             setBusy(true);
-            void refundOrderAtDesk({ orderId, lineIds: picked, effect }).then((r) => {
+            void refundOrderAtDesk({
+              orderId,
+              lineIds: picked,
+              effect,
+              amountCents: parsed.capped ? parsed.cents : null,
+            }).then((r) => {
               setBusy(false);
               setOutcome(r.outcome);
               // The form stays OPEN on a refusal so the sentence stays on
               // screen next to the lines it is about. It used to close on
               // success only, which was right, and leave a bare code behind on
               // a refusal, which was not.
-              if (r.ok) setOpen(false);
+              if (r.ok) {
+                setOpen(false);
+                // Status stayed "Pagado" until a manual reload (TUL-431).
+                router.refresh();
+              }
             });
           }}
           style={{ display: "grid", gap: 8, maxWidth: 320 }}
@@ -103,9 +145,11 @@ export function OrdersRefundForm({
                   type="checkbox"
                   checked={picked.includes(line.id)}
                   onChange={(e) => {
-                    setPicked((cur) =>
-                      e.target.checked ? [...cur, line.id] : cur.filter((id) => id !== line.id),
-                    );
+                    const next = e.target.checked
+                      ? [...picked, line.id]
+                      : picked.filter((id) => id !== line.id);
+                    setPicked(next);
+                    syncAmountDefault(next, lines);
                   }}
                 />{" "}
                 {line.name}
@@ -124,6 +168,23 @@ export function OrdersRefundForm({
               ) : null}
             </div>
           ))}
+          <label style={{ fontSize: 12 }}>
+            {copy.amount}
+            <input
+              type="text"
+              inputMode="decimal"
+              data-orders-refund-amount=""
+              value={amountText}
+              onChange={(e) => setAmountText(e.target.value)}
+              disabled={picked.length === 0 || maxCents <= 0}
+              style={{ display: "block", width: "100%", minHeight: 36 }}
+            />
+          </label>
+          {picked.length > 0 && maxCents > 0 ? (
+            <p style={{ fontSize: 11, margin: 0, color: "inherit", opacity: 0.75 }}>
+              {copy.amountHint.replace("{max}", formatOrderMoney(maxCents, currency))}
+            </p>
+          ) : null}
           <label style={{ fontSize: 12 }}>
             {copy.effect}
             <select
