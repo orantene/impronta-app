@@ -1,23 +1,16 @@
 /**
- * Regional money formatting for catalogue prices (2026-09-22).
+ * Public catalogue money formatting.
  *
- * `formatOfferingPrice` (offerings-types.ts) collapses the UI locale to the
- * bare language ("es" | "en") before handing it to Intl. That is right for the
- * number grouping, but it loses the REGION, and the region is what decides how
- * a currency symbol is drawn:
+ * TUL-383 / DS-17 alignment: one format everywhere — `<symbol><amount> <CODE>`
+ * (e.g. "$700 MXN"). Bare "$700" and baked-in "MX$700" are NOT produced; the
+ * same string appears on / and /en. Delegates to `formatDashboardMoneyCents`
+ * so the public site and the dashboard share one formatter.
  *
- *   Intl.NumberFormat("es",    { currency: "MXN" }).format(300) → "300 MXN"
- *   Intl.NumberFormat("es-MX", { currency: "MXN" }).format(300) → "$300"
- *
- * A Mexican beauty studio's menu should read "$300", not "300 MXN" on every
- * row. This module resolves the currency's HOME locale so a catalogue priced in
- * the local currency prints the way its clients write it, and falls back to the
- * bare language for anything unmapped (no behaviour change for those).
- *
- * Pure module — no React, no server code. Safe on both sides of the boundary,
- * and deterministic between SSR and hydration because the locale is derived
- * from data, never from the browser.
+ * `moneyLocale` remains for callers that still need the currency's home
+ * Intl locale (grouping, narrow symbol extraction inside the dashboard helper).
  */
+
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 /** currency → the locale whose conventions its home market uses. */
 const HOME_LOCALE_BY_CURRENCY: Record<string, { es?: string; en?: string }> = {
@@ -40,19 +33,9 @@ export function moneyLocale(currency: string, locale: string): string {
 }
 
 /**
- * Price string for a catalogue amount, region-aware. Whole amounts print with
- * no decimals ("$300"); anything with cents keeps two ("$300.50").
+ * Price string for a catalogue amount. Always `$700 MXN` (symbol + amount +
+ * code), identical for es and en UI locales (TUL-383).
  */
 export function formatMoney(amountCents: number, currency: string, locale: string): string {
-  const amount = amountCents / 100;
-  const cur = (currency || "USD").toUpperCase();
-  try {
-    return new Intl.NumberFormat(moneyLocale(cur, locale), {
-      style: "currency",
-      currency: cur,
-      maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
-    }).format(amount);
-  } catch {
-    return `${cur} ${amount.toLocaleString()}`;
-  }
+  return formatDashboardMoneyCents(amountCents, currency || "USD", locale);
 }

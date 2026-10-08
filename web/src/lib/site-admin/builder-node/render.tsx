@@ -6228,18 +6228,13 @@ function renderBuilderNodeElement(
         ) {
           return "Quote on request";
         }
-        const amount = item.amountCents / 100;
-        try {
-          const formatted = new Intl.NumberFormat(options.contentLocale?.locale ?? "en", {
-            style: "currency",
-            currency: item.currency.toUpperCase(),
-            maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
-          }).format(amount);
-          return item.priceDisplay === "from" ? `from ${formatted}` : formatted;
-        } catch {
-          const fallback = `${item.currency.toUpperCase()} ${amount.toLocaleString()}`;
-          return item.priceDisplay === "from" ? `from ${fallback}` : fallback;
-        }
+        // TUL-383: one public money format (`$700 MXN`) via shared formatter.
+        const { formatMoney } = require("@/lib/talent/offerings-money") as typeof import("@/lib/talent/offerings-money");
+        const locale = options.contentLocale?.locale ?? "en";
+        const es = locale.toLowerCase().startsWith("es");
+        const formatted = formatMoney(item.amountCents, item.currency, locale);
+        if (item.priceDisplay === "from") return es ? `desde ${formatted}` : `from ${formatted}`;
+        return formatted;
       };
       const usdLine = (item: {
         amountCents: number | null;
