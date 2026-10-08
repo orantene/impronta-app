@@ -1,0 +1,89 @@
+{
+  "choice": "studio",
+  "viewport": "desktop",
+  "results": [
+    {
+      "n": 1,
+      "name": "front door",
+      "status": "PASS"
+    },
+    {
+      "n": 2,
+      "name": "screens + email code",
+      "status": "PASS"
+    },
+    {
+      "n": 3,
+      "name": "build + DB accounts and essentials",
+      "status": "FAIL",
+      "detail": "build ended on the arrival-failed screen (accounts asserted above)"
+    },
+    {
+      "n": 4,
+      "name": "finish screen + URL is real",
+      "status": "FAIL",
+      "detail": "no arrival screen"
+    },
+    {
+      "n": 5,
+      "name": "sign out and back in lands on the Spanish dashboard",
+      "status": "PASS"
+    },
+    {
+      "n": 6,
+      "name": "guest books a service",
+      "status": "FAIL",
+      "detail": "no finish URL to open"
+    }
+  ],
+  "facts": {
+    "h1Contrast": 15.36,
+    "sentence": "Soy Estudio studio desktop yuyubr. Tengo un estudio de limpieza de casas en Playa del Carmen con un equipo de tres personas. Hacemos limpieza profunda y ligera, de lunes a sábado.",
+    "aiRead": "off: too-little dead end; facts seeded with the service role",
+    "readyLink": "estudio-studio-desktop-yuyubr.tulala.digital",
+    "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+    "userId": "53232ab1-c1f9-4557-b7da-f94e0fd3a417",
+    "firstBuildEndedOnFailedScreen": true,
+    "arrival": "arrival-failed screen (build did not finish)",
+    "profile": {
+      "app_role": "agency_staff",
+      "home_surface_preference": "workspace",
+      "account_status": "active"
+    },
+    "brief": {
+      "id": "534f9e49-2753-458c-8e0d-fb38110fc89a",
+      "choice": "studio",
+      "locale": "es"
+    },
+    "memberships": [
+      {
+        "tenant_id": "26dfa034-134c-4f96-ab1a-8fc2a44a6051",
+        "role": "owner",
+        "status": "active"
+      }
+    ],
+    "workspace": {
+      "id": "26dfa034-134c-4f96-ab1a-8fc2a44a6051",
+      "slug": "estudio-studio-desktop-yuyubr"
+    },
+    "businessIdentity": {
+      "default_locale": "es"
+    },
+    "workspaceOfferings": [
+      {
+        "title": "Limpieza profunda",
+        "amount_cents": 85000
+      },
+      {
+        "title": "Limpieza ligera",
+        "amount_cents": 50000
+      }
+    ],
+    "visibleAtFail3": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
+    "visibleAtFail4": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
+    "landingMs": 11064,
+    "landingPath": "/estudio-studio-desktop-yuyubr/admin",
+    "sawEnglishInterstitial": false,
+    "visibleAtFail6": ""
+  }
+}

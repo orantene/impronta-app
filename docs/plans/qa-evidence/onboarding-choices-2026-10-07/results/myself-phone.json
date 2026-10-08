@@ -1,0 +1,82 @@
+{
+  "choice": "myself",
+  "viewport": "phone",
+  "results": [
+    {
+      "n": 1,
+      "name": "front door",
+      "status": "PASS"
+    },
+    {
+      "n": 2,
+      "name": "screens + email code",
+      "status": "PASS"
+    },
+    {
+      "n": 3,
+      "name": "build + DB accounts and essentials",
+      "status": "FAIL",
+      "detail": "talent_sites.theme_design_slug |  | \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m |  | Expected: \u001b[32m\"maison-v2\"\u001b[39m | Received: \u001b[31mnull\u001b[39m"
+    },
+    {
+      "n": 4,
+      "name": "finish screen + URL is real",
+      "status": "FAIL",
+      "detail": "no arrival screen"
+    },
+    {
+      "n": 5,
+      "name": "sign out and back in lands on the Spanish dashboard",
+      "status": "FAIL",
+      "detail": "Spanish dashboard reached within 90 s |  | \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m |  | Expected: \u001b[32mtrue\u001b[39m | Received: \u001b[31mfalse\u001b[39m"
+    },
+    {
+      "n": 6,
+      "name": "guest books a service",
+      "status": "FAIL",
+      "detail": "no finish URL to open"
+    }
+  ],
+  "facts": {
+    "h1Contrast": 15.36,
+    "sentence": "Me llamo Rosa myself phone yvbwfi. Soy limpiadora de casas en Playa del Carmen. Hago limpieza profunda y ligera, de lunes a sábado.",
+    "aiRead": "off: too-little dead end; facts seeded with the service role",
+    "readyLink": null,
+    "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+    "userId": "1bcafb3b-0edb-4aec-addd-295a3abf0e1e",
+    "firstBuildEndedOnFailedScreen": true,
+    "arrival": "arrival-failed screen (build did not finish)",
+    "profile": {
+      "app_role": "talent",
+      "home_surface_preference": "talent",
+      "account_status": "active"
+    },
+    "brief": {
+      "id": "093ed5f0-0fcb-43a5-ab88-4e1513672542",
+      "choice": "myself",
+      "locale": "es"
+    },
+    "talent": {
+      "id": "ed0c3e93-6385-4f75-a956-a9607f8e5c17",
+      "code": "TAL-93020",
+      "preferred_locale": "es",
+      "bioLocales": [
+        "en",
+        "es"
+      ]
+    },
+    "hubRoster": 1,
+    "talentSite": {
+      "site_slug": "rosa-myself-phone-yvbwfi",
+      "theme_design_slug": null,
+      "site_published_at": null
+    },
+    "visibleAtFail3": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
+    "visibleAtFail4": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
+    "landingMs": 90160,
+    "landingPath": "/talent/today",
+    "sawEnglishInterstitial": false,
+    "visibleAtFail5": "",
+    "visibleAtFail6": ""
+  }
+}
