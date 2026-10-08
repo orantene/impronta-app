@@ -15,6 +15,7 @@ import { enrichBookingFromReservation } from "@/lib/scheduling/reservation-conve
 import { logServerError } from "@/lib/server/safe-error";
 import { stampBookingPolicyVersion } from "@/lib/talent-policies/stamp";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
+import { tryMajorToMinor } from "./offer-minor-units";
 
 type InquiryRow = Database["public"]["Tables"]["inquiries"]["Row"];
 type InquiryOffersRow = Database["public"]["Tables"]["inquiry_offers"]["Row"];
@@ -97,7 +98,10 @@ async function snapshotOfferTermsOntoBooking(
   if (!offer) return;
 
   const { readOfferTermsFromRow } = await import("@/lib/billing/offer-commercial-terms");
-  const totalCents = Math.round(Number(offer.total_client_price ?? 0) * 100);
+  // Unreadable currency: legacy cent precision (display snapshot, no charge).
+  const totalCents =
+    tryMajorToMinor(Number(offer.total_client_price ?? 0), offer.currency_code) ??
+    Math.round(Number(offer.total_client_price ?? 0) * 100);
   const terms = readOfferTermsFromRow(
     {
       deposit_pct: offer.deposit_pct,
@@ -331,7 +335,7 @@ export async function convertToBooking(
     // path as a commission snapshot failure.
     const { data: acceptedOffer } = await supabase
       .from("inquiry_offers")
-      .select("total_client_price")
+      .select("total_client_price, currency_code")
       .eq("inquiry_id", ctx.inquiryId)
       .eq("status", "accepted")
       .order("accepted_at", { ascending: false })
@@ -340,8 +344,13 @@ export async function convertToBooking(
     if (acceptedOffer) {
       const bookedRevenue = Number(bookingFigures?.total_client_revenue ?? 0);
       const offerTotal = Number(acceptedOffer.total_client_price ?? 0);
-      // Compare at cent precision to absorb NUMERIC float noise.
-      if (Math.round(bookedRevenue * 100) !== Math.round(offerTotal * 100)) {
+      // Compare at the offer currency's minor-unit precision to absorb NUMERIC
+      // float noise. Unreadable currency keeps the legacy cent precision (this
+      // is a reconcile check, not a charge path).
+      const offerCurrency = acceptedOffer.currency_code;
+      const bookedMinor = tryMajorToMinor(bookedRevenue, offerCurrency) ?? Math.round(bookedRevenue * 100);
+      const offerMinor = tryMajorToMinor(offerTotal, offerCurrency) ?? Math.round(offerTotal * 100);
+      if (bookedMinor !== offerMinor) {
         await improntaLog("convertToBooking.revenue_mismatch", {
           bookingId,
           bookedRevenue,

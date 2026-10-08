@@ -7,6 +7,7 @@ import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
 import { loadInquiryRoster } from "./inquiry-workspace-data";
 import { checkInquiryCurrencyMatchesSeller, resolveNewOfferCurrency } from "./offer-currency-seller";
+import { majorToMinor, tryMajorToMinor } from "./offer-minor-units";
 import type { EngineResult } from "./inquiry-engine.types";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -898,6 +899,12 @@ export async function updateOfferDraft(
       return { success: false, conflict: true, reason: "version_conflict" };
     }
 
+    // Minor-unit conversions below use the offer currency's divisor. Fail
+    // closed (before any write) when the currency is unreadable.
+    if (tryMajorToMinor(0, ctx.currency_code) === null) {
+      return { success: false, error: "offer_currency_unreadable" };
+    }
+
     for (const line of ctx.lineItems) {
       if (!PRICING_UNITS.has(line.pricing_unit)) {
         return { success: false, error: "invalid_pricing_unit" };
@@ -953,7 +960,7 @@ export async function updateOfferDraft(
         // S5: author, price snapshot, discount and tax ride through. A line
         // with no snapshot is snapshotted at the price it is saved with.
         proposed_by: line.proposed_by ?? "staff",
-        price_snapshot_cents: line.price_snapshot_cents ?? Math.round(Number(line.unit_price ?? 0) * 100),
+        price_snapshot_cents: line.price_snapshot_cents ?? majorToMinor(Number(line.unit_price ?? 0), ctx.currency_code),
         catalog_price_cents_at_add: line.catalog_price_cents_at_add ?? null,
         discount_cents: Math.max(0, Math.trunc(Number(line.discount_cents ?? 0))),
         discount_label: line.discount_label ?? null,
@@ -989,7 +996,7 @@ export async function updateOfferDraft(
       (sum, line) => sum + Number(line.total_price ?? 0),
       0,
     );
-    const totalClientPriceCents = Math.round(reconciledTotal * 100);
+    const totalClientPriceCents = majorToMinor(reconciledTotal, ctx.currency_code);
     let fallbackTerms: {
       depositPct: number;
       balanceMethod: BalanceCollectionMethod;
@@ -1082,7 +1089,7 @@ export async function updateOfferDraft(
       p_payload: {
         offer_id: ctx.offerId,
         line_item_count: ctx.lineItems.length,
-        total_client_price_cents: Math.round(reconciledTotal * 100),
+        total_client_price_cents: totalClientPriceCents,
         currency: ctx.currency_code,
       },
     }).then((r) => { if (r.error) logServerError("audit.emit.offer_edited", r.error); });
