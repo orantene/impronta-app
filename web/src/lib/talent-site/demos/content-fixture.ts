@@ -185,7 +185,13 @@ export interface DemoContentFixture {
   /** Comparison matrix rows (Gridline W-01); cells live on each service's `matrix`. */
   matrix?: { rows: Array<{ key: "price" | "dur" | "mode" | "mat" | "war" | "resp"; label: string }> };
   /** Spec table (Gridline): key/value rows. */
-  specTable?: { title: string; subtitle: string; rows: Array<{ label: string; value: string }> };
+  specTable?: {
+    title: string;
+    subtitle: string;
+    rows: Array<{ label: string; value: string }>;
+    /** The table in another language (a Spanish-primary demo's English), written as a per-language overlay. */
+    i18n?: Partial<Record<"en" | "es", { eyebrow?: string; title?: string; rows?: Array<{ label: string; value: string }> }>>;
+  };
   payment?: {
     depositPercent: number;
     inPersonMethods: string[];
