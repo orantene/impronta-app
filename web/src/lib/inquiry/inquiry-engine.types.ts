@@ -15,6 +15,8 @@ export type EngineErr = {
   rateLimited?: boolean;
   retryAfterMs?: number;
   error?: string;
+  /** Plain-language explanation for refusals that carry one (e.g. offer currency mismatch). */
+  message?: string;
   /**
    * M2.3: populated by `convertToBooking` when `reason === "requirement_groups_unfulfilled"`.
    * Array of per-group shortfall rows keyed by `group_id`. UI should render

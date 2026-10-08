@@ -6,6 +6,7 @@ import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
 import { loadInquiryRoster } from "./inquiry-workspace-data";
+import { checkInquiryCurrencyMatchesSeller, resolveNewOfferCurrency } from "./offer-currency-seller";
 import type { EngineResult } from "./inquiry-engine.types";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -404,6 +405,8 @@ export async function createOffer(
     actorUserId: string;
     expectedVersion: number;
     currencyCode?: string;
+    /** TUL-274: price a NEW offer in the seller's default_currency (see offer-currency.ts). */
+    followSeller?: boolean;
   },
 ): Promise<EngineResult<{ offerId: string }>> {
   return runWithEngineLog("createOffer", ctx.inquiryId, ctx.actorUserId, async () => {
@@ -460,6 +463,12 @@ export async function createOffer(
       null,
     );
 
+    const offerCurrency = await resolveNewOfferCurrency(supabase, {
+      inquiryId: ctx.inquiryId,
+      platformCurrency: ctx.currencyCode ?? "USD",
+      followSeller: ctx.followSeller === true,
+    });
+
     const { data: offer, error } = await supabase
       .from("inquiry_offers")
       .insert({
@@ -469,7 +478,7 @@ export async function createOffer(
         // USD-first: callers (createOfferAction) resolve the platform operating
         // currency and pass it; this fallback is a defensive default for any
         // direct caller that omits it (was a legacy "MXN").
-        currency_code: ctx.currencyCode ?? "USD",
+        currency_code: offerCurrency,
         status: "draft",
         // W6a — negotiated terms (display + snapshot only this wave). The amount
         // is 0 at create (no line items priced yet); it is re-derived on every
@@ -609,7 +618,7 @@ export async function createOffer(
     await supabase.rpc("inquiry_audit_emit", {
       p_inquiry_id: ctx.inquiryId,
       p_kind: "offer_created",
-      p_payload: { offer_id: offer.id as string, currency: ctx.currencyCode ?? "USD" },
+      p_payload: { offer_id: offer.id as string, currency: offerCurrency },
     }).then((r) => { if (r.error) logServerError("audit.emit.offer_created", r.error); });
 
     return { success: true, data: { offerId: offer.id as string } };
@@ -654,6 +663,24 @@ export async function sendOffer(
     if (!liRows?.length || lineSum <= 0) {
       return { success: false, error: "empty_offer" };
     }
+    // TUL-274: refuse to send an offer priced in a currency the single seller
+    // does not charge in (an MXN seller must not offer USD).
+    const { data: curRow, error: curErr } = await supabase
+      .from("inquiry_offers")
+      .select("currency_code")
+      .eq("id", ctx.offerId)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
+    if (curErr) {
+      logServerError("inquiry-engine-offers.sendOffer.currency", curErr);
+      return { success: false, error: "send_offer_failed" };
+    }
+    const curCheck = await checkInquiryCurrencyMatchesSeller(supabase, {
+      inquiryId: ctx.inquiryId,
+      currency: (curRow as { currency_code?: string | null } | null)?.currency_code,
+      mode: "send",
+    });
+    if (!curCheck.ok) return { success: false, error: curCheck.code, message: curCheck.message };
     // A5 — stamp the offer's expiry window at send time. engine_send_offer flips
     // status='sent' but does not set valid_until, so we stamp it here in the same
     // pre-send JS update (computed in JS as an ISO timestamp). A sweeper (separate
