@@ -22,6 +22,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { supersedeStaleUpdateRows } from "@/lib/talent-site/theme-releases/superseded-rows.server";
+import { isSupersededReport } from "@/lib/talent-site/theme-releases/superseded-rows";
 import { applyThemeUpdateToDraft, siteBasePath } from "@/lib/talent-site/history/history.server";
 import type { HistorySnapshot } from "@/lib/talent-site/history/types";
 import type { WriteSiteDraftResult } from "@/lib/talent-site/history/writer";
@@ -629,6 +631,10 @@ export async function applyThemeUpdate(
       report: { ...summarizeReport(m.result.report), addedBlocks: ctx.addedBlocks },
     });
   }
+  // THEME CORE P1: older open rows of this design at or below the new pin close too.
+  await supersedeStaleUpdateRows(deps.admin, [
+    { siteId: ctx.siteId, talentProfileId: ctx.talentProfileId, designSlug: ctx.release.design_slug, pin: ctx.release.to_version },
+  ]);
   return { ok: true, value: { draftRev: res.draftRev, kept: countParts(editedKept(m.result.report.kept)), historyId: res.historyId } };
 }
 
@@ -785,6 +791,7 @@ export async function loadAvailableBlocks(admin: SupabaseClient, talentProfileId
   for (const row of ordered) {
     const rel = releases.get(row.release_id);
     if (!rel || rel.status !== "published") continue;
+    if (isSupersededReport(row.report)) continue; // closed by a newer pin: offers no blocks of its own
     const added = new Set(Array.isArray(row.report?.addedBlocks) ? (row.report!.addedBlocks as unknown[]) : []);
     for (const item of Array.isArray(rel.items) ? rel.items : []) {
       if (item.type !== "new-block") continue;

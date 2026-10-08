@@ -14,6 +14,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { supersedeOlderBells } from "./theme-bells.server";
+import { supersedeStaleUpdateRows } from "./superseded-rows.server";
 import { fanOutWithPorts, type FanOutPorts } from "./manager/fan-out";
 import type { BellRow, FanOutSite, UpdateRow } from "./manager/notify";
 import { hasCriticalCandidates, isOfferActionable, pinnedBaseKnown } from "./offer-actionable.server";
@@ -152,6 +153,10 @@ export async function ensureSiteThemeUpdates(
     if (!site || !slug) return none;
     const pinned = (site as { theme_design_version?: number | null }).theme_design_version;
     const pinnedVersion = typeof pinned === "number" ? pinned : null;
+    // THEME CORE P1: rows a newer pin has overtaken close here (apply paths call this after the pin moves).
+    await supersedeStaleUpdateRows(admin, [
+      { siteId: (site as { id: string }).id, talentProfileId, designSlug: slug, pin: pinnedVersion },
+    ]);
 
     const { data: rels, error: rErr } = await admin
       .from("talent_theme_releases")
