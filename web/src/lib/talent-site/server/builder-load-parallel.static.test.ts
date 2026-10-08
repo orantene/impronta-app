@@ -19,12 +19,14 @@ test("F93: the builder route loads its independent reads in parallel batches", (
   assert.doesNotMatch(src, /const talentLocale = await loadTalentLocaleSettings/);
 });
 
-test("Free locked editor: builder provisions any canEdit site, not Max-only", () => {
+test("Free locked editor: the builder entry is read-only and offers an explicit create control (TUL-179/TUL-213)", () => {
   const src = read("app/(workspace)/talent/page-builder/page.tsx");
-  // Story 2 #55/#57: Free with the switch on must get a site row so the locked
-  // editor mounts. Max-only provision left Free on Public page / upsell.
+  // Opening the builder never provisions a talent_sites row; a talent with no
+  // complete scaffold sees the explicit "Create my own website" control.
   assert.match(src, /if\s*\(\s*!input\.canEdit\s*\)\s*return\s+false/);
-  assert.match(src, /provisionTalentMaxSite\(\s*input\.profileId,\s*input\.userId\s*\)/);
+  assert.doesNotMatch(src, /provisionTalentMaxSite\(/);
+  assert.match(src, /PageBuilderCreateSite/);
+  assert.match(src, /siteScaffoldComplete/);
   assert.doesNotMatch(src, /if\s*\(\s*input\.isMax\s*\)/);
   assert.doesNotMatch(
     src,

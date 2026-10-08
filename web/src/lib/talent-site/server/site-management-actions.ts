@@ -113,11 +113,9 @@ export async function ensureMaxSiteAction(): Promise<
 // ── Load manager state ───────────────────────────────────────────────────────
 
 /**
- * Load everything the `/talent/site` dashboard renders: the site row + every
- * page via the cookie-session client (owner RLS). READ-ONLY: opening the page
- * never creates a site (TUL-179). A missing or incomplete scaffold comes back
- * as `siteExists: false`; the talent creates it with `ensureMaxSiteAction`
- * from an explicit "Create my own website" click.
+ * Load everything the `/talent/site` dashboard renders: the site row + every page via the
+ * cookie-session client (owner RLS). READ-ONLY (TUL-179): a missing or incomplete scaffold comes
+ * back as `siteExists: false`; the talent creates it with `ensureMaxSiteAction` from an explicit click.
  */
 export async function loadMaxSiteManagerAction(): Promise<
   MaxSiteActionResult<MaxSiteManagerState>
