@@ -9,6 +9,7 @@ import { TALENT_SIDEBAR_ICON } from "./talent-nav-icons";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGE_META, TALENT_TIER_META, useAdminShell, type TalentPage } from "./state";
 import { PageHeader } from "./talent/shared/page-chrome-1";
 import { ProfilePageSkeleton } from "./talent/pages/ProfilePageSkeleton";
+import { TodaySkeleton } from "./talent/pages/today-skeleton";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { tradeCalendarRules } from "@/lib/talent-agenda/trade-calendar";
@@ -27,8 +28,10 @@ import { pinNextConversation } from "./messages/conversation-pending";
 // v5 shell, Money, Agenda, etc. before it could hydrate (~30 MB of dev JS,
 // measured with curl on 2026-09-28). Each body is now its own chunk group,
 // fetched only when that page renders. `ssr` stays ON, so a hard load of any
-// route still paints the page on the server; `loading` renders nothing, the
-// same shape as `pages-dynamic.tsx` and `drawers.tsx`.
+// route still paints the page on the server.
+// TUL-303: Today's `loading` MUST match the SSR first paint (TodaySkeleton).
+// `loading: () => null` raced the SSR skeleton and threw React #418 on cold
+// loads when the chunk arrived after hydrate started (harness: Today 2/3).
 const CalendarPage = dynamic(() => import("./talent/pages/CalendarPage").then((m) => ({ default: m.CalendarPage })), { loading: () => null });
 const MyProfilePage = dynamic(() => import("./talent/pages/MyProfilePage").then((m) => ({ default: m.MyProfilePage })), { loading: () => <ProfilePageSkeleton /> });
 const PublicPageEditor = dynamic(() => import("./talent/pages/PublicPageEditor").then((m) => ({ default: m.PublicPageEditor })), { loading: () => null });
@@ -36,7 +39,7 @@ const ReviewsPage = dynamic(() => import("./talent/pages/ReviewsPage").then((m) 
 const ServicesPage = dynamic(() => import("./talent/pages/ServicesPage").then((m) => ({ default: m.ServicesPage })), { loading: () => null });
 const SettingsPage = dynamic(() => import("./talent/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })), { loading: () => null });
 const TalentPayoutsPage = dynamic(() => import("./page-modules/TalentPayoutsPage").then((m) => ({ default: m.TalentPayoutsPage })), { loading: () => null });
-const TalentTodayPage = dynamic(() => import("./talent/pages/TodayPage").then((m) => ({ default: m.TalentTodayPage })), { loading: () => null });
+const TalentTodayPage = dynamic(() => import("./talent/pages/TodayPage").then((m) => ({ default: m.TalentTodayPage })), { loading: () => <TodaySkeleton /> });
 const TalentMessagesPage = dynamic(() => import("./talent/pages/messages/MessagesPage").then((m) => ({ default: m.TalentMessagesPage })), { loading: () => null });
 const MoneyPage = dynamic(() => import("@/components/talent/money/MoneyPage").then((m) => ({ default: m.MoneyPage })), { loading: () => null });
 const TalentClientsPage = dynamic(() => import("./talent/pages/ClientsPage").then((m) => ({ default: m.TalentClientsPage })), { loading: () => null });

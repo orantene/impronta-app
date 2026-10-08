@@ -103,13 +103,19 @@ function useActivationStore(pathname: string | null): {
   value: TalentSiteActivationState | null;
   attempted: boolean;
 } {
-  const [value, setValue] = useState<TalentSiteActivationState | null>(storeValue);
-  const [attempted, setAttempted] = useState(storeAttempted);
+  // Start empty on every mount so server HTML and the hydrating client agree
+  // (TUL-303). Seeding from the module cache made a warm SPA client paint the
+  // live website pill while SSR still rendered the pending placeholder.
+  const [value, setValue] = useState<TalentSiteActivationState | null>(null);
+  const [attempted, setAttempted] = useState(false);
   useEffect(() => {
     const sync = () => {
       setValue(storeValue);
       setAttempted(storeAttempted);
     };
+    // Apply any already-fetched value after mount (same pattern as
+    // useWebsiteEligibility's module cache).
+    sync();
     storeListeners.add(sync);
     const bump = () => {
       storeStale = true;
