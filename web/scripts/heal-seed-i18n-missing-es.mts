@@ -1,15 +1,17 @@
 /**
- * TUL-369 — dry-run inventory of stored trees with an English seed base and
- * no `props.i18n.es` for that leaf. Never writes.
+ * TUL-369 — read-only count of stored trees with an English seed base and
+ * no `props.i18n.es` for that leaf. Never writes (no --apply flag exists).
  *
  *   NODE_PATH=scripts/demo-talents/stubs \
  *   NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' \
  *   npx tsx --tsconfig scripts/demo-talents/tsconfig.json --env-file=<env> \
  *     scripts/heal-seed-i18n-missing-es.mts
+ *   # npm script wires NODE_PATH / NODE_OPTIONS / tsconfig (pass --env-file to tsx):
+ *   npm run qa:heal-seed-i18n-missing-es
  *
  * Needs NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (+ matching
- * DEMO_SEED_TARGET_REF). Heal via `npm run qa:release-theme-i18n` (copy
- * release), not this script.
+ * DEMO_SEED_TARGET_REF). Guarded heal is `npm run qa:release-theme-i18n`
+ * (dry-run default; writes only with `--apply --yes --design <slug>`).
  */
 import { createClient } from "@supabase/supabase-js";
 
