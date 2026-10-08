@@ -9,7 +9,12 @@
  */
 
 import { accentHeadline, seedHeadlineFor } from "./hero-headline";
-import { formatHeroEyebrow, formatHeroProofLine, type HeroProofInput } from "./hero-proof-line";
+import {
+  formatHeroEyebrow,
+  formatHeroProofLine,
+  languageEndonym,
+  type HeroProofInput,
+} from "./hero-proof-line";
 
 export type LocalizedMapLike = Readonly<Record<string, string | null | undefined>> | null | undefined;
 
@@ -131,6 +136,14 @@ export function buildTalentLocaleSwaps(
   if (seed && key === "es") add(accentHeadline(seed.en), accentHeadline(seed.es));
   if (src.proof && key === "es") {
     add(formatHeroProofLine(src.proof, "en"), formatHeroProofLine(src.proof, "es"));
+    // About `{{languagesLine}}` bakes "Languages: Spanish · English" from raw
+    // talent_languages names (token-projection). Swap prefix + names for ES.
+    const spoken = (src.proof.languages ?? []).map((n) => n.trim()).filter(Boolean);
+    if (spoken.length) {
+      const enLine = `Languages: ${spoken.join(" · ")}`;
+      const esNames = spoken.map((n) => languageEndonym(n, "es")).filter(Boolean);
+      if (esNames.length) add(enLine, `Idiomas: ${esNames.join(" · ")}`);
+    }
   }
   return out;
 }

@@ -91,3 +91,20 @@ test("an ASCII-folded baked city swaps to its accented form, alone and in the ey
   const en = buildTalentLocaleSwaps({ ...src, homeCity: { en: "Cancún" } }, "en");
   assert.equal(en["Cancun"], "Cancún");
 });
+
+test("ES swaps the baked About languages line (TUL-121 design polish)", () => {
+  const src = {
+    bioI18n: null,
+    typeNames: [],
+    homeCity: null,
+    proof: { languages: ["English"] },
+  };
+  const es = buildTalentLocaleSwaps(src, "es");
+  assert.equal(es["Languages: English"], "Idiomas: Inglés");
+  const bilingual = buildTalentLocaleSwaps(
+    { ...src, proof: { languages: ["Spanish", "English"] } },
+    "es",
+  );
+  assert.equal(bilingual["Languages: Spanish · English"], "Idiomas: Español · Inglés");
+  assert.ok(!("Languages: English" in buildTalentLocaleSwaps(src, "en")));
+});
