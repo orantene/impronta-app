@@ -1925,6 +1925,7 @@
         "rateLimit": "Demasiados intentos por ahora. Espera un minuto y vuelve a intentar.",
         "importFailed": "No se pudo leer ese enlace. Escribe qué haces.",
         "readFailed": "No pudimos leer eso. Inténtalo de nuevo o escríbelo distinto.",
+        "aiUnavailable": "No pudimos leer tu descripción ahora. Inténtalo de nuevo en un momento.",
         "looksGood": "Se ve bien, continuar",
         "editHint": "Toca cualquier línea para cambiarla.",
         "laterValue": "Después, en tu sitio",
