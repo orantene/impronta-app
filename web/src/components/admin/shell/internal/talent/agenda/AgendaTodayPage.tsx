@@ -169,7 +169,6 @@ export function AgendaTodayPage({
   onOpenProfile?: () => void;
   /** Open Money after pinning a landing (M3 Due by today → mc_out_today). */
   onOpenMoney?: (landing: MoneyLanding) => void;
-  /** Same destination as Money's "Configurar": the payouts drawer. */
   onSetUpPayouts?: () => void;
   newLabel?: string;
   now?: Date;
@@ -472,34 +471,17 @@ export function AgendaTodayPage({
           </button>
         </div>
         {(() => {
-          // "Payouts not set up" must go to the setup drawer (Money's
-          // "Configurar"), never to a dead click. With no destination, render
-          // it as plain text rather than a button that does nothing.
+          // "Payouts not set up" goes to the setup drawer (Money's "Configurar"); with no destination it is plain text.
           const notSetUp = payoutsEnabled === false;
-          const onActivate = notSetUp
-            ? onSetUpPayouts
-            : onOpenMoney
-              ? () => onOpenMoney({ tab: "payouts" })
-              : undefined;
+          const onActivate = notSetUp ? onSetUpPayouts : onOpenMoney ? () => onOpenMoney({ tab: "payouts" }) : undefined;
           const body = (
             <div className="flex-1">
               <div className="text-[13px] font-semibold text-[var(--tc-primary)]">{copy.t("Next payout")}</div>
-              <div className={`text-[11.5px] ${MUTED}`}>
-                {notSetUp ? copy.t("Payouts not set up") : copy.t("See payouts")}
-              </div>
+              <div className={`text-[11.5px] ${MUTED}`}>{notSetUp ? copy.t("Payouts not set up") : copy.t("See payouts")}</div>
             </div>
           );
-          return onActivate ? (
-            <button
-              type="button"
-              onClick={onActivate}
-              className="flex w-full items-center gap-2.5 px-4 py-3 text-left"
-            >
-              {body}
-            </button>
-          ) : (
-            <div className="flex w-full items-center gap-2.5 px-4 py-3 text-left">{body}</div>
-          );
+          const row = "flex w-full items-center gap-2.5 px-4 py-3 text-left";
+          return onActivate ? <button type="button" onClick={onActivate} className={row}>{body}</button> : <div className={row}>{body}</div>;
         })()}
       </section>
     );
