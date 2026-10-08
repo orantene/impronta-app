@@ -930,11 +930,12 @@ export async function createManualBooking(formData: FormData): Promise<void> {
   // and refuse when it is unreadable, rather than defaulting to USD.
   let manualCurrency = trimmedString(formData, "currency_code");
   if (!manualCurrency) {
-    const { data: ag } = await supabase
+    const { data: ag, error: agErr } = await supabase
       .from("agencies")
       .select("default_currency")
       .eq("id", tenantId)
       .maybeSingle();
+    if (agErr) logServerError("admin/createManualBooking.currency", agErr);
     manualCurrency = String((ag as { default_currency?: string | null } | null)?.default_currency ?? "").trim();
     if (!/^[A-Za-z]{3}$/.test(manualCurrency)) {
       redirect(`${returnTo}?err=${encodeURIComponent("Choose a currency for this booking.")}`);

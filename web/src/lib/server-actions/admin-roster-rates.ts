@@ -347,12 +347,21 @@ export async function saveRosterRates(
       // standard "Day rate" service instead — same defaults the storefront
       // and directory already understand (published/public/approved).
       // tenantScopedQuery forces tenant_id onto the inserted row.
-      const { data: tp, error: tpErr } = await admin
-        .from("talent_profiles")
-        .select("default_currency")
-        .eq("id", change.talentProfileId)
+      // The talent's currency is read through the tenant-scoped roster join
+      // (the same membership the save already re-checked), not a raw table read.
+      const { data: tp, error: tpErr } = await tenantScopedQuery(
+        admin,
+        "agency_talent_roster",
+        tenantId,
+      )
+        .select("talent_profiles ( default_currency )")
+        .eq("talent_profile_id", change.talentProfileId)
+        .eq("status", "active")
+        .is("removed_at", null)
         .maybeSingle();
-      const createCurrency = String((tp as { default_currency?: string | null } | null)?.default_currency ?? "")
+      const tpJoin = (tp as { talent_profiles?: { default_currency?: string | null } | { default_currency?: string | null }[] | null } | null)?.talent_profiles;
+      const tpRow = Array.isArray(tpJoin) ? tpJoin[0] : tpJoin;
+      const createCurrency = String(tpRow?.default_currency ?? "")
         .trim()
         .toUpperCase();
       if (tpErr || !/^[A-Z]{3}$/.test(createCurrency)) {
