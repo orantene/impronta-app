@@ -22,6 +22,7 @@ import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { forgetUserTenantMemberships } from "@/lib/saas/tenant";
+import { recordStarterPrepareFailed } from "@/lib/onboarding/starter-prepare.server";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   normalizeWorkspaceSlugCandidate,
@@ -264,8 +265,9 @@ export async function provisionFreeWorkspaceFromTalent(params: {
     logServerError("talent-workspace-provision.upsertIdentity (non-fatal)", identityError);
   }
 
-  // Starter content is best-effort: a throw here (not just `ok: false`) must not
-  // skip the roster step or strand a half-built workspace, so it is contained.
+  // Starter content is best-effort: a throw (not just ok:false) must not skip
+  // the roster step. On failure, stamp starter_prepare so My website can offer
+  // Reintentar (TUL-441). Compose failures also stamp site_compose.
   try {
     const starter = await onboardStarterContent(admin, {
       tenantId: agency.id,
@@ -273,13 +275,20 @@ export async function provisionFreeWorkspaceFromTalent(params: {
       seedFreeStarter: true,
     });
     if (!starter.ok) {
+      const reason = starter.error ?? "starter-content failed";
       logServerError(
         "talent-workspace-provision.onboardStarterContent (non-fatal)",
-        new Error(starter.error ?? "starter-content failed"),
+        new Error(reason),
       );
+      await recordStarterPrepareFailed(admin, agency.id, reason);
     }
   } catch (err) {
     logServerError("talent-workspace-provision.onboardStarterContent (non-fatal, threw)", err);
+    await recordStarterPrepareFailed(
+      admin,
+      agency.id,
+      err instanceof Error ? err.message : "starter-content threw",
+    );
   }
 
   const selfRoster = await ensureSelfRosterSiteVisible(admin, {
