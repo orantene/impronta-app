@@ -19,7 +19,7 @@ describe("buildLiveDesignChangeSummary", () => {
       paletteName: "Rosé",
       counts: { services: 12, photos: 8 },
     });
-    assert.equal(s.title, "Publish Folio?");
+    assert.equal(s.title, "Change to Folio?");
     assert.equal(
       s.changes,
       "Layout: Maison → Folio · section order · service menu shown as a rate card · colors: Rosé",
@@ -48,7 +48,7 @@ describe("buildLiveDesignChangeSummary", () => {
       toSlug: "frame",
       paletteName: "Salvia y oliva",
     });
-    assert.equal(s.title, "¿Publicar Frame?");
+    assert.equal(s.title, "¿Cambiar a Frame?");
     assert.ok(s.changes.includes("Solace → Frame"));
     assert.ok(s.stays.startsWith("Tus servicios"));
     for (const line of [s.title, s.changes, s.colorsNote, s.stays, s.toast]) {
