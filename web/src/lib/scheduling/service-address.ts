@@ -4,23 +4,12 @@
  * the sheet (validation), the action (re-validation) and the stamp share one
  * rule and one test.
  */
+import { cleanEventLocation } from "@/lib/scheduling/booking-event-location";
 import type { OfferingDeliveryWhere } from "@/lib/talent/offering-request-detail";
 
 export const SERVICE_ADDRESS_MIN = 5;
 export const SERVICE_ADDRESS_MAX = 200;
 export const SERVICE_ADDRESS_NOTE_MAX = 120;
-
-/**
- * Same rule as `cleanEventLocation` in booking-event-location.ts (PR #2954):
- * collapse whitespace, trim, cap, empty means null. Copied (not imported) so
- * this module merges cleanly whichever branch lands first; the compose test
- * pins the shared 200-char cap.
- */
-function cleanLine(raw: unknown, max: number): string | null {
-  if (typeof raw !== "string") return null;
-  const t = raw.replace(/\s+/g, " ").trim().slice(0, max).trim();
-  return t.length > 0 ? t : null;
-}
 
 export type ServiceAddressRule = "required" | "hidden";
 
@@ -73,9 +62,9 @@ export function validateServiceAddress(
  * never cut. Null when there is no address.
  */
 export function composeLocationText(input: ServiceAddressInput): string | null {
-  const address = cleanLine(input.address, SERVICE_ADDRESS_MAX);
+  const address = cleanEventLocation(input.address);
   if (!address) return null;
-  const note = cleanLine(input.note, SERVICE_ADDRESS_NOTE_MAX);
+  const note = cleanEventLocation(input.note)?.slice(0, SERVICE_ADDRESS_NOTE_MAX).trim() || null;
   if (!note) return address;
   const room = SERVICE_ADDRESS_MAX - address.length - 3; // " (" + ")"
   if (room < 1) return address;
