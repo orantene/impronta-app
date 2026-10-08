@@ -9,6 +9,7 @@
  * status to 404 — this page component renders the HTML body.
  */
 import type { Metadata } from "next";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 
 export const metadata: Metadata = {
   title: "Domain not connected — Tulala",
@@ -76,7 +77,7 @@ export default function HostUnregisteredPage() {
           If you&apos;re looking for a talent or business page, it may have moved. Try
           searching on{" "}
           <a
-            href="https://tulala.digital"
+            href={resolveMarketingOrigin()}
             style={{
               color: "#0F4F3E",
               textDecoration: "underline",
@@ -97,7 +98,7 @@ export default function HostUnregisteredPage() {
           }}
         >
           <a
-            href="https://tulala.digital"
+            href={resolveMarketingOrigin()}
             style={{
               display: "inline-flex",
               alignItems: "center",

@@ -14,7 +14,7 @@ import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { resolveAgendaPayPublicOrigin } from "@/lib/talent-agenda/pay-public-origin";
 
 import { ensureOfferBooking, orderLinesFromOffer, type OfferBookingStore } from "./accept-offer-booking-core";
-import type { AcceptPolicyLine } from "./accept-offer-collection";
+import { planAcceptCollection, type AcceptCollection, type AcceptPolicyLine } from "./accept-offer-collection";
 import { runAcceptOfferPayment, type AcceptOfferForPayment, type AcceptPaymentResult, type AcceptPaymentStore } from "./accept-offer-payment-core";
 import { insertMessage } from "./insert-message";
 import { linkRecordToConversation } from "./link-record";
@@ -361,6 +361,32 @@ function productionStore(c: Ctx, offer: AcceptOfferForPayment): AcceptPaymentSto
       return { ok: true, bookingId: booked.bookingId, scheduled: booked.scheduled };
     },
   };
+}
+
+/**
+ * Read-only: what `ensureAcceptedOfferPayment` WOULD ask the client for, from
+ * the same policy reader and the same `planAcceptCollection`. Writes nothing.
+ * Null when the policy cannot be read (the caller shows no amount, never a guess).
+ */
+export async function previewAcceptedOfferCollection(
+  admin: SupabaseClient,
+  input: { tenantId: string; inquiryId: string; offerCreatedBy: string | null; offer: AcceptOfferForPayment },
+): Promise<AcceptCollection | null> {
+  try {
+    const store = productionStore({ admin, tenantId: input.tenantId, inquiryId: input.inquiryId, offerCreatedBy: input.offerCreatedBy, publicOrigin: "" }, input.offer);
+    const policy = await store.loadPolicy();
+    if (!policy.ok) return null;
+    return planAcceptCollection({
+      totalCents: input.offer.totalCents,
+      offerDepositPct: input.offer.depositPct,
+      offerDepositCents: input.offer.depositCents,
+      lines: policy.lines,
+      talentDefaults: policy.talentDefaults,
+    });
+  } catch (error) {
+    logServerError("messaging.acceptOffer.preview", error);
+    return null;
+  }
 }
 
 export async function ensureAcceptedOfferPayment(
