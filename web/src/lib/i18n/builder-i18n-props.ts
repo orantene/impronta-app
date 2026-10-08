@@ -133,6 +133,36 @@ export const LOCALIZABLE_PROPS_BY_KIND: Partial<
     "afterLabel",
     "sliderLabel",
   ],
+  // Ticket #209: the talent-site block kinds whose copy could not hold a
+  // per-language version. Each renderer reads these through
+  // `localizeBlockNode` (builder-node/block-i18n.ts), which swaps the overlay
+  // value in before the block draws. Deliberately ABSENT: hrefs, ids, enums,
+  // numbers, `{{token}}` data (names, bio, headshot), reviewer names and
+  // quotes (talent data), and the props that already carry an Es/En twin
+  // (task_picker `labelEs`/`hintEs`, comp_card `labelEs`/`detailsSummaryEs`).
+  // List items (spec_table rows, masthead contents) use dotted keys, see
+  // `builder-i18n-list-props.ts`.
+  portfolio: ["eyebrow", "title", "emptyMessage", "creditLine"],
+  reviews: ["eyebrow", "title"],
+  alert_band: ["title", "body", "safetyLabel", "safetyNote", "ctaLabel"],
+  task_picker: ["eyebrow", "title"],
+  spec_table: ["eyebrow", "title"],
+  visit: ["eyebrow", "title", "titleAccent", "mapCaption"],
+  masthead: [
+    "subline",
+    "creditLine",
+    "mastRight",
+    "coverLine",
+    "coverStatement",
+    "bio",
+    "ctaLabel",
+    "bookLabel",
+    "contentsTitle",
+  ],
+  statement_footer: ["statement", "creditLine", "contactLine", "ctaLabel"],
+  comp_card: ["eyebrow", "title"],
+  // `name` (the business name) stays out: it is the talent's own text.
+  utility_bar: ["subtitle", "statusOnLabel", "statusOffLabel", "callLabel", "ctaLabel"],
 };
 
 /** The localizable props for a node kind (empty when the kind has none). */
