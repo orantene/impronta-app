@@ -44,6 +44,9 @@ import {
   requestSubdomainNamespaceCopy,
 } from "@/lib/saas/platform-subdomain-namespace.server";
 import { PAGE_COLUMNS, siteUrl } from "./site-management-helpers";
+import { resolveMyWebsiteTarget } from "@/lib/talent-site/my-website-target";
+import { loadOwnedBusinessWorkspace } from "@/lib/talent-site/server/workspace-site-context";
+import { resolveWorkspaceSitePublicUrl } from "@/lib/talent-site/workspace-site-editor-url";
 import {
   derivePageSlug,
   isReservedPageSlug,
@@ -203,6 +206,26 @@ export async function loadMaxSiteManagerAction(): Promise<
     updatedAt: p.updated_at,
   }));
 
+  // TUL-77 / TUL-347: business owners see the workspace live URL as "My website",
+  // matching where Edit site opens (not the personal qa-fresh-studio host).
+  let publicSiteUrl = siteUrl(site?.site_slug ?? null, isDemo);
+  const adminForUrl = createServiceRoleClient();
+  if (adminForUrl && scope.session.user?.id) {
+    const owned = await loadOwnedBusinessWorkspace(adminForUrl, scope.session.user.id);
+    const target = resolveMyWebsiteTarget({
+      ownsBusinessWorkspace: owned.ownsBusinessWorkspace,
+      hasWorkspaceSite: owned.hasWorkspaceSite,
+      workspaceSlug: owned.workspaceSlug,
+      hasPersonalSite: siteExists,
+    });
+    if (target.kind === "workspace" && owned.tenantId) {
+      publicSiteUrl = await resolveWorkspaceSitePublicUrl(adminForUrl, {
+        tenantId: owned.tenantId,
+        slug: target.slug,
+      });
+    }
+  }
+
   return {
     ok: true,
     data: {
@@ -217,7 +240,7 @@ export async function loadMaxSiteManagerAction(): Promise<
       siteExists,
       hasPublishedShell:
         Array.isArray(site?.shell_published) && site!.shell_published.length > 0,
-      publicSiteUrl: siteUrl(site?.site_slug ?? null, isDemo),
+      publicSiteUrl,
       themeDesignSlug: site?.theme_design_slug ?? null,
       themeLookSlug: site?.theme_look_slug ?? null,
       legacyProfileTemplate,
