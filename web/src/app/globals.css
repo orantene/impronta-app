@@ -252,7 +252,7 @@ html[data-public-font-preset="editorial"] {
     --secondary: var(--tl-surface-deep, #ebe4d5);
     --secondary-foreground: var(--tl-ink, #161a16);
     --muted: var(--tl-surface-deep, #ebe4d5);
-    --muted-foreground: var(--tl-muted, #6b7065);
+    --muted-foreground: var(--tl-muted, #5f645a);
     --accent: var(--tl-forest-soft, rgba(30, 58, 45, 0.08));
     --accent-solid: var(--tl-forest, #1e3a2d);
     --accent-foreground: var(--tl-ink, #161a16);
@@ -1125,7 +1125,8 @@ html[data-public-font-preset="editorial"] {
   --tl-ink: #161a16;
   --tl-ink-soft: #3e4640;
   --tl-ink-strong: #0a0e0b;
-  --tl-muted: #6b7065;
+  /* TUL-386: was #6b7065 (4.44:1 on --tl-bone). Need ≥4.5:1 AA body text. */
+  --tl-muted: #5f645a;
   --tl-muted-soft: #8e938a;
   --tl-on-inverse: #f1ede3;
   --tl-on-inverse-muted: rgba(241, 237, 227, 0.68);
