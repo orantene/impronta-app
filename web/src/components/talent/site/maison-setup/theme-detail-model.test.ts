@@ -74,15 +74,23 @@ describe("choices parse: demoKey / fromQuery", () => {
     assert.equal(p.demoKey, "fashion-model");
     assert.equal(p.fromQuery, "Model");
     assert.equal(exploreDesignPatch("folio", { demoKey: "nope" }).demoKey, null);
+    // Planned catalog keys never become the active demo (TUL-327).
+    assert.equal(exploreDesignPatch("folio", { demoKey: "illustrator" }).demoKey, null);
+    assert.equal(exploreDesignPatch("maison", { demoKey: "model" }).demoKey, null);
+  });
+
+  it("parse drops a planned demo key stored for a design", () => {
+    const parsed = parseMaisonChoices({ designSlug: "maison", demoKey: "model" });
+    assert.equal(parsed.demoKey, null);
   });
 });
 
 describe("demo resolution", () => {
-  it("planned demo falls back to the featured built demo with a note", () => {
+  it("planned demo key is ignored; featured built demo shows without a fallback note", () => {
     const r = resolveActiveDemo(folio, "illustrator");
     assert.equal(r.demo?.key, "fashion-model");
-    assert.equal(r.requested?.key, "illustrator");
-    assert.equal(r.plannedFallback, true);
+    assert.equal(r.requested, null);
+    assert.equal(r.plannedFallback, false);
   });
 
   it("built demo-talent and maison-seed demos produce a preview param", () => {

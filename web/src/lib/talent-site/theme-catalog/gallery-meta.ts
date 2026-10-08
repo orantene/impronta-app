@@ -16,7 +16,9 @@
  *  - `demo-talent`: a talent from `scripts/demo-talents/demos.ts`, identified
  *    by `profileCode` + `siteSlug`. The UI resolves the profile id for
  *    `/template-preview/<slug>?kind=talent-theme&talent=<id>`.
- * Everything else is `planned` (Preview planned tile).
+ * Everything else is `planned` (catalog placeholder until a content pack ships).
+ * Planned demos stay in the catalog for future builds but are hidden from the
+ * gallery UI and never used as a featured / preview demo (TUL-327 / G7).
  */
 import { authoredPaletteOverrides } from "./collection/authored";
 import { COLLECTION_DESIGNS, COLLECTION_DESIGN_SUMMARY_ES } from "./collection/designs";
@@ -574,10 +576,10 @@ export type GallerySearchOutput = {
   suggestionsWhenEmpty: GallerySuggestion[];
 };
 
-/** Empty-state suggestions, each mapped to a profession that has demos. */
+/** Empty-state suggestions, each mapped to a profession that has a built demo. */
 export const GALLERY_EMPTY_SUGGESTIONS: readonly GallerySuggestion[] = [
-  { label: { en: "Speaker", es: "Conferencista" }, profession: "tutor" },
-  { label: { en: "Teacher", es: "Maestro" }, profession: "tutor" },
+  { label: { en: "Model", es: "Modelo" }, profession: "model" },
+  { label: { en: "DJ", es: "DJ" }, profession: "dj" },
   { label: { en: "Guide", es: "Guía" }, profession: "guide" },
 ];
 
@@ -602,12 +604,13 @@ export function searchGallery(input: GallerySearchInput = {}): GallerySearchOutp
     if (features.length && !features.every((f) => d.featureTags.includes(f))) continue;
 
     let matchingDemos: GalleryDemo[];
+    let themeHit = false;
     if (terms.length === 0) {
       matchingDemos = chips.length
         ? d.demos.filter((demo) => demo.professions.some((p) => chips.includes(GALLERY_PROFESSIONS[p].chip)))
         : [...d.demos];
     } else {
-      const themeHit = terms.some((t) => normalizeSearchText(d.name).includes(t) || normalizeSearchText(d.slug).includes(t));
+      themeHit = terms.some((t) => normalizeSearchText(d.name).includes(t) || normalizeSearchText(d.slug).includes(t));
       const byDemo = d.demos.filter(
         (demo) => demo.professions.some((p) => wanted.has(p)) || terms.some((t) => demoMatchesText(demo, t)),
       );
@@ -615,10 +618,18 @@ export function searchGallery(input: GallerySearchInput = {}): GallerySearchOutp
       matchingDemos = byDemo.length ? byDemo : [...d.demos];
     }
 
+    // TUL-327 / G7: trade/chip hits that only match planned demos are hidden
+    // until those demos ship. Theme-name hits still open the design on its
+    // featured built demo. Never feature a planned demo.
+    const builtMatch = matchingDemos.find((x) => x.status === "built") ?? null;
+    const tradeOrChipFilter = terms.length > 0 || chips.length > 0;
+    if (tradeOrChipFilter && !builtMatch && !themeHit) continue;
+    const featuredDemo =
+      builtMatch ?? (themeHit ? (d.demos.find((x) => x.status === "built") ?? null) : null);
+
     const combinesBoth =
       termProfessions.filter((s) => s.size > 0).length >= 2 &&
       matchingDemos.some((demo) => termProfessions.every((s) => s.size === 0 || demo.professions.some((p) => s.has(p))));
-    const featuredDemo = matchingDemos.find((x) => x.status === "built") ?? matchingDemos[0] ?? null;
     results.push({ design: d, matchingDemos, featuredDemo, combinesBoth });
   }
 

@@ -46,6 +46,7 @@ import { DEMOS, DEMO_BATCH, type DemoTalent } from "./demos";
 import { ALBA_PHOTO_SOURCES } from "./alba";
 import { ALEX_PHOTO_SOURCES } from "./alex";
 import { applyHeroFacts } from "../../src/lib/talent-site/demos/hero-facts";
+import { finishedDemoSecondaryLocales } from "../../src/lib/talent-site/demos/finished-demo-locales";
 import { demoSiteSwitchColumns } from "../../src/lib/talent-site/demos/demo-site-settings";
 import { isDemoEmail } from "./demo-identity";
 
@@ -643,6 +644,23 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
   saveManifest(manifest);
 
   await writeOfferings(d, profileId);
+
+  // Finished Spanish-primary demos (maison-v2, folio, gridline) also publish /en. Add-only.
+  const { data: locRow, error: locErr } = await admin
+    .from("talent_profiles")
+    .select("preferred_locale, secondary_locales")
+    .eq("id", profileId)
+    .maybeSingle();
+  if (locErr) throw locErr;
+  const secondary = finishedDemoSecondaryLocales({
+    theme: d.theme,
+    preferredLocale: (locRow as { preferred_locale: string | null } | null)?.preferred_locale,
+    currentSecondary: (locRow as { secondary_locales: string[] | null } | null)?.secondary_locales,
+  });
+  if (secondary) {
+    const { error } = await admin.from("talent_profiles").update({ secondary_locales: secondary }).eq("id", profileId);
+    if (error) throw error;
+  }
 
   const tid = await termId(d.talentTypeSlug);
   const { error: txErr } = await admin
