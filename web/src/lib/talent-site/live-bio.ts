@@ -47,7 +47,13 @@ export function resolveLiveBio(i: LiveBioInput): LiveBio {
     const text = i.bioI18n?.[key(code)]?.trim() ?? "";
     if (text) return { text, hint: bioLanguageHint(i.bioI18n, visitor, chain) ?? "" };
   }
-  return { text: i.shortBio?.trim() ?? "", hint: "" };
+  // Last resort: the base short bio of her main language. Treat it as primary so
+  // an English visitor still gets "(Text in Spanish)" instead of silent Spanish.
+  const short = i.shortBio?.trim() ?? "";
+  if (!short) return { text: "", hint: "" };
+  const primary = key(i.primary) || key(chain.find((c) => key(c) && key(c) !== visitor)) || "";
+  const asMap = { ...(i.bioI18n ?? {}), ...(primary ? { [primary]: short } : {}) };
+  return { text: short, hint: bioLanguageHint(asMap, visitor, primary ? [primary] : chain) ?? "" };
 }
 
 type Props = Record<string, unknown>;

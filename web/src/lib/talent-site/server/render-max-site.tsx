@@ -451,11 +451,19 @@ async function renderMaxSiteDocument(args: {
   const [dataSources, components, platformDefault, experimentContext, pageCaptcha, captchaEnforced, talentOfferings, liveStatusRow, askVisible] =
     await Promise.all([
       tenantId
-        ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId)
+        ? loadBuilderNodeDataSources(
+            blocks,
+            tenantId,
+            locale,
+            null,
+            talentProfileId,
+            args.localeCtx.settings.defaultLocale,
+          )
         : pageNeedsTalentOfferings || pageNeedsReviews || pageNeedsVisit || pageNeedsCompCard || pageNeedsFaq
           ? loadPersonalMaxNativeSources({
               talentProfileId,
               locale,
+              primaryLocale: args.localeCtx.settings.defaultLocale,
               servicesCatalog: pageNeedsServicesCatalog,
               portfolio: pageNeedsPortfolio,
               nextFreeChip: pageNeedsNextFreeChip,
