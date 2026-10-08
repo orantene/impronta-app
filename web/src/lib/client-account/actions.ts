@@ -228,6 +228,8 @@ export async function signInClientAccountPassword(input: {
   locale: string;
   ageTerms: boolean;
 }): Promise<ClientAccountSignInResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const t = createTranslator(input.locale === "es" ? "es" : "en");
   const generic = t("public.clientAccount.genericError");
   if (!clientAccountEnabledFor("talent")) return { ok: false, error: generic };
@@ -279,6 +281,8 @@ export async function finalizeClientAccountGoogleSession(input: {
   locale: string;
   ageTerms: boolean;
 }): Promise<ClientAccountSignInResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const t = createTranslator(input.locale === "es" ? "es" : "en");
   const generic = t("public.clientAccount.genericError");
   if (!clientAccountEnabledFor("talent")) return { ok: false, error: generic };
