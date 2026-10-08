@@ -7,6 +7,7 @@
  *   tsx --env-file=.env.local scripts/backfill-workspace-domains.mts              # DRY RUN (default): prints the plan, writes nothing
  *   tsx --env-file=.env.local scripts/backfill-workspace-domains.mts --apply      # insert, writes a backup file first
  *   tsx --env-file=.env.local scripts/backfill-workspace-domains.mts --restore <backup.json>   # delete exactly the rows this run inserted
+ *   --only <tenant-id|slug>[,<tenant-id|slug>...]   limit the plan to those tenants (dry run or --apply)
  *
  * Idempotent (rows that exist are skipped), additive only (INSERT; never updates
  * or deletes a row it did not insert), and --restore removes only the ids the
@@ -20,7 +21,7 @@ import { dirname, resolve } from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { ensureWorkspaceSubdomainRow } from "../src/lib/saas/ensure-workspace-domain";
-import { planWorkspaceDomainBackfill, type BackfillAgency, type BackfillDomainRow } from "../src/lib/saas/workspace-domain-backfill";
+import { filterBackfillPlan, planWorkspaceDomainBackfill, type BackfillAgency, type BackfillDomainRow } from "../src/lib/saas/workspace-domain-backfill";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -32,6 +33,14 @@ const admin = createClient(url, key, { auth: { persistSession: false } }) as Sup
 const argv = process.argv.slice(2);
 const APPLY = argv.includes("--apply");
 const restoreIdx = argv.indexOf("--restore");
+const onlyIdx = argv.indexOf("--only");
+const ONLY = onlyIdx >= 0
+  ? new Set((argv[onlyIdx + 1] ?? "").split(",").map((v) => v.trim().toLowerCase()).filter(Boolean))
+  : null;
+if (onlyIdx >= 0 && (!ONLY || ONLY.size === 0)) {
+  console.error("--only needs a comma list of tenant ids or slugs");
+  process.exit(1);
+}
 
 async function restore(file: string): Promise<void> {
   const backup = JSON.parse(readFileSync(resolve(file), "utf8")) as { inserted: { id: string; hostname: string }[] };
@@ -52,7 +61,13 @@ async function main(): Promise<void> {
   if (aErr) throw aErr;
   const { data: domains, error: dErr } = await admin.from("agency_domains").select("tenant_id, hostname");
   if (dErr) throw dErr;
-  const { plan, skipped } = planWorkspaceDomainBackfill(agencies as BackfillAgency[], (domains ?? []) as BackfillDomainRow[]);
+  const { plan: fullPlan, skipped } = planWorkspaceDomainBackfill(agencies as BackfillAgency[], (domains ?? []) as BackfillDomainRow[]);
+  const plan = ONLY ? filterBackfillPlan(fullPlan, ONLY) : fullPlan;
+  if (ONLY) {
+    const matched = new Set(plan.flatMap((p) => [p.tenantId.toLowerCase(), p.slug]));
+    const missing = [...ONLY].filter((v) => !matched.has(v));
+    if (missing.length) console.log(`  --only entries not in the plan (already registered, retired, not business, or unknown): ${missing.join(", ")}`);
+  }
   console.log(`business workspaces: ${agencies?.length ?? 0}; to register: ${plan.length}; skipped: ${skipped.length}`);
   for (const s of skipped) console.log(`  skip ${s.slug ?? s.tenantId}: ${s.reason}`);
   for (const p of plan) console.log(`  ${APPLY ? "register" : "would register"} ${p.hostname} (tenant ${p.tenantId})`);

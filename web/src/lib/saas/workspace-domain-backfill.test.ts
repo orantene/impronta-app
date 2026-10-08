@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { planWorkspaceDomainBackfill } from "./workspace-domain-backfill";
+import { filterBackfillPlan, planWorkspaceDomainBackfill } from "./workspace-domain-backfill";
 
 const biz = (id: string, slug: string | null, status = "active") => ({ id, slug, status, workspace_type: "business" });
 
@@ -39,4 +39,11 @@ test("is idempotent: a second pass over the result plans nothing", () => {
 test("hostnames compare case-insensitively", () => {
   const { plan } = planWorkspaceDomainBackfill([biz("t1", "Mixed")], [{ tenant_id: "t1", hostname: "MIXED.tulala.digital" }]);
   assert.equal(plan.length, 0);
+});
+
+test("--only keeps just the named tenants (id or slug, case-insensitive)", () => {
+  const { plan } = planWorkspaceDomainBackfill([biz("T1", "good-one"), biz("t2", "https-www-bad-com"), biz("t3", "good-two")], []);
+  assert.deepEqual(filterBackfillPlan(plan, new Set(["good-one", "t3"])).map((p) => p.slug), ["good-one", "good-two"]);
+  assert.deepEqual(filterBackfillPlan(plan, new Set(["t1"])).map((p) => p.slug), ["good-one"]);
+  assert.deepEqual(filterBackfillPlan(plan, new Set()), []);
 });

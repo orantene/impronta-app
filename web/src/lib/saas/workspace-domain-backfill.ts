@@ -49,3 +49,8 @@ export function planWorkspaceDomainBackfill(
   }
   return { plan, skipped };
 }
+
+/** `--only`: keep plan items whose tenant id or slug is in the (lower-cased) set. */
+export function filterBackfillPlan(plan: readonly BackfillPlanItem[], only: ReadonlySet<string>): BackfillPlanItem[] {
+  return plan.filter((p) => only.has(p.tenantId.toLowerCase()) || only.has(p.slug.toLowerCase()));
+}
