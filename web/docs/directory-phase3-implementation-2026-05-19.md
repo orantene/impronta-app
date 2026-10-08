@@ -204,7 +204,7 @@ Steps:
    - Re-`curl` `/directory` → still the full unscoped roster. **Both render independently; instance 2's `by_talent_type` config does not leak to instance 1.** This is the portability proof.
 5. **Rename/duplicate/delete sanity (optional, proves "like any builder page"):** rename "Our Chefs" → "Our Lawyers" + rescope talentTypeKeys; duplicate the page; archive it — all via existing page CRUD, no directory-specific code.
 
-> tsc note: per the task brief, `npx tsc --noEmit` currently has ~25 unrelated baseline errors from the companion lane's `talent_type_grid` work — ignore those; only regressions introduced by Phase 3 files matter.
+> tsc note: per the task brief, `npm run typecheck` currently has ~25 unrelated baseline errors from the companion lane's `talent_type_grid` work — ignore those; only regressions introduced by Phase 3 files matter.
 
 ---
 
@@ -241,7 +241,7 @@ No Phase-3 code activates any of the above. This plan only documents the seam lo
 3. **NEW: backfill server action** (e.g. `web/src/lib/site-admin/edit-mode/directory-page-backfill-action.ts`, mirroring `site-shell-backfill-action.ts`'s exported action) — `requireStaff` + `requireTenantScope` → `ensureDirectoryPage(...)`. Used to backfill Impronta (and any existing tenant) for QA without a signup.
 4. **WIRE: signup provisioning** — add an `ensureDirectoryPage(...)` call next to `onboardStarterContent` wherever `workspace-signup.server.ts` provisions a new workspace (grep `onboardStarterContent(` call sites). Phase-3: behind the studio/agency predicate or unconditional (§5.2). (This file is outside both lanes' section boundaries — confirm no concurrent edit before touching.)
 5. **HANDOFF spec to companion lane — rewrite `web/src/app/(public)/directory/page.tsx`** per §3.2: keep `isSupabaseConfigured` + `directoryPublic` + analytics/bridge/guest-merge/url-sync wrappers; resolve `loadPageForRender(getPublicTenantScope().tenantId, locale, "__directory__")`; render `<HomepageCmsSections snapshot=… />` when present; **else fall back to the existing `<DirectoryComponent props={fashionDirectoryPreset}/>` block verbatim** (zero-regression hinge). Also prefer seeded-page meta in `generateMetadata` (mirror `(public)/p/[[...slug]]/page.tsx:31-83`), `buildPublicPageMetadata("directory", locale)` as fallback. *(This is the only existing-file edit, and it belongs to the companion lane per the lane boundary — coordinate.)*
-6. **GATE:** `cd web && npx tsc --noEmit && npm run lint` — only Phase-3-introduced errors block; ignore the ~25 baseline `talent_type_grid` errors.
+6. **GATE:** `cd web && npm run typecheck && npm run lint` — only Phase-3-introduced errors block; ignore the ~25 baseline `talent_type_grid` errors.
 7. **QA on localhost (§4.2):** backfill Impronta → `/directory` (seeded path) AND create+publish "Our Chefs" `standard_page` with a `by_talent_type` directory instance → confirm both render independently; smoke filters/AI/save/add-to-inquiry on both. Screenshot proof (no "check it yourself" per the visible-QA memory).
 8. **Do NOT** deploy/promote/`deploy:smoke`/push — shared `phase-1`; user-authorized step only (per branch-governance memory + Phase-3 plan §6/§9).
 

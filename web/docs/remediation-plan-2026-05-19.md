@@ -143,7 +143,7 @@ Move `app/prototypes/*` out of routed `app/`; delete `web/.env.local.prod_backup
 2. **One owner per god-file/shared-module during its window.** Claim via commit-message marker + this doc's status line; release on merge.
 3. **Disjoint trees only** for concurrent agents. Cross-file parallelism in Phase 1 allowed *only* for the proven-disjoint pair (`talent.tsx` ∥ `state.tsx` is NOT allowed — they couple via DrawerId; only truly independent files).
 4. **Single-owner by nature:** `eslint.config.mjs`, `eslint-suppressions.json`, `package.json`, `tsconfig.json`, `supabase/migrations/`, git refs, the conversation stash.
-5. **Gate before every commit:** `cd web && npx tsc --noEmit && npm run lint`. Never force-push `phase-1`. Scoped commits only.
+5. **Gate before every commit:** `cd web && npm run typecheck && npm run lint`. Never force-push `phase-1`. Scoped commits only.
 6. **Per-task definition of done:** a reproducible localhost QA proof, attached to the merge — not a tsc pass.
 
 ---

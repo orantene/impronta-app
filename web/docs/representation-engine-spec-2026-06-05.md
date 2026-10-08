@@ -277,7 +277,7 @@ Replace the fake 14-day flow. Two clear, truthful actions:
 
 ## 8. Phasing + acceptance criteria
 
-> Each phase = its own branch off `main`, its own PR, gated by `npx tsc --noEmit && npm run lint` (or the Vercel build typecheck if worktree `node_modules` is missing — see §10), merged via PR, then `npm run deploy:promote && npm run deploy:smoke` (prod deploy is **manual**).
+> Each phase = its own branch off `main`, its own PR, gated by `npm run typecheck && npm run lint` (or the Vercel build typecheck if worktree `node_modules` is missing — see §10), merged via PR, then `npm run deploy:promote && npm run deploy:smoke` (prod deploy is **manual**).
 
 - **Phase 0 — Auto-enroll (URGENT, ship alone first).** §4 trigger + backfill + `db:push`. **AC:** create a brand-new approved talent → it has an active `site_visible` Tulala-hub roster row → `/t/<code>` returns 200 with the premium template → appears in `/directory` after a matview refresh. Verify with the SQL census in §11.
 - **Phase 1 — Read-only unified drawer.** `resolveEffectiveVisibility` + `loadRepresentation` + the drawer list with chips, wired to all 3 entry points (read-only, no actions yet). **AC:** Orlando (TAL-92026) shows 5 entries; Tulala = 🟢 Live, the 3 `roster_only` agencies = 🔴 "Agency isn't showing you"; chips match the §1.1 truth-table; opening from My pages, Money, and Settings shows the identical drawer.

@@ -59,7 +59,7 @@ Putting the call in `seedFreeStarterHomepage` (one place) instead of the two `on
 
 **`web/src/lib/server-actions/talent-workspace-provision.ts`: CLEAN.** No edit needed (also converges on the patched function).
 
-The in-flight LinkRef/`talent_type_grid` agent is mutating `registry.ts`, `registry-editors.ts`, `default-content.ts`, `directory/page.tsx`, `site_footer/schema.ts`, `token-presets.css`, `admin-taxonomy.ts`. **This patch touches none of those** — it is a single-file edit to a file no other agent has open. No rebase collision expected. Standard discipline still applies: `git pull --rebase origin phase-1` immediately before applying, and `cd web && npx tsc --noEmit && npm run lint` before commit (ignoring the ~25 unrelated baseline tsc errors from the other agent).
+The in-flight LinkRef/`talent_type_grid` agent is mutating `registry.ts`, `registry-editors.ts`, `default-content.ts`, `directory/page.tsx`, `site_footer/schema.ts`, `token-presets.css`, `admin-taxonomy.ts`. **This patch touches none of those** — it is a single-file edit to a file no other agent has open. No rebase collision expected. Standard discipline still applies: `git pull --rebase origin phase-1` immediately before applying, and `cd web && npm run typecheck && npm run lint` before commit (ignoring the ~25 unrelated baseline tsc errors from the other agent).
 
 ---
 
@@ -230,7 +230,7 @@ Insert the gated directory seed **immediately before** `return { ok: true, seede
 type Admin = ReturnType<typeof createServiceRoleClient> & {};
 ```
 
-`createServiceRoleClient()` returns `SupabaseClient | null` (it can be null when env is missing). `params.client` in `onboard-starter-content.ts` is typed `SupabaseClient` (non-null — guaranteed by the callers, which all early-return on `!admin`). So `params.client` is the **non-null** member of `ReturnType<typeof createServiceRoleClient>`, which structurally satisfies `Admin = ReturnType<...> & {}`. This should typecheck directly (passing a non-null `SupabaseClient` where `SupabaseClient | null` is accepted is assignable). **If tsc rejects it** (e.g. because the `& {}` intersection or a branded client type narrows differently), the minimal fix is to widen the local: the call already runs only inside the `seedFreeStarter` branch where the caller proved the client is non-null, so a direct pass is sound — if needed, cast at the call site `admin: params.client as Parameters<typeof ensureDirectoryPage>[0]["admin"]` rather than changing any signature. Prefer the un-cast version; only fall back to the cast if `npx tsc --noEmit` flags this exact line.
+`createServiceRoleClient()` returns `SupabaseClient | null` (it can be null when env is missing). `params.client` in `onboard-starter-content.ts` is typed `SupabaseClient` (non-null — guaranteed by the callers, which all early-return on `!admin`). So `params.client` is the **non-null** member of `ReturnType<typeof createServiceRoleClient>`, which structurally satisfies `Admin = ReturnType<...> & {}`. This should typecheck directly (passing a non-null `SupabaseClient` where `SupabaseClient | null` is accepted is assignable). **If tsc rejects it** (e.g. because the `& {}` intersection or a branded client type narrows differently), the minimal fix is to widen the local: the call already runs only inside the `seedFreeStarter` branch where the caller proved the client is non-null, so a direct pass is sound — if needed, cast at the call site `admin: params.client as Parameters<typeof ensureDirectoryPage>[0]["admin"]` rather than changing any signature. Prefer the un-cast version; only fall back to the cast if `npm run typecheck` flags this exact line.
 
 ---
 
@@ -254,7 +254,7 @@ type Admin = ReturnType<typeof createServiceRoleClient> & {};
 1. `git pull --rebase origin phase-1`.
 2. Confirm `web/src/lib/site-admin/server/onboard-starter-content.ts` still clean (`git status --porcelain` — not listed).
 3. Apply §5a (import), §5b (`plan_tier` read), §5c (gated `ensureDirectoryPage` call). Single file.
-4. `cd web && npx tsc --noEmit` — confirm no NEW error on `onboard-starter-content.ts` (ignore the ~25 unrelated baseline errors). Resolve the §5 Type-note line with the minimal cast only if flagged.
+4. `cd web && npm run typecheck` — confirm no NEW error on `onboard-starter-content.ts` (ignore the ~25 unrelated baseline errors). Resolve the §5 Type-note line with the minimal cast only if flagged.
 5. `npm run lint`.
 6. (Optional QA) Provision a workspace with `plan_tier` manually set to `studio` (or temporarily flip the predicate in a scratch test) → confirm a `cms_pages` row with `system_template_key='directory'`, `slug='__directory__'`, `status='published'` appears for the new tenant; provision a Free one → confirm none. Re-run provisioning for the same tenant → confirm no duplicate (idempotent no-op).
 7. Scoped commit only; no force-push; no migration involved (none needed — `ensureDirectoryPage` writes only to existing `cms_pages` / `cms_page_sections` / section tables).

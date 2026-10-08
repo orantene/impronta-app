@@ -466,7 +466,7 @@ is web/docs/stripe-completion-brief-2026-05-29.md — READ IT FIRST; it lists wh
 HARD RULES: ~8 agents share /Users/oranpersonal/Desktop/impronta-app — never git switch
 in the shared checkout; use an isolated worktree on a per-lane branch off latest main;
 never push/rebase/reset others' work; never force-push main. Gate before every commit:
-cd web && NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit && npm run lint.
+cd web && npm run typecheck && npm run lint.
 db:check is GREEN (no migration needed unless you add one — if you do, db:push before
 merge). Don't commit secrets. Build + test in Stripe TEST MODE only; the live-mode key
 switch and real-money charges are USER-OWNED and DEFERRED until the user says "we're live."

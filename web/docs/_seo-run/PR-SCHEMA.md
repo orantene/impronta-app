@@ -227,7 +227,7 @@ Default recommendation: **ship without `offers`** (§2/§3 as written). The free
 
 ## 6. Validation checklist
 
-1. `cd web && npx tsc --noEmit` (component compiles).
+1. `cd web && npm run typecheck` (component compiles).
 2. Load a marketing page (`/`, `/pricing`, `/operators`) and view source — exactly one `<script type="application/ld+json">` with the `@graph`.
 3. Google Rich Results Test / Schema.org validator on the live URL: Organization, WebSite, SoftwareApplication all parse with zero errors/warnings.
 4. Confirm the block does **not** appear on a tenant host (e.g. `impronta.tulala.digital` or an agency apex) — it must be marketing-only.

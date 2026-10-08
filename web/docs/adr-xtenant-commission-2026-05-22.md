@@ -241,7 +241,7 @@ Once this ADR is signed off:
 2. RPC bodies fleshed out in the migration.
 3. TS rework: `commission.ts` adds `resolveBookingCommissionsPerParticipant`; `commission-engine.ts` updated to call the new persist RPC; `getApplicationFeeForBooking` switches to `SUM`.
 4. Regression test added (Section 5).
-5. Gate: `cd web && npx tsc --noEmit && npm run lint` + all 4 commission test suites green.
+5. Gate: `cd web && npm run typecheck && npm run lint` + all 4 commission test suites green.
 6. **Pause** — surface diff to Oran for approval to `db:push`.
 7. Apply migration to remote; verify the QA harness still passes against live.
 8. Commit on `feat/xtenant-commission-fix`. Do not push or open a PR without explicit approval.
