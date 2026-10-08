@@ -19,6 +19,7 @@
  * gate by RLS.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { policyChangedSinceRequest } from "@/lib/legal/acceptances.core";
 import "server-only";
 
@@ -316,9 +317,14 @@ function resolveServiceName(sourceServiceId: string | null, servicesMenu: unknow
 export async function loadClientInquiryDetails(
   tenantId: string,
   inquiryId: string,
+  /**
+   * TUL-255: from `pickReadClient` only (client portal page loaders). Absent =
+   * the request's own RLS client, exactly as before.
+   */
+  readClient?: SupabaseClient | null,
 ): Promise<ClientInquiryDetails | null> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = readClient ?? (await createSupabaseServerClient());
     if (!supabase) return null;
 
     // Pull the inquiry row + interpreted_query (the rich InquiryIntent
