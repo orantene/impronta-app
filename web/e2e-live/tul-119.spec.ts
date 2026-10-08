@@ -35,9 +35,16 @@ test("A-06 gallery photo opens a full-screen lightbox with next/back and a count
 
 test("DS-13 the help bubble hides once the visitor keeps scrolling", async ({ page }, info) => {
   await page.goto(QA_TALENT_SITE, { waitUntil: "networkidle" });
-  await page.mouse.wheel(0, 700);
+  // mouse.wheel is not supported on mobile WebKit, so scroll the window directly
+  // (fires real scroll events on every project, desktop and phone alike).
+  const scrollTo = (top: number) =>
+    page.evaluate((y) => window.scrollTo({ top: y, behavior: "instant" }), top);
+  await scrollTo(700);
   await page.waitForTimeout(1200);
-  await page.mouse.wheel(0, 300);
+  // Prove the bubble actually showed before asserting it hides.
+  await expect(page.locator(".tl-hello")).toBeVisible();
+  await evidence(page, info, "bubble-shown");
+  await scrollTo(1000);
   await page.waitForTimeout(800);
   await expect(page.locator(".tl-hello")).toBeHidden();
   await evidence(page, info, "scrolled");
