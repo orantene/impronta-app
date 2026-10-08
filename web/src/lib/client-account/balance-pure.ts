@@ -9,6 +9,8 @@
  * - manual rows (cash, transfer, door; no client fees): `gross_amount_cents`.
  * - card rows: the commission snapshot's service subtotal for that charge
  *   (`gross_cents` against `gross_charged_cents`, see `cardServicePrincipal`).
+ * - payment-link card rows with no snapshot: `gross_amount_cents` (TUL-155:
+ *   link checkout writes fee 0 and charges the link amount; proven on prod).
  * Never `net_amount_cents`. Anything ambiguous returns `null` (show NO number).
  * Money-in statuses are the staff side's (`sumMoneyIn`): refunded and cancelled
  * rows never count.
@@ -23,7 +25,7 @@ export type LedgerPaidRow = {
   refundOfTransactionId?: string | null;
   /** `manual` provider rows carry no client fees; everything else is a card charge. */
   kind: "manual" | "card";
-  /** Service principal of a card row, from `cardServicePrincipal`; null when unknown. */
+  /** Service principal of a card row, from `cardCreditPrincipalCents`; null when unknown. */
   serviceSubtotalCents?: number | null;
 };
 
@@ -33,12 +35,24 @@ export type SnapshotMoney = {
   base_reservation_fee_cents?: number | null;
 };
 
+export type CardCreditOpts = {
+  /**
+   * Row was minted by payment-link checkout (`metadata.payment_link_id`).
+   * When there is no snapshot, credit gross (proven: no 1.5% fee added).
+   */
+  paymentLink?: boolean;
+};
+
 /**
  * Service principal of ONE card charge of `chargeCents`, from the booking's
  * commission snapshots (summed over participants). Full charge: the service
  * subtotal (the `service_subtotal` fee line). Partial charge: the same share,
  * only when it divides exactly. A reservation fee, a zero total or a charge that
  * cannot be matched returns null.
+ *
+ * Reservation fee (TUL-155): still unknown against real rows — the column is
+ * not on `booking_commission_snapshot`, no workspace has the fee set, and no
+ * snapshot residual implies one. Keep null rather than guess.
  */
 export function cardServicePrincipal(chargeCents: number, snaps: readonly SnapshotMoney[]): number | null {
   if (!snaps.length || !Number.isFinite(chargeCents) || chargeCents <= 0) return null;
@@ -49,6 +63,22 @@ export function cardServicePrincipal(chargeCents: number, snaps: readonly Snapsh
   if (chargeCents === charged) return subtotal;
   const scaled = subtotal * chargeCents;
   return scaled % charged === 0 ? scaled / charged : null;
+}
+
+/**
+ * Credit amount for one card money-in row. Snapshot path first; payment-link
+ * with no snapshot credits gross; everything else stays unknown.
+ */
+export function cardCreditPrincipalCents(
+  chargeCents: number,
+  snaps: readonly SnapshotMoney[],
+  opts?: CardCreditOpts,
+): number | null {
+  if (!Number.isFinite(chargeCents) || chargeCents <= 0) return null;
+  if (!snaps.length) {
+    return opts?.paymentLink ? Math.round(chargeCents) : null;
+  }
+  return cardServicePrincipal(chargeCents, snaps);
 }
 
 const MONEY_IN = new Set<string>(MONEY_IN_STATUSES);

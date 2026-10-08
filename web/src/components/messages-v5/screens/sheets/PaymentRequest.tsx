@@ -63,7 +63,7 @@ import {
 import { registerActionSheet, type ActionSheetProps } from "../sheet-registry";
 import { amountCentsForKind, PaymentRequestView, type OutsideMethod, type PaymentHow, type PaymentRequestPhase } from "./PaymentRequest.view";
 
-type OfferForDeposit = { status: string; depositPct: number | null; depositAmountCents: number | null; totalClientPrice: number };
+type OfferForDeposit = { status: string; depositPct: number | null; depositAmountCents: number | null; totalClientPrice: number; currencyCode?: string | null };
 
 export function PaymentRequestSheet(props: ActionSheetProps) {
   const { open, onClose, ctx, copy, variant } = props;
@@ -86,7 +86,7 @@ export function PaymentRequestSheet(props: ActionSheetProps) {
     void messagingLoadOffers({ inquiryId }).then((result) => {
       if (!alive || !result.ok) return;
       const accepted = selectAcceptedOffer(result.offers);
-      setOffer(accepted ? { status: accepted.status, depositPct: accepted.depositPct, depositAmountCents: accepted.depositAmountCents, totalClientPrice: accepted.totalClientPrice } : null);
+      setOffer(accepted ? { status: accepted.status, depositPct: accepted.depositPct, depositAmountCents: accepted.depositAmountCents, totalClientPrice: accepted.totalClientPrice, currencyCode: accepted.currencyCode } : null);
     });
     return () => {
       alive = false;
@@ -107,7 +107,7 @@ export function PaymentRequestSheet(props: ActionSheetProps) {
   const options = amountOptions(offer);
   const openRequest = openRequestFor(ctx.chips);
   const identityConfirmed = ctx.essentials?.customer.identityLevel === "confirmed" || ctx.essentials?.customer.identityLevel === "granted";
-  const amountCents = amountCentsForKind(amountKind, options, otherAmountInput);
+  const amountCents = amountCentsForKind(amountKind, options, otherAmountInput, offer?.currencyCode);
 
   const canSend =
     how === "link"
@@ -193,6 +193,7 @@ export function PaymentRequestSheet(props: ActionSheetProps) {
       selectedTargetId={selectedTarget?.recordId ?? null}
       onSelectTarget={selectTarget}
       canMintLink={canMintLink}
+      currencyCode={offer?.currencyCode}
       amountOptions={options}
       amountKind={amountKind}
       onSelectAmountKind={setAmountKind}

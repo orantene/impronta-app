@@ -1763,6 +1763,7 @@
       "expired": "This payment page is closed. Ask the business for a new link.",
       "cancelled": "This payment is no longer available. Nothing was taken.",
       "unknown": "Payment status is unknown. Do not pay again. The business will confirm.",
+      "currencyMismatch": "This pay link is in {linkCurrency} but the order it pays is in {orderCurrency}. Nothing was taken. Ask the business for a new link in {orderCurrency}.",
       "paid": "Paid",
       "refunded": "Refunded. The money is on its way back.",
       "receipt": "View receipt",
@@ -1820,6 +1821,7 @@
         "notFound": "We could not find that.",
         "invalid": "Something about that did not look right. Check it and try again.",
         "channelUnavailable": "We could not send that just now. Try again in a moment.",
+        "currencyUnavailable": "This shop has no currency set up yet, so an order can't be started. Please contact the business.",
         "unavailable": "We could not do that just now. Nothing was changed. Try again."
       }
     },
@@ -13991,6 +13993,7 @@
           "wrong_tenant": "That record is not in this workspace.",
           "invalid": "That cannot be saved.",
           "unavailable": "This could not be completed. Try again.",
+          "offer_currency_seller_mismatch": "This offer is in a different currency than the seller charges in. Change the offer currency to the seller's currency and send it again.",
           "not_allowed": "You are not allowed to do this here.",
           "not_reschedulable": "This booking cannot be moved.",
           "slot_taken": "That time is no longer free."

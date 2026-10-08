@@ -38,6 +38,10 @@ import {
   type ProcessorFeeRates,
 } from "./commission";
 import { attachPayoutProcessingFees } from "./commission-processing";
+import {
+  processorFeeRatesFromTable,
+  readPlatformProcessingMode,
+} from "./platform-processing-mode";
 
 /** One element of the participants array returned by
  *  `engine_load_commission_context`. */
@@ -182,24 +186,18 @@ export async function persistBookingCommissionSnapshot(
   // (migration not applied) or any error leaves the mode 'included'.
   if (process.env.COMMISSION_PROCESSING_PASS_THROUGH === "1") {
    try {
-    const modeRes = (await supabase.rpc(
-      "engine_platform_processing_mode" as never,
-    )) as {
-      data: {
-        processing_mode?: string | null;
-        pass_through_take_bps?: number | null;
-        processor_fee_rates?: Record<string, ProcessorFeeRates> | null;
-      } | null;
-    };
-    if (modeRes.data?.processing_mode === "pass_through") {
+    const modeRow = await readPlatformProcessingMode(
+      supabase as unknown as Parameters<typeof readPlatformProcessingMode>[0],
+    );
+    if (modeRow?.processing_mode === "pass_through") {
       ctx.platform_config = {
         ...ctx.platform_config,
         processing_mode: "pass_through",
         pass_through_take_bps:
-          typeof modeRes.data.pass_through_take_bps === "number"
-            ? modeRes.data.pass_through_take_bps
+          typeof modeRow.pass_through_take_bps === "number"
+            ? modeRow.pass_through_take_bps
             : null,
-        processor_fee_rates: modeRes.data.processor_fee_rates ?? null,
+        processor_fee_rates: modeRow.processor_fee_rates ?? null,
       };
     }
    } catch {
@@ -294,9 +292,10 @@ export async function persistBookingCommissionSnapshot(
         } catch {
           /* 'seller' default applies */
         }
-        const rates = platformConfig.processor_fee_rates;
-        processorFeeRates =
-          rates?.[String(ctx.currency_code ?? "").toLowerCase()] ?? rates?.default ?? null;
+        processorFeeRates = processorFeeRatesFromTable(
+          platformConfig.processor_fee_rates,
+          String(ctx.currency_code ?? ""),
+        );
       }
 
       const base = resolveBookingCommissions({

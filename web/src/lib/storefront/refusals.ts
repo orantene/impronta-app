@@ -204,6 +204,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   validation_failed: { reason: "refused", key: "public.storefront.refusal.invalid" },
   disposable_email: { reason: "refused", key: "public.storefront.refusal.invalid" },
   channel_unavailable: { reason: "refused", key: "public.storefront.refusal.channelUnavailable" },
+  currency_unavailable: { reason: "refused", key: "public.storefront.refusal.currencyUnavailable" },
   unavailable: { reason: "refused", key: "public.storefront.refusal.unavailable" },
   capacity_unavailable: { reason: "refused", key: "public.storefront.refusal.unavailable" },
   engine_error: { reason: "refused", key: "public.storefront.refusal.unavailable" },

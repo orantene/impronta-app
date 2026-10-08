@@ -264,16 +264,90 @@ export async function loadRefundEligibility(
 }
 
 /**
+ * Stripe idempotency key for `refunds.create` on a booking transaction.
+ *
+ * The middle segment is the cumulative cents already refunded at the moment
+ * this attempt starts — so a double-submit of the same request reuses the key
+ * (Stripe returns the SAME refund) while a genuine later partial, once that
+ * cumulative has moved, gets a different key and is allowed through.
+ */
+export function refundIdempotencyKey(
+  transactionId: string,
+  alreadyRefundedCents: number,
+  amountCents: number,
+): string {
+  return `refund_${transactionId}_${alreadyRefundedCents}_${amountCents}`;
+}
+
+/**
+ * Resolve the cumulative-refunded anchor used in `refundIdempotencyKey`.
+ *
+ * Prefer Stripe's live `charge.amount_refunded` when known. Our DB sum only
+ * advances after `charge.refunded` lands; two genuine partials fired back to
+ * back before that webhook would otherwise share a key and collapse into one.
+ * Taking the max of DB and Stripe covers both "webhook ahead" and "Stripe
+ * ahead" without inventing a smaller number than either source reports.
+ *
+ * `null` / non-finite Stripe means "could not read" — fall back to DB only.
+ */
+export function refundIdempotencyAlreadyRefundedCents(
+  dbAlreadyRefundedCents: number,
+  stripeAmountRefundedCents: number | null | undefined,
+): number {
+  const db = Math.max(0, Math.floor(Number(dbAlreadyRefundedCents) || 0));
+  if (stripeAmountRefundedCents == null || !Number.isFinite(stripeAmountRefundedCents)) {
+    return db;
+  }
+  return Math.max(db, Math.max(0, Math.floor(stripeAmountRefundedCents)));
+}
+
+type StripeAmountRefundedReader = {
+  paymentIntents: {
+    retrieve: (
+      id: string,
+      params?: { expand?: string[] },
+    ) => Promise<{ latest_charge?: unknown }>;
+  };
+};
+
+/**
+ * Live cumulative cents already refunded on the PaymentIntent's charge.
+ *
+ * Returns `null` when Stripe cannot be read (or the charge object was not
+ * expanded) so the caller can fall back to the DB sum rather than pretend
+ * nothing has been refunded.
+ */
+export async function readStripeAmountRefundedCents(
+  stripe: StripeAmountRefundedReader,
+  paymentIntentId: string,
+): Promise<number | null> {
+  try {
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ["latest_charge"],
+    });
+    const charge = pi.latest_charge;
+    if (typeof charge === "string") return null;
+    if (!charge || typeof charge !== "object") return 0;
+    const n = Number((charge as { amount_refunded?: unknown }).amount_refunded ?? 0);
+    if (!Number.isFinite(n)) return null;
+    return Math.max(0, Math.floor(n));
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Issue a refund at Stripe for a booking transaction.
  *
  * `amountCents` omitted / null = refund everything still outstanding.
  *
  * IDEMPOTENCY: the key folds in how much had already been refunded when this
- * attempt started. A double-submit of the same request reuses the key and
- * Stripe returns the SAME refund instead of issuing a second one; a deliberate
- * later partial refund starts from a different already-refunded total, gets a
- * different key, and is allowed through. That is the behaviour we want from
- * both a fat-fingered double click and a genuine second partial.
+ * attempt started, anchored on Stripe's live `amount_refunded` (with the DB
+ * sum as a floor). A simultaneous double-click still sees the same cumulative
+ * and reuses the key → one refund. A genuine second partial after the first
+ * has landed at Stripe gets a new cumulative (even before our webhook writes)
+ * → two refunds. That is the behaviour we want from both a fat-fingered
+ * double click and a genuine second partial.
  *
  * Refuses rather than pretends when Stripe is not configured — silently
  * reporting a successful refund that never happened is the worst outcome here.
@@ -322,6 +396,18 @@ export async function executeBookingRefund(input: {
     };
   }
 
+  // Live Stripe cumulative beats the DB sum when the webhook has not landed
+  // yet (TUL-144). Simultaneous double-clicks still share the same live
+  // reading and therefore the same key.
+  const stripeAlreadyRefunded = await readStripeAmountRefundedCents(
+    stripe,
+    eligibility.paymentIntentId,
+  );
+  const alreadyRefundedForKey = refundIdempotencyAlreadyRefundedCents(
+    eligibility.alreadyRefundedCents,
+    stripeAlreadyRefunded,
+  );
+
   try {
     const refund = await stripe.refunds.create(
       {
@@ -336,7 +422,11 @@ export async function executeBookingRefund(input: {
         },
       },
       {
-        idempotencyKey: `refund_${input.transactionId}_${eligibility.alreadyRefundedCents}_${amountCents}`,
+        idempotencyKey: refundIdempotencyKey(
+          input.transactionId,
+          alreadyRefundedForKey,
+          amountCents,
+        ),
       },
     );
     // Deliberately no ledger write here — `charge.refunded` drives the books.

@@ -1,13 +1,13 @@
 import "server-only";
 
+import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
 import { loadMeData } from "@/lib/me/load-me";
 import { CLIENT_THREAD, INTERNAL_NOTE_KIND } from "@/lib/messaging/thread-rule";
+import { PAYMENT_LINK_METADATA_KEY } from "@/lib/payments/link-settlement";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
-import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
-
-import { balanceDueCents, cardServicePrincipal, type LedgerPaidRow } from "./balance-pure";
+import { balanceDueCents, cardCreditPrincipalCents, type LedgerPaidRow } from "./balance-pure";
 import { EMPTY_ACCOUNT_SUMMARY, shapeAccountSummary, type AccountSummary } from "./pure";
 
 /** Unread private-thread messages on THIS user's inquiries in THIS tenant only. */
@@ -53,6 +53,12 @@ async function loadUnread(userId: string, tenantId: string): Promise<number> {
   return n;
 }
 
+function isPaymentLinkMetadata(metadata: unknown): boolean {
+  if (!metadata || typeof metadata !== "object") return false;
+  const raw = (metadata as Record<string, unknown>)[PAYMENT_LINK_METADATA_KEY];
+  return typeof raw === "string" ? raw.trim().length > 0 : raw != null && String(raw).trim().length > 0;
+}
+
 /**
  * Money-in ledger rows per booking (`booking_transactions`), this tenant only.
  * An error yields an empty map; callers then show NO balance rather than the
@@ -63,24 +69,41 @@ async function loadLedgerByBooking(bookingIds: string[], tenantId: string): Prom
   if (!admin || bookingIds.length === 0) return new Map();
   const { data, error } = await admin
     .from("booking_transactions")
-    .select("booking_id, gross_amount_cents, currency, status, refund_of_transaction_id, provider")
+    .select("booking_id, gross_amount_cents, currency, status, refund_of_transaction_id, provider, metadata")
     .eq("source_tenant_id", tenantId)
     .in("booking_id", bookingIds);
   if (error) {
     logServerError("clientAccount.summary.ledger", error);
     return null;
   }
-  const snapsByBooking = new Map<string, Awaited<ReturnType<typeof loadBookingCommissionSnapshots>>>();
-  for (const id of bookingIds) snapsByBooking.set(id, await loadBookingCommissionSnapshots(admin, id));
+  const snapEntries = await Promise.all(
+    bookingIds.map(async (id) => [id, await loadBookingCommissionSnapshots(admin, id)] as const),
+  );
+  const snapsByBooking = new Map(snapEntries);
   const out = new Map<string, LedgerPaidRow[]>();
-  for (const r of (data ?? []) as Array<{ booking_id: string; gross_amount_cents: number | string | null; currency: string | null; status: string; refund_of_transaction_id: string | null; provider: string | null }>) {
+  for (const r of (data ?? []) as Array<{
+    booking_id: string;
+    gross_amount_cents: number | string | null;
+    currency: string | null;
+    status: string;
+    refund_of_transaction_id: string | null;
+    provider: string | null;
+    metadata: unknown;
+  }>) {
     const list = out.get(r.booking_id) ?? [];
     const grossCents = Number(r.gross_amount_cents) || 0;
     const kind = r.provider === "manual" ? "manual" : "card";
     const snaps = kind === "card" ? (snapsByBooking.get(r.booking_id) ?? []) : [];
     list.push({
-      grossCents, status: r.status, currency: r.currency, refundOfTransactionId: r.refund_of_transaction_id, kind,
-      serviceSubtotalCents: kind === "card" ? cardServicePrincipal(grossCents, snaps) : null,
+      grossCents,
+      status: r.status,
+      currency: r.currency,
+      refundOfTransactionId: r.refund_of_transaction_id,
+      kind,
+      serviceSubtotalCents:
+        kind === "card"
+          ? cardCreditPrincipalCents(grossCents, snaps, { paymentLink: isPaymentLinkMetadata(r.metadata) })
+          : null,
     });
     out.set(r.booking_id, list);
   }

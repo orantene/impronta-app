@@ -127,6 +127,7 @@ export interface ProcessorFeeRates {
   tax_on_fee?: number;
 }
 
+export { DEFAULT_PROCESSOR_FEE_RATES, processorFeeRatesForCurrency } from "./processor-fee-rates";
 /** Default client-only surcharge (bps) in pass_through mode. */
 export const PASS_THROUGH_DEFAULT_TAKE_BPS = 150;
 
@@ -346,8 +347,6 @@ export interface PersistedBookingCommissionSnapshot extends BookingCommissionSna
   owning_party_id: string;
   created_at: string;
 }
-
-
 
 /** Resolve a booking's commission snapshot. PURE — no IO. */
 export function resolveBookingCommissions(

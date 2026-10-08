@@ -15,6 +15,12 @@ type Admin = {
   rpc?: (fn: string, args: Record<string, unknown>) => any;
 };
 
+/** Canonical cancel roles persisted on agency_bookings.cancelled_by. */
+export type CancelBookingActor = "talent" | "client" | "staff" | "system";
+
+/** Callers may still send the legacy Package-2 alias `customer` (= client). */
+export type CancelBookingByInput = CancelBookingActor | "customer";
+
 export type CancelBookingReason =
   | "not_cancellable"
   | "policy_keeps"
@@ -25,8 +31,25 @@ export type CancelBookingReason =
   | "unavailable";
 
 export type CancelBookingResult =
-  | { ok: true; bookingId: string; refundableCents: number; already?: boolean }
+  | {
+      ok: true;
+      bookingId: string;
+      refundableCents: number;
+      already?: boolean;
+      by?: CancelBookingActor | null;
+      actorUserId?: string | null;
+    }
   | { ok: false; reason: CancelBookingReason };
+
+/**
+ * Map a caller role onto the four persisted cancel actors.
+ * `customer` is the Package-2 alias for `client` (manage token / older callers).
+ */
+export function normalizeCancelBy(by: string): CancelBookingActor | null {
+  if (by === "customer") return "client";
+  if (by === "talent" || by === "client" || by === "staff" || by === "system") return by;
+  return null;
+}
 
 /**
  * What a cancel hands back. Outside the free window (or with none) it is all
@@ -67,12 +90,22 @@ export async function cancelBookingSet(
     bookingId: string;
     operationKey: string;
     reason: string;
-    by: "staff" | "customer";
+    by: CancelBookingByInput;
+    /** Auth user who cancelled when known; null for guest/token/system. */
+    actorUserId?: string | null;
     nowMs?: number;
   },
 ): Promise<CancelBookingResult> {
   if (input.operationKey.trim().length < 8) return { ok: false, reason: "invalid" };
   if (typeof admin.rpc !== "function") return { ok: false, reason: "unavailable" };
+
+  const by = normalizeCancelBy(input.by);
+  if (!by) return { ok: false, reason: "invalid" };
+
+  const actorUserId =
+    typeof input.actorUserId === "string" && input.actorUserId.trim().length > 0
+      ? input.actorUserId.trim()
+      : null;
 
   // `agency_bookings` has no offering column: the offering a booking was
   // sold as is on its order's lines (`order_lines.offering_id`), the same
@@ -102,13 +135,22 @@ export async function cancelBookingSet(
     p_booking_id: input.bookingId,
     p_operation_key: input.operationKey.trim(),
     p_reason: input.reason,
-    p_by: input.by,
+    p_by: by,
+    p_actor_id: actorUserId,
   });
   if (error) {
     logServerError("scheduling.cancelBookingSet.rpc", error);
     return { ok: false, reason: "unavailable" };
   }
-  const reply = (data ?? {}) as { ok?: boolean; reason?: string; already?: boolean; booking_id?: string; order_id?: string };
+  const reply = (data ?? {}) as {
+    ok?: boolean;
+    reason?: string;
+    already?: boolean;
+    booking_id?: string;
+    order_id?: string;
+    by?: string | null;
+    actor_id?: string | null;
+  };
   if (reply.ok !== true) {
     const reason = reply.reason;
     if (reason === "not_cancellable" || reason === "conflict" || reason === "not_found" || reason === "invalid") {
@@ -155,10 +197,14 @@ export async function cancelBookingSet(
     nowMs: input.nowMs ?? Date.now(),
   });
 
+  const replyBy = reply.by == null ? by : normalizeCancelBy(String(reply.by));
+
   return {
     ok: true,
     bookingId: reply.booking_id ?? input.bookingId,
     refundableCents,
     already: reply.already === true,
+    by: replyBy,
+    actorUserId: reply.actor_id ?? actorUserId,
   };
 }

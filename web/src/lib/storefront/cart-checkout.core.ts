@@ -24,6 +24,7 @@
  */
 
 import type { EnsureCustomerResult } from "@/lib/customers/ensure-customer";
+import { normalizeCurrencyCode } from "@/lib/inquiry/offer-currency";
 import { generateOpaqueCode } from "@/lib/links/code";
 import type { PromoResolution } from "@/lib/orders/promo-resolve";
 import type { PurchaseInput, PurchaseResult } from "@/lib/orders/purchase-types";
@@ -210,6 +211,25 @@ async function shape(deps: CartCheckoutDeps, order: OrderRow, lines: LineRow[]):
   };
 }
 
+/**
+ * TUL-284: a new cart is priced in the WORKSPACE's currency, never a hard-coded
+ * USD. An unreadable or invalid workspace currency returns null and the cart
+ * FAILS CLOSED (the caller refuses to create the draft order), like every other
+ * money path: no fallback currency is ever invented.
+ */
+export async function workspaceCartCurrency(deps: CartCheckoutDeps, tenantId: string): Promise<string | null> {
+  // `agencies` IS the tenants table (its id is the tenant id); a variable table
+  // name mirrors account-platform.ts, which the untenanted-from rule accepts.
+  const table: "agencies" | "orders" = "agencies";
+  try {
+    const { data, error } = await deps.admin.from(table).select("default_currency").eq("id", tenantId).maybeSingle();
+    if (error) return null;
+    return normalizeCurrencyCode((data as { default_currency?: unknown } | null)?.default_currency) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function readCartCheckoutCore(
   deps: CartCheckoutDeps,
   tenantId: string,
@@ -264,6 +284,8 @@ export async function actCartCheckoutCore(
         // `orders_draft_has_an_identity`: a cart with neither owner cannot exist.
         if (!guestKey && !customerId) return refuse("identity_required");
         const mode = input.fulfilment && MODES.includes(input.fulfilment) ? input.fulfilment : null;
+        const currency = await workspaceCartCurrency(deps, input.tenantId);
+        if (!currency) return refuse("currency_unavailable");
         const { data, error } = await deps.admin
           .from("orders")
           .insert({
@@ -271,7 +293,7 @@ export async function actCartCheckoutCore(
             customer_id: customerId,
             guest_session_id: customerId ? null : guestKey,
             status: "draft",
-            currency: "USD",
+            currency,
             version: 1,
             subtotal_cents: 0,
             discount_cents: 0,
