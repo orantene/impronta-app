@@ -30,6 +30,7 @@ import {
 } from "@/lib/media/ownership";
 import { loadTalentMediaBundle, type TalentMediaBundle } from "@/lib/media/talent-media-bundle.server";
 import { checkTalentUploadQuota } from "@/lib/media/talent-storage-usage";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -74,6 +75,7 @@ export async function actionUploadAndAssignMedia(
   metadata: Record<string, unknown> = {},
   sourceMediaAssetId: string | null = null,
 ): Promise<RegisterMediaResult> {
+  await requireNotImpersonating();
   // Authorize as EITHER agency staff of the active tenant OR the talent who
   // OWNS this profile. A talent uploading their own photo on the /talent
   // surface has no staff-tenant scope, so the staff guard fails there; for the
@@ -306,6 +308,7 @@ export async function actionAssignMediaToTalent(
   storagePaths: string[],
   talentProfileId: string,
 ): Promise<ActionResult<{ count: number }>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -372,6 +375,7 @@ export async function actionAssignMediaToTalent(
 export async function actionDeleteMediaAssets(
   ids: string[],
 ): Promise<ActionResult<{ count: number }>> {
+  await requireNotImpersonating();
   if (ids.length === 0) return { ok: true, data: { count: 0 } };
 
   const auth = await requireWorkspaceStaffAction();
@@ -426,6 +430,7 @@ export async function actionSetApprovalState(
   ids: string[],
   state: "approved" | "rejected",
 ): Promise<ActionResult<{ count: number }>> {
+  await requireNotImpersonating();
   if (ids.length === 0) return { ok: true, data: { count: 0 } };
 
   const auth = await requireWorkspaceStaffAction();
@@ -468,6 +473,7 @@ export async function actionReassignMediaToTalent(
   ids: string[],
   talentProfileId: string,
 ): Promise<ActionResult<{ count: number }>> {
+  await requireNotImpersonating();
   if (ids.length === 0) return { ok: true, data: { count: 0 } };
 
   const auth = await requireWorkspaceStaffAction();
@@ -519,6 +525,7 @@ export async function actionSetMediaWatermarkOverride(
   id: string,
   override: Record<string, unknown> | null,
 ): Promise<ActionResult<null>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -551,6 +558,7 @@ export async function actionSetAsCardPhoto(
   mediaAssetId: string,
   talentProfileId: string,
 ): Promise<ActionResult<{ id: string; publicUrl: string }>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -644,6 +652,7 @@ export async function actionSetAsHeroPhoto(
   mediaAssetId: string,
   talentProfileId: string,
 ): Promise<ActionResult<null>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -706,6 +715,7 @@ export async function actionSetAsHeroPhoto(
 export async function actionRevertCropToSource(
   croppedMediaAssetId: string,
 ): Promise<ActionResult<{ sourceMediaAssetId: string | null }>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -749,6 +759,7 @@ export async function actionRevertCropToSource(
 export async function actionReorderMediaAssets(
   orderedIds: string[],
 ): Promise<ActionResult<{ count: number }>> {
+  await requireNotImpersonating();
   if (orderedIds.length === 0) return { ok: true, data: { count: 0 } };
 
   const auth = await requireWorkspaceStaffAction();
@@ -809,6 +820,7 @@ export type StagingUploadResult = ActionResult<{
 export async function actionUploadToStagingStorage(
   formData: FormData,
 ): Promise<StagingUploadResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -883,6 +895,7 @@ export async function actionUploadToStagingStorage(
 export async function actionCleanupStagedObjects(
   storagePaths: string[],
 ): Promise<ActionResult<{ count: number }>> {
+  await requireNotImpersonating();
   if (storagePaths.length === 0) return { ok: true, data: { count: 0 } };
 
   const auth = await requireWorkspaceStaffAction();
@@ -920,6 +933,7 @@ export type BulkAssignAssignment = {
 export async function actionBulkAssignStagedMedia(
   assignments: BulkAssignAssignment[],
 ): Promise<ActionResult<{ count: number }>> {
+  await requireNotImpersonating();
   if (assignments.length === 0) return { ok: true, data: { count: 0 } };
 
   const auth = await requireWorkspaceStaffAction();
@@ -1144,6 +1158,7 @@ export async function actionUploadTalentDocument(
   formData: FormData,
   talentProfileId: string,
 ): Promise<DocumentUploadResult> {
+  await requireNotImpersonating();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
@@ -1205,6 +1220,7 @@ export async function actionCreateDocumentSignedUploadUrl(
   talentProfileId: string,
   filename: string,
 ): Promise<ActionResult<{ uploadUrl: string; storagePath: string }>> {
+  await requireNotImpersonating();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
@@ -1238,6 +1254,7 @@ export async function actionFinalizeDocumentUpload(
   talentProfileId: string,
   storagePath: string,
 ): Promise<DocumentUploadResult> {
+  await requireNotImpersonating();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
@@ -1310,6 +1327,7 @@ export async function actionDeleteTalentDocument(
   talentProfileId: string,
   documentId?: string,
 ): Promise<ActionResult<null>> {
+  await requireNotImpersonating();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
@@ -1550,6 +1568,7 @@ export async function actionImportSingleDriveFile(
   talentProfileId: string,
   sortOrder: number,
 ): Promise<ActionResult<{ id: string; publicUrl: string }>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -1661,6 +1680,7 @@ export async function actionImportFromGoogleDrive(
    *  threads them straight through so the two never disagree on count. */
   preResolvedFileIds?: string[],
 ): Promise<DriveImportResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -1869,6 +1889,7 @@ export async function actionCreateSignedUploadUrl(
   talentProfileId: string,
   ext: "jpg" | "png" | "mp4" | "mov" | "webm" = "jpg",
 ): Promise<ActionResult<SignedUploadGrant>> {
+  await requireNotImpersonating();
   // Dual auth, mirroring actionUploadAndAssignMedia: agency staff of the
   // active tenant OR the talent who owns this profile (self-service
   // surfaces like the offerings manager have no staff scope; ownership is
@@ -1949,6 +1970,7 @@ export async function actionCreateSignedUploadUrl(
 export async function actionCreateStagingSignedUploadUrl(
   ext: "jpg" | "png" = "jpg",
 ): Promise<ActionResult<SignedUploadGrant>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -2132,6 +2154,7 @@ export type RegisterUploadedAssetInput = {
 export async function actionRegisterUploadedAsset(
   input: RegisterUploadedAssetInput,
 ): Promise<RegisterMediaResult> {
+  await requireNotImpersonating();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
@@ -2341,6 +2364,7 @@ export async function actionRegisterStagedAsset(
   storagePath: string,
   originalFilename: string | null = null,
 ): Promise<StagingUploadResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;

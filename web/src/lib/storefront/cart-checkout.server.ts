@@ -18,6 +18,7 @@ import type { CartCheckoutInput, CartCheckoutProps, CartCheckoutResult, CartData
 import { commandIdempotentRunner } from "./idempotent";
 import { mapEngineRefusal } from "./refusals";
 import { publicOrigin, resolveStorefrontIdentity, storefrontLocale } from "./request-context";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 async function bind(locale: string | null | undefined): Promise<CartCheckoutDeps | null> {
   const admin = createServiceRoleClient();
@@ -56,6 +57,7 @@ export async function readCartCheckout(
 }
 
 export async function actCartCheckout(input: CartCheckoutInput, expectedVersion?: number): Promise<CartCheckoutResult> {
+  await requireNotImpersonating();
   try {
     const deps = await bind(input.locale);
     if (!deps) return mapEngineRefusal("unavailable", "en");

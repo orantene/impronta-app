@@ -15,6 +15,7 @@ import { getPlatformRole } from "@/lib/access/platform-role";
 import { logServerError } from "@/lib/server/safe-error";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ─── BCP-47 validator ─────────────────────────────────────────────────────────
 // Accepts e.g. "en", "es", "fr", "pt-BR", "zh-Hant-TW".
@@ -84,6 +85,7 @@ function revalidateLanguageSurfaces(): void {
 // ─── Create locale ────────────────────────────────────────────────────────────
 
 export async function createLocaleAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const ctx = await requirePlatformAdmin(LANGUAGES_BASE);
   if (!ctx) return;
 
@@ -167,6 +169,7 @@ export async function createLocaleAction(formData: FormData): Promise<void> {
 // ─── Update locale ─────────────────────────────────────────────────────────────
 
 export async function updateLocaleAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const ctx = await requirePlatformAdmin(LANGUAGES_BASE);
   if (!ctx) return;
 
@@ -220,6 +223,7 @@ export async function updateLocaleAction(formData: FormData): Promise<void> {
 // ─── Set default locale ────────────────────────────────────────────────────────
 
 export async function setDefaultLocaleAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const ctx = await requirePlatformAdmin(LANGUAGES_BASE);
   if (!ctx) return;
 
@@ -271,6 +275,7 @@ export async function setDefaultLocaleAction(formData: FormData): Promise<void> 
 // ─── Toggle enabled_admin / enabled_public ────────────────────────────────────
 
 export async function toggleLocaleEnabledAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const ctx = await requirePlatformAdmin(LANGUAGES_BASE);
   if (!ctx) return;
 
@@ -318,6 +323,7 @@ export async function toggleLocaleEnabledAction(formData: FormData): Promise<voi
 // ─── Archive locale ────────────────────────────────────────────────────────────
 
 export async function archiveLocaleAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const ctx = await requirePlatformAdmin(LANGUAGES_BASE);
   if (!ctx) return;
 
@@ -361,6 +367,7 @@ export async function archiveLocaleAction(formData: FormData): Promise<void> {
 // ─── Restore locale ────────────────────────────────────────────────────────────
 
 export async function restoreLocaleAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const ctx = await requirePlatformAdmin(LANGUAGES_BASE);
   if (!ctx) return;
 

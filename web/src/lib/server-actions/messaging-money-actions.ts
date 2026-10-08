@@ -49,6 +49,7 @@ import { recordVerifiedCollection } from "@/lib/pos/collection";
 import { markInquiryPaidInCash } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { RECORD_KINDS, type ActionFail, type ActionResult, type RecordKind } from "@/lib/messaging/types";
 import { stampInquiryPaidCards, syncPaymentCardsForRecord } from "@/lib/messaging/payment-card-sync";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 const version = z.number().int().nonnegative();
@@ -115,6 +116,7 @@ export async function messagingCancelRecord(input: {
   refund: { mode: "full" | "partial" | "keep"; amountCents?: number };
   expectedVersion: number;
 }): Promise<ActionResult<{ recordKind: RecordKind; recordId: string; refundedCents: number }>> {
+  await requireNotImpersonating();
   const g = await messagingStaff();
   if (!g.ok) return g;
   const parsed = z
@@ -281,6 +283,7 @@ export async function messagingRefund(input: {
   reason: string;
   expectedVersion: number;
 }): Promise<ActionResult<{ refundedCents: number }>> {
+  await requireNotImpersonating();
   const g = await messagingStaff();
   if (!g.ok) return g;
   const parsed = z
@@ -360,6 +363,7 @@ export async function messagingRecordOutsidePayment(input: {
   /** Booking path only. Omitted callers keep today's whole-sale settlement. */
   amountKind?: "deposit" | "full";
 }): Promise<ActionResult<{ recordId: string }>> {
+  await requireNotImpersonating();
   const g = await messagingStaff();
   if (!g.ok) return g;
   const parsed = z

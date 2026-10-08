@@ -38,6 +38,7 @@ import type {
   MediaAlbumEntry,
   TalentDocumentEntry,
 } from "./admin-talent-profile-sections";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type Result = { ok: true; warnings?: string[] } | { ok: false; error: string };
 
@@ -63,6 +64,8 @@ export async function updateSelfAbout(input: {
   personality_traits?: unknown;
   tagline?: string | null;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
@@ -104,6 +107,8 @@ export async function updateSelfLocation(input: {
   work_eligibility?: string[];
   upcoming_visits?: Array<{ id: string; city: string; placeId?: string; date?: string; dateEnd?: string }>;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
@@ -154,6 +159,8 @@ export async function updateSelfRates(input: {
   travel_included?: boolean;
   lodging_included?: boolean;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
@@ -189,6 +196,8 @@ export async function updateSelfAvailability(input: {
   /** The saving browser's IANA zone; used only when her city gives none (F48). */
   timezone?: string | null;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
@@ -229,6 +238,8 @@ export async function updateSelfCredits(input: {
   talent_profile_id: string;
   credits_data: CreditEntry[];
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
@@ -248,6 +259,8 @@ export async function updateSelfLimits(input: {
   talent_profile_id: string;
   limits_data: { hardLimits?: string[]; softLimits?: string[]; customNote?: string };
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
@@ -267,6 +280,8 @@ export async function updateSelfSocialProof(input: {
   talent_profile_id: string;
   social_proof_data: PastClient[];
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
@@ -286,6 +301,8 @@ export async function updateSelfMediaAlbums(input: {
   talent_profile_id: string;
   albums: MediaAlbumEntry[];
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
@@ -312,6 +329,8 @@ export async function updateSelfTalentDocuments(input: {
   talent_profile_id: string;
   documents: TalentDocumentEntry[];
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
@@ -338,6 +357,8 @@ export async function saveSelfLanguages(input: {
     canTeach?: boolean;
   }>;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   // Talent languages are global — not scoped to whichever tenant's surface
@@ -410,6 +431,8 @@ export async function updateSelfIdentity(input: {
   contact_phone?: string;
   contact_phone_prefix?: string;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
@@ -471,6 +494,8 @@ export async function updateSelfProfileWorkflowFromShell(input: {
   talent_profile_id: string;
   profile_status: UiProfileShellStatus;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profileCode } = auth;
@@ -493,6 +518,8 @@ export async function updateSelfProfileShellDynFields(input: {
   talent_profile_id: string;
   dyn_fields?: Record<string, string | string[]>;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profileCode } = auth;
@@ -509,6 +536,8 @@ export async function syncSelfTalentTypeTaxonomyFromShell(input: {
   primary_slug: string | null;
   secondary_slugs: string[];
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
@@ -557,6 +586,8 @@ export async function updateSelfSocialLinks(input: {
   talent_profile_id: string;
   social_links: Array<{ kind: string; label: string; url: string; followers?: string }>;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profileCode } = auth;
@@ -579,6 +610,8 @@ export async function updateSelfProfileDrawerExtras(input: {
   whatsappPrefix?: string;
   businessLine?: string;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profileCode } = auth;
@@ -631,6 +664,8 @@ export async function updateSelfPrivacy(input: {
   /** "show_measurements_publicly", "search_engine_indexable" etc. */
   prefs: Record<string, boolean>;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profileCode } = auth;
@@ -668,6 +703,8 @@ export async function updateSelfEmergencyContact(input: {
   relation: string;
   phone: string;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId, profileCode } = auth;
@@ -705,6 +742,8 @@ export async function updateSelfContactPolicy(input: {
   talent_profile_id: string;
   policy: Record<string, boolean>;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
@@ -724,6 +763,8 @@ export async function selfSetGlobalHidden(input: {
   talent_profile_id: string;
   hidden: boolean;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profileCode } = auth;
@@ -751,6 +792,8 @@ export async function selfSetRosterVisibility(input: {
   agency_id: string;
   hidden: boolean;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { profileCode } = auth;
@@ -779,6 +822,8 @@ export async function selfPauseAgency(input: {
   talent_profile_id: string;
   agency_id: string;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { profileCode } = auth;
@@ -809,6 +854,8 @@ export async function selfResumeAgency(input: {
   talent_profile_id: string;
   agency_id: string;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { profileCode } = auth;
@@ -839,6 +886,8 @@ export async function selfRemoveAgency(input: {
   talent_profile_id: string;
   agency_id: string;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { profileCode } = auth;
@@ -873,6 +922,8 @@ export async function selfLeaveAgency(input: {
   talent_profile_id: string;
   agency_id?: string;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const agencyId = input.agency_id ?? auth.tenantId;
@@ -896,6 +947,8 @@ export async function selfSetPrimaryAgency(input: {
   talent_profile_id: string;
   agency_id: string;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   // Talent has SELECT-only RLS on agency_talent_roster; ownership is enforced
@@ -945,6 +998,8 @@ export async function confirmAgencyExclusivity(input: {
   talent_profile_id: string;
   agency_id: string;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   // Talent has SELECT-only RLS on agency_talent_roster; ownership is enforced
@@ -973,6 +1028,8 @@ export async function declineAgencyExclusivity(input: {
   talent_profile_id: string;
   agency_id: string;
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   // Talent has SELECT-only RLS on agency_talent_roster; ownership is enforced

@@ -57,6 +57,7 @@ import { loadTalentPlanGrants } from "@/lib/plan-trials/talent-grants";
 import { talentStudioV2Enabled } from "@/lib/talent/studio-flag";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
+import { effectiveReadContext } from "@/lib/impersonation/effective-read";
 import { resolveTalentActingAs, talentActingAsBannerCopy } from "@/lib/impersonation/acting-as";
 import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
 
@@ -161,7 +162,15 @@ export async function TalentLayoutInner({
   const isTalentRoot =
     pathname === "/talent" || pathname === "/talent/";
 
-  const baseProfile = await loadTalentSelfProfileByUser(session.user.id);
+  // Real impersonation only (validated cookie). resolveDashboardIdentity may try
+  // to clear a stale cookie, which an RSC cannot do, so a throw means "not acting".
+  // TUL-245: every shell read below keys on the EFFECTIVE user. The context
+  // comes only from the verified impersonation helper.
+  const impersonationIdentity = await resolveDashboardIdentity().catch(() => null);
+  const readCtx = effectiveReadContext(session.user.id, impersonationIdentity);
+  const subjectUserId = readCtx.userId;
+
+  const baseProfile = await loadTalentSelfProfileByUser(subjectUserId);
   if (!baseProfile) {
     // Root owns the wall / onboarding decision. Sub-routes used to call
     // notFound() here whenever the user-scoped profile read missed — that
@@ -187,7 +196,7 @@ export async function TalentLayoutInner({
 
   const talentSelfProfile =
     tenantId != null
-      ? (await loadTalentSelfProfile(session.user.id, tenantId)) ?? baseProfile
+      ? (await loadTalentSelfProfile(subjectUserId, tenantId)) ?? baseProfile
       : baseProfile;
 
   // TUL-129: decide the locale-seed hop BEFORE the heavy dashboard loads. The
@@ -255,7 +264,7 @@ export async function TalentLayoutInner({
     tenantId ? loadWorkspaceUnreadCount(tenantId) : Promise.resolve(0),
     loadUserPrefs(session.user.id),
     tenantId ? loadTenantIdentity(tenantId) : Promise.resolve(null),
-    loadProfileDisplayName(session.user.id),
+    loadProfileDisplayName(subjectUserId),
     // Agenda V2: loadTalentAgenda behind the flag only. Flag off keeps the
     // legacy calendar bridge so Today/Calendar stay unchanged.
     talentAgendaV2
@@ -265,7 +274,7 @@ export async function TalentLayoutInner({
       ? loadTalentAgendaForLayout(talentSelfProfile.id)
       : Promise.resolve({ items: [], hours: null, error: null as string | null }),
     loadTalentEarningsByCurrency(talentSelfProfile.id),
-    loadTalentPersonalSiteDashboardState(),
+    loadTalentPersonalSiteDashboardState(undefined, readCtx),
     // Stripe Connect payout snapshot for the in-shell Payouts section.
     // Returns { ok:false } on any failure, so it never breaks the layout.
     getTalentConnectedAccountSnapshot(talentSelfProfile.id),
@@ -289,14 +298,14 @@ export async function TalentLayoutInner({
     // shell's `bridgeUserNotifications` stayed null on the whole talent
     // surface and the notifications drawer had nothing but mock rows to
     // render. Returns [] on any failure, so it never breaks the layout.
-    loadTalentSurfaceNotifications(),
+    loadTalentSurfaceNotifications(readCtx),
     // Pro/Portfolio page analytics — profile views + inquiry conversion for the
     // signed-in talent's OWN profile. Scoped by the SESSION user id (the
     // profile id is only a cross-check, never the scope), tier-gated inside the
     // loader, and returns null for a Free talent so the surface shows the
     // upsell instead of zeros. Bridged here rather than fetched on mount: an
     // in-shell fetch on this surface has stuck on "Loading" before.
-    loadTalentPageAnalytics(session.user.id, talentSelfProfile.id),
+    loadTalentPageAnalytics(subjectUserId, talentSelfProfile.id),
     loadPlatformWorkspaceUi(),
     // Real completeness for the Today card (same source as the guided wizard).
     // Never fatal: a load failure leaves the card on its old estimate.
@@ -305,7 +314,7 @@ export async function TalentLayoutInner({
     // above, stacking four round trips onto every talent page before the shell
     // could stream. None depends on the batch, so they ride in it.
     // The bell counts only conversations she can open in Messages (TUL-52 B).
-    loadTalentVisibleInquiryIds().catch(() => null),
+    loadTalentVisibleInquiryIds(readCtx).catch(() => null),
     loadTalentPlanGrants(talentSelfProfile.id).catch(() => null),
     loadPlatformOperatingCurrency(),
     getRequestLocale(),
@@ -324,9 +333,6 @@ export async function TalentLayoutInner({
   // Seed client dashboard copy with the SERVER-resolved locale so the first
   // render is not English regardless of the cookie (use-dashboard-locale.ts).
 
-  // Real impersonation only (validated cookie). resolveDashboardIdentity may try
-  // to clear a stale cookie, which an RSC cannot do, so a throw means "not acting".
-  const impersonationIdentity = await resolveDashboardIdentity().catch(() => null);
   const actingAs = resolveTalentActingAs(impersonationIdentity);
 
   const isHybrid = membership != null;

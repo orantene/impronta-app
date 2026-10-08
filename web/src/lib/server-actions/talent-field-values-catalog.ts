@@ -23,6 +23,7 @@ import {
   type ResolvedFieldGroup,
 } from "@/lib/field-engine/resolve-talent-fields";
 import { isResolvedFieldVisibleInTalentEditor } from "@/lib/field-engine/resolved-field-surfaces";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const setValueSchema = z.object({
   talent_profile_id: pgUuidSchema(),
@@ -75,6 +76,8 @@ async function requireResolvedTalentCatalogField(input: {
 export async function setTalentFieldValueAsTalent(
   input: z.input<typeof setValueSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = setValueSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid request." };
@@ -179,6 +182,8 @@ export async function setTalentFieldValueAsTalent(
 export async function setTalentFieldVisibilityAsTalent(
   input: z.input<typeof setVisibilitySchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = setVisibilitySchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid request." };

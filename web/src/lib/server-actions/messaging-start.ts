@@ -14,6 +14,7 @@ import { messagingInquiryManager } from "@/lib/messaging/staff-guard";
 import { talentSellerPaymentActor } from "@/lib/messaging/talent-payment-actor";
 
 import { staff } from "./messaging-engine";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const scoped = tenantScopedQuery;
 
@@ -30,6 +31,7 @@ export async function messagingStartConversation(input: {
   locationSlug?: string;
   firstMessage?: string | null;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -113,6 +115,7 @@ export async function messagingCreateClientForThread(input: {
   email?: string | null;
   expectedVersion: number;
 }) {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       inquiryId: z.string().uuid(),

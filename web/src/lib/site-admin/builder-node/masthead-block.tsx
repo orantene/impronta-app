@@ -109,6 +109,7 @@ function renderMagazine(args: {
   const copy = magazineCopy(locale);
   const name = words.join(" ");
   const bio = (p.bio ?? "").trim();
+  const bioHint = bio ? (p.bioHint ?? "").trim() : "";
   const coverLine = (p.coverLine ?? p.subline ?? "").trim();
   const coverStatement = (p.coverStatement ?? "").trim();
   // Fit the name to the frame: the longest word on a phone, the whole name on one desktop line.
@@ -172,6 +173,7 @@ function renderMagazine(args: {
           {bio || ctaLabel || bookHref ? (
             <div className="sb-mag-tag">
               {bio ? <p>{bio}</p> : null}
+              {bioHint ? <p data-bio-hint="1" style={{ fontSize: "0.8em", opacity: 0.65 }}>{bioHint}</p> : null}
               <div className="sb-mag-row">
                 {ctaLabel && ctaHref ? (
                   <a className="sb-mag-btn" href={ctaHref}>

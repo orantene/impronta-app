@@ -23,6 +23,7 @@ import {
   writeActivePayoutSystem,
   type ActivePayoutSystem,
 } from "@/lib/payments/active-payout-system";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const schema = z
   .object({
@@ -35,6 +36,8 @@ export type UpdatePayoutSystemInput = z.infer<typeof schema>;
 export async function updateActivePayoutSystem(
   raw: UpdatePayoutSystemInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not signed in." };
   if (!isPlatformAdmin(session.profile)) {

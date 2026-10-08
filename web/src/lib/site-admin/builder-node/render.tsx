@@ -132,6 +132,8 @@ import {
 } from "./experiment";
 import { resolveLocalized } from "@/lib/i18n/resolve-localized";
 import { isLocalizableProp } from "@/lib/i18n/builder-i18n-props";
+import { localizeBlockNode } from "./block-i18n";
+import { categoryLabelFor } from "./catalog-category-label";
 import type {
   BuilderNavLink,
   BuilderNode,
@@ -5843,7 +5845,7 @@ function renderBuilderNodeElement(
       const title = renderItalicMarkedTitle(rawTitle);
       const eyebrow = text("eyebrow", p.eyebrow);
       const subtitle = text("subtitle", p.subtitle);
-      const ctaLabel = p.ctaLabel?.trim() || undefined;
+      const ctaLabel = text("ctaLabel", p.ctaLabel?.trim()) || undefined;
       const bookingMode = options.dataSources.catalogBookingLive ? "live" : "demo";
       const pauseLine = options.dataSources.talentSitePause
         ? pauseBannerCopy(options.dataSources.talentSitePause, locale)
@@ -5905,10 +5907,11 @@ function renderBuilderNodeElement(
       // Featured layout needs a single flat list so CSS :first-child is the hero.
       const groupByCategory =
         layout !== "featured" && (showCategoryNav || accordionNav || jumpNav || sectionsNav);
-      const groups: Array<{ name: string | null; items: TalentOffering[]; note?: string | null }> = groupByCategory
+      const groups: Array<{ name: string | null; label?: string; items: TalentOffering[]; note?: string | null }> = groupByCategory
         ? [
             ...categories.map((c) => ({
               name: c,
+              ...(categoryLabelFor(visible, c) ? { label: categoryLabelFor(visible, c) } : {}),
               note: notes?.[c] ?? null,
               items: visible.filter((o) => o.category?.trim() === c),
             })),
@@ -6069,7 +6072,7 @@ function renderBuilderNodeElement(
     }
     case "portfolio": {
       return renderPortfolioBlock({
-        node,
+        node: localizeBlockNode(node, options.contentLocale),
         shots: options.dataSources?.talentPortfolioShots ?? [],
         offerings: options.dataSources?.talentOfferings,
         confirmsByHand: options.dataSources?.talentOfferingsConfirmsByHand ?? true,
@@ -6081,7 +6084,7 @@ function renderBuilderNodeElement(
     case "reviews": {
       return (
         <ReviewsBlockView
-          node={node}
+          node={localizeBlockNode(node, options.contentLocale)}
           reviews={options.dataSources?.talentReviews ?? []}
           styleAttr={sharedNodeStyle(node.props.style)}
           locale={options.contentLocale?.locale ?? options.visitorLocale}
@@ -6090,7 +6093,7 @@ function renderBuilderNodeElement(
     }
     case "visit": {
       return renderVisitBlock({
-        node,
+        node: localizeBlockNode(node, options.contentLocale),
         facts: options.dataSources?.talentVisitFacts ?? [],
         location: options.dataSources?.talentLocation,
         locale: options.visitorLocale ?? options.contentLocale?.locale,
@@ -6109,20 +6112,20 @@ function renderBuilderNodeElement(
       // editor content-locale toggle — same contract as services_catalog — so
       // magazine "Vol. · Otoño" matches live when the editor chrome is EN.
       return renderMastheadBlock({
-        node,
+        node: localizeBlockNode(node, options.contentLocale),
         styleAttr: sharedNodeStyle(node.props.style),
         locale: options.visitorLocale ?? options.contentLocale?.locale,
       });
     }
     case "statement_footer": {
       return renderStatementFooterBlock({
-        node,
+        node: localizeBlockNode(node, options.contentLocale),
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }
     case "utility_bar": {
       return renderUtilityBarBlock({
-        node,
+        node: localizeBlockNode(node, options.contentLocale),
         liveStatus: options.dataSources?.liveStatus,
         callHref: options.dataSources?.callHref,
         styleAttr: sharedNodeStyle(node.props.style),
@@ -6130,7 +6133,7 @@ function renderBuilderNodeElement(
     }
     case "alert_band": {
       return renderAlertBandBlock({
-        node,
+        node: localizeBlockNode(node, options.contentLocale),
         liveStatus: options.dataSources?.liveStatus,
         styleAttr: sharedNodeStyle(node.props.style),
       });
@@ -6146,7 +6149,7 @@ function renderBuilderNodeElement(
     }
     case "task_picker": {
       return renderTaskPickerBlock({
-        node,
+        node: localizeBlockNode(node, options.contentLocale),
         offerings: options.dataSources.talentOfferings ?? [],
         locale: options.visitorLocale ?? options.contentLocale?.locale ?? "en",
         confirmsByHand: options.dataSources.talentOfferingsConfirmsByHand ?? true,
@@ -6156,13 +6159,13 @@ function renderBuilderNodeElement(
     }
     case "spec_table": {
       return renderSpecTableBlock({
-        node,
+        node: localizeBlockNode(node, options.contentLocale),
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }
     case "comp_card": {
       return renderCompCardBlock({
-        node,
+        node: localizeBlockNode(node, options.contentLocale),
         rows: options.dataSources?.talentCompCard?.rows ?? [],
         locale: options.contentLocale?.locale ?? options.visitorLocale,
         styleAttr: sharedNodeStyle(node.props.style),
@@ -7853,6 +7856,8 @@ function renderBuilderNodeElement(
     case "marquee": {
       const p = node.props;
       const items = p.items ?? [];
+      // Public: a ticker with no words renders nothing (the placeholder is editor-only).
+      if (!options.contentLocale?.editorPreview && !items.some((it) => it.text?.trim())) return null;
       const text = (prop: string, value: string | undefined) =>
         value
           ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
@@ -8796,11 +8801,13 @@ function renderBuilderNodeElement(
         value
           ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
           : "";
-      const items = p.items ?? [];
+      // TUL-207: the cells (`items.N.label`...) carry a per-language version.
+      const statsNode = localizeBlockNode(node, options.contentLocale);
+      const items = statsNode.props.items ?? [];
       const eyebrow = text("eyebrow", p.eyebrow);
       const headline = text("headline", p.headline);
       if (p.variant === "spec") {
-        return renderStatsSpecBlock({ node, styleAttr: sharedNodeStyle(p.style) });
+        return renderStatsSpecBlock({ node: statsNode, styleAttr: sharedNodeStyle(p.style) });
       }
       const animate = p.animate !== false;
       return (

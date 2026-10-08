@@ -27,6 +27,7 @@ import { loadExceptions, type ExceptionsLoad } from "@/lib/exceptions/read";
 import { resumeException } from "@/lib/exceptions/resume";
 import type { ResumeOutcomeKey } from "@/lib/exceptions/outcome-copy";
 import { RESUME_VERBS, type ResumeVerb } from "@/lib/exceptions/model";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type LoadExceptionsResult =
   | { ok: true; load: ExceptionsLoad }
@@ -76,6 +77,7 @@ export async function resumeExceptionAction(input: {
   sourceId: string;
   idempotencyKey: string;
 }): Promise<ResumeExceptionResult> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return { ok: false, error: guard.error };
 

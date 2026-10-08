@@ -10,6 +10,7 @@ import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
 import { revalidatePath } from "next/cache";
 import type { ServerActionResult } from "./result";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * F.1 — Team management server actions.
@@ -62,6 +63,7 @@ export async function inviteTeamMember(
   email: string,
   role: Role,
 ): Promise<InviteTeamMemberResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
@@ -205,6 +207,7 @@ export async function promoteRosterTalentToAdmin(
   talentProfileId: string,
   role: Role,
 ): Promise<ServerActionResult<{ membershipId: string }>> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
@@ -329,6 +332,7 @@ export async function promoteRosterTalentToAdmin(
 export async function setDefaultCoordinator(
   userId: string | null,
 ): Promise<ServerActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
@@ -399,6 +403,7 @@ export async function setDefaultCoordinator(
 // ─── 4. Remove team member ────────────────────────────────────────────────
 
 export async function removeTeamMember(profileId: string): Promise<ServerActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
@@ -464,6 +469,7 @@ export async function changeTeamMemberRole(
   profileId: string,
   role: Role,
 ): Promise<ServerActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
@@ -557,6 +563,7 @@ export async function changeTeamMemberRole(
 export async function setInquiryCoordinatorTalent(
   talentProfileIds: string[],
 ): Promise<ServerActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };

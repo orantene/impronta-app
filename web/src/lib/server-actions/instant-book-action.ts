@@ -36,10 +36,12 @@ export type {
   InstantBookFormPayload,
 } from "./instant-book-types";
 import type { InstantBookActionResult, InstantBookFormPayload } from "./instant-book-types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export async function createInstantBookingAction(
   payload: InstantBookFormPayload,
 ): Promise<InstantBookActionResult> {
+  await requireNotImpersonating();
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, error: "Service unavailable. Please try again." };

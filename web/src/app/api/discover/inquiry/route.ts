@@ -34,6 +34,7 @@ import { decideProGate } from "@/lib/discover/pro-gate";
 import { planDiscoverFanout } from "@/lib/discover/inquiry-fanout-plan";
 import { loadClientTrustState } from "@/lib/client-trust/evaluator";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,8 @@ export type DiscoverInquirySkip = {
 export type DiscoverInquiryRouting = "primary_agency" | "any_active_roster";
 
 export async function POST(req: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   const session = await getCachedActorSession();
   if (!session.user) {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });

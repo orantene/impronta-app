@@ -9,6 +9,7 @@ import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { isStaffRole } from "@/lib/auth-flow";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const bodySchema = z.object({
   q: z.string().optional().nullable(),
@@ -27,6 +28,8 @@ const bodySchema = z.object({
  * Does not write `search_queries` by default.
  */
 export async function POST(request: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   try {
     const supabase = await getCachedServerSupabase();
     if (!supabase) {

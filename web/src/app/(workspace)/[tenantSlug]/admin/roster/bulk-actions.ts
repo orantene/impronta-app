@@ -16,6 +16,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { notifyTalentProfileApproved } from "@/lib/notifications/producers/talent-profile-approved-notify";
 import { assertTalentReadyForPublicListing } from "@/lib/field-engine/profile-publish-server-gate";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type BulkWorkflowResult =
   | { ok: true; updatedCount: number; skippedCount?: number; skippedNames?: string[] }
@@ -40,6 +41,8 @@ export async function bulkSetWorkflowStatus(
   talentIds: string[],
   targetStatus: "publish" | "archive",
 ): Promise<BulkWorkflowResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   if (talentIds.length === 0) return { ok: true, updatedCount: 0 };
 
   const session = await getCachedActorSession();

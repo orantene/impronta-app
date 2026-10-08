@@ -365,6 +365,18 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:alias-guard
 
+      - name: tests — theme i18n overlay release script
+        # scripts/release-theme-i18n-plan.ts: pure guards + flow of the guarded
+        # Spanish/English seed release (injected fakes, no DB).
+        if: ${{ !cancelled() }}
+        run: npm run test:release-theme-i18n
+
+      - name: tests — theme CTA patch release script
+        # scripts/release-theme-cta-plan.ts: guards + flow of the guarded Maison v2
+        # "Book an appointment" header/hero release (injected fakes, no DB).
+        if: ${{ !cancelled() }}
+        run: npm run test:release-theme-cta
+
       - name: tests — media ownership stamps
         # The ownership stamp helpers every media writer now spreads into its
         # INSERT (lib/media/ownership.ts). A regression here silently mislabels
@@ -442,6 +454,10 @@ jobs:
       - name: tests — QA test-talent sync + design drift (TUL-135)
         if: ${{ !cancelled() }}
         run: npm run test:sync-test-talent
+
+      - name: tests — talent public app routes (bracketed folders, TUL-288 follow-up)
+        if: ${{ !cancelled() }}
+        run: npm run test:talent-public-app
 
       - name: tests — fields
         if: ${{ !cancelled() }}

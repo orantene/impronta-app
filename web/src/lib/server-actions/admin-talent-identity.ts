@@ -33,6 +33,7 @@ import {
 } from "@/lib/talent/talent-profile-shell-persistence";
 import { syncScalarFieldValuesToCatalog } from "@/lib/talent/scalar-field-values-catalog";
 import { syncIdentityFieldValuesToCatalog } from "@/lib/talent/identity-field-values-catalog";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // Types for this action live in `talent-profile-shell-persistence.ts`.
 // Do not re-export types from this `use server` file — Next's action
@@ -45,6 +46,8 @@ export type UpdateTalentIdentityResult =
 export async function updateTalentIdentity(
   input: UpdateTalentIdentityInput,
 ): Promise<UpdateTalentIdentityResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;

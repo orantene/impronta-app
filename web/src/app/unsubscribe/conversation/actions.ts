@@ -17,8 +17,10 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { verifyConversationToken } from "@/lib/inquiry/conversation-email-tokens";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export async function confirmConversationMuteAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const token = String(formData.get("token") ?? "").trim();
   const lang = String(formData.get("lang") ?? "en") === "es" ? "es" : "en";
 

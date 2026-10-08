@@ -31,6 +31,7 @@ import {
   parseMediaUrl,
   safeEmbedUrl,
 } from "./media-embed";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type TalentConnectionProviderState = {
   key: string;
@@ -194,6 +195,8 @@ export async function saveTalentIntegrationControlsAction(
   | { ok: true; provider: TalentConnectionProviderState | null }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireTalentSelf();
   if (!guard.ok) return { ok: false, error: guard.error };
 
@@ -228,6 +231,8 @@ export async function connectManualTalentIntegrationAction(
   | { ok: true; provider: TalentConnectionProviderState | null }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireTalentSelf();
   if (!guard.ok) return { ok: false, error: guard.error };
 
@@ -283,6 +288,8 @@ export async function disconnectTalentIntegrationAction(
   | { ok: true; provider: TalentConnectionProviderState | null }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireTalentSelf();
   if (!guard.ok) return { ok: false, error: guard.error };
 
@@ -354,6 +361,8 @@ export async function addTalentFeaturedMediaAction(
   | { ok: true; item: TalentFeaturedMediaItem }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireTalentSelf();
   if (!guard.ok) return { ok: false, error: guard.error };
 
@@ -425,6 +434,8 @@ export async function updateTalentFeaturedMediaAction(
   | { ok: true; item: TalentFeaturedMediaItem }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireTalentSelf();
   if (!guard.ok) return { ok: false, error: guard.error };
 
@@ -467,6 +478,8 @@ export async function updateTalentFeaturedMediaAction(
 export async function removeTalentFeaturedMediaAction(
   input: z.input<typeof removeMediaItemSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireTalentSelf();
   if (!guard.ok) return { ok: false, error: guard.error };
 

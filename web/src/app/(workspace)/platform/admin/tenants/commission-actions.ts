@@ -13,6 +13,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type CommissionActionResult<T = void> =
   | { ok: true; data: T }
@@ -75,6 +76,7 @@ export async function actionSetTenantCommissionOverride(input: {
   platformTakeFloorCents: number;
   note?: string;
 }): Promise<CommissionActionResult> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;
@@ -119,6 +121,7 @@ export async function actionSetTenantCommissionOverride(input: {
 export async function actionClearTenantCommissionOverride(input: {
   tenantId: string;
 }): Promise<CommissionActionResult> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;
@@ -151,6 +154,7 @@ export async function actionReviewCommissionRequest(input: {
   platformTakeBps?: number;
   reviewNote?: string;
 }): Promise<CommissionActionResult> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;

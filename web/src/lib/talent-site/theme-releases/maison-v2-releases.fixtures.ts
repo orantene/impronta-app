@@ -271,9 +271,22 @@ export function revertR23(p: DesignPayload): DesignPayload {
   return out;
 }
 
+/**
+ * The live bio (TUL-230) is not in a numbered release yet: the About paragraph's `liveText: "bio"`
+ * is stripped from every released version, so the 2.1 to 2.9 diffs stay what they were. The day it
+ * ships as its own release, bump the version here and give it notes in `release-notes/maison-v2.ts`.
+ */
+export function revertLiveBio(p: DesignPayload): DesignPayload {
+  const out = clonePayload(p);
+  walkNodes([...out.homeTree, ...(out.optionalBlocks ?? []), ...out.shellTree], (n) => {
+    if (n.kind === "paragraph" && propsOf(n).liveText === "bio") delete propsOf(n).liveText;
+  });
+  return out;
+}
+
 /** Maison v2 as it was at `version` (15 = release 2.1 ... 22 = release 2.8, 23 = release 2.9), rebuilt from code. */
 export function maisonV2At(version: number): DesignPayload {
-  let out = currentMaisonV2();
+  let out = revertLiveBio(currentMaisonV2());
   if (version < 23) out = revertR23(out);
   if (version < 22) out = revertR22(out);
   if (version < 21) out = revertR21(out);

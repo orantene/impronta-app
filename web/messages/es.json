@@ -2917,6 +2917,7 @@
       "daysAgo": "hace {count} d"
     },
     "clientSettings": {
+      "readOnlyViewingAs": "Estás viendo esta cuenta en modo de solo lectura. Los cambios están desactivados mientras ves como esta persona.",
       "eyebrow": "Cuenta",
       "title": "Ajustes",
       "subtitle": "Los datos de tu cuenta, preferencias y verificación de confianza.",
@@ -6746,6 +6747,7 @@
       "stylePortrait": "Retrato",
       "styleEditorial": "Editorial",
       "styleCinematic": "Cinemática",
+      "styleShowcase": "Vitrina",
       "imageAspectLabel": "Relación de imagen",
       "hoverBehaviorLabel": "Comportamiento al pasar el cursor",
       "rowName": "Nombre",

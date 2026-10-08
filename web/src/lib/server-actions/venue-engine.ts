@@ -62,6 +62,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { deliverTicketForAdmission } from "@/lib/events/ticket-delivery";
 import { ensureCustomer } from "@/lib/customers/ensure-customer";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 const slug = z.string().trim().min(1).max(63);
@@ -95,6 +96,7 @@ export async function locationUpsert(input: {
   status?: "active" | "closed";
   expectedVersion?: number;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -116,6 +118,7 @@ export async function locationUpsert(input: {
 }
 
 export async function locationSetDefault(input: { id: string; expectedVersion?: number }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ id: uuid, expectedVersion: z.number().int().optional() }).safeParse(input);
@@ -132,6 +135,7 @@ export async function zoneUpsert(input: {
   sortOrder?: number;
   expectedVersion?: number;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -150,6 +154,7 @@ export async function zoneUpsert(input: {
 }
 
 export async function zoneDelete(input: { id: string; expectedVersion?: number }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ id: uuid, expectedVersion: z.number().int().optional() }).safeParse(input);
@@ -173,6 +178,7 @@ export async function partyWaitlistJoin(input: {
   note?: string | null;
   quotedMinutes?: number | null;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -198,6 +204,7 @@ export async function partyWaitlistNotify(input: {
   holderEmail?: string | null;
   holderPhone?: string | null;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -219,6 +226,7 @@ export async function partyWaitlistSeat(input: {
   operationKey: string;
   expectedVersion?: number;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -234,6 +242,7 @@ export async function partyWaitlistSeat(input: {
 }
 
 export async function partyWaitlistLeave(input: { id: string; expectedVersion?: number }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ id: uuid, expectedVersion: z.number().int().optional() }).safeParse(input);
@@ -255,6 +264,7 @@ export async function layoutUpsert(input: {
   items?: Array<{ spaceId: string; x: number; y: number; w: number; h: number; rotation?: number; shape?: string }>;
   expectedVersion?: number;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -284,6 +294,7 @@ export async function layoutUpsert(input: {
 }
 
 export async function layoutActivate(input: { layoutId: string; expectedVersion?: number }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ layoutId: uuid, expectedVersion: z.number().int().optional() }).safeParse(input);
@@ -308,6 +319,7 @@ export async function servicePeriodUpsert(input: {
   rules?: Record<string, unknown>;
   expectedVersion?: number;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -341,6 +353,7 @@ export async function prepStationUpsert(input: {
   kind: "kitchen" | "bar" | "pickup" | "pass";
   sortOrder?: number;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -358,6 +371,7 @@ export async function prepStationUpsert(input: {
 }
 
 export async function prepStationDelete(input: { id: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ id: uuid }).safeParse(input);
@@ -366,6 +380,7 @@ export async function prepStationDelete(input: { id: string }) {
 }
 
 export async function prepFireCourse(input: { visitId: string; courseSeq: number; operationKey: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -405,6 +420,7 @@ export async function guestVisitAddLine(input: {
   qty: number;
   note?: string | null;
 }) {
+  await requireNotImpersonating();
   const g = await guestVisit(input.token);
   if (!g.ok) return g;
   const parsed = z
@@ -421,12 +437,14 @@ export async function guestVisitAddLine(input: {
 }
 
 export async function guestVisitSubmit(input: { token: string }) {
+  await requireNotImpersonating();
   const g = await guestVisit(input.token);
   if (!g.ok) return g;
   return submitGuestVisit(g.admin, { tenantId: g.tenantId, token: input.token });
 }
 
 export async function posLineOfferSubstitute(input: { lineId: string; substituteOfferingId: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ lineId: uuid, substituteOfferingId: uuid }).safeParse(input);
@@ -439,6 +457,7 @@ export async function guestVisitSubstituteAccept(input: {
   lineId: string;
   substituteOfferingId: string;
 }) {
+  await requireNotImpersonating();
   const g = await guestVisit(input.token);
   if (!g.ok) return g;
   const parsed = z.object({ token: z.string().min(8), lineId: uuid, substituteOfferingId: uuid }).safeParse(input);
@@ -452,6 +471,7 @@ export async function guestVisitPayShare(input: {
   lineIds?: string[];
   operationKey: string;
 }) {
+  await requireNotImpersonating();
   const g = await guestVisit(input.token);
   if (!g.ok) return g;
   const parsed = z
@@ -487,6 +507,7 @@ export async function admissionHoldSeats(input: {
   ttlSeconds?: number;
   operationKey: string;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -508,6 +529,7 @@ export async function admissionExchange(input: {
   operationKey: string;
   expectedVersion?: number;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -531,6 +553,7 @@ export async function admissionComp(input: {
   approver?: string | null;
   operationKey: string;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -573,6 +596,7 @@ export async function admissionDeliver(input: {
   admissionId: string;
   method: "email" | "sms" | "print" | "wallet";
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -583,6 +607,7 @@ export async function admissionDeliver(input: {
 }
 
 export async function eventSeatMapUpsert(input: { sessionId: string; layoutId: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ sessionId: uuid, layoutId: uuid }).safeParse(input);
@@ -591,6 +616,7 @@ export async function eventSeatMapUpsert(input: { sessionId: string; layoutId: s
 }
 
 export async function eventSeriesUpsert(input: { id?: string; name: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ id: uuid.optional(), name: z.string().trim().min(1).max(160) }).safeParse(input);
@@ -620,6 +646,7 @@ async function publicTicket() {
 }
 
 export async function ticketTransfer(input: { code: string; toName: string; toEmail: string }) {
+  await requireNotImpersonating();
   const g = await publicTicket();
   if (!g.ok) return g;
   const parsed = z
@@ -639,6 +666,7 @@ export async function ticketTransfer(input: { code: string; toName: string; toEm
 }
 
 export async function ticketResend(input: { code: string }) {
+  await requireNotImpersonating();
   const g = await publicTicket();
   if (!g.ok) return g;
   if (!input.code || input.code.trim().length < 8) return { ok: false as const, reason: "invalid" as const };
@@ -663,6 +691,7 @@ export async function ticketLookup(input: { email: string; last4OfReceipt: strin
  * a refused request cannot be hammered into an oracle.
  */
 export async function ticketRefundRequest(input: { code: string }) {
+  await requireNotImpersonating();
   const g = await publicTicket();
   if (!g.ok) return g;
   const code = typeof input.code === "string" ? input.code.trim() : "";
@@ -685,6 +714,7 @@ export async function posDeviceRegister(input: {
   kind: "tablet" | "phone" | "display" | "printer" | "reader";
   locationId?: string | null;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -700,6 +730,7 @@ export async function posDeviceRegister(input: {
 }
 
 export async function posDeviceHeartbeat(input: { deviceKey: string; appVersion?: string | null }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -714,6 +745,7 @@ export async function posDeviceUpdate(input: {
   settings: Record<string, unknown>;
   expectedVersion?: number;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -732,6 +764,7 @@ export async function posOutboxApply(input: {
   operationKey: string;
   command: Record<string, unknown>;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z

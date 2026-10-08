@@ -18,6 +18,7 @@
 // slug so the caller can retry the domain-seed step (rare path).
 // ============================================================================
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
@@ -90,6 +91,8 @@ export async function provisionFreeWorkspaceFromTalent(params: {
   slug: string;
   location: string;
 }): Promise<ProvisionFreeWorkspaceResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   // ── Auth ──────────────────────────────────────────────────────────────────
   const session = await getCachedActorSession();
   if (!session.supabase || !session.user) {

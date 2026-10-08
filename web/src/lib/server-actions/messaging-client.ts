@@ -48,6 +48,7 @@ import { placeReservationHold } from "@/lib/scheduling/reservation-hold";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 const scoped = tenantScopedQuery;
@@ -90,6 +91,7 @@ async function clientText(l: Link, body: string) {
 /* ---------- 1. reply (D-MSG-160) ---------- */
 
 export async function messagingClientReply(input: { token: string; body: string }): Promise<ActionResult<{ messageId: string }>> {
+  await requireNotImpersonating();
   const parsed = z.object({ token: z.string().min(1), body: z.string().trim().min(1).max(4000) }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const l = await link(parsed.data.token);
@@ -127,6 +129,7 @@ export async function messagingClientChoose(input: {
   messageId: string;
   choices: readonly { offeringId: string; label: string; sessionId?: string | null }[];
 }): Promise<ActionResult<{ orderId: string }>> {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       token: z.string().min(1),
@@ -169,6 +172,7 @@ export async function messagingClientChoose(input: {
 /* ---------- 3. pick a time (D-MSG-163) ---------- */
 
 export async function messagingClientPickTime(input: { token: string; messageId: string; startsAt: string }): Promise<ActionResult<{ holdExpiresAt: string | null }>> {
+  await requireNotImpersonating();
   const parsed = z.object({ token: z.string().min(1), messageId: uuid, startsAt: z.string().datetime({ offset: true }) }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const l = await link(parsed.data.token);
@@ -231,6 +235,7 @@ export async function messagingClientAddItem(input: {
   units?: number;
   sessionId?: string | null;
 }): Promise<ActionResult<{ orderId: string }>> {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       token: z.string().min(1),
@@ -293,6 +298,7 @@ async function offerStateCard(l: Link, offer: OfferRow, offerStatus: "accepted" 
 }
 
 export async function messagingClientAcceptOffer(input: { token: string; offerId: string; offerVersion: number }): Promise<ActionResult<{ payCode: string | null }>> {
+  await requireNotImpersonating();
   const parsed = z.object({ token: z.string().min(1), offerId: uuid, offerVersion: z.number().int().positive() }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const l = await link(parsed.data.token);
@@ -382,6 +388,7 @@ async function payAfterAccept(l: Link, offer: OfferRow): Promise<string | null> 
  * for the newest accepted offer. Idempotent; answers the open link's code.
  */
 export async function messagingClientRequestPayLink(input: { token: string }): Promise<ActionResult<{ payCode: string | null }>> {
+  await requireNotImpersonating();
   const parsed = z.object({ token: z.string().min(1) }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const l = await link(parsed.data.token);
@@ -453,6 +460,7 @@ async function acceptDirect(l: Link, offer: OfferRow, expectedVersion: number): 
 }
 
 export async function messagingClientDeclineOffer(input: { token: string; offerId: string; offerVersion: number; reason: string }): Promise<ActionResult<{ declined: true }>> {
+  await requireNotImpersonating();
   const parsed = z.object({ token: z.string().min(1), offerId: uuid, offerVersion: z.number().int().positive(), reason: z.string().trim().max(1000) }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const l = await link(parsed.data.token);
@@ -508,6 +516,7 @@ export async function messagingClientRequestChange(input: {
   recordId: string;
   text: string;
 }): Promise<ActionResult<{ messageId: string }>> {
+  await requireNotImpersonating();
   const parsed = z
     .object({ token: z.string().min(1), recordKind: z.string().min(1).max(40), recordId: z.string().min(1).max(80), text: z.string().trim().min(1).max(2000) })
     .safeParse(input);
@@ -538,6 +547,7 @@ export async function messagingClientRequestChange(input: {
 /* ---------- 6. rename the client's own name (P5 / F07, D-MSG-217) ---------- */
 
 export async function messagingClientRename(input: { token: string; name: string }): Promise<ActionResult<{ name: string }>> {
+  await requireNotImpersonating();
   const parsed = z.object({ token: z.string().min(1), name: z.string().trim().min(1).max(80) }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const l = await link(parsed.data.token);
@@ -552,6 +562,7 @@ export async function messagingClientRename(input: { token: string; name: string
 /* ---------- 7. book again (P6 / owner decision 13) ---------- */
 
 export async function messagingClientBookAgain(input: { token: string; recordId: string }): Promise<ActionResult<{ inquiryId: string }>> {
+  await requireNotImpersonating();
   const parsed = z.object({ token: z.string().min(1), recordId: z.string().min(1).max(80) }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const l = await link(parsed.data.token);
@@ -571,6 +582,7 @@ export async function messagingClientSaveToEmail(input: {
   token: string;
   requestOrigin?: string | null;
 }): Promise<ActionResult<{ email: string }>> {
+  await requireNotImpersonating();
   const parsed = z
     .object({ token: z.string().min(1), requestOrigin: z.string().max(200).nullable().optional() })
     .safeParse(input);

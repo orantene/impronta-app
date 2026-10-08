@@ -26,6 +26,7 @@ import type {
   ScanGuestConversationCallback,
   TalentChatLauncherProps,
 } from "@/lib/inquiry/guest-chat-contract";
+import { announceTalentOpenReady } from "@/lib/talent-site/open-intent-client";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
@@ -207,7 +208,9 @@ export function TalentProfileChatLauncher({
       setOpen(true);
     };
     window.addEventListener("tulala:open-guest-chat", onOpenClean);
+    const unready = announceTalentOpenReady("chat");
     return () => {
+      unready();
       window.removeEventListener("tulala:offering-request", onOfferingRequest);
       window.removeEventListener("tulala:open-guest-chat", onOpenClean);
     };

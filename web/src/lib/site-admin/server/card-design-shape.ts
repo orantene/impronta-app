@@ -82,7 +82,7 @@ export type CardDesign = {
    * sets its own value keeps it; sections that left the value UNSET follow
    * these. Undefined here = fall through to the platform default.
    */
-  cardStyle?: "portrait" | "editorial" | "profile";
+  cardStyle?: "portrait" | "editorial" | "profile" | "showcase";
   cardAspect?: "4:5" | "1:1" | "3:4" | "2:3" | "16:9";
   hover?: "zoom" | "swap" | "reveal_traits" | "none";
   density?: "comfortable" | "compact";
@@ -136,7 +136,7 @@ const LINE_VISIBILITY_KEYS = {
 
 /** Registry token key → `CardDesign` layout field, with its allowed values. */
 const LAYOUT_KEYS = {
-  cardStyle: ["directory.card.style", ["portrait", "editorial", "profile"]],
+  cardStyle: ["directory.card.style", ["portrait", "editorial", "profile", "showcase"]],
   cardAspect: ["directory.card.aspect", ["4:5", "1:1", "3:4", "2:3", "16:9"]],
   hover: ["directory.card.hover", ["zoom", "swap", "reveal_traits", "none"]],
   density: ["directory.card.density", ["comfortable", "compact"]],
@@ -239,6 +239,16 @@ export function cardDesignToCssVars(
   if (design.muted) out["--token-card-muted"] = design.muted;
   if (design.priceColor) out["--token-card-price-color"] = design.priceColor;
   return out;
+}
+
+/**
+ * Card style for the cross-tenant hub grid. Phase 1 forced "showcase"; Phase 2
+ * lets the hub's Card Design choose. Only an explicit "showcase" or "profile"
+ * (Cinematic) is honored; unset or any other published value keeps the
+ * historical Showcase render, so a hub that never chooses is unchanged.
+ */
+export function resolveHubCardStyle(design: CardDesign): "showcase" | "profile" {
+  return design.cardStyle === "profile" ? "profile" : "showcase";
 }
 
 /** Families that render with the `<TalentCard>` editorial branch. */

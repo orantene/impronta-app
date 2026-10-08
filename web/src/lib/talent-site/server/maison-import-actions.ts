@@ -4,6 +4,7 @@
  * Maison Import starter content actions (W44–W59). Behind TALENT_MAISON_THEME_ENABLED.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
@@ -97,6 +98,8 @@ export async function commitMaisonImportAction(input: {
   designSlug?: string;
   demoKey?: string | null;
 }): Promise<ThemeActionResult<MaisonImportCommitResult>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
   if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
@@ -155,6 +158,8 @@ export async function undoMaisonImportAction(input: {
   batchId: string;
   removeEdited?: boolean;
 }): Promise<ThemeActionResult<{ removed: number }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
   if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
@@ -178,6 +183,8 @@ export async function retryMaisonImportItemAction(input: {
   batchId: string;
   starterKey: string;
 }): Promise<ThemeActionResult<{ offeringId: string }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
   if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {

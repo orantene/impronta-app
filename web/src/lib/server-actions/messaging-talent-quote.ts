@@ -12,6 +12,7 @@ import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
 
 import { messagingTalentStartConversation } from "./messaging-talent-writes";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Send quote (talent dashboard), in two steps so the panel can show real
@@ -31,6 +32,7 @@ export async function messagingTalentQuoteStart(input: {
   offeringId: string;
   note?: string | null;
 }): Promise<TalentQuoteStartResult> {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       name: z.string().trim().min(1).max(200),
@@ -60,6 +62,7 @@ export async function messagingTalentQuoteSend(input: {
   amountCents: number;
   note?: string | null;
 }): Promise<TalentQuoteSendResult> {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       inquiryId: z.string().uuid(),

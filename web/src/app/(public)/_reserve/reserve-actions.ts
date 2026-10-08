@@ -37,6 +37,7 @@ import { capacityRemaining } from "@/lib/capacity/reserve";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createReservation, findOfferedTime } from "@/lib/reservations/reserve";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const inputSchema = z.object({
   tenantId: z.string().uuid(),
@@ -394,6 +395,7 @@ export type SubmitReservationResult =
  * authority, and this is not it.
  */
 export async function submitReservation(input: unknown): Promise<SubmitReservationResult> {
+  await requireNotImpersonating();
   const parsed = submitSchema.safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid_request" };
   const d = parsed.data;

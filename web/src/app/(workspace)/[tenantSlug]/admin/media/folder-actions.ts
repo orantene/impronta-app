@@ -7,6 +7,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -78,6 +79,7 @@ export async function actionCreateMediaFolder(
   isPrivate = false,
   shootDate?: string | null,
 ): Promise<ActionResult<MediaFolder>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -129,6 +131,7 @@ export async function actionRenameMediaFolder(
   color?: string,
   shootDate?: string | null,
 ): Promise<ActionResult<null>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -168,6 +171,7 @@ export async function actionRenameMediaFolder(
 // The media_assets themselves are NOT deleted.
 
 export async function actionDeleteMediaFolder(folderId: string): Promise<ActionResult<null>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -204,6 +208,7 @@ export async function actionAddAssetsToFolder(
   folderId: string,
   assetIds: string[],
 ): Promise<ActionResult<{ count: number }>> {
+  await requireNotImpersonating();
   if (assetIds.length === 0) return { ok: true, data: { count: 0 } };
 
   const auth = await requireWorkspaceStaffAction();
@@ -248,6 +253,7 @@ export async function actionRemoveAssetsFromFolder(
   folderId: string,
   assetIds: string[],
 ): Promise<ActionResult<null>> {
+  await requireNotImpersonating();
   if (assetIds.length === 0) return { ok: true, data: null };
 
   const auth = await requireWorkspaceStaffAction();
@@ -301,6 +307,7 @@ export async function actionCreateFolderShareLink(
   folderId: string,
   expiryDays?: number,
 ): Promise<ActionResult<{ shareUrl: string; sharePath: string; token: string }>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -344,6 +351,7 @@ export async function actionCreateFolderShareLink(
 }
 
 export async function actionRevokeFolderShareLink(folderId: string): Promise<ActionResult<null>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -379,6 +387,7 @@ export async function actionSetAssetTags(
   assetId: string,
   tags: string[],
 ): Promise<ActionResult<null>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -484,6 +493,7 @@ export async function actionSetAssetNote(
   assetId: string,
   note: string,
 ): Promise<ActionResult<null>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 

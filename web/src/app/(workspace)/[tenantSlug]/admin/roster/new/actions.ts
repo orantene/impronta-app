@@ -12,6 +12,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type CreateRosterTalentState =
   | { error: string }
@@ -85,6 +86,7 @@ export async function createRosterTalent(
   _prev: CreateRosterTalentState,
   formData: FormData,
 ): Promise<CreateRosterTalentState> {
+  await requireNotImpersonating();
   // ── Auth + resolve tenant + check capability ───────────────────────────────
   const session = await getCachedActorSession();
   if (!session.user) return { error: "Not authenticated." };

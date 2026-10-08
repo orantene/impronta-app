@@ -43,11 +43,7 @@ import {
   isPlatformSubdomainLabelTaken,
   requestSubdomainNamespaceCopy,
 } from "@/lib/saas/platform-subdomain-namespace.server";
-import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
-import {
-  talentSitePathUrl,
-  talentSitePublicUrl,
-} from "@/lib/talent-site/site-public-url";
+import { PAGE_COLUMNS, siteUrl } from "./site-management-helpers";
 import {
   derivePageSlug,
   isReservedPageSlug,
@@ -73,21 +69,9 @@ import type {
   MaxSiteManagerState,
   MaxSiteActionResult,
 } from "./site-management-types";
-
-const PAGE_COLUMNS =
-  "id, slug, title, nav_label, status, is_home, sort_order, published_at, updated_at";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // Shared owner+Max gate lives in ./site-action-gate (reused by ./site-logo-actions).
-
-/** Dashboard public address: host when subdomains are on, else `/t/site/<slug>`. */
-function siteUrl(slug: string | null, isDemo = false): string | null {
-  if (!slug) return null;
-  if (isTalentSiteSubdomainsEnabled()) {
-    const hostUrl = talentSitePublicUrl(slug, { isDemo });
-    if (hostUrl) return hostUrl;
-  }
-  return talentSitePathUrl(slug);
-}
 
 // ── Ensure / provision ───────────────────────────────────────────────────────
 
@@ -101,6 +85,7 @@ function siteUrl(slug: string | null, isDemo = false): string | null {
 export async function ensureMaxSiteAction(): Promise<
   MaxSiteActionResult<{ siteSlug: string }>
 > {
+  await requireNotImpersonating();
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
   const result = await provisionTalentMaxSite(g.talentProfileId, g.userId);
@@ -253,6 +238,7 @@ export async function addMaxSitePageAction(input: {
   title: string;
   navLabel?: string | null;
 }): Promise<MaxSiteActionResult<{ id: string; slug: string }>> {
+  await requireNotImpersonating();
   const g = await gate("personalSitePages");
   if (!g.ok) return g;
 
@@ -323,6 +309,7 @@ export async function renameMaxSitePageAction(input: {
   title?: string;
   navLabel?: string | null;
 }): Promise<MaxSiteActionResult> {
+  await requireNotImpersonating();
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
@@ -362,6 +349,7 @@ export async function renameMaxSitePageAction(input: {
 export async function deleteMaxSitePageAction(input: {
   pageId: string;
 }): Promise<MaxSiteActionResult> {
+  await requireNotImpersonating();
   const g = await gate("personalSitePages");
   if (!g.ok) return g;
 
@@ -417,6 +405,7 @@ export async function deleteMaxSitePageAction(input: {
 export async function reorderMaxSitePagesAction(input: {
   orderedIds: string[];
 }): Promise<MaxSiteActionResult> {
+  await requireNotImpersonating();
   const g = await gate("personalSitePages");
   if (!g.ok) return g;
   if (!Array.isArray(input.orderedIds) || input.orderedIds.length === 0) {
@@ -465,6 +454,7 @@ export async function reorderMaxSitePagesAction(input: {
 export async function setMaxSiteHomePageAction(input: {
   pageId: string;
 }): Promise<MaxSiteActionResult> {
+  await requireNotImpersonating();
   const g = await gate("personalSitePages");
   if (!g.ok) return g;
 
@@ -514,6 +504,7 @@ export async function setMaxSiteHomePageAction(input: {
 export async function setMaxSiteSlugAction(input: {
   slug: string;
 }): Promise<MaxSiteActionResult<{ slug: string }>> {
+  await requireNotImpersonating();
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
@@ -593,6 +584,7 @@ export async function setMaxSiteSlugAction(input: {
 export async function publishMaxSiteAction(opts?: { contentHash?: string | null }): Promise<
   MaxSiteActionResult<{ publishedAt: string }>
 > {
+  await requireNotImpersonating();
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
@@ -729,6 +721,7 @@ export async function publishMaxSiteAction(opts?: { contentHash?: string | null 
 export async function applyMaxSiteTemplateAction(input: {
   templateKey: string;
 }): Promise<MaxSiteActionResult<{ templateKey: MaxSiteTemplateKey }>> {
+  await requireNotImpersonating();
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 

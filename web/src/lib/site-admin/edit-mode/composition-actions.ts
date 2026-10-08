@@ -88,6 +88,7 @@ import {
   parseStyleClassesFromSnapshot,
   parseStylePresetsFromSnapshot,
 } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ── types ─────────────────────────────────────────────────────────────────
 
@@ -837,6 +838,7 @@ export interface CompositionSaveInput {
 export async function saveHomepageCompositionAction(
   input: CompositionSaveInput,
 ): Promise<CompositionSaveResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -1278,6 +1280,7 @@ export async function createAndInsertSectionAction(input: {
    *  adoption alive for the editor's insert path). */
   editSession?: { id: string; seq: number };
 }): Promise<CreateAndInsertResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -1532,6 +1535,7 @@ export async function duplicateSectionAction(input: {
    *  to the save so the write is stamped. */
   editSession?: { id: string; seq: number };
 }): Promise<CreateAndInsertResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -1738,6 +1742,7 @@ export async function saveDraftHomepageAction(input: {
   /** WS1-D — per-tab edit-session token + monotonic draft seq (beacon LWW). */
   editSession?: { id: string; seq: number };
 }): Promise<SaveDraftResult> {
+  await requireNotImpersonating();
   const save = await saveHomepageCompositionAction({
     locale: input.locale,
     pageId: input.pageId,
@@ -1803,6 +1808,7 @@ export async function applyHomepageDraftBeaconAction(input: {
   stylePresets?: BuilderStylePresetRegistry;
   editSession: { id: string; seq: number };
 }): Promise<SaveDraftResult> {
+  await requireNotImpersonating();
   // Non-homepage pages: keep the existing CAS beacon (session columns stamped).
   if (input.pageId) {
     return saveDraftHomepageAction(input);
@@ -1950,6 +1956,7 @@ export async function publishHomepageFromEditModeAction(input: {
    *  pagehide beacon bumped it (see publishHomepage). */
   editSession?: { id: string; seq: number };
 }): Promise<PublishResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) {
     return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
@@ -2217,6 +2224,7 @@ export async function copyPublishedHomepageAction(input: {
    */
   mode?: PullFromLiveMode;
 }): Promise<CopyPublishedResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) {
     return { ok: false, error: auth.error, code: "UNAUTHORIZED" };

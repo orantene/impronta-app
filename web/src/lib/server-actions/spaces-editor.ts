@@ -20,6 +20,7 @@ import {
   type SpaceGroupRow,
   type SpaceRow,
 } from "@/lib/spaces/editor";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type SpacesSnapshot = {
   venueId: string | null;
@@ -67,6 +68,8 @@ export async function addRoomAction(
   tenantSlug: string,
   name: string,
 ): Promise<LoadSpacesResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const ctx = await staffAndVenue(tenantSlug);
   if (!ctx.ok) return { ok: false, error: ctx.error };
   const trimmed = name.trim().slice(0, 120);
@@ -89,6 +92,8 @@ export async function addTablesAction(
     groupName: string;
   },
 ): Promise<LoadSpacesResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const ctx = await staffAndVenue(tenantSlug);
   if (!ctx.ok) return { ok: false, error: ctx.error };
 

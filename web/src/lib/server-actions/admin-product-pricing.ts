@@ -45,6 +45,7 @@ import {
 } from "@/lib/pricing/stripe-sync";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { recordCommerceAudit, COMMERCE_AUDIT } from "@/lib/billing/commerce-audit";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 // Phase 3 discount actions live in `admin-product-discounts.ts` (kept
 // out of this file to stay under the 800-line max-lines cap).
 
@@ -86,6 +87,8 @@ export type UpdateTierPriceResult =
 export async function updateTierPrice(
   raw: UpdateTierPriceInput,
 ): Promise<UpdateTierPriceResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 
@@ -272,6 +275,8 @@ export type UpdateTierDisplayResult =
 export async function updateTierDisplay(
   raw: UpdateTierDisplayInput,
 ): Promise<UpdateTierDisplayResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 
@@ -387,6 +392,8 @@ export type VerifyStripeAccountResult =
  * next render starts a new request scope. No DB write.
  */
 export async function verifyStripeAccount(): Promise<VerifyStripeAccountResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
   revalidateCommerceSurfaces();
@@ -437,6 +444,8 @@ export type AddTierPriceResult =
 export async function addTierPrice(
   raw: AddTierPriceInput,
 ): Promise<AddTierPriceResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 
@@ -585,6 +594,8 @@ export type ArchiveTierPriceResult =
 export async function archiveTierPrice(
   raw: { priceId: string },
 ): Promise<ArchiveTierPriceResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 

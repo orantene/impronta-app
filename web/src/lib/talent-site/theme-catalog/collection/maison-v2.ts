@@ -147,6 +147,11 @@ function unrounded(style: Props): Props {
  * Hero: 34px photo with the inset top-right (desktop), the stacked next-free
  * chip bottom-left, a booking-mode CTA plus a ghost "See work".
  */
+/** The primary booking button (header + hero). Mode-dependent seed: see MODE_DEPENDENT_LABELS. */
+export const MAISON_V2_BOOK_LABEL = "Book an appointment";
+/** Booking opens from the services catalog anchor (`id="services"`). */
+export const MAISON_V2_BOOK_HREF = "#services";
+
 function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
   const hero = tuneHeading(
     heroSplit(makeId, {
@@ -158,7 +163,15 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
       inset: true,
       italicAccent: true,
       nextFreeChip: true,
-      ctaRow: { primaryLabel: "See services", primaryHref: "#services", secondaryLabel: "See work" },
+      // Ticket #88: the hero leads with booking. "Book an appointment" is a mode-dependent
+      // seed (design-label-locale SEEDED_MODE_COPY), so it reads Reservar cita / Request an
+      // appointment / Escríbeme by the site's booking mode; "See services" is the ghost.
+      ctaRow: {
+        primaryLabel: MAISON_V2_BOOK_LABEL,
+        primaryHref: MAISON_V2_BOOK_HREF,
+        secondaryLabel: "See services",
+        secondaryHref: "#services",
+      },
     }),
     {
       size: "display",
@@ -231,7 +244,7 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
       return withProps(node, { style: { ...unpadded(styleOf(node)), gap: "0px" } }, [...kids, proof]);
     }
     if (node.kind === "button" && p.tone === "secondary") {
-      return withProps(node, { label: "See work", href: "#gallery", layerLabel: "See work" }, kids.length ? kids : undefined);
+      return withProps(node, { label: "See services", href: "#services", layerLabel: "See services" }, kids.length ? kids : undefined);
     }
     if (node.kind === "next_free_chip") {
       return withProps(node, {
@@ -295,6 +308,9 @@ function maisonV2Ticker(makeId: KitIdFactory): BuilderNode {
         { text: "{{service2}}" },
         { text: "{{service3}}" },
       ],
+      // Core default: follows her published services in the visitor's
+      // language at render time; the words above are the fallback.
+      source: "services",
       variant: "serif",
       separator: "star",
       speed: "medium",
@@ -545,7 +561,8 @@ function maisonV2Header(node: BuilderNode): BuilderNode {
   const sp = (props.sectionProps ?? {}) as Props;
   const brand = (sp.brand ?? {}) as Props;
   const regions = (sp.regions ?? {}) as Record<string, unknown>;
-  const cta = { label: "Menu and prices", href: "#services" };
+  // Ticket #88: the header pill is the booking CTA (mode-aware label), same target as the hero.
+  const cta = { label: MAISON_V2_BOOK_LABEL, href: MAISON_V2_BOOK_HREF };
   // `.m-hdr` right side: (Demo pill, painted by the site), ES / EN, the CTA pill.
   // No saved / inquiry icons in the proposal.
   const right = [

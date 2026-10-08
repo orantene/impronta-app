@@ -8,6 +8,7 @@ import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
 import { recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type AcceptTermsState = { error: string } | undefined;
 
@@ -20,6 +21,7 @@ export async function acceptSignupTermsAction(
   _prev: AcceptTermsState,
   formData: FormData,
 ): Promise<AcceptTermsState> {
+  await requireNotImpersonating();
   const t = createTranslator(String(formData.get("locale") ?? "en") === "es" ? "es" : "en");
   if (!isAgeAndTermsConfirmed(formData.get("age_terms"))) {
     return { error: t("public.auth.actions.ageTermsRequired") };

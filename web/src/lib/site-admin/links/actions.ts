@@ -22,6 +22,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createLink, listLinksForTenant, type LinkSummary } from "@/lib/links/link-store";
 
 import { mintLink, type MintLinkResult } from "./mint-link";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type LinkPickerResult =
   | { ok: true; links: LinkSummary[] }
@@ -49,6 +50,7 @@ export async function listLinksForPickerAction(): Promise<LinkPickerResult> {
  * tenant is the workspace surface's, never an input. See `mint-link.ts`.
  */
 export async function mintLinkAction(input: unknown): Promise<MintLinkResult> {
+  await requireNotImpersonating();
   return mintLink(input, {
     guard: async () => {
       const guard = await requireWorkspaceStaffAction({

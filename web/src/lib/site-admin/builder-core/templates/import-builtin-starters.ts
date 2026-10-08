@@ -51,6 +51,7 @@ import type {
   BuilderTemplateRow,
   BuilderTemplateTarget,
 } from "./registry-rows";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * The intended builder surface ("talent" | "workspace" | "both") lives on the
@@ -141,6 +142,8 @@ export type SyncBuiltinStartersResult =
   | { ok: false; error: string };
 
 export async function syncBuiltinStartersAction(): Promise<SyncBuiltinStartersResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   // Read existing rows first. This is the super_admin gate (listAllTemplates is
   // requireSuperAdmin-gated) AND gives us the slug → id map for idempotency.
   const existing = await listAllTemplates();

@@ -23,6 +23,7 @@ import {
   snapshotBrief,
 } from "@/lib/tulala/brief-store.server";
 import { isKnownFactKey } from "@/lib/tulala/fact-keys";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type BriefActionResult = { ok: true } | { ok: false; error: string };
 
@@ -40,6 +41,8 @@ async function requireOwnBrief() {
 export async function approveBriefFacts(
   decisions: Array<{ factKey: string; approve: boolean }>,
 ): Promise<BriefActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const own = await requireOwnBrief();
   if (!own.ok) return { ok: false, error: own.error };
 
@@ -63,6 +66,8 @@ export async function editBriefFact(
   factKey: string,
   value: unknown,
 ): Promise<BriefActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const own = await requireOwnBrief();
   if (!own.ok) return { ok: false, error: own.error };
   if (!isKnownFactKey(factKey)) return { ok: false, error: "Unknown field." };
@@ -86,6 +91,8 @@ export async function editBriefFact(
 }
 
 export async function removeBriefFact(factKey: string): Promise<BriefActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const own = await requireOwnBrief();
   if (!own.ok) return { ok: false, error: own.error };
   if (!isKnownFactKey(factKey)) return { ok: false, error: "Unknown field." };
@@ -110,6 +117,8 @@ export async function removeBriefFact(factKey: string): Promise<BriefActionResul
  * The button that makes the inference layer safe to offer at all.
  */
 export async function resetBriefAiUnderstanding(): Promise<BriefActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const own = await requireOwnBrief();
   if (!own.ok) return { ok: false, error: own.error };
 
@@ -125,6 +134,8 @@ export async function resetBriefAiUnderstanding(): Promise<BriefActionResult> {
 }
 
 export async function restoreBrief(version: number): Promise<BriefActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const own = await requireOwnBrief();
   if (!own.ok) return { ok: false, error: own.error };
   if (!Number.isInteger(version) || version < 1) {
@@ -145,6 +156,8 @@ export async function restoreBrief(version: number): Promise<BriefActionResult> 
  * "start over" is not a request to forget.
  */
 export async function startNewDiscoverySession(): Promise<BriefActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const own = await requireOwnBrief();
   if (!own.ok) return { ok: false, error: own.error };
 
