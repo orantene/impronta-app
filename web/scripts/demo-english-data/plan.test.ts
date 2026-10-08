@@ -32,7 +32,7 @@ function fakeIo(db: FakeDb, opts: { corruptWrites?: boolean } = {}): { io: Io; c
     async listFaq(id) { return JSON.parse(JSON.stringify(db.faq[id] ?? [])) as FaqRow[]; },
     async updateRow({ table, profileId, id, patch }) {
       calls.writes.push({ table, profileId, id, patch });
-      const rows = (table === "talent_offerings" ? db.offerings[profileId] : db.faq[profileId]) as Array<Record<string, unknown>> | undefined;
+      const rows = (table === "talent_offerings" ? db.offerings[profileId] : db.faq[profileId]) as unknown as Array<Record<string, unknown>> | undefined;
       const row = rows?.find((r) => r.id === id);
       if (!row) return { ok: false, error: "no row" };
       for (const [col, val] of Object.entries(patch)) row[col] = opts.corruptWrites ? { es: "changed" } : val;
