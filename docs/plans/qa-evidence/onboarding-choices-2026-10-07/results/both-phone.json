@@ -39,11 +39,10 @@
   ],
   "facts": {
     "h1Contrast": 15.36,
-    "sentence": "Soy Rosa both phone yvirga. Tengo un estudio de limpieza en Playa del Carmen con un equipo, y también limpio casas yo misma. Hacemos limpieza profunda y ligera, de lunes a sábado.",
-    "aiRead": "off: too-little dead end; facts seeded with the service role",
-    "readyLink": "rosa-both-phone-yvirga.tulala.digital",
+    "sentence": "Soy Rosa both phone yxbjcc. Tengo un estudio de limpieza en Playa del Carmen con un equipo, y también limpio casas yo misma. Hacemos limpieza profunda y ligera, de lunes a sábado.",
+    "readyLink": "rosa-both-phone-yxbjcc.tulala.digital",
     "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
-    "userId": "fd81ad10-098b-4976-8474-694bdaaeb555",
+    "userId": "d168dd75-f418-4781-afab-3b88b2bf3d64",
     "firstBuildEndedOnFailedScreen": true,
     "arrival": "arrival-failed screen (build did not finish)",
     "profile": {
@@ -52,13 +51,13 @@
       "account_status": "active"
     },
     "brief": {
-      "id": "47d5feae-5b36-485c-8f71-65f787a06c44",
+      "id": "d867c7b2-d5d8-498f-a4f2-fddaf75b20d9",
       "choice": "both",
       "locale": "es"
     },
     "talent": {
-      "id": "471334b1-f3a6-4f7e-8abb-f38133ec8312",
-      "code": "TAL-93021",
+      "id": "98a37eb2-ad1b-4576-a9c1-6505f29b98fb",
+      "code": "TAL-93041",
       "preferred_locale": "es",
       "bioLocales": [
         "en",
@@ -69,8 +68,8 @@
     "talentSite": null,
     "visibleAtFail3": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
     "visibleAtFail4": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
-    "landingMs": 90038,
-    "landingPath": "/rosa-both-phone-yvirga/admin",
+    "landingMs": 90022,
+    "landingPath": "/rosa-both-phone-yxbjcc/admin",
     "sawEnglishInterstitial": false,
     "visibleAtFail5": "",
     "visibleAtFail6": ""
