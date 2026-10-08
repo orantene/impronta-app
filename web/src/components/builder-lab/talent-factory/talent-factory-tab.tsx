@@ -155,7 +155,7 @@ function SyncSummary({ facts, lang }: { facts: TalentSyncSummaryFacts; lang: Fac
         </p>
       ) : null}
       {facts.authoredConflict.length > 0 ? (
-        <p className="mt-1 text-amber-200/90" data-sync-conflict>
+        <p className="mt-1 text-blue-200/90" data-sync-conflict>
           {t.syncAuthoredConflict}: {facts.authoredConflict.join(", ")}
         </p>
       ) : null}
