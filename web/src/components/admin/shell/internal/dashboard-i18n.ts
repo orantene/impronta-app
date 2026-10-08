@@ -2906,7 +2906,7 @@ const ES_TEXT: Record<string, string> = {
   "Show info panel": "Mostrar panel de información",
   "Show smart replies": "Mostrar respuestas inteligentes",
   "Sign contract": "Firmar contrato",
-  "Skip to page content": "Saltar al contenido de la página",
+  "Skip to main content": "Saltar al contenido principal",
   "Smart replies (AI suggestions)": "Respuestas inteligentes (sugerencias de IA)",
   "Snooze, pin, mark read, and archive need a real inbox mutation path before they appear here.": "Posponer, fijar, marcar como leído y archivar necesitan una ruta real de mutación de bandeja antes de aparecer aquí.",
   "Sounds good": "Suena bien",
