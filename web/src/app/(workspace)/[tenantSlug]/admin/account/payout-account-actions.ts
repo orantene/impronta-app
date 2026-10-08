@@ -8,12 +8,14 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { findTenantMembership } from "@/lib/saas/tenant";
 import { userHasCapability } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 function backToAccount(tenantSlug: string, params: URLSearchParams): never {
   redirect(`/${tenantSlug}/admin/account?${params.toString()}`);
 }
 
 export async function createWorkspacePayoutAccountAction(formData: FormData): Promise<never> {
+  await requireNotImpersonating();
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
 
   const scope = await getTenantScopeBySlug(tenantSlug);
@@ -79,6 +81,7 @@ export async function createWorkspacePayoutAccountAction(formData: FormData): Pr
 }
 
 export async function createStaffPayoutAccountAction(formData: FormData): Promise<never> {
+  await requireNotImpersonating();
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
 
   const scope = await getTenantScopeBySlug(tenantSlug);

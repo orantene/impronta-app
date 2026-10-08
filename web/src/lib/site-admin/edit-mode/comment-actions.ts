@@ -27,6 +27,7 @@ import { requireSession } from "@/lib/server/action-guards";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
 import { isLocale, type Locale } from "@/lib/site-admin/locales";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ── shared types ────────────────────────────────────────────────────────
 
@@ -262,6 +263,8 @@ export type AddCommentResult =
 export async function addCommentAction(
   input: AddCommentInput,
 ): Promise<AddCommentResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
@@ -382,6 +385,8 @@ export type EditCommentResult =
 export async function editCommentAction(
   input: EditCommentInput,
 ): Promise<EditCommentResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
@@ -469,6 +474,8 @@ export type ResolveCommentResult =
 export async function resolveCommentAction(
   input: ResolveCommentInput,
 ): Promise<ResolveCommentResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
@@ -534,6 +541,8 @@ export type DeleteCommentResult =
 export async function deleteCommentAction(
   input: DeleteCommentInput,
 ): Promise<DeleteCommentResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 

@@ -33,6 +33,7 @@ import {
   SVG_LIBRARY_MAX_BYTES,
   SVG_SANITIZED_METADATA_KEY,
 } from "@/lib/site-admin/media/validation";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,6 +42,8 @@ const BUCKET = "media-public";
 const SVG_MIME = "image/svg+xml";
 
 export async function POST(req: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   const auth = await requireSession();
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });

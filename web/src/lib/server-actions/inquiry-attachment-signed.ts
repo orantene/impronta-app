@@ -36,6 +36,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { loadOwnedTalentInquiry, loadTalentActor } from "@/lib/messaging/talent-actor";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const BUCKET = "inquiry-files";
 /** Mirrors the bucket's file_size_limit (100 MB). */
@@ -161,6 +162,8 @@ export async function actionCreateInquiryAttachmentUploadUrl(
   | { ok: true; data: InquiryAttachmentUploadGrant }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const scoped = await resolveScope(inquiryId);
     if (!scoped.ok) return scoped;
@@ -219,6 +222,7 @@ export type RegisterInquiryAttachmentResult =
 export async function actionRegisterInquiryAttachment(
   input: RegisterInquiryAttachmentInput,
 ): Promise<RegisterInquiryAttachmentResult> {
+  await requireNotImpersonating();
   try {
     const scoped = await resolveScope(input.inquiryId);
     if (!scoped.ok) return scoped;

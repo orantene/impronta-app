@@ -43,6 +43,7 @@ import {
 } from "@/lib/billing/currencies";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const defaultCurrencySchema = z
   .object({
@@ -58,6 +59,8 @@ export type UpdateAgencyDefaultCurrencyResult =
 export async function updateAgencyDefaultCurrency(
   input: UpdateAgencyDefaultCurrencyInput,
 ): Promise<UpdateAgencyDefaultCurrencyResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId, tenantSlug } = auth;

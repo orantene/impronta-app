@@ -42,6 +42,7 @@ import {
   parsePageJsonLd,
   type JsonLdDocument,
 } from "@/lib/site-admin/cms-seo";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const GENERIC_ERROR = "Couldn't save — try again.";
 
@@ -60,6 +61,8 @@ export async function savePageSlugAction(input: {
   pageId: string;
   slug: string;
 }): Promise<SavePageSlugResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
@@ -244,6 +247,8 @@ export async function savePageSeoFlagsAction(input: {
   includeInSitemap?: boolean;
   jsonLdRaw?: string | null;
 }): Promise<SavePageSeoFlagsResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
@@ -365,6 +370,8 @@ export async function createRedirectAction(input: {
   newPath: string;
   statusCode?: number;
 }): Promise<MutateRedirectResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
@@ -452,6 +459,8 @@ export async function setRedirectActiveAction(input: {
   id: string;
   active: boolean;
 }): Promise<SimpleRedirectResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
@@ -491,6 +500,8 @@ export async function setRedirectActiveAction(input: {
 export async function deleteRedirectAction(input: {
   id: string;
 }): Promise<SimpleRedirectResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);

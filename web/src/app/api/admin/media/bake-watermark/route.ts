@@ -13,8 +13,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { bakeWatermarkedVariant } from "@/lib/media/watermark-bake";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export async function POST(req: NextRequest) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });

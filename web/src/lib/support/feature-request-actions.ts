@@ -13,6 +13,7 @@ import {
   type FeatureRequestRow,
 } from "./feature-request-types";
 import type { SupportSurface } from "./support-types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type Fail = { ok: false; error: string };
 
@@ -35,6 +36,7 @@ const submitSchema = z.object({
 export async function submitFeatureRequestAction(
   raw: z.infer<typeof submitSchema>,
 ): Promise<{ ok: true; requestId: string; requestNumber: number } | Fail> {
+  await requireNotImpersonating();
   const parsed = submitSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
 
@@ -100,6 +102,7 @@ export async function submitFeatureRequestAction(
 export async function toggleFeatureRequestVoteAction(raw: {
   requestId: string;
 }): Promise<{ ok: true; voted: boolean } | Fail> {
+  await requireNotImpersonating();
   const parsed = z.object({ requestId: uuid }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const { requireSession } = await import("@/lib/server/action-guards");
@@ -136,6 +139,7 @@ export async function hqUpdateFeatureRequestAction(raw: {
   priority?: string;
   notifyRequester?: boolean;
 }): Promise<{ ok: true } | Fail> {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       requestId: uuid,

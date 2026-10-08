@@ -2,6 +2,7 @@
 
 // Phase 4 — canonical home for mergeGuestActivity (moved from (dashboard)/client/actions.ts).
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { requireClient } from "@/lib/server/action-guards";
@@ -46,6 +47,8 @@ export type MergeGuestActivitySummary = {
 export async function mergeGuestActivity(
   guestFavoriteIds: string[] = [],
 ): Promise<ServerActionResult<MergeGuestActivitySummary>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireClient();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, user } = auth;
@@ -195,6 +198,8 @@ export async function updateClientProfile(
   _prev: ClientProfileActionState,
   formData: FormData,
 ): Promise<ClientProfileActionState> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { error: readOnly.error };
   const auth = await requireClient();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user } = auth;

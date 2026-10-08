@@ -20,6 +20,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { EXCLUSIVE_RELEASE_DENIED } from "@/lib/scheduling/exclusive-release-gate";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const schema = z.object({
   talentProfileId: z.string().uuid(),
@@ -112,6 +113,8 @@ export async function setRosterDirectBooking(
   talentProfileId: string,
   enabled: boolean,
 ): Promise<SetResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = schema.safeParse({ talentProfileId, enabled });
@@ -159,6 +162,8 @@ export async function setRosterExternalBookingReleased(
   talentProfileId: string,
   released: boolean,
 ): Promise<ReleaseResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction({
     capability: "manage_agency_settings",
   });

@@ -34,6 +34,7 @@ import {
   mintCalendarFeedToken,
   revokeCalendarFeedTokens,
 } from "./feed-token";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type IssueFeedUrlResult =
   | { ok: true; url: string }
@@ -57,6 +58,8 @@ async function requestOrigin(): Promise<string> {
 }
 
 export async function issueCalendarFeedUrl(): Promise<IssueFeedUrlResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return { ok: false, error: guard.error };
 
@@ -82,6 +85,8 @@ export async function disconnectCalendarFeed(): Promise<{
   ok: boolean;
   error?: string;
 }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return { ok: false, error: guard.error };
 

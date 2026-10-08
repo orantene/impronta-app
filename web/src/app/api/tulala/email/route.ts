@@ -32,12 +32,15 @@ import {
   type BriefOwner,
 } from "@/lib/tulala/brief-store.server";
 import { factValue, type Brief } from "@/lib/tulala/brief-store";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const BodySchema = z.object({
   email: z.string().trim().email().max(254),
 });
 
 export async function POST(req: Request): Promise<Response> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   if (!isTulalaKvConfigured()) {
     return NextResponse.json({ error: "Unavailable right now." }, { status: 503 });
   }

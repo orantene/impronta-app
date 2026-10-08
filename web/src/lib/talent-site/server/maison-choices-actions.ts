@@ -5,6 +5,7 @@
  * localStorage in the host is only a same-device cache.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
@@ -27,6 +28,8 @@ export type MaisonResumeCardState = {
 export async function saveMaisonSetupChoicesAction(
   raw: unknown,
 ): Promise<ThemeActionResult<{ saved: true }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
   if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {

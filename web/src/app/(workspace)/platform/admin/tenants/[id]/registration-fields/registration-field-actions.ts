@@ -29,6 +29,7 @@ import {
   fieldCatalogTagForTenant,
 } from "@/lib/field-engine/cache-tags";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -141,6 +142,8 @@ const resetSchema = z.object({
 export async function setRegistrationFieldShow(
   input: z.infer<typeof showSchema>,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = showSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid request." };
   const { tenantId, fieldDefinitionId, shown } = parsed.data;
@@ -181,6 +184,8 @@ export async function setRegistrationFieldShow(
 export async function setRegistrationFieldRequired(
   input: z.infer<typeof requiredSchema>,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = requiredSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid request." };
   const { tenantId, fieldDefinitionId, required } = parsed.data;
@@ -223,6 +228,8 @@ export async function setRegistrationFieldRequired(
 export async function reorderRegistrationFields(
   input: z.infer<typeof reorderSchema>,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = reorderSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid request." };
   const { tenantId, orderedIds } = parsed.data;
@@ -283,6 +290,8 @@ export async function reorderRegistrationFields(
 export async function resetRegistrationField(
   input: z.infer<typeof resetSchema>,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = resetSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid request." };
   const { tenantId, fieldDefinitionId } = parsed.data;

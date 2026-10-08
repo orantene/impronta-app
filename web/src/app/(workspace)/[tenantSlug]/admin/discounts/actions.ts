@@ -5,6 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { userHasCapability } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // `kind` is the table's own enum (`percent` | `fixed`, CHECK-constrained);
 // `value` is 1..100 for a percent and INTEGER CENTS for a fixed amount, which
@@ -21,6 +22,7 @@ const createSchema = z
   .refine((v) => v.kind !== "fixed" || Boolean(v.currency), { message: "fixed_currency" });
 
 export async function createTenantPromo(input: z.infer<typeof createSchema>) {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return { ok: false as const, error: guard.error };
   const allowed = await userHasCapability("manage_billing", guard.tenantId);
@@ -50,6 +52,7 @@ export async function createTenantPromo(input: z.infer<typeof createSchema>) {
 }
 
 export async function setTenantPromoActive(id: string, isActive: boolean) {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return { ok: false as const, error: guard.error };
   const allowed = await userHasCapability("manage_billing", guard.tenantId);

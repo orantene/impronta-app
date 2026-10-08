@@ -13,6 +13,7 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
 import type { ServerActionResult } from "@/lib/server-actions/result";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type SendAdminInquiryMessageResult = ServerActionResult<{
   id: string;
@@ -29,6 +30,7 @@ export async function sendAdminInquiryMessage(
   inquiryId: string,
   body: string,
 ): Promise<SendAdminInquiryMessageResult> {
+  await requireNotImpersonating();
   const trimmed = body.trim();
   if (!trimmed || trimmed.length > 10_000) {
     return { ok: false, error: "Message is empty or too long." };
@@ -90,6 +92,7 @@ export async function markAdminInquiryThreadRead(
   tenantSlug: string,
   inquiryId: string,
 ): Promise<void> {
+  await requireNotImpersonating();
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) return;
 

@@ -25,6 +25,7 @@ import {
   type MediaClaimOutcome,
   type MediaReleaseOutcome,
 } from "@/lib/site-admin/server/media-ownership";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -34,6 +35,8 @@ const MAX_IDS_PER_CALL = 500;
 export async function actionClaimMediaOwnership(
   assetIds: string[],
 ): Promise<ActionResult<MediaClaimOutcome>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
   if (!auth.ok) return { ok: false, error: auth.error };
   if (assetIds.length > MAX_IDS_PER_CALL) {
@@ -76,6 +79,8 @@ export async function actionClaimMediaOwnership(
 export async function actionReleaseMediaOwnership(
   assetIds: string[],
 ): Promise<ActionResult<MediaReleaseOutcome>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
   if (!auth.ok) return { ok: false, error: auth.error };
   if (assetIds.length > MAX_IDS_PER_CALL) {

@@ -28,6 +28,7 @@ import {
   type TalentOffering,
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type AuthOk = { ok: true; userId: string; tenantId: string; defaultCurrency: string };
 type AuthFail = { ok: false; error: string };
@@ -154,6 +155,8 @@ export async function upsertWorkspaceMenuItem(
   tenantId: string,
   offering: TalentOffering,
 ): Promise<SaveResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const auth = await authorizeForWorkspace(tenantId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -215,6 +218,8 @@ export async function deleteWorkspaceMenuItem(
   tenantId: string,
   offeringId: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeForWorkspace(tenantId);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
@@ -239,6 +244,8 @@ export async function reorderWorkspaceMenuItems(
   tenantId: string,
   orderedIds: string[],
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeForWorkspace(tenantId);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
@@ -269,6 +276,7 @@ export async function setWorkspaceMenuItemOptions(
   offeringId: string,
   input: OfferingChildrenInput,
 ): Promise<OfferingChildrenSaved> {
+  await requireNotImpersonating();
   try {
     const auth = await authorizeForWorkspace(tenantId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -299,6 +307,7 @@ export async function blankWorkspaceMenuItem(
   tenantId: string,
   sortOrder: number,
 ): Promise<TalentOffering | null> {
+  await requireNotImpersonating();
   const auth = await authorizeForWorkspace(tenantId);
   if (!auth.ok) return null;
   return blankOffering({ kind: "workspace", tenantId }, auth.defaultCurrency, sortOrder);
@@ -344,6 +353,8 @@ export async function setMenuItemStockAction(
   offeringId: string,
   available: number | null,
 ): Promise<StockResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const auth = await authorizeForWorkspace(tenantId);
     if (!auth.ok) return { ok: false, error: auth.error };

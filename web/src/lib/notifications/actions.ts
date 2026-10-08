@@ -2,6 +2,7 @@
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Mark a single notification as read for the calling user.
@@ -10,6 +11,7 @@ import { logServerError } from "@/lib/server/safe-error";
 export async function markNotificationRead(
   notificationId: string,
 ): Promise<{ ok: boolean }> {
+  await requireNotImpersonating();
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false };
@@ -34,6 +36,7 @@ export async function markNotificationRead(
 export async function markAllNotificationsRead(
   tenantId: string,
 ): Promise<{ ok: boolean; count: number }> {
+  await requireNotImpersonating();
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, count: 0 };

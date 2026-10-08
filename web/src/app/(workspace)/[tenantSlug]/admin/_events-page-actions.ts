@@ -26,6 +26,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { localeUrlSettings } from "@/i18n/pathnames";
 import { canonicalEventPath } from "@/lib/events/event-page-paths";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const CAPABILITY = "manage_agency_settings" as const;
 
@@ -119,6 +120,8 @@ export type SetEventPageResult = { ok: true } | { ok: false; error: string };
  * before the write, and the write itself is scoped to the tenant again.
  */
 export async function setEventPage(input: { eventId: string; pageId: string | null }): Promise<SetEventPageResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireWorkspaceStaffAction({ capability: CAPABILITY });
   if (!guard.ok) return { ok: false, error: guard.error };
   const parsed = setSchema.safeParse(input);

@@ -18,6 +18,7 @@
  * site (resolved from the gate, never from input).
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { loadApplyDesignRow } from "@/lib/talent-site/theme-releases/release-design.server";
 import type { TalentSiteCapability } from "@/lib/access/talent-membership";
 import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
@@ -77,6 +78,8 @@ async function ensureSiteId(r: Ready): Promise<{ ok: true; siteId: string } | No
 export async function applySiteDesignAction(input: {
   designSlug: string;
 }): Promise<ThemeActionResult<{ designSlug: string; designVersion: number }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const r = await ready("personalSiteEdit");
   if (!r.ok) return r;
   const loaded = await loadRowFor(r, "design", input?.designSlug);
@@ -98,6 +101,8 @@ export async function applySiteDesignAction(input: {
 export async function applySiteLookAction(input: {
   lookSlug: string;
 }): Promise<ThemeActionResult<{ lookSlug: string; draftTokens: Record<string, string> }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const r = await ready("personalSiteDesignPresets");
   if (!r.ok) return r;
   const loaded = await loadRowFor(r, "look", input?.lookSlug);
@@ -116,6 +121,8 @@ export async function applySiteLookAction(input: {
 export async function refreshSiteContentFromProfileAction(): Promise<
   ThemeActionResult<{ designSlug: string; designVersion: number }>
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const r = await ready("personalSiteEdit");
   if (!r.ok) return r;
   const site = await ensureSiteId(r);
@@ -209,6 +216,8 @@ export async function refreshSiteContentFromProfileAction(): Promise<
 export async function publishSiteThemeAction(): Promise<
   ThemeActionResult<{ themeVersion: number }>
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const r = await ready("personalSiteEdit");
   if (!r.ok) return r;
   const { data, error } = await r.admin

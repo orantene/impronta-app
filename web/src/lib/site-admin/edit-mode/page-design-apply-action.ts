@@ -31,6 +31,7 @@ import {
 } from "@/lib/site-admin/builder-node/page-designs";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { saveHomepageCompositionAction } from "./composition-actions";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ApplyPageDesignState =
   | {
@@ -51,6 +52,7 @@ export async function applyPageDesignToHomepage(
   _prev: ApplyPageDesignState,
   formData: FormData,
 ): Promise<ApplyPageDesignState> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -136,6 +138,7 @@ export async function applyPageDesignToPage(
   designId: string,
   expectedVersion: number,
 ): Promise<ApplyPageDesignState> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);

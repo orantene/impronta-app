@@ -24,6 +24,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { CLIENT_ERROR } from "@/lib/server/safe-error";
 import { writePlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const schema = z
   .object({
@@ -40,6 +41,8 @@ export type UpdateWorkspaceUiInput = z.infer<typeof schema>;
 export async function updatePlatformWorkspaceUi(
   raw: UpdateWorkspaceUiInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not signed in." };
   if (!isPlatformAdmin(session.profile)) {

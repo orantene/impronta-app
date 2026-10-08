@@ -50,6 +50,7 @@ import {
   EDIT_COOKIE_VALUE,
   editCookieNameFor,
 } from "./cookie";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Result envelope for `enterEditModeAction`.
@@ -74,6 +75,7 @@ export interface EnterEditModeResult {
  * action result via `useActionState` (post-hydration error toasts).
  */
 export async function enterEditModeAction(): Promise<EnterEditModeResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) {
     void improntaLog("site_admin_edit_mode.warn", {
@@ -140,6 +142,7 @@ export async function enterEditModeAction(): Promise<EnterEditModeResult> {
 }
 
 export async function exitEditModeAction(): Promise<void> {
+  await requireNotImpersonating();
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return;
   const jar = await cookies();

@@ -20,6 +20,7 @@ import { userHasCapability } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { requesterNames } from "@/lib/approvals/requester-names";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type RoleLimitAction = "discount" | "refund";
 export type RoleLimitRole = "viewer" | "editor" | "manager" | "admin" | "owner";
@@ -82,6 +83,7 @@ export async function writeRoleLimitAction(input: {
   action: RoleLimitAction;
   limitCents: number | null;
 }): Promise<{ ok: true } | Fail> {
+  await requireNotImpersonating();
   const g = await guard(true);
   if (!g.ok) return g;
   const parsed = z

@@ -30,6 +30,7 @@ import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import { authOtpVerifyEmailKey, checkAuthOtpVerifyByEmail } from "@/lib/rate-limit-kv";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { createTranslator } from "@/i18n/messages";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -69,6 +70,8 @@ export async function verifyClientAccountCode(input: {
   locale: string;
   ageTerms: boolean;
 }): Promise<VerifyClientCodeResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const t = createTranslator(input.locale === "es" ? "es" : "en");
   const generic = t("public.clientAccount.genericError");
   // Flag off: the surface does not exist, so the action refuses too.
@@ -148,6 +151,7 @@ export async function verifyClientAccountCode(input: {
 
 /** Asked once, at first sign-in. Unchecked by default; only ever writes the caller's own row. */
 export async function saveClientMarketingConsent(optIn: boolean): Promise<{ ok: boolean }> {
+  if (!(await assertNotImpersonating()).ok) return { ok: false };
   if (!clientAccountEnabledFor("talent")) return { ok: false };
   const supabase = await getCachedServerSupabase();
   const { data } = (await supabase?.auth.getUser().catch(() => null)) ?? { data: null };

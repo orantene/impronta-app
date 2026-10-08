@@ -6,6 +6,7 @@ import { parseWithSchema, trimmedString } from "@/lib/admin/validation";
 import { requireStaff } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // A.4 INTENTIONAL DIVERGENCE: convert to `ServerActionResult<T>`. This is a `useFormState`
 // payload (admin "new client" sheet) that carries both success metadata
@@ -50,6 +51,7 @@ export async function updateAdminClientProfile(
   _prev: AdminClientProfileActionState,
   formData: FormData,
 ): Promise<AdminClientProfileActionState> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { error: auth.error };
 
@@ -99,6 +101,7 @@ export async function createAdminClient(
   _prev: AdminClientProfileActionState,
   formData: FormData,
 ): Promise<AdminClientProfileActionState> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { error: auth.error };
 

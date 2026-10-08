@@ -35,6 +35,7 @@ import { emitFieldChange } from "@/lib/inquiry/audit-field-emit";
 // site. Out of scope for the initial sweep.
 export type { AdminActionState } from "@/lib/admin/admin-action-state";
 import type { AdminActionState } from "@/lib/admin/admin-action-state";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const updateInquirySchema = z.object({
   inquiry_id: z.string().min(1, "Missing inquiry."),
@@ -71,6 +72,8 @@ export type CreateAgencyInquiryResult =
 export async function createAgencyInquiry(
   input: Record<string, string | undefined>,
 ): Promise<CreateAgencyInquiryResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
@@ -236,6 +239,7 @@ export async function updateInquiry(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
@@ -397,6 +401,7 @@ export async function updateInquiryClientInfo(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, tenantId } = auth;
@@ -489,6 +494,7 @@ export async function updateInquiryLocation(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
@@ -583,6 +589,7 @@ export async function updateInquiryRequestDetails(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, tenantId } = auth;
@@ -668,17 +675,20 @@ export async function addInquiryTalent(
   _prev: AdminActionState,
   _formData: FormData,
 ): Promise<AdminActionState> {
+  await requireNotImpersonating();
   // inquiry_talent was dropped in migration 20260522000000_phase2_backfill_and_drop_inquiry_talent.sql.
   // All inquiries now use inquiry_participants. This action is a no-op stub.
   return { error: "Legacy roster action is disabled. Use the v2 roster participants UI." };
 }
 
 export async function removeInquiryTalent(_formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   // inquiry_talent was dropped in migration 20260522000000_phase2_backfill_and_drop_inquiry_talent.sql.
   // This action is a no-op stub.
 }
 
 export async function moveInquiryTalent(_formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   // inquiry_talent was dropped in migration 20260522000000_phase2_backfill_and_drop_inquiry_talent.sql.
   // This action is a no-op stub.
 }
@@ -696,6 +706,7 @@ export async function patchInquiryEntityLinks(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
@@ -816,6 +827,7 @@ export async function createBooking(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
@@ -942,6 +954,7 @@ export async function createClientAccount(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
@@ -1159,6 +1172,7 @@ export async function updateClientLocation(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, tenantId } = auth;
@@ -1284,6 +1298,7 @@ export async function createClientAccountContact(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
@@ -1433,6 +1448,7 @@ export async function assignInquiryToCurrentStaff(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
@@ -1506,6 +1522,7 @@ export async function createManualInquiry(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
@@ -1707,6 +1724,7 @@ export async function createManualInquiry(
 }
 
 export async function assignInquiryToCurrentStaffForm(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   await assignInquiryToCurrentStaff(undefined, formData);
 }
 
@@ -1717,6 +1735,7 @@ const quickInquiryStatusPeekSchema = z.object({
 
 /** Status-only patch for inquiry list rows / quick actions (no navigation). */
 export async function quickPatchInquiryStatus(formData: FormData): Promise<AdminActionState> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
@@ -1820,6 +1839,7 @@ type InquiryRow = {
 };
 
 export async function duplicateInquiry(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) redirect("/admin/inquiries");
   const { supabase, user, tenantId } = auth;
@@ -1956,6 +1976,8 @@ export async function sendInquiryMessageAsAdmin(
   threadType: "private" | "group",
   body: string,
 ): Promise<AdminSendMessageResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const trimmed = body.trim();
     if (!trimmed) return { ok: false, error: "Message is empty." };

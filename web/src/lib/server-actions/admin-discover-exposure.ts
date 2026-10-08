@@ -23,6 +23,7 @@ import {
   mapTenantDiscoverExposure,
   type TenantDiscoverExposure,
 } from "@/lib/saas/discover-exposure";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type HubOption = { id: string; slug: string; displayName: string };
 
@@ -86,6 +87,8 @@ export async function loadDiscoverExposure(): Promise<LoadDiscoverExposureResult
 export async function saveDiscoverExposure(
   input: SaveDiscoverExposureInput,
 ): Promise<SaveDiscoverExposureResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = saveSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };

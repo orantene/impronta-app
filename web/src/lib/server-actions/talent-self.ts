@@ -24,6 +24,7 @@ import {
   loadTalentLocaleRow,
   normalizeTalentLocalePair,
 } from "@/lib/site-admin/server/talent-locale-settings";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type TalentPayoutSnapshot = {
   hasProfile: boolean;
@@ -224,6 +225,8 @@ export type UpdateTalentPreferredLanguageResult =
 export async function updateTalentPreferredLanguage(
   candidate: string | null,
 ): Promise<UpdateTalentPreferredLanguageResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   // 2026-09-29: delegates to `updateTalentLanguages`, keeping the talent's
   // current secondary languages. Now bounded to PLATFORM public locales (not
   // the agency's), matching the talent-owned language model.
@@ -328,6 +331,8 @@ export async function loadTalentLanguages(): Promise<LoadTalentLanguagesResult> 
 export async function updateTalentLanguages(
   input: UpdateTalentLanguagesInput,
 ): Promise<UpdateTalentLanguagesResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const who = await resolveTalentSelfProfileId();
     if (!who.ok) return who;

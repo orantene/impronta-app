@@ -20,12 +20,14 @@ import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity
 import { requireAdmin } from "@/lib/server/action-guards";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logImpersonation } from "@/lib/platform/staff-access-log";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 function impersonationSecret(): string | undefined {
   return process.env.IMPERSONATION_COOKIE_SECRET?.trim() || undefined;
 }
 
 export async function startImpersonationAsQaTalent(): Promise<void> {
+  await requireNotImpersonating();
   const admin = await requireAdmin();
   if (!admin.ok) redirect("/login");
 
@@ -64,6 +66,7 @@ export async function startImpersonationAsQaTalent(): Promise<void> {
 }
 
 export async function startImpersonationAsQaClient(): Promise<void> {
+  await requireNotImpersonating();
   const admin = await requireAdmin();
   if (!admin.ok) redirect("/login");
 

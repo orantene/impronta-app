@@ -25,6 +25,7 @@ import { z } from "zod";
 import { checkTulalaTurnBySession, isTulalaKvConfigured } from "@/lib/rate-limit-kv-tulala";
 import { loadBrief, resolveFactApprovals } from "@/lib/tulala/brief-store.server";
 import { resolveBriefOwner } from "@/lib/tulala/owner.server";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const BodySchema = z.object({
   decisions: z
@@ -36,6 +37,8 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: Request): Promise<Response> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   if (!isTulalaKvConfigured()) {
     return NextResponse.json({ error: "Unavailable right now." }, { status: 503 });
   }

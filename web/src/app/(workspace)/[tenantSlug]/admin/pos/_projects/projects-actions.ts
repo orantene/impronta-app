@@ -39,6 +39,7 @@ import {
   loadProjectForMode,
   type ReceiptLookup,
 } from "./projects-mode-loader";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
@@ -90,6 +91,7 @@ export async function projectsCollect(input: {
   idempotencyKey: string;
   expectedVersion: number;
 }): Promise<ProjectsCollectResult> {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return { ok: false, kind: "action", error: g.error };
   const parsed = z

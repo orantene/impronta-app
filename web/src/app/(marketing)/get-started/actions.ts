@@ -31,6 +31,7 @@ import { stampOpenGuestTicketsWithLeadId } from "@/lib/support/load-guest-leads"
 import { resolveGuestSessionId } from "@/lib/guest/guest-session";
 import { writeSignupBrief } from "@/lib/tulala/brief-from-signup";
 import type { BriefOwner } from "@/lib/tulala/brief-store.server";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Server action for /get-started signup capture.
@@ -198,6 +199,7 @@ export async function submitGetStartedSignup(
   _prev: GetStartedActionResult | null,
   formData: FormData,
 ): Promise<GetStartedActionResult> {
+  await requireNotImpersonating();
   const honey = String(formData.get("company_website") ?? "").trim();
   if (honey.length > 0) {
     return {
