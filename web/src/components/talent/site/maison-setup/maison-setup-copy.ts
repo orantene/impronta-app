@@ -8,6 +8,12 @@ const ES: Record<string, string> = {
   "Find your website style": "Encuentra el estilo de tu sitio",
   "Explore designs, then see them with your photos and services.":
     "Explora diseños y míralos con tus fotos y servicios.",
+  "{n} designs available. Preview one with your photos and services.":
+    "{n} diseños disponibles. Mira uno con tus fotos y servicios.",
+  "1 design available. Preview it with your photos and services.":
+    "1 diseño disponible. Míralo con tus fotos y servicios.",
+  "{n} designs available": "{n} diseños disponibles",
+  "1 design available": "1 diseño disponible",
   "Featured demo:": "Demo destacada:",
   "1 demo": "1 demo",
   "Explore theme →": "Explorar tema →",
@@ -166,9 +172,11 @@ const ES: Record<string, string> = {
   Classes: "Clases",
   "Multi-talent": "Multitalento",
   "Suggested from your profile: {a} and {b}. Every theme stays open to you.":
-    "Sugeridos por tu perfil: {a} y {b}. Todos los temas siguen disponibles.",
+    "Sugeridos por tu perfil: {a} y {b}.",
   "Suggested from your profile: {a}. Every theme stays open to you.":
-    "Sugerido por tu perfil: {a}. Todos los temas siguen disponibles.",
+    "Sugerido por tu perfil: {a}.",
+  "Suggested from your profile: {a} and {b}.": "Sugeridos por tu perfil: {a} y {b}.",
+  "Suggested from your profile: {a}.": "Sugerido por tu perfil: {a}.",
   "{n} demos in {m} themes": "{n} demos en {m} temas",
   "{n} demos in 1 theme": "{n} demos en 1 tema",
   "1 demo in 1 theme": "1 demo en 1 tema",
@@ -195,6 +203,8 @@ const ES: Record<string, string> = {
   "No themes with these filters": "Ningún tema con estos filtros",
   "Every theme works for any profession. Try a nearby word, or reset the filters to see all {n} themes.":
     "Todos los temas sirven para cualquier profesión. Prueba una palabra cercana o restablece los filtros para ver los {n} temas.",
+  "Each design works for any profession. Try a nearby word, or reset the filters to see all {n}.":
+    "Cada diseño sirve para cualquier profesión. Prueba una palabra cercana o restablece los filtros para ver los {n}.",
   "Changing the design of {address}. The live site stays as it is until you publish.":
     "Cambiando el diseño de {address}. El sitio publicado no cambia hasta que publiques.",
   "Back to My website": "Volver a Mi sitio",

@@ -1,12 +1,13 @@
 /**
- * Three finished designs in the gallery (Maison, Maison v2, Folio); Solace,
- * Mono and Frame only with TALENT_GALLERY_EXTRA_DESIGNS=1.
+ * Four finished designs in the gallery (Maison, Maison v2, Folio, Gridline);
+ * Solace, Mono and Frame only with TALENT_GALLERY_EXTRA_DESIGNS=1.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
   FINISHED_GALLERY_SLUGS,
+  finishedGalleryCount,
   GALLERY_DESIGNS,
   searchGallery,
   suggestedDesignsForTrade,
@@ -14,15 +15,16 @@ import {
   visibleGalleryDesigns,
 } from "./gallery-meta";
 
-const THREE = ["maison", "maison-v2", "folio", "gridline"];
+const FOUR = ["maison", "maison-v2", "folio", "gridline"];
 
 test("default gallery shows exactly the four finished designs", () => {
   delete process.env.TALENT_GALLERY_EXTRA_DESIGNS;
   delete process.env.NEXT_PUBLIC_TALENT_GALLERY_EXTRA_DESIGNS;
-  assert.deepEqual([...FINISHED_GALLERY_SLUGS], THREE);
-  assert.deepEqual(visibleGalleryDesigns().map((d) => d.slug), THREE);
+  assert.deepEqual([...FINISHED_GALLERY_SLUGS], FOUR);
+  assert.deepEqual(visibleGalleryDesigns().map((d) => d.slug), FOUR);
+  assert.equal(finishedGalleryCount(), 4);
   const out = searchGallery();
-  assert.deepEqual(out.results.map((r) => r.design.slug), THREE);
+  assert.deepEqual(out.results.map((r) => r.design.slug), FOUR);
   assert.equal(out.themeCount, 4);
   // Hidden designs stay in code for previews and saved sites.
   assert.equal(GALLERY_DESIGNS.length, 7);
@@ -52,7 +54,7 @@ test("trade suggestions only name visible designs", () => {
   for (const trade of ["Personal Trainer", "Masajista", "wellness", "DJ", "Chef", "Nails"]) {
     const s = suggestedDesignsForTrade(trade, false);
     assert.ok(s.length > 0, trade);
-    for (const slug of s) assert.ok(THREE.includes(slug), `${trade} -> ${slug}`);
+    for (const slug of s) assert.ok(FOUR.includes(slug), `${trade} -> ${slug}`);
   }
 });
 

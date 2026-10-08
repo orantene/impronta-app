@@ -445,9 +445,14 @@ export function galleryExtraDesignsEnabled(): boolean {
   );
 }
 
-/** Designs the gallery shows: the finished three, or all with the flag on. */
+/** Designs the gallery shows: the finished four, or all with the flag on. */
 export function visibleGalleryDesigns(showExtra: boolean = galleryExtraDesignsEnabled()): readonly GalleryDesign[] {
   return showExtra ? GALLERY_DESIGNS : GALLERY_DESIGNS.filter((d) => FINISHED_GALLERY_SLUGS.includes(d.slug));
+}
+
+/** Honest finished-design count for gallery chrome (never the full catalog aspiration). */
+export function finishedGalleryCount(showExtra: boolean = galleryExtraDesignsEnabled()): number {
+  return visibleGalleryDesigns(showExtra).length;
 }
 
 export function getGalleryDesign(slug: string): GalleryDesign | undefined {

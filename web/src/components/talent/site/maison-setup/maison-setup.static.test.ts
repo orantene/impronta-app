@@ -27,7 +27,13 @@ test("P3: Choose a design renders the browse gallery (supersedes W75)", () => {
   // with a text label.
   assert.match(gallery, /lastViewed=\{state\.lastViewed === r\.design\.slug\}/);
   assert.match(read("GalleryDesignCard.tsx"), /data-last-viewed=\{lastViewed \? "" : undefined\}/);
-  assert.match(gallery, /visibleGalleryDesigns/);
+  // TUL-331: idle chrome names finishedGalleryCount, never a catalog aspiration.
+  assert.match(gallery, /finishedGalleryCount/);
+  assert.match(gallery, /gallery-available-count/);
+  assert.match(gallery, /gallery-available-subtitle/);
+  assert.match(gallery, /\{n\} designs available\. Preview one with your photos and services\./);
+  assert.match(gallery, /Each design works for any profession\. Try a nearby word, or reset the filters to see all \{n\}\./);
+  assert.doesNotMatch(gallery, /Explore designs, then see them with your photos and services\./);
   assert.equal(/#[0-9a-fA-F]{3,8}\b/.test(gallery), false, "no hex literals");
   assert.equal(gallery.includes("—"), false, "no em dashes");
 });

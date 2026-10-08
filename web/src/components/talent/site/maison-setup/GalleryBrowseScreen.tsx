@@ -6,10 +6,10 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  finishedGalleryCount,
   GALLERY_CATEGORY_CHIPS,
   GALLERY_PROFESSIONS,
   suggestedDesignsForTrade,
-  visibleGalleryDesigns,
   type GalleryCategoryChip,
   type GallerySearchResult,
   type GalleryStyleTag,
@@ -147,10 +147,19 @@ export function GalleryBrowseScreen({
     });
   };
 
+  const availableCount = finishedGalleryCount();
   const resultLine = (() => {
-    if (!active || output.themeCount === 0) return null;
+    if (output.themeCount === 0) return null;
     const n = output.demoCount;
     const m = output.themeCount;
+    // Idle gallery: name the finished count so chips/filters do not imply a large library.
+    if (!active) {
+      return (
+        <b className="font-semibold text-admin-ink" data-testid="gallery-available-count">
+          {availableCount === 1 ? t("1 design available") : t("{n} designs available", { n: availableCount })}
+        </b>
+      );
+    }
     if (searching) {
       const head =
         m === 1 ? (n === 1 ? t("1 demo in 1 theme") : t("{n} demos in 1 theme", { n })) : t("{n} demos in {m} themes", { n, m });
@@ -207,8 +216,10 @@ export function GalleryBrowseScreen({
         <h2 className="text-[24px] font-semibold leading-tight tracking-[-0.02em] text-admin-ink md:text-[30px]">
           {t("Find your website style")}
         </h2>
-        <p className="mt-1 text-[14.5px] text-admin-ink-muted md:text-[16px]">
-          {t("Explore designs, then see them with your photos and services.")}
+        <p className="mt-1 text-[14.5px] text-admin-ink-muted md:text-[16px]" data-testid="gallery-available-subtitle">
+          {availableCount === 1
+            ? t("1 design available. Preview it with your photos and services.")
+            : t("{n} designs available. Preview one with your photos and services.", { n: availableCount })}
         </p>
       </div>
 
@@ -390,9 +401,9 @@ export function GalleryBrowseScreen({
               ? t("No demos for “{q}” with these filters", { q: state.query.trim() })
               : t("No themes with these filters")}
           </h3>
-          <p className="max-w-[46ch] text-[14.5px] text-admin-ink-muted">
-            {t("Every theme works for any profession. Try a nearby word, or reset the filters to see all {n} themes.", {
-              n: visibleGalleryDesigns().length,
+          <p className="max-w-[46ch] text-[14.5px] text-admin-ink-muted" data-testid="gallery-empty-honest-count">
+            {t("Each design works for any profession. Try a nearby word, or reset the filters to see all {n}.", {
+              n: availableCount,
             })}
           </p>
           <div className="flex flex-wrap justify-center gap-2">
