@@ -1,15 +1,13 @@
 /**
- * TUL-15: a photo caption the talent wrote in one language only. When the
- * visitor's language has no caption and the primary-language caption is shown
- * instead, a small muted line names the caption's language: "(en español)"
- * under a Spanish caption, "(in English)" under an English one. The walk and
- * the language names come from the bio's helper (`bio-language-hint.ts`), so
- * captions and bios agree. Nothing is translated; alt text is never touched.
+ * TUL-15: a photo caption the talent wrote in one language only. When the visitor's language has no
+ * caption and the primary-language caption is shown instead, a small muted line names the caption's
+ * language. ONE hint style everywhere: captions use the bio's helper (`bio-language-hint.ts`) and its
+ * wording, "(Text in Spanish)" for an English visitor, "(Texto en inglés)" for a Spanish one. Nothing is
+ * translated; alt text is never touched. The same hint rides on the lightbox caption.
  *
  * Pure (no React / no IO).
  */
-import { localizeLanguageName } from "@/lib/i18n/language-names";
-import { bioFallbackLanguage, ENGLISH_NAME } from "@/lib/talent-site/bio-language-hint";
+import { bioLanguageHint } from "@/lib/talent-site/bio-language-hint";
 
 import { readPortfolioI18nMap } from "./portfolio-i18n";
 
@@ -45,12 +43,6 @@ export function captionLanguageHint(args: {
   const visitor = key(args.locale);
   const primary = key(args.primaryLocale);
   if (!visitor || !primary || visitor === primary) return null;
-  const shown = bioFallbackLanguage(
-    { ...(args.captionI18n ?? {}), [primary]: args.caption },
-    visitor,
-    [primary],
-  );
-  if (!shown) return null;
-  const name = localizeLanguageName(shown, ENGLISH_NAME[shown] ?? shown.toUpperCase(), shown);
-  return shown === "es" ? `(en ${name.toLowerCase()})` : `(in ${name})`;
+  // ONE hint style everywhere: the bio's helper ("(Text in Spanish)" / "(Texto en inglés)").
+  return bioLanguageHint({ ...(args.captionI18n ?? {}), [primary]: args.caption }, visitor, [primary]);
 }

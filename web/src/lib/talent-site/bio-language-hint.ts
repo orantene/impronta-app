@@ -40,8 +40,8 @@ export function bioFallbackLanguage(
 }
 
 /**
- * The hint line for the visitor, or null when none is needed. Only for the
- * bio (long text), never for captions.
+ * The hint line for the visitor, or null when none is needed. The one hint style for the bio and for
+ * photo captions (and the lightbox caption).
  */
 export function bioLanguageHint(
   bioI18n: BioMap,

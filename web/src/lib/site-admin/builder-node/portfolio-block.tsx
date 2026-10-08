@@ -295,7 +295,10 @@ export function renderPortfolioBlock(args: {
   const magazine = isChapter && p.edition === "magazine";
 
   const workOrder = layout === "work_order";
-  const galleryItems = buildPortfolioGallery(visible, (id) => byOffering.has(id), es);
+  const galleryItems = buildPortfolioGallery(visible, (id) => byOffering.has(id), es, showCaptions ? (shot) => {
+    const full = visible.find((v) => v.id === shot.id);
+    return captionLanguageHint({ caption: full?.caption, captionI18n: full?.captionI18n, locale: args.locale, primaryLocale: args.primaryLocale });
+  } : undefined);
   const shotNodes = visible.map((shot, index) => workOrder ? (
     <WorkOrderFigure key={shot.id} shot={shot} />
   ) : (
