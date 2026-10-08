@@ -24,6 +24,7 @@ import { PageHeader } from "../shared/page-chrome-1";
 import { restoreClient } from "@/lib/talent/client-records-actions";
 import { ClientArchiveSheet, ClientDetailsPanel, ClientNoteInline } from "./ClientPanels";
 import { settleServerAction } from "@/lib/client/settle-server-action";
+import { useHydrated } from "../shared/use-hydrated";
 
 const FILTERS: { id: ClientsFilter; label: string }[] = [
   { id: "all", label: "All" },
@@ -39,21 +40,22 @@ function formatMoney(cents: number, currency: string | null, locale = "en"): str
   return formatDashboardMoneyCents(cents, currency, locale);
 }
 
-function formatMonthYear(iso: string, dateLocale?: string): string {
+function formatMonthYear(iso: string, dateLocale?: string, timeZone?: string): string {
   try {
-    return new Date(iso).toLocaleDateString(dateLocale, { month: "long", year: "numeric" });
+    return new Date(iso).toLocaleDateString(dateLocale, { month: "long", year: "numeric", timeZone });
   } catch {
     return "";
   }
 }
 
-function formatDay(iso: string | null, dateLocale?: string): string {
+function formatDay(iso: string | null, dateLocale?: string, timeZone?: string): string {
   if (!iso) return "";
   try {
     return new Date(iso).toLocaleDateString(dateLocale, {
       weekday: "short",
       day: "numeric",
       month: "short",
+      timeZone,
     });
   } catch {
     return "";
@@ -194,6 +196,9 @@ function ClientRecord(props: {
 }) {
   const { row, t, router } = props;
   const dateLocale = useDashboardText().isSpanish ? "es-MX" : "en-US";
+  // Server and the hydration pass render in UTC; the viewer's own timezone only
+  // after hydration, so a day near midnight cannot differ between the two (#418).
+  const dateZone = useHydrated() ? undefined : "UTC";
   const action = clientsRowAction(row);
   const history = row.history ?? [];
   const completed = history.filter((h) => (h.state ?? (h.past ? "completed" : null)) === "completed");
@@ -222,7 +227,7 @@ function ClientRecord(props: {
               {[row.phone, row.email].filter(Boolean).join(" · ") || t("No phone or email on file")}
             </p>
             <p className="mt-0.5 font-admin-body text-[13px] text-admin-ink-muted">
-              {row.firstSeenAt ? `${t("Client since")} ${formatMonthYear(row.firstSeenAt, dateLocale)} · ` : ""}
+              {row.firstSeenAt ? `${t("Client since")} ${formatMonthYear(row.firstSeenAt, dateLocale, dateZone)} · ` : ""}
               {row.source === "booking" ? t("From a booking") : t("From a message")}
             </p>
           </div>
@@ -236,7 +241,7 @@ function ClientRecord(props: {
           {row.nextStartsAt ? (
             <>
               <div className="mt-1 font-admin-body text-[17px] font-bold text-admin-ink">
-                {formatDay(row.nextStartsAt, dateLocale)}
+                {formatDay(row.nextStartsAt, dateLocale, dateZone)}
               </div>
               <div className="mt-1 text-[13px] font-semibold text-admin-ink-muted">
                 {nextStatusLabel(row.nextStatus, t)}
@@ -300,7 +305,7 @@ function ClientRecord(props: {
                   }`}
                 >
                   <span className="w-[96px] shrink-0 font-admin-body text-[13.5px] text-admin-ink">
-                    {formatDay(h.startsAt, dateLocale)}
+                    {formatDay(h.startsAt, dateLocale, dateZone)}
                   </span>
                   <span className="min-w-0 flex-1 font-admin-body text-[13px]">
                     <span className="block text-[14px] text-admin-ink">
@@ -361,11 +366,11 @@ function ClientRecord(props: {
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-admin-ink-muted">{t("First visit")}</dt>
-              <dd className="text-admin-ink">{first ? formatDay(first.startsAt, dateLocale) : t("None yet")}</dd>
+              <dd className="text-admin-ink">{first ? formatDay(first.startsAt, dateLocale, dateZone) : t("None yet")}</dd>
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-admin-ink-muted">{t("Last visit")}</dt>
-              <dd className="text-admin-ink">{completed[0] ? formatDay(completed[0].startsAt, dateLocale) : t("None yet")}</dd>
+              <dd className="text-admin-ink">{completed[0] ? formatDay(completed[0].startsAt, dateLocale, dateZone) : t("None yet")}</dd>
             </div>
           </dl>
         </details>
@@ -378,6 +383,7 @@ export function TalentClientsPage() {
   const { bridgeTalentSelfProfile, toast } = useAdminShell();
   const copy = useDashboardText();
   const dateLocale = copy.isSpanish ? "es-MX" : "en-US";
+  const dateZone = useHydrated() ? undefined : "UTC";
   const t = copy.t;
   const router = useRouter();
   const talentId = bridgeTalentSelfProfile?.id ?? null;
@@ -645,7 +651,7 @@ export function TalentClientsPage() {
                         {row.completedCount > 0 ? (
                           <>
                             {[
-                              formatDay(lastCompleted(row)?.startsAt ?? row.lastVisit, dateLocale),
+                              formatDay(lastCompleted(row)?.startsAt ?? row.lastVisit, dateLocale, dateZone),
                               (() => {
                                 const h = lastCompleted(row);
                                 return h ? historyService(h, row.name) : null;
@@ -664,7 +670,7 @@ export function TalentClientsPage() {
                       <div className="text-[13.5px] text-admin-ink">
                         {row.nextStartsAt ? (
                           <>
-                            {formatDay(row.nextStartsAt, dateLocale)}
+                            {formatDay(row.nextStartsAt, dateLocale, dateZone)}
                             <div className="mt-0.5 text-[12px] font-semibold text-admin-ink-muted">
                               {nextStatusLabel(row.nextStatus, t)}
                             </div>
@@ -734,9 +740,9 @@ export function TalentClientsPage() {
                             </span>
                             <span className="mt-0.5 block text-[14px] text-admin-ink-muted">
                               {row.nextStartsAt
-                                ? `${t("Next")}: ${formatDay(row.nextStartsAt, dateLocale)} · ${nextStatusLabel(row.nextStatus, t)}`
+                                ? `${t("Next")}: ${formatDay(row.nextStartsAt, dateLocale, dateZone)} · ${nextStatusLabel(row.nextStatus, t)}`
                                 : row.completedCount > 0
-                                  ? `${row.completedCount} ${t("completed")}${row.lastVisit ? ` · ${formatDay(row.lastVisit, dateLocale)}` : ""}`
+                                  ? `${row.completedCount} ${t("completed")}${row.lastVisit ? ` · ${formatDay(row.lastVisit, dateLocale, dateZone)}` : ""}`
                                   : t("No work yet")}
                             </span>
                           </span>
