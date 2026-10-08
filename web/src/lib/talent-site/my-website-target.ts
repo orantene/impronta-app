@@ -54,3 +54,34 @@ export function shouldAutoCreatePersonalSite(input: {
 }): boolean {
   return !input.hasPersonalSite && !input.ownsBusinessWorkspace;
 }
+
+const SAFE_SLUG = /^[a-z0-9][a-z0-9-]*$/;
+
+/**
+ * TUL-373: the server-side "Edit site" redirect decision for
+ * `/talent/page-builder`. Returns the workspace builder href only for a
+ * business owner whose workspace site exists (and the caller did not ask for the
+ * personal builder on purpose); `null` means "stay on the in-page editor"
+ * (talent, unknown or failed lookup). It never returns a `/talent/...` path, so
+ * the redirect cannot loop back into the page that issues it.
+ */
+export function resolveEditSiteRedirect(input: MyWebsiteInput): string | null {
+  const target = resolveMyWebsiteTarget(input);
+  if (target.kind !== "workspace") return null;
+  if (!SAFE_SLUG.test(target.slug)) return null;
+  return target.href;
+}
+
+/**
+ * Does deciding the redirect need the personal-site probe? Only when a business
+ * owner explicitly asked for the personal builder: every other case is decided
+ * by the workspace facts alone, so the extra query (and its round trip) is
+ * skipped.
+ */
+export function editSiteNeedsPersonalProbe(input: {
+  ownsBusinessWorkspace: boolean;
+  hasWorkspaceSite: boolean;
+  explicitPersonal: boolean;
+}): boolean {
+  return input.explicitPersonal && input.ownsBusinessWorkspace && input.hasWorkspaceSite;
+}
