@@ -11,6 +11,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { logServerError } from "@/lib/server/safe-error";
 
 import { resolvePortfolioAlt, resolvePortfolioCaption } from "./portfolio-i18n";
+import { resolveLinkedOfferingTitle } from "./portfolio-offering-title";
 import type { TalentPortfolioShot } from "./portfolio-types";
 
 const BUCKET = "media-public";
@@ -92,7 +93,7 @@ export async function loadPortfolioSources(
       if (offeringIds.length > 0) {
         const { data: offs, error: offErr } = await trusted
           .from("talent_offerings")
-          .select("id, title")
+          .select("id, title, title_i18n")
           .in("id", offeringIds)
           .eq("status", "published")
           .eq("visibility", "public");
@@ -100,8 +101,9 @@ export async function loadPortfolioSources(
           logServerError("portfolio.loadOfferings", offErr);
         } else {
           for (const o of offs ?? []) {
-            const row = o as { id: string; title: string };
-            published.set(row.id, row.title);
+            const row = o as { id: string; title: string; title_i18n?: unknown };
+            // The linked service's name in the visitor's language (title_i18n), not only the primary title.
+            published.set(row.id, resolveLinkedOfferingTitle(row, opts?.locale, opts?.primaryLocale));
           }
         }
       }
