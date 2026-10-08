@@ -33,6 +33,11 @@ import {
   tagsAfterRemove,
 } from "./asset-edits";
 import { LIBRARY_FOCUS_CLASS, MediaThumb } from "./media-library-kit";
+import {
+  MediaLibraryCaptions,
+  type CaptionEditor,
+  type CaptionLabels,
+} from "./media-library-captions";
 
 export type DetailLabels = {
   title: string;
@@ -62,6 +67,8 @@ export function MediaLibraryDetail({
   onSaveAlt,
   onSaveTags,
   onCrop,
+  captionEditor,
+  captionLabels,
 }: {
   item: MediaLibraryWireItem;
   labels: DetailLabels;
@@ -76,6 +83,9 @@ export function MediaLibraryDetail({
    * the upload of the cropped result, exactly as the drawer did.
    */
   onCrop?: (item: MediaLibraryWireItem) => void;
+  /** Talent scope: per-language photo caption fields (TUL-229). */
+  captionEditor?: CaptionEditor;
+  captionLabels?: CaptionLabels;
 }) {
   const [altDraft, setAltDraft] = useState(item.alt ?? "");
   const [tagDraft, setTagDraft] = useState("");
@@ -268,6 +278,10 @@ export function MediaLibraryDetail({
           </p>
         )}
       </div>
+
+      {captionEditor && captionLabels ? (
+        <MediaLibraryCaptions item={item} editor={captionEditor} labels={captionLabels} />
+      ) : null}
 
       <div className="grid gap-1">
         <FieldLabel>{labels.tagsLabel}</FieldLabel>

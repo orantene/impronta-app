@@ -633,7 +633,7 @@ Should show: `data-profile-shell`, `data-profile-hero`,
 ### 7.4 Typecheck
 
 ```bash
-cd web && npx tsc --noEmit 2>&1 | grep -v "dev-revalidate"
+cd web && npm run typecheck 2>&1 | grep -v "dev-revalidate"
 ```
 
 Must be empty output. Pre-existing error in `dev-revalidate/route.ts` is

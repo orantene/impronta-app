@@ -12,21 +12,23 @@ test("resolveWorkspaceAdminPage maps canonical workspace route segments", () => 
 
 test("resolveWorkspaceAdminPage maps legacy route aliases", () => {
   assert.equal(resolveWorkspaceAdminPage("inbox"), "messages");
-  assert.equal(resolveWorkspaceAdminPage("work"), "messages");
-  assert.equal(resolveWorkspaceAdminPage("talent"), "roster");
+  // Projects and People are built destinations now; their old segments are
+  // aliases that follow them (lib/workspace/page-ids.test.ts pins the same).
+  assert.equal(resolveWorkspaceAdminPage("work"), "projects");
+  assert.equal(resolveWorkspaceAdminPage("talent"), "people");
   assert.equal(resolveWorkspaceAdminPage("site"), "website");
   assert.equal(resolveWorkspaceAdminPage("billing"), "settings");
 });
 
 test("resolveWorkspaceAdminPage maps canonical server-rendered routes", () => {
-  // /admin/financials — business financials page (L46)
-  assert.equal(resolveWorkspaceAdminPage("financials"), "financials");
+  // /admin/financials is an alias of the built Payments destination.
+  assert.equal(resolveWorkspaceAdminPage("financials"), "payments");
   assert.equal(resolveWorkspaceAdminPage("pos"), "pos");
   assert.equal(resolveWorkspaceAdminPage("tables"), "tables");
   assert.equal(resolveWorkspaceAdminPage("preparation"), "preparation");
   assert.equal(resolveWorkspaceAdminPage("sales"), "sales");
   // /admin/roster/applications — layout strips to first segment "roster";
-  // the "roster" entry already covers this sub-route.
+  // /admin/roster keeps its own SPA body (LEGACY_PAGES_WITH_THEIR_OWN_BODY).
   assert.equal(resolveWorkspaceAdminPage("roster"), "roster");
 });
 
@@ -45,12 +47,12 @@ test("resolveWorkspaceAdminPage defaults unknown and empty segments to overview"
 test("a canonical destination segment resolves to the page it renders at today", () => {
   assert.equal(resolveWorkspaceAdminPage("appts"), "sessions");
   assert.equal(resolveWorkspaceAdminPage("catalog"), "menu");
-  assert.equal(resolveWorkspaceAdminPage("people"), "roster");
+  assert.equal(resolveWorkspaceAdminPage("people"), "people");
   assert.equal(resolveWorkspaceAdminPage("spaces"), "tables");
   assert.equal(resolveWorkspaceAdminPage("issues"), "exceptions");
-  // Not built: their URL lands on the real page the registry names.
-  assert.equal(resolveWorkspaceAdminPage("payments"), "financials");
-  assert.equal(resolveWorkspaceAdminPage("projects"), "messages");
+  // Payments, Projects and People are built: each renders at its own segment.
+  assert.equal(resolveWorkspaceAdminPage("payments"), "payments");
+  assert.equal(resolveWorkspaceAdminPage("projects"), "projects");
   // No route at all yet, and it says so rather than pointing somewhere it is not.
   assert.equal(resolveWorkspaceAdminPage("mywork"), "overview");
 });
@@ -72,5 +74,5 @@ test("payouts keeps its own body and is NOT folded into payments", () => {
 
 test("case and whitespace are tolerated, as the old allow-list did", () => {
   assert.equal(resolveWorkspaceAdminPage("  Messages  "), "messages");
-  assert.equal(resolveWorkspaceAdminPage("TALENT"), "roster");
+  assert.equal(resolveWorkspaceAdminPage("TALENT"), "people");
 });

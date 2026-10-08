@@ -288,7 +288,7 @@ These are non-negotiable. Lane agents that violate any of these get their PR rej
 1. **Branch off the latest `main`.** `git fetch origin && git switch -c <type>/<slice-name> origin/main`. Never commit directly to `main`.
 2. **Own a worktree.** Never `git switch` in the shared `impronta-app` checkout — see memory `feedback_worktree_not_git_switch`.
 3. **One migration per agent.** Use `date -u +%Y%m%d%H%M%S` at slice start. If `db push` errors on a collision, use park-restore pattern per memory `project_multi_agent_integrator_protocol`.
-4. **TS + lint gate before every commit.** `cd web && npx tsc --noEmit && npm run lint`. Zero new errors, zero new warnings.
+4. **TS + lint gate before every commit.** `cd web && npm run typecheck && npm run lint`. Zero new errors, zero new warnings.
 5. **`npm run db:push` is part of the commit, not optional.** If standard push fails with SASL auth, fall back to `web/scripts/apply-migration.mjs --apply-pending` (memory `project_supabase_push_protocol`).
 6. **Every write action writes to `platform_audit_log`.** No exceptions for "small" actions.
 7. **Tier 3 actions require a typed-name confirmation modal.** Not a yes/no — the user must type the target's display name.

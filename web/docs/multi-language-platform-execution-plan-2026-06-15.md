@@ -175,7 +175,7 @@ Per repo multi-agent rules (CLAUDE.md, development-workflow.md):
 
 - **Isolated worktrees, not the shared main checkout** (memory repeatedly warns concurrent branch-switching in the main checkout corrupts in-flight work). Each WS gets its own worktree + branch off latest `main`.
 - **One migration per agent**, unique timestamp via `date -u +%Y%m%d%H%M%S` at start. Coordinator keeps a **timestamp registry** to prevent collisions; park-restore if two collide.
-- **TS + lint gate before every commit:** `cd web && npx tsc --noEmit && npm run lint`.
+- **TS + lint gate before every commit:** `cd web && npm run typecheck && npm run lint`.
 - **`db:push` before merge** for any WS with a migration — the Vercel prebuild drift gate **fails the build** if a referenced migration isn't applied to remote Supabase.
 - **Merge train (coordinator-sequenced):** P0 → WS1/WS3/WS4/WS5/WS6 (independent) → WS2 (needs WS1) → WS7 (needs WS3/4) → integration wave → contract migrations (drop `_es`) → `deploy:smoke`.
 - **Never force-push `main`.**

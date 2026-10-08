@@ -241,5 +241,5 @@ A dev opening this audit and shipping all 7 phases should produce a page where:
 - [ ] Empty workspace renders an `<EmptyState>` with the activation flow promoted, not 5 sections of zeros
 - [ ] `oldestWaitDays` calc uses `lastActivityHrs` (not the missing `ageDays` field)
 - [ ] The page is shorter — pixel target: ≤2× the viewport at 1280×800. Currently ≥3×.
-- [ ] `npx tsc --noEmit` exits 0 throughout
+- [ ] `npm run typecheck` exits 0 throughout
 - [ ] Mobile renders without horizontal scroll at 375pt (defer pixel-perfect mobile to mobile-audit follow-up)

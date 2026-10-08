@@ -253,7 +253,7 @@ export function DesktopAccount({
             </Link>
 
             {signOutAction ? (
-              <form action={signOutAction}>
+              <form action="/auth/sign-out" method="post">
                 <button
                   type="submit"
                   role="menuitem"

@@ -209,9 +209,13 @@ export function PublicPageEditor({ locale = "en" }: Props) {
           {talentId ? (
             settingsEntry
           ) : (
-            <details className="mt-6 rounded-xl border border-admin-border-soft bg-white font-admin-body">
-              <summary className="min-h-11 cursor-pointer px-4 py-3 text-[15px] font-semibold text-admin-ink">
+            <details className="group mt-6 rounded-xl border border-admin-border-soft bg-white font-admin-body">
+              {/* No browser-default triangle: a drawn chevron that turns when open (QA DS-52). */}
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-[15px] font-semibold text-admin-ink [&::-webkit-details-marker]:hidden">
                 {copy.t("Website settings")}
+                <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5 shrink-0 text-admin-ink-dim transition-transform group-open:rotate-90">
+                  <path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </summary>
               <div className="px-4 pb-4">
                 <MaxSiteSettingsPanels />

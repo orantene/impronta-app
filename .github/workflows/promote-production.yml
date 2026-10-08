@@ -14,14 +14,34 @@
 # The pointer only ever moves FORWARD, and only to commits that are ancestors
 # of origin/main — see the guards below. Never force-push it.
 #
+# FALLBACK TO THE NEWEST GREEN COMMIT (TUL-197, 2026-10-07). The promote job
+# used to promote only the exact commit of the gate run that triggered it, and
+# only when that run was green. On 2026-10-07 the job for 26bd096 sat queued
+# ~50 min behind PR runs and the pointer froze with a green batch on main. It
+# now RECONCILES instead: on every gate completion (green, red or cancelled),
+# on a 10-minute schedule and by hand, it finds the newest main commit whose
+# `CI — structural quality gate` run SUCCEEDED and fast-forwards `production`
+# to it. A red, cancelled or still-queued newest head no longer freezes the
+# pointer, and a promote run lost to the queue is repaired by the next one.
+# Invariants (pinned by web/src/lib/quality/promote-production.static.test.ts):
+#   - fast-forward only: a plain `git push`, never --force / +refspec, and the
+#     target must be a descendant of the current pointer (never backwards);
+#   - the target is always a main commit with a green gate run, never a commit
+#     that merely lacks a verdict;
+#   - own concurrency group, cancel-in-progress false, shared with no PR
+#     workflow. A pending run replaced by a newer one is harmless: every run
+#     recomputes the newest green commit.
+# Runner priority: GitHub offers none. The job is tiny and shares no queue
+# group with PR CI, but ubuntu-latest capacity is a shared pool. Set the repo
+# variable PROMOTE_RUNNER to a dedicated runner label to take it off the pool.
+#
 # MANUAL RUNS (added 2026-08-30). This workflow can also be started by hand.
 # It was not, and that cost hours: a Vercel builder froze mid-deploy, and with
 # the pointer already sitting at the commit whose build hung there was nothing
-# left to fast-forward and no supported way to retry. The only way to get a
-# deploy moving was to invent a commit. A manual run fixes that.
+# left to fast-forward and no supported way to retry. A manual run fixes that.
 #
-# A manual run does NOT bypass the gate. It re-checks that the structural
-# quality gate concluded success on the exact commit being promoted, and
+# A manual run does NOT bypass the gate. With an explicit sha it re-checks that
+# the structural quality gate concluded success on that exact commit and
 # refuses otherwise. The guarantee stays exactly what it was: nothing reaches
 # production that CI has not vetted.
 
@@ -30,12 +50,17 @@ name: Promote production pointer
 on:
   workflow_run:
     workflows: ["CI — structural quality gate"]
+    # Any conclusion: a red or cancelled newest head must still let the pointer
+    # advance to the newest green commit behind it.
     types: [completed]
     branches: [main]
+  schedule:
+    # Self-heal: repairs a promote run that never started or was displaced.
+    - cron: "7,17,27,37,47,57 * * * *"
   workflow_dispatch:
     inputs:
       sha:
-        description: "Commit on main to promote. Leave blank for the current main head."
+        description: "Commit on main to promote (its gate run must be green). Leave blank for the newest green main commit."
         required: false
         type: string
 
@@ -43,13 +68,18 @@ permissions:
   contents: write
   actions: read
 
+# Dedicated group. Never cancel: a cancelled promote is a frozen pointer.
+concurrency:
+  group: promote-production
+  cancel-in-progress: false
+
+env:
+  GATE_WORKFLOW: "CI — structural quality gate"
+
 jobs:
   promote:
-    name: Fast-forward `production` to the vetted commit
-    # An automatic run is trusted because it fires FROM a successful gate. A
-    # manual run has no such provenance, so it verifies the gate itself below.
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-    runs-on: ubuntu-latest
+    name: Fast-forward `production` to the newest green commit
+    runs-on: ${{ vars.PROMOTE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
     steps:
       - name: Checkout (full history)
@@ -57,70 +87,84 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Resolve the commit to promote
+      - name: Resolve the newest commit whose gate run succeeded
         id: resolve
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            SHA="${{ inputs.sha }}"
-            if [ -z "$SHA" ]; then
-              git fetch origin main
-              SHA="$(git rev-parse origin/main)"
-              echo "::notice::No sha given — using current main head $SHA."
-            fi
-            # Normalise to a FULL sha. This is not cosmetic: the Actions API
-            # `head_sha` filter matches only full shas, and a short one comes
-            # back with zero runs, which the verify step below would read as
-            # "never vetted" and refuse. Fail-safe, but baffling to debug.
-            SHA="$(git rev-parse "$SHA^{commit}")"
-          else
-            SHA="${{ github.event.workflow_run.head_sha }}"
-          fi
-          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-
-      - name: Verify CI vetted this commit (manual runs only)
-        if: ${{ github.event_name == 'workflow_dispatch' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          INPUT_SHA: ${{ inputs.sha }}
         run: |
-          SHA="${{ steps.resolve.outputs.sha }}"
-          # The pointer's whole contract is that production only ever holds
-          # CI-vetted commits. A manual run must therefore prove the gate
-          # passed on THIS commit rather than take the operator's word.
-          CONCLUSION="$(gh api \
-            "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=$SHA&status=completed" \
-            --jq '[.workflow_runs[] | select(.name == "CI — structural quality gate")][0].conclusion' \
-            2>/dev/null || echo "")"
-
-          if [ -z "$CONCLUSION" ] || [ "$CONCLUSION" = "null" ]; then
-            # Fall back to scanning all workflows for that head sha, in case
-            # the gate does not live in ci.yml.
-            CONCLUSION="$(gh api \
-              "repos/${{ github.repository }}/actions/runs?head_sha=$SHA&status=completed" \
-              --jq '[.workflow_runs[] | select(.name == "CI — structural quality gate")][0].conclusion' \
-              2>/dev/null || echo "")"
-          fi
-
-          if [ "$CONCLUSION" != "success" ]; then
-            echo "::error::Refusing to promote $SHA — the structural quality gate has not succeeded on it (found: ${CONCLUSION:-no completed run}). Wait for CI, or promote a commit it has passed."
-            exit 1
-          fi
-          echo "::notice::CI vetted $SHA — proceeding."
-
-      - name: Fast-forward production
-        run: |
-          SHA="${{ steps.resolve.outputs.sha }}"
+          set -euo pipefail
           git fetch origin main
-          # Only promote commits that are actually on main (a re-run of an old
-          # workflow must not rewind or sidetrack the pointer).
-          if ! git merge-base --is-ancestor "$SHA" origin/main; then
-            echo "::notice::$SHA is not on main (superseded run) — skipping."
+          if git fetch origin production 2>/dev/null; then HAVE_PROD=1; else HAVE_PROD=0; fi
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "$INPUT_SHA" ]; then
+            # Explicit sha: normalise to a FULL sha (the Actions API head_sha
+            # filter matches only full shas), then require a green gate run on
+            # exactly that commit. No fallback for an explicit request.
+            SHA="$(git rev-parse "$INPUT_SHA^{commit}")"
+            OK="$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=$SHA&status=success&per_page=100" \
+              --jq "[.workflow_runs[] | select(.name == \"$GATE_WORKFLOW\")] | length")"
+            if [ "$OK" = "0" ]; then
+              echo "::error::Refusing to promote $SHA — the structural quality gate has not succeeded on it."
+              exit 1
+            fi
+            echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+            echo "::notice::CI vetted $SHA — proceeding."
             exit 0
           fi
-          if git fetch origin production 2>/dev/null; then
-            if git merge-base --is-ancestor "$SHA" origin/production; then
-              echo "::notice::production already at or past $SHA — nothing to do."
+
+          # Fallback scan. A gh api failure aborts the job (set -e): an unknown
+          # verdict must never be read as green.
+          GREEN="$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?branch=main&status=success&per_page=100" \
+            --jq ".workflow_runs[] | select(.name == \"$GATE_WORKFLOW\") | select(.event != \"pull_request\") | .head_sha" | sort -u)"
+
+          if [ "$HAVE_PROD" = "1" ]; then RANGE="origin/main ^origin/production"; else RANGE="origin/main"; fi
+          TARGET=""
+          for C in $(git rev-list --first-parent --max-count=200 $RANGE); do
+            if printf '%s\n' "$GREEN" | grep -qx "$C"; then
+              # Never move backwards or sideways: the pointer must be an ancestor.
+              if [ "$HAVE_PROD" = "1" ] && ! git merge-base --is-ancestor origin/production "$C"; then continue; fi
+              TARGET="$C"
+              break
+            fi
+          done
+
+          if [ -z "$TARGET" ]; then
+            echo "::notice::No green main commit ahead of production — nothing to promote."
+          else
+            echo "::notice::Newest green main commit ahead of production: $TARGET"
+          fi
+          echo "sha=$TARGET" >> "$GITHUB_OUTPUT"
+
+      - name: Fast-forward production
+        if: ${{ steps.resolve.outputs.sha != '' }}
+        run: |
+          set -euo pipefail
+          SHA="${{ steps.resolve.outputs.sha }}"
+          for ATTEMPT in 1 2 3; do
+            git fetch origin main
+            # Only promote commits that are actually on main.
+            if ! git merge-base --is-ancestor "$SHA" origin/main; then
+              echo "::notice::$SHA is not on main — skipping."
               exit 0
             fi
-          fi
-          git push origin "$SHA:refs/heads/production"
-          echo "::notice title=production advanced::production → $SHA (CI-vetted)"
+            if git fetch origin production 2>/dev/null; then
+              if git merge-base --is-ancestor "$SHA" origin/production; then
+                echo "::notice::production already at or past $SHA — nothing to do."
+                exit 0
+              fi
+              if ! git merge-base --is-ancestor origin/production "$SHA"; then
+                echo "::error::$SHA is not a fast-forward of production — refusing to move the pointer."
+                exit 1
+              fi
+            fi
+            # Plain push, no force: git rejects anything but a fast-forward.
+            if git push origin "$SHA:refs/heads/production"; then
+              echo "::notice title=production advanced::production → $SHA (green gate)"
+              exit 0
+            fi
+            echo "::warning::push rejected (attempt $ATTEMPT) — production moved concurrently; re-evaluating."
+            sleep 5
+          done
+          echo "::error::could not fast-forward production after 3 attempts."
+          exit 1

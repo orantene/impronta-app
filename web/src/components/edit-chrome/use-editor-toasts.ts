@@ -35,6 +35,7 @@ function normalizeMutationError(
     code: input.code,
     details:
       input.details && input.details.length > 0 ? input.details : undefined,
+    issues: input.issues && input.issues.length > 0 ? input.issues : undefined,
   };
 }
 
@@ -44,6 +45,7 @@ function mutationErrorFingerprint(input: EditMutationError): string {
     input.operation ?? "",
     input.code ?? "",
     ...(input.details ?? []),
+    ...(input.issues ?? []).map((i) => `${i.path}:${i.message}`),
   ].join("|");
 }
 

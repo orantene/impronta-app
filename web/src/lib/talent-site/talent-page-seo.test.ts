@@ -54,12 +54,13 @@ test("Portfolio: every stored SEO column reaches the envelope", () => {
   assert.equal(seo.noindex, false);
 });
 
-test("Portfolio: an explicit canonical_url beats the built one", () => {
+test("Portfolio: an explicit canonical_url on an own host beats the built one", () => {
   const seo = buildTalentPageSeo({
     page: page({ canonicalUrl: "https://anaruiz.com/about" }),
     planKey: "talent_portfolio",
     canonicalOrigin: ORIGIN,
     canonicalPath: PATH,
+    ownHosts: ["anaruiz.com"],
   });
   assert.equal(seo.canonical, "https://anaruiz.com/about");
 });

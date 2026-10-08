@@ -11,7 +11,8 @@ import { useRouter } from "next/navigation";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { useWebsiteFlow } from "@/components/talent/website-reward/useWebsiteFlow";
-import { websiteFlowPending } from "@/lib/talent/website-flow";
+import { websiteFlowPending, websitePillProgress } from "@/lib/talent/website-flow";
+import { isWebsitePublished } from "@/lib/talent/website-published-truth";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { loadMyBio, saveMyBio } from "@/lib/server-actions/ai-writing-helper";
 
@@ -66,11 +67,16 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
   // Null percent = still loading slices → treat as unfinished (0), never checklist %.
   const knownPercent = percent ?? 0;
   const siteStatus = siteLoad?.ok ? siteLoad.state.site?.status ?? null : null;
-  const reward = flow.state === "published" || siteStatus === "published" ? "published" : flow.state;
+  const reward = isWebsitePublished(flow.state, siteStatus) ? "published" : flow.state;
   // Mockup REWARD: the action is the headline; "Profile complete" / pct is the lead.
+  const pillProgress = websitePillProgress(
+    knownPercent,
+    eligibility.slices.filter((s) => s.required).length,
+    copy.isSpanish,
+  );
   const labels = {
     title: flow.text.pillAction,
-    detail: flow.state === "notReady" ? `${knownPercent}%` : flow.text.pillLead,
+    detail: flow.state === "notReady" ? pillProgress.detail : flow.text.pillLead,
   };
 
   const goWebsite = () => {
@@ -184,7 +190,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[12.5px] font-semibold leading-tight text-[var(--tc-ink)]">{labels.title}</span>
             <span className="block truncate text-[11px] leading-tight text-admin-ink-muted">{labels.detail}</span>
-            {reward === "notReady" && percent != null && (
+            {reward === "notReady" && percent != null && pillProgress.showBar && (
               <span aria-hidden className="mt-1 block h-[3px] w-full overflow-hidden rounded-full bg-black/10">
                 <span className="block h-full rounded-full bg-[var(--tc-action)]" style={{ width: `${Math.min(100, percent)}%` }} />
               </span>

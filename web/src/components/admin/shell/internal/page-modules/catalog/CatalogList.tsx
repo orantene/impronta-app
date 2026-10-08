@@ -20,6 +20,10 @@ import { useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { Icon } from "../../primitives";
 import { offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
+import { listLocales } from "@/lib/talent/offering-missing-translation";
+import { useAdminShell } from "../../state";
+import { MissingTranslationChip } from "./MissingTranslationChip";
+import { useTalentFieldLocales } from "@/components/locale-field/use-talent-field-locales";
 import type { OfferingsEditor } from "@/components/talent/services/use-offerings-editor";
 import { ActionButton, FilterChip, Outcome, StatePill, ToggleChip, UsedIn, type PillTone } from "../appointments-classes-ui";
 import { MenuImportPanel } from "../MenuImportPanel";
@@ -58,6 +62,11 @@ const STATUS_KEY: Record<CatalogStatus, string> = {
 export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: CatalogNav }) {
   const t = useT();
   const locale = useDashboardLocale();
+  // The talent's languages come from the server-provided shell settings, not
+  // the client store alone (the store is empty until the top bar seeds it).
+  const { talentLocales } = useAdminShell();
+  const store = useTalentFieldLocales();
+  const { primary, locales } = listLocales(talentLocales, store);
   const [filters, setFilters] = useState<ListFilters>(DEFAULT_FILTERS);
   const [importOpen, setImportOpen] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
@@ -171,6 +180,8 @@ export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: Cat
               index={idx}
               count={rows.length}
               locale={locale}
+              primary={primary}
+              locales={locales}
               nav={nav}
               editor={editor}
               menuOpen={menuFor === o.id}
@@ -204,6 +215,8 @@ function CatalogRow({
   index,
   count,
   locale,
+  primary,
+  locales,
   nav,
   editor,
   menuOpen,
@@ -214,6 +227,8 @@ function CatalogRow({
   index: number;
   count: number;
   locale: string;
+  primary: string;
+  locales: string[];
   nav: CatalogNav;
   editor: OfferingsEditor;
   menuOpen: boolean;
@@ -251,15 +266,19 @@ function CatalogRow({
           {channels.includes("pos") ? ` · ${t("dashboard.catalog.channel.posCounter")}` : ""}
           {channels.includes("website") ? ` · ${t("dashboard.catalog.channel.website")}` : ""}
         </span>
+        <MissingTranslationChip item={o} primary={primary} locales={locales} uiLocale={locale} t={t} className="mt-[3px] block" />
       </span>
       <StatePill tone={STATUS_TONE[status]} state={status}>
         {t(STATUS_KEY[status])}
       </StatePill>
     </Link>
     <ListRow cols={COLS} testId="catalog-row" className="relative max-[720px]:hidden">
-      <Link href={nav.href({ item: o.id })} prefetch={false} className="min-w-0 truncate font-semibold text-admin-ink no-underline hover:underline" data-testid="catalog-row-title">
-        {o.title || t("dashboard.catalog.untitled")}
-      </Link>
+      <span className="flex min-w-0 items-center gap-[8px]">
+        <Link href={nav.href({ item: o.id })} prefetch={false} className="min-w-0 truncate font-semibold text-admin-ink no-underline hover:underline" data-testid="catalog-row-title">
+          {o.title || t("dashboard.catalog.untitled")}
+        </Link>
+        <MissingTranslationChip item={o} primary={primary} locales={locales} uiLocale={locale} t={t} />
+      </span>
       <BlockPill tone="slate">{t(TYPE_KEY[type])}</BlockPill>
       <span className="flex flex-wrap items-center gap-x-[6px] gap-y-[4px]">
         {channels.length === 0 ? <span className="text-admin-ink-dim">{t("dashboard.catalog.channel.none")}</span> : null}

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isAllowedParityBaseUrl, bypassHeaders, pickHost, isQaPoolHost, isQaPoolUrl, hostsToRelease, QA_HOSTS, LEASE_TTL_MS } from "./qa-hosts.mjs";
+import { isAllowedParityBaseUrl, bypassHeaders, pickHost, isQaPoolHost, isQaPoolUrl, hostsToRelease, QA_HOSTS, LEASE_TTL_MS, shareLinksFrom, pickShareLink, buildShareUrl, formatExpiry, SHARE_MIN_REMAINING_MS } from "./qa-hosts.mjs";
 
 const now = 1_000_000_000_000;
 const lease = (n, branch, ageMs) => ({ host: QA_HOSTS[n - 1], branch, createdAt: now - ageMs });
@@ -56,4 +56,47 @@ test("bypass header only for pool hosts and only when set", () => {
   assert.deepEqual(bypassHeaders("https://qa-1.tulala.digital", env), { "x-vercel-protection-bypass": "s" });
   assert.deepEqual(bypassHeaders("http://localhost:3005", env), {});
   assert.deepEqual(bypassHeaders("https://qa-1.tulala.digital", {}), {});
+});
+
+test("shareLinksFrom keeps only shareable-link scope (never automation secrets)", () => {
+  const links = shareLinksFrom({
+    sharetok: { scope: "shareable-link", expires: now + 5 * 3600_000 },
+    automation: { scope: "automation-bypass" },
+    user: { scope: "user" },
+    junk: null,
+  });
+  assert.deepEqual(links, [{ token: "sharetok", expiresAt: now + 5 * 3600_000 }]);
+  assert.deepEqual(shareLinksFrom(undefined), []);
+});
+
+test("shareLinksFrom accepts expiry in seconds or ms, missing = never", () => {
+  const [a, b] = shareLinksFrom({
+    s: { scope: "shareable-link", expires: 1_800_000_000 },
+    n: { scope: "shareable-link" },
+  });
+  assert.equal(a.expiresAt, 1_800_000_000_000);
+  assert.equal(b.expiresAt, null);
+});
+
+test("pickShareLink reuses unexpired, skips expired or nearly expired, else null", () => {
+  const h = 3600_000;
+  assert.equal(pickShareLink([], now), null);
+  assert.equal(pickShareLink([{ token: "old", expiresAt: now - 1 }], now), null);
+  assert.equal(pickShareLink([{ token: "soon", expiresAt: now + SHARE_MIN_REMAINING_MS - 1 }], now), null);
+  const links = [{ token: "a", expiresAt: now + 2 * h }, { token: "b", expiresAt: now + 20 * h }, { token: "x", expiresAt: now - h }];
+  assert.equal(pickShareLink(links, now).token, "b");
+  assert.equal(pickShareLink([...links, { token: "forever", expiresAt: null }], now).token, "forever");
+});
+
+test("buildShareUrl builds the openable link, pool hosts only", () => {
+  assert.equal(buildShareUrl("qa-2.tulala.digital", "abc"), "https://qa-2.tulala.digital/?_vercel_share=abc");
+  assert.equal(buildShareUrl("qa-2.tulala.digital", "a/b+c"), "https://qa-2.tulala.digital/?_vercel_share=a%2Fb%2Bc");
+  assert.equal(buildShareUrl("tulala.digital", "abc"), null);
+  assert.equal(buildShareUrl("qa-2.tulala.digital", ""), null);
+});
+
+test("formatExpiry", () => {
+  assert.equal(formatExpiry(null, now), "no expiry");
+  assert.equal(formatExpiry(now - 1, now), "expired");
+  assert.equal(formatExpiry(now + 22 * 3600_000, now), "expires in 22h");
 });

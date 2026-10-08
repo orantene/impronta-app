@@ -1,0 +1,161 @@
+# Nightly: every test lane in package.json + every orphan test file.
+#
+# WHY: per-PR CI (ci.yml) runs a hand-curated lane list. An audit (TUL-185,
+# PR #2651) found test files that no lane runs and package.json lanes that run
+# nowhere. Adding them to per-PR CI costs runner minutes the repo does not have,
+# so they run here, once a night, on a schedule. Nothing in this file runs on
+# pull requests or pushes.
+#
+# NO SECRETS. This workflow carries no Supabase/Stripe/Resend env on purpose.
+# A lane that fails only because it needs one is listed in EXCLUDED_LANES with
+# the evidence (a lane that "passes" because it skipped is not worth running).
+#
+# EXCLUDED_LANES (structurally unable to run here; extend ONLY with evidence
+# from a nightly run log, never by guess):
+#   test:e2e*          browser end-to-end, needs a live server and a seeded host
+#   *:watch            watch mode never terminates
+#   test:commission-pipeline  live integration test; without QA_ADMIN_PASSWORD +
+#                      Supabase it throws at load ("QA_ADMIN_PASSWORD is required",
+#                      commission-pipeline.integration.test.ts:72, run 2026-10-07)
+#   test:components    covered by ci.yml per PR already (vitest smoke)
+#   test:orphans       runs as its own job below
+#
+# Red -> one issue titled "nightly tests red" is opened or updated (never a
+# duplicate); green -> it is closed. Pattern copied from main-red-alert.yml.
+
+name: Nightly all tests
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-all-tests
+  cancel-in-progress: false
+
+jobs:
+  lanes:
+    name: List lanes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      lanes: ${{ steps.list.outputs.lanes }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: |
+          node -e '
+            const s = require("./web/package.json").scripts;
+            const skip = (k) => /^test:e2e/.test(k) || /:watch$/.test(k)
+              || ["test:components", "test:orphans", "test:commission-pipeline"].includes(k);
+            const lanes = Object.keys(s).filter((k) => k.startsWith("test:") && !skip(k)).sort();
+            console.log("lanes=" + JSON.stringify(lanes));
+          ' >> "$GITHUB_OUTPUT"
+
+  lane:
+    name: ${{ matrix.lane }}
+    needs: lanes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        lane: ${{ fromJSON(needs.lanes.outputs.lanes) }}
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Run lane
+        run: npm run "${{ matrix.lane }}"
+
+  orphans:
+    name: test:orphans
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Orphans not yet in nightly-orphans.txt (informational)
+        run: node scripts/ci/list-orphan-tests.mjs --exclude-file=scripts/ci/nightly-orphans.txt || true
+      - name: Run passing orphan files
+        run: npm run test:orphans
+
+  report:
+    name: Open / update / close the issue
+    needs: [lane, orphans]
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          LANE_RESULT: ${{ needs.lane.result }}
+          ORPHAN_RESULT: ${{ needs.orphans.result }}
+        with:
+          script: |
+            const TITLE = "nightly tests red";
+            const laneResult = process.env.LANE_RESULT;
+            const orphanResult = process.env.ORPHAN_RESULT;
+            // A failed matrix leg does not stop its siblings (fail-fast: false) but
+            // the aggregate result hides which leg broke, so list the legs instead.
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              owner: context.repo.owner, repo: context.repo.repo, run_id: context.runId, per_page: 100,
+            });
+            const red = jobs.filter((j) => ["failure", "timed_out"].includes(j.conclusion)
+              && j.name !== "Open / update / close the issue");
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo, state: "open", per_page: 100,
+            });
+            const existing = open.find((i) => i.title === TITLE && !i.pull_request);
+            if (red.length > 0) {
+              const body = [
+                `Nightly run ${runUrl} has ${red.length} red job(s) (lanes: ${laneResult}, orphans: ${orphanResult}):`,
+                "",
+                ...red.map((j) => `- ${j.name}: ${j.html_url}`),
+              ].join("\n");
+              if (existing) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body,
+                });
+                await github.rest.issues.update({
+                  owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                  body: `Latest red nightly: ${runUrl}\n\n${body}`,
+                });
+              } else {
+                await github.rest.issues.create({
+                  owner: context.repo.owner, repo: context.repo.repo, title: TITLE, body,
+                });
+              }
+            } else if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                body: `Nightly is green again: ${runUrl}. Closing.`,
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: "closed",
+              });
+            }

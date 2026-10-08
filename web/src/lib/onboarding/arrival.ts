@@ -45,6 +45,12 @@ export type ArrivalPayload = {
   urlDiffers?: boolean;
   /** 1D: the first service the person listed (shown with a Book preview). */
   firstService?: string | null;
+  /** TUL-16: studio with no provider yet. The page takes requests, not bookings. */
+  inquiryOnly?: boolean;
+  /** TUL-16: where "add your first team member" goes (admin roster, new). */
+  addMemberHref?: string;
+  /** TUL-16: where "also take bookings yourself" goes (workspace settings, 1E). */
+  alsoBookHref?: string;
 };
 
 export function parseArrivalStamp(raw: unknown): ArrivalStamp {
@@ -86,7 +92,10 @@ export function arrivalFromStamp(input: ArrivalInput): ArrivalPayload {
   if (input.liveCheck && !input.liveCheck.ok) {
     return { ...base, ...common, variant: "draft_saved", siteLive: false, verified: false, fallbackReason: "failed" };
   }
-  return { ...base, ...common, ...(input.liveCheck?.ok ? { verified: true } : {}) };
+  const studio = input.path === "business" && !input.reusedExisting && !!input.site && (base.variant === "business" || base.variant === "fallback");
+  const admin = input.site?.adminPath.replace(/\/+$/, "");
+  const inquiry = studio && admin ? { inquiryOnly: true, addMemberHref: `${admin}/roster/new`, alsoBookHref: `${admin}/settings` } : {};
+  return { ...base, ...common, ...inquiry, ...(input.liveCheck?.ok ? { verified: true } : {}) };
 }
 
 function baseArrival(input: ArrivalInput): ArrivalPayload {

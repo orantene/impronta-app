@@ -284,7 +284,7 @@ No action needed to reconcile them — just don't copy one string into the other
 
 ## 7. Verification checklist (post-implementation)
 
-- [ ] `tulala.ts`: `tagline` and `description` updated; `npx tsc --noEmit` clean (no type breaks — both are plain string literals).
+- [ ] `tulala.ts`: `tagline` and `description` updated; `npm run typecheck` clean (no type breaks — both are plain string literals).
 - [ ] Live `<title>` on `/` reads `Tulala — The Commerce Platform for Talent`.
 - [ ] View-source `og:title`, `og:description`, `twitter:title`, `twitter:description` on `/` match the new strings; `og:site_name` still bare `Tulala`.
 - [ ] Header, desktop ≥1280px: descriptor visible right of wordmark, doesn't wrap, doesn't crowd nav. Header 1024–1280px: descriptor correctly hidden (no partial/clipped render). Header mobile: descriptor absent, wordmark unaffected.

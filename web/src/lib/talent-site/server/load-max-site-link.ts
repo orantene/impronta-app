@@ -1,6 +1,8 @@
 import "server-only";
 
+import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { resolveMaxSiteLinkUrl } from "@/lib/talent-site/max-site-link-url";
 
 /**
  * Resolve the public Max site URL for a talent profile.
@@ -11,7 +13,8 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
  *
  * URL precedence:
  *   1. Primary active custom domain → `https://<domain>`
- *   2. Fallback → `/t/site/<site_slug>`
+ *   2. `https://<site_slug>.tulala.digital` when subdomains are enabled
+ *   3. Fallback → `/t/site/<site_slug>`
  *
  * Returns `null` when:
  *   - the talent is not on the Max plan, OR
@@ -39,7 +42,7 @@ export async function loadTalentMaxSiteLink(
     // so even a private / non-anon-readable row can be checked.
     const { data: profileRow, error: profileErr } = await admin
       .from("talent_profiles")
-      .select("talent_plan_key")
+      .select("talent_plan_key, is_demo")
       .eq("id", talentProfileId)
       .maybeSingle();
 
@@ -48,6 +51,7 @@ export async function loadTalentMaxSiteLink(
     const planKey = (profileRow as { talent_plan_key: string | null })
       .talent_plan_key;
     if (planKey !== "talent_portfolio") return null;
+    const isDemo = (profileRow as { is_demo?: boolean | null }).is_demo === true;
 
     const row = siteRow as {
       site_slug: string | null;
@@ -70,16 +74,13 @@ export async function loadTalentMaxSiteLink(
       ? (domainRow as { domain: string | null }).domain
       : null;
 
-    if (customDomain) {
-      return { url: `https://${customDomain}` };
-    }
-
-    // ── 3. Fallback to /t/site/<site_slug> ───────────────────────────────
-    if (row.site_slug) {
-      return { url: `/t/site/${encodeURIComponent(row.site_slug)}` };
-    }
-
-    return null;
+    const url = resolveMaxSiteLinkUrl({
+      customDomain,
+      siteSlug: row.site_slug,
+      isDemo,
+      subdomainsEnabled: isTalentSiteSubdomainsEnabled(),
+    });
+    return url ? { url } : null;
   } catch {
     // Any error degrades gracefully — no badge shown, no crash.
     return null;

@@ -27,3 +27,22 @@ export function addRequirementText(
 ): string {
   return isSpanish ? `Agregar ${publishRequirementLabel(label, t, true)}` : `Add ${label}`;
 }
+
+/**
+ * The server's publish-gate sentence ("Add a bio, 1 language before
+ * publishing." / "... and 2 more before publishing.") in the dashboard
+ * language. Display layer only: the server contract is unchanged. Any message
+ * that is not that shape is returned as-is (via the dictionary when Spanish).
+ */
+export function localizePublishBlockerMessage(
+  message: string,
+  t: (value: string) => string,
+  isSpanish: boolean,
+): string {
+  if (!isSpanish) return message;
+  const m = /^Add (.+?)(?: and (\d+) more)?(?: before publishing| to publish)\.?$/.exec(message.trim());
+  if (!m) return t(message);
+  const labels = m[1].split(", ").map((label) => publishRequirementLabel(label, t, true));
+  const more = m[2] ? ` y ${m[2]} más` : "";
+  return `Agrega ${labels.join(", ")}${more} antes de publicar.`;
+}

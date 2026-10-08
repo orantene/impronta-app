@@ -27,7 +27,7 @@ Five mechanics make it safe and fast:
 2. **Worktree isolation.** Each parallel lane gets its own `git worktree` (the Workflow
    `isolation:'worktree'` option), so concurrent file edits never collide. Worktrees auto-clean
    if untouched.
-3. **Self-gating lanes.** Every implementation agent runs `npx tsc --noEmit` (with
+3. **Self-gating lanes.** Every implementation agent runs `npm run typecheck` (with
    `NODE_OPTIONS=--max-old-space-size=8192` — local tsc OOMs otherwise) + `npm run lint` *inside
    its worktree* and only reports success if green. A red gate is returned as a failure for that
    lane, not silently merged.
@@ -205,7 +205,7 @@ human seams. Resume-on-edit means if I tweak a lane prompt, only that lane + dow
 - **Branch hygiene:** lanes branch off the latest `origin/main`; integration is FF-only onto one
   feature branch; **never force-push `main`**; never `git switch` in the shared checkout (lanes
   use worktrees).
-- **Final gate before PR:** `cd web && NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit &&
+- **Final gate before PR:** `cd web && npm run typecheck &&
   npm run lint && npm test` (relevant suites) — a 0-error *OOM-crashed* tsc run does not count.
 
 ---

@@ -82,7 +82,7 @@ import { ShortcutOverlay } from "./shortcut-overlay";
 import { TopBar } from "./topbar";
 import { CanvasLinkInterceptor } from "./canvas-link-interceptor";
 import { IframeBridgeParent } from "./iframe-bridge";
-import { describeMutationError } from "@/lib/site-admin/builder-node/mutation-error-reason";
+import { describeBuilderNodeIssues, describeMutationError } from "@/lib/site-admin/builder-node/mutation-error-reason";
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { isEditableKeyboardTarget, tryHistoryShortcut } from "./builder-keyboard";
 import { copySharePreviewLinkToClipboard } from "./copy-share-preview-link";
@@ -1646,7 +1646,7 @@ function MutationErrorToast() {
 
   if (!mutationError) return null;
   // TUL-81: every line is kept (the box scrolls); no silent truncation.
-  const detailLines = mutationError.details ?? [];
+  const detailLines = describeBuilderNodeIssues(mutationError.issues, locale);
   const described = describeMutationError({
     code: mutationError.code,
     operation: mutationError.operation,

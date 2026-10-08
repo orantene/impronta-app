@@ -9,6 +9,8 @@
 import type { BuilderNodeOperationKind } from "./operations";
 import type { BuilderNodeMutationCode } from "./mutation-feedback";
 
+export { describeBuilderNodeIssues } from "./mutation-issue-detail";
+
 export type MutationReasonLocale = "en" | "es";
 
 export interface MutationReasonText {

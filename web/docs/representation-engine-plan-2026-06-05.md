@@ -44,7 +44,7 @@ npm install   # optional if relying on Vercel PR build for tsc
 ### Pre-commit gate
 
 ```bash
-cd web && npx tsc --noEmit && npm run lint
+cd web && npm run typecheck && npm run lint
 ```
 
 If worktree has no `node_modules`, rely on green **Vercel PR build** instead. Ignore standalone `tsc` `react/jsx-runtime` false positives on single files.
@@ -177,7 +177,7 @@ WHERE tp.profile_code = '<NEW_CODE>' AND a.kind = 'hub';
 #### T0.6 — PR + deploy
 
 ```bash
-cd web && npx tsc --noEmit && npm run lint
+cd web && npm run typecheck && npm run lint
 git add supabase/migrations/<TS>_auto_enroll_talent_into_platform_hub.sql
 git commit -m "feat(api): auto-enroll approved talents into platform hub"
 git push -u origin feat/representation-phase-0-auto-enroll
@@ -222,7 +222,7 @@ cd web && npm run deploy:promote && npm run deploy:smoke
 
 ```bash
 cd web && npx vitest run src/lib/talent/representation.test.ts
-cd web && npx tsc --noEmit && npm run lint
+cd web && npm run typecheck && npm run lint
 ```
 
 #### T1.2 — `loadRepresentation` loader
@@ -293,7 +293,7 @@ Open drawer from `/talent/money`, My pages, Settings → **identical list**.
 #### T1.7 — PR + deploy
 
 ```bash
-cd web && npx tsc --noEmit && npm run lint
+cd web && npm run typecheck && npm run lint
 # (+ vitest if tests added)
 git push -u origin feat/representation-phase-1-drawer
 gh pr create ...

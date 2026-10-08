@@ -16,7 +16,7 @@ Shipped and prod-proven in the preceding sessions (all smoke-green):
 **Verification standard for ALL work below** (owner directive, proven valuable — it caught 3 bugs unit tests missed):
 1. Harness-first for money paths (mirror `qa-cash-cycle-e2e.mts`; run against prod DB via the `register-server-only-test.cjs` shim).
 2. **Human-test the UI in a real browser + screenshot** — localhost dev server (webpack, symlinked node_modules breaks Turbopack), `/api/dev/signin?email=qa-admin@impronta.test`. Verify the DB state after every UI action, not just the toast.
-3. Full-project tsc (`NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit`) before merging anything touching money/shell files — scoped tsc has shipped two P0s.
+3. Full-project tsc (`npm run typecheck`) before merging anything touching money/shell files — scoped tsc has shipped two P0s.
 4. Test-data rules: never touch `qa-client-1/2` fixtures beyond rows your run created; talent-direct bookings do NOT accrue to `platform_commission_balances` (don't "reverse" what never accrued — baseline USD = 1080).
 
 ---

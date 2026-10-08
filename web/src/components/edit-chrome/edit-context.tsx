@@ -98,7 +98,7 @@ import {
   formatBuilderNodeMutationError,
   isBuilderMutationAuditEnabled,
   recordBuilderMutationAuditEvent,
-  summarizeBuilderNodeIssues,
+  mutationFailureDetails,
   isAdvancedElementLibraryEnabledForPlan,
   type BuilderNode,
   type BuilderNodeOperationKind,
@@ -3469,7 +3469,7 @@ export function EditProvider({
           message: guarded.error,
           operation: input.operation,
           code: guarded.code,
-          details: guarded.details,
+          ...mutationFailureDetails(guarded),
         });
         return guarded;
       }
@@ -3481,13 +3481,13 @@ export function EditProvider({
           operation: input.operation,
           code: operationResult.code,
           message: operationResult.error,
-          details: operationResult.details,
+          ...mutationFailureDetails(operationResult),
         });
         reportMutationError({
           message: error,
           operation: input.operation,
           code: operationResult.code,
-          details: operationResult.details,
+          ...mutationFailureDetails(operationResult),
         });
         return { ...operationResult, error };
       }
@@ -3544,7 +3544,7 @@ export function EditProvider({
           ok: false,
           code: result.code,
           error: result.message,
-          details: summarizeBuilderNodeIssues(result.issues),
+          ...mutationFailureDetails(result),
         };
       }
       return {
@@ -4588,7 +4588,7 @@ export function EditProvider({
               ok: false,
               code: result.code,
               error: result.message,
-              details: summarizeBuilderNodeIssues(result.issues),
+              ...mutationFailureDetails(result),
             };
           }
           return { ok: true, tree: result.tree };

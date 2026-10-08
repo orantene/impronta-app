@@ -609,7 +609,7 @@ A new section is **not complete** until:
 - [ ] No hardcoded Impronta colors/copy in renderer logic (token-driven)
 - [ ] Uses tenant-scoped fetchers for data (roster-filtered; never RLS-only)
 - [ ] Handles empty state safely
-- [ ] Passes `npx tsc --noEmit` (0 project-wide)
+- [ ] Passes `npm run typecheck` (0 project-wide)
 - [ ] Passes focused eslint
 - [ ] **This tracker updated** (checkbox + Completed Work Log entry)
 
@@ -1014,7 +1014,7 @@ into Phase 2.
 ## 7. QA Gates (run after every chunk — all must pass)
 
 ```
-cd web && npx tsc --noEmit                 # 0 errors project-wide
+cd web && npm run typecheck                 # 0 errors project-wide
 npx eslint <touched files>                  # clean
 grep for hardcoded impronta/gold/dark in reusable section paths  # NONE
 registry import check (new sections wired in SECTION_REGISTRY)
@@ -2587,7 +2587,7 @@ wiring slice must reconcile/retire this global pre-mutator so
    - Editor: keep existing `LinkPicker` for now (writes legacy string →
      coerced); the structured `LinkKindPicker` UI is a 6D-adjacent
      follow-up.
-3. **Gate**: `npx tsc --noEmit && npm run lint` + the resolver tests.
+3. **Gate**: `npm run typecheck && npm run lint` + the resolver tests.
 4. **SSR-verify Finding B fixed**: on path-based `/impronta`,
    cta_banner Talent CTAs emit root `/register` `/login` (NOT
    `/impronta/register` → 404). Then roll the same pattern to the other
@@ -2722,13 +2722,13 @@ local-commit-only (no push/Vercel).
 
 ### ⚠ GATE-RELIABILITY FIX (do this or tsc lies)
 
-`npx tsc --noEmit` (and `npm run typecheck`) is **poisoned by the
+`npm run typecheck` (and `npm run typecheck`) is **poisoned by the
 running dev server**: Next regenerates a transient corrupt
 `.next/dev/types/routes.d.ts` (TS1005 / unterminated template) that
 makes tsc's diagnostics for real source files unreliable — it masked a
 live `prefixPublicHref is not defined` ReferenceError in featured_talent
 (caught only by the DOM check). **Authoritative gate =** stop the :3000
-dev server + `rm -rf web/.next` + THEN `npx tsc --noEmit`. Filtering
+dev server + `rm -rf web/.next` + THEN `npm run typecheck`. Filtering
 `.next/` lines out of poisoned output is NOT sufficient. Always
 clean-gate before trusting tsc; always DOM/render-verify too.
 

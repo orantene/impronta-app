@@ -24,7 +24,7 @@ import {
 import { resolveOfferingCta } from "@/lib/talent/offerings-types";
 
 import { PortfolioLightbox, type PortfolioLightboxLabels } from "./portfolio-lightbox";
-import { PORTFOLIO_BOOK_EVENT, type PortfolioGallery } from "./portfolio-lightbox-logic";
+import { PORTFOLIO_BOOK_EVENT, claimPortfolioBook, type PortfolioGallery } from "./portfolio-lightbox-logic";
 
 /** The booking action for one offering, shared by the click path and the lightbox event. */
 function offeringBooking(offering: TalentOffering, confirmsByHand: boolean) {
@@ -109,7 +109,7 @@ export function PortfolioShotLink({
     if (!offering || !shotId) return;
     const { book } = offeringBooking(offering, confirmsByHand);
     const onBook = (e: Event) => {
-      if ((e as CustomEvent<{ shotId?: string }>).detail?.shotId === shotId) book();
+      if (claimPortfolioBook(e, shotId)) book();
     };
     window.addEventListener(PORTFOLIO_BOOK_EVENT, onBook);
     return () => window.removeEventListener(PORTFOLIO_BOOK_EVENT, onBook);
