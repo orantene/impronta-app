@@ -5666,6 +5666,8 @@
       "paymentWord": "Paiement",
       "refundPending": "En attente",
       "refundCompleted": "Terminé",
+      "refundFailed": "Remboursement échoué",
+      "refundFailedDetail": "Le client n'a pas été payé. Organisez un remboursement alternatif.",
       "refundManual": "Enregistré à la main",
       "attemptsTitle": "Tentatives inconnues",
       "attemptsSub": "Encaissements par carte lancés et jamais résolus. Le fournisseur est interrogé à nouveau ; rien n'est débité deux fois.",
