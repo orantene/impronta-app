@@ -415,7 +415,7 @@ export function TalentTodayHero({
         <HeroStatDivider />
         <HeroStat
           label={copy.t("Paid this month")}
-          value={`${paidCurrency}${paidThisMonth.toLocaleString()}`}
+          value={`${paidCurrency}${paidThisMonth.toLocaleString("en-US")}`}
           caption={paidThisMonth > 0 ? copy.t("This month's settled payouts") : copy.t("No payouts yet this month")}
           captionTone={paidThisMonth > 0 ? "success" : "default"}
           tone="ink"

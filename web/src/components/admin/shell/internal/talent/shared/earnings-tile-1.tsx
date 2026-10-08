@@ -29,7 +29,7 @@ function realRowToEarning(r: TalentEarningsRow, currencySymbol: string): Earning
     payoutDate: r.payoutDate ?? "",
     agency: r.agencyName,
     client: r.client,
-    amount: `${currencySymbol}${Math.round(r.netCents / 100).toLocaleString()}`,
+    amount: `${currencySymbol}${Math.round(r.netCents / 100).toLocaleString("en-US")}`,
     status: r.status === "confirmed" ? "pending" : r.status,
     source,
     paymentMethod: (r.paymentMethod as EarningsRow["paymentMethod"]) ?? "transfer",
@@ -149,7 +149,7 @@ export function EarningsTile({
             </span>}
           </div>
           <div style={{ fontSize: 26, fontWeight: 700, fontFamily: FONTS.body, letterSpacing: "-0.5px" }} className="text-admin-ink">
-            {realMode ? formatDashboardMoney(data.total, earnings.totals.currency, "en", { wholeUnits: true }) : <>{tileCurrency}{(data.total).toLocaleString()}</>}
+            {realMode ? formatDashboardMoney(data.total, earnings.totals.currency, "en", { wholeUnits: true }) : <>{tileCurrency}{(data.total).toLocaleString("en-US")}</>}
           </div>
           <div style={{ fontSize: 11, fontFamily: FONTS.body, marginTop: 2 }} className="text-admin-ink-muted">
             {data.count} {data.count !== 1 ? copy.t("payouts") : copy.t("payout")} · {copy.t(data.label)}
@@ -236,7 +236,7 @@ export function EarningsTile({
               {copy.t("In flight")}
             </div>
             <div style={{ fontSize: 13, fontWeight: 700, fontFamily: FONTS.body, marginTop: 1, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">
-              {pendingCurrency}{Math.round(pendingTotal).toLocaleString()}
+              {pendingCurrency}{Math.round(pendingTotal).toLocaleString("en-US")}
               <span style={{ fontWeight: 500, marginLeft: 6 }} className="text-admin-ink-muted">
                 · {pendingConvs.length} {pendingConvs.length === 1 ? copy.t("booked job") : copy.t("booked jobs")}
               </span>
