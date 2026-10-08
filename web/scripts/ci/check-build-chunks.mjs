@@ -50,13 +50,20 @@ function walk(dir, visit) {
   }
 }
 
+// `--warn` is for Vercel's own build (the `postbuild` hook): it reports the same
+// findings but ALWAYS exits 0, so it can never fail a deploy. CI runs it strict.
+const WARN = process.argv.includes("--warn");
+const fail = () => process.exit(WARN ? 0 : 1);
+const tag = WARN ? "check-build-chunks WARN" : "check-build-chunks";
+
 function main() {
-  const nextDir = process.argv[2] ?? join(process.cwd(), ".next");
+  const nextDir = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? join(process.cwd(), ".next");
   const appDir = join(nextDir, "server", "app");
   const chunksDir = join(nextDir, "static", "chunks");
   if (!existsSync(appDir) || !existsSync(chunksDir)) {
-    console.error(`check-build-chunks: ${nextDir} is not a built .next (missing server/app or static/chunks)`);
-    process.exit(1);
+    console.error(`${tag}: ${nextDir} is not a built .next (missing server/app or static/chunks)`);
+    fail();
+    return;
   }
   const manifests = {};
   walk(appDir, (file) => {
@@ -67,19 +74,29 @@ function main() {
 
   const manifestCount = Object.keys(manifests).length;
   if (manifestCount === 0) {
-    console.error("check-build-chunks: found 0 client-reference manifests; the check would measure nothing");
-    process.exit(1);
+    console.error(`${tag}: found 0 client-reference manifests; the check would measure nothing`);
+    fail();
+    return;
   }
   const missing = findMissingClientChunks({ manifests, staticChunks });
   if (missing.length > 0) {
     console.error(
-      `check-build-chunks: ${missing.length} client chunk(s) are referenced by a manifest but absent from .next/static/chunks:`,
+      `${tag}: ${missing.length} client chunk(s) are referenced by a manifest but absent from .next/static/chunks:`,
     );
     for (const m of missing.slice(0, MAX_LISTED)) console.error(`  ${m}`);
     if (missing.length > MAX_LISTED) console.error(`  ... and ${missing.length - MAX_LISTED} more`);
-    process.exit(1);
+    fail();
+    return;
   }
   console.log(`check-build-chunks: ok (${manifestCount} manifests, ${staticChunks.size} chunks on disk)`);
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main();
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  try {
+    main();
+  } catch (err) {
+    // Warn mode must never break the Vercel build, whatever goes wrong while scanning.
+    console.error(`${tag}: unexpected error: ${err instanceof Error ? err.message : String(err)}`);
+    fail();
+  }
+}
