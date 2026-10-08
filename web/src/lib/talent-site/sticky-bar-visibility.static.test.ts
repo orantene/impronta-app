@@ -15,8 +15,9 @@ test("the page wrapper reserves --cb-bar-h and the bar hides at the top", () => 
 test("the island hook writes --cb-bar-h and the catalog wires it to the bar", () => {
   assert.match(read("../site-admin/builder-node/use-sticky-bar-visible.ts"), /setProperty\("--cb-bar-h"/);
   const filter = read("../site-admin/builder-node/services-catalog-filter.tsx");
-  assert.match(filter, /useStickyBarVisible\(nodeId, sheetOpen, barRef\)/);
-  assert.match(filter, /data-top=\{barAtTop \? "true" : undefined\}/);
+  assert.match(filter, /useStickyBarProps\(nodeId, sheetOpen\)/);
+  assert.match(filter, /\{\.\.\.barProps\}/);
+  assert.match(read("../site-admin/builder-node/use-sticky-bar-visible.ts"), /"data-top": useStickyBarVisible\(nodeId, sheetOpen, ref\) \? "true" : undefined/);
 });
 
 test("the builder canvas keeps the bar as it was", () => {

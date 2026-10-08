@@ -32,8 +32,9 @@ const OFF = { emergenciesToday: false, emergenciesUntil: null };
 const html = (locale: string, liveStatus?: typeof ON | typeof OFF | null) =>
   renderToStaticMarkup(<SelectionDock {...base} locale={locale} {...(liveStatus === undefined ? {} : { liveStatus })} />);
 
+// TUL-344: re-pinned on purpose (sticky bar hides at the top and reserves --cb-bar-h for every theme).
 test("existing designs: the base booking stylesheet is byte-pinned", () => {
-  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "a338ff242c45b5d20172ae965eb94651dc0e9ac60c3e5b0c5efa16345bdf148e");
+  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "8d7bb28b30400701ae39e60e5b71cefe0798c203ef72d09f5d66e9142d5692d5");
 });
 
 test("existing designs: dock markup is identical with no status, null or off", () => {

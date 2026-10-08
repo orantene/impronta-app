@@ -35,7 +35,7 @@ import { openCatalogBookingChat } from "@/components/public-booking/catalog-book
 import { useChatAddService } from "@/components/public-booking/use-chat-add-service";
 import { useDockBookingResume } from "@/components/public-booking/use-dock-booking-resume";
 import { useDockToast } from "@/components/public-booking/use-dock-toast";
-import { useStickyBarVisible } from "./use-sticky-bar-visible";
+import { useStickyBarProps } from "./use-sticky-bar-visible";
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
 import { dispatchCatalogOffering } from "./catalog-offering-dispatch";
 import {
@@ -193,13 +193,11 @@ export function ServicesCatalogFilter({
   const first = named[0]?.name ?? null;
   const [active, setActive] = useState<string | null>(categoryShowAll ? null : first);
   const [openAccordion, setOpenAccordion] = useState<string | null>(first);
-  // AUD-044 — multi-select dock state (front = first picked).
-  const [dock, dispatchDock] = useReducer(dockReducer, EMPTY_DOCK);
+  const [dock, dispatchDock] = useReducer(dockReducer, EMPTY_DOCK); // AUD-044 multi-select dock state (front = first picked)
   const { toast, showToast, clearToast } = useDockToast();
   const selectedId = dock.picked[0]?.id ?? null;
   const [sheetOpen, setSheetOpen] = useState(false);
-  const barRef = useRef<HTMLDivElement>(null);
-  const barAtTop = useStickyBarVisible(nodeId, sheetOpen, barRef);
+  const barProps = useStickyBarProps(nodeId, sheetOpen);
   const [searchQuery, setSearchQuery] = useState("");
   const demoToast = useDemoToast(bookingMode === "demo");
   const es = locale.startsWith("es");
@@ -507,12 +505,10 @@ export function ServicesCatalogFilter({
       </div>
       </div>
 
-      <CatalogOverlayStyles />
-      {/* Idle prompt only; once something is picked the AUD-044 dock takes over. */}
+      <CatalogOverlayStyles /> {/* The bar below is the idle prompt only; once something is picked the AUD-044 dock takes over. */}
       <div
-        ref={barRef}
+        {...barProps}
         className="cb-bar"
-        data-top={barAtTop ? "true" : undefined}
         data-show={!sheetOpen && selectedId === null && mobileBar !== "hidden"}
         data-has-selection="false"
         data-bar-style={mobileBar}

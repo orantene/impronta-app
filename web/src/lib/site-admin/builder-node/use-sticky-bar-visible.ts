@@ -13,7 +13,7 @@ import {
  * on the server, so first paint never flashes it) and writes `--cb-bar-h` (the space the page
  * reserves under its content) on the root. In the builder canvas the bar is left as it was.
  */
-export function useStickyBarVisible(
+function useStickyBarVisible(
   nodeId: string,
   sheetOpen: boolean,
   barRef: RefObject<HTMLElement | null>,
@@ -86,4 +86,10 @@ export function useStickyBarVisible(
   }, [barRef]);
 
   return atTop;
+}
+
+/** Props for the bar element: its ref plus `data-top` ("true" until the bar may show). */
+export function useStickyBarProps(nodeId: string, sheetOpen: boolean): { ref: RefObject<HTMLDivElement | null>; "data-top": "true" | undefined } {
+  const ref = useRef<HTMLDivElement>(null);
+  return { ref, "data-top": useStickyBarVisible(nodeId, sheetOpen, ref) ? "true" : undefined };
 }
