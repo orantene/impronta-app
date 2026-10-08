@@ -47,11 +47,11 @@ test("draft skip and event_name check on the gate job still hold", () => {
   );
 });
 
-test("PR concurrency still cancels superseded runs and never cancels main", () => {
-  assert.match(
-    ci,
-    /cancel-in-progress: \$\{\{ github\.ref != 'refs\/heads\/main' \}\}/,
-  );
+test("PR concurrency cancels superseded runs; on main the group is per SHA so it never cancels another commit", () => {
+  // Main commits each get their own group (the sha), so cancel-in-progress can only ever replace a
+  // DUPLICATE run of the same commit (it used to queue behind the first and delay promote ~30 min).
+  assert.match(ci, /group: \$\{\{ github\.workflow \}\}-\$\{\{ github\.ref == 'refs\/heads\/main' && github\.sha \|\| github\.ref \}\}/);
+  assert.match(ci, /cancel-in-progress: true/);
 });
 
 test("the decision is documented and the no-stacking rule is in CLAUDE.md", () => {

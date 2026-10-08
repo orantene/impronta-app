@@ -18,8 +18,12 @@ on:
         default: false
 
 concurrency:
+  # On main the group is per SHA, so only a duplicate run of the SAME commit shares it. Such a
+  # duplicate (7b's merge got two push runs 70 s apart on 2026-10-08) used to QUEUE behind the first
+  # (cancel-in-progress false), run the full gate again, and make promote-production fail on
+  # "required check in progress" for ~30 min. It now cancels the older run and takes over.
   group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
