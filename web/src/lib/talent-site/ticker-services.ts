@@ -84,6 +84,19 @@ export function buildTickerServiceWords(
   return out;
 }
 
+type Overlay = Record<string, Record<string, string>>;
+
+/** Drop per-item translation entries (`items.N.text`): the words are replaced, so an index-keyed overlay would overwrite the wrong service. */
+function withoutItemOverlay(overlay: unknown): Overlay | undefined {
+  if (!overlay || typeof overlay !== "object") return undefined;
+  const out: Overlay = {};
+  for (const [loc, entries] of Object.entries(overlay as Overlay)) {
+    const kept = Object.fromEntries(Object.entries(entries ?? {}).filter(([k]) => !k.startsWith("items.")));
+    if (Object.keys(kept).length > 0) out[loc] = kept;
+  }
+  return out;
+}
+
 /** Fill every `services` ticker of the tree with `words`; no words = leave the literal items as the fallback. */
 export function applyTalentTickerServices(
   tree: BuilderNode[],
@@ -94,7 +107,9 @@ export function applyTalentTickerServices(
     let next = node;
     if (node.kind === "marquee" && tickerSourceOf(node) === "services") {
       const items = words.map((text) => ({ text }));
-      next = { ...node, props: { ...propsOf(node), items } } as BuilderNode;
+      const props: Props = { ...propsOf(node), items };
+      if (props.i18n) props.i18n = withoutItemOverlay(props.i18n);
+      next = { ...node, props, ...(node.i18n ? { i18n: withoutItemOverlay(node.i18n) } : {}) } as BuilderNode;
     }
     const kids = (node as AnyNode).children;
     if (Array.isArray(kids) && kids.length > 0) {

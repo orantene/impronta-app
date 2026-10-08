@@ -116,3 +116,16 @@ test("static wiring: schema, core seed, Maison v2 seed and demo copy all carry t
   assert.match(read("lib/talent-site/demos/site-copy.ts"), /source: "custom"/);
   assert.match(read("lib/talent-site/server/talent-site-render-fixups.server.ts"), /applyTalentTickerServices/);
 });
+
+test("filling a services ticker drops index-keyed item translations but keeps other overlay keys", () => {
+  const overlay = { en: { "items.0.text": "Old word", "items.1.text": "Other" }, es: { "items.0.text": "Palabra" } };
+  const node = {
+    id: "m1", kind: "marquee", i18n: overlay,
+    props: { source: "services", items: [{ text: "a" }, { text: "b" }], i18n: { ...overlay, fr: { speed: "x" } } },
+  } as unknown as BuilderNode;
+  const [out] = applyTalentTickerServices([node], ["Lash lift", "Brow tint"]);
+  const props = out.props as { items: Array<{ text: string }>; i18n?: Record<string, Record<string, string>> };
+  assert.deepEqual(props.items.map((i) => i.text), ["Lash lift", "Brow tint"]);
+  assert.deepEqual(props.i18n, { fr: { speed: "x" } });
+  assert.deepEqual(out.i18n, {});
+});
