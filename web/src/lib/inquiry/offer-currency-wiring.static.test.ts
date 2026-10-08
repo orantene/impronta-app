@@ -62,7 +62,7 @@ describe("offer currency wiring", () => {
     assert.match(eng, /result\.error === "offer_currency_seller_mismatch"/);
     assert.match(eng, /reason: "offer_currency_seller_mismatch" as const/);
     const refusals = read("src/lib/scheduling/engine-refusals.ts");
-    assert.match(refusals, /"offer_currency_seller_mismatch",\n\] as const/);
+    assert.match(refusals, /"offer_currency_seller_mismatch",\n  "offer_currency_unresolved",\n\] as const/);
     assert.match(refusals, /dashboard\.scheduling\.engine\.refusal\.offer_currency_seller_mismatch/);
   });
 });

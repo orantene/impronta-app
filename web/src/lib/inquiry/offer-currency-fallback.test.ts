@@ -112,3 +112,38 @@ describe("the platform currency is never a silent default (TUL-313)", () => {
     assert.match(src, /if \(!offerCurrency\) return \{ success: false, reason: "offer_currency_unresolved" \}/);
   });
 });
+
+describe("offer_currency_unresolved has a user-facing message in every layer (TUL-313)", () => {
+  const WEB = new URL("../../../", import.meta.url);
+  const json = (loc: string) => JSON.parse(readFileSync(new URL(`messages/${loc}.json`, WEB), "utf8"));
+  const dig = (o: unknown, path: string[]): unknown => path.reduce<unknown>((a, k) => (a as Record<string, unknown> | undefined)?.[k], o);
+
+  it("maps to its own sentence in en, es and fr, next to the seller-mismatch one", () => {
+    for (const loc of ["en", "es", "fr"]) {
+      const m = json(loc);
+      for (const base of [["dashboard", "scheduling", "engine", "refusal"], ["dashboard", "pos", "messages", "refusal"]]) {
+        const node = dig(m, base) as Record<string, string> | undefined;
+        assert.ok(node?.offer_currency_seller_mismatch, `${loc} ${base.join(".")} has the sibling`);
+        const msg = node?.offer_currency_unresolved;
+        assert.ok(typeof msg === "string" && msg.length > 10, `${loc} ${base.join(".")} message`);
+        assert.notEqual(msg, node?.offer_currency_seller_mismatch);
+        assert.doesNotMatch(msg, /—/, "no em dash");
+      }
+    }
+  });
+
+  it("the scheduling and messaging refusal tables carry the code and its key", async () => {
+    const { SCHEDULING_ENGINE_REFUSALS, SCHEDULING_ENGINE_REFUSAL_CODES } = await import("../scheduling/engine-refusals");
+    assert.ok((SCHEDULING_ENGINE_REFUSAL_CODES as readonly string[]).includes("offer_currency_unresolved"));
+    assert.equal(SCHEDULING_ENGINE_REFUSALS.offer_currency_unresolved, "dashboard.scheduling.engine.refusal.offer_currency_unresolved");
+    const { MESSAGING_REFUSAL_CODES, refusalKey, isMessagingRefusal } = await import("../messaging/refusals");
+    assert.ok(isMessagingRefusal("offer_currency_unresolved"));
+    assert.ok((MESSAGING_REFUSAL_CODES as readonly string[]).includes("offer_currency_unresolved"));
+    assert.equal(refusalKey("offer_currency_unresolved"), "dashboard.pos.messages.refusal.offer_currency_unresolved");
+  });
+
+  it("the offer send path maps the engine reason to that code, not the generic unavailable", () => {
+    const src = readFileSync(new URL("src/lib/server-actions/messaging-offers.ts", WEB), "utf8");
+    assert.match(src, /result\.reason === "offer_currency_unresolved"\) return fail\("offer_currency_unresolved"\)/);
+  });
+});
