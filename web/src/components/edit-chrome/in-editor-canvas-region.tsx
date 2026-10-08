@@ -54,6 +54,7 @@ import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
 import { applyTalentLiveText, type TalentLiveText } from "@/lib/talent-site/live-text";
+import { applyTalentTickerServices } from "@/lib/talent-site/ticker-services";
 import { hydratePlaceholders } from "@/lib/talent-site/theme-template/hydrate-placeholders";
 
 export interface InEditorCanvasRegionProps {
@@ -153,6 +154,12 @@ export function InEditorCanvasRegion({
             labelLocale.live as TalentLiveText,
           ) as BuilderNodeTree;
         }
+      }
+      if (labelLocale?.tickerWords?.length && labelFollowsSite) {
+        out = applyTalentTickerServices(
+          out as Parameters<typeof applyTalentTickerServices>[0],
+          labelLocale.tickerWords,
+        ) as BuilderNodeTree;
       }
       if (placeholders) {
         out = hydratePlaceholders(
