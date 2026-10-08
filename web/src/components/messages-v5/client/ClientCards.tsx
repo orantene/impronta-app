@@ -18,7 +18,7 @@
  * readers in `lib/messages-v5/client-thread-view.ts` never expose them.
  */
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { buildIcsEvent, downloadIcs } from "@/lib/ui/ics";
 import type { MessagingRefusal } from "@/lib/messaging/types";
@@ -223,7 +223,7 @@ export function ClientTimesCard({
 
 export type OfferMode = "view" | "change" | "decline";
 
-export function ClientOfferCard({ offer, offers, copy, kit, business, locale, now, phase = "idle", refusal, payCode, onAccept, onDecline, onChange, onPay }: Common & {
+export function ClientOfferCard({ offer, offers, copy, kit, business, locale, now, phase = "idle", refusal, payCode, onAccept, onDecline, onChange, onPay, acceptLabel, signInPanel }: Common & {
   readonly offer: ClientOfferSummary;
   /** All guest-visible offers on the thread; drives the guest-facing version number. */
   readonly offers?: readonly ClientOfferSummary[];
@@ -233,6 +233,10 @@ export function ClientOfferCard({ offer, offers, copy, kit, business, locale, no
   readonly onDecline?: (offer: ClientOfferSummary, reason: string) => void;
   readonly onChange?: (offer: ClientOfferSummary, text: string) => void;
   readonly onPay?: (code: string) => void;
+  /** Guest dock (TUL-280): unsigned clients see "Sign in to accept" instead of Accept. */
+  readonly acceptLabel?: string;
+  /** Guest dock: inline email-code form under the offer actions. */
+  readonly signInPanel?: ReactNode;
 }) {
   const [mode, setMode] = useState<OfferMode>("view");
   const [text, setText] = useState("");
@@ -273,11 +277,17 @@ export function ClientOfferCard({ offer, offers, copy, kit, business, locale, no
   let actions: React.ReactNode = null;
   if (state === "sent" && mode === "view") {
     // Brief row-actions: solid Aceptar + underlined Pedir un cambio / Rechazar.
-    actions = (
+    // TUL-280: when `signInPanel` is open, hide Accept/Decline/Change so the
+    // guest finishes email-code in place instead of a dead-end refusal.
+    actions = signInPanel ? (
+      <div className="cx-offer-sign-in" data-client-offer-sign-in="">
+        {signInPanel}
+      </div>
+    ) : (
       <div className="cx-row cx-offer-actions">
         {onAccept ? (
           <Btn size="sm" variant="primary" busy={busy} onClick={() => onAccept(offer)} data-client-action="accept_offer">
-            {busy ? copy.offer.accepting : copy.offer.accept}
+            {busy ? copy.offer.accepting : (acceptLabel ?? copy.offer.accept)}
           </Btn>
         ) : null}
         <Btn size="sm" variant="ghost" className="cx-offer-ask" disabled={busy} onClick={() => setMode("change")} data-client-action="ask_change">

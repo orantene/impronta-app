@@ -60,6 +60,9 @@ export function useGuestDockModel(input: {
     refresh: input.refresh ?? (() => undefined),
     onTick: () => setNow(new Date()),
     onAsk: input.onAsk,
+    contactEmail: input.contactEmail,
+    accent: input.accent,
+    accentInk: input.accentInk,
   });
   const recordId = bookAgainRecordId(input.v5?.items?.records);
   const token = input.v5?.threadToken ?? null;
