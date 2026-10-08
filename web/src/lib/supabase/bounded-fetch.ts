@@ -15,6 +15,8 @@
  * bounded too.
  */
 
+import { AsyncLocalStorage } from "node:async_hooks";
+
 export const SUPABASE_READ_TIMEOUT_MS = 8_000;
 export const SUPABASE_SERVICE_TIMEOUT_MS = 12_000;
 export const SUPABASE_EDGE_LOOKUP_TIMEOUT_MS = 3_000;
@@ -28,10 +30,41 @@ export class BoundedFetchTimeoutError extends Error {
 
 type FetchFn = typeof fetch;
 
+/**
+ * Per-render record of "a Supabase read timed out". A loader that swallows the
+ * error would otherwise hand back an empty-but-successful result (no pages, no
+ * theme tokens) and the render would serve a hollow site or a false 404.
+ * `failOnReadTimeout` turns that into a thrown error once the work settles, and
+ * later reads in the same scope fail fast so a retry ladder cannot stack
+ * deadlines (or fall back to draft columns).
+ */
+const scope = new AsyncLocalStorage<{ timedOut: boolean }>();
+
+export async function failOnReadTimeout<T>(work: () => Promise<T>): Promise<T> {
+  const state = { timedOut: false };
+  const result = await scope.run(state, work);
+  if (state.timedOut) throw new BoundedFetchTimeoutError("render", 0);
+  return result;
+}
+
 function urlOf(input: Parameters<FetchFn>[0]): string {
   if (typeof input === "string") return input;
   if (input instanceof URL) return input.toString();
   return input.url;
+}
+
+/** POST RPCs known to be read-only. Everything else that is not GET/HEAD passes through unbounded. */
+const READ_ONLY_RPCS = ["talent_site_domain_lookup", "talent_site_subdomain_lookup", "resolve_talent_profile_code"];
+
+/**
+ * Only READS are bounded: with no abort, a timed-out write keeps running while
+ * the caller retries, which risks duplicate money or webhook writes.
+ */
+export function isBoundedRead(url: string, method: string): boolean {
+  if (!url.includes("/rest/v1/")) return false;
+  const m = method.toUpperCase();
+  if (m === "GET" || m === "HEAD") return true;
+  return m === "POST" && READ_ONLY_RPCS.some((fn) => url.includes(`/rest/v1/rpc/${fn}`));
 }
 
 export function createBoundedFetch(
@@ -40,10 +73,11 @@ export function createBoundedFetch(
 ): FetchFn {
   return async (input, init) => {
     const url = urlOf(input);
-    // Only PostgREST (/rest/v1/) is bounded: its bodies are small JSON. Auth,
-    // storage and functions can stream or upload, so they pass straight through.
-    const buffer = url.includes("/rest/v1/");
-    if (!buffer) return base(input, init);
+    // Only PostgREST reads are bounded (small JSON). Writes, auth, storage and
+    // functions pass straight through.
+    if (!isBoundedRead(url, init?.method ?? (typeof input === "object" && "method" in input ? input.method : "GET"))) return base(input, init);
+    const state = scope.getStore();
+    if (state?.timedOut) throw new BoundedFetchTimeoutError(url, 0);
     const work = (async () => {
       const res = await base(input, init);
       const body = await res.arrayBuffer();
@@ -56,7 +90,10 @@ export function createBoundedFetch(
       return await Promise.race([
         work,
         new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new BoundedFetchTimeoutError(url, ms)), ms);
+          timer = setTimeout(() => {
+            if (state) state.timedOut = true;
+            reject(new BoundedFetchTimeoutError(url, ms));
+          }, ms);
         }),
       ]);
     } finally {

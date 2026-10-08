@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { loadHistoryPreviewSnapshot } from "../history/history.server";
 import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/talent-update.server";
 import { early } from "@/lib/server/early";
+import { failOnReadTimeout } from "@/lib/supabase/bounded-fetch";
 import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill, withHeaderSiteChrome } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
@@ -205,19 +206,14 @@ const NOT_FOUND: RenderTalentMaxSiteResult = { kind: "not_found" };
  * Resolve the site row from either key. By-slug is the primary path; by-profile
  * is the custom-domain path. Returns null when neither key resolves a row.
  */
-async function resolveSiteRow(
-  input: RenderTalentMaxSiteInput,
-): Promise<MaxSiteRow | null> {
-  if (input.siteSlug) {
-    return loadMaxSiteBySlug(input.siteSlug);
-  }
-  if (input.talentProfileId) {
-    return loadMaxSiteByProfileId(input.talentProfileId);
-  }
-  return null;
-}
+const resolveSiteRow = async (input: RenderTalentMaxSiteInput): Promise<MaxSiteRow | null> =>
+  input.siteSlug ? loadMaxSiteBySlug(input.siteSlug) : input.talentProfileId ? loadMaxSiteByProfileId(input.talentProfileId) : null;
 
-export async function renderTalentMaxSite(
+/** TUL-444: a read that timed out must surface as an error (500, never cached), not a 404 or a half-rendered site. */
+export const renderTalentMaxSite = (input: RenderTalentMaxSiteInput): Promise<RenderTalentMaxSiteResult> =>
+  failOnReadTimeout(() => renderTalentMaxSiteUnguarded(input));
+
+async function renderTalentMaxSiteUnguarded(
   input: RenderTalentMaxSiteInput,
 ): Promise<RenderTalentMaxSiteResult> {
   try {
