@@ -1322,7 +1322,6 @@ const ES_TEXT: Record<string, string> = {
   "Talent on this inquiry": "Talento en esta consulta",
   "Brief": "Brief",
   "Conversation": "Conversación",
-
   // light-06 : New inquiry
   "Capture a lead from a client. Send an offer when ready.": "Registra un contacto de un cliente. Envía una oferta cuando esté listo.",
 
