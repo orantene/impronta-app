@@ -336,6 +336,6 @@ test("a stale list key is skipped, never created", () => {
 
 test("props.i18n alone (no node.i18n mirror) is honoured", () => {
   const base = createBuilderNode("statement_footer");
-  const only = { ...base, id: "n4", props: { ...base.props, statement: "Next issue.", i18n: { es: { statement: "Siguiente numero." } } } } as BuilderNode;
+  const only = { ...base, id: "n4", props: { ...base.props, statement: "Next issue.", i18n: { es: { statement: "Siguiente numero." } } } } as unknown as BuilderNode;
   assert.match(render([only], {}, ES), /Siguiente numero\./);
 });

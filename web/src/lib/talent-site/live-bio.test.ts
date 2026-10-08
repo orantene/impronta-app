@@ -15,7 +15,7 @@ import { applyTalentLiveText, treeHasLiveCandidates } from "./live-text";
 import { buildTalentLiveText, type LiveTextSource } from "./live-text-values";
 import { COLLECTION_DESIGNS } from "./theme-catalog/collection/designs";
 import { buildMaisonDesignPayload } from "./theme-catalog/maison/design-payload";
-import type { DesignPayload } from "./types";
+import type { DesignPayload } from "./theme-catalog/types";
 
 const BOTH = { en: "I paint nails in Merida.", es: "Pinto uñas en Mérida." };
 

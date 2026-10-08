@@ -69,7 +69,7 @@ test("overlay: exact match only (trimmed), never overwrites, adds missing en", (
 test("overlay: marquee items.N.text; unmatched item reported", () => {
   const r = overlayTree(dbHome(), lookup, "homeTree");
   const m = r.tree.find((n) => n.id === "a5")!;
-  assert.deepEqual(m.props.i18n, { es: { "items.0.text": "Pestañas" }, en: { "items.0.text": "Lashes" } });
+  assert.deepEqual(m.props!.i18n, { es: { "items.0.text": "Pestañas" }, en: { "items.0.text": "Lashes" } });
   assert.ok(r.unmatched.some((u) => u.key === "items.1.text" && u.base === "Brows"));
 });
 
@@ -78,10 +78,10 @@ test("additive guard: refuses non-i18n diffs and dropped translations", () => {
   const ok = overlayTree(before, lookup, "homeTree").tree;
   assert.equal(isI18nOnlyAdditive(before, ok), true);
   const tampered = structuredClone(ok);
-  tampered[1].props.text = "Changed";
+  tampered[1]!.props!.text = "Changed";
   assert.equal(isI18nOnlyAdditive(before, tampered), false);
   const dropped = structuredClone(ok);
-  delete dropped[3].props.i18n.es;
+  delete (dropped[3]!.props!.i18n as Record<string, unknown>).es;
   assert.equal(isI18nOnlyAdditive(before, dropped), false);
 });
 
@@ -226,7 +226,7 @@ test("a save that changes more than i18n aborts before publish", async () => {
   const orig = f.ports.saveTree;
   f.ports.saveTree = async (i) => {
     const r = await orig(i);
-    if (r.ok) r.value.payload.homeTree![0].props.text = "mutated";
+    if (r.ok) r.value.payload.homeTree![0]!.props!.text = "mutated";
     return r;
   };
   assert.equal(await run({ ...base, designs: ["maison-v2"], apply: true, yes: true }, f.ports), 2);

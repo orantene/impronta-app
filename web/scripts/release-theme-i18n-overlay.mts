@@ -85,7 +85,7 @@ const asDraft = async (d: Awaited<ReturnType<typeof drafts.loadThemeDraft>>): Pr
     payload: d.value.payload as unknown as PayloadLike,
   };
 };
-const res = <T>(r: { ok: true; value: T } | { ok: false; code?: string; error: string }) => r;
+const res = <T,>(r: { ok: true; value: T } | { ok: false; code?: string; error: string }) => r;
 
 const ports: Ports = {
   async findActor() {

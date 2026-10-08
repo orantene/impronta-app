@@ -37,6 +37,7 @@ export function tickerSourceOf(node: BuilderNode): TickerSource {
   if (source === undefined || source === "custom") return "custom";
   if (source === "services") return "services";
   if (process.env.NODE_ENV !== "production") {
+    // eslint-disable-next-line no-console
     console.warn(
       `[ticker-services] marquee ${node.id}: unknown source ${JSON.stringify(source)}; showing its own words.`,
     );
