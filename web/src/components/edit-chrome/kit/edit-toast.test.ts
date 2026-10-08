@@ -52,3 +52,18 @@ test("neutral tone uses surface/line/text tokens", () => {
   assert.equal(p.bg, CHROME.surface);
   assert.equal(p.text, CHROME.text2);
 });
+
+import { editToastSurface } from "./edit-toast";
+import { Z_INDEX } from "./tokens";
+
+test("toast surface is opaque white under the tone tint (AA on any backdrop)", () => {
+  const s = editToastSurface(CHROME.greenBg);
+  assert.equal(s.backgroundColor, "#ffffff");
+  assert.ok(s.backgroundImage.includes(CHROME.greenBg));
+});
+
+test("toast layer sits above every dialog / overlay band", () => {
+  assert.ok(Z_INDEX.toast > Z_INDEX.modalOverlay);
+  assert.ok(Z_INDEX.modalOverlay > Z_INDEX.modal);
+  assert.ok(Z_INDEX.modal > Z_INDEX.topBar);
+});

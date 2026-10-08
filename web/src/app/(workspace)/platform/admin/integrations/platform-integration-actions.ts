@@ -41,6 +41,7 @@ import {
   platformConfigField,
   platformSecretStatus,
 } from "@/lib/integrations/platform-defaults";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type PlatformIntegrationActionResult =
   | { ok: true }
@@ -121,8 +122,8 @@ export async function loadPlatformIntegrationDefaults(): Promise<PlatformIntegra
   const capSiteKey = await platformConfigField(CAPTCHA_INTEGRATION_KEY, "site_key");
   const capSecret = await platformSecretStatus(CAPTCHA_INTEGRATION_KEY, "secret_key");
   const capEnv =
-    (process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY?.trim() ||
-      process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim()) ?? null;
+    (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ||
+      process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY?.trim()) ?? null;
 
   // ── Email-from (public from_address or domain) ──
   const emailFrom = await platformConfigField(EMAIL_DOMAIN_INTEGRATION_KEY, "from_address");
@@ -188,6 +189,8 @@ export async function loadPlatformIntegrationDefaults(): Promise<PlatformIntegra
 export async function savePlatformGoogleMapsKey(
   apiKey: string,
 ): Promise<PlatformIntegrationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const platformTenant = await requirePlatformTenantId();
@@ -225,6 +228,8 @@ export async function savePlatformGoogleMapsKey(
 }
 
 export async function clearPlatformGoogleMapsKey(): Promise<PlatformIntegrationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const platformTenant = await requirePlatformTenantId();
@@ -246,6 +251,8 @@ export async function clearPlatformGoogleMapsKey(): Promise<PlatformIntegrationA
 export async function savePlatformGa4Id(
   measurementId: string,
 ): Promise<PlatformIntegrationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const platformTenant = await requirePlatformTenantId();
@@ -281,6 +288,8 @@ export async function savePlatformGa4Id(
 }
 
 export async function clearPlatformGa4Id(): Promise<PlatformIntegrationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const platformTenant = await requirePlatformTenantId();
@@ -303,6 +312,8 @@ export async function savePlatformCaptcha(input: {
   site_key: string;
   secret_key: string;
 }): Promise<PlatformIntegrationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const platformTenant = await requirePlatformTenantId();
@@ -370,6 +381,8 @@ export async function savePlatformCaptcha(input: {
 }
 
 export async function clearPlatformCaptcha(): Promise<PlatformIntegrationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const platformTenant = await requirePlatformTenantId();
@@ -398,6 +411,8 @@ export async function savePlatformEmailFrom(input: {
   from_address?: string;
   domain?: string;
 }): Promise<PlatformIntegrationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const platformTenant = await requirePlatformTenantId();
@@ -445,6 +460,8 @@ export async function savePlatformEmailFrom(input: {
 }
 
 export async function clearPlatformEmailFrom(): Promise<PlatformIntegrationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const platformTenant = await requirePlatformTenantId();

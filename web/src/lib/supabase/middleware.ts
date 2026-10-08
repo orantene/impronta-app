@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { authCoordinationOptions } from "@/lib/supabase/auth-coordination";
 import { cookieDomainForHost, isSupabaseAuthCookie } from "@/lib/supabase/cookie-domain";
 import { loadAccessProfile } from "@/lib/access-profile";
@@ -9,9 +10,21 @@ import {
 } from "@/lib/auth-routing";
 import type { AccessProfile } from "@/lib/auth-flow";
 import {
+  DESK_AUTH_RESCOPE_COOKIE,
+  shouldAttemptDeskAuthRescope,
+} from "@/lib/support/desk/desk-access";
+import { isSupportDeskHost } from "@/lib/support/desk-hosts";
+import {
   ACCESS_PROFILE_REFRESH_COOKIE,
+  ACCESS_PROFILE_REFRESH_VALUE,
+  isAccessProfileMemoUsable,
   wantsAccessProfileRefresh,
 } from "@/lib/auth/access-profile-refresh";
+import {
+  ONBOARDING_BOUNCE_COOKIE,
+  ONBOARDING_BOUNCE_WINDOW_S,
+  shouldRereadBeforeOnboardingBounce,
+} from "@/lib/auth/onboarding-bounce";
 import { IMPERSONATION_COOKIE_NAME } from "@/lib/impersonation/constants";
 import {
   GUEST_COOKIE_NAME,
@@ -28,6 +41,11 @@ import { stripLocaleFromPathname } from "@/i18n/pathnames";
 
 
 const LOCALE_HEADER = "x-impronta-locale";
+
+/** Session refreshed => forward @supabase/ssr's Cache-Control private/no-store set so a CDN never caches Set-Cookie. */
+export function applyRefreshCacheHeaders(res: NextResponse, h: Record<string, string>): void {
+  for (const [k, v] of Object.entries(h)) res.headers.set(k, v);
+}
 
 /**
  * Sprint 2.1 — request-scoped actor forwarding from middleware to RSCs/server
@@ -141,20 +159,31 @@ const ACCESS_PROFILE_TTL_MS = 60_000;
 const ACCESS_PROFILE_MAX_ENTRIES = 512;
 const accessProfileMemo = new Map<string, { at: number; profile: AccessProfile | null }>();
 
-async function loadAccessProfileMemo(
+/**
+ * `refreshCookie` is the `tulala_access_profile_refresh` value: a stamp
+ * versions the memo (entries recorded before it are stale on every instance),
+ * so a profile created by onboarding on another host or instance is never
+ * shadowed by a pre-onboarding entry. `fromMemo` lets the caller re-read
+ * before acting on a memoised "no role yet" profile.
+ */
+export async function loadAccessProfileMemo(
   supabase: ReturnType<typeof createServerClient>,
   userId: string,
-): Promise<AccessProfile | null> {
+  refreshCookie?: string | null,
+  load: typeof loadAccessProfile = loadAccessProfile,
+): Promise<{ profile: AccessProfile | null; fromMemo: boolean }> {
   const hit = accessProfileMemo.get(userId);
-  if (hit && Date.now() - hit.at < ACCESS_PROFILE_TTL_MS) return hit.profile;
-  const profile = await loadAccessProfile(supabase, userId);
+  if (hit && isAccessProfileMemoUsable(hit.at, Date.now(), ACCESS_PROFILE_TTL_MS, refreshCookie)) {
+    return { profile: hit.profile, fromMemo: true };
+  }
+  const profile = await load(supabase, userId);
   accessProfileMemo.set(userId, { at: Date.now(), profile });
   while (accessProfileMemo.size > ACCESS_PROFILE_MAX_ENTRIES) {
     const oldest = accessProfileMemo.keys().next().value;
     if (oldest === undefined) break;
     accessProfileMemo.delete(oldest);
   }
-  return profile;
+  return { profile, fromMemo: false };
 }
 
 /** Drops a memoised access profile, for the paths that change it in-request. */
@@ -174,6 +203,8 @@ export async function updateSession(
      * on the marketing apex). See `AuthRoutingInput.hostKind`.
      */
     hostKind?: string | null;
+    /** Host the proxy resolved (never a client header); drives the auth cookie domain. */
+    resolvedHost?: string | null;
   },
 ): Promise<UpdateSessionResult> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -231,10 +262,11 @@ export async function updateSession(
   // Scope auth cookies to the shared parent domain (".tulala.digital") so a
   // session rotated/created on any first-party subdomain is visible across all
   // of them. `undefined` for hosts we don't share across → host-only as before.
-  const authCookieDomain = cookieDomainForHost(
-    request.headers.get("x-impronta-host-name") ?? request.headers.get("host"),
-  );
+  // Never read x-impronta-host-name here: it is client-forgeable.
+  const requestHost = options?.resolvedHost ?? request.headers.get("host");
+  const authCookieDomain = cookieDomainForHost(requestHost);
 
+  let refreshCacheHeaders: Record<string, string> = {};
   const supabase = createServerClient(url, anon, {
     // Flag-gated refresh-token coordination. OFF (default) →
     // `authCoordinationOptions()` is `undefined`, the spread is a no-op, and the
@@ -247,7 +279,8 @@ export async function updateSession(
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet, cacheHeaders) {
+        refreshCacheHeaders = cacheHeaders ?? {};
         cookiesToSet.forEach(({ name, value }) =>
           request.cookies.set(name, value),
         );
@@ -306,6 +339,7 @@ export async function updateSession(
     .some((c) => isSupabaseAuthCookie(c.name));
   const shouldClearStaleAuth = !user && isAuthEntryRoute && hasStaleAuthCookie;
   const clearStaleAuthCookies = (res: NextResponse): NextResponse => {
+    applyRefreshCacheHeaders(res, refreshCacheHeaders);
     if (!shouldClearStaleAuth) return res;
     const names = new Set<string>();
     for (const c of request.cookies.getAll()) {
@@ -330,6 +364,16 @@ export async function updateSession(
           domain: authCookieDomain,
         });
         res.headers.append("set-cookie", `${name}=; Path=/; Max-Age=0`);
+      } else if (isSupportDeskHost(requestHost)) {
+        // Desk hosts write host-only cookies but still RECEIVE parent-domain
+        // sessions from app/marketing. Stale clear must sweep BOTH scopes or a
+        // survivor keeps poisoning login (CROSS-SCOPE).
+        res.cookies.set(name, "", {
+          maxAge: 0,
+          path: "/",
+          domain: ".tulala.digital",
+        });
+        res.headers.append("set-cookie", `${name}=; Path=/; Max-Age=0`);
       } else {
         // Host-only hosts (custom domains, localhost): one host-only deletion.
         res.cookies.set(name, "", { maxAge: 0, path: "/" });
@@ -344,14 +388,60 @@ export async function updateSession(
   // `resolveAuthRoutingDecision`, so a field the router reads (like
   // `home_surface_preference`) must not be silently dropped here.
   let sessionProfile: AccessProfile | null = null;
-  const bustAccessProfile =
-    !!user && wantsAccessProfileRefresh(request.cookies.get(ACCESS_PROFILE_REFRESH_COOKIE)?.value);
-  if (user && bustAccessProfile) {
+  const refreshCookie = request.cookies.get(ACCESS_PROFILE_REFRESH_COOKIE)?.value ?? null;
+  // Only the legacy one-shot value is cleared here; a stamp must keep
+  // invalidating older memo entries on every instance until it expires.
+  const bustAccessProfile = !!user && refreshCookie === ACCESS_PROFILE_REFRESH_VALUE;
+  if (user && wantsAccessProfileRefresh(refreshCookie)) {
     forgetAccessProfileMemo(user.id);
   }
 
   if (user) {
-    sessionProfile = await loadAccessProfileMemo(supabase, user.id);
+    const loaded = await loadAccessProfileMemo(supabase, user.id, refreshCookie);
+    sessionProfile = loaded.profile;
+    // Loop guard: never bounce someone to /onboarding/role on a MEMOISED
+    // "no role yet" profile. Onboarding may have just created the profile on
+    // another host or instance; one fresh read decides.
+    if (loaded.fromMemo && shouldRereadBeforeOnboardingBounce(sessionProfile)) {
+      forgetAccessProfileMemo(user.id);
+      sessionProfile = (await loadAccessProfileMemo(supabase, user.id, refreshCookie)).profile;
+    }
+  }
+
+  // Desk CROSS-SCOPE recovery: host-only talent/client cookies on
+  // support.tulala.digital can shadow a parent-domain platform-admin session.
+  // Clear host-only auth cookies once and retry `/desk` so the admin parent
+  // session can win. After one attempt, loadDeskPage shows an honest forbidden
+  // page instead of a soft 404.
+  if (
+    shouldAttemptDeskAuthRescope({
+      isSupportDeskHost: isSupportDeskHost(requestHost),
+      pathname: pathnameForAuth,
+      hasUser: Boolean(user),
+      isPlatformAdmin: isPlatformAdmin(sessionProfile),
+      alreadyRescoped:
+        request.cookies.get(DESK_AUTH_RESCOPE_COOKIE)?.value === "1",
+    })
+  ) {
+    const rescopeUrl = request.nextUrl.clone();
+    const rescopeRes = attachGuestCookie(NextResponse.redirect(rescopeUrl));
+    const authNames = new Set<string>();
+    for (const c of request.cookies.getAll()) {
+      if (isSupabaseAuthCookie(c.name)) authNames.add(c.name);
+    }
+    for (const name of authNames) {
+      // Host-only only — leave Domain=.tulala.digital untouched.
+      rescopeRes.cookies.set(name, "", { maxAge: 0, path: "/" });
+    }
+    rescopeRes.cookies.set(DESK_AUTH_RESCOPE_COOKIE, "1", {
+      maxAge: 120,
+      path: "/",
+      sameSite: "lax",
+    });
+    return {
+      response: rescopeRes,
+      requestHeaders: forwardedHeaders,
+    };
   }
 
   // Sprint 2.1 — write the verified actor onto `forwardedHeaders` so
@@ -428,12 +518,28 @@ export async function updateSession(
     hostKind: options?.hostKind ?? null,
   });
 
+  const isServerActionRequest =
+    request.method === "POST" && request.headers.has("next-action");
+
   const applyImpersonationCookieClear = (res: NextResponse) => {
     if (clearImpersonationCookie) {
       clearImpersonationCookieOnResponse(res);
     }
     if (bustAccessProfile) {
       res.cookies.set(ACCESS_PROFILE_REFRESH_COOKIE, "", { maxAge: 0, path: "/" });
+    }
+    if (
+      decision.redirectTo?.startsWith("/onboarding/role") &&
+      !isServerActionRequest
+    ) {
+      // Lets /onboarding/role tell a fresh chooser visit from a bounce: if
+      // the page would send this person straight back, it holds instead.
+      res.cookies.set(ONBOARDING_BOUNCE_COOKIE, String(Date.now()), {
+        path: "/",
+        maxAge: ONBOARDING_BOUNCE_WINDOW_S,
+        httpOnly: true,
+        sameSite: "lax",
+      });
     }
     return res;
   };
@@ -464,8 +570,6 @@ export async function updateSession(
   // Actions enforce their own auth (requireSession/requireStaff), so it's safe
   // — and necessary — to let them run and return their own result. Only GET
   // navigations get the routing redirect.
-  const isServerActionRequest =
-    request.method === "POST" && request.headers.has("next-action");
 
   if (decision.redirectTo && !isServerActionRequest) {
     const redirectUrl = request.nextUrl.clone();

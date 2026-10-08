@@ -51,6 +51,11 @@
  *   only triggered when the velocity guard trips.
  */
 
+import "server-only";
+
+import { envCaptchaFallback } from "@/lib/captcha/env-fallback";
+import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
+
 // ---------------------------------------------------------------------------
 // Result types
 // ---------------------------------------------------------------------------
@@ -77,10 +82,11 @@ async function verifyTurnstile(token: string, secret: string, ip: string | null)
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: params,
     });
-    const j = (await r.json()) as { success?: boolean };
+    if (!r.ok) return false;
+    const j = (await r.json()) as { success?: boolean; "error-codes"?: string[] };
     return j.success === true;
   } catch {
-    return false;
+    return false; // fail CLOSED on network / parse errors
   }
 }
 
@@ -102,38 +108,44 @@ async function verifyHcaptcha(token: string, secret: string): Promise<boolean> {
 // Public API
 // ---------------------------------------------------------------------------
 
+export type CaptchaResolver = (tenantId: string) => Promise<{
+  provider: "hcaptcha" | "turnstile" | "none";
+  getSecret: () => Promise<string | null>;
+}>;
+
+/** Same resolution as booking/forms: tenant row, platform DB, then env (final fallback). */
+async function resolveFor(
+  tenantId: string | null | undefined,
+  resolver: CaptchaResolver,
+): Promise<{ provider: "hcaptcha" | "turnstile" | "none"; getSecret: () => Promise<string | null> }> {
+  if (tenantId) return resolver(tenantId);
+  const env = envCaptchaFallback(process.env);
+  return { provider: env.provider, getSecret: async () => env.secret };
+}
+
 /**
- * Verify a captcha token from a guest form submission.
+ * Verify a captcha token from a guest submission. Provider + secret come from
+ * `resolveTenantCaptcha(tenantId)` (tenant row, platform DB, env last).
  *
- * @param opts.token   The token from the client (null/empty = not provided).
- * @param opts.ip      Visitor IP for Turnstile's remoteip hint (optional).
- *
- * Returns `{ ok: true }` when:
- *   - No captcha provider is configured (env vars absent) — no-op.
- *   - The token verifies successfully.
- *
- * Returns `{ ok: false, code: "captcha_required" }` when a provider is
- * configured but no token was submitted. The UI should surface the widget.
- *
- * Returns `{ ok: false, code: "captcha_failed" }` when the token is present
- * but fails server-side verification.
+ * - No provider resolved: `{ ok: true }` (no-op; honeypot + rate limits remain).
+ * - Provider but no token: `captcha_required`.
+ * - Provider but missing secret, bad token, or any vendor error: `captcha_failed` (fail CLOSED).
  */
 export async function verifyCaptchaToken(opts: {
   token: string | null | undefined;
   ip?: string | null;
+  tenantId?: string | null;
+  resolver?: CaptchaResolver;
 }): Promise<CaptchaVerifyResult> {
-  const turnstileSecret = process.env.TURNSTILE_SECRET;
-  const hcaptchaSecret = process.env.HCAPTCHA_SECRET;
-
-  const captchaConfigured = !!(turnstileSecret || hcaptchaSecret);
-
-  if (!captchaConfigured) {
-    // No-op: local dev / tenant has not configured a captcha provider.
-    return { ok: true };
+  let cfg;
+  try {
+    cfg = await resolveFor(opts.tenantId, opts.resolver ?? resolveTenantCaptcha);
+  } catch {
+    return { ok: false, code: "captcha_failed", message: "Challenge failed — please try again." };
   }
+  if (cfg.provider === "none") return { ok: true };
 
   const token = opts.token?.trim() || "";
-
   if (!token) {
     return {
       ok: false,
@@ -142,13 +154,17 @@ export async function verifyCaptchaToken(opts: {
     };
   }
 
-  // Prefer Turnstile if configured; fall back to hCaptcha.
-  let success = false;
-  if (turnstileSecret) {
-    success = await verifyTurnstile(token, turnstileSecret, opts.ip ?? null);
-  } else if (hcaptchaSecret) {
-    success = await verifyHcaptcha(token, hcaptchaSecret);
+  let secret: string | null = null;
+  try {
+    secret = await cfg.getSecret();
+  } catch {
+    secret = null;
   }
+  const success = secret
+    ? cfg.provider === "turnstile"
+      ? await verifyTurnstile(token, secret, opts.ip ?? null)
+      : await verifyHcaptcha(token, secret)
+    : false;
 
   if (!success) {
     return {
@@ -157,31 +173,22 @@ export async function verifyCaptchaToken(opts: {
       message: "Challenge failed — please try again.",
     };
   }
-
   return { ok: true };
 }
 
 /**
- * Returns true when at least one captcha provider is currently configured.
- * Useful for the UI to decide whether to render the challenge widget.
+ * True only when the guest-chat widget is wired (GUEST_CHAT_CAPTCHA_WIDGET_READY=1)
+ * AND a provider resolves for this tenant. Velocity escalation stays off otherwise
+ * so a guest is never asked for a token they cannot produce.
  */
-export function isCaptchaConfigured(): boolean {
-  return !!(process.env.TURNSTILE_SECRET || process.env.HCAPTCHA_SECRET);
-}
-
-/**
- * Returns true only when a captcha provider is configured AND a real client-side
- * widget is actually mounted to produce a token. The MVP guest-chat captcha slot
- * is an inert stub (no Turnstile/hCaptcha widget), so a velocity-tripped guest
- * that receives `captcha_required` has NO way to produce a token and would be
- * permanently soft-bricked. The velocity escalation must therefore stay OFF
- * until the widget exists; flip GUEST_CHAT_CAPTCHA_WIDGET_READY=1 in the same
- * change that mounts the real widget + round-trips the token.
- *
- * This is intentionally separate from isCaptchaConfigured(): a secret can be set
- * (so verifyCaptchaToken would enforce a SUPPLIED token) without the client
- * widget being wired (so we must not REQUIRE one yet).
- */
-export function isGuestCaptchaWidgetReady(): boolean {
-  return isCaptchaConfigured() && process.env.GUEST_CHAT_CAPTCHA_WIDGET_READY === "1";
+export async function isGuestCaptchaWidgetReady(
+  tenantId: string | null | undefined,
+  resolver: CaptchaResolver = resolveTenantCaptcha,
+): Promise<boolean> {
+  if (process.env.GUEST_CHAT_CAPTCHA_WIDGET_READY !== "1") return false;
+  try {
+    return (await resolveFor(tenantId, resolver)).provider !== "none";
+  } catch {
+    return false;
+  }
 }

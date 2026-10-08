@@ -102,6 +102,8 @@ export type AgendaListItem = {
   talentTz?: string;
   bookingState?: AgendaBookingState;
   paymentState?: AgendaPaymentState;
+  /** ISO end of a calendar hold (AUD-017b). */
+  holdUntilIso?: string;
   nowTitle?: string;
   nowBody?: string;
   nowTone?: "info" | "ok" | "warn" | "risk";

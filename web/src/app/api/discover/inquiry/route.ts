@@ -31,8 +31,10 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { submitInquiry } from "@/lib/inquiry/inquiry-engine-submit";
 import { loadClientSubscription } from "@/lib/discover/client-subscription";
 import { decideProGate } from "@/lib/discover/pro-gate";
+import { planDiscoverFanout } from "@/lib/discover/inquiry-fanout-plan";
 import { loadClientTrustState } from "@/lib/client-trust/evaluator";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +63,8 @@ export type DiscoverInquirySkip = {
 export type DiscoverInquiryRouting = "primary_agency" | "any_active_roster";
 
 export async function POST(req: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   const session = await getCachedActorSession();
   if (!session.user) {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
@@ -164,31 +168,33 @@ export async function POST(req: Request) {
     groupByTenant.set(tenantId, bucket);
   }
 
-  // Phase D §5 — fold the independent talents into a host-tenant group so they
-  // produce a talent-direct inquiry. If the host tenant can't be resolved (e.g.
-  // an unrecognized host), fall back to the legacy skip so we never file under
-  // the wrong tenant.
+  // Phase D §5 — independent talents produce talent-direct inquiries on the host
+  // tenant (one per talent, see below). If the host tenant can't be resolved
+  // (e.g. an unrecognized host), fall back to the legacy skip so we never file
+  // under the wrong tenant.
   // The CHANNEL = the host the client browsed from (resolved once). Used to fold
-  // no-roster talents into a host group AND to stamp source_workspace_id so the
+  // no-roster talents onto the host AND to stamp source_workspace_id so the
   // channel is recorded distinctly from each owning tenant (Phase A + referral lane).
   const channelTenantId = await resolveHostTenantId();
 
-  if (noRosterTalents.length > 0) {
-    if (channelTenantId) {
-      const bucket = groupByTenant.get(channelTenantId) ?? [];
-      bucket.push(...noRosterTalents);
-      groupByTenant.set(channelTenantId, bucket);
-    } else {
-      for (const tid of noRosterTalents) skipped.push({ talentId: tid, reason: "no_roster" });
-    }
-  }
+  // P0 2026-10-07: each independent talent gets its OWN inquiry (never folded
+  // into one shared host group, which seated every independent as an active
+  // coordinator on the same inquiry and leaked offers/threads across talents).
+  // Agency-roster groups are unchanged. Unresolved host → legacy skip.
+  const plan = planDiscoverFanout({
+    rosterGroups: groupByTenant,
+    noRosterTalents,
+    channelTenantId,
+  });
+  for (const tid of plan.unroutedIndependent) skipped.push({ talentId: tid, reason: "no_roster" });
+  const fanoutGroups = plan.groups;
 
   // Phase D §1 — server-enforce the Pro gate. The routable count is the number
   // of talents that will actually fan out to an inquiry. Multi-talent send is a
   // Pro power tool; single-talent send stays free. The client-side alert() is no
   // longer the gate — this 402 is the source of truth.
-  const routableTalentCount = Array.from(groupByTenant.values())
-    .reduce((sum, ids) => sum + ids.length, 0);
+  const routableTalentCount = fanoutGroups
+    .reduce((sum, g) => sum + g.talentIds.length, 0);
   const subscription = await loadClientSubscription(session.user.id);
   const gate = decideProGate({ routableTalentCount, subscription });
   // Flag-gated (DISCOVER_PRO_ENFORCED, default off) so the batch merges dark; the
@@ -203,7 +209,7 @@ export async function POST(req: Request) {
     );
   }
 
-  if (groupByTenant.size === 0) {
+  if (fanoutGroups.length === 0) {
     return NextResponse.json(
       {
         inquiries: [],
@@ -234,13 +240,14 @@ export async function POST(req: Request) {
     ? "discover_shortlist"
     : "discover_single_talent";
 
-  // Fan out: one submitInquiry call per tenant group. submitInquiry's
+  // Fan out: one submitInquiry call per agency group, and one per independent
+  // talent (talent-direct inquiries are never shared between talents). submitInquiry's
   // own permission gate + rate limiter + coordinator assignment + per-row
   // owning_party trigger all fire per row.
   const inquiries: DiscoverInquiryResult[] = [];
   const fanFailures: Array<{ tenantId: string; reason: string }> = [];
 
-  for (const [tenantId, ids] of groupByTenant) {
+  for (const { tenantId, talentIds: ids } of fanoutGroups) {
     try {
       // Phase D §4 — snapshot the client's REAL trust level for THIS tenant so
       // the talent contact-policy gate inside submitInquiry enforces against the

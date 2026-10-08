@@ -38,10 +38,13 @@ export type CatalogBookingChatHandoff = {
    * harness panel — do not stash pending stores that a live dock would send.
    */
   demo?: boolean;
+  /** AUD-044 — selection dock Ask: titles of all selected offerings. */
+  askAbout?: string[];
 };
 
 export type OfferingWithSelection = OfferingRequestDetail & {
   selection?: CatalogBookingSelection;
+  askAbout?: string[];
 };
 
 /** Visible composer / first-message prefix carrying options + slot + total. */
@@ -62,9 +65,12 @@ export function catalogBookingDraftPrefix(
   const price =
     cents != null ? ` (${formatOfferingPrice(cents, detail.currency, locale)})` : "";
   const title = bits.length ? `${detail.title} · ${bits.join(" · ")}` : detail.title;
+  // G9b: the task-picker note pre-fills the composer after the prefix; the
+  // visitor edits it there and nothing is sent until they press send.
+  const note = detail.task ? (detail.note ?? "").trim() : "";
   return pickLocale(locale, {
-    en: `Question about ${title}${price} — `,
-    es: `Consulta sobre ${title}${price} — `,
+    en: `Question about ${title}${price} — ${note}`,
+    es: `Consulta sobre ${title}${price} — ${note}`,
   });
 }
 
@@ -74,6 +80,7 @@ export function openCatalogBookingChat(handoff: CatalogBookingChatHandoff): void
   const enriched: OfferingWithSelection = {
     ...handoff.detail,
     ...(handoff.selection ? { selection: handoff.selection } : {}),
+    ...(handoff.askAbout && handoff.askAbout.length > 0 ? { askAbout: handoff.askAbout } : {}),
   };
 
   if (!handoff.demo) {
@@ -103,6 +110,7 @@ export function openCatalogBookingChat(handoff: CatalogBookingChatHandoff): void
               email: handoff.visitor.email?.trim() || null,
             }
           : null,
+        askAbout: handoff.askAbout ?? null,
         demo: handoff.demo === true,
       },
     }),

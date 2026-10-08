@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolveNextActionBy } from "./inquiry-lifecycle";
+import { anyDemoTalent } from "@/lib/talent/demo-talent";
 import { validateActorPermission } from "./inquiry-permissions";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { shouldSendWorkspaceAutoAck } from "./workspace-auto-ack";
+import { workspaceAckBody } from "./guest-ack-copy";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { resolveInquiryCoordination, seedOwningAgencyCoordinators } from "./coordinator-assignment";
 import { resolveOwningPartiesForTalents, isHubSourcedChannel } from "./owning-party-resolver";
@@ -15,6 +19,8 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { linkInquiryCustomer } from "./link-inquiry-customer";
 import { ensureClientRelationshipForInquiry } from "./ensure-client-relationship";
 import { refuseOfferingRequestIfPolicyOff } from "@/lib/scheduling/reservation-submit-gate";
+import { policyVersionIdForTalents } from "@/lib/talent-policies/stamp";
+import { recordTalentPolicyAcceptance } from "@/lib/legal/acceptances";
 import { insertSystemMessage } from "./inquiry-system-messages";
 import { buildInquiryBells } from "./inquiry-notifications";
 
@@ -144,6 +150,10 @@ export async function submitInquiry(
     }
     // Phase A (channel invariant): no lead without a known channel.
     if (!input.source_channel) return { success: false, error: "source_channel_required" };
+    // Demo talents are fictional: never create a real inquiry for them.
+    if (await anyDemoTalent(createServiceRoleClient() ?? supabase, input.talent_profile_ids)) {
+      return { success: false, error: "demo_talent" };
+    }
 
     // Universal-connector P0 — rate-limit per actor identity.
     //   • authenticated user: 5/hour per user (existing)
@@ -170,7 +180,16 @@ export async function submitInquiry(
     // by-design accessible to anyone. Spam protection lives in the
     // rate-limit + honeypot layer above, not here.
     if (input.actorUserId) {
-      const perm = await validateActorPermission(supabase, "", input.actorUserId, "submit_inquiry");
+      // A talent may open a conversation for herself on the hub (talent-self-inquiry.ts).
+      const selfInquiry =
+        input.initiator_role === "talent" && input.talent_profile_ids.length === 1
+          ? {
+              talentProfileIds: input.talent_profile_ids,
+              tenantId: input.tenant_id,
+              hubTenantId: (await getPlatformHubTenant())?.tenantId ?? null,
+            }
+          : undefined;
+      const perm = await validateActorPermission(supabase, "", input.actorUserId, "submit_inquiry", { selfInquiry });
       if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
     }
 
@@ -275,6 +294,8 @@ export async function submitInquiry(
 
     const status = "submitted" as const;
     const next = resolveNextActionBy(status);
+    // Snapshot: the policy version in force when the client asked (one talent only).
+    const policyVersionId = await policyVersionIdForTalents(input.talent_profile_ids);
 
     const { data: row, error } = await supabase
       .from("inquiries")
@@ -318,6 +339,7 @@ export async function submitInquiry(
         coordinator_assigned_at: coordinatorOfRecordId ? new Date().toISOString() : null,
         next_action_by: next,
         version: 1,
+        policy_version_id: policyVersionId,
       })
       .select("id")
       .single();
@@ -327,6 +349,20 @@ export async function submitInquiry(
     }
 
     const inquiryId = row.id as string;
+
+    // Legal 2.2: the customer accepted the talent policy version stamped on
+    // this request (same id as policy_version_id above). Best effort, never
+    // throws; no single-talent policy means no record.
+    if (input.initiator_role === "client" && policyVersionId) {
+      await recordTalentPolicyAcceptance({
+        talentPolicyVersionId: policyVersionId,
+        context: "inquiry",
+        contextId: inquiryId,
+        actorUserId: input.actorUserId ?? null,
+        guestSessionId: input.guest_session_id ?? null,
+        tenantId: homeTenantId,
+      });
+    }
 
     // B2: ensureCustomer + stamp inquiries.customer_id when email/phone present.
     await linkInquiryCustomer({
@@ -473,17 +509,35 @@ export async function submitInquiry(
       });
     }
 
-    // Hub self-coordination (2026-06-02; talent-primary 2026-06-15). Each talent
+    // Hub self-coordination (2026-06-02; talent-primary 2026-06-15). A talent
     // whose owning party is THEMSELVES joins as a `coordinator` (alongside their
-    // `talent` lineup row) so they can broker the client on the private thread. The
-    // FIRST is already coordinator-of-record (seated above); this seeds ADDITIONAL
-    // self-coordinating talents (shortlist), deduped via coordSeen, keyed on user_id
-    // only, skipped for unclaimed accounts. No agency in the money path.
+    // `talent` lineup row) so they can broker the client on the private thread.
+    // Normally that talent is already coordinator-of-record (seated above).
+    //
+    // P0 2026-10-07 GUARD: an inquiry carries AT MOST ONE talent coordinator.
+    // Active coordinators read every offer, line item and the private thread of
+    // their inquiry (RLS), so seating a second self-coordinating talent leaked
+    // each talent's offer to the other. The Discover route now files one inquiry
+    // per independent talent, so the "extra talent" case is unreachable; if a
+    // caller ever passes 2+ self-coordinating talents again we seat none of the
+    // extras and log loudly instead of re-opening the leak.
     try {
+      let talentCoordSeated =
+        !!selfCoordPrimaryUserId && coordSeen.has(selfCoordPrimaryUserId);
       for (const tid of input.talent_profile_ids) {
         if (owningParties.get(tid)?.type !== "talent") continue;
         const uid = talentUserIdByProfile.get(tid) ?? null;
         if (!uid || coordSeen.has(uid)) continue;
+        if (talentCoordSeated) {
+          logServerError(
+            "inquiry-engine-submit.secondTalentCoordinatorRefused",
+            new Error(
+              `refused to seat a second talent coordinator on inquiry ${inquiryId}; independent talents must each get their own inquiry`,
+            ),
+          );
+          continue;
+        }
+        talentCoordSeated = true;
         coordSeen.add(uid);
         await supabase.from("inquiry_participants").insert({
           inquiry_id: inquiryId,
@@ -575,12 +629,21 @@ export async function submitInquiry(
         // and NEVER on the guest path: it won a 48 ms race. See PR #1883.
         const autoAckEnabled =
           agencyRow == null ? true : agencyRow.auto_ack_enabled !== false;
-        const autoAckMessage: string =
-          typeof agencyRow?.auto_ack_message === "string" && agencyRow.auto_ack_message.trim()
-            ? agencyRow.auto_ack_message
-            : "Thanks, we'll get back to you within 4 hours.";
+        const { resolveTenantAckLocale } = await import("./guest-auto-ack");
+        const autoAckMessage: string = workspaceAckBody(
+          typeof agencyRow?.auto_ack_message === "string" ? agencyRow.auto_ack_message : null,
+          await resolveTenantAckLocale(homeTenantId),
+        );
 
-        if (!input.guest_session_id && autoAckEnabled && (input.client_user_id || input.contact_email)) {
+        if (
+          shouldSendWorkspaceAutoAck({
+            guestSessionId: input.guest_session_id,
+            autoAckEnabled,
+            clientUserId: input.client_user_id,
+            contactEmail: input.contact_email,
+            initiatorRole: input.initiator_role,
+          })
+        ) {
           await insertSystemMessage(supabase, {
             inquiryId,
             threadType: "private",

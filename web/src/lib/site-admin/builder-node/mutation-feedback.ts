@@ -71,6 +71,17 @@ export function summarizeBuilderNodeIssues(
     .slice(0, 3);
 }
 
+/** Failure payload: legacy English `details` plus the raw `issues` the toast localizes. */
+export function mutationFailureDetails(input: {
+  issues?: ReadonlyArray<BuilderNodeMutationIssue>;
+  details?: ReadonlyArray<string>;
+}): { details: ReadonlyArray<string>; issues?: ReadonlyArray<BuilderNodeMutationIssue> } {
+  return {
+    details: input.details ?? summarizeBuilderNodeIssues(input.issues),
+    issues: input.issues,
+  };
+}
+
 export function formatBuilderNodeMutationError(input: {
   operation: BuilderNodeOperationKind;
   code: BuilderNodeMutationCode;
@@ -95,7 +106,7 @@ export function formatBuilderNodeMutationError(input: {
     case "PARENT_DOES_NOT_ALLOW_CHILDREN":
       return `${operationPrefix}. Invalid target: this parent does not accept child blocks.${detailSuffix}`;
     case "ROOT_KIND_NOT_ALLOWED":
-      return `${operationPrefix}. Invalid target: this block type cannot live at page root.${detailSuffix}`;
+      return "This block needs to sit inside a section. Add a section first, then drop it in.";
     case "CHILD_KIND_NOT_ALLOWED":
       return `${operationPrefix}. Invalid target: this parent does not allow that block type.${detailSuffix}`;
     case "INVALID_MOVE_TARGET": {

@@ -11,6 +11,8 @@ export type TalentPaymentActor = {
   ok: true;
   tenantId: string;
   userId: string;
+  /** Her private customer pool on the hub tenant (identity capture / create). */
+  talentProfileId: string;
   admin: SupabaseClient;
   supabase: SupabaseClient;
 };
@@ -33,6 +35,7 @@ export async function talentSellerPaymentActor(
     ok: true,
     tenantId: owned.tenantId,
     userId: actor.userId,
+    talentProfileId: actor.talentProfileId,
     admin: actor.admin,
     supabase: actor.supabase,
   };

@@ -47,7 +47,7 @@ Profiles tested:
 | Local QA | `TAL-92023` | No selected type | Reproduce no-type Details bug |
 | Anto | `TAL-00036` | Commercial/lifestyle model | Model type-specific field set |
 | Popi | `TAL-00039` | DJ/performer/singer related field set | Performer/DJ field set |
-| QA Talent Dashboard Audit | `TAL-AUDIT-0512` | Multiple selected types | Multiple type merge behavior |
+| QA Talent Dashboard Audit | `TAL-93941` | Multiple selected types | Multiple type merge behavior |
 
 ## Field Inventory
 
@@ -540,7 +540,7 @@ Resolver checks:
 | `TAL-92023` no type | Resolved catalog fields still include platform globals, but rendered specialty Details count is `0`; `skills` hidden. |
 | `TAL-00036` model | Model fields render; `skills` absent. |
 | `TAL-00039` DJ/performer | Music/performer/equipment/ops fields render; `skills` absent. |
-| `TAL-AUDIT-0512` multiple type | Union of photo/wellness/equipment/ops/physical fields renders; duplicate `skills` absent. |
+| `TAL-93941` multiple type | Union of photo/wellness/equipment/ops/physical fields renders; duplicate `skills` absent. |
 
 Non-blocking browser console note:
 

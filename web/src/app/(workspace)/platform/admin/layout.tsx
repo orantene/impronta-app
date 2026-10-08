@@ -25,6 +25,7 @@ import { createTranslator } from "@/i18n/messages";
 import { PlatformTopbar } from "./platform-topbar";
 import { PlatformWorkspaceSwitcher } from "./platform-workspace-switcher";
 import { loadHqSupportOpenCount } from "@/lib/support/load-hq";
+import { isSupportDeskEnabled } from "@/lib/support/desk-flag";
 
 // ─── HQ design tokens ────────────────────────────────────────────────────────
 
@@ -88,6 +89,7 @@ export default async function PlatformAdminLayout({
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
   const supportOpenCount = await loadHqSupportOpenCount();
+  const deskEnabled = isSupportDeskEnabled();
 
   const userName = userDisplayName(
     session.user.email,
@@ -289,7 +291,7 @@ export default async function PlatformAdminLayout({
             />
           }
         >
-          <PlatformTopbar supportOpenCount={supportOpenCount} />
+          <PlatformTopbar supportOpenCount={supportOpenCount} deskEnabled={deskEnabled} />
         </Suspense>
 
         {/* ── Content area ── */}

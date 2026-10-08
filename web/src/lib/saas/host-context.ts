@@ -70,6 +70,13 @@ export type HostContext =
        * from a platform-issued one without re-parsing the host.
        */
       hostKind: "subdomain" | "custom";
+      /**
+       * From `talent_site_subdomain_lookup`. Demo subdomain hosts publish at
+       * `{site_slug}-demo.<apex>`; bare demo hosts 308 there.
+       */
+      isDemo: boolean;
+      /** Canonical `talent_sites.site_slug` (unsuffixed), when the RPC returns it. */
+      siteSlug: string | null;
     }
   | { kind: "not_found"; tenantId: null; hostname: string };
 
@@ -328,10 +335,21 @@ export async function isProfileCodeOnTenantRoster(
   if (!supabase) return true; // no client — fail open, never hide a real page
 
   try {
+    // Resolve vanity aliases first so retired /t/<old-code> URLs still pass
+    // the roster gate on agency hosts (same RPC the public profile uses).
+    const { data: resolvedRows, error: resolveErr } = await supabase.rpc("resolve_talent_profile_code", {
+      p_code: profileCode,
+    });
+    const resolved = Array.isArray(resolvedRows) ? resolvedRows[0] : resolvedRows;
+    const liveCode =
+      !resolveErr && typeof resolved?.profile_code === "string" && resolved.profile_code
+        ? resolved.profile_code
+        : profileCode;
+
     const { data, error } = await supabase
       .from("talent_profiles")
       .select("id, agency_talent_roster!inner(tenant_id, status, agency_visibility, talent_site_hidden)")
-      .eq("profile_code", profileCode)
+      .eq("profile_code", liveCode)
       .neq("profile_kind", "resource")
       .eq("agency_talent_roster.tenant_id", tenantId)
       .eq("agency_talent_roster.status", "active")
@@ -363,8 +381,16 @@ export type TalentSiteEdgeClient = {
     args: { p_host: string } | { p_slug: string },
   ) => PromiseLike<{
     data:
-      | Array<{ talent_profile_id?: string | null }>
-      | { talent_profile_id?: string | null }
+      | Array<{
+          talent_profile_id?: string | null;
+          site_slug?: string | null;
+          is_demo?: boolean | null;
+        }>
+      | {
+          talent_profile_id?: string | null;
+          site_slug?: string | null;
+          is_demo?: boolean | null;
+        }
       | null;
     error: unknown;
   }>;
@@ -399,6 +425,8 @@ export async function resolveTalentSiteContext(
       hostname,
       talentProfileId,
       hostKind: "custom",
+      isDemo: false,
+      siteSlug: typeof row?.site_slug === "string" ? row.site_slug : null,
     };
   } catch {
     return null;
@@ -442,6 +470,8 @@ export async function resolveTalentSubdomainContext(
       hostname,
       talentProfileId,
       hostKind: "subdomain",
+      isDemo: row?.is_demo === true,
+      siteSlug: typeof row?.site_slug === "string" ? row.site_slug : null,
     };
   } catch {
     return null;

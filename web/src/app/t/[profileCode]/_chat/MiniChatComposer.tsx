@@ -15,6 +15,7 @@ import type { RefObject } from "react";
 import { FONT, paletteFor, primaryBtnStyle, type SurfaceMode } from "./mini-chat-styles";
 import { SendIcon } from "./MiniChatMessageBubble";
 import a11y from "./mini-chat-a11y.module.css";
+import composerCss from "./guest-composer.module.css";
 
 export type MiniChatComposerProps = {
   draft: string;
@@ -35,6 +36,13 @@ export type MiniChatComposerProps = {
   surfaceMode?: SurfaceMode;
   /** Focus target owned by the panel (focused when the panel opens). */
   textareaRef: RefObject<HTMLTextAreaElement | null>;
+  /** Nail Studio / Save look preview stashed for upload on send. */
+  lookPreviewUrl?: string | null;
+  onClearLookPreview?: () => void;
+  lookPreviewLabel?: string;
+  lookPreviewRemoveLabel?: string;
+  /** Accessible name of the send button, in the guest's language. */
+  sendLabel?: string;
 };
 
 export function MiniChatComposer({
@@ -51,19 +59,61 @@ export function MiniChatComposer({
   accentInk,
   surfaceMode = "light",
   textareaRef,
+  lookPreviewUrl = null,
+  onClearLookPreview,
+  lookPreviewLabel = "Your look",
+  lookPreviewRemoveLabel = "Remove look",
+  sendLabel = "Send message",
 }: MiniChatComposerProps) {
   const C = paletteFor(surfaceMode);
   return (
     <div
       style={{
         display: "flex",
-        alignItems: "flex-end",
+        flexDirection: "column",
         gap: 8,
         padding: "10px 12px 12px",
         borderTop: `1px solid ${C.borderSoft}`,
         background: C.surface,
       }}
     >
+      {lookPreviewUrl ? (
+        <div
+          data-guest-look-preview=""
+          style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: FONT }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- data-URL preview, not a remote asset */}
+          <img
+            src={lookPreviewUrl}
+            alt={lookPreviewLabel}
+            width={48}
+            height={48}
+            style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover", flex: "0 0 auto" }}
+          />
+          <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600, color: C.ink }}>{lookPreviewLabel}</span>
+          {onClearLookPreview ? (
+            <button
+              type="button"
+              onClick={onClearLookPreview}
+              aria-label={lookPreviewRemoveLabel}
+              style={{
+                border: `1px solid ${C.borderSoft}`,
+                background: C.surfaceFaint,
+                color: C.inkDim,
+                borderRadius: 999,
+                padding: "4px 10px",
+                fontSize: 12,
+                fontWeight: 600,
+                fontFamily: FONT,
+                cursor: "pointer",
+              }}
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
       {/* Honeypot — hidden, off-screen, aria-hidden. Bots fill it; we reject. */}
       <input
         type="text"
@@ -97,13 +147,15 @@ export function MiniChatComposer({
         placeholder={placeholder}
         rows={1}
         disabled={sending || inCooldown}
-        className={a11y.focusRing}
+        className={`${a11y.focusRing} ${composerCss.composerInput}`}
         style={{
           flex: 1,
-          minHeight: 40,
+          minWidth: 0,
+          // DoR F02/F04/F08 pill input: min-height 42, radius 21.
+          minHeight: 42,
           maxHeight: 132,
-          padding: "10px 12px",
-          borderRadius: 12,
+          padding: "11px 16px",
+          borderRadius: 21,
           border: `1px solid ${C.borderSoft}`,
           background: C.surfaceFaint,
           fontFamily: FONT,
@@ -123,18 +175,28 @@ export function MiniChatComposer({
         type="button"
         onClick={onSubmit}
         disabled={sendDisabled}
-        aria-label="Send message"
+        aria-label={sendLabel}
+        data-send-state={sendDisabled ? "disabled" : "ready"}
         style={{
           ...primaryBtnStyle(accent, accentInk),
-          height: 40,
-          width: 46,
+          // Front-door brief `.send`: round solid control, 42px (DoR F02/F04/F08).
+          height: 42,
+          width: 42,
+          flexShrink: 0,
           padding: 0,
-          opacity: sendDisabled ? 0.45 : 1,
+          borderRadius: "50%",
+          // AUD-040b: empty reads as intentionally disabled (neutral grey), not a
+          // washed-out brand pink; with text it is the solid brand fill.
+          ...(sendDisabled
+            ? { background: C.surfaceCool, color: C.inkDim, border: "none", boxShadow: "none" }
+            : null),
+          opacity: 1,
           cursor: sendDisabled ? "not-allowed" : "pointer",
         }}
       >
-        {sending ? "…" : <SendIcon color={accentInk} />}
+        {sending ? "…" : <SendIcon color={sendDisabled ? C.inkDim : accentInk} />}
       </button>
+    </div>
     </div>
   );
 }

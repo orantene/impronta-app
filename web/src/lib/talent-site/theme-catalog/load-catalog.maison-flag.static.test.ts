@@ -18,8 +18,9 @@ test("loadTalentThemeCatalog imports Maison flag + catalog filter", () => {
 });
 
 test("loadTalentThemeCatalog applies filter to DB rows and built-ins fallback", () => {
+  assert.match(SRC, /isTalentMaisonThemeEnabled\(input\.talentProfileId\)/);
   assert.match(
     SRC,
-    /filterCatalogRowsForMaisonFlag\(\s*raw,\s*isTalentMaisonThemeEnabled\(\)\s*\)/,
+    /filterCatalogRowsForMaisonFlag\(\s*raw,\s*maisonOn\s*\)/,
   );
 });

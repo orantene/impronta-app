@@ -17,9 +17,9 @@ describe("T9.5 / G4.2 journey logic", () => {
     assert.ok(before > after);
   });
 
-  it("deposit awaiting hold resolves to release_hold CTA", () => {
+  it("deposit awaiting hold resolves to request_deposit CTA", () => {
     const hold = JOR_WEEK.find((i) => i.id === "jor-hold-sofia")!;
-    assert.equal(resolveAttentionCta(hold).kind, "release_hold");
+    assert.equal(resolveAttentionCta(hold).kind, "request_deposit");
   });
 
   it("still-to-collect includes overdue + today due", () => {

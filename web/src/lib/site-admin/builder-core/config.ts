@@ -178,15 +178,15 @@ export interface BuilderContextConfig {
    */
   surfaceTalentTier?: string | null;
   /**
-   * Phase 1 — true when the operator may insert/paste/duplicate nested blocks
-   * and sections on this surface (`personalSiteSections` for a talent
-   * surface). Distinct from `capabilities.customCss`/`capabilities.motion`,
+   * Phase 1 / Track B — true when the operator may insert/paste/duplicate/move
+   * nested blocks and sections on this surface (`personalSiteSections` for a
+   * talent surface). Distinct from `capabilities.customCss`/`capabilities.motion`,
    * which happen to be driven by the same site capability on talent surfaces
    * today but are conceptually separate flags. The client chokepoint
    * (`guardBuilderNodeMutation` / `assertAdvancedLibraryAllowsOperation`)
    * reads this to deny structural edits with a lock chip instead of a bare
    * message. Undefined ⇒ no additional gate beyond the existing advanced-
-   * library check (every non-talent surface).
+   * library check (every non-talent surface — agency / workspace / Lab).
    */
   structuralEdits?: boolean;
   /**
@@ -460,7 +460,7 @@ export function buildTalentPageBuilderConfig(
       canInsertRawHtmlElements: false,
     },
     galleryPolicy: {
-      allowedTabs: ["blocks", "designs", "data", "page_templates"],
+      allowedTabs: ["blocks", "designs", "data", "page_templates", "apps"],
       allowDbTemplates: true,
       // X4 — the talent PROFILE page surface (distinct toggle from the talent
       // Max-site shell, which is the site_shell surface).
@@ -692,6 +692,59 @@ export function buildPlatformLabBuilderConfig(
       responsiveBreakpoints: true,
       // platform_lab edits template BODIES with no persistent pageId and no
       // public SSR surface — SEO is inert here (suppress, not fork).
+      seo: false,
+      serverRenderedEditTarget: false,
+    },
+  };
+}
+
+/**
+ * The theme_template config — the TALENT design editor (platform admin edits a
+ * talent DESIGN's home/shell tree). TALENT-ONLY: it mirrors
+ * `buildTalentPageBuilderConfig` (gallery policy, capabilities, preview subject)
+ * and deliberately inherits NOTHING from the agency Studio (`platform_lab`):
+ * no Looks, no Playground templates, no `isLab` overlay, no tenant theme actions.
+ *
+ * Differences from the talent page config (and only these):
+ *   - `canPublish` / `canRestoreRevision` false: a design is released through
+ *     "Publish as new version" on the draft, not the editor's Publish.
+ *   - `seo` false: a design tree is not a page, there is no page metadata.
+ *   - the editor is a platform admin, so no plan gating (`lockedUpsell` null,
+ *     top surface tier) and raw-HTML insertion stays OFF (a Design may not
+ *     carry raw html / code / embeds; the validator rejects them).
+ */
+export function buildThemeTemplateBuilderConfig(
+  themeTemplateSurfaceAdapter: BuilderSurfaceAdapter,
+): BuilderContextConfig {
+  const kind: BuilderSurfaceKind = themeTemplateSurfaceAdapter.kind;
+  if (kind !== "theme_template") {
+    throw new Error(
+      `buildThemeTemplateBuilderConfig requires a theme_template adapter, got "${kind}".`,
+    );
+  }
+  return {
+    surface: themeTemplateSurfaceAdapter,
+    permissions: {
+      canEditDraft: true,
+      canPublish: false,
+      canRestoreRevision: false,
+      canEditShell: false,
+      canInsertRawHtmlElements: false,
+    },
+    galleryPolicy: {
+      allowedTabs: ["blocks", "designs", "data", "page_templates", "apps"],
+      allowDbTemplates: true,
+      surfaceKey: "talent_profile",
+    },
+    previewSubjectKind: "talent",
+    surfaceTalentTier: "talent_portfolio",
+    structuralEdits: true,
+    lockedUpsell: null,
+    capabilities: {
+      motion: true,
+      themeTokens: true,
+      customCss: true,
+      responsiveBreakpoints: true,
       seo: false,
       serverRenderedEditTarget: false,
     },

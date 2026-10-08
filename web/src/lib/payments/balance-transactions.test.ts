@@ -127,3 +127,29 @@ describe("mapBalanceTransaction", () => {
     );
   });
 });
+
+describe("per-platform balance rows (US + MX)", () => {
+  test("US rows keep provider 'stripe'; MX rows are 'stripe_mx'", async () => {
+    const { balanceProviderFor } = await import("./balance-transactions");
+    assert.equal(mapBalanceTransaction(txn(), null).provider, "stripe");
+    assert.equal(mapBalanceTransaction(txn(), null, "us").provider, "stripe");
+    assert.equal(mapBalanceTransaction(txn(), null, "mx").provider, "stripe_mx");
+    assert.equal(balanceProviderFor("mx"), "stripe_mx");
+  });
+
+  test("MX unconfigured: ingest skips cleanly (ok, nothing fetched)", async () => {
+    const { ingestBalanceTransactions, configuredBalancePlatforms } = await import("./balance-transactions");
+    const prev = process.env.STRIPE_MX_SECRET_KEY;
+    delete process.env.STRIPE_MX_SECRET_KEY;
+    try {
+      const r = await ingestBalanceTransactions({ platform: "mx" });
+      assert.equal(r.ok, true);
+      assert.equal(r.skipped, true);
+      assert.equal(r.fetched, 0);
+      assert.deepEqual(configuredBalancePlatforms().map((p) => p.platform), ["us", "mx"]);
+      assert.equal(configuredBalancePlatforms().find((p) => p.platform === "mx")?.configured, false);
+    } finally {
+      if (prev !== undefined) process.env.STRIPE_MX_SECRET_KEY = prev;
+    }
+  });
+});

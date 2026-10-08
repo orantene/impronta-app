@@ -37,10 +37,12 @@ import {
 } from "lucide-react";
 
 import type { TalentOffering } from "@/lib/talent/offerings-types";
+import { askEntryPointsVisible, type TalentAskEntry } from "@/lib/talent/chat-entry";
 import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection";
 import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 
+import { ProfileFooterSocket } from "../_shared/ProfileFooterSocket";
 import type { LightProfileLayoutProps } from "../_light/LightProfileLayout";
 import { MAISON_DEFAULT_TOKENS } from "./maison-tokens";
 import {
@@ -57,6 +59,7 @@ import { MaisonHeader, MaisonMotion, MaisonWordmark } from "./MaisonChrome";
 import type { MaisonContent } from "./maison-content";
 import { MaisonAskButton } from "./MaisonAsk";
 import { MaisonContact } from "./MaisonContact";
+import { isUnconfirmedStubCopy } from "@/lib/talent-site/prune-unconfirmed-guest-stubs";
 
 /**
  * The Maison template takes the SHARED profile props plus one optional
@@ -77,6 +80,13 @@ export type MaisonProfileLayoutProps = LightProfileLayoutProps & {
    * lower degrades the booking promise everywhere at once.
    */
   surfaceBooking?: "inquire" | "request" | "instant";
+  /**
+   * WSF D — which ask entry the talent offers (resolveTalentAskEntry). Ask
+   * opens the chat or the inquiry form either way (same events); "hidden"
+   * Only "chat" and "form" keep the Ask link (§8: no Consultar otherwise).
+   * Defaults to "chat".
+   */
+  askEntry?: TalentAskEntry;
 };
 
 /** The appointment rows read as facts, not as a spreadsheet, once each has a mark. */
@@ -351,7 +361,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
                 durationNote: c.durationNote,
                 barIdleTitle: c.barIdleTitle,
                 barIdleHint: c.barIdleHint,
-                barSeeServices: c.barSeeServices,
+                barSeeServices: surfaceBooking === "inquire" ? c.barSeeServices : c.barBook,
                 barContinue: c.barContinue,
                 emptyTitle: c.menuEmptyTitle,
                 emptyBody: c.menuEmptyBody,
@@ -376,7 +386,9 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
           nextLabel={c.next}
           enlargeLabel={c.a11yEnlarge}
         />
-        {content.galleryNote ? <p className="mn-disclaimer">{content.galleryNote}</p> : null}
+        {content.galleryNote && !isUnconfirmedStubCopy(content.galleryNote) ? (
+          <p className="mn-disclaimer">{content.galleryNote}</p>
+        ) : null}
       </section>
 
       {/* ── 1. YOUR VISIT — the map and the practical facts, side by side.
@@ -503,14 +515,16 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
             <div className="mn-slot">{inquireButtonFooter}</div>
           </div>
 
-          <div className="mn-closing-alt">
-            <span>{c.askLead}</span>
-            <MaisonAskButton
-              label={c.askCta}
-              variant="link"
-              context={{ talentName: name, sourcePage: profileSourcePage, from: "closing" }}
-            />
-          </div>
+          {props.askEntry === undefined || askEntryPointsVisible(props.askEntry) ? (
+            <div className="mn-closing-alt">
+              <span>{c.askLead}</span>
+              <MaisonAskButton
+                label={c.askCta}
+                variant="link"
+                context={{ talentName: name, sourcePage: profileSourcePage, from: "closing" }}
+              />
+            </div>
+          ) : null}
 
           {content.contact ? (
             <MaisonContact
@@ -549,6 +563,13 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
             </small>
           </div>
         </footer>
+      ) : null}
+      {showFooter ? (
+        <ProfileFooterSocket
+          locale={locale}
+          whitelabel={props.whitelabel}
+          tokens={{ surface: "var(--mn-white)", ink: "var(--mn-ink)", line: "var(--mn-line)" }}
+        />
       ) : null}
 
       {slotPicker}

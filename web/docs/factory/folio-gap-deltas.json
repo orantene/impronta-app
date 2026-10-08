@@ -1,0 +1,382 @@
+{
+  "design": "folio",
+  "referenceDemo": {
+    "profileCode": "TAL-93011",
+    "name": "Mateo Ferrer"
+  },
+  "widths": [
+    390,
+    360,
+    1440
+  ],
+  "keyed": false,
+  "counts": {
+    "token": 11,
+    "payload": 15,
+    "kit": 7,
+    "platform": 7,
+    "new capability": 0
+  },
+  "deltas": [
+    {
+      "suggestedFile": "src/lib/site-admin/builder-node/render.tsx or src/components/site-shell/PublishedShell.tsx",
+      "section": "header",
+      "width": 390,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "header wraps to rows",
+      "layer": "platform",
+      "evidence": "2 rows at 390px (mockup: 1)"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/folio-defaults.ts (tokenDefaults) / folio-looks.ts (palettes)",
+      "section": "hero",
+      "width": 390,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "body font size",
+      "layer": "token",
+      "evidence": "21px vs mockup 30px"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/folio-defaults.ts (tokenDefaults) / folio-looks.ts (palettes)",
+      "section": "comp",
+      "width": 390,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "section background",
+      "layer": "token",
+      "evidence": "rgb(236, 234, 229) vs mockup rgb(17, 17, 17)"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/section-kit*.ts or src/lib/site-admin/builder-node/<kind>-block.tsx",
+      "section": "comp",
+      "width": 390,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "section height",
+      "layer": "kit",
+      "evidence": "200px vs mockup 124px (+61%)"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/designs.ts (buildFolioPayload)",
+      "section": "about",
+      "width": 390,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "section not in the mockup",
+      "layer": "payload",
+      "evidence": "About (product only): 373px tall, not part of TH02"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/designs.ts (buildFolioPayload)",
+      "section": "footer",
+      "width": 390,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "section not in the mockup",
+      "layer": "payload",
+      "evidence": "Shell footer (product only): 421px tall, not part of TH02"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/designs.ts (buildFolioPayload)",
+      "section": "socket",
+      "width": 390,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "section not in the mockup",
+      "layer": "payload",
+      "evidence": "Footer socket (product only): 225px tall, not part of TH02"
+    },
+    {
+      "suggestedFile": "src/lib/site-admin/builder-node/render.tsx or src/components/site-shell/PublishedShell.tsx",
+      "section": "header",
+      "width": 390,
+      "demo": "TAL-93007 Sofía Campos",
+      "check": "header wraps to rows",
+      "layer": "platform",
+      "evidence": "3 rows at 390px (mockup: 1)"
+    },
+    {
+      "suggestedFile": "src/lib/site-admin/builder-node/render.tsx or src/components/site-shell/PublishedShell.tsx",
+      "section": "hero",
+      "width": 390,
+      "demo": "TAL-93007 Sofía Campos",
+      "check": "no horizontal overflow",
+      "layer": "platform",
+      "evidence": "section scrollWidth 395 > 390"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/designs.ts (buildFolioPayload)",
+      "section": "comp",
+      "width": 390,
+      "demo": "TAL-93007 Sofía Campos",
+      "check": "measures label",
+      "layer": "payload",
+      "evidence": "no text matching (estatura|height)"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/designs.ts (buildFolioPayload)",
+      "section": "rates",
+      "width": 390,
+      "demo": "TAL-93007 Sofía Campos",
+      "check": "row actions (>= 3)",
+      "layer": "payload",
+      "evidence": "found 2, need 3 (a, button)"
+    },
+    {
+      "suggestedFile": "src/lib/site-admin/builder-node/render.tsx or src/components/site-shell/PublishedShell.tsx",
+      "section": "header",
+      "width": 360,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "header wraps to rows",
+      "layer": "platform",
+      "evidence": "2 rows at 360px (mockup: 1)"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/folio-defaults.ts (tokenDefaults) / folio-looks.ts (palettes)",
+      "section": "hero",
+      "width": 360,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "body font size",
+      "layer": "token",
+      "evidence": "21px vs mockup 30px"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/folio-defaults.ts (tokenDefaults) / folio-looks.ts (palettes)",
+      "section": "comp",
+      "width": 360,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "section background",
+      "layer": "token",
+      "evidence": "rgb(236, 234, 229) vs mockup rgb(17, 17, 17)"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/section-kit*.ts or src/lib/site-admin/builder-node/<kind>-block.tsx",
+      "section": "comp",
+      "width": 360,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "section height",
+      "layer": "kit",
+      "evidence": "200px vs mockup 124px (+61%)"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/designs.ts (buildFolioPayload)",
+      "section": "about",
+      "width": 360,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "section not in the mockup",
+      "layer": "payload",
+      "evidence": "About (product only): 373px tall, not part of TH02"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/designs.ts (buildFolioPayload)",
+      "section": "footer",
+      "width": 360,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "section not in the mockup",
+      "layer": "payload",
+      "evidence": "Shell footer (product only): 421px tall, not part of TH02"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/designs.ts (buildFolioPayload)",
+      "section": "socket",
+      "width": 360,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "section not in the mockup",
+      "layer": "payload",
+      "evidence": "Footer socket (product only): 225px tall, not part of TH02"
+    },
+    {
+      "suggestedFile": "src/lib/site-admin/builder-node/render.tsx or src/components/site-shell/PublishedShell.tsx",
+      "section": "header",
+      "width": 360,
+      "demo": "TAL-93007 Sofía Campos",
+      "check": "header wraps to rows",
+      "layer": "platform",
+      "evidence": "3 rows at 360px (mockup: 1)"
+    },
+    {
+      "suggestedFile": "src/lib/site-admin/builder-node/render.tsx or src/components/site-shell/PublishedShell.tsx",
+      "section": "hero",
+      "width": 360,
+      "demo": "TAL-93007 Sofía Campos",
+      "check": "no horizontal overflow",
+      "layer": "platform",
+      "evidence": "section scrollWidth 367 > 360"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/designs.ts (buildFolioPayload)",
+      "section": "comp",
+      "width": 360,
+      "demo": "TAL-93007 Sofía Campos",
+      "check": "measures label",
+      "layer": "payload",
+      "evidence": "no text matching (estatura|height)"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/designs.ts (buildFolioPayload)",
+      "section": "rates",
+      "width": 360,
+      "demo": "TAL-93007 Sofía Campos",
+      "check": "row actions (>= 3)",
+      "layer": "payload",
+      "evidence": "found 2, need 3 (a, button)"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/folio-defaults.ts (tokenDefaults) / folio-looks.ts (palettes)",
+      "section": "hero",
+      "width": 1440,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "heading 1 font size",
+      "layer": "token",
+      "evidence": "273.6px vs mockup 105.3px"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/folio-defaults.ts (tokenDefaults) / folio-looks.ts (palettes)",
+      "section": "hero",
+      "width": 1440,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "body font size",
+      "layer": "token",
+      "evidence": "34px vs mockup 30px"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/section-kit*.ts or src/lib/site-admin/builder-node/<kind>-block.tsx",
+      "section": "hero",
+      "width": 1440,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "first photo aspect",
+      "layer": "kit",
+      "evidence": "1.18 vs mockup 0.75"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/folio-defaults.ts (tokenDefaults) / folio-looks.ts (palettes)",
+      "section": "chapters",
+      "width": 1440,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "heading 1 font size",
+      "layer": "token",
+      "evidence": "56px vs mockup 38px"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/folio-defaults.ts (tokenDefaults) / folio-looks.ts (palettes)",
+      "section": "chapters",
+      "width": 1440,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "heading 2 font size",
+      "layer": "token",
+      "evidence": "56px vs mockup 38px"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/folio-defaults.ts (tokenDefaults) / folio-looks.ts (palettes)",
+      "section": "comp",
+      "width": 1440,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "section background",
+      "layer": "token",
+      "evidence": "rgb(236, 234, 229) vs mockup rgb(17, 17, 17)"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/section-kit*.ts or src/lib/site-admin/builder-node/<kind>-block.tsx",
+      "section": "comp",
+      "width": 1440,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "section height",
+      "layer": "kit",
+      "evidence": "232px vs mockup 124px (+87%)"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/folio-defaults.ts (tokenDefaults) / folio-looks.ts (palettes)",
+      "section": "rates",
+      "width": 1440,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "heading 1 font size",
+      "layer": "token",
+      "evidence": "64px vs mockup 44px"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/section-kit*.ts or src/lib/site-admin/builder-node/<kind>-block.tsx",
+      "section": "rates",
+      "width": 1440,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "section height",
+      "layer": "kit",
+      "evidence": "413px vs mockup 710px (-42%)"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/designs.ts (buildFolioPayload)",
+      "section": "about",
+      "width": 1440,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "section not in the mockup",
+      "layer": "payload",
+      "evidence": "About (product only): 391px tall, not part of TH02"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/folio-defaults.ts (tokenDefaults) / folio-looks.ts (palettes)",
+      "section": "statement",
+      "width": 1440,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "heading 1 font size",
+      "layer": "token",
+      "evidence": "140px vs mockup 64px"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/section-kit*.ts or src/lib/site-admin/builder-node/<kind>-block.tsx",
+      "section": "statement",
+      "width": 1440,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "section height",
+      "layer": "kit",
+      "evidence": "510px vs mockup 398px (+28%)"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/designs.ts (buildFolioPayload)",
+      "section": "footer",
+      "width": 1440,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "section not in the mockup",
+      "layer": "payload",
+      "evidence": "Shell footer (product only): 420px tall, not part of TH02"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/designs.ts (buildFolioPayload)",
+      "section": "socket",
+      "width": 1440,
+      "demo": "TAL-93011 Mateo Ferrer",
+      "check": "section not in the mockup",
+      "layer": "payload",
+      "evidence": "Footer socket (product only): 179px tall, not part of TH02"
+    },
+    {
+      "suggestedFile": "src/lib/site-admin/builder-node/render.tsx or src/components/site-shell/PublishedShell.tsx",
+      "section": "hero",
+      "width": 1440,
+      "demo": "TAL-93007 Sofía Campos",
+      "check": "no horizontal overflow",
+      "layer": "platform",
+      "evidence": "section scrollWidth 1736 > 1440; <span> \"CAMPOS\" right 1736 > 1440"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/section-kit*.ts or src/lib/site-admin/builder-node/<kind>-block.tsx",
+      "section": "hero",
+      "width": 1440,
+      "demo": "TAL-93007 Sofía Campos",
+      "check": "first photo aspect",
+      "layer": "kit",
+      "evidence": "1.18 vs mockup 0.75"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/designs.ts (buildFolioPayload)",
+      "section": "comp",
+      "width": 1440,
+      "demo": "TAL-93007 Sofía Campos",
+      "check": "measures label",
+      "layer": "payload",
+      "evidence": "no text matching (estatura|height)"
+    },
+    {
+      "suggestedFile": "src/lib/talent-site/theme-catalog/collection/designs.ts (buildFolioPayload)",
+      "section": "rates",
+      "width": 1440,
+      "demo": "TAL-93007 Sofía Campos",
+      "check": "row actions (>= 3)",
+      "layer": "payload",
+      "evidence": "found 2, need 3 (a, button)"
+    }
+  ]
+}

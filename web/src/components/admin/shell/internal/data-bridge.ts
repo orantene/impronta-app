@@ -440,6 +440,8 @@ export type BridgeData = {
     /** Server-resolved `manage_agency_domains` (owner-only) — gates the
      *  Website domain manager's action affordances. */
     canManageDomains?: boolean;
+    /** Talent surface: set ONLY while staff really impersonate (TUL-164). */
+    actingAs?: { name: string | null } | null;
   } | null;
 
   // ── Media gallery + watermark (Agency tier) ────────────────────────────────
@@ -482,6 +484,8 @@ export type BridgeData = {
   clientFieldSource?: ClientFieldSourcePayload | null;
   /** Tenant locale settings (loadTenantLocaleSettings) — drives the shell chrome's DashboardLocaleToggle so registry-added languages show; omitted = mock mode → ["en","es"]. */
   localeSettings?: { supportedLocales: readonly import("@/i18n/config").Locale[]; defaultLocale: import("@/i18n/config").Locale } | null;
+  /** Talent surface: the talent's own primary + secondary languages (loadTalentLocaleSettings). */
+  talentLocales?: { primary: string; secondary: readonly string[] } | null;
 
   /**
    * Platform-wide workspace-UI switches (`platform_settings` singleton, set by

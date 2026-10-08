@@ -634,7 +634,13 @@ export function duplicateBuilderNode(input: {
       issues: missingNodeIssue(input.nodeId),
     };
   }
-  if (location.node.kind === "section") {
+  // TUL-78: only a section BACKED by a DB section row needs the section
+  // duplicate action (cloning it would share the row). A freeform tree section
+  // has no row, so a plain clone is a valid duplicate.
+  if (
+    location.node.kind === "section" &&
+    (location.node.props as { sectionId?: string | null }).sectionId
+  ) {
     return {
       ok: false,
       code: "NODE_KIND_NOT_DUPLICABLE",
@@ -973,10 +979,13 @@ export function patchBuilderNodeProps(input: {
       issues: missingNodeIssue(input.nodeId),
     };
   }
-  const mergedProps = {
+  const mergedProps: Record<string, unknown> = {
     ...currentProps,
     ...patch,
   };
+  // Live text follows her profile until she writes the words herself: typing a new
+  // text hands the node back to her (the profile never overrules what she wrote).
+  if ((typeof patch.text === "string" || typeof patch.bio === "string") && currentProps.liveText && !("liveText" in patch)) delete mergedProps.liveText;
   (target as unknown as { props: unknown }).props = mergedProps;
   // Keep the base mirror (locked / visibilityCondition) in sync with the merged
   // props on the one node we touched — finalizeMutatedTree returns the shared

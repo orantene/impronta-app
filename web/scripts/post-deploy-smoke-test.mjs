@@ -23,12 +23,19 @@
 //    intentional — see the check for why). Nothing else in this script would
 //    have caught any of them, because they all returned 200 on
 //    app.tulala.digital and only broke on a real agency domain.
+// 9. Production gating flags (main=production proof): GET /api/health/flags
+//    (platform-admin session or Bearer CRON_SECRET) must list every flag in
+//    scripts/prod-flag-expectations.mjs with the expected resolved value.
+//    Missing key or wrong value → exit 1. Matrix stays in sync with
+//    FEATURES.md env flag matrix. Never flips flags.
 //
 // Usage:
 //   node web/scripts/post-deploy-smoke-test.mjs
 //   node web/scripts/post-deploy-smoke-test.mjs --host https://app.tulala.digital
 //
 // Exit code: 0 = all checks pass, 1 = at least one failure.
+
+import { judgeGetStartedRedirect, cronSecretPlan } from "./lib/smoke-decisions.mjs";
 
 const args = process.argv.slice(2);
 const hostFlag = args.indexOf("--host");
@@ -67,6 +74,43 @@ async function get(url, opts = {}) {
   const headers = {};
   for (const [k, v] of res.headers.entries()) headers[k.toLowerCase()] = v;
   return { status: res.status, headers, body: opts.body ? null : await res.text().catch(() => "") };
+}
+
+// Served build == production pointer (TUL-268). The post-deploy alias workflow runs
+// once per Production deploy; runs for other deployment_status events show up as
+// "skipped" by design, so a skipped row proves nothing either way. What proves the
+// domains followed the pointer is the release the live HTML carries (baggage
+// `sentry-release=<sha>`) equalling origin/production. A fresh push is allowed up
+// to GRACE_MIN minutes to build and alias before a mismatch is a failure.
+async function check_served_release_matches_production() {
+  console.log("\nServed release vs production pointer");
+  const GRACE_MIN = 20;
+  const REPO = "https://api.github.com/repos/orantene/impronta-app";
+  try {
+    const page = await get(HOST + "/login");
+    const served = /sentry-release=([0-9a-f]{40})/.exec(page.body ?? "")?.[1];
+    if (!served) {
+      warn("served release", `no sentry-release in ${HOST}/login (Sentry baggage off?)`);
+      return;
+    }
+    const ref = await (await fetch(`${REPO}/git/ref/heads/production`, { headers: { "user-agent": "tulala-smoke" } })).json();
+    const prod = ref?.object?.sha;
+    if (!prod) {
+      warn("served release", "could not read the production branch from GitHub (rate limit?)");
+      return;
+    }
+    if (served === prod) {
+      pass(`served release ${served.slice(0, 9)} == production pointer`);
+      return;
+    }
+    const commit = await (await fetch(`${REPO}/commits/${prod}`, { headers: { "user-agent": "tulala-smoke" } })).json();
+    const ageMin = (Date.now() - Date.parse(commit?.commit?.committer?.date ?? 0)) / 60000;
+    const detail = `served ${served.slice(0, 9)} but production pointer is ${prod.slice(0, 9)} (${Math.round(ageMin)} min old)`;
+    if (ageMin < GRACE_MIN) warn("served release", `${detail}; inside the ${GRACE_MIN} min build+alias window`);
+    else fail("served release", `${detail}; domains lag the pointer. Run: npm run deploy:alias -- <latest production deployment url>`);
+  } catch (e) {
+    warn("served release", `check skipped: ${e.message}`);
+  }
 }
 
 // 1) Root reachable
@@ -425,7 +469,8 @@ async function check_guest_chat_antispam() {
 const AUTH_ROUTES = [
   // Always renders 200 for an unauthenticated visitor.
   { path: "/login", statuses: [200] },
-  { path: "/register", statuses: [200] },
+  // Batch 1 (#2589/#2591): /register hands off to the /start front door with a 307.
+  { path: "/register", statuses: [200, 307] },
   { path: "/forgot-password", statuses: [200] },
   // P2 (#1059) — /register is the SINGLE signup page; these three are now
   // permanent redirects into it carrying `?as=<intent>` plus every inbound
@@ -491,6 +536,105 @@ const AUTH_ROUTES = [
   },
 ];
 
+// 13) Production gating flags — prove the DEPLOYED runtime matches the
+//     FEATURES.md / prod-flag-expectations matrix. Auth via CRON_SECRET
+//     (same operator gate as /api/platform/demos). Loads CRON_SECRET from
+//     the shell or web/.env.local when present.
+async function loadCronSecret() {
+  if (process.env.CRON_SECRET) return process.env.CRON_SECRET;
+  try {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const text = readFileSync(resolve(process.cwd(), ".env.local"), "utf8");
+    for (const line of text.split("\n")) {
+      const m = line.match(/^\s*CRON_SECRET\s*=\s*(.*)$/);
+      if (!m) continue;
+      let v = m[1].trim();
+      if (
+        (v.startsWith('"') && v.endsWith('"')) ||
+        (v.startsWith("'") && v.endsWith("'"))
+      ) {
+        v = v.slice(1, -1);
+      }
+      if (v) return v;
+    }
+  } catch {
+    // no .env.local
+  }
+  return "";
+}
+
+async function check_prod_gating_flags() {
+  console.log("\nProduction gating flags (/api/health/flags)");
+  const { EXPECTED_PROD_FLAGS, mismatchReason } = await import(
+    "./prod-flag-expectations.mjs"
+  );
+  const secret = await loadCronSecret();
+  const plan = cronSecretPlan(secret);
+  if (plan.action === "skip") {
+    warn("prod gating flags", plan.message);
+    return;
+  }
+  const probeUrl = HOST + "/api/health/flags";
+  try {
+    const r = await get(probeUrl, {
+      headers: { authorization: `Bearer ${secret}` },
+    });
+    if (r.status === 404) {
+      fail("prod gating flags", "404 — /api/health/flags not deployed");
+      return;
+    }
+    if (r.status === 401 || r.status === 403) {
+      fail(
+        "prod gating flags",
+        `${r.status} — CRON_SECRET rejected (is local secret the Production value?)`,
+      );
+      return;
+    }
+    if (r.status === 503) {
+      fail("prod gating flags", "503 — CRON_SECRET not configured in deployed runtime");
+      return;
+    }
+    if (r.status !== 200) {
+      fail("prod gating flags", `unexpected status=${r.status}`);
+      return;
+    }
+    let body;
+    try {
+      body = JSON.parse(r.body);
+    } catch {
+      fail("prod gating flags", "non-JSON response");
+      return;
+    }
+    if (!body?.ok || !Array.isArray(body.flags)) {
+      fail("prod gating flags", `unexpected body: ${r.body.slice(0, 160)}`);
+      return;
+    }
+    const byKey = new Map(body.flags.map((f) => [f.key, f]));
+    let flagFails = 0;
+    for (const [key, expected] of Object.entries(EXPECTED_PROD_FLAGS)) {
+      const live = byKey.get(key);
+      const reason = mismatchReason(live, expected);
+      if (reason) {
+        fail(`${key}`, reason);
+        flagFails += 1;
+      } else {
+        pass(
+          key,
+          typeof live.resolved === "string" || typeof live.resolved === "number"
+            ? `resolved=${live.resolved}`
+            : `resolved=${JSON.stringify(live.resolved)}`,
+        );
+      }
+    }
+    if (flagFails === 0) {
+      pass(`all ${Object.keys(EXPECTED_PROD_FLAGS).length} expected prod flags match`);
+    }
+  } catch (e) {
+    fail("prod gating flags", e.message);
+  }
+}
+
 async function check_auth_surface_matrix() {
   console.log("\nAuth surface matrix (P3)");
   for (const host of [AGENCY_HOST, MARKETING_HOST]) {
@@ -539,18 +683,13 @@ async function check_auth_surface_matrix() {
   // real marketing host) fails the deploy gate.
   try {
     const onMarketing = await get(MARKETING_HOST + "/get-started");
-    // One front door (PR #2086): with the onboarding module on, /get-started
-    // 307s to the home with ?start=; with it off, the legacy form renders 200.
+    // Batch 1 (#2589/#2591): legacy signup routes deliberately 307 to /start.
     const loc = onMarketing.headers?.location ?? "";
-    if (onMarketing.status === 200) {
-      pass(`${MARKETING_HOST}/get-started (200)`, "operator funnel — marketing-only, by design (module off)");
-    } else if (onMarketing.status === 307 && /\?start=/.test(loc)) {
-      pass(`${MARKETING_HOST}/get-started (307 → ${loc})`, "one front door — legacy funnel lands in the onboarding module");
+    const verdict = judgeGetStartedRedirect(onMarketing.status, loc);
+    if (verdict.ok) {
+      pass(`${MARKETING_HOST}/get-started (${verdict.detail})`, "legacy signup route lands on /start, by design");
     } else {
-      fail(
-        `${MARKETING_HOST}/get-started`,
-        `expected 200 (module off) or 307 → /?start= (module on) on the marketing host, got ${onMarketing.status} ${loc}`,
-      );
+      fail(`${MARKETING_HOST}/get-started`, verdict.reason);
     }
   } catch (e) {
     fail(`${MARKETING_HOST}/get-started`, e.message);
@@ -633,7 +772,9 @@ for (const check of [
   check_notification_crons,
   check_resend_domain,
   check_guest_chat_antispam,
+  check_prod_gating_flags,
   check_auth_surface_matrix,
+  check_served_release_matches_production,
 ]) {
   await check();
 }

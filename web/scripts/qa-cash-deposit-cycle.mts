@@ -88,10 +88,10 @@ async function settleCash(bookingId: string, inquiryId: string, checkoutType: "d
 async function main() {
   console.log("=== Phase 1 QA: deposit-first cash cycle + instant-book seam ===\n");
   const clientSb: SupabaseClient = createClient(URL, ANON, { auth: { persistSession: false } });
-  const { data: c, error: cErr } = await clientSb.auth.signInWithPassword({ email: "qa-client-1@impronta.test", password: "Impronta-QA-Client-2026!" });
+  const { data: c, error: cErr } = await clientSb.auth.signInWithPassword({ email: "qa-client-1@impronta.test", password: (process.env.QA_CLIENT_PASSWORD?.trim() || (() => { throw new Error("QA_CLIENT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()) });
   ok("client sign-in", !cErr && !!c?.user);
   const adminSb: SupabaseClient = createClient(URL, ANON, { auth: { persistSession: false } });
-  const { data: a, error: aErr } = await adminSb.auth.signInWithPassword({ email: "qa-admin@impronta.test", password: "Impronta-QA-Admin-2026!" });
+  const { data: a, error: aErr } = await adminSb.auth.signInWithPassword({ email: "qa-admin@impronta.test", password: (process.env.QA_ADMIN_PASSWORD?.trim() || (() => { throw new Error("QA_ADMIN_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()) });
   ok("staff sign-in", !aErr && !!a?.user);
   const clientUser = c!.user!.id, staffUser = a!.user!.id;
   const { data: tp } = await admin.from("talent_profiles").select("user_id").eq("id", TALENT).single();
@@ -165,7 +165,7 @@ async function main() {
   try {
     const r = await createInstantBooking(clientSb as never, {
       tenantId: TENANT, talentProfileId: TALENT, clientUserId: clientUser, actorUserId: clientUser,
-      contactName: "QA Client One", contactEmail: "qa-client-1@impronta.test", sourcePage: "/t/TAL-AUDIT-0512",
+      contactName: "QA Client One", contactEmail: "qa-client-1@impronta.test", sourcePage: "/t/TAL-93941",
       currencyCode: "EUR", offeringId: OFF_BRIDAL_TRIAL, payInPerson: true,
     } as never);
     const rr = r as { ok: boolean; bookingId?: string; inquiryId?: string; reason?: string };

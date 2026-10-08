@@ -21,10 +21,14 @@ import { TicketFeeTable } from "@/components/marketing/ticket-fee-table";
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
   return {
-    title: pickLocale(locale, { en: "Pricing", es: "Precios" }),
+    // "Pricing" alone ranks for nothing; lead with what the free plan is.
+    title: pickLocale(locale, {
+      en: "Pricing: free booking website, simple plans",
+      es: "Precios: página web con reservas gratis, planes simples",
+    }),
     description: pickLocale(locale, {
       en: "Two ladders, one question: are you a person or a business? Start free on either, and pay the same 6% on a paid booking whatever plan you are on.",
-      es: "Dos columnas y una pregunta: ¿eres una persona o un negocio? Empieza gratis en cualquiera de las dos y paga el mismo 6% sobre una reserva pagada, sea cual sea tu plan.",
+      es: "¿Eres una persona o un negocio? Empieza gratis en cualquiera de los dos y paga el mismo 6% sobre cada reserva pagada, sea cual sea tu plan.",
     }),
     ...buildMarketingLocaleAlternates(locale, "/pricing"),
   };

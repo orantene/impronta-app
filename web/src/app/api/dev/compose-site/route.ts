@@ -17,10 +17,13 @@ import { composeSiteFromBrief } from "@/lib/site-admin/builder-core/site-templat
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { ensureBrief, recordFacts } from "@/lib/tulala/brief-store.server";
 import { loadBriefForTenant } from "@/lib/tulala/brief-store-tenant.server";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   const isDev = process.env.NODE_ENV === "development";
   const isPreview = process.env.VERCEL_ENV === "preview";
   if (!isDev && !isPreview) return new NextResponse("Not available in production.", { status: 403 });

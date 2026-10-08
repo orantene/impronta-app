@@ -55,11 +55,11 @@ bloat, not to fit today's (deliberately light, placeholder-imagery) designs.
 | Budget | Ceiling | Rationale |
 |---|---|---|
 | Renderer CSS sheets per tree (PERF-1) | **= 1** | A duplicate doubles a fixed cost; zero breaks the tree's styling. Per **tree**, not per page. Locked here *and* in `render-perf-budget.test.ts`. |
-| Renderer CSS size (full sheet) | **≤ 126 KB** | The worst case — the unscoped sheet, emitted when a caller cannot name the node-kinds on the page (Lab canvas, dev previews). Measured 125.2 KB (2026-09-01, after Phase 2A's twelve node kinds). A build-time early warning, not what a visitor pays. |
+| Renderer CSS size (full sheet) | **≤ 136 KB** | The worst case — the unscoped sheet, emitted when a caller cannot name the node-kinds on the page (Lab canvas, dev previews). Re-tuned 2026-09-29 for Maison/Folio widgets on integ land (#2429); measured 134.3 KB. A build-time early warning, not what a visitor pays. |
 | Renderer CSS size (scoped, shipped) | **≤ 90 KB** | What a visitor downloads **for the page body**. REND-2 scopes the sheet to the kinds present (`collectPresentNodeKinds` → `buildScopedRendererCss`), and every public render path passes it. Measured 2026-09-01: 49.1 KB (trivial) to 77.8 KB (store). Attributes growth to the kinds a page really uses. |
 | Renderer CSS sheets per page (composed) | **= 3** | The composition shape the byte ceiling below assumes. If this ever becomes 1 (a hoisted sheet) that is a ~93 KB win — and the gate should still go red, because the byte ceiling would then be ~2× too loose. Re-tune both together. |
 | Renderer CSS per page (all sheets) | **≤ 208 KB** | **The number a visitor actually pays.** Measured 2026-09-02: 164.2 KB (trivial) to 192.9 KB (store). Derived, not rounded: a body spending its full 90 KB allowance composes to 205.1 KB, so anything lower would contradict the scoped ceiling; 208 KB is that floor plus ~2.9 KB of named pad for the shell. |
-| Rendered HTML size | **≤ 220 KB** | Rich pages reference images *externally*, so the document itself stays small (~60–120 KB). A balloon here means inlined `data:` payloads or runaway markup. |
+| Rendered HTML size | **≤ 236 KB** | Rich pages reference images *externally*, so the document itself stays small. Re-tuned 2026-09-29 (#2429): measured 232.4 KB on `impronta`. |
 | DOM node count | **≤ 2,500** | A complex marketing page is ~500–1,200 nodes. 2,500 catches a repeater wired to an unbounded source without tripping on legitimately rich layouts. |
 | Font files requested | **≤ 6** | Each webfont blocks text paint. 2–4 faces is tasteful; 6 is a hard ceiling. |
 | Font payload | **≤ 420 KB** | Six bundled faces ≈ 360 KB; headroom covers the Google-family estimate. |

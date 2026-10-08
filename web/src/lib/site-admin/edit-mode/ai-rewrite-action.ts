@@ -34,6 +34,7 @@ import { requireSession } from "@/lib/server/action-guards";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type AiRewriteInput = {
   sectionTypeKey: string;
@@ -154,6 +155,8 @@ function checkRateLimit(tenantId: string): {
 export async function rewriteFieldWithAi(
   input: AiRewriteInput,
 ): Promise<AiRewriteResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -270,6 +273,8 @@ const TRANSLATE_SYSTEM_PROMPT = `You translate website copy. The operator gives 
 export async function translateSectionWithAi(
   input: AiTranslateInput,
 ): Promise<AiTranslateResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);

@@ -2,7 +2,12 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { toI18nMap } from "@/lib/i18n/i18n-columns";
 import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
+import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
+import { loadWorkingHoursPresence } from "@/lib/talent/site-switches-server";
+import { resolveSiteCtaMode, type SiteCtaMode } from "@/lib/talent-site/design-label-locale";
+import { resolveDesignSource } from "@/lib/talent-site/theme-template/design-lineage.server";
 import type {
   MaxSitePageRow,
   MaxSiteRow,
@@ -122,12 +127,72 @@ export async function loadMaxSiteThemeTokens(
 }
 
 /**
+ * The catalog Design the site wears (`theme_design_slug`), for the design
+ * token defaults (`design-type-system.ts`). Null on any failure: the site then renders
+ * without Design defaults, never broken.
+ */
+export async function loadMaxSiteDesignSlug(talentProfileId: string): Promise<string | null> {
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { data, error } = await admin
+    .from("talent_sites")
+    .select("theme_design_slug")
+    .eq("talent_profile_id", talentProfileId)
+    .maybeSingle();
+  if (error) {
+    logServerError("talentMaxSite.load.designSlug", error);
+    return null;
+  }
+  const slug = (data as { theme_design_slug?: unknown } | null)?.theme_design_slug;
+  if (typeof slug !== "string" || !slug.trim()) return null;
+  // An authored design inherits its source's code-keyed tokens/type system.
+  return resolveDesignSource(slug.trim(), admin);
+}
+
+/**
  * Current effective plan key for a talent — the materialized `talent_plan_key`.
  * Returns null on any failure. Unlike the snapshot path (which fails OPEN), the
  * public Max-site gate fails CLOSED on a null plan (`maxSitePublicGate` requires
  * an exact Max match), so a transient hiccup degrades to a 404 rather than
  * leaking a premium site to a possibly-lapsed talent.
  */
+/**
+ * The talent's raw `selling_defaults` (booking posture for seeded site CTAs).
+ * A failed read returns null; the caller then renders the legacy instant copy.
+ */
+export async function loadTalentSellingDefaults(talentProfileId: string): Promise<unknown> {
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { data, error } = await admin
+    .from("talent_profiles")
+    .select("selling_defaults")
+    .eq("id", talentProfileId)
+    .maybeSingle();
+  if (error) {
+    logServerError("talentSite.loadSellingDefaults", error);
+    return null;
+  }
+  return (data as { selling_defaults?: unknown } | null)?.selling_defaults ?? null;
+}
+
+/**
+ * Site-wide CTA mode for seeded action copy (Folio footer line, Frame
+ * "Book a session", ...): booking posture with the plan ceiling applied.
+ */
+export async function loadTalentSiteCtaMode(
+  talentProfileId: string,
+  planKey: string | null,
+): Promise<SiteCtaMode> {
+  const admin = createServiceRoleClient();
+  const hours = admin ? await loadWorkingHoursPresence(admin, [talentProfileId]) : new Map<string, boolean>();
+  return resolveSiteCtaMode({
+    sellingDefaults: await loadTalentSellingDefaults(talentProfileId),
+    confirmsByHand: !talentOffersInstantBooking(planKey),
+    // An unknown hours read never downgrades (same rule as the offering loader).
+    instantReady: hours.get(talentProfileId) !== false,
+  });
+}
+
 export async function loadTalentPlanKey(
   talentProfileId: string,
 ): Promise<string | null> {
@@ -183,22 +248,54 @@ export async function loadTalentManagingTenantId(
   return (data as { created_by_agency_id: string | null }).created_by_agency_id ?? null;
 }
 
+type PageI18nMaps = Pick<MaxSitePageRow, "titleI18n" | "metaTitleI18n" | "metaDescriptionI18n">;
+
+/** Only non-empty maps are attached, so a pre-migration row keeps its old shape. */
+function i18nMaps(title: unknown, metaTitle: unknown, metaDescription: unknown): PageI18nMaps {
+  const out: PageI18nMaps = {};
+  const t = toI18nMap(title);
+  const mt = toI18nMap(metaTitle);
+  const md = toI18nMap(metaDescription);
+  if (Object.keys(t).length > 0) out.titleI18n = t;
+  if (Object.keys(mt).length > 0) out.metaTitleI18n = mt;
+  if (Object.keys(md).length > 0) out.metaDescriptionI18n = md;
+  return out;
+}
+
 /** Load ALL of a talent's site pages (the pure core filters for nav/render). */
 export async function loadMaxSitePages(
   talentProfileId: string,
 ): Promise<MaxSitePageRow[]> {
   const admin = createServiceRoleClient();
   if (!admin) return [];
-  const { data, error } = await admin
-    .from("talent_pages")
-    .select(
-      // SEO-2 — widened to carry the SEO-1 per-page SEO columns through the
-      // render path. All SEO fields are nullable so a not-yet-populated page
-      // degrades to undefined SEO and never throws.
-      "id, slug, title, nav_label, status, is_home, sort_order, blocks, theme, meta_title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld",
-    )
-    .eq("talent_profile_id", talentProfileId)
-    .order("sort_order", { ascending: true });
+  // SEO-2 — widened to carry the SEO-1 per-page SEO columns through the
+  // render path. All SEO fields are nullable so a not-yet-populated page
+  // degrades to undefined SEO and never throws.
+  const BASE_COLS =
+    "id, slug, title, nav_label, status, is_home, sort_order, blocks, theme, meta_title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld";
+  const selectPages = (cols: string) =>
+    admin
+      .from("talent_pages")
+      .select(cols)
+      .eq("talent_profile_id", talentProfileId)
+      .order("sort_order", { ascending: true });
+  // `blocks_published` is the live body visitors see (`blocks` is the draft).
+  // Selected on a graceful path: a database without the migration errors the
+  // whole query, so fall back to the base list, which renders `blocks` as before.
+  // The page-text i18n maps (migration 20261231299520) ride on the same
+  // graceful path: a database without them drops back to the list below.
+  const I18N_COLS = "title_i18n, meta_title_i18n, meta_description_i18n";
+  let { data, error } = await selectPages(`${BASE_COLS}, blocks_published, ${I18N_COLS}`);
+  if (error) ({ data, error } = await selectPages(`${BASE_COLS}, blocks_published`));
+  if (error) {
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console -- dev-only signal for a missing migration
+      console.warn(
+        `[talentMaxSite.load.pages] blocks_published unreadable (${error.message}); serving draft bodies. Apply 20261231289000_talent_pages_blocks_published.sql.`,
+      );
+    }
+    ({ data, error } = await selectPages(BASE_COLS));
+  }
   if (error) {
     logServerError("talentMaxSite.load.pages", error);
     return [];
@@ -212,6 +309,7 @@ export async function loadMaxSitePages(
     is_home: boolean;
     sort_order: number;
     blocks: unknown;
+    blocks_published?: unknown;
     theme: unknown;
     meta_title: string | null;
     meta_description: string | null;
@@ -221,8 +319,11 @@ export async function loadMaxSitePages(
     canonical_url: string | null;
     noindex: boolean | null;
     json_ld: unknown;
+    title_i18n?: unknown;
+    meta_title_i18n?: unknown;
+    meta_description_i18n?: unknown;
   };
-  return ((data ?? []) as PageDb[]).map((p) => ({
+  return ((data ?? []) as unknown as PageDb[]).map((p) => ({
     id: p.id,
     slug: p.slug,
     title: p.title,
@@ -231,6 +332,7 @@ export async function loadMaxSitePages(
     isHome: p.is_home,
     sortOrder: p.sort_order,
     blocks: p.blocks,
+    blocksPublished: p.blocks_published,
     theme: p.theme,
     metaTitle: p.meta_title ?? null,
     metaDescription: p.meta_description ?? null,
@@ -240,6 +342,7 @@ export async function loadMaxSitePages(
     canonicalUrl: p.canonical_url ?? null,
     noindex: p.noindex ?? null,
     jsonLd: p.json_ld ?? null,
+    ...i18nMaps(p.title_i18n, p.meta_title_i18n, p.meta_description_i18n),
   }));
 }
 

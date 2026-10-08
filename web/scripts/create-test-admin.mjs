@@ -14,7 +14,7 @@
  * (via --env-file=.env.local).
  *
  * Email: TEST_ADMIN_EMAIL or qa-admin@impronta.test
- * Password: TEST_ADMIN_PASSWORD or Impronta-QA-Admin-2026!
+ * Password: TEST_ADMIN_PASSWORD (required, no default)
  *
  * Re-running resets the password to the same default (or env) so local sign-in stays predictable.
  */
@@ -34,7 +34,7 @@ const email = process.env.TEST_ADMIN_EMAIL?.trim() || "qa-admin@impronta.test";
 const displayName = process.env.TEST_ADMIN_DISPLAY_NAME?.trim() || "QA Admin";
 
 const defaultPassword =
-  process.env.TEST_ADMIN_PASSWORD?.trim() || "Impronta-QA-Admin-2026!";
+  process.env.TEST_ADMIN_PASSWORD?.trim() || (() => { throw new Error("TEST_ADMIN_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })();
 
 const supabase = createClient(url, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },

@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useSyncExternalStore } from "react";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { formatSupportDay } from "./support-rel-time";
 import { interpolate } from "@/i18n/interpolate";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS } from "./support-tokens";
@@ -114,6 +116,7 @@ export function SupportThreadView({
   onResolved?: () => void;
 }) {
   const t = useT();
+  const locale = useDashboardLocale();
   const [acked, setAcked] = useState<Record<string, boolean>>({});
   const [confirmHelpful, setConfirmHelpful] = useState<string | null>(null);
   const [resolving, setResolving] = useState(false);
@@ -149,7 +152,7 @@ export function SupportThreadView({
               fontFamily: FONTS.body,
             }}
           >
-            {g.day}
+            {formatSupportDay(g.day, locale)}
           </div>
           {g.items.map((m) => {
             if (m.messageKind === "card" && m.cardPayload) {

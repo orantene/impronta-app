@@ -16,6 +16,7 @@
  * coordinator re-prices to include the new talent.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -32,6 +33,8 @@ export async function clientAddTalentToInquiryAction(
   inquiryId: string,
   talentProfileId: string,
 ): Promise<ClientAddTalentResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, error: "Service unavailable." };

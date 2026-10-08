@@ -47,6 +47,7 @@ import { templateTargetAllowed } from "./registry-db-merge";
 import type { TemplateRolloutFields } from "@/lib/site-admin/builder-core/templates/rollout";
 import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
 import { listCatalogOverlays } from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export interface RunParityProbeInput {
   surface: ParitySurfaceKey;
@@ -78,6 +79,7 @@ export interface ParityProbeResult {
 export async function runParityProbe(
   input: RunParityProbeInput,
 ): Promise<ParityProbeResult> {
+  await requireNotImpersonating();
   const empty = (): Record<ParityHiddenReason, number> => ({
     "overlay-hidden": 0,
     target: 0,
@@ -210,6 +212,7 @@ export interface RunRolloutAdmissionInput {
 export async function runRolloutAdmissionProbe(
   input: RunRolloutAdmissionInput,
 ): Promise<RolloutAdmissionResult> {
+  await requireNotImpersonating();
   const tenantId = input.tenantId && input.tenantId.trim() ? input.tenantId.trim() : "";
 
   const templatesRes = await listAllTemplates(); // super_admin-gated; ALL statuses

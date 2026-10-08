@@ -66,9 +66,9 @@ export interface LoadedSection {
 
 export interface EditMutationError {
   message: string;
-  operation?: BuilderNodeOperationKind;
-  code?: BuilderNodeMutationCode;
+  operation?: BuilderNodeOperationKind; code?: BuilderNodeMutationCode;
   details?: ReadonlyArray<string>;
+  issues?: ReadonlyArray<{ path: string; message: string }>; // raw; the toast renders plain es/en
 }
 
 export interface PageMetadata {

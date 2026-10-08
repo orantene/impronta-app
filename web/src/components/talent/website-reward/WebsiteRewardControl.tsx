@@ -1,31 +1,22 @@
 "use client";
 
+import { useOpenWebsiteSlice } from "@/components/talent/website-reward/useOpenWebsiteSlice";
+import {
+  firstMissingWebsiteSlice,
+  websiteSliceProgressSuffix,
+  type WebsiteSliceKey,
+} from "@/lib/talent/website-eligibility";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
-import { websiteRewardCopy, websiteRewardState } from "@/lib/talent/website-reward";
-import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
+import { useWebsiteFlow } from "@/components/talent/website-reward/useWebsiteFlow";
+import { websiteFlowPending, websitePillProgress } from "@/lib/talent/website-flow";
+import { isWebsitePublished } from "@/lib/talent/website-published-truth";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { loadMyBio, saveMyBio } from "@/lib/server-actions/ai-writing-helper";
 
 // Missing-item keys come from buildTalentChecklist (src/lib/talent-dashboard.ts).
-const MISSING_SECTION: Record<string, string> = {
-  display_name: "identity",
-  first_name: "identity",
-  last_name: "identity",
-  phone: "identity",
-  gender: "identity",
-  date_of_birth: "identity",
-  origin: "location",
-  location: "location",
-  short_bio: "about",
-  taxonomy: "services",
-  media: "media",
-  fields_required: "profile_fields",
-  fields_recommended: "profile_fields",
-};
-
 const SLICE_LABEL = {
   who: "Your name and what you do",
   photos: "Photos of your work",
@@ -35,24 +26,8 @@ const SLICE_LABEL = {
   where: "Where you work",
 } as const;
 
-const MISSING_TIME: Record<string, string> = {
-  display_name: "30 seconds",
-  first_name: "30 seconds",
-  last_name: "30 seconds",
-  phone: "30 seconds",
-  gender: "30 seconds",
-  date_of_birth: "30 seconds",
-  origin: "30 seconds",
-  location: "30 seconds",
-  short_bio: "about 2 min",
-  taxonomy: "about 1 min",
-  media: "about 2 min",
-  fields_required: "about 2 min",
-  fields_recommended: "about 2 min",
-};
-
 export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mobile" | "services" }) {
-  const { bridgeTalentCompletion, bridgeTalentSelfProfile, openDrawer, setTalentPage, state } = useAdminShell();
+  const { bridgeTalentSelfProfile, openDrawer, setTalentPage, state } = useAdminShell();
   const siteLoad = useTalentSiteDashboardInitialLoad();
   const copy = useDashboardText();
   const router = useRouter();
@@ -63,8 +38,9 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
   const [introDraft, setIntroDraft] = useState("");
   const [introOwn, setIntroOwn] = useState(false);
   const [introPending, startIntro] = useTransition();
-  // Single source for website unlock % — never the agency checklist score (W17).
-  const eligibility = useWebsiteEligibility();
+  // ONE state for pill, Today cards and My presence (website-flow.ts).
+  const flow = useWebsiteFlow();
+  const eligibility = flow.eligibility;
   const openIntroTask = useCallback(() => {
     setOpen(false);
     setIntroOwn(false);
@@ -91,8 +67,17 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
   // Null percent = still loading slices → treat as unfinished (0), never checklist %.
   const knownPercent = percent ?? 0;
   const siteStatus = siteLoad?.ok ? siteLoad.state.site?.status ?? null : null;
-  const reward = websiteRewardState({ completionPercent: knownPercent, siteStatus });
-  const labels = websiteRewardCopy(reward, knownPercent, copy.isSpanish ? "es" : "en");
+  const reward = isWebsitePublished(flow.state, siteStatus) ? "published" : flow.state;
+  // Mockup REWARD: the action is the headline; "Profile complete" / pct is the lead.
+  const pillProgress = websitePillProgress(
+    knownPercent,
+    eligibility.slices.filter((s) => s.required).length,
+    copy.isSpanish,
+  );
+  const labels = {
+    title: flow.text.pillAction,
+    detail: flow.state === "notReady" ? pillProgress.detail : flow.text.pillLead,
+  };
 
   const goWebsite = () => {
     setOpen(false);
@@ -100,47 +85,16 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
     router.push("/talent/site");
   };
 
-  const missing = bridgeTalentCompletion?.missing ?? [];
-  const openMissing = (key: string | null) => {
+  const openSliceTarget = useOpenWebsiteSlice(openIntroTask);
+  const openSlice = (key: WebsiteSliceKey | null) => {
     setOpen(false);
-    if (key === "short_bio") {
-      openIntroTask();
-      return;
-    }
-    const section = key ? MISSING_SECTION[key] ?? "identity" : "identity";
-    const talentId = bridgeTalentSelfProfile?.id;
-    if (!talentId) {
-      setTalentPage("profile");
-      router.push("/talent/profile");
-      return;
-    }
-    openDrawer("talent-profile-shell", { mode: "edit-self", talentId, section });
-    const focusFirst = (attempt: number) => {
-      const root = document.querySelector(`[data-tulala-pshell] #pshell-${section}`);
-      const fields = root
-        ? Array.from(root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
-            "input:not([type=hidden]):not([disabled]), textarea:not([disabled])",
-          ))
-        : [];
-      const target = fields.find((f) => !f.value) ?? fields[0];
-      if (target) target.focus({ preventScroll: false });
-      else if (attempt < 8) setTimeout(() => focusFirst(attempt + 1), 150);
-    };
-    setTimeout(() => focusFirst(0), 350);
+    openSliceTarget(key);
   };
 
   const siteUrl = siteLoad?.ok ? siteLoad.state.publicSiteUrl : null;
   const siteHost = siteUrl ? siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") : null;
-  const isLive = reward === "live";
+  const isLive = reward === "published";
   const onWebOffice = state.talentTier === "max";
-  const action =
-    reward === "unlocked_not_activated"
-      ? copy.isSpanish ? "Activar" : "Activate"
-      : reward === "setup_unfinished"
-        ? copy.isSpanish ? "Terminar" : "Finish"
-        : reward === "ready_to_publish"
-          ? copy.isSpanish ? "Ver y publicar" : "Preview & publish"
-          : null;
   const onPress = () => {
     if (isLive && onWebOffice) {
       goWebsite();
@@ -150,8 +104,11 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
       window.open(siteUrl, "_blank", "noopener");
       return;
     }
-    if (reward === "profile_unfinished") setOpen(true);
-    else goWebsite();
+    if (reward === "notReady") setOpen(true);
+    else {
+      setOpen(false);
+      flow.continueSetup();
+    }
   };
   const chevron = (
     <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5 shrink-0 text-admin-ink-dim">
@@ -166,6 +123,9 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
         ? "md:hidden mb-4 w-full"
         : "md:hidden";
 
+  // Neutral until the first site read lands: never flash "Activate" at 100%.
+  const pending = websiteFlowPending(percent, flow.loaded);
+
   const leftCount = eligibility.slices.filter((s) => s.required && s.done === false).length;
 
   return (
@@ -173,20 +133,31 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
       {introSaved && (
         <p
           role="status"
-          className="mb-2 flex items-center gap-2 rounded-xl bg-emerald-900/[0.08] px-3 py-2 text-[13px] font-semibold text-emerald-900"
+          className="mb-2 flex items-center gap-2 rounded-xl bg-[var(--tc-ok-soft)] px-3 py-2 text-[13px] font-semibold text-[var(--tc-ok)]"
         >
-          <span aria-hidden className="grid h-5 w-5 place-items-center rounded-full bg-emerald-900 text-[11px] text-white">✓</span>
+          <span aria-hidden className="grid h-5 w-5 place-items-center rounded-full bg-[var(--tc-ok)] text-[11px] text-white">✓</span>
           {copy.t("Intro saved")}
         </p>
       )}
-      {isLive ? (
+      {pending ? (
+        <span
+          data-testid="website-reward-pending"
+          aria-busy="true"
+          className={`inline-flex min-w-[220px] items-center gap-3 rounded-xl border border-admin-border-soft bg-white px-3 py-1.5 font-admin-body ${placement === "services" ? "w-full" : ""}`}
+        >
+          <span className="min-w-0 flex-1">
+            <span aria-hidden className="block h-[13px] w-32 animate-pulse rounded bg-black/10" />
+            <span className="mt-1 block truncate text-[11px] leading-tight text-admin-ink-muted">{flow.text.pillLead}</span>
+          </span>
+        </span>
+      ) : isLive ? (
         <button
           type="button"
           onClick={onPress}
           className={`inline-flex items-center gap-2.5 rounded-xl border border-admin-border-soft bg-white px-3 py-1.5 text-left font-admin-body ${placement === "services" ? "w-full" : ""}`}
           aria-label={onWebOffice ? copy.t("Manage website") : copy.isSpanish ? "Sitio en vivo" : "Website live"}
         >
-          <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-emerald-600" />
+          <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--tc-ok)]" />
           <span className="min-w-0">
             <span className="block text-[12.5px] font-semibold leading-tight text-admin-ink">
               {onWebOffice ? copy.t("Manage website") : copy.isSpanish ? "Sitio en vivo" : "Website live"}
@@ -197,23 +168,34 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
           </span>
           {chevron}
         </button>
+      ) : percent == null ? (
+        // F40: slices still loading. A neutral pill, never "0%".
+        <span
+          aria-busy="true"
+          data-website-reward-pending
+          className={`inline-flex min-w-[220px] items-center gap-3 rounded-xl border border-admin-border-soft bg-white px-3 py-1.5 ${placement === "services" ? "w-full" : ""}`}
+        >
+          <span aria-hidden className="min-w-0 flex-1 space-y-1.5 py-0.5">
+            <span className="block h-[10px] w-3/4 animate-pulse rounded-full bg-black/[0.07]" />
+            <span className="block h-[8px] w-1/2 animate-pulse rounded-full bg-black/[0.05]" />
+          </span>
+        </span>
       ) : (
         <button
           type="button"
           onClick={onPress}
-          className={`inline-flex min-w-[220px] items-center gap-3 rounded-xl border border-emerald-900/15 bg-emerald-900/[0.06] px-3 py-1.5 text-left font-admin-body ${placement === "services" ? "w-full" : ""}`}
+          className={`inline-flex min-w-[220px] items-center gap-3 rounded-xl border border-[var(--tc-action)] bg-[var(--tc-soft)] px-3 py-1.5 text-left font-admin-body ${placement === "services" ? "w-full" : ""}`}
           aria-label={labels.title}
         >
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[12.5px] font-semibold leading-tight text-emerald-900">{labels.title}</span>
+            <span className="block truncate text-[12.5px] font-semibold leading-tight text-[var(--tc-ink)]">{labels.title}</span>
             <span className="block truncate text-[11px] leading-tight text-admin-ink-muted">{labels.detail}</span>
-            {reward === "profile_unfinished" && percent != null && (
+            {reward === "notReady" && percent != null && pillProgress.showBar && (
               <span aria-hidden className="mt-1 block h-[3px] w-full overflow-hidden rounded-full bg-black/10">
-                <span className="block h-full rounded-full bg-emerald-900" style={{ width: `${Math.min(100, percent)}%` }} />
+                <span className="block h-full rounded-full bg-[var(--tc-action)]" style={{ width: `${Math.min(100, percent)}%` }} />
               </span>
             )}
           </span>
-          {action && <span className="shrink-0 text-[12px] font-semibold text-emerald-900">{action}</span>}
           {chevron}
         </button>
       )}
@@ -257,7 +239,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
                 </span>
                 <div className="min-w-0">
                   <p className="text-[13.5px] font-semibold text-admin-ink">{copy.t("A real page at your own address")}</p>
-                  {siteHost && <p className="truncate text-[12.5px] text-emerald-900">{siteHost}</p>}
+                  {siteHost && <p className="truncate text-[12.5px] text-[var(--tc-action)]">{siteHost}</p>}
                   <p className="mt-0.5 text-[12.5px] leading-snug text-admin-ink-muted">
                     {copy.t("Built from your profile and the things you sell. Free, and yours to keep.")}
                   </p>
@@ -273,19 +255,16 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
                   .filter((slice) => slice.required)
                   .map((slice) => (
                       <li key={slice.key}>
-                        {slice.key === "intro" ? (
+                        {slice.done === false ? (
                           <button
                             type="button"
-                            onClick={openIntroTask}
+                            data-testid={`website-slice-${slice.key}`}
+                            onClick={() => openSlice(slice.key)}
                             className="flex w-full items-center gap-2.5 rounded-md py-1.5 text-left text-[13.5px] text-admin-ink hover:bg-black/[0.03]"
                           >
-                            <span aria-hidden className="h-4 w-4 shrink-0 rounded border border-admin-border-soft bg-white text-center text-[11px] leading-4">
-                              {slice.done ? "✓" : ""}
-                            </span>
-                            <span className="min-w-0 flex-1">{copy.t(SLICE_LABEL[slice.key])}</span>
-                            <span className="shrink-0 text-[11.5px] text-admin-ink-dim">
-                              {slice.done == null ? copy.t("Not available") : `${slice.weight}`}
-                            </span>
+                            <span aria-hidden className="h-4 w-4 shrink-0 rounded border border-admin-border-soft bg-white" />
+                            <span className="min-w-0 flex-1">{copy.t(SLICE_LABEL[slice.key])}{websiteSliceProgressSuffix(slice)}</span>
+                            <span className="shrink-0 text-[11.5px] text-admin-ink-dim">{`${slice.weight}`}</span>
                             {chevron}
                           </button>
                         ) : (
@@ -309,8 +288,8 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
             <div className="border-t border-admin-border-soft px-5 py-4">
               <button
                 type="button"
-                onClick={() => openMissing(missing[0]?.key ?? null)}
-                className="w-full rounded-lg bg-emerald-900 px-4 py-3 text-[14px] font-semibold text-white"
+                onClick={() => openSlice(firstMissingWebsiteSlice(eligibility.slices))}
+                className="w-full rounded-lg bg-[var(--tc-action)] px-4 py-3 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)]"
               >
                 {copy.t("Continue your profile")}
               </button>
@@ -362,7 +341,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
                   setIntroOwn(false);
                   setIntroText(introDraft);
                 }}
-                className={`flex-1 rounded-full border px-3 py-2 text-[13px] font-semibold ${introOwn ? "border-admin-border-soft bg-white text-admin-ink" : "border-emerald-900 bg-emerald-900 text-white"}`}
+                className={`flex-1 rounded-full border px-3 py-2 text-[13px] font-semibold ${introOwn ? "border-admin-border-soft bg-white text-admin-ink" : "border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-ink)]"}`}
               >
                 {copy.t("Keep it")}
               </button>
@@ -372,7 +351,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
                   setIntroOwn(true);
                   setIntroText("");
                 }}
-                className={`flex-1 rounded-full border px-3 py-2 text-[13px] font-semibold ${introOwn ? "border-emerald-900 bg-emerald-900 text-white" : "border-admin-border-soft bg-white text-admin-ink"}`}
+                className={`flex-1 rounded-full border px-3 py-2 text-[13px] font-semibold ${introOwn ? "border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-ink)]" : "border-admin-border-soft bg-white text-admin-ink"}`}
               >
                 {copy.t("Write my own")}
               </button>
@@ -396,7 +375,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
                   }
                 });
               }}
-              className="w-full rounded-full bg-emerald-900 px-4 py-3 text-[14px] font-semibold text-white disabled:opacity-50"
+              className="w-full rounded-full bg-[var(--tc-action)] px-4 py-3 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-50"
             >
               {copy.t("Save and continue")}
             </button>

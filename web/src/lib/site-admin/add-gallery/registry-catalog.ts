@@ -1,5 +1,6 @@
 import type { AddGalleryItem } from "./types";
 import { ADD_GALLERY_BACKGROUND_ITEMS } from "./registry-catalog-backgrounds";
+import { ADD_GALLERY_APP_ITEMS } from "./registry-catalog-apps";
 import { ADD_GALLERY_ELEMENT_ITEMS } from "./registry-catalog-elements";
 import { ADD_GALLERY_SECTIONS_CONNECTED_ITEMS } from "./registry-catalog-sections-connected";
 import { ADD_GALLERY_ROADMAP_ITEMS } from "./registry-roadmap";
@@ -9,6 +10,7 @@ export const ADD_GALLERY_AVAILABLE_ITEMS: ReadonlyArray<AddGalleryItem> = [
   ...ADD_GALLERY_ELEMENT_ITEMS,
   ...ADD_GALLERY_BACKGROUND_ITEMS,
   ...ADD_GALLERY_SECTIONS_CONNECTED_ITEMS,
+  ...ADD_GALLERY_APP_ITEMS,
 ];
 
 export { ADD_GALLERY_ROADMAP_ITEMS };

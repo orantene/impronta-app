@@ -394,7 +394,7 @@ webhook route, and `GlobalPayoutsBankCard.tsx` are untouched.
   hold as `skipped_live_disabled` until the flag is `true`. Don't set it on the sandbox; do set it for
   any live Connect run.
 - **`tsc` OOM false-green** — run typecheck with raised heap:
-  `cd web && NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit`, so a real type error on the new
+  `cd web && npm run typecheck`, so a real type error on the new
   `active_payout_system` column read isn't masked.
 - **Migration-drift prebuild gate** — `scripts/check-migrations-applied.mjs` runs as `prebuild`. The
   new ADD-COLUMN migration must be `npm run db:push`'d to remote Supabase **before** the PR merges to
@@ -407,7 +407,7 @@ webhook route, and `GlobalPayoutsBankCard.tsx` are untouched.
 
 1. `npm run db:push` (apply the migration to remote Supabase) → `npm run db:check` must report
    **0 drift**.
-2. `cd web && NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit` → clean.
+2. `cd web && npm run typecheck` → clean.
 3. `cd web && npm run lint` → clean; confirm the new **action** file triggers **no**
    `no-untenanted-from` error (proves the raw `.from()` write lives in the lib, not the action).
 4. `cd web && npm run test:billing` → existing `payout-rail-policy.test.ts` + the two new cases pass.

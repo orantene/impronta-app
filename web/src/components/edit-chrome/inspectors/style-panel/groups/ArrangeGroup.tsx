@@ -23,6 +23,7 @@
 
 import { CHROME } from "../../../kit/tokens";
 import { GlyphTiles, type GlyphTileOption } from "../../field-kit/glyph-tiles";
+import { useInspectorT } from "../../kit/use-inspector-t";
 import type { BuilderNodeStyleValue } from "@/lib/site-admin/builder-node/types";
 
 // ── Glyphs ───────────────────────────────────────────────────────────────────
@@ -100,12 +101,13 @@ export function ArrangeBody({
   selectedStandaloneViewportStyle,
   patchSelectedStandaloneStyle,
 }: ArrangeBodyProps) {
+  const { t } = useInspectorT();
   const style = selectedStandaloneViewportStyle;
 
   return (
       <div className="flex flex-col gap-3" data-builder-node-style-control="arrange">
         <span className="text-[11px]" style={{ color: CHROME.muted }}>
-          How the things inside this box sit next to each other.
+          {t("How the things inside this box sit next to each other.")}
         </span>
 
         <GlyphTiles

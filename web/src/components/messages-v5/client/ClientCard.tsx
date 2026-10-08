@@ -116,7 +116,7 @@ export function ClientCard({ message, kind, copy, kit, locale, business, now, of
         return <ClientOutcomeCard outcome="declined" copy={copy} />;
       }
       const a = act(offer.id);
-      return <ClientOfferCard offer={offer} copy={copy} kit={kit} business={business} locale={locale} now={now} phase={a.phase} refusal={a.refusal} payCode={payCode} onAccept={actions.onAcceptOffer} onDecline={actions.onDeclineOffer} onChange={(o, text) => actions.onChangeRecord("offer", o.id, text, o.id)} onPay={actions.onPay} />;
+      return <ClientOfferCard offer={offer} offers={offers} copy={copy} kit={kit} business={business} locale={locale} now={now} phase={a.phase} refusal={a.refusal} payCode={payCode} onAccept={actions.onAcceptOffer} onDecline={actions.onDeclineOffer} onChange={(o, text) => actions.onChangeRecord("offer", o.id, text, o.id)} onPay={actions.onPay} />;
     }
     case "payment_request":
       return <ClientPaymentCard view={readPayment(payload)} copy={copy} business={business} locale={locale} now={now} onPay={actions.onPay} />;

@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { computePublicSlots, computePublicSlotStarts } from "./public-slots";
+import {
+  computePublicSlots,
+  computePublicSlotStarts,
+  parsePublicSlotDuration,
+  PUBLIC_SLOTS_MAX_DURATION_MIN,
+} from "./public-slots";
 import type { BookingHours } from "./hours-types";
 
 const emptyWeek = () => ({ 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] });
@@ -158,4 +163,13 @@ test("the old export is byte-identical, so no caller moved", () => {
   ]) {
     assert.deepEqual(computePublicSlotStarts(input), computePublicSlots(input).starts);
   }
+});
+
+test("?duration= override accepts extras total and rejects garbage", () => {
+  assert.equal(parsePublicSlotDuration("90", 60), 90);
+  assert.equal(parsePublicSlotDuration(null, 60), 60);
+  assert.equal(parsePublicSlotDuration("nope", 60), 60);
+  assert.equal(parsePublicSlotDuration("0", 60), 60);
+  assert.equal(parsePublicSlotDuration(String(PUBLIC_SLOTS_MAX_DURATION_MIN + 1), 60), 60);
+  assert.equal(parsePublicSlotDuration(String(PUBLIC_SLOTS_MAX_DURATION_MIN), 60), PUBLIC_SLOTS_MAX_DURATION_MIN);
 });

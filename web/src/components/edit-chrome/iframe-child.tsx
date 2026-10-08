@@ -62,6 +62,9 @@ interface IframeChildProps {
    *  among them) resolve against the tier the operator is actually
    *  previewing instead of always defaulting to "desktop". */
   initialDevice?: import("./edit-context-types").EditDevice;
+  /** Non-storefront builder mounts (talent / agency / lab) have no host
+   *  storefront DOM, so they pass the in-editor canvas region here. */
+  children?: React.ReactNode;
 }
 
 export function IframeChild({
@@ -77,6 +80,7 @@ export function IframeChild({
   canInsertRawHtmlElements = false,
   surfaceConfig,
   initialDevice,
+  children,
 }: IframeChildProps) {
   return (
     <EditErrorBoundary>
@@ -88,7 +92,8 @@ export function IframeChild({
         operator wants to see the header at the device width.
       */}
       <style>{`
-        body { padding-top: 0 !important; padding-left: 0 !important; padding-right: 0 !important; max-width: none !important; margin: 0 !important; overflow-x: hidden !important; }
+        body { padding-top: 0 !important; padding-left: 0 !important; padding-right: 0 !important; max-width: none !important; margin: 0 !important; overflow-x: clip !important; }
+        html { overflow-x: clip !important; }
         header[data-public-header] { display: block !important; }
       `}</style>
       <EditProvider
@@ -117,6 +122,7 @@ export function IframeChild({
           <IframeChromeOrPreview />
           <IframeBridgeChild />
         </div>
+        {children}
       </EditProvider>
     </EditErrorBoundary>
   );

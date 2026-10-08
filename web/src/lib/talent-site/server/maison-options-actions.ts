@@ -5,6 +5,8 @@
  * Reset / reapply / discard / restore. Behind TALENT_MAISON_THEME_ENABLED.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { COLLECTION_DESIGNS } from "@/lib/talent-site/theme-catalog/collection/designs";
 import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -17,6 +19,7 @@ import { parseMaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/
 import { gate } from "./site-action-gate";
 import type { ThemeActionResult } from "./theme-action-types";
 import { applyDesign, applyLook } from "./theme-apply-core";
+import { loadApplyDesignRow } from "@/lib/talent-site/theme-releases/release-design.server";
 import { loadMaisonCatalogRow } from "./maison-catalog-row";
 import {
   captureMaisonDraftSnapshot,
@@ -158,11 +161,11 @@ export type MaisonDesignOptionsState = {
 export async function loadMaisonDesignOptionsStateAction(): Promise<
   ThemeActionResult<MaisonDesignOptionsState>
 > {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
 
@@ -270,7 +273,7 @@ export async function loadMaisonDesignOptionsStateAction(): Promise<
       id: row.id,
       version: row.version,
       publishedAt: snap.published_at || row.created_at,
-      summary: `Maison · ${colorLabel} · ${whenLabel}`,
+      summary: `${revisionDesignName(snap.design_slug)} · ${colorLabel} · ${whenLabel}`,
       isLive: i === 0,
     });
   }
@@ -292,11 +295,13 @@ export async function loadMaisonDesignOptionsStateAction(): Promise<
 export async function discardMaisonLivePendingAction(): Promise<
   ThemeActionResult<{ discarded: true }>
 > {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
 
@@ -350,11 +355,13 @@ export async function discardMaisonLivePendingAction(): Promise<
 export async function resetMaisonColorsAction(): Promise<
   ThemeActionResult<{ mode: "draft" | "live_pending" }>
 > {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
 
@@ -480,11 +487,13 @@ export async function resetMaisonColorsAction(): Promise<
 export async function reapplyMaisonDemoLayoutAction(): Promise<
   ThemeActionResult<{ mode: "draft" | "live_pending" }>
 > {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
 
@@ -568,7 +577,7 @@ export async function reapplyMaisonDemoLayoutAction(): Promise<
   if (!captured.ok) {
     return { ok: false, code: "server_error", error: captured.error };
   }
-  const design = await loadMaisonCatalogRow(admin, "design", DESIGN_SLUG);
+  const design = await loadApplyDesignRow(admin, DESIGN_SLUG);
   if (!design) {
     return { ok: false, code: "theme_not_found", error: "Maison design not found." };
   }
@@ -651,11 +660,13 @@ export async function reapplyMaisonDemoLayoutAction(): Promise<
 export async function restoreMaisonDesignRevisionAction(input: {
   revisionId: string;
 }): Promise<ThemeActionResult<{ restored: true }>> {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
   if (typeof input?.revisionId !== "string" || !input.revisionId) {
@@ -736,4 +747,11 @@ export async function restoreMaisonDesignRevisionAction(input: {
   });
   if (!written.ok) return { ok: false, code: "server_error", error: written.error };
   return { ok: true, data: { restored: true } };
+}
+
+/** P5: revision rows name the design that was live (Folio, Mono, ...), not always Maison. */
+function revisionDesignName(slug: string | null): string {
+  const s = slug?.trim().toLowerCase() ?? "";
+  const hit = COLLECTION_DESIGNS.find((d) => d.slug === s);
+  return hit ? hit.title : "Maison";
 }

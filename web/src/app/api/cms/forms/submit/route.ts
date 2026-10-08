@@ -38,6 +38,7 @@ import {
   screenContactAttachments,
   storeContactAttachments,
 } from "@/lib/site-admin/sections/contact_form/attachments-store";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * FORMS-1 — hard cap for file-size metadata enforcement.
@@ -73,6 +74,8 @@ function checkRate(ip: string): boolean {
 }
 
 export async function POST(req: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   const admin = createServiceRoleClient();
   if (!admin) {
     return NextResponse.json(

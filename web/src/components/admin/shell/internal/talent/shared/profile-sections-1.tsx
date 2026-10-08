@@ -1,9 +1,11 @@
 "use client";
 
+import { profileIdentityMeta } from "./profile-identity-meta";
 import { useEffect, useRef, useState } from "react";
 import { useDashboardText } from "../../dashboard-i18n";
 import { Bullet, CapsLabel, Icon } from "../../primitives";
 import { AVAILABILITY_BLOCKS, COLORS, FONTS, MY_TALENT_PROFILE, POLAROID_SET, TALENT_PROFILES_BY_ID, TALENT_SPECIALTY_LABEL, applyProfileOverride, buildFreshTalentProfile, computeProfileCompleteness, getProfileById, useAdminShell, useProfileOverrideSubscription } from "../../state";
+import { formatCount } from "@/lib/talent/format-count";
 import { actionLoadTalentMediaBundle } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { BadgeChip, ProfileChip, TierPill } from "./profile-sections-2";
 
@@ -222,6 +224,7 @@ export function ProfileHero() {
     completeness: compHero.percent,
     missing: compHero.missing.map(m => m.label),
   };
+  const identityMeta = profileIdentityMeta(p.pronouns, p.age);
   const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: selfTalentId, section });
 
   // Load real cover + avatar photos from the DB, falling back to mock data.
@@ -362,9 +365,11 @@ export function ProfileHero() {
               <h2 style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 500, letterSpacing: -0.5, margin: 0 }} className="text-admin-ink">
                 {p.name}
               </h2>
+              {identityMeta ? (
               <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, padding: "2px 8px", background: "rgba(11,11,13,0.04)", borderRadius: 999 }} className="text-admin-ink-muted">
-                {p.pronouns} · {p.age}
+                {identityMeta}
               </span>
+              ) : null}
               <TierPill tier={p.subscription.tier} onClick={() => openDrawer("talent-tier-compare")} />
             </div>
             <div style={{ marginTop: 6, fontFamily: FONTS.body, fontSize: 13.5, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }} className="text-admin-ink-muted">
@@ -443,7 +448,7 @@ export function EngagementStrip({ profile }: { profile?: import("../../state").M
     ? [
         {
           label: copy.t("Views · 7d"),
-          value: analytics.last7d.views.toLocaleString(),
+          value: formatCount(analytics.last7d.views, copy.isSpanish),
           // A percent change needs a non-zero baseline. When last week had no
           // views the trend is genuinely undefined, so say that instead of
           // printing "▲ 0%".
@@ -458,8 +463,8 @@ export function EngagementStrip({ profile }: { profile?: import("../../state").M
         },
         {
           label: copy.t("Unique viewers · 7d"),
-          value: analytics.last7d.uniqueViewers.toLocaleString(),
-          sub: `${analytics.last30d.uniqueViewers.toLocaleString()} ${copy.t("in the last 30 days")}`,
+          value: formatCount(analytics.last7d.uniqueViewers, copy.isSpanish),
+          sub: `${formatCount(analytics.last30d.uniqueViewers, copy.isSpanish)} ${copy.t("in the last 30 days")}`,
           tone: COLORS.indigo,
         },
         {
@@ -477,7 +482,7 @@ export function EngagementStrip({ profile }: { profile?: import("../../state").M
           sub:
             analytics.last30d.conversionRatePct === null
               ? copy.t("Needs profile views to measure")
-              : `${analytics.last30d.inquiries} / ${analytics.last30d.views.toLocaleString()} ${copy.t("views")}`,
+              : `${analytics.last30d.inquiries} / ${formatCount(analytics.last30d.views, copy.isSpanish)} ${copy.t("views")}`,
           tone: COLORS.success,
         },
       ]
@@ -487,7 +492,7 @@ export function EngagementStrip({ profile }: { profile?: import("../../state").M
     { label: copy.t("Discover rank"), value: p.discoverRank > 0 ? `#${p.discoverRank}` : "—", sub: p.discoverRank > 0 ? copy.t("Updated daily") : copy.t("Not yet ranked"), tone: COLORS.indigo },
     {
       label: copy.t("Views · 7d"),
-      value: p.profileViews7d.toLocaleString(),
+      value: formatCount(p.profileViews7d, copy.isSpanish),
       sub: p.profileViews7d > 0
         ? `${p.viewsTrend > 0 ? "▲" : "▼"} ${Math.abs(p.viewsTrend)}% ${copy.t("vs last week")}`
         : copy.t("No views yet"),

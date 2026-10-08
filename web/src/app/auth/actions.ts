@@ -2,6 +2,7 @@
 
 import {
   getAppUrl,
+  isTalentSignupNext,
   normalizeNextPath,
   resolvePostAuthDestination,
 } from "@/lib/auth-flow";
@@ -20,9 +21,18 @@ import { createTranslator } from "@/i18n/messages";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
+import {
+  clearParentDomainAuthCookiesOnDeskHost,
+  deskRequestHost,
+} from "@/lib/support/desk/desk-auth-cookies";
+import { supportDeskPostAuthDestination } from "@/lib/support/desk/desk-url";
 import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
 import { claimTulalaBriefOnAuth } from "@/lib/tulala/brief-claim-auth";
 import { headers } from "next/headers";
+import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
+import { recordSignupAcceptance } from "@/lib/legal/acceptances";
+import { resetLocaleOnSignIn } from "@/lib/auth/reset-locale-on-sign-in";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * `pendingEmail` is set when signup succeeded but the session is not live yet
@@ -107,6 +117,7 @@ export async function requestPasswordReset(
   _prev: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  await requireNotImpersonating();
   const t = authT(formData);
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -140,6 +151,7 @@ export async function signInWithEmail(
   _prev: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  await requireNotImpersonating();
   const t = authT(formData);
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -151,7 +163,7 @@ export async function signInWithEmail(
   if (!supabase) {
     return { error: SUPABASE_ENV_HELP };
   }
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     // A wrong password is the user's outcome, not ours: warn, audit, no Sentry.
     if (isRejectedCredentials(error)) {
@@ -177,16 +189,18 @@ export async function signInWithEmail(
   }
 
   const nextPath = normalizeNextPath(String(formData.get("next") ?? "").trim());
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const profileData = user
-    ? await loadAccessProfile(supabase, user.id)
-    : null;
+  // TUL-129: the user comes from the sign-in response (the session just minted
+  // by Supabase), not a second getUser() round trip; the independent
+  // post-auth reads then run together instead of one after another.
+  const user = signInData?.user ?? null;
+  const [profileData] = await Promise.all([
+    user ? loadAccessProfile(supabase, user.id) : Promise.resolve(null),
+    user ? resetLocaleOnSignIn(user.id) : Promise.resolve(),
+    user ? claimGuestSupportOnAuth(user.id) : Promise.resolve(),
+    user ? claimTulalaBriefOnAuth(supabase, user.id) : Promise.resolve(),
+  ]);
 
   if (user) {
-    await claimGuestSupportOnAuth(user.id);
-    await claimTulalaBriefOnAuth(supabase, user.id);
     const tenantId = await auditTenantId();
     if (tenantId) {
       scheduleWorkspaceAudit({
@@ -202,12 +216,17 @@ export async function signInWithEmail(
   }
 
   revalidatePath("/", "layout");
+  await clearParentDomainAuthCookiesOnDeskHost();
   // Host-safe: the post-auth destination (/admin, /client, /onboarding/role)
   // does not exist on the marketing apex or the hub, where this form is also
-  // served. A relative redirect there is a hard 404.
+  // served. A relative redirect there is a hard 404. On Desk hosts, /admin → /desk.
+  const deskHost = await deskRequestHost();
   redirect(
     await hostSafeRedirectDestination(
-      resolvePostAuthDestination(profileData, nextPath),
+      supportDeskPostAuthDestination(
+        resolvePostAuthDestination(profileData, nextPath),
+        deskHost,
+      ),
     ),
   );
 }
@@ -226,6 +245,8 @@ export async function signInWithEmailModal(
   _prev: SignInModalState,
   formData: FormData,
 ): Promise<SignInModalState> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const t = authT(formData);
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -258,6 +279,7 @@ export async function signInWithEmailModal(
   }
 
   if (data.user) {
+    await resetLocaleOnSignIn(data.user.id);
     await claimGuestSupportOnAuth(data.user.id);
     await claimTulalaBriefOnAuth(supabase, data.user.id);
     const tenantId = await auditTenantId();
@@ -281,6 +303,7 @@ export async function signUpWithEmail(
   _prev: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  await requireNotImpersonating();
   const t = authT(formData);
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -290,6 +313,10 @@ export async function signUpWithEmail(
   if (password.length < 8) {
     return { error: t("public.auth.actions.passwordTooShort") };
   }
+  // Legal 2.2: adults only (18+) and explicit agreement, enforced server side.
+  if (!isAgeAndTermsConfirmed(formData.get("age_terms"))) {
+    return { error: t("public.auth.actions.ageTermsRequired") };
+  }
 
   const supabase = await getCachedServerSupabase();
   if (!supabase) {
@@ -297,11 +324,9 @@ export async function signUpWithEmail(
   }
   const origin = getAppUrl();
   const nextPath = normalizeNextPath(String(formData.get("next") ?? "").trim());
-  // Talent-register flow: the modal passes next=/onboarding/talent-location.
-  // Tagging signup_intent in user metadata lets the handle_new_user trigger
-  // create the profile with app_role='talent' immediately, avoiding a brief
-  // window where a talent is misidentified as a client.
-  const signupIntent = nextPath.startsWith("/onboarding/talent") ? "talent" : undefined;
+  // Talent-register flow: `/register?as=talent` lands on `/talent/profile/fields`.
+  // Tagging signup_intent lets handle_new_user set app_role='talent' immediately.
+  const signupIntent = isTalentSignupNext(nextPath) ? "talent" : undefined;
   // Carry the page locale so the auth-email hook sends the confirm email in EN/ES.
   const lang = String(formData.get("locale") ?? "en") === "es" ? "es" : "en";
 
@@ -325,6 +350,8 @@ export async function signUpWithEmail(
   }
 
   if (data.user) {
+    // Best effort: never blocks signup (logs and returns on any failure).
+    await recordSignupAcceptance(data.user.id);
     if (data.session) {
       await claimGuestSupportOnAuth(data.user.id);
       await claimTulalaBriefOnAuth(supabase, data.user.id);
@@ -357,12 +384,17 @@ export async function signUpWithEmail(
   const profileData = user
     ? await loadAccessProfile(supabase, user.id)
     : null;
+  await clearParentDomainAuthCookiesOnDeskHost();
   // Host-safe: the post-auth destination (/admin, /client, /onboarding/role)
   // does not exist on the marketing apex or the hub, where this form is also
-  // served. A relative redirect there is a hard 404.
+  // served. A relative redirect there is a hard 404. On Desk hosts, /admin → /desk.
+  const deskHost = await deskRequestHost();
   redirect(
     await hostSafeRedirectDestination(
-      resolvePostAuthDestination(profileData, nextPath),
+      supportDeskPostAuthDestination(
+        resolvePostAuthDestination(profileData, nextPath),
+        deskHost,
+      ),
     ),
   );
 }
@@ -388,6 +420,7 @@ export async function signUpTalentInPlace(
   _prev: TalentSignupInPlaceState,
   formData: FormData,
 ): Promise<TalentSignupInPlaceState> {
+  await requireNotImpersonating();
   const t = authT(formData);
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -409,8 +442,11 @@ export async function signUpTalentInPlace(
     options: {
       // If email confirmation is on, the link lands on the app host and
       // resumes at the profile step.
+      // Was "/onboarding/talent-location" (legacy). Confirmation emails already
+      // in inboxes still point there, which is why that route stays as a
+      // redirect rather than being deleted.
       emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(
-        "/onboarding/talent-location",
+        "/talent/profile/fields",
       )}`,
       data: { signup_intent: "talent" },
     },

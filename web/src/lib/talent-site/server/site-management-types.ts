@@ -37,6 +37,11 @@ export type MaxSiteManagerState = {
   siteSlug: string | null;
   logoUrl: string | null;
   sitePublishedAt: string | null;
+  /**
+   * True once the site scaffold (row, slug, shell, home page) exists. False
+   * until the talent clicks "Create my own website": loading never creates it.
+   */
+  siteExists: boolean;
   /** Whether the published shell has ever been baked. */
   hasPublishedShell: boolean;
   /** The talent's site URL (`/t/site/<slug>`), null until a slug exists. */
@@ -45,6 +50,11 @@ export type MaxSiteManagerState = {
   themeDesignSlug: string | null;
   /** Applied Look slug (e.g. `maison-lilac`); null until a Look is applied. */
   themeLookSlug: string | null;
+  /**
+   * `talent_profiles.profile_template` (e.g. `maison`). Lets the live card
+   * name a site built by hand before the design catalog (no design slug).
+   */
+  legacyProfileTemplate?: string | null;
   pages: MaxSiteManagerPage[];
 };
 
@@ -84,4 +94,8 @@ export type TalentSiteActivationState = {
   isPublished: boolean;
   /** Provisioned slug when hasSite; null otherwise (Today suggests from name). */
   siteSlug: string | null;
+  /** Applied design; set = the talent applied a design ("preview" in website-flow). */
+  themeDesignSlug: string | null;
+  /** Applied look; null = the design's own colours (never name a palette then). */
+  themeLookSlug: string | null;
 };

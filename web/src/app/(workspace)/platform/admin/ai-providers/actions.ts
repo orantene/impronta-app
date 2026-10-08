@@ -17,6 +17,7 @@ import {
   type ProviderConfigKind,
 } from "@/lib/ai/ai-provider-admin";
 import { setGenerationModel } from "@/lib/ai/ai-generation-model";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const REVALIDATE_PATH = "/platform/admin/ai-providers";
 
@@ -35,6 +36,8 @@ export async function saveAiProviderKeyAction(input: {
   kind: ProviderConfigKind;
   apiKey: string;
 }): Promise<AiProviderActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const result = await saveAndActivateProvider(input.kind, input.apiKey);
@@ -46,6 +49,8 @@ export async function setAiProviderActiveAction(input: {
   kind: ProviderConfigKind;
   active: boolean;
 }): Promise<AiProviderActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const result = await setProviderActive(input.kind, input.active);
@@ -56,6 +61,8 @@ export async function setAiProviderActiveAction(input: {
 export async function setAiGenerationModelAction(input: {
   model: string;
 }): Promise<AiProviderActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const result = await setGenerationModel(input.model);
@@ -68,6 +75,8 @@ export async function setAiSpendCapAction(input: {
   warnThresholdPercent: number | null;
   hardStop: boolean;
 }): Promise<AiProviderActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const result = await saveTenantSpendCap({

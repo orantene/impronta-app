@@ -332,7 +332,7 @@ Every wave, before the integrator reports it complete:
 
 ```bash
 cd web
-NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit 2>&1 | grep -cE 'error TS[0-9]+:'   # must print 0
+npm run typecheck 2>&1 | grep -cE 'error TS[0-9]+:'   # must print 0
 npm run lint                                                                                 # must exit 0
 npm run test:builder && npm run test:builder-chrome && npm run test:builder-capabilities
 node scripts/check-builder-test-lane-coverage.cjs                                            # every new test in a lane

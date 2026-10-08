@@ -26,10 +26,12 @@ test("profile route resolves Max site via platform helper on Tulala hosts", () =
 
 test("public loader uses published RPC first to resolve profile_code → id", () => {
   // The loader still hits the anon-executable published RPC first as the
-  // cheapest code→id lookup for a published talent, then falls back to a direct
-  // talent_profiles lookup. It NO LONGER parses the snapshot (the snapshot is
-  // not the profile render anymore — repoint #493).
+  // cheapest code→id lookup for a published talent, then falls back through
+  // resolve_talent_profile_code (canonical + vanity alias). It NO LONGER
+  // parses the snapshot (the snapshot is not the profile render anymore —
+  // repoint #493).
   assert.match(PUBLIC_LOAD_SRC, /talent_public_site_for_profile_code/);
+  assert.match(PUBLIC_LOAD_SRC, /resolve_talent_profile_code/);
   assert.match(PUBLIC_LOAD_SRC, /talent_profile_id/);
   // The dead snapshot-as-profile reads are gone: no snapshot validation, and
   // the orphaned owner-draft-preview loader has been removed.
@@ -64,16 +66,19 @@ test("REPOINT: /t/[code] always resolves the discovery profile (never the Max sn
   assert.match(GATE_SRC, /isTemplateAllowedForTier/);
 });
 
-test("dashboard public URL is canonical /t/code without /site", () => {
+test("dashboard public URL prefers the published personal site, then hub /t/code", () => {
   const dashState = readFileSync(
     join(process.cwd(), "src/lib/talent-site/server/dashboard-state.ts"),
     "utf8",
   );
-  // Phase 2 prefers the talent's own host when the subdomain switch is on, but
-  // the canonical fallback MUST stay `/t/<code>` (never `/t/<code>/site`).
+  // Live website first (custom domain / vanity /t/site/<slug>); hub is fallback.
+  // Never invent `/t/<code>/site` — that path is not a real surface.
   assert.match(
     dashState,
-    /publicSiteUrl: subdomainSiteUrl \?\? \(profileCode \? `\/t\/\$\{profileCode\}` : null\)/,
+    /publicSiteUrl: personalSiteUrl \?\? \(profileCode \? `\/t\/\$\{profileCode\}` : null\)/,
   );
-  assert.equal(dashState.includes("/site`"), false);
+  assert.match(dashState, /publishedPersonalSiteUrl/);
+  assert.match(dashState, /talentSitePathUrl/);
+  assert.match(dashState, /maxSitePublicGate/);
+  assert.equal(dashState.includes("`/t/${profileCode}/site`"), false);
 });

@@ -54,13 +54,22 @@ import type {
   SaveDraftResult,
   PublishResult,
 } from "@/lib/site-admin/edit-mode/composition-actions";
-import type { RevisionRestoreResult } from "@/lib/site-admin/edit-mode/revisions-actions";
+import type {
+  RevisionRestoreResult,
+  RevisionsLoadResult,
+} from "@/lib/site-admin/edit-mode/revisions-actions";
+import {
+  DRAFT_REV_CONFLICT_CODE,
+  resolveExpectedDraftRev,
+  versionAfterWrite,
+} from "@/lib/talent-site/history/draft-rev";
 
 import type {
   BuilderSurfaceAdapter,
   BuilderSurfaceContext,
   BuilderSurfacePublishInput,
   BuilderSurfaceSaveDraftInput,
+  BuilderSurfaceDiscardInput,
   BuilderSurfaceRestoreInput,
 } from "../surface-adapter";
 import { assertNoLegacyBuilderWrite } from "../legacy-write-guard";
@@ -81,6 +90,10 @@ export interface TalentPageRow {
   title: string;
   status: "draft" | "scheduled" | "published";
   blocks: unknown;
+  /** Live body visitors see (`talent_pages.blocks_published`). Optional: a
+   *  pre-migration DB or a partial select leaves it undefined. The editor only
+   *  reads it as a fallback when the draft `blocks` is empty. */
+  blocks_published?: unknown;
   theme: unknown;
   required_talent_tier: string | null;
   published_at: string | null;
@@ -101,11 +114,25 @@ export interface TalentPageRow {
   style_classes?: unknown;
   /** STYLE-1 — site-scoped presets envelope. */
   style_presets?: unknown;
+  /** Theme releases Phase 2 — the SITE's `draft_rev` (the CAS version). */
+  draft_rev?: number | null;
 }
 
-/** Derive a monotonic version from `updated_at` (epoch seconds). */
+/** The CAS version: the site's draft_rev, else (no site) `updated_at` epoch seconds. */
 function versionFromRow(row: TalentPageRow): number {
+  if (typeof row.draft_rev === "number") return row.draft_rev;
   return Math.floor(new Date(row.updated_at).getTime() / 1000);
+}
+
+/** Result of a talent page draft write (`draftRev` set when the site has one). */
+export type TalentPageWriteResult =
+  | { ok: true; updatedAt: string; draftRev?: number | null }
+  | { ok: false; error: string; code?: string };
+
+function writeFailure(result: { error: string; code?: string }) {
+  return result.code === DRAFT_REV_CONFLICT_CODE
+    ? { ok: false as const, error: result.error, code: DRAFT_REV_CONFLICT_CODE }
+    : { ok: false as const, error: result.error };
 }
 
 /** Shape the adapter writes to `talent_pages` on save. */
@@ -158,7 +185,9 @@ export interface TalentPageAdapterActions {
     talentProfileId: string;
     pageId: string;
     patch: TalentPagePatch;
-  }) => Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }>;
+    /** The editor's CAS version (draft_rev); a mismatch returns VERSION_CONFLICT. */
+    expectedDraftRev?: number | null;
+  }) => Promise<TalentPageWriteResult>;
 
   /**
    * Publish the page (status=published, published_at=now()). The adapter calls
@@ -167,7 +196,10 @@ export interface TalentPageAdapterActions {
   publishPage: (input: {
     talentProfileId: string;
     pageId: string;
-  }) => Promise<{ ok: true; publishedAt: string; updatedAt: string } | { ok: false; error: string }>;
+  }) => Promise<
+    | { ok: true; publishedAt: string; updatedAt: string; draftRev?: number | null }
+    | { ok: false; error: string }
+  >;
 
   /**
    * Return the existing talent_pages row for (talentProfileId, slug); if none,
@@ -186,7 +218,41 @@ export interface TalentPageAdapterActions {
     talentProfileId: string;
     pageId: string;
     revisionId: string;
-  }) => Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }>;
+    expectedDraftRev?: number | null;
+  }) => Promise<TalentPageWriteResult>;
+
+  /**
+   * Theme releases Phase 2 — the site's history timeline (owner-gated). When
+   * supplied the adapter exposes `loadRevisions`, which the drawer prefers.
+   */
+  loadRevisions?: (input: {
+    talentProfileId: string;
+    pageSlug: string | null;
+  }) => Promise<RevisionsLoadResult>;
+}
+
+// ── resolveTalentPageEditorTree ─────────────────────────────────────────────
+
+/**
+ * The tree the builder opens for a talent page: the DRAFT (`blocks`) when it
+ * has nodes, else the LIVE body (`blocks_published`), else empty.
+ *
+ * A talent must always be able to edit exactly what visitors see. A page whose
+ * draft is empty but whose live body is not (a live body written by an older
+ * publish path, or a draft blanked by a failed save) would otherwise open as an
+ * empty "Describe your page" canvas while the public site shows the full page.
+ * Opening on the live body means the first save writes it back to the draft.
+ */
+export function resolveTalentPageEditorTree(
+  row: Pick<TalentPageRow, "blocks" | "blocks_published">,
+): CompositionData["builderTree"] {
+  if (Array.isArray(row.blocks) && row.blocks.length > 0) {
+    return row.blocks as CompositionData["builderTree"];
+  }
+  if (Array.isArray(row.blocks_published) && row.blocks_published.length > 0) {
+    return row.blocks_published as CompositionData["builderTree"];
+  }
+  return [];
 }
 
 // ── buildEmptyTalentPageComposition ─────────────────────────────────────────
@@ -224,7 +290,7 @@ export function buildEmptyTalentPageComposition(
       jsonLd: row.json_ld ?? null,
     },
     slots: {},
-    builderTree: (row.blocks as CompositionData["builderTree"]) ?? [],
+    builderTree: resolveTalentPageEditorTree(row),
     slotDefs: [],
     library: [],
     // STYLE-1 — prefer the dedicated `style_classes` column; fall back to the
@@ -361,12 +427,10 @@ export function createTalentPageAdapter(
           ...talentMetadataPatch(input.metadata),
           ...talentStyleRegistryPatch(input),
         },
+        expectedDraftRev: resolveExpectedDraftRev(input.expectedVersion),
       });
-      if (!result.ok) return { ok: false, error: result.error };
-      return {
-        ok: true,
-        pageVersion: Math.floor(new Date(result.updatedAt).getTime() / 1000),
-      };
+      if (!result.ok) return writeFailure(result);
+      return { ok: true, pageVersion: versionAfterWrite(result) };
     },
 
     async saveDraft(
@@ -395,13 +459,10 @@ export function createTalentPageAdapter(
           ...talentMetadataPatch(input.metadata),
           ...talentStyleRegistryPatch(input),
         },
+        expectedDraftRev: resolveExpectedDraftRev(input.expectedVersion),
       });
-      if (!result.ok) return { ok: false, error: result.error };
-      return {
-        ok: true,
-        pageVersion: Math.floor(new Date(result.updatedAt).getTime() / 1000),
-        savedAt: result.updatedAt,
-      };
+      if (!result.ok) return writeFailure(result);
+      return { ok: true, pageVersion: versionAfterWrite(result), savedAt: result.updatedAt };
     },
 
     async publish(
@@ -422,11 +483,33 @@ export function createTalentPageAdapter(
 
       const result = await actions.publishPage({ talentProfileId, pageId: row.id });
       if (!result.ok) return { ok: false, error: result.error };
-      return {
-        ok: true,
-        pageVersion: Math.floor(new Date(result.updatedAt).getTime() / 1000),
-        publishedAt: result.publishedAt,
-      };
+      return { ok: true, pageVersion: versionAfterWrite(result), publishedAt: result.publishedAt };
+    },
+
+    async discardDraft(
+      ctx: BuilderSurfaceContext,
+      input: BuilderSurfaceDiscardInput,
+    ): Promise<RevisionRestoreResult> {
+      guard("talent_pages");
+
+      const talentProfileId = capturedTalentProfileId || "";
+      if (!ctx.pageSlug) {
+        return { ok: false, error: "talent_page discardDraft: pageSlug is required." };
+      }
+      const row = await actions.loadPage({ talentProfileId, slug: ctx.pageSlug });
+      if (!row) return { ok: false, error: "Talent page not found." };
+      const live = Array.isArray(row.blocks_published) ? row.blocks_published : [];
+      if (live.length === 0) {
+        return { ok: false, error: "Nothing is published yet, so there is no live version to go back to." };
+      }
+      const result = await actions.savePage({
+        talentProfileId,
+        pageId: row.id,
+        patch: { blocks: live, theme: row.theme, updated_at: new Date().toISOString() },
+        expectedDraftRev: resolveExpectedDraftRev(input.expectedVersion),
+      });
+      if (!result.ok) return writeFailure(result);
+      return { ok: true, pageVersion: versionAfterWrite(result) };
     },
 
     ...(actions.restoreRevision
@@ -457,12 +540,21 @@ export function createTalentPageAdapter(
               talentProfileId,
               pageId: row.id,
               revisionId: input.revisionId,
+              expectedDraftRev: resolveExpectedDraftRev(input.expectedVersion),
             });
-            if (!result.ok) return { ok: false, error: result.error };
-            return {
-              ok: true,
-              pageVersion: Math.floor(new Date(result.updatedAt).getTime() / 1000),
-            };
+            if (!result.ok) return writeFailure(result);
+            return { ok: true, pageVersion: versionAfterWrite(result) };
+          },
+        }
+      : {}),
+
+    ...(actions.loadRevisions
+      ? {
+          async loadRevisions(ctx: BuilderSurfaceContext): Promise<RevisionsLoadResult> {
+            return actions.loadRevisions!({
+              talentProfileId: capturedTalentProfileId || ctx.pageId || "",
+              pageSlug: ctx.pageSlug ?? null,
+            });
           },
         }
       : {}),

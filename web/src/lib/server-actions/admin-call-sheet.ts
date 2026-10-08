@@ -23,6 +23,7 @@ import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type CallSheetFields = {
   eventDate?: string | null;        // YYYY-MM-DD
@@ -44,6 +45,8 @@ export async function updateCallSheetAsAdmin(
   inquiryId: string,
   fields: CallSheetFields,
 ): Promise<UpdateCallSheetResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authorised." };

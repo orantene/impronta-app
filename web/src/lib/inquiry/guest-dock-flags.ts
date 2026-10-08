@@ -16,6 +16,7 @@ import "server-only";
 
 import { loadGuestChatSettings } from "./guest-chat-settings";
 import { GUEST_CHAT_DEFAULTS } from "./guest-chat-settings-shape";
+import { resolveGuestDockItemsLabel } from "./guest-dock-items-label";
 import { intakeTradeForPreset, type IntakeTrade } from "@/app/t/[profileCode]/_chat/guest-intake-rail";
 import { chatBookingsLabel } from "@/lib/words/chat-bookings-label";
 import { chatItemsLabel } from "@/lib/words/chat-items-label";
@@ -41,6 +42,11 @@ export async function loadGuestDockFlags(
    * (D-MSG-430). Null keeps the tenant's preset. See `resolveTalentTradePreset`.
    */
   presetOverride?: IndustryPresetId | null,
+  /**
+   * Agency public storefront (Impronta), not hub. Drives DoR Browse label.
+   * Talent vanity mounts omit this.
+   */
+  opts?: { readonly agencyPublicSurface?: boolean },
 ): Promise<GuestDockFlags> {
   if (!tenantId) {
     return {
@@ -66,12 +72,21 @@ export async function loadGuestDockFlags(
     word: (key: Parameters<typeof words.word>[0]) => words.word(key),
     sourceOf: (key: Parameters<typeof words.sourceOf>[0]) => words.sourceOf(key),
   };
+  const dockIntake = intakeTradeForPreset(words.preset.id);
+  const derivedItemsLabel = chatItemsLabel(wordsLookup);
   return {
     dockItemsTab: settings.itemsTab,
     dockCardsV5: settings.cardsV5,
-    dockItemsLabel: chatItemsLabel(wordsLookup),
+    // Agency public dock (Impronta): DoR middle tab is Browse, not Talent & services.
+    // Pass request locale so fr → Parcourir (words.locale collapses non-es to en).
+    dockItemsLabel: resolveGuestDockItemsLabel({
+      agencyPublicSurface: Boolean(opts?.agencyPublicSurface),
+      derivedLabel: derivedItemsLabel,
+      chatItemsCustomized: words.sourceOf("customers.chat_items") !== "default",
+      locale,
+    }),
     dockProjectsLabel: chatBookingsLabel(wordsLookup),
     dockRepresentsPeople: representsPeople,
-    dockIntake: intakeTradeForPreset(words.preset.id),
+    dockIntake,
   };
 }

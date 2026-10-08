@@ -29,7 +29,10 @@
  */
 
 import "server-only";
-import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
+import { nonRefundableFeeCents as nonRefundableFeeCentsOf } from "@/lib/billing/commission";
+import { loadBookingCommissionSnapshotsForRefund } from "@/lib/billing/commission-engine";
+import { getStripeFor, isStripeConfigured } from "@/lib/stripe/client";
+import { loadChargePlatformForTransaction } from "@/lib/stripe/charge-platform";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -110,6 +113,10 @@ export type RefundEligibility = {
   currency: string;
   /** The `pi_...` this transaction settled on, when known. */
   paymentIntentId: string | null;
+  /** pass_through: platform fee + client-paid processing fee. NON-REFUNDABLE
+   *  (owner decision 2026-10-01); already excluded from `remainingCents`.
+   *  Absent when 0 (legacy rows). */
+  nonRefundableFeeCents?: number;
   /** Present when a refund cannot be issued; human-readable, English, for logs. */
   blockedReason: string | null;
   /**
@@ -132,13 +139,30 @@ export function computeRefundEligibility(input: {
   alreadyRefundedCents: number;
   paymentIntentId: string | null;
   provider: string;
+  /** Fees that are never returned (see nonRefundableFeeCents in billing/commission). */
+  nonRefundableFeeCents?: number | null;
 }): RefundEligibility {
+  if (input.nonRefundableFeeCents === null) {
+    // Seller-pays fee not recorded: the refund base is unknowable, never guess.
+    return {
+      remainingCents: 0,
+      alreadyRefundedCents: input.alreadyRefundedCents,
+      grossAmountCents: input.grossAmountCents,
+      currency: input.currency,
+      paymentIntentId: input.paymentIntentId,
+      blockedReason:
+        "The actual card processing fee for this payment is not recorded yet, so the refund amount cannot be computed. Try again once the payment has settled.",
+      blockedCode: "unavailable",
+    };
+  }
+  const nonRefundable = Math.max(0, Math.round(input.nonRefundableFeeCents ?? 0));
   const base: Omit<RefundEligibility, "blockedReason" | "blockedCode"> = {
-    remainingCents: Math.max(0, input.grossAmountCents - input.alreadyRefundedCents),
+    remainingCents: Math.max(0, input.grossAmountCents - nonRefundable - input.alreadyRefundedCents),
     alreadyRefundedCents: input.alreadyRefundedCents,
     grossAmountCents: input.grossAmountCents,
     currency: input.currency,
     paymentIntentId: input.paymentIntentId,
+    ...(nonRefundable > 0 ? { nonRefundableFeeCents: nonRefundable } : {}),
   };
 
   if (!REFUNDABLE_STATUSES.has(input.status)) {
@@ -188,7 +212,7 @@ export async function loadRefundEligibility(
 
   const { data: txn, error } = await sb
     .from("booking_transactions")
-    .select("id, status, gross_amount_cents, currency, provider, provider_metadata, refund_of_transaction_id")
+    .select("id, booking_id, status, gross_amount_cents, currency, provider, provider_metadata, refund_of_transaction_id")
     .eq("id", transactionId)
     .maybeSingle();
   if (error || !txn) return { error: "Payment not found.", code: "not_found" };
@@ -217,7 +241,19 @@ export async function loadRefundEligibility(
       ? ((meta as Record<string, unknown>).payment_intent_id as string | undefined) ?? null
       : null;
 
+  // pass_through bookings: the platform fee + client-paid processing fee are
+  // non-refundable, so the refundable ceiling is the service amount only.
+  let nonRefundableFeeCents: number | null = 0;
+  if (typeof row.booking_id === "string" && row.booking_id) {
+    try {
+      nonRefundableFeeCents = nonRefundableFeeCentsOf(await loadBookingCommissionSnapshotsForRefund(sb, row.booking_id));
+    } catch {
+      nonRefundableFeeCents = null; // snapshot unreadable: block, never guess
+    }
+  }
+
   return computeRefundEligibility({
+    nonRefundableFeeCents,
     status: String(row.status),
     grossAmountCents: Number(row.gross_amount_cents ?? 0),
     currency: String(row.currency ?? "USD"),
@@ -249,10 +285,13 @@ export async function executeBookingRefund(input: {
   actorUserId?: string | null;
   note?: string | null;
 }): Promise<RefundExecuteResult> {
-  if (!isStripeConfigured()) {
+  // Refund on the platform that TOOK THE CHARGE; the PaymentIntent does not
+  // exist on the other one.
+  const chargePlatform = await loadChargePlatformForTransaction(input.transactionId);
+  if (chargePlatform === "us" && !isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured, so no refund was issued.", code: "stripe_not_configured" };
   }
-  const stripe = getStripe();
+  const stripe = getStripeFor(chargePlatform);
   if (!stripe) {
     return { ok: false, error: "Stripe is not configured, so no refund was issued.", code: "stripe_not_configured" };
   }

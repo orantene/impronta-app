@@ -40,7 +40,22 @@ export type TalentPortfolioStarterProfile = {
    * not loaded. Optional + additive — shown as a small About line when present.
    */
   languagesLabel?: string;
-  /** Public phone. Used for WhatsApp when she has not published a WhatsApp link. */
+  /**
+   * Facts for the hero proof line (`formatHeroProofLine`): years of craft,
+   * published rating and review count, and whether the talent is a demo.
+   * Optional + additive; absent parts simply drop out of the line.
+   */
+  experienceYears?: number | null;
+  /** `identity.headline`: the talent's own hero headline. */
+  headline?: string | null;
+  /** `identity.tagline`: the short line under the headline. */
+  tagline?: string | null;
+  /** Currency of her published services ("MXN"), for the menu's "Prices in MXN." line. */
+  menuCurrency?: string | null;
+  ratingAvg?: number | null;
+  ratingCount?: number | null;
+  isDemo?: boolean;
+  /** Profile phone. Never used as a public WhatsApp link (privacy). */
   phone?: string | null;
   phoneE164?: string | null;
   /** Public social links. mailto and WhatsApp only. Never an invitation address. */

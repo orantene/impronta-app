@@ -23,6 +23,7 @@ import { offerDraftNeedsSharedSeed } from "@/lib/messaging/offer-shared-seed";
 import { fail } from "@/lib/messaging/refusals";
 import { messagingInquiryManager } from "@/lib/messaging/staff-guard";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 const version = z.number().int().nonnegative();
@@ -57,6 +58,7 @@ function offerEngineFail(result: { success: false; forbidden?: boolean; conflict
 
 /** L6: start (or re-fetch an existing draft for) offer v1 on this inquiry. */
 export async function messagingCreateOffer(input: { inquiryId: string; expectedVersion: number; currencyCode?: string }) {
+  await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid, expectedVersion: version, currencyCode: z.string().length(3).optional() }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const g = await messagingInquiryManager(parsed.data.inquiryId);
@@ -72,6 +74,8 @@ export async function messagingCreateOffer(input: { inquiryId: string; expectedV
     actorUserId: g.userId,
     expectedVersion: currentVersion,
     currencyCode: parsed.data.currencyCode ?? "USD",
+    // No explicit currency from the sheet: the offer follows the seller (TUL-274).
+    followSeller: parsed.data.currencyCode === undefined,
   });
   if (!result.success) return offerEngineFail(result);
   const offerId = result.data?.offerId ?? "";
@@ -130,6 +134,22 @@ async function seedOfferFromSharedDraft(g: OfferGuardOk, inquiryId: string, offe
   });
 }
 
+/**
+ * Re-opening the editor after "Add from catalog": the picker writes the lines
+ * to the shared draft order, but an offer that already exists was only seeded
+ * at creation. Seeds again when the offer is still empty or $0 placeholders
+ * (a no-op otherwise), so the picked service lands as a priced line.
+ */
+export async function messagingSeedOfferFromShared(input: { inquiryId: string; offerId: string }) {
+  await requireNotImpersonating();
+  const parsed = z.object({ inquiryId: uuid, offerId: uuid }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  if (!g.ok) return g;
+  await seedOfferFromSharedDraft(g, parsed.data.inquiryId, parsed.data.offerId);
+  return { ok: true as const };
+}
+
 /** L6: the full draft (header + lines) for the editor sheet. */
 export async function messagingLoadOfferForEditor(input: { inquiryId: string; offerId: string }) {
   const parsed = z.object({ inquiryId: uuid, offerId: uuid }).safeParse(input);
@@ -160,6 +180,7 @@ export async function messagingUpdateOfferDraft(input: {
   lineItems: OfferLineDraft[];
   terms?: { depositPct?: number | null } | null;
 }) {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       inquiryId: uuid,
@@ -195,6 +216,7 @@ export async function messagingUpdateOfferDraft(input: {
 
 /** L6: an accepted/sent offer -> a new draft version (never edits an accepted version — owner ruling 2). */
 export async function messagingReopenOfferForAmendment(input: { inquiryId: string; offerId: string; expectedVersion: number }) {
+  await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid, offerId: uuid, expectedVersion: version }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const g = await messagingInquiryManager(parsed.data.inquiryId);
@@ -219,6 +241,7 @@ export async function messagingReopenOfferForAmendment(input: { inquiryId: strin
  * same currency. The caller still populates lines with `updateOfferDraft`.
  */
 export async function messagingCounterOffer(input: { inquiryId: string; expectedVersion: number; previousOfferId: string }) {
+  await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid, expectedVersion: version, previousOfferId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const g = await messagingInquiryManager(parsed.data.inquiryId);

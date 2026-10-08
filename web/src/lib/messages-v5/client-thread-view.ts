@@ -19,6 +19,8 @@
 
 import type { ThreadMessage } from "@/lib/messaging/types";
 import { formatOrderMoney } from "@/lib/orders/money-format";
+import type { FeeLine } from "@/lib/billing/processing-fee-payer";
+import { validClientFeeLines } from "@/lib/payments/fee-lines-payload";
 
 export const CLIENT_GROUP_WINDOW_MS = 3 * 60 * 1000;
 
@@ -71,10 +73,14 @@ function sameDay(a: Date, b: Date): boolean {
 
 const HIDDEN_CLIENT_SYSTEM_EVENTS = new Set(["offer_sent", "offer_accepted", "approvals_complete", "all_approvals_complete", "talent_approved"]);
 
-export function buildClientStream(messages: readonly ThreadMessage[]): ClientStreamItem[] {
+export function buildClientStream(
+  messages: readonly ThreadMessage[],
+  offers?: readonly Pick<ClientOfferSummary, "id" | "status">[],
+): ClientStreamItem[] {
   // One offer card per offer; the engine's own "Offer sent" / approvals
   // lines are the same fact as the card and stay out of the client's stream.
-  const offerCards = offerCardMessageIds(messages);
+  // Pass offers so a superseded revise does not keep its old card in the stream.
+  const offerCards = offerCardMessageIds(messages, offers);
   const live = messages.filter((m) => {
     if (m.internal || m.kind === "internal_note") return false;
     if (m.kind === "offer_event" || m.kind === "offer_review") return offerCards.has(m.id);
@@ -294,6 +300,21 @@ export type ClientOfferSummary = {
   readonly lines: readonly { readonly label: string; readonly units: number; readonly amountCents: number }[];
 };
 
+/**
+ * The version the GUEST sees on an offer card. Internal drafts consume version
+ * numbers the guest never saw, so a first sent offer could read "v3". Count
+ * only the offers the guest can see, starting at 1; with a single visible
+ * offer there is nothing to disambiguate, so return null (no version shown).
+ */
+export function guestVisibleOfferVersion(
+  offer: Pick<ClientOfferSummary, "id" | "version">,
+  offers: readonly Pick<ClientOfferSummary, "id" | "version">[] | undefined,
+): number | null {
+  const all = offers ?? [];
+  if (all.length <= 1) return null;
+  return 1 + all.filter((o) => o.version < offer.version).length;
+}
+
 export type OfferCardState = "sent" | "accepted" | "declined" | "expired";
 
 export function offerCardState(offer: ClientOfferSummary, now: Date): OfferCardState {
@@ -311,14 +332,24 @@ export function offerDepositCents(offer: Pick<ClientOfferSummary, "depositPct" |
   return null;
 }
 
-/** The message ids that draw an offer card: the LAST "sent" `offer_event` per offer id (a re-sent offer writes a second event; one card per offer). */
-export function offerCardMessageIds(messages: readonly Pick<ThreadMessage, "id" | "kind" | "payload">[]): Set<string> {
+/**
+ * The message ids that draw an offer card: the LAST "sent" `offer_event` per
+ * offer id (a re-sent offer writes a second event; one card per offer).
+ * Superseded offers never draw a card — a revise leaves the old `offer_event`
+ * in the thread, but the live offer summary says `superseded`, so skip it.
+ */
+export function offerCardMessageIds(
+  messages: readonly Pick<ThreadMessage, "id" | "kind" | "payload">[],
+  offers?: readonly Pick<ClientOfferSummary, "id" | "status">[],
+): Set<string> {
+  const superseded = new Set((offers ?? []).filter((o) => o.status === "superseded").map((o) => o.id));
   const last = new Map<string, string>();
   for (const m of messages) {
     if (m.kind !== "offer_event" && m.kind !== "offer_review") continue;
     const p = m.payload ?? {};
     const id = str(p.offer_id) ?? str(p.offerId);
     if (!id) continue;
+    if (superseded.has(id)) continue;
     if (m.kind === "offer_event" && str(p.status) !== "sent") continue;
     last.set(id, m.id);
   }
@@ -344,6 +375,8 @@ export type PaymentView = {
   readonly paidCents: number | null;
   readonly dueCents: number | null;
   readonly method: string | null;
+  /** Client fee breakdown stamped at request time; [] unless it sums to amountCents. */
+  readonly feeLines: readonly FeeLine[];
 };
 
 export function readPayment(payload: Record<string, unknown> | null): PaymentView {
@@ -361,6 +394,7 @@ export function readPayment(payload: Record<string, unknown> | null): PaymentVie
     paidCents: num(p.paidCents),
     dueCents: num(p.dueCents),
     method: str(p.method),
+    feeLines: validClientFeeLines(p.feeLines, num(p.amountCents)),
   };
 }
 

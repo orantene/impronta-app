@@ -11,6 +11,8 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
+import { defaultCreateTypeForFamily, defaultCurrencyForCountry, type CatalogCreateTypeId } from "@/lib/catalog/service-defaults";
+import { resolveTenantBusinessType } from "@/lib/site-admin/builder-core/site-templates/tenant-business-type";
 import { setOfferingStock } from "@/lib/capacity";
 import {
   loadOfferingChildren,
@@ -26,6 +28,7 @@ import {
   type TalentOffering,
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type AuthOk = { ok: true; userId: string; tenantId: string; defaultCurrency: string };
 type AuthFail = { ok: false; error: string };
@@ -70,7 +73,7 @@ async function isEventOfferingId(
 }
 
 type LoadResult =
-  | { ok: true; items: TalentOffering[]; defaultCurrency: string }
+  | { ok: true; items: TalentOffering[]; defaultCurrency: string; defaultCreateType: CatalogCreateTypeId }
   | { ok: false; error: string };
 
 export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<LoadResult> {
@@ -124,7 +127,22 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
       item.addOns = children.addOns.get(r.id) ?? [];
       return item;
     });
-    return { ok: true, items, defaultCurrency: auth.defaultCurrency };
+    // TUL-77 (#36): defaults from business family + country, not one
+    // restaurant-shaped answer for every workspace.
+    const [{ data: agencyRow, error: agencyErr }, { data: identityRow, error: identityErr }] = await Promise.all([
+      admin.from("agencies").select("settings").eq("id", tenantId).maybeSingle<{ settings: unknown }>(),
+      admin.from("agency_business_identity").select("address_country").eq("tenant_id", tenantId).maybeSingle<{ address_country: string | null }>(),
+    ]);
+    // A failed read falls back to the neutral defaults (Service, platform currency).
+    if (agencyErr) logServerError("menu.offerings.defaults.agency", agencyErr);
+    if (identityErr) logServerError("menu.offerings.defaults.identity", identityErr);
+    const family = resolveTenantBusinessType(agencyErr ? null : agencyRow?.settings).family;
+    return {
+      ok: true,
+      items,
+      defaultCurrency: defaultCurrencyForCountry(identityErr ? null : identityRow?.address_country, auth.defaultCurrency),
+      defaultCreateType: defaultCreateTypeForFamily(family),
+    };
   } catch (err) {
     logServerError("menu.offerings.load", err);
     return { ok: false, error: "Unexpected error." };
@@ -137,6 +155,8 @@ export async function upsertWorkspaceMenuItem(
   tenantId: string,
   offering: TalentOffering,
 ): Promise<SaveResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const auth = await authorizeForWorkspace(tenantId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -156,7 +176,7 @@ export async function upsertWorkspaceMenuItem(
         ownerKind: "workspace",
         talentProfileId: null,
         tenantId,
-      }),
+      }, "en"), // workspace menus have no per-owner primary yet: English, as before
       talent_profile_id: null,
       owner_kind: "workspace",
       tenant_id: tenantId,
@@ -198,6 +218,8 @@ export async function deleteWorkspaceMenuItem(
   tenantId: string,
   offeringId: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeForWorkspace(tenantId);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
@@ -222,6 +244,8 @@ export async function reorderWorkspaceMenuItems(
   tenantId: string,
   orderedIds: string[],
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeForWorkspace(tenantId);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
@@ -252,6 +276,7 @@ export async function setWorkspaceMenuItemOptions(
   offeringId: string,
   input: OfferingChildrenInput,
 ): Promise<OfferingChildrenSaved> {
+  await requireNotImpersonating();
   try {
     const auth = await authorizeForWorkspace(tenantId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -282,6 +307,7 @@ export async function blankWorkspaceMenuItem(
   tenantId: string,
   sortOrder: number,
 ): Promise<TalentOffering | null> {
+  await requireNotImpersonating();
   const auth = await authorizeForWorkspace(tenantId);
   if (!auth.ok) return null;
   return blankOffering({ kind: "workspace", tenantId }, auth.defaultCurrency, sortOrder);
@@ -327,6 +353,8 @@ export async function setMenuItemStockAction(
   offeringId: string,
   available: number | null,
 ): Promise<StockResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const auth = await authorizeForWorkspace(tenantId);
     if (!auth.ok) return { ok: false, error: auth.error };

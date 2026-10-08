@@ -4,11 +4,10 @@ import { provisionWorkspaceFromLead } from "@/lib/saas/workspace-signup.server";
 import { buildWorkspaceRegisterPath } from "@/lib/saas/workspace-signup";
 import { isSupabaseConfigured, SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-
-const SUPPORT_EMAIL = "hello@tulala.digital";
 
 function buildSupportMailto(leadId: string, state: string): string {
   const subject = encodeURIComponent(

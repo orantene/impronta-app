@@ -21,8 +21,11 @@
  * the template registry, the built-in designs and the apply core.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { NEXT_FREE_CHIP_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/next-free-chip-defaults";
+import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { CONTACT_LAYER, TALENT_ASK_HREF, contactChannelButtons } from "../contact-channels";
 import type { MaxSiteTemplateIdFactory } from "../max-site-templates/types";
+import { heroCtaRow, heroMediaChip, type HeroCtaRow } from "./section-kit-hero-parts";
 
 export type KitIdFactory = MaxSiteTemplateIdFactory;
 
@@ -38,7 +41,19 @@ export const TALENT_KIT_SECTIONS = {
   about: { slotKey: "about", originRole: "talent.about" },
   services: { slotKey: "services", originRole: "talent.services" },
   gallery: { slotKey: "gallery", originRole: "talent.gallery" },
+  contents: { slotKey: "contents", originRole: "talent.contents" },
+  visit: { slotKey: "visit", originRole: "talent.visit" },
+  reviews: { slotKey: "reviews", originRole: "talent.reviews" },
+  comp_card: { slotKey: "comp_card", originRole: "talent.comp_card" },
   contact: { slotKey: "contact", originRole: "talent.contact" },
+  statement_footer: { slotKey: "statement_footer", originRole: "talent.statement_footer" },
+  before_after: { slotKey: "before_after", originRole: "talent.before_after" },
+  aftercare: { slotKey: "aftercare", originRole: "talent.aftercare" },
+  location: { slotKey: "location", originRole: "talent.location" },
+  proof: { slotKey: "proof", originRole: "talent.proof" },
+  area: { slotKey: "area", originRole: "talent.area" },
+  emergency: { slotKey: "emergency", originRole: "talent.emergency" },
+  tasks: { slotKey: "tasks", originRole: "talent.tasks" },
 } as const;
 
 /** Shell landmarks (header / footer) a Design's shell tree may contain. */
@@ -65,13 +80,24 @@ export const KIT_COLOR = {
   line: "token:color.line",
 } as const;
 
-/** Stamp the kit provenance onto a top-level section's props. */
+/** Stamp the kit provenance onto a top-level section's props.
+ *  Also stamps `anchorId` from the slot so Header nav hash links
+ *  (`#services`, `#gallery`, …) resolve for scroll-spy chrome modes.
+ */
 export function stampKitSection(
   slot: TalentKitSectionSlot,
   props: Record<string, unknown>,
 ): Record<string, unknown> {
   const { slotKey, originRole } = TALENT_KIT_SECTIONS[slot];
-  return { ...props, slotKey, originRole };
+  return {
+    ...props,
+    slotKey,
+    originRole,
+    anchorId:
+      typeof props.anchorId === "string" && props.anchorId.length > 0
+        ? props.anchorId
+        : slotKey,
+  };
 }
 
 /** A pill chip whose only content is a `{{token}}` label (pruned when empty). */
@@ -192,6 +218,20 @@ export interface HeroSplitOptions {
   /** Bind the eyebrow + chip borders to the Look's accent colour. */
   accent?: boolean;
   minHeight?: string;
+  /**
+   * Desktop overlapping inset photo (`{{gallery1}}`) on the headshot.
+   * Hidden on phone (visibility) so the stack stays one portrait.
+   */
+  inset?: boolean;
+  /**
+   * Bodoni italic accent: name uses heading typography token + italic
+   * (`{i}…{/i}`), never a hex or raw font stack.
+   */
+  italicAccent?: boolean;
+  /** Live next-free-time chip (hidden when the slots API returns nothing). */
+  nextFreeChip?: boolean;
+  /** Primary + ghost Ask row in place of the lone Ask button. */
+  ctaRow?: HeroCtaRow;
 }
 
 /** SPLIT hero: copy on the left, headshot on the right. */
@@ -200,6 +240,7 @@ export function heroSplit(
   opts: HeroSplitOptions = {},
 ): BuilderNode {
   const accent = opts.accent === true;
+  const italicAccent = opts.italicAccent === true;
   const copy: BuilderNode = {
     id: makeId(),
     kind: "container",
@@ -212,9 +253,15 @@ export function heroSplit(
         id: makeId(),
         kind: "heading",
         props: {
-          text: "{{displayName}}",
+          // Italic accent runs through `{i}` → `<em>`; font is the Look token.
+          text: italicAccent ? "{i}{{displayName}}{/i}" : "{{displayName}}",
           level: 1,
-          style: { size: "xl", textWrap: "balance" },
+          style: {
+            size: "xl",
+            textWrap: "balance",
+            fontFamily: styleTokenRef("typography.heading-font-family"),
+            ...(italicAccent ? { fontWeight: 400 } : {}),
+          },
         },
       },
       {
@@ -226,20 +273,80 @@ export function heroSplit(
         },
       },
       ...(opts.chips !== false ? [disciplineChips(makeId, { accent })] : []),
-      inquiryCta(makeId),
+      // With the inset photo the chip sits on the hero image (bottom-left).
+      ...(opts.nextFreeChip && !opts.inset
+        ? [
+            {
+              id: makeId(),
+              kind: "next_free_chip",
+              props: { ...NEXT_FREE_CHIP_DEFAULT_PROPS },
+            } as BuilderNode,
+          ]
+        : []),
+      opts.ctaRow ? heroCtaRow(makeId, opts.ctaRow) : inquiryCta(makeId),
     ],
   } as BuilderNode;
 
-  const image: BuilderNode = {
+  const mainImage: BuilderNode = {
     id: makeId(),
     kind: "image",
     props: {
       src: "{{headshotUrl}}",
       alt: "{{displayName}}",
       priority: true,
-      style: { radius: "lg", aspectRatio: "4:3", objectFit: "cover", width: "100%" },
+      style: {
+        radius: "lg",
+        aspectRatio: opts.inset ? "3:4" : "4:3",
+        objectFit: "cover",
+        width: "100%",
+      },
     },
   } as BuilderNode;
+
+  const image: BuilderNode = opts.inset
+    ? ({
+        id: makeId(),
+        kind: "container",
+        props: {
+          layout: "stack",
+          layerLabel: "Hero media",
+          style: {
+            position: "relative",
+            width: "100%",
+            overflow: "visible",
+          },
+        },
+        children: [
+          mainImage,
+          ...(opts.nextFreeChip ? [heroMediaChip(makeId)] : []),
+          {
+            id: makeId(),
+            kind: "image",
+            props: {
+              src: "{{gallery1}}",
+              alt: "",
+              priority: true,
+              style: {
+                position: "absolute",
+                right: "-6px",
+                bottom: "-28px",
+                width: "42%",
+                maxWidthFree: "200px",
+                aspectRatio: "1:1",
+                objectFit: "cover",
+                radius: "lg",
+                borderWidth: "6px",
+                borderStyle: "solid",
+                borderColor: styleTokenRef("color.background"),
+                zIndex: 2,
+                // Phone: keep a single portrait (inset off).
+                responsive: { mobile: { visibility: "hidden" } },
+              },
+            },
+          } as BuilderNode,
+        ],
+      } as BuilderNode)
+    : mainImage;
 
   return {
     id: makeId(),
@@ -393,13 +500,113 @@ export function heroCover(
 
 // ── ABOUT ────────────────────────────────────────────────────────────────────
 
-/** The About block: eyebrow + full bio + location + languages lines. */
+/**
+ * About presets any theme can use.
+ * - `stack` — eyebrow + bio (+ optional location/languages lines)
+ * - `split` — portrait beside greeting + bio (Maison Experience / artist)
+ */
 export function aboutBlock(
   makeId: KitIdFactory,
-  opts: { align?: "start" | "center"; accent?: boolean } = {},
+  opts: {
+    align?: "start" | "center";
+    accent?: boolean;
+    layout?: "stack" | "split";
+    /** Greeting heading; default "Hello, I'm {{displayName}}". */
+    greeting?: string;
+    /** Include {{locationLine}} / {{languagesLine}} (default true for stack). */
+    showFacts?: boolean;
+  } = {},
 ): BuilderNode {
   const center = opts.align === "center";
   const alignStyle = center ? { align: "center" as const } : {};
+  const layout = opts.layout ?? "stack";
+  const showFacts = opts.showFacts ?? layout === "stack";
+  const greeting = opts.greeting ?? "Hello, I'm {{displayName}}";
+
+  const copyChildren: BuilderNode[] = [
+    eyebrow(makeId, "About", {
+      letterSpacing: "0.18em",
+      accent: opts.accent === true,
+      ...(center ? { align: "center" as const } : {}),
+    }),
+    {
+      id: makeId(),
+      kind: "heading",
+      props: {
+        text: greeting,
+        level: 2,
+        style: {
+          size: "xl",
+          fontFamily: "token:typography.heading-font-family",
+          ...alignStyle,
+        },
+        layerLabel: "About greeting",
+      },
+    } as BuilderNode,
+    {
+      id: makeId(),
+      kind: "paragraph",
+      props: {
+        text: "{{richBio}}",
+        // TUL-230: live, her bio in the visitor's language (the baked token text is the fallback).
+        liveText: "bio",
+        style: { size: "lg", maxWidth: "reading", ...alignStyle },
+      },
+    } as BuilderNode,
+  ];
+
+  if (showFacts) {
+    copyChildren.push(
+      {
+        id: makeId(),
+        kind: "paragraph",
+        props: { text: "{{locationLine}}", style: { tone: "muted", size: "md", ...alignStyle } },
+      } as BuilderNode,
+      {
+        id: makeId(),
+        kind: "paragraph",
+        props: { text: "{{languagesLine}}", style: { tone: "muted", size: "md", ...alignStyle } },
+      } as BuilderNode,
+    );
+  }
+
+  if (layout === "split") {
+    const portrait: BuilderNode = {
+      id: makeId(),
+      kind: "image",
+      props: {
+        src: "{{headshotUrl}}",
+        alt: "{{displayName}}",
+        style: { radius: "lg", objectFit: "cover", width: "100%", aspectRatio: "3:4" },
+        layerLabel: "About portrait",
+      },
+    } as BuilderNode;
+    const copyCol: BuilderNode = {
+      id: makeId(),
+      kind: "container",
+      props: {
+        layout: "stack",
+        gap: "m",
+        align: opts.align ?? "start",
+        layerLabel: "About copy",
+      },
+      children: copyChildren,
+    } as BuilderNode;
+    return {
+      id: makeId(),
+      kind: "split",
+      props: stampKitSection("about", {
+        ratio: "40-60",
+        gap: "l",
+        align: "center",
+        layerLabel: "About",
+        style: { maxWidth: "wide", paddingY: "l", paddingX: "m", marginTop: "m" },
+        responsive: { mobile: { layout: "stack" } },
+      }),
+      children: [portrait, copyCol],
+    } as BuilderNode;
+  }
+
   return {
     id: makeId(),
     kind: "container",
@@ -410,31 +617,7 @@ export function aboutBlock(
       layerLabel: "About",
       style: { maxWidth: "reading", paddingY: "l", paddingX: "m", marginTop: "m" },
     }),
-    children: [
-      eyebrow(makeId, "About", {
-        letterSpacing: "0.18em",
-        accent: opts.accent === true,
-        ...(center ? { align: "center" as const } : {}),
-      }),
-      {
-        id: makeId(),
-        kind: "paragraph",
-        props: {
-          text: "{{richBio}}",
-          style: { size: "lg", maxWidth: "reading", ...alignStyle },
-        },
-      },
-      {
-        id: makeId(),
-        kind: "paragraph",
-        props: { text: "{{locationLine}}", style: { tone: "muted", size: "md", ...alignStyle } },
-      },
-      {
-        id: makeId(),
-        kind: "paragraph",
-        props: { text: "{{languagesLine}}", style: { tone: "muted", size: "md", ...alignStyle } },
-      },
-    ],
+    children: copyChildren,
   } as BuilderNode;
 }
 
@@ -480,66 +663,22 @@ export function servicesBlock(
   } as BuilderNode;
 }
 
-// ── GALLERY ──────────────────────────────────────────────────────────────────
 
-function galleryTile(makeId: KitIdFactory, index: number): BuilderNode {
-  return {
-    id: makeId(),
-    kind: "image",
-    props: {
-      src: `{{gallery${index}}}`,
-      alt: "{{displayName}}",
-      style: { radius: "md", objectFit: "cover", width: "100%" },
-    },
-  } as BuilderNode;
-}
-
-/** Gallery: `masonry` or a fixed `grid` of six `{{gallery0..5}}` tiles. */
-export function galleryBlock(
-  makeId: KitIdFactory,
-  opts: { mode?: "masonry" | "grid"; columns?: 2 | 3 | 4; heading?: string } = {},
-): BuilderNode {
-  const tiles = [0, 1, 2, 3, 4, 5].map((i) => galleryTile(makeId, i));
-  const grid: BuilderNode =
-    opts.mode === "grid"
-      ? ({
-          id: makeId(),
-          kind: "container",
-          props: {
-            layout: "grid",
-            columns: opts.columns ?? 3,
-            gap: "m",
-            responsive: { mobile: { layout: "stack" } },
-          },
-          children: tiles,
-        } as BuilderNode)
-      : ({
-          id: makeId(),
-          kind: "masonry",
-          props: { columns: opts.columns ?? 3, gap: "m" },
-          children: tiles,
-        } as BuilderNode);
-
-  return {
-    id: makeId(),
-    kind: "container",
-    props: stampKitSection("gallery", {
-      layout: "stack",
-      gap: "m",
-      align: "start",
-      layerLabel: "Gallery",
-      style: { maxWidth: "wide", paddingY: "l", paddingX: "m" },
-    }),
-    children: [
-      {
-        id: makeId(),
-        kind: "heading",
-        props: { text: opts.heading ?? "Selected work", level: 2, style: { size: "lg" } },
-      },
-      grid,
-    ],
-  } as BuilderNode;
-}
+/**
+ * W-12 / W-14 / Visit / FAQ live-bound bands live in `section-kit-bands.ts`.
+ */
+export {
+  portfolioBlock, portfolioChaptersBlock, reviewsBlock, visitBlock, faqBlock, contentsBlock,
+  heroMasthead, statementFooterBlock, compCardBlock, measureStripBlock,
+} from "./section-kit-bands";
+export { galleryBlock } from "./section-kit-gallery";
+export { beforeAfterBlock } from "./section-kit-before-after";
+export { aftercareBlock } from "./section-kit-aftercare";
+export { locationBlock } from "./section-kit-location";
+export { areaBlock, proofBlock } from "./section-kit-proof";
+export { heroSpecBlock } from "./section-kit-hero-spec";
+export { emergencyBlock } from "./section-kit-emergency";
+export { taskPickerBlock } from "./section-kit-tasks";
 
 // ── CONTACT ──────────────────────────────────────────────────────────────────
 

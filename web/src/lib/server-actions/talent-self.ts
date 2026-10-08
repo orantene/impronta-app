@@ -13,11 +13,18 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { loadOwnTalentProfileId, writeTalentLanguages } from "@/lib/talent/talent-languages-store";
 import { countHeldTalentPayoutLegs } from "@/lib/payments/booking-payouts-ledger";
 import { loadMyInquiryTakeHome as loadMyInquiryTakeHomeImpl, type TalentTakeHome } from "@/lib/talent/inquiry-take-home";
 import { isLocale, type Locale } from "@/lib/site-admin/locales";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { fetchLanguageSettingsPublic } from "@/lib/language-settings/fetch-language-settings";
+import {
+  invalidateTalentLocaleSettings,
+  loadTalentLocaleRow,
+  normalizeTalentLocalePair,
+} from "@/lib/site-admin/server/talent-locale-settings";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type TalentPayoutSnapshot = {
   hasProfile: boolean;
@@ -212,47 +219,150 @@ export type UpdateTalentPreferredLanguageResult =
 
 /**
  * Persist the talent's preferred language. Pass `null` (or "inherit") to clear
- * the preference and inherit the agency default. A non-null value must be one
- * of the talent's primary-agency supported locales.
+ * the preference and follow the platform default. A non-null value must be a
+ * platform public locale (talent-owned languages, 2026-09-29).
  */
 export async function updateTalentPreferredLanguage(
   candidate: string | null,
 ): Promise<UpdateTalentPreferredLanguageResult> {
-  try {
-    const resolved = await resolveTalentSelfPrimaryAgency();
-    if (!resolved.ok) return resolved;
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
+  // 2026-09-29: delegates to `updateTalentLanguages`, keeping the talent's
+  // current secondary languages. Now bounded to PLATFORM public locales (not
+  // the agency's), matching the talent-owned language model.
+  const primary =
+    candidate === null || candidate === "inherit" || candidate.trim() === "" ? null : candidate;
+  const current = await loadTalentLanguages();
+  const secondary = current.ok ? current.data.secondary.filter((l) => l !== primary) : [];
+  return updateTalentLanguages({ primary, secondary });
+}
 
-    let nextValue: Locale | null = null;
-    if (candidate !== null && candidate !== "inherit" && candidate.trim() !== "") {
-      if (!isLocale(candidate)) {
+// ─── Talent languages (primary + secondary), 2026-09-29 ──────────────────────
+//
+// Talent-owned: bounded to the PLATFORM public locale set, never an agency's.
+// primary = `preferred_locale` (null = platform default); secondary =
+// `secondary_locales` (never includes primary). Owner-only: the signed-in
+// user's own talent_profiles row.
+
+export type TalentLanguagesData = {
+  /** Stored primary, or null when following the platform default. */
+  storedPrimary: Locale | null;
+  /** Effective primary (stored primary if public, else platform default). */
+  primary: Locale;
+  secondary: Locale[];
+  platformDefaultLocale: Locale;
+  /** Every language the talent may pick (platform public locales). */
+  options: TalentLanguageOption[];
+};
+
+export type LoadTalentLanguagesResult =
+  | { ok: true; data: TalentLanguagesData }
+  | { ok: false; error: string };
+
+export type UpdateTalentLanguagesInput = {
+  primary: string | null;
+  secondary: readonly string[];
+};
+
+export type UpdateTalentLanguagesResult =
+  | { ok: true; data: { primary: Locale; secondary: Locale[] } }
+  | { ok: false; error: string };
+
+async function resolveTalentSelfProfileId(): Promise<
+  { ok: true; talentProfileId: string } | { ok: false; error: string }
+> {
+  const session = await getCachedActorSession();
+  if (!session?.user) return { ok: false, error: "Not authenticated" };
+  const talentProfileId = await loadOwnTalentProfileId(session.user.id);
+  if (!talentProfileId) return { ok: false, error: "Profile not found" };
+  return { ok: true, talentProfileId };
+}
+
+async function loadPlatformLanguageOptions(): Promise<{
+  publicLocales: string[];
+  platformDefault: Locale;
+  options: TalentLanguageOption[];
+}> {
+  const language = await fetchLanguageSettingsPublic().catch(() => null);
+  const publicLocales = language?.publicLocales?.length ? language.publicLocales : ["en"];
+  const labelByCode = new Map<string, { labelNative: string; labelEn: string }>();
+  for (const row of language?.locales ?? []) {
+    labelByCode.set(row.code, { labelNative: row.label_native, labelEn: row.label_en });
+  }
+  const options = publicLocales.map((code) => ({
+    code,
+    labelNative: labelByCode.get(code)?.labelNative ?? code.toUpperCase(),
+    labelEn: labelByCode.get(code)?.labelEn ?? code.toUpperCase(),
+  }));
+  return { publicLocales, platformDefault: language?.defaultLocale ?? "en", options };
+}
+
+export async function loadTalentLanguages(): Promise<LoadTalentLanguagesResult> {
+  try {
+    const who = await resolveTalentSelfProfileId();
+    if (!who.ok) return who;
+    const [row, platform] = await Promise.all([
+      loadTalentLocaleRow(who.talentProfileId),
+      loadPlatformLanguageOptions(),
+    ]);
+    const pair = normalizeTalentLocalePair(
+      row?.preferred_locale ?? null,
+      row?.secondary_locales ?? [],
+      platform.publicLocales,
+      platform.platformDefault,
+    );
+    const stored = row?.preferred_locale;
+    return {
+      ok: true,
+      data: {
+        storedPrimary: isLocale(stored) && platform.publicLocales.includes(stored) ? stored : null,
+        primary: pair.primary,
+        secondary: [...pair.secondary],
+        platformDefaultLocale: platform.platformDefault,
+        options: platform.options,
+      },
+    };
+  } catch (err) {
+    logServerError("talent-self.languages.load", err);
+    return { ok: false, error: "Unexpected error" };
+  }
+}
+
+export async function updateTalentLanguages(
+  input: UpdateTalentLanguagesInput,
+): Promise<UpdateTalentLanguagesResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
+  try {
+    const who = await resolveTalentSelfProfileId();
+    if (!who.ok) return who;
+    const platform = await loadPlatformLanguageOptions();
+
+    const rawPrimary = input.primary?.trim() ? input.primary.trim() : null;
+    if (rawPrimary !== null && (!isLocale(rawPrimary) || !platform.publicLocales.includes(rawPrimary))) {
+      return { ok: false, error: "Unsupported language." };
+    }
+    for (const code of input.secondary ?? []) {
+      if (!isLocale(code) || !platform.publicLocales.includes(code)) {
         return { ok: false, error: "Unsupported language." };
       }
-      const settings = resolved.primaryTenantId
-        ? await loadTenantLocaleSettings(resolved.primaryTenantId)
-        : null;
-      const supported = settings ? settings.supportedLocales : ["en"];
-      if (!supported.includes(candidate)) {
-        return { ok: false, error: "That language isn't offered by your agency." };
-      }
-      nextValue = candidate;
     }
+    const pair = normalizeTalentLocalePair(
+      rawPrimary,
+      input.secondary ?? [],
+      platform.publicLocales,
+      platform.platformDefault,
+    );
+    const secondary = [...pair.secondary];
 
-    const admin = createServiceRoleClient();
-    if (!admin) return { ok: false, error: "Server configuration error" };
+    const saved = await writeTalentLanguages(who.talentProfileId, rawPrimary, secondary);
+    if (!saved) return { ok: false, error: "Failed to update languages." };
 
-    const { error } = await admin
-      .from("talent_profiles")
-      .update({ preferred_locale: nextValue, updated_at: new Date().toISOString() })
-      .eq("id", resolved.talentProfileId);
-    if (error) {
-      logServerError("talent-self.preferredLanguage.update", error);
-      return { ok: false, error: "Failed to update preferred language." };
-    }
-
-    revalidatePath(`/talent/settings`);
-    return { ok: true };
+    invalidateTalentLocaleSettings(who.talentProfileId);
+    revalidatePath("/talent", "layout");
+    return { ok: true, data: { primary: pair.primary, secondary } };
   } catch (err) {
-    logServerError("talent-self.preferredLanguage.update", err);
+    logServerError("talent-self.languages.update", err);
     return { ok: false, error: "Unexpected error" };
   }
 }

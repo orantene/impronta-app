@@ -5,6 +5,7 @@
  * the components through the one pipeline. Idempotent by client key.
  */
 
+import { withEffectiveBookingModes } from "@/lib/talent/effective-booking-mode-loader";
 import type { PurchaseInput, PurchaseResult } from "@/lib/orders/purchase-types";
 import type { CheckoutSessionInput, CheckoutSessionResult } from "@/lib/payments/stripe-checkout";
 import { rowToOffering, type TalentOfferingRow } from "@/lib/talent/offerings-types";
@@ -41,7 +42,10 @@ export async function readPackageSelectorCore(
     if (Array.isArray(props.packageIds)) q = q.in("id", props.packageIds);
     const { data: rows, error } = await q.order("sort_order", { ascending: true }).limit(40);
     if (error) return { ok: false, reason: "unavailable" };
-    const offerings = ((rows ?? []) as TalentOfferingRow[]).map((r) => rowToOffering(r, deps.locale, []));
+    const offerings = await withEffectiveBookingModes(
+      deps.admin,
+      ((rows ?? []) as TalentOfferingRow[]).map((r) => rowToOffering(r, deps.locale, [])),
+    );
     if (offerings.length === 0) return { ok: true, data: { packages: [] } };
     const ids = offerings.map((o) => o.id);
     const { data: cRows, error: cErr } = await deps.admin.from("offering_components").select("offering_id, component_offering_id, qty, required").eq("tenant_id", tenantId).in("offering_id", ids);
@@ -124,7 +128,7 @@ export async function actPackageSelectorCore(deps: PackageSelectorDeps, input: P
           payerEmail: email || null,
           inquiryId: purchase.inquiryId,
           bookingId: purchase.bookingId,
-          successUrl: receiptUrl ? `${receiptUrl}?paid=1` : `${deps.origin}/checkout/success`,
+          successUrl: receiptUrl ? `${receiptUrl}?paid=1` : `${deps.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${deps.origin}${input.sourcePage ?? "/"}`,
           description: String(row.title ?? "Package"),
           locale: deps.locale,

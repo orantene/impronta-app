@@ -104,6 +104,8 @@ const headerItemSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("logo"), ...headerItemBase }),
   z.object({ type: z.literal("nav"), ...headerItemBase }),
   z.object({ type: z.literal("language"), ...headerItemBase }),
+  /** Client account avatar/icon. Renders only when the platform flag is on for the host. */
+  z.object({ type: z.literal("account"), ...headerItemBase }),
   z.object({
     type: z.literal("cta"),
     label: z.string().max(60).optional(),
@@ -148,6 +150,17 @@ const headerItemSchema = z.discriminatedUnion("type", [
     ...headerItemBase,
   }),
   z.object({ type: z.literal("saved"), href: z.string().max(500).optional(), ...headerItemBase }),
+  z.object({
+    type: z.literal("section_switcher"),
+    /**
+     * H-4: the phone section switcher. Content comes from the header's own
+     * section links (Navigation tab), so there is no second list to keep.
+     * `showIndex` (default on) draws the section number ("03") before the name.
+     * Additive and optional: every pre-H-4 `regions` value omits the item.
+     */
+    showIndex: z.boolean().optional(),
+    ...headerItemBase,
+  }),
   z.object({ type: z.literal("spacer"), ...headerItemBase }),
 ]);
 
@@ -186,6 +199,23 @@ export const siteHeaderSchemaV1 = z.object({
   primaryCta: linkSchema.optional(),
   /** Header pinned to top of viewport on scroll. */
   sticky: z.boolean().default(true),
+  /**
+   * Shared Header navigation style (geometry / placement). Distinct from
+   * `variant` (visual layout of a top bar). Absent / omitted keeps every
+   * existing tenant on the classic top bar (normalized at render). Same enum
+   * as builder `nav.navChrome`.
+   */
+  navChrome: z
+    .enum([
+      "top_bar",
+      "overlay",
+      "side_rail",
+      "bottom_tab",
+      "filter_bar",
+      "chapter_dots",
+    ])
+    .optional(),
+
   /**
    * Visual tone. `transparent` overlays the page (good when the hero is
    * full-bleed); `surface` paints a token-tinted band; `solid` paints the
@@ -300,6 +330,22 @@ export const siteHeaderSchemaV1 = z.object({
     })
     .optional(),
   presentation: sectionPresentationSchema,
+  /**
+   * Render-time site chrome, injected by the talent site renderer (never
+   * saved): `demo` paints the small Demo pill in the header (the only demo
+   * marker), `locales` feeds the language switch ("ES / EN") on a talent site
+   * whose languages are not the tenant's.
+   */
+  siteChrome: z
+    .object({
+      demo: z.boolean().optional(),
+      /** Client account surface is on for this host (render-time, from the flag). */
+      account: z.boolean().optional(),
+      locales: z.array(z.string().min(2).max(8)).max(4).optional(),
+      /** Per-locale href of THIS page (talent URL grammar); else `?locale=`. */
+      hrefs: z.record(z.string().min(2).max(8), z.string().max(512)).optional(),
+    })
+    .optional(),
 });
 
 export type SiteHeaderV1 = z.infer<typeof siteHeaderSchemaV1>;

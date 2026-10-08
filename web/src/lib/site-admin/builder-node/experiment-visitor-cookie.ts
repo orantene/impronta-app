@@ -19,6 +19,8 @@
  * carries NO PII and is never sent to analytics (only the assigned arm is).
  */
 
+import { CONSENT_COOKIE, CONSENT_COOKIE_VALUE } from "@/lib/analytics/consent";
+
 /** Cookie name. First-party, host-only; readable by middleware + RSC. */
 export const EXPERIMENT_VISITOR_COOKIE = "impronta_vid";
 
@@ -101,8 +103,13 @@ export function decideEnsureVisitorCookie(args: {
   method: string;
   existingCookie: string | undefined;
   isRedirect: boolean;
+  /** Value of the `tulala_consent` cookie. The persistent id is only minted
+   *  when it says analytics is granted; otherwise the resolver falls back to a
+   *  non-persistent per-request bucket. */
+  consentCookie?: string | undefined;
 }): EnsureVisitorCookieDecision {
   if (
+    args.consentCookie !== CONSENT_COOKIE_VALUE ||
     args.method !== "GET" ||
     args.isRedirect ||
     isValidExperimentVisitorId(args.existingCookie)
@@ -122,6 +129,7 @@ export interface VisitorCookieResponseLike {
   headers: { get(name: string): string | null };
   cookies: {
     set(name: string, value: string, options: ExperimentVisitorCookieOptions): unknown;
+    delete?(name: string): unknown;
   };
 }
 
@@ -140,7 +148,15 @@ export function ensureExperimentVisitorCookie(
     method: req.method,
     existingCookie: req.cookies.get(EXPERIMENT_VISITOR_COOKIE)?.value,
     isRedirect: res.headers.get("location") != null,
+    consentCookie: req.cookies.get(CONSENT_COOKIE)?.value,
   });
+  // Consent withdrawn (or never given): drop any previously persisted id.
+  if (
+    req.cookies.get(CONSENT_COOKIE)?.value !== CONSENT_COOKIE_VALUE &&
+    req.cookies.get(EXPERIMENT_VISITOR_COOKIE)
+  ) {
+    res.cookies.delete?.(EXPERIMENT_VISITOR_COOKIE);
+  }
   if (decision.shouldSet) {
     res.cookies.set(
       EXPERIMENT_VISITOR_COOKIE,

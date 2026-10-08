@@ -19,6 +19,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { userHasCapability } from "@/lib/access";
 import { approveDeliverable, createDeliverable, requestRevision } from "@/lib/bookings/deliverables";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
@@ -42,6 +43,7 @@ async function guard() {
 export async function approveProjectDeliverable(
   deliverableId: string,
 ): Promise<MilestoneDecisionResult> {
+  await requireNotImpersonating();
   const g = await guard();
   if (!g.ok) return g;
   if (!uuid.safeParse(deliverableId).success) return { ok: false, reason: "invalid" };
@@ -52,6 +54,7 @@ export async function approveProjectDeliverable(
 export async function requestProjectDeliverableRevision(
   deliverableId: string,
 ): Promise<MilestoneDecisionResult> {
+  await requireNotImpersonating();
   const g = await guard();
   if (!g.ok) return g;
   if (!uuid.safeParse(deliverableId).success) return { ok: false, reason: "invalid" };
@@ -70,6 +73,7 @@ export async function addProjectMilestone(input: {
   title: string;
   dueAt: string | null;
 }): Promise<MilestoneDecisionResult> {
+  await requireNotImpersonating();
   const g = await guard();
   if (!g.ok) return g;
   const parsed = z

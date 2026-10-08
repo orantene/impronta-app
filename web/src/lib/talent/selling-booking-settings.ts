@@ -3,8 +3,28 @@
  * Stored in `talent_profiles.selling_defaults` (JSON). Pure parse/resolve.
  */
 
-export const TALENT_BOOKING_POSTURES = ["on_demand", "inquiry"] as const;
+/**
+ * Talent default booking mode (the mode a service INHERITS when its own
+ * `talent_offerings.booking_mode` is null). Three values, same as a service.
+ *
+ * LEGACY `on_demand` (the default before WSF-B, and the parser's fallback
+ * when nothing was stored) meant INSTANT: only `inquiry` forced request.
+ * The parser maps `on_demand` to `instant` (auditor ruling 2026-09-28), and
+ * an unset default also reads as instant, as it did. Readiness (PR C) may
+ * still fall an effective instant back to request. Nothing writes
+ * `on_demand` any more.
+ */
+export const TALENT_BOOKING_POSTURES = ["instant", "request", "inquiry"] as const;
 export type TalentBookingPosture = (typeof TALENT_BOOKING_POSTURES)[number];
+
+/** Platform default when the talent never chose (= the old on_demand fallback). */
+export const PLATFORM_DEFAULT_BOOKING_POSTURE: TalentBookingPosture = "instant";
+
+/** Read one stored posture value, mapping legacy values. Null = not set / unknown. */
+export function parseBookingPosture(raw: unknown): TalentBookingPosture | null {
+  if (raw === "on_demand") return "instant";
+  return isOneOf(raw, TALENT_BOOKING_POSTURES) ? raw : null;
+}
 
 export const WHO_PRIMARY_CTAS = ["confirm_now", "contact", "check_availability"] as const;
 export type WhoPrimaryCta = (typeof WHO_PRIMARY_CTAS)[number];
@@ -20,7 +40,7 @@ export type SellingBookingSettings = {
 
 const DEFAULTS: SellingBookingSettings = {
   bufferBeforeMin: null,
-  bookingPosture: "on_demand",
+  bookingPosture: PLATFORM_DEFAULT_BOOKING_POSTURE,
   whoPrimaryCta: "confirm_now",
 };
 
@@ -41,43 +61,33 @@ export function parseSellingBookingSettings(raw: unknown): SellingBookingSetting
       ? Math.max(0, Math.trunc(obj.bufferBeforeMin))
       : null;
 
-  const bookingPosture = isOneOf(obj.bookingPosture, TALENT_BOOKING_POSTURES)
-    ? obj.bookingPosture
-    : DEFAULTS.bookingPosture;
+  const bookingPosture = parseBookingPosture(obj.bookingPosture) ?? DEFAULTS.bookingPosture;
 
-  let whoPrimaryCta = isOneOf(obj.whoPrimaryCta, WHO_PRIMARY_CTAS)
+  // No inquiry coercion any more: the default only governs services that
+  // inherit. A service with its own instant mode books instantly (§1), and
+  // resolveWhoPrimaryAction already sends every non-instant service to chat.
+  const whoPrimaryCta = isOneOf(obj.whoPrimaryCta, WHO_PRIMARY_CTAS)
     ? obj.whoPrimaryCta
     : DEFAULTS.whoPrimaryCta;
-
-  // Inquiry posture never confirms silently — coerce confirm_now → contact.
-  if (bookingPosture === "inquiry" && whoPrimaryCta === "confirm_now") {
-    whoPrimaryCta = "contact";
-  }
 
   return { bufferBeforeMin, bookingPosture, whoPrimaryCta };
 }
 
 /**
  * Who-step primary action.
- * Path A (confirm) only when on-demand + Confirm now + offering can write.
+ * Path A (confirm) only when the offering's EFFECTIVE intent is instant
+ * (resolved by deriveOfferingCta / resolveEffectiveBookingMode, which already
+ * applied the talent default) and the talent kept Confirm now.
  * Everything else opens the front-door chat (Path B).
  */
 export function resolveWhoPrimaryAction(input: {
-  bookingPosture: TalentBookingPosture;
   whoPrimaryCta: WhoPrimaryCta;
   offeringIntent: "instant" | "request";
 }): "confirm" | "chat" {
-  if (input.bookingPosture === "inquiry") return "chat";
   if (input.whoPrimaryCta === "contact" || input.whoPrimaryCta === "check_availability") {
     return "chat";
   }
-  // confirm_now + on_demand
   return input.offeringIntent === "instant" ? "confirm" : "chat";
-}
-
-/** Force request-style sheet intent when talent posture is inquiry. */
-export function forceRequestIntent(bookingPosture: TalentBookingPosture): boolean {
-  return bookingPosture === "inquiry";
 }
 
 export function whoPrimaryCtaLabel(kind: WhoPrimaryCta, locale: string): string {
@@ -99,7 +109,7 @@ export type CatalogSheetBookingSettings = {
 };
 
 export const DEFAULT_SHEET_BOOKING_SETTINGS: CatalogSheetBookingSettings = {
-  bookingPosture: "on_demand",
+  bookingPosture: PLATFORM_DEFAULT_BOOKING_POSTURE,
   whoPrimaryCta: "confirm_now",
 };
 
@@ -120,5 +130,36 @@ export function whoStepPrimaryLabel(input: {
     return whoPrimaryCtaLabel(input.whoPrimaryCta, input.locale);
   }
   const es = input.locale.toLowerCase().startsWith("es");
-  return es ? "Chateá ahora" : "Chat now";
+  return es ? "Chatea ahora" : "Chat now";
+}
+
+/**
+ * When-step time group label. Inquiry/chat paths ask for a preferred time
+ * (not an exact hold) — AUD-004.
+ */
+export function whenStepTimeGroupLabel(input: {
+  action: "confirm" | "chat";
+  locale: string;
+}): string {
+  const es = input.locale.toLowerCase().startsWith("es");
+  if (input.action === "chat") {
+    return es ? "Horario preferido" : "Preferred time";
+  }
+  return es ? "Elige un horario" : "Pick a time";
+}
+
+/** Choose-step CTA when advancing to the when step. */
+export function chooseStepContinueLabel(input: {
+  action: "confirm" | "chat";
+  locale: string;
+  needsOption: boolean;
+}): string {
+  const es = input.locale.toLowerCase().startsWith("es");
+  if (input.needsOption) {
+    return es ? "Elige una opción" : "Choose an option";
+  }
+  if (input.action === "chat") {
+    return es ? "Continuar: horario preferido" : "Continue: preferred time";
+  }
+  return es ? "Continuar: elegir horario" : "Continue: pick a time";
 }

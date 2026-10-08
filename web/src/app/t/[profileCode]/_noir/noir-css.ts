@@ -17,14 +17,14 @@ const M = '[data-profile-theme="noir"][data-profile-variant="modal"]';
 
 export const NOIR_CSS = `
 ${N}{
-  --nf-gold:#c6a14e; --nf-champ:#e0c074; --nf-line:rgba(198,161,78,0.22); --nf-line-soft:rgba(236,228,211,0.12);
+  --nf-bg:#0b0a0d; --nf-gold:#c6a14e; --nf-champ:#e0c074; --nf-line:rgba(198,161,78,0.22); --nf-line-soft:rgba(236,228,211,0.12);
   --nf-ink:#ece4d3; --nf-ink-70:rgba(236,228,211,0.72); --nf-ink-56:rgba(236,228,211,0.56); --nf-ink-42:rgba(236,228,211,0.42);
   --nf-avail:#9fd3a4;
   --nf-serif:'Cormorant Garamond',Georgia,serif; --nf-sans:'Jost',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   --nf-ease:cubic-bezier(0.16,1,0.3,1);
   --nf-pad:clamp(20px,5vw,72px); --nf-max:1320px;
   position:relative; overflow-x:clip;
-  background:#0b0a0d; color:var(--nf-ink);
+  background:var(--nf-bg); color:var(--nf-ink);
   font-family:var(--nf-sans); font-weight:300; line-height:1.6; -webkit-font-smoothing:antialiased;
 }
 ${N} ::selection{ background:var(--nf-gold); color:#14110a; }

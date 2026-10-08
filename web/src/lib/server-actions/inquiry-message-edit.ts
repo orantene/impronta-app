@@ -8,6 +8,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import type { ServerActionResult } from "./result";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * G.3 — Server actions for inquiry message edit + delete.
@@ -53,6 +54,7 @@ export async function editInquiryMessage(
   messageId: string,
   newBody: string,
 ): Promise<ServerActionResult> {
+  await requireNotImpersonating();
   try {
     const trimmed = newBody.trim();
     if (!trimmed) return { ok: false, error: "Message is empty.", reason: "validation_failed" };
@@ -101,6 +103,7 @@ export async function editInquiryMessage(
 export async function deleteInquiryMessage(
   messageId: string,
 ): Promise<ServerActionResult> {
+  await requireNotImpersonating();
   try {
     const ctx = await resolveTenantContext();
     if (!ctx.ok) return { ok: false, error: ctx.error, reason: "unauthenticated" };

@@ -1,8 +1,20 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import type { MyNotification } from "@/lib/notifications/self-types";
+import {
+  resolveReadTarget,
+  type EffectiveReadContext,
+  type ReadDeps,
+} from "@/lib/impersonation/effective-read";
+
+const DEFAULT_READ_DEPS: ReadDeps = {
+  rlsClient: () => createSupabaseServerClient(),
+  adminClient: () => createServiceRoleClient(),
+};
 
 /**
  * Self-service notification reads for the *current* surface shells (client,
@@ -41,15 +53,14 @@ type RawRow = {
  */
 export async function loadMyNotifications(
   limit: number = DEFAULT_LIMIT,
+  /** TUL-245: from `effectiveReadContext` only. Never exposed through the server action. */
+  ctx?: EffectiveReadContext,
+  deps: ReadDeps = DEFAULT_READ_DEPS,
 ): Promise<MyNotification[]> {
   try {
-    const supabase = await createSupabaseServerClient();
-    if (!supabase) return [];
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return [];
+    const target = await resolveReadTarget(ctx, deps);
+    if (!target) return [];
+    const { client: supabase, userId } = target;
 
     const safeLimit = Math.min(Math.max(1, Math.trunc(limit) || DEFAULT_LIMIT), MAX_LIMIT);
 
@@ -58,7 +69,7 @@ export async function loadMyNotifications(
       .select(
         "id, kind, title, body, surface, origin_inquiry_id, target_drawer, tenant_id, created_at, read_at",
       )
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(safeLimit);
 
@@ -138,7 +149,7 @@ export async function markNotificationsRead(
 // --- internals ---------------------------------------------------------------
 
 async function loadTenantSlugs(
-  supabase: NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>,
+  supabase: SupabaseClient,
   tenantIds: string[],
 ): Promise<Map<string, string>> {
   const map = new Map<string, string>();

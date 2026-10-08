@@ -36,6 +36,7 @@ export {
   ageString,
   findChild,
   getTypeDefaults,
+  typeLabelFromSlug,
   makeInitialProfileState,
   profileReducer,
 } from "./profile-shell-modules/profile-state";

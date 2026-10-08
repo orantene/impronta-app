@@ -14,7 +14,8 @@ import WorkspaceWelcome from "../../../emails/workspace/Welcome";
 import BookingCanceled from "../../../emails/workspace/BookingCanceled";
 import DayOfReminder from "../../../emails/notifications/DayOfReminder";
 import SeatLimitReached from "../../../emails/workspace/SeatLimitReached";
-import type { CatalogEntry } from "./types";
+import type { CatalogEntry, NotificationEvent } from "./types";
+import { bookingNoun } from "./booking-noun";
 import {
   allRosterTalent,
   assignedCoordinator,
@@ -27,7 +28,7 @@ import {
   workspaceAdmins,
   workspaceManagersPlus,
 } from "./catalog-audiences";
-import { formatDateLabel, pageUrl, redeemHref, inquiryPathForRole } from "./catalog-render";
+import { formatAppointmentLabel, formatDateLabel, pageUrl, redeemHref, inquiryPathForRole } from "./catalog-render";
 import { INQUIRY_CATALOG_ENTRIES } from "./catalog-entries-inquiry";
 import { BILLING_CATALOG_ENTRIES } from "./catalog-entries-billing";
 import { FORMS_CATALOG_ENTRIES } from "./catalog-entries-forms";
@@ -557,6 +558,22 @@ const BOOKING_CANCELLED_COORDINATOR: CatalogEntry = {
 // at each role's own inquiry view. No `contactName` is passed to the template —
 // the heading is the neutral "Your event is tomorrow", not the client's name.
 
+/** TUL-108: "Fri, Oct 9, 9:45 AM · Lash lift" for a talent-site appointment; undefined otherwise. */
+function appointmentWhen(event: NotificationEvent, locale: string | null | undefined): string | undefined {
+  const when = formatAppointmentLabel(
+    str(event.payload.appointmentStartsAt) ?? null,
+    str(event.payload.appointmentTimezone) ?? null,
+    locale,
+  );
+  const what = str(event.payload.appointmentTitle);
+  return when && what ? `${when} · ${what}` : when;
+}
+
+/** TUL-136: appointment wording for talent-site bookings, event wording otherwise. */
+function dayOfWord(event: NotificationEvent, appointment: string, eventText: string): string {
+  return bookingNoun(event.payload) === "appointment" ? appointment : eventText;
+}
+
 /**
  * booking.day_of_reminder → the client (or guest). Surface-scoped to `client`
  * so the in-app bell lands on the client dashboard; the link points at the
@@ -573,7 +590,7 @@ const BOOKING_DAY_OF_REMINDER_CLIENT: CatalogEntry = {
   in_app: {
     kind: "booking",
     surface: "client",
-    title: () => "Your event is tomorrow",
+    title: (event) => dayOfWord(event, "Your appointment is tomorrow", "Your event is tomorrow"),
     body: (event) => {
       const date = str(event.payload.eventDate);
       return date ? `Your booking on ${date} is tomorrow.` : "Your booking is tomorrow.";
@@ -581,16 +598,18 @@ const BOOKING_DAY_OF_REMINDER_CLIENT: CatalogEntry = {
   },
   email: {
     templateId: "client.booking_day_of_reminder",
-    subject: () => "Reminder: your event is tomorrow",
+    subject: (event) =>
+      dayOfWord(event, "Reminder: your appointment is tomorrow", "Reminder: your event is tomorrow"),
     render: ({ event, recipient, brand, unsubscribeUrl }) =>
       React.createElement(DayOfReminder, {
         recipientName: recipient.displayName ?? str(event.payload.contactName),
-        eventDate: formatDateLabel(str(event.payload.eventDate)) ?? null,
-        eventLocation: str(event.payload.eventLocation),
+        eventDate: appointmentWhen(event, brand.locale) ?? formatDateLabel(str(event.payload.eventDate)) ?? null,
+        eventLocation: str(event.payload.eventLocation) ?? str(event.payload.appointmentLocation),
         inquiryUrl: pageUrl(brand, `/client/inquiries/${event.inquiryId}`),
         brand,
         unsubscribeUrl,
         categoryLabel: "booking",
+        noun: bookingNoun(event.payload),
       }),
   },
 };
@@ -610,7 +629,7 @@ const BOOKING_DAY_OF_REMINDER_TALENT: CatalogEntry = {
   in_app: {
     kind: "booking",
     surface: "talent",
-    title: () => "Your event is tomorrow",
+    title: (event) => dayOfWord(event, "Your appointment is tomorrow", "Your event is tomorrow"),
     body: (event) => {
       const date = str(event.payload.eventDate);
       return date ? `Your booking on ${date} is tomorrow.` : "Your booking is tomorrow.";
@@ -618,16 +637,18 @@ const BOOKING_DAY_OF_REMINDER_TALENT: CatalogEntry = {
   },
   email: {
     templateId: "talent.booking_day_of_reminder",
-    subject: () => "Reminder: your event is tomorrow",
+    subject: (event) =>
+      dayOfWord(event, "Reminder: your appointment is tomorrow", "Reminder: your event is tomorrow"),
     render: ({ event, recipient, brand, unsubscribeUrl }) =>
       React.createElement(DayOfReminder, {
         recipientName: recipient.displayName,
-        eventDate: formatDateLabel(str(event.payload.eventDate)) ?? null,
-        eventLocation: str(event.payload.eventLocation),
+        eventDate: appointmentWhen(event, brand.locale) ?? formatDateLabel(str(event.payload.eventDate)) ?? null,
+        eventLocation: str(event.payload.eventLocation) ?? str(event.payload.appointmentLocation),
         inquiryUrl: pageUrl(brand, inquiryPathForRole("talent", event.inquiryId)),
         brand,
         unsubscribeUrl,
         categoryLabel: "booking",
+        noun: bookingNoun(event.payload),
       }),
   },
 };

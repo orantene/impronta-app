@@ -15,6 +15,8 @@ import { catalogDurationPhrase } from "@/lib/site-admin/builder-node/services-ca
 
 export type CatalogStaticGroup = {
   name: string | null;
+  /** The category as the visitor reads it (per language); `name` stays the key. */
+  label?: string | null;
   items: ReadonlyArray<TalentOffering>;
   note?: string | null;
 };
@@ -49,7 +51,7 @@ export function ServicesCatalogStaticFallback({
           className="site-builder-node--services-catalog-group"
         >
           {g.name ? (
-            <h3 className="site-builder-node--services-catalog-group-title">{g.name}</h3>
+            <h3 className="site-builder-node--services-catalog-group-title">{g.label ?? g.name}</h3>
           ) : null}
           <ul className="site-builder-node--services-catalog-list">
             {g.items.map((item) => {
@@ -69,7 +71,7 @@ export function ServicesCatalogStaticFallback({
                 inspectorLabel: ctaLabel,
               });
               return (
-                <li key={item.id} className="site-builder-node--services-catalog-row">
+                <li key={item.id} className="site-builder-node--services-catalog-row" data-has-photo="true">
                   {cover ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={cover} alt="" className="site-builder-node--services-catalog-photo" />
@@ -87,27 +89,31 @@ export function ServicesCatalogStaticFallback({
                       </span>
                     ) : null}
                   </span>
-                  <span className="site-builder-node--services-catalog-price">
-                    {onRequest || quote || minCents == null ? (
-                      <strong>
-                        {es
-                          ? onRequest
-                            ? "Bajo consulta"
-                            : "Cotización a pedido"
-                          : onRequest
-                            ? "On request"
-                            : "Quote on request"}
-                      </strong>
-                    ) : (
-                      <>
-                        {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
-                        <strong>{formatMoney(minCents, item.currency, locale)}</strong>
-                      </>
+                  <span className="site-builder-node--services-catalog-buy">
+                    <span className="site-builder-node--services-catalog-price">
+                      {onRequest || quote || minCents == null ? (
+                        <strong>
+                          {es
+                            ? onRequest
+                              ? "Bajo consulta"
+                              : "Cotización a pedido"
+                            : onRequest
+                              ? "On request"
+                              : "Quote on request"}
+                        </strong>
+                      ) : (
+                        <>
+                          {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
+                          <strong>{formatMoney(minCents, item.currency, locale)}</strong>
+                        </>
+                      )}
+                      {usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
+                    </span>
+                    {item.publicCtaHidden ? null : (
+                      <span className="site-builder-node--services-catalog-cta" aria-hidden>
+                        {label}
+                      </span>
                     )}
-                    {usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
-                  </span>
-                  <span className="site-builder-node--services-catalog-cta" aria-hidden>
-                    {label}
                   </span>
                 </li>
               );

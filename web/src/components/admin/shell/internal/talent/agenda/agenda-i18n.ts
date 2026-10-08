@@ -25,7 +25,7 @@ export const AGENDA_I18N = {
     viewAll: "Ver todo",
     nextUp: "Siguiente",
     restOfToday: "Resto del día",
-    newBooking: "Nueva reserva",
+    newBooking: "Nueva cita",
     openCalendar: "Abrir calendario",
     availability: "Disponibilidad",
     blockTime: "Bloquear tiempo",

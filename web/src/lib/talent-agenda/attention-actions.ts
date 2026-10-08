@@ -10,6 +10,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { completeBooking, markBookingNoShow } from "./booking-actions";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type AttentionActionResult =
   | { ok: true; already?: boolean }
@@ -34,6 +35,7 @@ async function ownTalentProfileId(): Promise<string | null> {
 
 /** Release a hold the signed-in talent owns. */
 export async function releaseOwnTalentHold(holdId: string): Promise<AttentionActionResult> {
+  await requireNotImpersonating();
   if (!holdId) return { ok: false, reason: "missing" };
   const talentId = await ownTalentProfileId();
   if (!talentId) return { ok: false, reason: "unauthorized" };
@@ -53,22 +55,32 @@ export async function releaseOwnTalentHold(holdId: string): Promise<AttentionAct
   if (!row) return { ok: false, reason: "not_found" };
   if (row.talent_profile_id !== talentId) return { ok: false, reason: "unauthorized" };
 
-  const { error: delErr } = await supabase.from("talent_holds").delete().eq("id", holdId);
-  if (delErr) {
-    // RLS may block talent delete — fall back to service role after ownership check.
+  // RLS can silently delete zero rows (no error). Verify rows via select, then
+  // fall back to service role after the ownership check above.
+  const { data: deleted, error: delErr } = await supabase
+    .from("talent_holds")
+    .delete()
+    .eq("id", holdId)
+    .eq("talent_profile_id", talentId)
+    .select("id");
+  if (delErr || !deleted || deleted.length === 0) {
     const admin = createServiceRoleClient();
     if (!admin) {
-      logServerError("agenda.releaseOwnHold.delete", delErr);
+      logServerError("agenda.releaseOwnHold.delete", delErr ?? new Error("0 rows deleted"));
       return { ok: false, reason: "unavailable" };
     }
-    const { error: adminErr } = await admin
+    const { data: adminDeleted, error: adminErr } = await admin
       .from("talent_holds")
       .delete()
       .eq("id", holdId)
-      .eq("talent_profile_id", talentId);
+      .eq("talent_profile_id", talentId)
+      .select("id");
     if (adminErr) {
       logServerError("agenda.releaseOwnHold.adminDelete", adminErr);
       return { ok: false, reason: "unavailable" };
+    }
+    if (!adminDeleted || adminDeleted.length === 0) {
+      return { ok: false, reason: "not_found" };
     }
   }
 
@@ -78,6 +90,7 @@ export async function releaseOwnTalentHold(holdId: string): Promise<AttentionAct
 
 /** Complete a booking the talent is on (agency_bookings id). Ownership via requireOwnBooking. */
 export async function completeOwnAgendaBooking(bookingId: string): Promise<AttentionActionResult> {
+  await requireNotImpersonating();
   if (!bookingId) return { ok: false, reason: "missing" };
   const result = await completeBooking({ bookingId });
   if (result.ok) revalidatePath("/", "layout");
@@ -86,6 +99,7 @@ export async function completeOwnAgendaBooking(bookingId: string): Promise<Atten
 
 /** Mark no-show when start is in the past. Same ownership as complete (leg or mirror). */
 export async function markOwnAgendaNoShow(bookingId: string): Promise<AttentionActionResult> {
+  await requireNotImpersonating();
   if (!bookingId) return { ok: false, reason: "missing" };
   const result = await markBookingNoShow({ bookingId });
   if (result.ok) revalidatePath("/", "layout");

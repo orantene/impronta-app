@@ -10,6 +10,8 @@ import type {
   PricedAddon,
 } from "@/lib/orders/purchase-pricing";
 import type { PurchaseRefusalReason } from "@/lib/orders/purchase";
+import { resolveOfferingPolicy } from "@/lib/talent/offering-policy-resolver";
+import { loadSellingDefaultsByTalent } from "@/lib/talent/offering-policy-server";
 
 /**
  * Catalog reads and refusal mapping for the purchase pipeline.
@@ -109,7 +111,26 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
     }
   >();
 
-  for (const row of (offeringRows ?? []) as unknown as OfferingRow[]) {
+  const typedRows = (offeringRows ?? []) as unknown as OfferingRow[];
+  // Talent defaults (deposit, cancellation) the editor shows as "Uses your
+  // default". Read here so the charge follows the same chain as the promise.
+  const talentDefaults = await loadSellingDefaultsByTalent(
+    admin,
+    typedRows.map((r) => r.talent_profile_id).filter((id): id is string => Boolean(id)),
+  );
+  if (!talentDefaults.ok) {
+    return { ok: false, error: "Could not load the booking rules." };
+  }
+
+  for (const row of typedRows) {
+    const effective = resolveOfferingPolicy(
+      {
+        reserveMode: row.reserve_mode,
+        depositPct: row.deposit_pct,
+        cancellationHours: row.cancellation_hours,
+      },
+      row.talent_profile_id ? (talentDefaults.defaults.get(row.talent_profile_id) ?? {}) : null,
+    );
     policies.set(row.id, {
       offeringId: row.id,
       status:
@@ -117,18 +138,11 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
           ? row.status
           : "draft",
       tenantId: row.tenant_id ?? "",
-      reserveMode:
-        row.reserve_mode === "deposit" || row.reserve_mode === "free" ? row.reserve_mode : "full",
-      depositPct:
-        typeof row.deposit_pct === "number" && row.deposit_pct > 0 && row.deposit_pct < 100
-          ? Math.round(row.deposit_pct)
-          : null,
+      reserveMode: effective.reserveMode,
+      depositPct: effective.depositPct,
       allowPayInPerson: row.allow_pay_in_person === true,
       requireAccountToBook: row.require_account_to_book === true,
-      cancellationHours:
-        typeof row.cancellation_hours === "number" && row.cancellation_hours >= 0
-          ? row.cancellation_hours
-          : null,
+      cancellationHours: effective.cancellationHours,
     });
 
     offerings.set(row.id, {

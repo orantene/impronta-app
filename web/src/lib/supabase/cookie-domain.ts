@@ -21,10 +21,15 @@
  *   - tenant CUSTOM domains (improntamodels.com, …) → host-only (single-host
  *                                              storefronts; their auth stays
  *                                              local to that domain)
+ *   - Support Desk hosts (support.tulala.digital, desk.tulala.digital, …)
+ *     → host-only. Desk has its own login; never widen to `.tulala.digital`
+ *     (Phase 1a / Oran binding).
  *
  * Keeping the allow-list explicit bounds the blast radius to the two roots we
  * actually share sessions across.
  */
+
+import { isHostScopedAuthHost } from "@/lib/support/desk-hosts";
 
 /** Leading-dot parent domains we share auth cookies across. */
 const SHARED_COOKIE_PARENTS = [".tulala.digital", ".lvh.me"] as const;
@@ -46,6 +51,8 @@ export function cookieDomainForHost(
   if (h === "localhost" || h.endsWith(".local") || /^[0-9.]+$/.test(h)) {
     return undefined;
   }
+  // Support Desk: own login, host-scoped session only. Do not widen.
+  if (isHostScopedAuthHost(h)) return undefined;
   for (const parent of SHARED_COOKIE_PARENTS) {
     const root = parent.slice(1); // ".tulala.digital" → "tulala.digital"
     if (h === root || h.endsWith(parent)) {
@@ -65,4 +72,60 @@ export function cookieDomainForHost(
 export function isSupabaseAuthCookie(name: string): boolean {
   if (!name.startsWith("sb-")) return false;
   return name.includes("-auth-token") || name.includes("-code-verifier");
+}
+
+/** Parent domains we may need to expire when Desk writes host-only auth. */
+export const SHARED_AUTH_COOKIE_PARENTS = SHARED_COOKIE_PARENTS;
+
+type CookieSetter = {
+  set: (
+    name: string,
+    value: string,
+    options?: {
+      maxAge?: number;
+      path?: string;
+      domain?: string;
+      sameSite?: "lax" | "strict" | "none";
+      httpOnly?: boolean;
+      secure?: boolean;
+    },
+  ) => unknown;
+};
+
+/**
+ * Expire parent-domain Supabase auth cookies (`.tulala.digital` / `.lvh.me`)
+ * so a host-only Desk session is not shadowed by an app/talent session.
+ * Call only on Support Desk hosts — never widens Desk cookies.
+ */
+export function expireParentDomainAuthCookies(
+  cookieJar: CookieSetter,
+  names: Iterable<string>,
+): void {
+  for (const name of names) {
+    if (!isSupabaseAuthCookie(name)) continue;
+    for (const domain of SHARED_COOKIE_PARENTS) {
+      cookieJar.set(name, "", { maxAge: 0, path: "/", domain });
+    }
+  }
+}
+
+/**
+ * Raw `Set-Cookie` header values that expire a Supabase auth cookie at EVERY
+ * scope a browser may hold it: host-only (legacy cookies from before parent
+ * scoping) and, on shared hosts, the `.tulala.digital` parent. A name-keyed
+ * cookie jar carries only one scope per name, so a sign-out through it leaves
+ * the other scope alive and the user stays signed in (TUL-120 C1-03).
+ */
+export function authCookieExpiryHeaders(
+  names: Iterable<string>,
+  host: string | null | undefined,
+): string[] {
+  const domain = cookieDomainForHost(host);
+  const out: string[] = [];
+  for (const name of names) {
+    if (!isSupabaseAuthCookie(name)) continue;
+    out.push(`${name}=; Path=/; Max-Age=0`);
+    if (domain) out.push(`${name}=; Path=/; Max-Age=0; Domain=${domain}`);
+  }
+  return out;
 }

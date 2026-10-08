@@ -3,6 +3,7 @@
  * formatting commands during inline edit.
  */
 
+import { useSyncExternalStore } from "react";
 import type { LexicalEditor } from "lexical";
 
 let activeEditor: LexicalEditor | null = null;
@@ -102,6 +103,18 @@ export async function commitActiveInlineEditor(): Promise<void> {
 
 export function isCanvasInlineTextEditActive(): boolean {
   return activeEditor !== null;
+}
+
+/**
+ * True while a canvas text edit is open. The Undo button stays enabled for it
+ * (undo() commits the typed text first), so a first edit is undoable at once.
+ */
+export function useInlineTextEditActive(): boolean {
+  return useSyncExternalStore(
+    subscribeActiveCanvasLexicalEditor,
+    isCanvasInlineTextEditActive,
+    () => false,
+  );
 }
 
 export function setActiveCanvasLexicalEditor(editor: LexicalEditor | null): void {

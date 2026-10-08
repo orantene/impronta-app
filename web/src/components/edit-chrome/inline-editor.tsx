@@ -60,14 +60,12 @@ import { useInlineEditorCommitHandoff } from "./use-inline-editor-commit-handoff
 import { dismissCoachmark } from "./builder-coachmarks";
 import {
   buildInlineImageReplacePatch,
-  findBuilderNodeById,
-  resolveBuilderNodeTextValue,
   resolveEditableBuilderNodeImageTarget,
   resolveEditableBuilderNodeTextTarget,
   resolveSectionEmbedConfigTextValue,
 } from "./inline-editor-builder-resolvers";
-import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { useActiveContentLocale } from "./active-content-locale-bridge";
+import { resolveBuilderNodeGhost, resolveBuilderNodeLocalizedSeed } from "./inline-locale-seed";
 import {
   useInlineTextCommit,
   type InlineBuilderNodeTextTarget,
@@ -82,6 +80,8 @@ type Banner =
 interface ActiveTextEdit {
   el: HTMLElement;
   original: string;
+  /** PR 7: primary text shown as a placeholder on an untranslated secondary. */
+  ghost?: string;
   variant: "single" | "multi";
   resyncKey?: number;
   /** WAVE 2.1 — viewport point of the opening double-click, for the caret. */
@@ -304,7 +304,12 @@ export function InlineEditor() {
           storedValue !== null
             ? storedValue
             : (editable.textContent ?? "").trim();
-        if (!original) return;
+        // PR 7: an untranslated secondary opens EMPTY with the primary as a
+        // ghost, so Enter can never save a copy of the primary as the translation.
+        const ghost = builderNodeTarget.sectionEmbedConfigKey
+          ? null
+          : resolveBuilderNodeGhost(builderTreeRef.current, builderNodeTarget.id, builderNodeTarget.propKey, editLocale, editDefaultLocale);
+        if (!original && !ghost) return;
         e.preventDefault();
         e.stopPropagation();
         selectBuilderNode(builderNodeTarget.id);
@@ -316,6 +321,7 @@ export function InlineEditor() {
         setActiveEdit({
           el: editable,
           original,
+          ghost: ghost ?? undefined,
           variant: builderNodeTarget.variant,
           caretPoint: { x: e.clientX, y: e.clientY },
           builderNode: {
@@ -703,6 +709,7 @@ export function InlineEditor() {
         <CanvasEditOverlay
           target={activeEdit.el}
           initialValue={activeEdit.original}
+          ghost={activeEdit.ghost}
           resyncKey={activeEdit.resyncKey}
           variant={activeEdit.variant}
           caretPoint={activeEdit.caretPoint ?? null}
@@ -729,32 +736,6 @@ export function InlineEditor() {
       />
     </>
   );
-}
-
-/**
- * WS5 — the value to SEED the inline overlay with for a localizable node prop,
- * resolved for the active content locale. The default locale reads the base
- * prop; a secondary locale reads `node.i18n[locale][prop]` and, when that is
- * empty (the untranslated/dimmed case), falls back to the base prop so the
- * operator starts from the source copy and overwrites it. Returns `null` when
- * the node / prop is absent (caller then uses the DOM text). Used at open-time
- * AND on the undo/redo resync so both honor the locale the edit is bound to.
- */
-function resolveBuilderNodeLocalizedSeed(
-  tree: BuilderNodeTree,
-  nodeId: string,
-  propKey: "text" | "label" | "title" | "brand",
-  locale: string,
-  defaultLocale: string,
-): string | null {
-  const base = resolveBuilderNodeTextValue(tree, nodeId, propKey);
-  if (locale === defaultLocale) return base;
-  const node = findBuilderNodeById(tree, nodeId);
-  const overlayValue = node?.i18n?.[locale]?.[propKey];
-  if (typeof overlayValue === "string" && overlayValue.trim().length > 0) {
-    return overlayValue;
-  }
-  return base;
 }
 
 function resolveOriginalImageSrc(src: string): string {

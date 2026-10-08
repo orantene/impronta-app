@@ -9,6 +9,7 @@
  * one query each and attached. Collections are the offerings' categories.
  */
 
+import { withEffectiveBookingModes } from "@/lib/talent/effective-booking-mode-loader";
 import { rowToOffering, type TalentOfferingRow } from "@/lib/talent/offerings-types";
 
 import type { StorefrontAdmin } from "./admin";
@@ -47,10 +48,12 @@ export async function readCatalogGridCore(
     if (Array.isArray(props.offeringIds) && props.offeringIds.length > 0) q = q.in("id", props.offeringIds);
     const { data: rows, error } = await q.order("sort_order", { ascending: true }).limit(MAX_ITEMS);
     if (error) return { ok: false, reason: "unavailable" };
-    const offerings = ((rows ?? []) as TalentOfferingRow[]).map((r) => ({
-      row: r,
-      offering: rowToOffering(r, deps.locale, []),
-    }));
+    const typedRows = (rows ?? []) as TalentOfferingRow[];
+    const resolved = await withEffectiveBookingModes(
+      deps.admin,
+      typedRows.map((r) => rowToOffering(r, deps.locale, [])),
+    );
+    const offerings = typedRows.map((r, i) => ({ row: r, offering: resolved[i] }));
     const wanted = Array.isArray(props.collections) ? new Set(props.collections) : null;
     const kept = offerings.filter(({ offering }) => (wanted ? wanted.has(offering.category ?? "") : true));
     const ids = kept.map((k) => k.offering.id);

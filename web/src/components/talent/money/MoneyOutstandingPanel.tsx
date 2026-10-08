@@ -1,7 +1,8 @@
 "use client";
 
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { SecondaryButton } from "@/components/admin/shell/internal/primitives";
-import { COLORS, FONTS, RADIUS } from "@/components/admin/shell/internal/state";
+import { COLORS, RADIUS } from "@/components/admin/shell/internal/state";
 import type { MoneyOutstandingRow } from "@/lib/money/money-read-model";
 import {
   buildMoneySpineView,
@@ -22,6 +23,8 @@ export function MoneyOutstandingPanel({
   agency,
   currency,
   onFilter,
+  onRequest,
+  onRecord,
 }: {
   rows: MoneyOutstandingRow[];
   filter: OutstandingFilter;
@@ -30,11 +33,14 @@ export function MoneyOutstandingPanel({
   agency: ReturnType<typeof buildMoneySpineView>["agencyLine"];
   currency: string;
   onFilter: (f: OutstandingFilter) => void;
+  onRequest: (row: MoneyOutstandingRow) => void;
+  onRecord: (row: MoneyOutstandingRow) => void;
 }) {
+  const copy = useDashboardText();
   const chips: { id: OutstandingFilter; label: string }[] = [
-    { id: "all", label: "All" },
-    { id: "today", label: "Due by today" },
-    { id: "later", label: "Later" },
+    { id: "all", label: copy.t("All") },
+    { id: "today", label: copy.t("Due by today") },
+    { id: "later", label: copy.t("Due later") },
   ];
 
   return (
@@ -71,18 +77,20 @@ export function MoneyOutstandingPanel({
                 <MoneyAvatar initials={initialsFromName(o.clientName)} size={34} />
                 <div>
                   <div style={{ fontSize: 14.5, fontWeight: 700 }}>{o.clientName}</div>
-                  <div style={{ fontSize: 13, color: COLORS.inkDim }}>{chrome.bookingLine}</div>
+                  <div style={{ fontSize: 13, color: COLORS.inkDim }}>
+                    {copy.t(chrome.bookingLine)}
+                  </div>
                 </div>
               </div>
               <div style={{ fontSize: 13.5, lineHeight: 1.45 }}>
-                <div>{chrome.serviceLabel}</div>
+                <div>{copy.t(chrome.serviceLabel)}</div>
                 <div
                   style={{
                     color: chrome.overdue ? COLORS.critical : COLORS.inkMuted,
                     fontWeight: chrome.overdue ? 600 : 400,
                   }}
                 >
-                  {chrome.dueLine}
+                  {copy.t(chrome.dueLine)}
                 </div>
               </div>
               <div style={{ textAlign: "right" }}>
@@ -96,12 +104,16 @@ export function MoneyOutstandingPanel({
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
-                  of {formatMoneyShort(o.agreed)} · {formatMoneyShort(o.paid)} paid
+                  {copy.t("of")} {formatMoneyShort(o.agreed)} · {formatMoneyShort(o.paid)}{" "}
+                  {copy.t("Paid so far").toLowerCase()}
                 </div>
               </div>
               <div style={{ textAlign: "right" }}>
-                <SecondaryButton size="sm">
-                  {overdueAct ? "Request payment" : "Record payment"}
+                <SecondaryButton
+                  size="sm"
+                  onClick={() => (overdueAct ? onRequest(o) : onRecord(o))}
+                >
+                  {overdueAct ? copy.t("Request payment") : copy.t("Record payment")}
                 </SecondaryButton>
               </div>
             </div>
@@ -132,7 +144,8 @@ export function MoneyOutstandingPanel({
                     </span>
                   </div>
                   <div style={{ fontSize: 14, color: COLORS.inkMuted }}>
-                    {chrome.serviceLabel} · booking {chrome.bookingLine.replace(/^Booking /, "")}
+                    {copy.t(chrome.serviceLabel)} · {copy.t("booking")}{" "}
+                    {chrome.bookingLine.replace(/^Booking /, "")}
                   </div>
                   <div
                     style={{
@@ -142,16 +155,24 @@ export function MoneyOutstandingPanel({
                       fontWeight: chrome.overdue ? 600 : 400,
                     }}
                   >
-                    {chrome.dueLine}
+                    {copy.t(chrome.dueLine)}
                   </div>
                   <div style={{ fontSize: 13, color: COLORS.inkDim, marginTop: 2 }}>
-                    Agreed {formatMoneyShort(o.agreed)} · paid {formatMoneyShort(o.paid)}
+                    {copy.t("Agreed")} {formatMoneyShort(o.agreed)} ·{" "}
+                    {copy.t("Paid so far").toLowerCase()} {formatMoneyShort(o.paid)}
                   </div>
                 </div>
               </div>
               <div style={{ marginTop: 10, width: "100%" }}>
-                <SecondaryButton size="sm">
-                  {o.scope === "overdue" ? "Request payment" : "Record payment"}
+                <SecondaryButton
+                  size="sm"
+                  onClick={() =>
+                    o.scope === "overdue" ? onRequest(o) : onRecord(o)
+                  }
+                >
+                  {o.scope === "overdue"
+                    ? copy.t("Request payment")
+                    : copy.t("Record payment")}
                 </SecondaryButton>
               </div>
             </div>
@@ -162,8 +183,8 @@ export function MoneyOutstandingPanel({
       {filter === "all" ? (
         <>
           <MoneySectionLabel
-            title="Payment requests waiting"
-            right="Not owed yet"
+            title={copy.t("Payment requests waiting")}
+            right={copy.t("Not owed yet")}
           />
           <div
             style={{
@@ -179,14 +200,16 @@ export function MoneyOutstandingPanel({
             <MoneyAvatar initials={waiting.initials} size={34} />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 15, fontWeight: 700 }}>
-                {waiting.clientName} · {waiting.title}
+                {waiting.clientName} · {copy.t(waiting.title)}
               </div>
-              <div style={{ fontSize: 13.5, color: COLORS.inkMuted }}>{waiting.detail}</div>
+              <div style={{ fontSize: 13.5, color: COLORS.inkMuted }}>
+                {copy.t(waiting.detail)}
+              </div>
             </div>
-            <SecondaryButton size="sm">View request</SecondaryButton>
+            <SecondaryButton size="sm">{copy.t("View request")}</SecondaryButton>
           </div>
 
-          <MoneySectionLabel title="From agencies" />
+          <MoneySectionLabel title={copy.t("From agencies")} />
           <div
             style={{
               padding: "12px 16px",
@@ -203,13 +226,14 @@ export function MoneyOutstandingPanel({
               <div style={{ fontSize: 15, fontWeight: 700 }}>
                 {agency.name} · {formatMoneyMajor(agency.amount, currency)}
               </div>
-              <div style={{ fontSize: 13.5, color: COLORS.inkMuted }}>{agency.detail}</div>
+              <div style={{ fontSize: 13.5, color: COLORS.inkMuted }}>
+                {copy.t(agency.detail)}
+              </div>
             </div>
-            <SecondaryButton size="sm">View job</SecondaryButton>
+            <SecondaryButton size="sm">{copy.t("View job")}</SecondaryButton>
           </div>
         </>
       ) : null}
     </div>
   );
 }
-

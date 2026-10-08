@@ -6,6 +6,7 @@ import { assertHqAccess } from "./support-access";
 import { supportEngine } from "./support-engine";
 import { auditHq } from "./support-engine-emit";
 import type { SupportPriority } from "./support-types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
@@ -16,12 +17,16 @@ export async function hqReplySupportTicketAction(raw: {
   ticketId: string;
   body: string;
   asInternalNote?: boolean;
+  /** Client send key — retries with the same key must not duplicate (journey 27). */
+  clientSendKey?: string;
 }): Promise<Ok | Fail> {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       ticketId: uuid,
       body: z.string().trim().min(1).max(8000),
       asInternalNote: z.boolean().optional(),
+      clientSendKey: z.string().trim().min(8).max(80).optional(),
     })
     .safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
@@ -38,6 +43,7 @@ export async function hqReplySupportTicketAction(raw: {
     messageKind: parsed.data.asInternalNote ? "note" : "text",
     skipNotify: parsed.data.asInternalNote === true,
     asHq: true,
+    clientSendKey: parsed.data.clientSendKey,
   });
   if (!result.ok) return result;
   return { ok: true };
@@ -47,6 +53,7 @@ export async function hqChangeStatusAction(raw: {
   ticketId: string;
   status: "open" | "resolved" | "closed";
 }): Promise<Ok | Fail> {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       ticketId: uuid,
@@ -67,10 +74,28 @@ export async function hqChangeStatusAction(raw: {
   return { ok: true };
 }
 
+/** Reopen via engine (bumps reopened_count). Prefer over changeStatus("open"). */
+export async function hqReopenTicketAction(raw: {
+  ticketId: string;
+}): Promise<Ok | Fail> {
+  await requireNotImpersonating();
+  const parsed = z.object({ ticketId: uuid }).safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "Invalid input." };
+  const hq = await assertHqAccess();
+  if (!hq.ok) return hq;
+  const result = await supportEngine.reopenTicket({
+    ticketId: parsed.data.ticketId,
+    actorUserId: hq.userId,
+  });
+  if (!result.ok) return result;
+  return { ok: true };
+}
+
 export async function hqAssignTicketAction(raw: {
   ticketId: string;
   assigneeUserId: string | null;
 }): Promise<Ok | Fail> {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       ticketId: uuid,
@@ -93,6 +118,7 @@ export async function hqSetPriorityAction(raw: {
   ticketId: string;
   priority: SupportPriority;
 }): Promise<Ok | Fail> {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       ticketId: uuid,
@@ -115,6 +141,7 @@ export async function hqSetCategoryAction(raw: {
   ticketId: string;
   category: string | null;
 }): Promise<Ok | Fail> {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       ticketId: uuid,
@@ -137,6 +164,7 @@ export async function hqSetCategoryAction(raw: {
 export async function hqEscalateOverrideAction(raw: {
   ticketId: string;
 }): Promise<Ok | Fail> {
+  await requireNotImpersonating();
   const parsed = z.object({ ticketId: uuid }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const hq = await assertHqAccess();
@@ -167,6 +195,7 @@ export async function hqSendDelayUpdateAction(raw: {
   note?: string;
   nextUpdate?: string;
 }): Promise<Ok | Fail> {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       ticketId: uuid,
@@ -203,6 +232,7 @@ export async function hqSendDelayUpdateAction(raw: {
 }
 
 export async function hqClaimSelfAction(raw: { ticketId: string }): Promise<Ok | Fail> {
+  await requireNotImpersonating();
   const parsed = z.object({ ticketId: uuid }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const hq = await assertHqAccess();
@@ -247,6 +277,7 @@ export async function hqSaveInvestigationFindingsAction(raw: {
   ticketId: string;
   markdown: string;
 }): Promise<Ok | Fail> {
+  await requireNotImpersonating();
   const parsed = z
     .object({ ticketId: uuid, markdown: z.string().max(80_000) })
     .safeParse(raw);
@@ -272,6 +303,7 @@ export async function hqSaveInvestigationFindingsAction(raw: {
 export async function hqSaveCannedRepliesAction(raw: {
   entries: Array<{ id: string; title: string; body: string }>;
 }): Promise<Ok | Fail> {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       entries: z
@@ -306,6 +338,7 @@ export async function hqSaveCannedRepliesAction(raw: {
 export async function hqSummarizeDiagnosticsAction(raw: {
   ticketId: string;
 }): Promise<{ ok: true; summary: string } | Fail> {
+  await requireNotImpersonating();
   const parsed = z.object({ ticketId: uuid }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const hq = await assertHqAccess();

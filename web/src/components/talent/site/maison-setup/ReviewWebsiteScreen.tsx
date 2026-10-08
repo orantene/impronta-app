@@ -12,9 +12,15 @@ import {
 } from "@/lib/talent-site/server/maison-review-actions";
 import { undoMaisonDesignAction } from "@/lib/talent-site/server/maison-apply-actions";
 import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
+import { isThemeApplyBusy, useThemeApplyBusy } from "@/lib/talent-site/history/apply-busy";
 import { maisonReadinessHeadline } from "@/lib/talent-site/server/maison-publish-readiness";
 import { maisonPaletteLookTokens } from "@/lib/talent-site/theme-catalog/maison/seed";
 import { maisonCustomLookTokens } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
+import {
+  galleryPaletteLookTokens,
+  galleryPreviewLookSlug,
+  getGalleryDesign,
+} from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { ThemeGalleryPreviewFrame } from "@/components/talent/site/theme-gallery/ThemeGalleryPreviewFrame";
 import { useThemePreview } from "@/components/talent/site/theme-gallery/useThemePreview";
 import type { MaisonSetupChoices } from "./maison-choices";
@@ -45,15 +51,28 @@ export function ReviewWebsiteScreen({
   const [toast, setToast] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const preview = useThemePreview({ talentProfileId, locale });
-  const previewUrl = preview.src("maison", `maison-${choices.paletteKey}`);
+  // Each design previews in its OWN palette (Maison: the maison-* Look rows).
+  const galleryDesign = getGalleryDesign(choices.designSlug);
+  const isMaison = !galleryDesign || galleryDesign.slug === "maison";
+  const designPaletteKey = isMaison ? choices.paletteKey : choices.designPaletteKey;
+  const previewUrl = preview.src(
+    choices.designSlug,
+    galleryDesign ? galleryPreviewLookSlug(galleryDesign, designPaletteKey) : `maison-${choices.paletteKey}`,
+  );
 
   useEffect(() => {
     if (choices.useCustomPalette && choices.customPalette) {
       preview.sendTokens(maisonCustomLookTokens(choices.customPalette));
-    } else {
+    } else if (isMaison) {
       preview.sendTokens(maisonPaletteLookTokens(choices.paletteKey));
+    } else if (galleryDesign && designPaletteKey) {
+      const tokens = galleryPaletteLookTokens(galleryDesign.slug, designPaletteKey);
+      if (tokens) preview.sendTokens(tokens);
     }
   }, [
+    isMaison,
+    galleryDesign,
+    designPaletteKey,
     choices.paletteKey,
     choices.useCustomPalette,
     choices.customPalette,
@@ -97,7 +116,9 @@ export function ReviewWebsiteScreen({
     });
   }
 
+  const applyBusy = useThemeApplyBusy();
   function handlePublish() {
+    if (isThemeApplyBusy()) return;
     startTransition(async () => {
       setPublishError(null);
       const res = await publishMaxSiteAction();
@@ -121,7 +142,7 @@ export function ReviewWebsiteScreen({
       ? maisonSetupT(locale, "Ready to publish")
       : readiness.blockers.length === 1
         ? maisonSetupT(locale, "1 thing before publishing")
-        : maisonReadinessHeadline(readiness)
+        : maisonReadinessHeadline(readiness, locale)
     : "…";
 
   const addressLabel = state?.siteSlug
@@ -216,9 +237,6 @@ export function ReviewWebsiteScreen({
           )}
         </p>
 
-        {/* W72 — never show trial / plan / price in this flow */}
-        <p className="sr-only">{maisonSetupT(locale, "No trial, plan, or price in this flow.")}</p>
-
         {publishError ? (
           <div
             data-testid="maison-publish-failure"
@@ -233,7 +251,7 @@ export function ReviewWebsiteScreen({
               type="button"
               data-testid="maison-publish-retry"
               onClick={handlePublish}
-              disabled={pending || !ready}
+              disabled={pending || !ready || applyBusy}
               className="mt-2 text-[13px] font-semibold text-red-900 underline"
             >
               {maisonSetupT(locale, "Try again")}
@@ -247,7 +265,7 @@ export function ReviewWebsiteScreen({
           type="button"
           data-testid="maison-publish"
           onClick={handlePublish}
-          disabled={pending || !ready}
+          disabled={pending || !ready || applyBusy}
           className="min-h-12 w-full rounded-xl bg-admin-ink text-[14px] font-semibold text-white disabled:opacity-40"
         >
           {pending

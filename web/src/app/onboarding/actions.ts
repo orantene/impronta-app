@@ -7,18 +7,21 @@ import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-se
 import { requireSession } from "@/lib/server/action-guards";
 import { getAppUrl, normalizeOptionalNextPath } from "@/lib/auth-flow";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
-import { applyRegistrationPolicy, ensurePlatformHubRoster } from "@/lib/saas/registration-policy";
+import { ensureHubRosterRow } from "@/lib/saas/ensure-hub-roster.server";
+import { applyRegistrationPolicy } from "@/lib/saas/registration-policy";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { verifyGuestCookie } from "@/lib/guest-cookie";
-import {
-  ACCESS_PROFILE_REFRESH_COOKIE,
-  ACCESS_PROFILE_REFRESH_VALUE,
-} from "@/lib/auth/access-profile-refresh";
+import { buildAccessProfileRefreshCookie } from "@/lib/auth/access-profile-refresh";
 import { backfillCartFromClaimedInquiries } from "@/lib/inquiry/cart-selected-ids-projection";
 import { claimInquiriesByConfirmedEmail } from "@/lib/inquiry/claim-by-email";
+import {
+  deriveTalentCurrency,
+  deriveTalentLocale,
+} from "@/lib/onboarding/signup-defaults";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type OnboardingActionState = { error?: string } | void;
 
@@ -40,8 +43,8 @@ function onboardingLoginPath(nextPath: string | undefined): string {
 }
 
 function talentLocationPath(nextPath: string | undefined): string {
-  if (!nextPath) return "/onboarding/talent-location";
-  return `/onboarding/talent-location?next=${encodeURIComponent(nextPath)}`;
+  if (!nextPath) return "/talent/profile/fields";
+  return `/talent/profile/fields?next=${encodeURIComponent(nextPath)}`;
 }
 
 function parsePortalNext(
@@ -156,12 +159,12 @@ async function ensureTalentRosterForNext(
   // profile exists and the dashboard can still open.
   if (!parsed?.tenantSlug) {
     if (admin) {
-      const hub = await ensurePlatformHubRoster(admin, {
+      const hub = await ensureHubRosterRow(admin, {
         talentProfileId,
-        userId,
+        addedBy: userId,
         originDomain: await currentOriginDomain(),
       });
-      if (!hub.ok) logServerError("onboarding.platformHubRoster", new Error(hub.error));
+      if (!hub.ok) logServerError("onboarding.platformHubRoster", new Error(hub.reason));
     }
     return { destination: parsed?.destination ?? null };
   }
@@ -182,6 +185,7 @@ async function ensureTalentRosterForNext(
 }
 
 export async function chooseTalentRole(formData?: FormData): Promise<void> {
+  await requireNotImpersonating();
   const nextPath = nextFromForm(formData);
   const auth = await requireSession();
   if (!auth.ok) {
@@ -190,10 +194,42 @@ export async function chooseTalentRole(formData?: FormData): Promise<void> {
     }
     redirect(onboardingLoginPath(nextPath));
   }
+  // Mirror chooseClientRole: finish onboarding BEFORE leaving /onboarding/role.
+  // A bare redirect to /talent/profile/fields while account_status=onboarding is
+  // bounced straight back by auth-routing (fresh-signup role loop on prod).
+  const { supabase } = auth;
+  const { error } = await supabase.rpc("complete_talent_onboarding");
+  if (error) {
+    logServerError("onboarding/complete_talent_onboarding", error);
+    redirect("/onboarding/role?error=failed");
+  }
+  // TUL-157: the profile exists now. A platform sign-up (no agency in `next`)
+  // lands on the hub roster here, so abandoning the location step cannot leave
+  // a roster-less talent. Agency sign-ups keep their registration policy.
+  if (!parsePortalNext(nextPath, "talent")?.tenantSlug) {
+    const hubAdmin = createServiceRoleClient();
+    if (hubAdmin) {
+      const { data: own, error: ownErr } = await hubAdmin
+        .from("talent_profiles")
+        .select("id")
+        .eq("user_id", auth.user.id)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (ownErr) logServerError("onboarding/chooseTalentRole.profile", ownErr);
+      else if (own?.id) await ensureHubRosterRow(hubAdmin, { talentProfileId: own.id as string, addedBy: auth.user.id });
+    }
+  }
+  const jar = await cookies();
+  {
+    const refresh = buildAccessProfileRefreshCookie((await headers()).get("host"));
+    jar.set(refresh.name, refresh.value, refresh.options);
+  }
+  revalidatePath("/", "layout");
   redirect(talentLocationPath(nextPath));
 }
 
 export async function chooseClientRole(formData?: FormData): Promise<void> {
+  await requireNotImpersonating();
   const nextPath = nextFromForm(formData);
   const auth = await requireSession();
   if (!auth.ok) {
@@ -234,12 +270,10 @@ export async function chooseClientRole(formData?: FormData): Promise<void> {
     await backfillCartFromClaimedInquiries({ admin: claimAdmin, clientUserId: user.id });
   }
   const jar = await cookies();
-  jar.set(ACCESS_PROFILE_REFRESH_COOKIE, ACCESS_PROFILE_REFRESH_VALUE, {
-    path: "/",
-    maxAge: 60,
-    httpOnly: true,
-    sameSite: "lax",
-  });
+  {
+    const refresh = buildAccessProfileRefreshCookie((await headers()).get("host"));
+    jar.set(refresh.name, refresh.value, refresh.options);
+  }
   // Welcome the new client. The copy and template have existed since the
   // notification engine shipped, but nothing ever dispatched them — no catalog
   // entry referenced "client.welcome", so no client has ever been welcomed.
@@ -286,10 +320,48 @@ export async function chooseClientRole(formData?: FormData): Promise<void> {
   redirect(workspaceDestination ?? "/client");
 }
 
+/**
+ * Seed `preferred_locale` and (for Mexico) `default_currency` from the signup
+ * context, so a Mexican talent's dashboard opens in Spanish with MXN offerings
+ * instead of English/USD. Only fills a NULL locale (never overwrites a choice);
+ * best-effort, never blocks onboarding. The dashboard's locale-seed machinery
+ * then carries `preferred_locale` into the (auto-written) locale cookie.
+ */
+async function seedTalentSignupDefaults(talentProfileId: string, phone: string): Promise<void> {
+  try {
+    const admin = createServiceRoleClient();
+    if (!admin) return;
+    let acceptLanguage: string | null = null;
+    try {
+      acceptLanguage = (await headers()).get("accept-language");
+    } catch {
+      acceptLanguage = null;
+    }
+    const locale = deriveTalentLocale({ phone, acceptLanguage });
+    const currency = deriveTalentCurrency(phone);
+    const { error: localeErr } = await admin
+      .from("talent_profiles")
+      .update({ preferred_locale: locale })
+      .eq("id", talentProfileId)
+      .is("preferred_locale", null);
+    if (localeErr) logServerError("onboarding/seed-preferred-locale", localeErr);
+    if (currency) {
+      const { error: curErr } = await admin
+        .from("talent_profiles")
+        .update({ default_currency: currency })
+        .eq("id", talentProfileId);
+      if (curErr) logServerError("onboarding/seed-default-currency", curErr);
+    }
+  } catch (err) {
+    logServerError("onboarding/seed-signup-defaults", err);
+  }
+}
+
 export async function completeTalentLocationOnboarding(
   _prev: OnboardingActionState,
   formData: FormData,
 ): Promise<OnboardingActionState> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) {
     return {
@@ -348,8 +420,17 @@ export async function completeTalentLocationOnboarding(
   if (tp?.id) {
     await seedContactEmailFromSignup(supabase, tp.id, user.email);
     await scheduleRebuildAiSearchDocument(supabase, tp.id);
+    await seedTalentSignupDefaults(tp.id, phone);
   }
 
+  // The middleware caches the access profile; without this nudge the redirect
+  // below hits /talent with the pre-onboarding profile (no role), which sends
+  // the browser straight back to a blank /onboarding/role. Same nudge as
+  // chooseClientRole.
+  {
+    const refresh = buildAccessProfileRefreshCookie((await headers()).get("host"));
+    (await cookies()).set(refresh.name, refresh.value, refresh.options);
+  }
   revalidatePath("/", "layout");
   const rosterResult = tp?.id
     ? await ensureTalentRosterForNext(user.id, tp.id, nextPath)
@@ -413,6 +494,7 @@ export async function completeTalentProfileInPlace(
   _prev: TalentProfileInPlaceState,
   formData: FormData,
 ): Promise<TalentProfileInPlaceState> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) {
     return {
@@ -472,6 +554,7 @@ export async function completeTalentProfileInPlace(
   if (tp?.id) {
     await seedContactEmailFromSignup(supabase, tp.id, user.email);
     await scheduleRebuildAiSearchDocument(supabase, tp.id);
+    await seedTalentSignupDefaults(tp.id, phone);
   }
 
   revalidatePath("/", "layout");
@@ -504,12 +587,12 @@ export async function completeTalentProfileInPlace(
       // ensureTalentRosterForNext for why, and why failure is not fatal).
       const admin = createServiceRoleClient();
       if (admin) {
-        const hub = await ensurePlatformHubRoster(admin, {
+        const hub = await ensureHubRosterRow(admin, {
           talentProfileId: tp.id,
-          userId: user.id,
+          addedBy: user.id,
           originDomain: await currentOriginDomain(),
         });
-        if (!hub.ok) logServerError("onboarding.platformHubRoster", new Error(hub.error));
+        if (!hub.ok) logServerError("onboarding.platformHubRoster", new Error(hub.reason));
       }
       if (parsed?.destination) dashboardUrl = `${getAppUrl()}${parsed.destination}`;
     }
@@ -558,6 +641,8 @@ export type RequestTenantRegistrationState =
 export async function requestTenantRegistration(
   tenantSlug: string,
 ): Promise<RequestTenantRegistrationState> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) {
     return { ok: false, error: "Please sign in to apply." };

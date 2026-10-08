@@ -1,4 +1,5 @@
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 
 /**
  * Platform-level JSON-LD for the Tulala marketing surface.
@@ -50,7 +51,7 @@ export function PlatformJsonLd() {
         contactPoint: {
           "@type": "ContactPoint",
           contactType: "customer support",
-          email: `hello@${PLATFORM_BRAND.domain}`,
+          email: SUPPORT_EMAIL,
           availableLanguage: ["en", "es"],
         },
         // Where the product is actually sold and supported today: Mexico, plus

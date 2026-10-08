@@ -21,24 +21,45 @@ import {
   resolveInstantBookActor,
 } from "@/lib/scheduling/instant-book-guest";
 import { placeInstantPurchase } from "@/lib/scheduling/instant-purchase";
+import { getPublicHostContext } from "@/lib/saas/scope";
+import { isDirectTalentChannel } from "@/lib/talent/accepting-readiness";
 import { runResolvedInstantBook } from "@/lib/scheduling/instant-book-run";
 import { resolveGuestSessionId } from "@/lib/guest/guest-session";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { loadTalentPreferredLocale } from "@/lib/site-admin/server/talent-locale";
+import { normalizeBookingLocale, resolveBookingLocale } from "@/lib/scheduling/booking-locale";
+import { unwindFailedCheckout } from "@/lib/orders/unwind-failed-checkout";
+import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
 
 export type {
   InstantBookActionResult,
   InstantBookFormPayload,
 } from "./instant-book-types";
 import type { InstantBookActionResult, InstantBookFormPayload } from "./instant-book-types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export async function createInstantBookingAction(
   payload: InstantBookFormPayload,
 ): Promise<InstantBookActionResult> {
+  await requireNotImpersonating();
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, error: "Service unavailable. Please try again." };
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
+    // TUL-93: the language the guest was browsing in (the sheet's own locale),
+    // then the talent's preferred locale, then the platform default. Stamped on
+    // the inquiry so the confirmation email renders in it.
+    const requestLocale = await getRequestLocale();
+    const bookingLocale = resolveBookingLocale({
+      browsing: payload.locale,
+      talentPreferred: normalizeBookingLocale(payload.locale)
+        ? null
+        : await loadTalentPreferredLocale(payload.talentProfileId),
+      platformDefault: requestLocale,
+    });
 
     const requireAccount = await loadOfferingRequireAccount(payload.offeringId);
     const actor = await resolveInstantBookActor({
@@ -72,7 +93,16 @@ export async function createInstantBookingAction(
           return { ok: false, reason: "no_fixed_rate" as const, error: "No offering to book." };
         }
 
+        // WSF-C §7: the talent's pause applies on their own site and Tulala
+        // profile; an agency storefront owns its own routing.
+        const host = await getPublicHostContext();
+        const agencyRouted = !isDirectTalentChannel({
+          hostKind: host.kind,
+          hostTenantId: host.tenantId,
+          tenantId: engineInput.tenantId,
+        });
         const booked = await placeInstantPurchase(convertClient, {
+          agencyRouted,
           tenantId: engineInput.tenantId,
           offeringId,
           talentProfileId: engineInput.talentProfileId,
@@ -97,6 +127,8 @@ export async function createInstantBookingAction(
           // Instant bookings are worked in Messages exactly as before.
           openThread: true,
           guestSessionId: await resolveGuestSessionId(),
+          brief: payload.brief ?? null,
+          locale: bookingLocale,
         });
 
         if (!booked.ok) {
@@ -104,6 +136,13 @@ export async function createInstantBookingAction(
           // refusals are customer-facing states; everything else is ours.
           const customerFacing =
             booked.reason === "slot_taken"
+            || booked.reason === "too_soon"
+            || booked.reason === "inquiry_only"
+            || booked.reason === "request_only"
+            || booked.reason === "not_accepting_bookings"
+            || booked.reason === "bad_duration"
+            || booked.reason === "beyond_horizon"
+            || booked.reason === "outside_hours"
             || booked.reason === "sold_out"
             || booked.reason === "account_required"
             || booked.reason === "pay_in_person_not_allowed"
@@ -116,7 +155,18 @@ export async function createInstantBookingAction(
           }
           return {
             ok: false as const,
-            reason: booked.reason === "slot_taken" ? ("slot_taken" as const) : ("engine_error" as const),
+            reason:
+              booked.reason === "slot_taken"
+                ? ("slot_taken" as const)
+                : booked.reason === "too_soon"
+                    || booked.reason === "inquiry_only"
+                    || booked.reason === "request_only"
+                    || booked.reason === "not_accepting_bookings"
+                    || booked.reason === "bad_duration"
+                    || booked.reason === "beyond_horizon"
+                    || booked.reason === "outside_hours"
+                  ? booked.reason
+                  : ("engine_error" as const),
             error: booked.error,
           };
         }
@@ -138,16 +188,34 @@ export async function createInstantBookingAction(
             payerEmail: engineInput.contactEmail,
             inquiryId: booked.inquiryId ?? null,
             bookingId: booked.bookingId,
-            successUrl: `${origin}/checkout/success`,
+            // Stripe fills the session id; /checkout/success reads the
+            // transaction it paid and only says paid once it is settled.
+            successUrl: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
             cancelUrl: `${origin}/checkout/cancel`,
             description: "Booking deposit",
-            locale: await getRequestLocale(),
+            locale: bookingLocale,
           });
           if (!session.ok) {
             logServerError(
               "instantBookAction.checkout",
               new Error(session.error ?? "checkout session failed"),
             );
+            // F5: a DEFINITE failure (Stripe refused, nothing created) means
+            // nobody can pay this order: free the slot and cancel the draft
+            // now, keeping the rows as the audit trail. An UNCERTAIN failure
+            // (timeout, 5xx) may have created a session, so the hold stays
+            // until its TTL and a retry reuses the same order (clientOrderKey)
+            // and the same session (idempotency key `cs_txn_<id>`).
+            const admin = session.uncertain ? null : createServiceRoleClient();
+            if (admin) {
+              await unwindFailedCheckout(admin, {
+                orderId: booked.orderId,
+                transactionId: booked.transactionId,
+                allocationIds: booked.allocationIds,
+                reservationHoldId: booked.reservationHoldId,
+                why: "checkout_session_refused",
+              });
+            }
             return {
               ok: false as const,
               reason: "engine_error" as const,
@@ -155,6 +223,17 @@ export async function createInstantBookingAction(
             };
           }
           checkoutUrl = session.url;
+        } else if (booked.bookingId && booked.inquiryId) {
+          // TUL-93: nothing to collect online (free / pay in person), so
+          // `markPaid` never runs and its `booking.confirmed` never fires.
+          // Emit it here so the guest gets the confirmation email and the
+          // talent gets the new-booking notification. Paid bookings keep
+          // firing from `markPaid` (same stable eventId, so no duplicate).
+          notifyBookingConfirmed({
+            tenantId: engineInput.tenantId,
+            inquiryId: booked.inquiryId,
+            bookingId: booked.bookingId,
+          });
         }
         return {
           ok: true,

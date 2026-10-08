@@ -73,7 +73,7 @@ export default function HostUnregisteredPage() {
             marginBottom: 0,
           }}
         >
-          If you&apos;re looking for a talent agency, it may have moved. Try
+          If you&apos;re looking for a talent or business page, it may have moved. Try
           searching on{" "}
           <a
             href="https://tulala.digital"

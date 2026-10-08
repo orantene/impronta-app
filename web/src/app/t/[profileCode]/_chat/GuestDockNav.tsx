@@ -84,7 +84,9 @@ export function GuestDockNav({
         margin: "0 16px 8px",
         padding: 4,
         borderRadius: 999,
-        background: C.surfaceFaint,
+        // Front-door brief `.modes`: white track + hairline, not a grey fill.
+        background: C.surface,
+        border: `1px solid ${C.border}`,
         flexShrink: 0,
       }}
     >
@@ -117,14 +119,17 @@ export function GuestDockNav({
               alignItems: "center",
               justifyContent: "center",
               gap: 6,
-              padding: "8px 10px",
+              padding: "7px 10px",
               border: "none",
               borderRadius: 999,
-              background: isActive ? "#fff" : "transparent",
+              // DoR active = transparent fill + inset accent outline (not white pill).
+              background: "transparent",
+              boxShadow: isActive ? `inset 0 0 0 1.5px ${accent}` : "none",
               color: isActive ? accent : C.inkMuted,
               cursor: isActive && !(active === "home" && view === "chat") ? "default" : "pointer",
               fontFamily: FONT,
-              transition: "color 120ms",
+              fontWeight: isActive ? 600 : 500,
+              transition: "color 120ms, box-shadow 120ms",
             }}
           >
             <span style={{ position: "relative", display: "inline-flex" }}>

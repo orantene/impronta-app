@@ -32,6 +32,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { logServerError } from "@/lib/server/safe-error";
 import { type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import { resolveWorkspacePriceId } from "@/lib/stripe/price-catalog";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
@@ -63,6 +64,8 @@ export async function startWorkspaceUpgrade(
    */
   door?: { id: string; returnPath?: string | null } | null,
 ): Promise<BillingActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   if (!isStripeConfigured()) {
     return { ok: false, error: "Billing is not available yet. Contact support to upgrade." };
   }
@@ -156,6 +159,8 @@ export async function startWorkspaceUpgrade(
 export async function openSubscriptionPortal(
   tenantSlug: string,
 ): Promise<BillingActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   if (!isStripeConfigured()) {
     return { ok: false, error: "Billing portal is not available." };
   }

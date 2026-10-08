@@ -6,6 +6,7 @@
  * pending_design for Undo. Live sites write ONLY `pending_design` (colors_only).
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -25,7 +26,14 @@ import { provisionTalentMaxSite } from "./provision-max-site";
 import { gate } from "./site-action-gate";
 import type { ThemeActionResult } from "./theme-action-types";
 import { applyDesign, applyLook, coerceTokenMap } from "./theme-apply-core";
+import { loadApplyDesignRow } from "@/lib/talent-site/theme-releases/release-design.server";
 import { loadMaisonCatalogRow } from "./maison-catalog-row";
+import { isCollectionDesignSlug } from "@/lib/talent-site/theme-catalog/collection/designs";
+import {
+  designTypographyTokens,
+  galleryPaletteLookTokens,
+  getGalleryDesign,
+} from "@/lib/talent-site/theme-catalog/gallery-meta";
 import {
   captureMaisonDraftSnapshot,
   isMaisonPendingUndo,
@@ -57,19 +65,47 @@ export type MaisonApplyResult = {
 
 export async function applyMaisonDesignAction(input: {
   paletteKey: string;
+  /** Collection design to apply; defaults to Maison. Only Maison + collection slugs. */
+  designSlug?: string;
   contentMode?: string;
   customPalette?: MaisonCustomPaletteStored | null;
+  /**
+   * P4: gallery-meta palette key for a non-Maison design. Applied through
+   * the custom-colors path (same token writer) with the palette's own name.
+   */
+  galleryPaletteKey?: string | null;
 }): Promise<ThemeActionResult<MaisonApplyResult>> {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
 
   const contentMode: MaisonPreviewContentMode =
     input?.contentMode === "mine" ? "mine" : "demo";
+  const requestedSlug = (input?.designSlug ?? DESIGN_SLUG).trim().toLowerCase();
+  if (requestedSlug !== DESIGN_SLUG && !isCollectionDesignSlug(requestedSlug)) {
+    return { ok: false, code: "invalid_input", error: "Unknown design." };
+  }
+  const designSlug = requestedSlug;
 
-  const customParsed = input?.customPalette
+  const galleryPalette =
+    designSlug !== DESIGN_SLUG && input?.galleryPaletteKey && !input?.customPalette
+      ? getGalleryDesign(designSlug)?.palettes.find((p) => p.key === input.galleryPaletteKey) ?? null
+      : null;
+  const customParsed = galleryPalette
+    ? buildMaisonCustomPalette(
+        {
+          page: galleryPalette.page,
+          text: galleryPalette.text,
+          accent: galleryPalette.accent,
+          section: galleryPalette.section,
+        },
+        galleryPalette.name,
+      )
+    : input?.customPalette
     ? parseMaisonCustomPaletteStored(input.customPalette) ??
       (isCompleteCustomFields(input.customPalette.fields)
         ? buildMaisonCustomPalette(
@@ -121,15 +157,21 @@ export async function applyMaisonDesignAction(input: {
     const demoPayload = MAISON_BUILTIN_DEMO.buildPayload();
     const pending: MaisonLivePending = {
       kind: "live_pending",
-      source: "colors_only",
+      source:
+        designSlug !== ((liveSite.theme_design_slug as string | null) ?? DESIGN_SLUG)
+          ? "live_change"
+          : "colors_only",
       created_at: new Date().toISOString(),
       proposed: {
-        designSlug: DESIGN_SLUG,
+        designSlug,
         lookSlug: useCustom ? null : lookSlug,
         paletteKey: useCustom ? null : paletteKey,
         contentMode,
         demoSlug: MAISON_BUILTIN_DEMO.slug,
         customPalette: useCustom ? customParsed : null,
+        // Carry the gallery Look key so Publish materializes fonts + tint
+        // the same way the never-published draft path does.
+        galleryPaletteKey: galleryPalette?.key ?? null,
         menuStyle: demoPayload.menu_style ?? "tabs",
       },
       liveBaseline: {
@@ -160,18 +202,18 @@ export async function applyMaisonDesignAction(input: {
     return {
       ok: true,
       data: {
-        designSlug: DESIGN_SLUG,
+        designSlug,
         lookSlug: useCustom ? null : lookSlug,
         paletteKey: useCustom ? null : paletteKey,
         contentMode,
         customPalette: useCustom ? customParsed : null,
         livePending: true,
-        colorsOnly: true,
+        colorsOnly: designSlug === ((liveSite.theme_design_slug as string | null) ?? DESIGN_SLUG),
       },
     };
   }
 
-  const design = await loadMaisonCatalogRow(admin, "design", DESIGN_SLUG);
+  const design = await loadApplyDesignRow(admin, designSlug);
   if (!design) {
     return { ok: false, code: "theme_not_found", error: "Maison design not found." };
   }
@@ -207,7 +249,13 @@ export async function applyMaisonDesignAction(input: {
       coerceTokenMap(
         (draftRow as { design_tokens_draft?: unknown } | null)?.design_tokens_draft,
       ),
-      maisonCustomLookTokens(customParsed),
+      {
+        ...maisonCustomLookTokens(customParsed),
+        // A gallery palette carries its full Look (muted, on-accent, fonts);
+        // custom colours on a collection design keep that design's fonts.
+        ...(galleryPalette ? galleryPaletteLookTokens(designSlug, galleryPalette.key) ?? {} : {}),
+        ...designTypographyTokens(designSlug),
+      },
     );
     const nowTokens = new Date().toISOString();
     const { error: customErr } = await admin
@@ -248,7 +296,7 @@ export async function applyMaisonDesignAction(input: {
     source: "apply",
     created_at: new Date().toISOString(),
     applied: {
-      designSlug: DESIGN_SLUG,
+      designSlug,
       lookSlug: useCustom ? null : lookSlug,
       paletteKey: useCustom ? null : paletteKey,
       contentMode,
@@ -277,7 +325,7 @@ export async function applyMaisonDesignAction(input: {
   return {
     ok: true,
     data: {
-      designSlug: DESIGN_SLUG,
+      designSlug,
       lookSlug: useCustom ? null : lookSlug,
       paletteKey: useCustom ? null : paletteKey,
       contentMode,
@@ -289,11 +337,13 @@ export async function applyMaisonDesignAction(input: {
 export async function undoMaisonDesignAction(): Promise<
   ThemeActionResult<{ restored: true }>
 > {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
 
@@ -355,11 +405,11 @@ export async function undoMaisonDesignAction(): Promise<
 export async function loadMaisonApplyUndoStateAction(): Promise<
   ThemeActionResult<{ canUndo: boolean; appliedAt: string | null }>
 > {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
   const { data, error } = await admin

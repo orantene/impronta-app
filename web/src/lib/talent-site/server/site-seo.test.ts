@@ -38,8 +38,6 @@ function seoForSitePage(canonical: string): MaxSiteSeo {
   const jsonLd = buildTalentProfileJsonLd({
     canonicalUrl: canonical, // SITE canonical, NOT the profile
     name: "Sofía Vega",
-    givenName: "Sofía",
-    familyName: "Vega",
     description: "Editorial photographer.",
     imageUrl: "https://cdn.tulala.digital/logo.png",
     inLanguage: "en",
@@ -195,4 +193,11 @@ test("no route hand-rolls a bespoke JSON-LD or locale-alternates fn", () => {
       `${route.label} must NOT inline a JSON-LD document`,
     );
   }
+});
+
+test("DS-18: faviconUrl on the envelope becomes the tab icon; absent keeps the platform icon", () => {
+  const base: MaxSiteSeo = { title: "Jorg Beauty", noindex: false };
+  const withIcon = maxSiteSeoToMetadata({ ...base, faviconUrl: "https://cdn.tulala.digital/logo.png" });
+  assert.deepEqual(withIcon.icons, { icon: [{ url: "https://cdn.tulala.digital/logo.png" }] });
+  assert.equal(maxSiteSeoToMetadata(base).icons, undefined);
 });

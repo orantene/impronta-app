@@ -194,7 +194,7 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
     connection: "manual",
     inheritable: true,
     description:
-      "Track visits to your public site with Google Analytics 4. Paste your GA4 Measurement ID and the gtag.js snippet is injected on your storefront (consent-gated).",
+      "Track visits to your public site with Google Analytics 4. Paste your GA4 Measurement ID and the gtag.js snippet is injected on your storefront, and only as far as the visitor's cookie choice allows.",
     descriptionKey: `${NS}.ga4.description`,
     instructions: [
       "Open Google Analytics → Admin (gear, bottom-left).",
@@ -228,7 +228,7 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
     connection: "manual",
     inheritable: false,
     description:
-      "Measure conversions and build audiences for Facebook / Instagram ads. Paste your Meta (Facebook) Pixel ID and the base pixel code is injected on your storefront (consent-gated).",
+      "Measure conversions and build audiences for Facebook / Instagram ads. Paste your Meta (Facebook) Pixel ID and the base pixel code is injected on your storefront, and only after the visitor accepts cookies.",
     descriptionKey: `${NS}.meta_pixel.description`,
     instructions: [
       "Open Meta Events Manager (business.facebook.com/events_manager).",
@@ -262,7 +262,7 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
     connection: "manual",
     inheritable: false,
     description:
-      "Track conversions from TikTok ads. Paste your TikTok Pixel ID and the pixel base code is injected on your storefront (consent-gated).",
+      "Track conversions from TikTok ads. Paste your TikTok Pixel ID and the pixel base code is injected on your storefront, and only after the visitor accepts cookies.",
     descriptionKey: `${NS}.tiktok_pixel.description`,
     instructions: [
       "Open TikTok Ads Manager → Assets → Events.",
@@ -296,7 +296,7 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
     connection: "manual",
     inheritable: false,
     description:
-      "Measure LinkedIn ad conversions and retarget visitors. Paste your LinkedIn Partner ID and the Insight Tag is injected on your storefront (consent-gated).",
+      "Measure LinkedIn ad conversions and retarget visitors. Paste your LinkedIn Partner ID and the Insight Tag is injected on your storefront, and only after the visitor accepts cookies.",
     descriptionKey: `${NS}.linkedin_insight.description`,
     instructions: [
       "Open LinkedIn Campaign Manager → Analyze → Insight Tag.",
@@ -330,7 +330,7 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
     connection: "manual",
     inheritable: false,
     description:
-      "Manage all your marketing tags from one container without editing the site. Paste your GTM Container ID and the container snippet is injected on your storefront (consent-gated).",
+      "Manage all your marketing tags from one container without editing the site. Paste your GTM Container ID and the container snippet is injected on your storefront, and only as far as the visitor's cookie choice allows.",
     descriptionKey: `${NS}.gtm.description`,
     instructions: [
       "Open Google Tag Manager (tagmanager.google.com).",

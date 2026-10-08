@@ -20,7 +20,7 @@ export type ArrivalStamp = {
   };
 } | null;
 
-export type ArrivalVariant = "talent" | "business" | "both" | "fallback" | "existing_workspace";
+export type ArrivalVariant = "talent" | "business" | "both" | "fallback" | "existing_workspace" | "draft_saved";
 
 export type ArrivalPayload = {
   variant: ArrivalVariant;
@@ -30,8 +30,27 @@ export type ArrivalPayload = {
   businessName: string | null;
   link: { display: string; href: string } | null;
   fact: { services: number; city: string | null; logo: boolean; hours: boolean; whatsapp: boolean; menuItems: number; photos: boolean };
-  primary: { label: "finish_my_page" | "open_my_website" | "open_my_workspace"; href: string };
+  primary: { label: "finish_my_page" | "open_my_site" | "open_my_website" | "open_my_workspace"; href: string };
   quiet: "signed_in_as" | "own_page_drafted" | null;
+  /** Talent path: the free site is published and `link` is its live address (TUL-32). */
+  siteLive?: boolean;
+  /** Talent path: where "Finish my page" goes (the Today deep link). */
+  finishHref?: string;
+  /** 1D: the page was fetched server-side and showed the person's own name. Absent = not checked. */
+  verified?: boolean;
+  /** 1D: "Personalizar en el editor" and "Ir a mi panel" targets. */
+  editorHref?: string;
+  panelHref?: string;
+  /** 1D: the address shown differs from the one promised at "Ready to build". */
+  urlDiffers?: boolean;
+  /** 1D: the first service the person listed (shown with a Book preview). */
+  firstService?: string | null;
+  /** TUL-16: studio with no provider yet. The page takes requests, not bookings. */
+  inquiryOnly?: boolean;
+  /** TUL-16: where "add your first team member" goes (admin roster, new). */
+  addMemberHref?: string;
+  /** TUL-16: where "also take bookings yourself" goes (workspace settings, 1E). */
+  alsoBookHref?: string;
 };
 
 export function parseArrivalStamp(raw: unknown): ArrivalStamp {
@@ -44,7 +63,7 @@ export function parseArrivalStamp(raw: unknown): ArrivalStamp {
   return { outcome, copySource, placed };
 }
 
-export function arrivalFromStamp(input: {
+type ArrivalInput = {
   path: OnboardingPath;
   stamp: ArrivalStamp;
   reusedExisting?: boolean;
@@ -54,8 +73,32 @@ export function arrivalFromStamp(input: {
   /** Public site URL (no params) and the builder deep link, when a tenant exists. */
   site: { publicUrl: string; editorUrl: string; adminPath: string } | null;
   /** Talent page URL and the Today deep link, when a profile exists. */
-  talent: { publicUrl: string | null; todayUrl: string } | null;
-}): ArrivalPayload {
+  talent: { publicUrl: string | null; todayUrl: string; /** Published own-site URL (TUL-32), when live. */ siteUrl?: string | null } | null;
+  /** 1D: server-side check of the finish URL. Omitted = unchecked (legacy callers). */
+  liveCheck?: { ok: boolean } | null;
+  urlDiffers?: boolean;
+  firstService?: string | null;
+};
+
+/**
+ * "Ready" only when the real page was checked: a failed check turns the
+ * arrival into the honest draft state (`draft_saved`), never a false ready.
+ */
+export function arrivalFromStamp(input: ArrivalInput): ArrivalPayload {
+  const base = baseArrival(input);
+  const editorHref = input.site?.editorUrl ?? input.talent?.todayUrl;
+  const panelHref = input.path === "talent" ? input.talent?.todayUrl : (input.site?.adminPath ?? input.talent?.todayUrl);
+  const common = { editorHref, panelHref, firstService: input.firstService ?? null, urlDiffers: input.urlDiffers === true ? true : undefined };
+  if (input.liveCheck && !input.liveCheck.ok) {
+    return { ...base, ...common, variant: "draft_saved", siteLive: false, verified: false, fallbackReason: "failed" };
+  }
+  const studio = input.path === "business" && !input.reusedExisting && !!input.site && (base.variant === "business" || base.variant === "fallback");
+  const admin = input.site?.adminPath.replace(/\/+$/, "");
+  const inquiry = studio && admin ? { inquiryOnly: true, addMemberHref: `${admin}/roster/new`, alsoBookHref: `${admin}/settings` } : {};
+  return { ...base, ...common, ...inquiry, ...(input.liveCheck?.ok ? { verified: true } : {}) };
+}
+
+function baseArrival(input: ArrivalInput): ArrivalPayload {
   const placed = input.stamp?.placed ?? {};
   const fact = {
     services: input.services,
@@ -68,6 +111,21 @@ export function arrivalFromStamp(input: {
     // universal are the shared fallback and must not be claimed.
     photos: placed.photos?.hero === "type" || placed.photos?.hero === "owner",
   };
+
+  if (input.path === "talent" && input.talent?.siteUrl) {
+    const live = input.talent.siteUrl;
+    return {
+      variant: "talent",
+      headlineName: input.person.name,
+      businessName: null,
+      link: { display: live.replace(/^https?:\/\//, ""), href: live },
+      fact,
+      primary: { label: "open_my_site", href: live },
+      quiet: "signed_in_as",
+      siteLive: true,
+      finishHref: input.talent.todayUrl,
+    };
+  }
 
   if (input.path === "talent") {
     return {

@@ -15,6 +15,7 @@ import {
   waitlistDeclineOffer as declineWaitlistOfferHold,
   waitlistOfferPlace as placeWaitlistOfferHold,
 } from "@/lib/scheduling/waitlist-offers";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
@@ -29,6 +30,7 @@ async function staff() {
 }
 
 export async function posLockTill(input: { deviceKey: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ deviceKey: z.string().trim().min(8).max(80) }).safeParse(input);
@@ -43,6 +45,7 @@ export async function posLockTill(input: { deviceKey: string }) {
  * somebody else without their PIN is refused as `pin_invalid`.
  */
 export async function posUnlockTill(input: { deviceKey: string; pin: string; userId?: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({
@@ -60,6 +63,7 @@ export async function posUnlockTill(input: { deviceKey: string; pin: string; use
 }
 
 export async function posSwitchOperator(input: { deviceKey: string; pin: string; userId?: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({
@@ -91,6 +95,7 @@ export async function posLinkBooking(input: {
   bookingId: string;
   operationKey: string;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({
@@ -109,6 +114,7 @@ export async function posSetTip(input: {
   operationKey: string;
   expectedVersion: number;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({
@@ -126,6 +132,7 @@ export async function createPaymentLink(input: {
   amountCents: number;
   idempotencyKey: string;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({
@@ -137,7 +144,15 @@ export async function createPaymentLink(input: {
   const hdrs = await headers();
   const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";
   const proto = hdrs.get("x-forwarded-proto") === "http" ? "http" : "https";
-  const publicOrigin = host ? `${proto}://${host}` : "";
+  const requestedOrigin = host ? `${proto}://${host}` : "";
+  // Talents mint from app.tulala.digital; /pay is not allowed there (GAP-JOR-3).
+  const { resolveAgendaPayPublicOrigin } = await import("@/lib/talent-agenda/pay-public-origin");
+  const publicOrigin = await resolveAgendaPayPublicOrigin(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- service-role Supabase client
+    g.admin as any,
+    g.tenantId,
+    requestedOrigin,
+  );
   return mintPaymentLink(g.admin, {
     tenantId: g.tenantId,
     actorUserId: g.userId,
@@ -152,6 +167,7 @@ export async function posRecordShiftMovement(input: {
   reason: string;
   shiftId?: string;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({
@@ -173,6 +189,7 @@ export async function waitlistOfferPlace(input: {
   operationKey: string;
   ttlSeconds?: number;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({
@@ -185,6 +202,7 @@ export async function waitlistOfferPlace(input: {
 }
 
 export async function waitlistAcceptOffer(input: { offerId: string; operationKey: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({
@@ -196,6 +214,7 @@ export async function waitlistAcceptOffer(input: { offerId: string; operationKey
 }
 
 export async function waitlistDeclineOffer(input: { offerId: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ offerId: uuid }).safeParse(input);

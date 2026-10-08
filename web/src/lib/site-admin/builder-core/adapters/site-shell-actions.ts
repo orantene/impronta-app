@@ -46,6 +46,7 @@ import { tagFor } from "@/lib/site-admin/cache-tags";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { isLocale, type Locale } from "@/i18n/config";
 import type { SiteShellRow } from "./site-shell-adapter-core";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // STYLE-1 — base list omits the style columns so a pre-migration read still
 // resolves; the extended list adds them and falls back on a missing-column error.
@@ -203,6 +204,8 @@ export async function saveSiteShellRow(input: {
     style_presets?: unknown;
   };
 }): Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -280,6 +283,8 @@ export async function publishSiteShellRow(input: {
   | { ok: true; publishedAt: string; updatedAt: string }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -408,6 +413,8 @@ export async function restoreSiteShellRevisionAction(input: {
   pageId: string;
   revisionId: string;
 }): Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);

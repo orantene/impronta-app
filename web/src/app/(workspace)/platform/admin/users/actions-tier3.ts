@@ -16,6 +16,13 @@ import { getPlatformRole } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { logPlatformAdminAction } from "@/lib/platform/audit";
+import {
+  anonymizeUserData,
+  anonymizedEmailFor,
+  firstFailure,
+  loadAnonymizeSubject,
+} from "@/lib/account/anonymize";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -40,13 +47,19 @@ function namesMatch(typed: string, actual: string | null | undefined): boolean {
 /**
  * Permanently delete a platform user account.
  *
- * Wipes the `profiles` row (cascades to talent via FK) and then deletes the
- * `auth.users` row. Irreversible — typed-name confirmation required.
+ * Runs the shared anonymizer first (lib/account/anonymize.ts), then deletes
+ * the `auth.users` row, which cascades to `profiles`. The talent profile does
+ * NOT cascade (talent_profiles.user_id is ON DELETE SET NULL), so without the
+ * anonymize step a public profile with the person's name and photos would
+ * survive, unclaimed. Bookings and payment records are kept, anonymized.
+ * Irreversible — typed-name confirmation required.
  */
 export async function deletePlatformUserAccount(
   userId: string,
   confirmName: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -82,17 +95,20 @@ export async function deletePlatformUserAccount(
     after: undefined,
   });
 
-  const { error: profileDeleteError } = await admin
-    .from("profiles")
-    .delete()
-    .eq("id", userId);
-
-  if (profileDeleteError) {
-    logServerError("platform/deletePlatformUserAccount.profile", profileDeleteError);
-    return {
-      ok: false,
-      error: profileDeleteError.message ?? "Failed to delete profile.",
-    };
+  const loaded = await loadAnonymizeSubject(admin, userId);
+  if (!loaded.ok) {
+    logServerError("platform/deletePlatformUserAccount.subject", loaded.error);
+    return { ok: false, error: loaded.error };
+  }
+  const report = await anonymizeUserData(admin, loaded.subject, {
+    hideTalentProfiles: true,
+    removeRosterRows: true,
+    releaseCoordinatorSeats: true,
+  });
+  const failure = firstFailure(report);
+  if (failure) {
+    logServerError("platform/deletePlatformUserAccount.anonymize", failure);
+    return { ok: false, error: `Anonymization failed (${failure}). Nothing was deleted; safe to retry.` };
   }
 
   const { error: authDeleteError } = await admin.auth.admin.deleteUser(userId);
@@ -111,16 +127,20 @@ export async function deletePlatformUserAccount(
 /**
  * GDPR-anonymize a platform user in place.
  *
- * Scrubs PII (display_name + auth email + linked talent profile display_name)
- * but leaves the account functional. Typed-name confirmation required.
- *
- * Integrator decision: cascade to messages / inquiries with cached display
- * names is deferred — see TODO below.
+ * Scrubs PII through the shared anonymizer (lib/account/anonymize.ts): names,
+ * bio, phone, avatar, talent field values, client/guest contact data on
+ * inquiries and bookings, payer emails, files they uploaded into
+ * conversations. Message bodies are kept; their sender now reads
+ * "Deleted user". The talent profile is hidden and unlisted. The auth email
+ * changes LAST (it is how guest-contact rows are found). The sign-in itself
+ * is not deleted. Typed-name confirmation required.
  */
 export async function gdprAnonymizePlatformUser(
   userId: string,
   confirmName: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -146,8 +166,7 @@ export async function gdprAnonymizePlatformUser(
     return { ok: false, error: "Confirmation name does not match." };
   }
 
-  const anonSuffix = userId.replace(/-/g, "").slice(0, 8);
-  const anonEmail = `anon_${anonSuffix}@anonymized.tulala.digital`;
+  const anonEmail = anonymizedEmailFor(userId);
 
   // Audit FIRST so the before-state survives even if a downstream step fails.
   await logPlatformAdminAction({
@@ -159,50 +178,31 @@ export async function gdprAnonymizePlatformUser(
     after: { anonymized: true },
   });
 
-  const { error: profileUpdateError } = await admin
-    .from("profiles")
-    .update({ display_name: "Anonymized User" })
-    .eq("id", userId);
+  const loaded = await loadAnonymizeSubject(admin, userId);
+  if (!loaded.ok) {
+    logServerError("platform/gdprAnonymizePlatformUser.subject", loaded.error);
+    return { ok: false, error: loaded.error };
+  }
+  const report = await anonymizeUserData(admin, loaded.subject, { hideTalentProfiles: true });
+  const failure = firstFailure(report);
+  if (failure) {
+    logServerError("platform/gdprAnonymizePlatformUser.anonymize", failure);
+    return { ok: false, error: `Anonymization incomplete (${failure}). Safe to retry.` };
+  }
 
-  if (profileUpdateError) {
-    logServerError(
-      "platform/gdprAnonymizePlatformUser.profile",
-      profileUpdateError,
+  if (loaded.authUserExists) {
+    const { error: authUpdateError } = await admin.auth.admin.updateUserById(
+      userId,
+      { email: anonEmail, email_confirm: true },
     );
-    return {
-      ok: false,
-      error: profileUpdateError.message ?? "Failed to anonymize profile.",
-    };
+    if (authUpdateError) {
+      logServerError("platform/gdprAnonymizePlatformUser.auth", authUpdateError);
+      return {
+        ok: false,
+        error: authUpdateError.message ?? "Failed to anonymize auth user.",
+      };
+    }
   }
-
-  // Talent-profile scrub is best-effort — not every user has one.
-  const { error: talentUpdateError } = await admin
-    .from("talent_profiles")
-    .update({ display_name: "Anonymized User" })
-    .eq("user_id", userId);
-
-  if (talentUpdateError) {
-    logServerError(
-      "platform/gdprAnonymizePlatformUser.talent",
-      talentUpdateError,
-    );
-    // Continue — talent profile may not exist.
-  }
-
-  const { error: authUpdateError } = await admin.auth.admin.updateUserById(
-    userId,
-    { email: anonEmail, email_confirm: true },
-  );
-
-  if (authUpdateError) {
-    logServerError("platform/gdprAnonymizePlatformUser.auth", authUpdateError);
-    return {
-      ok: false,
-      error: authUpdateError.message ?? "Failed to anonymize auth user.",
-    };
-  }
-
-  // TODO: cascade anonymization to messages, inquiries where display_name is cached
 
   revalidatePath("/platform/admin/users");
   return { ok: true };
@@ -219,6 +219,8 @@ export async function unclaimTalentProfile(
   talentProfileId: string,
   confirmName: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 

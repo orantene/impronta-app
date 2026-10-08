@@ -10,6 +10,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { sanitizePlatformFieldSafety } from "./field-safety";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type PlatformActionContext = {
   ok: true;
@@ -161,6 +162,7 @@ function revalidateEngineSurfaces(fieldKey?: string | null): void {
 }
 
 export async function createPlatformFieldAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/catalog?error=${encodeURIComponent(auth.error)}`);
 
@@ -249,6 +251,7 @@ export async function createPlatformFieldAction(formData: FormData): Promise<voi
 }
 
 export async function updatePlatformFieldAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/catalog?error=${encodeURIComponent(auth.error)}`);
 
@@ -362,6 +365,7 @@ export async function updatePlatformFieldAction(formData: FormData): Promise<voi
 }
 
 export async function setPlatformFieldLifecycleAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/catalog?error=${encodeURIComponent(auth.error)}`);
 
@@ -419,6 +423,7 @@ export async function setPlatformFieldLifecycleAction(formData: FormData): Promi
 }
 
 export async function updatePlatformFieldRecommendationAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/catalog?error=${encodeURIComponent(auth.error)}`);
 
@@ -484,6 +489,7 @@ export async function updatePlatformFieldRecommendationAction(formData: FormData
 }
 
 export async function removePlatformFieldRecommendationAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/catalog?error=${encodeURIComponent(auth.error)}`);
 
@@ -522,6 +528,7 @@ export async function removePlatformFieldRecommendationAction(formData: FormData
 }
 
 export async function createPlatformFieldGroupAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/catalog?tab=groups&error=${encodeURIComponent(auth.error)}`);
 
@@ -571,6 +578,7 @@ export async function createPlatformFieldGroupAction(formData: FormData): Promis
 }
 
 export async function setPlatformFieldGroupLifecycleAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/catalog?tab=groups&error=${encodeURIComponent(auth.error)}`);
 
@@ -618,6 +626,7 @@ export async function setPlatformFieldGroupLifecycleAction(formData: FormData): 
 }
 
 export async function updatePlatformFieldGroupAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/catalog?tab=groups&error=${encodeURIComponent(auth.error)}`);
 
@@ -674,6 +683,7 @@ export async function updatePlatformFieldGroupAction(formData: FormData): Promis
 }
 
 export async function reorderPlatformFieldGroupsAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/catalog?tab=groups&error=${encodeURIComponent(auth.error)}`);
 
@@ -737,6 +747,7 @@ export async function reorderPlatformFieldGroupsAction(formData: FormData): Prom
 }
 
 export async function deletePlatformFieldAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/catalog?error=${encodeURIComponent(auth.error)}`);
 
@@ -802,6 +813,7 @@ export async function deletePlatformFieldAction(formData: FormData): Promise<voi
 }
 
 export async function deletePlatformFieldGroupAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/catalog?tab=groups&error=${encodeURIComponent(auth.error)}`);
 
@@ -848,6 +860,7 @@ export async function deletePlatformFieldGroupAction(formData: FormData): Promis
 }
 
 export async function reorderPlatformFieldsAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/catalog?error=${encodeURIComponent(auth.error)}`);
 

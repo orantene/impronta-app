@@ -5,12 +5,14 @@
  * slug may appear in `loadTalentThemeCatalog` (DB rows or built-ins fallback).
  * Slug convention (PR 1 seeds): `maison`, `maison-<palette>`, `maison-<demo>`.
  */
+import { isCollectionDesignSlug } from "../collection/designs";
+
 export const MAISON_DESIGN_SLUG = "maison";
 
 /** True for Maison Design, scoped Looks (`maison-pink`, …), and Demos (`maison-nails`). */
 export function isMaisonCatalogSlug(slug: string): boolean {
   const s = slug.trim().toLowerCase();
-  return s === MAISON_DESIGN_SLUG || s.startsWith("maison-");
+  return s === MAISON_DESIGN_SLUG || s.startsWith("maison-") || isCollectionDesignSlug(s);
 }
 
 /**

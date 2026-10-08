@@ -9,6 +9,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { assertTicketAccess } from "./support-access";
 import { supportEngine } from "./support-engine";
 import { supportFrom } from "./support-from";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const BUCKET = "support-attachments";
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -29,6 +30,7 @@ export async function mintSupportAttachmentUploadAction(raw: {
   contentType: string;
   byteSize: number;
 }): Promise<{ ok: true; attachmentId: string; signedUrl: string; path: string } | Fail> {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       ticketId: uuid,
@@ -85,6 +87,7 @@ export async function finalizeSupportAttachmentMessageAction(raw: {
   attachmentId: string;
   caption?: string;
 }): Promise<{ ok: true } | Fail> {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       ticketId: uuid,

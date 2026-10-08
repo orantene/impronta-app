@@ -42,7 +42,7 @@ neutral placeholder until Phase D wires real data.
      - On the QA audit talent (now on Impronta + Morena), confirm the **"Agency
        context"** combobox is NOT in the DOM.
      - Confirm the "View roster profile" link still resolves to
-       `/morena-studio/t/TAL-AUDIT-0512` on localhost / `/impronta` host
+       `/morena-studio/t/TAL-93941` on localhost / `/impronta` host
        respectively.
 
 6. **Commit (one commit):**

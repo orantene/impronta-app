@@ -29,6 +29,7 @@ import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
 import { getAppUrl } from "@/lib/auth-flow";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /** Postgres unique-violation SQLSTATE. */
 const PG_UNIQUE_VIOLATION = "23505";
@@ -135,6 +136,8 @@ export type CreateReviewRequestInput = {
 export async function createReviewRequestAction(
   input: CreateReviewRequestInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireTalent();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, user } = auth;
@@ -290,7 +293,9 @@ export async function reviewsEnabledForTenantAction(
 ): Promise<boolean> {
   const auth = await requireTalent();
   if (!auth.ok) return false;
+  // An unresolvable slug (a solo talent's own hub is not a public tenant) has
+  // no platform decision on it, so it gets the platform default like any
+  // missing entitlement row. Only an explicit stored false turns Reviews off.
   const tenantId = await resolveTenantId(auth.supabase, tenantSlug);
-  if (!tenantId) return false;
   return tenantReviewsEnabled(tenantId);
 }

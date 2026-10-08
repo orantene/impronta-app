@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
     }),
     description: pickLocale(locale, {
       en: "Run a branded roster site on your own domain, manage people in a modern CMS, and convert inquiries through a real pipeline, not a spreadsheet.",
-      es: "Opera un sitio de roster con tu marca en tu propio dominio, gestiona a tu gente en un CMS moderno y convierte consultas con un pipeline real, no con una hoja de cálculo.",
+      es: "Software para agencias de talento: sitio con tu marca en tu dominio, perfiles de tu gente y solicitudes en un pipeline real, no en una hoja de cálculo.",
     }),
     ...buildMarketingLocaleAlternates(locale, "/agencies"),
   };

@@ -4,6 +4,7 @@
  * Maison Import starter content actions (W44–W59). Behind TALENT_MAISON_THEME_ENABLED.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
@@ -20,11 +21,22 @@ import {
 } from "@/lib/talent-site/theme-catalog/maison/maison-starter-catalog";
 import {
   commitMaisonStarterImport,
+  commitStarterImportWithCatalog,
   listExistingServicesForImport,
   retryFailedMaisonImportItem,
   undoMaisonStarterImport,
   type MaisonImportCommitResult,
 } from "./maison-import-core";
+import { getGalleryDesign, type GalleryDemo } from "@/lib/talent-site/theme-catalog/gallery-meta";
+import { galleryImportCatalogFor } from "@/lib/talent-site/theme-catalog/gallery-import-catalog";
+
+function activeDemo(designSlug: string, demoKey: string | null): GalleryDemo | null {
+  const design = getGalleryDesign(designSlug);
+  if (!design) return null;
+  const requested = demoKey ? design.demos.find((d) => d.key === demoKey) ?? null : null;
+  if (requested && requested.status === "built") return requested;
+  return design.demos.find((d) => d.status === "built") ?? null;
+}
 
 export type MaisonImportPreview = {
   catalog: MaisonStarterCatalog;
@@ -35,11 +47,11 @@ export type MaisonImportPreview = {
 export async function loadMaisonImportPreviewAction(): Promise<
   ThemeActionResult<MaisonImportPreview>
 > {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
 
@@ -52,15 +64,47 @@ export async function loadMaisonImportPreviewAction(): Promise<
   return { ok: true, data: { catalog, existing, duplicates } };
 }
 
+export async function loadGalleryImportPreviewAction(input: {
+  designSlug: string;
+  demoKey: string | null;
+}): Promise<ThemeActionResult<MaisonImportPreview>> {
+  const g = await gate("personalSiteEdit");
+  if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
+
+  if (!getGalleryDesign(input.designSlug)) {
+    return { ok: false, code: "invalid_input", error: "Unknown design." };
+  }
+  const demo = activeDemo(input.designSlug, input.demoKey);
+  const catalog = galleryImportCatalogFor(input.designSlug, demo);
+  if (!catalog) {
+    return { ok: false, code: "invalid_input", error: "No importable content for this demo." };
+  }
+  const existing = await listExistingServicesForImport(admin, g.talentProfileId);
+  const duplicates: Record<string, ExistingServiceMatch | null> = {};
+  for (const svc of catalog.services) {
+    duplicates[svc.key] = findServiceDuplicate(svc, existing);
+  }
+  return { ok: true, data: { catalog, existing, duplicates } };
+}
+
 export async function commitMaisonImportAction(input: {
   selection: ImportSelectionState;
   resolutions: Record<string, DuplicateResolution>;
+  designSlug?: string;
+  demoKey?: string | null;
 }): Promise<ThemeActionResult<MaisonImportCommitResult>> {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
 
@@ -77,17 +121,35 @@ export async function commitMaisonImportAction(input: {
     return { ok: false, code: "invalid_input", error: "Select something to import." };
   }
 
-  const res = await commitMaisonStarterImport(admin, {
+  const selection = {
+    serviceKeys: sel.serviceKeys.filter((k) => typeof k === "string"),
+    faqKeys: sel.faqKeys.filter((k) => typeof k === "string"),
+    sectionKeys: sel.sectionKeys.filter((k) => typeof k === "string"),
+  };
+  const base = {
     talentProfileId: g.talentProfileId,
     userId: g.userId,
     tenantId: null,
-    selection: {
-      serviceKeys: sel.serviceKeys.filter((k) => typeof k === "string"),
-      faqKeys: sel.faqKeys.filter((k) => typeof k === "string"),
-      sectionKeys: sel.sectionKeys.filter((k) => typeof k === "string"),
-    },
+    selection,
     resolutions: input.resolutions ?? {},
-  });
+  };
+
+  // Wave 3: when a design/demo is named, commit that catalog; else Maison seed.
+  if (input.designSlug) {
+    if (!getGalleryDesign(input.designSlug)) {
+      return { ok: false, code: "invalid_input", error: "Unknown design." };
+    }
+    const demo = activeDemo(input.designSlug, input.demoKey ?? null);
+    const catalog = galleryImportCatalogFor(input.designSlug, demo);
+    if (!catalog) {
+      return { ok: false, code: "invalid_input", error: "No importable content for this demo." };
+    }
+    const res = await commitStarterImportWithCatalog(admin, base, catalog);
+    if (!res.ok) return { ok: false, code: "server_error", error: res.error };
+    return { ok: true, data: res.data };
+  }
+
+  const res = await commitMaisonStarterImport(admin, base);
   if (!res.ok) return { ok: false, code: "server_error", error: res.error };
   return { ok: true, data: res.data };
 }
@@ -96,11 +158,13 @@ export async function undoMaisonImportAction(input: {
   batchId: string;
   removeEdited?: boolean;
 }): Promise<ThemeActionResult<{ removed: number }>> {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
   if (typeof input?.batchId !== "string" || !input.batchId) {
@@ -119,11 +183,13 @@ export async function retryMaisonImportItemAction(input: {
   batchId: string;
   starterKey: string;
 }): Promise<ThemeActionResult<{ offeringId: string }>> {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
   const res = await retryFailedMaisonImportItem(admin, {
@@ -140,11 +206,11 @@ export async function retryMaisonImportItemAction(input: {
 export async function loadLatestMaisonImportBatchAction(): Promise<
   ThemeActionResult<{ batchId: string; status: string } | null>
 > {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const sb = await getCachedServerSupabase();
   if (!sb) return { ok: false, code: "server_error", error: "Not configured." };
   const { data, error } = await sb

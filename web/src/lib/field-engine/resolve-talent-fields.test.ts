@@ -1181,3 +1181,51 @@ test("resolver: viewerRole is a pass-through (same field set for every role)", a
     "is_sensitive field must appear in resolver output for all roles",
   );
 });
+
+test("resolver: type-specific field in a group her parent category does not enable stays out (unless required)", async () => {
+  const rec = (id: string, relationship: string) => ({
+    field_definition_id: id,
+    taxonomy_term_id: "cat-beauty",
+    relationship,
+    display_order: 10,
+    required_at_registration: false,
+    required_before_publish: false,
+    required_before_verification: false,
+    is_admin_only: false,
+    requires_verification: false,
+  });
+  const sb = buildMockSupabase({
+    agency_talent_roster: [rosterActive()],
+    talent_profile_field_values: [],
+    talent_profile_taxonomy: [
+      { talent_profile_id: TALENT, taxonomy_term_id: "term-nail", relationship_type: "primary" },
+    ],
+    taxonomy_terms: [
+      { id: "term-nail", parent_id: "cat-beauty", term_type: "talent_type" },
+      { id: "cat-beauty", parent_id: null, term_type: "parent_category" },
+    ],
+    profile_field_definitions: [
+      fieldDef({ id: "fd-h", field_key: "physical.height_cm", tier: "type-specific", field_group_id: "grp-physical" }),
+      fieldDef({ id: "fd-w", field_key: "physical.waist_cm", tier: "type-specific", field_group_id: "grp-physical" }),
+    ],
+    profile_field_groups: [
+      { id: "grp-physical", slug: "physical", name_en: "Physical", name_es: null, sort_order: 10, is_active: true },
+    ],
+    parent_category_field_groups: [],
+    profile_field_recommendations: [rec("fd-h", "recommended"), rec("fd-w", "required")],
+    workspace_field_group_settings: [],
+    workspace_profile_field_settings: [],
+  });
+  const result = await resolveTalentFields({
+    supabase: sb,
+    talentProfileId: TALENT,
+    tenantId: TENANT,
+    viewerRole: "agency_admin",
+  });
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    const keys = result.fields.map((f) => f.field_key);
+    assert.ok(!keys.includes("physical.height_cm"), "off-trade recommended field is hidden");
+    assert.ok(keys.includes("physical.waist_cm"), "a required field is never hidden");
+  }
+});

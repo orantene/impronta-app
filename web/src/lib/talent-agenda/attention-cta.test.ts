@@ -34,12 +34,14 @@ describe("resolveAttentionCta", () => {
       "reply",
     );
   });
-  it("releases holds", () => {
-    assert.deepEqual(resolveAttentionCta(base({ kind: "hold", booking: "hold" })), {
-      kind: "release_hold",
-      label: "Release hold",
-      mutates: true,
+  it("asks for a deposit on holds, never releases them", () => {
+    const cta = resolveAttentionCta(base({ kind: "hold", booking: "hold" }));
+    assert.deepEqual(cta, {
+      kind: "request_deposit",
+      label: "Request deposit",
+      mutates: false,
     });
+    assert.notEqual(cta.kind, "release_hold");
   });
   it("collects overdue money", () => {
     assert.equal(
@@ -115,7 +117,9 @@ describe("resolveAttentionCta", () => {
 });
 
 describe("peekActionLabels", () => {
-  it("leads with release for holds", () => {
-    assert.equal(peekActionLabels(base({ kind: "hold", booking: "hold" }))[0], "Release hold");
+  it("leads with request deposit for holds and never offers release", () => {
+    const labels = peekActionLabels(base({ kind: "hold", booking: "hold" }));
+    assert.equal(labels[0], "Request deposit");
+    assert.ok(!labels.includes("Release hold"));
   });
 });

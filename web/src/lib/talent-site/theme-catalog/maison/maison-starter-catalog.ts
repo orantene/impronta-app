@@ -9,8 +9,13 @@ export type MaisonStarterService = {
   key: string;
   name: string;
   category: string;
-  priceMxn: number;
-  durationMin: number;
+  /** Major units; null = quote / price later (never coerce to 0). */
+  priceMxn: number | null;
+  /** Minutes; null stays null (fixture may omit duration). */
+  durationMin: number | null;
+  currency?: "MXN" | "USD";
+  bookingMode?: "request" | "instant" | "inquiry";
+  priceDisplay?: "exact" | "quote" | "from";
   imageReuse: "preview_only";
 };
 

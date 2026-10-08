@@ -46,6 +46,13 @@ import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { COLORS, FONTS, RADIUS, useAdminShell } from "../../state";
 import { PageHeader } from "../shared/page-chrome-1";
+import { REVIEW_TABS, ReviewRulesCard } from "./ReviewsRulesCard";
+import {
+  reviewMatchesTab,
+  reviewSourceKind,
+  reviewTabCounts,
+  type ReviewTab,
+} from "@/lib/talent/profile-editor-sections";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "";
@@ -170,12 +177,12 @@ function AnalyticsStrip({ analytics }: { analytics: ReviewAnalytics }) {
   const t = useT();
   const stats: { label: string; value: string }[] = [];
 
+  // F46: no rating yet means no band. The standing header already says
+  // "No reviews yet"; a "LIFETIME RATING" dash only repeated it.
+  if (analytics.ratingCount <= 0 || analytics.lifetimeAvg == null) return null;
   stats.push({
     label: t("dashboard.talentReviews.analytics.lifetimeRating"),
-    value:
-      analytics.ratingCount > 0 && analytics.lifetimeAvg != null
-        ? `${analytics.lifetimeAvg.toFixed(1)} (${analytics.ratingCount})`
-        : "—",
+    value: `${analytics.lifetimeAvg.toFixed(1)} (${analytics.ratingCount})`,
   });
 
   if (analytics.wouldBookAgainPct != null) {
@@ -277,7 +284,15 @@ function GrowthNotesCard({ notes }: { notes: OwnerPrivateNote[] }) {
 
 type RowBusy = "report" | "reply" | null;
 
-function ReceivedReviewRow({ review }: { review: TalentReview }) {
+function ReceivedReviewRow({
+  review,
+  onReported,
+  onReplied,
+}: {
+  review: TalentReview;
+  onReported?: (id: string) => void;
+  onReplied?: (id: string) => void;
+}) {
   const t = useT();
   const [busy, setBusy] = useState<RowBusy>(null);
   const [reported, setReported] = useState(false);
@@ -305,6 +320,7 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
     const res = await reportReviewAction("talent", review.id);
     if (res.ok) {
       setReported(true);
+      onReported?.(review.id);
     } else {
       setError(res.error || t("dashboard.talentReviews.reportError"));
     }
@@ -319,6 +335,7 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
     const res = await submitReviewReplyAction(review.id, body);
     if (res.ok) {
       setReply({ body, at: new Date().toISOString() });
+      onReplied?.(review.id);
       setComposing(false);
       setDraft("");
     } else {
@@ -340,6 +357,17 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
         </span>
         <span className="text-admin-11h text-admin-ink-muted">
           {formatDate(review.createdAt)}
+        </span>
+        <span
+          className={`rounded-[999px] px-[7px] py-[2px] text-admin-9h font-bold uppercase tracking-[0.4px] ${
+            reviewSourceKind(review) === "verified"
+              ? "bg-admin-accent-soft text-admin-accent-deep"
+              : "bg-admin-surface-alt text-admin-ink-muted"
+          }`}
+        >
+          {reviewSourceKind(review) === "verified"
+            ? t("dashboard.talentReviews.verifiedBooking")
+            : t("dashboard.talentReviews.noBooking")}
         </span>
         {hidden && (
           <span className="rounded-[999px] bg-admin-amber-soft px-[7px] py-[2px] text-admin-9h font-bold uppercase tracking-[0.4px] text-admin-amber-deep">
@@ -503,7 +531,18 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
               : t("dashboard.talentReviews.report")}
           </button>
         )}
+        {/* Hide is staff-only (adminHideReviewAction); shown disabled so the
+            talent finds the control and learns why it is not hers. */}
+        <button
+          type="button"
+          disabled
+          title={t("dashboard.talentReviews.hideNote")}
+          className="cursor-not-allowed rounded-admin-sm border border-admin-border-soft bg-white px-[11px] py-[5px] font-admin-body text-admin-11h font-semibold text-admin-ink-muted opacity-60"
+        >
+          {t("dashboard.talentReviews.hide")}
+        </button>
       </div>
+      <span className="text-admin-11 text-admin-ink-muted">{t("dashboard.talentReviews.hideNote")}</span>
     </div>
   );
 }
@@ -525,17 +564,17 @@ export function ReviewsPage() {
   // Reviews are a PREMIUM capability, gated on the workspace's entitlement.
   // null = not yet resolved (avoid flashing the upsell); false = show upsell.
   const [entitled, setEntitled] = useState<boolean | null>(null);
+  const [tab, setTab] = useState<ReviewTab>("all");
+  const [reportedIds, setReportedIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [repliedIds, setRepliedIds] = useState<ReadonlySet<string>>(() => new Set());
 
-  // Resolve the premium gate independently of the reviews load. Fails closed
-  // (false) so a non-entitled workspace sees the upsell, never the content.
+  // Resolve the per-tenant switch independently of the reviews load. Reviews
+  // are on by platform default for every plan; only an explicit tenant-level
+  // off shows the gate. A transport failure also shows the gate.
   useEffect(() => {
     let cancelled = false;
-    if (!tenantSlug) {
-      setEntitled(false);
-      return;
-    }
     setEntitled(null);
-    reviewsEnabledForTenantAction(tenantSlug)
+    reviewsEnabledForTenantAction(tenantSlug ?? "")
       .then((ok) => {
         if (!cancelled) setEntitled(ok);
       })
@@ -669,13 +708,51 @@ export function ReviewsPage() {
                 {t("dashboard.talentReviews.empty")}
               </div>
             ) : (
-              <div className="flex flex-col gap-[10px]">
-                {data.reviews.map((r) => (
-                  <ReceivedReviewRow key={r.id} review={r} />
-                ))}
-              </div>
+              <>
+                <div role="tablist" className="flex flex-wrap gap-[6px]">
+                  {REVIEW_TABS.map(({ tab: key, key: label }) => {
+                    const counts = reviewTabCounts(data.reviews, reportedIds, repliedIds);
+                    const active = tab === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => setTab(key)}
+                        className={`min-h-11 rounded-[999px] border px-[14px] text-[12.5px] font-semibold ${
+                          active
+                            ? "border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-ink)]"
+                            : "border-[var(--tc-border)] bg-white text-[var(--tc-muted)]"
+                        }`}
+                      >
+                        {interpolate(t(label), { count: counts[key] })}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex flex-col gap-[10px]">
+                  {data.reviews
+                    .filter((r) => reviewMatchesTab(r, tab, reportedIds, repliedIds))
+                    .map((r) => (
+                      <ReceivedReviewRow
+                        key={r.id}
+                        review={r}
+                        onReported={(id) => setReportedIds((s) => new Set(s).add(id))}
+                        onReplied={(id) => setRepliedIds((s) => new Set(s).add(id))}
+                      />
+                    ))}
+                  {!data.reviews.some((r) => reviewMatchesTab(r, tab, reportedIds, repliedIds)) && (
+                    <div className="rounded-admin-md border border-dashed border-admin-border p-[18px] text-center text-admin-13 text-admin-ink-muted">
+                      {t("dashboard.talentReviews.tabEmpty")}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
+
+          <ReviewRulesCard />
         </div>
       )}
     </>

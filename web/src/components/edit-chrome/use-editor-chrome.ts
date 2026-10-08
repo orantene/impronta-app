@@ -12,6 +12,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ADD_MENU_CHROME_IDLE, nextAddMenuChrome } from "./add-menu-chrome";
 
 import type {
   EditContextValue,
@@ -418,25 +419,38 @@ export function useEditorChrome(input: { canEditTheme: boolean }) {
     setNavigatorOpen,
   ]);
 
-  const closeAddMenu = useCallback(() => setAddMenuOpen(false), []);
-  const toggleAddMenu = useCallback(() => {
-    setAddMenuOpen((prev) => {
-      const next = !prev;
-      if (next) {
-        dismissCompetingEditorChrome();
-        closeAllRightRailDrawers();
-        setSearchPanelOpen(false);
-        setAllPagesPanelOpen(false);
-        setBrandPanelOpen(false);
-        setNavigatorOpen(false);
-      }
-      return next;
-    });
+  // TUL-78 #3: `toggleAddMenu` decides from the live value (ref), never from
+  // inside a state updater with side effects (see add-menu-chrome.ts).
+  const addMenuOpenRef = useRef(false);
+  useEffect(() => {
+    addMenuOpenRef.current = addMenuOpen;
+  }, [addMenuOpen]);
+  const closeAddMenu = useCallback(() => {
+    addMenuOpenRef.current = false;
+    setAddMenuOpen(false);
+  }, []);
+  const openAddMenu = useCallback(() => {
+    addMenuOpenRef.current = true;
+    dismissCompetingEditorChrome();
+    closeAllRightRailDrawers();
+    setSearchPanelOpen(false);
+    setAllPagesPanelOpen(false);
+    setBrandPanelOpen(false);
+    setNavigatorOpen(false);
+    setAddMenuOpen(true);
   }, [
     closeAllRightRailDrawers,
     dismissCompetingEditorChrome,
     setNavigatorOpen,
   ]);
+  const toggleAddMenu = useCallback(() => {
+    const action = nextAddMenuChrome(
+      { ...ADD_MENU_CHROME_IDLE, addMenuOpen: addMenuOpenRef.current },
+      "toggle",
+    ).addMenuOpen;
+    if (action) openAddMenu();
+    else closeAddMenu();
+  }, [openAddMenu, closeAddMenu]);
 
   const closeAllPagesPanel = useCallback(() => setAllPagesPanelOpen(false), []);
   const openAllPagesPanel = useCallback(() => {
@@ -627,6 +641,7 @@ export function useEditorChrome(input: { canEditTheme: boolean }) {
     toggleSearchPanel,
     closeSearchPanel,
     addMenuOpen,
+    openAddMenu,
     toggleAddMenu,
     closeAddMenu,
     allPagesPanelOpen,

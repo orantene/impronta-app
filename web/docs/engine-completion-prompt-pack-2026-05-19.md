@@ -90,7 +90,7 @@ here for your reference:
      (and root) — the **false-pass guard**: without this, `tsc`/`lint` silently
      fail in worktrees and your "0 errors" is fake.
   3. Implement.
-  4. Gate: `npx tsc --noEmit` (in `web/`) + `npm run lint`. Criterion: **zero
+  4. Gate: `npm run typecheck` (in `web/`) + `npm run lint`. Criterion: **zero
      new tsc errors beyond the known phase-1 baseline; zero new lint errors**.
   5. Path-scoped commit on the branch.
   6. Cherry-pick from the **main repo** cwd (`/Users/oranpersonal/Desktop/impronta-app`)
@@ -203,7 +203,7 @@ Aim for >40 test cases. Use descriptive names.
 - The worktree's node_modules MUST be symlinked — `git worktree add` does NOT
   copy it. Without this, npx tsc / npm run lint silently fail (this is a
   documented trap; verify by checking `test -f web/node_modules/eslint/bin/eslint.js`).
-- Gate: in the worktree's `web/` dir, run `npx tsc --noEmit` and `npm run lint`.
+- Gate: in the worktree's `web/` dir, run `npm run typecheck` and `npm run lint`.
   Acceptable: total tsc errors ≤ 4 (the pre-existing phase-1 incident errors
   in drawers.tsx lines 2228/2323/2445/2446) AND zero errors in your new file.
   Lint: zero new error-severity issues in your file.
@@ -279,7 +279,7 @@ muted-text element showing `f.helper` (only when non-null).
   `ln -s /Users/oranpersonal/Desktop/impronta-app/web/node_modules /tmp/helper-render/web/node_modules`
   `ln -s /Users/oranpersonal/Desktop/impronta-app/node_modules /tmp/helper-render/node_modules`
   Verify: `test -f /tmp/helper-render/web/node_modules/eslint/bin/eslint.js && echo YES`.
-- Gate: in worktree `web/` dir, `npx tsc --noEmit` and `npm run lint`.
+- Gate: in worktree `web/` dir, `npm run typecheck` and `npm run lint`.
   Criterion: tsc ≤ 4 errors (drawers.tsx incident baseline, none yours);
   lint zero new errors.
 - Path-scoped commit: `git add web/src/components/admin/shell/internal/live-category-fields-editor.tsx && git commit -- web/src/components/admin/shell/internal/live-category-fields-editor.tsx`
@@ -842,7 +842,7 @@ Run these checks in order, report results:
 3. Check the resolver has the fields:
    `grep -nE "tenant_override\?|has_value\?" web/src/lib/server-actions/admin-taxonomy.ts`
 4. Run full tsc:
-   `cd web && npx tsc --noEmit`
+   `cd web && npm run typecheck`
    Count errors. Expect: 0 (the 4 incident errors should be gone).
 5. Run lint: `npm run lint`. Expect: 0 errors (current baseline).
 6. Verify Phase 9A pages still compile/render: take note of any new

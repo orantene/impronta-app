@@ -10,12 +10,12 @@ import {
   requireTalentSelfScope,
 } from "@/lib/server/talent-self-guard";
 import { listTemplatesForTier } from "@/lib/talent-site/templates/registry";
-import { provisionTalentPersonalSiteIfMissing } from "@/lib/talent-site/server/provision";
 import type { TalentSiteDashboardState, TalentSiteRow } from "@/lib/talent-site/types";
 import { parseTalentSiteSnapshot } from "@/lib/talent-site/validation";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
-import { talentSitePublicUrl } from "@/lib/talent-site/site-public-url";
-import { assertTalentCanEditPersonalSite } from "@/lib/server/talent-self-guard";
+import { maxSitePublicGate } from "@/lib/talent-site/resolve-max-site-core";
+import { talentSitePathUrl, talentSitePublicUrl } from "@/lib/talent-site/site-public-url";
+import type { EffectiveReadContext } from "@/lib/impersonation/effective-read";
 
 function mapSiteRow(row: TalentSiteRow): TalentSiteDashboardState["site"] {
   const draftSnapshot = parseTalentSiteSnapshot(row.draft_snapshot);
@@ -33,15 +33,66 @@ function mapSiteRow(row: TalentSiteRow): TalentSiteDashboardState["site"] {
   };
 }
 
+/**
+ * Live personal-site address for dashboard preview / "My website" links.
+ * Precedence matches Max-site public links:
+ *   1. primary active custom domain
+ *   2. `<slug>.tulala.digital` when the subdomain switch is on
+ *   3. `/t/site/<slug>` path form when published
+ * Unpublished / no-slug / plan-gated sites leave this null so callers fall
+ * back to the hub (same `maxSitePublicGate` the public renderer uses).
+ */
+function publishedPersonalSiteUrl(input: {
+  siteSlug: string | null | undefined;
+  sitePublishedAt: string | null | undefined;
+  customDomain: string | null | undefined;
+  planKey: string | null | undefined;
+  isDemo?: boolean;
+}): string | null {
+  if (
+    !maxSitePublicGate({
+      sitePublishedAt: input.sitePublishedAt ?? null,
+      planKey: input.planKey,
+    })
+  ) {
+    return null;
+  }
+  const domain = (input.customDomain ?? "").trim().toLowerCase();
+  if (domain) return `https://${domain}`;
+  const slug = input.siteSlug ?? null;
+  if (isTalentSiteSubdomainsEnabled()) {
+    const hostUrl = talentSitePublicUrl(slug, { isDemo: input.isDemo === true });
+    if (hostUrl) return hostUrl;
+  }
+  return talentSitePathUrl(slug);
+}
+
+export type PersonalSiteStateDeps = {
+  requireTalentSelf: typeof requireTalentSelf;
+  admin: () => ReturnType<typeof createServiceRoleClient>;
+};
+
+const DEFAULT_STATE_DEPS: PersonalSiteStateDeps = {
+  requireTalentSelf,
+  admin: () => createServiceRoleClient(),
+};
+
 export async function loadTalentPersonalSiteDashboardState(
   tenantSlug?: string,
+  /**
+   * TUL-245: from `effectiveReadContext` only. Under a verified impersonation
+   * the state is the acted-as talent's, and the first-visit provisioning WRITE
+   * is skipped (impersonation is read-only).
+   */
+  ctx?: EffectiveReadContext,
+  deps: PersonalSiteStateDeps = DEFAULT_STATE_DEPS,
 ): Promise<
   | { ok: true; state: TalentSiteDashboardState }
   | { ok: false; code: string; error: string }
 > {
   const scope = tenantSlug
-    ? await requireTalentSelfScope(tenantSlug)
-    : await requireTalentSelf();
+    ? await requireTalentSelfScope(tenantSlug, ctx)
+    : await deps.requireTalentSelf(ctx);
   if (!scope.ok) {
     return { ok: false, code: scope.code, error: scope.error };
   }
@@ -49,29 +100,29 @@ export async function loadTalentPersonalSiteDashboardState(
   const membership: TalentMembershipState = buildTalentMembershipState(scope.planKey);
   const profileCode = scope.talentProfile.profileCode;
 
-  const admin = createServiceRoleClient();
+  const admin = deps.admin();
   let site: TalentSiteDashboardState["site"] = null;
-  /** The talent's own site address, when the subdomain switch is on. */
-  let subdomainSiteUrl: string | null = null;
+  /** Published personal website (custom domain / vanity host / path), if any. */
+  let personalSiteUrl: string | null = null;
   let templateKey: string | null = null;
   let compositionMode: TalentSiteDashboardState["compositionMode"] = null;
 
-  if (admin && assertTalentCanEditPersonalSite(scope.planKey) && profileCode) {
-    await provisionTalentPersonalSiteIfMissing(
-      scope.talentProfile.id,
-      scope.planKey,
-      scope.session.user.id,
-    );
-  }
+  // READ-ONLY (TUL-179): this runs in the talent layout on every page view, so
+  // it must never create a site. Creation is an explicit click
+  // (`ensureMaxSiteAction`).
 
   if (admin) {
-    const { data } = await admin
-      .from("talent_sites")
-      .select(
-        "id, talent_profile_id, site_kind, site_slug, site_published_at, status, draft_snapshot, published_snapshot, version, draft_updated_at, published_at, unpublished_at, plan_locked, pending_template_reset, created_by, updated_by, created_at, updated_at",
-      )
-      .eq("talent_profile_id", scope.talentProfile.id)
-      .maybeSingle();
+    const [{ data }, demoRes] = await Promise.all([
+      admin
+        .from("talent_sites")
+        .select(
+          "id, talent_profile_id, site_kind, site_slug, site_published_at, status, draft_snapshot, published_snapshot, version, draft_updated_at, published_at, unpublished_at, plan_locked, pending_template_reset, created_by, updated_by, created_at, updated_at",
+        )
+        .eq("talent_profile_id", scope.talentProfile.id)
+        .maybeSingle(),
+      admin.from("talent_profiles").select("is_demo").eq("id", scope.talentProfile.id).maybeSingle(),
+    ]);
+    const isDemo = (demoRes.data as { is_demo?: boolean } | null)?.is_demo === true;
 
     if (data) {
       const row = data as unknown as TalentSiteRow;
@@ -88,24 +139,33 @@ export async function loadTalentPersonalSiteDashboardState(
         }
       }
       site = mapSiteRow(row);
-      if (isTalentSiteSubdomainsEnabled()) {
-        // With the switch on, the talent's site lives at its own host. With it
-        // off (or with no slug yet) this stays null and the profile path below
-        // is emitted exactly as before.
-        //
-        // `site_published_at` is required, not decorative: the host resolver
-        // (`talent_site_subdomain_lookup`) returns a row only for a PUBLISHED
-        // site, so emitting the subdomain before publish would put a link in the
-        // dashboard that resolves to "host not registered". Until then the
-        // profile path below is the address that actually works.
-        const row = data as {
-          site_slug?: string | null;
-          site_published_at?: string | null;
-        };
-        subdomainSiteUrl = row.site_published_at
-          ? talentSitePublicUrl(row.site_slug ?? null)
-          : null;
+
+      const siteMeta = data as {
+        site_slug?: string | null;
+        site_published_at?: string | null;
+      };
+      let customDomain: string | null = null;
+      if (siteMeta.site_published_at) {
+        const { data: domainRow, error: domainErr } = await admin
+          .from("talent_site_domains")
+          .select("domain")
+          .eq("talent_profile_id", scope.talentProfile.id)
+          .eq("is_primary", true)
+          .eq("status", "active")
+          .limit(1)
+          .maybeSingle();
+        // Domain lookup failure degrades to vanity/path — never blocks the dashboard.
+        if (!domainErr) {
+          customDomain = (domainRow as { domain?: string | null } | null)?.domain ?? null;
+        }
       }
+      personalSiteUrl = publishedPersonalSiteUrl({
+        siteSlug: siteMeta.site_slug,
+        sitePublishedAt: siteMeta.site_published_at,
+        customDomain,
+        planKey: scope.planKey,
+        isDemo,
+      });
     }
   }
 
@@ -127,7 +187,8 @@ export async function loadTalentPersonalSiteDashboardState(
     canUseCustomBuilder: membership.capabilities.canUseCustomBuilder,
     profileCode,
     talentProfileId: scope.talentProfile.id,
-    publicSiteUrl: subdomainSiteUrl ?? (profileCode ? `/t/${profileCode}` : null),
+    // Prefer the live personal website; hub `/t/<code>` is the discovery fallback.
+    publicSiteUrl: personalSiteUrl ?? (profileCode ? `/t/${profileCode}` : null),
     // `preview=1` forces the standard profile renderer when a published site exists.
     publicProfileUrl: profileCode ? `/t/${profileCode}?preview=1` : null,
     isPubliclyHidden: scope.talentProfile.isPubliclyHidden,

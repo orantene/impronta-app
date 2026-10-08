@@ -61,10 +61,18 @@ export async function loadTalentPublicSiteByProfileCode(
   }
 
   const admin = createServiceRoleClient() ?? supabase;
+  const { data: resolvedRows, error: resolveErr } = await admin.rpc("resolve_talent_profile_code", {
+    p_code: profileCode,
+  });
+  const resolved = Array.isArray(resolvedRows) ? resolvedRows[0] : resolvedRows;
+  if (resolveErr || !resolved?.profile_id) {
+    return { kind: "not_found" };
+  }
+
   const { data: profile } = await admin
     .from("talent_profiles")
     .select("id, profile_code, is_publicly_hidden")
-    .eq("profile_code", profileCode)
+    .eq("id", resolved.profile_id as string)
     .maybeSingle();
 
   if (!profile) {

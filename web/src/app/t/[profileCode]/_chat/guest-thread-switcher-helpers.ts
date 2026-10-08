@@ -6,18 +6,30 @@
 
 import type { GuestInquirySummary } from "@/lib/inquiry/guest-chat-contract";
 
-export function formatRelTime(iso: string | null): string {
+/** "5m ago" in the visitor's language (the page's `lang` when no locale is passed). */
+export function relTimeWords(unit: "now" | "m" | "h" | "d", n: number, locale: string): string {
+  if (locale.toLowerCase().startsWith("es")) {
+    return unit === "now" ? "ahora" : unit === "m" ? `hace ${n} min` : unit === "h" ? `hace ${n} h` : `hace ${n} d`;
+  }
+  if (locale.toLowerCase().startsWith("fr")) {
+    return unit === "now" ? "à l'instant" : unit === "m" ? `il y a ${n} min` : unit === "h" ? `il y a ${n} h` : `il y a ${n} j`;
+  }
+  return unit === "now" ? "just now" : `${n}${unit} ago`;
+}
+
+export function formatRelTime(iso: string | null, localeArg?: string): string {
   if (!iso) return "";
+  const locale = localeArg ?? (typeof document !== "undefined" ? document.documentElement.lang : "") ?? "";
   try {
     const diffMs = Date.now() - new Date(iso).getTime();
     const minutes = Math.floor(diffMs / 60_000);
     const hours = Math.floor(diffMs / 3_600_000);
     const days = Math.floor(diffMs / 86_400_000);
-    if (minutes < 1) return "just now";
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-    return new Date(iso).toLocaleDateString(undefined, {
+    if (minutes < 1) return relTimeWords("now", 0, locale);
+    if (minutes < 60) return relTimeWords("m", minutes, locale);
+    if (hours < 24) return relTimeWords("h", hours, locale);
+    if (days < 7) return relTimeWords("d", days, locale);
+    return new Date(iso).toLocaleDateString(locale || undefined, {
       month: "short",
       day: "numeric",
     });

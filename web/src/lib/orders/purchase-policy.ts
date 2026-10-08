@@ -16,6 +16,11 @@
  * client-declared payment mode then "pay in person" would be a free lunch on
  * every offering that forbids it.
  *
+ * The rows handed in here are EFFECTIVE policy: `loadCatalog` runs every
+ * offering through `resolveOfferingPolicy` (offering value, then the talent's
+ * `selling_defaults`, then the platform default), the same chain the services
+ * editor shows as "Uses your default".
+ *
  * Agreed with the Front Door Manager and ruled by the Platform Features
  * Director, 2026-09-02. See docs/plans/orders-checkout-plan.md §3.
  */

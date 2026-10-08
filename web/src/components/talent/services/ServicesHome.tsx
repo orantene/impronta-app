@@ -1,5 +1,6 @@
 "use client";
 
+import { attentionSummary } from "./attention-summary";
 import { useEffect, useMemo, useState } from "react";
 import {
   deleteTalentOfferingForever,
@@ -21,14 +22,12 @@ import {
   type SellingDefaults,
 } from "@/lib/talent/services-settings-actions";
 import { foldAccent, publicationLabel, publicationWord } from "@/lib/talent/publication-state";
-import {
-  blankOffering,
-  type OfferingKind,
-  type TalentOffering,
-} from "@/lib/talent/offerings-types";
+import { blankOffering, type OfferingKind, type TalentOffering } from "@/lib/talent/offerings-types";
 import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { useOfferingsEditor } from "./use-offerings-editor";
-import { ItemStateChips } from "./ItemStateChips";
+import { resolveOfferingEditorSaveStatus } from "./offering-editor-save";
+import { ServicesHomeItemChips } from "./ServicesHomeItemChips";
+import { useLocationSettings } from "./LocationSettingsCard";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import {
   AddManyScreen,
@@ -44,13 +43,14 @@ import { listCategoryUndos, popCategoryUndo, pushCategoryUndo } from "@/lib/tale
 import { ExtraScreen } from "./ExtraScreen";
 import { DuplicateReviewScreen } from "./DuplicateReviewScreen";
 import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
+import { useServicesWebsitePublished } from "./useServicesWebsitePublished";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import {
   ServicesHoursNeededBanner,
   useHasBookableHours,
   useNeedsWorkingHoursBanner,
 } from "./ServicesHoursNeeded";
-import { HideOutcome, RowMenu, listPrice } from "./ServicesHomeRowChrome";
+import { HideOutcome, RowMenu, listPrice, listPriceState } from "./ServicesHomeRowChrome";
 import { ServicesWebsiteSetupBanner } from "./ServicesWebsiteSetupBanner";
 import { useSearchParams } from "next/navigation";
 
@@ -78,10 +78,13 @@ export function ServicesHome({
   const [typeOpen, setTypeOpen] = useState(false);
   const [kind, setKind] = useState<OfferingKind>("service");
   const [editing, setEditing] = useState<TalentOffering | null>(null);
+  const [previewFirst, setPreviewFirst] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [bannerId, setBannerId] = useState<string | null>(null);
   const [destinations, setDestinations] = useState<OfferingDestination[]>([]);
+  const websitePublished = useServicesWebsitePublished();
   const [defaults, setDefaults] = useState<SellingDefaults | null>(null);
+  const loc = useLocationSettings(talentId);
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
   const [addons, setAddons] = useState<AddonGroup[]>([]);
   const [toast, setToast] = useState<string | null>(null);
@@ -212,7 +215,10 @@ export function ServicesHome({
     const draft =
       item ??
       blankOffering({ kind: "talent", talentProfileId: talentId }, editor.defaultCurrency, items.length);
-    setEditing(item ? item : { ...draft, kind: nextKind ?? kind, status: "draft" });
+    const k = nextKind ?? kind;
+    // WSF B2: a new service follows the talent default booking mode (null).
+    setEditing(item ? item : { ...draft, kind: k, status: "draft", bookingMode: k === "product" ? draft.bookingMode : null });
+    setPreviewFirst(false);
     setScreen("editor");
     setTypeOpen(false);
   };
@@ -247,9 +253,12 @@ export function ServicesHome({
         currency={items.find((i) => i.currency)?.currency ?? "MXN"}
         onChange={setDefaults}
         onBack={() => setScreen("list")}
+        onOpenWebsiteSettings={() => setTalentPage("public-page")}
+        location={loc.location}
+        onLocationChange={loc.setLocation}
         onSave={async () => {
-          const res = await saveSellingDefaults(talentId, defaults);
-          setToast(res.ok ? copy.t("Saved") : res.error ?? copy.t("Could not save"));
+          const [res, locRes] = await Promise.all([saveSellingDefaults(talentId, defaults), loc.save()]);
+          setToast(res.ok && locRes.ok ? copy.t("Saved") : res.error ?? locRes.error ?? copy.t("Could not save"));
           setScreen("list");
         }}
       />
@@ -365,6 +374,7 @@ export function ServicesHome({
       <EditorScreen
         item={editing}
         setItem={setEditing}
+        initialPreview={previewFirst}
         locale={locale}
         defaults={defaults}
         destinations={destinations}
@@ -378,10 +388,16 @@ export function ServicesHome({
         onOpenWorkingHours={openWorkingHours}
         onBack={() => setScreen("list")}
         onSave={async (next, publish, pendingImageIds) => {
-          // Direct write, not editor.saveDraft: saveDraft reads the hook's own
-          // draft state, which this screen never starts, so a new item saved
-          // through it returned null and nothing was written.
-          const payload: TalentOffering = { ...next, status: publish ? "published" : next.status };
+          // Direct upsert (hook saveDraft never sees this screen's draft). Status
+          // via resolveOfferingEditorSaveStatus — draft vs keep-live (Codex P1).
+          const payload: TalentOffering = {
+            ...next,
+            status: resolveOfferingEditorSaveStatus({
+              publish,
+              offeringId: next.id,
+              currentStatus: next.status,
+            }),
+          };
           const res = await upsertTalentOffering(talentId, payload);
           if (!res.ok) throw new Error(res.error);
           if (pendingImageIds?.length) {
@@ -406,7 +422,7 @@ export function ServicesHome({
       <ServicesWebsiteSetupBanner />
       <div className="flex flex-wrap items-end justify-between gap-3" data-tulala-page-header>
         <div>
-          <h1 className="font-admin-display text-[28px] font-semibold text-admin-ink">{copy.t("Services")}</h1>
+          <h1 className="font-admin-display text-[20px] font-semibold tracking-[-0.3px] text-admin-ink">{copy.t("Services")}</h1>
           <p className="text-[13px] text-admin-ink-muted">
             {hideTarget
               ? `${copy.t("Hiding")} "${hideTarget.title}"`
@@ -422,7 +438,7 @@ export function ServicesHome({
           <button type="button" className="rounded-full border border-admin-border-soft px-3 py-1.5 text-[13px]" onClick={() => { void refreshExtras(); setScreen("defaults"); }}>
             {copy.t("Defaults")}
           </button>
-          <button type="button" className="rounded-full bg-admin-brand px-3 py-1.5 text-[13px] font-semibold text-white" onClick={() => setTypeOpen(true)}>
+          <button type="button" className="rounded-full bg-[var(--tc-action)] px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-[var(--tc-action-hover)]" onClick={() => setTypeOpen(true)}>
             + {copy.t("Add item")}
           </button>
           <div className="relative">
@@ -467,7 +483,7 @@ export function ServicesHome({
               key={chip.id}
               type="button"
               onClick={() => setFilter(chip.id)}
-              className={`rounded-full px-2.5 py-1 text-[12px] ${filter === chip.id ? "bg-admin-ink text-white" : "bg-[rgba(11,11,13,0.06)] text-admin-ink"}`}
+              className={`rounded-full px-2.5 py-1 text-[12px] ${filter === chip.id ? "border border-[var(--tc-action)] bg-[var(--tc-soft)] font-semibold text-[var(--tc-ink)]" : "border border-transparent bg-[rgba(11,11,13,0.06)] text-admin-ink"}`}
             >
               {chip.label}{editor.loading ? "" : ` ${chip.count}`}
             </button>
@@ -478,7 +494,7 @@ export function ServicesHome({
       {attentionTotal > 0 && filter !== "attention" && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-[12px] border border-admin-border-soft bg-white px-4 py-3 text-[13px]">
           <p>
-            {attentionTotal} {copy.t("items need attention.")} {attention.noPhoto} {copy.t("have no photo")}, {attention.noPrice} {copy.t("have no price yet")}, {attention.soldOut} {copy.t("is sold out.")} {copy.t("Some have more than one of these.")}
+            {attentionSummary({ total: attentionTotal, ...attention }, copy.locale)}
           </p>
           <button type="button" className="font-semibold text-admin-brand" onClick={() => setFilter("attention")}>
             {copy.t("Show them")}
@@ -490,6 +506,7 @@ export function ServicesHome({
         <PublishedBanner
           item={items.find((i) => i.id === bannerId) ?? null}
           destinations={destinations}
+          websitePublished={websitePublished}
           onClose={() => setBannerId(null)}
           onAddAnother={() => {
             setBannerId(null);
@@ -579,15 +596,23 @@ export function ServicesHome({
                 </span>
               </span>
               <span className="shrink-0 text-right">
-                <span className="block text-[13px] font-semibold">
-                  {listPrice(item, copy.t("Quoted"))}
+                <span
+                  className={`block text-[13px] ${
+                    listPriceState(item) === "amount"
+                      ? "font-semibold text-admin-ink"
+                      : listPriceState(item) === "unset"
+                        ? "text-admin-amber-deep"
+                        : "text-admin-ink-muted"
+                  }`}
+                >
+                  {listPrice(item, copy.t("Quoted"), copy.t("No price yet"))}
                 </span>
                 <span className="block text-[11px] text-admin-ink-muted">
                   {usdEquivalentLabel(item.amountCents, item.currency, editor.usdRates, locale)}
                 </span>
               </span>
             </button>
-            <ItemStateChips item={item} locale={locale} hideFailed={hideFailedIds.has(item.id)} />
+            <ServicesHomeItemChips item={item} locale={locale} hideFailed={hideFailedIds.has(item.id)} instantReady={hasBookableHours !== false} />
             <button type="button" aria-label={copy.t("Row menu")} className="px-2" onClick={() => setMenuId(menuId === item.id ? null : item.id)}>
               ⋯
             </button>
@@ -600,6 +625,7 @@ export function ServicesHome({
                 onPreview={async () => {
                   await refreshExtras();
                   openEditor(item);
+                  setPreviewFirst(true);
                 }}
                 onShare={async () => {
                   const dest = destinations[0]?.href;
@@ -670,6 +696,16 @@ export function ServicesHome({
         ))}
       </ul>
 
+      <div className="sticky bottom-3 z-10 mt-4 sm:hidden">
+        <button
+          type="button"
+          className="h-11 w-full rounded-full bg-[var(--tc-action)] text-[14px] font-semibold text-white shadow-admin-rest hover:bg-[var(--tc-action-hover)]"
+          onClick={() => setTypeOpen(true)}
+        >
+          + {copy.t("Add item")}
+        </button>
+      </div>
+
       {typeOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={() => setTypeOpen(false)}>
           <div role="dialog" aria-label={copy.t("What are you adding?")} style={{ maxWidth: 640 }} className="w-full overflow-hidden rounded-2xl bg-white font-admin-body shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -683,7 +719,7 @@ export function ServicesHome({
                 type="button"
                 onClick={() => setKind(k)}
                 aria-pressed={on}
-                className={`mt-3 flex w-full items-center gap-4 rounded-xl border px-4 py-3 text-left ${on ? "border-emerald-900/60 bg-emerald-900/[0.06]" : "border-admin-border-soft bg-white"}`}
+                className={`mt-3 flex w-full items-center gap-4 rounded-xl border px-4 py-3 text-left ${on ? "border-[var(--tc-action)] bg-[var(--tc-soft)]" : "border-admin-border-soft bg-white"}`}
               >
                 <svg aria-hidden viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-admin-ink-muted" fill="none" stroke="currentColor" strokeWidth="1.4">
                   {k === "service" ? (
@@ -695,7 +731,7 @@ export function ServicesHome({
                   )}
                 </svg>
                 <span className="min-w-0 flex-1">
-                  <span className={`block text-[15px] font-semibold ${on ? "text-emerald-900" : "text-admin-ink"}`}>
+                  <span className={`block text-[15px] font-semibold ${on ? "text-[var(--tc-ink)]" : "text-admin-ink"}`}>
                     {k === "service" ? copy.t("A service") : k === "package" ? copy.t("A package") : copy.t("A product")}
                   </span>
                   <span className="mt-0.5 block text-[13px] leading-snug text-admin-ink-muted">
@@ -707,7 +743,7 @@ export function ServicesHome({
                   </span>
                 </span>
                 {on && (
-                  <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4 shrink-0 text-emerald-900" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m3.5 8.5 3 3 6-7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4 shrink-0 text-[var(--tc-action)]" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m3.5 8.5 3 3 6-7" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 )}
               </button>
               );
@@ -718,7 +754,7 @@ export function ServicesHome({
             </div>
             <div className="flex items-center justify-end gap-4 border-t border-admin-border-soft px-5 py-3">
               <button type="button" className="text-[14px] text-admin-ink" onClick={() => setTypeOpen(false)}>{copy.t("Cancel")}</button>
-              <button type="button" className="rounded-lg bg-emerald-900 px-4 py-2 text-[14px] font-semibold text-white" onClick={() => { void refreshExtras(); openEditor(null, kind); }}>
+              <button type="button" className="rounded-lg bg-[var(--tc-action)] px-4 py-2 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)]" onClick={() => { void refreshExtras(); openEditor(null, kind); }}>
                 {copy.t("Continue")}
               </button>
             </div>
@@ -741,7 +777,7 @@ export function ServicesHome({
               <button type="button" className="rounded-full px-3 py-2 text-[13px]" onClick={() => setHideTarget(null)}>{copy.t("Cancel")}</button>
               <button
                 type="button"
-                className="rounded-full bg-admin-brand px-4 py-2 text-[13px] text-white"
+                className="rounded-full bg-[var(--tc-action)] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[var(--tc-action-hover)]"
                 onClick={() => {
                   const target = hideTarget;
                   setHideTarget(null);

@@ -89,6 +89,7 @@ export interface EditContextChromeAndSessionValue {
   toggleSearchPanel: () => void;
   closeSearchPanel: () => void;
   addMenuOpen: boolean;
+  openAddMenu: () => void;
   toggleAddMenu: () => void;
   closeAddMenu: () => void;
   allPagesPanelOpen: boolean;
@@ -229,6 +230,10 @@ export interface EditContextChromeAndSessionValue {
   restoreRevision: (
     revisionId: string,
   ) => Promise<{ ok: boolean; error?: string }>;
+
+  /** Reset the draft to the live body via the surface adapter (talent sites);
+   *  `undefined` when the surface has none (topbar keeps the homepage path). */
+  discardDraftToLive?: () => Promise<{ ok: boolean; error?: string }>;
 
   /**
    * REV-1b — the active surface's OWNER-gated revision LIST read, or `null`
@@ -468,7 +473,7 @@ export interface EditContextChromeAndSessionValue {
    * `applyTemplateWithUndo` pushed to the history stack restores the prior tree
    * through the same machinery every other edit uses.
    */
-  templateAppliedToast: { label: string } | null;
+  templateAppliedToast: { label: string; plain?: boolean } | null;
   clearTemplateAppliedToast: () => void;
   /**
    * CANVAS-4 — raise the shared "Template applied — Undo?" toast for an apply
@@ -480,7 +485,7 @@ export interface EditContextChromeAndSessionValue {
    * that DON'T snapshot client-side use `applyTemplateWithUndo` instead, which
    * pushes the snapshot AND raises this same toast.
    */
-  notifyTemplateApplied: (label: string) => void;
+  notifyTemplateApplied: (label: string, opts?: { plain?: boolean }) => void;
 
   // ── CANVAS-7 — transient success toast after a clipboard gesture ──
   /**

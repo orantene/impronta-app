@@ -9,24 +9,29 @@
 
 import type { CSSProperties, ReactNode } from "react";
 
+/**
+ * Each value reads a `--hq-*` custom property and falls back to the dark HQ
+ * value, so Platform HQ is unchanged. The Support Desk (`.desk-light` scope in
+ * globals.css) re-points the variables at the light admin tokens (TUL-31).
+ */
 export const HQ = {
-  bg: "#0F0F11",
-  card: "#16161A",
-  cardSoft: "rgba(255,255,255,0.04)",
-  cardSofter: "rgba(255,255,255,0.02)",
-  border: "rgba(255,255,255,0.10)",
-  borderSoft: "rgba(255,255,255,0.06)",
-  ink: "#F5F2EB",
-  inkMuted: "rgba(245,242,235,0.62)",
-  inkDim: "rgba(245,242,235,0.38)",
-  green: "#5DD3A0",
-  greenSoft: "rgba(93,211,160,0.12)",
-  amber: "#E5B567",
-  amberSoft: "rgba(229,181,103,0.12)",
-  red: "#F36772",
-  redSoft: "rgba(243,103,114,0.12)",
-  purple: "#A07AE0",
-  blue: "#7AB7E0",
+  bg: "var(--hq-bg, #0F0F11)",
+  card: "var(--hq-card, #16161A)",
+  cardSoft: "var(--hq-cardSoft, rgba(255,255,255,0.04))",
+  cardSofter: "var(--hq-cardSofter, rgba(255,255,255,0.02))",
+  border: "var(--hq-border, rgba(255,255,255,0.10))",
+  borderSoft: "var(--hq-borderSoft, rgba(255,255,255,0.06))",
+  ink: "var(--hq-ink, #F5F2EB)",
+  inkMuted: "var(--hq-inkMuted, rgba(245,242,235,0.62))",
+  inkDim: "var(--hq-inkDim, rgba(245,242,235,0.38))",
+  green: "var(--hq-green, #5DD3A0)",
+  greenSoft: "var(--hq-greenSoft, rgba(93,211,160,0.12))",
+  amber: "var(--hq-amber, #E5B567)",
+  amberSoft: "var(--hq-amberSoft, rgba(229,181,103,0.12))",
+  red: "var(--hq-red, #F36772)",
+  redSoft: "var(--hq-redSoft, rgba(243,103,114,0.12))",
+  purple: "var(--hq-purple, #A07AE0)",
+  blue: "var(--hq-blue, #7AB7E0)",
 } as const;
 
 export const HQ_F = '"Inter", system-ui, sans-serif';

@@ -25,6 +25,7 @@ import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
 import { rescheduleBooking } from "@/lib/scheduling/reschedule-booking";
 import { sessionCancel, sessionMoveParticipant, sessionSetInstructor } from "@/lib/sessions/session-ops";
 import { generateSessionsForSeries, upsertSessionSeries } from "@/lib/sessions/series-write";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 const opKey = z.string().min(8).max(80);
@@ -55,6 +56,7 @@ export async function upsertSessionSeriesAction(input: {
   instructorUserId: string;
   isActive?: boolean;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -79,6 +81,7 @@ export async function upsertSessionSeriesAction(input: {
 }
 
 export async function generateSessionsForSeriesAction(input: { seriesId: string; untilDate: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -93,6 +96,7 @@ export async function sessionSetInstructorAction(input: {
   userId: string;
   scope: "this" | "future" | "series";
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ sessionId: uuid, userId: uuid, scope }).safeParse(input);
@@ -105,6 +109,7 @@ export async function sessionMoveParticipantAction(input: {
   toSessionId: string;
   operationKey: string;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -120,6 +125,7 @@ export async function sessionCancelAction(input: {
   reason: string;
   operationKey: string;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -135,6 +141,7 @@ export async function cancelBookingSetAction(input: {
   reason: string;
   by: "staff" | "customer";
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -153,6 +160,7 @@ export async function signBookingManageTokenAction(input: {
   bookingId: string;
   action: "cancel" | "reschedule";
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -173,6 +181,7 @@ export async function cancelBookingByManageToken(input: {
   operationKey: string;
   reason: string;
 }) {
+  await requireNotImpersonating();
   const parsed = z
     .object({ token: z.string().min(8), operationKey: opKey, reason: z.string().max(200) })
     .safeParse(input);
@@ -207,6 +216,7 @@ export async function rescheduleBookingByManageToken(input: {
   | { ok: true; startsAt: string; endsAt: string; already: boolean }
   | { ok: false; reason: "token_invalid" | "not_reschedulable" | "slot_taken" | "conflict" | "not_found" | "wrong_tenant" | "invalid" | "unavailable" }
 > {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       token: z.string().min(8),
@@ -253,6 +263,7 @@ export async function projectReplaceTalentAction(input: {
   toTalentId: string;
   operationKey: string;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -273,6 +284,7 @@ export async function amendmentSend(input: {
   expectedVersion: number;
   inquiryExpectedVersion: number;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -303,6 +315,7 @@ export async function amendmentDiscardAction(input: {
   expectedVersion: number;
   inquiryExpectedVersion: number;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -317,6 +330,7 @@ export async function amendmentDiscardAction(input: {
 }
 
 export async function setDeliverableAmountAction(input: { deliverableId: string; amountCents: number }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -327,6 +341,7 @@ export async function setDeliverableAmountAction(input: { deliverableId: string;
 }
 
 export async function attachDeliverableFileAction(input: { deliverableId: string; filePath: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -337,6 +352,7 @@ export async function attachDeliverableFileAction(input: { deliverableId: string
 }
 
 export async function projectArchiveAction(input: { bookingId: string; reason: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ bookingId: uuid, reason: z.string().max(200) }).safeParse(input);
@@ -345,6 +361,7 @@ export async function projectArchiveAction(input: { bookingId: string; reason: s
 }
 
 export async function projectReopenAction(input: { bookingId: string; reason: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ bookingId: uuid, reason: z.string().max(200) }).safeParse(input);
@@ -356,6 +373,7 @@ export async function setOfferingComponentsAction(input: {
   offeringId: string;
   components: Array<{ componentOfferingId: string; qty: number; required: boolean }>;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -382,6 +400,7 @@ export async function setOfferingPricePhaseAction(input: {
   endsAt?: string | null;
   priceCents: number;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -404,6 +423,7 @@ export async function writePolicyOverrideAction(input: {
   cancelFreeHours?: number | null;
   noShowFeeCents?: number | null;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -424,6 +444,7 @@ export async function requestApprovalAction(input: {
   operationKey: string;
   reason: string;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -447,6 +468,7 @@ export async function decideApprovalAction(input: {
   decision: "approved" | "denied";
   reason: string;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z

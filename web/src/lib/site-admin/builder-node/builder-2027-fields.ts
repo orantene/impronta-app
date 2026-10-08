@@ -130,6 +130,23 @@ export const BUILDER_2027_INSPECTOR_GROUPS: Readonly<
 > = {
   marquee: [
     {
+      title: "Words",
+      fields: [
+        {
+          control: "select",
+          prop: "source",
+          label: "What the strip says",
+          // An unset source is a ticker saved before this option: its own words.
+          fallback: "custom",
+          options: [
+            { value: "services", label: "My services, in my visitor's language" },
+            { value: "custom", label: "Words I write myself" },
+          ],
+        },
+      ],
+      note: "With My services the strip follows the services you publish. If you have none yet, it shows the words you wrote.",
+    },
+    {
       title: "Motion",
       fields: [
         {
@@ -140,6 +157,7 @@ export const BUILDER_2027_INSPECTOR_GROUPS: Readonly<
           options: [
             { value: "text", label: "Plain text" },
             { value: "tags", label: "Tags" },
+            { value: "serif", label: "Serif italic" },
           ],
         },
         {
@@ -172,6 +190,7 @@ export const BUILDER_2027_INSPECTOR_GROUPS: Readonly<
             { value: "dot", label: "Dot" },
             { value: "slash", label: "Slash" },
             { value: "diamond", label: "Diamond" },
+            { value: "star", label: "Star" },
             { value: "none", label: "None" },
           ],
         },

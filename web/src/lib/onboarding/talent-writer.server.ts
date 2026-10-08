@@ -8,19 +8,20 @@ import "server-only";
  * Writes, table by table (see execution-plan Phase 5):
  *   talent_profiles         row via the onboarding RPC (display name only; the
  *                           legal identity is never asked here), then city,
- *                           country, short bio, contact email
+ *                           country, short bio, contact email, and the flow
+ *                           language as `preferred_locale` (only when NULL)
  *   agency_talent_roster    the platform hub roster (tenant scope for the rest)
  *   talent_profile_taxonomy primary_role from the type chip (validated slug)
  *   talent_languages        the brief's languages, else the module's language
  *   talent_offerings        one draft per stated service, quote price
- *   catalog `bios`          the drafted bio (≥ 30 chars, rules in draft-bio.ts)
+ *   catalog `bios`          the drafted bio in en + es (≥ 30 chars, rules in draft-bio.ts)
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 import { logServerError } from "@/lib/server/safe-error";
-import { ensurePlatformHubRoster } from "@/lib/saas/registration-policy";
+import { ensureHubRosterRow } from "@/lib/saas/ensure-hub-roster.server";
 import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell-taxonomy-sync";
 import { buildTalentLanguageRpcRows } from "@/lib/talent/talent-profile-shell-persistence";
 import { syncBlobFieldValuesToCatalog } from "@/lib/talent/blob-field-values-catalog";
@@ -28,8 +29,10 @@ import { blankOffering, offeringToRowPatch, validateOffering } from "@/lib/talen
 import type { Brief } from "@/lib/tulala/brief-store";
 import { listFact, numberFact, stringFact } from "@/lib/tulala/brief-store";
 
-import { bioPassesRules, draftBio } from "./draft-bio";
+import { planBios } from "./bilingual-bio";
+import { syncBiosToBioI18n } from "@/lib/translation/sync-bios-to-bio-i18n.server";
 import { proposeTalentType } from "./type-chip";
+import { fillTalentPreferredLocale } from "./talent-preferred-locale";
 import { loadTalentTypeTerms } from "./type-chip.server";
 
 export type TalentWriteOutcome = "written" | "skipped" | "failed";
@@ -54,6 +57,10 @@ export async function writeTalentProfileFromBrief(input: {
   /** The chip the person tapped, when any (`module_state.typeChoice`). */
   typeSlug: string | null;
   originDomain: string | null;
+  /** What the person asked clients to call them (essentials). Used before anything else but never the email. */
+  displayNameFallback?: string | null;
+  /** Essentials writes the confirmed catalog; do not also draft one title per AI service. */
+  skipDraftOfferings?: boolean;
 }): Promise<TalentWriteResult> {
   const { admin, brief } = input;
   const result: TalentWriteResult = {
@@ -66,7 +73,7 @@ export async function writeTalentProfileFromBrief(input: {
   };
 
   // ── profile row ───────────────────────────────────────────────────────────
-  const displayName = stringFact(brief, "person.professional_name") ?? stringFact(brief, "person.name") ?? (input.email?.split("@")[0] ?? "");
+  const displayName = input.displayNameFallback?.trim() || stringFact(brief, "person.professional_name") || stringFact(brief, "person.name") || "";
   const { data: existing, error: existingErr } = await admin.from("talent_profiles").select("id, profile_code").eq("user_id", input.userId).is("deleted_at", null).maybeSingle();
   if (existingErr) {
     logServerError("onboarding.talentWriter.lookup", existingErr);
@@ -99,19 +106,21 @@ export async function writeTalentProfileFromBrief(input: {
   }
   result.talentProfileId = id;
   result.profileCode = profileCode;
+  // TUL-117: the flow language is the talent's language (only fills a NULL).
+  await fillTalentPreferredLocale(admin, id, input.locale);
 
   const city = stringFact(brief, "person.city");
   const country = stringFact(brief, "person.country");
   const discipline = stringFact(brief, "work.discipline") ?? stringFact(brief, "work.industry");
   const services = listFact(brief, "work.services");
   const bioFacts = { name: displayName || null, discipline, city, services, yearsExperience: numberFact(brief, "work.years_experience") };
-  const bio = draftBio(bioFacts, input.locale);
-  const bioOk = bioPassesRules(bio, bioFacts).ok;
+  // E-02/E-14: both languages; the base text (`short_bio`) is the flow language.
+  const bioPlan = planBios(bioFacts, input.locale);
 
   const patch: Record<string, unknown> = {};
   if (city) patch.home_city_text = city;
   if (country) patch.home_country_text = country;
-  if (bioOk) patch.short_bio = bio;
+  if (bioPlan.base) patch.short_bio = bioPlan.base.text;
   if (input.email) patch.invitation_email = input.email;
   if (Object.keys(patch).length) {
     const { error } = await admin.from("talent_profiles").update(patch).eq("id", id);
@@ -122,13 +131,17 @@ export async function writeTalentProfileFromBrief(input: {
   }
 
   // ── hub roster (tenant scope for everything below) ────────────────────────
-  const hub = await ensurePlatformHubRoster(admin, { talentProfileId: id, userId: input.userId, originDomain: input.originDomain });
+  // One rule (ensureHubRosterRow): the hub row is added only when the talent has
+  // no roster row at all. A talent already on an agency roster keeps that
+  // tenant as the scope for the writes below (null when they have no ACTIVE row,
+  // in which case the tenant-scoped steps are skipped).
+  const hub = await ensureHubRosterRow(admin, { talentProfileId: id, addedBy: input.userId, originDomain: input.originDomain });
   if (!hub.ok) {
-    logServerError("onboarding.talentWriter.hubRoster", new Error(hub.error));
+    logServerError("onboarding.talentWriter.hubRoster", new Error(hub.reason));
     result.wrote.roster = "failed";
   } else {
     result.hubTenantId = hub.tenantId;
-    result.wrote.roster = "written";
+    result.wrote.roster = hub.outcome === "skipped_has_roster" ? "skipped" : "written";
   }
   const tenantId = result.hubTenantId;
 
@@ -159,7 +172,7 @@ export async function writeTalentProfileFromBrief(input: {
   }
 
   // ── offerings (one draft per stated service, price on request) ────────────
-  if (tenantId && services.length) {
+  if (tenantId && services.length && !input.skipDraftOfferings) {
     const { data: have, error: haveErr } = await admin.from("talent_offerings").select("title").eq("talent_profile_id", id).eq("tenant_id", tenantId);
     if (haveErr) {
       logServerError("onboarding.talentWriter.offeringsRead", haveErr);
@@ -181,9 +194,12 @@ export async function writeTalentProfileFromBrief(input: {
   }
 
   // ── bio (the catalog value the publish floor reads) ───────────────────────
-  if (tenantId && bioOk) {
+  if (tenantId && bioPlan.entries.length) {
     try {
-      await syncBlobFieldValuesToCatalog(admin, id, tenantId, { bios: [{ locale: input.locale, text: bio }] });
+      // The catalog row holds the whole `bios` blob, so both languages go in one write.
+      await syncBlobFieldValuesToCatalog(admin, id, tenantId, { bios: bioPlan.entries });
+      // F25: the public profile and site read bio_i18n (merged per locale); same mirror as the drawer save.
+      await syncBiosToBioI18n(admin, id, bioPlan.entries);
       result.wrote.bio = "written";
       result.aiDrafted.push("bio");
     } catch (err) {

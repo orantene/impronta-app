@@ -21,8 +21,11 @@
  */
 
 import type Stripe from "stripe";
-import { getStripe } from "@/lib/stripe/client";
+import { getStripeFor, getStripeMxPublishableKey, type StripeAccountKey } from "@/lib/stripe/client";
+import { recordChargePlatform, resolveSellerPlatformForTransaction } from "@/lib/stripe/charge-platform";
+import { paymentsMockAllowed } from "@/lib/payments/mock-guard";
 import { logServerError } from "@/lib/server/safe-error";
+import { sanitizeStatementDescriptorSuffix } from "@/lib/payments/statement-descriptor";
 
 export type PaymentIntentInput = {
   transactionId: string;
@@ -33,6 +36,8 @@ export type PaymentIntentInput = {
   inquiryId: string;
   bookingId: string;
   description?: string;
+  /** Public display name of the talent/workspace; becomes the card statement suffix. */
+  payeeName?: string | null;
   /**
    * Optional split breakdown, in cents, carried as PaymentIntent metadata so
    * the post-payment transfer step (Phase 3) and the confirmation PDF can read
@@ -56,6 +61,9 @@ export type PaymentIntentResult =
       amountCents: number;
       currency: string;
       mock?: boolean;
+      /** Publishable key of the platform that took the charge (MX differs from US). */
+      publishableKey?: string | null;
+      stripePlatform?: StripeAccountKey;
     }
   | { ok: false; error: string };
 
@@ -67,17 +75,41 @@ export type PaymentIntentResult =
  */
 export async function createPaymentIntentForTransaction(
   input: PaymentIntentInput,
+  /** Test seam: inject the platform and/or client; production passes nothing. */
+  deps: { platform?: StripeAccountKey; stripe?: Stripe | null } = {},
 ): Promise<PaymentIntentResult> {
   try {
     if (input.amountCents <= 0) {
       return { ok: false, error: "Amount must be positive." };
     }
 
-    const stripe = getStripe();
+    // The seller of record's platform decides which Stripe account takes the
+    // charge (default 'us' = unchanged behaviour).
+    let platform: StripeAccountKey;
+    if (deps.platform) platform = deps.platform;
+    else if (deps.stripe !== undefined) platform = "us";
+    else {
+      const resolved = await resolveSellerPlatformForTransaction(input.transactionId);
+      // Fail closed: never guess a platform (TUL-142).
+      if (!resolved.ok) return { ok: false, error: "Payments for this seller are not available right now." };
+      platform = resolved.key;
+    }
+    const stripe = deps.stripe !== undefined ? deps.stripe : getStripeFor(platform);
+    const publishableKey =
+      platform === "mx" ? getStripeMxPublishableKey() : (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? null);
+    // An MX charge never mocks: a mocked "paid" state for a real MX seller would
+    // be a lie, so a missing MX key/publishable key is an error.
+    if (platform === "mx" && (!stripe || !publishableKey)) {
+      return { ok: false, error: "Payments for this seller are not available right now." };
+    }
     // The embedded Payment Element cannot render without the PUBLISHABLE key
     // on the client. If either key is absent we mock — a real PaymentIntent
     // with no publishable key would strand the client on a config error.
-    const hasPublishableKey = !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+    const hasPublishableKey = !!publishableKey;
+    if ((!stripe || !hasPublishableKey) && !paymentsMockAllowed()) {
+      logServerError("payments.stripe.mockRefused", `Stripe keys missing in production; refusing mock payment intent (transaction ${input.transactionId})`);
+      return { ok: false, error: "Payments are not configured." };
+    }
     if (!stripe || !hasPublishableKey) {
       // Mock mode — no usable live keys. Hand back a synthetic client secret
       // the drawer recognises (prefix `mock_pi_`) so it can simulate the confirm.
@@ -110,6 +142,9 @@ export async function createPaymentIntentForTransaction(
       currency: input.currency.toLowerCase(),
       automatic_payment_methods: { enabled: true },
       description: input.description ?? "Booking payment",
+      ...(sanitizeStatementDescriptorSuffix(input.payeeName)
+        ? { statement_descriptor_suffix: sanitizeStatementDescriptorSuffix(input.payeeName) }
+        : {}),
       // NOTE: receipt_email is intentionally NOT set. The app sends its own
       // branded, bilingual "Payment received" receipt (notification entry
       // payment.received → client.payment_receipt) and logs it in the platform
@@ -122,6 +157,10 @@ export async function createPaymentIntentForTransaction(
       metadata,
     };
 
+    // Fail closed: record the platform before the charge can exist.
+    if (!(await recordChargePlatform(input.transactionId, platform))) {
+      return { ok: false, error: "Failed to start payment." };
+    }
     const intent = await stripe.paymentIntents.create(params, {
       idempotencyKey: `pi_txn_${input.transactionId}`,
     });
@@ -136,6 +175,8 @@ export async function createPaymentIntentForTransaction(
       paymentIntentId: intent.id,
       amountCents: input.amountCents,
       currency: input.currency,
+      publishableKey,
+      stripePlatform: platform,
     };
   } catch (err) {
     logServerError("payments.stripe.createPaymentIntentForTransaction", err);

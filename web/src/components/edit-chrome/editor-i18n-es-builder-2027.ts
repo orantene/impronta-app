@@ -22,6 +22,8 @@
 
 export const ES_BUILDER_2027_TEXT: Record<string, string> = {
   // ── Group titles ─────────────────────────────────────────────────────────
+  Words: "Palabras",
+  "What the strip says": "Qué dice la banda",
   "When nobody matches": "Cuando no hay coincidencias",
   "The map": "El mapa",
   "The panel over the map": "El panel sobre el mapa",
@@ -91,6 +93,9 @@ export const ES_BUILDER_2027_TEXT: Record<string, string> = {
   "See the whole roster": "Ver todo el elenco",
 
   // ── Option labels ────────────────────────────────────────────────────────
+  "My services, in my visitor's language":
+    "Mis servicios, en el idioma de quien visita",
+  "Words I write myself": "Palabras que escribo yo",
   "Plain text": "Texto simple",
   "Right to left": "De derecha a izquierda",
   "Left to right": "De izquierda a derecha",
@@ -142,7 +147,16 @@ export const ES_BUILDER_2027_TEXT: Record<string, string> = {
     "https://www.google.com/maps/embed?...",
   "/": "/",
 
+  // ── Publish checks (ticker source) ───────────────────────────────────────
+  Ticker: "Banda de palabras",
+  "Your ticker has a word source we do not recognise, so it shows the words you wrote. Pick My services or Words I write myself.":
+    "Tu banda tiene un origen de palabras que no reconocemos, así que muestra las palabras que escribiste. Elige Mis servicios o Palabras que escribo yo.",
+  "Your ticker follows your services but has no words of its own. Until you publish a service it will show nothing.":
+    "Tu banda sigue tus servicios pero no tiene palabras propias. Hasta que publiques un servicio no mostrará nada.",
+
   // ── Group notes ──────────────────────────────────────────────────────────
+  "With My services the strip follows the services you publish. If you have none yet, it shows the words you wrote.":
+    "Con Mis servicios, la banda sigue los servicios que publicas. Si aún no tienes ninguno, muestra las palabras que escribiste.",
   "The strip stops moving for visitors who have asked for reduced motion.":
     "La banda deja de moverse para las personas que han pedido menos movimiento.",
   "This block only ever shows your own roster. It cannot reach another workspace.":
@@ -192,4 +206,25 @@ export const ES_BUILDER_2027_TEXT: Record<string, string> = {
   "Anchor name": "Nombre del ancla",
   "Link to this block from elsewhere on the page":
     "Enlaza a este bloque desde otra parte de la página",
+  // Dashboard sweep 2026-10-01: topbar + panel chrome attributes that were
+  // English literals (titles and aria labels), now routed through t().
+  "Open live page in a new tab": "Abrir la página en vivo en una pestaña nueva",
+  "Open live page": "Abrir página en vivo",
+  "Show canvas helpers: hints and tips on the canvas": "Mostrar ayudas del lienzo: pistas y consejos sobre el lienzo",
+  "Hide canvas helpers: the double-click hint, the replace-image pill and the tips. Editing gestures keep working.":
+    "Ocultar ayudas del lienzo: la pista de doble clic, la etiqueta de reemplazar imagen y los consejos. Los gestos de edición siguen funcionando.",
+  "Show canvas helpers": "Mostrar ayudas del lienzo",
+  "Hide canvas helpers": "Ocultar ayudas del lienzo",
+  "Close panel": "Cerrar panel",
+  "Close drawer": "Cerrar cajón",
+  "Snap back to home position": "Volver a la posición original",
+  "Snap panel back to home position": "Volver el panel a su posición original",
+  "Conversion band with headline and actions.": "Banda de conversión con titular y acciones.",
+  "Service cards in a responsive grid.": "Tarjetas de servicio en una cuadrícula adaptable.",
+  "Block deleted": "Bloque eliminado",
+  Loading: "Cargando",
+  "No text in {lang} yet. The canvas shows the base text.":
+    "Aún no hay texto en {lang}. El lienzo muestra el texto base.",
+  "This block needs to sit inside a section. Add a section first, then drop it in.":
+    "Este bloque debe ir dentro de una sección. Agrega una sección primero y colócalo ahí.",
 };

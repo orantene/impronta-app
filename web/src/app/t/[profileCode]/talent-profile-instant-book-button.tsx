@@ -98,6 +98,7 @@ export function TalentProfileInstantBookButton({
         tenantId,
         eventDate: eventDate || null,
         sourcePage,
+        locale,
       });
       if (res.ok) {
         router.push(res.redirectPath);

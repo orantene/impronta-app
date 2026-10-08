@@ -31,6 +31,7 @@ import { createPurchase } from "@/lib/orders/purchase";
 import { tierReserveRequest } from "@/lib/sessions/tier-pools";
 import { DEFAULT_TIER_KEY } from "@/lib/sessions/tier-pools";
 import { uuidWire } from "@/lib/events/uuid-wire";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const HORIZON_DAYS = 90;
 
@@ -354,6 +355,7 @@ const bookSchema = z.object({
  * **The thirteenth is refused by the pool, and this only reports it.**
  */
 export async function bookSessionSeat(input: unknown): Promise<BookSeatResult> {
+  await requireNotImpersonating();
   const parsed = bookSchema.safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid_request" };
   const d = parsed.data;

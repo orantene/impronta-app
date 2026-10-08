@@ -59,7 +59,7 @@ export function ExtraScreen({
           <button
             type="button"
             disabled={busy || !name.trim()}
-            className="rounded-full bg-admin-brand px-3 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50"
+            className="rounded-full bg-[var(--tc-action)] px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-50"
             onClick={async () => {
               setBusy(true);
               const res = await upsertAddonGroup(talentId, {

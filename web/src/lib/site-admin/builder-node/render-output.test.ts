@@ -1468,7 +1468,29 @@ test("nav: defaults apply when optional props are omitted", () => {
   ]);
   assert.ok(html.includes('data-bn-collapse="mobile"'), "defaults to mobile collapse");
   assert.ok(html.includes('aria-label="Primary"'), "defaults nav landmark label");
-  assert.ok(html.includes('aria-label="Menu"'), "defaults toggle label");
+  // Single-link / Home-only navs omit the hamburger: no empty disclosure under the brand.
+  // Class name also appears in the stylesheet, so match the rendered element.
+  assert.ok(
+    !html.includes('class="site-builder-node--nav-disclosure"'),
+    "no mobile toggle for a one-link nav",
+  );
+  const withMenu = render([
+    {
+      id: "nav3",
+      kind: "nav",
+      props: {
+        links: [
+          { id: "a", label: "Home", href: "/" },
+          { id: "b", label: "About", href: "#about" },
+        ],
+      },
+    } as BuilderNode,
+  ]);
+  assert.ok(withMenu.includes('aria-label="Menu"'), "defaults toggle label when menu renders");
+  assert.ok(
+    withMenu.includes('class="site-builder-node--nav-disclosure"'),
+    "two-link nav emits the disclosure",
+  );
   // No brand ELEMENT (the class also appears in the <style> rule, so match the
   // rendered class attribute, not the bare class name).
   assert.ok(

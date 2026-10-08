@@ -1,0 +1,50 @@
+name: QA host pool
+
+# When a factory/* branch preview finishes building, lease it a QA host
+# (qa-1..qa-6.tulala.digital) and publish the host as a commit status.
+# The Vercel alias is the lease; see web/scripts/qa-host.mjs.
+
+on:
+  deployment_status:
+
+concurrency:
+  group: qa-host-pool
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  claim:
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      startsWith(github.event.deployment.environment, 'Preview') &&
+      startsWith(github.event.deployment.ref, 'factory/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Claim a QA host
+        id: claim
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          REF: ${{ github.event.deployment.ref }}
+        run: |
+          # claim prints a share URL carrying a 23h preview credential
+          # (?_vercel_share=...). Commit statuses are public to repo readers,
+          # so publish only the bare host: drop the query string and fragment.
+          host=$(node web/scripts/qa-host.mjs claim "$REF" | sed 's/[?#].*//')
+          echo "host=$host" >> "$GITHUB_OUTPUT"
+      - name: Post commit status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.deployment.sha }}
+          HOST: ${{ steps.claim.outputs.host }}
+        run: |
+          gh api "repos/${{ github.repository }}/statuses/$SHA" \
+            -f state=success -f context="qa-host" \
+            -f description="QA host leased" -f target_url="$HOST"

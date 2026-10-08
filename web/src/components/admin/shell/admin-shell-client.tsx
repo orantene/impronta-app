@@ -47,7 +47,8 @@ import { AdminShellProvider, useAdminShell, COLORS, FONTS, TRANSITION, Z, meetsR
 // FeedbackButton intentionally NOT imported — it was the legacy bottom-right
 // FAB and now lives dormant in _primitives. The new unified BottomActionFab
 // owns that screen position; feedback is reachable via the FAB's Ask AI tab.
-import { Icon, ToastHost, BackToTop, OfflineBanner, ShortcutsModal, type AdminShellIconName } from "./internal/primitives";
+import { Icon, ToastHost, BackToTop, ShortcutsModal, type AdminShellIconName } from "./internal/primitives";
+import { AdminChromeAlerts } from "./internal/admin-chrome-alerts";
 import { AdminTour } from "./internal/admin-tour";
 import { ControlBar, MobileBottomNav, SurfaceRouter } from "./internal/pages";
 import { DrawerRoot } from "./internal/drawers";
@@ -147,6 +148,7 @@ function DevOnlyControlBar({ show }: { show: boolean }) {
 // the host-shape logic can be unit-tested without mounting this shell. Add new
 // canonical pages to the matcher list there.
 import { pathIsCanonical } from "./canonical-routes";
+import { TALENT_VISUAL, TALENT_VISUAL_VARS } from "./internal/talent/visual/tokens";
 
 
 function ConditionalAdminShellRoot() {
@@ -1172,7 +1174,8 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
 }
 
 function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
-  const { bridgeTenantIdentity, workspaceFabEnabled } = useAdminShell();
+  const { bridgeTenantIdentity, workspaceFabEnabled, state } = useAdminShell();
+  const talentVisual = state.surface === "talent";
   // Whitelabel accent — only set for whitelabel-tier tenants (the loader
   // already gates + hex-validates it). When present, `--tulala-accent` and
   // `--tulala-accent-deep` re-tint every accent token in the shell; when
@@ -1443,7 +1446,8 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             .tulala-shell [data-tulala-workspace-grid] {
               grid-template-columns: 1fr !important;
             }
-            .tulala-shell [data-tulala-app-sidebar] {
+            .tulala-shell [data-tulala-app-sidebar],
+            .tulala-shell [data-tulala-app-sidebar-col] {
               display: none !important;
             }
             /* Workspace topbar — also drop nav-style chips inside. */
@@ -1807,7 +1811,7 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             .tulala-shell [data-tulala-identity-bar] {
               padding: 0 14px !important;
             }
-            .tulala-shell [data-tulala-identity-bar] [aria-label="Help"],
+            .tulala-shell [data-tulala-identity-bar] [aria-label="Help"], .tulala-shell [data-tulala-identity-bar] [data-tulala-brand-descriptor],
             .tulala-shell [data-tulala-identity-bar] [aria-label="Sign out"],
             .tulala-shell [data-tulala-identity-bar] [role="group"][aria-label="Language"] {
               display: none !important;
@@ -2100,11 +2104,13 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
         <div
           className="tulala-shell"
           data-dev={showDevBar ? "1" : "0"}
+          data-talent-visual={talentVisual ? "1" : undefined}
           style={{
             // CSS var consumed by sticky descendants (IdentityBar +
             // mode-shell topbars/sidebars) so they offset correctly
             // whether the dev control bar is shown or hidden.
             ["--proto-cbar" as never]: showDevBar ? "50px" : "0px",
+            ...(talentVisual ? TALENT_VISUAL_VARS : {}),
             // Real height of the fixed mobile bottom nav (64px content +
             // 1px top border) plus the device's home-indicator inset.
             // Every mobile surface that pins itself to the viewport must
@@ -2115,10 +2121,10 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             // Whitelabel accent (whitelabel-tier tenants only) — re-tints the
             // shell's accent tokens from the agency's brand color.
             ...accentVars,
-            background: COLORS.surface,
+            background: talentVisual ? TALENT_VISUAL.canvas : COLORS.surface,
             minHeight: "100vh",
             fontFamily: FONTS.body,
-            color: COLORS.ink,
+            color: talentVisual ? TALENT_VISUAL.ink : COLORS.ink,
             display: "flex",
             flexDirection: "column",
           }}
@@ -2147,8 +2153,7 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
           <ToastBridge />
           <TabTitleBridge />
 
-          {/* Offline banner — fixed at top, asserts connection loss (#23) */}
-          <OfflineBanner />
+          <AdminChromeAlerts />
 
           {/* Layered on top: command palette (⌘K / Ctrl+K) */}
           <CommandPalette />

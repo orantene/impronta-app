@@ -32,7 +32,7 @@ The live `engine_persist_booking_commission_snapshot` RPC **dropped the extended
 | Talent (type) | Storefront | Shape | CTAs resolved | Media | Prices |
 |---|---|---|---|---|---|
 | More TAL-00045 (model, pro) | ✅ | 4 rows + featured | book_now (casting) · request×3 · ask_quote (buyout) | real portfolio URLs | €600/€350/€500/€80 |
-| TAL-AUDIT-0512 (makeup, portfolio) | ✅ | 3 rows + package card + featured | **book_now** (trial, cash-ok) · request · **ask_quote** | — (no media owned) | €120/€85/€38/from €450 |
+| TAL-93941 (makeup, portfolio) | ✅ | 3 rows + package card + featured | **book_now** (trial, cash-ok) · request · **ask_quote** | — (no media owned) | €120/€85/€38/from €450 |
 | Popi TAL-00039 (DJ, pro) | ✅ | row + package card + featured | book_now (set) · request×2 | ✅ | €400/€120/€900 |
 | matu TAL-92061 (model, **free**) | **hidden** ✅ | — | — | — | plan gate holds |
 

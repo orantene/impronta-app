@@ -44,3 +44,55 @@ test("talent arrival links to Today; both drafts the own page; an existing works
   assert.equal(ex.primary.href, "/el-paisa/admin");
   assert.equal(parseArrivalStamp({ outcome: "nope" }), null);
 });
+
+test("talent arrival with a published own site opens that URL; without one it is unchanged", () => {
+  const base = { path: "talent" as const, stamp: null, person: { name: "Rosa", city: null }, businessName: null, services: 0, site: null };
+  const live = arrivalFromStamp({ ...base, talent: { publicUrl: "https://tulala.digital/t/abc", todayUrl: "/talent/today", siteUrl: "https://rosa.tulala.digital" } });
+  assert.equal(live.siteLive, true);
+  assert.equal(live.primary.label, "open_my_site");
+  assert.equal(live.primary.href, "https://rosa.tulala.digital");
+  assert.equal(live.link?.display, "rosa.tulala.digital");
+  const none = arrivalFromStamp({ ...base, talent: { publicUrl: "https://tulala.digital/t/abc", todayUrl: "/talent/today", siteUrl: null } });
+  assert.equal(none.siteLive, undefined);
+  assert.equal(none.primary.label, "finish_my_page");
+});
+
+const liveBase = {
+  person: { name: "Rosa Díaz", city: "CDMX" },
+  businessName: null,
+  services: 2,
+  site: null,
+  talent: { publicUrl: "https://tulala.digital/t/TAL-1", todayUrl: "https://app.tulala.digital/talent/today", siteUrl: "https://rosa.tulala.digital" },
+} as const;
+
+test("1D: a verified talent site says ready and carries editor + panel targets", () => {
+  const a = arrivalFromStamp({ path: "talent", stamp: null, ...liveBase, liveCheck: { ok: true } });
+  assert.equal(a.variant, "talent");
+  assert.equal(a.verified, true);
+  assert.equal(a.siteLive, true);
+  assert.equal(a.panelHref, "https://app.tulala.digital/talent/today");
+});
+
+test("1D: a failed live check is the honest draft state, never ready", () => {
+  const a = arrivalFromStamp({ path: "talent", stamp: null, ...liveBase, liveCheck: { ok: false } });
+  assert.equal(a.variant, "draft_saved");
+  assert.equal(a.verified, false);
+  assert.equal(a.siteLive, false);
+});
+
+test("1D: a studio whose page does not verify becomes draft_saved with its editor link", () => {
+  const a = arrivalFromStamp({
+    path: "business", stamp: { outcome: "composed" }, person: { name: "Ana", city: null }, businessName: "Casa Ana", services: 3,
+    site: { publicUrl: "https://casa-ana.tulala.digital", editorUrl: "https://casa-ana.tulala.digital/edit", adminPath: "https://app.tulala.digital/admin" },
+    talent: null, liveCheck: { ok: false }, urlDiffers: true,
+  });
+  assert.equal(a.variant, "draft_saved");
+  assert.equal(a.editorHref, "https://casa-ana.tulala.digital/edit");
+  assert.equal(a.urlDiffers, true);
+});
+
+test("1D: unchecked callers keep the old behaviour", () => {
+  const a = arrivalFromStamp({ path: "talent", stamp: null, ...liveBase });
+  assert.equal(a.verified, undefined);
+  assert.equal(a.variant, "talent");
+});

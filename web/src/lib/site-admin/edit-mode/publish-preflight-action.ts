@@ -19,15 +19,14 @@
 
 import { requireSession } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
+import { talentDesignRequiredIssue } from "./talent-design-preflight";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 import { runAriaLandmarkCheck } from "./aria-landmark-action";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
+import { builderTreeHasH1, isShellSectionType, withShellDefaults } from "@/lib/site-admin/edit-mode/shell-default-props";
 import { validateSectionProps } from "@/lib/site-admin/forms/sections";
-import {
-  findInvalidInquiryCtas,
-  isSectionHidden,
-} from "./publish-preflight-rules";
+import { findInvalidInquiryCtas, findSectionSwitcherIssues, isSectionHidden } from "./publish-preflight-rules";
 import {
   classifyCanonicalIssue,
   classifyHrefIssue,
@@ -60,6 +59,8 @@ import {
   collectFreePlanPublishNestedViolations,
 } from "@/lib/site-admin/builder-node/free-plan-builder-tree-guard";
 import { collectMobileOverflowPreflightIssues } from "./publish-preflight-mobile-overflow";
+import { collectAppPreflightIssues } from "./publish-preflight-apps";
+import { collectTickerPreflightIssues } from "./publish-preflight-ticker";
 import { BRAND_IDENTITY_MESSAGE, brandIdentityAppliesTo, brandIdentityVerdict } from "./publish-preflight-brand-identity";
 import { isAdvancedElementLibraryEnabledForPlan } from "@/lib/site-admin/builder-node/element-library-policy";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
@@ -88,7 +89,10 @@ export interface PreflightIssue {
     | "layout"
     | "mobile_overflow"
     | "performance"
-    | "brand_identity";
+    | "brand_identity"
+    | "app_config"
+    | "design"
+    | "ticker_source";
   /** Optional sectionId for click-to-focus in the drawer. */
   sectionId?: string;
   /**
@@ -104,6 +108,7 @@ export interface PreflightIssue {
    * carries this flag.
    */
   autoFixable?: boolean;
+  fixHref?: string; fixLabel?: string; // TUL-89: one-click fix link outside the builder
   message: string;
 }
 
@@ -112,6 +117,9 @@ export type PreflightResult =
   | { ok: false; error: string };
 
 // Section types that emit an H1 (others emit H2).
+/** Owner-facing (ES in editor-i18n-es-publish). No codes, no jargon. */
+const NO_H1_MESSAGE = "Your page needs a main title. Add a heading at the top, for example in your hero.";
+const PAYLOAD_INVALID_MESSAGE = "{section} has a field that needs attention. Open it and check that required fields are filled in.";
 const H1_TYPES = new Set(["hero", "hero_split", "blog_detail"]);
 
 // Section types whose section props carry image fields paired with alt
@@ -154,6 +162,67 @@ type PreflightPageContext = {
   publishedCompositionSnapshot: HomepageSnapshot | null;
 };
 
+/**
+ * Canvas-only preflight for talent personal sites (no agency tenant scope).
+ * Mirrors the builderTree validation branch used for CMS surfaces.
+ */
+async function runTalentPagePublishPreflight(builderTreeInput: unknown): Promise<PreflightResult> {
+  const issues: PreflightIssue[] = [];
+  const designIssue = await talentDesignRequiredIssue(); // TUL-89: server's first-publish design rule
+  if (designIssue) issues.push(designIssue);
+  const builderTree = Array.isArray(builderTreeInput) ? builderTreeInput : null;
+  if (!builderTree) {
+    return { ok: true, issues };
+  }
+  const validation = validateBuilderNodeTree(builderTree);
+  if (!validation.ok) {
+    // Talents get a plain message; the technical detail is for staff (server log).
+    logServerError(
+      "publish-preflight.talentPage.builderTree",
+      new Error(
+        validation.issues
+          .slice(0, 5)
+          .map((issue) => `${issue.path}: ${issue.message}`)
+          .join("; "),
+      ),
+    );
+    issues.push({
+      severity: "error",
+      category: "builder_payload",
+      message: "There is a problem with a section of your page. Save again or contact support.",
+    });
+    return { ok: true, issues };
+  }
+  for (const finding of collectBuilderPerformanceIssues(
+    collectBuilderPerformanceMetrics(validation.tree),
+  )) {
+    issues.push({
+      severity: finding.severity === "error" ? "error" : "warn",
+      category: "performance",
+      message: `Builder performance: ${finding.message}`,
+    });
+  }
+  for (const finding of collectBuilderTreeLayoutFindings(validation.tree)) {
+    const blocking = isBlockingLayoutFindingId(finding.id);
+    issues.push({
+      severity: blocking ? "error" : "warn",
+      category: "layout",
+      sectionId: finding.ownerSectionId ?? undefined,
+      nodeId: finding.nodeId ?? undefined,
+      autoFixable: blocking && finding.quickFixPatch != null,
+      message: blocking
+        ? `${finding.message} Resolve this layout issue before publish.`
+        : finding.message,
+    });
+  }
+  for (const issue of collectMobileOverflowPreflightIssues(validation.tree)) {
+    issues.push(issue);
+  }
+  for (const issue of collectAppPreflightIssues(validation.tree)) issues.push(issue);
+  for (const issue of collectTickerPreflightIssues(validation.tree)) issues.push(issue);
+  return { ok: true, issues };
+}
+
 export async function runPublishPreflight(input?: {
   locale?: string;
   /**
@@ -173,7 +242,15 @@ export async function runPublishPreflight(input?: {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
-  if (!scope) return { ok: false, error: "Pick an agency workspace first." };
+  // Talent personal sites edit on `app.tulala.digital/talent/page-builder` with
+  // no agency tenant cookie. Preflight still runs for `talent_page` (see
+  // `isPublishPreflightSurface`) — do not demand an agency workspace.
+  if (!scope) {
+    if (input?.surfaceKind === "talent_page") {
+      return await runTalentPagePublishPreflight(input?.builderTree);
+    }
+    return { ok: false, error: "Pick an agency workspace first." };
+  }
   const locale = input?.locale?.trim() || DEFAULT_PLATFORM_LOCALE;
   const workspacePlan = await loadBuilderWorkspacePlan(auth.supabase, scope.tenantId, {
     logTag: "publish-preflight",
@@ -263,20 +340,11 @@ export async function runPublishPreflight(input?: {
     }
   }
 
-  // Heading hierarchy
+  // Heading hierarchy (the "no H1" verdict is issued after the builder tree
+  // loads: a hero / carousel heading in the tree counts as the H1).
   let h1Count = 0;
-  let firstHeadingSeen = false;
   for (const r of rows) {
     if (H1_TYPES.has(r.section_type_key)) h1Count += 1;
-    firstHeadingSeen = firstHeadingSeen || true;
-  }
-  if (firstHeadingSeen && h1Count === 0) {
-    issues.push({
-      severity: "error",
-      category: "headings",
-      message:
-        "No H1 on the page. Add a hero / hero_split / blog_detail section, or one will be implied from your first H2.",
-    });
   }
   if (h1Count > 1) {
     issues.push({
@@ -289,7 +357,8 @@ export async function runPublishPreflight(input?: {
   // Alt-text audits per section
   for (const r of rows) {
     if (r.status === "archived") continue;
-    const props = (r.props_jsonb as Record<string, unknown> | null) ?? {};
+    // TUL-76: legacy shell rows missing brand/legal get defaults, never a blocker.
+    const props = withShellDefaults(r.section_type_key, (r.props_jsonb as Record<string, unknown> | null) ?? {});
     const sectionName = cleanSectionName(r.name) || r.name;
 
     // Schema drift guard: preflight should surface invalid payloads before the
@@ -302,18 +371,13 @@ export async function runPublishPreflight(input?: {
       props,
     );
     if (!propsValidation.ok) {
-      const issueHint =
-        propsValidation.issues && propsValidation.issues.length > 0
-          ? propsValidation.issues
-              .slice(0, 2)
-              .map((i) => `${i.path.join(".") || "props"}: ${i.message}`)
-              .join("; ")
-          : propsValidation.message;
+      // System landmarks (header/footer) are never the owner's fault: skip.
+      if (isShellSectionType(r.section_type_key)) continue;
       issues.push({
         severity: "error",
         category: "builder_payload",
         sectionId: r.id,
-        message: `${sectionName}: invalid section payload (${propsValidation.code}). ${issueHint}`,
+        message: PAYLOAD_INVALID_MESSAGE.replace("{section}", sectionName),
       });
       // Skip secondary checks for payloads that don't parse safely.
       continue;
@@ -373,6 +437,8 @@ export async function runPublishPreflight(input?: {
         message,
       });
     }
+
+    for (const message of findSectionSwitcherIssues(sectionName, r.section_type_key, props)) issues.push({ severity: "warn", category: "link_integrity", sectionId: r.id, message });
 
     // Generic link integrity audit.
     for (const candidate of collectLinkCandidates(props)) {
@@ -488,6 +554,10 @@ export async function runPublishPreflight(input?: {
       builderTree = revisionRow.snapshot.builderTree;
     }
   }
+  const treeHasH1 = builderTreeHasH1(builderTree);
+  if (h1Count === 0 && !treeHasH1 && (rows.length > 0 || (Array.isArray(builderTree) && builderTree.length > 0))) {
+    issues.push({ severity: "error", category: "headings", message: NO_H1_MESSAGE });
+  }
   if (builderTree) {
       const validation = validateBuilderNodeTree(builderTree);
       if (!validation.ok) {
@@ -542,20 +612,12 @@ export async function runPublishPreflight(input?: {
           });
         }
 
-        // W3-M1 — mobile horizontal overflow is a publish-BLOCKING error, not a
-        // shipped advisory. A block whose resolved fixed width/min-width on the
-        // mobile breakpoint exceeds the narrowest viewport (e.g. a
-        // `width: 1120px` container inside a ~390px frame) forces a horizontal
-        // scrollbar on phones — that page cannot go live until it's fixed. The
-        // offending node id rides along so the drawer can point straight at it
-        // (and the W3-M3 AI fixer can target it). The softer "likely overflow"
-        // heuristics (multi-column grids, non-collapsing splits) stay advisory
-        // in MobileHealthPanel and are intentionally NOT promoted here.
-        for (const overflowIssue of collectMobileOverflowPreflightIssues(
-          validation.tree,
-        )) {
-          issues.push(overflowIssue);
-        }
+        // W3-M1 — a block with a fixed width past the narrowest mobile viewport forces a
+        // horizontal scrollbar on phones: a publish-BLOCKING error. The node id rides along so the
+        // drawer can point at it. Softer "likely overflow" heuristics stay advisory (MobileHealthPanel).
+        for (const overflowIssue of collectMobileOverflowPreflightIssues(validation.tree)) issues.push(overflowIssue);
+        for (const appIssue of collectAppPreflightIssues(validation.tree)) issues.push(appIssue);
+        for (const tickerIssue of collectTickerPreflightIssues(validation.tree)) issues.push(tickerIssue);
 
         // Paid-plan blocks: social_feed is gated to paid workspaces. The Add
         // gallery already refuses the insert on free plans; this is the

@@ -36,7 +36,7 @@ const IMG = "/mockups/jor-beauty/v2";
 const PORTRAIT = "/mockups/jor-beauty/jorgelina-portrait-v2.jpg";
 const LOGO = "/mockups/jor-beauty/jorg-beauty-logo.png";
 
-export const JOR_BEAUTY_PROFILE_CODE = "TA-JORGBEAUTY";
+export const JOR_BEAUTY_PROFILE_CODE = "TAL-93938";
 
 /** The four catalogue categories (talent_offerings.category). */
 export const JOR_CATEGORIES = [
@@ -508,7 +508,7 @@ export const JOR_MAISON_CONTENT: MaisonContent = {
     greeting: "Hola, soy Jorgelina",
     paragraphs: [
       "Estudié Ingeniería durante tres años hasta que entendí que mi verdadera vocación estaba en la estética: crear, cuidar los detalles y ayudar a otras personas a sentirse más lindas y seguras.",
-      "Hace siete años seguí esa vocación. Hoy me especializo en pestañas, y también trabajo uñas, cejas y depilación facial. Cada cita es un rato dedicado a vos, a tus gustos y al resultado que querés conseguir.",
+      "Hace siete años seguí esa vocación. Hoy me especializo en pestañas, y también trabajo uñas, cejas y depilación facial. Cada cita es un rato dedicado a ti, a tus gustos y al resultado que quieres conseguir.",
     ],
     moreLabel: "Leer la historia completa",
     more: [
@@ -534,14 +534,14 @@ export const JOR_MAISON_CONTENT: MaisonContent = {
       { icon: "studio", label: "Estudio", value: "Estudio privado. La ubicación completa se comparte al confirmar la cita." },
       { icon: "days", label: "Días", value: "Lunes a sábado" },
       { icon: "heart", label: "Citas", value: "Únicamente con cita previa" },
-      { icon: "clock", label: "Anticipación", value: "Se recomienda reservar con 24 horas; también podés consultar por disponibilidad de último momento." },
+      { icon: "clock", label: "Anticipación", value: "Se recomienda reservar con 24 horas; también puedes consultar por disponibilidad de último momento." },
       { icon: "languages", label: "Idiomas", value: "Español · Inglés básico" },
     ],
   },
 
-  // NOT CONFIRMED by Jorgelina — shown so the contact row can be judged, with
-  // every link inert (`demo: true`). Swap in her real handles and drop the
-  // flag and they go live untouched.
+  // NOT CONFIRMED by Jorgelina — kept in the seed so an owner can swap in
+  // real handles later. Guest path hides the band while `demo: true`
+  // (MaisonContact returns null; talent_site also prunes matching CMS stubs).
   contact: {
     whatsapp: "5219841234567",
     instagram: "jorgbeauty",
@@ -557,20 +557,20 @@ export const JOR_MAISON_CONTENT: MaisonContent = {
       q: "¿Cómo reservo una cita?",
       a: "Desde esta misma página, en cuatro pasos:",
       steps: [
-        { title: "Elegí tu servicio", detail: "Del menú, con su largo y sus diseños." },
-        { title: "Mirá los horarios", detail: "Días y horas reales, de lunes a sábado." },
-        { title: "Dejá tus datos", detail: "Nombre y un contacto para confirmarte." },
+        { title: "Elige tu servicio", detail: "Del menú, con su largo y sus diseños." },
+        { title: "Mira los horarios", detail: "Días y horas reales, de lunes a sábado." },
+        { title: "Deja tus datos", detail: "Nombre y un contacto para confirmarte." },
         { title: "Recibí la dirección", detail: "Te comparto el estudio al confirmar." },
       ],
     },
     {
-      q: "¿Dónde atendés?",
+      q: "¿Dónde atiendes?",
       a: "En un estudio privado en Playa del Carmen Centro. La dirección completa se comparte al confirmar la cita.",
     },
     { q: "¿Necesito reservar?", a: "Sí. La atención es únicamente con cita previa." },
     {
       q: "¿Con cuánta anticipación conviene reservar?",
-      a: "Idealmente con 24 horas. Si necesitás algo de último momento, consultá igual: a veces hay lugar.",
+      a: "Idealmente con 24 horas. Si necesitas algo de último momento, consulta igual: a veces hay lugar.",
     },
     {
       q: "¿La manicura rusa tiene costo adicional?",
@@ -581,7 +581,7 @@ export const JOR_MAISON_CONTENT: MaisonContent = {
   closing: {
     title: "Nos vemos",
     titleAccent: "en el estudio.",
-    body: "Elegí tu servicio y encontrá un horario que te quede bien.",
+    body: "Elige tu servicio y encuentra un horario que te quede bien.",
   },
 };
 

@@ -6,6 +6,8 @@
  * graph into a vanity Max SSR path.
  */
 
+import type { OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
+
 export type InstantBookFormPayload = {
   talentProfileId: string;
   tenantId: string;
@@ -19,10 +21,14 @@ export type InstantBookFormPayload = {
   payInPerson?: boolean;
   variantId?: string | null;
   addOnIds?: string[];
+  /** Gridline G9b: task-picker brief (task + editable note). Clamped server-side. */
+  brief?: OfferingTaskBrief | null;
   quantity?: number;
   reservation?: { startsAt: string; endsAt: string; timezone: string } | null;
   captchaToken?: string | null;
   honeypot?: string | null;
+  /** The language the guest is browsing in (the booking sheet's locale). TUL-93. */
+  locale?: string | null;
 };
 
 export type InstantBookActionResult =

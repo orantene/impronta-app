@@ -23,6 +23,7 @@ import {
 import { logServerError } from "@/lib/server/safe-error";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type PlatformActionContext =
   | {
@@ -132,6 +133,7 @@ function done(saved: string): never {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function createSectionGroup(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) fail(auth.error);
 
@@ -176,6 +178,7 @@ export async function createSectionGroup(formData: FormData): Promise<void> {
 }
 
 export async function updateSectionGroup(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) fail(auth.error);
 
@@ -222,6 +225,7 @@ export async function updateSectionGroup(formData: FormData): Promise<void> {
 }
 
 export async function reorderSectionGroups(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) fail(auth.error);
 
@@ -289,6 +293,7 @@ export async function reorderSectionGroups(formData: FormData): Promise<void> {
 }
 
 export async function archiveSectionGroup(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) fail(auth.error);
 
@@ -344,6 +349,7 @@ export async function archiveSectionGroup(formData: FormData): Promise<void> {
 }
 
 export async function restoreSectionGroup(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) fail(auth.error);
 
@@ -385,6 +391,7 @@ export async function restoreSectionGroup(formData: FormData): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function updateSection(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) fail(auth.error);
 
@@ -442,6 +449,7 @@ export async function updateSection(formData: FormData): Promise<void> {
 }
 
 export async function moveSection(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) fail(auth.error);
 
@@ -508,6 +516,7 @@ export async function moveSection(formData: FormData): Promise<void> {
 }
 
 export async function reorderSections(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) fail(auth.error);
 
@@ -580,6 +589,7 @@ export async function reorderSections(formData: FormData): Promise<void> {
 }
 
 export async function archiveSection(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) fail(auth.error);
 
@@ -627,6 +637,7 @@ export async function archiveSection(formData: FormData): Promise<void> {
 export async function reorderSectionFieldsAction(
   formData: FormData,
 ): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) fail(auth.error);
 
@@ -699,6 +710,7 @@ export async function reorderSectionFieldsAction(
 }
 
 export async function deleteSectionGroup(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) fail(auth.error);
 
@@ -746,6 +758,7 @@ export async function deleteSectionGroup(formData: FormData): Promise<void> {
 }
 
 export async function deleteSection(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) fail(auth.error);
 
@@ -784,6 +797,7 @@ export async function deleteSection(formData: FormData): Promise<void> {
 }
 
 export async function restoreSection(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) fail(auth.error);
 

@@ -7,6 +7,7 @@ import type { TalentAgendaItem } from "./types";
 export type AttentionCtaKind =
   | "reply"
   | "release_hold"
+  | "request_deposit"
   | "collect"
   | "complete"
   | "intake"
@@ -39,8 +40,10 @@ export function resolveAttentionCta(item: TalentAgendaItem): AttentionCta {
     return { kind: "reply", label: "Reply", mutates: false };
   }
   if (item.booking === "hold" || item.kind === "hold") {
-    // Confirm/convert is staff/record path; talent-owned mutation here is release.
-    return { kind: "release_hold", label: "Release hold", mutates: true };
+    // P0 audit: the primary CTA must never be destructive. Releasing a hold
+    // frees the client's slot, so it lives only in the record's More menu.
+    // The forward action is asking for the deposit that secures the slot.
+    return { kind: "request_deposit", label: "Request deposit", mutates: false };
   }
   if (hasPendingReschedule(item)) {
     return { kind: "reschedule", label: "Respond to reschedule", mutates: false };
@@ -67,7 +70,7 @@ export function whoLabel(item: TalentAgendaItem): string {
 export function peekActionLabels(item: TalentAgendaItem): string[] {
   const primary = resolveAttentionCta(item);
   if (primary.kind === "reply") return ["Reply", "Open booking", "Decline later"];
-  if (primary.kind === "release_hold") return ["Release hold", "Message", "Open booking"];
+  if (primary.kind === "request_deposit") return ["Request deposit", "Message", "Open booking"];
   if (primary.kind === "reschedule") return ["Respond to reschedule", "Open booking", "Message"];
   if (primary.kind === "intake") return ["Review intake", "Open booking", "Message"];
   if (primary.kind === "collect") return [primary.label, "Reschedule", "Open booking"];

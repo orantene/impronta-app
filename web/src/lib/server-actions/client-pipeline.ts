@@ -17,11 +17,14 @@ import { logServerError } from "@/lib/server/safe-error";
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 import { clientRejectOffer } from "@/lib/inquiry/inquiry-engine-offers";
 import { loadActiveBookingTransaction } from "@/lib/bookings/transactions";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { checkInquiryCurrencyMatchesSeller } from "@/lib/inquiry/offer-currency-seller";
 import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
 import { createPaymentIntentForTransaction } from "@/lib/payments/stripe-payment-intent";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { headers } from "next/headers";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // A.4 INTENTIONAL DIVERGENCE: align with canonical `ServerActionResult<T>` — currently
 // preserved as a structurally compatible local type so `startInquiryCheckout`
@@ -84,6 +87,8 @@ async function loadClientInquiryContext(inquiryId: string): Promise<
  * inquiry to `approved` once all approvals land).
  */
 export async function clientApproveCurrentOffer(inquiryId: string): Promise<ClientActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const ctx = await loadClientInquiryContext(inquiryId);
     if (!ctx.ok) return ctx;
@@ -148,6 +153,8 @@ export async function clientRejectCurrentOffer(
   reason: "too_expensive" | "wrong_talent" | "timing" | "changed_plans" | "other" = "other",
   reasonText?: string,
 ): Promise<ClientActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const ctx = await loadClientInquiryContext(inquiryId);
     if (!ctx.ok) return ctx;
@@ -215,6 +222,7 @@ export async function clientRejectCurrentOffer(
 export async function startInquiryCheckout(
   inquiryId: string,
 ): Promise<ClientActionResult & { url?: string; mock?: boolean }> {
+  await requireNotImpersonating();
   try {
     const ctx = await loadClientInquiryContext(inquiryId);
     if (!ctx.ok) return ctx;
@@ -233,13 +241,23 @@ export async function startInquiryCheckout(
       return { ok: false, error: "This invoice is already paid." };
     }
 
+    // TUL-274: never start a charge in a currency the single seller does not charge in.
+    // Sellers are read with the service client: the client's own session cannot see talent rows.
+    // Fails CLOSED on a read error, or when the service client is missing.
+    const curCheck = await checkInquiryCurrencyMatchesSeller(createServiceRoleClient(), {
+      inquiryId,
+      currency: txn.currency || (booking.currency_code as string | null) || "USD",
+      mode: "charge",
+    });
+    if (!curCheck.ok) return { ok: false, error: curCheck.message };
+
     // Build success/cancel URLs. Prefer NEXT_PUBLIC_BASE_URL but fall
     // back to the request's origin so local dev works without env vars.
     const hdrs = await headers();
     const host = hdrs.get("host") ?? "localhost";
     const proto = hdrs.get("x-forwarded-proto") ?? "https";
     const origin = process.env.NEXT_PUBLIC_BASE_URL ?? `${proto}://${host}`;
-    const successUrl = `${origin}/checkout/success`;
+    const successUrl = `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${origin}/checkout/cancel`;
 
     // The charge ALWAYS lands on the platform account — there is no
@@ -298,7 +316,10 @@ export async function createInquiryPaymentIntent(
   amountCents?: number;
   currency?: string;
   mock?: boolean;
+  /** Publishable key of the Stripe platform that owns the charge (MX differs from US). */
+  publishableKey?: string | null;
 }> {
+  await requireNotImpersonating();
   try {
     const ctx = await loadClientInquiryContext(inquiryId);
     if (!ctx.ok) return ctx;
@@ -318,6 +339,10 @@ export async function createInquiryPaymentIntent(
     }
 
     const currency = txn.currency || (booking.currency_code as string | null) || "USD";
+
+    // TUL-274: never start a charge in a currency the single seller does not charge in.
+    const curCheck = await checkInquiryCurrencyMatchesSeller(createServiceRoleClient(), { inquiryId, currency, mode: "charge" });
+    if (!curCheck.ok) return { ok: false, error: curCheck.message };
 
     const result = await createPaymentIntentForTransaction({
       transactionId: txn.id,
@@ -340,6 +365,7 @@ export async function createInquiryPaymentIntent(
       amountCents: result.amountCents,
       currency: result.currency,
       mock: result.mock,
+      publishableKey: result.publishableKey ?? null,
     };
   } catch (err) {
     logServerError("client-pipeline.createInquiryPaymentIntent", err);
@@ -355,6 +381,8 @@ export async function sendInquiryMessageAsClient(
   inquiryId: string,
   body: string,
 ): Promise<ClientActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const trimmed = body.trim();
     if (!trimmed) return { ok: false, error: "Message body is empty." };

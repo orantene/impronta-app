@@ -1,0 +1,76 @@
+/**
+ * Spanish for Talent Clients directory (AUD-019 / mc_clients).
+ *
+ * Kept out of dashboard-i18n.ts — size-ratchet. Fold into RAIL_ES_TEXT.
+ */
+
+import { QA_MINORS_1007_ES_TEXT } from "./dashboard-i18n-qa-minors-1007";
+
+export const CLIENTS_ES_TEXT: Record<string, string> = {
+  "People who booked or messaged you": "Personas con quienes trabajaste o hablaste",
+  "people you have worked with or talked to": "personas con quienes trabajaste o hablaste",
+  "person you have worked with or talked to": "persona con quien trabajaste o hablaste",
+  "Search name, phone or email": "Buscar nombre, teléfono o correo",
+  All: "Todas",
+  Upcoming: "Próximas",
+  Outstanding: "Con saldo",
+  "Follow-up": "Seguimiento",
+  New: "Nuevas",
+  "Add client": "Agregar clienta",
+  Client: "Clienta",
+  "Last completed": "Última completada",
+  Next: "Próxima",
+  None: "Nada",
+  "No work yet": "Sin trabajos aún",
+  "Nothing booked": "Nada reservado",
+  "at the appointment": "en la cita",
+  overdue: "vencido",
+  "View appointment": "Ver cita",
+  "View hold": "Ver apartado",
+  "Review request": "Revisar solicitud",
+  "Request payment": "Pedir pago",
+  "Book appointment": "Reservar cita",
+  Message: "Mensaje",
+  Book: "Reservar",
+  "Client record": "Ficha",
+  "Back to Clients": "Volver a Clientas",
+  "Open conversation": "Abrir conversación",
+  "From a booking": "De una reserva",
+  "From a message": "De un mensaje",
+  visits: "visitas",
+  completed: "completadas",
+  "of": "de",
+  clients: "clientas",
+  Confirmed: "Confirmada",
+  "On hold": "Apartado",
+  Requested: "Solicitud",
+  "No matching clients": "Ninguna clienta coincide",
+  "Clear search": "Borrar búsqueda",
+  "Follow-up suggestions need a rebooking interval on each service. None are ready yet.":
+    "Las sugerencias de seguimiento necesitan un intervalo de rebooking en cada servicio. Aún no hay ninguna lista.",
+  "Due at the appointment · the same amount shows in Money and on the booking":
+    "Se paga en la cita · el mismo monto aparece en Dinero y en la reserva",
+  "Private notes": "Notas privadas",
+  "No notes yet.": "Sin notas aún.",
+  "Work and payments": "Trabajos y pagos",
+  "Nothing owed on file": "Nada pendiente en archivo",
+  "Balance on file": "Saldo en archivo",
+  // Dashboard diff 2026-09-28: client record
+  Returning: "Recurrente",
+  "Edit details": "Editar datos",
+  "Editing client details is not available yet.": "Editar los datos de la clienta aún no está disponible.",
+  "No phone or email on file": "Sin teléfono ni correo registrado",
+  "No completed work yet": "Aún sin trabajos completados",
+  "No appointments yet.": "Aún no hay citas.",
+  "No service set": "Sin servicio",
+  "Not marked complete": "Sin marcar como completada",
+  "Private notes are not available yet.": "Las notas privadas aún no están disponibles.",
+  "Private notes are not available yet. When they are, only you will see them: never in checkout, receipts, your public pages or message previews.":
+    "Las notas privadas aún no están disponibles. Cuando lo estén, solo tú las verás: nunca en el pago, recibos, tus páginas públicas ni vistas previas de mensajes.",
+  "History in numbers": "Historial en números",
+  "Paid to you": "Te pagó",
+  "None yet": "Aún nada",
+  "First visit": "Primera visita",
+  "Last visit": "Última visita",
+  ...QA_MINORS_1007_ES_TEXT,
+};

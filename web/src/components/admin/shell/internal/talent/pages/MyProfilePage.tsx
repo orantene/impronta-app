@@ -1,16 +1,25 @@
 "use client";
 
-import { useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { Divider, Icon, PrimaryButton, SecondaryButton, SecondaryCard } from "../../primitives";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PROFILES_BY_ID, TAXONOMY, TAXONOMY_PARENT_LABEL_KEYS, applyProfileOverride, buildFreshTalentProfile, clearPendingReview, computeProfileCompleteness, getPendingReviewForRoster, getProfileById, useAdminShell, usePendingReviewSubscription, useProfileOverrideSubscription } from "../../state";
 import { PageHeader } from "../shared/page-chrome-1";
-import { TierBreakdown } from "../shared/profile-1";
+import { ProfileEditorSections, ProfileReadyCard } from "./ProfileEditorPanel";
 import { AllSectionsGrid, EngagementStrip, ProfileHero } from "../shared/profile-sections-1";
 import { PersonalPageBand } from "../shared/profile-sections-2";
+import { resolveTalentOwnPageState } from "@/lib/talent/public-profile-href";
+import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
 
 
+
+/** Labels of the model-industry taxonomy parents (models, hosts) and their children. */
+const MODEL_INDUSTRY_TRADE_LABELS: ReadonlySet<string> = new Set(
+  TAXONOMY.filter((parent) => parent.id === "models" || parent.id === "hosts").flatMap((parent) => [
+    parent.label.toLowerCase(),
+    ...parent.children.map((c) => c.label.toLowerCase()),
+  ]),
+);
 
 export function MyProfilePage() {
   const t = useT();
@@ -55,35 +64,7 @@ export function MyProfilePage() {
   };
   const m = p.measurements;
 
-  // Map missing fields to the unified profile-shell section that
-  // completes them. Single source of truth — every "fix this" click
-  // deep-links into talent-profile-shell with mode "edit-self" instead
-  // of opening a parallel mini-drawer with its own field shape +
-  // privacy semantics. The legacy talent-* mini-drawers (talent-
-  // polaroids, talent-rate-card, …) become unreachable from this
-  // path; they stay registered for backwards-compat with anything
-  // else that still calls them, but the talent-side dashboard funnels
-  // entirely through the shell now.
-  const missingFieldRoutes: { label: string; section: string }[] =
-    p.missing.map((field) => {
-      const lower = field.toLowerCase();
-      if (lower.includes("polaroid"))    return { label: field, section: tenantSlug === "impronta" ? "media" : "polaroids" };
-      if (lower.includes("rate"))        return { label: field, section: "rates" };
-      if (lower.includes("showreel"))    return { label: field, section: "media" };
-      if (lower.includes("measurement")) return { label: field, section: "details" };
-      if (lower.includes("document") || lower.includes("file")) return { label: field, section: "files" };
-      if (lower.includes("portfolio") || lower.includes("photo") || lower.includes("album")) return { label: field, section: "albums" };
-      if (lower.includes("language"))    return { label: field, section: "languages" };
-      if (lower.includes("availab"))     return { label: field, section: "availability" };
-      if (lower.includes("skill"))       return { label: field, section: "refinement" };
-      if (lower.includes("credit"))      return { label: field, section: "credits" };
-      if (lower.includes("limit"))       return { label: field, section: "limits" };
-      if (lower.includes("verif"))       return { label: field, section: "verifications" };
-      // Default — land on Identity (fields like name / pronouns / DOB).
-      return { label: field, section: "identity" };
-    });
   const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: selfTalentId, section });
-  const [completenessOpen, setCompletenessOpen] = useState(false);
 
   // Phase C4 — derive role labels for the page header. Primary +
   // secondary roles render as "Model · also Host" so the multi-role
@@ -99,6 +80,11 @@ export function MyProfilePage() {
     const localized = key ? t(key) : "";
     return localized && localized !== key ? localized : parent.label;
   };
+  // A real talent's trade is the bridged label; the scaffold's primaryType
+  // defaults to "models" for everyone, so it cannot decide this alone.
+  const showModelSections = bridgeTalentSelfProfile
+    ? MODEL_INDUSTRY_TRADE_LABELS.has((bridgeTalentSelfProfile.primaryTypeLabel ?? "").trim().toLowerCase())
+    : true;
   const primaryRoleLabel = roleLabelFor(p.primaryType) ?? t("dashboard.talentMyProfile.roleFallback");
   const secondaryRoleLabels = p.secondaryTypes
     .map(id => roleLabelFor(id))
@@ -107,16 +93,39 @@ export function MyProfilePage() {
     ? `${primaryRoleLabel} · ${t("dashboard.talentMyProfile.roleAlso")} ${secondaryRoleLabels.join(" · ")}`
     : primaryRoleLabel;
 
-  const previewHref = bridgeTalentSelfProfile?.profileCode
-    ? `https://tulala.digital/t/${encodeURIComponent(bridgeTalentSelfProfile.profileCode)}`
+  // TUL-90: one source of truth for her public address and whether it is live.
+  const origin = useCurrentOrigin();
+  const ownPage = bridgeTalentSelfProfile
+    ? resolveTalentOwnPageState({
+        profileCode: bridgeTalentSelfProfile.profileCode,
+        workflowStatus: bridgeTalentSelfProfile.workflowStatus,
+        isPubliclyHidden: bridgeTalentSelfProfile.isPubliclyHidden,
+        currentOrigin: origin,
+      })
     : null;
+  const previewHref = ownPage?.href ?? null;
+  const publicUrlLabel = ownPage ? ownPage.label : p.publicUrl;
+
+  // One header line: drop empty parts so no stray " · " separators appear (DS-34).
+  const headerSubtitle = [
+    bridgeTalentSelfProfile ? (bridgeTalentSelfProfile.primaryTypeLabel ?? t("dashboard.talentMyProfile.chooseTrade")) : roleSummary,
+    p.measurementsSummary,
+    bridgeTalentSelfProfile?.homeCity ?? p.city,
+  ]
+    .map((part) => (typeof part === "string" ? part.trim() : ""))
+    .filter(Boolean)
+    .join(" · ");
 
   return (
+    // The page body is ONE grid item. Its children used to be a bare fragment,
+    // so every card became its own grid cell and flowed into the right column
+    // (blank card, empty "Personal page" heading, status cards side by side;
+    // QA DS-33). 
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-    <>
+    <div className="min-w-0">
       <PageHeader
         title={bridgeTalentSelfProfile?.displayName ?? p.name}
-        subtitle={`${bridgeTalentSelfProfile?.primaryTypeLabel ?? roleSummary}${p.measurementsSummary ? ` · ${p.measurementsSummary}` : ""}${(bridgeTalentSelfProfile?.homeCity ?? p.city) ? ` · ${bridgeTalentSelfProfile?.homeCity ?? p.city}` : ""}`}
+        subtitle={headerSubtitle}
         actions={
           // Header actions are intentionally compact (size="sm"). The
           // md size is for body-level CTAs; in a header alongside the
@@ -189,134 +198,23 @@ export function MyProfilePage() {
         </div>
       )}
 
-      {p.completeness < 100 && (
-        <div
-          style={{
-            marginBottom: 16,
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 14,
-            fontFamily: FONTS.body,
-            overflow: "hidden",
-          }}
-        >
-          {/* ── Collapsed header — always visible, click to expand ── */}
-          <button
-            type="button"
-            onClick={() => setCompletenessOpen(o => !o)}
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              gap: 16,
-              padding: "16px 20px",
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              textAlign: "left",
-              fontFamily: FONTS.body,
-            }}
-          >
-            {/* SVG progress ring */}
-            <svg width="64" height="64" viewBox="0 0 64 64" style={{ flexShrink: 0 }}>
-              <circle cx="32" cy="32" r="26" fill="none" stroke={COLORS.borderSoft} strokeWidth="5" />
-              <circle
-                cx="32" cy="32" r="26"
-                fill="none"
-                stroke={COLORS.indigo}
-                strokeWidth="5"
-                strokeLinecap="round"
-                strokeDasharray={`${2 * Math.PI * 26}`}
-                strokeDashoffset={`${2 * Math.PI * 26 * (1 - p.completeness / 100)}`}
-                transform="rotate(-90 32 32)"
-                style={{ transition: "stroke-dashoffset 0.6s ease" }}
-              />
-              <text
-                x="32" y="36"
-                textAnchor="middle"
-                fontFamily={FONTS.display}
-                fontSize="13"
-                fontWeight="700"
-                fill={COLORS.indigoDeep}
-              >{p.completeness}%</text>
-            </svg>
-
-            <div className="flex-1 min-w-0">
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }} className="text-admin-ink">
-                {interpolate(t("dashboard.talentMyProfile.completeTitle"), { percent: p.completeness })}
-              </div>
-              <div className="text-admin-ink-muted text-admin-12h">
-                {interpolate(
-                  t(missingFieldRoutes.length === 1
-                    ? "dashboard.talentMyProfile.fieldsLeftOne"
-                    : "dashboard.talentMyProfile.fieldsLeftMany"),
-                  { count: missingFieldRoutes.length },
-                )}
-              </div>
-            </div>
-
-            <span style={{ flexShrink: 0, width: 28, height: 28, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 14, transform: completenessOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s ease" }} className="bg-admin-surface-alt text-admin-ink-muted">
-              ›
-            </span>
-          </button>
-
-          {/* ── Thin progress bar ── */}
-          <div style={{ height: 3, background: COLORS.borderSoft, margin: "0 20px" }}>
-            <div style={{
-              height: "100%",
-              width: `${p.completeness}%`,
-              background: COLORS.indigo,
-              borderRadius: 999,
-              transition: "width 0.6s ease",
-            }} />
-          </div>
-
-          {/* ── Accordion body ── */}
-          {completenessOpen && (
-            <div style={{ padding: "16px 20px 20px" }}>
-              <TierBreakdown
-                missing={catalogCompleteness.missing}
-                primaryType={baseProfile.primaryType}
-                secondaryTypes={baseProfile.secondaryTypes}
-                tenantId={bridgeTenantIdentity?.tenantId ?? null}
-              />
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
-                {missingFieldRoutes.map((r) => (
-                  <button
-                    key={r.label}
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); openSection(r.section); }}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 5,
-                      padding: "5px 11px",
-                      background: COLORS.indigoSoft,
-                      border: `1px solid rgba(91,107,160,0.20)`,
-                      borderRadius: 999,
-                      cursor: "pointer",
-                      fontFamily: FONTS.body,
-                      fontSize: 11.5,
-                      fontWeight: 500,
-                      color: COLORS.indigoDeep,
-                    }}
-                  >
-                    <Icon name="plus" size={10} stroke={2} color={COLORS.indigoDeep} />
-                    {r.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {/* One completion value: website eligibility (same as Today). */}
+      <ProfileReadyCard openSection={openSection} />
+      <ProfileEditorSections openSection={openSection} />
 
       {/* ── Hero band ──────────────────────────────────────────────── */}
       <ProfileHero />
 
-      {/* ── All sections — primary nav into the profile shell ─────── */}
-      <Divider label={t("dashboard.talentMyProfile.editSections")} />
-      <AllSectionsGrid openSection={openSection} />
+      {/* ── Legacy model-industry sections (Polaroids, Physical details,
+          Wardrobe, Credits…). Only for trades they describe; every other
+          trade edits through the sections above, and their "Add required"
+          counts would contradict the one completion value. */}
+      {showModelSections && (
+        <>
+          <Divider label={t("dashboard.talentMyProfile.editSections")} />
+          <AllSectionsGrid openSection={openSection} />
+        </>
+      )}
 
       {/* ── Engagement strip ──────────────────────────────────────── */}
       <div className="mt-4">
@@ -327,16 +225,16 @@ export function MyProfilePage() {
       <div className="mt-3">
         <SecondaryCard
           title={t("dashboard.talentMyProfile.publicProfileTitle")}
-          description={p.publicUrl
-            ? interpolate(t("dashboard.talentMyProfile.publicProfileLive"), { url: p.publicUrl })
+          description={publicUrlLabel
+            ? interpolate(t("dashboard.talentMyProfile.publicProfileLive"), { url: publicUrlLabel })
             : t("dashboard.talentMyProfile.publicProfileNotPublished")}
-          affordance={p.publicUrl ? t("dashboard.talentMyProfile.openInNewTab") : undefined}
-          onClick={p.publicUrl ? () => window.open(`https://${p.publicUrl}`, "_blank") : undefined}
+          affordance={publicUrlLabel ? t("dashboard.talentMyProfile.openInNewTab") : undefined}
+          onClick={publicUrlLabel ? () => window.open(ownPage?.href ?? `https://${publicUrlLabel}`, "_blank") : undefined}
         >
-          {p.publicUrl && (
+          {publicUrlLabel && (
             <div style={{ marginTop: 10, padding: "10px 14px", borderRadius: 10, border: `1px solid rgba(15,79,62,0.18)`, display: "flex", alignItems: "center", gap: 10 }} className="bg-admin-surface-alt">
               <Icon name="external" size={12} color={COLORS.accentDeep} />
-              <span style={{ fontFamily: FONTS.mono, fontSize: 11.5 }} className="text-admin-ink">{p.publicUrl}</span>
+              <span style={{ fontFamily: FONTS.mono, fontSize: 11.5 }} className="text-admin-ink">{publicUrlLabel}</span>
             </div>
           )}
         </SecondaryCard>
@@ -345,22 +243,22 @@ export function MyProfilePage() {
       {/* ── Personal page (premium subscription tier) ─────────────── */}
       <Divider label={t("dashboard.talentMyProfile.personalPage")} />
       <PersonalPageBand />
-    </>
+    </div>
     <aside className="hidden xl:block">
       <p className="mb-2 font-admin-body text-[12px] font-semibold uppercase tracking-wide text-admin-ink-muted">
-        {t("dashboard.talentMyProfile.previewAsClient")}
+        {t("dashboard.talentMyProfile.editor.previewAside")}
       </p>
       {previewHref ? (
         <a
           href={previewHref}
           target="_blank"
           rel="noreferrer"
-          className="block rounded-2xl border border-admin-border-soft bg-white p-4 font-admin-body text-[13px] font-semibold text-admin-brand"
+          className="block rounded-2xl border border-admin-border-soft bg-white p-4 font-admin-body text-[13px] font-semibold text-[var(--tc-action)]"
         >
           {previewHref.replace(/^https?:\/\//, "")}
         </a>
       ) : (
-        <p className="font-admin-body text-[13px] text-admin-ink-muted">Not available</p>
+        <p className="font-admin-body text-[13px] text-admin-ink-muted">{t("dashboard.talentMyProfile.editor.previewUnavailable")}</p>
       )}
     </aside>
     </div>

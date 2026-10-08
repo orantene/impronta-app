@@ -212,7 +212,7 @@ pattern. Don't invent a new concurrency model. `applyThemePreset` in
 ### 3.2 Server state
 
 Midnight tenant id: `44444444-4444-4444-4444-444444444444`
-Midnight agency owner: `owner@midnightmuse.demo` / `Midnight-Muse-Owner-2026!` (agency_staff role)
+Midnight agency owner: `owner@midnightmuse.demo` / `<redacted-qa-password>` (agency_staff role)
 
 **Relevant DB rows**:
 - `public.agencies` — 1 row for Midnight
@@ -222,7 +222,7 @@ Midnight agency owner: `owner@midnightmuse.demo` / `Midnight-Muse-Owner-2026!` (
 - `public.cms_page_sections` — 9 junction rows (all `is_draft=FALSE`)
 - `public.talent_profiles` — 5 native talents attached via `agency_talent_roster`
 
-**Platform super admin**: `qa-admin@impronta.test` / `Impronta-QA-Admin-2026!` (cross-tenant access)
+**Platform super admin**: `qa-admin@impronta.test` / `<redacted-qa-password>` (cross-tenant access)
 
 ### 3.3 Section registry (12 types)
 
@@ -633,7 +633,7 @@ Should show: `data-profile-shell`, `data-profile-hero`,
 ### 7.4 Typecheck
 
 ```bash
-cd web && npx tsc --noEmit 2>&1 | grep -v "dev-revalidate"
+cd web && npm run typecheck 2>&1 | grep -v "dev-revalidate"
 ```
 
 Must be empty output. Pre-existing error in `dev-revalidate/route.ts` is

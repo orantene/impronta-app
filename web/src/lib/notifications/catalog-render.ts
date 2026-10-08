@@ -21,7 +21,7 @@ import type { RecipientRole } from "./types";
  * NEXT_PUBLIC_SITE_URL and from stored domains, and one of them carrying a
  * trailing slash or a www must not change the answer.
  */
-function isMarketingHome(href: string): boolean {
+export function isMarketingHome(href: string): boolean {
   const site = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim();
   if (!site) return false;
   const host = (u: string) => {
@@ -146,6 +146,34 @@ export function formatDateLabel(iso: string | null): string | undefined {
     month: "short",
     year: "numeric",
   });
+}
+
+/**
+ * TUL-108: a talent-site appointment's start, in the TALENT's zone and the
+ * email's language ("vie, 9 oct, 9:45" / "Fri, Oct 9, 9:45 AM"). Undefined when
+ * either input is missing or bad, so the caller falls back to the inquiry date.
+ */
+export function formatAppointmentLabel(
+  iso: string | null,
+  timeZone: string | null,
+  locale: string | null | undefined,
+): string | undefined {
+  if (!iso || !timeZone) return undefined;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return undefined;
+  const lang = (locale ?? "").toLowerCase().startsWith("es") ? "es-MX" : "en-US";
+  try {
+    return d.toLocaleString(lang, {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone,
+    });
+  } catch {
+    return undefined;
+  }
 }
 
 /**

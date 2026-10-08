@@ -13,6 +13,7 @@ import {
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
 import { createTranslator } from "@/i18n/messages";
+import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
 
 /**
  * "Already have an account? Log in" — one copy, used by the password form and
@@ -143,6 +144,8 @@ export function RegisterForm({
           style={AUTH_INPUT_STYLE}
         />
       </AuthField>
+
+      <AgeTermsCheckbox locale={locale} />
 
       <AuthSubmitButton
         pending={pending}

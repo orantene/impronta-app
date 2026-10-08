@@ -4,6 +4,7 @@ import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
 import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
+import type { BookingNoun } from "@/lib/notifications/booking-noun";
 
 /**
  * Day-of booking reminder (spec §6.4) — a heads-up that a confirmed booking is
@@ -21,6 +22,8 @@ interface Props {
   brand?: EmailBrand;
   unsubscribeUrl?: string;
   categoryLabel?: string;
+  /** TUL-136: "appointment" for talent-site bookings; default "event". */
+  noun?: BookingNoun;
 }
 
 export default function DayOfReminder({
@@ -31,9 +34,18 @@ export default function DayOfReminder({
   brand,
   unsubscribeUrl,
   categoryLabel,
+  noun = "event",
 }: Props) {
   const name = recipientName ?? "there";
-  const t = getEmailCopy(brand?.locale)["client.booking_day_of_reminder"];
+  const c = getEmailCopy(brand?.locale)["client.booking_day_of_reminder"];
+  const appt = noun === "appointment";
+  const t = {
+    ...c,
+    preview: appt ? c.apptPreview : c.preview,
+    heading: appt ? c.apptHeading : c.heading,
+    intro: appt ? c.apptIntro : c.intro,
+    note: appt ? c.apptNote : c.note,
+  };
 
   const fields = [
     eventDate ? { label: t.dateLabel, value: eventDate } : null,

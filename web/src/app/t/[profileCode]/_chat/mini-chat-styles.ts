@@ -46,8 +46,10 @@ export const C = {
   surfaceCool: "#eef1f5",
   border: "rgba(20,24,31,0.12)",
   borderSoft: "rgba(20,24,31,0.08)",
-  guestBubble: "#33507a",
-  guestBubbleInk: "#ffffff",
+  // Front-door brief visitor bubble (jorg `.you` → #f8eef1). Dark ink on a
+  // soft lavender ground — not an accent fill.
+  guestBubble: "#f8eef1",
+  guestBubbleInk: "#16181d",
   systemInk: "#6b7280",
   danger: "#a13a3a",
 } as const;
@@ -62,7 +64,7 @@ export const C = {
 // The LIGHT `C` above is left BYTE-IDENTICAL so light tenants are unchanged.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type SurfaceMode = "light" | "dark";
+export type SurfaceMode = "light" | "dark" | "card";
 
 /** The shape both the light (`C`) and dark (`C_DARK`) palettes satisfy. Use this
  *  (not `typeof C`) for palette params so the two palettes are interchangeable. */
@@ -92,8 +94,31 @@ export const C_DARK: Palette = {
 /** Resolve the active C palette for a surface mode. Default `light` returns the
  *  exact same `C` object reference, so the light path is unchanged. */
 export function paletteFor(mode: SurfaceMode | undefined): Palette {
+  if (mode === "card") return CARD_PALETTE;
   return mode === "dark" ? C_DARK : C;
 }
+
+/**
+ * "card" surface: the guest chat skinned from the site's own theme tokens.
+ * Every slot is a `--cc-*` var set by the card frame (`card-dock-skin.ts`), so
+ * a dark palette inverts the whole dock without a second hex table. The
+ * fallback inside each var() is the light chat palette, so a stray render
+ * outside the frame still reads.
+ */
+export const CARD_PALETTE: Palette = {
+  ink: `var(--cc-ink, ${C.ink})`,
+  inkMuted: `var(--cc-muted, ${C.inkMuted})`,
+  inkDim: `var(--cc-muted, ${C.inkDim})`,
+  surface: `var(--cc-surface, ${C.surface})`,
+  surfaceFaint: `var(--cc-bg, ${C.surfaceFaint})`,
+  surfaceCool: `var(--cc-bg, ${C.surfaceCool})`,
+  border: `var(--cc-line, ${C.border})`,
+  borderSoft: `var(--cc-line, ${C.borderSoft})`,
+  guestBubble: `var(--cc-bg, ${C.guestBubble})`,
+  guestBubbleInk: `var(--cc-ink, ${C.guestBubbleInk})`,
+  systemInk: `var(--cc-muted, ${C.systemInk})`,
+  danger: C.danger,
+};
 
 // Owner decision 2026-06-27: the chat keeps the LIGHT surface on EVERY tenant
 // (the dark variant read as too harsh on the eyes). This set is intentionally
@@ -136,6 +161,12 @@ export const GUEST_CHAT_LAUNCHER_BOTTOM_PX = 130;
  * on a 812px-tall viewport it puts the pill ~50px clear of that button.
  */
 export const GUEST_CHAT_LAUNCHER_BOTTOM_NARROW_PX = 24;
+/**
+ * Minimum extra lift when the catalog sticky Continuar bar is visible
+ * (BJ-07 / AUD-025). `useYieldBookingBar` raises further to clear the measured
+ * bar height so Hablar never covers Seleccionar on the last visible rows.
+ */
+export const GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX = 88;
 /** Mini / expanded panel offset — sits above the launcher pill. */
 export const GUEST_CHAT_PANEL_BOTTOM_PX = 194;
 

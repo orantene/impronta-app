@@ -75,8 +75,8 @@ function FilterChip({
       className={[
         "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
         active
-          ? "border-admin-ink bg-admin-ink text-white"
-          : "border-admin-border-soft bg-white text-admin-ink-muted hover:bg-admin-surface-alt",
+          ? "border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-ink)]"
+          : "border-[var(--tc-border)] bg-white text-[var(--tc-muted)] hover:bg-[var(--tc-soft)]",
       ].join(" ")}
     >
       <span>{label}</span>
@@ -84,7 +84,7 @@ function FilterChip({
         <span
           className={[
             "min-w-[1.1rem] rounded-full px-1 text-[10px] font-bold leading-4",
-            active ? "bg-white/20 text-white" : "bg-admin-coral-soft text-admin-coral-deep",
+            active ? "bg-[var(--tc-action)] text-white" : "bg-admin-coral-soft text-admin-coral-deep",
           ].join(" ")}
         >
           {unread}

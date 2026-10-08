@@ -137,11 +137,13 @@ test("headerVariant defaults to 'live' (new prop is optional)", () => {
   assert.equal(resolveVariant("lab"), "lab");
 });
 
-test("exitLabel defaults to 'Exit' when not provided", () => {
-  function resolveLabel(v: string | undefined): string {
-    return v ?? "Exit";
+test("exitLabel defaults to editor-i18n Exit when not provided / literal Exit", () => {
+  // LabExitButton: custom labels pass through; default "Exit" goes through t().
+  function resolveLabel(v: string | undefined, tExit = "Salir"): string {
+    return v && v !== "Exit" ? v : tExit;
   }
-  assert.equal(resolveLabel(undefined), "Exit");
+  assert.equal(resolveLabel(undefined), "Salir");
+  assert.equal(resolveLabel("Exit"), "Salir");
   assert.equal(resolveLabel("Back"), "Back");
 });
 

@@ -11,6 +11,19 @@ export type TalentEarningsRow = {
   status: "paid" | "invoiced" | "pending" | "confirmed";
   source: "agency_routed" | "personal_page" | "hub" | "unknown";
   paymentMethod: string | null;
+  /**
+   * Booking `payment_status` when known. Needed so Money "Collected" can
+   * exclude partial deposits (status collapses to `pending` for both full
+   * and part-paid) until a real collected amount lands on the row.
+   */
+  paymentStatus?: string | null;
+  /**
+   * Money the ledger (booking_transactions) shows as collected on this booking,
+   * and its split by method. When present, Money "Collected" uses it instead of
+   * guessing from grossCents (covers part payments and manual cash / transfer).
+   */
+  collectedCents?: number | null;
+  collectedByMethod?: Record<string, number> | null;
 };
 
 export type TalentEarningsPerAgency = {
@@ -73,6 +86,8 @@ export type TalentSnapshotAggregateRow = {
   status: TalentEarningsRow["status"];
   source: TalentEarningsRow["source"];
   paymentMethod: string | null;
+  /** Booking payment_status (paid / partial / …) when the loader has it. */
+  paymentStatus?: string | null;
   /**
    * ISO-4217 currency code from `booking_commission_snapshot.currency_code`.
    * Present only when the aggregation fetcher ran with `includeAllCurrencies:
@@ -80,6 +95,13 @@ export type TalentSnapshotAggregateRow = {
    * downstream). Added for the talent Money tabs feature (L49).
    */
   currencyCode?: string;
+  /**
+   * Money the ledger (booking_transactions) shows as collected on this booking,
+   * and its split by method. When present, Money "Collected" uses it instead of
+   * guessing from grossCents (covers part payments and manual cash / transfer).
+   */
+  collectedCents?: number | null;
+  collectedByMethod?: Record<string, number> | null;
 };
 
 type BookingPayoutFields = {
@@ -258,6 +280,9 @@ export function buildTalentEarnings(
       status: row.status,
       source: row.source,
       paymentMethod: row.paymentMethod,
+      paymentStatus: row.paymentStatus ?? null,
+      collectedCents: row.collectedCents ?? null,
+      collectedByMethod: row.collectedByMethod ?? null,
     })),
   };
 }

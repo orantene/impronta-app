@@ -17,14 +17,14 @@
 
 import { useMemo } from "react";
 
+import { FirstPaintTipBottomProvider } from "@/components/edit-chrome/first-paint-tip-context";
+import { TalentAiTranslateProvider } from "@/components/locale-field/talent-ai-context";
 import { BuilderEditorMount } from "@/lib/site-admin/builder-core/mount/BuilderEditorMount";
 import { buildSiteShellBuilderConfig } from "@/lib/site-admin/builder-core/config";
 import { createBoundTalentSiteShellAdapter } from "@/lib/site-admin/builder-core/adapters/talent-site-shell-adapter";
-import { CHROME } from "@/components/edit-chrome/kit/tokens";
 import { BuilderMediaScopeProvider } from "@/components/edit-chrome/builder-media-scope";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
 import type { TalentSiteCapabilities } from "@/lib/access/talent-membership";
-import { TalentBuilderPageSwitcher } from "./TalentBuilderPageSwitcher";
 
 export interface TalentSiteShellBuilderMountProps {
   /** The `talent_profiles.id` — threaded as `ctx.pageId` to the shell adapter. */
@@ -47,6 +47,8 @@ export interface TalentSiteShellBuilderMountProps {
   onExit?: () => void;
   /** The site's pages — powers the in-editor page switcher. */
   sitePages?: MaxSiteManagerPage[];
+  /** PR 7: talent languages -> builder defaultLocale / availableLocales. */
+  talentLocales?: { primary: string; secondary: readonly string[] };
 }
 
 export function TalentSiteShellBuilderMount({
@@ -58,6 +60,7 @@ export function TalentSiteShellBuilderMount({
   locale,
   onExit,
   sitePages,
+  talentLocales,
 }: TalentSiteShellBuilderMountProps) {
   const surfaceConfig = useMemo(
     () =>
@@ -77,72 +80,17 @@ export function TalentSiteShellBuilderMount({
   return (
     <BuilderMediaScopeProvider talentProfileId={talentProfileId}>
       <div data-talent-shell-builder-mount>
-        {onExit && (
-          <div
-            data-talent-shell-exit-bar
-            style={{
-              position: "sticky",
-              top: 50,
-              zIndex: 41,
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "8px 16px",
-              background: CHROME.paper,
-              borderBottom: `1px solid ${CHROME.line}`,
-            }}
-          >
-            <button
-              type="button"
-              onClick={onExit}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "5px 12px",
-                borderRadius: 8,
-                border: `1px solid ${CHROME.controlBorder}`,
-                background: CHROME.controlFill,
-                color: CHROME.text,
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              ← Exit editor
-            </button>
-            {sitePages ? (
-              <TalentBuilderPageSwitcher
-                pages={sitePages}
-                currentSlug="__shell__"
-                canAddPages={siteCapabilities?.personalSitePages ?? true}
-                locale={locale}
-              />
-            ) : (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 7,
-                  padding: "3px 10px",
-                  borderRadius: 999,
-                  background: CHROME.greenBg,
-                  color: CHROME.green,
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                }}
-              >
-                Site shell — header &amp; footer
-              </span>
-            )}
-          </div>
-        )}
-
+      {/* No exit chip / page switcher over the canvas: the builder top bar owns
+          exit, and talents have a single page. */}
+        <TalentAiTranslateProvider>
+<FirstPaintTipBottomProvider>
         <BuilderEditorMount
           surfaceConfig={surfaceConfig}
           tenantId={tenantId}
           workspacePlan={workspacePlan}
           locale={locale}
+          defaultLocale={talentLocales?.primary}
+          availableLocales={talentLocales ? [talentLocales.primary, ...talentLocales.secondary] : undefined}
           // The bound shell adapter captures `talentProfileId` in its closure, so
           // the shell surface needs no pageSlug — every op keys off that id.
           tenantSiteLabel={
@@ -151,7 +99,11 @@ export function TalentSiteShellBuilderMount({
               : "Site shell"
           }
           canInsertRawHtmlElements={false}
+          headerVariant={onExit ? "lab" : "live"}
+          onExit={onExit}
         />
+        </FirstPaintTipBottomProvider>
+</TalentAiTranslateProvider>
       </div>
     </BuilderMediaScopeProvider>
   );

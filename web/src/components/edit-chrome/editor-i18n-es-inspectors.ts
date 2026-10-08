@@ -1,25 +1,14 @@
 /**
- * Spanish editor-chrome strings — WAVE 4.4 (2026-08-07): the DEEP INSPECTORS.
- *
- * Covers `components/edit-chrome/inspectors/**`: the style, layout, motion,
- * data, site-header and per-block content panels. Those panels hand their copy
- * to the inspector kit primitives as `label` / `title` / `hint` / `help` /
- * `description` / `placeholder` props, so the strings are resolved at the kit
- * boundary (`inspectors/kit/use-inspector-t.ts`) rather than at each of the
- * ~660 call sites. The resolver is unchanged: `editorT` over this same
- * EN-text-keyed map.
- *
- * Split out of `editor-i18n-es.ts` for the 800-line cap, exactly like
- * `-canvas.ts` and `-sections.ts`. Pure data, no logic. Spread into `ES_TEXT`
- * in `editor-i18n-es.ts`; consumers keep importing `ES_TEXT` from
- * `editor-i18n`. Both parity guards scan this file.
- *
- * House rules that apply to every entry here: no em dashes, "cliente" never
- * "comprador", "elenco" for roster, and `{placeholder}` tokens kept intact and
- * placed naturally for Spanish word order.
+ * Spanish editor-chrome strings for deep inspectors (`inspectors/**`).
+ * Split for the 800-line cap; spread into `ES_TEXT` via `editor-i18n-es.ts`.
+ * No em dashes; "cliente" never "comprador"; keep `{placeholder}` tokens.
  */
 
+import { NAV_CHROME_ES_LABELS } from "./editor-i18n-es-nav-chrome";
+
 export const ES_INSPECTOR_TEXT: Record<string, string> = {
+  "Call": "Llamar",
+  ...NAV_CHROME_ES_LABELS,
   // ── Alignment, position, direction ──────────────────────────────────────
   Align: "Alineación",
   Baseline: "Línea base",
@@ -99,6 +88,9 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   "Brand colors": "Colores de marca",
   "Border color": "Color del borde",
   "Page background": "Fondo de la página",
+  "Help bubble": "Burbuja de ayuda",
+  "A small bubble above the chat button, once per visit, after the visitor scrolls.":
+    "Una burbuja pequeña sobre el botón del chat, una vez por visita, cuando la persona hace scroll.",
   "Background & Surface": "Fondo y superficie",
   Surface: "Superficie",
   "Surface band": "Franja de superficie",
@@ -118,7 +110,6 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   Fill: "Rellenar",
   Custom: "Personalizado",
   // Field kit (Inspector Reset, D9): the exact-value input that sits beside
-  // every preset row, and the explicit custom state a typed value drops into.
   "Custom value": "Valor personalizado",
   "Exact value": "Valor exacto",
   Shadow: "Sombra",
@@ -614,6 +605,8 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   "{count} nested block": "{count} bloque anidado",
   "{count} nested blocks": "{count} bloques anidados",
   "No nested blocks yet.": "Todavía no hay bloques anidados.",
+  // Contenido nested-block UX strings → editor-i18n-es-inspectors-3.ts
+  // Legacy long helpers kept so older cached trees still translate if referenced.
   "This is a layout wrapper. Add, move, and edit nested blocks in Structure, then use Layout for grid/stack behavior.":
     "Esto es un envoltorio de diseño. Agrega, mueve y edita los bloques anidados en Estructura, y luego usa Diseño para el comportamiento de cuadrícula o apilado.",
   "This split owns its child blocks. Edit the copy and media inside the split from Structure; use Layout for ratio and collapse behavior.":
@@ -797,4 +790,11 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   "e.g. https://tiktok.com/@impronta": "p. ej. https://tiktok.com/@impronta",
   "e.g. https://x.com/impronta": "p. ej. https://x.com/impronta",
   "e.g. https://youtube.com/@impronta": "p. ej. https://youtube.com/@impronta",
+  // next_free_chip inspector
+  "Next free": "Próximo libre",
+  "Próximo libre": "Próximo libre",
+  "Shows your next open time from your live calendar. It hides itself when nothing is free.":
+    "Muestra tu próximo horario libre según tu calendario. Se oculta cuando no hay nada libre.",
+  "The words before the time. Leave empty for the default.":
+    "Las palabras antes de la hora. Déjalo vacío para usar el texto por defecto.",
 };

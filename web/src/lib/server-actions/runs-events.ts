@@ -28,6 +28,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR } from "@/lib/server/safe-error";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { readRunsEvents, writeRunsEvents } from "@/lib/events/runs-events-store";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const CAPABILITY = "manage_billing" as const;
 
@@ -47,6 +48,8 @@ export async function getRunsEvents(): Promise<RunsEventsResult> {
 }
 
 export async function setRunsEvents(input: { runs_events: boolean }): Promise<RunsEventsResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction({ capability: CAPABILITY });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;

@@ -51,6 +51,7 @@ import { requireSession } from "@/lib/server/action-guards";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { getEditSurfaceTenantScope } from "@/lib/saas/edit-surface-scope";
 import { logServerError } from "@/lib/server/safe-error";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ── types ─────────────────────────────────────────────────────────────────
 
@@ -73,6 +74,12 @@ export interface DesignSnapshot {
    * the tenant has never set component defaults. */
   componentStylesDraft: ComponentStyleDefaults;
   componentStylesLive: ComponentStyleDefaults;
+  /**
+   * Talent site gallery: display names for the theme drawer head
+   * ("Maison v2 · Rosé"). Agency path leaves these null.
+   */
+  designDisplayName?: string | null;
+  paletteDisplayName?: string | null;
 }
 
 export type DesignLoadResult =
@@ -80,7 +87,7 @@ export type DesignLoadResult =
   | { ok: false; error: string; code?: string };
 
 export type DesignSaveResult =
-  | { ok: true; version: number; themeDraft: Record<string, string> }
+  | { ok: true; version: number; themeDraft: Record<string, string>; draftRev?: number | null }
   | {
       ok: false;
       error: string;
@@ -95,6 +102,8 @@ export type DesignPresetResult =
       version: number;
       themeDraft: Record<string, string>;
       presetSlug: string;
+      /** Talent site draft_rev after the write (theme releases Phase 2). */
+      draftRev?: number | null;
     }
   | {
       ok: false;
@@ -244,6 +253,7 @@ export async function saveDesignDraftFromEditAction(input: {
   expectedVersion: number;
   tenantSlug?: string;
 }): Promise<DesignSaveResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
@@ -348,6 +358,7 @@ export async function saveComponentStylesDraftFromEditAction(input: {
   expectedVersion: number;
   tenantSlug?: string;
 }): Promise<ComponentStylesSaveResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
@@ -408,6 +419,7 @@ export async function applyThemePresetFromEditAction(input: {
   expectedVersion: number;
   tenantSlug?: string;
 }): Promise<DesignPresetResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
@@ -537,6 +549,7 @@ export async function applyCardKitFromEditAction(input: {
   kitSlug: string;
   tenantSlug?: string;
 }): Promise<DesignSaveResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
@@ -589,6 +602,7 @@ export async function saveCardDesignTokensFromEditAction(input: {
   patch: Record<string, string>;
   tenantSlug?: string;
 }): Promise<DesignSaveResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
@@ -622,6 +636,7 @@ export async function restoreDesignRevisionFromEditAction(input: {
   expectedVersion: number;
   tenantSlug?: string;
 }): Promise<DesignSaveResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
@@ -756,6 +771,7 @@ export async function publishDesignFromEditAction(input: {
   expectedVersion: number;
   tenantSlug?: string;
 }): Promise<DesignPublishResult> {
+  await requireNotImpersonating();
   return publishDesignScoped(input, undefined);
 }
 
@@ -772,5 +788,6 @@ export async function publishCardDesignFromEditAction(input: {
   expectedVersion: number;
   tenantSlug?: string;
 }): Promise<DesignPublishResult> {
+  await requireNotImpersonating();
   return publishDesignScoped(input, CARD_DESIGN_SCOPE);
 }

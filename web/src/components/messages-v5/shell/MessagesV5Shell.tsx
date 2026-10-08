@@ -11,16 +11,13 @@
  * sheet). Front door to the POS engine: nothing is written from here that
  * the engine does not already write.
  */
-
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { draftStorageKey, readDraft, writeDraft } from "@/components/admin/pos/messages/draft-storage";
 import { useT } from "@/i18n/use-t";
 import { itemsLabelForPreset } from "@/lib/messages-v5/context-view";
 import { duplicateHint } from "@/lib/messages-v5/duplicates";
 import { latestHoldExpiresAt } from "@/lib/messages-v5/hold-expiry-from-messages";
-import { messagingResolveOrderThread } from "@/lib/server-actions/messaging-engine";
-import { findConversationForOrder } from "@/lib/messages-v5/pos-continuity";
 import { applyInboxRowPatch, useMessagingInboxLive } from "@/lib/messages-v5/use-inbox-live";
 import { keepActiveRow } from "@/lib/messaging/inbox-search";
 import { isGeneratedName } from "@/lib/messaging/inquiry-name-pure";
@@ -31,7 +28,7 @@ import type { ConversationHistoryEntry, CustomerMatch, Essentials, InboxFilter, 
 
 import "../kit/tokens.css";
 import "./shell.css";
-
+import { sellerMenuItems, type SellerChrome } from "./seller";
 import { type InboxFilterKey, type InboxSegment } from "../kit/InboxSegments";
 import { Avatar, Btn } from "../kit/primitives";
 import { OkLine, RefusalLine } from "../kit/RefusalLine";
@@ -49,6 +46,10 @@ import { Thread, ThreadEmpty, type ThreadMenuItem } from "../screens/Thread";
 import { liveShellEngine, type ShellEngine } from "./engine";
 import { contextPlacement, layoutForWidth, shellClassName, variantForLayout, type MobilePane, type ShellLayout } from "./layout";
 import { AssignSheet, LinkSheet, LostSheet, NewConversationSheet } from "./ShellSheets";
+import { safeLoadInbox } from "./safe-load-inbox";
+import { useAutoSelectThread } from "./use-auto-select-thread";
+import { useOrderDeepLink } from "./use-order-deep-link";
+import { useStaffInquiryPresence } from "./use-staff-inquiry-presence";
 
 const SEGMENT_FILTER: Record<InboxSegment, InboxFilter> = { needs: "needs_reply", wait: "awaiting_customer", all: "all" };
 
@@ -66,7 +67,7 @@ export type MessagesV5ShellProps = {
   readonly tenantSlug: string;
   readonly locationSlug?: string;
   readonly currentUserId: string | null;
-  /** "talent" workspaces see "Talent & services"; everything else sees "Items" (fallback when `industryPreset` is absent). */
+  /** "talent" workspaces fall back to "Services"; everything else sees "Items" (when `industryPreset` is absent). */
   readonly workspaceType?: string | null;
   /** `agencies.settings.industry_preset` when the mount knows it: L3's finer Items label (Talent & services / Services / Order items / Menu, D-MSG-90). */
   readonly industryPreset?: unknown;
@@ -92,6 +93,12 @@ export type MessagesV5ShellProps = {
    * the same sheets as the thread toolbar (create_offer, send_times, …).
    */
   readonly onDispatchReady?: (dispatch: (id: ShellActionId) => void) => void;
+  /** Optional chrome above the composer (talent "+ Actions"). */
+  readonly composerAccessory?: ReactNode;
+  /** Presence display name when publishing staff "viewing" on the open thread. */
+  readonly currentUserDisplayName?: string | null;
+  readonly onInboxLoaded?: (total: number) => void; // unfiltered row count after each "all" read (seller first run)
+  readonly seller?: SellerChrome | null; // talent seller mode: hides staff chrome, carries translated quote-builder copy
 };
 
 type SheetName = "assign" | "handover" | "lost" | "link" | "history" | "tasks" | "client" | "details" | "new" | null;
@@ -110,7 +117,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   const variant = variantForLayout(layout);
   const placement = contextPlacement(layout);
 
-  const [segment, setSegment] = useState<InboxSegment>("needs");
+  const [segment, setSegment] = useState<InboxSegment>(props.seller ? "all" : "needs"); // F54: her inbox loads every conversation; her filters narrow on the client
   const [chips, setChips] = useState<InboxFilterKey[]>([]);
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<InboxRow[]>([]);
@@ -146,6 +153,12 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   const [dupeRefusal, setDupeRefusal] = useState<MessagingRefusal | null>(null);
   const [dupeDismissed, setDupeDismissed] = useState<ReadonlySet<string>>(() => new Set());
 
+  useStaffInquiryPresence({
+    inquiryId: activeId,
+    userId: props.currentUserId,
+    displayName: props.currentUserDisplayName,
+  });
+
   /* ------------------------------------------------------------ layout */
   useEffect(() => {
     if (props.forceWidth) {
@@ -167,27 +180,29 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
 
   /* ------------------------------------------------------------- inbox */
   const activeIdRef = useRef<string | null>(null);
+  // The host learns the unfiltered total from THIS read instead of fetching the inbox again.
+  const onInboxLoadedRef = useRef(props.onInboxLoaded);
+  useEffect(() => { onInboxLoadedRef.current = props.onInboxLoaded; }, [props.onInboxLoaded]);
   const reloadInbox = useCallback(async () => {
     const filter = SEGMENT_FILTER[segment];
-    const result = await engine.loadInbox({ locationSlug, filter });
+    const result = await safeLoadInbox(engine.loadInbox, { locationSlug, filter }, 2000, engine.loadInboxBudgetMs);
     setInboxLoading(false);
     if (!result.ok) {
       setInboxError(result.reason);
       return;
     }
-    // The thread the operator is on stays listed when the segment no longer
-    // returns it (a reply moved it from Needs action to Waiting); its row is
-    // re-read from the unfiltered inbox so the next write sends the version
-    // the last one moved it to.
+    // The open thread stays listed when the segment drops it (a reply moved it from Needs action to Waiting);
+    // its row is re-read from the unfiltered inbox so the next write sends the version the last one moved it to.
     const active = activeIdRef.current;
     let fresh: InboxRow | null = null;
     if (active && filter !== "all" && !result.rows.some((row) => row.id === active)) {
-      const all = await engine.loadInbox({ locationSlug, filter: "all" });
+      const all = await safeLoadInbox(engine.loadInbox, { locationSlug, filter: "all" }, 0, engine.loadInboxBudgetMs);
       if (all.ok) fresh = all.rows.find((row) => row.id === active) ?? null;
     }
     setInboxError(null);
     setRows((previous) => keepActiveRow(result.rows, active, previous, fresh));
     setUnreadTotal(result.unreadCount);
+    if (filter === "all") onInboxLoadedRef.current?.(result.rows.length);
   }, [engine, locationSlug, segment]);
 
   useEffect(() => {
@@ -288,36 +303,24 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     openThread(id);
   }, [openThread]);
 
-  const orderRef = useRef<string | null>(props.initialInquiryId ? null : props.initialOrderId ?? null);
-  // Fast path: the order already has a chip on a loaded row.
-  useEffect(() => {
-    const orderId = orderRef.current;
-    if (!orderId) return;
-    const id = findConversationForOrder(rows, orderId);
-    if (!id) return;
-    orderRef.current = null;
-    openThread(id);
-  }, [rows, openThread]);
+  useAutoSelectThread({
+    activeId,
+    inboxLoading,
+    inboxError,
+    rows,
+    layout,
+    seller: Boolean(props.seller),
+    skip: Boolean(props.initialInquiryId || props.initialOrderId),
+    openThread,
+  });
 
-  // D-MSG-343: the server resolve must NOT depend on `rows`. Keyed on rows it
-  // re-ran on every inbox patch and its cleanup aborted the in-flight action
-  // (visible as repeated ERR_ABORTED POSTs), so the deep link never opened -
-  // cancelled by exactly the row churn it exists to bypass. One shot, guarded
-  // by a ref, no cleanup: whichever path resolves first clears `orderRef`.
-  const orderResolveStarted = useRef(false);
-  useEffect(() => {
-    const orderId = orderRef.current;
-    if (!orderId || orderResolveStarted.current || props.live === false) return;
-    orderResolveStarted.current = true;
-    void (async () => {
-      const res = await messagingResolveOrderThread({ orderId });
-      if (orderRef.current !== orderId) return;
-      const resolved = res.ok ? res.inquiryId : null;
-      if (!resolved) return;
-      orderRef.current = null;
-      openThread(resolved);
-    })();
-  }, [openThread, props.live]);
+  useOrderDeepLink({
+    initialInquiryId: props.initialInquiryId,
+    initialOrderId: props.initialOrderId,
+    rows,
+    live: props.live,
+    openThread,
+  });
 
   useMessagingInboxLive({
     tenantId: props.live === false ? null : props.tenantId,
@@ -352,7 +355,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     rowsRef.current = rows;
   }, [rows]);
   useEffect(() => {
-    if (!activeId || !essentials) return;
+    if (props.seller || !activeId || !essentials) return; // merge is staff chrome: her engine refuses it
     const c = essentials.customer;
     if ((c.identityLevel !== "none" && c.identityLevel !== "linked") || (!c.phone && !c.email)) return;
     if (dupeDismissed.has(activeId)) return;
@@ -368,7 +371,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     return () => {
       cancelled = true;
     };
-  }, [activeId, dupeDismissed, engine, essentials]);
+  }, [activeId, dupeDismissed, engine, essentials, props.seller]);
 
   /* ----------------------------------------------------- derived state */
   const recordChips = useMemo(() => essentials?.linked ?? activeRow?.recordChips ?? [], [essentials?.linked, activeRow?.recordChips]);
@@ -395,7 +398,15 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       paymentIssue: failed ? "failed" : expired ? "expired" : null,
     }), copy.kit.taskWords);
   }, [activeRow, copy.kit.taskWords, essentials?.customer.identityLevel, holdExpiresAt, recordChips]);
-  const itemsLabel = props.industryPreset !== undefined ? itemsLabelForPreset(props.industryPreset, copy.kit) : props.workspaceType === "talent" ? copy.shell.itemsTalent : copy.shell.itemsGeneric;
+  // Solo talent fallback is Services (beauty/salon appointments), not the agency "Talent & services" label (preset only).
+  const itemsLabel =
+    props.industryPreset !== undefined && props.industryPreset !== null
+      ? itemsLabelForPreset(props.industryPreset, copy.kit)
+      : props.workspaceType === "talent"
+        ? copy.kit.panel.items.services
+        : props.industryPreset === null
+          ? itemsLabelForPreset(null, copy.kit)
+          : copy.shell.itemsGeneric;
   const counts = useMemo(() => ({ [segment]: rows.length }) as Partial<Record<InboxSegment, number>>, [segment, rows.length]);
 
   /* ------------------------------------------------------------ actions */
@@ -575,7 +586,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       onNew={() => dispatch("new_conversation")}
       currentUserId={props.currentUserId}
       copy={copy.kit}
-      variant={variant}
+      variant={variant} seller={Boolean(props.seller)} sellerChrome={props.seller ?? null}
     />
   );
 
@@ -608,7 +619,8 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       onMoreTasks={() => setSheet("tasks")}
       menuOpen={menuOpen}
       onMenu={setMenuOpen}
-      menuItems={menuItems}
+      menuItems={sellerMenuItems(menuItems, Boolean(props.seller))}
+      composerAccessory={props.composerAccessory} seller={Boolean(props.seller)}
       detailsAction={placement === "column" ? null : { label: copy.kit.thread.details, onClick: () => (placement === "drawer" ? setDrawerOpen(true) : setSheet("details")) }}
       notice={notice ? notice.kind === "refusal" ? <RefusalLine code={notice.code} copy={copy.kit} variant={variant} action={{ label: copy.kit.sheet.close, onClick: () => setNotice(null) }} /> : <OkLine text={notice.text} variant={variant} /> : null}
       renameSlot={
@@ -743,8 +755,8 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
         onStart={async (input) => {
           const r = await engine.startConversation(input);
           if (!r.ok) return r.reason;
-          await reloadInbox();
-          openThread(r.inquiryId);
+          openThread(r.inquiryId); // F54: a new thread waits on the client, so it is listed under All, not Needs action.
+          if (segment === "all") await reloadInbox(); else setSegment("all");
           return null;
         }}
       />
@@ -766,7 +778,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
           reloadInbox={reloadInbox}
           reloadThread={reloadActiveThread}
           notify={setNotice}
-          dispatch={dispatch}
+          dispatch={dispatch} seller={props.seller ?? null}
         />
       ) : null}
       {toast ? (

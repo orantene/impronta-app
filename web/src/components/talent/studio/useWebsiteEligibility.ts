@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { loadBookingHours } from "@/lib/server-actions/booking-hours";
 import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
 import { availabilityFromHours } from "@/lib/talent/availability-from-hours";
@@ -9,6 +9,8 @@ import {
   inferWebsiteWorkingMode,
   type WebsiteEligibilityInput,
 } from "@/lib/talent/website-eligibility";
+import { combineAvailability, countBookableOfferings } from "@/lib/talent/website-eligibility-facts";
+import { shareInFlight } from "@/lib/talent/in-flight";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 
 type Cache = {
@@ -19,45 +21,93 @@ type Cache = {
 
 let cache: Cache | null = null;
 
+/** Fired after any save that can change a checklist fact (services, hours, profile). */
+export const WEBSITE_ELIGIBILITY_CHANGED_EVENT = "tulala:website-eligibility-changed";
+
+/**
+ * Drop the cached services / hours facts and tell every mounted checklist
+ * (pill, sheet, Today card, Profile quality) to re-read. Call after a save.
+ */
+export function invalidateWebsiteEligibility(): void {
+  cache = null;
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(WEBSITE_ELIGIBILITY_CHANGED_EVENT));
+  }
+}
+
 export function useWebsiteEligibility() {
   const { bridgeTalentSelfProfile } = useAdminShell();
   const talentId = bridgeTalentSelfProfile?.id ?? null;
-  const [bookableCount, setBookableCount] = useState<number | null>(
-    cache && cache.talentId === talentId ? cache.bookableCount : null,
-  );
-  const [hasAvailability, setHasAvailability] = useState<boolean | null>(
-    cache && cache.talentId === talentId ? cache.hasAvailability : null,
-  );
+  // Start empty on every mount so server HTML and the hydrating client agree;
+  // the module cache is applied in the effect below.
+  const [bookableCount, setBookableCount] = useState<number | null>(null);
+  const [hoursAvailability, setHoursAvailability] = useState<boolean | null>(null);
+  const [version, setVersion] = useState(0);
+
+  useEffect(() => {
+    const bump = () => setVersion((v) => v + 1);
+    window.addEventListener(WEBSITE_ELIGIBILITY_CHANGED_EVENT, bump);
+    return () => window.removeEventListener(WEBSITE_ELIGIBILITY_CHANGED_EVENT, bump);
+  }, []);
+
+  // A router refresh (every profile-drawer save runs one) hands us a new
+  // bridge profile object; treat that as "facts may have changed" too.
+  const lastProfileRef = useRef(bridgeTalentSelfProfile);
+  useEffect(() => {
+    if (lastProfileRef.current === bridgeTalentSelfProfile) return;
+    lastProfileRef.current = bridgeTalentSelfProfile;
+    cache = null;
+    setVersion((v) => v + 1);
+  }, [bridgeTalentSelfProfile]);
 
   useEffect(() => {
     if (!talentId) return;
     if (cache?.talentId === talentId && cache.hasAvailability != null && cache.bookableCount != null) {
       setBookableCount(cache.bookableCount);
-      setHasAvailability(cache.hasAvailability);
+      setHoursAvailability(cache.hasAvailability);
       return;
     }
     let cancelled = false;
-    void Promise.all([loadBookingHours(talentId), loadTalentOfferingsForEditor(talentId)]).then(
-      ([hoursRes, offeringsRes]) => {
+    // F84: allSettled, so a failed hours read can never blank the services
+    // fact (Promise.all dropped BOTH facts when one action threw).
+    // TUL-220: Profile mounts two of these hooks at once; share the reads.
+    void shareInFlight(`website-eligibility:${talentId}`, () => Promise.allSettled([
+      loadBookingHours(talentId),
+      loadTalentOfferingsForEditor(talentId),
+    ])).then(
+      ([hoursSettled, offeringsSettled]) => {
         if (cancelled) return;
-        const nextAvail = hoursRes.ok
-          ? availabilityFromHours({
-              hours: hoursRes.hours,
-              byAgreement: hoursRes.proposal?.source === "by_agreement",
-            })
-          : null;
-        const nextCount = offeringsRes.ok
-          ? offeringsRes.items.filter((item) => item.status !== "archived").length
-          : null;
+        const hoursRes =
+          hoursSettled.status === "fulfilled" ? hoursSettled.value : ({ ok: false } as const);
+        const offeringsRes =
+          offeringsSettled.status === "fulfilled" ? offeringsSettled.value : ({ ok: false } as const);
+        // Either writer counts: Services hours or the drawer's saved pattern.
+        const nextAvail = combineAvailability({
+          pattern: hoursRes.ok ? hoursRes.hasAvailabilityPattern : null,
+          hours: hoursRes.ok
+            ? availabilityFromHours({
+                hours: hoursRes.hours,
+                byAgreement: hoursRes.proposal?.source === "by_agreement",
+              })
+            : null,
+        });
+        const nextCount = offeringsRes.ok ? countBookableOfferings(offeringsRes.items) : null;
         cache = { talentId, bookableCount: nextCount, hasAvailability: nextAvail };
         setBookableCount(nextCount);
-        setHasAvailability(nextAvail);
+        setHoursAvailability(nextAvail);
       },
     );
     return () => {
       cancelled = true;
     };
-  }, [talentId]);
+  }, [talentId, version]);
+
+  // Profile-drawer facts arrive on the bridge profile, which the drawer's
+  // router refresh replaces after every save, so they need no cache bust.
+  const hasAvailability = combineAvailability({
+    pattern: bridgeTalentSelfProfile?.hasAvailabilityPattern ?? null,
+    hours: hoursAvailability,
+  });
 
   const workingMode = inferWebsiteWorkingMode(bridgeTalentSelfProfile?.primaryTypeLabel);
   const input: WebsiteEligibilityInput = {

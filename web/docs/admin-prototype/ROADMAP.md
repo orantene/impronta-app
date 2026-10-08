@@ -749,7 +749,7 @@ WS-5 covers basic money. The deeper financial automation layer is missing.
 | **0.12** ESLint rule: no inline hex outside `COLORS` | Custom rule in `.eslintrc` | 2h |
 | **0.13** ESLint rule: no string literals in JSX (i18n prep) | Allow-list approach | 2h |
 
-**DoD:** all 13 land. `npx tsc --noEmit` 0 errors. Storybook (or equivalent) renders each primitive. Tokens JSON is consumable.
+**DoD:** all 13 land. `npm run typecheck` 0 errors. Storybook (or equivalent) renders each primitive. Tokens JSON is consumable.
 
 ---
 
@@ -1843,7 +1843,7 @@ web/src/app/prototypes/admin-shell/
 
 ### 7.3 Per-PR checklist
 - [ ] Audit-finding ID(s) referenced in PR description
-- [ ] `npx tsc --noEmit` passes (0 errors)
+- [ ] `npm run typecheck` passes (0 errors)
 - [ ] Lint passes (no inline hex, no string-literal JSX)
 - [ ] Mobile QA at 375pt + 768pt + 1440pt
 - [ ] Keyboard nav verified
@@ -1859,7 +1859,7 @@ web/src/app/prototypes/admin-shell/
 ### 7.4 Verification commands
 ```bash
 # from repo root
-cd web && npx tsc --noEmit          # type check
+cd web && npm run typecheck          # type check
 cd web && npm run lint               # lint
 cd web && npm run test               # unit tests (after WS-24.1)
 cd web && npm run test:e2e           # e2e (after WS-24.2)

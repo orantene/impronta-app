@@ -107,6 +107,15 @@ export function isPostAuthNextAllowedForActiveUser(
     return true;
   }
 
+  // Support Desk portal — platform admins only. `next=/desk` must survive
+  // login on support.tulala.digital (otherwise they bounce to /admin → 404).
+  if (
+    appRole === "super_admin" &&
+    (path === "/desk" || path.startsWith("/desk/"))
+  ) {
+    return true;
+  }
+
   const dashboardBase =
     appRole === "super_admin" || appRole === "agency_staff"
       ? "/admin"
@@ -140,6 +149,36 @@ export function isPostAuthNextAllowedForActiveUser(
   }
 
   return path === dashboardBase || path.startsWith(`${dashboardBase}/`);
+}
+
+/**
+ * True when a post-auth `next` is a TALENT surface (`/talent/...` or the
+ * tenant-scoped `/<slug>/talent/...`). Such a `next` means the visitor already
+ * said they are talent (`/register?as=talent`), so the role chooser is skipped.
+ */
+export function isTalentSurfaceNext(normalizedNext: string): boolean {
+  const { pathnameWithoutLocale } = stripLocaleFromPathname(
+    postAuthPathnameOnly(normalizedNext),
+  );
+  const segments = pathnameWithoutLocale.split("/").filter(Boolean);
+  if (segments[0] === "talent") return true;
+  return (
+    segments.length >= 2 &&
+    !TENANT_SCOPED_NEXT_RESERVED_SEGMENTS.has(segments[0] ?? "") &&
+    segments[1] === "talent"
+  );
+}
+
+/**
+ * True when a post-auth `next` means the visitor signed up as talent.
+ * Covers the live `/register?as=talent` destination (`/talent/profile/fields`)
+ * and the retired `/onboarding/talent-location` next still present in old emails.
+ */
+export function isTalentSignupNext(normalizedNext: string): boolean {
+  return (
+    normalizedNext.startsWith("/onboarding/talent") ||
+    isTalentSurfaceNext(normalizedNext)
+  );
 }
 
 export function isOnboardingNextAllowed(normalizedNext: string): boolean {
@@ -337,11 +376,12 @@ export function resolvePostAuthDestination(
     if (safeNext !== "/" && isWorkspaceOnboardingPath(safeNext)) {
       return stripDefaultLocalePrefixFromPath(safeNext);
     }
-    // Talent register flow: allow direct jump to profile completion,
-    // bypassing the role-selection page (the user already chose "I'm Talent"
-    // when they navigated to /talent/register).
-    if (safeNext === "/onboarding/talent-location") {
-      return safeNext;
+    // Talent register flow: keep next through the role page so it can complete
+    // talent onboarding (I'm Talent / auto-skip). Legacy emails still use
+    // /onboarding/talent-location; live register uses /talent/profile/fields.
+    if (isTalentSignupNext(safeNext)) {
+      const next = stripDefaultLocalePrefixFromPath(safeNext);
+      return `/onboarding/role?next=${encodeURIComponent(next)}`;
     }
     if (safeNext !== "/" && isOnboardingNextAllowed(safeNext)) {
       const next = stripDefaultLocalePrefixFromPath(safeNext);

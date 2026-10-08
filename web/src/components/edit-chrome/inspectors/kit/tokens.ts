@@ -41,14 +41,14 @@ import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "../../kit/tokens";
  */
 export const KIT = {
   sectionTitle:
-    "text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-500",
+    "text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-600",
   groupTitle:
-    "text-[11px] font-semibold uppercase tracking-[0.10em] text-stone-500",
+    "text-[11px] font-semibold uppercase tracking-[0.10em] text-stone-600",
   /** Canvas-first mockup section headings (sentence case, no card chrome). */
   blockHeading:
     "text-[13px] font-semibold tracking-[-0.01em] text-stone-900",
   label:
-    "text-[11.5px] font-semibold tracking-[-0.005em] text-stone-600",
+    "text-[11.5px] font-semibold tracking-[-0.005em] text-stone-700",
   hint: "text-[11.5px] leading-snug text-stone-500",
   /**
    * KIT-control-family retone (this PR): idle border cools from khaki

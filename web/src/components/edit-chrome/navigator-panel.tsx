@@ -36,7 +36,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type MouseEventHandler,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
@@ -78,6 +77,15 @@ import { useEditContext } from "./edit-context";
 import { useBuilderTree } from "./builder-tree-bridge";
 import { usePageVersion } from "./save-cycle-bridge";
 import { useSectionHeadlines } from "./section-headline-bridge";
+import {
+  NAVIGATOR_ACTION_ICON_SIZE,
+  NodeInlineActionButton,
+} from "./navigator-inline-action-button";
+import { StructureEditLockTip } from "./structure-edit-lock-tip";
+import {
+  galleryLockedHint,
+  isStructureEditLocked,
+} from "@/lib/site-admin/add-gallery/structural-lock";
 import {
   useSelectedSectionId,
   useSelectedBuilderNodeId,
@@ -142,7 +150,6 @@ const NAVIGATOR_DEFAULT_WIDTH = 320;
 const NAVIGATOR_ROW_FONT_SIZE = 14;
 const NAVIGATOR_SECTION_FONT_SIZE = 15;
 const NAVIGATOR_ICON_SIZE = 16;
-const NAVIGATOR_ACTION_ICON_SIZE = 15;
 const NAVIGATOR_RECENT_STYLES = [
   {
     label: "Newest",
@@ -250,7 +257,7 @@ function resolveSectionDropTarget(
 }
 
 export function NavigatorPanel() {
-  const { t } = useEditorLocale();
+  const { t, locale } = useEditorLocale();
   const {
     tenantId,
     setSelectedSectionId,
@@ -290,7 +297,10 @@ export function NavigatorPanel() {
     pageId,
     advancedElementLibraryEnabled,
     canInsertRawHtmlElements,
+    gallerySurface,
   } = useEditContext();
+  // Track B — Free talent: no Add / Move / reorder / duplicate / paste.
+  const structureLocked = isStructureEditLocked(gallerySurface.structuralEdits);
   // Perf spine (save-cycle bridge) — draft CAS version via the micro-store
   // (keys the headline prefetch; a landed save re-runs it).
   const pageVersion = usePageVersion();
@@ -1238,6 +1248,7 @@ export function NavigatorPanel() {
   }>({
     rowSelector: "[data-navigator-child-node]",
     onDragStart: (source) => {
+      if (structureLocked) return;
       setDraggingChildNode(source);
       setChildDropTarget(null);
       selectBuilderNode(source.nodeId);
@@ -1319,6 +1330,7 @@ export function NavigatorPanel() {
   }>({
     rowSelector: "[data-navigator-section-row]",
     onDragStart: (source) => {
+      if (structureLocked) return;
       setDraggingId(source.sectionId);
       setDropAt(null);
       focusSectionForEdit(source.sectionId);
@@ -1673,6 +1685,11 @@ export function NavigatorPanel() {
           background: CHROME.surface,
         }}
       >
+        {structureLocked ? (
+          <div style={{ marginBottom: 10 }} data-navigator-structure-lock="">
+            <StructureEditLockTip locale={locale} compact />
+          </div>
+        ) : null}
         <div className="relative">
           <svg
             width="12"
@@ -2059,9 +2076,23 @@ export function NavigatorPanel() {
           ) : null}
           <button
             type="button"
-            title={t("Add a section")}
-            aria-label={t("Add a section")}
-            onClick={() => toggleAddMenu()}
+            title={
+              structureLocked
+                ? galleryLockedHint(locale).title
+                : t("Add a section")
+            }
+            aria-label={
+              structureLocked
+                ? galleryLockedHint(locale).title
+                : t("Add a section")
+            }
+            disabled={structureLocked}
+            onClick={() => {
+              if (structureLocked) return;
+              toggleAddMenu();
+            }}
+            data-navigator-add-section=""
+            data-locked={structureLocked ? "" : undefined}
             style={{
               marginLeft: hasLayeredSections ? 0 : "auto",
               width: 22,
@@ -2072,8 +2103,9 @@ export function NavigatorPanel() {
               background: "transparent",
               border: `1px solid ${CHROME.line}`,
               borderRadius: 0,
-              cursor: "pointer",
+              cursor: structureLocked ? "not-allowed" : "pointer",
               color: CHROME.muted,
+              opacity: structureLocked ? 0.45 : 1,
               transition: "background 100ms, color 100ms, border-color 100ms",
             }}
             onMouseEnter={(e) => {
@@ -2189,7 +2221,11 @@ export function NavigatorPanel() {
               </div>
               <button
                 type="button"
-                onClick={() => toggleAddMenu()}
+                disabled={structureLocked}
+                onClick={() => {
+                  if (structureLocked) return;
+                  toggleAddMenu();
+                }}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -2202,7 +2238,8 @@ export function NavigatorPanel() {
                   background: CHROME.accent,
                   border: "none",
                 borderRadius: 0,
-                  cursor: "pointer",
+                  cursor: structureLocked ? "not-allowed" : "pointer",
+                  opacity: structureLocked ? 0.5 : 1,
                   boxShadow: "0 1px 2px rgba(0,0,0,0.10)",
                 }}
               >
@@ -2631,7 +2668,7 @@ export function NavigatorPanel() {
                       </span>
                     ) : null}
                   </span>
-                  {flat.length > 1 ? (
+                  {flat.length > 1 && !structureLocked ? (
                     <span
                       data-navigator-section-reorder-controls=""
                       aria-label={`Reorder ${labelFor(row)}`}
@@ -2718,6 +2755,7 @@ export function NavigatorPanel() {
                     }}
                   >
                     {row.builderNodeId &&
+                    !structureLocked &&
                     gateChildInsertKinds(allowedChildKindsForParent("section"))
                       .length > 0 ? (
                       <NodeInlineActionButton
@@ -2746,6 +2784,7 @@ export function NavigatorPanel() {
                         <Plus size={NAVIGATOR_ACTION_ICON_SIZE} strokeWidth={2.2} aria-hidden />
                       </NodeInlineActionButton>
                     ) : null}
+                    {!structureLocked ? (
                     <NodeInlineActionButton
                       label={`Duplicate ${labelFor(row)}`}
                       onClick={(e) => {
@@ -2759,6 +2798,7 @@ export function NavigatorPanel() {
                     >
                       <Files size={NAVIGATOR_ACTION_ICON_SIZE} strokeWidth={2.2} aria-hidden />
                     </NodeInlineActionButton>
+                    ) : null}
                     <VisibilityEye
                       selected={selected}
                       visibility={visibility}
@@ -3112,7 +3152,7 @@ export function NavigatorPanel() {
                                 {child.label}
                               </span>
                             </span>
-                            {siblingCount > 1 ? (
+                            {siblingCount > 1 && !structureLocked ? (
                               <span
                                 data-navigator-child-reorder-controls=""
                                 aria-label={`Reorder ${child.label}`}
@@ -3192,7 +3232,7 @@ export function NavigatorPanel() {
                                 zIndex: 2,
                               }}
                             >
-                              {childAllowedKinds.length > 0 ? (
+                              {!structureLocked && childAllowedKinds.length > 0 ? (
                                 <NodeInlineActionButton
                                   label={`Add block inside ${child.label}`}
                                   onClick={(e) => {
@@ -3219,6 +3259,7 @@ export function NavigatorPanel() {
                                   />
                                 </NodeInlineActionButton>
                               ) : null}
+                              {!structureLocked ? (
                               <NodeInlineActionButton
                                 label={`Duplicate ${child.label}`}
                                 onClick={(e) => {
@@ -3236,6 +3277,7 @@ export function NavigatorPanel() {
                                   aria-hidden
                                 />
                               </NodeInlineActionButton>
+                              ) : null}
                               <NodeInlineActionButton
                                 label={`Copy ${child.label}`}
                                 onClick={(e) => {
@@ -3253,6 +3295,7 @@ export function NavigatorPanel() {
                                   aria-hidden
                                 />
                               </NodeInlineActionButton>
+                              {!structureLocked ? (
                               <NodeInlineActionButton
                                 label={
                                   copiedBuilderNodeKind
@@ -3281,6 +3324,7 @@ export function NavigatorPanel() {
                                   aria-hidden
                                 />
                               </NodeInlineActionButton>
+                              ) : null}
                               <NodeInlineActionButton
                                 label={`Remove ${child.label}`}
                                 onClick={(e) => {
@@ -3579,115 +3623,6 @@ function BuilderNodeKindPill({
     >
       {short}
     </span>
-  );
-}
-
-function NodeInlineActionButton({
-  children,
-  label,
-  onClick,
-  disabled,
-  inverted = false,
-  compact = false,
-  dataAttr,
-  ariaExpanded,
-  tabIndex,
-}: {
-  children: ReactNode;
-  label: string;
-  onClick: MouseEventHandler<HTMLButtonElement>;
-  disabled?: boolean;
-  inverted?: boolean;
-  compact?: boolean;
-  dataAttr?: string;
-  ariaExpanded?: boolean;
-  tabIndex?: number;
-}) {
-  const dataProps = dataAttr ? { [dataAttr]: "true" } : {};
-  // Affordance states: ghost at rest (so a cluster of these reads as clean
-  // icons, not a wall of gray squares), soft indigo tint on hover/focus,
-  // a deeper tint + slight press-scale on active. Gives unmistakable
-  // "this is a button and I just clicked it" feedback the panel was missing.
-  const [hover, setHover] = useState(false);
-  const [active, setActive] = useState(false);
-  const interactive = !disabled;
-  const lit = interactive && (hover || active);
-  // Reads as a real button at rest (subtle fill + hairline), strengthens on
-  // hover, presses on active. Consistent whether it sits bare on the row or
-  // inside the hover toolbar.
-  const background = disabled
-    ? "transparent"
-    : active
-      ? "rgba(42,49,71,0.20)"
-      : hover
-        ? "rgba(42,49,71,0.13)"
-        : inverted
-          ? "rgba(42,49,71,0.12)"
-          : "rgba(42,49,71,0.06)";
-  const borderColor = disabled
-    ? "transparent"
-    : lit
-      ? "rgba(42,49,71,0.22)"
-      : "rgba(42,49,71,0.12)";
-  const color = disabled
-    ? CHROME.muted2
-    : lit || inverted
-      ? CHROME.accent
-      : CHROME.muted2;
-  const dim = compact ? 22 : 22;
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-expanded={ariaExpanded}
-      title={label}
-      disabled={disabled}
-      tabIndex={tabIndex}
-      draggable={false}
-      onPointerDown={(event) => {
-        event.stopPropagation();
-      }}
-      onMouseDown={(event) => {
-        event.stopPropagation();
-        if (interactive) setActive(true);
-      }}
-      onMouseUp={() => setActive(false)}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => {
-        setHover(false);
-        setActive(false);
-      }}
-      onFocus={() => setHover(true)}
-      onBlur={() => setHover(false)}
-      onDragStart={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-      }}
-      onClick={onClick}
-      {...dataProps}
-      style={{
-        width: dim,
-        height: dim,
-        boxSizing: "border-box",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        borderRadius: 6,
-        border: `1px solid ${borderColor}`,
-        background,
-        color,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.4 : 1,
-        padding: 0,
-        flexShrink: 0,
-        fontSize: compact ? 11 : 12,
-        transition:
-          "background 110ms ease, color 110ms ease, border-color 110ms ease, transform 90ms ease",
-        transform: active ? "scale(0.9)" : "scale(1)",
-      }}
-    >
-      {children}
-    </button>
   );
 }
 

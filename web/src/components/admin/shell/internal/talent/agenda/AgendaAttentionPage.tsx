@@ -13,6 +13,7 @@ import {
   setAgendaAttentionConfirm,
 } from "./attention-confirm";
 import { useAgendaCta } from "./use-agenda-cta";
+import { AgendaPayRequest } from "./AgendaPayRequest";
 import { useAgendaCopy } from "./use-agenda-copy";
 
 export { AGENDA_ATTENTION_CONFIRM_KEY, setAgendaAttentionConfirm };
@@ -46,9 +47,10 @@ export function AgendaAttentionPage({
     (entries ?? []).map(agendaItemFromCalendarEntry);
   const { attention } = todayFromAgenda(agenda, clock);
   const [confirm, setConfirm] = useState<string | null>(null);
+  const [depositFor, setDepositFor] = useState<TalentAgendaItem | null>(null);
   const nav = useMemo(
-    () => ({ onOpenBooking, onOpenMessages }),
-    [onOpenBooking, onOpenMessages],
+    () => ({ onOpenBooking, onOpenMessages, onRequestDeposit: setDepositFor }),
+    [onOpenBooking, onOpenMessages, setDepositFor],
   );
   const { runCta, busyId, error, setError } = useAgendaCta(nav);
 
@@ -148,6 +150,15 @@ export function AgendaAttentionPage({
           body={copy.t("When a request arrives or a hold needs action, it will appear here in urgency order.")}
           primaryAction={{ label: copy.t("Back to calendar"), onClick: onOpenCalendar }}
         />
+      ) : null}
+
+      {depositFor ? (
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-white/95 p-4">
+          <AgendaPayRequest
+            orderId={depositFor.orderId}
+            onClose={() => setDepositFor(null)}
+          />
+        </div>
       ) : null}
     </div>
   );

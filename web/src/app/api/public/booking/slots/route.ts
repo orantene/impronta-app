@@ -1,14 +1,17 @@
 /**
- * GET /api/public/booking/slots?offering&from&days
+ * GET /api/public/booking/slots?offering&from&days&duration
  *
  * Host-resolved, unauthenticated. Returns free slot starts only — never raw
  * holds, bookings, or blocks. Service-role internally. s-maxage=30.
+ * Optional `duration` (minutes) is base + selected extras; omitted → offering.
  *
  * Guards: published + public offering, host-tenant match, appointments
  * enabled, effective mode ≥ request (M1). Missing hours or a disabled
  * policy yield an empty list, not a guessed calendar.
  */
 
+import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
+import { NOT_ACCEPTING_BOOKINGS } from "@/lib/talent/accepting-readiness";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { checkBookingSlots } from "@/lib/rate-limit-kv";
@@ -23,6 +26,7 @@ import {
   clampPublicSlotDays,
   computePublicSlots,
   type NoSlotsReason,
+  parsePublicSlotDuration,
   parsePublicSlotFrom,
 } from "@/lib/scheduling/public-slots";
 import { addUtcDays, utcToZonedYmd } from "@/lib/scheduling/tz";
@@ -49,7 +53,8 @@ type SlotsReason =
   | NoSlotsReason
   | "not_bookable_here"
   | "inquiry_only"
-  | "hours_unreadable";
+  | "hours_unreadable"
+  | "not_accepting_bookings";
 
 function slotsJson(
   slots: string[],
@@ -155,6 +160,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
 
+    // A house-owned offering has no provider calendar here: answer with a
+    // reason instead of a failed `eq("id", null)` read (TUL-77).
+    if (!offering.talent_profile_id) {
+      return slotsJson([], 200, { reason: "not_bookable_here" });
+    }
+
     const { data: talent, error: talentErr } = await admin
       .from("talent_profiles")
       .select("id, profile_kind, booking_terms, created_by_agency_id, selling_defaults")
@@ -198,6 +209,15 @@ export async function GET(request: Request) {
     });
     if (mode === "inquire") return slotsJson([], 200, { reason: "inquiry_only" });
 
+    // WSF-C §7: the talent's pause applies on their own site and the Tulala
+    // profile (hub). An agency host owns its routing and is never paused here.
+    if (host.kind !== "agency") {
+      const switches = await loadTalentSiteSwitches(admin, talent.id);
+      if (!switches.acceptingBookings) {
+        return slotsJson([], 200, { reason: NOT_ACCEPTING_BOOKINGS });
+      }
+    }
+
     const { data: hoursRow } = await admin
       .from("talent_booking_hours")
       .select(
@@ -238,12 +258,19 @@ export async function GET(request: Request) {
       attr && typeof attr === "object" && !Array.isArray(attr)
         ? (attr as { bufferAfterMin?: unknown; bufferBeforeMin?: unknown })
         : null;
+    const offeringDuration =
+      typeof offering.duration_minutes === "number" && offering.duration_minutes > 0
+        ? offering.duration_minutes
+        : hours.slotMinutes;
+    // Catalog extras lengthen the hold; clients send the total so projection
+    // matches confirm. Garbage / omitted → offering duration alone.
+    const durationMinutes = parsePublicSlotDuration(
+      url.searchParams.get("duration"),
+      offeringDuration,
+    );
     const { starts: slots, reason } = computePublicSlots({
       hours,
-      durationMinutes:
-        typeof offering.duration_minutes === "number" && offering.duration_minutes > 0
-          ? offering.duration_minutes
-          : hours.slotMinutes,
+      durationMinutes,
       from,
       days: horizon,
       busy,

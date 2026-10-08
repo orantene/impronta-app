@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
-import { blocksTime, weekCounts } from "@/lib/talent-agenda/derive";
+import { blocksTime } from "@/lib/talent-agenda/derive";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import type { BookingHours } from "@/lib/scheduling/hours-types";
 import {
@@ -12,39 +12,63 @@ import {
 import type { TalentCalendarEntry } from "../../data-bridge";
 import { PageHeader } from "../shared/page-chrome-1";
 import { PrimaryButton, SecondaryButton } from "../../primitives";
-import { AgendaRow, NowBox, TALENT_AGENDA_VARS } from "./primitives";
+import { NowBox, TALENT_AGENDA_VARS } from "./primitives";
 import {
   agendaItemFromCalendarEntry,
   itemsOnDay,
-  rowFromAgendaItem,
   weekDays,
+  weekSubtitle,
 } from "./present";
-import { peekActionLabels, whoLabel } from "@/lib/talent-agenda/attention-cta";
+import { whoLabel } from "@/lib/talent-agenda/attention-cta";
 import type { TradeCalendarRule } from "@/lib/talent-agenda/trade-calendar";
 import { useAgendaCta } from "./use-agenda-cta";
 import { useAgendaCopy } from "./use-agenda-copy";
 import { AgendaRescheduleSheet } from "./AgendaRescheduleSheet";
 import { AgendaPayRequest } from "./AgendaPayRequest";
+import { AgendaCalendarSync } from "./AgendaCalendarSync";
 import { setAgendaAttentionConfirm } from "./attention-confirm";
+import { AddMenu, BlockTimeForm, CalendarList, EventPeek, Overlay, Segmented } from "./AgendaCalendarParts";
 import {
-  DayAgenda,
+  CompactMonth,
+  DayTimeline,
   MonthGrid,
+  PhoneDayAgenda,
   WeekGrid,
+  WeekLegend,
+  WeekStrip,
+  dayWindows,
   gridBounds,
   localYmd,
   sameDay,
 } from "./AgendaCalendarViews";
+import { itemsInTalentWallClock, talentWallClockToInstant, wallClockIn } from "@/lib/talent-agenda/agenda-now";
+import {
+  daySummary,
+  durationText,
+  filterCounts,
+  isRecord,
+  nextFreeTime,
+  shiftMonth,
+  stepDate,
+  type CalendarView,
+  type ListFilter,
+} from "./calendar-view";
 
-type ViewMode = "week" | "month" | "day" | "list";
+const MUTED = "text-[rgba(11,11,13,0.62)]";
 
-function overlapTitle(items: readonly TalentAgendaItem[], start: Date, end: Date): string | null {
+function overlapItem(items: readonly TalentAgendaItem[], start: Date, end: Date): TalentAgendaItem | null {
   for (const item of items) {
-    if (item.booking !== "confirmed" || !blocksTime(item)) continue;
+    if (!blocksTime(item)) continue;
+    if (item.booking !== "confirmed" && item.booking !== "hold") continue;
     const a = Date.parse(item.startsAt);
     const b = Date.parse(item.endsAt);
-    if (start.getTime() < b && end.getTime() > a) return item.title;
+    if (start.getTime() < b && end.getTime() > a) return item;
   }
   return null;
+}
+
+function toTimeInput(date: Date): string {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
 export function AgendaCalendarPage({
@@ -79,40 +103,64 @@ export function AgendaCalendarPage({
 }) {
   const copy = useAgendaCopy();
   const router = useRouter();
-  const clock = now ?? new Date();
-  const agenda = useMemo(
+  const clock = wallClockIn(now ?? new Date(), hours?.timezone);
+  const locale = copy.locale === "es" ? "es-MX" : "en-US";
+  // TUL-66: place blocks by the talent's wall clock (same source as `clock`).
+  // `rawAgenda` keeps real instants (all writes/sheets); `agenda` is grid-only.
+  const rawAgenda = useMemo(
     () => items ?? (entries ?? []).map(agendaItemFromCalendarEntry),
     [items, entries],
   );
+  const agenda = useMemo(
+    () => itemsInTalentWallClock(rawAgenda, hours?.timezone),
+    [rawAgenda, hours?.timezone],
+  );
   const ctaNav = useMemo(
-    () => ({ onOpenBooking: onOpenRecord, onOpenMessages }),
+    () => ({
+      onOpenBooking: onOpenRecord,
+      onOpenMessages,
+      onRequestDeposit: (item: TalentAgendaItem) => {
+        setSheet({ kind: "deposit", item });
+        setPeekId(null);
+      },
+    }),
     [onOpenRecord, onOpenMessages],
   );
   const { runPeekLabel, busyId, error: ctaError, setError: setCtaError } = useAgendaCta(ctaNav);
-  const days = weekDays(clock);
-  const [view, setView] = useState<ViewMode>("week");
+  const [view, setView] = useState<CalendarView>("week");
   const [selected, setSelected] = useState(clock);
+  // AUD-016: the visible week follows the selected date, not the clock.
+  const days = weekDays(selected);
   const [phone, setPhone] = useState(false);
   const [peekId, setPeekId] = useState<string | null>(null);
   const [peekAnchor, setPeekAnchor] = useState<{ top: number; left: number } | null>(null);
   const [sheet, setSheet] = useState<
     | null
     | { kind: "reschedule"; item: TalentAgendaItem }
+    | { kind: "deposit"; item: TalentAgendaItem }
     | { kind: "collect"; item: TalentAgendaItem }
   >(null);
-  const [addOpen, setAddOpen] = useState(false);
-  const [blockOpen, setBlockOpen] = useState(false);
+  // One overlay at a time: the + menu, the block form or the date picker.
+  const [overlay, setOverlay] = useState<null | "add" | "block" | "picker" | "sync">(null);
+  const [pickerMonth, setPickerMonth] = useState(clock);
+  const [listFilter, setListFilter] = useState<ListFilter>("all");
+  const [blockDate, setBlockDate] = useState(localYmd(clock));
   const [blockStart, setBlockStart] = useState("13:45");
   const [blockEnd, setBlockEnd] = useState("14:45");
-  const [blockReason, setBlockReason] = useState("Personal");
+  const [blockNote, setBlockNote] = useState("");
+  const [blockAgencyVisible, setBlockAgencyVisible] = useState(false);
   const [blockError, setBlockError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [undo, setUndo] = useState<{ id: string } | null>(null);
+  const [undo, setUndo] = useState<{ id: string; label: string } | null>(null);
   const [localBlocks, setLocalBlocks] = useState<TalentAgendaItem[]>([]);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 720px)");
-    const apply = () => setPhone(media.matches);
+    const apply = () => {
+      setPhone(media.matches);
+      // The month grid has no phone layout: fall back to the agenda strip.
+      if (media.matches) setView((v) => (v === "month" ? "week" : v));
+    };
     apply();
     media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
@@ -124,11 +172,21 @@ export function AgendaCalendarPage({
     return () => window.clearTimeout(t);
   }, [undo]);
 
-  const allItems = useMemo(() => [...agenda, ...localBlocks], [agenda, localBlocks]);
-  const counts = weekCounts(allItems);
+  const shiftedLocalBlocks = useMemo(
+    () => itemsInTalentWallClock(localBlocks, hours?.timezone),
+    [localBlocks, hours?.timezone],
+  );
+  const allItems = useMemo(() => [...agenda, ...shiftedLocalBlocks], [agenda, shiftedLocalBlocks]);
+  const rawById = useMemo(
+    () => new Map([...rawAgenda, ...localBlocks].map((row) => [row.id, row] as const)),
+    [rawAgenda, localBlocks],
+  );
+  const toRaw = (item: TalentAgendaItem) => rawById.get(item.id) ?? item;
   const peek = allItems.find((item) => item.id === peekId) ?? null;
+  const weekItems = days.flatMap((day) => itemsOnDay(allItems, day));
+  const counts = filterCounts(weekItems);
   const bounds = (() => {
-    const base = gridBounds(hours, days);
+    const base = gridBounds(hours, days, clock);
     if (overnightToHour != null && overnightToHour > 24) {
       return { ...base, endMin: Math.max(base.endMin, overnightToHour * 60) };
     }
@@ -136,26 +194,36 @@ export function AgendaCalendarPage({
   })();
 
   const blockRange = useMemo(() => {
+    const [y, mo, d] = blockDate.split("-").map(Number);
     const [sh, sm] = blockStart.split(":").map(Number);
     const [eh, em] = blockEnd.split(":").map(Number);
-    const start = new Date(selected);
-    start.setHours(sh || 0, sm || 0, 0, 0);
-    const end = new Date(selected);
-    end.setHours(eh || 0, em || 0, 0, 0);
-    return { start, end };
-  }, [blockStart, blockEnd, selected]);
-  const conflict = overlapTitle(allItems, blockRange.start, blockRange.end);
+    return {
+      start: new Date(y || 1970, (mo || 1) - 1, d || 1, sh || 0, sm || 0),
+      end: new Date(y || 1970, (mo || 1) - 1, d || 1, eh || 0, em || 0),
+    };
+  }, [blockDate, blockStart, blockEnd]);
+  const conflict = overlapItem(allItems, blockRange.start, blockRange.end);
+  const blockInvalid = blockRange.end.getTime() <= blockRange.start.getTime();
+  const blockLabel = `${blockStart}–${blockEnd}`;
+
+  const selectedItems = itemsOnDay(allItems, selected);
+  const summary = daySummary(selectedItems);
+  const summaryText = summary.count
+    ? `${summary.count} ${copy.t(summary.count === 1 ? "appointment" : "appointments")} · ${durationText(summary.minutes)} ${copy.t("booked")}`
+    : copy.t("Nothing booked");
+  const selectedClosed = dayWindows(hours, selected).length === 0;
+  const nextFree = nextFreeTime(selected, allItems, (day) => dayWindows(hours, day), clock);
 
   function openItem(item: TalentAgendaItem, event?: MouseEvent<HTMLElement>) {
     if (phone) {
-      onOpenRecord?.(item.id);
+      if (item.kind !== "block") onOpenRecord?.(item.id);
       return;
     }
     if (event) {
       const rect = event.currentTarget.getBoundingClientRect();
       setPeekAnchor({
-        top: Math.min(rect.bottom + 8, window.innerHeight - 220),
-        left: Math.min(Math.max(12, rect.left), window.innerWidth - 320),
+        top: Math.min(rect.top, window.innerHeight - 300),
+        left: Math.min(rect.right + 8, window.innerWidth - 340),
       });
     } else {
       setPeekAnchor({ top: 120, left: 24 });
@@ -174,19 +242,31 @@ export function AgendaCalendarPage({
       setPeekId(null);
       return;
     }
-    await runPeekLabel(item, label);
+    await runPeekLabel(toRaw(item), label);
+  }
+
+  function openBlock(day: Date) {
+    setBlockDate(localYmd(day));
+    setBlockError(null);
+    setOverlay("block");
   }
 
   async function saveBlock() {
-    if (!talentProfileId || conflict || saving) return;
+    if (!talentProfileId || conflict || blockInvalid || saving) return;
     setSaving(true);
     setBlockError(null);
+    const note = blockNote.trim();
+    // The grid shows talent wall-clock; convert back to the real instants.
+    const realStart = talentWallClockToInstant(blockRange.start, hours?.timezone);
+    const realEnd = talentWallClockToInstant(blockRange.end, hours?.timezone);
     const result = await createTalentAvailabilityBlock({
       talentProfileId,
-      reason: blockReason,
-      startsAt: blockRange.start.toISOString(),
-      endsAt: blockRange.end.toISOString(),
+      reason: note || "Personal",
+      note: note || null,
+      startsAt: realStart.toISOString(),
+      endsAt: realEnd.toISOString(),
       allDay: false,
+      visibility: blockAgencyVisible ? "agency_visible" : "private",
     });
     setSaving(false);
     if (!result.ok) {
@@ -197,10 +277,10 @@ export function AgendaCalendarPage({
       id: result.id,
       kind: "block",
       ref: { table: "block", id: result.id },
-      title: blockReason,
+      title: note,
       lines: [],
-      startsAt: blockRange.start.toISOString(),
-      endsAt: blockRange.end.toISOString(),
+      startsAt: realStart.toISOString(),
+      endsAt: realEnd.toISOString(),
       allDay: false,
       tz: hours?.timezone ?? "UTC",
       where: { mode: "studio", label: "" },
@@ -213,8 +293,13 @@ export function AgendaCalendarPage({
       history: [],
     };
     setLocalBlocks((rows) => [...rows, block]);
-    setBlockOpen(false);
-    setUndo({ id: result.id });
+    setSelected(blockRange.start);
+    setOverlay(null);
+    setBlockNote("");
+    setUndo({
+      id: result.id,
+      label: `${blockRange.start.toLocaleDateString(locale, { weekday: "short", day: "numeric" })} · ${blockLabel}`,
+    });
     router.refresh();
   }
 
@@ -227,28 +312,111 @@ export function AgendaCalendarPage({
     router.refresh();
   }
 
+  const rangeLabel =
+    view === "month"
+      ? selected.toLocaleDateString(locale, { month: "long", year: "numeric" })
+      : view === "day"
+        ? selected.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short", year: "numeric" })
+        : `${days[0].toLocaleDateString(locale, { day: "numeric", month: "short" })} – ${days[6].toLocaleDateString(locale, {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })}`;
+
+  const weekCount = weekItems.filter((i) => isRecord(i) && i.booking !== "requested" && i.kind !== "request").length;
+  const subtitle =
+    view === "day"
+      ? summaryText
+      : view === "month"
+        ? rangeLabel
+        : `${weekSubtitle(days[0], weekCount, copy.locale)}${
+            counts.requested ? ` · ${counts.requested} ${copy.t(counts.requested === 1 ? "request" : "requests")}` : ""
+          }`;
+
+  const listRows = (
+    <CalendarList
+      days={days}
+      items={allItems}
+      clock={clock}
+      phone={phone}
+      filter={listFilter}
+      counts={counts}
+      onFilter={setListFilter}
+      onOpen={(item) => openItem(item)}
+      onOpenRecord={onOpenRecord}
+    />
+  );
+
+  const emptyDay = (
+    <section className="rounded-[16px] border border-[rgba(11,11,13,0.10)] bg-white p-5 text-center">
+      <h3 className="text-[16px] font-semibold text-[var(--tc-primary)]">
+        {selectedClosed
+          ? `${copy.t("Closed on")} ${selected.toLocaleDateString(locale, { weekday: "long" })}`
+          : copy.t("Nothing booked")}
+      </h3>
+      {nextFree ? (
+        <p className={`mt-1 text-[14px] ${MUTED}`}>
+          {`${copy.t("Next free time")}: ${nextFree.toLocaleDateString(locale, {
+            weekday: "short",
+            day: "numeric",
+            month: "short",
+          })} ${toTimeInput(nextFree)}`}
+        </p>
+      ) : null}
+      <div className="mt-3 flex flex-wrap justify-center gap-2">
+        {onOpenAvailability ? (
+          <SecondaryButton onClick={onOpenAvailability}>{copy.t("Change hours")}</SecondaryButton>
+        ) : null}
+        {onNewBooking ? (
+          <SecondaryButton onClick={onNewBooking}>
+            {copy.t(selectedClosed ? "Book anyway" : "New booking")}
+          </SecondaryButton>
+        ) : null}
+      </div>
+    </section>
+  );
+
+  const phoneHasContent =
+    selectedItems.length > 0 ||
+    (!selectedClosed && nextFree != null && sameDay(nextFree, selected));
+
   return (
     <div style={TALENT_AGENDA_VARS} className="space-y-4">
       <PageHeader
-        title={copy.t("Calendar")}
-        subtitle={copy.t("This week")}
-        actions={(
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              aria-label={copy.t("Add event or block")}
-              aria-expanded={addOpen}
-              onClick={() => setAddOpen((o) => !o)}
-              className="min-h-[44px] min-w-[44px] rounded-full bg-[var(--tc-primary)] px-4 text-[13px] font-medium text-white"
-            >
-              +
-            </button>
-            {onOpenAvailability ? (
-              <SecondaryButton onClick={onOpenAvailability}>{copy.t("Availability")}</SecondaryButton>
-            ) : null}
-            <SecondaryButton onClick={onOpenToday}>{copy.t("Today")}</SecondaryButton>
-          </div>
-        )}
+        title={copy.t("Bookings")}
+        subtitle={phone ? undefined : subtitle}
+        actions={
+          phone ? (
+            <div className="flex items-center gap-2">
+              <SecondaryButton
+                onClick={() => {
+                  setSelected(clock);
+                  setView("week");
+                }}
+              >
+                {copy.t("Today")}
+              </SecondaryButton>
+              <button
+                type="button"
+                aria-label={copy.t("Add")}
+                aria-expanded={overlay === "add"}
+                onClick={() => setOverlay("add")}
+                className="min-h-[44px] min-w-[44px] rounded-full bg-[var(--tc-action)] text-[20px] text-white hover:bg-[var(--tc-action-hover)]"
+              >
+                +
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <SecondaryButton onClick={() => setView(view === "list" ? "week" : "list")}>{copy.t(view === "list" ? "Schedule" : "List")}</SecondaryButton>
+              {onOpenAvailability ? (
+                <SecondaryButton onClick={onOpenAvailability}>{copy.t("Working hours")}</SecondaryButton>
+              ) : null}
+              <SecondaryButton onClick={() => openBlock(selected)}>{copy.t("Block time")}</SecondaryButton>
+              {onNewBooking ? <PrimaryButton onClick={onNewBooking}>{copy.t("New booking")}</PrimaryButton> : null}
+            </div>
+          )
+        }
       />
 
       {loadError ? (
@@ -274,245 +442,337 @@ export function AgendaCalendarPage({
         />
       ) : null}
 
-      {addOpen ? (
-        <div role="menu" aria-label={copy.t("Add event or block")} className="flex flex-wrap gap-2">
+      {phone ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              onClick={() => {
+                setPickerMonth(selected);
+                setOverlay("picker");
+              }}
+              className="inline-flex min-h-[44px] flex-1 items-center gap-1.5 text-[16px] font-bold text-[var(--tc-primary)]"
+            >
+              {selected.toLocaleDateString(locale, { month: "long", year: "numeric" })}
+              <span aria-hidden className={`text-[11px] ${MUTED}`}>▾</span>
+            </button>
+            <Segmented
+              label={copy.t("Calendar view")}
+              value={view === "day" ? "day" : view === "list" ? "list" : "week"}
+              onChange={(id) => setView(id)}
+              options={[
+                { id: "week", label: copy.t("Agenda") },
+                { id: "day", label: copy.t("Day") },
+                { id: "list", label: copy.t("List") },
+              ]}
+            />
+          </div>
+          <WeekStrip days={days} selected={selected} clock={clock} items={allItems} onPick={setSelected} />
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
           <SecondaryButton
             onClick={() => {
-              setAddOpen(false);
-              onNewBooking?.();
+              setSelected(clock);
             }}
           >
-            {copy.t("New booking")}
+            {copy.t("Today")}
           </SecondaryButton>
-          <SecondaryButton
-            onClick={() => {
-              setAddOpen(false);
-              setBlockOpen(true);
-            }}
+          {([-1, 1] as const).map((dir) => (
+            <button
+              key={dir}
+              type="button"
+              aria-label={copy.t(dir < 0 ? "Previous" : "Next")}
+              onClick={() => setSelected(stepDate(selected, view, dir))}
+              className="min-h-[44px] min-w-[44px] rounded-[10px] border border-[rgba(11,11,13,0.12)] bg-white text-[17px]"
+            >
+              {dir < 0 ? "‹" : "›"}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setView("month")}
+            aria-live="polite"
+            className="inline-flex min-h-[44px] items-center gap-2 px-2 text-[16px] font-bold text-[var(--tc-primary)]"
           >
-            {copy.t("Block time")}
+            {rangeLabel}
+            <span aria-hidden className={`text-[11px] ${MUTED}`}>▾</span>
+          </button>
+          {hours?.timezone ? <span className={`text-[13px] ${MUTED}`}>{hours.timezone}</span> : null}
+          <span className="flex-1" />
+          {view !== "list" ? (
+            <Segmented
+              label={copy.t("Calendar view")}
+              value={view}
+              onChange={(id) => setView(id)}
+              options={[
+                { id: "day", label: copy.t("Day") },
+                { id: "week", label: copy.t("Week") },
+                { id: "month", label: copy.t("Month") },
+              ]}
+            />
+          ) : null}
+          <SecondaryButton onClick={() => setOverlay("sync")}>
+            <span aria-hidden>⟳</span> {copy.t("Calendar sync")}
           </SecondaryButton>
         </div>
-      ) : null}
-
-      {blockOpen ? (
-        <form
-          className="space-y-3 rounded-[16px] border border-[rgba(11,11,13,0.10)] bg-white p-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void saveBlock();
-          }}
-        >
-          <h2 className="text-[15px] font-semibold">{copy.t("Block time")}</h2>
-          <p className="text-[13px] text-[#5F6368]">{localYmd(selected)}</p>
-          <div className="flex flex-wrap gap-2">
-            <input className="min-h-[44px] rounded-lg border px-2" type="time" value={blockStart} onChange={(e) => setBlockStart(e.target.value)} />
-            <input className="min-h-[44px] rounded-lg border px-2" type="time" value={blockEnd} onChange={(e) => setBlockEnd(e.target.value)} />
-            <input className="min-h-[44px] flex-1 rounded-lg border px-2" value={blockReason} onChange={(e) => setBlockReason(e.target.value)} />
-          </div>
-          {conflict ? <p className="text-[13px] text-[#8A1F1F]">{copy.t("Overlaps")} {conflict}</p> : null}
-          {blockError ? <p className="text-[13px] text-[#8A1F1F]">{blockError}</p> : null}
-          <PrimaryButton type="submit" disabled={Boolean(conflict) || saving || !talentProfileId}>
-            {copy.t("Save")}
-          </PrimaryButton>
-        </form>
-      ) : null}
+      )}
 
       {undo ? (
-        <div className="flex items-center justify-between rounded-[16px] bg-[var(--tc-primary)] px-4 py-3 text-white">
-          <span className="text-[13px]">{copy.t("Time blocked")}</span>
-          <button type="button" className="min-h-[44px] text-[13px] font-semibold" onClick={() => void undoBlock()}>
+        <div
+          role="status"
+          className="flex items-center justify-between rounded-[16px] border border-[var(--tc-action)] bg-[var(--tc-soft)] px-4 py-1 text-[var(--tc-ink)]"
+        >
+          <span className="text-[13px]">{`${undo.label} ${copy.t("blocked")}`}</span>
+          <button type="button" className="min-h-[44px] px-2 text-[13px] font-semibold text-[var(--tc-action)]" onClick={() => void undoBlock()}>
             {copy.t("Undo")}
           </button>
         </div>
       ) : null}
 
-      <div
-        role="tablist"
-        aria-label={copy.t("Calendar view")}
-        className="flex flex-wrap gap-2"
-      >
-        {(["week", "day", "month", "list"] as const).map((id) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={view === id}
-            onClick={() => setView(id)}
-            className={`min-h-[44px] rounded-full px-3 text-[13px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-accent)] ${view === id ? "bg-[var(--tc-primary)] text-white" : "bg-white text-[var(--tc-primary)]"}`}
-          >
-            {copy.t(id === "week" ? "Week" : id === "day" ? "Day" : id === "month" ? "Month" : "List")}
-          </button>
-        ))}
-      </div>
+      {view === "list" ? listRows : null}
 
-      {phone ? (
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-[13px] font-medium text-[var(--tc-primary)]">
-            <span>{copy.t("Month")}</span>
-            <select
-              className="min-h-[44px] flex-1 rounded-xl border border-black/10 bg-white px-3"
-              value={`${selected.getFullYear()}-${String(selected.getMonth() + 1).padStart(2, "0")}`}
-              onChange={(e) => {
-                const [y, m] = e.target.value.split("-").map(Number);
-                const next = new Date(selected);
-                next.setFullYear(y, m - 1, 1);
-                setSelected(next);
-              }}
-            >
-              {Array.from({ length: 12 }, (_, i) => {
-                const d = new Date(clock.getFullYear(), clock.getMonth() - 3 + i, 1);
-                const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-                return (
-                  <option key={value} value={value}>
-                    {d.toLocaleDateString([], { month: "long", year: "numeric" })}
-                  </option>
-                );
-              })}
-            </select>
-          </label>
-          <div className="flex gap-2 overflow-x-auto">
-            {days.map((day) => {
-              const dots = itemsOnDay(allItems, day).length;
-              return (
-                <button
-                  key={localYmd(day)}
-                  type="button"
-                  onClick={() => setSelected(day)}
-                  className={`min-h-[44px] min-w-[48px] rounded-full px-2 text-[12px] ${sameDay(day, selected) ? "bg-[var(--tc-accent)] text-white" : "bg-white"}`}
-                >
-                  <div>{day.toLocaleDateString([], { weekday: "short", day: "numeric" })}</div>
-                  {dots > 0 ? <div className="mx-auto mt-0.5 h-1.5 w-1.5 rounded-full bg-current opacity-70" /> : null}
-                </button>
-              );
-            })}
+      {phone && view === "week" ? (
+        <section className="space-y-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="text-[16px] font-semibold text-[var(--tc-primary)]">
+              {selected.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" })}
+              {sameDay(selected, clock) ? ` · ${copy.t("today")}` : ""}
+            </h2>
+            <span className={`text-[13px] ${MUTED}`}>{summaryText}</span>
           </div>
-        </div>
+          {phoneHasContent ? (
+            <PhoneDayAgenda
+              day={selected}
+              items={selectedItems}
+              allItems={allItems}
+              clock={clock}
+              hours={hours}
+              onOpen={(item) => openItem(item)}
+              onGap={() => onNewBooking?.()}
+            />
+          ) : (
+            emptyDay
+          )}
+        </section>
       ) : null}
 
-      {view === "list" ? (
-        <div className="space-y-4">
-          <div className="flex flex-wrap gap-2 text-[12px]">
-            <span className="rounded-full border px-2 py-1">{copy.t("All")} {counts.all}</span>
-            <span className="rounded-full border px-2 py-1">{copy.t("Requests")} {counts.requests}</span>
-            <span className="rounded-full border px-2 py-1">{copy.t("On hold")} {counts.onHold}</span>
-            <span className="rounded-full border px-2 py-1">{copy.t("Confirmed")} {counts.confirmed}</span>
-            <span className="rounded-full border px-2 py-1">{copy.t("Completed")} {counts.completed}</span>
-            <span className="rounded-full border px-2 py-1">{copy.t("Cancelled")} {counts.cancelled}</span>
-            <span className="rounded-full border px-2 py-1">{copy.t("No-show")} {counts.noShow}</span>
-          </div>
-          {days.map((day) => {
-            const dayItems = itemsOnDay(allItems, day);
-            if (dayItems.length === 0) return null;
-            return (
-              <section key={localYmd(day)} className="space-y-2">
-                <h2 className="text-[13px] font-semibold text-[var(--tc-primary)]">
-                  {day.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })}
-                </h2>
-                {dayItems.map((item) => (
-                  <AgendaRow key={item.id} item={rowFromAgendaItem(item, clock, () => openItem(item))} />
-                ))}
-              </section>
-            );
-          })}
-        </div>
-      ) : null}
-
-      {view === "month" ? <MonthGrid clock={clock} items={allItems} onPick={setSelected} /> : null}
-
-      {view === "day" || (phone && view === "week") ? (
-        <DayAgenda
+      {view === "day" ? (
+        <DayTimeline
           day={selected}
-          items={itemsOnDay(allItems, selected)}
+          items={allItems}
           clock={clock}
           hours={hours}
+          tradeRules={tradeRules}
           onOpen={openItem}
           onGap={() => onNewBooking?.()}
         />
       ) : null}
 
-      {view === "week" && !phone ? (
-        <WeekGrid
-          days={days}
-          items={allItems}
+      {view === "month" && !phone ? (
+        <MonthGrid
+          anchor={selected}
           clock={clock}
+          items={allItems}
           hours={hours}
-          bounds={bounds}
-          tradeRules={tradeRules}
-          onOpen={openItem}
-          onSelectDay={setSelected}
-          onGap={(day) => {
+          onPick={(day) => {
             setSelected(day);
-            onNewBooking?.();
+            setView("week");
           }}
         />
       ) : null}
 
-      {peek && !phone ? (
+      {view === "week" && !phone ? (
         <>
-          <button
-            type="button"
-            aria-label={copy.t("Close")}
-            className="fixed inset-0 z-40 bg-black/10"
-            onClick={() => {
-              setPeekId(null);
-              setPeekAnchor(null);
+          <WeekGrid
+            days={days}
+            items={allItems}
+            clock={clock}
+            hours={hours}
+            bounds={bounds}
+            tradeRules={tradeRules}
+            onOpen={openItem}
+            onSelectDay={(day) => {
+              setSelected(day);
+              setView("day");
+            }}
+            onGap={(day) => {
+              setSelected(day);
+              onNewBooking?.();
             }}
           />
-          <div
-            role="dialog"
-            aria-label={peek.title}
-            className="fixed z-50 w-[min(320px,calc(100vw-24px))] space-y-3 rounded-[16px] border border-[rgba(11,11,13,0.12)] bg-white p-4 shadow-lg top-[var(--peek-top)] left-[var(--peek-left)]"
-            style={{
-              "--peek-top": `${peekAnchor?.top ?? 120}px`,
-              "--peek-left": `${peekAnchor?.left ?? 24}px`,
-            }}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-[15px] font-semibold">{peek.title}</h2>
-                <p className="text-[13px] text-[#5F6368]">{peek.client?.name}</p>
-              </div>
-              <button
-                type="button"
-                className="min-h-[44px] px-2"
-                onClick={() => {
-                  setPeekId(null);
-                  setPeekAnchor(null);
-                }}
-              >
-                {copy.t("Close")}
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {peekActionLabels(peek).map((label) => (
-                <SecondaryButton
-                  key={label}
-                  disabled={busyId === peek.id}
-                  onClick={() => {
-                    void handlePeekLabel(peek, label);
-                  }}
-                >
-                  {busyId === peek.id && label === peekActionLabels(peek)[0]
-                    ? copy.t("Working…")
-                    : copy.t(label)}
-                </SecondaryButton>
-              ))}
-              <PrimaryButton onClick={() => onOpenRecord?.(peek.id)}>{copy.t("Open booking")}</PrimaryButton>
-            </div>
-          </div>
+          <WeekLegend />
         </>
+      ) : null}
+
+      {overlay === "add" ? (
+        <Overlay
+          phone={phone}
+          closeLabel={copy.t("Close")}
+          title={`${copy.t("Add to")} ${selected.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" })}`}
+          onClose={() => setOverlay(null)}
+        >
+          <AddMenu
+            options={[
+              {
+                id: "booking",
+                title: copy.t("New booking"),
+                body: copy.t("A client, a service and a time"),
+                run: () => {
+                  setOverlay(null);
+                  onNewBooking?.();
+                },
+              },
+              {
+                id: "block",
+                title: copy.t("Block time"),
+                body: copy.t("Time off, personal things, travel"),
+                // Replace the + menu with the block form: never a sheet on a sheet.
+                run: () => openBlock(selected),
+              },
+              {
+                id: "sync",
+                title: copy.t("Calendar sync"),
+                body: copy.t("Google, Apple, Outlook, import and download"),
+                // Replaces the + menu: never a sheet on a sheet.
+                run: () => setOverlay("sync"),
+              },
+            ]}
+          />
+        </Overlay>
+      ) : null}
+
+      {overlay === "block" ? (
+        <Overlay
+          phone={phone}
+          closeLabel={copy.t("Close")}
+          title={copy.t("Block time")}
+          onClose={() => setOverlay(null)}
+          footer={
+            <>
+              {!phone ? <SecondaryButton onClick={() => setOverlay(null)}>{copy.t("Cancel")}</SecondaryButton> : null}
+              <PrimaryButton
+                onClick={() => void saveBlock()}
+                disabled={Boolean(conflict) || blockInvalid || saving || !talentProfileId}
+              >
+                {saving ? copy.t("Working…") : `${copy.t("Block")} ${blockLabel}`}
+              </PrimaryButton>
+            </>
+          }
+        >
+          <BlockTimeForm
+            date={blockDate}
+            start={blockStart}
+            end={blockEnd}
+            note={blockNote}
+            agencyVisible={blockAgencyVisible}
+            onDate={setBlockDate}
+            onStart={setBlockStart}
+            onEnd={setBlockEnd}
+            onNote={setBlockNote}
+            onAgencyVisible={setBlockAgencyVisible}
+            invalid={blockInvalid}
+            conflict={conflict}
+            error={blockError}
+            label={blockLabel}
+            onSubmit={() => void saveBlock()}
+          />
+        </Overlay>
+      ) : null}
+
+      {overlay === "sync" ? (
+        <Overlay phone={phone} closeLabel={copy.t("Close")} title={copy.t("Calendar sync")} onClose={() => setOverlay(null)}>
+          <AgendaCalendarSync copy={copy} items={allItems} anchor={selected} weekStart={days[0]} />
+        </Overlay>
+      ) : null}
+
+      {overlay === "picker" ? (
+        <Overlay
+          phone={phone}
+          closeLabel={copy.t("Close")}
+          title={copy.t("Choose a date")}
+          onClose={() => setOverlay(null)}
+          footer={
+            <SecondaryButton
+              onClick={() => {
+                setSelected(clock);
+                setView("week");
+                setOverlay(null);
+              }}
+            >
+              {copy.t("Go to today")}
+            </SecondaryButton>
+          }
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <button
+              type="button"
+              aria-label={copy.t("Previous month")}
+              onClick={() => setPickerMonth(shiftMonth(pickerMonth, -1))}
+              className="min-h-[44px] min-w-[44px] text-[17px]"
+            >
+              ‹
+            </button>
+            <b className="text-[15px]">{pickerMonth.toLocaleDateString(locale, { month: "long", year: "numeric" })}</b>
+            <button
+              type="button"
+              aria-label={copy.t("Next month")}
+              onClick={() => setPickerMonth(shiftMonth(pickerMonth, 1))}
+              className="min-h-[44px] min-w-[44px] text-[17px]"
+            >
+              ›
+            </button>
+          </div>
+          <CompactMonth
+            anchor={pickerMonth}
+            selected={selected}
+            clock={clock}
+            items={allItems}
+            onPick={(day) => {
+              setSelected(day);
+              setOverlay(null);
+            }}
+          />
+        </Overlay>
+      ) : null}
+
+      {peek && !phone ? (
+        <EventPeek
+          item={peek}
+          anchor={peekAnchor}
+          clock={clock}
+          busy={busyId === peek.id}
+          onClose={() => {
+            setPeekId(null);
+            setPeekAnchor(null);
+          }}
+          onOpenRecord={() => onOpenRecord?.(peek.id)}
+          onLabel={(label) => void handlePeekLabel(peek, label)}
+        />
       ) : null}
 
       {sheet?.kind === "reschedule" ? (
         <div className="fixed inset-0 z-[60] overflow-y-auto bg-white/95 p-4">
           <AgendaRescheduleSheet
-            bookingId={sheet.item.ref?.id || sheet.item.id}
-            currentStartsAt={sheet.item.startsAt}
-            currentEndsAt={sheet.item.endsAt}
+            bookingId={toRaw(sheet.item).ref?.id || toRaw(sheet.item).id}
+            currentStartsAt={toRaw(sheet.item).startsAt}
+            currentEndsAt={toRaw(sheet.item).endsAt}
             onClose={() => setSheet(null)}
             onProposed={() => {
-              setAgendaAttentionConfirm(whoLabel(sheet.item));
+              setAgendaAttentionConfirm(whoLabel(toRaw(sheet.item)));
+              setSheet(null);
+              router.refresh();
+            }}
+          />
+        </div>
+      ) : null}
+
+      {sheet?.kind === "deposit" ? (
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-white/95 p-4">
+          <AgendaPayRequest
+            orderId={toRaw(sheet.item).orderId}
+            onClose={() => {
               setSheet(null);
               router.refresh();
             }}
@@ -523,10 +783,10 @@ export function AgendaCalendarPage({
       {sheet?.kind === "collect" ? (
         <div className="fixed inset-0 z-[60] overflow-y-auto bg-white/95 p-4">
           <AgendaPayRequest
-            orderId={sheet.item.ref?.id || sheet.item.id}
+            orderId={toRaw(sheet.item).ref?.id || toRaw(sheet.item).id}
             onClose={() => setSheet(null)}
             onLinkCreated={() => {
-              setAgendaAttentionConfirm(whoLabel(sheet.item));
+              setAgendaAttentionConfirm(whoLabel(toRaw(sheet.item)));
               setSheet(null);
               router.refresh();
             }}

@@ -6,6 +6,7 @@ import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useC
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
 import { addTalentToRoster, bulkAddTalentToRoster } from "../actions";
 import { parseTalentCsv } from "../csv-parser";
@@ -48,7 +49,7 @@ import {
   type ShellLimitsEntry,
 } from "@/lib/talent/profile-shell-drawer-persist";
 import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields, updateMediaWatermarkOverride, loadAgencyBrandingSettings, loadWorkspaceAccountSettings, type WatermarkPreset } from "@/lib/server-actions/admin-workspace-settings";
-import { actionSetMediaWatermarkOverride, actionUploadAndAssignMedia, actionDeleteMediaAssets, actionReorderMediaAssets, actionLoadTalentMediaBundle, actionUploadTalentDocument, actionGetTalentDocumentSignedUrl, actionDeleteTalentDocument, actionImportFromGoogleDrive, actionListDriveFolder, actionImportSingleDriveFile, actionRevertCropToSource } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { actionSetMediaWatermarkOverride, actionUploadAndAssignMedia, actionDeleteMediaAssets, actionReorderMediaAssets, actionLoadTalentMediaBundle, actionLoadTalentMediaBundleAll, actionUploadTalentDocument, actionGetTalentDocumentSignedUrl, actionDeleteTalentDocument, actionImportFromGoogleDrive, actionListDriveFolder, actionImportSingleDriveFile, actionRevertCropToSource } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
 import { setTalentAvatar, setTalentHero, registerPortfolioPhoto } from "@/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions";
@@ -372,7 +373,7 @@ export { loadTalentProfileEditorData } from "@/lib/server-actions/load-talent-pr
 export { dbToUiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
 export { extractShellVideoUrls, findShellBusinessLine, findShellWhatsappHref, limitsDataToEntries, limitsEntriesToData, type ShellLimitsEntry } from "@/lib/talent/profile-shell-drawer-persist";
 export { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields, updateMediaWatermarkOverride, loadAgencyBrandingSettings, loadWorkspaceAccountSettings, type WatermarkPreset } from "@/lib/server-actions/admin-workspace-settings";
-export { actionSetMediaWatermarkOverride, actionUploadAndAssignMedia, actionDeleteMediaAssets, actionReorderMediaAssets, actionLoadTalentMediaBundle, actionUploadTalentDocument, actionGetTalentDocumentSignedUrl, actionDeleteTalentDocument, actionImportFromGoogleDrive, actionListDriveFolder, actionImportSingleDriveFile, actionRevertCropToSource } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+export { actionSetMediaWatermarkOverride, actionUploadAndAssignMedia, actionDeleteMediaAssets, actionReorderMediaAssets, actionLoadTalentMediaBundle, actionLoadTalentMediaBundleAll, actionUploadTalentDocument, actionGetTalentDocumentSignedUrl, actionDeleteTalentDocument, actionImportFromGoogleDrive, actionListDriveFolder, actionImportSingleDriveFile, actionRevertCropToSource } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 export { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
 export { setTalentAvatar, setTalentHero, registerPortfolioPhoto } from "@/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions";
 export { DEFAULT_WATERMARK_PRESET } from "@/lib/server-actions/admin-workspace-settings-constants";
@@ -429,7 +430,7 @@ export function useSaveAndClose(message?: string) {
 
 export function openSupportEmail(subject: string, body: string) {
   const params = new URLSearchParams({ subject, body });
-  window.location.href = `mailto:support@tulala.digital?${params.toString()}`;
+  window.location.href = `mailto:${SUPPORT_EMAIL}?${params.toString()}`;
 }
 
 

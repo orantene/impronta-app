@@ -1,134 +1,25 @@
 // Platform-scoped talent shell — /talent/* on app.tulala.digital (no tenant slug).
 // Agenda V2 rollout: see docs/plans/today-calendar/ROLLOUT.md (TALENT_AGENDA_V2).
-// Legacy Today/Calendar remain behind isAgendaV2 until Step 4 delete PR.
+//
+// Thin outer layout. It does ONLY the cheap, session/header-only gating that must
+// stay an HTTP-level redirect or a bare passthrough, then hands the heavy data
+// loads to <TalentLayoutInner> behind a Suspense boundary WITH a fallback. Before
+// this split the whole shell streamed inside a boundary with no fallback, so the
+// first paint was blank until ~20 loads finished (P0 root-cause notes: Notion
+// card 3f32c5ee974381b6ae7ec3f6b8347f49).
 
-import { notFound, redirect } from "next/navigation";
+import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
-import { TULALA_BRAND } from "@/lib/brand/tulala";
-import {
-  loadTalentSelfProfile,
-  loadTalentSelfProfileByUser,
-  loadTalentInquiriesAllAgencies,
-  loadTalentAgencies,
-  loadTalentRepresentation,
-} from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
-import { loadTalentSurfaceNotifications } from "@/app/(workspace)/[tenantSlug]/_data-bridge/notifications";
-import { loadTalentCalendarEntries } from "@/components/admin/shell/internal/data-bridge";
-import { loadTalentAgenda } from "@/lib/talent-agenda/load";
-import { isAgendaV2 } from "@/lib/talent-agenda/flag";
-import { loadTalentDashboardData } from "@/lib/talent-dashboard-data";
-import { loadTalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
-import { loadPlatformOperatingCurrency, applyOperatingCurrencyToEarnings } from "@/lib/platform/operating-currency";
-import { getTalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
-import { loadTalentPayoutAttention } from "@/lib/payments/talent-payout-attention";
-import { findTenantMembership } from "@/lib/saas/tenant";
+import { dashboardMetadata } from "@/i18n/dashboard-metadata";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { isPlatformAdmin } from "@/lib/access/platform-role";
-import { loadWorkspaceUnreadCount } from "@/lib/saas/unread-counts";
-import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
-import { TalentShellClient } from "@/components/admin/shell/admin-shell-client";
-import { SupportLauncherShellMount } from "@/components/support/SupportLauncherShellMount";
-import type { TalentPage } from "@/components/admin/shell/internal/state";
-import { loadTenantIdentity, loadProfileDisplayName, type TenantIdentityPayload } from "../[tenantSlug]/_layout-identity";
-import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
-import { TalentSiteDashboardProvider } from "@/components/talent/site/TalentSiteDashboardProvider";
-import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/dashboard-state";
-import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
-import { loadClientFieldSource } from "@/lib/field-engine/client-field-source";
-import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
-import { loadTalentPageAnalytics } from "@/lib/analytics/talent-analytics";
-import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
-import { loadTalentPlanGrants } from "@/lib/plan-trials/talent-grants";
-import { talentStudioV2Enabled } from "@/lib/talent/studio-flag";
-import { logServerError } from "@/lib/server/safe-error";
+import { TalentLayoutInner } from "./_talent-layout-inner";
+import { TalentShellSkeleton } from "./_talent-shell-skeleton";
 
 export const dynamic = "force-dynamic";
 
-const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
-  today: "today",
-  attention: "attention",
-  inbox: "messages",
-  messages: "messages",
-  services: "services",
-  profile: "profile",
-  reviews: "reviews",
-  calendar: "calendar",
-  bookings: "booking-record",
-  money: "money",
-  clients: "clients",
-  payouts: "payouts",
-  agencies: "money",
-  activity: "money",
-  reach: "money",
-  site: "public-page",
-  presence: "public-page",
-  "public-page": "public-page",
-  settings: "settings",
-};
-
-/** Snapshot the agenda window outside the layout body so purity lint stays quiet. */
-async function loadTalentAgendaForLayout(talentProfileId: string) {
-  const nowMs = Date.now();
-  try {
-    const result = await loadTalentAgenda(talentProfileId, {
-      from: new Date(nowMs - 90 * 86_400_000),
-      to: new Date(nowMs + 270 * 86_400_000),
-    });
-    return { ...result, error: null as string | null };
-  } catch (err) {
-    logServerError("talent-layout.loadTalentAgenda", err);
-    return {
-      items: [] as import("@/lib/talent-agenda/types").TalentAgendaItem[],
-      hours: null,
-      error: "Could not load your agenda. Refresh and try again.",
-    };
-  }
-}
-
-function derivePlatformTalentPage(pathname: string): TalentPage {
-  const prefix = "/talent";
-  const after = pathname.startsWith(prefix)
-    ? pathname.slice(prefix.length)
-    : "";
-  const parts = after.replace(/^\//, "").split("/").filter(Boolean);
-  const segment = parts[0] ?? "";
-  if (segment === "calendar" && parts[1] === "availability") return "calendar-availability";
-  if (segment === "bookings" && parts[1] === "new") return "bookings-new";
-  if (segment === "bookings" && parts[1]) return "booking-record";
-  return TALENT_SEGMENT_MAP[segment] ?? "today";
-}
-
-const PLATFORM_TENANT_IDENTITY: TenantIdentityPayload = {
-  tenantId: "",
-  slug: "",
-  displayName: TULALA_BRAND.name,
-  planTier: "free",
-  kind: "app",
-  // The platform talent surface is not a tenant workspace at all; "talent"
-  // is the every-surface-visible default and changes nothing here.
-  workspaceType: "talent",
-  // The platform talent surface has no venue and no service rules, so this is
-  // false as a fact, not as a default.
-  takesReservations: false,
-  // No tenant, no events. False as a fact.
-  runsEvents: false,
-  // No `agencies` row, so no industry preset. Null as a fact; the nav shapes
-  // it reads are a workspace-rail concern and this surface has no rail.
-  industryPreset: null,
-  logoUrl: null,
-  accentColor: null,
-  verifiedDomain: null,
-  defaultCoordinatorUserId: null,
-  inquiryCoordinatorTalentIds: [],
-  networkRequestedAt: null,
-  // No tenant, so no `agencies.settings` blob and no point of sale to reach
-  // from here. Empty as a FACT (this surface has no location to sell from),
-  // not as a stand-in for "we did not look" — which is why the shell's
-  // `readWorkspacePosBridge` defaults an ABSENT list to ["counter"] and leaves
-  // an explicit empty one alone.
-  posModes: [],
-};
+export const generateMetadata = dashboardMetadata;
 
 export default async function PlatformTalentLayout({
   children,
@@ -146,233 +37,29 @@ export default async function PlatformTalentLayout({
 
   // Full-screen surfaces under /talent/* that own their entire viewport (the
   // freeform Page Builder editor chrome) opt OUT of the dashboard shell so the
-  // editor renders bare. The route itself enforces auth + the Max-tier gate;
-  // here we only skip the heavy shell + its dashboard data loads.
+  // editor renders bare. The route itself enforces auth + the Max-tier gate.
   if (pathname.startsWith("/talent/page-builder")) {
     return <>{children}</>;
   }
 
   // The guided onboarding wizard is a focused, full-screen flow that owns its
-  // own chrome (like the page-builder editor). It opts OUT of the heavy
-  // dashboard shell so the talent sees one step at a time without the nav rail
-  // competing for attention. The route itself enforces auth + loads its own
-  // data via loadTalentDashboardData (the canonical completeness source).
+  // own chrome. The route itself enforces auth + loads its own data.
   if (pathname.startsWith("/talent/onboarding")) {
     return <>{children}</>;
   }
 
-  const baseProfile = await loadTalentSelfProfileByUser(session.user.id);
-  if (!baseProfile) {
-    if (isTalentRoot) {
-      return children;
-    }
-    notFound();
+  // TUL-129: /talent itself never paints the shell; its page redirects straight
+  // to /talent/today. The inner layout returns children for this path too (after
+  // a profile read), so answering it here is the same output without the read,
+  // and keeps that page's redirect an HTTP redirect instead of one inside a
+  // streamed boundary.
+  if (isTalentRoot) {
+    return <>{children}</>;
   }
 
-  const activeAgency = await getActiveTalentAgencyContext(baseProfile.id);
-  const tenantId = activeAgency?.tenantId ?? null;
-
-  const talentSelfProfile =
-    tenantId != null
-      ? (await loadTalentSelfProfile(session.user.id, tenantId)) ?? baseProfile
-      : baseProfile;
-
-  const initialTalentPage = derivePlatformTalentPage(pathname);
-  // Evaluate once on the server and stamp onto the bridge — client
-  // components cannot read TALENT_AGENDA_V2 (non-NEXT_PUBLIC).
-  const talentAgendaV2 = isAgendaV2(talentSelfProfile.id);
-
-  const [
-    talentInquiries,
-    talentAgencies,
-    talentRepresentation,
-    membership,
-    workspaceUnreadRaw,
-    userPrefsRaw,
-    tenantIdentity,
-    profileDisplayName,
-    talentCalendarEntries,
-    talentAgendaLoad,
-    talentEarnings,
-    talentSiteDashboardLoad,
-    talentPayoutSnapshot,
-    talentPayoutAttention,
-    profileEditorLayout,
-    clientFieldSource,
-    localeSettings,
-    userNotifications,
-    talentPageAnalytics,
-    workspaceUi,
-    talentDashboardLoad,
-  ] = await Promise.all([
-    loadTalentInquiriesAllAgencies(baseProfile.id),
-    loadTalentAgencies(talentSelfProfile.id),
-    loadTalentRepresentation(talentSelfProfile.id, talentSelfProfile.profileCode),
-    tenantId ? findTenantMembership(tenantId) : Promise.resolve(null),
-    tenantId ? loadWorkspaceUnreadCount(tenantId) : Promise.resolve(0),
-    loadUserPrefs(session.user.id),
-    tenantId ? loadTenantIdentity(tenantId) : Promise.resolve(null),
-    loadProfileDisplayName(session.user.id),
-    // Agenda V2: loadTalentAgenda behind the flag only. Flag off keeps the
-    // legacy calendar bridge so Today/Calendar stay unchanged.
-    talentAgendaV2
-      ? Promise.resolve([])
-      : loadTalentCalendarEntries(talentSelfProfile.id),
-    talentAgendaV2
-      ? loadTalentAgendaForLayout(talentSelfProfile.id)
-      : Promise.resolve({ items: [], hours: null, error: null as string | null }),
-    loadTalentEarningsByCurrency(talentSelfProfile.id),
-    loadTalentPersonalSiteDashboardState(),
-    // Stripe Connect payout snapshot for the in-shell Payouts section.
-    // Returns { ok:false } on any failure, so it never breaks the layout.
-    getTalentConnectedAccountSnapshot(talentSelfProfile.id),
-    // Payout legs that did NOT land (reversed / failed / still held), with
-    // booking context, for the Payouts page. Supersedes the held-only totals:
-    // a reversed leg reached no talent surface at all before this.
-    loadTalentPayoutAttention(talentSelfProfile.id),
-    // B0 — DB-backed profile-editor sidebar layout. Never throws (falls back
-    // to the hardcoded structure), so it can't break the layout.
-    loadProfileEditorLayout(),
-    // P1 — DB-resolved client field source (wizard/drawer type-specific
-    // catalog). Null when every surface is `static` (default). `tenantId` may
-    // be null for independent talent — the loader degrades to flags-only.
-    loadClientFieldSource(tenantId),
-    // Tenant locale settings for the shell chrome's DashboardLocaleToggle.
-    // For independent talent (no active agency, tenantId null) the loader
-    // returns the single-locale platform fallback, so the toggle hides.
-    loadTenantLocaleSettings(tenantId ?? ""),
-    // Talent-surface notifications (`user_notifications`, surface='talent').
-    // Cross-agency on purpose — see the loader's comment. Without this the
-    // shell's `bridgeUserNotifications` stayed null on the whole talent
-    // surface and the notifications drawer had nothing but mock rows to
-    // render. Returns [] on any failure, so it never breaks the layout.
-    loadTalentSurfaceNotifications(),
-    // Pro/Portfolio page analytics — profile views + inquiry conversion for the
-    // signed-in talent's OWN profile. Scoped by the SESSION user id (the
-    // profile id is only a cross-check, never the scope), tier-gated inside the
-    // loader, and returns null for a Free talent so the surface shows the
-    // upsell instead of zeros. Bridged here rather than fetched on mount: an
-    // in-shell fetch on this surface has stuck on "Loading" before.
-    loadTalentPageAnalytics(session.user.id, talentSelfProfile.id),
-    loadPlatformWorkspaceUi(),
-    // Real completeness for the Today card (same source as the guided wizard).
-    // Never fatal: a load failure leaves the card on its old estimate.
-    loadTalentDashboardData().catch(() => null),
-  ]);
-
-  // Platform currency policy: unless a super-admin has turned multi-currency
-  // display ON, collapse the talent's earnings to the single operating currency
-  // (default USD) so the dashboard shows one clean figure, not EUR/USD tabs.
-  const talentPlanGrants = await loadTalentPlanGrants(talentSelfProfile.id).catch(() => null);
-  const operatingCurrency = await loadPlatformOperatingCurrency();
-  const displayEarnings = applyOperatingCurrencyToEarnings(talentEarnings, operatingCurrency);
-
-  const isHybrid = membership != null;
-  const workspaceUnread: number | undefined = isHybrid ? workspaceUnreadRaw : undefined;
-  const userPrefs: UserPrefs | null = isHybrid ? userPrefsRaw : null;
-
-  const sessionIdentity = {
-    userId: session.user.id,
-    email: session.user.email ?? "",
-    role: membership?.role ?? "viewer",
-    displayName: profileDisplayName,
-    isPlatformAdmin: isPlatformAdmin(session.profile),
-  };
-
   return (
-    <TalentSiteDashboardProvider initialLoad={talentSiteDashboardLoad}>
-    <TalentShellClient
-      tenantSlug={activeAgency?.slug}
-      platformTalentRoutes
-      talentStudioV2={talentStudioV2Enabled()}
-      initialTalentPage={initialTalentPage}
-      initialBridgeData={{
-        roster: null,
-        inquiries: null,
-        clients: null,
-        calendarEvents: null,
-        overviewMetrics: null,
-        bookings: null,
-        pitches: null,
-        teamMembers: null,
-        totalUnread: 0,
-        // Stamp the talent's exclusivity to the active agency onto the identity
-        // payload. Whitelabel branding on the talent dashboard shows the agency
-        // logo only when the talent is EXCLUSIVE to it (is_primary) AND the
-        // agency is on a whitelabel plan tier; otherwise the surface stays
-        // Tulala-canonical.
-        tenantIdentity: tenantIdentity
-          ? {
-              ...tenantIdentity,
-              talentExclusive: activeAgency?.isPrimary ?? false,
-              // Whitelabel accent on the talent dashboard requires EXCLUSIVE
-              // representation, mirroring the whitelabel logo/brand rule. A
-              // talent on multiple rosters keeps Tulala's chrome.
-              accentColor: activeAgency?.isPrimary ? tenantIdentity.accentColor : null,
-            }
-          : PLATFORM_TENANT_IDENTITY,
-        sessionIdentity,
-        talentSelfProfile,
-        talentPlanTrial:
-          talentPlanGrants?.active?.grantKind === "trial"
-            ? { active: true, expiresAt: talentPlanGrants.active.expiresAt }
-            : null,
-        talentCompletion:
-          talentDashboardLoad && talentDashboardLoad.ok
-            ? {
-                percent: talentDashboardLoad.data.completionScore,
-                missing: talentDashboardLoad.data.missingItems.map((m) => ({
-                  key: m.key,
-                  label: m.label,
-                })),
-              }
-            : null,
-        talentPageAnalytics,
-        talentPayoutSnapshot,
-        talentPayoutAttention,
-        talentInquiries,
-        talentAgencies,
-        talentRepresentation,
-        isHybrid,
-        workspaceUnread: workspaceUnread ?? 0,
-        preferredSurface: userPrefs?.preferredSurface ?? null,
-        firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,
-        // Read from the RAW prefs, not the hybrid-gated `userPrefs`: the
-        // Day-1 checklist is a talent-only surface, so gating it on hybrid
-        // would make the dismissal never stick for pure talents.
-        talentChecklistDismissed: userPrefsRaw?.talentChecklistDismissed ?? false,
-        talentCalendarEntries,
-        talentAgendaItems: talentAgendaLoad.items,
-        talentAgendaHours: talentAgendaLoad.hours,
-        talentAgendaError: talentAgendaLoad.error,
-        talentAgendaV2,
-        talentEarnings: displayEarnings,
-        userNotifications,
-        profileEditorLayout,
-        clientFieldSource,
-        localeSettings: {
-          supportedLocales: localeSettings.supportedLocales,
-          defaultLocale: localeSettings.defaultLocale,
-        },
-        // Bridge only the support switch: passing fabEnabled through would
-        // silently un-gate the workspace FAB on the talent surface (the shell
-        // renders it without a surface check).
-        workspaceUi: workspaceUi ? { ...workspaceUi, fabEnabled: false } : workspaceUi,
-      }}
-      supportSlot={
-        <SupportLauncherShellMount
-          surface="talent"
-          tenantSlug={activeAgency?.slug ?? null}
-          tenantId={activeAgency?.tenantId ?? null}
-        />
-      }
-    >
-      {/* Agency-context switching lives in the identity bar's "Acting as"
-          chip → Switch-agency drawer (in-place cookie switch + refresh). The
-          old raw <select> strip that rendered here duplicated that control
-          and sat as an unstyled band above the shell chrome. */}
-      {children}
-    </TalentShellClient>
-    </TalentSiteDashboardProvider>
+    <Suspense fallback={<TalentShellSkeleton />}>
+      <TalentLayoutInner>{children}</TalentLayoutInner>
+    </Suspense>
   );
 }

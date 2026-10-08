@@ -538,6 +538,10 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
       en: "Tell us about the project and we will line up the right talent",
       es: "Cuéntanos del proyecto y te armamos el equipo",
     },
+    chatVoiceSolo: {
+      en: "Tell me what you need and I will help you book",
+      es: "Cuéntame qué necesitas y te ayudo a reservar",
+    },
     // Was null while a "Production agency" design sat in the registry unused.
     designId: "agency",
     representsPeople: true,

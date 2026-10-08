@@ -1,5 +1,6 @@
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getPublicHostContext } from "@/lib/saas";
+import { AgencyFooterSocket } from "@/components/agency-footer-socket";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import {
   PublishedShellFooter,
@@ -34,11 +35,15 @@ export async function PublicFooter({ className }: { className?: string }) {
     (await shouldRenderSnapshotShell(tenantIdForIdentity, locale))
   ) {
     return (
-      <PublishedShellFooter tenantId={tenantIdForIdentity} locale={locale} />
+      <>
+        <PublishedShellFooter tenantId={tenantIdForIdentity} locale={locale} />
+        <AgencyFooterSocket tenantId={tenantIdForIdentity} locale={locale} />
+      </>
     );
   }
 
   return (
+    <>
     <footer
       className={
         className ?? "border-t border-border px-4 py-8 sm:px-6 lg:px-8"
@@ -48,5 +53,9 @@ export async function PublicFooter({ className }: { className?: string }) {
         <PublicCmsFooterNav locale={locale} />
       </div>
     </footer>
+    {tenantIdForIdentity ? (
+      <AgencyFooterSocket tenantId={tenantIdForIdentity} locale={locale} />
+    ) : null}
+    </>
   );
 }

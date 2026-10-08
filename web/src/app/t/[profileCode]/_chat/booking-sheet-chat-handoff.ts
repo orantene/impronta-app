@@ -6,6 +6,7 @@
 import type { PendingGuestContact } from "./pending-guest-contact-store";
 import { takePendingGuestContact } from "./pending-guest-contact-store";
 import { peekPendingOffering } from "./pending-offering-store";
+import { takePendingDraftMessage } from "./pending-draft-message";
 import { catalogBookingDraftPrefix } from "@/components/public-booking/catalog-booking-chat";
 import { splitGuestFullName } from "./mini-chat-styles";
 
@@ -35,5 +36,8 @@ export function consumeBookingSheetChatHandoff(locale: string): {
   if (pending) {
     out.draftPrefix = catalogBookingDraftPrefix(pending, pending.selection, locale);
   }
+  // An on-page app's message (Nail Designer) leads the composer when present.
+  const appMessage = takePendingDraftMessage();
+  if (appMessage) out.draftPrefix = out.draftPrefix ? `${appMessage}\n\n${out.draftPrefix}` : appMessage;
   return out;
 }

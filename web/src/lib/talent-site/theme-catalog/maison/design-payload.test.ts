@@ -45,6 +45,23 @@ test("Maison Design includes services_catalog with showPrice true (free-plan pri
   assert.ok(found, "expected services_catalog in homeTree");
 });
 
+test("AUD-026: Maison services_catalog sits in a padded side-gutter container", () => {
+  const { homeTree } = buildMaisonDesignPayload();
+  const services = homeTree.find(
+    (n) => (n.props as { slotKey?: string } | undefined)?.slotKey === "services",
+  );
+  assert.ok(services, "expected services section");
+  const style = (services!.props as { style?: { paddingX?: string; maxWidth?: string } }).style;
+  assert.equal(style?.paddingX, "m");
+  assert.equal(style?.maxWidth, "wide");
+  const kids =
+    "children" in services! && Array.isArray(services!.children) ? services!.children : [];
+  assert.ok(
+    kids.some((c) => c.kind === "services_catalog"),
+    "catalog must be nested inside the padded container",
+  );
+});
+
 test("Maison Design FAQ accordion binds talent_faq_items", () => {
   const { homeTree } = buildMaisonDesignPayload();
   let found = false;
@@ -70,6 +87,21 @@ test("Maison Design uses phone-responsive stacks on services + contact", () => {
   }
   assert.ok(responsiveSlots.includes("services"));
   assert.ok(responsiveSlots.includes("contact"));
+});
+
+test("Maison Design services band uses surface-raised blush ground", () => {
+  const { homeTree } = buildMaisonDesignPayload();
+  const services = homeTree.find(
+    (n) => (n.props as { slotKey?: string } | undefined)?.slotKey === "services",
+  );
+  assert.ok(services, "expected services kit section");
+  const bg = (services?.props as { style?: { backgroundColor?: string } } | undefined)?.style
+    ?.backgroundColor;
+  assert.match(
+    String(bg ?? ""),
+    /token-color-surface-raised|token:color\.surface-raised/,
+    "Menu band must bind soft blush (surface-raised), not hard white",
+  );
 });
 
 test("Maison Looks declare Fraunces + Inter (W16 fonts)", () => {

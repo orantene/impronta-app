@@ -82,6 +82,14 @@ export const ITEM_META: Record<
     label: "Language switch",
     description: "The language codes a visitor can switch between.",
   },
+  account: {
+    label: "Account button",
+    description: "A person icon (or initials once signed in) that opens the visitor's sign-in and account card.",
+  },
+  section_switcher: {
+    label: "Section switcher",
+    description: "On phones, shows the current section and opens a menu of every section. Uses your menu links.",
+  },
   spacer: {
     label: "Flexible gap",
     description: "Empty space that pushes whatever follows it further along.",
@@ -222,6 +230,20 @@ export function ItemGlyph({ kind }: { kind: HeaderItemKind }) {
           <circle cx="12" cy="12" r="8" />
           <path d="M4 12h16" />
           <path d="M12 4a13 13 0 0 1 0 16a13 13 0 0 1 0-16z" />
+        </>
+      ) : null}
+      {kind === "account" ? (
+        <>
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5" />
+        </>
+      ) : null}
+      {kind === "section_switcher" ? (
+        <>
+          <path d="M5 8h14" />
+          <path d="M5 12h9" />
+          <path d="M5 16h6" />
+          <path d="M17 14l2.5 2.5L22 14" />
         </>
       ) : null}
       {kind === "spacer" ? (

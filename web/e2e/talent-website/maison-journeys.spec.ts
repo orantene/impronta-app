@@ -69,11 +69,11 @@ test.describe("Maison journeys 1–6 (W77–W78)", () => {
           await expect(edit).toBeVisible();
           await edit.fill(MAISON_VALE_INTRO_AFTER_AI);
           await page.getByTestId("finish-with-ai-use").click();
-          await expect(page.getByTestId("website-unlocked-card")).toBeVisible({
+          await expect(page.getByTestId("website-today-hero")).toBeVisible({
             timeout: 30_000,
           });
 
-          await page.getByTestId("website-unlocked-activate").click();
+          await page.getByTestId("website-today-hero-cta").click();
           await page.goto("/talent/site", { waitUntil: "domcontentloaded" });
           await expectMaisonSetupHost(page);
           await expect(page.getByTestId("maison-choose-design")).toBeVisible();

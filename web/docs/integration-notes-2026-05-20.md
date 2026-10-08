@@ -21,7 +21,7 @@ cleanup + AI fast-path + audit docs + evolution plan".
 |---|---|
 | Commits rebased | **76/76 + 3 concurrent cherry-picks = 79/79** clean (no skips) |
 | Uncommitted re-applied | **0** — deferred (see below; brief stale, not ducked) |
-| `npx tsc --noEmit` | **0 errors** (below CI BASE=4) ✅ |
+| `npm run typecheck` | **0 errors** (below CI BASE=4) ✅ |
 | `npm run lint` | **53 errors** (33 ratchet/no-untenanted-from + 14 no-console + 4 max-lines + 2 react/no-unescaped-entities); below documented historical ≈76 baseline; integrator chooses whether to regen suppressions or chase down the diff |
 
 ## Conflicts resolved during rebase (4 commits hit conflicts)
@@ -215,7 +215,7 @@ theme-foundations removal and, if so, drive it as a clean follow-up commit.
 
 | Gate | Result vs baseline |
 |---|---|
-| `npx tsc --noEmit` | **0 errors** (baseline 4 — IMPROVED ✅) |
+| `npm run typecheck` | **0 errors** (baseline 4 — IMPROVED ✅) |
 | `npm run lint` (pre-refresh) | 53 errors, 961 warnings — all 53 errors traced to the 76 rebased commits (resolve-talent-fields, legacy-mirror, admin-workspace-field-settings, engine-audit, roster-import) + 1 from `default-content.ts` crossing 800-line threshold |
 | `npm run lint:refresh-baseline` | +45/−12 entries in `eslint-suppressions.json` (925 → 945 quoted strings), 0 errors after refresh ✅ |
 | `lint` baseline commit | `6417bd060 ci: refresh eslint-suppressions baseline post-integration` |

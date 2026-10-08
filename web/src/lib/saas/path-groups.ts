@@ -55,11 +55,14 @@ export const PROTOTYPE_PREFIX = "/prototypes" as const;
  *        any seeded `agency_domains` row.
  *   - `/api/health/*` → read-only deploy diagnostics (e.g.
  *        `/api/health/guest-chat` reports only the BOOLEAN presence of the
- *        Upstash KV env vars — no secret values, no tenant data).
- *        Intentionally unauthenticated so `deploy:smoke` can probe the
- *        deployed runtime without a session; without this entry the proxy
- *        rewrote it to a 404 and the smoke check could never read the
- *        anti-spam signal.
+ *        Upstash KV env vars — no secret values, no tenant data;
+ *        `/api/health/flags` lists live prod-gating flag values and is
+ *        platform-admin / CRON_SECRET gated — smoke compares them to
+ *        `scripts/prod-flag-expectations.mjs`).
+ *        guest-chat is intentionally unauthenticated so `deploy:smoke` can
+ *        probe the deployed runtime without a session; without this entry
+ *        the proxy rewrote it to a 404 and the smoke check could never read
+ *        the anti-spam signal.
  *   - `/api/dev/reset-guest` → QA/E2E fresh-guest-session reset (W0-H). Unlike
  *        the rest of `/api/dev/*` (bypassed in proxy.ts for dev + preview
  *        ONLY), this single route is also allowed through on production hosts
@@ -85,11 +88,18 @@ export const PROTOTYPE_PREFIX = "/prototypes" as const;
  */
 export const SHARED_API_PREFIXES = [
   "/api/cron",
+  // Template Factory demo rebuild + restore. Platform-admin session or CRON_SECRET
+  // bearer (scripts/demo-talents/rebuild.mjs); the handler is the gate.
+  "/api/platform/demos",
   "/api/analytics/events",
   "/api/stripe",
   "/api/health",
   "/api/dev/reset-guest",
   "/api/media/asset",
+  // Same-origin Google Fonts proxy (css + file). Every talent site, agency site
+  // and the builder canvas load theme fonts through it; without this prefix the
+  // request gets the branded HTML 404 and every theme falls back to Georgia.
+  "/api/fonts",
   // Public booking slots. The slot picker runs on EVERY public surface an
   // appointment can be booked from -- an agency storefront, a talent site, the
   // platform host -- so it cannot belong to one host kind. It derives its
@@ -99,6 +109,10 @@ export const SHARED_API_PREFIXES = [
   // the fetch gets the branded HTML 404, and the picker renders no times at
   // all on every host.
   "/api/public/booking",
+  // Policy sheet over the booking: published policy text for a talent (or the
+  // platform default). Public by design, host-independent (talent hosts,
+  // agency hosts and the platform path all open the same sheet).
+  "/api/public/talent-policy",
   // Tulala Agent intake + Account Strategist. Anonymous-first on marketing
   // (/get-started/agent) and authenticated on app (/account/brief/agent). Own
   // KV namespaces, own SSRF guard, own fail-closed gate. Not under `/api/ai`
@@ -304,6 +318,10 @@ export const APP_WORKSPACE_PREFIXES = [
   // Lives at /platform/admin/* on the app host (no tenant slug).
   // Gated inside layout.tsx to app_role === 'super_admin'.
   "/platform",
+  // Support Desk — dedicated shell on support.tulala.digital (alias
+  // desk.tulala.digital). Local QA: /platform/admin/support/desk redirects
+  // to /desk when SUPPORT_DESK_ENABLED is on (covered by /platform above).
+  "/desk",
   // Phase 9 — operator-issued share links (CMS revisions + Pitch landings).
   // Allowed on app/hub hosts too so links sent via WhatsApp resolve when the
   // recipient lands on app.tulala.digital or a localhost dev mirror. Tenant
@@ -339,10 +357,34 @@ export const APP_API_PREFIXES = [
   "/api/talent",
   // HQ support investigation bundle (session or SUPPORT_INVESTIGATION_TOKEN).
   "/api/platform",
+  // Support Desk Phase 1a — desk-scoped APIs on the support host / local QA.
+  // Handlers land in later phases; prefix is required for reachability
+  // (four-layer rule). See SUPPORT_DESK_API_PREFIXES.
+  "/api/support-desk",
   // QR & Links: renderings of a link's code (qr.svg/png/pdf). Staff-only and
   // gated on the SESSION's tenant, not the host, so it works on the agency
   // host and on the app host, where the host carries no tenant at all.
   "/api/links",
+] as const;
+
+/**
+ * TUL-87 — media APIs the page builder calls from a hub workspace site.
+ *
+ * A workspace without a custom domain is edited at
+ * `tulala.digital/w/<slug>?edit=1`, which resolves to host kind `hub`. The
+ * builder's media library, Assets panel, image field and uploads all fetch
+ * `/api/admin/media/*` (or `/api/talent/media/*` for a solo talent) from that
+ * origin. Neither prefix was reachable on `hub`, so every call got the branded
+ * HTML 404 and the client died on `JSON.parse` at `<!DOCTYPE`. Scoped to
+ * the library + upload routes (not all of `/api/admin`) so nothing else widens:
+ * `/api/admin/media/bake-watermark` and `/api/talent/media-kit` stay unreachable. Every handler is the gate
+ * (session + tenant scope / talent-self).
+ */
+export const HUB_API_PREFIXES = [
+  "/api/admin/media/library",
+  "/api/admin/media/upload",
+  "/api/talent/media/library",
+  "/api/talent/media/upload",
 ] as const;
 
 export const APP_API_EXACT_PATHS = [
@@ -423,15 +465,17 @@ export const CANONICAL_EVENTS_ES_PREFIX = "/eventos" as const;
 export const CANONICAL_RECEIPT_PREFIX = "/r" as const;
 
 /**
- * POS payment link (`/pay/<code>`). Agency and hub only, same as `/r/<code>`.
+ * POS payment link (`/pay/<code>`). Agency and hub via the surface gate; also
+ * passthrough on talent_site vanity hosts (free website branded checkout).
  * Possession of the code is the credential.
  */
 export const CANONICAL_PAY_PREFIX = "/pay" as const;
 
 /**
  * Platform payment-link fallback (`/link/<code>` on `pay.tulala.digital`).
- * Same engine as `/pay/<code>`; agency and hub only. Distinct from
- * `CANONICAL_LINK_PREFIX` (`/q`) which is QR tracked links.
+ * Same engine as `/pay/<code>`; agency and hub via the surface gate (and
+ * talent_site passthrough). Distinct from `CANONICAL_LINK_PREFIX` (`/q`)
+ * which is QR tracked links.
  */
 export const CANONICAL_PAY_LINK_PREFIX = "/link" as const;
 
@@ -462,6 +506,8 @@ export const MARKETING_PAGE_PREFIXES = [
   // `scripts/post-deploy-smoke-test.mjs` (P3), which asserts BOTH halves:
   // 200 on tulala.digital, 404 on improntamodels.com.
   "/get-started",
+  // Onboarding 1B front door: /get-started redirects here when the module is on.
+  "/start",
   "/discover-agencies",
   "/operators",
   "/agencies",
@@ -554,3 +600,18 @@ export const MARKETING_API_PREFIXES = [
   // the rest of `/api/directory` stays agency + app only.
   "/api/directory/talents-by-ids",
 ] as const;
+
+/**
+ * Support Desk host surface (support.tulala.digital). Narrower than a full
+ * app host: login + desk shell + desk APIs. Local QA also uses
+ * `/platform/admin/support/desk` on the app host (covered by APP_WORKSPACE
+ * `/platform`). Mirrored into APP_* lists for reachability on kind=app.
+ */
+export const SUPPORT_DESK_PAGE_PREFIXES = [
+  "/desk",
+  // Local-QA mirror path allowed when the support host is used with the
+  // same App Router tree (rare); primary local path is on app/localhost.
+  "/platform/admin/support/desk",
+] as const;
+
+export const SUPPORT_DESK_API_PREFIXES = ["/api/support-desk"] as const;

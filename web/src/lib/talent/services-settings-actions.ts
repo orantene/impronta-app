@@ -1,11 +1,15 @@
 "use server";
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { parseInPersonMethods, type InPersonMethod } from "@/lib/talent-policies/facts";
 import {
+  parseBookingPosture,
   parseSellingBookingSettings,
+  PLATFORM_DEFAULT_BOOKING_POSTURE,
   type TalentBookingPosture,
   type WhoPrimaryCta,
 } from "@/lib/talent/selling-booking-settings";
@@ -15,13 +19,15 @@ export type SellingDefaults = {
   cancelHours: number | null;
   rescheduleHours: number | null;
   where: string[];
+  /** Accepted ways to pay at the visit (descriptive; the per-service switch stays the gate). */
+  inPersonMethods?: InPersonMethod[];
   travelRadiusKm: number | null;
   travelFeeCents: number | null;
   /** Preparation minutes blocked before each start (slot engine). */
   bufferBeforeMin: number | null;
   bufferAfterMin: number | null;
   minNoticeMin: number | null;
-  /** Talent-wide on-demand vs contact/inquiry. */
+  /** Default booking mode for services that inherit: instant / request / inquiry. */
   bookingPosture: TalentBookingPosture;
   /** Who-step primary CTA vocabulary. */
   whoPrimaryCta: WhoPrimaryCta;
@@ -75,6 +81,7 @@ export async function loadSellingDefaults(
       cancelHours: typeof raw.cancelHours === "number" ? raw.cancelHours : 24,
       rescheduleHours: typeof raw.rescheduleHours === "number" ? raw.rescheduleHours : 24,
       where: Array.isArray(raw.where) ? raw.where.filter((v): v is string => typeof v === "string") : ["studio"],
+      inPersonMethods: parseInPersonMethods(raw.inPersonMethods),
       travelRadiusKm: typeof raw.travelRadiusKm === "number" ? raw.travelRadiusKm : null,
       travelFeeCents: typeof raw.travelFeeCents === "number" ? raw.travelFeeCents : null,
       bufferBeforeMin: booking.bufferBeforeMin,
@@ -90,6 +97,8 @@ export async function saveSellingDefaults(
   talentProfileId: string,
   defaults: SellingDefaults,
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return auth;
   const prev =
@@ -99,7 +108,13 @@ export async function saveSellingDefaults(
       ? (auth.profile.selling_defaults as Record<string, unknown>)
       : {};
   // Merge so non-form keys (e.g. categoryNotes) survive a Defaults save.
-  const selling_defaults = { ...prev, ...defaults };
+  // Writers write the new three values only (legacy on_demand reads as request).
+  const selling_defaults = {
+    ...prev,
+    ...defaults,
+    inPersonMethods: parseInPersonMethods(defaults.inPersonMethods ?? prev.inPersonMethods),
+    bookingPosture: parseBookingPosture(defaults.bookingPosture) ?? PLATFORM_DEFAULT_BOOKING_POSTURE,
+  };
   const { error } = await auth.admin
     .from("talent_profiles")
     .update({ selling_defaults, updated_at: new Date().toISOString() })
@@ -124,6 +139,8 @@ export async function saveCategoryOrder(
   talentProfileId: string,
   order: string[],
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return auth;
   const { error } = await auth.admin
@@ -140,6 +157,8 @@ export async function renameCategory(
   from: string,
   to: string,
 ): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return auth;
   const next = to.trim().slice(0, 80);
@@ -178,6 +197,8 @@ export async function mergeCategories(
   from: string,
   into: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   return (await renameCategory(talentProfileId, from, into)).ok
     ? { ok: true }
     : { ok: false, error: "Could not merge." };
@@ -291,6 +312,8 @@ export async function upsertAddonGroup(
     mediaAssetId?: string | null;
   },
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return auth;
   const name = input.name.trim().slice(0, 80);

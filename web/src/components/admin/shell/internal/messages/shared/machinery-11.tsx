@@ -17,6 +17,8 @@ import { OfferTermsComposer } from "./offer-terms-ui";
 import { PanelSkeleton, ghostBtn, primaryBtn } from "./machinery-13";
 import type { Offer } from "./machinery-9";
 import { LineServicePicker } from "./line-service-picker";
+import { formatOfferMoney } from "@/lib/inquiry/offer-currency";
+import { planServicePick } from "@/lib/inquiry/offer-service-pick";
 import type { ServicePricingType } from "@/lib/talent/services-menu-types";
 
 
@@ -554,7 +556,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
         <span className="text-admin-ink-muted">
           {interpolate(t(snapshot.lineItems.length === 1 ? "dashboard.adminTabs.lineup.lineItemCountOne" : "dashboard.adminTabs.lineup.lineItemCountMany"), { count: snapshot.lineItems.length })}
           {" · "}
-          {interpolate(t("dashboard.adminTabs.lineup.totalPrefix"), { amount: new Intl.NumberFormat("en-US", { style: "currency", currency: snapshot.currencyCode, maximumFractionDigits: 0 }).format(computedTotal) })}
+          {interpolate(t("dashboard.adminTabs.lineup.totalPrefix"), { amount: formatOfferMoney(computedTotal, snapshot.currencyCode, { maximumFractionDigits: 0 }) })}
         </span>
         <span style={{ flex: 1 }} />
         <button type="button" onClick={() => setCollapsed(false)} style={ghostBtn()}>{t("dashboard.adminTabs.lineup.edit")}</button>
@@ -675,14 +677,14 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
               <div className="col-span-full">
                 <LineServicePicker
                   talentProfileId={li.talentProfileId}
-                  onPick={(svc) =>
-                    updateLine(li.id, {
-                      label: labelTouched.has(li.id) ? li.label : svc.name,
-                      pricingUnit: svc.pricingType,
-                      unitPrice: svc.amountCents != null ? svc.amountCents / 100 : li.unitPrice,
-                      sourceServiceId: svc.id, // S18 — audit stamp
-                    })
-                  }
+                  onPick={(svc) => {
+                    // TUL-274: an amount never crosses currencies silently.
+                    const plan = planServicePick({ offerCurrency: snapshot.currencyCode, lines: snapshot.lineItems, lineId: li.id, labelTouched: labelTouched.has(li.id), service: svc });
+                    const next = plan.switchCurrency;
+                    if (plan.blocked) { toast(interpolate(t("dashboard.adminTabs.lineup.svcCurrencyBlocked"), plan.blocked)); return; }
+                    if (next) setSnapshot((s) => (s == null ? s : { ...s, currencyCode: next }));
+                    updateLine(li.id, { ...plan.patch, pricingUnit: svc.pricingType });
+                  }}
                 />
               </div>
             ) : null}

@@ -23,6 +23,7 @@ import { useCallback, type MutableRefObject } from "react";
 
 import { findPathByValue, setByPath } from "@/lib/site-admin/edit-mode/prop-path";
 import { findBuilderNodeById } from "./inline-editor-builder-resolvers";
+import { isTextUnchanged } from "./editing-locale";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { isLocalizableProp } from "@/lib/i18n/builder-i18n-props";
 import { setOverlayProp } from "@/lib/site-admin/builder-node/i18n-overlay";
@@ -80,7 +81,7 @@ export function runCommitText(
   original: string,
   next: string,
 ): boolean {
-  if (next === original) return false;
+  if (isTextUnchanged(next, original)) return false;
   const tree = deps.draftPropsRef.current;
   if (!tree) {
     // WAVE 2.1 — reachable now that arming no longer waits for the inspector to
@@ -125,7 +126,7 @@ export async function runCommitBuilderNodeText(
   original: string,
   next: string,
 ): Promise<boolean> {
-  if (next === original) return false;
+  if (isTextUnchanged(next, original)) return false;
   if (next.trim().length === 0) {
     deps.setBanner({
       kind: "error",
@@ -162,6 +163,15 @@ export async function runCommitBuilderNodeText(
   // opacity + a green dot. The default locale (and any non-localizable prop)
   // keeps writing the base prop exactly as before → byte-identical.
   const node = findBuilderNodeById(deps.builderTreeRef.current, target.id);
+  // TUL-70 round 3: no write when the value equals what the node already holds.
+  if (node) {
+    const props = node.props as Record<string, unknown>;
+    const held =
+      target.locale !== deps.defaultLocale && isLocalizableProp(node.kind, target.propKey)
+        ? node.i18n?.[target.locale]?.[target.propKey]
+        : props[target.propKey];
+    if (typeof held === "string" && isTextUnchanged(next, held)) return false;
+  }
   if (
     node &&
     target.locale !== deps.defaultLocale &&

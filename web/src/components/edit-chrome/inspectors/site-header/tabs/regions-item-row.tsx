@@ -167,6 +167,14 @@ function ItemSummary({
       return t("Icon with a live count");
     case "language":
       return t("Only shows when the site has more than one language");
+    case "account":
+      return t("Only shows once client accounts are switched on for your site");
+    case "section_switcher": {
+      const n = config.navigation.items.filter((i) => i.visible && i.href.startsWith("#")).length;
+      return n > 1
+        ? t("{count} sections, shown on phones").replace("{count}", String(n))
+        : t("Needs at least two in-page menu links");
+    }
     case "spacer":
       return t("Pushes the next item further along");
     default:
@@ -295,6 +303,18 @@ function ItemSettings({
           options={[
             { value: "on", label: "Show the count" },
             { value: "off", label: "Icon only" },
+          ]}
+        />
+      ) : null}
+      {item.type === "section_switcher" ? (
+        <SelectField
+          label="Section number"
+          hint="The two-digit number shown before the section name."
+          value={item.showIndex === false ? "off" : "on"}
+          onChange={(v) => onUpdate({ ...item, showIndex: v === "on" })}
+          options={[
+            { value: "on", label: "Show the number" },
+            { value: "off", label: "Name only" },
           ]}
         />
       ) : null}

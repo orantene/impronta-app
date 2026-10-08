@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 import {
   codeGalleryItemsForPolicy,
@@ -19,6 +20,7 @@ import {
 import { fetchSurfaceGalleryItems } from "@/lib/site-admin/add-gallery/gallery-fetch-action";
 import { listCatalogStructure } from "@/lib/site-admin/add-gallery/catalog-structure-actions";
 import { performAddGalleryInsert } from "@/lib/site-admin/add-gallery/perform-insert";
+import { templateCopySiteKind } from "@/lib/site-admin/add-gallery/section-template-copy";
 import { applyShellVariantToWorkspaceAction } from "@/lib/site-admin/builder-core/templates/apply-shell-variant-action";
 import {
   armAddGalleryPointerDrag,
@@ -35,6 +37,13 @@ import {
 
 import { useEditContext } from "../edit-context";
 import { paidPlanInsertBlockMessage } from "@/lib/site-admin/add-gallery/paid-plan-gate";
+import {
+  GALLERY_LOCKED_UPGRADE_HREF,
+  galleryLockedHint,
+  isGalleryItemStructurallyLocked,
+} from "@/lib/site-admin/add-gallery/structural-lock";
+import { requestWebsiteSetup } from "@/components/talent/website-reward/useWebsiteFlow";
+import { takeBuilderAppIntent } from "../builder-app-intent";
 import { TabBar } from "./add-gallery-tab-bar";
 import { GalleryCard } from "./add-gallery-cards";
 import { useBuilderTree } from "../builder-tree-bridge";
@@ -57,6 +66,7 @@ import { resolveInsertAnchor } from "./gallery-insert-hint";
 import { getViewportSectionNodeId } from "./viewport-section-anchor";
 import { locateCanvasNode } from "../freeform-layer-row";
 import { useEditorLocale } from "../use-editor-locale";
+import { getActiveContentLocaleSnapshot } from "../active-content-locale-bridge";
 
 const PANEL_WIDTH = 592;
 const PANEL_MAX_HEIGHT = "min(78vh, 640px)";
@@ -72,6 +82,7 @@ const TAB_TITLE_BY_KEY: Partial<Record<AddGalleryTab, string>> = {
   designs: "Add Designs",
   data: "Add Data",
   shell: "Add Shell",
+  apps: "Add Apps",
 };
 
 interface AddGalleryPanelProps {
@@ -93,7 +104,7 @@ function CategoryRail({
     <nav
       className="flex shrink-0 flex-col gap-[2px] overflow-y-auto py-[12px] pl-[12px] pr-[8px]"
       style={{
-        width: 148,
+        width: "min(148px, 34vw)",
         borderRight: `1px solid ${CHROME.line}`,
       }}
       aria-label={t("Categories")}
@@ -118,7 +129,7 @@ function CategoryRail({
               <AddGalleryIcon name={cat.icon} size="sm" tone="accent" />
             </span>
             <span className="min-w-0 leading-snug [overflow-wrap:anywhere]">
-              {cat.label}
+              {t(cat.label)}
             </span>
           </button>
         );
@@ -135,6 +146,40 @@ function CategoryRail({
  * drop + commits the insert on pointerup. Returns the row-handle props (or null
  * when the card isn't draggable) to spread onto the card button.
  */
+/**
+ * Upgrade hint above a plan-locked gallery (Free talent site). A plain anchor,
+ * not a router push: the builder route renders without the dashboard shell and
+ * a soft navigation would keep that bare layout.
+ */
+function GalleryLockedNotice({ locale }: { locale: string }) {
+  const hint = galleryLockedHint(locale);
+  return (
+    <div
+      className="mx-[16px] mb-[8px] flex items-start gap-[10px] rounded-[10px] border px-[12px] py-[10px]"
+      style={{ borderColor: CHROME.line, background: CHROME.paper }}
+      role="note"
+      data-add-gallery-locked-notice
+    >
+      <div className="min-w-0 flex-1">
+        <p className="text-[12.5px] font-semibold" style={{ color: CHROME.ink }}>
+          {hint.title}
+        </p>
+        <p className="mt-[2px] text-[11.5px] leading-snug" style={{ color: CHROME.muted }}>
+          {hint.body}
+        </p>
+      </div>
+      <a
+        href={GALLERY_LOCKED_UPGRADE_HREF}
+        className="shrink-0 rounded-full px-[10px] py-[5px] text-[11.5px] font-semibold"
+        style={{ background: CHROME.ink, color: CHROME.paper }}
+        data-add-gallery-locked-cta
+      >
+        {hint.cta}
+      </a>
+    </div>
+  );
+}
+
 export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   const { t, locale } = useEditorLocale();
   const {
@@ -145,6 +190,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     selectBuilderNode,
     notifyTemplateApplied,
     gallerySurface,
+    surfaceKind,
     workspacePlan,
     queueRouterRefresh,
   } = useEditContext();
@@ -160,6 +206,8 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   const [pending, setPending] = useState(false);
   // Live-render preview popup — the item whose preview is open (null = closed).
   const [previewItem, setPreviewItem] = useState<AddGalleryItem | null>(null);
+  // Gallery "Add to my site" → land on Apps (and optionally focus one app).
+  const [focusAppId, setFocusAppId] = useState<string | null>(null);
 
   // P1 — merged catalog seeded synchronously from code; refreshed on open.
   const allowedTabIds = useMemo(
@@ -175,6 +223,16 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       }),
     [gallerySurface],
   );
+
+  useEffect(() => {
+    if (!open) return;
+    const intent = takeBuilderAppIntent();
+    if (!intent) return;
+    setTab("apps");
+    setFocusAppId(intent);
+    const app = codeSeed.find((i) => i.tab === "apps" && i.id === intent);
+    if (app) setQuery(app.label);
+  }, [open, codeSeed]);
   const [mergedItems, setMergedItems] =
     useState<ReadonlyArray<AddGalleryItem>>(codeSeed);
   // Admin-editable catalog structure; empty until open-effect fetch resolves.
@@ -268,7 +326,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   }, [categoryId, categories]);
 
   const items = useMemo(() => {
-    return filterGalleryItemsFrom(mergedItems, {
+    const here = filterGalleryItemsFrom(mergedItems, {
       tab,
       categoryId: query.trim() ? undefined : (activeCategoryId ?? undefined),
       query,
@@ -276,7 +334,11 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       // ruled vocabulary (a capability on the gallery policy, not surfaceKind).
       blockAllowList: gallerySurface.blockAllowList,
     });
-  }, [mergedItems, tab, activeCategoryId, query, gallerySurface]);
+    // Global search: apps (every one, any theme) also surface from other tabs.
+    if (!query.trim() || tab === "apps" || !allowedTabIds.includes("apps")) return here;
+    const apps = filterGalleryItemsFrom(mergedItems, { tab: "apps", query, blockAllowList: gallerySurface.blockAllowList });
+    return [...here, ...apps.filter((a) => !here.some((h) => h.id === a.id))];
+  }, [mergedItems, tab, activeCategoryId, query, gallerySurface, allowedTabIds]);
 
   // ── Shell variants: REPLACE, not insert ───────────────────────────────────
   // A shell template rewrites a landmark's children. The normal gallery path
@@ -339,6 +401,8 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   const handleInsert = useCallback(
     async (item: AddGalleryItem) => {
       if (pending || !isAddGalleryItemAvailable(item)) return;
+      // Same rule as the builder gate: a locked card never reaches insert.
+      if (isGalleryItemStructurallyLocked(item, gallerySurface.structuralEdits)) return;
       const paidGate = paidPlanInsertBlockMessage(item, workspacePlan);
       if (paidGate) return reportMutationError(t(paidGate));
 
@@ -361,6 +425,12 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
           item,
           anchor,
           { insertBuilderNode, insertBuilderSectionEmbed, insertBuilderComponent },
+          {
+            copy: {
+              siteKind: templateCopySiteKind(surfaceKind, window.location.pathname),
+              locale: getActiveContentLocaleSnapshot().locale,
+            },
+          },
         );
         if (!result.ok && result.error) {
           reportMutationError(result.error);
@@ -396,7 +466,8 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       insertBuilderSectionEmbed,
       insertBuilderComponent,
       reportMutationError,
-      workspacePlan, t,
+      workspacePlan, t, surfaceKind,
+      gallerySurface.structuralEdits,
       selectBuilderNode,
       notifyTemplateApplied,
       onClose,
@@ -418,6 +489,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       open={open}
       onClose={onClose}
       width={PANEL_WIDTH}
+      compactBottomSheet
       maxHeight={PANEL_MAX_HEIGHT}
       testId="add-gallery-panel"
       tabs={
@@ -475,7 +547,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("Search sections and blocks")}
+              placeholder={t(tab === "apps" ? "Search apps" : "Search sections and blocks")}
               className="w-full rounded-[10px] border py-[9px] pl-[34px] pr-[12px] text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/35"
               style={{
                 borderColor: CHROME.line,
@@ -498,6 +570,30 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
           ) : null}
         </div>
 
+        {gallerySurface.structuralEdits === false && tab !== "shell" ? (
+          <GalleryLockedNotice locale={locale} />
+        ) : null}
+        {focusAppId ? (
+          <span hidden data-testid="add-gallery-focus-app" data-app-id={focusAppId} />
+        ) : null}
+        {tab === "apps" ? (
+          <div
+            className="mx-[16px] mb-[8px] flex flex-wrap items-center gap-[8px] rounded-[10px] border px-[12px] py-[8px] text-[12px]"
+            style={{ borderColor: CHROME.line, background: CHROME.paper, color: CHROME.ink }}
+            data-testid="add-gallery-apps-designs-link"
+          >
+            <span style={{ color: CHROME.muted }}>{t("Apps look best in matching designs.")}</span>
+            <Link
+              href="/talent/site"
+              data-testid="add-gallery-browse-designs"
+              className="font-semibold underline-offset-2 hover:underline"
+              style={{ color: CHROME.ink }}
+              onClick={() => requestWebsiteSetup("gallery")}
+            >
+              {t("Browse designs")}
+            </Link>
+          </div>
+        ) : null}
         <div className="flex min-h-0 flex-1">
           {!query.trim() && categories.length > 0 ? (
             <CategoryRail
@@ -536,6 +632,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
                     onPreview={setPreviewItem}
                     pending={pending}
                     armed={armedShellItemId === item.id}
+                    locked={isGalleryItemStructurallyLocked(item, gallerySurface.structuralEdits)}
                   />
                 ))}
               </div>

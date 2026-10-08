@@ -23,3 +23,4 @@ export * from "./performance-budget";
 export * from "./collab-audit";
 export * from "./element-library-policy";
 export * from "./mvp-allow-list";
+export * from "./wrap-for-root";

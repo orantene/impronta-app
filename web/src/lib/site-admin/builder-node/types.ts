@@ -6,6 +6,7 @@ import type {
 } from "./animation-presets";
 import type { BackgroundMediaProps } from "./background-media";
 import type { BuilderIconName } from "./icon-registry";
+import type { LiveTextKey } from "./live-text-keys";
 import type { BuilderVisibilityCondition } from "./visibility";
 
 export type BuilderNodeKind =
@@ -45,6 +46,30 @@ export type BuilderNodeKind =
   | "hero_search"
   | "menu_board"
   | "services_catalog"
+  /** W-12 — live-bound talent media (filmstrip / grid / masonry / contact sheet / chapter). */
+  | "portfolio"
+  /** W-14 — live-bound talent_reviews quote cards (trio / single / row). */
+  | "reviews"
+  /** Visit facts — live service areas / languages / hours; hidden when empty. */
+  | "visit"
+  /** Contents — authored chapter index / TOC with anchor links. */
+  | "contents"
+  /** Masthead — giant stacked words + optional B&W cover (W-10 hero variant). */
+  | "masthead"
+  /** Statement footer — short editorial statement + optional credit / contact. */
+  | "statement_footer"
+  /** Comp card — live measure strip from public profile fields + visibility. */
+  | "comp_card"
+  | "spec_table"
+  /** Gridline utility header bar (status pill + tap-to-call). */
+  | "utility_bar"
+  /** Gridline same-day emergency band; renders only while the flag is on. */
+  | "alert_band"
+  | "task_picker"
+  /** Apps: interactive mini-tools (registry-driven; first app = Nail Designer). */
+  | "app_nail_designer"
+  /** Next free slot chip — bound to public booking slots; hidden when empty. */
+  | "next_free_chip"
   | "reserve_table"
   | "session_picker"
   | "ticket_picker"
@@ -791,6 +816,8 @@ export interface BuilderAccordionNode extends BuilderNodeBase {
   props: {
     allowMultiple?: boolean;
     defaultOpenItemIds?: string[];
+    /** Every item starts closed (bound FAQ lists have no stable item ids to pick). */
+    startClosed?: boolean;
     layerLabel?: string;
     style?: BuilderNodeStyle;
     /**
@@ -935,6 +962,8 @@ export interface BuilderHeadingNode extends BuilderNodeBase {
     href?: string;
     layerLabel?: string;
     fieldBindings?: BuilderNodeFieldBindings;
+    /** Follows a profile value at render time (see live-text-keys.ts); `text` is the fallback. */
+    liveText?: LiveTextKey;
     style?: BuilderNodeStyle;
   };
 }
@@ -947,6 +976,8 @@ export interface BuilderParagraphNode extends BuilderNodeBase {
     href?: string;
     layerLabel?: string;
     fieldBindings?: BuilderNodeFieldBindings;
+    /** Follows a profile value at render time (see live-text-keys.ts); `text` is the fallback. */
+    liveText?: LiveTextKey;
     style?: BuilderNodeStyle;
   };
 }
@@ -1280,12 +1311,384 @@ export interface BuilderQrCodeNode extends BuilderNodeBase {
   };
 }
 
+/**
+ * W-12 Portfolio — live talent media (not copied-at-apply gallery tiles).
+ * Layouts: filmstrip · grid · masonry · contact_sheet · chapter
+ * (chapter = one album/collection with sticky number + title + credit).
+ */
+export interface BuilderPortfolioNode extends BuilderNodeBase {
+  kind: "portfolio";
+  props: {
+    layout?: "filmstrip" | "grid" | "masonry" | "contact_sheet" | "chapter" | "staggered" | "work_order";
+    eyebrow?: string;
+    title?: string;
+    columns?: 2 | 3 | 4;
+    /** When true, show caption and/or linked service name under each shot. */
+    showCaptions?: boolean;
+    /**
+     * framed = each shot is a raised card (photo, italic name, round arrow);
+     * plain (default) = bare photos. Shows up to six shots in the staggered strip.
+     */
+    cardStyle?: "plain" | "framed";
+    selectionMode?: "all" | "ids";
+    selectedMediaIds?: string[];
+    autoIncludeNew?: boolean;
+    limit?: number;
+    shotBindings?: Array<{
+      mediaId: string;
+      offeringId?: string;
+      caption?: string;
+    }>;
+    /** offering = photo opens that service; none = display only. */
+    linkMode?: "offering" | "none";
+    emptyMessage?: string;
+    /** Folio magazine edition. */
+    edition?: "magazine";
+    useWebsiteTheme?: boolean;
+    /**
+     * Chapter layout: 1-based index rendered as a roman numeral (I, II, III…).
+     * Ignored by other layouts.
+     */
+    chapterNumber?: number;
+    /** Chapter layout credit line under the title (photographer, client, year). */
+    creditLine?: string;
+    /**
+     * Bind this block to one talent media album (`media_assets.metadata.albumId`).
+     * Empty / omitted = all live portfolio shots (subject to selectionMode).
+     */
+    albumId?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * W-14 Reviews — live talent_reviews quote cards on the shared carousel rail.
+ * Layouts: trio (3-up), single (one hero quote), row (peeking rail).
+ * Hidden when there are no published quotes; never invents reviews.
+ */
+export interface BuilderReviewsNode extends BuilderNodeBase {
+  kind: "reviews";
+  props: {
+    layout?: "trio" | "single" | "row";
+    eyebrow?: string;
+    title?: string;
+    limit?: number;
+    showRating?: boolean;
+    /** Rail autoplay interval in ms; 0 / omit with falsey disables. */
+    autoplayMs?: number;
+    loop?: boolean;
+    showArrows?: boolean;
+    showDots?: boolean;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * Visit — live service-area / language / booking-hours facts.
+ * Layouts: facts (list) · split (optional map beside facts) · location (the
+ * Ubicación section: kind, zone, rows, actions and a token-coloured zone map
+ * placeholder, driven by the talent's address-visibility setting).
+ * Hidden when there are no real facts; never invents visit details.
+ */
+export interface BuilderVisitNode extends BuilderNodeBase {
+  kind: "visit";
+  props: {
+    layout?: "facts" | "split" | "location" | "area";
+    /** location layout: which side the map sits on (desktop). */
+    mapSide?: "left" | "right";
+    /** location layout: map height (sm 16/8, md 16/10, lg 4/3). */
+    mapSize?: "sm" | "md" | "lg";
+    /** location layout: show the "Ver mapa" button (inert until map consent ships). */
+    showMapButton?: boolean;
+    eyebrow?: string;
+    title?: string;
+    /** Italic accent word inside the title (e.g. "visit" in "Your visit"). */
+    titleAccent?: string;
+    /** When layout is split, show the authored map image if a URL is set. */
+    showMap?: boolean;
+    mapImageUrl?: string;
+    mapCaption?: string;
+    /** Soft surface band behind the section. */
+    band?: boolean;
+    /** Talent-written facts shown after the live ones (e.g. a deposit note). */
+    extraFacts?: Array<{ label: string; value: string; note?: string }>;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * Contents — authored chapter index / table of contents.
+ * Each item is a label + fragment anchor (no "#"); pairs with portfolio
+ * chapter `anchorId`s and header chapter_dots / side_rail scroll-spy.
+ */
+export interface BuilderContentsNode extends BuilderNodeBase {
+  kind: "contents";
+  props: {
+    layout?: "index" | "compact";
+    eyebrow?: string;
+    title?: string;
+    /** Show roman / decimal indices beside each link. */
+    showNumbers?: boolean;
+    numberStyle?: "roman" | "decimal";
+    items?: Array<{ label: string; anchor: string }>;
+    /** Folio magazine edition. */
+    edition?: "magazine";
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * Masthead — giant stacked words over an optional cover (B&W magazine default).
+ * Shared W-10 hero variant; Designs stamp via `heroMasthead`.
+ */
+export interface BuilderMastheadNode extends BuilderNodeBase {
+  kind: "masthead";
+  props: {
+    /** Authored stack rows (words or phrases). */
+    lines?: string[];
+    /**
+     * When true and there is a single space-separated line, render splits it
+     * into stacked rows (e.g. "{{displayName}}" → first / last).
+     */
+    splitWords?: boolean;
+    /** Small uppercase line under the stack (role, issue, etc.). */
+    subline?: string;
+    /** Optional credit under the subline. */
+    creditLine?: string;
+    /** Full-bleed cover behind the words (default true). */
+    showCover?: boolean;
+    /** Cover treatment: black-and-white (default) or full color. */
+    coverFilter?: "bw" | "none";
+    /** Cover image URL; Design stamps use {{headshotUrl}}. */
+    coverSrc?: string;
+    /**
+     * `magazine`: printed-issue spread (mast line, full-width name, cover
+     * beside bio + CTAs + an "In this issue" index). Default: cover.
+     */
+    edition?: "cover" | "magazine";
+    /** Magazine: right side of the mast line (e.g. the city line). */
+    mastRight?: string;
+    /** Magazine: small caps line on the cover (trade). */
+    coverLine?: string;
+    /** Magazine: the italic serif line over the cover (TH02 "Editorial, runway and campaigns"). */
+    coverStatement?: string;
+    /** Magazine: serif bio beside the cover. */
+    bio?: string;
+    /** `"bio"`: the blurb is her live per-language bio (TUL-230); `bio` is the baked fallback. */
+    liveText?: "bio";
+    /** Magazine: the "(Text in Spanish)" line after the blurb, set by the live-bio pass on a fallback. */
+    bioHint?: string;
+    /** Magazine: primary CTA. */
+    ctaLabel?: string;
+    ctaHref?: string;
+    /** Magazine: ghost CTA to the book (default "See the book"). */
+    bookLabel?: string;
+    bookHref?: string;
+    /** Magazine: index heading (default "In this issue"). */
+    contentsTitle?: string;
+    /** Magazine: index rows (anchor = section id). */
+    contents?: Array<{ label: string; anchor: string; credit?: string }>;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * Statement footer — short editorial closing statement with optional credit
+ * and contact lines. Shared widget; Designs stamp via `statementFooterBlock`.
+ */
+export interface BuilderStatementFooterNode extends BuilderNodeBase {
+  kind: "statement_footer";
+  props: {
+    /** Main closing statement (one or two sentences). */
+    statement?: string;
+    /** Optional credit under the statement (often the name). */
+    creditLine?: string;
+    /** Optional contact / inquire line. */
+    contactLine?: string;
+    /** Horizontal alignment of the band. */
+    align?: "start" | "center";
+    /** Hairline rule above the statement (default true). */
+    showRule?: boolean;
+    /** Folio magazine edition. */
+    edition?: "magazine";
+    /** Magazine: primary CTA under the statement. */
+    ctaLabel?: string;
+    ctaHref?: string;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * Spec table — authored key/value rows (voltage, warranty, price rule...).
+ * Phone: stacked label/value rows. Desktop (container >= 900px): a strip,
+ * one column per row. Hidden when no row has both a label and a value.
+ */
+export interface BuilderSpecTableNode extends BuilderNodeBase {
+  kind: "spec_table";
+  props: {
+    eyebrow?: string;
+    title?: string;
+    rows?: Array<{ label: string; value: string }>;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * Utility bar: the dark sticky header (logo tile, name + mono subtitle,
+ * emergencies pill, desktop action, tap-to-call). The status flag and the call
+ * link come from the page, never from props; `callHref` here is only a
+ * design-token fallback and must be a `tel:` link.
+ */
+export interface BuilderUtilityBarNode extends BuilderNodeBase {
+  kind: "utility_bar";
+  props: {
+    name?: string;
+    subtitle?: string;
+    logoUrl?: string;
+    showStatus?: boolean;
+    statusOnLabel?: string;
+    statusOffLabel?: string;
+    showCall?: boolean;
+    callLabel?: string;
+    callHref?: string;
+    ctaLabel?: string;
+    ctaHref?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/** Alert band: hazard tape + headline + safety note + action; flag-gated. */
+export interface BuilderAlertBandNode extends BuilderNodeBase {
+  kind: "alert_band";
+  props: {
+    title?: string;
+    body?: string;
+    safetyLabel?: string;
+    safetyNote?: string;
+    ctaLabel?: string;
+    ctaHref?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * Task picker (Gridline W-11): a grid of "what is happening" tasks, each
+ * pointing at one offering by id, with a recommendation card that reads the
+ * offering's live price, duration, booking mode and action. Text is authored
+ * in EN with an optional ES twin per row. References only: no offering data
+ * is copied into the node.
+ */
+export interface BuilderAppNailDesignerNode extends BuilderNodeBase {
+  kind: "app_nail_designer";
+  /** Zero-config drop-in: every prop is an optional text override. */
+  props: {
+    title?: string;
+    intro?: string;
+    ctaLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+export interface BuilderTaskPickerNode extends BuilderNodeBase {
+  kind: "task_picker";
+  props: {
+    eyebrow?: string;
+    title?: string;
+    tasks?: Array<{
+      id: string;
+      label: string;
+      labelEs?: string;
+      icon?: BuilderIconName;
+      offeringId?: string;
+      hint?: string;
+      hintEs?: string;
+    }>;
+    /** Offering recommended while no task is picked (the inspection). */
+    defaultOfferingId?: string;
+    defaultKicker?: string;
+    defaultKickerEs?: string;
+    defaultHint?: string;
+    defaultHintEs?: string;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * Comp card — live measure strip bound to public profile field values.
+ * Inspector controls which measures show, labels, and full-details disclosure.
+ * Hidden when empty; never invents measurements. Designs stamp via `compCardBlock`.
+ */
+export interface BuilderCompCardNode extends BuilderNodeBase {
+  kind: "comp_card";
+  props: {
+    /** strip = rail only; strip_with_details adds Full comp card disclosure. */
+    layout?: "strip" | "strip_with_details";
+    eyebrow?: string;
+    title?: string;
+    /**
+     * Ordered measures for the strip. `fieldKey` is a catalog key
+     * (e.g. physical.height_cm). `enabled` ANDs with profile public visibility.
+     */
+    measures?: Array<{
+      fieldKey: string;
+      enabled?: boolean;
+      labelEn?: string;
+      labelEs?: string;
+      unit?: string;
+    }>;
+    /** Hide strip when fewer than N resolved public measures (default 4). */
+    minMeasures?: number;
+    /** Show disclosure for remaining public fields not in the strip. */
+    showFullDetails?: boolean;
+    detailsSummaryEn?: string;
+    detailsSummaryEs?: string;
+    /** Folio magazine edition. */
+    edition?: "magazine";
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * Next free time chip — fetches `/api/public/booking/slots` for a bookable
+ * offering (authored id, or the first slot-eligible offering on the page).
+ * Renders nothing when the list is empty.
+ */
+export interface BuilderNextFreeChipNode extends BuilderNodeBase {
+  kind: "next_free_chip";
+  props: {
+    /** Optional pinned offering; otherwise first bookable offering wins. */
+    offeringId?: string;
+    labelEn?: string;
+    labelEs?: string;
+    /** Horizon in days for the slots probe (API clamps). */
+    days?: number;
+    /** `stacked`: dot + bold time over a small label (photo overlay card). */
+    variant?: "inline" | "stacked";
+    /**
+     * Stacked card only: make the chip a link, e.g. `#services`. A same-page
+     * anchor or a site path; anything else is ignored.
+     */
+    href?: string;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderServicesCatalogNode extends BuilderNodeBase {
   kind: "services_catalog";
   props: {
-    /** rows = service list (mockup default); cards/grid/editorial = image cards; compact_list = price menu; featured = one hero + rest */
-    layout?: "rows" | "cards" | "grid" | "compact_list" | "editorial" | "featured";
-    categoryNav?: "pills" | "tabs" | "jump_strip" | "sections" | "accordion" | "none";
+    /** rows = service list (mockup default); cards/grid/editorial = image cards; compact_list = price menu; rate_card = hairline name/duration/price; featured = one hero + rest; matrix = comparison table (wide) / stacked cards (narrow) */
+    layout?: "rows" | "cards" | "grid" | "compact_list" | "rate_card" | "editorial" | "featured" | "matrix";
+    /** rail = sticky desktop side filter + phone chips (Maison v2 menu). */
+    categoryNav?: "pills" | "tabs" | "rail" | "jump_strip" | "sections" | "accordion" | "none";
     eyebrow?: string;
     title?: string;
     subtitle?: string;
@@ -1300,6 +1703,10 @@ export interface BuilderServicesCatalogNode extends BuilderNodeBase {
     showUsdEquivalent?: boolean;
     /** Instant / Deposit badges from real offering flags only. */
     showBadges?: boolean;
+    /** Small tinted chip on rows that are not instant ("Needs confirmation" / "By quote"). */
+    showModeChip?: boolean;
+    /** meta = price inline after the duration (Maison v2 rows); default column. */
+    pricePlacement?: "column" | "meta";
     ctaLabel?: string;
     emptyMessage?: string;
     categoryShowAll?: boolean;
@@ -1315,10 +1722,21 @@ export interface BuilderServicesCatalogNode extends BuilderNodeBase {
     featuredOfferingIds?: string[];
     sort?: "catalog" | "manual";
     manualOrderIds?: string[];
-    rowCtaVariant?: "outline" | "solid";
+    /** pill = 34px ink-outline pill (Maison v2 `.pick`); request rows take the hairline alt. */
+    rowCtaVariant?: "outline" | "solid" | "pill";
+    /**
+     * `rows` layout only. card = each row is a raised card (soft pill CTA,
+     * hover lift, the whole row opens the service); flat (default) = hairline rows.
+     */
+    rowStyle?: "flat" | "card";
+    /** full = rail + rows span the whole section (no 1120px column). */
+    contentWidth?: "contained" | "full";
     photoRadius?: "square" | "soft" | "round";
     durationFormat?: "auto" | "minutes" | "hours_minutes";
-    mobileBar?: "dock" | "float" | "hidden";
+    /** pill = one glass capsule: chat button + "See services" (Maison v2 dock). */
+    mobileBar?: "dock" | "float" | "pill" | "hidden";
+    /** Lines of service name before ellipsis. Default 2; Maison v2 rows use 3. */
+    nameLineClamp?: 2 | 3 | 4;
     columns?: 1 | 2 | 3;
     density?: "comfortable" | "compact";
     /** Default true — inherit website theme tokens; Style overrides apply when false. */
@@ -1625,10 +2043,18 @@ export interface BuilderMarqueeNode extends BuilderNodeBase {
   kind: "marquee";
   props: {
     items?: Array<{ text: string; href?: string }>;
+    /**
+     * Where the words come from. `services`: her published services, read at
+     * render time in the visitor's language (`items` is the fallback when she
+     * has none). `custom` or unset: the literal `items`, exactly as before, so
+     * every ticker saved before this field keeps working untouched.
+     */
+    source?: "services" | "custom";
     speed?: "slow" | "medium" | "fast";
     direction?: "left" | "right";
-    separator?: "dot" | "slash" | "diamond" | "none";
-    variant?: "text" | "tags";
+    separator?: "dot" | "slash" | "diamond" | "star" | "none";
+    /** `serif`: italic display-face words between hairlines (Maison v2 ticker). */
+    variant?: "text" | "tags" | "serif";
     /** Freeze the loop while the pointer is over the strip. */
     pauseOnHover?: boolean;
     layerLabel?: string;
@@ -1981,7 +2407,8 @@ export interface BuilderStatsNode extends BuilderNodeBase {
       prefix?: string;
       suffix?: string;
     }>;
-    variant?: "row" | "grid" | "split";
+    /** spec = bordered typed spec cells (label over value, no count-up). */
+    variant?: "row" | "grid" | "split" | "spec";
     align?: "start" | "center";
     columns?: number;
     /** Count up from zero when the band scrolls into view. */
@@ -2157,6 +2584,18 @@ export interface BuilderNavNode extends BuilderNodeBase {
       | "drawer-right"
       | "sheet-bottom"
       | "full-screen-fade";
+    /**
+     * Shared Header navigation style (geometry / placement). Absent or
+     * `top_bar` keeps the classic sticky inline bar. Same vocabulary as
+     * `site_header.navChrome` so Designs and Max shells share one setting.
+     */
+    navChrome?:
+      | "top_bar"
+      | "overlay"
+      | "side_rail"
+      | "bottom_tab"
+      | "filter_bar"
+      | "chapter_dots";
     /** Accessible label for the hamburger toggle (default "Menu"). */
     menuLabel?: string;
     // Mobile-menu palette — the authoring path to the --bn-nav-menu-* custom
@@ -2255,6 +2694,11 @@ export interface BuilderSocialLinksNode extends BuilderNodeBase {
     size?: "sm" | "md" | "lg";
     /** Icon container shape: "bare" = glyph only, "circle"/"square" = chip. */
     shape?: "bare" | "circle" | "square";
+    /**
+     * "icons" (default) paints a glyph per platform; "text" prints the
+     * platform names inline ("Instagram · WhatsApp"), for fine-print rows.
+     */
+    display?: "icons" | "text";
     /** Accessible label for the list landmark (default "Social links"). */
     ariaLabel?: string;
     /** Optional bind to `workspace_social_links` (tenant identity store). */
@@ -2285,6 +2729,19 @@ export type BuilderNode =
   | BuilderHeroSearchNode
   | BuilderMenuBoardNode
   | BuilderServicesCatalogNode
+  | BuilderPortfolioNode
+  | BuilderReviewsNode
+  | BuilderVisitNode
+  | BuilderContentsNode
+  | BuilderMastheadNode
+  | BuilderStatementFooterNode
+  | BuilderCompCardNode
+  | BuilderSpecTableNode
+  | BuilderUtilityBarNode
+  | BuilderAlertBandNode
+  | BuilderTaskPickerNode
+  | BuilderAppNailDesignerNode
+  | BuilderNextFreeChipNode
   | BuilderReserveTableNode
   | BuilderSessionPickerNode
   | BuilderTicketPickerNode

@@ -108,7 +108,7 @@ async function runOfferToBooking(
     event_location: "Ciudad de México, CDMX, Mexico",
     message: "QA cash-cycle E2E — efectivo settle proof (auto-cleaned).",
     source_channel: sourceChannel,
-    source_page: "/t/TAL-AUDIT-0512",
+    source_page: "/t/TAL-93941",
     client_user_id: ctx.clientUserId,
     actorUserId: ctx.clientUserId,
     talent_profile_ids: [MORENA_TALENT],
@@ -250,11 +250,11 @@ async function main() {
   if (!ok("talent has a claimed user account (can approve)", !!talentUserId, `user=${talentUserId}`)) return;
 
   const clientSb: SupabaseClient = createClient(URL, ANON, { auth: { persistSession: false } });
-  const { data: cAuth, error: cErr } = await clientSb.auth.signInWithPassword({ email: "qa-client-1@impronta.test", password: "Impronta-QA-Client-2026!" });
+  const { data: cAuth, error: cErr } = await clientSb.auth.signInWithPassword({ email: "qa-client-1@impronta.test", password: (process.env.QA_CLIENT_PASSWORD?.trim() || (() => { throw new Error("QA_CLIENT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()) });
   if (!ok("client sign-in (qa-client-1)", !cErr && !!cAuth?.user, cErr?.message)) return;
 
   const adminSb: SupabaseClient = createClient(URL, ANON, { auth: { persistSession: false } });
-  const { data: aAuth, error: aErr } = await adminSb.auth.signInWithPassword({ email: "qa-admin@impronta.test", password: "Impronta-QA-Admin-2026!" });
+  const { data: aAuth, error: aErr } = await adminSb.auth.signInWithPassword({ email: "qa-admin@impronta.test", password: (process.env.QA_ADMIN_PASSWORD?.trim() || (() => { throw new Error("QA_ADMIN_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()) });
   if (!ok("staff coordinator sign-in (qa-admin, super_admin)", !aErr && !!aAuth?.user, aErr?.message)) return;
 
   const ctx: Ctx = {

@@ -12,7 +12,8 @@
 
 import { useState, useTransition } from "react";
 import { retryHeldPayoutsForPayee } from "./held-payouts-actions";
-import type { HeldLedgerRow } from "@/lib/payments/booking-payouts-ledger";
+import type { HeldLedgerRow, HeldPayoutsResult } from "@/lib/payments/booking-payouts-ledger";
+import { heldCountLabel } from "@/lib/payments/held-payouts-display";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 
@@ -44,8 +45,13 @@ function ageDays(iso: string): number {
   return Math.max(0, Math.floor((Date.now() - ms) / 86400000));
 }
 
-export function HeldPayoutsSection({ rows }: { rows: HeldLedgerRow[] }) {
+const NO_ROWS: HeldLedgerRow[] = [];
+
+export function HeldPayoutsSection({ result }: { result: HeldPayoutsResult }) {
   const t = useT();
+  const readFailed = !result.ok;
+  const capped = result.ok && result.capped;
+  const rows = result.ok ? result.rows : NO_ROWS;
   const [pending, startTransition] = useTransition();
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -111,7 +117,9 @@ export function HeldPayoutsSection({ rows }: { rows: HeldLedgerRow[] }) {
           {t("dashboard.platform.billing.heldPayouts.title")}
         </h2>
         <span style={{ fontSize: 12, color: HQ.inkMuted }}>
-          {rows.length === 0
+          {readFailed
+            ? null
+            : rows.length === 0
             ? t("dashboard.platform.billing.heldPayouts.allClear")
             : interpolate(
                 t(
@@ -127,7 +135,11 @@ export function HeldPayoutsSection({ rows }: { rows: HeldLedgerRow[] }) {
         {t("dashboard.platform.billing.heldPayouts.description")}
       </p>
 
-      {rows.length === 0 ? (
+      {readFailed ? (
+        <div role="alert" style={{ fontSize: 13, color: HQ.red, padding: "8px 0" }}>
+          {t("dashboard.platform.billing.heldPayouts.readFailed")}
+        </div>
+      ) : rows.length === 0 ? (
         <div style={{ fontSize: 13, color: HQ.inkDim, padding: "8px 0" }}>
           {t("dashboard.platform.billing.heldPayouts.empty")} 🎉
         </div>
@@ -136,8 +148,14 @@ export function HeldPayoutsSection({ rows }: { rows: HeldLedgerRow[] }) {
           <div style={{ fontSize: 12.5, color: HQ.ink, marginBottom: 10 }}>
             {interpolate(t("dashboard.platform.billing.heldPayouts.totalHeld"), {
               amount: totalLabel,
-              count: rows.length,
+              count: heldCountLabel(rows.length, capped),
             })}
+            {capped && (
+              <span style={{ color: HQ.amber }}>
+                {" "}
+                {interpolate(t("dashboard.platform.billing.heldPayouts.cappedNote"), { max: rows.length })}
+              </span>
+            )}
           </div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>

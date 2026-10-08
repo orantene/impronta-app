@@ -11,6 +11,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // Non-exported on purpose — a "use server" file may only *export* async
 // functions. The drawer consumes this shape via return-type inference.
@@ -42,6 +43,8 @@ export async function inviteRosterTalent(
   rawName: string,
   rawEmail: string,
 ): Promise<InviteRosterTalentResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const session = await getCachedActorSession();
     if (!session.user) return { ok: false, error: "Not authenticated." };

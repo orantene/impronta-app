@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 // WEB_ROOT, not `import.meta.dirname`: the latter is undefined under `tsx` in CI,
@@ -73,4 +74,27 @@ test("a lane name is matched on a word boundary, not a prefix", () => {
   // `test:money` must not be satisfied by a workflow line running `test:moneybox`.
   const found = ungatedLanes(classifyLanes({ ...scripts, "test:acces": "x" }, workflow));
   assert.ok(found.includes("test:acces"), "prefix collision let an ungated lane pass");
+});
+
+// nightly-orphans.txt consistency. The nightly `test:orphans` lane runs the files
+// listed in scripts/ci/nightly-orphans.txt. A listed file must exist, and must
+// still be an orphan: once a real lane runs it, it runs twice and the entry is stale.
+const nightlyList = readFileSync(join(WEB, "scripts", "ci", "nightly-orphans.txt"), "utf8")
+  .split("\n")
+  .map((l) => l.trim())
+  .filter((l) => l && !l.startsWith("#"));
+
+test("nightly-orphans.txt: every listed file exists", () => {
+  const missing = nightlyList.filter((f) => !existsSync(join(WEB, f)));
+  assert.deepEqual(missing, [], `Listed in nightly-orphans.txt but not on disk:\n${missing.join("\n")}`);
+});
+
+test("nightly-orphans.txt: no listed file is also run by another lane", () => {
+  const orphans = new Set(
+    execFileSync(process.execPath, [join(WEB, "scripts", "ci", "list-orphan-tests.mjs")], { encoding: "utf8" })
+      .split("\n")
+      .filter(Boolean),
+  );
+  const enrolled = nightlyList.filter((f) => !orphans.has(f));
+  assert.deepEqual(enrolled, [], `Now run by a real lane, delete from nightly-orphans.txt:\n${enrolled.join("\n")}`);
 });

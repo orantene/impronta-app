@@ -1,6 +1,8 @@
 "use client";
+import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
+import { isStaleDeploymentError, notifyStaleDeployment } from "@/lib/client/stale-deployment";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -87,7 +89,6 @@ import {
   TaxonomyChild,
   TaxonomyParent,
   TaxonomyParentId,
-  TextInput,
   Toggle,
   ToggleControl,
   WORKSPACE_TAXONOMY_DEFAULT,
@@ -198,18 +199,20 @@ import {
   ageString,
   computeProfileDiff,
   findChild,
-  getTypeDefaults,
+  getTypeDefaults, typeLabelFromSlug,
   makeInitialProfileState,
   profileReducer
 } from "./profile-shell-internal";
 import { shouldShowPolaroidsSection } from "./profile-polaroids-policy";
 import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import { CommercialTermsEditor } from "./profile-shell-modules/profile-commercial-terms";
+import { detailsGroupHelperText } from "./profile-shell-modules/profile-shell-helper-text";
+import { localizePublishBlockerMessage } from "./profile-shell-modules/publish-requirement-label";
 import { DirectBookingRosterSwitch } from "@/components/appointments/DirectBookingRosterSwitch";
 import { TalentOfferingsManager } from "@/components/talent/services/TalentOfferingsManager";
 import { ProfileReviewsEditor } from "./profile-shell-modules/profile-reviews";
+import { ProfileHeroTextRows } from "./profile-shell-modules/profile-hero-text-rows";
 import {
-  ProfileShellSaveErrorBanner,
   ProfileShellSectionSaveHint,
   ProfileShellUnsavedBanner,
 } from "./profile-shell-modules/profile-shell-save-hints";
@@ -219,42 +222,18 @@ import { setTalentLanguages } from "@/lib/server-actions/admin-talent-languages"
 import type { TalentLanguageInput } from "@/lib/server-actions/admin-talent-languages.types";
 import {
   formatProfileShellSaveFailures,
+  localizeProfileShellSaveError,
   reportProfileShellSaveWarnings,
   runProfileShellSaveSteps,
   type ProfileShellSaveStepResult,
 } from "@/lib/talent/profile-shell-save-feedback";
-
-function detailsGroupHelperText(label: string): string {
-  const normalized = label.toLowerCase();
-
-  if (normalized.includes("physical") || normalized.includes("casting")) {
-    return "Casting facts, measurements, and profile details used for matching.";
-  }
-  if (normalized.includes("equipment") || normalized.includes("tools")) {
-    return "Gear, tools, and setup details clients need before booking.";
-  }
-  if (normalized.includes("operational")) {
-    return "Practical requirements that keep bookings clear and predictable.";
-  }
-  if (normalized.includes("music")) {
-    return "Genres, set format, and music-specific booking details.";
-  }
-  if (normalized.includes("performer")) {
-    return "Act format, performance style, and production needs.";
-  }
-  if (normalized.includes("singer")) {
-    return "Vocal, repertoire, and live performance details.";
-  }
-
-  return "Type-specific profile fields for this category.";
-}
 
 // Phase 1d (remediation §4): the 3,546-LOC unified profile shell (its own
 // profileReducer + history/undo refs). Extracted LAST AND ALONE. Byte-for-byte;
 // irreducible — max-lines grandfathered via mandated scoped suppression regen.
 
 export function TalentProfileShellDrawer() {
-  const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, adminBasePath, bridgeTenantIdentity, bridgeTalentSelfProfile, effectiveTenant, profileEditorLayout, clientFieldSource } = useAdminShell();
+  const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, adminBasePath, bridgeTenantIdentity, bridgeTalentSelfProfile, effectiveTenant, profileEditorLayout, clientFieldSource, talentLocales } = useAdminShell();
   const workspaceScopeTenantId =
     bridgeTenantIdentity?.tenantId
     ?? bridgeTenantIdentity?.slug
@@ -574,6 +553,10 @@ export function TalentProfileShellDrawer() {
   // masquerade as real saved values.
   const [editorHydration, setEditorHydration] =
     useState<"idle" | "loading" | "loaded" | "error">("idle");
+  // Real reason behind the "error" state above, shown in the P2 overlay
+  // instead of always-the-same generic copy. Null on stale-deployment
+  // (the reload banner covers that case instead).
+  const [hydrationErrorDetail, setHydrationErrorDetail] = useState<string | null>(null);
   const [hydrationNonce, setHydrationNonce] = useState(0);
   /** Server-computed publish blockers (the gate's own list). The client model
    *  gives instant feedback while editing; this is the authority — anything
@@ -732,6 +715,7 @@ export function TalentProfileShellDrawer() {
 
         if (!edRes.ok) {
           allowMarkDirtyRef.current = true;
+          setHydrationErrorDetail(edRes.error ?? null);
           setEditorHydration("error");
           return;
         }
@@ -914,11 +898,18 @@ export function TalentProfileShellDrawer() {
         allowMarkDirtyRef.current = true;
         setEditorHydration("loaded");
       })
-      .catch(() => {
-        if (!cancelled) {
-          allowMarkDirtyRef.current = true;
-          setEditorHydration("error");
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        allowMarkDirtyRef.current = true;
+        // A thrown (not `{ok:false}`) failure here is almost always a stale
+        // bundle — the reload banner is the real fix, not "Retry".
+        if (isStaleDeploymentError(err)) {
+          notifyStaleDeployment();
+          setHydrationErrorDetail(null);
+        } else {
+          setHydrationErrorDetail(err instanceof Error ? err.message : null);
         }
+        setEditorHydration("error");
       });
     return () => {
       cancelled = true;
@@ -1449,7 +1440,7 @@ export function TalentProfileShellDrawer() {
       updateSelfAbout(aboutPayload),
       updateSelfLocation(locationPayload),
       updateSelfRates(ratesPayload),
-      updateSelfAvailability(availPayload),
+      updateSelfAvailability({ ...availPayload, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
       saveSelfLanguages(langsPayload),
       updateSelfCredits(creditsPayload),
       updateSelfLimits(limitsPayload),
@@ -1527,8 +1518,18 @@ export function TalentProfileShellDrawer() {
     startTransition(() => {
       queueShellRouterRefresh();
     });
+    invalidateWebsiteEligibility(); // free-website checklist re-reads now, not on reload
     return true;
     } catch (e) {
+      // Stale bundle: the raw Next.js message meant nothing to an admin
+      // and gave no path to recovery. Reload banner + plain copy instead.
+      if (isStaleDeploymentError(e)) {
+        notifyStaleDeployment();
+        setSaveStatus("error");
+        setSaveError(copy.t("A newer version was published while this was open. Reload and try again."));
+        logServerError("saveall.stale-deployment", e);
+        return false;
+      }
       const msg = e instanceof Error ? e.message : copy.t("Save failed");
       setSaveStatus("error");
       setSaveError(msg);
@@ -2189,7 +2190,11 @@ export function TalentProfileShellDrawer() {
         patch({ profileStatus: prev });
         // Server names the exact blockers (e.g. "Add a bio, 1 language to
         // publish") — surface that, not a bare count.
-        toast(lastSaveErrorRef.current ?? addItemsToPublishText(missing.length));
+        toast(
+          lastSaveErrorRef.current
+            ? localizePublishBlockerMessage(lastSaveErrorRef.current, copy.t, copy.isSpanish)
+            : addItemsToPublishText(missing.length),
+        );
         return;
       }
       if (payload.talentId) clearPendingReview(payload.talentId);
@@ -2560,9 +2565,8 @@ export function TalentProfileShellDrawer() {
           [data-tulala-pshell] [data-details-rail-child-label] {
             flex: 1;
             min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            overflow-wrap: anywhere;
+            white-space: normal;
           }
           [data-tulala-pshell] [data-details-rail-child-count] {
             flex-shrink: 0;
@@ -2671,7 +2675,7 @@ export function TalentProfileShellDrawer() {
             background: "transparent", color: COLORS.ink, fontSize: 14, lineHeight: 1,
           }}>✕</button>
           <div className="flex-1 min-w-0">
-            <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
+            <div style={{ fontSize: 14, fontWeight: 600, overflowWrap: "anywhere", lineHeight: 1.25 }} className="text-admin-ink">
               {mode === "create" ? copy.t("New profile") : isSelf ? copy.t("Edit your profile") : (state.stageName || copy.t("Profile"))}
             </div>
             {mode !== "create" && payload.seed?.profileCode && (
@@ -2943,7 +2947,7 @@ export function TalentProfileShellDrawer() {
               <strong className="font-bold">
                 {copy.isSpanish ? "No se pudo guardar. " : "Couldn’t save. "}
               </strong>
-              {saveError}
+              {localizeProfileShellSaveError(saveError, copy.t)}
             </span>
             {createGateTarget && (
               <button
@@ -3197,7 +3201,7 @@ export function TalentProfileShellDrawer() {
                                     : "rgba(11,11,13,0.12)",
                               }} />
                               <span aria-hidden style={{ fontSize: 13, lineHeight: 1, width: 16, textAlign: "center", flexShrink: 0 }}>{meta.emoji}</span>
-                              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copy.term(meta.label, meta.labelEs)}</span>
+                              <span title={copy.term(meta.label, meta.labelEs)} style={{ flex: 1, minWidth: 0, overflowWrap: "anywhere", lineHeight: 1.25 }}>{copy.term(meta.label, meta.labelEs)}</span>
                               {createGateBlockingSections.has(s) && (
                                 <span
                                   data-pshell-required-star
@@ -3295,7 +3299,7 @@ export function TalentProfileShellDrawer() {
                         background: "rgba(11,11,13,0.12)",
                       }} />
                       <span aria-hidden style={{ fontSize: 13, lineHeight: 1, width: 16, textAlign: "center", flexShrink: 0 }}>🕓</span>
-                      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copy.t("History")}</span>
+                      <span style={{ flex: 1, minWidth: 0, overflowWrap: "anywhere", lineHeight: 1.25 }}>{copy.t("History")}</span>
                     </button>
                   </div>
                 )}
@@ -3355,6 +3359,11 @@ export function TalentProfileShellDrawer() {
                 <div style={{ fontSize: 12, maxWidth: 320 }} className="text-admin-ink-muted">
                   {copy.t("Editing is paused so you don't overwrite real data with blanks. Retry to load it.")}
                 </div>
+                {hydrationErrorDetail && (
+                  <div className="max-w-[360px] rounded-lg bg-admin-border-soft px-2.5 py-1.5 font-mono text-[11.5px] text-admin-ink-muted break-words">
+                    {hydrationErrorDetail}
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={retryHydration}
@@ -3377,7 +3386,6 @@ export function TalentProfileShellDrawer() {
                 lives in-form because it's a richer onboarding moment. */}
             <div data-pshell-form-banners>
               <ProfileShellUnsavedBanner visible={dirty} />
-              <ProfileShellSaveErrorBanner message={saveStatus === "error" ? saveError : null} />
             </div>
             {completeness < 35 && !localStorage.getItem("tulala.welcome.dismissed." + (payload.talentId ?? "")) && (
               <div data-pshell-form-banners>
@@ -3430,9 +3438,8 @@ export function TalentProfileShellDrawer() {
                 workspaceScopeTenantId={workspaceScopeTenantId}
                 disabled={personalProfileLocked}
               />
-              <FieldRow label={copy.t("Tagline")} optional hint={copy.t("One line clients see at a glance.")} catalogId="identity.tagline" tenantId={workspaceScopeTenantId}>
-                <TextInput placeholder={copy.t("e.g. Editorial fashion model · Madrid")} value={state.tagline} onChange={(e) => patch({ tagline: e.target.value })} />
-              </FieldRow>
+              <ProfileHeroTextRows tagline={state.tagline} onTagline={(v) => patch({ tagline: v })} talentProfileId={payload.talentId} isSelf={isSelf}
+                workspaceScopeTenantId={workspaceScopeTenantId} disabled={personalProfileLocked} />
               <FieldRow
                 label={copy.t("Show me on Tulala Discover")}
                 recommended
@@ -3918,8 +3925,8 @@ export function TalentProfileShellDrawer() {
                 onActivateLocale={patchBioActiveLocale}
                 onChange={patchBios}
                 onRegenerate={onBiosRegenerate}
-                primaryLabel={primaryRes?.child.label}
-                disabled={personalProfileLocked}
+                primaryLabel={primaryRes?.child.label ?? (isSelf ? bridgeTalentSelfProfile?.primaryTypeLabel : null) ?? (state.primaryType ? typeLabelFromSlug(state.primaryType) : undefined)}
+                disabled={personalProfileLocked} talentLocales={isSelf ? talentLocales : null}
               />
               <PersonalityEditor value={state.personality} onChange={patchPersonality} />
               {/* Languages folded in from the old standalone Languages
@@ -4208,9 +4215,7 @@ export function TalentProfileShellDrawer() {
               </ProfileAccordionSection>
             )}
 
-            {/* AVAILABILITY — moved before Rates per 2026 reset (B8). The
-                logical flow is "Are you available? At what price?" not
-                "Price first, then schedule." */}
+            {/* AVAILABILITY — before Rates (B8): "available?" comes before "price?". */}
             <ProfileAccordionSection
               id="availability" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Availability")}
               sub={copy.t("Tap a day to block it. Open by default.")}
@@ -4219,7 +4224,7 @@ export function TalentProfileShellDrawer() {
               onToggle={() => setActiveSection(activeSection === "availability" ? "" : "availability")}
             >
               <AvailabilityGrid
-                cells={state.availability}
+                cells={state.availability} recurring={state.recurring}
                 onToggle={(date) => {
                   const cur = state.availability.find(c => c.date === date);
                   const cycle: Record<AvailabilityStatus, AvailabilityStatus> = { open: "busy", busy: "blocked", blocked: "open" };
@@ -4714,7 +4719,7 @@ export function TalentProfileShellDrawer() {
                 file,
                 variantKind: kind,
                 talentProfileId: payload.talentId!,
-                sourceMediaAssetId: sourceMediaAssetId ?? null,
+                sourceMediaAssetId: sourceMediaAssetId ?? null, metadata: kind === "gallery" ? { albumId: stateRef.current.albumsPro[0]?.id ?? "main" } : undefined,
               });
               if (fast.ok) {
                 return {
@@ -4732,7 +4737,7 @@ export function TalentProfileShellDrawer() {
 
               const fd = new FormData();
               fd.append("file", file);
-              const res = await actionUploadAndAssignMedia(fd, payload.talentId!, kind, {}, sourceMediaAssetId ?? null);
+              const res = await actionUploadAndAssignMedia(fd, payload.talentId!, kind, kind === "gallery" ? { albumId: stateRef.current.albumsPro[0]?.id ?? "main" } : {}, sourceMediaAssetId ?? null);
               if (!res.ok) return { ok: false, error: res.error };
               return {
                 ok: true,

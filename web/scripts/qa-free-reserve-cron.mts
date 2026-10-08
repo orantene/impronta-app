@@ -96,7 +96,7 @@ async function main() {
   const clientSb = createClient(URL, ANON, { auth: { persistSession: false } });
   const { data: auth, error: authErr } = await clientSb.auth.signInWithPassword({
     email: "qa-client-1@impronta.test",
-    password: "Impronta-QA-Client-2026!",
+    password: (process.env.QA_CLIENT_PASSWORD?.trim() || (() => { throw new Error("QA_CLIENT_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })()),
   });
   if (!ok("client sign-in", !authErr && !!auth?.user, authErr?.message)) return;
   const user = auth!.user!;
@@ -110,7 +110,7 @@ async function main() {
       actorUserId: user.id,
       contactName: "QA Client One",
       contactEmail: "qa-client-1@impronta.test",
-      sourcePage: "/t/TAL-AUDIT-0512",
+      sourcePage: "/t/TAL-93941",
       currencyCode: "EUR",
       offeringId,
     });

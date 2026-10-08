@@ -24,6 +24,7 @@ const MIGRATIONS_DIR = join(REPO_ROOT, "supabase", "migrations");
 const OUTPUT_MD = join(REPO_ROOT, "docs", "saas", "phase-5", "m0-proof-results.md");
 const PG_DATA_DIR = "/tmp/m0-proof-pgdata";
 const PG_USER = "postgres";
+// secret-scan:allow: embedded throwaway local Postgres
 const PG_PASS = "postgres";
 const PG_PORT = 54329;
 const HUB_UUID = "00000000-0000-0000-0000-000000000002";

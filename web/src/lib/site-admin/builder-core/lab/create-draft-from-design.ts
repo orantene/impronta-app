@@ -15,11 +15,14 @@ import {
 } from "@/lib/site-admin/builder-node/page-designs";
 import { createTemplateDraft } from "../templates/registry-actions";
 import type { BuilderTemplateTarget } from "../templates/registry-rows";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export async function createPlaygroundDraftFromDesign(input: {
   designId: string;
   target: BuilderTemplateTarget;
 }): Promise<{ ok: true; draftId: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const design = getPageDesign(input.designId);
   if (!design) {
     return { ok: false, error: `Unknown design "${input.designId}".` };

@@ -14,30 +14,35 @@ function read(name: string): string {
   return readFileSync(join(ROOT, name), "utf8");
 }
 
-test("W75: Choose a design has no search or filter controls", () => {
+test("P3: Choose a design renders the browse gallery (supersedes W75)", () => {
   const src = read("ChooseDesignScreen.tsx");
   assert.match(src, /data-maison-choose-design/);
-  assert.match(src, /no search input and no filter chips/);
   assert.match(src, /maison-gallery-back/);
-  assert.match(src, /Find your website style/);
-  assert.equal(/type=["']search["']/.test(src), false);
-  assert.equal(/placeholder=\{?["'].*Search/.test(src), false);
-  assert.equal(/filter/i.test(src) && /<input/.test(src), false);
+  assert.match(src, /<GalleryBrowseScreen/);
+  const gallery = read("GalleryBrowseScreen.tsx");
+  assert.match(gallery, /t\("Find your website style"\)/);
+  assert.match(gallery, /t\("Search a profession or theme"\)/);
+  assert.match(gallery, /t\("Reset filters"\)/);
+  // The last-viewed design is marked on its card (ring + data attribute), not
+  // with a text label.
+  assert.match(gallery, /lastViewed=\{state\.lastViewed === r\.design\.slug\}/);
+  assert.match(read("GalleryDesignCard.tsx"), /data-last-viewed=\{lastViewed \? "" : undefined\}/);
+  assert.match(gallery, /visibleGalleryDesigns/);
+  assert.equal(/#[0-9a-fA-F]{3,8}\b/.test(gallery), false, "no hex literals");
+  assert.equal(gallery.includes("—"), false, "no em dashes");
 });
 
-test("cr_gallery chrome: Today back + close + hero hierarchy", () => {
+test("cr_gallery chrome: Today back + close above the gallery hero", () => {
   const src = read("ChooseDesignScreen.tsx");
   assert.match(src, /maisonSetupT\(locale, "Today"\)/);
   assert.match(src, /maison-gallery-close/);
-  assert.match(src, /Find your website style/);
-  // Hero is the large heading; chrome title is Choose a design
-  const heroIdx = src.indexOf('maisonSetupT(locale, "Find your website style")');
   const chooseIdx = src.indexOf('maisonSetupT(locale, "Choose a design")');
-  assert.ok(chooseIdx > 0 && heroIdx > chooseIdx);
+  const galleryIdx = src.indexOf("<GalleryBrowseScreen");
+  assert.ok(chooseIdx > 0 && galleryIdx > chooseIdx);
 });
 
 test("PDF primary CTAs use admin-ink (black), not emerald", () => {
-  const detail = read("ThemeDetailScreen.tsx");
+  const detail = read("ThemeDetailScreen.tsx") + read("ColorsSheet.tsx") + read("DemosSheet.tsx");
   assert.match(detail, /maison-use-design[\s\S]*?bg-admin-ink/);
   assert.match(detail, /maison-use-design-phone[\s\S]*?bg-admin-ink/);
   assert.match(detail, /maison-phone-colors-close/);
@@ -71,7 +76,7 @@ test("host renders nothing when flag/bootstrap is off", () => {
 });
 
 test("W34: phone sheets are mutually exclusive state", () => {
-  const detail = read("ThemeDetailScreen.tsx");
+  const detail = read("ThemeDetailScreen.tsx") + read("ColorsSheet.tsx") + read("DemosSheet.tsx");
   assert.match(detail, /phoneSheet/);
   assert.match(detail, /data-maison-phone-sheet/);
   assert.match(detail, /openSheet\("demos"\)/);
@@ -79,11 +84,16 @@ test("W34: phone sheets are mutually exclusive state", () => {
 });
 
 test("W30–W32: Demo|My content, status words, five palettes", () => {
-  const detail = read("ThemeDetailScreen.tsx");
-  assert.match(detail, /maison-mode-\$\{mode\}/);
+  const detail =
+    read("ThemeDetailScreen.tsx") +
+    read("ThemeDetailChrome.tsx") +
+    read("ColorsSheet.tsx") +
+    read("DemosSheet.tsx");
+  assert.match(detail, /maison-mode-\$\{m\}/);
   assert.match(detail, /\(\["demo", "mine"\]/);
   assert.match(detail, /maison-status-word/);
-  assert.match(detail, /MAISON_PALETTE_ORDER/);
+  // P4: palettes come from gallery-meta for every design (Maison included).
+  assert.match(detail, /design\.palettes\.map/);
   assert.match(detail, /Choices saved/);
 });
 
@@ -103,7 +113,8 @@ test("W37–W42: Review + Publish + failure banner wired", () => {
   assert.match(review, /publishMaxSiteAction/);
   assert.match(review, /maison-publish-failure/);
   assert.match(review, /maison-undo-design/);
-  assert.match(review, /No trial, plan, or price/);
+  // F97: internal guidance wording must never ship as talent-facing copy.
+  assert.doesNotMatch(review, /No trial, plan, or price/);
 });
 
 test("W40: My website card has Live + View / Change / Design options", () => {
@@ -112,7 +123,11 @@ test("W40: My website card has Live + View / Change / Design options", () => {
   assert.match(card, /maison-view-website/);
   assert.match(card, /maison-change-design/);
   assert.match(card, /maison-design-options/);
-  assert.match(card, /● Live/);
+  assert.match(card, /data-testid="maison-live-pill"/);
+  assert.match(card, /maison-edit-site/);
+  assert.match(card, /maison-restore-previous/);
+  assert.match(card, /liveCardDesignLabel/);
+  assert.match(card, /kind=live-site/);
   assert.match(card, /DesignOptionsPanel/);
   assert.equal(/Design options open in a later step/.test(card), false);
 });
@@ -149,6 +164,8 @@ test("W67–W74: live pending + Design options + colors publish + preview fail c
   assert.match(panel, /maison-design-options/);
   assert.match(panel, /maison-option-reset-colors/);
   assert.match(panel, /maison-option-reapply-layout/);
+  assert.match(panel, /maison-option-refresh-profile/);
+  assert.match(panel, /Refresh from my profile/);
   assert.match(panel, /maison-option-discard-idle/);
   assert.match(panel, /maison-restore-list/);
   assert.match(panel, /never a dead Discard button/);
@@ -233,4 +250,36 @@ test("W66: Review summary uses My colors when custom_palette applied", () => {
   assert.match(review, /customPalette/);
   assert.match(review, /buildSummaryLine/);
   assert.match(review, /My colors|customPalette\.name/);
+});
+
+test("AUD-023: setup choices persist server-side + Today resume card", () => {
+  const host = read("MaisonSetupHost.tsx");
+  assert.match(host, /saveMaisonSetupChoicesAction/);
+  assert.match(host, /setupChoices/);
+  const actions = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-choices-actions.ts"),
+    "utf8",
+  );
+  assert.match(actions, /setup_choices/);
+  assert.match(actions, /loadMaisonResumeCardAction/);
+  const today = readFileSync(
+    join(process.cwd(), "src/components/admin/shell/internal/talent/pages/TodayPage.tsx"),
+    "utf8",
+  );
+  // F23 / F34: the resume card became WebsiteTodayHero (preview state resumes
+  // at review, named from theme_design_slug / theme_look_slug).
+  assert.match(today, /WebsiteTodayHero/);
+  // Agenda V2 early-returns before classic Today mounts — card must also
+  // live on AgendaTodayPage (first-day + populated), or tip fixtures never see it.
+  const agendaToday = readFileSync(
+    join(process.cwd(), "src/components/admin/shell/internal/talent/agenda/AgendaTodayPage.tsx"),
+    "utf8",
+  );
+  assert.match(agendaToday, /WebsiteTodayHero/);
+  const card = readFileSync(
+    join(process.cwd(), "src/components/talent/website-reward/MaisonWebsiteResumeCard.tsx"),
+    "utf8",
+  );
+  assert.match(card, /maison-website-resume-card/);
+  assert.match(card, /Continue your website/);
 });

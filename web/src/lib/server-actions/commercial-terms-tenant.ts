@@ -29,6 +29,7 @@ import type {
   RefundPolicyKey,
   TenantCommercialTerms,
 } from "@/lib/billing/commercial-terms-types";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const REFUND_POLICY_KEYS = ["tiered", "flexible", "strict", "manual"] as const;
 
@@ -121,6 +122,8 @@ export async function updateTenantCommercialTerms(
   tenantSlug: string,
   terms: TenantCommercialTerms,
 ): Promise<UpdateTenantCommercialTermsResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;

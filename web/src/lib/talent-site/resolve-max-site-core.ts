@@ -21,7 +21,9 @@
  */
 
 import { talentPlanGrantsSiteCapability } from "@/lib/access/talent-membership";
+import { readI18n } from "@/lib/i18n/i18n-columns";
 import type { BuilderNode, BuilderNavLink } from "@/lib/site-admin/builder-node/types";
+import { mirrorPropsI18nOntoNodes } from "@/lib/site-admin/builder-node/i18n-overlay";
 
 /** Effective tier for the gate. `talent_portfolio` is the Max plan key. */
 export const TALENT_MAX_PLAN_KEY = "talent_portfolio";
@@ -48,7 +50,14 @@ export interface MaxSitePageRow {
   status: "draft" | "scheduled" | "published" | string;
   isHome: boolean;
   sortOrder: number;
+  /** Draft body (`talent_pages.blocks`). Only the owner's draft preview shows it. */
   blocks: unknown;
+  /**
+   * Live body (`talent_pages.blocks_published`) — what visitors see. `undefined`
+   * when not read (pre-migration database); `null` until the page is published.
+   * Pick between the two with `publicPageBody` (talent-page-publish-core).
+   */
+  blocksPublished?: unknown;
   theme: unknown;
   // SEO-2 — per-page SEO columns (SEO-1 migration; all nullable, degrade-safe).
   /** SEO-3 — SERP/tab title override. NULL -> fall back to `title`. */
@@ -60,6 +69,13 @@ export interface MaxSitePageRow {
   canonicalUrl: string | null;
   noindex: boolean | null;
   jsonLd: unknown;
+  /**
+   * Per-locale page text (migration 20261231299520). Absent before the columns
+   * exist or while empty; the plain columns above hold the primary language.
+   */
+  titleI18n?: Record<string, string>;
+  metaTitleI18n?: Record<string, string>;
+  metaDescriptionI18n?: Record<string, string>;
 }
 
 /** A nav entry the visitor sees — one per published page of the site. */
@@ -238,11 +254,31 @@ export function maxSitePageHref(
  *   the rendered <title> exactly as it was before the column existed.
  */
 export function resolveMaxSiteTitles(
-  page: Pick<MaxSitePageRow, "title" | "metaTitle">,
+  page: Pick<MaxSitePageRow, "title" | "metaTitle" | "titleI18n" | "metaTitleI18n">,
   fallback = "",
+  locale?: string,
+  chain?: readonly string[],
 ): { pageTitle: string; seoTitle: string } {
-  const pageTitle = page.title?.trim() || fallback;
-  return { pageTitle, seoTitle: page.metaTitle?.trim() || pageTitle };
+  // With a locale, each title is one readI18n (map along the chain, then the
+  // plain primary column). Without one, the plain columns exactly as before.
+  const title = locale ? readI18n(page.titleI18n, page.title, locale, chain ?? [locale]) : page.title;
+  const metaTitle = locale
+    ? readI18n(page.metaTitleI18n, page.metaTitle, locale, chain ?? [locale])
+    : page.metaTitle;
+  const pageTitle = title?.trim() || fallback;
+  return { pageTitle, seoTitle: metaTitle?.trim() || pageTitle };
+}
+
+/** Locale-aware meta description (readI18n over the plain column); undefined when blank. */
+export function resolveMaxSiteDescription(
+  page: Pick<MaxSitePageRow, "metaDescription" | "metaDescriptionI18n">,
+  locale?: string,
+  chain?: readonly string[],
+): string | undefined {
+  const value = locale
+    ? readI18n(page.metaDescriptionI18n, page.metaDescription, locale, chain ?? [locale])
+    : page.metaDescription;
+  return value?.trim() || undefined;
 }
 
 /**
@@ -311,6 +347,19 @@ export function hydrateShellNav(
     // back to the slug, so this only guards a hand-edited row.
     .filter((item) => item.label.length > 0);
 
+  // A one-page Design (Maison v2) seeds in-page anchor links ("#services").
+  // Those stay, ahead of the site's OTHER pages; the home page is the brand, so
+  // it is not repeated as "Home" next to its own sections.
+  const otherPages = nav.filter((n) => !n.isHome && n !== home);
+  const withAnchors = <T extends { href: string }>(seeded: unknown, pageLinks: T[], cap: number) => {
+    const anchors = (Array.isArray(seeded) ? seeded : []).filter(
+      (l): l is T => !!l && typeof (l as { href?: unknown }).href === "string" && (l as T).href.startsWith("#"),
+    );
+    if (anchors.length === 0) return null;
+    const others = new Set(otherPages.map((p) => maxSitePageHref(siteSlug, p, publicPathPrefix, hrefMode)));
+    return [...anchors, ...pageLinks.filter((l) => others.has(l.href))].slice(0, cap);
+  };
+
   const visit = (node: BuilderNode): BuilderNode => {
     // Shape 2 — the `site_header` SECTION landmark (config inline, no nav child).
     if (node.kind === "section" && node.props.sectionTypeKey === "site_header") {
@@ -319,6 +368,7 @@ export function hydrateShellNav(
       if (navItems.length === 0) return node;
       const cfg = node.props.sectionProps ?? {};
       const brand = (cfg.brand ?? {}) as Record<string, unknown>;
+      const anchored = withAnchors(cfg.navItems, navItems, SITE_HEADER_MAX_NAV_ITEMS);
       // Spread `node.props` (not a widened Record) so `sectionTypeKey` and the
       // rest of the section envelope survive — the compiler enforces it.
       return {
@@ -327,7 +377,7 @@ export function hydrateShellNav(
           ...node.props,
           sectionProps: {
             ...cfg,
-            navItems,
+            navItems: anchored ?? navItems,
             // The brand always links to the SITE home, never the seeded "/".
             brand: { ...brand, href: brandHref },
           },
@@ -344,7 +394,7 @@ export function hydrateShellNav(
         props: {
           ...node.props,
           brandHref,
-          links,
+          links: withAnchors((node.props as { links?: unknown }).links, links, Number.MAX_SAFE_INTEGER) ?? links,
         },
       } as BuilderNode;
     }
@@ -364,5 +414,5 @@ export function hydrateShellNav(
  * so a render paints nothing rather than throwing (degrade safe).
  */
 export function coerceTree(value: unknown): BuilderNode[] {
-  return Array.isArray(value) ? (value as BuilderNode[]) : [];
+  return Array.isArray(value) ? mirrorPropsI18nOntoNodes(value as BuilderNode[]) : [];
 }

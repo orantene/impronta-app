@@ -1,5 +1,6 @@
 import "server-only";
 
+import { normalizeBookingLocale } from "@/lib/scheduling/booking-locale";
 import { resolveInquiryRecipients } from "./recipients";
 import type {
   AudienceContext,
@@ -15,6 +16,12 @@ import type {
  * entries import these by name; each resolver returns lightweight
  * `AudienceMember`s and the dispatcher hydrates them to addresses + dedupes.
  */
+
+function bookingLocaleFromContext(ctx: unknown): string | null {
+  if (!ctx || typeof ctx !== "object") return null;
+  const raw = (ctx as { locale?: unknown }).locale;
+  return normalizeBookingLocale(raw);
+}
 
 /** Narrow an unknown payload value to a non-empty trimmed string, else null. */
 export function str(v: unknown): string | null {
@@ -89,6 +96,8 @@ export async function loadInquiryView(
     eventLocation: inq.event_location,
     clientUserId: inq.client_user_id,
     coordinatorId: inq.coordinator_id,
+    // The language the booking was made in (stamped by openPurchaseThread).
+    locale: bookingLocaleFromContext(inq.source_context),
     offerTotal,
     offeringTitle,
     offeringSuffix: offeringTitle ? `: ${offeringTitle}` : "",
@@ -209,10 +218,28 @@ export async function loadOfferTalentView(
 // them to addresses and dedupes.
 
 /** The inquiry client — the authenticated user if known, else the guest contact. */
-export const clientOrGuest = async (event: NotificationEvent): Promise<AudienceMember[]> => {
+export const clientOrGuest = async (
+  event: NotificationEvent,
+  ctx?: AudienceContext,
+): Promise<AudienceMember[]> => {
   const clientUserId = str(event.payload.clientUserId);
-  if (clientUserId) return [{ kind: "user", userId: clientUserId, role: "client" }];
   const email = str(event.payload.contactEmail);
+  if (clientUserId) {
+    // A guest-created client account can have no email on the auth user, which
+    // made the email channel skip with "no endpoint" (TUL-93). When the account
+    // has no address but the inquiry carries the contact email, mail the guest.
+    if (email && ctx) {
+      try {
+        const { data, error } = await ctx.admin.auth.admin.getUserById(clientUserId);
+        if (!error && data?.user && !data.user.email?.trim()) {
+          return [{ kind: "guest", email, displayName: str(event.payload.contactName), role: "client" }];
+        }
+      } catch {
+        // fall through to the user member; hydrateRecipient logs its own lookup failures
+      }
+    }
+    return [{ kind: "user", userId: clientUserId, role: "client" }];
+  }
   if (email) {
     return [
       { kind: "guest", email, displayName: str(event.payload.contactName), role: "client" },

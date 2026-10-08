@@ -34,7 +34,7 @@ Extend `template.directory-card-family` enum (add `editorial-noir | magazine | m
 - Collapse the two homepage featured renderers (`FeaturedTalentCard` + the thin `AgencyHomeStorefront` fallback) via a `featuredDtoToCanonicalCard` adapter.
 - Add base `.talent-card` CSS (classic default) reading the new vars. **No registry token yet** (keeps the projection fence green; tokens land in P2).
 - **Do NOT touch the client shells in P1** (moved to P3 with the resolver).
-- **Gate:** `NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit` (0 errors, not OOM) + lint + `verify:server-actions` + a unit test asserting `talent-card` class in both render branches, added to a **gated** `tsx --test` lane in `ci.yml` (+ `check:ci-lane-parity`).
+- **Gate:** `npm run typecheck` (0 errors, not OOM) + lint + `verify:server-actions` + a unit test asserting `talent-card` class in both render branches, added to a **gated** `tsx --test` lane in `ci.yml` (+ `check:ci-lane-parity`).
 
 ### Phase 2 — Workspace-admin "Card Design" panel (reuses the existing stub route)
 - Build out `app/(workspace)/[tenantSlug]/admin/website/card-design/page.tsx` (today a 499-byte stub): LEFT = 3 kit tiles + a knob row over `card.*`; RIGHT = live preview rendering the **canonical** card against a real talent via `loadTalentCardThumbs`. Gate on `agency.site_admin.design.edit/.publish`. Admin chrome stays **neutral/cool — no gold/rust** (gold appears only inside the preview pane).

@@ -15,6 +15,8 @@ import { insightRowsToCorpus, retrieveHelpEntries } from "@/lib/support/help-cor
 import { loadConfirmedInsightCorpus } from "@/lib/support/insights/load";
 import { wantsHumanSupport } from "@/lib/support/support-human-prefilter";
 import { sanitizeSupportAiOutput } from "@/lib/support/support-ai-guardrails";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { supportAiLanguageDirective } from "@/lib/support/support-ai-language";
 import { supportFrom } from "@/lib/support/support-from";
 import {
   mapMessageRow,
@@ -27,6 +29,7 @@ import {
   SUPPORT_CHAT_SCHEMA,
   parseSupportChatModel,
 } from "@/lib/support/support-chat-shared";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const bodySchema = z.object({ ticketId: z.string().uuid() });
 
@@ -39,6 +42,7 @@ const SYSTEM_PROMPT = [
   "Do not invent refund amounts, legal statements, or payout promises.",
   "Never claim you performed an action (updated settings, issued a refund, booked talent).",
   "Tone: warm, plain, no em dashes.",
+  "Write the answer AND suggested_subject in the same language as the user's latest message (never default to English). Keep suggested_subject short, with no dates.",
   "Keep the answer under 1200 characters.",
   "Entries labeled past confirmed resolution are owner-confirmed prior fixes.",
 ].join(" ");
@@ -62,6 +66,8 @@ async function failOpen(ticketId: string): Promise<void> {
 }
 
 export async function POST(request: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   try {
     const flags = await getAiFeatureFlags();
     if (!flags.ai_master_enabled || !flags.ai_support_enabled) {
@@ -143,7 +149,9 @@ export async function POST(request: Request) {
     });
 
     const adapter = await resolveAiChatAdapter();
+    const appLocale = await getRequestLocale().catch(() => "en");
     const userMessage = JSON.stringify({
+      appLocale,
       ticket: {
         subject: access.ticket.subject,
         category: access.ticket.category,
@@ -167,7 +175,7 @@ export async function POST(request: Request) {
 
     const completion = await Promise.race([
       adapter.chatCompletion({
-        systemPrompt: SYSTEM_PROMPT,
+        systemPrompt: `${SYSTEM_PROMPT} ${supportAiLanguageDirective(appLocale)}`,
         userMessage,
         temperature: 0.2,
         maxTokens: 700,

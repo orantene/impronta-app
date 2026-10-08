@@ -33,12 +33,14 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { validateActorPermission } from "@/lib/inquiry/inquiry-permissions";
+import { loadNamedTalentTenant } from "@/lib/messaging/talent-actor";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import {
   ENGINE_EVENT_TYPES,
   emitStandardEngineEvent,
 } from "@/lib/inquiry/inquiry-events";
 import type { VoiceNoteMeta } from "@/lib/messages/voice-types";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const MAX_BYTES = 100 * 1024 * 1024; // matches inquiry-files bucket cap
 const MAX_DURATION_MS = 10 * 60 * 1000; // 10 min sanity ceiling
@@ -160,6 +162,28 @@ async function insertVoiceRows(
 const VOICE_EXTS = new Set(["webm", "ogg", "m4a"]);
 
 /**
+ * Who may send or hear a voice note on this inquiry, and its tenant. Staff,
+ * client and seated participants pass validateActorPermission; a talent merely
+ * named on a guest chat passes the ownership check her replies and uploads use.
+ */
+async function authorizeVoice(
+  supabase: NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>,
+  inquiryId: string,
+  userId: string,
+): Promise<{ ok: true; tenantId: string } | { ok: false; error: string }> {
+  // eslint-disable-next-line ratchet/no-untenanted-from -- tenant DISCOVERY lookup (RLS-bound); the permission gate below is the guard
+  const { data: inq } = await supabase.from("inquiries").select("id, tenant_id").eq("id", inquiryId).maybeSingle();
+  if (inq) {
+    const perm = await validateActorPermission(supabase, inquiryId, userId, "send_message");
+    if (perm.ok) return { ok: true, tenantId: inq.tenant_id as string };
+  }
+  const named = await loadNamedTalentTenant(inquiryId);
+  if (named) return { ok: true, tenantId: named };
+  return { ok: false, error: inq ? "Not authorized for this inquiry." : "Inquiry not found." };
+}
+
+
+/**
  * Signed-upload half 1: validate the sender (same validateActorPermission
  * gate as the text send) and mint a one-shot signed URL into the private
  * inquiry-files bucket. The legacy FormData path rejects recordings over
@@ -172,6 +196,8 @@ export async function createVoiceNoteUploadUrl(
   | { ok: true; data: { uploadUrl: string; storagePath: string } }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const cleanId = String(inquiryId ?? "").trim();
     if (!cleanId) return { ok: false, error: "Missing inquiry_id." };
@@ -184,17 +210,9 @@ export async function createVoiceNoteUploadUrl(
     } = await supabase.auth.getUser();
     if (!user) return { ok: false, error: "Not authenticated." };
 
-    // eslint-disable-next-line ratchet/no-untenanted-from -- tenant DISCOVERY lookup (RLS-bound); the permission gate below is the guard
-    const { data: inq } = await supabase
-      .from("inquiries")
-      .select("id, tenant_id")
-      .eq("id", cleanId)
-      .maybeSingle();
-    if (!inq) return { ok: false, error: "Inquiry not found." };
-    const tenantId = inq.tenant_id as string;
-
-    const perm = await validateActorPermission(supabase, cleanId, user.id, "send_message");
-    if (!perm.ok) return { ok: false, error: "Not authorized for this inquiry." };
+    const auth = await authorizeVoice(supabase, cleanId, user.id);
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const tenantId = auth.tenantId;
 
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Storage unavailable." };
@@ -234,6 +252,8 @@ export async function finalizeVoiceNote(input: {
   storagePath: string;
   mimeType?: string | null;
 }): Promise<{ ok: true; messageId: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const inquiryId = String(input.inquiryId ?? "").trim();
     const threadType = parseThreadType(String(input.threadType ?? "").trim());
@@ -251,21 +271,13 @@ export async function finalizeVoiceNote(input: {
     } = await supabase.auth.getUser();
     if (!user) return { ok: false, error: "Not authenticated." };
 
-    // eslint-disable-next-line ratchet/no-untenanted-from -- tenant DISCOVERY lookup (RLS-bound); the permission gate below is the guard
-    const { data: inq } = await supabase
-      .from("inquiries")
-      .select("id, tenant_id")
-      .eq("id", inquiryId)
-      .maybeSingle();
-    if (!inq) return { ok: false, error: "Inquiry not found." };
-    const tenantId = inq.tenant_id as string;
+    const auth = await authorizeVoice(supabase, inquiryId, user.id);
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const tenantId = auth.tenantId;
 
     if (!input.storagePath.startsWith(`${tenantId}/${inquiryId}/`)) {
       return { ok: false, error: "Upload path doesn't match this inquiry." };
     }
-
-    const perm = await validateActorPermission(supabase, inquiryId, user.id, "send_message");
-    if (!perm.ok) return { ok: false, error: "Not authorized for this inquiry." };
 
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Storage unavailable." };
@@ -315,6 +327,8 @@ export async function finalizeVoiceNote(input: {
 export async function uploadAndSendVoiceNote(
   formData: FormData,
 ): Promise<{ ok: true; messageId: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
     const threadType = parseThreadType(
@@ -343,25 +357,10 @@ export async function uploadAndSendVoiceNote(
     } = await supabase.auth.getUser();
     if (!user) return { ok: false, error: "Not authenticated." };
 
-    // Resolve the inquiry's tenant (also confirms it exists).
-    // eslint-disable-next-line ratchet/no-untenanted-from -- tenant DISCOVERY lookup (RLS-bound); the validateActorPermission gate below is the guard
-    const { data: inq } = await supabase
-      .from("inquiries")
-      .select("id, tenant_id")
-      .eq("id", inquiryId)
-      .maybeSingle();
-    if (!inq) return { ok: false, error: "Inquiry not found." };
-    const tenantId = inq.tenant_id as string;
-
-    // Single security gate — understands staff / coordinator / client /
-    // talent. Identical to the text send path.
-    const perm = await validateActorPermission(
-      supabase,
-      inquiryId,
-      user.id,
-      "send_message",
-    );
-    if (!perm.ok) return { ok: false, error: "Not authorized for this inquiry." };
+    // Single security gate: staff / coordinator / client / seated or named talent.
+    const auth = await authorizeVoice(supabase, inquiryId, user.id);
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const tenantId = auth.tenantId;
 
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Storage unavailable." };
@@ -442,13 +441,8 @@ export async function getVoicePlaybackUrl(
 
     // Authorize: anyone allowed to send a message on this inquiry (i.e. a
     // participant or staff) is allowed to listen to a shared voice note.
-    const perm = await validateActorPermission(
-      supabase,
-      attach.inquiry_id as string,
-      user.id,
-      "send_message",
-    );
-    if (!perm.ok) return { ok: false, error: "Not authorized." };
+    const auth = await authorizeVoice(supabase, attach.inquiry_id as string, user.id);
+    if (!auth.ok) return { ok: false, error: "Not authorized." };
 
     // eslint-disable-next-line ratchet/no-untenanted-from -- storage BUCKET signed-URL — bucket calls have no tenant table
     const { data: signed, error: signErr } = await admin.storage

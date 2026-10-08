@@ -115,9 +115,9 @@ export function ThreadHeader({
           title={infoOpen ? copy.t("Hide details") : copy.t("Show details")}
           style={{
             ...iconButtonSm,
-            background: infoOpen ? COLORS.fill : "#fff",
-            color: infoOpen ? "#fff" : COLORS.inkMuted,
-            borderColor: infoOpen ? COLORS.ink : COLORS.borderSoft,
+            background: infoOpen ? "var(--tc-soft)" : "#fff",
+            color: infoOpen ? "var(--tc-ink)" : "var(--tc-muted)",
+            borderColor: infoOpen ? "var(--tc-action)" : COLORS.borderSoft,
           }}
         >
           <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
@@ -549,8 +549,8 @@ function InfoSidebarHeader({ onClose, tab, onTabChange }: {
                 marginRight: 16,
                 background: "transparent",
                 border: "none",
-                borderBottom: active ? `2px solid ${COLORS.accent}` : "2px solid transparent",
-                color: active ? COLORS.ink : COLORS.inkMuted,
+                borderBottom: active ? "2px solid var(--tc-action)" : "2px solid transparent",
+                color: active ? "var(--tc-ink)" : "var(--tc-muted)",
                 fontFamily: FONTS.display,
                 fontSize: 13.5,
                 fontWeight: active ? 500 : 400,

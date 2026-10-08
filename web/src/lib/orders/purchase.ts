@@ -11,6 +11,8 @@ import {
 import { timedInstantMissingSlot } from "@/lib/scheduling/instant-book-hours";
 import { appointmentWindowFor } from "@/lib/scheduling/appointment-window";
 import { openPurchaseBooking } from "@/lib/orders/purchase-booking";
+import { openPurchaseThread } from "@/lib/orders/purchase-thread";
+import { attributePurchaseBooking } from "@/lib/orders/purchase-attribution";
 import { commitOrderTalentHolds } from "@/lib/scheduling/commit-order-holds";
 import {
   resolvePurchasePolicy,
@@ -42,7 +44,8 @@ export type {
   PurchaseRefusalReason,
   PurchaseResult,
 };
-import { pricePurchase, amountToCollectCents } from "@/lib/orders/purchase-pricing";
+import { pricePurchase } from "@/lib/orders/purchase-pricing";
+import { resolveCheckoutCollectCents } from "@/lib/orders/purchase-collect";
 
 /**
  * ONE purchase pipeline.
@@ -222,14 +225,7 @@ export async function createPurchase(
       return { ok: false, reason: priced.reason, offeringId: priced.offeringId };
     }
 
-    const collectCents = amountToCollectCents(
-      priced.subtotalCents,
-      policy.collect,
-      policy.depositPct,
-    );
-
-    // ── 4. Resolve the buyer, IF this order needs one. Money does not
-    //       require a name; a PRODUCT may. See lib/orders/purchase-buyer.ts.
+    // ── 4. Buyer before promo (per-customer) and before pass-through collect.
     const buyer = await resolvePurchaseBuyer(admin, {
       tenantId: input.tenantId,
       contact: input.contact,
@@ -244,20 +240,11 @@ export async function createPurchase(
     const customerId = buyer.customerId;
     const guestSessionId = buyer.guestSessionId;
 
-    // ── 5. Create the order. `draft` until capacity is held and the payment
-    //       decision is made, so an abandoned cart never looks pending.
-    // ── 5b. Promo, resolved BEFORE the order exists so a bad code is refused
-    // without one being created and unwound. Counts here are advisory; 5c
-    // re-counts under a row lock and is the authority.
+    // ── 5b. Promo BEFORE pass-through — fees apply to the discounted total.
     let promoDiscountCents = 0;
     let promoCodeId: string | null = null;
     if (input.promoCode) {
-      // A DISCOUNT CODE IS TIED TO A BUYER. `redeem_tenant_promo` counts
-      // redemptions per customer under a row lock, so honouring a code on an
-      // order with no customer would make `per_customer_limit` unenforceable
-      // for exactly the buyers who are hardest to identify. Refuse rather than
-      // drop the code silently, which is the overcharge-by-silence this block
-      // already refuses to commit.
+      // Codes are per-customer; without a buyer, per_customer_limit is unenforceable.
       if (!customerId) {
         return {
           ok: false,
@@ -273,15 +260,9 @@ export async function createPurchase(
           id: l.offeringId,
           totalCents: l.totalCents,
           variantId: l.variantId,
-          // Lines do not carry an event id; a tier-scoped code narrows by
-          // variant, and the event half of its scope is enforced by the
-          // catalog resolving that variant to this event in the first place.
           eventId: null,
         })),
       });
-      // REFUSES rather than proceeding at full price. A code that was typed and
-      // then ignored is an overcharge the customer only discovers on the
-      // receipt.
       if (!resolved.ok) {
         return {
           ok: false,
@@ -293,10 +274,24 @@ export async function createPurchase(
       promoCodeId = resolved.codeId;
     }
 
-    // One name for what the order costs, because the settle decision at step 9
-    // asks the same question the insert answers and the two must not drift.
-    // `orders_total_is_derived` refuses a row where they do.
+    // Settle + insert must agree; `orders_total_is_derived` refuses drift.
     const totalCents = priced.subtotalCents - promoDiscountCents;
+
+    const { baseCollectCents, collectCents } = await resolveCheckoutCollectCents(
+      admin,
+      {
+        tenantId: input.tenantId,
+        orderCurrency,
+        lines: priced.lines,
+        subtotalCents: priced.subtotalCents,
+        totalCents,
+        collect: policy.collect,
+        depositPct: policy.depositPct,
+        payInPerson: policy.payInPerson,
+      },
+    );
+
+    // ── 5. Create the order. `draft` until capacity is held and payment decided.
 
     const { data: orderRow, error: orderErr } = await admin
       .from("orders")
@@ -324,6 +319,7 @@ export async function createPurchase(
         source_page: input.sourcePage ?? null,
         payout_release_rule: "immediate",
         created_by: input.actorUserId,
+        ...(input.policyVersionId ? { policy_version_id: input.policyVersionId } : {}),
         // The age gate as it was at the moment of sale, and what the buyer said
         // about it. Stored on the ORDER rather than derived later because both
         // halves can move: a venue can lower the gate next week, and the
@@ -614,6 +610,7 @@ export async function createPurchase(
       subtotalCents: priced.subtotalCents,
       currency: orderCurrency,
       contact: input.contact,
+      policyVersionId: input.policyVersionId ?? null,
     });
     if (!anchor.ok) {
       await unwind("booking insert failed");
@@ -622,6 +619,11 @@ export async function createPurchase(
     bookingId = anchor.bookingId;
 
     if (collectCents > 0 && bookingId) {
+      // `gross` is what Stripe Checkout charges (principal + pass-through fees).
+      // `net` stores the service principal credited toward `orders.total_cents`
+      // so a deposit of 30% on $100 with fees (~$30.45) still leaves $70 owed,
+      // not $69.55 — and a high deposit cannot mark the order paid early.
+      const principalCents = baseCollectCents;
       const { data: txnRow, error: txnErr } = await admin
         .from("booking_transactions")
         .insert({
@@ -633,8 +635,8 @@ export async function createPurchase(
           payer_email: input.contact.email ?? null,
           gross_amount_cents: collectCents,
           platform_fee_basis_points: 0,
-          platform_fee_cents: 0,
-          net_amount_cents: collectCents,
+          platform_fee_cents: Math.max(0, collectCents - principalCents),
+          net_amount_cents: principalCents,
           currency: orderCurrency,
           provider: "stripe",
           // MUST be 'draft'. A trigger on booking_transactions enforces the
@@ -718,52 +720,51 @@ export async function createPurchase(
 
     // ── 10. The conversation, when the channel wants one.
     //
-    // AFTER the money leg and deliberately BEST-EFFORT: a thread that failed to
-    // open is a visibility problem, and cancelling a paid order to fix a
-    // visibility problem would be a far worse trade. The order is the record;
-    // the thread is where people talk about it.
+    // AFTER the money leg and deliberately BEST-EFFORT (see purchase-thread.ts).
+    // Calendar linkage (hold ↔ inquiry, agency source_inquiry_id, talent_bookings
+    // mirror) rides the same window so `/c/…` and the talent agenda agree.
     let inquiryId: string | null = null;
     if (input.openThread) {
-      const threadGuestSessionId =
-        input.guestSessionId ?? guestSessionId ?? null;
-      const { data: inqRow, error: inqErr } = await admin
-        .from("inquiries")
-        .insert({
-          tenant_id: input.tenantId,
-          source_workspace_id: input.tenantId,
-          contact_name: input.contact.displayName ?? input.contact.email ?? "Guest",
-          contact_email: input.contact.email ?? "",
-          contact_phone: input.contact.phone ?? null,
-          client_user_id: input.actorUserId,
-          // Guest confirmation at `/c/[id]` gates on this matching the cookie.
-          guest_session_id: input.actorUserId ? null : threadGuestSessionId,
-        })
-        .select("id")
-        .single();
+      inquiryId = await openPurchaseThread(admin, {
+        tenantId: input.tenantId,
+        orderId: createdOrderId,
+        actorUserId: input.actorUserId,
+        guestSessionId: input.guestSessionId ?? guestSessionId ?? null,
+        contact: input.contact,
+        holdIds: placedHoldIds,
+        bookingId,
+        transactionId: createdTransactionId,
+        brief: input.brief ?? null,
+        locale: input.locale ?? null,
+        // TUL-93: the REAL appointment (not the buffer-padded hold row).
+        appointment: input.reservation
+          ? {
+              startsAt: input.reservation.startsAt,
+              endsAt: input.reservation.endsAt,
+              timezone: input.reservation.timezone ?? null,
+            }
+          : null,
+      });
+    }
 
-      if (inqErr || !inqRow) {
-        logServerError("orders.createPurchase/thread", inqErr);
-      } else {
-        inquiryId = (inqRow as { id: string }).id;
-
-        const { error: linkErr } = await admin
-          .from("orders")
-          .update({ inquiry_id: inquiryId })
-          .eq("id", createdOrderId);
-        if (linkErr) logServerError("orders.createPurchase/thread-link", linkErr);
-
-        // The card carries { order_id } ONLY. Every figure is read from the
-        // order at render time, so it cannot drift from what it describes.
-        const { error: cardErr } = await admin.from("inquiry_messages").insert({
-          inquiry_id: inquiryId,
-          tenant_id: input.tenantId,
-          thread_type: "private",
-          message_kind: "order",
-          body: "",
-          card_payload: { order_id: createdOrderId },
-        });
-        if (cardErr) logServerError("orders.createPurchase/thread-card", cardErr);
+    // ── 10b. Money attribution: booking_talent + commission snapshot.
+    //
+    // Without this, Talent Money Collected stays $0 on a paid order-backed
+    // vanity checkout (no roster leg, no snapshot). Fatal when a booking
+    // exists: a payable sale with no attribution cannot pay the talent.
+    if (bookingId) {
+      const attributed = await attributePurchaseBooking(admin, {
+        tenantId: input.tenantId,
+        bookingId,
+        orderId: createdOrderId,
+        inquiryId,
+        contact: input.contact,
+      });
+      if (!attributed.ok) {
+        await unwind(`purchase attribution failed: ${attributed.error}`);
+        return { ok: false, reason: "engine_error", error: attributed.error };
       }
+      if (!inquiryId && attributed.inquiryId) inquiryId = attributed.inquiryId;
     }
 
     // Messages v5 / S2: the thread's record chips follow the order. Non-fatal.
@@ -794,5 +795,3 @@ export async function createPurchase(
     return { ok: false, reason: "engine_error", error: "Could not place the order." };
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────

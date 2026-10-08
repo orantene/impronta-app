@@ -11,10 +11,10 @@
  * account with a password nobody scripting this can enter.
  *
  * Two fixtures:
- *   - TAL-QAFIXMAX  (talent_portfolio / Max) — the builder auto-provisions its
+ *   - TAL-93940  (talent_portfolio / Max) — the builder auto-provisions its
  *     site on first visit (`provisionTalentMaxSite`, page-builder/page.tsx),
  *     so nothing else needs seeding here.
- *   - TAL-QAFIXFREE (talent_basic / free) — as of 2026-09-24 (PR #2206),
+ *   - TAL-93939 (talent_basic / free) — as of 2026-09-24 (PR #2206),
  *     `provisionTalentMaxSite` no longer hard-refuses non-Max plans; it reads
  *     `talentPlanGrantsSiteCapability(planKey, "personalSiteEdit")` like every
  *     other gate, which grants `talent_basic` a real site when
@@ -50,7 +50,7 @@ const admin: SupabaseClient = createClient(SUPABASE_URL, requireEnv("SUPABASE_SE
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const PASSWORD = process.env.TALENT_QA_FIXTURE_PASSWORD?.trim() || "Impronta-QA-Talent-2026!";
+const PASSWORD = process.env.TALENT_QA_FIXTURE_PASSWORD?.trim() || (() => { throw new Error("TALENT_QA_FIXTURE_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })();
 
 interface FixtureSpec {
   profileCode: string;
@@ -63,13 +63,13 @@ interface FixtureSpec {
 
 const FIXTURES: FixtureSpec[] = [
   {
-    profileCode: "TAL-QAFIXMAX",
+    profileCode: "TAL-93940",
     email: "qa-talent-max@impronta.test",
     displayName: "QA Fixture — Max Talent",
     planKey: "talent_portfolio",
   },
   {
-    profileCode: "TAL-QAFIXFREE",
+    profileCode: "TAL-93939",
     email: "qa-talent-free@impronta.test",
     displayName: "QA Fixture — Free Talent",
     planKey: "talent_basic",
@@ -104,12 +104,25 @@ async function ensureAuthUser(email: string, displayName: string) {
 
 async function ensureTalentProfile(fx: FixtureSpec, userId: string): Promise<string> {
   const now = new Date().toISOString();
-  const { data: existing, error: selErr } = await admin
+  // Prefer live code, then owner user_id (fixtures survived the vanity→numeric
+  // renumber in 20261231344000 under stable UUIDs / user links).
+  const { data: byCode, error: selErr } = await admin
     .from("talent_profiles")
     .select("id, user_id, talent_plan_key")
     .eq("profile_code", fx.profileCode)
     .maybeSingle();
   if (selErr) throw selErr;
+  let existing = byCode;
+  if (!existing) {
+    const { data: byUser, error: byUserErr } = await admin
+      .from("talent_profiles")
+      .select("id, user_id, talent_plan_key")
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (byUserErr) throw byUserErr;
+    existing = byUser;
+  }
 
   const patch = {
     display_name: fx.displayName,
@@ -228,6 +241,41 @@ async function ensureFreeTierSite(talentProfileId: string, fx: Required<Pick<Fix
   console.log(`  talent_sites + home page written for ${fx.profileCode} (slug=${fx.siteSlug})`);
 }
 
+/**
+ * WSF-C readiness: without working hours, an instant deposit offering falls
+ * back to request → catalog CTA `request_to_book` → who-step chat path, which
+ * masks PAY-2 deposit honesty (seña % / Continuar al pago). Seed Mon–Sat
+ * 10:00–19:00 so Portfolio tip scrapes stay on the confirm/pay path. Hub
+ * tenant matches demo-talents / Jor QA hours rows.
+ */
+const HUB_TENANT_ID = "40081ec3-5ca8-43a0-b50b-31c927b2716b";
+
+async function ensureFreeFixtureBookingHours(talentProfileId: string): Promise<void> {
+  const weekly: Record<string, { startMin: number; endMin: number }[]> = {};
+  for (let day = 0; day < 7; day += 1) {
+    weekly[String(day)] =
+      day === 0 ? [] : [{ startMin: 10 * 60, endMin: 19 * 60 }];
+  }
+  const { error } = await admin.from("talent_booking_hours").upsert(
+    {
+      talent_profile_id: talentProfileId,
+      tenant_id: HUB_TENANT_ID,
+      timezone: "America/Mexico_City",
+      weekly,
+      exceptions: [],
+      slot_minutes: 30,
+      buffer_before_min: 0,
+      buffer_after_min: 0,
+      min_notice_min: 0,
+      horizon_days: 60,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "talent_profile_id" },
+  );
+  if (error) throw error;
+  console.log(`  talent_booking_hours written for free fixture (PAY-2 readiness)`);
+}
+
 async function main(): Promise<void> {
   console.log("\n=== Seeding talent QA fixtures ===\n");
   for (const fx of FIXTURES) {
@@ -237,6 +285,7 @@ async function main(): Promise<void> {
     await ensureProfilesRow(user.id, fx.displayName);
     if (fx.planKey === "talent_basic" && fx.siteSlug) {
       await ensureFreeTierSite(profileId, fx as Required<Pick<FixtureSpec, "siteSlug">> & FixtureSpec);
+      await ensureFreeFixtureBookingHours(profileId);
     }
   }
   console.log("\nDone. Sign in via passwordless dev login as either @impronta.test address above.\n");

@@ -44,7 +44,7 @@ export function TalentDecisionBar({ inquiryId }: { inquiryId: string | null }) {
   };
 
   return (
-    <div data-talent-decision className="flex gap-2 px-3 py-2">
+    <div data-talent-decision className="msgv5 flex gap-2 px-3 py-2">
       <Btn size="sm" variant="primary" busy={busy} onClick={() => decide("accept")} data-talent-approve>
         {copy.approve}
       </Btn>

@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { type SellingDefaults } from "@/lib/talent/services-settings-actions";
 import { whoPrimaryCtaLabel } from "@/lib/talent/selling-booking-settings";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import type { LocationSettings } from "@/lib/talent/location-settings";
+import { LocationSettingsCard } from "./LocationSettingsCard";
 
 // PDF p15 "Defaults · the rules every item starts with". Four cards in a
 // 2x2 grid (one column on phone), the arithmetic worked out under each rule.
@@ -113,12 +115,20 @@ export function DefaultsScreen({
   onChange,
   onBack,
   onSave,
+  onOpenWebsiteSettings,
+  location,
+  onLocationChange,
 }: {
+  /** Address visibility and the private address (single source of truth). */
+  location?: LocationSettings | null;
+  onLocationChange?: (next: LocationSettings) => void;
   defaults: SellingDefaults;
   currency?: string;
   onChange: (next: SellingDefaults) => void;
   onBack: () => void;
   onSave: () => void;
+  /** Booking mode (Inherited/Custom/Reset, WSF-B) is edited in Website settings. */
+  onOpenWebsiteSettings?: () => void;
 }) {
   const copy = useDashboardText();
   const patch = (partial: Partial<SellingDefaults>) => onChange({ ...defaults, ...partial });
@@ -158,11 +168,23 @@ export function DefaultsScreen({
           <p className="mt-1 text-[13.5px] text-admin-ink-muted">
             {copy.t("Every new item starts with these. Any item can override them.")}
           </p>
+          {onOpenWebsiteSettings ? (
+            <p className="mt-1 text-[13px] text-admin-ink-muted">
+              {copy.t("Booking mode and the rest of your selling setup also live in Website settings.")}{" "}
+              <button
+                type="button"
+                onClick={onOpenWebsiteSettings}
+                className="inline-flex min-h-[44px] items-center font-semibold text-admin-brand sm:min-h-0"
+              >
+                {copy.t("Open Website settings")}
+              </button>
+            </p>
+          ) : null}
         </div>
         <button
           type="button"
           onClick={onSave}
-          className="h-10 rounded-lg bg-emerald-900 px-4 text-[14px] font-semibold text-white hover:bg-emerald-950"
+          className="h-10 rounded-lg bg-[var(--tc-action)] px-4 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)]"
         >
           {copy.t("Save changes")}
         </button>
@@ -304,6 +326,8 @@ export function DefaultsScreen({
           )}
         </Card>
 
+        {location && onLocationChange ? <LocationSettingsCard value={location} onChange={onLocationChange} /> : null}
+
         {/* Preparation + gaps between appointments */}
         <Card title={copy.t("Preparation and gaps")} hint={copy.t("Blocked, never charged")}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -351,12 +375,16 @@ export function DefaultsScreen({
         {/* How clients finish the booking sheet */}
         <Card title={copy.t("How clients book")} hint={copy.t("Sheet button and path")}>
           <div>
-            <span className={fieldLabel}>{copy.t("Booking mode")}</span>
+            <span className={fieldLabel}>{copy.t("Default booking mode")}</span>
+            <p className="mt-0.5 text-[13px] text-admin-ink-dim">
+              {copy.t("Services that use your default follow this. A service with its own mode keeps it.")}
+            </p>
             <div className="mt-1.5 flex flex-wrap gap-2">
               {(
                 [
-                  { id: "on_demand" as const, label: copy.t("On-demand reservation") },
-                  { id: "inquiry" as const, label: copy.t("Contact / inquiry") },
+                  { id: "instant" as const, label: copy.t("Instant booking") },
+                  { id: "request" as const, label: copy.t("Request to book") },
+                  { id: "inquiry" as const, label: copy.t("Inquiry only") },
                 ] as const
               ).map((m) => {
                 const on = defaults.bookingPosture === m.id;
@@ -364,18 +392,10 @@ export function DefaultsScreen({
                   <button
                     key={m.id}
                     type="button"
-                    onClick={() =>
-                      patch({
-                        bookingPosture: m.id,
-                        whoPrimaryCta:
-                          m.id === "inquiry" && defaults.whoPrimaryCta === "confirm_now"
-                            ? "contact"
-                            : defaults.whoPrimaryCta,
-                      })
-                    }
+                    onClick={() => patch({ bookingPosture: m.id })}
                     className={`rounded-lg border px-3 py-2 text-[13px] font-medium ${
                       on
-                        ? "border-emerald-900 bg-emerald-900 text-white"
+                        ? "border-[var(--tc-action)] bg-[var(--tc-soft)] font-semibold text-[var(--tc-ink)]"
                         : "border-admin-border-soft bg-white text-admin-ink hover:border-admin-ink/40"
                     }`}
                   >
@@ -395,18 +415,15 @@ export function DefaultsScreen({
                   { id: "check_availability" as const },
                 ] as const
               ).map((c) => {
-                const disabled =
-                  defaults.bookingPosture === "inquiry" && c.id === "confirm_now";
                 const on = defaults.whoPrimaryCta === c.id;
                 return (
                   <button
                     key={c.id}
                     type="button"
-                    disabled={disabled}
                     onClick={() => patch({ whoPrimaryCta: c.id })}
                     className={`rounded-lg border px-3 py-2 text-[13px] font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
                       on
-                        ? "border-emerald-900 bg-emerald-900 text-white"
+                        ? "border-[var(--tc-action)] bg-[var(--tc-soft)] font-semibold text-[var(--tc-ink)]"
                         : "border-admin-border-soft bg-white text-admin-ink hover:border-admin-ink/40"
                     }`}
                   >
@@ -417,7 +434,7 @@ export function DefaultsScreen({
             </div>
           </div>
           <p className={noteBox}>
-            {defaults.bookingPosture === "inquiry" || defaults.whoPrimaryCta !== "confirm_now"
+            {defaults.whoPrimaryCta !== "confirm_now"
               ? copy.t(
                   "After the client fills name and contact, this button opens chat with those details already filled in. It does not create a confirmed booking.",
                 )

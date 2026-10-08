@@ -57,6 +57,8 @@ test("roster seat availability blocks writes over cap with generic copy on paid 
   assert.equal(result.ok, false);
   if (!result.ok) {
     assert.match(result.message, /plan limit/i);
+    assert.match(result.message, /Studio plan limit/);
+    assert.doesNotMatch(result.message, /Free plan limit/i);
     assert.equal(result.limit, 50);
   }
 });

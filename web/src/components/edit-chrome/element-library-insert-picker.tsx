@@ -5,7 +5,7 @@
  * Parent menus supply `allowedKinds` (already intersected with registry + plan gate).
  */
 
-import { useId, useMemo, useState } from "react";
+import { useDeferredValue, useId, useMemo, useState } from "react";
 
 import {
   BUILDER_NODE_REGISTRY,
@@ -20,6 +20,9 @@ import {
   type ElementLibraryCategory,
 } from "@/lib/site-admin/builder-node";
 
+import { searchSections } from "@/lib/site-admin/add-gallery/section-search";
+import type { AddGalleryItem } from "@/lib/site-admin/add-gallery/types";
+import { ES_TEXT } from "./editor-i18n-es";
 import { CHROME } from "./kit";
 import { useEditorLocale } from "./use-editor-locale";
 
@@ -59,6 +62,7 @@ export function ElementLibraryInsertPicker({
   allowedKinds,
   onPick,
   onPickSectionEmbed,
+  onPickSection,
   variant,
 }: {
   allowedKinds: ReadonlyArray<BuilderNodeKind>;
@@ -70,6 +74,11 @@ export function ElementLibraryInsertPicker({
    * can't host a section embed (or don't want it).
    */
   onPickSectionEmbed?: (sectionTypeKey: string) => void | Promise<void>;
+  /**
+   * TUL-80: ready-made sections (Testimonials, FAQ, ...) found by English or
+   * Spanish name. Without a handler the picker still says where they live.
+   */
+  onPickSection?: (item: AddGalleryItem) => void | Promise<void>;
   variant: "navigator" | "canvas" | "inspector";
 }) {
   const searchId = useId();
@@ -79,7 +88,13 @@ export function ElementLibraryInsertPicker({
   // runs against the English source terms, deliberately: the catalog's keys are
   // English and matching a translated haystack would break the kind names.
   const { t } = useEditorLocale();
-  const [query, setQuery] = useState("");
+  const [rawQuery, setQuery] = useState("");
+  // Typing stays instant; the catalog filtering runs on the deferred value.
+  const query = useDeferredValue(rawQuery);
+  const sectionHits = useMemo(
+    () => searchSections(query, (en) => ES_TEXT[en] ?? en),
+    [query],
+  );
 
   // Curated Tulala components (live dynamic sections) — shown only when the
   // mount supports embedding them AND `section_embed` is droppable here. The
@@ -257,7 +272,7 @@ export function ElementLibraryInsertPicker({
       <input
         id={searchId}
         type="search"
-        value={query}
+        value={rawQuery}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={t("Search blocks…")}
         autoComplete="off"
@@ -324,7 +339,43 @@ export function ElementLibraryInsertPicker({
             </div>
           </div>
         ) : null}
-        {grouped.length === 0 && sectionEmbeds.length === 0 ? (
+        {sectionHits.length > 0 ? (
+          <div data-element-library-category="sections">
+            <div
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: categoryLabelColor,
+                marginBottom: 6,
+              }}
+            >
+              {t("Sections")}
+            </div>
+            {onPickSection ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {sectionHits.map((item) => (
+                  <PickerPill
+                    key={item.id}
+                    label={t(item.label)}
+                    tone={pillTone}
+                    onClick={() => void onPickSection(item)}
+                    dataAttrs={{ "data-element-library-section": item.sectionTemplateId ?? item.id }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, color: emptySearchColor }}>
+                {t("Ready-made sections: {names}. Add them from the Add panel, under Designs.").replace(
+                  "{names}",
+                  sectionHits.map((i) => t(i.label)).join(", "),
+                )}
+              </div>
+            )}
+          </div>
+        ) : null}
+        {grouped.length === 0 && sectionEmbeds.length === 0 && sectionHits.length === 0 ? (
           <div
             role="status"
             aria-live="polite"

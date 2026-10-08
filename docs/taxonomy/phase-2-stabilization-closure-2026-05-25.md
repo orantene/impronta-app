@@ -84,7 +84,7 @@ Profiles verified:
 - `TAL-92023` (no type): Details shows empty state and no `Skills & strengths`.
 - `TAL-00036` (model): model-specific groups visible; no legacy `skills` row.
 - `TAL-00039` (performer/DJ): performer/music/singer groups visible; no legacy `skills` row.
-- `TAL-AUDIT-0512` (multi-type): merged groups render; no duplicate `skills`.
+- `TAL-93941` (multi-type): merged groups render; no duplicate `skills`.
 
 Screenshots captured:
 

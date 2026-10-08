@@ -59,6 +59,8 @@ export type TalentNotif = {
   title: string;
   sub?: string;
   when?: string;
+  /** Row timestamp (ISO). When set the UI formats the age itself, in the viewer's language. */
+  whenIso?: string;
   unread?: boolean;
   /** Sticky = no dismiss. Stays until the underlying action/state resolves. */
   sticky?: boolean;
@@ -148,6 +150,12 @@ const ICON_FOR_KIND: Record<UserNotification["kind"], TalentNotif["icon"]> = {
 /** Success (sage) for the kinds that report a good outcome; neutral otherwise. */
 const SUCCESS_KINDS: ReadonlySet<UserNotification["kind"]> = new Set(["booking", "payment"]);
 
+/** Theme-update bells written before they carried a target still deep-link. */
+export function targetOf(n: UserNotification): string | null {
+  if (n.targetDrawer) return n.targetDrawer;
+  return n.targetPayload?.kind === "theme_update" ? "theme-update" : null;
+}
+
 /**
  * Map the shell's bridge rows onto the drawer's row shape.
  *
@@ -177,14 +185,15 @@ export function talentNotifsFromBridge(
         title: n.title,
         sub: n.body ?? undefined,
         when: n.ts,
+        whenIso: n.createdAt,
         unread: !n.read,
         // Action rows stay until the loop closes; updates can be cleared.
         sticky: category === "action",
         // A null `target_drawer` genuinely has no destination. Resolving it
         // would hand back the workspace "notifications" drawer default, which
         // on the talent surface is a wrong door, so leave the row inert.
-        target: n.targetDrawer
-          ? notificationDrawerFields(n.targetDrawer, n.originInquiryId, adminBasePath)
+        target: targetOf(n)
+          ? notificationDrawerFields(targetOf(n), n.originInquiryId, adminBasePath)
           : undefined,
       };
     });

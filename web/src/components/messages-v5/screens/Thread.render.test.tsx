@@ -100,7 +100,7 @@ test("loading, failed and empty states", () => {
   assert.match(failed, /data-refusal="unavailable"/);
   assert.match(failed, />Try again</);
   const empty = renderToStaticMarkup(<ThreadEmpty copy={EN_SCREEN} variant="desktop" />);
-  assert.match(empty, /Pick a conversation/);
+  assert.match(empty, /Your conversation opens here/);
 });
 
 test("resolved thread locks the composer; the menu draws its rows", () => {

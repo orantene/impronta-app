@@ -1,29 +1,56 @@
 "use client";
 
 /**
- * WS5 — per-field locale tab strip for the Content panel.
+ * WS5 — per-field locale tabs for the Content panel, on the shared
+ * `LocaleTabsBadge` (PR 7): `[● ES | ● EN] [✦ AI]` above a localizable input.
  *
- * Renders above a localizable text input (Behavior 1 of the page-builder
- * per-element translation feature):
- *   - One tab per tenant-supported locale, DEFAULT first.
- *   - Each tab shows a status dot: 🟢 filled = a value is present for that
- *     locale, ⚪ hollow = empty (red ring drawing the eye to a gap).
- *   - The active tab decides which locale the field edits: the DEFAULT tab
- *     edits the node's base prop; a SECONDARY tab edits `node.i18n[locale][prop]`.
- *   - A roll-up dot in the header turns green only when EVERY supported locale
- *     has a value ("fully translated" for this field).
+ *   - One tab per supported locale, DEFAULT (primary) first.
+ *   - Dot: green = has text, red ring = missing, amber ring = outdated.
+ *   - The active tab decides which locale the field edits: the DEFAULT tab edits
+ *     the node's base prop; a SECONDARY tab edits `node.i18n[locale][prop]`.
+ *   - Optional `ai`: translates the primary text into the active secondary (or
+ *     the first gap) and hands it to `ai.commit`, the caller's `commitForLocale`,
+ *     so it rides the same `patchBuilderNodeProps` autosave as a typed edit.
  *
- * Single-language tenant → the caller renders the plain field (no `<LocaleFieldTabs>`).
+ * Single-language tenant → the caller renders the plain field (no tabs).
  *
- * The component is presentation + active-tab state only; the parent owns the
- * actual value-by-locale lookups and commits (so the field still flows through
- * the existing `patchBuilderNodeProps` autosave). It defaults the active tab to
- * `activeContentLocale` (the top-header toggle) so flipping the page to ES opens
- * every field on its ES tab.
+ * Presentation + active-tab state only; the parent owns the value lookups and
+ * commits. The initial tab follows `activeContentLocale` (the top-bar pill).
+ * Colours come from CHROME tokens (no hex literals in this file).
  */
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
+import { LocaleTabsBadge, type LocaleTabsBadgeTheme } from "@/components/locale-field/LocaleTabsBadge";
+import type { TalentTranslateField } from "@/components/locale-field/translate-action";
+import { useAiTranslate } from "@/components/locale-field/use-ai-translate";
 import { localeMetadata } from "@/i18n/config";
+import { canAiTranslate, languageName, localeStatus, pickAiTarget } from "@/lib/i18n/locale-field-model";
+import { CHROME } from "../kit/tokens";
+import { useEditorLocale } from "../use-editor-locale";
+import { selectEditingLocale, showsMissingTranslationHint } from "../editing-locale";
+
+const THEME: LocaleTabsBadgeTheme = {
+  tablist: "bg-black/[0.04]",
+  tabActive: "bg-white text-stone-800 shadow-sm",
+  tabIdle: "text-stone-500 hover:text-stone-700",
+  dot: {
+    filled: { style: { background: CHROME.green } },
+    missing: { style: { boxShadow: `0 0 0 1.5px ${CHROME.rose}` } },
+    outdated: { style: { boxShadow: `0 0 0 1.5px ${CHROME.amber}` } },
+  },
+  ai: "bg-violet-600/10 text-violet-700",
+  aiDisabled: "opacity-50",
+};
+
+export interface LocaleFieldTabsAi {
+  /** Primary-locale text (the translation source). */
+  sourceText: string;
+  /** Current text for a locale (empty when missing). */
+  valueFor: (locale: string) => string;
+  /** Commit a translated value for a locale (the caller's `commitForLocale`). */
+  commit: (locale: string, text: string) => void | Promise<void>;
+  field?: TalentTranslateField;
+}
 
 export interface LocaleFieldTabsProps {
   /** Tenant supported locales, DEFAULT first (from TenantLocaleSettings). */
@@ -38,6 +65,8 @@ export interface LocaleFieldTabsProps {
   renderField: (locale: string, isDefault: boolean) => ReactNode;
   /** Optional accessible name for the tablist. */
   ariaLabel?: string;
+  /** Optional AI translate button. */
+  ai?: LocaleFieldTabsAi;
 }
 
 function localeLabel(code: string): string {
@@ -50,105 +79,92 @@ export function LocaleFieldTabs({
   activeContentLocale,
   hasValueForLocale,
   renderField,
-  ariaLabel = "Field language",
+  ariaLabel,
+  ai,
 }: LocaleFieldTabsProps) {
-  // Order: default first, then the rest in tenant order. Recomputed each render
-  // (a tiny array); its identity is irrelevant because nothing downstream
-  // depends on it — the sync effect below keys off a derived VALUE, not the
-  // array, so exhaustive-deps is satisfied with no suppression.
-  const orderedLocales = [
-    defaultLocale,
-    ...supportedLocales.filter((l) => l !== defaultLocale),
-  ];
+  const { t, locale: uiLocale } = useEditorLocale();
+  const inUi = (code: string) => languageName(code, uiLocale, uiLocale !== "es");
+  const orderedLocales = [defaultLocale, ...supportedLocales.filter((l) => l !== defaultLocale)];
+  // A stable boolean (not the recomputed array) so an unrelated re-render can't
+  // reset a local tab click.
+  // TUL-70 round 3: the tab IS the editing locale (one store, no local copy),
+  // so picking a tab flips the canvas and the top-bar pill too, and flipping
+  // the pill moves every field.
+  const activeTab = orderedLocales.includes(activeContentLocale) ? activeContentLocale : defaultLocale;
+  const setActiveTab = (code: string) => selectEditingLocale(code, defaultLocale, orderedLocales);
 
-  // Whether the active header locale is one this field offers — a stable boolean
-  // the sync effect depends on (instead of the recomputed array). It flips only
-  // when the header locale or the supported set actually changes, so an
-  // unrelated re-render can't reset a local tab click.
-  const activeLocaleSupported = orderedLocales.includes(activeContentLocale);
+  const aiHook = useAiTranslate(ai?.field ?? "builder_text");
+  const map: Record<string, string> = {};
+  for (const code of orderedLocales) {
+    map[code] = ai ? ai.valueFor(code) : hasValueForLocale(code) ? "x" : "";
+  }
+  const target = ai ? pickAiTarget(orderedLocales, defaultLocale, activeTab, map) : null;
+  const aiEnabled =
+    target !== null &&
+    canAiTranslate({ source: ai?.sourceText, target: map[target], lastSource: aiHook.lastSource[target] });
 
-  const [activeTab, setActiveTab] = useState(
-    activeLocaleSupported ? activeContentLocale : defaultLocale,
-  );
+  const runAi = async () => {
+    if (!ai || !target) return;
+    setActiveTab(target);
+    const out = await aiHook.run({ from: defaultLocale, to: target, text: ai.sourceText });
+    if (out !== null) await ai.commit(target, out);
+  };
 
-  // Follow the top-header toggle: when the operator flips the page locale, every
-  // open field's tab snaps to that locale (Behavior 2c). Local clicks still win
-  // until the header changes again.
-  useEffect(() => {
-    if (activeLocaleSupported) {
-      setActiveTab(activeContentLocale);
-    }
-  }, [activeContentLocale, activeLocaleSupported]);
-
-  const allTranslated = orderedLocales.every((l) => hasValueForLocale(l));
-  const isDefaultActive = activeTab === defaultLocale;
+  const statusWord = (code: string) =>
+    hasValueForLocale(code) ? t("translated") : t("missing");
+  const aiTitle =
+    aiHook.state === "unavailable"
+      ? t("AI translation is not available on this plan.")
+      : aiHook.state === "quota"
+        ? t("AI limit reached. Try later or write it yourself.")
+        : aiHook.state === "error"
+          ? t("Translation failed. Try again.")
+          : t("Translate to {lang} with AI").replace("{lang}", inUi(target ?? defaultLocale));
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between gap-2">
-        <div
-          role="tablist"
-          aria-label={ariaLabel}
-          className="inline-flex flex-wrap items-center gap-1 rounded-[8px] bg-[#f4f1ea] p-[3px]"
-        >
-          {orderedLocales.map((code) => {
-            const active = code === activeTab;
-            const filled = hasValueForLocale(code);
-            return (
-              <button
-                key={code}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                title={`Edit ${localeLabel(code)}${
-                  code === defaultLocale ? " (default)" : ""
-                }${filled ? ": translated" : ": empty"}`}
-                onClick={() => setActiveTab(code)}
-                className={`inline-flex items-center gap-1.5 rounded-[6px] px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.04em] transition-colors ${
-                  active
-                    ? "bg-white text-stone-800 shadow-sm"
-                    : "text-stone-500 hover:text-stone-700"
-                }`}
-              >
-                <span
-                  aria-hidden
-                  className="inline-block h-[7px] w-[7px] rounded-full"
-                  style={
-                    filled
-                      ? { background: "#22c55e", boxShadow: "0 0 0 1px #16a34a" }
-                      : {
-                          background: "transparent",
-                          boxShadow: "0 0 0 1.5px #f43f5e",
-                        }
-                  }
-                />
-                {code}
-              </button>
-            );
-          })}
-        </div>
-        <span
-          className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.06em]"
-          style={{ color: allTranslated ? "#16a34a" : "#a8a29e" }}
-          title={
-            allTranslated
-              ? "This field is translated in every language."
-              : "This field is missing a translation in at least one language."
+      <div className="flex items-center justify-end">
+        <LocaleTabsBadge
+          theme={THEME}
+          tablistLabel={ariaLabel ?? t("Field language")}
+          active={activeTab}
+          onSelect={setActiveTab}
+          tabs={orderedLocales.map((code) => ({
+            code,
+            status: localeStatus(hasValueForLocale(code) ? { [code]: "x" } : {}, code),
+            ariaLabel: `${localeLabel(code)}, ${statusWord(code)}`,
+            title:
+              code === defaultLocale
+                ? `${localeLabel(code)} · ${t("primary")}`
+                : `${localeLabel(code)} · ${statusWord(code)}`,
+          }))}
+          ai={
+            ai && target
+              ? {
+                  ariaLabel: t("Translate to {lang} with AI").replace("{lang}", inUi(target)),
+                  title: aiTitle,
+                  state:
+                    aiHook.state === "loading"
+                      ? "loading"
+                      : aiHook.state === "success"
+                        ? "success"
+                        : aiHook.state === "error"
+                          ? "error"
+                          : aiHook.state === "unavailable" || aiHook.state === "quota" || !aiEnabled
+                            ? "disabled"
+                            : "enabled",
+                  onClick: () => void runAi(),
+                }
+              : null
           }
-        >
-          <span
-            aria-hidden
-            className="inline-block h-[7px] w-[7px] rounded-full"
-            style={
-              allTranslated
-                ? { background: "#22c55e" }
-                : { background: "transparent", boxShadow: "0 0 0 1.5px #d6d3d1" }
-            }
-          />
-          {allTranslated ? "All" : "Partial"}
-        </span>
+        />
       </div>
-      {renderField(activeTab, isDefaultActive)}
+      {showsMissingTranslationHint(activeTab, defaultLocale, hasValueForLocale(activeTab)) ? (
+        <p className="m-0 text-[12px]" style={{ color: CHROME.muted }}>
+          {t("No text in {lang} yet. The canvas shows the base text.").replace("{lang}", inUi(activeTab))}
+        </p>
+      ) : null}
+      {renderField(activeTab, activeTab === defaultLocale)}
     </div>
   );
 }

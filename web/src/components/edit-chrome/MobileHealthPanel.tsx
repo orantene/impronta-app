@@ -32,6 +32,8 @@ import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { locateCanvasNode } from "./freeform-layer-row";
 import { useMaybeEditContext } from "./edit-context";
 import { useEditorLocale } from "./use-editor-locale";
+import { measureRenderedOverflow } from "@/lib/site-admin/builder-node/mobile-health-rendered";
+import { localiseMobileHealthMessage } from "./mobile-health-message-es";
 import { Button } from "./kit";
 import { CHROME } from "./kit";
 
@@ -126,12 +128,66 @@ interface Props {
 }
 
 export function MobileHealthPanel({ builderTree }: Props) {
+  const { t } = useEditorLocale();
   const [open, setOpen] = useState(false);
   const bodyId = useId();
 
-  const issues = useMemo(
+  const treeIssues = useMemo(
     () => runMobileHealthCheck(builderTree),
     [builderTree],
+  );
+
+  // TUL-79: the tree check cannot see the public header or wrapped copy, so
+  // also measure the rendered canvas and flag anything past the screen edge.
+  const [renderedIssues, setRenderedIssues] = useState<MobileHealthIssue[]>([]);
+  const device = useMaybeEditContext()?.device;
+  useEffect(() => {
+    let timer: number | undefined;
+    let ro: ResizeObserver | null = null;
+    let mo: MutationObserver | null = null;
+    let observedDoc: Document | null = null;
+    const frame = document.querySelector<HTMLIFrameElement>(
+      'iframe[data-device-tier][data-active="true"]',
+    );
+    const schedule = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(measure, 300);
+    };
+    const measure = () => {
+      try {
+        const doc = frame ? frame.contentDocument : document;
+        const width = frame ? frame.clientWidth : window.innerWidth;
+        const next = doc ? measureRenderedOverflow(doc, width) : [];
+        setRenderedIssues((prev) =>
+          JSON.stringify(prev) === JSON.stringify(next) ? prev : next,
+        );
+        if (doc && doc !== observedDoc && doc.body) {
+          observedDoc = doc;
+          mo?.disconnect();
+          mo = new MutationObserver(schedule);
+          mo.observe(doc.body, { childList: true, subtree: true, attributes: true });
+        }
+      } catch {
+        /* cross-origin or detached frame: keep the tree result only */
+      }
+    };
+    schedule();
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(schedule);
+      ro.observe(frame ?? document.documentElement);
+    }
+    frame?.addEventListener("load", schedule);
+    return () => {
+      window.clearTimeout(timer);
+      ro?.disconnect();
+      mo?.disconnect();
+      frame?.removeEventListener("load", schedule);
+    };
+  }, [builderTree, device]);
+
+  const issues = useMemo(
+    () => [...treeIssues, ...renderedIssues],
+    [treeIssues, renderedIssues],
   );
 
   const grouped = useMemo(() => {
@@ -194,7 +250,7 @@ export function MobileHealthPanel({ builderTree }: Props) {
             color: allClear ? "#15803d" : CHROME.ink,
           }}
         >
-          Mobile health
+          {t("Mobile health")}
         </span>
         {allClear ? (
           <span
@@ -204,7 +260,7 @@ export function MobileHealthPanel({ builderTree }: Props) {
               fontWeight: 600,
             }}
           >
-            All clear
+            {t("All clear")}
           </span>
         ) : blockingCount > 0 ? (
           <span
@@ -215,8 +271,8 @@ export function MobileHealthPanel({ builderTree }: Props) {
               marginRight: 4,
             }}
           >
-            {blockingCount} block{blockingCount === 1 ? "s" : ""} publish
-            {total > blockingCount ? ` · ${total - blockingCount} advisory` : ""}
+            {t(blockingCount === 1 ? "{n} block publish" : "{n} blocks publish").replace("{n}", String(blockingCount))}
+            {total > blockingCount ? ` · ${t("{n} advisory").replace("{n}", String(total - blockingCount))}` : ""}
           </span>
         ) : (
           <span
@@ -226,7 +282,7 @@ export function MobileHealthPanel({ builderTree }: Props) {
               marginRight: 4,
             }}
           >
-            {total} advisor{total === 1 ? "y" : "ies"}
+            {t(total === 1 ? "{n} advisory" : "{n} advisories").replace("{n}", String(total))}
           </span>
         )}
         <span style={{ color: CHROME.muted2 }}>
@@ -252,8 +308,7 @@ export function MobileHealthPanel({ builderTree }: Props) {
                 lineHeight: 1.5,
               }}
             >
-              No mobile issues detected in the builder tree. Tap targets,
-              font sizes, and layout widths all look fine.
+              {t("No mobile issues detected in the builder tree. Tap targets, font sizes, and layout widths all look fine.")}
             </p>
           ) : (
             <>
@@ -268,15 +323,13 @@ export function MobileHealthPanel({ builderTree }: Props) {
                 {blockingCount > 0 ? (
                   <>
                     <strong style={{ color: "#b91c1c" }}>
-                      Rows marked “Blocks publish” force horizontal scrolling on
-                      phones and must be fixed before you can publish.
+                      {t("Rows marked “Blocks publish” force horizontal scrolling on phones and must be fixed before you can publish.")}
                     </strong>{" "}
-                    The rest are advisory, review them before going live.
+                    {t("The rest are advisory, review them before going live.")}
                   </>
                 ) : (
                   <>
-                    Advisory only, these do not block publish. Review them before
-                    going live on mobile devices.
+                    {t("Advisory only, these do not block publish. Review them before going live on mobile devices.")}
                   </>
                 )}
               </p>
@@ -475,6 +528,7 @@ function IssueGroup({
   issues: MobileHealthIssue[];
 }) {
   const color = KIND_COLOR[kind];
+  const { t } = useEditorLocale();
 
   return (
     <div
@@ -515,7 +569,7 @@ function IssueGroup({
             color,
           }}
         >
-          {KIND_LABEL[kind]}
+          {t(KIND_LABEL[kind])}
         </span>
         <span
           style={{
@@ -524,7 +578,7 @@ function IssueGroup({
             color: CHROME.muted2,
           }}
         >
-          {issues.length} item{issues.length === 1 ? "" : "s"}
+          {t(issues.length === 1 ? "{n} item" : "{n} items").replace("{n}", String(issues.length))}
         </span>
       </div>
 
@@ -547,6 +601,7 @@ function IssueGroup({
 // ── IssueRow ──────────────────────────────────────────────────────────────────
 
 function IssueRow({ issue }: { issue: MobileHealthIssue }) {
+  const { t, locale } = useEditorLocale();
   return (
     <li
       style={{
@@ -584,7 +639,7 @@ function IssueRow({ issue }: { issue: MobileHealthIssue }) {
                 letterSpacing: "0.04em",
               }}
             >
-              Blocks publish
+              {t("Blocks publish")}
             </span>
           ) : null}
         </div>
@@ -597,7 +652,7 @@ function IssueRow({ issue }: { issue: MobileHealthIssue }) {
             color: CHROME.text,
           }}
         >
-          {issue.message}
+          {localiseMobileHealthMessage(issue.message, locale)}
         </p>
       </div>
 
@@ -605,7 +660,7 @@ function IssueRow({ issue }: { issue: MobileHealthIssue }) {
       <button
         type="button"
         onClick={() => locateCanvasNode(issue.nodeId)}
-        title={`Scroll canvas to ${issue.nodeId}`}
+        title={t("Scroll canvas to {id}").replace("{id}", issue.nodeId)}
         style={{
           flexShrink: 0,
           marginTop: 2,
@@ -625,7 +680,7 @@ function IssueRow({ issue }: { issue: MobileHealthIssue }) {
         }}
       >
         <LocateIcon />
-        Show
+        {t("Show")}
       </button>
     </li>
   );

@@ -23,7 +23,10 @@ type Row = Record<string, unknown>;
 function fakeAdmin(opts: {
   order?: Row | null;
   orderId?: string | null;
+  /** Principal credits per paid txn (defaults to gross when nets omitted). */
   paidTxns?: number[];
+  /** Optional per-txn nets; when shorter than paidTxns, remaining use gross. */
+  paidTxnNets?: Array<number | null>;
   allocations?: string[];
   commitFails?: string;
 } = {}) {
@@ -53,7 +56,15 @@ function fakeAdmin(opts: {
       then: (resolve: (v: { data: unknown; error: null }) => unknown) => {
         if (table === "booking_transactions") {
           return resolve({
-            data: (opts.paidTxns ?? []).map((c) => ({ gross_amount_cents: c })),
+            data: (opts.paidTxns ?? []).map((c, i) => {
+              const net = opts.paidTxnNets?.[i];
+              return {
+                gross_amount_cents: c,
+                status: "paid",
+                refund_of_transaction_id: null,
+                net_amount_cents: net === undefined ? c : net,
+              };
+            }),
             error: null,
           });
         }
@@ -116,6 +127,32 @@ test("A DEPOSIT DOES NOT COMPLETE A SALE", async () => {
 
   assert.equal(r.ok && r.status, "pending_payment");
   assert.equal(updates.find((u) => u.table === "orders"), undefined, "must not flip");
+});
+
+test("pass-through fees on a deposit do NOT count toward order balance (P1)", async () => {
+  // $100 order, 30% deposit principal $30, Checkout collected $30.45 with fees.
+  // Crediting gross would leave $69.55 outstanding; principal leaves $70.
+  const { updates, admin } = fakeAdmin({
+    orderId: "o1",
+    order: order(),
+    paidTxns: [3045],
+    paidTxnNets: [3000],
+  });
+  const r = await completeOrderForTransaction(admin, "t1");
+  assert.equal(r.ok && r.status, "pending_payment");
+  assert.equal(updates.find((u) => u.table === "orders"), undefined, "must not flip");
+});
+
+test("pass-through full collect still completes when principal covers total", async () => {
+  // Full $100 principal collected as $104.84 gross — order is paid.
+  const { admin } = fakeAdmin({
+    orderId: "o1",
+    order: order(),
+    paidTxns: [10484],
+    paidTxnNets: [10000],
+  });
+  const r = await completeOrderForTransaction(admin, "t1");
+  assert.equal(r.ok && r.status, "paid");
 });
 
 test("a deposit PLUS its balance completes it", async () => {

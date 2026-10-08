@@ -1,3 +1,4 @@
+/* eslint-disable ratchet/no-untenanted-from -- talent_booking_hours is one row per person; a tenant filter would hide hours and fork the calendar (same as instant-book-hours). */
 /**
  * instant-purchase.ts — how an instant booking becomes ONE `createPurchase`
  * call: the offering's stock pool, the treatment room, the companion
@@ -26,9 +27,28 @@ import type { PurchaseResult } from "@/lib/orders/purchase-types";
 import { parseOfferingResourceSet } from "@/lib/resources/offering-resource-set";
 import { spaceCapacityPool } from "@/lib/resources/reserve-set";
 import { instantBookPaymentChoice } from "@/lib/scheduling/instant-book-payment-choice";
-import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
+import {
+  assertInstantPosture,
+  assertReservationMeetsNotice,
+} from "@/lib/scheduling/instant-book-gates";
+import { parseBookingHours } from "@/lib/scheduling/hours-types";
+import { hoursHaveOpenWindow } from "@/lib/scheduling/public-slots";
+import {
+  bookingDurationMinutes,
+  validateReservationWindow,
+  type ReservationWindowRefusal,
+} from "@/lib/scheduling/reservation-window";
+import { loadAddonGroupsForOfferings } from "@/lib/talent/merge-addon-groups";
+import { resolveOfferingPolicy } from "@/lib/talent/offering-policy-resolver";
 import { logServerError } from "@/lib/server/safe-error";
+import { hoursRowHasWorkingHours, loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
+import { instantReadiness, readinessGaps, takesMoneyOnline } from "@/lib/talent/accepting-readiness";
+import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
+import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
+import { loadPlanAllowsInstant } from "@/lib/talent/plan-instant.server";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { loadLatestPolicyVersionId } from "@/lib/talent-policies/public";
+import type { OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
 
 export type InstantPurchaseInput = {
   tenantId: string;
@@ -50,11 +70,37 @@ export type InstantPurchaseInput = {
   openThread: boolean;
   /** Cookie guest id so `/c/[inquiryId]` owns the thread after confirm. */
   guestSessionId?: string | null;
+  /** Gridline G9b: task-picker brief, onto the thread inquiry's source_context. */
+  brief?: OfferingTaskBrief | null;
+  /** G13: buyer locale for the intake answers' heading in the thread. */
+  locale?: string | null;
+  /**
+   * True only for the point of sale booking a walk-in at the desk. Staff are
+   * the confirmation there, so the inquiry-only posture and the public open
+   * hours / horizon checks do not apply; duration and notice still do.
+   */
+  staffDesk?: boolean;
+  /**
+   * WSF-C §7: an agency storefront booking the talent. The agency owns that
+   * routing, so the talent's own "Accept new bookings" switch does not apply.
+   * Omitted = a direct channel (own website / Tulala profile): enforced.
+   */
+  agencyRouted?: boolean;
 };
 
 export type InstantPurchaseResult =
   | PurchaseResult
-  | { ok: false; reason: "engine_error"; error: string };
+  | {
+      ok: false;
+      reason:
+        | "engine_error"
+        | "too_soon"
+        | "inquiry_only"
+        | "request_only"
+        | "not_accepting_bookings"
+        | ReservationWindowRefusal;
+      error: string;
+    };
 
 /**
  * `tenantScopedQuery` answers untyped rows. These read the two fields the
@@ -64,11 +110,40 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-function policyOf(row: unknown): { reserveMode: string | null; attributes: unknown } {
-  if (!isRecord(row)) return { reserveMode: null, attributes: null };
+function numOrNull(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+type OfferingPolicyRow = {
+  reserveMode: string | null;
+  depositPct: number | null;
+  cancellationHours: number | null;
+  bookingMode: string | null;
+  durationMinutes: number | null;
+  attributes: unknown;
+  kind: string | null;
+};
+
+function policyOf(row: unknown): OfferingPolicyRow {
+  if (!isRecord(row)) {
+    return {
+      reserveMode: null,
+      depositPct: null,
+      cancellationHours: null,
+      bookingMode: null,
+      durationMinutes: null,
+      attributes: null,
+      kind: null,
+    };
+  }
   return {
     reserveMode: typeof row.reserve_mode === "string" ? row.reserve_mode : null,
+    depositPct: numOrNull(row.deposit_pct),
+    cancellationHours: numOrNull(row.cancellation_hours),
+    bookingMode: typeof row.booking_mode === "string" ? row.booking_mode : null,
+    durationMinutes: numOrNull(row.duration_minutes),
     attributes: row.attributes ?? null,
+    kind: typeof row.kind === "string" ? row.kind : null,
   };
 }
 
@@ -106,7 +181,7 @@ export async function placeInstantPurchase(
     "talent_offerings",
     tenantId,
   )
-    .select("reserve_mode, attributes")
+    .select("reserve_mode, deposit_pct, cancellation_hours, booking_mode, duration_minutes, attributes, kind")
     .eq("id", offeringId)
     .maybeSingle();
   if (offeringPolicyErr) {
@@ -120,6 +195,149 @@ export async function placeInstantPurchase(
 
   const reservation = input.reservation;
   const policy = policyOf(offeringPolicy);
+
+  // Talent defaults + hours row, read once: posture, deposit, buffers,
+  // notice and the window check all resolve from these two rows.
+  const [talentDefaultsRes, hoursRes, addOnRes, addOnGroups] = await Promise.all([
+    admin
+      .from("talent_profiles")
+      .select("selling_defaults")
+      .eq("id", input.talentProfileId)
+      .maybeSingle(),
+    // talent_booking_hours is one row per person (same as instant-book-hours).
+    admin
+      .from("talent_booking_hours")
+      .select(
+        "timezone, weekly, exceptions, slot_minutes, buffer_before_min, buffer_after_min, min_notice_min, horizon_days",
+      )
+      .eq("talent_profile_id", input.talentProfileId)
+      .maybeSingle(),
+    reservation && input.addOnIds.length > 0
+      ? admin
+          .from("talent_offering_addons")
+          .select("id, duration_minutes")
+          .eq("offering_id", offeringId)
+          .in("id", input.addOnIds)
+      : Promise.resolve({ data: [] as unknown[], error: null }),
+    // Shared extras (talent_addon_groups) reach the sheet as add-ons too, with
+    // the group id; their minutes lengthen the slot the same way.
+    reservation && input.addOnIds.length > 0
+      ? loadAddonGroupsForOfferings(admin, input.talentProfileId, [offeringId])
+      : Promise.resolve([]),
+  ]);
+  if (talentDefaultsRes.error || hoursRes.error || addOnRes.error) {
+    logServerError(
+      "instantPurchase.bookingRules",
+      talentDefaultsRes.error ?? hoursRes.error ?? addOnRes.error,
+    );
+    return {
+      ok: false,
+      reason: "engine_error",
+      error: "We could not confirm the booking rules. Please try again.",
+    };
+  }
+  const defaultsRaw = isRecord(talentDefaultsRes.data)
+    ? (talentDefaultsRes.data.selling_defaults ?? {})
+    : {};
+  const hoursRow = isRecord(hoursRes.data) ? hoursRes.data : null;
+
+
+  const effective = resolveOfferingPolicy(
+    {
+      reserveMode: policy.reserveMode,
+      depositPct: policy.depositPct,
+      cancellationHours: policy.cancellationHours,
+      attributes: policy.attributes,
+    },
+    defaultsRaw,
+    hoursRow
+      ? {
+          bufferBeforeMin: numOrNull(hoursRow.buffer_before_min),
+          bufferAfterMin: numOrNull(hoursRow.buffer_after_min),
+          minNoticeMin: numOrNull(hoursRow.min_notice_min),
+        }
+      : null,
+  );
+
+  // WSF-C: the talent's own "Accept new bookings" switch (direct channels
+  // only, §7) and instant readiness (§1 row 4: hours, duration, payouts when
+  // money is taken online). Not ready = instant falls back to request.
+  const staffDesk = input.staffDesk === true;
+  const switches =
+    staffDesk || input.agencyRouted === true
+      ? null
+      : await loadTalentSiteSwitches(admin, input.talentProfileId);
+  // F27: the plan ceiling is enforced here too, so a crafted request cannot
+  // book instantly on a plan whose public site only offers request.
+  const planAllowsInstant =
+    staffDesk || input.agencyRouted === true
+      ? undefined
+      : (await loadPlanAllowsInstant(admin, [input.talentProfileId])).get(input.talentProfileId);
+  const readiness = staffDesk
+    ? null
+    : instantReadiness(
+        readinessGaps({
+          kind: policy.kind,
+          hasWorkingHours: hoursRowHasWorkingHours(hoursRow),
+          durationMinutes: policy.durationMinutes,
+          takesMoneyOnline: takesMoneyOnline(effective.reserveMode, input.payInPerson === true),
+          payoutsReady: isPlatformCheckoutReady(),
+          planAllowsInstant,
+        }),
+      );
+
+  // F4: refuse unless the EFFECTIVE mode is instant (master switch, then the
+  // offering's own mode, then the talent's default posture, then readiness).
+  // The till books walk-ins at the desk and is exempt: staff are the
+  // confirmation.
+  const postureGate = assertInstantPosture({
+    sellingDefaults: defaultsRaw,
+    bookingMode: policy.bookingMode,
+    staffDesk,
+    accepting: switches ? switches.acceptingBookings : null,
+    readiness,
+  });
+  if (!postureGate.ok) return postureGate;
+
+  if (reservation) {
+    const noticeGate = assertReservationMeetsNotice({
+      startsAt: reservation.startsAt,
+      minNoticeMin: effective.minNoticeMin,
+    });
+    if (!noticeGate.ok) {
+      return { ok: false, reason: "too_soon", error: noticeGate.error };
+    }
+
+    // F3: the window is recomputed from rows, never trusted from the page.
+    const addOnMinutes = ((addOnRes.data ?? []) as unknown[])
+      .filter(isRecord)
+      .map((r) => ({
+        id: String(r.id),
+        durationMinutes: numOrNull(r.duration_minutes),
+      }))
+      .concat(addOnGroups.map((g) => ({ id: g.id, durationMinutes: g.durationMinutes })));
+    const expectedDurationMin = bookingDurationMinutes(
+      policy.durationMinutes,
+      addOnMinutes,
+      input.addOnIds,
+    );
+    // The till books the desk's own clock; open hours and horizon are the
+    // public page's contract.
+    // A row with no open window is "no hours" to the slot engine too
+    // (`no_booking_hours`), so it gets the same pass as a missing row.
+    const parsedHours = input.staffDesk || !hoursRow ? null : parseBookingHours(hoursRow);
+    const hours = parsedHours && hoursHaveOpenWindow(parsedHours) ? parsedHours : null;
+    const windowGate = validateReservationWindow({
+      startsAt: reservation.startsAt,
+      endsAt: reservation.endsAt,
+      expectedDurationMin,
+      hours,
+    });
+    if (!windowGate.ok) {
+      return { ok: false, reason: windowGate.reason, error: windowGate.error };
+    }
+  }
+
   const resourceSet = parseOfferingResourceSet(policy.attributes);
   const companionIds = resourceSet.companionTalentIds.filter((id) => id !== input.talentProfileId);
   if (companionIds.length > 0) {
@@ -184,33 +402,11 @@ export async function placeInstantPurchase(
     });
   }
 
-  // Prep from selling defaults (+ optional offering attr) pads the hold so
-  // the calendar blocks preparation time when the client reserves.
-  const { data: talentDefaultsRow, error: talentDefaultsErr } = await admin
-    .from("talent_profiles")
-    .select("selling_defaults")
-    .eq("id", input.talentProfileId)
-    .maybeSingle();
-  // Missing / failed defaults → zero buffers (same as unset). Purchase proceeds.
-  const defaultsRaw =
-    !talentDefaultsErr && isRecord(talentDefaultsRow) ? talentDefaultsRow.selling_defaults : null;
-  const selling = parseSellingBookingSettings(defaultsRaw);
-  const attrPrep =
-    isRecord(policy.attributes) && typeof policy.attributes.bufferBeforeMin === "number"
-      ? Math.max(0, Math.trunc(policy.attributes.bufferBeforeMin))
-      : null;
-  const attrAfter =
-    isRecord(policy.attributes) && typeof policy.attributes.bufferAfterMin === "number"
-      ? Math.max(0, Math.trunc(policy.attributes.bufferAfterMin))
-      : null;
-  const prepMin = attrPrep ?? selling.bufferBeforeMin ?? 0;
-  const afterMin =
-    attrAfter ??
-    (isRecord(defaultsRaw) && typeof defaultsRaw.bufferAfterMin === "number"
-      ? Math.max(0, Math.trunc(defaultsRaw.bufferAfterMin))
-      : 0);
-  const bufferBeforeSeconds = prepMin * 60;
-  const bufferAfterSeconds = afterMin * 60;
+  // Buffers: offering attr, then talent default, then the hours row, then 0.
+  // The slot engine (applySellingTimeToHours over the hours row) uses the
+  // same chain, so the hold pads exactly what the offered slot assumed.
+  const bufferBeforeSeconds = effective.bufferBeforeMin * 60;
+  const bufferAfterSeconds = effective.bufferAfterMin * 60;
 
   return createPurchase(admin, {
     tenantId,
@@ -233,7 +429,7 @@ export async function placeInstantPurchase(
     // deposit_pct, allow_pay_in_person and require_account_to_book from
     // the offering row and refuses if the client's choice disagrees.
     // A deposit offering used to send "full" and charge the whole total.
-    paymentChoice: instantBookPaymentChoice(input.payInPerson, policy.reserveMode),
+    paymentChoice: instantBookPaymentChoice(input.payInPerson, effective.reserveMode),
     sourceChannel: input.sourceChannel,
     sourcePage: input.sourcePage,
     capacity: capacity.length > 0 ? capacity : undefined,
@@ -248,6 +444,10 @@ export async function placeInstantPurchase(
           poolId,
           bufferBeforeSeconds,
           bufferAfterSeconds,
+          timezone:
+            typeof hoursRow?.timezone === "string" && isValidIanaTimeZone(hoursRow.timezone)
+              ? hoursRow.timezone
+              : null,
         }
       : null,
     // Several people (couples). Reserved with the primary slot as one set.
@@ -264,5 +464,9 @@ export async function placeInstantPurchase(
         : undefined,
     openThread: input.openThread,
     guestSessionId: input.guestSessionId ?? null,
+    brief: input.brief ?? null,
+    locale: input.locale ?? null,
+    // Snapshot: the talent's published policy the buyer saw at checkout.
+    policyVersionId: await loadLatestPolicyVersionId(admin, input.talentProfileId),
   });
 }

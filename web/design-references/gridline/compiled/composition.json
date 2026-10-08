@@ -1,0 +1,100 @@
+{
+  "sections": [
+    {
+      "order": 0,
+      "unit": "Header shell · utility bar (phone + urgency)",
+      "confidence": "exact",
+      "kitSlot": null,
+      "nodeKind": null,
+      "shell": "header",
+      "variant": "utility bar (phone + urgency)",
+      "note": "shell/platform chrome, not a home section"
+    },
+    {
+      "order": 1,
+      "unit": "Section preset · alert band (urgency mode)",
+      "confidence": "exact",
+      "kitSlot": null,
+      "nodeKind": "alert_band",
+      "shell": null,
+      "variant": "",
+      "note": "type and variant found in kit source"
+    },
+    {
+      "order": 2,
+      "unit": "hero · spec block",
+      "confidence": "exact",
+      "kitSlot": "hero",
+      "nodeKind": null,
+      "shell": null,
+      "variant": "spec block",
+      "note": "type and variant found in kit source"
+    },
+    {
+      "order": 3,
+      "unit": "W-11 Category explorer · task picker (tasks → services)",
+      "confidence": "exact",
+      "kitSlot": "tasks",
+      "nodeKind": null,
+      "shell": null,
+      "variant": "task picker (tasks → services)",
+      "note": "type and variant found in kit source"
+    },
+    {
+      "order": 4,
+      "unit": "W-01 Services · comparison matrix (new layout)",
+      "confidence": "near",
+      "kitSlot": "services",
+      "nodeKind": null,
+      "shell": null,
+      "variant": "comparison matrix (new layout)",
+      "note": "type matches; variant not found in kit source (0/1 pieces)"
+    },
+    {
+      "order": 5,
+      "unit": "Section preset · spec table + W-12 Portfolio grid (jobs)",
+      "confidence": "exact",
+      "kitSlot": null,
+      "nodeKind": "spec_table",
+      "shell": null,
+      "variant": "",
+      "note": "type and variant found in kit source"
+    },
+    {
+      "order": 6,
+      "unit": "W-13 Location · area card (approximate)",
+      "confidence": "exact",
+      "kitSlot": "location",
+      "nodeKind": null,
+      "shell": null,
+      "variant": "area card (approximate)",
+      "note": "type and variant found in kit source"
+    },
+    {
+      "order": 7,
+      "unit": "W-02 FAQ · accordion",
+      "confidence": "exact",
+      "kitSlot": null,
+      "nodeKind": "accordion",
+      "shell": null,
+      "variant": "accordion",
+      "note": "type and variant found in kit source"
+    }
+  ],
+  "homeSlotOrder": [
+    "hero",
+    "tasks",
+    "services",
+    "location"
+  ],
+  "stats": {
+    "units": 8,
+    "skippedDynamic": 0,
+    "homeUnits": 7,
+    "exact": 6,
+    "near": 1,
+    "none": 0,
+    "exactPct": 85.7,
+    "exactOrNearPct": 100
+  }
+}

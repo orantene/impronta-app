@@ -44,9 +44,12 @@
  */
 
 import type Stripe from "stripe";
-import { getStripe } from "@/lib/stripe/client";
+import { getStripe, getStripeFor, withObjectPlatformFallback, type StripeAccountKey } from "@/lib/stripe/client";
+import { recordChargePlatform, resolveSellerPlatformForTransaction } from "@/lib/stripe/charge-platform";
+import { paymentsMockAllowed } from "@/lib/payments/mock-guard";
 import { logServerError } from "@/lib/server/safe-error";
 import { stripeCheckoutLocale } from "@/lib/i18n/vendor-locale";
+import { sanitizeStatementDescriptorSuffix } from "@/lib/payments/statement-descriptor";
 
 /**
  * Re-export the ONE canonical Stripe singleton (server-only, defined in
@@ -101,6 +104,8 @@ export type CheckoutSessionInput = {
   successUrl: string;
   cancelUrl: string;
   description?: string;
+  /** Public display name of the talent/workspace; becomes the card statement suffix. */
+  payeeName?: string | null;
   /**
    * The paying client's resolved app locale (`getRequestLocale()`), threaded
    * from the calling server action. Stripe otherwise reads the BROWSER
@@ -120,7 +125,32 @@ export type CheckoutSessionInput = {
 
 export type CheckoutSessionResult =
   | { ok: true; url: string; sessionId: string; mock?: boolean }
-  | { ok: false; error: string };
+  | {
+      ok: false;
+      error: string;
+      /**
+       * True when a session MAY exist (network drop, Stripe 5xx, no URL on
+       * the response). The caller must not release the hold on that: a retry
+       * with the same `cs_txn_<id>` idempotency key returns the same session.
+       * False only when Stripe definitely created nothing.
+       */
+      uncertain?: boolean;
+    };
+
+/** Stripe error types that mean the request was refused and nothing was created. */
+const DEFINITE_STRIPE_ERRORS = new Set([
+  "StripeCardError",
+  "StripeInvalidRequestError",
+  "StripeAuthenticationError",
+  "StripePermissionError",
+  "StripeRateLimitError",
+  "StripeIdempotencyError",
+]);
+
+export function checkoutFailureIsUncertain(err: unknown): boolean {
+  const type = typeof err === "object" && err !== null ? (err as { type?: unknown }).type : undefined;
+  return !(typeof type === "string" && DEFINITE_STRIPE_ERRORS.has(type));
+}
 
 /**
  * Create a Stripe Checkout Session in payment mode for a single line
@@ -137,10 +167,28 @@ export type CheckoutSessionResult =
  */
 export async function createCheckoutSessionForTransaction(
   input: CheckoutSessionInput,
-  deps: { stripe?: Stripe | null } = {},
+  deps: { stripe?: Stripe | null; platform?: StripeAccountKey } = {},
 ): Promise<CheckoutSessionResult> {
   try {
-    const stripe = deps.stripe !== undefined ? deps.stripe : getStripe();
+    // The seller of record's platform decides which Stripe account takes the
+    // charge (default 'us'). An injected client (tests) is used as-is.
+    let platform: StripeAccountKey;
+    if (deps.platform) platform = deps.platform;
+    else if (deps.stripe !== undefined) platform = "us";
+    else {
+      const resolved = await resolveSellerPlatformForTransaction(input.transactionId);
+      // Fail closed: never guess a platform (TUL-142).
+      if (!resolved.ok) return { ok: false, error: "Payments for this seller are not available right now.", uncertain: false };
+      platform = resolved.key;
+    }
+    const stripe = deps.stripe !== undefined ? deps.stripe : getStripeFor(platform);
+    if (!stripe && platform === "mx") {
+      return { ok: false, error: "Payments for this seller are not available right now.", uncertain: false };
+    }
+    if (!stripe && !paymentsMockAllowed()) {
+      logServerError("payments.stripe.mockRefused", `STRIPE_SECRET_KEY missing in production; refusing mock checkout (transaction ${input.transactionId})`);
+      return { ok: false, error: "Payments are not configured.", uncertain: false };
+    }
     if (!stripe) {
       // Mock mode: skip Stripe entirely. The "session id" is synthetic so
       // the calling action can still echo something back. Webhook delivery
@@ -148,7 +196,7 @@ export async function createCheckoutSessionForTransaction(
       // the admin manually marks it paid.
       return {
         ok: true,
-        url: `${input.successUrl}?mock=1&tx=${encodeURIComponent(input.transactionId)}`,
+        url: `${input.successUrl}${input.successUrl.includes("?") ? "&" : "?"}mock=1&tx=${encodeURIComponent(input.transactionId)}`,
         sessionId: `mock_${input.transactionId}`,
         mock: true,
       };
@@ -175,7 +223,10 @@ export async function createCheckoutSessionForTransaction(
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
-      payment_method_types: ["card"],
+      // No `payment_method_types`: Stripe's dynamic payment methods use the
+      // Dashboard payment-method configuration (Link, wallets, installments,
+      // crypto, and delayed methods such as OXXO/SPEI once enabled). Delayed
+      // methods settle via `checkout.session.async_payment_*` (webhook-routing).
       line_items: [
         {
           quantity: 1,
@@ -210,6 +261,9 @@ export async function createCheckoutSessionForTransaction(
       // `refunds.ts`), so the same routing keys must land on the PI or a
       // Dashboard / webhook refund no-ops with empty PI metadata.
       payment_intent_data: {
+        ...(sanitizeStatementDescriptorSuffix(input.payeeName)
+          ? { statement_descriptor_suffix: sanitizeStatementDescriptorSuffix(input.payeeName) }
+          : {}),
         metadata: {
           transaction_id: input.transactionId,
           ...(input.inquiryId ? { inquiry_id: input.inquiryId } : {}),
@@ -229,18 +283,23 @@ export async function createCheckoutSessionForTransaction(
     // transaction id is the right grain: a deposit and its balance are
     // separate rows with separate ids, so they never collide, and a genuine
     // resume of an abandoned checkout correctly returns the same session.
+    // Fail closed: an MX charge must be recorded as MX before it can exist, or
+    // payouts/refunds would later run on the wrong platform.
+    if (!(await recordChargePlatform(input.transactionId, platform))) {
+      return { ok: false, error: "Failed to create payment session.", uncertain: false };
+    }
     const session = await stripe.checkout.sessions.create(sessionParams, {
       idempotencyKey: `cs_txn_${input.transactionId}`,
     });
 
     if (!session.url) {
-      return { ok: false, error: "Stripe returned no checkout URL." };
+      return { ok: false, error: "Stripe returned no checkout URL.", uncertain: true };
     }
 
     return { ok: true, url: session.url, sessionId: session.id };
   } catch (err) {
     logServerError("payments.stripe.createCheckoutSessionForTransaction", err);
-    return { ok: false, error: "Failed to create payment session." };
+    return { ok: false, error: "Failed to create payment session.", uncertain: checkoutFailureIsUncertain(err) };
   }
 }
 
@@ -268,10 +327,12 @@ export async function retrieveCheckoutSessionLink(
   sessionId: string,
   deps: { stripe?: Stripe | null } = {},
 ): Promise<CheckoutSessionLinkResult> {
-  const stripe = deps.stripe !== undefined ? deps.stripe : getStripe();
-  if (!stripe) return { ok: false, error: "Stripe is not configured." };
   try {
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const session =
+      deps.stripe !== undefined
+        ? await deps.stripe?.checkout.sessions.retrieve(sessionId)
+        : await withObjectPlatformFallback((c) => c.checkout.sessions.retrieve(sessionId));
+    if (!session) return { ok: false, error: "Stripe is not configured." };
     return { ok: true, status: session.status ?? null, url: session.url ?? null };
   } catch (err) {
     logServerError("payments.stripe.retrieveCheckoutSessionLink", err);
@@ -292,18 +353,27 @@ export type ExpireCheckoutSessionResult =
  * swallowed, because then the customer HAS paid and the caller must not
  * pretend otherwise.
  */
+async function expireOn(stripe: Stripe, sessionId: string): Promise<ExpireCheckoutSessionResult> {
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
+  if (session.status === "expired") return { ok: true, already: true };
+  if (session.status === "complete") return { ok: false, reason: "complete" };
+  await stripe.checkout.sessions.expire(sessionId);
+  return { ok: true, already: false };
+}
+
 export async function expireCheckoutSession(
   sessionId: string,
   deps: { stripe?: Stripe | null } = {},
 ): Promise<ExpireCheckoutSessionResult> {
-  const stripe = deps.stripe !== undefined ? deps.stripe : getStripe();
-  if (!stripe) return { ok: false, reason: "unavailable" };
   try {
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
-    if (session.status === "expired") return { ok: true, already: true };
-    if (session.status === "complete") return { ok: false, reason: "complete" };
-    await stripe.checkout.sessions.expire(sessionId);
-    return { ok: true, already: false };
+    // Session ids carry no platform: find the owning platform, then expire there.
+    const outcome = await (deps.stripe !== undefined
+      ? deps.stripe
+        ? expireOn(deps.stripe, sessionId)
+        : Promise.resolve(null)
+      : withObjectPlatformFallback((c) => expireOn(c, sessionId)));
+    if (!outcome) return { ok: false, reason: "unavailable" };
+    return outcome;
   } catch (err) {
     logServerError("payments.stripe.expireCheckoutSession", err);
     return { ok: false, reason: "unavailable" };

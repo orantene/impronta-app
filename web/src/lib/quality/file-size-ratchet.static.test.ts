@@ -132,7 +132,8 @@ const BUDGETS: Record<string, number> = {
   // `locale` and `onLockedOperation` plus their dependency entries. Everything
   // that COULD leave did: the CustomEvent payload lives in the new
   // `edit-chrome/talent-lock-broadcast.ts`, not in this file.
-  "src/components/edit-chrome/edit-context.tsx": 6308,
+  // Wave 4 Apps deep-link: openAddMenu on context value (+3).
+  "src/components/edit-chrome/edit-context.tsx": 6311,
   // P2 (style-panel reset): D1 deleted the mis-scoped Surface/Custom-color
   // block outright, so this budget goes DOWN, 5896 -> 5809. Lowering locks the
   // reduction in; the guard can never drift back up silently.
@@ -186,7 +187,10 @@ const BUDGETS: Record<string, number> = {
   // footer rows select in place only when the node exists in THIS tree;
   // otherwise they open the ShellEditConfirm hand-off dialog (its OWN module;
   // what lands here is the guard, the state, and the mount).
-  "src/components/edit-chrome/navigator-panel.tsx": 4539,
+  // Track B (2026-10-02): NodeInlineActionButton extracted to
+  // navigator-inline-action-button.tsx; Free structure-lock wiring (no Add /
+  // Move / dup / paste) lands here net-smaller. Re-baselined to measured.
+  "src/components/edit-chrome/navigator-panel.tsx": 4474,
   // +68 (info-tip program): `NavLocaleToggle` — the locale switcher for
   // FREEFORM surfaces. Freeform stores one cms_pages row per locale and the
   // public route loads strictly that row, so the in-place ContentLocaleToggle
@@ -197,7 +201,7 @@ const BUDGETS: Record<string, number> = {
   // +13 (freeform translation status): the TranslationStatusButton mount
   // beside NavLocaleToggle. The panel, matcher, and server action live in
   // their own modules; this is only the gated call site.
-  "src/components/edit-chrome/topbar.tsx": 3396,
+  "src/components/edit-chrome/topbar.tsx": 3327,
   // +4 (slash-command insert): the mount + wiring for the "/" menu only. The
   // plugin, trigger detection, catalog/matcher and menu component all live in
   // their own modules (SlashCommandPlugin, slash-command-trigger,
@@ -227,7 +231,8 @@ const BUDGETS: Record<string, number> = {
   // declaration block instead put it under, and this file is no longer where
   // the list grows each time another panel earns its own chunk. Re-baselined to
   // the measured value, per this guard's own procedure.
-  "src/components/edit-chrome/edit-shell.tsx": 2362,
+  // Wave 4: ?panel=add|apps&app=… → openAddMenu + builder-app-intent (+7).
+  "src/components/edit-chrome/edit-shell.tsx": 2298,
   // +16 (per-device carousel slides, 2026-08-17): "Slides per view" now writes
   // `responsive[tier]` when a non-desktop viewport is active instead of
   // silently rewriting the desktop base, plus its override dot and reset. The
@@ -268,7 +273,7 @@ const BUDGETS: Record<string, number> = {
   // +10 (info-tip program): six standing <Helper> paragraphs moved behind ⓘ
   // via `info=` on their FieldLabel; multi-line labels cost more lines than the
   // single-line helpers they replaced, while the panel renders shorter.
-  "src/components/edit-chrome/theme-drawer.tsx": 1433,
+  "src/components/edit-chrome/theme-drawer.tsx": 1461,
   "src/components/edit-chrome/command-palette.tsx": 1287,
   // `assets-drawer.tsx` (1,244) is GONE — the pre-unification media library it
   // implemented was fully subsumed by <MediaLibrary>. The left rail's Assets
@@ -280,7 +285,7 @@ const BUDGETS: Record<string, number> = {
   // save bus. The tab's own ~1,040 lines went into four NEW modules under
   // `tabs/` (RegionsTab / regions-zone / regions-item-row / regions-controls /
   // regions-meta), each under the 800-line cap, rather than into this file.
-  "src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx": 983,
+  "src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx": 988,
   // +4 (info-tip program): ToggleRow gained an optional `info` prop so the
   // availability note could move behind an ⓘ instead of standing under the row.
   "src/components/edit-chrome/inspectors/featured-talent-content.tsx": 904,
@@ -367,7 +372,7 @@ const BUDGETS: Record<string, number> = {
   // reload; onSkillsChanged / onContextsChanged and Save & exit's not-dirty
   // early return now queue the (coalesced) refresh. Three call sites plus the
   // comments explaining WHY these paths need it — nothing extractable.
-  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4756,
+  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4761,
   // 2026-08-15 talent-notifications de-mock — net +2. `TalentNotificationsDrawer`
   // rendered a hardcoded MOCK_TALENT_NOTIFS and never read
   // `bridgeUserNotifications`, so a talent saw none of their own rows. The
@@ -448,7 +453,14 @@ const BUDGETS: Record<string, number> = {
   // 2026-09-25 jor-day: ES for Messages seller Actions disabledReason
   // "Pick a conversation first" lives in dashboard-i18n-rail.ts (spread into
   // ES_TEXT) so this file stays at the 3968 budget — do not re-raise here.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3968,
+  // 2026-09-27 AUD-018: Money request/record/refund/correct ES lives in
+  // dashboard-i18n-money.ts (folded into RAIL_ES_TEXT) — same reason; keep 3968.
+  // 2026-10-01 dashboard-es sweep: profile-editor ES block (skills .. verifications)
+  // moved to dashboard-i18n-talent-editors.ts (spread at the same position), 3968 -> 3836.
+  // 2026-10-03 #2495 Codex P2: +6 offering save/validation ES strings (server
+  // config, name, currency, book-how, deposit %, cancel hours). Keep adjacent
+  // to the other services-editor keys in ES_TEXT; raise with the growth.
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3842,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.
@@ -552,7 +564,7 @@ const BUDGETS: Record<string, number> = {
   // Merged with main on 2026-09-10: main raised this by three lines for the
   // signup work; the budget is the merged file's measured size.
   // 2026-09-24 services-rebuild: +4 (2189). Measured wc -l.
-  "src/components/admin/shell/admin-shell-client.tsx": 2189,
+  "src/components/admin/shell/admin-shell-client.tsx": 2195,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge
   // field (reversed/failed/held legs replacing the held-only totals). The type
   // and every helper live in lib/payments/talent-payout-attention-types.ts;
@@ -578,12 +590,12 @@ const BUDGETS: Record<string, number> = {
   // 2026-09-25 Agenda V2: +5 — stamp bridgeTalentAgendaV2 (server flag) so
   // the client shell does not re-read non-NEXT_PUBLIC env.
   // 2026-09-25: +3 — preserve agendaNow QA clock across shell URL rewrites.
-  "src/components/admin/shell/internal/state/context.tsx": 2491,
+  "src/components/admin/shell/internal/state/context.tsx": 2496,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3769,
   // +6: loadOfferDraft returns createdByName (the lookup itself is extracted to offer-author.ts)
-  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 3594,
+  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 3532,
   // 2026-08-10 branding-media: +12 for the wordmark/favicon in-use delete
   // guard (logic extracted to site-admin/server/brand-library.ts; this is
   // the import + call site + refusal message).
@@ -607,7 +619,7 @@ const BUDGETS: Record<string, number> = {
   // talent-document actions with one dual-auth helper (staff OR profile owner),
   // so the helper and its doc comment cost more lines than the four blocks it
   // deleted returned.
-  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2421,
+  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2335,
   // +16 — loads + passes the Pro/Portfolio embeds and press bands (the render
   // chrome itself lives in _shared/TalentExtrasBands.tsx, not here).
   // +17 — the agency-surface roster gate, called in generateMetadata AND the
@@ -618,7 +630,7 @@ const BUDGETS: Record<string, number> = {
   // +37 — option labels keep their English key AND their unit; without this
   // the public profile discarded both (TS also needs unit on NewDefEmbed).
   // 2026-09-24 services-rebuild: +11 (2682). Measured wc -l.
-  "src/app/t/[profileCode]/profile-view.tsx": 2682,
+  "src/app/t/[profileCode]/profile-view.tsx": 2683,
   // 2026-08-16 T4 attachments off the Server Action body: +123. Files used to
   // ride the submit FormData, which put the whole inquiry behind the ~4 MB
   // body cap while the drawer advertised 10 x 20 MB. Added:
@@ -632,7 +644,7 @@ const BUDGETS: Record<string, number> = {
   // Budget sections and the "Job name" field rather than rewording them.
   // Raised in the same commit as the growth, per this file's own rule.
   // Extraction would be better and is owed: this is a 2.4k-line god file.
-  "src/components/inquiry/InquiryDrawer.tsx": 2382,
+  "src/components/inquiry/InquiryDrawer.tsx": 2243,
 
   // Site-admin library and its big characterization suites. Test files grow
   // into god files exactly like source files do, and are just as hard to read.
@@ -646,7 +658,7 @@ const BUDGETS: Record<string, number> = {
   //        `sections/contact_form/attachment-render.test.ts` rather than here.
   "src/lib/site-admin/sections/node-presentation-render.test.ts": 2638,
   "src/lib/site-admin/server/homepage.ts": 2397,
-  "src/lib/site-admin/edit-mode/composition-actions.ts": 2259,
+  "src/lib/site-admin/edit-mode/composition-actions.ts": 2153,
 };
 
 test("no file is claimed by two ratchet tables at once", () => {

@@ -39,6 +39,7 @@ import {
 } from "@/lib/billing/subscription-discounts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { recordCommerceAudit, COMMERCE_AUDIT } from "@/lib/billing/commerce-audit";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ─── Result shapes ───────────────────────────────────────────────────────────
 
@@ -416,6 +417,8 @@ async function loadRow(
 export async function setAccountDiscount(
   raw: unknown,
 ): Promise<SetAccountDiscountResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 
@@ -509,6 +512,8 @@ export async function setAccountDiscount(
 export async function endAccountDiscount(
   raw: unknown,
 ): Promise<EndAccountDiscountResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 
@@ -574,6 +579,8 @@ export async function endAccountDiscount(
 export async function repairAccountDiscount(
   raw: unknown,
 ): Promise<SetAccountDiscountResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 

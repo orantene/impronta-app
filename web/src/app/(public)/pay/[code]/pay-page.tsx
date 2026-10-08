@@ -10,8 +10,10 @@ import { publicThreadPath, signThreadToken } from "@/lib/messaging/thread-token"
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
 import { venueHhmm } from "@/lib/spaces/venue-clock";
 
+import { moneyMayHaveMoved } from "@/lib/payments/pay-closed-money";
 import { CheckoutView } from "./CheckoutView";
 import { resolvePaidLinkDisplayStatus } from "@/lib/payments/pay-refund-status";
+import { loadPayLinkFeeLines } from "@/lib/payments/pay-link-fee-lines";
 
 /**
  * Absolute origin for Stripe success/cancel URLs. Prefer NEXT_PUBLIC_BASE_URL
@@ -112,6 +114,29 @@ export async function PayByCodePage({
     .eq("order_id", loaded.orderId);
   if (linesError) notFound();
 
+  // What the kept time IS: a linked booking is an appointment; an order with a
+  // pickup hold is a pickup; anything else gets neutral wording.
+  const { data: slotBooking } = await admin
+    .from("agency_bookings")
+    .select("id, status")
+    .eq("order_id", loaded.orderId)
+    .limit(1)
+    .maybeSingle();
+  // A booking made from an accepted offer has no time yet: it keeps no slot, so
+  // the page must not say the appointment time is kept.
+  const slotBookingId = (slotBooking as { id?: string } | null)?.id ?? null;
+  const { data: slotTime } = slotBookingId
+    ? await admin.from("talent_bookings").select("starts_at").eq("id", slotBookingId).maybeSingle()
+    : { data: null };
+  const bookingHasTime = Boolean((slotTime as { starts_at?: string | null } | null)?.starts_at);
+  const slotKind: "appointment" | "appointment_no_time" | "pickup" | null = slotBooking
+    ? bookingHasTime
+      ? "appointment"
+      : "appointment_no_time"
+    : orderRow?.hold_expires_at
+      ? "pickup"
+      : null;
+
   // The two clocks the customer reads ("expires 19:15", "pickup kept until
   // 19:40", MC15) in the VENUE's zone; the rows hold ISO instants and the
   // page was printing them verbatim (live run 2026-09-11).
@@ -136,6 +161,7 @@ export async function PayByCodePage({
       <CheckoutView
         code={code}
         pathPrefix={pathPrefix}
+        slotKind={slotKind}
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? "USD"}
         expiresAt={expiresAtLabel}
@@ -174,6 +200,7 @@ export async function PayByCodePage({
       <CheckoutView
         code={code}
         pathPrefix={pathPrefix}
+        slotKind={slotKind}
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
@@ -187,16 +214,28 @@ export async function PayByCodePage({
     );
   }
 
-  if (loaded.status !== "open") {
+  // A cancelled booking voids its order: an open link on it is no longer
+  // payable, whatever the link row still says.
+  // The booking is checked too: a cancel whose card payment was in flight
+  // keeps the order (money may land), but its booking is cancelled and the
+  // page must never offer "Pay securely" again (QA on Jor, 2026-10-01).
+  const orderCancelled =
+    orderRow?.status === "cancelled" ||
+    (slotBooking as { status?: string | null } | null)?.status === "cancelled";
+  if (loaded.status !== "open" || orderCancelled) {
+    const moneyMoved =
+      loaded.status === "cancelled" || orderCancelled ? await moneyMayHaveMoved(admin, loaded.orderId) : false;
     return (
       <CheckoutView
         code={code}
         pathPrefix={pathPrefix}
+        moneyMayHaveMoved={moneyMoved}
+        slotKind={slotKind}
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
         status={
-          loaded.status === "cancelled"
+          loaded.status === "cancelled" || orderCancelled
             ? "cancelled"
             : loaded.status === "replaced"
               ? "replaced"
@@ -226,6 +265,7 @@ export async function PayByCodePage({
         <CheckoutView
           code={code}
           pathPrefix={pathPrefix}
+        slotKind={slotKind}
           amountCents={loaded.amountCents}
           currency={orderRow?.currency ?? ""}
           expiresAt={expiresAtLabel}
@@ -259,6 +299,7 @@ export async function PayByCodePage({
       <CheckoutView
         code={code}
         pathPrefix={pathPrefix}
+        slotKind={slotKind}
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
@@ -279,6 +320,7 @@ export async function PayByCodePage({
       <CheckoutView
         code={code}
         pathPrefix={pathPrefix}
+        slotKind={slotKind}
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
@@ -292,14 +334,17 @@ export async function PayByCodePage({
     );
   }
 
+  const feeLines = await loadPayLinkFeeLines(admin, loaded.orderId, loaded.amountCents);
   return (
     <CheckoutView
       code={code}
       pathPrefix={pathPrefix}
+        slotKind={slotKind}
       amountCents={loaded.amountCents}
       currency={orderRow?.currency ?? ""}
       expiresAt={expiresAtLabel}
       status="open"
+      feeLines={feeLines}
       lines={((lines ?? []) as { label: string | null; units: number; unit_cents: number }[]).map((line) => ({
         label: line.label ?? "",
         units: Number(line.units) || 1,

@@ -26,6 +26,7 @@ import {
   readTalentDesignSlice,
   readTalentStyleClasses,
 } from "@/lib/site-admin/edit-mode/talent-design-store";
+import { publicPageBody } from "./talent-page-publish-core";
 import {
   buildTalentPageSeo,
   type TalentPageSeoEnvelope,
@@ -38,7 +39,10 @@ export interface PublishedTalentPageRow {
   slug: string;
   title: string;
   status: "draft" | "scheduled" | "published";
+  /** Draft body. Never shown by this public loader when a live body exists. */
   blocks: unknown;
+  /** Live body — what visitors see. Absent on a pre-migration read. */
+  blocks_published?: unknown;
   theme: unknown;
   published_at: string | null;
   // SEO-1/SEO-3 `talent_pages` columns. All nullable + optional so a read from
@@ -109,6 +113,12 @@ export interface PublishedTalentPageActions {
     talentProfileId: string;
     slug: string;
   }) => Promise<PublishedTalentPageRow | null>;
+  /**
+   * #201: hosts an explicit canonical may name (custom domains + platform
+   * subdomain). Optional and fail-safe: absent or throwing means only the
+   * origin host counts.
+   */
+  loadOwnHosts?: (talentProfileId: string) => Promise<string[]>;
 }
 
 /**
@@ -164,13 +174,22 @@ export async function resolvePublishedTalentPage(
   // path can never leak a draft through this public renderer.
   if (row.status !== "published") return null;
 
+  const ownHosts =
+    row.canonical_url && actions.loadOwnHosts
+      ? await actions.loadOwnHosts(talent.id).catch(() => [] as string[])
+      : [];
+
   const designSlice = readTalentDesignSlice(row.theme);
   return {
     pageId: row.id,
     talentProfileId: talent.id,
     tenantId: talent.managingTenantId,
     title: row.title,
-    blocks: coerceBuilderTree(row.blocks),
+    // Visitors see the published body; a later save stays private until the
+    // next publish. (`blocks` only where no published body exists yet.)
+    blocks: coerceBuilderTree(
+      publicPageBody({ blocks: row.blocks, blocksPublished: row.blocks_published }, { draftPreview: false }),
+    ),
     theme: coerceTheme(row.theme),
     designTokens: designSlice.tokens,
     componentStyleDefaults: designSlice.componentStyles,
@@ -190,6 +209,7 @@ export async function resolvePublishedTalentPage(
       fallbackTitle: talent.displayName ?? "",
       canonicalOrigin: input.canonicalOrigin,
       canonicalPath: input.canonicalPath,
+      ownHosts,
     }),
   };
 }

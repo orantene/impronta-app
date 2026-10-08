@@ -41,8 +41,10 @@ name: CI — structural quality gate
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
+  workflow_dispatch:
 
 # Cancel superseded runs on a PR ref, so a second push doesn't stack up.
 #
@@ -64,7 +66,7 @@ on:
 # Runs on main now queue instead of cancelling. The cost is compute already
 # being spent on runs that were thrown away.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
@@ -73,6 +75,7 @@ permissions:
 jobs:
   gate:
     name: Structural quality gate
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     # 45, not 25. At 25 this job was killed mid-flight at 25m15s on a main
     # commit. GitHub reports a timeout as `cancelled`, not `failure`, and
@@ -123,9 +126,9 @@ jobs:
           set +e
           # Bump heap: the full-project tsc exceeds the default ~2GB and was
           # OOM-exiting (134) mid-compile, making the ratchet a false-green (it
-          # counted 0 errors before the heap died). 8GB lets tsc finish so the
-          # error count is real.
-          tsc_output=$(NODE_OPTIONS="--max-old-space-size=8192" npx tsc --noEmit 2>&1)
+          # counted 0 errors before the heap died). Combined integ+factory
+          # OOMs at 8GB; 11GB lets tsc finish so the error count is real.
+          tsc_output=$(NODE_OPTIONS="--max-old-space-size=11264" npx tsc --noEmit 2>&1)
           tsc_exit=$?
           set -e
           # Match the primary error line; TS sometimes prints multi-line
@@ -351,6 +354,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:size-ratchet
 
+      - name: tests — QA host pool helpers
+        if: ${{ !cancelled() }}
+        run: npm run test:qa-host
+
       - name: tests — alias guard
         # scripts/lib/alias-guard.mjs: a custom domain may only be aliased to a
         # build whose commit the main structural gate passed (2026-09-11
@@ -358,12 +365,31 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:alias-guard
 
+      - name: tests — theme i18n overlay release script
+        # scripts/release-theme-i18n-plan.ts: pure guards + flow of the guarded
+        # Spanish/English seed release (injected fakes, no DB).
+        if: ${{ !cancelled() }}
+        run: npm run test:release-theme-i18n
+
+      - name: tests — theme CTA patch release script
+        # scripts/release-theme-cta-plan.ts: guards + flow of the guarded Maison v2
+        # "Book an appointment" header/hero release (injected fakes, no DB).
+        if: ${{ !cancelled() }}
+        run: npm run test:release-theme-cta
+
       - name: tests — media ownership stamps
         # The ownership stamp helpers every media writer now spreads into its
         # INSERT (lib/media/ownership.ts). A regression here silently mislabels
         # who owns a photo, which is the input to every later per-hub phase.
         if: ${{ !cancelled() }}
         run: npm run test:media-ownership
+
+      - name: tests — account lifecycle (anonymize, deletion, retention purge)
+        # PII erasure and retention purge decide what we keep about a person.
+        # These suites existed (anonymize, deletion, retention) but sat in no
+        # lane, so a regression in what gets scrubbed or purged gated nothing.
+        if: ${{ !cancelled() }}
+        run: npm run test:account-lifecycle
 
       - name: tests — taxonomy guard (selftest only; the DB probe runs in deploy:smoke)
         # Proves check:taxonomy still MEASURES the bugs it was written for —
@@ -416,6 +442,26 @@ jobs:
       - name: tests — onboarding
         if: ${{ !cancelled() }}
         run: npm run test:onboarding
+
+      - name: tests — Jorgelina publish script (TUL-73b)
+        if: ${{ !cancelled() }}
+        run: npm run test:jorgelina-publish
+
+      - name: tests — Jorgelina content script (TUL-73)
+        if: ${{ !cancelled() }}
+        run: npm run test:jorgelina-content
+
+      - name: tests — English content fill + ticker source scripts (TUL-15)
+        if: ${{ !cancelled() }}
+        run: npm run test:en-content-fill
+
+      - name: tests — QA test-talent sync + design drift (TUL-135)
+        if: ${{ !cancelled() }}
+        run: npm run test:sync-test-talent
+
+      - name: tests — talent public app routes (bracketed folders, TUL-288 follow-up)
+        if: ${{ !cancelled() }}
+        run: npm run test:talent-public-app
 
       - name: tests — fields
         if: ${{ !cancelled() }}
@@ -492,6 +538,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:design-system
 
+      - name: tests — build-chunk checker
+        if: ${{ !cancelled() }}
+        run: npm run test:build-chunks
+
       # axe-core over every variant in the component catalog, one mount each.
       # The plan's finding was "no axe in CI"; this is the answer to it, and it
       # is deliberately aimed at PRIMITIVES rather than pages — a page-level
@@ -547,6 +597,12 @@ jobs:
       - name: tests — storefront seams
         if: ${{ !cancelled() }}
         run: npm run test:storefront
+
+      # Design-compiler (token/CSS compile pipeline). Wired into `npm run ci`;
+      # must appear here so check:ci-lane-parity stays green.
+      - name: tests — design-compiler
+        if: ${{ !cancelled() }}
+        run: npm run test:design-compiler
       # QR & Links Q1: which destination a printed code resolves to, at the
       # hour it is actually scanned. Pure — a wall clock in the venue timezone
       # and a rule list, no database. The rows and the redirect are asserted in
@@ -649,8 +705,14 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=11264
         run: npx next build
+
+      # Cheap file-only check (no second build): every client chunk a route's
+      # client-reference manifest names must exist in .next/static/chunks.
+      - name: build — no phantom client chunks
+        if: success()
+        run: npm run check:build-chunks
 
       # ── Gate 7: Admin + POS JavaScript budget ────────────────────────
       # MUST follow the build: it reads `.next/app-build-manifest.json`, which

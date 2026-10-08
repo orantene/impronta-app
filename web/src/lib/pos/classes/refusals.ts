@@ -157,6 +157,15 @@ export const WALKIN_REFUSALS: Readonly<Record<WalkInBookingRefusal, ClassesRefus
   ...PURCHASE_REFUSALS,
   invalid: "nameRequired",
   not_found: "serviceNotFound",
+  too_soon: "unavailable",
+  // The desk is exempt from posture and open hours (staffDesk), so these
+  // arrive only if that changes; each is still a plain "not available".
+  inquiry_only: "unavailable",
+  request_only: "unavailable",
+  not_accepting_bookings: "unavailable",
+  bad_duration: "unavailable",
+  beyond_horizon: "unavailable",
+  outside_hours: "unavailable",
 };
 
 function lookup<K extends string>(

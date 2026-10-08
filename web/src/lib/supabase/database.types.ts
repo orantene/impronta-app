@@ -763,6 +763,7 @@ export type Database = {
       }
       agency_bookings: {
         Row: {
+          policy_version_id: string | null
           access_notes: string | null
           balance_collection_method: string | null
           balance_due_at: string | null
@@ -839,6 +840,7 @@ export type Database = {
           wardrobe_notes: string | null
         }
         Insert: {
+          policy_version_id?: string | null
           access_notes?: string | null
           balance_collection_method?: string | null
           balance_due_at?: string | null
@@ -915,6 +917,7 @@ export type Database = {
           wardrobe_notes?: string | null
         }
         Update: {
+          policy_version_id?: string | null
           access_notes?: string | null
           balance_collection_method?: string | null
           balance_due_at?: string | null
@@ -2901,6 +2904,8 @@ export type Database = {
           participant_id: string
           party: string
           payout_rail: string | null
+          /** pass_through: actual processing fee on this leg (null for included-mode). */
+          processing_fee_cents: number | null
           release_after: string | null
           status: string
           stripe_transfer_id: string | null
@@ -2924,6 +2929,7 @@ export type Database = {
           participant_id: string
           party: string
           payout_rail?: string | null
+          processing_fee_cents?: number | null
           release_after?: string | null
           status: string
           stripe_transfer_id?: string | null
@@ -2947,6 +2953,7 @@ export type Database = {
           participant_id?: string
           party?: string
           payout_rail?: string | null
+          processing_fee_cents?: number | null
           release_after?: string | null
           status?: string
           stripe_transfer_id?: string | null
@@ -6804,6 +6811,7 @@ export type Database = {
       }
       inquiries: {
         Row: {
+          policy_version_id: string | null
           access_notes: string | null
           assigned_staff_id: string | null
           booked_at: string | null
@@ -6875,6 +6883,7 @@ export type Database = {
           wardrobe_notes: string | null
         }
         Insert: {
+          policy_version_id?: string | null
           access_notes?: string | null
           assigned_staff_id?: string | null
           booked_at?: string | null
@@ -6946,6 +6955,7 @@ export type Database = {
           wardrobe_notes?: string | null
         }
         Update: {
+          policy_version_id?: string | null
           access_notes?: string | null
           assigned_staff_id?: string | null
           booked_at?: string | null
@@ -8029,6 +8039,7 @@ export type Database = {
       }
       inquiry_offers: {
         Row: {
+          policy_version_id: string | null
           accepted_at: string | null
           balance_collection_method: string | null
           coordinator_fee: number
@@ -8052,6 +8063,7 @@ export type Database = {
           version: number
         }
         Insert: {
+          policy_version_id?: string | null
           accepted_at?: string | null
           balance_collection_method?: string | null
           coordinator_fee?: number
@@ -8075,6 +8087,7 @@ export type Database = {
           version?: number
         }
         Update: {
+          policy_version_id?: string | null
           accepted_at?: string | null
           balance_collection_method?: string | null
           coordinator_fee?: number
@@ -9640,6 +9653,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          policy_version_id: string | null
           created_at: string
           created_by: string | null
           currency: string
@@ -9664,6 +9678,7 @@ export type Database = {
           version: number
         }
         Insert: {
+          policy_version_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -9688,6 +9703,7 @@ export type Database = {
           version?: number
         }
         Update: {
+          policy_version_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -10669,6 +10685,7 @@ export type Database = {
           default_theme_tokens_talent: Json | null
           default_theme_updated_at: string | null
           default_theme_updated_by: string | null
+          guest_captcha_enforced: boolean
           id: boolean
           instant_book_default: boolean
           media_private_access_enabled: boolean
@@ -10699,6 +10716,7 @@ export type Database = {
           default_theme_tokens_talent?: Json | null
           default_theme_updated_at?: string | null
           default_theme_updated_by?: string | null
+          guest_captcha_enforced?: boolean
           id?: boolean
           instant_book_default?: boolean
           media_private_access_enabled?: boolean
@@ -10729,6 +10747,7 @@ export type Database = {
           default_theme_tokens_talent?: Json | null
           default_theme_updated_at?: string | null
           default_theme_updated_by?: string | null
+          guest_captcha_enforced?: boolean
           id?: boolean
           instant_book_default?: boolean
           media_private_access_enabled?: boolean
@@ -11996,6 +12015,63 @@ export type Database = {
         }
         Relationships: []
       }
+      resend_inbound_emails: {
+        Row: {
+          id: string
+          resend_email_id: string
+          message_id: string | null
+          from_address: string
+          to_addresses: string[]
+          subject: string
+          body_text: string | null
+          body_html: string | null
+          body_truncated: boolean
+          forward_to: string | null
+          forward_status: string
+          forward_error: string | null
+          forwarded_at: string | null
+          provider_payload: Record<string, unknown>
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          resend_email_id: string
+          message_id?: string | null
+          from_address: string
+          to_addresses?: string[]
+          subject?: string
+          body_text?: string | null
+          body_html?: string | null
+          body_truncated?: boolean
+          forward_to?: string | null
+          forward_status?: string
+          forward_error?: string | null
+          forwarded_at?: string | null
+          provider_payload?: Record<string, unknown>
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          resend_email_id?: string
+          message_id?: string | null
+          from_address?: string
+          to_addresses?: string[]
+          subject?: string
+          body_text?: string | null
+          body_html?: string | null
+          body_truncated?: boolean
+          forward_to?: string | null
+          forward_status?: string
+          forward_error?: string | null
+          forwarded_at?: string | null
+          provider_payload?: Record<string, unknown>
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       review_moderation_events: {
         Row: {
           action: string
@@ -13074,6 +13150,7 @@ export type Database = {
           api_version: string | null
           event_id: string
           event_type: string
+          lane: string | null
           livemode: boolean | null
           processed_at: string
         }
@@ -13081,6 +13158,7 @@ export type Database = {
           api_version?: string | null
           event_id: string
           event_type: string
+          lane?: string | null
           livemode?: boolean | null
           processed_at?: string
         }
@@ -13088,6 +13166,7 @@ export type Database = {
           api_version?: string | null
           event_id?: string
           event_type?: string
+          lane?: string | null
           livemode?: boolean | null
           processed_at?: string
         }
@@ -15338,7 +15417,7 @@ export type Database = {
           allow_pay_in_person: boolean
           amount_cents: number | null
           attributes: Json
-          booking_mode: string
+          booking_mode: string | null
           cancellation_hours: number | null
           capacity_pool_id: string | null
           category: string | null
@@ -15373,7 +15452,7 @@ export type Database = {
           allow_pay_in_person?: boolean
           amount_cents?: number | null
           attributes?: Json
-          booking_mode?: string
+          booking_mode?: string | null
           cancellation_hours?: number | null
           capacity_pool_id?: string | null
           category?: string | null
@@ -15408,7 +15487,7 @@ export type Database = {
           allow_pay_in_person?: boolean
           amount_cents?: number | null
           attributes?: Json
-          booking_mode?: string
+          booking_mode?: string | null
           cancellation_hours?: number | null
           capacity_pool_id?: string | null
           category?: string | null
@@ -15515,6 +15594,7 @@ export type Database = {
       talent_pages: {
         Row: {
           blocks: Json
+          blocks_published: Json | null
           canonical_url: string | null
           created_at: string
           created_by: string | null
@@ -15543,6 +15623,7 @@ export type Database = {
         }
         Insert: {
           blocks?: Json
+          blocks_published?: Json | null
           canonical_url?: string | null
           created_at?: string
           created_by?: string | null
@@ -15571,6 +15652,7 @@ export type Database = {
         }
         Update: {
           blocks?: Json
+          blocks_published?: Json | null
           canonical_url?: string | null
           created_at?: string
           created_by?: string | null
@@ -16200,6 +16282,32 @@ export type Database = {
           },
           {
             foreignKeyName: "talent_profile_trust_badges_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      talent_profile_code_aliases: {
+        Row: {
+          created_at: string
+          old_code: string
+          talent_profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          old_code: string
+          talent_profile_id: string
+        }
+        Update: {
+          created_at?: string
+          old_code?: string
+          talent_profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_profile_code_aliases_talent_profile_id_fkey"
             columns: ["talent_profile_id"]
             isOneToOne: false
             referencedRelation: "talent_profiles"
@@ -17085,6 +17193,10 @@ export type Database = {
       }
       talent_sites: {
         Row: {
+          accepting_bookings: boolean
+          accepting_inquiries: boolean
+          chat_config: Json
+          chat_enabled: boolean
           created_at: string
           created_by: string | null
           draft_snapshot: Json
@@ -17110,6 +17222,10 @@ export type Database = {
           version: number
         }
         Insert: {
+          accepting_bookings?: boolean
+          accepting_inquiries?: boolean
+          chat_config?: Json
+          chat_enabled?: boolean
           created_at?: string
           created_by?: string | null
           draft_snapshot?: Json
@@ -17135,6 +17251,10 @@ export type Database = {
           version?: number
         }
         Update: {
+          accepting_bookings?: boolean
+          accepting_inquiries?: boolean
+          chat_config?: Json
+          chat_enabled?: boolean
           created_at?: string
           created_by?: string | null
           draft_snapshot?: Json
@@ -21226,6 +21346,15 @@ export type Database = {
         Returns: {
           tenant_id: string
           tenant_slug: string
+        }[]
+      }
+      resolve_talent_profile_code: {
+        Args: { p_code: string }
+        Returns: {
+          is_alias: boolean
+          profile_code: string
+          profile_id: string
+          requested_code: string
         }[]
       }
       review_is_arms_length_paid: {

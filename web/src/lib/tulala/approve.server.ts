@@ -170,7 +170,7 @@ export async function approveRecommendation(input: {
   // read `saas_marketing_signups` at all.
   if (!choice.workspace) {
     await setBriefStatus(brief.id, "approved");
-    return { ok: true, nextPath: "/onboarding/talent-location", leadId: null };
+    return { ok: true, nextPath: "/talent/profile/fields", leadId: null };
   }
 
   // The email may already be on the lead row from the mid-conversation capture,

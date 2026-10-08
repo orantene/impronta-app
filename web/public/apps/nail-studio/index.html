@@ -1,0 +1,1982 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tulala Nail Studio — diseña tu manicure</title>
+<meta name="description" content="Tulala.digital Nail Studio: diseña tus uñas en 3D — forma, largo, color, diseños, acabados y apliques. Guarda y comparte tu diseño.">
+<meta name="theme-color" content="#A63D57">
+<meta property="og:site_name" content="Tulala.digital">
+<meta property="og:title" content="Tulala Nail Studio">
+<meta property="og:description" content="Diseña tu manicure uña por uña y compártela. Hecho con Tulala.digital">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="/api/fonts/css?family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap">
+<style>
+/* ===== Tulala.digital Nail Studio — self-contained nail designer (ES / EN) =====
+   Brand:   Tulala logo in the header, on every exported image and in share texts; promo cards link to tulala.digital with UTM tags.
+            Add data-promo="off" to #nail-designer to hide the promo cards (e.g. inside tulala.digital itself).
+   Embed:   <iframe src="nail-designer.html" style="width:100%;height:780px;border:0" allow="clipboard-write; web-share"></iframe>
+            Add ?lang=es or ?lang=en to force a language (default: the browser language).
+   JS API:  window.NailDesigner.getDesign() · .loadDesign(json) · .setLang('es'|'en') · .reset()
+   iframe:  the page posts {source:'nail-designer', type:'change'|'save'|'share'|'download', design, link?} to the parent
+            the parent can post {target:'nail-designer', type:'load', design} · {target:'nail-designer', type:'lang', lang:'es'}
+            Set data-parent-origin="https://your-app.com" on #nail-designer to lock messages to your domain.
+   Links:   a shared link carries the design in its #d=… hash and opens with that design loaded.
+*/
+/* Desktop composition: preview-led stage + softer controls column (not a stark
+   white 468px card). Phone layout (max-width:820) stacks stage over a sheet. */
+.nd{--brand:#A63D57;--brand-ink:#7E2C42;--ground:#F3ECE6;--panel:#F7F0EA;--ink:#2B2221;--muted:#6E5F5B;--line:#E6DAD2;--accent:#A63D57;--soft:#EFE4DC;--tint:#FBEFF2;
+  position:relative;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,360px);height:100vh;min-height:640px;background:var(--ground);color:var(--ink);font-family:'DM Sans',system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#F3ECE6}
+.nd *,.nd *::before,.nd *::after{box-sizing:border-box}
+.nd button{font-family:inherit;color:inherit}
+.nd button:focus-visible,.nd input:focus-visible,.nd a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.nd [hidden]{display:none!important}
+.nd-defs{position:absolute;width:0;height:0;overflow:hidden}
+
+/* left column */
+.nd-left{display:flex;flex-direction:column;gap:14px;padding:18px 22px 18px;min-width:0;min-height:0}
+.nd-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nd-brandwrap{display:flex;align-items:center;gap:14px;min-width:0}
+.nd-brand{text-decoration:none;display:flex;align-items:center;border-radius:8px}
+.nd-head-logo{flex-shrink:0;padding:0 4px;align-self:center}
+.nd-logosvg{display:block}
+.nd-bsep{width:1px;height:34px;background:var(--line)}
+.nd-promo{display:flex;align-items:center;gap:14px;padding:14px 14px 14px 18px;border-radius:16px;background:var(--brand-ink);color:#fff;text-decoration:none;transition:transform .12s,box-shadow .12s}
+.nd-promo:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(166,61,87,.25)}
+.nd-promo-logo{flex-shrink:0;display:flex}
+.nd-promo-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.nd-promo-txt b{font-size:14px;font-weight:600;color:#fff}
+.nd-promo-txt small{font-size:12.5px;line-height:1.35;opacity:.85}
+.nd-promo-go{flex-shrink:0;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;display:flex;align-items:center;justify-content:center}
+.nd-word{font-family:'Fraunces',Georgia,serif;font-size:26px;font-weight:500;letter-spacing:-.01em;line-height:1.1}
+.nd-word em{color:var(--accent)}
+.nd-sub{font-size:14px;color:var(--muted);margin-top:2px}
+.nd-row{display:flex;gap:8px}
+.nd-pill{height:44px;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;border:1px solid #DCCFC6;border-radius:999px;background:var(--panel);font-size:14px;font-weight:500;cursor:pointer;transition:background .15s,border-color .15s,transform .1s}
+.nd-pill:hover{border-color:#C9B8AD}
+.nd-pill:active{transform:scale(.97)}
+.nd-pill:disabled{opacity:.45;cursor:default;transform:none}
+.nd-pill.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.nd-pill.primary:hover{background:#8F3049;border-color:#8F3049}
+.nd-pill.big{height:48px;padding:0 20px;font-size:15px;font-weight:600}
+.nd-pill svg{flex-shrink:0}
+
+/* stage */
+.nd-stage{position:relative;flex:1;min-height:320px;border-radius:28px;overflow:hidden;background:#E4D9D2;box-shadow:inset 0 0 0 1px rgba(43,34,33,.04)}
+.nd-svg{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:manipulation}
+.nd-f{cursor:pointer;outline:none}
+.nd-f:focus-visible .nd-fp{stroke:var(--ink);stroke-width:3px}
+.nd-chip{position:absolute;bottom:16px;right:16px;display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;background:rgba(255,252,250,.94);font-size:13px;font-weight:600;box-shadow:0 1px 3px rgba(43,34,33,.1);z-index:2;pointer-events:none}
+.nd-chip i{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.nd-hint{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);white-space:nowrap;font-size:13px;color:var(--muted);background:rgba(255,252,250,.9);padding:7px 14px;border-radius:999px;z-index:2;pointer-events:none}
+.nd-zoom{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:4px;border-radius:999px;background:rgba(255,252,250,.95);box-shadow:0 2px 10px rgba(43,34,33,.12);z-index:2}
+.nd-zoom button{height:40px;min-width:40px;padding:0 12px;border:0;border-radius:999px;background:transparent;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.nd-zoom button:hover{background:var(--soft)}
+.nd-zoom .nd-arrow{width:40px;padding:0}
+.nd-len{position:absolute;left:16px;top:50%;transform:translateY(-50%);z-index:2;display:flex;flex-direction:column;align-items:center;gap:10px;width:44px;padding:12px 0;border-radius:999px;background:rgba(255,252,250,.92);box-shadow:0 2px 12px rgba(43,34,33,.13);touch-action:none;cursor:ns-resize;user-select:none;-webkit-user-select:none}
+.nd-len:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.nd-len-ico{display:block;color:var(--muted);flex-shrink:0}
+.nd-len-track{position:relative;width:6px;height:170px;border-radius:99px;background:#E6D9D1}
+.nd-len-fill{position:absolute;left:0;right:0;bottom:0;border-radius:99px;background:var(--accent)}
+.nd-len-track i{position:absolute;left:50%;width:4px;height:4px;margin:0 0 -2px -2px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(43,34,33,.08)}
+.nd-len-thumb{position:absolute;left:50%;width:24px;height:24px;margin:0 0 -12px -12px;border-radius:50%;background:#fff;border:2px solid var(--accent);box-shadow:0 2px 6px rgba(43,34,33,.28);transition:transform .12s}
+.nd-len.drag .nd-len-thumb{transform:scale(1.15)}
+.nd-len-tip{position:absolute;left:34px;top:50%;transform:translateY(-50%);padding:4px 10px;border-radius:999px;background:var(--ink);color:#fff;font-size:12px;font-weight:600;white-space:nowrap;opacity:0;transition:opacity .15s;pointer-events:none}
+.nd-len:hover .nd-len-tip,.nd-len.drag .nd-len-tip,.nd-len:focus-visible .nd-len-tip{opacity:1}
+.nd-skinpick{position:absolute;left:16px;bottom:16px;z-index:2;display:flex;align-items:center;gap:6px;padding:5px;border-radius:999px;background:rgba(255,252,250,.94);box-shadow:0 2px 12px rgba(43,34,33,.13)}
+.nd-skinpick button{flex-shrink:0;width:34px;height:34px;padding:0;border:0;border-radius:50%;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12),inset 0 -5px 8px rgba(0,0,0,.1),inset 0 4px 6px rgba(255,255,255,.3);transition:transform .12s}
+.nd-skinpick button:hover{transform:scale(1.08)}
+.nd-skin-cur{width:36px!important;height:36px!important;box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--accent),inset 0 -5px 8px rgba(0,0,0,.1)!important}
+.nd-skin-opts{display:flex;gap:6px;padding-right:2px;animation:ndIn .18s ease-out}
+.nd-skin-opts button.on{box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--ink),inset 0 -5px 8px rgba(0,0,0,.1)}
+@keyframes ndIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.nd-tipfloat{position:absolute;left:68px;bottom:16px;z-index:2}
+.nd-tip-btn{width:46px;height:46px;border:0;border-radius:50%;background:rgba(255,252,250,.94);box-shadow:0 2px 12px rgba(43,34,33,.13);display:flex;align-items:center;justify-content:center;cursor:pointer;animation:ndPop .2s ease-out}
+.nd-tip-btn:hover{background:#fff}
+.nd-tip-btn.on{box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--accent),0 2px 12px rgba(43,34,33,.13)}
+.nd-tip-pop{position:absolute;left:-52px;bottom:58px;width:324px;max-width:calc(100vw - 40px);padding:12px 14px;border-radius:18px;background:rgba(255,252,250,.97);box-shadow:0 8px 28px rgba(43,34,33,.2);animation:ndUp .18s ease-out}
+.nd-tipcolors{display:flex;justify-content:space-between;gap:6px;margin-top:12px}
+.nd-tipcolors button{width:28px;height:28px;padding:0;border:0;border-radius:50%;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.14),inset 0 -4px 6px rgba(0,0,0,.08)}
+.nd-tipcustom{position:relative;flex-shrink:0;width:28px;height:28px;border-radius:50%;cursor:pointer;background:conic-gradient(#ff5a5a,#ffcf4a,#6fe07a,#4ac8ff,#6a6cff,#e05aff,#ff5a5a);box-shadow:inset 0 0 0 1px rgba(0,0,0,.14)}
+.nd-tipcustom input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0}
+.nd-tipcustom span{position:absolute;inset:6px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.1);pointer-events:none}
+.nd-tipcustom.on{box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--accent)}
+.nd-tipcustom:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.nd-tipcolors button.on{box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--accent),inset 0 -4px 6px rgba(0,0,0,.08)}
+@keyframes ndUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes ndPop{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
+.nd-lamp{position:absolute;top:0;left:30%;transform:translateX(-50%);width:46px;height:50px;z-index:3;cursor:ew-resize;touch-action:none;user-select:none;-webkit-user-select:none;outline:none}
+.nd-lamp svg{display:block;position:relative;z-index:1;filter:drop-shadow(0 2px 3px rgba(43,34,33,.25))}
+.nd-lamp::after{content:'';position:absolute;left:50%;top:28px;width:150px;height:110px;transform:translateX(-50%);background:radial-gradient(ellipse at 50% 0,rgba(255,236,180,.55),rgba(255,236,180,0) 70%);pointer-events:none}
+.nd-lamppop{position:absolute;top:56px;transform:translateX(-50%);z-index:4;display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:999px;background:rgba(255,252,250,.97);box-shadow:0 6px 22px rgba(43,34,33,.2);animation:ndUp .15s ease-out;white-space:nowrap}
+.nd-lp-row{display:flex;gap:4px}
+.nd-lp-sep{width:1px;height:24px;background:var(--line)}
+.nd-lamppop button{width:36px;height:36px;border:0;border-radius:50%;background:transparent;color:#B9AAA2;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.nd-lamppop button:hover{background:var(--soft)}
+.nd-lamppop button.on{color:#E0A526;background:#FFF6DE}
+.nd-lamppop .nd-lp-col{width:26px;height:26px;margin:5px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.14)}
+.nd-lamppop .nd-lp-col:hover{background:inherit;transform:scale(1.08)}
+.nd-lamppop .nd-lp-col.on{box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--accent)}
+.nd-lamp.col0::after{background:radial-gradient(ellipse at 50% 0,rgba(255,214,140,.6),rgba(255,214,140,0) 70%)}
+.nd-lamp.col2::after{background:radial-gradient(ellipse at 50% 0,rgba(190,215,255,.6),rgba(190,215,255,0) 70%)}
+.nd-lamp.col0 .nd-bulb{fill:#FFE0A0}
+.nd-lamp.col2 .nd-bulb{fill:#DDEBFF}
+.nd-lamp .nd-lv{fill:#D8CCC4;transition:fill .15s}
+.nd-lamp.lvl0 .nd-lv0,.nd-lamp.lvl1 .nd-lv0,.nd-lamp.lvl1 .nd-lv1,.nd-lamp.lvl2 .nd-lv{fill:var(--accent)}
+.nd-lamp .nd-bulb{transition:opacity .2s}
+.nd-lamp.lvl0 .nd-bulb{opacity:.55}
+.nd-lamp::after{transition:opacity .2s}
+.nd-lamp.lvl0::after{opacity:.4}
+.nd-lamp.lvl1::after{opacity:.75}
+.nd-lamp.lvl2::after{opacity:1}
+.nd-lamp{cursor:pointer}
+.nd-lamp.drag{cursor:ew-resize}
+.nd-lamp .nd-lamp-arr{opacity:0;transition:opacity .15s}
+.nd-lamp:hover .nd-lamp-arr,.nd-lamp.drag .nd-lamp-arr,.nd-lamp:focus-visible .nd-lamp-arr{opacity:1}
+.nd-lamp:focus-visible svg{filter:drop-shadow(0 0 3px var(--accent))}
+.nd-chbar{position:absolute;left:50%;bottom:72px;transform:translateX(-50%);display:flex;gap:2px;padding:4px;border-radius:999px;background:rgba(255,252,250,.97);box-shadow:0 4px 16px rgba(43,34,33,.18);z-index:3;animation:ndUp .15s ease-out}
+.nd-chbar button{width:40px;height:40px;border:0;border-radius:50%;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink)}
+.nd-chbar button:hover{background:var(--soft)}
+.nd-chbar button[data-act=chdel]{color:#B3122E}
+.nd-chbar button:disabled{opacity:.3;cursor:default;background:transparent}
+.nd-chsize{min-width:40px;align-self:center;text-align:center;font-size:12px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.nd-ch.ed{cursor:grab}
+.nd-ch.ed:active{cursor:grabbing}
+.nd-zc{position:absolute;top:16px;right:16px;display:flex;flex-direction:column;gap:6px;z-index:2}
+.nd-zc button{width:40px;height:40px;border:0;border-radius:12px;background:rgba(255,252,250,.94);box-shadow:0 1px 4px rgba(43,34,33,.14);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.nd-zc button:hover{background:#fff}
+.nd-zc button:disabled{opacity:.4;cursor:default}
+.nd-svg{cursor:grab}
+.nd-svg:active{cursor:grabbing}
+.nd-svg{touch-action:none}
+.nd-toast{position:absolute;top:16px;left:50%;padding:10px 16px;border-radius:999px;background:var(--ink);color:var(--panel);font-size:13px;font-weight:500;z-index:3;opacity:0;transform:translate(-50%,-8px);transition:opacity .2s,transform .2s;pointer-events:none;white-space:nowrap;max-width:calc(100% - 32px);overflow:hidden;text-overflow:ellipsis}
+.nd-toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* bottom bar */
+.nd-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.nd-bar .nd-save{margin-left:auto}
+
+/* panel — same family as the ground (no raised white card) */
+.nd-panel{display:flex;flex-direction:column;min-height:0;background:transparent;border-left:1px solid color-mix(in srgb,var(--line) 88%,transparent)}
+.nd-ptop{display:flex;flex-direction:column;gap:10px;padding:18px 18px 0}
+.nd-label{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.nd-seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:4px;border-radius:999px;background:var(--soft)}
+.nd-seg.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.nd-seg.five{grid-template-columns:repeat(5,minmax(0,1fr))}
+.nd-range{position:relative;padding:4px 0 28px}
+.nd-range input{-webkit-appearance:none;appearance:none;display:block;width:100%;height:28px;margin:0;background:transparent;cursor:pointer;touch-action:pan-y}
+.nd-range input:focus-visible{outline:none}
+.nd-range input::-webkit-slider-runnable-track{height:8px;border-radius:99px;background:linear-gradient(to right,var(--accent) var(--p),#E9DDD5 var(--p))}
+.nd-range input::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;margin-top:-9px;border-radius:50%;background:#fff;border:2px solid var(--accent);box-shadow:0 2px 6px rgba(43,34,33,.25);transition:transform .1s}
+.nd-range input:active::-webkit-slider-thumb{transform:scale(1.12)}
+.nd-range input:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px rgba(166,61,87,.25)}
+.nd-range input::-moz-range-track{height:8px;border-radius:99px;background:#E9DDD5}
+.nd-range input::-moz-range-progress{height:8px;border-radius:99px;background:var(--accent)}
+.nd-range input::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:2px solid var(--accent);box-shadow:0 2px 6px rgba(43,34,33,.25)}
+.nd-tiprow{display:flex;align-items:center;gap:10px}
+.nd-tiprow .nd-tipico{flex-shrink:0}
+.nd-tiprange{flex:1;padding:0}
+.nd-tipauto{flex-shrink:0;width:34px;height:34px;border:1px solid var(--line);border-radius:50%;background:var(--panel);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink)}
+.nd-tipauto:disabled{opacity:.35;cursor:default}
+.nd-tipsec{padding:12px 14px;border-radius:16px;background:var(--soft)}
+.nd-ticks{position:absolute;left:0;right:0;bottom:0;height:24px}
+.nd-ticks button{position:absolute;top:0;transform:translateX(-50%);height:24px;padding:0 4px;border:0;background:none;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap}
+.nd-ticks button.on{color:var(--ink)}
+.nd-ticks button:hover{color:var(--ink)}
+.nd-seg.five button{padding:0 4px;font-size:13.5px}
+.nd-seg button{height:40px;border:0;border-radius:999px;background:transparent;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px}
+.nd-seg button.on{background:var(--ink);color:var(--panel)}
+.nd-copy{align-self:flex-start;height:36px;padding:0 12px;display:inline-flex;align-items:center;gap:6px;border:1px dashed #CDBDB2;border-radius:999px;background:transparent;font-size:13px;font-weight:600;color:var(--accent);cursor:pointer}
+.nd-copy:hover{background:var(--tint)}
+.nd-tabs{display:flex;gap:0;border-bottom:1px solid #EFE6DF;overflow-x:auto;scrollbar-width:none}
+.nd-tabs::-webkit-scrollbar{display:none}
+.nd-tab{flex:1 0 auto;display:flex;align-items:center;justify-content:center;gap:2px;border-bottom:2px solid transparent}
+.nd-tab.on{border-bottom-color:var(--accent)}
+.nd-tab.on [data-act=tab]{color:var(--ink)}
+.nd-tabs .nd-tog{flex:0 0 auto;width:22px;height:22px;padding:0;margin:0 1px 0 -2px;border:0;border-radius:50%;background:transparent;color:#A89A94;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.nd-tabs .nd-tog:hover{background:var(--soft)}
+.nd-tabs .nd-tog.on{color:var(--accent)}
+.nd-tabs [data-act=tab]{height:42px;padding:0 2px;letter-spacing:-.01em;border:0;background:transparent;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+
+.nd-content{flex:1;min-height:0;overflow-y:auto;padding:16px 18px 24px;overscroll-behavior:contain}
+.nd-sec{display:flex;flex-direction:column;gap:12px}
+.nd-sec + .nd-sec{margin-top:26px}
+.nd-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.nd-h h3{margin:0;font-size:15px;font-weight:600}
+.nd-h span{font-size:13px;color:var(--muted)}
+.nd-note{margin:0;font-size:13px;line-height:1.45;color:var(--muted)}
+.nd-sw{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px 10px;justify-items:center}
+.nd-sw button{width:42px;height:42px;padding:0;border:0;border-radius:50%;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.14),inset 0 -6px 10px rgba(0,0,0,.08),inset 0 5px 8px rgba(255,255,255,.35);transition:transform .12s}
+.nd-sw button:hover{transform:scale(1.07)}
+.nd-sw button.on{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--accent),inset 0 -6px 10px rgba(0,0,0,.08),inset 0 5px 8px rgba(255,255,255,.35)}
+.nd-custom{display:flex;align-items:center;gap:12px;font-size:14px;cursor:pointer}
+.nd-custom input{width:44px;height:44px;padding:3px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer}
+.nd-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.nd-grid.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+.nd-tile{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;min-height:44px;padding:10px 4px 9px;border:1px solid color-mix(in srgb,var(--line) 90%,transparent);border-radius:16px;background:color-mix(in srgb,var(--ground) 55%,#fff);cursor:pointer;font-size:12px;font-weight:500;line-height:1.2;text-align:center;transition:border-color .15s,background .15s}
+.nd-tile:hover{border-color:#CDBDB2}
+.nd-tile.on{border-color:var(--accent);background:var(--tint)}
+.nd-prev{display:block;width:44px;height:62px}
+.nd-ico{display:block;width:46px;height:46px}
+.nd-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.nd-cardw{position:relative}
+.nd-card{display:flex;flex-direction:column;width:100%;padding:0;border:1px solid var(--line);border-radius:18px;background:var(--panel);overflow:hidden;cursor:pointer;text-align:left;transition:border-color .15s,transform .12s}
+.nd-card:hover{border-color:#CDBDB2;transform:translateY(-1px)}
+.nd-card svg{display:block;width:100%;aspect-ratio:4/3;background:#E4D9D2}
+.nd-card b{display:block;padding:9px 12px 0;font-size:13px;font-weight:600}
+.nd-card small{display:block;padding:2px 12px 10px;font-size:12px;color:var(--muted)}
+.nd-del{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;border:0;background:rgba(255,252,250,.94);font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+
+/* share sheet */
+.nd-modal{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(43,34,33,.45)}
+.nd-sheet{width:min(460px,100%);max-height:100%;overflow:auto;background:var(--panel);border-radius:24px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:14px}
+.nd-mhead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nd-mhead h2{margin:0;font-family:'Fraunces',Georgia,serif;font-size:22px;font-weight:500}
+.nd-x{width:40px;height:40px;border-radius:50%;border:0;background:var(--soft);font-size:20px;cursor:pointer}
+.nd-mimg{display:block;width:100%;aspect-ratio:1600/1440;border-radius:16px;background:#E4D9D2;object-fit:cover}
+.nd-mimg-sq{aspect-ratio:1/1;max-height:min(38vh,300px);width:auto;max-width:100%;margin:0 auto}
+.nd-mbtns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.nd-mbtns-save{grid-template-columns:1fr 1fr}
+.nd-mbtns-save .primary,.nd-mbtns-save [data-act=quote],.nd-mbtns-save [data-act=chat]{grid-column:1/-1}
+.nd-mbtns .nd-pill{width:100%}
+.nd-save-modal .nd-sheet{gap:12px;max-height:min(100%,920px)}
+.nd-wa{background:#1F8F4E!important;border-color:#1F8F4E!important;color:#fff}
+.nd-link{display:flex;gap:8px}
+.nd-link input{flex:1;min-width:0;height:44px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:#fff;font:inherit;font-size:13px;color:var(--muted)}
+
+@media (prefers-reduced-motion: reduce){.nd *{transition:none!important}}
+
+/* phone layout: nails stay on screen, options scroll in a sheet below */
+@media (max-width:820px){.nd:not([data-layout="desktop"]){display:flex;flex-direction:column;height:100vh;height:100dvh;min-height:560px}
+  .nd:not([data-layout="desktop"]) .nd-left{display:contents}
+  .nd:not([data-layout="desktop"]) .nd-head{order:1;padding:10px 14px 8px}
+  .nd:not([data-layout="desktop"]) .nd-word{font-size:19px}
+  .nd:not([data-layout="desktop"]) .nd-logosvg{height:24px;width:auto}
+  .nd:not([data-layout="desktop"]) .nd-brandwrap{gap:9px}
+  .nd:not([data-layout="desktop"]) .nd-bsep{height:22px}
+  .nd:not([data-layout="desktop"]) .nd-sub{display:none}
+  .nd:not([data-layout="desktop"]) .nd-head .nd-pill{width:44px;padding:0}
+  .nd:not([data-layout="desktop"]) .nd-head .nd-pill span{display:none}
+  .nd:not([data-layout="desktop"]) .nd-head .nd-row{gap:6px}
+  .nd:not([data-layout="desktop"]) .nd-stage{order:2;flex:0 0 auto;height:43%;min-height:220px;margin:0 12px;border-radius:22px}
+  .nd:not([data-layout="desktop"]) .nd-stage.is-one .nd-chip{display:none}
+  .nd:not([data-layout="desktop"]) .nd-chip{bottom:10px;right:10px;font-size:12px;padding:6px 11px}
+  .nd:not([data-layout="desktop"]) .nd-hint{font-size:12px;bottom:10px}
+  .nd:not([data-layout="desktop"]) .nd-zoom{bottom:10px}
+  .nd:not([data-layout="desktop"]) .nd-toast{top:10px}
+  .nd:not([data-layout="desktop"]) .nd-zc{top:10px;right:10px;gap:5px}
+  .nd:not([data-layout="desktop"]) .nd-chbar{bottom:62px}
+  .nd:not([data-layout="desktop"]) .nd-chbar button{width:38px;height:38px}
+  .nd:not([data-layout="desktop"]) .nd-hint{display:none}
+  .nd:not([data-layout="desktop"]) .nd-len{left:10px;top:calc(50% + 4px);gap:8px;padding:10px 0;width:40px}
+  .nd:not([data-layout="desktop"]) .nd-len-track{height:120px}
+  .nd:not([data-layout="desktop"]) .nd-skinpick{left:10px;bottom:10px;gap:5px;padding:4px}
+  .nd:not([data-layout="desktop"]) .nd-tipfloat{left:58px;bottom:10px}
+  .nd:not([data-layout="desktop"]) .nd-tip-btn{width:42px;height:42px}
+  .nd:not([data-layout="desktop"]) .nd-tip-pop{left:-48px;bottom:52px;width:min(300px,calc(100vw - 44px))}
+  .nd:not([data-layout="desktop"]) .nd-skinpick button{width:32px;height:32px}
+  .nd:not([data-layout="desktop"]) .nd-skin-cur{width:34px!important;height:34px!important}
+  .nd:not([data-layout="desktop"]) .nd-zc button{width:38px;height:38px}
+  .nd:not([data-layout="desktop"]) .nd-panel{order:3;flex:1 1 auto;min-height:0;margin-top:10px;border-left:0;border-radius:22px 22px 0 0;background:var(--panel);box-shadow:0 -4px 18px rgba(43,34,33,.07)}
+  .nd:not([data-layout="desktop"]) .nd-ptop{padding:14px 14px 0;gap:8px}
+  .nd:not([data-layout="desktop"]) .nd-ptop .nd-label{display:none}
+  .nd:not([data-layout="desktop"]) .nd-tab{flex:0 0 auto}
+  .nd:not([data-layout="desktop"]) .nd-tabs [data-act=tab]{padding:0 6px 0 10px;font-size:14px}
+  .nd:not([data-layout="desktop"]) .nd-content{padding:16px 14px 20px}
+  .nd:not([data-layout="desktop"]) .nd-bar{order:4;flex-wrap:nowrap;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:var(--panel);border-top:1px solid #EFE6DF}
+  .nd:not([data-layout="desktop"]) .nd-bar .nd-pill.big{flex:1;padding:0 10px;font-size:14px}
+  .nd:not([data-layout="desktop"]) .nd-bar .nd-pill.nd-rand{flex:0 0 48px;width:48px;padding:0}
+  .nd:not([data-layout="desktop"]) .nd-bar .nd-rand span{display:none}
+  .nd:not([data-layout="desktop"]) .nd-bar .nd-save{margin-left:0}
+  .nd:not([data-layout="desktop"]) .nd-sw button{width:40px;height:40px}
+  .nd:not([data-layout="desktop"]) .nd-modal{align-items:flex-end;padding:0}
+  .nd:not([data-layout="desktop"]) .nd-sheet{border-radius:24px 24px 0 0;padding-bottom:calc(18px + env(safe-area-inset-bottom))}}
+
+.nd-tabs .nd-rand{flex:0 0 auto;align-self:center;width:32px;height:32px;margin-left:2px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--panel);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,transform .2s}
+.nd-tabs .nd-rand:hover{background:var(--tint);color:var(--accent);transform:rotate(-12deg)}
+.nd-tabs{position:relative}
+@media (max-width:820px){.nd:not([data-layout="desktop"]) .nd-tabs .nd-rand{position:sticky;right:0;box-shadow:-8px 0 8px var(--panel)}}
+</style>
+</head>
+<body>
+<div id="nail-designer" class="nd"></div>
+<script>
+(function () {
+  'use strict';
+  var root = document.getElementById('nail-designer');
+  if (!root) return;
+
+  // Tulala brand. data-promo="off" on #nail-designer hides the Tulala promo cards (e.g. when embedded inside tulala.digital itself)
+  var BRAND = { name: 'Tulala', site: 'tulala.digital', color: '#A63D57', ink: '#121212', url: 'https://tulala.digital/', cta: 'https://tulala.digital/get-started' };
+  var SHOW_PROMO = root.getAttribute('data-promo') !== 'off';
+  // Official Tulala wordmark (vector) + its three orange dots
+  var LOGO_D = 'M25.74 24.14H28.77V19.94Q28.77 19.20 29.33 18.70Q29.90 18.2 30.70 18.2Q31.51 18.2 32.03 18.70Q32.55 19.20 32.55 19.94V24.14H36.85Q37.60 24.14 38.10 24.62Q38.6 25.10 38.6 25.75Q38.6 26.45 38.10 26.91Q37.60 27.37 36.85 27.37H32.55V41.05Q32.55 42.09 32.88 42.62Q33.21 43.14 33.75 43.34Q34.30 43.54 34.82 43.54Q35.29 43.54 35.64 43.38Q36.00 43.23 36.47 43.23Q36.94 43.23 37.34 43.65Q37.74 44.06 37.74 44.72Q37.74 45.50 36.75 46.05Q35.76 46.6 34.53 46.6Q33.87 46.6 32.90 46.51Q31.93 46.42 30.99 45.94Q30.04 45.46 29.41 44.34Q28.77 43.23 28.77 41.22V27.37H25.74Q25.03 27.37 24.51 26.89Q24.0 26.41 24.0 25.71Q24.0 25.05 24.51 24.60Q25.03 24.14 25.74 24.14Z M63.57 25.92Q64.48 25.92 65.04 26.38Q65.6 26.84 65.6 27.52V38.44Q65.6 42.48 62.74 44.7Q59.88 46.92 54.77 46.92Q49.71 46.92 46.85 44.7Q44.0 42.48 44.0 38.44V27.52Q44.0 26.84 44.58 26.38Q45.16 25.92 46.02 25.92Q46.93 25.92 47.49 26.38Q48.04 26.84 48.04 27.52V38.44Q48.04 41.16 49.81 42.56Q51.58 43.96 54.77 43.96Q58.06 43.96 59.80 42.56Q61.55 41.16 61.55 38.44V27.52Q61.55 26.84 62.13 26.38Q62.71 25.92 63.57 25.92Z M73.2 44.96Q73.2 45.64 72.72 46.12Q72.24 46.6 71.56 46.6Q70.88 46.6 70.44 46.12Q70.0 45.64 70.0 44.96V18.6Q70.0 17.92 70.46 17.46Q70.92 17.0 71.6 17.0Q72.32 17.0 72.75 17.46Q73.2 17.92 73.2 18.6Z M99.03 25.72Q99.78 25.72 100.29 26.18Q100.79 26.64 100.79 27.32V44.96Q100.79 45.64 100.29 46.12Q99.78 46.6 99.03 46.6Q98.24 46.6 97.75 46.12Q97.26 45.64 97.26 44.96V43.28Q96.65 44.16 95.63 44.92Q94.48 45.84 92.92 46.42Q91.35 47.0 89.54 47.0Q86.54 47.0 84.16 45.58Q81.78 44.16 80.39 41.72Q79.0 39.28 79.0 36.16Q79.0 33.0 80.39 30.58Q81.78 28.16 84.16 26.78Q86.54 25.40 89.45 25.40Q91.35 25.40 92.98 25.96Q94.62 26.52 95.85 27.48Q96.69 28.16 97.26 28.92V27.32Q97.26 26.64 97.75 26.18Q98.24 25.72 99.03 25.72ZM89.94 44.04Q92.15 44.04 93.84 43.0Q95.54 41.96 96.49 40.18Q97.44 38.40 97.44 36.16Q97.44 33.96 96.49 32.18Q95.54 30.40 93.84 29.38Q92.15 28.36 89.94 28.36Q87.78 28.36 86.08 29.36Q84.38 30.36 83.41 32.12Q82.44 33.88 82.44 36.16Q82.44 38.40 83.39 40.18Q84.33 41.96 86.03 43.0Q87.73 44.04 89.94 44.04Z M109.2 44.96Q109.2 45.64 108.72 46.12Q108.24 46.6 107.56 46.6Q106.88 46.6 106.44 46.12Q106.0 45.64 106.0 44.96V18.6Q106.0 17.92 106.46 17.46Q106.92 17.0 107.6 17.0Q108.32 17.0 108.75 17.46Q109.2 17.92 109.2 18.6Z M134.95 25.72Q135.73 25.72 136.26 26.18Q136.8 26.64 136.8 27.32V44.96Q136.8 45.64 136.26 46.12Q135.73 46.6 134.95 46.6Q134.12 46.6 133.61 46.12Q133.10 45.64 133.10 44.96V43.28Q132.46 44.16 131.4 44.92Q130.20 45.84 128.56 46.42Q126.92 47.0 125.03 47.0Q121.89 47.0 119.4 45.58Q116.90 44.16 115.45 41.72Q114.0 39.28 114.0 36.16Q114.0 33.0 115.45 30.58Q116.90 28.16 119.4 26.78Q121.89 25.40 124.93 25.40Q126.92 25.40 128.63 25.96Q130.33 26.52 131.63 27.48Q132.50 28.16 133.10 28.92V27.32Q133.10 26.64 133.61 26.18Q134.12 25.72 134.95 25.72ZM125.44 44.04Q127.75 44.04 129.53 43.0Q131.30 41.96 132.3 40.18Q133.29 38.40 133.29 36.16Q133.29 33.96 132.3 32.18Q131.30 30.40 129.53 29.38Q127.75 28.36 125.44 28.36Q123.18 28.36 121.40 29.36Q119.63 30.36 118.61 32.12Q117.60 33.88 117.60 36.16Q117.60 38.40 118.59 40.18Q119.58 41.96 121.36 43.0Q123.13 44.04 125.44 44.04Z';
+  var LOGO_DOTS = [[145.6, 43.6, 4.1, '#EF8A47'], [149.2, 34.6, 2.6, '#F2AB7C'], [151.2, 27.6, 1.7, '#F5C8A8']];
+  function logoSVG(ink, h) { return '<svg class="nd-logosvg" viewBox="21 14 134 36" height="' + h + '" width="' + Math.round(h * 134 / 36) + '" role="img" aria-label="Tulala"><path fill="' + ink + '" d="' + LOGO_D + '"/>' + LOGO_DOTS.map(function (c) { return '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + c[2] + '" fill="' + c[3] + '"/>'; }).join('') + '</svg>'; }
+  function brandLink(url, content) { return url + (url.indexOf('?') < 0 ? '?' : '&') + 'utm_source=nail-studio&utm_medium=app&utm_content=' + content; }
+
+  /* =========================================================
+     1. Catalog — edit these lists to change what users can pick
+     ========================================================= */
+  var COLORS = [
+    ['Cherry', '#B3122E'], ['Wine', '#5E1A2B'], ['Rosewood', '#8E3B46'], ['Mauve', '#B4838F'], ['Blush', '#E8A9A6'], ['Ballet', '#F2D4CF'],
+    ['Nude', '#D9B39A'], ['Mocha', '#7B5544'], ['Coral', '#F2735B'], ['Tangerine', '#F39A3B'], ['Butter', '#F4DC8A'], ['Gold', '#C9A14A'],
+    ['Mint', '#BFE3D0'], ['Sage', '#A7B99A'], ['Emerald', '#1F6B52'], ['Teal', '#2F7F86'], ['Sky', '#9CC5E3'], ['Cobalt', '#2448A6'],
+    ['Lilac', '#C4A8E0'], ['Fuchsia', '#D1307A'], ['Plum', '#5B2A58'], ['Milk', '#F7F3EE'], ['Graphite', '#4A4A4F'], ['Onyx', '#16151A']
+  ].map(function (x) { return { name: x[0], hex: x[1] }; });
+  var PATTERNS = ['solid', 'french', 'vfrench', 'deepfrench', 'roundfrench', 'pointfrench', 'sidefrench', 'flatfrench', 'double', 'ombre', 'aura', 'moon', 'colorblock', 'dots', 'stripes', 'check', 'chevron', 'plaid', 'marble', 'swirl', 'lines', 'abstract', 'outline', 'tiedye', 'rainbow', 'drip', 'sparkfade', 'leopard', 'zebra', 'cow', 'snake', 'tortoise', 'galaxy', 'stars', 'hearts', 'flowers', 'butterfly', 'cherry'];
+  var FINISHES = ['gloss', 'matte', 'chrome', 'glitter', 'pearl', 'cateye', 'aurora'];
+  var SHAPES = ['square', 'squoval', 'round', 'almond', 'stiletto', 'coffin'];
+  var FREE = { short: 0.12, medium: 0.38, long: 0.7, xl: 1.05, xxl: 1.45, xxxl: 1.9 };
+  var LEN_KEYS = ['short', 'medium', 'long', 'xl', 'xxl', 'xxxl'];
+  // Length is a number (how far the nail grows past the fingertip, in nail widths); names are presets on the slider
+  function freeOf(len) { return typeof len === 'number' && isFinite(len) ? len : (FREE[len] != null ? FREE[len] : FREE.medium); }
+  function lenName(len) { var v = freeOf(len), best = 'medium', bd = 9; LEN_KEYS.forEach(function (k) { var d = Math.abs(FREE[k] - v); if (d < bd) { bd = d; best = k; } }); return best; }
+  function pToFree(p) { p = Math.max(0, Math.min(5, p)); var i = Math.min(4, Math.floor(p)), a = FREE[LEN_KEYS[i]], b = FREE[LEN_KEYS[i + 1]]; return Math.round((a + (b - a) * (p - i)) * 1000) / 1000; }
+  function freeToP(v) { v = freeOf(v); for (var i = 0; i < 5; i++) { var a = FREE[LEN_KEYS[i]], b = FREE[LEN_KEYS[i + 1]]; if (v <= b || i === 4) return Math.max(0, Math.min(5, i + (v - a) / (b - a))); } return 1; }
+  var SKINS = [['porcelain', '#F4D9C6'], ['light', '#E9BE9E'], ['tan', '#CF9670'], ['olive', '#B07A52'], ['brown', '#7E5236'], ['deep', '#4F3222']];
+  // Hand layout in a 1000 × 800 drawing; x/y = fingertip, rot = tilt in degrees
+  // Back of a left hand in a 1000 × 800 drawing: bx/by = knuckle (base), rot = tilt in degrees, len = length in finger widths
+  var FINGERS = [
+    { w: 66, bx: 322, by: 612, rot: -14, len: 4.0 },
+    { w: 77, bx: 394, by: 570, rot: -5, len: 4.85 },
+    { w: 81, bx: 470, by: 555, rot: 0, len: 5.15 },
+    { w: 79, bx: 546, by: 568, rot: 6, len: 4.75 },
+    { w: 90, bx: 648, by: 800, rot: 39, len: 3.2, thumb: true }
+  ];
+  FINGERS.forEach(function (F) {
+    var a = F.rot * Math.PI / 180; F.L = F.len * F.w;
+    F.x = F.bx + F.L * Math.sin(a); F.y = F.by - F.L * Math.cos(a);
+  });
+  // Outline of the back of the hand (fingers are drawn on top of it)
+  var HAND_PTS = [[300, 1500], [316, 1180], [334, 1010], [318, 930], [300, 860], [291, 780], [289, 700], [286, 640], [296, 604], [330, 580], [372, 560], [432, 522], [508, 522], [586, 558], [606, 606], [624, 650], [652, 690], [692, 732], [716, 790], [712, 870], [690, 940], [676, 1010], [690, 1180], [704, 1500]];
+  var TIP_COLORS = ['#F7F3EE', '#F2D4CF', '#16151A', '#C9A14A', '#B3122E', '#C4A8E0', '#9CC5E3', '#D1307A'];
+  var TIPPED = ['french', 'vfrench', 'deepfrench', 'roundfrench', 'pointfrench', 'sidefrench', 'flatfrench', 'double', 'ombre', 'drip', 'sparkfade'];
+  var TIP_MIN = 0.03, TIP_MAX = 0.65;
+  function autoTip(g) { return Math.min(g.free, g.B * 0.4) / g.B; }
+  function nail(c1, c2, pattern, finish, charm) { return { c1: c1, c2: c2, pattern: pattern, finish: finish, charms: charm && charm !== 'none' ? [{ id: charm }] : [] }; }
+  function hand(main, accent) { return [0, 1, 2, 3, 4].map(function (i) { return clone(i === 1 && accent ? accent : main); }); }
+  var START = hand(nail('#E8A9A6', '#F7F3EE', 'french', 'gloss'));
+  var ROSE = hand(nail('#E8A9A6', '#F7F3EE', 'french', 'gloss'), nail('#8E3B46', '#F7F3EE', 'solid', 'gloss', 'gem'));
+  var TRENDS = [
+    { id: 'rose', shape: 'almond', length: 'medium', skin: '#E9BE9E', nails: ROSE },
+    { id: 'glazed', shape: 'almond', length: 'short', skin: '#CF9670', nails: hand(nail('#F7F3EE', '#F2D4CF', 'solid', 'pearl')) },
+    { id: 'aura', shape: 'round', length: 'medium', skin: '#E9BE9E', nails: hand(nail('#F2D4CF', '#D1307A', 'aura', 'gloss'), nail('#F2D4CF', '#D1307A', 'aura', 'gloss', 'trio')) },
+    { id: 'cateye', shape: 'almond', length: 'long', skin: '#B07A52', nails: hand(nail('#5E1A2B', '#E8A9A6', 'solid', 'cateye')) },
+    { id: 'chrome', shape: 'coffin', length: 'long', skin: '#7E5236', nails: hand(nail('#2448A6', '#16151A', 'solid', 'chrome'), nail('#16151A', '#2448A6', 'solid', 'glitter', 'star')) },
+    { id: 'leopard', shape: 'squoval', length: 'medium', skin: '#E9BE9E', nails: [nail('#D9B39A', '#9A6B45', 'leopard', 'gloss'), nail('#7B5544', '#D9B39A', 'solid', 'gloss'), nail('#D9B39A', '#9A6B45', 'leopard', 'gloss'), nail('#7B5544', '#D9B39A', 'solid', 'gloss'), nail('#D9B39A', '#9A6B45', 'leopard', 'gloss')] },
+    { id: 'tortoise', shape: 'square', length: 'medium', skin: '#CF9670', nails: hand(nail('#B8752F', '#4A220C', 'tortoise', 'gloss'), nail('#7B5544', '#C9A14A', 'solid', 'gloss', 'pearls')) },
+    { id: 'garden', shape: 'round', length: 'short', skin: '#F4D9C6', nails: [nail('#A7B99A', '#F7F3EE', 'solid', 'gloss'), nail('#F7F3EE', '#A7B99A', 'flowers', 'gloss'), nail('#A7B99A', '#F7F3EE', 'solid', 'gloss'), nail('#F4DC8A', '#F7F3EE', 'flowers', 'gloss'), nail('#A7B99A', '#F7F3EE', 'solid', 'gloss')] },
+    { id: 'aurora', shape: 'stiletto', length: 'long', skin: '#4F3222', nails: hand(nail('#C4A8E0', '#F7F3EE', 'solid', 'aurora')) },
+    { id: 'nightsky', shape: 'stiletto', length: 'xl', skin: '#CF9670', nails: hand(nail('#16151A', '#5B2A58', 'galaxy', 'gloss'), nail('#16151A', '#C9A14A', 'solid', 'glitter', 'star')) },
+    { id: 'minimal', shape: 'square', length: 'short', skin: '#E9BE9E', nails: hand(nail('#F7F3EE', '#16151A', 'lines', 'gloss'), nail('#F7F3EE', '#16151A', 'solid', 'matte')) },
+    { id: 'zebra', shape: 'coffin', length: 'xxl', skin: '#7E5236', nails: hand(nail('#F7F3EE', '#16151A', 'zebra', 'gloss'), nail('#D1307A', '#F7F3EE', 'solid', 'chrome')) },
+    { id: 'deepfr', shape: 'square', length: 0.7, skin: '#E9BE9E', nails: hand(nail('#EBC3B5', '#FFFFFF', 'deepfrench', 'gloss')) },
+    { id: 'cherrymocha', shape: 'square', length: 'short', skin: '#CF9670', nails: hand(nail('#5E1A2B', '#F7F3EE', 'solid', 'gloss')) },
+    { id: 'milkyv', shape: 'coffin', length: 'long', skin: '#E9BE9E', nails: hand(nail('#D9B39A', '#F7F3EE', 'vfrench', 'gloss')) },
+    { id: 'tiedye', shape: 'round', length: 'medium', skin: '#F4D9C6', nails: hand(nail('#BFE3D0', '#C4A8E0', 'tiedye', 'gloss')) },
+    { id: 'butterfly', shape: 'almond', length: 'long', skin: '#B07A52', nails: hand(nail('#F2D4CF', '#C4A8E0', 'solid', 'pearl'), nail('#F2D4CF', '#C4A8E0', 'butterfly', 'gloss', 'gem')) },
+    { id: 'cherrypop', shape: 'round', length: 'short', skin: '#E9BE9E', nails: [nail('#B3122E', '#F7F3EE', 'solid', 'gloss'), nail('#F7F3EE', '#B3122E', 'cherry', 'gloss'), nail('#B3122E', '#F7F3EE', 'solid', 'gloss'), nail('#F7F3EE', '#B3122E', 'cherry', 'gloss'), nail('#B3122E', '#F7F3EE', 'solid', 'gloss')] },
+    { id: 'honey', shape: 'coffin', length: 'medium', skin: '#7E5236', nails: hand(nail('#D9B39A', '#C9A14A', 'drip', 'gloss')) },
+    { id: 'rainbow', shape: 'square', length: 'short', skin: '#CF9670', nails: hand(nail('#F7F3EE', '#F7F3EE', 'rainbow', 'gloss')) },
+    { id: 'negative', shape: 'almond', length: 'medium', skin: '#E9BE9E', nails: hand(nail('#F2D4CF', '#16151A', 'outline', 'gloss'), nail('#16151A', '#F2D4CF', 'solid', 'matte')) },
+    { id: 'starlight', shape: 'stiletto', length: 'xxl', skin: '#4F3222', nails: hand(nail('#16151A', '#C9A14A', 'sparkfade', 'gloss'), nail('#16151A', '#C9A14A', 'sparkfade', 'gloss', 'star')) },
+    { id: 'python', shape: 'coffin', length: 'xl', skin: '#B07A52', nails: hand(nail('#D9B39A', '#7B5544', 'snake', 'gloss'), nail('#C9A14A', '#7B5544', 'solid', 'chrome')) },
+    { id: 'valentine', shape: 'coffin', length: 'medium', skin: '#E9BE9E', nails: [nail('#B3122E', '#F2D4CF', 'solid', 'gloss'), nail('#F2D4CF', '#B3122E', 'hearts', 'gloss'), nail('#B3122E', '#F2D4CF', 'solid', 'gloss'), nail('#F2D4CF', '#B3122E', 'french', 'gloss', 'bow'), nail('#B3122E', '#F2D4CF', 'solid', 'gloss')] }
+  ];
+
+  /* =========================================================
+     2. Language (es / en)
+     ========================================================= */
+  var I18N = {
+    en: {
+      sub: 'Design a manicure, nail by nail.', undo: 'Undo', reset: 'Reset', editing: 'Editing', all: 'All nails', one: 'One nail',
+      only: '{f} only', nailOf: '{f} nail', hint: 'Tap a nail to style it on its own', surprise: 'Surprise me', download: 'Download', share: 'Share', save: 'Save look',
+      saveLookTitle: 'Your look', saveIdeas: 'Save to my ideas', requestQuote: 'Request a quote', addToChat: 'Add to chat',
+      applyTo: 'Apply to', copyAll: 'Copy this nail to all', copiedAll: 'Copied to every nail', turnOn: 'Turn on {x}', turnOff: 'Turn off {x}', layerOn: '{x} on', layerOff: '{x} off', charmsAll: 'Tap a charm to put it on every nail. Tap one nail to add several and drag them into place.', charmsOne: 'Tap to add. Drag a charm on the nail to move it; tap it for size, rotation and delete.', clearCharms: 'Clear charms', maxCharms: 'Up to 10 charms per nail', chSmaller: 'Smaller', chBigger: 'Bigger', chRotate: 'Rotate', chDup: 'Duplicate', chDel: 'Delete', light: 'Light', lightTip: 'Drag to move the light · tap for brightness and colour', lightLv: ['soft', 'medium', 'strong'], lightCols: ['warm', 'neutral', 'cool'], chCats: { crystal: 'Crystals', pearl: 'Pearls', metal: 'Metal', gel: '3D' }, tipSize: 'Tip size', auto: 'Auto', tipAuto: 'Back to automatic', wholeHand: 'Whole hand', zoomIn: 'Zoom in', zoomOut: 'Zoom out', fit: 'Show whole hand', prev: 'Previous nail', next: 'Next nail',
+      tabs: ['Shape', 'Color', 'Art', 'Finish', 'Charms', 'Ideas'], polish: 'Polish', accent: 'Accent', accentNote: 'Used for tips, aura, dots, stripes, prints and marbling.',
+      customPolish: 'Mix a custom polish', customAccent: 'Mix a custom accent', custom: 'Custom', nailArt: 'Nail art', finish: 'Finish', shape: 'Shape',
+      length: 'Length', skin: 'Skin tone', charms: 'Charms', charmsTip: 'Tip: pick one nail first to add a single accent charm.',
+      trends: 'Trending looks', trendsNote: 'Tap a look to try it, then make it yours.', mine: 'My looks', mineEmpty: 'Looks you save will appear here.',
+      resetToast: 'Back to the starter look', saved: 'Saved as “{n}”', applied: 'Trying “{n}”', myLook: 'My look {n}', del: 'Delete {n}',
+      switchTo: 'ES', switchLabel: 'Cambiar a español', shareTitle: 'Share your design', shareDl: 'Download image', shareWa: 'WhatsApp', shareMore: 'More options',
+      shareCopy: 'Copy', linkCopied: 'Link copied', linkLabel: 'Link to this design', close: 'Close', downloaded: 'Image downloaded', shareText: 'My nail design', madeWith: 'Made with Tulala Nail Studio · tulala.digital', promoTitle: 'Are you a nail artist?', promoText: 'Get bookings, deposits and payments with Tulala. Start free.',
+      imgAlt: 'Preview of your nail design', making: 'Preparing image…', loaded: 'Design loaded from link',
+      p: { solid: 'Solid', french: 'French tip', ombre: 'Ombré', aura: 'Aura', dots: 'Polka dots', stripes: 'Stripes', moon: 'Half-moon', check: 'Checker', marble: 'Marble', swirl: 'Swirl', leopard: 'Leopard', tortoise: 'Tortoise', hearts: 'Hearts', flowers: 'Flowers', vfrench: 'V French', deepfrench: 'Deep French', roundfrench: 'Round French', pointfrench: 'Pointed French', sidefrench: 'Side French', flatfrench: 'Straight French', double: 'Double line', colorblock: 'Color block', chevron: 'Chevron', plaid: 'Plaid', zebra: 'Zebra', cow: 'Cow print', snake: 'Snakeskin', galaxy: 'Galaxy', stars: 'Stars', lines: 'Minimal lines', abstract: 'Abstract', outline: 'Outline', tiedye: 'Tie-dye', rainbow: 'Rainbow', drip: 'Drip', sparkfade: 'Glitter fade', butterfly: 'Butterflies', cherry: 'Cherries' },
+      f: { gloss: 'Gloss', matte: 'Matte', chrome: 'Chrome', glitter: 'Glitter', pearl: 'Glazed', cateye: 'Cat-eye', aurora: 'Aurora' },
+      s: { square: 'Square', squoval: 'Squoval', round: 'Round', almond: 'Almond', stiletto: 'Stiletto', coffin: 'Coffin' },
+      l: { short: 'Short', medium: 'Medium', long: 'Long', xl: 'XL', xxl: 'XXL', xxxl: 'XXXL' },
+      c: { none: 'None', gem: 'Crystal', trio: 'Crystal row', star: 'Star', heart: 'Heart', bow: 'Bow', flower: 'Flower', pearls: 'Pearls' },
+      k: { porcelain: 'Porcelain', light: 'Light', tan: 'Tan', olive: 'Olive', brown: 'Brown', deep: 'Deep' },
+      fg: ['pinky', 'ring', 'middle', 'index', 'thumb'],
+      t: { deepfr: 'Deep French', cherrymocha: 'Cherry mocha', milkyv: 'Milky V French', tiedye: 'Summer tie-dye', butterfly: 'Butterfly garden', cherrypop: 'Cherry pop', honey: 'Honey drip', rainbow: 'Pastel rainbow', negative: 'Negative space', starlight: 'Starlight fade', python: 'Python luxe', nightsky: 'Night sky', minimal: 'Minimal chic', zebra: 'Zebra pop', rose: 'Rosé French', glazed: 'Glazed donut', aura: 'Pink aura', cateye: 'Wine cat-eye', chrome: 'Midnight chrome', leopard: 'Leopard chic', tortoise: 'Autumn tortoise', garden: 'Garden party', aurora: 'Aurora glass', valentine: 'Sweetheart' },
+      colors: null
+    },
+    es: {
+      sub: 'Diseña tu manicure, uña por uña.', undo: 'Deshacer', reset: 'Reiniciar', editing: 'Editando', all: 'Todas las uñas', one: 'Una uña',
+      only: 'Solo {f}', nailOf: 'Uña del {f}', hint: 'Toca una uña para diseñarla por separado', surprise: 'Sorpréndeme', download: 'Descargar', share: 'Compartir', save: 'Guardar diseño',
+      saveLookTitle: 'Tu diseño', saveIdeas: 'Guardar en Mis diseños', requestQuote: 'Pedir cotización', addToChat: 'Agregar al chat',
+      applyTo: 'Aplicar a', copyAll: 'Copiar esta uña a todas', copiedAll: 'Copiado a todas las uñas', turnOn: 'Activar {x}', turnOff: 'Quitar {x}', layerOn: '{x}: activado', layerOff: '{x}: desactivado', charmsAll: 'Toca un aplique para ponerlo en todas las uñas. Toca una uña para agregar varios y moverlos.', charmsOne: 'Toca para agregar. Arrastra un aplique sobre la uña para moverlo; tócalo para cambiar tamaño, girarlo o eliminarlo.', clearCharms: 'Quitar apliques', maxCharms: 'Máximo 10 apliques por uña', chSmaller: 'Más pequeño', chBigger: 'Más grande', chRotate: 'Girar', chDup: 'Duplicar', chDel: 'Eliminar', light: 'Luz', lightTip: 'Arrastra para mover la luz · toca para intensidad y color', lightLv: ['suave', 'media', 'fuerte'], lightCols: ['cálida', 'neutra', 'fría'], chCats: { crystal: 'Cristales', pearl: 'Perlas', metal: 'Metal', gel: '3D' }, tipSize: 'Tamaño de la punta', auto: 'Auto', tipAuto: 'Volver a automático', wholeHand: 'Toda la mano', zoomIn: 'Acercar', zoomOut: 'Alejar', fit: 'Ver toda la mano', prev: 'Uña anterior', next: 'Uña siguiente',
+      tabs: ['Forma', 'Color', 'Diseño', 'Acabado', 'Apliques', 'Ideas'], polish: 'Esmalte', accent: 'Acento', accentNote: 'Se usa en puntas, aura, lunares, rayas, estampados y mármol.',
+      customPolish: 'Crea un esmalte personalizado', customAccent: 'Crea un acento personalizado', custom: 'Personalizado', nailArt: 'Diseño de uñas', finish: 'Acabado', shape: 'Forma',
+      length: 'Largo', skin: 'Tono de piel', charms: 'Apliques', charmsTip: 'Consejo: elige una sola uña primero para ponerle un aplique de acento.',
+      trends: 'Tendencias', trendsNote: 'Toca un diseño para probarlo y luego hazlo tuyo.', mine: 'Mis diseños', mineEmpty: 'Los diseños que guardes aparecerán aquí.',
+      resetToast: 'Se restableció el diseño inicial', saved: 'Guardado como “{n}”', applied: 'Probando “{n}”', myLook: 'Mi diseño {n}', del: 'Eliminar {n}',
+      switchTo: 'EN', switchLabel: 'Switch to English', shareTitle: 'Comparte tu diseño', shareDl: 'Descargar imagen', shareWa: 'WhatsApp', shareMore: 'Más opciones',
+      shareCopy: 'Copiar', linkCopied: 'Enlace copiado', linkLabel: 'Enlace a este diseño', close: 'Cerrar', downloaded: 'Imagen descargada', shareText: 'Mi diseño de uñas', madeWith: 'Hecho con Tulala Nail Studio · tulala.digital', promoTitle: '¿Eres manicurista o tienes un salón?', promoText: 'Recibe reservas, anticipos y pagos con Tulala. Empieza gratis.',
+      imgAlt: 'Vista previa de tu diseño de uñas', making: 'Preparando imagen…', loaded: 'Diseño cargado desde el enlace',
+      p: { solid: 'Liso', french: 'Francés', ombre: 'Ombré', aura: 'Aura', dots: 'Lunares', stripes: 'Rayas', moon: 'Media luna', check: 'Cuadros', marble: 'Mármol', swirl: 'Ondas', leopard: 'Leopardo', tortoise: 'Carey', hearts: 'Corazones', flowers: 'Flores', vfrench: 'Francés en V', deepfrench: 'Francés profundo', roundfrench: 'Francés redondo', pointfrench: 'Francés en punta', sidefrench: 'Francés lateral', flatfrench: 'Francés recto', double: 'Doble línea', colorblock: 'Bloque de color', chevron: 'Zigzag', plaid: 'Escocés', zebra: 'Cebra', cow: 'Vaca', snake: 'Serpiente', galaxy: 'Galaxia', stars: 'Estrellas', lines: 'Líneas', abstract: 'Abstracto', outline: 'Contorno', tiedye: 'Tie-dye', rainbow: 'Arcoíris', drip: 'Goteo', sparkfade: 'Degradado brillante', butterfly: 'Mariposas', cherry: 'Cerezas' },
+      f: { gloss: 'Brillante', matte: 'Mate', chrome: 'Cromado', glitter: 'Diamantina', pearl: 'Glaseado', cateye: 'Ojo de gato', aurora: 'Aurora' },
+      s: { square: 'Cuadrada', squoval: 'Cuadrada suave', round: 'Redonda', almond: 'Almendra', stiletto: 'Stiletto', coffin: 'Bailarina' },
+      l: { short: 'Corta', medium: 'Media', long: 'Larga', xl: 'XL', xxl: 'XXL', xxxl: 'XXXL' },
+      c: { none: 'Ninguno', gem: 'Cristal', trio: 'Línea de cristales', star: 'Estrella', heart: 'Corazón', bow: 'Moño', flower: 'Flor', pearls: 'Perlas' },
+      k: { porcelain: 'Porcelana', light: 'Clara', tan: 'Trigueña', olive: 'Oliva', brown: 'Morena', deep: 'Oscura' },
+      fg: ['meñique', 'anular', 'medio', 'índice', 'pulgar'],
+      t: { deepfr: 'Francés profundo', cherrymocha: 'Cereza moka', milkyv: 'Francés en V lechoso', tiedye: 'Tie-dye de verano', butterfly: 'Jardín de mariposas', cherrypop: 'Cereza pop', honey: 'Goteo de miel', rainbow: 'Arcoíris pastel', negative: 'Espacio negativo', starlight: 'Brillo estelar', python: 'Pitón de lujo', nightsky: 'Cielo nocturno', minimal: 'Minimal chic', zebra: 'Cebra pop', rose: 'Francés rosé', glazed: 'Glaseado de dona', aura: 'Aura rosa', cateye: 'Ojo de gato vino', chrome: 'Cromo medianoche', leopard: 'Leopardo chic', tortoise: 'Carey de otoño', garden: 'Jardín en flor', aurora: 'Aurora de cristal', valentine: 'Enamorada' },
+      colors: {
+        Cherry: 'Cereza', Wine: 'Vino', Rosewood: 'Palo de rosa', Mauve: 'Malva', Blush: 'Rubor', Ballet: 'Ballet', Nude: 'Nude', Mocha: 'Moka', Coral: 'Coral', Tangerine: 'Mandarina',
+        Butter: 'Mantequilla', Gold: 'Oro', Mint: 'Menta', Sage: 'Salvia', Emerald: 'Esmeralda', Teal: 'Verde petróleo', Sky: 'Cielo', Cobalt: 'Cobalto', Lilac: 'Lila',
+        Fuchsia: 'Fucsia', Plum: 'Ciruela', Milk: 'Leche', Graphite: 'Grafito', Onyx: 'Ónix'
+      }
+    }
+  };
+  var LANG_KEY = 'nail-studio-lang';
+  function pickLang() {
+    var q = (location.search.match(/[?&]lang=(es|en)/) || [])[1];
+    if (q) return q;
+    var a = (root.getAttribute('data-lang') || '').slice(0, 2);
+    if (a === 'es' || a === 'en') return a;
+    try { var st = localStorage.getItem(LANG_KEY); if (st === 'es' || st === 'en') return st; } catch (e) {}
+    return /^es/i.test(navigator.language || '') ? 'es' : 'en';
+  }
+  var LANG = pickLang();
+  (function () {
+    var layoutQ = (location.search.match(/[?&]layout=(desktop|phone)/) || [])[1];
+    if (layoutQ) root.setAttribute('data-layout', layoutQ);
+  })();
+  function L() { return I18N[LANG]; }
+  function t(k, v) { var x = L()[k]; if (v) for (var key in v) x = x.replace('{' + key + '}', v[key]); return x; }
+  function cap(x) { return x.charAt(0).toUpperCase() + x.slice(1); }
+  function fingerName(i) { return L().fg[i]; }
+  function colorName(hex) {
+    hex = String(hex).toUpperCase();
+    for (var i = 0; i < COLORS.length; i++) if (COLORS[i].hex === hex) return (L().colors && L().colors[COLORS[i].name]) || COLORS[i].name;
+    return t('custom') + ' ' + hex;
+  }
+  function lookName(l) { return l.trend ? L().t[l.trend] : l.name; }
+
+  /* =========================================================
+     3. Small helpers
+     ========================================================= */
+  function clone(x) { return JSON.parse(JSON.stringify(x)); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function f2(n) { return Math.round(n * 100) / 100; }
+  function rng(seed) { var a = seed >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; var t2 = a; t2 = Math.imul(t2 ^ (t2 >>> 15), t2 | 1); t2 ^= t2 + Math.imul(t2 ^ (t2 >>> 7), t2 | 61); return ((t2 ^ (t2 >>> 14)) >>> 0) / 4294967296; }; }
+  function isHex(c) { return /^#[0-9a-fA-F]{6}$/.test(c); }
+  var ICONS = {
+    undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
+    reset: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+    shuffle: '<path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/>',
+    plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
+    minus: '<path d="M5 12h14"/>',
+    rot: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
+    trash: '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/>',
+    fit: '<path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>',
+    download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
+    share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4"/><path d="m15.4 6.5-6.8 4"/>',
+    copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
+    left: '<path d="m15 18-6-6 6-6"/>', right: '<path d="m9 18 6-6-6-6"/>', hand: '<path d="M18 11V6a2 2 0 0 0-4 0v5"/><path d="M14 10V4a2 2 0 0 0-4 0v6"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-6-2.4l-3.6-3.6a2 2 0 0 1 2.8-2.8L7 15"/>',
+    more: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>'
+  };
+  function icon(n, s) { s = s || 18; return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[n] + '</svg>'; }
+  var TOG_ON = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="m7.5 12.3 3 3 6-6.3" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var TOG_OFF = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.8 18.2 18.2 5.8"/></svg>';
+  var WA_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.9c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.1 5.1 0 0 0 1.1 2.7 11.6 11.6 0 0 0 4.4 3.9c1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3z"/></svg>';
+
+  /* =========================================================
+     4. Drawing — SVG hand and nails
+     ========================================================= */
+  // Shared gradients and filters (also embedded in exported images)
+  var DEFS =
+    '<filter id="ndf-fs" x="-40%" y="-10%" width="180%" height="130%"><feDropShadow dx="0" dy="7" stdDeviation="10" flood-color="#3c1e14" flood-opacity=".24"/></filter>' +
+    '<filter id="ndf-ns" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0" dy="1.6" stdDeviation="1.7" flood-color="#2a120c" flood-opacity=".3"/></filter>' +
+    '<filter id="ndf-b1" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.2"/></filter>' +
+    '<filter id="ndf-b2" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.6"/></filter>' +
+    '<filter id="ndf-b3" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>' +
+    '<filter id="ndf-grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="2" seed="7"/><feColorMatrix type="saturate" values="0"/></filter>' +
+    '<radialGradient id="ndf-bg" cx=".5" cy=".3" r=".75"><stop offset="0" stop-color="#F7F1ED"/><stop offset=".55" stop-color="#E7DDD6"/><stop offset="1" stop-color="#D6C9C1"/></radialGradient>' +
+    '<linearGradient id="ndf-skin" x1="0" x2="1"><stop offset="0" stop-color="#7a2a18" stop-opacity=".3"/><stop offset=".08" stop-color="#9a4a30" stop-opacity=".1"/><stop offset=".24" stop-color="#fff" stop-opacity=".13"/><stop offset=".45" stop-color="#fff" stop-opacity=".04"/><stop offset=".8" stop-color="#7a2a18" stop-opacity=".07"/><stop offset=".94" stop-color="#7a2a18" stop-opacity=".2"/><stop offset="1" stop-color="#5a1e10" stop-opacity=".36"/></linearGradient>' +
+    '<linearGradient id="ndf-light" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".12"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#5a1e10" stop-opacity=".14"/></linearGradient>' +
+    '<linearGradient id="ndf-curve" x1="0" x2="1"><stop offset="0" stop-color="#000" stop-opacity=".26"/><stop offset=".2" stop-color="#000" stop-opacity="0"/><stop offset=".78" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></linearGradient>' +
+    '<linearGradient id="ndf-cut" x1="0" y1="0" x2="0" y2="1"><stop offset=".8" stop-color="#5a2616" stop-opacity="0"/><stop offset="1" stop-color="#5a2616" stop-opacity=".22"/></linearGradient>' +
+    '<linearGradient id="ndf-chrome" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".15"/><stop offset=".22" stop-color="#fff" stop-opacity=".95"/><stop offset=".4" stop-color="#000" stop-opacity=".5"/><stop offset=".58" stop-color="#fff" stop-opacity=".9"/><stop offset=".78" stop-color="#000" stop-opacity=".35"/><stop offset="1" stop-color="#fff" stop-opacity=".7"/></linearGradient>' +
+    '<linearGradient id="ndf-pearl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd6f0"/><stop offset=".35" stop-color="#d4f0ff"/><stop offset=".65" stop-color="#fff2cf"/><stop offset="1" stop-color="#e6d6ff"/></linearGradient>' +
+    '<linearGradient id="ndf-aurora" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8fd1"/><stop offset=".35" stop-color="#8ef0ff"/><stop offset=".68" stop-color="#b98bff"/><stop offset="1" stop-color="#ffe38a"/></linearGradient>' +
+    '<radialGradient id="ndf-gem" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#fff"/><stop offset=".4" stop-color="#eef8ff"/><stop offset=".75" stop-color="#a9c7de"/><stop offset="1" stop-color="#6f8ea8"/></radialGradient>' +
+    '<radialGradient id="ndf-bead" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#fff"/><stop offset=".45" stop-color="#f6efe2"/><stop offset="1" stop-color="#c2b49b"/></radialGradient>' +
+    '<linearGradient id="ndf-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fdeaa7"/><stop offset=".5" stop-color="#e1b54c"/><stop offset="1" stop-color="#a47619"/></linearGradient>' +
+    '<linearGradient id="ndf-silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#e6e4ea"/><stop offset="1" stop-color="#a9a6b2"/></linearGradient>' +
+    '<linearGradient id="ndf-backmg" gradientUnits="userSpaceOnUse" x1="0" y1="600" x2="0" y2="720"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient>' +
+    '<mask id="ndf-backm" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1400" height="1400"><rect x="-200" y="-200" width="1400" height="1400" fill="url(#ndf-backmg)"/></mask>' +
+    '<filter id="ndf-cs" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="0.4" dy="1.2" stdDeviation="0.8" flood-color="#2a120c" flood-opacity=".45"/></filter>' +
+    '<radialGradient id="ndf-glow"><stop offset="0" stop-color="#fffaf0" stop-opacity=".75"/><stop offset="1" stop-color="#fffaf0" stop-opacity="0"/></radialGradient>' +
+    '<radialGradient id="ndf-heart" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#f1c3cf"/></radialGradient>';
+
+  function geom(w, len) {
+    var nw = w * 0.72, bh = nw * 1.28, free = nw * freeOf(len);
+    return { w: w, nw: nw, hw: nw / 2, bh: bh, free: free, B: free + bh };
+  }
+  function nailPath(shape, g) {
+    var hw = g.hw, bh = g.bh, free = g.free, B = g.B;
+    var yC = B - bh * 0.32, cb = B + bh * 0.05, top, r, y, tw;
+    switch (shape) {
+      case 'square': r = hw * 0.18; top = 'L' + hw + ' ' + r + 'Q' + hw + ' 0 ' + (hw - r) + ' 0L' + (-hw + r) + ' 0Q' + (-hw) + ' 0 ' + (-hw) + ' ' + r; break;
+      case 'squoval': r = hw * 0.55; top = 'L' + hw + ' ' + r + 'Q' + hw + ' 0 ' + (hw - r) + ' 0L' + (-hw + r) + ' 0Q' + (-hw) + ' 0 ' + (-hw) + ' ' + r; break;
+      case 'round': y = hw * 0.9; top = 'L' + hw + ' ' + y + 'C' + hw + ' ' + (-y / 3) + ' ' + (-hw) + ' ' + (-y / 3) + ' ' + (-hw) + ' ' + y; break;
+      case 'stiletto': y = free * 0.9 + bh * 0.35; top = 'L' + hw + ' ' + y + 'C' + hw + ' ' + (y * 0.45) + ' ' + (hw * 0.12) + ' ' + (y * 0.08) + ' 0 0C' + (-hw * 0.12) + ' ' + (y * 0.08) + ' ' + (-hw) + ' ' + (y * 0.45) + ' ' + (-hw) + ' ' + y; break;
+      case 'coffin': y = free * 0.9 + bh * 0.3; tw = hw * 0.6; r = hw * 0.1; top = 'L' + hw + ' ' + y + 'L' + tw + ' ' + r + 'Q' + (tw * 0.98) + ' 0 ' + (tw - r) + ' 0L' + (-tw + r) + ' 0Q' + (-tw * 0.98) + ' 0 ' + (-tw) + ' ' + r + 'L' + (-hw) + ' ' + y; break;
+      default: y = free * 0.85 + bh * 0.4; top = 'L' + hw + ' ' + y + 'C' + hw + ' ' + (y * 0.35) + ' ' + (hw * 0.42) + ' 0 0 0C' + (-hw * 0.42) + ' 0 ' + (-hw) + ' ' + (y * 0.35) + ' ' + (-hw) + ' ' + y; // almond
+    }
+    var d = 'M' + (-hw) + ' ' + yC + 'C' + (-hw) + ' ' + cb + ' ' + hw + ' ' + cb + ' ' + hw + ' ' + yC + top + 'Z';
+    return d.replace(/(\d+\.\d{2})\d+/g, '$1');
+  }
+  // organic blob shape (cow print, abstract art)
+  function blob(cx, cy, rad, r) {
+    var pts = [];
+    for (var q = 0; q < 8; q++) { var an = q / 8 * Math.PI * 2, rr = rad * (0.7 + r() * 0.5); pts.push([cx + Math.cos(an) * rr, cy + Math.sin(an) * rr]); }
+    return 'M' + f2(pts[0][0]) + ' ' + f2(pts[0][1]) + smooth(pts.concat([pts[0]]), pts[7], pts[1]) + 'Z';
+  }
+  function rect(X, Y, W, H, fill, extra) { return '<rect x="' + f2(X) + '" y="' + f2(Y) + '" width="' + f2(W) + '" height="' + f2(H) + '" fill="' + fill + '"' + (extra || '') + '/>'; }
+  function heartPath() { return 'M12 21C5 16.5 2 12.8 2 8.8 2 5.6 4.5 3.5 7.2 3.5c2.1 0 3.8 1.3 4.8 3.1 1-1.8 2.7-3.1 4.8-3.1 2.7 0 5.2 2.1 5.2 5.3 0 4-3 7.7-10 12.2z'; }
+
+  function artLayer(n, g, id, X, Y, W, H, seed) {
+    var a = n.c1, b = n.c2, hw = g.hw, nw = g.nw, bh = g.bh, free = g.free, B = g.B, R = rect(X, Y, W, H, a), r = rng(seed), S, i, d = '', s = '';
+    var tf = typeof n.tip === 'number' ? n.tip : autoTip(g), sy = tf * B, dip = Math.max(bh * 0.2, B * 0.1) * (typeof n.tip === 'number' ? Math.min(1, 0.45 + tf * 2) : 1); // smile line centre and how far it curves down at the sides
+    switch (n.pattern) {
+      case 'french':
+        return { d: '', s: R + '<path d="M' + f2(X) + ' ' + f2(Y) + 'H' + f2(X + W) + 'V' + f2(sy + dip) + 'Q0 ' + f2(sy - dip) + ' ' + f2(X) + ' ' + f2(sy + dip) + 'Z" fill="' + b + '"/>' };
+      case 'ombre':
+        return { d: '<linearGradient id="' + id + 'o" x1="0" y1="1" x2="0" y2="0"><stop offset="' + (typeof n.tip === 'number' ? f2(Math.max(0, 1 - tf * 1.9)) : '.12') + '" stop-color="' + a + '"/><stop offset="' + (typeof n.tip === 'number' ? f2(Math.min(1, 1 - tf * 0.15)) : '.92') + '" stop-color="' + b + '"/></linearGradient>', s: rect(X, Y, W, H, 'url(#' + id + 'o)') };
+      case 'aura':
+        return { d: '<radialGradient id="' + id + 'a" cx=".5" cy=".6" r=".55"><stop offset="0" stop-color="' + b + '"/><stop offset=".35" stop-color="' + b + '" stop-opacity=".85"/><stop offset="1" stop-color="' + b + '" stop-opacity="0"/></radialGradient>', s: R + rect(X, Y, W, H, 'url(#' + id + 'a)') };
+      case 'dots':
+        S = nw * 0.22;
+        return { d: '<pattern id="' + id + 'p" width="' + f2(S) + '" height="' + f2(S) + '" patternUnits="userSpaceOnUse"><circle cx="' + f2(S / 4) + '" cy="' + f2(S / 4) + '" r="' + f2(S * 0.14) + '" fill="' + b + '"/><circle cx="' + f2(S * 0.75) + '" cy="' + f2(S * 0.75) + '" r="' + f2(S * 0.14) + '" fill="' + b + '"/></pattern>', s: R + rect(X, Y, W, H, 'url(#' + id + 'p)') };
+      case 'stripes':
+        S = nw * 0.2;
+        return { d: '<pattern id="' + id + 'p" width="' + f2(S) + '" height="' + f2(S) + '" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="' + f2(S * 0.38) + '" height="' + f2(S) + '" fill="' + b + '"/></pattern>', s: R + rect(X, Y, W, H, 'url(#' + id + 'p)') };
+      case 'moon':
+        return { d: '', s: R + '<ellipse cx="0" cy="' + f2(B) + '" rx="' + f2(hw * 0.62) + '" ry="' + f2(bh * 0.34) + '" fill="' + b + '"/>' };
+      case 'check':
+        S = nw * 0.24;
+        return { d: '<pattern id="' + id + 'p" width="' + f2(S) + '" height="' + f2(S) + '" patternUnits="userSpaceOnUse"><rect width="' + f2(S / 2) + '" height="' + f2(S / 2) + '" fill="' + b + '"/><rect x="' + f2(S / 2) + '" y="' + f2(S / 2) + '" width="' + f2(S / 2) + '" height="' + f2(S / 2) + '" fill="' + b + '"/></pattern>', s: R + rect(X, Y, W, H, 'url(#' + id + 'p)') };
+      case 'marble':
+        d = '<radialGradient id="' + id + 'm"><stop offset="0" stop-color="' + b + '" stop-opacity=".45"/><stop offset="1" stop-color="' + b + '" stop-opacity="0"/></radialGradient>';
+        s = R + '<ellipse cx="' + f2((r() - 0.5) * hw) + '" cy="' + f2(B * (0.3 + r() * 0.4)) + '" rx="' + f2(hw * 0.9) + '" ry="' + f2(B * 0.3) + '" fill="url(#' + id + 'm)"/>';
+        [[0.04, 0.85], [0.022, 0.65], [0.012, 0.55]].forEach(function (v) {
+          var y0 = B * r(), y3 = B * r(), p = 'M' + f2(X) + ' ' + f2(y0) + 'C' + f2(-hw * 0.3 + r() * hw * 0.6) + ' ' + f2(B * r()) + ' ' + f2(-hw * 0.3 + r() * hw * 0.6) + ' ' + f2(B * r()) + ' ' + f2(X + W) + ' ' + f2(y3);
+          s += '<path d="' + p + '" fill="none" stroke="' + b + '" stroke-opacity="' + v[1] + '" stroke-width="' + f2(nw * v[0]) + '" stroke-linecap="round"/>';
+          s += '<path d="' + p + '" fill="none" stroke="#6d6d6d" stroke-opacity=".18" stroke-width="' + f2(nw * v[0] * 0.3) + '" transform="translate(' + f2(nw * 0.012) + ' 0)"/>';
+        });
+        return { d: d, s: s };
+      case 'swirl':
+        var j = r() * 0.12;
+        s = R + '<path d="M' + f2(X) + ' ' + f2(B * (0.22 + j)) + 'C' + f2(hw * 0.95) + ' ' + f2(B * 0.02) + ' ' + f2(-hw * 0.95) + ' ' + f2(B * (0.62 + j)) + ' ' + f2(X + W) + ' ' + f2(B * 0.86) + '" fill="none" stroke="' + b + '" stroke-width="' + f2(nw * 0.13) + '" stroke-linecap="round"/>';
+        s += '<path d="M' + f2(X) + ' ' + f2(B * (0.36 + j)) + 'C' + f2(hw * 0.95) + ' ' + f2(B * 0.16) + ' ' + f2(-hw * 0.95) + ' ' + f2(B * (0.76 + j)) + ' ' + f2(X + W) + ' ' + f2(B * 1.0) + '" fill="none" stroke="#D4AF37" stroke-width="' + f2(nw * 0.035) + '" stroke-linecap="round"/>';
+        return { d: '', s: s };
+      case 'leopard':
+        S = nw * 0.46;
+        var ring = function (cx, cy, off) {
+          return '<ellipse cx="' + f2(cx) + '" cy="' + f2(cy) + '" rx="' + f2(S * 0.1) + '" ry="' + f2(S * 0.08) + '" fill="' + b + '"/><circle cx="' + f2(cx) + '" cy="' + f2(cy) + '" r="' + f2(S * 0.15) + '" fill="none" stroke="#2a1a12" stroke-width="' + f2(S * 0.055) + '" stroke-linecap="round" stroke-dasharray="' + f2(S * 0.24) + ' ' + f2(S * 0.13) + '" stroke-dashoffset="' + f2(off) + '"/>';
+        };
+        d = '<pattern id="' + id + 'p" width="' + f2(S) + '" height="' + f2(S) + '" patternUnits="userSpaceOnUse" patternTransform="rotate(18)">' + ring(S * 0.28, S * 0.3, 0) + ring(S * 0.78, S * 0.8, S * 0.1) + '<circle cx="' + f2(S * 0.82) + '" cy="' + f2(S * 0.24) + '" r="' + f2(S * 0.035) + '" fill="#2a1a12"/><circle cx="' + f2(S * 0.2) + '" cy="' + f2(S * 0.82) + '" r="' + f2(S * 0.03) + '" fill="#2a1a12"/></pattern>';
+        return { d: d, s: R + rect(X, Y, W, H, 'url(#' + id + 'p)') };
+      case 'tortoise':
+        d = '<radialGradient id="' + id + 'tb"><stop offset="0" stop-color="' + b + '" stop-opacity=".95"/><stop offset=".55" stop-color="' + b + '" stop-opacity=".75"/><stop offset="1" stop-color="' + b + '" stop-opacity="0"/></radialGradient><radialGradient id="' + id + 'td"><stop offset="0" stop-color="#1c0c05" stop-opacity=".85"/><stop offset=".5" stop-color="#1c0c05" stop-opacity=".6"/><stop offset="1" stop-color="#1c0c05" stop-opacity="0"/></radialGradient>';
+        s = R;
+        for (i = 0; i < 9; i++) {
+          var rx = nw * (0.12 + r() * 0.18);
+          s += '<ellipse cx="' + f2((r() - 0.5) * nw * 1.1) + '" cy="' + f2(r() * B) + '" rx="' + f2(rx) + '" ry="' + f2(rx * (0.6 + r() * 0.5)) + '" fill="url(#' + id + (i % 3 === 2 ? 'td' : 'tb') + ')"/>';
+        }
+        return { d: d, s: s };
+      case 'hearts':
+        S = nw * 0.36; var k = S * 0.42 / 24;
+        d = '<pattern id="' + id + 'p" width="' + f2(S) + '" height="' + f2(S) + '" patternUnits="userSpaceOnUse"><path d="' + heartPath() + '" fill="' + b + '" transform="translate(' + f2(S * 0.25 - 12 * k) + ' ' + f2(S * 0.25 - 12 * k) + ') scale(' + f2(k) + ')"/><path d="' + heartPath() + '" fill="' + b + '" transform="translate(' + f2(S * 0.75 - 12 * k) + ' ' + f2(S * 0.75 - 12 * k) + ') scale(' + f2(k) + ')"/></pattern>';
+        return { d: d, s: R + rect(X, Y, W, H, 'url(#' + id + 'p)') };
+      case 'deepfrench': case 'roundfrench': case 'pointfrench': case 'sidefrench': case 'flatfrench':
+        // white tip above, pink bed below; cy = highest point of the pink, sd = where the line meets the side walls
+        var cy = sy, top = 'M' + f2(X) + ' ' + f2(Y) + 'H' + f2(X + W), fp;
+        if (n.pattern === 'flatfrench') fp = top + 'V' + f2(cy) + 'H' + f2(X) + 'Z';
+        else if (n.pattern === 'sidefrench') fp = top + 'V' + f2(Math.min(B * 0.9, cy + bh * 0.42)) + 'Q' + f2(hw * 0.15) + ' ' + f2(cy + bh * 0.02) + ' ' + f2(X) + ' ' + f2(Math.max(Y + 2, cy - bh * 0.12)) + 'Z';
+        else {
+          var depth = n.pattern === 'deepfrench' ? bh * 0.85 : n.pattern === 'roundfrench' ? bh * 0.5 : bh * 0.7;
+          var sd = Math.min(B * 0.94, cy + depth), rx = n.pattern === 'deepfrench' ? hw * 0.8 : n.pattern === 'roundfrench' ? hw * 0.94 : hw * 0.86;
+          // side walls of white keep going down and taper into the nail edge instead of stopping in a flat cut
+          var yEnd = Math.max(sd + bh * 0.08, B - bh * 0.3), ex = hw * 1.01, cyc = sd + (yEnd - sd) * 0.6;
+          fp = top + 'V' + f2(yEnd) + 'H' + f2(ex) + 'C' + f2(rx + (ex - rx) * 0.15) + ' ' + f2(cyc) + ' ' + f2(rx) + ' ' + f2(sd + (yEnd - sd) * 0.2) + ' ' + f2(rx) + ' ' + f2(sd);
+          if (n.pattern === 'pointfrench') fp += 'C' + f2(rx) + ' ' + f2(cy + (sd - cy) * 0.35) + ' ' + f2(rx * 0.35) + ' ' + f2(cy + (sd - cy) * 0.08) + ' 0 ' + f2(cy) + 'C' + f2(-rx * 0.35) + ' ' + f2(cy + (sd - cy) * 0.08) + ' ' + f2(-rx) + ' ' + f2(cy + (sd - cy) * 0.35) + ' ' + f2(-rx) + ' ' + f2(sd);
+          else fp += 'A' + f2(rx) + ' ' + f2(sd - cy) + ' 0 0 0 ' + f2(-rx) + ' ' + f2(sd);
+          fp += 'C' + f2(-rx) + ' ' + f2(sd + (yEnd - sd) * 0.2) + ' ' + f2(-rx - (ex - rx) * 0.15) + ' ' + f2(cyc) + ' ' + f2(-ex) + ' ' + f2(yEnd) + 'H' + f2(X) + 'Z';
+        }
+        return { d: '', s: R + '<path d="' + fp + '" fill="' + b + '"/>' };
+      case 'vfrench':
+        return { d: '', s: R + '<path d="M' + f2(X) + ' ' + f2(Y) + 'H' + f2(X + W) + 'V' + f2(sy - dip * 0.4) + 'L0 ' + f2(sy + dip * 1.2) + 'L' + f2(X) + ' ' + f2(sy - dip * 0.4) + 'Z" fill="' + b + '"/>' };
+      case 'double':
+        var sm = function (y, sw) { return '<path d="M' + f2(X) + ' ' + f2(y + dip) + 'Q0 ' + f2(y - dip) + ' ' + f2(X + W) + ' ' + f2(y + dip) + '" fill="none" stroke="' + b + '" stroke-width="' + f2(sw) + '"/>'; };
+        return { d: '', s: R + sm(sy, nw * 0.06) + sm(sy + bh * 0.14, nw * 0.03) };
+      case 'colorblock':
+        return { d: '', s: R + '<path d="M' + f2(X + W) + ' ' + f2(Y + H * 0.22) + 'L' + f2(X + W) + ' ' + f2(Y + H) + 'L' + f2(X) + ' ' + f2(Y + H) + 'L' + f2(X) + ' ' + f2(Y + H * 0.78) + 'Z" fill="' + b + '"/><path d="M' + f2(X) + ' ' + f2(Y + H * 0.78) + 'L' + f2(X + W) + ' ' + f2(Y + H * 0.22) + '" stroke="#D4AF37" stroke-width="' + f2(nw * 0.025) + '"/>' };
+      case 'chevron':
+        S = nw * 0.3;
+        return { d: '<pattern id="' + id + 'p" width="' + f2(S) + '" height="' + f2(S * 0.5) + '" patternUnits="userSpaceOnUse"><path d="M0 ' + f2(S * 0.4) + 'L' + f2(S * 0.5) + ' ' + f2(S * 0.1) + 'L' + f2(S) + ' ' + f2(S * 0.4) + '" fill="none" stroke="' + b + '" stroke-width="' + f2(S * 0.1) + '" stroke-linejoin="miter"/></pattern>', s: R + rect(X, Y, W, H, 'url(#' + id + 'p)') };
+      case 'plaid':
+        S = nw * 0.36;
+        return { d: '<pattern id="' + id + 'p" width="' + f2(S) + '" height="' + f2(S) + '" patternUnits="userSpaceOnUse" patternTransform="rotate(8)"><rect width="' + f2(S * 0.32) + '" height="' + f2(S) + '" fill="' + b + '" fill-opacity=".45"/><rect width="' + f2(S) + '" height="' + f2(S * 0.32) + '" fill="' + b + '" fill-opacity=".45"/><path d="M' + f2(S * 0.66) + ' 0V' + f2(S) + 'M0 ' + f2(S * 0.66) + 'H' + f2(S) + '" stroke="' + b + '" stroke-opacity=".85" stroke-width="' + f2(S * 0.035) + '"/><path d="M' + f2(S * 0.16) + ' 0V' + f2(S) + 'M0 ' + f2(S * 0.16) + 'H' + f2(S) + '" stroke="#fff" stroke-opacity=".35" stroke-width="' + f2(S * 0.02) + '"/></pattern>', s: R + rect(X, Y, W, H, 'url(#' + id + 'p)') };
+      case 'zebra':
+        s = R;
+        for (i = 0; i < 7; i++) {
+          var zy = B * (i + 0.3 + r() * 0.4) / 7, zx = (r() - 0.5) * hw;
+          s += '<path d="M' + f2(X - 2) + ' ' + f2(zy - B * 0.04) + 'C' + f2(-hw * 0.4) + ' ' + f2(zy + B * 0.05) + ' ' + f2(zx) + ' ' + f2(zy - B * 0.06) + ' ' + f2(hw * (0.1 + r() * 0.6)) + ' ' + f2(zy + B * 0.02) + '" fill="none" stroke="' + b + '" stroke-width="' + f2(nw * (0.05 + r() * 0.05)) + '" stroke-linecap="round"/>';
+          s += '<path d="M' + f2(X + W + 2) + ' ' + f2(zy + B * 0.03) + 'C' + f2(hw * 0.5) + ' ' + f2(zy - B * 0.04) + ' ' + f2(hw * 0.2) + ' ' + f2(zy + B * 0.05) + ' ' + f2(hw * (0.05 - r() * 0.3)) + ' ' + f2(zy + B * 0.01) + '" fill="none" stroke="' + b + '" stroke-width="' + f2(nw * (0.04 + r() * 0.04)) + '" stroke-linecap="round"/>';
+        }
+        return { d: '', s: s };
+      case 'cow':
+        s = R;
+        for (i = 0; i < 5; i++) s += '<path d="' + blob((r() - 0.5) * nw * 1.1, r() * B, nw * (0.12 + r() * 0.14), r) + '" fill="' + b + '"/>';
+        return { d: '', s: s };
+      case 'snake':
+        S = nw * 0.17;
+        var sc = function (cx, cy) { return '<ellipse cx="' + f2(cx) + '" cy="' + f2(cy) + '" rx="' + f2(S * 0.46) + '" ry="' + f2(S * 0.3) + '" fill="' + b + '" fill-opacity=".22" stroke="' + b + '" stroke-opacity=".75" stroke-width="' + f2(S * 0.07) + '"/>'; };
+        return { d: '<pattern id="' + id + 'p" width="' + f2(S) + '" height="' + f2(S * 0.6) + '" patternUnits="userSpaceOnUse">' + sc(0, 0) + sc(S, 0) + sc(S / 2, S * 0.3) + sc(0, S * 0.6) + sc(S, S * 0.6) + '</pattern>', s: R + rect(X, Y, W, H, 'url(#' + id + 'p)') };
+      case 'galaxy':
+        d = '<radialGradient id="' + id + 'gx"><stop offset="0" stop-color="' + b + '" stop-opacity=".8"/><stop offset="1" stop-color="' + b + '" stop-opacity="0"/></radialGradient>';
+        s = R;
+        for (i = 0; i < 4; i++) s += '<ellipse cx="' + f2((r() - 0.5) * nw) + '" cy="' + f2(r() * B) + '" rx="' + f2(nw * (0.3 + r() * 0.3)) + '" ry="' + f2(nw * (0.2 + r() * 0.2)) + '" fill="url(#' + id + 'gx)"/>';
+        for (i = 0; i < 26; i++) s += '<circle cx="' + f2((r() - 0.5) * nw) + '" cy="' + f2(r() * B) + '" r="' + f2(nw * (0.006 + r() * 0.014)) + '" fill="#fff" fill-opacity="' + f2(0.5 + r() * 0.5) + '"/>';
+        for (i = 0; i < 3; i++) { var gx = (r() - 0.5) * nw * 0.8, gy = r() * B, gs = nw * 0.05; s += '<path d="M' + f2(gx) + ' ' + f2(gy - gs) + 'Q' + f2(gx) + ' ' + f2(gy) + ' ' + f2(gx + gs) + ' ' + f2(gy) + 'Q' + f2(gx) + ' ' + f2(gy) + ' ' + f2(gx) + ' ' + f2(gy + gs) + 'Q' + f2(gx) + ' ' + f2(gy) + ' ' + f2(gx - gs) + ' ' + f2(gy) + 'Q' + f2(gx) + ' ' + f2(gy) + ' ' + f2(gx) + ' ' + f2(gy - gs) + 'Z" fill="#fff"/>'; }
+        return { d: d, s: s };
+      case 'stars':
+        S = nw * 0.36; var sk = S * 0.36 / 24, star = 'M12 2 14.9 8.6 22 9.3 16.6 14 18.2 21 12 17.3 5.8 21 7.4 14 2 9.3 9.1 8.6Z';
+        return { d: '<pattern id="' + id + 'p" width="' + f2(S) + '" height="' + f2(S) + '" patternUnits="userSpaceOnUse"><path d="' + star + '" fill="' + b + '" transform="translate(' + f2(S * 0.26 - 12 * sk) + ' ' + f2(S * 0.28 - 12 * sk) + ') scale(' + f2(sk) + ')"/><path d="' + star + '" fill="' + b + '" transform="translate(' + f2(S * 0.76 - 8 * sk) + ' ' + f2(S * 0.76 - 8 * sk) + ') scale(' + f2(sk * 0.66) + ')"/></pattern>', s: R + rect(X, Y, W, H, 'url(#' + id + 'p)') };
+      case 'lines':
+        return { d: '', s: R + '<path d="M' + f2(-hw * 0.28) + ' ' + f2(free * 0.6) + 'V' + f2(B * 0.9) + '" stroke="' + b + '" stroke-width="' + f2(nw * 0.022) + '" stroke-linecap="round"/>' +
+          '<path d="M' + f2(-hw * 0.05) + ' ' + f2(B * 0.62) + 'C' + f2(hw * 0.3) + ' ' + f2(B * 0.48) + ' ' + f2(hw * 0.6) + ' ' + f2(B * 0.62) + ' ' + f2(hw * 0.9) + ' ' + f2(B * 0.5) + '" fill="none" stroke="' + b + '" stroke-width="' + f2(nw * 0.02) + '" stroke-linecap="round"/>' +
+          '<circle cx="' + f2(hw * 0.32) + '" cy="' + f2(B * 0.36) + '" r="' + f2(nw * 0.045) + '" fill="' + b + '"/>' };
+      case 'abstract':
+        s = R + '<path d="' + blob(-hw * 0.35, B * 0.35, nw * 0.3, r) + '" fill="' + b + '"/>' +
+          '<path d="' + blob(hw * 0.45, B * 0.75, nw * 0.26, r) + '" fill="' + b + '" fill-opacity=".45"/>' +
+          '<path d="' + blob(hw * 0.2, B * 0.2, nw * 0.14, r) + '" fill="none" stroke="#D4AF37" stroke-width="' + f2(nw * 0.02) + '"/>';
+        return { d: '', s: s };
+      case 'outline':
+        return { d: '', s: R + '<path d="' + g.d + '" fill="none" stroke="' + b + '" stroke-width="' + f2(nw * 0.11) + '"/>' };
+      case 'tiedye':
+        d = '<radialGradient id="' + id + 'ty"><stop offset="0" stop-color="' + b + '"/><stop offset=".6" stop-color="' + b + '" stop-opacity=".7"/><stop offset="1" stop-color="' + b + '" stop-opacity="0"/></radialGradient><radialGradient id="' + id + 'tw"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>';
+        s = R;
+        for (i = 0; i < 7; i++) s += '<ellipse cx="' + f2((r() - 0.5) * nw * 1.2) + '" cy="' + f2(r() * B) + '" rx="' + f2(nw * (0.25 + r() * 0.25)) + '" ry="' + f2(nw * (0.18 + r() * 0.2)) + '" fill="url(#' + id + (i % 2 ? 'tw' : 'ty') + ')" transform="rotate(' + Math.round(r() * 180) + ' 0 ' + f2(B / 2) + ')"/>';
+        return { d: d, s: s };
+      case 'rainbow':
+        var rc = ['#E8545C', '#F39A3B', '#F4DC8A', '#8CC7A1', '#8FB8E8', '#B79CE0'];
+        s = '';
+        for (i = 0; i < 6; i++) s += rect(X, Y + H * i / 6, W, H / 6 + 1, rc[i]);
+        return { d: '', s: s };
+      case 'drip':
+        var y0 = typeof n.tip === 'number' ? tf * B : Math.max(free * 0.6, B * 0.18), xs = X + W, p = 'M' + f2(X) + ' ' + f2(Y) + 'H' + f2(X + W) + 'V' + f2(y0);
+        while (xs > X) {
+          var dw = nw * (0.14 + r() * 0.12), x2 = Math.max(X, xs - dw), ln = B * (0.06 + r() * 0.22);
+          p += 'C' + f2(xs) + ' ' + f2(y0 + ln * 1.35) + ' ' + f2(x2) + ' ' + f2(y0 + ln * 1.35) + ' ' + f2(x2) + ' ' + f2(y0);
+          xs = x2 - nw * 0.03; if (xs > X) p += 'L' + f2(xs) + ' ' + f2(y0);
+        }
+        return { d: '', s: R + '<path d="' + p + 'Z" fill="' + b + '"/><path d="' + p + '" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="' + f2(nw * 0.015) + '" transform="translate(' + f2(-nw * 0.02) + ' ' + f2(-nw * 0.015) + ')"/>' };
+      case 'sparkfade':
+        s = R;
+        for (i = 0; i < 90; i++) { var fy = B * Math.pow(r(), 2.2) * (typeof n.tip === 'number' ? Math.min(2.5, tf / 0.4) : 1); s += '<circle cx="' + f2((r() - 0.5) * nw * 1.05) + '" cy="' + f2(fy) + '" r="' + f2(nw * (0.008 + r() * 0.022)) + '" fill="' + (i % 3 ? b : '#fff') + '" fill-opacity="' + f2(0.6 + r() * 0.4) + '"/>'; }
+        return { d: '', s: s };
+      case 'butterfly':
+        S = nw * 0.46;
+        var bf = function (cx, cy, k, rot) {
+          return '<g transform="translate(' + f2(cx) + ' ' + f2(cy) + ') rotate(' + rot + ') scale(' + f2(k) + ')"><ellipse cx="-5" cy="-4" rx="5" ry="6.5" transform="rotate(-25 -5 -4)" fill="' + b + '"/><ellipse cx="5" cy="-4" rx="5" ry="6.5" transform="rotate(25 5 -4)" fill="' + b + '"/><ellipse cx="-3.8" cy="5" rx="3.4" ry="4.2" transform="rotate(20 -3.8 5)" fill="' + b + '" fill-opacity=".8"/><ellipse cx="3.8" cy="5" rx="3.4" ry="4.2" transform="rotate(-20 3.8 5)" fill="' + b + '" fill-opacity=".8"/><rect x="-.8" y="-6" width="1.6" height="13" rx=".8" fill="#2a1a12"/></g>';
+        };
+        return { d: '<pattern id="' + id + 'p" width="' + f2(S) + '" height="' + f2(S) + '" patternUnits="userSpaceOnUse">' + bf(S * 0.3, S * 0.3, S / 60, -15) + bf(S * 0.78, S * 0.78, S / 85, 20) + '</pattern>', s: R + rect(X, Y, W, H, 'url(#' + id + 'p)') };
+      case 'cherry':
+        S = nw * 0.46;
+        var ch2 = function (cx, cy, k) {
+          return '<g transform="translate(' + f2(cx) + ' ' + f2(cy) + ') scale(' + f2(k) + ')"><path d="M-4 3C-3 -4 1 -8 5 -9M4 3C3 -3 3 -6 5 -9" fill="none" stroke="#3E7B3A" stroke-width="1.1" stroke-linecap="round"/><path d="M5 -9C8 -10 10 -8 11 -6C8 -6 6 -7 5 -9Z" fill="#5A9A45"/><circle cx="-4" cy="5" r="3.6" fill="#C8102E"/><circle cx="4" cy="5" r="3.6" fill="#B30D27"/><circle cx="-5.2" cy="3.8" r="1" fill="#fff" fill-opacity=".7"/><circle cx="2.8" cy="3.8" r="1" fill="#fff" fill-opacity=".7"/></g>';
+        };
+        return { d: '<pattern id="' + id + 'p" width="' + f2(S) + '" height="' + f2(S) + '" patternUnits="userSpaceOnUse">' + ch2(S * 0.3, S * 0.32, S / 48) + ch2(S * 0.8, S * 0.8, S / 62) + '</pattern>', s: R + rect(X, Y, W, H, 'url(#' + id + 'p)') };
+      case 'flowers':
+        S = nw * 0.52;
+        var daisy = function (cx, cy, rr) {
+          var o = '';
+          for (var q = 0; q < 5; q++) { var an = q * 72 * Math.PI / 180 - Math.PI / 2; o += '<circle cx="' + f2(cx + Math.cos(an) * rr * 0.72) + '" cy="' + f2(cy + Math.sin(an) * rr * 0.72) + '" r="' + f2(rr * 0.5) + '" fill="' + b + '"/>'; }
+          return o + '<circle cx="' + f2(cx) + '" cy="' + f2(cy) + '" r="' + f2(rr * 0.36) + '" fill="#F2C14E"/>';
+        };
+        d = '<pattern id="' + id + 'p" width="' + f2(S) + '" height="' + f2(S) + '" patternUnits="userSpaceOnUse">' + daisy(S * 0.28, S * 0.3, S * 0.13) + daisy(S * 0.78, S * 0.78, S * 0.1) + '</pattern>';
+        return { d: d, s: R + rect(X, Y, W, H, 'url(#' + id + 'p)') };
+      default:
+        return { d: '', s: R };
+    }
+  }
+
+  // Finishes: every reflection is placed from the lamp position (g.lx: -1 left … 1 right) and scaled by its brightness (g.lk)
+  function stops(list) {
+    return list.sort(function (p, q) { return p[0] - q[0]; }).map(function (v) { return '<stop offset="' + f2(clamp(v[0], 0, 1)) + '" stop-color="' + v[1] + '" stop-opacity="' + f2(clamp(v[2], 0, 1)) + '"/>'; }).join('');
+  }
+  function finishLayer(n, g, id, X, Y, W, H, seed) {
+    var hw = g.hw, nw = g.nw, bh = g.bh, free = g.free, B = g.B, a = n.c1, b = n.c2, d = '', s = '', r = rng(seed * 7 + 3), S, i;
+    var lx = typeof g.lx === 'number' ? g.lx : -0.75, lk = typeof g.lk === 'number' ? g.lk : 0.8, lc = g.lc || '#ffffff';
+    var p = clamp(0.5 + lx * 0.3, 0.18, 0.82); // where the brightest band sits across the nail (0 = left edge, 1 = right edge)
+    function streak(op) { return '<ellipse cx="' + f2(lx * hw * 0.5) + '" cy="' + f2(B * 0.52) + '" rx="' + f2(hw * 0.12) + '" ry="' + f2(B * 0.36) + '" fill="' + lc + '" fill-opacity="' + f2(op * lk) + '" filter="url(#ndf-b2)"/>'; }
+    function dot(op) { return '<ellipse cx="' + f2(lx * hw * 0.4) + '" cy="' + f2(free + bh * 0.14) + '" rx="' + f2(hw * 0.12) + '" ry="' + f2(hw * 0.07) + '" fill="' + lc + '" fill-opacity="' + f2(Math.min(1, op * lk)) + '" filter="url(#ndf-b1)"/>'; }
+    function across(gid, list) { return '<linearGradient id="' + gid + '" x1="0" y1="0" x2="1" y2="0">' + stops(list) + '</linearGradient>'; }
+    switch (n.finish) {
+      case 'matte':
+        // no mirror reflection — only a soft, wide sheen on the lit side and a fine texture
+        s = rect(X, Y, W, H, '#fff', ' fill-opacity=".06"') + rect(X, Y, W, H, '#000', ' filter="url(#ndf-grain)" opacity=".1"') +
+          '<ellipse cx="' + f2(lx * hw * 0.35) + '" cy="' + f2(B * 0.48) + '" rx="' + f2(hw * 0.55) + '" ry="' + f2(B * 0.42) + '" fill="#fff" fill-opacity="' + f2(0.12 * lk) + '" filter="url(#ndf-b3)"/>';
+        break;
+      case 'chrome':
+        // mirror: dark edges, one bright band toward the lamp, a weaker bounce on the far side, sky reflection at the top
+        d = across(id + 'cr', [[0, '#000', 0.3], [p - 0.24, '#000', 0.04], [p - 0.08, lc, 0.45 * lk], [p, lc, 0.9 * lk], [p + 0.07, lc, 0.3 * lk], [p + 0.2, '#000', 0.12], [1 - p + (lx < 0 ? 0.18 : -0.18), lc, 0.22 * lk], [1, '#000', 0.32]]) +
+          '<linearGradient id="' + id + 'cv2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="' + f2(0.25 * lk) + '"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".18"/></linearGradient>';
+        s = rect(X, Y, W, H, '#fff', ' fill-opacity=".1"') + rect(X, Y, W, H, 'url(#' + id + 'cr)') + rect(X, Y, W, H, 'url(#' + id + 'cv2)') + dot(0.9);
+        break;
+      case 'glitter':
+        S = nw * 0.34;
+        d = '<pattern id="' + id + 'g" width="' + f2(S) + '" height="' + f2(S) + '" patternUnits="userSpaceOnUse">';
+        var cols = ['#ffffff', '#FFE7A3', '#E6E6F0', b];
+        for (i = 0; i < 26; i++) d += '<circle cx="' + f2(r() * S) + '" cy="' + f2(r() * S) + '" r="' + f2(S * (0.012 + r() * 0.03)) + '" fill="' + cols[i % 4] + '" fill-opacity="' + f2(0.5 + r() * 0.45) + '"/>';
+        d += '</pattern>';
+        s = rect(X, Y, W, H, 'url(#' + id + 'g)');
+        // a few flecks catch the lamp and flash
+        for (i = 0; i < 4; i++) {
+          var gx = (lx * 0.45 + (r() - 0.5) * 0.5) * hw, gy = B * (0.25 + r() * 0.55), gs = nw * (0.035 + r() * 0.03);
+          s += '<path d="M' + f2(gx) + ' ' + f2(gy - gs) + 'Q' + f2(gx) + ' ' + f2(gy) + ' ' + f2(gx + gs) + ' ' + f2(gy) + 'Q' + f2(gx) + ' ' + f2(gy) + ' ' + f2(gx) + ' ' + f2(gy + gs) + 'Q' + f2(gx) + ' ' + f2(gy) + ' ' + f2(gx - gs) + ' ' + f2(gy) + 'Q' + f2(gx) + ' ' + f2(gy) + ' ' + f2(gx) + ' ' + f2(gy - gs) + 'Z" fill="#fff" fill-opacity="' + f2(0.9 * lk) + '"/>';
+        }
+        s += streak(0.35) + dot(0.8);
+        break;
+      case 'pearl':
+        // glazed: milky veil + a soft pearly sheen (pink → blue → gold) that slides with the light
+        d = across(id + 'pz', [[p - 0.45, '#ffd6ef', 0], [p - 0.2, '#ffd6ef', 0.35 * lk], [p, '#ffffff', 0.55 * lk], [p + 0.2, '#cfeaff', 0.35 * lk], [p + 0.45, '#fff0c8', 0.25 * lk], [p + 0.7, '#fff0c8', 0]]);
+        s = rect(X, Y, W, H, '#fff', ' fill-opacity=".16"') + rect(X, Y, W, H, 'url(#' + id + 'pz)') +
+          '<ellipse cx="' + f2(lx * hw * 0.45) + '" cy="' + f2(B * 0.5) + '" rx="' + f2(hw * 0.22) + '" ry="' + f2(B * 0.38) + '" fill="#fff" fill-opacity="' + f2(0.3 * lk) + '" filter="url(#ndf-b3)"/>' + dot(0.7);
+        break;
+      case 'cateye':
+        // magnetic band in the accent colour, glowing toward the lamp, with shimmer inside it only
+        var band = [[p - 0.26, b, 0], [p - 0.1, b, 0.55], [p, mixc(b, '#ffffff', 0.55), 0.35 + 0.55 * lk], [p + 0.1, b, 0.55], [p + 0.26, b, 0]];
+        S = nw * 0.1;
+        d = across(id + 'ke', band) + across(id + 'km', band.map(function (v) { return [v[0], '#fff', v[2]]; })) +
+          '<mask id="' + id + 'kk" maskUnits="userSpaceOnUse" x="' + f2(X) + '" y="' + f2(Y) + '" width="' + f2(W) + '" height="' + f2(H) + '">' + rect(X, Y, W, H, 'url(#' + id + 'km)') + '</mask>' +
+          '<pattern id="' + id + 'sh" width="' + f2(S) + '" height="' + f2(S) + '" patternUnits="userSpaceOnUse"><circle cx="' + f2(S * 0.3) + '" cy="' + f2(S * 0.4) + '" r="' + f2(S * 0.07) + '" fill="#fff"/><circle cx="' + f2(S * 0.8) + '" cy="' + f2(S * 0.85) + '" r="' + f2(S * 0.05) + '" fill="#fff" fill-opacity=".7"/></pattern>';
+        s = rect(X, Y, W, H, '#000', ' fill-opacity=".1"') + rect(X, Y, W, H, 'url(#' + id + 'ke)') + '<g mask="url(#' + id + 'kk)">' + rect(X, Y, W, H, 'url(#' + id + 'sh)', ' opacity="' + f2(0.5 * lk) + '"') + '</g>' + dot(0.65);
+        break;
+      case 'aurora':
+        // iridescent film: the colours shift across the nail as the lamp moves
+        var sh = lx * 0.35;
+        d = '<linearGradient id="' + id + 'au" x1="' + f2(0 + sh) + '" y1="0" x2="' + f2(1 + sh) + '" y2="1"><stop offset="0" stop-color="#ff8fd1"/><stop offset=".33" stop-color="#8ef0ff"/><stop offset=".66" stop-color="#b98bff"/><stop offset="1" stop-color="#ffe38a"/></linearGradient>';
+        s = rect(X, Y, W, H, 'url(#' + id + 'au)', ' opacity="' + f2(0.25 + 0.3 * lk) + '" style="mix-blend-mode:screen"') + streak(0.45) + dot(0.8);
+        break;
+      default: // gloss
+        s = streak(0.55) + dot(0.95);
+    }
+    return { d: d, s: s };
+  }
+
+  /* =========================================================
+     Charms — drawn in 3D and lit by the movable lamp
+     Every charm is drawn centred on 0,0; u = nail width, lv = unit vector pointing at the light
+     ========================================================= */
+  function hexRgb(h) { var n = parseInt(String(h).slice(1, 7), 16) || 0; return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+  function mixc(a, b, t) { var A = hexRgb(a), B = hexRgb(b); return '#' + A.map(function (v, i) { var c = Math.round(v + (B[i] - v) * t); return (c < 16 ? '0' : '') + c.toString(16); }).join(''); }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function ptsD(P) { return 'M' + P.map(function (p) { return f2(p[0]) + ' ' + f2(p[1]); }).join('L') + 'Z'; }
+  function at(x, y, s) { return '<g transform="translate(' + f2(x) + ' ' + f2(y) + ')">' + s + '</g>'; }
+
+  function gemOutline(kind, R) {
+    var P = [], i, t, s, h, w, c;
+    switch (kind) {
+      case 'oval': for (i = 0; i < 16; i++) { t = i / 16 * 2 * Math.PI; P.push([Math.sin(t) * R * 0.74, -Math.cos(t) * R]); } break;
+      case 'pear': for (i = 0; i < 18; i++) { t = i / 18 * 2 * Math.PI; P.push([R * 0.95 * Math.sin(t) * Math.sin(t / 2), -R * Math.cos(t)]); } break;
+      case 'marq': for (i = 0; i < 16; i++) { t = i / 16 * 2 * Math.PI; s = Math.sin(t); P.push([R * 0.55 * s * Math.pow(Math.abs(s), 0.35), -R * Math.cos(t)]); } break;
+      case 'sq': h = R * 0.8; P = [[-h, -h], [0, -h], [h, -h], [h, 0], [h, h], [0, h], [-h, h], [-h, 0]]; break;
+      case 'em': w = R * 0.7; h = R * 0.92; c = R * 0.26; P = [[-w + c, -h], [w - c, -h], [w, -h + c], [w, h - c], [w - c, h], [-w + c, h], [-w, h - c], [-w, -h + c]]; break;
+      case 'heart': for (i = 0; i < 20; i++) { t = i / 20 * 2 * Math.PI; P.push([16 * Math.pow(Math.sin(t), 3) * R / 17, (-(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) + 2) * R / 17]); } break;
+      case 'tri': [[-90], [-30], [30], [90], [150], [210]].forEach(function (a, k) { var r0 = k % 2 ? R * 0.52 : R; var an = a[0] * Math.PI / 180; P.push([Math.cos(an) * r0, Math.sin(an) * r0 + R * 0.12]); }); break;
+      default: for (i = 0; i < 16; i++) { t = i / 16 * 2 * Math.PI; P.push([Math.sin(t) * R, -Math.cos(t) * R]); }
+    }
+    return P;
+  }
+  var AB = ['#ffd1ef', '#c4efff', '#fff1a8', '#dcc8ff', '#b6ffe0', '#ffc9b8'];
+  function gemSVG(kind, color, R, lv) {
+    var P = gemOutline(kind, R), n = P.length, T = P.map(function (p) { return [p[0] * 0.52, p[1] * 0.52]; });
+    var ab = color === 'ab', base = ab ? '#e9f2ff' : color, light = mixc(base, '#ffffff', 0.8), dark = mixc(base, '#000000', ab ? 0.25 : 0.5), i;
+    var o = '<path d="' + ptsD(P) + '" fill="' + dark + '"/>';
+    for (i = 0; i < n; i++) {
+      var a = P[i], b = P[(i + 1) % n], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, l = Math.hypot(mx, my) || 1;
+      var sh = clamp(0.5 + 0.55 * ((mx * lv[0] + my * lv[1]) / l) + (i % 2 ? 0.14 : -0.1), 0, 1);
+      var fc = ab ? mixc(mixc(AB[i % AB.length], '#000000', 0.28), '#ffffff', sh * 0.75) : mixc(dark, light, sh);
+      o += '<path d="' + ptsD([a, b, T[(i + 1) % n], T[i]]) + '" fill="' + fc + '"/>';
+    }
+    o += '<path d="' + ptsD(T) + '" fill="' + mixc(base, '#ffffff', ab ? 0.4 : 0.32) + '"/>';
+    for (i = 0; i < n; i += 2) {
+      var a2 = T[i], b2 = T[(i + 1) % n], mx2 = (a2[0] + b2[0]) / 2, my2 = (a2[1] + b2[1]) / 2, l2 = Math.hypot(mx2, my2) || 1;
+      var sh2 = clamp(0.5 - 0.5 * ((mx2 * lv[0] + my2 * lv[1]) / l2), 0, 1);
+      o += '<path d="' + ptsD([[0, 0], a2, b2]) + '" fill="' + (ab ? AB[(i / 2) % AB.length] : mixc(base, '#000000', 0.3)) + '" fill-opacity="' + f2(0.12 + 0.38 * sh2) + '"/>';
+    }
+    o += '<path d="' + ptsD(P) + '" fill="none" stroke="' + mixc(base, '#000000', 0.6) + '" stroke-opacity=".5" stroke-width="' + f2(R * 0.05) + '" stroke-linejoin="round"/>';
+    var sx = lv[0] * R * 0.32, sy = lv[1] * R * 0.32, sr = R * 0.45;
+    o += '<path d="M' + f2(sx) + ' ' + f2(sy - sr) + 'Q' + f2(sx) + ' ' + f2(sy) + ' ' + f2(sx + sr) + ' ' + f2(sy) + 'Q' + f2(sx) + ' ' + f2(sy) + ' ' + f2(sx) + ' ' + f2(sy + sr) + 'Q' + f2(sx) + ' ' + f2(sy) + ' ' + f2(sx - sr) + ' ' + f2(sy) + 'Q' + f2(sx) + ' ' + f2(sy) + ' ' + f2(sx) + ' ' + f2(sy - sr) + 'Z" fill="#fff"/>';
+    o += '<circle cx="' + f2(-sx * 0.7) + '" cy="' + f2(-sy * 0.5) + '" r="' + f2(R * 0.07) + '" fill="#fff" fill-opacity=".7"/>';
+    return o;
+  }
+  // Sphere shading: the bright spot sits on the side facing the lamp
+  function sphereGrad(uid, cols, lv) {
+    return '<defs><radialGradient id="' + uid + '" cx="' + f2(0.5 + lv[0] * 0.28) + '" cy="' + f2(0.5 + lv[1] * 0.28) + '" r="' + f2(0.78) + '"><stop offset="0" stop-color="' + cols[0] + '"/><stop offset=".38" stop-color="' + cols[1] + '"/><stop offset="1" stop-color="' + cols[2] + '"/></radialGradient></defs>';
+  }
+  var PEARLS = { w: ['#ffffff', '#f7f0e2', '#b9a88c'], p: ['#ffffff', '#f7d9dd', '#b88690'], g: ['#fffaea', '#ecd3a0', '#9e7a3c'], b: ['#d5e3ff', '#5c5764', '#16141b'] };
+  function pearlSVG(c, R, lv, uid) {
+    var p = PEARLS[c] || PEARLS.w;
+    return sphereGrad(uid, p, lv) + '<circle r="' + f2(R) + '" fill="url(#' + uid + ')"/>' +
+      '<circle r="' + f2(R * 0.93) + '" fill="none" stroke="#ffd8f0" stroke-opacity=".28" stroke-width="' + f2(R * 0.1) + '"/>' +
+      '<ellipse cx="' + f2(lv[0] * R * 0.42) + '" cy="' + f2(lv[1] * R * 0.42) + '" rx="' + f2(R * 0.2) + '" ry="' + f2(R * 0.14) + '" fill="#fff" fill-opacity=".9"/>';
+  }
+  var METALS = {
+    gold: ['#fff6cf', '#f0c95e', '#b8871f', '#f7dc86', '#a8761a', '#7d5510'],
+    silver: ['#ffffff', '#e3e3ea', '#9f9dab', '#f2f2f6', '#8c8a98', '#6b6977'],
+    rose: ['#ffe6dc', '#eaae98', '#a9624e', '#f5c7b5', '#9d5946', '#7a3f30']
+  };
+  function metalGrad(uid, m, lv) {
+    var c = METALS[m];
+    return '<defs><linearGradient id="' + uid + '" x1="' + f2(0.5 + lv[0] * 0.55) + '" y1="' + f2(0.5 + lv[1] * 0.55) + '" x2="' + f2(0.5 - lv[0] * 0.55) + '" y2="' + f2(0.5 - lv[1] * 0.55) + '"><stop offset="0" stop-color="' + c[0] + '"/><stop offset=".3" stop-color="' + c[1] + '"/><stop offset=".55" stop-color="' + c[2] + '"/><stop offset=".75" stop-color="' + c[3] + '"/><stop offset="1" stop-color="' + c[4] + '"/></linearGradient></defs>';
+  }
+  // A 24×24 icon path cast in metal, with a bevel highlight on the lit edge
+  function metalSVG(d, m, R, lv, uid, stroke) {
+    var k = 2 * R / 24, c = METALS[m], paint = stroke ? 'fill="none" stroke="url(#' + uid + ')" stroke-width="' + stroke + '" stroke-linecap="round" stroke-linejoin="round"' : 'fill="url(#' + uid + ')" stroke="' + c[5] + '" stroke-width=".45" stroke-linejoin="round"';
+    return metalGrad(uid, m, lv) + '<g transform="scale(' + f2(k) + ') translate(-12 -12)"><path d="' + d + '" ' + paint + '/>' +
+      '<path d="' + d + '" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="' + (stroke ? f2(stroke * 0.25) : '.55') + '" stroke-linejoin="round" transform="translate(' + f2(lv[0] * 0.45) + ' ' + f2(lv[1] * 0.45) + ')"/></g>';
+  }
+  function gelSVG(d, cols, R, lv, uid) {
+    var k = 2 * R / 24;
+    return sphereGrad(uid, cols, lv) + '<g transform="scale(' + f2(k) + ') translate(-12 -12)"><path d="' + d + '" fill="url(#' + uid + ')" stroke="' + cols[2] + '" stroke-opacity=".5" stroke-width=".4"/>' +
+      '<ellipse cx="' + f2(12 + lv[0] * 5) + '" cy="' + f2(12 + lv[1] * 5) + '" rx="2" ry="1.2" fill="#fff" fill-opacity=".8"/></g>';
+  }
+  var P_STAR = 'M12 2 14.9 8.6 22 9.3 16.6 14 18.2 21 12 17.3 5.8 21 7.4 14 2 9.3 9.1 8.6Z';
+  var P_SPARK = 'M12 1C13 8 16 11 23 12 16 13 13 16 12 23 11 16 8 13 1 12 8 11 11 8 12 1Z';
+  var P_MOON = 'M16 2.5A9.5 9.5 0 1 0 21.5 17 7.5 7.5 0 0 1 16 2.5Z';
+  var P_HEART = 'M12 21C5 16.5 2 12.8 2 8.8 2 5.6 4.5 3.5 7.2 3.5c2.1 0 3.8 1.3 4.8 3.1 1-1.8 2.7-3.1 4.8-3.1 2.7 0 5.2 2.1 5.2 5.3 0 4-3 7.7-10 12.2Z';
+  var P_BOW = 'M12 11.5C9 7.5 3.8 6.6 3.3 10.3 2.8 14 8 15 12 12.2ZM12 11.5C15 7.5 20.2 6.6 20.7 10.3 21.2 14 16 15 12 12.2ZM11.2 12.6 9 19.5l2-.6 1-2.6ZM12.8 12.6l2.2 6.9-2-.6-1-2.6ZM10.8 10.3h2.4v2.8h-2.4Z';
+  var P_BFLY = 'M11.6 11C9.5 5 3 3.5 2.6 7.5 2.3 10.8 6.5 12.2 10.6 12 7 13.5 4.8 16.4 6.6 19 8.4 21.3 11 17.5 11.6 13.4ZM12.4 11C14.5 5 21 3.5 21.4 7.5 21.7 10.8 17.5 12.2 13.4 12 17 13.5 19.2 16.4 17.4 19 15.6 21.3 13 17.5 12.4 13.4ZM11.2 7.5h1.6v12h-1.6Z';
+  var P_BOLT = 'M13.5 1.5 4.5 13.5H11L9.5 22.5 19.5 9.5H13Z';
+  var P_CROWN = 'M2.5 17.5 3.5 6.5 8.5 11 12 3.5 15.5 11 20.5 6.5 21.5 17.5ZM3 19h18v2.5H3Z';
+  var P_SHELL = 'M12 21.5 3 12.5C2.4 7 6.5 2.5 12 2.5S21.6 7 21 12.5Z';
+  var P_SUN = (function () {
+    var d = 'M12 6.8a5.2 5.2 0 1 1 0 10.4 5.2 5.2 0 1 1 0-10.4Z';
+    for (var k = 0; k < 8; k++) {
+      var a = k * Math.PI / 4, a1 = a - 0.22, a2 = a + 0.22;
+      d += 'M' + f2(12 + Math.cos(a1) * 6.6) + ' ' + f2(12 + Math.sin(a1) * 6.6) + 'L' + f2(12 + Math.cos(a) * 11.5) + ' ' + f2(12 + Math.sin(a) * 11.5) + 'L' + f2(12 + Math.cos(a2) * 6.6) + ' ' + f2(12 + Math.sin(a2) * 6.6) + 'Z';
+    }
+    return d;
+  })();
+  var C = { clear: '#dfe9f1', pink: '#f58fbd', ruby: '#c8163c', sapph: '#2350c0', emer: '#129164', amet: '#8d4fd2', champ: '#e3c287', jet: '#2a2730', ab: 'ab' };
+  function G(kind, color, r) { return function (u, lv) { return gemSVG(kind, color, r * u, lv); }; }
+  function PL(c, r) { return function (u, lv, uid) { return pearlSVG(c, r * u, lv, uid); }; }
+  function M(d, m, r, stroke) { return function (u, lv, uid) { return metalSVG(d, m, r * u, lv, uid, stroke); }; }
+  function arcRow(n, half, rise, fn) { var o = ''; for (var k = 0; k < n; k++) { var x = -half + 2 * half * k / (n - 1); o += fn(x, rise * (1 - Math.pow(x / half, 2)), k); } return o; }
+  function stud(m) { return function (u, lv, uid) { var c = METALS[m]; return sphereGrad(uid, [c[0], c[1], c[5]], lv) + '<circle r="' + f2(0.12 * u) + '" fill="url(#' + uid + ')"/><circle cx="' + f2(lv[0] * 0.05 * u) + '" cy="' + f2(lv[1] * 0.05 * u) + '" r="' + f2(0.025 * u) + '" fill="#fff"/>'; }; }
+  function flower3d(cols) {
+    return function (u, lv, uid) {
+      var R = 0.23 * u, o = sphereGrad(uid, cols, [lv[0] * 0.5, -0.8]);
+      for (var k = 0; k < 5; k++) {
+        var a = k * 72, ar = a * Math.PI / 180, nx = Math.sin(ar), ny = -Math.cos(ar), sh = clamp(0.5 + 0.5 * (nx * lv[0] + ny * lv[1]), 0, 1);
+        o += '<g transform="rotate(' + a + ')"><ellipse cx="0" cy="' + f2(-R * 0.5) + '" rx="' + f2(R * 0.34) + '" ry="' + f2(R * 0.52) + '" fill="url(#' + uid + ')" stroke="' + cols[2] + '" stroke-opacity=".35" stroke-width="' + f2(R * 0.03) + '"/>' +
+          '<ellipse cx="0" cy="' + f2(-R * 0.5) + '" rx="' + f2(R * 0.34) + '" ry="' + f2(R * 0.52) + '" fill="#000" fill-opacity="' + f2(0.2 * (1 - sh)) + '"/>' +
+          '<path d="M0 ' + f2(-R * 0.2) + 'V' + f2(-R * 0.75) + '" stroke="' + cols[2] + '" stroke-opacity=".3" stroke-width="' + f2(R * 0.03) + '"/></g>';
+      }
+      return o + at(0, 0, stud('gold')(u * 0.7, lv, uid + 'c'));
+    };
+  }
+  function rose(cols) {
+    return function (u, lv, uid) {
+      var R = 0.2 * u, o = sphereGrad(uid, cols, lv) + '<circle r="' + f2(R) + '" fill="url(#' + uid + ')"/>';
+      [[0.28, 20], [0.52, 140], [0.78, 260]].forEach(function (v) {
+        var r = v[0] * R, a0 = v[1] * Math.PI / 180, a1 = a0 + 4.4;
+        o += '<path d="M' + f2(Math.cos(a0) * r) + ' ' + f2(Math.sin(a0) * r) + 'A' + f2(r) + ' ' + f2(r) + ' 0 1 1 ' + f2(Math.cos(a1) * r) + ' ' + f2(Math.sin(a1) * r) + '" fill="none" stroke="' + cols[2] + '" stroke-opacity=".6" stroke-width="' + f2(R * 0.1) + '" stroke-linecap="round"/>';
+      });
+      return o + '<ellipse cx="' + f2(lv[0] * R * 0.5) + '" cy="' + f2(lv[1] * R * 0.5) + '" rx="' + f2(R * 0.18) + '" ry="' + f2(R * 0.1) + '" fill="#fff" fill-opacity=".6"/>';
+    };
+  }
+
+  var CH = {}, CH_CATS = ['crystal', 'pearl', 'metal', 'gel'];
+  function ch(id, cat, en, es, rad, y, draw) { CH[id] = { cat: cat, en: en, es: es, rad: rad, y: y, draw: draw }; }
+  // Crystals
+  ch('gem', 'crystal', 'Crystal', 'Cristal', 0.17, 0.6, G('round', C.clear, 0.17));
+  ch('gem_pink', 'crystal', 'Pink crystal', 'Cristal rosa', 0.17, 0.6, G('round', C.pink, 0.17));
+  ch('gem_ruby', 'crystal', 'Ruby', 'Rubí', 0.17, 0.6, G('round', C.ruby, 0.17));
+  ch('gem_sapph', 'crystal', 'Sapphire', 'Zafiro', 0.17, 0.6, G('round', C.sapph, 0.17));
+  ch('gem_emer', 'crystal', 'Emerald', 'Esmeralda', 0.17, 0.6, G('round', C.emer, 0.17));
+  ch('gem_amet', 'crystal', 'Amethyst', 'Amatista', 0.17, 0.6, G('round', C.amet, 0.17));
+  ch('gem_ab', 'crystal', 'Aurora crystal', 'Cristal aurora', 0.17, 0.6, G('round', C.ab, 0.17));
+  ch('gem_jet', 'crystal', 'Jet', 'Azabache', 0.17, 0.6, G('round', C.jet, 0.17));
+  ch('oval_champ', 'crystal', 'Champagne oval', 'Óvalo champán', 0.2, 0.62, G('oval', C.champ, 0.2));
+  ch('oval_clear', 'crystal', 'Crystal oval', 'Óvalo de cristal', 0.2, 0.62, G('oval', C.clear, 0.2));
+  ch('pear_clear', 'crystal', 'Crystal drop', 'Gota de cristal', 0.21, 0.64, G('pear', C.clear, 0.21));
+  ch('pear_pink', 'crystal', 'Pink drop', 'Gota rosa', 0.21, 0.64, G('pear', C.pink, 0.21));
+  ch('marq_clear', 'crystal', 'Marquise', 'Marquesa', 0.22, 0.64, G('marq', C.clear, 0.22));
+  ch('marq_sapph', 'crystal', 'Blue marquise', 'Marquesa azul', 0.22, 0.64, G('marq', C.sapph, 0.22));
+  ch('sq_clear', 'crystal', 'Princess cut', 'Corte princesa', 0.17, 0.6, G('sq', C.clear, 0.17));
+  ch('sq_ruby', 'crystal', 'Ruby square', 'Cuadrado rubí', 0.17, 0.6, G('sq', C.ruby, 0.17));
+  ch('emcut', 'crystal', 'Emerald cut', 'Corte esmeralda', 0.19, 0.62, G('em', C.emer, 0.19));
+  ch('hgem_pink', 'crystal', 'Pink heart gem', 'Corazón rosa', 0.2, 0.6, G('heart', C.pink, 0.2));
+  ch('hgem_ruby', 'crystal', 'Ruby heart', 'Corazón rubí', 0.2, 0.6, G('heart', C.ruby, 0.2));
+  ch('tri_clear', 'crystal', 'Triangle', 'Triángulo', 0.19, 0.6, G('tri', C.clear, 0.19));
+  ch('trio', 'crystal', 'Crystal row', 'Línea de cristales', 0.32, 0.3, function (u, lv) { return [[-0.22, -0.02, 0.075], [0, 0.03, 0.085], [0.22, -0.02, 0.075]].map(function (p) { return at(p[0] * u, p[1] * u, gemSVG('round', C.clear, p[2] * u, lv)); }).join(''); });
+  ch('cluster', 'crystal', 'Crystal cluster', 'Racimo de cristales', 0.24, 0.55, function (u, lv, uid) {
+    return at(-0.13 * u, 0.13 * u, gemSVG('round', C.clear, 0.045 * u, lv)) + at(0.14 * u, -0.1 * u, gemSVG('round', C.clear, 0.05 * u, lv)) + at(-0.15 * u, -0.12 * u, gemSVG('round', C.pink, 0.065 * u, lv)) +
+      at(0.13 * u, 0.12 * u, pearlSVG('w', 0.055 * u, lv, uid)) + gemSVG('round', C.clear, 0.12 * u, lv);
+  });
+  ch('cuticle', 'crystal', 'Cuticle line', 'Línea de cutícula', 0.42, 0.24, function (u, lv) { return arcRow(7, 0.36, 0.05, function (x, y, k) { return at(x * u, y * u, gemSVG('round', C.clear, (k % 2 ? 0.038 : 0.046) * u, lv)); }); });
+  ch('tipline', 'crystal', 'Tip line', 'Línea en la punta', 0.44, 1.18, function (u, lv) { return arcRow(7, 0.38, -0.07, function (x, y, k) { return at(x * u, y * u, gemSVG('round', C.clear, (k % 2 ? 0.036 : 0.042) * u, lv)); }); });
+  ch('drop', 'crystal', 'Drop set', 'Juego de gota', 0.3, 0.6, function (u, lv) { return at(0, 0.06 * u, gemSVG('pear', C.clear, 0.17 * u, lv)) + at(-0.09 * u, -0.22 * u, gemSVG('round', C.clear, 0.045 * u, lv)) + at(0.09 * u, -0.22 * u, gemSVG('round', C.clear, 0.045 * u, lv)); });
+  // Pearls
+  ch('pearls', 'pearl', 'Pearl trio', 'Trío de perlas', 0.26, 0.6, function (u, lv, uid) { return at(-0.12 * u, -0.13 * u, pearlSVG('w', 0.085 * u, lv, uid + 'a')) + pearlSVG('w', 0.075 * u, lv, uid + 'b') + at(0.12 * u, 0.13 * u, pearlSVG('w', 0.065 * u, lv, uid + 'c')); });
+  ch('pearl', 'pearl', 'White pearl', 'Perla blanca', 0.15, 0.6, PL('w', 0.15));
+  ch('pearl_pink', 'pearl', 'Pink pearl', 'Perla rosa', 0.15, 0.6, PL('p', 0.15));
+  ch('pearl_gold', 'pearl', 'Champagne pearl', 'Perla champán', 0.15, 0.6, PL('g', 0.15));
+  ch('pearl_black', 'pearl', 'Black pearl', 'Perla negra', 0.15, 0.6, PL('b', 0.15));
+  ch('pearlline', 'pearl', 'Pearl line', 'Línea de perlas', 0.38, 0.26, function (u, lv, uid) { return arcRow(5, 0.3, 0.05, function (x, y, k) { return at(x * u, y * u, pearlSVG('w', 0.062 * u, lv, uid + k)); }); });
+  ch('pearlgem', 'pearl', 'Pearls & crystal', 'Perlas y cristal', 0.22, 0.6, function (u, lv, uid) { return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(function (p, k) { return at(p[0] * 0.13 * u, p[1] * 0.13 * u, pearlSVG('w', 0.05 * u, lv, uid + k)); }).join('') + gemSVG('round', C.pink, 0.1 * u, lv); });
+  // Metal
+  ch('star', 'metal', 'Gold star', 'Estrella dorada', 0.22, 0.6, M(P_STAR, 'gold', 0.23));
+  ch('star_s', 'metal', 'Silver star', 'Estrella plateada', 0.22, 0.6, M(P_STAR, 'silver', 0.23));
+  ch('sparkle', 'metal', 'Sparkle', 'Destello', 0.22, 0.62, M(P_SPARK, 'gold', 0.23));
+  ch('moon', 'metal', 'Moon', 'Luna', 0.22, 0.6, M(P_MOON, 'gold', 0.23));
+  ch('moonstar', 'metal', 'Moon & star', 'Luna y estrella', 0.26, 0.6, function (u, lv, uid) { return at(-0.05 * u, 0.03 * u, metalSVG(P_MOON, 'gold', 0.21 * u, lv, uid + 'm')) + at(0.14 * u, -0.14 * u, metalSVG(P_SPARK, 'gold', 0.08 * u, lv, uid + 's')); });
+  ch('heart', 'metal', 'Gold heart', 'Corazón dorado', 0.22, 0.6, M(P_HEART, 'gold', 0.23));
+  ch('heart_r', 'metal', 'Rose gold heart', 'Corazón oro rosa', 0.22, 0.6, M(P_HEART, 'rose', 0.23));
+  ch('heart_s', 'metal', 'Silver heart', 'Corazón plateado', 0.22, 0.6, M(P_HEART, 'silver', 0.23));
+  ch('bow', 'metal', 'Silver bow', 'Moño plateado', 0.24, 0.6, M(P_BOW, 'silver', 0.26));
+  ch('bow_g', 'metal', 'Gold bow', 'Moño dorado', 0.24, 0.6, M(P_BOW, 'gold', 0.26));
+  ch('bfly', 'metal', 'Gold butterfly', 'Mariposa dorada', 0.24, 0.6, M(P_BFLY, 'gold', 0.25));
+  ch('bfly_s', 'metal', 'Silver butterfly', 'Mariposa plateada', 0.24, 0.6, M(P_BFLY, 'silver', 0.25));
+  ch('bolt', 'metal', 'Lightning', 'Rayo', 0.22, 0.6, M(P_BOLT, 'gold', 0.23));
+  ch('crown', 'metal', 'Crown', 'Corona', 0.22, 0.6, M(P_CROWN, 'gold', 0.23));
+  ch('sun', 'metal', 'Sun', 'Sol', 0.22, 0.6, M(P_SUN, 'gold', 0.23));
+  ch('shell', 'metal', 'Shell', 'Concha', 0.22, 0.6, function (u, lv, uid) {
+    var R = 0.23 * u, k = 2 * R / 24, ribs = '';
+    for (var q = 0; q < 7; q++) { var a = (-70 + q * 140 / 6) * Math.PI / 180; ribs += '<path d="M12 21 L' + f2(12 + Math.sin(a) * 9) + ' ' + f2(12.5 - Math.cos(a) * 9) + '" stroke="' + METALS.gold[5] + '" stroke-opacity=".55" stroke-width=".5"/>'; }
+    return metalSVG(P_SHELL, 'gold', R, lv, uid) + '<g transform="scale(' + f2(k) + ') translate(-12 -12)">' + ribs + '</g>';
+  });
+  ch('snake', 'metal', 'Snake', 'Serpiente', 0.24, 0.6, function (u, lv, uid) {
+    var R = 0.24 * u, k = 2 * R / 24;
+    return metalSVG('M5 21C3 15 11 16 11 11S4 6 7 3.5 14 2 16 5', 'gold', R, lv, uid, 2.6) + '<g transform="scale(' + f2(k) + ') translate(-12 -12)"><ellipse cx="16.3" cy="5.4" rx="2.2" ry="1.6" fill="url(#' + uid + ')" stroke="' + METALS.gold[5] + '" stroke-width=".4"/><circle cx="17" cy="5" r=".45" fill="#2a1a12"/></g>';
+  });
+  ch('chain', 'metal', 'Chain', 'Cadena', 0.36, 0.36, function (u, lv, uid) {
+    var o = metalGrad(uid, 'gold', lv), R = 0.34 * u;
+    for (var q = 0; q < 6; q++) { var x = -R + q * (2 * R / 5); o += '<ellipse cx="' + f2(x) + '" cy="0" rx="' + f2(u * 0.07) + '" ry="' + f2(u * (q % 2 ? 0.03 : 0.045)) + '" fill="none" stroke="url(#' + uid + ')" stroke-width="' + f2(u * 0.022) + '"/>'; }
+    return o;
+  });
+  ch('stud', 'metal', 'Gold stud', 'Tachuela dorada', 0.12, 0.55, stud('gold'));
+  ch('stud_s', 'metal', 'Silver stud', 'Tachuela plateada', 0.12, 0.55, stud('silver'));
+  ch('planet', 'metal', 'Planet', 'Planeta', 0.26, 0.6, function (u, lv, uid) {
+    var c = METALS.gold;
+    return sphereGrad(uid, [c[0], c[1], c[5]], lv) + metalGrad(uid + 'r', 'gold', lv) + '<ellipse rx="' + f2(0.25 * u) + '" ry="' + f2(0.07 * u) + '" transform="rotate(-20)" fill="none" stroke="url(#' + uid + 'r)" stroke-width="' + f2(0.025 * u) + '"/>' +
+      '<circle r="' + f2(0.13 * u) + '" fill="url(#' + uid + ')"/><path d="M' + f2(-0.235 * u) + ' ' + f2(0.08 * u) + 'A' + f2(0.25 * u) + ' ' + f2(0.07 * u) + ' -20 0 0 ' + f2(0.235 * u) + ' ' + f2(-0.08 * u) + '" transform="rotate(0)" fill="none" stroke="url(#' + uid + 'r)" stroke-width="' + f2(0.025 * u) + '"/>';
+  });
+  ch('daisy_g', 'metal', 'Gold daisy', 'Margarita dorada', 0.22, 0.6, function (u, lv, uid) {
+    var o = metalGrad(uid, 'gold', lv), R = 0.22 * u;
+    for (var q = 0; q < 8; q++) o += '<ellipse cx="0" cy="' + f2(-R * 0.55) + '" rx="' + f2(R * 0.2) + '" ry="' + f2(R * 0.42) + '" transform="rotate(' + (q * 45) + ')" fill="url(#' + uid + ')" stroke="' + METALS.gold[5] + '" stroke-width="' + f2(R * 0.03) + '"/>';
+    return o + stud('gold')(u * 0.65, lv, uid + 'c');
+  });
+  // 3D gel
+  ch('flower', 'gel', 'White flower', 'Flor blanca', 0.24, 0.6, flower3d(['#ffffff', '#f4ede9', '#c9b3a8']));
+  ch('flower_p', 'gel', 'Pink flower', 'Flor rosa', 0.24, 0.6, flower3d(['#fff0f5', '#f7b6cc', '#c56a8b']));
+  ch('flower_l', 'gel', 'Lilac flower', 'Flor lila', 0.24, 0.6, flower3d(['#faf3ff', '#d7c0f2', '#8e68bd']));
+  ch('rose', 'gel', 'Red rose', 'Rosa roja', 0.2, 0.6, rose(['#ff9aa8', '#c4122e', '#5c0412']));
+  ch('rose_p', 'gel', 'Pink rose', 'Rosa rosada', 0.2, 0.6, rose(['#ffe0e8', '#f08aa6', '#a4405e']));
+  ch('cherry', 'gel', 'Cherries', 'Cerezas', 0.24, 0.58, function (u, lv, uid) {
+    var cols = ['#ffb3b8', '#d0142f', '#6d0414'], r = 0.1 * u;
+    return sphereGrad(uid, cols, lv) + '<path d="M' + f2(-0.09 * u) + ' ' + f2(0.04 * u) + 'C' + f2(-0.07 * u) + ' ' + f2(-0.1 * u) + ' 0 ' + f2(-0.18 * u) + ' ' + f2(0.07 * u) + ' ' + f2(-0.21 * u) + 'M' + f2(0.1 * u) + ' ' + f2(0.03 * u) + 'C' + f2(0.08 * u) + ' ' + f2(-0.08 * u) + ' ' + f2(0.07 * u) + ' ' + f2(-0.15 * u) + ' ' + f2(0.07 * u) + ' ' + f2(-0.21 * u) + '" fill="none" stroke="#3E7B3A" stroke-width="' + f2(0.018 * u) + '" stroke-linecap="round"/>' +
+      '<path d="M' + f2(0.07 * u) + ' ' + f2(-0.21 * u) + 'C' + f2(0.13 * u) + ' ' + f2(-0.25 * u) + ' ' + f2(0.19 * u) + ' ' + f2(-0.2 * u) + ' ' + f2(0.2 * u) + ' ' + f2(-0.16 * u) + 'C' + f2(0.15 * u) + ' ' + f2(-0.15 * u) + ' ' + f2(0.1 * u) + ' ' + f2(-0.17 * u) + ' ' + f2(0.07 * u) + ' ' + f2(-0.21 * u) + 'Z" fill="#5A9A45"/>' +
+      '<circle cx="' + f2(-0.1 * u) + '" cy="' + f2(0.11 * u) + '" r="' + f2(r) + '" fill="url(#' + uid + ')"/><circle cx="' + f2(0.11 * u) + '" cy="' + f2(0.1 * u) + '" r="' + f2(r) + '" fill="url(#' + uid + ')"/>';
+  });
+  ch('bow_p', 'gel', 'Pink bow', 'Moño rosa', 0.24, 0.6, function (u, lv, uid) { return gelSVG(P_BOW, ['#ffe0ee', '#f28bb8', '#a83c6c'], 0.26 * u, lv, uid); });
+  ch('heart_g', 'gel', 'Gel heart', 'Corazón de gel', 0.22, 0.6, function (u, lv, uid) { return gelSVG(P_HEART, ['#ffc2c8', '#d91c3c', '#7a0718'], 0.23 * u, lv, uid); });
+  ch('eye', 'gel', 'Evil eye', 'Ojo turco', 0.18, 0.6, function (u, lv, uid) {
+    var R = 0.17 * u, c = METALS.gold;
+    return metalGrad(uid, 'gold', lv) + '<circle r="' + f2(R) + '" fill="url(#' + uid + ')"/><circle r="' + f2(R * 0.84) + '" fill="#1f4fb8"/><circle r="' + f2(R * 0.56) + '" fill="#ffffff"/><circle r="' + f2(R * 0.38) + '" fill="#6fb7f0"/><circle r="' + f2(R * 0.19) + '" fill="#111"/>' +
+      '<defs><radialGradient id="' + uid + 'g" cx="' + f2(0.5 + lv[0] * 0.28) + '" cy="' + f2(0.5 + lv[1] * 0.28) + '" r=".7"><stop offset="0" stop-color="#fff" stop-opacity=".7"/><stop offset=".4" stop-color="#fff" stop-opacity=".12"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>' +
+      '<circle r="' + f2(R * 0.84) + '" fill="url(#' + uid + 'g)"/><circle cx="' + f2(lv[0] * R * 0.45) + '" cy="' + f2(lv[1] * R * 0.45) + '" r="' + f2(R * 0.1) + '" fill="#fff"/>';
+  });
+  var CHARM_IDS = Object.keys(CH);
+  function chName(id) { return id === 'none' ? L().c.none : (CH[id] ? CH[id][LANG] || CH[id].en : id); }
+
+  // One charm placed on a nail: x across the nail (-1…1), y above the cuticle in nail widths, s scale, r rotation
+  function cleanCharm(c) {
+    if (!c || !CH[c.id]) return null;
+    var o = { id: c.id };
+    if (typeof c.x === 'number' && isFinite(c.x)) o.x = clamp(c.x, -1.2, 1.2);
+    if (typeof c.y === 'number' && isFinite(c.y)) o.y = clamp(c.y, -0.2, 4);
+    if (typeof c.s === 'number' && isFinite(c.s)) o.s = clamp(c.s, 0.5, 1.5);
+    if (typeof c.r === 'number' && isFinite(c.r)) o.r = ((Math.round(c.r) % 360) + 360) % 360;
+    return o;
+  }
+  function charmTf(c, g) {
+    var d = CH[c.id], x = (typeof c.x === 'number' ? c.x : 0) * g.hw, y = g.B - (typeof c.y === 'number' ? c.y : d.y) * g.nw;
+    return 'translate(' + f2(x) + ' ' + f2(y) + ') rotate(' + (c.r || 0) + ') scale(' + f2(c.s || 1) + ')';
+  }
+  function charmsSVG(n, g, id, fi, editable, lv, selIdx) {
+    var list = n.charms || [];
+    return list.map(function (c, k) {
+      var d = CH[c.id]; if (!d) return '';
+      var rr = -(c.r || 0) * Math.PI / 180, cl = [lv[0] * Math.cos(rr) - lv[1] * Math.sin(rr), lv[0] * Math.sin(rr) + lv[1] * Math.cos(rr)];
+      var R = d.rad * g.nw, sel = editable && selIdx === k;
+      return '<g class="nd-ch' + (editable ? ' ed' : '') + '" data-f="' + fi + '" data-ci="' + k + '" transform="' + charmTf(c, g) + '">' +
+        (editable ? '<circle r="' + f2(Math.max(Math.min(R * 1.1, g.nw * 0.14), 7)) + '" fill="transparent"/>' : '') +
+        '<g filter="url(#' + (g.csId || 'ndf-cs') + ')">' + d.draw(g.nw, cl, id + 'k' + k) + '</g>' +
+        (sel ? '<circle r="' + f2(R * 1.25 + 3) + '" fill="none" stroke="' + ACCENT + '" stroke-width="' + f2(1.6 / (c.s || 1)) + '" stroke-dasharray="4 3"/>' : '') + '</g>';
+    }).join('');
+  }
+  function charmIcon(id) {
+    if (id === 'none') return '<svg class="nd-ico" viewBox="0 0 24 24" fill="none" stroke="#6E5F5B" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8"/><line x1="6.5" y1="17.5" x2="17.5" y2="6.5"/></svg>';
+    var d = CH[id], u = 17 / d.rad;
+    return '<svg class="nd-ico" viewBox="-20 -20 40 40" aria-hidden="true"><g filter="url(#ndf-cs)">' + d.draw(u, [-0.45, -0.89], 'ti' + id) + '</g></svg>';
+  }
+
+  function nailSVG(n, shape, g, id, o) {
+    o = o || {};
+    var d = nailPath(shape, g), X = -g.hw - 3, Y = -3, W = g.nw + 6, H = g.B + 6;
+    g.d = d; g.lx = typeof o.lx === 'number' ? o.lx : -0.75; g.lk = typeof o.lk === 'number' ? o.lk : 0.8; g.lc = o.lc || '#ffffff'; g.csId = o.cs || 'ndf-cs';
+    var lxc = g.lx, cvL = 0.12 + 0.2 * (1 + lxc) / 2, cvR = 0.12 + 0.2 * (1 - lxc) / 2;
+    var art = artLayer(n, g, id, X, Y, W, H, o.seed || 1), fin = finishLayer(n, g, id, X, Y, W, H, o.seed || 1);
+    var cy = g.free + g.bh * 0.52, cs = g.nw * 0.46;
+    var trio = [[0, g.B - g.bh * 0.2], [-g.hw * 0.44, g.B - g.bh * 0.28], [g.hw * 0.44, g.B - g.bh * 0.28]];
+    return '<defs><clipPath id="' + id + 'c"><path d="' + d + '"/></clipPath>' + art.d + fin.d + '<linearGradient id="' + id + 'cv" x1="0" x2="1"><stop offset="0" stop-color="#000" stop-opacity="' + f2(cvL) + '"/><stop offset=".22" stop-color="#000" stop-opacity="0"/><stop offset=".78" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="' + f2(cvR) + '"/></linearGradient></defs>' +
+      (o.fold ? '<path d="' + d + '" transform="translate(0 ' + f2(g.bh * 0.03) + ') scale(1.08 1.02)" fill="#5a2616" fill-opacity=".16" filter="url(#ndf-b2)"/>' : '') +
+      (o.fold ? '<path d="M' + f2(-g.hw * 1.02) + ' ' + f2(g.B - g.bh * 0.3) + 'C' + f2(-g.hw * 1.02) + ' ' + f2(g.B + g.bh * 0.1) + ' ' + f2(g.hw * 1.02) + ' ' + f2(g.B + g.bh * 0.1) + ' ' + f2(g.hw * 1.02) + ' ' + f2(g.B - g.bh * 0.3) + '" fill="none" stroke="#fff" stroke-opacity=".14" stroke-width="' + f2(g.nw * 0.035) + '" filter="url(#ndf-b1)"/>' : '') +
+      (o.sel ? '<path d="' + d + '" fill="none" stroke="' + o.sel + '" stroke-width="' + f2(Math.max(5, g.nw * 0.075)) + '" stroke-linejoin="round"/>' : '') +
+      '<g filter="url(#ndf-ns)"><g clip-path="url(#' + id + 'c)">' + art.s + fin.s + rect(X, Y, W, H, 'url(#' + id + 'cv)') + rect(X, Y, W, H, 'url(#ndf-cut)') + '</g>' +
+      '<path class="nd-fp" d="' + d + '" fill="none" stroke="#2a120c" stroke-opacity=".18" stroke-width="' + f2(Math.max(0.7, g.nw * 0.008)) + '"/></g>' +
+      charmsSVG(n, g, id, o.fi, !!o.editable, o.lv || [-0.45, -0.89], o.selC);
+  }
+
+  // Smooth curve through points (Catmull-Rom → cubic Bézier)
+  function smooth(pts, prev, next) {
+    var d = '';
+    for (var i = 0; i < pts.length - 1; i++) {
+      var p0 = pts[i - 1] || prev || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || next || p2;
+      d += 'C' + f2(p1[0] + (p2[0] - p0[0]) / 6) + ' ' + f2(p1[1] + (p2[1] - p0[1]) / 6) + ' ' + f2(p2[0] - (p3[0] - p1[0]) / 6) + ' ' + f2(p2[1] - (p3[1] - p1[1]) / 6) + ' ' + f2(p2[0]) + ' ' + f2(p2[1]);
+    }
+    return d;
+  }
+  // A finger with a rounded tip, knuckle bulges at the joints and a slight waist between them
+  function fingerPath(F) {
+    var w = F.w, L = F.L;
+    var prof = F.thumb
+      ? [[0.5 * w, 0.47], [0.4 * L, 0.53], [0.62 * L, 0.6], [L, 0.8], [L + 0.9 * w, 1.0]]
+      : [[0.5 * w, 0.46], [0.27 * L, 0.5], [0.42 * L, 0.49], [0.56 * L, 0.53], [0.78 * L, 0.55], [L, 0.6], [L + 0.9 * w, 0.7]];
+    var cw = prof[0][1] * w;
+    var R = prof.map(function (p) { return [p[1] * w, p[0]]; });
+    var Lf = prof.slice().reverse().map(function (p, i, arr) { return [-p[1] * w * (i === arr.length - 1 ? 1 : 0.97), p[0]]; });
+    return 'M' + f2(-cw) + ' ' + f2(w / 2) + 'C' + f2(-cw) + ' ' + f2(-w * 0.12) + ' ' + f2(cw) + ' ' + f2(-w * 0.12) + ' ' + f2(cw) + ' ' + f2(w / 2) +
+      smooth(R, [cw, w * 0.1], null) + 'L' + f2(Lf[0][0]) + ' ' + f2(Lf[0][1]) + smooth(Lf, null, [-cw, w * 0.1]) + 'Z';
+  }
+  function fT(F) { return 'translate(' + f2(F.x) + ' ' + f2(F.y) + ') rotate(' + F.rot + ')'; }
+  var HAND_PATH = 'M' + HAND_PTS[0].join(' ') + smooth(HAND_PTS) + 'Z';
+
+  function fingerSVG(i, n, shape, len, skin, id, sel, interactive, lamp) {
+    var F = FINGERS[i], w = F.w, L = F.L, g = geom(w, len), fp = fingerPath(F), on = sel === i;
+    lamp = lamp || LAMP0;
+    var nc = nailCenter(i, len), ldx = lamp.x - nc[0], ldy = lamp.y - nc[1], ll = Math.hypot(ldx, ldy) || 1, rr = -F.rot * Math.PI / 180;
+    var lv = [(ldx * Math.cos(rr) - ldy * Math.sin(rr)) / ll, (ldx * Math.sin(rr) + ldy * Math.cos(rr)) / ll], lx = clamp(lv[0] * 1.6, -1, 1);
+    var attrs = interactive ? ' class="nd-f" data-act="nail" data-v="' + i + '" tabindex="0" role="button" aria-pressed="' + on + '" aria-label="' + esc(cap(t('nailOf', { f: fingerName(i) }))) + '"' : '';
+    // wrinkle lines across a joint
+    function joint(y, sp, lines, op) {
+      var o = '';
+      for (var k = 0; k < lines; k++) {
+        var yy = y + (k - (lines - 1) / 2) * w * 0.075, s2 = sp * (1 - Math.abs(k - (lines - 1) / 2) * 0.18);
+        o += '<path d="M' + f2(-w * s2) + ' ' + f2(yy) + 'Q0 ' + f2(yy + w * 0.06) + ' ' + f2(w * s2) + ' ' + f2(yy) + '" fill="none" stroke="#5a2616" stroke-opacity="' + op + '" stroke-width="' + f2(w * 0.014) + '" stroke-linecap="round"/>';
+      }
+      return o;
+    }
+    var joints = F.thumb
+      ? '<ellipse cx="0" cy="' + f2(0.45 * L) + '" rx="' + f2(w * 0.32) + '" ry="' + f2(w * 0.2) + '" fill="#5a2616" fill-opacity=".05" filter="url(#ndf-b2)"/>' + joint(0.45 * L, 0.2, 2, 0.08)
+      : joint(0.27 * L, 0.14, 2, 0.05) +
+        '<ellipse cx="0" cy="' + f2(0.56 * L) + '" rx="' + f2(w * 0.3) + '" ry="' + f2(w * 0.22) + '" fill="#5a2616" fill-opacity=".035" filter="url(#ndf-b2)"/>' + joint(0.56 * L, 0.2, 2, 0.08);
+    return '<g' + attrs + ' transform="' + fT(F) + '">' +
+      '<defs><radialGradient id="' + id + 't" gradientUnits="userSpaceOnUse" cx="0" cy="' + f2(w * 0.55) + '" r="' + f2(w * 0.85) + '"><stop offset="0" stop-color="#e0786a" stop-opacity=".18"/><stop offset="1" stop-color="#e0786a" stop-opacity="0"/></radialGradient>' +
+      '<linearGradient id="' + id + 'mg" gradientUnits="userSpaceOnUse" x1="0" y1="' + f2(L * (F.thumb ? 0.45 : 0.62)) + '" x2="0" y2="' + f2(L * (F.thumb ? 0.8 : 0.9)) + '"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient>' +
+      '<mask id="' + id + 'm" maskUnits="userSpaceOnUse" x="' + f2(-w) + '" y="' + f2(-w) + '" width="' + f2(2 * w) + '" height="' + f2(L + 2 * w) + '"><rect x="' + f2(-w) + '" y="' + f2(-w) + '" width="' + f2(2 * w) + '" height="' + f2(L + 2 * w) + '" fill="url(#' + id + 'mg)"/></mask></defs>' +
+      '<g mask="url(#' + id + 'm)"><path d="' + fp + '" fill="url(#ndf-skin)"/>' +
+      '<ellipse cx="' + f2(-w * 0.17) + '" cy="' + f2(L * 0.5) + '" rx="' + f2(w * 0.08) + '" ry="' + f2(L * 0.42) + '" fill="#fff" fill-opacity=".1" filter="url(#ndf-b3)"/>' +
+      '<path d="' + fp + '" fill="url(#' + id + 't)"/>' +
+      '<defs><linearGradient id="' + id + 'sk" x1="0" x2="1">' + stops([[0, lx < 0 ? (lamp.c || '#fff') : '#5a1e10', (lx < 0 ? 0.2 : 0.12) * Math.abs(lx) * (lamp.k || 0.8)], [0.4, '#fff', 0], [0.6, '#fff', 0], [1, lx < 0 ? '#5a1e10' : (lamp.c || '#fff'), (lx < 0 ? 0.12 : 0.2) * Math.abs(lx) * (lamp.k || 0.8)]]) + '</linearGradient></defs><path d="' + fp + '" fill="url(#' + id + 'sk)"/></g>' + joints +
+      '<g class="nd-ng" data-f="' + i + '" transform="translate(0 ' + f2(w * 0.24 - g.free) + ')">' + nailSVG(n, SHAPES.indexOf(n.shape) >= 0 ? n.shape : shape, g, id, { sel: on ? ACCENT : null, seed: i * 97 + 7, fold: true, lx: lx, lk: lamp.k != null ? lamp.k : 0.8, lc: lamp.c, cs: lamp.cs, lv: lv, fi: i, editable: interactive && on, selC: S.selCharm }) + '</g></g>';
+  }
+  var ACCENT = '#A63D57';
+  var BG = '<rect x="-800" y="-600" width="2600" height="2800" fill="url(#ndf-bg)"/>';
+  var LAMP0 = { x: 330, y: -120, k: 0.8 };
+  var LIGHT_K = [0.5, 0.8, 1.15];
+  var LIGHT_C = ['#fff0d2', '#ffffff', '#e9f2ff'], GLOW_C = ['#ffe6b8', '#fffaf0', '#e3eeff'];
+  function handSVG(d, pfx, sel, interactive, lamp) {
+    lamp = lamp || LAMP0;
+    var sdx = clamp((500 - lamp.x) / 35, -14, 14), lk = lamp.k != null ? lamp.k : 0.8, gc = lamp.gc || '#fffaf0';
+    lamp = Object.assign({}, lamp, { cs: pfx + 'cs' });
+    var ldefs = '<defs><filter id="' + pfx + 'cs" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="' + f2(clamp((500 - lamp.x) / 300, -1.4, 1.4)) + '" dy="1.2" stdDeviation="' + f2(0.6 + 0.4 * lk) + '" flood-color="#2a120c" flood-opacity="' + f2(0.28 + 0.2 * lk) + '"/></filter>' +
+      '<radialGradient id="' + pfx + 'gl"><stop offset="0" stop-color="' + gc + '" stop-opacity=".8"/><stop offset="1" stop-color="' + gc + '" stop-opacity="0"/></radialGradient>' +
+      '<linearGradient id="' + pfx + 'lt" gradientUnits="userSpaceOnUse" x1="' + f2(lamp.x) + '" y1="' + f2(lamp.y) + '" x2="' + f2(1000 - lamp.x) + '" y2="900"><stop offset="0" stop-color="' + (lamp.c || '#fff') + '" stop-opacity="' + f2(0.16 * lk) + '"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#5a1e10" stop-opacity="' + f2(0.12 * lk) + '"/></linearGradient></defs>';
+    var sil = '<defs><filter id="' + pfx + 'fs" x="-40%" y="-10%" width="180%" height="130%"><feDropShadow dx="' + f2(sdx) + '" dy="8" stdDeviation="' + f2(8 + 5 * (1.2 - lk)) + '" flood-color="#3c1e14" flood-opacity="' + f2(clamp(0.1 + 0.2 * lk, 0.12, 0.34)) + '"/></filter></defs><g filter="url(#' + pfx + 'fs)" fill="' + d.skin + '"><path d="' + HAND_PATH + '"/>' +
+      FINGERS.map(function (F) { return '<path transform="' + fT(F) + '" d="' + fingerPath(F) + '"/>'; }).join('') + '</g>';
+    var clip = '<clipPath id="' + pfx + 'hc"><path d="' + HAND_PATH + '"/>' + FINGERS.map(function (F) { return '<path transform="' + fT(F) + '" d="' + fingerPath(F) + '"/>'; }).join('') + '</clipPath>';
+    // hand-back shading, kept off the thumb so its darker edge doesn't show through where the thumb overlaps the hand
+    var T = FINGERS[4];
+    var back = '<defs>' + clip + '<mask id="' + pfx + 'bm" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1400" height="2200"><rect x="-200" y="-200" width="1400" height="2200" fill="url(#ndf-backmg)"/>' +
+      '<path transform="' + fT(T) + '" d="' + fingerPath(T) + '" fill="#000" filter="url(#ndf-b3)"/></mask>' +
+      '<linearGradient id="' + pfx + 'hs" gradientUnits="userSpaceOnUse" x1="280" y1="0" x2="730" y2="0"><stop offset="0" stop-color="#7a2a18" stop-opacity=".22"/><stop offset=".12" stop-color="#9a4a30" stop-opacity=".06"/><stop offset=".35" stop-color="#fff" stop-opacity=".1"/><stop offset=".6" stop-color="#fff" stop-opacity=".02"/><stop offset=".88" stop-color="#7a2a18" stop-opacity=".08"/><stop offset="1" stop-color="#5a1e10" stop-opacity=".22"/></linearGradient></defs>' +
+      '<g mask="url(#' + pfx + 'bm)"><path d="' + HAND_PATH + '" fill="url(#' + pfx + 'hs)"/></g>';
+
+    var webs = '<g clip-path="url(#' + pfx + 'hc)" pointer-events="none">' + [0, 1, 2].map(function (k) {
+        var A = FINGERS[k], Bf = FINGERS[k + 1], x = (A.bx + Bf.bx) / 2, y = (A.by + Bf.by) / 2 - 14;
+        return '<ellipse cx="' + f2(x) + '" cy="' + f2(y) + '" rx="11" ry="34" fill="#5a1e10" fill-opacity=".07" filter="url(#ndf-b3)"/>';
+      }).join('') + [0, 1, 2, 3].map(function (k) {
+        var F = FINGERS[k];
+        return '<ellipse cx="' + f2(F.bx) + '" cy="' + f2(F.by + 24) + '" rx="' + f2(F.w * 0.3) + '" ry="' + f2(F.w * 0.2) + '" fill="#fff" fill-opacity=".05" filter="url(#ndf-b3)"/>';
+      }).join('') + '</g>';
+    var light = '<rect x="150" y="0" width="850" height="1800" fill="url(#' + pfx + 'lt)" clip-path="url(#' + pfx + 'hc)"/>';
+    return BG + ldefs + '<ellipse cx="' + f2(lamp.x) + '" cy="' + f2(lamp.y + 430) + '" rx="560" ry="470" fill="url(#' + pfx + 'gl)" fill-opacity="' + f2(Math.min(1, (lamp.k != null ? lamp.k : 0.8) * 0.95)) + '"/>' + '<defs><linearGradient id="' + pfx + 'fg" gradientUnits="userSpaceOnUse" x1="0" y1="960" x2="0" y2="1180"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient><mask id="' + pfx + 'fm" maskUnits="userSpaceOnUse" x="-800" y="-600" width="2600" height="2800"><rect x="-800" y="-600" width="2600" height="2800" fill="url(#' + pfx + 'fg)"/></mask></defs><g mask="url(#' + pfx + 'fm)">' + sil + back + '</g>' + [0, 1, 2, 3, 4].map(function (i) { return fingerSVG(i, d.nails[i], d.shape, d.length, d.skin, pfx + i, sel, interactive, lamp); }).join('') + '<g pointer-events="none" mask="url(#' + pfx + 'fm)">' + light + '</g>';
+  }
+  function nailCenter(i, len) {
+    var F = FINGERS[i], g = geom(F.w, len), ly = F.w * 0.24 - g.free + g.B * 0.55, rr = F.rot * Math.PI / 180;
+    return [F.x - ly * Math.sin(rr), F.y + ly * Math.cos(rr)];
+  }
+
+  /* =========================================================
+     5. State, history and storage
+     ========================================================= */
+  var LOOKS_KEY = 'nail-studio-looks-v2';
+  function readLooks() {
+    var out = [];
+    ['nail-studio-looks-v2', 'nail-studio-looks-v1'].forEach(function (k) {
+      try { var x = JSON.parse(localStorage.getItem(k) || '[]'); if (Array.isArray(x)) out = out.concat(x.map(clean).filter(Boolean)); } catch (e) {}
+    });
+    return out.slice(0, 24);
+  }
+  function writeLooks() { try { localStorage.setItem(LOOKS_KEY, JSON.stringify(S.looks)); } catch (e) {} }
+  function clean(d) {
+    if (!d || !Array.isArray(d.nails) || d.nails.length !== 5) return null;
+    return {
+      name: typeof d.name === 'string' ? d.name.slice(0, 60) : undefined,
+      shape: SHAPES.indexOf(d.shape) >= 0 ? d.shape : 'almond',
+      length: typeof d.length === 'number' && d.length >= 0.05 && d.length <= 2.2 ? d.length : freeOf(d.length),
+      skin: isHex(d.skin) ? d.skin : '#E9BE9E',
+      nails: d.nails.map(function (x) {
+        x = x || {};
+        var out = nail(isHex(x.c1) ? x.c1 : '#E8A9A6', isHex(x.c2) ? x.c2 : '#F7F3EE', PATTERNS.indexOf(x.pattern) >= 0 ? x.pattern : 'solid', FINISHES.indexOf(x.finish) >= 0 ? x.finish : 'gloss', 'none');
+        out.charms = Array.isArray(x.charms) ? x.charms.map(cleanCharm).filter(Boolean).slice(0, 10) : (CH[x.charm || x.sticker] ? [{ id: x.charm || x.sticker }] : []);
+        if (typeof x.tip === 'number' && x.tip >= TIP_MIN && x.tip <= TIP_MAX) out.tip = x.tip;
+        if (SHAPES.indexOf(x.shape) >= 0) out.shape = x.shape;
+        return out;
+      })
+    };
+  }
+  var S = { lightCol: 1, lightLvl: 1, lampF: 0.3, selCharm: null, nails: clone(START), shape: 'almond', length: FREE.medium, skin: '#E9BE9E', target: 'all', sel: null, tab: 'shape', history: [], looks: readLooks() };
+  function design() { return { version: 2, shape: S.shape, length: S.length, skin: S.skin, nails: clone(S.nails) }; }
+  function snap() { S.history.push({ nails: clone(S.nails), shape: S.shape, length: S.length, skin: S.skin }); if (S.history.length > 60) S.history.shift(); }
+  function curShape() { var c = cur(); return S.target === 'one' && SHAPES.indexOf(c.shape) >= 0 ? c.shape : S.shape; }
+  function cur() { return S.target === 'one' && S.sel != null ? S.nails[S.sel] : S.nails[2]; }
+  // Optional layers that can be switched on/off straight from their tab
+  var LAYERS = { art: { key: 'pattern', off: 'solid', def: 'french' }, finish: { key: 'finish', off: 'gloss', def: 'chrome' }, charms: { key: 'charms', special: true, def: [{ id: 'gem' }] } };
+  var lastLayer = {};
+  function layerOn(id) {
+    var ly = LAYERS[id];
+    if (ly.special) return S.target === 'one' && S.sel != null ? S.nails[S.sel].charms.length > 0 : S.nails.some(function (n) { return n.charms.length > 0; });
+    if (S.target === 'one' && S.sel != null) return S.nails[S.sel][ly.key] !== ly.off;
+    return S.nails.some(function (n) { return n[ly.key] !== ly.off; });
+  }
+  function toggleLayer(id) {
+    var ly = LAYERS[id], p = {};
+    if (ly.special) {
+      var nm = L().tabs[4];
+      if (layerOn(id)) { var sc = S.target === 'one' && S.sel != null ? S.nails[S.sel] : S.nails.filter(function (n) { return n.charms.length; })[0]; if (sc) lastLayer.charms = clone(sc.charms); S.selCharm = null; apply({ charms: [] }); toast(t('layerOff', { x: nm })); }
+      else { apply({ charms: clone(lastLayer.charms || ly.def) }); toast(t('layerOn', { x: nm })); }
+      return;
+    }
+    if (layerOn(id)) {
+      var src = S.target === 'one' && S.sel != null ? S.nails[S.sel] : S.nails.filter(function (n) { return n[ly.key] !== ly.off; })[0];
+      if (src) lastLayer[id] = src[ly.key];
+      p[ly.key] = ly.off;
+    } else p[ly.key] = lastLayer[id] || ly.def;
+    apply(p);
+    toast(t(p[ly.key] === ly.off ? 'layerOff' : 'layerOn', { x: L().tabs[['shape', 'color', 'art', 'finish', 'charms', 'ideas'].indexOf(id)] }));
+  }
+  function apply(patch, quiet) {
+    Object.keys(LAYERS).forEach(function (id) { var ly = LAYERS[id]; if (ly.special) { if (Array.isArray(patch.charms) && patch.charms.length) lastLayer[id] = clone(patch.charms); return; } if (patch[ly.key] && patch[ly.key] !== ly.off) lastLayer[id] = patch[ly.key]; });
+    if (!quiet) snap();
+    S.nails = S.nails.map(function (n, i) { if (!(S.target === 'all' || i === S.sel)) return n; var nn = Object.assign({}, n, patch); if (patch.charms) nn.charms = clone(patch.charms); return nn; });
+    changed();
+  }
+  function setGlobal(patch) { snap(); Object.assign(S, patch); changed(); }
+  function loadDesign(d, quiet) {
+    var c = clean(d);
+    if (!c) return false;
+    if (!quiet) snap();
+    S.nails = c.nails; S.shape = c.shape; S.length = c.length; S.skin = c.skin; S.target = 'all'; S.sel = null;
+    changed(); zoomTo();
+    return true;
+  }
+  function encodeDesign() {
+    var c = { s: S.shape, l: S.length, k: S.skin, n: S.nails.map(function (n) { var cs = n.charms || [], a = [n.c1, n.c2, n.pattern, n.finish, !cs.length ? 'none' : (cs.length === 1 && Object.keys(cs[0]).length === 1 ? cs[0].id : cs.map(function (c) { return [c.id, c.x == null ? null : +c.x.toFixed(3), c.y == null ? null : +c.y.toFixed(3), c.s == null ? null : +c.s.toFixed(3), c.r || null]; }))]; if (typeof n.tip === 'number' || n.shape) a.push(typeof n.tip === 'number' ? n.tip : null); if (n.shape) a.push(n.shape); return a; }) };
+    return btoa(unescape(encodeURIComponent(JSON.stringify(c)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function decodeDesign(str) {
+    try {
+      var c = JSON.parse(decodeURIComponent(escape(atob(str.replace(/-/g, '+').replace(/_/g, '/')))));
+      return { shape: c.s, length: c.l, skin: c.k, nails: (c.n || []).map(function (a) { return { c1: a[0], c2: a[1], pattern: a[2], finish: a[3], charm: Array.isArray(a[4]) ? undefined : a[4], charms: Array.isArray(a[4]) ? a[4].map(function (q) { var o = { id: q[0] }; if (q[1] != null) o.x = q[1]; if (q[2] != null) o.y = q[2]; if (q[3] != null) o.s = q[3]; if (q[4] != null) o.r = q[4]; return o; }) : undefined, tip: a[5], shape: a[6] }; }) };
+    } catch (e) { return null; }
+  }
+  function shareLink() { return location.href.split('#')[0] + '#d=' + encodeDesign(); }
+  function summary() {
+    var n = S.nails[2];
+    return [L().s[S.shape], L().l[lenName(S.length)], colorName(n.c1), L().p[n.pattern], L().f[n.finish]].join(' · ');
+  }
+
+  /* =========================================================
+     6. Talking to a host app
+     ========================================================= */
+  var parentOrigin = root.getAttribute('data-parent-origin') || '*';
+  var changeTimer;
+  function emit(type, extra) {
+    var msg = Object.assign({ source: 'nail-designer', type: type, design: design() }, extra || {});
+    try { root.dispatchEvent(new CustomEvent('nail-designer:' + type, { detail: msg, bubbles: true })); } catch (e) {}
+    try { if (window.parent && window.parent !== window) window.parent.postMessage(msg, parentOrigin); } catch (e) {}
+  }
+  function changed() { render(); clearTimeout(changeTimer); changeTimer = setTimeout(function () { emit('change'); }, 150); }
+
+  /* =========================================================
+     7. Rendering the interface
+     ========================================================= */
+  var svg, stage, vb = [0, 0, 1000, 800], raf, toastTimer;
+  var ro = window.ResizeObserver ? new ResizeObserver(function () { if (stage) snapView(); }) : null;
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function $(s) { return root.querySelector(s); }
+  function toast(msg) {
+    var el = $('.nd-toast'); if (!el) return;
+    el.textContent = msg; el.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2000);
+  }
+
+  function shell() {
+    root.innerHTML =
+      '<svg class="nd-defs" aria-hidden="true" focusable="false"><defs>' + DEFS + '</defs></svg>' +
+      '<section class="nd-left">' +
+        '<header class="nd-head"><div class="nd-brandwrap"><div><div class="nd-word">Nail <em>Studio</em></div><div class="nd-sub">' + t('sub') + '</div></div></div>' +
+          '<div class="nd-row"><a class="nd-brand nd-head-logo" href="' + brandLink(BRAND.url, 'logo') + '" target="_blank" rel="noopener" aria-label="Tulala.digital">' + logoSVG('#121212', 28) + '</a>' +
+          '<button class="nd-pill" data-act="undo" aria-label="' + t('undo') + '" title="' + t('undo') + '">' + icon('undo') + '<span>' + t('undo') + '</span></button>' +
+          '<button class="nd-pill" data-act="reset" aria-label="' + t('reset') + '" title="' + t('reset') + '">' + icon('reset') + '<span>' + t('reset') + '</span></button></div></header>' +
+        '<div class="nd-stage"><svg class="nd-svg" viewBox="0 0 1000 800" preserveAspectRatio="xMidYMid meet" role="group"></svg>' +
+          '<div class="nd-chip"><i></i><span class="nd-editing"></span></div><div class="nd-toast" role="status" aria-live="polite"></div>' +
+          '<div class="nd-hint">' + t('hint') + '</div>' +
+          '<div class="nd-lamp" role="slider" tabindex="0" aria-label="' + t('light') + '" aria-valuemin="0" aria-valuemax="100" title="' + t('lightTip') + '"><svg width="46" height="50" viewBox="0 0 46 50" aria-hidden="true"><path d="M23 0v13" stroke="#2B2221" stroke-width="1.5"/><path d="M9 29C9 20 15 14 23 14S37 20 37 29Z" fill="#2B2221"/><path d="M11 27.5C12 21 17 16.5 23 16.5" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1.5" stroke-linecap="round"/><ellipse class="nd-bulb" cx="23" cy="30.5" rx="7" ry="3.2" fill="#FFF3C4"/><circle class="nd-lv nd-lv0" cx="17" cy="40" r="2"/><circle class="nd-lv nd-lv1" cx="23" cy="40" r="2"/><circle class="nd-lv nd-lv2" cx="29" cy="40" r="2"/><path d="M4 22l-3 3 3 3M42 22l3 3-3 3" fill="none" stroke="#6E5F5B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="nd-lamp-arr"/></svg></div>' +
+          '<div class="nd-lamppop" hidden role="dialog" aria-label="' + t('light') + '"><div class="nd-lp-row">' + [0, 1, 2].map(function (k) { var r = [2.6, 3.6, 4.6][k], ray = ''; for (var q = 0; q < 8; q++) { var a = q * Math.PI / 4; ray += 'M' + f2(12 + Math.cos(a) * (r + 2)) + ' ' + f2(12 + Math.sin(a) * (r + 2)) + 'L' + f2(12 + Math.cos(a) * (r + 2 + k + 1.5)) + ' ' + f2(12 + Math.sin(a) * (r + 2 + k + 1.5)); } return '<button data-act="lightlvl" data-v="' + k + '" aria-label="' + t('light') + ' ' + L().lightLv[k] + '" title="' + cap(L().lightLv[k]) + '"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="' + r + '" fill="currentColor"/><path d="' + ray + '" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>'; }).join('') + '</div><div class="nd-lp-sep"></div><div class="nd-lp-row">' +
+            LIGHT_C.map(function (c, k) { return '<button class="nd-lp-col" data-act="lightcol" data-v="' + k + '" style="background:' + ['#ffd98a', '#ffffff', '#bcd8ff'][k] + '" aria-label="' + t('light') + ' ' + L().lightCols[k] + '" title="' + cap(L().lightCols[k]) + '"></button>'; }).join('') + '</div></div>' +
+          '<div class="nd-chbar" hidden>' + [['chs', 'minus', 'chSmaller'], ['chb', 'plus', 'chBigger'], ['chr', 'rot', 'chRotate'], ['chdup', 'copy', 'chDup'], ['chdel', 'trash', 'chDel']].map(function (b) { return '<button data-act="' + b[0] + '" aria-label="' + t(b[2]) + '" title="' + t(b[2]) + '">' + icon(b[1], 18) + '</button>' + (b[0] === 'chs' ? '<span class="nd-chsize" aria-live="polite"></span>' : ''); }).join('') + '</div>' +
+          '<div class="nd-len" role="slider" tabindex="0" aria-orientation="vertical" aria-label="' + t('length') + '" aria-valuemin="0" aria-valuemax="5">' +
+            '<svg class="nd-len-ico" width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M3 21V9C3 4 6 1 8 1s5 3 5 8v12Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>' +
+            '<div class="nd-len-track"><div class="nd-len-fill"></div>' + LEN_KEYS.map(function (k, i) { return '<i style="bottom:' + (i * 20) + '%"></i>'; }).join('') + '<div class="nd-len-thumb"><span class="nd-len-tip"></span></div></div>' +
+            '<svg class="nd-len-ico" width="16" height="14" viewBox="0 0 16 14" aria-hidden="true"><path d="M3 13V7c0-3 2.5-5 5-5s5 2 5 5v6Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>' +
+          '</div>' +
+          '<div class="nd-tipfloat" hidden><button class="nd-tip-btn" data-act="tipmenu" aria-expanded="false" aria-label="' + t('tipSize') + '" title="' + t('tipSize') + '"><svg class="nd-tipico" width="18" height="26" viewBox="0 0 18 26" aria-hidden="true"><path d="M3 25V8c0-4 3-7 6-7s6 3 6 7v17Z" fill="#E8A9A6" stroke="#8a6a62" stroke-width="1.2"/><path d="M3 14V8c0-4 3-7 6-7s6 3 6 7v6Q9 11 3 14Z" fill="#fff" stroke="#8a6a62" stroke-width="1.2"/></svg></button>' +
+            '<div class="nd-tip-pop" hidden><div class="nd-tiprow"><svg class="nd-tipico" width="16" height="24" viewBox="0 0 18 26" aria-hidden="true"><path d="M3 25V8c0-4 3-7 6-7s6 3 6 7v17Z" fill="#E8A9A6" stroke="#8a6a62" stroke-width="1.2"/><path d="M3 8c0-4 3-7 6-7s6 3 6 7Q9 6 3 8Z" fill="#fff" stroke="#8a6a62" stroke-width="1.2"/></svg><div class="nd-range nd-tiprange"><input type="range" data-tip="1" min="' + TIP_MIN + '" max="' + TIP_MAX + '" step="0.005" aria-label="' + t('tipSize') + '"></div><svg class="nd-tipico" width="16" height="24" viewBox="0 0 18 26" aria-hidden="true"><path d="M3 25V8c0-4 3-7 6-7s6 3 6 7v17Z" fill="#E8A9A6" stroke="#8a6a62" stroke-width="1.2"/><path d="M3 14V8c0-4 3-7 6-7s6 3 6 7v6Q9 11 3 14Z" fill="#fff" stroke="#8a6a62" stroke-width="1.2"/></svg>' +
+            '<button class="nd-tipauto" data-act="tipauto" aria-label="' + t('tipAuto') + '" title="' + t('tipAuto') + '">' + icon('reset', 15) + '</button></div>' +
+            '<div class="nd-tipcolors">' + TIP_COLORS.map(function (h) { return '<button data-act="c2" data-v="' + h + '" style="background:' + h + '" aria-label="' + esc(t('accent') + ' ' + colorName(h)) + '" title="' + esc(colorName(h)) + '"></button>'; }).join('') + '<label class="nd-tipcustom" title="' + t('customAccent') + '"><input type="color" data-color="c2" aria-label="' + t('customAccent') + '"><span></span></label></div></div></div>' +
+          '<div class="nd-skinpick"><button class="nd-skin-cur" data-act="skinmenu" aria-expanded="false" aria-label="' + t('skin') + '" title="' + t('skin') + '"></button>' +
+            '<div class="nd-skin-opts" hidden>' + SKINS.map(function (x) { return '<button data-act="skin" data-v="' + x[1] + '" style="background:' + x[1] + '" aria-label="' + esc(t('skin') + ' ' + L().k[x[0]]) + '" title="' + L().k[x[0]] + '"></button>'; }).join('') + '</div></div>' +
+          '<div class="nd-zc"><button data-act="zin" aria-label="' + t('zoomIn') + '" title="' + t('zoomIn') + '">' + icon('plus', 18) + '</button><button data-act="zout" aria-label="' + t('zoomOut') + '" title="' + t('zoomOut') + '">' + icon('minus', 18) + '</button><button data-act="fit" aria-label="' + t('fit') + '" title="' + t('fit') + '">' + icon('fit', 17) + '</button></div>' +
+          '<div class="nd-zoom" hidden><button class="nd-arrow" data-act="step" data-v="-1" aria-label="' + t('prev') + '">' + icon('left') + '</button>' +
+          '<button data-act="target" data-v="all">' + icon('hand', 16) + t('wholeHand') + '</button>' +
+          '<button class="nd-arrow" data-act="step" data-v="1" aria-label="' + t('next') + '">' + icon('right') + '</button></div></div>' +
+        '<div class="nd-bar">' +
+          '<button class="nd-pill big" data-act="share">' + icon('share') + t('share') + '</button>' +
+          '<button class="nd-pill big primary nd-save" data-act="savelook">' + icon('plus') + t('save') + '</button></div>' +
+      '</section>' +
+      '<aside class="nd-panel"><div class="nd-ptop"><div class="nd-label">' + t('applyTo') + '</div>' +
+        '<div class="nd-seg"><button data-act="target" data-v="all">' + t('all') + '</button><button data-act="target" data-v="one" class="nd-one"></button></div>' +
+        '<button class="nd-copy" data-act="copyall" hidden>' + icon('copy', 15) + t('copyAll') + '</button>' +
+        '<div class="nd-tabs">' + ['shape', 'color', 'art', 'finish', 'charms', 'ideas'].map(function (id, i) { return '<div class="nd-tab" data-tab="' + id + '"><button data-act="tab" data-v="' + id + '">' + L().tabs[i] + '</button>' + (LAYERS[id] ? '<button class="nd-tog" data-act="toggle" data-v="' + id + '"></button>' : '') + '</div>'; }).join('') + '<button class="nd-rand" data-act="random" aria-label="' + t('surprise') + '" title="' + t('surprise') + '">' + icon('shuffle', 17) + '</button></div></div>' +
+        '<div class="nd-content"></div></aside>' +
+      '<div class="nd-modal nd-share-modal" hidden role="dialog" aria-modal="true" aria-labelledby="nd-mt"><div class="nd-sheet">' +
+        '<div class="nd-mhead"><h2 id="nd-mt">' + t('shareTitle') + '</h2><button class="nd-x" data-act="close" aria-label="' + t('close') + '">×</button></div>' +
+        '<img class="nd-mimg" alt="' + t('imgAlt') + '">' +
+        '<div class="nd-mbtns"><button class="nd-pill big" data-act="dlimg">' + icon('download') + t('shareDl') + '</button>' +
+          '<button class="nd-pill big nd-wa" data-act="wa">' + WA_ICON + t('shareWa') + '</button>' +
+          '<button class="nd-pill big nd-native" data-act="native" hidden>' + icon('more') + t('shareMore') + '</button></div>' +
+        '<label class="nd-note" for="nd-linkin">' + t('linkLabel') + '</label>' +
+        '<div class="nd-link"><input id="nd-linkin" readonly><button class="nd-pill" data-act="copylink">' + icon('copy', 16) + t('shareCopy') + '</button></div>' + promoCard('share') +
+      '</div></div>' +
+      '<div class="nd-modal nd-save-modal" hidden role="dialog" aria-modal="true" aria-labelledby="nd-slt"><div class="nd-sheet">' +
+        '<div class="nd-mhead"><h2 id="nd-slt">' + t('saveLookTitle') + '</h2><button class="nd-x" data-act="closesave" aria-label="' + t('close') + '">×</button></div>' +
+        '<img class="nd-mimg nd-mimg-sq" alt="' + t('imgAlt') + '">' +
+        '<div class="nd-mbtns nd-mbtns-save">' +
+          '<button class="nd-pill big" data-act="dlimg-clean">' + icon('download') + t('download') + '</button>' +
+          '<button class="nd-pill big" data-act="share-from-save">' + icon('share') + t('share') + '</button>' +
+          '<button class="nd-pill big primary" data-act="saveideas">' + icon('plus') + t('saveIdeas') + '</button>' +
+          '<button class="nd-pill big" data-act="quote">' + t('requestQuote') + '</button>' +
+          '<button class="nd-pill big" data-act="chat">' + t('addToChat') + '</button>' +
+        '</div></div></div>';
+    svg = $('.nd-svg'); stage = $('.nd-stage');
+    if (ro) { ro.disconnect(); ro.observe(stage); }
+    requestAnimationFrame(function () { snapView(); updateZoomUI(); });
+  }
+
+  function lampWorld() { var base = fitBox(handBox(), aspect()); return { x: base[0] + S.lampF * base[2], y: base[1] - base[3] * 0.3, k: LIGHT_K[S.lightLvl], c: LIGHT_C[S.lightCol], gc: GLOW_C[S.lightCol] }; }
+  function renderHand() { svg.innerHTML = handSVG(S, 'h', S.target === 'one' ? S.sel : null, true, lampWorld()); }
+  var handRq = 0;
+  function reqHand() { if (handRq) return; handRq = requestAnimationFrame(function () { handRq = 0; renderHand(); }); }
+
+  // Previews in the option tiles use the same drawing code as the hand
+  var TG = geom(130, 'medium');
+  function tileNail(n, shape, id, len) {
+    var g = len ? geom(130, len) : TG;
+    return '<svg class="nd-prev" viewBox="' + f2(-g.hw - 10) + ' -10 ' + f2(g.nw + 20) + ' ' + f2(g.B + 20) + '" aria-hidden="true">' + nailSVG(n, shape, g, id, { seed: 5 }) + '</svg>';
+  }
+  function swatches(key, c) {
+    return '<div class="nd-sw">' + COLORS.map(function (x) {
+      var nm = colorName(x.hex);
+      return '<button data-act="' + key + '" data-v="' + x.hex + '" class="' + (c.toUpperCase() === x.hex ? 'on' : '') + '" style="background:' + x.hex + '" title="' + esc(nm) + '" aria-label="' + esc((key === 'c1' ? t('polish') : t('accent')) + ' ' + nm) + '" aria-pressed="' + (c.toUpperCase() === x.hex) + '"></button>';
+    }).join('') + '</div>';
+  }
+  function promoCard(where) {
+    if (!SHOW_PROMO) return '';
+    return '<a class="nd-promo" href="' + brandLink(BRAND.cta, where) + '" target="_blank" rel="noopener"><span class="nd-promo-logo">' + logoSVG('#ffffff', 22) + '</span><span class="nd-promo-txt"><b>' + t('promoTitle') + '</b><small>' + t('promoText') + '</small></span><span class="nd-promo-go" aria-hidden="true">' + icon('right', 18) + '</span></a>';
+  }
+  function head(title, right) { return '<div class="nd-h"><h3>' + title + '</h3>' + (right ? '<span>' + esc(right) + '</span>' : '') + '</div>'; }
+  function tile(act, v, on, inner, label) { return '<button class="nd-tile' + (on ? ' on' : '') + '" data-act="' + act + '" data-v="' + v + '" aria-pressed="' + on + '">' + inner + esc(label) + '</button>'; }
+  function lookCard(l, i, mine) {
+    var d = clean(l), name = lookName(l);
+    return '<div class="nd-cardw"><button class="nd-card" data-act="' + (mine ? 'look' : 'trend') + '" data-v="' + i + '"><svg viewBox="' + fitBox(handBox(d.length), 4 / 3).map(f2).join(' ') + '" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' + handSVG(d, (mine ? 'm' : 'tr') + i + 'f', null, false) + '</svg>' +
+      '<b>' + esc(name) + '</b><small>' + esc(L().s[d.shape] + ' · ' + L().l[lenName(d.length)]) + '</small></button>' +
+      (mine ? '<button class="nd-del" data-act="del" data-v="' + i + '" aria-label="' + esc(t('del', { n: name })) + '">×</button>' : '') + '</div>';
+  }
+
+  function renderPanel() {
+    var c = cur(), html = '';
+    if (S.tab === 'color') {
+      html = '<div class="nd-sec">' + head(t('polish'), colorName(c.c1)) + swatches('c1', c.c1) +
+        '<label class="nd-custom"><input type="color" data-color="c1" value="' + c.c1 + '">' + t('customPolish') + '</label></div>' +
+        '<div class="nd-sec">' + head(t('accent'), colorName(c.c2)) + '<p class="nd-note">' + t('accentNote') + '</p>' + swatches('c2', c.c2) +
+        '<label class="nd-custom"><input type="color" data-color="c2" value="' + c.c2 + '">' + t('customAccent') + '</label></div>';
+    } else if (S.tab === 'art') {
+      var tipOK = TIPPED.indexOf(c.pattern) >= 0, tg = geom(FINGERS[2].w, S.length), tv = typeof c.tip === 'number' ? c.tip : autoTip(tg);
+      html = (tipOK ? '<div class="nd-sec nd-tipsec">' + head(t('tipSize'), typeof c.tip === 'number' ? '' : t('auto')) +
+        '<div class="nd-tiprow"><svg class="nd-tipico" width="18" height="26" viewBox="0 0 18 26" aria-hidden="true"><path d="M3 25V8c0-4 3-7 6-7s6 3 6 7v17Z" fill="#E8A9A6" stroke="#8a6a62" stroke-width="1.2"/><path d="M3 8c0-4 3-7 6-7s6 3 6 7Q9 6 3 8Z" fill="#fff" stroke="#8a6a62" stroke-width="1.2"/></svg>' +
+        '<div class="nd-range nd-tiprange"><input type="range" data-tip="1" min="' + TIP_MIN + '" max="' + TIP_MAX + '" step="0.005" value="' + f2(tv) + '" style="--p:' + f2((tv - TIP_MIN) / (TIP_MAX - TIP_MIN) * 100) + '%" aria-label="' + t('tipSize') + '"></div>' +
+        '<svg class="nd-tipico" width="18" height="26" viewBox="0 0 18 26" aria-hidden="true"><path d="M3 25V8c0-4 3-7 6-7s6 3 6 7v17Z" fill="#E8A9A6" stroke="#8a6a62" stroke-width="1.2"/><path d="M3 14V8c0-4 3-7 6-7s6 3 6 7v6Q9 11 3 14Z" fill="#fff" stroke="#8a6a62" stroke-width="1.2"/></svg>' +
+        '<button class="nd-tipauto" data-act="tipauto" aria-label="' + t('tipAuto') + '" title="' + t('tipAuto') + '"' + (typeof c.tip === 'number' ? '' : ' disabled') + '>' + icon('reset', 15) + '</button></div></div>' : '') +
+        '<div class="nd-sec">' + head(t('nailArt')) + '<div class="nd-grid four">' + PATTERNS.map(function (p) {
+        return tile('pattern', p, c.pattern === p, tileNail(Object.assign({}, c, { pattern: p, charms: [] }), curShape(), 'ta' + p), L().p[p]);
+      }).join('') + '</div></div>';
+    } else if (S.tab === 'finish') {
+      html = '<div class="nd-sec">' + head(t('finish')) + '<div class="nd-grid four">' + FINISHES.map(function (f) {
+        return tile('finish', f, c.finish === f, tileNail(Object.assign({}, c, { finish: f, charms: [] }), curShape(), 'tf' + f), L().f[f]);
+      }).join('') + '</div></div>';
+    } else if (S.tab === 'shape') {
+      html = '<div class="nd-sec">' + head(t('shape')) + '<div class="nd-grid">' + SHAPES.map(function (s) {
+        return tile('shape', s, curShape() === s, tileNail(Object.assign({}, c, { charms: [] }), s, 'ts' + s), L().s[s]);
+      }).join('') + '</div></div>';
+    } else if (S.tab === 'charms') {
+      var one = S.target === 'one' && S.sel != null, have = c.charms.map(function (x) { return x.id; });
+      html = '<div class="nd-sec">' + head(t('charms')) + '<p class="nd-note">' + t(one ? 'charmsOne' : 'charmsAll') + '</p>' +
+        (one && c.charms.length ? '<button class="nd-copy" data-act="charm" data-v="none">' + icon('trash', 15) + t('clearCharms') + '</button>' : '') +
+        '<div class="nd-grid four">' + tile('charm', 'none', !c.charms.length, charmIcon('none'), chName('none')) + '</div></div>' +
+        CH_CATS.map(function (cat) {
+          return '<div class="nd-sec">' + head(L().chCats[cat]) + '<div class="nd-grid four">' + CHARM_IDS.filter(function (id) { return CH[id].cat === cat; }).map(function (id) {
+            return tile('charm', id, have.indexOf(id) >= 0, charmIcon(id), chName(id));
+          }).join('') + '</div></div>';
+        }).join('');
+    } else {
+      html = '<div class="nd-sec">' + head(t('mine')) + (S.looks.length ? '<div class="nd-cards">' + S.looks.map(function (l, i) { return lookCard(l, i, true); }).join('') + '</div>' : '<p class="nd-note">' + t('mineEmpty') + '</p>') + '</div>' +
+        '<div class="nd-sec">' + head(t('trends')) + '<p class="nd-note">' + t('trendsNote') + '</p><div class="nd-cards">' + TRENDS.map(function (l, i) { return lookCard(Object.assign({ trend: l.id }, l), i, false); }).join('') + '</div></div>' + (SHOW_PROMO ? '<div class="nd-sec">' + promoCard('ideas') + '</div>' : '');
+    }
+    $('.nd-content').innerHTML = html;
+  }
+
+  function render() {
+    if (S.selCharm != null && !(S.target === 'one' && S.sel != null && S.nails[S.sel].charms[S.selCharm])) S.selCharm = null;
+    renderHand();
+    renderPanel();
+    var one = S.target === 'one' && S.sel != null, fn = one ? fingerName(S.sel) : null;
+    $('.nd-editing').textContent = t('editing') + ' · ' + (one ? cap(t('nailOf', { f: fn })) : t('all'));
+    $('.nd-one').textContent = one ? cap(t('only', { f: fn })) : t('one');
+    root.querySelectorAll('.nd-seg [data-act=target]').forEach(function (b) { var on = b.dataset.v === S.target; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+    root.querySelectorAll('.nd-tab').forEach(function (d) { var on = d.dataset.tab === S.tab; d.classList.toggle('on', on); d.firstChild.setAttribute('aria-pressed', on); });
+    root.querySelectorAll('.nd-tog').forEach(function (b) {
+      var id = b.dataset.v, on = layerOn(id), name = L().tabs[['shape', 'color', 'art', 'finish', 'charms', 'ideas'].indexOf(id)];
+      b.classList.toggle('on', on); b.setAttribute('aria-pressed', on);
+      b.setAttribute('aria-label', t(on ? 'turnOff' : 'turnOn', { x: name })); b.title = b.getAttribute('aria-label');
+      b.innerHTML = on ? TOG_ON : TOG_OFF;
+    });
+    $('[data-act=undo]').disabled = S.history.length === 0;
+    $('.nd-copy').hidden = !one;
+    $('.nd-zoom').hidden = !one;
+    $('.nd-hint').hidden = one || stage.clientWidth < 900;
+    stage.classList.toggle('is-one', one);
+    updateLenUI(); updateSkinUI(); updateTipUI();
+    $('.nd-chbar').hidden = S.selCharm == null;
+    if (S.selCharm != null) { var cs0 = S.nails[S.sel].charms[S.selCharm].s || 1; $('.nd-chsize').textContent = Math.round(cs0 * 100) + '%'; $('[data-act=chs]').disabled = cs0 <= 0.5; $('[data-act=chb]').disabled = cs0 >= 1.5; }
+    if (S.selCharm != null) $('.nd-hint').hidden = true;
+    updateLampUI(); $('.nd-lamp').style.left = (S.lampF * 100) + '%'; $('.nd-lamp').setAttribute('aria-valuenow', Math.round(S.lampF * 100));
+    var tb = $('.nd-tabs'), ton = tb && tb.querySelector('.nd-tab.on');
+    if (ton) { var l0 = ton.offsetLeft - tb.offsetLeft, r0 = l0 + ton.offsetWidth; if (l0 < tb.scrollLeft) tb.scrollLeft = l0 - 8; else if (r0 > tb.scrollLeft + tb.clientWidth) tb.scrollLeft = r0 - tb.clientWidth + 8; }
+  }
+
+  // Zoom the drawing onto the selected nail
+  var VIEW = { scale: 1, cx: null, cy: null };
+  // The area that holds the whole hand for the current nail length
+  function handBox(len) {
+    var F = FINGERS[2], g = geom(F.w, len || S.length), top = Math.min(70, F.y + F.w * 0.24 - g.free - 46);
+    return [150, top, 810, 790 - top];
+  }
+  function fitBox(box, A) {
+    var bw = box[2], bh = box[3];
+    if (bw / bh > A) { var h = bw / A; if (h > bh * 1.35) { var w2 = bh * 1.35 * A; bw = Math.max(w2, bw * 0.84); h = bw / A; return [box[0] + (box[2] - bw) / 2 + 20, box[1] - (h - bh) * 0.35, bw, h]; } return [box[0], box[1] - (h - bh) * 0.3, bw, h]; }
+    var w = bh * A; return [box[0] - (w - bw) / 2, box[1], w, bh];
+  }
+  function aspect() { return stage && stage.clientHeight > 0 ? stage.clientWidth / stage.clientHeight : 1.25; }
+  function targetVB() {
+    var base = fitBox(handBox(), aspect()), sc = VIEW.scale, w = base[2] / sc, h = base[3] / sc;
+    var cx = VIEW.cx == null ? base[0] + base[2] / 2 : VIEW.cx, cy = VIEW.cy == null ? base[1] + base[3] / 2 : VIEW.cy;
+    var mx = base[2] * 0.2, my = base[3] * 0.15;
+    cx = Math.max(base[0] + w / 2 - mx, Math.min(base[0] + base[2] - w / 2 + mx, cx));
+    cy = Math.max(base[1] + h / 2 - my, Math.min(base[1] + base[3] - h / 2 + my, cy));
+    return [cx - w / 2, cy - h / 2, w, h];
+  }
+  function resetView() { VIEW.scale = 1; VIEW.cx = VIEW.cy = null; }
+  function focusNail(i) {
+    var base = fitBox(handBox(), aspect()), F = FINGERS[i], g = geom(F.w, S.length), size = g.B + F.w * 1.4;
+    VIEW.scale = Math.max(1, Math.min(3.2, base[2] / (size * 1.5), base[3] / (size * 1.25)));
+    var c = nailCenter(i, S.length);
+    VIEW.cx = c[0]; VIEW.cy = c[1] + (base[3] / VIEW.scale) * 0.08;
+  }
+  function zoomBy(k) {
+    var cx = vb[0] + vb[2] / 2, cy = vb[1] + vb[3] / 2;
+    VIEW.scale = Math.max(1, Math.min(4, VIEW.scale * k));
+    if (VIEW.scale <= 1.01) resetView(); else { VIEW.cx = cx; VIEW.cy = cy; }
+    zoomTo(); updateZoomUI();
+  }
+  function updateZoomUI() {
+    var z = VIEW.scale > 1.01;
+    $('[data-act=zout]').disabled = !z; $('[data-act=fit]').disabled = !z;
+    $('[data-act=zin]').disabled = VIEW.scale >= 3.99;
+    stage.classList.toggle('nd-zoomed', z);
+  }
+  function snapView() { cancelAnimationFrame(raf); vb = targetVB(); svg.setAttribute('viewBox', vb.map(f2).join(' ')); }
+  function zoomTo() {
+    if (S.target === 'one' && S.sel != null) focusNail(S.sel); else if (S.target === 'all' && zoomTo.fromNail) resetView();
+    zoomTo.fromNail = S.target === 'one';
+    if (svg) updateZoomUI();
+    var to = targetVB(), from = vb.slice(), t0 = performance.now();
+    cancelAnimationFrame(raf);
+    if (reduceMotion) { vb = to; svg.setAttribute('viewBox', vb.map(f2).join(' ')); return; }
+    function step(now) {
+      var k = Math.min(1, (now - t0) / 420), e = 1 - Math.pow(1 - k, 3);
+      vb = from.map(function (v, j) { return v + (to[j] - v) * e; });
+      svg.setAttribute('viewBox', vb.map(f2).join(' '));
+      if (k < 1) raf = requestAnimationFrame(step);
+    }
+    raf = requestAnimationFrame(step);
+  }
+  // Floating length slider
+  function updateLenUI() {
+    var el = $('.nd-len'); if (!el) return;
+    var p = freeToP(S.length), nm = L().l[lenName(S.length)];
+    $('.nd-len-fill').style.height = (p * 20) + '%';
+    $('.nd-len-thumb').style.bottom = (p * 20) + '%';
+    $('.nd-len-tip').textContent = nm;
+    el.setAttribute('aria-valuenow', f2(p)); el.setAttribute('aria-valuetext', nm);
+  }
+  function setLenP(p) {
+    p = Math.max(0, Math.min(5, p));
+    if (Math.abs(p - Math.round(p)) < 0.09) p = Math.round(p); // gentle snap to the preset sizes
+    S.length = pToFree(p);
+    renderHand();
+    if (S.target === 'one' && S.sel != null) focusNail(S.sel);
+    snapView(); updateLenUI();
+  }
+  function lenFromEvent(e) { var tr = $('.nd-len-track').getBoundingClientRect(); return (1 - (e.clientY - tr.top) / tr.height) * 5; }
+  var lenDrag = null;
+  // Skin tone picker
+  function updateSkinUI() {
+    var cur = $('.nd-skin-cur'); if (!cur) return;
+    cur.style.background = S.skin;
+    cur.setAttribute('aria-expanded', !!S.skinOpen);
+    $('.nd-skin-opts').hidden = !S.skinOpen;
+    $('.nd-hint').style.visibility = S.skinOpen || S.tipOpen ? 'hidden' : '';
+    root.querySelectorAll('.nd-skin-opts button').forEach(function (b) { var on = b.dataset.v === S.skin; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  }
+  function updateTipUI() {
+    var fl = $('.nd-tipfloat'); if (!fl) return;
+    var c = cur(), ok = TIPPED.indexOf(c.pattern) >= 0;
+    fl.hidden = !ok || !!S.skinOpen;
+    if (!ok) S.tipOpen = false;
+    $('.nd-tip-pop').hidden = !S.tipOpen;
+    $('.nd-tip-btn').setAttribute('aria-expanded', !!S.tipOpen);
+    $('.nd-tip-btn').classList.toggle('on', !!S.tipOpen);
+    var tv = typeof c.tip === 'number' ? c.tip : autoTip(geom(FINGERS[2].w, S.length)), inp = fl.querySelector('input');
+    if (document.activeElement !== inp || tipSnap === false) { inp.value = tv; inp.style.setProperty('--p', f2((tv - TIP_MIN) / (TIP_MAX - TIP_MIN) * 100) + '%'); }
+    fl.querySelector('.nd-tipauto').disabled = typeof c.tip !== 'number';
+    var inList = false;
+    fl.querySelectorAll('.nd-tipcolors button').forEach(function (b) { var on = b.dataset.v === String(c.c2).toUpperCase(); if (on) inList = true; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+    var cu = fl.querySelector('.nd-tipcustom'), ci = cu.querySelector('input');
+    if (document.activeElement !== ci) ci.value = c.c2;
+    cu.classList.toggle('on', !inList); cu.querySelector('span').style.background = inList ? '' : c.c2;
+  }
+  function selectNail(i) {
+    if (S.target === 'one' && S.sel === i && S.selCharm != null) { S.selCharm = null; render(); return; }
+    S.selCharm = null;
+    if (S.target === 'one' && S.sel === i) { S.target = 'all'; S.sel = null; resetView(); }
+    else { S.target = 'one'; S.sel = i; try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) {} }
+    render(); zoomTo();
+  }
+
+  /* =========================================================
+     8. Image export and sharing
+     ========================================================= */
+  function makePNG() {
+    return new Promise(function (resolve, reject) {
+      var src = '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1280" viewBox="' + fitBox(handBox(), 1.25).map(f2).join(' ') + '"><defs>' + DEFS + '</defs>' + handSVG(S, 'x', null, false, lampWorld()) + '</svg>';
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var c = document.createElement('canvas'); c.width = 1600; c.height = 1440;
+          var x = c.getContext('2d');
+          x.drawImage(img, 0, 0, 1600, 1280);
+          x.fillStyle = '#FFFCFA'; x.fillRect(0, 1280, 1600, 160);
+          x.textBaseline = 'middle'; var fx = 64;
+          var ls = 62 / 36; x.save(); x.translate(fx - 21 * ls, 1360 - 32 * ls); x.scale(ls, ls);
+          x.fillStyle = BRAND.ink; x.fill(new Path2D(LOGO_D));
+          LOGO_DOTS.forEach(function (c) { x.beginPath(); x.arc(c[0], c[1], c[2], 0, Math.PI * 2); x.fillStyle = c[3]; x.fill(); });
+          x.restore(); fx += 134 * ls + 22;
+          x.fillStyle = '#E6DAD2'; x.fillRect(fx, 1328, 2, 64); fx += 26;
+          x.fillStyle = '#2B2221'; x.font = '500 46px Fraunces, Georgia, serif'; x.fillText('Nail ', fx, 1360); fx += x.measureText('Nail ').width;
+          x.fillStyle = ACCENT; x.font = 'italic 500 46px Fraunces, Georgia, serif'; x.fillText('Studio', fx, 1360);
+          x.textAlign = 'right';
+          x.fillStyle = BRAND.ink; x.font = '600 32px "DM Sans", system-ui, sans-serif'; x.fillText(BRAND.site, 1536, 1340);
+          x.fillStyle = '#6E5F5B'; x.font = '500 24px "DM Sans", system-ui, sans-serif'; x.fillText(summary(), 1536, 1384);
+          c.toBlob(function (b) { b ? resolve(b) : reject(new Error('blob')); }, 'image/png');
+        } catch (e) { reject(e); }
+      };
+      img.onerror = reject;
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(src);
+    });
+  }
+  /** Clean square export for the Save look popup — hand only, no brand bar or canvas chrome. */
+  function makeCleanPNG() {
+    return new Promise(function (resolve, reject) {
+      var hb = handBox(), pad = Math.max(hb[2], hb[3]) * 0.1, side = Math.max(hb[2], hb[3]) + pad * 2;
+      var vx = hb[0] + hb[2] / 2 - side / 2, vy = hb[1] + hb[3] / 2 - side / 2;
+      var src = '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="' + [vx, vy, side, side].map(f2).join(' ') + '"><rect x="' + f2(vx) + '" y="' + f2(vy) + '" width="' + f2(side) + '" height="' + f2(side) + '" fill="#E4D9D2"/><defs>' + DEFS + '</defs>' + handSVG(S, 'x', null, false, lampWorld()) + '</svg>';
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var c = document.createElement('canvas'); c.width = 1200; c.height = 1200;
+          c.getContext('2d').drawImage(img, 0, 0, 1200, 1200);
+          c.toBlob(function (b) { b ? resolve(b) : reject(new Error('blob')); }, 'image/png');
+        } catch (e) { reject(e); }
+      };
+      img.onerror = reject;
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(src);
+    });
+  }
+  var lastBlob = null, lastUrl = null, lastCleanBlob = null, lastCleanUrl = null;
+  function saveBlob(b) {
+    var a = document.createElement('a'), u = URL.createObjectURL(b);
+    a.href = u; a.download = 'tulala-nail-studio.png'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
+    toast(t('downloaded')); emit('download');
+  }
+  function openShare() {
+    var m = $('.nd-share-modal'), link = shareLink();
+    closeSaveLook(true);
+    m.hidden = false;
+    $('#nd-linkin').value = link;
+    $('.nd-native').hidden = !navigator.share;
+    var img = $('.nd-share-modal .nd-mimg'); img.removeAttribute('src');
+    $('.nd-share-modal .nd-x').focus();
+    emit('share', { link: link });
+    makePNG().then(function (b) { lastBlob = b; if (lastUrl) URL.revokeObjectURL(lastUrl); lastUrl = URL.createObjectURL(b); img.src = lastUrl; }).catch(function () {});
+  }
+  function closeShare() { var m = $('.nd-share-modal'); if (m) m.hidden = true; var s = $('[data-act=share]'); if (s) s.focus(); }
+  function openSaveLook() {
+    var m = $('.nd-save-modal');
+    closeShare();
+    m.hidden = false;
+    var img = $('.nd-save-modal .nd-mimg'); img.removeAttribute('src');
+    $('.nd-save-modal .nd-x').focus();
+    makeCleanPNG().then(function (b) {
+      lastCleanBlob = b;
+      if (lastCleanUrl) URL.revokeObjectURL(lastCleanUrl);
+      lastCleanUrl = URL.createObjectURL(b);
+      img.src = lastCleanUrl;
+    }).catch(function () {});
+  }
+  function closeSaveLook(silent) {
+    var m = $('.nd-save-modal'); if (m) m.hidden = true;
+    if (!silent) { var s = $('[data-act=savelook]'); if (s) s.focus(); }
+  }
+
+  /** Quote / Add to chat: post design + clean PNG data URL for front-door moodboard. */
+  function emitHandoff(type) {
+    function send(imageDataUrl) {
+      emit(type, imageDataUrl ? { imageDataUrl: imageDataUrl } : {});
+      closeSaveLook();
+    }
+    (lastCleanBlob ? Promise.resolve(lastCleanBlob) : makeCleanPNG()).then(function (b) {
+      lastCleanBlob = b;
+      try {
+        var r = new FileReader();
+        r.onload = function () { send(typeof r.result === 'string' ? r.result : null); };
+        r.onerror = function () { send(null); };
+        r.readAsDataURL(b);
+      } catch (e) { send(null); }
+    }).catch(function () { send(null); });
+  }
+  function saveToIdeas() {
+    var look = { name: t('myLook', { n: S.looks.length + 1 }), shape: S.shape, length: S.length, skin: S.skin, nails: clone(S.nails) };
+    S.looks.unshift(look); S.looks = S.looks.slice(0, 24); writeLooks();
+    if (S.tab === 'ideas') renderPanel();
+    emit('save'); toast(t('saved', { n: look.name }));
+  }
+  function copyLink() {
+    var inp = $('#nd-linkin'), v = inp.value;
+    function fallback() { inp.focus(); inp.select(); try { document.execCommand('copy'); toast(t('linkCopied')); } catch (e) {} }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(function () { toast(t('linkCopied')); }, fallback);
+    else fallback();
+  }
+  function nativeShare() {
+    var text = t('shareText') + ' · ' + summary() + '\n' + t('madeWith'), link = shareLink();
+    var file = lastBlob && typeof File === 'function' ? new File([lastBlob], 'tulala-nail-studio.png', { type: 'image/png' }) : null;
+    var data = file && navigator.canShare && navigator.canShare({ files: [file] }) ? { files: [file], title: 'Tulala Nail Studio', text: text + '\n' + link } : { title: 'Tulala Nail Studio', text: text, url: link };
+    navigator.share(data).catch(function () {});
+  }
+
+  /* =========================================================
+     9. Events
+     ========================================================= */
+  var SLOTS = [[0, 0], [-0.5, 0.1], [0.5, 0.1], [0, 0.4], [-0.45, -0.25], [0.45, -0.25], [0, -0.32], [-0.5, 0.5], [0.5, 0.5], [0, 0.75]];
+  var LINE_CHARMS = ['cuticle', 'tipline', 'pearlline', 'trio', 'chain'];
+  function addCharm(id) {
+    var n = S.nails[S.sel];
+    if (n.charms.length >= 10) { toast(t('maxCharms')); return; }
+    snap();
+    var k = n.charms.length, nn = clone(n), d = CH[id], off = SLOTS[k % SLOTS.length], inst = { id: id };
+    if (k > 0 && LINE_CHARMS.indexOf(id) < 0) { inst.x = off[0]; inst.y = clamp(d.y + off[1], 0.12, 2.4); }
+    nn.charms.push(inst);
+    S.nails = S.nails.slice(); S.nails[S.sel] = nn; S.selCharm = nn.charms.length - 1;
+    changed();
+  }
+  function charmAction(a) {
+    if (S.target !== 'one' || S.sel == null || S.selCharm == null) return;
+    var nn = clone(S.nails[S.sel]), c = nn.charms[S.selCharm]; if (!c) return;
+    if (a === 'chdup' && nn.charms.length >= 10) { toast(t('maxCharms')); return; }
+    snap();
+    if (a === 'chs') c.s = Math.round(Math.max(0.5, (c.s || 1) - 0.1) * 10) / 10;
+    if (a === 'chb') c.s = Math.round(Math.min(1.5, (c.s || 1) + 0.1) * 10) / 10;
+    if (a === 'chr') c.r = ((c.r || 0) + 30) % 360;
+    if (a === 'chdup') { var d2 = clone(c); d2.x = clamp((c.x || 0) + ((c.x || 0) > 0.3 ? -0.4 : 0.4), -1, 1); d2.y = Math.round(((typeof c.y === 'number' ? c.y : CH[c.id].y) + 0.12) * 1000) / 1000; d2.x = Math.round(d2.x * 1000) / 1000; nn.charms.push(d2); S.selCharm = nn.charms.length - 1; }
+    if (a === 'chdel') { nn.charms.splice(S.selCharm, 1); S.selCharm = null; }
+    S.nails = S.nails.slice(); S.nails[S.sel] = nn;
+    changed();
+  }
+  function randomize() {
+    function r(a) { return a[Math.floor(Math.random() * a.length)]; }
+    var base = r(COLORS).hex, acc = r(['#F7F3EE', '#16151A', '#C9A14A', r(COLORS).hex]);
+    if (acc === base) acc = base === '#F7F3EE' ? '#16151A' : '#F7F3EE';
+    var fin = r(['gloss', 'gloss', 'matte', 'chrome', 'pearl', 'cateye', 'aurora', 'glitter']);
+    var mainP = r(['solid', 'solid', 'solid', 'french', 'ombre', 'aura', 'moon', 'marble']);
+    var accentP = r(PATTERNS.filter(function (p) { return p !== 'solid'; }));
+    var ch = r(CHARM_IDS.concat(['none', 'none']));
+    snap();
+    S.nails = [0, 1, 2, 3, 4].map(function (i) { return i === 1 ? nail(acc === '#16151A' ? base : acc, acc === '#16151A' ? acc : base, accentP, fin, ch) : nail(base, acc, mainP, fin); });
+    S.shape = r(SHAPES); S.length = FREE[r(['short', 'medium', 'medium', 'long', 'long', 'xl', 'xxl'])];
+    changed();
+  }
+  function setLang(l) {
+    if (!I18N[l]) return;
+    LANG = l;
+    try { localStorage.setItem(LANG_KEY, l); } catch (e) {}
+    document.documentElement.lang = l;
+    shell(); render();
+  }
+
+  root.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]');
+    if (!b || !root.contains(b)) return;
+    if (b.classList.contains('nd-modal') && e.target !== b) return;
+    var v = b.dataset.v;
+    switch (b.dataset.act) {
+      case 'nail': if (charmTap) { charmTap = false; break; } if (dragged) { dragged = false; break; } selectNail(+v); break;
+      case 'zin': zoomBy(1.5); break;
+      case 'zout': zoomBy(1 / 1.5); break;
+      case 'fit': S.target = 'all'; S.sel = null; resetView(); render(); zoomTo(); break;
+      case 'target': if (v === 'all') resetView(); S.target = v; S.sel = v === 'one' ? (S.sel == null ? 2 : S.sel) : null; render(); zoomTo(); break;
+      case 'step': S.target = 'one'; S.sel = ((S.sel == null ? 2 : S.sel) + (+v) + 5) % 5; render(); zoomTo(); break;
+      case 'toggle': toggleLayer(v); break;
+      case 'lightlvl': setLight(+v); break;
+      case 'lightcol': S.lightCol = +v; updateLampUI(); reqHand(); break;
+      case 'tipauto': snap(); S.nails = S.nails.map(function (n, i) { if (S.target === 'all' || i === S.sel) { n = Object.assign({}, n); delete n.tip; } return n; }); changed(); break;
+      case 'tab': S.tab = v; render(); $('.nd-content').scrollTop = 0; break;
+      case 'c1': apply({ c1: v }); break;
+      case 'c2': apply({ c2: v }); break;
+      case 'pattern': apply({ pattern: v }); break;
+      case 'finish': apply({ finish: v }); break;
+      case 'charm':
+        if (v === 'none') { S.selCharm = null; apply({ charms: [] }); break; }
+        if (S.target === 'one' && S.sel != null) addCharm(v); else apply({ charms: [{ id: v }] });
+        break;
+      case 'chs': case 'chb': case 'chr': case 'chdup': case 'chdel': charmAction(b.dataset.act); break;
+      case 'shape':
+        if (S.target === 'one' && S.sel != null) apply({ shape: v });
+        else { snap(); S.shape = v; S.nails = S.nails.map(function (n) { n = Object.assign({}, n); delete n.shape; return n; }); changed(); }
+        zoomTo(); break;
+      case 'length': setGlobal({ length: FREE[v] }); zoomTo(); break;
+      case 'skin': S.skinOpen = false; setGlobal({ skin: v }); break;
+      case 'skinmenu': S.skinOpen = !S.skinOpen; S.tipOpen = false; updateSkinUI(); updateTipUI(); break;
+      case 'tipmenu': S.tipOpen = !S.tipOpen; updateTipUI(); break;
+      case 'copyall': if (S.sel != null) { snap(); var src = S.nails[S.sel]; S.nails = S.nails.map(function () { return clone(src); }); changed(); toast(t('copiedAll')); } break;
+      case 'undo': var h = S.history.pop(); if (h) { Object.assign(S, h); changed(); zoomTo(); } break;
+      case 'reset': resetView(); snap(); S.nails = clone(START); S.shape = 'almond'; S.length = FREE.medium; S.skin = '#E9BE9E'; S.target = 'all'; S.sel = null; changed(); zoomTo(); toast(t('resetToast')); break;
+      case 'random': randomize(); zoomTo(); break;
+      case 'lang': setLang(LANG === 'es' ? 'en' : 'es'); break;
+      case 'savelook': openSaveLook(); break;
+      case 'saveideas': saveToIdeas(); break;
+      case 'look': var l = S.looks[+v]; if (l) { loadDesign(l); toast(t('applied', { n: l.name })); } break;
+      case 'trend': var tr = TRENDS[+v]; if (tr) { loadDesign(tr); toast(t('applied', { n: L().t[tr.id] })); } break;
+      case 'del': S.looks.splice(+v, 1); writeLooks(); renderPanel(); break;
+      case 'download': makePNG().then(saveBlob).catch(function () {}); break;
+      case 'share': openShare(); break;
+      case 'share-from-save': closeSaveLook(true); openShare(); break;
+      case 'close': closeShare(); break;
+      case 'closesave': closeSaveLook(); break;
+      case 'dlimg': (lastBlob ? Promise.resolve(lastBlob) : makePNG()).then(saveBlob).catch(function () {}); break;
+      case 'dlimg-clean': (lastCleanBlob ? Promise.resolve(lastCleanBlob) : makeCleanPNG()).then(saveBlob).catch(function () {}); break;
+      case 'quote': emitHandoff('quote'); break;
+      case 'chat': emitHandoff('chat'); break;
+      case 'wa': window.open('https://wa.me/?text=' + encodeURIComponent(t('shareText') + ' · ' + summary() + '\n' + shareLink() + '\n' + t('madeWith')), '_blank', 'noopener'); break;
+      case 'native': nativeShare(); break;
+      case 'copylink': copyLink(); break;
+    }
+  });
+  root.addEventListener('click', function (e) {
+    if (S.lampOpen && !(e.target.closest && e.target.closest('.nd-lamp, .nd-lamppop'))) { S.lampOpen = false; updateLampUI(); }
+    if (S.skinOpen && !(e.target.closest && e.target.closest('.nd-skinpick'))) { S.skinOpen = false; updateSkinUI(); updateTipUI(); }
+    if (S.tipOpen && !(e.target.closest && e.target.closest('.nd-tipfloat'))) { S.tipOpen = false; updateTipUI(); }
+  });
+  // Close share / save sheets by tapping the backdrop
+  root.addEventListener('click', function (e) {
+    if (!(e.target.classList && e.target.classList.contains('nd-modal'))) return;
+    if (e.target.classList.contains('nd-save-modal')) closeSaveLook();
+    else closeShare();
+  });
+  // Keyboard: Enter/Space on a nail, Escape closes sheets, arrows move between nails when zoomed
+  root.addEventListener('keydown', function (e) {
+    var f = e.target.closest && e.target.closest('.nd-f');
+    if (f && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); selectNail(+f.dataset.v); var nf = svg.querySelector('.nd-f[data-v="' + f.dataset.v + '"]'); if (nf) nf.focus(); return; }
+    if (e.key === 'Escape' && $('.nd-save-modal') && !$('.nd-save-modal').hidden) { closeSaveLook(); return; }
+    if (e.key === 'Escape' && $('.nd-share-modal') && !$('.nd-share-modal').hidden) { closeShare(); return; }
+    if (e.key === 'Escape' && S.lampOpen) { S.lampOpen = false; updateLampUI(); $('.nd-lamp').focus(); return; }
+    if (e.key === 'Escape' && S.tipOpen) { S.tipOpen = false; updateTipUI(); $('.nd-tip-btn').focus(); return; }
+    if (e.key === 'Escape' && S.skinOpen) { S.skinOpen = false; updateSkinUI(); $('.nd-skin-cur').focus(); return; }
+    if (e.key === 'Escape' && S.target === 'one' && e.target.closest && e.target.closest('.nd-stage')) { S.target = 'all'; S.sel = null; render(); zoomTo(); }
+  });
+  // Custom colors: live preview while dragging, one undo step per change
+  var colorSnap = false;
+  var lenSnap = false, tipSnap = false;
+  root.addEventListener('input', function (e) {
+    if (e.target.dataset && e.target.dataset.tip) {
+      if (!tipSnap) { snap(); tipSnap = true; }
+      var tv = +e.target.value;
+      e.target.style.setProperty('--p', f2((tv - TIP_MIN) / (TIP_MAX - TIP_MIN) * 100) + '%');
+      S.nails = S.nails.map(function (n, i) { return (S.target === 'all' || i === S.sel) && TIPPED.indexOf(n.pattern) >= 0 ? Object.assign({}, n, { tip: tv }) : n; });
+      var sec = e.target.closest('.nd-sec'), hs = sec && sec.querySelector('.nd-h span'); if (hs) hs.textContent = '';
+      renderHand();
+      return;
+    }
+    if (e.target.dataset && e.target.dataset.len) {
+      if (!lenSnap) { snap(); lenSnap = true; }
+      var p = +e.target.value;
+      S.length = pToFree(p);
+      e.target.style.setProperty('--p', f2(p * 20) + '%');
+      var nm = L().l[lenName(S.length)];
+      e.target.setAttribute('aria-valuetext', nm);
+      var hs = e.target.closest('.nd-sec').querySelector('.nd-h span'); if (hs) hs.textContent = nm;
+      e.target.closest('.nd-range').querySelectorAll('.nd-ticks button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === lenName(S.length)); });
+      renderHand();
+      if (S.target === 'one' && S.sel != null) focusNail(S.sel);
+      snapView();
+      return;
+    }
+    var k = e.target.dataset && e.target.dataset.color; if (!k) return;
+    if (!colorSnap) { snap(); colorSnap = true; }
+    var p = {}; p[k] = e.target.value;
+    if (e.target.closest('.nd-tipcustom')) { var cu2 = e.target.closest('.nd-tipcustom'); cu2.classList.add('on'); cu2.querySelector('span').style.background = e.target.value; root.querySelectorAll('.nd-tipcolors button.on').forEach(function (b) { b.classList.remove('on'); }); }
+    S.nails = S.nails.map(function (n, i) { return (S.target === 'all' || i === S.sel) ? Object.assign({}, n, p) : n; });
+    renderHand();
+  });
+  root.addEventListener('change', function (e) {
+    if (e.target.dataset && e.target.dataset.color) { colorSnap = false; changed(); }
+    if (e.target.dataset && e.target.dataset.len) { lenSnap = false; changed(); }
+    if (e.target.dataset && e.target.dataset.tip) { tipSnap = false; changed(); }
+  });
+  // Drag charms on the selected nail
+  var chDrag = null, charmTap = false;
+  root.addEventListener('pointerdown', function (e) {
+    var el = e.target.closest && e.target.closest('.nd-ch.ed'); if (!el) return;
+    e.preventDefault();
+    chDrag = { f: +el.dataset.f, ci: +el.dataset.ci, id: e.pointerId, x0: e.clientX, y0: e.clientY, moved: false };
+    try { el.setPointerCapture(e.pointerId); } catch (er) {}
+  });
+  root.addEventListener('pointermove', function (e) {
+    if (!chDrag || e.pointerId !== chDrag.id) return;
+    if (!chDrag.moved && Math.hypot(e.clientX - chDrag.x0, e.clientY - chDrag.y0) < 4) return;
+    if (!chDrag.moved) { snap(); chDrag.moved = true; S.nails = S.nails.slice(); S.nails[chDrag.f] = clone(S.nails[chDrag.f]); S.selCharm = chDrag.ci; }
+    var ng = svg.querySelector('.nd-ng[data-f="' + chDrag.f + '"]'); if (!ng) return;
+    var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    var p = pt.matrixTransform(ng.getScreenCTM().inverse()), g = geom(FINGERS[chDrag.f].w, S.length), c = S.nails[chDrag.f].charms[chDrag.ci];
+    c.x = Math.round(clamp(p.x / g.hw, -1, 1) * 1000) / 1000; c.y = Math.round(clamp((g.B - p.y) / g.nw, 0.02, g.B / g.nw - 0.02) * 1000) / 1000;
+    var el = svg.querySelector('.nd-ch[data-f="' + chDrag.f + '"][data-ci="' + chDrag.ci + '"]'); if (el) el.setAttribute('transform', charmTf(c, g));
+  });
+  function endCh(e) {
+    if (!chDrag || e.pointerId !== chDrag.id) return;
+    var d = chDrag; chDrag = null; charmTap = true; setTimeout(function () { charmTap = false; }, 0);
+    if (!d.moved) S.selCharm = d.ci;
+    changed();
+  }
+  root.addEventListener('pointerup', endCh);
+  root.addEventListener('pointercancel', endCh);
+  // Drag the lamp left and right to move the light
+  var lampDrag = null;
+  function setLamp(f) { S.lampF = clamp(f, 0.06, 0.86); var el = $('.nd-lamp'); el.style.left = (S.lampF * 100) + '%'; $('.nd-lamppop').style.left = 'clamp(118px, ' + (S.lampF * 100) + '%, calc(100% - 118px))'; el.setAttribute('aria-valuenow', Math.round(S.lampF * 100)); reqHand(); }
+  var lampX0 = 0, lampMoved = false;
+  function updateLampUI() {
+    var el = $('.nd-lamp'), pop = $('.nd-lamppop'); if (!el) return;
+    el.classList.remove('lvl0', 'lvl1', 'lvl2', 'col0', 'col1', 'col2'); el.classList.add('lvl' + S.lightLvl, 'col' + S.lightCol);
+    pop.hidden = !S.lampOpen; pop.style.left = 'clamp(118px, ' + (S.lampF * 100) + '%, calc(100% - 118px))';
+    el.setAttribute('aria-expanded', !!S.lampOpen);
+    pop.querySelectorAll('[data-act=lightlvl]').forEach(function (b) { var on = +b.dataset.v === S.lightLvl; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+    pop.querySelectorAll('[data-act=lightcol]').forEach(function (b) { var on = +b.dataset.v === S.lightCol; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  }
+  function setLight(lvl) {
+    S.lightLvl = clamp(lvl, 0, 2); updateLampUI(); reqHand();
+    $('.nd-lamp').setAttribute('aria-valuetext', L().lightLv[S.lightLvl]);
+    return;
+    var el = $('.nd-lamp'); el.classList.remove('lvl0', 'lvl1', 'lvl2'); el.classList.add('lvl' + S.lightLvl);
+    el.setAttribute('aria-valuetext', L().lightLv[S.lightLvl]);
+    toast(t('light') + ': ' + L().lightLv[S.lightLvl]);
+    reqHand();
+  }
+  root.addEventListener('pointerdown', function (e) {
+    var el = e.target.closest && e.target.closest('.nd-lamp'); if (!el) return;
+    e.preventDefault(); lampDrag = e.pointerId; el.classList.add('drag'); lampX0 = e.clientX; lampMoved = false;
+    try { el.setPointerCapture(e.pointerId); } catch (er) {}
+  });
+  root.addEventListener('pointermove', function (e) { if (lampDrag !== e.pointerId) return; if (!lampMoved && Math.abs(e.clientX - lampX0) < 5) return; lampMoved = true; var r = stage.getBoundingClientRect(); setLamp((e.clientX - r.left) / r.width); });
+  function endLamp(e) { if (lampDrag == null || lampDrag !== e.pointerId) return; lampDrag = null; var el = $('.nd-lamp'); if (el) el.classList.remove('drag'); if (!lampMoved && e.type === 'pointerup') { S.lampOpen = !S.lampOpen; updateLampUI(); } }
+  root.addEventListener('pointerup', endLamp);
+  root.addEventListener('pointercancel', endLamp);
+  root.addEventListener('keydown', function (e) {
+    if (e.target.classList && e.target.classList.contains('nd-lamp')) {
+      if (e.key === 'ArrowLeft') { e.preventDefault(); setLamp(S.lampF - 0.04); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); setLamp(S.lampF + 0.04); }
+      if (e.key === 'ArrowUp' && S.lightLvl < 2) { e.preventDefault(); setLight(S.lightLvl + 1); }
+      if (e.key === 'ArrowDown' && S.lightLvl > 0) { e.preventDefault(); setLight(S.lightLvl - 1); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); S.lampOpen = !S.lampOpen; updateLampUI(); }
+      return;
+    }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && S.selCharm != null && !/INPUT|TEXTAREA/.test(e.target.tagName)) { e.preventDefault(); charmAction('chdel'); }
+  });
+
+  // Length slider: drag, tap, or keyboard
+  root.addEventListener('pointerdown', function (e) {
+    var el = e.target.closest && e.target.closest('.nd-len'); if (!el) return;
+    e.preventDefault();
+    snap(); lenDrag = e.pointerId; el.classList.add('drag');
+    try { el.setPointerCapture(e.pointerId); } catch (er) {}
+    setLenP(lenFromEvent(e));
+  });
+  root.addEventListener('pointermove', function (e) { if (lenDrag === e.pointerId) setLenP(lenFromEvent(e)); });
+  function endLen(e) { if (lenDrag == null || lenDrag !== e.pointerId) return; lenDrag = null; var el = $('.nd-len'); if (el) el.classList.remove('drag'); changed(); }
+  root.addEventListener('pointerup', endLen);
+  root.addEventListener('pointercancel', endLen);
+  root.addEventListener('keydown', function (e) {
+    if (!(e.target.classList && e.target.classList.contains('nd-len'))) return;
+    var p = freeToP(S.length), np = null;
+    if (e.key === 'ArrowUp' || e.key === 'ArrowRight') np = p + 0.2;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') np = p - 0.2;
+    if (e.key === 'PageUp') np = Math.floor(p + 1.001);
+    if (e.key === 'PageDown') np = Math.ceil(p - 1.001);
+    if (e.key === 'Home') np = 0;
+    if (e.key === 'End') np = 5;
+    if (np == null) return;
+    e.preventDefault(); snap(); setLenP(np); changed();
+  });
+
+  // Drag to move around when zoomed in
+  var drag = null, dragged = false;
+  root.addEventListener('pointerdown', function (e) {
+    if (!e.target.closest || !e.target.closest('.nd-svg') || e.target.closest('.nd-ch.ed')) return;
+    drag = { x: e.clientX, y: e.clientY, vb: vb.slice(), id: e.pointerId }; dragged = false;
+  });
+  root.addEventListener('pointermove', function (e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!dragged && Math.abs(dx) + Math.abs(dy) < 7) return;
+    if (!dragged) { dragged = true; try { svg.setPointerCapture(e.pointerId); } catch (er) {} }
+    var k = drag.vb[2] / stage.clientWidth;
+    VIEW.cx = drag.vb[0] + drag.vb[2] / 2 - dx * k; VIEW.cy = drag.vb[1] + drag.vb[3] / 2 - dy * k;
+    snapView();
+  });
+  function endDrag(e) {
+    if (drag && dragged) setTimeout(function () { dragged = false; }, 0);
+    else if (drag && e && e.type === 'pointerup' && !(e.target.closest && e.target.closest('.nd-f'))) {
+      if (S.target === 'one' || VIEW.scale > 1.01 || VIEW.cx != null) { S.target = 'all'; S.sel = null; S.selCharm = null; resetView(); render(); zoomTo(); }
+    }
+    drag = null;
+  }
+  root.addEventListener('pointerup', endDrag);
+  root.addEventListener('pointercancel', endDrag);
+  window.addEventListener('resize', function () { if (stage) snapView(); });
+
+  // Messages from a host app (iframe embedding)
+  window.addEventListener('message', function (e) {
+    if (parentOrigin !== '*' && e.origin !== parentOrigin) return;
+    var d = e.data;
+    if (!d || d.target !== 'nail-designer') return;
+    if (d.type === 'load') loadDesign(d.design);
+    if (d.type === 'lang') setLang(d.lang);
+    if (d.type === 'get') emit('change');
+  });
+
+  /* =========================================================
+     10. Start
+     ========================================================= */
+  document.documentElement.lang = LANG;
+  shell();
+  var fromLink = /^#d=/.test(location.hash) ? decodeDesign(location.hash.slice(3)) : null;
+  if (fromLink && clean(fromLink)) { var c0 = clean(fromLink); S.nails = c0.nails; S.shape = c0.shape; S.length = c0.length; S.skin = c0.skin; }
+  render();
+  if (fromLink) toast(t('loaded'));
+
+  window.NailDesigner = {
+    getDesign: design,
+    loadDesign: function (d) { return loadDesign(d); },
+    setLang: setLang,
+    getLang: function () { return LANG; },
+    getShareLink: shareLink,
+    exportImage: makePNG,
+    reset: function () { loadDesign({ shape: 'almond', length: 'medium', skin: '#E9BE9E', nails: START }); }
+  };
+})();
+</script>
+</body>
+</html>

@@ -8,6 +8,7 @@
 
 "use server";
 
+import { COLLECT_LATER_NOTE } from "./load-map";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -18,6 +19,7 @@ import { loadTalentActor } from "@/lib/messaging/talent-actor";
 import { computeBookingTalentRowTotals } from "@/lib/booking-pricing";
 import { resolveTalentOwnWorkTenant } from "@/lib/talent-agenda/own-work-tenant";
 import { openBookingOrderForAgenda } from "@/lib/talent-agenda/open-booking-order";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type CreateOwnSlotResult =
   | { ok: true; id: string; paymentStatus: "paid" | "unpaid"; orderId?: string }
@@ -98,6 +100,7 @@ export async function createOwnSlotBooking(input: {
   contactEmail?: string | null;
   contactPhone?: string | null;
 }): Promise<CreateOwnSlotResult> {
+  await requireNotImpersonating();
   const actor = await loadTalentActor();
   if (!actor.ok) return { ok: false, reason: "unauthorized" };
 
@@ -206,6 +209,7 @@ export async function createOwnSlotBooking(input: {
       contact_phone: contactPhone || null,
       customer_id: customerId,
       source_type_snapshot: "manual",
+      ...(input.paymentChoice === "request_link" ? { payment_notes: COLLECT_LATER_NOTE } : {}),
       internal_notes:
         input.paymentChoice === "request_link"
           ? "Collect later. No payment link created yet. Client has not been told."

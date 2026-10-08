@@ -67,6 +67,8 @@ export const LOCALIZABLE_PROPS_BY_KIND: Partial<
   // renaming a table must not be able to rewrite the sentence that explains why
   // a booking was refused.
   reserve_table: ["venueName", "ctaVerb"],
+  // Apps: the Nail Designer's authored copy. Its own sentences ship en/es inside the island.
+  app_nail_designer: ["title", "intro", "ctaLabel"],
   // EVENT PROGRAM: the heading is the only authored string; item text is
   // localised by the row overlay on the server, block chrome ships es/en inline.
   event_program: ["eyebrow", "heading"],
@@ -120,6 +122,12 @@ export const LOCALIZABLE_PROPS_BY_KIND: Partial<
   sticky_scroll: ["eyebrow", "headline"],
   reveal: [],
   stats: ["eyebrow", "headline"],
+  // Talent site services block: its renderer already resolves these four via
+  // `resolveNodeLocalizedText`, so the overlay must be registered or a stored
+  // translation never appears (2026-09-29).
+  // TUL-207: `ctaLabel` is the row button wording. The category tab labels are
+  // NOT here: they come from each service's category (`category_i18n`).
+  services_catalog: ["title", "eyebrow", "subtitle", "emptyMessage", "ctaLabel"],
   before_after: [
     "eyebrow",
     "headline",
@@ -127,6 +135,36 @@ export const LOCALIZABLE_PROPS_BY_KIND: Partial<
     "afterLabel",
     "sliderLabel",
   ],
+  // Ticket #209: the talent-site block kinds whose copy could not hold a
+  // per-language version. Each renderer reads these through
+  // `localizeBlockNode` (builder-node/block-i18n.ts), which swaps the overlay
+  // value in before the block draws. Deliberately ABSENT: hrefs, ids, enums,
+  // numbers, `{{token}}` data (names, bio, headshot), reviewer names and
+  // quotes (talent data), and the props that already carry an Es/En twin
+  // (task_picker `labelEs`/`hintEs`, comp_card `labelEs`/`detailsSummaryEs`).
+  // List items (spec_table rows, masthead contents) use dotted keys, see
+  // `builder-i18n-list-props.ts`.
+  portfolio: ["eyebrow", "title", "emptyMessage", "creditLine"],
+  reviews: ["eyebrow", "title"],
+  alert_band: ["title", "body", "safetyLabel", "safetyNote", "ctaLabel"],
+  task_picker: ["eyebrow", "title"],
+  spec_table: ["eyebrow", "title"],
+  visit: ["eyebrow", "title", "titleAccent", "mapCaption"],
+  masthead: [
+    "subline",
+    "creditLine",
+    "mastRight",
+    "coverLine",
+    "coverStatement",
+    "bio",
+    "ctaLabel",
+    "bookLabel",
+    "contentsTitle",
+  ],
+  statement_footer: ["statement", "creditLine", "contactLine", "ctaLabel"],
+  comp_card: ["eyebrow", "title"],
+  // `name` (the business name) stays out: it is the talent's own text.
+  utility_bar: ["subtitle", "statusOnLabel", "statusOffLabel", "callLabel", "ctaLabel"],
 };
 
 /** The localizable props for a node kind (empty when the kind has none). */
@@ -146,5 +184,14 @@ export function isLocalizableProp(
   kind: BuilderNodeKind,
   prop: string,
 ): boolean {
+  if (kind === "marquee" && MARQUEE_ITEM_TEXT_KEY.test(prop)) return true;
   return (LOCALIZABLE_PROPS_BY_KIND[kind] ?? []).includes(prop);
 }
+
+/**
+ * Ticker (marquee) items are an array (`props.items[N].text`) but the overlay is
+ * flat strings, so item N's per-language text lives under the DOTTED key
+ * `items.N.text`. Matched here rather than listed because the item count is
+ * open-ended.
+ */
+const MARQUEE_ITEM_TEXT_KEY = /^items\.\d+\.text$/;

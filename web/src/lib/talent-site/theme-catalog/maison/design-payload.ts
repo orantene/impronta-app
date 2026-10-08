@@ -11,18 +11,20 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { SERVICES_CATALOG_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/services-catalog-defaults";
+import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { CONTACT_LAYER, TALENT_ASK_HREF } from "@/lib/talent-site/contact-channels";
 import type { DesignPayload } from "../types";
 import {
   aboutBlock,
-  buildKitShell,
+  buildKitStandardShell,
   defaultIdFactory,
-  galleryBlock,
+  portfolioBlock,
   heroSplit,
   stampKitSection,
   type KitIdFactory,
 } from "../section-kit";
 import { MAISON_SEED } from "./seed";
+import { seedI18nPayload } from "../seed-i18n";
 
 function makeSeqIdFactory(prefix: string): KitIdFactory {
   let n = 0;
@@ -52,7 +54,13 @@ function maisonServicesBlock(makeId: KitIdFactory): BuilderNode {
       gap: "m",
       align: "start",
       layerLabel: "Menu",
-      style: { maxWidth: "wide", paddingY: "l", paddingX: "m" },
+      // Soft blush band (Maison pink section = #FFF5F8) behind EL MENÚ.
+      style: {
+        maxWidth: "wide",
+        paddingY: "l",
+        paddingX: "m",
+        backgroundColor: styleTokenRef("color.surface-raised"),
+      },
       // Phone-first: stack padding already; catalog owns its own 390 layout.
       responsive: { mobile: { layout: "stack" } },
     }),
@@ -81,8 +89,10 @@ function maisonServicesBlock(makeId: KitIdFactory): BuilderNode {
 }
 
 /**
- * Contact band: how-to-book copy + FAQ accordion bound to `talent_faq_items`
- * + inquire CTA. Phone stacks via responsive.
+ * Contact band: FAQ accordion bound to `talent_faq_items` + inquire CTA.
+ * The generic "How booking works" line was dropped: it rendered as a faint,
+ * near-empty band. Real booking terms live in the services catalog sheet.
+ * Phone stacks via responsive.
  */
 function maisonContactBlock(makeId: KitIdFactory): BuilderNode {
   return {
@@ -103,30 +113,6 @@ function maisonContactBlock(makeId: KitIdFactory): BuilderNode {
       responsive: { mobile: { layout: "stack" } },
     }),
     children: [
-      {
-        id: makeId(),
-        kind: "reveal",
-        props: { effect: "rise", once: true, layerLabel: "How to book" },
-        children: [
-          {
-            id: makeId(),
-            kind: "heading",
-            props: {
-              text: "How booking works",
-              level: 2,
-              style: { size: "lg" },
-            },
-          },
-          {
-            id: makeId(),
-            kind: "paragraph",
-            props: {
-              text: "{{contactCopy}}",
-              style: { tone: "muted", size: "md" },
-            },
-          },
-        ],
-      } as BuilderNode,
       {
         id: makeId(),
         kind: "heading",
@@ -184,28 +170,32 @@ function maisonAboutBlock(makeId: KitIdFactory): BuilderNode {
  * Deterministic Maison Design payload. Calling twice returns byte-identical
  * trees so `syncBuiltinTalentThemes` hashing stays stable.
  */
+/** Seeded copy ships es + en (see seed-i18n.ts). */
 export function buildMaisonDesignPayload(): DesignPayload {
+  return seedI18nPayload(buildMaisonDesignPayloadUnseeded());
+}
+
+function buildMaisonDesignPayloadUnseeded(): DesignPayload {
   const makeId = makeSeqIdFactory("maison-design");
-  const shellTree = buildKitShell(makeId, {
+  // Standard talent header (logo, nav, ES/EN switch, primary CTA).
+  const shellTree = buildKitStandardShell(makeId, {
     displayName: "{{displayName}}",
     year: "{{year}}",
-    headerAlign: "space-between",
-    headerPaddingY: "m",
-    headerRule: true,
   }).map(deferCopyrightYear);
 
   const homeTree: BuilderNode[] = [
     heroSplit(makeId, {
       ratio: "40-60",
-      chips: true,
+      // The eyebrow already names the trade; a matching chip repeated it.
+      chips: false,
       accent: true,
       eyebrow: true,
       minHeight: "72vh",
     }),
     maisonAboutBlock(makeId),
     maisonServicesBlock(makeId),
-    galleryBlock(makeId, {
-      mode: "grid",
+    portfolioBlock(makeId, {
+      layout: "grid",
       columns: 3,
       heading: "Recent work",
     }),

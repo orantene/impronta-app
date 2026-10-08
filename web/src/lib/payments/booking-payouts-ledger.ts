@@ -13,13 +13,15 @@
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { getStripe } from "@/lib/stripe/client";
+import { getStripeFor } from "@/lib/stripe/client";
+import { decideReleasePlatform, loadChargePlatformForBooking } from "@/lib/stripe/charge-platform";
 import { logServerError } from "@/lib/server/safe-error";
 import { isDue, laterHold } from "./payout-release-gate";
 import { getTalentConnectedAccountSnapshot, canRouteTransfersToTalent } from "@/lib/payments/stripe-connect-talent";
 import { getConnectedAccountSnapshotById } from "@/lib/payments/stripe-connect";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
+import { HELD_PAYOUTS_CAP, shapeHeldPayoutsRows, type HeldPayoutsResult } from "./held-payouts-shape";
 
 export type PayoutParty = "talent" | "workspace" | "channel_referral";
 export type PayoutStatus = "transferred" | "held" | "failed" | "reversed";
@@ -46,7 +48,7 @@ export type PayoutLeg = {
   /** Earliest transfer time; `null` = due now. REQUIRED so forgetting it is a
    *  compile error, not an early payout. See payout-release-gate.ts. */
   releaseAfter: string | null;
-};
+} & { /** pass_through leg fee; written only when defined */ processingFeeCents?: number | null };
 
 /** A payee predicate as data: equality filters + one-of filters, in order. */
 export type PayoutPayeeScope = {
@@ -127,6 +129,7 @@ export async function recordPayoutLeg(sb: SupabaseClient, leg: PayoutLeg): Promi
       payout_rail: leg.payoutRail,
       last_error: leg.lastError,
       transferred_at: leg.status === "transferred" ? new Date().toISOString() : null,
+      ...(leg.processingFeeCents != null ? { processing_fee_cents: leg.processingFeeCents } : {}),
     };
 
     if (existing) {
@@ -243,7 +246,6 @@ export async function releaseHeldPayouts(
 ): Promise<ReleaseOutcome[]> {
   const sb = deps.sb ?? createServiceRoleClient();
   if (!sb) return [];
-  const stripe = deps.stripe ?? getStripe();
   const resolveTalentAccount = deps.resolveTalentAccount ?? defaultTalentAccount;
   const resolveWorkspaceAccount = deps.resolveWorkspaceAccount ?? defaultWorkspaceAccount;
   const outcomes: ReleaseOutcome[] = [];
@@ -268,24 +270,23 @@ export async function releaseHeldPayouts(
     const { data, error } = await query;
     if (error || !data?.length) return [];
 
-    for (const row of data as HeldRow[]) {
+    for (const row of (data as HeldRow[]).filter((r) => (r.amount_cents ?? 0) > 0)) { // 0 = pass_through placeholder
       // Never release a Global Payouts leg via the Connect rail. This path only
       // does stripe.transfers.create() (Connect); a GP leg released here would
       // double-pay once the GP retry (its own outbound-payment webhook) also
       // lands. Leave it held for the GP release path. NULL rail = legacy Connect.
       if (row.payout_rail === "global_payouts") {
-        outcomes.push({
-          legId: row.id,
-          party: row.party,
-          amountCents: row.amount_cents,
-          result: "still_held",
-          detail: "global_payouts leg is not Connect-releasable",
-        });
+        outcomes.push({ legId: row.id, party: row.party, amountCents: row.amount_cents, result: "still_held", detail: "global_payouts leg is not Connect-releasable" });
         continue;
       }
-      // talent → talent Connect account; workspace AND channel_referral → the
-      // workspace Connect account keyed on tenant_id (the channel party for a
-      // referral leg). Both non-talent parties route Connect transfers.
+      // Release only on the charge platform that also owns the recipient's account.
+      const decision = await decideReleasePlatform(row, sb);
+      if (!decision.ok) {
+        outcomes.push({ legId: row.id, party: row.party, amountCents: row.amount_cents, result: "still_held", detail: decision.reason });
+        continue;
+      }
+      const stripe = deps.stripe ?? getStripeFor(decision.key);
+      // talent → talent Connect account; workspace/channel_referral → tenant_id's workspace account.
       const accountId =
         row.party === "talent"
           ? row.talent_profile_id
@@ -409,10 +410,11 @@ export async function countHeldTalentPayoutLegs(
 /**
  * All currently-held (and failed) payout legs across the platform — for the
  * platform-admin reconciliation list. Service-role read; newest first.
+ * A failed read returns `{ ok: false }`, never an empty list.
  */
-export async function listHeldPayouts(sbIn?: SupabaseClient | null): Promise<HeldLedgerRow[]> {
+export async function listHeldPayouts(sbIn?: SupabaseClient | null): Promise<HeldPayoutsResult> {
   const sb = sbIn ?? createServiceRoleClient();
-  if (!sb) return [];
+  if (!sb) return { ok: false, error: "service role unavailable" };
   try {
     const { data, error } = await sb
       .from("booking_payouts")
@@ -422,26 +424,16 @@ export async function listHeldPayouts(sbIn?: SupabaseClient | null): Promise<Hel
       )
       .in("status", ["held", "failed"])
       .order("created_at", { ascending: false })
-      .limit(500);
-    if (error || !data) return [];
-    return (data as Array<Record<string, unknown>>).map((r) => ({
-      id: r.id as string,
-      bookingId: r.booking_id as string,
-      participantId: r.participant_id as string,
-      party: r.party as PayoutParty,
-      talentProfileId: (r.talent_profile_id as string | null) ?? null,
-      tenantId: (r.tenant_id as string | null) ?? null,
-      amountCents: r.amount_cents as number,
-      currency: r.currency as string,
-      status: r.status as string,
-      attempts: (r.attempts as number) ?? 0,
-      lastError: (r.last_error as string | null) ?? null,
-      createdAt: r.created_at as string,
-      releaseAfter: (r.release_after as string | null) ?? null,
-    }));
+      // One past the cap, so "exactly 500" and "more than 500" are told apart.
+      .limit(HELD_PAYOUTS_CAP + 1);
+    if (error || !data) {
+      if (error) logServerError("booking-payouts.listHeld", error);
+      return { ok: false, error: error?.message ?? "no data" };
+    }
+    return shapeHeldPayoutsRows(data as Array<Record<string, unknown>>);
   } catch (err) {
     logServerError("booking-payouts.listHeld", err);
-    return [];
+    return { ok: false, error: err instanceof Error ? err.message : "read failed" };
   }
 }
 
@@ -708,7 +700,8 @@ export async function reverseBookingPayouts(
 ): Promise<PayoutReversalOutcome[]> {
   const sb = deps.sb ?? createServiceRoleClient();
   if (!sb) return [];
-  const stripe = deps.stripe ?? getStripe();
+  // Reverse on the platform that took the charge (the transfers live there).
+  const stripe = deps.stripe ?? getStripeFor(await loadChargePlatformForBooking(bookingId, sb));
   const outcomes: PayoutReversalOutcome[] = [];
 
   try {
@@ -797,3 +790,7 @@ export async function reverseBookingPayouts(
 }
 
 export { isDue, laterHold }; // re-exported: ledger callers keep one import
+
+// Re-exported so existing importers keep working.
+export { HELD_PAYOUTS_CAP, shapeHeldPayoutsRows };
+export type { HeldPayoutsResult };

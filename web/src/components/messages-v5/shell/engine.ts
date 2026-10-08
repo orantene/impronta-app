@@ -38,6 +38,8 @@ export type PlainResult = { ok: true } | { ok: false; reason: MessagingRefusal }
 
 export type ShellEngine = {
   readonly loadInbox: (input: { locationSlug: string; filter: InboxFilter }) => Promise<ActionResult<{ rows: InboxRow[]; unreadCount: number }>>;
+  /** Settle budget for loadInbox. A GET-backed reader (talent) is not a server action and must not be cut at the 4 s stall budget. */
+  readonly loadInboxBudgetMs?: number;
   readonly loadThread: (input: { inquiryId: string }) => Promise<ActionResult<{ messages: ThreadMessage[] }>>;
   readonly loadEssentials: (input: { inquiryId: string }) => Promise<ActionResult<{ essentials: Essentials }>>;
   /** Context panel Items + Money from the conversation's shared draft (D-MSG-111). Optional: an engine without it leaves the sections empty. */

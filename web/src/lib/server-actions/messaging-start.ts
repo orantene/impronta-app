@@ -11,8 +11,10 @@ import { signThreadToken } from "@/lib/messaging/thread-token";
 import type { MessagingChannel } from "@/lib/messaging/types";
 
 import { messagingInquiryManager } from "@/lib/messaging/staff-guard";
+import { talentSellerPaymentActor } from "@/lib/messaging/talent-payment-actor";
 
 import { staff } from "./messaging-engine";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const scoped = tenantScopedQuery;
 
@@ -29,6 +31,7 @@ export async function messagingStartConversation(input: {
   locationSlug?: string;
   firstMessage?: string | null;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -100,9 +103,10 @@ export async function messagingStartConversation(input: {
  * is linked to it through `messaging_set_identity`. Also updates the inquiry
  * contact so the header stops reading "Visitor".
  *
- * Auth: inquiry managers (staff OR active coordinator). Talent inbox is not
- * an admin surface — `staff()` alone refused Jorgelina's Capture identity Save
- * with `not_allowed` / "You cannot do that from here." (Ana Pagado, 2026-09-26).
+ * Auth: inquiry managers (staff OR active coordinator), then the hub talent
+ * seller — same fallback as `messagingRequestPayment`. Manager-only refused
+ * Soft Gel dock Capture identity Save with `not_allowed` (Tip Live Soft Gel,
+ * 2026-10-04): talent seller is not staff or coordinator.
  */
 export async function messagingCreateClientForThread(input: {
   inquiryId: string;
@@ -111,6 +115,7 @@ export async function messagingCreateClientForThread(input: {
   email?: string | null;
   expectedVersion: number;
 }) {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       inquiryId: z.string().uuid(),
@@ -122,11 +127,27 @@ export async function messagingCreateClientForThread(input: {
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
   if (!parsed.data.email && !parsed.data.phone) return fail("invalid");
-  const g = await messagingInquiryManager(parsed.data.inquiryId);
-  if (!g.ok) return g;
+  const gated = await messagingInquiryManager(parsed.data.inquiryId);
+  // Seller path: talent-owned customer pool. Manager path: agency pool (null).
+  let g: Awaited<ReturnType<typeof messagingInquiryManager>> | Awaited<ReturnType<typeof talentSellerPaymentActor>>;
+  let ownerTalentProfileId: string | null = null;
+  if (gated.ok) {
+    g = gated;
+  } else {
+    const seller = await talentSellerPaymentActor(parsed.data.inquiryId);
+    if (!seller.ok) return seller;
+    g = seller;
+    ownerTalentProfileId = seller.talentProfileId;
+  }
   const { ensureCustomer } = await import("@/lib/customers/ensure-customer");
   const customer = await ensureCustomer(
-    { tenantId: g.tenantId, email: parsed.data.email ?? null, phone: parsed.data.phone ?? null, displayName: parsed.data.name },
+    {
+      tenantId: g.tenantId,
+      email: parsed.data.email ?? null,
+      phone: parsed.data.phone ?? null,
+      displayName: parsed.data.name,
+      ownerTalentProfileId,
+    },
     { admin: g.admin },
   );
   if (!customer.ok) return fail(customer.reason === "unavailable" ? "unavailable" : "invalid");

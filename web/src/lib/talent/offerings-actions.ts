@@ -13,10 +13,12 @@
  * table is read-only for anon/owner); auth is enforced here at the app layer.
  */
 
+import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { isTalentCurrency } from "@/lib/billing/currencies";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import { revalidatePath } from "next/cache";
+import { authorizeForTalent, loadTalentDefaultPosture } from "@/lib/talent/offerings-auth.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   rowToOffering,
@@ -25,19 +27,18 @@ import {
   type TalentOffering,
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
+import { importI18n, importLocaleKey } from "@/lib/talent/offerings-import-locale";
+import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { loadOfferingChildren, replaceOfferingChildren } from "@/lib/talent/offerings-children";
 import {
   loadAddonGroupsForOfferings,
   mergeAddonGroupsIntoAddOns,
 } from "@/lib/talent/merge-addon-groups";
-import { getCachedActorSession } from "@/lib/server/request-cache";
-import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { setOfferingStock, stockChanged } from "@/lib/capacity";
-import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
 import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
 import { parseTalentBookingTerms } from "@/lib/billing/commercial-terms";
 import { parsePackageTeasers } from "@/lib/talent/services-menu-legacy";
@@ -46,6 +47,7 @@ import {
   proposeDefaultBookingHours,
   type BookingHoursStatus,
 } from "@/lib/scheduling/propose-default-booking-hours";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Untyped write surface for talent_offerings (+ media join). The tables ARE in
@@ -60,84 +62,6 @@ function offeringsTable(client: unknown) {
 }
 function offeringMediaTable(client: unknown) {
   return (client as SupabaseClient).from("talent_offering_media");
-}
-
-type AuthResult =
-  | {
-      ok: true;
-      userId: string;
-      isStaff: boolean;
-      defaultCurrency: string;
-      tenantId: string | null;
-    }
-  | { ok: false; error: string };
-
-async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> {
-  const session = await getCachedActorSession();
-  if (!session.user) return { ok: false, error: "Not authenticated." };
-
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) return { ok: false, error: "Database unavailable." };
-
-  const { data: tp, error } = await supabase
-    .from("talent_profiles")
-    .select("id, user_id, default_currency")
-    .eq("id", talentProfileId)
-    .maybeSingle();
-
-  if (error || !tp) {
-    if (error) logServerError("talent.offerings.authorize", error);
-    return { ok: false, error: "Profile not found." };
-  }
-
-  const isOwner = tp.user_id === session.user.id;
-
-  // Prefer the active workspace when the actor is staff/owner there and the
-  // talent is on that roster. is_primary-first inference would pin a studio
-  // owner's new offerings to their exclusive agency.
-  const staff = await requireWorkspaceStaffAction();
-  let isStaff = false;
-  let staffTenantId: string | null = null;
-  if (staff.ok) {
-    const adminForCheck = createServiceRoleClient();
-    if (!adminForCheck) return { ok: false, error: "Server configuration error." };
-    const { data: rosterRow } = await adminForCheck
-      .from("agency_talent_roster")
-      .select("id")
-      .eq("tenant_id", staff.tenantId)
-      .eq("talent_profile_id", talentProfileId)
-      .neq("status", "removed")
-      .maybeSingle();
-    if (rosterRow) {
-      isStaff = !isOwner;
-      staffTenantId = staff.tenantId;
-    } else if (!isOwner) {
-      return { ok: false, error: "Talent not on this roster." };
-    }
-  } else if (!isOwner) {
-    return { ok: false, error: "Forbidden." };
-  }
-
-  let tenantId: string | null = staffTenantId;
-  const admin = createServiceRoleClient();
-  if (admin && !tenantId) {
-    const { data: rosterRows } = await admin
-      .from("agency_talent_roster")
-      .select("tenant_id, is_primary")
-      .eq("talent_profile_id", talentProfileId)
-      .eq("status", "active");
-    const rows = (rosterRows ?? []) as { tenant_id: string; is_primary: boolean }[];
-    rows.sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
-    tenantId = rows[0]?.tenant_id ?? null;
-  }
-
-  return {
-    ok: true,
-    userId: session.user.id,
-    isStaff,
-    defaultCurrency: resolveDefaultCurrencyForUI(tp.default_currency),
-    tenantId,
-  };
 }
 
 /** Resolve hero-first image URLs for a set of offerings in one query. */
@@ -182,34 +106,41 @@ type LoadResult =
 /** Editor load: ALL statuses (drafts included), hero-first images resolved. */
 export async function loadTalentOfferingsForEditor(talentProfileId: string): Promise<LoadResult> {
   try {
-    const auth = await authorizeForTalent(talentProfileId);
-    if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
+    // The offerings read does not depend on the auth result (it is filtered by
+    // talent_profile_id and discarded unless auth passes), so it overlaps auth.
+    const [auth, listRes] = await Promise.all([
+      authorizeForTalent(talentProfileId),
+      offeringsTable(admin)
+        .select("*")
+        .eq("talent_profile_id", talentProfileId)
+        .order("sort_order", { ascending: true }),
+    ]);
+    if (!auth.ok) return { ok: false, error: auth.error };
     // Started now, awaited last: the rate feed is cached for hours and never
     // blocks the list, and a failure only removes the "≈ US$" preview.
     const usdRatesPending = loadUsdRates().catch(() => null);
 
-    const { data, error } = await offeringsTable(admin)
-      .select("*")
-      .eq("talent_profile_id", talentProfileId)
-      .order("sort_order", { ascending: true });
+    const { data, error } = listRes;
     if (error) {
       logServerError("talent.offerings.load", error);
       return { ok: false, error: "Could not load your services." };
     }
     const rows = (data ?? []) as TalentOfferingRow[];
-    const images = await loadImageAssets(admin, rows.map((r) => r.id));
-    const children = await loadOfferingChildren(admin, rows.map((r) => r.id));
-    const groups = await loadAddonGroupsForOfferings(
-      admin,
-      talentProfileId,
-      rows.map((r) => r.id),
-    );
+    const rowIds = rows.map((r) => r.id);
+    // Three independent child reads: one round trip, not three in a row.
+    const [images, children, groups] = await Promise.all([
+      loadImageAssets(admin, rowIds),
+      loadOfferingChildren(admin, rowIds),
+      loadAddonGroupsForOfferings(admin, talentProfileId, rowIds),
+    ]);
     const addOnsByOffering = mergeAddonGroupsIntoAddOns(children.addOns, groups);
     const items = rows.map((r) => {
       const assets = images.get(r.id) ?? [];
-      const item = rowToOffering(r, "en", assets.map((a) => a.url));
+      // The editor edits the PRIMARY-language text; the maps ride along so a
+      // save keeps every other language (offeringToRowPatch merges them).
+      const item = rowToOffering(r, auth.primaryLocale, assets.map((a) => a.url), [auth.primaryLocale]);
       item.imageAssets = assets;
       item.variants = children.variants.get(r.id) ?? [];
       item.addOns = addOnsByOffering.get(r.id) ?? [];
@@ -238,13 +169,15 @@ export async function upsertTalentOffering(
   talentProfileId: string,
   offering: TalentOffering,
 ): Promise<SaveResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const auth = await authorizeForTalent(talentProfileId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
 
-    const errors = validateOffering(offering);
+    const errors = validateOffering(offering, await loadTalentDefaultPosture(talentProfileId));
     if (errors.length > 0) return { ok: false, error: errors[0] };
     // Owner ruling 2026-09-23: a talent prices in MXN or USD. Every live talent
     // row is one of the two, so this refuses nothing that exists today; it
@@ -254,7 +187,7 @@ export async function upsertTalentOffering(
     }
 
     const patch = {
-      ...offeringToRowPatch({ ...offering, ownerKind: "talent", tenantId: auth.tenantId }),
+      ...offeringToRowPatch({ ...offering, ownerKind: "talent", tenantId: auth.tenantId }, auth.primaryLocale),
       talent_profile_id: talentProfileId,
       owner_kind: "talent",
       updated_at: new Date().toISOString(),
@@ -338,7 +271,7 @@ export async function upsertTalentOffering(
     revalidatePath("/talent/services");
     return {
       ok: true,
-      item: rowToOffering(saved, "en", offering.imageUrls ?? []),
+      item: rowToOffering(saved, auth.primaryLocale, offering.imageUrls ?? [], [auth.primaryLocale]),
       bookingHoursStatus,
     };
   } catch (err) {
@@ -351,6 +284,8 @@ export async function deleteTalentOffering(
   talentProfileId: string,
   offeringId: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeForTalent(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
@@ -372,6 +307,8 @@ export async function setOfferingPublication(
   offeringId: string,
   next: "published" | "draft" | "archived",
 ): Promise<SaveResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const loaded = await loadTalentOfferingsForEditor(talentProfileId);
   if (!loaded.ok) return { ok: false, error: loaded.error };
   const item = loaded.items.find((row) => row.id === offeringId);
@@ -383,6 +320,8 @@ export async function duplicateTalentOffering(
   talentProfileId: string,
   offeringId: string,
 ): Promise<SaveResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const loaded = await loadTalentOfferingsForEditor(talentProfileId);
   if (!loaded.ok) return { ok: false, error: loaded.error };
   const item = loaded.items.find((row) => row.id === offeringId);
@@ -415,6 +354,8 @@ export async function deleteTalentOfferingForever(
   talentProfileId: string,
   offeringId: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeForTalent(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
@@ -434,6 +375,8 @@ export async function reorderTalentOfferings(
   talentProfileId: string,
   orderedIds: string[],
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeForTalent(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
@@ -458,6 +401,8 @@ export async function setOfferingImages(
   offeringId: string,
   mediaAssetIds: string[],
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeForTalent(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
@@ -599,13 +544,19 @@ export async function setOfferingOptions(
   talentProfileId: string,
   offeringId: string,
   input: {
-    variants: { label: string; amountCents: number | null }[];
-    addOns: { label: string; amountCents: number }[];
+    variants: { label: string; amountCents: number | null; labelI18n?: LocalizedMap }[];
+    addOns: { label: string; amountCents: number; labelI18n?: LocalizedMap }[];
   },
 ): Promise<
-  | { ok: true; variants: { id: string; label: string; amountCents: number | null }[]; addOns: { id: string; label: string; amountCents: number }[] }
+  | {
+      ok: true;
+      variants: { id: string; label: string; amountCents: number | null; labelI18n?: LocalizedMap }[];
+      addOns: { id: string; label: string; amountCents: number; labelI18n?: LocalizedMap }[];
+    }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const auth = await authorizeForTalent(talentProfileId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -620,7 +571,7 @@ export async function setOfferingOptions(
       .maybeSingle();
     if (!own) return { ok: false, error: "Not found." };
 
-    const saved = await replaceOfferingChildren(admin, offeringId, input, "talent.offerings");
+    const saved = await replaceOfferingChildren(admin, offeringId, input, "talent.offerings", auth.primaryLocale);
     if (!saved.ok) return saved;
     revalidatePath("/talent/services");
     return saved;
@@ -747,6 +698,7 @@ async function collectLegacySources(
 
 /** One-shot, non-destructive: refuses when offerings already exist. */
 export async function importLegacyToOfferings(talentProfileId: string): Promise<LoadResult> {
+  await requireNotImpersonating();
   try {
     const auth = await authorizeForTalent(talentProfileId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -761,6 +713,10 @@ export async function importLegacyToOfferings(talentProfileId: string): Promise<
     const seeds = await collectLegacySources(admin, talentProfileId, auth.defaultCurrency);
     if (seeds.length === 0) return { ok: false, error: "Nothing to import." };
 
+    // Imported text is in the talent's primary language; `en` when unknown.
+    const locale = importLocaleKey(
+      (await loadTalentLocaleSettings(talentProfileId).catch(() => null))?.defaultLocale,
+    );
     const rows = seeds.slice(0, 40).map((s, i) => ({
       talent_profile_id: talentProfileId,
       tenant_id: auth.tenantId,
@@ -772,8 +728,8 @@ export async function importLegacyToOfferings(talentProfileId: string): Promise<
       amount_cents: s.amountCents,
       currency: s.currency,
       sort_order: i,
-      title_i18n: { en: s.title },
-      description_i18n: s.description ? { en: s.description } : null,
+      title_i18n: importI18n(locale, s.title),
+      description_i18n: importI18n(locale, s.description),
     }));
     const { error } = await offeringsTable(admin).insert(rows);
     if (error) {

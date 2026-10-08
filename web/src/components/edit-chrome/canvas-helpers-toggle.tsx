@@ -22,8 +22,8 @@ export function CanvasHelpersToggle() {
       onClick={toggle}
       title={
         helpers
-          ? "Hide canvas helpers — the double-click hint, the replace-image pill and the tips. Editing gestures keep working."
-          : "Show canvas helpers — hints and tips on the canvas"
+          ? "Hide canvas helpers: the double-click hint, the replace-image pill and the tips. Editing gestures keep working."
+          : "Show canvas helpers: hints and tips on the canvas"
       }
       ariaLabel={helpers ? "Hide canvas helpers" : "Show canvas helpers"}
     >

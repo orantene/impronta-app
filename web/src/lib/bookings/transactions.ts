@@ -37,6 +37,8 @@ import {
 } from "@/lib/notifications/producers/payment-notify";
 import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
 import { executeBookingTransfers } from "@/lib/payments/transfers";
+import { guardPaidAfterCancellation } from "@/lib/payments/paid-after-cancel";
+import { attributePurchaseBooking } from "@/lib/orders/purchase-attribution";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -372,12 +374,17 @@ export async function createBookingTransaction(opts: {
       // charges a duplicate (reproduced 2026-07-24: two paid $180 deposits on
       // one booking). The UI hides the button after collection; this is the
       // money-layer backstop.
+      //
+      // Manual cash/transfer PARTS are also written as checkout_type='deposit'
+      // (index workaround in manual-payment.ts). Those are NOT online deposits —
+      // exclude provider='manual' so a cash part does not block the real deposit link.
       const { data: paidDeposits, error: paidDepositsErr } = await sb
         .from("booking_transactions")
         .select("id")
         .eq("booking_id", opts.bookingId)
         .eq("checkout_type", "deposit")
         .eq("status", "paid")
+        .neq("provider", "manual")
         .limit(1);
       if (paidDepositsErr) {
         logServerError("transactions.create.depositDupLookup", paidDepositsErr);
@@ -605,10 +612,26 @@ export async function markPaid(
   // does NOT fan out the talent/agency payout — that waits for the balance/full
   // charge (payout-on-full). 'balance'/'full' behave as before.
   const isDeposit = result.ok && result.data.checkoutType === "deposit";
+  // Paid after the booking was cancelled: record the money, flag it for a
+  // manual refund, and never confirm, sync, pay out or complete the sale.
+  let paidAfterCancel = false;
+  if (result.ok) {
+    const sbGuard = createServiceRoleClient();
+    if (sbGuard) {
+      try {
+        paidAfterCancel = await guardPaidAfterCancellation(sbGuard, {
+          transactionId: result.data.id,
+          bookingId: result.data.bookingId ?? null,
+        });
+      } catch (guardErr) {
+        logServerError("transactions.markPaid.paidAfterCancel", guardErr);
+      }
+    }
+  }
   // Item #15 wiring: audit emit on successful paid transition. Inquiry
   // id resolved from the transaction's sourceInquiryId. Fire-and-forget
   // — failure logs only, never breaks the user-facing action.
-  if (result.ok && result.data.sourceInquiryId) {
+  if (result.ok && result.data.sourceInquiryId && !paidAfterCancel) {
     const sb = createServiceRoleClient();
     if (sb) {
       sb.rpc("inquiry_audit_emit", {
@@ -761,7 +784,7 @@ export async function markPaid(
     // received ⇒ payment_status='paid' + client_revenue_lifecycle='fully_paid' (talent
     // moves confirmed→pending; payout_lifecycle flips to 'paid' later, when
     // executeBookingTransfers actually disburses the talent's funds).
-    if (result.data.bookingId) {
+    if (result.data.bookingId && !paidAfterCancel) {
       const sbBooking = createServiceRoleClient();
       if (sbBooking) {
         // MUST be awaited: this runs inside the Stripe webhook handler, and a
@@ -802,7 +825,7 @@ export async function markPaid(
     // Formal invoice (default OFF in the console — see PAYMENT_INVOICE_ISSUED_CLIENT).
     // Only on confirmed (full/balance) payments, never a deposit. No-op unless an
     // admin enabled the entry, so it never duplicates the receipt by default.
-    if (!isDeposit) {
+    if (!isDeposit && !paidAfterCancel) {
       notifyInvoiceIssued({
         transactionId: result.data.id,
         tenantId: result.data.sourceTenantId,
@@ -817,7 +840,7 @@ export async function markPaid(
     }
     // 6.3 deposits: the generic client receipt above is suppressed for deposits;
     // send the deposit-specific email (deposit paid + balance due + pay-balance CTA).
-    if (isDeposit) {
+    if (isDeposit && !paidAfterCancel) {
       notifyDepositReceived({
         transactionId: result.data.id,
         tenantId: result.data.sourceTenantId,
@@ -838,7 +861,7 @@ export async function markPaid(
     // audience + schedule hydration.
     // 6.3 deposits: do NOT send the "booking confirmed" email on a deposit — the
     // booking isn't confirmed until the balance is collected.
-    if (result.data.sourceInquiryId && !isDeposit) {
+    if (result.data.sourceInquiryId && !isDeposit && !paidAfterCancel) {
       notifyBookingConfirmed({
         tenantId: result.data.sourceTenantId,
         inquiryId: result.data.sourceInquiryId,
@@ -854,7 +877,44 @@ export async function markPaid(
     // 6.3 deposits: the payout fans out ONLY on the balance/full charge — a deposit
     // holds the talent/agency payout (the snapshot covers the full gross_charged, so
     // paying out on a 30% deposit would over-pay). The balance txn triggers it.
-    if (!isDeposit) {
+    if (!isDeposit && !paidAfterCancel) {
+      // Heal order-backed vanity checkouts that paid before attribution existed:
+      // booking_talent + commission snapshot must exist or transfers skip.
+      try {
+        const sbAttr = createServiceRoleClient();
+        if (sbAttr && result.data.bookingId) {
+          const { data: orderRow, error: orderRowErr } = await sbAttr
+            .from("booking_transactions")
+            .select("order_id")
+            .eq("id", result.data.id)
+            .maybeSingle();
+          if (orderRowErr) {
+            logServerError(
+              "transactions.markPaid.attributePurchase",
+              `transaction ${result.data.id}: could not load order_id (${orderRowErr.message})`,
+            );
+          } else {
+            const orderId =
+              (orderRow as { order_id?: string | null } | null)?.order_id ?? null;
+            if (orderId) {
+              const healed = await attributePurchaseBooking(sbAttr, {
+                tenantId: result.data.sourceTenantId,
+                bookingId: result.data.bookingId,
+                orderId,
+                inquiryId: result.data.sourceInquiryId ?? null,
+              });
+              if (!healed.ok) {
+                logServerError(
+                  "transactions.markPaid.attributePurchase",
+                  `booking ${result.data.bookingId}: ${healed.error}`,
+                );
+              }
+            }
+          }
+        }
+      } catch (attrErr) {
+        logServerError("transactions.markPaid.attributePurchase", attrErr);
+      }
       try {
         await executeBookingTransfers(result.data.id);
       } catch (transferErr) {
@@ -892,9 +952,12 @@ export async function markPaid(
         // paid session-backed line with fewer admissions than it sold becomes a
         // row a cron finds, instead of a person at a door with a receipt and no
         // ticket.
-        const settled = await completeOrderForTransaction(sbOrders, result.data.id, {
-          onOrderPaid: (ctx) => mintAndDeliverForPaidOrder(sbOrders, ctx),
-        });
+        // A cancelled sale is never completed by a late payment.
+        const settled = paidAfterCancel
+          ? ({ ok: false, reason: "no_order" } as const)
+          : await completeOrderForTransaction(sbOrders, result.data.id, {
+              onOrderPaid: (ctx) => mintAndDeliverForPaidOrder(sbOrders, ctx),
+            });
         if (!settled.ok && settled.reason !== "no_order") {
           logServerError(
             "transactions.markPaid.completeOrder",

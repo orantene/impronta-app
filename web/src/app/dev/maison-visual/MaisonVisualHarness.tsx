@@ -146,7 +146,9 @@ export function MaisonVisualHarness({ screen }: { screen: string }) {
           locale="en"
           publicSiteUrl="https://valemontes.tulala.digital"
           siteSlug="valemontes"
+          themeDesignSlug="maison"
           themeLookSlug="maison-lilac-plum"
+          publishedAt="2026-09-23T10:40:00.000Z"
           contentModeLabel="mine"
           onChangeDesign={() => undefined}
         />

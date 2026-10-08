@@ -9,9 +9,10 @@
 // Bodies copied byte-for-byte from talent-drawers.tsx; no behavior change.
 // ════════════════════════════════════════════════════════════════════
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { useDashboardText } from "../dashboard-i18n";
+import { personalPageLabel } from "./personal-page-label";
 import { interpolate } from "@/i18n/interpolate";
 import {
   COLORS,
@@ -45,6 +46,7 @@ import { startTalentUpgrade } from "@/app/(workspace)/[tenantSlug]/talent/settin
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import { PLAN_CATALOG } from "@/lib/access/plan-catalog";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
+import { DomainSetupDrawerBody } from "@/components/talent/site/DomainSetupDrawer";
 
 /**
  * The compare drawer's paid tier → the plan key checkout understands.
@@ -111,7 +113,8 @@ function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier })
 // is the single source for the rows below AND the per-feature gates.
 
 export function TalentTierCompareDrawer() {
-  const { state, closeDrawer, setTalentTier } = useAdminShell();
+  const { state, closeDrawer, setTalentTier, bridgeTalentSelfProfile } = useAdminShell();
+  const profileCode = bridgeTalentSelfProfile?.profileCode ?? null;
   const t = useT();
   const copy = useDashboardText();
   const open = state.drawer.drawerId === "talent-tier-compare";
@@ -165,7 +168,7 @@ export function TalentTierCompareDrawer() {
                   letterSpacing: -0.3,
                 }}
               >
-                {meta.label}
+                {copy.t(meta.label)}
               </div>
               <div
                 style={{
@@ -175,7 +178,7 @@ export function TalentTierCompareDrawer() {
                   marginTop: 3,
                 }}
               >
-                {meta.tagline}
+                {copy.t(meta.tagline)}
               </div>
               {/* Price from PLAN_CATALOG. NOTE: this is NOT the source checkout
                   bills against — checkout resolves a Stripe price id from
@@ -202,7 +205,7 @@ export function TalentTierCompareDrawer() {
                   opacity: 0.85,
                 }}
               >
-                {meta.blurb}
+                {copy.t(meta.blurb)}
               </p>
               {process.env.NODE_ENV !== "production" && !isCurrent && (
                 <button
@@ -273,7 +276,7 @@ export function TalentTierCompareDrawer() {
                       alignItems: "center",
                     }}
                   >
-                    <span className="font-medium">{f.label}</span>
+                    <span className="font-medium">{personalPageLabel(copy.t(f.label), profileCode)}</span>
                     <FeatureCell value={f.free} />
                     <FeatureCell value={f.max} />
                   </div>
@@ -372,6 +375,7 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
 }
 
 function FeatureCell({ value }: { value: TalentTierCell }) {
+  const copy = useDashboardText();
   if (value === true) {
     return (
       <span style={{ textAlign: "center", fontWeight: 600 }} className="text-admin-green">✓</span>
@@ -382,7 +386,7 @@ function FeatureCell({ value }: { value: TalentTierCell }) {
   }
   return (
     <span style={{ textAlign: "center", fontSize: 11.5 }} className="text-admin-ink-muted">
-      {value}
+      {copy.t(value)}
     </span>
   );
 }
@@ -532,55 +536,6 @@ export function TalentPageTemplateDrawer() {
 }
 
 
-// Honest read-only banner for the Phase 1.5 STRIP drawers (save CTA removed).
-// Without it these drawers looked editable but silently discarded everything.
-function ReadOnlyStripNotice() {
-  const copy = useDashboardText();
-  return (
-    <div
-      role="note"
-      className="mb-3 rounded-[9px] border border-[rgba(91,107,160,0.25)] bg-[rgba(91,107,160,0.10)] px-3 py-2 text-[12px] leading-[1.5] text-admin-indigo-deep"
-    >
-      {copy.t("Read-only preview. Edit your page content from Public page.")}
-    </div>
-  );
-}
-
-/**
- * W14 — the strip drawers (embeds / press / custom domain / media kit) used to
- * render `MY_TALENT_PROFILE.subscription`, a fixture belonging to a demo talent.
- * Every real talent saw someone else's embeds, press clippings and domain, none
- * of it editable. There is no per-talent store for embeds or press yet, and the
- * one concept that IS wired (custom domain) already has a working manager on the
- * Public page. So these drawers now explain what lives where and hand the talent
- * a single real route instead of fake content.
- */
-function ManageOnPublicPage({ blurb }: { blurb: string }) {
-  const copy = useDashboardText();
-  const { closeDrawer, setTalentPage } = useAdminShell();
-  return (
-    <>
-      <ReadOnlyStripNotice />
-      <p style={{ margin: 0, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.6 }} className="text-admin-ink">
-        {blurb}
-      </p>
-      <div style={{ marginTop: 14 }}>
-        <PrimaryButton
-          onClick={() => {
-            closeDrawer();
-            setTalentPage("public-page");
-          }}
-        >
-          {copy.t("Open Public page")}
-        </PrimaryButton>
-      </div>
-    </>
-  );
-}
-
-// ─── Media embeds ──────────────────────────────────────────────────
-
-
 // ─── Media embeds ──────────────────────────────────────────────────
 
 export function TalentMediaEmbedsDrawer() {
@@ -644,9 +599,6 @@ export function TalentMediaEmbedsDrawer() {
 
 // ─── Press / clippings ──────────────────────────────────────────────
 
-
-// ─── Press / clippings ──────────────────────────────────────────────
-
 export function TalentPressDrawer() {
   // Phase 1.5 STRIP: Pro+ only — save CTA removed; drawer kept for Phase 2 re-wiring
   const { state, closeDrawer } = useAdminShell();
@@ -672,9 +624,6 @@ export function TalentPressDrawer() {
     </DrawerShell>
   );
 }
-
-// ─── Media kit / EPK ────────────────────────────────────────────────
-
 
 // ─── Media kit / EPK ────────────────────────────────────────────────
 
@@ -763,32 +712,40 @@ export function TalentMediaKitDrawer() {
 
 // ─── Custom domain ──────────────────────────────────────────────────
 
-
-// ─── Custom domain ──────────────────────────────────────────────────
-
 export function TalentCustomDomainDrawer() {
-  // Phase 1.5 STRIP: Max only — save CTA removed; drawer kept for Phase 2 re-wiring
   const { state, closeDrawer } = useAdminShell();
   const t = useT();
-  const open = state.drawer.drawerId === "talent-custom-domain";
   const copy = useDashboardText();
+  const open = state.drawer.drawerId === "talent-custom-domain";
+  const [provisioning, setProvisioning] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !open) return;
+    const params = new URLSearchParams(window.location.search);
+    const done = params.get("domainCheckout") === "done";
+    setProvisioning(done);
+    if (!done) return;
+    params.delete("domainCheckout");
+    const qs = params.toString();
+    const next = `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`;
+    window.history.replaceState({}, "", next);
+  }, [open]);
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title={t("dashboard.talentDrawers.premiumPages.domainTitle")}
-      description={t("dashboard.talentDrawers.premiumPages.domainDesc")}
+      title={copy.t("Domain setup")}
+      description={copy.t("Buy a domain at the registrar price, connect one you own, or get help.")}
       width={580}
       footer={
-        // Phase 1.5 STRIP: save removed — Max-only feature, not wired for Free
         <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
       }
     >
-      <ManageOnPublicPage
-        blurb={copy.t(
-          "Connect a custom domain from Public page. That manager verifies your DNS records and issues the SSL certificate, and it shows the exact records for your domain.",
-        )}
+      {/* Remount when provisioning flips so return-from-Checkout lands on the right step. */}
+      <DomainSetupDrawerBody
+        key={provisioning ? "domain-provisioning" : "domain-setup"}
+        provisioning={provisioning}
       />
     </DrawerShell>
   );

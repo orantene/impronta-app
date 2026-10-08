@@ -84,8 +84,8 @@ export type ClientThreadViewProps = {
 export function ClientThreadView(p: ClientThreadViewProps) {
   const { copy, kit, locale, business, now } = p;
   const name = business.name;
-  const items = buildClientStream(p.messages);
-  const offerCards = offerCardMessageIds(p.messages);
+  const items = buildClientStream(p.messages, p.offers);
+  const offerCards = offerCardMessageIds(p.messages, p.offers);
   const act = (key: string): CardActivity => p.activity?.[key] ?? { phase: "idle" };
   const savePhase = p.saveEmail ?? "idle";
 
@@ -192,7 +192,7 @@ function renderCard(p: ClientThreadViewProps, message: ThreadMessage, kind: Clie
         return <SystemLine key={message.id} text={message.body || copy.generic.message} variant="mobile" />;
       }
       const a = act(offer.id);
-      return <ClientOfferCard offer={offer} copy={copy} kit={kit} business={name} locale={locale} now={now} phase={a.phase} refusal={a.refusal} payCode={p.payCode} onAccept={p.onAcceptOffer} onDecline={p.onDeclineOffer} onChange={p.onChangeOffer} onPay={p.onPay} />;
+      return <ClientOfferCard offer={offer} offers={p.offers} copy={copy} kit={kit} business={name} locale={locale} now={now} phase={a.phase} refusal={a.refusal} payCode={p.payCode} onAccept={p.onAcceptOffer} onDecline={p.onDeclineOffer} onChange={p.onChangeOffer} onPay={p.onPay} />;
     }
     case "payment_request":
       return <ClientPaymentCard view={readPayment(payload)} copy={copy} business={name} locale={locale} now={now} onPay={p.onPay} />;

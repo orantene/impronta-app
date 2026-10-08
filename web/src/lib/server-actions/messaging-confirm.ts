@@ -10,6 +10,7 @@ import { z } from "zod";
 
 import { confirmRecord, type ConfirmResult } from "@/lib/messaging/confirm";
 import { messagingStaff } from "@/lib/messaging/staff-guard";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
@@ -33,6 +34,7 @@ export async function messagingConfirmRecord(input: {
   expectedVersion: number;
   overrideReason?: string | null;
 }): Promise<ConfirmResult> {
+  await requireNotImpersonating();
   const g = await messagingStaff();
   if (!g.ok) return g;
   const parsed = schema.safeParse(input);

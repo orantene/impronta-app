@@ -49,6 +49,7 @@ import { assertLocaleConsistency } from "@/lib/translation-center/save/assert-lo
 import type { Locale } from "@/i18n/config";
 import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 import { auditEvent, auditTalentEvent } from "@/lib/audit/emit";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // A.4 INTENTIONAL DIVERGENCE: convert to `ServerActionResult<T>`. Both shapes are `useFormState`
 // payloads (note the `| undefined` for the initial state) consumed by admin
@@ -95,6 +96,7 @@ export async function updateTalentProfile(
   _prev: TalentActionState,
   formData: FormData,
 ): Promise<TalentActionState> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user } = auth;
@@ -340,6 +342,7 @@ export async function updateTalentWorkflowVisibilityInline(input: {
   workflow_status: string;
   visibility: string;
 }): Promise<WorkflowVisibilityInlineResult> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { error: auth.error };
   const parsed = talentWorkflowVisibilityInlineSchema.safeParse(input);
@@ -407,6 +410,7 @@ export async function assignTaxonomyTerm(
   _prev: TalentActionState,
   formData: FormData,
 ): Promise<TalentActionState> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { error: auth.error };
   const { supabase } = auth;
@@ -433,6 +437,7 @@ export async function removeTaxonomyTerm(
   _prev: TalentActionState,
   formData: FormData,
 ): Promise<TalentActionState> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { error: auth.error };
   const { supabase } = auth;
@@ -459,6 +464,7 @@ export async function softDeleteTalentProfile(
   _prev: TalentActionState,
   formData: FormData,
 ): Promise<TalentActionState> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { error: auth.error };
   const { supabase } = auth;
@@ -501,6 +507,7 @@ export type BulkTalentActionInput = {
 export async function adminBulkTalentAction(
   input: BulkTalentActionInput,
 ): Promise<{ error?: string; ok?: boolean; updated?: number }> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user } = auth;
@@ -616,6 +623,7 @@ export async function restoreTalentProfile(
   _prev: TalentActionState,
   formData: FormData,
 ): Promise<TalentActionState> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { error: auth.error };
   const { supabase } = auth;
@@ -655,6 +663,7 @@ export async function createTalentProfile(
   _prev: CreateTalentFormState,
   formData: FormData,
 ): Promise<CreateTalentFormState> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user } = auth;

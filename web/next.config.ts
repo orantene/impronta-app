@@ -251,7 +251,7 @@ function contentSecurityPolicy(): string {
     // `connectSrcDirectives()` so a custom / local Supabase host works too.
     `media-src ${mediaSrcDirectives().join(" ")}`,
     `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} ${captchaConnect} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io ${tenantTrackingCsp.connect}`,
-    `frame-src ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame} ${captchaFrame} ${talentMediaEmbedCsp.frame} ${socialPostCsp.frame}`,
+    `frame-src 'self' ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame} ${captchaFrame} ${talentMediaEmbedCsp.frame} ${socialPostCsp.frame}`,
     /** Maps workers use blob: URLs; service worker needs 'self'. */
     "worker-src 'self' blob:",
     "frame-ancestors 'self'",

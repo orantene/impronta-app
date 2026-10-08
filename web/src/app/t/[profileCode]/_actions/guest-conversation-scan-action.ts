@@ -46,6 +46,7 @@ import type {
   ScanGuestConversationResult,
 } from "@/lib/inquiry/guest-chat-contract";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const GUEST_HEADER = "x-impronta-guest";
 
@@ -234,6 +235,7 @@ export async function scanGuestConversationForDetails(input: {
   /** Unsent composer text — included in the scan (drafts have no stored guest messages). */
   draftText?: string;
 }): Promise<ScanGuestConversationResult> {
+  await requireNotImpersonating();
   try {
     if (!input.inquiryId?.trim()) {
       return fail("validation_failed", "Missing conversation.");

@@ -18,6 +18,7 @@
 // slug so the caller can retry the domain-seed step (rare path).
 // ============================================================================
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
@@ -31,7 +32,10 @@ import { isReservedSlug } from "@/lib/site-admin/reserved-routes";
 import { PLAN_SEAT_CAPS } from "@/lib/saas/plan-seat-caps";
 import { onboardStarterContent } from "@/lib/site-admin/server/onboard-starter-content";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { workspaceLocaleSettingsForFlow } from "@/lib/saas/workspace-signup-locale";
 import { ensureSelfRosterSiteVisible } from "@/lib/saas/ensure-self-roster";
+import { ensureWorkspaceSubdomainRow } from "@/lib/saas/ensure-workspace-domain";
 import {
   isPlatformSubdomainLabelTaken,
   requestSubdomainNamespaceCopy,
@@ -87,6 +91,8 @@ export async function provisionFreeWorkspaceFromTalent(params: {
   slug: string;
   location: string;
 }): Promise<ProvisionFreeWorkspaceResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   // ── Auth ──────────────────────────────────────────────────────────────────
   const session = await getCachedActorSession();
   if (!session.supabase || !session.user) {
@@ -147,6 +153,9 @@ export async function provisionFreeWorkspaceFromTalent(params: {
 
   // ── Step 1: Create agencies row ───────────────────────────────────────────
   const now = new Date().toISOString();
+  // TUL-117: a talent adding a workspace from a Spanish dashboard gets a Spanish
+  // workspace (the admin seeds its language from the tenant default).
+  const flowLocale = workspaceLocaleSettingsForFlow(await getRequestLocale());
 
   const { data: agency, error: agencyError } = await admin
     .from("agencies")
@@ -156,7 +165,7 @@ export async function provisionFreeWorkspaceFromTalent(params: {
       kind: "agency",
       status: "active",
       template_key: "default",
-      supported_locales: ["en"],
+      supported_locales: flowLocale?.supportedLocales ?? ["en"],
       onboarding_completed_at: now,
       plan_tier: "free",
       talent_seat_limit: PLAN_SEAT_CAPS.free,
@@ -196,14 +205,8 @@ export async function provisionFreeWorkspaceFromTalent(params: {
   // NOTE: if the agency_domains table schema differs, this is a best-effort
   // insert. If it fails we log and continue — the user can still navigate
   // to /{slug}/admin once the middleware is updated or a manual seed is done.
-  const { error: domainError } = await admin
-    .from("agency_domains")
-    .insert({
-      tenant_id: agency.id,
-      hostname: `${normalizedSlug}.tulala.digital`,
-      status: "active",
-      is_primary: true,
-    });
+  const domain = await ensureWorkspaceSubdomainRow(admin, { tenantId: agency.id, slug: normalizedSlug });
+  const domainError = domain.ok ? null : domain.error;
 
   if (domainError) {
     // Non-fatal: log but do not rollback — the workspace + membership are
@@ -240,7 +243,14 @@ export async function provisionFreeWorkspaceFromTalent(params: {
   const { error: identityError } = await admin
     .from("agency_business_identity")
     .upsert(
-      { tenant_id: agency.id, public_name: displayName },
+      {
+        tenant_id: agency.id,
+        public_name: displayName,
+        ...(flowLocale && {
+          default_locale: flowLocale.defaultLocale,
+          supported_locales: flowLocale.supportedLocales,
+        }),
+      },
       { onConflict: "tenant_id", ignoreDuplicates: true },
     );
   if (identityError) {

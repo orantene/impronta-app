@@ -35,6 +35,7 @@ function normalizeMutationError(
     code: input.code,
     details:
       input.details && input.details.length > 0 ? input.details : undefined,
+    issues: input.issues && input.issues.length > 0 ? input.issues : undefined,
   };
 }
 
@@ -44,6 +45,7 @@ function mutationErrorFingerprint(input: EditMutationError): string {
     input.operation ?? "",
     input.code ?? "",
     ...(input.details ?? []),
+    ...(input.issues ?? []).map((i) => `${i.path}:${i.message}`),
   ].join("|");
 }
 
@@ -147,13 +149,15 @@ export function useEditorToasts(input: {
   // whole-page replace). The Undo button in the toast calls undo().
   const [templateAppliedToast, setTemplateAppliedToast] = useTransientState<{
     label: string;
+    plain?: boolean;
   }>(8000);
   const clearTemplateAppliedToast = useCallback(
     () => setTemplateAppliedToast(null),
     [setTemplateAppliedToast],
   );
   const notifyTemplateApplied = useCallback(
-    (label: string) => setTemplateAppliedToast({ label }),
+    (label: string, opts?: { plain?: boolean }) =>
+      setTemplateAppliedToast({ label, plain: opts?.plain }),
     [setTemplateAppliedToast],
   );
 

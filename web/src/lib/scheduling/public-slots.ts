@@ -11,11 +11,36 @@ import type { BookingHours } from "./hours-types";
 
 export const PUBLIC_SLOTS_DEFAULT_DAYS = 7;
 export const PUBLIC_SLOTS_MAX_DAYS = 60;
+/** Floor for `?duration=` — same floor as generateSlots' durationOrDefault. */
+export const PUBLIC_SLOTS_MIN_DURATION_MIN = 1;
+/** Cap for `?duration=` — a day of consecutive service is enough for any catalog extra stack. */
+export const PUBLIC_SLOTS_MAX_DURATION_MIN = 24 * 60;
 
 export function clampPublicSlotDays(raw: unknown): number {
   const n = typeof raw === "number" ? raw : typeof raw === "string" ? Number.parseInt(raw, 10) : NaN;
   if (!Number.isFinite(n)) return PUBLIC_SLOTS_DEFAULT_DAYS;
   return Math.min(Math.max(Math.trunc(n), 1), PUBLIC_SLOTS_MAX_DAYS);
+}
+
+/**
+ * Optional `?duration=` override (base offering + selected extras).
+ *
+ * Missing / garbage / out of range → `fallback` (usually the offering's
+ * duration_minutes). Clients that sum extras must send the total here so
+ * slot projection matches the hold window they will confirm.
+ */
+export function parsePublicSlotDuration(
+  raw: string | null | undefined,
+  fallback: number,
+): number {
+  if (raw == null || raw.trim() === "") return fallback;
+  const n = Number.parseInt(raw.trim(), 10);
+  if (!Number.isFinite(n)) return fallback;
+  const trunc = Math.trunc(n);
+  if (trunc < PUBLIC_SLOTS_MIN_DURATION_MIN || trunc > PUBLIC_SLOTS_MAX_DURATION_MIN) {
+    return fallback;
+  }
+  return trunc;
 }
 
 const YMD_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -127,7 +152,8 @@ export function applySellingTimeToHours(
   };
 }
 
-function hasAnyOpenWindow(hours: BookingHours): boolean {
+/** True when any weekly day or exception opens a window. Shared with the confirm re-check. */
+export function hoursHaveOpenWindow(hours: BookingHours): boolean {
   const weeklyOpen = Object.values(hours.weekly).some((windows) => windows.length > 0);
   if (weeklyOpen) return true;
   // A week closed every day can still be opened by an exception, which is how
@@ -141,7 +167,7 @@ export function computePublicSlots(input: PublicSlotsInput): PublicSlots {
   const timed = input.hours
     ? applySellingTimeToHours(input.hours, input.sellingDefaults, input.offeringBufferAfterMin, input.offeringBufferBeforeMin)
     : null;
-  if (!timed || !hasAnyOpenWindow(timed)) {
+  if (!timed || !hoursHaveOpenWindow(timed)) {
     return { starts: [], reason: "no_booking_hours" };
   }
   const days = clampPublicSlotDays(input.days);

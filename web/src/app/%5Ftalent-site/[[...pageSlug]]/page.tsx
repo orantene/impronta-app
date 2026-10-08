@@ -26,15 +26,18 @@
  */
 
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
+import { resolveGuestTokenResumeHref } from "@/app/t/[profileCode]/_actions/guest-order-resume-actions";
 import { headers } from "next/headers";
 
+import { DocumentLang } from "@/components/i18n/DocumentLang";
 import { getRequestLocale } from "@/i18n/request-locale";
 import {
   HOST_CONTEXT_HEADER,
   HOST_NAME_HEADER,
   HOST_TALENT_PROFILE_HEADER,
 } from "@/lib/saas/host-context";
+import { LEGACY_PRIVACY_SLUG, POLICY_SLUG } from "@/lib/talent-policies/public";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
 import {
@@ -44,6 +47,7 @@ import {
 import { resolveGatedTalentProfileId } from "@/lib/talent-site/server/talent-site-host-gate";
 import { TalentOfferingIntentQuery } from "../TalentOfferingIntentQuery";
 import { TalentSiteMessagesDock } from "../TalentSiteMessagesDock";
+import { ClientAccountDock } from "@/components/client-account/ClientAccountDock";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -103,7 +107,7 @@ export async function generateMetadata({
   searchParams,
 }: {
   params: Promise<{ pageSlug?: string[] }>;
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<{ preview?: string; order?: string }>;
 }): Promise<Metadata> {
   if (!isSupabaseConfigured()) return {};
   const talentProfileId = await resolveTalentProfileId();
@@ -119,13 +123,16 @@ export async function generateMetadata({
     talentProfileId,
     pageSlug: seg,
     locale,
+    // TUL-98: same URL grammar as the page itself (primary at root, secondaries
+    // prefixed). Without it the platform grammar made English the "root" and
+    // inverted canonical/hreflang on every Spanish-primary talent site.
+    hrefMode: "host-root",
     previewDraft: preview === "draft",
     canonicalOrigin,
     canonicalPath: apexPath(seg),
   });
   if (result.kind !== "render") return { title: "Not found" };
-  // Apex domain has no EN/ES path split — absolute canonical only, no hreflang.
-  return maxSiteSeoToMetadata(result.seo);
+  return maxSiteSeoToMetadata(result.seo, { ogLocale: result.locale });
 }
 
 export default async function TalentSiteHostPage({
@@ -133,14 +140,20 @@ export default async function TalentSiteHostPage({
   searchParams,
 }: {
   params: Promise<{ pageSlug?: string[] }>;
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<{ preview?: string; order?: string; t?: string }>;
 }) {
   if (!isSupabaseConfigured()) notFound();
   const talentProfileId = await resolveTalentProfileId();
   if (!talentProfileId) notFound();
 
   const { pageSlug } = await params;
-  const { preview } = await searchParams;
+  const { preview, order, t: resumeToken } = await searchParams;
+  // TUL-11 B: a signed thread token is the only credential for a fresh-browser
+  // resume. Verified server-side; any failure falls through to the normal page.
+  if (resumeToken) {
+    const href = await resolveGuestTokenResumeHref({ token: resumeToken, orderId: order ?? null });
+    if (href) redirect(href);
+  }
   const [locale, canonicalOrigin] = await Promise.all([
     getRequestLocale(),
     resolveCanonicalOrigin(),
@@ -159,6 +172,9 @@ export default async function TalentSiteHostPage({
     canonicalOrigin,
     canonicalPath: apexPath(seg),
   });
+  // `/privacy` is the English word talents and footers guess; it used to 404
+  // unless authored. The policy page lives at `/privacidad`.
+  if (result.kind !== "render" && seg === LEGACY_PRIVACY_SLUG) permanentRedirect(`/${POLICY_SLUG.privacy}`);
   if (result.kind !== "render") notFound();
   const jsonLd = maxSiteJsonLdString(result.seo);
   return (
@@ -169,9 +185,11 @@ export default async function TalentSiteHostPage({
           dangerouslySetInnerHTML={{ __html: jsonLd }}
         />
       ) : null}
+      <DocumentLang locale={result.locale} />
       {result.node}
       <TalentOfferingIntentQuery />
-      <TalentSiteMessagesDock talentProfileId={talentProfileId} locale={locale} />
+      <TalentSiteMessagesDock talentProfileId={talentProfileId} locale={result.locale} orderId={order ?? null} />
+      <ClientAccountDock locale={result.locale} />
     </>
   );
 }

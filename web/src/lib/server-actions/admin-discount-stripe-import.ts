@@ -24,6 +24,7 @@ import type Stripe from "stripe";
 import type { PricingDiscountRow } from "@/lib/pricing/pricing-types";
 import { DISCOUNT_CODE_REGEX } from "@/lib/pricing/discount-row";
 import { revalidateCommerceSurfaces } from "@/lib/pricing/revalidate-commerce";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ─── Auth gate (duplicated from admin-product-discounts.ts, as that file
 // already duplicates it from admin-product-pricing.ts) ───────────────────────
@@ -77,6 +78,7 @@ export type ImportStripePromotionCodesResult =
   | { ok: false; error: string };
 
 export async function importStripePromotionCodes(): Promise<ImportStripePromotionCodesResult> {
+  await requireNotImpersonating();
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 

@@ -1,7 +1,8 @@
 /**
  * Static contract: identity capture / match / create-client must authorize
- * inquiry managers (staff OR active coordinator). Talent inbox Capture
- * identity Save otherwise returns `not_allowed` ("You cannot do that from here.").
+ * inquiry managers (staff OR active coordinator), then the hub talent seller
+ * (same fallback as messagingRequestPayment). Manager-only refused Soft Gel
+ * dock Capture identity Save with `not_allowed`.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -28,23 +29,35 @@ function sliceExport(src: string, name: string, nextNames: string[]) {
   return src.slice(startIdx, end);
 }
 
-test("messagingMatchCustomers gates via messagingInquiryManager(inquiryId)", () => {
+function assertSellerFallbackGate(body: string) {
+  assert.match(body, /messagingInquiryManager\(parsed\.data\.inquiryId\)/);
+  assert.match(body, /talentSellerPaymentActor\(parsed\.data\.inquiryId\)/);
+  assert.doesNotMatch(body, /const g = await staff\(\)/);
+}
+
+test("messagingMatchCustomers gates via manager then talent seller", () => {
   const body = sliceExport(identity, "messagingMatchCustomers", ["messagingCaptureIdentity"]);
   assert.match(body, /inquiryId: string/);
-  assert.match(body, /messagingInquiryManager\(parsed\.data\.inquiryId\)/);
-  assert.doesNotMatch(body, /const g = await staff\(\)/);
+  assertSellerFallbackGate(body);
+  assert.match(body, /if \(gated\.ok\)/);
+  // Hub sellers share tenant_id — service-role match must stay in her pool.
+  assert.match(body, /ownerTalentProfileId = seller\.talentProfileId/);
+  assert.match(body, /\.eq\("owner_talent_profile_id", ownerTalentProfileId\)/);
 });
 
-test("messagingCaptureIdentity gates via messagingInquiryManager(inquiryId)", () => {
+test("messagingCaptureIdentity gates via manager then talent seller", () => {
   const body = sliceExport(identity, "messagingCaptureIdentity", []);
-  assert.match(body, /messagingInquiryManager\(parsed\.data\.inquiryId\)/);
-  assert.doesNotMatch(body, /const g = await staff\(\)/);
+  assertSellerFallbackGate(body);
 });
 
-test("messagingCreateClientForThread gates via messagingInquiryManager(inquiryId)", () => {
+test("messagingCreateClientForThread gates via manager then talent seller", () => {
   const body = sliceExport(start, "messagingCreateClientForThread", []);
-  assert.match(body, /messagingInquiryManager\(parsed\.data\.inquiryId\)/);
-  assert.doesNotMatch(body, /const g = await staff\(\)/);
+  assertSellerFallbackGate(body);
+  assert.match(body, /if \(gated\.ok\)/);
+  // Seller create → talent-owned pool; managers keep null ownership.
+  assert.match(body, /ownerTalentProfileId = seller\.talentProfileId/);
+  assert.match(body, /ownerTalentProfileId,/);
+  assert.match(body, /ensureCustomer\(/);
 });
 
 test("talentShellEngine wires real identity actions (not stubbed not_allowed)", () => {

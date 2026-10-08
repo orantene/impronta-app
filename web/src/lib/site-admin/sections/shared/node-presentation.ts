@@ -230,6 +230,18 @@ export function nodePresentationInlineStyle(
   // text renders transparent/inherited. Same failure the nav CTA shipped.
   if (value.textColor) style.color = resolveStyleTokenRef(value.textColor);
   if (value.backgroundColor) style.backgroundColor = resolveStyleTokenRef(value.backgroundColor);
+  // Band ink — keep curated/freeform emit identical (W4-T2 seam). A container
+  // that sets its own text colour hands it down as `--bn-ink` so muted fine
+  // print inside inherits a readable soft ink; a new surface without ink
+  // resets the band (matches `sharedNodeStyle` in builder-node/render.tsx).
+  if (value.textColor && style.color) {
+    (style as Record<string, string>)["--bn-ink"] = String(style.color);
+    (style as Record<string, string>)["--bn-ink-muted"] =
+      `color-mix(in oklab, ${String(style.color)} 60%, transparent)`;
+  } else if (value.backgroundColor && !value.textColor) {
+    (style as Record<string, string>)["--bn-ink"] = "initial";
+    (style as Record<string, string>)["--bn-ink-muted"] = "initial";
+  }
   if (
     value.borderColor ||
     value.borderWidthPx !== undefined ||

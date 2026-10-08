@@ -9,6 +9,7 @@
  * Used by the inline composer in ClientMessagesShell's Chat tab.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -30,6 +31,8 @@ export async function sendClientMessageAction(
   inquiryId: string,
   body: string,
 ): Promise<ClientSendMessageResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const trimmed = body.trim();
     if (!trimmed) return { ok: false, error: "Message is empty." };
@@ -100,6 +103,7 @@ export async function markClientThreadReadAction(
   inquiryId: string,
   lastMessageId: string | null,
 ): Promise<{ ok: boolean }> {
+  if (!(await assertNotImpersonating()).ok) return { ok: false };
   try {
     const session = await getCachedActorSession();
     if (!session.supabase || !session.user) return { ok: false };
@@ -155,6 +159,8 @@ export async function editClientMessageAction(
   messageId: string,
   body: string,
 ): Promise<ClientEditMessageResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const trimmed = body.trim();
     if (!trimmed) return { ok: false, error: "Message is empty." };
@@ -223,6 +229,8 @@ export async function deleteClientMessageAction(
   tenantSlug: string,
   messageId: string,
 ): Promise<ClientDeleteMessageResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const session = await getCachedActorSession();
     if (!session.supabase || !session.user) return { ok: false, error: "Not authenticated." };

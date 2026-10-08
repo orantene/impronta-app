@@ -31,6 +31,7 @@ import { isStaffRole } from "@/lib/auth-flow";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const REFUND_POLICY_KEYS: readonly RefundPolicyKey[] = [
   "tiered",
@@ -161,6 +162,8 @@ export async function updateTalentBookingTerms(
   talentProfileId: string,
   terms: TalentBookingTerms,
 ): Promise<UpdateTalentBookingTermsResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const auth = await authorizeForTalent(talentProfileId);
     if (!auth.ok) return { ok: false, error: auth.error };

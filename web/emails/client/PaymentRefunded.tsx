@@ -7,8 +7,13 @@ import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   clientName: string | null;
-  heading: string;
-  message: string;
+  /** Optional override; by default the localized heading for the refund kind. */
+  heading?: string;
+  /** Optional override; by default the localized message for the refund kind. */
+  message?: string;
+  /** Dispute closed with the charge reversed (full refunds only). */
+  isDispute?: boolean;
+  sellerName?: string | null;
   /** Present for a partial refund; omitted for a full reversal / closed dispute. */
   amount: string | null;
   bookingUrl: string;
@@ -19,8 +24,10 @@ interface Props {
 
 export default function PaymentRefunded({
   clientName,
-  heading,
-  message,
+  heading: headingOverride,
+  message: messageOverride,
+  isDispute,
+  sellerName,
   amount,
   bookingUrl,
   brand,
@@ -31,10 +38,17 @@ export default function PaymentRefunded({
   // heading + message are passed in by the catalog (reason-dependent); the
   // template owns the greeting wrapper, the field label, and the button. The
   // two refund templateIds share identical owned copy — pick by shape.
-  const t = getEmailCopy(brand?.locale)[amount ? "client.partial_refund" : "client.payment_refunded"];
+  const copy = getEmailCopy(brand?.locale);
+  const full = copy["client.payment_refunded"];
+  const t = amount ? copy["client.partial_refund"] : full;
+  const heading = headingOverride ?? (amount ? t.heading : isDispute ? full.disputeHeading : t.heading);
+  const message =
+    messageOverride ??
+    (amount ? interpolate(t.message, { amount }) : isDispute ? full.disputeMessage : t.message);
   return (
     <Layout
       preview={heading}
+      sellerName={sellerName}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}

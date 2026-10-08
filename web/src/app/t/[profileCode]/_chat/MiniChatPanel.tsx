@@ -17,6 +17,7 @@
  * functions are used (no manual useCallback/useMemo).
  */
 
+import { pollNeedsFullReload } from "./guest-paid-sync";
 import { useEffect, useRef, useState } from "react";
 
 import type {
@@ -36,6 +37,7 @@ import { interpolate } from "@/i18n/interpolate";
 
 import { ExpandedChatLayout } from "./ExpandedChatLayout";
 import { MiniChatPanelColumn } from "./MiniChatPanelColumn";
+import { CardDockPanel } from "./CardDockPanel";
 import { usePresenceChime } from "./usePresenceChime";
 import { useUnifiedInquiry } from "./use-unified-inquiry";
 import type { UnifiedInquiryPatch } from "./use-unified-inquiry";
@@ -66,56 +68,21 @@ import type { MiniChatPanelLocalProps } from "./mini-chat-panel-props";
 import { offeringDraftPrefix, type ChatOffering } from "./OfferingQuickPicker";
 import { setPendingOffering } from "./pending-offering-store";
 import { consumeBookingSheetChatHandoff } from "./booking-sheet-chat-handoff";
+import { useLookPreviewOnOpen } from "./use-look-preview-on-open";
 import { useGateEmailCheck } from "./use-gate-email-check";
 import { useGuestInquiriesList } from "./use-guest-inquiries-list";
 import { createApplyFailure } from "./mini-chat-panel-apply-failure";
 import { useDetailHandlers } from "./use-mini-chat-detail-handlers";
 import { useRegisterRemoveTalentRunner } from "./use-register-remove-talent-runner";
 import type { GuestDockView } from "./guest-dock-view";
+import {
+  normalizeDockView,
+  persistDockView,
+  readStoredDockView,
+  resolveInitialDockView,
+} from "./dock-view-session";
 
 type Stage = "intro" | "gate" | "thread";
-
-const DOCK_VIEW_STORAGE_KEY = "impronta.dockView";
-const DOCK_VIEWS: readonly GuestDockView[] = ["home", "chat", "lineup", "projects"];
-
-function readStoredDockView(): GuestDockView | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const stored = window.sessionStorage.getItem(DOCK_VIEW_STORAGE_KEY);
-    if (stored && (DOCK_VIEWS as readonly string[]).includes(stored)) {
-      return stored as GuestDockView;
-    }
-  } catch {
-    /* sessionStorage unavailable (private mode) */
-  }
-  return null;
-}
-
-/** Remap stale "home" sessions to Hablar chat (empty-home = bubble + chips). */
-function normalizeDockView(view: GuestDockView): GuestDockView {
-  return view === "home" ? "chat" : view;
-}
-
-/** Remembered view wins (home→chat); otherwise open on Hablar chat. */
-function resolveInitialDockView(
-  existingInquiryId: string | null,
-  cartTalentIds: readonly string[] | undefined,
-): GuestDockView {
-  void existingInquiryId;
-  void cartTalentIds;
-  const stored = readStoredDockView();
-  if (stored) return normalizeDockView(stored);
-  return "chat";
-}
-
-function persistDockView(view: GuestDockView): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.sessionStorage.setItem(DOCK_VIEW_STORAGE_KEY, view);
-  } catch {
-    /* best-effort */
-  }
-}
 
 export function MiniChatPanel({
   open,
@@ -130,6 +97,7 @@ export function MiniChatPanel({
   existingContactPromoted = null,
   prefill = null,
   offerings = [],
+  answerOfferings,
   onAttachOffering = null,
   onStartInquiry,
   onSendMessage,
@@ -146,6 +114,7 @@ export function MiniChatPanel({
   soundOnReply = true,
   identity = "guest",
   surfaceMode = "light",
+  chatCard = null,
   isHub = false,
   expanded = false,
   onToggleExpand,
@@ -178,6 +147,7 @@ export function MiniChatPanel({
   const lastSeenIsoRef = useRef<string | null>(null);
 
   const [draft, setDraft] = useState("");
+  const { lookPreviewUrl, clearLookPreview, clearLookPreviewChip } = useLookPreviewOnOpen(open);
   const prefillNames = splitGuestFullName(prefill?.name);
   const [firstName, setFirstName] = useState(prefill?.firstName ?? prefillNames.firstName);
   const [lastName, setLastName] = useState(prefill?.lastName ?? prefillNames.lastName);
@@ -244,13 +214,13 @@ export function MiniChatPanel({
       if (h.lastName != null) setLastName(h.lastName);
       if (h.phone) setPhone(h.phone);
       if (h.email) setEmail(h.email);
-      if (h.draftPrefix) {
+      if (h.draftPrefix && !chatCard) {
         setDraft((cur) => (cur.trim() ? cur : h.draftPrefix!));
         setDockViewState("chat");
       }
     }
     wasOpenRef.current = open;
-  }, [open, brand.locale]);
+  }, [open, brand.locale, chatCard]);
 
   // useGuestInquiriesList — W2-A also feeds Projects; refresh on enter only.
   const inquiries = useGuestInquiriesList({
@@ -260,6 +230,7 @@ export function MiniChatPanel({
     tenantSlug,
     refreshKey: dockView === "projects",
     activeInquiryId: inquiryId,
+    locale: brand.locale,
   });
 
   // Finding #2: post-"Send to agency" success note (one-shot confirmation).
@@ -428,6 +399,9 @@ export function MiniChatPanel({
           );
           mergeServer(res.messages);
           setThreadStatus(res.threadStatus);
+          // TUL-11: the webhook posted a settled-money row; reload so the
+          // items shelf / receipt (v5) flip with the server, never before.
+          if (pollNeedsFullReload(res.messages)) setReloadTick((n) => n + 1);
           if (res.typicalReplyLabel) setThreadMeta((m) => ({ ...m, typicalReply: res.typicalReplyLabel }));
           if (inbound.length > 0) {
             notifyInbound(inbound.length);
@@ -443,8 +417,16 @@ export function MiniChatPanel({
     };
 
     timer = setTimeout(tick, pollIntervalMs);
+    // Back from the pay tab: check now instead of waiting out the interval.
+    const onVisible = () => {
+      if (document.hidden || stopped) return;
+      if (timer) clearTimeout(timer);
+      void tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       stopped = true;
+      document.removeEventListener("visibilitychange", onVisible);
       if (timer) clearTimeout(timer);
     };
   }, [open, inquiryId, pollIntervalMs, fetchMessages, notifyInbound]);
@@ -484,14 +466,13 @@ export function MiniChatPanel({
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
-    const focusTimer = setTimeout(() => textareaRef.current?.focus(), 60);
+    const phone = typeof window.matchMedia === "function" && (window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 900);
+    const focusTimer = phone ? undefined : setTimeout(() => textareaRef.current?.focus(), 60);
     return () => {
       window.removeEventListener("keydown", onKey);
-      clearTimeout(focusTimer);
+      if (focusTimer) clearTimeout(focusTimer);
     };
   }, [open, onClose]);
 
@@ -527,11 +508,13 @@ export function MiniChatPanel({
     talentProfileCode,
     sourcePage,
     locale: brand.locale,
+    offerings: answerOfferings ?? offerings,
     t,
     contactPromoted: unified.contactPromoted,
     promoteContact: unified.promoteContact,
     onStartInquiry,
     onSendMessage,
+    onLookAttached: clearLookPreviewChip,
     setRows,
     setDraft,
     setStage,
@@ -683,6 +666,8 @@ export function MiniChatPanel({
       if (sentNote) setSentNote(false); // resuming composing clears the Sent note
       setDraft(v);
     },
+    lookPreviewUrl,
+    onClearLookPreview: clearLookPreview,
     onFirstNameChange: setFirstName,
     onLastNameChange: setLastName,
     onEmailChange: setEmail,
@@ -763,6 +748,8 @@ export function MiniChatPanel({
     dashboardHref: `/${tenantSlug}/client/messages`,
   };
 
+  // `chat.variant = card`: the SAME dock column inside the card frame (tabs, rail, views all live).
+  if (chatCard) return <CardDockPanel card={chatCard} compact={compactSheet} keyboardInsetPx={keyboardInsetPx} columnProps={columnProps} />;
   // ── Expanded 2-pane mode (F4) ─────────────────────────────────────────────
   if (expanded) {
     return (

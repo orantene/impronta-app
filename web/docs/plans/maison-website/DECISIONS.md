@@ -86,13 +86,30 @@ Talent-site color editor writing `custom_palette`. Contrast via existing a11y he
 
 ## A11. Feature flag + flag-off production unchanged
 
-`TALENT_MAISON_THEME_ENABLED` — default off; off in production until the owner flips it.
+`TALENT_MAISON_THEME_ENABLED` — default off; off in production until the owner flips it for everyone.
+
+Shape matches Agenda V2 (owner 2026-09-27: one test talent for audit, then global):
+
+| Value | Effect |
+|---|---|
+| unset / `0` / `false` | Off for every talent |
+| `talents` | Only ids in `TALENT_MAISON_THEME_TALENTS` |
+| `1` / `true` / `all` | Every talent |
+
+Audit / QA cohort (Vercel Production `TALENT_MAISON_THEME_TALENTS`):
+
+| Code | Profile id | Notes |
+|---|---|---|
+| `TAL-93939` | `6d4e7d73-8577-42fb-b0d3-d2e55a64ca14` | Free fixture (`qa-talent-free@impronta.test`) |
+| `TAL-93900` | `c99f8adb-8ebb-4aad-911a-897e73efd369` | demo-jor-clone / `jorg-beauty-qa` (main Wave 4 QA fixture) |
+
+Not live Jor (`f048e578-cbae-45db-9a3b-34239abea136` / `TAL-93938`). The allow-list is **env-only** — code has no hard-coded seed list; update the Vercel Production value and redeploy (or wait for the next production pointer build) for the new id to take effect. TAL-93900's UUID is **durable across demo cleanup/reseed**: `clone-jor.mts` inserts with pinned `CLONE.profileId` (`c99f8adb-…`).
 
 **Critical (binding plan correction):** `TALENT_THEME_GALLERY_ENABLED` is already on in production. Therefore:
 
-1. **Gallery gate:** `gallery-bootstrap-action` uses `personalSiteEdit` **only when** `TALENT_MAISON_THEME_ENABLED` is on. When the Maison flag is off, keep today's `personalSiteSections` gate (Free talents still get the old starter-gallery fallback path). Unconditional `personalSiteEdit` would ship Free→5×6 gallery while Maison is off = prod change.
-2. **Catalog load:** Maison Design, its Look palettes (`maison-*` / `for_design=maison`), and its Demo must **not** appear in `loadTalentThemeCatalog` — including the in-code built-ins fallback — unless the Maison flag is on.
-3. **Tests:** explicit flags-off tests for both the gallery gate and catalog filter.
+1. **Gallery gate:** `gallery-bootstrap-action` uses `personalSiteEdit` **only when** Maison is on for that talent (mode `all`, or mode `talents` + allow-list). When Maison is off for the caller, keep today's `personalSiteSections` gate (Free talents still get the old starter-gallery fallback path). Unconditional `personalSiteEdit` would ship Free→5×6 gallery while Maison is off = prod change.
+2. **Catalog load:** Maison Design, its Look palettes (`maison-*` / `for_design=maison`), and its Demo must **not** appear in `loadTalentThemeCatalog` — including the in-code built-ins fallback — unless Maison is on for the calling talent.
+3. **Tests:** explicit flags-off tests for both the gallery gate and catalog filter; allow-list unit coverage.
 
 ---
 

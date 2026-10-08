@@ -4,6 +4,10 @@ import { cancelHybridComponents } from "./hybrid-package";
 import { remainingUnits } from "@/lib/capacity/remaining";
 import type { CapacityAllocation, CapacityPool } from "@/lib/capacity/types";
 
+// Relative to now; a committed allocation is live whatever its window.
+const SALE_START = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+const SALE_END = new Date(Date.parse(SALE_START) + 15 * 60 * 1000).toISOString();
+
 type Row = Record<string, unknown>;
 
 function makeStore() {
@@ -185,8 +189,8 @@ test("a cafe sale and a room booking do not share a capacity pool", () => {
     orderLineId: "coffee-line",
     units: 2,
     state: "committed",
-    startsAt: "2026-09-08T12:00:00.000Z",
-    endsAt: "2026-09-08T12:15:00.000Z",
+    startsAt: SALE_START,
+    endsAt: SALE_END,
     expiresAt: null,
   };
   const window = { startsAt: cafeSale.startsAt, endsAt: cafeSale.endsAt };

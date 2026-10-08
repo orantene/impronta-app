@@ -7,6 +7,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { Resend } from "resend";
 import { logServerError } from "@/lib/server/safe-error";
 import { DEFAULT_PLATFORM_FROM } from "@/lib/email/resend-client";
+import { partitionReservedRecipients } from "@/lib/email/reserved-domains";
 
 let _client: Resend | null = null;
 
@@ -136,7 +137,9 @@ export type EmailAttachment = {
  * email channel) distinguish a real provider FAILURE from a skipped send, so a
  * Resend error is recorded as `failed` rather than masked as `sent`.
  *  - `sent`    — Resend accepted the message (`id` is the message id, may be null).
- *  - `skipped` — no RESEND_API_KEY configured (dev / test); nothing was sent.
+ *  - `skipped` — nothing was sent: no RESEND_API_KEY configured (dev / test,
+ *    reason `no_api_key`), or every recipient is on a reserved domain such as
+ *    .test (reason `reserved_domain`; QA and demo accounts).
  *  - `failed`  — Resend returned an error (already logged); the send did not land.
  */
 export type SendEmailResult =
@@ -152,7 +155,7 @@ export type SendEmailResult =
       from: string;
       replyTo?: string;
     }
-  | { status: "skipped" }
+  | { status: "skipped"; reason?: "no_api_key" | "reserved_domain" }
   | { status: "failed"; error: string };
 
 /**
@@ -163,6 +166,23 @@ export type SendEmailResult =
  * simpler `sendEmail` wrapper below.
  */
 export async function sendEmailResult(input: SendEmailInput): Promise<SendEmailResult> {
+  // Reserved domains (.test, .example, .invalid, .localhost) can never
+  // receive mail; sending would only hard-bounce. Drop them before the
+  // provider sees them, and skip entirely when nobody real is left.
+  const { deliverable, reserved } = partitionReservedRecipients(input.to);
+  if (reserved.length > 0) {
+    void improntaLog("email.warn", {
+      message: "skipped_reserved_domain",
+      input: input.subject,
+      recipients: reserved.length,
+    });
+  }
+  if (deliverable.length === 0) {
+    await writeDevOutbox(input);
+    return { status: "skipped", reason: "reserved_domain" };
+  }
+  input = { ...input, to: Array.isArray(input.to) ? deliverable : deliverable[0] };
+
   const client = getClient();
   if (!client) {
     void improntaLog("email.warn", {
@@ -170,7 +190,7 @@ export async function sendEmailResult(input: SendEmailInput): Promise<SendEmailR
       input: input.subject,
     });
     await writeDevOutbox(input);
-    return { status: "skipped" };
+    return { status: "skipped", reason: "no_api_key" };
   }
 
   const from = await resolveFrom(input.tenantId, input.tenantName);

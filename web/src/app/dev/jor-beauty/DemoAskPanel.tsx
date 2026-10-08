@@ -87,7 +87,7 @@ export function DemoAskPanel() {
 
         <div className="ask-body">
           <div className="ask-bubble">
-            ¡Hola! Contame qué tenés en mente y te ayudo a elegir el servicio.
+            ¡Hola! Cuéntame qué tienes en mente y te ayudo a elegir el servicio.
           </div>
           {bits.length ? <div className="ask-chip">Sobre: {bits.join(" · ")}</div> : null}
           {ask.visitor?.name || ask.visitor?.phone ? (

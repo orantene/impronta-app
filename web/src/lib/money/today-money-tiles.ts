@@ -84,6 +84,10 @@ export function consumeMoneyLanding(): MoneyLanding | null {
  * `buildMoneySpineView()` — the September fixture, not invented copy.
  */
 export function todayMoneyTilesFromLedger(): readonly TodayMoneyTile[] {
+  // The ledger read model is still the September FIXTURE (one demo business's
+  // figures). Real talents must never see it as theirs: no tiles unless the
+  // demo/QA flag is on (Today hides the money block when this is empty).
+  if (process.env.NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE !== "1") return [];
   const view = buildMoneySpineView();
   const s = view.summary;
   const currency = view.currency;

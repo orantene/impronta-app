@@ -30,22 +30,20 @@
  */
 
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { loadLegacyProfileTemplate } from "./legacy-profile-template";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { buildTalentSiteCapabilities } from "@/lib/access/talent-membership";
 import { gate } from "./site-action-gate";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { provisionTalentMaxSite } from "./provision-max-site";
 import { isDnsLabel, slugifySiteName } from "./derive-site-slug";
 import {
   isPlatformSubdomainLabelTaken,
   requestSubdomainNamespaceCopy,
 } from "@/lib/saas/platform-subdomain-namespace.server";
-import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
-import {
-  talentSitePathUrl,
-  talentSitePublicUrl,
-} from "@/lib/talent-site/site-public-url";
+import { PAGE_COLUMNS, siteUrl } from "./site-management-helpers";
 import {
   derivePageSlug,
   isReservedPageSlug,
@@ -63,43 +61,31 @@ import { publishSiteThemeForTalent } from "./theme-publish-hook";
 import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { writeMaisonDesignPublishedRevision } from "./maison-design-revision";
 import { prepareMaisonSiteForPublish } from "./maison-pending-apply";
+import { siteScaffoldComplete } from "./site-scaffold-complete";
+import { publishTalentPageBodies } from "./publish-talent-page-bodies";
+import { recordSitePublish } from "../history/history.server";
 import type {
   MaxSiteManagerPage,
   MaxSiteManagerState,
   MaxSiteActionResult,
 } from "./site-management-types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
-const PAGE_COLUMNS =
-  "id, slug, title, nav_label, status, is_home, sort_order, published_at, updated_at";
-
-// Shared owner+Max gate lives in ./site-action-gate so the logo actions
-// (./site-logo-actions, a separate "use server" module) can reuse it.
-
-/**
- * The address the dashboard shows and links to. With the subdomain switch on the
- * site's real home is `<slug>.tulala.digital`; with it off (and for a slug that
- * is not a usable hostname label) this is exactly today's path.
- */
-function siteUrl(slug: string | null): string | null {
-  if (!slug) return null;
-  if (isTalentSiteSubdomainsEnabled()) {
-    const hostUrl = talentSitePublicUrl(slug);
-    if (hostUrl) return hostUrl;
-  }
-  return talentSitePathUrl(slug);
-}
+// Shared owner+Max gate lives in ./site-action-gate (reused by ./site-logo-actions).
 
 // ── Ensure / provision ───────────────────────────────────────────────────────
 
 /**
  * Provision the talent's Max site if missing (idempotent), then return its id +
- * slug. Called on first open of `/talent/site`. Uses the service-role
+ * slug. Called ONLY from the explicit "Create my own website" click on
+ * `/talent/site` (never from a page load, TUL-179). Uses the service-role
  * provisioning helper (slug de-dup must span all sites); the Max gate is checked
  * here AND inside the helper.
  */
 export async function ensureMaxSiteAction(): Promise<
   MaxSiteActionResult<{ siteSlug: string }>
 > {
+  await requireNotImpersonating();
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
   const result = await provisionTalentMaxSite(g.talentProfileId, g.userId);
@@ -112,9 +98,9 @@ export async function ensureMaxSiteAction(): Promise<
 // ── Load manager state ───────────────────────────────────────────────────────
 
 /**
- * Load everything the `/talent/site` dashboard renders. Provisions the site
- * first (so a brand-new Max talent lands on a populated dashboard), then reads
- * the site row + every page via the cookie-session client (owner RLS).
+ * Load everything the `/talent/site` dashboard renders: the site row + every page via the
+ * cookie-session client (owner RLS). READ-ONLY (TUL-179): a missing or incomplete scaffold comes
+ * back as `siteExists: false`; the talent creates it with `ensureMaxSiteAction` from an explicit click.
  */
 export async function loadMaxSiteManagerAction(): Promise<
   MaxSiteActionResult<MaxSiteManagerState>
@@ -150,6 +136,7 @@ export async function loadMaxSiteManagerAction(): Promise<
         logoUrl: null,
         sitePublishedAt: null,
         hasPublishedShell: false,
+        siteExists: false,
         publicSiteUrl: null,
         themeDesignSlug: null,
         themeLookSlug: null,
@@ -158,34 +145,32 @@ export async function loadMaxSiteManagerAction(): Promise<
     };
   }
 
-  // Provision on open (idempotent) so the manager is never empty for a Max talent.
-  await provisionTalentMaxSite(scope.talentProfile.id, scope.session.user.id);
-
   const sb = await getCachedServerSupabase();
   if (!sb) return { ok: false, code: "server_error", error: "Not configured." };
 
-  const { data: siteRow, error: siteErr } = await sb
-    .from("talent_sites")
-    .select(
-      "id, site_slug, logo_url, site_published_at, shell_published, theme_design_slug, theme_look_slug",
-    )
-    .eq("talent_profile_id", scope.talentProfile.id)
-    .maybeSingle();
+  // F74: parallel reads. No provisioning on load (TUL-179).
+  const cols = "id, site_slug, logo_url, site_published_at, shell_published, shell_tree, theme_design_slug, theme_look_slug";
+  const readAll = () =>
+    Promise.all([
+      sb.from("talent_sites").select(cols).eq("talent_profile_id", scope.talentProfile.id).maybeSingle(),
+      sb.from("talent_pages").select(PAGE_COLUMNS).eq("talent_profile_id", scope.talentProfile.id).order("sort_order", { ascending: true }),
+      loadLegacyProfileTemplate(sb, scope.talentProfile.id),
+      sb.from("talent_profiles").select("is_demo").eq("id", scope.talentProfile.id).maybeSingle(),
+    ]);
+  const [siteRes, pagesRes, legacyProfileTemplate, demoRes] = await readAll();
+  const siteExists = siteScaffoldComplete(siteRes, pagesRes);
+  const { data: siteRow, error: siteErr } = siteRes;
+  const { data: pageRows, error: pagesErr } = pagesRes;
   if (siteErr) {
     logServerError("maxSiteManager.load.site", siteErr);
     return { ok: false, code: "server_error", error: "Could not load your site." };
   }
-
-  const { data: pageRows, error: pagesErr } = await sb
-    .from("talent_pages")
-    .select(PAGE_COLUMNS)
-    .eq("talent_profile_id", scope.talentProfile.id)
-    .order("sort_order", { ascending: true });
   if (pagesErr) {
     logServerError("maxSiteManager.load.pages", pagesErr);
     return { ok: false, code: "server_error", error: "Could not load your pages." };
   }
 
+  const isDemo = (demoRes.data as { is_demo?: boolean } | null)?.is_demo === true;
   const site = (siteRow ?? null) as {
     id: string;
     site_slug: string | null;
@@ -229,11 +214,13 @@ export async function loadMaxSiteManagerAction(): Promise<
       siteSlug: site?.site_slug ?? null,
       logoUrl: site?.logo_url ?? null,
       sitePublishedAt: site?.site_published_at ?? null,
+      siteExists,
       hasPublishedShell:
         Array.isArray(site?.shell_published) && site!.shell_published.length > 0,
-      publicSiteUrl: siteUrl(site?.site_slug ?? null),
+      publicSiteUrl: siteUrl(site?.site_slug ?? null, isDemo),
       themeDesignSlug: site?.theme_design_slug ?? null,
       themeLookSlug: site?.theme_look_slug ?? null,
+      legacyProfileTemplate,
       pages,
     },
   };
@@ -251,6 +238,7 @@ export async function addMaxSitePageAction(input: {
   title: string;
   navLabel?: string | null;
 }): Promise<MaxSiteActionResult<{ id: string; slug: string }>> {
+  await requireNotImpersonating();
   const g = await gate("personalSitePages");
   if (!g.ok) return g;
 
@@ -321,6 +309,7 @@ export async function renameMaxSitePageAction(input: {
   title?: string;
   navLabel?: string | null;
 }): Promise<MaxSiteActionResult> {
+  await requireNotImpersonating();
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
@@ -360,6 +349,7 @@ export async function renameMaxSitePageAction(input: {
 export async function deleteMaxSitePageAction(input: {
   pageId: string;
 }): Promise<MaxSiteActionResult> {
+  await requireNotImpersonating();
   const g = await gate("personalSitePages");
   if (!g.ok) return g;
 
@@ -415,6 +405,7 @@ export async function deleteMaxSitePageAction(input: {
 export async function reorderMaxSitePagesAction(input: {
   orderedIds: string[];
 }): Promise<MaxSiteActionResult> {
+  await requireNotImpersonating();
   const g = await gate("personalSitePages");
   if (!g.ok) return g;
   if (!Array.isArray(input.orderedIds) || input.orderedIds.length === 0) {
@@ -463,6 +454,7 @@ export async function reorderMaxSitePagesAction(input: {
 export async function setMaxSiteHomePageAction(input: {
   pageId: string;
 }): Promise<MaxSiteActionResult> {
+  await requireNotImpersonating();
   const g = await gate("personalSitePages");
   if (!g.ok) return g;
 
@@ -512,6 +504,7 @@ export async function setMaxSiteHomePageAction(input: {
 export async function setMaxSiteSlugAction(input: {
   slug: string;
 }): Promise<MaxSiteActionResult<{ slug: string }>> {
+  await requireNotImpersonating();
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
@@ -588,9 +581,10 @@ export async function setMaxSiteSlugAction(input: {
  * talent currently holding Max + per-page `status='published'`, so all three
  * must land for the site to serve. Owner-RLS scoped throughout.
  */
-export async function publishMaxSiteAction(): Promise<
+export async function publishMaxSiteAction(opts?: { contentHash?: string | null }): Promise<
   MaxSiteActionResult<{ publishedAt: string }>
 > {
+  await requireNotImpersonating();
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 
@@ -618,6 +612,7 @@ export async function publishMaxSiteAction(): Promise<
     talentProfileId: g.talentProfileId,
     userId: g.userId,
     displayName: g.displayName,
+    locale: (await getRequestLocale()) === "es" ? "es" : "en",
     pre: preSite as {
       id: string;
       site_slug: string | null;
@@ -638,17 +633,19 @@ export async function publishMaxSiteAction(): Promise<
 
   const now = new Date().toISOString();
 
-  // 1. Publish every page.
-  const { error: pagesErr } = await sb
-    .from("talent_pages")
-    .update({ status: "published", published_at: now, updated_at: now })
-    .eq("talent_profile_id", g.talentProfileId);
-  if (pagesErr) {
-    logServerError("maxSiteManager.publish.pages", pagesErr);
+  // 1. Publish every page: status → published AND the draft body (`blocks`)
+  //    is copied into the live body (`blocks_published`). Until this runs,
+  //    saved edits stay private, the same as the shell and the theme tokens.
+  const pagesPublished = await publishTalentPageBodies(sb, {
+    talentProfileId: g.talentProfileId,
+    now,
+  });
+  if (!pagesPublished.ok) {
+    logServerError("maxSiteManager.publish.pages", pagesPublished.error);
     return {
       ok: false,
       code: "server_error",
-      error: `Could not publish your pages. (${pagesErr.code ?? "pages"})`,
+      error: "Could not publish your pages. (pages)",
     };
   }
 
@@ -693,9 +690,9 @@ export async function publishMaxSiteAction(): Promise<
       error: "Your pages are live, but the theme could not be published. Try again. (theme)",
     };
   }
-
+  await recordSitePublish(pre.id, g.userId, typeof opts?.contentHash === "string" ? opts.contentHash : null); // 4b. site history (theme releases Phase 2)
   // 5. W41 — design version snapshot (Maison flag; best-effort, never fails publish).
-  if (isTalentMaisonThemeEnabled()) {
+  if (isTalentMaisonThemeEnabled(g.talentProfileId)) {
     const admin = createServiceRoleClient();
     if (admin) {
       await writeMaisonDesignPublishedRevision(admin, {
@@ -724,6 +721,7 @@ export async function publishMaxSiteAction(): Promise<
 export async function applyMaxSiteTemplateAction(input: {
   templateKey: string;
 }): Promise<MaxSiteActionResult<{ templateKey: MaxSiteTemplateKey }>> {
+  await requireNotImpersonating();
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
 

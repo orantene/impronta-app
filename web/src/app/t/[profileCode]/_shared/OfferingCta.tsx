@@ -14,19 +14,11 @@
  * the money flows — the storefront itself never charges anything.
  */
 
-import { resolveOfferingCta, type TalentOffering } from "@/lib/talent/offerings-types";
-import { pickLocale } from "@/lib/i18n/pick-locale";
-import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
+import { buildOfferingRequestDetail } from "@/lib/talent-site/offering-request-detail-build";
+import { type TalentOffering } from "@/lib/talent/offerings-types";
+import { deriveOfferingCta, offeringCtaLabel } from "@/lib/talent/offering-cta-derivation";
 
 export type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
-
-const CTA_COPY: Record<string, { en: string; es: string }> = {
-  book_now: { en: "Book now", es: "Reservar ya" },
-  buy_now: { en: "Buy", es: "Comprar" },
-  request_to_book: { en: "Book", es: "Reservar" },
-  request: { en: "Request", es: "Solicitar" },
-  ask_quote: { en: "Ask for quote", es: "Pedir cotización" },
-};
 
 export function OfferingCta({
   offering,
@@ -34,6 +26,7 @@ export function OfferingCta({
   compact = false,
   confirmsByHand = false,
   label: labelOverride,
+  sellingDefaults,
 }: {
   offering: TalentOffering;
   locale: string;
@@ -42,45 +35,27 @@ export function OfferingCta({
   confirmsByHand?: boolean;
   /** Widget override (e.g. Seleccionar). Empty keeps the behavior label. */
   label?: string;
+  /**
+   * Talent selling_defaults, for an offering that still inherits (null mode).
+   * Public loaders already resolve the mode (withEffectiveBookingMode).
+   */
+  sellingDefaults?: unknown;
 }) {
-  const raw = resolveOfferingCta(offering);
-  const cta = confirmsByHand && (raw === "book_now" || raw === "buy_now") ? "request_to_book" : raw;
-  const instant = !confirmsByHand && (cta === "book_now" || cta === "buy_now");
-  const slotEligible =
-    cta === "request_to_book" &&
-    offering.kind !== "product" &&
-    (offering.durationMinutes ?? 0) > 0;
-  const label = labelOverride?.trim() || pickLocale(locale, CTA_COPY[cta]);
+  // One derivation with the catalog widget and the server (WSF-B).
+  const { cta, instant, eventName, hidden } = deriveOfferingCta({
+    offering,
+    defaults: sellingDefaults,
+    confirmsByHand,
+  });
+  const label = labelOverride?.trim() || offeringCtaLabel(cta, locale, "card");
 
   const onClick = () => {
-    const detail: OfferingRequestDetail = {
-      offeringId: offering.id,
-      talentProfileId: offering.talentProfileId,
-      title: offering.title,
-      kind: offering.kind,
-      priceType: offering.priceType,
-      amountCents: offering.amountCents,
-      currency: offering.currency,
-      durationMinutes: offering.durationMinutes,
-      allowPayInPerson: offering.allowPayInPerson,
-      requireAccountToBook: offering.requireAccountToBook === true,
-      reserveMode: offering.reserveMode,
-      depositPct: offering.depositPct,
-      cancellationHours: offering.cancellationHours,
-      imageUrl: offering.imageUrls[0] ?? null,
-      variants: offering.variants ?? [],
-      addOns: offering.addOns ?? [],
-      inventoryQty: offering.inventoryQty,
-      capacityPoolId: offering.capacityPoolId,
-      intent: instant ? "instant" : "request",
-    };
-    const eventName = instant || (confirmsByHand && raw !== "ask_quote")
-      ? "tulala:offering-instant"
-      : slotEligible
-        ? "tulala:offering-slot"
-        : "tulala:offering-request";
+    const detail = buildOfferingRequestDetail(offering, instant);
     window.dispatchEvent(new CustomEvent(eventName, { detail }));
   };
+
+  // WSF-C §8: the talent's switches leave this service no route.
+  if (hidden) return null;
 
   return (
     <button

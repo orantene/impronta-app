@@ -25,6 +25,7 @@ import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -37,6 +38,7 @@ export async function setReviewMediaApprovalState(
   mediaId: string,
   state: "approved" | "rejected",
 ): Promise<ActionResult<{ approvalState: string }>> {
+  await requireNotImpersonating();
   const id = (mediaId ?? "").trim();
   if (!id) return { ok: false, error: "Missing photo id." };
   if (state !== "approved" && state !== "rejected") {

@@ -72,7 +72,8 @@ import { InspectorInfoTip } from "./inspectors/kit/inspector-info-tip";
 import { clearThemePreview, publishThemePreview } from "./theme-preview-bridge";
 import { clearComponentDefaultsPreview } from "./component-defaults-bridge";
 import { ComponentDefaultsTab } from "./component-defaults-tab";
-
+import { SiteStyleTab, SiteStyleTabLabel } from "./site-style-tab";
+import { CustomAccentCard } from "./custom-accent-card";
 import type { DesignSnapshot } from "@/lib/site-admin/edit-mode/design-actions";
 import { resolveThemeActionSet } from "./theme-action-scope";
 import { tokenDefaults } from "@/lib/site-admin/tokens/registry";
@@ -84,15 +85,12 @@ import { classifyContrast, contrastRatio } from "@/lib/site-admin/a11y/contrast"
 
 // ── tabs ─────────────────────────────────────────────────────────────────
 
-// Phase A (2026-04-26) — convergence-plan §1 / mockup §12.
-// Tab strip kept verbatim from the approved prototype (Colors / Typography /
-// Layout / Effects / Code). The "calmer Theme experience" is delivered INSIDE
-// the Code tab (formerly a wall of three peer surfaces — JSON + import +
-// nothing for mesh) by introducing a clear two-card hierarchy: Theme JSON at
-// top, Power tools disclosure card below. The everyday tabs (Colors →
-// Typography → Layout → Effects) are unchanged.
+// Phase A (2026-04-26): tab strip from the approved prototype, plus Style (site
+// style tokens: type roles, buttons, shape, spacing; see site-style-tab.tsx).
+// The Code tab holds two cards: Theme JSON on top, Power tools below.
 type TabKey =
   | "colors"
+  | "style"
   | "typography"
   | "layout"
   | "effects"
@@ -101,6 +99,7 @@ type TabKey =
 
 const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
   { key: "colors", label: "Colors" },
+  { key: "style", label: "Style" },
   { key: "typography", label: "Typography" },
   { key: "layout", label: "Layout" },
   { key: "effects", label: "Effects" },
@@ -252,6 +251,18 @@ const LAYOUT_PRESETS: ReadonlyArray<PresetSpec> = [
       { value: "atelier-blanc", label: "Atelier Blanc" },
     ],
   },
+  {
+    key: "chat.variant",
+    label: "Chat style",
+    hint: "Card is the calm one-to-one look Maison v2 uses by default.",
+    options: [{ value: "standard", label: "Standard" }, { value: "card", label: "Card" }],
+  },
+  {
+    key: "chat.help-bubble",
+    label: "Help bubble",
+    hint: "A small bubble above the chat button, once per visit, after the visitor scrolls.",
+    options: [{ value: "off", label: "Off" }, { value: "on", label: "On" }],
+  },
 ];
 
 const EFFECT_PRESETS: ReadonlyArray<PresetSpec> = [
@@ -279,12 +290,7 @@ const EFFECT_PRESETS: ReadonlyArray<PresetSpec> = [
   {
     key: "motion.stagger-preset",
     label: "Reveal stagger",
-    options: [
-      { value: "none", label: "None" },
-      { value: "subtle", label: "Subtle" },
-      { value: "editorial", label: "Editorial" },
-      { value: "dramatic", label: "Dramatic" },
-    ],
+    options: [{ value: "none", label: "None" }, { value: "subtle", label: "Subtle" }, { value: "editorial", label: "Editorial" }, { value: "dramatic", label: "Dramatic" }],
   },
 ];
 
@@ -689,15 +695,28 @@ export function ThemeDrawer(): ReactElement | null {
         title={
           !snapshot && busy === "loading"
             ? "Theme · loading…"
-            : snapshot?.presetSlug
-              ? `Theme · ${prettyPreset(snapshot.presetSlug)}`
-              : "Theme · Custom"
+            : snapshot?.designDisplayName
+              ? snapshot.paletteDisplayName
+                ? `${snapshot.designDisplayName} · ${snapshot.paletteDisplayName}`
+                : snapshot.designDisplayName
+              : snapshot?.presetSlug
+                ? `Theme · ${prettyPreset(snapshot.presetSlug)}`
+                : "Theme · Custom"
         }
         icon={<ThemeIcon />}
         saveChip={<SaveChip status={chipStatus} />}
         meta={
           !snapshot && busy === "loading" ? (
             <span style={{ color: CHROME.muted2 }}>Loading theme…</span>
+          ) : snapshot?.designDisplayName ? (
+            <>
+              {lastPublishedLabel ? `Published ${lastPublishedLabel}` : "Site theme"}
+              {dirty ? (
+                <>
+                  <span style={{ color: CHROME.muted2 }}> · </span>Unsaved
+                </>
+              ) : null}
+            </>
           ) : (
             <>
               {lastPublishedLabel ? `Published ${lastPublishedLabel}` : "Never published"}
@@ -719,7 +738,7 @@ export function ThemeDrawer(): ReactElement | null {
             active={tab === t.key}
             onClick={() => setTab(t.key)}
           >
-            {t.label}
+            {t.key === "style" ? <SiteStyleTabLabel /> : t.label}
           </DrawerTab>
         ))}
       </DrawerTabs>
@@ -735,6 +754,13 @@ export function ThemeDrawer(): ReactElement | null {
 
             {tab === "colors" ? (
               <ColorsTab draft={draft} onChange={set} />
+            ) : null}
+            {tab === "style" ? (
+              <SiteStyleTab
+                draft={draft}
+                onChange={set}
+                onReplace={(next) => setDraft(next)}
+              />
             ) : null}
             {tab === "typography" ? (
               <>
@@ -971,6 +997,7 @@ export function ThemeDrawer(): ReactElement | null {
                 >
                   {busy === "saving" ? "Saving…" : "Save draft"}
                 </button>
+                {surfaceKind === "theme_template" ? null : (
                 <button
                   type="button"
                   onClick={() => setConfirmingPublish(true)}
@@ -988,6 +1015,7 @@ export function ThemeDrawer(): ReactElement | null {
                 >
                   Publish theme
                 </button>
+                )}
               </>
             )
           }
@@ -1035,7 +1063,7 @@ function ColorsTab({
 }) {
   return (
     <>
-      {/* ── Page background — prominent at top of Colors tab ───────────── */}
+      <CustomAccentCard draft={draft} onChange={onChange} />
       <Card>
         <CardHead icon={<BackgroundIcon />} title="Page background" />
         <CardBody>

@@ -3,7 +3,7 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { describe, it } from "node:test";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,7 +31,24 @@ describe("Money page M2 spine", () => {
     assert.match(spine, /buildMoneySpineView/);
     assert.match(spine, /PaymentDetailDrawer/);
     assert.match(spine, /consumeMoneyLanding/);
+    assert.match(spine, /onOpenAction/);
+    assert.match(spine, /useDashboardText/);
     assert.match(outstanding, /Due by today/);
+    assert.match(outstanding, /onRequest/);
+    assert.match(outstanding, /onRecord/);
+  });
+
+  it("AUD-018 routes Request / Record to the booking writer; no fake-success sheets", () => {
+    const page = readFileSync(join(moneyDir, "MoneyPage.tsx"), "utf8");
+    const detail = readFileSync(join(moneyDir, "PaymentDetailDrawer.tsx"), "utf8");
+    // Record and request route to the booking record's real writer.
+    assert.match(page, /\/talent\/bookings\/\$\{encodeURIComponent\(bookingId\)\}\?collect=1/);
+    // Refund / correct / request sheets showed success with no write: they are gone.
+    for (const f of ["MoneyRequestPaymentSheet", "MoneyRefundSheet", "MoneyCorrectRecordSheet", "MoneyRecordPaymentSheet"]) {
+      assert.equal(existsSync(join(moneyDir, `${f}.tsx`)), false, f);
+      assert.doesNotMatch(page, new RegExp(f));
+    }
+    assert.doesNotMatch(detail, /onRefund|onCorrect/);
   });
 
   it("MoneySpine M4 wires payout detail, failed alternate, and account states", () => {
@@ -89,5 +106,23 @@ describe("Today money tiles M3", () => {
     assert.equal(today.includes("moneyFromEarnings"), false);
     assert.equal(agenda.includes("moneyFromEarnings"), false);
     assert.equal(agenda.includes("stillToCollectCents"), false);
+  });
+});
+
+describe("Money page never shows fixture figures to real talents", () => {
+  it("MoneyPage renders real earnings unless the demo fixture flag is set", () => {
+    const src = readFileSync(join(moneyDir, "MoneyPage.tsx"), "utf8");
+    assert.match(src, /NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE === "1"/);
+    assert.match(src, /if \(!SPINE_FIXTURE_ENABLED\) return <MoneyHomePage \/>/);
+    const earnings = readFileSync(join(moneyDir, "MoneyHomePage.tsx"), "utf8");
+    assert.match(earnings, /useResolvedTalentEarningsByCurrency/);
+    assert.equal(/septemberLedgerFixture|LEDGER_CONTRACT_CLOCK/.test(earnings), false);
+  });
+
+  it("no Money surface says a payment was recorded without a write", () => {
+    for (const file of readdirSync(moneyDir).filter((f) => f.endsWith(".tsx"))) {
+      const src = readFileSync(join(moneyDir, file), "utf8");
+      assert.equal(/Recorded \{amount\}/.test(src), false, `${file} shows "Recorded" without a writer`);
+    }
   });
 });

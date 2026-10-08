@@ -8,7 +8,7 @@ import { NOW, inboxRow } from "./test-fixtures";
 
 test("ready: name, time, subject, preview, one state line, channel, count, owner", () => {
   const html = renderToStaticMarkup(<InboxRowV5 row={inboxRow()} copy={EN_COPY} now={NOW} currentUserId="u-sofia" onOpen={() => {}} />);
-  assert.match(html, /<button[^>]*class="row-c unread"[^>]*data-inbox-row="inq-1"/);
+  assert.match(html, /<button[^>]*class="row-c unread needs"[^>]*data-inbox-row="inq-1"/);
   assert.match(html, /Valentina Ruiz/);
   assert.match(html, /2m/);
   assert.match(html, /class="sub">Beach wedding · Tulum · Aug 14/);
@@ -23,7 +23,7 @@ test("ready: name, time, subject, preview, one state line, channel, count, owner
 
 test("selected row is `on`; read row has no stripe and no count; unassigned reads a dashed pill", () => {
   const html = renderToStaticMarkup(<InboxRowV5 row={inboxRow({ unread: false, unreadCount: 0, ownerUserId: null, ownerLabel: null })} copy={EN_COPY} now={NOW} selected />);
-  assert.match(html, /class="row-c on"/);
+  assert.match(html, /class="row-c on needs"/);
   assert.doesNotMatch(html, /class="cnt"/);
   assert.match(html, /pill off">unassigned/);
   assert.match(html, /aria-current="true"/);
@@ -38,7 +38,7 @@ test("empty name reads Visitor with an anon avatar and the no-identity pill", ()
 
 test("mobile variant uses the mx-row grammar with the count inline", () => {
   const html = renderToStaticMarkup(<InboxRowV5 row={inboxRow()} copy={EN_COPY} now={NOW} variant="mobile" />);
-  assert.match(html, /class="mx-row unread"/);
+  assert.match(html, /class="mx-row unread needs"/);
   assert.match(html, /class="l1"><b>Valentina Ruiz<\/b><span>2m<\/span>/);
   assert.match(html, /<i class="cnt">2<\/i>/);
 });

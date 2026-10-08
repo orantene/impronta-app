@@ -3,7 +3,10 @@ import "server-only";
 import { logServerError } from "@/lib/server/safe-error";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
-import { readPolicyOverride } from "@/lib/bookings/policy-overrides";
+import { lateCancelRefundCents, type LateCancelRefund } from "@/lib/talent-policies/answers";
+import { bookingOfferingId, loadBookingCancelPolicy } from "./booking-cancel-policy";
+
+export { bookingOfferingId };
 
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -25,11 +28,19 @@ export type CancelBookingResult =
   | { ok: true; bookingId: string; refundableCents: number; already?: boolean }
   | { ok: false; reason: CancelBookingReason };
 
+/**
+ * What a cancel hands back. Outside the free window (or with none) it is all
+ * that was paid. Inside it, the talent's published late-cancel answer decides:
+ * none keeps the deposit (the behaviour before policies), half returns half of
+ * the deposit, full returns everything.
+ */
 export function refundableCentsFromPolicy(input: {
   paidCents: number;
   cancelFreeHours: number | null;
   startsAt: string | null;
   nowMs: number;
+  lateCancelRefund?: LateCancelRefund;
+  depositCents?: number | null;
 }): number {
   const paid = Math.max(0, Math.trunc(input.paidCents));
   const window = resolveCancellationWindow({
@@ -39,24 +50,14 @@ export function refundableCentsFromPolicy(input: {
     nowMs: input.nowMs,
   });
   if (!window.enforceable) return paid;
-  if (window.insideWindow) return 0;
-  return paid;
-}
-
-/** The offering a booking was sold as: the first offering on its order's lines. */
-export async function bookingOfferingId(admin: Admin, orderId: string): Promise<string | null> {
-  const { data, error } = await admin
-    .from("order_lines")
-    .select("offering_id")
-    .eq("order_id", orderId)
-    .not("offering_id", "is", null)
-    .limit(1);
-  if (error) {
-    logServerError("scheduling.bookingOfferingId", error);
-    return null;
+  if (window.insideWindow) {
+    return lateCancelRefundCents({
+      mode: input.lateCancelRefund ?? "none",
+      paidCents: paid,
+      depositCents: input.depositCents ?? null,
+    });
   }
-  const first = ((data ?? []) as Array<{ offering_id: string | null }>)[0];
-  return first?.offering_id ?? null;
+  return paid;
 }
 
 export async function cancelBookingSet(
@@ -141,16 +142,15 @@ export async function cancelBookingSet(
     }
   }
 
-  let cancelFreeHours: number | null = null;
-  const offeringId = orderId ? await bookingOfferingId(admin, orderId) : null;
-  if (offeringId) {
-    const override = await readPolicyOverride(admin, { tenantId: input.tenantId, offeringId });
-    if (override.ok) cancelFreeHours = override.row?.cancelFreeHours ?? null;
-  }
+  // One source for the window and the late-cancel rule (shared with the
+  // client manage link), not the overrides table alone.
+  const policy = await loadBookingCancelPolicy(admin, { tenantId: input.tenantId, orderId: orderId ?? null });
 
   const refundableCents = refundableCentsFromPolicy({
     paidCents,
-    cancelFreeHours,
+    cancelFreeHours: policy.cancelFreeHours,
+    lateCancelRefund: policy.lateCancelRefund,
+    depositCents: policy.depositCents,
     startsAt: b.starts_at ?? null,
     nowMs: input.nowMs ?? Date.now(),
   });

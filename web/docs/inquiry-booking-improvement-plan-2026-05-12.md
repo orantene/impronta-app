@@ -707,7 +707,7 @@ When spawning an agent to fix a specific item, include:
 - [ ] `revalidatePath` called on mutating actions.
 - [ ] System message emitted for state changes that participants should know about.
 - [ ] No mock data introduced without "Demo" badge.
-- [ ] `cd web && npx tsc --noEmit && npm run lint` clean.
+- [ ] `cd web && npm run typecheck && npm run lint` clean.
 
 ---
 

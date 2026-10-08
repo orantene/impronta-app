@@ -210,16 +210,16 @@ export function TalentTodayHero({
   if (isDay1) {
     headlineParts = `${copy.t("Welcome to Tulala,")} ${firstName}.`;
     subline =
-      copy.t("Your storefront is live. First inquiries usually arrive within a week — finish your profile to speed things up.");
+      copy.t("Your storefront is live. First inquiries usually arrive within a week. Finish your profile to speed things up.");
   } else if (pendingCount === 0) {
     if (!availableForWork) {
-      headlineParts = `${copy.t("You're in")} ${locationDisplay} ${copy.t("— not taking work.")}`;
+      headlineParts = `${copy.t("You're in")} ${locationDisplay} ${copy.t("· not taking work.")}`;
       subline = copy.t("Existing bookings aren't affected. Toggle availability when you're back.");
     } else {
       headlineParts = `${copy.t("You're available to work in")} ${locationDisplay}.`;
       subline = availableToTravel
         ? copy.t("Open to travel internationally.")
-        : copy.t("Local jobs only — toggle travel anytime.");
+        : copy.t("Local jobs only. Toggle travel anytime.");
     }
   } else if (pendingCount === 1) {
     headlineParts = (
@@ -252,7 +252,7 @@ export function TalentTodayHero({
     // "top of inbox first" instruction.
     const oldest = pendingTargets[0]?.name;
     subline = oldest
-      ? `${oldest} ${copy.t("has been waiting longest — start there.")}`
+      ? `${oldest} ${copy.t("has been waiting longest. Start there.")}`
       : copy.t("Reply in age order to keep relationships warm.");
   }
 
@@ -459,7 +459,7 @@ function ReplyNowSplitButton({
           display: "inline-flex",
           alignItems: "center",
           padding: "9px 14px",
-          background: COLORS.fill,
+          background: "var(--tc-action)",
           color: "#fff",
           border: "none",
           borderRadius: "8px 0 0 8px",
@@ -481,7 +481,7 @@ function ReplyNowSplitButton({
           display: "inline-flex",
           alignItems: "center",
           padding: "9px 8px",
-          background: COLORS.fill,
+          background: "var(--tc-action)",
           color: "#fff",
           border: "none",
           borderLeft: "1px solid rgba(255,255,255,0.18)",

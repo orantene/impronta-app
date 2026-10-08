@@ -25,7 +25,8 @@ export function isSlotEligibleOffering(
 ): boolean {
   if (o.kind === "product") return false;
   if ((o.durationMinutes ?? 0) <= 0) return false;
-  return o.bookingMode === "request" || o.bookingMode === "instant";
+  // null = inherits the talent default (WSF-B); only inquiry has no slots.
+  return o.bookingMode !== "inquiry";
 }
 
 export function pickBookableOffering(

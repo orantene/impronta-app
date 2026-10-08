@@ -24,6 +24,8 @@ import { useEditContext } from "../edit-context";
 import { useActiveContentLocale } from "../active-content-locale-bridge";
 import { KIT } from "./kit/tokens";
 import { LocaleFieldTabs } from "./locale-field-tabs";
+import { inspectorLocales } from "./inspector-locales";
+import { useTalentAiTranslateEnabled } from "@/components/locale-field/talent-ai-context";
 import type { BuilderNode } from "@/lib/site-admin/builder-node";
 import { deriveNestedTextFields } from "@/lib/site-admin/builder-node/nested-text-editor-model";
 import {
@@ -38,6 +40,7 @@ import {
 export function BuilderNodeNestedTextFields({ node }: { node: BuilderNode }) {
   const { availableLocales, defaultLocale, tenantLocales, patchBuilderNodeProps } =
     useEditContext();
+  const aiOn = useTalentAiTranslateEnabled();
   const { locale: activeContentLocale } = useActiveContentLocale();
 
   // Which rows, which value per tab, which dots — all decided by the pure model
@@ -48,12 +51,11 @@ export function BuilderNodeNestedTextFields({ node }: { node: BuilderNode }) {
   // Tenant truth, never the adapter's per-row list: a freeform page reports one
   // locale by design, which is exactly what hid the locale tabs on these
   // surfaces in the first place.
-  const supported =
-    (tenantLocales?.length ?? 0) > 1
-      ? tenantLocales
-      : availableLocales.length > 0
-        ? availableLocales
-        : [defaultLocale];
+  const supported = inspectorLocales(
+    (tenantLocales?.length ?? 0) > 1 ? tenantLocales : availableLocales,
+    defaultLocale,
+    activeContentLocale,
+  );
   if (supported.length <= 1) return null;
 
   const props = (node as { props?: Record<string, unknown> }).props ?? {};
@@ -62,45 +64,54 @@ export function BuilderNodeNestedTextFields({ node }: { node: BuilderNode }) {
   return (
     <section className="flex flex-col gap-2.5">
       <h3 className={KIT.blockHeading}>Nested text</h3>
-      {nested.map((field) => (
-        <div className={KIT.field} key={field.path}>
-          <label className={KIT.label}>{field.label}</label>
-          <LocaleFieldTabs
-            supportedLocales={supported}
-            defaultLocale={defaultLocale}
-            activeContentLocale={activeContentLocale}
-            ariaLabel={`${field.label} language`}
-            hasValueForLocale={field.hasValueFor}
-            renderField={(locale, isDefault) => (
-              <input
-                className={KIT.input}
-                defaultValue={field.valueFor(locale)}
-                // Remount per (path, locale) so switching tabs shows that
-                // locale's value instead of a stale uncontrolled input.
-                key={`${node.id}:${field.path}:${locale}`}
-                onBlur={(event) => {
-                  const next = event.currentTarget.value;
-                  if (isDefault) {
-                    // The DEFAULT locale is the base prop, written in place.
-                    const updated = setAtPath(props, field.path, next);
-                    if (updated === props) return; // path vanished — never invent structure
-                    const key = rootKeyOf(field.path);
-                    void patchBuilderNodeProps(node.id, {
-                      [key]: (updated as Record<string, unknown>)[key],
-                    });
-                    return;
-                  }
-                  // Every other locale is an overlay entry keyed by the SAME
-                  // dotted path `nested-i18n` applies at render.
-                  void patchBuilderNodeProps(node.id, {
-                    i18n: setOverlayProp(overlay, locale, field.path, next),
-                  });
-                }}
-              />
-            )}
-          />
-        </div>
-      ))}
+      {nested.map((field) => {
+        const commit = (locale: string, next: string) => {
+          if (locale === defaultLocale) {
+            // The DEFAULT locale is the base prop, written in place.
+            const updated = setAtPath(props, field.path, next);
+            if (updated === props) return; // path vanished — never invent structure
+            const key = rootKeyOf(field.path);
+            void patchBuilderNodeProps(node.id, {
+              [key]: (updated as Record<string, unknown>)[key],
+            });
+            return;
+          }
+          // Every other locale is an overlay entry keyed by the SAME
+          // dotted path `nested-i18n` applies at render.
+          void patchBuilderNodeProps(node.id, {
+            i18n: setOverlayProp(overlay, locale, field.path, next),
+          });
+        };
+        return (
+          <div className={KIT.field} key={field.path}>
+            <label className={KIT.label}>{field.label}</label>
+            <LocaleFieldTabs
+              supportedLocales={supported}
+              defaultLocale={defaultLocale}
+              activeContentLocale={activeContentLocale}
+              ariaLabel={`${field.label} language`}
+              hasValueForLocale={field.hasValueFor}
+              ai={
+                aiOn
+                  ? { sourceText: field.valueFor(defaultLocale), valueFor: field.valueFor, commit }
+                  : undefined
+              }
+              renderField={(locale, isDefault) => (
+                <input
+                  className={KIT.input}
+                  defaultValue={field.valueFor(locale)}
+                  // PR 7: a secondary ghosts the primary text, never pre-fills it.
+                  placeholder={isDefault ? undefined : field.valueFor(defaultLocale)}
+                  // Remount per (path, locale, value) so switching tabs or an AI
+                  // fill shows that locale's value, not a stale uncontrolled input.
+                  key={`${node.id}:${field.path}:${locale}:${field.valueFor(locale)}`}
+                  onBlur={(event) => commit(locale, event.currentTarget.value)}
+                />
+              )}
+            />
+          </div>
+        );
+      })}
     </section>
   );
 }

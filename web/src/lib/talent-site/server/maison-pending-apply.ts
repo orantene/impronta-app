@@ -15,12 +15,18 @@ import {
   parseMaisonCustomPaletteStored,
 } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
 import { mergeLookIntoTokens } from "@/lib/talent-site/theme-catalog/look-layer";
+import {
+  designTypographyTokens,
+  galleryPaletteLookTokens,
+} from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { isMaisonLivePending } from "./maison-pending-design";
 import { coerceTokenMap } from "./theme-apply-core";
+import { loadApplyDesignRow } from "@/lib/talent-site/theme-releases/release-design.server";
 import { loadMaisonCatalogRow } from "./maison-catalog-row";
 import { applyDesign, applyLook } from "./theme-apply-core";
 import { restoreMaisonDraftSnapshot } from "./maison-design-snapshot";
 import { evaluateMaisonPublishReadiness } from "./maison-publish-readiness";
+import { isPlatformSubdomainLabelTaken } from "@/lib/saas/platform-subdomain-namespace.server";
 
 export type MaisonPublishPreSite = {
   id: string;
@@ -41,6 +47,8 @@ export async function prepareMaisonSiteForPublish(
     userId: string | null;
     displayName: string;
     pre: MaisonPublishPreSite;
+    /** Blocker copy locale (AUD-024). Defaults to English. */
+    locale?: "en" | "es";
   },
 ): Promise<
   | { ok: true; pre: MaisonPublishPreSite }
@@ -52,7 +60,10 @@ export async function prepareMaisonSiteForPublish(
     }
 > {
   let pre = input.pre;
-  if (isTalentMaisonThemeEnabled() && isMaisonLivePending(pre.pending_design)) {
+  if (
+    isTalentMaisonThemeEnabled(input.talentProfileId) &&
+    isMaisonLivePending(pre.pending_design)
+  ) {
     const admin = createServiceRoleClient();
     if (!admin) {
       return { ok: false, code: "server_error", error: "Not configured." };
@@ -79,10 +90,17 @@ export async function prepareMaisonSiteForPublish(
     pre = refreshed as MaisonPublishPreSite;
   }
 
-  if (isTalentMaisonThemeEnabled()) {
+  if (isTalentMaisonThemeEnabled(input.talentProfileId)) {
+    const slugForCheck = (pre.site_slug ?? "").trim();
     const readiness = evaluateMaisonPublishReadiness({
       siteSlug: pre.site_slug,
       themeDesignSlug: pre.theme_design_slug,
+      slugTaken: slugForCheck
+        ? await isPlatformSubdomainLabelTaken(slugForCheck, {
+            excludeTalentProfileId: input.talentProfileId,
+          })
+        : null,
+      locale: input.locale,
     });
     if (!readiness.ready) {
       return {
@@ -124,7 +142,7 @@ export async function materializeMaisonLivePendingIfAny(
     return { ok: true };
   }
 
-  const design = await loadMaisonCatalogRow(admin, "design", proposed.designSlug || "maison");
+  const design = await loadApplyDesignRow(admin, proposed.designSlug || "maison");
   if (!design) {
     return { ok: false, error: "Maison design not found." };
   }
@@ -161,11 +179,23 @@ export async function materializeMaisonLivePendingIfAny(
       logServerError("maison.pending.custom.read", draftErr);
       return { ok: false, error: "Could not apply custom colors." };
     }
+    const galleryKey =
+      typeof proposed.galleryPaletteKey === "string" && proposed.galleryPaletteKey.trim()
+        ? proposed.galleryPaletteKey.trim()
+        : null;
+    const designSlug = proposed.designSlug || "maison";
     const draftTokens = mergeLookIntoTokens(
       coerceTokenMap(
         (draftRow as { design_tokens_draft?: unknown } | null)?.design_tokens_draft,
       ),
-      maisonCustomLookTokens(custom),
+      {
+        ...maisonCustomLookTokens(custom),
+        // Match never-published apply: gallery Look carries muted / on-accent /
+        // tint / fonts; custom four-swatch alone would leave the prior design's
+        // typography and omit soft tokens on live design switches.
+        ...(galleryKey ? galleryPaletteLookTokens(designSlug, galleryKey) ?? {} : {}),
+        ...designTypographyTokens(designSlug),
+      },
     );
     const now = new Date().toISOString();
     const { error } = await admin

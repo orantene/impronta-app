@@ -57,8 +57,8 @@ export function SupportIdeasView({ rows }: { rows: HqFeatureRequestRow[] }) {
             onClick={() => setFilter(id as "open" | FeatureRequestStatus)}
             style={{
               border: filter === id ? "none" : `1px solid ${HQ.borderSoft}`,
-              background: filter === id ? "#F5F2EB" : "rgba(255,255,255,0.04)",
-              color: filter === id ? "#0F0F11" : HQ.inkMuted,
+              background: filter === id ? HQ.ink : HQ.cardSoft,
+              color: filter === id ? HQ.bg : HQ.inkMuted,
               borderRadius: 999,
               padding: "6px 13px",
               fontSize: 11.5,
@@ -149,7 +149,7 @@ function IdeaCard({
             justifyContent: "center",
             minWidth: 46,
             padding: "6px 0",
-            background: "rgba(255,255,255,0.04)",
+            background: HQ.cardSoft,
             borderRadius: 10,
           }}
         >
@@ -252,7 +252,7 @@ function IdeaCard({
                 onClick={() => save(s)}
                 style={{
                   border: `1px solid ${r.status === s ? HQ.border : HQ.borderSoft}`,
-                  background: r.status === s ? "rgba(255,255,255,0.08)" : "transparent",
+                  background: r.status === s ? HQ.border : "transparent",
                   color: r.status === s ? HQ.ink : HQ.inkMuted,
                   borderRadius: 999,
                   padding: "5px 11px",
@@ -289,8 +289,8 @@ function IdeaCard({
               disabled={busy}
               onClick={() => save()}
               style={{
-                background: "#F5F2EB",
-                color: "#0F0F11",
+                background: HQ.ink,
+                color: HQ.bg,
                 border: "none",
                 borderRadius: 999,
                 padding: "7px 16px",
@@ -315,7 +315,7 @@ function IdeaCard({
 }
 
 const hqField: React.CSSProperties = {
-  background: "rgba(255,255,255,0.04)",
+  background: HQ.cardSoft,
   border: `1px solid ${HQ.borderSoft}`,
   borderRadius: 9,
   padding: "9px 11px",

@@ -23,6 +23,8 @@ import { notFound, redirect } from "next/navigation";
 
 import { publicThreadPath } from "@/lib/messaging/thread-token";
 import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
+import { getPublicHostContext } from "@/lib/saas/scope";
+import { getAppUrl } from "@/lib/auth-flow";
 
 import {
   getGuestThreadMessages,
@@ -60,6 +62,13 @@ export default async function GuestFullConversationPage({
   // service-role read to compare session.user.id to the inquiry's
   // client_user_id, BEFORE touching the guest path. Non-owned → fall through.
   const session = await getCachedActorSession();
+  // TUL-92: a talent's own site (subdomain or custom domain) serves NO workspace
+  // routes, and `hostSafeDestination` cannot speak for that host kind, so the
+  // old relative redirect landed every guest on the platform 404 right after
+  // "Confirmar cita". On a talent host the guest thread below is the page.
+  const { kind: hostKind } = await getPublicHostContext();
+  const onTalentSite = hostKind === "talent_site";
+  let ownerRedirect: string | null = null;
   if (session.user) {
     const clientRedirect = await resolveSignedInClientRedirect(inquiryId);
     if (
@@ -68,17 +77,19 @@ export default async function GuestFullConversationPage({
       session.user.id === clientRedirect.clientUserId &&
       clientRedirect.tenantSlug
     ) {
-      // Host-safe: `/c/<id>` resolves on every surface (the link is emailed and
-      // opened from anywhere), but `/<slug>/client/messages` only exists on the
-      // app + agency surfaces. Relative here meant the owner of the inquiry got
-      // a 404 when they opened their own thread on the marketing apex.
-      redirect(
-        await hostSafeRedirectDestination(
-          `/${clientRedirect.tenantSlug}/client/messages?inquiry=${encodeURIComponent(
-            inquiryId,
-          )}&tab=chat`,
-        ),
-      );
+      const workspacePath = `/${clientRedirect.tenantSlug}/client/messages?inquiry=${encodeURIComponent(
+        inquiryId,
+      )}&tab=chat`;
+      if (!onTalentSite) {
+        // Host-safe: `/c/<id>` resolves on every surface (the link is emailed
+        // and opened from anywhere), but `/<slug>/client/messages` only exists
+        // on the app + agency surfaces.
+        redirect(await hostSafeRedirectDestination(workspacePath));
+      }
+      // Talent host: render the guest thread when this browser owns it, and
+      // only fall back to the app host (absolute, session cookie is parent
+      // domain scoped) when it does not.
+      ownerRedirect = `${getAppUrl()}${workspacePath}`;
     }
     // If the signed-in user is NOT the owner of this inquiry, fall through to
     // the guest path — they may have a valid guest cookie that owns it.
@@ -89,6 +100,7 @@ export default async function GuestFullConversationPage({
   // the inquiry exists or who owns it).
   const result = await getGuestFullThread({ inquiryId });
   if (!result.ok) {
+    if (ownerRedirect) redirect(ownerRedirect);
     notFound();
   }
 

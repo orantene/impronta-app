@@ -1,41 +1,71 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useFocusTrap } from "@/components/support/use-focus-trap";
+import { deriveGuestBookingPresentation } from "@/lib/booking/guest-booking-presentation";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
-import type {
-  InstantBookActionResult,
-  InstantBookFormPayload,
-} from "@/lib/server-actions/instant-book-types";
 import { durationLabel } from "@/lib/talent/duration-label";
 import { formatMoney } from "@/lib/talent/offerings-money";
-
 import {
-    catalogCanContinueWhen,
-    catalogNeedsOptions,
-    submitCatalogBooking,
-  catalogNextDays,
-  catalogTotalCents,
-  demoReservationIso,
-  demoSlotsFor,
-  formatClock,
-  groupIsoSlotsByDay,
-  type CatalogBookingMode,
-} from "./catalog-booking-logic";
+  chooseStepContinueLabel,
+  DEFAULT_SHEET_BOOKING_SETTINGS,
+  whenStepTimeGroupLabel,
+  type CatalogSheetBookingSettings,
+} from "@/lib/talent/selling-booking-settings";
+import {
+  doneStepNextActionCopy,
+  resolveWhoStepPaymentUi,
+} from "@/lib/talent/who-step-payment-copy";
+
+import type { CatalogBookFn } from "./catalog-booking-confirm";
+import { PolicyLinkSheet } from "./PolicyLinkSheet";
 import {
   openCatalogBookingChat,
   type CatalogBookingChatHandoff,
   type CatalogBookingSelection,
 } from "./catalog-booking-chat";
+import {
+  catalogBookingDurationMinutes,
+  catalogCanContinueWhen,
+  catalogDayKey,
+  catalogDetailIsPurchase,
+  catalogNeedsOptions,
+  catalogNextDays,
+  catalogSelectedStartStillOpen,
+  catalogSlotDateLabel,
+  catalogTotalCents,
+  demoSlotsFor,
+  firstOpenDemoDayIndex,
+  formatClock,
+  groupIsoSlotsByDay,
+  type CatalogBookingMode,
+} from "./catalog-booking-logic";
+import { catalogIsQuote, catalogPriceLabel } from "./catalog-booking-price";
+import { CatalogInquiryBrief } from "./catalog-inquiry-brief";
+import { CatalogTaskNote, catalogTaskBrief } from "./catalog-task-note";
+import { CatalogIntakeFields } from "./catalog-intake-fields";
+import { preselectIntakeFromTask } from "@/lib/talent/offering-intake";
+import {
+  fetchLiveSlots,
+  shouldSkipGuestCaptchaOnHost,
+  type CatalogSlotsFn,
+} from "./catalog-booking-live-slots";
 import { CATALOG_BOOKING_CSS } from "./catalog-booking-styles";
 import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
+import { CatalogLiveWhenPicker, CatalogDemoWhenPicker } from "./CatalogLiveWhenPicker";
+import { bookingDraftKey, clearBookingDraft, loadBookingDraft } from "./booking-draft-store";
+import { CatalogWhoSummary, useBookingDraftEffects } from "./catalog-who-summary";
 import {
-  resolveWhoPrimaryAction,
-  whoStepPrimaryLabel,
-  DEFAULT_SHEET_BOOKING_SETTINGS,
-  type CatalogSheetBookingSettings,
-} from "@/lib/talent/selling-booking-settings";
+  BOOKING_RESUME_EVENT,
+  clearBookingResume,
+  peekBookingResume,
+  setBookingResume,
+} from "./booking-resume-store";
+import type { CatalogTakenSlotNotice } from "./catalog-taken-slot";
+import { resolveSheetOpening, slotArrivalPlan } from "./booking-slot-selection";
+import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
+import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -43,39 +73,7 @@ export type CatalogBookingDetail = OfferingRequestDetail & {
   inclusion?: string | null;
 };
 
-export type CatalogBookFn = (payload: InstantBookFormPayload) => Promise<InstantBookActionResult>;
-export type CatalogSlotsFn = (offeringId: string) => Promise<{ slots: string[]; timezone: string }>;
-export type { CatalogSheetBookingSettings };
-
-const DAYS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-const DAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-function shouldSkipGuestCaptchaOnHost(): boolean {
-  if (typeof window === "undefined") return false;
-  const host = window.location.hostname;
-  if (host !== "localhost" && host !== "127.0.0.1") return false;
-  // Mirrors instant-book-guest: only with the same flag that unlocks /dev.
-  return (
-    process.env.NEXT_PUBLIC_TULALA_ALLOW_DEV_SURFACES === "1" ||
-    process.env.NODE_ENV === "development"
-  );
-}
-
-async function fetchLiveSlots(offeringId: string): Promise<{ slots: string[]; timezone: string }> {
-  const from = new Date().toISOString().slice(0, 10);
-  const res = await fetch(
-    `/api/public/booking/slots?offering=${encodeURIComponent(offeringId)}&from=${from}&days=14`,
-    { cache: "no-store" },
-  );
-  const body = (await res.json()) as { slots?: string[]; timezone?: string };
-  if (!res.ok) return { slots: [], timezone: "UTC" };
-  return {
-    slots: Array.isArray(body.slots) ? body.slots : [],
-    timezone: typeof body.timezone === "string" && body.timezone.trim() ? body.timezone.trim() : "UTC",
-  };
-}
+export type { CatalogBookFn, CatalogSlotsFn, CatalogSheetBookingSettings };
 
 export function CatalogBookingSheet({
   locale = "es",
@@ -87,6 +85,7 @@ export function CatalogBookingSheet({
   onAsk,
   captcha = null,
   bookingSettings = DEFAULT_SHEET_BOOKING_SETTINGS,
+  onlineCollectReady = true,
 }: {
   locale?: string;
   mode?: CatalogBookingMode;
@@ -94,20 +93,18 @@ export function CatalogBookingSheet({
   bookFn?: CatalogBookFn;
   slotsFn?: CatalogSlotsFn;
   showAsk?: boolean;
-  /** Override ask/chat handoff. Default opens existing guest chat with context. */
   onAsk?: (handoff: CatalogBookingChatHandoff) => void;
   captcha?: GuestCaptchaConfig | null;
-  /** Talent selling defaults: posture + who-step CTA vocabulary. */
   bookingSettings?: CatalogSheetBookingSettings;
+  /** When false with online collect required, force inquiry + unavailable copy. */
+  onlineCollectReady?: boolean;
 }) {
   const es = locale.startsWith("es");
-  const DAYS = es ? DAYS_ES : DAYS_EN;
-  const MONTHS = es ? MONTHS_ES : MONTHS_EN;
   const [detail, setDetail] = useState<CatalogBookingDetail | null>(null);
   const [step, setStep] = useState<Step>("choose");
   const [variantId, setVariantId] = useState<string | null>(null);
   const [addOnIds, setAddOnIds] = useState<string[]>([]);
-  const [dayIndex, setDayIndex] = useState(0);
+  const [dayIndex, setDayIndex] = useState(() => (mode === "demo" ? firstOpenDemoDayIndex(catalogNextDays()) : 0));
   const [time, setTime] = useState<string | null>(null);
   const [liveStarts, setLiveStarts] = useState<string | null>(null);
   const [liveTz, setLiveTz] = useState("UTC");
@@ -118,12 +115,15 @@ export function CatalogBookingSheet({
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [touched, setTouched] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [wrote, setWrote] = useState(false);
+  const [wrote, setWrote] = useState(false); const [doneHref, setDoneHref] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState("");
   const [askAttempted, setAskAttempted] = useState(false);
-
+  const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
+  const [takenNotice, setTakenNotice] = useState<CatalogTakenSlotNotice | null>(null);
+  const liveStartsRef = useRef<string | null>(null);
+  const pendingSlotRef = useRef<string | null>(null); // TUL-232: slotStart awaiting the first live fetch
+  const draftKey = bookingDraftKey(tenantId);
   const skipCaptcha = shouldSkipGuestCaptchaOnHost();
   const captchaRequired =
     !skipCaptcha && captcha != null && captcha.provider !== "none" && Boolean(captcha.siteKey);
@@ -139,26 +139,53 @@ export function CatalogBookingSheet({
     const open = (e: Event) => {
       const d = (e as CustomEvent).detail as CatalogBookingDetail | undefined;
       if (!d) return;
-      setDetail(d);
-      setVariantId(null);
-      setAddOnIds([]);
-      setDayIndex(0);
-      setTime(null);
-      setLiveStarts(null);
-      setName("");
-      setPhone("");
-      setEmail("");
-      setTouched(false);
-      setError(null);
-      setBusy(false);
-      setWrote(false);
-      setAskAttempted(false);
-      const needsOption = catalogNeedsOptions(d);
-      setStep(d.startAt === "when" && !needsOption ? "when" : "choose");
+      // Quote services: ask flow only — never open the booking sheet (no times).
+      if (d.priceDisplay === "quote") {
+        openCatalogBookingChat({
+          detail: d,
+          askAbout: [d.title],
+          from: "catalog",
+          demo: mode === "demo",
+        });
+        return;
+      }
+      // PKG-2: products / untimed packages use CatalogPurchaseMount; skip only when that rail handles it.
+      if (d.intent === "instant" && catalogDetailIsPurchase(d)) return;
+      // G13: a picked task pre-selects matching intake chips (still editable).
+      setDetail(d.intake?.length ? { ...d, answers: preselectIntakeFromTask(d.intake, d.task, d.answers) } : d);
+      // TUL-59: same service reopened in this session keeps every pick and field.
+      const draft = loadBookingDraft(draftKey, d.offeringId);
+      const draftDay = draft && mode === "demo" ? days.findIndex((x) => catalogDayKey(x) === draft.dayKey) : -1;
+      setVariantId(draft?.variantId ?? null);
+      setAddOnIds(draft?.addOnIds ?? []);
+      setDayIndex(mode === "live" ? 0 : draftDay >= 0 ? draftDay : firstOpenDemoDayIndex(days));
+      // TUL-232: an explicit slotStart beats the draft's time; the draft's other fields still restore.
+      const opening = resolveSheetOpening({ mode, slotStart: d.slotStart, needsOptions: catalogNeedsOptions(d), startAt: d.startAt, draft });
+      pendingSlotRef.current = opening.slot;
+      setTime(opening.time); setLiveStarts(opening.liveStarts); liveStartsRef.current = opening.liveStarts;
+      setName(draft?.name ?? ""); setPhone(draft?.phone ?? ""); setEmail(draft?.email ?? "");
+      setTouched(false); setError(null); setWrote(false); setAskAttempted(false); setTakenNotice(null);
+      clearBookingResume();
+      // Live slots are re-fetched on the "when" step (which also re-validates the picked start), so a
+      // live draft that left from "who" resumes there rather than on a day the strip has not loaded.
+      setStep(opening.step);
     };
     const names = ["tulala:offering-instant", "tulala:offering-slot", "tulala:offering-request"];
     names.forEach((n) => window.addEventListener(n, open));
     return () => names.forEach((n) => window.removeEventListener(n, open));
+  }, [mode, days, draftKey]);
+
+  // CH-3: "back to my booking" re-opens the sheet with every pick kept (G9b: the task note rides on detail).
+  useEffect(() => {
+    const resume = () => {
+      const snap = peekBookingResume();
+      if (!snap?.detail) return; // a dock-only selection is resumed by the dock
+      clearBookingResume();
+      setDetail(snap.detail as CatalogBookingDetail);
+      setStep(snap.step);
+    };
+    window.addEventListener(BOOKING_RESUME_EVENT, resume);
+    return () => window.removeEventListener(BOOKING_RESUME_EVENT, resume);
   }, []);
 
   useEffect(() => {
@@ -180,11 +207,11 @@ export function CatalogBookingSheet({
 
   const variant = (detail?.variants ?? []).find((v) => v.id === variantId) ?? null;
   const extras = (detail?.addOns ?? []).filter((a) => addOnIds.includes(a.id));
-  const extrasMinutes = extras.reduce(
-    (sum, a) => sum + (typeof a.durationMinutes === "number" && a.durationMinutes > 0 ? a.durationMinutes : 0),
-    0,
+  const bookingDurationMinutes = catalogBookingDurationMinutes(
+    detail?.durationMinutes,
+    detail?.addOns ?? [],
+    addOnIds,
   );
-  const bookingDurationMinutes = (detail?.durationMinutes ?? 60) + extrasMinutes;
   const needsVariant = (detail?.variants ?? []).length > 0;
   const base = variant?.amountCents ?? detail?.amountCents ?? 0;
   const total = detail ? catalogTotalCents(detail, variantId, addOnIds) : 0;
@@ -207,22 +234,50 @@ export function CatalogBookingSheet({
   }, [detail, variant, needsVariant, extras, total]);
 
   useEffect(() => {
+    liveStartsRef.current = liveStarts;
+  }, [liveStarts]);
+
+  useBookingDraftEffects({
+    detail, step, variantId, addOnIds, dayIndex, time, liveStarts, name, email, phone, mode, days, draftKey,
+    captchaRequired, captchaProvider: captcha?.provider,
+  });
+
+  useEffect(() => {
     if (!detail || step !== "when" || mode !== "live") return;
     let cancelled = false;
     setSlotsReady(false);
     setSlotsLoading(true);
     const run = slotsFn ?? fetchLiveSlots;
-    run(detail.offeringId)
+    // BUF-5: project slots for base + extras so near-close / near-busy starts
+    // that only fit the shorter base duration never appear.
+    run(detail.offeringId, bookingDurationMinutes)
       .then((r) => {
         if (cancelled) return;
         setLiveTz(r.timezone);
-        setLiveDays(groupIsoSlotsByDay(r.slots, r.timezone));
+        const grouped = groupIsoSlotsByDay(r.slots, r.timezone);
+        setLiveDays(grouped);
+        // TUL-232: opened at a slot: select it, or fall back to its day / the first day with the notice.
+        const arrival = slotArrivalPlan(pendingSlotRef.current, grouped, r.timezone, locale);
+        pendingSlotRef.current = null;
+        if (arrival) { setDayIndex(arrival.dayIndex); setTime(arrival.time); setLiveStarts(arrival.liveStarts); setTakenNotice(arrival.notice); return; }
+        // BUF-6: keep the pick only when that ISO is still offered; otherwise
+        // clear clock + ISO so confirm cannot send a start that no longer fits.
+        const prev = liveStartsRef.current;
+        if (catalogSelectedStartStillOpen(prev, r.slots)) {
+          const idx = grouped.findIndex((d) => d.starts.includes(prev!));
+          if (idx >= 0) setDayIndex(idx);
+          return;
+        }
         setDayIndex(0);
         setTime(null);
         setLiveStarts(null);
       })
       .catch(() => {
-        if (!cancelled) setLiveDays([]);
+        if (!cancelled) {
+          setLiveDays([]);
+          setTime(null);
+          setLiveStarts(null);
+        }
       })
       .finally(() => {
         if (!cancelled) {
@@ -233,38 +288,91 @@ export function CatalogBookingSheet({
     return () => {
       cancelled = true;
     };
-  }, [detail, step, mode, slotsFn]);
-
-  if (!detail) return <style>{CATALOG_BOOKING_CSS}</style>;
+  }, [detail, step, mode, slotsFn, bookingDurationMinutes, slotsRefreshKey, locale]);
 
   const day = mode === "live" ? (liveDays[dayIndex]?.date ?? days[0]!) : (days[dayIndex] ?? days[0]!);
-  const demoTimes = demoSlotsFor(day, detail.durationMinutes);
-  const liveTimes = liveDays[dayIndex]?.starts ?? [];
   const nameValid = name.trim().length >= 2;
   const emailValid = /.+@.+\..+/.test(email.trim());
   const phoneValid = phone.trim() === "" || phone.replace(/\D/g, "").length >= 8;
-  const isRequest = detail.intent === "request";
-  const whoAction = resolveWhoPrimaryAction({
-    bookingPosture: bookingSettings.bookingPosture,
-    whoPrimaryCta: bookingSettings.whoPrimaryCta,
-    offeringIntent: detail.intent,
-  });
-  const whoCtaText = whoStepPrimaryLabel({
-    action: whoAction,
-    whoPrimaryCta: bookingSettings.whoPrimaryCta,
+  const { busy, confirm, resetConfirmGuards } = useCatalogBookingConfirm({
     locale,
+    mode,
+    tenantId,
+    bookFn,
+    intent: detail?.intent ?? "instant",
+    talentProfileId: detail?.talentProfileId ?? null,
+    offeringId: detail?.offeringId ?? "",
+    reserveMode: detail?.reserveMode ?? "free",
+    allowPayInPerson: detail?.allowPayInPerson !== false,
+    variantId,
+    addOnIds,
+    brief: catalogTaskBrief(detail),
+    liveStarts,
+    liveTz,
+    liveDays,
+    bookingDurationMinutes,
+    day,
+    time,
+    captchaRequired,
+    captchaToken,
+    nameValid,
+    emailValid,
+    phoneValid,
+    name,
+    email,
+    phone,
+    setTouched,
+    setError,
+    setTime,
+    setLiveStarts,
+    setStep,
+    setWrote,
+    setDoneHref,
+    setSlotsRefreshKey,
+    setTakenNotice,
   });
+
+  useEffect(() => {
+    if (detail) return;
+    resetConfirmGuards();
+  }, [detail, resetConfirmGuards]);
+
+  if (!detail) return <style>{CATALOG_BOOKING_CSS}</style>;
+
+  const demoTimes = demoSlotsFor(day, bookingDurationMinutes);
+  const isRequest = detail.intent === "request";
+  // Just written, no order state yet: online-collect reads HELD, never confirmed.
+  const doneStatus = deriveGuestBookingPresentation({
+    bookingMode: isRequest ? "request" : "instant", reserveMode: detail.reserveMode,
+    payAtVisit: detail.reserveMode === "free", orderStatus: null, transactionStatus: null,
+    holdExpiresAt: null, now: new Date(), locale,
+  });
+  const { whoAction, whoCtaText, paymentFixture } = resolveWhoStepPaymentUi({
+    reserveMode: detail.reserveMode,
+    allowPayInPerson: detail.allowPayInPerson,
+    depositPct: detail.depositPct,
+    onlineCollectReady,
+    locale,
+    offeringIntent: detail.intent,
+    bookingSettings,
+  });
+  const isQuote = catalogIsQuote(detail);
+  const timeGroupLabel = whenStepTimeGroupLabel({ action: whoAction, locale });
   const selectedTime = catalogCanContinueWhen(time);
   const chatNameValid = name.trim().length >= 2;
   const chatPhoneValid = phone.replace(/\D/g, "").length >= 8;
 
-  const slotLabel =
-    time != null
-      ? `${DAYS[day.getDay()]} ${day.getDate()} ${es ? "de" : ""} ${MONTHS[day.getMonth()]}, ${time}`.replace(
-          /\s+/g,
-          " ",
-        ).trim()
-      : null;
+  /** Explicit "Start over": drop the draft and every pick. */
+  const startOver = () => {
+    clearBookingDraft(draftKey);
+    setVariantId(null); setAddOnIds([]); setTime(null); setLiveStarts(null);
+    setDayIndex(mode === "live" ? 0 : firstOpenDemoDayIndex(days));
+    setName(""); setPhone(""); setEmail("");
+    setTouched(false); setError(null); setAskAttempted(false); setCaptchaToken(""); setTakenNotice(null);
+    setStep("choose");
+  };
+
+  const slotLabel = time != null ? catalogSlotDateLabel(day, time, es) : null;
 
   const buildSelection = (): CatalogBookingSelection => ({
     variantId,
@@ -275,6 +383,12 @@ export function CatalogBookingSheet({
     startsAt: liveStarts,
     totalCents: total,
   });
+
+  /** CH-3: remember where she left so the chat can offer the way back. */
+  const stashResume = () => {
+    if (mode !== "live" || step === "done") return;
+    setBookingResume({ detail, step, title: detail.title, totalCents: isQuote ? null : total, currency: detail.currency });
+  };
 
   const startChat = () => {
     setTouched(true);
@@ -293,76 +407,31 @@ export function CatalogBookingSheet({
       sourcePage: typeof window !== "undefined" ? window.location.pathname : undefined,
       demo: mode === "demo",
     };
+    stashResume();
     setDetail(null);
     if (onAsk) onAsk(handoff);
     else openCatalogBookingChat(handoff);
   };
 
-  const confirm = async () => {
-    setTouched(true);
-    if (!nameValid || !emailValid || !phoneValid) return;
-    if (captchaRequired && !captchaToken.trim()) {
-      setError(es ? "Completá la verificación." : "Complete the verification.");
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    const submitted = await submitCatalogBooking(mode, detail.intent, async () => {
-      if (!tenantId || !detail.talentProfileId) {
-        return { ok: false as const, error: es ? "Falta el estudio para guardar la cita." : "This site is not ready to take bookings." };
-      }
-      const reservation = liveStarts
-        ? {
-            startsAt: liveStarts,
-            endsAt: new Date(
-              new Date(liveStarts).getTime() + bookingDurationMinutes * 60_000,
-            ).toISOString(),
-            timezone: liveTz,
-          }
-        : time
-          ? demoReservationIso(day, time, bookingDurationMinutes)
-          : null;
-      const run =
-        bookFn ??
-        (await import("@/lib/server-actions/instant-book-action")).createInstantBookingAction;
-      return run({
-        talentProfileId: detail.talentProfileId,
-        tenantId,
-        contactName: name.trim(),
-        contactEmail: email.trim(),
-        contactPhone: phone.trim() || null,
-        offeringId: detail.offeringId,
-        payInPerson:
-          detail.reserveMode === "free" && detail.allowPayInPerson !== false,
-        variantId,
-        addOnIds,
-        reservation,
-        captchaToken: captchaRequired ? captchaToken || null : null,
-        sourcePage: typeof window !== "undefined" ? window.location.pathname : null,
-      });
-    });
-    if (!submitted.wrote) {
-      window.setTimeout(() => {
-        setBusy(false);
-        setWrote(false);
-        setStep("done");
-      }, mode === "demo" ? 400 : 200);
-      return;
-    }
-    setBusy(false);
-    const result = submitted.result;
-    if (!result || !result.ok) {
-      setError(result?.error ?? (es ? "No se pudo guardar." : "Could not save."));
-      return;
-    }
-    setWrote(true);
-    const redirect = result.redirectPath?.trim();
-    if (redirect) {
-      window.location.href = redirect;
-      return;
-    }
-    setStep("done");
+  /** Empty-slot escape hatch — open ask/chat without contact (launcher collects it). */
+  const askAvailability = () => {
+    const handoff: CatalogBookingChatHandoff = {
+      detail,
+      selection: buildSelection(),
+      from: "sheet",
+      sourcePage: typeof window !== "undefined" ? window.location.pathname : undefined,
+      demo: mode === "demo",
+    };
+    stashResume();
+    setDetail(null);
+    if (onAsk) onAsk(handoff);
+    else openCatalogBookingChat(handoff);
   };
+  const emptyConsultButton = (
+    <button type="button" className="jb-ask" data-catalog-empty-ask="" onClick={() => askAvailability()}>
+      {es ? "Consultar disponibilidad" : "Check availability"}
+    </button>
+  );
 
   return (
     <div
@@ -378,40 +447,30 @@ export function CatalogBookingSheet({
     >
       <style>{CATALOG_BOOKING_CSS}</style>
       <div className="jb-sheet">
-        <header className="jb-head">
-          <div>
-            <p className="jb-kicker">
-              {step === "done"
-                ? isRequest
-                  ? es
-                    ? "Solicitud enviada"
-                    : "Request sent"
-                  : es
-                    ? "Cita confirmada"
-                    : "Appointment confirmed"
-                : es
-                  ? "Tu reserva"
-                  : "Your booking"}
-            </p>
-            <h2>{detail.title}</h2>
-          </div>
-          <button type="button" className="jb-x" onClick={() => setDetail(null)} aria-label={es ? "Cerrar" : "Close"}>
-            ✕
-          </button>
-        </header>
+        <CatalogSheetHeader
+          kicker={step === "done" ? doneStatus.headline : es ? "Tu reserva" : "Your booking"}
+          title={detail.title} closeLabel={es ? "Cerrar" : "Close"} onClose={() => setDetail(null)}
+        />
 
         <div className="jb-body">
+          {step !== "choose" && step !== "done" ? (
+            <button type="button" className="jb-back-link" data-catalog-start-over="" onClick={startOver}>
+              {es ? "Empezar de nuevo" : "Start over"}
+            </button>
+          ) : null}
           {step === "choose" ? (
             <>
               <div className="jb-summary">
                 <div>
-                  <span>{es ? "Precio base" : "Base price"}</span>
-                  <strong>{money(detail.amountCents ?? 0, detail.currency)}</strong>
+                  <span>{isQuote ? (es ? "Precio" : "Price") : es ? "Precio base" : "Base price"}</span>
+                  <strong data-catalog-price={isQuote ? "quote" : "money"}>
+                    {catalogPriceLabel(detail, detail.amountCents ?? 0, locale, money)}
+                  </strong>
                 </div>
-                {detail.durationMinutes ? (
+                {bookingDurationMinutes ? (
                   <p className="jb-fixture">
                     {es ? "Duración estimada" : "Estimated duration"}{" "}
-                    {durationLabel(detail.durationMinutes, locale)}
+                    {durationLabel(bookingDurationMinutes, locale)}
                     {mode === "demo"
                       ? es
                         ? " · dato de prueba, se confirma al agendar"
@@ -419,13 +478,25 @@ export function CatalogBookingSheet({
                       : null}
                   </p>
                 ) : null}
-                {detail.inclusion ? <p className="jb-incl">✓ {detail.inclusion}</p> : null}
+                <CatalogInquiryBrief
+                  description={detail.description}
+                  where={detail.where}
+                  inclusion={detail.inclusion}
+                  locale={locale}
+                />
               </div>
+              <CatalogTaskNote detail={detail} locale={locale} onChange={(note) => setDetail({ ...detail, note })} />
+              <CatalogIntakeFields
+                questions={detail.intake}
+                answers={detail.answers}
+                locale={locale}
+                onChange={(answers) => setDetail({ ...detail, answers })}
+              />
 
               {needsVariant ? (
                 <fieldset className="jb-group">
                   <legend>
-                    {es ? "Elegí una opción" : "Choose an option"}{" "}
+                    {es ? "Elige una opción" : "Choose an option"}{" "}
                     <span className="jb-req">{es ? "obligatorio" : "required"}</span>
                   </legend>
                   {(detail.variants ?? []).map((v) => (
@@ -437,7 +508,14 @@ export function CatalogBookingSheet({
                         onChange={() => setVariantId(v.id)}
                       />
                       <span>{v.label}</span>
-                      <b>{money(v.amountCents ?? detail.amountCents ?? 0, detail.currency)}</b>
+                      <b>
+                        {catalogPriceLabel(
+                          detail,
+                          v.amountCents ?? detail.amountCents ?? 0,
+                          locale,
+                          money,
+                        )}
+                      </b>
                     </label>
                   ))}
                 </fieldset>
@@ -478,7 +556,7 @@ export function CatalogBookingSheet({
               <div className="jb-lines">
                 <div>
                   <span>{variant ? `${detail.title} · ${variant.label}` : detail.title}</span>
-                  <span>{money(base, detail.currency)}</span>
+                  <span>{catalogPriceLabel(detail, base, locale, money)}</span>
                 </div>
                 {extras.map((e) => (
                   <div key={e.id}>
@@ -495,108 +573,46 @@ export function CatalogBookingSheet({
 
           {step === "when" ? (
             <>
-              <button type="button" className="jb-back-link" onClick={() => setStep("choose")}>
+              <button type="button" className="jb-back-link" onClick={() => { setTakenNotice(null); setStep("choose"); }}>
                 {es ? "← Cambiar servicio u opciones" : "← Change service or options"}
               </button>
               {mode === "live" && (slotsLoading || !slotsReady) ? (
-                <p className="jb-fixture">{es ? "Cargando horarios…" : "Loading times…"}</p>
+                <p className="jb-fixture">
+                  <span className="cb-spinner" aria-hidden="true" />
+                  {es ? "Cargando horarios…" : "Loading times…"}
+                </p>
               ) : mode === "live" ? (
-                <>
-                  <div className="jb-days" role="group" aria-label={es ? "Elegí una fecha" : "Pick a date"}>
-                    {liveDays.length === 0 ? null : liveDays.map((d, i) => (
-                      <button
-                        key={d.key}
-                        type="button"
-                        className="jb-day"
-                        data-on={i === dayIndex}
-                        onClick={() => {
-                          setDayIndex(i);
-                          setTime(null);
-                          setLiveStarts(null);
-                        }}
-                      >
-                        <span>{DAYS[d.date.getDay()]?.slice(0, 3)}</span>
-                        <b>{d.date.getDate()}</b>
-                        <small>{MONTHS[d.date.getMonth()]}</small>
-                      </button>
-                    ))}
-                  </div>
-                  {liveTimes.length === 0 ? (
-                    <div className="jb-empty">
-                      <strong>{es ? "Sin horarios disponibles." : "No times available."}</strong>
-                      <p>
-                        {es
-                          ? "No hay huecos en las próximas dos semanas. Probá otra fecha o consultá."
-                          : "Nothing is open in the next two weeks. Try another day or send a question."}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="jb-times" role="group" aria-label={es ? "Elegí un horario" : "Pick a time"}>
-                      {liveTimes.map((iso) => {
-                        const label = formatClock(iso, liveTz, locale);
-                        return (
-                          <button
-                            key={iso}
-                            type="button"
-                            className="jb-time"
-                            data-on={iso === liveStarts}
-                            onClick={() => {
-                              setLiveStarts(iso);
-                              setTime(label);
-                            }}
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
+                <CatalogLiveWhenPicker
+                  es={es}
+                  locale={locale}
+                  liveDays={liveDays}
+                  dayIndex={dayIndex}
+                  liveStarts={liveStarts}
+                  liveTz={liveTz}
+                  timeGroupLabel={timeGroupLabel}
+                  emptyConsultButton={emptyConsultButton}
+                  takenNotice={takenNotice}
+                  onPickDay={(i) => { setDayIndex(i); setTime(null); setLiveStarts(null); }}
+                  onPickStart={(iso, label, i) => {
+                    if (i !== undefined && i >= 0) setDayIndex(i);
+                    setLiveStarts(iso);
+                    setTime(label);
+                    setTakenNotice(null);
+                  }}
+                />
               ) : (
-                <>
-                  <div className="jb-days" role="group" aria-label={es ? "Elegí una fecha" : "Pick a date"}>
-                    {days.map((d, i) => {
-                      const closed = d.getDay() === 0;
-                      return (
-                        <button
-                          key={d.toISOString()}
-                          type="button"
-                          className="jb-day"
-                          data-on={i === dayIndex}
-                          disabled={closed}
-                          onClick={() => {
-                            setDayIndex(i);
-                            setTime(null);
-                          }}
-                        >
-                          <span>{DAYS[d.getDay()]?.slice(0, 3)}</span>
-                          <b>{d.getDate()}</b>
-                          <small>{MONTHS[d.getMonth()]}</small>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {demoTimes.length === 0 ? (
-                    <div className="jb-empty">
-                      <strong>{es ? "Sin horarios disponibles ese día." : "No times that day."}</strong>
-                      <p>{es ? "Elegí otra fecha." : "Pick another date."}</p>
-                    </div>
-                  ) : (
-                    <div className="jb-times" role="group" aria-label={es ? "Elegí un horario" : "Pick a time"}>
-                      {demoTimes.map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          className="jb-time"
-                          data-on={t === time}
-                          onClick={() => setTime(t)}
-                        >
-                          {t}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </>
+                <CatalogDemoWhenPicker
+                  es={es}
+                  days={days}
+                  day={day}
+                  dayIndex={dayIndex}
+                  time={time}
+                  demoTimes={demoTimes}
+                  timeGroupLabel={timeGroupLabel}
+                  emptyConsultButton={emptyConsultButton}
+                  onPickDay={(i) => { setDayIndex(i); setTime(null); }}
+                  onPickTime={setTime}
+                />
               )}
             </>
           ) : null}
@@ -606,10 +622,14 @@ export function CatalogBookingSheet({
               <button type="button" className="jb-back-link" onClick={() => setStep("when")}>
                 {es ? "← Cambiar horario" : "← Change time"}
               </button>
-              <p className="jb-recap">
-                {DAYS[day.getDay()]} {day.getDate()} {es ? "de" : ""} {MONTHS[day.getMonth()]}, {time} ·{" "}
-                {money(total, detail.currency)}
-              </p>
+              <CatalogWhoSummary
+                es={es}
+                service={variant ? `${detail.title} · ${variant.label}` : detail.title}
+                day={day}
+                time={time}
+                tz={mode === "live" ? liveTz : null}
+                total={isQuote ? (es ? "A cotizar" : "Quote") : money(total, detail.currency)}
+              />
               <label className="jb-field">
                 <span>{es ? "Nombre" : "Name"}</span>
                 <input
@@ -621,7 +641,7 @@ export function CatalogBookingSheet({
                   data-testid="cb-name"
                 />
                 {touched && !nameValid ? (
-                  <em>{es ? "Escribí tu nombre para confirmar." : "Enter your name to confirm."}</em>
+                  <em>{es ? "Escribe tu nombre para confirmar." : "Enter your name to confirm."}</em>
                 ) : null}
               </label>
               <label className="jb-field">
@@ -638,7 +658,7 @@ export function CatalogBookingSheet({
                   aria-invalid={touched && !phoneValid}
                   data-testid="cb-phone"
                 />
-                {touched && !phoneValid ? <em>{es ? "Revisá el número." : "Check the number."}</em> : null}
+                {touched && !phoneValid ? <em>{es ? "Revisa el número." : "Check the number."}</em> : null}
                 {askAttempted && !chatPhoneValid ? (
                   <em>{es ? "WhatsApp hace falta para chatear." : "WhatsApp is needed to chat."}</em>
                 ) : null}
@@ -660,10 +680,8 @@ export function CatalogBookingSheet({
                   <em>{es ? "Necesitamos un correo válido." : "We need a valid email."}</em>
                 ) : null}
               </label>
-              <p className="jb-fixture">
-                {es
-                  ? "No se cobra nada ahora. El pago se realiza en el estudio."
-                  : "Nothing is charged now. Pay at the studio."}
+              <p className="jb-fixture" data-catalog-who-pay="">
+                {paymentFixture}
               </p>
               {captchaRequired ? (
                 <GuestCaptchaField
@@ -680,7 +698,7 @@ export function CatalogBookingSheet({
                   onClick={() => startChat()}
                 >
                   {es
-                    ? "¿Tenés una duda? Preguntá antes de reservar →"
+                    ? "¿Tienes una duda? Pregunta antes de reservar →"
                     : "Have a question? Ask before booking →"}
                 </button>
               ) : null}
@@ -689,44 +707,38 @@ export function CatalogBookingSheet({
           ) : null}
 
           {step === "done" ? (
-            <div className="jb-done">
-              <div className="jb-check" aria-hidden="true">
-                ✓
-              </div>
-              <h3>
-                {DAYS[day.getDay()]} {day.getDate()} {es ? "de" : ""} {MONTHS[day.getMonth()]}, {time}
-              </h3>
-              <p>
-                {detail.title}
-                {variant ? ` · ${variant.label}` : ""}
-                {extras.length ? ` · ${extras.map((e) => e.label).join(", ")}` : ""} ·{" "}
-                {money(total, detail.currency)}
-              </p>
-              <p className="jb-fixture">
-                {isRequest
-                  ? es
-                    ? "Queda pendiente de confirmación."
-                    : "This stays pending until it is confirmed."
-                  : es
-                    ? "Recibirás la confirmación por correo."
-                    : "You will get the confirmation by email."}
-              </p>
-              {mode === "demo" || !wrote ? (
-                <p className="jb-demo" data-catalog-demo-note="">
-                  {es
-                    ? "Demostración: aquí no se guarda nada."
-                    : "Preview: nothing is saved here."}
-                </p>
-              ) : null}
-            </div>
+            <CatalogDonePanel
+              detail={detail}
+              es={es}
+              slotLabel={slotLabel}
+              variantLabel={variant ? variant.label : null}
+              extraLabels={extras.map((e) => e.label)}
+              isQuote={isQuote}
+              totalLabel={money(total, detail.currency)}
+              doneStatus={doneStatus}
+              nextActionCopy={doneStepNextActionCopy({
+                reserveMode: detail.reserveMode,
+                allowPayInPerson: detail.allowPayInPerson,
+                depositPct: detail.depositPct,
+                onlineCollectReady,
+                locale,
+                wrote,
+                isRequest,
+              })}
+              showDemoNote={mode === "demo" || !wrote}
+              chatHref={wrote ? doneHref : null}
+            />
           ) : null}
         </div>
 
+        {step === "who" ? <div style={{ textAlign: "center", padding: "6px 0" }}><PolicyLinkSheet talentProfileId={detail.talentProfileId} locale={locale} /></div> : null}
         <footer className="jb-foot">
           {step !== "done" ? (
             <div className="jb-total">
               <span>Total</span>
-              <b>{money(total, detail.currency)}</b>
+              <b data-catalog-price={isQuote ? "quote" : "money"}>
+                {catalogPriceLabel(detail, total, locale, money)}
+              </b>
             </div>
           ) : (
             <span />
@@ -740,13 +752,11 @@ export function CatalogBookingSheet({
               disabled={needsVariant && !variant}
               onClick={() => setStep("when")}
             >
-              {needsVariant && !variant
-                ? es
-                  ? "Elegí una opción"
-                  : "Choose an option"
-                : es
-                  ? "Continuar: elegir horario"
-                  : "Continue: pick a time"}
+              {chooseStepContinueLabel({
+                action: whoAction,
+                locale,
+                needsOption: needsVariant && !variant,
+              })}
             </button>
           ) : null}
           {step === "when" ? (

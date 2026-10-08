@@ -173,7 +173,7 @@ the impronta storefront render: full-screen photo + scrim + gold "imprint." + CT
   template; prepare PR. Owner runs `publishTemplate` after sign-off.
 
 ## Gates / process
-- `cd web && NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit && npm run lint` clean +
+- `cd web && npm run typecheck && npm run lint` clean +
   `verify:server-actions` + `test:builder`. No migration unless governance columns are added.
 - Build/compose in Builder Lab → save DRAFT (`createTemplateDraft`); do NOT `publishTemplate` until
   owner sign-off. PR to `main` only after approval (auto-deploys to prod). Respect

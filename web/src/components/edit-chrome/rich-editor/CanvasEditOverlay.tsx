@@ -32,6 +32,12 @@ import {
   canvasOverlayStyleFromPatch,
   subscribeCanvasOverlayStylePatch,
 } from "../canvas-lexical-bridge";
+import {
+  INLINE_EDIT_WRAP_STYLE,
+  growTargetToBox,
+  releaseTargetGrowth,
+  resolveInlineEditBox,
+} from "./inline-edit-box";
 import { RichEditor } from "./RichEditor";
 import type { CaretPoint } from "./plugins/AutoFocusCaretPlugin";
 import type { SlashCommandInsertConfig } from "./plugins/SlashCommandPlugin";
@@ -43,6 +49,8 @@ interface Props {
   initialValue: string;
   /** Remount the editor when undo/redo changes stored copy mid-edit. */
   resyncKey?: number;
+  /** PR 7: placeholder for an empty secondary-locale edit (the primary text). */
+  ghost?: string;
   /** Tenant id for LinkPicker scoping. */
   tenantId?: string;
   /**
@@ -96,6 +104,7 @@ export function CanvasEditOverlay({
   target,
   initialValue,
   resyncKey = 0,
+  ghost,
   tenantId,
   variant,
   onCommit,
@@ -116,7 +125,7 @@ export function CanvasEditOverlay({
   // (undo/redo mid-edit) refocuses at the end of the restored text rather than
   // jumping the caret back to wherever the original double-click landed.
   const initialCaretPoint: CaretPoint | null = resyncKey === 0 ? caretPoint : null;
-  const [rect, setRect] = useState(() => target.getBoundingClientRect());
+  const [rect, setRect] = useState(() => measureEditBox(target));
   // WAVE 2.1 — computed on the FIRST render, not in a layout effect. The caret
   // is placed by hit-testing the operator's double-click point against the
   // overlay's own glyphs, and a first render at the wrong font size puts those
@@ -134,10 +143,27 @@ export function CanvasEditOverlay({
 
   useLayoutEffect(() => {
     const previous = target.style.visibility;
-    target.style.visibility = "hidden";
+    const previousPriority = target.style.getPropertyPriority("visibility");
+    // `important` so a theme rule or a re-render can never un-hide the original
+    // text underneath the editor (ghost / doubled text, TUL-78 #7).
+    target.style.setProperty("visibility", "hidden", "important");
     return () => {
-      target.style.visibility = previous;
+      target.style.setProperty("visibility", previous, previousPriority);
+      releaseTargetGrowth(target);
     };
+  }, [target]);
+
+  // TUL-78 E-06: the box grows with the text, and the hidden target grows with
+  // the box so the paragraph below moves down instead of being overlapped.
+  useLayoutEffect(() => {
+    const el = overlayRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      growTargetToBox(target, el.getBoundingClientRect().height);
+      setRect(measureEditBox(target));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [target]);
 
   useLayoutEffect(() => {
@@ -156,7 +182,7 @@ export function CanvasEditOverlay({
     let raf = 0;
     function refresh() {
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => setRect(target.getBoundingClientRect()));
+      raf = requestAnimationFrame(() => setRect(measureEditBox(target)));
     }
     window.addEventListener("scroll", refresh, { capture: true, passive: true });
     window.addEventListener("resize", refresh);
@@ -174,8 +200,10 @@ export function CanvasEditOverlay({
     committedRef.current = true;
     const serialized = valueRef.current.trim();
     const liveText = (fieldRef.current?.innerText ?? "").trim();
+    // An empty seed (untranslated secondary) never falls back to innerText:
+    // that would read the ghost placeholder and save it as the translation.
     onCommit(
-      serialized === initialValue.trim() && liveText ? liveText : serialized,
+      serialized === initialValue.trim() && liveText && initialValue.trim() ? liveText : serialized,
     );
   }, [initialValue, onCommit]);
 
@@ -297,6 +325,7 @@ export function CanvasEditOverlay({
         width: rect.width,
         minHeight: rect.height,
         zIndex: 125,
+        ...INLINE_EDIT_WRAP_STYLE,
         ...typeStyles,
         outline: "1px solid rgba(17,24,39,0.92)",
         outlineOffset: 2,
@@ -315,6 +344,7 @@ export function CanvasEditOverlay({
           variant={variant}
           tenantId={tenantId}
           ariaLabel="Inline canvas editor"
+          placeholder={ghost}
           autoFocus
           autoFocusCaretPoint={initialCaretPoint}
           suppressFloatingToolbar
@@ -326,6 +356,19 @@ export function CanvasEditOverlay({
     </div>,
     document.body,
   );
+}
+
+/** The edit box rectangle for `target` (see resolveInlineEditBox). */
+function measureEditBox(target: HTMLElement) {
+  const rect = target.getBoundingClientRect();
+  const parent = target.parentElement?.getBoundingClientRect() ?? null;
+  const box = resolveInlineEditBox({
+    rect,
+    parentRect: parent ? { left: parent.left, width: parent.width } : null,
+    display: window.getComputedStyle(target).display,
+    viewportWidth: window.innerWidth,
+  });
+  return { top: box.top, left: box.left, width: box.width, height: rect.height };
 }
 
 /** The target's computed type styles, so the overlay lays text out identically. */

@@ -15,6 +15,7 @@ import {
   type TalentThemeCatalogRow,
   type TalentThemeKind,
 } from "@/lib/talent-site/theme-catalog/types";
+import { COLLECTION_DESIGNS } from "@/lib/talent-site/theme-catalog/collection/designs";
 import type { BuiltinDesignEntry, BuiltinLookEntry } from "@/lib/talent-site/theme-catalog/builtins/types";
 import { coerceCatalogRow, CATALOG_ROW_COLUMNS } from "./theme-catalog-row";
 import { logServerError } from "@/lib/server/safe-error";
@@ -46,12 +47,16 @@ function asPublishedRow(
   } as TalentThemeCatalogRow;
 }
 
-function maisonBuiltinRow<K extends TalentThemeKind>(
+export function maisonBuiltinRow<K extends TalentThemeKind>(
   kind: K,
   slug: string,
 ): Extract<TalentThemeCatalogRow, { kind: K }> | null {
   if (kind === "design" && slug === MAISON_BUILTIN_DESIGN.slug) {
     return asPublishedRow(MAISON_BUILTIN_DESIGN) as Extract<TalentThemeCatalogRow, { kind: K }>;
+  }
+  if (kind === "design") {
+    const collection = COLLECTION_DESIGNS.find((d) => d.slug === slug);
+    if (collection) return asPublishedRow(collection) as Extract<TalentThemeCatalogRow, { kind: K }>;
   }
   if (kind === "look") {
     const look = MAISON_BUILTIN_LOOKS.find((l) => l.slug === slug);

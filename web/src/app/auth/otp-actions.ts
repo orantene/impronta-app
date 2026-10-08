@@ -24,20 +24,32 @@
  * locale rides on `emailRedirectTo` as `?lang=` for the auth-email hook, and
  * tenant hosts get a workspace-activity audit row.
  *
- * Scope: client intent only. Operator and talent auth are untouched.
+ * Also used by password-signup confirmation (`SignupCodeConfirm`): when `next`
+ * is a talent signup path, promote client→talent before redirect.
  */
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
-import { getAppUrl, normalizeNextPath, resolvePostAuthDestination } from "@/lib/auth-flow";
+import {
+  getAppUrl,
+  isTalentSignupNext,
+  normalizeNextPath,
+  resolvePostAuthDestination,
+} from "@/lib/auth-flow";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { createTranslator } from "@/i18n/messages";
 import { logServerError } from "@/lib/server/safe-error";
 import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";
+import { promoteFreshProfileToTalent } from "@/lib/auth/promote-talent-signup";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
+import {
+  clearParentDomainAuthCookiesOnDeskHost,
+  deskRequestHost,
+} from "@/lib/support/desk/desk-auth-cookies";
+import { supportDeskPostAuthDestination } from "@/lib/support/desk/desk-url";
 import { SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import {
@@ -61,6 +73,9 @@ import {
   otpSendErrorKey,
   otpVerifyErrorKey,
 } from "@/lib/auth/otp-flow";
+import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
+import { recordSignupAcceptance } from "@/lib/legal/acceptances";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /** `sent` drives the form's step; `email` is echoed back into the code screen. */
 export type EmailCodeState =
@@ -142,12 +157,28 @@ export async function requestEmailCode(
   _prev: EmailCodeState,
   formData: FormData,
 ): Promise<EmailCodeState> {
+  await requireNotImpersonating();
   const t = otpT(formData);
   const email = normalizeAuthEmail(formData.get("email"));
   const resent = String(formData.get("resend") ?? "") === "1";
 
   if (!email || !isValidAuthEmail(email)) {
     return { step: "email", error: t("public.auth.actions.invalidEmail"), email };
+  }
+
+  // Legal 2.2: the create path (signup) requires 18+ and Terms/Privacy,
+  // checked server side for the signup form (`terms_form=1`). The login path
+  // (create=0) never creates an account. Server callers that build their own
+  // FormData (onboarding module, storefront portal) do not send the marker
+  // and are unchanged.
+  if (
+    String(formData.get("create") ?? "1") !== "0" &&
+    String(formData.get("terms_form") ?? "") === "1" &&
+    !isAgeAndTermsConfirmed(formData.get("age_terms"))
+  ) {
+    return resent
+      ? { step: "code", error: t("public.auth.actions.ageTermsRequired"), email }
+      : { step: "email", error: t("public.auth.actions.ageTermsRequired"), email };
   }
 
   const ip = await requestIp();
@@ -228,6 +259,7 @@ export async function submitEmailCode(
   _prev: EmailCodeState,
   formData: FormData,
 ): Promise<EmailCodeState> {
+  await requireNotImpersonating();
   const t = otpT(formData);
   const email = normalizeAuthEmail(formData.get("email"));
   const code = normalizeOtpCode(formData.get("code"));
@@ -283,11 +315,23 @@ export async function submitEmailCode(
   }
 
   const user = data.user;
+  const nextPath = normalizeNextPath(String(formData.get("next") ?? "").trim());
   if (user) {
     // First-confirm-wins guest-chat claim relink — the same mechanism the
     // emailed-link route runs, so a booker who types the code keeps the
     // conversation they started as a guest. Best-effort + non-fatal.
     await relinkFirstConfirmedClaim(user.id);
+    // Legal 2.2: the create path confirmed 18+ and Terms/Privacy at step 1.
+    // Idempotent per revision; best effort, never blocks sign-in.
+    if (String(formData.get("create") ?? "") === "1" && isAgeAndTermsConfirmed(formData.get("age_terms"))) {
+      await recordSignupAcceptance(user.id);
+    }
+    // Talent password signup confirms through this same OTP action. Promote
+    // before resolving the post-auth destination when next is a talent signup
+    // path — otherwise a missing signup_intent leaves app_role=client.
+    if (isTalentSignupNext(nextPath)) {
+      await promoteFreshProfileToTalent(user.id);
+    }
   }
 
   const profileData = user ? await loadAccessProfile(supabase, user.id) : null;
@@ -307,13 +351,18 @@ export async function submitEmailCode(
     }
   }
 
-  const nextPath = normalizeNextPath(String(formData.get("next") ?? "").trim());
   revalidatePath("/", "layout");
+  await clearParentDomainAuthCookiesOnDeskHost();
   // Host-safe: /client and /onboarding/* do not exist on the marketing apex or
   // the hub, where this form is also served. A relative redirect there is a 404.
+  // On Desk hosts, /admin → /desk.
+  const deskHost = await deskRequestHost();
   redirect(
     await hostSafeRedirectDestination(
-      resolvePostAuthDestination(profileData, nextPath),
+      supportDeskPostAuthDestination(
+        resolvePostAuthDestination(profileData, nextPath),
+        deskHost,
+      ),
     ),
   );
 }
@@ -336,6 +385,7 @@ export async function resendSignupCode(
   _prev: EmailCodeState,
   formData: FormData,
 ): Promise<EmailCodeState> {
+  await requireNotImpersonating();
   const t = otpT(formData);
   const email = normalizeAuthEmail(formData.get("email"));
 

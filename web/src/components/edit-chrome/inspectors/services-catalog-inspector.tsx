@@ -8,7 +8,13 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import type { BuilderServicesCatalogNode } from "@/lib/site-admin/builder-node";
+import { servicesCatalogVisibleFieldChecked } from "@/lib/site-admin/builder-node/services-catalog-defaults";
 import { ineligibleSelectedOfferingIds } from "@/lib/site-admin/builder-node/services-catalog-selection";
+import {
+  SERVICES_CATALOG_STYLE_PRESETS,
+  servicesCatalogStylePresetCommit,
+  type ServicesCatalogStylePresetId,
+} from "@/lib/site-admin/builder-node/services-catalog-style-presets";
 import { KIT } from "./kit/tokens";
 import { InspectorLabelWithInfo } from "./kit";
 import {
@@ -37,59 +43,7 @@ function Section({
   );
 }
 
-const STYLE_PRESETS: Array<{
-  id: string;
-  label: string;
-  patch: Record<string, unknown>;
-}> = [
-  {
-    id: "clean",
-    label: "Clean",
-    patch: {
-      layout: "rows",
-      categoryNav: "pills",
-      density: "comfortable",
-      photoRadius: "soft",
-      rowCtaVariant: "outline",
-      useWebsiteTheme: true,
-    },
-  },
-  {
-    id: "editorial",
-    label: "Editorial",
-    patch: {
-      layout: "editorial",
-      categoryNav: "sections",
-      density: "comfortable",
-      photoRadius: "soft",
-      rowCtaVariant: "outline",
-      columns: 2,
-    },
-  },
-  {
-    id: "compact",
-    label: "Compact",
-    patch: {
-      layout: "compact_list",
-      categoryNav: "tabs",
-      density: "compact",
-      showPhoto: false,
-      rowCtaVariant: "outline",
-    },
-  },
-  {
-    id: "image_led",
-    label: "Image-led",
-    patch: {
-      layout: "cards",
-      categoryNav: "pills",
-      density: "comfortable",
-      photoRadius: "soft",
-      showPhoto: true,
-      columns: 2,
-    },
-  },
-];
+const STYLE_PRESETS = SERVICES_CATALOG_STYLE_PRESETS;
 
 export function ServicesCatalogContentInspector({
   node,
@@ -354,12 +308,30 @@ export function ServicesCatalogContentInspector({
           <label key={key} className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
-              checked={catalog[key] !== false}
+              checked={servicesCatalogVisibleFieldChecked(catalog, key)}
               onChange={(e) => void commitPatch({ [key]: e.target.checked })}
             />
             {label}
           </label>
         ))}
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={catalog.pricePlacement === "meta"}
+            onChange={(e) => void commitPatch({ pricePlacement: e.target.checked ? "meta" : "column" })}
+          />
+          Price next to the duration
+        </label>
+        {/* The render reads `showModeChip === true` (the booking-mode chip
+            on each row); Maison v2 turns it on, so it must be switchable. */}
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={catalog.showModeChip === true}
+            onChange={(e) => void commitPatch({ showModeChip: e.target.checked })}
+          />
+          Show how each service books (confirmation / quote)
+        </label>
 
         <div className={KIT.field}>
           <label className={KIT.label}>Button label override</label>
@@ -396,15 +368,15 @@ export function ServicesCatalogContentInspector({
           <label className={KIT.label}>Sheet accent</label>
           <select
             className={KIT.input}
-            value={catalog.bookingSheet?.accent ?? "ink"}
+            value={catalog.bookingSheet?.accent ?? "primary"}
             onChange={(e) =>
               void commitPatch({
                 bookingSheet: { ...(catalog.bookingSheet ?? {}), accent: e.target.value },
               })
             }
           >
-            <option value="ink">Ink (mockup Continuar)</option>
             <option value="primary">Website primary</option>
+            <option value="ink">Ink (mockup Continuar)</option>
           </select>
         </div>
         <label className="flex items-center gap-2 text-sm">
@@ -452,8 +424,13 @@ export function ServicesCatalogContentInspector({
               <button
                 key={preset.id}
                 type="button"
+                data-services-catalog-style-preset={preset.id}
                 className="rounded-md border border-black/15 bg-white px-2.5 py-1 text-xs font-semibold"
-                onClick={() => void commitPatch({ ...preset.patch, stylePreset: preset.id })}
+                onClick={() =>
+                  void commitPatch(
+                    servicesCatalogStylePresetCommit(preset.id as ServicesCatalogStylePresetId),
+                  )
+                }
               >
                 {preset.label}
               </button>
@@ -509,7 +486,8 @@ export function ServicesCatalogLayoutInspector({
   const catalog = node.props;
   const layout = catalog.layout ?? "rows";
   const showColumns = layout === "cards" || layout === "grid" || layout === "editorial";
-  const showPhotoCorners = layout !== "compact_list" && catalog.showPhoto !== false;
+  const showPhotoCorners =
+    layout !== "compact_list" && layout !== "rate_card" && layout !== "matrix" && catalog.showPhoto !== false;
   return (
     <div className="flex flex-col gap-3" data-builder-node-layout-panel="services_catalog">
       <div className={KIT.field}>
@@ -523,13 +501,15 @@ export function ServicesCatalogLayoutInspector({
           <option value="cards">Image cards</option>
           <option value="grid">Image grid</option>
           <option value="compact_list">Compact price menu</option>
+          <option value="rate_card">Rate card (hairline)</option>
           <option value="editorial">Editorial cards</option>
           <option value="featured">Featured offering</option>
+          <option value="matrix">Comparison matrix</option>
         </select>
         <p className="text-xs text-black/50">
           Suggested from your catalog: photo-led → cards; many items without photos → compact list;
-          beauty menu → service list. Always changeable. Featured puts the first featured offering in a
-          hero row.
+          beauty menu → service list; folio rates → rate card. Always changeable. Featured puts the
+          first featured offering in a hero row.
         </p>
       </div>
       <div className={KIT.field}>
@@ -541,13 +521,15 @@ export function ServicesCatalogLayoutInspector({
         >
           <option value="pills">Filter chips</option>
           <option value="tabs">Tabs (filter)</option>
+          <option value="rail">Sticky rail (desktop) / chips (phone)</option>
           <option value="accordion">Accordions</option>
           <option value="jump_strip">Jump links + headings</option>
           <option value="sections">Section headings only</option>
           <option value="none">None</option>
         </select>
         <p className="text-xs text-black/50">
-          Chips and tabs filter the list. Jump links scroll. Section headings group without a top strip.
+          Chips, tabs, and rail filter the list. Rail sticks on the left from tablet up; phone keeps
+          chips. Jump links scroll. Section headings group without a top strip.
         </p>
       </div>
       {showColumns ? (
@@ -584,6 +566,30 @@ export function ServicesCatalogLayoutInspector({
         >
           <option value="outline">Outline (mockup Seleccionar)</option>
           <option value="solid">Solid fill</option>
+          <option value="pill">Ink pill</option>
+        </select>
+      </div>
+      {/* The renderer reads `rowStyle === "card"` (rows layout): raised row cards, soft pill button, row click. */}
+      <div className={KIT.field}>
+        <label className={KIT.label}>Row style</label>
+        <select
+          className={KIT.input}
+          value={catalog.rowStyle ?? "flat"}
+          onChange={(e) => onPatch({ rowStyle: e.target.value })}
+        >
+          <option value="flat">Hairline rows</option>
+          <option value="card">Raised cards</option>
+        </select>
+      </div>
+      <div className={KIT.field}>
+        <label className={KIT.label}>Content width</label>
+        <select
+          className={KIT.input}
+          value={catalog.contentWidth ?? "contained"}
+          onChange={(e) => onPatch({ contentWidth: e.target.value })}
+        >
+          <option value="contained">Centered column</option>
+          <option value="full">Full width</option>
         </select>
       </div>
       {showPhotoCorners ? (
@@ -621,8 +627,24 @@ export function ServicesCatalogLayoutInspector({
         >
           <option value="float">Floating card</option>
           <option value="dock">Full-bleed dock</option>
+          <option value="pill">Chat + button capsule</option>
           <option value="hidden">Hidden</option>
         </select>
+      </div>
+      <div className={KIT.field}>
+        <label className={KIT.label}>Service name lines</label>
+        <select
+          className={KIT.input}
+          value={String(catalog.nameLineClamp ?? 2)}
+          onChange={(e) => onPatch({ nameLineClamp: Number(e.target.value) })}
+        >
+          <option value="2">2 lines</option>
+          <option value="3">3 lines</option>
+          <option value="4">4 lines</option>
+        </select>
+        <p className="text-xs text-black/50">
+          How many lines of the service name show before an ellipsis. Maison menus use 3.
+        </p>
       </div>
     </div>
   );

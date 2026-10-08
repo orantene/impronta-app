@@ -67,6 +67,7 @@ import type {
   SiteHeaderConfig,
   SiteHeaderNavItemInput,
 } from "./types";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * WF-6 — read a stored `regions` blob back through the SECTION schema.
@@ -197,6 +198,7 @@ export async function loadHeaderSectionAction(): Promise<
       version: number;
       variant: string;
       brandDisplay: string;
+      navChrome: string;
       density: HeaderSectionDensity | null;
     };
   }>
@@ -213,6 +215,7 @@ export async function loadHeaderSectionAction(): Promise<
   const p = f.props as {
     variant?: unknown;
     brandDisplay?: unknown;
+    navChrome?: unknown;
     density?: unknown;
   };
   return {
@@ -225,6 +228,7 @@ export async function loadHeaderSectionAction(): Promise<
       variant: typeof p.variant === "string" ? p.variant : "standard",
       brandDisplay:
         typeof p.brandDisplay === "string" ? p.brandDisplay : "image-and-text",
+      navChrome: typeof p.navChrome === "string" ? p.navChrome : "top_bar",
       density:
         p.density && typeof p.density === "object"
           ? (p.density as HeaderSectionDensity)
@@ -240,6 +244,7 @@ export async function saveHeaderSectionAction(input: {
   expectedVersion: number;
   variant?: string;
   brandDisplay?: string;
+  navChrome?: string;
   density?: HeaderSectionDensity | null;
   /**
    * WF-6 — the freeform zone layout. `null` clears it (back to the variant's
@@ -248,6 +253,8 @@ export async function saveHeaderSectionAction(input: {
    */
   regions?: HeaderRegions | null;
 }): Promise<ActionResult<{ version: number }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
@@ -281,6 +288,9 @@ export async function saveHeaderSectionAction(input: {
   if (input.variant !== undefined) nextProps.variant = input.variant;
   if (input.brandDisplay !== undefined) {
     nextProps.brandDisplay = input.brandDisplay;
+  }
+  if (input.navChrome !== undefined) {
+    nextProps.navChrome = input.navChrome;
   }
   if (input.density !== undefined) {
     if (input.density === null) {
@@ -469,6 +479,7 @@ export async function loadHeaderConfigAction(): Promise<
   const sectionProps = (headerSection?.props ?? {}) as {
     variant?: unknown;
     brandDisplay?: unknown;
+    navChrome?: unknown;
     density?: unknown;
     regions?: unknown;
   };
@@ -487,6 +498,10 @@ export async function loadHeaderConfigAction(): Promise<
           typeof sectionProps.brandDisplay === "string"
             ? sectionProps.brandDisplay
             : "image-and-text",
+        navChrome:
+          typeof sectionProps.navChrome === "string"
+            ? sectionProps.navChrome
+            : "top_bar",
         density:
           sectionProps.density && typeof sectionProps.density === "object"
             ? (sectionProps.density as HeaderSectionDensity)
@@ -580,6 +595,8 @@ interface IdentityPatchInput {
 export async function saveHeaderIdentityAction(
   input: IdentityPatchInput,
 ): Promise<ActionResult<{ version: number }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -698,6 +715,8 @@ interface BrandingPatchInput {
 export async function saveHeaderBrandingAction(
   input: BrandingPatchInput,
 ): Promise<ActionResult<{ version: number }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -800,6 +819,8 @@ interface TokenPatchInput {
 export async function saveHeaderTokenAction(
   input: TokenPatchInput,
 ): Promise<ActionResult<{ version: number; theme: Record<string, string> }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -910,6 +931,8 @@ interface NavBulkResult {
 export async function saveHeaderNavigationAction(
   input: NavBulkInput,
 ): Promise<ActionResult<NavBulkResult>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 

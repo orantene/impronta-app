@@ -6,8 +6,11 @@
  */
 
 import type Stripe from "stripe";
-import { createCheckoutSessionForTransaction, getStripe } from "@/lib/payments/stripe-checkout";
+import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
+import { withObjectPlatformFallback } from "@/lib/stripe/client";
 import { logServerError } from "@/lib/server/safe-error";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { checkInquiryCurrencyMatchesSeller } from "@/lib/inquiry/offer-currency-seller";
 import { reportTerminalAvailability } from "@/lib/payments/terminal-availability";
 import { createStripeTerminalPaymentRequest } from "@/lib/payments/stripe-terminal";
 import type {
@@ -21,6 +24,8 @@ import type {
 
 export type StripeCollectionDeps = {
   stripe?: Stripe | null;
+  /** Test seam for the seller-currency guard; production passes nothing. */
+  currencyGuard?: typeof checkInquiryCurrencyMatchesSeller;
   retrieve?: (requestId: string) => Promise<PaymentRequestSnapshot | { ok: false; error: string }>;
   cancel?: (requestId: string) => Promise<{ ok: true } | { ok: false; error: string }>;
   refund?: (
@@ -32,15 +37,26 @@ export type StripeCollectionDeps = {
 export function stripeCollectionAdapter(deps: StripeCollectionDeps = {}): CollectionAdapter {
   return {
     async createPaymentRequest(input: CreatePaymentRequestInput): Promise<CreatePaymentRequestResult> {
-      if (input.method === "terminal") {
-        return createStripeTerminalPaymentRequest(input);
-      }
       if (input.method === "cash") {
         return {
           ok: false,
           reason: "cash_is_recorded",
           error: "Cash is recorded as a payment method, not opened at Stripe.",
         };
+      }
+      // TUL-274: a request-payment charge on an inquiry must be in the single
+      // seller's currency. Fails CLOSED (read error => refused), before Stripe.
+      if (input.inquiryId) {
+        const guard = deps.currencyGuard ?? checkInquiryCurrencyMatchesSeller;
+        const check = await guard(deps.currencyGuard ? null : createServiceRoleClient(), {
+          inquiryId: input.inquiryId,
+          currency: input.currency,
+          mode: "charge",
+        });
+        if (!check.ok) return { ok: false, reason: "engine_error", error: check.message };
+      }
+      if (input.method === "terminal") {
+        return createStripeTerminalPaymentRequest(input);
       }
       const session = await createCheckoutSessionForTransaction(
         {
@@ -169,12 +185,15 @@ export async function retrieveCheckoutSessionState(
       error: "This collection was opened without Stripe configured, so there is nothing to ask about.",
     };
   }
-  const stripe = deps.stripe !== undefined ? deps.stripe : getStripe();
-  if (!stripe) {
-    return { ok: false as const, error: "Stripe is not configured, so the payment cannot be looked up." };
-  }
   try {
-    const session = await stripe.checkout.sessions.retrieve(requestId);
+    // A session id carries no platform: ask US, then MX (resource_missing only).
+    const session =
+      deps.stripe !== undefined
+        ? await deps.stripe?.checkout.sessions.retrieve(requestId)
+        : await withObjectPlatformFallback((c) => c.checkout.sessions.retrieve(requestId));
+    if (!session) {
+      return { ok: false as const, error: "Stripe is not configured, so the payment cannot be looked up." };
+    }
     const state = mapCheckoutSessionState(session);
     return {
       requestId: session.id ?? requestId,

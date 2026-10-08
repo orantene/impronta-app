@@ -24,6 +24,7 @@ import {
   type PersonBillingSnapshot,
 } from "../../platform-billing-data";
 import { onTalentPlanChanged } from "@/lib/talent-site/server/plan-change";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type ActionResult<T = void> =
   | { ok: true; data: T }
@@ -74,6 +75,7 @@ export async function applyTalentPlanOverride(input: {
    */
   grantKind?: string;
 }): Promise<ActionResult<{ expiresAt: string | null }>> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -215,6 +217,7 @@ export async function applyTalentPlanOverride(input: {
 export async function removeTalentPlanOverride(
   talentProfileId: string,
 ): Promise<ActionResult<{ restoredPlanKey: TalentPlanKey }>> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 

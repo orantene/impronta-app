@@ -1,13 +1,19 @@
-import { redirect } from "next/navigation";
+import { permanentRedirect } from "next/navigation";
+
+import { buildQuerySuffix } from "@/lib/saas/redirect-query";
+
+export const dynamic = "force-dynamic";
 
 /**
- * /talent/messages — URL-compat alias for the chat-first inquiry surface.
- *
- * The nav labels this surface "Messages" and the shell's segment map accepts
- * the `messages` segment, but the real route is /talent/inbox — so a typed or
- * shared /talent/messages link 404'd. Permanent redirect keeps one canonical
- * URL while making the obvious address work.
+ * /talent/messages is a URL-compat alias. The ONE canonical route for the
+ * chat-first inquiry surface is /talent/inbox (it is what the shell segment
+ * map, the rail and every deep link use). The query string survives, so
+ * `?inquiry=<uuid>` links keep opening their conversation.
  */
-export default function TalentMessagesAlias() {
-  redirect("/talent/inbox");
+export default async function TalentMessagesAlias({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  permanentRedirect(`/talent/inbox${buildQuerySuffix(await searchParams)}`);
 }

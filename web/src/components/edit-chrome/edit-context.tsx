@@ -94,11 +94,11 @@ import {
   cloneNodeWithFreshIds,
   createBuilderMutationAuditEvent,
   createEditorDispatchAuditEvent,
-  createBuilderNode,
+  createBuilderNode, wrapRootInsert, wrapRootInsertTracked,
   formatBuilderNodeMutationError,
   isBuilderMutationAuditEnabled,
   recordBuilderMutationAuditEvent,
-  summarizeBuilderNodeIssues,
+  mutationFailureDetails,
   isAdvancedElementLibraryEnabledForPlan,
   type BuilderNode,
   type BuilderNodeOperationKind,
@@ -151,6 +151,7 @@ import {
 import { resolveSectionHeadlineFromProps } from "@/lib/site-admin/section-display-name";
 import { publishBuilderTree } from "./builder-tree-bridge";
 import { publishCanUndo, publishCanRedo } from "./history-bridge";
+import { useDiscardDraftToLive } from "./use-discard-draft-to-live";
 import {
   cancelCanvasTextStylePatches,
   commitActiveInlineEditor,
@@ -183,6 +184,7 @@ import {
   publishStylePresetRegistry,
 } from "@/lib/site-admin/builder-node/style-presets-storage";
 import { normalizeCompositionSlots } from "./composition-slots";
+import { resolveDuplicateRoute } from "./builder-duplicate-route";
 import {
   stripSnapshotForSave,
   toLegacySnapshotSlots,
@@ -426,10 +428,10 @@ export function EditProvider({
       plan: normalizedWorkspacePlan || null,
       talentTier: gallerySurfaceTier,
       // Builder Studio — live tenant id for staged-rollout bucketing (WS-D).
-      tenantId: tenantId || null,
+      tenantId: tenantId || null, structuralEdits: surfaceStructuralEdits, // P0 gallery lock
     }),
     [
-      galleryTabsKey,
+      surfaceStructuralEdits, galleryTabsKey,
       galleryAllowDbTemplates,
       resolvedSurfaceConfig.galleryPolicy.blockAllowList,
       gallerySurfaceTarget,
@@ -1106,6 +1108,7 @@ export function EditProvider({
     toggleSearchPanel,
     closeSearchPanel,
     addMenuOpen,
+    openAddMenu,
     toggleAddMenu,
     closeAddMenu,
     allPagesPanelOpen,
@@ -1861,8 +1864,8 @@ export function EditProvider({
           if (historyDepthRef.current > 0) {
             reportMutationError(
               opts?.undoResetReason === "conflict"
-                ? "Undo history was reset because this page changed in another tab or session."
-                : "Undo history was reset because the editor reloaded this page.",
+                ? "We loaded the latest version. Undo history started fresh."
+                : "We reloaded this page. Undo history started fresh.",
             );
           }
           setPast([]);
@@ -2581,8 +2584,7 @@ export function EditProvider({
         return { ok: false, error: "This page is still loading. Try again in a moment." };
       }
       const snap = currentSnapshot();
-      // capture history + clear future BEFORE the round-trip so if the
-      // operator navigates away mid-flight, undo still sees the pre-state
+      // capture history BEFORE the round-trip so undo sees the pre-state
       setPast((p) =>
         capHistory([
           ...p,
@@ -2636,11 +2638,8 @@ export function EditProvider({
         reportMutationError(res.error);
         return { ok: false, error: res.error };
       }
-      // Splice the new section into local slots using the response payload
-      // instead of awaiting a second round-trip to refreshComposition. The
-      // server-rendered DOM wrappers still need queueRouterRefresh() to catch
-      // up, but the inspector / overlays read from context state and can
-      // engage the new section immediately.
+      // Splice into local slots from the response payload (no second
+      // round-trip); queueRouterRefresh() catches the server DOM up.
       const insertAt =
         target.insertAfterSortOrder === null
           ? 0
@@ -2751,10 +2750,8 @@ export function EditProvider({
         reportMutationError(res.error);
         return { ok: false, error: res.error };
       }
-      // Optimistically splice the duplicate right after the source so the
-      // inspector + overlays can engage it immediately — then queueRouterRefresh
-      // fills in the server-rendered section wrapper in the background.
-      // Skip the blocking refreshComposition round-trip (~300 ms saved).
+      // Splice the duplicate right after the source (no blocking refresh);
+      // queueRouterRefresh fills in the server-rendered wrapper later.
       setSlotsAndBuilderTree((prev) => {
         const next: Record<string, CompositionSectionRef[]> = {};
         for (const [k, list] of Object.entries(prev)) {
@@ -3472,7 +3469,7 @@ export function EditProvider({
           message: guarded.error,
           operation: input.operation,
           code: guarded.code,
-          details: guarded.details,
+          ...mutationFailureDetails(guarded),
         });
         return guarded;
       }
@@ -3484,13 +3481,13 @@ export function EditProvider({
           operation: input.operation,
           code: operationResult.code,
           message: operationResult.error,
-          details: operationResult.details,
+          ...mutationFailureDetails(operationResult),
         });
         reportMutationError({
           message: error,
           operation: input.operation,
           code: operationResult.code,
-          details: operationResult.details,
+          ...mutationFailureDetails(operationResult),
         });
         return { ...operationResult, error };
       }
@@ -3547,7 +3544,7 @@ export function EditProvider({
           ok: false,
           code: result.code,
           error: result.message,
-          details: summarizeBuilderNodeIssues(result.issues),
+          ...mutationFailureDetails(result),
         };
       }
       return {
@@ -3653,11 +3650,11 @@ export function EditProvider({
       // `createBuilderNode(kind)` for any kind the admin hasn't governed, and
       // never double-applies on the gallery path (which routes native inserts
       // through `insertBuilderComponent`, not here).
-      const node = governRawInsertNode(
+      const node = wrapRootInsert(parentId, governRawInsertNode(
         createBuilderNode(kind),
         kind,
         galleryItemsRef.current,
-      );
+      ));
       const inserted = await executeBuilderNodeOperation({
         operation: "insert",
         nodeId: node.id,
@@ -3930,7 +3927,7 @@ export function EditProvider({
       } catch {
         return { ok: false, error: "That block could not be read." };
       }
-      const node = cloneNodeWithFreshIds(parsed);
+      const { node, leafId: insertedLeafId } = wrapRootInsertTracked(parentId, cloneNodeWithFreshIds(parsed));
       const inserted = await executeBuilderNodeOperation({
         operation: "insert",
         nodeId: node.id,
@@ -3953,11 +3950,11 @@ export function EditProvider({
       );
       if (ownerSectionId) {
         setSelectedSectionId(ownerSectionId);
-        setSelectedBuilderNodeIdOverride(node.id);
-        markNavigatorAddition(ownerSectionId, node.id, "block");
+        setSelectedBuilderNodeIdOverride(insertedLeafId);
+        markNavigatorAddition(ownerSectionId, insertedLeafId, "block");
       }
       markNodeInserted(node.id);
-      return { ok: true, nodeId: node.id };
+      return { ok: true, nodeId: insertedLeafId };
     },
     [
       executeBuilderNodeOperation,
@@ -4272,9 +4269,8 @@ export function EditProvider({
             nodeId,
           }),
       });
-      if (!removed.ok) {
-        return { ok: false, error: removed.error };
-      }
+      if (!removed.ok) return { ok: false, error: removed.error };
+      notifyTemplateApplied("Block deleted", { plain: true }); // TUL-70: undoable
       if (removingActiveNode) {
         // Keep section/canvas/inspector selection aligned immediately after
         // delete: prefer the section root builder node (honest selection).
@@ -4291,12 +4287,18 @@ export function EditProvider({
       runBuilderNodeOp,
       focusSectionForEdit,
       setSelectedBuilderNodeIdOverride,
+      notifyTemplateApplied,
     ],
   );
   const duplicateBuilderNode = useCallback<
     EditContextValue["duplicateBuilderNode"]
   >(
     async (nodeId) => {
+      const route = resolveDuplicateRoute(builderTreeRef.current, nodeId); // TUL-78
+      if (route.route === "section") {
+        const r = await duplicateSectionRef.current?.(route.sectionId);
+        return r?.ok ? { ok: true, nodeId: r.newSectionId } : { ok: false, error: r?.error ?? "Duplicate did not finish. Try again." };
+      }
       const duplicated = await executeBuilderNodeOperation({
         operation: "duplicate",
         nodeId,
@@ -4586,7 +4588,7 @@ export function EditProvider({
               ok: false,
               code: result.code,
               error: result.message,
-              details: summarizeBuilderNodeIssues(result.issues),
+              ...mutationFailureDetails(result),
             };
           }
           return { ok: true, tree: result.tree };
@@ -5183,14 +5185,9 @@ export function EditProvider({
     // though the tree reverted correctly.
     cancelCanvasTextStylePatches();
     clearCanvasTextStylePreview();
-    // WS2 (Step 3) — read the live `past` stack from the ref so `undo` does not
-    // list `past` in its deps; dropping that dep keeps `undo` stable across every
-    // edit (an edit pushes to `past`, which used to recreate this callback and,
-    // via its value-memo entry, rebuild the whole context value — the fast-undo
-    // half of the fix). The functional setPast/setFuture updaters below already
-    // operate on the latest state, so only these two READS needed the ref. The
-    // ref is synced AFTER the flush await by the same effect that drives the
-    // history bridge, so reading it post-flush sees the freshest stack.
+    // WS2 (Step 3) — read `past` from the ref so `undo` stays stable across
+    // edits (no `past` dep, no context-value rebuild). The ref is synced by the
+    // history-bridge effect, so reading it after the flush await is current.
     if (pastRef.current.length === 0) return;
     const top = pastRef.current[pastRef.current.length - 1]!;
 
@@ -5560,6 +5557,8 @@ export function EditProvider({
     [pageVersion, pageSlug, pageId, locale, surfaceAdapter, refreshComposition, queueRouterRefresh, reportMutationError],
   );
 
+  const discardDraftToLive = useDiscardDraftToLive({ surfaceAdapter, locale, pageSlug, pageId, pageVersionRef, refreshComposition, reportMutationError });
+
   // REV-1b — surface the active adapter's OWNER-gated revision LIST read, or
   // null when the surface has none. The RevisionsDrawer prefers this over its
   // staff-gated homepage/cms_page default loaders. Like `restoreRevision`, this
@@ -5917,6 +5916,7 @@ export function EditProvider({
       toggleSearchPanel,
       closeSearchPanel,
       addMenuOpen,
+      openAddMenu,
       toggleAddMenu,
       closeAddMenu,
       allPagesPanelOpen,
@@ -5952,6 +5952,7 @@ export function EditProvider({
       openRevisions,
       closeRevisions,
       restoreRevision,
+      discardDraftToLive,
       loadSurfaceRevisions,
 
       themeOpen,
@@ -6182,6 +6183,7 @@ export function EditProvider({
       toggleSearchPanel,
       closeSearchPanel,
       addMenuOpen,
+      openAddMenu,
       toggleAddMenu,
       closeAddMenu,
       allPagesPanelOpen,
@@ -6216,6 +6218,7 @@ export function EditProvider({
       openRevisions,
       closeRevisions,
       restoreRevision,
+      discardDraftToLive,
       loadSurfaceRevisions,
       themeOpen,
       openTheme,

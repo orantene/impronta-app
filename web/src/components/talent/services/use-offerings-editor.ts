@@ -31,6 +31,7 @@ import {
   deleteWorkspaceMenuItem,
   reorderWorkspaceMenuItems,
 } from "@/lib/talent/menu-offerings-actions";
+import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { loadTalentServicePerformance, type ServicePerformanceStat } from "@/lib/talent/services-menu-actions";
 import {
   blankOffering,
@@ -48,6 +49,8 @@ export type OfferingsEditor = {
   workspaceTenantId: string;
   items: TalentOffering[];
   defaultCurrency: string;
+  /** TUL-77: the "What are you selling?" card to preselect (workspace only). */
+  defaultCreateType: "product" | "service";
   legacyImportable: boolean;
   /** Rates for the "≈ US$" preview beside a non-dollar price (talent only). */
   usdRates: UsdRates | null;
@@ -93,6 +96,7 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
 
   const [items, setItems] = useState<TalentOffering[]>([]);
   const [defaultCurrency, setDefaultCurrency] = useState("USD");
+  const [defaultCreateType, setDefaultCreateType] = useState<"product" | "service">("product");
   const [legacyImportable, setLegacyImportable] = useState(false);
   const [usdRates, setUsdRates] = useState<UsdRates | null>(null);
   const [loading, setLoading] = useState(true);
@@ -108,6 +112,14 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
     setLoadTick((n) => n + 1);
   }, []);
 
+  // The free-website checklist counts these rows. Any change to the talent's
+  // list (add, publish, archive, duplicate, delete) must refresh the pill and
+  // sheet in place, not after a full reload.
+  useEffect(() => {
+    if (isWorkspace || loading) return;
+    invalidateWebsiteEligibility();
+  }, [isWorkspace, loading, items]);
+
   useEffect(() => {
     let cancelled = false;
     const load = isWorkspace
@@ -120,6 +132,7 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
           setError(null);
           setItems(res.items);
           setDefaultCurrency(res.defaultCurrency);
+          if ("defaultCreateType" in res) setDefaultCreateType(res.defaultCreateType);
           setLegacyImportable("legacyImportable" in res ? !!res.legacyImportable : false);
           setUsdRates("usdRates" in res ? ((res.usdRates as UsdRates | null | undefined) ?? null) : null);
         } else {
@@ -349,6 +362,7 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
     workspaceTenantId,
     items,
     defaultCurrency,
+    defaultCreateType,
     usdRates,
     legacyImportable,
     loading,

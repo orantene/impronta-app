@@ -15,10 +15,10 @@ Keep these open side by side:
 
 | Window | URL | Signed in as |
 | --- | --- | --- |
-| **A · Agency admin** | `http://app.lvh.me:3102/login` → `/admin/site-settings/design` | `owner@midnightmuse.demo` / `Midnight-Muse-Owner-2026!` |
-| **B · Super admin** (optional — used when A can't reach a tenant) | `http://app.lvh.me:3102/login` → `/admin` | `qa-admin@impronta.test` / `Impronta-QA-Admin-2026!` |
+| **A · Agency admin** | `http://app.lvh.me:3102/login` → `/admin/site-settings/design` | `owner@midnightmuse.demo` / `<redacted-qa-password>` |
+| **B · Super admin** (optional — used when A can't reach a tenant) | `http://app.lvh.me:3102/login` → `/admin` | `qa-admin@impronta.test` / `<redacted-qa-password>` |
 | **C · Storefront (public)** | `http://midnight.lvh.me:3106/` | (no login) |
-| **D · Talent** (optional — for viewing inquiries) | `http://app.lvh.me:3102/login` → `/talent` | `tulum-talent-sofia@impronta.test` / `Impronta-Tulum-Talent-2026!` |
+| **D · Talent** (optional — for viewing inquiries) | `http://app.lvh.me:3102/login` → `/talent` | `tulum-talent-sofia@impronta.test` / `<redacted-qa-password>` |
 
 Servers needed running (check `preview_list` or `npm run dev` on each):
 - port **3000** — Next.js dev server

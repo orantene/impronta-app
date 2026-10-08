@@ -38,6 +38,7 @@ import {
   type SupportEscalationReason,
   type SupportMessageRow,
 } from "@/lib/support/support-types";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const bodySchema = z.object({ ticketId: z.string().uuid() });
 
@@ -50,6 +51,7 @@ const SYSTEM_PROMPT = [
   "Do not claim you performed an action.",
   "Tone: warm, plain, no em dashes.",
   "Answer in the same language as the latest guest question.",
+  "Write the answer AND suggested_subject in the same language as the user's latest message (never default to English). Keep suggested_subject short, with no dates.",
   "Keep the answer under 1200 characters.",
 ].join(" ");
 
@@ -85,6 +87,8 @@ async function failOpen(ticketId: string, stage: string, detail?: string): Promi
 }
 
 export async function POST(request: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   try {
     const { guestAiAbuseFloor } = await import("@/lib/support/guest-ai-abuse-floor");
     const floor = guestAiAbuseFloor({

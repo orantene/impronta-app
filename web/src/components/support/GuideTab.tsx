@@ -22,6 +22,11 @@ import { tokenize } from "@/lib/support/help-corpus";
 import type { GuideArticle, GuideLocale, GuideTopicSummary } from "@/lib/guide/types";
 import { humanizeNodeId } from "@/lib/guide/humanize";
 
+function tOr(t: (key: string) => string, key: string, fallback: string): string {
+  const resolved = t(key);
+  return resolved === key ? fallback : resolved;
+}
+
 function useGuideLocale(): GuideLocale {
   // Dashboard locale is "en" | "es" | "fr" today; the Guide only has en/es
   // content (plan §1), so fr falls back to en rather than showing nothing.
@@ -481,7 +486,7 @@ function GuideArticleView({
                   cursor: "pointer",
                 }}
               >
-                {humanizeNodeId(relId)}
+                {tOr(t, `dashboard.adminHelp.drawerLabels.${relId}`, humanizeNodeId(relId))}
               </button>
             ))}
           </div>

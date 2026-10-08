@@ -12,6 +12,8 @@
  */
 
 import { useRouter } from "next/navigation";
+import { payLinkTarget } from "@/lib/payments/pay-link-target";
+import { resolvePayLinkPublicUrl } from "@/lib/server-actions/pay-link-public-url";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { translatorFor } from "@/i18n/use-t";
@@ -30,6 +32,7 @@ import {
 import { buildKitCopy } from "../kit/copy";
 import { ClientThreadView, type CardActivity, type ComposerPhase, type SaveEmailPhase } from "./ClientThreadView";
 import { buildClientCopy } from "./copy";
+import { useClientThreadPaidRefresh } from "./use-client-thread-paid-refresh";
 
 export type ClientThreadProps = {
   readonly token: string;
@@ -64,6 +67,12 @@ export function ClientThread(props: ClientThreadProps) {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, [anyHold]);
+
+  // Soft return from /pay: refresh while an unpaid Pay card can still flip.
+  const refresh = useCallback(() => {
+    router.refresh();
+  }, [router]);
+  useClientThreadPaidRefresh({ messages: props.messages, refresh });
 
   // Server rows win: drop optimistic bubbles once the refresh brings them back.
   const serverIds = useMemo(() => new Set(props.messages.map((m) => m.id)), [props.messages]);
@@ -154,7 +163,9 @@ export function ClientThread(props: ClientThreadProps) {
   );
 
   const onPay = useCallback((code: string) => {
-    window.location.assign(`/pay/${encodeURIComponent(code)}`);
+    void resolvePayLinkPublicUrl({ code })
+      .catch(() => ({ url: null }))
+      .then((r) => window.location.assign(payLinkTarget(code, r.url)));
   }, []);
 
   const onAcceptOffer = useCallback(

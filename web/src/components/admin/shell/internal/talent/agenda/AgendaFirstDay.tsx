@@ -2,11 +2,12 @@
 
 import { TALENT_AGENDA_VARS } from "./primitives";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { nextFirstDayStep, type FirstDayStepId } from "@/lib/talent-agenda/first-day";
 
 const STEPS = [
   { id: "photo", label: "Add a photo" },
   { id: "services", label: "Add a service" },
-  { id: "location", label: "Set your location" },
+  { id: "location", label: "Add where you work" },
   { id: "availability", label: "Set availability" },
   { id: "preview", label: "Preview your page" },
   { id: "website", label: "Create your website" },
@@ -17,25 +18,35 @@ const STEPS = [
  */
 export function AgendaFirstDay({
   completedStepIds,
-  hasAvailability,
   liveSiteUrl,
   onOpenAvailability,
   onOpenServices,
   onOpenSite,
+  onOpenProfile,
   onEditSite,
 }: {
   completedStepIds: string[];
-  hasAvailability: boolean;
+  /** Kept for callers; the main button now follows the next step. */
+  hasAvailability?: boolean;
   liveSiteUrl?: string | null;
   onOpenAvailability: () => void;
   onOpenServices: () => void;
   onOpenSite: () => void;
+  /** Profile editor: where photos and work location are set. */
+  onOpenProfile?: () => void;
   onEditSite?: () => void;
 }) {
   const copy = useAgendaCopy();
   const done = STEPS.filter((s) => completedStepIds.includes(s.id)).length;
   const pct = Math.round((done / STEPS.length) * 100);
-  const previewLabel = hasAvailability ? copy.t("Book a time") : copy.t("Request a booking");
+  const next = nextFirstDayStep(completedStepIds);
+  const targetFor = (id: FirstDayStepId): (() => void) | undefined => {
+    if (id === "availability") return onOpenAvailability;
+    if (id === "services") return onOpenServices;
+    if (id === "photo" || id === "location") return onOpenProfile;
+    return onOpenSite;
+  };
+  const nextTarget = next ? targetFor(next.id) : undefined;
   const hostLabel = liveSiteUrl
     ? liveSiteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")
     : null;
@@ -78,18 +89,8 @@ export function AgendaFirstDay({
                   {complete ? "✓ " : `${STEPS.indexOf(step) + 1}. `}
                   {copy.t(step.label)}
                 </span>
-                {!complete && step.id === "availability" ? (
-                  <button type="button" className="text-[13px] text-[var(--tc-accent)]" onClick={onOpenAvailability}>
-                    {copy.t("Open")}
-                  </button>
-                ) : null}
-                {!complete && step.id === "services" ? (
-                  <button type="button" className="text-[13px] text-[var(--tc-accent)]" onClick={onOpenServices}>
-                    {copy.t("Open")}
-                  </button>
-                ) : null}
-                {!complete && step.id === "website" ? (
-                  <button type="button" className="text-[13px] text-[var(--tc-accent)]" onClick={onOpenSite}>
+                {!complete && targetFor(step.id) ? (
+                  <button type="button" className="text-[13px] text-[var(--tc-accent)]" onClick={targetFor(step.id)}>
                     {copy.t("Open")}
                   </button>
                 ) : null}
@@ -98,21 +99,22 @@ export function AgendaFirstDay({
           })}
         </ol>
 
-        {done === STEPS.length ? (
+        {next === null ? (
           <button
             type="button"
             onClick={onOpenSite}
-            className="mt-4 min-h-[44px] w-full rounded-full bg-[var(--tc-primary)] px-4 text-[14px] text-white"
+            className="mt-4 min-h-[44px] w-full rounded-full bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)] px-4 text-[14px] text-white"
           >
             {copy.t("Create your website")}
           </button>
         ) : (
           <button
             type="button"
-            onClick={hasAvailability ? onOpenAvailability : onOpenServices}
-            className="mt-4 min-h-[44px] w-full rounded-full bg-[var(--tc-primary)] px-4 text-[14px] text-white"
+            onClick={nextTarget}
+            disabled={!nextTarget}
+            className="mt-4 min-h-[44px] w-full rounded-full bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)] px-4 text-[14px] text-white disabled:opacity-50"
           >
-            {previewLabel}
+            {copy.t(next.label)}
           </button>
         )}
       </section>
@@ -131,7 +133,7 @@ export function AgendaFirstDay({
               href={liveSiteUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex min-h-[44px] items-center rounded-full bg-[var(--tc-primary)] px-4 text-[13px] font-medium text-white"
+              className="inline-flex min-h-[44px] items-center rounded-full bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)] px-4 text-[13px] font-medium text-white"
             >
               {copy.t("View")}
             </a>

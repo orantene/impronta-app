@@ -4,6 +4,8 @@ import {
   resolveAccountHref,
   resolveAuthenticatedDestination,
   resolvePostAuthDestination,
+  isTalentSignupNext,
+  isTalentSurfaceNext,
 } from "@/lib/auth-flow";
 import { resolveAuthRoutingDecision } from "@/lib/auth-routing";
 import { isPathAllowedForHostKind } from "@/lib/saas/surface-allow-list";
@@ -311,6 +313,11 @@ test("post-auth redirects cross-role dashboard targets to the user's home", () =
   assert.equal(resolvePostAuthDestination(activeAgencyStaff, "/impronta/talent"), "/admin");
   assert.equal(resolvePostAuthDestination(activeClient, "/impronta/admin/site"), "/client");
   assert.equal(resolvePostAuthDestination(activeTalent, "/impronta/admin/site"), "/talent");
+  // Support Desk: platform admins may keep next=/desk through login.
+  assert.equal(resolvePostAuthDestination(activeAdmin, "/desk"), "/desk");
+  assert.equal(resolvePostAuthDestination(activeAdmin, "/desk?view=insights"), "/desk?view=insights");
+  assert.equal(resolvePostAuthDestination(activeAgencyStaff, "/desk"), "/admin");
+  assert.equal(resolvePostAuthDestination(activeTalent, "/desk"), "/talent");
 });
 
 test("post-auth honors public and locale-prefixed directory paths", () => {
@@ -704,4 +711,21 @@ test("an onboarding user may reach /claim instead of being bounced to role selec
     }).redirectTo,
     "/onboarding/role",
   );
+});
+
+test("isTalentSurfaceNext recognises talent surfaces only", () => {
+  assert.equal(isTalentSurfaceNext("/talent/profile/fields"), true);
+  assert.equal(isTalentSurfaceNext("/es/talent/today"), true);
+  assert.equal(isTalentSurfaceNext("/impronta/talent"), true);
+  assert.equal(isTalentSurfaceNext("/client"), false);
+  assert.equal(isTalentSurfaceNext("/impronta/client/inquiries"), false);
+  assert.equal(isTalentSurfaceNext("/"), false);
+});
+
+test("isTalentSignupNext covers live talent register next and legacy onboarding", () => {
+  assert.equal(isTalentSignupNext("/talent/profile/fields"), true);
+  assert.equal(isTalentSignupNext("/onboarding/talent-location"), true);
+  assert.equal(isTalentSignupNext("/es/talent/today"), true);
+  assert.equal(isTalentSignupNext("/client"), false);
+  assert.equal(isTalentSignupNext("/onboarding/role"), false);
 });

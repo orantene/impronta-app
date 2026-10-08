@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { getGuideArticle, listGuideTopics } from "./guide-corpus";
 import type { GuideArticle, GuideLocale, GuideTopicSummary } from "./types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export async function listGuideTopicsAction(locale: GuideLocale): Promise<GuideTopicSummary[]> {
   return listGuideTopics(locale);
@@ -28,6 +29,7 @@ export async function guideSignalAction(
   locale: GuideLocale,
   signal: "helpful_yes" | "helpful_no" | "open" | "search",
 ): Promise<void> {
+  await requireNotImpersonating();
   const supabase = await createClient();
   if (!supabase) return;
   const { error } = await supabase.rpc("guide_article_signal", { p_node_id: nodeId, p_locale: locale, p_signal: signal });
@@ -36,6 +38,7 @@ export async function guideSignalAction(
 
 /** A search that matched nothing — the gap radar's input. */
 export async function guideSearchMissAction(locale: GuideLocale, query: string): Promise<void> {
+  await requireNotImpersonating();
   const q = query.trim();
   if (q.length < 2) return;
   const supabase = await createClient();

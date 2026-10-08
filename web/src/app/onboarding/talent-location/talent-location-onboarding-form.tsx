@@ -217,14 +217,16 @@ function PhoneField() {
   };
   const digits = national.replace(/[^\d\s-]/g, "");
   return (
-    <div className="flex gap-2">
+    <div className="flex min-w-0 gap-2">
       <input type="hidden" name="phone" value={digits.trim() ? `${dial} ${digits.trim()}` : ""} />
       <select
         aria-label="Country code"
         value={iso}
         onChange={(e) => onIso(e.target.value)}
-        className={`${INPUT_CLASSES} w-[7.5rem] shrink-0 appearance-none pr-2`}
-        style={INPUT_STYLE}
+        className={`${INPUT_CLASSES} appearance-none pr-2`}
+        // Inline width: INPUT_CLASSES carries w-full, and class order alone left
+        // the select at full row width with the number squeezed to 34px.
+        style={{ ...INPUT_STYLE, width: "8rem", flex: "0 0 8rem", minWidth: 0 }}
       >
         {popular.map((c) => (
           <option key={c.iso} value={c.iso}>
@@ -247,6 +249,7 @@ function PhoneField() {
         required
         value={national}
         onChange={(e) => setNational(e.target.value)}
+        style={{ width: "auto", flex: "1 1 0%", minWidth: 0 }}
       />
     </div>
   );

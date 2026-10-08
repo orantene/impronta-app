@@ -11,11 +11,15 @@ import type { PaymentState, TalentAgendaItem } from "./types";
 export type LoadPaymentAgency = {
   payment_status?: string | null;
   payment_method?: string | null;
+  payment_notes?: string | null;
   balance_due_at?: string | null;
   total_client_revenue?: number | null;
   deposit_amount_cents?: number | null;
   source_type_snapshot?: string | null;
 };
+
+/** Written on create when the talent chose "Request payment" (collect later, no link yet). */
+export const COLLECT_LATER_NOTE = "Collect later: payment request pending.";
 
 export type LoadPaymentTx = {
   status: string;
@@ -34,6 +38,8 @@ export function mapAgencyBookingPayment(input: {
   linkOpen: boolean;
   now: Date;
   startsAt: string;
+  /** Ledger stamped paid_after_cancellation — Money shows Refund pending. */
+  refundPending?: boolean;
 }): PaymentState {
   const bookingState = deriveBookingState({
     kind: "booking",
@@ -56,12 +62,22 @@ export function mapAgencyBookingPayment(input: {
     paidCents: input.paidCents,
     depositCents: input.agency?.deposit_amount_cents ?? 0,
     managedByAgency: (input.agency?.source_type_snapshot ?? "").toLowerCase() === "agency",
+    refundPending: input.refundPending === true,
     now: input.now,
   });
   if (
     paymentState === "none" &&
     input.linkOpen &&
     (input.agency?.payment_status ?? "unpaid") === "unpaid"
+  ) {
+    return "awaiting";
+  }
+  // "Request payment" was chosen at save time: the booking waits on a request,
+  // it is not "due at the appointment" (that is the separate "due later" choice).
+  if (
+    (paymentState === "due" || paymentState === "none") &&
+    (input.agency?.payment_status ?? "unpaid") === "unpaid" &&
+    (input.agency?.payment_notes ?? "").includes(COLLECT_LATER_NOTE)
   ) {
     return "awaiting";
   }

@@ -27,7 +27,7 @@ You are taking over the Services rebuild for the talent dashboard. The designer 
 - Turbopack crashed once under load and wiped its cache. If pages hang, check the server log before blaming the code.
 
 **Signing in as Jor**
-- Jor's user: `orantene+jorgbeauty@gmail.com`, talent profile id `f048e578-cbae-45db-9a3b-34239abea136`, code `TAL-JORGBEAUTY`.
+- Jor's user: `orantene+jorgbeauty@gmail.com`, talent profile id `f048e578-cbae-45db-9a3b-34239abea136`, code `TAL-93938`.
 - The browser session on localhost was already signed in as Jor. If it expires, use the local impersonation path (`IMPERSONATION_QA_TALENT_USER_ID` in `.env.local`) or ask the owner. Never type passwords.
 
 **Gates (the only allowed commands)**
@@ -116,7 +116,7 @@ B2. Make it match the section on her live site (`book-jorgelina.tulala.digital/#
 - Inspector: make sure the props (layout, categoryNav, eyebrow, title, subtitle, showStats, showPhoto, showDuration, showUsdEquivalent) are editable in `web/src/components/edit-chrome/inspectors/builder-node-content.tsx`.
 - Add render tests for the italic title, tabs filtering markup and the label override.
 
-B3. Replacing her live band is an owner decision. Prepare it (the exact page and band to swap, a before/after screenshot on localhost) and stop. Her current live "Seleccionar" links go to `https://tulala.digital/t/TAL-JORGBEAUTY#servicios` (off her site). The widget keeps the booking on her own site, which is the point.
+B3. Replacing her live band is an owner decision. Prepare it (the exact page and band to swap, a before/after screenshot on localhost) and stop. Her current live "Seleccionar" links go to `https://tulala.digital/t/TAL-93938#servicios` (off her site). The widget keeps the booking on her own site, which is the point.
 
 ---
 
@@ -201,7 +201,7 @@ Files: `web/src/components/talent/website-reward/WebsiteRewardControl.tsx`, `web
 - Done: pill states per p18, the sheet (p19) listing missing items with deep links into the profile drawer and field focus.
 - Missing: p17 (the reward card on the phone Services screen, full width, above the list; it scrolls away and never shows while editing an item). p20 ("the task it opens": "Tulala drafted this / Keep it / Write my own" for the short bio). p21 ("back, with progress": confirmation like "Intro saved" and the bar moving without a full reload).
 - Sheet deviations to fix if you can: it only shows missing items, not done ones with ticks and "3 of 6". The completion bridge only sends `missing`; see if the full checklist is available from `buildTalentChecklist` in `web/src/lib/talent-dashboard.ts`.
-- Locally the live pill shows `/t/TAL-JORGBEAUTY` instead of her host because the subdomain flag is Production-only. That is correct behaviour; don't "fix" it.
+- Locally the live pill shows `/t/TAL-93938` instead of her host because the subdomain flag is Production-only. That is correct behaviour; don't "fix" it.
 
 ---
 
@@ -224,7 +224,7 @@ Files: `web/src/components/talent/website-reward/WebsiteRewardControl.tsx`, `web
 ## K. Three public surfaces must agree (p38)
 
 The same item must show the same name, price, duration, photo and CTA on:
-1. The hub profile storefront `/t/TAL-JORGBEAUTY`
+1. The hub profile storefront `/t/TAL-93938`
 2. Her Max site via the `services_catalog` widget
 3. The directory card
 

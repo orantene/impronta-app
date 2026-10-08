@@ -12,6 +12,7 @@ import { loadTalentActor } from "@/lib/messaging/talent-actor";
 import { createTalentAvailabilityBlock } from "@/lib/talent-calendar/actions";
 import { computeBookingTalentRowTotals } from "@/lib/booking-pricing";
 import { resolveTalentOwnWorkTenant } from "@/lib/talent-agenda/own-work-tenant";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type QuoteActionResult =
   | { ok: true; inquiryId?: string; offerId?: string; bookingId?: string }
@@ -26,6 +27,7 @@ export async function createOwnEventQuote(input: {
   eventDate: string; // YYYY-MM-DD
   holdDate?: boolean;
 }): Promise<QuoteActionResult> {
+  await requireNotImpersonating();
   const actor = await loadTalentActor();
   if (!actor.ok) return { ok: false, reason: "unauthorized" };
 
@@ -124,6 +126,7 @@ export async function createOwnProjectQuote(input: {
   dueDate?: string; // YYYY-MM-DD
   deliverables?: string[];
 }): Promise<QuoteActionResult> {
+  await requireNotImpersonating();
   const actor = await loadTalentActor();
   if (!actor.ok) return { ok: false, reason: "unauthorized" };
 

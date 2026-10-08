@@ -3,12 +3,21 @@ import type {
   ScanGuestConversationCallback,
 } from "@/lib/inquiry/guest-chat-contract";
 
+import type { GuestChatOffering } from "@/lib/inquiry/guest-chat-contract";
 import type { SurfaceMode } from "./mini-chat-styles";
+import type { ChatCardConfig } from "@/lib/talent-site/chat-card";
 
 // Local extension of MiniChatPanelProps for the F4 expand/collapse props + the
 // Phase 3 launcher-cart wiring. NOT added to guest-chat-contract.ts (shared
 // read-only); consumed by MiniChatPanel + the launcher only.
 export type MiniChatPanelLocalProps = MiniChatPanelProps & {
+  /**
+   * ALL of the talent's public services, only for the instant price/duration answer in the
+   * dock (`buildInstantServiceAnswer`). `offerings` stays the short chip list (first 8), so a
+   * question about the 9th service or later used to find no match and fell through to the
+   * contact gate (QA F-09, #116). Falls back to `offerings` when absent.
+   */
+  answerOfferings?: readonly GuestChatOffering[];
   /**
    * Jon 360 Phase 7 — dark surface variant for noir tenants. Derived from the
    * tenant's resolved background.mode at the mount and threaded down. A LOCAL
@@ -16,6 +25,11 @@ export type MiniChatPanelLocalProps = MiniChatPanelProps & {
    * tenants are byte-identical.
    */
   surfaceMode?: SurfaceMode;
+  /**
+   * `chat.variant` = card: skin the one dock as the chat card (CardDockFrame + CardDockHeader)
+   * instead of the full dock column. Null/absent = the dock, unchanged.
+   */
+  chatCard?: ChatCardConfig | null;
   /**
    * P0-5 / W0-F — the panel is mounted on a HUB host (platform/network hub or
    * the marketing apex), not an agency. Drives the SEND-path copy so the send

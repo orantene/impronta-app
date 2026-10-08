@@ -4,6 +4,7 @@
  * Kept free of server / Next imports so unit tests under
  * `test:builder-node-bindings` (no `server-only` mock) can import it.
  */
+import { isLiveBookingLabel, isLiveServicesLabel } from "./live-booking-markers";
 import type { BuilderNode } from "./types";
 
 /**
@@ -60,7 +61,17 @@ export type NativeFeaturedTalentNeed = {
 export type NativeDataBlockNeeds = {
   needsTalentCount: boolean;
   menuBoard: boolean;
+  /** TUL-77: a band marked for the live catalog or the real booking flow. */
+  liveBooking: boolean;
   servicesCatalog: boolean;
+  /** W-12 live portfolio media. */
+  portfolio: boolean;
+  /** W-14 live talent_reviews quote cards. */
+  reviews: boolean;
+  /** Visit facts from service areas / languages / hours. */
+  visit: boolean;
+  /** Comp card measure strip from public profile field values. */
+  compCard: boolean;
   /** Maison FAQ accordion with `bindSource: "talent_faq_items"`. */
   talentFaq: boolean;
   /** Every native `featured_talent` node in the tree, in document order. */
@@ -142,7 +153,12 @@ export function collectNativeDataBlockNeeds(
 ): NativeDataBlockNeeds {
   let needsTalentCount = false;
   let menuBoard = false;
+  let liveBooking = false;
   let servicesCatalog = false;
+  let portfolio = false;
+  let reviews = false;
+  let needsVisit = false;
+  let needsCompCard = false;
   let talentFaq = false;
   let needsTalentLocations = false;
   const featuredTalent: NativeFeaturedTalentNeed[] = [];
@@ -154,7 +170,7 @@ export function collectNativeDataBlockNeeds(
   const directories: NativeDirectoryNeed[] = [];
   const headerWidgets = { account: false, inquiry: false };
 
-  const visit = (node: BuilderNode) => {
+  const walk = (node: BuilderNode) => {
     if (
       node.kind === "hero_search" &&
       node.props.statSource === "tenant_talent_count"
@@ -164,8 +180,28 @@ export function collectNativeDataBlockNeeds(
     if (node.kind === "menu_board") {
       menuBoard = true;
     }
-    if (node.kind === "services_catalog") {
+    if (
+      node.kind === "container" &&
+      (isLiveServicesLabel(node.props.layerLabel) ||
+        isLiveBookingLabel(node.props.layerLabel))
+    ) {
+      liveBooking = true;
+    }
+    // task_picker reads the same live offerings (it recommends one by id).
+    if (node.kind === "services_catalog" || node.kind === "task_picker") {
       servicesCatalog = true;
+    }
+    if (node.kind === "portfolio") {
+      portfolio = true;
+    }
+    if (node.kind === "reviews") {
+      reviews = true;
+    }
+    if (node.kind === "visit") {
+      needsVisit = true;
+    }
+    if (node.kind === "comp_card") {
+      needsCompCard = true;
     }
     if (
       node.kind === "accordion" &&
@@ -241,14 +277,19 @@ export function collectNativeDataBlockNeeds(
       }
     }
     if ("children" in node && Array.isArray(node.children)) {
-      for (const child of node.children) visit(child);
+      for (const child of node.children) walk(child);
     }
   };
-  for (const node of nodes) visit(node);
+  for (const node of nodes) walk(node);
   return {
     needsTalentCount,
     menuBoard,
+    liveBooking,
     servicesCatalog,
+    portfolio,
+    reviews,
+    visit: needsVisit,
+    compCard: needsCompCard,
     talentFaq,
     featuredTalent,
     needsTalentLocations,

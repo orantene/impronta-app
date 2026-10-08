@@ -16,6 +16,7 @@ import type { BookableOffering } from "@/components/public-booking/pick-bookable
 import { createInstantBookingAction } from "@/lib/server-actions/instant-book-action";
 import type { TalentBookingMode } from "@/lib/scheduling/booking-surface";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { GuestInstantContact } from "@/components/public-booking/GuestInstantContact";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 
@@ -38,6 +39,7 @@ export function BookableComposer({
   tenantSlug,
   tenantId,
   agencyName,
+  soloTalentName = null,
   offering,
   bookingMode = "request",
   showInlinePicker = true,
@@ -47,6 +49,7 @@ export function BookableComposer({
   tenantSlug: string;
   tenantId?: string | null;
   agencyName: string;
+  soloTalentName?: string | null;
   offering: BookableOffering;
   bookingMode?: TalentBookingMode;
   showInlinePicker?: boolean;
@@ -54,6 +57,7 @@ export function BookableComposer({
   captcha?: GuestCaptchaConfig | null;
 }) {
   const t = useT();
+  const dashboardLocale = useDashboardLocale();
   const [open, setOpen] = useState(false);
   const [slot, setSlot] = useState<SlotPickerValue | null>(null);
   const [eventOffering, setEventOffering] = useState<BookableOffering | null>(null);
@@ -143,6 +147,12 @@ export function BookableComposer({
           endsAt: slot.endsAt,
           timezone: slot.timezone,
         },
+        // TUL-93 / #177: the language the guest is browsing in. The page's
+        // <html lang> wins (URL-language surfaces), the dashboard cookie is the
+        // fallback; the server stamps it on the booking for the confirmation.
+        locale:
+          (typeof document !== "undefined" && document.documentElement.lang) ||
+          dashboardLocale,
         contactName: signedIn ? undefined : guestName,
         contactEmail: signedIn ? undefined : guestEmail,
         captchaToken: signedIn ? undefined : captchaToken || null,
@@ -266,6 +276,7 @@ export function BookableComposer({
           source="offering_request"
           tenantSlug={tenantSlug}
           agencyName={agencyName}
+          soloTalentName={soloTalentName}
           client={null}
           enableDraftAutosave={false}
           bookableOffering={active}

@@ -292,6 +292,15 @@ export const MESSAGES_MOBILE_CSS = `
             html:has([data-tulala-bulk-bar]) [data-tulala-support-launcher] {
               display: none !important;
             }
+            /* AUD-046: same yield as OfflineBanner — sticky Save / drawer
+               footers / open sheets own the bottom edge at 390. Support
+               stays reachable from More while chrome is up. */
+            html:has([data-tulala-sticky-save-bar]) [data-tulala-support-launcher],
+            html:has([data-tulala-drawer-footer]) [data-tulala-support-launcher],
+            html:has([role="dialog"][data-state="open"]) [data-tulala-support-launcher],
+            html:has(.sticky.bottom-0) [data-tulala-support-launcher] {
+              display: none !important;
+            }
             /* Inside a conversation the bottom of the screen is already the
                composer plus the "Reply to client" nudge bar, and the docked
                launcher lands on top of that CTA. Stand it down while the

@@ -2,10 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  TALENT_DEMO_HOST_SUFFIX,
   TALENT_SITE_SUBDOMAIN_ROOTS,
   isTalentSiteLabel,
   splitTalentSiteHost,
+  stripTalentDemoHostSuffix,
+  talentDemoBareHostRedirectHost,
   talentSiteHost,
+  talentSiteHostLabel,
   talentSitePathRedirectTarget,
   talentSitePathUrl,
   talentSitePublicUrl,
@@ -40,6 +44,49 @@ test("talentSiteHost builds <label>.<root>", () => {
   assert.equal(talentSiteHost("sofia-mendez", "lvh.me"), "sofia-mendez.lvh.me");
   assert.equal(talentSiteHost("not a label"), null);
   assert.equal(talentSiteHost(null), null);
+});
+
+test("demo hosts append the -demo suffix without renaming site_slug", () => {
+  assert.equal(TALENT_DEMO_HOST_SUFFIX, "-demo");
+  assert.equal(talentSiteHostLabel("alba-nail-artist"), "alba-nail-artist");
+  assert.equal(
+    talentSiteHostLabel("alba-nail-artist", { isDemo: true }),
+    "alba-nail-artist-demo",
+  );
+  assert.equal(
+    talentSiteHost("alba-nail-artist", "tulala.digital", { isDemo: true }),
+    "alba-nail-artist-demo.tulala.digital",
+  );
+  assert.equal(
+    talentSitePublicUrl("camila-nails", { isDemo: true }),
+    "https://camila-nails-demo.tulala.digital",
+  );
+  assert.equal(stripTalentDemoHostSuffix("alba-nail-artist-demo"), "alba-nail-artist");
+  assert.equal(stripTalentDemoHostSuffix("alba-nail-artist"), null);
+  assert.equal(
+    talentDemoBareHostRedirectHost({
+      hostname: "alba-nail-artist.tulala.digital",
+      siteSlug: "alba-nail-artist",
+      isDemo: true,
+    }),
+    "alba-nail-artist-demo.tulala.digital",
+  );
+  assert.equal(
+    talentDemoBareHostRedirectHost({
+      hostname: "alba-nail-artist-demo.tulala.digital",
+      siteSlug: "alba-nail-artist",
+      isDemo: true,
+    }),
+    null,
+  );
+  assert.equal(
+    talentDemoBareHostRedirectHost({
+      hostname: "sofia.tulala.digital",
+      siteSlug: "sofia",
+      isDemo: false,
+    }),
+    null,
+  );
 });
 
 test("talentSitePublicUrl is absolute, https by default, and carries inner pages", () => {
@@ -109,6 +156,10 @@ test("talentSitePathRedirectTarget only fires when the switch is on in productio
   assert.equal(
     talentSitePathRedirectTarget({ ...base, pageSlug: "about" }),
     "https://sofia.tulala.digital/about",
+  );
+  assert.equal(
+    talentSitePathRedirectTarget({ ...base, slug: "camila-nails", isDemo: true }),
+    "https://camila-nails-demo.tulala.digital",
   );
   assert.equal(talentSitePathRedirectTarget({ ...base, enabled: false }), null);
   assert.equal(talentSitePathRedirectTarget({ ...base, isProduction: false }), null);

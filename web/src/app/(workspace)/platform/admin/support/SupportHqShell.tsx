@@ -12,6 +12,7 @@ import { SupportQueueClient } from "./SupportQueueClient";
 import { SupportIdeasView } from "./SupportIdeasView";
 import { SupportInsightsView } from "./SupportInsightsView";
 import { SupportCannedEditor } from "./SupportCannedEditor";
+import { supportDeskOpenFromHqHref } from "@/lib/support/desk/desk-url";
 
 export function SupportHqShell({
   rows,
@@ -21,6 +22,7 @@ export function SupportHqShell({
   initialOpenCount,
   initialTicketId,
   initialView,
+  deskEnabled = false,
 }: {
   rows: HqQueueRow[];
   insights: HqInsightsDashboard;
@@ -29,6 +31,8 @@ export function SupportHqShell({
   initialOpenCount: number;
   initialTicketId: string | null;
   initialView: "queue" | "insights" | "ideas";
+  /** Server-evaluated `isSupportDeskEnabled()` — never read the flag on the client. */
+  deskEnabled?: boolean;
 }) {
   const t = useT();
   const [view, setView] = useState<"queue" | "insights" | "ideas">(initialView);
@@ -69,7 +73,7 @@ export function SupportHqShell({
       <div
         style={{
           display: "inline-flex",
-          background: "rgba(255,255,255,0.04)",
+          background: HQ.cardSoft,
           border: `1px solid ${HQ.border}`,
           borderRadius: 9,
           padding: 3,
@@ -91,8 +95,8 @@ export function SupportHqShell({
               padding: "5px 14px",
               borderRadius: 7,
               border: "none",
-              background: view === item.id ? "#F5F2EB" : "transparent",
-              color: view === item.id ? "#0F0F11" : HQ.inkMuted,
+              background: view === item.id ? HQ.ink : "transparent",
+              color: view === item.id ? HQ.bg : HQ.inkMuted,
               fontSize: 12,
               fontWeight: view === item.id ? 600 : 500,
               cursor: "pointer",
@@ -109,7 +113,7 @@ export function SupportHqShell({
           padding: "6px 12px",
           borderRadius: 8,
           border: `1px solid ${HQ.border}`,
-          background: cannedOpen ? "rgba(255,255,255,0.10)" : "transparent",
+          background: cannedOpen ? HQ.border : "transparent",
           color: HQ.inkMuted,
           fontSize: 12,
           cursor: "pointer",
@@ -117,6 +121,25 @@ export function SupportHqShell({
       >
         {t("dashboard.platform.support.cannedReplies")}
       </button>
+      {deskEnabled ? (
+        <a
+          href={supportDeskOpenFromHqHref()}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            padding: "6px 12px",
+            borderRadius: 8,
+            border: `1px solid ${HQ.border}`,
+            background: "transparent",
+            color: HQ.inkMuted,
+            fontSize: 12,
+            cursor: "pointer",
+            textDecoration: "none",
+          }}
+        >
+          {t("dashboard.platform.support.deskOpenFromHq")} ↗
+        </a>
+      ) : null}
       </div>
       {cannedOpen ? (
         <SupportCannedEditor

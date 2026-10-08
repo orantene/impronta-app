@@ -2,15 +2,20 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { PdfDocBuilder, formatMinor, formatDate } from "@/lib/pdf/document";
+import { PdfDocBuilder, formatDate } from "@/lib/pdf/document";
+import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
+import { bookingClientFeeLines } from "@/lib/billing/processing-fee-payer";
+import { receiptHasFeeBreakdown, receiptPaymentRows } from "@/lib/pdf/receipt-rows";
 
 /**
  * Client booking-receipt PDF.
  *
  * Pulls the booking + its paid transaction and renders a single-page receipt:
- * what / when / where, the gross amount the client paid, and a receipt number.
- * AUTH is the caller's responsibility — pass the authenticated user id; this
- * module verifies the booking belongs to that user before emitting anything.
+ * what / when / where, the client fee breakdown when the commission snapshot
+ * sums to the amount paid (same path as booking confirmation), Amount paid,
+ * and a receipt number. AUTH is the caller's responsibility — pass the
+ * authenticated user id; this module verifies the booking belongs to that
+ * user before emitting anything.
  */
 
 export type ReceiptResult =
@@ -99,6 +104,18 @@ export async function generateReceiptPdf(
 
     const brand = await loadBrand(admin, booking.tenant_id as string | null);
 
+    // Fee breakdown: only when the frozen snapshot sums to what was paid
+    // (same path as booking-confirmation.ts).
+    let feeLines: ReturnType<typeof bookingClientFeeLines> = [];
+    try {
+      feeLines = bookingClientFeeLines(
+        await loadBookingCommissionSnapshots(admin, bookingId),
+        grossCents,
+      );
+    } catch (err) {
+      logServerError("pdf.receipt.feeLines", err);
+    }
+
     const where =
       (booking.venue_name as string | null) ||
       (booking.venue_address as string | null) ||
@@ -108,6 +125,13 @@ export async function generateReceiptPdf(
       (booking.client_account_name as string | null) ||
       (booking.contact_name as string | null) ||
       "—";
+
+    const paymentRows = receiptPaymentRows({
+      feeLines,
+      currency: txnCurrency,
+      amountPaidCents: grossCents,
+    });
+    const showFeeNote = receiptHasFeeBreakdown(feeLines, grossCents);
 
     const builder = await PdfDocBuilder.create();
     builder
@@ -123,13 +147,16 @@ export async function generateReceiptPdf(
       .row("Billed to", who)
       .divider()
       .section("Payment")
-      .row("Status", paidAt ? "Paid" : "Recorded")
-      .row("Amount paid", formatMinor(grossCents, txnCurrency), { strong: true })
-      .footer(
-        "This receipt confirms the gross amount paid for the booking above. " +
-          "Keep it for your records. Issued by Tulala on behalf of " +
-          `${brand}.`,
-      );
+      .row("Status", paidAt ? "Paid" : "Recorded");
+    for (const r of paymentRows) {
+      builder.row(r.label, r.value, r.strong ? { strong: true } : undefined);
+    }
+    builder.footer(
+      (showFeeNote ? "Fees are non-refundable. " : "") +
+        "This receipt confirms the amount paid for the booking above. " +
+        "Keep it for your records. Issued by Tulala on behalf of " +
+        `${brand}.`,
+    );
 
     const bytes = await builder.toBytes();
     return { ok: true, bytes, filename: `receipt-${receiptNo}.pdf` };

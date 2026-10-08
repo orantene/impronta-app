@@ -28,35 +28,30 @@ import {
   workspaceOwnedStamp,
   type MediaOwnershipStamp,
 } from "@/lib/media/ownership";
+import { loadTalentMediaBundle, type TalentMediaBundle } from "@/lib/media/talent-media-bundle.server";
 import { checkTalentUploadQuota } from "@/lib/media/talent-storage-usage";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+
+import { downloadDriveFile, parseDriveUrl } from "./_drive-import-helpers";
+import type {
+  RegisterMediaResult,
+  UploadVariant,
+  StagedMediaMeta,
+  BulkAssignAssignment,
+  RegisterUploadedAssetInput,
+} from "./_media-action-types";
+
+export type {
+  RegisterMediaResult,
+  UploadVariant,
+  StagedMediaMeta,
+  BulkAssignAssignment,
+  RegisterUploadedAssetInput,
+} from "./_media-action-types";
 
 type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string };
 
 // ─── Upload and immediately register under a talent ───────────────────────────
-
-export type RegisterMediaResult =
-  | {
-      ok: true;
-      data: {
-        id: string;
-        publicUrl: string;
-        sourceMediaAssetId: string | null;
-        sortOrder: number;
-      };
-    }
-  | {
-      ok: false;
-      error: string;
-      /**
-       * Set when the refusal is a plan quota block rather than a transport
-       * failure. The signed-upload client wrapper retries a failed register
-       * through the legacy pipeline; a quota refusal must NOT be retried, or
-       * the talent sees an unrelated error and we do the work twice.
-       */
-      quotaBlocked?: boolean;
-    };
-
-export type UploadVariant = "gallery" | "card" | "hero" | "lightbox" | "polaroid" | "reel";
 
 /**
  * Legacy/no-JS fallback. Pipes the whole upload through a Vercel
@@ -73,6 +68,7 @@ export async function actionUploadAndAssignMedia(
   metadata: Record<string, unknown> = {},
   sourceMediaAssetId: string | null = null,
 ): Promise<RegisterMediaResult> {
+  await requireNotImpersonating();
   // Authorize as EITHER agency staff of the active tenant OR the talent who
   // OWNS this profile. A talent uploading their own photo on the /talent
   // surface has no staff-tenant scope, so the staff guard fails there; for the
@@ -305,6 +301,7 @@ export async function actionAssignMediaToTalent(
   storagePaths: string[],
   talentProfileId: string,
 ): Promise<ActionResult<{ count: number }>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -371,6 +368,7 @@ export async function actionAssignMediaToTalent(
 export async function actionDeleteMediaAssets(
   ids: string[],
 ): Promise<ActionResult<{ count: number }>> {
+  await requireNotImpersonating();
   if (ids.length === 0) return { ok: true, data: { count: 0 } };
 
   const auth = await requireWorkspaceStaffAction();
@@ -425,6 +423,7 @@ export async function actionSetApprovalState(
   ids: string[],
   state: "approved" | "rejected",
 ): Promise<ActionResult<{ count: number }>> {
+  await requireNotImpersonating();
   if (ids.length === 0) return { ok: true, data: { count: 0 } };
 
   const auth = await requireWorkspaceStaffAction();
@@ -467,6 +466,7 @@ export async function actionReassignMediaToTalent(
   ids: string[],
   talentProfileId: string,
 ): Promise<ActionResult<{ count: number }>> {
+  await requireNotImpersonating();
   if (ids.length === 0) return { ok: true, data: { count: 0 } };
 
   const auth = await requireWorkspaceStaffAction();
@@ -518,6 +518,7 @@ export async function actionSetMediaWatermarkOverride(
   id: string,
   override: Record<string, unknown> | null,
 ): Promise<ActionResult<null>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -550,6 +551,7 @@ export async function actionSetAsCardPhoto(
   mediaAssetId: string,
   talentProfileId: string,
 ): Promise<ActionResult<{ id: string; publicUrl: string }>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -643,6 +645,7 @@ export async function actionSetAsHeroPhoto(
   mediaAssetId: string,
   talentProfileId: string,
 ): Promise<ActionResult<null>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -705,6 +708,7 @@ export async function actionSetAsHeroPhoto(
 export async function actionRevertCropToSource(
   croppedMediaAssetId: string,
 ): Promise<ActionResult<{ sourceMediaAssetId: string | null }>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -748,6 +752,7 @@ export async function actionRevertCropToSource(
 export async function actionReorderMediaAssets(
   orderedIds: string[],
 ): Promise<ActionResult<{ count: number }>> {
+  await requireNotImpersonating();
   if (orderedIds.length === 0) return { ok: true, data: { count: 0 } };
 
   const auth = await requireWorkspaceStaffAction();
@@ -784,14 +789,6 @@ export async function actionReorderMediaAssets(
 // admin can see thumbnails while deciding which talent each photo belongs to.
 // Step 2 is actionBulkAssignStagedMedia which creates all DB rows at once.
 
-export type StagedMediaMeta = {
-  width: number | null;
-  height: number | null;
-  fileSizeBytes: number;
-  mimeType: string;
-  originalFilename: string;
-};
-
 export type StagingUploadResult = ActionResult<{
   storagePath: string;
   publicUrl: string;
@@ -808,6 +805,7 @@ export type StagingUploadResult = ActionResult<{
 export async function actionUploadToStagingStorage(
   formData: FormData,
 ): Promise<StagingUploadResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -882,6 +880,7 @@ export async function actionUploadToStagingStorage(
 export async function actionCleanupStagedObjects(
   storagePaths: string[],
 ): Promise<ActionResult<{ count: number }>> {
+  await requireNotImpersonating();
   if (storagePaths.length === 0) return { ok: true, data: { count: 0 } };
 
   const auth = await requireWorkspaceStaffAction();
@@ -910,15 +909,10 @@ export async function actionCleanupStagedObjects(
 // validates roster membership for every unique talent, then inserts all DB
 // rows in one shot (grouped sort_order per talent).
 
-export type BulkAssignAssignment = {
-  storagePath: string;
-  talentProfileId: string;
-  meta?: StagedMediaMeta;
-};
-
 export async function actionBulkAssignStagedMedia(
   assignments: BulkAssignAssignment[],
 ): Promise<ActionResult<{ count: number }>> {
+  await requireNotImpersonating();
   if (assignments.length === 0) return { ok: true, data: { count: 0 } };
 
   const auth = await requireWorkspaceStaffAction();
@@ -1143,6 +1137,7 @@ export async function actionUploadTalentDocument(
   formData: FormData,
   talentProfileId: string,
 ): Promise<DocumentUploadResult> {
+  await requireNotImpersonating();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
@@ -1204,6 +1199,7 @@ export async function actionCreateDocumentSignedUploadUrl(
   talentProfileId: string,
   filename: string,
 ): Promise<ActionResult<{ uploadUrl: string; storagePath: string }>> {
+  await requireNotImpersonating();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
@@ -1237,6 +1233,7 @@ export async function actionFinalizeDocumentUpload(
   talentProfileId: string,
   storagePath: string,
 ): Promise<DocumentUploadResult> {
+  await requireNotImpersonating();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
@@ -1309,6 +1306,7 @@ export async function actionDeleteTalentDocument(
   talentProfileId: string,
   documentId?: string,
 ): Promise<ActionResult<null>> {
+  await requireNotImpersonating();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
@@ -1366,109 +1364,64 @@ export async function actionDeleteTalentDocument(
 
 // ─── Load full media set for a single talent (drawer hydration) ──────────────
 
-export type TalentMediaItem = {
-  id: string;
-  url: string;
-  variantKind: string;
-  sortOrder: number;
-  metadata: Record<string, unknown>;
-  /** Parent asset id when this row is a crop / baked-watermark derivative.
-   *  Drives "Revert to original" in the lightbox. */
-  sourceMediaAssetId: string | null;
-};
-
-export type TalentMediaBundle = {
-  /** Gallery photos — sorted by sort_order. */
-  gallery: TalentMediaItem[];
-  /** Hero image (4:5 portrait) — at most one (singleton). */
-  hero: TalentMediaItem | null;
-  /** Card / headshot — at most one (singleton). */
-  card: TalentMediaItem | null;
-  /** Polaroids keyed by their slot id (e.g. "front", "side", "smile"). */
-  polaroids: Record<string, TalentMediaItem>;
-  /** Hello reel — at most one video (singleton). */
-  reel: TalentMediaItem | null;
-};
+export type { TalentMediaItem, TalentMediaBundle } from "@/lib/media/talent-media-bundle.server";
 
 /** Per-variant gallery loader kept for backwards-compat (the drawer's
- *  gallery section calls this). For full hydration use actionLoadTalentMediaBundle. */
+ *  gallery section calls this). Loads the whole gallery via ...BundleAll. */
 export type TalentGalleryItem = { id: string; url: string; sortOrder: number };
 
 export async function actionLoadTalentGallery(
   talentProfileId: string,
 ): Promise<ActionResult<TalentGalleryItem[]>> {
-  const bundle = await actionLoadTalentMediaBundle(talentProfileId);
+  const bundle = await actionLoadTalentMediaBundleAll(talentProfileId);
   if (!bundle.ok) return bundle;
   return { ok: true, data: bundle.data.gallery.map((g) => ({ id: g.id, url: g.url, sortOrder: g.sortOrder })) };
 }
 
-export async function actionLoadTalentMediaBundle(
+/** Auth shared by both bundle loaders: roster staff OR the owning talent. */
+async function authorizeTalentMediaRead(
   talentProfileId: string,
-): Promise<ActionResult<TalentMediaBundle>> {
-  const auth = await requireWorkspaceStaffAction();
-  if (!auth.ok) return { ok: false, error: auth.error };
-  const { tenantId } = auth;
-
+): Promise<{ ok: true; admin: SupabaseClient } | { ok: false; error: string }> {
+  const staff = await requireWorkspaceStaffAction();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
-
-  const { data: rosterRow } = await admin
-    .from("agency_talent_roster")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", talentProfileId)
-    .neq("status", "removed")
-    .maybeSingle();
-  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
-
-  const { data, error } = await admin
-    .from("media_assets")
-    .select("id, bucket_id, storage_path, variant_kind, sort_order, metadata, source_media_asset_id, created_at")
-    .eq("owner_talent_profile_id", talentProfileId)
-    .is("deleted_at", null)
-    .order("sort_order", { ascending: true });
-
-  if (error) {
-    logServerError("media.actions.loadTalentMediaBundle", error);
-    return { ok: false, error: "Could not load media." };
+  if (staff.ok) {
+    const { data: rosterRow } = await admin.from("agency_talent_roster").select("id")
+      .eq("tenant_id", staff.tenantId).eq("talent_profile_id", talentProfileId).neq("status", "removed").maybeSingle();
+    if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+  } else if (!(await requireTalentSelfAction(talentProfileId)).ok) {
+    return { ok: false, error: staff.error };
   }
+  return { ok: true, admin };
+}
 
-  type Row = {
-    id: string;
-    bucket_id: string;
-    storage_path: string;
-    variant_kind: string;
-    sort_order: number | null;
-    metadata: Record<string, unknown> | null;
-    source_media_asset_id: string | null;
-    created_at: string;
-  };
+/** PAGED bundle: singletons (hero/card/reel/polaroids) + ONE gallery page
+ *  (default 60) with `galleryTotal` / `galleryHasMore` / `galleryNextOffset`.
+ *  Pass `galleryOffset` for the next page. Use this where only a preview or
+ *  the hero/card is needed; editors that need every row use ...All. */
+export async function actionLoadTalentMediaBundle(
+  talentProfileId: string,
+  opts?: { galleryOffset?: number; galleryLimit?: number },
+): Promise<ActionResult<TalentMediaBundle>> {
+  const auth = await authorizeTalentMediaRead(talentProfileId);
+  if (!auth.ok) return auth;
+  const bundle = await loadTalentMediaBundle(auth.admin, talentProfileId, {
+    offset: opts?.galleryOffset,
+    limit: opts?.galleryLimit,
+  });
+  if (!bundle) return { ok: false, error: "Could not load media." };
+  return { ok: true, data: bundle };
+}
 
-  const bundle: TalentMediaBundle = { gallery: [], hero: null, card: null, polaroids: {}, reel: null };
-
-  for (const r of (data as Row[] | null ?? [])) {
-    const item: TalentMediaItem = {
-      id: r.id,
-      url: admin.storage.from(r.bucket_id).getPublicUrl(r.storage_path).data.publicUrl,
-      variantKind: r.variant_kind,
-      sortOrder: r.sort_order ?? 0,
-      metadata: r.metadata ?? {},
-      sourceMediaAssetId: r.source_media_asset_id,
-    };
-    if (r.variant_kind === "polaroid") {
-      const slot = (item.metadata.polaroidSlot ?? item.metadata.slot ?? r.id) as string;
-      bundle.polaroids[slot] = item;
-    } else if (r.variant_kind === "hero") {
-      if (!bundle.hero) bundle.hero = item;
-    } else if (r.variant_kind === "card") {
-      if (!bundle.card) bundle.card = item;
-    } else if (r.variant_kind === "reel") {
-      if (!bundle.reel) bundle.reel = item;
-    } else if (r.variant_kind === "gallery") {
-      bundle.gallery.push(item);
-    }
-  }
-
+/** FULL bundle: the whole gallery, read server-side in chunks of 500. For
+ *  editors that reorder / delete / group by album and need every row. */
+export async function actionLoadTalentMediaBundleAll(
+  talentProfileId: string,
+): Promise<ActionResult<TalentMediaBundle>> {
+  const auth = await authorizeTalentMediaRead(talentProfileId);
+  if (!auth.ok) return auth;
+  const bundle = await loadTalentMediaBundle(auth.admin, talentProfileId, { all: true });
+  if (!bundle) return { ok: false, error: "Could not load media." };
   return { ok: true, data: bundle };
 }
 
@@ -1557,43 +1510,13 @@ export async function actionListDriveFolder(
   return { ok: true, data: { fileIds, count: fileIds.length, truncated } };
 }
 
-function parseDriveUrl(url: string): { kind: "file"; fileId: string } | { kind: "folder"; folderId: string } | null {
-  try {
-    const u = new URL(url.trim());
-    const fileMatch = u.pathname.match(/\/file\/d\/([^/]+)/);
-    if (fileMatch) return { kind: "file", fileId: fileMatch[1]! };
-    const folderMatch = u.pathname.match(/\/folders\/([^/?]+)/);
-    if (folderMatch) return { kind: "folder", folderId: folderMatch[1]! };
-    const id = u.searchParams.get("id");
-    if (id) return { kind: "file", fileId: id };
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-async function downloadDriveFile(fileId: string): Promise<{ buffer: ArrayBuffer; contentType: string } | null> {
-  const url = `https://drive.usercontent.google.com/u/0/uc?id=${encodeURIComponent(fileId)}&export=download`;
-  let res: Response;
-  try {
-    res = await fetch(url, { redirect: "follow" });
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
-  const contentType = res.headers.get("content-type") ?? "";
-  if (!contentType.startsWith("image/")) return null;
-  const buffer = await res.arrayBuffer();
-  if (buffer.byteLength < 1000) return null; // likely an error HTML page
-  return { buffer, contentType };
-}
-
 /** Phase 2 — import a single Drive file by its ID. Returns the created asset. */
 export async function actionImportSingleDriveFile(
   fileId: string,
   talentProfileId: string,
   sortOrder: number,
 ): Promise<ActionResult<{ id: string; publicUrl: string }>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -1705,6 +1628,7 @@ export async function actionImportFromGoogleDrive(
    *  threads them straight through so the two never disagree on count. */
   preResolvedFileIds?: string[],
 ): Promise<DriveImportResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -1913,6 +1837,7 @@ export async function actionCreateSignedUploadUrl(
   talentProfileId: string,
   ext: "jpg" | "png" | "mp4" | "mov" | "webm" = "jpg",
 ): Promise<ActionResult<SignedUploadGrant>> {
+  await requireNotImpersonating();
   // Dual auth, mirroring actionUploadAndAssignMedia: agency staff of the
   // active tenant OR the talent who owns this profile (self-service
   // surfaces like the offerings manager have no staff scope; ownership is
@@ -1993,6 +1918,7 @@ export async function actionCreateSignedUploadUrl(
 export async function actionCreateStagingSignedUploadUrl(
   ext: "jpg" | "png" = "jpg",
 ): Promise<ActionResult<SignedUploadGrant>> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
@@ -2150,20 +2076,6 @@ async function statStoredObject(
 
 // ── Register actions ───────────────────────────────────────────────────────
 
-export type RegisterUploadedAssetInput = {
-  storagePath: string;
-  variantKind: UploadVariant;
-  talentProfileId: string;
-  /** Forwarded to media_assets.metadata. Mirrors the legacy
-   *  actionUploadAndAssignMedia parameter. */
-  metadata?: Record<string, unknown>;
-  /** Set for crop derivatives so the lightbox's "Revert to original"
-   *  has a parent to navigate back to. */
-  sourceMediaAssetId?: string | null;
-  /** Original filename from the user's picker — preserved for audit. */
-  originalFilename?: string | null;
-};
-
 /**
  * Twin of `actionUploadAndAssignMedia` for the signed-upload flow. The
  * caller has already PUT the bytes via a signed URL; we verify, resize
@@ -2176,6 +2088,7 @@ export type RegisterUploadedAssetInput = {
 export async function actionRegisterUploadedAsset(
   input: RegisterUploadedAssetInput,
 ): Promise<RegisterMediaResult> {
+  await requireNotImpersonating();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
@@ -2385,6 +2298,7 @@ export async function actionRegisterStagedAsset(
   storagePath: string,
   originalFilename: string | null = null,
 ): Promise<StagingUploadResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;

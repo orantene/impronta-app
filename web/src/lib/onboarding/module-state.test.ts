@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canResume, parsePersistedModuleState, wordCount } from "./module-state";
+import { canResume, choiceToIntent, choiceToPath, localePatch, parsePersistedModuleState, wordCount } from "./module-state";
 import { EXAMPLE_SENTENCES, exampleAt } from "./example-bank";
 
 test("persisted state is re-validated field by field", () => {
@@ -31,4 +31,26 @@ test("example bank: EN and ES in parallel, rotation wraps", () => {
 test("word count", () => {
   assert.equal(wordCount("  I clean   houses "), 3);
   assert.equal(wordCount(""), 0);
+});
+
+test("choice persists through parse; junk is dropped; path mapping until provisionForChoice", () => {
+  assert.equal(parsePersistedModuleState({ choice: "both" }).choice, "both");
+  assert.equal(parsePersistedModuleState({ choice: "agency" }).choice, undefined);
+  assert.equal(choiceToPath("myself"), "talent");
+  assert.equal(choiceToPath("studio"), "business");
+  assert.equal(choiceToPath("both"), "both");
+  assert.equal(choiceToIntent("myself"), "talent");
+  assert.equal(choiceToIntent("both"), "business");
+});
+
+test("a brief parked on the dropped fork resumes at the choose screen; a bare choice resumes", () => {
+  assert.equal(parsePersistedModuleState({ step: "fork" }).step, "choose");
+  assert.equal(canResume({ step: "entry" }), false);
+  assert.equal(canResume({ step: "entry", choice: "studio" }), true);
+  assert.equal(canResume({ step: "choose" }), false);
+});
+
+test("a stored v1 design key is read as no pick; a v2 key is kept", () => {
+  assert.deepEqual(parsePersistedModuleState({ designChoice: "pink" }), {});
+  assert.deepEqual(parsePersistedModuleState({ designChoice: "blush" }), { designChoice: "blush" });
 });

@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import {
   getAppUrl,
+  isTalentSignupNext,
   normalizeNextPath,
   resolvePostAuthDestination,
 } from "@/lib/auth-flow";
@@ -19,17 +20,27 @@ import {
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   cookieDomainForHost,
+  expireParentDomainAuthCookies,
   isSupabaseAuthCookie,
 } from "@/lib/supabase/cookie-domain";
+import { choiceFromNext, freshAppRoleForChoice } from "@/lib/onboarding/choice";
 import { NextResponse } from "next/server";
 import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
+import { supportDeskPostAuthDestination } from "@/lib/support/desk/desk-url";
+import { isSupportDeskHost } from "@/lib/support/desk-hosts";
 import { claimTulalaBriefOnAuth } from "@/lib/tulala/brief-claim-auth";
+import { isFreshOAuthSignup } from "@/lib/legal/acceptances.core";
+import { hasSignupAcceptance } from "@/lib/legal/acceptances";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const next = normalizeNextPath(searchParams.get("next"));
   const popup = searchParams.get("popup") === "1";
+  const requestHost =
+    request.headers.get("x-impronta-host-name") ??
+    request.headers.get("host");
+  const onDeskHost = isSupportDeskHost(requestHost);
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -47,11 +58,8 @@ export async function GET(request: Request) {
     // cookies written on success must be parent-domain scoped so the freshly
     // authenticated session is visible across app / marketing / tenant
     // subdomains — otherwise the post-OAuth redirect to the app host lands
-    // logged-out. `undefined` (localhost / custom domains) stays host-only.
-    const authCookieDomain = cookieDomainForHost(
-      request.headers.get("x-impronta-host-name") ??
-        request.headers.get("host"),
-    );
+    // logged-out. Desk hosts stay host-only (`undefined`) by design.
+    const authCookieDomain = cookieDomainForHost(requestHost);
     const response = popup
       ? createPopupResponse(origin, { success: false, error: "Authentication failed." })
       : NextResponse.redirect(`${origin}/login?error=auth`);
@@ -88,7 +96,23 @@ export async function GET(request: Request) {
       // metadata through the provider, so we promote here when the next path
       // indicates a talent onboarding intent and the profile is freshly created
       // (app_role='client', account_status='onboarding').
-      if (user && next.startsWith("/onboarding/talent")) {
+      // next used to be `/onboarding/talent-location`; live talent register now
+      // uses `/talent/profile/fields` — match both.
+      // TUL-82: an explicit "How do you work?" choice on `next` (Google sign-up
+      // from the onboarding) promotes the same way the build does. Additive:
+      // only a fresh client + onboarding account moves.
+      const nextChoice = user ? choiceFromNext(next) : null;
+      if (user && nextChoice) {
+        const admin = createServiceRoleClient();
+        if (admin) {
+          await admin
+            .from("profiles")
+            .update({ app_role: freshAppRoleForChoice(nextChoice) })
+            .eq("id", user.id)
+            .eq("app_role", "client")
+            .eq("account_status", "onboarding");
+        }
+      } else if (user && isTalentSignupNext(next)) {
         const admin = createServiceRoleClient();
         if (admin) {
           await admin
@@ -120,27 +144,44 @@ export async function GET(request: Request) {
         });
       }
 
-      const destination = resolvePostAuthDestination(ensuredProfile, next);
-      // Always redirect post-auth destinations to the app host.
-      // The auth callback runs on whatever host the OAuth provider returns to
-      // (could be tulala.digital — the marketing host) but /onboarding/role,
-      // /admin, /talent, /client are only allowed on the app host. Using
-      // `origin` (the request host) caused a 404 when origin was the apex.
+      let destination = supportDeskPostAuthDestination(
+        resolvePostAuthDestination(ensuredProfile, next),
+        requestHost,
+      );
+      // Legal 2.2: a brand-new Google account has not ticked the 18+ and
+      // Terms box (the provider cannot carry it). Send it through a one-time
+      // step first. Unknown (feature off / table missing) never gates.
+      if (
+        user &&
+        isFreshOAuthSignup(user, Date.now()) &&
+        (await hasSignupAcceptance(user.id)) === false
+      ) {
+        destination = `/register/accept-terms?next=${encodeURIComponent(destination)}`;
+      }
+      // Leave the marketing apex for workspace paths, but stay on the Desk
+      // host when OAuth completed there — forcing getAppUrl() dropped
+      // support.tulala.digital and broke next=/desk.
       const appUrl = getAppUrl();
-      // Both branches must leave the marketing apex: /admin, /client,
-      // /talent and /onboarding/* only exist on the app + agency surfaces.
-      // The redirect branch has always hard-coded appUrl; the popup branch
-      // used to post the RELATIVE path back to the opener, which then
-      // router.push'd it on whatever host the popup was opened from.
+      const redirectBase = onDeskHost ? origin : appUrl;
       const successResponse = popup
         ? createPopupResponse(origin, {
             success: true,
-            destination: await hostSafeRedirectDestination(destination),
+            destination: onDeskHost
+              ? destination
+              : await hostSafeRedirectDestination(destination),
           })
-        : NextResponse.redirect(`${appUrl}${destination}`);
+        : NextResponse.redirect(`${redirectBase}${destination}`);
       response.cookies.getAll().forEach((cookie) => {
         successResponse.cookies.set(cookie);
       });
+      if (onDeskHost) {
+        const authNames = cookieStore
+          .getAll()
+          .map((c) => c.name)
+          .filter(isSupabaseAuthCookie);
+        expireParentDomainAuthCookies(successResponse.cookies, authNames);
+        expireParentDomainAuthCookies(cookieStore, authNames);
+      }
 
       // Phase 5/6 M5 — if an invite cookie is riding along, try to redeem
       // it now. Failures are non-fatal: missing profile keeps the cookie

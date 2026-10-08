@@ -18,6 +18,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { formatDateOnly } from "@/lib/date-only";
+import { formatOfferMoney } from "@/lib/inquiry/offer-currency";
 import { useActionState } from "react";
 import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-details";
 import {
@@ -103,6 +104,16 @@ export function OfferTab({
     <div style={{ padding: "16px 22px 32px", fontFamily: FONT }}>
       <Card>
         <OfferHeader offer={offer} expired={expired} />
+        {offer.termsUpdatedSinceRequest && canDecide && (
+          <div
+            role="note"
+            data-testid="offer-terms-updated"
+            style={{ margin: "10px 0 2px", padding: "10px 12px", borderRadius: 10, background: C.amberSoft, fontSize: 12.5, lineHeight: 1.5, color: C.ink }}
+          >
+            <strong>{t("dashboard.clientOffer.termsUpdatedTitle")}</strong>{" "}
+            {t("dashboard.clientOffer.termsUpdatedBody")}
+          </div>
+        )}
         <Divider />
         <LineItemsTable offer={offer} />
         <CostBreakdown offer={offer} />
@@ -1304,15 +1315,8 @@ const errorBoxStyle: React.CSSProperties = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatMoney(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: currency || "USD",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } catch {
-    return `${amount} ${currency}`;
-  }
+  // Always carries the ISO code: a bare "$" is ambiguous between USD and MXN.
+  return formatOfferMoney(amount, currency, { maximumFractionDigits: 0 });
 }
 
 function formatDateTime(iso: string): string {

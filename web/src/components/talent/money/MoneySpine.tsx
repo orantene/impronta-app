@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { PrimaryButton, SecondaryButton } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
+import type { MoneyAction } from "@/lib/money/money-actions";
 import type { MoneyPaymentRow, MoneyPayoutRow } from "@/lib/money/money-read-model";
 import {
   buildMoneySpineView,
@@ -30,7 +32,14 @@ import { PaymentDetailDrawer } from "./PaymentDetailDrawer";
 import { PayoutAccountStatesSheet } from "./PayoutAccountStatesSheet";
 import { PayoutDetailDrawer } from "./PayoutDetailDrawer";
 
-export function MoneySpine({ onViewBreakdown }: { onViewBreakdown?: () => void }) {
+export function MoneySpine({
+  onViewBreakdown,
+  onOpenAction,
+}: {
+  onViewBreakdown?: () => void;
+  onOpenAction: (action: MoneyAction) => void;
+}) {
+  const copy = useDashboardText();
   const view = useMemo(() => buildMoneySpineView(), []);
   const [tab, setTab] = useState<MoneyTab>("payments");
   const [method, setMethod] = useState<MethodFilter>("all");
@@ -102,7 +111,9 @@ export function MoneySpine({ onViewBreakdown }: { onViewBreakdown?: () => void }
           [data-money-spine] [data-money-mob-po] { display: flex !important; }
           [data-money-spine] [data-money-mob-actions] { display: flex !important; }
           [data-money-spine] [data-money-desk-po-cta] { display: none !important; }
-          [data-money-payout-states] { width: calc(100vw - 16px) !important; max-height: calc(100vh - 24px) !important; }
+          [data-money-spine] [role="tablist"] { overflow-x: auto; gap: 16px !important; max-width: 100%; scrollbar-width: none; }
+          [data-money-spine] [role="tab"] { min-height: 44px; white-space: nowrap; }
+          [data-money-payout-states] { width: calc(100vw - 16px) !important; max-height: calc(100dvh - 24px) !important; }
           [data-money-payout-states] > div:last-child > div { grid-template-columns: 1fr !important; }
         }
         @media (min-width: 721px) {
@@ -122,7 +133,7 @@ export function MoneySpine({ onViewBreakdown }: { onViewBreakdown?: () => void }
           marginBottom: 14,
         }}
       >
-        <PeriodPill label={view.periodLabel} />
+        <PeriodPill label={copy.t(view.periodLabel)} />
         <span style={{ flex: 1 }} />
         <span
           style={{
@@ -133,8 +144,8 @@ export function MoneySpine({ onViewBreakdown }: { onViewBreakdown?: () => void }
             color: COLORS.inkMuted,
           }}
         >
-          Payout account:{" "}
-          <b style={{ color: COLORS.ink }}>{view.payoutAccount.bank}</b> · verified{" "}
+          {copy.t("Payout account:")}{" "}
+          <b style={{ color: COLORS.ink }}>{view.payoutAccount.bank}</b> · {copy.t("verified")}{" "}
           <button
             type="button"
             onClick={openAccountStates}
@@ -149,42 +160,42 @@ export function MoneySpine({ onViewBreakdown }: { onViewBreakdown?: () => void }
               fontFamily: FONTS.body,
             }}
           >
-            Manage
+            {copy.t("Manage")}
           </button>
         </span>
       </div>
 
       <div data-money-summary style={{ display: "flex", gap: 16, marginBottom: 16 }}>
         <MoneySummaryCard
-          title="Collected in September"
-          scope="gross, 1–23 Sep"
+          title={copy.t("Collected in September")}
+          scope={copy.t("gross, 1–23 Sep")}
           amount={formatMoneyMajor(summary.collected_gross, view.currency)}
-          lines={`${summary.payments_count} payments · card ${formatMoneyShort(summary.by_method.card)} · cash ${formatMoneyShort(summary.by_method.cash)} · transfer ${formatMoneyShort(summary.by_method.transfer)}`}
-          foot={`Refunded ${formatMoneyShort(summary.refunded)} (shown separately)`}
+          lines={`${summary.payments_count} ${copy.t("payments")} · ${copy.t("card")} ${formatMoneyShort(summary.by_method.card)} · ${copy.t("cash")} ${formatMoneyShort(summary.by_method.cash)} · ${copy.t("transfer")} ${formatMoneyShort(summary.by_method.transfer)}`}
+          foot={`${copy.t("Refunded")} ${formatMoneyShort(summary.refunded)} (${copy.t("shown separately")})`}
           onClick={() => setTab("payments")}
         />
         <MoneySummaryCard
-          title="Outstanding now"
-          scope="any month"
+          title={copy.t("Outstanding now")}
+          scope={copy.t("any month")}
           amount={formatMoneyMajor(summary.outstanding_total, view.currency)}
           linesNode={
             <span>
               <b style={{ color: COLORS.critical }}>
-                {formatMoneyShort(summary.outstanding_overdue)} overdue
+                {formatMoneyShort(summary.outstanding_overdue)} {copy.t("overdue")}
               </b>
-              {` · ${formatMoneyShort(summary.outstanding_today)} due today · ${formatMoneyShort(summary.outstanding_later)} later`}
+              {` · ${formatMoneyShort(summary.outstanding_today)} ${copy.t("due today")} · ${formatMoneyShort(summary.outstanding_later)} ${copy.t("Due later").toLowerCase()}`}
             </span>
           }
           onClick={() => goOutstanding("all")}
         />
         <MoneySummaryCard
-          title="Platform payouts"
-          scope="card only"
+          title={copy.t("Platform payouts")}
+          scope={copy.t("card only")}
           amount={formatMoneyMajor(summary.platform_paid_out, view.currency)}
-          lines={`Paid to ${view.payoutAccount.bank} in September`}
+          lines={`${copy.t("Paid to")} ${view.payoutAccount.bank} ${copy.t("in September")}`}
           foot={
             summary.next_payout_estimated != null
-              ? `Next: about ${formatMoneyShort(summary.next_payout_estimated)} on Fri 25 (estimated)`
+              ? `${copy.t("Next: about")} ${formatMoneyShort(summary.next_payout_estimated)} ${copy.t("on Fri 25 (estimated)")}`
               : undefined
           }
           onClick={() => setTab("payouts")}
@@ -197,15 +208,22 @@ export function MoneySpine({ onViewBreakdown }: { onViewBreakdown?: () => void }
         outstanding={summary.outstanding_count}
         payouts={summary.payouts_count}
         onChange={setTab}
+        labels={{
+          payments: copy.t("Payments"),
+          outstanding: copy.t("Outstanding"),
+          payouts: copy.t("Payouts"),
+        }}
       />
 
       <div data-money-mob-actions style={{ display: "none", gap: 8, margin: "12px 0" }}>
         <div style={{ flex: 1 }}>
-          <SecondaryButton size="sm">Record payment</SecondaryButton>
+          <SecondaryButton size="sm" onClick={() => onOpenAction({ kind: "record" })}>
+            {copy.t("Record payment")}
+          </SecondaryButton>
         </div>
         <div style={{ flex: 1 }}>
           <SecondaryButton size="sm" onClick={openAccountStates}>
-            Payout account
+            {copy.t("Payout account")}
           </SecondaryButton>
         </div>
       </div>
@@ -232,6 +250,8 @@ export function MoneySpine({ onViewBreakdown }: { onViewBreakdown?: () => void }
           agency={view.agencyLine}
           currency={view.currency}
           onFilter={setOutFilt}
+          onRequest={(row) => onOpenAction({ kind: "request", prefill: row })}
+          onRecord={(row) => onOpenAction({ kind: "record", prefill: row })}
         />
       ) : null}
 
@@ -245,7 +265,10 @@ export function MoneySpine({ onViewBreakdown }: { onViewBreakdown?: () => void }
       ) : null}
 
       {paymentDetail ? (
-        <PaymentDetailDrawer detail={paymentDetail} onClose={() => setPaymentDetail(null)} />
+        <PaymentDetailDrawer
+          detail={paymentDetail}
+          onClose={() => setPaymentDetail(null)}
+        />
       ) : null}
 
       {payoutDetail ? (
@@ -272,11 +295,22 @@ export function MoneySpine({ onViewBreakdown }: { onViewBreakdown?: () => void }
 }
 
 /** Header actions for PageHeader — Record / Request. */
-export function MoneySpineHeaderActions() {
+export function MoneySpineHeaderActions({
+  onRecord,
+  onRequest,
+}: {
+  onRecord: () => void;
+  onRequest: () => void;
+}) {
+  const copy = useDashboardText();
   return (
     <div data-money-desk-actions style={{ display: "flex", gap: 8 }}>
-      <SecondaryButton size="sm">Record payment</SecondaryButton>
-      <PrimaryButton size="sm">Request payment</PrimaryButton>
+      <SecondaryButton size="sm" onClick={onRecord}>
+        {copy.t("Record payment")}
+      </SecondaryButton>
+      <PrimaryButton size="sm" onClick={onRequest}>
+        {copy.t("Request payment")}
+      </PrimaryButton>
     </div>
   );
 }
@@ -310,17 +344,19 @@ function TabList({
   outstanding,
   payouts,
   onChange,
+  labels,
 }: {
   active: MoneyTab;
   payments: number;
   outstanding: number;
   payouts: number;
   onChange: (t: MoneyTab) => void;
+  labels: { payments: string; outstanding: string; payouts: string };
 }) {
   const tabs: { id: MoneyTab; label: string; n: number }[] = [
-    { id: "payments", label: "Payments", n: payments },
-    { id: "outstanding", label: "Outstanding", n: outstanding },
-    { id: "payouts", label: "Payouts", n: payouts },
+    { id: "payments", label: labels.payments, n: payments },
+    { id: "outstanding", label: labels.outstanding, n: outstanding },
+    { id: "payouts", label: labels.payouts, n: payouts },
   ];
   return (
     <div

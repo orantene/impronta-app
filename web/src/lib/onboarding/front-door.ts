@@ -8,7 +8,8 @@
  * that opens it. `?start=` is read by the module host on the marketing home.
  */
 
-import type { OnboardingIntent } from "./module-state";
+import { flowUrl } from "./flow";
+import type { OnboardingChoice, OnboardingIntent } from "./module-state";
 
 export const START_PARAM = "start";
 
@@ -40,4 +41,13 @@ export function intentFromStartParam(value: string | null | undefined): Onboardi
   if (v === "talent" || v === "business") return v;
   if (v === "1" || v === "true" || v === "unknown" || v === "") return "unknown";
   return null;
+}
+
+/**
+ * 1B: the old CTAs now land in the in-app flow (`/start`), not the marketing
+ * modal hop (`/?start=`). A known intent preselects the matching card. Only an explicit Spanish page forces `lang`; otherwise the flow reads the browser.
+ */
+export function inAppFlowUrl(intent: OnboardingIntent, extra: { promo?: string | null; locale?: string | null } = {}): string {
+  const choice: OnboardingChoice | null = intent === "talent" ? "myself" : intent === "business" ? "studio" : null;
+  return flowUrl({ choice, promo: extra.promo ?? null, locale: extra.locale === "es" ? "es" : null });
 }

@@ -20,7 +20,12 @@ import { updateSession } from "@/lib/supabase/middleware";
 import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-identity";
 import { resolveTenantContext, HOST_CONTEXT_HEADER, HOST_NAME_HEADER, HOST_TENANT_SLUG_HEADER, HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
 import { offRosterTalentResponse } from "@/lib/saas/off-roster-talent-gate";
-import { isTalentSiteHostPathAllowed, talentSiteHostRewritePath } from "@/lib/saas/talent-site-host-routing";
+import { suspendedWorkspaceResponse } from "@/lib/saas/suspended-workspace-gate";
+import {
+  supportDeskAdminRedirectResponse,
+  supportDeskHostDeadResponse,
+  supportDeskHostSurfaceResponse,
+} from "@/lib/support/desk-host";
 import { talentSiteRewriteReentryResponse } from "@/lib/saas/talent-site-rewrite-reentry";
 import { resolveCanonicalCustomDomainRedirectHost } from "@/lib/saas/domain-canonical";
 import { brandedAdminRedirectPath, brandedAdminRewritePath, normalizeBrandedNextParam } from "@/lib/saas/branded-admin-url";
@@ -32,8 +37,10 @@ import {
 } from "@/lib/saas/surface-allow-list";
 import { marketingWorkspacePathRedirect, workspacePathRedirect } from "@/lib/saas/workspace-path-redirects";
 import { resolveLegacyTalentPlatformPath } from "@/lib/talent/legacy-talent-redirect";
+import { talentProfileCodeAliasRedirectResponse } from "@/lib/talent/profile-code-alias-middleware";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
-import { boundTalentFallbackLocale, loadTalentPreferredLocale } from "@/lib/site-admin/server/talent-locale";
+import { talentSiteHostResponse } from "@/lib/saas/talent-site-host-response";
+import { withTalentHostClientSession } from "@/lib/client-account/talent-host-session";
 import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
 import {
   PREVIEW_COOKIE_OPTIONS,
@@ -44,6 +51,7 @@ import { readPreviewFromQueryParam } from "@/lib/site-admin/preview/middleware";
 import { ensureExperimentVisitorCookie } from "@/lib/site-admin/builder-node/experiment-visitor-cookie";
 import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
 import { timed } from "@/lib/server/perf-trace";
+import { startDoorRedirect } from "@/lib/onboarding/start-door-redirect";
 
 function clientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -62,8 +70,8 @@ function clientIp(request: NextRequest): string {
  * in `lib/supabase/middleware.ts`).
  */
 const HOST_CONTEXT_HEADERS_TO_STRIP = [
-  HOST_CONTEXT_HEADER,
-  HOST_TALENT_PROFILE_HEADER,
+  HOST_CONTEXT_HEADER, HOST_TALENT_PROFILE_HEADER, HOST_NAME_HEADER,
+  HOST_TENANT_SLUG_HEADER, TENANT_HEADER_NAME, PUBLIC_PATH_PREFIX_HEADER,
 ];
 
 function stripInboundHostContextHeaders(request: NextRequest): Headers {
@@ -188,53 +196,56 @@ export async function proxy(request: NextRequest) {
     );
   }
 
+  // TUL-117: `/start` is marketing-host only; send the platform app host and
+  // `/signup` there instead of the 404. Tenant-branded hosts keep the 404.
+  const startDoor = startDoorRedirect({
+    pathname: request.nextUrl.pathname,
+    search: request.nextUrl.search,
+    method: request.method,
+    hostKind: hostContext.kind,
+    marketingOrigin: `https://${TULALA_APEX_HOST}`,
+  });
+  if (startDoor) return NextResponse.redirect(startDoor, 308);
+
+  // Support Desk host: DEAD while SUPPORT_DESK_ENABLED is off — even when
+  // support.tulala.digital is seeded in agency_domains (Phase 1a). When the
+  // flag is on, still restrict to the desk surface (not a full app host).
+  {
+    const deskDead = supportDeskHostDeadResponse(request, hostContext.hostname);
+    if (deskDead) return deskDead;
+    // /admin bookmarks → /desk before the surface 404 (app.tulala /admin intact).
+    const deskAdmin = supportDeskAdminRedirectResponse(
+      request,
+      pathname,
+      hostContext.hostname,
+    );
+    if (deskAdmin) return deskAdmin;
+    const deskSurface = supportDeskHostSurfaceResponse(
+      request,
+      pathname,
+      hostContext.hostname,
+    );
+    if (deskSurface) return deskSurface;
+  }
+
+  // A suspended workspace's public storefront is not served (agency + hub
+  // hosts only; fails open on a read error).
+  if (hostContext.kind === "agency" || hostContext.kind === "hub") {
+    const suspended = await timed("proxy.suspendedWorkspace", suspendedWorkspaceResponse(request, hostContext.tenantId));
+    if (suspended) return suspended;
+  }
+
   // ── Talent custom-domain host ────────────────────────────────────────────
   // A `kind: "talent_site"` host (resolved only AFTER agency_domains misses)
   // serves the talent's published Max site. Its surface is intentionally tiny:
-  // the site home (`/`) and inner page slugs (`/<slug>`), plus shared plumbing.
-  // Anything else 404s — a vanity domain never exposes the workspace, directory,
-  // or auth. The render path reads the talent_profile_id from a host header set
-  // here, so a client can never spoof it.
+  // the site home (`/`), inner page slugs (`/<slug>`), guest `/c/<id>`, public
+  // `/pay/<code>` checkout, plus shared plumbing. Anything else 404s — a vanity
+  // domain never exposes the workspace, directory, or auth. The render path
+  // reads the talent_profile_id from a host header set here, so a client can
+  // never spoof it.
   if (hostContext.kind === "talent_site") {
-    // A talent's own preferred_locale as the fallback locale, see
-    // boundTalentFallbackLocale (2026-09-24). Genuinely parallel.
-    const [talentLangSettings, talentPreferredLocaleRaw] = await Promise.all([
-      getLanguageSettingsForMiddleware(),
-      loadTalentPreferredLocale(hostContext.talentProfileId),
-    ]);
-    const talentFallbackLocale = boundTalentFallbackLocale(talentPreferredLocaleRaw, talentLangSettings.publicLocales);
-    const localeStripped = isNonDefaultLocalePrefixedPath(pathname, talentLangSettings) ? stripNonDefaultLocalePrefix(pathname, talentLangSettings) : stripDefaultLocalePrefixFromPath(pathname, talentLangSettings);
-
-    const decision = isTalentSiteHostPathAllowed(localeStripped);
-    if (!decision) {
-      return NextResponse.rewrite(
-        new URL("/_page-not-found", request.url),
-        { status: 404 },
-      );
-    }
-
-    const talentHeaders = new Headers(sanitizedInboundHeaders);
-    const locale = resolveLocaleForPathname(pathname, request, talentLangSettings, talentFallbackLocale);
-    talentHeaders.set(LOCALE_HEADER, locale);
-    talentHeaders.set(ORIGINAL_PATHNAME_HEADER, request.nextUrl.pathname);
-    talentHeaders.set(HOST_CONTEXT_HEADER, "talent_site");
-    talentHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
-    talentHeaders.set(HOST_TALENT_PROFILE_HEADER, hostContext.talentProfileId);
-    // A talent_site host is NOT tenant-scoped — never let a tenant id leak.
-    talentHeaders.delete(TENANT_HEADER_NAME);
-    talentHeaders.delete(HOST_TENANT_SLUG_HEADER);
-    talentHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
-
-    const attachGuestCookie = attachTalentSiteGuestIdentity(request, talentHeaders);
-    if (decision.kind === "passthrough") {
-      return attachGuestCookie(NextResponse.next({ request: { headers: talentHeaders } }));
-    }
-
-    const rewriteUrl = request.nextUrl.clone();
-    rewriteUrl.pathname = talentSiteHostRewritePath(decision.pageSlug);
-    const res = attachGuestCookie(NextResponse.rewrite(rewriteUrl, { request: { headers: talentHeaders } }));
-    syncLocaleCookieForPath(res, request.nextUrl.pathname, talentLangSettings, request, talentFallbackLocale);
-    return res;
+    // Languages + URL grammar: talent-site-host-response.ts. Client session refresh (CLIENT_ACCOUNT_HOSTS): talent-host-session.ts.
+    return withTalentHostClientSession(request, hostContext, () => talentSiteHostResponse(request, pathname, sanitizedInboundHeaders, hostContext));
   }
 
   if (
@@ -353,18 +364,10 @@ export async function proxy(request: NextRequest) {
     return res;
   }
 
-  // Phase 5 / M1 — per-tenant locale enforcement. A tenant publishes a subset
-  // of platform locales (`agency_business_identity.supported_locales`). When
-  // the URL carries an explicit locale prefix that the tenant does NOT
-  // support, redirect to the tenant's default locale instead of serving a page
-  // that would 404 or fall back silently. This is temporary safety — M7+ Site
-  // Health surfaces missing-locale warnings to operators.  2026-08-16 — this
-  // was gated on `hostContext.kind === "agency"`, so hub tenants AND every
-  // path-based `/w/<slug>` tenant got NO enforcement at all: an unsupported
-  // `/fr/w/<slug>` fell through to the surface allow-list and 404'd instead of
-  // redirecting to the tenant's own default locale. Gate on the EFFECTIVE
-  // tenant context instead (`agency` or `hub`, host- or path-resolved).
-  // Non-tenant contexts (marketing / app) still skip it, exactly as before.
+  // Phase 5 / M1 — per-tenant locale enforcement. When the URL carries an explicit locale prefix the
+  // tenant does NOT support, redirect to the tenant's default locale rather than 404 or silently fall
+  // back. Gated on the EFFECTIVE tenant context (`agency` or `hub`, host- or path-resolved), so hub
+  // tenants and `/w/<slug>` paths are covered; marketing / app contexts still skip it.
   if (isTenantHostContext(effectiveHostContext) && effectiveTenantLocaleSettings) {
     const firstSegment = parts[1];
     const isPlatformLocale = langSettings.publicLocales.some(
@@ -455,18 +458,10 @@ export async function proxy(request: NextRequest) {
     );
   }
 
-  // Phase 9 v2 — share-link viewer rate limit. Token verification is cheap
-  // (HMAC + a single supabase read), but a fuzzer hammering `/share/<random>`
-  // 100×/sec would still consume edge cycles + DB round-trips against a
-  // guaranteed-invalid token. 60 requests / minute / IP is comfortably above
-  // any realistic visitor pattern (a real recipient opens the link once, maybe
-  // refreshes a few times) and catches drive-by scanning. Per-page asset reads
-  // load through the CMS section dispatcher with their own caching so they
-  // don't re-hit this gate. `/q/` joins this budget (QR & Links Q1): a printed
-  // link code is short and typeable, therefore deliberately guessable, so
-  // enumeration is answered by a rate limit rather than by a secrecy the code
-  // cannot have. Separate bucket keys so a scanner cannot exhaust a share
-  // recipient's allowance, or vice versa.
+  // Phase 9 v2 — share-link viewer rate limit. A fuzzer hammering `/share/<random>` would burn edge
+  // cycles and DB reads on a guaranteed-invalid token; 60 req/min/IP is well above any real visitor.
+  // `/q/` joins this budget (QR & Links Q1): printed link codes are short and typeable, so enumeration
+  // is answered by a rate limit. Separate bucket keys keep a scanner from exhausting a recipient's allowance.
   if ((pathname.startsWith("/share/") || pathname.startsWith("/q/")) && request.method === "GET") {
     const bucket = pathname.startsWith("/q/") ? "link-scan" : "share";
     if (!tryConsumeRateLimit(`${bucket}:${ip}`, 60, 60_000)) {
@@ -546,6 +541,10 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(url, 308);
     }
   }
+
+  // Retired vanity TAL codes -> live TAL-<digits> (301); numeric codes skip the DB.
+  const aliasRedirect = await talentProfileCodeAliasRedirectResponse(request, originalPathname, originalHasLocalePrefix ? stripNonDefaultLocalePrefix(originalPathname, effectiveLangSettings) : undefined);
+  if (aliasRedirect) return aliasRedirect;
 
   if (originalHasLocalePrefix) {
     const inner = stripNonDefaultLocalePrefix(originalPathname, effectiveLangSettings);
@@ -728,7 +727,7 @@ export async function proxy(request: NextRequest) {
       pathnameForAuth,
       languageSettings: effectiveLangSettings,
       // Same surface the allow-list ran against: auth routing must not redirect to a path this surface 404s.
-      hostKind: effectiveHostContext.kind,
+      hostKind: effectiveHostContext.kind, resolvedHost: effectiveHostContext.hostname,
     }));
 
   if (sessionRes.headers.get("location")) {
@@ -791,6 +790,6 @@ export const config = {
     // allow-listed for every host kind in `surface-allow-list.ts`.
     // `api/media/asset` is excluded because next/image's internal fetch
     // carries no `Host`; safe, and why, in `@/lib/media/private-access`.
-    "/((?!_next/static|_next/image|api/media/asset|favicon.ico|sw\\.js|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|api/media/asset|favicon.ico|apps/nail-studio/|sw\\.js|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

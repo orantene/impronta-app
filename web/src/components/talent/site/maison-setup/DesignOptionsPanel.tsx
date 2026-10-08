@@ -14,16 +14,22 @@ import {
   restoreMaisonDesignRevisionAction,
   type MaisonDesignOptionsState,
 } from "@/lib/talent-site/server/maison-options-actions";
+import { refreshSiteContentFromProfileAction } from "@/lib/talent-site/server/theme-actions";
+import { runThemeApply } from "@/lib/talent-site/history/apply-busy";
 import { undoMaisonImportAction } from "@/lib/talent-site/server/maison-import-actions";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
+import { MaisonUndoToast } from "./MaisonUndoToast";
 
 type Props = {
   locale: MaisonSetupLocale;
   open: boolean;
   onClose: () => void;
-  /** After restore → open Review with restored draft (W70). */
+  /** After restore → open Review with restored draft (W70). The host owns the
+   *  restored toast with Undo because this panel unmounts on restore. */
   onRestoredToReview: () => void;
   onChanged?: () => void;
+  /** Open straight on the restore list ("Restore previous design" link). */
+  startWithRestore?: boolean;
 };
 
 export function DesignOptionsPanel({
@@ -32,10 +38,11 @@ export function DesignOptionsPanel({
   onClose,
   onRestoredToReview,
   onChanged,
+  startWithRestore = false,
 }: Props) {
   const [state, setState] = useState<MaisonDesignOptionsState | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; undoable: boolean } | null>(null);
   const [showRestore, setShowRestore] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -53,9 +60,9 @@ export function DesignOptionsPanel({
 
   useEffect(() => {
     if (!open) return;
-    setShowRestore(false);
+    setShowRestore(startWithRestore);
     reload();
-  }, [open, reload]);
+  }, [open, reload, startWithRestore]);
 
   useEffect(() => {
     if (!toast) return;
@@ -67,7 +74,11 @@ export function DesignOptionsPanel({
 
   const es = locale === "es";
 
-  function run(fn: () => Promise<{ ok: boolean; error?: string }>, okToast: string) {
+  function run(
+    fn: () => Promise<{ ok: boolean; error?: string }>,
+    okToast: string,
+    undoable = false,
+  ) {
     startTransition(async () => {
       setError(null);
       const res = await fn();
@@ -75,7 +86,7 @@ export function DesignOptionsPanel({
         setError(res.error ?? "Something went wrong.");
         return;
       }
-      setToast(okToast);
+      setToast({ message: okToast, undoable });
       onChanged?.();
       reload();
     });
@@ -84,14 +95,23 @@ export function DesignOptionsPanel({
   function handleReset() {
     run(
       async () => resetMaisonColorsAction(),
-      maisonSetupT(locale, "Colors reset to draft · Undo"),
+      maisonSetupT(locale, "Colors reset to draft"),
+      true,
     );
   }
 
   function handleReapply() {
     run(
-      async () => reapplyMaisonDemoLayoutAction(),
-      maisonSetupT(locale, "Demo layout reapplied · Undo"),
+      async () => runThemeApply(() => reapplyMaisonDemoLayoutAction()),
+      maisonSetupT(locale, "Demo layout reapplied"),
+      true,
+    );
+  }
+
+  function handleRefreshFromProfile() {
+    run(
+      async () => runThemeApply(() => refreshSiteContentFromProfileAction()),
+      maisonSetupT(locale, "Content refreshed from your profile"),
     );
   }
 
@@ -114,12 +134,11 @@ export function DesignOptionsPanel({
   function handleRestore(revisionId: string) {
     startTransition(async () => {
       setError(null);
-      const res = await restoreMaisonDesignRevisionAction({ revisionId });
+      const res = await runThemeApply(() => restoreMaisonDesignRevisionAction({ revisionId }));
       if (!res.ok) {
         setError(res.error);
         return;
       }
-      setToast(maisonSetupT(locale, "Previous design restored to your draft · Undo"));
       onChanged?.();
       onClose();
       onRestoredToReview();
@@ -164,12 +183,27 @@ export function DesignOptionsPanel({
         </div>
 
         {toast ? (
-          <p
-            data-testid="maison-options-toast"
-            className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] text-emerald-900"
-          >
-            {toast}
-          </p>
+          toast.undoable ? (
+            <div className="mt-3">
+              <MaisonUndoToast
+                locale={locale}
+                message={toast.message}
+                testId="maison-options-toast"
+                onUndone={() => {
+                  setToast(null);
+                  onChanged?.();
+                  reload();
+                }}
+              />
+            </div>
+          ) : (
+            <p
+              data-testid="maison-options-toast"
+              className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] text-emerald-900"
+            >
+              {toast.message}
+            </p>
+          )
         ) : null}
         {error ? (
           <p className="mt-3 text-[12px] text-red-800" data-testid="maison-options-error">
@@ -200,6 +234,17 @@ export function DesignOptionsPanel({
               actionLabel={maisonSetupT(locale, "Reapply")}
               disabled={pending}
               onAction={handleReapply}
+            />
+            <OptionRow
+              testId="maison-option-refresh-profile"
+              title={maisonSetupT(locale, "Refresh from my profile")}
+              line={maisonSetupT(
+                locale,
+                "Pull your latest photos, name, bio and services into this design.",
+              )}
+              actionLabel={maisonSetupT(locale, "Refresh")}
+              disabled={pending}
+              onAction={handleRefreshFromProfile}
             />
             {state?.canDiscard ? (
               <OptionRow
@@ -273,7 +318,7 @@ export function DesignOptionsPanel({
                   <div>
                     <p className="text-[14px] font-semibold text-admin-ink">{rev.summary}</p>
                     {rev.isLive ? (
-                      <p className="text-[12px] font-semibold text-emerald-800">● Live now</p>
+                      <p className="text-[12px] font-semibold text-emerald-800">● {locale === "es" ? "En vivo ahora" : "Live now"}</p>
                     ) : null}
                   </div>
                   {!rev.isLive ? (

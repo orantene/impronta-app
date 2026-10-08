@@ -55,8 +55,8 @@ export function NotificationPermissionCard() {
           disabled={perm === "denied" || perm === "unsupported"}
           style={{
             border: `1px solid ${HQ.border}`,
-            background: perm === "denied" || perm === "unsupported" ? "transparent" : "#F5F2EB",
-            color: perm === "denied" || perm === "unsupported" ? HQ.inkMuted : "#0F0F11",
+            background: perm === "denied" || perm === "unsupported" ? "transparent" : HQ.ink,
+            color: perm === "denied" || perm === "unsupported" ? HQ.inkMuted : HQ.bg,
             borderRadius: 8,
             padding: "8px 12px",
             fontSize: 12,

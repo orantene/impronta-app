@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { CapsLabel, Icon } from "../../primitives";
+import { Icon } from "../../primitives";
 import { COLORS, FONTS } from "../../state";
 import { openGuideArticle } from "@/lib/guide/open-guide";
 import { useT } from "@/i18n/use-t";
@@ -44,20 +44,18 @@ export function PageHeader({
     `}</style>
     <div data-tulala-page-header style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 14 }}>
       <div className="flex-1 min-w-0">
-        {eyebrow && (
-          <div data-tulala-page-eyebrow style={{ marginBottom: 6 }}>
-            <CapsLabel>{eyebrow}</CapsLabel>
-          </div>
-        )}
+        {/* The Talent Studio header carries no eyebrow label: the rail already
+            names the section. `eyebrow` stays in the props for callers. */}
+        {eyebrow ? <span hidden data-tulala-page-eyebrow>{eyebrow}</span> : null}
         <div className="flex items-center gap-2">
           <h1
             data-tulala-h1
             {...(guideNodeId ? { "data-guide-id": guideNodeId } : {})}
             style={{
               fontFamily: FONTS.display,
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: 600,
-              letterSpacing: -0.4,
+              letterSpacing: -0.3,
               color: COLORS.ink,
               margin: 0,
               lineHeight: 1.15,

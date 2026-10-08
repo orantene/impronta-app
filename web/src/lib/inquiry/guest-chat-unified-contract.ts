@@ -108,6 +108,8 @@ export type ListGuestInquiriesResult =
 
 export type ListGuestInquiriesCallback = (input: {
   tenantSlug: string;
+  /** The visitor's site locale (e.g. a Spanish talent site on an English hub). Falls back to the tenant default. */
+  locale?: string;
 }) => Promise<ListGuestInquiriesResult>;
 
 // One talent entry on the launcher rail (P0-T1). Derived at the directory page

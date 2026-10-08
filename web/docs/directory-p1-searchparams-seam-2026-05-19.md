@@ -433,7 +433,7 @@ as-is and the seam is the first Phase 2b task (still Option B).
 ## 4. Ordered implementation task list (Option B, exact paths)
 
 > Research only — this is the build plan, not code. Pre-edit ritual on `phase-1`:
-> `git pull --rebase origin phase-1`; gate with `cd web && npx tsc --noEmit && npm run lint`
+> `git pull --rebase origin phase-1`; gate with `cd web && npm run typecheck && npm run lint`
 > before every commit (ignore the ~25 pre-existing baseline TS errors from the concurrent
 > `talent_type_grid` work — confirm any new errors are yours). QA on localhost:3000 with
 > `Host: impronta.lvh.me`; deploy/promote is a separate user-authorized step.

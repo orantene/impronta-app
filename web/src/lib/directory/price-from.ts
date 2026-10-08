@@ -120,7 +120,8 @@ export async function fetchStartingPrices(
     if (
       row.kind !== "product" &&
       (row.duration_minutes ?? 0) > 0 &&
-      (row.booking_mode === "request" || row.booking_mode === "instant")
+      // null = inherits the talent default (WSF-B); only inquiry has no slots.
+      row.booking_mode !== "inquiry"
     ) {
       bookableIds.add(row.talent_profile_id);
     }

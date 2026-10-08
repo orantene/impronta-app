@@ -6,6 +6,8 @@ import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 
+import { readUserId, type EffectiveReadContext } from "@/lib/impersonation/effective-read";
+
 import { fail } from "./refusals";
 import { inquiryIsHers, talentIdsOnInquiry, talentIsSeller, type TalentOrderLine } from "./talent-pov";
 
@@ -19,12 +21,32 @@ export type TalentActor = {
   ok: true;
   userId: string;
   talentProfileId: string;
+  /** Demo/fixture talents keep journey threads in Messages; live talents hide them. */
+  isDemo: boolean;
   admin: SupabaseClient;
   supabase: SupabaseClient;
 };
 
-export async function loadTalentActor(): Promise<TalentActor | { ok: false; reason: MessagingRefusal }> {
-  const supabase = await createSupabaseServerClient();
+export type TalentActorDeps = {
+  rlsClient: () => Promise<SupabaseClient | null>;
+  adminClient: () => SupabaseClient | null;
+};
+
+const DEFAULT_ACTOR_DEPS: TalentActorDeps = {
+  rlsClient: () => createSupabaseServerClient(),
+  adminClient: () => createServiceRoleClient(),
+};
+
+/**
+ * The signed-in talent. `ctx` (TUL-245) is for READ loaders only: a verified
+ * impersonation resolves the talent being acted as. Every messaging mutation
+ * calls this with no context and keeps resolving the real session user.
+ */
+export async function loadTalentActor(
+  ctx?: EffectiveReadContext,
+  deps: TalentActorDeps = DEFAULT_ACTOR_DEPS,
+): Promise<TalentActor | { ok: false; reason: MessagingRefusal }> {
+  const supabase = await deps.rlsClient();
   if (!supabase) return fail("unavailable");
   const {
     data: { user },
@@ -32,18 +54,33 @@ export async function loadTalentActor(): Promise<TalentActor | { ok: false; reas
   } = await supabase.auth.getUser();
   if (authError) return fail("unavailable");
   if (!user) return fail("not_allowed");
-  const admin = createServiceRoleClient();
+  const admin = deps.adminClient();
   if (!admin) return fail("unavailable");
-  const { data, error } = await admin.from("talent_profiles").select("id").eq("user_id", user.id).maybeSingle();
+  const subjectId = readUserId(user.id, ctx);
+  const { data, error } = await admin.from("talent_profiles").select("id, is_demo").eq("user_id", subjectId).maybeSingle();
   if (error) return fail("unavailable");
   if (!data) return fail("not_allowed");
+  const row = data as { id: string; is_demo?: boolean | null };
   return {
     ok: true,
-    userId: user.id,
-    talentProfileId: (data as { id: string }).id,
+    userId: subjectId,
+    talentProfileId: row.id,
+    isDemo: row.is_demo === true,
     admin,
     supabase,
   };
+}
+
+/**
+ * The tenant of an inquiry she is named on (seated or not), or null. Upload and
+ * voice notes both authorise a talent through this, the same ownership rule as
+ * her replies, so a guest chat that names her is not half open.
+ */
+export async function loadNamedTalentTenant(inquiryId: string): Promise<string | null> {
+  const actor = await loadTalentActor();
+  if (!actor.ok) return null;
+  const owned = await loadOwnedTalentInquiry(actor.admin, actor.talentProfileId, inquiryId);
+  return owned.ok ? owned.tenantId : null;
 }
 
 export type OwnedTalentInquiry = {

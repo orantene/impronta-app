@@ -14,7 +14,7 @@ const admin = createClient(url, SUPABASE_SERVICE_ROLE_KEY, {
 });
 
 const email = "owner@midnightmuse.demo";
-const password = "Midnight-Muse-Owner-2026!";
+const password = (process.env.MIDNIGHT_OWNER_PASSWORD?.trim() || (() => { throw new Error("MIDNIGHT_OWNER_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })());
 const userId = "1260a7bc-709d-4ae4-a824-7d89bae468e4";
 
 const { data, error } = await admin.auth.admin.updateUserById(userId, {

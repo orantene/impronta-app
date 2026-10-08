@@ -27,6 +27,7 @@ import {
   normalizeCustomDomainHostname,
   pickFallbackSubdomainHostname,
 } from "./domain-utils";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 type DomainReturnTo = "settings" | "site" | "website";
 
 function domainPath(
@@ -112,6 +113,7 @@ async function loadManagedDomainContext(tenantSlug: string, returnTo: DomainRetu
 }
 
 export async function connectCustomDomainAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const tenantSlug = readTextField(formData, "tenantSlug");
   const rawHostname = readTextField(formData, "hostname");
   const returnTo = readReturnTo(formData);
@@ -262,6 +264,7 @@ export async function connectCustomDomainAction(formData: FormData): Promise<voi
 }
 
 export async function verifyCustomDomainNowAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const tenantSlug = readTextField(formData, "tenantSlug");
   const rawHostname = readTextField(formData, "hostname");
   const returnTo = readReturnTo(formData);
@@ -346,6 +349,7 @@ export async function verifyCustomDomainNowAction(formData: FormData): Promise<v
 }
 
 export async function switchPrimaryDomainAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const tenantSlug = readTextField(formData, "tenantSlug");
   const rawHostname = readTextField(formData, "hostname");
   const returnTo = readReturnTo(formData);
@@ -415,6 +419,7 @@ export async function switchPrimaryDomainAction(formData: FormData): Promise<voi
 }
 
 export async function removeCustomDomainAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const tenantSlug = readTextField(formData, "tenantSlug");
   const rawHostname = readTextField(formData, "hostname");
   const returnTo = readReturnTo(formData);

@@ -7,6 +7,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import type { WorkspacePlan } from "@/lib/dashboard/admin-workspace-summary";
 import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 import type { ServerActionResult } from "@/lib/server-actions/result";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const PAID_PLANS = new Set<WorkspacePlan>([
   "website",
@@ -26,6 +27,7 @@ export type ChangeWorkspacePlanResult = ServerActionResult<{ plan: WorkspacePlan
 export async function changeWorkspacePlan(
   plan: WorkspacePlan,
 ): Promise<ChangeWorkspacePlanResult> {
+  await requireNotImpersonating();
   if (PAID_PLANS.has(plan)) {
     return { ok: false, error: "Paid upgrades go through billing." };
   }

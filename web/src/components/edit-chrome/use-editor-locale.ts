@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
+import { useServerDashboardLocale } from "@/i18n/use-dashboard-locale";
 import {
   detectEditorLocale,
   editorT,
@@ -23,7 +24,13 @@ export function useEditorLocale(): {
   locale: EditorLocale;
   t: typeof editorT;
 } {
-  const [locale, setLocale] = useState<EditorLocale>(() => detectEditorLocale());
+  // F88: the talent builder is mounted bare (no dashboard shell), so the
+  // server-resolved dashboard locale arrives through DashboardLocaleProvider
+  // and wins over the browser language on the very first render.
+  const serverLocale = useServerDashboardLocale();
+  const [locale, setLocale] = useState<EditorLocale>(() =>
+    serverLocale === "es" || serverLocale === "en" ? serverLocale : detectEditorLocale(),
+  );
 
   useEffect(() => {
     const match = document.cookie.match(

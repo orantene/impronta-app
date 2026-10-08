@@ -457,8 +457,9 @@ export function CalendarPage() {
                 aria-selected={active}
                 onClick={() => setViewMode(m)}
                 style={{
-                  background: active ? COLORS.fill : "transparent",
-                  color: active ? "#fff" : COLORS.inkMuted,
+                  background: active ? "var(--tc-soft)" : "transparent",
+                  color: active ? "var(--tc-ink)" : "var(--tc-muted)",
+                  boxShadow: active ? "inset 0 0 0 1px var(--tc-action)" : "none",
                   border: "none",
                   borderRadius: 999,
                   padding: "5px 12px",
@@ -590,7 +591,7 @@ export function CalendarPage() {
                   disabled={blockSaving}
                   style={{
                     padding: "8px 14px", borderRadius: 8,
-                    background: blockSaving ? "rgba(11,11,13,0.4)" : COLORS.fill,
+                    background: blockSaving ? "rgba(11,11,13,0.4)" : "var(--tc-action)",
                     border: "none", color: "#fff", fontFamily: FONTS.body,
                     fontSize: 12.5, fontWeight: 600, cursor: blockSaving ? "not-allowed" : "pointer",
                   }}

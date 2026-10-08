@@ -1,8 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { normalizeNextPath } from "@/lib/auth-flow";
+import { isSupportDeskHost } from "@/lib/support/desk-hosts";
 import {
   cookieDomainForHost,
+  expireParentDomainAuthCookies,
   isSupabaseAuthCookie,
 } from "@/lib/supabase/cookie-domain";
 import { NextRequest, NextResponse } from "next/server";
@@ -34,6 +36,9 @@ export async function GET(request: NextRequest) {
   }
 
   const cookieStore = await cookies();
+  const requestHost =
+    request.headers.get("x-impronta-host-name") ?? request.headers.get("host");
+  const onDeskHost = isSupportDeskHost(requestHost);
 
   // Scope Supabase auth cookies — critically the PKCE `-code-verifier` written
   // by signInWithOAuth below — to the shared parent domain (".tulala.digital")
@@ -43,14 +48,21 @@ export async function GET(request: NextRequest) {
   // cookies at different scopes. The browser sends both to /auth/callback,
   // @supabase/ssr reads whichever comes first (often the stale one), and
   // exchangeCodeForSession fails PKCE verification → "Authentication failed".
-  // `undefined` (localhost / custom domains) keeps the prior host-only default.
-  const authCookieDomain = cookieDomainForHost(
-    request.headers.get("x-impronta-host-name") ?? request.headers.get("host"),
-  );
+  // Desk hosts stay host-only; we expire parent-domain shadows first so the
+  // fresh host-only verifier is not poisoned.
+  const authCookieDomain = cookieDomainForHost(requestHost);
 
   // Placeholder response — cookies written by setAll are copied to the
   // final redirect response below.
   const cookieResponse = new NextResponse(null, { status: 200 });
+  if (onDeskHost) {
+    const authNames = cookieStore
+      .getAll()
+      .map((c) => c.name)
+      .filter(isSupabaseAuthCookie);
+    expireParentDomainAuthCookies(cookieResponse.cookies, authNames);
+    expireParentDomainAuthCookies(cookieStore, authNames);
+  }
 
   const supabase = createServerClient(supabaseUrl, anonKey, {
     cookies: {

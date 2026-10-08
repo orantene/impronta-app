@@ -8,6 +8,7 @@ import { loadAccessProfile } from "@/lib/access-profile";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireSession } from "@/lib/server/action-guards";
 import { createTranslator } from "@/i18n/messages";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type PasswordRecoveryActionState =
   | { error?: string; success?: boolean; message?: string }
@@ -20,6 +21,7 @@ export async function completeRecoveryPasswordUpdate(
   _prev: PasswordRecoveryActionState,
   formData: FormData,
 ): Promise<PasswordRecoveryActionState> {
+  await requireNotImpersonating();
   const locale = String(formData.get("locale") ?? "en");
   const t = createTranslator(locale === "es" ? "es" : "en");
   const session = await requireSession();

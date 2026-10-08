@@ -16,6 +16,22 @@ import {
   searchInboxRows,
 } from "./inbox-view";
 
+/* ---------- Today "Needs attention" reply state ---------- */
+
+test("Today: an inbox read still in flight or failed is never 'You are clear'", async () => {
+  const { todayReplyState, countAwaitingReply } = await import("./inbox-view");
+  assert.equal(todayReplyState(null), "checking");
+  assert.equal(todayReplyState("unavailable"), "unavailable");
+  assert.equal(todayReplyState(0), "none");
+  // TAL-93938: two needs_reply threads under Messages "Needs reply" -> Today shows 2 waiting.
+  const rows = [
+    inboxRow({ id: "a", conversationState: "needs_reply" }),
+    inboxRow({ id: "b", conversationState: "needs_reply" }),
+    inboxRow({ id: "c", conversationState: "awaiting_customer" }),
+  ];
+  assert.equal(todayReplyState(countAwaitingReply(rows)), "waiting");
+});
+
 /* ---------- isNeedsAction ---------- */
 
 test("isNeedsAction: needs_reply is always needs action", () => {
@@ -185,4 +201,20 @@ test("groupInboxRows: omits empty groups", () => {
   const reply = inboxRow({ id: "r", conversationState: "needs_reply", ownerUserId: "u-1", nextAction: null });
   const groups = groupInboxRows([reply], "needs", EN_COPY, NOW);
   assert.deepEqual(groups.map((g) => g.key), ["reply"]);
+});
+
+/* ---------- Today "Needs attention" and the inbox share ONE needs-reply rule ---------- */
+
+test("needs-reply: inbox filter count and Today card count agree for the same thread set", async () => {
+  const { countAwaitingReply, rowsForSellerFilter, sellerFilterCounts } = await import("./inbox-view");
+  const rows = [
+    inboxRow({ id: "a", conversationState: "needs_reply", ownerUserId: "u-1", nextAction: null }),
+    inboxRow({ id: "b", conversationState: "needs_reply", ownerUserId: "u-1", nextAction: null }),
+    inboxRow({ id: "c", conversationState: "awaiting_customer", ownerUserId: "u-1", nextAction: null }),
+    inboxRow({ id: "d", conversationState: "resolved", ownerUserId: "u-1", nextAction: null }),
+  ];
+  assert.equal(countAwaitingReply(rows), 2);
+  assert.equal(sellerFilterCounts(rows).needs, countAwaitingReply(rows));
+  assert.equal(rowsForSellerFilter(rows, "needs").length, countAwaitingReply(rows));
+  assert.equal(countAwaitingReply([]), 0);
 });

@@ -60,6 +60,7 @@ import {
   useNavigatorDisclosure,
   NavigatorDisclosureChevron,
 } from "./use-navigator-disclosure";
+import { useEditorLocale } from "./use-editor-locale";
 import { useLayersTreeContainer } from "./use-roving-tree-focus";
 import {
   layerIcon,
@@ -357,7 +358,10 @@ export function FreeformLayersTree({
     canInsertRawHtmlElements,
     setHoveredBuilderNodeId,
     surfaceKind,
+    gallerySurface,
   } = useEditContext();
+  // Track B — Free talent: hide Add / Move on the freeform layers tree.
+  const structureLocked = gallerySurface.structuralEdits === false;
   // "Generate a section with AI" reuses the same surface split the blank-canvas
   // starter uses, so the insert-popover generator inherits the audience preset.
   const aiSurface = textToPageSurfaceForStarterSurface(
@@ -1048,7 +1052,7 @@ export function FreeformLayersTree({
                 )}
               </LayerActionButton>
               {/* Locked nodes: hide structural actions (add/move/remove). */}
-              {!row.locked && canAddChild ? (
+              {!structureLocked && !row.locked && canAddChild ? (
                 <LayerActionButton
                   label={`Add block inside ${row.label}`}
                   disabled={pending}
@@ -1067,7 +1071,7 @@ export function FreeformLayersTree({
                   <Plus size={ACTION_ICON_SIZE} strokeWidth={2.2} aria-hidden />
                 </LayerActionButton>
               ) : null}
-              {!row.locked ? (
+              {!structureLocked && !row.locked ? (
                 <>
                   <LayerActionButton
                     label={`Move ${row.label} up`}
@@ -1209,6 +1213,7 @@ function HeaderAddButton({
   disabled?: boolean;
   onClick: MouseEventHandler<HTMLButtonElement>;
 }) {
+  const { t } = useEditorLocale();
   const [hover, setHover] = useState(false);
   const lit = !disabled && (hover || active);
   return (
@@ -1248,7 +1253,7 @@ function HeaderAddButton({
       }}
     >
       <Plus size={13} strokeWidth={2.4} aria-hidden />
-      Add block
+      {t("Add block")}
     </button>
   );
 }

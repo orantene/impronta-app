@@ -1,0 +1,150 @@
+/**
+ * The footer "See location" link is decided at render time: kept when the page
+ * has a Location section, retargeted to the visit band when only that exists,
+ * dropped when neither does. It is never a dead anchor.
+ */
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import test from "node:test";
+
+import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { buildMaisonV2Payload } from "./theme-catalog/collection/designs";
+import { homeAnchorHref, pruneDeadSectionLinks } from "./dead-section-links";
+import { pruneEmptyBoundSections } from "./my-content-prune";
+
+type AnyNode = BuilderNode & { children?: BuilderNode[] };
+
+function find(nodes: readonly BuilderNode[], pred: (n: BuilderNode) => boolean, out: BuilderNode[] = []): BuilderNode[] {
+  for (const n of nodes) {
+    if (pred(n)) out.push(n);
+    const kids = (n as AnyNode).children;
+    if (Array.isArray(kids)) find(kids, pred, out);
+  }
+  return out;
+}
+
+const link = (href: string) => ({ id: "l", kind: "button", props: { label: "See location", href } }) as unknown as BuilderNode;
+const section = (anchorId: string) => ({ id: anchorId, kind: "container", props: { anchorId } }) as unknown as BuilderNode;
+const footer = (href: string): BuilderNode[] => [
+  { id: "f", kind: "container", props: {}, children: [{ id: "h", kind: "heading", props: { text: "Where" } } as BuilderNode, link(href)] } as unknown as BuilderNode,
+];
+const hrefs = (tree: readonly BuilderNode[]) =>
+  find(tree, (n) => n.kind === "button").map((n) => (n.props as { href: string }).href);
+
+test("the link stays when the page has a Location section", () => {
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(footer("#location"), [section("location")])), ["#location"]);
+});
+
+test("only a visit band on the page: the link points at it", () => {
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(footer("#location"), [section("visit")])), ["#visit"]);
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(footer("#visit"), [section("location")])), ["#location"]);
+});
+
+test("neither section on the page: the link is dropped, the rest of the footer stays", () => {
+  const out = pruneDeadSectionLinks(footer("#location"), [section("about")]);
+  assert.deepEqual(hrefs(out), []);
+  assert.equal(find(out, (n) => n.kind === "heading").length, 1);
+  // A page that renders no sections at all (a policy page) drops it too.
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(footer("#location"), [])), []);
+});
+
+test("other links are never touched", () => {
+  const tree = footer("#talent-ask");
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(tree, [])), ["#talent-ask"]);
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(footer("/blog"), [])), ["/blog"]);
+});
+
+test("Maison v2: the real footer link follows the real page (empty Location is pruned, so the link goes)", () => {
+  const p = buildMaisonV2Payload();
+  const has = (tree: readonly BuilderNode[]) => hrefs(tree).includes("#location");
+  assert.ok(has(p.shellTree), "the footer ships the link");
+  const withZone = pruneEmptyBoundSections(p.homeTree, {
+    talentLocation: { addressMode: "zone_only", studioKind: "studio", city: "Mérida", neighbourhood: "", arrivalNote: "", arrivalPhotoUrl: "" },
+  });
+  assert.ok(has(pruneDeadSectionLinks(p.shellTree, withZone)), "a zone: the Location band renders, the link stays");
+  const noZone = pruneEmptyBoundSections(p.homeTree, {});
+  assert.ok(!has(pruneDeadSectionLinks(p.shellTree, noZone)), "no zone: no Location band, no link");
+  assert.ok(!hrefs(pruneDeadSectionLinks(p.shellTree, noZone)).includes("#visit"));
+});
+
+// ── Header nav, strict anchors, and #talent-ask ──────────────────────────────
+
+const header = (hrefsIn: string[]): BuilderNode[] =>
+  [
+    {
+      id: "hdr",
+      kind: "section",
+      props: {
+        sectionTypeKey: "site_header",
+        sectionProps: {
+          navItems: hrefsIn.map((href) => ({ label: href, href })),
+          regions: { right: [{ type: "language" }, { type: "cta", label: "Menu", href: "#services" }] },
+        },
+      },
+    } as unknown as BuilderNode,
+  ];
+const navHrefs = (tree: BuilderNode[]) =>
+  ((tree[0]!.props as { sectionProps: { navItems: Array<{ href: string }> } }).sectionProps.navItems).map((i) => i.href);
+
+test("header nav: a #reviews link goes when the talent renders no Reviews band, the rest stay", () => {
+  const page = [section("gallery"), section("services"), section("about")];
+  const out = pruneDeadSectionLinks(header(["#gallery", "#services", "#reviews", "#about", "/blog"]), page);
+  assert.deepEqual(navHrefs(out), ["#gallery", "#services", "#about", "/blog"]);
+  // With reviews on the page the link stays.
+  assert.deepEqual(navHrefs(pruneDeadSectionLinks(header(["#reviews"]), [section("reviews")])), ["#reviews"]);
+});
+
+test("header nav: Location and Visit retarget each other; region items (the CTA) are checked too", () => {
+  assert.deepEqual(navHrefs(pruneDeadSectionLinks(header(["#location"]), [section("visit")])), ["#visit"]);
+  assert.deepEqual(navHrefs(pruneDeadSectionLinks(header(["#visit"]), [section("location")])), ["#location"]);
+  const noMenu = pruneDeadSectionLinks(header(["#about"]), [section("about")]);
+  const right = (noMenu[0]!.props as { sectionProps: { regions: { right: Array<{ type: string }> } } }).sectionProps.regions.right;
+  assert.deepEqual(right.map((i) => i.type), ["language"], "the Menu CTA points at #services, which is not on the page");
+});
+
+test("the shell's own anchors count (a link to #site-footer is not dead)", () => {
+  const foot = [{ id: "f", kind: "container", props: { anchorId: "site-footer" } }] as unknown as BuilderNode[];
+  const hdr = [{ id: "h", kind: "button", props: { label: "Contact", href: "#site-footer" } }] as unknown as BuilderNode[];
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(hdr, [], [foot])), ["#site-footer"]);
+});
+
+test("#talent-ask is never pruned: it is a real target on every talent page", () => {
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(footer("#talent-ask"), [])), ["#talent-ask"]);
+  const src = readFileSync(join(process.cwd(), "src/app/%5Ftalent-site/TalentSiteContactBridge.tsx"), "utf8");
+  assert.match(src, /<span id="talent-ask" data-talent-ask-target=""/);
+  assert.match(src, /if \(!showFallback\) return askTarget;/);
+  // The click still opens the chat, and so does landing on the hash (TUL-246: through the queued
+  // open-intent, whose client dispatches `tulala:open-guest-chat` when the dock announces it is ready).
+  assert.match(src, /requestTalentOpen\(intentForHref\(href, bookEntry\) \?\? openIntentFor\("ask", bookEntry\)\)/);
+  assert.match(src, /isTalentOpenHash\(window\.location\.hash\)/);
+  // `#book` (TUL-206) is a real target too; `#talent-ask` stays for old links.
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(footer("#book"), [])), ["#book"]);
+  assert.match(src, /<span id="book" data-talent-book-target=""/);
+});
+
+test("the home page renders the header and footer through the pruner", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/talent-site/server/render-max-site.tsx"), "utf8");
+  assert.match(src, /pruneDeadSectionLinks\(headerTree, renderedBlocks, \[footerTree\], \{ homePath \}\)/);
+  assert.match(src, /pruneDeadSectionLinks\(footerTree, renderedBlocks, \[headerTree\], \{ homePath \}\)/);
+  assert.match(src, /renderBuilderNodes\(liveHeaderTree/);
+});
+
+test("off the home page nav anchors point back at the home page, locale-aware", () => {
+  const nav = (hs: string[]): BuilderNode[] => [
+    { id: "n", kind: "container", props: {}, children: hs.map(link) } as unknown as BuilderNode,
+  ];
+  const home = [section("services"), section("gallery")];
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(nav(["#services", "#reviews", "#gallery"]), home, [], { homePath: "/" })), ["/#services", "/#gallery"]);
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(nav(["#services"]), home, [], { homePath: "/en" })), ["/en/#services"]);
+  // the shell's own anchors and the always-present targets stay in-page
+  assert.deepEqual(hrefs(pruneDeadSectionLinks([...nav(["#s-foot", "#talent-ask"]), section("s-foot")], home, [], { homePath: "/" })), ["#s-foot", "#talent-ask"]);
+  // on the home page (no homePath) nothing is rewritten
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(nav(["#services", "#reviews"]), home)), ["#services"]);
+});
+
+test("homeAnchorHref", () => {
+  assert.equal(homeAnchorHref("/", "services"), "/#services");
+  assert.equal(homeAnchorHref("/en", "services"), "/en/#services");
+  assert.equal(homeAnchorHref("/en/", "about"), "/en/#about");
+});

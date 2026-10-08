@@ -13,6 +13,7 @@ import { shouldEmitGuestRequesterMail } from "../guest-notification-audience";
 import { supportFrom } from "../support-from";
 import { loadTicketFixLinks, loadTicketInsight } from "./load";
 import type { FixLinkKind, SupportFixLinkRow, SupportInsightRow } from "./types";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
@@ -35,6 +36,8 @@ export async function hqConfirmInsightAction(raw: {
   productArea?: string;
   tags?: string[];
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = z
     .object({
       insightId: uuid,
@@ -68,6 +71,8 @@ export async function hqAddFixLinkAction(raw: {
   note?: string;
   notifyRequester?: boolean;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = z
     .object({
       ticketId: uuid,

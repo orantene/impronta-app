@@ -48,6 +48,7 @@ import { useDevPlanOverride, useOpenUpgradeModal } from "./upgrade-bridge";
 import { railMovesWithPushState } from "../spa-segments";
 import { useLazyBridgeSlices } from "./use-lazy-bridge-slices";
 import { adaptBridgeClient, adaptBridgeTeamMember } from "./bridge-adapters";
+import { bookingIdFromTalentPath, talentPageToSegment } from "./talent-page-segment";
 import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_PAGES_ALL, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, WORKSPACE_PAGES, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
 import {
   clampWorkspacePage,
@@ -138,7 +139,7 @@ type Ctx = {
   setPage: (p: WorkspacePage) => void;
   /** Update active surface from route mount without pushing a navigation. */
   syncPage: (p: WorkspacePage) => void;
-  setTalentPage: (p: TalentPage) => void;
+  setTalentPage: (p: TalentPage, opts?: { navigate?: boolean }) => void;
   /** Switch the talent's plan tier (dev/test affordance until billing is live). */
   setTalentTier: (t: TalentSubscriptionTier) => void;
   setClientPlan: (p: ClientPlan) => void;
@@ -505,6 +506,8 @@ type Ctx = {
     /** Server-resolved `manage_agency_domains` (owner-only) — gates the
      *  Website domain manager's action affordances. */
     canManageDomains?: boolean;
+    /** Talent surface: set ONLY while staff really impersonate (TUL-164). */
+    actingAs?: { name: string | null } | null;
   } | null;
   /**
    * Effective tenant values for rendering — derived from bridgeTenantIdentity
@@ -521,16 +524,13 @@ type Ctx = {
     initials: string;
     entityType: EntityType;
   };
-  /**
-   * Tenant's full supported-locale list, resolved server-side and threaded
-   * onto the bridge (`initialBridgeData.localeSettings`). The shell chrome's
-   * `DashboardLocaleToggle` reads this so registry-added languages (e.g. `fr`)
-   * appear — not just the static en/es default. Falls back to `["en", "es"]`
-   * in standalone/mock mode (no bridge).
-   */
+  /** Full supported-locale list from the bridge (`localeSettings`) for the
+   * `DashboardLocaleToggle`; `["en", "es"]` in standalone/mock mode. */
   supportedLocales: readonly string[];
   /** Tenant's primary locale; initial active state for the locale toggle. */
   tenantDefaultLocale: string;
+  /** Talent surface only: the talent's own language pair; `null` elsewhere. */
+  talentLocales: { primary: string; secondary: readonly string[] } | null;
   /**
    * Platform-wide switch for the floating "+" quick-action button
    * (BottomActionFab). Set by HQ on /platform/admin/settings; false (the
@@ -902,34 +902,9 @@ function pageToSegment(p: WorkspacePage): string {
   return resolved === "overview" ? "" : resolved;
 }
 
-/** Maps a TalentPage to the URL segment for canonical talent routes. */
-function talentPageToSegment(p: TalentPage): string {
-  // Canonical canonical paths mirror the existing /talent/* route tree.
-  const map: Partial<Record<TalentPage, string>> = {
-    today:     "today",
-    attention: "attention",
-    messages:  "inbox",  // messages → inbox canonical route
-    inbox:     "inbox",
-    profile:   "profile",
-    reviews:   "reviews",
-    calendar:  "calendar",
-    "calendar-availability": "calendar/availability",
-    "bookings-new": "bookings/new",
-    "booking-record": "bookings",
-    money:     "money",
-    clients:   "clients",
-    payouts:   "payouts",
-    agencies:  "money",   // legacy alias
-    activity:  "money",   // legacy alias
-    reach:     "money",   // legacy alias
-    "public-page": "site",
-    settings:  "settings",
-  };  return map[p] ?? p;
-}
-
 // Segments the talent layout serves — used by the prefetcher below.
-const TALENT_ROUTE_SEGMENTS = TALENT_PAGES.map(talentPageToSegment).filter(
-  (s, i, a) => a.indexOf(s) === i,
+const TALENT_ROUTE_SEGMENTS = TALENT_PAGES.map((p) => talentPageToSegment(p)).filter(
+  (s, i, a): s is string => s !== null && a.indexOf(s) === i,
 );
 
 export function AdminShellProvider({
@@ -1173,12 +1148,21 @@ export function AdminShellProvider({
   }, [workspaceType]);
   // talent
   const [talentPage, setTalentPageRaw] = useState<TalentPage>(initialTalentPage ?? "today");
-  const setTalentPage = useCallback((p: TalentPage) => {
+  const setTalentPage = useCallback((p: TalentPage, opts?: { navigate?: boolean }) => {
     setTalentPageRaw(p);
+    // Route sync sets the page from a URL that is already correct. Navigating
+    // again bounces a Money click back to Today when the previous syncer
+    // re-fires during the transition.
+    if (opts?.navigate === false) return;
     if (initialSurface !== "talent") return;
-    const segment = talentPageToSegment(p);
     if (typeof window === "undefined") return;
     const currentPath = window.location.pathname;
+    // F44: a booking record already on /talent/bookings/<id> stays put.
+    if (p === "booking-record" && bookingIdFromTalentPath(currentPath)) return;
+    let storedBookingId: string | null = null;
+    try { storedBookingId = sessionStorage.getItem("tulala:agenda:bookingId"); } catch { /* ignore */ }
+    const segment = talentPageToSegment(p, storedBookingId);
+    if (segment === null) return;
 
     if (platformTalentRoutesRef.current) {
       const platformHref = `/talent/${segment}`;
@@ -1268,17 +1252,18 @@ export function AdminShellProvider({
     { id: "cf2", name: "Brand tier", kind: "Select",       appliesTo: "Client", required: true,  helper: "A — global / B — regional / C — local" },
     { id: "cf3", name: "Region",     kind: "Select",       appliesTo: "Client", required: false, helper: "EMEA / Americas / APAC" },
   ];
-  const [customFields, setCustomFields] = useState<WorkspaceCustomField[]>(() => {
-    if (typeof window === "undefined") return SEED_FIELDS;
+  // Seeded identically on server and first client render; the saved list is
+  // read in an effect (a localStorage read in the initializer is a #418).
+  const [customFields, setCustomFields] = useState<WorkspaceCustomField[]>(SEED_FIELDS);
+  useEffect(() => {
     try {
       const raw = window.localStorage.getItem(CUSTOM_FIELDS_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed as WorkspaceCustomField[];
+        if (Array.isArray(parsed)) setCustomFields(parsed as WorkspaceCustomField[]);
       }
     } catch {}
-    return SEED_FIELDS;
-  });
+  }, []);
   const addCustomField = useCallback((f: Omit<WorkspaceCustomField, "id">) => {
     setCustomFields(cs => {
       const next = [...cs, { ...f, id: `cf-${Date.now()}` }];
@@ -1303,14 +1288,13 @@ export function AdminShellProvider({
 
   // Per-workspace overrides on built-in field visibility.
   const FIELD_VIS_KEY = "tulala_field_visibility_v1";
-  const [fieldVisibilityOverrides, setFieldVisibilityOverrides] = useState<Partial<Record<ProfileFieldId, FieldVisibility>>>(() => {
-    if (typeof window === "undefined") return {};
+  const [fieldVisibilityOverrides, setFieldVisibilityOverrides] = useState<Partial<Record<ProfileFieldId, FieldVisibility>>>({});
+  useEffect(() => {
     try {
       const raw = window.localStorage.getItem(FIELD_VIS_KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) setFieldVisibilityOverrides(JSON.parse(raw));
     } catch {}
-    return {};
-  });
+  }, []);
   const setFieldVisibility = useCallback((id: ProfileFieldId, vis: FieldVisibility) => {
     // Hard-policy enforcement: financial / PII / compliance fields can
     // never go public. Required fields can never be hidden. Silently
@@ -1638,7 +1622,9 @@ export function AdminShellProvider({
   // Skipped in production (cutover) mode — page is driven by Next.js
   // routing, not ?page= query params.
   useEffect(() => {
-    if (tenantSlugRef.current) return;
+    // Platform /talent/* owns the path. A missing agency slug must not
+    // fall through to the prototype query rewriter, or Money stays on Today.
+    if (tenantSlugRef.current || platformTalentRoutesRef.current) return;
     const params = new URLSearchParams(window.location.search);
     const s = params.get("surface");
     const pl = params.get("plan");
@@ -1688,7 +1674,7 @@ export function AdminShellProvider({
   // the active surface to keep URLs short and shareable.
   // Skipped in production (cutover) mode — URL is owned by Next.js router.
   useEffect(() => {
-    if (tenantSlugRef.current) return;
+    if (tenantSlugRef.current || platformTalentRoutesRef.current) return;
     // Skip until URL-read has applied. Otherwise the very first paint
     // writes defaults to the URL and discards whatever the user navigated to.
     if (!urlHydrated) return;
@@ -1799,7 +1785,7 @@ export function AdminShellProvider({
     });
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, (opts?.undo || opts?.action) ? 5000 : 2400); // actionable toasts stay longer
+    }, (opts?.undo || opts?.action) ? 9000 : 2400); // actionable toasts stay long enough to reach the link (F63; matches ToastRow)
   }, []);
 
   const dismissToast = useCallback((id: number) => {
@@ -1922,7 +1908,7 @@ export function AdminShellProvider({
         nextHref = segment ? `${base}/${segment}` : base;
       } else {
         // Preserve last talent page similarly.
-        const segment = talentPageToSegment(talentPage);
+        const segment = talentPageToSegment(talentPage) ?? "calendar";
         nextHref = `/${slug}/talent/${segment}`;
       }
       router.push(nextHref);
@@ -2052,15 +2038,13 @@ export function AdminShellProvider({
   const bridgeTenantIdentity = initialBridgeData?.tenantIdentity ?? null;
   const bridgeSessionIdentity = initialBridgeData?.sessionIdentity ?? null;
 
-  // Tenant locale settings, resolved server-side and threaded onto the bridge
-  // (`initialBridgeData.localeSettings`). Exposed so the shell chrome's
-  // `DashboardLocaleToggle` (in `TulalaIdentityBar`) renders the full
-  // registry-driven language list. Falls back to the static en/es default in
-  // standalone/mock mode so the toggle behaves exactly as before.
+  // Locale settings from the bridge for the `DashboardLocaleToggle`; static
+  // en/es default in standalone/mock mode.
   const supportedLocales: readonly string[] =
     initialBridgeData?.localeSettings?.supportedLocales ?? ["en", "es"];
   const tenantDefaultLocale: string =
     initialBridgeData?.localeSettings?.defaultLocale ?? "en";
+  const talentLocales = initialBridgeData?.talentLocales ?? null;
 
   // Platform-wide workspace-UI switches (HQ, /platform/admin/settings) —
   // gate the floating "+" FAB and the first-run tour. Default hidden.
@@ -2338,6 +2322,7 @@ export function AdminShellProvider({
       bridgeTalentChecklistDismissed,
       supportedLocales,
       tenantDefaultLocale,
+      talentLocales,
       workspaceFabEnabled,
       workspaceTourEnabled,
       workspaceSupportEnabled,
@@ -2468,6 +2453,7 @@ export function AdminShellProvider({
       bridgeTalentChecklistDismissed,
       supportedLocales,
       tenantDefaultLocale,
+      talentLocales,
       workspaceFabEnabled,
       workspaceTourEnabled,
       workspaceSupportEnabled,
@@ -2482,6 +2468,11 @@ export function AdminShellProvider({
       <TalentStudioFlagProvider enabled={talentStudioV2}>{children}</TalentStudioFlagProvider>
     </AdminShellContext.Provider>
   );
+}
+
+/** Same as useAdminShell, but null outside the provider (dev harnesses). */
+export function useAdminShellOptional(): Ctx | null {
+  return useContext(AdminShellContext);
 }
 
 export function useAdminShell(): Ctx {

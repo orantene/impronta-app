@@ -159,6 +159,40 @@ const ratchetPlugin = {
                 table = a.quasis[0].value.cooked;
               }
             }
+            // `agencies` read keyed by its own id (`.eq("id", tenantId)`) IS
+            // the tenant row: scoped by construction. Conservative: literal
+            // "id" + an expression whose final name is tenantId / tenant_id.
+            if (table === "agencies") {
+              let cur = node;
+              while (
+                cur.parent &&
+                cur.parent.type === "MemberExpression" &&
+                cur.parent.object === cur &&
+                cur.parent.parent &&
+                cur.parent.parent.type === "CallExpression" &&
+                cur.parent.parent.callee === cur.parent
+              ) {
+                cur = cur.parent.parent;
+                const m = cur.callee;
+                const [k, v] = cur.arguments;
+                if (
+                  !m.computed &&
+                  m.property.name === "eq" &&
+                  k &&
+                  k.type === "Literal" &&
+                  k.value === "id" &&
+                  v
+                ) {
+                  const last =
+                    v.type === "Identifier"
+                      ? v.name
+                      : v.type === "MemberExpression" && !v.computed
+                        ? v.property.name
+                        : null;
+                  if (last === "tenantId" || last === "tenant_id") return;
+                }
+              }
+            }
             if (table != null) {
               context.report({
                 node,

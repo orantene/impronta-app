@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { Avatar, Btn, ChannelTag, Chip, Icon, Pill, formatWhen, initials } from "./primitives";
+import { Avatar, Btn, ChannelTag, Chip, Icon, Pill, formatWaiting, formatWhen, initials } from "./primitives";
 import { EN_COPY } from "./test-copy";
 import { NOW } from "./test-fixtures";
 
@@ -48,4 +48,11 @@ test("formatWhen is short: minutes, hours, weekday, date", () => {
   assert.equal(formatWhen("2026-09-15T09:00:00Z", NOW), "Tue");
   assert.equal(formatWhen("2026-08-01T09:00:00Z", NOW), "Aug 1");
   assert.equal(formatWhen(null, NOW), "");
+});
+
+test("formatWaiting shows age for Needs-reply rows", () => {
+  assert.equal(formatWaiting("2026-09-17T11:58:00Z", NOW), "2m waiting");
+  assert.equal(formatWaiting("2026-09-14T12:00:00Z", NOW), "Waiting 3d");
+  assert.equal(formatWaiting("2026-09-14T12:00:00Z", NOW, "es"), "3d espera");
+  assert.equal(formatWaiting(null, NOW), "");
 });

@@ -3,7 +3,15 @@
  * Split out so editor-i18n-es.ts stays under the 800-line cap.
  */
 
+import { ES_FEEDBACK_TEXT } from "./editor-i18n-es-feedback";
+import { ES_TALENT_BRAND_TEXT } from "./editor-i18n-es-talent-brand";
+import { ES_TALENT_CHROME_TEXT } from "./editor-i18n-es-talent-chrome";
+
 export const ES_SHORTCUT_TEXT: Record<string, string> = {
+  // Talent page builder Brand section (own file; merged here for the 800-line cap).
+  ...ES_TALENT_BRAND_TEXT,
+  ...ES_TALENT_CHROME_TEXT,
+  ...ES_FEEDBACK_TEXT,
   "Keyboard shortcuts": "Atajos de teclado",
   "Every keybind in the editor, in one place.":
     "Todas las teclas del editor, en un solo lugar.",

@@ -10,6 +10,7 @@ import {
   MAISON_BUILTIN_DESIGN,
   MAISON_BUILTIN_LOOKS,
 } from "./maison/builtins";
+import { COLLECTION_DESIGNS } from "./collection/designs";
 import { filterCatalogRowsForMaisonFlag } from "./maison/catalog-visibility";
 import { isTalentThemeRequiredTier, talentPlanAllowsThemeTier } from "./tier";
 import type {
@@ -23,9 +24,10 @@ import type {
  * Talent theme gallery: CATALOG LOADER — the read path the gallery UI (0.C)
  * calls to render the Design + Look pickers.
  *
- * Maison Design / Looks / Demos are omitted unless `TALENT_MAISON_THEME_ENABLED`
- * is on — including when this path falls back to in-code built-ins — so
- * flag-off production stays unchanged.
+ * Maison Design / Looks / Demos are omitted unless Maison is on for the
+ * calling talent (`TALENT_MAISON_THEME_ENABLED` + optional allow-list) —
+ * including when this path falls back to in-code built-ins — so flag-off
+ * production stays unchanged.
  */
 
 export type { TalentThemeCatalogEntry };
@@ -106,11 +108,10 @@ function loadPublishedRows(): Promise<CatalogListingRow[] | null> {
   )();
 }
 
-function fallbackRows(): CatalogListingRow[] {
-  const maisonOn = isTalentMaisonThemeEnabled();
+function fallbackRows(maisonOn: boolean): CatalogListingRow[] {
   const designs = [
     ...BUILTIN_DESIGNS,
-    ...(maisonOn ? [MAISON_BUILTIN_DESIGN] : []),
+    ...(maisonOn ? [MAISON_BUILTIN_DESIGN, ...COLLECTION_DESIGNS] : []),
   ].map((entry) => ({
     kind: entry.kind as TalentThemeKind,
     slug: entry.slug,
@@ -192,13 +193,18 @@ function toEntry(
 
 /**
  * Load the talent theme gallery catalog for one caller's plan.
+ * Pass `talentProfileId` so Maison rows appear only for allow-listed talents
+ * when the master switch is `talents`.
  */
 export async function loadTalentThemeCatalog(input: {
   planKey: string | null | undefined;
+  talentProfileId?: string | null;
 }): Promise<TalentThemeCatalog> {
+  const maisonOn = isTalentMaisonThemeEnabled(input.talentProfileId);
   const rows = await loadPublishedRows();
-  const raw: CatalogListingRow[] = rows && rows.length > 0 ? rows : fallbackRows();
-  const source = filterCatalogRowsForMaisonFlag(raw, isTalentMaisonThemeEnabled());
+  const raw: CatalogListingRow[] =
+    rows && rows.length > 0 ? rows : fallbackRows(maisonOn);
+  const source = filterCatalogRowsForMaisonFlag(raw, maisonOn);
 
   const bySortOrder = (a: CatalogListingRow, b: CatalogListingRow) => a.sort_order - b.sort_order;
   const designs = source

@@ -26,6 +26,8 @@ import { notFound } from "next/navigation";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { getPublicPathPrefix } from "@/lib/saas/scope";
+import { resolveOrRedirectTalentProfileCode } from "@/lib/talent/profile-code-redirect.server";
+import { resolveTalentProfileCodeQuiet } from "@/lib/talent/profile-code-resolve.server";
 import { loadPublishedTalentPage } from "@/lib/talent-site/published-talent-page";
 import {
   maxSiteJsonLdString,
@@ -47,6 +49,7 @@ import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/build
 import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
+import { isGuestCaptchaEnforced, splitGuestCaptchaConfigs } from "@/lib/platform/guest-captcha-enforcement";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import {
   designTokensToCssVars,
@@ -74,7 +77,10 @@ export async function generateMetadata({
   params: Promise<{ profileCode: string; pageSlug: string }>;
 }): Promise<Metadata> {
   if (!isSupabaseConfigured()) return {};
-  const { profileCode, pageSlug } = await params;
+  const { profileCode: rawProfileCode, pageSlug } = await params;
+  // Quiet resolve only — page body owns the permanentRedirect.
+  const aliasResolved = await resolveTalentProfileCodeQuiet(rawProfileCode);
+  const profileCode = aliasResolved?.profileCode ?? rawProfileCode;
   const [locale, page] = await Promise.all([
     getRequestLocale(),
     loadPublishedTalentPage({
@@ -100,7 +106,11 @@ export default async function PublicTalentFreeformPage({
 }) {
   if (!isSupabaseConfigured()) notFound();
 
-  const { profileCode, pageSlug } = await params;
+  const { profileCode: rawProfileCode, pageSlug } = await params;
+  const aliasResolved = await resolveOrRedirectTalentProfileCode(rawProfileCode, {
+    pathname: `/t/${rawProfileCode}/${pageSlug}`,
+  });
+  const profileCode = aliasResolved?.profileCode ?? rawProfileCode;
   const [locale, publicPathPrefix] = await Promise.all([
     getRequestLocale(),
     getPublicPathPrefix(),
@@ -130,24 +140,32 @@ export default async function PublicTalentFreeformPage({
     notFound();
   }
 
-  // Captcha for native `form` nodes on this page. /api/cms/forms/submit
-  // enforces captcha per TENANT, so a form that renders no widget sends no
-  // token and EVERY submission is rejected once a provider is configured —
-  // the improntamodels.com outage on 2026-08-16. Talent freeform pages used
-  // to skip this (storefront `/p/` threaded it; this route did not). Gated
-  // on the tree actually containing a form node so pages without one pay
-  // no query.
+  // Captcha for native `form` nodes + `services_catalog` booking chrome on
+  // this page. /api/cms/forms/submit enforces captcha per TENANT, so a form
+  // that renders no widget sends no token and EVERY submission is rejected
+  // once a provider is configured — the improntamodels.com outage on
+  // 2026-08-16. Talent freeform pages used to skip this (storefront `/p/`
+  // threaded it; this route did not). Gated on the tree actually containing
+  // a form or catalog so pages without one pay no query.
+  // HQ `guest_captcha_enforced` gates BOOKING chrome only — never CMS forms.
   const pageHasFormNode = (function hasForm(nodes: unknown): boolean {
     if (Array.isArray(nodes)) return nodes.some(hasForm);
     if (!nodes || typeof nodes !== "object") return false;
     const n = nodes as { kind?: unknown; children?: unknown };
     return n.kind === "form" || hasForm(n.children);
   })(blocks);
+  const pageHasServicesCatalog = (function hasCatalog(nodes: unknown): boolean {
+    if (Array.isArray(nodes)) return nodes.some(hasCatalog);
+    if (!nodes || typeof nodes !== "object") return false;
+    const n = nodes as { kind?: unknown; children?: unknown };
+    return n.kind === "services_catalog" || hasCatalog(n.children);
+  })(blocks);
+  const resolveCaptcha = pageHasFormNode || pageHasServicesCatalog;
 
   // Data sources (bound media, collections, directory) + live component
   // instances — only load when the tree actually binds them AND a managing
   // tenant exists (the loaders are tenant-scoped service-role reads).
-  const [dataSources, components, tenantComponentStyleDefaults, pageCaptcha] =
+  const [dataSources, components, tenantComponentStyleDefaults, pageCaptcha, captchaEnforced] =
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(blocks, tenantId, locale)
@@ -158,14 +176,16 @@ export default async function PublicTalentFreeformPage({
       tenantId
         ? loadPublicComponentStyleDefaults(tenantId)
         : Promise.resolve({}),
-      tenantId && pageHasFormNode
+      tenantId && resolveCaptcha
         ? resolveTenantCaptcha(tenantId)
         : Promise.resolve(null),
+      isGuestCaptchaEnforced(),
     ]);
 
-  const captchaConfig = pageCaptcha
-    ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
-    : null;
+  const { formCaptchaConfig, bookingCaptchaConfig } = splitGuestCaptchaConfigs(
+    pageCaptcha,
+    captchaEnforced,
+  );
 
   // Curated section_embed nodes need a tenant render context. The managing
   // agency tenant scopes credentials/host; previewSubject points the curated
@@ -178,7 +198,7 @@ export default async function PublicTalentFreeformPage({
         locale,
         publicPathPrefix,
         previewSubject: { kind: "talent", id: talentProfileId, locale },
-        captcha: captchaConfig,
+        captcha: formCaptchaConfig,
       })
     : null;
 
@@ -278,7 +298,8 @@ export default async function PublicTalentFreeformPage({
           dataSources,
           components,
           componentStyleDefaults,
-          captcha: captchaConfig,
+          captcha: formCaptchaConfig,
+          bookingCaptcha: bookingCaptchaConfig,
           visitorLocale: locale,
           renderSectionEmbed,
         })}

@@ -9,20 +9,21 @@ import {
 } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
 import { acceptTalentInvitation, declineTalentInvitation } from "@/lib/inquiry/inquiry-engine-roster";
 import { loadMessagingEssentials } from "@/lib/messaging/essentials";
-import { loadMessagingInbox } from "@/lib/messaging/inbox";
 import { insertMessage } from "@/lib/messaging/insert-message";
 import { fail } from "@/lib/messaging/refusals";
 import { conversationHostKind, threadLinkUrl } from "@/lib/messaging/thread-link";
 import { refreshThreadToken } from "@/lib/messaging/thread-token";
-import { listTalentInquiryIds, loadOwnedTalentInquiry, loadTalentActor, loadTalentSale } from "@/lib/messaging/talent-actor";
+import { loadOwnedTalentInquiry, loadTalentActor, loadTalentSale } from "@/lib/messaging/talent-actor";
 import {
   messagesForTalent,
   projectTalentLines,
   projectTalentMoney,
   talentReplyThread,
 } from "@/lib/messaging/talent-pov";
+import { loadTalentInboxForActor } from "@/lib/messaging/talent-inbox-rows";
 import { loadMessagingThread } from "@/lib/messaging/thread";
 import type { InboxFilter } from "@/lib/messaging/types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
@@ -37,15 +38,7 @@ async function owned(inquiryId: string) {
 export async function messagingTalentLoadInbox(input: { locationSlug: string; filter: InboxFilter }) {
   const actor = await loadTalentActor();
   if (!actor.ok) return actor;
-  const listed = await listTalentInquiryIds(actor.admin, actor.talentProfileId);
-  if (!listed.ok) return listed;
-  return loadMessagingInbox(actor.admin, {
-    tenantId: "",
-    locationSlug: "all",
-    filter: input.filter,
-    actorUserId: actor.userId,
-    onlyInquiryIds: listed.ids,
-  });
+  return loadTalentInboxForActor(actor, input.filter);
 }
 
 export async function messagingTalentLoadThread(input: { inquiryId: string }) {
@@ -115,6 +108,7 @@ export async function messagingTalentReply(input: {
   body: string;
   expectedVersion: number;
 }) {
+  await requireNotImpersonating();
   const parsed = z
     .object({ inquiryId: uuid, body: z.string().trim().min(1).max(8000), expectedVersion: z.number() })
     .safeParse(input);
@@ -136,6 +130,7 @@ export async function messagingTalentReply(input: {
 }
 
 export async function messagingTalentThreadLink(input: { inquiryId: string }) {
+  await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const gate = await owned(parsed.data.inquiryId);
@@ -160,11 +155,8 @@ export async function messagingTalentThreadLink(input: { inquiryId: string }) {
   return { ok: true as const, token, url };
 }
 
-export async function messagingTalentNote() {
-  return fail("not_allowed");
-}
-
 export async function messagingTalentInvitation(input: { inquiryId: string }) {
+  await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const gate = await owned(parsed.data.inquiryId);
@@ -175,6 +167,7 @@ export async function messagingTalentInvitation(input: { inquiryId: string }) {
 }
 
 export async function messagingTalentDecide(input: { inquiryId: string; decision: "accept" | "decline" }) {
+  await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid, decision: z.enum(["accept", "decline"]) }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const gate = await owned(parsed.data.inquiryId);
@@ -196,6 +189,7 @@ export async function messagingTalentDecide(input: { inquiryId: string; decision
 }
 
 export async function messagingTalentMarkRead(input: { inquiryId: string }) {
+  await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return;
   await markTalentInquiryThreadRead("talent", parsed.data.inquiryId);

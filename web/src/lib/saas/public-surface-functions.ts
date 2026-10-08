@@ -41,6 +41,9 @@ export const PUBLIC_SURFACE_FUNCTIONS: readonly string[] = [
   "guest_list_saved_talent_ids",
   "guest_remove_saved_talent",
   "talent_public_site_for_profile_code",
+  // Public `/t/<code>` alias resolver — retired vanity codes → live TAL-<digits>.
+  // Read-only SECURITY DEFINER; returns id + live code + is_alias only.
+  "resolve_talent_profile_code",
   // Events & Ticketing: `/r/<code>` (the ticket receipt) calls this with the
   // public client for logged-out holders standing at a door. Defends itself:
   // keyed on an opaque receipt code, withholds `holder_email`, returns

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { COLORS, FONTS, RADIUS, Z } from "@/components/admin/shell/internal/state";
 import type { PaymentDetailView } from "@/lib/money/money-spine-view";
 import {
@@ -16,6 +17,7 @@ export function PaymentDetailDrawer({
   detail: PaymentDetailView;
   onClose: () => void;
 }) {
+  const copy = useDashboardText();
   const { payment, refund } = detail;
   const isCard = payment.method === "card";
 
@@ -32,7 +34,7 @@ export function PaymentDetailDrawer({
     >
       <aside
         role="dialog"
-        aria-label="Payment"
+        aria-label={copy.t("Payment")}
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "absolute",
@@ -66,7 +68,7 @@ export function PaymentDetailDrawer({
                 color: COLORS.ink,
               }}
             >
-              Payment
+              {copy.t("Payment")}
             </div>
             <div style={{ fontSize: 13.5, color: COLORS.inkMuted, marginTop: 3 }}>
               {detail.receivedLabel.split(" · ")[0]} · {payment.id}
@@ -74,7 +76,7 @@ export function PaymentDetailDrawer({
           </div>
           <button
             type="button"
-            aria-label="Close"
+            aria-label={copy.t("Close")}
             onClick={onClose}
             style={{
               width: 36,
@@ -125,36 +127,47 @@ export function PaymentDetailDrawer({
           </div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Chip label={detail.stateChip} tone={refund ? "idle" : "ok"} />
-            <Chip label={isCard ? "Card · through Tulala" : detail.methodLine} tone="idle" />
+            <Chip label={copy.t(detail.stateChip)} tone={refund ? "idle" : "ok"} />
+            <Chip
+              label={
+                isCard
+                  ? copy.t("Card · through Tulala")
+                  : copy.t(detail.methodLine)
+              }
+              tone="idle"
+            />
           </div>
 
           <CardPad>
-            <Kv label="Received" value={detail.receivedLabel} />
+            <Kv label={copy.t("Received")} value={detail.receivedLabel} />
             <Divider />
-            <Kv label="Method" value={detail.methodLine} />
+            <Kv label={copy.t("Method")} value={copy.t(detail.methodLine)} />
             <Divider />
-            <Kv label="Reference" value={detail.reference} mono />
+            <Kv label={copy.t("Reference")} value={detail.reference} mono />
             <Divider />
-            <Kv label="For" value={detail.forLine} />
+            <Kv label={copy.t("For work")} value={detail.forLine} />
             {detail.payoutLine ? (
               <>
                 <Divider />
-                <Kv label="Payout" value={detail.payoutLine} accent />
+                <Kv label={copy.t("Payout")} value={copy.t(detail.payoutLine)} accent />
               </>
             ) : null}
           </CardPad>
 
           <CardPad>
-            <Line label="Agreed price" value={formatMoneyMajor(detail.agreed)} />
+            <Line label={copy.t("Agreed price")} value={formatMoneyMajor(detail.agreed)} />
             {detail.priceLowered && refund ? (
               <Line
-                label="Price lowered"
+                label={copy.t("Price lowered")}
                 value={`${formatMoneyShort(payment.amount)} → ${formatMoneyShort(detail.agreed)}`}
               />
             ) : null}
-            <Line label="Paid so far" value={formatMoneyMajor(detail.paidSoFar)} />
-            <Line label="Remaining" value={formatMoneyMajor(detail.remaining)} strong />
+            <Line label={copy.t("Paid so far")} value={formatMoneyMajor(detail.paidSoFar)} />
+            <Line
+              label={copy.t("Remaining balance due")}
+              value={formatMoneyMajor(detail.remaining)}
+              strong
+            />
           </CardPad>
 
           <div>
@@ -166,7 +179,7 @@ export function PaymentDetailDrawer({
                 marginBottom: 8,
               }}
             >
-              History
+              {copy.t("History")}
             </div>
             <CardPad>
               {detail.history.map((h) => (
@@ -180,7 +193,7 @@ export function PaymentDetailDrawer({
                   }}
                 >
                   <div style={{ fontWeight: 600, color: COLORS.ink }}>{h.when}</div>
-                  <div style={{ color: COLORS.inkMuted, marginTop: 2 }}>{h.text}</div>
+                  <div style={{ color: COLORS.inkMuted, marginTop: 2 }}>{copy.t(h.text)}</div>
                 </div>
               ))}
             </CardPad>
@@ -197,9 +210,8 @@ export function PaymentDetailDrawer({
             flexWrap: "wrap",
           }}
         >
-          <OutlineBtn label="Message" />
-          <OutlineBtn label="Receipt" />
-          <OutlineBtn label={isCard ? "Refund" : "Correct record"} />
+          <OutlineBtn label={copy.t("Message")} />
+          <OutlineBtn label={copy.t("Receipt")} />
         </footer>
       </aside>
     </div>
@@ -351,10 +363,11 @@ function Line({
   );
 }
 
-function OutlineBtn({ label }: { label: string }) {
+function OutlineBtn({ label, onClick }: { label: string; onClick?: () => void }) {
   return (
     <button
       type="button"
+      onClick={onClick}
       style={{
         height: 38,
         padding: "0 14px",
@@ -364,7 +377,7 @@ function OutlineBtn({ label }: { label: string }) {
         fontSize: 13.5,
         fontWeight: 600,
         color: COLORS.ink,
-        cursor: "pointer",
+        cursor: onClick ? "pointer" : "default",
         fontFamily: FONTS.body,
       }}
     >

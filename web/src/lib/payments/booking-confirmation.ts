@@ -17,6 +17,8 @@
  * insert both require elevated access in a webhook (no end-user session).
  */
 
+import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
+import { bookingClientFeeLines } from "@/lib/billing/processing-fee-payer";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantTimezone } from "@/lib/spaces/venues";
@@ -135,7 +137,16 @@ export async function emitBookingConfirmation(transactionId: string): Promise<vo
       totalPriceCents: toCents(ln.total_price),
     }));
 
+    // Fee breakdown: only when the frozen snapshot sums to what was paid.
+    let feeLines: ReturnType<typeof bookingClientFeeLines> = [];
+    try {
+      feeLines = bookingClientFeeLines(await loadBookingCommissionSnapshots(sb, bookingId), totalPaidCents);
+    } catch (err) {
+      logServerError("booking-confirmation.feeLines", err);
+    }
+
     const pdfBytes = await generateBookingConfirmationPdf({
+      feeLines,
       confirmationNumber: `TUL-${bookingId.slice(0, 8).toUpperCase()}`,
       paidAtISO: (txn.paid_at as string | null) ?? new Date().toISOString(),
       clientName: (booking?.contact_name as string | null) ?? "Client",

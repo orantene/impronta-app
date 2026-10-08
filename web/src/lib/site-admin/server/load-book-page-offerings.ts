@@ -1,5 +1,6 @@
 import "server-only";
 
+import { withEffectiveBookingModes } from "@/lib/talent/effective-booking-mode-loader";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { isSlotEligibleOffering } from "@/components/public-booking/pick-bookable-offering";
@@ -41,7 +42,10 @@ export async function loadPublicBookableOfferings(args: {
       return [];
     }
     const rows = (data ?? []) as TalentOfferingRow[];
-    const offerings = rows.map((row) => rowToOffering(row, args.locale ?? "en", []));
+    const offerings = await withEffectiveBookingModes(
+      admin,
+      rows.map((row) => rowToOffering(row, args.locale ?? "en", [])),
+    );
     const host = args.host ?? {
       kind: args.tenantId ? "agency" : "talent_site",
       tenantId: args.tenantId ?? null,

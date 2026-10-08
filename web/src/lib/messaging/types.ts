@@ -105,7 +105,9 @@ export type MessagingRefusal =
   /** S6 (D-MSG-41): off-platform settle refused because no payout receiver
    * exists for this workspace/payee — a known gap in the cash-settlement
    * path, not a caller error. */
-  | "no_payout_receiver";
+  | "no_payout_receiver"
+  /** TUL-274: an offer priced in a currency its single seller does not charge in. */
+  | "offer_currency_seller_mismatch";
 
 export type ActionOk<T extends Record<string, unknown> = Record<string, never>> = { ok: true } & T;
 /** `nextFreeTimes` is only set when a time pick comes back `unavailable` / slot taken. Empty = calendar has no open time; never invent one. */
@@ -137,6 +139,8 @@ export type InboxRow = {
   updatedAt: string;
   version: number;
   recordChips: readonly RecordChip[];
+  /** Talent inbox only: the thread belongs to an agency, not to her own site. */
+  agency?: boolean;
 };
 
 /**

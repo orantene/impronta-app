@@ -3,6 +3,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { ensureSoloTalentTenantId } from "@/lib/saas/solo-talent-tenant";
 import { requireTalentSelfAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
@@ -16,6 +18,7 @@ import {
   type ContextCatalogGroup,
   type ResolvedContext,
 } from "./admin-talent-contexts.types";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const SKILL_RELS = ["primary_role", "secondary_role"] as const;
 
@@ -31,6 +34,10 @@ async function requireTalentServiceScope(talentProfileId: string) {
     .limit(1)
     .maybeSingle();
   if (!rosterRow?.tenant_id) {
+    // Solo talent (owner verified above) with no roster row: heal onto the hub.
+    const admin = createServiceRoleClient();
+    const soloTenantId = admin ? await ensureSoloTalentTenantId(admin, talentProfileId) : null;
+    if (soloTenantId) return { ...auth, tenantId: soloTenantId };
     return { ok: false as const, error: "Talent is not on any active roster." };
   }
   return { ...auth, tenantId: rosterRow.tenant_id };
@@ -115,6 +122,8 @@ const setSkillsSchema = z.object({
 export async function setTalentProfileSkillsAsTalent(
   input: z.input<typeof setSkillsSchema>,
 ): Promise<{ ok: true; skills: ResolvedSkill[] } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = setSkillsSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid request." };
   const tpid = parsed.data.talent_profile_id;
@@ -228,6 +237,7 @@ const updateSkillSchema = z.object({
 });
 
 export async function updateSkillAsTalent(input: z.input<typeof updateSkillSchema>) {
+  await requireNotImpersonating();
   const parsed = updateSkillSchema.safeParse(input);
   if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Invalid request." };
   const auth = await requireTalentServiceScope(parsed.data.talent_profile_id);
@@ -258,6 +268,7 @@ export async function setFeaturedSkillAsTalent(input: {
   talent_profile_id: string;
   talent_type_term_id: string;
 }) {
+  await requireNotImpersonating();
   const auth = await requireTalentServiceScope(input.talent_profile_id);
   if (!auth.ok) return auth;
   const { data: rows, error: readError } = await auth.supabase
@@ -283,10 +294,12 @@ export async function setFeaturedSkillAsTalent(input: {
 }
 
 export async function verifySkillAsTalent() {
+  await requireNotImpersonating();
   return { ok: false as const, error: "Only workspace admins can verify services." };
 }
 
 export async function unverifySkillAsTalent() {
+  await requireNotImpersonating();
   return { ok: false as const, error: "Only workspace admins can unverify services." };
 }
 
@@ -388,6 +401,7 @@ const aspirationSchema = z.object({
 });
 
 export async function addAspirationAsTalent(input: z.input<typeof aspirationSchema>) {
+  await requireNotImpersonating();
   const parsed = aspirationSchema.safeParse(input);
   if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Invalid request." };
   const auth = await requireTalentServiceScope(parsed.data.talent_profile_id);
@@ -405,6 +419,7 @@ export async function addAspirationAsTalent(input: z.input<typeof aspirationSche
 }
 
 export async function removeAspirationAsTalent(input: z.input<typeof aspirationSchema>) {
+  await requireNotImpersonating();
   const parsed = aspirationSchema.safeParse(input);
   if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Invalid request." };
   const auth = await requireTalentServiceScope(parsed.data.talent_profile_id);
@@ -430,6 +445,7 @@ const requestTermSchema = z.object({
 });
 
 export async function requestNewTaxonomyTermAsTalent(input: z.input<typeof requestTermSchema>) {
+  await requireNotImpersonating();
   const parsed = requestTermSchema.safeParse(input);
   if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Invalid request." };
   if (!parsed.data.talent_profile_id) return { ok: false as const, error: "Missing profile." };
@@ -551,6 +567,8 @@ const setContextsSchema = z.object({
 export async function setTalentProfileContextsAsTalent(
   input: z.input<typeof setContextsSchema>,
 ): Promise<{ ok: true; contexts: ResolvedContext[] } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = setContextsSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid request." };
   const auth = await requireTalentServiceScope(parsed.data.talent_profile_id);

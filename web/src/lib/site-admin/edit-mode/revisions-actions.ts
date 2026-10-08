@@ -41,6 +41,7 @@ import { isLocale, type Locale } from "@/lib/site-admin/locales";
 import { requireSession } from "@/lib/server/action-guards";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ── types ─────────────────────────────────────────────────────────────────
 
@@ -65,6 +66,20 @@ export interface RevisionListRow {
   titleAtRevision: string | null;
   /** Operator-assigned named version. Null = unlabeled. */
   label: string | null;
+  /** Talent site history timeline row (theme releases Phase 2); absent elsewhere. */
+  history?: RevisionHistoryMeta;
+}
+
+/** Extra fields a talent site history row carries into the drawer. */
+export interface RevisionHistoryMeta {
+  kind: string;
+  actor: "talent" | "tulala" | "system";
+  summaryEn: string;
+  summaryEs: string;
+  undoable: boolean;
+  editCount: number;
+  /** Owner-only read-only render of this entry's snapshot. */
+  previewUrl: string | null;
 }
 
 export type RevisionsLoadResult =
@@ -206,6 +221,8 @@ export async function restoreHomepageRevisionAction(input: {
   locale: string;
   expectedVersion: number;
 }): Promise<RevisionRestoreResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -456,6 +473,8 @@ export async function restorePageRevisionAction(input: {
   pageId: string;
   expectedVersion: number;
 }): Promise<RevisionRestoreResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -701,6 +720,8 @@ export async function setRevisionLabelAction(input: {
   revisionId: string;
   label: string;
 }): Promise<SetRevisionLabelResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);

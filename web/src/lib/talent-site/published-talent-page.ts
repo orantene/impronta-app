@@ -12,6 +12,8 @@
 
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
+import { loadOwnHosts } from "./server/own-hosts.server";
+
 import {
   resolvePublishedTalentPage,
   type PublishedTalentPageActions,
@@ -44,10 +46,18 @@ export async function loadPublishedTalentPage(input: {
 
   const actions: PublishedTalentPageActions = {
     async loadTalentByProfileCode(profileCode) {
+      const { data: resolvedRows, error: resolveErr } = await pub.rpc(
+        "resolve_talent_profile_code",
+        { p_code: profileCode },
+      );
+      if (resolveErr) return null;
+      const resolved = Array.isArray(resolvedRows) ? resolvedRows[0] : resolvedRows;
+      if (!resolved?.profile_id) return null;
+
       const { data, error } = await pub
         .from("talent_profiles")
         .select("id, display_name, created_by_agency_id, talent_plan_key, profile_kind")
-        .eq("profile_code", profileCode)
+        .eq("id", resolved.profile_id as string)
         .neq("profile_kind", "resource")
         .is("deleted_at", null)
         .maybeSingle();
@@ -69,20 +79,27 @@ export async function loadPublishedTalentPage(input: {
     },
 
     async loadTalentPage({ talentProfileId, slug }) {
-      const { data, error } = await pub
-        .from("talent_pages")
-        .select(
-          // SEO-1/SEO-3 columns are selected here so the Portfolio-gated
-          // `<head>` envelope can actually be built — before this they were
-          // written by the builder and read by nothing.
-          "id, talent_profile_id, slug, title, status, blocks, theme, published_at, meta_title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld",
-        )
-        .eq("talent_profile_id", talentProfileId)
-        .eq("slug", slug)
-        .maybeSingle();
+      // SEO-1/SEO-3 columns are selected here so the Portfolio-gated `<head>`
+      // envelope can actually be built — before this they were written by the
+      // builder and read by nothing.
+      const BASE_COLS =
+        "id, talent_profile_id, slug, title, status, blocks, theme, published_at, meta_title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld";
+      const selectPage = (cols: string) =>
+        pub
+          .from("talent_pages")
+          .select(cols)
+          .eq("talent_profile_id", talentProfileId)
+          .eq("slug", slug)
+          .maybeSingle();
+      // `blocks_published` is the live body (`blocks` is the draft). A database
+      // without the migration errors the query, so fall back to the base list.
+      let { data, error } = await selectPage(`${BASE_COLS}, blocks_published`);
+      if (error) ({ data, error } = await selectPage(BASE_COLS));
       if (error || !data) return null;
-      return data as PublishedTalentPageRow;
+      return data as unknown as PublishedTalentPageRow;
     },
+
+    loadOwnHosts,
   };
 
   return resolvePublishedTalentPage(actions, input);

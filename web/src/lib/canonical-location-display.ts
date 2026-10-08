@@ -44,11 +44,15 @@ export function formatCityCountryLabel(
     | CanonicalLocationEmbed[]
     | null
     | undefined,
+  /** Optional content fallback chain (e.g. [visitor, talent primary]). */
+  chain?: readonly string[],
 ): string {
   const loc = normalizeEmbed(row);
   if (!loc) return "";
   const i18n = loc.display_name_i18n ?? {};
-  const city = pickLocale(locale, { en: i18n.en?.trim() ?? "", es: i18n.es?.trim() || undefined });
+  const city = chain
+    ? ([...chain, "en"].map((c) => i18n[c]?.trim()).find(Boolean) ?? "")
+    : pickLocale(locale, { en: i18n.en?.trim() ?? "", es: i18n.es?.trim() || undefined });
   const country = loc.country_code?.trim() ?? "";
   if (city && country) return `${city}, ${country}`;
   return city || country;

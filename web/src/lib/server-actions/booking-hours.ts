@@ -7,6 +7,7 @@
  * (booking_terms.directBookingOptIn). Owner or workspace staff.
  */
 
+import { hasAvailabilityPattern } from "@/lib/talent/website-eligibility-facts";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
@@ -27,6 +28,13 @@ import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { actorMayWriteHours } from "@/lib/scheduling/hours-edit-policy";
 import { acceptBookingHoursProposalCore } from "@/lib/scheduling/accept-booking-hours-proposal";
+import {
+  resolveHoursTenantId as resolveHoursTenantIdFor,
+  resolveTalentTimezone,
+  syncPatternFromBookingHours,
+} from "@/lib/scheduling/sync-hours-from-pattern.server";
+import { recurringFromAvailabilityData, weeklyFromAvailabilityPattern } from "@/lib/scheduling/pattern-hours";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const weeklySchema = z.record(
   z.string(),
@@ -107,35 +115,7 @@ async function resolveHoursTenantId(
 ): Promise<string | null> {
   const admin = createServiceRoleClient();
   if (!admin) return staffTenantId;
-
-  const { data: existing } = await admin
-    .from("talent_booking_hours")
-    .select("tenant_id")
-    .eq("talent_profile_id", talentProfileId)
-    .maybeSingle();
-  if (typeof existing?.tenant_id === "string" && existing.tenant_id) {
-    return existing.tenant_id;
-  }
-  if (staffTenantId) return staffTenantId;
-
-  const { data: tp } = await admin
-    .from("talent_profiles")
-    .select("created_by_agency_id")
-    .eq("id", talentProfileId)
-    .maybeSingle();
-  if (typeof tp?.created_by_agency_id === "string" && tp.created_by_agency_id) {
-    return tp.created_by_agency_id;
-  }
-
-  const { data: roster } = await admin
-    .from("agency_talent_roster")
-    .select("tenant_id")
-    .eq("talent_profile_id", talentProfileId)
-    .in("status", ["active", "pending"])
-    .order("is_primary", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return typeof roster?.tenant_id === "string" ? roster.tenant_id : null;
+  return resolveHoursTenantIdFor(admin, talentProfileId, staffTenantId);
 }
 
 export type HoursTarget = {
@@ -244,6 +224,10 @@ type LoadHoursResult =
       defaultTimezone: string;
       directBookingOptIn: boolean;
       canEditHours: boolean;
+      /** Profile drawer's saved availability (pattern or day cells) says something. */
+      hasAvailabilityPattern: boolean;
+      /** No hours yet: the days the drawer pattern opens, as an UNSAVED suggestion. */
+      suggestedWeekly: WeeklyHours | null;
     }
   | { ok: false; error: string };
 
@@ -267,7 +251,7 @@ export async function loadBookingHours(talentProfileId: string): Promise<LoadHou
       .maybeSingle(),
     admin
       .from("talent_profiles")
-      .select("booking_terms")
+      .select("booking_terms, availability_data")
       .eq("id", talentProfileId)
       .maybeSingle(),
     admin
@@ -300,7 +284,10 @@ export async function loadBookingHours(talentProfileId: string): Promise<LoadHou
   // It used to start on "UTC", so the first thing a Tulum barber saw was the
   // wrong timezone already filled in, and saving it made the wrong answer real.
   const hoursTenantId = await resolveHoursTenantId(talentProfileId, auth.staffTenantId);
-  const defaultTimezone = hoursTenantId ? await tenantTimezone(hoursTenantId) : "UTC";
+  // F48: her saved city first (drawer Location), then the workspace.
+  const defaultTimezone =
+    (await resolveTalentTimezone(admin, talentProfileId, hoursTenantId).catch(() => null)) ??
+    (hoursTenantId ? await tenantTimezone(hoursTenantId) : "UTC");
 
   return {
     ok: true,
@@ -312,6 +299,10 @@ export async function loadBookingHours(talentProfileId: string): Promise<LoadHou
     defaultTimezone,
     directBookingOptIn: terms.directBookingOptIn === true,
     canEditHours: auth.canEditHours,
+    hasAvailabilityPattern: hasAvailabilityPattern(tp?.availability_data),
+    suggestedWeekly: hoursRow
+      ? null
+      : weeklyFromAvailabilityPattern(recurringFromAvailabilityData(tp?.availability_data), null),
   };
 }
 
@@ -326,6 +317,8 @@ export async function acceptBookingHoursProposal(
   talentProfileId: string,
   input: { timezone: string },
 ): Promise<AcceptProposalResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeHours(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!auth.canEditHours) {
@@ -366,6 +359,8 @@ export async function saveBookingHours(
     exceptions?: unknown;
   },
 ): Promise<SaveHoursResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeHours(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!auth.canEditHours) {
@@ -430,6 +425,9 @@ export async function saveBookingHours(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
+  // F27: the drawer pattern follows the saved days (one source of truth).
+  await syncPatternFromBookingHours(admin, { talentProfileId, weekly });
+
   revalidatePath("/", "layout");
   const hours = parseBookingHours(row);
   if (!hours) return { ok: false, error: CLIENT_ERROR.update };
@@ -442,6 +440,8 @@ export async function setTalentDirectBookingOptIn(
   talentProfileId: string,
   optIn: boolean,
 ): Promise<OptInResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeHours(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();

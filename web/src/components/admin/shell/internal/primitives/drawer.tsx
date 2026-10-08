@@ -19,6 +19,8 @@ import { Icon } from "./icons";
 import { lockScroll, unlockScroll } from "./shared";
 import { useViewport } from "./hooks";
 import { Popover } from "./overlays";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { drawerChrome } from "./drawer-chrome-i18n";
 
 /**
  * Map a DrawerId to a human-readable label for the breadcrumb. Exhaustive
@@ -72,6 +74,7 @@ export function DrawerShell({
   /** When false, Esc shows a "save first" warning instead of closing. */
   canClose?: boolean;
 }) {
+  const chrome = drawerChrome(useDashboardLocale());
   const [size, setSize] = useState<DrawerSize>(defaultSize);
   const [customWidth, setCustomWidth] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -297,9 +300,11 @@ export function DrawerShell({
       {/* panel */}
       <aside
         ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
+        role={open ? "dialog" : undefined}
+        aria-modal={open ? "true" : undefined}
+        aria-label={open ? title : undefined}
+        aria-hidden={open ? undefined : true}
+        inert={!open}
         data-tulala-drawer-panel
         style={{
           position: "fixed",
@@ -365,7 +370,7 @@ export function DrawerShell({
               type="button"
               onClick={onClose}
               data-tulala-drawer-mobile-back
-              aria-label="Close drawer and return to page"
+              aria-label={chrome.closeDrawer}
               style={{
                 display: "none", // mobile CSS reveals it
                 alignItems: "center",
@@ -383,7 +388,7 @@ export function DrawerShell({
               <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
                 <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              Back
+              {chrome.back}
             </button>
             {previousDrawer && (
               <button
@@ -407,7 +412,7 @@ export function DrawerShell({
                 onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
               >
                 <span aria-hidden className="text-xs">←</span>
-                Back to {drawerIdToLabel(previousDrawer.drawerId)}
+                {chrome.backTo} {drawerIdToLabel(previousDrawer.drawerId)}
               </button>
             )}
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -426,14 +431,14 @@ export function DrawerShell({
             {/* Auto-rendered "Copy link" button — drawer state is already
                 in the URL via AdminShellProvider, so this turns every drawer
                 into a shareable link with one click. */}
-            <Popover content="Copy link to this drawer">
+            <Popover content={chrome.copyLink}>
               <button
                 type="button"
-                aria-label="Copy link to this drawer"
+                aria-label={chrome.copyLink}
                 onClick={() => {
                   if (typeof window === "undefined") return;
                   navigator.clipboard?.writeText(window.location.href);
-                  proto.toast("Link copied — anyone with access lands here.");
+                  proto.toast(chrome.linkCopied);
                 }}
                 style={{
                   width: 28,
@@ -569,11 +574,7 @@ export function DrawerShell({
                 {(["compact", "half", "full"] as DrawerSize[]).map((s) => {
                   const active = (customWidth === null && size === s);
                   const tip =
-                    s === "compact"
-                      ? "Side drawer"
-                      : s === "half"
-                        ? "Half-page"
-                        : "Full-page";
+                    chrome.tips[s];
                   return (
                     <Popover key={s} content={tip}>
                       <button
@@ -581,7 +582,7 @@ export function DrawerShell({
                           setCustomWidth(null);
                           setSize(s);
                         }}
-                        aria-label={`${s} size`}
+                        aria-label={chrome.sizes[s]}
                         style={{
                           background: active ? "#fff" : "transparent",
                           boxShadow: active
@@ -606,7 +607,7 @@ export function DrawerShell({
             <button
               type="button"
               onClick={onClose}
-              aria-label={`Close ${title}`}
+              aria-label={`${chrome.close} ${title}`}
               style={{
                 width: 32,
                 height: 32,

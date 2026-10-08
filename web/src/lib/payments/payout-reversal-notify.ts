@@ -141,7 +141,7 @@ export async function notifyBookingPayoutReversal(
           tenantId,
           inquiryId,
           eventId: `payment-refunded:${reason}:${bookingId}`,
-          payload: { clientUserId: clientUid, clientEmail, reason },
+          payload: { clientUserId: clientUid, clientEmail, reason, bookingId },
         });
       }
     }
@@ -203,7 +203,7 @@ export async function notifyClientPartialRefund(
         tenantId,
         inquiryId,
         eventId: `partial-refund:${bookingId}:${refundedCents}`,
-        payload: { clientUserId: clientUid, clientEmail, refundedCents, currency },
+        payload: { clientUserId: clientUid, clientEmail, refundedCents, currency, bookingId },
       });
     }
   } catch (err) {
