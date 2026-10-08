@@ -107,7 +107,9 @@ export type MessagingRefusal =
    * path, not a caller error. */
   | "no_payout_receiver"
   /** TUL-274: an offer priced in a currency its single seller does not charge in. */
-  | "offer_currency_seller_mismatch";
+  | "offer_currency_seller_mismatch"
+  /** TUL-313: no currency could be resolved for a new offer (never guessed). */
+  | "offer_currency_unresolved";
 
 export type ActionOk<T extends Record<string, unknown> = Record<string, never>> = { ok: true } & T;
 /** `nextFreeTimes` is only set when a time pick comes back `unavailable` / slot taken. Empty = calendar has no open time; never invent one. */
