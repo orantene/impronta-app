@@ -24,6 +24,10 @@ export type BookingAssistantDecision =
   | { action: "handoff"; reason: BookingHandoffReason }
   | { action: "llm_facts" };
 
+/** Phase 1 has no book/pay tools — booking asks hand off to the talent. */
+const BOOKING_INTENT_RE =
+  /\b(book|booking|reserve|reservation|appointment|available|availability|reservar|reserva|cita|agendar|disponible|disponibilidad|quiero|me gustaria|reserver|rendez)\b/i;
+
 function hasPriorHandoff(
   prior: ReadonlyArray<{ systemEventType?: string | null }>,
 ): boolean {
@@ -46,6 +50,10 @@ export function decideBookingAssistantTurn(input: BookingAssistantDecideInput): 
   }
   if (wantsHumanBookingHelp(body)) {
     return { action: "handoff", reason: "human_requested" };
+  }
+  // Phase 1 = instant-answer + handoff only (no book/pay tools yet).
+  if (BOOKING_INTENT_RE.test(body)) {
+    return { action: "handoff", reason: "unsure" };
   }
   return { action: "llm_facts" };
 }

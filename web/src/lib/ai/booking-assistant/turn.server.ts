@@ -8,8 +8,8 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
-import { createAnthropicChatAdapter } from "@/lib/ai/providers/anthropic-adapter";
 import { resolveAnthropicApiKey } from "@/lib/ai/resolve-api-keys";
+import { adapterForProvider } from "@/lib/ai/resolve-provider";
 import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
@@ -200,7 +200,7 @@ export async function maybeRunBookingAssistantTurn(
       });
     }
 
-    // llm_facts — pin Anthropic Haiku (PM). Gate when Anthropic key missing.
+    // llm_facts — PM: Claude Haiku 5.5 via our Anthropic provider layer + credits gate.
     const anthropicKey = (await resolveAnthropicApiKey())?.trim() || null;
     if (!anthropicKey) {
       return insertSystemEvent({
@@ -230,7 +230,7 @@ export async function maybeRunBookingAssistantTurn(
       args.offerings,
     );
     const grounding = catalogGrounding(offerings);
-    const adapter = createAnthropicChatAdapter(anthropicKey);
+    const adapter = adapterForProvider("anthropic", anthropicKey);
     const started = Date.now();
     const completion = await Promise.race([
       adapter.chatCompletion({
