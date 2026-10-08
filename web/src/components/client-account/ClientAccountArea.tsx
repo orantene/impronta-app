@@ -68,7 +68,7 @@ export function ClientAccountArea(props: Props) {
       <section style={{ ...card, marginTop: 24 }}>
         <h2 style={{ ...heading, fontSize: 20 }}>{a("signedOutTitle")}</h2>
         <p style={{ color: MUTED }}>{a("signedOutBody")}</p>
-        <ClientAccountButton variant="header" locale={loc} profileCode={props.profileCode} />
+        <ClientAccountButton variant="header" locale={loc} />
       </section>,
     );
   }
