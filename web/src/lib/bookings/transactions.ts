@@ -29,6 +29,7 @@ import {
   describeTransactionTransitionEvent,
 } from "@/lib/bookings/transaction-events";
 import { planMarkRefundedLinkedRow } from "@/lib/bookings/mark-refunded-plan";
+import { guardFeeNettedOrderId } from "@/lib/bookings/fee-netted-order-guard";
 import {
   notifyDepositReceived,
   notifyInvoiceIssued,
@@ -454,24 +455,37 @@ export async function createBookingTransaction(opts: {
             await loadPlatformTakeBps(opts.planTier),
           );
 
+    // TUL-154: this writer is fee-netted (net = gross − platform commission).
+    // Never attach order_id — order_collected_cents credits net as principal.
+    const insertRow = {
+      booking_id:               opts.bookingId,
+      source_tenant_id:         opts.sourceTenantId,
+      source_inquiry_id:        opts.sourceInquiryId,
+      payer_user_id:            opts.payerUserId ?? null,
+      payer_email:              opts.payerEmail ?? null,
+      gross_amount_cents:       amounts.grossCents,
+      platform_fee_basis_points: amounts.feeBasisPoints,
+      platform_fee_cents:       amounts.feeCents,
+      net_amount_cents:         amounts.netCents,
+      currency:                 opts.currency ?? "USD",
+      provider:                 "manual",
+      status:                   "draft",
+      checkout_type:            opts.checkoutType ?? "full",
+      created_by_profile_id:    opts.createdByProfileId ?? null,
+    };
+    const feeNettedBlocked = guardFeeNettedOrderId({
+      // Intentionally unread from insertRow today (no order_id key). If a
+      // future edit adds order_id to this fee-netted payload, the cast surfaces it.
+      orderId: (insertRow as { order_id?: string | null }).order_id ?? null,
+      platformFeeBasisPoints: insertRow.platform_fee_basis_points,
+    });
+    if (feeNettedBlocked) {
+      return { ok: false, error: feeNettedBlocked };
+    }
+
     const { data, error } = await sb
       .from("booking_transactions")
-      .insert({
-        booking_id:               opts.bookingId,
-        source_tenant_id:         opts.sourceTenantId,
-        source_inquiry_id:        opts.sourceInquiryId,
-        payer_user_id:            opts.payerUserId ?? null,
-        payer_email:              opts.payerEmail ?? null,
-        gross_amount_cents:       amounts.grossCents,
-        platform_fee_basis_points: amounts.feeBasisPoints,
-        platform_fee_cents:       amounts.feeCents,
-        net_amount_cents:         amounts.netCents,
-        currency:                 opts.currency ?? "USD",
-        provider:                 "manual",
-        status:                   "draft",
-        checkout_type:            opts.checkoutType ?? "full",
-        created_by_profile_id:    opts.createdByProfileId ?? null,
-      })
+      .insert(insertRow)
       .select("*")
       .single();
 
