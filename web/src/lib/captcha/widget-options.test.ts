@@ -50,9 +50,17 @@ test("server-rendered turnstile data attributes", () => {
   assert.equal(a["data-timeout-callback"], "__tulalaCaptchaError");
 });
 
-test("placeholder height: none for turnstile, kept for hcaptcha", () => {
+test("placeholder height: none for turnstile interaction-only, kept for always + hcaptcha", () => {
   assert.equal(captchaReservedHeightPx("turnstile"), 0);
+  assert.equal(captchaReservedHeightPx("turnstile", "interaction-only"), 0);
+  assert.equal(captchaReservedHeightPx("turnstile", "always"), CAPTCHA_MIN_HEIGHT_PX);
   assert.equal(captchaReservedHeightPx("hcaptcha"), CAPTCHA_MIN_HEIGHT_PX);
+});
+
+test("turnstile appearance can be forced to always (studio embed)", () => {
+  const o = turnstileRenderOptions("k", "es", cb, "light", "always");
+  assert.equal(o.appearance, "always");
+  assert.equal(o.theme, "light");
 });
 
 test("retry copy es + en, no em dashes", () => {

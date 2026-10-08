@@ -1658,7 +1658,8 @@
     "instantBook": {
       "guestName": "Your name",
       "guestEmail": "Your email",
-      "signInToBook": "Sign in to book"
+      "signInToBook": "Sign in to book",
+      "captchaRequired": "Please complete the challenge to continue."
     },
     "bookPage": {
       "title": "Reserve a time",
