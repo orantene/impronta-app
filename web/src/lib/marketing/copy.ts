@@ -721,7 +721,7 @@ const es: MarketingCopy = {
       "Historias ilustrativas de lo que ya es posible hoy. Las páginas de clientes reales se conectan aquí conforme se lanzan.",
     filters: ["Todas", "Talento", "Negocios", "Hubs", "Híbrido"],
     readStory: "Leer la historia",
-    readStoryNamed: "Lee la historia de {name}",
+    readStoryNamed: "Leer la historia de {name}",
     challengeLabel: "El reto",
     approachLabel: "Cómo usan Tulala",
     resultLabel: "El resultado",

@@ -14,7 +14,7 @@ describe("marketing chrome aria (TUL-121 theme13)", () => {
   it("localises case-study read-story aria with persona", () => {
     assert.equal(
       marketingReadStoryNamedLabel("es", "Daniela Sol"),
-      "Lee la historia de Daniela Sol",
+      "Leer la historia de Daniela Sol",
     );
     assert.equal(
       marketingReadStoryNamedLabel("en", "Daniela Sol"),
