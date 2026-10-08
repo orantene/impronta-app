@@ -612,20 +612,10 @@ export async function runPublishPreflight(input?: {
           });
         }
 
-        // W3-M1 — mobile horizontal overflow is a publish-BLOCKING error, not a
-        // shipped advisory. A block whose resolved fixed width/min-width on the
-        // mobile breakpoint exceeds the narrowest viewport (e.g. a
-        // `width: 1120px` container inside a ~390px frame) forces a horizontal
-        // scrollbar on phones — that page cannot go live until it's fixed. The
-        // offending node id rides along so the drawer can point straight at it
-        // (and the W3-M3 AI fixer can target it). The softer "likely overflow"
-        // heuristics (multi-column grids, non-collapsing splits) stay advisory
-        // in MobileHealthPanel and are intentionally NOT promoted here.
-        for (const overflowIssue of collectMobileOverflowPreflightIssues(
-          validation.tree,
-        )) {
-          issues.push(overflowIssue);
-        }
+        // W3-M1 — a block with a fixed width past the narrowest mobile viewport forces a
+        // horizontal scrollbar on phones: a publish-BLOCKING error. The node id rides along so the
+        // drawer can point at it. Softer "likely overflow" heuristics stay advisory (MobileHealthPanel).
+        for (const overflowIssue of collectMobileOverflowPreflightIssues(validation.tree)) issues.push(overflowIssue);
         for (const appIssue of collectAppPreflightIssues(validation.tree)) issues.push(appIssue);
         for (const tickerIssue of collectTickerPreflightIssues(validation.tree)) issues.push(tickerIssue);
 
