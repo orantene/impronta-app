@@ -115,25 +115,37 @@ export function PortfolioShotLink({
     return () => window.removeEventListener(PORTFOLIO_BOOK_EVENT, onBook);
   }, [offering, shotId, confirmsByHand]);
 
-  if (!offeringId) {
-    return (
+  // Photo only (no link, or the linked offering is not loaded): the tap still
+  // opens the lightbox (no "Book this look" since canBook is false), never a
+  // dead div or a silent scroll. Without a `lightbox` the old plain markup stays.
+  if (!offering) {
+    if (lightbox) {
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className={className}
+            style={style}
+            aria-label={ariaLabel}
+            data-portfolio-photo
+            data-portfolio-gallery-index={lightbox.gallery.index}
+            data-portfolio-gallery-size={lightbox.gallery.items.length}
+          >
+            {children}
+          </button>
+          {open ? <PortfolioLightbox gallery={lightbox.gallery} labels={lightbox} onClose={() => setOpen(false)} /> : null}
+        </>
+      );
+    }
+    return offeringId ? (
+      <a href="#servicios" className={className} style={style} aria-label={ariaLabel} data-portfolio-offering={offeringId}>
+        {children}
+      </a>
+    ) : (
       <div className={className} style={style}>
         {children}
       </div>
-    );
-  }
-
-  if (!offering) {
-    return (
-      <a
-        href="#servicios"
-        className={className}
-        style={style}
-        aria-label={ariaLabel}
-        data-portfolio-offering={offeringId}
-      >
-        {children}
-      </a>
     );
   }
 

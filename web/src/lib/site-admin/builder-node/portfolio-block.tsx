@@ -209,7 +209,9 @@ function ShotFigure({
           nextLabel: es ? "Foto siguiente" : "Next photo",
         }}
         ariaLabel={
-          serviceLine ? `${label}. ${es ? "Abre" : "Opens"} ${serviceLine}` : label
+          offering && serviceLine
+            ? `${label}. ${es ? "Abre" : "Opens"} ${serviceLine}`
+            : `${es ? "Ver foto" : "View photo"} ${gallery.index + 1}: ${label}`
         }
       >
         <span className="sb-portfolio-frame" style={{ display: "block", overflow: "hidden" }}>

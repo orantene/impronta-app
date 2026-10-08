@@ -11,13 +11,14 @@ import type { BuilderNode } from "./types";
 import type { TalentPortfolioShot } from "./portfolio-types";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
-function render(nodes: BuilderNode[], dataSources: BuilderNodeRenderDataSources = {}): string {
+function render(nodes: BuilderNode[], dataSources: BuilderNodeRenderDataSources = {}, visitorLocale?: string): string {
   return renderToStaticMarkup(
     renderBuilderNodes(nodes, {
       mode: "freeform",
       includeRendererStyles: false,
       includeFontLinks: false,
       dataSources,
+      ...(visitorLocale ? { visitorLocale } : {}),
     }) as Parameters<typeof renderToStaticMarkup>[0],
   );
 }
@@ -247,4 +248,48 @@ test("A-06: every shot link gets the block's whole gallery and its own index", a
     true,
   );
   assert.deepEqual(items.map((i) => [i.id, i.canBook]), [["g1", true], ["g2", false]]);
+});
+
+test("TUL-440: every shape taps into the lightbox, linked or not, with or without a caption", () => {
+  const shots = [
+    shot({ id: "t1", offeringId: "off-1", offeringTitle: "Gel pedicure", caption: "Gel set" }),
+    shot({ id: "t2", offeringId: "off-missing", offeringTitle: "Gone" }),
+    shot({ id: "t3" }),
+  ];
+  const shapes: Array<Record<string, unknown>> = [
+    { layout: "grid" },
+    { layout: "masonry" },
+    { layout: "filmstrip" },
+    { layout: "contact_sheet" },
+    { layout: "chapter" },
+    { layout: "staggered", cardStyle: "framed", showCaptions: true },
+    { layout: "grid", cardStyle: "framed", showCaptions: true },
+    { layout: "grid", linkMode: "none" },
+  ];
+  for (const props of shapes) {
+    const html = render([portfolioNode(props)], { talentPortfolioShots: shots, talentOfferings: [offering()] });
+    const buttons = html.match(/<button[^>]*data-portfolio-gallery-index[^>]*>/g) ?? [];
+    assert.equal(buttons.length, 3, JSON.stringify(props));
+    assert.doesNotMatch(html, /href="#servicios"/, JSON.stringify(props));
+    assert.doesNotMatch(html, /<div class="sb-portfolio-shot/, JSON.stringify(props));
+    for (const b of buttons) assert.match(b, /aria-label="[^"]+"/);
+  }
+});
+
+test("TUL-440: framed arrow-card keeps the arrow inside the tappable button; unlinked photo gets 'Ver foto N'", () => {
+  const html = render(
+    [portfolioNode({ layout: "staggered", cardStyle: "framed", showCaptions: true })],
+    {
+      talentPortfolioShots: [
+        shot({ id: "a1", offeringId: "off-1", offeringTitle: "Gel pedicure", caption: "Gel" }),
+        shot({ id: "a2" }),
+      ],
+      talentOfferings: [offering()],
+    },
+    "es",
+  );
+  const btn = html.match(/<button[^>]*data-portfolio-shot-link[^>]*>.*?<\/button>/s)?.[0] ?? "";
+  assert.match(btn, /sb-portfolio-arrow/);
+  assert.match(btn, /data-offering-cta=/);
+  assert.match(html, /<button[^>]*aria-label="Ver foto 2: [^"]*"[^>]*data-portfolio-photo/);
 });
