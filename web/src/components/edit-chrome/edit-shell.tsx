@@ -97,7 +97,11 @@ import {
   CanvasGuides,
   useCanvasViewport,
 } from "./canvas-viewport";
-import { DEFAULT_WORKSPACE_CANVAS_MODE, resolveBodyHorizontalPadding, resolveDeviceFrameHorizontalPadding, type WorkspaceCanvasMode } from "./workspace-layout";
+import { DEFAULT_WORKSPACE_CANVAS_MODE, resolveBodyHorizontalPadding, type WorkspaceCanvasMode } from "./workspace-layout";
+import {
+  resolveDeviceFrameHostPadding,
+  shouldShowDeviceFrameSkeleton,
+} from "./device-frame-layout";
 import { useEditorLocale } from "./use-editor-locale";
 import { presenceBannerMessage } from "./presence-banner-copy";
 import { summarizeOtherEditors } from "./summarize-other-editors";
@@ -1882,11 +1886,27 @@ function DeviceFrameSurface({
   const pageVersion = usePageVersion();
   // Job #18 — canvas drag-resize setters. DeviceFrameSurface is rendered
   // inside EditProvider so useEditContext is valid here.
-  const { setDevice: ctxSetDevice, setPreviewFrameWidth } = useEditContext();
+  const {
+    setDevice: ctxSetDevice,
+    setPreviewFrameWidth,
+    mobileEditMode,
+  } = useEditContext();
+  const { t } = useEditorLocale();
 
   // Drag state — live width while dragging (null = not dragging).
   const [dragging, setDragging] = useState<boolean>(false);
   const [dragReadout, setDragReadout] = useState<number | null>(null);
+  // TUL-397 — tiers that have finished their first iframe `load`. Warm-keep
+  // flips between ready tiers instantly; the skeleton covers only the first
+  // load of each tier (the blank 1.5–5s storefront boot).
+  const [loadedTiers, setLoadedTiers] = useState<ReadonlySet<EditDevice>>(
+    () => new Set(),
+  );
+  // Iframe `key` includes pageVersion/pageSlug — a remount needs a fresh
+  // load signal or the skeleton would stay hidden over a blank document.
+  useEffect(() => {
+    setLoadedTiers(new Set());
+  }, [pageVersion, pageSlug]);
   // Ref to the start-of-drag data so pointermove doesn't close over stale state.
   const dragStartRef = useRef<{
     startX: number;
@@ -2060,16 +2080,19 @@ function DeviceFrameSurface({
   // so the value is irrelevant there — frameWidthForTier falls back to tablet.
   const width = frameWidthForTier(device, device, previewFrame);
 
-  // Padding rules — full-bleed canvas uses safe margins only; panels overlay.
+  // TUL-397 — device frames always reserve gutters for navigator / inspector /
+  // Mobile·Tablet editing HUD so those panels sit beside the canvas, not over it.
   const isPhone = (hostSize?.w ?? 1280) < 1024;
-  const { left: leftPad, right: rightPad } = resolveDeviceFrameHorizontalPadding({
-    mode: DEFAULT_WORKSPACE_CANVAS_MODE,
+  const { left: leftPad, right: rightPad } = resolveDeviceFrameHostPadding({
     isPhone,
     navigatorOpen,
     navigatorWidth,
     inspectorOpen,
+    device,
+    mobileEditMode,
   });
   const verticalPad = isPhone ? 12 : 24;
+  const showSkeleton = shouldShowDeviceFrameSkeleton({ device, loadedTiers });
 
   // Available iframe footprint inside the host gutter.
   const containerWidth = (hostSize?.w ?? 1280) - leftPad - rightPad - 32;
@@ -2204,6 +2227,14 @@ function DeviceFrameSurface({
                   data-active={isActive ? "true" : undefined}
                   data-device-tier={d}
                   hidden={!isActive}
+                  onLoad={() => {
+                    setLoadedTiers((prev) => {
+                      if (prev.has(d)) return prev;
+                      const next = new Set(prev);
+                      next.add(d);
+                      return next;
+                    });
+                  }}
                   style={{
                     // Absolute layering so the inactive iframes stack
                     // beneath the active one without affecting flex flow.
@@ -2227,6 +2258,36 @@ function DeviceFrameSurface({
                 />
               );
             })}
+            {/* TUL-397 — short translated skeleton while the active tier's
+                first storefront boot finishes. Warm-kept ready tiers skip it. */}
+            {showSkeleton ? (
+              <div
+                data-device-frame-skeleton=""
+                role="status"
+                aria-live="polite"
+                aria-label={t("Loading preview…")}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 16,
+                  background:
+                    "linear-gradient(180deg, rgba(249,249,251,0.98) 0%, rgba(244,244,245,0.98) 100%)",
+                  color: "rgba(24,24,27,0.55)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  letterSpacing: "-0.01em",
+                  fontFamily:
+                    'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
+                  pointerEvents: "none",
+                  zIndex: 2,
+                }}
+              >
+                {t("Loading preview…")}
+              </div>
+            ) : null}
           </div>
           {/* Job #18 — resize grabber on the right edge of the active frame.
               Thin vertical strip; cursor:ew-resize. onPointerDown starts the

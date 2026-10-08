@@ -64,6 +64,7 @@ import {
   resolveCanvasAvailableWidth,
   resolveCanvasHudLeftInset,
 } from "./workspace-layout";
+import { useMaybeEditContext } from "./edit-context";
 
 // ── constants ──────────────────────────────────────────────────────────────
 
@@ -604,6 +605,11 @@ export function CanvasZoomControls({
   const { zoom, zoomIn, zoomOut, zoomTo, fitPage, showRulers, toggleRulers } =
     useCanvasViewport();
   const { t } = useEditorLocale();
+  // TUL-397 — zoom HUD only applies to the desktop storefront DOM. On
+  // tablet/mobile the canvas is an iframe card; leaving the HUD up covered
+  // the device frame (Closer #12 / zoom-over-card).
+  const editCtx = useMaybeEditContext();
+  if (editCtx && editCtx.device !== "desktop") return null;
 
   const leftOffset = resolveCanvasHudLeftInset({
     mode: DEFAULT_WORKSPACE_CANVAS_MODE,

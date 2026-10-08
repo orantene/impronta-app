@@ -28,6 +28,7 @@ export const ES_TALENT_CHROME_TEXT: Record<string, string> = {
   "Browser tab + Google": "Pestaña del navegador y Google",
   "Meta description": "Descripción para buscadores",
   "Loading your page…": "Cargando tu página...",
+  "Loading preview…": "Cargando la vista previa...",
   "No changes since your last publish.": "No hay cambios desde tu última publicación.",
   "just now": "justo ahora",
   "{n}s ago": "hace {n} s",
