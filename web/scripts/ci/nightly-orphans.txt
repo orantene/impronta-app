@@ -310,7 +310,6 @@ src/lib/talent/profile-code-alias-middleware.test.ts
 src/lib/talent/profile-code.test.ts
 src/lib/talent/profile-editor-sections.test.ts
 src/lib/talent/representation.test.ts
-src/lib/talent/services-list-price.test.ts
 src/lib/talent/visibility.test.ts
 src/lib/taxonomy/engine.test.ts
 src/lib/taxonomy/tenant-taxonomy-plan-limits.test.ts
