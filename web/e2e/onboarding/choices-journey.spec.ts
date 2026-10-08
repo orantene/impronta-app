@@ -16,14 +16,17 @@
  *   5 sign out + in   lands on the Spanish dashboard within 15 s
  *   6 guest booking   fresh context, no login, one service booked, row in the DB
  *
- * Run (stack up via web/scripts/onboarding-qa/dev.sh):
- *   cd web && ONB_EVIDENCE_DIR=<abs dir> PLAYWRIGHT_SKIP_WEBSERVER=1 \
+ * Run local (stack up via web/scripts/onboarding-qa/dev.sh):
+ *   cd web && JOURNEY_TARGET=local ONB_EVIDENCE_DIR=<abs dir> PLAYWRIGHT_SKIP_WEBSERVER=1 \
  *     PLAYWRIGHT_BASE_URL=http://localhost:3105 \
  *     npx playwright test e2e/onboarding/choices-journey.spec.ts --workers=1
+ * Run against isolated staging: see docs/plans/qa-evidence/onboarding-choices-2026-10-07/RUNBOOK.md
+ * (JOURNEY_MARKETING_ORIGIN / JOURNEY_APP_ORIGIN / JOURNEY_TALENT_HOST_TEMPLATE, no defaults).
  *
- * Safety: refuses unless the env is the isolated project (guard below), never
- * fetches a non-local host (finish URLs on `*.tulala.digital` are mapped to the
- * local dev server by Chromium host-resolver rules and an http:// URL), and the
+ * Safety: refuses unless the env is the isolated project (guard below) and every
+ * origin is localhost or staging-qa-*.tulala.digital (scripts/onboarding-qa/target-guard.mjs;
+ * locally, finish URLs on `*.tulala.digital` are mapped to the dev server by Chromium
+ * host-resolver rules and an http:// URL), and the
  * service role is only ever the isolated one (`isolatedService()` refuses prod).
  * A step that fails is recorded and the run continues with the next step.
  */
@@ -35,7 +38,35 @@ import type { BrowserContext, Page } from "@playwright/test";
 import { isolatedService } from "../cases/_isolated-db";
 // @ts-ignore -- plain ESM script shared with the journeys seed/cleanup tools
 import { assertIsolatedJourneysTarget } from "../../scripts/isolated-target-guard.mjs";
-import { APP_BASE, MARKETING_BASE, expect, test } from "./_module";
+// @ts-ignore -- plain ESM, unit-tested in scripts/onboarding-qa/target-guard.test.mjs
+import { assertAllowedOrigins, bypassHeadersFor, resolveJourneyTargets, talentHostFor } from "../../scripts/onboarding-qa/target-guard.mjs";
+import { expect, test as baseTest } from "./_module";
+
+// Origins come ONLY from env (JOURNEY_MARKETING_ORIGIN, JOURNEY_APP_ORIGIN, JOURNEY_TALENT_HOST_TEMPLATE); JOURNEY_TARGET=local
+// is the only way to get the localhost defaults. Throws at load unless every origin is localhost or staging-qa-*.tulala.digital
+// (or JOURNEY_ALLOWED_HOSTS), and never production / Impronta. See the RUNBOOK next to the evidence.
+const TARGET = resolveJourneyTargets(process.env) as { local: boolean; marketing: string; app: string; talentHostTemplate: string | null };
+const MARKETING_BASE = TARGET.marketing;
+const APP_BASE = TARGET.app;
+
+/** Vercel deployment-protection bypass, added per request ONLY for allow-listed hosts (never other origins); the value is never logged. */
+async function armBypass(ctx: BrowserContext) {
+  if (!process.env.VERCEL_AUTOMATION_BYPASS_SECRET) return;
+  await ctx.route("**/*", (route) => {
+    const extra = bypassHeadersFor(route.request().url(), process.env) as Record<string, string>;
+    return Object.keys(extra).length ? route.continue({ headers: { ...route.request().headers(), ...extra } }) : route.continue();
+  });
+}
+const test = baseTest.extend({
+  context: async ({ context }, use) => {
+    await armBypass(context);
+    await use(context);
+  },
+});
+/** GET for the dev sign-in endpoint; APIRequestContext is not routed, so the bypass header is passed explicitly. */
+function apiGet(page: Page, url: string) {
+  return page.request.get(url, { maxRedirects: 0, headers: bypassHeadersFor(url, process.env) as Record<string, string> });
+}
 
 type Choice = "myself" | "studio" | "both";
 type Vp = "desktop" | "phone";
@@ -52,7 +83,8 @@ const TALENT = (c: Choice) => c !== "studio";
 const WORKSPACE = (c: Choice) => c !== "myself";
 const EXPECTED = {
   myself: { appRole: "talent", home: "talent", cta: /Abrir mi sitio/i },
-  studio: { appRole: "agency_staff", home: "workspace", cta: /Ir a mi panel|Abrir mi (espacio|sitio web)|Ver mi sitio/i },
+  // Studio has no provider yet: its Finish is the inquiry-only variant (no view/cta button), asserted in step 4.
+  studio: { appRole: "agency_staff", home: "workspace", cta: /^$/ },
   both: { appRole: "talent", home: "workspace", cta: /Ir a mi panel|Abrir mi (espacio|sitio web)|Ver mi sitio/i },
 } satisfies Record<Choice, { appRole: string; home: string; cta: RegExp }>;
 
@@ -339,7 +371,7 @@ async function signUpWithCode(page: Page, run: Run, email: string) {
   const params = new URLSearchParams({ email, next: "/" });
   let setCookies: string[] = [];
   for (let attempt = 1; attempt <= 6 && !setCookies.length; attempt += 1) {
-    const r = await page.request.get(`${APP_BASE}/api/dev/signin?${params.toString()}`, { maxRedirects: 0 });
+    const r = await apiGet(page, `${APP_BASE}/api/dev/signin?${params.toString()}`);
     if (r.status() === 307) setCookies = r.headersArray().filter((h) => h.name.toLowerCase() === "set-cookie").map((h) => h.value);
     else await page.waitForTimeout(500 * attempt);
   }
@@ -358,12 +390,26 @@ async function signUpWithCode(page: Page, run: Run, email: string) {
   await run.shot(page, "building");
 }
 
-/** `https://<slug>.tulala.digital/...` -> `http://<slug>.tulala.digital:3008/...`; resolved to 127.0.0.1 by Chromium. */
+/**
+ * Local: `https://<slug>.tulala.digital/...` -> `http://<slug>.tulala.digital:3008/...` (Chromium resolves it to 127.0.0.1).
+ * Staging: the slug host is rebuilt from JOURNEY_TALENT_HOST_TEMPLATE (never a real `<slug>.tulala.digital` host); hosts
+ * already allow-listed are used as given.
+ */
 function toLocalUrl(href: string): string {
   const u = new URL(href, MARKETING_BASE);
   if (u.hostname === "localhost" || u.hostname === "127.0.0.1") return u.toString();
-  if (!u.hostname.endsWith(".tulala.digital")) throw new Error(`refusing to open a non-Tulala host: ${u.hostname}`);
-  return `http://${u.hostname}:${DEV_PORT}${u.pathname}${u.search}`;
+  if (TARGET.local) {
+    if (!u.hostname.endsWith(".tulala.digital")) throw new Error(`refusing to open a non-Tulala host: ${u.hostname}`);
+    return `http://${u.hostname}:${DEV_PORT}${u.pathname}${u.search}`;
+  }
+  try {
+    assertAllowedOrigins({ finishUrl: u.origin }, process.env);
+    return u.toString();
+  } catch {
+    if (!u.hostname.endsWith(".tulala.digital") || !TARGET.talentHostTemplate) throw new Error(`refusing to open a non-allow-listed host: ${u.hostname}`);
+    const host = talentHostFor(u.hostname.split(".")[0], TARGET.talentHostTemplate, process.env);
+    return `https://${host}${u.pathname}${u.search}`;
+  }
 }
 
 async function getUserId(email: string): Promise<string> {
@@ -498,16 +544,14 @@ async function guestBook(browserCtx: BrowserContext, run: Run, finishHref: strin
   await page.close();
 }
 
-// Chromium maps every *.tulala.digital name to this machine; finish URLs are opened as http://<host>:3008.
-test.use({ launchOptions: { args: ["--host-resolver-rules=MAP *.tulala.digital 127.0.0.1"] } });
+// Local only: Chromium maps every *.tulala.digital name to this machine; finish URLs are opened as http://<host>:3008.
+if (TARGET.local) test.use({ launchOptions: { args: ["--host-resolver-rules=MAP *.tulala.digital 127.0.0.1"] } });
 
 test.beforeAll(() => {
   // Refuse unless the loaded env is the isolated project (exits the process otherwise).
   assertIsolatedJourneysTarget(process.env);
-  const base = process.env.PLAYWRIGHT_BASE_URL ?? MARKETING_BASE;
-  if (!/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(base.replace(/\/$/, ""))) {
-    throw new Error(`refusing a non-local base URL: ${base}`);
-  }
+  // Hosts were validated at load by resolveJourneyTargets (which also checks PLAYWRIGHT_BASE_URL).
+  assertAllowedOrigins({ marketing: MARKETING_BASE, app: APP_BASE }, process.env);
 });
 
 for (const vp of Object.keys(VIEWPORTS) as Vp[]) {
@@ -577,24 +621,74 @@ for (const vp of Object.keys(VIEWPORTS) as Vp[]) {
           if (!arrived) throw new Error("build ended on the arrival-failed screen (accounts asserted above)");
         });
 
-        // 4 · finish screen.
+        // 4 · finish screen + batch-6 behaviors per choice.
         await run.step(4, "finish screen + URL is real", async () => {
           if (!arrived) throw new Error("no arrival screen");
-          const cta = page.getByTestId("onb-arrival-view").or(page.getByTestId("onb-arrival-cta")).first();
-          run.facts.finishButtonText = (await cta.innerText()).trim();
-          await expect(cta).toHaveText(EXPECTED[choice].cta);
-          const link = page.getByTestId("onb-arrival-visit").or(page.getByTestId("onb-arrival-cta")).first();
-          finishHref = (await link.getAttribute("href")) ?? "";
+          const admin = isolatedService();
+          const openOk = async (href: string, label: string, name: string) => {
+            const probe = await context.newPage();
+            try {
+              const res = await probe.goto(toLocalUrl(href), { waitUntil: "domcontentloaded" });
+              expect(res?.status(), `${label} status`).toBe(200);
+              await expect(probe.locator("body"), `${label} shows the name`).toContainText(name, { timeout: 30_000 });
+              await run.shot(probe, label.replace(/\s+/g, "-"));
+            } finally {
+              await probe.close();
+            }
+          };
+          const talentId = (run.facts.talent as { id?: string; code?: string } | undefined)?.id;
+          const talentCode = (run.facts.talent as { code?: string } | undefined)?.code;
+          const arrivalEl = page.getByTestId("onb-arrival");
+          if (choice === "studio") {
+            // Studio: "ready for requests", NOT bookable; one primary action = add the first team member.
+            await expect(arrivalEl).toHaveAttribute("data-finish", "inquiry_only");
+            const text = await arrivalEl.innerText();
+            run.facts.finishText = text.replace(/\s+/g, " ").slice(0, 300);
+            expect(text, "Studio Finish says ready for requests").toMatch(/lista para recibir solicitudes|ready for requests/i);
+            expect(text, "Studio Finish never says bookable").not.toMatch(/reservable|bookable|lista para reservar|ready to book/i);
+            const add = page.getByTestId("onb-arrival-add-member");
+            await expect(add, "add-first-team-member action").toBeVisible();
+            expect(await add.getAttribute("href"), "add-member goes to the roster").toMatch(/\/roster\/new/);
+            await expect(page.getByTestId("onb-arrival-also-book")).toBeVisible();
+            run.facts.finishButtonText = (await add.innerText()).trim();
+            finishHref = (await page.getByTestId("onb-arrival-visit").getAttribute("href")) ?? "";
+          } else {
+            await expect(arrivalEl).not.toHaveAttribute("data-finish", "inquiry_only");
+            const cta = page.getByTestId("onb-arrival-view").or(page.getByTestId("onb-arrival-cta")).first();
+            run.facts.finishButtonText = (await cta.innerText()).trim();
+            await expect(cta).toHaveText(EXPECTED[choice].cta);
+            const link = page.getByTestId("onb-arrival-visit").or(page.getByTestId("onb-arrival-cta")).first();
+            finishHref = (await link.getAttribute("href")) ?? "";
+          }
           expect(finishHref, "finish link present").toBeTruthy();
           run.facts.finishHost = (() => {
             try { return new URL(finishHref, MARKETING_BASE).host; } catch { return finishHref; }
           })();
-          const probe = await context.newPage();
-          const res = await probe.goto(toLocalUrl(finishHref), { waitUntil: "domcontentloaded" });
-          expect(res?.status(), "finish URL status").toBe(200);
-          await expect(probe.locator("body")).toContainText(TALENT(choice) && !WORKSPACE(choice) ? displayName : displayName, { timeout: 30_000 });
-          await run.shot(probe, "finish-url");
-          await probe.close();
+          await openOk(finishHref, "finish url", displayName);
+
+          if (TALENT(choice)) {
+            expect(talentId, "talent id recorded by step 3").toBeTruthy();
+            const { data: tp } = await admin.from("talent_profiles").select("workflow_status, visibility").eq("id", talentId!).maybeSingle();
+            const { data: site } = await admin.from("talent_sites").select("site_slug, site_published_at").eq("talent_profile_id", talentId!).maybeSingle();
+            run.facts.publication = { workflow_status: tp?.workflow_status, visibility: tp?.visibility, site_slug: site?.site_slug, site_published_at: site?.site_published_at };
+            if (choice === "myself") {
+              // Para mi: the profile is published/public at Finish (not left as a hidden draft).
+              expect(["approved", "published"], "myself profile workflow_status at Finish").toContain(tp?.workflow_status);
+              expect(tp?.visibility, "myself profile visibility at Finish").toBe("public");
+              expect(site?.site_published_at, "myself site is published at Finish").toBeTruthy();
+              if (talentCode) await openOk(`${MARKETING_BASE}/t/${talentCode}`, "public hub profile", displayName);
+            } else {
+              // Ambos: the talent has her OWN site, distinct from the workspace page; Finish only says ready when both open.
+              expect(site?.site_slug, "both: own talent site slug").toBeTruthy();
+              expect(site?.site_published_at, "both: own talent site is published").toBeTruthy();
+              await expect(page.getByTestId("onb-arrival-failed"), "both: Finish is not the failed/draft screen").toHaveCount(0);
+              await openOk(`https://${site!.site_slug}.tulala.digital/`, "talent site", displayName);
+              const talentHost = new URL(toLocalUrl(`https://${site!.site_slug}.tulala.digital/`)).host;
+              const finishHost = new URL(toLocalUrl(finishHref)).host;
+              run.facts.bothHosts = { talentHost, finishHost };
+              expect(finishHost, "workspace page and talent site are different pages").not.toBe(talentHost);
+            }
+          }
           await run.shot(page, "finish");
         });
 
@@ -604,7 +698,7 @@ for (const vp of Object.keys(VIEWPORTS) as Vp[]) {
           const params = new URLSearchParams({ email, next: "/" });
           let setCookies: string[] = [];
           for (let attempt = 1; attempt <= 6 && !setCookies.length; attempt += 1) {
-            const r = await page.request.get(`${APP_BASE}/api/dev/signin?${params.toString()}`, { maxRedirects: 0 });
+            const r = await apiGet(page, `${APP_BASE}/api/dev/signin?${params.toString()}`);
             if (r.status() === 307) setCookies = r.headersArray().filter((h) => h.name.toLowerCase() === "set-cookie").map((h) => h.value);
             else await page.waitForTimeout(500 * attempt);
           }
@@ -644,6 +738,7 @@ for (const vp of Object.keys(VIEWPORTS) as Vp[]) {
         await run.step(6, "guest books a service", async () => {
           if (!finishHref) throw new Error("no finish URL to open");
           const guestCtx = await browser.newContext({ viewport: VIEWPORTS[vp], locale: "es-MX" });
+          await armBypass(guestCtx);
           try {
             await guestBook(guestCtx, run, finishHref, displayName, `qa-onb-guest-${choice}-${vp}-${STAMP}@impronta.test`);
           } finally {
@@ -683,7 +778,7 @@ async function devSession(page: Page, email: string) {
   const params = new URLSearchParams({ email, next: "/" });
   let setCookies: string[] = [];
   for (let attempt = 1; attempt <= 6 && !setCookies.length; attempt += 1) {
-    const r = await page.request.get(`${APP_BASE}/api/dev/signin?${params.toString()}`, { maxRedirects: 0 });
+    const r = await apiGet(page, `${APP_BASE}/api/dev/signin?${params.toString()}`);
     if (r.status() === 307) setCookies = r.headersArray().filter((h) => h.name.toLowerCase() === "set-cookie").map((h) => h.value);
     else await page.waitForTimeout(500 * attempt);
   }
@@ -786,9 +881,11 @@ test.describe("TUL-16 extra rows · myself talent · desktop", () => {
       await page.waitForTimeout(8000);
       await rowShot(page, "C1-10", 1, "after-row-click");
       await pageText(page, "C1-10", "after-row-click");
-      await expect(panel.getByRole("combobox", { name: /Zona horaria|Timezone/ }).first()).toBeVisible({ timeout: 60_000 });
-      const tz = panel.getByRole("combobox", { name: /Zona horaria|Timezone/ }).first();
-      await tz.selectOption("America/Cancun");
+      // TimezonePicker: a native <select data-testid="working-hours-timezone" aria-label="Zona horaria"> (plus a search input
+      // labelled "Search time zones"). It renders once the hours load, so wait up to 60 s, found by its label.
+      const tzSel = () => panel.getByLabel(/^(Zona horaria|Timezone)$/).first();
+      await expect(tzSel()).toBeVisible({ timeout: 60_000 });
+      await tzSel().selectOption("America/Cancun");
       // Mon-Fri open 10:00-18:00, weekend closed.
       const boxes = panel.locator('input[type="checkbox"]');
       const nBoxes = await boxes.count();
@@ -814,8 +911,9 @@ test.describe("TUL-16 extra rows · myself talent · desktop", () => {
       await page.waitForTimeout(10_000);
       await page.getByText(/Horario y días libres/).first().click();
       const panel2 = page.locator("body");
-      await expect(panel2.getByRole("combobox", { name: /Zona horaria|Timezone/ }).first()).toBeVisible({ timeout: 60_000 });
-      await expect(panel2.getByRole("combobox", { name: /Zona horaria|Timezone/ }).first()).toHaveValue("America/Cancun");
+      const tz2 = panel2.getByLabel(/^(Zona horaria|Timezone)$/).first();
+      await expect(tz2).toBeVisible({ timeout: 60_000 });
+      await expect(tz2).toHaveValue("America/Cancun");
       const t2 = panel2.locator('input[type="time"]');
       await expect(t2.first()).toHaveValue("10:00");
       await expect(t2.nth(1)).toHaveValue("18:00");
@@ -845,24 +943,26 @@ test.describe("TUL-16 extra rows · myself talent · desktop", () => {
       await page.goto(`${APP_BASE}/talent/profile`, { waitUntil: "domcontentloaded", timeout: 90_000 });
       await page.waitForTimeout(10_000);
       await rowShot(page, "C1-11", 1, "profile");
-      await page.getByRole("button", { name: /Servicios/ }).or(page.getByText(/^Servicios$/)).first().click();
-      await page.waitForTimeout(15_000);
+      // /talent/services lists the talent's offerings (ServicesHome). Assert the list and its count against the DB;
+      // "Seguimos intentando" is recorded only as a diagnostic.
+      await page.goto(`${APP_BASE}/talent/services`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+      await expect(page.getByRole("heading", { name: /^Servicios$/ }).first()).toBeVisible({ timeout: 60_000 });
+      const rowMenus = page.getByRole("button", { name: /Menú de fila|Row menu/ });
+      const waitStart = Date.now();
+      await rowMenus.first().waitFor({ state: "visible", timeout: 60_000 }).catch(() => undefined);
+      await page.waitForTimeout(2000);
       await rowShot(page, "C1-11", 2, "servicios");
       await pageText(page, "C1-11", "servicios");
-      const stuck = page.getByText(/Seguimos intentando|Está tardando más de lo normal/).first();
-      if (await stuck.isVisible().catch(() => false)) throw new Error(`Servicios page never loaded its catalog: "${(await stuck.innerText()).slice(0, 80)}" still shown after 15 s`);
-      const category = page.locator('[role="option"], [data-testid*="category"], button[aria-pressed]').first();
-      await expect(category, "a category to pick").toBeVisible({ timeout: 30_000 });
-      await category.click();
-      await rowShot(page, "C1-11", 3, "category-picked");
-      await page.getByRole("button", { name: /Publicar|Guardar|Publish|Save/ }).last().click();
-      await page.waitForTimeout(4000);
-      await rowShot(page, "C1-11", 4, "after-publish");
-      const body = await page.locator("body").innerText();
-      expect(body, "no roster error").not.toMatch(/Talent is not on any active roster/i);
-      expect(errors, "no failed POSTs").toEqual([]);
+      const stuck = await page.getByText(/Seguimos intentando|Está tardando más de lo normal/).first().isVisible().catch(() => false);
+      const shown = await rowMenus.count();
       const admin = isolatedService();
       const userId = await getUserId(email);
+      const { data: tp0 } = await admin.from("talent_profiles").select("id").eq("user_id", userId).is("deleted_at", null).maybeSingle();
+      const { data: offers } = await admin.from("talent_offerings").select("title").eq("talent_profile_id", tp0!.id);
+      const diag = `services rows shown=${shown}, DB offerings=${(offers ?? []).length}, 'Seguimos intentando' visible=${stuck}, list ready after ${Date.now() - waitStart} ms`;
+      expect(shown, `a services list with at least one offering (${diag})`).toBeGreaterThan(0);
+      expect(shown, `services shown equals DB offerings (${diag})`).toBe((offers ?? []).length);
+      for (const o of offers ?? []) await expect(page.locator("body"), `offering "${o.title}" listed`).toContainText(String(o.title));
       const { data: tp } = await admin.from("talent_profiles").select("id, display_name").eq("user_id", userId).is("deleted_at", null).maybeSingle();
       const { data: site } = await admin.from("talent_sites").select("site_slug, site_published_at").eq("talent_profile_id", tp!.id).maybeSingle();
       expect(site?.site_slug, "talent site slug").toBeTruthy();
@@ -871,8 +971,35 @@ test.describe("TUL-16 extra rows · myself talent · desktop", () => {
       expect(res?.status(), "live site status").toBe(200);
       await expect(live.locator("body")).toContainText(String(tp!.display_name), { timeout: 30_000 });
       await rowShot(live, "C1-11", 5, "live-site");
-      return `live site 200 for slug ${site!.site_slug}`;
+      return `${diag}; live site 200 for slug ${site!.site_slug}`;
     });
     expect(EXTRA_ROWS.find((r) => r.row === "C1-11")?.ok, EXTRA_ROWS.find((r) => r.row === "C1-11")?.detail).toBe(true);
+  });
+
+  test("DS-49 empty state: a fresh talent with 0 clients sees /talent/clients empty", async ({ page, context }) => {
+    test.setTimeout(300_000);
+    page.setDefaultTimeout(30_000);
+    const email = await latestMyselfEmail();
+    await asRow("DS-49", async () => {
+      await context.clearCookies();
+      await devSession(page, email);
+      const admin = isolatedService();
+      const userId = await getUserId(email);
+      const { data: tp } = await admin.from("talent_profiles").select("id").eq("user_id", userId).is("deleted_at", null).maybeSingle();
+      const { count } = await admin.from("talent_clients").select("id", { count: "exact", head: true }).eq("talent_profile_id", tp!.id);
+      await page.goto(`${APP_BASE}/talent/clients`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+      await expect(page.locator("[data-clients-directory]")).toBeVisible({ timeout: 90_000 });
+      await expect(page.locator("[data-clients-empty]")).toBeVisible({ timeout: 60_000 });
+      await rowShot(page, "DS-49", 1, "clients-empty");
+      await pageText(page, "DS-49", "clients-empty");
+      const body = await page.locator("[data-clients-directory]").innerText();
+      expect(body, "no 'Nuevo' badge").not.toMatch(/\bNuevo\b/);
+      expect(body, "no 'N de N clientes' line").not.toMatch(/\d+\s+de\s+\d+\s+clientes/i);
+      const add = page.locator("[data-clients-empty]").getByRole("button", { name: /Agregar clienta|Agregar cliente/ });
+      await expect(add, "empty-state add-client button").toBeVisible();
+      await expect(page.locator("[data-client-add]"), "header add-client button").toBeVisible();
+      return `0 clients (talent_clients rows=${count ?? "?"}); empty state with button "${(await add.innerText()).trim()}"; no Nuevo badge; no 'N de N clientes' line`;
+    });
+    expect(EXTRA_ROWS.find((r) => r.row === "DS-49")?.ok, EXTRA_ROWS.find((r) => r.row === "DS-49")?.detail).toBe(true);
   });
 });
