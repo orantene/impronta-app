@@ -15,9 +15,7 @@ function isSpanish(locale: string): boolean {
 }
 
 const ES_TEXT: Record<string, string> = {
-  ...RAIL_ES_TEXT,
-  ...LEFTOVERS_ES_TEXT,
-  ...QUOTE_ES_TEXT, ...QA_FORMATS_ES_TEXT,
+  ...RAIL_ES_TEXT, ...LEFTOVERS_ES_TEXT, ...QUOTE_ES_TEXT, ...QA_FORMATS_ES_TEXT,
   // Global chrome / nav
   "Prototype control bar": "Barra de control del prototipo",
   "Workspace sections": "Secciones del espacio de trabajo",
