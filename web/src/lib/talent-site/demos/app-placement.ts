@@ -82,7 +82,7 @@ function healNailBandCopy(band: BuilderNode): BuilderNode {
       es: m.es?.text ? m.es : want.es,
       en: m.en?.text ? m.en : want.en,
     });
-    return { ...kid, i18n: merged(onNode), props: { ...props, i18n: merged(onProps) } } as BuilderNode;
+    return { ...kid, i18n: merged(onNode), props: { ...props, i18n: merged(onProps) } } as unknown as BuilderNode;
   });
   return changed ? ({ ...band, children: next } as BuilderNode) : band;
 }
