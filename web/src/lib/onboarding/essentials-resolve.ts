@@ -61,3 +61,13 @@ export function resolveEssentialsForBuild(input: {
     source: e?.source ?? (input.serviceFacts.length ? "ai" : "pack"),
   };
 }
+
+/**
+ * The build writes services and hours only when it has services. When it has
+ * none (the "too little" path: the AI read found nothing and the trade has no
+ * pack) the page goes live with an empty catalog, so say so in the build
+ * warnings instead of staying silent.
+ */
+export function essentialsSkipWarning(essentials: Essentials | null | undefined): string | null {
+  return essentials && essentials.services.length ? null : "essentials:no_services";
+}

@@ -163,3 +163,14 @@ export async function verifyLivePageWithRetry(
   }
   return last;
 }
+
+/**
+ * "both" owns two pages (the workspace site and her own talent site). The
+ * finish screen may say ready only when BOTH are real: the first failure wins.
+ * A missing talent URL is a failure (`no_url`), never a skipped check.
+ */
+export function combineLiveChecks(workspace: LiveCheck, talent: LiveCheck | null): LiveCheck {
+  if (!workspace.ok) return workspace;
+  if (talent && !talent.ok) return talent;
+  return { ok: true };
+}

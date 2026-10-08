@@ -1,6 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { resolveLiveCheckOrigin, verifyLivePage, verifyLivePageWithRetry } from "./verify-live";
+import { combineLiveChecks, resolveLiveCheckOrigin, verifyLivePage, verifyLivePageWithRetry } from "./verify-live";
+
+test("combineLiveChecks: ready only when the workspace AND the talent site are real", () => {
+  assert.deepEqual(combineLiveChecks({ ok: true }, null), { ok: true });
+  assert.deepEqual(combineLiveChecks({ ok: true }, { ok: true }), { ok: true });
+  assert.deepEqual(combineLiveChecks({ ok: true }, { ok: false, reason: "no_url" }), { ok: false, reason: "no_url" });
+  assert.deepEqual(combineLiveChecks({ ok: false, reason: "status", status: 404 }, { ok: true }), { ok: false, reason: "status", status: 404 });
+});
 
 const res = (status: number, body: string) => ({ status, text: async () => body }) as unknown as Response;
 const stub = (fn: () => Promise<Response>) => fn as unknown as typeof fetch;
