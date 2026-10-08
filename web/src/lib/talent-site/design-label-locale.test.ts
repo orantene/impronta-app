@@ -62,8 +62,9 @@ test("en: Spanish seeded labels read in English (inverse table)", async () => {
   // Identical pairs never rewrite; talent text is left alone.
   assert.equal(localiseOne("Editorial", "en", null), null);
   assert.equal(localiseOne("Mi trabajo", "en", null), null);
-  // Spanish action copy follows the booking mode in English too.
-  assert.equal(localiseSeededDesignLabel("Solicitar cita", "en", "inquiry"), "Ask for a quote");
+  // Shared ES "Solicitar cita" (Inquire + Reserve a time request) → first ModeCopy wins (Inquire).
+  assert.equal(localiseSeededDesignLabel("Solicitar cita", "en", "inquiry"), "Inquire");
+  assert.equal(localiseSeededDesignLabel("Pide una cotización", "en", "inquiry"), "Ask for a quote");
   // Other languages: no table, English stays English.
   assert.equal(localiseOne("Recent work", "other", null), null);
 });

@@ -382,8 +382,7 @@ async function renderMaxSiteDocument(args: {
   /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
   /** Request origin for magazine footer credit (hostname only). */
   canonicalOrigin?: string;
-  /** DS-62: header seeded Inquire → book verb when the site takes bookings. */
-  ctaMode?: SiteCtaMode | null;
+  /** DS-62: Inquire → book verb when bookable. */ ctaMode?: SiteCtaMode | null;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -796,5 +795,4 @@ async function renderMaxSiteDocument(args: {
     </div>
   );
 }
-
 export type { PublishedTalentPageRenderData };
