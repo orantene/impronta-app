@@ -5,9 +5,10 @@
  * nothing here trusts a client-supplied profile id on its own.
  */
 
-import { logServerError } from "@/lib/server/safe-error";
+import { isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
 
 import { DEFAULT_POLICY_ANSWERS, parsePolicyAnswers, type LateCancelRefund, type PolicyAnswers } from "./answers";
+import { parseCustomClauses, validateCustomClauses, type CustomClauses } from "./custom-clauses";
 import { loadPolicyFacts, type PolicyFacts } from "./facts";
 import { policyContentHash } from "./hash";
 import { renderPolicyText } from "./render";
@@ -23,10 +24,13 @@ export type PublishedPolicy = {
   textEs: string;
   textEn: string;
   publishedAt: string;
+  /** Talent-written rules, part of the version. Null when none (or the column is not migrated yet). */
+  customClauses: CustomClauses | null;
 };
 
 const VERSION_COLUMNS =
   "version, content_hash, answers, facts, rendered_text_es, rendered_text_en, published_at";
+const VERSION_COLUMNS_WITH_CLAUSES = `${VERSION_COLUMNS}, custom_clauses`;
 
 type VersionRow = {
   version: number;
@@ -36,6 +40,7 @@ type VersionRow = {
   rendered_text_es: string;
   rendered_text_en: string;
   published_at: string;
+  custom_clauses?: unknown;
 };
 
 function toPublished(r: VersionRow): PublishedPolicy {
@@ -47,17 +52,27 @@ function toPublished(r: VersionRow): PublishedPolicy {
     textEs: r.rendered_text_es,
     textEn: r.rendered_text_en,
     publishedAt: r.published_at,
+    customClauses: parseCustomClauses(r.custom_clauses),
   };
 }
 
-/** The latest published version, or null when none (or the read failed). */
+/**
+ * The latest published version, or null when none (or the read failed). Reads
+ * `custom_clauses` too, and falls back to the older column set when that column
+ * is not migrated yet, so a deploy ahead of the migration still serves policies.
+ */
 export async function loadPublishedPolicy(admin: Admin, talentProfileId: string): Promise<PublishedPolicy | null> {
-  const { data, error } = await admin
-    .from("talent_policy_versions")
-    .select(VERSION_COLUMNS)
-    .eq("talent_profile_id", talentProfileId)
-    .order("version", { ascending: false })
-    .limit(1);
+  const read = (columns: string) =>
+    admin
+      .from("talent_policy_versions")
+      .select(columns)
+      .eq("talent_profile_id", talentProfileId)
+      .order("version", { ascending: false })
+      .limit(1);
+  let { data, error } = await read(VERSION_COLUMNS_WITH_CLAUSES);
+  if (error && isPostgrestMissingColumnError(error)) {
+    ({ data, error } = await read(VERSION_COLUMNS));
+  }
   if (error) {
     logServerError("talentPolicies.loadPublished", error);
     return null;
@@ -89,7 +104,7 @@ export async function loadPublishedLateCancelRefund(admin: Admin, talentProfileI
 
 export type PublishResult =
   | { ok: true; unchanged: boolean; version: number; contentHash: string }
-  | { ok: false; reason: "facts_unavailable" | "unavailable" };
+  | { ok: false; reason: "facts_unavailable" | "unavailable" | "invalid_clauses" | "clauses_unavailable" };
 
 function isUniqueViolation(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as { code?: string }).code === "23505";
@@ -102,15 +117,31 @@ function isUniqueViolation(error: unknown): boolean {
  */
 export async function publishPolicy(
   admin: Admin,
-  input: { talentProfileId: string; userId: string | null; answers: unknown },
+  input: {
+    talentProfileId: string;
+    userId: string | null;
+    answers: unknown;
+    /**
+     * undefined = keep the latest version's clauses (an answers-only publish
+     * never drops them); null = clear them; an object = replace them.
+     */
+    customClauses?: { es: readonly string[]; en: readonly string[] } | null;
+  },
 ): Promise<PublishResult> {
   const answers = parsePolicyAnswers(input.answers);
+  let explicit: CustomClauses | null | undefined;
+  if (input.customClauses !== undefined) {
+    const checked = validateCustomClauses(input.customClauses);
+    if (!checked.ok) return { ok: false, reason: "invalid_clauses" };
+    explicit = checked.value;
+  }
   const facts: PolicyFacts | null = await loadPolicyFacts(admin, input.talentProfileId);
   if (!facts) return { ok: false, reason: "facts_unavailable" };
-  const contentHash = policyContentHash(facts, answers);
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const latest = await loadPublishedPolicy(admin, input.talentProfileId);
+    const customClauses = explicit !== undefined ? explicit : (latest?.customClauses ?? null);
+    const contentHash = policyContentHash(facts, answers, customClauses);
     if (latest && latest.contentHash === contentHash) {
       await saveAnswers(admin, input.talentProfileId, answers);
       return { ok: true, unchanged: true, version: latest.version, contentHash };
@@ -125,12 +156,18 @@ export async function publishPolicy(
       rendered_text_es: renderPolicyText(facts, answers, "es").text,
       rendered_text_en: renderPolicyText(facts, answers, "en").text,
       published_by: input.userId,
+      // Only sent when set: a version without clauses never touches the column.
+      ...(customClauses ? { custom_clauses: customClauses } : {}),
     });
     if (!error) {
       await saveAnswers(admin, input.talentProfileId, answers);
       return { ok: true, unchanged: false, version, contentHash };
     }
     // Two publishes raced for the same number: re-read and take the next one.
+    if (customClauses && isPostgrestMissingColumnError(error)) {
+      logServerError("talentPolicies.publish.customClausesColumnMissing", error);
+      return { ok: false, reason: "clauses_unavailable" };
+    }
     if (!isUniqueViolation(error)) {
       logServerError("talentPolicies.publish", error);
       return { ok: false, reason: "unavailable" };

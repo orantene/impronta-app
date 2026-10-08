@@ -4,6 +4,7 @@ import { useMemo } from "react";
 
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { NOTIFICATIONS_ES_TEXT } from "./dashboard-i18n-notifications";
+import { QA_FORMATS_ES_TEXT } from "./dashboard-i18n-qa-formats";
 import { QUOTE_ES_TEXT } from "./dashboard-i18n-quote";
 import { RAIL_ES_TEXT } from "./dashboard-i18n-rail";
 import { TALENT_EDITORS_ES_TEXT } from "./dashboard-i18n-talent-editors";
@@ -14,7 +15,7 @@ function isSpanish(locale: string): boolean {
 
 const ES_TEXT: Record<string, string> = {
   ...RAIL_ES_TEXT,
-  ...QUOTE_ES_TEXT,
+  ...QUOTE_ES_TEXT, ...QA_FORMATS_ES_TEXT,
   // Global chrome / nav
   "Prototype control bar": "Barra de control del prototipo",
   "Workspace sections": "Secciones del espacio de trabajo",
@@ -1321,7 +1322,6 @@ const ES_TEXT: Record<string, string> = {
   "Talent on this inquiry": "Talento en esta consulta",
   "Brief": "Brief",
   "Conversation": "Conversación",
-
   // light-06 : New inquiry
   "Capture a lead from a client. Send an offer when ready.": "Registra un contacto de un cliente. Envía una oferta cuando esté listo.",
 

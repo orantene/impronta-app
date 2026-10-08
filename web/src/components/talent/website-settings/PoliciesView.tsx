@@ -25,6 +25,7 @@ import { loadPolicyScreen, publishPolicyAnswers, type PolicyScreenData } from "@
 import type { InPersonMethod, PolicyFacts } from "@/lib/talent-policies/facts";
 import { TULALA_DOC_LINKS, diffPolicyText, renderPolicyText, type PolicyLocale } from "@/lib/talent-policies/render";
 import { POLICIES_ES } from "./policies-copy";
+import { PolicyCustomClausesEditor } from "./PolicyCustomClausesEditor";
 import { ChoiceCard, SettingsCard, Stepper } from "./primitives";
 
 export type PolicyEditTarget = "pay" | "self" | "chat";
@@ -309,6 +310,20 @@ export function PoliciesView({
           ))}
         </ol>
       </SettingsCard>
+
+      <PolicyCustomClausesEditor
+        talentId={talentId}
+        initial={published?.customClauses ?? null}
+        previewPath={data.previewPath}
+        tt={tt}
+        onSaved={() => {
+          void loadPolicyScreen(talentId)
+            .then((fresh) => {
+              if (fresh && fresh.ok) setData(fresh.data);
+            })
+            .catch(() => null);
+        }}
+      />
 
       <details className="mb-3 rounded-xl border border-admin-border-soft bg-white px-4 py-3">
         <summary className="flex min-h-[44px] cursor-pointer items-center text-[15px] font-semibold text-admin-ink">

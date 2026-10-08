@@ -47,6 +47,7 @@ import {
 import { resolveGatedTalentProfileId } from "@/lib/talent-site/server/talent-site-host-gate";
 import { TalentOfferingIntentQuery } from "../TalentOfferingIntentQuery";
 import { TalentSiteMessagesDock } from "../TalentSiteMessagesDock";
+import { ClientAccountDock } from "@/components/client-account/ClientAccountDock";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -188,6 +189,7 @@ export default async function TalentSiteHostPage({
       {result.node}
       <TalentOfferingIntentQuery />
       <TalentSiteMessagesDock talentProfileId={talentProfileId} locale={result.locale} orderId={order ?? null} />
+      <ClientAccountDock locale={result.locale} />
     </>
   );
 }

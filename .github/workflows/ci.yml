@@ -424,6 +424,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:onboarding
 
+      - name: tests — Jorgelina publish script (TUL-73b)
+        if: ${{ !cancelled() }}
+        run: npm run test:jorgelina-publish
+
       - name: tests — Jorgelina content script (TUL-73)
         if: ${{ !cancelled() }}
         run: npm run test:jorgelina-content

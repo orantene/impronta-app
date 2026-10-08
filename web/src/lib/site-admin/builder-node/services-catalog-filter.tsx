@@ -25,7 +25,7 @@ import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchas
 import { catalogBarPriceLabel, catalogRowPriceText } from "./services-catalog-bar-price";
 import { ServicesCatalogDemoToast, useDemoToast } from "./services-catalog-demo-toast";
 import { catalogDurationShort, railCount } from "./services-catalog-format";
-import { CatalogIdleBarGo, CatalogOverlayStyles } from "./services-catalog-idle-bar";
+import { catalogTakesBookings, CatalogIdleBarGo, CatalogOverlayStyles } from "./services-catalog-idle-bar";
 import { CatalogMatrix } from "./services-catalog-matrix";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 import { ChatIcon, SelectionDock } from "@/components/public-booking/SelectionDock";
@@ -525,7 +525,14 @@ export function ServicesCatalogFilter({
             >
               <ChatIcon size={20} />
             </button>
-            <CatalogIdleBarGo nodeId={nodeId} es={es} />
+            <CatalogIdleBarGo
+              nodeId={nodeId}
+              es={es}
+              takesBookings={catalogTakesBookings(
+                groups.flatMap((g) => g.items),
+                { confirmsByHand, bookingPosture },
+              )}
+            />
           </>
         ) : (
           <div className="cb-bar-text">

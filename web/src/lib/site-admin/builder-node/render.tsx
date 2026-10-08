@@ -7892,7 +7892,18 @@ function renderBuilderNodeElement(
                     // `applyNestedI18nOverlay`, which rewrites the dotted overlay
                     // keys into props before this renderer ever sees them — so
                     // reading the prop directly IS reading the translation.
-                    const label = item.text;
+                    // Dotted key `items.N.text` is also resolved here through the
+                    // overlay so the render does not depend on that pre-pass
+                    // (talent-site / editor paths). No locale or no overlay returns
+                    // the base text verbatim.
+                    const label = item.text
+                      ? resolveNodeLocalizedText(
+                          node,
+                          `items.${i}.text`,
+                          item.text,
+                          options.contentLocale,
+                        ).value
+                      : item.text;
                     const body =
                       p.variant === "tags" ? (
                         <span className="site-builder-node--marquee-tag">{label}</span>

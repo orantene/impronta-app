@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDashboardMoney } from "@/lib/money/dashboard-money-format";
 import { useState } from "react";
 import { useDashboardText } from "../../dashboard-i18n";
 import { TALENT_RATE_FOR_CONV } from "../../messages";
@@ -9,7 +10,7 @@ import { EarningRow } from "./today-1";
 import type { TalentEarnings, TalentEarningsRow } from "@/lib/talent/earnings-types";
 import type { EarningsRow } from "../../state";
 
-const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", MXN: "MX$" };
+const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", MXN: "$" };
 
 /** Adapt a real bridge earnings row to the EarningRow fixture shape so the
  *  existing row component (with its source/payment chips) renders real data. */
@@ -148,7 +149,7 @@ export function EarningsTile({
             </span>}
           </div>
           <div style={{ fontSize: 26, fontWeight: 700, fontFamily: FONTS.body, letterSpacing: "-0.5px" }} className="text-admin-ink">
-            {tileCurrency}{(data.total).toLocaleString()}
+            {realMode ? formatDashboardMoney(data.total, earnings.totals.currency, "en", { wholeUnits: true }) : <>{tileCurrency}{(data.total).toLocaleString()}</>}
           </div>
           <div style={{ fontSize: 11, fontFamily: FONTS.body, marginTop: 2 }} className="text-admin-ink-muted">
             {data.count} {data.count !== 1 ? copy.t("payouts") : copy.t("payout")} · {copy.t(data.label)}
