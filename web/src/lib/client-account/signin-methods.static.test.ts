@@ -35,10 +35,10 @@ test("age/terms checkbox: tick-only ageTerms, never hard-coded true", () => {
   assert.match(ui, /ageTerms: ageTermsRef\.current === true/);
   assert.match(ui, /public\.auth\.register\.ageTermsPrefix/);
   assert.doesNotMatch(ui, /ageTerms:\s*true/);
-  // age_terms FormData only after requireAgeTermsTick (checkbox path)
   assert.match(ui, /if \(!requireAgeTermsTick\(\)\) return;/);
   assert.match(ui, /fd\.set\("age_terms", "on"\)/);
   assert.doesNotMatch(ui, /ageTerms:\s*true\s*[,}]/);
+  assert.match(ui, /finalizeClientAccountAppleSession/);
 });
 
 test("password and Google actions never redirect; share attach path", () => {

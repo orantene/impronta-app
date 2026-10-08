@@ -204,6 +204,11 @@ export function authGoogleFinalizeUserKey(userId: string | null | undefined): st
   return `auth_google_finalize_user:${authKeySegment(userId)}`;
 }
 
+/** Per-user Apple finalize key (stops replaying attach / auth-event inserts). */
+export function authAppleFinalizeUserKey(userId: string | null | undefined): string {
+  return `auth_apple_finalize_user:${authKeySegment(userId)}`;
+}
+
 // ---------------------------------------------------------------------------
 // Minimal local interface for the subset of @upstash/ratelimit we use.
 // Defined here so we can type-check usage without the package installed.
@@ -244,6 +249,8 @@ interface KvLimiter {
   checkAuthPasswordByIp(key: string): Promise<KvRateLimitResult>;
   /** Client Google finalize: attempts per auth user id. */
   checkAuthGoogleFinalizeByUser(key: string): Promise<KvRateLimitResult>;
+  /** Client Apple finalize: attempts per auth user id. */
+  checkAuthAppleFinalizeByUser(key: string): Promise<KvRateLimitResult>;
   /** Support tickets: 5 creates / 60 min / user. */
   checkSupportTicketCreate(key: string): Promise<KvRateLimitResult>;
   /** Support messages: 30 / 60 min / user. */
@@ -282,6 +289,9 @@ const noopLimiter: KvLimiter = {
     return { ok: true };
   },
   async checkAuthGoogleFinalizeByUser() {
+    return { ok: true };
+  },
+  async checkAuthAppleFinalizeByUser() {
     return { ok: true };
   },
   async checkSupportTicketCreate() {
@@ -460,6 +470,14 @@ async function getLimiter(): Promise<KvLimiter> {
       analytics: false,
     });
 
+    // Apple finalize: same bind as Google (TUL-65).
+    const authAppleFinalizeUserLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, "15 m"),
+      prefix: "rl:auth_apple_finalize_user",
+      analytics: false,
+    });
+
     const supportTicketCreateLimiter = new Ratelimit({
       redis,
       limiter: Ratelimit.slidingWindow(5, "60 m"),
@@ -583,6 +601,16 @@ async function getLimiter(): Promise<KvLimiter> {
       async checkAuthGoogleFinalizeByUser(key: string): Promise<KvRateLimitResult> {
         try {
           const r = await authGoogleFinalizeUserLimiter.limit(key);
+          if (r.success) return { ok: true };
+          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
+        } catch {
+          return { ok: true };
+        }
+      },
+
+      async checkAuthAppleFinalizeByUser(key: string): Promise<KvRateLimitResult> {
+        try {
+          const r = await authAppleFinalizeUserLimiter.limit(key);
           if (r.success) return { ok: true };
           return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
         } catch {
@@ -742,6 +770,16 @@ export async function checkAuthPasswordByIp(key: string): Promise<KvRateLimitRes
 export async function checkAuthGoogleFinalizeByUser(key: string): Promise<KvRateLimitResult> {
   const limiter = await getLimiter();
   return limiter.checkAuthGoogleFinalizeByUser(key);
+}
+
+/**
+ * Client Apple finalize — can this user re-run attach? 10 / 15 min.
+ *
+ * @param key Key from `authAppleFinalizeUserKey(userId)`.
+ */
+export async function checkAuthAppleFinalizeByUser(key: string): Promise<KvRateLimitResult> {
+  const limiter = await getLimiter();
+  return limiter.checkAuthAppleFinalizeByUser(key);
 }
 
 /** Support tickets: 5 new tickets per 60 minutes per user. */
