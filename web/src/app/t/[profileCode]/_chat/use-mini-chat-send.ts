@@ -202,7 +202,12 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
         return false;
       }
 
-      const res = await onSendMessage({ inquiryId: earlyId, body, honeypot: honeypot || null });
+      const res = await onSendMessage({
+        inquiryId: earlyId,
+        body,
+        honeypot: honeypot || null,
+        locale: args.locale ?? null,
+      });
       setSending(false);
       if (!res.ok) {
         setRows((cur) => markRowFailed(cur, tmpId));
@@ -211,6 +216,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
         return false;
       }
       setRows((cur) => cur.map((r) => (r.id === tmpId ? { ...res.message, pending: false } : r)));
+      if (res.assistantMessage) mergeServer([res.assistantMessage]);
       const iso = res.message.createdAt;
       if (!lastSeenIsoRef.current || iso > lastSeenIsoRef.current) {
         lastSeenIsoRef.current = iso;
@@ -323,6 +329,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
       setRows((cur) => cur.filter((r) => r.id !== tmpId));
       const seeded: GuestThreadMessage[] = [res.openingMessage];
       if (res.autoAckMessage) seeded.push(res.autoAckMessage);
+      if (res.assistantMessage) seeded.push(res.assistantMessage);
       mergeServer(seeded);
       flushLookImage(res.inquiryId);
       if (sendToAgencyPendingRef.current) {
@@ -386,6 +393,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
       setRows((cur) => cur.filter((r) => r.id !== tmpId));
       const seeded: GuestThreadMessage[] = [res.openingMessage];
       if (res.autoAckMessage) seeded.push(res.autoAckMessage);
+      if (res.assistantMessage) seeded.push(res.assistantMessage);
       mergeServer(seeded);
       flushLookImage(res.inquiryId);
       return true;
@@ -444,7 +452,12 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     setRows((cur) => [...cur, makePendingRow(tmpId, inquiryId, body)]);
     setDraft("");
     try {
-      const res = await onSendMessage({ inquiryId, body, honeypot: honeypot || null });
+      const res = await onSendMessage({
+        inquiryId,
+        body,
+        honeypot: honeypot || null,
+        locale: args.locale ?? null,
+      });
       setSending(false);
       if (!res.ok) {
         setRows((cur) => markRowFailed(cur, tmpId));
@@ -453,6 +466,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
         return;
       }
       setRows((cur) => cur.map((r) => (r.id === tmpId ? { ...res.message, pending: false } : r)));
+      if (res.assistantMessage) mergeServer([res.assistantMessage]);
       const iso = res.message.createdAt;
       if (!lastSeenIsoRef.current || iso > lastSeenIsoRef.current) {
         lastSeenIsoRef.current = iso;

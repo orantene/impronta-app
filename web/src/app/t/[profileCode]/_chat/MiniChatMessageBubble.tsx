@@ -60,7 +60,27 @@ export function MiniChatMessageBubble({
           lineHeight: 1.45,
         }}
       >
-        {m.isDeleted ? t("public.guestChat.messageRemoved") : m.body}
+        {m.isDeleted ? (
+          t("public.guestChat.messageRemoved")
+        ) : (
+          <>
+            {m.authorLabel ? (
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: 0.3,
+                  textTransform: "uppercase",
+                  marginBottom: 3,
+                  opacity: 0.85,
+                }}
+              >
+                {m.authorLabel}
+              </div>
+            ) : null}
+            {m.body}
+          </>
+        )}
       </div>
     );
   }

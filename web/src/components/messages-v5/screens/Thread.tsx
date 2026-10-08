@@ -182,9 +182,13 @@ export function Thread(props: ThreadProps) {
           );
         }
         if (it.kind === "system") {
+          const body = localiseEngineLine(it.message.body || it.message.kind, kit);
+          const aiLabel = it.message.fromAi
+            ? (it.message.aiDisclosureLabel?.trim() || "Automated reply")
+            : null;
           return (
             <div key={it.key} data-stream-key={it.key}>
-              <SystemLine text={localiseEngineLine(it.message.body || it.message.kind, kit)} variant={variant} />
+              <SystemLine text={aiLabel ? `${aiLabel} · ${body}` : body} variant={variant} />
             </div>
           );
         }
