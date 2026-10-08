@@ -11,9 +11,12 @@ const read = (p: string) => readFileSync(new URL(p, import.meta.url), "utf8");
 const editor = read("../shell/internal/messages/shared/machinery-11.tsx");
 const panel = read("../shell/internal/messages/shared/machinery-12.tsx");
 const split = read("./offer-money-split.tsx");
+const lineItem = read("../shell/internal/messages/shared/offer-draft-line-item.tsx");
 
-/** Slice of the line-item map: from the row div to the editor footer. */
-const rows = editor.slice(editor.indexOf("snapshot.lineItems.map((li)"), editor.indexOf("<OfferEditorFooter"));
+/** The line-item map in the editor plus the extracted row component. */
+const rows =
+  editor.slice(editor.indexOf("snapshot.lineItems.map((li)"), editor.indexOf("<OfferEditorFooter")) +
+  lineItem.slice(lineItem.indexOf("export function OfferDraftLineItem"));
 
 test("editor root is a container and rows stack by PANEL width", () => {
   assert.match(editor, /data-offer-draft-editor[\s\S]{0,400}className="@container min-w-0"/);
@@ -27,7 +30,7 @@ test("every line control is labelled", () => {
   const controls = rows.match(/<(select|input)\b[^>]*>/g) ?? [];
   assert.ok(controls.length >= 6, "expected the 6 line controls");
   for (const c of controls) assert.match(c, /aria-label=/, `unlabelled control: ${c.slice(0, 80)}`);
-  assert.match(rows, /<button type="button" onClick=\{\(\) => removeLine[^>]*aria-label=/);
+  assert.match(rows, /<button type="button" onClick=\{\(\) => onRemove[^>]*aria-label=/);
   assert.equal((rows.match(/OFFER_LINE_LABEL_CLASS/g) ?? []).length, 5, "visible label for the 5 stacked fields");
 });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useTransition, useEffect, useRef } from "react";
-import { OfferColumnHeaders, OfferMoneySplit, OfferEditorFooter, OFFER_LINE_ROW_CLASS, OFFER_LINE_LABEL_CLASS, OFFER_LINE_CONTROL_CLASS } from "@/components/admin/offer/offer-money-split";
+import { OfferColumnHeaders, OfferMoneySplit, OfferEditorFooter } from "@/components/admin/offer/offer-money-split";
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
@@ -16,10 +16,8 @@ import { OfferTab } from "./machinery-12";
 import { OfferTermsComposer } from "./offer-terms-ui";
 import { PanelSkeleton, ghostBtn, primaryBtn } from "./machinery-13";
 import type { Offer } from "./machinery-9";
-import { LineServicePicker } from "./line-service-picker";
+import { OfferDraftLineItem } from "./offer-draft-line-item";
 import { formatOfferMoney } from "@/lib/inquiry/offer-currency";
-import { planServicePick } from "@/lib/inquiry/offer-service-pick";
-import type { ServicePricingType } from "@/lib/talent/services-menu-types";
 
 
 /**
@@ -591,143 +589,21 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
       <OfferColumnHeaders t={t} />
       <div className="flex flex-col gap-1.5">
         {snapshot.lineItems.map((li) => (
-          <div key={li.id} data-offer-line-row className={OFFER_LINE_ROW_CLASS}>
-            <div className="col-span-full flex min-w-0 flex-col gap-0.5 @[640px]:col-span-1">
-              <span aria-hidden className={OFFER_LINE_LABEL_CLASS}>{t("dashboard.adminTabs.lineup.colTalent")}</span>
-              <div className="flex min-w-0 items-center gap-1">
-              <select
-                aria-label={t("dashboard.adminTabs.lineup.colTalent")}
-                className={OFFER_LINE_CONTROL_CLASS}
-                value={li.talentProfileId ?? ""}
-                onChange={(e) => {
-                  const id = e.target.value || null;
-                  const match = rosterOptions.find((p) => p.id === id);
-                  // Changing the talent invalidates any prior service prefill
-                  // (the service belonged to the previous talent) — clear the stamp.
-                  updateLine(li.id, { talentProfileId: id, talentDisplayName: match?.name ?? null, label: labelTouched.has(li.id) ? li.label : (match?.name ?? li.label), sourceServiceId: null });
-                }}
-              >
-                <option value="">{t("dashboard.adminTabs.lineup.chooseTalent")}</option>
-                {rosterOptions.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-              {/* Item #11 final: live coord badge. Renders "+coord"
-                  inline when the selected talent is a coordinator on
-                  this inquiry. Engine commission snapshot pays both
-                  lanes (talent payout + workspace fee share per
-                  coordinator_pct, plan §7.4). */}
-              {li.talentProfileId && coordTalentIds.has(li.talentProfileId) && (
-                <span
-                  title={t("dashboard.adminTabs.lineup.coordBadgeTitle")}
-                  style={{
-                    padding: "1px 6px",
-                    borderRadius: 999,
-                    background: "rgba(43,63,163,0.10)",
-                    color: "#2B3FA3",
-                    fontSize: 9.5, fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.4,
-                    whiteSpace: "nowrap",
-                    flexShrink: 0,
-                  }}
-                >
-                  {t("dashboard.adminTabs.lineup.coordBadge")}
-                </span>
-              )}
-              </div>
-            </div>
-            <div className="flex min-w-0 flex-col gap-0.5">
-            <span aria-hidden className={OFFER_LINE_LABEL_CLASS}>{t("dashboard.adminTabs.lineup.colUnit")}</span>
-            <select
-              aria-label={t("dashboard.adminTabs.lineup.colUnit")}
-              className={OFFER_LINE_CONTROL_CLASS}
-              value={li.pricingUnit}
-              onChange={(e) => updateLine(li.id, { pricingUnit: e.target.value as ServicePricingType })}
-            >
-              <option value="hour">{t("dashboard.adminTabs.lineup.unitHour")}</option>
-              <option value="day">{t("dashboard.adminTabs.lineup.unitDay")}</option>
-              <option value="week">{t("dashboard.adminTabs.lineup.unitWeek")}</option>
-              <option value="half_day">{t("dashboard.adminTabs.lineup.unitHalfDay")}</option>
-              <option value="event">{t("dashboard.adminTabs.lineup.unitEvent")}</option>
-              <option value="per_person">{t("dashboard.adminTabs.lineup.unitPerson")}</option>
-              <option value="per_contact">{t("dashboard.adminTabs.lineup.unitSession")}</option>
-              <option value="flat_package">{t("dashboard.adminTabs.lineup.unitFlat")}</option>
-              <option value="custom">{t("dashboard.adminTabs.lineup.unitCustom")}</option>
-            </select>
-            </div>
-            <div className="flex min-w-0 flex-col gap-0.5">
-            <span aria-hidden className={OFFER_LINE_LABEL_CLASS}>{t("dashboard.adminTabs.lineup.colQty")}</span>
-            <input type="number" min={0} step="0.5" value={li.units}
-              aria-label={t("dashboard.adminTabs.lineup.colQty")}
-              onChange={(e) => updateLine(li.id, { units: parseFloat(e.target.value) || 0 })}
-              className={OFFER_LINE_CONTROL_CLASS}
-              placeholder={t("dashboard.adminTabs.lineup.unitsPlaceholder")}
-            />
-            </div>
-            <div className="flex min-w-0 flex-col gap-0.5">
-            <span aria-hidden className={OFFER_LINE_LABEL_CLASS}>{t("dashboard.adminTabs.lineup.colClientRate")}</span>
-            <input type="number" min={0} step="100" value={li.unitPrice}
-              aria-label={t("dashboard.adminTabs.lineup.colClientRate")}
-              onChange={(e) => updateLine(li.id, { unitPrice: parseFloat(e.target.value) || 0 })}
-              className={OFFER_LINE_CONTROL_CLASS}
-              placeholder={t("dashboard.adminTabs.lineup.ratePlaceholder")}
-            />
-            </div>
-            <div className="flex min-w-0 flex-col gap-0.5">
-            <span aria-hidden className={OFFER_LINE_LABEL_CLASS}>{t("dashboard.adminTabs.lineup.colTalentGets")}</span>
-            <input type="number" min={0} step="100" value={li.talentCost}
-              aria-label={t("dashboard.adminTabs.lineup.colTalentGets")}
-              onChange={(e) => updateLine(li.id, { talentCost: parseFloat(e.target.value) || 0 })}
-              className={OFFER_LINE_CONTROL_CLASS}
-              placeholder={t("dashboard.adminTabs.lineup.talentCostPlaceholder")}
-            />
-            </div>
-            <button type="button" onClick={() => removeLine(li.id)}
-              aria-label={t("dashboard.adminTabs.lineup.remove")}
-              title={t("dashboard.adminTabs.lineup.remove")}
-              className="col-span-full justify-self-end text-[14px] leading-none text-admin-coral @[640px]:col-span-1 @[640px]:justify-self-center"
-            >×</button>
-            {/* S14/S15 — prefill this line from the talent's services (W2-1). */}
-            {li.talentProfileId ? (
-              <div className="col-span-full">
-                <LineServicePicker
-                  talentProfileId={li.talentProfileId} currency={snapshot.currencyCode}
-                  onPick={(svc) => {
-                    // TUL-274: an amount never crosses currencies silently.
-                    const plan = planServicePick({ offerCurrency: snapshot.currencyCode, lines: snapshot.lineItems, lineId: li.id, labelTouched: labelTouched.has(li.id), service: svc });
-                    const next = plan.switchCurrency;
-                    if (plan.blocked) { toast(interpolate(t("dashboard.adminTabs.lineup.svcCurrencyBlocked"), plan.blocked)); return; }
-                    if (next) setSnapshot((s) => (s == null ? s : { ...s, currencyCode: next }));
-                    updateLine(li.id, { ...plan.patch, pricingUnit: svc.pricingType });
-                  }}
-                />
-              </div>
-            ) : null}
-            {/* W2-2 — editable line label + "what's included" note: a
-                travel-inclusive rate reads honestly (baked in, no expense line). */}
-            <div className="col-span-full flex flex-wrap gap-1.5">
-              <input
-                type="text"
-                aria-label={t("dashboard.adminTabs.lineup.lineLabelPlaceholder")}
-                value={li.label ?? ""}
-                onChange={(e) => {
-                  setLabelTouched((prev) => new Set(prev).add(li.id));
-                  updateLine(li.id, { label: e.target.value });
-                }}
-                placeholder={t("dashboard.adminTabs.lineup.lineLabelPlaceholder")}
-                className="min-w-[12rem] flex-[1.4] rounded border border-admin-border bg-white px-1.5 py-1 text-[11px] text-admin-ink"
-              />
-              <input
-                type="text"
-                aria-label={t("dashboard.adminTabs.lineup.lineNotePlaceholder")}
-                value={li.notes ?? ""}
-                onChange={(e) => updateLine(li.id, { notes: e.target.value || null })}
-                placeholder={t("dashboard.adminTabs.lineup.lineNotePlaceholder")}
-                className="min-w-[12rem] flex-1 rounded border border-admin-border bg-white px-1.5 py-1 text-[11px] text-admin-ink-muted"
-              />
-            </div>
-          </div>
+          <OfferDraftLineItem
+            key={li.id}
+            li={li}
+            lines={snapshot.lineItems}
+            currencyCode={snapshot.currencyCode}
+            rosterOptions={rosterOptions}
+            coordTalentIds={coordTalentIds}
+            labelTouched={labelTouched.has(li.id)}
+            t={t}
+            toast={toast}
+            updateLine={updateLine}
+            onRemove={removeLine}
+            onLabelTouched={(id) => setLabelTouched((prev) => new Set(prev).add(id))}
+            onSwitchCurrency={(code) => setSnapshot((s) => (s == null ? s : { ...s, currencyCode: code }))}
+          />
         ))}
       </div>
       <OfferEditorFooter
