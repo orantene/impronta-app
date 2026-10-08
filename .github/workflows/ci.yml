@@ -365,6 +365,12 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:alias-guard
 
+      - name: tests — theme i18n overlay release script
+        # scripts/release-theme-i18n-plan.ts: pure guards + flow of the guarded
+        # Spanish/English seed release (injected fakes, no DB).
+        if: ${{ !cancelled() }}
+        run: npm run test:release-theme-i18n
+
       - name: tests — media ownership stamps
         # The ownership stamp helpers every media writer now spreads into its
         # INSERT (lib/media/ownership.ts). A regression here silently mislabels
