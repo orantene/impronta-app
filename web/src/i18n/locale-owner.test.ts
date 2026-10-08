@@ -17,7 +17,7 @@ test("the same user signing in again keeps their cookie", () => {
 test("both email sign-in actions reset the locale, and the builder reconciles itself", () => {
   const root = join(__dirname, "..");
   const actions = readFileSync(join(root, "app/auth/actions.ts"), "utf8");
-  assert.equal((actions.match(/await resetLocaleOnSignIn\(/g) ?? []).length, 2);
+  assert.equal((actions.match(/\bresetLocaleOnSignIn\(user\.id\)|\bresetLocaleOnSignIn\(data\.user\.id\)/g) ?? []).length, 2);
   const builder = readFileSync(join(root, "app/(workspace)/talent/page-builder/page.tsx"), "utf8");
   assert.match(builder, /talentLocaleSeedPlan\(/);
   const layout = readFileSync(join(root, "app/(workspace)/talent/layout.tsx"), "utf8");
