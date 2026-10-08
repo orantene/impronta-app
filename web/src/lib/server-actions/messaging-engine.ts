@@ -681,7 +681,7 @@ export async function messagingSendOffer(input: { inquiryId: string; offerId: st
     offerExpectedVersion: Number(o?.version ?? 1),
   });
   if (!sent.success) {
-    if (sent.error === "offer_currency_seller_mismatch") return fail("offer_currency_seller_mismatch", sent.reason);
+    if (sent.error === "offer_currency_seller_mismatch") return fail("offer_currency_seller_mismatch");
     return fail("unavailable");
   }
   // The offer card in the stream (D06): the client link renders it with

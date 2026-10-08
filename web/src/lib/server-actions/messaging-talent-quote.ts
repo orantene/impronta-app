@@ -148,7 +148,7 @@ export async function messagingTalentQuoteSend(input: {
     offerExpectedVersion: offerVersion,
   });
   if (!sent.success) {
-    if (sent.error === "offer_currency_seller_mismatch") return fail("offer_currency_seller_mismatch", sent.reason);
+    if (sent.error === "offer_currency_seller_mismatch") return fail("offer_currency_seller_mismatch");
     return fail(sent.forbidden ? "not_allowed" : "unavailable");
   }
 

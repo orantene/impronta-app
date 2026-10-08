@@ -680,7 +680,7 @@ export async function sendOffer(
       currency: (curRow as { currency_code?: string | null } | null)?.currency_code,
       mode: "send",
     });
-    if (!curCheck.ok) return { success: false, error: curCheck.code, reason: curCheck.message };
+    if (!curCheck.ok) return { success: false, error: curCheck.code, message: curCheck.message };
     // A5 — stamp the offer's expiry window at send time. engine_send_offer flips
     // status='sent' but does not set valid_until, so we stamp it here in the same
     // pre-send JS update (computed in JS as an ISO timestamp). A sweeper (separate

@@ -4253,6 +4253,7 @@
           "expired": "Ce lien ou cette offre a expire.",
           "already": "C est deja fait.",
           "no_payout_receiver": "Impossible d enregistrer ceci comme paye pour l instant: personne n est configure pour recevoir le paiement. Configurez un destinataire de paiement, puis reessayez.",
+          "offer_currency_seller_mismatch": "Cette offre est dans une autre devise que celle du vendeur. Changez la devise de l offre pour celle du vendeur et renvoyez la.",
           "deposit_required": "Un acompte est du avant de pouvoir confirmer ceci."
         },
         "ui": {

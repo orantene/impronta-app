@@ -37,6 +37,11 @@ export type MaxSiteManagerState = {
   siteSlug: string | null;
   logoUrl: string | null;
   sitePublishedAt: string | null;
+  /**
+   * True once the site scaffold (row, slug, shell, home page) exists. False
+   * until the talent clicks "Create my own website": loading never creates it.
+   */
+  siteExists: boolean;
   /** Whether the published shell has ever been baked. */
   hasPublishedShell: boolean;
   /** The talent's site URL (`/t/site/<slug>`), null until a slug exists. */

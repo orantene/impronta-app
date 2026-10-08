@@ -168,6 +168,7 @@ export default async function RootLayout({
     requestLocale,
     reqHeaders.get(ORIGINAL_PATHNAME_HEADER),
     reqHeaders.get(ORIGINAL_SEARCH_HEADER),
+    { acceptLanguage: reqHeaders.get("accept-language"), country: reqHeaders.get("x-vercel-ip-country") },
   );
   const { dir, hreflang } = getLocaleMetadata(locale);
 
