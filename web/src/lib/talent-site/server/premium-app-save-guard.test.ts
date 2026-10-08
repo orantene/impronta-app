@@ -98,12 +98,19 @@ test("staff on another talent's row skips; own-profile miss is lookup_failed", a
   );
   assert.deepEqual(unknownMiss, { status: "lookup_failed" });
 
-  // Publish / self context with no row id — cannot prove staff skip.
-  const selfCtx = await loadTalentPremiumAppSaveGate(
+  // Publish with no row id: non-talent caller (staff/agency) skips.
+  const staffPublish = await loadTalentPremiumAppSaveGate(
     null,
     deps({ scope: failScope("talent_profile_not_found"), classify: "other" }),
   );
-  assert.deepEqual(selfCtx, { status: "lookup_failed" });
+  assert.deepEqual(staffPublish, { status: "skip" });
+
+  // Null id + not authenticated still denies (fail closed).
+  const unauth = await loadTalentPremiumAppSaveGate(
+    null,
+    deps({ scope: failScope("not_authenticated") }),
+  );
+  assert.deepEqual(unauth, { status: "lookup_failed" });
 });
 
 test("signed-in talent on a different profile id skips; matching id uses plan", async () => {
@@ -143,6 +150,17 @@ test("refuse blocks Nail Designer on free (ES locale); staff skip allows", async
     deps({ scope: failScope("talent_profile_not_found"), classify: "other" }),
   );
   assert.equal(staffOk, null);
+
+  // Publish-style null id: non-talent caller skips (does not block staff).
+  const staffPublishOk = await refuseTalentPremiumAppTreeMutation(
+    {
+      talentProfileId: null,
+      previousTree: PREVIOUS,
+      nextTree: NEXT_WITH_NAIL,
+    },
+    deps({ scope: failScope("talent_profile_not_found") }),
+  );
+  assert.equal(staffPublishOk, null);
 });
 
 test("profile lookup failure denies with retryable message (even without premium insert)", async () => {
