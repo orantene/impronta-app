@@ -28,6 +28,7 @@ import { buildTimelineResult } from "./timeline";
 import type { HistoryRow, HistorySnapshot, ThemeUpdateHistoryReport } from "./types";
 import { recordSiteHistory, writeSiteDraft, type WriteSiteDraftResult } from "./writer";
 import { ensureSiteThemeUpdates } from "@/lib/talent-site/theme-releases/lazy-fan-out.server";
+import { checkSitePinBySiteId } from "@/lib/talent-site/theme-releases/pin-guard.server";
 import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -402,6 +403,15 @@ export async function applyThemeUpdateToDraft(
     fromVersion: input.fromVersion,
     toVersion: input.toVersion,
   };
+  // P0-4: never pin a live site above its released versions (demos pass).
+  if (typeof input.toVersion === "number") {
+    const pin = await checkSitePinBySiteId(admin, {
+      siteId: input.siteId,
+      version: input.toVersion,
+      where: "applyThemeUpdateToDraft",
+    });
+    if (!pin.ok) return { ok: false, code: "error", error: pin.reason.en };
+  }
   const summary =
     input.summary ?? themeUpdateSummary(input.designName, input.toVersion, countParts(editedKept(input.report.kept)), input.versionLabel);
   return writeSiteDraft(admin, {

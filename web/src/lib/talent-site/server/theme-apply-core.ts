@@ -26,6 +26,7 @@ import { designApplySummary, lookSummary } from "../history/copy";
 import type { HistoryActor } from "../history/types";
 import { writeSiteDraft } from "../history/writer";
 import { ensureSiteThemeUpdates } from "../theme-releases/lazy-fan-out.server";
+import { checkSitePin } from "../theme-releases/pin-guard.server";
 
 /**
  * Talent theme gallery: APPLY CORE (server-only, NOT "use server").
@@ -238,6 +239,15 @@ export async function applyDesign(
     logServerError("talentTheme.applyDesign.invalidDesign", { slug: design.slug, errors: check.errors });
     return { ok: false, code: "invalid_theme", error: "That design is not available." };
   }
+
+  // P0-4: a live site is never pinned to a version no optin/default release covers.
+  const pin = await checkSitePin(admin, {
+    talentProfileId: input.talentProfileId,
+    design: design.slug,
+    version: design.version,
+    where: "applyDesign",
+  });
+  if (!pin.ok) return { ok: false, code: "invalid_theme", error: pin.reason.en };
 
   const tokens = await loadTemplateHydrationTokens(input.talentProfileId);
   if (!tokens) {
