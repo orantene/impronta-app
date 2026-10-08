@@ -11,9 +11,11 @@ import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
 import { resolveAnthropicApiKey } from "@/lib/ai/resolve-api-keys";
 import { adapterForProvider } from "@/lib/ai/resolve-provider";
 import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
+import { getPublicHostContext } from "@/lib/saas/scope";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import type { GuestThreadMessage } from "@/lib/inquiry/guest-chat-contract";
+import { catalogTenantForPublicHost } from "./catalog-tenant";
 import { decideBookingAssistantTurn } from "./decide";
 import {
   bookingAssistantHandoffCopy,
@@ -40,11 +42,18 @@ export type BookingAssistantOfferingGround = {
 
 export type MaybeRunBookingAssistantTurnArgs = {
   inquiryId: string;
+  /** Inquiry / credits tenant (hub or seller). Not used to scope the catalog. */
   tenantId: string;
   talentProfileId: string | null | undefined;
   guestMessage: string;
   locale?: string | null;
   offerings?: readonly BookingAssistantOfferingGround[];
+  /**
+   * Catalog scope matching the public render (`profile-view` / talent-site):
+   * agency host → that tenant; talent-site / hub / platform → null (all public).
+   * When omitted, resolved from `getPublicHostContext` — never the inquiry tenant.
+   */
+  catalogTenantId?: string | null;
   /** When true, client already showed an instant-answer bubble for this turn. */
   instantAnswered?: boolean;
 };
@@ -102,19 +111,21 @@ async function loadPriorAssistantMeta(
 ): Promise<Array<{ systemEventType?: string | null }>> {
   const admin = createServiceRoleClient();
   if (!admin) return [];
+  // Newest first so the 40-row window includes recent handoffs / replies;
+  // reverse to chronological for turn counting.
   const { data, error } = await admin
     .from("inquiry_messages")
     .select("metadata")
     .eq("inquiry_id", inquiryId)
     .eq("tenant_id", tenantId)
     .eq("message_kind", "system_event")
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
     .limit(40);
   if (error) {
     logServerError("booking-assistant/prior", error);
     return [];
   }
-  return ((data ?? []) as Array<{ metadata: unknown }>).map((row) => {
+  const newestFirst = ((data ?? []) as Array<{ metadata: unknown }>).map((row) => {
     const meta =
       row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
         ? (row.metadata as Record<string, unknown>)
@@ -122,6 +133,15 @@ async function loadPriorAssistantMeta(
     const t = typeof meta.system_event_type === "string" ? meta.system_event_type : null;
     return { systemEventType: t };
   });
+  return newestFirst.reverse();
+}
+
+async function resolveCatalogTenantId(
+  override: string | null | undefined,
+): Promise<string | null> {
+  if (override !== undefined) return override;
+  const hostCtx = await getPublicHostContext();
+  return catalogTenantForPublicHost(hostCtx.kind, hostCtx.tenantId);
 }
 
 function catalogGrounding(offerings: readonly BookingAssistantOfferingGround[]): string {
@@ -151,12 +171,16 @@ function offeringPriceLabel(
 
 async function loadGroundingOfferings(
   talentProfileId: string,
-  tenantId: string,
+  catalogTenantId: string | null,
   locale: string,
   provided?: readonly BookingAssistantOfferingGround[],
 ): Promise<BookingAssistantOfferingGround[]> {
   if (provided && provided.length > 0) return [...provided];
-  const publicRows = await loadPublicOfferingsForProfile(talentProfileId, locale, tenantId);
+  const publicRows = await loadPublicOfferingsForProfile(
+    talentProfileId,
+    locale,
+    catalogTenantId,
+  );
   return publicRows.map((o) => ({
     title: o.title,
     priceLabel: offeringPriceLabel(o.amountCents, o.currency, o.visibility),
@@ -223,9 +247,10 @@ export async function maybeRunBookingAssistantTurn(
       });
     }
 
+    const catalogTenantId = await resolveCatalogTenantId(args.catalogTenantId);
     const offerings = await loadGroundingOfferings(
       args.talentProfileId,
-      args.tenantId,
+      catalogTenantId,
       locale,
       args.offerings,
     );
