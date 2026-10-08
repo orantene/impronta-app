@@ -252,7 +252,7 @@ export function ClientAccountArea(props: Props) {
       <section style={{ marginBottom: 24 }}>
         <h2 style={{ ...heading, fontSize: 16, marginBottom: 10 }}>{title}</h2>
         <ul style={{ margin: 0, padding: 0, display: "grid", gap: 10 }}>{items.map(visitRow)}</ul>
-        {again ? <p style={{ marginTop: 12 }}><a href="/" style={{ color: INK }}>{a("bookAgain")}</a></p> : null}
+        {again ? <p style={{ marginTop: 12 }}><Link href="/" style={{ color: INK }}>{a("bookAgain")}</Link></p> : null}
       </section>
     );
 
@@ -261,7 +261,7 @@ export function ClientAccountArea(props: Props) {
     const g = props.data.visits;
     const empty = !g || g.upcoming.length + g.waiting.length + g.past.length === 0;
     body = empty ? (
-      <p>{a("noVisits")} <a href="/" style={{ color: INK }}>{a("bookAgain")}</a></p>
+      <p>{a("noVisits")} <Link href="/" style={{ color: INK }}>{a("bookAgain")}</Link></p>
     ) : (
       <>
         {group(a("waiting"), g.waiting)}
