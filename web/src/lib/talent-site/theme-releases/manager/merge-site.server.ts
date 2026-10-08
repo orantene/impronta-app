@@ -29,6 +29,7 @@ import { mergeDesignUpdate } from "../merge";
 import { planCriticalFix, type CriticalFix } from "../critical-targeted";
 import { stampFromBase } from "../stamp-existing";
 import { seedDemoBeforeAfter } from "../demo-seed";
+import { checkSitePin } from "../pin-guard.server";
 import { tokenOriginMap } from "../origin";
 import type { MergeResult, ReleaseItem, ThemeRelease } from "../types";
 
@@ -170,6 +171,17 @@ export async function writeMergedDraft(
   design: TalentThemeDesignRow,
   toVersion: number,
 ): Promise<void> {
+  // P0-4: demos always pass; a non-demo ref is refused when the version is unreleased
+  // (this writer is caught per site by its caller, so the throw never reaches the UI).
+  if (!site.isDemo) {
+    const pin = await checkSitePin(admin, {
+      talentProfileId: site.talentProfileId,
+      design: design.slug,
+      version: toVersion,
+      where: "writeMergedDraft",
+    });
+    if (!pin.ok) throw new Error(`${site.profileCode}: ${pin.reason.en}`);
+  }
   const now = new Date().toISOString();
   const { error } = await admin
     .from("talent_sites")

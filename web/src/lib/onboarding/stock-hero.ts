@@ -18,6 +18,8 @@ import { buildImageResolver, type CandidateImage, type ImagePickLevel } from "@/
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { searchBusinessTypes, type BusinessFamilyId } from "@/lib/words/business-types";
 
+import { classifyTrade, stockTypeForTrade } from "./trade-label";
+
 export type StockHeroQuery = { businessType: string | null; family: BusinessFamilyId };
 
 /** The stock pack for a talent type: the catalogue type its slug/label names, else the universal pack. */
@@ -28,6 +30,10 @@ export function stockQueryForTalentType(input: { slug: string | null; labelEn?: 
     const hit = searchBusinessTypes(q)[0];
     if (hit) return { businessType: hit.id, family: hit.family };
   }
+  // TUL-349: a recognised trade without a catalogue hit still gets its own pack, never another trade's.
+  const packType = stockTypeForTrade(classifyTrade(`${input.slug ?? ""} ${input.labelEn ?? ""}`));
+  const byTrade = packType ? searchBusinessTypes(packType)[0] : undefined;
+  if (byTrade) return { businessType: byTrade.id, family: byTrade.family };
   return { businessType: null, family: "custom" };
 }
 
@@ -61,11 +67,21 @@ function levelFor(p: Pick<StockLike, "businessType" | "family">, q: StockHeroQue
   return "universal";
 }
 
+/**
+ * TUL-349: a photo may serve this query only if it is the query's own type, the
+ * query family's untyped pack, or the neutral universal pack. A photo made for
+ * another type (a chef, a makeup artist) is never a "universal" fallback.
+ */
+function isTradeSafe(p: Pick<StockLike, "businessType" | "family">, q: StockHeroQuery): boolean {
+  if (p.businessType !== null) return p.businessType === q.businessType;
+  return p.family === q.family || p.family === "custom";
+}
+
 /** Best platform-stock hero for the query, or null (empty pool, or nothing shaped like a hero). */
 export function pickStockHero(photos: ReadonlyArray<StockLike>, query: StockHeroQuery): StockHeroPick | null {
   const candidates = photos
     // A tenant's own generated images were made for that business, never for a stranger's page.
-    .filter((p) => p.originTenantId === null && HERO_ROLES.has(p.role) && p.url)
+    .filter((p) => p.originTenantId === null && HERO_ROLES.has(p.role) && p.url && isTradeSafe(p, query))
     .map<CandidateImage>((p) => ({
       src: p.url, width: p.width, height: p.height, alt: p.alt, role: p.role, owner: false,
       level: levelFor(p, query), stockId: p.id, direction: p.direction, tags: p.tags, timesPlaced: p.timesPlaced,

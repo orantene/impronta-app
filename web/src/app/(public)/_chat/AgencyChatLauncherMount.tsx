@@ -23,6 +23,8 @@
 import { Suspense } from "react";
 
 import { ClientAccountDock } from "@/components/client-account/ClientAccountDock";
+import { dockViewerCtaIdentity } from "@/lib/client-account/dock-viewer-identity";
+import { resolveDockViewerIdentityTier } from "@/lib/client-account/dock-viewer-identity.server";
 
 import { TalentProfileChatLauncher } from "@/app/t/[profileCode]/_chat/TalentProfileChatLauncher";
 import { DirectoryInquiryUrlSync } from "@/components/directory/directory-inquiry-url-sync";
@@ -233,6 +235,10 @@ export async function AgencyChatLauncherMount({
     activeInquiryId: active?.inquiryId ?? null,
     autoAnchorLatest: true,
   });
+  // TUL-314: same session→tier mapping as the talent mount.
+  // Named viewerIdentity — `identity` above is the public tenant branding row.
+  const viewerIdentity = await resolveDockViewerIdentityTier();
+  const ctaIdentity = dockViewerCtaIdentity(viewerIdentity);
 
   return (
     <>
@@ -285,7 +291,8 @@ export async function AgencyChatLauncherMount({
         draftInquiryId={lifecycle.draftInquiryId}
         otherOpenInquiries={lifecycle.otherOpenInquiries}
         unreadCoordinatorReply={lifecycle.unreadCoordinatorReply}
-        ctaIdentity="guest"
+        identity={viewerIdentity}
+        ctaIdentity={ctaIdentity}
       />
       {/* TUL-64: client account button above the launcher on agency and hub
           pages. Renders null unless CLIENT_ACCOUNT_HOSTS lists `app`. */}

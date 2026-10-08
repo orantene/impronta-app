@@ -35,6 +35,9 @@ export type FolioSiteCopy = {
   shoeLabel: { en: string; es: string };
 };
 
+/** One language of a spec table (all parts optional; only the parts given become overlay keys). */
+export type SpecTableText = { eyebrow?: string; title?: string; rows?: Array<{ label: string; value: string }> };
+
 /** Gridline page copy: design-owned editable defaults the demo fills the way a talent would in the builder. */
 export type GridlineSiteCopy = {
   topBar?: { subtitle?: string; statusOn?: string; statusOff?: string; callLabel?: string };
@@ -57,7 +60,13 @@ export type GridlineSiteCopy = {
     defaultHint: string;
     defaultHintEs: string;
   };
-  specTable?: { eyebrow?: string; title?: string; rows: Array<{ label: string; value: string }> };
+  specTable?: {
+    eyebrow?: string;
+    title?: string;
+    rows: Array<{ label: string; value: string }>;
+    /** The table in another language: becomes `props.i18n.<lang>["eyebrow"|"title"|"rows.N.label"|"rows.N.value"]`. */
+    i18n?: Partial<Record<"en" | "es", SpecTableText>>;
+  };
   services?: { title?: string; subtitle?: string };
 };
 
@@ -84,6 +93,24 @@ export function factsOverlay(
     (cells ?? []).forEach((c, i) => {
       if (c.label.trim()) bag[`items.${i}.label`] = c.label;
       if (c.value.trim()) bag[`items.${i}.value`] = c.value;
+    });
+    if (Object.keys(bag).length) out[lang] = bag;
+  }
+  return Object.keys(out).length ? { i18n: out } : {};
+}
+
+/** `{ i18n: { en: { title, "rows.0.label", ... } } }` for a spec table, or nothing when no other language is given. */
+export function specTableOverlay(
+  byLang: Partial<Record<"en" | "es", SpecTableText>> | undefined,
+): { i18n?: Record<string, Record<string, string>> } {
+  const out: Record<string, Record<string, string>> = {};
+  for (const [lang, t] of Object.entries(byLang ?? {})) {
+    const bag: Record<string, string> = {};
+    if (t?.eyebrow?.trim()) bag.eyebrow = t.eyebrow;
+    if (t?.title?.trim()) bag.title = t.title;
+    (t?.rows ?? []).forEach((r, i) => {
+      if (r.label.trim()) bag[`rows.${i}.label`] = r.label;
+      if (r.value.trim()) bag[`rows.${i}.value`] = r.value;
     });
     if (Object.keys(bag).length) out[lang] = bag;
   }
@@ -161,7 +188,12 @@ function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, ne
     case "spec_table": {
       const s = g.specTable;
       if (!s) return n;
-      return withProps(n, { ...(s.eyebrow ? { eyebrow: s.eyebrow } : {}), ...(s.title ? { title: s.title } : {}), rows: s.rows.map((r) => ({ ...r })) });
+      return withProps(n, {
+        ...(s.eyebrow ? { eyebrow: s.eyebrow } : {}),
+        ...(s.title ? { title: s.title } : {}),
+        rows: s.rows.map((r) => ({ ...r })),
+        ...mergeI18n(p.i18n, specTableOverlay(s.i18n).i18n),
+      });
     }
     case "services_catalog": {
       const s = g.services;

@@ -9,7 +9,16 @@
  *   release to DEMOS:  npm run qa:release-theme-cta -- --apply --yes --design maison-v2
  *   later, separate:   npm run qa:release-theme-cta -- --release-to-talents --apply --yes --design maison-v2 --rollout 100
  *
- * Refuses unless the open draft equals the released version (ignoring props.designKey).
+ * Refuses unless the open draft equals the released version (ignoring props.designKey) OR differs
+ * from it only by ADDITIVE i18n (any other difference refuses).
+ *
+ * Layering on an i18n draft: release-theme-i18n-overlay.mts saves an i18n overlay into the open
+ * draft but cannot publish it (i18n is not design-owned, so planPublish sees 0 candidates). Run
+ * this script on top of that draft: the CTA patch is computed against the DRAFT trees (the overlay
+ * is kept byte-for-byte outside the CTA nodes), saved, and ONE new version is published carrying
+ * both. The dry run prints "open draft differs from released by additive i18n only: yes/no" and
+ * the CTA node diff only. Rerunning once the CTA is already on the draft says "Nothing to patch"
+ * and writes nothing.
  * Needs NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, DEMO_SEED_TARGET_REF (must match
  * the URL); run through the npm script with --env-file as for qa:release-theme-i18n.
  */
