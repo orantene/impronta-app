@@ -42,3 +42,36 @@ Step 5 repro: sign out, `/api/dev/signin?email=<user>&next=/`; landing takes 17-
 - C1-11: FAIL, Servicios did not show a category control (no "Seguimos intentando" wording captured this run); same missing-schema family.
 - Next: apply the missing migrations to the isolated project only, rerun.
 - Details: env-run-myself-desktop.md
+
+## Rerun after the isolated DB got all migrations (928 applied, newest 20261231347000)
+Stack: dev.sh (next dev :3008) with only these AI variable NAMES exported to the process: ANTHROPIC_API_KEY, OPENAI_API_KEY (no AI_PROVIDER or AI_CREDENTIALS_ENCRYPTION_KEY exist). Supabase stays the worktree's isolated env. Values never recorded. One clean restart before the run (first boot answered 404 on /api/dev/signin, known harness quirk). 9 tests, 1 worker, 17.3 min, no retries.
+
+| Role | 1 front door | 2 screens + code | 3 build + DB | 4 finish | 5 sign out/in | 6 guest booking |
+|---|---|---|---|---|---|---|
+| Para mi, desktop | PASS | PASS | FAIL (arrival-failed; site row OK) | FAIL | FAIL (19.3 s > 15 s) | FAIL |
+| Para mi, phone | PASS | PASS | FAIL (arrival-failed; site row OK) | FAIL | FAIL (>90 s) | FAIL |
+| Estudio, desktop | PASS | PASS | FAIL (arrival-failed) | FAIL | FAIL (16.7 s > 15 s) | FAIL |
+| Estudio, phone | PASS | PASS | FAIL (arrival-failed) | FAIL | FAIL (>90 s) | FAIL |
+| Ambos, desktop | PASS | PASS | FAIL (no talent_sites row, arrival-failed) | FAIL | PASS (11.0 s) | FAIL |
+| Ambos, phone | PASS | PASS | FAIL (no talent_sites row, arrival-failed) | FAIL | FAIL (>90 s) | FAIL |
+
+| Check | Result |
+|---|---|
+| C1-03 account menu sign out | PASS (3 of 3 tries, cookie cleared ~1 s, /talent/today -> /login) |
+| C1-10 Settings working hours | FAIL: no "Zona horaria" combobox on the page reached (60 s) |
+| C1-11 Profile > Servicios | FAIL: "Seguimos intentando" still shown after 15 s |
+
+### What changed vs the first run
+- The schema errors are gone (no `is_demo` or `custom_palette` errors in the log). Para mi now publishes a real talent site row (maison-v2, site_published_at set) and the build fails fast (about 8 s) instead of 180 s.
+- Build still ends on `onb-arrival-failed`. Log: `[onboarding.build.verifyLive] talent:status` (Para mi) and `workspace:status` (Estudio, Ambos).
+
+### Cause of the remaining build failure: ENV (harness)
+`verifyLivePageWithRetry` (src/lib/onboarding/build.server.ts, verify-live.ts) fetches the finish URL server-side from the dev process. On the isolated stack that URL is the public host (e.g. `https://rosa-myself-desktop-ywxcij.tulala.digital/`), which answers 404 because that slug only exists in the isolated DB. The Chromium host-resolver rules in the spec cannot reach a server-side fetch. A schema fix cannot cure this. Possible fixes (not applied): a dev-only override that rewrites the verify host to localhost:3008, or skipping verifyLive when the Supabase target is the isolated project.
+Ambos has no talent_sites row because the Ambos build stops at the workspace step before the talent site step.
+
+### Other
+- Step 5 > 15 s: cold dev compile of /talent/today (same as before); phone runs time out at 90 s because every first route compiles on demand.
+- Server log noise (PRODUCT, minor): `record_phase5_audit: caller not staff of tenant` warns on homepage compose/publish during Estudio/Ambos builds; `analytics_events.tenant_id` null violation on /api/analytics/events from /start (anonymous).
+- Email code: still "Hook requires authorization token" then "email rate limit exceeded" (ENV, isolated auth hook). Spec falls back to createUser + dev sign-in.
+- Dead end "too little" screen still appears even with AI vars set (AI read did not succeed on the isolated stack); spec seeds facts with the service role.
+- C1-10 / C1-11: not classified (ENV vs PRODUCT) because the account never completes the build; needs a rerun once verifyLive is bypassed on the isolated stack.

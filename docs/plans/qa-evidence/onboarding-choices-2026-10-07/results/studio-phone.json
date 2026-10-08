@@ -39,11 +39,10 @@
   ],
   "facts": {
     "h1Contrast": 15.36,
-    "sentence": "Soy Estudio studio phone yvfgfo. Tengo un estudio de limpieza de casas en Playa del Carmen con un equipo de tres personas. Hacemos limpieza profunda y ligera, de lunes a sábado.",
-    "aiRead": "off: too-little dead end; facts seeded with the service role",
-    "readyLink": "estudio-studio-phone-yvfgfo.tulala.digital",
+    "sentence": "Soy Estudio studio phone yxhljp. Tengo un estudio de limpieza de casas en Playa del Carmen con un equipo de tres personas. Hacemos limpieza profunda y ligera, de lunes a sábado.",
+    "readyLink": "estudio-studio-phone-yxhljp.tulala.digital",
     "emailCode": "send failed on the isolated stack (\"Hook requires authorization token\"); UI error shown: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
-    "userId": "d20ebd86-a019-4618-8c3c-2dc24519a19a",
+    "userId": "3d097179-6a34-418a-8a29-882c68b049cb",
     "firstBuildEndedOnFailedScreen": true,
     "arrival": "arrival-failed screen (build did not finish)",
     "profile": {
@@ -52,20 +51,20 @@
       "account_status": "active"
     },
     "brief": {
-      "id": "9ae1cd38-9ed1-49d7-aa7b-2f86e9c74b89",
+      "id": "3cc39356-fd58-45f3-9a4a-cc9d88cf6b5f",
       "choice": "studio",
       "locale": "es"
     },
     "memberships": [
       {
-        "tenant_id": "575eed8d-d15c-4f64-b9a2-ccf63d33995d",
+        "tenant_id": "577a3ace-ce37-47c6-8b80-b74eef8f7b11",
         "role": "owner",
         "status": "active"
       }
     ],
     "workspace": {
-      "id": "575eed8d-d15c-4f64-b9a2-ccf63d33995d",
-      "slug": "estudio-studio-phone-yvfgfo"
+      "id": "577a3ace-ce37-47c6-8b80-b74eef8f7b11",
+      "slug": "estudio-studio-phone-yxhljp"
     },
     "businessIdentity": {
       "default_locale": "es"
@@ -82,8 +81,8 @@
     ],
     "visibleAtFail3": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
     "visibleAtFail4": "onb-page,onb-lang-es,onb-lang-en,onb-progress-bar,onb-step-label,onb-arrival-failed,onb-arrival-retry,onb-arrival-editor,onb-arrival-panel",
-    "landingMs": 90140,
-    "landingPath": "/estudio-studio-phone-yvfgfo/admin",
+    "landingMs": 90254,
+    "landingPath": "/estudio-studio-phone-yxhljp/admin",
     "sawEnglishInterstitial": false,
     "visibleAtFail5": "",
     "visibleAtFail6": ""
