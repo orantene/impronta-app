@@ -396,7 +396,7 @@ export async function loadBuilderNodeDataSources(
       ? await withSecondaryReadDegrade(
           "gallery",
           () => loadPortfolioSources(catalogTalentId, { locale }),
-          {},
+          { talentPortfolioShots: [] },
         )
       : {}),
     ...(nativeNeeds.reviews && catalogTalentId
@@ -550,7 +550,7 @@ export async function loadPersonalMaxNativeSources(args: {
       ? withSecondaryReadDegrade(
           "gallery",
           () => loadPortfolioSources(args.talentProfileId, { locale: args.locale }),
-          {},
+          { talentPortfolioShots: [] },
         )
       : {},
     args.reviews
