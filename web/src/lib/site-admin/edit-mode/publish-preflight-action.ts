@@ -66,6 +66,7 @@ import { isAdvancedElementLibraryEnabledForPlan } from "@/lib/site-admin/builder
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { loadTalentSiteSaveCapabilities } from "@/lib/talent-site/server/free-site-save-guard";
 import {
   collectContrastPreflightIssues,
   loadThemeDraftTokens,
@@ -218,7 +219,17 @@ async function runTalentPagePublishPreflight(builderTreeInput: unknown): Promise
   for (const issue of collectMobileOverflowPreflightIssues(validation.tree)) {
     issues.push(issue);
   }
-  for (const issue of collectAppPreflightIssues(validation.tree)) issues.push(issue);
+  // Premium apps backstop (TUL-39): free talents may keep a leftover premium
+  // app node after a downgrade / import; refuse publish until they upgrade or
+  // remove it. Caps null = free-site rules do not apply (flag off / staff).
+  const siteCaps = await loadTalentSiteSaveCapabilities(null);
+  const canUsePremiumApps =
+    siteCaps == null ? null : siteCaps.personalSiteSections;
+  for (const issue of collectAppPreflightIssues(validation.tree, {
+    canUsePremiumApps,
+  })) {
+    issues.push(issue);
+  }
   for (const issue of collectTickerPreflightIssues(validation.tree)) issues.push(issue);
   return { ok: true, issues };
 }
