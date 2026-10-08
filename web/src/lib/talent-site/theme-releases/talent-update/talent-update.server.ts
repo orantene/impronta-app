@@ -34,8 +34,7 @@ import { loadReleaseDesign } from "../release-design.server";
 import { makeBaseResolver } from "../manager/base-resolver.server";
 import { mergeSite, type SiteMergeOutcome } from "../manager/merge-site.server";
 import type { ReleaseItem, ReleaseNotes, SiteUpdateState, ThemeRelease } from "../types";
-import { countCopyKept } from "../copy-merge";
-import { countParts, editedKept } from "../parts";
+import { countCopyKept, countParts, editedKept } from "../parts";
 import { findKeyPath } from "../tree-ops";
 import { addBlockSummary, releaseVersionLabel } from "./copy";
 import {
@@ -584,8 +583,7 @@ export async function setUpdateState(
 export interface ApplyOutcome {
   draftRev: number;
   kept: number;
-  /** Texts she changed that the update left alone (copy conflicts). */
-  copyKept?: number;
+  copyKept?: number; // texts she changed that the update left alone (copy conflicts)
   historyId: string | null;
 }
 
