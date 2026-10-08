@@ -1442,12 +1442,7 @@
   },
   "src/lib/server-actions/admin-agency-logo-upload.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 4
-    }
-  },
-  "src/lib/server-actions/admin-billing.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 1
+      "count": 2
     }
   },
   "src/lib/server-actions/admin-bookings.ts": {
@@ -1488,12 +1483,7 @@
   },
   "src/lib/server-actions/admin-plan-downgrade.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 8
-    }
-  },
-  "src/lib/server-actions/admin-pricing-defaults.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 3
+      "count": 6
     }
   },
   "src/lib/server-actions/admin-product-discounts.ts": {
@@ -1509,11 +1499,6 @@
   "src/lib/server-actions/admin-product-pricing.ts": {
     "ratchet/no-untenanted-from": {
       "count": 12
-    }
-  },
-  "src/lib/server-actions/admin-roster-card-badges.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 2
     }
   },
   "src/lib/server-actions/admin-site-pages.ts": {
@@ -1571,7 +1556,7 @@
       "count": 1
     },
     "ratchet/no-untenanted-from": {
-      "count": 18
+      "count": 17
     }
   },
   "src/lib/server-actions/admin-talent-roster.ts": {
@@ -1622,24 +1607,14 @@
       "count": 2
     }
   },
-  "src/lib/server-actions/admin-workspace-default-currency.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 2
-    }
-  },
-  "src/lib/server-actions/admin-workspace-settings.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 12
-    }
-  },
   "src/lib/server-actions/alternate-domain.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 6
+      "count": 5
     }
   },
   "src/lib/server-actions/cancel-subscription.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 5
+      "count": 3
     }
   },
   "src/lib/server-actions/client-guest-merge.ts": {
@@ -1655,11 +1630,6 @@
   "src/lib/server-actions/client-pipeline.ts": {
     "ratchet/no-untenanted-from": {
       "count": 5
-    }
-  },
-  "src/lib/server-actions/commercial-terms-tenant.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 3
     }
   },
   "src/lib/server-actions/details-tab-data.ts": {
@@ -1694,7 +1664,7 @@
   },
   "src/lib/server-actions/payment-methods.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 3
+      "count": 2
     }
   },
   "src/lib/server-actions/profile-change-requests.ts": {
@@ -1747,7 +1717,7 @@
   },
   "src/lib/server-actions/team-management.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 11
+      "count": 8
     }
   },
   "src/lib/server-actions/user-prefs.ts": {
@@ -1757,7 +1727,7 @@
   },
   "src/lib/server-actions/workspace-lifecycle.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 6
+      "count": 3
     }
   },
   "src/lib/site-admin/builder-core/templates/registry-actions.ts": {
