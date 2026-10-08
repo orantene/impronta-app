@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 
+import { GoogleFontsLink } from "@/app/google-fonts-link";
 import { ClientAccountArea, type AreaData } from "@/components/client-account/ClientAccountArea";
+import { TalentSiteHtmlTokens } from "@/components/talent/site/TalentSiteHtmlTokens";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -8,6 +10,7 @@ import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 
 import { accountAudience, type AccountView } from "./area-pure";
 import { accountFlagKindForHost, agencyAccountTabs } from "./agency-area-pure";
+import { loadAgencyAccountSite } from "./area-site.server";
 import {
   loadAccountProfile, loadOwedPayLinks, loadReceiptDetail, loadReceipts, loadThread, loadThreads,
   loadVisitDetail, loadVisitGroups,
@@ -33,7 +36,10 @@ export async function renderTenantAccountPage(view: AccountView, hostContext: st
   if ((view.kind === "visit" || view.kind === "thread") && !UUID.test(view.id)) notFound();
   const [locale, session, tenant] = await Promise.all([getRequestLocale(), getCachedActorSession(), resolveAccountTenant()]);
   if (!tenant) notFound();
-  const identity = await loadPublicIdentity(tenant.tenantId).catch(() => null);
+  const [identity, site] = await Promise.all([
+    loadPublicIdentity(tenant.tenantId).catch(() => null),
+    loadAgencyAccountSite(tenant.tenantId),
+  ]);
   const brandName = identity?.public_name?.trim() || (hostContext === "agency" ? tenant.slug : PLATFORM_BRAND.name);
   const userId = session.user?.id ?? null;
   const appRole = session.profile?.app_role ?? null;
@@ -55,16 +61,21 @@ export async function renderTenantAccountPage(view: AccountView, hostContext: st
       ]);
     } else data.profile = await loadAccountProfile(userId);
   }
+  const hasTokens = Object.keys(site.cssVars).length > 0;
   return (
-    <ClientAccountArea
-      locale={locale}
-      audience={audience}
-      view={view}
-      talentName={brandName}
-      email={session.user?.email ?? null}
-      timeZone={tenant.timeZone}
-      data={data}
-      extraTabs={agencyAccountTabs({ hostContext, tenantSlug: tenant.slug, userId, appRole })}
-    />
+    <>
+      {hasTokens ? <TalentSiteHtmlTokens cssVars={site.cssVars} dataAttrs={site.dataAttrs} /> : null}
+      {hasTokens ? <GoogleFontsLink tokens={site.tokens} /> : null}
+      <ClientAccountArea
+        locale={locale}
+        audience={audience}
+        view={view}
+        talentName={brandName}
+        email={session.user?.email ?? null}
+        timeZone={tenant.timeZone}
+        data={data}
+        extraTabs={agencyAccountTabs({ hostContext, tenantSlug: tenant.slug, userId, appRole })}
+      />
+    </>
   );
 }

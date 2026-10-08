@@ -126,6 +126,7 @@ test("every render path is behind the gate", () => {
     /resolveClientAccountMount\(flagKind\)\.dock/,
   );
   assert.match(src("src/lib/talent-site/server/render-max-site-demo.tsx"), /resolveClientAccountMount\("talent"\)\.headerItem/);
+  assert.match(src("src/lib/client-account/published-shell-account-chrome.ts"), /resolveClientAccountMount\("app"\)\.headerItem/);
   const header = src("src/lib/site-admin/sections/site_header/Component.tsx");
   assert.match(header, /case "account":[\s\S]{0,200}props\.siteChrome\?\.account \?/);
   assert.match(src("src/app/api/client/account/route.ts"), /accountSurfaceEnabledForRequest\(\)\)\) return reply\(\{ error: "not_found" \}, 404\)/);
