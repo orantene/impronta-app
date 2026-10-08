@@ -47,7 +47,8 @@ test("ES flagship mock chrome is Spanish", () => {
   assert.equal(es.builder.tagPublic, "Público");
   assert.equal(es.builder.tagPrivate, "Privado");
   assert.equal(es.messenger.threadSubtitle, "Boda · 14 de junio");
-  assert.equal(es.messenger.statusBooked, "Reservada");
+  assert.equal(es.messenger.statusBooked, "Confirmada");
+  assert.equal(es.messenger.depositAmount, "Anticipo $600 MXN");
   assert.equal(es.messenger.payDeposit, "Pagar anticipo");
   assert.equal(es.messenger.approve, "Aprobar");
   assert.equal(es.messenger.trackInquiry, "Solicitud");
@@ -59,6 +60,38 @@ test("ES flagship mock chrome is Spanish", () => {
 
   const en = getFlagshipMockCopy("en");
   assert.equal(en.builder.generate, "Generate");
+  assert.equal(en.messenger.depositAmount, "Deposit $600 MXN");
   assert.equal(en.messenger.payDeposit, "Pay deposit");
   assert.equal(en.messenger.trackInquiry, "Inquiry");
+});
+
+/** Nested string-leaf paths for belt-and-braces en/es key parity. */
+function leafPaths(value: unknown, prefix = ""): string[] {
+  if (value === null || typeof value !== "object") {
+    return prefix ? [prefix] : [];
+  }
+  return Object.entries(value as Record<string, unknown>).flatMap(([key, child]) =>
+    leafPaths(child, prefix ? `${prefix}.${key}` : key),
+  );
+}
+
+function leafStrings(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (value === null || typeof value !== "object") return [];
+  return Object.values(value as Record<string, unknown>).flatMap(leafStrings);
+}
+
+test("flagship mock en/es share the same keys; no em dashes", () => {
+  const en = getFlagshipMockCopy("en");
+  const es = getFlagshipMockCopy("es");
+  const enKeys = leafPaths(en).sort();
+  const esKeys = leafPaths(es).sort();
+  assert.deepEqual(
+    esKeys,
+    enKeys,
+    "es must expose exactly the same leaf keys as en",
+  );
+  for (const s of [...leafStrings(en), ...leafStrings(es)]) {
+    assert.ok(!s.includes("—"), `em dash in flagship mock copy: ${JSON.stringify(s)}`);
+  }
 });
