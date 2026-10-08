@@ -78,3 +78,16 @@ export function collectAppPreflightIssues(
 
   return issues;
 }
+
+/** Talent publish: load free-site caps, then gate leftover premium apps. */
+export async function collectTalentAppPreflightIssues(
+  tree: unknown,
+): Promise<AppPreflightIssue[]> {
+  const { loadTalentSiteSaveCapabilities } = await import(
+    "@/lib/talent-site/server/free-site-save-guard"
+  );
+  const siteCaps = await loadTalentSiteSaveCapabilities(null);
+  return collectAppPreflightIssues(tree, {
+    canUsePremiumApps: siteCaps == null ? null : siteCaps.personalSiteSections,
+  });
+}
