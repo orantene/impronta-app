@@ -123,3 +123,31 @@ test("clicking Bullet list writes a real list onto the node and the renderer emi
   });
   host.remove();
 });
+
+test("TUL-78 B-5: the canvas overlay mounts no second list bar; the inspector field keeps its own", async () => {
+  async function mount(suppress: boolean): Promise<Element | null> {
+    const host = dom.window.document.createElement("div");
+    dom.window.document.body.appendChild(host);
+    let root: Root | null = null;
+    await act(async () => {
+      root = createRoot(host);
+      root.render(
+        createElement(RichEditor, {
+          value: "Heading",
+          onChange: () => {},
+          variant: "single",
+          suppressFloatingToolbar: suppress,
+        }),
+      );
+    });
+    await flush();
+    const bar = host.querySelector("[data-edit-rich-list-bar]");
+    await act(async () => {
+      root?.unmount();
+    });
+    host.remove();
+    return bar;
+  }
+  assert.equal(await mount(true), null, "the canvas text toolbar owns the list buttons");
+  assert.ok(await mount(false), "the inspector field keeps its list bar");
+});
