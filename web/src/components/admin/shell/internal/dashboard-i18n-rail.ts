@@ -153,4 +153,7 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   "Run your own roster. Free plan, 1 minute.": "Administra tu propio roster. Plan gratis, 1 minuto.",
   // Agenda/Today missing client label sentinel — keep out of grandfathered dashboard-i18n.ts.
   "Untitled client": "Cliente sin nombre",
+  // Talent | Admin rail switch (shared RailModeSwitch), kept out of grandfathered dashboard-i18n.ts.
+  "Switch to admin": "Cambiar a administración",
+  "Go to your admin workspace": "Ir a tu espacio de administración",
 };
