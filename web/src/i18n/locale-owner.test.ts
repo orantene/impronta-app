@@ -20,6 +20,6 @@ test("both email sign-in actions reset the locale, and the builder reconciles it
   assert.equal((actions.match(/\bresetLocaleOnSignIn\(user\.id\)|\bresetLocaleOnSignIn\(data\.user\.id\)/g) ?? []).length, 2);
   const builder = readFileSync(join(root, "app/(workspace)/talent/page-builder/page.tsx"), "utf8");
   assert.match(builder, /talentLocaleSeedPlan\(/);
-  const layout = readFileSync(join(root, "app/(workspace)/talent/layout.tsx"), "utf8");
+  const layout = readFileSync(join(root, "app/(workspace)/talent/_talent-layout-inner.tsx"), "utf8");
   assert.match(layout, /talentLocaleSeedPlan\(/);
 });

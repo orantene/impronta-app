@@ -30,6 +30,7 @@ import {
   bakePageDesignTree,
 } from "@/lib/site-admin/builder-node/page-designs";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type BakePageDesignState =
   | { ok: true; designId: string; builderTree: BuilderNodeTree }
@@ -38,6 +39,8 @@ export type BakePageDesignState =
 export async function bakePageDesignTreeAction(
   designId: string,
 ): Promise<BakePageDesignState> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 

@@ -23,6 +23,7 @@ import type { ServerActionResult } from "@/lib/server-actions/result";
 import type { TranslationQuickSaveKind } from "@/lib/translation-center/types";
 import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const QUICK_SAVE_KINDS = [
   "talent_bio_es",
@@ -129,6 +130,7 @@ export type TranslationQuickEditSaveResult = ServerActionResult;
 export async function applyTranslationQuickEditSave(
   input: z.infer<typeof saveSchema>,
 ): Promise<TranslationQuickEditSaveResult> {
+  await requireNotImpersonating();
   const parsed = saveSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid data." };
 

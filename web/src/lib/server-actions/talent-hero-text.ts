@@ -21,6 +21,7 @@ import {
   readScalarFieldValuesFromCatalog,
   syncScalarFieldValuesToCatalog,
 } from "@/lib/talent/scalar-field-values-catalog";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export interface HeroTextFields {
   headline: string | null;
@@ -85,6 +86,8 @@ export async function saveHeroTextFields(input: {
   headlineI18n?: Record<string, string> | null;
   taglineI18n?: Record<string, string> | null;
 }): Promise<Result<{ fields: HeroTextFields }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const who = await resolveWriter(input.talent_profile_id, input.mode);
   if (!who.ok) return { ok: false, error: who.error };
   const headline = input.headline === undefined ? undefined : input.headline?.trim().slice(0, HERO_HEADLINE_MAX) || null;

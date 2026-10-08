@@ -16,6 +16,7 @@ import type { ChatWithUsData, ChatWithUsInput, ChatWithUsProps, ChatWithUsResult
 import { commandIdempotentRunner } from "./idempotent";
 import { mapEngineRefusal } from "./refusals";
 import { publicOrigin, resolveStorefrontIdentity, storefrontLocale } from "./request-context";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 async function bind(locale: string | null | undefined): Promise<ChatWithUsDeps | null> {
   const admin = createServiceRoleClient();
@@ -56,6 +57,7 @@ export async function readChatWithUs(
 }
 
 export async function actChatWithUs(input: ChatWithUsInput, _expectedVersion?: number): Promise<ChatWithUsResult> {
+  await requireNotImpersonating();
   try {
     const deps = await bind(input.locale);
     if (!deps) return mapEngineRefusal("unavailable", "en");

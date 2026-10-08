@@ -23,6 +23,7 @@ import { requireSession } from "@/lib/server/action-guards";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
 import { publishSection, upsertSection } from "@/lib/site-admin/server/sections";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type SetFormRoutingModeResult =
   | { ok: true; routingMode: "internal" | "inquiry"; published: boolean }
@@ -32,6 +33,8 @@ export async function setInboxFormRoutingModeAction(
   sectionId: string,
   routingMode: "internal" | "inquiry",
 ): Promise<SetFormRoutingModeResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);

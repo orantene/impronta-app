@@ -21,6 +21,7 @@ import type {
   DrawerLanguageRowInput,
   TalentLanguageInput,
 } from "./admin-talent-languages.types";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -28,6 +29,8 @@ export async function saveTalentLanguages(input: {
   talent_profile_id: string;
   languages: DrawerLanguageRowInput[];
 }): Promise<Result> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
@@ -94,6 +97,8 @@ export async function setTalentLanguages(input: {
 }): Promise<
   { ok: true; languages: TalentLanguageInput[] } | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;

@@ -55,6 +55,7 @@ import {
 } from "@/lib/talent/identity-field-values-catalog";
 import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell-taxonomy-sync";
 import type { UiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -95,6 +96,7 @@ export async function updateTalentAbout(input: {
   personality_traits?: unknown;
   tagline?: string | null;
 }): Promise<Result> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
@@ -141,6 +143,7 @@ export async function updateTalentLocation(input: {
   work_eligibility?: string[];
   upcoming_visits?: Array<{ id: string; city: string; placeId?: string; date?: string; dateEnd?: string }>;
 }): Promise<Result> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
@@ -210,6 +213,7 @@ export async function updateTalentRates(input: {
   travel_included?: boolean;
   lodging_included?: boolean;
 }): Promise<Result> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
@@ -245,6 +249,7 @@ export async function updateTalentAvailability(input: {
     vacation?: unknown;
   };
 }): Promise<Result> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
@@ -269,6 +274,7 @@ export async function updateTalentCredits(input: {
   talent_profile_id: string;
   credits_data: CreditEntry[];
 }): Promise<Result> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
@@ -291,6 +297,7 @@ export async function updateTalentLimits(input: {
   talent_profile_id: string;
   limits_data: { hardLimits?: string[]; softLimits?: string[]; customNote?: string };
 }): Promise<Result> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
@@ -315,6 +322,7 @@ export async function updateTalentSocialProof(input: {
   talent_profile_id: string;
   social_proof_data: PastClient[];
 }): Promise<Result> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
@@ -342,6 +350,7 @@ export async function updateTalentMediaAlbums(input: {
   talent_profile_id: string;
   albums: MediaAlbumEntry[];
 }): Promise<Result> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
@@ -381,6 +390,7 @@ export async function updateTalentDocuments(input: {
   talent_profile_id: string;
   documents: TalentDocumentEntry[];
 }): Promise<Result> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
@@ -406,6 +416,7 @@ export async function updateRosterMeta(input: {
   field_locks_data?: { locks: string[]; reasons: Record<string, string> };
   feature_in_directory?: boolean;
 }): Promise<Result> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
@@ -533,6 +544,7 @@ export type CommitTalentProfileShellAdminInput = {
 export async function commitTalentProfileShellAdmin(
   input: CommitTalentProfileShellAdminInput,
 ): Promise<Result> {
+  await requireNotImpersonating();
   const shellWarnings: string[] = [];
   const devProfileSaveTiming = process.env.NODE_ENV === "development";
   const tStart = performance.now();
@@ -1012,6 +1024,7 @@ export async function sendTalentClaimInvite(input: {
   /** When true, this is a Resend operation — recorded in audit notes. */
   resend?: boolean;
 }): Promise<Result & { redeem_url?: string; expires_at?: string; invitation_id?: string }> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
@@ -1134,6 +1147,7 @@ export async function sendTalentClaimInvite(input: {
 export async function resendTalentClaimInvite(
   talent_profile_id: string,
 ): Promise<Result & { redeem_url?: string; expires_at?: string; invitation_id?: string }> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
@@ -1187,6 +1201,7 @@ export async function assignTalentTaxonomyBySlug(input: {
   slug: string;
   relationship_type?: "primary_role" | "secondary_role" | "specialty";
 }): Promise<Result> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
@@ -1219,6 +1234,7 @@ export async function removeTalentTaxonomyBySlug(input: {
   talent_profile_id: string;
   slug: string;
 }): Promise<Result> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
@@ -1532,6 +1548,7 @@ export async function emitProfileEvent(input: {
   event_type: string;
   payload?: Record<string, unknown>;
 }): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return;
   const { supabase } = auth;

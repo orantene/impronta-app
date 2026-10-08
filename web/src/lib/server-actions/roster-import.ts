@@ -10,6 +10,7 @@ import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolve
 import { auditFailure } from "@/lib/audit/emit";
 import { revalidatePath } from "next/cache";
 import type { ServerActionResult } from "./result";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * F.13 — Roster import jobs.
@@ -57,6 +58,7 @@ export type RosterImportRow = {
 export async function enqueueRosterImportJob(
   input: EnqueueRosterImportInput,
 ): Promise<ServerActionResult<{ jobId: string; totalRows: number }>> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
@@ -197,6 +199,8 @@ export async function processRosterImportRow(
   tenantId: string,
   row: RosterImportRow,
 ): Promise<{ ok: true; talentProfileId: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   if (!admin) return { ok: false, error: "Service unavailable." };
 
   const displayName = row.display_name?.trim()

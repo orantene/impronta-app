@@ -22,6 +22,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type EngineAuditSurface =
   | "field-privacy"
@@ -59,6 +60,7 @@ export type LogEngineAuditInput = {
 };
 
 export async function logEngineAudit(input: LogEngineAuditInput): Promise<void> {
+  await requireNotImpersonating();
   try {
     const svc = createServiceRoleClient();
     if (!svc) {

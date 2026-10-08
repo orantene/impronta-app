@@ -5,7 +5,7 @@ import type { DashboardIdentity } from "@/lib/impersonation/dashboard-identity";
  * See plan: admin destructive routes are unreachable while impersonating (/admin redirects).
  */
 export const IMPERSONATION_READ_ONLY_ERROR =
-  "This workspace is read-only while you are viewing as another user.";
+  "Exit 'viewing as' to make changes";
 
 export function assertMutationsAllowedWhileImpersonating(
   identity: DashboardIdentity,

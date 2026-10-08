@@ -42,11 +42,57 @@ export function findMissingClientChunks({ manifests, staticChunks }) {
   return [...missing].sort();
 }
 
+/**
+ * Other manifest kinds that can name client chunks (build-manifest, app-build-manifest,
+ * react-loadable-manifest, prerendered HTML preload links). Reported per kind and
+ * NEVER fatal: the P0 phantom chunks survive the client-reference check above, so
+ * this tells the next production build log which kind carries them.
+ * @param {Record<string, string>} files path -> text
+ * @param {Set<string>} staticChunks
+ * @returns {Record<string, string[]>} kind -> missing chunk paths
+ */
+export function findMissingByKind({ files, staticChunks }) {
+  const kindOf = (file) =>
+    file.endsWith(".html") ? "prerendered-html" : (file.split("/").pop() ?? file).replace(/[-0-9a-f]{6,}/g, "");
+  const byKind = {};
+  for (const [file, text] of Object.entries(files)) {
+    const missing = [...extractClientChunkRefs(text)].filter((ref) => !staticChunks.has(ref));
+    if (missing.length === 0) continue;
+    const kind = kindOf(file);
+    byKind[kind] = [...new Set([...(byKind[kind] ?? []), ...missing])].sort();
+  }
+  return byKind;
+}
+
 function walk(dir, visit) {
   for (const name of readdirSync(dir)) {
     const full = join(dir, name);
     if (statSync(full).isDirectory()) walk(full, visit);
     else visit(full);
+  }
+}
+
+function reportOtherManifestKinds(nextDir, staticChunks) {
+  const files = {};
+  const take = (file) => {
+    const base = file.split("/").pop() ?? "";
+    const isManifest = /manifest/.test(base) && (base.endsWith(".json") || base.endsWith(".js"));
+    if (isManifest && !base.endsWith("client-reference-manifest.js")) files[file] = readFileSync(file, "utf8");
+    else if (file.endsWith(".html")) files[file] = readFileSync(file, "utf8");
+  };
+  for (const root of ["build-manifest.json", "app-build-manifest.json"]) {
+    const f = join(nextDir, root);
+    if (existsSync(f)) take(f);
+  }
+  walk(join(nextDir, "server"), take);
+  const byKind = findMissingByKind({ files, staticChunks });
+  const kinds = Object.keys(byKind);
+  if (kinds.length === 0) {
+    console.log(`check-build-chunks: other manifest kinds ok (${Object.keys(files).length} files)`);
+    return;
+  }
+  for (const kind of kinds) {
+    console.log(`check-build-chunks NOTE: ${byKind[kind].length} chunk(s) named by ${kind} are absent from static/chunks: ${byKind[kind].slice(0, 5).join(", ")}`);
   }
 }
 
@@ -89,6 +135,7 @@ function main() {
     return;
   }
   console.log(`check-build-chunks: ok (${manifestCount} manifests, ${staticChunks.size} chunks on disk)`);
+  reportOtherManifestKinds(nextDir, staticChunks);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

@@ -41,6 +41,7 @@ import { isLocale, type Locale } from "@/lib/site-admin/locales";
 import { requireSession } from "@/lib/server/action-guards";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ── types ─────────────────────────────────────────────────────────────────
 
@@ -220,6 +221,8 @@ export async function restoreHomepageRevisionAction(input: {
   locale: string;
   expectedVersion: number;
 }): Promise<RevisionRestoreResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -470,6 +473,8 @@ export async function restorePageRevisionAction(input: {
   pageId: string;
   expectedVersion: number;
 }): Promise<RevisionRestoreResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -715,6 +720,8 @@ export async function setRevisionLabelAction(input: {
   revisionId: string;
   label: string;
 }): Promise<SetRevisionLabelResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);

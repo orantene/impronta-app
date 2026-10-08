@@ -30,6 +30,7 @@ import {
   loadTenantManagementDetail,
   type TenantManagementDetail,
 } from "../../tenant-management-data";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // Internal only — a "use server" file may export ONLY async functions, so
 // this result shape stays module-private (it is structurally simple enough
@@ -185,6 +186,7 @@ export async function actionApplyPlanOverride(input: {
    */
   grantKind?: string;
 }): Promise<TenantActionResult<{ expiresAt: string | null }>> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;
@@ -321,6 +323,7 @@ export async function actionApplyPlanOverride(input: {
 export async function actionRemovePlanOverride(input: {
   tenantId: string;
 }): Promise<TenantActionResult<{ restoredTier: WorkspacePlanTier }>> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;
@@ -388,6 +391,7 @@ export async function actionAddWorkspaceMember(input: {
   email: string;
   role: string;
 }): Promise<TenantActionResult> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;
@@ -491,6 +495,7 @@ export async function actionChangeMemberRole(input: {
   membershipId: string;
   role: string;
 }): Promise<TenantActionResult> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;
@@ -547,6 +552,7 @@ export async function actionChangeMemberRole(input: {
 export async function actionRemoveWorkspaceMember(input: {
   membershipId: string;
 }): Promise<TenantActionResult> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;
@@ -603,6 +609,7 @@ export async function actionAssignOwnerByEmail(input: {
   tenantId: string;
   email: string;
 }): Promise<TenantActionResult> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;
@@ -714,6 +721,7 @@ export async function actionTransferWorkspaceOwner(input: {
   tenantId: string;
   newOwnerMembershipId: string;
 }): Promise<TenantActionResult> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;

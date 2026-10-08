@@ -20,6 +20,7 @@ import {
   type GoLiveSummary,
   type HistoryWriteResult,
 } from "./history.server";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type TalentHistoryWriteResult =
   | { ok: true; draftRev: number }
@@ -55,6 +56,7 @@ export async function restoreTalentHistoryAction(input: {
   entryId: string;
   expectedDraftRev: number | null;
 }): Promise<TalentHistoryWriteResult> {
+  await requireNotImpersonating();
   if (!UUID_RE.test(input.entryId)) return { ok: false, code: "invalid_input", error: "Unknown version." };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return { ok: false, code: g.code, error: g.error };
@@ -74,6 +76,7 @@ export async function undoTalentThemeUpdateAction(input: {
   entryId: string;
   expectedDraftRev: number | null;
 }): Promise<TalentHistoryWriteResult> {
+  await requireNotImpersonating();
   if (!UUID_RE.test(input.entryId)) return { ok: false, code: "invalid_input", error: "Unknown update." };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return { ok: false, code: g.code, error: g.error };

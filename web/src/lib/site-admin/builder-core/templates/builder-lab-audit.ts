@@ -33,6 +33,7 @@ import {
   type BuilderLabAuditEntry,
   type BuilderLabAuditRow,
 } from "./builder-lab-audit-shape";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type {
   BuilderLabAuditAction,
@@ -47,6 +48,7 @@ export type {
 export async function appendBuilderLabAudit(
   input: AppendBuilderLabAuditInput,
 ): Promise<void> {
+  await requireNotImpersonating();
   try {
     const sb = createServiceRoleClient();
     if (!sb) return;

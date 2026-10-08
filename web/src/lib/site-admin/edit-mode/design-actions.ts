@@ -51,6 +51,7 @@ import { requireSession } from "@/lib/server/action-guards";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { getEditSurfaceTenantScope } from "@/lib/saas/edit-surface-scope";
 import { logServerError } from "@/lib/server/safe-error";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ── types ─────────────────────────────────────────────────────────────────
 
@@ -252,6 +253,7 @@ export async function saveDesignDraftFromEditAction(input: {
   expectedVersion: number;
   tenantSlug?: string;
 }): Promise<DesignSaveResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
@@ -356,6 +358,7 @@ export async function saveComponentStylesDraftFromEditAction(input: {
   expectedVersion: number;
   tenantSlug?: string;
 }): Promise<ComponentStylesSaveResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
@@ -416,6 +419,7 @@ export async function applyThemePresetFromEditAction(input: {
   expectedVersion: number;
   tenantSlug?: string;
 }): Promise<DesignPresetResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
@@ -545,6 +549,7 @@ export async function applyCardKitFromEditAction(input: {
   kitSlug: string;
   tenantSlug?: string;
 }): Promise<DesignSaveResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
@@ -597,6 +602,7 @@ export async function saveCardDesignTokensFromEditAction(input: {
   patch: Record<string, string>;
   tenantSlug?: string;
 }): Promise<DesignSaveResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
@@ -630,6 +636,7 @@ export async function restoreDesignRevisionFromEditAction(input: {
   expectedVersion: number;
   tenantSlug?: string;
 }): Promise<DesignSaveResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
@@ -764,6 +771,7 @@ export async function publishDesignFromEditAction(input: {
   expectedVersion: number;
   tenantSlug?: string;
 }): Promise<DesignPublishResult> {
+  await requireNotImpersonating();
   return publishDesignScoped(input, undefined);
 }
 
@@ -780,5 +788,6 @@ export async function publishCardDesignFromEditAction(input: {
   expectedVersion: number;
   tenantSlug?: string;
 }): Promise<DesignPublishResult> {
+  await requireNotImpersonating();
   return publishDesignScoped(input, CARD_DESIGN_SCOPE);
 }

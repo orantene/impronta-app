@@ -14,6 +14,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { revalidatePath } from "next/cache";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type PinToggleResult =
   | { ok: true; pinned: boolean }
@@ -30,6 +31,8 @@ export async function toggleMessagePin(
   messageId: string,
   inquiryId: string,
 ): Promise<PinToggleResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const session = await getCachedActorSession();
     if (!session?.user) return { ok: false, error: "Not authenticated." };

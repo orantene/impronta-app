@@ -29,6 +29,7 @@ import { auditTalentEvent } from "@/lib/audit/emit";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
 import { workspaceOwnedStamp } from "@/lib/media/ownership";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ─── Remove from roster (NOT account deletion) ───────────────────────────────
 //
@@ -69,6 +70,7 @@ export type RemoveFromRosterResult =
 export async function removeFromRoster(input: {
   talent_profile_id: string;
 }): Promise<RemoveFromRosterResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
@@ -174,6 +176,8 @@ export async function setTalentCardPhoto(input: {
   width: number;
   height: number;
 }): Promise<SetCardPhotoResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
@@ -273,6 +277,7 @@ export async function setTalentCardPhoto(input: {
 export async function restoreToRoster(input: {
   talent_profile_id: string;
 }): Promise<RemoveFromRosterResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;

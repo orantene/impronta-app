@@ -35,12 +35,14 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
 import type { ServerActionResult } from "./result";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ─── 1. Leave workspace (non-owner self-removal) ─────────────────────────────
 
 export async function leaveWorkspace(
   tenantId: string,
 ): Promise<ServerActionResult> {
+  await requireNotImpersonating();
   try {
     if (!tenantId || typeof tenantId !== "string") {
       return {
@@ -149,6 +151,7 @@ export async function archiveOwnedWorkspace(
   tenantId: string,
   confirmSlug: string,
 ): Promise<ServerActionResult> {
+  await requireNotImpersonating();
   try {
     if (!tenantId || typeof tenantId !== "string") {
       return {

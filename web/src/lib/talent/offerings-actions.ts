@@ -47,6 +47,7 @@ import {
   proposeDefaultBookingHours,
   type BookingHoursStatus,
 } from "@/lib/scheduling/propose-default-booking-hours";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Untyped write surface for talent_offerings (+ media join). The tables ARE in
@@ -168,6 +169,8 @@ export async function upsertTalentOffering(
   talentProfileId: string,
   offering: TalentOffering,
 ): Promise<SaveResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const auth = await authorizeForTalent(talentProfileId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -281,6 +284,8 @@ export async function deleteTalentOffering(
   talentProfileId: string,
   offeringId: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeForTalent(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
@@ -302,6 +307,8 @@ export async function setOfferingPublication(
   offeringId: string,
   next: "published" | "draft" | "archived",
 ): Promise<SaveResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const loaded = await loadTalentOfferingsForEditor(talentProfileId);
   if (!loaded.ok) return { ok: false, error: loaded.error };
   const item = loaded.items.find((row) => row.id === offeringId);
@@ -313,6 +320,8 @@ export async function duplicateTalentOffering(
   talentProfileId: string,
   offeringId: string,
 ): Promise<SaveResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const loaded = await loadTalentOfferingsForEditor(talentProfileId);
   if (!loaded.ok) return { ok: false, error: loaded.error };
   const item = loaded.items.find((row) => row.id === offeringId);
@@ -345,6 +354,8 @@ export async function deleteTalentOfferingForever(
   talentProfileId: string,
   offeringId: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeForTalent(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
@@ -364,6 +375,8 @@ export async function reorderTalentOfferings(
   talentProfileId: string,
   orderedIds: string[],
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeForTalent(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
@@ -388,6 +401,8 @@ export async function setOfferingImages(
   offeringId: string,
   mediaAssetIds: string[],
 ): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await authorizeForTalent(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
@@ -540,6 +555,8 @@ export async function setOfferingOptions(
     }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const auth = await authorizeForTalent(talentProfileId);
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -681,6 +698,7 @@ async function collectLegacySources(
 
 /** One-shot, non-destructive: refuses when offerings already exist. */
 export async function importLegacyToOfferings(talentProfileId: string): Promise<LoadResult> {
+  await requireNotImpersonating();
   try {
     const auth = await authorizeForTalent(talentProfileId);
     if (!auth.ok) return { ok: false, error: auth.error };

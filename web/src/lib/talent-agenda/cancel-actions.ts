@@ -6,6 +6,7 @@
 
 "use server";
 
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
@@ -65,6 +66,7 @@ export async function cancelBookingWithRefund(input: {
   reason?: string;
   operationKey?: string;
 }): Promise<CancelWithRefundResult> {
+  await requireNotImpersonating();
   const own = await requireOwnBooking(input.bookingId);
   if (!own.ok) return own;
 

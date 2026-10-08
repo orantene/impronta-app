@@ -108,6 +108,7 @@ import type {
 } from "@/lib/inquiry/guest-chat-contract";
 import { seedTalentOfferingDraft } from "@/lib/messaging/seed-talent-offering-draft";
 import { confirmsByHandCopy } from "@/lib/scheduling/talent-booking-mode";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const MAX_BODY = 10_000;
 
@@ -649,6 +650,7 @@ function notAcceptingMessage(locale: string | null | undefined): string {
 export async function startGuestChatInquiry(
   input: StartGuestChatInput,
 ): Promise<StartGuestChatResult> {
+  await requireNotImpersonating();
   // L0 — honeypot: a populated value ⇒ silent spam reject. We return a generic
   // forbidden so a bot can't distinguish honeypot rejection from a real error.
   if (input.honeypot && input.honeypot.trim().length > 0) {
@@ -1213,6 +1215,8 @@ export async function attachOfferingToGuestInquiry(input: {
     kind: string;
   };
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   if (!input?.inquiryId || !input.offering?.offering_id) {
     return { ok: false, error: "Missing conversation or service." };
   }
@@ -1249,6 +1253,7 @@ export async function attachOfferingToGuestInquiry(input: {
 export async function sendGuestMessageAction(
   input: SendGuestMessageInput,
 ): Promise<SendGuestMessageResult> {
+  await requireNotImpersonating();
   // L0 — honeypot.
   if (input.honeypot && input.honeypot.trim().length > 0) {
     return fail("forbidden", "Unable to send your message.");
@@ -1578,6 +1583,7 @@ export async function checkGuestClaimEmail(
 export async function sendGuestClaimToEmail(
   input: AddGuestClaimEmailInput,
 ): Promise<AddGuestClaimEmailResult> {
+  await requireNotImpersonating();
   const email = input.email?.trim() ?? "";
   if (!email) {
     return fail("validation_failed", "Enter an email address.", { missingFields: ["email"] });
@@ -1973,6 +1979,7 @@ export async function getActiveGuestInquiry(input: {
 export async function ensureGuestChatInquiry(
   input: EnsureGuestInquiryInput,
 ): Promise<EnsureGuestInquiryResult> {
+  await requireNotImpersonating();
   try {
     const guest = await resolveGuestContext();
     if (!guest.ok) return guest.failure;

@@ -1,5 +1,6 @@
 "use server";
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { isTalentWebsiteSettingsEnabled } from "@/lib/access/talent-website-settings";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -58,6 +59,8 @@ export async function loadSiteSwitchesAction(): Promise<SiteSwitchesSnapshot | n
 export async function saveSiteSwitchesAction(
   input: TalentSiteSwitches,
 ): Promise<{ ok: true; switches: TalentSiteSwitches } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const scope = await requireTalentSelf();
   if (!scope.ok) return { ok: false, error: "forbidden" };
   if (!isTalentWebsiteSettingsEnabled(scope.talentProfile.id)) return { ok: false, error: "disabled" };

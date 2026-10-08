@@ -5,6 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { revalidatePath } from "next/cache";
 import type { ServerActionResult } from "./result";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * F.7 — Talent take-over of an agency-managed profile.
@@ -35,6 +36,7 @@ export type TakeoverResult = ServerActionResult<{
 export async function takeOverOwnProfile(
   talentProfileId: string,
 ): Promise<TakeoverResult> {
+  await requireNotImpersonating();
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, error: "Service unavailable.", reason: "unexpected" };
@@ -137,6 +139,7 @@ export async function takeOverOwnProfile(
 export async function submitProfileForReview(
   talentProfileId: string,
 ): Promise<ServerActionResult> {
+  await requireNotImpersonating();
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, error: "Service unavailable.", reason: "unexpected" };

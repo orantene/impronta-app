@@ -24,6 +24,7 @@ import { revalidatePath } from "next/cache";
 import { addTalentToRoster } from "@/lib/inquiry/inquiry-engine";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type AdminAddSuggestedTalentResult =
   | { ok: true }
@@ -37,6 +38,8 @@ export async function adminAddSuggestedTalent(args: {
   /** Optional — when set, this message's card_payload.status flips to "added". */
   messageId?: string | null;
 }): Promise<AdminAddSuggestedTalentResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const inquiryId = args.inquiryId?.trim() ?? "";
   const talentProfileId = args.talentProfileId?.trim() ?? "";
   const requirementGroupId = args.requirementGroupId?.trim() || null;

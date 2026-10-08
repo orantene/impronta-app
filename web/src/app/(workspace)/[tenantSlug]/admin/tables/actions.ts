@@ -22,6 +22,7 @@ import {
   visitSplitCheck as splitVisitCheck,
   visitTransfer as transferVisit,
 } from "@/lib/visits/check-ops";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
@@ -38,6 +39,7 @@ async function staff() {
 }
 
 export async function tablesOpenVisit(spaceId: string, serviceKind?: "table" | "tab") {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   if (!uuid.safeParse(spaceId).success) return { ok: false as const, reason: "invalid" as const };
@@ -79,6 +81,7 @@ export async function tablesSeatParty(input: {
   serviceKind?: "table" | "tab";
   admissionId?: string;
 }): Promise<SeatPartyResult> {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = seatPartyInput.safeParse(input);
@@ -108,6 +111,7 @@ export async function tablesSeatParty(input: {
 }
 
 export async function tablesCloseVisit(input: { visitId: string; expectedVersion?: number }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ visitId: uuid, expectedVersion: z.number().int().optional() }).safeParse(input);
@@ -117,6 +121,7 @@ export async function tablesCloseVisit(input: { visitId: string; expectedVersion
 }
 
 export async function tablesMoveVisit(input: { visitId: string; spaceId: string; expectedVersion?: number }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -129,6 +134,7 @@ export async function tablesMoveVisit(input: { visitId: string; spaceId: string;
 
 /** T24 — clear "Needs reset" once a table has actually been bussed. */
 export async function tablesResetTable(spaceId: string) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   if (!uuid.safeParse(spaceId).success) return { ok: false as const, reason: "invalid" as const };
@@ -142,6 +148,7 @@ export async function visitTransfer(input: {
   operationKey: string;
   expectedVersion: number;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({
@@ -171,6 +178,7 @@ export async function visitSplitCheck(input: {
   lineIds: string[];
   operationKey: string;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({
@@ -187,6 +195,7 @@ export async function visitMergeChecks(input: {
   intoVisitId: string;
   operationKey: string;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({
@@ -199,6 +208,7 @@ export async function visitMergeChecks(input: {
 }
 
 export async function visitChangeServer(input: { visitId: string; userId: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ visitId: uuid, userId: uuid }).safeParse(input);

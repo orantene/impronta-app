@@ -21,6 +21,7 @@ import {
   type Essentials,
 } from "@/lib/onboarding/essentials";
 import type { OnboardingChoice } from "@/lib/onboarding/choice";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type SetupPayload = {
   choice: OnboardingChoice;
@@ -71,6 +72,7 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
 }
 
 export async function saveOnboardingSetup(input: { essentials: unknown; locale?: "en" | "es" }): Promise<SetupSaveResult> {
+  await requireNotImpersonating();
   const got = await owned();
   if ("error" in got && got.error) return { ok: false, code: got.error };
   const { brief, state } = got as Exclude<typeof got, { error: string }>;

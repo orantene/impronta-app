@@ -10,6 +10,7 @@ import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-us
 import { completeInquiryDraft } from "@/lib/ai/inquiry-draft-model";
 import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const bodySchema = z.object({
   action: z.enum(["generate", "polish"]),
@@ -26,6 +27,8 @@ const bodySchema = z.object({
  * Phase 13 — LLM-assisted inquiry message drafting. Does not persist; client inserts into the brief field.
  */
 export async function POST(request: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   try {
     const publicSettings = await getPublicSettings();
     if (!publicSettings.directoryPublic) {

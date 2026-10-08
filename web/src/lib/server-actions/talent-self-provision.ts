@@ -19,6 +19,7 @@
 // On roster insert failure we roll back the orphaned talent_profiles row.
 // ============================================================================
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
@@ -131,6 +132,8 @@ export async function provisionTalentProfileSelf(params: {
   tenantSlug: string;
   displayName: string;
 }): Promise<ProvisionTalentProfileSelfResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   // ── Auth ──────────────────────────────────────────────────────────────────
   const session = await getCachedActorSession();
   if (!session.supabase || !session.user) {

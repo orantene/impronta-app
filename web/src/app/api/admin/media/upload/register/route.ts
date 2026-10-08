@@ -35,6 +35,7 @@ import {
   validateMediaUploadSize,
 } from "@/lib/site-admin/media/validation";
 import { workspaceOwnedStamp } from "@/lib/media/ownership";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,6 +55,8 @@ function resolveKindPurpose(kind: Kind): string {
 }
 
 export async function POST(req: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   const auth = await requireSession();
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });

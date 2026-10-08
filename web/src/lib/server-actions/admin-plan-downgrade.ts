@@ -39,6 +39,7 @@ import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { trackPlanChanged } from "@/lib/analytics/conversion-events";
 import { recordCommerceAudit, COMMERCE_AUDIT } from "@/lib/billing/commerce-audit";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const PLAN_TIER = z.enum(["free", "studio", "agency", "network"]);
 
@@ -186,6 +187,7 @@ export async function commitPlanDowngrade(input: {
   target_tier: "free" | "studio" | "agency" | "network";
   talent_keep_ids: string[];
 }): Promise<CommitDowngradeResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
@@ -296,6 +298,8 @@ const restoreSchema = z.object({
 export async function restoreFromDowngradeArchive(
   input: { event_id?: string } = {},
 ): Promise<{ ok: true; restored_count: number } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;

@@ -36,6 +36,7 @@ import { ensureBrief, loadBrief } from "@/lib/tulala/brief-store.server";
 import { factLabel } from "@/lib/tulala/fact-keys";
 import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 import { importFromUrl } from "@/lib/tulala/url-import.server";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const BodySchema = z.object({
   // 2048 is the practical URL ceiling; the guard re-checks it.
@@ -44,6 +45,8 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: Request): Promise<Response> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   if (!isTulalaKvConfigured()) {
     return NextResponse.json({ error: "Unavailable right now." }, { status: 503 });
   }

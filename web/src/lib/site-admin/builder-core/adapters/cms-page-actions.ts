@@ -29,6 +29,7 @@ import {
   writeCmsFreeformRevision,
 } from "./cms-freeform-publish-core";
 import type { CmsFreeformPageRow } from "./cms-page-adapter-core";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // STYLE-1 — the style registry columns are selected/written through a graceful
 // path: a pre-migration DB (column absent) would ERROR the whole PostgREST query
@@ -106,6 +107,8 @@ export async function saveCmsFreeformPage(input: {
     style_presets?: unknown;
   };
 }): Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -201,6 +204,8 @@ export async function publishCmsFreeformPage(input: {
   | { ok: true; publishedAt: string; updatedAt: string }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -244,6 +249,8 @@ export async function restoreCmsFreeformRevisionAction(input: {
   pageId: string;
   revisionId: string;
 }): Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);

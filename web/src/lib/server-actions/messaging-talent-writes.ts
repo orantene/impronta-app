@@ -15,6 +15,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /** The stored quote line is written in the talent's language (e2e: "Quote:" leaked English). */
 function quoteWord(locale: string): string {
@@ -55,6 +56,7 @@ export async function messagingTalentStartConversation(input: {
   quoteOfferingId?: string | null;
   quoteNote?: string | null;
 }) {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       name: z.string().trim().min(1).max(200),
@@ -148,6 +150,7 @@ export async function messagingTalentStartConversation(input: {
 }
 
 export async function messagingTalentPrivateNote(input: { inquiryId: string; body: string }) {
+  await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid, body: z.string().trim().min(1).max(8000) }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const gate = await ownedSeller(parsed.data.inquiryId);
@@ -166,6 +169,7 @@ export async function messagingTalentSetState(input: {
   expectedVersion: number;
   state: "resolved" | "needs_reply";
 }) {
+  await requireNotImpersonating();
   const parsed = z
     .object({ inquiryId: uuid, expectedVersion: z.number().int().nonnegative(), state: z.enum(["resolved", "needs_reply"]) })
     .safeParse(input);

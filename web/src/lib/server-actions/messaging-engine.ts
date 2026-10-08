@@ -29,6 +29,7 @@ import { searchMessaging } from "@/lib/messaging/search";
 import { loadMessagingThread } from "@/lib/messaging/thread";
 import { issueVisitorCode, verifyThreadToken } from "@/lib/messaging/thread-token";
 import type { ActionResult, CardKind, ConversationHistoryEntry, InboxFilter, MessagingChannel, RecordKind } from "@/lib/messaging/types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 const version = z.number().int().nonnegative();
@@ -121,6 +122,7 @@ export async function messagingLoadEssentials(input: { inquiryId: string }) {
 }
 
 export async function messagingRename(input: { inquiryId: string; name: string; expectedVersion: number }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -147,6 +149,7 @@ export async function loadConversationHistory(
 }
 
 export async function messagingMerge(input: { duplicateInquiryId: string; intoInquiryId: string; expectedVersion: number }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -168,6 +171,7 @@ export async function messagingReply(input: {
   expectedVersion: number;
   channel?: MessagingChannel;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -209,6 +213,7 @@ export async function messagingReply(input: {
 }
 
 export async function messagingInternalNote(input: { inquiryId: string; body: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, body: z.string().trim().min(1).max(8000) }).safeParse(input);
@@ -233,6 +238,7 @@ export async function messagingAssignOwner(input: {
   ownerUserId: string | null;
   expectedVersion: number;
 }) {
+  await requireNotImpersonating();
   return assignOwnerCore(input, false);
 }
 
@@ -268,6 +274,7 @@ export async function messagingResolve(input: { inquiryId: string; expectedVersi
 }
 
 export async function messagingReopen(input: { inquiryId: string; expectedVersion: number }) {
+  await requireNotImpersonating();
   return setConversationState(input, "needs_reply");
 }
 
@@ -276,6 +283,7 @@ export async function messagingHandOver(input: {
   ownerUserId: string;
   expectedVersion: number;
 }) {
+  await requireNotImpersonating();
   const assigned = await assignOwnerCore(input, true);
   if (!assigned.ok) return assigned;
   return { ok: true as const };
@@ -308,6 +316,7 @@ export async function messagingLinkRecord(input: {
   recordId: string;
   expectedVersion: number;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -334,6 +343,7 @@ export async function messagingUnlinkRecord(input: {
   linkId: string;
   expectedVersion: number;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, linkId: uuid, expectedVersion: version }).safeParse(input);
@@ -369,6 +379,7 @@ export async function messagingSendOptions(input: {
   payload: Record<string, unknown>;
   addToDraft?: { orderId: string; offeringId: string; units: number; expectedVersion: number };
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, kind: z.string().min(3) }).safeParse(input);
@@ -399,6 +410,7 @@ export async function messagingSendOptions(input: {
 }
 
 export async function messagingEnsureSharedDraft(input: { inquiryId: string; currency?: string }) {
+  await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid, currency: z.string().length(3).optional() }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const g = await messagingInquiryManager(parsed.data.inquiryId);
@@ -435,6 +447,7 @@ export async function messagingRequestPayment(input: {
   publicOrigin: string;
   expectedVersion: number;
 }) {
+  await requireNotImpersonating();
   const parsed = z
     .object({
       inquiryId: uuid,
@@ -572,6 +585,7 @@ export async function messagingRequestPayment(input: {
 }
 
 export async function messagingCloseLost(input: { inquiryId: string; reason: string; expectedVersion: number }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -601,6 +615,7 @@ export async function messagingScheduleReminder(input: {
   recordKind?: RecordKind | null;
   recordId?: string | null;
 }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z
@@ -628,6 +643,7 @@ export async function messagingScheduleReminder(input: {
 }
 
 export async function messagingCancelReminder(input: { reminderId: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ reminderId: uuid }).safeParse(input);
@@ -647,6 +663,7 @@ export async function messagingSearch(input: { query: string }) {
 }
 
 export async function messagingRecoverSnapshot(input: { snapshotId: string; orderId: string }) {
+  await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
   const parsed = z.object({ snapshotId: uuid, orderId: uuid }).safeParse(input);
@@ -659,6 +676,7 @@ export async function messagingRecoverSnapshot(input: { snapshotId: string; orde
 }
 
 export async function messagingSendOffer(input: { inquiryId: string; offerId: string }) {
+  await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid, offerId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const g = await messagingInquiryManager(parsed.data.inquiryId);
@@ -704,6 +722,7 @@ export async function messagingGuestDraftAdd(input: {
   units: number;
   expectedVersion: number;
 }) {
+  await requireNotImpersonating();
   const token = verifyThreadToken(input.token);
   if (!token.ok) return fail("not_allowed");
   const admin = createServiceRoleClient();
@@ -729,6 +748,7 @@ export async function messagingGuestDraftAdd(input: {
 }
 
 export async function messagingIssueVisitorCode(input: { token: string; phone: string }) {
+  await requireNotImpersonating();
   const token = verifyThreadToken(input.token);
   if (!token.ok) return fail("not_allowed");
   const admin = createServiceRoleClient();

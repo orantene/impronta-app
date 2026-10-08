@@ -17,6 +17,7 @@
  * Returns flat ActionState objects compatible with React's useActionState.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -163,6 +164,8 @@ export async function saveDraftAction(
   prevState: InquiryIntentActionState,
   formData: FormData,
 ): Promise<InquiryIntentActionState> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { kind: "error", message: readOnly.error };
   const tenantSlug = String(formData.get("tenantSlug") ?? "").trim();
   if (!tenantSlug) return { kind: "error", message: "Missing tenant slug." };
 
@@ -209,6 +212,8 @@ export async function submitDraftAction(
   _prev: InquiryIntentActionState,
   formData: FormData,
 ): Promise<InquiryIntentActionState> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { kind: "error", message: readOnly.error };
   const tenantSlug = String(formData.get("tenantSlug") ?? "").trim();
   const draftId = String(formData.get("draftId") ?? "").trim();
   if (!tenantSlug) return { kind: "error", message: "Missing tenant slug." };
@@ -234,6 +239,8 @@ export async function submitInquiryNowAction(
   _prev: InquiryIntentActionState,
   formData: FormData,
 ): Promise<InquiryIntentActionState> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { kind: "error", message: readOnly.error };
   const tenantSlug = String(formData.get("tenantSlug") ?? "").trim();
   if (!tenantSlug) return { kind: "error", message: "Missing tenant slug." };
 
@@ -481,6 +488,8 @@ export async function createInquiryAttachmentUploadUrlAction(input: {
   mimeType: string;
   byteSize: number;
 }): Promise<InquiryAttachmentActionResult<{ uploadUrl: string; storagePath: string }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const ctx = await resolveSubmitContext(input.tenantSlug);
   if (!ctx.ok) return { ok: false, error: "Could not resolve workspace." };
 
@@ -536,6 +545,8 @@ export async function registerInquiryAttachmentAction(input: {
   storagePath: string;
   filename: string;
 }): Promise<InquiryAttachmentActionResult<{ filename: string }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const ctx = await resolveSubmitContext(input.tenantSlug);
   if (!ctx.ok) return { ok: false, error: "Could not resolve workspace." };
 
