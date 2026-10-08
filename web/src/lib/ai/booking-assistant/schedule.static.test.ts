@@ -17,7 +17,11 @@ test("guest-chat-actions schedules assistant; does not await maybeRun", () => {
   const src = readFileSync(ACTIONS, "utf8");
   assert.match(src, /scheduleBookingAssistantTurn/);
   assert.doesNotMatch(src, /await\s+maybeRunBookingAssistantTurn/);
-  assert.doesNotMatch(src, /from\s+"@\/lib\/ai\/booking-assistant\/turn\.server".*maybeRunBookingAssistantTurn/s);
+  // Avoid /s (dotAll): tsc target < es2018 rejects that flag in this file.
+  assert.doesNotMatch(
+    src,
+    /from\s+"@\/lib\/ai\/booking-assistant\/turn\.server"[\s\S]*maybeRunBookingAssistantTurn/,
+  );
 });
 
 test("scheduleBookingAssistantTurn uses next/server after()", () => {
