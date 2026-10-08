@@ -439,6 +439,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:jorgelina-content
 
+      - name: tests — English content fill + ticker source scripts (TUL-15)
+        if: ${{ !cancelled() }}
+        run: npm run test:en-content-fill
+
       - name: tests — QA test-talent sync + design drift (TUL-135)
         if: ${{ !cancelled() }}
         run: npm run test:sync-test-talent
