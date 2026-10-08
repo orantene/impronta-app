@@ -41,7 +41,6 @@
     "deploy:promote": "node scripts/promote-and-alias.mjs",
     "deploy:check": "node scripts/promote-and-alias.mjs --check",
     "deploy:alias": "node scripts/promote-and-alias.mjs --alias-only",
-    "qa:release-theme-i18n": "NODE_PATH=scripts/demo-talents/stubs NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --tsconfig scripts/demo-talents/tsconfig.json scripts/release-theme-i18n-overlay.mts",
     "qa:release-theme-cta": "NODE_PATH=scripts/demo-talents/stubs NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --tsconfig scripts/demo-talents/tsconfig.json scripts/release-theme-patch-cta.mts",
     "test:release-theme-i18n": "NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test scripts/release-theme-i18n-plan.test.ts",
     "test:release-theme-cta": "NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test scripts/release-theme-cta-plan.test.ts",
