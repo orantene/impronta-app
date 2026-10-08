@@ -48,37 +48,37 @@ test("itemsLabelForPreset: resolves through copy, falls back to the default 'Ite
   assert.equal(itemsLabelForPreset("custom", COPY), "Order items");
 });
 
-test("moneySummary: total/paid/balance in USD, deposit omitted when the record has no deposit rule", () => {
-  const none = moneySummary({ totalCents: 380000, paidCents: 0 });
-  assert.equal(none.totalLabel, "$3,800");
-  assert.equal(none.paidLabel, "$0");
-  assert.equal(none.balanceLabel, "$3,800");
+test("moneySummary: total/paid/balance in the record currency, deposit omitted when the record has no deposit rule", () => {
+  const none = moneySummary({ totalCents: 380000, paidCents: 0, currencyCode: "USD" });
+  assert.equal(none.totalLabel, "$3,800 USD");
+  assert.equal(none.paidLabel, "$0 USD");
+  assert.equal(none.balanceLabel, "$3,800 USD");
   assert.equal(none.balanceDueCents, 380000);
   assert.equal(none.depositLabel, null);
   assert.equal(none.hasTotal, true);
 
-  const withDeposit = moneySummary({ totalCents: 380000, paidCents: 95000, depositCents: 95000 });
-  assert.equal(withDeposit.depositLabel, "$950");
-  assert.equal(withDeposit.paidLabel, "$950");
-  assert.equal(withDeposit.balanceLabel, "$2,850");
+  const withDeposit = moneySummary({ totalCents: 380000, paidCents: 95000, depositCents: 95000, currencyCode: "USD" });
+  assert.equal(withDeposit.depositLabel, "$950 USD");
+  assert.equal(withDeposit.paidLabel, "$950 USD");
+  assert.equal(withDeposit.balanceLabel, "$2,850 USD");
   assert.equal(withDeposit.balanceDueCents, 285000);
 });
 
 test("moneySummary: paid never exceeds total in the balance (clamped, never negative)", () => {
-  const overpaid = moneySummary({ totalCents: 1000, paidCents: 5000 });
+  const overpaid = moneySummary({ totalCents: 1000, paidCents: 5000, currencyCode: "USD" });
   assert.equal(overpaid.balanceDueCents, 0);
-  assert.equal(overpaid.balanceLabel, "$0");
+  assert.equal(overpaid.balanceLabel, "$0 USD");
 });
 
 test("moneySummary: no total (null) is 'no charges yet', not a $0 total", () => {
-  const none = moneySummary({ totalCents: null, paidCents: 0 });
+  const none = moneySummary({ totalCents: null, paidCents: 0, currencyCode: "USD" });
   assert.equal(none.hasTotal, false);
 });
 
 test("summaryAmountLabel: blank when there is no total; 'total · paid' line otherwise", () => {
   assert.equal(summaryAmountLabel(null), "");
-  assert.equal(summaryAmountLabel(moneySummary({ totalCents: null, paidCents: 0 })), "");
-  assert.equal(summaryAmountLabel(moneySummary({ totalCents: 380000, paidCents: 0 })), "$3,800 · $0 paid");
+  assert.equal(summaryAmountLabel(moneySummary({ totalCents: null, paidCents: 0, currencyCode: "USD" })), "");
+  assert.equal(summaryAmountLabel(moneySummary({ totalCents: 380000, paidCents: 0, currencyCode: "USD" })), "$3,800 USD · $0 USD paid");
 });
 
 test("mainRecordChip: the first live chip, or null", () => {
@@ -113,43 +113,60 @@ test("summaryFor: identified client with a task and a chip draws Next/Main/Amoun
   };
   const chip = { kind: "offer" as const, recordId: "iq-512", label: "Offer v2", paymentState: null, fulfilmentState: null };
   const tasks = [{ key: "reply", title: "Reply to the client", why: "The client is waiting.", primary: true }];
-  const money = moneySummary({ totalCents: 380000, paidCents: 0 });
+  const money = moneySummary({ totalCents: 380000, paidCents: 0, currencyCode: "USD" });
   const vm = summaryFor({ essentials, tasks, chips: [chip], copy: COPY, money });
   assert.equal(vm.isVisitor, false);
   assert.equal(vm.name, "Valentina Ruiz");
   assert.equal(vm.phone, "+52 998 123 4411");
   assert.equal(vm.next, "Reply to the client");
   assert.equal(vm.main, "Offer v2");
-  assert.equal(vm.amount, "$3,800 · $0 paid");
+  assert.equal(vm.amount, "$3,800 USD · $0 USD paid");
 });
 
 test("clientHistoryLabel: omitted (null), never a fake zero, when the rollup is not readable", () => {
   assert.equal(clientHistoryLabel(null, COPY.panel.historyLine), null);
   assert.equal(clientHistoryLabel(undefined, COPY.panel.historyLine), null);
-  assert.equal(clientHistoryLabel({ pastBookings: 0, totalSpendCents: 0 }, COPY.panel.historyLine), null);
+  assert.equal(clientHistoryLabel({ pastBookings: 0, totalSpendCents: 0, currencyCode: "USD" }, COPY.panel.historyLine), null);
 });
 
 test("clientHistoryLabel: 'N past bookings · $X' when a rollup is present", () => {
-  const label = clientHistoryLabel({ pastBookings: 3, totalSpendCents: 45000 }, COPY.panel.historyLine);
-  assert.equal(label, "3 past bookings · $450");
+  const label = clientHistoryLabel({ pastBookings: 3, totalSpendCents: 45000, currencyCode: "USD" }, COPY.panel.historyLine);
+  assert.equal(label, "3 past bookings · $450 USD");
 });
 
 test("itemFlagsFor: proposedBy/confirmed pass through; 'system' collapses to null (client/staff only, board flags)", () => {
-  const flags = itemFlagsFor({ proposedBy: "client", proposedByName: "Marco", confirmedAt: "2026-09-17T10:00:00Z", drift: null });
+  const flags = itemFlagsFor({ currencyCode: "USD", proposedBy: "client", proposedByName: "Marco", confirmedAt: "2026-09-17T10:00:00Z", drift: null });
   assert.equal(flags.proposedBy, "client");
   assert.equal(flags.proposedByName, "Marco");
   assert.equal(flags.confirmed, true);
   assert.equal(flags.priceSnapshot, null);
 
-  const system = itemFlagsFor({ proposedBy: "system", proposedByName: null, confirmedAt: null, drift: null });
+  const system = itemFlagsFor({ currencyCode: "USD", proposedBy: "system", proposedByName: null, confirmedAt: null, drift: null });
   assert.equal(system.proposedBy, null);
   assert.equal(system.confirmed, false);
 });
 
 test("itemFlagsFor: a drift stamps the catalog-now price; no drift leaves priceSnapshot null", () => {
-  const drifted = itemFlagsFor({ proposedBy: "staff", proposedByName: null, confirmedAt: null, drift: { drifted: true, catalogNowCents: 1250 } });
-  assert.equal(drifted.priceSnapshot, "$12.50");
+  const drifted = itemFlagsFor({ currencyCode: "USD", proposedBy: "staff", proposedByName: null, confirmedAt: null, drift: { drifted: true, catalogNowCents: 1250 } });
+  assert.equal(drifted.priceSnapshot, "$12.50 USD");
 
-  const flat = itemFlagsFor({ proposedBy: "staff", proposedByName: null, confirmedAt: null, drift: { drifted: false, catalogNowCents: 1200 } });
+  const flat = itemFlagsFor({ currencyCode: "USD", proposedBy: "staff", proposedByName: null, confirmedAt: null, drift: { drifted: false, catalogNowCents: 1200 } });
   assert.equal(flat.priceSnapshot, null);
+});
+
+test("TUL-281: an MXN record shows '$850 MXN' in every Money label, summary line, history and drift hint", () => {
+  const m = moneySummary({ totalCents: 85000, paidCents: 0, depositCents: 25500, currencyCode: "MXN" });
+  assert.equal(m.totalLabel, "$850 MXN");
+  assert.equal(m.depositLabel, "$255 MXN");
+  assert.equal(m.paidLabel, "$0 MXN");
+  assert.equal(m.balanceLabel, "$850 MXN");
+  assert.equal(summaryAmountLabel(m), "$850 MXN · $0 MXN paid");
+  assert.equal(clientHistoryLabel({ pastBookings: 2, totalSpendCents: 85000, currencyCode: "MXN" }, COPY.panel.historyLine), "2 past bookings · $850 MXN");
+  const drift = itemFlagsFor({ currencyCode: "MXN", proposedBy: "staff", proposedByName: null, confirmedAt: null, drift: { drifted: true, catalogNowCents: 85000 } });
+  assert.equal(drift.priceSnapshot, "$850 MXN");
+});
+
+test("TUL-281: an unknown or blank record currency falls back to the platform currency, code still shown", () => {
+  assert.equal(moneySummary({ totalCents: 85000, paidCents: 0, currencyCode: "" }).totalLabel, "$850 USD");
+  assert.equal(moneySummary({ totalCents: 85000, paidCents: 0, currencyCode: "??" }).totalLabel, "$850 USD");
 });

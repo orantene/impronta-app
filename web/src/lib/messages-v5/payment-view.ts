@@ -16,6 +16,8 @@ export type OfferDepositRule = {
   readonly depositPct: number | null;
   readonly depositAmountCents: number | null;
   readonly totalClientPrice: number;
+  /** The offer's ISO currency; every derived amount is in it. */
+  readonly currencyCode: string;
 };
 
 /** The inquiry's own accepted offer, or null. `loadInquiryOffers` already
@@ -73,7 +75,7 @@ export function amountOptions(offer: OfferDepositRule | null): readonly AmountOp
   return options;
 }
 
-/** "Other" field: dollars typed by staff to cents. Null on anything that is
+/** "Other" field: major units typed by staff (in the record's currency) to minor units. Null on anything that is
  * not a real positive amount (blank, zero, negative, letters) so the sheet
  * can disable Send instead of minting a link for $0. */
 export function dollarsToCents(input: string): number | null {

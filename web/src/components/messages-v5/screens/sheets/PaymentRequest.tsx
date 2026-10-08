@@ -52,6 +52,7 @@ import {
   selectAcceptedOffer,
   type AmountKind,
 } from "@/lib/messages-v5/payment-view";
+import { recordCurrency } from "@/lib/messages-v5/record-money";
 import { messagingRequestPayment } from "@/lib/server-actions/messaging-engine";
 import { messagingRecordOutsidePayment } from "@/lib/server-actions/messaging-money-actions";
 import { messagingLoadOffers } from "@/lib/server-actions/messaging-sheets";
@@ -63,7 +64,7 @@ import {
 import { registerActionSheet, type ActionSheetProps } from "../sheet-registry";
 import { amountCentsForKind, PaymentRequestView, type OutsideMethod, type PaymentHow, type PaymentRequestPhase } from "./PaymentRequest.view";
 
-type OfferForDeposit = { status: string; depositPct: number | null; depositAmountCents: number | null; totalClientPrice: number };
+type OfferForDeposit = { status: string; depositPct: number | null; depositAmountCents: number | null; totalClientPrice: number; currencyCode: string };
 
 export function PaymentRequestSheet(props: ActionSheetProps) {
   const { open, onClose, ctx, copy, variant } = props;
@@ -86,7 +87,7 @@ export function PaymentRequestSheet(props: ActionSheetProps) {
     void messagingLoadOffers({ inquiryId }).then((result) => {
       if (!alive || !result.ok) return;
       const accepted = selectAcceptedOffer(result.offers);
-      setOffer(accepted ? { status: accepted.status, depositPct: accepted.depositPct, depositAmountCents: accepted.depositAmountCents, totalClientPrice: accepted.totalClientPrice } : null);
+      setOffer(accepted ? { status: accepted.status, depositPct: accepted.depositPct, depositAmountCents: accepted.depositAmountCents, totalClientPrice: accepted.totalClientPrice, currencyCode: accepted.currencyCode } : null);
     });
     return () => {
       alive = false;
@@ -193,6 +194,7 @@ export function PaymentRequestSheet(props: ActionSheetProps) {
       selectedTargetId={selectedTarget?.recordId ?? null}
       onSelectTarget={selectTarget}
       canMintLink={canMintLink}
+      currencyCode={recordCurrency(offer?.currencyCode)}
       amountOptions={options}
       amountKind={amountKind}
       onSelectAmountKind={setAmountKind}

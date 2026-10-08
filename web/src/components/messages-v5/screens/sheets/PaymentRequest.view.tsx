@@ -12,8 +12,8 @@
  * of importing an engine call itself) while this sheet's wrapper cannot.
  */
 
-import { formatCentsUSD } from "@/lib/bookings/commission";
 import type { MessagingRefusal } from "@/lib/messaging/types";
+import { formatRecordMoney } from "@/lib/messages-v5/record-money";
 import { dollarsToCents, type AmountKind, type AmountOption, type PaymentTargetChip } from "@/lib/messages-v5/payment-view";
 
 import { fill, type KitCopy } from "../../kit/copy";
@@ -48,6 +48,8 @@ export type PaymentRequestViewProps = {
   readonly selectedTargetId: string | null;
   readonly onSelectTarget: (recordId: string) => void;
   readonly canMintLink: boolean;
+  /** The offer's ISO currency; every amount on the sheet is shown in it. */
+  readonly currencyCode: string;
   readonly amountOptions: readonly AmountOption[];
   readonly amountKind: AmountKind;
   readonly onSelectAmountKind: (kind: AmountKind) => void;
@@ -79,6 +81,7 @@ export function PaymentRequestView(props: PaymentRequestViewProps) {
     selectedTargetId,
     onSelectTarget,
     canMintLink,
+    currencyCode,
     amountOptions: options,
     amountKind,
     onSelectAmountKind,
@@ -106,9 +109,9 @@ export function PaymentRequestView(props: PaymentRequestViewProps) {
       : opt.kind === "full"
         ? c.amountFull
         : c.amountOther;
-  const amountSubFor = (opt: AmountOption): string | null => (opt.amountCents != null ? formatCentsUSD(opt.amountCents) : null);
+  const amountSubFor = (opt: AmountOption): string | null => (opt.amountCents != null ? formatRecordMoney(opt.amountCents, currencyCode) : null);
   const pickedAmountCents = amountCentsForKind(amountKind, options, otherAmountInput);
-  const messagePreview = amountKind === "full" ? c.messagePreviewFull : fill(c.messagePreview, { amount: pickedAmountCents != null ? formatCentsUSD(pickedAmountCents) : "" });
+  const messagePreview = amountKind === "full" ? c.messagePreviewFull : fill(c.messagePreview, { amount: pickedAmountCents != null ? formatRecordMoney(pickedAmountCents, currencyCode) : "" });
 
   return (
     <Sheet

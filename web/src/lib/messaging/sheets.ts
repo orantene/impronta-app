@@ -9,6 +9,7 @@
 import { annotateDiffWithEvents, diffDraft, type DraftDiffLine, type DraftSnapshot, type LineEventRow } from "./diff-draft";
 import type { OfferDraftLine, OfferDraftState } from "@/lib/messages-v5/offer-draft";
 import { emptyTerms } from "@/lib/messages-v5/offer-draft";
+import { recordCurrency } from "@/lib/messages-v5/record-money";
 
 type Admin = {
   // Tests inject a fake PostgREST builder.
@@ -143,13 +144,16 @@ export type OfferRow = {
    * deposit rule on this offer. */
   depositPct: number | null;
   depositAmountCents: number | null;
+  /** The offer's own ISO currency (`inquiry_offers.currency_code`); every
+   * amount derived from this row is shown in it (TUL-281). */
+  currencyCode: string;
 };
 
 /** The inquiry's offers, newest first. `draft` can be sent; `sent` can be reminded or revised. */
 export async function loadInquiryOffers(admin: Admin, input: { tenantId: string; inquiryId: string }): Promise<OfferRow[]> {
   const { data, error } = await admin
     .from("inquiry_offers")
-    .select("id, status, version, total_client_price, updated_at, deposit_pct, deposit_amount_cents")
+    .select("id, status, version, total_client_price, updated_at, deposit_pct, deposit_amount_cents, currency_code")
     .eq("tenant_id", input.tenantId)
     .eq("inquiry_id", input.inquiryId)
     .order("created_at", { ascending: false })
@@ -163,6 +167,7 @@ export async function loadInquiryOffers(admin: Admin, input: { tenantId: string;
     updatedAt: String(row.updated_at ?? ""),
     depositPct: row.deposit_pct == null ? null : Number(row.deposit_pct),
     depositAmountCents: row.deposit_amount_cents == null ? null : Number(row.deposit_amount_cents),
+    currencyCode: recordCurrency(row.currency_code as string | null | undefined),
   }));
 }
 

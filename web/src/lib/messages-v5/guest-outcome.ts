@@ -11,6 +11,7 @@
  *               or `change_result` with refundedCents and a Refunded summary
  *                 (not a cancel+refund cancel card)
  */
+import { PLATFORM_FALLBACK_CURRENCY } from "@/lib/inquiry/offer-currency";
 
 export type GuestOutcomeKind = "declined" | "pay_failed" | "refunded";
 
@@ -81,5 +82,5 @@ export function readGuestOutcomeRefundAmount(message: GuestOutcomeMessage): {
   const p = message.payload && typeof message.payload === "object" ? message.payload : {};
   const cents = num(p.refundedCents) ?? num(p.paidCents) ?? num(p.amountCents);
   if (cents == null || cents <= 0) return null;
-  return { cents, currency: str(p.currency) ?? "USD" };
+  return { cents, currency: str(p.currency) ?? PLATFORM_FALLBACK_CURRENCY };
 }
