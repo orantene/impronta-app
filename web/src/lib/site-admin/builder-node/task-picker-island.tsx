@@ -21,7 +21,7 @@ import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { taskNotePrefill } from "@/lib/talent/offering-task-brief";
 
 import { BuilderIconSvg } from "./builder-icon-svg";
-import { detailFor } from "./services-catalog-filter";
+import { detailFor } from "./services-catalog-detail";
 import type { TaskPickerModel } from "./task-picker-recommend";
 
 type Props = {
