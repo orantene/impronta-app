@@ -21,7 +21,8 @@ for (const file of mounts) {
     const src = read(file);
     assert.match(src, /resolveDockViewerIdentityTier/);
     assert.match(src, /dockViewerCtaIdentity/);
-    assert.match(src, /identity=\{identity\}/);
+    // Agency mount uses viewerIdentity — public branding already binds `identity`.
+    assert.match(src, /identity=\{(?:identity|viewerIdentity)\}/);
     assert.match(src, /ctaIdentity=\{ctaIdentity\}/);
     assert.doesNotMatch(src, /ctaIdentity="guest"/);
   });
