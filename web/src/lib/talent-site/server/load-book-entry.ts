@@ -6,9 +6,10 @@ import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 
 /**
  * Where `<site>#book` lands for this talent (TUL-246): reads her public
- * offerings once and lets the pure `resolveBookEntry` decide. Same inputs the
- * guest dock mount uses (public offerings, selling defaults, plan ceiling), so
- * the link and a tap on the service card agree. Fails to the plain inquire entry.
+ * offerings once and lets the pure `resolveBookEntry` decide (sheet for any
+ * bookable; inquire otherwise). Same inputs the guest dock mount uses (public
+ * offerings, selling defaults, plan ceiling), so the link and a tap on the
+ * service card agree. Fails to the plain inquire entry.
  */
 export async function loadBookEntry(input: {
   talentProfileId: string;
