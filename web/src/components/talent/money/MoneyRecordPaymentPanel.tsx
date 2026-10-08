@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { useState, useTransition } from "react";
 
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
@@ -19,14 +20,6 @@ const btnBase =
   "inline-flex h-11 items-center justify-center rounded-full border px-4 font-admin-body text-[13.5px] font-semibold sm:h-9";
 const btnSec = `${btnBase} border-admin-border-soft bg-white text-admin-ink`;
 const btnPri = `${btnBase} border-[var(--tc-action)] bg-[var(--tc-action)] text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-50`;
-
-function money(cents: number, currency: string): string {
-  const amount = Math.round(cents) / 100;
-  return `$${amount.toLocaleString(undefined, {
-    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  })} ${currency}`;
-}
 
 function parseCents(raw: string): number | null {
   const n = Number(raw.replace(/[^0-9.]/g, ""));
@@ -48,7 +41,8 @@ export function MoneyRecordPaymentPanel({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const { t } = useDashboardText();
+  const { t, locale } = useDashboardText();
+  const money = (c: number, cur: string) => formatDashboardMoneyCents(c, cur, locale);
   const [step, setStep] = useState<"form" | "confirm" | "done">("form");
   const [amount, setAmount] = useState(row.amountCents ? String(row.amountCents / 100) : "");
   const [method, setMethod] = useState<ManualPaymentMethod | null>(null);
