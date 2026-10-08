@@ -2008,6 +2008,7 @@
           "wrong_tenant": "Cet enregistrement n'appartient pas a cet espace.",
           "invalid": "Cela ne peut pas etre enregistre.",
           "unavailable": "Impossible de terminer. Reessayez.",
+          "offer_currency_seller_mismatch": "Cette offre est dans une autre devise que celle du vendeur. Changez la devise de l offre pour celle du vendeur et renvoyez la.",
           "not_allowed": "Vous n'êtes pas autorisé à faire cela ici.",
           "not_reschedulable": "Cette réservation ne peut pas être déplacée.",
           "slot_taken": "Ce créneau n'est plus libre."

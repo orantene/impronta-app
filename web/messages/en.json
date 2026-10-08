@@ -13898,6 +13898,7 @@
           "wrong_tenant": "That record is not in this workspace.",
           "invalid": "That cannot be saved.",
           "unavailable": "This could not be completed. Try again.",
+          "offer_currency_seller_mismatch": "This offer is in a different currency than the seller charges in. Change the offer currency to the seller's currency and send it again.",
           "not_allowed": "You are not allowed to do this here.",
           "not_reschedulable": "This booking cannot be moved.",
           "slot_taken": "That time is no longer free."
