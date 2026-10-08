@@ -89,12 +89,14 @@ export async function loadSoloOwnerTalentCurrency(
   tenantId: string,
 ): Promise<string | null> {
   try {
+    // supabase-read-unchecked-ok: a failed read yields null by design (see doc above); the caller falls to the workspace default, then refuses.
     const { data: ag } = await supabase
       .from("agencies")
       .select("workspace_type")
       .eq("id", tenantId)
       .maybeSingle();
     if ((ag as { workspace_type?: string } | null)?.workspace_type !== "talent") return null;
+    // supabase-read-unchecked-ok: a failed read yields no owners, so null; the caller falls to the workspace default, then refuses.
     const { data: owners } = await supabase
       .from("agency_memberships")
       .select("profile_id")
@@ -103,6 +105,7 @@ export async function loadSoloOwnerTalentCurrency(
       .eq("status", "active");
     const ownerIds = (owners ?? []).map((o) => (o as { profile_id: string }).profile_id);
     if (ownerIds.length !== 1) return null;
+    // supabase-read-unchecked-ok: a failed read yields null currency; the caller falls to the workspace default, then refuses.
     const { data: tp } = await supabase
       .from("talent_profiles")
       .select("default_currency")
@@ -124,6 +127,7 @@ export async function loadWorkspaceDefaultCurrency(
   tenantId: string,
 ): Promise<string | null> {
   try {
+    // supabase-read-unchecked-ok: a failed read yields null; createOffer then refuses (never a silent platform currency).
     const { data } = await supabase.from("agencies").select("default_currency").eq("id", tenantId).maybeSingle();
     return normalizeCurrencyCode((data as { default_currency?: string | null } | null)?.default_currency);
   } catch (err) {
