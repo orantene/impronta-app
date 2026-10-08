@@ -199,6 +199,8 @@ export async function appendMessage(input: {
   skipNotify?: boolean;
   asHq?: boolean;
   clientSendKey?: string;
+  /** Extra message metadata, e.g. `{ channel: "email" }` for an inbound email reply. */
+  extraMetadata?: Record<string, unknown>;
 }): Promise<SupportEngineResult<{ message: SupportMessageRow; ticket: SupportTicketRow }>> {
   const admin = adminClient();
   if (!admin) return { ok: false, error: "Not configured." };
@@ -235,7 +237,7 @@ export async function appendMessage(input: {
       body: input.body,
       card_payload: input.cardPayload ?? null,
       ai_meta: input.aiMeta ?? null,
-      metadata: sendKey ? { client_send_key: sendKey } : {},
+      metadata: { ...(input.extraMetadata ?? {}), ...(sendKey ? { client_send_key: sendKey } : {}) },
     })
     .select("*")
     .single();
