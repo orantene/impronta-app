@@ -127,23 +127,10 @@ export interface ProcessorFeeRates {
   tax_on_fee?: number;
 }
 
-/**
- * Canonical processor fee table — ONE source of truth shared by the charge
- * path and the client preview. Mirrors the SQL default on
- * `platform_commission_config.processor_fee_rates`
- * (`20261231300100_commission_processing_pass_through.sql`).
- * Keys are lowercase currency codes; `"default"` is the USD/fallback set.
- */
-export const DEFAULT_PROCESSOR_FEE_RATES: Readonly<Record<string, ProcessorFeeRates>> = {
-  default: { percent: 0.029, fixed_cents: 30, tax_on_fee: 0 },
-  mxn: { percent: 0.036, fixed_cents: 300, tax_on_fee: 0.16 },
-};
-
-/** Resolve rates for a presentment currency from {@link DEFAULT_PROCESSOR_FEE_RATES}. */
-export function processorFeeRatesForCurrency(currency: string): ProcessorFeeRates {
-  const key = (currency ?? "").trim().toLowerCase();
-  return DEFAULT_PROCESSOR_FEE_RATES[key] ?? DEFAULT_PROCESSOR_FEE_RATES.default;
-}
+export {
+  DEFAULT_PROCESSOR_FEE_RATES,
+  processorFeeRatesForCurrency,
+} from "./processor-fee-rates";
 
 /** Default client-only surcharge (bps) in pass_through mode. */
 export const PASS_THROUGH_DEFAULT_TAKE_BPS = 150;
