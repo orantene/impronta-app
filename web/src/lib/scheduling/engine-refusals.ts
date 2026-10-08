@@ -98,6 +98,7 @@ export function schedulingEngineSentences(tr: (key: string) => string): Scheduli
     invalid: tr(SCHEDULING_ENGINE_REFUSALS.invalid),
     not_allowed: tr(SCHEDULING_ENGINE_REFUSALS.not_allowed),
     unavailable: tr(SCHEDULING_ENGINE_REFUSALS.unavailable),
+    offer_currency_seller_mismatch: tr(SCHEDULING_ENGINE_REFUSALS.offer_currency_seller_mismatch),
   };
 }
 
