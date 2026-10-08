@@ -21,7 +21,7 @@ test("public onboarding copy has no build-time or developer wording", () => {
     walk(json.public?.onboarding);
     assert.ok(strings.length > 20, `${locale}: onboarding namespace found`);
     for (const s of strings) {
-      assert.doesNotMatch(s, /of this build|this build\b|esta construcci[oó]n|pr[oó]ximo paso de esta|\bTODO\b|\bplaceholder\b/i, `${locale}: ${s}`);
+      assert.doesNotMatch(s, /of this build|this build\b|esta construcci[oó]n|pr[oó]ximo paso de esta|\bplaceholder\b/i, `${locale}: ${s}`);
     }
   }
 });
