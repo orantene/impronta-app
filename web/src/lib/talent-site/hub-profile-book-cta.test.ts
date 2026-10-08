@@ -60,8 +60,14 @@ test("#book and #talent-ask both open the guest entry", () => {
 
 test("site bridge opens on the INITIAL fragment, not only on hashchange", () => {
   const src = readFileSync(join(process.cwd(), "src/app/%5Ftalent-site/TalentSiteContactBridge.tsx"), "utf8");
-  assert.match(src, /if \(isTalentOpenHash\(window\.location\.hash\)\) \{\s*timers\.push\(setTimeout\(onHash, 0\)/);
-  assert.match(src, /addEventListener\("hashchange", onHash\)/);
+  // TUL-232: the cold load tries the slot deep link first, then a bounded retry once the dock has had
+  // time to mount; TUL-246 later replaces the timers with a queued open-intent (cold-load guard instead).
+  // Either form must open on the INITIAL fragment, never only on hashchange.
+  assert.match(
+    src,
+    /timers\.push\(setTimeout\(\(\) => onHash\(false\), 0\)|coldLoadHandledFor = window\.location\.href;\s*onHash\(false\);/,
+  );
+  assert.match(src, /addEventListener\("hashchange", onHash(Change)?\)/);
   assert.match(src, /<span id="book" data-talent-book-target=""/);
 });
 
