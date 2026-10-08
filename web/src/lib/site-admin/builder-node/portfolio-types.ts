@@ -9,6 +9,8 @@ export type TalentPortfolioShot = {
   alt: string;
   /** Optional caption from asset metadata or editor override. */
   caption?: string | null;
+  /** Non-empty per-language captions (`metadata.caption_i18n`); drives the language hint. */
+  captionI18n?: Readonly<Record<string, string>> | null;
   /** Service this photo shows, when known. */
   offeringId?: string | null;
   offeringTitle?: string | null;

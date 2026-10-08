@@ -9,7 +9,7 @@ import { localizeLanguageName } from "@/lib/i18n/language-names";
 
 type BioMap = Readonly<Record<string, string | null | undefined>> | null | undefined;
 
-const ENGLISH_NAME: Record<string, string> = {
+export const ENGLISH_NAME: Record<string, string> = {
   en: "English", es: "Spanish", fr: "French", it: "Italian", pt: "Portuguese",
   de: "German", nl: "Dutch", ru: "Russian", ar: "Arabic", zh: "Chinese",
   ja: "Japanese", ko: "Korean",
