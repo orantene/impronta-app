@@ -14,6 +14,7 @@ import {
   filterClientsDirectory,
   hasRepeatServices,
   showClientsCountLine,
+  showClientsFilterChip,
   type ClientsFilter,
   type ClientsRowAction,
 } from "@/lib/talent/clients-directory";
@@ -142,7 +143,7 @@ function FilterChips(props: {
       className="flex gap-2 overflow-x-auto pb-1"
       data-clients-filters
     >
-      {FILTERS.filter((f) => f.id !== "follow" || props.showRefill).map((f) => {
+      {FILTERS.filter((f) => showClientsFilterChip(f.id, props.counts, props.showRefill)).map((f) => {
         const selected = props.filter === f.id;
         return (
           <button

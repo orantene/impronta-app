@@ -13,6 +13,7 @@ import {
   isUpcomingClient,
   mapBookingStatusToNext,
   matchesClientsSearch,
+  showClientsFilterChip,
 } from "./clients-directory";
 
 function row(partial: Partial<TalentClientRow> & Pick<TalentClientRow, "id" | "name">): TalentClientRow {
