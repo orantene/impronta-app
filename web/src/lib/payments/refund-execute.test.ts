@@ -9,12 +9,17 @@
 
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import {
   computeRefundEligibility,
   toStripeReason,
   isRefundReason,
   REFUND_REASONS,
+  refundIdempotencyKey,
+  refundIdempotencyAlreadyRefundedCents,
+  readStripeAmountRefundedCents,
 } from "./refund-execute";
 
 const PAID = {
@@ -117,5 +122,89 @@ describe("refund reason mapping", () => {
     assert.equal(isRefundReason(""), false);
     // A raw Stripe reason is not one of ours.
     assert.equal(isRefundReason("requested_by_customer"), false);
+  });
+});
+
+describe("refund idempotency key (TUL-144)", () => {
+  test("folds transaction, cumulative refunded, and this amount", () => {
+    assert.equal(
+      refundIdempotencyKey("txn_1", 0, 30_000),
+      "refund_txn_1_0_30000",
+    );
+  });
+
+  test("a double-click at the same cumulative reuses the key", () => {
+    // Simultaneous double-submit: both see the same live/DB cumulative and
+    // the same amount → Stripe replays one refund.
+    const a = refundIdempotencyKey("txn_1", 0, 30_000);
+    const b = refundIdempotencyKey("txn_1", 0, 30_000);
+    assert.equal(a, b);
+  });
+
+  test("two genuine back-to-back partials get different keys once cumulative moves", () => {
+    // First MX$300 lands at Stripe (amount_refunded=30000) before our webhook
+    // writes the linked refund row. The second attempt anchors on 30000.
+    const first = refundIdempotencyKey("txn_1", 0, 30_000);
+    const second = refundIdempotencyKey("txn_1", 30_000, 30_000);
+    assert.notEqual(first, second);
+    assert.equal(second, "refund_txn_1_30000_30000");
+  });
+
+  test("anchor prefers Stripe when the webhook has not written yet", () => {
+    assert.equal(refundIdempotencyAlreadyRefundedCents(0, 30_000), 30_000);
+  });
+
+  test("anchor prefers DB when Stripe cannot be read", () => {
+    assert.equal(refundIdempotencyAlreadyRefundedCents(12_000, null), 12_000);
+    assert.equal(refundIdempotencyAlreadyRefundedCents(12_000, undefined), 12_000);
+  });
+
+  test("anchor takes the max when both sources disagree", () => {
+    assert.equal(refundIdempotencyAlreadyRefundedCents(30_000, 10_000), 30_000);
+    assert.equal(refundIdempotencyAlreadyRefundedCents(10_000, 30_000), 30_000);
+  });
+
+  test("readStripeAmountRefundedCents uses the expanded latest_charge", async () => {
+    const stripe = {
+      paymentIntents: {
+        retrieve: async () => ({
+          latest_charge: { amount_refunded: 30_000 },
+        }),
+      },
+    };
+    assert.equal(await readStripeAmountRefundedCents(stripe, "pi_1"), 30_000);
+  });
+
+  test("readStripeAmountRefundedCents returns null when the charge was not expanded", async () => {
+    const stripe = {
+      paymentIntents: {
+        retrieve: async () => ({ latest_charge: "ch_unexpanded" }),
+      },
+    };
+    assert.equal(await readStripeAmountRefundedCents(stripe, "pi_1"), null);
+  });
+
+  test("readStripeAmountRefundedCents returns null on Stripe errors (DB fallback)", async () => {
+    const stripe = {
+      paymentIntents: {
+        retrieve: async () => {
+          throw new Error("network");
+        },
+      },
+    };
+    assert.equal(await readStripeAmountRefundedCents(stripe, "pi_1"), null);
+  });
+
+  test("executeBookingRefund anchors the key on live Stripe amount_refunded", () => {
+    // Regression guard: a DB-only key collapses two genuine back-to-back
+    // partials before charge.refunded lands (TUL-144).
+    const src = readFileSync(join(process.cwd(), "src/lib/payments/refund-execute.ts"), "utf8");
+    assert.match(src, /readStripeAmountRefundedCents/);
+    assert.match(src, /refundIdempotencyAlreadyRefundedCents/);
+    assert.match(src, /refundIdempotencyKey\(/);
+    assert.doesNotMatch(
+      src,
+      /idempotencyKey:\s*`refund_\$\{input\.transactionId\}_\$\{eligibility\.alreadyRefundedCents\}_\$\{amountCents\}`/,
+    );
   });
 });
