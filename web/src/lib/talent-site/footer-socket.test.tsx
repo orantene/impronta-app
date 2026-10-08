@@ -223,10 +223,14 @@ test("the Tulala group has Cookies and Refunds, pointing at the platform pages",
     "tulala-refunds",
   ]);
   const cookies = m.tulalaLinks.find((l) => l.key === "tulala-cookies")!;
-  assert.equal(cookies.label, "Cookies");
+  assert.equal(cookies.label, "Política de cookies");
   assert.equal(cookies.href, "https://tulala.digital/es/legal/cookies");
   assert.equal(cookies.external, true);
   assert.match(html(), /data-socket-link="tulala-cookies"/);
+  assert.equal(
+    model({ locale: "en" }).tulalaLinks.find((l) => l.key === "tulala-cookies")!.label,
+    "Cookies",
+  );
   const refunds = m.tulalaLinks.find((l) => l.key === "tulala-refunds")!;
   assert.equal(refunds.label, "Reembolsos");
   assert.equal(refunds.href, "https://tulala.digital/es/legal/refunds");
