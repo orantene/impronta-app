@@ -9,10 +9,12 @@ import assert from "node:assert/strict";
 import {
   FORBIDDEN_MIRROR_KEYS,
   NOTION_MIRROR_PROPERTY_NAMES,
+  allowListedStatus,
   buildNotionMirrorProperties,
   collectPropertyKeys,
   deskLinkForTicket,
   mirrorTitle,
+  redactSubjectPii,
   trimSubject,
 } from "./payload";
 import {
@@ -45,9 +47,23 @@ test("trimSubject collapses whitespace and caps length", () => {
   assert.ok(trimmed.endsWith("…"));
 });
 
+test("redactSubjectPii strips emails and phones", () => {
+  assert.equal(
+    redactSubjectPii("Help me at jane@example.com please"),
+    "Help me at [redacted-email] please",
+  );
+  assert.match(redactSubjectPii("Call +1 (555) 123-4567 now"), /\[redacted-phone\]/);
+});
+
+test("allowListedStatus falls back to open", () => {
+  assert.equal(allowListedStatus("resolved"), "resolved");
+  assert.equal(allowListedStatus("weird"), "open");
+});
+
 test("mirrorTitle uses ticket number and short subject", () => {
   assert.equal(mirrorTitle(7, "Hello"), "#7 · Hello");
   assert.equal(mirrorTitle(7, "   "), "#7");
+  assert.match(mirrorTitle(7, "x user@tulala.digital y"), /\[redacted-email\]/);
 });
 
 test("deskLinkForTicket points at Support Desk host with uuid", () => {
@@ -121,6 +137,15 @@ test("needsNotionMirror: new, never-synced, or stale", () => {
     }),
     false,
   );
+  // Equal timestamps must not re-queue (writeback sets synced_at >= updated_at).
+  assert.equal(
+    needsNotionMirror({
+      notionPageId: "abc",
+      notionSyncedAt: "2026-10-02T00:00:00.000Z",
+      updatedAt: "2026-10-02T00:00:00.000Z",
+    }),
+    false,
+  );
 });
 
 test("pickDueMirrorTickets caps batch", () => {
@@ -179,6 +204,8 @@ test("checkCronBearer requires Bearer prefix and matching secret", () => {
   assert.equal(checkCronBearer("Bearer wrong", "s").authorized, false);
   assert.equal(checkCronBearer("Bearer s", "s").authorized, true);
   assert.equal(checkCronBearer("bearer s", "s").authorized, true);
+  // Length mismatch must not throw (timingSafeEqual requirement).
+  assert.equal(checkCronBearer("Bearer longer-secret", "s").authorized, false);
 });
 
 test("pushTicketToNotion creates when no page id, updates when present", async () => {
@@ -188,6 +215,9 @@ test("pushTicketToNotion creates when no page id, updates when present", async (
     const method = init?.method ?? "GET";
     const body = typeof init?.body === "string" ? init.body : "";
     calls.push({ url, method, body });
+    if (url.includes("/databases/") && url.endsWith("/query")) {
+      return new Response(JSON.stringify({ results: [] }), { status: 200 });
+    }
     if (method === "POST") {
       return new Response(JSON.stringify({ id: "new-page" }), { status: 200 });
     }
@@ -201,10 +231,12 @@ test("pushTicketToNotion creates when no page id, updates when present", async (
   });
   assert.equal(created.ok, true);
   if (created.ok) assert.equal(created.pageId, "new-page");
-  assert.equal(calls[0]?.method, "POST");
-  assert.equal(JSON.parse(calls[0].body).parent.database_id, "db");
-  // Auth header present but we never assert/log the secret value in failures.
-  assert.match(JSON.stringify(calls[0].body), /Ticket number/);
+  // Two queries (desk link + ticket number) then create.
+  assert.equal(calls.filter((c) => c.url.includes("/query")).length, 2);
+  const createCall = calls.find((c) => c.method === "POST" && c.url.endsWith("/pages"));
+  assert.ok(createCall);
+  assert.equal(JSON.parse(createCall.body).parent.database_id, "db");
+  assert.match(JSON.stringify(createCall.body), /Ticket number/);
 
   const updated = await pushTicketToNotion({
     config: { apiKey: "k", databaseId: "db" },
@@ -212,6 +244,56 @@ test("pushTicketToNotion creates when no page id, updates when present", async (
     fetchImpl,
   });
   assert.equal(updated.ok, true);
-  assert.equal(calls[1]?.method, "PATCH");
-  assert.match(calls[1].url, /existing-page/);
+  const patch = calls.find((c) => c.method === "PATCH");
+  assert.ok(patch);
+  assert.match(patch.url, /existing-page/);
+});
+
+test("pushTicketToNotion reuses existing Notion page (idempotent create)", async () => {
+  const calls: Array<{ url: string; method: string }> = [];
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+    calls.push({ url, method });
+    if (url.includes("/query")) {
+      return new Response(
+        JSON.stringify({ results: [{ id: "orphan-page" }] }),
+        { status: 200 },
+      );
+    }
+    return new Response(JSON.stringify({ id: "orphan-page" }), { status: 200 });
+  };
+
+  const result = await pushTicketToNotion({
+    config: { apiKey: "k", databaseId: "db" },
+    ticket: { ...SAMPLE, notionPageId: null, notionSyncedAt: null },
+    fetchImpl,
+  });
+  assert.equal(result.ok, true);
+  if (result.ok) assert.equal(result.pageId, "orphan-page");
+  assert.equal(calls.some((c) => c.method === "PATCH"), true);
+  assert.equal(
+    calls.some((c) => c.method === "POST" && c.url.endsWith("/pages")),
+    false,
+    "must not POST a second page when Desk link already matches",
+  );
+});
+
+test("pushTicketToNotion surfaces 429 Retry-After without continuing create", async () => {
+  const fetchImpl: typeof fetch = async () =>
+    new Response(JSON.stringify({ message: "rate limited" }), {
+      status: 429,
+      headers: { "Retry-After": "7" },
+    });
+
+  const result = await pushTicketToNotion({
+    config: { apiKey: "k", databaseId: "db" },
+    ticket: { ...SAMPLE, notionPageId: null, notionSyncedAt: null },
+    fetchImpl,
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.status, 429);
+    assert.equal(result.retryAfterSec, 7);
+  }
 });
