@@ -222,7 +222,7 @@ export function buildDefaultAppendDeps(): AppendDeps {
 }
 
 /** Reply threading is on only when a Resend receiving domain is configured. */
-export function inboundThreadingEnabled(env: { SUPPORT_INBOUND_DOMAIN?: string | undefined } = process.env): boolean {
+export function inboundThreadingEnabled(env: Readonly<Record<string, string | undefined>> = process.env): boolean {
   return !!env.SUPPORT_INBOUND_DOMAIN?.trim();
 }
 

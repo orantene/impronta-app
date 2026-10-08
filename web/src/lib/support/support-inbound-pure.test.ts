@@ -90,12 +90,13 @@ test("accept: wrong sender rejected, unknown owner rejected", () => {
 
 test("accept: auto-replies and robots ignored", () => {
   const base = { senderEmail: "jane@example.com", ticketOwnerEmail: "jane@example.com" };
-  for (const headers of [
+  const cases: Record<string, string>[] = [
     { "auto-submitted": "auto-replied" },
     { Precedence: "bulk" },
     { precedence: "junk" },
     { "X-Autoreply": "yes" },
-  ]) {
+  ];
+  for (const headers of cases) {
     assert.equal(shouldAcceptInboundReply({ ...base, headers }).accept, false);
   }
   for (const s of ["mailer-daemon@example.com", "no-reply@example.com", "noreply@example.com"]) {
