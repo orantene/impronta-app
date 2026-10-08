@@ -51,6 +51,7 @@ const MyWebsiteCard = dynamic(
 import { PresenceSiteTiles } from "@/components/talent/site/maison-setup/MyWebsiteCard";
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
 import { takeOr } from "./public-page-bootstrap";
+import { CreateMySiteCard } from "./CreateMySiteCard";
 import {
   loadMaxSiteManagerAction,
   publishMaxSiteAction,
@@ -136,6 +137,10 @@ export function TalentMaxSiteManager({
 
   if (!state.canManage) {
     return <UpsellCard />;
+  }
+
+  if (!state.siteExists) {
+    return <CreateMySiteCard onCreated={reload} />;
   }
 
   return (
