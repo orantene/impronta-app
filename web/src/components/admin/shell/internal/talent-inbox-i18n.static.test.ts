@@ -69,4 +69,52 @@ describe("talent inbox i18n", () => {
     assert.equal(translateDashboardText("Today", "es"), "Hoy");
     assert.equal(translateDashboardText("Yesterday", "es"), "Ayer");
   });
+
+  it("detail view and shared headers route their literals through copy.t with ES rows", () => {
+    const SAME_IN_ES = new Set(["Subtotal", "Total", "Chat"]);
+    const files = [
+      "messages/shared/machinery-13.tsx",
+      "messages/shared/inbox-identity-1.tsx",
+      "messages/shared/inbox-layout-1.tsx",
+      "talent/shared/conversations-1.tsx",
+      "messages/TalentJobShell.tsx",
+    ];
+    for (const f of files) {
+      const src = read(f);
+      assert.match(src, /useDashboardText\(\)/, `${f} must use useDashboardText`);
+      let from = 0;
+      for (;;) {
+        const at = src.indexOf("copy.t(", from);
+        if (at < 0) break;
+        let depth = 0;
+        let i = at + "copy.t".length;
+        const start = i;
+        for (; i < src.length; i++) {
+          if (src[i] === "(") depth++;
+          else if (src[i] === ")" && --depth === 0) break;
+        }
+        const call = src.slice(start, i + 1);
+        from = i;
+        for (const m of call.matchAll(/"((?:[^"\\]|\\.)+)"/g)) {
+          const lit = m[1];
+          if (!/[A-Za-z]{3,}/.test(lit) || SAME_IN_ES.has(lit)) continue;
+          assert.notEqual(translateDashboardText(lit, "es"), lit, `${f}: no ES row for "${lit}"`);
+        }
+      }
+    }
+  });
+
+  it("GUEST / Registered identity pill and the Offer-tab hero are not raw English", () => {
+    const pill = read("talent/shared/conversations-1.tsx");
+    assert.match(pill, /copy\.t\(label\)/);
+    assert.equal(translateDashboardText("Guest", "es"), "Invitado");
+    const deal = stripComments(read("messages/shared/machinery-13.tsx"));
+    for (const lit of ["Your take-home", "Submit my rate", "Edit rate", "Review counter", "Pending rate"]) {
+      assert.doesNotMatch(deal, new RegExp(`(?<!copy\\.t\\()["'>]${lit}["'<]`), `raw "${lit}"`);
+    }
+  });
+
+  it("generated inbox previews have ES rows", () => {
+    assert.notEqual(translateDashboardText("Awaiting your response.", "es"), "Awaiting your response.");
+  });
 });

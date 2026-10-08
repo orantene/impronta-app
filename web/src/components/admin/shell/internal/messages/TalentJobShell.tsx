@@ -407,7 +407,7 @@ export function TalentJobRow({
               {senderPrefix && (
                 <span style={{ fontWeight: 600 }} className="text-admin-ink-muted">{senderPrefix}</span>
               )}
-              {conv.lastMessage.preview}
+              {copy.t(conv.lastMessage.preview)}
             </span>
             <span style={{ flexShrink: 0, fontSize: 10.5, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">
               {ageLbl}

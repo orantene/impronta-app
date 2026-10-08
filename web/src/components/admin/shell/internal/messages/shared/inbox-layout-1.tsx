@@ -81,6 +81,7 @@ export function useResizableInboxLayout(shellKey: "talent" | "client" | "admin")
 // thread pane. Mouse-down + document-level mousemove/mouseup keeps
 // the drag fluid even when the cursor leaves the rail. ──
 export function ColumnDivider({ onResize, disabled }: { onResize: (w: number) => void; disabled?: boolean }) {
+  const copy = useDashboardText();
   const [hover, setHover] = useState(false);
   const [dragging, setDragging] = useState(false);
   const startRef = useRef<{ x: number; w: number } | null>(null);
@@ -115,7 +116,7 @@ export function ColumnDivider({ onResize, disabled }: { onResize: (w: number) =>
       data-tulala-column-divider
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize jobs list"
+      aria-label={copy.t("Resize jobs list")}
       onMouseDown={onMouseDown}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}

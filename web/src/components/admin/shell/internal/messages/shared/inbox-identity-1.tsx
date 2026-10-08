@@ -99,13 +99,14 @@ export const PRESENCE_PALETTE: Record<Presence, { color: string; label: string }
 };
 // Small dot overlay — wraps an Avatar when used as `<div style={{position:"relative"}}><Avatar/><PresenceDot/></div>`.
 export function PresenceDot({ name, size = 9 }: { name: string | null | undefined; size?: number }) {
+  const copy = useDashboardText();
   const p = usePresence(name);
   if (p === "offline") return null; // no need to render an offline marker
   const palette = PRESENCE_PALETTE[p];
   return (
     <span
-      title={`${name} · ${palette.label}`}
-      aria-label={`${name ?? "User"} is ${palette.label.toLowerCase()}`}
+      title={`${name} · ${copy.t(palette.label)}`}
+      aria-label={`${name ?? copy.t("User")} ${copy.t("is")} ${copy.t(palette.label).toLowerCase()}`}
       style={{
         position: "absolute",
         right: -1, bottom: -1,
@@ -289,10 +290,12 @@ export function CoordAvatarPopover({
   withWorkload?: boolean;
 }) {
   const { toast } = useAdminShell();
+  const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const presence = usePresence(name);
   const workload = getCoordWorkload(name);
   const presencePalette = PRESENCE_PALETTE[presence];
+  const lastSeenText = presence === "online" ? copy.t("now") : presence === "away" ? copy.t("12m ago") : copy.t("2h ago");
   return (
     <span
       style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}
@@ -326,7 +329,7 @@ export function CoordAvatarPopover({
                 {name}
               </div>
               <div style={{ fontSize: 10.5, textTransform: "capitalize" }} className="text-admin-ink-muted">
-                {role === "owner" ? "Workspace owner" : role || "Coordinator"}
+                {role === "owner" ? copy.t("Workspace owner") : role ? copy.t(role) : copy.t("Coordinator")}
               </div>
             </div>
           </div>
@@ -335,26 +338,26 @@ export function CoordAvatarPopover({
               width: 7, height: 7, borderRadius: "50%",
               background: presencePalette.color,
             }} />
-            <span style={{ fontWeight: 600 }} className="text-admin-ink">{presencePalette.label}</span>
+            <span style={{ fontWeight: 600 }} className="text-admin-ink">{copy.t(presencePalette.label)}</span>
             <span aria-hidden style={{ opacity: 0.4 }}>·</span>
-            <span>last seen {presence === "online" ? "now" : presence === "away" ? "12m ago" : "2h ago"}</span>
+            <span>{copy.t("last seen")} {lastSeenText}</span>
           </div>
           {withWorkload && (
             <div style={{ fontSize: 11, marginBottom: 10 }} className="text-admin-ink-muted">
-              <strong style={{ fontWeight: 600 }} className="text-admin-ink">{workload}</strong> active project{workload === 1 ? "" : "s"}
+              <strong style={{ fontWeight: 600 }} className="text-admin-ink">{workload}</strong> {copy.t(workload === 1 ? "active project" : "active projects")}
               {" · "}
-              {workload >= 10 ? "heavy load" : workload >= 6 ? "balanced load" : "light load"}
+              {copy.t(workload >= 10 ? "heavy load" : workload >= 6 ? "balanced load" : "light load")}
             </div>
           )}
           <button type="button"
-            onClick={(e) => { e.stopPropagation(); toast(`Messaging ${name}…`); }}
+            onClick={(e) => { e.stopPropagation(); toast(`${copy.t("Messaging")} ${name}…`); }}
             style={{
               width: "100%", padding: "6px 10px", borderRadius: 8,
               border: `1px solid ${COLORS.border}`, background: "transparent",
               color: COLORS.ink, cursor: "pointer",
               fontSize: 11.5, fontWeight: 600, fontFamily: FONTS.body,
             }}>
-            Message {name.split(" ")[0]}
+            {copy.t("Write to")} {name.split(" ")[0]}
           </button>
         </div>
       )}
@@ -384,11 +387,13 @@ export function FirstConvBanner({
   /** "talent" or "admin" framing. The hint copy adjusts. */
   audience?: "talent" | "admin" | "client";
 }) {
-  const hint = audience === "admin"
+  const copy = useDashboardText();
+  const hintEn = (audience === "admin"
     ? "First inquiry from this client. Confirm scope + budget early — no priors to anchor on."
     : audience === "client"
     ? "Welcome — first project together. Let your coordinator know your usual cadence + must-haves."
-    : "First time you'll work with this client. Lock the brief + usage scope early.";
+    : "First time you'll work with this client. Lock the brief + usage scope early.");
+  const hint = copy.t(hintEn);
   return (
     <div style={{
       display: "flex", alignItems: "flex-start", gap: 10,
@@ -414,7 +419,7 @@ export function FirstConvBanner({
           fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5,
           textTransform: "uppercase", color: COLORS.successDeep ?? COLORS.success,
         }}>
-          First time with {clientName}
+          {copy.t("First time with")} {clientName}
         </div>
         <div style={{ fontSize: 11.5, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink-muted">
           {hint}
@@ -450,11 +455,12 @@ export function CoordRoleBadge({
    *  — useful inside dense rows / message bubble headers. */
   compact?: boolean;
 }) {
+  const copy = useDashboardText();
   if (role !== "owner") return null;
   return (
     <span
-      title="Workspace owner — runs this workspace"
-      aria-label="Workspace owner"
+      title={copy.t("Workspace owner, runs this workspace")}
+      aria-label={copy.t("Workspace owner")}
       style={{
         display: "inline-flex", alignItems: "center", gap: 3,
         padding: compact ? "1px 4px" : "1px 6px",
@@ -470,7 +476,7 @@ export function CoordRoleBadge({
       <svg width="9" height="9" viewBox="0 0 12 12" fill="none" aria-hidden>
         <path d="M6 1l1.5 3.2L11 5l-2.5 2.4.6 3.4L6 9l-3.1 1.8.6-3.4L1 5l3.5-.8L6 1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
       </svg>
-      {!compact && "Owner"}
+      {!compact && copy.t("Owner")}
     </span>
   );
 }
@@ -523,6 +529,7 @@ export function ParticipantTrustStrip({
   clientName?: string;
 }) {
   const { getTrustSummary, effectiveTenant } = useAdminShell();
+  const copy = useDashboardText();
   // Resolve names → roster ids for talent (best-effort, lookup by name)
   const allRoster = [...ROSTER_AGENCY, ...ROSTER_FREE];
   const talentId = talentName ? allRoster.find(r => r.name === talentName)?.id : undefined;
@@ -541,7 +548,7 @@ export function ParticipantTrustStrip({
     <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "8px 12px", background: "#fff", border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 11, flexWrap: "wrap" }} className="rounded-admin-md">
       {showTalent && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">Talent</span>
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">{copy.t("Talent")}</span>
           <span className="text-admin-ink text-xs font-semibold">{talentName}</span>
           <TrustBadgeGroup trust={talentTrust!} surface="chat_header" size="sm" max={3} />
         </div>
@@ -551,7 +558,7 @@ export function ParticipantTrustStrip({
       )}
       {showClient && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">Client</span>
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">{copy.t("Client")}</span>
           <span className="text-admin-ink text-xs font-semibold">{clientName}</span>
           <TrustBadgeGroup trust={clientTrust!} surface="chat_header" size="sm" max={3} />
         </div>
@@ -561,6 +568,7 @@ export function ParticipantTrustStrip({
 }
 
 export function StageProgress({ currentStage }: { currentStage: string }) {
+  const copy = useDashboardText();
   // Map both data shapes to the 4-stage funnel
   const funnelIdx = (() => {
     const s = currentStage;
@@ -589,7 +597,7 @@ export function StageProgress({ currentStage }: { currentStage: string }) {
         const bg = past ? COLORS.success : here ? COLORS.accent : "rgba(11,11,13,0.10)";
         return (
           <React.Fragment key={s.id}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }} aria-label={here ? `Current stage: ${s.label}` : undefined}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }} aria-label={here ? `${copy.t("Current stage")}: ${copy.t(s.label)}` : undefined}>
               <span aria-hidden style={{
                 width: here ? 11 : 8, height: here ? 11 : 8, borderRadius: "50%",
                 background: bg, transition: TRANSITION.sm,
@@ -598,7 +606,7 @@ export function StageProgress({ currentStage }: { currentStage: string }) {
                 fontSize: 11, color: past || here ? COLORS.ink : COLORS.inkDim,
                 fontWeight: here ? 600 : 500, letterSpacing: -0.05,
               }}>
-                {s.label}
+                {copy.t(s.label)}
               </span>
             </div>
             {i < FUNNEL_STAGES.length - 1 && (
