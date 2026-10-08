@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useTransition, useEffect, useRef } from "react";
-import { OfferColumnHeaders, OfferMoneySplit, OfferEditorFooter } from "@/components/admin/offer/offer-money-split";
+import { OfferColumnHeaders, OfferMoneySplit, OfferEditorFooter, OFFER_LINE_ROW_CLASS, OFFER_LINE_LABEL_CLASS, OFFER_LINE_CONTROL_CLASS } from "@/components/admin/offer/offer-money-split";
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
@@ -565,13 +565,13 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
   }
 
   return (
-    <div style={{
+    <div data-offer-draft-editor style={{
       background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
       borderRadius: RADIUS.md, padding: 12,
       display: "flex", flexDirection: "column", gap: 8,
       fontFamily: FONTS.body, fontSize: 12,
-    }}>
-      <div className="flex items-center gap-2">
+    }} className="@container min-w-0">
+      <div className="flex flex-wrap items-center gap-2">
         <span style={{ fontWeight: 700 }} className="text-admin-ink">{t("dashboard.adminTabs.lineup.draftEditor")}</span>
         {/* W0-4 — live save-state chip, companion to OfferSaveBanner. */}
         <OfferStatusChip state={saveState} />
@@ -591,14 +591,13 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
       <OfferColumnHeaders t={t} />
       <div className="flex flex-col gap-1.5">
         {snapshot.lineItems.map((li) => (
-          <div key={li.id} style={{
-            background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 8, padding: "8px 10px",
-            display: "grid", gridTemplateColumns: "1.6fr 0.8fr 0.6fr 0.8fr 0.8fr 28px",
-            gap: 6, alignItems: "center",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0 }}>
+          <div key={li.id} data-offer-line-row className={OFFER_LINE_ROW_CLASS}>
+            <div className="col-span-full flex min-w-0 flex-col gap-0.5 @[640px]:col-span-1">
+              <span aria-hidden className={OFFER_LINE_LABEL_CLASS}>{t("dashboard.adminTabs.lineup.colTalent")}</span>
+              <div className="flex min-w-0 items-center gap-1">
               <select
+                aria-label={t("dashboard.adminTabs.lineup.colTalent")}
+                className={OFFER_LINE_CONTROL_CLASS}
                 value={li.talentProfileId ?? ""}
                 onChange={(e) => {
                   const id = e.target.value || null;
@@ -607,7 +606,6 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
                   // (the service belonged to the previous talent) — clear the stamp.
                   updateLine(li.id, { talentProfileId: id, talentDisplayName: match?.name ?? null, label: labelTouched.has(li.id) ? li.label : (match?.name ?? li.label), sourceServiceId: null });
                 }}
-                style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4, flex: 1, minWidth: 0 }}
               >
                 <option value="">{t("dashboard.adminTabs.lineup.chooseTalent")}</option>
                 {rosterOptions.map((p) => (
@@ -637,11 +635,15 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
                   {t("dashboard.adminTabs.lineup.coordBadge")}
                 </span>
               )}
+              </div>
             </div>
+            <div className="flex min-w-0 flex-col gap-0.5">
+            <span aria-hidden className={OFFER_LINE_LABEL_CLASS}>{t("dashboard.adminTabs.lineup.colUnit")}</span>
             <select
+              aria-label={t("dashboard.adminTabs.lineup.colUnit")}
+              className={OFFER_LINE_CONTROL_CLASS}
               value={li.pricingUnit}
               onChange={(e) => updateLine(li.id, { pricingUnit: e.target.value as ServicePricingType })}
-              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
             >
               <option value="hour">{t("dashboard.adminTabs.lineup.unitHour")}</option>
               <option value="day">{t("dashboard.adminTabs.lineup.unitDay")}</option>
@@ -653,25 +655,39 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
               <option value="flat_package">{t("dashboard.adminTabs.lineup.unitFlat")}</option>
               <option value="custom">{t("dashboard.adminTabs.lineup.unitCustom")}</option>
             </select>
+            </div>
+            <div className="flex min-w-0 flex-col gap-0.5">
+            <span aria-hidden className={OFFER_LINE_LABEL_CLASS}>{t("dashboard.adminTabs.lineup.colQty")}</span>
             <input type="number" min={0} step="0.5" value={li.units}
+              aria-label={t("dashboard.adminTabs.lineup.colQty")}
               onChange={(e) => updateLine(li.id, { units: parseFloat(e.target.value) || 0 })}
-              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
+              className={OFFER_LINE_CONTROL_CLASS}
               placeholder={t("dashboard.adminTabs.lineup.unitsPlaceholder")}
             />
+            </div>
+            <div className="flex min-w-0 flex-col gap-0.5">
+            <span aria-hidden className={OFFER_LINE_LABEL_CLASS}>{t("dashboard.adminTabs.lineup.colClientRate")}</span>
             <input type="number" min={0} step="100" value={li.unitPrice}
+              aria-label={t("dashboard.adminTabs.lineup.colClientRate")}
               onChange={(e) => updateLine(li.id, { unitPrice: parseFloat(e.target.value) || 0 })}
-              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
+              className={OFFER_LINE_CONTROL_CLASS}
               placeholder={t("dashboard.adminTabs.lineup.ratePlaceholder")}
             />
+            </div>
+            <div className="flex min-w-0 flex-col gap-0.5">
+            <span aria-hidden className={OFFER_LINE_LABEL_CLASS}>{t("dashboard.adminTabs.lineup.colTalentGets")}</span>
             <input type="number" min={0} step="100" value={li.talentCost}
+              aria-label={t("dashboard.adminTabs.lineup.colTalentGets")}
               onChange={(e) => updateLine(li.id, { talentCost: parseFloat(e.target.value) || 0 })}
-              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
+              className={OFFER_LINE_CONTROL_CLASS}
               placeholder={t("dashboard.adminTabs.lineup.talentCostPlaceholder")}
             />
-            <button type="button" onClick={() => removeLine(li.id)} style={{
-              background: "transparent", border: "none",
-              color: COLORS.coralDeep, cursor: "pointer", fontSize: 14, lineHeight: 1,
-            }}>×</button>
+            </div>
+            <button type="button" onClick={() => removeLine(li.id)}
+              aria-label={t("dashboard.adminTabs.lineup.remove")}
+              title={t("dashboard.adminTabs.lineup.remove")}
+              className="col-span-full justify-self-end text-[14px] leading-none text-admin-coral @[640px]:col-span-1 @[640px]:justify-self-center"
+            >×</button>
             {/* S14/S15 — prefill this line from the talent's services (W2-1). */}
             {li.talentProfileId ? (
               <div className="col-span-full">
@@ -690,23 +706,25 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
             ) : null}
             {/* W2-2 — editable line label + "what's included" note: a
                 travel-inclusive rate reads honestly (baked in, no expense line). */}
-            <div className="col-span-full flex gap-1.5">
+            <div className="col-span-full flex flex-wrap gap-1.5">
               <input
                 type="text"
+                aria-label={t("dashboard.adminTabs.lineup.lineLabelPlaceholder")}
                 value={li.label ?? ""}
                 onChange={(e) => {
                   setLabelTouched((prev) => new Set(prev).add(li.id));
                   updateLine(li.id, { label: e.target.value });
                 }}
                 placeholder={t("dashboard.adminTabs.lineup.lineLabelPlaceholder")}
-                className="min-w-0 flex-[1.4] rounded border border-admin-border bg-white px-1.5 py-1 text-[11px] text-admin-ink"
+                className="min-w-[12rem] flex-[1.4] rounded border border-admin-border bg-white px-1.5 py-1 text-[11px] text-admin-ink"
               />
               <input
                 type="text"
+                aria-label={t("dashboard.adminTabs.lineup.lineNotePlaceholder")}
                 value={li.notes ?? ""}
                 onChange={(e) => updateLine(li.id, { notes: e.target.value || null })}
                 placeholder={t("dashboard.adminTabs.lineup.lineNotePlaceholder")}
-                className="min-w-0 flex-1 rounded border border-admin-border bg-white px-1.5 py-1 text-[11px] text-admin-ink-muted"
+                className="min-w-[12rem] flex-1 rounded border border-admin-border bg-white px-1.5 py-1 text-[11px] text-admin-ink-muted"
               />
             </div>
           </div>
