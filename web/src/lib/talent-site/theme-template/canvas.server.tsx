@@ -15,6 +15,7 @@ import { flattenProfileTokens } from "@/lib/talent-site/default-talent-tree";
 import { demosFor } from "@/lib/talent-site/demos/registry";
 import type { DemoDesign } from "@/lib/talent-site/demos/types";
 import { treeHasLiveCandidates } from "@/lib/talent-site/live-text";
+import { treeHasServicesTicker } from "@/lib/talent-site/ticker-services";
 import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens";
 import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
@@ -25,6 +26,7 @@ import { loadDefaultTalentFreeformContext } from "@/lib/talent-site/server/defau
 import { loadMaxSiteIsDemo } from "@/lib/talent-site/server/render-max-site-demo";
 import { splitShell } from "@/lib/talent-site/server/render-max-site-shell";
 import { loadTalentLiveText } from "@/lib/talent-site/server/load-live-text.server";
+import { loadTalentTickerWords } from "@/lib/talent-site/server/load-ticker-services.server";
 import { loadTalentLocaleSwaps } from "@/lib/talent-site/server/talent-locale-swaps.server";
 import { loadPreviewDataSources } from "@/lib/talent-site/server/preview-my-content.server";
 import { loadTalentSiteLocaleContext } from "@/lib/talent-site/server/talent-site-locale.server";
@@ -149,13 +151,17 @@ export async function buildThemeTemplateCanvasData(input: {
   };
 
   const [planKey, isDemo] = await Promise.all([loadTalentPlanKey(profileId), loadMaxSiteIsDemo(profileId)]);
-  const [dataSources, ctaMode, swaps, live] = await Promise.all([
+  const [dataSources, ctaMode, swaps, live, tickerWords] = await Promise.all([
     loadPreviewDataSources(profileId, allTrees, locale),
     loadTalentSiteCtaMode(profileId, planKey),
     loadTalentLocaleSwaps(profileId, locale, chain),
     treeHasLiveCandidates(editedTree)
       ? loadTalentLiveText(profileId, locale, chain)
       : Promise.resolve(null),
+    // A ticker that follows her services shows her real service names here too (preview only).
+    treeHasServicesTicker(editedTree)
+      ? loadTalentTickerWords(profileId, locale, chain)
+      : Promise.resolve([] as string[]),
   ]);
 
   const sectionEmbedIslands: Record<string, ReactNode> = {};
@@ -189,6 +195,6 @@ export async function buildThemeTemplateCanvasData(input: {
     placeholders,
     shellHeader,
     shellFooter,
-    labelLocale: { locale, ctaMode, swaps, ...(live ? { live } : {}) },
+    labelLocale: { locale, ctaMode, swaps, ...(live ? { live } : {}), ...(tickerWords.length > 0 ? { tickerWords } : {}) },
   };
 }

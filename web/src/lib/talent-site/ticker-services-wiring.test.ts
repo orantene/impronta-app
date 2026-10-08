@@ -5,6 +5,11 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { createBuilderNode } from "@/lib/site-admin/builder-node/create";
 import { BUILDER_NODE_REGISTRY } from "@/lib/site-admin/builder-node/registry";
 import { BUILDER_2027_INSPECTOR_GROUPS } from "@/lib/site-admin/builder-node/builder-2027-fields";
+import { renderToStaticMarkup } from "react-dom/server";
+import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
+import { applyTalentTickerServices } from "./ticker-services";
+import { hydrateTalentTree } from "./default-talent-tree";
+import { fallbackHydrationTokens, pruneEmptyHydratedNodes } from "./server/theme-apply-core";
 
 const itemsOf = (n: BuilderNode) => (n.props as { items: Array<{ text: string }> }).items.map((i) => i.text);
 
@@ -46,4 +51,30 @@ test("inspector: the Words group comes first, offers the two sources, and defaul
   for (const text of [field.label, first.note ?? "", ...field.options.map((o) => o.label)]) {
     assert.ok(!/[–—]/.test(text), `no dashes in: ${text}`);
   }
+});
+
+const marquee = (id: string, source: "services" | "custom", words: string[]): BuilderNode =>
+  ({ id, kind: "marquee", props: { source, items: words.map((text) => ({ text })) } }) as BuilderNode;
+
+test("prune: a services ticker whose tokens all hydrate empty survives; a custom empty ticker is still dropped", () => {
+  const tokens = { ...fallbackHydrationTokens("No Services"), service1: "", service2: "", service3: "" };
+  const tree = [marquee("svc", "services", ["{{service1}}"]), marquee("cus", "custom", ["{{service1}}"])];
+  const out = pruneEmptyHydratedNodes(hydrateTalentTree(tree, tokens));
+  assert.deepEqual(out.map((n) => n.id), ["svc"]);
+  // It fills later, once she adds services.
+  const filled = applyTalentTickerServices(out, ["Editorial"]);
+  assert.deepEqual(itemsOf(filled[0]!), ["Editorial"]);
+});
+
+test("render: an empty ticker renders nothing publicly and keeps the placeholder in the editor", () => {
+  const html = (editorPreview: boolean) =>
+    renderToStaticMarkup(
+      renderBuilderNodes([marquee("m", "services", [])], {
+        mode: "freeform",
+        contentLocale: { locale: "en", defaultLocale: "en", chain: ["en"], editorPreview },
+      } as Parameters<typeof renderBuilderNodes>[1]) as Parameters<typeof renderToStaticMarkup>[0],
+    );
+  assert.ok(!html(false).includes("Add a line of text"));
+  assert.ok(!html(false).includes('data-builder-node-id="m"'));
+  assert.ok(html(true).includes("Add a line of text"));
 });

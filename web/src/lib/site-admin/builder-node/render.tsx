@@ -7856,6 +7856,8 @@ function renderBuilderNodeElement(
     case "marquee": {
       const p = node.props;
       const items = p.items ?? [];
+      // Public: a ticker with no words renders nothing (the placeholder is editor-only).
+      if (!options.contentLocale?.editorPreview && !items.some((it) => it.text?.trim())) return null;
       const text = (prop: string, value: string | undefined) =>
         value
           ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value
