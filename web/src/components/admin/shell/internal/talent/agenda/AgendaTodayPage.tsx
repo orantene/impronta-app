@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import Link from "next/link";
 import { todayReplyState } from "@/lib/messages-v5/inbox-view";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -62,15 +63,7 @@ const CARD = "overflow-hidden rounded-2xl border border-black/10 bg-white";
 const MUTED = "text-black/55";
 
 function formatMoney(cents: number, currency: string, locale: string): string {
-  try {
-    return new Intl.NumberFormat(locale, {
-      style: "currency",
-      currency,
-      maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
-    }).format(cents / 100);
-  } catch {
-    return `${(cents / 100).toFixed(0)} ${currency}`;
-  }
+  return formatDashboardMoneyCents(cents, currency, locale);
 }
 
 function clockLabel(iso: string, locale: string): string {
