@@ -7,8 +7,18 @@ import {
   PLATFORM_TAGLINE_ES,
   platformBrandDescription,
   platformBrandTagline,
+  platformDefaultTitle,
   resolvePublicMetaDescription,
 } from "./platform-brand-locale";
+
+test("platform brand tagline follows visitor language", () => {
+  assert.equal(platformBrandTagline("es"), PLATFORM_TAGLINE_ES);
+  assert.equal(platformBrandTagline("es-MX"), PLATFORM_TAGLINE_ES);
+  assert.equal(platformBrandTagline("en"), TULALA_BRAND.tagline);
+  assert.equal(platformBrandTagline(undefined), TULALA_BRAND.tagline);
+  assert.ok(!PLATFORM_TAGLINE_ES.includes("—"));
+  assert.ok(!PLATFORM_TAGLINE_ES.includes("–"));
+});
 
 test("platform brand description follows visitor language", () => {
   assert.equal(platformBrandDescription("es"), PLATFORM_DESCRIPTION_ES);
@@ -19,9 +29,11 @@ test("platform brand description follows visitor language", () => {
   assert.ok(!PLATFORM_DESCRIPTION_ES.includes("–"));
 });
 
-test("platform brand tagline follows visitor language", () => {
-  assert.equal(platformBrandTagline("es"), PLATFORM_TAGLINE_ES);
-  assert.equal(platformBrandTagline("en"), TULALA_BRAND.tagline);
+test("TUL-121 theme9: platform default title follows visitor language", () => {
+  assert.equal(platformDefaultTitle("es"), `Tulala · ${PLATFORM_TAGLINE_ES}`);
+  assert.equal(platformDefaultTitle("en"), `Tulala · ${TULALA_BRAND.tagline}`);
+  assert.ok(platformDefaultTitle("es").includes("Vende lo que haces"));
+  assert.ok(!platformDefaultTitle("es").includes("Sell what you do"));
 });
 
 test("TUL-121 theme8: public meta description falls back by locale", () => {
