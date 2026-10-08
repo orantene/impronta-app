@@ -940,7 +940,7 @@ export async function createManualBooking(formData: FormData): Promise<void> {
   // and refuse when it is unreadable, rather than defaulting to USD.
   let manualCurrency = trimmedString(formData, "currency_code");
   if (!manualCurrency) {
-    // Ratchet exception: from("agencies").select("default_currency").eq("id", tenantId) is the tenant's own row keyed by the tenant id, which no-untenanted-from cannot model as the tenant column.
+    // The tenant's own row, keyed by the tenant id (no-untenanted-from treats agencies.id = tenantId as scoped).
     const { data: ag, error: agErr } = await supabase
       .from("agencies")
       .select("default_currency")
