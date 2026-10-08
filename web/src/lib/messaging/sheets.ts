@@ -143,13 +143,16 @@ export type OfferRow = {
    * deposit rule on this offer. */
   depositPct: number | null;
   depositAmountCents: number | null;
+  /** ISO code of the offer (TUL-289): the Payment sheet's "Other" input and
+   * amount labels convert with this currency's minor-unit exponent. */
+  currencyCode?: string | null;
 };
 
 /** The inquiry's offers, newest first. `draft` can be sent; `sent` can be reminded or revised. */
 export async function loadInquiryOffers(admin: Admin, input: { tenantId: string; inquiryId: string }): Promise<OfferRow[]> {
   const { data, error } = await admin
     .from("inquiry_offers")
-    .select("id, status, version, total_client_price, updated_at, deposit_pct, deposit_amount_cents")
+    .select("id, status, version, total_client_price, updated_at, deposit_pct, deposit_amount_cents, currency_code")
     .eq("tenant_id", input.tenantId)
     .eq("inquiry_id", input.inquiryId)
     .order("created_at", { ascending: false })
@@ -163,6 +166,7 @@ export async function loadInquiryOffers(admin: Admin, input: { tenantId: string;
     updatedAt: String(row.updated_at ?? ""),
     depositPct: row.deposit_pct == null ? null : Number(row.deposit_pct),
     depositAmountCents: row.deposit_amount_cents == null ? null : Number(row.deposit_amount_cents),
+    currencyCode: row.currency_code == null ? null : String(row.currency_code),
   }));
 }
 

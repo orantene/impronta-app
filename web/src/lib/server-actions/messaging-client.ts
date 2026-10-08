@@ -24,6 +24,7 @@
  * bundle imports this file and nothing from the staff shell.
  */
 
+import { resolveThreadDraftCurrency } from "@/lib/messaging/thread-draft-currency";
 import { splitDirectAcceptApprovals } from "@/lib/messaging/offer-sender-approval";
 import { headers } from "next/headers";
 import { z } from "zod";
@@ -118,7 +119,10 @@ async function sharedDraft(l: Link): Promise<{ orderId: string } | { ok: false; 
   const { data: inquiry } = await scoped(l.admin, "inquiries", l.tenantId).select("owner_user_id").eq("id", l.inquiryId).maybeSingle();
   const ownerId = (inquiry as { owner_user_id: string | null } | null)?.owner_user_id ?? (await resolveTenantOwnerId(l.admin, l.tenantId));
   if (!ownerId) return fail("no_owner");
-  const created = await createDraftOrder(l.admin, { tenantId: l.tenantId, actorUserId: ownerId, currency: "USD", context: "messages" });
+  // The draft follows the thread's seller, else the workspace; unreadable -> refuse (never a guessed USD).
+  const draftCurrency = await resolveThreadDraftCurrency(l.admin, { tenantId: l.tenantId, inquiryId: l.inquiryId });
+  if (!draftCurrency) return fail("unavailable");
+  const created = await createDraftOrder(l.admin, { tenantId: l.tenantId, actorUserId: ownerId, currency: draftCurrency, context: "messages" });
   if (!created.ok) return fail("unavailable");
   await scoped(l.admin, "orders", l.tenantId).update({ inquiry_id: l.inquiryId, source_channel: "messages" }).eq("id", created.orderId);
   return { orderId: created.orderId };
