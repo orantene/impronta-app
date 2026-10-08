@@ -4,7 +4,7 @@ import { join, relative } from "node:path";
 import { test } from "node:test";
 
 import { WEB_ROOT } from "../quality/supabase-unchecked-read";
-import { EXTRA_ALLOW, READ, type AllowEntry } from "./readonly-actions.allow";
+import { EXTRA_ALLOW, READ, ROUTE_ALLOW, type AllowEntry } from "./readonly-actions.allow";
 
 /**
  * TUL-256. Staff impersonation is READ-ONLY for the target. Every exported async
@@ -327,4 +327,73 @@ test("GUARD PASSES: a non-server file is not scanned, and allow-list lookup work
   assert.deepEqual(scanActions(`export async function save(): Promise<void> {}\n`), []);
   assert.equal(allowedFor("src/lib/talent/faq-editor-actions.ts").get("loadMyFaqItems"), READ);
   assert.equal(allowedFor("src/lib/talent/faq-editor-actions.ts").has("saveMyFaqItems"), false);
+});
+
+// ── Route handlers (route.ts) ────────────────────────────────────────────────
+
+const ROUTE_GUARD_CALL = /\bassertNotImpersonating\s*\(/;
+
+/** Every POST/PUT/PATCH/DELETE handler in a route source; guarded = guard is the first awaited statement. */
+export function scanRouteHandlers(src: string): Finding[] {
+  const out: Finding[] = [];
+  const fn = /^export\s+(?:async\s+)?function\s+(POST|PUT|PATCH|DELETE)\s*\(/gm;
+  let m: RegExpExecArray | null;
+  while ((m = fn.exec(src))) {
+    const open = bodyOpen(src, closeParen(src, m.index + m[0].length - 1) + 1);
+    const head = src.slice(open + 1).split("\n").slice(0, WINDOW_LINES + 1).join("\n");
+    const hit = ROUTE_GUARD_CALL.exec(head);
+    const guarded = hit !== null && !/\bawait\b/.test(head.slice(0, hit.index).replace(/(?:\(\s*)?\bawait\s*$/, ""));
+    out.push({ name: m[1], guarded });
+  }
+  const konst = /^export\s+(?:const|let)\s+(POST|PUT|PATCH|DELETE)\b/gm;
+  while ((m = konst.exec(src))) out.push({ name: m[1], guarded: false });
+  return out;
+}
+
+function routeFiles(): string[] {
+  const all: string[] = [];
+  walk(join(WEB_ROOT, "src/app"), all);
+  return all.filter((f) => /[\\/]route\.ts$/.test(f)).map((f) => relative(WEB_ROOT, f));
+}
+
+test("every mutating route handler is guarded or explicitly allow-listed", () => {
+  const bad: string[] = [];
+  let guarded = 0;
+  let allowed = 0;
+  const used = new Set<string>();
+  for (const rel of routeFiles()) {
+    const found = scanRouteHandlers(readFileSync(join(WEB_ROOT, rel), "utf8"));
+    const allow = ROUTE_ALLOW.find(([suffix]) => rel.endsWith(suffix));
+    for (const f of found) {
+      if (f.guarded) {
+        guarded += 1;
+        assert.ok(!allow, `${rel}: ${f.name} is guarded AND allow-listed; drop the allow entry`);
+      } else if (allow) {
+        allowed += 1;
+        used.add(allow[0]);
+      } else bad.push(`${rel}: ${f.name}`);
+    }
+  }
+  assert.ok(guarded >= 30, `only ${guarded} guarded route handlers found; detection is broken`);
+  assert.ok(allowed >= 10, `only ${allowed} allow-listed route handlers found; detection is broken`);
+  assert.deepEqual(bad, [], `unguarded mutating route handlers (call assertNotImpersonating() first, return 403):\n${bad.join("\n")}`);
+  const stale = ROUTE_ALLOW.filter(([s]) => !used.has(s)).map(([s]) => s);
+  assert.deepEqual(stale, [], `stale route allow-list entries:\n${stale.join("\n")}`);
+  for (const [s, reason] of ROUTE_ALLOW) assert.ok(reason.trim().length > 10, `${s} needs a reason`);
+});
+
+test("ROUTE GUARD BITES: unguarded, late-guarded and const-form handlers are caught", () => {
+  assert.deepEqual(scanRouteHandlers(`export async function POST(req: Request) {\n  await write();\n}\n`), [{ name: "POST", guarded: false }]);
+  assert.deepEqual(
+    scanRouteHandlers(`export async function DELETE(req: Request) {\n  const s = await session();\n  const g = await assertNotImpersonating();\n}\n`),
+    [{ name: "DELETE", guarded: false }],
+  );
+  assert.deepEqual(scanRouteHandlers(`export const PATCH = async () => {\n  await assertNotImpersonating();\n};\n`), [{ name: "PATCH", guarded: false }]);
+});
+
+test("ROUTE GUARD PASSES: a guard-first handler is recognised and GET is ignored", () => {
+  const src =
+    `export async function GET() {\n  return Response.json({});\n}\n` +
+    `export async function POST(req: Request) {\n  const readOnly = await assertNotImpersonating();\n  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });\n  return Response.json({});\n}\n`;
+  assert.deepEqual(scanRouteHandlers(src), [{ name: "POST", guarded: true }]);
 });

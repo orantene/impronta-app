@@ -255,3 +255,25 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/server-actions/admin-impersonation.ts", ["endImpersonationToAdmin"], "STOP-IMPERSONATION: ends the viewing-as session; must keep working while impersonating (PM exception)"],
   ["lib/support/desk/desk-sign-out.ts", ["deskSignOutToLogin"], "SIGN-OUT: ends the support desk session; must keep working while impersonating (PM exception)"],
 ];
+
+/**
+ * Route handlers (route.ts exporting POST/PUT/PATCH/DELETE) that are NOT guarded,
+ * with a one-line reason. Everything else under src/app must call the guard first.
+ */
+export const ROUTE_ALLOW: Array<[suffix: string, reason: string]> = [
+  ["api/discover/subscriptions/webhook/route.ts", "webhook: Stripe-signature authenticated, no user session"],
+  ["api/webhooks/stripe-v2/route.ts", "webhook: Stripe-signature authenticated, no user session"],
+  ["api/webhooks/stripe-mx/route.ts", "webhook: Stripe-signature authenticated, no user session"],
+  ["api/webhooks/stripe/route.ts", "webhook: Stripe-signature authenticated, no user session"],
+  ["api/stripe/webhook/route.ts", "webhook: Stripe-signature authenticated, no user session"],
+  ["api/webhooks/messaging/[channel]/route.ts", "webhook: provider-signature authenticated, no user session"],
+  ["api/webhooks/resend/route.ts", "webhook: Svix-signature authenticated, no user session"],
+  ["api/hooks/auth-email/route.ts", "Supabase auth hook: secret authenticated, no user session"],
+  ["api/cron/revalidate-talent-site/route.ts", "cron: secret authenticated, no user session"],
+  ["api/unsubscribe/[token]/route.ts", "token-authenticated unsubscribe link, no user session"],
+  ["api/analytics/events/route.ts", "anonymous telemetry beacon, no actor identity and no user data written"],
+  ["api/ai/search/route.ts", "POST used as a read: search query in, results out, nothing stored"],
+  ["api/ai/interpret-search/route.ts", "POST used as a read: interprets a query, nothing stored"],
+  ["api/ai/refine-suggestions/route.ts", "POST used as a read: returns suggestions, nothing stored"],
+  ["api/directory/talents-by-ids/route.ts", "POST used as a read: batch lookup of public talent cards"],
+];

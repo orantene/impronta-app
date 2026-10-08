@@ -28,6 +28,7 @@ import {
   type RosterImportRow,
 } from "@/lib/server-actions/roster-import";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,6 +37,8 @@ const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB hard cap
 const MAX_ROWS = 2000;
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: "Not authenticated" }, { status: 401 });

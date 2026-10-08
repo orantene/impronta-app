@@ -37,6 +37,7 @@ import {
   validateImageUpload,
   MEDIA_VIDEO_MAX_BYTES,
 } from "@/lib/site-admin/media/validation";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -116,6 +117,8 @@ function resolveKindConfig(kind: AssetKind): {
 }
 
 export async function POST(req: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   const auth = await requireSession();
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
