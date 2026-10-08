@@ -112,6 +112,19 @@ describe("every Stripe charge creator is guarded or allow-listed", () => {
       assert.doesNotMatch(src, /checkout\.sessions\.create\(/, `${rel} creates a session directly`);
     }
   });
+  it("the rule is priced-thing currency plus lane support, not the seller default_currency", () => {
+    const src = stripComments(readFileSync(join(WEB_ROOT, "src/lib/payments/seller-currency-guard.ts"), "utf8"));
+    assert.match(src, /us: \["USD"\]/);
+    assert.match(src, /mx: \["MXN", "USD"\]/);
+    assert.match(src, /select\("currency"\)/);
+    assert.match(src, /stripe_account_platform/);
+    assert.doesNotMatch(src, /select\("default_currency"\)/);
+  });
+  it("the storefront cart takes the workspace currency, not a hard-coded USD", () => {
+    const src = stripComments(readFileSync(join(WEB_ROOT, "src/lib/storefront/cart-checkout.core.ts"), "utf8"));
+    assert.match(src, /workspaceCartCurrency\(deps, input\.tenantId\)/);
+    assert.doesNotMatch(src, /currency: "USD",\s*\n\s*version: 1/);
+  });
   it("the Stripe creators call the guard in charge position (before their Stripe call)", () => {
     for (const rel of GUARDED_CREATORS) {
       const src = readFileSync(join(WEB_ROOT, rel), "utf8");
