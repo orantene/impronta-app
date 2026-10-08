@@ -50,14 +50,14 @@ const ACCOUNT: MarketingAccount = {
   clientLinks: null,
 };
 
-function openMobileMenu() {
-  fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
+function openMobileMenu(name = "Open menu") {
+  fireEvent.click(screen.getByRole("button", { name }));
 }
 
 describe("mobile menu = search + navigation + one action", () => {
   it("opens with a real directory search that carries the locale", () => {
     render(<MarketingHeader locale="es" pathnameWithoutLocale="/" />);
-    openMobileMenu();
+    openMobileMenu("Abrir menú");
 
     const search = screen.getByRole("search");
     // GET form straight to the locale's directory — the directory reads ?q=.
@@ -65,6 +65,13 @@ describe("mobile menu = search + navigation + one action", () => {
     expect(search).toHaveAttribute("method", "get");
     const input = screen.getByRole("searchbox", { name: "Busca talento…" });
     expect(input).toHaveAttribute("name", "q");
+  });
+
+  it("ES hamburger aria uses Abrir menú / Cerrar menú", () => {
+    render(<MarketingHeader locale="es" pathnameWithoutLocale="/" />);
+    const open = screen.getByRole("button", { name: "Abrir menú" });
+    fireEvent.click(open);
+    expect(screen.getByRole("button", { name: "Cerrar menú" })).toBeInTheDocument();
   });
 
   it("no longer buries language, support, or the workspace list in the menu", () => {
