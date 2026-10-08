@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { buildMaisonV2Payload } from "../src/lib/talent-site/theme-catalog/collection/maison-v2";
-import type { DraftInfo, PayloadLike, ReleaseRow, TNode } from "./release-theme-i18n-plan";
+import type { DraftInfo, PayloadLike, TNode } from "./release-theme-i18n-plan";
 import {
   BOOK_LABEL,
   diffLeaves,
@@ -38,8 +38,19 @@ function oldPayload(): PayloadLike {
   const p = clone(buildMaisonV2Payload() as unknown as PayloadLike);
   const row = find(p.homeTree ?? [], (n) => props(n).layerLabel === "Hero actions")!;
   const [a, b] = row.children!;
-  a!.props = { ...props(a!), label: "See services", layerLabel: "See services", i18n: { es: { label: "Ver servicios" }, en: { label: "See services" } } };
-  b!.props = { ...props(b!), label: "See work", href: "#gallery", layerLabel: "See work", i18n: { es: { label: "Ver trabajos" }, en: { label: "See work" } } };
+  a!.props = {
+    ...props(a!),
+    label: "See services",
+    layerLabel: "See services",
+    i18n: { es: { label: "Ver servicios" }, en: { label: "See services" } },
+  };
+  b!.props = {
+    ...props(b!),
+    label: "See work",
+    href: "#gallery",
+    layerLabel: "See work",
+    i18n: { es: { label: "Ver trabajos" }, en: { label: "See work" } },
+  };
   const header = (p.shellTree ?? []).find((n) => props(n).sectionTypeKey === "site_header")!;
   const sp = props(header).sectionProps as Rec;
   (sp.primaryCta as Rec).label = "Menu and prices";
@@ -88,8 +99,10 @@ test("patch: only the CTA nodes change (diff leaves live under the edit prefixes
   ];
   assert.ok(leaves.length > 0);
   for (const l of leaves) assert.ok(/Hero|children\[[01]\]|sectionProps/.test(l) || l.includes("["), l);
-  // Input is not mutated.
-  assert.equal(props(find(base.homeTree!, (n) => props(n).layerLabel === "Hero actions")!.children![0]!).label, "See services");
+  assert.equal(
+    props(find(base.homeTree!, (n) => props(n).layerLabel === "Hero actions")!.children![0]!).label,
+    "See services",
+  );
 });
 
 test("patch: idempotent on an already patched tree", () => {
@@ -121,7 +134,12 @@ test("patch: adds the seed cta item when the live header has none", () => {
   assert.deepEqual(r.refusals, []);
   const out = r.trees.shellTree.find((n) => props(n).sectionTypeKey === "site_header")!;
   const right = ((props(out).sectionProps as Rec).regions as { right: Rec[] }).right;
-  assert.deepEqual(right.find((i) => i.type === "cta"), { type: "cta", label: BOOK_LABEL, href: "#services", responsive: { mobile: "hide" } });
+  assert.deepEqual(right.find((i) => i.type === "cta"), {
+    type: "cta",
+    label: BOOK_LABEL,
+    href: "#services",
+    responsive: { mobile: "hide" },
+  });
 });
 
 test("plan: draft must equal released apart from props.designKey", () => {
@@ -219,7 +237,6 @@ test("plan: only maison-v2 is allowed", () => {
   assert.match(p.refusals.join("|"), /not on the allow-list/);
 });
 
-// ── orchestration with fakes ─────────────────────────────────────────────────
 const baseArgs = (over: Partial<Args> = {}): Args => ({
   designs: ["maison-v2"],
   apply: false,
@@ -231,120 +248,55 @@ const baseArgs = (over: Partial<Args> = {}): Args => ({
   ...over,
 });
 
-function fakePorts(opts: { draft?: DraftInfo | null; staleOnLoad?: boolean; release?: ReleaseRow | null; released?: PayloadLike } = {}) {
+function fakePorts(opts: { draft?: DraftInfo | null; released?: PayloadLike } = {}) {
   const calls: string[] = [];
   const logs: string[] = [];
   const released = { version: 24, payload: opts.released ?? oldPayload() };
   let draft: DraftInfo | null = opts.draft === undefined ? null : opts.draft;
-  let loads = 0;
   const ports: CtaPorts = {
     seed: seedTrees,
     log: (l) => logs.push(l),
     findActor: async () => ({ id: "actor-1", label: "fake" }),
     loadReleased: async () => released,
-    loadDraft: async () => {
-      loads += 1;
-      if (opts.staleOnLoad && draft && loads > 1) return { ...draft, rev: draft.rev + 1 };
-      return draft;
-    },
+    loadDraft: async () => draft,
     openDraft: async () => {
       calls.push("openDraft");
-      draft = draftOf(clone(released.payload), 1);
-      return { ok: true, value: draft };
+      return { ok: false, error: "retired" };
     },
-    saveTree: async (input) => {
-      calls.push(`save:${input.tree}@${input.expectedRev}`);
-      const cur = draft!;
-      const key = input.tree === "home" ? "homeTree" : "shellTree";
-      draft = { ...cur, rev: cur.rev + 1, payload: { ...cur.payload, [key]: input.nodes } };
-      return { ok: true, value: draft };
+    saveTree: async () => {
+      calls.push("save");
+      return { ok: false, error: "retired" };
     },
     preview: async () => {
       calls.push("preview");
-      return { ok: true, value: { nextVersion: 25, itemCount: 3, notes: { en: "n", es: "n" }, items: [] } };
+      return { ok: false, error: "retired" };
     },
     publishDemos: async () => {
       calls.push("publishDemos");
-      return { ok: true, value: { version: 25, releaseId: "r1", demosApplied: 2, warnings: [] } };
+      return { ok: false, error: "retired" };
     },
-    findRelease: async () => opts.release ?? null,
-    setRollout: async () => {
-      calls.push("setRollout");
-      return { ok: true, value: null };
-    },
+    findRelease: async () => null,
+    setRollout: async () => ({ ok: false, error: "retired" }),
     openToTalents: async () => {
       calls.push("openToTalents");
-      return { ok: true, value: { updates: 4, bells: 4, demosApplied: 0, warnings: [] } };
+      return { ok: false, error: "retired" };
     },
   };
   return { ports, calls, logs };
 }
 
-test("run: dry run is default, prints the diff and writes nothing", async () => {
+test("run: retired — always refuses and never writes (TUL-366)", async () => {
   const f = fakePorts();
-  assert.equal(await run(baseArgs(), f.ports), 0);
+  assert.equal(await run(baseArgs(), f.ports), 2);
+  assert.equal(await run(baseArgs({ apply: true, yes: true }), f.ports), 2);
+  assert.equal(await run(baseArgs({ apply: true, yes: true, releaseToTalents: true, rollout: 100 }), f.ports), 2);
   assert.deepEqual(f.calls, []);
-  assert.match(f.logs.join("\n"), /hero primary/);
-  assert.match(f.logs.join("\n"), /DRY RUN/);
+  assert.match(f.logs.join("\n"), /retired/i);
+  assert.match(f.logs.join("\n"), /Builder Lab/);
 });
 
-test("run: guards refuse other slugs, --apply without --yes, talents without apply, include-open-draft", async () => {
-  assert.equal(await run(baseArgs({ designs: ["folio"] }), fakePorts().ports), 2);
-  assert.equal(await run(baseArgs({ designs: [] }), fakePorts().ports), 2);
-  assert.equal(await run(baseArgs({ apply: true }), fakePorts().ports), 2);
-  assert.equal(await run(baseArgs({ releaseToTalents: true }), fakePorts().ports), 2);
-  assert.equal(await run(baseArgs({ includeOpenDraft: ["maison-v2"] }), fakePorts().ports), 2);
-});
-
-test("run --apply --yes: opens a draft, saves both trees on the CAS rev, previews, publishes to demos only", async () => {
+test("run: still prints a diagnostic plan before refusing", async () => {
   const f = fakePorts();
-  assert.equal(await run(baseArgs({ apply: true, yes: true }), f.ports), 0);
-  assert.deepEqual(f.calls, ["openDraft", "save:shell@1", "save:home@2", "preview", "publishDemos"]);
-  assert.ok(!f.calls.includes("openToTalents"));
-  assert.match(f.logs.join("\n"), /Talents are NOT touched/);
-});
-
-test("run --apply: refuses when the draft differs from released, writes nothing", async () => {
-  const changed = oldPayload();
-  changed.tokenDefaults = { a: "1" };
-  const f = fakePorts({ draft: draftOf(changed) });
-  assert.equal(await run(baseArgs({ apply: true, yes: true }), f.ports), 2);
-  assert.deepEqual(f.calls, []);
-});
-
-test("run --apply: refuses when the draft rev moves before the write", async () => {
-  const f = fakePorts({ draft: draftOf(oldPayload()), staleOnLoad: true });
-  assert.equal(await run(baseArgs({ apply: true, yes: true }), f.ports), 2);
-  assert.deepEqual(f.calls, []);
-});
-
-test("run --apply: an already patched released version creates no draft and no release", async () => {
-  const done = patchTrees(oldPayload(), seedTrees());
-  const f = fakePorts({ released: { ...oldPayload(), ...done.trees } });
-  assert.equal(await run(baseArgs({ apply: true, yes: true }), f.ports), 0);
-  assert.deepEqual(f.calls, []);
-  assert.match(f.logs.join("\n"), /Nothing to patch/);
-});
-
-test("run --release-to-talents: needs a published demos release, clean dry run, rollout; then opens", async () => {
-  const rel = (over: Partial<ReleaseRow> = {}): ReleaseRow => ({
-    id: "r1",
-    channel: "demos",
-    status: "published",
-    rollout_pct: 0,
-    to_version: 25,
-    dry_run_report: { summary: { errors: 0, demos: { errors: 0 } } },
-    ...over,
-  });
-  const go = (release: ReleaseRow | null, over: Partial<Args> = {}) => {
-    const f = fakePorts({ release });
-    return run(baseArgs({ apply: true, yes: true, releaseToTalents: true, ...over }), f.ports).then((code) => ({ code, f }));
-  };
-  assert.equal((await go(null)).code, 2);
-  assert.equal((await go(rel({ channel: "optin" }))).code, 2);
-  assert.equal((await go(rel({ dry_run_report: { summary: { errors: 2 } } }))).code, 2);
-  assert.equal((await go(rel())).code, 2, "rollout 0 needs --rollout");
-  const ok = await go(rel(), { rollout: 100 });
-  assert.equal(ok.code, 0);
-  assert.deepEqual(ok.f.calls, ["setRollout", "openToTalents"]);
+  assert.equal(await run(baseArgs(), f.ports), 2);
+  assert.match(f.logs.join("\n"), /hero primary|already patched|edits:/);
 });
