@@ -2,25 +2,26 @@
  * fee-payer-setting.ts — client-side contract for "Who pays the card fee".
  *
  * Owner rule: the client pays the service price plus a platform fee
- * (`PASS_THROUGH_DEFAULT_TAKE_BPS`, default 150 = 1.5%). By default the seller
+ * (`pass_through_take_bps` from live platform config). By default the seller
  * (talent or workspace) absorbs the card processing fee, deducted at cost.
  * When the seller picks "client", the client also covers processing, so the
  * seller receives 100% of the price.
  *
  * This file is PURE (no "use server"): types + the preview the settings UI
  * shows. Preview math is the SAME pure path the server charges with —
- * `resolveBookingCommissions` + `grossUpForProcessorFee` / `estimateProcessorFeeCents`
- * over {@link DEFAULT_PROCESSOR_FEE_RATES}, all in integer cents.
+ * `resolveBookingCommissions` over live `takeBps` + `processorFeeRates`
+ * (loaded via `engine_platform_processing_mode`), all in integer cents.
+ * Callers MUST supply those values — this module does not invent 150 bps or
+ * a code-local rate table.
  *
  * The server actions live in ./fee-payer-actions.ts (a "use server" file may
  * only export async functions, so the pure helpers cannot share it).
  */
 
 import {
-  DEFAULT_PROCESSOR_FEE_RATES,
   PASS_THROUGH_DEFAULT_TAKE_BPS,
+  DEFAULT_PROCESSOR_FEE_RATES,
   estimateProcessorFeeCents,
-  processorFeeRatesForCurrency,
   resolveBookingCommissions,
   type ProcessorFeeRates,
 } from "./commission";
@@ -41,8 +42,9 @@ export type FeeRates = {
 };
 
 /**
- * @deprecated Prefer {@link DEFAULT_PROCESSOR_FEE_RATES} / {@link processorFeeRatesForCurrency}.
- * Kept as a major-unit view of the same table for older call sites.
+ * @deprecated Prefer live `processor_fee_rates` from
+ * `engine_platform_processing_mode`. Kept as a major-unit view of the SQL
+ * default table for older call sites / fixtures.
  */
 export const PROVIDER_FEE_RATES: Record<FeeProvider, FeeRates> = {
   stripe_us: {
@@ -57,20 +59,14 @@ export const PROVIDER_FEE_RATES: Record<FeeProvider, FeeRates> = {
   },
 };
 
-/** Platform take in basis points — same default the charge path uses. */
+/** @deprecated Prefer live `takeBps` from {@link feePreviewConfigFromProcessingModeRow}. */
 export const PLATFORM_TAKE_BPS = PASS_THROUGH_DEFAULT_TAKE_BPS;
 
-/** Platform fee as a fraction of the service price (derived from bps). */
+/** @deprecated Prefer `takeBps / 10000` from the live config. */
 export const PLATFORM_FEE_RATE = PLATFORM_TAKE_BPS / 10_000;
 
 export function providerForCurrency(currency: string): FeeProvider {
   return currency.toUpperCase() === "MXN" ? "stripe_mx" : "stripe_us";
-}
-
-function ratesForProvider(provider: FeeProvider): ProcessorFeeRates {
-  return provider === "stripe_mx"
-    ? DEFAULT_PROCESSOR_FEE_RATES.mxn
-    : DEFAULT_PROCESSOR_FEE_RATES.default;
 }
 
 export type FeeLines = {
@@ -95,24 +91,42 @@ export type FeeLines = {
  * Fee lines for a booking preview. `price` is in major units (100 = $100.00).
  * Math is integer cents via {@link resolveBookingCommissions} — the same
  * function that produces the server charge.
+ *
+ * `takeBps` and `processorFeeRates` are REQUIRED — they must come from the
+ * live `engine_platform_processing_mode` row (or an identical fixture in tests).
  */
 export function previewFeeLines(input: {
   price: number;
   currency: string;
   feePayer: FeePayer;
-  /** @deprecated Prefer currency; rates come from {@link DEFAULT_PROCESSOR_FEE_RATES}. */
-  provider?: FeeProvider;
-  /** Override platform take (bps). Defaults to {@link PLATFORM_TAKE_BPS}. */
-  takeBps?: number;
-  /** Override processor rates. Defaults from the canonical table. */
-  processorFeeRates?: ProcessorFeeRates;
+  /** Live pass_through take (bps) from platform config. */
+  takeBps: number;
+  /** Live processor rates for the presentment currency. */
+  processorFeeRates: ProcessorFeeRates;
+  /** Platform take floor in cents (from config / override). Default 0. */
+  takeFloorCents?: number;
+  /** Optional tenant override floor / take — same shape the engine applies. */
+  tenantOverride?: {
+    platform_take_bps: number | null;
+    platform_take_floor_cents: number | null;
+  } | null;
 }): FeeLines {
   const currency = input.currency.toUpperCase();
   const serviceMinor = Math.round(Math.max(0, input.price) * 100);
-  const takeBps = input.takeBps ?? PLATFORM_TAKE_BPS;
-  const rates =
-    input.processorFeeRates ??
-    (input.provider ? ratesForProvider(input.provider) : processorFeeRatesForCurrency(currency));
+  const takeBps = input.takeBps;
+  const rates = input.processorFeeRates;
+  const takeFloorCents = input.takeFloorCents ?? 0;
+
+  if (!Number.isFinite(takeBps) || takeBps < 0) {
+    throw new Error("previewFeeLines: takeBps required from live platform config");
+  }
+  if (
+    !rates ||
+    !Number.isFinite(rates.percent) ||
+    !Number.isFinite(rates.fixed_cents)
+  ) {
+    throw new Error("previewFeeLines: processorFeeRates required from live platform config");
+  }
 
   if (serviceMinor === 0) {
     return {
@@ -137,12 +151,13 @@ export function previewFeeLines(input: {
     sellerOfRecord: "talent",
     platformConfig: {
       default_take_bps: 600,
-      default_take_floor_cents: 0,
+      default_take_floor_cents: takeFloorCents,
       plan_tier_bps: {},
       processing_mode: "pass_through",
       pass_through_take_bps: takeBps,
+      processor_fee_rates: { default: rates, [currency.toLowerCase()]: rates },
     },
-    tenantOverride: null,
+    tenantOverride: input.tenantOverride ?? null,
     processingFeePayer: input.feePayer,
     processorFeeRates: rates,
   });
@@ -162,7 +177,7 @@ export function previewFeeLines(input: {
   return {
     currency,
     feePayer: input.feePayer,
-    platformTakeBps: takeBps,
+    platformTakeBps: snap.platform_take_bps,
     serviceMinor,
     platformFeeMinor,
     clientProcessingMinor,
