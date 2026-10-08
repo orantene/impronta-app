@@ -6078,7 +6078,7 @@ function renderBuilderNodeElement(
         confirmsByHand: options.dataSources?.talentOfferingsConfirmsByHand ?? true,
         styleAttr: sharedNodeStyle(node.props.style),
         styleDataAttrs: node.props.style?.responsive ? builderNodeStyleAttrs(node.props.style) : undefined,
-        locale: options.contentLocale?.locale ?? options.visitorLocale,
+        locale: options.contentLocale?.locale ?? options.visitorLocale, primaryLocale: options.contentLocale?.defaultLocale,
       });
     }
     case "reviews": {

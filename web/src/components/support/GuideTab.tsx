@@ -18,7 +18,7 @@ import { interpolate } from "@/i18n/interpolate";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS } from "./support-tokens";
 import { getGuideArticleAction, guideSearchMissAction, guideSignalAction, listGuideTopicsAction } from "@/lib/guide/guide-actions";
-import { tokenize } from "@/lib/support/help-corpus";
+import { searchGuideTopics } from "@/lib/guide/guide-search";
 import type { GuideArticle, GuideLocale, GuideTopicSummary } from "@/lib/guide/types";
 import { humanizeNodeId } from "@/lib/guide/humanize";
 
@@ -97,14 +97,7 @@ export function GuideTab({
 
   const results = useMemo(() => {
     if (!topics || !query.trim()) return null;
-    const q = tokenize(query);
-    if (q.length === 0) return null;
-    return topics
-      .filter((topic) => {
-        const hay = tokenize(`${topic.title} ${topic.oneSentence} ${topic.category}`);
-        return q.every((term) => hay.some((h) => h.includes(term)));
-      })
-      .slice(0, 8);
+    return searchGuideTopics(topics, query, 8);
   }, [topics, query]);
 
   // Log a miss once the user has stopped typing on a query that matched nothing.

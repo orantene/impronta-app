@@ -5,6 +5,7 @@ import { useDashboardText } from "../../dashboard-i18n";
 import { pinNextConversation as pinNextConversationT, pinNextThreadTab as pinNextThreadTabT } from "../../messages";
 import { COLORS, FONTS, RADIUS, TRANSITION, useAdminShell } from "../../state";
 import { useTalentConversations } from "./conversation-adapter-1";
+import { useHydrated } from "./use-hydrated";
 
 // Real "today", isolated in a module helper so the argless `new Date()` call
 // stays out of the component body (react-hooks/purity). Pinned once at mount
@@ -47,7 +48,20 @@ export function WeekRhythmStrip() {
   // once at mount (module helper keeps the argless new Date() out of the
   // render body for react-hooks/purity); the strip then runs from the most
   // recent Monday on/before today through the following Sunday.
+  const hydrated = useHydrated();
   const todayDate = useMemo(() => todayLocal(), []);
+  // The week comes from the viewer's wall clock and timezone, which the server
+  // does not share: render a fixed-size placeholder until hydrated (React #418
+  // on /talent/today).
+  if (!hydrated) {
+    return (
+      <section
+        aria-busy="true"
+        data-testid="week-rhythm-placeholder"
+        className="mb-0 min-h-[112px] rounded-admin-lg border border-admin-border-soft bg-white px-[18px] py-[14px]"
+      />
+    );
+  }
   const todayDow = todayDate.getDay(); // 0=Sun..6=Sat
   const offsetToMon = todayDow === 0 ? -6 : 1 - todayDow;
   const weekStart = new Date(todayDate);

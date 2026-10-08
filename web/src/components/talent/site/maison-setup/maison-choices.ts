@@ -82,11 +82,11 @@ export function parseFromQuery(raw: unknown): string | null {
   return q ? q : null;
 }
 
-/** Demo key valid for the design in gallery-meta, else null. */
+/** Built demo key valid for the design in gallery-meta, else null. Planned keys drop. */
 export function parseDemoKey(designSlug: string, raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const design = getGalleryDesign(designSlug);
-  return design?.demos.some((d) => d.key === raw) ? raw : null;
+  return design?.demos.some((d) => d.key === raw && d.status === "built") ? raw : null;
 }
 
 /** Palette key valid for the design in gallery-meta, else null. */

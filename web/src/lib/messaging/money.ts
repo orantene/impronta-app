@@ -412,7 +412,7 @@ export async function orderLinkedToInquiry(admin: Admin, tenantId: string, order
 export async function loadRefundableTransaction(
   admin: Admin,
   input: { tenantId: string; recordKind: RecordKind; recordId: string },
-): Promise<{ paymentId: string; refundableCents: number } | null> {
+): Promise<{ paymentId: string; refundableCents: number; currencyCode: string | null } | null> {
   const resolved = await resolveMoneyRecordLines(admin, input);
   if (!resolved.ok) return null;
   const transactions = await loadPaidTransactions(admin, resolved.orderId);
@@ -420,7 +420,12 @@ export async function loadRefundableTransaction(
   const refundable = transactions.map((t) => ({ id: t.id, refundableCents: t.grossAmountCents - t.refundedCents })).filter((t) => t.refundableCents > 0);
   if (refundable.length === 0) return null;
   const last = refundable[refundable.length - 1];
-  return { paymentId: last.id, refundableCents: last.refundableCents };
+  // The refund is in the order's own currency (`orders.currency`, the same
+  // column the cancel preview reads); null when unreadable, the display then
+  // falls back to the platform currency with the code shown.
+  const { data: orderRow, error: orderErr } = await admin.from("orders").select("currency").eq("id", resolved.orderId).maybeSingle();
+  const currencyCode = orderErr ? null : ((orderRow as { currency: string | null } | null)?.currency ?? null);
+  return { paymentId: last.id, refundableCents: last.refundableCents, currencyCode };
 }
 
 export type { RefundLinesResult };

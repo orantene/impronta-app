@@ -128,7 +128,7 @@ test("state 3, ready: chips in the agency's order (Talent first), rows grouped, 
   assert.match(html, /data-items-row="talent:t2" data-availability="busy"/);
   assert.match(html, /busy booked Sep 20/);
   assert.match(html, /Gala Duo package/);
-  assert.match(html, /\$1,000</);
+  assert.match(html, /\$1,000 USD</);
   assert.match(html, /data-items-modes/);
   assert.match(html, /As an offer to accept/);
   assert.match(html, /Send choices/);
@@ -154,7 +154,7 @@ test("state 3b, ready with a selection: count and total in the footer, the ticke
     />,
   );
   houseRules(html);
-  assert.match(html, /3 selected · from \$1,050</);
+  assert.match(html, /3 selected · from \$1,050 USD</);
   assert.match(html, /data-items-tier/);
   assert.match(html, /<option[^>]*value="v2"[^>]*disabled=""/);
   assert.match(html, /40 left/);
@@ -162,7 +162,7 @@ test("state 3b, ready with a selection: count and total in the footer, the ticke
   assert.match(html, /data-items-send="true">Send choices</);
   const draft = renderToStaticMarkup(<ItemsPickerView {...pickerProps({ selected: [{ row: PACKAGE, units: 1 }], mode: "draft" })} />);
   assert.match(draft, /data-items-send="true">Add to draft</);
-  assert.match(draft, /1 selected · \$1,000</);
+  assert.match(draft, /1 selected · \$1,000 USD</);
 });
 
 test("state 4, busy (sending): the button is busy and says Sending, the rows and the search are disabled", () => {
@@ -210,7 +210,7 @@ test("mobile (M03): the h92 sheet, the short title, mobile chips and rows, one x
   assert.match(html, /class="mx-chips"/);
   assert.match(html, /class="mx-opt2 on"/);
   assert.match(tag(html, "data-items-send"), /class="btn primary xl fill"/);
-  assert.match(html, /data-items-send="true">Continue to offer · 2 selected · \$1,090</);
+  assert.match(html, /data-items-send="true">Continue to offer · 2 selected · \$1,090 USD</);
 });
 
 test("category narrowing: only the chosen category's rows, no group headers", () => {
@@ -408,4 +408,18 @@ test("runSendPlan never writes a line without a draft: a plan that skipped ensur
 test("importing the sheets barrel registers add_items and send_times for lane L5", () => {
   assert.equal(registeredActionSheet("add_items")?.lane, "L5");
   assert.equal(registeredActionSheet("send_times")?.lane, "L5");
+});
+
+test("TUL-281: a catalog row, its tiers and the running total show in the row's own currency (MXN)", () => {
+  const pkg: CatalogRow = { ...PACKAGE, currency: "MXN", amountCents: 85_000 };
+  const ticket: CatalogRow = { ...TICKET, currency: "MXN" };
+  const html = renderToStaticMarkup(<ItemsPickerView {...pickerProps({ catalog: { ...CATALOG, rows: [pkg, ticket] } })} />);
+  assert.match(html, /\$850 MXN</);
+  assert.match(html, /\$25 MXN</);
+  assert.doesNotMatch(html, /USD/);
+});
+
+test("TUL-281: a row with no currency falls back to the platform currency, code shown", () => {
+  const html = renderToStaticMarkup(<ItemsPickerView {...pickerProps({ catalog: { ...CATALOG, rows: [{ ...PACKAGE, currency: null }] } })} />);
+  assert.match(html, /\$1,000 USD</);
 });

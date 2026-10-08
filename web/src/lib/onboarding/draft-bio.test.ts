@@ -36,3 +36,10 @@ test("nothing known still yields a usable line", () => {
   assert.ok(en.length >= 30);
   assert.equal(bioPassesRules(en, facts).ok, true);
 });
+
+test("TUL-131: the Spanish draft uses the taxonomy es name, English stays as typed", () => {
+  const facts = { name: "Rosa", discipline: "House cleaner", disciplineEs: "Personal de limpieza", city: "Playa del Carmen", services: [], yearsExperience: null };
+  assert.ok(draftBio(facts, "es").startsWith("Soy Rosa, personal de limpieza en Playa del Carmen."));
+  assert.ok(draftBio(facts, "en").startsWith("I'm Rosa, a house cleaner in Playa del Carmen."));
+  assert.ok(draftBio({ ...facts, disciplineEs: null }, "es").startsWith("Soy Rosa, house cleaner"));
+});

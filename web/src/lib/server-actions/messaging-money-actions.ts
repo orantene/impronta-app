@@ -264,13 +264,13 @@ export async function messagingCancelRecord(input: {
 export async function messagingLoadRefundableTransaction(input: {
   recordKind: RecordKind;
   recordId: string;
-}): Promise<ActionResult<{ paymentId: string | null; refundableCents: number }>> {
+}): Promise<ActionResult<{ paymentId: string | null; refundableCents: number; currencyCode: string | null }>> {
   const g = await messagingStaff();
   if (!g.ok) return g;
   const parsed = z.object({ recordKind: z.enum(RECORD_KINDS), recordId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const found = await loadRefundableTransaction(g.admin, { tenantId: g.tenantId, recordKind: parsed.data.recordKind as RecordKind, recordId: parsed.data.recordId });
-  return { ok: true, paymentId: found?.paymentId ?? null, refundableCents: found?.refundableCents ?? 0 };
+  return { ok: true, paymentId: found?.paymentId ?? null, refundableCents: found?.refundableCents ?? 0, currencyCode: found?.currencyCode ?? null };
 }
 
 // ─── messagingRefund (no cancellation) ─────────────────────────────────────

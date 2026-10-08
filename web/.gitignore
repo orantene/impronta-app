@@ -65,3 +65,6 @@ e2e/.auth/
 # Talent-website journey sign-in states (auth.setup.ts). Real session cookies
 # for local fixture users; regenerated on every run.
 e2e/.auth/
+
+# TUL-207 demo English data seed: pre-change backups (never committed)
+/scripts/demo-english-data/backups/

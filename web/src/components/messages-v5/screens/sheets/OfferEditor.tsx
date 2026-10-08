@@ -35,7 +35,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { formatOrderMoney } from "@/lib/orders/money-format";
+import { formatRecordMoney } from "@/lib/messages-v5/record-money";
 import { quoteSummary, type SellerChrome } from "../../shell/seller";
 import { messagingSendOffer } from "@/lib/server-actions/messaging-engine";
 import {
@@ -159,7 +159,7 @@ export type OfferEditorViewProps = {
 function depositLine(draft: OfferDraftState, copy: ScreenCopy["kit"]): string | null {
   const cents = draftDepositCents(draft);
   if (cents == null) return null;
-  return `${copy.offer.depositLabel}: ${formatOrderMoney(cents, draft.currencyCode)}`;
+  return `${copy.offer.depositLabel}: ${formatRecordMoney(cents, draft.currencyCode)}`;
 }
 
 function offerCardStateFor(status: OfferDraftState["status"]): OfferCardState {
@@ -169,24 +169,24 @@ function offerCardStateFor(status: OfferDraftState["status"]): OfferCardState {
 /** Seller summary card: what she charges, what holds the time, what is paid at the appointment. */
 function SellerQuoteSummary({ seller, totalCents, depositCents, currency }: { seller: SellerChrome; totalCents: number; depositCents: number | null | undefined; currency: string }) {
   const sum = quoteSummary(totalCents, depositCents);
-  const formatCentsUSD = (cents: number) => formatOrderMoney(cents, currency); // her service currency, never a hard-coded USD (e2e P1)
+  const fmtCents = (cents: number) => formatRecordMoney(cents, currency); // her service currency, never a hard-coded USD (e2e P1)
   return (
     <section className="pn-sec" data-offer-seller-summary>
       <h4>{seller.summaryTitle}</h4>
       <div className="offer-internal-row">
         <span>{seller.summaryTotal}</span>
-        <b>{formatCentsUSD(sum.totalCents)}</b>
+        <b>{fmtCents(sum.totalCents)}</b>
       </div>
       {sum.depositCents != null ? (
         <div className="offer-internal-row">
           <span>{seller.summaryDeposit}</span>
-          <b>{formatCentsUSD(sum.depositCents)}</b>
+          <b>{fmtCents(sum.depositCents)}</b>
         </div>
       ) : null}
       {sum.balanceCents != null ? (
         <div className="offer-internal-row">
           <span>{seller.summaryBalance}</span>
-          <b>{formatCentsUSD(sum.balanceCents)}</b>
+          <b>{fmtCents(sum.balanceCents)}</b>
         </div>
       ) : null}
     </section>
@@ -197,7 +197,7 @@ function SellerQuoteSummary({ seller, totalCents, depositCents, currency }: { se
 export function OfferEditorView(props: OfferEditorViewProps) {
   const { phase, copy, variant, onClose, refusalCode, draft, clientName } = props;
   const c = copy.kit.offer;
-  const formatCentsUSD = (cents: number) => formatOrderMoney(cents, draft?.currencyCode ?? "USD");
+  const fmtCents = (cents: number) => formatRecordMoney(cents, draft?.currencyCode);
   const sheetVariant = variant === "mobile" ? "mobile-full" : "desktop";
   const revision = draft ? visibleRevisionNumber(props.versions, draft.offerId ?? "") : 1;
   const title = draft
@@ -334,13 +334,13 @@ export function OfferEditorView(props: OfferEditorViewProps) {
                     avatarName={line.proposedByName}
                     name={line.label}
                     units={String(line.units)}
-                    price={formatCentsUSD(line.unitPriceCents)}
+                    price={fmtCents(line.unitPriceCents)}
                     copy={copy.kit}
                     variant={variant}
                     proposedBy={line.proposedBy === "system" ? "staff" : line.proposedBy}
                     proposedByName={line.proposedByName}
                     confirmed={line.confirmed}
-                    priceSnapshot={drift.drifted ? c.priceDriftHint.replace("{price}", formatCentsUSD(drift.catalogNowCents)) : null}
+                    priceSnapshot={drift.drifted ? c.priceDriftHint.replace("{price}", fmtCents(drift.catalogNowCents)) : null}
                     removed={line.removedBy ? { by: line.removedBy } : null}
                     onUnits={(v) => props.onLineUnits(line.id, v)}
                     onPrice={(v) => props.onLinePrice(line.id, v)}
@@ -455,15 +455,15 @@ export function OfferEditorView(props: OfferEditorViewProps) {
           </h4>
           <div className="offer-internal-row">
             <span>{c.internalTalentNet}</span>
-            <b>{formatCentsUSD(talentNet)}</b>
+            <b>{fmtCents(talentNet)}</b>
           </div>
           <div className="offer-internal-row">
             <span>{c.internalAgencyFee}</span>
-            <b>{formatCentsUSD(split.coordinatorFeeCents)}</b>
+            <b>{fmtCents(split.coordinatorFeeCents)}</b>
           </div>
           <div className="offer-internal-row">
             <span>{c.internalPlatformFee}</span>
-            <b>{formatCentsUSD(platformFee)}</b>
+            <b>{fmtCents(platformFee)}</b>
           </div>
         </section>
 
@@ -478,11 +478,11 @@ export function OfferEditorView(props: OfferEditorViewProps) {
             forName={clientName}
             lines={draft.lines
               .filter((l) => !l.removedBy)
-              .map((l) => ({ label: l.label, amount: formatCentsUSD(lineTotalCents(l)) }))}
-            total={formatCentsUSD(totalCents)}
+              .map((l) => ({ label: l.label, amount: fmtCents(lineTotalCents(l)) }))}
+            total={fmtCents(totalCents)}
             depositLine={
               draftDepositCents(draft) != null
-                ? { pct: draft.terms.depositMode === "pct" ? `${draft.terms.depositPct}%` : "", amount: formatCentsUSD(draftDepositCents(draft) ?? 0) }
+                ? { pct: draft.terms.depositMode === "pct" ? `${draft.terms.depositPct}%` : "", amount: fmtCents(draftDepositCents(draft) ?? 0) }
                 : null
             }
             validUntil={draft.terms.validUntil}

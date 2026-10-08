@@ -451,6 +451,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:jorgelina-content
 
+      - name: tests — demo English data script (TUL-207)
+        if: ${{ !cancelled() }}
+        run: npm run test:demo-english-data
+
       - name: tests — English content fill + ticker source scripts (TUL-15)
         if: ${{ !cancelled() }}
         run: npm run test:en-content-fill
@@ -459,9 +463,20 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:sync-test-talent
 
+      - name: tests — live timing harness pure parts (TUL-290)
+        if: ${{ !cancelled() }}
+        run: npm run test:live-timing
       - name: tests — talent public app routes (bracketed folders, TUL-288 follow-up)
         if: ${{ !cancelled() }}
         run: npm run test:talent-public-app
+
+      - name: tests — previously orphaned tests, enrolled (core)
+        if: ${{ !cancelled() }}
+        run: npm run test:orphans-enrolled-core
+
+      - name: tests — previously orphaned money and auth tests, enrolled
+        if: ${{ !cancelled() }}
+        run: npm run test:orphans-enrolled-money-auth
 
       - name: tests — fields
         if: ${{ !cancelled() }}

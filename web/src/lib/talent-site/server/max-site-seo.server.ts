@@ -1,6 +1,7 @@
 import "server-only";
 
 import { isOwnCanonical } from "@/lib/talent-site/canonical-own-host";
+import { seoTitleFallback } from "@/lib/talent-site/seo-title-fallback";
 import { buildLocaleAlternates } from "@/i18n/alternates";
 import { buildTalentProfileJsonLd, type TalentJsonLdService } from "@/lib/seo/talent-json-ld";
 import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
@@ -49,6 +50,11 @@ export function buildMaxSiteSeo(args: {
    */
   ownHosts?: readonly string[];
   /**
+   * Platform pages (`/politicas`, `/privacidad`) render inside the HOME page's row, so the home's
+   * explicit `canonical_url` must never apply to them: each is self-canonical with its own hreflang pair.
+   */
+  ignoreExplicitCanonical?: boolean;
+  /**
    * PR 5 — the talent's languages. With two or more, every language version
    * is self-canonical (primary unprefixed, each secondary prefixed) with
    * reciprocal hreflang + x-default on the unprefixed URL. One language: no
@@ -62,7 +68,17 @@ export function buildMaxSiteSeo(args: {
   // rather than added to `MaxSiteSeo`, so the shared `maxSiteSeoToMetadata`
   // mapper needs no change and all three talent-site routes pick it up in
   // lockstep — including og:title, which already falls back to `title`.
-  const { pageTitle, seoTitle: title } = resolveMaxSiteTitles(page, identity?.name || site.siteSlug || "", locale);
+  const { pageTitle, seoTitle: storedTitle } = resolveMaxSiteTitles(page, identity?.name || site.siteSlug || "", locale);
+  // A language she has not written a title for gets a neutral generated one, not the primary-language text.
+  const title =
+    seoTitleFallback({
+      locale,
+      primaryLocale: args.locales?.primary,
+      metaTitleI18n: page.metaTitleI18n,
+      titleI18n: page.titleI18n,
+      name: identity?.name,
+      city: args.addressLocality,
+    }) ?? storedTitle;
   const description = resolveMaxSiteDescription(page, locale);
 
   // Canonical — explicit column wins; else origin + path. Never the profile.
@@ -82,7 +98,7 @@ export function buildMaxSiteSeo(args: {
   // An operator's explicit canonical_url describes the primary-language page;
   // a translated version stays self-canonical so its hreflang is honoured.
   const isPrimary = !args.locales || locale === args.locales.primary;
-  const explicit = isPrimary ? page.canonicalUrl?.trim() : "";
+  const explicit = isPrimary && !args.ignoreExplicitCanonical ? page.canonicalUrl?.trim() : "";
   const explicitIsOwn = explicit ? isOwnCanonical(explicit, { origin, hosts: args.ownHosts ?? [] }) : false;
   if (explicit && !explicitIsOwn && process.env.NODE_ENV !== "production") {
     // Silent-failure signal (AGENTS.md): name the row and the host, never throw.

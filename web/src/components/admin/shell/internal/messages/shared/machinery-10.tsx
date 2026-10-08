@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { loadInquiryLineup, type InquiryParticipant } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { formatOfferMoney } from "@/lib/inquiry/offer-currency";
+import { loadInquiryLineup,type InquiryParticipant } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { COLORS, useAdminShell, type RichInquiry, type InquiryTalentInvite } from "../../state";
 import { getEffectiveOffer } from "../conversation-stash";
 import { currentTalentId } from "../messages-shared";
@@ -439,9 +440,15 @@ export const UNIT_TYPE_LABEL_KEYS: Record<UnitType, string> = {
   event:    "dashboard.enums.unitType.event",
 };
 
-export function fmtMoney(n: number, currency: string) {
+/**
+ * THE shared money display for the messages sheets: symbol plus ISO code
+ * ("$850 MXN"), from the record's currency. Zero renders as a dash. Delegates
+ * to `formatOfferMoney`; an unknown currency falls back to the platform one
+ * with its code shown (TUL-281).
+ */
+export function fmtMoney(n: number, currency: string | null | undefined) {
   if (!n) return "—";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
+  return formatOfferMoney(n, currency, { maximumFractionDigits: 0 });
 }
 
 export function rowSubtotal(r: LineupRow, side: "cost" | "client") {

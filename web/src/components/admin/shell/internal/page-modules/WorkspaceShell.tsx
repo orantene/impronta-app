@@ -393,12 +393,6 @@ function WorkspaceSidebarShell() {
         data-tulala-app-sidebar
         className="sticky top-[var(--proto-cbar,50px)] flex h-[calc(100vh-var(--proto-cbar,50px))] flex-col self-start overflow-hidden border-r border-admin-border-soft bg-admin-surface-alt font-admin-body"
       >
-        {/* WS-12.10 — secondary skip link lets keyboard users bypass the
-            sidebar nav and jump straight to the page content area. */}
-        <a href="#tulala-workspace-content" className="skip-to-main">
-          {copy.t("Skip to page content")}
-        </a>
-
         {/* The brand, at the head of the rail (Main board). Whitelabel tiers
             with an uploaded logo show their own mark here instead; the
             wordmark + tagline lockup is the default for everyone else. */}

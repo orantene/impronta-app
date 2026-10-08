@@ -92,6 +92,15 @@ export function shareLinksFrom(protectionBypass) {
     .map(([token, v]) => ({ token, expiresAt: expiryMs(v.expires) }));
 }
 
+/**
+ * Share links for a leased host. Vercel returns the `protectionBypass` map on the ALIAS object
+ * (GET /v4/aliases/<host>, verified read-only 2026-10-08: a 23h shareable-link entry sat there),
+ * and the deployment object may carry its own; read both, alias entries win on the same token.
+ */
+export function shareLinksFromAliasAndDeployment(alias, deployment) {
+  return shareLinksFrom({ ...(deployment?.protectionBypass ?? {}), ...(alias?.protectionBypass ?? {}) });
+}
+
 /** Reuse decision: the unexpired link with the latest expiry (never-expiring wins), or null. */
 export function pickShareLink(links, now) {
   const ok = links.filter((l) => l.expiresAt === null || l.expiresAt - now >= SHARE_MIN_REMAINING_MS);

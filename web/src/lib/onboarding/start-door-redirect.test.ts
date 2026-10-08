@@ -42,3 +42,15 @@ test("never redirects unsafe methods or other paths", () => {
   assert.equal(startDoorRedirect({ ...base, pathname: "/starting", hostKind: "app" }), null);
   assert.equal(startDoorRedirect({ ...base, pathname: "/start/extra", hostKind: "app" }), null);
 });
+
+test("the legacy /onboarding/role URL: marketing host hands it to /start, every other host keeps its own behavior", () => {
+  assert.equal(startDoorRedirect({ ...base, pathname: "/onboarding/role", hostKind: "marketing" }), "https://tulala.digital/start");
+  assert.equal(
+    startDoorRedirect({ ...base, pathname: "/onboarding/role", hostKind: "marketing", search: "?lang=es" }),
+    "https://tulala.digital/start?lang=es",
+  );
+  for (const hostKind of ["app", "agency", "talent_site", "hub", "not_found"]) {
+    assert.equal(startDoorRedirect({ ...base, pathname: "/onboarding/role", hostKind }), null, hostKind);
+  }
+  assert.equal(startDoorRedirect({ ...base, method: "POST", pathname: "/onboarding/role", hostKind: "marketing" }), null);
+});

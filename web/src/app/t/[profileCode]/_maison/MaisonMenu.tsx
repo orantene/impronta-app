@@ -33,6 +33,7 @@ import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { resolveOfferingCta } from "@/lib/talent/offerings-types";
 import { opensAskFlowOnly } from "@/lib/talent/offering-cta-derivation";
 import { openCatalogBookingChat } from "@/components/public-booking/catalog-booking-chat";
+import { registerSlotOffering } from "@/lib/talent-site/next-free-slot";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import { durationLabel } from "@/lib/talent/duration-label";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
@@ -253,6 +254,11 @@ export function MaisonMenu({
     }
     return map;
   }, [offerings]);
+
+  // TUL-232: the sheet resolves these when the bar or chip opens booking at a slot.
+  useEffect(() => {
+    for (const o of offerings) registerSlotOffering(o, detailFor(asSellable(o, surfaceBooking)));
+  }, [offerings, surfaceBooking]);
 
   const onRowAction = (raw: TalentOffering, hasOptions: boolean, inclusion?: string | null) => {
     const o = asSellable(raw, surfaceBooking);

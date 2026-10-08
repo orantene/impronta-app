@@ -113,7 +113,11 @@ export async function writeTalentProfileFromBrief(input: {
   const country = stringFact(brief, "person.country");
   const discipline = stringFact(brief, "work.discipline") ?? stringFact(brief, "work.industry");
   const services = listFact(brief, "work.services");
-  const bioFacts = { name: displayName || null, discipline, city, services, yearsExperience: numberFact(brief, "work.years_experience") };
+  // TUL-131: the Spanish draft uses the taxonomy term's es name, not the words as typed.
+  const typeTerms = input.typeSlug || discipline ? await loadTalentTypeTerms() : [];
+  const typeProposal = !input.typeSlug && discipline ? proposeTalentType(discipline, typeTerms) : null;
+  const bioTerm = input.typeSlug ? typeTerms.find((t) => t.slug === input.typeSlug) : typeProposal?.proposed ? typeTerms.find((t) => t.slug === typeProposal.proposed?.slug) : undefined;
+  const bioFacts = { name: displayName || null, discipline, disciplineEs: bioTerm?.name.es ?? null, city, services, yearsExperience: numberFact(brief, "work.years_experience") };
   // E-02/E-14: both languages; the base text (`short_bio`) is the flow language.
   const bioPlan = planBios(bioFacts, input.locale);
 
@@ -149,7 +153,7 @@ export async function writeTalentProfileFromBrief(input: {
   if (tenantId) {
     let slug = input.typeSlug;
     if (!slug && discipline) {
-      const proposal = proposeTalentType(discipline, await loadTalentTypeTerms());
+      const proposal = typeProposal ?? proposeTalentType(discipline, typeTerms);
       slug = proposal.proposed?.slug ?? null;
       if (slug) result.aiDrafted.push("primary_role");
     }

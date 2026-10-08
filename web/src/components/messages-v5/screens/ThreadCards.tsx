@@ -12,7 +12,7 @@
 
 import { readCardState, renderCard, type BasketPayload, type ChangeRequestPayload, type ConfirmationPayload, type OfferReviewPayload, type OfferStatePayload, type PaymentRequestPayload, type ProfessionalTimesPayload, type ServiceCardPayload, type TicketsCardPayload } from "@/lib/messaging/cards";
 import type { CardKind, ThreadMessage } from "@/lib/messaging/types";
-import { formatOrderMoney } from "@/lib/orders/money-format";
+import { formatRecordMoney } from "@/lib/messages-v5/record-money";
 import { formatSlot } from "@/lib/messages-v5/client-thread-view";
 import { formatHoldCountdown, holdCountdown, ladderFor } from "@/lib/messages-v5/record-cards";
 
@@ -76,7 +76,7 @@ function paymentState(payload: Record<string, unknown> | null): PaymentCardState
 }
 
 function money(cents: unknown, currency: unknown): string {
-  return formatOrderMoney(typeof cents === "number" ? cents : 0, typeof currency === "string" ? currency : "USD");
+  return formatRecordMoney(typeof cents === "number" ? cents : 0, typeof currency === "string" ? currency : null);
 }
 
 function strTz(payload: Record<string, unknown> | null): string | null {
@@ -106,7 +106,7 @@ export function ThreadCard({ message, cardKind, clientName, copy, variant, local
           showVersion={!hideVersion}
           forName={clientName}
           lines={[]}
-          total={totalCents === null ? "" : money(totalCents, o.currency ?? "USD")}
+          total={totalCents === null ? "" : money(totalCents, o.currency)}
           validUntil={o.validUntil ? formatTime(o.validUntil, locale) : null}
           copy={kit}
           mine={mine}

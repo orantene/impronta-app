@@ -1,3 +1,4 @@
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { formatDualTimezoneWhen } from "./present";
 import { serviceLabel } from "./calendar-view";
 import { CONFIRMED_AGENCY_NOW_BODY, CONFIRMED_NOW_BODY, isCompletedUnpaid, placeLabelFor } from "./record-actions";
@@ -183,10 +184,8 @@ function paymentStateOf(item: TalentAgendaItem): AgendaPaymentState {
 }
 
 function moneyText(cents: number, currency: string): string {
-  return `$${(cents / 100).toLocaleString("en-US", {
-    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  })} ${currency}`.trim();
+  // Agreed-lines are EN keys translated by the record; the amount follows the one dashboard format.
+  return formatDashboardMoneyCents(cents, currency, "en");
 }
 
 /**

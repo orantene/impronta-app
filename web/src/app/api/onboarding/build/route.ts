@@ -19,6 +19,9 @@ import { getCachedActorSession, getCachedServerSupabase } from "@/lib/server/req
 import { loadBrief } from "@/lib/tulala/brief-store.server";
 import { parsePersistedModuleState } from "@/lib/onboarding/module-state";
 import { essentialsReady } from "@/lib/onboarding/essentials";
+import { requireAge18ForPublish } from "@/lib/onboarding/age-gate";
+import { pathToChoice } from "@/lib/onboarding/choice";
+import { updateBriefModuleState } from "@/lib/tulala/brief-module-state.server";
 import { runOnboardingBuild } from "@/lib/onboarding/build.server";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -43,6 +46,20 @@ export async function POST(request: NextRequest) {
   // TUL-84: the manual path ("I'll fill it in myself") has no description text,
   // only confirmed essentials; that is enough to build.
   if (!state.input && !essentialsReady(state.essentials ?? null)) return NextResponse.json({ ok: false, code: "no_input" }, { status: 409 });
+
+  // Owner decision 2026-10-01: a public talent page needs the 18+ confirmation.
+  // Refused before anything is created, so nothing half-live is left behind.
+  const gate = requireAge18ForPublish({
+    choice: state.choice ?? (state.path ? pathToChoice(state.path) : null),
+    confirmedAt: state.age18ConfirmedAt,
+    locale: state.locale ?? "en",
+  });
+  if (!gate.ok) {
+    return NextResponse.json({ ok: false, code: gate.code, message: gate.message, step: gate.backStep }, { status: 409 });
+  }
+  if (gate.required && !state.age18ConfirmedBy) {
+    await updateBriefModuleState(brief.id, { age18ConfirmedBy: session.user.id });
+  }
 
   const profile = await loadAccessProfile(supabase, session.user.id);
   const requestHost = request.headers.get("x-impronta-host-name") ?? request.headers.get("host");

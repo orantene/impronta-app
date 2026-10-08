@@ -6,6 +6,9 @@ export type PortfolioGalleryItem = {
   id: string;
   src: string;
   alt: string;
+  /** TUL-15: the caption shown under the lightbox photo, and its language hint when it is not the visitor's language. */
+  caption?: string | null;
+  captionHint?: string | null;
   /** True when this photo has a linked, loaded offering, so "Book this look" can open it. */
   canBook?: boolean;
 };
@@ -59,11 +62,13 @@ export function buildPortfolioGallery(
   }>,
   hasOffering: (offeringId: string) => boolean,
   es: boolean,
+  captionHintFor?: (shot: { id: string; caption?: string | null }) => string | null,
 ): PortfolioGalleryItem[] {
   return shots.map((s) => ({
     id: s.id,
     src: s.url,
     alt: s.alt || s.caption?.trim() || s.offeringTitle?.trim() || (es ? "Foto del portafolio" : "Portfolio photo"),
+    ...(s.caption?.trim() ? { caption: s.caption.trim(), captionHint: captionHintFor?.(s) ?? null } : {}),
     canBook: Boolean(s.offeringId && hasOffering(s.offeringId)),
   }));
 }
