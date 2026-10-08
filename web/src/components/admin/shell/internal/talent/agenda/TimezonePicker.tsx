@@ -75,7 +75,7 @@ export function TimezonePicker({ value, onChange }: { value: string; onChange: (
         onChange={(e) => setQuery(e.target.value)}
       />
       <select
-        aria-label={copy.t("Timezone")}
+        aria-label={copy.t("Time zone")}
         data-testid="working-hours-timezone"
         className="w-full rounded-xl border border-black/10 px-3 py-2"
         value={zones.includes(value) ? value : ""}
