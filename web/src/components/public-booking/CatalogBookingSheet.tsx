@@ -63,6 +63,7 @@ import {
   setBookingResume,
 } from "./booking-resume-store";
 import type { CatalogTakenSlotNotice } from "./catalog-taken-slot";
+import { resolveSheetOpening, slotArrivalPlan } from "./booking-slot-selection";
 import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
 import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
 
@@ -121,6 +122,7 @@ export function CatalogBookingSheet({
   const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
   const [takenNotice, setTakenNotice] = useState<CatalogTakenSlotNotice | null>(null);
   const liveStartsRef = useRef<string | null>(null);
+  const pendingSlotRef = useRef<string | null>(null); // TUL-232: slotStart awaiting the first live fetch
   const draftKey = bookingDraftKey(tenantId);
   const skipCaptcha = shouldSkipGuestCaptchaOnHost();
   const captchaRequired =
@@ -157,23 +159,16 @@ export function CatalogBookingSheet({
       setVariantId(draft?.variantId ?? null);
       setAddOnIds(draft?.addOnIds ?? []);
       setDayIndex(mode === "live" ? 0 : draftDay >= 0 ? draftDay : firstOpenDemoDayIndex(days));
-      setTime(draft?.time ?? null);
-      setLiveStarts(draft?.liveStarts ?? null);
-      liveStartsRef.current = draft?.liveStarts ?? null;
-      setName(draft?.name ?? "");
-      setPhone(draft?.phone ?? "");
-      setEmail(draft?.email ?? "");
-      setTouched(false);
-      setError(null);
-      setWrote(false);
-      setAskAttempted(false);
-      setTakenNotice(null);
+      // TUL-232: an explicit slotStart beats the draft's time; the draft's other fields still restore.
+      const opening = resolveSheetOpening({ mode, slotStart: d.slotStart, needsOptions: catalogNeedsOptions(d), startAt: d.startAt, draft });
+      pendingSlotRef.current = opening.slot;
+      setTime(opening.time); setLiveStarts(opening.liveStarts); liveStartsRef.current = opening.liveStarts;
+      setName(draft?.name ?? ""); setPhone(draft?.phone ?? ""); setEmail(draft?.email ?? "");
+      setTouched(false); setError(null); setWrote(false); setAskAttempted(false); setTakenNotice(null);
       clearBookingResume();
-      const needsOption = catalogNeedsOptions(d);
       // Live slots are re-fetched on the "when" step (which also re-validates the picked start), so a
       // live draft that left from "who" resumes there rather than on a day the strip has not loaded.
-      const draftStep = draft ? (mode === "live" && draft.step === "who" ? "when" : draft.step) : null;
-      setStep(draftStep ?? (d.startAt === "when" && !needsOption ? "when" : "choose"));
+      setStep(opening.step);
     };
     const names = ["tulala:offering-instant", "tulala:offering-slot", "tulala:offering-request"];
     names.forEach((n) => window.addEventListener(n, open));
@@ -261,6 +256,10 @@ export function CatalogBookingSheet({
         setLiveTz(r.timezone);
         const grouped = groupIsoSlotsByDay(r.slots, r.timezone);
         setLiveDays(grouped);
+        // TUL-232: opened at a slot: select it, or fall back to its day / the first day with the notice.
+        const arrival = slotArrivalPlan(pendingSlotRef.current, grouped, r.timezone, locale);
+        pendingSlotRef.current = null;
+        if (arrival) { setDayIndex(arrival.dayIndex); setTime(arrival.time); setLiveStarts(arrival.liveStarts); setTakenNotice(arrival.notice); return; }
         // BUF-6: keep the pick only when that ISO is still offered; otherwise
         // clear clock + ISO so confirm cannot send a start that no longer fits.
         const prev = liveStartsRef.current;
@@ -289,7 +288,7 @@ export function CatalogBookingSheet({
     return () => {
       cancelled = true;
     };
-  }, [detail, step, mode, slotsFn, bookingDurationMinutes, slotsRefreshKey]);
+  }, [detail, step, mode, slotsFn, bookingDurationMinutes, slotsRefreshKey, locale]);
 
   const day = mode === "live" ? (liveDays[dayIndex]?.date ?? days[0]!) : (days[dayIndex] ?? days[0]!);
   const nameValid = name.trim().length >= 2;

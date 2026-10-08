@@ -176,12 +176,14 @@ export function DirectoryCardAdapter({
   // invisible until hover, which read as "nothing selected".
   const inLineup = cart.isReady && cart.isInCart(card.id);
 
-  const style: "portrait" | "editorial" | "profile" =
+  const style: "portrait" | "editorial" | "profile" | "showcase" =
     cardStyle === "editorial"
       ? "editorial"
       : cardStyle === "profile"
         ? "profile"
-        : "portrait";
+        : cardStyle === "showcase"
+          ? "showcase"
+          : "portrait";
 
   const fitChips = pickFitLabels(data.fitLabels);
   // Cinematic's strip is a fixed three-column spec block, so it ignores the
@@ -225,6 +227,10 @@ export function DirectoryCardAdapter({
           rating={cinematicRating}
         />
       ) : undefined
+    ) : style === "showcase" ? (
+      show.showAttributes !== false && (fitChips.length > 0 || traitLines.length > 0) ? (
+        <CardFactStrip fitChips={fitChips} traitLines={traitLines} tone="light" />
+      ) : undefined
     ) : traitMode ? (
       <TalentCardTraitRow
         fitChips={fitChips}
@@ -242,7 +248,8 @@ export function DirectoryCardAdapter({
   // `<TalentCardActions>` control (cart state, fly-to-rail animation,
   // "In lineup" state) — no duplicated inquiry logic.
   const ctaSlot =
-    showAddToInquiry && (style === "profile" || style === "portrait") ? (
+    showAddToInquiry &&
+    (style === "profile" || style === "portrait" || style === "showcase") ? (
       <TalentCardActions
         talentProfileId={card.id}
         profileCode={card.profileCode ?? ""}

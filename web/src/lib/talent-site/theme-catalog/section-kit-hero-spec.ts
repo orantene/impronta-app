@@ -157,7 +157,12 @@ function whoCard(makeId: MaxSiteTemplateIdFactory, opts: HeroSpecBlockOptions): 
           {
             id: makeId(),
             kind: "paragraph",
-            props: { text: opts.bio ?? "{{richBio}}", style: { size: "sm", tone: "muted", lineClamp: 4 } },
+            props: {
+              text: opts.bio ?? "{{richBio}}",
+              // TUL-230: the default bio is live per language; a design's own bio line stays as written.
+              ...(opts.bio === undefined ? { liveText: "bio" as const } : {}),
+              style: { size: "sm", tone: "muted", lineClamp: 4 },
+            },
           },
           ...(badges.length
             ? [

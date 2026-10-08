@@ -399,7 +399,7 @@ export async function loadBuilderNodeDataSources(
       ? await loadCompCardSources(catalogTalentId, locale)
       : {}),
     ...(nativeNeeds.talentFaq && catalogTalentId
-      ? { talentFaqItems: await loadPublishedFaqForProfile(catalogTalentId) }
+      ? { talentFaqItems: await loadPublishedFaqForProfile(catalogTalentId, locale) }
       : {}),
   };
 }
@@ -527,7 +527,7 @@ export async function loadPersonalMaxNativeSources(args: {
     args.visit ? loadVisitSources(args.talentProfileId, args.locale) : {},
     args.compCard ? loadCompCardSources(args.talentProfileId, args.locale) : {},
     args.talentFaq
-      ? loadPublishedFaqForProfile(args.talentProfileId).then((talentFaqItems) => ({ talentFaqItems }))
+      ? loadPublishedFaqForProfile(args.talentProfileId, args.locale).then((talentFaqItems) => ({ talentFaqItems }))
       : {},
   ]);
   return { ...catalog, ...portfolio, ...reviews, ...visit, ...compCard, ...faq };

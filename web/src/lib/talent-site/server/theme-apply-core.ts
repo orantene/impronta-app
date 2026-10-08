@@ -141,6 +141,8 @@ export function pruneEmptyHydratedNodes(tree: ReadonlyArray<BuilderNode>): Build
   };
   const emptyTicker = (node: BuilderNode): boolean =>
     node.kind === "marquee" &&
+    // A services ticker fills at render time, so it survives even with no words yet.
+    (node.props as { source?: unknown }).source !== "services" &&
     Array.isArray((node.props as { items?: unknown[] }).items) &&
     ((node.props as { items: unknown[] }).items.length === 0);
   const prune = (nodes: ReadonlyArray<BuilderNode>): BuilderNode[] =>

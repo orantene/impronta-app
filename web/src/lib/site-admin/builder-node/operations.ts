@@ -985,7 +985,7 @@ export function patchBuilderNodeProps(input: {
   };
   // Live text follows her profile until she writes the words herself: typing a new
   // text hands the node back to her (the profile never overrules what she wrote).
-  if (typeof patch.text === "string" && currentProps.liveText && !("liveText" in patch)) delete mergedProps.liveText;
+  if ((typeof patch.text === "string" || typeof patch.bio === "string") && currentProps.liveText && !("liveText" in patch)) delete mergedProps.liveText;
   (target as unknown as { props: unknown }).props = mergedProps;
   // Keep the base mirror (locked / visibilityCondition) in sync with the merged
   // props on the one node we touched — finalizeMutatedTree returns the shared
