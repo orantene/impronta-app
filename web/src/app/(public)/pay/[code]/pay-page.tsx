@@ -16,6 +16,7 @@ import { CheckoutView } from "./CheckoutView";
 import { payCalendarEvent } from "@/lib/payments/pay-calendar-event";
 import { resolvePaidLinkDisplayStatus } from "@/lib/payments/pay-refund-status";
 import { loadPayLinkFeeLines } from "@/lib/payments/pay-link-fee-lines";
+import { paymentLinkFeeLines, resolvePaymentLinkCharge } from "@/lib/payments/link-charge";
 import { resolvePayeeName } from "@/lib/payments/payee-name";
 import { interpolate } from "@/i18n/interpolate";
 import { createTranslator } from "@/i18n/messages";
@@ -417,13 +418,25 @@ export async function PayByCodePage({
     );
   }
 
-  const feeLines = await loadPayLinkFeeLines(admin, loaded.orderId, loaded.amountCents);
+  // A Stripe link charges its principal plus the client fees (link-charge.ts):
+  // the page shows that total and its lines, the numbers Checkout will charge.
+  const charge = loaded.provider === "stripe"
+    ? await resolvePaymentLinkCharge(admin, {
+        tenantId: loaded.tenantId,
+        orderId: loaded.orderId,
+        principalCents: loaded.amountCents,
+        currency: orderRow?.currency ?? "",
+      })
+    : null;
+  const chargeCents = charge?.chargeCents ?? loaded.amountCents;
+  const snapshotFeeLines = await loadPayLinkFeeLines(admin, loaded.orderId, chargeCents);
+  const feeLines = snapshotFeeLines.length > 0 || !charge ? snapshotFeeLines : paymentLinkFeeLines(charge);
   return (
     <CheckoutView
       code={code}
       pathPrefix={pathPrefix}
         slotKind={slotKind}
-      amountCents={loaded.amountCents}
+      amountCents={chargeCents}
       currency={orderRow?.currency ?? ""}
       expiresAt={expiresAtLabel}
       status="open"

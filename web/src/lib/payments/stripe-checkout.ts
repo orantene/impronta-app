@@ -123,7 +123,36 @@ export type CheckoutSessionInput = {
    * replace `transaction_id` / `inquiry_id` / `booking_id`.
    */
   metadata?: Record<string, string>;
+  /**
+   * Fee lines the payer must see as their OWN Checkout lines (a payment link's
+   * Tulala service fee, the card fee when the client pays it). They are INSIDE
+   * `amountCents`, never on top of it: the service line is `amountCents` minus
+   * their sum, so the session total stays exactly `amountCents`, which is the
+   * transaction gross the settle guard compares against. Minor units.
+   */
+  feeLines?: ReadonlyArray<{ name: string; amountCents: number }>;
 };
+
+/**
+ * The session's line items: one service line, then each positive fee line.
+ * Totals exactly `amountCents`. null when the fee lines cannot be honoured (a
+ * non-integer or negative fee, or fees that leave no positive service line):
+ * the caller refuses rather than charge a total the lines do not show.
+ */
+export function checkoutLineItems(
+  input: Pick<CheckoutSessionInput, "amountCents" | "currency" | "description" | "feeLines">,
+): Stripe.Checkout.SessionCreateParams.LineItem[] | null {
+  const currency = input.currency.toLowerCase();
+  const fees = (input.feeLines ?? []).filter((f) => f.amountCents !== 0);
+  if (fees.some((f) => !Number.isInteger(f.amountCents) || f.amountCents < 0 || !f.name.trim())) return null;
+  const serviceCents = input.amountCents - fees.reduce((sum, f) => sum + f.amountCents, 0);
+  if (!Number.isInteger(serviceCents) || serviceCents <= 0) return null;
+  const line = (name: string, cents: number): Stripe.Checkout.SessionCreateParams.LineItem => ({
+    quantity: 1,
+    price_data: { currency, unit_amount: cents, product_data: { name } },
+  });
+  return [line(input.description ?? "Booking invoice", serviceCents), ...fees.map((f) => line(f.name, f.amountCents))];
+}
 
 export type CheckoutSessionResult =
   | { ok: true; url: string; sessionId: string; mock?: boolean }
@@ -215,6 +244,14 @@ export async function createCheckoutSessionForTransaction(
     if (input.amountCents <= 0) {
       return { ok: false, error: "Amount must be positive." };
     }
+    const lineItems = checkoutLineItems(input);
+    if (!lineItems) {
+      logServerError(
+        "payments.stripe.createCheckoutSessionForTransaction",
+        `transaction ${input.transactionId}: fee lines do not fit inside ${input.amountCents}; refusing the session`,
+      );
+      return { ok: false, error: "Failed to create payment session.", uncertain: false };
+    }
 
     // Unix seconds, and only when the caller named one that parses. A bad
     // string is dropped rather than sent: Stripe would reject the create, and
@@ -237,18 +274,7 @@ export async function createCheckoutSessionForTransaction(
       // Dashboard payment-method configuration (Link, wallets, installments,
       // crypto, and delayed methods such as OXXO/SPEI once enabled). Delayed
       // methods settle via `checkout.session.async_payment_*` (webhook-routing).
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: input.currency.toLowerCase(),
-            unit_amount: input.amountCents,
-            product_data: {
-              name: input.description ?? "Booking invoice",
-            },
-          },
-        },
-      ],
+      line_items: lineItems,
       customer_email: input.payerEmail ?? undefined,
       // Pay in the language the client is already reading the app in.
       locale: stripeCheckoutLocale(input.locale),

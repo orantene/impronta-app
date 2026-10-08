@@ -65,12 +65,45 @@ export type PassThroughCollectInput = {
 };
 
 /**
+ * What Checkout collects, split the way the client reads it: the charge, and
+ * the two fee lines inside it (`chargeCents = base + serviceFeeCents +
+ * processingFeeCents`). The fee lines are the resolver's own
+ * `client_surcharge_cents` and `client_processing_fee_cents`, never re-derived.
+ */
+export type PassThroughCollectBreakdown = {
+  chargeCents: number;
+  /** The platform service fee (pass_through surcharge). */
+  serviceFeeCents: number;
+  /** The card fee, when the seller chose that the client pays it; else 0. */
+  processingFeeCents: number;
+};
+
+/** No fees: the bare collect. */
+function bareCollect(base: number): PassThroughCollectBreakdown {
+  return { chargeCents: base, serviceFeeCents: 0, processingFeeCents: 0 };
+}
+
+/**
+ * True when the code side of the two-key pass_through arming is on (the other
+ * key is `processing_mode` in the platform row). Same env the commission
+ * engine reads.
+ */
+export function passThroughCollectArmed(env: Record<string, string | undefined> = process.env): boolean {
+  return env.COMMISSION_PROCESSING_PASS_THROUGH === "1";
+}
+
+/**
  * What Checkout must charge for this card collection in pass_through mode.
  * PURE. Returns `baseCollectCents` unchanged when the base is not positive.
  */
 export function passThroughCollectCents(input: PassThroughCollectInput): number {
+  return passThroughCollectBreakdown(input).chargeCents;
+}
+
+/** {@link passThroughCollectCents} with its fee lines. PURE. */
+export function passThroughCollectBreakdown(input: PassThroughCollectInput): PassThroughCollectBreakdown {
   const base = input.baseCollectCents;
-  if (!Number.isInteger(base) || base <= 0) return Math.max(0, base || 0);
+  if (!Number.isInteger(base) || base <= 0) return bareCollect(Math.max(0, base || 0));
 
   const talentCost = Math.min(
     Math.max(0, Math.round(input.talentCostCents)),
@@ -101,7 +134,11 @@ export function passThroughCollectCents(input: PassThroughCollectInput): number 
     processorFeeRates: input.processorFeeRates,
   });
 
-  return snap.gross_charged_cents;
+  return {
+    chargeCents: snap.gross_charged_cents,
+    serviceFeeCents: snap.client_surcharge_cents,
+    processingFeeCents: snap.client_processing_fee_cents ?? 0,
+  };
 }
 
 export type PurchaseSellerForCollect = {
@@ -248,9 +285,9 @@ async function inflateOnePayee(
     passThroughTakeBps: number;
     processorFeeRates: ProcessorFeeRates;
   },
-): Promise<number> {
+): Promise<PassThroughCollectBreakdown> {
   const base = input.payee.baseCollectCents;
-  if (!(base > 0)) return 0;
+  if (!(base > 0)) return bareCollect(0);
 
   const partyType = input.payee.sellerOfRecord === "talent" ? "talent" : "workspace";
   let processingFeePayer: ProcessingFeePayer = "seller";
@@ -268,7 +305,7 @@ async function inflateOnePayee(
     processingFeePayer = "client";
   }
 
-  return passThroughCollectCents({
+  return passThroughCollectBreakdown({
     baseCollectCents: base,
     currencyCode: input.currencyCode,
     sellerOfRecord: input.payee.sellerOfRecord,
@@ -293,17 +330,29 @@ export async function resolvePassThroughCollectCents(
     sellers: readonly PurchaseSellerForCollect[];
   },
 ): Promise<number> {
+  return (await resolvePassThroughCollectBreakdown(admin, input)).chargeCents;
+}
+
+/** {@link resolvePassThroughCollectCents} with its fee lines (summed over payees). */
+export async function resolvePassThroughCollectBreakdown(
+  admin: PassThroughCollectRpc,
+  input: {
+    baseCollectCents: number;
+    currencyCode: string;
+    sellers: readonly PurchaseSellerForCollect[];
+  },
+): Promise<PassThroughCollectBreakdown> {
   const base = input.baseCollectCents;
-  if (!(base > 0) || input.sellers.length === 0) return base;
-  if (process.env.COMMISSION_PROCESSING_PASS_THROUGH !== "1") return base;
+  if (!(base > 0) || input.sellers.length === 0) return bareCollect(base);
+  if (!passThroughCollectArmed()) return bareCollect(base);
 
   try {
     const modeRow = await readPlatformProcessingMode(admin);
     if (!modeRow) {
       logServerError("orders.passThroughCollect/mode", "engine_platform_processing_mode empty");
-      return base;
+      return bareCollect(base);
     }
-    if (modeRow.processing_mode !== "pass_through") return base;
+    if (modeRow.processing_mode !== "pass_through") return bareCollect(base);
 
     const processorFeeRates = processorFeeRatesFromTable(
       modeRow.processor_fee_rates,
@@ -314,23 +363,26 @@ export async function resolvePassThroughCollectCents(
         "orders.passThroughCollect/rates",
         `no processor_fee_rates for ${String(input.currencyCode ?? "").toLowerCase()}`,
       );
-      return base;
+      return bareCollect(base);
     }
 
     const passThroughTakeBps = resolvePassThroughTakeBps(modeRow);
 
-    let total = 0;
+    const total = bareCollect(0);
     for (const payee of input.sellers) {
-      total += await inflateOnePayee(admin, {
+      const one = await inflateOnePayee(admin, {
         payee,
         currencyCode: input.currencyCode,
         passThroughTakeBps,
         processorFeeRates,
       });
+      total.chargeCents += one.chargeCents;
+      total.serviceFeeCents += one.serviceFeeCents;
+      total.processingFeeCents += one.processingFeeCents;
     }
-    return total > 0 ? total : base;
+    return total.chargeCents > 0 ? total : bareCollect(base);
   } catch (err) {
     logServerError("orders.passThroughCollect", err);
-    return base;
+    return bareCollect(base);
   }
 }

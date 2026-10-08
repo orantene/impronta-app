@@ -25,3 +25,14 @@ export function paymentLineItemName(input: {
   if (!service) return es ? `Pago · ${portion}` : `Payment · ${portion}`;
   return `${service} · ${portion}`;
 }
+
+/**
+ * The fee lines a payer reads next to the service on Stripe Checkout, in the
+ * same words as the pay page's fee breakdown (`public.thread.fees.*` and the
+ * quote's "Tulala service fee"), EN/ES by the payer's locale.
+ */
+export function feeLineItemName(kind: "service" | "processing", locale?: string | null): string {
+  const es = (locale ?? "").toLowerCase().startsWith("es");
+  if (kind === "service") return es ? "Cargo por servicio de Tulala" : "Tulala service fee";
+  return es ? "Procesamiento de tarjeta" : "Card processing";
+}

@@ -7,7 +7,7 @@
  * settle and cancel/reap; the settle side is `link-settlement.ts`.
  */
 
-import { paymentLineItemName, paymentPortion } from "@/lib/payments/line-item-name";
+import { feeLineItemName, paymentLineItemName, paymentPortion } from "@/lib/payments/line-item-name";
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
@@ -21,6 +21,7 @@ import {
   STRIPE_CHECKOUT_MIN_TTL_SECONDS,
 } from "@/lib/pos/collection-reservations";
 import type { Admin } from "@/lib/pos/sale-rows";
+import { resolvePaymentLinkCharge } from "@/lib/payments/link-charge";
 import { bookingShellForOrder, type BookingShellContact } from "@/lib/orders/booking-shell";
 import {
   createCheckoutSessionForTransaction,
@@ -41,6 +42,7 @@ export type OpenPaymentLinkCheckoutResult =
   | { ok: false; reason: "currency_mismatch"; linkCurrency: string; orderCurrency: string };
 
 export type OpenPaymentLinkCheckoutDeps = {
+  resolveCharge?: typeof resolvePaymentLinkCharge;
   createCheckoutSession?: typeof createCheckoutSessionForTransaction;
   retrieveCheckoutSession?: typeof retrieveCheckoutSessionLink;
   resolveReceiver?: typeof resolveLinkPayoutReceiver;
@@ -182,17 +184,25 @@ async function openOnce(
   // ── 2. RESUME, DO NOT MINT A SECOND.
   let transactionId: string | null = claim.transaction_id;
   let bookingId: string | null = null;
+  let draftAmounts: { gross: number; net: number } | null = null;
   if (transactionId) {
     const { data: txnData, error: txnErr } = await admin
       .from("booking_transactions")
-      .select("id, status, booking_id, metadata")
+      .select("id, status, booking_id, metadata, gross_amount_cents, net_amount_cents")
       .eq("id", transactionId)
       .maybeSingle();
     if (txnErr) {
       logServerError("payments.openPaymentLinkCheckout.txn", txnErr);
       return { ok: false, reason: "unavailable" };
     }
-    const txn = txnData as { id: string; status: string; booking_id: string; metadata: unknown } | null;
+    const txn = txnData as {
+      id: string;
+      status: string;
+      booking_id: string;
+      metadata: unknown;
+      gross_amount_cents: number | null;
+      net_amount_cents: number | null;
+    } | null;
     if (!txn) {
       logServerError("payments.openPaymentLinkCheckout.txn", `link ${link.id}: bound transaction ${transactionId} not found`);
       return { ok: false, reason: "unavailable" };
@@ -217,6 +227,7 @@ async function openOnce(
     // Stripe, or never recorded the session. Create again for the SAME row;
     // the key `cs_txn_<row>` answers with the same session if one exists.
     bookingId = txn.booking_id;
+    draftAmounts = { gross: Number(txn.gross_amount_cents), net: Number(txn.net_amount_cents) };
   }
 
   // ── 3. The claim must outlive the session Stripe will accept.
@@ -233,6 +244,25 @@ async function openOnce(
   }
 
   const contact = await orderContact(admin, order.customer_id);
+
+  // The charge: the link's principal plus the client fees (the Tulala service
+  // fee, and the card fee when the seller passes it on), from the same
+  // resolver the purchase checkout charges with. See link-charge.ts.
+  const charge = await (deps.resolveCharge ?? resolvePaymentLinkCharge)(
+    admin as unknown as Parameters<typeof resolvePaymentLinkCharge>[0],
+    { tenantId: link.tenant_id, orderId: order.id, principalCents: amountCents, currency },
+  );
+  if (!charge) return { ok: false, reason: "unavailable" };
+  // A draft row already names its amounts, and its session key `cs_txn_<row>`
+  // must be asked with the same lines; a row the fees no longer match (the
+  // platform rate or the seller's card-fee choice changed) is not resumed.
+  if (draftAmounts && (draftAmounts.gross !== charge.chargeCents || draftAmounts.net !== charge.principalCents)) {
+    logServerError(
+      "payments.openPaymentLinkCheckout.draftAmounts",
+      `link ${link.id}: draft transaction ${transactionId} holds ${draftAmounts.gross}/${draftAmounts.net}, the link now charges ${charge.chargeCents}/${charge.principalCents}`,
+    );
+    return { ok: false, reason: "unavailable" };
+  }
 
   // ── 4. The money row, bound to the claim before any session exists.
   if (!transactionId) {
@@ -260,9 +290,9 @@ async function openOnce(
         order_id: order.id,
         source_tenant_id: link.tenant_id,
         payer_email: contact?.email ?? null,
-        gross_amount_cents: amountCents,
+        gross_amount_cents: charge.chargeCents,
         platform_fee_basis_points: 0,
-        platform_fee_cents: 0,
+        platform_fee_cents: charge.chargeCents - charge.principalCents,
         net_amount_cents: amountCents,
         currency,
         provider: "stripe",
@@ -322,7 +352,7 @@ async function openOnce(
   });
   const session = await (deps.createCheckoutSession ?? createCheckoutSessionForTransaction)({
     transactionId,
-    amountCents,
+    amountCents: charge.chargeCents,
     currency,
     payerEmail: contact?.email ?? null,
     inquiryId: null,
@@ -334,6 +364,10 @@ async function openOnce(
     locale: input.locale ?? null,
     expiresAt,
     metadata: { payment_link_code: link.code },
+    feeLines: [
+      { name: feeLineItemName("service", input.locale), amountCents: charge.serviceFeeCents },
+      { name: feeLineItemName("processing", input.locale), amountCents: charge.processingFeeCents },
+    ],
   });
   if (!session.ok) return { ok: false, reason: "unavailable" };
   // A Stripe link with no Stripe behind it: never hand the customer a fake
