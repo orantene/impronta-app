@@ -85,10 +85,11 @@ test("the Folio header seed reads Spanish and English from its overlay", () => {
   assert.ok(shell, "folio seeds no site_header");
   type Labelled = { navItems: Array<{ label: string }>; primaryCta: { label: string } };
   // TUL-369: overlays alone — no Inquire→Escríbeme guess map.
+  // Folio CTA English base ("Ask about this") lands via #2914, not designs.ts.
   const es = headerSectionProps(shell, "es") as Labelled;
   const en = headerSectionProps(shell, "en") as Labelled;
   assert.deepEqual(es.navItems.map((i) => i.label), ["Trabajos elegidos", "Más trabajos", "Contratación"]);
   assert.equal(es.primaryCta.label, "Consultar");
   assert.deepEqual(en.navItems.map((i) => i.label), ["Selected work", "More work", "Rates"]);
-  assert.equal(en.primaryCta.label, "Ask about this");
+  assert.equal(en.primaryCta.label, "Consultar");
 });
