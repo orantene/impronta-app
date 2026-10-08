@@ -12,6 +12,7 @@ import { actPortalEntryCore, readPortalEntryCore, type PortalEntryDeps } from ".
 import type { PortalEntryData, PortalEntryInput, PortalEntryProps, PortalEntryResult } from "./portal-entry.types";
 import { mapEngineRefusal } from "./refusals";
 import { resolveStorefrontIdentity, storefrontLocale } from "./request-context";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 async function bind(locale: string | null | undefined): Promise<PortalEntryDeps | null> {
   const admin = createServiceRoleClient();
@@ -42,6 +43,7 @@ export async function readPortalEntry(
 }
 
 export async function actPortalEntry(input: PortalEntryInput, _expectedVersion?: number): Promise<PortalEntryResult> {
+  await requireNotImpersonating();
   try {
     const deps = await bind(input.locale);
     if (!deps) return mapEngineRefusal("unavailable", "en");

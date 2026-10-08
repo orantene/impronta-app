@@ -34,6 +34,7 @@ import {
   asDepositPct,
 } from "@/lib/billing/commercial-terms-parse";
 import { writePlatformCommercialDefaults } from "@/lib/platform/commercial-defaults";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type TermsActionResult = { ok: true } | { ok: false; error: string };
 
@@ -105,6 +106,8 @@ export async function updateTenantCommercialTermsAsPlatform(
   tenantId: string,
   terms: TenantCommercialTerms,
 ): Promise<TermsActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;
@@ -153,6 +156,8 @@ export async function updateTenantCommercialTermsAsPlatform(
 export async function updatePlatformCommercialDefaults(
   defaults: PlatformCommercialDefaults,
 ): Promise<TermsActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;

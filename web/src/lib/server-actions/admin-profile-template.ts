@@ -18,6 +18,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { getToken } from "@/lib/site-admin/tokens/registry";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const TOKEN_KEY = "template.profile-layout-family";
 
@@ -51,6 +52,8 @@ export async function loadProfileTemplateFamily(): Promise<
 export async function setProfileTemplateFamily(
   family: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;

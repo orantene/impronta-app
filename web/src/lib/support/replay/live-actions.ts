@@ -10,10 +10,13 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { assertHqAccess, assertTicketAccess } from "../support-access";
 import { supportEngine } from "../support-engine";
 import { supportFrom } from "../support-from";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
 export async function hqRequestLiveViewAction(raw: { ticketId: string }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = z.object({ ticketId: uuid }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const hq = await assertHqAccess();
@@ -47,6 +50,8 @@ export async function hqRequestLiveViewAction(raw: { ticketId: string }): Promis
 export async function acceptLiveViewAction(raw: { ticketId: string }): Promise<
   { ok: true; sessionId: string } | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = z.object({ ticketId: uuid }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const session = await requireSession();
@@ -90,6 +95,8 @@ export async function acceptLiveViewAction(raw: { ticketId: string }): Promise<
 }
 
 export async function declineLiveViewAction(raw: { ticketId: string }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = z.object({ ticketId: uuid }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const session = await requireSession();
@@ -107,6 +114,8 @@ export async function declineLiveViewAction(raw: { ticketId: string }): Promise<
 }
 
 export async function stopLiveViewAction(raw: { sessionId: string }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = z.object({ sessionId: uuid }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const session = await requireSession();

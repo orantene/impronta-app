@@ -28,6 +28,7 @@ import {
   normalizeComponentStyleDefaults,
   type ComponentStyleDefaults,
 } from "@/lib/site-admin/builder-node/component-style-defaults";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Load the current platform default theme. Gated to super-admins (the Lab is
@@ -59,6 +60,8 @@ export async function savePlatformDefaultThemeAction(input: {
   componentStyles: ComponentStyleDefaults;
   presetSlug: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not signed in." };
   if (!isPlatformAdmin(session.profile)) {

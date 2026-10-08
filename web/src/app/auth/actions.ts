@@ -32,6 +32,7 @@ import { headers } from "next/headers";
 import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
 import { recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { resetLocaleOnSignIn } from "@/lib/auth/reset-locale-on-sign-in";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * `pendingEmail` is set when signup succeeded but the session is not live yet
@@ -116,6 +117,7 @@ export async function requestPasswordReset(
   _prev: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  await requireNotImpersonating();
   const t = authT(formData);
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -149,6 +151,7 @@ export async function signInWithEmail(
   _prev: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  await requireNotImpersonating();
   const t = authT(formData);
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -242,6 +245,8 @@ export async function signInWithEmailModal(
   _prev: SignInModalState,
   formData: FormData,
 ): Promise<SignInModalState> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const t = authT(formData);
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -298,6 +303,7 @@ export async function signUpWithEmail(
   _prev: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  await requireNotImpersonating();
   const t = authT(formData);
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -414,6 +420,7 @@ export async function signUpTalentInPlace(
   _prev: TalentSignupInPlaceState,
   formData: FormData,
 ): Promise<TalentSignupInPlaceState> {
+  await requireNotImpersonating();
   const t = authT(formData);
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");

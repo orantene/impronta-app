@@ -37,6 +37,7 @@ import { checkSubdomainAvailability } from "@/app/(marketing)/get-started/action
 import { normalizeWorkspaceSlugCandidate } from "@/lib/saas/workspace-signup";
 import { validateFactValue } from "@/lib/tulala/fact-keys";
 import type { OnboardingPath } from "@/lib/onboarding/module-state";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ModuleActionError = {
   ok: false;
@@ -78,6 +79,7 @@ export async function submitOnboardingInput(input: {
   locale: "en" | "es";
   text: string;
 }): Promise<{ ok: true; briefId: string; input: ModuleInput } | ModuleActionError> {
+  await requireNotImpersonating();
   if (!(await moduleOn())) return { ok: false, code: "module_off" };
   const text = (input.text ?? "").trim();
   if (text.length > MAX_INPUT_CHARS) return { ok: false, code: "too_long" };
@@ -130,6 +132,7 @@ export async function saveOnboardingChoice(input: {
   choice: OnboardingChoice;
   locale: "en" | "es";
 }): Promise<{ ok: true; briefId: string } | ModuleActionError> {
+  await requireNotImpersonating();
   if (!(await moduleOn())) return { ok: false, code: "module_off" };
   if (!isOnboardingChoice(input.choice)) return { ok: false, code: "save_failed" };
   const resolved = await resolveBriefOwner();
@@ -154,6 +157,7 @@ export async function saveOnboardingStep(input: {
   /** The flow language now on screen, so the build speaks it (C1-02). */
   locale?: "en" | "es";
 }): Promise<{ ok: boolean }> {
+  await requireNotImpersonating();
   if (!(await moduleOn())) return { ok: false };
   const resolved = await resolveBriefOwner();
   if (!resolved) return { ok: false };
@@ -172,6 +176,7 @@ export async function saveOnboardingStep(input: {
  * record of what someone told us) so the next input opens a clean one.
  */
 export async function resetOnboardingDraft(): Promise<{ ok: boolean }> {
+  await requireNotImpersonating();
   if (!(await moduleOn())) return { ok: false };
   const resolved = await resolveBriefOwner();
   if (!resolved) return { ok: false };
@@ -224,6 +229,7 @@ async function cardFor(briefId: string, state: PersistedModuleState, brief: Para
  * words (a second model call) only when the card has no facts yet.
  */
 export async function understandOnboardingInput(): Promise<CardResult> {
+  await requireNotImpersonating();
   const got = await ownedBrief();
   if (got.error) return got.error;
   const { resolved, brief, state } = got;
@@ -259,6 +265,7 @@ export async function loadOnboardingCard(): Promise<CardResult> {
 
 /** An inline edit on the card: the person's own words, confirmed. */
 export async function editUnderstoodFact(input: { factKey: string; value: string | string[] }): Promise<CardResult> {
+  await requireNotImpersonating();
   const got = await ownedBrief();
   if (got.error) return got.error;
   const check = validateFactValue(input.factKey, input.value);
@@ -270,6 +277,7 @@ export async function editUnderstoodFact(input: { factKey: string; value: string
 
 /** The fork: for you / the business / both. A choice, not a fact. */
 export async function chooseOnboardingPath(input: { path: OnboardingPath }): Promise<CardResult> {
+  await requireNotImpersonating();
   const got = await ownedBrief();
   if (got.error) return got.error;
   // The fork is a person's answer too: keep `choice` in step so it never disagrees.
@@ -285,6 +293,7 @@ export async function chooseOnboardingPath(input: { path: OnboardingPath }): Pro
  * its path together; the build provisions exactly that choice.
  */
 export async function chooseOnboardingChoice(input: { choice: OnboardingChoice }): Promise<{ ok: boolean }> {
+  await requireNotImpersonating();
   if (!isOnboardingChoice(input.choice)) return { ok: false };
   const got = await ownedBrief();
   if (got.error) return { ok: false };
@@ -316,6 +325,7 @@ export type EssentialsAnswer = {
  * the screen enforces that, and this re-checks it against the brief.
  */
 export async function saveOnboardingEssentials(input: EssentialsAnswer): Promise<CardResult | { ok: false; code: "invalid_whatsapp" | "missing_required" }> {
+  await requireNotImpersonating();
   const got = await ownedBrief();
   if (got.error) return got.error;
   const locale = input.locale ?? got.state.locale ?? "en";
@@ -369,6 +379,7 @@ export async function saveOnboardingEssentials(input: EssentialsAnswer): Promise
 
 /** The style tile: stored as the brand.visual_direction fact the composer reads, and as the module's choice. */
 export async function saveOnboardingStyle(input: { direction: VisualDirection; notes?: string | null }): Promise<{ ok: boolean }> {
+  await requireNotImpersonating();
   if (!isVisualDirection(input.direction)) return { ok: false };
   const got = await ownedBrief();
   if (got.error) return { ok: false };
@@ -384,6 +395,7 @@ export async function saveOnboardingStyle(input: { direction: VisualDirection; n
 
 /** "Looks right": accept the assumed lines as they stand and move on. */
 export async function acceptUnderstoodCard(): Promise<{ ok: boolean; nextStep: ModuleStep; followUps: ModuleQuestionId[] }> {
+  await requireNotImpersonating();
   const got = await ownedBrief();
   if (got.error) return { ok: false, nextStep: "understood", followUps: [] };
   const card = await cardFor(got.brief.id, got.state, got.brief);
@@ -401,6 +413,7 @@ export type LinkCheck = { slug: string; available: boolean; reason?: string; sug
 
 /** The link name at "Ready to build": normalised, checked, remembered. */
 export async function setOnboardingLink(input: { slug: string }): Promise<{ ok: true; link: LinkCheck } | ModuleActionError> {
+  await requireNotImpersonating();
   const got = await ownedBrief();
   if (got.error) return got.error;
   const slug = normalizeWorkspaceSlugCandidate(input.slug);
@@ -412,6 +425,7 @@ export async function setOnboardingLink(input: { slug: string }): Promise<{ ok: 
 
 /** 1D: the look picked at "Ready to build" (null = keep the default). Applied before publish. */
 export async function saveOnboardingDesign(input: { look: DesignLookKey | null }): Promise<{ ok: boolean }> {
+  await requireNotImpersonating();
   if (input.look !== null && !isDesignLookKey(input.look)) return { ok: false };
   const got = await ownedBrief();
   if (got.error) return { ok: false };

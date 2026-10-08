@@ -21,6 +21,7 @@ import {
   type TenantAppointmentsSettings,
 } from "@/lib/scheduling/appointments-settings-types";
 import { TERMINOLOGY_IDS } from "@/lib/scheduling/terminology";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const defaultsSchema = z
   .object({
@@ -79,6 +80,8 @@ export async function updateTenantAppointmentsSettings(
   tenantSlug: string,
   next: TenantAppointmentsSettings,
 ): Promise<UpdateResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;

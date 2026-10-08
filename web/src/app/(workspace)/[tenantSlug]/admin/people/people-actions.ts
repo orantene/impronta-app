@@ -38,6 +38,7 @@ import { setTalentDirectBookingOptIn } from "@/lib/server-actions/booking-hours"
 import { parseTenantAppointmentSettings } from "@/lib/scheduling/appointment-policy";
 import { pickAProfessional } from "@/lib/people/hats";
 import { loadPeopleSurface } from "./people-data";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Every answer this surface can give. Each is a key under
@@ -119,6 +120,7 @@ export async function setPersonBookable(
   talentProfileId: string,
   on: boolean,
 ): Promise<PeopleActionResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, reasonKey: "notAuthorized" };
   if (!uuid.safeParse(talentProfileId).success) {
@@ -226,6 +228,7 @@ export async function setPersonPublicProfile(
   talentProfileId: string,
   on: boolean,
 ): Promise<PeopleActionResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
   if (!auth.ok) return { ok: false, reasonKey: "notAllowed" };
   if (!uuid.safeParse(talentProfileId).success) {
@@ -272,6 +275,7 @@ export async function grantPersonAccess(
   talentProfileId: string,
   role: string,
 ): Promise<PeopleActionResult> {
+  await requireNotImpersonating();
   if (!uuid.safeParse(talentProfileId).success) {
     return { ok: false, reasonKey: "checkTheDetails" };
   }
@@ -316,6 +320,7 @@ export async function invitePersonAccess(
   email: string,
   role: string,
 ): Promise<PeopleActionResult> {
+  await requireNotImpersonating();
   if (!isGrantableRole(role)) {
     return { ok: false, reasonKey: "checkTheDetails" };
   }
@@ -340,6 +345,7 @@ export async function setPersonAccessRole(
   accountId: string,
   role: string,
 ): Promise<PeopleActionResult> {
+  await requireNotImpersonating();
   if (!uuid.safeParse(accountId).success) {
     return { ok: false, reasonKey: "checkTheDetails" };
   }
@@ -360,6 +366,7 @@ export async function setPersonAccessRole(
 
 /** Take the Access hat off. The other two hats are untouched. */
 export async function revokePersonAccess(accountId: string): Promise<PeopleActionResult> {
+  await requireNotImpersonating();
   if (!uuid.safeParse(accountId).success) {
     return { ok: false, reasonKey: "checkTheDetails" };
   }

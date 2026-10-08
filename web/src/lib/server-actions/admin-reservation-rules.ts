@@ -37,6 +37,7 @@ import {
   saveServiceWindow,
   saveVenueServiceRules,
 } from "@/lib/reservations/store";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -77,6 +78,8 @@ const rulesSchema = z.object({
 });
 
 export async function saveReservationRules(input: unknown): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -137,6 +140,8 @@ const windowSchema = z.object({
 });
 
 export async function saveReservationWindow(input: unknown): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -184,6 +189,8 @@ export async function saveReservationWindow(input: unknown): Promise<ActionResul
 }
 
 export async function closeReservationWindow(input: unknown): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
   if (!auth.ok) return { ok: false, error: auth.error };
 

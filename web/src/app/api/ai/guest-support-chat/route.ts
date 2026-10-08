@@ -38,6 +38,7 @@ import {
   type SupportEscalationReason,
   type SupportMessageRow,
 } from "@/lib/support/support-types";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const bodySchema = z.object({ ticketId: z.string().uuid() });
 
@@ -86,6 +87,8 @@ async function failOpen(ticketId: string, stage: string, detail?: string): Promi
 }
 
 export async function POST(request: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   try {
     const { guestAiAbuseFloor } = await import("@/lib/support/guest-ai-abuse-floor");
     const floor = guestAiAbuseFloor({

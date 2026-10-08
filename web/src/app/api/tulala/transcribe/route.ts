@@ -29,6 +29,7 @@ import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
 import { isAcceptedAudioType, transcribeAudio } from "@/lib/ai/transcribe.server";
 import { resolveBriefOwner } from "@/lib/tulala/owner.server";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Well under the provider's 25MB and under the platform body cap. At opus
@@ -37,6 +38,8 @@ import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 const MAX_BYTES = 4 * 1024 * 1024;
 
 export async function POST(req: Request): Promise<Response> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   if (!isTulalaKvConfigured()) {
     return NextResponse.json({ error: "Unavailable right now." }, { status: 503 });
   }

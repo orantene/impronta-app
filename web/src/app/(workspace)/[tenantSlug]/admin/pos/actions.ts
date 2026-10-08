@@ -22,6 +22,7 @@ import { admissionHoldersFromDeskContact } from "@/lib/pos/admission-holders";
 import { findActiveLinkByCode } from "@/lib/links/link-store";
 import { scanTarget } from "@/lib/pos/scan-code";
 import { posStaff, posStaffOrInquiryManager } from "@/lib/pos/staff-actor";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /** Lock, tip, payment-link, and waitlist actions: `@/lib/server-actions/pos-engine`. */
 
@@ -45,6 +46,7 @@ async function actorRole(tenantId: string): Promise<string | null> {
 }
 
 export async function posCreateDraft(context?: string) {
+  await requireNotImpersonating();
   const g = await posStaff();
   if (!g.ok) return g;
   return createDraftOrder(g.admin, {
@@ -66,6 +68,7 @@ export async function posAddLine(input: {
   /** Messages picker: inquiry managers (talent coordinators) may add the line. */
   inquiryId?: string | null;
 }) {
+  await requireNotImpersonating();
   const parsed = z.object({
     orderId: uuid,
     offeringId: uuid,
@@ -99,6 +102,7 @@ export async function posUpdateLine(input: {
   units: number;
   expectedVersion?: number;
 }) {
+  await requireNotImpersonating();
   const g = await posStaff();
   if (!g.ok) return g;
   const parsed = z.object({
@@ -112,6 +116,7 @@ export async function posUpdateLine(input: {
 }
 
 export async function posRemoveLine(input: { orderId: string; lineId: string; expectedVersion?: number }) {
+  await requireNotImpersonating();
   const g = await posStaff();
   if (!g.ok) return g;
   const parsed = z.object({
@@ -124,6 +129,7 @@ export async function posRemoveLine(input: { orderId: string; lineId: string; ex
 }
 
 export async function posReprice(input: { orderId: string; promoCode?: string; expectedVersion?: number }) {
+  await requireNotImpersonating();
   const g = await posStaff();
   if (!g.ok) return g;
   const parsed = z.object({
@@ -187,6 +193,7 @@ export async function posStartCollection(input: {
   idempotencyKey: string;
   expectedVersion?: number;
 }) {
+  await requireNotImpersonating();
   const g = await posStaff();
   if (!g.ok) return g;
   const parsed = z.object({
@@ -247,6 +254,7 @@ export async function posStartCollection(input: {
 }
 
 export async function posCancelSale(orderId: string, expectedVersion?: number) {
+  await requireNotImpersonating();
   const g = await posStaff();
   if (!g.ok) return g;
   if (!uuid.safeParse(orderId).success) return { ok: false as const, error: "invalid" };
@@ -262,6 +270,7 @@ export async function posSubmitPrep(input: {
   destination?: "table" | "pickup" | "counter";
   promisedAt?: string | null;
 }) {
+  await requireNotImpersonating();
   const g = await posStaff();
   if (!g.ok) return g;
   const parsed = z
@@ -360,6 +369,7 @@ export async function posCurrentShift() {
 }
 
 export async function posOpenShift(openingCashCents: number) {
+  await requireNotImpersonating();
   const g = await posStaff("booking.payment.mark_received");
   if (!g.ok) return g;
   const parsed = z.number().int().nonnegative().safeParse(openingCashCents);
@@ -378,6 +388,7 @@ export async function posAddCustomLine(input: {
   expectedVersion?: number;
   idempotencyKey: string;
 }) {
+  await requireNotImpersonating();
   const g = await posStaff();
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
   const parsed = z.object({
@@ -400,6 +411,7 @@ export async function posAddCustomLine(input: {
 }
 
 export async function posSetStaffPin(input: { userId: string; pin: string }) {
+  await requireNotImpersonating();
   const g = await posStaff();
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
   const parsed = z.object({ userId: uuid, pin: z.string().regex(/^[0-9]{4,6}$/) }).safeParse(input);
@@ -420,6 +432,7 @@ export async function posReadCustomAmountLimit() {
 }
 
 export async function posSetCustomAmountLimit(limitCents: number) {
+  await requireNotImpersonating();
   const g = await posStaff();
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
   const parsed = z.number().int().nonnegative().safeParse(limitCents);
@@ -446,6 +459,7 @@ export async function posApproveCustomAmount(input: {
   method?: "pin" | "session";
   approverUserId?: string;
 }) {
+  await requireNotImpersonating();
   const g = await posStaff();
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
   const parsed = z.object({
@@ -483,6 +497,7 @@ export async function posCloseShift(input: {
   closeNote?: string;
   handedOverTo?: string;
 }) {
+  await requireNotImpersonating();
   const g = await posStaff("booking.payment.mark_received");
   if (!g.ok) return g;
   const parsed = z.object({
@@ -656,6 +671,7 @@ export type PosDisplayReceiptResult =
  * for an email that never left.
  */
 export async function posDisplayEmailReceipt(input: { orderId: string; email: string }): Promise<PosDisplayReceiptResult> {
+  await requireNotImpersonating();
   const g = await posStaff();
   if (!g.ok) {
     return { ok: false, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable", error: g.error };

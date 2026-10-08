@@ -1,5 +1,6 @@
 "use server";
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { authorizeForTalent, loadTalentDefaultPosture } from "@/lib/talent/offerings-auth.server";
@@ -26,6 +27,8 @@ export async function patchOfferingBookingRules(
   offeringId: string,
   patch: OfferingBookingRulesPatch,
 ): Promise<{ ok: true; item: TalentOffering } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const auth = await authorizeForTalent(talentProfileId);
     if (!auth.ok) return { ok: false, error: auth.error };

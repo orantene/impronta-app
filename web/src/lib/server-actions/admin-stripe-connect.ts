@@ -29,6 +29,7 @@ import {
   getConnectedAccountSnapshot,
   type ConnectedAccountSnapshot,
 } from "@/lib/payments/stripe-connect";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ConnectActionResult<T = void> =
   | (T extends void ? { ok: true } : { ok: true; data: T })
@@ -64,6 +65,7 @@ async function authorizeForSlug(
 export async function ensureConnectedAccountAction(
   tenantSlug: string,
 ): Promise<ConnectActionResult<{ stripeAccountId: string }>> {
+  await requireNotImpersonating();
   try {
     const guard = await authorizeForSlug(tenantSlug);
     if (!guard.ok) return guard;
@@ -87,6 +89,7 @@ export async function ensureConnectedAccountAction(
 export async function getConnectOnboardingLinkAction(
   tenantSlug: string,
 ): Promise<ConnectActionResult<{ url: string }>> {
+  await requireNotImpersonating();
   try {
     const guard = await authorizeForSlug(tenantSlug);
     if (!guard.ok) return guard;
@@ -131,6 +134,7 @@ export async function ensureWorkspacePayoutAccount(
   | { ok: false; code: "country_required" }
   | { ok: false; code: "error"; error: string }
 > {
+  await requireNotImpersonating();
   try {
     const guard = await authorizeForSlug(tenantSlug);
     if (!guard.ok) return { ok: false, code: "error", error: guard.error };
@@ -147,6 +151,7 @@ export async function getConnectAccountSessionAction(
   tenantSlug: string,
   opts: { country?: string } = {},
 ): Promise<ConnectActionResult<{ clientSecret: string; publishableKey: string | null }>> {
+  await requireNotImpersonating();
   try {
     const guard = await authorizeForSlug(tenantSlug);
     if (!guard.ok) return guard;
@@ -187,6 +192,7 @@ export async function getConnectAccountSessionAction(
 export async function getConnectDashboardLinkAction(
   tenantSlug: string,
 ): Promise<ConnectActionResult<{ url: string }>> {
+  await requireNotImpersonating();
   try {
     const guard = await authorizeForSlug(tenantSlug);
     if (!guard.ok) return guard;
@@ -207,6 +213,7 @@ export async function getConnectDashboardLinkAction(
 export async function refreshConnectStatusAction(
   tenantSlug: string,
 ): Promise<ConnectActionResult<ConnectedAccountSnapshot>> {
+  await requireNotImpersonating();
   try {
     const guard = await authorizeForSlug(tenantSlug);
     if (!guard.ok) return guard;
@@ -249,6 +256,7 @@ export async function getConnectSnapshotAction(
 export async function disconnectStripeAccountAction(
   tenantSlug: string,
 ): Promise<ConnectActionResult> {
+  await requireNotImpersonating();
   try {
     const guard = await authorizeForSlug(tenantSlug);
     if (!guard.ok) return guard;

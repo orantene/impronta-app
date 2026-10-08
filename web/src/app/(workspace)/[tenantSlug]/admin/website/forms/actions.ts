@@ -6,6 +6,7 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { findTenantMembership } from "@/lib/saas/tenant";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type ActionResult<T = void> =
   | ({ ok: true } & (T extends void ? object : T))
@@ -43,6 +44,7 @@ export async function markSubmissionRead(
   tenantSlug: string,
   submissionId: string,
 ): Promise<ActionResult> {
+  await requireNotImpersonating();
   const guard = await requireFormsAdmin(tenantSlug);
   if (!guard.ok) return guard;
   const { supabase, tenantId } = guard;
@@ -70,6 +72,7 @@ export async function archiveSubmission(
   tenantSlug: string,
   submissionId: string,
 ): Promise<ActionResult> {
+  await requireNotImpersonating();
   const guard = await requireFormsAdmin(tenantSlug);
   if (!guard.ok) return guard;
   const { supabase, tenantId } = guard;
@@ -97,6 +100,7 @@ export async function markAllRead(
   tenantSlug: string,
   sectionId?: string,
 ): Promise<ActionResult<{ count: number }>> {
+  await requireNotImpersonating();
   const guard = await requireFormsAdmin(tenantSlug);
   if (!guard.ok) return guard;
   const { supabase, tenantId } = guard;

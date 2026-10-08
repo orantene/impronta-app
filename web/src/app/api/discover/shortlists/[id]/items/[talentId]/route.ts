@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,8 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string; talentId: string }> },
 ) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   const session = await getCachedActorSession();
   if (!session.user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
 

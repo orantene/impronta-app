@@ -38,6 +38,7 @@ import {
   type BuilderTemplateUsageTotalsRow,
   type TemplateUsageTotals,
 } from "./template-usage-shape";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type { TemplateUsageTotals } from "./template-usage-shape";
 
@@ -59,6 +60,7 @@ export interface RecordTemplateUsageInput {
 export async function recordTemplateUsage(
   input: RecordTemplateUsageInput,
 ): Promise<void> {
+  await requireNotImpersonating();
   try {
     if (!input.templateId) return;
     const sb = createServiceRoleClient();

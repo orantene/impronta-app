@@ -22,6 +22,7 @@ import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { CLIENT_ERROR } from "@/lib/server/safe-error";
 import { DEFAULT_CURRENCY_OPTIONS } from "@/lib/billing/currencies";
 import { writePlatformOperatingCurrency } from "@/lib/platform/operating-currency";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const schema = z
   .object({
@@ -35,6 +36,8 @@ export type UpdatePlatformCurrencyInput = z.infer<typeof schema>;
 export async function updatePlatformCurrencySettings(
   raw: UpdatePlatformCurrencyInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not signed in." };
   if (!isPlatformAdmin(session.profile)) {

@@ -65,6 +65,8 @@ import type {
   GuestInquiryDetailValues,
 } from "@/lib/inquiry/guest-chat-contract";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { formatChipLocation } from "./guest-chip-location";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers — mirrors the pattern in guest-chat-actions.ts so this file
@@ -176,21 +178,6 @@ async function loadOwnedInquiry(
 // ─────────────────────────────────────────────────────────────────────────────
 // Chip → flat column helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Format a city + locationStatus into the same string that
- * formatEventLocation() in inquiry-intent.ts produces (venue·city).
- * We keep it simple here: just the city for MVP chip-level granularity;
- * the InquiryDrawer handles the full venue/address format.
- */
-function formatChipLocation(city: string | null | undefined, status: string | undefined): string | null {
-  const trimmedCity = city?.trim() ?? null;
-  if (!trimmedCity) {
-    if (status === "online") return "Online";
-    return null;
-  }
-  return trimmedCity;
-}
 
 /**
  * Merges a chip's payload into the existing interpreted_query JSON (read from
@@ -449,6 +436,7 @@ function buildDetailNote(kind: GuestChipKind, appliedSummary: string): string {
  *   • Best-effort — never throws; returns GuestChatFailure on any error.
  */
 export async function captureGuestChip(input: GuestChipInput): Promise<GuestChipResult> {
+  await requireNotImpersonating();
   try {
     // Input validation
     if (!input.inquiryId?.trim()) {

@@ -47,6 +47,7 @@ import {
   type CodeSnippetRecord,
 } from "@/lib/site-admin/code-snippets";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const TABLE = "cms_code_snippets";
 
@@ -142,6 +143,8 @@ export async function listCodeSnippets(): Promise<CodeSnippetListResult> {
 export async function createCodeSnippet(
   input: CodeSnippetInput,
 ): Promise<CodeSnippetMutateResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await guard();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -202,6 +205,8 @@ export async function createCodeSnippet(
 export async function updateCodeSnippet(
   input: CodeSnippetInput & { id: string },
 ): Promise<CodeSnippetMutateResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await guard();
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!input.id) return { ok: false, error: CLIENT_ERROR.generic };
@@ -245,6 +250,8 @@ export async function setCodeSnippetPublished(input: {
   id: string;
   isPublished: boolean;
 }): Promise<CodeSnippetMutateResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await guard();
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!input.id) return { ok: false, error: CLIENT_ERROR.generic };
@@ -306,6 +313,8 @@ export async function setCodeSnippetPublished(input: {
 export async function deleteCodeSnippet(input: {
   id: string;
 }): Promise<CodeSnippetSimpleResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await guard();
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!input.id) return { ok: false, error: CLIENT_ERROR.generic };

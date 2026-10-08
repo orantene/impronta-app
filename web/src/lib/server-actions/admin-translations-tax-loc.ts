@@ -8,6 +8,7 @@ import { revalidateTaxonomyCaches } from "@/lib/revalidate-public";
 import { requireStaff } from "@/lib/server/action-guards";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const idSchema = z.object({ id: pgUuidSchema() });
 const bulkSchema = z.object({ ids: z.array(pgUuidSchema()).max(500) });
@@ -76,6 +77,7 @@ async function markLocationTranslatedCore(
 export async function adminMarkTaxonomyTranslated(
   input: z.infer<typeof idSchema>,
 ): Promise<TaxLocActionResult> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
@@ -92,6 +94,7 @@ export async function adminMarkTaxonomyTranslated(
 export async function adminMarkLocationTranslated(
   input: z.infer<typeof idSchema>,
 ): Promise<TaxLocActionResult> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
@@ -110,6 +113,8 @@ export type BulkTaxLocSummary = { processed: number; failed: { id: string; messa
 export async function adminBulkMarkTaxonomyTranslated(
   input: z.infer<typeof bulkSchema>,
 ): Promise<ServerActionResult<BulkTaxLocSummary>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = bulkSchema.safeParse(input);
@@ -132,6 +137,8 @@ export async function adminBulkMarkTaxonomyTranslated(
 export async function adminBulkMarkLocationTranslated(
   input: z.infer<typeof bulkSchema>,
 ): Promise<ServerActionResult<BulkTaxLocSummary>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = bulkSchema.safeParse(input);
@@ -236,6 +243,7 @@ export async function adminLoadLocationTranslationPanelData(
 export async function adminSaveTaxonomySpanishLabel(
   input: z.infer<typeof labelEsSchema>,
 ): Promise<TaxLocActionResult> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = labelEsSchema.safeParse(input);
@@ -273,6 +281,7 @@ export async function adminSaveTaxonomySpanishLabel(
 export async function adminSaveLocationSpanishDisplay(
   input: z.infer<typeof locationEsSchema>,
 ): Promise<TaxLocActionResult> {
+  await requireNotImpersonating();
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = locationEsSchema.safeParse(input);

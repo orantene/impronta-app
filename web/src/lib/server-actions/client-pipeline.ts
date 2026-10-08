@@ -24,6 +24,7 @@ import { createPaymentIntentForTransaction } from "@/lib/payments/stripe-payment
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { headers } from "next/headers";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // A.4 INTENTIONAL DIVERGENCE: align with canonical `ServerActionResult<T>` — currently
 // preserved as a structurally compatible local type so `startInquiryCheckout`
@@ -86,6 +87,8 @@ async function loadClientInquiryContext(inquiryId: string): Promise<
  * inquiry to `approved` once all approvals land).
  */
 export async function clientApproveCurrentOffer(inquiryId: string): Promise<ClientActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const ctx = await loadClientInquiryContext(inquiryId);
     if (!ctx.ok) return ctx;
@@ -150,6 +153,8 @@ export async function clientRejectCurrentOffer(
   reason: "too_expensive" | "wrong_talent" | "timing" | "changed_plans" | "other" = "other",
   reasonText?: string,
 ): Promise<ClientActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const ctx = await loadClientInquiryContext(inquiryId);
     if (!ctx.ok) return ctx;
@@ -217,6 +222,7 @@ export async function clientRejectCurrentOffer(
 export async function startInquiryCheckout(
   inquiryId: string,
 ): Promise<ClientActionResult & { url?: string; mock?: boolean }> {
+  await requireNotImpersonating();
   try {
     const ctx = await loadClientInquiryContext(inquiryId);
     if (!ctx.ok) return ctx;
@@ -313,6 +319,7 @@ export async function createInquiryPaymentIntent(
   /** Publishable key of the Stripe platform that owns the charge (MX differs from US). */
   publishableKey?: string | null;
 }> {
+  await requireNotImpersonating();
   try {
     const ctx = await loadClientInquiryContext(inquiryId);
     if (!ctx.ok) return ctx;
@@ -374,6 +381,8 @@ export async function sendInquiryMessageAsClient(
   inquiryId: string,
   body: string,
 ): Promise<ClientActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const trimmed = body.trim();
     if (!trimmed) return { ok: false, error: "Message body is empty." };

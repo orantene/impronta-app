@@ -7,6 +7,7 @@ import {
   TENANT_COOKIE_NAME,
   getCurrentUserTenants,
 } from "@/lib/saas";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * Switches the active tenant workspace for the current session.
@@ -21,6 +22,7 @@ import {
  * re-render with a safe default.
  */
 export async function switchActiveTenant(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const targetRaw = formData.get("tenant_id");
   if (typeof targetRaw !== "string" || targetRaw.length === 0) {
     redirect("/admin");

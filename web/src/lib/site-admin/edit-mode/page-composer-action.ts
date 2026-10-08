@@ -50,6 +50,7 @@ import {
   buildPublishedPageRevisionSnapshot,
   isFreeformPagePublish,
 } from "@/lib/site-admin/edit-mode/page-publish-revision";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 export interface ComposablePageRow {
   id: string;
   slug: string | null;
@@ -146,6 +147,8 @@ export async function publishPageSnapshot(input: {
   pageId: string;
   expectedVersion: number;
 }): Promise<PublishSnapshotResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);

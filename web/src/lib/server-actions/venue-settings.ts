@@ -22,6 +22,7 @@ import {
   type VenueRow,
 } from "@/lib/spaces/venues";
 import type { TimezoneSource } from "@/lib/spaces/venue-timezone";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type VenueSettings = {
   id: string | null;
@@ -92,6 +93,8 @@ export async function updateVenueSettings(
     timezone: string;
   },
 ): Promise<SaveVenueSettingsResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const staff = await requireWorkspaceStaffAction();
   if (!staff.ok) return { ok: false, error: "Not allowed." };
   if (staff.tenantSlug !== tenantSlug.trim().toLowerCase()) {

@@ -16,6 +16,7 @@
  * caller already knows bookingId + talentProfileId, never the review's uuid.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -45,6 +46,8 @@ export type ReviewMediaUploadResult =
 export async function uploadReviewMediaAction(
   formData: FormData,
 ): Promise<ReviewMediaUploadResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const bookingId = String(formData.get("bookingId") ?? "").trim();
     const talentProfileId = String(formData.get("talentProfileId") ?? "").trim();
@@ -152,6 +155,8 @@ export async function uploadReviewMediaAction(
 export async function removeReviewMediaAction(
   mediaId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const clean = (mediaId ?? "").trim();
     if (!clean) return { ok: false, error: "Missing photo." };

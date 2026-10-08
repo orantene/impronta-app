@@ -3,6 +3,17 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import {
+  resolveReadTarget,
+  type EffectiveReadContext,
+  type ReadDeps,
+} from "@/lib/impersonation/effective-read";
+
+const DEFAULT_READ_DEPS: ReadDeps = {
+  rlsClient: () => createSupabaseServerClient(),
+  adminClient: () => createServiceRoleClient(),
+};
 
 /**
  * Notification row as surfaced in the NotificationsDrawer.
@@ -83,20 +94,22 @@ export async function loadUserNotifications(
  * Rows stay scoped to the caller by the explicit `user_id` filter plus RLS.
  * Returns an empty array on error or when nothing exists yet.
  */
-export async function loadTalentSurfaceNotifications(): Promise<UserNotification[]> {
+export async function loadTalentSurfaceNotifications(
+  /** TUL-245: from `effectiveReadContext` only (a verified impersonation reads the target's rows). */
+  ctx?: EffectiveReadContext,
+  deps: ReadDeps = DEFAULT_READ_DEPS,
+): Promise<UserNotification[]> {
   try {
-    const supabase = await createSupabaseServerClient();
-    if (!supabase) return [];
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    const target = await resolveReadTarget(ctx, deps);
+    if (!target) return [];
+    const { client: supabase, userId } = target;
 
     const { data, error } = await supabase
       .from("user_notifications")
       .select(
         "id, kind, surface, title, body, actor_initials, target_drawer, target_payload, origin_inquiry_id, read_at, created_at",
       )
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .eq("surface", "talent")
       .order("created_at", { ascending: false })
       .limit(NOTIFICATION_PAGE_SIZE);

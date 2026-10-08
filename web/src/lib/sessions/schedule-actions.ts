@@ -58,6 +58,7 @@ import {
   planSession,
 } from "@/lib/sessions/session-plan";
 import { createSessionWithPools } from "@/lib/sessions/session-writer";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ScheduleOccurrence = {
   id: string;
@@ -539,6 +540,7 @@ export async function loadSchedulableEvents(
 export async function scheduleSession(
   input: ScheduleSessionInput,
 ): Promise<ScheduleSessionResult> {
+  await requireNotImpersonating();
   try {
     const staff = await requireWorkspaceStaffAction();
     if (!staff.ok || staff.tenantId !== input.tenantId) {

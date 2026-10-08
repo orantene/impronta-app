@@ -22,6 +22,12 @@ import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
 import {
+  loadFavoriteTalentIdsForContext,
+  loadSavedTalentIdsForContext,
+} from "@/lib/public-discovery-effective";
+import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
+import { effectiveReadContext } from "@/lib/impersonation/effective-read";
+import {
   DiscoveryStateBridge,
   PublicDiscoveryStateProvider,
 } from "@/components/directory/public-discovery-state";
@@ -39,7 +45,7 @@ import { ClientKeyboardShortcuts, type KeyboardShortcutLabels } from "./_keyboar
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
-import { loadMyNotifications } from "@/lib/server-actions/notifications-self";
+import { loadMyNotifications } from "@/lib/notifications/self";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { TULALA_BRAND } from "@/lib/brand/tulala";
@@ -113,7 +119,13 @@ export default async function ClientLayout({
   // Phase E (F20) — instead of a branded 404, show a soft landing page that
   // surfaces the two most useful next actions: sign-in as a client or open
   // the admin dashboard (workspace owners land here by accident often).
-  const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
+  // TUL-245: the portal loads the EFFECTIVE user's data. The context comes only
+  // from the verified impersonation helper; a throw means "not acting".
+  const readCtx = effectiveReadContext(
+    session.user.id,
+    await resolveDashboardIdentity().catch(() => null),
+  );
+  const clientProfile = await loadClientSelfProfile(readCtx.userId, scope.tenantId, readCtx);
   if (!clientProfile) {
     const tenantDisplayName = tenantSlug
       .split(/[-_]/)
@@ -199,16 +211,17 @@ export default async function ClientLayout({
     clientSubscription,
     clientTrust,
   ] = await Promise.all([
-    getFavoriteTalentIds(),
-    getSavedTalentIds(),
-    loadMyNotifications(50),
+    // Not impersonating: the original request-cached readers, unchanged.
+    readCtx.impersonated ? loadFavoriteTalentIdsForContext(readCtx) : getFavoriteTalentIds(),
+    readCtx.impersonated ? loadSavedTalentIdsForContext(readCtx) : getSavedTalentIds(),
+    loadMyNotifications(50, readCtx),
     loadTenantLocaleSettings(scope.tenantId),
     tenantReviewsEnabled(scope.tenantId),
     loadTenantWhitelabel(scope.tenantId),
     // CW1 — plan + trust standing surface permanently in the sidebar rail
     // footer. Both loaders degrade to their safe defaults on error.
-    loadClientSubscription(session.user.id),
-    loadClientTrustBillingState(session.user.id, scope.tenantId),
+    loadClientSubscription(readCtx.userId),
+    loadClientTrustBillingState(readCtx.userId, scope.tenantId, readCtx),
   ]);
 
   // Whitelabel branding: the client portal carries the agency's name only when
@@ -452,6 +465,20 @@ export default async function ClientLayout({
               minWidth: 0,
             }}
           >
+            {readCtx.impersonated ? (
+              <p
+                role="status"
+                style={{
+                  margin: "0 0 16px",
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  background: "rgba(0,0,0,0.04)",
+                  fontSize: 13,
+                }}
+              >
+                {t("dashboard.clientSettings.readOnlyViewingAs")}
+              </p>
+            ) : null}
             {children}
           </main>
         </div>

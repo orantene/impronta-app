@@ -19,6 +19,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { parseRestauradminMenu, type ImportedMenu } from "./parse-restauradmin";
 import { planMenuImport, SOURCE_ID_KEY, type ExistingOffering, type ImportPlan } from "./plan-import";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /** A menu export is bigger than a form post and smaller than a file upload. */
 const MAX_SOURCE_BYTES = 2_000_000;
@@ -144,6 +145,8 @@ export async function applyParsedMenu(
   tenantId: string,
   menu: ImportedMenu,
 ): Promise<ApplyResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const plan = planMenuImport(menu, await loadExisting(admin, tenantId));
   const itemBySource = new Map(menu.items.map((i) => [i.sourceId, i]));
 
@@ -251,6 +254,8 @@ export async function applyMenuImport(
   tenantId: string,
   source: string,
 ): Promise<ApplyResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const auth = await authorize(tenantId);
     if (!auth.ok) return { ok: false, error: auth.error };

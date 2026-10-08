@@ -18,6 +18,7 @@ import {
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { runStrategistTurn } from "@/lib/tulala/strategist.server";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const BodySchema = z.object({
   message: z.string().trim().min(1).max(4000),
@@ -25,6 +26,8 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: Request): Promise<Response> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   if (!isTulalaKvConfigured()) {
     return NextResponse.json({ error: "Unavailable right now." }, { status: 503 });
   }

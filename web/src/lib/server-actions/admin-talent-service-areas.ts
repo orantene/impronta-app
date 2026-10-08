@@ -22,6 +22,7 @@ import {
   type TalentServiceAreaInput,
 } from "@/lib/talent-service-areas-service";
 import type { SaveServiceAreasInput } from "./admin-talent-service-areas.types";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type ReadResult =
   | {
@@ -74,6 +75,8 @@ export async function getTalentServiceAreasForTalent(input: {
 export async function saveTalentServiceAreas(
   input: SaveServiceAreasInput,
 ): Promise<WriteResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;

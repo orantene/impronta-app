@@ -14,6 +14,7 @@ import { getPlatformRole } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { logPlatformAdminAction } from "@/lib/platform/audit";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -39,6 +40,8 @@ const NOW = () => new Date().toISOString();
 export async function suspendPlatformUser(
   userId: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -86,6 +89,8 @@ export async function suspendPlatformUser(
 export async function unsuspendPlatformUser(
   userId: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -132,6 +137,8 @@ export async function hideTalentGlobally(
   talentProfileId: string,
   hidden: boolean,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -175,6 +182,8 @@ export async function hideTalentOnSite(
   tenantId: string,
   hidden: boolean,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -234,6 +243,8 @@ export async function markPlatformUserAsTest(
   targetKind: "human" | "unclaimed_talent",
   isTest: boolean,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -282,6 +293,8 @@ export async function removeUserFromWorkspace(
   profileId: string,
   tenantId: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 
@@ -338,6 +351,8 @@ export async function changePlatformUserWorkspaceRole(
   tenantId: string,
   newRole: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
 

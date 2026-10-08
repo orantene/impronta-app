@@ -24,6 +24,7 @@ import type {
 import { commandIdempotentRunner } from "./idempotent";
 import { mapEngineRefusal } from "./refusals";
 import { publicOrigin, resolveStorefrontIdentity, storefrontLocale } from "./request-context";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 async function bind(locale: string | null | undefined): Promise<ClassTimetableDeps | null> {
   const admin = createServiceRoleClient();
@@ -64,6 +65,7 @@ export async function actClassTimetable(
   input: ClassTimetableInput,
   _expectedVersion?: number,
 ): Promise<ClassTimetableResult> {
+  await requireNotImpersonating();
   try {
     const deps = await bind(input.locale);
     if (!deps) return mapEngineRefusal("unavailable", "en");

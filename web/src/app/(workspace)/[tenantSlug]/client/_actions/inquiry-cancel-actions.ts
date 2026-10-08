@@ -13,6 +13,7 @@
  * refund / talent release semantics.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -29,6 +30,8 @@ export async function cancelInquiryAsClient(
   inquiryId: string,
   reason: string | null,
 ): Promise<CancelInquiryResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const session = await getCachedActorSession();
     if (!session.supabase || !session.user) return { ok: false, error: "Not authenticated." };

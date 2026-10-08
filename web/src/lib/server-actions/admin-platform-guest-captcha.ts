@@ -16,6 +16,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { CLIENT_ERROR } from "@/lib/server/safe-error";
 import { writeGuestCaptchaEnforced } from "@/lib/platform/guest-captcha-enforcement";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const schema = z.object({ enforced: z.boolean() }).strict();
 
@@ -24,6 +25,8 @@ export type UpdateGuestCaptchaInput = z.infer<typeof schema>;
 export async function updatePlatformGuestCaptcha(
   raw: UpdateGuestCaptchaInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not signed in." };
   if (!isPlatformAdmin(session.profile)) {

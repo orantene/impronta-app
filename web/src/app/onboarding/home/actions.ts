@@ -16,8 +16,10 @@ import {
   loadOwnedObjects,
   saveHomePreference,
 } from "@/lib/tulala/structure-model.server";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export async function chooseHomeSurface(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const session = await requireSession();
   if (!session.ok) redirect("/login?next=%2Fonboarding%2Fhome");
 

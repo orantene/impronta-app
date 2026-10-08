@@ -11,6 +11,7 @@ import { supportEngine } from "../support-engine";
 import { supportFrom } from "../support-from";
 import { applyApprovedAction } from "./apply";
 import { pickWhitelistedPatch, type ProposedActionKind } from "./kinds";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
@@ -28,6 +29,8 @@ export async function hqProposeFixAction(raw: {
   description: string;
   payload: Record<string, unknown>;
 }): Promise<{ ok: true; actionId: string } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = z
     .object({
       ticketId: uuid,
@@ -127,6 +130,8 @@ async function loadActionForRequester(actionId: string, userId: string) {
 export async function approveProposedActionAction(raw: {
   actionId: string;
 }): Promise<{ ok: true; status: "applied" | "failed" } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = z.object({ actionId: uuid }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const session = await requireSession();
@@ -166,6 +171,8 @@ export async function approveProposedActionAction(raw: {
 export async function declineProposedActionAction(raw: {
   actionId: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = z.object({ actionId: uuid }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const session = await requireSession();

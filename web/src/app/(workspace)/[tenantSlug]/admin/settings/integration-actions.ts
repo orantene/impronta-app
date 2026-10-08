@@ -51,6 +51,7 @@ import {
   applyWorkspaceYouTubePublishState,
   clearWorkspaceYouTubeIdentity,
 } from "@/lib/integrations/workspace-social-sync";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ── Shared types ────────────────────────────────────────────────────────────
 
@@ -335,6 +336,8 @@ export async function saveIntegrationConfig(
   key: string,
   configValues: Record<string, string>,
 ): Promise<IntegrationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireSettingsManager(tenantSlug);
   if (!guard.ok) return guard;
 
@@ -440,6 +443,8 @@ export async function setWorkspaceYouTubePublic(
   tenantSlug: string,
   showOnPublicSite: boolean,
 ): Promise<IntegrationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireSettingsManager(tenantSlug);
   if (!guard.ok) return guard;
 
@@ -497,6 +502,8 @@ export async function saveIntegrationSecret(
   secretField: string,
   plaintext: string,
 ): Promise<IntegrationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireSettingsManager(tenantSlug);
   if (!guard.ok) return guard;
 
@@ -555,6 +562,8 @@ export async function setIntegrationMode(
   key: string,
   mode: "inherit" | "custom",
 ): Promise<IntegrationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireSettingsManager(tenantSlug);
   if (!guard.ok) return guard;
 
@@ -611,6 +620,8 @@ export async function testIntegration(
   tenantSlug: string,
   key: string,
 ): Promise<TestIntegrationResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireSettingsManager(tenantSlug);
   if (!guard.ok) return guard;
 
@@ -681,6 +692,8 @@ export async function clearIntegrationSecret(
   key: string,
   secretField: string,
 ): Promise<IntegrationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireSettingsManager(tenantSlug);
   if (!guard.ok) return guard;
 
@@ -723,6 +736,8 @@ export async function removeIntegration(
   tenantSlug: string,
   key: string,
 ): Promise<IntegrationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireSettingsManager(tenantSlug);
   if (!guard.ok) return guard;
 

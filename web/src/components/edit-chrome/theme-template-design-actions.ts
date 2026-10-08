@@ -18,6 +18,7 @@ import type {
   DesignLoadResult,
   DesignSaveResult,
 } from "@/lib/site-admin/edit-mode/design-actions";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 async function requireAdmin() {
   const session = await getCachedActorSession();
@@ -63,6 +64,7 @@ export async function saveThemeTemplateDesignAction(input: {
   /** The editor's `?look=`: colour keys are saved on that palette. */
   look?: string | null;
 }): Promise<DesignSaveResult> {
+  await requireNotImpersonating();
   const gate = await requireAdmin();
   if (!gate.ok) return gate;
   const cleaned: Record<string, string> = {};

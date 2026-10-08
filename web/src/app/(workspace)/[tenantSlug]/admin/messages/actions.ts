@@ -8,6 +8,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ThreadType, WorkspaceMessage } from "../../_data-bridge";
 import { loadInquiryMessages } from "../../_data-bridge";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 async function inquiryBelongsToTenant(
   supabase: SupabaseClient,
@@ -32,6 +33,7 @@ export async function sendMessage(
   body: string,
   replyToMessageId?: string | null,
 ): Promise<{ id: string; created_at: string } | { error: string }> {
+  await requireNotImpersonating();
   try {
     const trimmed = body.trim();
     if (!trimmed || trimmed.length > 10000) {
@@ -120,6 +122,7 @@ export async function markThreadRead(
   inquiryId: string,
   threadType: ThreadType,
 ): Promise<void> {
+  await requireNotImpersonating();
   try {
     const scope = await getTenantScopeBySlug(tenantSlug);
     if (!scope) return;
