@@ -45,14 +45,42 @@ export async function findAdoptableOfferOrder(
   return (data as { id?: string } | null)?.id ?? null;
 }
 
-/** Stamp the pay path's key on the adopted order (only while it has none). A failed stamp is logged, never fatal: the order is still the right one. */
+/**
+ * Claim the order for this pay path: stamp its key, but only while no key is on
+ * it. True only when a row actually changed, so of two concurrent pay paths that
+ * found the same unclaimed order exactly one wins; the loser must not use it.
+ */
 export async function stampAdoptedOfferOrder(
   admin: SupabaseClient,
   input: { tenantId: string; orderId: string; orderKey: string },
-): Promise<void> {
-  const { error } = await tenantScopedQuery(admin, "orders", input.tenantId)
+): Promise<boolean> {
+  const { data, error } = await tenantScopedQuery(admin, "orders", input.tenantId)
     .update({ source_page: input.orderKey })
     .eq("id", input.orderId)
-    .is("source_page", null);
-  if (error) logServerError("messaging.acceptOffer.adoptOrder.stamp", error);
+    .is("source_page", null)
+    .select("id");
+  if (error) {
+    logServerError("messaging.acceptOffer.adoptOrder.stamp", error);
+    return false;
+  }
+  return Array.isArray(data) && data.length > 0;
+}
+
+/**
+ * The pay path's order lookup: its own key first, else adopt the booking
+ * trigger's unclaimed order, and use it ONLY when the claim changed a row. A
+ * lost claim (a concurrent pay path stamped it) re-reads by key and otherwise
+ * returns null, so the caller creates its own order and never shares one.
+ */
+export async function findOrClaimOfferOrder(steps: {
+  byKey: () => Promise<string | null>;
+  findAdoptable: () => Promise<string | null>;
+  claim: (orderId: string) => Promise<boolean>;
+}): Promise<string | null> {
+  const keyed = await steps.byKey();
+  if (keyed) return keyed;
+  const adopted = await steps.findAdoptable();
+  if (!adopted) return null;
+  if (await steps.claim(adopted)) return adopted;
+  return steps.byKey();
 }

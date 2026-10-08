@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { findAdoptableOfferOrder, stampAdoptedOfferOrder } from "./accept-offer-order-adopt";
+import { findAdoptableOfferOrder, findOrClaimOfferOrder, stampAdoptedOfferOrder } from "./accept-offer-order-adopt";
 
 type Row = Record<string, unknown>;
 
@@ -35,8 +35,10 @@ function fake(orders: Row[], opts: { failFind?: boolean } = {}) {
     };
     api.then = (resolve: (v: unknown) => unknown) => {
       if (patch) {
-        for (const r of orders.filter(match)) Object.assign(r, patch);
+        const hit = orders.filter(match);
+        for (const r of hit) Object.assign(r, patch);
         log.push(`stamp ${JSON.stringify(patch)}`);
+        return resolve({ data: hit.map((r) => ({ id: r.id })), error: null });
       }
       return resolve({ data: null, error: null });
     };
@@ -76,8 +78,8 @@ test("a failed read finds nothing (the caller then creates, as before) and does 
 test("stamping sets the pay path's key only while the order has none", async () => {
   const rows = [{ ...base }, { ...base, id: "keyed", source_page: "offer_accept:other" }];
   const { admin } = fake(rows);
-  await stampAdoptedOfferOrder(admin, { tenantId: T, orderId: "trigger-order", orderKey: "offer_accept:o1" });
-  await stampAdoptedOfferOrder(admin, { tenantId: T, orderId: "keyed", orderKey: "offer_accept:o1" });
+  assert.equal(await stampAdoptedOfferOrder(admin, { tenantId: T, orderId: "trigger-order", orderKey: "offer_accept:o1" }), true);
+  assert.equal(await stampAdoptedOfferOrder(admin, { tenantId: T, orderId: "keyed", orderKey: "offer_accept:o1" }), false, "lost claim: no row changed");
   assert.equal(rows[0].source_page, "offer_accept:o1");
   assert.equal(rows[1].source_page, "offer_accept:other");
 });
@@ -106,10 +108,38 @@ test("two offers, same total, one inquiry: two distinct orders, each claimed by 
   assert.equal(rows.find((r) => r.id === "order-b")!.source_page, "offer_accept:OFFER-B");
 });
 
+test("a lost claim is never used: the conditional update changed no row, so the id is not returned", async () => {
+  let reads = 0;
+  const id = await findOrClaimOfferOrder({
+    byKey: async () => (reads++, null),
+    findAdoptable: async () => "shared-order",
+    claim: async () => false,
+  });
+  assert.equal(id, null, "falls through to create");
+  assert.equal(reads, 2, "re-read by key after losing the claim");
+});
+
+test("a lost claim whose winner stamped OUR key resolves to that order", async () => {
+  let reads = 0;
+  const id = await findOrClaimOfferOrder({
+    byKey: async () => (reads++ === 0 ? null : "ours"),
+    findAdoptable: async () => "ours",
+    claim: async () => false,
+  });
+  assert.equal(id, "ours");
+});
+
+test("a won claim returns the adopted order; its own key wins over adoption", async () => {
+  assert.equal(await findOrClaimOfferOrder({ byKey: async () => null, findAdoptable: async () => "t", claim: async () => true }), "t");
+  assert.equal(await findOrClaimOfferOrder({ byKey: async () => "keyed", findAdoptable: async () => { throw new Error("must not look"); }, claim: async () => true }), "keyed");
+});
+
 test("findOfferOrder consults the adopt helper after its own key", () => {
   const src = readFileSync("src/lib/messaging/accept-offer-payment.ts", "utf8");
   const i = src.indexOf("async findOfferOrder");
   const body = src.slice(i, src.indexOf("async createOfferOrder"));
   assert.ok(body.indexOf("findAdoptableOfferOrder") > body.indexOf(".eq(\"source_page\", orderKey)"));
-  assert.match(body, /stampAdoptedOfferOrder/);
+  assert.match(body, /findOrClaimOfferOrder/);
+  // Keyed lookups carry no channel filter, so an adopted ('offer' channel) order is found next time.
+  assert.doesNotMatch(body.slice(0, body.indexOf("findAdoptableOfferOrder")), /source_channel/);
 });
