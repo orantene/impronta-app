@@ -15,6 +15,8 @@ export const FEES_ES_TEXT: Record<string, string> = {
     "Una reserva de {price}: tu cliente paga alrededor de {client}, tú recibes alrededor de {you}",
   "A {price} booking: your client pays about {client}, you receive {you}":
     "Una reserva de {price}: tu cliente paga alrededor de {client}, tú recibes {you}",
+  "Includes a {pct} Tulala service fee ({fee}), shown as its own line at checkout.":
+    "Incluye una comisión de servicio de Tulala de {pct} ({fee}), que se muestra como línea aparte al pagar.",
   "This is an estimate. Fees are non-refundable.":
     "Es un estimado. Las comisiones no son reembolsables.",
   "Could not save. Try again.": "No se pudo guardar. Inténtalo de nuevo.",

@@ -16,7 +16,8 @@ import { getFeePayer, getFeePreviewConfig, setFeePayer } from "@/lib/billing/fee
 import type { FeePreviewPlatformConfig } from "@/lib/billing/platform-processing-mode";
 import {
   DEFAULT_FEE_PAYER,
-  formatFeeMoney,
+  formatFeeCardMoney,
+  formatTakePercent,
   previewFeeLines,
   type FeePayer,
 } from "@/lib/billing/fee-payer-setting";
@@ -75,7 +76,9 @@ function useFeePayer() {
  * (Money page): the promo only repeats the choice below it (QA DS-50).
  */
 export function FeePayerCard({ currency, showTip: tipAllowed = true }: { currency: string; showTip?: boolean }) {
-  const t = useDashboardText().t;
+  const dashText = useDashboardText();
+  const t = dashText.t;
+  const locale = dashText.locale;
   const { feePayer, change, error } = useFeePayer();
   const [tipOpen, setTipOpen] = useState(false);
   const [platformConfig, setPlatformConfig] = useState<FeePreviewPlatformConfig | null>(null);
@@ -112,7 +115,7 @@ export function FeePayerCard({ currency, showTip: tipAllowed = true }: { currenc
         takeFloorCents: platformConfig.takeFloorCents,
       })
     : null;
-  const price = formatFeeMoney(base * 100, currency);
+  const price = formatFeeCardMoney(base * 100, currency, locale);
   const preview = lines
     ? t(
         feePayer === "client"
@@ -120,9 +123,15 @@ export function FeePayerCard({ currency, showTip: tipAllowed = true }: { currenc
           : "A {price} booking: your client pays about {client}, you receive about {you}",
       )
         .replace("{price}", price)
-        .replace("{client}", formatFeeMoney(lines.clientTotalMinor, currency))
-        .replace("{you}", formatFeeMoney(lines.sellerReceivesMinor, currency))
+        .replace("{client}", formatFeeCardMoney(lines.clientTotalMinor, currency, locale))
+        .replace("{you}", formatFeeCardMoney(lines.sellerReceivesMinor, currency, locale))
     : t("Loading fee estimate…");
+
+  const serviceNote = lines
+    ? t("Includes a {pct} Tulala service fee ({fee}), shown as its own line at checkout.")
+        .replace("{pct}", formatTakePercent(lines.platformTakeBps))
+        .replace("{fee}", formatFeeCardMoney(lines.platformFeeMinor, currency, locale))
+    : null;
 
   const option = (id: FeePayer, label: string, hint: string) => (
     <button
@@ -200,6 +209,11 @@ export function FeePayerCard({ currency, showTip: tipAllowed = true }: { currenc
       <p data-testid="fee-payer-preview" className="mt-3 font-admin-body text-[13.5px] text-admin-ink">
         {preview}
       </p>
+      {serviceNote ? (
+        <p data-testid="fee-payer-service-note" className="mt-1 font-admin-body text-[12px] text-admin-ink-muted">
+          {serviceNote}
+        </p>
+      ) : null}
       <p className="mt-1 font-admin-body text-[12px] text-admin-ink-muted">
         {t("This is an estimate. Fees are non-refundable.")}
       </p>
