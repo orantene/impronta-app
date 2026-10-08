@@ -23,6 +23,8 @@
 import type Stripe from "stripe";
 import { getStripeFor, getStripeMxPublishableKey, type StripeAccountKey } from "@/lib/stripe/client";
 import { recordChargePlatform, resolveSellerPlatformForTransaction } from "@/lib/stripe/charge-platform";
+import { checkTransactionChargeCurrency, type ChargeCurrencyGuard } from "@/lib/payments/seller-currency-guard";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { paymentsMockAllowed } from "@/lib/payments/mock-guard";
 import { logServerError } from "@/lib/server/safe-error";
 import { sanitizeStatementDescriptorSuffix } from "@/lib/payments/statement-descriptor";
@@ -76,11 +78,19 @@ export type PaymentIntentResult =
 export async function createPaymentIntentForTransaction(
   input: PaymentIntentInput,
   /** Test seam: inject the platform and/or client; production passes nothing. */
-  deps: { platform?: StripeAccountKey; stripe?: Stripe | null } = {},
+  deps: { platform?: StripeAccountKey; stripe?: Stripe | null; currencyGuard?: ChargeCurrencyGuard } = {},
 ): Promise<PaymentIntentResult> {
   try {
     if (input.amountCents <= 0) {
       return { ok: false, error: "Amount must be positive." };
+    }
+    // TUL-284: the charge currency must match the seller of record. Fails
+    // CLOSED on a seller-read error, before any platform or Stripe work. An
+    // injected stripe / platform (tests) skips it unless a guard is injected.
+    const guardFn = deps.currencyGuard ?? (deps.stripe !== undefined || deps.platform ? null : checkTransactionChargeCurrency);
+    if (guardFn) {
+      const check = await guardFn(createServiceRoleClient(), { transactionId: input.transactionId, currency: input.currency });
+      if (!check.ok) return { ok: false, error: check.message };
     }
 
     // The seller of record's platform decides which Stripe account takes the
