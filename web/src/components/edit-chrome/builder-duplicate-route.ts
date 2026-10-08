@@ -12,9 +12,16 @@
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 
+const NESTED_SECTION_MESSAGE =
+  "This section sits inside another block, so it cannot be duplicated on its own. Select the outer section and duplicate that, or add a copy from Add.";
+
 export type DuplicateRoute =
   | { route: "section"; sectionId: string }
-  | { route: "node" };
+  | { route: "node" }
+  // A section row nested inside another block is not in the page's section
+  // slots, so the section duplicate cannot place a copy (it created a row that
+  // never reached the canvas: "Duplicate does nothing"). Say so instead.
+  | { route: "unsupported"; reason: "nested-section"; message: string };
 
 export function resolveDuplicateRoute(
   tree: BuilderNodeTree,
@@ -23,7 +30,9 @@ export function resolveDuplicateRoute(
   const found = findBuilderNodeById(tree, nodeId);
   if (!found || found.kind !== "section") return { route: "node" };
   const sectionId = (found.props as { sectionId?: string | null }).sectionId;
-  return typeof sectionId === "string" && sectionId !== ""
+  if (typeof sectionId !== "string" || sectionId === "") return { route: "node" };
+  const atPageRoot = tree.some((n) => n.id === nodeId);
+  return atPageRoot
     ? { route: "section", sectionId }
-    : { route: "node" };
+    : { route: "unsupported", reason: "nested-section", message: NESTED_SECTION_MESSAGE };
 }

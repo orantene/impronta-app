@@ -46,6 +46,7 @@ import { LinkPickerPopover } from "./plugins/LinkPickerPopover";
 import { FormatPlugin } from "./plugins/FormatPlugin";
 import { ListCommandPlugin } from "./plugins/ListCommandPlugin";
 import { ListToolbarPlugin } from "./plugins/ListToolbarPlugin";
+import { DomSelectionSyncPlugin } from "./plugins/DomSelectionSyncPlugin";
 import {
   AutoFocusCaretPlugin,
   type CaretPoint,
@@ -196,7 +197,11 @@ export function RichEditor({
         <LinkPlugin />
         <FormatPlugin />
         <ListCommandPlugin />
-        <ListToolbarPlugin />
+        {/* TUL-78 B-5: the canvas text toolbar already carries the list
+            buttons, so the in-field bar only mounts where it is the sole
+            list control (the inspector). */}
+        {suppressFloatingToolbar ? null : <ListToolbarPlugin />}
+        <DomSelectionSyncPlugin />
         <SerializePlugin
           onChange={onChange}
           multiline={variant === "multi"}

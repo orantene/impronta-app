@@ -62,7 +62,8 @@ import {
   GalleryPreviewTrigger,
 } from "./add-gallery-preview-modal";
 import { AddGallerySectionPreview } from "./add-gallery-section-previews";
-import { resolveInsertAnchor } from "./gallery-insert-hint";
+import { insertLevelForGalleryAction, resolveInsertAnchor } from "./gallery-insert-hint";
+import { resolveAddGalleryInsertAction } from "@/lib/site-admin/add-gallery/insert";
 import { getViewportSectionNodeId } from "./viewport-section-anchor";
 import { locateCanvasNode } from "../freeform-layer-row";
 import { useEditorLocale } from "../use-editor-locale";
@@ -420,17 +421,22 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       setPending(true);
       try {
         // W1-L4 — selection → viewport section → end-of-tree; never the far bottom.
-        const anchor = resolveInsertAnchor(builderTree, selectedBuilderNodeId, getViewportSectionNodeId());
+        const copy = {
+          siteKind: templateCopySiteKind(surfaceKind, window.location.pathname),
+          locale: getActiveContentLocaleSnapshot().locale,
+        };
+        // TUL-78 (B-1): a whole section never nests inside the selected hero.
+        const anchor = resolveInsertAnchor(
+          builderTree,
+          selectedBuilderNodeId,
+          getViewportSectionNodeId(),
+          insertLevelForGalleryAction(resolveAddGalleryInsertAction(item, copy).type),
+        );
         const result = await performAddGalleryInsert(
           item,
           anchor,
           { insertBuilderNode, insertBuilderSectionEmbed, insertBuilderComponent },
-          {
-            copy: {
-              siteKind: templateCopySiteKind(surfaceKind, window.location.pathname),
-              locale: getActiveContentLocaleSnapshot().locale,
-            },
-          },
+          { copy },
         );
         if (!result.ok && result.error) {
           reportMutationError(result.error);

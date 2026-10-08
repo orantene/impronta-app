@@ -3929,8 +3929,9 @@ export function SelectionLayer() {
   const commitChildDuplicate = useCallback(
     async (nodeId: string) => {
       const duplicated = await duplicateBuilderNode(nodeId);
-      if (!duplicated.ok && duplicated.error) {
-        reportMutationError(duplicated.error);
+      // TUL-78 B-2: a failed duplicate is never silent, even with no message.
+      if (!duplicated.ok) {
+        reportMutationError(duplicated.error || "Duplicate did not finish. Try again.");
       }
     },
     [duplicateBuilderNode, reportMutationError],
