@@ -50,6 +50,21 @@ test("zero-decimal CLP is not divided by 100", () => {
   assert.doesNotMatch(note, /125\.00/);
 });
 
+test("blank currency fails closed — never invents USD", () => {
+  assert.equal(formatFailedRefundMoney(30000, ""), "?");
+  assert.equal(formatFailedRefundMoney(30000, "   "), "?");
+  const note = buildFailedRefundAttentionNote({
+    refundId: "re_blank",
+    status: "failed",
+    failureReason: "lost_or_stolen_card",
+    amountCents: 30000,
+    currency: "",
+  });
+  assert.match(note, /\(\?; reason=/);
+  assert.ok(!note.includes("USD"));
+  assert.ok(!note.includes("$"));
+});
+
 test("webhook refund_settlement log does not hard-code amount/100", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/stripe/webhook-handler.ts"), "utf8");
   const start = src.indexOf('case "refund_settlement"');
