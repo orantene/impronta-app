@@ -6,11 +6,7 @@ import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { formatMoney } from "@/lib/talent/offerings-money";
-import {
-  formatOfferingWhereLabel,
-  offeringWhereFromAttributes,
-  type OfferingRequestDetail,
-} from "@/lib/talent/offering-request-detail";
+import { formatOfferingWhereLabel, offeringWhereFromAttributes, type OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { BookingSheetReadyBeacon } from "@/components/public-booking/BookingSheetReadyBeacon";
 import { CatalogBookingSheet, type CatalogSheetBookingSettings } from "@/components/public-booking/CatalogBookingSheet";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";

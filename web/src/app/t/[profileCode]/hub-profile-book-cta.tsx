@@ -33,7 +33,7 @@ export function HubProfileCta({
   locale: string;
   className: string;
   slot: HubProfileCtaSlot;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
   const cta = resolveHubProfileCta({ platformHost, maxSiteUrl, askEntry });
   if (cta.kind !== "book") return <>{children}</>;
