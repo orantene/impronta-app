@@ -94,8 +94,13 @@ function CardHead({ children }: { children: ReactNode }) {
   return <div className="flex flex-wrap items-center gap-2.5 px-4 py-3">{children}</div>;
 }
 
-function CardTitle({ children }: { children: ReactNode }) {
-  return <h2 className="text-[15px] font-semibold text-[var(--tc-primary)]">{children}</h2>;
+function CardTitle({ children, quiet = false }: { children: ReactNode; quiet?: boolean }) {
+  // `quiet`: a card with nothing in it keeps a light label, not a heading above one grey line.
+  return quiet ? (
+    <h2 className={`text-[13px] font-medium ${MUTED}`}>{children}</h2>
+  ) : (
+    <h2 className="text-[15px] font-semibold text-[var(--tc-primary)]">{children}</h2>
+  );
 }
 
 function ActionButton({ label, onClick }: { label: string; onClick?: () => void }) {
@@ -131,6 +136,7 @@ export function AgendaTodayPage({
   onOpenCalendar,
   onNewBooking,
   onSendQuote,
+  primaryAction = "booking",
   onOpenRecord,
   onOpenSite,
   onOpenProfile,
@@ -153,6 +159,8 @@ export function AgendaTodayPage({
   onOpenCalendar: () => void;
   onNewBooking?: () => void;
   onSendQuote?: () => void;
+  /** DS-51: which header button is filled. Booking-first unless the trade quotes first. */
+  primaryAction?: "booking" | "quote";
   onOpenRecord?: (id: string) => void;
   onOpenAvailability?: () => void;
   onOpenServices?: () => void;
@@ -568,11 +576,21 @@ export function AgendaTodayPage({
         subtitle={subtitle}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <SecondaryButton onClick={onNewBooking ?? onOpenCalendar}>
-              {newLabel ?? copy.t("New booking")}
-            </SecondaryButton>
+            {primaryAction === "quote" ? (
+              <SecondaryButton onClick={onNewBooking ?? onOpenCalendar}>
+                {newLabel ?? copy.t("New booking")}
+              </SecondaryButton>
+            ) : (
+              <PrimaryButton onClick={onNewBooking ?? onOpenCalendar}>
+                + {newLabel ?? copy.t("New booking")}
+              </PrimaryButton>
+            )}
             {onSendQuote ? (
-              <PrimaryButton onClick={onSendQuote}>+ {copy.t("Send quote")}</PrimaryButton>
+              primaryAction === "quote" ? (
+                <PrimaryButton onClick={onSendQuote}>+ {copy.t("Send quote")}</PrimaryButton>
+              ) : (
+                <SecondaryButton onClick={onSendQuote}>{copy.t("Send quote")}</SecondaryButton>
+              )
             ) : null}
           </div>
         }
@@ -584,7 +602,10 @@ export function AgendaTodayPage({
         <div className="flex min-w-0 flex-col gap-4">
           <section className={CARD} data-testid="today-attention">
             <CardHead>
-              <CardTitle>{copy.t("Needs attention")}</CardTitle>
+              <CardTitle quiet={attention.length === 0 && replyState === "none"}>{copy.t("Needs attention")}</CardTitle>
+              {attention.length === 0 && replyState === "none" ? (
+                <span className={`text-[13px] ${MUTED}`}>{copy.t("You are clear for now.")}</span>
+              ) : null}
               {attention.length + (awaitingReply > 0 ? 1 : 0) > 0 ? (
                 <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[12px] font-semibold text-amber-800">
                   {attention.length + (awaitingReply > 0 ? 1 : 0)}
@@ -617,9 +638,12 @@ export function AgendaTodayPage({
                   </div>
                   <div className="mt-px text-[12.5px] text-black/70">{copy.t("Open Messages")}</div>
                 </Link>
-                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11.5px] font-medium text-amber-800">
-                  {copy.t("Needs reply")}
-                </span>
+                <Link
+                  href="/talent/inbox?filter=needs-reply"
+                  className="inline-flex min-h-[36px] items-center whitespace-nowrap rounded-full border border-black/15 bg-white px-3.5 text-[13px] font-medium text-[var(--tc-primary)] hover:bg-black/[0.03]"
+                >
+                  {copy.t("Reply")}
+                </Link>
               </div>
             ) : null}
             {attention.length === 0 && replyState === "checking" ? (
@@ -633,12 +657,6 @@ export function AgendaTodayPage({
                 <Link href="/talent/inbox" className="font-semibold text-[var(--tc-accent)]">
                   {copy.t("Open Messages")}
                 </Link>
-              </div>
-            ) : null}
-            {attention.length === 0 && replyState === "none" ? (
-              <div className={`border-t border-black/10 px-4 py-3 text-[13px] ${MUTED}`}>
-                <span className="font-semibold text-[var(--tc-primary)]">{copy.t("Nothing needs attention")}</span>{" "}
-                {copy.t("You are clear for now.")}
               </div>
             ) : null}
             {attention.slice(0, attentionLimit).map((item, index) => {
@@ -701,12 +719,13 @@ export function AgendaTodayPage({
 
           <section className={CARD} data-testid="today-agenda">
             <CardHead>
-              <CardTitle>
+              <CardTitle quiet={appointments.length === 0}>
                 {copy.t("Today")} · {shortDate}
               </CardTitle>
               <span className={`text-[12px] ${MUTED}`}>
-                {appointments.length} {copy.t(appointments.length === 1 ? "appointment" : "appointments")} · {bookedLabel(totals.bookedMinutes)}{" "}
-                {copy.t("booked")}
+                {appointments.length === 0
+                  ? copy.t("No appointments today.")
+                  : `${appointments.length} ${copy.t(appointments.length === 1 ? "appointment" : "appointments")} · ${bookedLabel(totals.bookedMinutes)} ${copy.t("booked")}`}
               </span>
               <span className="flex-1" />
               <button
@@ -717,32 +736,21 @@ export function AgendaTodayPage({
                 {copy.t("Open calendar")}
               </button>
             </CardHead>
-            {appointments.length > 0 ? (
-              appointments.map((item) => apptRow(item, true))
-            ) : (
-              <div className={`border-t border-black/10 px-4 py-3 text-[13px] ${MUTED}`}>
-                <span className="font-semibold text-[var(--tc-primary)]">{copy.t("Calendar's clear")}</span>{" "}
-                {copy.t("No appointments today.")}
-              </div>
-            )}
+            {appointments.length > 0 ? appointments.map((item) => apptRow(item, true)) : null}
           </section>
 
           <section className={CARD} data-testid="today-up-next">
             <CardHead>
-              <CardTitle>{copy.t("Up next")}</CardTitle>
+              <CardTitle quiet={!upNext}>{copy.t("Up next")}</CardTitle>
               {upNext ? (
                 <span className={`text-[12px] ${MUTED}`}>
                   {upNext.day.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" })}
                 </span>
-              ) : null}
+              ) : (
+                <span className={`text-[13px] ${MUTED}`}>{copy.t("Nothing booked after today yet.")}</span>
+              )}
             </CardHead>
-            {upNext ? (
-              upNext.items.map((item) => apptRow(item, false))
-            ) : (
-              <div className={`border-t border-black/10 px-4 py-3 text-[13px] ${MUTED}`}>
-                {copy.t("Nothing booked after today yet.")}
-              </div>
-            )}
+            {upNext ? upNext.items.map((item) => apptRow(item, false)) : null}
           </section>
         </div>
 

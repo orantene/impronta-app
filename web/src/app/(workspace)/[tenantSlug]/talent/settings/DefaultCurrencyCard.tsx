@@ -25,8 +25,9 @@ import {
   loadTalentDefaultCurrency,
   updateTalentDefaultCurrency,
 } from "./actions";
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import {
-  CURRENCY_LABELS,
+  localizedCurrencyLabel,
   DEFAULT_CURRENCY_FALLBACK,
   DEFAULT_CURRENCY_OPTIONS,
   type DefaultCurrencyCode,
@@ -48,6 +49,7 @@ const C = {
 const FONT = '"Inter", system-ui, sans-serif';
 
 export function DefaultCurrencyCard() {
+  const copy = useDashboardText();
   const [currency, setCurrency] = useState<DefaultCurrencyCode>(DEFAULT_CURRENCY_FALLBACK);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -86,7 +88,7 @@ export function DefaultCurrencyCard() {
     });
   }
 
-  if (loading) return <SettingsCardLoading label="Loading currency preference…" />;
+  if (loading) return <SettingsCardLoading label={copy.t("Loading currency preference…")} />;
 
   return (
     <div
@@ -125,22 +127,22 @@ export function DefaultCurrencyCard() {
         {currency}
       </span>
       <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>Default currency</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{copy.t("Default currency")}</div>
         <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2, lineHeight: 1.45 }}>
-          Which currency tab opens first on Money when multiple are present. Display-only — no FX conversion.
+          {copy.t("Which currency tab opens first on Money when multiple are present. Display only, no FX conversion.")}
         </div>
         {saving && (
-          <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 4 }}>Saving…</div>
+          <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 4 }}>{copy.t("Saving…")}</div>
         )}
         {savedOk && !saving && (
-          <div style={{ fontSize: 11, color: C.success, marginTop: 4 }}>Saved</div>
+          <div style={{ fontSize: 11, color: C.success, marginTop: 4 }}>{copy.t("Saved")}</div>
         )}
         {error && (
           <div style={{ fontSize: 11, color: C.error, marginTop: 4 }}>{error}</div>
         )}
       </div>
       <select
-        aria-label="Default currency"
+        aria-label={copy.t("Default currency")}
         value={currency}
         disabled={saving}
         onChange={(e) => {
@@ -163,7 +165,7 @@ export function DefaultCurrencyCard() {
       >
         {DEFAULT_CURRENCY_OPTIONS.map((code) => (
           <option key={code} value={code}>
-            {CURRENCY_LABELS[code]}
+            {localizedCurrencyLabel(code, copy.locale)}
           </option>
         ))}
       </select>

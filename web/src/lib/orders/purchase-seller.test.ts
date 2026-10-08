@@ -67,7 +67,7 @@ test("unclaimed talent cannot take money", async () => {
 
 test("claimed talent can take money; agency-owned offerings skip the check", async () => {
   const claimed = await refuseUnclaimedSellers(
-    fakeAdmin([{ id: "tal_1", user_id: "user_1", claimed_at: "2026-01-01" }]) as never,
+    fakeAdmin([{ id: "tal_1", user_id: "user_1", claimed_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() }]) as never,
     catalogWithTalent("tal_1"),
   );
   assert.equal(claimed.ok, true);
@@ -101,7 +101,7 @@ test("provisional profile cannot publish terms until claimed", async () => {
   );
   assert.equal(
     await profileMayPublishTerms(
-      fakeAdmin([{ id: "tal_1", user_id: "u1", claimed_at: "2026-01-01" }]) as never,
+      fakeAdmin([{ id: "tal_1", user_id: "u1", claimed_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() }]) as never,
       "tal_1",
     ),
     true,

@@ -28,6 +28,7 @@
  * from the day `SignedUploadProgress` was declared.
  */
 
+import { readMediaJson } from "@/lib/media/humanize-media-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { SignedUploadProgress } from "@/lib/client/signed-upload-core";
@@ -382,7 +383,11 @@ function cmsTransport(tenantId: string): MediaUploadTransport {
     form.set("file", file);
     try {
       const res = await fetch("/api/admin/media/upload", { method: "POST", body: form });
-      const body = await res.json();
+      const body = await readMediaJson<{
+        ok?: boolean;
+        error?: string;
+        item?: { publicUrl?: string; storagePath?: string };
+      }>(res);
       if (!res.ok || !body.ok) {
         return { ok: false, error: body?.error ?? `HTTP ${res.status}` };
       }

@@ -6,8 +6,9 @@
 import { spawnSync } from "node:child_process";
 import { QA_HOSTS, pickHost, hostsToRelease, formatAge } from "./lib/qa-hosts.mjs";
 
-const TEAM = "oran-tenes-projects";
-const PROJECT = "tulala";
+// Vercel REST needs IDs, not slugs/names (slugs return 404 on /v4/aliases).
+const TEAM = "team_otRX11wclvw89c5ls7A7UsZd"; // oran-tenes-projects
+const PROJECT = "prj_oM9OZ4CLewpMPxpKfkacWs9nRcA2"; // tulala
 const API = "https://api.vercel.com";
 
 async function api(path, init = {}) {
@@ -24,17 +25,27 @@ async function api(path, init = {}) {
 
 /** Current leases: pool aliases joined with their deployment's branch + sha. */
 async function currentLeases() {
-  const { aliases } = await api(`/v4/aliases?projectId=${PROJECT}&limit=200`);
-  const pool = (aliases ?? []).filter((a) => QA_HOSTS.includes(a.alias));
+  // Look each pool host up directly: /v4/aliases?projectId= is paginated (100
+  // per page, `limit` is capped), so a listing silently misses most leases.
   const out = [];
-  for (const a of pool) {
+  for (const host of QA_HOSTS) {
+    let a;
+    try {
+      a = await api(`/v4/aliases/${encodeURIComponent(host)}`);
+    } catch (e) {
+      if (String(e.message).endsWith("-> 404")) continue; // not aliased = free
+      throw e;
+    }
+    if (!a?.deploymentId) continue;
     const d = await api(`/v13/deployments/${a.deploymentId}`);
     out.push({
-      host: a.alias,
+      host,
       aliasUid: a.uid,
       branch: d.meta?.githubCommitRef ?? "?",
       sha: (d.meta?.githubCommitSha ?? "").slice(0, 9),
-      createdAt: a.createdAt ?? Date.parse(a.created ?? 0),
+      // Lease age = when the alias was last re-pointed (updatedAt), not when the
+      // host alias was first created; otherwise every pool host looks stale.
+      createdAt: a.updatedAt ?? a.createdAt ?? Date.parse(a.created ?? 0),
     });
   }
   return out;

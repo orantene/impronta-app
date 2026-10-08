@@ -12,7 +12,7 @@ test("profile field category rail nests under Services instead of a standalone D
   );
   assert.match(
     source,
-    /aria-label="Service detail categories"/,
+    /aria-label=\{copy\.t\("Service detail categories"\)\}/,
     "Nested category group should be labelled as service detail categories",
   );
   assert.match(

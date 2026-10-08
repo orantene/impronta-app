@@ -232,7 +232,7 @@ const BUDGETS: Record<string, number> = {
   // the list grows each time another panel earns its own chunk. Re-baselined to
   // the measured value, per this guard's own procedure.
   // Wave 4: ?panel=add|apps&app=… → openAddMenu + builder-app-intent (+7).
-  "src/components/edit-chrome/edit-shell.tsx": 2369,
+  "src/components/edit-chrome/edit-shell.tsx": 2298,
   // +16 (per-device carousel slides, 2026-08-17): "Slides per view" now writes
   // `responsive[tier]` when a non-desktop viewport is active instead of
   // silently rewriting the desktop base, plus its override dot and reset. The

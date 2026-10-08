@@ -186,6 +186,7 @@ export function OfferingInstantMount({
         contactEmail: signedIn ? undefined : guestEmail,
         captchaToken: signedIn ? undefined : captchaToken || null,
         honeypot: signedIn ? undefined : honeypot,
+        locale,
       });
       if (!res.ok) {
         if (res.needsAuth) {

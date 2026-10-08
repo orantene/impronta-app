@@ -38,6 +38,19 @@ export function shouldShowBanner(stored: unknown, gpc: boolean): boolean {
   return resolveConsent(stored, gpc) === null;
 }
 
+/**
+ * Pure: routes that must never show the consent banner. Hiding the banner is
+ * NOT consent: nothing is written, so `resolveConsent` stays null and analytics
+ * storage and pixels stay denied by default (only an explicit "granted" opens
+ * them). The banner appears on the next page the visitor reaches.
+ *  - /prototypes, /template-preview: designer sandboxes.
+ *  - /start: the onboarding flow renders nothing but the flow (TUL-126).
+ */
+export function isConsentBannerSuppressedPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  return /^\/(prototypes|template-preview|start)(\/|$)/.test(pathname);
+}
+
 /** Pure: may optional analytics storage / pixels run? Only on explicit grant. */
 export function isAnalyticsAllowed(consent: Consent): boolean {
   return consent === "granted";

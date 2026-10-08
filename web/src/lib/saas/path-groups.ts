@@ -367,6 +367,26 @@ export const APP_API_PREFIXES = [
   "/api/links",
 ] as const;
 
+/**
+ * TUL-87 — media APIs the page builder calls from a hub workspace site.
+ *
+ * A workspace without a custom domain is edited at
+ * `tulala.digital/w/<slug>?edit=1`, which resolves to host kind `hub`. The
+ * builder's media library, Assets panel, image field and uploads all fetch
+ * `/api/admin/media/*` (or `/api/talent/media/*` for a solo talent) from that
+ * origin. Neither prefix was reachable on `hub`, so every call got the branded
+ * HTML 404 and the client died on `JSON.parse` at `<!DOCTYPE`. Scoped to
+ * the library + upload routes (not all of `/api/admin`) so nothing else widens:
+ * `/api/admin/media/bake-watermark` and `/api/talent/media-kit` stay unreachable. Every handler is the gate
+ * (session + tenant scope / talent-self).
+ */
+export const HUB_API_PREFIXES = [
+  "/api/admin/media/library",
+  "/api/admin/media/upload",
+  "/api/talent/media/library",
+  "/api/talent/media/upload",
+] as const;
+
 export const APP_API_EXACT_PATHS = [
   "/api/location-place-details",
   "/api/location-country-details",

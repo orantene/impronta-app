@@ -116,8 +116,19 @@ export function NotificationsBell({
   const popoverId = useId();
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const [readSetState, setReadSetState] = useState<Set<string>>(() => readSet(READ_KEY));
-  const [dismissedState, setDismissedState] = useState<Set<string>>(() => readSet(DISMISSED_KEY));
+  // TUL-109: start empty so the server pass and the first client pass render
+  // the same unread badge; the stored sets are merged in after mount. A lazy
+  // localStorage initializer here was a React #418 on every page with the bell.
+  const [readSetState, setReadSetState] = useState<Set<string>>(() => new Set());
+  const [dismissedState, setDismissedState] = useState<Set<string>>(() => new Set());
+  // Declared before the read_at seed effect below so its writeSet merges onto
+  // the loaded set, not an empty one.
+  useEffect(() => {
+    const stored = readSet(READ_KEY);
+    if (stored.size > 0) setReadSetState((prev) => new Set([...prev, ...stored]));
+    const gone = readSet(DISMISSED_KEY);
+    if (gone.size > 0) setDismissedState((prev) => new Set([...prev, ...gone]));
+  }, []);
   const [, force] = useState(0);
 
   // A9 — seed the read-set with notifications whose row already has

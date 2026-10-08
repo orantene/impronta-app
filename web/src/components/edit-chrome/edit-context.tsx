@@ -184,6 +184,7 @@ import {
   publishStylePresetRegistry,
 } from "@/lib/site-admin/builder-node/style-presets-storage";
 import { normalizeCompositionSlots } from "./composition-slots";
+import { resolveDuplicateRoute } from "./builder-duplicate-route";
 import {
   stripSnapshotForSave,
   toLegacySnapshotSlots,
@@ -2583,8 +2584,7 @@ export function EditProvider({
         return { ok: false, error: "This page is still loading. Try again in a moment." };
       }
       const snap = currentSnapshot();
-      // capture history + clear future BEFORE the round-trip so if the
-      // operator navigates away mid-flight, undo still sees the pre-state
+      // capture history BEFORE the round-trip so undo sees the pre-state
       setPast((p) =>
         capHistory([
           ...p,
@@ -2638,11 +2638,8 @@ export function EditProvider({
         reportMutationError(res.error);
         return { ok: false, error: res.error };
       }
-      // Splice the new section into local slots using the response payload
-      // instead of awaiting a second round-trip to refreshComposition. The
-      // server-rendered DOM wrappers still need queueRouterRefresh() to catch
-      // up, but the inspector / overlays read from context state and can
-      // engage the new section immediately.
+      // Splice into local slots from the response payload (no second
+      // round-trip); queueRouterRefresh() catches the server DOM up.
       const insertAt =
         target.insertAfterSortOrder === null
           ? 0
@@ -2753,10 +2750,8 @@ export function EditProvider({
         reportMutationError(res.error);
         return { ok: false, error: res.error };
       }
-      // Optimistically splice the duplicate right after the source so the
-      // inspector + overlays can engage it immediately — then queueRouterRefresh
-      // fills in the server-rendered section wrapper in the background.
-      // Skip the blocking refreshComposition round-trip (~300 ms saved).
+      // Splice the duplicate right after the source (no blocking refresh);
+      // queueRouterRefresh fills in the server-rendered wrapper later.
       setSlotsAndBuilderTree((prev) => {
         const next: Record<string, CompositionSectionRef[]> = {};
         for (const [k, list] of Object.entries(prev)) {
@@ -4299,6 +4294,11 @@ export function EditProvider({
     EditContextValue["duplicateBuilderNode"]
   >(
     async (nodeId) => {
+      const route = resolveDuplicateRoute(builderTreeRef.current, nodeId); // TUL-78
+      if (route.route === "section") {
+        const r = await duplicateSectionRef.current?.(route.sectionId);
+        return r?.ok ? { ok: true, nodeId: r.newSectionId } : { ok: false, error: r?.error ?? "Duplicate did not finish. Try again." };
+      }
       const duplicated = await executeBuilderNodeOperation({
         operation: "duplicate",
         nodeId,

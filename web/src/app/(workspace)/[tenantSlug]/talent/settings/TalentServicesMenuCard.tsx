@@ -39,7 +39,8 @@ import {
   type ServiceTier,
 } from "@/lib/talent/services-menu-types";
 
-import { DEFAULT_CURRENCY_OPTIONS, CURRENCY_LABELS } from "@/lib/billing/currencies";
+import { DEFAULT_CURRENCY_OPTIONS, localizedCurrencyLabel } from "@/lib/billing/currencies";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 
 const VISIBILITY_LABEL_KEYS: Record<ServiceVisibility, string> = {
   public: "dashboard.talentServices.visibilityPublic",
@@ -107,6 +108,7 @@ function blankService(defaultCurrency: string, sortOrder: number): ServiceMenuIt
 
 export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
   const t = useT();
+  const dashboardLocale = useDashboardLocale();
   const [items, setItems] = useState<ServiceMenuItem[]>([]);
   const [disciplines, setDisciplines] = useState<TalentDiscipline[]>([]);
   const [perf, setPerf] = useState<Record<string, ServicePerformanceStat>>({});
@@ -321,7 +323,7 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                         style={{ ...inputStyle, width: "100%", cursor: saving ? "wait" : "pointer" }}
                       >
                         {DEFAULT_CURRENCY_OPTIONS.map((c) => (
-                          <option key={c} value={c}>{c}{CURRENCY_LABELS[c] ? ` — ${CURRENCY_LABELS[c]}` : ""}</option>
+                          <option key={c} value={c}>{c} {"\u2014"} {localizedCurrencyLabel(c, dashboardLocale)}</option>
                         ))}
                       </select>
                     </label>

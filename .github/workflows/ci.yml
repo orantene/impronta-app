@@ -428,6 +428,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:jorgelina-publish
 
+      - name: tests — Jorgelina content script (TUL-73)
+        if: ${{ !cancelled() }}
+        run: npm run test:jorgelina-content
+
+      - name: tests — QA test-talent sync + design drift (TUL-135)
+        if: ${{ !cancelled() }}
+        run: npm run test:sync-test-talent
+
       - name: tests — fields
         if: ${{ !cancelled() }}
         run: npm run test:fields

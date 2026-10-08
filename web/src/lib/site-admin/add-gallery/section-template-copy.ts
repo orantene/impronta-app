@@ -1,5 +1,7 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
+import { EXTRA_ROWS, type CopyRow, type Variant } from "./section-template-copy-rows";
+
 /**
  * TUL-52 C: layout placeholder copy follows the site kind and the content
  * locale. Templates are authored once in agency English; this pass swaps the
@@ -7,7 +9,8 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
  * House rule: no em dashes in user copy.
  */
 export interface TemplateCopyContext {
-  siteKind: "talent" | "agency";
+  /** "talent" = solo talent, "business" = local business, "agency" = roster site. */
+  siteKind: "talent" | "business" | "agency";
   locale: string;
 }
 
@@ -15,19 +18,17 @@ export interface TemplateCopyContext {
 export function templateCopySiteKind(
   surfaceKind: string | null | undefined,
   pathname: string | null | undefined,
+  workspaceType?: string | null,
 ): TemplateCopyContext["siteKind"] {
+  if (workspaceType === "business") return "business";
   if (surfaceKind === "talent_page" || surfaceKind === "theme_template") return "talent";
   const p = pathname ?? "";
   return p.startsWith("/talent/") || p.startsWith("/t/") ? "talent" : "agency";
 }
 
-type Variant = { en: string; es: string };
-interface Row {
-  agency: Variant;
-  talent: Variant;
-}
+type Row = CopyRow;
 
-const ROWS: Record<string, Row> = {
+const BASE_ROWS: Record<string, Row> = {
   "Our agency": {
     agency: { en: "Our agency", es: "Nuestra agencia" },
     talent: { en: "About me", es: "Sobre mí" },
@@ -86,10 +87,39 @@ const ROWS: Record<string, Row> = {
   },
 };
 
+const ROWS: Record<string, Row> = { ...BASE_ROWS, ...Object.fromEntries(EXTRA_ROWS) };
+
+// A business speaks as "we", not "I".
+const BUSINESS_VOICE: Record<string, Variant> = {
+  "Our agency": { en: "About us", es: "Sobre nosotros" },
+  "About us": { en: "About us", es: "Sobre nosotros" },
+  "Our story": { en: "Our story", es: "Nuestra historia" },
+  "Share your story, approach, and what makes your agency distinctive.": {
+    en: "Share your story, your approach, and what makes your business distinctive.",
+    es: "Cuenta tu historia, tu enfoque y lo que distingue a tu negocio.",
+  },
+  "Tell visitors who you are, how you work, and why clients trust your team.": {
+    en: "Tell visitors who you are, how you work, and why clients trust your team.",
+    es: "Cuenta quién eres, cómo trabajas y por qué los clientes confían en tu equipo.",
+  },
+  "Key figures that reinforce your agency credibility.": {
+    en: "Key figures that reinforce your credibility.",
+    es: "Cifras clave que refuerzan tu credibilidad.",
+  },
+  "Introduce your agency, roster, or offer with a clear supporting line.": {
+    en: "Introduce your business and what you offer with a clear supporting line.",
+    es: "Presenta tu negocio y lo que ofreces con una línea clara.",
+  },
+};
+for (const [k, v] of Object.entries(BUSINESS_VOICE)) {
+  if (ROWS[k]) ROWS[k] = { ...ROWS[k], business: v };
+}
+
 export function localizeTemplateString(value: string, ctx: TemplateCopyContext): string {
   const row = ROWS[value];
   if (!row) return value;
-  const variant = ctx.siteKind === "talent" ? row.talent : row.agency;
+  const variant: Variant =
+    ctx.siteKind === "agency" ? row.agency : ctx.siteKind === "business" ? (row.business ?? row.talent) : row.talent;
   return ctx.locale.toLowerCase().startsWith("es") ? variant.es : variant.en;
 }
 

@@ -8,8 +8,9 @@
 // initialPage is derived from the request pathname so hard refreshes on
 // /admin/messages start on the correct surface without a flash.
 
+import { dashboardMetadata } from "@/i18n/dashboard-metadata";
 import { notFound, redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { getTenantScopeBySlug, getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
@@ -30,6 +31,17 @@ import { perfMark, perfStart, timed } from "@/lib/server/perf-trace";
 import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
 import { loadClientFieldSource } from "@/lib/field-engine/client-field-source";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import {
+  WORKSPACE_LOCALE_SEED_ATTEMPT_COOKIE,
+  isWorkspaceSeedablePath,
+  workspaceLocaleSeedHref,
+  workspaceLocaleSeedMayApply,
+  workspaceLocaleSeedPlan,
+} from "@/lib/site-admin/server/workspace-locale-seed";
+import { loadWorkspaceSeedPrimary } from "@/lib/site-admin/server/workspace-locale-seed.server";
+import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
+import { LOCALE_AUTO_COOKIE, LOCALE_OWNER_COOKIE } from "@/i18n/locale-cookies";
+import { ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
 import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
 import { loadTalentUnreadCount } from "@/lib/saas/unread-counts";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
@@ -41,8 +53,12 @@ import { clampWorkspacePage, normalizeWorkspaceType } from "@/lib/saas/workspace
 import { resolveWorkspaceAdminPage } from "./workspace-page-routing";
 import { RealIdentityBanner } from "./_real-identity-banner";
 import { loadTenantIdentity, loadProfileDisplayName } from "../_layout-identity";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
 
 export const dynamic = "force-dynamic";
+
+export const generateMetadata = dashboardMetadata;
 
 type LayoutParams = Promise<{ tenantSlug: string }>;
 
@@ -134,6 +150,32 @@ export default async function WorkspaceAdminLayout({
     userHasCapability("manage_agency_domains", scope.tenantId),
   ]);
   if (!canView) notFound();
+
+  // ── Language seed (TUL-117) ────────────────────────────────────────────────
+  // The dashboard renders in the `locale` cookie, and a fresh browser has none
+  // (or an auto-written English one). Hop once through the seed route so the
+  // owner of a Spanish workspace sees Spanish. Twin of the talent layout; the
+  // route re-derives everything and never overwrites a deliberate cookie, and
+  // the attempt cookie keeps a failed write from ever looping.
+  const jar = await cookies();
+  const seedCookies = {
+    cookieLocale: jar.get(LOCALE_COOKIE)?.value ?? null,
+    cookieIsAuto: Boolean(jar.get(LOCALE_AUTO_COOKIE)?.value),
+    cookieOwner: jar.get(LOCALE_OWNER_COOKIE)?.value ?? null,
+    userId: session.user.id,
+  };
+  if (
+    !jar.get(WORKSPACE_LOCALE_SEED_ATTEMPT_COOKIE)?.value &&
+    hdrs.get("x-impronta-original-pathname") &&
+    isWorkspaceSeedablePath(pathname, tenantSlug) &&
+    workspaceLocaleSeedMayApply(seedCookies)
+  ) {
+    const primary = await timed("layout.loadWorkspaceSeedPrimary", () => loadWorkspaceSeedPrimary(scope.tenantId));
+    const seedPlan = workspaceLocaleSeedPlan({ ...seedCookies, primary });
+    if (seedPlan.locale || seedPlan.stamp) {
+      redirect(workspaceLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`, tenantSlug));
+    }
+  }
   perfMark("layout.before-fanout", t0);
 
   // ── Derive initialPage from URL (avoids hard-refresh flash) ───────────────
@@ -265,8 +307,12 @@ export default async function WorkspaceAdminLayout({
     isPlatformAdmin: isPlatformAdmin(session.profile),
   };
 
+  // Seed client dashboard copy with the SERVER-resolved locale so the first
+  // paint (rail wordmark tagline, labels) is not English on a Spanish cookie.
+  const requestLocale = await getRequestLocale();
+
   return (
-    <>
+    <DashboardLocaleProvider locale={requestLocale}>
       {/* Real-data diagnostic banner. Dev/preview only — never ships to
           production. It sits above the prototype chrome until the prototype's
           top-bar identity is migrated to consume the bridge.
@@ -335,6 +381,6 @@ export default async function WorkspaceAdminLayout({
         {/* PageRouteSyncer lives here — inside AdminShellProvider context, returns null */}
         {children}
       </AdminShellClient>
-    </>
+    </DashboardLocaleProvider>
   );
 }

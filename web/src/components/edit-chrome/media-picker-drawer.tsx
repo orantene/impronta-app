@@ -32,6 +32,7 @@ import { ImageIcon } from "lucide-react";
 import { RequestReleaseButton } from "./media-picker-request-release";
 import { describeRejections } from "@/components/media-library/rejection-copy";
 import { useT } from "@/i18n/use-t";
+import { humanizeMediaError, readMediaJson } from "@/lib/media/humanize-media-error";
 import { compressImage } from "@/lib/client/image-compress";
 import {
   useMediaUpload,
@@ -234,7 +235,14 @@ export function MediaPickerDrawer({
         method: "POST",
         body: form,
       });
-      const body = await res.json();
+      const body = await readMediaJson<{
+        ok?: boolean;
+        error?: string;
+        errorCode?: string;
+        item?: MediaLibraryWireItem;
+        quotaWarning?: string;
+        quotaRemaining?: number;
+      }>(res);
       if (!res.ok || !body.ok) {
         if (body.errorCode === "limit_reached") {
           setQuotaNotice(null);
@@ -292,7 +300,10 @@ export function MediaPickerDrawer({
       if (failed.length > 0) {
         setUploadError(
           failed
-            .map((it) => `${it.file.name}: ${it.errorMsg ?? "failed"}`)
+            .map(
+              (it) =>
+                `${it.file.name}: ${humanizeMediaError(it.errorMsg ?? "failed", t)}`,
+            )
             .join(" · ")
             .slice(0, 200),
         );
@@ -306,7 +317,7 @@ export function MediaPickerDrawer({
       }
       uploader.reset();
     },
-    [multi, pickItem, uploader],
+    [multi, pickItem, uploader, t],
   );
 
   const uploading = uploader.uploading;
@@ -341,14 +352,14 @@ export function MediaPickerDrawer({
             ),
           },
         );
-        const body = await res.json();
+        const body = await readMediaJson<{ ok?: boolean; error?: string; item?: { alt?: string } }>(res);
         if (!res.ok || !body.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
         library.patchItem(item.id, { alt: body.item?.alt ?? alt });
       } catch (e) {
-        setSaveError(String(e).slice(0, 200));
+        setSaveError(humanizeMediaError(String(e), t).slice(0, 200));
       }
     },
-    [isTalentScope, library, talentProfileId, tenantId],
+    [isTalentScope, library, talentProfileId, tenantId, t],
   );
 
   const saveTags = useCallback(
@@ -360,14 +371,14 @@ export function MediaPickerDrawer({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tenantId, id: item.id, tags }),
         });
-        const body = await res.json();
+        const body = await readMediaJson<{ ok?: boolean; error?: string; item?: { tags?: string[] } }>(res);
         if (!res.ok || !body.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
         library.patchItem(item.id, { tags: body.item?.tags ?? tags });
       } catch (e) {
-        setSaveError(String(e).slice(0, 200));
+        setSaveError(humanizeMediaError(String(e), t).slice(0, 200));
       }
     },
-    [library, tenantId],
+    [library, tenantId, t],
   );
 
   if (!open) return null;

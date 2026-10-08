@@ -380,6 +380,7 @@ const ES_TEXT: Record<string, string> = {
   "A short intro": "Una presentación corta",
   "When you are available": "Cuándo estás disponible",
   "Acting as": "Actuando como",
+  "Acting as another user": "Actuando como otro usuario",
   "Manage website": "Administrar sitio",
   "My public page": "Mi página pública",
   "Edit my profile": "Editar mi perfil",

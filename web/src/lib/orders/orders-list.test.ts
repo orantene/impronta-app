@@ -19,7 +19,7 @@ function row(over: Partial<OrderListRow> = {}): OrderListRow {
     totalCents: 5000,
     collectedCents: 5000,
     sourceChannel: "menu",
-    createdAt: "2026-09-03T00:00:00Z",
+    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     customerName: "Ana Ruiz",
     customerEmail: "ana@example.com",
     lineCount: 2,

@@ -5758,7 +5758,7 @@ html[data-theme="dark"] [data-tone="light"] {
  * toggles [data-scrolled="true"] on the wrapper and it animates to a blurred
  * solid bar with theme-ink text. Scoped to the talent shell wrapper so agency
  * headers are unaffected. */
-[data-talent-max-site-header] .site-header[data-tone="transparent"] { color: #fff; }
+[data-talent-max-site-header]:where([data-over-hero="true"]) .site-header[data-tone="transparent"] { color: #fff; }
 [data-talent-max-site-header][data-scrolled="true"] .site-header {
   background: color-mix(in srgb, var(--token-color-surface-raised, #fff) 86%, transparent);
   border-bottom-color: color-mix(in srgb, var(--token-color-line) 70%, transparent);

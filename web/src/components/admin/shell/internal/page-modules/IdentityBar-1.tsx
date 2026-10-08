@@ -31,6 +31,7 @@ import { TALENT_UNREAD } from "./WorkspaceTopbar";
 import { useWorkspaceNav } from "./workspace-nav";
 import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
+import { shouldShowTalentActingChip } from "@/lib/impersonation/acting-as";
 import { TalentPreviewEyeControl } from "./TalentPreviewEyeControl";
 
 
@@ -129,9 +130,13 @@ export function TulalaIdentityBar() {
   // effectiveTenant.name (derived from bridge in production, mock in demo).
   // For talent surface, prefer the bridge's `agencyName` (the actual agency
   // hosting this rostered talent) over Marta's hardcoded primaryAgency.
+  // Talent surface: the chip exists only for a REAL impersonation (TUL-164) and
+  // names the impersonated person, never the signed-in owner or an email prefix.
+  const talentActingAs = bridgeSessionIdentity?.actingAs ?? null;
+  const showTalentActingChip = inTalent && shouldShowTalentActingChip(talentActingAs);
   const actingLabel = inWorkspace
     ? effectiveTenant.name
-    : (talentBridgeName ?? realUserName ?? MY_TALENT_PROFILE.name);
+    : (talentActingAs?.name ?? copy.t("Acting as another user"));
   // Subtext stays terse — the plan tier now has its own badge inline,
   // so this just clarifies the role + entity context.
   const actingRoleLabel = bridgeSessionIdentity?.role ?? role;
@@ -343,7 +348,7 @@ export function TulalaIdentityBar() {
             {/* A talent with no agency has nothing to "act as"; the platform
                 hub is filtered out upstream (loadTalentAgencies). Hide the
                 block rather than show "Your agencies · 0 agencies". */}
-            {(inWorkspace || inTalent) && (
+            {(inWorkspace || showTalentActingChip) && (
             <button
               type="button"
               onClick={inTalent ? undefined : onActingClick}

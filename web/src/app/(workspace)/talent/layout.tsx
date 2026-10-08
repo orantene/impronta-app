@@ -2,6 +2,7 @@
 // Agenda V2 rollout: see docs/plans/today-calendar/ROLLOUT.md (TALENT_AGENDA_V2).
 // Legacy Today/Calendar remain behind isAgendaV2 until Step 4 delete PR.
 
+import { dashboardMetadata } from "@/i18n/dashboard-metadata";
 import { notFound, redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 
@@ -34,8 +35,6 @@ import { SupportLauncherShellMount } from "@/components/support/SupportLauncherS
 import type { TalentPage } from "@/components/admin/shell/internal/state";
 import { loadTenantIdentity, loadProfileDisplayName, type TenantIdentityPayload } from "../[tenantSlug]/_layout-identity";
 import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
-import { loadUnrosteredWallFacts } from "@/lib/talent/unrostered-wall-load";
-import { unrosteredWallBypassesShell } from "@/lib/talent/unrostered-wall";
 import { TalentSiteDashboardProvider } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/dashboard-state";
 import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
@@ -56,8 +55,13 @@ import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
 import { loadTalentPlanGrants } from "@/lib/plan-trials/talent-grants";
 import { talentStudioV2Enabled } from "@/lib/talent/studio-flag";
 import { logServerError } from "@/lib/server/safe-error";
+import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
+import { resolveTalentActingAs, talentActingAsBannerCopy } from "@/lib/impersonation/acting-as";
+import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
 
 export const dynamic = "force-dynamic";
+
+export const generateMetadata = dashboardMetadata;
 
 const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   today: "today",
@@ -189,19 +193,10 @@ export default async function PlatformTalentLayout({
     notFound();
   }
 
-  // The unrostered wall is the whole /talent page. TalentShellClient renders
-  // children and then Today, so a profile with no roster and no published
-  // site must not enter the shell. A talent who has either keeps the shell;
-  // an unproven read does too (the page sends them to Today).
+  // TUL-129: /talent itself never paints the shell. Its page redirects a talent straight to
+  // /talent/today (which runs the full shell loads once), so running ~20 dashboard reads here
+  // only to throw the result away on that redirect doubled the sign-in cost.
   if (isTalentRoot) {
-    const wallFacts = await loadUnrosteredWallFacts(baseProfile.id);
-    if (unrosteredWallBypassesShell(wallFacts)) {
-      return <>{children}</>;
-    }
-    // TUL-129: /talent itself never paints the shell. Its page redirects a
-    // talent with a roster/site straight to /talent/today (which runs the full
-    // shell loads once). Running ~20 dashboard reads here too, only to throw
-    // the result away on that redirect, doubled the sign-in cost.
     return <>{children}</>;
   }
 
@@ -266,6 +261,10 @@ export default async function PlatformTalentLayout({
     talentPageAnalytics,
     workspaceUi,
     talentDashboardLoad,
+    visibleInquiryIds,
+    talentPlanGrants,
+    operatingCurrency,
+    requestLocale,
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
@@ -320,17 +319,21 @@ export default async function PlatformTalentLayout({
     // Real completeness for the Today card (same source as the guided wizard).
     // Never fatal: a load failure leaves the card on its old estimate.
     loadTalentDashboardData().catch(() => null),
+    // TUL-220: these four used to be awaited one after another AFTER the batch
+    // above, stacking four round trips onto every talent page before the shell
+    // could stream. None depends on the batch, so they ride in it.
+    // The bell counts only conversations she can open in Messages (TUL-52 B).
+    loadTalentVisibleInquiryIds().catch(() => null),
+    loadTalentPlanGrants(talentSelfProfile.id).catch(() => null),
+    loadPlatformOperatingCurrency(),
+    getRequestLocale(),
   ]);
 
-  // The bell counts only conversations she can open in Messages (TUL-52 B).
-  const visibleInquiryIds = await loadTalentVisibleInquiryIds().catch(() => null);
   const userNotifications = scopeTalentNotificationsToInbox(userNotificationsAll, visibleInquiryIds);
 
   // Platform currency policy: unless a super-admin has turned multi-currency
   // display ON, collapse the talent's earnings to the single operating currency
   // (default USD) so the dashboard shows one clean figure, not EUR/USD tabs.
-  const talentPlanGrants = await loadTalentPlanGrants(talentSelfProfile.id).catch(() => null);
-  const operatingCurrency = await loadPlatformOperatingCurrency();
   const displayEarnings = applyOperatingCurrencyToEarnings(talentEarnings, operatingCurrency);
 
   // Locale seeding is decided above, before the heavy loads (TUL-129).
@@ -338,7 +341,11 @@ export default async function PlatformTalentLayout({
 
   // Seed client dashboard copy with the SERVER-resolved locale so the first
   // render is not English regardless of the cookie (use-dashboard-locale.ts).
-  const requestLocale = await getRequestLocale();
+
+  // Real impersonation only (validated cookie). resolveDashboardIdentity may try
+  // to clear a stale cookie, which an RSC cannot do, so a throw means "not acting".
+  const impersonationIdentity = await resolveDashboardIdentity().catch(() => null);
+  const actingAs = resolveTalentActingAs(impersonationIdentity);
 
   const isHybrid = membership != null;
   const workspaceUnread: number | undefined = isHybrid ? workspaceUnreadRaw : undefined;
@@ -350,10 +357,25 @@ export default async function PlatformTalentLayout({
     role: membership?.role ?? "viewer",
     displayName: profileDisplayName,
     isPlatformAdmin: isPlatformAdmin(session.profile),
+    // TUL-164: set only for a validated impersonation cookie, never for an owner.
+    actingAs,
   };
+
+  const actingAsCopy = actingAs ? talentActingAsBannerCopy(requestLocale, actingAs.name) : null;
 
   return (
     <DashboardLocaleProvider locale={requestLocale}>
+    {actingAs && actingAsCopy ? (
+      <ImpersonationBanner
+        effectiveName={actingAsCopy.effectiveName}
+        effectiveAvatarUrl={impersonationIdentity?.effectiveProfile?.avatar_url ?? null}
+        roleLabel={actingAsCopy.roleLabel}
+        readOnlyLine={actingAsCopy.readOnlyLine}
+        v1ReadOnlyQaLine={actingAsCopy.v1ReadOnlyQaLine}
+        returnCta={actingAsCopy.returnCta}
+        ariaLabel={actingAsCopy.ariaLabel}
+      />
+    ) : null}
     <TalentSiteDashboardProvider initialLoad={talentSiteDashboardLoad}>
     <TalentShellClient
       tenantSlug={activeAgency?.slug}

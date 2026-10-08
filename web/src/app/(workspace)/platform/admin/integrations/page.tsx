@@ -8,6 +8,7 @@
 // Dark HQ theme. Writes are gated on super_admin in the server actions.
 
 import { loadPlatformIntegrationDefaults } from "./platform-integration-actions";
+import { loadWorkspaceCaptchaOverrides } from "./captcha-override-actions";
 import { PlatformIntegrationCard } from "./PlatformIntegrationEditors";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
@@ -26,6 +27,7 @@ export default async function PlatformIntegrationsPage() {
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
   const view = await loadPlatformIntegrationDefaults();
+  const captchaOverrides = await loadWorkspaceCaptchaOverrides();
 
   return (
     <>
@@ -54,7 +56,7 @@ export default async function PlatformIntegrationsPage() {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
           {view.items.map((item) => (
-            <PlatformIntegrationCard key={item.key} item={item} />
+            <PlatformIntegrationCard key={item.key} item={item} captchaOverrides={captchaOverrides} />
           ))}
         </div>
       )}

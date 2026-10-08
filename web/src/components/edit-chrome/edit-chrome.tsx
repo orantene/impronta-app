@@ -276,7 +276,8 @@ export function EditChrome({
   return (
     <>
       <style>{`
-        body { padding-top: ${EDIT_TOPBAR_H}px !important; background: #F9F9FB !important; }
+        body { padding-top: ${EDIT_TOPBAR_H}px !important; background: #F9F9FB !important; overflow-x: clip !important; }
+        html { overflow-x: clip !important; }
         /* Lateral body padding is managed by BodyPaddingController in EditShell
            when workspaceCanvasMode is reserveGutters; fullBleed (default) uses none. */
         /* Keep the storefront header visible below the edit topbar so

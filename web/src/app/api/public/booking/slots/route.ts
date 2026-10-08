@@ -160,6 +160,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
 
+    // A house-owned offering has no provider calendar here: answer with a
+    // reason instead of a failed `eq("id", null)` read (TUL-77).
+    if (!offering.talent_profile_id) {
+      return slotsJson([], 200, { reason: "not_bookable_here" });
+    }
+
     const { data: talent, error: talentErr } = await admin
       .from("talent_profiles")
       .select("id, profile_kind, booking_terms, created_by_agency_id, selling_defaults")

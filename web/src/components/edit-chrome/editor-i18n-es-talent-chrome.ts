@@ -56,6 +56,8 @@ export const ES_TALENT_CHROME_TEXT: Record<string, string> = {
     "Hay algo en tu página que debes corregir antes de publicar. Corrige los elementos marcados como Bloqueo arriba. Los avisos no impiden publicar.",
   "There is a problem with a section of your page. Save again or contact support.":
     "Hay un problema con una sección de tu página. Guarda de nuevo o contacta a soporte.",
+  "Apply a design before publishing.": "Aplica un diseño antes de publicar.",
+  "Choose a design": "Elige un diseño",
   "Tiny text": "Texto muy pequeño",
   "Tap target": "Zona de toque",
   "Overflow": "Desbordamiento",

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { normalizeBookingLocale } from "@/lib/scheduling/booking-locale";
 import { resolveInquiryRecipients } from "./recipients";
 import type {
   AudienceContext,
@@ -15,6 +16,12 @@ import type {
  * entries import these by name; each resolver returns lightweight
  * `AudienceMember`s and the dispatcher hydrates them to addresses + dedupes.
  */
+
+function bookingLocaleFromContext(ctx: unknown): string | null {
+  if (!ctx || typeof ctx !== "object") return null;
+  const raw = (ctx as { locale?: unknown }).locale;
+  return normalizeBookingLocale(raw);
+}
 
 /** Narrow an unknown payload value to a non-empty trimmed string, else null. */
 export function str(v: unknown): string | null {
@@ -89,6 +96,8 @@ export async function loadInquiryView(
     eventLocation: inq.event_location,
     clientUserId: inq.client_user_id,
     coordinatorId: inq.coordinator_id,
+    // The language the booking was made in (stamped by openPurchaseThread).
+    locale: bookingLocaleFromContext(inq.source_context),
     offerTotal,
     offeringTitle,
     offeringSuffix: offeringTitle ? `: ${offeringTitle}` : "",

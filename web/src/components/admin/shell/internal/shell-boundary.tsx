@@ -19,6 +19,8 @@
 
 import { Component, Suspense, type ReactNode } from "react";
 
+import { DashboardDocumentLang } from "@/components/i18n/DashboardDocumentLang";
+
 import { UpgradeModalProvider } from "@/components/admin/site-control-center/upgrade-context";
 
 import { SupportSlotContext } from "./support-slot-gate";
@@ -75,6 +77,7 @@ export function ShellBoundary({
     <ErrorBoundary>
       <Suspense fallback={null}>
         <SupportSlotContext.Provider value={supportSlot ?? null}>
+          <DashboardDocumentLang />
           <UpgradeModalProvider>{children}</UpgradeModalProvider>
         </SupportSlotContext.Provider>
       </Suspense>

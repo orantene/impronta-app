@@ -31,6 +31,8 @@ import { isReservedSlug } from "@/lib/site-admin/reserved-routes";
 import { PLAN_SEAT_CAPS } from "@/lib/saas/plan-seat-caps";
 import { onboardStarterContent } from "@/lib/site-admin/server/onboard-starter-content";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { workspaceLocaleSettingsForFlow } from "@/lib/saas/workspace-signup-locale";
 import { ensureSelfRosterSiteVisible } from "@/lib/saas/ensure-self-roster";
 import { ensureWorkspaceSubdomainRow } from "@/lib/saas/ensure-workspace-domain";
 import {
@@ -148,6 +150,9 @@ export async function provisionFreeWorkspaceFromTalent(params: {
 
   // ── Step 1: Create agencies row ───────────────────────────────────────────
   const now = new Date().toISOString();
+  // TUL-117: a talent adding a workspace from a Spanish dashboard gets a Spanish
+  // workspace (the admin seeds its language from the tenant default).
+  const flowLocale = workspaceLocaleSettingsForFlow(await getRequestLocale());
 
   const { data: agency, error: agencyError } = await admin
     .from("agencies")
@@ -157,7 +162,7 @@ export async function provisionFreeWorkspaceFromTalent(params: {
       kind: "agency",
       status: "active",
       template_key: "default",
-      supported_locales: ["en"],
+      supported_locales: flowLocale?.supportedLocales ?? ["en"],
       onboarding_completed_at: now,
       plan_tier: "free",
       talent_seat_limit: PLAN_SEAT_CAPS.free,
@@ -235,7 +240,14 @@ export async function provisionFreeWorkspaceFromTalent(params: {
   const { error: identityError } = await admin
     .from("agency_business_identity")
     .upsert(
-      { tenant_id: agency.id, public_name: displayName },
+      {
+        tenant_id: agency.id,
+        public_name: displayName,
+        ...(flowLocale && {
+          default_locale: flowLocale.defaultLocale,
+          supported_locales: flowLocale.supportedLocales,
+        }),
+      },
       { onConflict: "tenant_id", ignoreDuplicates: true },
     );
   if (identityError) {

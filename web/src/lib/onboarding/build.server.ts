@@ -32,6 +32,7 @@ import { buildUnderstanding } from "./understanding";
 import { pathToChoice, resolveBuildPath } from "./choice";
 import { resolveEssentialsForBuild } from "./essentials-resolve";
 import { provisionForChoice } from "./provision-for-choice.server";
+import { ensureStockHero } from "./stock-hero.server";
 import type { OnboardingPath, PersistedModuleState } from "./module-state";
 
 export type BuildStatus =
@@ -85,6 +86,7 @@ export async function runOnboardingBuild(input: {
     discipline: stringFact(input.brief, "work.discipline") ?? stringFact(input.brief, "work.industry"),
     tradeSlug: input.state.typeChoice?.slug ?? null,
     country: stringFact(input.brief, "person.country"),
+    city: person.city,
     locale: input.locale,
   });
   const services = Math.max(listFact(input.brief, "work.services").length, essentials?.services.length ?? 0);
@@ -114,6 +116,8 @@ export async function runOnboardingBuild(input: {
     await setBriefStatus(input.brief.id, "approved");
 
     const talentProfileId = prov.talent?.talentProfileId;
+    // DS-60: a pro with no photo of her own gets a platform-stock hero, then a re-publish (best effort, never fails the build).
+    if (prov.site && talentProfileId) await ensureStockHero(admin, { talentProfileId, locale: input.locale });
     const apex = appUrl.replace(/^https?:\/\/app\./, "https://");
     const talent = prov.talent
       ? {

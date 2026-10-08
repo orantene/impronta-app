@@ -45,6 +45,7 @@ import { CHROME, CHROME_RADII } from "./kit/tokens";
 import { useEditContext } from "./edit-context";
 import { ImageCropModal } from "./image-crop";
 import { useT } from "@/i18n/use-t";
+import { humanizeMediaError, readMediaJson } from "@/lib/media/humanize-media-error";
 import { MediaLibrary } from "@/components/media-library/media-library";
 import { LibraryNotice } from "@/components/media-library/media-library-kit";
 import { useMediaLibrary } from "@/components/media-library/use-media-library";
@@ -177,7 +178,10 @@ export function AssetsLibraryDrawer() {
       if (failed.length > 0) {
         setUploadError(
           failed
-            .map((it) => `${it.file.name}: ${it.errorMsg ?? "failed"}`)
+            .map(
+              (it) =>
+                `${it.file.name}: ${humanizeMediaError(it.errorMsg ?? "failed", t)}`,
+            )
             .join(" · ")
             .slice(0, 200),
         );
@@ -185,7 +189,7 @@ export function AssetsLibraryDrawer() {
       uploader.reset();
       return failed.length === 0;
     },
-    [uploader],
+    [uploader, t],
   );
 
   const handleCropSave = useCallback(
@@ -209,17 +213,17 @@ export function AssetsLibraryDrawer() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tenantId, id: item.id, ...patch }),
         });
-        const body = await res.json();
+        const body = await readMediaJson<{ ok?: boolean; error?: string; item?: { alt?: string; tags?: string[] } }>(res);
         if (!res.ok || !body.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
         library.patchItem(item.id, {
           ...(patch.alt !== undefined ? { alt: body.item?.alt ?? patch.alt } : {}),
           ...(patch.tags !== undefined ? { tags: body.item?.tags ?? patch.tags } : {}),
         });
       } catch (e) {
-        setSaveError(String(e).slice(0, 200));
+        setSaveError(humanizeMediaError(String(e), t).slice(0, 200));
       }
     },
-    [library, tenantId],
+    [library, tenantId, t],
   );
 
   const saveAlt = useCallback(

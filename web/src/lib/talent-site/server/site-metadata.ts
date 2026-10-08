@@ -61,6 +61,8 @@ export function maxSiteSeoToMetadata(
     title: seo.title,
     ...(seo.description ? { description: seo.description } : {}),
     ...(seo.noindex ? { robots: { index: false, follow: false } } : {}),
+    // DS-18: the business's own tab icon replaces the platform icon from the root layout.
+    ...(seo.faviconUrl ? { icons: { icon: [{ url: seo.faviconUrl }] } } : {}),
     openGraph: {
       type: "website",
       title: seo.ogTitle ?? seo.title,

@@ -57,9 +57,12 @@ export function GuidedTour({
   onDismiss?:  () => void;
 }) {
   const [stepIdx, setStepIdx] = useState(0);
-  const [dismissed, setDismissed] = useState(() => {
-    try { return !!localStorage.getItem(TOUR_SEEN_PREFIX + tourId); } catch { return false; }
-  });
+  // Starts dismissed so server and first client render agree (nothing); the
+  // seen-flag is read after mount and only then may the tour appear.
+  const [dismissed, setDismissed] = useState(true);
+  useEffect(() => {
+    try { setDismissed(!!localStorage.getItem(TOUR_SEEN_PREFIX + tourId)); } catch { setDismissed(false); }
+  }, [tourId]);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const step = steps[stepIdx];
 

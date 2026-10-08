@@ -8,6 +8,7 @@ import { EmptyState, Icon, useRovingTabindex } from "./primitives";
 import { TALENT_SIDEBAR_ICON } from "./talent-nav-icons";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGE_META, TALENT_TIER_META, useAdminShell, type TalentPage } from "./state";
 import { PageHeader } from "./talent/shared/page-chrome-1";
+import { ProfilePageSkeleton } from "./talent/pages/ProfilePageSkeleton";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { tradeCalendarRules } from "@/lib/talent-agenda/trade-calendar";
@@ -29,7 +30,7 @@ import { pinNextConversation } from "./messages/conversation-pending";
 // route still paints the page on the server; `loading` renders nothing, the
 // same shape as `pages-dynamic.tsx` and `drawers.tsx`.
 const CalendarPage = dynamic(() => import("./talent/pages/CalendarPage").then((m) => ({ default: m.CalendarPage })), { loading: () => null });
-const MyProfilePage = dynamic(() => import("./talent/pages/MyProfilePage").then((m) => ({ default: m.MyProfilePage })), { loading: () => null });
+const MyProfilePage = dynamic(() => import("./talent/pages/MyProfilePage").then((m) => ({ default: m.MyProfilePage })), { loading: () => <ProfilePageSkeleton /> });
 const PublicPageEditor = dynamic(() => import("./talent/pages/PublicPageEditor").then((m) => ({ default: m.PublicPageEditor })), { loading: () => null });
 const ReviewsPage = dynamic(() => import("./talent/pages/ReviewsPage").then((m) => ({ default: m.ReviewsPage })), { loading: () => null });
 const ServicesPage = dynamic(() => import("./talent/pages/ServicesPage").then((m) => ({ default: m.ServicesPage })), { loading: () => null });
@@ -297,7 +298,13 @@ function TalentRouter() {
   const router = useRouter();
   const { state, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgendaItems, bridgeTalentAgendaHours, bridgeTalentAgendaError, bridgeTalentAgendaV2, toast } = useAdminShell();
   const agendaV2 = bridgeTalentAgendaV2;
-  const agendaNow = readAgendaNowClient(new Date());
+  // The clock is read after hydration: `new Date()` in render differs between
+  // the server pass and the browser pass (React #418). Until it is known the
+  // two clock-driven agenda pages render nothing for a frame.
+  const [agendaNow, setAgendaNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setAgendaNow(readAgendaNowClient(new Date()));
+  }, []);
   const tradeRules = tradeCalendarRules(bridgeTalentSelfProfile?.primaryTypeLabel);
   const openAgendaPath = (path: string, fallbackPage: TalentPage) => {
     // Absolute /talent/… paths only. Relative "bookings/new" breaks under
@@ -372,7 +379,7 @@ function TalentRouter() {
       break;
     case "calendar":
       page = agendaV2
-        ? (
+        ? agendaNow === null ? null : (
           <AgendaCalendarPage
             items={bridgeTalentAgendaItems ?? []}
             hours={bridgeTalentAgendaHours}
@@ -392,7 +399,7 @@ function TalentRouter() {
       break;
     case "attention":
       page = agendaV2
-        ? (
+        ? agendaNow === null ? null : (
           <AgendaAttentionPage
             items={bridgeTalentAgendaItems ?? []}
             now={agendaNow}

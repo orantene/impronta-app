@@ -52,6 +52,7 @@ const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "She confirms by hand.": "Confirmo cada cita personalmente.",
   "You can book a time on this page.": "Puedes reservar tu hora en esta página.",
   "No services are published yet.": "Aún no hay servicios publicados.",
+  "No photos in your portfolio yet.": "Aún no hay fotos en tu portafolio.",
   // Theme collection v1 designs (Maison v2, Solace, Mono, Frame, Folio).
   "Before your visit": "Antes de tu visita",
   "Your visit": "Tu visita",

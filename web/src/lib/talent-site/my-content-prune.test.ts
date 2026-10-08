@@ -40,7 +40,7 @@ function find(nodes: readonly BuilderNode[], kind: string, out: BuilderNode[] = 
 }
 
 const offering = (amountCents: number | null, priceDisplay = "exact") =>
-  ({ id: "o1", title: "Lash lift", amountCents, priceDisplay, priceType: "flat_package" }) as never;
+  ({ id: "o1", title: "Lash lift", amountCents, priceDisplay, priceType: "flat_package", status: "published", visibility: "public", moderationState: "approved" }) as never;
 
 test("chapters with no album split the photos instead of repeating or emptying", () => {
   const chapters = find(buildFolioPayload().homeTree, "portfolio");
