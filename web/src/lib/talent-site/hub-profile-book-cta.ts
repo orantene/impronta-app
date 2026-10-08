@@ -20,6 +20,9 @@
 import { TALENT_BOOK_HREF } from "@/lib/talent-site/contact-channels";
 import { askEntryPointsVisible, type TalentAskEntry } from "@/lib/talent/chat-entry";
 
+/** Where on the hub profile a Book CTA renders; every slot carries one, none carries an id. */
+export type HubProfileCtaSlot = "header" | "sidebar" | "footer" | "freeform";
+
 export type HubProfileCta =
   | { kind: "book"; href: string; external: boolean }
   | { kind: "inquire" };

@@ -11,6 +11,7 @@ import {
   offeringWhereFromAttributes,
   type OfferingRequestDetail,
 } from "@/lib/talent/offering-request-detail";
+import { BookingSheetReadyBeacon } from "@/components/public-booking/BookingSheetReadyBeacon";
 import { CatalogBookingSheet, type CatalogSheetBookingSettings } from "@/components/public-booking/CatalogBookingSheet";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 import {
@@ -565,6 +566,7 @@ export function ServicesCatalogFilter({
         bookingSettings={bookingSettings}
         onlineCollectReady={onlineCollectReady}
       />
+      <BookingSheetReadyBeacon />
       {/* PKG-2 Option A: product / untimed-package purchase rail (demo = non-writing preview). */}
       <CatalogPurchaseMount
         tenantId={tenantId}

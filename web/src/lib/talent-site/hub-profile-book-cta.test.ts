@@ -60,7 +60,9 @@ test("#book and #talent-ask both open the guest entry", () => {
 
 test("site bridge opens on the INITIAL fragment, not only on hashchange", () => {
   const src = readFileSync(join(process.cwd(), "src/app/%5Ftalent-site/TalentSiteContactBridge.tsx"), "utf8");
-  assert.match(src, /if \(isTalentOpenHash\(window\.location\.hash\)\) \{\s*timers\.push\(setTimeout\(onHash, 0\)/);
+  // TUL-246: the cold-load open runs once and is queued behind the ready handshake, no timers.
+  assert.match(src, /coldLoadHandledFor = window\.location\.href;\s*onHash\(\);/);
+  assert.doesNotMatch(src, /setTimeout\(onHash/);
   assert.match(src, /addEventListener\("hashchange", onHash\)/);
   assert.match(src, /<span id="book" data-talent-book-target=""/);
 });

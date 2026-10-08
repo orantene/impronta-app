@@ -26,6 +26,7 @@ import {
   type InquiryFormFieldError,
   type InquiryFormLine,
 } from "@/lib/talent/inquiry-form-payload";
+import { announceTalentOpenReady } from "@/lib/talent-site/open-intent-client";
 import { TASK_NOTE_MAX, briefFromDetail } from "@/lib/talent/offering-task-brief";
 import { submitTalentInquiryForm } from "../_actions/talent-inquiry-form-action";
 import { inquiryFormCopy, type InquiryFormCopyKey } from "./inquiry-form-copy";
@@ -155,7 +156,9 @@ export function TalentInquiryFormSheet({
     window.addEventListener("tulala:ask-question", onAsk);
     window.addEventListener("tulala:open-guest-chat", onOpenClean);
     window.addEventListener("tulala:offering-request", onOfferingRequest);
+    const unready = announceTalentOpenReady("chat");
     return () => {
+      unready();
       if (timer) clearTimeout(timer);
       window.removeEventListener("tulala:maison-sheet", onSheet);
       window.removeEventListener("tulala:ask-question", onAsk);

@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 
+import { intentForHref, openIntentFor, type BookEntry } from "@/lib/talent-site/book-entry";
 import { isTalentOpenHash } from "@/lib/talent-site/contact-channels";
+import { requestTalentOpen } from "@/lib/talent-site/open-intent-client";
+
+/** The URL whose fragment already opened the entry: the effect re-runs must not re-open it. */
+let coldLoadHandledFor = "";
 
 /**
  * Keeps "Ask a question" on the talent's own site. Clicks on the in-page
@@ -22,6 +27,7 @@ export function TalentSiteContactBridge({
   truth,
   whatsappHref,
   emailHref,
+  bookEntry = null,
 }: {
   heading: string;
   askLabel: string;
@@ -32,6 +38,11 @@ export function TalentSiteContactBridge({
   truth: string;
   whatsappHref: string;
   emailHref: string;
+  /**
+   * Where `#book` lands (TUL-246): one bookable service opens its booking sheet,
+   * several the service picker (the dock), none the plain inquire entry.
+   */
+  bookEntry?: BookEntry | null;
 }) {
   const [showFallback, setShowFallback] = useState(false);
 
@@ -44,20 +55,22 @@ export function TalentSiteContactBridge({
       const href = link.getAttribute("href") ?? "";
       if (!isAskHref(href)) return;
       event.preventDefault();
-      window.dispatchEvent(new Event("tulala:open-guest-chat"));
+      requestTalentOpen(intentForHref(href, bookEntry) ?? openIntentFor("ask", bookEntry));
     };
-    // A cold load or a pasted `...#talent-ask` link opens the chat too (the click above only
-    // covers links followed on the page).
+    // A cold load or a pasted `...#book` link opens the entry too (the click above only covers
+    // links followed on the page).
     const onHash = () => {
-      if (isTalentOpenHash(window.location.hash)) window.dispatchEvent(new Event("tulala:open-guest-chat"));
+      const intent = isTalentOpenHash(window.location.hash)
+        ? intentForHref(window.location.hash, bookEntry)
+        : null;
+      if (intent) requestTalentOpen(intent);
     };
-    // The initial fragment never fires `hashchange`, so a cold load of `...#book` (a custom-domain
-    // link opened in a new tab) must run the handler once itself. The dock mounts as a sibling and
-    // can attach its listener after this effect, so repeat once after it has had time to mount;
-    // opening is idempotent.
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    if (isTalentOpenHash(window.location.hash)) {
-      timers.push(setTimeout(onHash, 0), setTimeout(onHash, 800));
+    // The initial fragment never fires `hashchange`, so a cold load runs the handler once itself.
+    // The dock and the booking sheet mount as siblings in no fixed order, so the intent is queued
+    // and handed over when its target announces it is listening (no mount-timing retry).
+    if (coldLoadHandledFor !== window.location.href) {
+      coldLoadHandledFor = window.location.href;
+      onHash();
     }
     document.addEventListener("click", onClick, true);
     window.addEventListener("hashchange", onHash);
@@ -71,12 +84,11 @@ export function TalentSiteContactBridge({
     }
     setShowFallback(!pageAlreadyHasContactChrome());
     return () => {
-      timers.forEach(clearTimeout);
       observer?.disconnect();
       document.removeEventListener("click", onClick, true);
       window.removeEventListener("hashchange", onHash);
     };
-  }, [showAsk]);
+  }, [showAsk, bookEntry]);
 
   // `#talent-ask` is a real target on every talent page: the chat entry this bridge belongs to.
   // The click handler above opens the chat; this id keeps the link from being a dead anchor
@@ -102,7 +114,7 @@ export function TalentSiteContactBridge({
           <button
             type="button"
             data-talent-ask=""
-            onClick={() => window.dispatchEvent(new Event("tulala:open-guest-chat"))}
+            onClick={() => requestTalentOpen(openIntentFor("ask", bookEntry))}
           >
             {askLabel}
           </button>
