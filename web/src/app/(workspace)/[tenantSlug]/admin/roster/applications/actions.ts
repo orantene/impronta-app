@@ -12,6 +12,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ToggleOpenApplicationsResult =
   | { ok: true; acceptsApplications: boolean }
@@ -21,6 +22,8 @@ export async function toggleOpenApplications(
   tenantSlug: string,
   nextValue: boolean,
 ): Promise<ToggleOpenApplicationsResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) return { ok: false, error: "Workspace not found." };
 

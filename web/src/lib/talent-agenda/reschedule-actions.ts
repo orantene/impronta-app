@@ -4,6 +4,7 @@
 
 "use server";
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -159,6 +160,8 @@ export async function proposeReschedule(input: {
   feeCents?: number;
   expiresAt?: string;
 }): Promise<RescheduleActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, reason: readOnly.error };
   const ctx = await requirePlatformTalentContext();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "unavailable" };
@@ -288,6 +291,8 @@ export async function respondToReschedule(input: {
   requestId: string;
   accept: boolean;
 }): Promise<RescheduleActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, reason: readOnly.error };
   const ctx = await requirePlatformTalentContext();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "unavailable" };

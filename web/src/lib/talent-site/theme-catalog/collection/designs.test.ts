@@ -6,6 +6,8 @@ import assert from "node:assert/strict";
 
 import { validateDesign } from "../validate";
 import { isMaisonCatalogSlug } from "../maison/catalog-visibility";
+import { localiseOne } from "../../design-label-locale";
+import { MODE_DEPENDENT_LABELS } from "../seed-i18n";
 import { COLLECTION_DESIGNS, COLLECTION_DESIGN_GAPS, isCollectionDesignSlug } from "./designs";
 
 for (const d of COLLECTION_DESIGNS) {
@@ -420,8 +422,8 @@ test("folio stamps shared rate_card services_catalog layout", () => {
   assert.equal(catalogs[0]!.showDuration, true);
 });
 
-/** Proposal CTA: one booking-mode primary beside a ghost "See work", in one row. */
-test("maison-v2 hero has one CTA row: primary booking + ghost See work", () => {
+/** Ticket #88: one booking-mode primary beside a ghost "See services", in one row. */
+test("maison-v2 hero has one CTA row: primary booking + ghost See services", () => {
   const maison = COLLECTION_DESIGNS.find((d) => d.slug === "maison-v2")!;
   const hero = maison.buildPayload().homeTree[0]!;
   const buttons: Array<{ label?: string; tone?: string }> = [];
@@ -440,10 +442,47 @@ test("maison-v2 hero has one CTA row: primary booking + ghost See work", () => {
   assert.deepEqual(
     buttons.map((b) => [b.label, b.tone]),
     [
-      ["See services", "primary"],
-      ["See work", "secondary"],
+      ["Book an appointment", "primary"],
+      ["See services", "secondary"],
     ],
   );
+});
+
+/** Ticket #88: the booking button leads in the header AND the hero, same anchor, mode-aware label. */
+test("maison-v2 leads with a primary 'Book an appointment' button in the header and the hero (#services)", () => {
+  const payload = COLLECTION_DESIGNS.find((d) => d.slug === "maison-v2")!.buildPayload();
+  // The label must be one the render-time booking-mode map rewrites (Reservar cita / inquiry wording).
+  assert.ok(MODE_DEPENDENT_LABELS.includes("Book an appointment"));
+  assert.equal(localiseOne("Book an appointment", "es", "instant"), "Reservar cita");
+  assert.equal(localiseOne("Book an appointment", "es", "inquiry"), "Escríbeme");
+  // Hero: the first button of the "Hero actions" row.
+  type N = { kind?: string; props?: Record<string, unknown>; children?: N[] };
+  const find = (nodes: N[], pred: (n: N) => boolean): N | null => {
+    for (const n of nodes) {
+      if (pred(n)) return n;
+      const hit = find(n.children ?? [], pred);
+      if (hit) return hit;
+    }
+    return null;
+  };
+  const row = find(payload.homeTree as unknown as N[], (n) => n.props?.layerLabel === "Hero actions")!;
+  const [primary, secondary] = row.children!.filter((c) => c.kind === "button");
+  assert.deepEqual(
+    [primary!.props!.label, primary!.props!.href, primary!.props!.tone],
+    ["Book an appointment", "#services", "primary"],
+  );
+  assert.equal(primary!.props!.i18n, undefined, "mode-dependent: no frozen overlay");
+  assert.deepEqual([secondary!.props!.label, secondary!.props!.href, secondary!.props!.tone], ["See services", "#services", "secondary"]);
+  assert.deepEqual((secondary!.props!.i18n as { es: Record<string, string> }).es, { label: "Ver servicios" });
+  // Header: the right-region cta pill and primaryCta.
+  const header = (payload.shellTree as unknown as N[]).find((n) => n.props?.sectionTypeKey === "site_header")!;
+  const sp = header.props!.sectionProps as { primaryCta: { label: string; href: string }; regions: { right: Array<Record<string, unknown>> } };
+  const cta = sp.regions.right.find((i) => i.type === "cta")!;
+  assert.deepEqual([cta.label, cta.href], ["Book an appointment", "#services"]);
+  assert.deepEqual(sp.primaryCta, { label: "Book an appointment", href: "#services" });
+  // The language switch stays; the pill hides on the phone like it did before (the dock carries booking there).
+  assert.ok(sp.regions.right.some((i) => i.type === "language"));
+  assert.deepEqual(cta.responsive, { mobile: "hide" });
 });
 /** Builder map rows 3 + 4: serif ticker from the talent's services, staggered work strip. */
 test("maison-v2 has the serif ticker and the staggered recent-work strip", () => {
@@ -459,6 +498,6 @@ test("maison-v2 has the serif ticker and the staggered recent-work strip", () =>
   // Header carries section links, the booking CTA and the trade line.
   const header = payload.shellTree.find((n) => (n.props as { sectionTypeKey?: string }).sectionTypeKey === "site_header");
   const sp = (header!.props as { sectionProps: Record<string, unknown> }).sectionProps;
-  assert.deepEqual((sp.primaryCta as { label: string }).label, "Menu and prices");
+  assert.deepEqual((sp.primaryCta as { label: string }).label, "Book an appointment");
   assert.equal((sp.brand as { tagline?: string }).tagline, "{{primaryTypeLabel}}");
 });

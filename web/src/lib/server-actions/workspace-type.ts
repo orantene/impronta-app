@@ -40,6 +40,7 @@ import { WORKSPACE_TYPES, type WorkspaceType } from "@/lib/saas/workspace-type";
 // cannot go through tenantScopedQuery. Its reads/write live in a store module
 // whose every function REQUIRES a tenantId — see workspace-type-store.ts.
 import { readWorkspaceType, writeWorkspaceType } from "@/lib/saas/workspace-type-store";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /** Roster statuses that count as "someone this workspace is representing". */
 const LIVE_ROSTER_STATUSES = ["active", "pending"] as const;
@@ -151,6 +152,7 @@ export async function setWorkspaceType(input: {
   workspace_type: WorkspaceType;
   confirm?: boolean;
 }): Promise<SetWorkspaceTypeResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction({ capability: CAPABILITY });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;

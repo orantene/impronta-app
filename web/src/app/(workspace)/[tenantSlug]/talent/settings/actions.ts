@@ -1,5 +1,6 @@
 "use server";
 
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -37,6 +38,8 @@ export async function setTalentProfileVisibility(
   talentProfileId: string,
   hidden: boolean,
 ): Promise<SaveContactPrefsResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const session = await getCachedActorSession();
     if (!session.user) return { ok: false, error: "Not authenticated" };
@@ -97,6 +100,8 @@ export async function setTalentSiteVisibility(
   agencyTenantId: string,
   hidden: boolean,
 ): Promise<SaveContactPrefsResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const session = await getCachedActorSession();
     if (!session.user) return { ok: false, error: "Not authenticated" };
@@ -158,6 +163,8 @@ export async function saveTalentContactPrefs(
     allowGold: boolean;
   },
 ): Promise<SaveContactPrefsResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const session = await getCachedActorSession();
     if (!session.user) return { ok: false, error: "Not authenticated" };
@@ -271,6 +278,8 @@ export type UpdateTalentDefaultCurrencyResult =
 export async function updateTalentDefaultCurrency(
   candidate: string,
 ): Promise<UpdateTalentDefaultCurrencyResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const normalized = normalizeDefaultCurrency(candidate);
     if (!normalized) return { ok: false, error: "Unsupported currency." };
@@ -307,6 +316,7 @@ function backToTalentSettings(tenantSlug: string, params: URLSearchParams): neve
 }
 
 export async function connectTalentPayoutAccountAction(formData: FormData): Promise<never> {
+  await requireNotImpersonating();
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
   const talentProfileId = String(formData.get("talentProfileId") ?? "");
 

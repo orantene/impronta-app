@@ -35,6 +35,7 @@ import type {
   TalentPageAdapterActions,
   TalentPageRow,
 } from "./talent-page-adapter-core";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // STYLE-1 — the dedicated style_classes/style_presets columns are selected on a
 // graceful path: a pre-migration DB (columns absent) ERRORS the whole PostgREST
@@ -100,6 +101,7 @@ export async function loadTalentPageAction(
 export async function ensureTalentPageAction(
   input: Parameters<TalentPageAdapterActions["ensurePage"]>[0],
 ): Promise<TalentPageRow | null> {
+  await requireNotImpersonating();
   try {
     const sb = await getCachedServerSupabase();
     if (!sb) return null;
@@ -199,6 +201,7 @@ export async function ensureTalentPageAction(
 export async function saveTalentPageAction(
   input: Parameters<TalentPageAdapterActions["savePage"]>[0],
 ): ReturnType<TalentPageAdapterActions["savePage"]> {
+  await requireNotImpersonating();
   try {
     const sb = await getCachedServerSupabase();
     if (!sb) return { ok: false as const, error: "Supabase client unavailable." };
@@ -342,6 +345,7 @@ export async function saveTalentPageAction(
 export async function publishTalentPageAction(
   input: Parameters<TalentPageAdapterActions["publishPage"]>[0],
 ): ReturnType<TalentPageAdapterActions["publishPage"]> {
+  await requireNotImpersonating();
   try {
     const sb = await getCachedServerSupabase();
     if (!sb) return { ok: false as const, error: "Supabase client unavailable." };
@@ -397,6 +401,7 @@ export async function publishTalentPageAction(
 export async function restoreTalentPageRevisionAction(
   input: Parameters<NonNullable<TalentPageAdapterActions["restoreRevision"]>>[0],
 ): ReturnType<NonNullable<TalentPageAdapterActions["restoreRevision"]>> {
+  await requireNotImpersonating();
   try {
     const sb = await getCachedServerSupabase();
     if (!sb) return { ok: false as const, error: "Supabase client unavailable." };

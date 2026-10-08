@@ -21,6 +21,7 @@ import {
   type TalentSelfProfile,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import { requireSession, type GuardedSession } from "@/lib/server/action-guards";
+import { readUserId, type EffectiveReadContext } from "@/lib/impersonation/effective-read";
 
 export type TalentSelfScopeOk = {
   ok: true;
@@ -39,9 +40,29 @@ export type TalentSelfScopeFail = {
 
 export type TalentSelfScopeResult = TalentSelfScopeOk | TalentSelfScopeFail;
 
-/** Platform-scoped talent guard — no tenant slug in the URL. */
-export async function requireTalentSelf(): Promise<TalentSelfScopeResult> {
-  const session = await requireSession();
+/** Seams for tests; the defaults are the real session guard and profile loaders. */
+export type TalentSelfDeps = {
+  requireSession: typeof requireSession;
+  loadProfileByUser: typeof loadTalentSelfProfileByUser;
+};
+
+const DEFAULT_SELF_DEPS: TalentSelfDeps = {
+  requireSession,
+  loadProfileByUser: loadTalentSelfProfileByUser,
+};
+
+/**
+ * Platform-scoped talent guard — no tenant slug in the URL.
+ *
+ * `ctx` (TUL-245) is for READ loaders: a verified impersonation resolves the
+ * talent being acted as. `session` stays the real actor. Mutating callers pass
+ * nothing and keep resolving the real session user.
+ */
+export async function requireTalentSelf(
+  ctx?: EffectiveReadContext,
+  deps: TalentSelfDeps = DEFAULT_SELF_DEPS,
+): Promise<TalentSelfScopeResult> {
+  const session = await deps.requireSession();
   if (!session.ok) {
     return {
       ok: false,
@@ -50,7 +71,7 @@ export async function requireTalentSelf(): Promise<TalentSelfScopeResult> {
     };
   }
 
-  const talentProfile = await loadTalentSelfProfileByUser(session.user.id);
+  const talentProfile = await deps.loadProfileByUser(readUserId(session.user.id, ctx));
   if (!talentProfile) {
     return {
       ok: false,
@@ -71,6 +92,8 @@ export async function requireTalentSelf(): Promise<TalentSelfScopeResult> {
 
 export async function requireTalentSelfScope(
   tenantSlug: string,
+  /** TUL-245: from `effectiveReadContext` only; READ loaders. */
+  ctx?: EffectiveReadContext,
 ): Promise<TalentSelfScopeResult> {
   const session = await requireSession();
   if (!session.ok) {
@@ -90,7 +113,10 @@ export async function requireTalentSelfScope(
     };
   }
 
-  const talentProfile = await loadTalentSelfProfile(session.user.id, scope.tenantId);
+  const talentProfile = await loadTalentSelfProfile(
+    readUserId(session.user.id, ctx),
+    scope.tenantId,
+  );
   if (!talentProfile) {
     return {
       ok: false,

@@ -5,6 +5,7 @@
  * Reset / reapply / discard / restore. Behind TALENT_MAISON_THEME_ENABLED.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { COLLECTION_DESIGNS } from "@/lib/talent-site/theme-catalog/collection/designs";
 import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { logServerError } from "@/lib/server/safe-error";
@@ -294,6 +295,8 @@ export async function loadMaisonDesignOptionsStateAction(): Promise<
 export async function discardMaisonLivePendingAction(): Promise<
   ThemeActionResult<{ discarded: true }>
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
   if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
@@ -352,6 +355,8 @@ export async function discardMaisonLivePendingAction(): Promise<
 export async function resetMaisonColorsAction(): Promise<
   ThemeActionResult<{ mode: "draft" | "live_pending" }>
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
   if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
@@ -482,6 +487,8 @@ export async function resetMaisonColorsAction(): Promise<
 export async function reapplyMaisonDemoLayoutAction(): Promise<
   ThemeActionResult<{ mode: "draft" | "live_pending" }>
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
   if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
@@ -653,6 +660,8 @@ export async function reapplyMaisonDemoLayoutAction(): Promise<
 export async function restoreMaisonDesignRevisionAction(input: {
   revisionId: string;
 }): Promise<ThemeActionResult<{ restored: true }>> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
   if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {

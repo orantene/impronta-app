@@ -35,6 +35,7 @@ import {
   notifyRosterJoinApproved,
   notifyRosterJoinRejected,
 } from "@/lib/notifications/producers/roster-join-notify";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type RegistrationManageData =
   | {
@@ -153,6 +154,8 @@ export async function saveRegistrationSettings(
   tenantSlug: string,
   input: SaveRegistrationSettingsInput,
 ): Promise<SaveRegistrationSettingsResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: "Please sign in again." };
 
@@ -235,6 +238,8 @@ export async function decideJoinRequest(
   rosterRowId: string,
   decision: "approve" | "reject",
 ): Promise<DecideJoinRequestResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: "Please sign in again." };
 

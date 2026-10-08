@@ -27,6 +27,7 @@ import {
 } from "@/lib/site-admin/sections/registry";
 import { translateSectionWithAi } from "./ai-rewrite-action";
 import { setI18n } from "@/lib/site-admin/sections/shared/i18n-text";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export interface TranslateSiteSectionStatus {
   sectionId: string;
@@ -53,6 +54,7 @@ export async function translateSiteWithAi(input: {
   targetLocale: string;
   targetLocaleLabel?: string;
 }): Promise<TranslateSiteResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);

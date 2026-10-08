@@ -4,6 +4,7 @@
  * The talent's own FAQ (question / answer rows, per language), PR 7.
  * Owner-only: the signed-in user's own talent profile.
  */
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -42,6 +43,8 @@ export async function loadMyFaqItems(): Promise<FaqEditorLoad> {
 export async function saveMyFaqItems(
   items: FaqEditorItem[],
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const me = await who();
     if (!me) return { ok: false, error: "Profile not found" };

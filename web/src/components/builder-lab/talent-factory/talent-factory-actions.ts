@@ -13,6 +13,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { FactoryOverview } from "./factory-model";
 import { evaluateFactoryGate, guardedFactoryRun, type FactoryResult } from "./talent-factory-gate";
 import { loadTalentFactory, syncTalentCatalog } from "./talent-factory.server";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type TalentSyncJson = {
   created: number;
@@ -43,6 +44,7 @@ export async function actionLoadTalentFactory(): Promise<FactoryResult<FactoryOv
 }
 
 export async function actionSyncTalentCatalog(): Promise<FactoryResult<TalentSyncJson>> {
+  await requireNotImpersonating();
   return guardedFactoryRun(await gate(), async () => {
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };

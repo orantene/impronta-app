@@ -7,10 +7,12 @@ import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { writeMessagingChannelsEnabled } from "@/lib/channels/flag";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { CLIENT_ERROR } from "@/lib/server/safe-error";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const schema = z.object({ enabled: z.boolean() }).strict();
 
 export async function updatePlatformMessagingChannels(raw: { enabled: boolean }) {
+  await requireNotImpersonating();
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false as const, error: "Not signed in." };
   if (!isPlatformAdmin(session.profile)) {

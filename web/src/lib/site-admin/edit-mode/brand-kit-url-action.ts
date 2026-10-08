@@ -20,6 +20,7 @@
 
 import { requireSession } from "@/lib/server/action-guards";
 import { getTenantScope } from "@/lib/saas/scope";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type BrandKitExtractResult =
   | { ok: true; tokens: Record<string, string> }
@@ -34,6 +35,8 @@ const FONT_QUERY_RE = /family=([^&"'\s]+)/g;
 export async function extractBrandKitFromUrl(input: {
   url: string;
 }): Promise<BrandKitExtractResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   // Tenant-agnostic builder utility (no row it could scope), so the gate is

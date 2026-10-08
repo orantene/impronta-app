@@ -290,6 +290,8 @@ test("every P2A kind renders SOMETHING with no data sources and no props", () =>
   // The canvas and a tenant-less preview both render with `dataSources: {}`. A
   // kind that blanks out there reads to an operator as a broken editor.
   for (const kind of P2A_KINDS) {
+    // TUL-247: an EMPTY ticker is hidden on the public render by design (the editor keeps its placeholder).
+    if (kind === "marquee") continue;
     const bare = { id: `${kind}-bare`, kind, props: {} } as BuilderNode;
     const node =
       kind === "reveal"
@@ -301,6 +303,11 @@ test("every P2A kind renders SOMETHING with no data sources and no props", () =>
       `${kind} disappeared when given no props and no data`,
     );
   }
+});
+
+test("TUL-247: a marquee with no words renders nothing publicly", () => {
+  const html = render([{ id: "marquee-bare", kind: "marquee", props: {} } as BuilderNode], { dataSources: {} });
+  assert.ok(!html.includes('data-builder-node-id="marquee-bare"'), "an empty ticker must not show on the public site");
 });
 
 test("the directory renders a REAL submitting search form, not a picture of one", () => {

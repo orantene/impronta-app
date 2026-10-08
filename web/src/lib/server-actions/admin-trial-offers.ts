@@ -21,6 +21,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 
 // ─── Auth gate ───────────────────────────────────────────────────────────────
@@ -61,6 +62,8 @@ export type UpsertTrialOfferResult = { ok: true } | { ok: false; error: string }
 export async function upsertTrialOffer(
   raw: unknown,
 ): Promise<UpsertTrialOfferResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 

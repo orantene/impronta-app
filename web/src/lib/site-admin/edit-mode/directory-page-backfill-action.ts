@@ -17,8 +17,10 @@ import {
   ensureDirectoryPage,
   type EnsureDirectoryResult,
 } from "@/lib/site-admin/server/onboard-directory-page";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export async function backfillDirectoryPageForCurrentTenant(): Promise<EnsureDirectoryResult> {
+  await requireNotImpersonating();
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);

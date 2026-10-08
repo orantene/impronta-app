@@ -1,5 +1,6 @@
 import { draftPreviewBannerText } from "@/lib/talent-site/draft-preview-copy";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
@@ -21,6 +22,8 @@ type Props = {
     talentProfileId: string;
     publicPathPrefix?: string;
   };
+  /** TUL-246: the hub Book CTA bar for a talent with a site (null when none applies). */
+  bookCta?: ReactNode;
 };
 
 /**
@@ -32,6 +35,7 @@ export function PlatformTalentMaxSiteView({
   locale,
   draftPreview = false,
   freeformContext,
+  bookCta = null,
 }: Props) {
   return (
     <div data-talent-personal-site-shell="">
@@ -63,6 +67,7 @@ export function PlatformTalentMaxSiteView({
           {draftPreviewBannerText(locale)}
         </div>
       ) : null}
+      {bookCta}
       <main id="main-content">
         <TalentSiteRenderer
           snapshot={snapshot}

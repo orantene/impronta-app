@@ -39,6 +39,7 @@ import { capacityRemaining, commitCapacity, releaseCapacity, reserveCapacityBatc
 import { tierReserveRequest } from "@/lib/sessions/tier-pools";
 import { signAdmissionToken } from "@/lib/sessions/admission-token";
 import { z } from "zod";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type DoorRow = {
   id: string;
@@ -230,6 +231,7 @@ export async function admitAtDoor(
   doorSessionId: string,
   count?: number,
 ): Promise<{ outcome: DoorOutcome }> {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return { outcome: { kind: "engine_error", detail: guard.error } };
   const { tenantId, user } = guard;
@@ -476,6 +478,8 @@ export async function sellAtDoor(input: {
   amountCents: number;
   paidVia: DoorPaidVia;
 }): Promise<SellAtDoorResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return { ok: false, error: guard.error };
   const { tenantId, user } = guard;
@@ -627,6 +631,7 @@ const settleSchema = z.object({
 });
 
 export async function settleHeldOrderAtDoor(input: z.infer<typeof settleSchema>) {
+  await requireNotImpersonating();
   const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return { ok: false as const, error: guard.error };
   const parsed = settleSchema.safeParse(input);

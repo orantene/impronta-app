@@ -61,6 +61,7 @@ import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ─── Auth gate (duplicated from admin-product-pricing.ts) ────────────────────
 
@@ -174,6 +175,7 @@ export type CreateDiscountResult =
 export async function createDiscount(
   raw: unknown,
 ): Promise<CreateDiscountResult> {
+  await requireNotImpersonating();
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 
@@ -356,6 +358,8 @@ export type ArchiveDiscountResult =
 export async function archiveDiscount(
   raw: { discountId: string },
 ): Promise<ArchiveDiscountResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 
@@ -449,6 +453,8 @@ export type UpdateDiscountResult = { ok: true } | { ok: false; error: string };
 export async function updateDiscount(
   raw: unknown,
 ): Promise<UpdateDiscountResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 

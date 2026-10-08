@@ -33,6 +33,7 @@ import {
   requireTalentSelfAction,
 } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -192,6 +193,8 @@ export async function GET(req: Request) {
 }
 
 export async function PATCH(req: Request) {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   let body: Record<string, unknown>;
   try {
     body = (await req.json()) as Record<string, unknown>;

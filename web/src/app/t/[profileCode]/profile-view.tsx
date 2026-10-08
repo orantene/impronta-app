@@ -127,6 +127,8 @@ import {
 import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
 import { TalentProfileInstantBookButton } from "./talent-profile-instant-book-button";
 import { HubProfileCta } from "./hub-profile-book-cta";
+import { FreeformHubBook } from "./freeform-hub-book";
+import type { HubProfileCtaSlot } from "@/lib/talent-site/hub-profile-book-cta";
 import { loadInstantBookEligibility } from "@/lib/scheduling/instant-book-eligibility";
 import { servicesMenuForPublicHost } from "@/lib/talent/services-menu-for-host";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
@@ -1554,11 +1556,8 @@ export async function TalentProfileView({
             snapshot={siteResolved.snapshot}
             locale={locale}
             draftPreview={siteResolved.draftPreview}
-            freeformContext={
-              siteResolved.freeformContext
-                ? { ...siteResolved.freeformContext, publicPathPrefix }
-                : undefined
-            }
+            freeformContext={siteResolved.freeformContext ? { ...siteResolved.freeformContext, publicPathPrefix } : undefined}
+            bookCta={siteResolved.freeformContext ? <FreeformHubBook talentProfileId={siteResolved.freeformContext.talentProfileId} locale={locale} /> : null}
           />
         </PublicDiscoveryStateProvider>
       );
@@ -2263,8 +2262,8 @@ export async function TalentProfileView({
   const inquireBtnClassFull = `${inquireBtnClass} w-full`;
 
   // TUL-170: the hub Book CTA also shows when the slot picker replaces the Inquire controls.
-  const inquireButtons = (btnClass: string) => (
-      <HubProfileCta platformHost={platformHost} maxSiteUrl={maxSiteUrl} askEntry={talentAskEntry} locale={locale} className={btnClass}>
+  const inquireButtons = (btnClass: string, slot: HubProfileCtaSlot) => (
+      <HubProfileCta slot={slot} platformHost={platformHost} maxSiteUrl={maxSiteUrl} askEntry={talentAskEntry} locale={locale} className={btnClass}>
         {showSlotPicker ? null : <>
         {profileCtas.showLegacyInstantBook ? (
           <TalentProfileInstantBookButton
@@ -2491,7 +2490,7 @@ export async function TalentProfileView({
             <ProfileHubsIndicator hubs={otherHubs} label={alsoOnLabel} />
           ) : null
         }
-        inquireButtonHeader={inquireButtons(inquireBtnClass)}
+        inquireButtonHeader={inquireButtons(inquireBtnClass, "header")}
         slotPicker={
           showSlotPicker ? (
             <ProfileSlotPickerChrome
@@ -2505,8 +2504,8 @@ export async function TalentProfileView({
             />
           ) : null
         }
-        inquireButtonSidebar={inquireButtons(inquireBtnClassFull)}
-        inquireButtonFooter={inquireButtons(inquireBtnClass)}
+        inquireButtonSidebar={inquireButtons(inquireBtnClassFull, "sidebar")}
+        inquireButtonFooter={inquireButtons(inquireBtnClass, "footer")}
         shareMenuHeader={
           <ProfileShareRow
             talentId={profile.id}

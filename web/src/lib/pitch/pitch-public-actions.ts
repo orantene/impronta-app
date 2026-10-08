@@ -34,6 +34,7 @@ import type {
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 async function viewerUserId(): Promise<string | null> {
   try {
@@ -45,6 +46,7 @@ async function viewerUserId(): Promise<string | null> {
 }
 
 export async function recordPitchViewAction(token: string): Promise<PitchResult<void>> {
+  await requireNotImpersonating();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "internal_error" };
   try {
@@ -62,6 +64,7 @@ export async function removeTalentFromPitchAction(
   token: string,
   talentProfileId: string,
 ): Promise<PitchResult<void>> {
+  await requireNotImpersonating();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "internal_error" };
   try {
@@ -77,6 +80,7 @@ export async function removeTalentFromPitchAction(
 }
 
 export async function approvePitchAction(token: string): Promise<PitchResult<void>> {
+  await requireNotImpersonating();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "internal_error" };
   try {
@@ -94,6 +98,7 @@ export async function declinePitchAction(
   token: string,
   reason?: string | null,
 ): Promise<PitchResult<void>> {
+  await requireNotImpersonating();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "internal_error" };
   try {
@@ -111,6 +116,7 @@ export async function declinePitchAction(
 export async function convertPitchToInquiryAction(
   input: Omit<ConvertPitchInput, "recipientUserId">,
 ): Promise<PitchResult<ConvertedPitchOutput>> {
+  await requireNotImpersonating();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "internal_error" };
   try {

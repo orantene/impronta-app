@@ -32,6 +32,7 @@ import { ensureBrief, type BriefOwner } from "@/lib/tulala/brief-store.server";
 import { runTurn } from "@/lib/tulala/turn.server";
 import { packForBrief } from "@/lib/tulala/pack-for-brief";
 import { MAX_USER_MESSAGE_CHARS, type ConversationState } from "@/lib/tulala/conversation";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const BodySchema = z.object({
   message: z.string().min(1).max(MAX_USER_MESSAGE_CHARS),
@@ -62,6 +63,8 @@ function errorJson(status: number, error: string) {
 }
 
 export async function POST(req: Request): Promise<Response> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
   // ── Abuse floor, before anything costs anything ────────────────────────────
   if (!guestCookieSigningEnabled() || !isTulalaKvConfigured()) {
     return errorJson(503, "The assistant is temporarily unavailable.");

@@ -30,6 +30,7 @@ import {
   loadTalentRatingSummary,
   loadTalentReviewsForOwner,
 } from "./load-reviews";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const REPLY_MAX = 2000;
 
@@ -199,6 +200,8 @@ export async function submitReviewReplyAction(
   reviewId: string,
   replyBody: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const auth = await requireSession();
     if (!auth.ok) return { ok: false, error: "You must be signed in." };

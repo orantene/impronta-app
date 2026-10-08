@@ -25,6 +25,7 @@ import {
   looksLikeBuilderNode,
   type BuilderComponentRow,
 } from "@/lib/site-admin/edit-mode/builder-component-rows";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type { BuilderComponentRow } from "@/lib/site-admin/edit-mode/builder-component-rows";
 
@@ -47,6 +48,8 @@ export async function saveBuilderComponent(input: {
   description?: string;
   subtree: BuilderNode;
 }): Promise<SaveComponentResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -108,6 +111,8 @@ export async function updateBuilderComponent(input: {
   componentId: string;
   subtree: BuilderNode;
 }): Promise<SaveComponentResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
@@ -181,6 +186,8 @@ export async function listBuilderComponents(): Promise<ListComponentsResult> {
 export async function deleteBuilderComponent(input: {
   componentId: string;
 }): Promise<SimpleComponentResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);

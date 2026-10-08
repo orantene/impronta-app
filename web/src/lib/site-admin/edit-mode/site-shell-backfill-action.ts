@@ -56,6 +56,7 @@ import { buildLegacySectionBuilderTree } from "@/lib/site-admin/builder-node/sna
 import { enrichShellBuilderTree } from "@/lib/site-admin/builder-node/shell-builder-tree";
 import { revalidateTag } from "next/cache";
 import { tagFor } from "@/lib/site-admin/cache-tags";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ShellBackfillAction = "created" | "already_existed" | "repaired";
 
@@ -126,6 +127,7 @@ interface ShellPropsBundle {
 export async function backfillSiteShellForCurrentTenant(
   opts: { dryRun?: boolean } = {},
 ): Promise<ShellBackfillResult> {
+  await requireNotImpersonating();
   const dryRun = opts.dryRun === true;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };

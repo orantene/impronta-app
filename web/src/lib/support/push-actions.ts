@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireSession } from "@/lib/server/action-guards";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { supportFrom } from "./support-from";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type Ok = { ok: true };
 type Fail = { ok: false; error: string };
@@ -19,6 +20,7 @@ const subSchema = z.object({
 export async function subscribePushAction(
   raw: z.infer<typeof subSchema>,
 ): Promise<Ok | Fail> {
+  await requireNotImpersonating();
   const parsed = subSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid subscription." };
   const session = await requireSession();
@@ -45,6 +47,7 @@ export async function subscribePushAction(
 export async function unsubscribePushAction(raw: {
   endpoint: string;
 }): Promise<Ok | Fail> {
+  await requireNotImpersonating();
   const parsed = z.object({ endpoint: z.string().url().max(2000) }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid endpoint." };
   const session = await requireSession();

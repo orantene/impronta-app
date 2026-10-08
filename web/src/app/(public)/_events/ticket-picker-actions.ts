@@ -38,6 +38,7 @@ import { uuidWire } from "@/lib/events/uuid-wire";
 import { resolveGuestSessionId } from "@/lib/guest/guest-session";
 import { admissionHoldConsume, admissionHoldSeats } from "@/lib/venues/event-holds";
 import { releaseCapacity } from "@/lib/capacity";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const HORIZON_DAYS = 180;
 
@@ -343,6 +344,7 @@ export type StartTicketPurchaseResult =
  * Everything the client claims is re-derived here from rows scoped by tenant.
  */
 export async function startTicketPurchase(input: unknown): Promise<StartTicketPurchaseResult> {
+  await requireNotImpersonating();
   const parsed = buySchema.safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid_request" };
   const d = parsed.data;
@@ -539,6 +541,7 @@ export type StartCardPaymentResult = { ok: true; url: string } | { ok: false; re
  * until it lands the seat-lost intent path is what protects the guest.
  */
 export async function startTicketCardPayment(input: unknown): Promise<StartCardPaymentResult> {
+  await requireNotImpersonating();
   const parsed = paySchema.safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid_request" };
   const d = parsed.data;
@@ -618,6 +621,7 @@ export type HoldTicketSeatsResult =
  * hold seats on another workspace's night.
  */
 export async function holdTicketSeats(input: unknown): Promise<HoldTicketSeatsResult> {
+  await requireNotImpersonating();
   const parsed = holdSeatsSchema.safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid_request" };
   const d = parsed.data;

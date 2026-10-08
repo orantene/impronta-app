@@ -40,6 +40,7 @@ import {
   type WordsSettings,
 } from "@/lib/words";
 import { businessTypeById } from "@/lib/words/business-types";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const presetSchema = z.object({
   presetId: z.enum(INDUSTRY_PRESET_IDS),
@@ -127,6 +128,8 @@ async function readSettings(
 export async function setIndustryPreset(
   input: z.infer<typeof presetSchema>,
 ): Promise<IndustrySettingsResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = presetSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: CLIENT_ERROR.update };
 
@@ -170,6 +173,8 @@ const businessTypeSchema = z.object({
 export async function setBusinessType(
   input: z.infer<typeof businessTypeSchema>,
 ): Promise<IndustrySettingsResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = businessTypeSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: CLIENT_ERROR.update };
 
@@ -212,6 +217,8 @@ export async function setBusinessType(
 export async function setWordOverride(
   input: z.infer<typeof wordEditSchema>,
 ): Promise<IndustrySettingsResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const parsed = wordEditSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: CLIENT_ERROR.update };
 

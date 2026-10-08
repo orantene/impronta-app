@@ -7,6 +7,7 @@
  * webhook after payment (`fulfillTalentDomainPurchase`).
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { headers } from "next/headers";
 
 import { normalizeCustomDomainHostname } from "@/app/(workspace)/[tenantSlug]/admin/settings/domain-utils";
@@ -162,6 +163,8 @@ export async function startTalentDomainPurchaseCheckoutAction(input: {
   expectedPriceCents: number;
   contact: TalentDomainContactDraft;
 }): Promise<TalentDomainCheckoutResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await guardUnlockedDomainOwner();
   if (!guard.ok) return { ok: false, error: guard.error };
 
@@ -218,6 +221,8 @@ export async function requestTalentDomainHelpAction(input: {
   hostname?: string;
   note?: string;
 }): Promise<TalentDomainHelpResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await guardUnlockedDomainOwner();
   if (!guard.ok) return { ok: false, error: guard.error };
 

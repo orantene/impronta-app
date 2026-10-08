@@ -19,6 +19,7 @@ import { IMAGE_SLOT_KEYS } from "@/lib/site-admin/builder-core/site-templates/ty
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { BUSINESS_FAMILIES, BUSINESS_TYPES, type BusinessFamilyId } from "@/lib/words/business-types";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const PATH = "/platform/admin/stock";
 
@@ -66,6 +67,7 @@ function readManifest(fd: FormData) {
 
 /** Upload one licensed (or externally generated) file. */
 export async function actionUploadStockImage(fd: FormData): Promise<Result<{ id: string; bytes: number }>> {
+  await requireNotImpersonating();
   const g = await gate();
   if (!g.ok) return g;
   const admin = createServiceRoleClient();
@@ -101,6 +103,7 @@ const generateSchema = z.object({
 });
 
 export async function actionGenerateStockImage(fd: FormData): Promise<Result<{ id: string; approval: "qa_passed" | "rejected"; costUsd: number; qa: Record<string, unknown> }>> {
+  await requireNotImpersonating();
   const g = await gate();
   if (!g.ok) return g;
   const admin = createServiceRoleClient();
@@ -115,6 +118,7 @@ export async function actionGenerateStockImage(fd: FormData): Promise<Result<{ i
 
 /** Seed one type's heroes: one per visual direction, medium (03 §2b). Sequential, so a click never trips the rate limit. */
 export async function actionSeedHeroesForType(family: string, businessType: string | null): Promise<Result<{ generated: number; passed: number; costUsd: number; errors: string[] }>> {
+  await requireNotImpersonating();
   const g = await gate();
   if (!g.ok) return g;
   const admin = createServiceRoleClient();
@@ -139,6 +143,7 @@ export async function actionSeedHeroesForType(family: string, businessType: stri
 
 /** Human review (03 §4.3): approve serves the pool (tenant images join it, tags kept); reject keeps the row for the audit. */
 export async function actionReviewStockImage(id: string, decision: "approve" | "reject", note: string): Promise<Result> {
+  await requireNotImpersonating();
   const g = await gate();
   if (!g.ok) return g;
   const admin = createServiceRoleClient();
@@ -156,6 +161,7 @@ export async function actionReviewStockImage(id: string, decision: "approve" | "
 }
 
 export async function actionSaveImageEngineSettings(fd: FormData): Promise<Result> {
+  await requireNotImpersonating();
   const g = await gate();
   if (!g.ok) return g;
   const num = (k: string) => Number(String(fd.get(k) ?? "").trim());
@@ -172,6 +178,7 @@ export async function actionSaveImageEngineSettings(fd: FormData): Promise<Resul
 }
 
 export async function actionRetireStockImage(id: string, retired: boolean): Promise<Result> {
+  await requireNotImpersonating();
   const g = await gate();
   if (!g.ok) return g;
   const admin = createServiceRoleClient();
@@ -186,6 +193,7 @@ export async function actionRetireStockImage(id: string, retired: boolean): Prom
 }
 
 export async function actionUpdateStockManifest(fd: FormData): Promise<Result> {
+  await requireNotImpersonating();
   const g = await gate();
   if (!g.ok) return g;
   const admin = createServiceRoleClient();

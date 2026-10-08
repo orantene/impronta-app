@@ -9,6 +9,7 @@ import { CACHE_TAG_FIELD_CATALOG } from "@/lib/field-engine/cache-tags";
 import { logServerError } from "@/lib/server/safe-error";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type PlatformActionContext =
   | { ok: true; sb: SupabaseClient; actorId: string }
@@ -143,6 +144,7 @@ function revalidateTaxonomySurfaces(termId?: string | null, fieldKey?: string | 
 }
 
 export async function createPlatformTaxonomyTermAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/taxonomy?error=${encodeURIComponent(auth.error)}`);
 
@@ -230,6 +232,7 @@ export async function createPlatformTaxonomyTermAction(formData: FormData): Prom
 }
 
 export async function updatePlatformTaxonomyTermAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/taxonomy?error=${encodeURIComponent(auth.error)}`);
 
@@ -331,6 +334,7 @@ export async function updatePlatformTaxonomyTermAction(formData: FormData): Prom
 }
 
 export async function setPlatformTaxonomyLifecycleAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/taxonomy?error=${encodeURIComponent(auth.error)}`);
 
@@ -375,6 +379,7 @@ export async function setPlatformTaxonomyLifecycleAction(formData: FormData): Pr
 }
 
 export async function movePlatformTaxonomyTermAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/taxonomy?error=${encodeURIComponent(auth.error)}`);
 
@@ -448,6 +453,7 @@ export async function movePlatformTaxonomyTermAction(formData: FormData): Promis
 }
 
 export async function reorderPlatformTaxonomySiblingsAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/taxonomy?error=${encodeURIComponent(auth.error)}`);
 
@@ -520,6 +526,7 @@ export async function reorderPlatformTaxonomySiblingsAction(formData: FormData):
 }
 
 export async function setPlatformTaxonomyFieldMappingAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/taxonomy?error=${encodeURIComponent(auth.error)}`);
 
@@ -626,6 +633,7 @@ export async function setPlatformTaxonomyFieldMappingAction(formData: FormData):
 }
 
 export async function deletePlatformTaxonomyTermAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/taxonomy?error=${encodeURIComponent(auth.error)}`);
 
@@ -705,6 +713,7 @@ export async function deletePlatformTaxonomyTermAction(formData: FormData): Prom
 }
 
 export async function removePlatformTaxonomyFieldMappingAction(formData: FormData): Promise<void> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/taxonomy?error=${encodeURIComponent(auth.error)}`);
 

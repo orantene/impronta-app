@@ -7,6 +7,7 @@ import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import type { ServerActionResult } from "./result";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * F.4 — Payment method editor.
@@ -136,6 +137,7 @@ export async function listPaymentMethods(): Promise<ListPaymentMethodsResult> {
 export async function createSetupIntent(): Promise<
   ServerActionResult<{ clientSecret: string; customerId: string }>
 > {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
@@ -174,6 +176,7 @@ export async function createSetupIntent(): Promise<
 export async function setDefaultPaymentMethod(
   paymentMethodId: string,
 ): Promise<ServerActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
@@ -204,6 +207,7 @@ export async function setDefaultPaymentMethod(
 export async function detachPaymentMethod(
   paymentMethodId: string,
 ): Promise<ServerActionResult> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };

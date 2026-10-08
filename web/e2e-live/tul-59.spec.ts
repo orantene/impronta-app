@@ -35,24 +35,41 @@ test("P0-5 nav from /politicas leads back to home sections; no Reseñas link", a
   await expect(page.getByRole("link", { name: /reseñas/i })).toHaveCount(0);
 });
 
-test("P1-10 gallery photo opens a full-screen lightbox with next/back, not the booking window", async ({ page }, info) => {
+// Catches A-06 (old failure): the lightbox rendered inside a 228x334 card with no
+// next/back and no counter. The old check only asserted the dialog was visible,
+// which that broken build also satisfied. Now: box >= 90% of the viewport, prev/next
+// visible, counter "1 / N" moving to "2 / N", Esc closes.
+test("P1-10 gallery photo opens a full-screen lightbox with next/back, counter and Esc", async ({ page }, info) => {
   await page.goto(JORGELINA_SITE, { waitUntil: "networkidle" });
+  const shots = page.locator("[data-portfolio-shot-link]");
   const gallery = page.locator("#gallery, [data-section='gallery'], section:has-text('Trabajos')").first();
-  await gallery.scrollIntoViewIfNeeded();
-  const imgs = gallery.locator("img");
-  const count = await imgs.count();
-  await imgs.first().click();
-  const dialog = page.getByRole("dialog").first();
-  await expect(dialog).toBeVisible();
+  const shotCount = await shots.count();
+  const trigger = shotCount > 0 ? shots.first() : gallery.locator("img").first();
+  const total = shotCount > 0 ? shotCount : await gallery.locator("img").count();
+  await trigger.scrollIntoViewIfNeeded();
+  await trigger.click();
+  const dialog = page.locator("[data-portfolio-lightbox]").first();
+  await expect(dialog, "lightbox dialog").toBeVisible();
   await expect(dialog).not.toContainText(/Continuar|Confirmar cita/);
-  const vp = page.viewportSize() ?? { width: 1280, height: 800 };
+  const vp = page.viewportSize();
+  expect(vp, "viewport").not.toBeNull();
   const box = await dialog.boundingBox();
-  await info.attach("lightbox-box", { body: JSON.stringify({ vp, box, count }), contentType: "application/json" });
-  expect(box && box.width >= vp.width * 0.9 && box.height >= vp.height * 0.9, "lightbox must cover the viewport").toBeTruthy();
-  if (count > 1) {
-    await expect(dialog.getByRole("button", { name: /siguiente|next|›|→/i }).first()).toBeVisible();
+  await info.attach("lightbox-box", { body: JSON.stringify({ vp, box, total }), contentType: "application/json" });
+  expect(box, "lightbox has a box").not.toBeNull();
+  expect(box!.width, "lightbox width >= 90% viewport").toBeGreaterThanOrEqual(vp!.width * 0.9);
+  expect(box!.height, "lightbox height >= 90% viewport").toBeGreaterThanOrEqual(vp!.height * 0.9);
+  if (total > 1) {
+    const next = dialog.locator("[data-portfolio-lightbox-next]");
+    await expect(next, "next button").toBeVisible();
+    await expect(dialog.locator("[data-portfolio-lightbox-prev]"), "prev button").toBeVisible();
+    const counter = dialog.locator("[data-portfolio-lightbox-count]");
+    await expect(counter).toHaveText(/^1 \/ \d+$/);
+    await next.click();
+    await expect(counter, "next moves the counter to 2").toHaveText(/^2 \/ \d+$/);
   }
   await evidence(page, info, "gallery-lightbox");
+  await page.keyboard.press("Escape");
+  await expect(page.locator("[data-portfolio-lightbox]"), "Esc closes the lightbox").toHaveCount(0);
 });
 
 test("P1-9 Spanish home has no English nail-product ticker", async ({ page }, info) => {

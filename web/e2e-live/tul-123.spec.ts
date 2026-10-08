@@ -6,6 +6,8 @@
 import { expect, test } from "@playwright/test";
 import { QA_TALENT_SITE, evidence } from "./_live";
 
+// Catches (old failure): the booking sheet loaded hcaptcha.com and showed the hCaptcha image-puzzle
+// frame. Fails on any hcaptcha request, any visible captcha iframe with a non-zero box, or no Turnstile.
 test("booking page loads Turnstile and no hCaptcha", async ({ page }, info) => {
   const vendors: string[] = [];
   page.on("request", (r) => {
@@ -20,6 +22,15 @@ test("booking page loads Turnstile and no hCaptcha", async ({ page }, info) => {
   await info.attach("captcha-vendors", { body: JSON.stringify(vendors), contentType: "application/json" });
   expect(vendors, "no hCaptcha requests").not.toContain("hcaptcha");
   expect(vendors, "Turnstile loaded").toContain("turnstile");
-  await expect(page.frameLocator('iframe[src*="hcaptcha.com"]').locator("body")).toHaveCount(0);
+  const frames = page.locator('iframe[src*="hcaptcha"], iframe[title*="captcha" i]');
+  const visibleBoxes: { src: string | null; w: number; h: number }[] = [];
+  for (let i = 0; i < (await frames.count()); i++) {
+    const f = frames.nth(i);
+    const b = await f.boundingBox();
+    if ((await f.isVisible()) && b && b.width > 0 && b.height > 0) {
+      visibleBoxes.push({ src: await f.getAttribute("src"), w: b.width, h: b.height });
+    }
+  }
+  expect(visibleBoxes, "no visible captcha puzzle frame").toEqual([]);
   await evidence(page, info, "booking-captcha");
 });

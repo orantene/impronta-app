@@ -11,6 +11,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPlatformRole } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type CommissionConfig = {
   defaultTakeBps: number;
@@ -98,6 +99,7 @@ function validateBps(bps: number, label: string): string | null {
 export async function updatePlatformCommissionConfig(
   args: UpdateCommissionConfigArgs,
 ): Promise<CommissionActionResult> {
+  await requireNotImpersonating();
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
   const { sb, actorId } = auth;

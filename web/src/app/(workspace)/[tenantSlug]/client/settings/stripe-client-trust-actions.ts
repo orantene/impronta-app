@@ -7,6 +7,7 @@
  * startClientBalanceTopup → variable Stripe Checkout → webhook adds balance
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isStripeConfigured } from "@/lib/stripe/client";
@@ -57,6 +58,8 @@ async function resolveContext(tenantSlug: string) {
 export async function startClientVerification(
   tenantSlug: string,
 ): Promise<ClientTrustActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const ctx = await resolveContext(tenantSlug);
   if (!ctx.ok) return ctx;
 
@@ -108,6 +111,8 @@ export async function startClientBalanceTopup(
   amountCents: number,
   tenantSlug: string,
 ): Promise<ClientTrustActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   // Validate amount server-side
   if (!(ALLOWED_TOPUP_AMOUNTS_CENTS as readonly number[]).includes(amountCents)) {
     return { ok: false, error: "Invalid top-up amount." };

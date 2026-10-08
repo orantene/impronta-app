@@ -38,6 +38,7 @@ import {
   REDIRECT_LIST_LIMIT,
   type RedirectRecord,
 } from "@/lib/site-admin/redirects";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const GENERIC_ERROR = "Couldn't save — try again.";
 
@@ -141,6 +142,8 @@ export async function createRedirect(
   tenantSlug: string,
   input: { oldPath: string; newPath: string; statusCode?: number },
 ): Promise<MutateResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireRedirectsAdmin(tenantSlug);
   if (!guard.ok) return guard;
 
@@ -182,6 +185,8 @@ export async function updateRedirect(
   tenantSlug: string,
   input: { id: string; oldPath: string; newPath: string; statusCode?: number },
 ): Promise<MutateResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireRedirectsAdmin(tenantSlug);
   if (!guard.ok) return guard;
 
@@ -247,6 +252,8 @@ export async function setRedirectActive(
   tenantSlug: string,
   input: { id: string; active: boolean },
 ): Promise<SimpleResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireRedirectsAdmin(tenantSlug);
   if (!guard.ok) return guard;
 
@@ -276,6 +283,8 @@ export async function deleteRedirect(
   tenantSlug: string,
   input: { id: string },
 ): Promise<SimpleResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireRedirectsAdmin(tenantSlug);
   if (!guard.ok) return guard;
 
@@ -318,6 +327,7 @@ export async function importRedirects(
   tenantSlug: string,
   text: string,
 ): Promise<ImportResult> {
+  await requireNotImpersonating();
   const guard = await requireRedirectsAdmin(tenantSlug);
   if (!guard.ok) return guard;
 

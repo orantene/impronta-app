@@ -32,6 +32,7 @@ import {
   assignTaxonomyTermToProfile,
   resolveTenantTalentTypeTermId,
 } from "@/lib/talent-taxonomy-service";
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ── Shared result type ──────────────────────────────────────────────────────
 
@@ -76,6 +77,8 @@ const addTalentSchema = z.object({
 export async function addTalentToRoster(
   input: z.input<typeof addTalentSchema>,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   // ── Auth ───────────────────────────────────────────────────────────────────
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not authenticated." };
@@ -251,6 +254,7 @@ export async function createTalentDraft(
   firstName: string,
   lastName: string,
 ): Promise<ActionResult & { talentProfileId?: string }> {
+  await requireNotImpersonating();
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not authenticated." };
 
@@ -345,6 +349,8 @@ const patchDraftSchema = z.object({
 export async function patchTalentDraft(
   input: z.input<typeof patchDraftSchema>,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not authenticated." };
 
@@ -429,6 +435,8 @@ export async function discardTalentDraft(
   tenantSlug: string,
   talentProfileId: string,
 ): Promise<ActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not authenticated." };
 
@@ -487,6 +495,7 @@ export async function bulkAddTalentToRoster(
   tenantSlug: string,
   rows: BulkAddTalentRow[],
 ): Promise<BulkAddTalentResult> {
+  await requireNotImpersonating();
   if (!tenantSlug) return { ok: false, error: "Workspace not found." };
   if (!Array.isArray(rows) || rows.length === 0) return { ok: false, error: "No rows to import." };
   if (rows.length > 200) return { ok: false, error: "Imports are capped at 200 rows per batch. Split your CSV." };

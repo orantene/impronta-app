@@ -18,6 +18,7 @@ import { promoteTalentProfileLive } from "@/lib/onboarding/talent-profile-promot
 import type { OnboardingChoice } from "@/lib/onboarding/choice";
 import { ensureSelfRosterSiteVisible } from "@/lib/saas/ensure-self-roster";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -50,6 +51,8 @@ export async function loadHowYouWork(): Promise<LoadHowYouWorkResult> {
 }
 
 export async function runHowYouWorkMoveAction(move: HowYouWorkMove, input: MoveInput): Promise<RunHowYouWorkMoveResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const session = await getCachedActorSession();
   const admin = createServiceRoleClient();
   if (!session.user || !admin) return { ok: false, error: "You must be signed in." };

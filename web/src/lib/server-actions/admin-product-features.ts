@@ -25,6 +25,7 @@ import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 
 // ─── Auth gate (small duplication — kept local for symmetry with the
@@ -60,6 +61,8 @@ export type AddFeatureResult =
   | { ok: false; error: string };
 
 export async function addFeature(raw: AddFeatureInput): Promise<AddFeatureResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 
@@ -160,6 +163,8 @@ export type UpdateFeatureResult =
 export async function updateFeature(
   raw: UpdateFeatureInput,
 ): Promise<UpdateFeatureResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 
@@ -228,6 +233,8 @@ export type ArchiveFeatureResult =
 export async function archiveFeature(raw: {
   featureId: string;
 }): Promise<ArchiveFeatureResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 
@@ -300,6 +307,8 @@ export type ReorderFeatureResult =
 export async function reorderFeature(
   raw: { featureId: string; direction: "up" | "down" },
 ): Promise<ReorderFeatureResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 

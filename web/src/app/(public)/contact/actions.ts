@@ -42,6 +42,7 @@ import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { submitInquiry } from "@/lib/inquiry/inquiry-engine";
 import { getPublicTenantScope, getPublicHostContext } from "@/lib/saas/scope";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const GUEST_HEADER = "x-impronta-guest";
 
@@ -54,6 +55,7 @@ export async function submitContactInquiry(
   _prev: ContactInquiryState,
   formData: FormData,
 ): Promise<ContactInquiryState> {
+  await requireNotImpersonating();
   const t = createTranslator(await getRequestLocale());
 
   const publicSettings = await getPublicSettings();

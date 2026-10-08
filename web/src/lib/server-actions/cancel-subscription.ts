@@ -15,6 +15,7 @@ import {
   hasLiveWorkspaceSubscription,
 } from "@/lib/stripe/workspace-billing";
 import type { ServerActionResult } from "./result";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /**
  * F.6 — Self-service cancellation / downgrade.
@@ -77,6 +78,7 @@ export type CancelSubscriptionInput = {
 export async function cancelSubscription(
   input: CancelSubscriptionInput,
 ): Promise<ServerActionResult<{ fromPlan: string; toPlan: string; effectiveAt: string }>> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
@@ -237,6 +239,7 @@ export async function cancelSubscription(
 export async function reactivateSubscription(): Promise<
   ServerActionResult<{ renewsAt: string | null }>
 > {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
@@ -288,6 +291,7 @@ export async function reactivateSubscription(): Promise<
 export async function pauseSubscription(
   pauseUntilIso: string,
 ): Promise<ServerActionResult<{ pausedUntil: string }>> {
+  await requireNotImpersonating();
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };

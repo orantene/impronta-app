@@ -2917,6 +2917,7 @@
       "daysAgo": "{count}d ago"
     },
     "clientSettings": {
+      "readOnlyViewingAs": "You are viewing this account in read-only mode. Changes are turned off while you view as this person.",
       "eyebrow": "Account",
       "title": "Settings",
       "subtitle": "Your account details, preferences, and trust verification.",
@@ -6746,6 +6747,7 @@
       "stylePortrait": "Portrait",
       "styleEditorial": "Editorial",
       "styleCinematic": "Cinematic",
+      "styleShowcase": "Showcase",
       "imageAspectLabel": "Image aspect",
       "hoverBehaviorLabel": "Hover behavior",
       "rowName": "Name",

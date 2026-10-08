@@ -54,6 +54,7 @@ import type {
   SaveRosterRatesResult,
 } from "@/lib/directory/pricing-defaults-shape";
 import { pickHeadlinePrice } from "@/lib/directory/headline-price";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type OfferingRow = {
   id: string;
@@ -256,6 +257,7 @@ export async function loadRosterRates(): Promise<LoadRosterRatesResult> {
 export async function saveRosterRates(
   changes: { talentProfileId: string; amountCents: number }[],
 ): Promise<SaveRosterRatesResult> {
+  await requireNotImpersonating();
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId, tenantSlug } = auth;

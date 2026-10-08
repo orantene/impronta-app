@@ -20,6 +20,7 @@ import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { GUEST_CHAT_DEFAULTS, type GuestChatSettings } from "@/lib/inquiry/guest-chat-settings";
 import { mapGuestChatSettingsRow } from "@/lib/inquiry/guest-chat-settings-shape";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type LoadGuestChatSettingsResult =
   | { ok: true; data: GuestChatSettings }
@@ -86,6 +87,8 @@ export async function loadGuestChatSettingsForAdmin(): Promise<LoadGuestChatSett
 export async function saveGuestChatSettings(
   input: SaveGuestChatSettingsInput,
 ): Promise<SaveGuestChatSettingsResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user, tenantSlug } = auth;
