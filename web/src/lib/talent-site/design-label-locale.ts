@@ -1,145 +1,30 @@
 /**
- * Catalog Designs seed their section labels in English ("About", "The menu",
- * "Recent work"...) and those labels are saved into every applied tree, so a
- * Spanish talent site showed English headings. Same approach as AUD-027
- * (`header-cta-locale.ts`): the renderer localises only the UNTOUCHED seeded
- * labels at render time. A label the talent edited in the builder no longer
- * matches the seed exactly and is never rewritten, so every label stays
- * editable and already-applied sites are fixed without a reapply.
+ * Render-time localisation for catalog Design labels.
+ *
+ * TUL-369: the EN→ES guess map that used to live here is retired. Seeded
+ * English→Spanish wording lives in `theme-catalog/seed-i18n.ts` (`SEED_TEXT_ES`).
+ * This module still:
+ *   - applies that table (plus authored-overlay `labelsEs`) as a legacy
+ *     fallback for trees applied before seed overlays shipped;
+ *   - rewrites mode-dependent action copy (`SEEDED_MODE_COPY`);
+ *   - applies per-talent locale swaps.
+ *
+ * New seeds carry `props.i18n.es` / `props.i18n.en` and English bases; the
+ * renderer overlays win when present. A label the talent edited no longer
+ * matches the seed exactly and is never rewritten.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
 import { registeredAuthoredOverlays } from "./theme-catalog/collection/authored";
-
-/** Seeded English label -> Spanish. Keys are exact seed strings. */
-const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
-  // Gridline (TH16) design defaults.
-  "Services": "Servicios",
-  "Services and prices": "Servicios y precios",
-  "Book a visit": "Agendar visita",
-  "What do you need?": "¿Qué necesitas?",
-  "Response": "Respuesta",
-  "Warranty": "Garantía",
-  "Price": "Precio",
-  "Payment": "Pago",
-  "Review": "Revisión",
-  "How it works": "Cómo funciona",
-  "Where I work": "Dónde trabajo",
-  "Emergency": "Emergencia",
-  "Emergencies today": "Emergencias hoy",
-  "No emergencies today": "Sin emergencias hoy",
-  "Call": "Llamar",
-  "Same-day emergency": "Emergencia el mismo día",
-  "Meanwhile:": "Mientras tanto:",
-  "Request now": "Pedir ahora",
-  About: "Sobre mí",
-  "The menu": "El menú",
-  "Services {i}and prices{/i}": "Servicios {i}y precios{/i}",
-  "Recent work": "Trabajo reciente",
-  "How booking works": "Cómo reservar",
-  Questions: "Preguntas",
-  "Ask a question": "Hacer una pregunta",
-  "Ask about a service": "Pregunta por un servicio",
-  "Book a time": "Reserva una hora",
-  "See services": "Ver servicios",
-  "See prices": "Ver precios",
-  "Book now": "Reservar",
-  Inquire: "Escríbeme",
-  Home: "Inicio",
-  Menu: "Menú",
-  "Price list": "Lista de precios",
-  "Let's work together": "Trabajemos juntos",
-  "She confirms by hand.": "Confirmo cada cita personalmente.",
-  "You can book a time on this page.": "Puedes reservar tu hora en esta página.",
-  "No services are published yet.": "Aún no hay servicios publicados.",
-  "No photos in your portfolio yet.": "Aún no hay fotos en tu portafolio.",
-  // Theme collection v1 designs (Maison v2, Solace, Mono, Frame, Folio).
-  "Before your visit": "Antes de tu visita",
-  "Your visit": "Tu visita",
-  "Before your appointment": "Antes de tu cita",
-  "Hello, I'm {{displayName}}": "Hola, soy {{displayName}}",
-  Sessions: "Sesiones",
-  "Take your time": "Tómate tu tiempo",
-  "The space": "El espacio",
-  "When you are ready": "Cuando quieras",
-  "Before your session": "Antes de tu sesión",
-  Prices: "Precios",
-  "Pick a service, pick a time": "Elige un servicio y una hora",
-  "Questions?": "¿Preguntas?",
-  "Good to know": "Conviene saber",
-  Work: "Trabajos",
-  Book: "Reserva",
-  "Sessions and prices": "Sesiones y precios",
-  "Book a session": "Reserva una sesión",
-  Booking: "Reservas",
-  "Next issue": "Próxima edición",
-  "The book": "El book",
-  "What clients say": "Lo que dicen mis clientes",
-  Reviews: "Reseñas",
-  Ask: "Pregunta",
-  // Maison v2 (the Rosé proposal copy).
-  "Recent {i}work{/i}": "Trabajo {i}reciente{/i}",
-  "Menu and prices": "Menú y precios",
-  // Maison v2 2.5: the header's fifth link and the About chat action.
-  Location: "Ubicación",
-  "Write me": "Escríbeme",
-  "See work": "Ver trabajos",
-  "What they {i}say{/i}": "Lo que {i}dicen{/i}",
-  "The detail is {i}my craft{/i}.": "El detalle es {i}mi oficio{/i}.",
-  "Before you come": "Antes de venir",
-  come: "venir",
-  visit: "visita",
-  "What I get {i}asked{/i}": "Lo que {i}me preguntan{/i}",
-  "See you soon.": "Nos vemos pronto.",
-  // Maison v2 2.7 rich footer, menu intro line.
-  "See you {i}soon.{/i}": "Nos vemos {i}pronto.{/i}",
-  Where: "Dónde",
-  "See location": "Ver ubicación",
-  "Write from this site": "Escribir por este sitio",
-  "Prices in {{currency}}.": "Precios en {{currency}}.",
-  "Made with Tulala": "Hecho con Tulala",
-  // Folio (magazine edition).
-  Contents: "En este número",
-  "In this issue": "En este número",
-  "See the book": "Ver el libro",
-  "Editorial, runway and campaigns.": "Editorial, runway y campañas.",
-  "Selected work": "Trabajos elegidos",
-  "More work": "Más trabajos",
-  "From the studio": "Desde el estudio",
-  Details: "Detalles",
-  "Up close": "De cerca",
-  Portraits: "Retratos",
-  "Natural light": "Luz natural",
-  Editorial: "Editorial",
-  Lookbook: "Lookbook",
-  "Studio session": "Sesión de estudio",
-  "Seasonal story": "Historia de temporada",
-  Measures: "Medidas",
-  "Measures · Comp card": "Medidas · Comp card",
-  Rates: "Contratación",
-  "Base rates in MXN. Ad use and travel are quoted separately.": "Tarifas base en MXN. El uso en pauta y los viajes se cotizan aparte.",
-
-  "Rate card": "Contratación",
-  Tarifas: "Contratación",
-  "Rates and dates": "Tarifas y fechas",
-  Contact: "Contacto",
-  "Next issue.": "Siguiente número.",
-  "Studio, hard light": "Estudio, luz dura",
-  "Exits and details": "Salidas y detalles",
-  "Demo studio credit · CDMX": "Créditos ficticios de demo · Estudio en CDMX",
-  "Demo show credit · 3 exits": "Show ficticio de demo · 3 salidas",
-  "For editorials, runway and campaigns. I reply the same day.": "Para editoriales, runway y campañas. Respondo en el día.",
-  // Folio masthead + cover CTA is seeded in Spanish; English visitors read this.
-  "Ask about this": "Consultar",
-};
+import { SEED_TEXT_ES } from "./theme-catalog/seed-i18n";
 
 /**
- * Code table plus the `labelsEs` of every committed authored overlay
+ * Seed table plus the `labelsEs` of every committed authored overlay
  * (`theme-catalog/collection/authored`): labels a template-editor version
  * seeded are localised like code seeds. An overlay entry wins a clash.
  */
 const SEEDED_LABELS_ES: Readonly<Record<string, string>> = (() => {
-  const out: Record<string, string> = { ...CODE_SEEDED_LABELS_ES };
+  const out: Record<string, string> = { ...SEED_TEXT_ES };
   for (const [, o] of registeredAuthoredOverlays()) Object.assign(out, o.labelsEs);
   return out;
 })();
@@ -170,11 +55,10 @@ const SEEDED_PATTERNS_ES: ReadonlyArray<{ re: RegExp; es: string }> = Object.ent
   });
 
 /**
- * The inverse table (2026-09-29): a Spanish-primary talent's site seeded or
- * written with these exact Spanish labels reads in English for an English
+ * Inverse table: a Spanish-primary talent's site that still carries these
+ * exact Spanish labels (legacy trees) reads in English for an English
  * visitor. Derived once from `SEEDED_LABELS_ES` (first English key wins on a
- * shared Spanish value; identical pairs and token patterns are skipped), so
- * the two directions can never drift.
+ * shared Spanish value; identical pairs and token patterns are skipped).
  */
 const SEEDED_LABELS_EN: Readonly<Record<string, string>> = (() => {
   const out: Record<string, string> = {};

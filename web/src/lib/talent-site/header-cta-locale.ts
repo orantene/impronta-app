@@ -1,17 +1,18 @@
 /**
- * AUD-027: the talent-site header CTA is seeded as the English default
- * "Inquire" (default-max-site-trees.ts) and saved into every shell tree, so a
- * Spanish site showed "INQUIRE". Rather than migrate saved trees, the renderer
- * localises the untouched seeded label at render time. A label the talent
- * typed themselves is never rewritten.
+ * AUD-027 / TUL-369: the talent-site header CTA is seeded as the English
+ * default "Inquire" (default-max-site-trees.ts) and saved into every shell
+ * tree. New themes carry `props.i18n` overlays (see `header-i18n.ts` +
+ * `seed-i18n.ts`). This module only rewrites the UNTOUCHED seeded English
+ * label for legacy trees that never got an overlay.
+ *
+ * The ES wording comes from `SEED_TEXT_ES["Inquire"]` — no separate guess
+ * map. A label the talent typed themselves is never rewritten.
  */
+import { SEED_TEXT_ES } from "./theme-catalog/seed-i18n";
 
 const SEEDED_CTA_LABEL = "inquire";
-
-const CTA_LABEL_BY_LOCALE: Record<string, string> = {
-  en: "Inquire",
-  es: "Escríbeme",
-};
+const SEEDED_CTA_EN = "Inquire";
+const SEEDED_CTA_ES = SEED_TEXT_ES[SEEDED_CTA_EN] ?? "Escríbeme";
 
 function localeKey(locale: string | null | undefined): string {
   return (locale ?? "").trim().toLowerCase().slice(0, 2);
@@ -22,7 +23,7 @@ export { headerSectionProps } from "./header-i18n";
 
 /** The header CTA label for a locale ("Inquire" / "Escríbeme"). */
 export function talentHeaderCtaLabel(locale: string | null | undefined): string {
-  return CTA_LABEL_BY_LOCALE[localeKey(locale)] ?? "Inquire";
+  return localeKey(locale) === "es" ? SEEDED_CTA_ES : SEEDED_CTA_EN;
 }
 
 function localiseLabel(label: unknown, locale: string): unknown {

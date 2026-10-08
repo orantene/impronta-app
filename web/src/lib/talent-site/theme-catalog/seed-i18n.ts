@@ -1,19 +1,25 @@
 /**
  * Seeded copy ships BOTH languages (theme core).
  *
- * Every released talent theme seeds English starter text. Without a per-node
- * overlay a Spanish site rendered that English until the render-time label map
- * (`design-label-locale.ts`) guessed a translation. This module puts the
- * overlay in the seed itself: each seeded text node gets
+ * ## Base-language rule (TUL-369)
+ *
+ * Every released talent theme seeds English starter text as the base prop.
+ * `THEME_SEED_BASE_LOCALE` is always `"en"`. Spanish (and any other locale)
+ * is carried only in `props.i18n`. Folio used to seed "Consultar"; aftercare
+ * used to ship Spanish-only overlays (#2897). Neither is allowed: the base
+ * is English, and every seeded text carries es + en.
+ *
+ * Without a per-node overlay a Spanish site rendered that English until the
+ * render-time label map guessed a translation. This module puts the overlay
+ * in the seed itself: each seeded text node gets
  * `props.i18n = { es: { <prop>: "..." }, en: { <prop>: "..." } }`, the same
  * shape the builder's language tabs write (validate mirrors it to `node.i18n`).
  * The base prop stays the English seed and `en` repeats it.
  *
  * Generic by trade: the Spanish below is neutral Mexican Spanish, tuteo, no
- * em dashes, and carries no talent-specific words. The wording matches the
- * render-time map so the two never disagree. A text that is only `{{tokens}}`
- * is profile data and is left alone, as are marquee items bound to a token
- * (the talent's own service names).
+ * em dashes, and carries no talent-specific words. A text that is only
+ * `{{tokens}}` is profile data and is left alone, as are marquee items bound
+ * to a token (the talent's own service names).
  *
  * Marquee overlay convention (another agent renders it): for item N the key is
  * `items.N.text`, e.g. `i18n = { es: { "items.0.text": "..." }, en: { ... } }`.
@@ -27,24 +33,40 @@ import {
 import { HEADER_OVERLAY_PREFIX, headerLabelEntries } from "../header-i18n";
 import type { DesignPayload } from "./types";
 
+/** Every theme seed authors English as the base prop. Never Spanish. */
+export const THEME_SEED_BASE_LOCALE = "en" as const;
+
 export type SeedI18nOverlay = {
   es: Record<string, string>;
   en: Record<string, string>;
 };
 
-/** English seed text -> neutral Mexican Spanish (tuteo). Exact seed strings. */
+/**
+ * English seed text -> neutral Mexican Spanish (tuteo). Exact seed strings.
+ * Single source of truth for seeded EN→ES wording (TUL-369): the render-time
+ * fallback in `design-label-locale.ts` and the header CTA label both read
+ * from this table. Do not keep a parallel guess map elsewhere.
+ */
 export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   // Hero / actions
   "Ask a question": "Hacer una pregunta",
+  "Ask about a service": "Pregunta por un servicio",
+  "Ask about this": "Consultar",
+  Ask: "Pregunta",
   "See services": "Ver servicios",
+  "See prices": "Ver precios",
   "See work": "Ver trabajos",
   "Write me": "Escríbeme",
   "Book a visit": "Agendar visita",
+  "Book a time": "Reserva una hora",
+  "Book now": "Reservar",
+  Inquire: "Escríbeme",
   // About
   About: "Sobre mí",
   "Hello, I'm {{displayName}}": "Hola, soy {{displayName}}",
   "The detail is {i}my craft{/i}.": "El detalle es {i}mi oficio{/i}.",
   // Services / menu
+  Services: "Servicios",
   "The menu": "El menú",
   "Services {i}and prices{/i}": "Servicios {i}y precios{/i}",
   "Services and prices": "Servicios y precios",
@@ -55,15 +77,27 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   "Pick a service, pick a time": "Elige un servicio y una hora",
   "Sessions and prices": "Sesiones y precios",
   Rates: "Contratación",
+  "Rate card": "Contratación",
+  "Price list": "Lista de precios",
   // FAQ / contact
   Questions: "Preguntas",
   "Questions?": "¿Preguntas?",
   "Good to know": "Conviene saber",
   "Before your session": "Antes de tu sesión",
+  "Before your visit": "Antes de tu visita",
+  "Before your appointment": "Antes de tu cita",
+  "Before you come": "Antes de venir",
+  "Your visit": "Tu visita",
   "When you are ready": "Cuando quieras",
   "What I get {i}asked{/i}": "Lo que {i}me preguntan{/i}",
+  "How booking works": "Cómo reservar",
+  "Let's work together": "Trabajemos juntos",
+  "She confirms by hand.": "Confirmo cada cita personalmente.",
+  "You can book a time on this page.": "Puedes reservar tu hora en esta página.",
+  "What clients say": "Lo que dicen mis clientes",
   // Footer
   "See you {i}soon.{/i}": "Nos vemos {i}pronto.{/i}",
+  "See you soon.": "Nos vemos pronto.",
   Where: "Dónde",
   "See location": "Ver ubicación",
   Contact: "Contacto",
@@ -79,7 +113,6 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   Reviews: "Reseñas",
   Location: "Ubicación",
   Space: "Espacio",
-  Inquire: "Escríbeme",
   "Recent work": "Trabajo reciente",
   "Recent {i}work{/i}": "Trabajo {i}reciente{/i}",
   "What they {i}say{/i}": "Lo que {i}dicen{/i}",
@@ -87,14 +120,22 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   "Selected work": "Trabajos elegidos",
   "More work": "Más trabajos",
   "Recent jobs": "Trabajos recientes",
-  "No photos in your portfolio yet.": "Aún no hay fotos en el portafolio.",
+  "No photos in your portfolio yet.": "Aún no hay fotos en tu portafolio.",
   "Where I work": "Dónde trabajo",
   "Measures · Comp card": "Medidas · Comp card",
+  Measures: "Medidas",
   "Next issue.": "Siguiente número.",
+  "Next issue": "Próxima edición",
   "In this issue": "En este número",
+  Contents: "En este número",
   "See the book": "Ver el libro",
+  "The book": "El book",
   "Rates and dates": "Tarifas y fechas",
   "Same-day emergency": "Emergencia el mismo día",
+  Emergency: "Emergencia",
+  "Emergencies today": "Emergencias hoy",
+  "No emergencies today": "Sin emergencias hoy",
+  Call: "Llamar",
   "Meanwhile:": "Mientras tanto:",
   "Request now": "Pedir ahora",
   "What do you need?": "¿Qué necesitas?",
@@ -104,15 +145,30 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   Price: "Precio",
   Payment: "Pago",
   Review: "Revisión",
-};
-
-/**
- * Seeds authored in SPANISH (Folio's cover and header action) -> the English
- * line an English visitor reads. The Spanish side repeats the base. Wording
- * matches `design-label-locale.ts`.
- */
-export const SEED_TEXT_EN_FROM_ES: Readonly<Record<string, string>> = {
-  Consultar: "Ask about this",
+  // Folio magazine extras (credits, chapter labels, contact lines).
+  "Editorial, runway and campaigns.": "Editorial, runway y campañas.",
+  "From the studio": "Desde el estudio",
+  Details: "Detalles",
+  "Up close": "De cerca",
+  Portraits: "Retratos",
+  "Natural light": "Luz natural",
+  Editorial: "Editorial",
+  Lookbook: "Lookbook",
+  "Studio session": "Sesión de estudio",
+  "Seasonal story": "Historia de temporada",
+  "Base rates in MXN. Ad use and travel are quoted separately.":
+    "Tarifas base en MXN. El uso en pauta y los viajes se cotizan aparte.",
+  "Studio, hard light": "Estudio, luz dura",
+  "Exits and details": "Salidas y detalles",
+  "Demo studio credit · CDMX": "Créditos ficticios de demo · Estudio en CDMX",
+  "Demo show credit · 3 exits": "Show ficticio de demo · 3 salidas",
+  "For editorials, runway and campaigns. I reply the same day.":
+    "Para editoriales, runway y campañas. Respondo en el día.",
+  "Prices in {{currency}}.": "Precios en {{currency}}.",
+  "Made with Tulala": "Hecho con Tulala",
+  // Fragment keys used by hydrated token patterns in legacy trees.
+  come: "venir",
+  visit: "visita",
 };
 
 /**
@@ -135,6 +191,20 @@ export const MODE_DEPENDENT_LABELS: readonly string[] = [
 /** Text made only of `{{tokens}}`, digits and punctuation: profile data, no copy. */
 export function isTokenOnlyText(text: string): boolean {
   return !/\p{L}/u.test(text.replace(/\{\{[^}]*\}\}/g, ""));
+}
+
+/**
+ * True when `text` looks like a Spanish-authored seed base (accented letters
+ * or common Spanish words). Used by the static test to enforce the English
+ * base-language rule. Mode-dependent labels and token-only text are exempt.
+ */
+export function looksLikeSpanishSeedBase(text: string): boolean {
+  const t = text.trim();
+  if (!t || isTokenOnlyText(t) || MODE_DEPENDENT_LABELS.includes(t)) return false;
+  if (/[áéíóúüñ¿¡]/i.test(t)) return true;
+  // Exact Spanish strings that used to be Folio/aftercare bases.
+  if (t === "Consultar" || t === "Tarifas") return true;
+  return false;
 }
 
 function asProps(node: BuilderNode): Record<string, unknown> {
@@ -181,15 +251,9 @@ function seedNode(node: BuilderNode): BuilderNode {
     const v = have[lang]?.[key];
     return typeof v === "string" && v.trim().length > 0;
   };
-  // `es` from the table when the node has none; `en` always repeats the base.
+  // English base: `es` from the table when the node has none; `en` always repeats the base.
   const fill = (key: string, base: string): void => {
     if (MODE_DEPENDENT_LABELS.includes(base.trim())) return;
-    const enFromEs = SEED_TEXT_EN_FROM_ES[base.trim()];
-    if (enFromEs) {
-      if (!present("es", key)) add.es[key] = base;
-      if (!present("en", key)) add.en[key] = enFromEs;
-      return;
-    }
     if (!present("es", key)) {
       const es = SEED_TEXT_ES[base.trim()];
       if (es) add.es[key] = es;
