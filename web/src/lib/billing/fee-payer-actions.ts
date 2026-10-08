@@ -24,15 +24,13 @@ import type { FeePayer } from "./fee-payer-setting";
 import {
   feePreviewConfigFromProcessingModeRow,
   readPlatformProcessingMode,
-  type FeePreviewPlatformConfig,
 } from "./platform-processing-mode";
+import type { FeePreviewPlatformConfig } from "./platform-processing-mode";
 import { getProcessingFeePayer, setProcessingFeePayer } from "./processing-fee-payer";
 
 export type SetFeePayerResult =
   | { ok: true; feePayer: FeePayer }
   | { ok: false; error: string };
-
-export type { FeePreviewPlatformConfig };
 
 /**
  * Live platform fee inputs for the settings preview — same

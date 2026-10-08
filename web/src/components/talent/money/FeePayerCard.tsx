@@ -12,12 +12,8 @@
 import { useEffect, useState } from "react";
 
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
-import {
-  getFeePayer,
-  getFeePreviewConfig,
-  setFeePayer,
-  type FeePreviewPlatformConfig,
-} from "@/lib/billing/fee-payer-actions";
+import { getFeePayer, getFeePreviewConfig, setFeePayer } from "@/lib/billing/fee-payer-actions";
+import type { FeePreviewPlatformConfig } from "@/lib/billing/platform-processing-mode";
 import {
   DEFAULT_FEE_PAYER,
   formatFeeMoney,
