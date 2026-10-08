@@ -121,7 +121,7 @@ test("TUL-15 Stage 1: base v24 + a draft that only adds i18n plans a copy releas
   assert.equal(r.value.items.length, 3);
   assert.ok(r.value.items.every((i) => i.type === "copy"));
   for (const i of r.value.items) assert.ok(i.note?.en && i.note?.es);
-  assert.match(r.value.items[0]!.note!.en, /updated text/);
+  assert.match(r.value.items[0]?.note?.en ?? "", /updated text/);
 });
 
 test("planPublish still refuses a draft with no copy and no design change", async () => {
