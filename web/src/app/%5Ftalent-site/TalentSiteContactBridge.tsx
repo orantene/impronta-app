@@ -2,8 +2,13 @@
 
 import { useEffect, useState } from "react";
 
+import { intentForHref, openIntentFor, type BookEntry } from "@/lib/talent-site/book-entry";
 import { isTalentOpenHash } from "@/lib/talent-site/contact-channels";
+import { requestTalentOpen } from "@/lib/talent-site/open-intent-client";
 import { openDeepLinkFromLocation } from "@/lib/talent-site/open-booking-at-slot";
+
+/** The URL whose fragment already opened the entry: the effect re-runs must not re-open it. */
+let coldLoadHandledFor = "";
 
 /**
  * Keeps "Ask a question" on the talent's own site. Clicks on the in-page
@@ -23,6 +28,7 @@ export function TalentSiteContactBridge({
   truth,
   whatsappHref,
   emailHref,
+  bookEntry = null,
 }: {
   heading: string;
   askLabel: string;
@@ -33,6 +39,11 @@ export function TalentSiteContactBridge({
   truth: string;
   whatsappHref: string;
   emailHref: string;
+  /**
+   * Where `#book` lands (TUL-246): one bookable service opens its booking sheet,
+   * several the service picker (the dock), none the plain inquire entry.
+   */
+  bookEntry?: BookEntry | null;
 }) {
   const [showFallback, setShowFallback] = useState(false);
 
@@ -45,30 +56,36 @@ export function TalentSiteContactBridge({
       const href = link.getAttribute("href") ?? "";
       if (!isAskHref(href)) return;
       event.preventDefault();
-      window.dispatchEvent(new Event("tulala:open-guest-chat"));
+      requestTalentOpen(intentForHref(href, bookEntry) ?? openIntentFor("ask", bookEntry));
     };
-    // A cold load or a pasted `...#talent-ask` link opens the chat too (the click above only
-    // covers links followed on the page).
-    // TUL-232: `?book=<offering>&slot=<ISO>#book` opens the booking sheet at that slot instead of the chat.
-    // The sheet can mount after this effect, so the first try may find nothing to talk to: only the final
-    // try (`final`) falls back to the chat, and `sheetOpen` stops a retry from resetting an open sheet.
-    // TUL-246's ready-handshake will replace these timers.
+    // A cold load or a pasted `...#book` link opens the entry too (the click above only covers
+    // links followed on the page).
+    // TUL-232: `?book=<offering>&slot=<ISO>#book` opens the booking sheet at that slot. The offering
+    // registers when its card mounts, which can be after this effect, so a deep link that cannot
+    // resolve yet is retried once; only the final try falls back to the plain entry, and `sheetOpen`
+    // stops a retry from resetting an open sheet.
+    // TUL-246: the plain entry is queued and handed over when its target (dock or sheet) announces it
+    // is listening, so there is no mount-timing retry for it.
     let sheetOpen = false;
     const onSheet = (e: Event) => {
       sheetOpen = Boolean((e as CustomEvent<{ open?: boolean }>).detail?.open);
     };
-    const onHash = (final = true) => {
-      const deep = openDeepLinkFromLocation(window.location, { alreadyOpen: () => sheetOpen });
-      if (deep === "opened" || (deep === "unresolved" && !final)) return;
-      if (isTalentOpenHash(window.location.hash)) window.dispatchEvent(new Event("tulala:open-guest-chat"));
-    };
-    // The initial fragment never fires `hashchange`, so a cold load of `...#book` (a custom-domain
-    // link opened in a new tab) must run the handler once itself. The dock mounts as a sibling and
-    // can attach its listener after this effect, so repeat once after it has had time to mount;
-    // opening is idempotent.
     const timers: ReturnType<typeof setTimeout>[] = [];
-    if (isTalentOpenHash(window.location.hash)) {
-      timers.push(setTimeout(() => onHash(false), 0), setTimeout(() => onHash(true), 800));
+    const onHash = (final = true) => {
+      if (!isTalentOpenHash(window.location.hash)) return;
+      const deep = openDeepLinkFromLocation(window.location, { alreadyOpen: () => sheetOpen });
+      if (deep === "opened") return;
+      if (deep === "unresolved" && !final) {
+        timers.push(setTimeout(() => onHash(true), 800));
+        return;
+      }
+      const intent = intentForHref(window.location.hash, bookEntry);
+      if (intent) requestTalentOpen(intent);
+    };
+    // The initial fragment never fires `hashchange`, so a cold load runs the handler once itself.
+    if (coldLoadHandledFor !== window.location.href) {
+      coldLoadHandledFor = window.location.href;
+      onHash(false);
     }
     document.addEventListener("click", onClick, true);
     const onHashChange = () => onHash();
@@ -84,13 +101,13 @@ export function TalentSiteContactBridge({
     }
     setShowFallback(!pageAlreadyHasContactChrome());
     return () => {
-      timers.forEach(clearTimeout);
       observer?.disconnect();
+      timers.forEach(clearTimeout);
       document.removeEventListener("click", onClick, true);
       window.removeEventListener("hashchange", onHashChange);
       window.removeEventListener("tulala:maison-sheet", onSheet);
     };
-  }, [showAsk]);
+  }, [showAsk, bookEntry]);
 
   // `#talent-ask` is a real target on every talent page: the chat entry this bridge belongs to.
   // The click handler above opens the chat; this id keeps the link from being a dead anchor
@@ -116,7 +133,7 @@ export function TalentSiteContactBridge({
           <button
             type="button"
             data-talent-ask=""
-            onClick={() => window.dispatchEvent(new Event("tulala:open-guest-chat"))}
+            onClick={() => requestTalentOpen(openIntentFor("ask", bookEntry))}
           >
             {askLabel}
           </button>
