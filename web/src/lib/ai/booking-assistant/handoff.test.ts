@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  bookingAssistantDisclosureLabel,
   bookingAssistantHandoffCopy,
   normalizeBookingAssistantLocale,
   wantsHumanBookingHelp,
@@ -26,4 +27,9 @@ test("wantsHumanBookingHelp en and es", () => {
   assert.equal(wantsHumanBookingHelp("please talk to a human"), true);
   assert.equal(wantsHumanBookingHelp("quiero hablar con una persona"), true);
   assert.equal(wantsHumanBookingHelp("cuanto cuesta el corte"), false);
+});
+
+test("AI disclosure labels (PM: Automated reply / Respuesta automática)", () => {
+  assert.equal(bookingAssistantDisclosureLabel("en"), "Automated reply");
+  assert.equal(bookingAssistantDisclosureLabel("es"), "Respuesta automática");
 });

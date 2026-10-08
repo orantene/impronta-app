@@ -24,9 +24,13 @@ export type BookingAssistantDecision =
   | { action: "handoff"; reason: BookingHandoffReason }
   | { action: "llm_facts" };
 
-/** Phase 1 has no book/pay tools — booking asks hand off to the talent. */
+/**
+ * Phase 1 has no book/pay tools — booking *verbs* hand off to the talent.
+ * Keep this narrow: Spanish "quiero saber el precio" / availability questions
+ * must still reach llm_facts (or instant-answer), not an early handoff.
+ */
 const BOOKING_INTENT_RE =
-  /\b(book|booking|reserve|reservation|appointment|available|availability|reservar|reserva|cita|agendar|disponible|disponibilidad|quiero|me gustaria|reserver|rendez)\b/i;
+  /\b(book|booking|reserve|reservation|appointment|reservar|reserva|cita|agendar|reserver|rendez[- ]?vous)\b/i;
 
 function hasPriorHandoff(
   prior: ReadonlyArray<{ systemEventType?: string | null }>,

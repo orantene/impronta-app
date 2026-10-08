@@ -35,6 +35,16 @@ export function bookingAssistantHandoffCopy(
   return HANDOFF[locale];
 }
 
+/** Guest + talent thread disclosure label (not body text). PM: Automated reply. */
+const DISCLOSURE: Record<BookingAssistantLocale, string> = {
+  en: "Automated reply",
+  es: "Respuesta automática",
+};
+
+export function bookingAssistantDisclosureLabel(locale: BookingAssistantLocale): string {
+  return DISCLOSURE[locale];
+}
+
 /** Cheap prefilter: guest asked for a human before we spend a model call. */
 const HUMAN_EN =
   /\b(talk to (a )?(human|person|someone)|real person|actual person|human please|speak (to|with) (someone|a human|the talent)|message (the )?(talent|owner|stylist))\b/i;

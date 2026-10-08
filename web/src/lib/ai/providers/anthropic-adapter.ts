@@ -137,7 +137,10 @@ export function createAnthropicChatAdapter(apiKey?: string | null): AiProviderAd
         const client = new Anthropic({ apiKey: key });
         const model = modelId(input.model);
         const params = buildAnthropicParams(input, model, systemWithSchema);
-        const msg = await client.messages.create(params);
+        const msg = await client.messages.create(
+          params,
+          input.signal ? { signal: input.signal } : undefined,
+        );
 
         const block = msg.content.find((b) => b.type === "text");
         const text =
@@ -175,7 +178,14 @@ export function createAnthropicChatAdapter(apiKey?: string | null): AiProviderAd
           },
         };
       } catch (e: unknown) {
-        const err = e as { status?: number; message?: string };
+        const err = e as { status?: number; message?: string; name?: string };
+        if (
+          err?.name === "AbortError" ||
+          input.signal?.aborted ||
+          (typeof err.message === "string" && /aborted/i.test(err.message))
+        ) {
+          return { ok: false, code: "timeout", message: "Anthropic request aborted." };
+        }
         const status = typeof err.status === "number" ? err.status : undefined;
         if (status === 429) {
           return {
