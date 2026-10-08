@@ -56,6 +56,16 @@ test("prior handoff is terminal skip (no resume, no spam)", () => {
   assert.deepEqual(d, { action: "skip", reason: "already_handed_off" });
 });
 
+test("booking intent hands off in phase 1 (no book tools)", () => {
+  const d = decideBookingAssistantTurn({
+    enabled: true,
+    guestMessage: "Quiero reservar una cita manana",
+    priorMessages: [],
+    instantAnswered: false,
+  });
+  assert.deepEqual(d, { action: "handoff", reason: "unsure" });
+});
+
 test("otherwise routes to llm facts", () => {
   const d = decideBookingAssistantTurn({
     enabled: true,
