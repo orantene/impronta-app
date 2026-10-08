@@ -19,6 +19,7 @@ import {
   withOrigin,
   type Props,
 } from "./origin";
+import { revertCopyEntry } from "./copy-merge";
 import { carryContent, sameDesign } from "./swap";
 import { reverseTokenEntries } from "./tokens-merge";
 import {
@@ -48,6 +49,14 @@ function revertProps(tree: BuilderNode[], e: MergeEntry): Outcome {
   const path = findKeyPath(tree, e.key);
   if (!path) return { tree, done: false };
   let done = false;
+  if (e.reason === "copy_applied") {
+    const next = updateAt(tree, path, (node) => {
+      const r = revertCopyEntry(node, e);
+      done = r.done;
+      return r.node;
+    });
+    return { tree: next, done };
+  }
   let partial = false;
   const next = updateAt(tree, path, (node) => {
     let props: Props = propsOf(node);
