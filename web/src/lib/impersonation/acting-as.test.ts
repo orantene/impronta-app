@@ -53,7 +53,7 @@ test("banner copy is en + es, names the person, and has no em dashes", () => {
 });
 
 test("wiring: layout renders the banner from the real identity; chip is gated", () => {
-  const layout = read("src/app/(workspace)/talent/layout.tsx");
+  const layout = read("src/app/(workspace)/talent/_talent-layout-inner.tsx");
   assert.match(layout, /resolveDashboardIdentity\(\)/);
   assert.match(layout, /<ImpersonationBanner/);
   assert.match(layout, /actingAs,/);

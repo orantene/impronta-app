@@ -55,7 +55,12 @@ test("the shared card actions call only the token-identified client writers", ()
   const src = read("components/messages-v5/client/use-client-card-actions.ts");
   const imports = [...src.matchAll(/from "([^"]+)"/g)].map((m) => m[1]);
   const actions = imports.filter((p) => p.includes("server-actions"));
-  assert.deepEqual(actions, ["@/lib/server-actions/messaging-client"]);
+  // pay-link-public-url: a READ-ONLY resolver keyed by the pay-link code, which is itself the
+  // credential (it returns only the checkout URL the code already reaches). Not a writer.
+  assert.deepEqual(actions, [
+    "@/lib/server-actions/messaging-client",
+    "@/lib/server-actions/pay-link-public-url",
+  ]);
 });
 
 test("the guest items reader selects client-safe line columns only (wave 2)", () => {

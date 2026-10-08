@@ -90,6 +90,18 @@ export function MaxSiteSettingsPanels() {
     );
   }
   if (!state.canManage) return null;
+  // TUL-214: no site yet (opening never creates one, TUL-179). The address,
+  // logo and pages panels would edit nothing, so point at the create step.
+  if (!state.siteExists) {
+    return (
+      <Card data-testid="site-settings-no-site">
+        <span style={mutedText}>
+          {copy.t("Create your own website first. Its address, logo and pages will appear here.")}
+        </span>{" "}
+        <Link href="/talent/site" style={linkButton}>{copy.t("Create my own website")} →</Link>
+      </Card>
+    );
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }} data-talent-site-settings-panels>

@@ -530,6 +530,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:design-system
 
+      - name: tests — build-chunk checker
+        if: ${{ !cancelled() }}
+        run: npm run test:build-chunks
+
       # axe-core over every variant in the component catalog, one mount each.
       # The plan's finding was "no axe in CI"; this is the answer to it, and it
       # is deliberately aimed at PRIMITIVES rather than pages — a page-level
@@ -695,6 +699,12 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
           NODE_OPTIONS: --max-old-space-size=11264
         run: npx next build
+
+      # Cheap file-only check (no second build): every client chunk a route's
+      # client-reference manifest names must exist in .next/static/chunks.
+      - name: build — no phantom client chunks
+        if: success()
+        run: npm run check:build-chunks
 
       # ── Gate 7: Admin + POS JavaScript budget ────────────────────────
       # MUST follow the build: it reads `.next/app-build-manifest.json`, which

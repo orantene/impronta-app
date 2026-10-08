@@ -13,7 +13,8 @@ import { TALENT_AGENDA_VARS } from "./primitives";
 import { useAgendaCopy } from "./use-agenda-copy";
 import { formatHoursDate, formatHoursRange } from "@/lib/talent-agenda/hours-display-format";
 import { HoursDateField, HoursTimeField } from "./HoursFields";
-import { TimezonePicker, isListedTimeZone } from "./TimezonePicker";
+import { TimezonePicker, isListedTimeZone, listIanaTimeZones } from "./TimezonePicker";
+import { readDeviceTimeZone, suggestDeviceTimeZone } from "./timezone-suggestion";
 
 const LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
@@ -60,6 +61,10 @@ export function AgendaAvailabilityPage({
   const [tz, setTz] = useState(seeded?.timezone ?? "");
   // F47: until she saves, the rows are a SUGGESTION, and the page says so.
   const [unsaved, setUnsaved] = useState(false);
+  // Read after mount so server and client markup match.
+  const [deviceTz, setDeviceTz] = useState<string | null>(null);
+  useEffect(() => setDeviceTz(readDeviceTimeZone()), []);
+  const suggestedTz = suggestDeviceTimeZone(tz, deviceTz, listIanaTimeZones());
   const [rows, setRows] = useState(() =>
     LABELS.map((label, day) => {
       const idx = day as 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -401,8 +406,18 @@ export function AgendaAvailabilityPage({
           />
         </label>
         <label className="block text-[13px]">
-          {copy.t("Timezone")}
+          {copy.t("Time zone")}
           <TimezonePicker value={tz} onChange={(z) => { setTz(z); setUnsaved(true); }} />
+          {suggestedTz ? (
+            <button
+              type="button"
+              data-testid="working-hours-timezone-device"
+              className="mt-2 text-left text-[13px] text-[var(--tc-accent)]"
+              onClick={() => { setTz(suggestedTz); setUnsaved(true); }}
+            >
+              {copy.t("Use this device's time zone")}: {suggestedTz.replaceAll("_", " ")}
+            </button>
+          ) : null}
         </label>
       </section>
 
