@@ -8,7 +8,10 @@ export type NotionMirrorConfig = {
   databaseId: string;
 };
 
-export function readNotionMirrorConfig(env: NodeJS.ProcessEnv = process.env): {
+/** Loose env bag so unit tests can pass partial objects without NODE_ENV. */
+export type NotionMirrorEnv = Readonly<Record<string, string | undefined>>;
+
+export function readNotionMirrorConfig(env: NotionMirrorEnv = process.env): {
   configured: boolean;
   config: NotionMirrorConfig | null;
   missing: string[];
@@ -30,7 +33,7 @@ export function readNotionMirrorConfig(env: NodeJS.ProcessEnv = process.env): {
 
 /** Same truthy set as other feature flags in this repo. */
 export function isNotionMirrorForceDisabled(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NotionMirrorEnv = process.env,
 ): boolean {
   const v = (env.NOTION_MIRROR_ENABLED ?? "1").trim().toLowerCase();
   return v === "0" || v === "false" || v === "off" || v === "no";
