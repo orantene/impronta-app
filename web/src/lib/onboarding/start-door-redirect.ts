@@ -9,6 +9,8 @@
  * - platform app host, agency hosts and talent sites: `/start` and `/signup`
  *   go to the marketing `/start`.
  * - marketing host: `/signup` goes to `/start` (no `/signup` page exists).
+ * - marketing host: the legacy `/onboarding/role` URL (old emails, bookmarks) also
+ *   goes to `/start`; on the app host that page still exists and stays.
  * - everything else (hub, unregistered hosts) returns `null`.
  *
  * The query string is kept so `?lang=` and `?choice=` survive the hop.
@@ -25,7 +27,7 @@ export type StartDoorInput = {
 };
 
 const REDIRECT_KINDS = new Set(["app", "agency", "talent_site"]);
-const DOOR_PATHS = new Set(["/start", "/signup"]);
+const DOOR_PATHS = new Set(["/start", "/signup", "/onboarding/role"]);
 
 export function startDoorRedirect(input: StartDoorInput): string | null {
   if (input.method !== "GET" && input.method !== "HEAD") return null;
@@ -35,6 +37,8 @@ export function startDoorRedirect(input: StartDoorInput): string | null {
   const origin = input.marketingOrigin.replace(/\/$/, "");
   const search = input.search && input.search !== "?" ? input.search : "";
 
+  // The legacy role page is a real page on the app host: only the marketing host (where it 404s) hands it off.
+  if (path === "/onboarding/role") return input.hostKind === "marketing" ? `${origin}/start${search}` : null;
   if (REDIRECT_KINDS.has(input.hostKind)) return `${origin}/start${search}`;
   if (input.hostKind === "marketing" && path === "/signup") return `${origin}/start${search}`;
   return null;
