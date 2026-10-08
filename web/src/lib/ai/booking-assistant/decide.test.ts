@@ -33,7 +33,7 @@ test("human ask hands off", () => {
   assert.deepEqual(d, { action: "handoff", reason: "human_requested" });
 });
 
-test("turn ceiling hands off", () => {
+test("turn ceiling hands off once (no prior handoff)", () => {
   const prior = Array.from({ length: BOOKING_ASSISTANT_TURN_CEILING }, () => ({
     systemEventType: "booking_assistant_reply",
   }));
@@ -44,6 +44,16 @@ test("turn ceiling hands off", () => {
     instantAnswered: false,
   });
   assert.deepEqual(d, { action: "handoff", reason: "turn_ceiling" });
+});
+
+test("prior handoff is terminal skip (no resume, no spam)", () => {
+  const d = decideBookingAssistantTurn({
+    enabled: true,
+    guestMessage: "Can I talk to a real person again?",
+    priorMessages: [{ systemEventType: "booking_assistant_handoff" }],
+    instantAnswered: false,
+  });
+  assert.deepEqual(d, { action: "skip", reason: "already_handed_off" });
 });
 
 test("otherwise routes to llm facts", () => {

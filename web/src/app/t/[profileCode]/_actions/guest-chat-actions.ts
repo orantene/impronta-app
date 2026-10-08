@@ -939,6 +939,7 @@ export async function startGuestChatInquiry(
         : {}),
       referrer_page: input.sourcePage,
       tenant_id: tenantId,
+      ...(input.locale ? { guest_locale: input.locale } : {}),
       ...(capture.eventType ? { ai_event_type: capture.eventType } : {}),
       ...(offering ? { offering } : {}),
       ...(input.entryPoint === "inquiry_form" ? { entry_point: "inquiry_form" } : {}),
@@ -1475,12 +1476,29 @@ export async function sendGuestMessageAction(
       .maybeSingle();
     assistantTalentId = (talentPart?.talent_profile_id as string | null) ?? null;
   }
+  // Locale: prefer this send's value; else the locale stored at inquiry create.
+  let followUpLocale = input.locale?.trim() || null;
+  if (!followUpLocale) {
+    const { data: ctxRow } = await admin
+      .from("inquiries")
+      .select("source_context")
+      .eq("id", owned.inquiry.id)
+      .eq("tenant_id", owned.inquiry.tenantId)
+      .maybeSingle();
+    const ctx =
+      ctxRow?.source_context &&
+      typeof ctxRow.source_context === "object" &&
+      !Array.isArray(ctxRow.source_context)
+        ? (ctxRow.source_context as Record<string, unknown>)
+        : {};
+    followUpLocale = typeof ctx.guest_locale === "string" ? ctx.guest_locale : null;
+  }
   const assistantMessage = await maybeRunBookingAssistantTurn({
     inquiryId: owned.inquiry.id,
     tenantId: owned.inquiry.tenantId,
     talentProfileId: assistantTalentId,
     guestMessage: body,
-    locale: null,
+    locale: followUpLocale,
     instantAnswered: false,
   });
 

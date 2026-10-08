@@ -20,15 +20,25 @@ export type BookingAssistantDecideInput = {
 };
 
 export type BookingAssistantDecision =
-  | { action: "skip"; reason: "off" | "instant_answered" | "empty" }
+  | { action: "skip"; reason: "off" | "instant_answered" | "empty" | "already_handed_off" }
   | { action: "handoff"; reason: BookingHandoffReason }
   | { action: "llm_facts" };
+
+function hasPriorHandoff(
+  prior: ReadonlyArray<{ systemEventType?: string | null }>,
+): boolean {
+  return prior.some((m) => m.systemEventType === "booking_assistant_handoff");
+}
 
 export function decideBookingAssistantTurn(input: BookingAssistantDecideInput): BookingAssistantDecision {
   const body = input.guestMessage.trim();
   if (!body) return { action: "skip", reason: "empty" };
   if (!input.enabled) return { action: "skip", reason: "off" };
   if (input.instantAnswered) return { action: "skip", reason: "instant_answered" };
+  // Terminal: once we yielded to the team, never resume LLM or spam handoffs.
+  if (hasPriorHandoff(input.priorMessages)) {
+    return { action: "skip", reason: "already_handed_off" };
+  }
 
   const turns = countBookingAssistantTurns(input.priorMessages);
   if (bookingAssistantTurnCeilingReached(turns)) {

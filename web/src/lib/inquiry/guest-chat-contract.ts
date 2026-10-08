@@ -423,6 +423,8 @@ export type SendGuestMessageInput = {
   honeypot?: string | null;
   /** Optional Turnstile token if a challenge was shown mid-conversation. */
   captchaToken?: string | null;
+  /** Guest UI locale (en/es) so assistant replies match the storefront. */
+  locale?: string | null;
 };
 
 export type SendGuestMessageResult =
