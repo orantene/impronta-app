@@ -23,7 +23,7 @@ test("library: trades, designs, premium flag", () => {
   assert.equal(appsForDesign("maison-v2").length, 1);
   assert.equal(appsForDesign("folio").length, 0);
   for (const a of APP_REGISTRY) {
-    assert.equal(a.premium, false);
+    assert.equal(a.premium, true);
     assert.ok(a.name.en && a.name.es && a.pitch.en && a.pitch.es && a.trades.length);
   }
 });
