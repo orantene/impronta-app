@@ -23,6 +23,7 @@ import {
   type SupportTicketRow,
 } from "./support-types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { logServerError } from "@/lib/server/safe-error";
 import { parseTalentSiteHelpContactInput } from "@/lib/support/talent-site-help-context";
 
 export type GuestSupportFail = { ok: false; error: string };
@@ -387,13 +388,17 @@ export async function submitMarketingContactAction(input: {
   });
   let talentProfileId: string | null = null;
   if (talentSite?.profileCode) {
-    const { data } = await ident.admin
+    const { data, error: profileLookupError } = await ident.admin
       .from("talent_profiles")
       .select("id")
       .eq("profile_code", talentSite.profileCode)
       .is("deleted_at", null)
       .maybeSingle();
-    talentProfileId = typeof data?.id === "string" ? data.id : null;
+    if (profileLookupError) {
+      logServerError("support.guestContact.talentProfileLookup", profileLookupError);
+    } else {
+      talentProfileId = typeof data?.id === "string" ? data.id : null;
+    }
   }
 
   const metadata: Record<string, unknown> = {
