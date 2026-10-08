@@ -89,21 +89,29 @@ export async function loadSoloOwnerTalentCurrency(
   tenantId: string,
 ): Promise<string | null> {
   try {
-    const { data: ag } = await supabase
+    const { data: ag, error: agErr } = await supabase
       .from("agencies")
       .select("workspace_type")
       .eq("id", tenantId)
       .maybeSingle();
+    if (agErr) {
+      logServerError("offer-currency-seller.solo_owner.agency", agErr);
+      return null;
+    }
     if ((ag as { workspace_type?: string } | null)?.workspace_type !== "talent") return null;
-    const { data: owners } = await supabase
+    const { data: owners, error: ownersErr } = await supabase
       .from("agency_memberships")
       .select("profile_id")
       .eq("tenant_id", tenantId)
       .eq("role", "owner")
       .eq("status", "active");
+    if (ownersErr) {
+      logServerError("offer-currency-seller.solo_owner.owners", ownersErr);
+      return null;
+    }
     const ownerIds = (owners ?? []).map((o) => (o as { profile_id: string }).profile_id);
     if (ownerIds.length !== 1) return null;
-    const { data: tp } = await supabase
+    const { data: tp, error: tpErr } = await supabase
       .from("talent_profiles")
       .select("default_currency")
       .eq("user_id", ownerIds[0])
@@ -111,6 +119,10 @@ export async function loadSoloOwnerTalentCurrency(
       .is("deleted_at", null)
       .limit(1)
       .maybeSingle();
+    if (tpErr) {
+      logServerError("offer-currency-seller.solo_owner.talent", tpErr);
+      return null;
+    }
     return normalizeCurrencyCode((tp as { default_currency?: string | null } | null)?.default_currency);
   } catch (err) {
     logServerError("offer-currency-seller.solo_owner", err);
@@ -124,7 +136,11 @@ export async function loadWorkspaceDefaultCurrency(
   tenantId: string,
 ): Promise<string | null> {
   try {
-    const { data } = await supabase.from("agencies").select("default_currency").eq("id", tenantId).maybeSingle();
+    const { data, error } = await supabase.from("agencies").select("default_currency").eq("id", tenantId).maybeSingle();
+    if (error) {
+      logServerError("offer-currency-seller.workspace_default", error);
+      return null;
+    }
     return normalizeCurrencyCode((data as { default_currency?: string | null } | null)?.default_currency);
   } catch (err) {
     logServerError("offer-currency-seller.workspace_default", err);
