@@ -34,3 +34,11 @@ Step 5 repro: sign out, `/api/dev/signin?email=<user>&next=/`; landing takes 17-
 - Code send error: yes, the isolated hook. Supabase answers `Hook requires authorization token`; UI shows "No pudimos enviar tu codigo" and, after repeats, "Demasiados intentos" (email rate limit exceeded, 6 in the log). Spec falls back to createUser + dev sign-in.
 - Silent hang: the build waits the full 180 s on the arrival screen before the test sees the failure. Proposed fail-fast: the build should surface `onb-arrival-failed` as soon as `verifyLive` reports a non-OK check (it logs it within seconds), and the spec should poll that testid at 20 s granularity and abort after 60 s without progress.
 - Harness: after the first dev boot, `/api/dev/signin` answered 404 for the whole first attempt (all 9 tests failed step 2, "dev sign-in never answered 307"); a clean restart of the dev stack fixed it (matches the next.config.ts note on Edge env). Run 1 evidence discarded.
+
+## Env run (Para mi, desktop, AI provider vars exported)
+- Verdict: ENV. The build still fails (site_publish_failed, "Could not read your site", talent:no_url) but now in about 8 s, not 180 s.
+- Cause in the log: `column talent_sites.custom_palette does not exist` (migration 20261231287000) and `column talent_profiles.is_demo does not exist` (migration 20261231298000). The isolated project fxlankepwnvelxjrahwk is behind the repo migrations.
+- Steps: 1 front door PASS, 2 PASS, 3 FAIL (theme_design_slug null), 4 FAIL, 5 FAIL (dashboard landing 248 s... cold compile), 6 FAIL.
+- C1-11: FAIL, Servicios did not show a category control (no "Seguimos intentando" wording captured this run); same missing-schema family.
+- Next: apply the missing migrations to the isolated project only, rerun.
+- Details: env-run-myself-desktop.md
