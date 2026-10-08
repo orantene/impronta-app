@@ -15,8 +15,10 @@ import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
  *
  * So before creating one, look for the trigger's order on the same inquiry
  * with the offer's own total and currency (any status but cancelled: a paid or
- * refunded one is still THE order), and adopt it by stamping the pay path's
- * key on it, so the next call finds it by key.
+ * refunded one is still THE order), that NO key has claimed yet, and adopt it
+ * by stamping the pay path's key on it, so the next call finds it by key.
+ * Two offers at the same price on one inquiry therefore get two orders: the
+ * first offer's pay path claims its order, which the second can never adopt.
  */
 export async function findAdoptableOfferOrder(
   admin: SupabaseClient,
@@ -29,7 +31,11 @@ export async function findAdoptableOfferOrder(
     .eq("currency", input.currency)
     .eq("total_cents", input.totalCents)
     .neq("status", "cancelled")
-    .order("created_at", { ascending: true })
+    // Never an order another offer's pay path already claimed (it stamped its
+    // own key), and the NEWEST unclaimed one: the trigger builds for the latest
+    // accepted offer.
+    .is("source_page", null)
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) {
