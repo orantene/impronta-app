@@ -12,3 +12,23 @@ export function relTime(iso: string, nowMs = Date.now()): string {
   if (hours < 24) return `${hours}h`;
   return `${Math.floor(hours / 24)}d`;
 }
+
+/**
+ * Day divider label for a support thread ("7 oct 2026" / "Oct 7, 2026").
+ * `dayKey` is the UTC "YYYY-MM-DD" the thread groups by; it was shown raw.
+ * Formats in UTC so the label always matches the grouping key.
+ */
+export function formatSupportDay(dayKey: string, locale: string): string {
+  const d = new Date(`${dayKey}T00:00:00Z`);
+  if (!Number.isFinite(d.getTime())) return dayKey;
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(d);
+  } catch {
+    return dayKey;
+  }
+}

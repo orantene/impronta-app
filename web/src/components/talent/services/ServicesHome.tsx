@@ -1,5 +1,6 @@
 "use client";
 
+import { attentionSummary } from "./attention-summary";
 import { useEffect, useMemo, useState } from "react";
 import {
   deleteTalentOfferingForever,
@@ -495,7 +496,7 @@ export function ServicesHome({
       {attentionTotal > 0 && filter !== "attention" && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-[12px] border border-admin-border-soft bg-white px-4 py-3 text-[13px]">
           <p>
-            {attentionTotal} {copy.t("items need attention.")} {attention.noPhoto} {copy.t("have no photo")}, {attention.noPrice} {copy.t("have no price yet")}, {attention.soldOut} {copy.t("is sold out.")} {copy.t("Some have more than one of these.")}
+            {attentionSummary({ total: attentionTotal, ...attention }, copy.locale)}
           </p>
           <button type="button" className="font-semibold text-admin-brand" onClick={() => setFilter("attention")}>
             {copy.t("Show them")}

@@ -211,7 +211,6 @@ import { TalentOfferingsManager } from "@/components/talent/services/TalentOffer
 import { ProfileReviewsEditor } from "./profile-shell-modules/profile-reviews";
 import { ProfileHeroTextRows } from "./profile-shell-modules/profile-hero-text-rows";
 import {
-  ProfileShellSaveErrorBanner,
   ProfileShellSectionSaveHint,
   ProfileShellUnsavedBanner,
 } from "./profile-shell-modules/profile-shell-save-hints";
@@ -221,6 +220,7 @@ import { setTalentLanguages } from "@/lib/server-actions/admin-talent-languages"
 import type { TalentLanguageInput } from "@/lib/server-actions/admin-talent-languages.types";
 import {
   formatProfileShellSaveFailures,
+  localizeProfileShellSaveError,
   reportProfileShellSaveWarnings,
   runProfileShellSaveSteps,
   type ProfileShellSaveStepResult,
@@ -2967,7 +2967,7 @@ export function TalentProfileShellDrawer() {
               <strong className="font-bold">
                 {copy.isSpanish ? "No se pudo guardar. " : "Couldn’t save. "}
               </strong>
-              {saveError}
+              {localizeProfileShellSaveError(saveError, copy.t)}
             </span>
             {createGateTarget && (
               <button
@@ -3406,7 +3406,6 @@ export function TalentProfileShellDrawer() {
                 lives in-form because it's a richer onboarding moment. */}
             <div data-pshell-form-banners>
               <ProfileShellUnsavedBanner visible={dirty} />
-              <ProfileShellSaveErrorBanner message={saveStatus === "error" ? saveError : null} />
             </div>
             {completeness < 35 && !localStorage.getItem("tulala.welcome.dismissed." + (payload.talentId ?? "")) && (
               <div data-pshell-form-banners>

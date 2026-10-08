@@ -30,7 +30,9 @@ test("talent builder R3 strings have Spanish", () => {
 
 test("conflict toast no longer shows the VERSION CONFLICT code or undo-reset jargon", () => {
   const src = readFileSync(join(__dirname, "edit-shell.tsx"), "utf8");
-  assert.match(src, /isConflict \? null : operationLabel/);
+  // The headline (operation label) is hidden on a conflict; the plain reason comes from describeMutationError.
+  assert.match(src, /isConflict \? null : \(/);
+  assert.match(src, /described\.headline/);
   assert.doesNotMatch(src, /Your unsaved local changes are discarded and undo history resets/);
 });
 
@@ -59,7 +61,8 @@ test("undo-reset toast is plain and translated at display", () => {
   assert.match(ctx, /We loaded the latest version\. Undo history started fresh\./);
   assert.doesNotMatch(ctx, /Undo history was reset/);
   const shell = readFileSync(join(__dirname, "edit-shell.tsx"), "utf8");
-  assert.match(shell, /t\(mutationError\.message\)/);
+  assert.match(shell, /describeMutationError\(\{/);
+  assert.match(shell, /described\.reason/);
   assert.equal(
     ES_TALENT_CHROME_TEXT["We loaded the latest version. Undo history started fresh."],
     "Cargamos la versión más reciente. El historial de deshacer empezó de nuevo.",

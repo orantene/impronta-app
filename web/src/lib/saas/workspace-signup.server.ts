@@ -44,6 +44,7 @@ import {
 import { trackSignupCompleted } from "@/lib/analytics/conversion-events";
 import { pickSignupPreset } from "@/lib/words/signup-preset";
 import { forgetUserTenantMemberships } from "@/lib/saas/tenant";
+import { workspaceLocaleSettingsForFlow } from "./workspace-signup-locale";
 
 type MarketingLeadRow = {
   id: string;
@@ -121,19 +122,18 @@ async function ensureWorkspaceScaffold(params: {
   audience?: "operator" | "agency" | "organization" | "business";
   /** Signup blurb, parked on the workspace for the AI "describe your page" door. */
   businessDescription?: string | null;
+  /** TUL-117: the /start flow language, stored as the tenant's default. Null keeps `en`. */
+  locale?: string | null;
 }): Promise<void> {
-  // READ-AFTER-WRITE: this whole trampoline executes inside a Server Component
-  // render (`/onboarding/workspace`), where Next memoizes identical fetch GETs
-  // for the lifetime of the render. The starter seed INSERTs the homepage row
-  // and then re-reads it under the same PostgREST URL several times (its own
-  // read, plus the CAS reads inside saveHomepageDraftComposition and
-  // publishHomepage). With the memoized client every one of those reads got the
-  // pre-INSERT empty body — which is why 4/4 rehearsal signups shipped an
-  // unpublished, section-less storefront. See createUncachedServiceRoleClient.
+  // READ-AFTER-WRITE: this runs inside a Server Component render, where Next
+  // memoizes identical fetch GETs, so the starter seed's re-reads of the row it
+  // just INSERTed came back empty (4/4 rehearsal signups shipped an unpublished,
+  // section-less storefront). See createUncachedServiceRoleClient.
   const admin = createUncachedServiceRoleClient();
   if (!admin) return;
 
   const publicName = params.displayName.trim() || "New Workspace";
+  const flowLocale = workspaceLocaleSettingsForFlow(params.locale);
 
   const { error: identityError } = await admin
     .from("agency_business_identity")
@@ -141,6 +141,10 @@ async function ensureWorkspaceScaffold(params: {
       {
         tenant_id: params.tenantId,
         public_name: publicName,
+        ...(flowLocale && {
+          default_locale: flowLocale.defaultLocale,
+          supported_locales: flowLocale.supportedLocales,
+        }),
       },
       {
         onConflict: "tenant_id",
@@ -457,6 +461,8 @@ export async function provisionWorkspaceFromLead(params: {
   userId: string;
   userEmail: string | null | undefined;
   profile: AccessProfileWithDisplayName | null;
+  /** TUL-117: the /start flow language. Omitted by legacy /get-started (tenant stays `en`). */
+  locale?: string | null;
 }): Promise<ProvisionWorkspaceResult> {
   if (!params.leadId) {
     return {
@@ -539,6 +545,7 @@ export async function provisionWorkspaceFromLead(params: {
         actorProfileId: params.userId,
         audience: lead.audience,
         businessDescription: lead.business_description,
+        locale: params.locale,
       });
       return finalizeProvisionResult({
         lead,
@@ -572,6 +579,7 @@ export async function provisionWorkspaceFromLead(params: {
       actorProfileId: params.userId,
       audience: lead.audience,
       businessDescription: lead.business_description,
+      locale: params.locale,
     });
     await attachLeadToTenant({
       leadId: lead.id,
@@ -615,13 +623,10 @@ export async function provisionWorkspaceFromLead(params: {
   }
 
   let slug = await generateAvailableWorkspaceSlug(desiredSlug);
-  // Release THIS lead's own subdomain reservation FIRST — before the namespace
-  // check below and before the insert further down. Both consult
-  // `platform_subdomain_label_taken`, which cannot tell a lead's own reservation
-  // from a rival's, so a reservation still held here makes the signup collide
-  // with ITSELF: the check renames the workspace to `<slug>-2` and the trigger
-  // would reject the insert. The reservation exists to hold the label between
-  // form submit and provisioning, and that window closes here.
+  // Release THIS lead's own subdomain reservation FIRST, before the namespace
+  // check and the insert: `platform_subdomain_label_taken` cannot tell a lead's
+  // own reservation from a rival's, so holding it here made the signup collide
+  // with ITSELF (renamed to `<slug>-2`, then rejected by the trigger).
   await releaseSubdomainReservationForLead(admin, lead.id);
 
   // A workspace name and a talent site address share ONE namespace, so the name
@@ -672,7 +677,7 @@ export async function provisionWorkspaceFromLead(params: {
       kind: "agency",
       status: "active",
       template_key: "default",
-      supported_locales: ["en"],
+      supported_locales: workspaceLocaleSettingsForFlow(params.locale)?.supportedLocales ?? ["en"],
       onboarding_completed_at: now,
       // A local business runs the business-shaped workspace (no roster to
       // represent); everyone else stays talent-shaped.
@@ -772,15 +777,11 @@ export async function provisionWorkspaceFromLead(params: {
     tenantId: agency.id,
     displayName: agency.display_name,
     actorProfileId: params.userId,
-    // THE FIRST-RUN PATH. This is the only one of the three scaffold calls a
-    // real new customer takes, and it was the only one that omitted the
-    // audience — so `buildFreeStarterEntries` silently defaulted every fresh
-    // workspace to "agency" and a solo photographer's homepage announced that
-    // they "represent makeup, hair, photography, and styling professionals".
-    // The two crash-recovery calls above passed it, which is exactly why this
-    // shipped: the tests exercised the pure builder, never this wiring.
+    // THE FIRST-RUN PATH: the only scaffold call a real new customer takes, so
+    // it must carry the audience (a solo photographer got an agency homepage).
     audience: lead.audience,
     businessDescription: lead.business_description,
+    locale: params.locale,
   });
   await attachLeadToTenant({
     leadId: lead.id,
