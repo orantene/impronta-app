@@ -69,7 +69,7 @@ describe("buildLiveDesignChangeSummary", () => {
   });
 
   it("the dialog shows the colours line under What changes, before What stays", () => {
-    const src = readFileSync(join(process.cwd(), "src/components/talent/site/maison-setup/PublishDesignDialog.tsx"), "utf8");
+    const src = readFileSync(join(process.cwd(), "src/components/talent/site/maison-setup/DesignChangeSummaryBody.tsx"), "utf8");
     const at = (needle: string) => src.indexOf(needle);
     assert.ok(at("maison-design-changes") > 0 && at("maison-design-colors-note") > at("maison-design-changes"));
     assert.ok(at("maison-design-stays") > at("maison-design-colors-note"));

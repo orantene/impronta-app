@@ -7,6 +7,7 @@
  */
 
 import type { LiveDesignChangeSummary } from "./live-design-change";
+import { DesignChangeSummaryBody } from "./DesignChangeSummaryBody";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 
 type Props = {
@@ -61,22 +62,7 @@ export function PublishDesignDialog({
           </button>
         </div>
 
-        <p className="mt-3 text-[12px] font-semibold uppercase tracking-wide text-admin-ink-dim">
-          {es ? "Qué cambia" : "What changes"}
-        </p>
-        <p className="mt-1 text-[13px] leading-relaxed text-admin-ink" data-testid="maison-design-changes">
-          {summary.changes}
-        </p>
-        <p className="mt-1 text-[13px] leading-relaxed text-admin-ink" data-testid="maison-design-colors-note">
-          {summary.colorsNote}
-        </p>
-
-        <p className="mt-4 text-[12px] font-semibold uppercase tracking-wide text-admin-ink-dim">
-          {es ? "Qué se queda" : "What stays"}
-        </p>
-        <p className="mt-1 text-[13px] leading-relaxed text-admin-ink-muted" data-testid="maison-design-stays">
-          {summary.stays}
-        </p>
+        <DesignChangeSummaryBody locale={locale} summary={summary} />
 
         {error ? (
           <p className="mt-3 text-[12px] text-red-800" data-testid="maison-publish-design-error">

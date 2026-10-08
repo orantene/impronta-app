@@ -25,6 +25,12 @@ import {
 import { ThemeGallery } from "./ThemeGallery";
 import { themeGalleryCopy, type ThemeGalleryCopyKey, type ThemeGalleryLocale } from "./theme-gallery-i18n";
 import type { ThemeGalleryApplyInput, ThemeGalleryApplyResult } from "./types";
+import { ThemePickDraftDialog } from "./ThemePickDraftDialog";
+import {
+  buildLiveDesignChangeSummary,
+  paletteDisplayName,
+  type LiveDesignChangeSummary,
+} from "../maison-setup/live-design-change";
 import { runThemeApply } from "@/lib/talent-site/history/apply-busy";
 
 /** Localized copy for an action error code (the action's `error` string is an
@@ -56,6 +62,10 @@ export function ManagerThemeGallery({
   wrap: (gallery: React.ReactNode) => React.ReactNode;
 }) {
   const [bootstrap, setBootstrap] = useState<ThemeGalleryBootstrap | null>(null);
+  const [ask, setAsk] = useState<{
+    summary: LiveDesignChangeSummary;
+    resolve: (ok: boolean) => void;
+  } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -81,12 +91,22 @@ export function ManagerThemeGallery({
     // change never touches the Design (and never asks to replace content).
     const designToApply =
       designSlug && designSlug !== current.currentDesignSlug ? designSlug : undefined;
-    if (
-      designToApply &&
-      typeof window !== "undefined" &&
-      !window.confirm(themeGalleryCopy(locale, "confirmReplaceDesign"))
-    ) {
-      return { ok: false, cancelled: true };
+    if (designToApply) {
+      const summary = buildLiveDesignChangeSummary({
+        locale,
+        fromSlug: current.currentDesignSlug ?? null,
+        toSlug: designToApply,
+        paletteName: paletteDisplayName({
+          locale,
+          designSlug: designToApply,
+          lookSlug: lookSlug ?? current.currentLookSlug ?? null,
+          customPalette: null,
+        }),
+        counts: null,
+      });
+      const confirmed = await new Promise<boolean>((resolve) => setAsk({ summary, resolve }));
+      setAsk(null);
+      if (!confirmed) return { ok: false, cancelled: true };
     }
     if (designToApply) {
       const res = await runThemeApply(() => applySiteDesignAction({ designSlug: designToApply }));
@@ -116,6 +136,14 @@ export function ManagerThemeGallery({
           onApply={onApply}
         />,
       )}
+      {ask ? (
+        <ThemePickDraftDialog
+          locale={locale}
+          summary={ask.summary}
+          onConfirm={() => ask.resolve(true)}
+          onCancel={() => ask.resolve(false)}
+        />
+      ) : null}
     </>
   );
 }
