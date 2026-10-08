@@ -9,6 +9,7 @@ export type AllowEntry = [suffix: string, names: string[], reason: string];
 
 export const EXTRA_ALLOW: AllowEntry[] = [
   ["app/(workspace)/[tenantSlug]/admin/media/actions.ts", ["actionLoadTalentMediaBundleAll"], READ],
+  ["app/(workspace)/[tenantSlug]/admin/media/profile-shell-media-actions.ts", ["actionLoadProfileShellMedia", "actionLoadProfileShellAlbumPage"], READ],
   ["app/(workspace)/platform/admin/integrations/captcha-override-actions.ts", ["loadWorkspaceCaptchaOverrides"], READ],
   ["lib/server-actions/how-you-work.ts", ["loadHowYouWork"], READ],
   ["lib/site-admin/media/photo-caption-actions.ts", ["loadTalentPhotoCaptionLocalesAction"], READ],

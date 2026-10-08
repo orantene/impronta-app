@@ -22,6 +22,7 @@ import { eyebrowDuplicatesHeading } from "./portfolio-eyebrow";
 import { PORTFOLIO_FRAMED_CSS } from "./portfolio-framed-css";
 import { filterShotsForPortfolio } from "./portfolio-selection";
 import { buildPortfolioGallery, type PortfolioGallery } from "./portfolio-lightbox-logic";
+import { captionLanguageHint } from "./portfolio-caption-hint";
 import { PortfolioShotLink } from "./portfolio-shot-link";
 import { PORTFOLIO_WORK_ORDER_CSS, WorkOrderFigure } from "./portfolio-work-order";
 import { renderItalicMarkedTitle } from "./services-catalog-title";
@@ -155,6 +156,7 @@ function ShotFigure({
   magazineIndex,
   es,
   gallery,
+  captionHint,
 }: {
   shot: TalentPortfolioShot;
   /** A-06: every shot of this block, and where this one sits in it (lightbox next/back). */
@@ -170,7 +172,14 @@ function ShotFigure({
   /** Magazine: 1-based plate number shown as "01 · caption". */
   magazineIndex?: number;
   es?: boolean;
+  /** TUL-15: "(en español)" under a caption shown in another language than the visitor's. */
+  captionHint?: string | null;
 }) {
+  const hint = captionHint ? (
+    <small className="sb-portfolio-cap-hint" style={{ display: "block", opacity: 0.6, fontSize: "0.8em" }}>
+      {captionHint}
+    </small>
+  ) : null;
   const label =
     shot.caption?.trim() ||
     shot.offeringTitle?.trim() ||
@@ -212,10 +221,11 @@ function ShotFigure({
             {[String(magazineIndex).padStart(2, "0"), shot.caption?.trim() || serviceLine]
               .filter(Boolean)
               .join(" · ")}
+            {hint}
           </figcaption>
         ) : showCaptions && framed && (shot.caption?.trim() || shot.offeringTitle?.trim() || shot.offeringId) ? (
           <figcaption className="sb-portfolio-cap">
-            <span className="sb-portfolio-name">{shot.caption?.trim() || shot.offeringTitle?.trim() || null}</span>
+            <span className="sb-portfolio-name">{shot.caption?.trim() || shot.offeringTitle?.trim() || null}{hint}</span>
             {shot.offeringId ? (
               <>
                 <span className="sb-portfolio-arrow" aria-hidden="true">
@@ -228,6 +238,7 @@ function ShotFigure({
         ) : showCaptions && (shot.caption?.trim() || serviceLine) ? (
           <figcaption className="sb-portfolio-cap">
             {shot.caption?.trim() || null}
+            {hint}
             {serviceLine ? <span className="sb-portfolio-service">{serviceLine}</span> : null}
           </figcaption>
         ) : null}
@@ -253,6 +264,8 @@ export function renderPortfolioBlock(args: {
    */
   styleDataAttrs?: Record<string, string | undefined>;
   locale?: string;
+  /** The page's primary language: the language an unmapped caption is written in. */
+  primaryLocale?: string;
 }): ReactNode {
   const p = args.node.props;
   const layout = (p.layout ?? PORTFOLIO_DEFAULT_PROPS.layout) as PortfolioLayout;
@@ -282,7 +295,10 @@ export function renderPortfolioBlock(args: {
   const magazine = isChapter && p.edition === "magazine";
 
   const workOrder = layout === "work_order";
-  const galleryItems = buildPortfolioGallery(visible, (id) => byOffering.has(id), es);
+  const galleryItems = buildPortfolioGallery(visible, (id) => byOffering.has(id), es, showCaptions ? (shot) => {
+    const full = visible.find((v) => v.id === shot.id);
+    return captionLanguageHint({ caption: full?.caption, captionI18n: full?.captionI18n, locale: args.locale, primaryLocale: args.primaryLocale });
+  } : undefined);
   const shotNodes = visible.map((shot, index) => workOrder ? (
     <WorkOrderFigure key={shot.id} shot={shot} />
   ) : (
@@ -297,6 +313,16 @@ export function renderPortfolioBlock(args: {
       framed={framed}
       magazineIndex={magazine ? index + 1 : undefined}
       es={es}
+      captionHint={
+        showCaptions
+          ? captionLanguageHint({
+              caption: shot.caption,
+              captionI18n: shot.captionI18n,
+              locale: args.locale,
+              primaryLocale: args.primaryLocale,
+            })
+          : null
+      }
       gallery={{ items: galleryItems, index }}
     />
   ));

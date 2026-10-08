@@ -2,6 +2,8 @@ import { resolveClientAccountMount } from "@/lib/client-account/gate";
 import type { BuilderNode } from "@/lib/site-admin/builder-node";
 import { withAccountItem } from "@/lib/talent-site/theme-catalog/section-kit-shell";
 
+import { withSocialItem } from "./header-social-item";
+
 /**
  * Split the shell tree into HEADER and FOOTER node sets. The default shell
  * (`buildDefaultShellTree`) emits exactly two roots — a header container then a
@@ -35,8 +37,10 @@ function splitShellRaw(shellTree: BuilderNode[]): [BuilderNode[], BuilderNode[]]
  * into design payloads: authored-overlay hashes and published snapshots stay put,
  * and with the flag off this is the identical split.
  */
-export function splitShell(shellTree: BuilderNode[]): [BuilderNode[], BuilderNode[]] {
-  const [header, footer] = splitShellRaw(shellTree);
+export function splitShell(shellTree: BuilderNode[], opts: { webOfficeSocial?: boolean } = {}): [BuilderNode[], BuilderNode[]] {
+  const [raw, footer] = splitShellRaw(shellTree);
+  // TUL-240: paid Web Office only, render time only (the item shows what `siteChrome.social` carries).
+  const header = opts.webOfficeSocial ? raw.map(withSocialItem) : raw;
   if (!resolveClientAccountMount("talent").headerItem) return [header, footer];
   return [header.map((n) => withAccountItem(n) ?? n), footer];
 }

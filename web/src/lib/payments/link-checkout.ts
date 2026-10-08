@@ -27,13 +27,16 @@ import {
   expireCheckoutSession,
   retrieveCheckoutSessionLink,
 } from "@/lib/payments/stripe-checkout";
+import { normalizeCurrencyCode } from "@/lib/inquiry/offer-currency";
 import { resolvePayeeName } from "@/lib/payments/payee-name";
 import { PAYMENT_LINK_METADATA_KEY } from "@/lib/payments/link-settlement";
 
 
 export type OpenPaymentLinkCheckoutResult =
   | { ok: true; url: string }
-  | { ok: false; reason: "not_found" | "expired" | "not_open" | "provider_unavailable" | "unavailable" };
+  | { ok: false; reason: "not_found" | "expired" | "not_open" | "provider_unavailable" | "unavailable" }
+  /** TUL-284: the link is priced in a currency other than its order's. Nothing was opened or charged. */
+  | { ok: false; reason: "currency_mismatch"; linkCurrency: string; orderCurrency: string };
 
 export type OpenPaymentLinkCheckoutDeps = {
   createCheckoutSession?: typeof createCheckoutSessionForTransaction;
@@ -160,6 +163,15 @@ async function openOnce(
   // A cancelled sale (the booking was cancelled) takes no more money, even
   // when its link was not taken down: the customer sees "no longer available".
   if ((order as { status?: string | null }).status === "cancelled") return { ok: false, reason: "not_open" };
+  // A link in one currency paying an order priced in another would put an
+  // amount across currencies. Refuse with a specific reason before any money
+  // row or Stripe session exists (the charge guard would refuse it too, but
+  // only as a generic "unavailable").
+  const linkCurrency = normalizeCurrencyCode(link.currency);
+  const orderCurrency = normalizeCurrencyCode(order.currency);
+  if (linkCurrency && orderCurrency && linkCurrency !== orderCurrency) {
+    return { ok: false, reason: "currency_mismatch", linkCurrency, orderCurrency };
+  }
   const currency = link.currency || order.currency;
   const amountCents = Number(link.amount_cents);
 

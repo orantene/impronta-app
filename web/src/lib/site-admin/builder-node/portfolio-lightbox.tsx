@@ -97,6 +97,16 @@ export function PortfolioLightbox({
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- public CDN URL */}
       <img src={item.src} alt={item.alt} style={{ maxWidth: "100%", maxHeight: "74vh", objectFit: "contain", borderRadius: 12 }} />
+      {item.caption ? (
+        <span data-portfolio-lightbox-caption style={{ color: "#fff", fontSize: 14, textAlign: "center", maxWidth: "min(92vw, 640px)" }}>
+          {item.caption}
+          {item.captionHint ? (
+            <small data-portfolio-lightbox-caption-hint style={{ display: "block", opacity: 0.65, fontSize: "0.8em" }}>
+              {item.captionHint}
+            </small>
+          ) : null}
+        </span>
+      ) : null}
       {count > 1 ? (
         <span data-portfolio-lightbox-count aria-live="polite" style={{ color: "#fff", fontSize: 13, opacity: 0.8 }}>
           {galleryCounter(index, count)}

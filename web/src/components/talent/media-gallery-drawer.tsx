@@ -36,6 +36,12 @@ export interface MediaGalleryDrawerProps {
   tenantSlug: string;
   assets: MediaAsset[];
   onAssetsChange: (assets: MediaAsset[]) => void;
+  /** Paging (TUL-228): more gallery rows exist on the server beyond `assets`. */
+  hasMore?: boolean;
+  /** Total live gallery rows, for the "showing x of y" hint. */
+  totalCount?: number;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
   /** Which slot to highlight when opened. */
   focusSlot?: "avatar" | "hero" | "gallery";
   // Server action wrappers — caller provides these so we don't import server actions directly
@@ -218,6 +224,10 @@ export function MediaGalleryDrawer({
   talentId,
   assets,
   onAssetsChange,
+  hasMore = false,
+  totalCount = 0,
+  loadingMore = false,
+  onLoadMore,
   focusSlot,
   onSetAvatar,
   onSetHero,
@@ -500,6 +510,8 @@ export function MediaGalleryDrawer({
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     // Disable drag in bulk mode
     if (isBulkMode) return;
+    // A partial list would renumber sort_order over unloaded rows.
+    if (hasMore) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = assets.findIndex((a) => a.id === active.id);
@@ -519,7 +531,7 @@ export function MediaGalleryDrawer({
         }
       });
     }
-  }, [assets, onAssetsChange, onReorderAssets, isBulkMode]);
+  }, [assets, onAssetsChange, onReorderAssets, isBulkMode, hasMore]);
 
   const handleDriveImport = useCallback(async () => {
     if (!driveUrl.trim()) return;
@@ -1007,6 +1019,33 @@ export function MediaGalleryDrawer({
                   </div>
                 </SortableContext>
               </DndContext>
+            )}
+            {hasMore && onLoadMore && (
+              <div
+                data-testid="gallery-load-more"
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "16px 0 4px" }}
+              >
+                <button
+                  type="button"
+                  onClick={onLoadMore}
+                  disabled={loadingMore}
+                  style={{
+                    fontFamily: F, fontSize: 13, fontWeight: 600, color: C.ink,
+                    background: C.card, border: `1px solid ${C.border}`, borderRadius: 999,
+                    padding: "8px 18px", cursor: loadingMore ? "default" : "pointer",
+                    opacity: loadingMore ? 0.6 : 1,
+                  }}
+                >
+                  {loadingMore
+                    ? t("admin.talent.edit.mediaGallery.loadMoreLoading")
+                    : t("admin.talent.edit.mediaGallery.loadMore")}
+                </button>
+                <span style={{ fontFamily: F, fontSize: 11, color: C.inkMuted, textAlign: "center" }}>
+                  {t("admin.talent.edit.mediaGallery.loadMoreHint")
+                    .replace("{shown}", String(assets.length))
+                    .replace("{total}", String(totalCount))}
+                </span>
+              </div>
             )}
           </div>
 

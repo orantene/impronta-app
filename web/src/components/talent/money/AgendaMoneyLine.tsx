@@ -1,18 +1,10 @@
 "use client";
 
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { useRouter } from "next/navigation";
 
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import type { MoneyAgendaRow } from "@/lib/talent/money-home";
-
-function money(cents: number, currency: string): string {
-  const amount = Math.round(cents) / 100;
-  const formatted = amount.toLocaleString(undefined, {
-    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  });
-  return `$${formatted} ${currency}`;
-}
 
 function day(iso: string | null, locale: string): string {
   if (!iso) return "";
@@ -40,6 +32,7 @@ export function AgendaMoneyLine({
   refundBusy?: boolean;
 }) {
   const copy = useDashboardText();
+  const money = (c: number, cur: string) => formatDashboardMoneyCents(c, cur, copy.locale);
   const t = copy.t;
   const router = useRouter();
   const warn = row.kind === "refund_pending" || row.overdue;

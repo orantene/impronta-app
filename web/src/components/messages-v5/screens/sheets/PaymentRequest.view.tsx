@@ -12,9 +12,8 @@
  * of importing an engine call itself) while this sheet's wrapper cannot.
  */
 
-import { formatCentsUSD } from "@/lib/bookings/commission";
 import type { MessagingRefusal } from "@/lib/messaging/types";
-import { dollarsToCents, type AmountKind, type AmountOption, type PaymentTargetChip } from "@/lib/messages-v5/payment-view";
+import { dollarsToCents, formatMinorAmount, type AmountKind, type AmountOption, type PaymentTargetChip } from "@/lib/messages-v5/payment-view";
 
 import { fill, type KitCopy } from "../../kit/copy";
 import { OptionRow } from "../../kit/OptionRow";
@@ -32,8 +31,8 @@ export const OUTSIDE_METHODS: readonly OutsideMethod[] = ["cash", "transfer", "t
 /** The concrete cents figure for the picked amount kind. "Other" parses the
  * typed dollars; deposit/full read the offer-derived option. Null when the
  * kind has no resolvable figure yet (no offer, or nothing typed). */
-export function amountCentsForKind(kind: AmountKind, options: readonly AmountOption[], otherInput: string): number | null {
-  if (kind === "other") return dollarsToCents(otherInput);
+export function amountCentsForKind(kind: AmountKind, options: readonly AmountOption[], otherInput: string, currencyCode?: string | null): number | null {
+  if (kind === "other") return dollarsToCents(otherInput, currencyCode);
   return options.find((o) => o.kind === kind)?.amountCents ?? null;
 }
 
@@ -48,6 +47,8 @@ export type PaymentRequestViewProps = {
   readonly selectedTargetId: string | null;
   readonly onSelectTarget: (recordId: string) => void;
   readonly canMintLink: boolean;
+  /** ISO code of the accepted offer; absent = USD (2 decimals). */
+  readonly currencyCode?: string | null;
   readonly amountOptions: readonly AmountOption[];
   readonly amountKind: AmountKind;
   readonly onSelectAmountKind: (kind: AmountKind) => void;
@@ -79,6 +80,7 @@ export function PaymentRequestView(props: PaymentRequestViewProps) {
     selectedTargetId,
     onSelectTarget,
     canMintLink,
+    currencyCode,
     amountOptions: options,
     amountKind,
     onSelectAmountKind,
@@ -106,9 +108,9 @@ export function PaymentRequestView(props: PaymentRequestViewProps) {
       : opt.kind === "full"
         ? c.amountFull
         : c.amountOther;
-  const amountSubFor = (opt: AmountOption): string | null => (opt.amountCents != null ? formatCentsUSD(opt.amountCents) : null);
-  const pickedAmountCents = amountCentsForKind(amountKind, options, otherAmountInput);
-  const messagePreview = amountKind === "full" ? c.messagePreviewFull : fill(c.messagePreview, { amount: pickedAmountCents != null ? formatCentsUSD(pickedAmountCents) : "" });
+  const amountSubFor = (opt: AmountOption): string | null => (opt.amountCents != null ? formatMinorAmount(opt.amountCents, currencyCode) : null);
+  const pickedAmountCents = amountCentsForKind(amountKind, options, otherAmountInput, currencyCode);
+  const messagePreview = amountKind === "full" ? c.messagePreviewFull : fill(c.messagePreview, { amount: pickedAmountCents != null ? formatMinorAmount(pickedAmountCents, currencyCode) : "" });
 
   return (
     <Sheet

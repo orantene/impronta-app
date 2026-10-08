@@ -22,6 +22,7 @@ import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { resolveTransactionChargeCurrency } from "@/lib/bookings/charge-currency";
 import { calculateTransactionAmountsForBasisPoints } from "@/lib/bookings/commission";
 import { loadPlatformTakeBps } from "@/lib/billing/platform-take-rate";
 import { applyBookingPaymentSync } from "@/lib/bookings/booking-payment-sync";
@@ -454,6 +455,12 @@ export async function createBookingTransaction(opts: {
             await loadPlatformTakeBps(opts.planTier),
           );
 
+    // Fail closed: a charge is never drafted in a guessed currency.
+    const chargeCurrency = await resolveTransactionChargeCurrency(sb, opts.bookingId, opts.currency);
+    if (!chargeCurrency) {
+      return { ok: false, error: "This booking has no readable currency, so a charge cannot be created." };
+    }
+
     const { data, error } = await sb
       .from("booking_transactions")
       .insert({
@@ -466,7 +473,7 @@ export async function createBookingTransaction(opts: {
         platform_fee_basis_points: amounts.feeBasisPoints,
         platform_fee_cents:       amounts.feeCents,
         net_amount_cents:         amounts.netCents,
-        currency:                 opts.currency ?? "USD",
+        currency:                 chargeCurrency,
         provider:                 "manual",
         status:                   "draft",
         checkout_type:            opts.checkoutType ?? "full",

@@ -41,6 +41,7 @@ import type { InquiryWorkflowPhase } from "@/lib/inquiry/inquiry-lifecycle";
 import { launcherLabelForCta } from "@/lib/inquiry/launcher-cta-label";
 
 import { setChatPresence } from "@/components/public-booking/chat-presence-store";
+import { isArrivalThumbFrame } from "@/components/edit-chrome/embedded-frame";
 import { ChatHelpBubble } from "./ChatHelpBubble";
 import { MiniChatPanel } from "./MiniChatPanel";
 import { LauncherProjectPicker } from "./LauncherProjectPicker";
@@ -545,6 +546,7 @@ export function TalentProfileChatLauncher({
   }, [presencePhoto, talentFirst, unseenAgencyReply, open]);
 
   if (!mounted) return null;
+  if (isArrivalThumbFrame(window)) return null; // arrival thumbnail is a picture (DS-44)
 
   // Finding #4: activate the already-coded A.9 mobile geometry (32px avatars,
   // -11px overlap, max 2, always-visible 18px X) on touch devices. Read once at

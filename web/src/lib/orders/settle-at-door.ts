@@ -151,6 +151,16 @@ export async function settleAtDoor(
     return { ok: false, reason: "not_held" };
   }
 
+  // The money is recorded in the ORDER's currency. A caller currency that
+  // disagrees with it is refused, and an order with no currency cannot be
+  // settled on a guess (no silent "usd").
+  const orderCurrency = (row.currency ?? "").trim().toLowerCase();
+  const callerCurrency = (input.currency ?? "").trim().toLowerCase();
+  const chargeCurrency = orderCurrency || callerCurrency;
+  if (!chargeCurrency || (orderCurrency && callerCurrency && orderCurrency !== callerCurrency)) {
+    return { ok: false, reason: "amount" };
+  }
+
   const { data: prior, error: priorErr } = await admin
     .from("booking_transactions")
     .select("id, status")
@@ -184,7 +194,7 @@ export async function settleAtDoor(
   const shell = await bookingShellForOrder(admin, {
     tenantId: input.tenantId,
     orderId: row.id,
-    currency: input.currency || row.currency || "usd",
+    currency: chargeCurrency,
     revenue: input.amountCents / 100,
     contact: input.contact,
   });
@@ -222,7 +232,7 @@ export async function settleAtDoor(
       platform_fee_basis_points: 0,
       platform_fee_cents: 0,
       net_amount_cents: input.amountCents,
-      currency: input.currency || row.currency || "usd",
+      currency: chargeCurrency,
       provider: "manual",
       provider_reference: input.idempotencyKey,
       status: "draft",

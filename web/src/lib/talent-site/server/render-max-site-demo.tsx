@@ -65,11 +65,13 @@ export function withHeaderSiteChrome(
   locales: readonly string[] = [],
   /** Each code -> this page in that language (talent URL grammar). */
   hrefs?: Readonly<Record<string, string>>,
+  /** Paid Web Office only (TUL-240): the icons the header's `social` item shows. */
+  social: readonly { platform: string; href: string; label: string }[] = [],
 ): unknown {
   if (sectionTypeKey !== "site_header" || !sectionProps || typeof sectionProps !== "object") return sectionProps;
   const list = locales.length > 1 ? locales.slice(0, 4) : [];
   return {
     ...(sectionProps as Record<string, unknown>),
-    siteChrome: { demo: isDemo, ...(resolveClientAccountMount("talent").headerItem ? { account: true } : {}), locales: list, ...(list.length > 1 && hrefs ? { hrefs } : {}) },
+    siteChrome: { demo: isDemo, ...(resolveClientAccountMount("talent").headerItem ? { account: true } : {}), locales: list, ...(list.length > 1 && hrefs ? { hrefs } : {}), ...(social.length ? { social: [...social] } : {}) },
   };
 }

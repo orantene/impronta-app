@@ -9,7 +9,7 @@ import { localizeLanguageName } from "@/lib/i18n/language-names";
 
 type BioMap = Readonly<Record<string, string | null | undefined>> | null | undefined;
 
-const ENGLISH_NAME: Record<string, string> = {
+export const ENGLISH_NAME: Record<string, string> = {
   en: "English", es: "Spanish", fr: "French", it: "Italian", pt: "Portuguese",
   de: "German", nl: "Dutch", ru: "Russian", ar: "Arabic", zh: "Chinese",
   ja: "Japanese", ko: "Korean",
@@ -40,8 +40,8 @@ export function bioFallbackLanguage(
 }
 
 /**
- * The hint line for the visitor, or null when none is needed. Only for the
- * bio (long text), never for captions.
+ * The hint line for the visitor, or null when none is needed. The one hint style for the bio and for
+ * photo captions (and the lightbox caption).
  */
 export function bioLanguageHint(
   bioI18n: BioMap,

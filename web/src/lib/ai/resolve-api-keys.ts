@@ -8,6 +8,7 @@ import {
   type AiProviderRegistryKind,
 } from "@/lib/ai/ai-provider-repository";
 import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
+import { pickDefaultChatKind } from "@/lib/ai/default-chat-kind";
 
 function envOpenAi(): string | null {
   return process.env.OPENAI_API_KEY?.trim() || null;
@@ -80,6 +81,5 @@ export async function resolveDefaultRegistryKind(
   tenantId: string = DEFAULT_AI_TENANT_ID,
 ): Promise<AiProviderRegistryKind> {
   const def = await getDefaultProviderInstance(tenantId);
-  if (def && !def.disabled) return def.kind;
-  return "openai";
+  return pickDefaultChatKind(def, { anthropic: Boolean(envAnthropic()), openai: Boolean(envOpenAi()) });
 }

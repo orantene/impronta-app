@@ -46,6 +46,8 @@
 import type Stripe from "stripe";
 import { getStripe, getStripeFor, withObjectPlatformFallback, type StripeAccountKey } from "@/lib/stripe/client";
 import { recordChargePlatform, resolveSellerPlatformForTransaction } from "@/lib/stripe/charge-platform";
+import { checkTransactionChargeCurrency, type ChargeCurrencyGuard } from "@/lib/payments/seller-currency-guard";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { paymentsMockAllowed } from "@/lib/payments/mock-guard";
 import { logServerError } from "@/lib/server/safe-error";
 import { stripeCheckoutLocale } from "@/lib/i18n/vendor-locale";
@@ -167,9 +169,17 @@ export function checkoutFailureIsUncertain(err: unknown): boolean {
  */
 export async function createCheckoutSessionForTransaction(
   input: CheckoutSessionInput,
-  deps: { stripe?: Stripe | null; platform?: StripeAccountKey } = {},
+  deps: { stripe?: Stripe | null; platform?: StripeAccountKey; currencyGuard?: ChargeCurrencyGuard } = {},
 ): Promise<CheckoutSessionResult> {
   try {
+    // TUL-284: the charge currency must match the seller of record. Fails
+    // CLOSED on a seller-read error, before any platform or Stripe work. An
+    // injected stripe / platform (tests) skips it unless a guard is injected.
+    const guardFn = deps.currencyGuard ?? (deps.stripe !== undefined || deps.platform ? null : checkTransactionChargeCurrency);
+    if (guardFn) {
+      const check = await guardFn(createServiceRoleClient(), { transactionId: input.transactionId, currency: input.currency });
+      if (!check.ok) return { ok: false, error: check.message, uncertain: false };
+    }
     // The seller of record's platform decides which Stripe account takes the
     // charge (default 'us'). An injected client (tests) is used as-is.
     let platform: StripeAccountKey;

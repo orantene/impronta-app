@@ -29,36 +29,30 @@ import {
   type MediaOwnershipStamp,
 } from "@/lib/media/ownership";
 import { loadTalentMediaBundle, type TalentMediaBundle } from "@/lib/media/talent-media-bundle.server";
+import { authorizeTalentMediaRead } from "@/lib/media/talent-media-read-auth.server";
 import { checkTalentUploadQuota } from "@/lib/media/talent-storage-usage";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+
+import { downloadDriveFile, parseDriveUrl } from "./_drive-import-helpers";
+import type {
+  RegisterMediaResult,
+  UploadVariant,
+  StagedMediaMeta,
+  BulkAssignAssignment,
+  RegisterUploadedAssetInput,
+} from "./_media-action-types";
+
+export type {
+  RegisterMediaResult,
+  UploadVariant,
+  StagedMediaMeta,
+  BulkAssignAssignment,
+  RegisterUploadedAssetInput,
+} from "./_media-action-types";
 
 type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string };
 
 // ─── Upload and immediately register under a talent ───────────────────────────
-
-export type RegisterMediaResult =
-  | {
-      ok: true;
-      data: {
-        id: string;
-        publicUrl: string;
-        sourceMediaAssetId: string | null;
-        sortOrder: number;
-      };
-    }
-  | {
-      ok: false;
-      error: string;
-      /**
-       * Set when the refusal is a plan quota block rather than a transport
-       * failure. The signed-upload client wrapper retries a failed register
-       * through the legacy pipeline; a quota refusal must NOT be retried, or
-       * the talent sees an unrelated error and we do the work twice.
-       */
-      quotaBlocked?: boolean;
-    };
-
-export type UploadVariant = "gallery" | "card" | "hero" | "lightbox" | "polaroid" | "reel";
 
 /**
  * Legacy/no-JS fallback. Pipes the whole upload through a Vercel
@@ -796,14 +790,6 @@ export async function actionReorderMediaAssets(
 // admin can see thumbnails while deciding which talent each photo belongs to.
 // Step 2 is actionBulkAssignStagedMedia which creates all DB rows at once.
 
-export type StagedMediaMeta = {
-  width: number | null;
-  height: number | null;
-  fileSizeBytes: number;
-  mimeType: string;
-  originalFilename: string;
-};
-
 export type StagingUploadResult = ActionResult<{
   storagePath: string;
   publicUrl: string;
@@ -923,12 +909,6 @@ export async function actionCleanupStagedObjects(
 // Step 2: receives the full assignment list [{storagePath, talentProfileId}],
 // validates roster membership for every unique talent, then inserts all DB
 // rows in one shot (grouped sort_order per talent).
-
-export type BulkAssignAssignment = {
-  storagePath: string;
-  talentProfileId: string;
-  meta?: StagedMediaMeta;
-};
 
 export async function actionBulkAssignStagedMedia(
   assignments: BulkAssignAssignment[],
@@ -1399,23 +1379,6 @@ export async function actionLoadTalentGallery(
   return { ok: true, data: bundle.data.gallery.map((g) => ({ id: g.id, url: g.url, sortOrder: g.sortOrder })) };
 }
 
-/** Auth shared by both bundle loaders: roster staff OR the owning talent. */
-async function authorizeTalentMediaRead(
-  talentProfileId: string,
-): Promise<{ ok: true; admin: SupabaseClient } | { ok: false; error: string }> {
-  const staff = await requireWorkspaceStaffAction();
-  const admin = createServiceRoleClient();
-  if (!admin) return { ok: false, error: "Server configuration error." };
-  if (staff.ok) {
-    const { data: rosterRow } = await admin.from("agency_talent_roster").select("id")
-      .eq("tenant_id", staff.tenantId).eq("talent_profile_id", talentProfileId).neq("status", "removed").maybeSingle();
-    if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
-  } else if (!(await requireTalentSelfAction(talentProfileId)).ok) {
-    return { ok: false, error: staff.error };
-  }
-  return { ok: true, admin };
-}
-
 /** PAGED bundle: singletons (hero/card/reel/polaroids) + ONE gallery page
  *  (default 60) with `galleryTotal` / `galleryHasMore` / `galleryNextOffset`.
  *  Pass `galleryOffset` for the next page. Use this where only a preview or
@@ -1529,37 +1492,6 @@ export async function actionListDriveFolder(
 
   const truncated = pages >= MAX_PAGES && Boolean(pageToken);
   return { ok: true, data: { fileIds, count: fileIds.length, truncated } };
-}
-
-function parseDriveUrl(url: string): { kind: "file"; fileId: string } | { kind: "folder"; folderId: string } | null {
-  try {
-    const u = new URL(url.trim());
-    const fileMatch = u.pathname.match(/\/file\/d\/([^/]+)/);
-    if (fileMatch) return { kind: "file", fileId: fileMatch[1]! };
-    const folderMatch = u.pathname.match(/\/folders\/([^/?]+)/);
-    if (folderMatch) return { kind: "folder", folderId: folderMatch[1]! };
-    const id = u.searchParams.get("id");
-    if (id) return { kind: "file", fileId: id };
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-async function downloadDriveFile(fileId: string): Promise<{ buffer: ArrayBuffer; contentType: string } | null> {
-  const url = `https://drive.usercontent.google.com/u/0/uc?id=${encodeURIComponent(fileId)}&export=download`;
-  let res: Response;
-  try {
-    res = await fetch(url, { redirect: "follow" });
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
-  const contentType = res.headers.get("content-type") ?? "";
-  if (!contentType.startsWith("image/")) return null;
-  const buffer = await res.arrayBuffer();
-  if (buffer.byteLength < 1000) return null; // likely an error HTML page
-  return { buffer, contentType };
 }
 
 /** Phase 2 — import a single Drive file by its ID. Returns the created asset. */
@@ -2127,20 +2059,6 @@ async function statStoredObject(
 }
 
 // ── Register actions ───────────────────────────────────────────────────────
-
-export type RegisterUploadedAssetInput = {
-  storagePath: string;
-  variantKind: UploadVariant;
-  talentProfileId: string;
-  /** Forwarded to media_assets.metadata. Mirrors the legacy
-   *  actionUploadAndAssignMedia parameter. */
-  metadata?: Record<string, unknown>;
-  /** Set for crop derivatives so the lightbox's "Revert to original"
-   *  has a parent to navigate back to. */
-  sourceMediaAssetId?: string | null;
-  /** Original filename from the user's picker — preserved for audit. */
-  originalFilename?: string | null;
-};
 
 /**
  * Twin of `actionUploadAndAssignMedia` for the signed-upload flow. The

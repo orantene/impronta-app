@@ -38,9 +38,16 @@ const TALENT_SITE_PASSTHROUGH_PREFIXES = [
   // Branded free-website checkout (GAP-JOR-3 / pay-link host rules).
   "/pay/",
   "/link/",
+  // Client account area (TUL-62). Only the three detail families, never a bare
+  // `/account/` prefix, so `/account/brief` stays unreachable on a talent host.
+  // The page itself 404s unless CLIENT_ACCOUNT_HOSTS lists `talent`.
+  "/account/visits/",
+  "/account/messages/",
+  "/account/receipts/",
 ] as const;
 
-const TALENT_SITE_STATIC_PATHS = ["/sitemap.xml", "/robots.txt", "/favicon.ico"] as const;
+// `/account` itself is an exact path (a `/account` prefix would also pass `/accounts`).
+const TALENT_SITE_STATIC_PATHS = ["/sitemap.xml", "/robots.txt", "/favicon.ico", "/account"] as const;
 
 /**
  * A single page-slug segment: lowercase alphanumerics + hyphens, the same shape

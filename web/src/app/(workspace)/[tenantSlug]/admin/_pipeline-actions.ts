@@ -67,7 +67,6 @@ import {
   requestPayment,
   initiatePayout,
   markPayoutSent,
-  type BookingTransaction,
 } from "@/lib/bookings/transactions";
 import {
   sendOffer,
@@ -84,9 +83,29 @@ import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
 import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
-export type PipelineActionResult<T = undefined> =
-  | { ok: true; data?: T }
-  | { ok: false; error: string };
+import type {
+  PipelineActionResult,
+  InquiryPaymentState,
+  InquiryParticipant,
+  InquiryAttachment,
+  OfferDraftSnapshot,
+  PayoutReceiverOption,
+  WorkspaceCoordinatorCandidate,
+  CoordinatorAssignCandidate,
+  SecondaryCoordinatorRow,
+} from "./_pipeline-types";
+
+export type {
+  PipelineActionResult,
+  InquiryPaymentState,
+  InquiryParticipant,
+  InquiryAttachment,
+  OfferDraftSnapshot,
+  PayoutReceiverOption,
+  WorkspaceCoordinatorCandidate,
+  CoordinatorAssignCandidate,
+  SecondaryCoordinatorRow,
+} from "./_pipeline-types";
 
 // ─── convertInquiryToBookingAction ────────────────────────────────────────────
 
@@ -256,18 +275,6 @@ export async function counterOfferAction(
 }
 
 // ─── Payment state ────────────────────────────────────────────────────────────
-
-export type InquiryPaymentState = {
-  bookingId: string | null;
-  totalRevenueCents: number | null;
-  currency: string | null;
-  transaction: BookingTransaction | null;
-  /** 6.3 deposits: the configured deposit (cents), 0 when none. Drives the
-   *  admin "Request deposit" / "Request balance" buttons. */
-  depositAmountCents: number;
-  /** Whether a deposit has already been collected (booking lifecycle). */
-  depositPaid: boolean;
-};
 
 /**
  * Load the booking + active transaction for an inquiry, in one round-trip.
@@ -513,7 +520,7 @@ export async function createInquiryTransactionDraft(
       planTier,
       grossAmountCents,
       platformFeeCentsOverride: platformFeeOverride,
-      currency: (booking.currency_code as string | null) ?? "USD",
+      currency: (booking.currency_code as string | null) ?? undefined,
       payerUserId: (booking.client_user_id as string | null) ?? null,
       payerEmail: (booking.contact_email as string | null) ?? null,
       createdByProfileId: null,
@@ -1373,20 +1380,6 @@ export async function duplicateInquiryBooking(
 
 // ─── Lineup (inquiry_participants) ────────────────────────────────────────────
 
-export type InquiryParticipant = {
-  id: string;
-  role: "client" | "coordinator" | "talent";
-  status: "invited" | "active" | "declined" | "removed";
-  talentProfileId: string | null;
-  talentDisplayName: string | null;
-  /** Real face for the lineup — directory 'card' crop, or null (→ initials). */
-  talentPhotoUrl: string | null;
-  /** One-line discipline (primary taxonomy term), e.g. "Editorial Model". */
-  talentHeadline: string | null;
-  userId: string | null;
-  invitedAt: string | null;
-};
-
 /**
  * Load the active lineup for an inquiry. Returns participants in the
  * "talent" role (the lineup proper) — coordinator + client rows are
@@ -1555,19 +1548,6 @@ export async function addInquiryLineupTalent(
 }
 
 // ─── Files (inquiry_attachments) ──────────────────────────────────────────────
-
-export type InquiryAttachment = {
-  id: string;
-  filename: string;
-  mimeType: string | null;
-  byteSize: number | null;
-  description: string | null;
-  visibility: "staff" | "shared";
-  uploadedBy: string | null;
-  createdAt: string;
-  /** Step 14 — optional kind tag (mood_board | contract | reference | other). */
-  attachmentKind: string | null;
-};
 
 /**
  * Load (non-deleted) attachments for an inquiry. Tenant scope is enforced
@@ -1751,43 +1731,6 @@ export async function deleteInquiryAttachment(
 }
 
 // ─── Offer line-item editor ──────────────────────────────────────────────────
-
-export type OfferDraftSnapshot = {
-  offerId: string;
-  offerVersion: number;
-  inquiryVersion: number;
-  totalClientPrice: number;
-  coordinatorFee: number;
-  currencyCode: string;
-  notes: string | null;
-  createdByName: string | null; // who created this offer (see offer-author.ts)
-  // W6a — the negotiated commercial terms currently saved on this offer, for
-  // the composer to display + edit. Defaulted (never null) so the composer always
-  // has a coherent starting state; deposit amount is in minor units.
-  terms: {
-    depositPct: number;
-    depositAmountCents: number;
-    balanceMethod: "request_in_messages" | "pay_in_place" | "full_upfront";
-    refundPolicy: "tiered" | "flexible" | "strict" | "manual";
-  };
-  lineItems: Array<{
-    id: string;
-    talentProfileId: string | null;
-    talentDisplayName: string | null;
-    label: string | null;
-    /** Full offer-unit enum (extended for the services menu: half_day,
-     *  per_person, per_contact, flat_package, custom). */
-    pricingUnit: ServicePricingType;
-    units: number;
-    unitPrice: number;
-    totalPrice: number;
-    talentCost: number;
-    notes: string | null;
-    sortOrder: number;
-    /** S18 — services-menu service this line was prefilled from; null = manual. */
-    sourceServiceId: string | null;
-  }>;
-};
 
 /**
  * Load the current draft offer + its line items for editing. Used by the
@@ -2047,14 +1990,6 @@ export async function saveOfferDraft(
 }
 
 // ─── Payout receiver picker ─────────────────────────────────────────────────
-
-export type PayoutReceiverOption = {
-  payoutAccountId: string;
-  ownerType: "agency" | "profile" | "talent";
-  ownerId: string;
-  displayName: string;
-  receiverKind: string;
-};
 
 /**
  * Load the eligible payout receivers for an inquiry's booking. Used by
@@ -2404,14 +2339,6 @@ export async function createOfferAction(
 
 // ─── Coordinator management ────────────────────────────────────────────
 
-export type WorkspaceCoordinatorCandidate = {
-  userId: string;
-  displayName: string;
-  role: string;
-  activeInquiryCount: number;
-  status: "active" | "pending_acceptance";
-};
-
 /**
  * Lists workspace members who can take ownership of an inquiry as
  * coordinator. Includes anyone with a coordinator-eligible role
@@ -2504,21 +2431,6 @@ export async function loadWorkspaceCoordinatorCandidates(
  * Talents are surfaced with their face + discipline so the picker reads like
  * a roster, and flagged when they're already on this inquiry's lineup.
  */
-export type CoordinatorAssignCandidate = {
-  userId: string;
-  displayName: string;
-  /** 'staff' = agency member; 'talent' = roster talent appointee. */
-  kind: "staff" | "talent";
-  /** Staff: membership role (owner/admin/manager). Talent: discipline/headline. */
-  role: string;
-  status: "active" | "pending_acceptance";
-  activeInquiryCount: number;
-  /** True when this talent already holds a lineup row on this inquiry. */
-  inLineup: boolean;
-  photoUrl: string | null;
-  headline: string | null;
-};
-
 /**
  * Candidate list for the "Assign coordinator" sheet's appoint flow: staff
  * members (reusing loadWorkspaceCoordinatorCandidates) PLUS every roster talent
@@ -2626,13 +2538,6 @@ export async function loadCoordinatorAssignCandidates(
  * Gate: requireInquiryManagerAction (staff OR the appointed coordinator may
  * view). Reads run under the caller's session.
  */
-export type SecondaryCoordinatorRow = {
-  userId: string;
-  participantId: string;
-  name: string;
-  inLineup: boolean;
-};
-
 export async function loadSecondaryCoordinators(
   _tenantSlug: string,
   inquiryId: string,

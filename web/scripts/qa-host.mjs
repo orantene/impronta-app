@@ -6,7 +6,7 @@
 import { spawnSync } from "node:child_process";
 import {
   QA_HOSTS, pickHost, hostsToRelease, formatAge,
-  SHARE_TTL_SECONDS, shareLinksFrom, pickShareLink, buildShareUrl, formatExpiry,
+  SHARE_TTL_SECONDS, shareLinksFrom, shareLinksFromAliasAndDeployment, pickShareLink, buildShareUrl, formatExpiry,
 } from "./lib/qa-hosts.mjs";
 
 // Vercel REST needs IDs, not slugs/names (slugs return 404 on /v4/aliases).
@@ -49,7 +49,7 @@ async function currentLeases() {
       // Lease age = when the alias was last re-pointed (updatedAt), not when the
       // host alias was first created; otherwise every pool host looks stale.
       createdAt: a.updatedAt ?? a.createdAt ?? Date.parse(a.created ?? 0),
-      shareLinks: shareLinksFrom(d.protectionBypass),
+      shareLinks: shareLinksFromAliasAndDeployment(a, d),
     });
   }
   return out;
@@ -96,7 +96,8 @@ async function claim(branch) {
   if (!host) throw new Error("no free QA host (all 6 leased, none stale)");
   await api(`/v2/deployments/${dep.uid}/aliases`, { method: "POST", body: JSON.stringify({ alias: host }) });
   const d = await api(`/v13/deployments/${dep.uid}`).catch(() => null);
-  const url = await shareUrlFor(host, dep.uid, shareLinksFrom(d?.protectionBypass));
+  const a = await api(`/v4/aliases/${encodeURIComponent(host)}`).catch(() => null);
+  const url = await shareUrlFor(host, dep.uid, shareLinksFromAliasAndDeployment(a, d));
   console.log(url ?? `https://${host}`);
 }
 

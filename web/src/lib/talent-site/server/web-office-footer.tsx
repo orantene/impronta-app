@@ -29,3 +29,16 @@ export function webOfficeFooter(
   const links = webOfficeLinks(records, locale, ctx.address);
   return { records, strip: links.length ? <WebOfficeSocialStrip links={links} locale={locale} /> : null };
 }
+
+/**
+ * TUL-240: the header's social icons for a Web Office site (same links, order and source-aware
+ * WhatsApp text as the footer). Free (`ctx` null): none. `label` is the spoken label; `platform` picks the icon.
+ */
+export function webOfficeHeaderSocial(
+  ctx: WebOfficeCtx | null | undefined,
+  records: SocialRecord[],
+  locale: string,
+): { platform: "instagram" | "tiktok" | "whatsapp"; href: string; label: string }[] {
+  if (!ctx) return [];
+  return webOfficeLinks(records, locale, ctx.address).map((l) => ({ platform: l.platform, href: l.href, label: l.ariaLabel }));
+}
