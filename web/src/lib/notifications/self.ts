@@ -104,6 +104,43 @@ export async function loadMyNotifications(
 }
 
 /**
+ * Count the caller's unread `user_notifications` rows (read_at IS NULL).
+ * Optional `surface` scopes to one shell (talent / workspace / client / platform).
+ * Returns 0 on any error — badge counts never hard-fail the shell.
+ */
+export async function countUnreadNotifications(
+  opts: { surface?: string } = {},
+  ctx?: EffectiveReadContext,
+  deps: ReadDeps = DEFAULT_READ_DEPS,
+): Promise<number> {
+  try {
+    const target = await resolveReadTarget(ctx, deps);
+    if (!target) return 0;
+    const { client: supabase, userId } = target;
+
+    let query = supabase
+      .from("user_notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .is("read_at", null);
+
+    if (opts.surface) {
+      query = query.eq("surface", opts.surface);
+    }
+
+    const { count, error } = await query;
+    if (error) {
+      logServerError("notifications.self.countUnread", error);
+      return 0;
+    }
+    return typeof count === "number" ? count : 0;
+  } catch (err) {
+    logServerError("notifications.self.countUnread", err);
+    return 0;
+  }
+}
+
+/**
  * Mark a set of the caller's notifications read — or all of them when passed
  * the literal `'all'`. Idempotent; only the caller's own rows are touched
  * (RLS scopes the UPDATE to `user_id = auth.uid()`).

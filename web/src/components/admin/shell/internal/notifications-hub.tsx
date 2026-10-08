@@ -12,8 +12,8 @@
  * Uses native `popover` attribute (browser handles outside-click + Esc
  * + a11y). Falls back gracefully on older browsers.
  *
- * Read state lives in localStorage (`tulala_notif_read_v1`) so dismissed
- * items don't reappear after page reload.
+ * Real rows use server `read_at` (via bridge `read`) as source of truth
+ * (TUL-389). localStorage only covers fixture/demo rows + dismissals.
  */
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
@@ -32,16 +32,14 @@ import {
   markAllAdminNotificationsRead,
   markAdminNotificationRead,
 } from "@/lib/notifications/admin-notifications-actions";
+import { categoryForKind } from "@/lib/notifications/categories-ui";
 
-/** Bucket inference from the structured `kind` column on user_notifications.
- *  - approval, offer (when awaiting decision) → action
- *  - payment, plan, system → system
- *  - everything else (message, booking confirm, profile) → update */
+/** Map UI category → legacy hub bucket (action / update / system). */
 function bucketForKind(kind: UserNotification["kind"]): "action" | "update" | "system" {
-  if (kind === "approval") return "action";
+  const cat = categoryForKind(kind);
+  if (cat === "attention") return "action";
+  if (cat === "money") return "system";
   if (kind === "system") return "system";
-  if (kind === "payment") return "system";
-  // 'message' / 'offer' / 'booking' / 'profile' → update (recap, not blocking)
   return "update";
 }
 
@@ -116,25 +114,28 @@ export function NotificationsBell({
   const popoverId = useId();
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
-  // TUL-109: start empty so the server pass and the first client pass render
-  // the same unread badge; the stored sets are merged in after mount. A lazy
-  // localStorage initializer here was a React #418 on every page with the bell.
+  // Optimistic mark-read ids (in-memory). Real rows also honor bridge `read`
+  // from server read_at (TUL-389). Fixture ids may still hydrate from
+  // localStorage after mount.
   const [readSetState, setReadSetState] = useState<Set<string>>(() => new Set());
   const [dismissedState, setDismissedState] = useState<Set<string>>(() => new Set());
-  // Declared before the read_at seed effect below so its writeSet merges onto
-  // the loaded set, not an empty one.
   useEffect(() => {
+    // Fixture / dismissal persistence only — do not treat localStorage as
+    // truth for real `notif-<uuid>` rows (server read_at wins).
     const stored = readSet(READ_KEY);
-    if (stored.size > 0) setReadSetState((prev) => new Set([...prev, ...stored]));
+    if (stored.size > 0) {
+      const fixtureOnly = [...stored].filter((id) => !id.startsWith("notif-"));
+      if (fixtureOnly.length > 0) {
+        setReadSetState((prev) => new Set([...prev, ...fixtureOnly]));
+      }
+    }
     const gone = readSet(DISMISSED_KEY);
     if (gone.size > 0) setDismissedState((prev) => new Set([...prev, ...gone]));
   }, []);
   const [, force] = useState(0);
 
-  // A9 — seed the read-set with notifications whose row already has
-  // `read_at` set on the server (mapped to `read: true` by the loader).
-  // Otherwise opening the bell shows stale unread counts after a tab
-  // refresh.
+  // Seed optimistic set from server read_at so badge matches after refresh
+  // without writing those ids back to localStorage.
   useEffect(() => {
     if (!realNotifications || realNotifications.length === 0) return;
     const alreadyRead = realNotifications.filter((n) => n.read).map((n) => `notif-${n.id}`);
@@ -145,7 +146,6 @@ export function NotificationsBell({
       for (const id of alreadyRead) {
         if (!next.has(id)) { next.add(id); changed = true; }
       }
-      if (changed) writeSet(READ_KEY, next);
       return changed ? next : prev;
     });
   }, [realNotifications]);
@@ -312,21 +312,24 @@ export function NotificationsBell({
   const markRead = useCallback((id: string) => {
     const next = new Set(readSetState);
     next.add(id);
-    writeSet(READ_KEY, next);
     setReadSetState(next);
     const realId = realNotifIdFromItemId(id);
     if (realId) {
+      // Persist via read_at; do not write real ids to localStorage (TUL-389).
       void markAdminNotificationRead(realId);
+    } else {
+      writeSet(READ_KEY, next);
     }
   }, [readSetState]);
   const markAllRead = useCallback(() => {
     const next = new Set([...readSetState, ...items.map(i => i.id)]);
-    writeSet(READ_KEY, next);
     setReadSetState(next);
     if (useRealData) {
       // Fire-and-forget bulk action — UI is already optimistic. Failures
-      // get re-shown on the next layout reload.
+      // get re-shown on the next layout reload. Server read_at is truth.
       void markAllAdminNotificationsRead();
+    } else {
+      writeSet(READ_KEY, next);
     }
   }, [readSetState, items, useRealData]);
   const dismiss = useCallback((id: string) => {
