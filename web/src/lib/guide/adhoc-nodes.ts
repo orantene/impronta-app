@@ -18,7 +18,7 @@ export const ADHOC_GUIDE_NODES: Record<string, HelpEntry> = {
     category: "Support",
     purpose: "Start live chat connects you to a real person on the Tulala team right now, not a bot.",
     youCanHere: [
-      "Ask a question and get a reply from Oran or Vic, usually within minutes during the day",
+      "Ask a question and get a reply from Tulala Support, usually within minutes during the day",
       "Attach a screen recording of what went wrong if replay is enabled",
       "Fall back to a ticket automatically if nobody is online",
     ],
