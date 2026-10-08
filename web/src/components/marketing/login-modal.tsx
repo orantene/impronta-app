@@ -32,6 +32,7 @@ import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { AuthGoogleButtonSurface } from "@/components/auth/auth-ui";
+import { marketingModalCloseLabel } from "@/lib/marketing/modal-close-aria";
 import {
   ArrowGlyph,
   CloseGlyph,
@@ -196,7 +197,7 @@ export function LoginModal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={marketingModalCloseLabel(locale)}
             className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors"
             style={{ color: "var(--plt-muted)" }}
           >
