@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { isTalentOpenHash } from "@/lib/talent-site/contact-channels";
+import { openDeepLinkFromLocation } from "@/lib/talent-site/open-booking-at-slot";
 
 /**
  * Keeps "Ask a question" on the talent's own site. Clicks on the in-page
@@ -48,7 +49,17 @@ export function TalentSiteContactBridge({
     };
     // A cold load or a pasted `...#talent-ask` link opens the chat too (the click above only
     // covers links followed on the page).
-    const onHash = () => {
+    // TUL-232: `?book=<offering>&slot=<ISO>#book` opens the booking sheet at that slot instead of the chat.
+    // The sheet can mount after this effect, so the first try may find nothing to talk to: only the final
+    // try (`final`) falls back to the chat, and `sheetOpen` stops a retry from resetting an open sheet.
+    // TUL-246's ready-handshake will replace these timers.
+    let sheetOpen = false;
+    const onSheet = (e: Event) => {
+      sheetOpen = Boolean((e as CustomEvent<{ open?: boolean }>).detail?.open);
+    };
+    const onHash = (final = true) => {
+      const deep = openDeepLinkFromLocation(window.location, { alreadyOpen: () => sheetOpen });
+      if (deep === "opened" || (deep === "unresolved" && !final)) return;
       if (isTalentOpenHash(window.location.hash)) window.dispatchEvent(new Event("tulala:open-guest-chat"));
     };
     // The initial fragment never fires `hashchange`, so a cold load of `...#book` (a custom-domain
@@ -57,10 +68,12 @@ export function TalentSiteContactBridge({
     // opening is idempotent.
     const timers: ReturnType<typeof setTimeout>[] = [];
     if (isTalentOpenHash(window.location.hash)) {
-      timers.push(setTimeout(onHash, 0), setTimeout(onHash, 800));
+      timers.push(setTimeout(() => onHash(false), 0), setTimeout(() => onHash(true), 800));
     }
     document.addEventListener("click", onClick, true);
-    window.addEventListener("hashchange", onHash);
+    const onHashChange = () => onHash();
+    window.addEventListener("hashchange", onHashChange);
+    window.addEventListener("tulala:maison-sheet", onSheet);
     // WSF: entry "hidden" (chat off, inquiries off): no ask / inquire control stays on the page.
     let observer: MutationObserver | null = null;
     if (!showAsk) {
@@ -74,7 +87,8 @@ export function TalentSiteContactBridge({
       timers.forEach(clearTimeout);
       observer?.disconnect();
       document.removeEventListener("click", onClick, true);
-      window.removeEventListener("hashchange", onHash);
+      window.removeEventListener("hashchange", onHashChange);
+      window.removeEventListener("tulala:maison-sheet", onSheet);
     };
   }, [showAsk]);
 
