@@ -2,14 +2,26 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import {
+  PASS_THROUGH_DEFAULT_TAKE_BPS,
+  processorFeeRatesForCurrency,
+} from "@/lib/billing/commission";
 import { previewFeeLines } from "@/lib/billing/fee-payer-setting";
 
 import { EngineFeeLines, FeeLines } from "./FeeLines";
 
+const US = processorFeeRatesForCurrency("USD");
+const preview = (feePayer: "seller" | "client") =>
+  previewFeeLines({
+    price: 100,
+    currency: "USD",
+    feePayer,
+    takeBps: PASS_THROUGH_DEFAULT_TAKE_BPS,
+    processorFeeRates: US,
+  });
+
 test("seller mode: no card processing line, shows total and non-refundable note", () => {
-  const html = renderToStaticMarkup(
-    <FeeLines lines={previewFeeLines({ price: 100, currency: "USD", feePayer: "seller" })} />,
-  );
+  const html = renderToStaticMarkup(<FeeLines lines={preview("seller")} />);
   assert.match(html, /Service/);
   assert.match(html, /Platform fee \(1\.5%\)/);
   assert.match(html, /\$101\.50/);
@@ -18,9 +30,7 @@ test("seller mode: no card processing line, shows total and non-refundable note"
 });
 
 test("client mode: card processing line and grossed-up total", () => {
-  const html = renderToStaticMarkup(
-    <FeeLines lines={previewFeeLines({ price: 100, currency: "USD", feePayer: "client" })} estimate />,
-  );
+  const html = renderToStaticMarkup(<FeeLines lines={preview("client")} estimate />);
   assert.match(html, /Card processing/);
   assert.match(html, /about \$104\.84/);
 });

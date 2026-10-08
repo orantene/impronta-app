@@ -12,7 +12,12 @@
 import { useEffect, useState } from "react";
 
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
-import { getFeePayer, setFeePayer } from "@/lib/billing/fee-payer-actions";
+import {
+  getFeePayer,
+  getFeePreviewConfig,
+  setFeePayer,
+  type FeePreviewPlatformConfig,
+} from "@/lib/billing/fee-payer-actions";
 import {
   DEFAULT_FEE_PAYER,
   formatFeeMoney,
@@ -77,25 +82,51 @@ export function FeePayerCard({ currency, showTip: tipAllowed = true }: { currenc
   const t = useDashboardText().t;
   const { feePayer, change, error } = useFeePayer();
   const [tipOpen, setTipOpen] = useState(false);
+  const [platformConfig, setPlatformConfig] = useState<FeePreviewPlatformConfig | null>(null);
 
   useEffect(() => {
     setTipOpen(!tipDismissed());
   }, []);
 
+  useEffect(() => {
+    let off = false;
+    setPlatformConfig(null);
+    void getFeePreviewConfig(currency)
+      .then((cfg) => {
+        if (!off) setPlatformConfig(cfg);
+      })
+      .catch(() => {
+        if (!off) setPlatformConfig(null);
+      });
+    return () => {
+      off = true;
+    };
+  }, [currency]);
+
   const mx = currency.toUpperCase() === "MXN";
   const base = mx ? 1000 : 100;
-  const lines = previewFeeLines({ price: base, currency, feePayer });
+  // Never invent 150 bps / local rates while config is loading or missing.
+  const lines = platformConfig
+    ? previewFeeLines({
+        price: base,
+        currency,
+        feePayer,
+        takeBps: platformConfig.takeBps,
+        processorFeeRates: platformConfig.processorFeeRates,
+        takeFloorCents: platformConfig.takeFloorCents,
+      })
+    : null;
   const price = formatFeeMoney(base * 100, currency);
-  const client = formatFeeMoney(lines.clientTotalMinor, currency);
-  const you = formatFeeMoney(lines.sellerReceivesMinor, currency);
-  const preview = t(
-    feePayer === "client"
-      ? "A {price} booking: your client pays about {client}, you receive {you}"
-      : "A {price} booking: your client pays about {client}, you receive about {you}",
-  )
-    .replace("{price}", price)
-    .replace("{client}", client)
-    .replace("{you}", you);
+  const preview = lines
+    ? t(
+        feePayer === "client"
+          ? "A {price} booking: your client pays about {client}, you receive {you}"
+          : "A {price} booking: your client pays about {client}, you receive about {you}",
+      )
+        .replace("{price}", price)
+        .replace("{client}", formatFeeMoney(lines.clientTotalMinor, currency))
+        .replace("{you}", formatFeeMoney(lines.sellerReceivesMinor, currency))
+    : t("Loading fee estimate…");
 
   const option = (id: FeePayer, label: string, hint: string) => (
     <button
