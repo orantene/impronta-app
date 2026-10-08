@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import type { BuilderNode } from "@/lib/site-admin/builder-node";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
-import { localiseTalentHeaderDefaults } from "@/lib/talent-site/header-cta-locale";
+import { headerSectionProps, localiseTalentHeaderDefaults } from "@/lib/talent-site/header-cta-locale";
 
 /** True for a `site_header` / `site_footer` section landmark root. */
 export function isTalentShellLandmark(node: BuilderNode): boolean {
@@ -27,7 +27,7 @@ export function renderTalentShellLandmark(
   const entry = getSectionType(key);
   const schema = entry?.schemasByVersion[entry.currentVersion];
   const parsed = schema?.safeParse(
-    localiseTalentHeaderDefaults(node.props.sectionProps ?? {}, ctx.locale),
+    localiseTalentHeaderDefaults(headerSectionProps(node, ctx.locale), ctx.locale),
   );
   if (!entry || !parsed?.success) return null;
   const Comp = entry.Component;

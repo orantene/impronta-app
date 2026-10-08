@@ -1477,6 +1477,10 @@ export interface BuilderMastheadNode extends BuilderNodeBase {
     coverStatement?: string;
     /** Magazine: serif bio beside the cover. */
     bio?: string;
+    /** `"bio"`: the blurb is her live per-language bio (TUL-230); `bio` is the baked fallback. */
+    liveText?: "bio";
+    /** Magazine: the "(Text in Spanish)" line after the blurb, set by the live-bio pass on a fallback. */
+    bioHint?: string;
     /** Magazine: primary CTA. */
     ctaLabel?: string;
     ctaHref?: string;
@@ -2039,6 +2043,13 @@ export interface BuilderMarqueeNode extends BuilderNodeBase {
   kind: "marquee";
   props: {
     items?: Array<{ text: string; href?: string }>;
+    /**
+     * Where the words come from. `services`: her published services, read at
+     * render time in the visitor's language (`items` is the fallback when she
+     * has none). `custom` or unset: the literal `items`, exactly as before, so
+     * every ticker saved before this field keeps working untouched.
+     */
+    source?: "services" | "custom";
     speed?: "slow" | "medium" | "fast";
     direction?: "left" | "right";
     separator?: "dot" | "slash" | "diamond" | "star" | "none";

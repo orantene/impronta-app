@@ -98,6 +98,7 @@ export const directorySchemaV1 = z.object({
       "editorial",
       "portfolio",
       "profile",
+      "showcase",
       "stat",
       "service",
       "minimal",

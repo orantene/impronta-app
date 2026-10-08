@@ -218,6 +218,7 @@ export const ES_SECTION_PANEL_TEXT: Record<string, string> = {
   "Chips": "Fichas",
   "Chips Source": "Origen de las fichas",
   "Cinematic (full-bleed statement)": "Cinemática (declaración a sangre completa)",
+  "Showcase (light caption panel)": "Vitrina (panel de leyenda claro)",
   "City / market label": "Ciudad / etiqueta de mercado",
   "Clean / aurora": "Limpio / aurora",
   "Clear": "Borrar",
