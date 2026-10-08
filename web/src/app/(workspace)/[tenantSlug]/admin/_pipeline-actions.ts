@@ -68,6 +68,7 @@ import {
   initiatePayout,
   markPayoutSent,
 } from "@/lib/bookings/transactions";
+import { loadInquiryPaymentBooking } from "@/lib/bookings/payment-booking";
 import {
   sendOffer,
   clientRejectOffer,
@@ -289,18 +290,12 @@ export async function loadInquiryPaymentState(
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
-    const { data: booking } = await supabase
-      .from("agency_bookings")
-      .select("id, total_client_revenue, currency_code, deposit_amount_cents, deposit_pct, client_revenue_lifecycle")
-      .eq("tenant_id", tenantId)
-      .eq("source_inquiry_id", inquiryId)
-      .maybeSingle();
-
+    const found = await loadInquiryPaymentBooking(supabase, { tenantId, inquiryId });
+    if (!found.ok) return { ok: false, error: "Could not read this booking's payment." };
+    const { booking, transaction: txn } = found;
     if (!booking) {
       return { ok: true, data: { bookingId: null, totalRevenueCents: null, currency: null, transaction: null, depositAmountCents: 0, depositPaid: false } };
     }
-
-    const txn = await loadActiveBookingTransaction(booking.id as string, supabase);
     const rawRevenue = booking.total_client_revenue as number | string | null;
     const totalRevenueCents = rawRevenue != null ? Math.round(Number(rawRevenue) * 100) : null;
     // 6.3: resolve the configured deposit (explicit amount wins; else pct of the
