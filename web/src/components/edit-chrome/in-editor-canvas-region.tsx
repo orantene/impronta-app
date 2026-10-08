@@ -54,7 +54,7 @@ import {
 } from "@/lib/site-admin/tokens/resolve";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
-import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
+import { localiseSeededDesignLabels } from "@/lib/talent-site/design-cta-mode";
 import { applyTalentLiveText, type TalentLiveText } from "@/lib/talent-site/live-text";
 import { applyTalentTickerServices } from "@/lib/talent-site/ticker-services";
 import { hydratePlaceholders } from "@/lib/talent-site/theme-template/hydrate-placeholders";

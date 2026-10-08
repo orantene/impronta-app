@@ -10,13 +10,13 @@
  *   props.i18n.es["sectionProps.regions.right.5.label"]  = "Escríbeme"
  *
  * `headerSectionProps` returns the header's `sectionProps` with the overlay
- * for `locale` applied, BEFORE `localiseTalentHeaderDefaults` /
- * `stripHiddenAskHeaderCta` run (the indexes address the stored header, and
- * the render-time default map only rewrites the untouched English seeds, so
- * an overlay value is never rewritten again). A key whose path does not
- * already hold a string is skipped (an overlay translates existing copy, it
- * never invents structure). No overlay for the locale returns the stored
- * `sectionProps` unchanged (same object), so the output is byte-identical.
+ * for `locale` applied, BEFORE `stripHiddenAskHeaderCta` runs (the indexes
+ * address the stored header). TUL-369: the Inquire→Escríbeme guess map is
+ * gone; Spanish comes from `props.i18n` overlays (seed-i18n). A key whose
+ * path does not already hold a string is skipped (an overlay translates
+ * existing copy, it never invents structure). No overlay for the locale
+ * returns the stored `sectionProps` unchanged (same object), so the output
+ * is byte-identical.
  *
  * Pure (no React / no IO).
  */
@@ -124,4 +124,47 @@ export function headerLabelEntries(sectionProps: unknown): Array<{ key: string; 
     }
   }
   return out;
+}
+
+/** True when a header CTA href points at the ask / chat entry. */
+export function isTalentAskHref(href: unknown): boolean {
+  if (typeof href !== "string") return false;
+  const h = href.trim();
+  return h === "#talent-ask" || h.endsWith("#talent-ask") || h.includes("inquire=1");
+}
+
+/**
+ * Drop Ask / Escríbeme header CTAs when site switches hide ask entry points
+ * (chat off + inquiries off). Prevents the SSR flash that TalentSiteContactBridge
+ * used to hide after paint.
+ */
+export function stripHiddenAskHeaderCta(
+  sectionProps: unknown,
+  askVisible: boolean,
+): unknown {
+  if (askVisible) return sectionProps;
+  if (!sectionProps || typeof sectionProps !== "object") return sectionProps;
+  const props = { ...(sectionProps as Record<string, unknown>) };
+
+  const cta = props.primaryCta;
+  if (cta && typeof cta === "object" && isTalentAskHref((cta as Record<string, unknown>).href)) {
+    delete props.primaryCta;
+  }
+
+  const regions = props.regions;
+  if (regions && typeof regions === "object") {
+    const next: Record<string, unknown> = {};
+    for (const [slot, items] of Object.entries(regions as Record<string, unknown>)) {
+      next[slot] = Array.isArray(items)
+        ? items.filter((item) => {
+            if (!item || typeof item !== "object") return true;
+            const it = item as Record<string, unknown>;
+            if (it.type === "cta" && isTalentAskHref(it.href)) return false;
+            return true;
+          })
+        : items;
+    }
+    props.regions = next;
+  }
+  return props;
 }

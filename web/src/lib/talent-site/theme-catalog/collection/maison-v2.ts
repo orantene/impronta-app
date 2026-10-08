@@ -164,7 +164,7 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
       italicAccent: true,
       nextFreeChip: true,
       // Ticket #88: the hero leads with booking. "Book an appointment" is a mode-dependent
-      // seed (design-label-locale SEEDED_MODE_COPY), so it reads Reservar cita / Request an
+      // seed (design-cta-mode SEEDED_MODE_COPY), so it reads Reservar cita / Request an
       // appointment / Escríbeme by the site's booking mode; "See services" is the ghost.
       ctaRow: {
         primaryLabel: MAISON_V2_BOOK_LABEL,

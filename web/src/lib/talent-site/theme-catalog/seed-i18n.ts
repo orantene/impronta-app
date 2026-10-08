@@ -43,9 +43,8 @@ export type SeedI18nOverlay = {
 
 /**
  * English seed text -> neutral Mexican Spanish (tuteo). Exact seed strings.
- * Single source of truth for seeded EN→ES wording (TUL-369): the render-time
- * fallback in `design-label-locale.ts` and the header CTA label both read
- * from this table. Do not keep a parallel guess map elsewhere.
+ * Single source of truth for seeded EN→ES wording (TUL-369). Applied into
+ * `props.i18n` at seed time; the render-time EN↔ES guess maps are deleted.
  */
 export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   // Hero / actions
@@ -183,7 +182,7 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
 /**
  * Seeded labels whose Spanish (and English) wording depends on the site's
  * booking mode (instant / request / inquiry). They get NO seeded overlay: the
- * render-time mode-aware map (`SEEDED_MODE_COPY` in design-label-locale.ts,
+ * render-time mode-aware map (`SEEDED_MODE_COPY` in design-cta-mode.ts,
  * driven by `resolveSiteCtaMode`) keeps handling them, and a fixed overlay
  * would freeze the instant wording. The static test proves each one really is
  * handled by that map, so this list cannot hide a real gap.
@@ -202,17 +201,21 @@ export function isTokenOnlyText(text: string): boolean {
   return !/\p{L}/u.test(text.replace(/\{\{[^}]*\}\}/g, ""));
 }
 
+/** Spanish seed strings from `SEED_TEXT_ES` (language, not accents alone). */
+const SPANISH_SEED_VALUES: ReadonlySet<string> = new Set(Object.values(SEED_TEXT_ES));
+
 /**
- * True when `text` looks like a Spanish-authored seed base (accented letters
- * or common Spanish words). Used by the static test to enforce the English
- * base-language rule. Mode-dependent labels and token-only text are exempt.
+ * True when `text` is a Spanish-authored seed base. Checks language via the
+ * known Spanish seed table (and accented letters as a belt-and-braces catch
+ * for new Spanish copy not yet in the table). Mode-dependent labels and
+ * token-only text are exempt. Used by the static test to enforce the English
+ * base-language rule (TUL-369).
  */
 export function looksLikeSpanishSeedBase(text: string): boolean {
   const t = text.trim();
   if (!t || isTokenOnlyText(t) || MODE_DEPENDENT_LABELS.includes(t)) return false;
+  if (SPANISH_SEED_VALUES.has(t)) return true;
   if (/[áéíóúüñ¿¡]/i.test(t)) return true;
-  // Exact Spanish strings that used to be Folio/aftercare bases.
-  if (t === "Consultar" || t === "Tarifas") return true;
   return false;
 }
 

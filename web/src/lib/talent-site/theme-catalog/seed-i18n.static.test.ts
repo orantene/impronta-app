@@ -13,7 +13,10 @@ import type { DesignPayload } from "./types";
 import { FINISHED_GALLERY_SLUGS } from "./gallery-meta";
 import { COLLECTION_DESIGNS } from "./collection/designs";
 import { buildMaisonDesignPayload } from "./maison/design-payload";
-import { localiseOne } from "../design-label-locale";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
+import { localiseOne } from "../design-cta-mode";
 import {
   isTokenOnlyText,
   looksLikeSpanishSeedBase,
@@ -196,20 +199,23 @@ test("the seed Spanish table has no em dash and no voseo", () => {
   }
 });
 
-test("design-label-locale no longer keeps a parallel CODE_SEEDED_LABELS_ES map (TUL-369)", async () => {
-  const fs = await import("node:fs");
-  const path = await import("node:path");
-  const src = fs.readFileSync(path.join(__dirname, "../design-label-locale.ts"), "utf8");
-  assert.ok(src.includes("SEED_TEXT_ES"), "must import SEED_TEXT_ES");
-  assert.ok(!src.includes("CODE_SEEDED_LABELS_ES"), "guess map retired");
+test("design-label-locale.ts and header-cta-locale.ts are deleted (TUL-369)", () => {
+  const root = path.join(__dirname, "..");
+  assert.equal(existsSync(path.join(root, "design-label-locale.ts")), false);
+  assert.equal(existsSync(path.join(root, "header-cta-locale.ts")), false);
+  // Mode-aware CTA remaps live here; no SEED_TEXT_ES guess map.
+  const modeSrc = blankComments(readFileSync(path.join(root, "design-cta-mode.ts"), "utf8"));
+  assert.ok(modeSrc.includes("SiteCtaMode"));
+  assert.ok(!modeSrc.includes("SEED_TEXT_ES"));
+  assert.ok(!modeSrc.includes("CODE_SEEDED_LABELS_ES"));
+  assert.ok(!modeSrc.includes("CTA_LABEL_BY_LOCALE"));
 });
 
-test("header-cta-locale no longer keeps CTA_LABEL_BY_LOCALE (TUL-369)", async () => {
-  const fs = await import("node:fs");
-  const path = await import("node:path");
-  const src = fs.readFileSync(path.join(__dirname, "../header-cta-locale.ts"), "utf8");
-  assert.ok(src.includes("SEED_TEXT_ES"), "must import SEED_TEXT_ES");
-  assert.ok(!src.includes("CTA_LABEL_BY_LOCALE"), "guess map retired");
+test("looksLikeSpanishSeedBase flags unaccented Spanish seed values (TUL-369)", () => {
+  assert.equal(looksLikeSpanishSeedBase("Consultar"), true);
+  assert.equal(looksLikeSpanishSeedBase("Servicios"), true);
+  assert.equal(looksLikeSpanishSeedBase("Ask about this"), false);
+  assert.equal(looksLikeSpanishSeedBase("Services"), false);
 });
 
 test("the scanner flags a missing overlay (guard against a vacuous pass)", () => {

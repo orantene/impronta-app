@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 
 import { validateDesign } from "../validate";
 import { isMaisonCatalogSlug } from "../maison/catalog-visibility";
-import { localiseOne } from "../../design-label-locale";
+import { localiseOne } from "../../design-cta-mode";
 import { MODE_DEPENDENT_LABELS } from "../seed-i18n";
 import { COLLECTION_DESIGNS, COLLECTION_DESIGN_GAPS, isCollectionDesignSlug } from "./designs";
 

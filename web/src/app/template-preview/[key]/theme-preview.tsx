@@ -51,7 +51,7 @@ import {
 } from "@/lib/talent-site/theme-catalog/collection/folio-looks";
 import { gridlineLookTokensFromCode } from "@/lib/talent-site/theme-catalog/collection/gridline-looks";
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
-import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
+import { localiseSeededDesignLabels } from "@/lib/talent-site/design-cta-mode";
 import { loadTalentPlanKey, loadTalentSiteCtaMode } from "@/lib/talent-site/server/load-max-site";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { resolveDemoPreviewSource } from "./demo-preview-source";

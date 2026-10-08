@@ -3,7 +3,7 @@
  * English (bio, trade label, city), so a Spanish site showed "I studied
  * engineering..." and "NAIL ARTIST". The renderer swaps each UNTOUCHED seeded
  * English value for the site-locale version at render time (same contract as
- * `design-label-locale.ts`): an exact match is rewritten, anything the talent
+ * `design-cta-mode.ts`): an exact match is rewritten, anything the talent
  * edited is left alone, and no reapply is needed. Pure; the loader lives in
  * `server/talent-locale-swaps.server.ts`.
  */

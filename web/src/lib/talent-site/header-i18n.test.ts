@@ -8,7 +8,6 @@ import { test } from "node:test";
 import type { BuilderNode } from "@/lib/site-admin/builder-node";
 import { COLLECTION_DESIGNS } from "./theme-catalog/collection/designs";
 import { headerLabelEntries, headerSectionProps } from "./header-i18n";
-import { localiseTalentHeaderDefaults } from "./header-cta-locale";
 
 const SECTION_PROPS = {
   navItems: [
@@ -85,8 +84,9 @@ test("the Folio header seed reads Spanish and English from its overlay", () => {
   );
   assert.ok(shell, "folio seeds no site_header");
   type Labelled = { navItems: Array<{ label: string }>; primaryCta: { label: string } };
-  const es = localiseTalentHeaderDefaults(headerSectionProps(shell, "es"), "es") as Labelled;
-  const en = localiseTalentHeaderDefaults(headerSectionProps(shell, "en"), "en") as Labelled;
+  // TUL-369: overlays alone — no Inquire→Escríbeme guess map.
+  const es = headerSectionProps(shell, "es") as Labelled;
+  const en = headerSectionProps(shell, "en") as Labelled;
   assert.deepEqual(es.navItems.map((i) => i.label), ["Trabajos elegidos", "Más trabajos", "Contratación"]);
   assert.equal(es.primaryCta.label, "Consultar");
   assert.deepEqual(en.navItems.map((i) => i.label), ["Selected work", "More work", "Rates"]);
