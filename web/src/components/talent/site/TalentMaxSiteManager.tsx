@@ -48,6 +48,8 @@ const MyWebsiteCard = dynamic(
     import("@/components/talent/site/maison-setup/MyWebsiteCard").then((m) => m.MyWebsiteCard),
   { ssr: false },
 );
+import { SitePublishEntry } from "@/components/talent/site/maison-setup/SitePublishEntry";
+import { sitePublishEntryState } from "@/components/talent/site/maison-setup/site-publish-entry";
 import { PresenceSiteTiles } from "@/components/talent/site/maison-setup/MyWebsiteCard";
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
 import { takeOr } from "./public-page-bootstrap";
@@ -304,6 +306,7 @@ function ManagerBody({
             setMaisonForceReason("restored");
             setMaisonForceScreen("gallery");
           }}
+          onOpenReview={() => openSetup("review")}
           onRestoredToReview={() => {
             setMaisonForceReason("restored");
             setMaisonForceScreen("review");
@@ -325,6 +328,16 @@ function ManagerBody({
       ) : setupOpen ? null : (
         <>
           <WebsiteEligibilityPanel onActivate={openSetup} />
+          <SitePublishEntry
+            locale={locale === "es" ? "es" : "en"}
+            state={sitePublishEntryState({
+              published: false,
+              publishable: Boolean(state.themeDesignSlug?.trim() && state.siteSlug),
+              hasPending: null,
+            })}
+            publicSiteUrl={null}
+            onOpenReview={() => openSetup("review")}
+          />
           {/* Pre-publish: Domain / Questions / Settings / Apps stay reachable
               when MyWebsiteCard (live-only) is not mounted. */}
           {hideDomainRow || onOpenQuestions || onOpenSettings || onOpenApps ? (
