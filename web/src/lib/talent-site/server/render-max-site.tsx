@@ -359,6 +359,7 @@ export async function renderTalentMaxSite(
       noindex: isOwnerDraftPreview,
       canonicalOrigin: input.canonicalOrigin,
       canonicalPath: input.canonicalPath,
+      ignoreExplicitCanonical: Boolean(policyDoc),
       locales: { primary: localeCtx.settings.defaultLocale, urlDefault: localeCtx.grammar.defaultLocale, supported: localeCtx.settings.supportedLocales },
     });
 
@@ -674,7 +675,7 @@ async function renderMaxSiteDocument(args: {
           (dock, socket) can inherit them. Additive; the vars above stay. */}
       {hasTokens ? <TalentSiteHtmlTokens cssVars={cssVars} dataAttrs={dataAttrs} /> : null}
       {/* A11Y-2 — first focusable element on every talent Max site surface. */}
-      <SkipToContent />
+      <SkipToContent locale={locale} />
       {/* G3b: hide the variant the root's live status does not match; the
           island flips the root to "off" at local midnight in an open tab. */}
       <style data-live-status-css="">{LIVE_STATUS_CSS}</style>

@@ -6,6 +6,7 @@ import {
   signPitchToken,
   buildPitchShareUrl,
 } from "@/lib/pitch/pitch-share-token";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 
 /**
  * _data-bridge/pitches.ts — pitch history (Phase 9, workspace surface).
@@ -243,7 +244,7 @@ export async function loadClientPitches(
       activeByPitch.set(r.pitch_id, (activeByPitch.get(r.pitch_id) ?? 0) + 1);
     }
 
-    const baseUrl = process.env.PITCH_PUBLIC_BASE_URL ?? "https://tulala.digital";
+    const baseUrl = process.env.PITCH_PUBLIC_BASE_URL ?? resolveMarketingOrigin();
 
     return pitches.map((p): ClientPitchRow => {
       const ttlSeconds = p.expires_at

@@ -9,6 +9,7 @@ import {
   type WorkspacePlanTier,
 } from "@/lib/platform/plan-override";
 import { parseTenantCommercialTerms, type TenantCommercialTerms } from "@/lib/billing/commercial-terms-parse";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -43,7 +44,7 @@ function buildWorkspaceUrls(
   customDomain: string | null;
 } {
   const isDev = process.env.NODE_ENV !== "production";
-  const base = isDev ? "http://localhost:3000" : "https://tulala.digital";
+  const base = isDev ? "http://localhost:3000" : resolveMarketingOrigin();
   return {
     // In production a verified primary host is the real storefront; the
     // path form always works as a fallback. In dev everything is path-based.

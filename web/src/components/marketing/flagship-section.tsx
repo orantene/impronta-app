@@ -1,6 +1,10 @@
 import { getRequestLocale } from "@/i18n/request-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { getMarketingCopy } from "@/lib/marketing/copy";
+import {
+  getFlagshipMockCopy,
+  type FlagshipMockCopy,
+} from "@/lib/marketing/flagship-mock-copy";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
 import { OpenTalentModalButton } from "./open-talent-modal-button";
@@ -15,6 +19,7 @@ import { OpenTalentModalButton } from "./open-talent-modal-button";
 export async function FlagshipSection() {
   const locale = await getRequestLocale();
   const copy = getMarketingCopy(locale).flagship;
+  const mock = getFlagshipMockCopy(locale);
   return (
     <MarketingSection className="overflow-hidden">
       <MarketingContainer size="wide">
@@ -53,7 +58,7 @@ export async function FlagshipSection() {
               {copy.builder.cta}
             </OpenTalentModalButton>}
           />
-          <BuilderVisual mock={copy.builderMock} />
+          <BuilderVisual mock={copy.builderMock} chrome={mock.builder} />
         </div>
 
         {/* Row 2 — booking messenger */}
@@ -63,7 +68,7 @@ export async function FlagshipSection() {
           style={{ scrollMarginTop: "6rem" }}
         >
           <div className="order-2 lg:order-1">
-            <MessengerVisual />
+            <MessengerVisual copy={mock.messenger} />
           </div>
           <div className="order-1 lg:order-2">
             <FeatureCopy
@@ -166,8 +171,10 @@ function SupportCard({ title, body, icon }: { title: string; body: string; icon:
 
 function BuilderVisual({
   mock,
+  chrome,
 }: {
   mock: { prompt: string; services: string; workspace: string };
+  chrome: FlagshipMockCopy["builder"];
 }) {
   return (
     <div
@@ -191,18 +198,18 @@ function BuilderVisual({
           className="plt-mono ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.6875rem] font-semibold"
           style={{ background: "var(--plt-forest)", color: "var(--plt-forest-on)" }}
         >
-          Generate
+          {chrome.generate}
         </span>
       </div>
 
       <div className="plt-mono mt-3 flex items-center justify-center gap-1.5 text-[0.625rem] uppercase tracking-[0.2em]" style={{ color: "var(--plt-muted)" }}>
-        <span>1 click</span>
+        <span>{chrome.oneClick}</span>
         <DownGlyph />
       </div>
 
       {/* Two generated outputs */}
       <div className="mt-3 grid grid-cols-2 gap-3">
-        <OutputCard label={mock.services} tag="Public">
+        <OutputCard label={mock.services} tag={chrome.tagPublic}>
           <div className="space-y-1.5">
             <div className="h-2 w-3/4 rounded-full" style={{ background: "var(--plt-hairline-strong)" }} />
             <div className="aspect-[5/3] rounded-md" style={{ background: "var(--plt-forest)", opacity: 0.18 }} />
@@ -210,7 +217,7 @@ function BuilderVisual({
             <div className="h-1.5 w-2/3 rounded-full" style={{ background: "var(--plt-hairline)" }} />
           </div>
         </OutputCard>
-        <OutputCard label={mock.workspace} tag="Private">
+        <OutputCard label={mock.workspace} tag={chrome.tagPrivate}>
           <div className="space-y-1.5">
             <div className="flex gap-1">
               <div className="h-6 w-1/3 rounded-md" style={{ background: "var(--plt-hairline)" }} />
@@ -245,7 +252,7 @@ function OutputCard({ label, tag, children }: { label: string; tag: string; chil
   );
 }
 
-function MessengerVisual() {
+function MessengerVisual({ copy }: { copy: FlagshipMockCopy["messenger"] }) {
   return (
     <div
       className="relative overflow-hidden rounded-[24px] p-5 sm:p-6"
@@ -263,15 +270,15 @@ function MessengerVisual() {
           </span>
           <div>
             <div className="text-[0.8125rem] font-medium" style={{ color: "var(--plt-ink)" }}>Cosmo Studio</div>
-            <div className="plt-mono text-[0.625rem] uppercase tracking-[0.14em]" style={{ color: "var(--plt-forest)" }}>Wedding · June 14</div>
+            <div className="plt-mono text-[0.625rem] uppercase tracking-[0.14em]" style={{ color: "var(--plt-forest)" }}>{copy.threadSubtitle}</div>
           </div>
         </div>
-        <StatusChip label="Booked" />
+        <StatusChip label={copy.statusBooked} />
       </div>
 
       {/* Messages */}
       <div className="mt-4 space-y-3">
-        <Bubble side="in">Hi! Are you free June 14 for a wedding in Tulum?</Bubble>
+        <Bubble side="in">{copy.hello}</Bubble>
 
         {/* Offer card */}
         <div className="ml-auto w-[86%]">
@@ -281,37 +288,37 @@ function MessengerVisual() {
           >
             <div className="flex items-center justify-between">
               <span className="plt-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--plt-forest)" }}>
-                Offer · v2
+                {copy.offerTag}
               </span>
-              <span className="text-[0.6875rem]" style={{ color: "var(--plt-muted)" }}>Wedding package</span>
+              <span className="text-[0.6875rem]" style={{ color: "var(--plt-muted)" }}>{copy.packageLabel}</span>
             </div>
             <div className="mt-2 flex items-baseline justify-between">
               <span className="plt-display text-[1.25rem] font-semibold" style={{ color: "var(--plt-ink)" }}>$2,400</span>
-              <span className="text-[0.75rem]" style={{ color: "var(--plt-muted)" }}>Deposit $600</span>
+              <span className="text-[0.75rem]" style={{ color: "var(--plt-muted)" }}>{copy.depositAmount}</span>
             </div>
             <div className="mt-3 flex gap-2">
               <span className="flex-1 rounded-full py-2 text-center text-[0.75rem] font-medium" style={{ background: "var(--plt-forest)", color: "var(--plt-forest-on)" }}>
-                Pay deposit
+                {copy.payDeposit}
               </span>
               <span className="rounded-full px-3 py-2 text-center text-[0.75rem] font-medium" style={{ background: "var(--plt-bg-raised)", color: "var(--plt-ink-soft)", border: "1px solid var(--plt-hairline-strong)" }}>
-                Approve
+                {copy.approve}
               </span>
             </div>
           </div>
         </div>
 
-        <Bubble side="in">Done, deposit sent. See you in June! 🎉</Bubble>
+        <Bubble side="in">{copy.done}</Bubble>
       </div>
 
       {/* Pipeline status track */}
       <div className="mt-5 flex items-center gap-1.5 rounded-full px-3 py-2.5" style={{ background: "var(--plt-bg-elevated)", border: "1px solid var(--plt-hairline)" }}>
-        <Track label="Inquiry" done />
+        <Track label={copy.trackInquiry} done />
         <TrackLine />
-        <Track label="Offer" done />
+        <Track label={copy.trackOffer} done />
         <TrackLine />
-        <Track label="Deposit" done />
+        <Track label={copy.trackDeposit} done />
         <TrackLine />
-        <Track label="Booked" current />
+        <Track label={copy.trackBooked} current />
       </div>
     </div>
   );

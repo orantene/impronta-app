@@ -52,6 +52,7 @@ import { sendEmail } from "@/lib/email";
 import { abandonedDraftNudgeEmail } from "@/lib/email/templates";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tunables
@@ -257,7 +258,7 @@ export async function runAbandonedDraftNudgeSweep(
       // the "Finish your inquiry (N)" resume_draft state. A bare site root is a
       // safe default; the OWNER can swap in a per-tenant canonical host when
       // wiring the schedule (see plan).
-      const resumeHref = siteUrl || "https://tulala.digital";
+      const resumeHref = siteUrl || resolveMarketingOrigin();
 
       const { subject, html } = abandonedDraftNudgeEmail({
         contactName: row.contactName,

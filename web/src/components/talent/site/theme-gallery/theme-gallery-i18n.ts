@@ -42,6 +42,13 @@ const COPY = {
     lookStepHeading: "Pick a look",
     lookStepSubtitle: "Choose colors and fonts. This restyles the preview right away.",
     confirmReplaceDesign: "This replaces your current page content. Continue?",
+    draftDialogTitle: "Change your design?",
+    draftDialogNote: "This changes your draft. Your live site stays the same until you publish.",
+    draftDialogConfirm: "Change design in draft",
+    draftDialogKeep: "Keep current design",
+    draftDialogClose: "Close",
+    draftDialogPublishNow: "Change and publish now",
+    publishNowError: "The design was changed in your draft, but publishing failed. Try Publish site.",
   },
   es: {
     stepDesign: "Diseño",
@@ -77,6 +84,13 @@ const COPY = {
     lookStepHeading: "Elige un estilo",
     lookStepSubtitle: "Elige colores y tipografías. La vista previa cambia al instante.",
     confirmReplaceDesign: "Esto reemplaza el contenido actual de tu página. ¿Continuar?",
+    draftDialogTitle: "¿Cambiar tu diseño?",
+    draftDialogNote: "Esto cambia tu borrador. Tu sitio en línea no cambia hasta que publiques.",
+    draftDialogConfirm: "Cambiar diseño en el borrador",
+    draftDialogKeep: "Mantener el diseño actual",
+    draftDialogClose: "Cerrar",
+    draftDialogPublishNow: "Cambiar y publicar ahora",
+    publishNowError: "El diseño se cambió en tu borrador, pero no se pudo publicar. Prueba Publicar sitio.",
   },
 } as const;
 
