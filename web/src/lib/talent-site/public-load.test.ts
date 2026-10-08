@@ -86,6 +86,11 @@ test("dashboard public URL prefers the published personal site, then hub /t/code
   // TUL-180: personal field stays personal; workspace loaded for dual primary.
   assert.match(dashState, /personalPublicSiteUrl: personalSiteUrl/);
   assert.match(dashState, /loadOwnedBusinessWorkspace/);
+  // Impersonation-safe (#2824): effective id + pickReadClient, never raw actor/admin.
+  assert.match(dashState, /readUserId\(scope\.session\.user\.id, ctx\)/);
+  assert.match(dashState, /pickReadClient\(/);
+  assert.match(dashState, /loadOwnedBusinessWorkspace\(workspaceClient, subjectUserId\)/);
+  assert.equal(dashState.includes("loadOwnedBusinessWorkspace(admin, scope.session.user.id)"), false);
   assert.match(dashState, /getTenantPreviewUrl/);
   assert.match(dashState, /isDualSiteOwner: Boolean\(workspaceSite && site\)/);
 });

@@ -15,11 +15,25 @@ import { parseTalentSiteSnapshot } from "@/lib/talent-site/validation";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
 import { maxSitePublicGate } from "@/lib/talent-site/resolve-max-site-core";
 import { talentSitePathUrl, talentSitePublicUrl } from "@/lib/talent-site/site-public-url";
-import type { EffectiveReadContext } from "@/lib/impersonation/effective-read";
+import {
+  pickReadClient,
+  readUserId,
+  type EffectiveReadContext,
+} from "@/lib/impersonation/effective-read";
 import { resolveMyWebsiteTarget, workspaceSiteBuilderHref } from "@/lib/talent-site/my-website-target";
-import { loadOwnedBusinessWorkspace } from "@/lib/talent-site/server/workspace-site-context";
+import {
+  loadOwnedBusinessWorkspace,
+  type OwnedBusinessWorkspace,
+} from "@/lib/talent-site/server/workspace-site-context";
 import { resolveWorkspaceSitePublicUrl } from "@/lib/talent-site/workspace-site-editor-url";
 import { getTenantPreviewUrl } from "@/lib/site-admin/server/tenant-hosts";
+
+const NO_OWNED_WORKSPACE: OwnedBusinessWorkspace = {
+  ownsBusinessWorkspace: false,
+  hasWorkspaceSite: false,
+  workspaceSlug: null,
+  tenantId: null,
+};
 
 function mapSiteRow(row: TalentSiteRow): TalentSiteDashboardState["site"] {
   const draftSnapshot = parseTalentSiteSnapshot(row.draft_snapshot);
@@ -107,6 +121,16 @@ export async function loadTalentPersonalSiteDashboardState(
   const profileCode = scope.talentProfile.profileCode;
 
   const admin = deps.admin();
+  // TUL-180 / TUL-245 (#2824): workspace ownership is keyed on the effective
+  // user; service client only for a verified impersonation of that target.
+  const subjectUserId = readUserId(scope.session.user.id, ctx);
+  const workspaceClient = pickReadClient({
+    sessionUserId: scope.session.user.id,
+    userId: subjectUserId,
+    ctx,
+    rlsClient: scope.session.supabase,
+    adminClient: deps.admin,
+  });
   let site: TalentSiteDashboardState["site"] = null;
   /** Published personal website (custom domain / vanity host / path), if any. */
   let personalSiteUrl: string | null = null;
@@ -128,7 +152,9 @@ export async function loadTalentPersonalSiteDashboardState(
         .eq("talent_profile_id", scope.talentProfile.id)
         .maybeSingle(),
       admin.from("talent_profiles").select("is_demo").eq("id", scope.talentProfile.id).maybeSingle(),
-      loadOwnedBusinessWorkspace(admin, scope.session.user.id),
+      workspaceClient
+        ? loadOwnedBusinessWorkspace(workspaceClient, subjectUserId)
+        : Promise.resolve(NO_OWNED_WORKSPACE),
     ]);
     const isDemo = (demoRes.data as { is_demo?: boolean } | null)?.is_demo === true;
 
