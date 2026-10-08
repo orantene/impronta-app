@@ -190,8 +190,7 @@ for (const argv of [
   ["--yes"],
 ]) {
   test(`refused with exit non-zero before any read or write: ${argv.join(" ")}`, async () => {
-    const st = state(snapshot());
-    st.other = snapshot();
+    const st = { ...state(snapshot()), other: snapshot() };
     const { io, calls, lines } = fakeIo(st);
     let loads = 0;
     const counted: Io = { ...io, load: async (c) => { loads++; return io.load(c); } };
