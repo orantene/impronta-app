@@ -72,7 +72,7 @@
 
 ## Prototype-Specific Gates
 
-- [ ] **TypeScript compiles with zero errors** — `npx tsc --noEmit --skipLibCheck` passes
+- [ ] **TypeScript compiles with zero errors** — `npm run typecheck` passes
 - [ ] **No pre-existing JSX attribute bugs introduced** — JSX attributes need `{}`: `tone={COLORS.x}` not `tone=COLORS.x`
 - [ ] **`_primitives.tsx` exports remain stable** — if you changed a prop name/type on a shared primitive, verify all call sites updated
 - [ ] **Roadmap debt note added** — if this PR introduces known limitations, add a row to ROADMAP.md §3 (Issues)

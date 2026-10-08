@@ -47,6 +47,7 @@ import { useBuilderMediaScope } from "./builder-media-scope";
 import { MediaLibrary } from "@/components/media-library/media-library";
 import { LibraryNotice } from "@/components/media-library/media-library-kit";
 import { useMediaLibrary } from "@/components/media-library/use-media-library";
+import { useTalentPhotoCaptions } from "@/components/media-library/use-talent-photo-captions";
 import type { MediaLibraryKindFilter } from "@/lib/media/library-item";
 import {
   activateSelection,
@@ -362,6 +363,13 @@ export function MediaPickerDrawer({
     [isTalentScope, library, talentProfileId, tenantId, t],
   );
 
+  const captionEditor = useTalentPhotoCaptions({
+    talentProfileId,
+    active: open,
+    patchItem: library.patchItem,
+    onError: (message) => setSaveError(message.slice(0, 200)),
+  });
+
   const saveTags = useCallback(
     async (item: MediaLibraryWireItem, tags: string[]) => {
       setSaveError(null);
@@ -460,6 +468,7 @@ export function MediaPickerDrawer({
             }
             onSaveAlt={saveAlt}
             onSaveTags={isTalentScope ? undefined : saveTags}
+            captionEditor={captionEditor}
             onUpload={handleUpload}
             uploading={uploading}
             uploadProgressPct={uploader.progressPct}

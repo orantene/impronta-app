@@ -4,6 +4,8 @@ import {
   publicationWord,
 } from "@/lib/talent/publication-state";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
+import { translatorFor } from "@/i18n/use-t";
+import { MissingTranslationChip } from "@/components/admin/shell/internal/page-modules/catalog/MissingTranslationChip";
 
 export function ItemStateChips({
   item,
@@ -11,6 +13,8 @@ export function ItemStateChips({
   showBooking = true,
   hideFailed = false,
   instantReady,
+  primary,
+  locales,
 }: {
   item: TalentOffering;
   locale: string;
@@ -18,6 +22,13 @@ export function ItemStateChips({
   hideFailed?: boolean;
   /** false = no working hours yet, so instant reads as a request. */
   instantReady?: boolean;
+  /**
+   * The talent's languages, handed in by the caller (server settings, never the
+   * client store alone). Omit either and no translation cue is drawn. The chip
+   * only appears for exactly two languages with one title missing.
+   */
+  primary?: string;
+  locales?: readonly string[];
 }) {
   const word = publicationWord({ status: item.status, firstPublishedAt: item.firstPublishedAt });
   const soldOut = item.inventoryQty === 0;
@@ -61,6 +72,9 @@ export function ItemStateChips({
           {locale.startsWith("es") ? "Solo agencias" : "Agencies only"}
         </span>
       )}
+      {primary && locales ? (
+        <MissingTranslationChip item={item} primary={primary} locales={locales} uiLocale={locale} t={translatorFor(locale)} />
+      ) : null}
       {hideFailed && (
         <span className="rounded-full bg-[rgba(176,32,32,0.1)] px-2 py-0.5 text-[10px] font-semibold text-[#8A1F1F]">
           {locale.startsWith("es") ? "No se pudo ocultar" : "Could not hide it"}

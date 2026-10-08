@@ -27,6 +27,8 @@ import {
   type TalentOffering,
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
+import { importI18n, importLocaleKey } from "@/lib/talent/offerings-import-locale";
+import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { loadOfferingChildren, replaceOfferingChildren } from "@/lib/talent/offerings-children";
 import {
@@ -103,18 +105,23 @@ type LoadResult =
 /** Editor load: ALL statuses (drafts included), hero-first images resolved. */
 export async function loadTalentOfferingsForEditor(talentProfileId: string): Promise<LoadResult> {
   try {
-    const auth = await authorizeForTalent(talentProfileId);
-    if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
+    // The offerings read does not depend on the auth result (it is filtered by
+    // talent_profile_id and discarded unless auth passes), so it overlaps auth.
+    const [auth, listRes] = await Promise.all([
+      authorizeForTalent(talentProfileId),
+      offeringsTable(admin)
+        .select("*")
+        .eq("talent_profile_id", talentProfileId)
+        .order("sort_order", { ascending: true }),
+    ]);
+    if (!auth.ok) return { ok: false, error: auth.error };
     // Started now, awaited last: the rate feed is cached for hours and never
     // blocks the list, and a failure only removes the "≈ US$" preview.
     const usdRatesPending = loadUsdRates().catch(() => null);
 
-    const { data, error } = await offeringsTable(admin)
-      .select("*")
-      .eq("talent_profile_id", talentProfileId)
-      .order("sort_order", { ascending: true });
+    const { data, error } = listRes;
     if (error) {
       logServerError("talent.offerings.load", error);
       return { ok: false, error: "Could not load your services." };
@@ -688,6 +695,10 @@ export async function importLegacyToOfferings(talentProfileId: string): Promise<
     const seeds = await collectLegacySources(admin, talentProfileId, auth.defaultCurrency);
     if (seeds.length === 0) return { ok: false, error: "Nothing to import." };
 
+    // Imported text is in the talent's primary language; `en` when unknown.
+    const locale = importLocaleKey(
+      (await loadTalentLocaleSettings(talentProfileId).catch(() => null))?.defaultLocale,
+    );
     const rows = seeds.slice(0, 40).map((s, i) => ({
       talent_profile_id: talentProfileId,
       tenant_id: auth.tenantId,
@@ -699,8 +710,8 @@ export async function importLegacyToOfferings(talentProfileId: string): Promise<
       amount_cents: s.amountCents,
       currency: s.currency,
       sort_order: i,
-      title_i18n: { en: s.title },
-      description_i18n: s.description ? { en: s.description } : null,
+      title_i18n: importI18n(locale, s.title),
+      description_i18n: importI18n(locale, s.description),
     }));
     const { error } = await offeringsTable(admin).insert(rows);
     if (error) {

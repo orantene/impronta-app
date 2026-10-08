@@ -99,7 +99,7 @@ import {
 import { buildMaxSiteSeo } from "./max-site-seo.server";
 import { loadMaxSiteSeoFacts } from "./max-site-seo-facts.server";
 import { loadTalentSiteLocaleContext, type TalentSiteLocaleContext } from "./talent-site-locale.server";
-import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links";
+import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links"; import { webOfficeCtxFor, webOfficeFooter, type WebOfficeCtx } from "./web-office-footer"; import { webOfficeSocialEnabled } from "../web-office-social";
 import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main";
 import { policyDocForSlug } from "@/lib/talent-policies/public";
 
@@ -339,7 +339,7 @@ export async function renderTalentMaxSite(
       // PHASE 1 — a free site carries the "Made with Tulala" mark; a paid plan removes it (same predicate as /t/[code]).
       showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
       isDemo,
-      talentName: identity?.name ?? null,
+      talentName: identity?.name ?? null, webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), { canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL, canonicalPath: input.canonicalPath, siteSlug: site.siteSlug }),
     });
 
     const seoFacts = await loadMaxSiteSeoFacts(talentProfileId, locale); // services, links, city; never throws
@@ -398,7 +398,7 @@ async function renderMaxSiteDocument(args: {
   /** Fictional demo talent: a Demo pill above the header + a footer line. */
   isDemo?: boolean;
   /** The talent's display name: labels the first group of the Tulala strip. */
-  talentName?: string | null;
+  talentName?: string | null; /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -562,7 +562,7 @@ async function renderMaxSiteDocument(args: {
   const liveHeaderTree = pruneDeadSectionLinks(headerTree, renderedBlocks, [footerTree], { homePath });
   // TUL-133: a transparent header gets white text only over a dark full-bleed hero.
   const overHeroAttr = headerOverlayAllowed(renderedBlocks) ? { "data-over-hero": "true" } : {};
-  const footerSocialLinks = builderTreeHasKind(footerTree, "social_links") ? await loadTalentSocialLinks(talentProfileId) : [];
+  const hasSocialNode = builderTreeHasKind(footerTree, "social_links"); const { records: footerSocialLinks, strip: webOfficeStrip } = webOfficeFooter(args.webOffice, hasSocialNode || args.webOffice ? await loadTalentSocialLinks(talentProfileId) : [], hasSocialNode, locale);
   const socketModel = buildSocketModel({
     locale,
     publicPathPrefix,
@@ -782,7 +782,7 @@ async function renderMaxSiteDocument(args: {
             visitorLocale: locale,
             contentLocale: args.localeCtx.contentLocale,
             renderSectionEmbed,
-          })}
+          })}{webOfficeStrip}
         </footer>
       ) : null}
 

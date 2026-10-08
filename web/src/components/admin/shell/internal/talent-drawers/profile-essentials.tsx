@@ -12,7 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   actionDeleteMediaAssets,
   actionImportFromGoogleDrive,
-  actionLoadTalentMediaBundle,
+  actionLoadTalentMediaBundleAll,
   actionRevertCropToSource,
   actionUploadAndAssignMedia,
 } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
@@ -62,7 +62,7 @@ export function TalentPhotoEditDrawer() {
   const loadAssets = useCallback(async (tid: string) => {
     if (loadedForRef.current === tid) return;
     loadedForRef.current = tid;
-    const res = await actionLoadTalentMediaBundle(tid);
+    const res = await actionLoadTalentMediaBundleAll(tid);
     if (!res.ok) return;
     const { gallery, card, hero } = res.data;
     const all: MediaAsset[] = [];

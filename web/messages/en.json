@@ -362,6 +362,7 @@
     },
     "profileCta": {
       "inquireAbout": "Inquire about {name}",
+      "bookCta": "Book",
       "bookNowPrice": "Book now · {price}",
       "bookInstantly": "Book {name} instantly",
       "closeAria": "Close",
@@ -2057,6 +2058,10 @@
         "goToPanel": "Go to my dashboard",
         "bookPreview": "Book",
         "bookingsStartStudio": "Bookings start when you add a provider.",
+        "inquiryTitle": "Your page is ready for requests",
+        "inquirySub": "People can send you requests now. Bookings start when you add a team member.",
+        "addFirstMember": "Add your first team member to start taking bookings",
+        "alsoBookMyself": "Also take bookings yourself",
         "urlDiffers": "Your address came out different from the one you chose because it was already taken. This is the real one."
       },
       "essentials": {
@@ -2098,6 +2103,19 @@
         "rose": "Rosé",
         "blush": "Blush",
         "orchid": "Orchid"
+      },
+      "role": {
+        "eyebrow": "Step 1 of 2 · Role",
+        "titleLead": "How will you use",
+        "intro": "Pick how you want to start. This sets your home dashboard, and you can't change it later from here.",
+        "talentTitle": "I'm Talent",
+        "talentBody": "Model, performer, artist, or creative. Get a profile, share one link, and let bookings come to you.",
+        "clientTitle": "I'm a Client",
+        "clientBody": "Brand, producer, event planner, or casting director. Browse the directory and send booking requests.",
+        "businessTitle": "I run a business",
+        "businessBody": "Agency, studio, band, team, or just you. Set up a workspace with your own site, roster, bookings, and payments.",
+        "staffNote": "Staff accounts are assigned by the agency directly.",
+        "error": "Something went wrong. Please try again."
       }
     },
     "consent": {
@@ -13102,6 +13120,7 @@
       "tagPlaceholder": "Add tag + Enter",
       "removeTag": "Remove tag {tag}",
       "errorTitle": "Could not load the media library",
+      "errorDetail": "Something went wrong while loading your files. Try again in a moment.",
       "emptyTitle": "No assets yet",
       "emptyDetail": "Upload a file, or drop one anywhere in this panel.",
       "noMatchesTitle": "Nothing matches those filters",
@@ -13117,6 +13136,10 @@
       "ownerLabel": "Owner",
       "savingLabel": "Saving",
       "noAltYet": "No alt text yet",
+      "captionsSection": "Captions",
+      "captionsHint": "Shown under the photo on your site",
+      "captionsPlaceholder": "Add a caption",
+      "captionsFieldLabel": "Caption in {language}",
       "talentAll": "All talent",
       "talentFilterLabel": "Filter by talent",
       "talentSearchPlaceholder": "Type a talent name",
@@ -17639,6 +17662,8 @@
         "structureWeb": "Website menu page (collections)"
       },
       "list": {
+        "langMissing": "{lang} missing",
+        "langMissingHint": "No title in {language} yet",
         "title": "Catalog",
         "intro": "Everything the POS, the website and the profile can sell · one record per item",
         "import": "Import",

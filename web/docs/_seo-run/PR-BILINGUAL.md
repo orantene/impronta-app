@@ -181,4 +181,4 @@ Behavior notes:
 3. View source of EN `/pricing`: unchanged EN title/description (no regression).
 4. Homepage `/es` (or ES render of `/`): full ES title without the `%s · Tulala` template double-branding.
 5. Grep the diff for the em dash character in any user-facing string: zero matches.
-6. `cd web && npx tsc --noEmit && npm run lint` (NODE_OPTIONS=--max-old-space-size=8192 for tsc).
+6. `cd web && npm run typecheck && npm run lint` (NODE_OPTIONS=--max-old-space-size=8192 for tsc).

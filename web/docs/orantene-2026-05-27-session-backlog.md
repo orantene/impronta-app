@@ -189,7 +189,7 @@ The following need a human call before relevant agent work proceeds:
 - Each migration uses a unique timestamp: `date -u +%Y%m%d%H%M%S`
 - Service-role for any DB query
 - No force-push, no `--no-verify`, no `--amend` on older commits
-- TS + lint gate before every commit: `NODE_OPTIONS="--max-old-space-size=8192" npx tsc --noEmit` then `npm run lint`
+- TS + lint gate before every commit: `NODE_OPTIONS="--max-old-space-size=8192" npm run typecheck` then `npm run lint`
 - Never merge to main without explicit user approval (current session has standing approval for the work explicitly discussed; do not extend to new work without asking)
 - Never handle Stripe API keys, credit cards, or other payment credentials directly — guide the user via the dashboard / write scripts they execute
 - Open one PR per logical change; do not pile unrelated work on one PR

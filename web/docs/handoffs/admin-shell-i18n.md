@@ -49,6 +49,6 @@ Admin surfaces are auth-gated on the app host, which does not honor `/es/` or th
 ## Definition of done
 - Every LIVE admin surface (waves 1-6) renders through `t()`; no hardcoded user-facing English remains on them (grep-clean).
 - `en`/`es` parity `missing=0`; real Spanish (glossary terms kept English).
-- `NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit` exit 0; `npm run lint` clean (suppressions pruned if needed).
+- `npm run typecheck` exit 0; `npm run lint` clean (suppressions pruned if needed).
 - Committed in themed waves on the correct branch (#712's branch if unmerged, else `main`); PR updated/opened.
 - Flag the platform-HQ surface (wave 7) as intentionally deferred if you stop before it, and list any strings left as runtime-concat.

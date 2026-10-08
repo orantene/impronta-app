@@ -10,19 +10,26 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 
+import { resolvePortfolioAlt, resolvePortfolioCaption } from "./portfolio-i18n";
 import type { TalentPortfolioShot } from "./portfolio-types";
 
 const BUCKET = "media-public";
 
 export async function loadPortfolioSources(
   talentProfileId: string,
-  opts?: { displayName?: string | null; limit?: number },
+  opts?: {
+    displayName?: string | null;
+    limit?: number;
+    /** Visitor locale: captions and alt text resolve to it (#187). */
+    locale?: string | null;
+    /** The page's primary locale: the second step of the caption fallback. */
+    primaryLocale?: string | null;
+  },
 ): Promise<{ talentPortfolioShots: TalentPortfolioShot[] }> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { talentPortfolioShots: [] };
   const trusted = createServiceRoleClient() ?? supabase;
   const limit = Math.min(Math.max(opts?.limit ?? 24, 1), 48);
-  const altName = opts?.displayName?.trim() || "Portfolio";
 
   const { data: mediaRows, error } = await trusted
     .from("media_assets")
@@ -112,15 +119,20 @@ export async function loadPortfolioSources(
     const linked = offeringByMedia.get(r.id);
     const metaAlbum =
       typeof r.metadata?.albumId === "string" ? r.metadata.albumId.trim() : "";
+    const caption = resolvePortfolioCaption(r.metadata, opts?.locale, opts?.primaryLocale);
     return {
       id: r.id,
       url: trusted.storage.from(BUCKET).getPublicUrl(r.storage_path).data.publicUrl,
-      alt: r.alt?.trim() || altName,
-      // Talent-written caption (media metadata), shown under the shot.
-      caption:
-        typeof r.metadata?.caption === "string" && r.metadata.caption.trim()
-          ? r.metadata.caption.trim()
-          : null,
+      alt: resolvePortfolioAlt({
+        metadata: r.metadata,
+        alt: r.alt,
+        caption,
+        displayName: opts?.displayName,
+        locale: opts?.locale,
+        primaryLocale: opts?.primaryLocale,
+      }),
+      // Talent-written caption (media metadata), resolved for the visitor's language.
+      caption,
       offeringId: linked?.id ?? null,
       offeringTitle: linked?.title ?? null,
       albumId: metaAlbum || null,

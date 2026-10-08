@@ -61,6 +61,7 @@ export type BuilderNodeMutationResult =
       code: BuilderNodeMutationCode;
       error: string;
       details?: ReadonlyArray<string>;
+      issues?: ReadonlyArray<{ path: string; message: string }>;
     };
 
 /**

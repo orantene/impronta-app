@@ -15,6 +15,18 @@ export type PortfolioGallery = { items: PortfolioGalleryItem[]; index: number };
 /** window event: the lightbox asks the link that owns `shotId` to open its booking. */
 export const PORTFOLIO_BOOK_EVENT = "tulala:portfolio-book";
 
+/**
+ * TUL-139: every link with the same shot id listens on `window`, so a photo used
+ * in two portfolio blocks answered one tap twice. The first listener to claim the
+ * event's shared `detail` object books; later ones see it claimed and stand down.
+ */
+export function claimPortfolioBook(event: Event, shotId: string): boolean {
+  const detail = (event as CustomEvent<{ shotId?: string; claimed?: boolean }>).detail;
+  if (!detail || detail.shotId !== shotId || detail.claimed) return false;
+  detail.claimed = true;
+  return true;
+}
+
 /** A horizontal swipe longer than this changes photo. */
 export const PORTFOLIO_SWIPE_PX = 60;
 

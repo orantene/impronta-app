@@ -294,7 +294,7 @@ Files touched:
 
 **Flag.** None — additive write only; existing legacy write is untouched.
 
-**Gate.** TS clean (`cd web && npx tsc --noEmit`); lint baseline (78);
+**Gate.** TS clean (`cd web && npm run typecheck`); lint baseline (78);
 manual QA: edit a bridged field via the profile-shell editor (admin +
 talent), verify it appears in **both** tables.
 

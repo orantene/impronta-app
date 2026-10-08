@@ -126,6 +126,7 @@ import {
 } from "@/lib/talent/agency-overlay";
 import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
 import { TalentProfileInstantBookButton } from "./talent-profile-instant-book-button";
+import { HubProfileCta } from "./hub-profile-book-cta";
 import { loadInstantBookEligibility } from "@/lib/scheduling/instant-book-eligibility";
 import { servicesMenuForPublicHost } from "@/lib/talent/services-menu-for-host";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
@@ -2261,9 +2262,10 @@ export async function TalentProfileView({
     "inline-flex items-center justify-center rounded-full bg-[var(--plt-forest)] px-5 py-2.5 text-sm font-medium text-[var(--plt-forest-on)] shadow-[var(--plt-shadow-forest)] transition-[background,transform] hover:bg-[var(--plt-forest-deep)] hover:-translate-y-[1px]";
   const inquireBtnClassFull = `${inquireBtnClass} w-full`;
 
-  const inquireButtons = (btnClass: string) =>
-    showSlotPicker ? null : (
-      <>
+  // TUL-170: the hub Book CTA also shows when the slot picker replaces the Inquire controls.
+  const inquireButtons = (btnClass: string) => (
+      <HubProfileCta platformHost={platformHost} maxSiteUrl={maxSiteUrl} askEntry={talentAskEntry} locale={locale} className={btnClass}>
+        {showSlotPicker ? null : <>
         {profileCtas.showLegacyInstantBook ? (
           <TalentProfileInstantBookButton
             talentId={profile.id}
@@ -2288,7 +2290,8 @@ export async function TalentProfileView({
           locale={locale}
           className={btnClass}
         /> : null}
-      </>
+        </>}
+      </HubProfileCta>
     );
 
   // Phase G PR 1 — schema.org ProfilePage + Person JSON-LD. Emitted as a

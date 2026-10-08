@@ -278,7 +278,7 @@ export function GalleryBrowseScreen({
         ) : null}
       </form>
 
-      {/* Wave 3: one filter row, trade chips + Filters */}
+      {/* Wave 3: one filter row - trade chips + Filters */}
       <div className="relative flex flex-col gap-2">
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
           {multi

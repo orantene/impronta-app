@@ -76,7 +76,7 @@ Modified existing migration:
 
 Run from `/Users/oranpersonal/Desktop/impronta-integrate-98/web`.
 
-- `npx tsc --noEmit` → **0 TS errors**
+- `npm run typecheck` → **0 TS errors**
 - `npm run lint` → **0 errors, 954 warnings**
   - `npm run lint:refresh-baseline` executed to refresh suppressions/pruning with current toolchain
 - `npm run test:components` → **13/13 passing**

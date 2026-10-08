@@ -100,7 +100,8 @@ test("P1: live card shows saved custom palette name, default My colors / Mis col
 
 // ── P1 #5: live-stays line at all widths ─────────────────────────────────
 test("P1: 'live site stays' line is not hidden below lg", () => {
-  const src = read("ThemeDetailScreen.tsx");
+  // The pill lives in the detail header (ThemeDetailChrome), not the screen.
+  const src = read("ThemeDetailChrome.tsx");
   const idx = src.indexOf('data-testid="maison-live-stays-pill"');
   assert.ok(idx > 0);
   const cls = src.slice(idx, idx + 200);

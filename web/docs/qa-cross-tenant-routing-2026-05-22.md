@@ -161,7 +161,7 @@ at the engine + DB layer.
 delete.
 
 ## Gates
-- `npx tsc --noEmit` — CLEAN
+- `npm run typecheck` — CLEAN
 - `test:inquiry-workspace` — 10/10
 - engine submit / owning-party / cross-tenant unit tests — 42 pass, 2 skipped
 - `test:tenant-isolation` — 25/26 (1 pre-existing unrelated failure)

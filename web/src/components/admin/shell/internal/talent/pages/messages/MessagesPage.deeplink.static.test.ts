@@ -1,7 +1,8 @@
 /**
  * Talent Messages v5 must honour the same deep-link contracts as admin:
  * - `?inquiry=<uuid>` on /talent/inbox
- * - pinNextConversation → consumePendingConversation from /talent/inbox/[id]
+ * - pinNextConversation → peekPendingConversation + clearPendingConversation
+ *   (read once in a state initialiser, cleared in an effect) from /talent/inbox/[id]
  *
  * Static source check so the wiring cannot silently regress (QA Story 4
  * agency money deep-link left "Pick a conversation" without this).
@@ -27,7 +28,16 @@ describe("TalentMessagesV5 deep-link wiring", () => {
     assert.match(src, /initialInquiryId=\{initialInquiryId\}/);
   });
 
-  it("consumes pinNextConversation from PinThenRedirect", () => {
-    assert.match(src, /consumePendingConversation/);
+  it("consumes pinNextConversation from PinThenRedirect (peek once, then clear)", () => {
+    // Both come from the same pending-conversation module that
+    // pinNextConversation writes to.
+    assert.match(
+      src,
+      /import \{[^}]*clearPendingConversation[^}]*peekPendingConversation[^}]*\} from "@\/components\/admin\/shell\/internal\/messages\/conversation-pending"/,
+    );
+    assert.match(src, /useState\(\(\) => peekPendingConversation\(\)\)/);
+    assert.match(src, /clearPendingConversation\(\)/);
+    // The pinned id feeds the same initial conversation as the ?inquiry= link.
+    assert.match(src, /initialInquiryId = fromQuery \?\? fromPin/);
   });
 });

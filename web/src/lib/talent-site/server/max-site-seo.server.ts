@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isOwnCanonical } from "@/lib/talent-site/canonical-own-host";
 import { buildLocaleAlternates } from "@/i18n/alternates";
 import { buildTalentProfileJsonLd, type TalentJsonLdService } from "@/lib/seo/talent-json-ld";
 import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
@@ -42,6 +43,12 @@ export function buildMaxSiteSeo(args: {
   canonicalOrigin?: string;
   canonicalPath?: string;
   /**
+   * #201 — the site's other own hosts (custom domains, platform subdomain). An
+   * explicit `canonical_url` is honoured only on these or the `canonicalOrigin`
+   * host; absent, only the origin host counts.
+   */
+  ownHosts?: readonly string[];
+  /**
    * PR 5 — the talent's languages. With two or more, every language version
    * is self-canonical (primary unprefixed, each secondary prefixed) with
    * reciprocal hreflang + x-default on the unprefixed URL. One language: no
@@ -75,7 +82,16 @@ export function buildMaxSiteSeo(args: {
   // An operator's explicit canonical_url describes the primary-language page;
   // a translated version stays self-canonical so its hreflang is honoured.
   const isPrimary = !args.locales || locale === args.locales.primary;
-  const canonical = (isPrimary ? page.canonicalUrl?.trim() : "") || builtCanonical;
+  const explicit = isPrimary ? page.canonicalUrl?.trim() : "";
+  const explicitIsOwn = explicit ? isOwnCanonical(explicit, { origin, hosts: args.ownHosts ?? [] }) : false;
+  if (explicit && !explicitIsOwn && process.env.NODE_ENV !== "production") {
+    // Silent-failure signal (AGENTS.md): name the row and the host, never throw.
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[talent-site/seo] ignored explicit canonical_url on page ${page.id} (site ${site.siteSlug ?? "?"}): host is not this site's own (${origin})`,
+    );
+  }
+  const canonical = (explicitIsOwn ? explicit : "") || builtCanonical;
 
   // JSON-LD — operator override wins; else the SHARED profile builder, keyed to
   // the SITE canonical. `name` falls back through identity → title.

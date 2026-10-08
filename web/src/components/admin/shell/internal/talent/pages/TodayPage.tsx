@@ -200,6 +200,7 @@ export function TalentTodayPage() {
         onOpenProfile={() => setTalentPage("profile")}
         onOpenRecord={(id) => openAgendaPath(`/talent/bookings/${id}`, "booking-record")}
         onOpenMoney={openMoney}
+        onSetUpPayouts={() => openDrawer("talent-payouts")}
       />
     );
   }

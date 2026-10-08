@@ -68,3 +68,45 @@ export function bypassHeaders(url, env = process.env) {
   const s = env.VERCEL_AUTOMATION_BYPASS_SECRET;
   return s && isQaPoolUrl(url) ? { "x-vercel-protection-bypass": s } : {};
 }
+
+// ---- Vercel share link (TUL-171). Pure; the script does the I/O. ----
+export const SHARE_TTL_SECONDS = 23 * 60 * 60;
+/** A link with less than this left is not worth handing to a tester. */
+export const SHARE_MIN_REMAINING_MS = 60 * 60 * 1000;
+
+/** Epoch ms from a Vercel `expires` value (accepts seconds or ms); null = never. */
+function expiryMs(expires) {
+  if (typeof expires !== "number" || !Number.isFinite(expires) || expires <= 0) return null;
+  return expires < 1e12 ? expires * 1000 : expires;
+}
+
+/**
+ * Normalise the `protectionBypass` map of an alias/deployment into share links.
+ * ONLY scope "shareable-link" entries qualify: automation-bypass secrets live in
+ * the same map and must never be surfaced. Returns [{ token, expiresAt|null }].
+ */
+export function shareLinksFrom(protectionBypass) {
+  if (!protectionBypass || typeof protectionBypass !== "object") return [];
+  return Object.entries(protectionBypass)
+    .filter(([, v]) => v && typeof v === "object" && v.scope === "shareable-link")
+    .map(([token, v]) => ({ token, expiresAt: expiryMs(v.expires) }));
+}
+
+/** Reuse decision: the unexpired link with the latest expiry (never-expiring wins), or null. */
+export function pickShareLink(links, now) {
+  const ok = links.filter((l) => l.expiresAt === null || l.expiresAt - now >= SHARE_MIN_REMAINING_MS);
+  if (!ok.length) return null;
+  return ok.reduce((a, b) => ((b.expiresAt ?? Infinity) > (a.expiresAt ?? Infinity) ? b : a));
+}
+
+/** https://qa-N.tulala.digital/?_vercel_share=<token>, or null for a non-pool host/empty token. */
+export function buildShareUrl(host, token) {
+  if (!isQaPoolHost(host) || typeof token !== "string" || !token) return null;
+  return `https://${host.trim().toLowerCase()}/?_vercel_share=${encodeURIComponent(token)}`;
+}
+
+/** "expires in 22h" / "expired" / "no expiry" for `list`. */
+export function formatExpiry(expiresAt, now) {
+  if (expiresAt === null) return "no expiry";
+  return expiresAt <= now ? "expired" : `expires in ${formatAge(expiresAt - now)}`;
+}

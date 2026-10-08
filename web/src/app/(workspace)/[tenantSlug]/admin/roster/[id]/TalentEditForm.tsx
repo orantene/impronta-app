@@ -15,7 +15,7 @@ import {
 import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
 import type { MediaAsset } from "@/components/talent/media-gallery-drawer";
 import { setTalentAvatar, setTalentHero } from "./extended-actions";
-import { actionUploadAndAssignMedia, actionDeleteMediaAssets, actionLoadTalentMediaBundle, actionImportFromGoogleDrive, actionReorderMediaAssets, actionRevertCropToSource } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { actionUploadAndAssignMedia, actionDeleteMediaAssets, actionLoadTalentMediaBundleAll, actionImportFromGoogleDrive, actionReorderMediaAssets, actionRevertCropToSource } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 
@@ -425,7 +425,7 @@ function ThreeSlotPhotoPanel({
   useEffect(() => {
     if (loadedRef.current) return;
     loadedRef.current = true;
-    void actionLoadTalentMediaBundle(talentId).then((res) => {
+    void actionLoadTalentMediaBundleAll(talentId).then((res) => {
       if (!res.ok) return;
       const all: MediaAsset[] = [];
       const { card, hero, gallery } = res.data;

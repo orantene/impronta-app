@@ -10,7 +10,7 @@ History: W1–W10 shipped as PRs #839 #843 #844 #847 #853 #854 #858 #862 #865
 
 1. Branch off latest `origin/main`: `feat/talent-dashboard-w<N>`. One wave = one PR.
 2. Gates before every commit: `cd web && NODE_OPTIONS=--max-old-space-size=8192
-   npx tsc --noEmit` (0 errors) and `npm run lint` (clean; if suppressions are
+   npm run typecheck` (0 errors) and `npm run lint` (clean; if suppressions are
    stale after removing inline styles run `npx eslint . --quiet
    --suppressions-location eslint-suppressions.json --prune-suppressions`).
 3. NEVER add `style={{…}}` under `components/admin/shell` — the

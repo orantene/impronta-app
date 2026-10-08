@@ -15,14 +15,7 @@ import { resolve, join } from "node:path";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { chromium } from "playwright";
-
-/** Count differing bytes between two buffers (length delta counts as diffs). */
-export function countByteDifferences(a: Buffer, b: Buffer): number {
-  let diff = Math.abs(a.length - b.length);
-  const n = Math.min(a.length, b.length);
-  for (let i = 0; i < n; i++) if (a[i] !== b[i]) diff++;
-  return diff;
-}
+import { countByteDifferences } from "./byte-diff";
 
 const MIME: Record<string, string> = {
   ".html": "text/html", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",

@@ -50,7 +50,7 @@ Each file has exactly one owner (no two agents touch the same file → conflict-
 
 ### Stage 3 — Gate (Opus)
 
-`cd web && NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit && npm run lint`. Fix any introduced errors. Report pass/fail.
+`cd web && npm run typecheck && npm run lint`. Fix any introduced errors. Report pass/fail.
 
 ### Stage 4 — QA + rescore (Opus)
 

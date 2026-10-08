@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  authCookieExpiryHeaders,
   cookieDomainForHost,
   expireParentDomainAuthCookies,
   isSupabaseAuthCookie,
@@ -54,4 +55,16 @@ test("expireParentDomainAuthCookies clears shared parents for auth names only", 
       "sb-xyz-code-verifier@.tulala.digital",
     ],
   );
+});
+
+test("authCookieExpiryHeaders expires host-only and parent scope on shared hosts", () => {
+  const h = authCookieExpiryHeaders(["sb-x-auth-token", "sb-x-auth-token.0", "other"], "tulala.digital");
+  assert.equal(h.length, 4);
+  assert.ok(h.includes("sb-x-auth-token=; Path=/; Max-Age=0"));
+  assert.ok(h.includes("sb-x-auth-token.0=; Path=/; Max-Age=0; Domain=.tulala.digital"));
+  assert.ok(!h.some((x) => x.startsWith("other=")));
+});
+
+test("authCookieExpiryHeaders is host-only on localhost", () => {
+  assert.deepEqual(authCookieExpiryHeaders(["sb-x-auth-token"], "localhost:3000"), ["sb-x-auth-token=; Path=/; Max-Age=0"]);
 });

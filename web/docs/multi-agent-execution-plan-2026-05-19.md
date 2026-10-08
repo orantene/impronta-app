@@ -22,7 +22,7 @@
 2. **Scoped local commits only** — touch only the files for the
    assigned item; NEVER stage other agents' files; NEVER push, deploy,
    rebase, or reset shared branches.
-3. **Authoritative gate** — `npx tsc --noEmit` is **poisoned by the
+3. **Authoritative gate** — `npm run typecheck` is **poisoned by the
    running dev server** (corrupt `.next/dev/types/routes.d.ts`). Before
    trusting tsc, ALWAYS stop the :3000 dev server, `rm -rf web/.next`,
    then run tsc. Filtering `.next/` lines from poisoned output is NOT
@@ -58,7 +58,7 @@
    `default-content.ts`, `registry-editors.ts`. Resolve preserving 6C
    intent + their additions.
 2. (#5) Authoritative re-gate: stop dev, `rm -rf web/.next`,
-   `npx tsc --noEmit`, `npm run lint`, `npm run test:node-presentation`,
+   `npm run typecheck`, `npm run lint`, `npm run test:node-presentation`,
    `npx tsx --test web/src/lib/site-admin/links/resolve-link-ref.test.ts`.
 3. (#6) Chrome-browser re-QA of `/impronta` (use the same baseline JS
    evaluator pattern). All hrefs identical or stronger; zero console

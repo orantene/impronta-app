@@ -70,10 +70,17 @@ test("note copy EN/ES", () => {
 
 test("theme preview renders with no tenant, so services_catalog booking is demo", () => {
   const preview = readFileSync(join(process.cwd(), "src/app/template-preview/[key]/theme-preview.tsx"), "utf8");
-  // No freeformContext → no tenant. My content binds preset sources, and
-  // those always carry catalogBookingLive: false.
+  // No freeformContext → no tenant. The ThemeCatalogPreview (split out of
+  // page.tsx) binds the Maison seed sources when present, else my content's
+  // preset sources. My content always carries catalogBookingLive: false; the
+  // seed sources never set it, and render.tsx treats absent as "demo".
   assert.doesNotMatch(preview, /freeformContext=/);
-  assert.match(preview, /freeformDataSources=\{mine\?\.dataSources\}/);
+  assert.match(preview, /freeformDataSources=\{seedDataSources \?\? mine\?\.dataSources\}/);
+  const seed = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/theme-catalog/maison/seed-preview-tokens.ts"),
+    "utf8",
+  );
+  assert.doesNotMatch(seed, /catalogBookingLive:\s*true/, "seed preview must never make booking live");
   const mine = readFileSync(
     join(process.cwd(), "src/lib/talent-site/server/preview-my-content.server.ts"),
     "utf8",

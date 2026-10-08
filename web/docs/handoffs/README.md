@@ -47,7 +47,7 @@ Multi-tenant talent-agency SaaS (Next.js 16 App Router + Supabase + Vercel; app 
 - Match surrounding code style; keep files under 800 lines where practical.
 
 ### Gates + CI (do not skip)
-- **tsc:** `cd web && NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit` (OOMs at the default ~2GB). Slow (~2-3 min).
+- **tsc:** `cd web && npm run typecheck` (OOMs at the default ~2GB). Slow (~2-3 min).
 - **lint:** `cd web && npm run lint` (eslint with `--suppressions-location eslint-suppressions.json`). Slow. To lint specific files, pass them as **positional args** (the flat-config rejects `--file`): `node -r ./scripts/eslint-node-polyfill.cjs ./node_modules/eslint/bin/eslint.js "<file>" --quiet --suppressions-location eslint-suppressions.json`.
 - **CI "Structural quality gate"** runs a tsc ratchet (BASE=0 — no new tsc errors) + a suppressions ratchet (`eslint-suppressions.json` count must not exceed BASE 7840). **Critical gotcha:** eslint **exits 2 on STALE suppressions** — if your change fixes a lint violation that was suppressed, run `npm run lint -- --prune-suppressions` and commit the pruned `eslint-suppressions.json`, or the gate fails.
 - **CI "Fidelity goldens"** are CI-seeded visual-diff PNGs (macos-14); they fail on intentional visual changes and drift ~2-4% (flaky). They are **non-required** (`UNSTABLE`, not `BLOCKED`) — mergeable past them; reseed via a `workflow_dispatch` (the gh PAT can't dispatch Actions, so the owner reseeds).

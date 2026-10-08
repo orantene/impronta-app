@@ -34,6 +34,34 @@ const VOSEO = new RegExp(
     ")(?![\\p{L}])|(?<![\\p{L}])[Vv]os(?![\\p{L}])(?! (?:êtes|avez|pouvez))",
   "iu",
 );
+/**
+ * Voseo imperatives with an attached pronoun ("Revisala", "Mandame", "Abrilo").
+ * The tú form carries a written accent on the stressed syllable ("Revísala",
+ * "Mándame", "Ábrelo"), so a bare stem + vowel + pronoun is the voseo shape.
+ * A generic suffix match would flag "sala", "pelo" and "tomate", so this is
+ * built from the verbs UI copy actually uses: stem, then the voseo vowel.
+ * "te" and "se" are left out as pronouns on purpose ("toma" + "te" is "tomate").
+ */
+const VOSEO_STEMS: ReadonlyArray<readonly [string, "a" | "e" | "i"]> = [
+  ["revis", "a"], ["mand", "a"], ["envi", "a"], ["reenvi", "a"], ["mostr", "a"], ["avis", "a"], ["cont", "a"],
+  ["llam", "a"], ["ayud", "a"], ["dej", "a"], ["guard", "a"], ["copi", "a"], ["pag", "a"], ["cerr", "a"],
+  ["busc", "a"], ["carg", "a"], ["descarg", "a"], ["reserv", "a"], ["confirm", "a"], ["cancel", "a"],
+  ["activ", "a"], ["desactiv", "a"], ["cobr", "a"], ["prob", "a"], ["edit", "a"], ["elimin", "a"],
+  ["borr", "a"], ["agreg", "a"], ["vincul", "a"], ["conect", "a"], ["invit", "a"], ["public", "a"],
+  ["aprob", "a"], ["rechaz", "a"], ["acept", "a"], ["verific", "a"], ["actualiz", "a"], ["us", "a"],
+  ["mir", "a"], ["esper", "a"], ["complet", "a"], ["ingres", "a"], ["record", "a"], ["pregunt", "a"],
+  ["eleg", "i"], ["escrib", "i"], ["abr", "i"], ["sub", "i"], ["dec", "i"], ["ped", "i"], ["corregi", "i"],
+  ["segu", "i"], ["compart", "i"], ["añad", "i"], ["recib", "i"], ["viv", "i"],
+];
+// "mandala" is an ordinary word (a drawing), and "usanos" does not occur; keep the first out of the net.
+const VOSEO_PRONOUN_OK = /^mandala$/i;
+const VOSEO_ATTACHED = new RegExp(
+  "(?<![\\p{L}])(?:" +
+    VOSEO_STEMS.map(([stem, vowel]) => `${stem}${vowel}`).join("|") +
+    ")(?:la|lo|las|los|me|nos|le|les)(?![\\p{L}])",
+  "giu",
+);
+
 // "Sos" and "vos" are ordinary uppercase/English-or-code tokens in places; only flag them in Spanish prose.
 const ONLY_IN_PROSE = /^(sos|vos)$/i;
 
@@ -49,6 +77,11 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
 /** Quoted or JSX string content that reads as Spanish prose around the match. */
 function offenders(text: string): string[] {
   const hits: string[] = [];
+  for (const m of text.matchAll(VOSEO_ATTACHED)) {
+    if (VOSEO_PRONOUN_OK.test(m[0])) continue;
+    const at = m.index ?? 0;
+    hits.push(`${m[0]} … ${text.slice(Math.max(0, at - 40), at + 60).replace(/\s+/g, " ").trim()}`);
+  }
   const re = new RegExp(VOSEO.source, "giu");
   for (const m of text.matchAll(re)) {
     const word = m[0];
@@ -80,5 +113,10 @@ test("the guard bites: voseo is caught, tú-form is not", () => {
   assert.ok(offenders("¿Tenés una duda? Preguntá antes de reservar").length > 0);
   assert.ok(offenders("Contame qué querés hacer").length > 0);
   assert.deepEqual(offenders("Elige una fecha. ¿Tienes una duda? Pregunta antes de reservar."), []);
+  assert.ok(offenders("{agency} te envio una oferta. Revisala").length > 0);
+  assert.ok(offenders("Abrilo y mandame el resultado").length >= 2);
+  assert.ok(offenders("Compartilo con tu equipo").length > 0);
+  assert.deepEqual(offenders("Revísala y mándame el resultado. Ábrelo cuando puedas."), []);
+  assert.deepEqual(offenders("La sala del pelo; un tomate; una mandala; Dame y dile que sí."), []);
   assert.deepEqual(offenders("Hace siete años seguí esa vocación y compartí mi trabajo."), []);
 });
