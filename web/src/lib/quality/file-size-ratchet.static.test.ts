@@ -595,7 +595,7 @@ const BUDGETS: Record<string, number> = {
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3769,
   // +6: loadOfferDraft returns createdByName (the lookup itself is extracted to offer-author.ts)
-  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 3627,
+  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 3532,
   // 2026-08-10 branding-media: +12 for the wordmark/favicon in-use delete
   // guard (logic extracted to site-admin/server/brand-library.ts; this is
   // the import + call site + refusal message).
@@ -619,7 +619,7 @@ const BUDGETS: Record<string, number> = {
   // talent-document actions with one dual-auth helper (staff OR profile owner),
   // so the helper and its doc comment cost more lines than the four blocks it
   // deleted returned.
-  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2385,
+  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2335,
   // +16 — loads + passes the Pro/Portfolio embeds and press bands (the render
   // chrome itself lives in _shared/TalentExtrasBands.tsx, not here).
   // +17 — the agency-surface roster gate, called in generateMetadata AND the
@@ -658,7 +658,7 @@ const BUDGETS: Record<string, number> = {
   //        `sections/contact_form/attachment-render.test.ts` rather than here.
   "src/lib/site-admin/sections/node-presentation-render.test.ts": 2638,
   "src/lib/site-admin/server/homepage.ts": 2397,
-  "src/lib/site-admin/edit-mode/composition-actions.ts": 2267,
+  "src/lib/site-admin/edit-mode/composition-actions.ts": 2153,
 };
 
 test("no file is claimed by two ratchet tables at once", () => {
