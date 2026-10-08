@@ -6,6 +6,7 @@ import {
   RENATA_OFFERING_ID,
   RENATA_OLD_ES,
   runContentFixes,
+  sameJson,
   type ContentFixIo,
   type FaqFullRow,
   type FaqInsert,
@@ -25,14 +26,24 @@ interface Calls {
   backups: Array<{ label: string; data: unknown }>;
 }
 
-function fakeIo(db: Db, opts: { corruptInsert?: boolean } = {}): { io: ContentFixIo; calls: Calls } {
+function fakeIo(db: Db, opts: { corruptInsert?: boolean; jsonbKeyOrder?: boolean } = {}): { io: ContentFixIo; calls: Calls } {
   const calls: Calls = { updates: [], inserts: [], backups: [] };
   let n = 0;
+  // jsonb returns object keys in its own order (shorter keys first, then alphabetical): `{en, es}`.
+  const reorder = (v: unknown): unknown => {
+    if (!opts.jsonbKeyOrder) return v;
+    if (Array.isArray(v)) return v.map(reorder);
+    if (v && typeof v === "object") {
+      const o = v as Record<string, unknown>;
+      return Object.fromEntries(Object.keys(o).sort((a, b) => a.length - b.length || a.localeCompare(b)).map((k) => [k, reorder(o[k])]));
+    }
+    return v;
+  };
   const io: ContentFixIo = {
     async findProfile(code) { return db.profiles[code] ?? null; },
     async findSiteSlug(id) { return db.slugs[id] ?? null; },
-    async listOfferings(id) { return JSON.parse(JSON.stringify(db.offerings[id] ?? [])) as OfferingRow[]; },
-    async listFaqFull(id) { return JSON.parse(JSON.stringify(db.faq[id] ?? [])) as FaqFullRow[]; },
+    async listOfferings(id) { return reorder(JSON.parse(JSON.stringify(db.offerings[id] ?? []))) as OfferingRow[]; },
+    async listFaqFull(id) { return reorder(JSON.parse(JSON.stringify(db.faq[id] ?? []))) as FaqFullRow[]; },
     async updateOfferingDescription(input) {
       calls.updates.push(input);
       const row = db.offerings[input.profileId]?.find((o) => o.id === input.id);
@@ -252,4 +263,22 @@ test("argument guards: --apply needs --yes, --yes needs --apply, unknown flags a
     assert.equal(res.exitCode, 3, argv.join(" "));
     assert.equal(calls.updates.length + calls.inserts.length + calls.backups.length, 0);
   }
+});
+
+test("verify is key-order insensitive: jsonb returning {en, es} for a planned {es, en} is not a failure", async () => {
+  const db = baseDb();
+  const { io } = fakeIo(db, { jsonbKeyOrder: true });
+  const lines: string[] = [];
+  const res = await runContentFixes(APPLY, io, (l) => lines.push(l));
+  assert.equal(res.exitCode, 0, lines.join("\n"));
+  assert.ok(!lines.some((l) => l.includes("VERIFY FAILED")));
+  assert.match(lines.join("\n"), /Applied and verified/);
+});
+
+test("sameJson: key order is ignored, values and nesting are not", () => {
+  assert.equal(sameJson({ es: "a", en: "b" }, { en: "b", es: "a" }), true);
+  assert.equal(sameJson({ es: "a", en: "b" }, { en: "b", es: "A" }), false);
+  assert.equal(sameJson({ a: { x: 1, y: 2 } }, { a: { y: 2, x: 1 } }), true);
+  assert.equal(sameJson([1, 2], [2, 1]), false);
+  assert.equal(sameJson(null, {}), false);
 });

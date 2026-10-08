@@ -195,7 +195,20 @@ export function parseFixArgs(argv: readonly string[]): FixOptions {
 
 export interface FixResult { exitCode: number; wrote: { renata: boolean; faqIds: string[] }; backupPaths: string[] }
 
-const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+/**
+ * Key-order-INSENSITIVE JSON equality. Postgres `jsonb` hands object keys back in its own order
+ * (shorter keys first, then alphabetical: `{en, es}` for a planned `{es, en}`), so comparing
+ * `JSON.stringify` output reported a false "VERIFY FAILED" on rows that were written correctly.
+ */
+function canonicalJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(canonicalJson).join(",")}]`;
+  if (v && typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    return `{${Object.keys(o).sort().map((k) => `${JSON.stringify(k)}:${canonicalJson(o[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(v) ?? "undefined";
+}
+export const sameJson = (a: unknown, b: unknown) => canonicalJson(a) === canonicalJson(b);
 
 export async function runContentFixes(
   argv: readonly string[],
