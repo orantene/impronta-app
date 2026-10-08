@@ -443,6 +443,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:sync-test-talent
 
+      - name: tests — live timing harness pure parts (TUL-290)
+        if: ${{ !cancelled() }}
+        run: npm run test:live-timing
+
       - name: tests — fields
         if: ${{ !cancelled() }}
         run: npm run test:fields
