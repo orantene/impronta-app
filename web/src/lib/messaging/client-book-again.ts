@@ -165,10 +165,15 @@ export async function bookAgainFromRecord(
     return fail(mapped);
   }
 
+  // The rebooked lines were priced in the original order's currency, so the new
+  // draft opens in it too. Unreadable -> no draft (the new inquiry still stands).
+  const { data: sourceOrder } = await admin.from("orders").select("currency").eq("id", input.recordId).maybeSingle();
+  const draftCurrency = String((sourceOrder as { currency?: string | null } | null)?.currency ?? "").trim();
+  if (!/^[A-Za-z]{3}$/.test(draftCurrency)) return { ok: true, inquiryId: created.inquiryId };
   const draft = await createDraftOrder(admin, {
     tenantId: input.tenantId,
     actorUserId: draftActor,
-    currency: "USD",
+    currency: draftCurrency,
     sourceChannel: "messages",
     context: "messages",
   });

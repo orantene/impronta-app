@@ -96,10 +96,12 @@ export async function seedTalentOfferingDraft(
     .maybeSingle();
   let orderId = (existing as { id?: string } | null)?.id ?? null;
   if (!orderId) {
+    // The draft opens in the offering's own currency; a blank one refuses (no guessed USD).
+    if (!off.currency || !/^[A-Za-z]{3}$/.test(off.currency)) return { ok: false, reason: "unavailable" };
     const created = await createDraftOrder(admin, {
       tenantId: input.tenantId,
       actorUserId: talentUserId,
-      currency: off.currency || "USD",
+      currency: off.currency,
       context: "messages",
       sourceChannel: "messages",
     });
