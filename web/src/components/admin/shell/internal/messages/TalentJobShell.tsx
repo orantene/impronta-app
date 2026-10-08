@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
+import { isSpanishLocale } from "@/lib/locale-time";
 import { COLORS, FONTS, useAdminShell } from "../state";
+import { useDashboardText } from "../dashboard-i18n";
 import { Avatar, useKeyboardListNav } from "../primitives";
 import { useTalentConversations, type Conversation } from "../talent";
 import { TalentAgencyFilterChips } from "../talent/shared/TalentAgencyFilterChips";
@@ -19,6 +21,7 @@ import { TalentJobDetail } from "./talent-2";
 
 
 export function TalentJobShell() {
+  const copy = useDashboardText();
   const conversations = useTalentConversations();
   // Subscribe to seen-state changes so the inbox re-sorts the moment
   // a row gets clicked (the NEW pill drops, the unseen sort tier loses
@@ -169,7 +172,7 @@ export function TalentJobShell() {
         )}
         <ColumnDivider onResize={layout.setLeftWidth} disabled={layout.collapsed} />
         <div data-tulala-thread-pane style={{ display: "flex", flexDirection: "column", minHeight: 0, background: COLORS.surfaceAlt, overflow: "hidden" }}>
-          {active ? <TalentJobDetail conv={active} onBack={() => setMobilePane("list")} /> : <EmptyDetail label="No job selected" />}
+          {active ? <TalentJobDetail conv={active} onBack={() => setMobilePane("list")} /> : <EmptyDetail label={copy.t("No job selected")} />}
         </div>
       </div>
       {/* Mobile-only: thin tab on left edge that pops open the inbox
@@ -189,6 +192,7 @@ export function TalentJobShell() {
 export function TalentJobRow({
   conv, active, onClick, listRef,
 }: { conv: Conversation; active: boolean; onClick: () => void; listRef?: (el: HTMLButtonElement | null) => void }) {
+  const copy = useDashboardText();
   const sc = stageStyle(conv.stage);
   const yourRate = TALENT_RATE_FOR_CONV[conv.id] ?? "—";
   const myStatus: "accepted" | "pending" | "—" =
@@ -200,10 +204,10 @@ export function TalentJobRow({
   // context ("Sara: ..." vs "You: ..." vs system-only).
   const senderPrefix = (() => {
     switch (conv.lastMessage.sender) {
-      case "you": return "You: ";
-      case "coordinator": return `${conv.leader?.name?.split(" ")[0] ?? "Coordinator"}: `;
+      case "you": return `${copy.t("You")}: `;
+      case "coordinator": return `${conv.leader?.name?.split(" ")[0] ?? copy.t("Coordinator")}: `;
       case "client": return `${conv.client.split(" ")[0]}: `;
-      case "agency": return `${conv.agency?.split(" ")[0] ?? "Agency"}: `;
+      case "agency": return `${conv.agency?.split(" ")[0] ?? copy.t("Agency")}: `;
       case "system": return "";
       default: return "";
     }
@@ -224,7 +228,7 @@ export function TalentJobRow({
   const briefMentionsCity = cityLabel && conv.brief.toLowerCase().includes(cityLabel.toLowerCase());
   const subtitleParts = [
     conv.brief,
-    dateLabel ? withWeekday(dateLabel) : null,
+    dateLabel ? withWeekday(dateLabel, copy.locale) : null,
     !briefMentionsCity ? cityLabel : null,
   ].filter(Boolean);
 
@@ -233,14 +237,15 @@ export function TalentJobRow({
   // Cancelled rows surface the outcome reason in place of the generic
   // "Cancelled" — talent reads "Client cancelled" / "Rejected" /
   // "Expired" inline without opening the conv to find out why.
-  const stageWord = conv.stage === "past" ? "Wrapped"
+  const stageWordEn = conv.stage === "past" ? "Wrapped"
     : conv.stage === "hold" ? "Offer"
     : conv.stage === "cancelled" && conv.outcome === "client_cancelled" ? "Client cancelled"
     : conv.stage === "cancelled" && conv.outcome === "client_rejected" ? "Rejected"
     : conv.stage === "cancelled" && conv.outcome === "client_no_response" ? "Expired"
     : conv.stage === "cancelled" && conv.outcome === "talent_declined" ? "You declined"
     : conv.stage.charAt(0).toUpperCase() + conv.stage.slice(1);
-  const ageLbl = ageLabel(conv.lastMessage.ageHrs);
+  const stageWord = copy.t(stageWordEn);
+  const ageLbl = ageLabel(conv.lastMessage.ageHrs, copy.locale);
   const slaTone = freshnessTone(conv.lastMessage.ageHrs, myStatus === "pending");
   // "Awaiting you" only when the talent actually owes a response. The
   // "✓ confirmed" pill on booked rows was duplicate signal — the funnel
@@ -336,7 +341,7 @@ export function TalentJobRow({
               background: COLORS.coral, color: "#fff",
               textTransform: "uppercase",
               boxShadow: `0 0 0 2px ${COLORS.coral}1f`,
-            }}>NEW</span>
+            }}>{copy.t("NEW")}</span>
           )}
           {/* WS6 — "Coordinating" pill when this talent is the appointed
               coordinator on the inquiry (conv.iAmCoordinator is the bridge
@@ -348,7 +353,7 @@ export function TalentJobRow({
               padding: "2px 6px", borderRadius: 999,
               background: COLORS.indigoSoft, color: COLORS.indigoDeep ?? COLORS.indigo,
               textTransform: "uppercase",
-            }}>Coordinating</span>
+            }}>{copy.t("Coordinating")}</span>
           )}
           {yourRate && yourRate !== "—" && (
             <span style={{ flexShrink: 0, fontSize: 12.5, fontWeight: 700, fontVariantNumeric: "tabular-nums", letterSpacing: -0.1 }} className="text-admin-ink">{yourRate}</span>
@@ -430,7 +435,7 @@ export function TalentJobRow({
           </span>
           <span style={{ flex: 1 }} />
           {slaTone && (
-            <span aria-label={`SLA: ${slaTone.label}`} style={{
+            <span aria-label={`SLA: ${copy.t(slaTone.label)}`} style={{
               width: 6, height: 6, borderRadius: "50%",
               background: slaTone.color, flexShrink: 0,
             }} />
@@ -442,7 +447,7 @@ export function TalentJobRow({
               color: COLORS.amber,
               flexShrink: 0,
             }}>
-              awaiting you
+              {copy.t("awaiting you")}
             </span>
           )}
         </div>
@@ -453,7 +458,7 @@ export function TalentJobRow({
 
 // Add a weekday prefix to a date label when missing. "May 14" →
 // "Sat, May 14". Best-effort — falls through if we can't parse.
-export function withWeekday(label: string): string {
+export function withWeekday(label: string, locale?: string | null): string {
   // Already has weekday like "Sat, May 14" or "Sun, Jun 8" — leave it.
   if (/^[A-Z][a-z]{2,5}, /.test(label)) return label;
   // Range like "May 14–15" — leave it; weekday for first day adds
@@ -461,7 +466,10 @@ export function withWeekday(label: string): string {
   if (/[–-]/.test(label)) return label;
   const parsed = Date.parse(`${label} ${new Date().getFullYear()}`);
   if (isNaN(parsed)) return label;
-  const day = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(parsed).getDay()];
+  const days = isSpanishLocale(locale)
+    ? ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"]
+    : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const day = days[new Date(parsed).getDay()];
   return `${day}, ${label}`;
 }
 
@@ -492,14 +500,15 @@ export function TalentJobInbox({
   // "Coordinating" only appears in the strip when there's at least one
   // job where Marta runs her own workspace. Hides for talents with no
   // coord work — keeps the strip lean for the common case.
+  const copy = useDashboardText();
   const coordCount = conversations.filter(c => c.iAmCoordinator).length;
   const chips: { id: TalentFilter; label: string; count?: number; pin?: boolean }[] = [
-    { id: "all", label: "All jobs" },
-    { id: "inquiry", label: "Inquiry" },
-    { id: "hold", label: "Hold" },
-    { id: "booked", label: "Booked" },
-    { id: "past", label: "Past" },
-    ...(coordCount > 0 ? [{ id: "coordinating" as const, label: "Coordinating", count: coordCount, pin: true }] : []),
+    { id: "all", label: copy.t("All jobs") },
+    { id: "inquiry", label: copy.t("Inquiry") },
+    { id: "hold", label: copy.t("Hold") },
+    { id: "booked", label: copy.t("Booked") },
+    { id: "past", label: copy.t("Past") },
+    ...(coordCount > 0 ? [{ id: "coordinating" as const, label: copy.t("Coordinating"), count: coordCount, pin: true }] : []),
   ];
   return (
     <aside data-tulala-list-pane style={{
@@ -519,15 +528,15 @@ export function TalentJobInbox({
         minWidth: 0, maxWidth: "100%",
       }}>
         <div data-tulala-list-header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, margin: 0 }} className="text-admin-ink">My jobs</h3>
+          <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, margin: 0 }} className="text-admin-ink">{copy.t("My jobs")}</h3>
           <div className="inline-flex items-center gap-1.5">
             <span className="text-admin-ink-muted text-admin-11">{conversations.length}</span>
             {onCollapse && (
               <button
                 type="button"
                 onClick={onCollapse}
-                aria-label="Collapse jobs list"
-                title="Collapse to rail"
+                aria-label={copy.t("Collapse jobs list")}
+                title={copy.t("Collapse to rail")}
                 style={{
                   width: 22, height: 22, borderRadius: 6,
                   border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
@@ -565,7 +574,7 @@ export function TalentJobInbox({
           }
         `}</style>
         <div data-tulala-inbox-search style={{ marginBottom: 10 }}>
-          <SearchPill value={search} onChange={onSearchChange} placeholder="Search jobs…" />
+          <SearchPill value={search} onChange={onSearchChange} placeholder={copy.t("Search jobs…")} />
         </div>
         <div data-tulala-inbox-chips style={{ display: "flex", gap: 5, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 2 }}>
           {chips.map(c => <FilterChip
@@ -608,10 +617,10 @@ export function TalentJobInbox({
               </svg>
             </div>
             <div className="text-admin-ink text-admin-13 font-semibold">
-              {search.trim() ? <>No matches for &ldquo;{search}&rdquo;</> : "Nothing in this view"}
+              {search.trim() ? <>{copy.t("No matches for")} &ldquo;{search}&rdquo;</> : copy.t("Nothing in this view")}
             </div>
             <div style={{ fontSize: 11.5, lineHeight: 1.4, maxWidth: 240 }} className="text-admin-ink-muted">
-              {search.trim() ? "Try a different keyword, or clear the search." : <>Try the <strong>All jobs</strong> filter or clear your search to see everything.</>}
+              {search.trim() ? copy.t("Try a different keyword, or clear the search.") : copy.t("Try the All jobs filter or clear your search to see everything.")}
             </div>
             {search.trim() && (
               <button type="button" onClick={() => onSearchChange("")} style={{
@@ -619,7 +628,7 @@ export function TalentJobInbox({
                 border: `1px solid ${COLORS.border}`, background: "transparent",
                 color: COLORS.ink, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
                 fontFamily: FONTS.body,
-              }}>Clear search</button>
+              }}>{copy.t("Clear search")}</button>
             )}
           </div>
         ) : renderWithDateGroups(
@@ -634,6 +643,7 @@ export function TalentJobInbox({
                 listRef={(el) => { jobRowRefs.current[orderedConvs.indexOf(c)] = el; }}
               />
             ),
+            (s) => copy.t(s),
           )}
       </div>
     </aside>

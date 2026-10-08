@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { COLORS, useAdminShell, FONTS, ROSTER_AGENCY, ROSTER_FREE, TRANSITION } from "../../state";
+import { useDashboardText } from "../../dashboard-i18n";
 import { Avatar, ClientTrustBadge, TrustBadgeGroup, Icon } from "../../primitives";
 import { type Participant } from "../../talent";
 import { archiveInquiry, isManualUnread, isPinned, toggleManualUnread, togglePin, useFlagsSubscription } from "../conversation-stash";
@@ -173,6 +174,7 @@ export function InboxRowHoverActions({
   label: string;
 }) {
   const { toast } = useAdminShell();
+  const copy = useDashboardText();
   // Subscribe so the Pin / Unread buttons re-render their on/off
   // state immediately when toggled.
   useFlagsSubscription();
@@ -233,22 +235,22 @@ export function InboxRowHoverActions({
         zIndex: 1,
       }}
     >
-      {btn("Pin", pinned, (
+      {btn(copy.t("Pin"), pinned, (
         <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
           <path d="M9 1L13 5L9 5L9 9L11 11H3L5 9V5H1L5 1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill={pinned ? "currentColor" : "none"} fillOpacity={pinned ? 0.18 : 0}/>
         </svg>
-      ), () => { togglePin(rowId); toast(pinned ? `Unpinned · ${label}` : `Pinned · ${label}`); })}
-      {btn("Mark unread", manualUnread, (
+      ), () => { togglePin(rowId); toast(`${copy.t(pinned ? "Unpinned" : "Pinned")} · ${label}`); })}
+      {btn(copy.t("Mark unread"), manualUnread, (
         <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
           <circle cx="7" cy="7" r="3" stroke="currentColor" strokeWidth="1.4" fill="currentColor"/>
         </svg>
-      ), () => { toggleManualUnread(rowId); toast(manualUnread ? `Marked read · ${label}` : `Marked unread · ${label}`); })}
-      {btn("Archive", false, (
+      ), () => { toggleManualUnread(rowId); toast(`${copy.t(manualUnread ? "Marked read" : "Marked unread")} · ${label}`); })}
+      {btn(copy.t("Archive"), false, (
         <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
           <rect x="1.5" y="3" width="11" height="2.5" rx="0.5" stroke="currentColor" strokeWidth="1.3"/>
           <path d="M2.5 5.5v6.5h9V5.5M5.5 8h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
         </svg>
-      ), () => { archiveInquiry(rowId); toast(`Archived · ${label}`); })}
+      ), () => { archiveInquiry(rowId); toast(`${copy.t("Archived")} · ${label}`); })}
     </div>
   );
 }
@@ -616,6 +618,7 @@ export function StageProgress({ currentStage }: { currentStage: string }) {
 // ── Common pill input (search) — same pattern across all 3 shells ──
 
 export function SearchPill({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  const copy = useDashboardText();
   return (
     <div className="relative">
       <input
@@ -638,8 +641,8 @@ export function SearchPill({ value, onChange, placeholder }: { value: string; on
         <button
           type="button"
           onClick={() => onChange("")}
-          aria-label="Clear search"
-          title="Clear (Esc)"
+          aria-label={copy.t("Clear search")}
+          title={copy.t("Clear (Esc)")}
           style={{
             position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
             width: 22, height: 22, borderRadius: "50%",
