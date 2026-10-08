@@ -6,6 +6,7 @@ import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
 import { loadInquiryRoster } from "./inquiry-workspace-data";
+import { normalizeCurrencyCode } from "./offer-currency";
 import { checkInquiryCurrencyMatchesSeller, resolveNewOfferCurrency } from "./offer-currency-seller";
 import type { EngineResult } from "./inquiry-engine.types";
 import { logServerError } from "@/lib/server/safe-error";
@@ -1495,14 +1496,21 @@ export async function counterOffer(
       .maybeSingle();
     currency = (prev?.currency_code as string | null) ?? undefined;
   }
+  // TUL-313 money path: a counter inherits the caller's / prior offer's
+  // currency; absent both, follow the seller resolver. Never a USD guess.
+  const counterCurrency = await resolveNewOfferCurrency(supabase, {
+    inquiryId: ctx.inquiryId,
+    tenantId: ctx.tenantId,
+    explicitCurrency: currency ?? null,
+    followSeller: !normalizeCurrencyCode(currency),
+  });
+  if (!counterCurrency) return { success: false, reason: "offer_currency_unresolved" };
   const result = await createOffer(supabase, {
     inquiryId: ctx.inquiryId,
     tenantId: ctx.tenantId,
     actorUserId: ctx.actorUserId,
     expectedVersion: ctx.expectedVersion,
-    // USD-first: a counter inherits the prior offer's currency; absent one,
-    // fall back to USD (the platform operating currency) not a legacy MXN.
-    currencyCode: currency ?? "USD",
+    currencyCode: counterCurrency,
   });
 
   // §6 chat-card: emit offer_event card (status=countered) into the

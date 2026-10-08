@@ -107,6 +107,7 @@ export async function messagingTalentQuoteSend(input: {
       expectedVersion: await versionOf("inquiries", inquiryId),
       currencyCode: offering.currency,
     });
+    if (!created.success && created.reason === "offer_currency_unresolved") return fail("offer_currency_unresolved");
     if (!created.success || !created.data?.offerId) return fail(created.success || !created.forbidden ? "unavailable" : "not_allowed");
     offerId = created.data.offerId;
   }
