@@ -75,7 +75,7 @@ test("Resumen and Artículos default open; the other seven start closed", () => 
 });
 
 test("local time formatting is stable for a known UTC instant", () => {
-  const out = formatDoorLocalTime("2026-10-08T18:30:00.000Z", "en", "UTC");
+  const out = formatDoorLocalTime("2027-03-15T18:30:00.000Z", "en", "UTC");
   assert.match(out, /2026/);
   assert.match(out, /6:30|18:30/);
 });
