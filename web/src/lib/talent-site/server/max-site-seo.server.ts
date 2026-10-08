@@ -86,6 +86,7 @@ export function buildMaxSiteSeo(args: {
   const explicitIsOwn = explicit ? isOwnCanonical(explicit, { origin, hosts: args.ownHosts ?? [] }) : false;
   if (explicit && !explicitIsOwn && process.env.NODE_ENV !== "production") {
     // Silent-failure signal (AGENTS.md): name the row and the host, never throw.
+    // eslint-disable-next-line no-console
     console.warn(
       `[talent-site/seo] ignored explicit canonical_url on page ${page.id} (site ${site.siteSlug ?? "?"}): host is not this site's own (${origin})`,
     );

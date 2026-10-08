@@ -34,6 +34,7 @@ export function resolveLiveCheckOrigin(input: {
     } catch {
       /* keep marker */
     }
+    // eslint-disable-next-line no-console
     console.warn(`[onboarding.verifyLive] LIVE_CHECK_ORIGIN refused (${reason}); host=${host}; using the default origin`);
     return input.defaultOrigin;
   };
@@ -108,7 +109,7 @@ export async function verifyLivePage(input: {
   if (!input.url) return { ok: false, reason: "no_url" };
   const needle = normalizeForMatch(input.name ?? "");
   if (!needle) return { ok: false, reason: "no_name" };
-  let doFetch: typeof fetch | null = input.fetchImpl ?? null;
+  const doFetch: typeof fetch | null = input.fetchImpl ?? null;
   let target = input.url;
   let viaLocalOrigin = false;
   const headers: Record<string, string> = { "user-agent": "TulalaOnboardingVerify/1" };

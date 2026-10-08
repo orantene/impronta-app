@@ -72,7 +72,7 @@ async function readGalleryPage(
   admin: SupabaseClient,
   talentProfileId: string,
   offset: number,
-  limit: number,
+  limit: number | undefined,
 ): Promise<{ items: TalentMediaItem[]; total: number } | null> {
   const w = pageWindow(offset, limit);
   const { data, error, count } = await admin
