@@ -470,6 +470,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:talent-public-app
 
+      - name: tests — previously orphaned tests, enrolled (core)
+        if: ${{ !cancelled() }}
+        run: npm run test:orphans-enrolled-core
+
       - name: tests — fields
         if: ${{ !cancelled() }}
         run: npm run test:fields
