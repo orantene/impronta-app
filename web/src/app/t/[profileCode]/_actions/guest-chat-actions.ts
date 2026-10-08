@@ -1466,7 +1466,7 @@ export async function sendGuestMessageAction(
 
   let assistantTalentId: string | null = null;
   {
-    const { data: talentPart } = await admin
+    const { data: talentPart, error: talentPartErr } = await admin
       .from("inquiry_participants")
       .select("talent_profile_id")
       .eq("inquiry_id", owned.inquiry.id)
@@ -1474,17 +1474,29 @@ export async function sendGuestMessageAction(
       .not("talent_profile_id", "is", null)
       .limit(1)
       .maybeSingle();
+    if (talentPartErr) {
+      logServerError(
+        "guest-chat-actions.sendGuestMessageAction/assistantTalent",
+        talentPartErr,
+      );
+    }
     assistantTalentId = (talentPart?.talent_profile_id as string | null) ?? null;
   }
   // Locale: prefer this send's value; else the locale stored at inquiry create.
   let followUpLocale = input.locale?.trim() || null;
   if (!followUpLocale) {
-    const { data: ctxRow } = await admin
+    const { data: ctxRow, error: ctxErr } = await admin
       .from("inquiries")
       .select("source_context")
       .eq("id", owned.inquiry.id)
       .eq("tenant_id", owned.inquiry.tenantId)
       .maybeSingle();
+    if (ctxErr) {
+      logServerError(
+        "guest-chat-actions.sendGuestMessageAction/guestLocale",
+        ctxErr,
+      );
+    }
     const ctx =
       ctxRow?.source_context &&
       typeof ctxRow.source_context === "object" &&
