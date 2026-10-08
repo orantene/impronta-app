@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { LEFTOVERS_ES_TEXT } from "@/components/admin/shell/internal/dashboard-i18n-leftovers";
+import { ARRIVAL_THUMB_FRAME_NAME, isArrivalThumbFrame } from "@/components/edit-chrome/embedded-frame";
 import { ADHOC_GUIDE_NODES } from "./adhoc-nodes";
 import { guideCategory, guideStep, guideTitle, guidePurpose } from "./guide-i18n";
 import { searchGuideTopics } from "./guide-search";
@@ -44,4 +46,17 @@ test("GuideTab uses the ranker; profile hero hides an empty Trust heading", () =
   assert.match(tab, /searchGuideTopics\(topics, query, 8\)/);
   const hero = readFileSync("src/components/admin/shell/internal/talent/shared/profile-sections-1.tsx", "utf8");
   assert.match(hero, /p\.badges\.length > 0 \? <CapsLabel>\{copy\.t\("Trust"\)\}/);
+});
+
+test("moved inline pair lives in the dashboard dictionary; arrival iframe is named and hides the chat pill (DS-44)", () => {
+  assert.equal(LEFTOVERS_ES_TEXT["Your website is live"], "Tu sitio está en línea");
+  const panel = readFileSync("src/components/admin/shell/internal/talent/pages/ProfileEditorPanel.tsx", "utf8");
+  assert.ok(panel.includes('copy.t("Your website is live")'));
+  const arrival = readFileSync("src/components/onboarding/steps/arrival-step.tsx", "utf8");
+  assert.ok(arrival.includes("name={ARRIVAL_THUMB_FRAME_NAME}"));
+  const launcher = readFileSync("src/app/t/[profileCode]/_chat/TalentProfileChatLauncher.tsx", "utf8");
+  assert.ok(launcher.includes("isArrivalThumbFrame(window)"));
+  assert.equal(isArrivalThumbFrame({ name: ARRIVAL_THUMB_FRAME_NAME }), true);
+  assert.equal(isArrivalThumbFrame({ name: "" }), false);
+  assert.equal(isArrivalThumbFrame(undefined), false);
 });
