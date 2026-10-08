@@ -48,3 +48,10 @@ test("flow url carries the choice, never ?start=unknown", () => {
   assert.equal(flowUrl({ choice: "studio", promo: "SUMMER25", locale: "es" }), "/start?choice=studio&promo=SUMMER25&lang=es");
   assert.ok(!flowUrl({ promo: "<x>" }).includes("promo"));
 });
+
+test("the /start choose screen offers a way out for visitors who want to book (TUL-163)", () => {
+  for (const locale of ["en", "es"] as const) {
+    assert.ok(CHOOSE_COPY[locale].bookLink.length > 0, locale);
+    assert.ok(!/—/.test(CHOOSE_COPY[locale].bookLink), `${locale}: no em dash`);
+  }
+});

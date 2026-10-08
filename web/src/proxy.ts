@@ -51,6 +51,7 @@ import { readPreviewFromQueryParam } from "@/lib/site-admin/preview/middleware";
 import { ensureExperimentVisitorCookie } from "@/lib/site-admin/builder-node/experiment-visitor-cookie";
 import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
 import { timed } from "@/lib/server/perf-trace";
+import { startDoorRedirect } from "@/lib/onboarding/start-door-redirect";
 
 function clientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -194,6 +195,17 @@ export async function proxy(request: NextRequest) {
       { status: 404 },
     );
   }
+
+  // TUL-117: `/start` is marketing-host only; send the platform app host and
+  // `/signup` there instead of the 404. Tenant-branded hosts keep the 404.
+  const startDoor = startDoorRedirect({
+    pathname: request.nextUrl.pathname,
+    search: request.nextUrl.search,
+    method: request.method,
+    hostKind: hostContext.kind,
+    marketingOrigin: `https://${TULALA_APEX_HOST}`,
+  });
+  if (startDoor) return NextResponse.redirect(startDoor, 308);
 
   // Support Desk host: DEAD while SUPPORT_DESK_ENABLED is off — even when
   // support.tulala.digital is seeded in agency_domains (Phase 1a). When the
