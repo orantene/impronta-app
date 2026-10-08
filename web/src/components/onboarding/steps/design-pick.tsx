@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * 1D · "Pick how your page looks": three ready looks with a live swatch
- * preview (the real palette tokens), the recommended one first, or keep the
+ * 1D · "Pick how your page looks": three ready Maison v2 palettes with a live
+ * swatch preview (the real palette tokens), the recommended one first, or keep the
  * default. Talent (myself / both) only; a studio picks its look at the style
  * tile. The pick is applied before publish.
  */
 
 import { DESIGN_LOOK_KEYS, type DesignLookKey } from "@/lib/onboarding/finish-url";
-import { MAISON_PALETTES } from "@/lib/talent-site/theme-catalog/maison/seed";
+import { getGalleryDesign } from "@/lib/talent-site/theme-catalog/gallery-meta";
 
 import { Sub, Title } from "../ui";
 
@@ -16,10 +16,13 @@ type T = (key: string) => string;
 
 /** Literal keys (the dead-catalog guard forbids composed keys). */
 const LOOK_NAME: Record<DesignLookKey, string> = {
-  pink: "public.onboarding.design.pink",
-  pearl: "public.onboarding.design.pearl",
-  sand: "public.onboarding.design.sand",
+  rose: "public.onboarding.design.rose",
+  blush: "public.onboarding.design.blush",
+  orchid: "public.onboarding.design.orchid",
 };
+
+/** Swatches come from the released Maison v2 palettes (the design onboarding applies). */
+const V2_PALETTES = getGalleryDesign("maison-v2")?.palettes ?? [];
 
 export function DesignPick({ t, value, onPick }: { t: T; value: DesignLookKey | null; onPick: (look: DesignLookKey | null) => void }) {
   return (
@@ -28,7 +31,8 @@ export function DesignPick({ t, value, onPick }: { t: T; value: DesignLookKey | 
       <Sub>{t("public.onboarding.design.sub")}</Sub>
       <div className="mt-3 grid grid-cols-3 gap-2" role="radiogroup" aria-label={t("public.onboarding.design.title")}>
         {DESIGN_LOOK_KEYS.map((k, i) => {
-          const p = MAISON_PALETTES[k];
+          const p = V2_PALETTES.find((x) => x.key === k);
+          if (!p) return null;
           const on = (value ?? DESIGN_LOOK_KEYS[0]) === k && (value !== null || i === 0);
           return (
             <button

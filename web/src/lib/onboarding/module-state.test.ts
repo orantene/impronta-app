@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canResume, choiceToIntent, choiceToPath, parsePersistedModuleState, wordCount } from "./module-state";
+import { canResume, choiceToIntent, choiceToPath, localePatch, parsePersistedModuleState, wordCount } from "./module-state";
 import { EXAMPLE_SENTENCES, exampleAt } from "./example-bank";
 
 test("persisted state is re-validated field by field", () => {
@@ -48,4 +48,9 @@ test("a brief parked on the dropped fork resumes at the choose screen; a bare ch
   assert.equal(canResume({ step: "entry" }), false);
   assert.equal(canResume({ step: "entry", choice: "studio" }), true);
   assert.equal(canResume({ step: "choose" }), false);
+});
+
+test("a stored v1 design key is read as no pick; a v2 key is kept", () => {
+  assert.deepEqual(parsePersistedModuleState({ designChoice: "pink" }), {});
+  assert.deepEqual(parsePersistedModuleState({ designChoice: "blush" }), { designChoice: "blush" });
 });

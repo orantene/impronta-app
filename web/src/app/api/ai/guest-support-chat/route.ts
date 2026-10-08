@@ -50,6 +50,7 @@ const SYSTEM_PROMPT = [
   "Do not claim you performed an action.",
   "Tone: warm, plain, no em dashes.",
   "Answer in the same language as the latest guest question.",
+  "Write the answer AND suggested_subject in the same language as the user's latest message (never default to English). Keep suggested_subject short, with no dates.",
   "Keep the answer under 1200 characters.",
 ].join(" ");
 

@@ -15,6 +15,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { loadTalentOrders, markBookingFulfillment } from "@/lib/talent/fulfillment-actions";
 import type { TalentOrderRow } from "@/lib/bookings/fulfillment";
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 
 const C = {
   ink: "#14161d",
@@ -46,6 +47,7 @@ function isHandedOff(status: string): boolean {
 }
 
 export function TalentOrdersQueue({ talentId }: { talentId: string }) {
+  const copy = useDashboardText();
   const [orders, setOrders] = useState<TalentOrderRow[] | null>(null);
   const [tracking, setTracking] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -84,16 +86,16 @@ export function TalentOrdersQueue({ talentId }: { talentId: string }) {
   // The surface stays quiet until the talent actually has product orders.
   if (orders === null) {
     return (
-      <div style={{ marginTop: 28, fontSize: 13, color: C.inkSoft, fontFamily: FONT }}>Loading orders…</div>
+      <div style={{ marginTop: 28, fontSize: 13, color: C.inkSoft, fontFamily: FONT }}>{copy.t("Loading orders…")}</div>
     );
   }
   if (orders.length === 0) return null;
 
   return (
     <section style={{ marginTop: 32, fontFamily: FONT }} data-talent-orders>
-      <h3 style={{ fontSize: 15, fontWeight: 700, color: C.ink, margin: "0 0 4px" }}>Product orders</h3>
+      <h3 style={{ fontSize: 15, fontWeight: 700, color: C.ink, margin: "0 0 4px" }}>{copy.t("Product orders")}</h3>
       <p style={{ fontSize: 12.5, color: C.inkMuted, margin: "0 0 14px" }}>
-        Mark an order shipped to release its payout. The money was collected at purchase and is held until you ship.
+        {copy.t("Mark an order shipped to release its payout. The money was collected at purchase and is held until you ship.")}
       </p>
       {error ? (
         <div style={{ fontSize: 12.5, color: "#b4232a", marginBottom: 10 }}>{error}</div>
@@ -119,7 +121,7 @@ export function TalentOrdersQueue({ talentId }: { talentId: string }) {
               <div style={{ minWidth: 0, flex: "1 1 220px" }}>
                 <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: C.ink }}>{o.title}</p>
                 <p style={{ margin: "2px 0 0", fontSize: 11.5, color: C.inkSoft }}>
-                  {o.paymentStatus === "paid" ? "Paid" : o.paymentStatus} · {new Date(o.createdAt).toLocaleDateString()}
+                  {o.paymentStatus === "paid" ? copy.t("Paid") : o.paymentStatus} · {new Date(o.createdAt).toLocaleDateString(copy.locale)}
                 </p>
               </div>
               <span
@@ -134,17 +136,17 @@ export function TalentOrdersQueue({ talentId }: { talentId: string }) {
                   background: shipped ? C.shipSoft : C.accentSoft,
                 }}
               >
-                {STATUS_LABEL[o.fulfillmentStatus] ?? o.fulfillmentStatus}
+                {copy.t(STATUS_LABEL[o.fulfillmentStatus] ?? o.fulfillmentStatus)}
               </span>
               {shipped ? (
                 <span style={{ fontSize: 12, color: C.inkMuted }}>
-                  {o.trackingNumber ? `Tracking ${o.trackingNumber}` : "Fulfilled"}
+                  {o.trackingNumber ? `${copy.t("Tracking")} ${o.trackingNumber}` : copy.t("Fulfilled")}
                 </span>
               ) : (
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <input
                     type="text"
-                    placeholder="Tracking # (optional)"
+                    placeholder={copy.t("Tracking # (optional)")}
                     value={tracking[o.bookingId] ?? ""}
                     disabled={busyId === o.bookingId}
                     onChange={(e) => setTracking((t) => ({ ...t, [o.bookingId]: e.target.value }))}
@@ -174,7 +176,7 @@ export function TalentOrdersQueue({ talentId }: { talentId: string }) {
                       opacity: busyId === o.bookingId ? 0.6 : 1,
                     }}
                   >
-                    {busyId === o.bookingId ? "Saving…" : "Mark shipped"}
+                    {busyId === o.bookingId ? copy.t("Saving…") : copy.t("Mark shipped")}
                   </button>
                 </div>
               )}

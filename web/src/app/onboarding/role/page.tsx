@@ -3,6 +3,7 @@ import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { loadAccessProfile } from "@/lib/access-profile";
 import {
   getSiteUrl,
+  isTalentSignupNext,
   isTalentSurfaceNext,
   normalizeOptionalNextPath,
   resolveAuthenticatedDestination,
@@ -17,6 +18,10 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { getPublicHostContext } from "@/lib/saas/scope";
+import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
+import { legacySignupRedirect } from "@/lib/onboarding/legacy-signup-redirect";
+import { legacyFlowLang } from "@/lib/onboarding/legacy-signup-redirect.server";
 import {
   ONBOARDING_BOUNCE_COOKIE,
   ONBOARDING_HOLD_RETRY_S,
@@ -141,6 +146,23 @@ export default async function OnboardingRolePage({
   }
   if (nextPath && isWorkspaceOnboardingPath(nextPath)) {
     redirect(nextPath);
+  }
+  // TUL-117: the English Talent/Client/Business picker is retired for pros.
+  // With the module on, a pro (no `next`, or the old "Join as Talent" next)
+  // goes to the guided /start flow in their language. A client `next` keeps
+  // this page; flag off keeps it too. The early exits above already ran, so
+  // nobody is bounced while their profile is still settling.
+  if ((await getOnboardingFlags()).onboarding_module_enabled) {
+    const target = legacySignupRedirect({
+      flagOn: true,
+      surface: "role",
+      siteUrl: getSiteUrl(),
+      lang: await legacyFlowLang(),
+      hostKind: (await getPublicHostContext()).kind,
+      next: nextPath ?? null,
+      nextIsTalentSignup: nextPath ? isTalentSignupNext(nextPath) : false,
+    });
+    if (target) redirect(target);
   }
   // "Join as Talent" already answered the role question. Completing talent
   // onboarding (same as the I'm Talent button) is required — a bare redirect
