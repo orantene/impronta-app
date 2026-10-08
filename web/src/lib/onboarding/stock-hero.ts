@@ -68,9 +68,11 @@ function levelFor(p: Pick<StockLike, "businessType" | "family">, q: StockHeroQue
 }
 
 /**
- * TUL-349: a photo may serve this query only if it is the query's own type, the
- * query family's untyped pack, or the neutral universal pack. A photo made for
- * another type (a chef, a makeup artist) is never a "universal" fallback.
+ * TUL-118 / DS-60 (also TUL-349): a photo may serve this query only if it is
+ * the query's own type, the query family's untyped pack, or the neutral
+ * universal pack. A photo tagged for another type (chef, makeup, forest
+ * lifestyle) must never rank as "universal" and land on an unrelated trade's
+ * fresh site.
  */
 function isTradeSafe(p: Pick<StockLike, "businessType" | "family">, q: StockHeroQuery): boolean {
   if (p.businessType !== null) return p.businessType === q.businessType;
