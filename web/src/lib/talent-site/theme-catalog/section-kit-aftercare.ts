@@ -2,7 +2,8 @@
  * Aftercare tips (optional Design block): a short EN/ES "what to do after your
  * visit" section. Design copy is deliberately generic (no treatment, product
  * or timing claims): the talent rewrites the three tips for her own work.
- * Title and tips carry the ES overlay seeded on the node. Token refs only.
+ * Title and tips carry BOTH an en and an es overlay: on a tenant whose default
+ * locale is es the base text is read as es, so en must be explicit (TUL-345). Token refs only.
  *
  * Kept out of `section-kit.ts` (800-line budget). Provenance mirrors the
  * `aftercare` entry of `TALENT_KIT_SECTIONS`.
@@ -42,12 +43,12 @@ function tip(makeId: MaxSiteTemplateIdFactory, t: (typeof TIPS)[number]): Builde
       {
         id: makeId(),
         kind: "heading",
-        props: { text: t.title, i18n: { es: { text: t.titleEs } }, level: 3, style: { size: "md" } },
+        props: { text: t.title, i18n: { en: { text: t.title }, es: { text: t.titleEs } }, level: 3, style: { size: "md" } },
       } as BuilderNode,
       {
         id: makeId(),
         kind: "paragraph",
-        props: { text: t.text, i18n: { es: { text: t.textEs } }, style: { tone: "muted" } },
+        props: { text: t.text, i18n: { en: { text: t.text }, es: { text: t.textEs } }, style: { tone: "muted" } },
       } as BuilderNode,
     ],
   } as BuilderNode;
@@ -75,7 +76,7 @@ export function aftercareBlock(
         kind: "paragraph",
         props: {
           text: opts.eyebrow ?? "Aftercare",
-          i18n: { es: { text: "Cuidados" } },
+          i18n: { en: { text: opts.eyebrow ?? "Aftercare" }, es: { text: "Cuidados" } },
           style: { textTransform: "uppercase", letterSpacing: "0.18em", size: "sm", textColor: "token:color.ink" },
         },
       },
@@ -84,7 +85,7 @@ export function aftercareBlock(
         kind: "heading",
         props: {
           text: opts.heading ?? "Aftercare tips",
-          i18n: { es: { text: opts.headingEs ?? "Cuidados posteriores" } },
+          i18n: { en: { text: opts.heading ?? "Aftercare tips" }, es: { text: opts.headingEs ?? "Cuidados posteriores" } },
           level: 2,
           style: { size: "xl" },
           layerLabel: "Aftercare heading",
