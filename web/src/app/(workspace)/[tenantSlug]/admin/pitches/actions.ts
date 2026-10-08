@@ -43,6 +43,7 @@ import type {
   UpdatePitchDraftInput,
 } from "@/lib/pitch/pitch-types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 
 const CAPABILITY = "agency.pitch.manage";
 
@@ -371,7 +372,7 @@ export async function regeneratePitchShareLinkAction(
       ttlSeconds,
     );
 
-    const baseUrl = process.env.PITCH_PUBLIC_BASE_URL ?? "https://tulala.digital";
+    const baseUrl = process.env.PITCH_PUBLIC_BASE_URL ?? resolveMarketingOrigin();
     const shareUrl = buildPitchShareUrl(signed.token, baseUrl);
 
     const recipient = pitch.recipient_contact ?? {};
