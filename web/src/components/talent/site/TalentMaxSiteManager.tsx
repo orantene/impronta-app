@@ -392,6 +392,8 @@ function ManagerBody({
           <ManagerThemeGallery
             locale={locale}
             onApplied={onReload}
+            onPublish={handlePublish}
+            publishPending={pending}
             wrap={(gallery) => <Card>{gallery}</Card>}
             fallback={
               <Card>
