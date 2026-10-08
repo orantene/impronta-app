@@ -14,6 +14,7 @@ import { moneyMayHaveMoved } from "@/lib/payments/pay-closed-money";
 import { CheckoutView } from "./CheckoutView";
 import { resolvePaidLinkDisplayStatus } from "@/lib/payments/pay-refund-status";
 import { loadPayLinkFeeLines } from "@/lib/payments/pay-link-fee-lines";
+import { resolvePayeeName } from "@/lib/payments/payee-name";
 
 /**
  * Absolute origin for Stripe success/cancel URLs. Prefer NEXT_PUBLIC_BASE_URL
@@ -151,6 +152,13 @@ export async function PayByCodePage({
   const threadToken = inquiryId && loaded.tenantId ? signThreadToken(inquiryId, loaded.tenantId) : null;
   const threadHref = threadToken ? publicThreadPath(threadToken) : null;
   const receiptHref = orderRow?.receipt_code ? `/r/${orderRow.receipt_code}` : null;
+  const uiLocale = (await getRequestLocale()) === "en" ? "en" : "es";
+  const cameFromConversation = Boolean(inquiryId);
+  const orderLines = ((lines ?? []) as { label: string | null; units: number; unit_cents: number }[]).map((line) => ({
+    label: line.label ?? "",
+    units: Number(line.units) || 1,
+    unitCents: Number(line.unit_cents) || 0,
+  }));
 
   // The RECORD says paid; the query string cannot. Stripe sends the customer
   // back with `?status=paid` before the webhook settles the link, and that
@@ -166,11 +174,8 @@ export async function PayByCodePage({
         currency={orderRow?.currency ?? "USD"}
         expiresAt={expiresAtLabel}
         status="processing"
-        lines={((lines ?? []) as { label: string | null; units: number; unit_cents: number }[]).map((line) => ({
-          label: line.label ?? "",
-          units: Number(line.units) || 1,
-          unitCents: Number(line.unit_cents) || 0,
-        }))}
+        locale={uiLocale}
+        lines={orderLines}
         holdUntil={holdUntilLabel}
         stripeUrl={null}
         threadHref={threadHref}
@@ -205,11 +210,35 @@ export async function PayByCodePage({
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
         status={paidDisplay}
-        lines={[]}
+        locale={uiLocale}
+        sellerName={await resolvePayeeName(admin, loaded.tenantId)}
+        autoReturn={cameFromConversation && query.status === "paid"}
+        lines={orderLines}
         holdUntil={holdUntilLabel}
         stripeUrl={null}
         threadHref={threadHref}
         receiptHref={paidDisplay === "paid" ? receiptHref : null}
+      />
+    );
+  }
+
+  // Stripe's "back" arrow lands here with ?status=cancelled on a still-open link:
+  // nothing was charged, and the client can try again or return to the chat.
+  if (loaded.status === "open" && query.status === "cancelled") {
+    return (
+      <CheckoutView
+        code={code}
+        pathPrefix={pathPrefix}
+        amountCents={loaded.amountCents}
+        currency={orderRow?.currency ?? ""}
+        expiresAt={expiresAtLabel}
+        status="cancelledReturn"
+        locale={uiLocale}
+        lines={[]}
+        holdUntil={null}
+        stripeUrl={null}
+        threadHref={threadHref}
+        receiptHref={null}
       />
     );
   }
@@ -252,7 +281,7 @@ export async function PayByCodePage({
 
   const origin = await checkoutOrigin();
   const successUrl = `${origin}${pathPrefix}/${code}?status=paid`;
-  const cancelUrl = `${origin}${pathPrefix}/${code}`;
+  const cancelUrl = `${origin}${pathPrefix}/${code}?status=cancelled`;
 
   // A mock link is a demo, and it never settles on production: whoever holds
   // the code could otherwise mark it paid with no money moving. A Stripe link
@@ -349,6 +378,7 @@ export async function PayByCodePage({
       currency={orderRow?.currency ?? ""}
       expiresAt={expiresAtLabel}
       status="open"
+      locale={uiLocale}
       feeLines={feeLines}
       lines={((lines ?? []) as { label: string | null; units: number; unit_cents: number }[]).map((line) => ({
         label: line.label ?? "",

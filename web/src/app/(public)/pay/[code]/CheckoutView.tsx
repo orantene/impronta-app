@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 
 import { POS_NOTE, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION } from "@/components/admin/pos/pos-classes";
 import { EngineFeeLines } from "@/components/payments/FeeLines";
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import type { PayLinkPathPrefix } from "@/lib/payments/pay-link-url";
 
 export type CheckoutViewProps = {
@@ -20,7 +22,7 @@ export type CheckoutViewProps = {
   readonly amountCents: number;
   readonly currency: string;
   readonly expiresAt: string;
-  readonly status: "open" | "paid" | "expired" | "cancelled" | "replaced" | "unknown" | "declined" | "processing" | "refunded";
+  readonly status: "open" | "paid" | "expired" | "cancelled" | "replaced" | "unknown" | "declined" | "processing" | "refunded" | "cancelledReturn";
   readonly lines: readonly { label: string; units: number; unitCents: number }[];
   readonly holdUntil: string | null;
   readonly stripeUrl: string | null;
@@ -28,6 +30,12 @@ export type CheckoutViewProps = {
   readonly receiptHref: string | null;
   /** Engine client fee lines (open state only); [] / absent = no breakdown. */
   readonly feeLines?: readonly FeeLine[];
+  /** Seller shown on the confirmation ("Pagado a ..."). */
+  readonly sellerName?: string | null;
+  /** UI locale for money formatting ("es" | "en"). */
+  readonly locale?: string;
+  /** The link came from a conversation: the paid page sends the client back to it. */
+  readonly autoReturn?: boolean;
   /** The link's currency differs from its order's: say so plainly instead of "status unknown". */
   readonly currencyMismatch?: { readonly linkCurrency: string; readonly orderCurrency: string };
 };
@@ -35,6 +43,8 @@ export type CheckoutViewProps = {
 export function CheckoutView(props: CheckoutViewProps) {
   const t = useT();
   const [phase, setPhase] = useState<CheckoutViewProps["status"]>(props.status);
+  // The server re-renders with a new status once the webhook settles; follow it.
+  useEffect(() => setPhase(props.status), [props.status]);
   const pathPrefix = props.pathPrefix ?? "/pay";
   const keepSlotKey =
     props.slotKind === "appointment"
@@ -44,24 +54,24 @@ export function CheckoutView(props: CheckoutViewProps) {
         : props.slotKind === "pickup"
         ? "public.thread.keepSlot"
         : "public.thread.keepSlotGeneric";
-  const total = `${props.currency} ${(props.amountCents / 100).toFixed(2)}`.trim();
+  const total = formatDashboardMoneyCents(props.amountCents, props.currency || null, props.locale ?? "es");
 
   if (phase === "paid") {
     return (
       <Shell>
-        <h1 className="text-[22px] font-semibold">{t("public.thread.paid")}</h1>
-        <p className="mt-3 text-[16px]">{total}</p>
-        <p className={POS_NOTE}>{t(keepSlotKey)}</p>
-        {props.receiptHref ? (
-          <a className={POS_PRIMARY_ACTION} href={props.receiptHref}>
-            {t("public.thread.receipt")}
-          </a>
-        ) : null}
-        {props.threadHref ? (
-          <a className={POS_SECONDARY_ACTION} href={props.threadHref}>
-            {t("public.thread.backToThread")}
-          </a>
-        ) : null}
+        <PaidConfirmation
+          title={t("public.thread.paidTitle")}
+          sellerLine={props.sellerName ? interpolate(t("public.thread.paidTo"), { seller: props.sellerName }) : null}
+          lines={props.lines.map((l) => `${l.units > 1 ? `${l.units} × ` : ""}${l.label}`)}
+          total={total}
+          note={t(keepSlotKey)}
+          receiptHref={props.receiptHref}
+          receiptLabel={t("public.thread.receipt")}
+          threadHref={props.threadHref}
+          backLabel={t("public.thread.backToThread")}
+          autoReturn={props.autoReturn === true}
+          redirectingLabel={t("public.thread.redirecting")}
+        />
       </Shell>
     );
   }
@@ -83,8 +93,35 @@ export function CheckoutView(props: CheckoutViewProps) {
   if (phase === "processing") {
     return (
       <Shell>
-        <h1 className="text-[22px] font-semibold">{t("public.thread.processing")}</h1>
-        <p className="mt-3">{total}</p>
+        <ProcessingConfirmation
+          title={t("public.thread.processingTitle")}
+          body={t("public.thread.processingBody")}
+          timeoutBody={t("public.thread.processingTimeout")}
+          checkAgain={t("public.thread.checkAgain")}
+          total={total}
+          threadHref={props.threadHref}
+          backLabel={t("public.thread.backToThread")}
+        />
+      </Shell>
+    );
+  }
+
+  if (phase === "cancelledReturn") {
+    return (
+      <Shell>
+        <h1 className="text-[24px] font-semibold leading-tight">{t("public.thread.cancelledReturnTitle")}</h1>
+        <p className="text-[15px] text-admin-ink-muted">{t("public.thread.cancelledReturnBody")}</p>
+        <p className="text-[20px] font-semibold tabular-nums">{total}</p>
+        <div className="mt-4 flex flex-col gap-3">
+          <a className={POS_PRIMARY_ACTION} href={`${pathPrefix}/${props.code}`}>
+            {t("public.thread.tryAgain")}
+          </a>
+          {props.threadHref ? (
+            <a className={POS_SECONDARY_ACTION} href={props.threadHref}>
+              {t("public.thread.backToThread")}
+            </a>
+          ) : null}
+        </div>
       </Shell>
     );
   }
@@ -158,7 +195,7 @@ export function CheckoutView(props: CheckoutViewProps) {
             <span>
               {line.units} · {line.label}
             </span>
-            <span className="tabular-nums">{((line.unitCents * line.units) / 100).toFixed(2)}</span>
+            <span className="tabular-nums">{formatDashboardMoneyCents(line.unitCents * line.units, props.currency || null, props.locale ?? "es")}</span>
           </li>
         ))}
       </ol>
@@ -195,9 +232,134 @@ export function CheckoutView(props: CheckoutViewProps) {
   );
 }
 
+const POLL_MS = 2500;
+const POLL_MAX_MS = 45_000;
+const RETURN_AFTER_S = 8;
+
+type ProcessingCopy = {
+  title: string;
+  body: string;
+  timeoutBody: string;
+  checkAgain: string;
+  total: string;
+  threadHref: string | null;
+  backLabel: string;
+};
+
+/** Stripe sent the client back before the webhook settled: re-read until it has, then say so. */
+function ProcessingConfirmation(props: ProcessingCopy) {
+  const router = useRouter();
+  const [timedOut, setTimedOut] = useState(false);
+  useEffect(() => {
+    if (timedOut) return;
+    const started = Date.now();
+    const id = setInterval(() => {
+      if (Date.now() - started >= POLL_MAX_MS) {
+        clearInterval(id);
+        setTimedOut(true);
+        return;
+      }
+      router.refresh();
+    }, POLL_MS);
+    return () => clearInterval(id);
+  }, [router, timedOut]);
+  return <ProcessingView {...props} timedOut={timedOut} onCheckAgain={() => setTimedOut(false)} />;
+}
+
+export function ProcessingView(props: ProcessingCopy & { timedOut: boolean; onCheckAgain: () => void }) {
+  return (
+    <div role="status" aria-live="polite" data-pay-return="processing" className="flex flex-col gap-3">
+      {props.timedOut ? null : (
+        <span aria-hidden className="h-8 w-8 animate-spin rounded-full border-2 border-admin-ink/20 border-t-admin-ink" />
+      )}
+      <h1 className="text-[24px] font-semibold leading-tight">{props.title}</h1>
+      <p className="text-[15px] text-admin-ink-muted">{props.timedOut ? props.timeoutBody : props.body}</p>
+      <p className="text-[20px] font-semibold tabular-nums">{props.total}</p>
+      {props.timedOut ? (
+        <div className="mt-4 flex flex-col gap-3">
+          <button type="button" className={POS_PRIMARY_ACTION} onClick={props.onCheckAgain}>
+            {props.checkAgain}
+          </button>
+          {props.threadHref ? (
+            <a className={POS_SECONDARY_ACTION} href={props.threadHref}>
+              {props.backLabel}
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+type PaidCopy = {
+  title: string;
+  sellerLine: string | null;
+  lines: string[];
+  total: string;
+  note: string;
+  receiptHref: string | null;
+  receiptLabel: string;
+  threadHref: string | null;
+  backLabel: string;
+  autoReturn: boolean;
+  redirectingLabel: string;
+};
+
+/** The paid page: a clear confirmation, then back to the conversation it came from. */
+function PaidConfirmation(props: PaidCopy) {
+  const [left, setLeft] = useState(RETURN_AFTER_S);
+  const returning = props.autoReturn && Boolean(props.threadHref);
+  useEffect(() => {
+    if (!returning || !props.threadHref) return;
+    if (left <= 0) {
+      window.location.assign(props.threadHref);
+      return;
+    }
+    const id = setTimeout(() => setLeft((n) => n - 1), 1000);
+    return () => clearTimeout(id);
+  }, [left, returning, props.threadHref]);
+  return <PaidView {...props} secondsLeft={returning ? Math.max(left, 0) : null} />;
+}
+
+export function PaidView(props: PaidCopy & { secondsLeft: number | null }) {
+  return (
+    <div role="status" aria-live="polite" data-pay-return="paid" className="flex flex-col gap-3">
+      <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 12.5l4.5 4.5L19 7.5" />
+        </svg>
+      </span>
+      <h1 className="text-[26px] font-semibold leading-tight">{props.title}</h1>
+      {props.sellerLine ? <p className="text-[15px] text-admin-ink-muted">{props.sellerLine}</p> : null}
+      <div className="mt-2 rounded-xl border border-admin-ink/10 bg-white p-4">
+        {props.lines.map((line, i) => (
+          <p key={`${line}-${i}`} className="text-[15px]">{line}</p>
+        ))}
+        <p className="mt-2 text-[22px] font-semibold tabular-nums">{props.total}</p>
+      </div>
+      <p className="text-[13px] text-admin-ink-muted">{props.note}</p>
+      <div className="mt-3 flex flex-col gap-3">
+        {props.threadHref ? (
+          <a className={POS_PRIMARY_ACTION} href={props.threadHref}>
+            {props.backLabel}
+          </a>
+        ) : null}
+        {props.receiptHref ? (
+          <a className={POS_SECONDARY_ACTION} href={props.receiptHref}>
+            {props.receiptLabel}
+          </a>
+        ) : null}
+      </div>
+      {props.secondsLeft !== null ? (
+        <p className="text-[13px] text-admin-ink-muted">{interpolate(props.redirectingLabel, { n: String(props.secondsLeft) })}</p>
+      ) : null}
+    </div>
+  );
+}
+
 function Shell(props: { children: ReactNode }) {
   return (
-    <main className="mx-auto flex min-h-screen max-w-[390px] flex-col gap-3 bg-admin-surface px-4 py-8 text-admin-ink" data-pos-messages="checkout">
+    <main className="mx-auto flex min-h-screen w-full max-w-[440px] flex-col justify-center gap-3 bg-admin-surface px-5 py-10 text-admin-ink" data-pos-messages="checkout">
       {props.children}
     </main>
   );
