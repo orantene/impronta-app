@@ -465,6 +465,20 @@ export default async function ClientLayout({
               minWidth: 0,
             }}
           >
+            {readCtx.impersonated ? (
+              <p
+                role="status"
+                style={{
+                  margin: "0 0 16px",
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  background: "rgba(0,0,0,0.04)",
+                  fontSize: 13,
+                }}
+              >
+                {t("dashboard.clientSettings.readOnlyViewingAs")}
+              </p>
+            ) : null}
             {children}
           </main>
         </div>

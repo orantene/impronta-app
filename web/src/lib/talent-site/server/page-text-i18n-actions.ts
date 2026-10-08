@@ -12,6 +12,7 @@
  * Gates: page text needs `personalSiteEdit`; the SEO pair also needs
  * `personalSiteSeo` (returned as `seoAllowed` so the form hides it).
  */
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { i18nPair, toI18nMap } from "@/lib/i18n/i18n-columns";
 import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
@@ -89,6 +90,8 @@ export async function saveMaxSitePageTextAction(input: {
   metaTitle?: Record<string, string>;
   metaDescription?: Record<string, string>;
 }): Promise<MaxSiteActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "not_owner", error: readOnly.error };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
   const sb = await getCachedServerSupabase();

@@ -20,6 +20,7 @@
  * after a successful action.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -59,6 +60,8 @@ export async function approveOfferAction(
   _prev: InquiryOfferActionState,
   formData: FormData,
 ): Promise<InquiryOfferActionState> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { kind: "error", message: readOnly.error };
   const tenantSlug = String(formData.get("tenantSlug") ?? "").trim();
   const inquiryId = String(formData.get("inquiryId") ?? "").trim();
   const offerId = String(formData.get("offerId") ?? "").trim();
@@ -137,6 +140,8 @@ export async function rejectOfferAction(
   _prev: InquiryOfferActionState,
   formData: FormData,
 ): Promise<InquiryOfferActionState> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { kind: "error", message: readOnly.error };
   const tenantSlug = String(formData.get("tenantSlug") ?? "").trim();
   const inquiryId = String(formData.get("inquiryId") ?? "").trim();
   const offerId = String(formData.get("offerId") ?? "").trim();
@@ -205,6 +210,8 @@ export async function counterOfferAction(
   _prev: InquiryOfferActionState,
   formData: FormData,
 ): Promise<InquiryOfferActionState> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { kind: "error", message: readOnly.error };
   const tenantSlug = String(formData.get("tenantSlug") ?? "").trim();
   const inquiryId = String(formData.get("inquiryId") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim();

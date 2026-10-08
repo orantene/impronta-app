@@ -12,6 +12,7 @@
  * for client redirect.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { usdcPayoutOffer } from "@/lib/payments/usdc-payout-offer";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -71,6 +72,8 @@ export type EnsurePayoutAccountResult =
 export async function ensureTalentPayoutAccount(
   opts: { country?: string } = {},
 ): Promise<EnsurePayoutAccountResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "error", error: readOnly.error };
   try {
     const tp = await resolveOwnTalentProfileId();
     if (!tp.ok) return { ok: false, code: "error", error: tp.error };
@@ -118,6 +121,8 @@ async function resolveOwnTalentProfileId(): Promise<
 export async function createTalentAccountSession(
   opts: { country?: string } = {},
 ): Promise<AccountSessionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     if (!isStripeConfigured()) {
       return { ok: false, error: "Payouts are not available right now." };
@@ -160,6 +165,8 @@ export async function createTalentAccountSession(
 export async function refreshTalentPayoutStatus(): Promise<
   { ok: true; snapshot: TalentConnectedAccountSnapshot } | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const tp = await resolveOwnTalentProfileId();
   if (!tp.ok) return { ok: false, error: tp.error };
   const r = await refreshTalentAccountStatus(tp.id);
@@ -175,6 +182,8 @@ export async function refreshTalentPayoutStatus(): Promise<
 export async function startTalentOnboarding(
   tenantSlug: string,
 ): Promise<StartOnboardingResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const session = await getCachedActorSession();
     if (!session.user) return { ok: false, error: "Sign in required." };
@@ -239,6 +248,8 @@ export async function loadTalentPayoutSnapshot(): Promise<
 export async function createTalentDashboardLinkAction(): Promise<
   { ok: true; url: string } | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const tp = await resolveOwnTalentProfileId();
     if (!tp.ok) return { ok: false, error: tp.error };
@@ -319,6 +330,8 @@ export async function setupTalentGpBankAction(input: {
   | { ok: true; methods: TalentGpMethod[]; status: TalentGpStatusKind; profileCountry: string | null }
   | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const session = await getCachedActorSession();
     if (!session.user) return { ok: false, error: "Sign in required." };
@@ -357,6 +370,8 @@ export async function setupTalentGpBankAction(input: {
 export async function syncTalentGpProfileAction(): Promise<
   { ok: true } | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const session = await getCachedActorSession();
     if (!session.user) return { ok: false, error: "Sign in required." };
@@ -409,6 +424,8 @@ export async function loadTalentGpMethods(): Promise<
 export async function startTalentGpHostedSetupAction(): Promise<
   { ok: true; url: string } | { ok: false; error: string }
 > {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const session = await getCachedActorSession();
     if (!session.user) return { ok: false, error: "Sign in required." };
@@ -441,6 +458,8 @@ export async function startTalentGpHostedSetupAction(): Promise<
 export async function setTalentGpDefaultAction(
   payoutMethodId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const tp = await resolveOwnTalentProfileId();
     if (!tp.ok) return { ok: false, error: tp.error };
@@ -455,6 +474,8 @@ export async function setTalentGpDefaultAction(
 export async function removeTalentGpMethodAction(
   payoutMethodId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
     const tp = await resolveOwnTalentProfileId();
     if (!tp.ok) return { ok: false, error: tp.error };

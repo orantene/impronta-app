@@ -8,6 +8,7 @@
  * Existing subscribers → Stripe Billing Portal.
  */
 
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isStripeConfigured } from "@/lib/stripe/client";
@@ -51,6 +52,8 @@ export async function startTalentUpgrade(
    */
   returnPath?: string | null,
 ): Promise<TalentBillingActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   if (!isStripeConfigured()) {
     return { ok: false, error: "Billing is not available yet." };
   }
@@ -99,6 +102,8 @@ export async function startTalentUpgrade(
 export async function openTalentSubscriptionPortal(
   tenantSlug: string,
 ): Promise<TalentBillingActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   if (!isStripeConfigured()) {
     return { ok: false, error: "Billing portal is not available." };
   }

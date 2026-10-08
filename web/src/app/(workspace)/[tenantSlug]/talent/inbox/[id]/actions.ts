@@ -1,5 +1,6 @@
 "use server";
 
+import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -41,6 +42,8 @@ export async function sendTalentInquiryMessage(
   // stay on the group thread. Defaults to group for the normal talent path.
   threadType: "group" | "private" = "group",
 ): Promise<SendTalentInquiryMessageResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const trimmed = body.trim();
 
   if (!trimmed || trimmed.length > 10000) {
@@ -154,6 +157,7 @@ export async function markTalentInquiryThreadRead(
   _tenantSlug: string,
   inquiryId: string,
 ): Promise<void> {
+  if (!(await assertNotImpersonating()).ok) return;
   const supabase = await createSupabaseServerClient();
   if (!supabase) return;
 
@@ -696,6 +700,7 @@ export async function blockInquirySenderAsTalent(
   subjectType: "client_user" | "guest_session",
   subjectId: string,
 ): Promise<{ ok: boolean }> {
+  if (!(await assertNotImpersonating()).ok) return { ok: false };
   return blockSubject({ inquiryId, subjectType, subjectId });
 }
 
@@ -708,6 +713,7 @@ export async function reportInquirySenderAsTalent(
   inquiryId: string,
   reason: InquiryReportReason,
 ): Promise<{ ok: boolean }> {
+  if (!(await assertNotImpersonating()).ok) return { ok: false };
   return reportInquiry({ inquiryId, reason });
 }
 
@@ -745,6 +751,8 @@ export async function acceptTalentInvitation(
   tenantSlug: string,
   inquiryId: string,
 ): Promise<InvitationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const ctx = await resolveParticipant(tenantSlug, inquiryId);
   if (!ctx.ok) return { ok: false, error: ctx.error };
 
@@ -767,6 +775,8 @@ export async function declineTalentInvitation(
   tenantSlug: string,
   inquiryId: string,
 ): Promise<InvitationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const ctx = await resolveParticipant(tenantSlug, inquiryId);
   if (!ctx.ok) return { ok: false, error: ctx.error };
 
@@ -791,6 +801,7 @@ export async function acceptInvitationFormAction(
   inquiryId: string,
   _formData: FormData,
 ): Promise<void> {
+  if (!(await assertNotImpersonating()).ok) return;
   const res = await acceptTalentInvitation(tenantSlug, inquiryId);
   if (!res.ok) {
     redirect(`/${tenantSlug}/talent/inbox/${inquiryId}?err=${encodeURIComponent(res.error)}`);
@@ -803,6 +814,7 @@ export async function declineInvitationFormAction(
   inquiryId: string,
   _formData: FormData,
 ): Promise<void> {
+  if (!(await assertNotImpersonating()).ok) return;
   const res = await declineTalentInvitation(tenantSlug, inquiryId);
   if (!res.ok) {
     redirect(`/${tenantSlug}/talent/inbox/${inquiryId}?err=${encodeURIComponent(res.error)}`);
@@ -811,6 +823,7 @@ export async function declineInvitationFormAction(
 }
 
 export async function sendTalentInquiryMessageAction(formData: FormData): Promise<never> {
+  await requireNotImpersonating();
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
   const inquiryId = String(formData.get("inquiryId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
