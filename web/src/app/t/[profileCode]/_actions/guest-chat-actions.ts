@@ -26,6 +26,7 @@
  * Contract: web/src/lib/inquiry/guest-chat-contract.ts (pure types).
  */
 
+import { guestChatLimitMessage } from "./guest-chat-limit-copy";
 import { safePublicName } from "@/lib/messaging/public-name";
 import { loadGuestThreadV5Extras } from "./guest-thread-v5";
 import { anyDemoTalent, DEMO_SUBMIT_REFUSAL } from "@/lib/talent/demo-talent";
@@ -853,11 +854,7 @@ export async function startGuestChatInquiry(
     return {
       ...fail(
         "limit_reached",
-        gate.tier === "account"
-          ? "You've reached your open-conversation limit. Wrap up or close one to start another."
-          : gate.tier === "email_verified"
-            ? "You have a few conversations going — create a free account to start more."
-            : "You have a conversation going — verify your email to start more.",
+        guestChatLimitMessage(gate.tier, input.locale),
       ),
       // Surface the resolved tier + real counts so TrustGateNudge can show
       // accurate numbers (fixes the 0/0 display — fix 7).
