@@ -17,8 +17,10 @@ export type FailedRefundAttentionNoteInput = {
 /** Minor units → display string via the shared zero-decimal-aware formatter. */
 export function formatFailedRefundMoney(amountMinor: number, currency: string): string {
   const code = (currency || "").trim().toUpperCase();
-  if (!Number.isFinite(amountMinor)) return code ? `? ${code}` : "?";
-  return formatOrderMoney(amountMinor, code || "USD");
+  // Fail closed: never invent USD (usd-literal-ban). Caller must pass Stripe's currency.
+  if (!code) return "?";
+  if (!Number.isFinite(amountMinor)) return `? ${code}`;
+  return formatOrderMoney(amountMinor, code);
 }
 
 /** needs_attention_note body for a failed/canceled Stripe refund. */
