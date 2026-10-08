@@ -1925,6 +1925,7 @@
         "rateLimit": "Too many tries for now. Give it a minute and try again.",
         "importFailed": "That link couldn't be read. Type what you do instead.",
         "readFailed": "We couldn't read that. Try again or type it differently.",
+        "aiUnavailable": "We could not read your description right now. Please try again in a moment.",
         "looksGood": "Looks good, continue",
         "editHint": "Tap any line to change it.",
         "laterValue": "Later, in your site",
