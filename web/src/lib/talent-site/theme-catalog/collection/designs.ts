@@ -479,16 +479,7 @@ export function isCollectionDesignSlug(slug: string): boolean {
 }
 
 /** Spanish summaries for the gallery cards (en lives on each entry). */
-export const COLLECTION_DESIGN_SUMMARY_ES: Readonly<Record<string, string>> = {
-  "maison-v2":
-    "Portada dividida, trabajos recientes primero, un menú con fotos y una franja suave para tu visita. La nueva versión de Maison.",
-  solace: "Tranquilo y amplio: portada a todo lo ancho, una presentación breve y servicios en una sola columna sin prisa.",
-  mono: "Una frase y una lista de precios rápida. Para clientes que ya saben lo que quieren.",
-  frame: "Tu trabajo primero: portada con retrato, una cuadrícula de trabajos y servicios en tarjetas.",
-  folio: "Portada de revista con tu nombre como cabecera, un libro de trabajos y una tarifa clara.",
-  gridline:
-    "Barra de utilidad con botón de llamada, portada con ficha técnica, un selector de tareas y una comparación clara de servicios. Para oficios que reciben llamadas.",
-};
+export { COLLECTION_DESIGN_SUMMARY_ES } from "./design-summaries-es";
 
 /** What each design still needs from shared widgets (mockup → today). */
 export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>> = {
