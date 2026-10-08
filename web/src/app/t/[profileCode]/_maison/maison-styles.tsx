@@ -354,7 +354,7 @@ h3.mn-display { font-size: 1.625rem; line-height: 1.15; letter-spacing: -0.02em;
 .mn-empty { border: 1px dashed var(--mn-line-strong); border-radius: var(--mn-rs); padding: 52px 26px; text-align: center; }
 .mn-empty h3 { margin: 0 0 8px; }
 .mn-empty p { margin: 0 auto; max-width: 42ch; color: var(--mn-ink-2); font-size: 0.9375rem; }
-.mn-disclaimer { margin: 28px 0 0; font-size: 0.8125rem; color: var(--mn-ink-2); }
+.mn-disclaimer { margin: 28px 0 0; font-size: 0.8125rem; color: var(--token-color-muted-text, var(--mn-ink-2)); }
 
 /* ── Motion: scroll reveal + hero stagger ─────────────────────────────── */
 @keyframes mn-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
