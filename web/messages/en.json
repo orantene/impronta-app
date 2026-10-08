@@ -13793,7 +13793,69 @@
       "lineCountOne": "item",
       "lineCountOther": "items",
       "refundAmount": "Amount to refund",
-      "refundAmountHint": "Default is the full remaining ({max}). Lower it for a partial refund."
+      "refundAmountHint": "Default is the full remaining ({max}). Lower it for a partial refund.",
+      "door": {
+        "newBadge": "New",
+        "mockBanner": "Order door mockup on the live Pedidos desk. Dashed and New mark only what this slice adds; the columns and refund path stay as they are today.",
+        "mockPreview": "Mock content: later slices fill each section with real data and open names in stacked drawers.",
+        "copyCode": "Copy order code",
+        "codeCopied": "Copied",
+        "back": "Back to list",
+        "moreMenu": "More actions",
+        "primary": {
+          "sendPayLink": "Send payment link",
+          "collectPos": "Collect at counter",
+          "sendReceipt": "Send receipt",
+          "viewRefund": "View refund"
+        },
+        "sections": {
+          "summary": {
+            "title": "Summary",
+            "preview": "Timeline and money",
+            "body": "Timeline mock: created, offer, paid, fulfilled. Money lines (total, paid, pending, fee, net) land in the next slice."
+          },
+          "client": {
+            "title": "Client",
+            "preview": "Name and contact",
+            "body": "Client drawer mock: past orders, Message, WhatsApp, Copy email. Name will open a side drawer without leaving Pedidos."
+          },
+          "items": {
+            "title": "Items",
+            "preview": "Lines on this order",
+            "body": "Each line will show service, qty, price, person and space. Per-line refund moves here from the table cell."
+          },
+          "appointment": {
+            "title": "Appointment and dates",
+            "preview": "When and where",
+            "body": "Date, start to end, timezone and location. Needs the location field from TUL-426 before this section is real."
+          },
+          "payments": {
+            "title": "Payments",
+            "preview": "Transactions and links",
+            "body": "Each transaction opens the payment drawer. Refund lines stay available below while this mock is up."
+          },
+          "conversation": {
+            "title": "Conversation",
+            "preview": "No thread yet",
+            "body": "Origin and last message preview. Opens the conversation drawer; it never navigates away."
+          },
+          "origin": {
+            "title": "Origin and device",
+            "preview": "Channel and device",
+            "body": "Sales channel, source page or terminal, and coarse device family. No IP or precise location."
+          },
+          "activity": {
+            "title": "Activity",
+            "preview": "Who and when",
+            "body": "Status changes, messages sent, refunds and notes. Actor names open the person drawer."
+          },
+          "notes": {
+            "title": "Internal notes",
+            "preview": "No notes yet",
+            "body": "Team notes on the order. Add a note inline in a later slice."
+          }
+        }
+      }
     },
     "sales": {
       "pageTitle": "Sales",
