@@ -139,12 +139,24 @@ test("no query returns all designs and usable demos only", () => {
   assert.deepEqual(out.suggestionsWhenEmpty, []);
 });
 
-test("search by profession finds designs and matching demos", () => {
+test("search by profession finds designs with a built matching demo", () => {
   const out = searchGallery({ query: "Modelo" });
-  assert.deepEqual(slugs(out), ["maison", "folio"]);
+  // Maison only has a planned Model demo; Folio has built fashion-model (TUL-327).
+  assert.deepEqual(slugs(out), ["folio"]);
   const folio = out.results.find((r) => r.design.slug === "folio")!;
   assert.equal(folio.featuredDemo?.key, "fashion-model");
+  assert.equal(folio.featuredDemo?.status, "built");
   assert.ok(folio.matchingDemos.every((d) => d.professions.includes("model")));
+});
+
+test("featuredDemo is never a planned placeholder", () => {
+  for (const r of searchGallery({ showExtra: true }).results) {
+    if (r.featuredDemo) assert.equal(r.featuredDemo.status, "built", r.design.slug);
+  }
+  const singer = searchGallery({ query: "Singer", showExtra: true });
+  for (const r of singer.results) {
+    assert.equal(r.featuredDemo?.status, "built", r.design.slug);
+  }
 });
 
 test("search by theme name returns that design with all demos", () => {
@@ -156,15 +168,17 @@ test("search by theme name returns that design with all demos", () => {
 test("several professions OR together; combined only reorders", () => {
   const plain = searchGallery({ query: "model, singer" });
   const combined = searchGallery({ query: "model, singer", combined: true });
-  assert.deepEqual([...slugs(plain)].sort(), [...slugs(combined)].sort());
-  assert.equal(combined.results[0]!.design.slug, "folio");
+  // Maison drops out (planned-only singer/model). Folio keeps the combined built demo.
+  assert.deepEqual(slugs(plain), ["folio"]);
+  assert.deepEqual(slugs(combined), ["folio"]);
   assert.equal(combined.results[0]!.combinesBoth, true);
-  assert.ok(plain.results.some((r) => !r.combinesBoth));
   assert.equal(searchGallery({ query: "modelo y cantante" }).results.find((r) => r.design.slug === "folio")?.combinesBoth, true);
 });
 
 test("filters: chips, style (any), features (all)", () => {
-  assert.deepEqual(slugs(searchGallery({ chips: ["wellness"] })), ["solace"]);
+  // Wellness chip only matches planned Solace demos today; hide until built (TUL-327).
+  assert.deepEqual(slugs(searchGallery({ chips: ["wellness"] })), []);
+  assert.deepEqual(slugs(searchGallery({ chips: ["events"] })), ["solace"]);
   assert.ok(slugs(searchGallery({ styleTags: ["Dark"] })).length === 0);
   const f = searchGallery({ featureTags: ["Portfolio", "Project stories"] });
   assert.deepEqual(slugs(f), ["folio"]);
@@ -173,7 +187,7 @@ test("filters: chips, style (any), features (all)", () => {
 test("empty result offers suggestions mapped to real professions", () => {
   const out = searchGallery({ query: "astronaut" });
   assert.equal(out.themeCount, 0);
-  assert.deepEqual(out.suggestionsWhenEmpty.map((s) => s.label.en), ["Speaker", "Teacher", "Guide"]);
+  assert.deepEqual(out.suggestionsWhenEmpty.map((s) => s.label.en), ["Model", "DJ", "Guide"]);
   for (const s of out.suggestionsWhenEmpty) assert.ok(searchGallery({ query: s.profession }).themeCount > 0);
 });
 
