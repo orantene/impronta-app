@@ -9,6 +9,7 @@
  * carries only an id) can resolve it.
  */
 import { parseBookingDeepLink } from "./booking-deep-link";
+import { catalogDetailIsPurchase } from "@/components/public-booking/catalog-booking-logic";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 
 export type BookingEventName =
@@ -38,23 +39,40 @@ export function bookingEventNameFor(detail: Pick<OfferingRequestDetail, "intent"
   return detail.intent === "instant" ? "tulala:offering-instant" : "tulala:offering-slot";
 }
 
+/**
+ * Emitter-side guard for the fallback rules: a `slotStart` that is not a real future instant
+ * (malformed, stale) is dropped so the sheet opens normally, never at a garbage time. Offsets
+ * are accepted (they are valid instants) and normalised to UTC; the URL parser stays strict.
+ */
+export function sanitizeSlotStart(raw: string | null | undefined, now: Date = new Date()): string | null {
+  if (typeof raw !== "string" || !raw) return null;
+  const ms = Date.parse(raw);
+  return Number.isFinite(ms) && ms > now.getTime() ? new Date(ms).toISOString() : null;
+}
+
 type DispatchTarget = { dispatchEvent: (e: Event) => boolean };
 
-/** Returns false (and dispatches nothing) when the offering detail is unknown. */
+/**
+ * Returns false (and dispatches nothing) when the offering detail is unknown or is a straight
+ * purchase (the sheet skips those), so the caller falls back to its normal entry. An invalid or
+ * past `slotStart` still opens the sheet, without a slot.
+ */
 export function openBookingAtSlot(
   input: {
     offeringId: string;
     slotStart?: string | null;
     detail?: OfferingRequestDetail | null;
     eventName?: BookingEventName;
+    now?: Date;
   },
   target: DispatchTarget | null = typeof window === "undefined" ? null : window,
 ): boolean {
   const detail = input.detail ?? lookupBookableOffering(input.offeringId);
   if (!detail || !target) return false;
+  if (catalogDetailIsPurchase(detail)) return false;
   target.dispatchEvent(
     new CustomEvent(input.eventName ?? bookingEventNameFor(detail), {
-      detail: bookingEventDetail(detail, input.slotStart),
+      detail: bookingEventDetail(detail, sanitizeSlotStart(input.slotStart, input.now)),
     }),
   );
   return true;
