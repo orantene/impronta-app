@@ -69,6 +69,8 @@ export interface EditMutationError {
   operation?: BuilderNodeOperationKind;
   code?: BuilderNodeMutationCode;
   details?: ReadonlyArray<string>;
+  /** Raw issues; the toast renders these as plain es/en sentences. */
+  issues?: ReadonlyArray<{ path: string; message: string }>;
 }
 
 export interface PageMetadata {
