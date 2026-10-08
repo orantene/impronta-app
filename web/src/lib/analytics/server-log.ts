@@ -56,6 +56,8 @@ export async function logAnalyticsEventServer(
     input.tenantId || (await resolveGuestEventTenantId(deps?.resolveHub ?? getPlatformHubTenant));
   if (!tenantId) {
     if (process.env.NODE_ENV === "development") {
+      // Dev-only signal: a guest event with no resolvable hub is dropped, never attributed to a customer tenant.
+      // eslint-disable-next-line no-console
       console.warn(`[logAnalyticsEventServer] no tenant for guest event, not persisted (${input.name})`);
     }
     return;
