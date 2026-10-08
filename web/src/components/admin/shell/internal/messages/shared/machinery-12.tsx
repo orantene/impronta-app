@@ -20,6 +20,8 @@ import { applyRowOverrides, setRowOverride, useRowOverrideSubscription } from ".
 import { STAGE_LABEL, STAGE_LABEL_KEYS, fmtMoney, getOffer, nextActionFor, rowSubtotal } from "./machinery-10";
 import type { OfferPov } from "./machinery-10";
 import { CreateOfferButton, OfferDraftEditor } from "./machinery-11";
+import { TalentOfferApprovalCard } from "./talent-offer-approval-card";
+import { selectTalentOfferView } from "./talent-offer-view";
 import type { SendGateResult } from "./offer-save-state";
 import { OfferTermsSummary } from "./offer-terms-ui";
 import { type OfferCommercialTerms } from "@/lib/billing/commercial-terms-types";
@@ -545,6 +547,16 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
         : hasOffer
         ? "The coordinator has sent you an offer for this job. Review your take-home below, then use Approve or Decline in the action bar."
         : "The coordinator is waiting on your number. You'll see the agency fee + platform fee deducted before take-home, so quote what you actually need to walk out with, plus a small margin for usage.";
+      const stubView = realInquiryId && !isBooked
+        ? selectTalentOfferView({ stage: conv.stage, myApprovalStatus: conv.myApprovalStatus, hasSentOffer: !!(liveOffer && liveOffer.status === "sent") })
+        : "draft_cta";
+      if (stubView !== "draft_cta") {
+        return (
+          <div className="flex flex-col gap-3 p-[18px] font-body">
+            <TalentOfferApprovalCard inquiryId={conv.id} view={stubView} takeHome={takeHome} />
+          </div>
+        );
+      }
       return (
         <div style={{ padding: 18, fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 12 }}>
           {talentPayout && talentPayout.hasProfile && (
@@ -591,6 +603,19 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
               </div>
             )}
           </div>
+        </div>
+      );
+    }
+    // TUL-317: a talent (incl. a coordinator who is also a participant) with a
+    // sent offer awaiting their approval sees Approve / Reject here, not the
+    // draft CTA. Non-participants have a null approval status and fall through.
+    const talentView = isTalent && realInquiryId
+      ? selectTalentOfferView({ stage: conv.stage, myApprovalStatus: conv.myApprovalStatus, hasSentOffer: !!(liveOffer && liveOffer.status === "sent") })
+      : "draft_cta";
+    if (talentView !== "draft_cta") {
+      return (
+        <div className="flex flex-col gap-3 p-[18px] font-body">
+          <TalentOfferApprovalCard inquiryId={conv.id} view={talentView} takeHome={takeHome} />
         </div>
       );
     }
