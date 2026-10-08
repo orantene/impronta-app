@@ -5,6 +5,9 @@
  * injected so the step is unit-testable.
  */
 
+import http from "node:http";
+import https from "node:https";
+
 export type LiveCheck =
   | { ok: true }
   | { ok: false; reason: "no_url" | "no_name" | "status" | "name_missing" | "network"; status?: number };
@@ -57,6 +60,44 @@ export function normalizeForMatch(s: string): string {
     .trim();
 }
 
+/**
+ * `fetch` (undici) silently drops a `host` header, so the local-origin override
+ * cannot route a site by its slug with it. `node:http(s)` honours `host`.
+ * Used only when LIVE_CHECK_ORIGIN is accepted (never in production/preview).
+ * Follows up to 3 redirects on the same origin.
+ */
+function fetchViaNodeHttp(
+  url: string,
+  headers: Record<string, string>,
+  timeoutMs: number,
+  hops = 0,
+): Promise<{ status: number; text: () => Promise<string> }> {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const lib = u.protocol === "https:" ? https : http;
+    const req = lib.request(u, { method: "GET", headers, timeout: timeoutMs }, (res) => {
+      const status = res.statusCode ?? 0;
+      const loc = res.headers.location;
+      if (status >= 300 && status < 400 && loc && hops < 3) {
+        res.resume();
+        const next = new URL(loc, u);
+        if (next.origin !== u.origin) return resolve({ status, text: async () => "" });
+        return resolve(fetchViaNodeHttp(next.toString(), headers, timeoutMs, hops + 1));
+      }
+      const chunks: Buffer[] = [];
+      res.on("data", (c: Buffer) => chunks.push(c));
+      res.on("end", () => {
+        const body = Buffer.concat(chunks).toString("utf8");
+        resolve({ status, text: async () => body });
+      });
+      res.on("error", reject);
+    });
+    req.on("timeout", () => req.destroy(new Error("timeout")));
+    req.on("error", reject);
+    req.end();
+  });
+}
+
 export async function verifyLivePage(input: {
   url: string | null;
   /** The person's own name (professional name, or business name). */
@@ -67,8 +108,9 @@ export async function verifyLivePage(input: {
   if (!input.url) return { ok: false, reason: "no_url" };
   const needle = normalizeForMatch(input.name ?? "");
   if (!needle) return { ok: false, reason: "no_name" };
-  const doFetch = input.fetchImpl ?? fetch;
+  let doFetch: typeof fetch | null = input.fetchImpl ?? null;
   let target = input.url;
+  let viaLocalOrigin = false;
   const headers: Record<string, string> = { "user-agent": "TulalaOnboardingVerify/1" };
   try {
     const orig = new URL(input.url);
@@ -82,18 +124,23 @@ export async function verifyLivePage(input: {
       // Same path on the local origin; the original host rides along so the app routes the site by its slug.
       target = `${origin}${orig.pathname}${orig.search}`;
       headers.host = orig.host;
+      viaLocalOrigin = true;
       headers["x-forwarded-host"] = orig.host;
     }
   } catch {
     /* unparsable url: the fetch below reports the failure */
   }
   try {
-    const res = await doFetch(target, {
-      redirect: "follow",
-      cache: "no-store",
-      signal: AbortSignal.timeout(input.timeoutMs ?? 8000),
-      headers,
-    });
+    const timeoutMs = input.timeoutMs ?? 8000;
+    const res =
+      viaLocalOrigin && !doFetch
+        ? await fetchViaNodeHttp(target, headers, timeoutMs)
+        : await (doFetch ?? fetch)(target, {
+            redirect: "follow",
+            cache: "no-store",
+            signal: AbortSignal.timeout(timeoutMs),
+            headers,
+          });
     if (res.status !== 200) return { ok: false, reason: "status", status: res.status };
     const html = normalizeForMatch(await res.text());
     return html.includes(needle) ? { ok: true } : { ok: false, reason: "name_missing" };

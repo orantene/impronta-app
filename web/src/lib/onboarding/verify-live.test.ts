@@ -88,3 +88,34 @@ test("verifyLivePage fetches the override origin with the original host header",
     if (prevV !== undefined) process.env.VERCEL_ENV = prevV;
   }
 });
+
+test("with LIVE_CHECK_ORIGIN the page is fetched from the local server and routed by the original Host (undici drops host, node:http keeps it)", async () => {
+  const { createServer } = await import("node:http");
+  const seen: string[] = [];
+  const server = createServer((req, res) => {
+    seen.push(String(req.headers.host));
+    if (req.headers.host === "rosa.tulala.digital") {
+      res.statusCode = 200;
+      res.end("<h1>Rosa Díaz</h1>");
+    } else {
+      res.statusCode = 404;
+      res.end("Host not registered");
+    }
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  const port = (server.address() as { port: number }).port;
+  const prev = { o: process.env.LIVE_CHECK_ORIGIN, v: process.env.VERCEL_ENV };
+  try {
+    delete process.env.VERCEL_ENV;
+    process.env.LIVE_CHECK_ORIGIN = `http://127.0.0.1:${port}`;
+    const ok = await verifyLivePage({ url: "https://rosa.tulala.digital/", name: "Rosa Díaz" });
+    assert.deepEqual(ok, { ok: true });
+    assert.deepEqual(seen, ["rosa.tulala.digital"]);
+    const wrong = await verifyLivePage({ url: "https://other.tulala.digital/", name: "Rosa Díaz" });
+    assert.deepEqual(wrong, { ok: false, reason: "status", status: 404 });
+  } finally {
+    if (prev.o === undefined) delete process.env.LIVE_CHECK_ORIGIN; else process.env.LIVE_CHECK_ORIGIN = prev.o;
+    if (prev.v === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = prev.v;
+    await new Promise((r) => server.close(r));
+  }
+});
