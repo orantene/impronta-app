@@ -38,15 +38,3 @@ export function ProfileShellSectionSaveHint({
     </p>
   );
 }
-
-export function ProfileShellSaveErrorBanner({ message }: { message: string | null }) {
-  if (!message) return null;
-  return (
-    <div
-      role="alert"
-      className="mx-4 mb-3 rounded-[10px] border border-admin-red/30 bg-admin-red/10 px-3.5 py-2.5 text-admin-13 leading-snug text-admin-red"
-    >
-      {message}
-    </div>
-  );
-}

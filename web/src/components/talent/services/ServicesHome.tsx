@@ -47,6 +47,9 @@ import { listCategoryUndos, popCategoryUndo, pushCategoryUndo } from "@/lib/tale
 import { ExtraScreen } from "./ExtraScreen";
 import { DuplicateReviewScreen } from "./DuplicateReviewScreen";
 import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
+import { useWebsiteFlow } from "@/components/talent/website-reward/useWebsiteFlow";
+import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
+import { isWebsitePublished } from "@/lib/talent/website-published-truth";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import {
   ServicesHoursNeededBanner,
@@ -85,6 +88,13 @@ export function ServicesHome({
   const [menuId, setMenuId] = useState<string | null>(null);
   const [bannerId, setBannerId] = useState<string | null>(null);
   const [destinations, setDestinations] = useState<OfferingDestination[]>([]);
+  // Same published flag the top-bar website pill reads, so both always agree.
+  const websiteFlow = useWebsiteFlow();
+  const websiteSiteLoad = useTalentSiteDashboardInitialLoad();
+  const websitePublished = isWebsitePublished(
+    websiteFlow.state,
+    websiteSiteLoad?.ok ? websiteSiteLoad.state.site?.status ?? null : null,
+  );
   const [defaults, setDefaults] = useState<SellingDefaults | null>(null);
   const loc = useLocationSettings(talentId);
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
@@ -508,6 +518,7 @@ export function ServicesHome({
         <PublishedBanner
           item={items.find((i) => i.id === bannerId) ?? null}
           destinations={destinations}
+          websitePublished={websitePublished}
           onClose={() => setBannerId(null)}
           onAddAnother={() => {
             setBannerId(null);
