@@ -1,5 +1,6 @@
 import "server-only";
 
+import { envCaptchaFallback } from "@/lib/captcha/env-fallback";
 import {
   CAPTCHA_INTEGRATION_KEY,
   CUSTOM_CODE_INTEGRATION_KEY,
@@ -243,13 +244,8 @@ async function platformCaptcha(): Promise<{
   }
 
   // No platform-DB default → EXACT current env behavior (zero regression).
-  const hSite = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY?.trim() || null;
-  const hSecret = process.env.HCAPTCHA_SECRET?.trim() || null;
-  const tSite = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() || null;
-  const tSecret = process.env.TURNSTILE_SECRET?.trim() || null;
-  if (hSite) return { provider: "hcaptcha", siteKey: hSite, secret: hSecret };
-  if (tSite) return { provider: "turnstile", siteKey: tSite, secret: tSecret };
-  return { provider: "none", siteKey: null, secret: null };
+  // TUL-123: Turnstile (low-friction) is preferred over hCaptcha.
+  return envCaptchaFallback(process.env);
 }
 
 export async function resolveTenantCaptcha(

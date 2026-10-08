@@ -149,6 +149,34 @@ export function formatDateLabel(iso: string | null): string | undefined {
 }
 
 /**
+ * TUL-108: a talent-site appointment's start, in the TALENT's zone and the
+ * email's language ("vie, 9 oct, 9:45" / "Fri, Oct 9, 9:45 AM"). Undefined when
+ * either input is missing or bad, so the caller falls back to the inquiry date.
+ */
+export function formatAppointmentLabel(
+  iso: string | null,
+  timeZone: string | null,
+  locale: string | null | undefined,
+): string | undefined {
+  if (!iso || !timeZone) return undefined;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return undefined;
+  const lang = (locale ?? "").toLowerCase().startsWith("es") ? "es-MX" : "en-US";
+  try {
+    return d.toLocaleString(lang, {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone,
+    });
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Format integer minor units (cents) + an ISO-4217 code as a display amount,
  * e.g. (225000, "eur") → "EUR 2,250.00". Returns "" for a missing/non-finite
  * amount so the template's FieldTable row drops out (no "undefined" / "NaN").

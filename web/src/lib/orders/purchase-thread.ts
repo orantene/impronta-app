@@ -18,8 +18,9 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { attachReservationHoldToInquiry } from "@/lib/scheduling/reservation-hold";
-import { enrichBookingFromReservation } from "@/lib/scheduling/reservation-convert";
+import { enrichBookingFromReservation, type AppointmentOverride } from "@/lib/scheduling/reservation-convert";
 import { clampTaskBrief, type OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
+import { normalizeBookingLocale } from "@/lib/scheduling/booking-locale";
 import { formatIntakeBlock } from "@/lib/talent/offering-intake";
 
 export type OpenPurchaseThreadInput = {
@@ -40,6 +41,12 @@ export type OpenPurchaseThreadInput = {
   readonly brief?: OfferingTaskBrief | null;
   /** Buyer locale, for the intake answers' heading (G13). */
   readonly locale?: string | null;
+  /**
+   * The REAL appointment the buyer picked, buffers kept separate. The hold row
+   * is buffer-padded (`reserve_resource_set_v2`), so mirroring it as-is moved
+   * the appointment by the buffer (TUL-93).
+   */
+  readonly appointment?: AppointmentOverride | null;
 };
 
 export async function openPurchaseThread(
@@ -48,6 +55,7 @@ export async function openPurchaseThread(
 ): Promise<string | null> {
   // Re-clamped here: the brief is visitor text from a public form.
   const brief = clampTaskBrief(input.brief);
+  const bookingLocale = normalizeBookingLocale(input.locale);
   const { data: inqRow, error: inqErr } = await admin
     .from("inquiries")
     .insert({
@@ -61,7 +69,16 @@ export async function openPurchaseThread(
       // gates on guest_session_id === cookie; clearing it when the buyer
       // happens to be signed in is how a confirmed instant book 404s.
       guest_session_id: input.guestSessionId,
-      ...(brief ? { source_context: { brief } } : {}),
+      // `locale` is the language the buyer was browsing in; the confirmation
+      // email renders in it (TUL-93). Read back by `loadInquiryView`.
+      ...(brief || bookingLocale
+        ? {
+            source_context: {
+              ...(brief ? { brief } : {}),
+              ...(bookingLocale ? { locale: bookingLocale } : {}),
+            },
+          }
+        : {}),
     })
     .select("id")
     .single();
@@ -138,6 +155,7 @@ export async function openPurchaseThread(
       inquiryId,
       bookingId: input.bookingId,
       actorUserId: input.actorUserId,
+      appointment: input.appointment ?? null,
     });
     if (!enriched.ok) {
       logServerError("orders.createPurchase/talent-mirror", enriched.error);

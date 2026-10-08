@@ -77,6 +77,8 @@ export interface InEditorCanvasRenderData {
   headNodes?: ReactNode;
   /** talent_page only: the site header / footer, read-only around the page. */
   shellHeader?: ReactNode;
+  /** TUL-133: first band is a dark full-bleed hero, so a transparent header may paint white text. */
+  shellHeaderOverHero?: boolean;
   shellFooter?: ReactNode;
   /** talent_page only: the global Tulala footer socket, shown locked under the footer. */
   shellSocket?: ReactNode;

@@ -38,6 +38,11 @@ const TEMPLATES: ReadonlyArray<{ re: RegExp; es: (m: RegExpMatchArray) => string
       `El elemento tiene ${m[1] === "minimum width" ? "un ancho mínimo" : "un ancho fijo"} de ${m[2]}px, que supera la pantalla móvil más estrecha (${m[3]}px). Fuerza una barra de desplazamiento horizontal en teléfonos. Usa un ancho relativo (%, 100%) o un ajuste para móvil.`,
   },
   {
+    re: /^(.+) runs (\d+)px past the edge of the (\d+)px screen\. .+$/,
+    es: (m) =>
+      `${m[1]} se sale ${m[2]}px del borde de la pantalla de ${m[3]}px. Hazlo más pequeño, permite que se envuelva o muévelo al menú.`,
+  },
+  {
     re: /^This menu opens off-canvas, but an ancestor block .+$/,
     es: () =>
       "Este menú se abre fuera del lienzo, pero un bloque superior usa desenfoque o filtro, lo que fija el panel a ese bloque en lugar de a la pantalla. Quita el desenfoque en el punto de corte móvil para que el menú cubra toda la pantalla.",

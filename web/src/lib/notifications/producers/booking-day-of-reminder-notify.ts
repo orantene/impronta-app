@@ -36,3 +36,35 @@ export function notifyBookingDayOfReminder(params: {
     payload: { bookingId: params.bookingId },
   });
 }
+
+/**
+ * Day-of reminder for a talent-site guest appointment (`talent_bookings`,
+ * TUL-108). Same event + catalog entries as the agency sweep, so the guest and
+ * the booked talent get the same email + bell. The eventId prefix is DISTINCT
+ * (`talent-booking-reminder:`) so a talent booking id can never collide with an
+ * `agency_bookings` id in `notification_dispatch_log_dedupe_uq`.
+ */
+export function notifyTalentBookingDayOfReminder(params: {
+  tenantId: string;
+  inquiryId: string;
+  talentBookingId: string;
+  /** The appointment itself: a talent-site inquiry carries no event_date, so the email reads these. */
+  startsAt: string;
+  timezone: string;
+  title: string | null;
+  location: string | null;
+}): Promise<DispatchResult> {
+  return dispatchEventNotifications({
+    type: "booking.day_of_reminder",
+    tenantId: params.tenantId,
+    inquiryId: params.inquiryId,
+    eventId: `talent-booking-reminder:${params.talentBookingId}`,
+    payload: {
+      talentBookingId: params.talentBookingId,
+      appointmentStartsAt: params.startsAt,
+      appointmentTimezone: params.timezone,
+      appointmentTitle: params.title,
+      appointmentLocation: params.location,
+    },
+  });
+}

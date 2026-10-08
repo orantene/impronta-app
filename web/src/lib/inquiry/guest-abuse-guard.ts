@@ -271,10 +271,11 @@ export async function checkGuestInquiryAbuse(
   // permanently soft-bricked. While the widget is a stub this is a no-op; the
   // IP/email/session KV ceilings above remain the hard floor.
   const velocityCount = incrementVelocity(kvKey);
-  if (velocityCount > VELOCITY_THRESHOLD && isGuestCaptchaWidgetReady()) {
+  if (velocityCount > VELOCITY_THRESHOLD && (await isGuestCaptchaWidgetReady(args.tenantId))) {
     const captchaResult = await verifyCaptchaToken({
       token: args.captchaToken,
       ip: args.ip,
+      tenantId: args.tenantId,
     });
     if (!captchaResult.ok) {
       return captchaFailure(captchaResult.code, captchaResult.message);
@@ -351,10 +352,11 @@ export async function checkGuestMessageAbuse(
   // guest who can't produce a token (permanent soft-brick). No-op while the
   // widget is a stub.
   const velocityCount = incrementVelocity(kvKey);
-  if (velocityCount > VELOCITY_THRESHOLD && isGuestCaptchaWidgetReady()) {
+  if (velocityCount > VELOCITY_THRESHOLD && (await isGuestCaptchaWidgetReady(args.tenantId))) {
     const captchaResult = await verifyCaptchaToken({
       token: args.captchaToken,
       ip: args.ip,
+      tenantId: args.tenantId,
     });
     if (!captchaResult.ok) {
       return captchaFailure(captchaResult.code, captchaResult.message);

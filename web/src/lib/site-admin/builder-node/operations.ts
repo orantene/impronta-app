@@ -634,7 +634,13 @@ export function duplicateBuilderNode(input: {
       issues: missingNodeIssue(input.nodeId),
     };
   }
-  if (location.node.kind === "section") {
+  // TUL-78: only a section BACKED by a DB section row needs the section
+  // duplicate action (cloning it would share the row). A freeform tree section
+  // has no row, so a plain clone is a valid duplicate.
+  if (
+    location.node.kind === "section" &&
+    (location.node.props as { sectionId?: string | null }).sectionId
+  ) {
     return {
       ok: false,
       code: "NODE_KIND_NOT_DUPLICABLE",

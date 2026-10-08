@@ -185,8 +185,8 @@ test("tagCounts counts designs per tag", () => {
 });
 
 test("suggestedDesignsForTrade", () => {
-  assert.deepEqual(suggestedDesignsForTrade("Lash Artist"), ["maison", "maison-v2"]);
-  assert.deepEqual(suggestedDesignsForTrade("beauty"), ["maison", "maison-v2"]);
+  assert.deepEqual(suggestedDesignsForTrade("Lash Artist"), ["maison-v2", "maison"]);
+  assert.deepEqual(suggestedDesignsForTrade("beauty"), ["maison-v2", "maison"]);
   assert.equal(suggestedDesignsForTrade("Fashion Model")[0], "folio");
   assert.equal(suggestedDesignsForTrade("Masajista")[0], "solace");
   assert.equal(suggestedDesignsForTrade("wellness")[0], "solace");
