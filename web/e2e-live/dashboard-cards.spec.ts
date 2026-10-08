@@ -117,10 +117,24 @@ async function onPage(browser: Browser, info: TestInfo, path: string, fn: (page:
   try {
     await page.goto(`${APP_HOST}${path}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await settle(page);
+    await declineCookieBanner(page);
     await fn(page, context);
   } finally {
     await info.attach(`screenshot ${path}`, { body: await page.screenshot({ fullPage: false }).catch(() => Buffer.from("")), contentType: "image/png" }).catch(() => undefined);
     await context.close();
+  }
+}
+
+/**
+ * The cookie banner is a dialog too and sits above the page; decline it (the
+ * privacy-preserving choice) so it neither steals `getByRole("dialog")` nor
+ * covers the controls. No banner = nothing to do.
+ */
+async function declineCookieBanner(page: Page): Promise<void> {
+  const decline = page.getByRole("button", { name: /^(rechazar|decline|reject)( all| todo)?$/i }).first();
+  if (await decline.isVisible().catch(() => false)) {
+    await safeClick(decline, "Decline cookies");
+    await decline.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => undefined);
   }
 }
 
@@ -160,7 +174,8 @@ test("TUL-166: Hours drawer shows the weekly hours; the New service form opens (
     await safeClick(page.getByRole("button", { name: /add item|agregar art[ií]culo/i }).first(), "Add item");
     // "+ Add item" first opens a type picker ("¿Qué estás agregando?"). Assert the
     // picker and its three kinds, then Cancel: nothing is created, nothing saved.
-    const dialog = page.getByRole("dialog").first();
+    // Match the picker by its question, never `.first()`: the cookie banner is also a dialog.
+    const dialog = page.getByRole("dialog").filter({ hasText: /qu[eé] est[aá]s agregando|what are you adding/i }).first();
     await expect(dialog, "type picker opens").toBeVisible({ timeout: 15_000 });
     await expect(dialog).toContainText(/servicio|service/i);
     await expect(dialog).toContainText(/paquete|package/i);
@@ -267,7 +282,20 @@ test("TUL-228/277: Load more appends items in the Assets library and the profile
 test("TUL-243: Today's empty cards render their copy, not a blank card", async ({ browser }, info) => {
   await onPage(browser, info, "/talent/today", async (page) => {
     const l = await lang(page);
+    const text = await mainText(page);
+    // Unconditional (runs before any skip): Today's copy follows the ES chrome, and the
+    // Money card carries a payments line. Searched across main, not a window after the
+    // first "Money": the nav item of that name came first and hid the card's text.
+    info.annotations.push({ type: "page-lang", description: l || "(none)" });
+    if (/^es\b/i.test(l)) {
+      const englishSentinels = [/No payments yet this month/i, /\bNeeds attention\b/i, /\bAll clear\b/i];
+      const leaked = englishSentinels.filter((re) => re.test(text)).map(String);
+      expect(leaked, "Today copy follows the ES chrome (no English card copy on a Spanish page)").toEqual([]);
+    }
+    expect(text, "Money card carries a payments line").toMatch(/Aún no hay pagos este mes|No payments yet this month|\d+\s+(pagos|payments)|No disponible|Not available/i);
+
     const attention = page.locator('[data-testid="today-attention"]');
+    if ((await attention.count()) === 0) info.annotations.push({ type: "skip-reason", description: "first-run mode: no Needs attention card" });
     test.skip((await attention.count()) === 0, "Today is in first-run mode (no Needs attention card), so there is no empty state to read");
     // The card fills in after the messages check; wait for it to stop saying "checking".
     await expect(page.locator('[data-testid="today-attention-checking"]')).toHaveCount(0, { timeout: 30_000 });
@@ -276,17 +304,7 @@ test("TUL-243: Today's empty cards render their copy, not a blank card", async (
     // Catches: an empty Needs attention card rendered with a title and no "all clear" line.
     expect(verdict.ok, verdict.reason).toBe(true);
 
-    // Money card: the empty month must say so ("Aún no hay pagos este mes"), or say it is unavailable, never a bare "·".
-    // Searched across main, not a window after the first "Money": the nav item
-    // of the same name comes first and pushed the card out of a 400-char window.
-    const text = await mainText(page);
-    expect(text, "Money card carries a payments line").toMatch(/Aún no hay pagos este mes|No payments yet this month|\d+\s+(pagos|payments)|No disponible|Not available/i);
-    // Catches: Today rendering its copy in English for a Spanish talent (PM, 2026-10-08).
-    if (/^es\b/i.test(l)) {
-      const englishSentinels = [/No payments yet this month/i, /\bNeeds attention\b/i, /\bAll clear\b/i];
-      const leaked = englishSentinels.filter((re) => re.test(text)).map(String);
-      expect(leaked, "Today copy follows the ES chrome (no English card copy on a Spanish page)").toEqual([]);
-    }
+    if (verdict.state === "populated") info.annotations.push({ type: "skip-reason", description: `Needs attention has items: ${verdict.reason}` });
     test.skip(verdict.state === "populated", `Needs attention has items on the test talent right now (${verdict.reason}); its empty copy is not on screen`);
   });
 });
