@@ -27,6 +27,7 @@ import { applySellingTimeToHours, computePublicSlots } from "@/lib/scheduling/pu
 import { parseBookingHours } from "@/lib/scheduling/hours-types";
 import { addUtcDays, utcToZonedYmd } from "@/lib/scheduling/tz";
 import type { InstantPurchaseInput, InstantPurchaseResult } from "@/lib/scheduling/instant-purchase";
+import { buildCheckoutReturnUrls } from "@/lib/payments/checkout-return-urls";
 import type { CheckoutSessionInput, CheckoutSessionResult } from "@/lib/payments/stripe-checkout";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import type { TalentBookingMode } from "@/lib/scheduling/booking-surface";
@@ -398,6 +399,11 @@ async function book(deps: AppointmentPickerDeps, input: AppointmentPickerInput):
 
   let checkoutUrl: string | null = null;
   if (placed.collectCents > 0 && placed.transactionId && placed.bookingId && deps.origin) {
+    // TUL-350 slice 1: host + locale (deps.origin is already the request host).
+    const { successUrl, cancelUrl } = buildCheckoutReturnUrls({
+      origin: deps.origin,
+      locale: deps.locale,
+    });
     const session = await deps.createCheckout({
       transactionId: placed.transactionId,
       amountCents: placed.collectCents,
@@ -405,9 +411,8 @@ async function book(deps: AppointmentPickerDeps, input: AppointmentPickerInput):
       payerEmail: input.contact.email.trim().toLowerCase(),
       inquiryId: placed.inquiryId,
       bookingId: placed.bookingId,
-      // The same return pages the instant-book action uses.
-      successUrl: `${deps.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancelUrl: `${deps.origin}/checkout/cancel`,
+      successUrl,
+      cancelUrl,
       description: service.title,
       locale: deps.locale,
     });

@@ -66,6 +66,7 @@ function setup(over: Partial<AppointmentPickerDeps> = {}) {
   });
   const memory = memoryIdempotentRunner();
   const placed: unknown[] = [];
+  const checkouts: unknown[] = [];
   const deps: AppointmentPickerDeps = {
     admin,
     runner: memory.runner,
@@ -92,11 +93,14 @@ function setup(over: Partial<AppointmentPickerDeps> = {}) {
         reservationHoldId: uuid(54),
       } satisfies InstantPurchaseResult;
     },
-    createCheckout: async (input) => ({ ok: true, url: `https://pay.test/${input.transactionId}`, sessionId: "s", mock: true }),
+    createCheckout: async (input) => {
+      checkouts.push(input);
+      return { ok: true, url: `https://pay.test/${input.transactionId}`, sessionId: "s", mock: true };
+    },
     signManageToken: ({ action }) => `tok-${action}`,
     ...over,
   };
-  return { deps, calls, store, placed, memory };
+  return { deps, calls, store, placed, memory, checkouts };
 }
 const W = [{ startMin: 540, endMin: 720 }];
 
@@ -184,7 +188,7 @@ test("act: a time the day does not offer is refused as past/time_not_offered; a 
 });
 
 test("act: books through the purchase pipeline with the re-derived slot, returns checkout + manage links", async () => {
-  const { deps, placed } = setup();
+  const { deps, placed, checkouts } = setup();
   const r = await actAppointmentPickerCore(deps, INPUT);
   assert.equal(r.ok, true);
   if (!r.ok) return;
@@ -200,6 +204,26 @@ test("act: books through the purchase pipeline with the re-derived slot, returns
   assert.equal(r.confirmation.personName, "Vic");
   assert.equal(r.confirmation.serviceTitle, "Fade");
   assert.equal(r.replayed, false);
+  // TUL-350: return URLs stay on the request host (EN unprefixed).
+  const checkout = checkouts[0] as { successUrl: string; cancelUrl: string };
+  assert.equal(
+    checkout.successUrl,
+    "https://shop.test/checkout/success?session_id={CHECKOUT_SESSION_ID}",
+  );
+  assert.equal(checkout.cancelUrl, "https://shop.test/checkout/cancel");
+});
+
+test("act: Spanish locale prefixes checkout return URLs on the same host", async () => {
+  const { deps, checkouts } = setup({ locale: "es" });
+  const r = await actAppointmentPickerCore(deps, INPUT);
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+  const checkout = checkouts[0] as { successUrl: string; cancelUrl: string };
+  assert.equal(
+    checkout.successUrl,
+    "https://shop.test/es/checkout/success?session_id={CHECKOUT_SESSION_ID}",
+  );
+  assert.equal(checkout.cancelUrl, "https://shop.test/es/checkout/cancel");
 });
 
 test("act: the same key replays the same booking without a second purchase", async () => {
