@@ -11,6 +11,7 @@
  */
 
 import { logServerError } from "@/lib/server/safe-error";
+import { notifyPaymentNeedsAttention } from "@/lib/notifications/producers/payment-notify";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = { from: (table: string) => any };
@@ -50,22 +51,31 @@ export async function flagPaidAfterCancellation(
 ): Promise<{ ok: boolean }> {
   const { data, error } = await admin
     .from("booking_transactions")
-    .select("metadata")
+    .select("metadata, source_tenant_id, booking_id, source_inquiry_id, gross_amount_cents, currency")
     .eq("id", input.transactionId)
     .maybeSingle();
   if (error) {
     logServerError("payments.paidAfterCancel.read", error);
     return { ok: false };
   }
-  const meta = ((data as { metadata?: unknown } | null)?.metadata ?? {}) as Record<string, unknown>;
+  const row = data as {
+    metadata?: unknown;
+    source_tenant_id?: string | null;
+    booking_id?: string | null;
+    source_inquiry_id?: string | null;
+    gross_amount_cents?: number | null;
+    currency?: string | null;
+  } | null;
+  const meta = (row?.metadata ?? {}) as Record<string, unknown>;
   if (meta.needs_attention === PAID_AFTER_CANCEL_ATTENTION) return { ok: true };
+  const note = "Paid after cancellation. Refund manually from Money.";
   const { error: updErr } = await admin
     .from("booking_transactions")
     .update({
       metadata: {
         ...meta,
         needs_attention: PAID_AFTER_CANCEL_ATTENTION,
-        needs_attention_note: "Paid after cancellation. Refund manually from Money.",
+        needs_attention_note: note,
         needs_attention_at: input.nowIso ?? new Date().toISOString(),
       },
     })
@@ -78,6 +88,20 @@ export async function flagPaidAfterCancellation(
     "payments.PAID_AFTER_CANCELLATION",
     `transaction ${input.transactionId} was paid after its booking was cancelled. Refund manually.`,
   );
+  // TUL-391 — in-app Money bell (dedupe on transactionId + reason).
+  const tenantId = row?.source_tenant_id ?? null;
+  if (tenantId) {
+    notifyPaymentNeedsAttention({
+      tenantId,
+      transactionId: input.transactionId,
+      bookingId: row?.booking_id ?? null,
+      inquiryId: row?.source_inquiry_id ?? null,
+      reason: PAID_AFTER_CANCEL_ATTENTION,
+      note,
+      amountCents: row?.gross_amount_cents ?? null,
+      currency: row?.currency ?? null,
+    });
+  }
   return { ok: true };
 }
 

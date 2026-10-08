@@ -203,3 +203,75 @@ export function notifyWorkspacePaymentFailed(params: {
     logServerError("notifyWorkspacePaymentFailed", err);
   });
 }
+
+/**
+ * `refund.failed` — workspace Money alert when Stripe returns a refund as
+ * failed/canceled (TUL-391). Dedupe on the Stripe refund id so webhook
+ * redelivery collapses. In-app only (catalog owns the channel).
+ */
+export function notifyRefundFailed(params: {
+  tenantId: string;
+  transactionId: string | null;
+  bookingId: string | null;
+  inquiryId: string | null;
+  refundId: string;
+  amountCents: number;
+  currency: string;
+  failureReason: string | null;
+  status: string;
+}): void {
+  void dispatchEventNotifications({
+    type: "refund.failed",
+    tenantId: params.tenantId,
+    inquiryId: params.inquiryId,
+    bookingId: params.bookingId,
+    eventId: `refund-failed:${params.refundId}`,
+    payload: {
+      transactionId: params.transactionId,
+      bookingId: params.bookingId,
+      inquiryId: params.inquiryId,
+      refundId: params.refundId,
+      amountCents: params.amountCents,
+      currency: params.currency,
+      failureReason: params.failureReason,
+      status: params.status,
+    },
+  }).catch((err) => {
+    logServerError("notifyRefundFailed", err);
+  });
+}
+
+/**
+ * `payment.needs_attention` — workspace Money alert when a booking transaction
+ * is stamped for a human (paid after cancel, refund failed, …). Dedupe on
+ * `(transactionId, reason)` so a re-flag is a no-op.
+ */
+export function notifyPaymentNeedsAttention(params: {
+  tenantId: string;
+  transactionId: string;
+  bookingId: string | null;
+  inquiryId: string | null;
+  reason: string;
+  note: string | null;
+  amountCents?: number | null;
+  currency?: string | null;
+}): void {
+  void dispatchEventNotifications({
+    type: "payment.needs_attention",
+    tenantId: params.tenantId,
+    inquiryId: params.inquiryId,
+    bookingId: params.bookingId,
+    eventId: `payment-needs-attention:${params.transactionId}:${params.reason}`,
+    payload: {
+      transactionId: params.transactionId,
+      bookingId: params.bookingId,
+      inquiryId: params.inquiryId,
+      reason: params.reason,
+      note: params.note,
+      amountCents: params.amountCents ?? null,
+      currency: params.currency ?? null,
+    },
+  }).catch((err) => {
+    logServerError("notifyPaymentNeedsAttention", err);
+  });
+}
