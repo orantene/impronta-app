@@ -6,7 +6,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-// @ts-expect-error plain .mjs script, exercised for its pure planner
 import { planDuplicateOrderRepairs, projectRefOf } from "../../../scripts/repair-duplicate-offer-orders.mjs";
 
 const pend = (id: string, over: Record<string, unknown> = {}) => ({ id, inquiry_id: "i1", currency: "MXN", total_cents: 100000, status: "pending_payment", ...over });

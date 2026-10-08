@@ -15,7 +15,7 @@ function fake(orders: Row[], opts: { failFind?: boolean } = {}) {
   const log: string[] = [];
   const from = () => {
     type F = { op: "eq" | "neq" | "is"; k: string; v: unknown };
-    let filters: F[] = [];
+    const filters: F[] = [];
     let patch: Row | null = null;
     const match = (r: Row) =>
       filters.every((f) => (f.op === "eq" ? r[f.k] === f.v : f.op === "neq" ? r[f.k] !== f.v : (r[f.k] ?? null) === f.v));
