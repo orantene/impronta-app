@@ -10,13 +10,16 @@
  * unchanged. So with TALENT_THEME_GALLERY_ENABLED unset the manager's DOM is
  * the same as before this pass.
  *
- * Apply writes the DRAFT only (design trees + draft tokens). The site's own
+ * One rule: a design change goes to DRAFT first ("Change design in draft",
+ * primary). "Change and publish now" (secondary) applies, then calls the same
+ * publishMaxSiteAction as Maison. Otherwise the site's own
  * "Publish site" button makes it live, and publishes the theme tokens with
  * the pages (`publishMaxSiteAction` -> `publishSiteThemeForTalent`).
  */
 import { useEffect, useState } from "react";
 
 import { applySiteDesignAction, applySiteLookAction } from "@/lib/talent-site/server/theme-actions";
+import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
 import type { ThemeActionErrorCode } from "@/lib/talent-site/server/theme-action-types";
 import {
   loadThemeGalleryBootstrapAction,
@@ -64,7 +67,7 @@ export function ManagerThemeGallery({
   const [bootstrap, setBootstrap] = useState<ThemeGalleryBootstrap | null>(null);
   const [ask, setAsk] = useState<{
     summary: LiveDesignChangeSummary;
-    resolve: (ok: boolean) => void;
+    resolve: (choice: "draft" | "publish" | "cancel") => void;
   } | null>(null);
 
   useEffect(() => {
@@ -89,6 +92,7 @@ export function ManagerThemeGallery({
     // Re-applying the Design the site already has would rebuild the home page
     // from the talent's profile and throw away their edits, so a Look-only
     // change never touches the Design (and never asks to replace content).
+    let publishNow = false;
     const designToApply =
       designSlug && designSlug !== current.currentDesignSlug ? designSlug : undefined;
     if (designToApply) {
@@ -104,9 +108,12 @@ export function ManagerThemeGallery({
         }),
         counts: null,
       });
-      const confirmed = await new Promise<boolean>((resolve) => setAsk({ summary, resolve }));
+      const choice = await new Promise<"draft" | "publish" | "cancel">((resolve) =>
+        setAsk({ summary, resolve }),
+      );
       setAsk(null);
-      if (!confirmed) return { ok: false, cancelled: true };
+      if (choice === "cancel") return { ok: false, cancelled: true };
+      publishNow = choice === "publish";
     }
     if (designToApply) {
       const res = await runThemeApply(() => applySiteDesignAction({ designSlug: designToApply }));
@@ -117,6 +124,13 @@ export function ManagerThemeGallery({
       const res = await runThemeApply(() => applySiteLookAction({ lookSlug }));
       if (!res.ok) return fail(res.code);
       setBootstrap((prev) => (prev?.enabled ? { ...prev, currentLookSlug: lookSlug } : prev));
+    }
+    if (publishNow) {
+      // Same publish action the Maison dialog uses.
+      const pub = await publishMaxSiteAction();
+      await onApplied();
+      if (!pub.ok) return { ok: false, error: themeGalleryCopy(locale, "publishNowError") };
+      return { ok: true };
     }
     await onApplied();
     return { ok: true };
@@ -140,8 +154,9 @@ export function ManagerThemeGallery({
         <ThemePickDraftDialog
           locale={locale}
           summary={ask.summary}
-          onConfirm={() => ask.resolve(true)}
-          onCancel={() => ask.resolve(false)}
+          onConfirm={() => ask.resolve("draft")}
+          onPublishNow={() => ask.resolve("publish")}
+          onCancel={() => ask.resolve("cancel")}
         />
       ) : null}
     </>

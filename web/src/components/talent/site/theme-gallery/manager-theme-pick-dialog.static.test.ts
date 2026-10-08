@@ -57,3 +57,34 @@ test("TUL-321: draft-only wording in en and es, no Publish on the primary, no em
   );
   assert.match(themeGalleryCopy("es", "draftDialogNote"), /borrador/);
 });
+
+test("TUL-321: one rule, draft is primary and publish-now is secondary in both dialogs", () => {
+  const mgr = read("theme-gallery/ThemePickDraftDialog.tsx");
+  const mai = read("maison-setup/PublishDesignDialog.tsx");
+  // Draft button first in source (flex-row-reverse puts it on the primary side).
+  assert.ok(mgr.indexOf("theme-pick-draft-confirm") < mgr.indexOf("theme-pick-draft-publish-now"));
+  assert.match(mgr, /bg-emerald-900[^]*?draftDialogConfirm/);
+  assert.match(mgr, /draftDialogPublishNow/);
+  assert.ok(mai.indexOf("maison-publish-design-draft") < mai.indexOf("maison-publish-design-confirm"));
+  assert.match(mai, /bg-emerald-900[^]*?Change design in draft/);
+  assert.match(mai, /Change and publish now/);
+  assert.doesNotMatch(mai, /window\.confirm/);
+  const copy = read("maison-setup/maison-setup-copy.ts");
+  assert.match(copy, /"Change design in draft": "Cambiar diseño en el borrador"/);
+  assert.match(copy, /"Change and publish now": "Cambiar y publicar ahora"/);
+  for (const locale of ["en", "es"] as const) {
+    for (const k of ["draftDialogPublishNow", "publishNowError"] as const) {
+      const v = themeGalleryCopy(locale, k);
+      assert.ok(v.length > 0);
+      assert.doesNotMatch(v, /—/);
+    }
+  }
+  assert.equal(themeGalleryCopy("en", "draftDialogPublishNow"), "Change and publish now");
+  assert.match(themeGalleryCopy("es", "draftDialogPublishNow"), /publicar/);
+});
+
+test("TUL-321: publish-now reuses publishMaxSiteAction, no new publish path", () => {
+  const src = read("theme-gallery/ManagerThemeGallery.tsx");
+  assert.match(src, /import \{ publishMaxSiteAction \} from "@\/lib\/talent-site\/server\/site-management-actions"/);
+  assert.match(src, /await publishMaxSiteAction\(\)/);
+});

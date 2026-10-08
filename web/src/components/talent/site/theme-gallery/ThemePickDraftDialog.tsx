@@ -4,7 +4,9 @@
  * TUL-321 — confirm step for picking a new Design in the Manager gallery.
  * Replaces window.confirm. Shows the same keep/change summary as
  * PublishDesignDialog (shared body) and says plainly that this only changes
- * the DRAFT. The primary button never says "Publish".
+ * the DRAFT. The primary button never says "Publish";
+ * "Change and publish now" is the secondary action (one rule for both paths:
+ * a design change goes to draft first).
  */
 import { DesignChangeSummaryBody } from "../maison-setup/DesignChangeSummaryBody";
 import type { LiveDesignChangeSummary } from "../maison-setup/live-design-change";
@@ -14,11 +16,13 @@ export function ThemePickDraftDialog({
   locale,
   summary,
   onConfirm,
+  onPublishNow,
   onCancel,
 }: {
   locale: ThemeGalleryLocale;
   summary: LiveDesignChangeSummary;
   onConfirm: () => void;
+  onPublishNow: () => void;
   onCancel: () => void;
 }) {
   return (
@@ -63,6 +67,14 @@ export function ThemePickDraftDialog({
             className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl bg-emerald-900 px-4 text-[14px] font-semibold text-white"
           >
             {themeGalleryCopy(locale, "draftDialogConfirm")}
+          </button>
+          <button
+            type="button"
+            data-testid="theme-pick-draft-publish-now"
+            onClick={onPublishNow}
+            className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl border border-admin-border-soft px-4 text-[14px] font-semibold text-admin-ink"
+          >
+            {themeGalleryCopy(locale, "draftDialogPublishNow")}
           </button>
           <button
             type="button"

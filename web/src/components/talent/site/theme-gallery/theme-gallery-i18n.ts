@@ -47,6 +47,8 @@ const COPY = {
     draftDialogConfirm: "Change design in draft",
     draftDialogKeep: "Keep current design",
     draftDialogClose: "Close",
+    draftDialogPublishNow: "Change and publish now",
+    publishNowError: "The design was changed in your draft, but publishing failed. Try Publish site.",
   },
   es: {
     stepDesign: "Diseño",
@@ -87,6 +89,8 @@ const COPY = {
     draftDialogConfirm: "Cambiar diseño en el borrador",
     draftDialogKeep: "Mantener el diseño actual",
     draftDialogClose: "Cerrar",
+    draftDialogPublishNow: "Cambiar y publicar ahora",
+    publishNowError: "El diseño se cambió en tu borrador, pero no se pudo publicar. Prueba Publicar sitio.",
   },
 } as const;
 
