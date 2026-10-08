@@ -21,7 +21,7 @@ const page = {
   ogTitle: null,
   ogDescription: null,
   ogImageUrl: null,
-  canonicalUrl: "https://alba.example/custom",
+  canonicalUrl: "https://alba.tulala.digital/custom",
   noindex: null,
   jsonLd: null,
 } as unknown as MaxSitePageRow;
@@ -43,7 +43,7 @@ test("bilingual: reciprocal hreflang, x-default on the primary", () => {
 });
 
 test("each language is self-canonical; an explicit canonical_url only binds the primary", () => {
-  assert.equal(seo("es").canonical, "https://alba.example/custom");
+  assert.equal(seo("es").canonical, "https://alba.tulala.digital/custom");
   assert.equal(seo("en").canonical, `${ORIGIN}/en/services`);
   const meta = maxSiteSeoToMetadata(seo("en"));
   assert.equal(meta.alternates?.canonical, `${ORIGIN}/en/services`);
