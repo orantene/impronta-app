@@ -13,7 +13,8 @@ type TalentRow = { id: string; default_currency: string | null; stripe_account_p
 function fakeSupabase(talents: TalentRow[]): SupabaseClient {
   const builder = (rows: unknown[]) => {
     const b: Record<string, unknown> = {};
-    for (const m of ["select", "eq", "in"]) b[m] = () => b;
+    for (const m of ["select", "eq", "in", "neq"]) b[m] = () => b;
+    b.maybeSingle = () => Promise.resolve({ data: null, error: null });
     b.then = (resolve: (v: { data: unknown[]; error: null }) => unknown) => resolve({ data: rows, error: null });
     return b;
   };

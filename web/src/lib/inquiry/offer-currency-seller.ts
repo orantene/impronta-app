@@ -21,6 +21,46 @@ export type InquirySeller = {
 /** A seller read that distinguishes "read FAILED" from "no sellers / unknown currency". */
 export type InquirySellersRead = { ok: true; sellers: InquirySeller[] } | { ok: false };
 
+/**
+ * A talent's own workspace (`workspace_type = 'talent'`) with exactly one
+ * non-removed roster talent has no participant row when the owner sells to a
+ * client herself, yet she IS the seller. Agencies and the hub never qualify.
+ */
+async function soloOwnerTalentId(
+  supabase: SupabaseClient,
+  inquiryId: string,
+): Promise<{ ok: true; talentProfileId: string | null; workspaceCurrency: string | null } | { ok: false }> {
+  const { data: inq, error: inqErr } = await supabase.from("inquiries").select("tenant_id").eq("id", inquiryId).maybeSingle();
+  if (inqErr) {
+    logServerError("offer-currency-seller.inquiry", inqErr);
+    return { ok: false };
+  }
+  const tenantId = (inq as { tenant_id?: string | null } | null)?.tenant_id;
+  if (!tenantId) return { ok: true, talentProfileId: null, workspaceCurrency: null };
+  const { data: ws, error: wsErr } = await supabase.from("agencies").select("workspace_type, default_currency").eq("id", tenantId).maybeSingle();
+  if (wsErr) {
+    logServerError("offer-currency-seller.workspace", wsErr);
+    return { ok: false };
+  }
+  const w = ws as { workspace_type?: string | null; default_currency?: string | null } | null;
+  if (w?.workspace_type !== "talent") return { ok: true, talentProfileId: null, workspaceCurrency: null };
+  const { data: roster, error: rosterErr } = await supabase
+    .from("agency_talent_roster")
+    .select("talent_profile_id")
+    .eq("tenant_id", tenantId)
+    .neq("status", "removed");
+  if (rosterErr) {
+    logServerError("offer-currency-seller.roster", rosterErr);
+    return { ok: false };
+  }
+  const rows = (roster ?? []) as Array<{ talent_profile_id: string | null }>;
+  return {
+    ok: true,
+    talentProfileId: rows.length === 1 ? rows[0].talent_profile_id : null,
+    workspaceCurrency: normalizeCurrencyCode(w?.default_currency),
+  };
+}
+
 export async function loadInquirySellersChecked(
   supabase: SupabaseClient,
   inquiryId: string,
@@ -43,6 +83,13 @@ export async function loadInquirySellersChecked(
           .filter((v): v is string => typeof v === "string" && v.length > 0),
       ),
     ];
+    let workspaceCurrency: string | null = null;
+    if (!ids.length) {
+      const solo = await soloOwnerTalentId(supabase, inquiryId);
+      if (!solo.ok) return { ok: false };
+      if (solo.talentProfileId) ids.push(solo.talentProfileId);
+      workspaceCurrency = solo.workspaceCurrency;
+    }
     if (!ids.length) return { ok: true, sellers: [] };
     const { data: tps, error: tpErr } = await supabase
       .from("talent_profiles")
@@ -58,7 +105,7 @@ export async function loadInquirySellersChecked(
         const row = r as { id: string; default_currency?: string | null; stripe_account_platform?: string | null };
         return {
           talentProfileId: row.id,
-          defaultCurrency: normalizeCurrencyCode(row.default_currency),
+          defaultCurrency: normalizeCurrencyCode(row.default_currency) ?? workspaceCurrency,
           platform: row.stripe_account_platform ?? null,
         };
       }),
