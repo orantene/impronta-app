@@ -68,3 +68,12 @@ test("Services home rows: complete service and one-language talent: no chip", ()
   );
   assert.doesNotMatch(single, CHIP);
 });
+
+test("TAL-93938 shape on the Services home row: es primary + en secondary, title stored only in English: Falta ES", () => {
+  const es = listLocales({ primary: "es", secondary: ["en"] }, emptyStore);
+  const html = renderToStaticMarkup(
+    <ItemStateChips item={item("Semi-permanent gel", { en: "Semi-permanent gel" })} locale="es" primary={es.primary} locales={es.locales} />,
+  );
+  assert.match(html, CHIP);
+  assert.match(html, /Falta ES/);
+});
