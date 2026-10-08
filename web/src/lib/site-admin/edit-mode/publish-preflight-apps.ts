@@ -85,14 +85,27 @@ export function collectAppPreflightIssues(
 /** Talent publish: fail-closed premium-app plan gate for the owning talent. */
 export async function collectTalentAppPreflightIssues(
   tree: unknown,
+  options?: { locale?: string | null },
 ): Promise<AppPreflightIssue[]> {
-  const { loadTalentPremiumAppSaveGate } = await import(
-    "@/lib/talent-site/server/premium-app-save-guard"
-  );
+  const {
+    loadTalentPremiumAppSaveGate,
+    talentProfileLookupFailedMessage,
+  } = await import("@/lib/talent-site/server/premium-app-save-guard");
   const gate = await loadTalentPremiumAppSaveGate(null);
   // Non-talent-owner (staff / agency) → no talent plan gate.
-  if (gate == null) return collectAppPreflightIssues(tree);
+  if (gate.status === "skip") return collectAppPreflightIssues(tree);
+  // Own-profile miss → deny publish with retryable copy (PM #2778).
+  if (gate.status === "lookup_failed") {
+    return [
+      {
+        severity: "error",
+        category: "builder_payload",
+        message: talentProfileLookupFailedMessage(options?.locale),
+      },
+    ];
+  }
   return collectAppPreflightIssues(tree, {
     canUsePremiumApps: gate.canUsePremiumApps,
+    locale: options?.locale,
   });
 }

@@ -261,6 +261,7 @@ export async function saveTalentPageAction(
         talentProfileId,
         previousTree: (existing as { blocks: unknown } | null)?.blocks,
         nextTree: enforcedBlocks,
+        locale: await getRequestLocale(),
       });
       if (premiumErr) {
         return { ok: false as const, error: premiumErr };
@@ -475,6 +476,7 @@ export async function restoreTalentPageRevisionAction(
         talentProfileId,
         previousTree: (live as { blocks: unknown } | null)?.blocks,
         nextTree: restoredBlocks,
+        locale: await getRequestLocale(),
       });
       if (premiumErr) {
         return { ok: false as const, error: premiumErr };
