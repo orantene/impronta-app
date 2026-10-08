@@ -697,6 +697,13 @@ export function ThemeDetailScreen({
           pending={pending}
           error={publishDesignError}
           onPublish={handlePublishDesign}
+          onKeepInDraft={() => {
+            // The design is already applied to the draft; just keep it there.
+            setDesignDialog(null);
+            setPublishDesignError(null);
+            onChange({ status: "Draft saved", phoneSheet: null, screen: "review" });
+            onAppliedToReview();
+          }}
           onKeepEditing={() => {
             setDesignDialog(null);
             setPublishDesignError(null);

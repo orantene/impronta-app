@@ -19,7 +19,7 @@ describe("buildLiveDesignChangeSummary", () => {
       paletteName: "Rosé",
       counts: { services: 12, photos: 8 },
     });
-    assert.equal(s.title, "Publish Folio?");
+    assert.equal(s.title, "Change to Folio?");
     assert.equal(
       s.changes,
       "Layout: Maison → Folio · section order · service menu shown as a rate card · colors: Rosé",
@@ -48,7 +48,7 @@ describe("buildLiveDesignChangeSummary", () => {
       toSlug: "frame",
       paletteName: "Salvia y oliva",
     });
-    assert.equal(s.title, "¿Publicar Frame?");
+    assert.equal(s.title, "¿Cambiar a Frame?");
     assert.ok(s.changes.includes("Solace → Frame"));
     assert.ok(s.stays.startsWith("Tus servicios"));
     for (const line of [s.title, s.changes, s.colorsNote, s.stays, s.toast]) {
@@ -69,7 +69,7 @@ describe("buildLiveDesignChangeSummary", () => {
   });
 
   it("the dialog shows the colours line under What changes, before What stays", () => {
-    const src = readFileSync(join(process.cwd(), "src/components/talent/site/maison-setup/PublishDesignDialog.tsx"), "utf8");
+    const src = readFileSync(join(process.cwd(), "src/components/talent/site/maison-setup/DesignChangeSummaryBody.tsx"), "utf8");
     const at = (needle: string) => src.indexOf(needle);
     assert.ok(at("maison-design-changes") > 0 && at("maison-design-colors-note") > at("maison-design-changes"));
     assert.ok(at("maison-design-stays") > at("maison-design-colors-note"));

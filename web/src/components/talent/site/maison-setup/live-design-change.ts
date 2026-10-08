@@ -149,7 +149,7 @@ export function buildLiveDesignChangeSummary(input: {
     : `Your colours change to the ${paletteName} palette. You can adjust them later in Design.`;
 
   return {
-    title: es ? `¿Publicar ${newName}?` : `Publish ${newName}?`,
+    title: es ? `¿Cambiar a ${newName}?` : `Change to ${newName}?`,
     changes,
     colorsNote,
     stays,

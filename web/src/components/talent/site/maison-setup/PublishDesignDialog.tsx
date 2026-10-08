@@ -7,6 +7,7 @@
  */
 
 import type { LiveDesignChangeSummary } from "./live-design-change";
+import { DesignChangeSummaryBody } from "./DesignChangeSummaryBody";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 
 type Props = {
@@ -15,6 +16,8 @@ type Props = {
   pending: boolean;
   error: string | null;
   onPublish: () => void;
+  /** Keep the change in the draft (already applied); do not publish. */
+  onKeepInDraft: () => void;
   onKeepEditing: () => void;
 };
 
@@ -24,6 +27,7 @@ export function PublishDesignDialog({
   pending,
   error,
   onPublish,
+  onKeepInDraft,
   onKeepEditing,
 }: Props) {
   const es = locale === "es";
@@ -61,22 +65,7 @@ export function PublishDesignDialog({
           </button>
         </div>
 
-        <p className="mt-3 text-[12px] font-semibold uppercase tracking-wide text-admin-ink-dim">
-          {es ? "Qué cambia" : "What changes"}
-        </p>
-        <p className="mt-1 text-[13px] leading-relaxed text-admin-ink" data-testid="maison-design-changes">
-          {summary.changes}
-        </p>
-        <p className="mt-1 text-[13px] leading-relaxed text-admin-ink" data-testid="maison-design-colors-note">
-          {summary.colorsNote}
-        </p>
-
-        <p className="mt-4 text-[12px] font-semibold uppercase tracking-wide text-admin-ink-dim">
-          {es ? "Qué se queda" : "What stays"}
-        </p>
-        <p className="mt-1 text-[13px] leading-relaxed text-admin-ink-muted" data-testid="maison-design-stays">
-          {summary.stays}
-        </p>
+        <DesignChangeSummaryBody locale={locale} summary={summary} />
 
         {error ? (
           <p className="mt-3 text-[12px] text-red-800" data-testid="maison-publish-design-error">
@@ -87,23 +76,23 @@ export function PublishDesignDialog({
         <div className="mt-5 flex flex-col gap-2 sm:flex-row-reverse">
           <button
             type="button"
-            data-testid="maison-publish-design-confirm"
+            data-testid="maison-publish-design-draft"
             disabled={pending}
-            onClick={onPublish}
+            onClick={onKeepInDraft}
             className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl bg-emerald-900 px-4 text-[14px] font-semibold text-white disabled:opacity-50"
           >
-            {pending
-              ? maisonSetupT(locale, "Publishing…")
-              : maisonSetupT(locale, "Publish changes")}
+            {maisonSetupT(locale, "Change design in draft")}
           </button>
           <button
             type="button"
-            data-testid="maison-publish-design-keep"
+            data-testid="maison-publish-design-confirm"
             disabled={pending}
-            onClick={onKeepEditing}
+            onClick={onPublish}
             className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl border border-admin-border-soft px-4 text-[14px] font-semibold text-admin-ink disabled:opacity-50"
           >
-            {maisonSetupT(locale, "Keep editing")}
+            {pending
+              ? maisonSetupT(locale, "Publishing…")
+              : maisonSetupT(locale, "Change and publish now")}
           </button>
         </div>
       </div>
