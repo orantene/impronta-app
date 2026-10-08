@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { OfferingCard } from "@/components/talent/offering-card/OfferingCard";
 import { listLocales } from "@/lib/talent/offering-missing-translation";
 import { blankOffering, type TalentOffering } from "@/lib/talent/offerings-types";
 import { ItemStateChips } from "./ItemStateChips";
@@ -52,20 +51,20 @@ test("Services home rows: caller that passes no locales draws no chip", () => {
   assert.doesNotMatch(renderToStaticMarkup(<ItemStateChips item={item("Gel manicure")} locale="es" />), CHIP);
 });
 
-test("OfferingCard: two-language talent, missing translation: chip shows", () => {
+test("Services home rows: two-language talent, missing translation: chip shows", () => {
   const html = renderToStaticMarkup(
-    <OfferingCard item={item("Gel manicure")} locale="es" primary={twoLang.primary} locales={twoLang.locales} />,
+    <ItemStateChips item={item("Gel manicure")} locale="es" primary={twoLang.primary} locales={twoLang.locales} />,
   );
   assert.match(html, CHIP);
 });
 
-test("OfferingCard: complete service and one-language talent: no chip", () => {
+test("Services home rows: complete service and one-language talent: no chip", () => {
   const done = renderToStaticMarkup(
-    <OfferingCard item={item("Haircut", { es: "Corte" })} locale="es" primary={twoLang.primary} locales={twoLang.locales} />,
+    <ItemStateChips item={item("Haircut", { es: "Corte" })} locale="es" primary={twoLang.primary} locales={twoLang.locales} />,
   );
   assert.doesNotMatch(done, CHIP);
   const single = renderToStaticMarkup(
-    <OfferingCard item={item("Gel manicure")} locale="es" primary={oneLang.primary} locales={oneLang.locales} />,
+    <ItemStateChips item={item("Gel manicure")} locale="es" primary={oneLang.primary} locales={oneLang.locales} />,
   );
   assert.doesNotMatch(single, CHIP);
 });
