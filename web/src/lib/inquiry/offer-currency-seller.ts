@@ -77,17 +77,22 @@ export async function loadInquirySellers(
   return read.ok ? read.sellers : [];
 }
 
+/** A currency read that tells "the read FAILED" apart from "no currency here". */
+export type CurrencyRead = { ok: true; currency: string | null } | { ok: false };
+const READ_FAILED: CurrencyRead = { ok: false };
+const NO_CURRENCY: CurrencyRead = { ok: true, currency: null };
+
 /**
  * Solo workspace: a `workspace_type='talent'` tenant with exactly one active
  * owner whose person talent profile is the seller (TUL-313). Returns that
- * owner-talent's default_currency, or null when the tenant is not solo or the
- * currency is unknown. A read error also yields null (the caller then falls to
- * the workspace default, and finally refuses).
+ * owner-talent's default_currency, or `currency: null` when the tenant is not
+ * solo or the currency is unknown. A read ERROR is `{ ok: false }`: the caller
+ * refuses instead of guessing from the next source (fail closed on money).
  */
 export async function loadSoloOwnerTalentCurrency(
   supabase: SupabaseClient,
   tenantId: string,
-): Promise<string | null> {
+): Promise<CurrencyRead> {
   try {
     const { data: ag, error: agErr } = await supabase
       .from("agencies")
@@ -96,9 +101,9 @@ export async function loadSoloOwnerTalentCurrency(
       .maybeSingle();
     if (agErr) {
       logServerError("offer-currency-seller.solo_owner.agency", agErr);
-      return null;
+      return READ_FAILED;
     }
-    if ((ag as { workspace_type?: string } | null)?.workspace_type !== "talent") return null;
+    if ((ag as { workspace_type?: string } | null)?.workspace_type !== "talent") return NO_CURRENCY;
     const { data: owners, error: ownersErr } = await supabase
       .from("agency_memberships")
       .select("profile_id")
@@ -107,10 +112,10 @@ export async function loadSoloOwnerTalentCurrency(
       .eq("status", "active");
     if (ownersErr) {
       logServerError("offer-currency-seller.solo_owner.owners", ownersErr);
-      return null;
+      return READ_FAILED;
     }
     const ownerIds = (owners ?? []).map((o) => (o as { profile_id: string }).profile_id);
-    if (ownerIds.length !== 1) return null;
+    if (ownerIds.length !== 1) return NO_CURRENCY;
     const { data: tp, error: tpErr } = await supabase
       .from("talent_profiles")
       .select("default_currency")
@@ -121,30 +126,30 @@ export async function loadSoloOwnerTalentCurrency(
       .maybeSingle();
     if (tpErr) {
       logServerError("offer-currency-seller.solo_owner.talent", tpErr);
-      return null;
+      return READ_FAILED;
     }
-    return normalizeCurrencyCode((tp as { default_currency?: string | null } | null)?.default_currency);
+    return { ok: true, currency: normalizeCurrencyCode((tp as { default_currency?: string | null } | null)?.default_currency) };
   } catch (err) {
     logServerError("offer-currency-seller.solo_owner", err);
-    return null;
+    return READ_FAILED;
   }
 }
 
-/** The seller workspace's own default_currency (agencies.default_currency), or null. */
+/** The seller workspace's own default_currency (agencies.default_currency); a read error is `{ ok: false }`. */
 export async function loadWorkspaceDefaultCurrency(
   supabase: SupabaseClient,
   tenantId: string,
-): Promise<string | null> {
+): Promise<CurrencyRead> {
   try {
     const { data, error } = await supabase.from("agencies").select("default_currency").eq("id", tenantId).maybeSingle();
     if (error) {
       logServerError("offer-currency-seller.workspace_default", error);
-      return null;
+      return READ_FAILED;
     }
-    return normalizeCurrencyCode((data as { default_currency?: string | null } | null)?.default_currency);
+    return { ok: true, currency: normalizeCurrencyCode((data as { default_currency?: string | null } | null)?.default_currency) };
   } catch (err) {
     logServerError("offer-currency-seller.workspace_default", err);
-    return null;
+    return READ_FAILED;
   }
 }
 
@@ -166,10 +171,13 @@ export async function resolveNewOfferCurrency(
   if (!read.ok) return null;
   const known = read.sellers.map((s) => s.defaultCurrency).filter((c): c is string => c !== null);
   if (known.length > 0 && known.every((c) => c === known[0])) return known[0];
-  return (
-    (await loadSoloOwnerTalentCurrency(supabase, input.tenantId)) ??
-    (await loadWorkspaceDefaultCurrency(supabase, input.tenantId))
-  );
+  // A read ERROR at any step refuses (null): a transient failure must never
+  // price the offer in the next source's currency.
+  const solo = await loadSoloOwnerTalentCurrency(supabase, input.tenantId);
+  if (!solo.ok) return null;
+  if (solo.currency) return solo.currency;
+  const workspace = await loadWorkspaceDefaultCurrency(supabase, input.tenantId);
+  return workspace.ok ? workspace.currency : null;
 }
 
 export const SELLER_CURRENCY_UNREADABLE = "seller_currency_unreadable" as const;
