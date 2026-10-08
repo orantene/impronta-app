@@ -223,13 +223,26 @@ test("both: a failed profile promotion fails the build (retry finishes it)", asy
   assert.equal(db.talent_profiles[0].visibility, "public");
 });
 
-test("myself and studio never call the promotion", async () => {
-  for (const c of ["myself", "studio"] as const) {
-    const db = freshDb();
-    const deps = fakeDeps(db);
-    let called = false;
-    deps.promoteTalentProfileLive = async () => { called = true; return { ok: true }; };
-    await runChoiceProvisioning(c, deps);
-    assert.equal(called, false, c);
-  }
+test("myself: the profile ends approved/public; studio never promotes", async () => {
+  const db = freshDb();
+  const r = await runChoiceProvisioning("myself", fakeDeps(db));
+  assert.equal(r.ok, true);
+  assert.equal(db.talent_profiles[0].workflow_status, "approved");
+  assert.equal(db.talent_profiles[0].visibility, "public");
+
+  const studio = freshDb();
+  const deps = fakeDeps(studio);
+  let called = false;
+  deps.promoteTalentProfileLive = async () => { called = true; return { ok: true }; };
+  await runChoiceProvisioning("studio", deps);
+  assert.equal(called, false);
+});
+
+test("myself: a failed promotion fails the build so Finish never says ready on a draft profile", async () => {
+  const db = freshDb();
+  const deps = fakeDeps(db);
+  deps.promoteTalentProfileLive = async () => ({ ok: false, code: "talent_profile_publish_failed", message: "x" });
+  assert.equal((await runChoiceProvisioning("myself", deps)).ok, false);
+  assert.equal((await runChoiceProvisioning("myself", fakeDeps(db))).ok, true);
+  assert.equal(db.talent_profiles[0].visibility, "public");
 });

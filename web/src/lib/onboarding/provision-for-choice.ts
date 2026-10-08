@@ -8,7 +8,7 @@
  * is missing, so a retry after any failure finishes the job without a second
  * workspace or a "-2" slug.
  *
- *   myself: promote(talent) → talent profile (+ hub roster) → talent site → home=talent
+ *   myself: promote(talent) → talent profile (+ hub roster) → talent site → profile approved/public → home=talent
  *   studio: promote(agency_staff) → workspace (+ owner) → domain row → home=workspace
  *   both:   promote(talent) → talent profile (+ hub roster) → workspace (+ owner)
  *           → domain row → self roster (bookable) → profile approved/public → home=workspace
@@ -101,10 +101,18 @@ export async function runChoiceProvisioning<W, S>(
     if (talent) {
       const roster = await deps.ensureSelfRoster(ws.tenantId, talent.talentProfileId);
       if (!roster.ok) return { ...roster, choice };
-      // "both": she is publicly bookable on her workspace site from day one.
-      const live = await deps.promoteTalentProfileLive(talent.talentProfileId);
-      if (!live.ok) return { ...live, choice };
     }
+  }
+
+  // A talent profile ends live for EVERY choice that makes one. "both" is
+  // publicly bookable on her workspace site; "myself" owns a Tulala page and a
+  // site that Finish calls ready, so the profile behind them cannot stay
+  // draft/hidden (the hub /t/ page only serves approved/published, and the
+  // services and slots read paths agree with the profile being live). Fatal:
+  // a profile we could not publish must not reach a "ready" Finish.
+  if (talent) {
+    const live = await deps.promoteTalentProfileLive(talent.talentProfileId);
+    if (!live.ok) return { ...live, choice };
   }
 
   if (deps.applyEssentials) {
