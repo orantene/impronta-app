@@ -29,6 +29,7 @@ import {
   type MediaOwnershipStamp,
 } from "@/lib/media/ownership";
 import { loadTalentMediaBundle, type TalentMediaBundle } from "@/lib/media/talent-media-bundle.server";
+import { authorizeTalentMediaRead } from "@/lib/media/talent-media-read-auth.server";
 import { checkTalentUploadQuota } from "@/lib/media/talent-storage-usage";
 
 type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string };
@@ -1379,23 +1380,6 @@ export async function actionLoadTalentGallery(
   const bundle = await actionLoadTalentMediaBundleAll(talentProfileId);
   if (!bundle.ok) return bundle;
   return { ok: true, data: bundle.data.gallery.map((g) => ({ id: g.id, url: g.url, sortOrder: g.sortOrder })) };
-}
-
-/** Auth shared by both bundle loaders: roster staff OR the owning talent. */
-async function authorizeTalentMediaRead(
-  talentProfileId: string,
-): Promise<{ ok: true; admin: SupabaseClient } | { ok: false; error: string }> {
-  const staff = await requireWorkspaceStaffAction();
-  const admin = createServiceRoleClient();
-  if (!admin) return { ok: false, error: "Server configuration error." };
-  if (staff.ok) {
-    const { data: rosterRow } = await admin.from("agency_talent_roster").select("id")
-      .eq("tenant_id", staff.tenantId).eq("talent_profile_id", talentProfileId).neq("status", "removed").maybeSingle();
-    if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
-  } else if (!(await requireTalentSelfAction(talentProfileId)).ok) {
-    return { ok: false, error: staff.error };
-  }
-  return { ok: true, admin };
 }
 
 /** PAGED bundle: singletons (hero/card/reel/polaroids) + ONE gallery page

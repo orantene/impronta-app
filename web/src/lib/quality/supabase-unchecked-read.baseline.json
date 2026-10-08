@@ -28,7 +28,7 @@
   "src/app/(workspace)/[tenantSlug]/admin/bookings/[id]/call-sheet/page.tsx": 1,
   "src/app/(workspace)/[tenantSlug]/admin/bookings/[id]/page.tsx": 1,
   "src/app/(workspace)/[tenantSlug]/admin/discover-performance/page.tsx": 1,
-  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 20,
+  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 19,
   "src/app/(workspace)/[tenantSlug]/admin/media/folder-actions.ts": 2,
   "src/app/(workspace)/[tenantSlug]/admin/messages/[inquiryId]/actions.ts": 4,
   "src/app/(workspace)/[tenantSlug]/admin/messages/[inquiryId]/page.tsx": 5,

@@ -48,6 +48,7 @@ export const TALENT_EDITORS_ES_TEXT: Record<string, string> = {
   "Manage albums": "Administrar álbumes",
   "Delete album": "Eliminar álbum",
   "Add album": "Agregar álbum",
+  "Load more photos · {count} remaining": "Cargar más fotos · quedan {count}",
   "e.g. Editorial, Lookbook, Behind-the-scenes…": "p. ej. Editorial, Lookbook, Detrás de cámaras…",
   "photo": "foto",
   "photos": "fotos",
