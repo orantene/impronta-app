@@ -202,7 +202,12 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
         return false;
       }
 
-      const res = await onSendMessage({ inquiryId: earlyId, body, honeypot: honeypot || null });
+      const res = await onSendMessage({
+        inquiryId: earlyId,
+        body,
+        honeypot: honeypot || null,
+        locale: args.locale ?? null,
+      });
       setSending(false);
       if (!res.ok) {
         setRows((cur) => markRowFailed(cur, tmpId));
@@ -447,7 +452,12 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     setRows((cur) => [...cur, makePendingRow(tmpId, inquiryId, body)]);
     setDraft("");
     try {
-      const res = await onSendMessage({ inquiryId, body, honeypot: honeypot || null });
+      const res = await onSendMessage({
+        inquiryId,
+        body,
+        honeypot: honeypot || null,
+        locale: args.locale ?? null,
+      });
       setSending(false);
       if (!res.ok) {
         setRows((cur) => markRowFailed(cur, tmpId));

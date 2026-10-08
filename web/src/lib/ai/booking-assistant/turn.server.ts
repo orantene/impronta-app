@@ -8,9 +8,11 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
-import { resolveAiChatAdapter, isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
+import { createAnthropicChatAdapter } from "@/lib/ai/providers/anthropic-adapter";
+import { resolveAnthropicApiKey } from "@/lib/ai/resolve-api-keys";
 import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
+import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import type { GuestThreadMessage } from "@/lib/inquiry/guest-chat-contract";
 import { decideBookingAssistantTurn } from "./decide";
 import {
@@ -132,6 +134,36 @@ function catalogGrounding(offerings: readonly BookingAssistantOfferingGround[]):
   );
 }
 
+function offeringPriceLabel(
+  amountCents: number | null,
+  currency: string,
+  visibility: string,
+): string | null {
+  if (visibility === "on_request") return null;
+  if (amountCents == null || !Number.isFinite(amountCents) || amountCents <= 0) return null;
+  const amount = amountCents / 100;
+  const fig = amount.toLocaleString("en-US", {
+    minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+    maximumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+  });
+  return `$${fig} ${(currency || "USD").toUpperCase()}`;
+}
+
+async function loadGroundingOfferings(
+  talentProfileId: string,
+  tenantId: string,
+  locale: string,
+  provided?: readonly BookingAssistantOfferingGround[],
+): Promise<BookingAssistantOfferingGround[]> {
+  if (provided && provided.length > 0) return [...provided];
+  const publicRows = await loadPublicOfferingsForProfile(talentProfileId, locale, tenantId);
+  return publicRows.map((o) => ({
+    title: o.title,
+    priceLabel: offeringPriceLabel(o.amountCents, o.currency, o.visibility),
+    durationMinutes: o.durationMinutes,
+  }));
+}
+
 /**
  * Best-effort: never throws to the guest send path. Returns the system message
  * when one was posted so the opener can merge it immediately.
@@ -168,8 +200,9 @@ export async function maybeRunBookingAssistantTurn(
       });
     }
 
-    // llm_facts
-    if (!(await isResolvedAiChatConfigured())) {
+    // llm_facts — pin Anthropic Haiku (PM). Gate when Anthropic key missing.
+    const anthropicKey = (await resolveAnthropicApiKey())?.trim() || null;
+    if (!anthropicKey) {
       return insertSystemEvent({
         inquiryId: args.inquiryId,
         tenantId: args.tenantId,
@@ -190,9 +223,14 @@ export async function maybeRunBookingAssistantTurn(
       });
     }
 
-    const offerings = args.offerings ?? [];
+    const offerings = await loadGroundingOfferings(
+      args.talentProfileId,
+      args.tenantId,
+      locale,
+      args.offerings,
+    );
     const grounding = catalogGrounding(offerings);
-    const adapter = await resolveAiChatAdapter();
+    const adapter = createAnthropicChatAdapter(anthropicKey);
     const started = Date.now();
     const completion = await Promise.race([
       adapter.chatCompletion({
