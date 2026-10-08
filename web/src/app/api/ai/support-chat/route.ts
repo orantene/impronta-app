@@ -24,7 +24,7 @@ import {
   type SupportMessageRow,
 } from "@/lib/support/support-types";
 import {
-  SUPPORT_CHAT_FAIL_OPEN_BODY,
+  supportChatFailOpenBody,
   SUPPORT_CHAT_REASONS,
   SUPPORT_CHAT_SCHEMA,
   parseSupportChatModel,
@@ -34,7 +34,6 @@ import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 const bodySchema = z.object({ ticketId: z.string().uuid() });
 
 const REASONS = SUPPORT_CHAT_REASONS;
-const FAIL_OPEN_BODY = SUPPORT_CHAT_FAIL_OPEN_BODY;
 
 const SYSTEM_PROMPT = [
   "You are Tulala's in-app support assistant.",
@@ -54,7 +53,7 @@ async function failOpen(ticketId: string): Promise<void> {
     ticketId,
     authorKind: "system",
     authorUserId: null,
-    body: FAIL_OPEN_BODY,
+    body: supportChatFailOpenBody(await getRequestLocale().catch(() => "en")),
     messageKind: "system",
     skipNotify: true,
   });
