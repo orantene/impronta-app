@@ -309,6 +309,11 @@ export async function PayByCodePage({
         stripeUrl={null}
         threadHref={threadHref}
         receiptHref={null}
+        currencyMismatch={
+          opened.reason === "currency_mismatch"
+            ? { linkCurrency: opened.linkCurrency, orderCurrency: opened.orderCurrency }
+            : undefined
+        }
       />
     );
   }

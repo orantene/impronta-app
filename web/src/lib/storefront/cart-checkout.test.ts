@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import type { PurchaseResult } from "@/lib/orders/purchase-types";
 
-import { actCartCheckoutCore, readCartCheckoutCore, type CartCheckoutDeps } from "./cart-checkout.core";
+import { actCartCheckoutCore, readCartCheckoutCore, workspaceCartCurrency, type CartCheckoutDeps } from "./cart-checkout.core";
 import { fakeAdmin, uuid, type FakeStore } from "./__fixtures__/fake-admin";
 import { memoryIdempotentRunner } from "./__fixtures__/memory-runner";
 
@@ -196,4 +196,16 @@ test("act start_payment: an empty cart and a stale version are refused before th
   const empty = await actCartCheckoutCore(deps, { op: "start_payment", tenantId: TENANT, orderId: CART, payment: "in_person" });
   assert.ok(!empty.ok && empty.code === "empty_order");
   assert.equal(purchases.length, 0);
+});
+
+test("TUL-284 create: a new cart takes the WORKSPACE currency; an unreadable workspace falls back to USD", async () => {
+  const id = { guestKey: "mx-guest", userId: null, email: null, displayName: null };
+  const { deps: mx, store: mxStore } = setup({ identity: id }, { agencies: [{ id: TENANT, default_currency: "mxn" }] });
+  const made = await actCartCheckoutCore(mx, { op: "create", tenantId: TENANT });
+  assert.ok(made.ok);
+  assert.equal(mxStore.orders!.find((o) => o.guest_session_id === "web:mx-guest")!.currency, "MXN");
+  // No workspace row, then a throwing read: both fall back to USD (the charge guard still fails closed).
+  assert.equal(await workspaceCartCurrency(setup().deps, TENANT), "USD");
+  const throwing = { ...setup().deps, admin: { from: () => { throw new Error("boom"); } } as never };
+  assert.equal(await workspaceCartCurrency(throwing, TENANT), "USD");
 });

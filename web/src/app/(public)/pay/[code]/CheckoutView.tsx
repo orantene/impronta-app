@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 
 import { POS_NOTE, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION } from "@/components/admin/pos/pos-classes";
 import { EngineFeeLines } from "@/components/payments/FeeLines";
+import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
 import type { PayLinkPathPrefix } from "@/lib/payments/pay-link-url";
@@ -27,6 +28,8 @@ export type CheckoutViewProps = {
   readonly receiptHref: string | null;
   /** Engine client fee lines (open state only); [] / absent = no breakdown. */
   readonly feeLines?: readonly FeeLine[];
+  /** The link's currency differs from its order's: say so plainly instead of "status unknown". */
+  readonly currencyMismatch?: { readonly linkCurrency: string; readonly orderCurrency: string };
 };
 
 export function CheckoutView(props: CheckoutViewProps) {
@@ -124,6 +127,15 @@ export function CheckoutView(props: CheckoutViewProps) {
     return (
       <Shell>
         <h1 className="text-[22px] font-semibold">{t("public.thread.replaced")}</h1>
+      </Shell>
+    );
+  }
+
+  if (phase === "unknown" && props.currencyMismatch) {
+    const text = interpolate(t("public.thread.currencyMismatch"), props.currencyMismatch);
+    return (
+      <Shell>
+        <h1 className="text-[22px] font-semibold">{text}</h1>
       </Shell>
     );
   }

@@ -1763,6 +1763,7 @@
       "expired": "Esta pagina de pago esta cerrada. Pide un enlace nuevo al negocio.",
       "cancelled": "Este pago ya no está disponible. No se tomó nada.",
       "unknown": "El estado del pago es desconocido. No pagues de nuevo. El negocio lo confirma.",
+      "currencyMismatch": "Este enlace de pago está en {linkCurrency}, pero el pedido que paga está en {orderCurrency}. No se cobró nada. Pide al negocio un enlace nuevo en {orderCurrency}.",
       "paid": "Pagado",
       "refunded": "Reembolsado. El dinero esta en camino de vuelta.",
       "receipt": "Ver recibo",
