@@ -21,4 +21,11 @@ describe("placeReservationHold agenda busy check (Track D6)", () => {
   it("post-insert re-check excludes the hold just created (TUL-433)", () => {
     assert.match(src, /excludeHoldIds:\s*\[\s*data\.id/);
   });
+
+  it("slot_taken refusals log tenant/offering/window (never silent)", () => {
+    assert.match(src, /reservation-hold\/slot_taken/);
+    assert.match(src, /logSlotTaken\("pre_check"/);
+    assert.match(src, /logSlotTaken\("exclusion"/);
+    assert.match(src, /logSlotTaken\("post_insert"/);
+  });
 });

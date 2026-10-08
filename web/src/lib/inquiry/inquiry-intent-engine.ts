@@ -140,19 +140,28 @@ export async function createInquiryFromIntent(
     // The hold insert only collides with other holds. Agenda bookings
     // (talent_bookings) and blocks are checked here, from the same busy
     // source the public slots API uses, so a booked time is never re-held.
+    const tenantId =
+      (typeof offering.tenant_id === "string" && offering.tenant_id) || ctx.tenant_id;
     const free = await checkReservationWindowFree(admin, {
       talentProfileId: offering.talent_profile_id,
       startsAt: incomingStamp.starts_at,
       endsAt: incomingStamp.ends_at,
     });
     if (!free.ok) {
+      if (free.code === "slot_taken") {
+        // Pre-hold busy check — hold path never runs; must not stay silent.
+        logServerError(
+          "inquiry-intent/slot_taken",
+          `stage=pre_check tenant=${tenantId} offering=${incomingStamp.offering_id} window=${incomingStamp.starts_at}/${incomingStamp.ends_at}`,
+        );
+      }
       return free.code === "slot_taken"
         ? { ok: false, reason: "slot_taken", error: "That time was just taken. Pick another time." }
         : { ok: false, reason: "engine_error", error: "Could not hold that time. Try again." };
     }
     const hold = await placeReservationHold(admin, {
       talentProfileId: offering.talent_profile_id,
-      tenantId: (typeof offering.tenant_id === "string" && offering.tenant_id) || ctx.tenant_id,
+      tenantId,
       startsAt: incomingStamp.starts_at,
       endsAt: incomingStamp.ends_at,
       title: typeof offering.title === "string" ? offering.title : "Reservation",
@@ -163,6 +172,7 @@ export async function createInquiryFromIntent(
         admin,
       ),
       createdByUserId: ctx.actor_user_id,
+      offeringId: incomingStamp.offering_id,
     });
     if (!hold.ok) {
       return {

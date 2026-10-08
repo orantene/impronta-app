@@ -65,6 +65,8 @@ export type PlaceReservationHoldInput = {
    */
   ttlSeconds?: number | null;
   createdByUserId?: string | null;
+  /** Offering id for slot_taken diagnostics (never silent refusals). */
+  offeringId?: string | null;
 };
 
 export type PlaceReservationHoldFailure = {
@@ -87,6 +89,19 @@ function toIso(value: Date | string): string | null {
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString();
+}
+
+/** Greppable signal when a hold path refuses a window — never silent. */
+function logSlotTaken(
+  stage: "pre_check" | "exclusion" | "post_insert",
+  input: Pick<PlaceReservationHoldInput, "tenantId" | "offeringId" | "talentProfileId">,
+  startsAt: string,
+  endsAt: string,
+): void {
+  logServerError(
+    "reservation-hold/slot_taken",
+    `stage=${stage} tenant=${input.tenantId} offering=${input.offeringId ?? ""} talent=${input.talentProfileId} window=${startsAt}/${endsAt}`,
+  );
 }
 
 /** Postgres exclusion_violation — the firm-hold gist fired. */
@@ -143,6 +158,7 @@ export async function placeReservationHold(
     endsAt,
   });
   if (!free.ok) {
+    if (free.code === "slot_taken") logSlotTaken("pre_check", input, startsAt, endsAt);
     return free.code === "unavailable"
       ? { ok: false, code: "unavailable", error: "Could not check that time. Try again." }
       : { ok: false, code: "slot_taken", error: "That time was just taken. Pick another." };
@@ -176,7 +192,9 @@ export async function placeReservationHold(
     .single();
 
   if (error || !data) {
-    if (!isExclusionViolation(error)) {
+    if (isExclusionViolation(error)) {
+      logSlotTaken("exclusion", input, startsAt, endsAt);
+    } else {
       logServerError("reservation-hold/insert", error);
     }
     return mapHoldInsertError(error);
@@ -195,6 +213,7 @@ export async function placeReservationHold(
   });
   if (!stillFree.ok) {
     await admin.from("talent_holds").delete().eq("id", data.id);
+    if (stillFree.code === "slot_taken") logSlotTaken("post_insert", input, startsAt, endsAt);
     return stillFree.code === "unavailable"
       ? { ok: false, code: "unavailable", error: "Could not check that time. Try again." }
       : { ok: false, code: "slot_taken", error: "That time was just taken. Pick another." };
