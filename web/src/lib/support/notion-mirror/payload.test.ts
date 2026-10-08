@@ -24,6 +24,7 @@ import {
 import {
   NOTION_MIRROR_ELAPSED_BUDGET_MS,
   checkCronBearer,
+  isPermanentNotionMirrorFailure,
   mapDbMirrorRow,
   needsNotionMirror,
   pickDueMirrorTickets,
@@ -306,4 +307,18 @@ test("pushTicketToNotion surfaces 429 Retry-After without continuing create", as
     assert.equal(result.status, 429);
     assert.equal(result.retryAfterSec, 7);
   }
+});
+
+test("isPermanentNotionMirrorFailure counts only permanent 4xx (not 429/5xx)", () => {
+  assert.equal(isPermanentNotionMirrorFailure(400), true);
+  assert.equal(isPermanentNotionMirrorFailure(401), true);
+  assert.equal(isPermanentNotionMirrorFailure(403), true);
+  assert.equal(isPermanentNotionMirrorFailure(404), true);
+  assert.equal(isPermanentNotionMirrorFailure(422), true);
+  assert.equal(isPermanentNotionMirrorFailure(429), false);
+  assert.equal(isPermanentNotionMirrorFailure(500), false);
+  assert.equal(isPermanentNotionMirrorFailure(502), false);
+  assert.equal(isPermanentNotionMirrorFailure(503), false);
+  assert.equal(isPermanentNotionMirrorFailure(200), false);
+  assert.equal(isPermanentNotionMirrorFailure(0), false);
 });
