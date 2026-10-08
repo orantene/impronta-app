@@ -22,6 +22,8 @@
 
 export const ES_BUILDER_2027_TEXT: Record<string, string> = {
   // ── Group titles ─────────────────────────────────────────────────────────
+  Words: "Palabras",
+  "What the strip says": "Qué dice la banda",
   "When nobody matches": "Cuando no hay coincidencias",
   "The map": "El mapa",
   "The panel over the map": "El panel sobre el mapa",
@@ -91,6 +93,9 @@ export const ES_BUILDER_2027_TEXT: Record<string, string> = {
   "See the whole roster": "Ver todo el elenco",
 
   // ── Option labels ────────────────────────────────────────────────────────
+  "My services, in my visitor's language":
+    "Mis servicios, en el idioma de quien visita",
+  "Words I write myself": "Palabras que escribo yo",
   "Plain text": "Texto simple",
   "Right to left": "De derecha a izquierda",
   "Left to right": "De izquierda a derecha",
@@ -142,7 +147,16 @@ export const ES_BUILDER_2027_TEXT: Record<string, string> = {
     "https://www.google.com/maps/embed?...",
   "/": "/",
 
+  // ── Publish checks (ticker source) ───────────────────────────────────────
+  Ticker: "Banda de palabras",
+  "Your ticker has a word source we do not recognise, so it shows the words you wrote. Pick My services or Words I write myself.":
+    "Tu banda tiene un origen de palabras que no reconocemos, así que muestra las palabras que escribiste. Elige Mis servicios o Palabras que escribo yo.",
+  "Your ticker follows your services but has no words of its own. Until you publish a service it will show nothing.":
+    "Tu banda sigue tus servicios pero no tiene palabras propias. Hasta que publiques un servicio no mostrará nada.",
+
   // ── Group notes ──────────────────────────────────────────────────────────
+  "With My services the strip follows the services you publish. If you have none yet, it shows the words you wrote.":
+    "Con Mis servicios, la banda sigue los servicios que publicas. Si aún no tienes ninguno, muestra las palabras que escribiste.",
   "The strip stops moving for visitors who have asked for reduced motion.":
     "La banda deja de moverse para las personas que han pedido menos movimiento.",
   "This block only ever shows your own roster. It cannot reach another workspace.":

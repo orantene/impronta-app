@@ -54,6 +54,7 @@ export function gridlineCopyFromFixture(
     ...(h.eyebrow ? { kicker: h.eyebrow } : {}),
     ...(h.headline ? { headline: h.headline } : {}),
     ...(h.facts?.length ? { facts: h.facts } : {}),
+    ...(h.facts?.length && h.factsI18n ? { factsI18n: h.factsI18n } : {}),
     ...(h.badges?.length ? { badges: h.badges } : {}),
     ...(h.ctas?.length === 2 ? { ctas: [h.ctas[0]!, h.ctas[1]!] as [string, string] } : {}),
   };

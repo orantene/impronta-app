@@ -73,6 +73,7 @@ export function CardAppearanceSection({
                     { value: "portrait", label: t("dashboard.adminCardStudio.stylePortrait") },
                     { value: "editorial", label: t("dashboard.adminCardStudio.styleEditorial") },
                     { value: "profile", label: t("dashboard.adminCardStudio.styleCinematic") },
+                    { value: "showcase", label: t("dashboard.adminCardStudio.styleShowcase") },
                   ]}
                 />
               </label>

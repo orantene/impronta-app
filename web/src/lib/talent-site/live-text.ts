@@ -27,6 +27,7 @@ import {
   type LiveTextKey,
 } from "@/lib/site-admin/builder-node/live-text-keys";
 
+import { applyMastheadBio, isLiveBioMasthead, withBioHints } from "./live-bio";
 import { readOrigin } from "./theme-releases/origin";
 
 export interface TalentLiveText {
@@ -40,6 +41,8 @@ export interface TalentLiveText {
   tradeLabel?: string;
   /** The menu intro line ("Prices in MXN."), a default for a Maison v2 menu that never had one. */
   menuSubtitle?: string;
+  /** "(Text in Spanish)": shown under the live bio when it is not in the visitor's language. */
+  bioHint?: string;
 }
 
 /** Design origin of a Maison v2 node, else null. */
@@ -154,6 +157,8 @@ export function applyTalentLiveText(tree: BuilderNode[], live: TalentLiveText): 
   const visit = (node: BuilderNode): BuilderNode | null => {
     const key = liveKeyOf(node, live);
     if (key) {
+      // The bio: values.bio absent = not loaded (the baked text stays); "" = she has none (hidden).
+      if (key === "bio" && live.values.bio === undefined) return node;
       const value = live.values[key]?.trim() ?? "";
       if (value) {
         const props = propsOf(node);
@@ -162,6 +167,8 @@ export function applyTalentLiveText(tree: BuilderNode[], live: TalentLiveText): 
       }
       return LIVE_TEXT_KEEPS_FALLBACK.has(key) ? node : null;
     }
+    // A masthead blurb bound to the live bio (Folio cover, TUL-230).
+    if (isLiveBioMasthead(node)) return applyMastheadBio(node, live.values.bio, live.bioHint);
     // The header lockup under her name: the trade, in the visitor's language, while it still reads the baked trade.
     if (node.kind === "section" && propsOf(node).sectionTypeKey === "site_header" && live.tradeLabel) {
       const sp = (propsOf(node).sectionProps ?? {}) as Record<string, unknown>;
@@ -188,7 +195,7 @@ export function applyTalentLiveText(tree: BuilderNode[], live: TalentLiveText): 
       const k2 = propsOf(k).liveText;
       return typeof k2 === "string" && k2.startsWith("footer_");
     });
-    let next = kids.map(visit).filter((k): k is BuilderNode => k !== null);
+    let next = withBioHints(kids.map(visit).filter((k): k is BuilderNode => k !== null), live.bioHint);
     // The hero without a proof line: put one under the buttons when she has facts to show.
     if (maisonKey(node) === "hero/container" && live.values.hero_proof?.trim()) {
       const hasProof = hasProofLine(kids) || hasProofLine(next);
@@ -210,7 +217,7 @@ export function applyTalentLiveText(tree: BuilderNode[], live: TalentLiveText): 
     if (next.length === 0) return null;
     return unchanged ? node : ({ ...node, children: next } as BuilderNode);
   };
-  const out = tree.map(visit).filter((n): n is BuilderNode => n !== null);
+  const out = withBioHints(tree.map(visit).filter((n): n is BuilderNode => n !== null), live.bioHint);
   const same = out.length === tree.length && out.every((n, i) => n === tree[i]);
   return same ? tree : out;
 }
@@ -225,6 +232,7 @@ export function treeHasLiveCandidates(tree: readonly BuilderNode[]): boolean {
     if (n.kind === "services_catalog" && maisonKey(n)?.startsWith("services")) return true;
     if (n.kind === "section" && propsOf(n).sectionTypeKey === "site_header") return true;
     if (maisonKey(n) === "hero/container") return true;
+    if (isLiveBioMasthead(n)) return true;
     if (n.kind === "heading" || n.kind === "paragraph") {
       if (isLiveTextKey(propsOf(n).liveText)) return true;
       const origin = readOrigin(n);

@@ -43,6 +43,8 @@ export type GridlineSiteCopy = {
     kicker?: string;
     headline?: string;
     facts?: Array<{ label: string; value: string }>;
+    /** The cells in another language: becomes `props.i18n.<lang>["items.N.label"|"items.N.value"]` on the stats node. */
+    factsI18n?: Partial<Record<"en" | "es", Array<{ label: string; value: string }>>>;
     badges?: string[];
     ctas?: [string, string];
   };
@@ -71,6 +73,36 @@ function map(nodes: Node[], fn: (n: Node, ctx: { inHero: boolean; inAbout: boole
 }
 
 const withProps = (n: Node, patch: Record<string, unknown>): Node => ({ ...n, props: { ...(n.props ?? {}), ...patch } });
+
+/** `{ i18n: { en: { "items.0.label": ... } } }` for the stats cells, or nothing when no other language is given. */
+export function factsOverlay(
+  byLang: Partial<Record<"en" | "es", Array<{ label: string; value: string }>>> | undefined,
+): { i18n?: Record<string, Record<string, string>> } {
+  const out: Record<string, Record<string, string>> = {};
+  for (const [lang, cells] of Object.entries(byLang ?? {})) {
+    const bag: Record<string, string> = {};
+    (cells ?? []).forEach((c, i) => {
+      if (c.label.trim()) bag[`items.${i}.label`] = c.label;
+      if (c.value.trim()) bag[`items.${i}.value`] = c.value;
+    });
+    if (Object.keys(bag).length) out[lang] = bag;
+  }
+  return Object.keys(out).length ? { i18n: out } : {};
+}
+
+/** Existing node overlay plus `add`, language by language; `{}` when there is nothing to set. */
+function mergeI18n(
+  existing: unknown,
+  add: Record<string, Record<string, string>> | undefined,
+): { i18n?: Record<string, Record<string, string>> } {
+  if (!add) return {};
+  const out: Record<string, Record<string, string>> = {};
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+    for (const [lang, bag] of Object.entries(existing as Record<string, Record<string, string>>)) out[lang] = { ...bag };
+  }
+  for (const [lang, bag] of Object.entries(add)) out[lang] = { ...(out[lang] ?? {}), ...bag };
+  return { i18n: out };
+}
 
 /** One mono badge under the who-card bio (the same card the hero spec kit stamps). */
 function badgeNode(text: string, id: string, textId: string): Node {
@@ -138,7 +170,10 @@ function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, ne
     }
     case "stats": {
       if (!ctx.inHero || p.variant !== "spec" || !g.hero?.facts) return n;
-      return withProps(n, { items: g.hero.facts.map((f) => ({ ...f })) });
+      return withProps(n, {
+        items: g.hero.facts.map((f) => ({ ...f })),
+        ...mergeI18n(p.i18n, factsOverlay(g.hero.factsI18n).i18n),
+      });
     }
     case "heading": {
       if (!ctx.inHero || p.level !== 1 || !g.hero?.headline) return n;
@@ -277,7 +312,8 @@ export function applyDemoSiteCopy(
       return url ? withProps(n, { src: url }) : n;
     }
     if (n.kind === "marquee" && copy.ticker?.length) {
-      return withProps(n, { items: copy.ticker.map((text) => ({ text })) });
+      // A demo's ticker is its own copy, not the (fictional) talent's services.
+      return withProps(n, { items: copy.ticker.map((text) => ({ text })), source: "custom" });
     }
     if (n.kind === "services_catalog" && copy.menuSubtitle) {
       return withProps(n, { subtitle: copy.menuSubtitle });

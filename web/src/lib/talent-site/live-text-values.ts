@@ -5,6 +5,7 @@
  */
 import { resolveHeadline } from "./hero-headline";
 import { formatHeroEyebrow, formatHeroProofLine, type HeroProofInput } from "./hero-proof-line";
+import { resolveLiveBio } from "./live-bio";
 import { resolveLocalizedLine } from "./live-line-language";
 import type { TalentLiveText } from "./live-text";
 import { pick, type LocalizedMapLike } from "./talent-locale-swaps";
@@ -24,6 +25,8 @@ export interface LiveTextSource {
   taglineI18n?: Readonly<Record<string, string>> | null;
   /** `short_bio`: the short text of her main language, the tagline's other home. */
   shortBio?: string | null;
+  /** `bio_i18n` merged with the drawer's saved bios: the About paragraph per language (TUL-230). */
+  bioI18n?: LocalizedMapLike;
   /** Her main language ("es" or "en"). */
   primaryLocale?: string | null;
   /** Stable per-talent key (her profile code) that picks the seeded headline variant. */
@@ -105,11 +108,14 @@ export function buildTalentLiveText(
     ].filter(Boolean),
   );
 
+  const bio = resolveLiveBio({ bioI18n: src.bioI18n, shortBio: src.shortBio, locale, chain, primary: src.primaryLocale });
+
   const currency = src.menuCurrency?.trim().toUpperCase();
   return {
     trades: [tradeEn, tradeEs].filter(Boolean),
     // The trade as the visitor's language names it ("Manicurista"): the header lockup under her name.
     tradeLabel: tradeNow,
+    bioHint: bio.hint,
     menuSubtitle: currency ? (es ? `Precios en ${currency}.` : `Prices in ${currency}.`) : "",
     values: {
       // Her own words win; a seeded line follows the locale; the name fallback is the stored text.
@@ -117,6 +123,7 @@ export function buildTalentLiveText(
       hero_eyebrow: eyebrow,
       hero_tagline: ownTagline,
       hero_proof: proof,
+      bio: bio.text,
       footer_intro: intro,
       footer_where: src.place?.trim() ?? "",
       footer_hours: hours,

@@ -153,6 +153,8 @@ export interface DemoContentFixture {
     inset?: { imageKey: string; alt: string };
     /** Typed spec cells of a spec-block hero (Gridline). Never computed ratings. */
     facts?: Array<{ label: string; value: string }>;
+    /** The same spec cells in another language, written onto the stats node as a per-language overlay. */
+    factsI18n?: Partial<Record<"en" | "es", Array<{ label: string; value: string }>>>;
     /** Short credential chips under the who-card. */
     badges?: string[];
     mastheadLeft?: string;
