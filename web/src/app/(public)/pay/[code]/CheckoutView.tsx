@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
-import { POS_NOTE, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION } from "@/components/admin/pos/pos-classes";
 import { EngineFeeLines } from "@/components/payments/FeeLines";
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
@@ -82,9 +81,7 @@ export function CheckoutView(props: CheckoutViewProps) {
         <h1 className="text-[22px] font-semibold">{t("public.thread.refunded")}</h1>
         <p className="mt-3 text-[16px]">{total}</p>
         {props.threadHref ? (
-          <a className={POS_SECONDARY_ACTION} href={props.threadHref}>
-            {t("public.thread.backToThread")}
-          </a>
+          <Action kind="secondary" href={props.threadHref}>{t("public.thread.backToThread")}</Action>
         ) : null}
       </Shell>
     );
@@ -113,13 +110,9 @@ export function CheckoutView(props: CheckoutViewProps) {
         <p className="text-[15px] text-admin-ink-muted">{t("public.thread.cancelledReturnBody")}</p>
         <p className="text-[20px] font-semibold tabular-nums">{total}</p>
         <div className="mt-4 flex flex-col gap-3">
-          <a className={POS_PRIMARY_ACTION} href={`${pathPrefix}/${props.code}`}>
-            {t("public.thread.tryAgain")}
-          </a>
+          <Action kind="primary" href={`${pathPrefix}>{t("public.thread.tryAgain")}</Action>
           {props.threadHref ? (
-            <a className={POS_SECONDARY_ACTION} href={props.threadHref}>
-              {t("public.thread.backToThread")}
-            </a>
+            <Action kind="secondary" href={props.threadHref}>{t("public.thread.backToThread")}</Action>
           ) : null}
         </div>
       </Shell>
@@ -142,9 +135,7 @@ export function CheckoutView(props: CheckoutViewProps) {
       <Shell>
         <h1 className="text-[22px] font-semibold">{t("public.thread.expired")}</h1>
         {props.threadHref ? (
-          <a className={POS_SECONDARY_ACTION} href={props.threadHref}>
-            {t("public.thread.backToThread")}
-          </a>
+          <Action kind="secondary" href={props.threadHref}>{t("public.thread.backToThread")}</Action>
         ) : null}
       </Shell>
     );
@@ -215,9 +206,7 @@ export function CheckoutView(props: CheckoutViewProps) {
       <p className={POS_NOTE}>{t(keepSlotKey)}</p>
       <div className="mt-6 flex flex-col gap-3">
         {props.stripeUrl ? (
-          <a className={POS_PRIMARY_ACTION} href={props.stripeUrl}>
-            {t("public.thread.pay")}
-          </a>
+          <Action kind="primary" href={props.stripeUrl}>{t("public.thread.pay")}</Action>
         ) : (
           <a
             className={POS_PRIMARY_ACTION}
@@ -229,6 +218,55 @@ export function CheckoutView(props: CheckoutViewProps) {
         )}
       </div>
     </Shell>
+  );
+}
+
+/**
+ * TOKENS ONLY (TUL-437). This page sits on the seller's own site: `--token-color-*`,
+ * `--site-radius-*` and `--site-heading-font` are her palette and type, projected by
+ * the public layout (the ticket page does the same). An `admin-*` class here paints
+ * the dashboard's look on a noir or editorial site; a static test pins their absence.
+ */
+const INK = "var(--token-color-ink, #1a1a1a)";
+const MUTED = "var(--token-color-muted, #6b6b6b)";
+const LINE = "var(--token-color-line, #e5e5e5)";
+const RAISED = "var(--token-color-surface-raised, #ffffff)";
+const PRIMARY = "var(--token-color-primary, #1a1a1a)";
+const PRIMARY_ON = "var(--token-color-primary-on, #ffffff)";
+const RADIUS = "var(--site-radius-base, 0.75rem)";
+const RADIUS_LG = "var(--site-radius-lg, 1rem)";
+const HEADING = "var(--site-heading-font, inherit)";
+
+const actionBase: CSSProperties = {
+  display: "inline-flex",
+  minHeight: 48,
+  width: "100%",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: RADIUS,
+  padding: "0 16px",
+  fontSize: 15,
+  fontWeight: 600,
+  textDecoration: "none",
+  cursor: "pointer",
+};
+const primaryStyle: CSSProperties = { ...actionBase, background: PRIMARY, color: PRIMARY_ON, border: `1px solid ${PRIMARY}` };
+const secondaryStyle: CSSProperties = { ...actionBase, background: "transparent", color: INK, border: `1px solid ${LINE}` };
+const titleStyle: CSSProperties = { fontFamily: HEADING, color: INK };
+
+function Action(props: { kind: "primary" | "secondary"; href?: string; download?: string; external?: boolean; onClick?: () => void; children: ReactNode }) {
+  const style = props.kind === "primary" ? primaryStyle : secondaryStyle;
+  if (props.href) {
+    return (
+      <a style={style} href={props.href} download={props.download} {...(props.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+        {props.children}
+      </a>
+    );
+  }
+  return (
+    <button type="button" style={style} onClick={props.onClick}>
+      {props.children}
+    </button>
   );
 }
 
@@ -277,13 +315,9 @@ export function ProcessingView(props: ProcessingCopy & { timedOut: boolean; onCh
       <p className="text-[20px] font-semibold tabular-nums">{props.total}</p>
       {props.timedOut ? (
         <div className="mt-4 flex flex-col gap-3">
-          <button type="button" className={POS_PRIMARY_ACTION} onClick={props.onCheckAgain}>
-            {props.checkAgain}
-          </button>
+          <Action kind="primary" onClick={props.onCheckAgain}>{props.checkAgain}</Action>
           {props.threadHref ? (
-            <a className={POS_SECONDARY_ACTION} href={props.threadHref}>
-              {props.backLabel}
-            </a>
+            <Action kind="secondary" href={props.threadHref}>{props.backLabel}</Action>
           ) : null}
         </div>
       ) : null}
@@ -340,14 +374,10 @@ export function PaidView(props: PaidCopy & { secondsLeft: number | null }) {
       <p className="text-[13px] text-admin-ink-muted">{props.note}</p>
       <div className="mt-3 flex flex-col gap-3">
         {props.threadHref ? (
-          <a className={POS_PRIMARY_ACTION} href={props.threadHref}>
-            {props.backLabel}
-          </a>
+          <Action kind="primary" href={props.threadHref}>{props.backLabel}</Action>
         ) : null}
         {props.receiptHref ? (
-          <a className={POS_SECONDARY_ACTION} href={props.receiptHref}>
-            {props.receiptLabel}
-          </a>
+          <Action kind="secondary" href={props.receiptHref}>{props.receiptLabel}</Action>
         ) : null}
       </div>
       {props.secondsLeft !== null ? (
