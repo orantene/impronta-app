@@ -7,6 +7,7 @@
  * so plainly instead of printing a zero.
  */
 
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
@@ -39,15 +40,6 @@ type Tab = "payments" | "outstanding" | "payouts";
 type OutFilter = "all" | "today" | "later";
 type SourceFilter = "all" | "direct" | "agency";
 type PayoutLine = { state: "verified" | "pending" | "none" };
-
-function money(cents: number, currency: string): string {
-  const amount = Math.round(cents) / 100;
-  const formatted = amount.toLocaleString(undefined, {
-    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  });
-  return `$${formatted} ${currency}`;
-}
 
 function day(iso: string | null, locale: string): string {
   if (!iso) return "";
@@ -121,6 +113,7 @@ function MoneyHomePane(props: {
   const copy = useDashboardText();
   const t = copy.t;
   const locale = copy.locale;
+  const money = (c: number, cur: string) => formatDashboardMoneyCents(c, cur, locale);
   const router = useRouter();
   const current = currentMonthKey();
   const [month, setMonth] = useState(current);
@@ -543,6 +536,7 @@ export function MoneyHomePage() {
   const { openDrawer, bridgeTalentSelfProfile, bridgeTalentAgendaItems, bridgeTalentPayoutSnapshot } = useAdminShell();
   const router = useRouter();
   const copy = useDashboardText();
+  const money = (c: number, cur: string) => formatDashboardMoneyCents(c, cur, copy.locale);
   const t = copy.t;
   const [sheet, setSheet] = useState<"record" | "request" | null>(null);
   const [linkFor, setLinkFor] = useState<MoneyAgendaRow | null>(null);
