@@ -2107,7 +2107,7 @@
       "role": {
         "eyebrow": "Paso 1 de 2 · Rol",
         "titleLead": "¿Cómo vas a usar",
-        "intro": "Elige cómo quieres empezar. Esto define tu panel de inicio y no podrás cambiarlo después desde aquí.",
+        "intro": "Elige cómo quieres empezar. Esto define tu panel de inicio y puedes cambiarlo después en Ajustes.",
         "talentTitle": "Soy talento",
         "talentBody": "Modelo, artista, intérprete o creativo. Crea tu perfil, comparte un solo enlace y deja que las reservas lleguen a ti.",
         "clientTitle": "Soy cliente",

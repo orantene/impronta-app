@@ -2107,7 +2107,7 @@
       "role": {
         "eyebrow": "Step 1 of 2 · Role",
         "titleLead": "How will you use",
-        "intro": "Pick how you want to start. This sets your home dashboard, and you can't change it later from here.",
+        "intro": "Pick how you want to start. This sets your home dashboard, and you can change it later in Settings.",
         "talentTitle": "I'm Talent",
         "talentBody": "Model, performer, artist, or creative. Get a profile, share one link, and let bookings come to you.",
         "clientTitle": "I'm a Client",
