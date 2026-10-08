@@ -5,9 +5,11 @@
  *
  * Every released talent theme seeds English starter text as the base prop.
  * `THEME_SEED_BASE_LOCALE` is always `"en"`. Spanish (and any other locale)
- * is carried only in `props.i18n`. Folio used to seed "Consultar"; aftercare
- * used to ship Spanish-only overlays (#2897). Neither is allowed: the base
- * is English, and every seeded text carries es + en.
+ * is carried only in `props.i18n`. Aftercare used to ship Spanish-only
+ * overlays (#2897) — not allowed. Folio's remaining Spanish CTA bases
+ * ("Consultar") are exempt until TUL-366 (#2914) code-seed review draft →
+ * Builder Lab publish → `demos:rebuild` (do not edit Folio in designs.ts
+ * for that change).
  *
  * Without a per-node overlay a Spanish site rendered that English until the
  * render-time label map guessed a translation. This module puts the overlay
@@ -15,6 +17,10 @@
  * `props.i18n = { es: { <prop>: "..." }, en: { <prop>: "..." } }`, the same
  * shape the builder's language tabs write (validate mirrors it to `node.i18n`).
  * The base prop stays the English seed and `en` repeats it.
+ *
+ * Stored trees that still have an English seed base and no `i18n.es` now
+ * render English on `/es` (maps deleted). Heal them via a copy release, not
+ * a silent migration — see the count in the TUL-369 PR / Notion Last move.
  *
  * Generic by trade: the Spanish below is neutral Mexican Spanish, tuteo, no
  * em dashes, and carries no talent-specific words. A text that is only
@@ -192,22 +198,208 @@ export function isTokenOnlyText(text: string): boolean {
   return !/\p{L}/u.test(text.replace(/\{\{[^}]*\}\}/g, ""));
 }
 
-/** Spanish seed strings from `SEED_TEXT_ES` (language, not accents alone). */
+/** Exact Spanish seed strings from `SEED_TEXT_ES` (values, not keys). */
 const SPANISH_SEED_VALUES: ReadonlySet<string> = new Set(Object.values(SEED_TEXT_ES));
 
 /**
- * True when `text` is a Spanish-authored seed base. Checks language via the
- * known Spanish seed table (and accented letters as a belt-and-braces catch
- * for new Spanish copy not yet in the table). Mode-dependent labels and
- * token-only text are exempt. Used by the static test to enforce the English
- * base-language rule (TUL-369).
+ * Folio inquiry CTAs still seed Spanish until #2914 (code-seed draft → publish
+ * → demos:rebuild). Exempt from the English-base static scan only.
+ */
+export const FOLIO_SPANISH_BASE_PENDING_2914: ReadonlySet<string> = new Set(["Consultar"]);
+
+/**
+ * Spanish function words — language signal, not accents. Kept short and
+ * distinctive so English copy ("a book", "no photos", "me too") does not trip.
+ */
+const SPANISH_STOPWORDS: ReadonlySet<string> = new Set([
+  "el",
+  "la",
+  "los",
+  "las",
+  "un",
+  "una",
+  "unos",
+  "unas",
+  "del",
+  "al",
+  "pero",
+  "porque",
+  "con",
+  "sin",
+  "para",
+  "por",
+  "sobre",
+  "entre",
+  "desde",
+  "cuando",
+  "donde",
+  "dónde",
+  "como",
+  "cómo",
+  "qué",
+  "más",
+  "muy",
+  "también",
+  "tambien",
+  "aún",
+  "aun",
+  "esta",
+  "este",
+  "estos",
+  "estas",
+  "hay",
+  "tus",
+  "mis",
+  "sus",
+  "nos",
+  "les",
+]);
+
+/**
+ * Common Spanish UI / seed tokens (includes unaccented forms). Proper names
+ * and loanwords used in English branding (José, Café) are intentionally absent.
+ */
+const SPANISH_UI_WORDS: ReadonlySet<string> = new Set([
+  "consultar",
+  "servicios",
+  "preguntas",
+  "pregunta",
+  "preguntar",
+  "precios",
+  "tarifas",
+  "reservar",
+  "reserva",
+  "agendar",
+  "agenda",
+  "contacto",
+  "contactanos",
+  "contáctanos",
+  "ubicacion",
+  "ubicación",
+  "portafolio",
+  "trabajos",
+  "trabajo",
+  "escribeme",
+  "escríbeme",
+  "hola",
+  "soy",
+  "fotos",
+  "sesiones",
+  "contratacion",
+  "contratación",
+  "reseñas",
+  "resenas",
+  "inicio",
+  "menú",
+  "próxima",
+  "proxima",
+  "edición",
+  "edicion",
+  "garantía",
+  "garantia",
+  "pago",
+  "revisión",
+  "revision",
+  "detalles",
+  "retratos",
+  "antes",
+  "después",
+  "despues",
+  "dónde",
+  "donde",
+  "hacer",
+  "ver",
+  "elegidos",
+  "reciente",
+  "recientes",
+  "cotizar",
+  "cita",
+  "hora",
+  "horas",
+]);
+
+/** English function / seed words that veto a Spanish call on mixed phrases. */
+const ENGLISH_STOPWORDS: ReadonlySet<string> = new Set([
+  "the",
+  "and",
+  "with",
+  "from",
+  "for",
+  "your",
+  "you",
+  "this",
+  "that",
+  "these",
+  "those",
+  "about",
+  "see",
+  "ask",
+  "book",
+  "work",
+  "services",
+  "prices",
+  "home",
+  "menu",
+  "rates",
+  "recent",
+  "photos",
+  "portfolio",
+  "questions",
+  "before",
+  "after",
+  "contact",
+  "location",
+  "write",
+  "now",
+  "session",
+  "sessions",
+  "appointment",
+  "visit",
+  "good",
+  "know",
+  "how",
+  "what",
+  "when",
+  "where",
+  "next",
+  "issue",
+  "contents",
+  "selected",
+  "more",
+  "made",
+  "tulala",
+]);
+
+function seedWords(text: string): string[] {
+  return text
+    .toLowerCase()
+    .normalize("NFC")
+    .split(/[^\p{L}]+/u)
+    .filter(Boolean);
+}
+
+/**
+ * True when `text` is a Spanish-authored seed base. Language via known Spanish
+ * seed values plus stopword / UI word-list hits — **no accent regex** (so
+ * "José" / "Café" alone are not flagged; unaccented Spanish like "Contactanos"
+ * is). Mode-dependent labels and token-only text are exempt. Used by the
+ * static test to enforce the English base-language rule (TUL-369).
  */
 export function looksLikeSpanishSeedBase(text: string): boolean {
   const t = text.trim();
   if (!t || isTokenOnlyText(t) || MODE_DEPENDENT_LABELS.includes(t)) return false;
   if (SPANISH_SEED_VALUES.has(t)) return true;
-  if (/[áéíóúüñ¿¡]/i.test(t)) return true;
-  return false;
+  const words = seedWords(t);
+  if (words.length === 0) return false;
+  let esHits = 0;
+  let enHits = 0;
+  for (const w of words) {
+    if (SPANISH_STOPWORDS.has(w) || SPANISH_UI_WORDS.has(w)) esHits += 1;
+    if (ENGLISH_STOPWORDS.has(w)) enHits += 1;
+  }
+  if (esHits === 0) return false;
+  if (enHits === 0) return true;
+  return esHits > enHits;
 }
 
 function asProps(node: BuilderNode): Record<string, unknown> {

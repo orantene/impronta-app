@@ -10,7 +10,6 @@ import {
 } from "./design-cta-mode";
 import { COLLECTION_DESIGNS, buildFolioPayload } from "./theme-catalog/collection/designs";
 import { buildMaisonDesignPayload } from "./theme-catalog/maison/design-payload";
-import { seedI18nPayload } from "./theme-catalog/seed-i18n";
 
 const MODES: SiteCtaMode[] = ["instant", "request", "inquiry"];
 
@@ -78,13 +77,12 @@ for (const [name, build] of Object.entries(PAYLOADS)) {
   });
 }
 
-test("folio: chapter nav + Ask about this CTA (English base, ES overlay Consultar)", () => {
+test("folio: chapter nav + Consultar CTA (English base lands via #2914)", () => {
+  // Folio CTA seed text changes go through #2914 code-seed review → publish → demos:rebuild.
   const shipped = COLLECTION_DESIGNS.find((d) => d.slug === "folio")!.buildPayload();
   const nav = JSON.stringify(shipped.shellTree);
   assert.ok(nav.includes('"label":"Selected work"'));
-  assert.ok(nav.includes("Ask about this"), "English base CTA");
-  assert.ok(nav.includes("Consultar"), "Spanish overlay on seeded payload");
-  assert.ok(!/"label":"Consultar"/.test(nav), "base label must not be Spanish");
+  assert.ok(nav.includes("Consultar"), "Folio still seeds Consultar until #2914");
   assert.ok(!nav.includes('"label":"Book","href":"#gallery"'));
   // Legacy applied Folio trees still carry "Book" -> #gallery (mode map, not EN↔ES guess).
   const legacy = [
@@ -92,11 +90,7 @@ test("folio: chapter nav + Ask about this CTA (English base, ES overlay Consulta
   ] as unknown as BuilderNode[];
   assert.ok(JSON.stringify(localiseSeededDesignLabels(legacy, "es", "instant")).includes('"label":"Trabajos"'));
   assert.ok(JSON.stringify(localiseSeededDesignLabels(legacy, "en", "inquiry")).includes('"label":"Work"'));
-  // Raw (pre-seed) Folio has English bases only — seedI18nPayload attaches Consultar.
-  const raw = JSON.stringify(buildFolioPayload());
-  assert.ok(raw.includes("Ask about this"));
-  assert.ok(!raw.includes("Consultar"));
-  assert.ok(JSON.stringify(seedI18nPayload(buildFolioPayload())).includes("Consultar"));
+  assert.ok(JSON.stringify(buildFolioPayload()).includes("Consultar"));
 });
 
 test("folio footer line per mode per locale", () => {
@@ -116,9 +110,7 @@ test("folio footer line per mode per locale", () => {
     "tip Folio carries no editorial claim",
   );
   assert.ok(!tip.includes("Reserva en línea"));
-  const payload = JSON.stringify(PAYLOADS.folio());
-  assert.ok(payload.includes("Ask about this"));
-  assert.ok(payload.includes("Consultar"));
+  assert.ok(JSON.stringify(PAYLOADS.folio()).includes("Consultar"));
 });
 
 test("talent-edited copy is never rewritten", () => {
@@ -133,8 +125,8 @@ test("resolveSiteCtaMode: posture with the plan ceiling", () => {
   assert.equal(resolveSiteCtaMode({ sellingDefaults: null, confirmsByHand: false }), "instant");
 });
 
-test("TUL-369: no EN↔ES guess — plain seeded English stays English without an overlay apply", () => {
-  assert.equal(localiseSeededDesignLabel("Recent work", "es"), "Recent work");
+test("TUL-369: mode map is not an EN↔ES guess map", () => {
+  // Spanish render of seeded labels is proven via props.i18n in seed-i18n.static.test.ts.
   assert.equal(localiseSeededDesignLabel("Ask about this", "es"), "Ask about this");
   assert.equal(localiseSeededDesignLabel("Trabajo reciente", "en"), "Trabajo reciente");
 });
