@@ -26,6 +26,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
 import { rescheduleBooking } from "@/lib/scheduling/reschedule-booking";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 const opKey = z.string().min(8).max(80);
@@ -84,6 +85,7 @@ export async function cancelMyBooking(input: {
   operationKey: string;
   reason: string;
 }): Promise<{ ok: true; refundableCents: number } | { ok: false; reason: MyBookingRefusal }> {
+  if (!(await assertNotImpersonating()).ok) return { ok: false, reason: "unavailable" };
   const parsed = z.object({ bookingId: uuid, operationKey: opKey, reason: z.string().max(200) }).safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid" };
   const g = await gate(parsed.data.bookingId);
@@ -114,6 +116,7 @@ export async function rescheduleMyBooking(input: {
   operationKey: string;
   newStartsAt: string;
 }): Promise<{ ok: true; startsAt: string; endsAt: string } | { ok: false; reason: MyBookingRefusal }> {
+  if (!(await assertNotImpersonating()).ok) return { ok: false, reason: "unavailable" };
   const parsed = z.object({ bookingId: uuid, operationKey: opKey, newStartsAt: z.string().min(10) }).safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid" };
   const g = await gate(parsed.data.bookingId);
