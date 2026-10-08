@@ -110,6 +110,32 @@ test("a second tap resumes the same session: no second money row, no second Chec
   assert.equal(store.booking_transactions.length, 1);
 });
 
+test("TUL-284: a link in a currency other than its order's is refused with a specific reason, before any money row or session", async () => {
+  const store = makeStore();
+  const { admin, code, link } = await mintStripeLink(store);
+  link.currency = "MXN"; // the order is USD
+  const stripe = fakeStripe();
+
+  const opened = await openPaymentLinkCheckout(admin, { code, successUrl: SUCCESS, cancelUrl: CANCEL }, stripe.deps);
+  assert.deepEqual(opened, { ok: false, reason: "currency_mismatch", linkCurrency: "MXN", orderCurrency: "USD" });
+  assert.equal(stripe.created.length, 0);
+  assert.equal(store.booking_transactions.length, 0);
+});
+
+test("TUL-284: the pay page shows the currency-mismatch message in EN, ES and FR, naming both currencies", () => {
+  for (const lang of ["en", "es", "fr"]) {
+    const messages = JSON.parse(readFileSync(join(process.cwd(), "messages", `${lang}.json`), "utf8")) as {
+      public: { thread: { currencyMismatch?: string } };
+    };
+    const text = messages.public.thread.currencyMismatch ?? "";
+    assert.match(text, /\{linkCurrency\}/, lang);
+    assert.match(text, /\{orderCurrency\}/, lang);
+  }
+  const view = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/CheckoutView.tsx"), "utf8");
+  assert.match(view, /public\.thread\.currencyMismatch/);
+  assert.match(readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/pay-page.tsx"), "utf8"), /currency_mismatch/);
+});
+
 test("a paid money row sends a returning customer to the paid view, never to a new session", async () => {
   const store = makeStore();
   const { admin, code } = await mintStripeLink(store);
