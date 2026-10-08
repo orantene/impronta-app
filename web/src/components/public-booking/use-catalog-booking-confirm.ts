@@ -30,6 +30,8 @@ export function useCatalogBookingConfirm(input: {
   addOnIds: string[];
   /** G9b: task-picker brief, sent only on confirm. */
   brief?: OfferingTaskBrief | null;
+  /** TUL-426: the offering's delivery setting as a label, sent with the booking. */
+  eventLocation?: string | null;
   liveStarts: string | null;
   liveTz: string;
   liveDays: Array<{ starts: string[] }>;
@@ -121,6 +123,7 @@ export function useCatalogBookingConfirm(input: {
         variantId: input.variantId,
         addOnIds: input.addOnIds,
         brief: input.brief ?? null,
+        eventLocation: input.eventLocation ?? null,
         liveStarts: input.liveStarts,
         liveTz: input.liveTz,
         bookingDurationMinutes: input.bookingDurationMinutes,

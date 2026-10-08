@@ -64,6 +64,7 @@ import {
 } from "./booking-resume-store";
 import type { CatalogTakenSlotNotice } from "./catalog-taken-slot";
 import { resolveSheetOpening, slotArrivalPlan } from "./booking-slot-selection";
+import { serviceLocationLabel } from "@/lib/scheduling/booking-event-location";
 import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
 import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
 
@@ -307,6 +308,7 @@ export function CatalogBookingSheet({
     variantId,
     addOnIds,
     brief: catalogTaskBrief(detail),
+    eventLocation: serviceLocationLabel(detail?.where, locale),
     liveStarts,
     liveTz,
     liveDays,

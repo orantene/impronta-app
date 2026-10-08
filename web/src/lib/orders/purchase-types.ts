@@ -77,6 +77,8 @@ export type PurchaseInput = {
    */
   promoCode?: string | null;
   locale?: string | null;
+  /** TUL-426: where the service happens, from the booking sheet; cleaned before it is stored. */
+  eventLocation?: string | null;
   /**
    * Open a conversation for this purchase and post the order card into it.
    *
