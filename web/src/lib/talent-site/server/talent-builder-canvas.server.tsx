@@ -18,6 +18,7 @@ import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 import { headerSectionProps, localiseTalentHeaderDefaults } from "@/lib/talent-site/header-cta-locale";
+import type { SiteCtaMode } from "@/lib/talent-site/design-label-locale";
 import {
   buildMaxSiteNav,
   coerceTree,
@@ -182,7 +183,7 @@ export async function buildTalentBuilderCanvasData(input: {
   const renderShell = (roots: BuilderNode[]): ReactNode =>
     roots.length === 0 ? null : (
       <>
-        {roots.map((root) => renderShellRoot(root, localeCtx, isDemo))}
+        {roots.map((root) => renderShellRoot(root, localeCtx, isDemo, ctaMode))}
       </>
     );
 
@@ -223,7 +224,12 @@ export async function buildTalentBuilderCanvasData(input: {
 }
 
 /** One shell root, as `renderMaxSiteDocument` renders it (read-only). */
-export function renderShellRoot(root: BuilderNode, localeCtx: TalentSiteLocaleContext, isDemo: boolean): ReactNode {
+export function renderShellRoot(
+  root: BuilderNode,
+  localeCtx: TalentSiteLocaleContext,
+  isDemo: boolean,
+  ctaMode: SiteCtaMode | null = null,
+): ReactNode {
   const locale = localeCtx.locale;
   const opts = {
     publicPathPrefix: "",
@@ -239,7 +245,7 @@ export function renderShellRoot(root: BuilderNode, localeCtx: TalentSiteLocaleCo
   ) {
     const entry = getSectionType(root.props.sectionTypeKey);
     const schema = entry?.schemasByVersion[entry.currentVersion];
-    const localised = localiseTalentHeaderDefaults(headerSectionProps(root, locale), locale);
+    const localised = localiseTalentHeaderDefaults(headerSectionProps(root, locale), locale, ctaMode);
     const parsed = schema?.safeParse(
       withHeaderSiteChrome(localised, root.props.sectionTypeKey, isDemo, localeCtx.settings.supportedLocales, localeCtx.switcherHrefs),
     );

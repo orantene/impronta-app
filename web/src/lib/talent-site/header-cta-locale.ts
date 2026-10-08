@@ -1,17 +1,36 @@
 /**
- * AUD-027: the talent-site header CTA is seeded as the English default
- * "Inquire" (default-max-site-trees.ts) and saved into every shell tree, so a
- * Spanish site showed "INQUIRE". Rather than migrate saved trees, the renderer
- * localises the untouched seeded label at render time. A label the talent
- * typed themselves is never rewritten.
+ * AUD-027 + DS-62: the talent-site header CTA is often seeded as the English
+ * default "Inquire" and saved into every shell tree. The renderer localises the
+ * untouched seeded label at render time, and on bookable sites (instant /
+ * request) rewrites that ask CTA to a booking verb + `#services` so a lash
+ * studio does not lead with shouty "Escríbeme" / "Hacer una pregunta" alone.
+ * A label the talent typed themselves is never rewritten.
  */
 
+import type { SiteCtaMode } from "./design-label-locale";
+
 const SEEDED_CTA_LABEL = "inquire";
+
+/** Seeded / locale-localised ask labels the booking rewrite may replace. */
+const SEEDED_ASK_LABELS = new Set([
+  "inquire",
+  "escríbeme",
+  "write me",
+  "ask",
+  "write to me",
+]);
 
 const CTA_LABEL_BY_LOCALE: Record<string, string> = {
   en: "Inquire",
   es: "Escríbeme",
 };
+
+const BOOK_CTA_BY_MODE: Record<"instant" | "request", Record<string, string>> = {
+  instant: { en: "Book now", es: "Reservar" },
+  request: { en: "Request a time", es: "Solicitar cita" },
+};
+
+const BOOK_CTA_HREF = "#services";
 
 function localeKey(locale: string | null | undefined): string {
   return (locale ?? "").trim().toLowerCase().slice(0, 2);
@@ -25,6 +44,20 @@ export function talentHeaderCtaLabel(locale: string | null | undefined): string 
   return CTA_LABEL_BY_LOCALE[localeKey(locale)] ?? "Inquire";
 }
 
+/** Booking-mode header label for a bookable site (instant / request). */
+export function talentHeaderBookCtaLabel(
+  locale: string | null | undefined,
+  mode: "instant" | "request",
+): string {
+  const key = localeKey(locale);
+  const row = BOOK_CTA_BY_MODE[mode];
+  return row[key] ?? row.en;
+}
+
+function isSeededAskLabel(label: unknown): boolean {
+  return typeof label === "string" && SEEDED_ASK_LABELS.has(label.trim().toLowerCase());
+}
+
 function localiseLabel(label: unknown, locale: string): unknown {
   if (typeof label !== "string") return label;
   return label.trim().toLowerCase() === SEEDED_CTA_LABEL
@@ -32,24 +65,42 @@ function localiseLabel(label: unknown, locale: string): unknown {
     : label;
 }
 
+function mapCta(
+  cta: Record<string, unknown>,
+  locale: string,
+  mode: SiteCtaMode | null | undefined,
+): Record<string, unknown> {
+  const localised = { ...cta, label: localiseLabel(cta.label, locale) };
+  if (mode !== "instant" && mode !== "request") return localised;
+  if (!isSeededAskLabel(localised.label) && !isSeededAskLabel(cta.label)) return localised;
+  return {
+    ...localised,
+    label: talentHeaderBookCtaLabel(locale, mode),
+    href: BOOK_CTA_HREF,
+  };
+}
+
 /**
  * Returns a copy of `site_header` sectionProps with the seeded CTA labels
- * (`primaryCta.label` and any `regions.*[type=cta].label`) localised. Returns
- * the input unchanged for English or non-object input.
+ * (`primaryCta.label` and any `regions.*[type=cta].label`) localised, and on
+ * bookable sites rewritten to a booking CTA. Custom talent labels stay.
  */
 export function localiseTalentHeaderDefaults(
   sectionProps: unknown,
   locale: string | null | undefined,
+  mode: SiteCtaMode | null | undefined = null,
 ): unknown {
   const key = localeKey(locale);
-  if (!key || key === "en") return sectionProps;
+  const bookable = mode === "instant" || mode === "request";
+  // English + inquiry: only rewrite when bookable; otherwise leave EN seeds alone.
+  if ((!key || key === "en") && !bookable) return sectionProps;
   if (!sectionProps || typeof sectionProps !== "object") return sectionProps;
   const props = { ...(sectionProps as Record<string, unknown>) };
+  const loc = key || "en";
 
   const cta = props.primaryCta;
   if (cta && typeof cta === "object") {
-    const c = cta as Record<string, unknown>;
-    props.primaryCta = { ...c, label: localiseLabel(c.label, key) };
+    props.primaryCta = mapCta(cta as Record<string, unknown>, loc, mode);
   }
 
   const regions = props.regions;
@@ -60,9 +111,7 @@ export function localiseTalentHeaderDefaults(
         ? items.map((item) => {
             if (!item || typeof item !== "object") return item;
             const it = item as Record<string, unknown>;
-            return it.type === "cta" && "label" in it
-              ? { ...it, label: localiseLabel(it.label, key) }
-              : it;
+            return it.type === "cta" && "label" in it ? mapCta(it, loc, mode) : it;
           })
         : items;
     }

@@ -1134,6 +1134,11 @@ html[data-token-typography-scale-preset="editorial"] {
   cursor: pointer;
   text-decoration: none;
 }
+/* DS-62: Spanish multi-word CTAs must not shout (HACER UNA PREGUNTA / ESCRÍBEME). */
+html[lang^="es"] .site-btn {
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
 .site-btn:hover {
   transform: translateY(-1px);
 }

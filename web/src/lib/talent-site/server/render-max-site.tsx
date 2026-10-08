@@ -26,6 +26,7 @@ import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instan
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { draftPreviewBannerText } from "@/lib/talent-site/draft-preview-copy";
 import { headerSectionProps, localiseTalentHeaderDefaults, stripHiddenAskHeaderCta } from "@/lib/talent-site/header-cta-locale";
+import type { SiteCtaMode } from "@/lib/talent-site/design-label-locale";
 import { loadTalentAskVisible } from "./talent-ask-visible";
 import { prepareTalentSiteTrees, readableButtonDefaults } from "./talent-site-render-fixups.server";
 import { HeaderScrollObserver } from "@/lib/site-admin/sections/site_header/HeaderScrollObserver";
@@ -314,6 +315,7 @@ async function renderTalentMaxSiteUnguarded(
       siteHost: siteHostFromOrigin(input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL),
       webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), { canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL, canonicalPath: input.canonicalPath, siteSlug: site.siteSlug }),
       canonicalOrigin: input.canonicalOrigin,
+      ctaMode,
     });
 
     const seoFacts = await pSeoFacts; // services, links, city; never throws
@@ -380,6 +382,8 @@ async function renderMaxSiteDocument(args: {
   /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
   /** Request origin for magazine footer credit (hostname only). */
   canonicalOrigin?: string;
+  /** DS-62: header seeded Inquire → book verb when the site takes bookings. */
+  ctaMode?: SiteCtaMode | null;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -583,7 +587,7 @@ async function renderMaxSiteDocument(args: {
       const entry = getSectionType(root.props.sectionTypeKey);
       const schema = entry?.schemasByVersion[entry.currentVersion];
       const localised = stripHiddenAskHeaderCta(
-        localiseTalentHeaderDefaults(headerSectionProps(root, locale), locale),
+        localiseTalentHeaderDefaults(headerSectionProps(root, locale), locale, args.ctaMode ?? null),
         askVisible,
       );
       const parsed = schema?.safeParse(withHeaderSiteChrome(localised, root.props.sectionTypeKey, args.isDemo === true, args.localeCtx.settings.supportedLocales, args.localeCtx.switcherHrefs, webOfficeHeaderSocial(args.webOffice, footerSocialLinks, locale)));

@@ -5,6 +5,7 @@ import path from "node:path";
 import {
   localiseTalentHeaderDefaults,
   stripHiddenAskHeaderCta,
+  talentHeaderBookCtaLabel,
   talentHeaderCtaLabel,
 } from "./header-cta-locale";
 
@@ -42,6 +43,7 @@ test("AUD-027: render-max-site localises the header landmark props", () => {
   );
   assert.match(src, /localiseTalentHeaderDefaults/);
   assert.match(src, /stripHiddenAskHeaderCta/);
+  assert.match(src, /ctaMode/);
 });
 
 test("hidden ask: strip #talent-ask primary CTA before render", () => {
@@ -65,4 +67,48 @@ test("hidden ask: strip #talent-ask primary CTA before render", () => {
     stripped.regions.right.map((r) => r.href),
     ["#services"],
   );
+});
+
+test("DS-62: bookable ES site rewrites Inquire to Reservar + #services", () => {
+  const out = localiseTalentHeaderDefaults(seeded, "es-MX", "instant") as {
+    primaryCta: { label: string; href: string };
+    regions: { right: { type: string; label?: string; href?: string }[] };
+  };
+  assert.equal(out.primaryCta.label, "Reservar");
+  assert.equal(out.primaryCta.href, "#services");
+  assert.equal(out.regions.right[1]?.label, "Reservar");
+  assert.equal(out.regions.right[1]?.href, "#services");
+  assert.equal(talentHeaderBookCtaLabel("es", "request"), "Solicitar cita");
+});
+
+test("DS-62: bookable EN site rewrites Inquire to Book now + #services", () => {
+  const out = localiseTalentHeaderDefaults(seeded, "en", "instant") as {
+    primaryCta: { label: string; href: string };
+  };
+  assert.equal(out.primaryCta.label, "Book now");
+  assert.equal(out.primaryCta.href, "#services");
+});
+
+test("DS-62: inquiry mode keeps Escríbeme and does not force #services", () => {
+  const out = localiseTalentHeaderDefaults(seeded, "es", "inquiry") as {
+    primaryCta: { label: string; href: string };
+  };
+  assert.equal(out.primaryCta.label, "Escríbeme");
+  assert.equal(out.primaryCta.href, "/contact");
+});
+
+test("DS-62: custom talent CTA is never rewritten for booking mode", () => {
+  const custom = { primaryCta: { label: "WhatsApp", href: "https://wa.me/1" } };
+  const out = localiseTalentHeaderDefaults(custom, "es", "instant") as typeof custom;
+  assert.equal(out.primaryCta.label, "WhatsApp");
+  assert.equal(out.primaryCta.href, "https://wa.me/1");
+});
+
+test("DS-62: Spanish site buttons drop forced uppercase", () => {
+  const css = readFileSync(
+    path.join(__dirname, "../../app/token-presets.css"),
+    "utf8",
+  );
+  assert.match(css, /html\[lang\^="es"\]\s*\.site-btn/);
+  assert.match(css, /text-transform:\s*none/);
 });

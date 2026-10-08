@@ -223,6 +223,12 @@ type ModeCopy = Readonly<Record<SiteCtaMode, { en: string; es: string }>>;
  * reads as "write to me". Keys are exact seed strings (current and legacy).
  */
 const SEEDED_MODE_COPY: Readonly<Record<string, ModeCopy>> = {
+  // DS-62: seeded header/hero "Inquire" follows booking posture (not always ask).
+  Inquire: {
+    instant: { en: "Book now", es: "Reservar" },
+    request: { en: "Request a time", es: "Solicitar cita" },
+    inquiry: { en: "Inquire", es: "Escríbeme" },
+  },
   "Inquire for bookings": {
     instant: { en: "Book online", es: "Reserva en línea" },
     request: { en: "Request an appointment", es: "Solicita una cita" },
