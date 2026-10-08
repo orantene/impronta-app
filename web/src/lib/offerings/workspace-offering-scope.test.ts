@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { TalentOfferingRow } from "@/lib/talent/offerings-types";
 import { deriveWorkspaceMenuOfferings } from "@/lib/site-admin/server/native-data-block-sources";
-import { fetchActiveMemberTalentIds, isWorkspaceOfferingRow, workspaceOfferingOrFilter } from "./workspace-offering-scope";
+import { fetchOwnerTalentIds, isWorkspaceOfferingRow, workspaceOfferingOrFilter } from "./workspace-offering-scope";
 
 const TP = "11111111-1111-4111-8111-111111111111";
 const OTHER_TP = "22222222-2222-4222-8222-222222222222";
@@ -18,12 +18,12 @@ function row(o: Partial<TalentOfferingRow> & { id: string; tenant_id: string }):
 const members = new Set([TP]);
 const ids = (rows: TalentOfferingRow[], m: ReadonlySet<string> = members) => deriveWorkspaceMenuOfferings(rows, "ws1", "en", new Set(), m).map((d) => d.id);
 
-test("'both' / solo business: the owner-provider rows (talent-owned, this tenant, active member) are read", () => {
+test("'both' / solo business: the owner-provider rows (talent-owned, this tenant, owner) are read", () => {
   const rows = [row({ id: "a", tenant_id: "ws1", owner_kind: "talent", talent_profile_id: TP })];
   assert.deepEqual(ids(rows), ["a"]);
 });
 
-test("a non-member talent's row in this tenant is excluded", () => {
+test("a roster-only talent's row in this tenant is excluded", () => {
   assert.deepEqual(ids([row({ id: "x", tenant_id: "ws1", owner_kind: "talent", talent_profile_id: OTHER_TP })]), []);
 });
 
@@ -52,12 +52,20 @@ test("predicate and or-filter agree", () => {
   assert.equal(workspaceOfferingOrFilter(new Set([TP, "x);drop"])), `owner_kind.eq.workspace,and(owner_kind.eq.talent,talent_profile_id.in.(${TP}))`);
 });
 
-test("fetchActiveMemberTalentIds reads the active roster of the tenant only; an error gives empty", async () => {
-  const calls: Array<[string, string]> = [];
-  const mk = (res: { data: unknown; error: unknown }) => ({
-    from: () => ({ select: () => ({ eq: (c: string, v: string) => { calls.push([c, v]); return { eq: (c2: string, v2: string) => { calls.push([c2, v2]); return Promise.resolve(res); } }; } }) }),
-  });
-  assert.deepEqual([...(await fetchActiveMemberTalentIds(mk({ data: [{ talent_profile_id: TP }], error: null }), "ws1"))], [TP]);
-  assert.deepEqual(calls, [["tenant_id", "ws1"], ["status", "active"]]);
-  assert.equal((await fetchActiveMemberTalentIds(mk({ data: null, error: new Error("x") }), "ws1")).size, 0);
+test("agency with 3 roster talents and a separate owner: only the owner's talent rows are included", async () => {
+  const OWNER = "33333333-3333-4333-8333-333333333333";
+  const R1 = "44444444-4444-4444-8444-444444444441";
+  const R2 = "44444444-4444-4444-8444-444444444442";
+  const R3 = "44444444-4444-4444-8444-444444444443";
+  const owner = await fetchOwnerTalentIds({}, "ws1", async () => OWNER);
+  assert.deepEqual([...owner], [OWNER]);
+  const rows = [OWNER, R1, R2, R3].map((tp, i) => row({ id: `r${i}`, tenant_id: "ws1", owner_kind: "talent", talent_profile_id: tp }));
+  assert.deepEqual(ids(rows, owner), ["r0"]);
+  assert.ok(!workspaceOfferingOrFilter(owner).includes(R1));
+});
+
+test("no owner resolved: house rows only", async () => {
+  const owner = await fetchOwnerTalentIds({}, "ws1", async () => null);
+  assert.equal(owner.size, 0);
+  assert.deepEqual(ids([row({ id: "a", tenant_id: "ws1", owner_kind: "talent", talent_profile_id: TP })], owner), []);
 });

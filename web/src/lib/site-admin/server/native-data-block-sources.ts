@@ -27,7 +27,7 @@
  * cross-tenant leak is not reachable from the render path at all.
  */
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { fetchActiveMemberTalentIds, isWorkspaceOfferingRow, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
+import { fetchOwnerTalentIds, isWorkspaceOfferingRow, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { byLabel } from "@/lib/field-engine/sort-comparators";
 import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
@@ -321,13 +321,13 @@ export function deriveWorkspaceMenuOfferings(
    * the fetch and passed in, keeping this function pure and testable.
    */
   eventOfferingIds: ReadonlySet<string> = new Set(),
-  /** Active roster talent ids: their talent-owned rows in this tenant count too (owner-provider rows). */
-  memberTalentIds: ReadonlySet<string> = new Set(),
+  /** Owner talent ids: their talent-owned rows in this tenant count too (owner-provider rows). */
+  ownerTalentIds: ReadonlySet<string> = new Set(),
 ): WorkspaceMenuOffering[] {
   if (!tenantId) return [];
   const out: WorkspaceMenuOffering[] = [];
   for (const row of rows) {
-    if (!isWorkspaceOfferingRow(row, tenantId, memberTalentIds)) continue;
+    if (!isWorkspaceOfferingRow(row, tenantId, ownerTalentIds)) continue;
     if (row.status !== "published") continue;
     if (row.moderation_state !== "approved") continue;
     // A RESERVATION IS NOT A DISH. Measured live on a page-less restaurant:
@@ -421,7 +421,7 @@ export async function fetchWorkspaceMenuOfferings(
   const supabase = createPublicSupabaseClient();
   if (!supabase || !tenantId) return [];
   try {
-    const memberIds = await fetchActiveMemberTalentIds(supabase, tenantId);
+    const memberIds = await fetchOwnerTalentIds(createServiceRoleClient() ?? supabase, tenantId);
     const { data, error } = await supabase
       .from("talent_offerings")
       .select("*")
