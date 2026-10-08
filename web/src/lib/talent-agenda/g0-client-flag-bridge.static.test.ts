@@ -30,7 +30,7 @@ describe("G0 Agenda V2 client flag bridge", () => {
 
   it("talent layout stamps talentAgendaV2 onto the bridge", () => {
     const src = readFileSync(
-      join(process.cwd(), "src/app/(workspace)/talent/layout.tsx"),
+      join(process.cwd(), "src/app/(workspace)/talent/_talent-layout-inner.tsx"),
       "utf8",
     );
     assert.match(src, /talentAgendaV2/);
