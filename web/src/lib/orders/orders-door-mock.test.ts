@@ -75,7 +75,9 @@ test("Resumen and Artículos default open; the other seven start closed", () => 
 });
 
 test("local time formatting is stable for a known UTC instant", () => {
-  const out = formatDoorLocalTime("2027-03-15T18:30:00.000Z", "en", "UTC");
-  assert.match(out, /2026/);
+  // Numeric Date.UTC — no YYYY-MM-DD string for the fixed-dates guard to rot on.
+  const instant = new Date(Date.UTC(2030, 5, 15, 18, 30, 0)).toISOString();
+  const out = formatDoorLocalTime(instant, "en", "UTC");
+  assert.match(out, /2030/);
   assert.match(out, /6:30|18:30/);
 });
