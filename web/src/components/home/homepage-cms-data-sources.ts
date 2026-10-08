@@ -387,7 +387,7 @@ export async function loadBuilderNodeDataSources(
           )
         : {}),
     ...(nativeNeeds.portfolio && catalogTalentId
-      ? await loadPortfolioSources(catalogTalentId)
+      ? await loadPortfolioSources(catalogTalentId, { locale })
       : {}),
     ...(nativeNeeds.reviews && catalogTalentId
       ? await loadReviewsSources(catalogTalentId)
@@ -522,7 +522,7 @@ export async function loadPersonalMaxNativeSources(args: {
   }
   const [catalog, portfolio, reviews, visit, compCard, faq] = await Promise.all([
     needCatalog ? loadServicesCatalogSources(args.talentProfileId, args.locale) : {},
-    args.portfolio ? loadPortfolioSources(args.talentProfileId) : {},
+    args.portfolio ? loadPortfolioSources(args.talentProfileId, { locale: args.locale }) : {},
     args.reviews ? loadReviewsSources(args.talentProfileId) : {},
     args.visit ? loadVisitSources(args.talentProfileId, args.locale) : {},
     args.compCard ? loadCompCardSources(args.talentProfileId, args.locale) : {},
