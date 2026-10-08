@@ -12,7 +12,7 @@ import "server-only";
  */
 
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
-import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
+import { getResolvedAiChatKind, isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { resolveFailoverChat, resolveRoutedChat } from "@/lib/ai/call-routing.server";
 import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
 import { resolveClientIp } from "@/lib/guest/guest-session";
@@ -36,12 +36,24 @@ import type { OnboardingIntent, OnboardingPath } from "./module-state";
 import { proposeTypeChip } from "./type-chip.server";
 import type { TypeChipProposal } from "./type-chip";
 import { buildUnderstanding, type Understanding } from "./understanding";
+import { aiProblemLogLine, classifyExtraction, classifyProviderState, type UnderstandAiProblem } from "./understand-outcome";
+
+const AI_PROBLEM_MESSAGE = "We could not read your description right now. Please try again in a moment.";
+
+function reportAiProblem(kind: UnderstandAiProblem, provider: string): { ok: false; code: UnderstandAiProblem; message: string } {
+  // Kind and provider id only: never a key, never the person's text.
+  // eslint-disable-next-line no-console
+  console.warn(aiProblemLogLine(kind, provider));
+  return { ok: false, code: kind, message: AI_PROBLEM_MESSAGE };
+}
 
 export type UnderstandErrorCode =
   | "ai_off"
   | "rate_limit"
   | "too_long"
   | "import_failed"
+  | "ai_not_configured"
+  | "ai_failed"
   | "failed";
 
 export type UnderstandResult =
@@ -75,8 +87,10 @@ export async function understandBrief(input: {
   scope: { sessionId: string; userId?: string | null };
 }): Promise<UnderstandResult> {
   const flags = await getAiFeatureFlags();
-  const aiOn = flags.ai_master_enabled && flags.ai_tulala_agent_enabled && (await isResolvedAiChatConfigured());
-  if (!aiOn) {
+  const flagsOn = flags.ai_master_enabled && flags.ai_tulala_agent_enabled;
+  const providerState = classifyProviderState({ flagsOn, configured: flagsOn ? await isResolvedAiChatConfigured() : false });
+  if (providerState === "ai_not_configured") return reportAiProblem("ai_not_configured", await getResolvedAiChatKind());
+  if (providerState === "degrade") {
     // Honest degradation: nothing read, everything asked by the short form.
     const { understanding, chip } = await understandingFor({ brief: input.brief, intent: input.intent, userPath: input.userPath });
     return { ok: true, understanding, chip, learned: [], brief: input.brief };
@@ -101,6 +115,7 @@ export async function understandBrief(input: {
   if (!gate.ok) return { ok: false, code: "rate_limit", message: gate.message };
 
   let learned: LearnedFact[] = [];
+  let aiProblem: { kind: UnderstandAiProblem; provider: string } | null = null;
   try {
     if (isImport) {
       const imported = await importFromUrl({ owner: input.owner, brief: input.brief, url: input.url!, locale: input.locale });
@@ -142,6 +157,8 @@ export async function understandBrief(input: {
           tenantId: null,
           context: { brief_id: input.brief.id, attempt, error: o?.ok ? null : (o?.code ?? "unknown"), facts: learned.length },
         }).catch((err) => logServerError("onboarding.understand.usage", err));
+        const problem = classifyExtraction(o);
+        aiProblem = problem ? { kind: problem, provider: String(chat.adapter.id) } : null;
         if (o?.ok) break;
         if (o && !["api_error", "quota", "timeout", "empty_response"].includes(o.code ?? "")) break;
       }
@@ -150,6 +167,11 @@ export async function understandBrief(input: {
   } catch (err) {
     logServerError("onboarding.understandBrief", err);
     return { ok: false, code: "failed", message: "Could not read that." };
+  }
+
+  if (aiProblem && learned.length === 0) {
+    const p = aiProblem as { kind: UnderstandAiProblem; provider: string };
+    return reportAiProblem(p.kind, p.provider);
   }
 
   // Re-read: recordFacts applies precedence, so a proposal may have lost to an

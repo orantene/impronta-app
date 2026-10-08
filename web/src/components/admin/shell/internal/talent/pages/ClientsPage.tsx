@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDashboardMoney, formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -33,14 +34,9 @@ const FILTERS: { id: ClientsFilter; label: string }[] = [
 ];
 
 
-function formatMoney(cents: number, currency: string | null): string {
-  const amount = Math.round(cents) / 100;
-  const code = (currency ?? "").trim().toUpperCase();
-  const formatted = amount.toLocaleString(undefined, {
-    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  });
-  return code ? `$${formatted} ${code}` : `$${formatted}`;
+function formatMoney(cents: number, currency: string | null, locale = "en"): string {
+  if (!currency || !currency.trim()) return formatDashboardMoney(cents / 100, "USD", locale).replace(/ USD$/, "");
+  return formatDashboardMoneyCents(cents, currency, locale);
 }
 
 function formatMonthYear(iso: string, dateLocale?: string): string {
@@ -171,13 +167,14 @@ function FilterChips(props: {
 }
 
 function OutstandingCell({ row, t }: { row: TalentClientRow; t: (s: string) => string }) {
+  const moneyLocale = useDashboardText().locale;
   if (row.amountOwedCents == null || row.amountOwedCents <= 0) {
     return <span className="text-admin-ink-muted">{t("None")}</span>;
   }
   const risk = row.overdue;
   return (
     <span className={risk ? "text-destructive" : "text-admin-ink"}>
-      <span className="font-semibold">{formatMoney(row.amountOwedCents, row.currency)}</span>
+      <span className="font-semibold">{formatMoney(row.amountOwedCents, row.currency, moneyLocale)}</span>
       <span className="mt-0.5 block text-[12px]">
         {risk ? t("overdue") : t("at the appointment")}
       </span>
@@ -252,7 +249,7 @@ function ClientRecord(props: {
             <div className="mt-2.5 border-t border-admin-border-soft pt-2.5">
               <div className="flex items-baseline gap-2">
                 <span className="flex-1 text-[14.5px]">{t("Outstanding")}</span>
-                <span className="font-semibold">{formatMoney(row.amountOwedCents, row.currency)}</span>
+                <span className="font-semibold">{formatMoney(row.amountOwedCents, row.currency, dateLocale)}</span>
               </div>
               <p className="mt-1 text-[13px] text-admin-ink-muted">
                 {t("Due at the appointment · the same amount shows in Money and on the booking")}
@@ -333,7 +330,7 @@ function ClientRecord(props: {
                   </span>
                   {h.amountCents != null ? (
                     <span className="whitespace-nowrap font-admin-body text-[14px] font-semibold text-admin-ink">
-                      {formatMoney(h.amountCents, h.currency)}
+                      {formatMoney(h.amountCents, h.currency, dateLocale)}
                     </span>
                   ) : null}
                 </button>
@@ -360,7 +357,7 @@ function ClientRecord(props: {
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-admin-ink-muted">{t("Paid to you")}</dt>
-              <dd className="text-admin-ink">{paidCents > 0 ? formatMoney(paidCents, currency) : t("None yet")}</dd>
+              <dd className="text-admin-ink">{paidCents > 0 ? formatMoney(paidCents, currency, dateLocale) : t("None yet")}</dd>
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-admin-ink-muted">{t("First visit")}</dt>
@@ -731,7 +728,7 @@ export function TalentClientsPage() {
                                       : "text-[15px] font-semibold text-admin-ink"
                                   }
                                 >
-                                  {formatMoney(row.amountOwedCents, row.currency)}
+                                  {formatMoney(row.amountOwedCents, row.currency, dateLocale)}
                                 </span>
                               ) : null}
                             </span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { formatDashboardMoney } from "@/lib/money/dashboard-money-format";
 import { useDashboardText } from "../../dashboard-i18n";
 import { Icon, SecondaryButton, Toggle } from "../../primitives";
 import { COLORS, FONTS } from "../../state";
@@ -160,6 +161,7 @@ export function TalentTodayHero({
   nextBookingDate,
   paidThisMonth,
   paidCurrency,
+  paidCurrencyCode,
   profileCompleteness,
   currentLocation,
   availableForWork,
@@ -178,6 +180,8 @@ export function TalentTodayHero({
   nextBookingDate?: string;
   paidThisMonth: number;
   paidCurrency: string;
+  /** ISO code of the paid-this-month figure (DS-17). When set the tile prints the one dashboard money format. */
+  paidCurrencyCode?: string;
   profileCompleteness: number;
   /** "Playa del Carmen · Mexico" — where the talent is right now. */
   currentLocation: string;
@@ -415,7 +419,7 @@ export function TalentTodayHero({
         <HeroStatDivider />
         <HeroStat
           label={copy.t("Paid this month")}
-          value={`${paidCurrency}${paidThisMonth.toLocaleString()}`}
+          value={paidCurrencyCode ? formatDashboardMoney(paidThisMonth, paidCurrencyCode, copy.isSpanish ? "es" : "en", { wholeUnits: true }) : `${paidCurrency}${paidThisMonth.toLocaleString()}`}
           caption={paidThisMonth > 0 ? copy.t("This month's settled payouts") : copy.t("No payouts yet this month")}
           captionTone={paidThisMonth > 0 ? "success" : "default"}
           tone="ink"

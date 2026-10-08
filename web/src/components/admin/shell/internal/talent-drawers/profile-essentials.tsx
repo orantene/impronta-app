@@ -12,12 +12,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   actionDeleteMediaAssets,
   actionImportFromGoogleDrive,
-  actionLoadTalentMediaBundleAll,
+  actionLoadTalentMediaBundle,
   actionRevertCropToSource,
   actionUploadAndAssignMedia,
 } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import type { MediaAsset } from "@/components/talent/media-gallery-drawer";
 import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
+import { useGalleryLoadMore } from "@/components/talent/use-gallery-load-more";
 import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import {
   updateSelfCredits,
@@ -57,13 +58,16 @@ export function TalentPhotoEditDrawer() {
   const [currentAvatarAssetId, setCurrentAvatarAssetId] = useState<string | null>(null);
   const [currentHeroAssetId, setCurrentHeroAssetId] = useState<string | null>(null);
   const loadedForRef = useRef<string | null>(null);
+  const galleryPaging = useGalleryLoadMore(talentId ?? "", setAssets);
+  const setGalleryPage = galleryPaging.setPage;
 
   // Load existing assets when drawer opens for a real talent.
   const loadAssets = useCallback(async (tid: string) => {
     if (loadedForRef.current === tid) return;
     loadedForRef.current = tid;
-    const res = await actionLoadTalentMediaBundleAll(tid);
+    const res = await actionLoadTalentMediaBundle(tid);
     if (!res.ok) return;
+    setGalleryPage(res.data);
     const { gallery, card, hero } = res.data;
     const all: MediaAsset[] = [];
     if (card) all.push({ id: card.id, url: card.url, variantKind: "card", sortOrder: 0, sourceMediaAssetId: card.sourceMediaAssetId });
@@ -72,7 +76,7 @@ export function TalentPhotoEditDrawer() {
     setAssets(all);
     setCurrentAvatarAssetId(card?.id ?? null);
     setCurrentHeroAssetId(hero?.id ?? null);
-  }, []);
+  }, [setGalleryPage]);
 
   useEffect(() => {
     if (open && talentId) void loadAssets(talentId);
@@ -119,6 +123,10 @@ export function TalentPhotoEditDrawer() {
       tenantSlug={tenantSlug}
       assets={assets}
       onAssetsChange={setAssets}
+      hasMore={galleryPaging.hasMore}
+      totalCount={galleryPaging.total}
+      loadingMore={galleryPaging.loadingMore}
+      onLoadMore={galleryPaging.loadMore}
       focusSlot={focusSlot}
       locale={copy.locale}
       currentAvatarAssetId={currentAvatarAssetId}

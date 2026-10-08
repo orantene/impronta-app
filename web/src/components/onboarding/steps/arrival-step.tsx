@@ -7,6 +7,7 @@
  */
 
 import type { ArrivalPayload } from "@/lib/onboarding/arrival";
+import { ARRIVAL_THUMB_FRAME_NAME } from "@/components/edit-chrome/embedded-frame";
 
 import { finishPlan, type FinishPlan } from "@/lib/onboarding/finish-plan";
 
@@ -110,7 +111,7 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: st
               <span className="text-[0.75rem] uppercase tracking-[0.12em]" style={{ color: "var(--tl-muted)" }}>{arrival.link.display}</span>
             </div>
             {/* A business site is live at once; a talent page goes live after three photos, so it is not framed. */}
-            {business ? <iframe title={arrival.link.display} src={arrival.link.href} className="pointer-events-none absolute inset-0 h-full w-full overflow-hidden border-0 bg-transparent" scrolling="no" tabIndex={-1} loading="lazy" sandbox="allow-same-origin allow-scripts" /> : null}
+            {business ? <iframe name={ARRIVAL_THUMB_FRAME_NAME} title={arrival.link.display} src={arrival.link.href} className="pointer-events-none absolute inset-0 h-full w-full overflow-hidden border-0 bg-transparent" scrolling="no" tabIndex={-1} loading="lazy" sandbox="allow-same-origin allow-scripts" /> : null}
           </div>
           <div className="flex items-center justify-between gap-3 px-3 py-2.5">
             <span className="min-w-0">

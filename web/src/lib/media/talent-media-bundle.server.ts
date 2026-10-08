@@ -44,9 +44,9 @@ export type TalentMediaBundle = {
 };
 
 // Only the columns the callers read (id/url/variant/sort/metadata/source).
-const COLUMNS = "id, bucket_id, storage_path, variant_kind, sort_order, metadata, source_media_asset_id";
+export const TALENT_MEDIA_COLUMNS = "id, bucket_id, storage_path, variant_kind, sort_order, metadata, source_media_asset_id";
 
-type Row = {
+export type TalentMediaRow = {
   id: string;
   bucket_id: string;
   storage_path: string;
@@ -56,7 +56,7 @@ type Row = {
   source_media_asset_id: string | null;
 };
 
-function toItem(admin: SupabaseClient, r: Row): TalentMediaItem {
+export function toItem(admin: SupabaseClient, r: TalentMediaRow): TalentMediaItem {
   return {
     id: r.id,
     url: admin.storage.from(r.bucket_id).getPublicUrl(r.storage_path).data.publicUrl,
@@ -77,7 +77,7 @@ async function readGalleryPage(
   const w = pageWindow(offset, limit);
   const { data, error, count } = await admin
     .from("media_assets")
-    .select(COLUMNS, { count: "exact" })
+    .select(TALENT_MEDIA_COLUMNS, { count: "exact" })
     .eq("owner_talent_profile_id", talentProfileId)
     .eq("variant_kind", "gallery")
     .is("deleted_at", null)
@@ -88,17 +88,17 @@ async function readGalleryPage(
     logServerError("media.bundle.galleryPage", error);
     return null;
   }
-  const rows = (data as Row[] | null) ?? [];
+  const rows = (data as TalentMediaRow[] | null) ?? [];
   return { items: rows.map((r) => toItem(admin, r)), total: count ?? offset + rows.length };
 }
 
 async function readSingletons(
   admin: SupabaseClient,
   talentProfileId: string,
-): Promise<Row[] | null> {
+): Promise<TalentMediaRow[] | null> {
   const { data, error } = await admin
     .from("media_assets")
-    .select(COLUMNS)
+    .select(TALENT_MEDIA_COLUMNS)
     .eq("owner_talent_profile_id", talentProfileId)
     .in("variant_kind", [...TALENT_MEDIA_SINGLETON_KINDS])
     .is("deleted_at", null)
@@ -109,7 +109,7 @@ async function readSingletons(
     logServerError("media.bundle.singletons", error);
     return null;
   }
-  return (data as Row[] | null) ?? [];
+  return (data as TalentMediaRow[] | null) ?? [];
 }
 
 /**

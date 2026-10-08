@@ -52,3 +52,15 @@ export function formatDashboardMoney(
   if (!symbol || symbol.toUpperCase() === code) return `${number} ${code}`;
   return `${symbol}${number} ${code}`;
 }
+
+/**
+ * Same format for an amount held in minor units (cents). Keeps cents when the
+ * amount has them ("$300.50 MXN"); display only, nothing is recomputed.
+ */
+export function formatDashboardMoneyCents(
+  amountCents: number,
+  currency: string | null | undefined,
+  locale: string = "en",
+): string {
+  return formatDashboardMoney(Math.round(amountCents) / 100, currency, locale);
+}

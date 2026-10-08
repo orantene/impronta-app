@@ -605,7 +605,7 @@ export function ServicesHome({
                         : "text-admin-ink-muted"
                   }`}
                 >
-                  {listPrice(item, copy.t("Quoted"), copy.t("No price yet"))}
+                  {listPrice(item, copy.t("Quoted"), copy.t("No price yet"), locale)}
                 </span>
                 <span className="block text-[11px] text-admin-ink-muted">
                   {usdEquivalentLabel(item.amountCents, item.currency, editor.usdRates, locale)}

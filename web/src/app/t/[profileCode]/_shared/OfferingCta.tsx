@@ -15,6 +15,9 @@
  */
 
 import { buildOfferingRequestDetail } from "@/lib/talent-site/offering-request-detail-build";
+import { useEffect } from "react";
+
+import { registerSlotOffering } from "@/lib/talent-site/next-free-slot";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { deriveOfferingCta, offeringCtaLabel } from "@/lib/talent/offering-cta-derivation";
 
@@ -48,6 +51,13 @@ export function OfferingCta({
     confirmsByHand,
   });
   const label = labelOverride?.trim() || offeringCtaLabel(cta, locale, "card");
+
+  // TUL-232: the sheet resolves this offering when something opens booking at a slot.
+  useEffect(() => {
+    if (!hidden && (cta === "book_now" || cta === "request_to_book")) {
+      registerSlotOffering(offering, buildOfferingRequestDetail(offering, instant));
+    }
+  });
 
   const onClick = () => {
     const detail = buildOfferingRequestDetail(offering, instant);

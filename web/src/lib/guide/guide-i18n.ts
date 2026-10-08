@@ -1,4 +1,5 @@
 import { createTranslator } from "@/i18n/messages";
+import { GUIDE_EXTRA_ES } from "./guide-extra-es";
 
 /**
  * Guide copy that comes from the English help registry (`DRAWER_HELP`) resolved
@@ -15,14 +16,17 @@ function tOr(locale: string, key: string, fallback: string): string {
 }
 
 export function guideTitle(nodeId: string, fallback: string, locale: string): string {
+  if (locale === "es" && GUIDE_EXTRA_ES[nodeId]) fallback = GUIDE_EXTRA_ES[nodeId].title;
   return tOr(locale, `${NS}.drawerLabels.${nodeId}`, fallback);
 }
 
 export function guidePurpose(nodeId: string, fallback: string, locale: string): string {
+  if (locale === "es" && GUIDE_EXTRA_ES[nodeId]) fallback = GUIDE_EXTRA_ES[nodeId].purpose;
   return tOr(locale, `${NS}.topics.${nodeId}.purpose`, fallback);
 }
 
 export function guideStep(nodeId: string, index: number, fallback: string, locale: string): string {
+  if (locale === "es") fallback = GUIDE_EXTRA_ES[nodeId]?.steps[index] ?? fallback;
   return tOr(locale, `${NS}.topics.${nodeId}.b${index}`, fallback);
 }
 
