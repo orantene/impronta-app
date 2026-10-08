@@ -62,6 +62,20 @@ export const CONTENT: TargetContent = {
   // commonly repeats.
   captions: [
     { es: ["Extensiones clásicas"], en: "Classic extensions" },
+    // The 13 live photo captions of TAL-93900 found by the dry run (2026-10-08), English drafted for review.
+    { es: ["Pestañas de volumen"], en: "Volume lashes" },
+    { es: ["Uñas nude en acabado brillante"], en: "Nude nails with a glossy finish" },
+    { es: ["Cejas laminadas y pestañas"], en: "Laminated brows and lashes" },
+    { es: ["Manos con uñas nude"], en: "Hands with nude nails" },
+    { es: ["Uñas nude en tono natural"], en: "Nude nails in a natural shade" },
+    { es: ["Pedicura con acabado nude"], en: "Pedicure with a nude finish" },
+    { es: ["Aplicación de pestañas en camilla"], en: "Lash application on the treatment bed" },
+    { es: ["Manos con uñas rosas y una rosa"], en: "Hands with pink nails and a rose" },
+    { es: ["Uñas francesas en forma almendra"], en: "French nails in an almond shape" },
+    { es: ["Jorg Beauty en su estudio"], en: "Jorg Beauty in her studio" },
+    { es: ["Pestañas cerradas, detalle de la piel"], en: "Closed lashes, skin detail" },
+    { es: ["Mirada relajada, cejas y pestañas"], en: "A relaxed gaze, brows and lashes" },
+    { es: ["Cabina de tratamiento con velas y toallas"], en: "Treatment room with candles and towels" },
     { es: ["Lifting de pestañas"], en: "Lash lift" },
     { es: ["Volumen americano"], en: "American volume" },
     { es: ["Efecto rímel"], en: "Mascara effect" },
