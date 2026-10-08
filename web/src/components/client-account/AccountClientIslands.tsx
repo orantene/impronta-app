@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
 import { cancelMyBooking, rescheduleMyBooking, type MyBookingRefusal } from "@/lib/client-account/booking-actions";
+import { replyToMyThread, type ReplyRefusal } from "@/lib/client-account/message-actions";
 import { saveAccountSettings } from "@/lib/client-account/profile-actions";
 import { signOutClientAccount } from "@/lib/client-account/actions";
 
@@ -230,5 +231,47 @@ export function LogOutButton({ label }: { label: string }) {
     >
       {label}
     </button>
+  );
+}
+
+export type ThreadReplyCopy = {
+  label: string; send: string; errors: Record<ReplyRefusal, string>;
+};
+
+/** Plain-text reply box for `/account/messages/<thread>`. The server decides who may send. */
+export function ThreadReply({ inquiryId, copy }: { inquiryId: string; copy: ThreadReplyCopy }) {
+  const router = useRouter();
+  const [body, setBody] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  return (
+    <form
+      style={{ display: "grid", gap: 10, marginTop: 8 }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!body.trim()) return;
+        setMsg(null);
+        start(async () => {
+          const r = await replyToMyThread({ inquiryId, body });
+          if (r.ok) {
+            setBody("");
+            router.refresh();
+          } else {
+            setMsg(copy.errors[r.reason]);
+          }
+        });
+      }}
+    >
+      <label style={{ fontWeight: 600, fontSize: 14 }}>{copy.label}
+        <textarea
+          style={{ ...field, marginTop: 6, minHeight: 88, padding: 12, resize: "vertical" }}
+          value={body}
+          maxLength={10000}
+          onChange={(e) => setBody(e.target.value)}
+        />
+      </label>
+      <div><button type="submit" style={btnPrimary} disabled={pending || !body.trim()}>{copy.send}</button></div>
+      {msg ? <p role="status" style={{ margin: 0 }}>{msg}</p> : null}
+    </form>
   );
 }

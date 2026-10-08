@@ -10,7 +10,7 @@ import { formatOrderMoney } from "@/lib/orders/money-format";
 import type { AccountSummary } from "@/lib/client-account/pure";
 
 import { ClientAccountButton } from "./ClientAccountButton";
-import { LogOutButton, SettingsForm, VisitActions, btnPrimary, btnSecondary, type VisitActionsCopy } from "./AccountClientIslands";
+import { LogOutButton, SettingsForm, ThreadReply, VisitActions, btnPrimary, type VisitActionsCopy } from "./AccountClientIslands";
 
 const INK = "var(--token-color-ink, #111)";
 const BG = "var(--token-color-background, #fff)";
@@ -35,7 +35,6 @@ type Props = {
   audience: "signed_out" | "not_client" | "client";
   view: AccountView;
   talentName: string;
-  profileCode: string | null;
   email: string | null;
   timeZone: string;
   data: AreaData;
@@ -68,7 +67,7 @@ export function ClientAccountArea(props: Props) {
       <section style={{ ...card, marginTop: 24 }}>
         <h2 style={{ ...heading, fontSize: 20 }}>{a("signedOutTitle")}</h2>
         <p style={{ color: MUTED }}>{a("signedOutBody")}</p>
-        <ClientAccountButton variant="header" locale={loc} profileCode={props.profileCode} />
+        <ClientAccountButton variant="header" locale={loc} />
       </section>,
     );
   }
@@ -174,7 +173,18 @@ export function ClientAccountArea(props: Props) {
             </div>
           ))}
         </div>
-        <a href={`/c/${encodeURIComponent(props.view.id)}`} style={{ ...btnSecondary, display: "inline-flex", alignItems: "center", textDecoration: "none" }}>{a("openChat")}</a>
+        <ThreadReply
+          inquiryId={props.view.id}
+          copy={{
+            label: a("replyLabel"),
+            send: a("sendReply"),
+            errors: {
+              invalid: a("errGeneric"), unavailable: a("errGeneric"), failed: a("errGeneric"),
+              not_signed_in: a("replyErrSignedOut"), not_allowed: a("errNotAllowed"),
+              empty: a("replyErrEmpty"), too_long: a("replyErrTooLong"), rate_limited: a("replyErrRate"),
+            },
+          }}
+        />
       </>,
     );
   }
@@ -252,7 +262,7 @@ export function ClientAccountArea(props: Props) {
       <section style={{ marginBottom: 24 }}>
         <h2 style={{ ...heading, fontSize: 16, marginBottom: 10 }}>{title}</h2>
         <ul style={{ margin: 0, padding: 0, display: "grid", gap: 10 }}>{items.map(visitRow)}</ul>
-        {again ? <p style={{ marginTop: 12 }}><a href="/" style={{ color: INK }}>{a("bookAgain")}</a></p> : null}
+        {again ? <p style={{ marginTop: 12 }}><Link href="/" style={{ color: INK }}>{a("bookAgain")}</Link></p> : null}
       </section>
     );
 
@@ -261,7 +271,7 @@ export function ClientAccountArea(props: Props) {
     const g = props.data.visits;
     const empty = !g || g.upcoming.length + g.waiting.length + g.past.length === 0;
     body = empty ? (
-      <p>{a("noVisits")} <a href="/" style={{ color: INK }}>{a("bookAgain")}</a></p>
+      <p>{a("noVisits")} <Link href="/" style={{ color: INK }}>{a("bookAgain")}</Link></p>
     ) : (
       <>
         {group(a("waiting"), g.waiting)}

@@ -9,14 +9,15 @@
 import { revalidatePath } from "next/cache";
 
 import { normalizeAccountSettings, type AccountSettingsInput } from "@/lib/client-account/area-pure";
-import { clientAccountEnabledFor } from "@/lib/client-account/flag";
+import { accountSurfaceEnabledForRequest } from "@/lib/client-account/tenant.server";
+import { marketingConsentPatch } from "@/lib/client-account/consent-pure";
 import { isClientAccountEligible } from "@/lib/client-account/pure";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 export async function saveAccountSettings(input: Partial<AccountSettingsInput>): Promise<{ ok: boolean }> {
-  if (!clientAccountEnabledFor("talent")) return { ok: false };
+  if (!(await accountSurfaceEnabledForRequest())) return { ok: false };
   const clean = normalizeAccountSettings(input);
   const session = await getCachedActorSession();
   const admin = createServiceRoleClient();
@@ -31,13 +32,23 @@ export async function saveAccountSettings(input: Partial<AccountSettingsInput>):
       return { ok: false };
     }
   }
+  // The consent stamp moves only when the choice changes.
+  const { data: prior, error: priorErr } = await admin
+    .from("client_profiles")
+    .select("marketing_opt_in")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (priorErr) {
+    logServerError("clientAccount.settings.prior", priorErr);
+    return { ok: false };
+  }
   const { error } = await admin.from("client_profiles").upsert(
     {
       user_id: userId,
       phone: clean.phone || null,
       preferred_locale: clean.locale,
       marketing_opt_in: clean.marketingOptIn,
-      marketing_opt_in_at: clean.marketingOptIn ? now : null,
+      ...marketingConsentPatch({ previous: (prior as { marketing_opt_in?: boolean | null } | null)?.marketing_opt_in, next: clean.marketingOptIn, nowIso: now }),
       updated_at: now,
     },
     { onConflict: "user_id" },

@@ -18,9 +18,8 @@
 
 import { z } from "zod";
 
-import { clientAccountEnabledFor } from "@/lib/client-account/flag";
 import { canManageBooking } from "@/lib/client-account/area-pure";
-import { resolveAccountTenant } from "@/lib/client-account/tenant.server";
+import { accountSurfaceEnabledForRequest, resolveAccountTenant } from "@/lib/client-account/tenant.server";
 import { logServerError } from "@/lib/server/safe-error";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
@@ -46,7 +45,7 @@ type Gate =
   | { ok: true; tenantId: string; userId: string; admin: NonNullable<ReturnType<typeof createServiceRoleClient>>; startsAt: string | null };
 
 async function gate(bookingId: string): Promise<Gate> {
-  if (!clientAccountEnabledFor("talent")) return { ok: false, reason: "unavailable" };
+  if (!(await accountSurfaceEnabledForRequest())) return { ok: false, reason: "unavailable" };
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, reason: "not_signed_in" };
   const tenant = await resolveAccountTenant();
