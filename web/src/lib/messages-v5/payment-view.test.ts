@@ -19,9 +19,9 @@ import {
   type OfferDepositRule,
 } from "./payment-view";
 
-const OFFER_PCT: OfferDepositRule = { status: "accepted", depositPct: 30, depositAmountCents: null, totalClientPrice: 1000 };
-const OFFER_CENTS: OfferDepositRule = { status: "accepted", depositPct: null, depositAmountCents: 15000, totalClientPrice: 1000 };
-const OFFER_NONE: OfferDepositRule = { status: "accepted", depositPct: null, depositAmountCents: null, totalClientPrice: 1000 };
+const OFFER_PCT: OfferDepositRule = { status: "accepted", depositPct: 30, depositAmountCents: null, totalClientPrice: 1000, currencyCode: "USD" };
+const OFFER_CENTS: OfferDepositRule = { status: "accepted", depositPct: null, depositAmountCents: 15000, totalClientPrice: 1000, currencyCode: "USD" };
+const OFFER_NONE: OfferDepositRule = { status: "accepted", depositPct: null, depositAmountCents: null, totalClientPrice: 1000, currencyCode: "USD" };
 
 test("selectAcceptedOffer: the first accepted row, or null with none", () => {
   assert.equal(selectAcceptedOffer([{ status: "draft" }, { status: "sent" }]), null);
