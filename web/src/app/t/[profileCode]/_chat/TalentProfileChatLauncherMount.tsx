@@ -27,6 +27,8 @@
  * (house rule) — the accent is the tenant's own brand color or a neutral fallback.
  */
 
+import { dockViewerCtaIdentity } from "@/lib/client-account/dock-viewer-identity";
+import { resolveDockViewerIdentityTier } from "@/lib/client-account/dock-viewer-identity.server";
 import { loadGuestDockFlags } from "@/lib/inquiry/guest-dock-flags";
 import { TalentProfileChatLauncher } from "./TalentProfileChatLauncher";
 import { categoryChipLabel } from "./category-chip-label";
@@ -203,6 +205,11 @@ export async function TalentProfileChatLauncherMount({
     tenantSlug,
     activeInquiryId: active?.inquiryId ?? null,
   });
+  // TUL-314: password / Google / email-code sessions share one cookie; map it
+  // into the dock tier so the claim banner never treats a signed-in client as
+  // an anonymous guest.
+  const identity = await resolveDockViewerIdentityTier();
+  const ctaIdentity = dockViewerCtaIdentity(identity);
 
   // W2-B — the talent's published services as in-chat request chips. Talents
   // with none get a single "Custom quote" default so EVERY talent is
@@ -331,7 +338,8 @@ export async function TalentProfileChatLauncherMount({
       draftInquiryId={lifecycle.draftInquiryId}
       otherOpenInquiries={lifecycle.otherOpenInquiries}
       unreadCoordinatorReply={lifecycle.unreadCoordinatorReply}
-      ctaIdentity="guest"
+      identity={identity}
+      ctaIdentity={ctaIdentity}
     />
     </>
   );

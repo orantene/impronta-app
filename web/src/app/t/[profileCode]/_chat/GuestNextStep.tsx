@@ -134,12 +134,20 @@ export function GuestNextStep({
     step.kind === "accept_offer" &&
     step.offer != null &&
     model.offerSignInOfferId === step.offer.id;
-  const busy =
+  const acceptActivity =
     step.kind === "accept_offer" && step.offer
-      ? model.actions.activity[step.offer.id]?.phase === "busy"
+      ? model.actions.activity[step.offer.id]
+      : undefined;
+  const busy =
+    step.kind === "accept_offer"
+      ? acceptActivity?.phase === "busy"
       : step.kind === "pay_link_ask"
         ? askPhase === "busy"
         : false;
+  // TUL-314: cards already show RefusalLine; the next-step CTA used to swallow
+  // refusals so a failed Accept looked like a dead button.
+  const acceptRefusal =
+    acceptActivity?.phase === "refused" ? acceptActivity.refusal ?? null : null;
   const askLink = async () => {
     setAskPhase("busy");
     const ok = await model.actions.onRequestPayLink();
@@ -195,6 +203,15 @@ export function GuestNextStep({
       {acceptSignInOpen ? (
         <div style={{ fontSize: 12.5, color: C.inkDim }} data-guest-next-step-sign-in-hint="">
           {t("public.guestChat.signInToAcceptHint")}
+        </div>
+      ) : null}
+      {acceptRefusal ? (
+        <div
+          role="alert"
+          data-guest-next-step-refusal={acceptRefusal}
+          style={{ marginTop: 6, fontSize: 12.5, fontWeight: 600, color: C.ink, fontFamily: FONT }}
+        >
+          {model.kit.refusal(acceptRefusal)}
         </div>
       ) : null}
     </div>
