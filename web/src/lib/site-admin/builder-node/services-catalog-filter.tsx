@@ -35,6 +35,7 @@ import { openCatalogBookingChat } from "@/components/public-booking/catalog-book
 import { useChatAddService } from "@/components/public-booking/use-chat-add-service";
 import { useDockBookingResume } from "@/components/public-booking/use-dock-booking-resume";
 import { useDockToast } from "@/components/public-booking/use-dock-toast";
+import { useStickyBarVisible } from "./use-sticky-bar-visible";
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
 import { dispatchCatalogOffering } from "./catalog-offering-dispatch";
 import {
@@ -197,6 +198,8 @@ export function ServicesCatalogFilter({
   const { toast, showToast, clearToast } = useDockToast();
   const selectedId = dock.picked[0]?.id ?? null;
   const [sheetOpen, setSheetOpen] = useState(false);
+  const barRef = useRef<HTMLDivElement>(null);
+  const barAtTop = useStickyBarVisible(nodeId, sheetOpen, barRef);
   const [searchQuery, setSearchQuery] = useState("");
   const demoToast = useDemoToast(bookingMode === "demo");
   const es = locale.startsWith("es");
@@ -507,7 +510,9 @@ export function ServicesCatalogFilter({
       <CatalogOverlayStyles />
       {/* Idle prompt only; once something is picked the AUD-044 dock takes over. */}
       <div
+        ref={barRef}
         className="cb-bar"
+        data-top={barAtTop ? "true" : undefined}
         data-show={!sheetOpen && selectedId === null && mobileBar !== "hidden"}
         data-has-selection="false"
         data-bar-style={mobileBar}
