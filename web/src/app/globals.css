@@ -462,6 +462,8 @@ html[data-public-font-preset="editorial"] {
   position: relative;
   isolation: isolate;
   overflow: hidden;
+  /* TUL-79: hidden still scrolls via focus/scrollIntoView; clip cannot. */
+  overflow: clip;
   display: flex;
   align-items: center;
   padding: clamp(3rem, 8vw, 6rem) clamp(1rem, 4vw, 3rem);

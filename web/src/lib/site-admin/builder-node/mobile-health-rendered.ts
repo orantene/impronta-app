@@ -20,6 +20,12 @@ export interface RenderedBox {
   right: number;
   /** True when an ancestor clips horizontal overflow, so nothing spills. */
   clipped: boolean;
+  /**
+   * True when the ONLY clipping ancestors are overflow:hidden/clip (no
+   * scroller). Cut-off content is lost, not scrollable, so a button or link in
+   * such a box is still a defect (a header CTA inside a clipped bar).
+   */
+  hardClipped?: boolean;
   /** True for position:fixed boxes (off-canvas drawers), which never scroll. */
   fixed: boolean;
   /** True when the parent box also overflows (report the outermost only). */
@@ -36,7 +42,12 @@ export function findRenderedOverflow(
   if (!(viewportWidth > 0)) return [];
   const out: MobileHealthIssue[] = [];
   for (const b of boxes) {
-    if (b.clipped || b.fixed || b.parentOverflows) continue;
+    if (b.fixed || b.parentOverflows) continue;
+    // A scroller (carousel, nav strip) legitimately holds wide content, and a
+    // decorative box (slide backdrop) may be trimmed by its section. A button
+    // that is only cut off by overflow:hidden is a real defect: the visitor
+    // cannot reach it.
+    if (b.clipped && !(b.kind === "button" && b.hardClipped)) continue;
     const spillRight = b.right - viewportWidth;
     const spillLeft = -b.left;
     if (spillRight <= TOLERANCE_PX && spillLeft <= TOLERANCE_PX) continue;
@@ -54,11 +65,24 @@ export function findRenderedOverflow(
   return out;
 }
 
-function clippedByAncestor(el: Element, win: Window, stop: Element): boolean {
-  for (let p = el.parentElement; p && p !== stop; p = p.parentElement) {
-    if (win.getComputedStyle(p).overflowX !== "visible") return true;
+export type AncestorClip = "none" | "scroll" | "hard";
+
+/** Pure: classify a chain of ancestor `overflow-x` values. */
+export function classifyAncestorClip(overflowXValues: ReadonlyArray<string>): AncestorClip {
+  let hard = false;
+  for (const v of overflowXValues) {
+    if (v === "auto" || v === "scroll") return "scroll";
+    if (v === "hidden" || v === "clip") hard = true;
   }
-  return false;
+  return hard ? "hard" : "none";
+}
+
+function clipOfAncestors(el: Element, win: Window, stop: Element): AncestorClip {
+  const values: string[] = [];
+  for (let p = el.parentElement; p && p !== stop; p = p.parentElement) {
+    values.push(win.getComputedStyle(p).overflowX);
+  }
+  return classifyAncestorClip(values);
 }
 
 /** Measure a document (the canvas iframe, or the page itself). */
@@ -76,6 +100,7 @@ export function measureRenderedOverflow(
     if (r.width <= 0 || r.height <= 0) continue;
     if (r.right <= viewportWidth + TOLERANCE_PX && r.left >= -TOLERANCE_PX) continue;
     const cs = win.getComputedStyle(el);
+    const clip = clipOfAncestors(el, win, body);
     if (cs.visibility === "hidden" || cs.display === "none") continue;
     overflowing.add(el);
     const tag = el.tagName.toLowerCase();
@@ -88,7 +113,8 @@ export function measureRenderedOverflow(
         label: text ? `"${text}"` : `A ${tag} element`,
         left: r.left,
         right: r.right,
-        clipped: clippedByAncestor(el, win, body),
+        clipped: clip !== "none",
+        hardClipped: clip === "hard",
         fixed: cs.position === "fixed",
       },
     });
