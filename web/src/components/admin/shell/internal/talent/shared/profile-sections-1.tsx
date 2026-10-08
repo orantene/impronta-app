@@ -235,7 +235,7 @@ export function ProfileHero() {
     if (!bridgeTalentSelfProfile?.id) return;
     if (loadedForRef.current === bridgeTalentSelfProfile.id) return;
     loadedForRef.current = bridgeTalentSelfProfile.id;
-    void actionLoadTalentMediaBundle(bridgeTalentSelfProfile.id).then((res) => {
+    void actionLoadTalentMediaBundle(bridgeTalentSelfProfile.id, { galleryLimit: 1 }).then((res) => {
       if (!res.ok) return;
       if (res.data.card?.url) setDbAvatarUrl(res.data.card.url);
       if (res.data.hero?.url) setDbHeroUrl(res.data.hero.url);
@@ -399,7 +399,7 @@ export function ProfileHero() {
               maxWidth: 280,
             }}
           >
-            <CapsLabel>{copy.t("Trust")}</CapsLabel>
+            {p.badges.length > 0 ? <CapsLabel>{copy.t("Trust")}</CapsLabel> : null}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
               {p.badges.slice(0, 4).map((b) => (
                 <BadgeChip key={b.kind} badge={b} compact />
@@ -510,11 +510,11 @@ export function EngagementStrip({ profile }: { profile?: import("../../state").M
         <div className="mb-2.5 flex items-center justify-between">
           <CapsLabel>{copy.t("Profile performance")}</CapsLabel>
         </div>
-        <div className="rounded-xl border border-admin-border-soft bg-admin-card px-5 py-[18px]">
-          <div className="text-admin-ink text-admin-13 mb-1.5 font-semibold">
+        <div data-tulala-analytics-upsell className="rounded-xl border border-admin-border-soft bg-admin-card px-4 py-3">
+          <div className="text-admin-ink text-admin-12 mb-1 font-medium">
             {copy.t("Page analytics are part of Pro")}
           </div>
-          <div className="text-admin-ink-dim text-admin-12 leading-relaxed">
+          <div className="text-admin-ink-dim text-admin-11 leading-relaxed">
             {copy.t("Your profile views and inquiry conversion are being recorded right now. Upgrade to Pro or Portfolio to see them.")}
           </div>
         </div>

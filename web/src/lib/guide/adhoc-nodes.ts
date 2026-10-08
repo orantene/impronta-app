@@ -18,7 +18,7 @@ export const ADHOC_GUIDE_NODES: Record<string, HelpEntry> = {
     category: "Support",
     purpose: "Start live chat connects you to a real person on the Tulala team right now, not a bot.",
     youCanHere: [
-      "Ask a question and get a reply from Oran or Vic, usually within minutes during the day",
+      "Ask a question and get a reply from Tulala Support, usually within minutes during the day",
       "Attach a screen recording of what went wrong if replay is enabled",
       "Fall back to a ticket automatically if nobody is online",
     ],
@@ -47,5 +47,18 @@ export const ADHOC_GUIDE_NODES: Record<string, HelpEntry> = {
       "Turn on Helper mode with the target icon to see which parts of the current page have an article",
     ],
     relatedDrawers: [],
+  },
+  "talent-schedule-hours": {
+    audience: "Talent",
+    category: "Calendar",
+    shortTitle: "Schedule and hours",
+    purpose:
+      "Your schedule and hours are the days and times you can be booked; clients only see slots inside them, so set them once and keep them current.",
+    youCanHere: [
+      "Open Availability and set the hours you work on each day of the week",
+      "Block dates for trips, holidays or time off so nobody can book them",
+      "Check your calendar before you accept a request, and change your hours when your week changes",
+    ],
+    relatedDrawers: ["talent-availability", "talent-block-dates"],
   },
 };

@@ -35,6 +35,7 @@ import { Avatar, Btn, Icon } from "../kit/primitives";
 import { OkLine, RefusalLine } from "../kit/RefusalLine";
 import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientOutcomeFromMessage, ClientPaymentCard, ClientTimesCard, type CardPhase } from "./ClientCards";
 import type { ClientCopy } from "./copy";
+import { PLATFORM_FALLBACK_CURRENCY } from "@/lib/inquiry/offer-currency";
 
 export type ComposerPhase = "idle" | "sending" | "failed" | "sent";
 export type SaveEmailPhase = "idle" | "sending" | "sent" | "failed";
@@ -209,7 +210,7 @@ function renderCard(p: ClientThreadViewProps, message: ThreadMessage, kind: Clie
       return <ClientChangeCard view={readChange(kind, payload, message.body)} copy={copy} business={name} />;
     case "basket": {
       const lines = Array.isArray(payload?.lines) ? (payload?.lines as Array<Record<string, unknown>>) : [];
-      return <ClientDraftCard lines={lines.map((l) => ({ label: String(l.label ?? ""), units: typeof l.units === "number" ? l.units : 1, unitCents: typeof l.unitCents === "number" ? l.unitCents : 0 }))} currency={typeof payload?.currency === "string" ? payload.currency : "USD"} copy={copy} business={name} />;
+      return <ClientDraftCard lines={lines.map((l) => ({ label: String(l.label ?? ""), units: typeof l.units === "number" ? l.units : 1, unitCents: typeof l.unitCents === "number" ? l.unitCents : 0 }))} currency={typeof payload?.currency === "string" ? payload.currency : PLATFORM_FALLBACK_CURRENCY} copy={copy} business={name} />;
     }
     default:
       return (

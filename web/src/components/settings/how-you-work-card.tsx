@@ -16,6 +16,7 @@ import {
   runHowYouWorkMoveAction,
   type HowYouWorkView,
 } from "@/lib/server-actions/how-you-work";
+import { alsoTakeBookingsAction } from "@/lib/server-actions/also-take-bookings";
 
 import { HYW_CURRENT, HYW_DESC, HYW_MOVES, HYW_TITLE, HYW_UI } from "./how-you-work-copy";
 
@@ -60,6 +61,21 @@ export function HowYouWorkCard() {
     const move = confirming;
     setError(null);
     startTransition(async () => {
+      // TUL-269: "add me as a provider" is the idempotent owner-only conversion
+      // (profile + live + roster + own site); the other moves are unchanged.
+      if (move === "add_provider") {
+        const conv = await alsoTakeBookingsAction();
+        if (!conv.ok) {
+          setError(conv.completed.length > 0 ? `${conv.error} ${HYW_UI.partial[lang]}` : conv.error);
+          if (conv.completed.length > 0) await refresh();
+          return;
+        }
+        setConfirming(null);
+        setDone(true);
+        await refresh();
+        router.refresh();
+        return;
+      }
       const res = await runHowYouWorkMoveAction(move, {
         workspaceName: name,
         slug,

@@ -21,7 +21,7 @@ test("choices: idle lists options with prices, Send my choice disabled until a p
   assert.match(html, /Tonight&#x27;s menu/);
   assert.match(html, /data-choice="a"[^>]*>/);
   assert.match(html, /Taco al pastor/);
-  assert.match(html, /\$9\.00/);
+  assert.match(html, /\$9 USD/);
   assert.match(html, /role="checkbox"/);
   assert.match(html, /Impronta confirms price and availability before anything is booked/);
   assert.match(html, /disabled=""[^>]*data-client-action="send_choice"/);
@@ -138,10 +138,10 @@ test("offer sent: lines, total, deposit and refund rule, validity, Oferta · vN 
   assert.match(revised, /Offer · v2/);
   assert.doesNotMatch(html, /class="pill opp"/);
   assert.match(html, /Sofía Herrera · hostess × 2/);
-  assert.match(html, /\$1,400\.00/);
-  assert.match(html, /Total<\/span><span>\$3,800\.00/);
+  assert.match(html, /\$1,400 USD/);
+  assert.match(html, /Total<\/span><span>\$3,800 USD/);
   assert.match(html, /Deposit 30% to confirm · balance on the day · fully refundable until close to the date/);
-  assert.match(html, /\$1,140\.00/);
+  assert.match(html, /\$1,140 USD/);
   assert.match(html, /Valid until/);
   assert.match(html, /Note from Impronta: Travel included\./);
   assert.match(html, /data-client-action="accept_offer"[^>]*>Accept</);
@@ -181,11 +181,33 @@ test("offer: no deposit rule still reads Accept; busy reads Accepting; refused s
   assert.match(stale, /data-refusal="version_stale"/);
 });
 
+test("TUL-280 offer: unsigned guest sees Sign in to accept label; open panel replaces actions (never not_allowed)", () => {
+  const labeled = renderToStaticMarkup(
+    <ClientOfferCard {...base} offer={offer} now={now} onAccept={() => {}} acceptLabel="Sign in to accept" />,
+  );
+  assert.match(labeled, /data-client-action="accept_offer"[^>]*>Sign in to accept</);
+  assert.doesNotMatch(labeled, /You cannot do that from here/);
+  const panel = renderToStaticMarkup(
+    <ClientOfferCard
+      {...base}
+      offer={offer}
+      now={now}
+      onAccept={() => {}}
+      acceptLabel="Sign in to accept"
+      signInPanel={<div data-guest-offer-sign-in="">email code</div>}
+    />,
+  );
+  assert.match(panel, /data-client-offer-sign-in/);
+  assert.match(panel, /data-guest-offer-sign-in/);
+  assert.doesNotMatch(panel, /data-client-action="accept_offer"/);
+  assert.doesNotMatch(panel, /data-refusal/);
+});
+
 test("offer accepted: Accepted pill, next step names the deposit, Pay button when a link exists, otherwise the business sends one; declined and expired read their lines with no buttons", () => {
   const withLink = renderToStaticMarkup(<ClientOfferCard {...base} offer={{ ...offer, status: "accepted" }} now={now} payCode="abc" onPay={() => {}} onAccept={() => {}} />);
   assert.match(withLink, />Accepted</);
   assert.match(withLink, /Accepted\. Next: pay the deposit to confirm\./);
-  assert.match(withLink, /data-client-action="pay"[^>]*>Pay \$1,140\.00/);
+  assert.match(withLink, /data-client-action="pay"[^>]*>Pay \$1,140 USD/);
   assert.doesNotMatch(withLink, /accept_offer/);
   const noLink = renderToStaticMarkup(<ClientOfferCard {...base} offer={{ ...offer, status: "accepted" }} now={now} payCode={null} onAccept={() => {}} />);
   assert.match(noLink, /Impronta will send you a payment link to confirm\./);
@@ -205,8 +227,8 @@ test("offer accepted: Accepted pill, next step names the deposit, Pay button whe
 test("payment: open link shows Pay with the amount and the expiry; paid shows the pill and no button; expired reads the sentence", () => {
   const open = renderToStaticMarkup(<ClientPaymentCard {...base} now={now} view={readPayment({ paymentLinkCode: "abc", amountCents: 114000, amountKind: "deposit", expiresAt: "2026-09-20T00:00:00.000Z", state: "sent" })} onPay={() => {}} />);
   assert.match(open, /class="cat">Payment</);
-  assert.match(open, /Deposit<\/span><span>\$1,140\.00/);
-  assert.match(open, /data-client-action="pay"[^>]*>Pay \$1,140\.00/);
+  assert.match(open, /Deposit<\/span><span>\$1,140 USD/);
+  assert.match(open, /data-client-action="pay"[^>]*>Pay \$1,140 USD/);
   assert.match(open, /Link valid until/);
   const paid = renderToStaticMarkup(<ClientPaymentCard {...base} now={now} view={readPayment({ paymentLinkCode: "abc", amountCents: 114000, amountKind: "deposit", state: "paid" })} onPay={() => {}} />);
   assert.match(paid, />Paid</);
@@ -231,11 +253,11 @@ test("payment: open link shows Pay with the amount and the expiry; paid shows th
   );
   assert.match(paidMoney, /Deposit by card/);
   assert.match(paidMoney, />Total</);
-  assert.match(paidMoney, /200\.00 MXN/);
-  assert.match(paidMoney, /500\.00 MXN/);
+  assert.match(paidMoney, /\$200 MXN/);
+  assert.match(paidMoney, /\$500 MXN/);
   assert.match(paidMoney, /Balance due/);
-  assert.match(paidMoney, /300\.00 MXN/);
-  assert.match(paidMoney, /200\.00 MXN paid\. Balance 300\.00 MXN still due\./);
+  assert.match(paidMoney, /\$300 MXN/);
+  assert.match(paidMoney, /\$200 MXN paid\. Balance \$300 MXN still due\./);
   assert.doesNotMatch(paidMoney, /data-client-action/);
   const expired = renderToStaticMarkup(<ClientPaymentCard {...base} now={now} view={readPayment({ paymentLinkCode: "abc", amountCents: 114000, amountKind: "full", expiresAt: "2026-09-01T00:00:00.000Z", state: "sent" })} onPay={() => {}} />);
   assert.match(expired, /This payment link has expired\. Ask Impronta for a new one\./);
@@ -281,11 +303,11 @@ test("change request and result are read-only with the state", () => {
   const cancelled = renderToStaticMarkup(<ClientChangeCard copy={EN_CLIENT} business="Impronta" view={readChange("change_result", { state: "sent", summary: "Cancelled, refunded 18.00", refundedCents: 1800, currency: "USD" }, "")} />);
   assert.match(cancelled, /data-card="client-cancel"/);
   assert.match(cancelled, />Cancelled</);
-  assert.match(cancelled, /Cancelled\. \$18\.00 will be refunded\./);
+  assert.match(cancelled, /Cancelled\. \$18 USD will be refunded\./);
   const noRefund = renderToStaticMarkup(<ClientChangeCard copy={EN_CLIENT} business="Impronta" view={readChange("change_result", { state: "sent", summary: "Cancelled, no refund", refundedCents: 0 }, "")} />);
   assert.match(noRefund, /Cancelled\. No refund\./);
   const refundOnly = renderToStaticMarkup(<ClientChangeCard copy={EN_CLIENT} business="Impronta" view={readChange("change_result", { state: "sent", summary: "Refunded 18.00 USD", refundedCents: 1800, currency: "USD" }, "")} />);
-  assert.match(refundOnly, /\$18\.00 was refunded\./);
+  assert.match(refundOnly, /\$18 USD was refunded\./);
 });
 
 test("tickets paid: Issued pill, Open ticket when the engine stamped a /q/ code; waiting sentence when it did not; cancelled leaves the chooser", () => {
@@ -314,7 +336,7 @@ test("payment cancelled is its own sentence, not the expired line", () => {
 test("draft card: what the client picked so far, with a total", () => {
   const html = renderToStaticMarkup(<ClientDraftCard copy={EN_CLIENT} business="Impronta" currency="USD" lines={[{ label: "Taco", units: 2, unitCents: 900 }]} />);
   assert.match(html, /Taco × 2/);
-  assert.match(html, /\$18\.00/);
+  assert.match(html, /\$18 USD/);
   assert.match(html, /Impronta confirms before anything is charged\./);
 });
 

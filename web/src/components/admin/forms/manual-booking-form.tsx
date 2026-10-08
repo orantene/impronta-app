@@ -81,7 +81,7 @@ export function ManualBookingForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="mb_currency">Currency</Label>
-          <Input id="mb_currency" name="currency_code" defaultValue="USD" />
+          <Input id="mb_currency" name="currency_code" placeholder="Workspace default" maxLength={3} />
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="mb_account">Work Location</Label>

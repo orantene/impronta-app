@@ -5,6 +5,7 @@
  * every branch is covered by a table test rather than a render test.
  */
 
+import { minorUnitDivisor } from "@/lib/orders/money-format";
 import type { RecordChip } from "@/lib/messaging/types";
 
 /* ------------------------------------------------------------- Deposit / amount */
@@ -16,6 +17,8 @@ export type OfferDepositRule = {
   readonly depositPct: number | null;
   readonly depositAmountCents: number | null;
   readonly totalClientPrice: number;
+  /** The offer's ISO currency; every derived amount is in it. */
+  readonly currencyCode: string;
 };
 
 /** The inquiry's own accepted offer, or null. `loadInquiryOffers` already
@@ -73,13 +76,31 @@ export function amountOptions(offer: OfferDepositRule | null): readonly AmountOp
   return options;
 }
 
-/** "Other" field: dollars typed by staff to cents. Null on anything that is
+/** Minor-unit exponent of an ISO code, from the SAME table the money formatters
+ * use (`minorUnitDivisor`: zero-decimal currencies 0, everything else 2), so the
+ * "Other" input, the labels and the charge can never disagree. An invalid or
+ * missing code is 2, the legacy dollars-and-cents behavior. */
+export function currencyMinorExponent(currencyCode?: string | null): number {
+  const code = (currencyCode ?? "").trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(code)) return 2;
+  return minorUnitDivisor(code) === 1 ? 0 : 2;
+}
+
+/** "Other" field: major units typed by staff (in the record's currency) to minor
+ * units of that currency (no currency = USD, 2 decimals). Null on anything that is
  * not a real positive amount (blank, zero, negative, letters) so the sheet
  * can disable Send instead of minting a link for $0. */
-export function dollarsToCents(input: string): number | null {
+export function dollarsToCents(input: string, currencyCode?: string | null): number | null {
   const n = Number(input.replace(/,/g, "").trim());
   if (!Number.isFinite(n) || n <= 0) return null;
-  return Math.round(n * 100);
+  return Math.round(n * 10 ** currencyMinorExponent(currencyCode));
+}
+
+/** Inverse of `dollarsToCents`: minor units to the plain major-unit string
+ * an input would hold (no grouping, no symbol). */
+export function minorToAmountInput(minor: number, currencyCode?: string | null): string {
+  const exp = currencyMinorExponent(currencyCode);
+  return exp === 0 ? String(Math.round(minor)) : (minor / 10 ** exp).toFixed(exp);
 }
 
 /* --------------------------------------------------------------------- Target */

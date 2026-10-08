@@ -6,6 +6,8 @@
  * handlers already exist in webhook-routing.ts and wait on Dashboard ops.
  */
 
+import { checkTransactionChargeCurrency, type ChargeCurrencyGuard } from "@/lib/payments/seller-currency-guard";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type {
   CreatePaymentRequestInput,
   CreatePaymentRequestResult,
@@ -47,6 +49,7 @@ export async function createStripeTerminalPaymentRequest(
     readerId: process.env.STRIPE_TERMINAL_READER_ID ?? null,
   },
   fetchImpl: typeof fetch = fetch,
+  currencyGuard?: ChargeCurrencyGuard,
 ): Promise<CreatePaymentRequestResult> {
   const availability = reportStripeTerminalAvailability(env);
   if (!availability.available) {
@@ -58,6 +61,17 @@ export async function createStripeTerminalPaymentRequest(
           ? "Stripe Terminal keys are not configured."
           : "No Stripe Terminal reader is assigned.",
     };
+  }
+  // TUL-284: charge currency must match the seller of record, fail CLOSED on a
+  // seller-read error, before the PaymentIntent exists. A test-injected fetch
+  // skips it unless a guard is injected.
+  const guardFn = currencyGuard ?? (fetchImpl === fetch ? checkTransactionChargeCurrency : null);
+  if (guardFn) {
+    const check = await guardFn(createServiceRoleClient(), {
+      transactionId: input.transactionId,
+      currency: input.currency,
+    });
+    if (!check.ok) return { ok: false, reason: "engine_error", error: check.message };
   }
   const res = await fetchImpl("https://api.stripe.com/v1/payment_intents", {
     method: "POST",

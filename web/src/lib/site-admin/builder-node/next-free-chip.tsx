@@ -8,11 +8,9 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
 import { fetchLiveSlots } from "@/components/public-booking/catalog-booking-live-slots";
-import {
-  isSlotEligibleOffering,
-  pickBookableOffering,
-} from "@/components/public-booking/pick-bookable-offering";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
+
+import { chipSlot, openAtNextSlot, pickChipOffering, type NextSlot } from "@/lib/talent-site/next-free-slot";
 
 import { safeChipHref } from "./next-free-chip-href";
 import type { BuilderNextFreeChipNode } from "./types";
@@ -102,24 +100,23 @@ export function NextFreeChipIsland({
   const label = (loc === "es" ? labelEs : labelEn).trim() || (loc === "es" ? "Próximo libre" : "Next free");
   const [when, setWhen] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  // TUL-232: the first free start, so the linked chip can open booking at it.
+  const [slot, setSlot] = useState<NextSlot | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      const picked =
-        offeringId && offeringId.trim()
-          ? (() => {
-              const match = offerings.find((o) => o.id === offeringId);
-              if (!match || !isSlotEligibleOffering(match)) return null;
-              return {
-                offeringId: match.id,
-                durationMinutes: match.durationMinutes as number,
-              };
-            })()
-          : pickBookableOffering([...offerings]);
+      const chosen = pickChipOffering(offerings, offeringId);
+      const picked = chosen
+        ? {
+            offeringId: chosen.offering.id,
+            durationMinutes: chosen.offering.durationMinutes as number,
+          }
+        : null;
       if (!picked) {
         if (!cancelled) {
           setWhen(null);
+          setSlot(null);
           setReady(true);
         }
         return;
@@ -131,7 +128,9 @@ export function NextFreeChipIsland({
         );
         // days prop reserved for a future slots API days param; fetchLiveSlots uses 14 today.
         void days;
-        const first = slots[0];
+        // TUL-275: show and open the SAME slot (first future instant, same-day included).
+        const shown = chipSlot(picked.offeringId, slots, chosen?.openable === true);
+        const first = shown.when;
         const formatted = first
           ? variant === "stacked"
             ? formatSlotRelative(first, timezone, loc)
@@ -139,11 +138,13 @@ export function NextFreeChipIsland({
           : "";
         if (!cancelled) {
           setWhen(formatted || null);
+          setSlot(shown.slot);
           setReady(true);
         }
       } catch {
         if (!cancelled) {
           setWhen(null);
+          setSlot(null);
           setReady(true);
         }
       }
@@ -175,7 +176,17 @@ export function NextFreeChipIsland({
     );
     const link = safeChipHref(href);
     return link ? (
-      <a className="sb-next-free" href={link} data-next-free-chip="" data-has-slot="1" data-variant="stacked">
+      <a
+        className="sb-next-free"
+        href={link}
+        data-next-free-chip=""
+        data-has-slot="1"
+        data-variant="stacked"
+        onClick={(e) => {
+          // Booking opens at the slot when the offering is registered; otherwise the link works as before.
+          if (openAtNextSlot(slot)) e.preventDefault();
+        }}
+      >
         {inner}
       </a>
     ) : (

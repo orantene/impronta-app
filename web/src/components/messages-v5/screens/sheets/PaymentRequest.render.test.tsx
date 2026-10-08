@@ -10,7 +10,7 @@ import { PaymentRequestView, type PaymentRequestViewProps } from "./PaymentReque
 const noop = () => {};
 
 const TARGETS: PaymentTargetChip[] = [{ kind: "order", recordId: "or-1203", label: "#1203 · $48.50" }];
-const OFFER = { status: "accepted", depositPct: 30, depositAmountCents: null, totalClientPrice: 1000 };
+const OFFER = { status: "accepted", depositPct: 30, depositAmountCents: null, totalClientPrice: 1000, currencyCode: "USD" };
 const OPTIONS: readonly AmountOption[] = amountOptions(OFFER);
 
 function baseProps(over: Partial<PaymentRequestViewProps> = {}): PaymentRequestViewProps {
@@ -25,6 +25,7 @@ function baseProps(over: Partial<PaymentRequestViewProps> = {}): PaymentRequestV
     selectedTargetId: "or-1203",
     onSelectTarget: noop,
     canMintLink: true,
+    currencyCode: "USD",
     amountOptions: OPTIONS,
     amountKind: "deposit",
     onSelectAmountKind: noop,
@@ -92,4 +93,23 @@ test("outside how: not tied to canMintLink, shows method and reference fields", 
   assert.match(html, /data-payment-outside/);
   assert.match(html, /Cash/);
   assert.match(html, /Needs an order on this thread/);
+});
+
+test("TUL-281: an MXN offer shows every amount as '$300 MXN' / '$1,000 MXN' on the amount ladder", () => {
+  const mxn = { ...OFFER, currencyCode: "MXN" };
+  const html = renderToStaticMarkup(<PaymentRequestView {...baseProps({ currencyCode: "MXN", amountOptions: amountOptions(mxn) })} />);
+  assert.match(html, /\$300 MXN/);
+  assert.match(html, /\$1,000 MXN/);
+  assert.doesNotMatch(html, /USD/);
+});
+
+test("TUL-281: a USD offer shows the same ladder as '$300 USD' (code always shown)", () => {
+  const html = renderToStaticMarkup(<PaymentRequestView {...baseProps()} />);
+  assert.match(html, /\$300 USD/);
+  assert.match(html, /\$1,000 USD/);
+});
+
+test("TUL-281: an unknown record currency falls back to the platform currency with the code shown", () => {
+  const html = renderToStaticMarkup(<PaymentRequestView {...baseProps({ currencyCode: "" })} />);
+  assert.match(html, /\$300 USD/);
 });

@@ -7,8 +7,8 @@
  * this module never queries a table.
  */
 
-import { formatCentsUSD } from "@/lib/bookings/commission";
 import type { DerivedTask, Essentials, IdentityLevel, RecordChip } from "@/lib/messaging/types";
+import { formatRecordMoney } from "@/lib/messages-v5/record-money";
 import { resolveIndustryPreset } from "@/lib/words/presets";
 
 import type { KitCopy } from "@/components/messages-v5/kit/copy";
@@ -59,9 +59,9 @@ export function itemsLabelForPreset(raw: unknown, copy: KitCopy): string {
 /* ------------------------------------------------------------ money summary ------------------------------------------------------------ */
 
 /**
- * Cents in, formatted labels out. USD only (house rule: never read
- * `default_currency`; `formatCentsUSD` is the same formatter the rest of the
- * dashboard uses, `lib/bookings/commission.ts`).
+ * Cents in, formatted labels out, in the RECORD's own currency
+ * (`currencyCode`: the offer's `currency_code` or the order's `currency`),
+ * through the shared chain `formatRecordMoney` (record-money.ts).
  *
  * `totalCents` is the offer's `total_client_price` (`loadInquiryOffers`,
  * `lib/messaging/sheets.ts`) or the draft order's line sum
@@ -72,6 +72,8 @@ export function itemsLabelForPreset(raw: unknown, copy: KitCopy): string {
  * no deposit rule (owner decision 4).
  */
 export type MoneySummaryInput = {
+  /** ISO currency of the offer / order the cents belong to. */
+  readonly currencyCode: string;
   readonly totalCents: number | null;
   readonly paidCents: number;
   readonly depositCents?: number | null;
@@ -91,16 +93,16 @@ export function moneySummary(input: MoneySummaryInput): MoneySummary {
   const paid = Math.max(0, Math.trunc(input.paidCents));
   const balance = Math.max(0, total - paid);
   return {
-    totalLabel: formatCentsUSD(total),
-    depositLabel: typeof input.depositCents === "number" ? formatCentsUSD(Math.max(0, Math.trunc(input.depositCents))) : null,
-    paidLabel: formatCentsUSD(paid),
-    balanceLabel: formatCentsUSD(balance),
+    totalLabel: formatRecordMoney(total, input.currencyCode),
+    depositLabel: typeof input.depositCents === "number" ? formatRecordMoney(Math.max(0, Math.trunc(input.depositCents)), input.currencyCode) : null,
+    paidLabel: formatRecordMoney(paid, input.currencyCode),
+    balanceLabel: formatRecordMoney(balance, input.currencyCode),
     balanceDueCents: balance,
     hasTotal: input.totalCents != null,
   };
 }
 
-/** The SummaryBlock "Amount" line: "$3,800 · $0 paid" (board D01). */
+/** The SummaryBlock "Amount" line: "$3,800 MXN · $0 MXN paid" (board D01). */
 export function summaryAmountLabel(money: MoneySummary | null): string {
   if (!money || !money.hasTotal) return "";
   return `${money.totalLabel} · ${money.paidLabel} paid`;
@@ -163,13 +165,13 @@ export function summaryFor(input: {
  * only has to pass it in, not rewrite the panel.
  */
 export function clientHistoryLabel(
-  rollup: { readonly pastBookings: number; readonly totalSpendCents: number } | null | undefined,
+  rollup: { readonly pastBookings: number; readonly totalSpendCents: number; readonly currencyCode: string } | null | undefined,
   template: string,
 ): string | null {
   if (!rollup || rollup.pastBookings <= 0) return null;
   return template
     .replace("{count}", String(rollup.pastBookings))
-    .replace("{amount}", formatCentsUSD(rollup.totalSpendCents));
+    .replace("{amount}", formatRecordMoney(rollup.totalSpendCents, rollup.currencyCode));
 }
 
 /* ------------------------------------------------------------- line flags ------------------------------------------------------------- */
@@ -179,9 +181,11 @@ export function clientHistoryLabel(
  * `LineEditorRow` / panel item row draws them. `priceDrift` itself is the
  * pure function in `lib/pos/price-drift.ts`; this only turns its result into
  * the "catalog price now X" string the row shows, using the SAME formatter
- * (`formatCentsUSD`) as the rest of Money.
+ * (`formatRecordMoney`) as the rest of Money.
  */
 export type ItemFlagsInput = {
+  /** ISO currency of the offer / order the line sits on. */
+  readonly currencyCode: string;
   readonly proposedBy: "client" | "staff" | "system" | null;
   readonly proposedByName?: string | null;
   readonly confirmedAt: string | null;
@@ -200,6 +204,6 @@ export function itemFlagsFor(input: ItemFlagsInput): ItemFlags {
     proposedBy: input.proposedBy === "client" || input.proposedBy === "staff" ? input.proposedBy : null,
     proposedByName: input.proposedByName ?? null,
     confirmed: Boolean(input.confirmedAt),
-    priceSnapshot: input.drift && input.drift.drifted && typeof input.drift.catalogNowCents === "number" ? formatCentsUSD(input.drift.catalogNowCents) : null,
+    priceSnapshot: input.drift && input.drift.drifted && typeof input.drift.catalogNowCents === "number" ? formatRecordMoney(input.drift.catalogNowCents, input.currencyCode) : null,
   };
 }

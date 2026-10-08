@@ -16,6 +16,7 @@ import type { AudienceContext, AudienceMember, CatalogEntry, NotificationEvent }
 import { eventGuestContact, eventUser, platformAdmins, str } from "./catalog-audiences";
 import { supportRequesterReplyPath } from "@/lib/support/support-reply-path";
 import { appPageUrl, pageUrl } from "./catalog-render";
+import { SUPPORT_AGENT } from "@/lib/support/support-persona";
 
 const SUPPORT_TICKET_DRAWER = "support-ticket";
 
@@ -180,7 +181,7 @@ const AGENT_REPLY: CatalogEntry = {
   in_app: {
     kind: "ticket",
     surface: "workspace",
-    title: (event) => `Oran replied - ${str(event.payload.subject) ?? "your ticket"}`,
+    title: (event) => `${SUPPORT_AGENT.name} replied - ${str(event.payload.subject) ?? "your ticket"}`,
     body: (event) => str(event.payload.preview),
     targetDrawer: SUPPORT_TICKET_DRAWER,
     targetPayload: (event) => ({ ticketId: str(event.payload.ticketId) }),
@@ -188,7 +189,7 @@ const AGENT_REPLY: CatalogEntry = {
   email: {
     templateId: "support.message.agent",
     subject: (event) =>
-      `Oran replied - ${str(event.payload.subject) ?? "your ticket"} [Tulala #${num(event, "ticketNumber")}]`,
+      `${SUPPORT_AGENT.name} replied - ${str(event.payload.subject) ?? "your ticket"} [Tulala #${num(event, "ticketNumber")}]`,
     render: ({ event, brand, unsubscribeUrl }) =>
       React.createElement(AgentReply, {
         ticketNumber: num(event, "ticketNumber"),
@@ -212,7 +213,7 @@ const AGENT_REPLY_GUEST: CatalogEntry = {
   email: {
     templateId: "support.message.agent",
     subject: (event) =>
-      `Oran replied - ${str(event.payload.subject) ?? "your ticket"} [Tulala #${num(event, "ticketNumber")}]`,
+      `${SUPPORT_AGENT.name} replied - ${str(event.payload.subject) ?? "your ticket"} [Tulala #${num(event, "ticketNumber")}]`,
     render: ({ event, brand, unsubscribeUrl }) =>
       React.createElement(AgentReply, {
         ticketNumber: num(event, "ticketNumber"),

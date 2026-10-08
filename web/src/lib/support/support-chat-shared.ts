@@ -61,7 +61,7 @@ export const SUPPORT_CHAT_FAIL_OPEN_BODY =
  * to that question, on the page whose job is to sell.
  *
  * So this one never mentions a fault. It states what is true and always true
- * (Oran answers these himself) and moves straight to the thing we want anyway:
+ * (the team answers these personally) and moves straight to the thing we want anyway:
  * the email. Same escalation path underneath, same ai_unavailable reason.
  */
 /**
@@ -73,7 +73,7 @@ export const SUPPORT_CHAT_FAIL_OPEN_BODY =
  * least equipped to check it. It now says what is true and nothing more.
  */
 export const SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY =
-  `${SUPPORT_AGENT.name} answers these himself. Leave your email and he will reply there.`;
+  `${SUPPORT_AGENT.name} answers these personally. Leave your email and we will reply there.`;
 
 export type SupportChatModelOut = {
   answer: string;
@@ -106,4 +106,16 @@ export function parseSupportChatModel(text: string): SupportChatModelOut | null 
   } catch {
     return null;
   }
+}
+
+/** Spanish (es-MX) twins of the fail-open lines, picked by the request locale. */
+export const SUPPORT_CHAT_FAIL_OPEN_BODY_ES =
+  `Ahora mismo tengo problemas para responder. ¿Quieres que le avise a ${SUPPORT_AGENT.name}?`;
+export const SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY_ES =
+  `${SUPPORT_AGENT.name} responde estos mensajes personalmente. Déjanos tu correo y te contestamos por ahí.`;
+
+export function supportChatFailOpenBody(locale: string | null | undefined, guest = false): string {
+  const es = (locale ?? "").toLowerCase().startsWith("es");
+  if (guest) return es ? SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY_ES : SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY;
+  return es ? SUPPORT_CHAT_FAIL_OPEN_BODY_ES : SUPPORT_CHAT_FAIL_OPEN_BODY;
 }

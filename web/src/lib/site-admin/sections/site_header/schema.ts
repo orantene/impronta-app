@@ -342,6 +342,8 @@ export const siteHeaderSchemaV1 = z.object({
       /** Client account surface is on for this host (render-time, from the flag). */
       account: z.boolean().optional(),
       locales: z.array(z.string().min(2).max(8)).max(4).optional(),
+      /** Paid Web Office (TUL-240): the talent's own links for the `social` item (render-time only). */
+      social: z.array(socialLinkSchema).max(3).optional(),
       /** Per-locale href of THIS page (talent URL grammar); else `?locale=`. */
       hrefs: z.record(z.string().min(2).max(8), z.string().max(512)).optional(),
     })

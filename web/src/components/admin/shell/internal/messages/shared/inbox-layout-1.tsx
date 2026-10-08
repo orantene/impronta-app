@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
+import { formatOfferMoney } from "@/lib/inquiry/offer-currency";
 import { COLORS, TRANSITION, FONTS } from "../../state";
 import { type Conversation } from "../../talent";
 import { applyRowOverrides } from "../conversation-stash";
@@ -40,10 +41,7 @@ export const TALENT_RATE_FOR_CONV: Record<string, string> = new Proxy({}, {
     const myRow = offer.rows.find(r => r.talentId === currentTalentId());
     if (!myRow || !myRow.costRate) return "—";
     const gross = myRow.costRate * myRow.units;
-    const currency = offer.clientBudget?.currency ?? "USD";
-    return new Intl.NumberFormat("en-US", {
-      style: "currency", currency, maximumFractionDigits: 0,
-    }).format(gross);
+    return formatOfferMoney(gross, offer.clientBudget?.currency, { maximumFractionDigits: 0 });
   },
 }) as Record<string, string>;
 

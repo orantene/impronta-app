@@ -20,6 +20,7 @@ import { resolveOwnerTalentProfileId } from "@/lib/saas/ensure-self-roster";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 
 import type { EssentialsStore, OfferingOwnerRef } from "./essentials";
+import { weeklyHasOpenDay } from "./owner-hours";
 
 function must<T extends { error: { message: string } | null }>(label: string, r: T): T {
   if (r.error) {
@@ -115,6 +116,11 @@ export function createEssentialsStore(admin: SupabaseClient): EssentialsStore {
       const ids = ((r.data ?? []) as Array<{ talent_profile_id: string }>).map((x) => x.talent_profile_id);
       // Not on the roster as a provider: not a solo owner-provider, stay house-owned.
       return ids.includes(talentProfileId) ? { talentProfileId, providerCount: ids.length } : null;
+    },
+
+    async talentHasOpenHours(talentProfileId) {
+      const r = must("ownerHoursRead", await admin.from("talent_booking_hours").select("weekly").eq("talent_profile_id", talentProfileId).maybeSingle());
+      return weeklyHasOpenDay((r.data as { weekly?: unknown } | null)?.weekly);
     },
 
     async inviteFirstProvider({ tenantSlug, email, name }) {

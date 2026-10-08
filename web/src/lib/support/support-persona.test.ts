@@ -4,6 +4,13 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { SUPPORT_AGENT, SUPPORT_AGENT_VARS } from "./support-persona";
+import { getEmailCopy } from "../notifications/email-copy";
+import {
+  SUPPORT_CHAT_FAIL_OPEN_BODY,
+  SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY,
+  SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY_ES,
+  supportChatFailOpenBody,
+} from "./support-chat-shared";
 
 /**
  * The persona name used to be baked into 33 catalog strings and 6 source files.
@@ -40,7 +47,7 @@ test("no locale hardcodes a support agent name", () => {
       );
       // The previous name, specifically. This is the regression that shipped.
       assert.equal(
-        /\bOran\b/.test(value as string),
+        /\b(Oran|Orlando)\b/.test(value as string),
         false,
         `${locale}.${key} still says "Oran"`,
       );
@@ -81,9 +88,13 @@ const PERSONA_ROOTS = [
   // customer-facing email that names the agent still said "Oran replied". A
   // guard that covers four of five trees reports green on the tree it skips.
   join(process.cwd(), "emails"),
+  // Support notification catalog + its email copy (subjects, in-app titles).
+  join(process.cwd(), "src", "lib", "notifications", "email-copy", "support.ts"),
+  join(process.cwd(), "src", "lib", "notifications", "catalog-entries-support.ts"),
 ] as const;
 
 function walkSourceFiles(dir: string, out: string[] = []): string[] {
+  if (/\.tsx?$/.test(dir)) return [...out, dir]; // a root may be a single file
   let entries;
   try {
     entries = readdirSync(dir, { withFileTypes: true });
@@ -112,7 +123,7 @@ test("no support or marketing source hardcodes the agent name", () => {
       const code = src
         .replace(/\/\*[\s\S]*?\*\//g, "")
         .replace(/(^|[^:])\/\/.*$/gm, "$1");
-      if (/\bOran\b/.test(code)) offenders.push(file.replace(process.cwd() + "/", ""));
+      if (/\b(Oran|Orlando)\b/.test(code)) offenders.push(file.replace(process.cwd() + "/", ""));
     }
   }
   assert.deepEqual(
@@ -136,4 +147,40 @@ test("the avatar has no fabricated photograph by default", () => {
 test("the name is non-empty and the initial matches it", () => {
   assert.ok(SUPPORT_AGENT.name.trim().length > 0);
   assert.equal(SUPPORT_AGENT.initial, SUPPORT_AGENT.name[0]);
+});
+
+test("the staff eyebrow carries no personal name in any locale", () => {
+  for (const locale of LOCALES) {
+    const eyebrow = String(adminSupport(locale).staffEyebrow);
+    assert.equal(/\b(Oran|Orlando)\b/i.test(eyebrow), false, `${locale}.staffEyebrow: ${eyebrow}`);
+  }
+});
+
+test("the persona is the brand voice, not a person", () => {
+  assert.equal(SUPPORT_AGENT.name, "Tulala Support");
+});
+
+test("Spanish support email subjects contain no common English words", () => {
+  const en = getEmailCopy("en") as Record<string, { subject?: string }>;
+  const es = getEmailCopy("es") as Record<string, { subject?: string }>;
+  // The brand name "Tulala Support" is intentionally English in both locales.
+  const banned = /\b(your|we|you|the|has|have|replied|resolved|still|need|help|issue|reported|fixed|message)\b/i;
+  const ids = Object.keys(en).filter((k) => k.startsWith("support."));
+  assert.ok(ids.length >= 5, "support subjects missing from the email copy");
+  for (const id of ids) {
+    const subject = es[id]?.subject;
+    assert.equal(typeof subject, "string", `es ${id} has no subject`);
+    assert.notEqual(subject, en[id]?.subject, `es ${id} is identical to English`);
+    const text = String(subject).replace(SUPPORT_AGENT.name, "");
+    assert.equal(banned.test(text), false, `es ${id} still has English words: ${subject}`);
+  }
+});
+
+test("fail-open lines: Spanish twin exists and no personal pronoun leaks", () => {
+  assert.ok(/^Ahora mismo/.test(supportChatFailOpenBody("es-MX")));
+  assert.equal(supportChatFailOpenBody("en"), SUPPORT_CHAT_FAIL_OPEN_BODY);
+  assert.equal(supportChatFailOpenBody("es", true), SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY_ES);
+  for (const body of [SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY, SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY_ES]) {
+    assert.equal(/\b(himself|he|él)\b/i.test(body), false, body);
+  }
 });

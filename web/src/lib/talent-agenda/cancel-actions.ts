@@ -91,7 +91,9 @@ export async function cancelBookingWithRefund(input: {
     bookingId: input.bookingId,
     operationKey,
     reason: input.reason?.trim() || "Cancelled from talent agenda",
-    by: input.cancelledBy === "client" ? "customer" : "staff",
+    // Persist the real role (talent|client), not the old staff/customer alias.
+    by: input.cancelledBy,
+    actorUserId: own.userId,
   });
 
   if (!result || result.ok !== true) {

@@ -22,6 +22,7 @@ import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { resolveTransactionChargeCurrency } from "@/lib/bookings/charge-currency";
 import { calculateTransactionAmountsForBasisPoints } from "@/lib/bookings/commission";
 import { loadPlatformTakeBps } from "@/lib/billing/platform-take-rate";
 import { applyBookingPaymentSync } from "@/lib/bookings/booking-payment-sync";
@@ -29,6 +30,11 @@ import {
   describeTransactionTransitionEvent,
 } from "@/lib/bookings/transaction-events";
 import { planMarkRefundedLinkedRow } from "@/lib/bookings/mark-refunded-plan";
+import {
+  feeNettedBasisPoints,
+  guardFeeNettedOrderId,
+  isFeeNettedBpsInconsistent,
+} from "@/lib/bookings/fee-netted-order-guard";
 import {
   notifyDepositReceived,
   notifyInvoiceIssued,
@@ -447,31 +453,64 @@ export async function createBookingTransaction(opts: {
             grossCents: grossAmountCents,
             feeCents: override,
             netCents: grossAmountCents - override,
-            feeBasisPoints: Math.round((override / grossAmountCents) * 10_000),
+            // TUL-154 / Codex P2: never round a positive commission to 0 bps
+            // (1¢ on gross > $200 would otherwise look like pass-through).
+            feeBasisPoints: feeNettedBasisPoints(override, grossAmountCents),
           }
         : calculateTransactionAmountsForBasisPoints(
             grossAmountCents,
             await loadPlatformTakeBps(opts.planTier),
           );
 
+    // Fail closed: a charge is never drafted in a guessed currency.
+    const chargeCurrency = await resolveTransactionChargeCurrency(sb, opts.bookingId, opts.currency);
+    if (!chargeCurrency) {
+      return { ok: false, error: "This booking has no readable currency, so a charge cannot be created." };
+    }
+
+    if (
+      isFeeNettedBpsInconsistent({
+        platformFeeCents: amounts.feeCents,
+        platformFeeBasisPoints: amounts.feeBasisPoints,
+      })
+    ) {
+      return {
+        ok: false,
+        error: "Fee-netted transactions with a positive platform fee must snapshot basis points ≥ 1.",
+      };
+    }
+
+    // TUL-154: this writer is fee-netted (net = gross − platform commission).
+    // Never attach order_id — order_collected_cents credits net as principal.
+    const insertRow = {
+      booking_id:               opts.bookingId,
+      source_tenant_id:         opts.sourceTenantId,
+      source_inquiry_id:        opts.sourceInquiryId,
+      payer_user_id:            opts.payerUserId ?? null,
+      payer_email:              opts.payerEmail ?? null,
+      gross_amount_cents:       amounts.grossCents,
+      platform_fee_basis_points: amounts.feeBasisPoints,
+      platform_fee_cents:       amounts.feeCents,
+      net_amount_cents:         amounts.netCents,
+      currency:                 chargeCurrency,
+      provider:                 "manual",
+      status:                   "draft",
+      checkout_type:            opts.checkoutType ?? "full",
+      created_by_profile_id:    opts.createdByProfileId ?? null,
+    };
+    const feeNettedBlocked = guardFeeNettedOrderId({
+      // Intentionally unread from insertRow today (no order_id key). If a
+      // future edit adds order_id to this fee-netted payload, the cast surfaces it.
+      orderId: (insertRow as { order_id?: string | null }).order_id ?? null,
+      platformFeeBasisPoints: insertRow.platform_fee_basis_points,
+    });
+    if (feeNettedBlocked) {
+      return { ok: false, error: feeNettedBlocked };
+    }
+
     const { data, error } = await sb
       .from("booking_transactions")
-      .insert({
-        booking_id:               opts.bookingId,
-        source_tenant_id:         opts.sourceTenantId,
-        source_inquiry_id:        opts.sourceInquiryId,
-        payer_user_id:            opts.payerUserId ?? null,
-        payer_email:              opts.payerEmail ?? null,
-        gross_amount_cents:       amounts.grossCents,
-        platform_fee_basis_points: amounts.feeBasisPoints,
-        platform_fee_cents:       amounts.feeCents,
-        net_amount_cents:         amounts.netCents,
-        currency:                 opts.currency ?? "USD",
-        provider:                 "manual",
-        status:                   "draft",
-        checkout_type:            opts.checkoutType ?? "full",
-        created_by_profile_id:    opts.createdByProfileId ?? null,
-      })
+      .insert(insertRow)
       .select("*")
       .single();
 

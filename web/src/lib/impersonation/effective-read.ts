@@ -126,3 +126,13 @@ export async function resolveReadTarget(
   });
   return client ? { client, userId } : null;
 }
+
+/**
+ * TUL-254. Guest favourites live in the visitor's browser and the merge action
+ * writes them to the SESSION user's account, which during an impersonation is
+ * the staff actor, not the subject being viewed. So a verified impersonation
+ * never runs the merge: nothing lands on the subject's or the actor's account.
+ */
+export function mayMergeGuestActivity(ctx: EffectiveReadContext | undefined): boolean {
+  return !ctx?.impersonated;
+}

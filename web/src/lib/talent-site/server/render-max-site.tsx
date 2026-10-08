@@ -99,7 +99,7 @@ import {
 import { buildMaxSiteSeo } from "./max-site-seo.server";
 import { loadMaxSiteSeoFacts } from "./max-site-seo-facts.server";
 import { loadTalentSiteLocaleContext, type TalentSiteLocaleContext } from "./talent-site-locale.server";
-import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links"; import { webOfficeCtxFor, webOfficeFooter, type WebOfficeCtx } from "./web-office-footer"; import { webOfficeSocialEnabled } from "../web-office-social";
+import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links"; import { webOfficeCtxFor, webOfficeFooter, webOfficeHeaderSocial, type WebOfficeCtx } from "./web-office-footer"; import { webOfficeSocialEnabled } from "../web-office-social";
 import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main";
 import { policyDocForSlug } from "@/lib/talent-policies/public";
 
@@ -359,6 +359,7 @@ export async function renderTalentMaxSite(
       noindex: isOwnerDraftPreview,
       canonicalOrigin: input.canonicalOrigin,
       canonicalPath: input.canonicalPath,
+      ignoreExplicitCanonical: Boolean(policyDoc),
       locales: { primary: localeCtx.settings.defaultLocale, urlDefault: localeCtx.grammar.defaultLocale, supported: localeCtx.settings.supportedLocales },
     });
 
@@ -549,7 +550,7 @@ async function renderMaxSiteDocument(args: {
   const dataAttrs = hasTokens ? designTokensToDataAttrs(effectiveTokens) : {};
 
   const hasShell = hasRenderableBuilderNodes(shellTree, { mode: "freeform" });
-  const [headerTree, rawFooterTree] = splitShell(shellTree);
+  const [headerTree, rawFooterTree] = splitShell(shellTree, { webOfficeSocial: Boolean(args.webOffice) });
   // The socket carries the ONE Tulala credit: hide any design-level credit at render time.
   const footerTree = stripDesignCredits(rawFooterTree);
   // Footer links to Location / Visit are decided against the sections this page really renders
@@ -593,7 +594,7 @@ async function renderMaxSiteDocument(args: {
         localiseTalentHeaderDefaults(headerSectionProps(root, locale), locale),
         askVisible,
       );
-      const parsed = schema?.safeParse(withHeaderSiteChrome(localised, root.props.sectionTypeKey, args.isDemo === true, args.localeCtx.settings.supportedLocales, args.localeCtx.switcherHrefs));
+      const parsed = schema?.safeParse(withHeaderSiteChrome(localised, root.props.sectionTypeKey, args.isDemo === true, args.localeCtx.settings.supportedLocales, args.localeCtx.switcherHrefs, webOfficeHeaderSocial(args.webOffice, footerSocialLinks, locale)));
       if (!entry || !parsed?.success) return null;
       const Comp = entry.Component;
       return (
@@ -674,7 +675,7 @@ async function renderMaxSiteDocument(args: {
           (dock, socket) can inherit them. Additive; the vars above stay. */}
       {hasTokens ? <TalentSiteHtmlTokens cssVars={cssVars} dataAttrs={dataAttrs} /> : null}
       {/* A11Y-2 — first focusable element on every talent Max site surface. */}
-      <SkipToContent />
+      <SkipToContent locale={locale} />
       {/* G3b: hide the variant the root's live status does not match; the
           island flips the root to "off" at local midnight in an open tab. */}
       <style data-live-status-css="">{LIVE_STATUS_CSS}</style>

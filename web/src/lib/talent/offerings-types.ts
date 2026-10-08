@@ -15,6 +15,7 @@
 
 import { i18nPair, toI18nMap } from "@/lib/i18n/i18n-columns";
 import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
+import { resolveCategoryLabel } from "./category-label-fallback";
 import { inheritedInstantErrors } from "./offering-booking-rules";
 import { IDENTITY_REASONS, isIdentityReason, type IdentityReason } from "@/lib/orders/identity-requirement";
 import {
@@ -280,12 +281,15 @@ function categoryLabelField(
   locale: string,
   chain: readonly string[],
 ): { categoryLabel?: string } {
-  const map = toI18nMap(row.category_i18n);
-  for (const code of [locale, ...chain]) {
-    const hit = str(map[code], 80);
-    if (hit) return hit === str(row.category, 80) ? {} : { categoryLabel: hit };
-  }
-  return {};
+  // TUL-15: the talent's own `category_i18n` first, then the platform
+  // dictionary for a standard trade category, else the plain category.
+  const label = resolveCategoryLabel({
+    category: str(row.category, 80),
+    categoryI18n: toI18nMap(row.category_i18n),
+    locale,
+    chain,
+  });
+  return label ? { categoryLabel: label } : {};
 }
 
 /** DB row → app shape. Tolerant of bad data (defaults, clamps). */

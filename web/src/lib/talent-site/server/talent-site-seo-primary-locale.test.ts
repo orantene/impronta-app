@@ -161,3 +161,29 @@ test("buildMaxSiteSeo emits ProfilePage + LocalBusiness in one @graph when a cit
   assert.equal((noCity.jsonLd as { "@type": string })["@type"], "ProfilePage");
   assert.equal(withLocalBusiness(null, { "@type": "LocalBusiness" }), null);
 });
+
+test("policy pages: the home page's explicit canonical never applies; each page is self-canonical with an ES<->EN hreflang pair", () => {
+  const homeWithExplicit = { ...page, canonicalUrl: `${ORIGIN}/` } as unknown as MaxSitePageRow;
+  const supported = ["es", "en"];
+  const build = (locale: string, path: string, ignore: boolean) =>
+    buildMaxSiteSeo({
+      site,
+      page: homeWithExplicit,
+      identity: null,
+      locale,
+      noindex: false,
+      canonicalOrigin: ORIGIN,
+      canonicalPath: path,
+      ignoreExplicitCanonical: ignore,
+      locales: { primary: "es", urlDefault: talentSiteUrlSettings("es", supported).defaultLocale, supported },
+    });
+  // Catches: /politicas declaring the HOME page as its canonical (the explicit canonical_url of the home row).
+  const es = build("es", "/politicas", true);
+  assert.equal(es.canonical, `${ORIGIN}/politicas`);
+  assert.deepEqual(es.alternates?.languages, { es: `${ORIGIN}/politicas`, en: `${ORIGIN}/en/politicas`, "x-default": `${ORIGIN}/politicas` });
+  const en = build("en", "/politicas", true);
+  assert.equal(en.canonical, `${ORIGIN}/en/politicas`);
+  assert.deepEqual(en.alternates?.languages, es.alternates?.languages);
+  // The old behaviour (flag off) is what the bug was: the home canonical leaked onto the policy page.
+  assert.equal(build("es", "/politicas", false).canonical, `${ORIGIN}/`);
+});

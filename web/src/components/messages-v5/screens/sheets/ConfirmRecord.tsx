@@ -38,6 +38,7 @@ import {
   type DepositGate,
 } from "@/lib/messages-v5/confirm-view";
 import type { OfferRow } from "@/lib/messaging/sheets";
+import { formatRecordMoney } from "@/lib/messages-v5/record-money";
 import { messagingConfirmRecord } from "@/lib/server-actions/messaging-confirm";
 import { messagingLoadOffers } from "@/lib/server-actions/messaging-sheets";
 import type { MessagingRefusal } from "@/lib/messaging/types";
@@ -75,9 +76,9 @@ export type ConfirmRecordViewProps = {
   readonly onCaptureIdentity: () => void;
 };
 
-function centsLabel(cents: number | null): string | null {
+function centsLabel(cents: number | null, currencyCode: string): string | null {
   if (cents == null) return null;
-  return `$${(cents / 100).toFixed(2)}`;
+  return formatRecordMoney(cents, currencyCode);
 }
 
 /** Pure, prop-driven. Every branch below is one of the lane's six states. */
@@ -123,7 +124,7 @@ export function ConfirmRecordView(props: ConfirmRecordViewProps) {
         ) : (
           <div data-confirm-sources>
             {options.map((option) => {
-              const total = centsLabel(option.totalCents);
+              const total = centsLabel(option.totalCents, option.currencyCode);
               return (
                 <OptionRow
                   key={option.id}

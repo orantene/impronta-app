@@ -39,3 +39,10 @@ export function computeHasMore(offset: number, returned: number, total: number):
 export function nextOffset(offset: number, returned: number, total: number): number | null {
   return computeHasMore(offset, returned, total) && returned > 0 ? offset + returned : null;
 }
+
+/** Append a freshly loaded page to what is already shown, skipping ids already present. */
+export function appendUniquePage<T extends { id: string }>(existing: T[], incoming: T[]): T[] {
+  if (incoming.length === 0) return existing;
+  const seen = new Set(existing.map((x) => x.id));
+  return existing.concat(incoming.filter((x) => !seen.has(x.id)));
+}

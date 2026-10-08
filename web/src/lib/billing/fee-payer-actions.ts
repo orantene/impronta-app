@@ -21,11 +21,58 @@ import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { logServerError } from "@/lib/server/safe-error";
 
 import type { FeePayer } from "./fee-payer-setting";
+import {
+  feePreviewConfigFromProcessingModeRow,
+  readPlatformProcessingMode,
+} from "./platform-processing-mode";
+import type { FeePreviewPlatformConfig } from "./platform-processing-mode";
 import { getProcessingFeePayer, setProcessingFeePayer } from "./processing-fee-payer";
 
 export type SetFeePayerResult =
   | { ok: true; feePayer: FeePayer }
   | { ok: false; error: string };
+
+/**
+ * Live platform fee inputs for the settings preview — same
+ * `engine_platform_processing_mode` row (+ take floor) the booking engine uses.
+ * Returns null when the RPC/rates are missing so the client never invents 150 bps.
+ */
+export async function getFeePreviewConfig(
+  currency: string,
+): Promise<FeePreviewPlatformConfig | null> {
+  try {
+    const guard = await requireTalentSelf();
+    if (!guard.ok) return null;
+    const admin = createServiceRoleClient() as unknown as SupabaseClient | null;
+    if (!admin) return null;
+
+    const row = await readPlatformProcessingMode(admin);
+    if (!row) return null;
+
+    // Floor is not on the processing-mode RPC; read the same singleton the
+    // engine's platform_config carries so a non-zero floor is previewed too.
+    let takeFloorCents = 0;
+    try {
+      const { data: floorRow, error: floorErr } = await admin
+        .from("platform_commission_config")
+        .select("default_take_floor_cents")
+        .eq("singleton_key", true)
+        .maybeSingle();
+      if (floorErr) {
+        logServerError("billing.getFeePreviewConfig/floor", floorErr);
+      } else if (typeof floorRow?.default_take_floor_cents === "number") {
+        takeFloorCents = floorRow.default_take_floor_cents;
+      }
+    } catch {
+      /* floor stays 0 — rates/bps still authoritative */
+    }
+
+    return feePreviewConfigFromProcessingModeRow(row, currency, takeFloorCents);
+  } catch (err) {
+    logServerError("billing.getFeePreviewConfig", err);
+    return null;
+  }
+}
 
 export async function getFeePayer(): Promise<FeePayer> {
   try {

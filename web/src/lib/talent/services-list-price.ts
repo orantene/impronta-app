@@ -1,3 +1,4 @@
+import { formatDashboardMoney } from "@/lib/money/dashboard-money-format";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
 /**
@@ -20,10 +21,11 @@ export function listPrice(
   item: Pick<TalentOffering, "amountCents" | "priceDisplay" | "currency">,
   quoted: string,
   noPrice?: string,
+  locale: string = "en",
 ): string {
   const state = listPriceState(item);
   if (state === "quote") return quoted;
   if (state === "unset" || item.amountCents == null) return noPrice ?? quoted;
-  const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(item.amountCents / 100);
-  return `$${amount} ${item.currency}`;
+  // DS-17: the one dashboard money format ("$300 MXN"), whole units like before.
+  return formatDashboardMoney(item.amountCents / 100, item.currency, locale, { wholeUnits: true });
 }

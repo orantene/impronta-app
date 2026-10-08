@@ -22,7 +22,7 @@ import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchas
 import { catalogBarPriceLabel, catalogRowPriceText } from "./services-catalog-bar-price";
 import { ServicesCatalogDemoToast, useDemoToast } from "./services-catalog-demo-toast";
 import { catalogDurationShort, railCount } from "./services-catalog-format";
-import { catalogTakesBookings, CatalogIdleBarGo, CatalogOverlayStyles } from "./services-catalog-idle-bar";
+import { CatalogIdleBarGo, CatalogIdleBarText, CatalogOverlayStyles } from "./services-catalog-idle-bar";
 import { CatalogMatrix } from "./services-catalog-matrix";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 import { ChatIcon, SelectionDock } from "@/components/public-booking/SelectionDock";
@@ -525,17 +525,19 @@ export function ServicesCatalogFilter({
             <CatalogIdleBarGo
               nodeId={nodeId}
               es={es}
-              takesBookings={catalogTakesBookings(
-                groups.flatMap((g) => g.items),
-                { confirmsByHand, bookingPosture },
-              )}
+              groups={groups}
+              settings={{ confirmsByHand, bookingPosture }}
+              buildDetail={(o) => detailFor(o, confirmsByHand, bookingPosture)}
             />
           </>
         ) : (
-          <div className="cb-bar-text">
-            <strong>{es ? "Elige tu servicio" : "Choose a service"}</strong>
-            <span>{es ? "Del menú completo, con sus opciones" : "From the full menu, with its options"}</span>
-          </div>
+          <CatalogIdleBarText
+            nodeId={nodeId}
+            es={es}
+            groups={groups}
+            settings={{ confirmsByHand, bookingPosture }}
+            buildDetail={(o) => detailFor(o, confirmsByHand, bookingPosture)}
+          />
         )}
       </div>
 
