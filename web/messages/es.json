@@ -13911,7 +13911,7 @@
       "refundPending": "Pendiente",
       "refundCompleted": "Completado",
       "refundFailed": "Reembolso fallido",
-      "refundFailedDetail": "El cliente no recibio el dinero. Gestiona un reembolso alternativo.",
+      "refundFailedDetail": "El cliente no recibió el dinero. Gestiona un reembolso alternativo.",
       "refundManual": "Registrado a mano",
       "attemptsTitle": "Intentos desconocidos",
       "attemptsSub": "Cobros con tarjeta iniciados y nunca resueltos. Se vuelve a preguntar al proveedor; nunca se cobra dos veces.",
