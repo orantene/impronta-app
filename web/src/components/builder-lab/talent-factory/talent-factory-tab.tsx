@@ -11,7 +11,16 @@ import { useEffect, useState, useTransition } from "react";
 import { DemoRebuildPanel } from "@/app/(workspace)/platform/admin/builder-lab/themes/demo-rebuild-panel";
 
 import { FACTORY_COPY, type FactoryLang } from "./factory-copy";
-import { HOW_TO_ADD_STEPS, parityCommandFor, pullAuthoredCommandFor, releaseHref, type FactoryDesignRow, type FactoryOverview } from "./factory-model";
+import {
+  HOW_TO_ADD_STEPS,
+  parityCommandFor,
+  pullAuthoredCommandFor,
+  releaseHref,
+  talentSyncSummaryFacts,
+  type FactoryDesignRow,
+  type FactoryOverview,
+  type TalentSyncSummaryFacts,
+} from "./factory-model";
 import { actionLoadTalentFactory, actionSyncTalentCatalog, type TalentSyncJson } from "./talent-factory-actions";
 
 const btn =
@@ -32,7 +41,7 @@ export function TalentFactoryTab({
   const t = FACTORY_COPY[lang];
   const [data, setData] = useState<FactoryOverview | null>(initial ?? null);
   const [error, setError] = useState<string | null>(null);
-  const [syncJson, setSyncJson] = useState<TalentSyncJson | null>(null);
+  const [syncFacts, setSyncFacts] = useState<TalentSyncSummaryFacts | null>(null);
   const [pending, start] = useTransition();
 
   useEffect(() => {
@@ -53,7 +62,7 @@ export function TalentFactoryTab({
     start(async () => {
       const res = await actionSyncTalentCatalog();
       if (!res.ok) return setError(res.error || t.error);
-      setSyncJson(res.data);
+      setSyncFacts(talentSyncSummaryFacts(res.data as TalentSyncJson));
       const fresh = await actionLoadTalentFactory();
       if (fresh.ok) setData(fresh.data);
     });
@@ -82,12 +91,7 @@ export function TalentFactoryTab({
           {error}
         </p>
       ) : null}
-      {syncJson ? (
-        <div className="mb-4" data-sync-result>
-          <p className="mb-1 text-xs uppercase tracking-wider text-white/40">{t.syncResult}</p>
-          <pre className="overflow-x-auto rounded border border-white/10 bg-white/5 p-3 text-xs">{JSON.stringify(syncJson, null, 2)}</pre>
-        </div>
-      ) : null}
+      {syncFacts ? <SyncSummary facts={syncFacts} lang={lang} /> : null}
 
       {!data ? <p className="text-sm text-white/60">{t.loading}</p> : null}
       <div className="grid gap-3">
@@ -121,6 +125,40 @@ export function TalentFactoryTab({
         </ol>
         <p className="mt-2 text-xs text-white/50">{t.fullGuide}</p>
       </section>
+    </div>
+  );
+}
+
+function SyncSummary({ facts, lang }: { facts: TalentSyncSummaryFacts; lang: FactoryLang }) {
+  const t = FACTORY_COPY[lang];
+  return (
+    <div className="mb-4 rounded border border-white/10 bg-white/5 p-3 text-sm" data-sync-result>
+      <p className="mb-1 text-xs uppercase tracking-wider text-white/40">{t.syncResult}</p>
+      <p data-sync-counts>
+        {facts.quiet
+          ? t.syncQuiet
+          : t.syncCounts(facts.created, facts.updated, facts.unchanged)}
+      </p>
+      {facts.heldBack.length > 0 ? (
+        <p className="mt-1 text-white/70" data-sync-held-back>
+          {t.syncHeldBack}: {facts.heldBack.join(", ")}
+        </p>
+      ) : null}
+      {facts.skippedAuthored.length > 0 ? (
+        <p className="mt-1 text-white/70" data-sync-skipped>
+          {t.syncSkippedAuthored}: {facts.skippedAuthored.join(", ")}
+        </p>
+      ) : null}
+      {facts.authoredPending.length > 0 ? (
+        <p className="mt-1 text-white/70" data-sync-pending>
+          {t.syncAuthoredPending}: {facts.authoredPending.join(", ")}
+        </p>
+      ) : null}
+      {facts.authoredConflict.length > 0 ? (
+        <p className="mt-1 text-amber-200/90" data-sync-conflict>
+          {t.syncAuthoredConflict}: {facts.authoredConflict.join(", ")}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -181,11 +219,15 @@ function DesignCard({
       <dl className="mt-3 grid grid-cols-2 gap-3 text-sm md:grid-cols-5">
         <div>
           <dt className="text-xs text-white/40">{t.catalogVersion}</dt>
-          <dd>{row.catalogVersion === null ? "-" : `v${row.catalogVersion}`}</dd>
+          <dd data-catalog-default={row.catalogVersion === null ? undefined : String(row.catalogVersion)}>
+            {row.catalogVersion === null ? "-" : `v${row.catalogVersion}`}
+          </dd>
         </div>
         <div>
           <dt className="text-xs text-white/40">{t.releasedVersion}</dt>
-          <dd>{row.releasedVersion === null ? "-" : `v${row.releasedVersion}`}</dd>
+          <dd data-open-to-talents={row.releasedVersion === null ? undefined : String(row.releasedVersion)}>
+            {row.releasedVersion === null ? "-" : `v${row.releasedVersion}`}
+          </dd>
         </div>
         <div>
           <dt className="text-xs text-white/40">{t.codeVersion}</dt>
@@ -200,6 +242,13 @@ function DesignCard({
           <dd>{row.galleryVisible ? t.yes : t.no}</dd>
         </div>
       </dl>
+      {row.catalogVersion !== null &&
+      row.releasedVersion !== null &&
+      row.releasedVersion > row.catalogVersion ? (
+        <p className="mt-2 text-xs text-white/50" data-version-lag>
+          {t.versionLagHint}
+        </p>
+      ) : null}
       <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm">
         <li>
           {row.latestReleaseId ? (

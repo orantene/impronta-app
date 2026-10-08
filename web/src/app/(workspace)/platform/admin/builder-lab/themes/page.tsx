@@ -14,6 +14,7 @@ import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadDesignsOverview } from "@/lib/talent-site/theme-releases/manager/release-manager.server";
+import { openToTalentsVersionOf } from "@/components/builder-lab/talent-factory/factory-model";
 
 import { COPY, langOf } from "./copy";
 import { DemoRebuildPanel } from "./demo-rebuild-panel";
@@ -43,6 +44,7 @@ export default async function BuilderLabThemesPage({
           <p className="text-xs uppercase tracking-[0.18em] text-white/50">{t.eyebrow}</p>
           <h1 className="text-2xl font-semibold">{t.designsTitle}</h1>
           <p className="mt-1 max-w-2xl text-sm text-white/60">{t.designsLead}</p>
+          <p className="mt-1 max-w-2xl text-xs text-white/45">{t.versionClarity}</p>
         </div>
         <div className="flex items-center gap-4 text-sm text-white/60">
           <Link href={lang === "es" ? "/platform/admin/builder-lab/themes" : "/platform/admin/builder-lab/themes?lang=es"} className="underline-offset-4 hover:underline">
@@ -55,15 +57,25 @@ export default async function BuilderLabThemesPage({
       </header>
 
       <div className="grid gap-3">
-        {designs.map((d) => (
+        {designs.map((d) => {
+          const openTo = openToTalentsVersionOf(d.openReleases);
+          return (
           <section key={d.slug} className="rounded-lg border border-white/10 bg-white/5 p-4" data-design={d.slug}>
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="text-lg font-medium">
                 {d.title} <span className="text-xs uppercase tracking-wider text-white/40">{d.slug}</span>
               </h2>
-              <span className="text-sm text-white/70">
-                {t.current}: <strong className="text-white">v{d.version}</strong>
-              </span>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/70" data-version-clarity>
+                <span>
+                  {t.current}: <strong className="text-white" data-catalog-default={String(d.version)}>v{d.version}</strong>
+                </span>
+                <span>
+                  {t.openToTalents}:{" "}
+                  <strong className="text-white" data-open-to-talents={openTo === null ? undefined : String(openTo)}>
+                    {openTo === null ? t.openToTalentsNone : `v${openTo}`}
+                  </strong>
+                </span>
+              </div>
             </div>
             <div className="mt-3 grid gap-4 md:grid-cols-2">
               <div>
@@ -109,7 +121,8 @@ export default async function BuilderLabThemesPage({
             </div>
             {demosFor(d.slug as DemoDesign).length > 0 ? <DemoRebuildPanel design={d.slug} lang={lang} /> : null}
           </section>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -10,10 +10,12 @@ import {
   codeVersionOf,
   deriveFactoryStatus,
   newestRun,
+  openToTalentsVersionOf,
   parseMockupSummary,
   parityCommandFor,
   previewFromCodeHref,
   releasedVersionOf,
+  talentSyncSummaryFacts,
 } from "./factory-model";
 import { evaluateFactoryGate, guardedFactoryRun } from "./talent-factory-gate";
 import { FACTORY_SLUGS } from "./talent-factory.server";
@@ -92,17 +94,57 @@ describe("model", () => {
   });
 });
 
-describe("releasedVersionOf", () => {
-  it("counts only published releases", () => {
-    assert.equal(releasedVersionOf([]), null);
-    assert.equal(releasedVersionOf([{ to_version: 23, status: "draft" }]), null);
+describe("openToTalentsVersionOf", () => {
+  it("counts only published opt-in or default, not demos", () => {
+    assert.equal(openToTalentsVersionOf([]), null);
+    assert.equal(openToTalentsVersionOf([{ to_version: 23, status: "draft", channel: "optin" }]), null);
     assert.equal(
-      releasedVersionOf([
-        { to_version: 22, status: "published" },
-        { to_version: 23, status: "draft" },
-        { to_version: 20, status: "published" },
+      openToTalentsVersionOf([
+        { to_version: 22, status: "published", channel: "optin" },
+        { to_version: 23, status: "draft", channel: "demos" },
+        { to_version: 24, status: "published", channel: "demos" },
+        { to_version: 20, status: "published", channel: "default" },
       ]),
       22,
     );
+    assert.equal(
+      openToTalentsVersionOf([
+        { to_version: 14, status: "published", channel: "default" },
+        { to_version: 23, status: "published", channel: "optin" },
+      ]),
+      23,
+    );
+    assert.equal(releasedVersionOf([{ to_version: 5, status: "published", channel: "optin" }]), 5);
+  });
+});
+
+describe("talentSyncSummaryFacts", () => {
+  it("summarizes counts and lists without dumping raw JSON", () => {
+    const quiet = talentSyncSummaryFacts({
+      created: 0,
+      updated: 0,
+      unchanged: 4,
+      heldBack: [],
+      skippedAuthored: [],
+      authoredPending: [],
+      authoredConflict: [],
+    });
+    assert.equal(quiet.quiet, true);
+    assert.equal(quiet.unchanged, 4);
+
+    const busy = talentSyncSummaryFacts({
+      created: 1,
+      updated: 2,
+      unchanged: 3,
+      heldBack: ["maison-v2@15"],
+      skippedAuthored: [{ kind: "design", slug: "folio-qa" }],
+      authoredPending: [{ slug: "folio", version: 12 }],
+      authoredConflict: [{ slug: "gridline", version: 3 }],
+    });
+    assert.equal(busy.quiet, false);
+    assert.deepEqual(busy.heldBack, ["maison-v2@15"]);
+    assert.deepEqual(busy.skippedAuthored, ["folio-qa"]);
+    assert.deepEqual(busy.authoredPending, ["folio v12"]);
+    assert.deepEqual(busy.authoredConflict, ["gridline v3"]);
   });
 });
