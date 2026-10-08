@@ -41,13 +41,14 @@ test("?locale= inside the set redirects to the prefixed path", () => {
   assert.equal(decideTalentSiteLocale({ pathname: "/services", queryLocale: "es", ...ALBA }).redirectPath, "/services");
 });
 
-test("prefix beats query beats cookie beats primary", () => {
+test("prefix beats query beats primary; cookie never overrides the path (TUL-363)", () => {
   assert.equal(decideTalentSiteLocale({ pathname: "/en/x", queryLocale: "es", cookieLocale: "es", ...ALBA }).locale, "en");
   assert.equal(decideTalentSiteLocale({ pathname: "/x", queryLocale: "en", cookieLocale: "es", ...ALBA }).locale, "en");
-  const byCookie = decideTalentSiteLocale({ pathname: "/x", cookieLocale: "en", ...ALBA });
-  assert.equal(byCookie.locale, "en");
-  assert.equal(byCookie.explicit, false);
-  assert.equal(byCookie.redirectPath, null);
+  // After /en left cookie=en, bare /x still serves primary (path-is-truth).
+  const byPath = decideTalentSiteLocale({ pathname: "/x", cookieLocale: "en", ...ALBA });
+  assert.equal(byPath.locale, "es");
+  assert.equal(byPath.explicit, false);
+  assert.equal(byPath.redirectPath, null);
 });
 
 test("languages outside the talent's set are ignored everywhere", () => {
@@ -72,12 +73,23 @@ test("switcher hrefs point at this page per language; none for one language", ()
   assert.equal(talentSiteLocalePath("/about", "en", "es", ["es", "en"]), "/en/about");
 });
 
-test("clicking the primary switcher link beats a stale cookie and is remembered", () => {
+test("clicking the primary switcher link rewrites preference; bare / is already primary (TUL-363)", () => {
   const hrefs = talentSiteSwitcherHrefs("/", talentSiteUrlSettings("es", ["es", "en"]), ["es", "en"])!;
   const d = decideTalentSiteLocale({ pathname: "/", queryLocale: new URL(hrefs.es, "https://x.test").searchParams.get("locale"), cookieLocale: "en", ...ALBA });
   assert.equal(d.locale, "es");
   assert.equal(d.explicit, true);
   assert.equal(d.redirectPath, "/");
-  // and a bare unprefixed visit still honours the cookie
-  assert.equal(decideTalentSiteLocale({ pathname: "/", cookieLocale: "en", ...ALBA }).locale, "en");
+  // Path-is-truth: after /en stamped cookie=en, plain / still serves primary.
+  assert.equal(decideTalentSiteLocale({ pathname: "/", cookieLocale: "en", ...ALBA }).locale, "es");
+});
+
+test("TUL-363: /en then unprefixed / serves primary despite locale=en cookie", () => {
+  const afterEn = decideTalentSiteLocale({ pathname: "/en", ...ALBA });
+  assert.equal(afterEn.locale, "en");
+  assert.equal(afterEn.explicit, true);
+  const plainHome = decideTalentSiteLocale({ pathname: "/", cookieLocale: "en", ...ALBA });
+  assert.equal(plainHome.locale, "es");
+  assert.equal(plainHome.explicit, false);
+  const plainInner = decideTalentSiteLocale({ pathname: "/services", cookieLocale: "en", ...ALBA });
+  assert.equal(plainInner.locale, "es");
 });

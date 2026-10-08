@@ -7,11 +7,12 @@
  *   - every secondary is prefixed (`/en/`, `/en/services`);
  *   - `/<primary>/...` is an alias that 302s to the unprefixed URL.
  *
- * Precedence for the locale a request renders in:
+ * Precedence for the locale a request renders in (TUL-363 path-is-truth):
  *   1. a `/<locale>/` prefix in the talent's set (explicit choice);
  *   2. `?locale=<code>` in the set: 302 to the prefixed URL (explicit);
- *   3. the `locale` cookie when it names a language in the set;
- *   4. the talent's primary.
+ *   3. the talent's primary (unprefixed path).
+ * The `locale` cookie may only SUGGEST (language banner); it never overrides
+ * the path. After `/en` then `/`, the plain URL serves primary again.
  * A language outside the talent's set never renders on their site.
  */
 
@@ -22,7 +23,12 @@ export interface TalentSiteLocaleInput {
   pathname: string;
   /** Raw `?locale=` value, if any. */
   queryLocale?: string | null;
-  /** Raw `locale` cookie value, if any. */
+  /**
+   * Raw `locale` cookie value, if any.
+   * Ignored for render decisions (TUL-363 path-is-truth). Kept on the input
+   * so call sites and switcher tests can still pass it without churn; the
+   * cookie only feeds the language suggestion banner.
+   */
   cookieLocale?: string | null;
   primary: string;
   supported: readonly string[];
@@ -85,10 +91,8 @@ export function decideTalentSiteLocale(input: TalentSiteLocaleInput): TalentSite
     };
   }
 
-  const c = norm(input.cookieLocale);
-  if (c && supported.includes(c)) {
-    return { locale: c, innerPath: path, redirectPath: null, explicit: false };
-  }
+  // Path is truth: unprefixed URL = primary. Cookie never overrides (TUL-363).
+  void input.cookieLocale;
   return { locale: primary, innerPath: path, redirectPath: null, explicit: false };
 }
 
@@ -115,9 +119,10 @@ export function talentSiteSwitcherHrefs(
   const out: Record<string, string> = {};
   for (const code of supported) {
     const href = withLocalePath(pagePath || "/", code, grammar);
-    // The primary lives on the unprefixed URL, which a stale `locale` cookie
-    // (e.g. `en` after visiting /en) would otherwise override. `?locale=` is an
-    // explicit choice: the proxy 302s to the clean URL and rewrites the cookie.
+    // Path is truth for render (TUL-363), so the bare primary URL already
+    // serves primary. `?locale=` remains so clicking ES still rewrites the
+    // cookie (suggestion banner / remembered preference) after a secondary
+    // visit left `locale=en`.
     out[code] = code === grammar.defaultLocale ? `${href}${href.includes("?") ? "&" : "?"}locale=${code}` : href;
   }
   return out;

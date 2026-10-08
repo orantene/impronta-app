@@ -30,9 +30,11 @@ import { decideTalentSiteLocale } from "@/lib/talent-site/talent-site-locale-rou
  * or auth. The render path reads the talent_profile_id from a host header set
  * here, so a client can never spoof it.
  *
- * Language (PR 4, 2026-09-29): the talent's OWN languages and URL grammar,
- * decided by `decideTalentSiteLocale` (prefix > `?locale=` 302 > cookie >
- * primary). An explicit choice is remembered in the `locale` cookie.
+ * Language (PR 4, 2026-09-29; TUL-363 path-is-truth): the talent's OWN
+ * languages and URL grammar, decided by `decideTalentSiteLocale` (prefix >
+ * `?locale=` 302 > primary). The cookie may only suggest; it never overrides
+ * the path. An explicit prefix/`?locale=` choice is still remembered in the
+ * `locale` cookie for the suggestion banner.
  */
 export async function talentSiteHostResponse(
   request: NextRequest,
