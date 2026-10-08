@@ -25,7 +25,7 @@ const PINS = {
   highlight: "f6ed134ba4b1cd9e",
   booking: "8f87f1ae1e51bc17",
   // Re-pinned: only added props.i18n (es + en seed copy), see seed-i18n.ts.
-  maison: "ff484407b68ec492", // was ca897a06ce5564b6; TUL-345 on main + TUL-369 EN base (re-pin if folio-parity fails)
+  maison: "5d68ebc052e3ef15", // was ff484407b68ec492; TUL-369 Lookbook identity drop + Consultar MODE_DEPENDENT unwind
   // Re-pinned after Gridline contentWidth/full + matrix viewport MQ (#2530), then es + en seed copy.
   gridline: "284229ba182b97e1", // was 3651b5df563fe3b0; TUL-369: SEED_TEXT_ES expanded (EN base + es/en overlays)
 
