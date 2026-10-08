@@ -5,11 +5,21 @@ import { headers } from "next/headers";
 import { HOST_CONTEXT_HEADER, HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { logServerError } from "@/lib/server/safe-error";
-import { designTokensToCssVars, designTokensToDataAttrs } from "@/lib/site-admin/tokens/resolve";
+import { loadPublicBranding } from "@/lib/site-admin/server/reads";
+import {
+  designTokensToCssVars,
+  designTokensToDataAttrs,
+  resolveDesignTokens,
+} from "@/lib/site-admin/tokens/resolve";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadMaxSiteDesignSlug, loadMaxSiteThemeTokens } from "@/lib/talent-site/server/load-max-site";
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens";
+
+import {
+  projectAgencyAccountSiteTokens,
+  type AgencyAccountSiteProjection,
+} from "./agency-account-site-pure";
 
 export type AccountSite = {
   talentProfileId: string;
@@ -74,4 +84,19 @@ export async function loadAccountSite(talentProfileId: string): Promise<AccountS
     cssVars,
     dataAttrs: hasTokens ? designTokensToDataAttrs(tokens) : {},
   };
+}
+
+/**
+ * Agency / hub branding for `/account` (TUL-158). Same `--site-*-font` aliases
+ * talent sites set, sourced from `agency_branding.theme_json` via the public
+ * branding reader (never draft). Empty when branding is missing.
+ */
+export async function loadAgencyAccountSite(tenantId: string): Promise<AgencyAccountSiteProjection> {
+  try {
+    const branding = await loadPublicBranding(tenantId);
+    return projectAgencyAccountSiteTokens(resolveDesignTokens(branding));
+  } catch (error) {
+    logServerError("clientAccount.area.agencyTokens", error);
+    return { tokens: {}, cssVars: {}, dataAttrs: {} };
+  }
 }
