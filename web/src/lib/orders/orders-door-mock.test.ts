@@ -3,11 +3,22 @@ import assert from "node:assert/strict";
 import {
   DOOR_SECTIONS,
   formatDoorLocalTime,
+  isDoorPreview,
   matchOrderFromQuery,
   nextOpenOrderId,
   primaryActionForStatus,
   shortOrderCode,
 } from "./orders-door-mock";
+
+test("door mock is gated behind ?door=preview only", () => {
+  assert.equal(isDoorPreview("preview"), true);
+  assert.equal(isDoorPreview("Preview"), true);
+  assert.equal(isDoorPreview("preview "), true);
+  assert.equal(isDoorPreview(""), false);
+  assert.equal(isDoorPreview(null), false);
+  assert.equal(isDoorPreview("live"), false);
+  assert.equal(isDoorPreview("1"), false);
+});
 
 const ROWS = [
   { id: "c365920b-1111-2222-3333-444455556666" },

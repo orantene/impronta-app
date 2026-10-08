@@ -1,11 +1,17 @@
 /**
  * Pedidos order-door mock (TUL-434 slice 1) — pure helpers.
  *
- * The interactive accordion lives in the orders page client list. This file
- * owns the rules that must stay testable without a DOM: short codes, deep-link
+ * The interactive accordion is opt-in on the live desk via `?door=preview`.
+ * Default `/admin/orders` keeps today's flat list. This file owns the rules
+ * that must stay testable without a DOM: preview gate, short codes, deep-link
  * matching, one-open-at-a-time toggle, primary action by status, section
  * defaults, and local-time formatting for the door header.
  */
+
+/** True only for the explicit PM preview gate (`?door=preview`). */
+export function isDoorPreview(door: string | null | undefined): boolean {
+  return (door ?? "").trim().toLowerCase() === "preview";
+}
 
 export type DoorPrimaryAction =
   | "send_pay_link"
