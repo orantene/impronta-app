@@ -5,6 +5,7 @@
  * every branch is covered by a table test rather than a render test.
  */
 
+import { formatCentsUSD } from "@/lib/bookings/commission";
 import type { RecordChip } from "@/lib/messaging/types";
 
 /* ------------------------------------------------------------- Deposit / amount */
@@ -73,13 +74,49 @@ export function amountOptions(offer: OfferDepositRule | null): readonly AmountOp
   return options;
 }
 
-/** "Other" field: dollars typed by staff to cents. Null on anything that is
+/** Minor-unit exponent of an ISO 4217 code (USD/MXN 2, JPY/CLP 0, BHD 3),
+ * read from the runtime's currency data. An invalid or missing code falls
+ * back to 2 so the legacy dollars-and-cents behavior is never lost. */
+export function currencyMinorExponent(currencyCode?: string | null): number {
+  const code = (currencyCode ?? "").trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(code)) return 2;
+  try {
+    const digits = new Intl.NumberFormat("en", { style: "currency", currency: code }).resolvedOptions().maximumFractionDigits;
+    return typeof digits === "number" && digits >= 0 && digits <= 4 ? digits : 2;
+  } catch {
+    return 2;
+  }
+}
+
+/** "Other" field: the major-unit amount typed by staff to minor units of the
+ * offer's currency (default USD, so 2 decimals). Null on anything that is
  * not a real positive amount (blank, zero, negative, letters) so the sheet
  * can disable Send instead of minting a link for $0. */
-export function dollarsToCents(input: string): number | null {
+export function dollarsToCents(input: string, currencyCode?: string | null): number | null {
   const n = Number(input.replace(/,/g, "").trim());
   if (!Number.isFinite(n) || n <= 0) return null;
-  return Math.round(n * 100);
+  return Math.round(n * 10 ** currencyMinorExponent(currencyCode));
+}
+
+/** Inverse of `dollarsToCents`: minor units to the plain major-unit string
+ * an input would hold (no grouping, no symbol). */
+export function minorToAmountInput(minor: number, currencyCode?: string | null): string {
+  const exp = currencyMinorExponent(currencyCode);
+  return exp === 0 ? String(Math.round(minor)) : (minor / 10 ** exp).toFixed(exp);
+}
+
+/** Display a minor-unit figure. 2-decimal currencies keep the sheet's
+ * existing `formatCentsUSD` output byte-for-byte; others use their own
+ * exponent so JPY 1000 never reads as 10. */
+export function formatMinorAmount(minor: number, currencyCode?: string | null): string {
+  const exp = currencyMinorExponent(currencyCode);
+  if (exp === 2) return formatCentsUSD(minor);
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: (currencyCode ?? "").trim().toUpperCase(),
+    minimumFractionDigits: exp,
+    maximumFractionDigits: exp,
+  }).format(minor / 10 ** exp);
 }
 
 /* --------------------------------------------------------------------- Target */

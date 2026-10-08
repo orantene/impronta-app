@@ -26,15 +26,16 @@ test("flag lists talent only: talent gets dock + header item, others nothing", (
 });
 
 test("every render path is behind the gate", () => {
-  assert.match(src("src/components/client-account/ClientAccountDock.tsx"), /resolveClientAccountMount\("talent"\)\.dock/);
+  assert.match(src("src/components/client-account/ClientAccountDock.tsx"), /resolveClientAccountMount\(surface === "profile_page" \? "app" : "talent"\)\.dock/);
   assert.match(src("src/lib/talent-site/server/render-max-site-demo.tsx"), /resolveClientAccountMount\("talent"\)\.headerItem/);
   const header = src("src/lib/site-admin/sections/site_header/Component.tsx");
   assert.match(header, /case "account":[\s\S]{0,200}props\.siteChrome\?\.account \?/);
-  assert.match(src("src/app/api/client/account/route.ts"), /clientAccountEnabledFor\("talent"\)\) return NextResponse\.json\(\{ error: "not_found" \}/);
-  assert.match(src("src/lib/client-account/actions.ts"), /!clientAccountEnabledFor\("talent"\)\) return \{ ok: false/);
+  assert.match(src("src/app/api/client/account/route.ts"), /accountSurfaceEnabledForRequest\(\)\)\) return reply\(\{ error: "not_found" \}, 404\)/);
+  assert.match(src("src/lib/client-account/actions.ts"), /!\(await accountSurfaceEnabledForRequest\(\)\)\) return \{ ok: false/);
 });
 
 test("both mounts render the dock gate, and proxy.ts is untouched by this feature", () => {
   assert.match(src("src/app/%5Ftalent-site/[[...pageSlug]]/page.tsx"), /<ClientAccountDock locale/);
   assert.match(src("src/app/t/[profileCode]/_chat/TalentIntakeSurfaces.tsx"), /<ClientAccountDock locale/);
+  assert.match(src("src/app/t/[profileCode]/_chat/TalentIntakeSurfaces.tsx"), /surface="profile_page"/);
 });

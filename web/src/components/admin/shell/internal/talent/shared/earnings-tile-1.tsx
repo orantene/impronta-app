@@ -14,7 +14,7 @@ const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£
 
 /** Adapt a real bridge earnings row to the EarningRow fixture shape so the
  *  existing row component (with its source/payment chips) renders real data. */
-function realRowToEarning(r: TalentEarningsRow, currencySymbol: string): EarningsRow {
+function realRowToEarning(r: TalentEarningsRow, currencyCode: string, locale: string): EarningsRow {
   const source: EarningsRow["source"] =
     r.source === "agency_routed"
       ? { kind: "agency" }
@@ -29,7 +29,7 @@ function realRowToEarning(r: TalentEarningsRow, currencySymbol: string): Earning
     payoutDate: r.payoutDate ?? "",
     agency: r.agencyName,
     client: r.client,
-    amount: `${currencySymbol}${Math.round(r.netCents / 100).toLocaleString()}`,
+    amount: formatDashboardMoney(r.netCents / 100, currencyCode, locale, { wholeUnits: true }),
     status: r.status === "confirmed" ? "pending" : r.status,
     source,
     paymentMethod: (r.paymentMethod as EarningsRow["paymentMethod"]) ?? "transfer",
@@ -149,7 +149,7 @@ export function EarningsTile({
             </span>}
           </div>
           <div style={{ fontSize: 26, fontWeight: 700, fontFamily: FONTS.body, letterSpacing: "-0.5px" }} className="text-admin-ink">
-            {realMode ? formatDashboardMoney(data.total, earnings.totals.currency, "en", { wholeUnits: true }) : <>{tileCurrency}{(data.total).toLocaleString()}</>}
+            {realMode ? formatDashboardMoney(data.total, earnings.totals.currency, copy.isSpanish ? "es" : "en", { wholeUnits: true }) : <>{tileCurrency}{(data.total).toLocaleString()}</>}
           </div>
           <div style={{ fontSize: 11, fontFamily: FONTS.body, marginTop: 2 }} className="text-admin-ink-muted">
             {data.count} {data.count !== 1 ? copy.t("payouts") : copy.t("payout")} · {copy.t(data.label)}
@@ -251,7 +251,7 @@ export function EarningsTile({
         {realMode ? (
           realPaidRows.length > 0 ? (
             realPaidRows.slice(0, 3).map((r) => (
-              <EarningRow key={r.id} earning={realRowToEarning(r, realCurrency)} />
+              <EarningRow key={r.id} earning={realRowToEarning(r, earnings.totals.currency, copy.isSpanish ? "es" : "en")} />
             ))
           ) : (
             <p className="text-admin-ink-muted text-admin-12 py-2.5 px-0.5">

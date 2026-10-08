@@ -14,6 +14,7 @@
 
 import type { OnboardingChoice } from "./choice";
 import { offeringOwnerFor } from "./offering-owner";
+import { isSoleOwnerProvider } from "./owner-hours";
 
 export type DayKey = "0" | "1" | "2" | "3" | "4" | "5" | "6";
 export type HourRange = { startMin: number; endMin: number };
@@ -371,6 +372,8 @@ export type EssentialsStore = {
   hasActiveProvider(tenantId: string): Promise<boolean>;
   /** TUL-77b: the owner's talent profile + active roster provider count; null when the owner is not on the roster. Optional: absent = house offerings. */
   ownerProvider?(tenantId: string): Promise<{ talentProfileId: string; providerCount: number } | null>;
+  /** #178: true when this talent already has a `talent_booking_hours` row with an open day (never overwritten). */
+  talentHasOpenHours?(talentProfileId: string): Promise<boolean>;
   inviteFirstProvider(args: { tenantId: string; tenantSlug: string; email: string; name: string | null }): Promise<"invited" | "already" | "failed">;
 };
 
@@ -385,6 +388,8 @@ export type EssentialsRunResult = {
   offeringsCreated: number;
   offeringsUpdated: number;
   hoursWritten: boolean;
+  /** #178: a solo studio owner's own booking hours were written. */
+  ownerHoursWritten: boolean;
   ownerBookable: boolean;
   appointmentsEnabled: boolean;
   providerInvite: "invited" | "already" | "failed" | "skipped";
@@ -404,7 +409,7 @@ export type EssentialsRunResult = {
  */
 export async function runEssentialsWrites(store: EssentialsStore, input: EssentialsRunInput): Promise<EssentialsRunResult> {
   const { choice, essentials: e, talent, workspace } = input;
-  const out: EssentialsRunResult = { offeringsCreated: 0, offeringsUpdated: 0, hoursWritten: false, ownerBookable: false, appointmentsEnabled: false, providerInvite: "skipped", warnings: [] };
+  const out: EssentialsRunResult = { offeringsCreated: 0, offeringsUpdated: 0, hoursWritten: false, ownerHoursWritten: false, ownerBookable: false, appointmentsEnabled: false, providerInvite: "skipped", warnings: [] };
   const weekly = hoursHaveAnyOpenDay(e.hours) ? e.hours! : defaultWeeklyHours();
   const step = async (label: string, fn: () => Promise<void>) => {
     try { await fn(); } catch (err) { out.warnings.push(`essentials:${label}:${err instanceof Error ? err.message : String(err)}`); }
@@ -457,6 +462,14 @@ export async function runEssentialsWrites(store: EssentialsStore, input: Essenti
   if (choice === "studio" && workspace) {
     await writeStudioOfferings(workspace.tenantId);
     await step("businessInfo", () => store.setWorkspaceBusinessInfo(workspace.tenantId, { hours: weekly, place: e.place }));
+    // #178: a solo owner is the provider; /book reads THEIR hours. Only when none are set yet.
+    await step("ownerHours", async () => {
+      const owner = store.ownerProvider ? await store.ownerProvider(workspace.tenantId) : null;
+      if (!owner || !isSoleOwnerProvider(owner, !!e.firstProviderEmail)) return;
+      if (store.talentHasOpenHours && (await store.talentHasOpenHours(owner.talentProfileId))) return;
+      out.ownerHoursWritten = await store.upsertTalentHours({ talentProfileId: owner.talentProfileId, tenantId: workspace.tenantId, weekly, timezone: e.timezone });
+      if (!out.ownerHoursWritten) out.warnings.push("essentials:ownerHours:no_timezone");
+    });
     if (e.firstProviderEmail) {
       const email = e.firstProviderEmail;
       await step("invite", async () => {

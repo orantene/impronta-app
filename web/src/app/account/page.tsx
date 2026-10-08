@@ -23,12 +23,44 @@
 import { redirect } from "next/navigation";
 
 import { isStaffRole } from "@/lib/auth-flow";
+import { accountHomeMode } from "@/lib/client-account/agency-area-pure";
+import { parseAccountTab } from "@/lib/client-account/area-pure";
+import { clientAccountEnabledFor } from "@/lib/client-account/flag";
+import { readAccountHost } from "@/lib/client-account/area-site.server";
+import { ACCOUNT_AREA_METADATA, renderClientAccountPage } from "@/lib/client-account/render-area";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 
 export const dynamic = "force-dynamic";
+export const metadata = ACCOUNT_AREA_METADATA;
 
-export default async function AccountRedirectPage() {
+export default async function AccountRedirectPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  // TUL-62: on a talent site this URL is the client account area (flag-gated,
+  // 404 when off). Every other host keeps the role redirect below, unchanged.
+  if ((await readAccountHost()).hostContext === "talent_site") {
+    const { tab } = await searchParams;
+    return renderClientAccountPage({ kind: "home", tab: parseAccountTab(tab) });
+  }
   const session = await getCachedActorSession();
+
+  // TUL-64: agency, hub and app hosts show the client account area to signed-out
+  // visitors and client accounts (flag `app`). Staff, talent and platform
+  // accounts, and the flag off, keep the role redirect below untouched.
+  const host = await readAccountHost();
+  if (
+    accountHomeMode({
+      flagOn: clientAccountEnabledFor("app"),
+      hostContext: host.hostContext,
+      userId: session.user?.id ?? null,
+      appRole: session.profile?.app_role ?? null,
+    }) === "area"
+  ) {
+    const { tab } = await searchParams;
+    return renderClientAccountPage({ kind: "home", tab: parseAccountTab(tab) });
+  }
 
   if (!session.supabase) {
     redirect("/login?error=config");

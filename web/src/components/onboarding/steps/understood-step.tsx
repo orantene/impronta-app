@@ -61,6 +61,7 @@ export function UnderstoodStep({
     error === "ai_off" ? t("public.onboarding.understood.aiOff")
     : error === "rate_limit" ? t("public.onboarding.understood.rateLimit")
     : error === "import_failed" ? t("public.onboarding.understood.importFailed")
+    : error === "ai_not_configured" || error === "ai_failed" ? t("public.onboarding.understood.aiUnavailable")
     : error === "failed" ? t("public.onboarding.understood.readFailed")
     : error === "offline" ? t("public.onboarding.errors.offline")
     : error === "save_failed" ? t("public.onboarding.errors.saveFailed")

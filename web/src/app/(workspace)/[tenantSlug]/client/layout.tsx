@@ -26,7 +26,7 @@ import {
   loadSavedTalentIdsForContext,
 } from "@/lib/public-discovery-effective";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
-import { effectiveReadContext } from "@/lib/impersonation/effective-read";
+import { effectiveReadContext, mayMergeGuestActivity } from "@/lib/impersonation/effective-read";
 import {
   DiscoveryStateBridge,
   PublicDiscoveryStateProvider,
@@ -312,7 +312,9 @@ export default async function ClientLayout({
         {/* Sweeps any guest-mode localStorage favorites into client_favorites
             on first authed render — mirrors (public)/layout.tsx, so a save
             made before sign-in still lands in /client/favorites. */}
-        <MergeGuestFavorites serverFavoriteIds={favoriteIds} />
+        {mayMergeGuestActivity(readCtx) ? (
+          <MergeGuestFavorites serverFavoriteIds={favoriteIds} />
+        ) : null}
 
         {/* ── Bar 1: Identity bar (56px) ── */}
         <header

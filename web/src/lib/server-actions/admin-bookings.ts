@@ -88,7 +88,7 @@ const updateBookingSchema = z.object({
   payment_notes: z.string(),
   internal_notes: z.string(),
   client_summary: z.string(),
-  currency_code: z.string().min(1),
+  currency_code: z.string(),
   starts_at: z.string(),
   ends_at: z.string(),
   event_date: z.string(),
@@ -129,7 +129,8 @@ export async function updateBooking(
     payment_notes: trimmedString(formData, "payment_notes"),
     internal_notes: trimmedString(formData, "internal_notes"),
     client_summary: trimmedString(formData, "client_summary"),
-    currency_code: trimmedString(formData, "currency_code") || "USD",
+    // Blank means "leave the booking's currency alone" (patch below omits it); never reset to USD.
+    currency_code: trimmedString(formData, "currency_code"),
     starts_at: trimmedString(formData, "starts_at"),
     ends_at: trimmedString(formData, "ends_at"),
     event_date: trimmedString(formData, "event_date"),
@@ -213,7 +214,7 @@ export async function updateBooking(
     payment_notes: d.payment_notes || null,
     internal_notes: d.internal_notes || null,
     client_summary: d.client_summary || null,
-    currency_code: d.currency_code,
+    ...(d.currency_code ? { currency_code: d.currency_code.toUpperCase() } : {}),
     starts_at: d.starts_at.length > 0 ? d.starts_at : null,
     ends_at: d.ends_at.length > 0 ? d.ends_at : null,
     event_date: d.event_date.length > 0 ? d.event_date : null,
@@ -935,10 +936,27 @@ export async function createManualBooking(formData: FormData): Promise<void> {
   }
   const { supabase, user, tenantId } = auth;
 
+  // A blank currency means "the workspace's own": read agencies.default_currency
+  // and refuse when it is unreadable, rather than defaulting to USD.
+  let manualCurrency = trimmedString(formData, "currency_code");
+  if (!manualCurrency) {
+    // The tenant's own row, keyed by the tenant id (no-untenanted-from treats agencies.id = tenantId as scoped).
+    const { data: ag, error: agErr } = await supabase
+      .from("agencies")
+      .select("default_currency")
+      .eq("id", tenantId)
+      .maybeSingle();
+    if (agErr) logServerError("admin/createManualBooking.currency", agErr);
+    manualCurrency = String((ag as { default_currency?: string | null } | null)?.default_currency ?? "").trim();
+    if (!/^[A-Za-z]{3}$/.test(manualCurrency)) {
+      redirect(`${returnTo}?err=${encodeURIComponent("Choose a currency for this booking.")}`);
+    }
+  }
+
   const parsed = parseWithSchema(manualBookingSchema, {
     title: trimmedString(formData, "title"),
     booking_status: trimmedString(formData, "booking_status"),
-    currency_code: trimmedString(formData, "currency_code") || "USD",
+    currency_code: manualCurrency.toUpperCase(),
     client_account_id: trimmedString(formData, "client_account_id"),
     client_contact_id: trimmedString(formData, "client_contact_id"),
     owner_staff_id: trimmedString(formData, "owner_staff_id"),

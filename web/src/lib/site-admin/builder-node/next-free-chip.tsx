@@ -14,6 +14,8 @@ import {
 } from "@/components/public-booking/pick-bookable-offering";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
+import { firstSlotStart, openAtNextSlot, type NextSlot } from "@/lib/talent-site/next-free-slot";
+
 import { safeChipHref } from "./next-free-chip-href";
 import type { BuilderNextFreeChipNode } from "./types";
 
@@ -102,6 +104,8 @@ export function NextFreeChipIsland({
   const label = (loc === "es" ? labelEs : labelEn).trim() || (loc === "es" ? "Próximo libre" : "Next free");
   const [when, setWhen] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  // TUL-232: the first free start, so the linked chip can open booking at it.
+  const [slot, setSlot] = useState<NextSlot | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -120,6 +124,7 @@ export function NextFreeChipIsland({
       if (!picked) {
         if (!cancelled) {
           setWhen(null);
+          setSlot(null);
           setReady(true);
         }
         return;
@@ -139,11 +144,14 @@ export function NextFreeChipIsland({
           : "";
         if (!cancelled) {
           setWhen(formatted || null);
+          const start = firstSlotStart(slots);
+          setSlot(start ? { offeringId: picked.offeringId, slotStart: start } : null);
           setReady(true);
         }
       } catch {
         if (!cancelled) {
           setWhen(null);
+          setSlot(null);
           setReady(true);
         }
       }
@@ -175,7 +183,17 @@ export function NextFreeChipIsland({
     );
     const link = safeChipHref(href);
     return link ? (
-      <a className="sb-next-free" href={link} data-next-free-chip="" data-has-slot="1" data-variant="stacked">
+      <a
+        className="sb-next-free"
+        href={link}
+        data-next-free-chip=""
+        data-has-slot="1"
+        data-variant="stacked"
+        onClick={(e) => {
+          // Booking opens at the slot when the offering is registered; otherwise the link works as before.
+          if (openAtNextSlot(slot)) e.preventDefault();
+        }}
+      >
         {inner}
       </a>
     ) : (

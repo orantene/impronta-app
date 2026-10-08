@@ -70,7 +70,6 @@ import {
   MyTalentProfile,
   Personality,
   PhotoGalleryPro,
-  PhotoMeta,
   Plan,
   ProfileIdentity,
   ProfileLanguage,
@@ -211,6 +210,8 @@ import { localizePublishBlockerMessage } from "./profile-shell-modules/publish-r
 import { DirectBookingRosterSwitch } from "@/components/appointments/DirectBookingRosterSwitch";
 import { TalentOfferingsManager } from "@/components/talent/services/TalentOfferingsManager";
 import { ProfileReviewsEditor } from "./profile-shell-modules/profile-reviews";
+import { totalPhotosOf } from "./profile-shell-modules/profile-shell-album-media";
+import { useProfileShellMedia } from "./profile-shell-modules/use-profile-shell-media";
 import { ProfileHeroTextRows } from "./profile-shell-modules/profile-hero-text-rows";
 import {
   ProfileShellSectionSaveHint,
@@ -596,6 +597,10 @@ export function TalentProfileShellDrawer() {
   // needs it. Re-assigned every render so it always points at the latest state.
   const stateRef = useRef(state);
   stateRef.current = state;
+  const profileMedia = useProfileShellMedia({
+    talentId: payload.talentId, enabled: drawerOpen && mode !== "create", stateRef, patch,
+    setGalleryAssets, setAvatarPhotoUrl, setHeroPhotoUrl, galleryDrawerOpen,
+  });
   const deferredServiceAreaRef = useRef<ServiceAreaDesired | null>(null);
   const deferredServiceAreaTouchedRef = useRef(false);
   const deferredLanguagesRef = useRef<TalentLanguageInput[] | null>(null);
@@ -653,53 +658,7 @@ export function TalentProfileShellDrawer() {
         setHydratingMedia(false);
         if (!mediaRes.ok) return;
 
-        const s = stateRef.current;
-
-        let albumsPro = s.albumsPro;
-        let polaroids = s.polaroids;
-
-        const { gallery, hero, polaroids: polaroidsMap, card } = mediaRes.data;
-
-        if (card?.url) setAvatarPhotoUrl(card.url);
-        if (hero?.url) setHeroPhotoUrl(hero.url);
-
-        type AssetWithMeta = import("@/components/talent/media-gallery-drawer").MediaAsset & {
-          metadata?: Record<string, unknown>;
-        };
-        const allAssets: AssetWithMeta[] = [];
-        if (card) allAssets.push({ id: card.id, url: card.url, variantKind: "card", sortOrder: 0 });
-        if (hero) allAssets.push({ id: hero.id, url: hero.url, variantKind: "hero", sortOrder: 0 });
-        for (const g of gallery) {
-          allAssets.push({
-            id: g.id,
-            url: g.url,
-            variantKind: "gallery",
-            sortOrder: g.sortOrder,
-            metadata: g.metadata ?? {},
-          });
-        }
-        setGalleryAssets(allAssets);
-
-        const fallbackAlbumId = s.albumsPro[0]?.id ?? "main";
-        const knownIds = new Set(s.albumsPro.map(a => a.id));
-        const extraAlbumIds = new Set<string>();
-        for (const g of gallery) {
-          const aid = (g.metadata?.albumId as string | undefined) ?? fallbackAlbumId;
-          if (!knownIds.has(aid)) extraAlbumIds.add(aid);
-        }
-        const extraAlbums = [...extraAlbumIds].map(id => ({
-          id,
-          name: id.replace(/-[a-z0-9]{4,}$/, "").replace(/-/g, " ") || "Untitled",
-          items: [] as PhotoMeta[],
-        }));
-
-        albumsPro = extraAlbums.length > 0 ? [...s.albumsPro, ...extraAlbums] : s.albumsPro;
-        polaroids = s.polaroids.map(p => {
-          const hit = polaroidsMap[p.id];
-          return hit ? { ...p, url: hit.url, mediaAssetId: hit.id } : p;
-        });
-
-        patch({ albumsPro, polaroids }, { silent: true });
+        profileMedia.applyOverview(mediaRes.data);
       })
       .catch(() => {
         if (!cancelled) setHydratingMedia(false);
@@ -922,34 +881,6 @@ export function TalentProfileShellDrawer() {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: only retrigger on the listed identity/mode signals; omitted helpers are stable server-action refs
   }, [drawerOpen, mode, payload.talentId, isSelf, hydrationNonce]);
-
-  // Keep albumsPro photo lists in sync with galleryAssets. Without this,
-  // photos uploaded/deleted via MediaGalleryDrawer after the drawer opens
-  // would update the gallery but leave the Albums section showing stale
-  // counts (Main · 0). Runs whenever the gallery list changes — including
-  // the initial bundle hydration above.
-  useEffect(() => {
-    const galleryItems = galleryAssets.filter(a => a.variantKind === "gallery");
-    if (galleryItems.length === 0) return; // don't wipe albums on empty initial state
-    const fallbackAlbumId = stateRef.current.albumsPro[0]?.id ?? "main";
-    const byAlbum = new Map<string, PhotoMeta[]>();
-    for (const g of galleryItems) {
-      const meta = (g as { metadata?: Record<string, unknown> }).metadata;
-      const aid = (meta?.albumId as string | undefined) ?? fallbackAlbumId;
-      const list = byAlbum.get(aid) ?? [];
-      list.push({ url: g.url, mediaAssetId: g.id });
-      byAlbum.set(aid, list);
-    }
-    const updatedAlbums = stateRef.current.albumsPro.map(a =>
-      byAlbum.has(a.id)
-        ? { ...a, items: byAlbum.get(a.id)! }
-        : a.id === fallbackAlbumId
-          ? { ...a, items: byAlbum.get(fallbackAlbumId) ?? [] }
-          : a
-    );
-    patch({ albumsPro: updatedAlbums }, { silent: true });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- stateRef.current reads fresh state at call time; patch is a stable callback; only galleryAssets changes should trigger this sync
-  }, [galleryAssets]);
 
   // Prefetch skills data as soon as the drawer opens so the Services tab loads
   // from cache instead of waiting for a live server action call.
@@ -1887,7 +1818,7 @@ export function TalentProfileShellDrawer() {
   const trust = computeTrustTier(state.verifications);
 
   // Required fields
-  const totalPhotos = state.albumsPro.reduce((n, a) => n + a.items.length, 0);
+  const totalPhotos = totalPhotosOf(profileMedia.albumPaging.paging, state.albumsPro);
   const activeBio = state.bios.find(b => b.locale === state.bioActiveLocale);
   const newEngineActive = hasResolvedEngineContext;
   // Publish gate now comes from one helper path:
@@ -3890,6 +3821,9 @@ export function TalentProfileShellDrawer() {
                 onActivate={(id) => patch({ activeAlbumId: id })}
                 onChange={(albs) => patch({ albumsPro: albs })}
                 loading={hydratingMedia}
+                totals={profileMedia.albumPaging.paging}
+                loadingMoreId={profileMedia.albumPaging.loadingId}
+                onLoadMore={profileMedia.albumPaging.loadMore}
               />
             </ProfileAccordionSection>
 
@@ -4651,6 +4585,10 @@ export function TalentProfileShellDrawer() {
             tenantSlug={tenantSlug}
             assets={galleryAssets}
             onAssetsChange={setGalleryAssets}
+            hasMore={profileMedia.galleryPaging.hasMore}
+            totalCount={profileMedia.galleryPaging.total}
+            loadingMore={profileMedia.galleryPaging.loadingMore}
+            onLoadMore={profileMedia.galleryPaging.loadMore}
             focusSlot={galleryDrawerFocus}
             onSetAvatar={async (mediaAssetId, assetUrl) => {
               const res = await setTalentAvatar(tenantSlug, payload.talentId!, mediaAssetId);

@@ -222,11 +222,6 @@ function TalentSidebar() {
       data-tulala-app-sidebar
       className="sticky top-[calc(var(--proto-cbar,50px)+56px)] flex h-[calc(100vh-var(--proto-cbar,50px)-56px)] flex-col gap-[12px] self-start overflow-y-auto bg-[var(--tc-canvas)] px-[10px] pb-[12px] pt-[14px] font-admin-body"
     >
-      {/* Keyboard users can bypass the rail nav entirely. */}
-      <a href="#tulala-talent-content" className="skip-to-main">
-        {copy.t("Skip to page content")}
-      </a>
-
       <nav ref={railNavRef} aria-label={copy.t("Talent sections")} className="flex flex-col gap-[2px]">
         {TALENT_SIDEBAR_GROUPS.map((group, gi) => (
           <div key={group.label ?? `group-${gi}`} className="flex flex-col gap-[2px]">

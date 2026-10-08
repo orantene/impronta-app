@@ -6,6 +6,7 @@ import { test } from "node:test";
 import {
   TALENT_MEDIA_MAX_PAGE_SIZE,
   TALENT_MEDIA_PAGE_SIZE,
+  appendUniquePage,
   computeHasMore,
   nextOffset,
   pageWindow,
@@ -49,4 +50,44 @@ test("the action delegates to the paged loader", () => {
   const body = s.slice(a, s.indexOf("// ─── Media count"));
   assert.ok(body.includes("loadTalentMediaBundle("));
   assert.ok(!/select\(\s*["'`]\*["'`]/.test(body));
+});
+
+test("appendUniquePage appends a new page and skips ids already shown", () => {
+  const a = [{ id: "1" }, { id: "2" }];
+  assert.deepEqual(appendUniquePage(a, [{ id: "2" }, { id: "3" }]).map((x) => x.id), ["1", "2", "3"]);
+  assert.equal(appendUniquePage(a, []), a);
+});
+
+test("gallery drawer shows Load more only with more rows, and blocks reorder on a partial list", () => {
+  const s = src("src/components/talent/media-gallery-drawer.tsx");
+  assert.ok(s.includes("{hasMore && onLoadMore && ("), "button is gated on hasMore");
+  assert.ok(s.includes('admin.talent.edit.mediaGallery.loadMore"'), "uses the loadMore key");
+  assert.ok(/if \(hasMore\) return;/.test(s), "drag reorder is off while rows are unloaded");
+});
+
+test("the profile editors page the gallery instead of loading all of it", () => {
+  for (const p of [
+    "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/TalentEditForm.tsx",
+    "src/components/admin/shell/internal/talent-drawers/profile-essentials.tsx",
+  ]) {
+    const s = src(p);
+    assert.ok(s.includes("useGalleryLoadMore("), p);
+    assert.ok(!s.includes("actionLoadTalentMediaBundleAll"), p);
+    assert.ok(s.includes("onLoadMore={galleryPaging.loadMore}"), p);
+  }
+  const hook = src("src/components/talent/use-gallery-load-more.ts");
+  assert.ok(hook.includes("galleryOffset: nextOffset"), "cursor comes from the server");
+});
+
+test("the Profile page hero reads one gallery row", () => {
+  const s = src("src/components/admin/shell/internal/talent/shared/profile-sections-1.tsx");
+  assert.ok(s.includes("{ galleryLimit: 1 }"));
+});
+
+test("Load more copy exists in en and es", () => {
+  for (const [f, label] of [["messages/en.json", "Load more"], ["messages/es.json", "Cargar más"]] as const) {
+    const g = JSON.parse(src(f)).admin.talent.edit.mediaGallery;
+    assert.equal(g.loadMore, label);
+    assert.ok(g.loadMoreLoading && g.loadMoreHint.includes("{shown}") && g.loadMoreHint.includes("{total}"));
+  }
 });

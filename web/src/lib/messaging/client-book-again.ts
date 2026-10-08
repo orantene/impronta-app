@@ -4,6 +4,7 @@ import { fail } from "./refusals";
 import type { ActionResult, MessagingRefusal } from "./types";
 import { isBookAgainFulfilment } from "@/lib/messages-v5/guest-book-again";
 import { addLine, createDraftOrder } from "@/lib/pos/draft";
+import { logServerError } from "@/lib/server/safe-error";
 
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -165,10 +166,16 @@ export async function bookAgainFromRecord(
     return fail(mapped);
   }
 
+  // The rebooked lines were priced in the original order's currency, so the new
+  // draft opens in it too. Unreadable -> no draft (the new inquiry still stands).
+  const { data: sourceOrder, error: sourceOrderErr } = await admin.from("orders").select("currency").eq("id", input.recordId).maybeSingle();
+  if (sourceOrderErr) logServerError("client-book-again.order-currency", sourceOrderErr);
+  const draftCurrency = String((sourceOrder as { currency?: string | null } | null)?.currency ?? "").trim();
+  if (!/^[A-Za-z]{3}$/.test(draftCurrency)) return { ok: true, inquiryId: created.inquiryId };
   const draft = await createDraftOrder(admin, {
     tenantId: input.tenantId,
     actorUserId: draftActor,
-    currency: "USD",
+    currency: draftCurrency,
     sourceChannel: "messages",
     context: "messages",
   });

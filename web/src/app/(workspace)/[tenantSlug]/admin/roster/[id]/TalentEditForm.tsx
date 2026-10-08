@@ -13,9 +13,10 @@ import {
   registerRosterTalentPhoto,
 } from "./actions";
 import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
+import { useGalleryLoadMore } from "@/components/talent/use-gallery-load-more";
 import type { MediaAsset } from "@/components/talent/media-gallery-drawer";
 import { setTalentAvatar, setTalentHero } from "./extended-actions";
-import { actionUploadAndAssignMedia, actionDeleteMediaAssets, actionLoadTalentMediaBundleAll, actionImportFromGoogleDrive, actionReorderMediaAssets, actionRevertCropToSource } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { actionUploadAndAssignMedia, actionDeleteMediaAssets, actionLoadTalentMediaBundle, actionImportFromGoogleDrive, actionReorderMediaAssets, actionRevertCropToSource } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 
@@ -421,12 +422,15 @@ function ThreeSlotPhotoPanel({
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [focusSlot, setFocusSlot] = useState<"avatar" | "hero" | "gallery">("gallery");
   const loadedRef = useRef(false);
+  const galleryPaging = useGalleryLoadMore(talentId, setAssets);
+  const setGalleryPage = galleryPaging.setPage;
 
   useEffect(() => {
     if (loadedRef.current) return;
     loadedRef.current = true;
-    void actionLoadTalentMediaBundleAll(talentId).then((res) => {
+    void actionLoadTalentMediaBundle(talentId).then((res) => {
       if (!res.ok) return;
+      setGalleryPage(res.data);
       const all: MediaAsset[] = [];
       const { card, hero, gallery } = res.data;
       if (card) {
@@ -441,7 +445,7 @@ function ThreeSlotPhotoPanel({
       for (const g of gallery) all.push({ id: g.id, url: g.url, variantKind: "gallery", sortOrder: g.sortOrder, sourceMediaAssetId: g.sourceMediaAssetId });
       setAssets(all);
     });
-  }, [talentId]);
+  }, [talentId, setGalleryPage]);
 
   return (
     <>
@@ -500,6 +504,10 @@ function ThreeSlotPhotoPanel({
           tenantSlug={tenantSlug}
           assets={assets}
           onAssetsChange={setAssets}
+          hasMore={galleryPaging.hasMore}
+          totalCount={galleryPaging.total}
+          loadingMore={galleryPaging.loadingMore}
+          onLoadMore={galleryPaging.loadMore}
           focusSlot={focusSlot}
           currentAvatarAssetId={currentAvatarAssetId}
           currentHeroAssetId={currentHeroAssetId}

@@ -31,12 +31,12 @@ import {
   VacationWindow,
   Verifications,
   VideoSlot,
-  actionLoadTalentMediaBundleAll,
   getProfileById,
   loadTalentProfileEditorData,
   parseVideoUrl,
   readProfileDraft,
 } from "../../drawer-shared";
+import { actionLoadProfileShellMedia } from "@/app/(workspace)/[tenantSlug]/admin/media/profile-shell-media-actions";
 
 export type ProfileShellPayload = {
   /** Mode controls header copy + which sections are gated. */
@@ -651,7 +651,7 @@ export function makeInitialProfileState(
 // after load refetches normally.
 
 export type _HydrationInFlight = {
-  media: ReturnType<typeof actionLoadTalentMediaBundleAll>;
+  media: ReturnType<typeof actionLoadProfileShellMedia>;
   editor: ReturnType<typeof loadTalentProfileEditorData>;
 };
 
@@ -664,7 +664,7 @@ export function _getEditorHydration(
   const existing = _editorHydrationInFlight.get(tid);
   if (existing) return { entry: existing, reused: true };
   const entry: _HydrationInFlight = {
-    media: actionLoadTalentMediaBundleAll(tid),
+    media: actionLoadProfileShellMedia(tid),
     editor: loadTalentProfileEditorData({ talentProfileId: tid, isSelf }),
   };
   _editorHydrationInFlight.set(tid, entry);

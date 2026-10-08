@@ -12,8 +12,9 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadClientSelfProfile } from "../../_data-bridge";
-import { loadClientFavoritesForUser } from "../../_data-bridge/discover";
+import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
+import { effectiveReadContext } from "@/lib/impersonation/effective-read";
+import { loadFavoritesPageData } from "./load-favorites-page";
 import { loadClientCardDesign } from "../_data-bridge/load-card-design";
 import { FavoritesShell } from "./FavoritesShell";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
@@ -34,13 +35,18 @@ export default async function ClientFavoritesPage({ params }: { params: PagePara
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
-  const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
-  if (!clientProfile) notFound();
-
-  const [favorites, cardDesign] = await Promise.all([
-    loadClientFavoritesForUser(session.user.id),
+  // TUL-254: favourites of the EFFECTIVE user. The context comes only from the
+  // verified impersonation helper; a throw means "not acting".
+  const readCtx = effectiveReadContext(
+    session.user.id,
+    await resolveDashboardIdentity().catch(() => null),
+  );
+  const [pageData, cardDesign] = await Promise.all([
+    loadFavoritesPageData(session.user.id, scope.tenantId, readCtx),
     loadClientCardDesign(scope.tenantId),
   ]);
+  if (!pageData) notFound();
+  const { favorites } = pageData;
 
   return (
     <div style={{ fontFamily: FONT }}>
