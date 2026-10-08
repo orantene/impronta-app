@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { ClientSpeedInsights } from "@/components/analytics/client-speed-insights";
 import { AnalyticsScripts } from "@/components/analytics/analytics-scripts";
 import { AnalyticsConsentBanner } from "@/components/analytics/analytics-consent-banner";
+import { FloatingOverlayStackStyles } from "@/components/floating-overlay-stack";
 import { SpaPageViewTracker } from "@/components/analytics/spa-page-view-tracker";
 import { CspViolationReporter } from "@/components/csp-violation-reporter";
 import { EditChromeMount } from "@/components/edit-chrome/edit-chrome-mount";
@@ -277,6 +278,8 @@ export default async function RootLayout({
         <SpaPageViewTracker />
         {/* Consent banner + reopen target for the footer "Privacy choices" link. */}
         <AnalyticsConsentBanner locale={locale} />
+        {/* One bottom-chrome lane: consent → language → sticky bar (TUL-121). */}
+        <FloatingOverlayStackStyles />
         <WebVitalsReporter />
         <CspViolationReporter />
         {children}

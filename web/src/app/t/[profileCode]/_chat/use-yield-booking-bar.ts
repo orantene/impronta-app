@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * BJ-07 / AUD-025 — lift Hablar when bottom chrome is showing so Continuar,
- * the language suggestion strip, and the legacy Maison bar do not fight the
- * same bottom-right corner (and so Seleccionar on the last rows stays tappable).
+ * BJ-07 / AUD-025 / TUL-121 — lift Hablar when bottom chrome is showing so
+ * Continuar, the cookie banner, the language suggestion strip, and the legacy
+ * Maison bar do not fight the same bottom-right corner (and so Seleccionar on
+ * the last rows stays tappable).
  */
 
 import { useEffect, useState } from "react";
@@ -58,8 +59,14 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
         }
       }
 
-      // Locale suggestion + legacy Maison bar: lift Hablar even when the booking
-      // dock owns language-bar stacking (dock idle → strip is still guest-visible).
+      // Cookie / language / legacy Maison: lift Hablar so the FAB stays clear
+      // of every bottom banner (TUL-121 / DS-63 pile-up). Consent is measured
+      // even though language hides while it is up — first paint may still
+      // show consent alone.
+      const consent = document.querySelector<HTMLElement>("[data-consent-banner]");
+      if (visibleFixedChrome(consent)) {
+        lift = Math.max(lift, chromeLiftFor(consent));
+      }
       const locale = document.querySelector<HTMLElement>("[data-locale-suggestion]");
       if (visibleFixedChrome(locale)) {
         lift = Math.max(lift, chromeLiftFor(locale));
@@ -79,7 +86,16 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
       subtree: true,
       childList: true,
       attributes: true,
-      attributeFilter: ["data-show", "data-top", "data-has-selection", "data-locale-suggestion", "class", "style", "hidden"],
+      attributeFilter: [
+        "data-show",
+        "data-top",
+        "data-has-selection",
+        "data-locale-suggestion",
+        "data-consent-banner",
+        "class",
+        "style",
+        "hidden",
+      ],
     });
     window.addEventListener("resize", measure);
     return () => {

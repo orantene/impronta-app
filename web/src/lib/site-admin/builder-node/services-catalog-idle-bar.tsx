@@ -2,17 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { CATALOG_OVERLAY_CSS } from "@/components/floating-overlay-stack-css";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { bookEntryFrom, listBookableOfferings } from "@/lib/talent-site/book-entry";
 import { openAtNextSlot, pickSlotOffering, registerSlotOfferings } from "@/lib/talent-site/next-free-slot";
 import { requestTalentOpen } from "@/lib/talent-site/open-intent-client";
 import { runStickyBarTap } from "@/lib/talent-site/sticky-bar-tap";
-import { STICKY_BAR_DEFAULT_RESERVE_PX } from "@/lib/talent-site/sticky-bar-visibility";
 import type { TalentBookingPosture } from "@/lib/talent/selling-booking-settings";
 import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
 import { useNextFreeSlot } from "./use-next-free-slot";
+
+export { CATALOG_OVERLAY_CSS };
 
 /**
  * TUL-59 C item 3: the idle bar's main button follows context. Away from the
@@ -149,19 +151,10 @@ export function CatalogIdleBarText(props: BarProps) {
 }
 
 /**
- * TUL-59 C overlay rules, kept out of the byte-pinned base booking stylesheet.
- * One banner at a time (consent, then language suggestion), neither over a
- * booking window; more air between the selection's x and the chat button.
+ * TUL-59 C: dock gap + stack air. Consent-first / modal hide live in the
+ * root-layout floating overlay stack (TUL-121) so pages without a catalog
+ * still queue banners. This tag keeps the dock spacing when the catalog mounts.
  */
-export const CATALOG_OVERLAY_CSS = `body:has([data-consent-banner]) [data-locale-suggestion],body:has([role="dialog"][aria-modal="true"]) [data-consent-banner],body:has([role="dialog"][aria-modal="true"]) [data-locale-suggestion]{display:none}
-.cb-dock{gap:16px}.cb-dock-stack{margin-left:6px}
-:root{--cb-bar-h:calc(${STICKY_BAR_DEFAULT_RESERVE_PX}px + env(safe-area-inset-bottom))}
-@media (min-width:720px){:root{--cb-bar-h:0px}}
-body{padding-bottom:var(--cb-bar-h,0px)}
-.cb-bar{transition:opacity .2s ease,visibility .2s}
-.cb-bar[data-top="true"]{opacity:0;visibility:hidden;pointer-events:none}
-@media (prefers-reduced-motion:reduce){.cb-bar{transition:none}}`;
-
 export function CatalogOverlayStyles() {
   return <style>{CATALOG_OVERLAY_CSS}</style>;
 }

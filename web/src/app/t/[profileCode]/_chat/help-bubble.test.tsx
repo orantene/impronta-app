@@ -297,8 +297,14 @@ test("anchor order: dock icon, then idle bar, then the floating button", () => {
   clearPage();
 });
 
-test("bar tops include the language suggestion strip and legacy Maison bar", () => {
+test("bar tops include consent, language suggestion, and legacy Maison bar", () => {
   clearPage();
+  const consent = doc.createElement("div");
+  consent.setAttribute("data-consent-banner", "");
+  Object.defineProperty(consent, "getBoundingClientRect", {
+    value: () => ({ top: 610, bottom: 700, left: 0, right: 100, width: 100, height: 90, x: 0, y: 610, toJSON() {} }),
+  });
+  doc.body.append(consent);
   const locale = doc.createElement("div");
   locale.setAttribute("data-locale-suggestion", "en");
   Object.defineProperty(locale, "getBoundingClientRect", {
@@ -313,6 +319,7 @@ test("bar tops include the language suggestion strip and legacy Maison bar", () 
   });
   doc.body.append(mn);
   const tops = findHelpBubbleBarTops(doc);
+  assert.ok(tops.includes(610), "consent banner top");
   assert.ok(tops.includes(640), "locale strip top");
   assert.ok(tops.includes(620), "legacy Maison bar top");
   clearPage();
