@@ -3,10 +3,10 @@
  *
  * A talent's custom domain serves a SMALL surface: the site home (`/`), its
  * inner pages (`/<pageSlug>`), public payment checkout (`/pay/<code>`), guest
- * threads (`/c/<id>`), plus the shared static / API / compliance paths that
- * every host kind allows. Everything else 404s. This keeps a talent vanity
- * domain from exposing the workspace, the directory, auth, or any other tenant
- * surface.
+ * threads (`/c/<id>`), client Google OAuth (`/auth/*`, TUL-173), plus the
+ * shared static / API / compliance paths that every host kind allows.
+ * Everything else 404s. This keeps a talent vanity domain from exposing the
+ * workspace, the directory, login/register pages, or any other tenant surface.
  *
  * The matched request is internally rewritten to the host route at
  * `app/%5Ftalent-site/[[...pageSlug]]/page.tsx` (the `%5F` is the encoded
@@ -44,6 +44,10 @@ const TALENT_SITE_PASSTHROUGH_PREFIXES = [
   "/account/visits/",
   "/account/messages/",
   "/account/receipts/",
+  // Client account Google OAuth (TUL-173). Same-origin popup needs
+  // `/auth/google` + `/auth/callback` on the talent host; bare `/auth` stays
+  // reserved below and still 404s. Login/register pages stay reserved.
+  "/auth/",
 ] as const;
 
 // `/account` itself is an exact path (a `/account` prefix would also pass `/accounts`).

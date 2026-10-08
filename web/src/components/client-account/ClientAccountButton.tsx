@@ -6,25 +6,32 @@
  * `variant="dock"` floats above the chat launcher; `variant="header"` sits in
  * the site header. Both open the same popover (bottom sheet under 640 px, focus
  * trapped, Esc closes). Colours come only from the `<html>` token vars
- * (`--token-color-*`), so it wears the site's look. Sign-in is email code only:
- * Google and password are intentionally absent on talent hosts (see PR notes).
+ * (`--token-color-*`), so it wears the site's look.
+ *
+ * Sign-in methods (TUL-173 / Client Account Plan §5.3): email code (default),
+ * Google popup on this host (`/auth/google?popup=1`), password behind a link.
+ * No redirects off the talent host.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { requestEmailCode } from "@/app/auth/otp-actions";
+import { AuthGoogleGlyph } from "@/components/auth/auth-google-glyph";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 import { getSiteUrl } from "@/lib/auth-flow";
+import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
 import {
+  finalizeClientAccountGoogleSession,
   saveClientMarketingConsent,
+  signInClientAccountPassword,
   signOutClientAccount,
   verifyClientAccountCode,
 } from "@/lib/client-account/actions";
 import { resendSecondsLeft, type AccountSummary } from "@/lib/client-account/pure";
 
 type Me = { signedIn: false; signedInAs?: "business" } | { signedIn: true; email: string | null; initials: string; summary: AccountSummary };
-type Step = "email" | "code" | "consent";
+type Step = "email" | "code" | "password" | "consent";
 
 const INK = "var(--token-color-ink, #111)";
 const BG = "var(--token-color-surface-raised, var(--token-color-background, #fff))";
@@ -65,13 +72,17 @@ export function ClientAccountButton({
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [googlePending, setGooglePending] = useState(false);
   const [sentAt, setSentAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [optIn, setOptIn] = useState(false);
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const popupRef = useRef<Window | null>(null);
+  const closeWatcherRef = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -98,6 +109,49 @@ export function ClientAccountButton({
     setOpen(false);
     triggerRef.current?.focus();
   }, []);
+
+  const afterSignIn = useCallback(
+    async (firstSignIn: boolean) => {
+      await refresh();
+      if (firstSignIn) setStep("consent");
+      else close();
+    },
+    [close, refresh],
+  );
+
+  useEffect(() => {
+    function handleMessage(event: MessageEvent<AuthPopupMessage>) {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== AUTH_POPUP_MESSAGE_TYPE) return;
+      setGooglePending(false);
+      if (closeWatcherRef.current) {
+        window.clearInterval(closeWatcherRef.current);
+        closeWatcherRef.current = null;
+      }
+      popupRef.current?.close();
+      popupRef.current = null;
+      if (!event.data.success) {
+        setError(event.data.error ?? t("public.clientAccount.googleFailed"));
+        return;
+      }
+      void (async () => {
+        setBusy(true);
+        setError(null);
+        const res = await finalizeClientAccountGoogleSession({ locale: loc, ageTerms: true });
+        setBusy(false);
+        if (!res.ok) {
+          setError(res.error);
+          return;
+        }
+        await afterSignIn(res.firstSignIn);
+      })();
+    }
+    window.addEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      if (closeWatcherRef.current) window.clearInterval(closeWatcherRef.current);
+    };
+  }, [afterSignIn, loc, t]);
 
   useEffect(() => {
     if (!open) return;
@@ -157,9 +211,52 @@ export function ClientAccountButton({
       setError(res.error);
       return;
     }
-    await refresh();
-    if (res.firstSignIn) setStep("consent");
-    else close();
+    await afterSignIn(res.firstSignIn);
+  }
+
+  async function passwordSignIn() {
+    setBusy(true);
+    setError(null);
+    const res = await signInClientAccountPassword({ email, password, locale: loc, ageTerms: true });
+    setBusy(false);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    setPassword("");
+    await afterSignIn(res.firstSignIn);
+  }
+
+  function startGoogle() {
+    setError(null);
+    const W = 520;
+    const H = 640;
+    const left = Math.max(window.screenX + (window.outerWidth - W) / 2, 0);
+    const top = Math.max(window.screenY + (window.outerHeight - H) / 2, 0);
+    const startUrl = new URL("/auth/google", window.location.origin);
+    startUrl.searchParams.set("popup", "1");
+    startUrl.searchParams.set("next", "/");
+    const popup = window.open(
+      startUrl.toString(),
+      "google-auth-popup",
+      `width=${W},height=${H},left=${left},top=${top},popup=yes,resizable=yes,scrollbars=yes`,
+    );
+    if (!popup) {
+      setError(t("public.clientAccount.googlePopupBlocked"));
+      return;
+    }
+    popupRef.current = popup;
+    setGooglePending(true);
+    closeWatcherRef.current = window.setInterval(() => {
+      if (!popupRef.current || popupRef.current.closed) {
+        if (closeWatcherRef.current) {
+          window.clearInterval(closeWatcherRef.current);
+          closeWatcherRef.current = null;
+        }
+        popupRef.current = null;
+        setGooglePending(false);
+      }
+    }, 500);
   }
 
   async function finishConsent(save: boolean) {
@@ -174,12 +271,14 @@ export function ClientAccountButton({
     setMe({ signedIn: false });
     setStep("email");
     setCode("");
+    setPassword("");
     close();
   }
 
   const left = resendSecondsLeft(now, sentAt);
   const label = me.signedIn ? t("public.clientAccount.account") : t("public.clientAccount.signIn");
   const site = getSiteUrl();
+  const pending = busy || googlePending;
 
   const trigger = (
     <button
@@ -215,7 +314,35 @@ export function ClientAccountButton({
 
   const field = { width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${LINE}`, background: "transparent", color: INK, fontSize: 16 } as const;
   const primary = { width: "100%", padding: "11px 14px", borderRadius: 999, border: 0, background: ACCENT, color: "var(--token-color-on-primary, #fff)", fontWeight: 600, cursor: "pointer" } as const;
+  const secondary = {
+    width: "100%",
+    padding: "11px 14px",
+    borderRadius: 999,
+    border: `1px solid ${LINE}`,
+    background: "transparent",
+    color: INK,
+    fontWeight: 600,
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  } as const;
   const linkBtn = { background: "none", border: 0, color: INK, textDecoration: "underline", cursor: "pointer", padding: 4, fontSize: 14 } as const;
+
+  const legal = (
+    <p style={{ margin: 0, fontSize: 12, opacity: 0.75 }}>
+      {t("public.clientAccount.legalPrefix")}{" "}
+      <a href={`${site}/legal/terms`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
+        {t("public.clientAccount.legalTerms")}
+      </a>{" "}
+      {t("public.clientAccount.legalAnd")}{" "}
+      <a href={`${site}/legal/privacy`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
+        {t("public.clientAccount.legalPrivacy")}
+      </a>
+      .
+    </p>
+  );
 
   return (
     <>
@@ -280,54 +407,108 @@ export function ClientAccountButton({
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (!busy) void (step === "email" ? send(false) : verify());
+                  if (pending) return;
+                  if (step === "email") void send(false);
+                  else if (step === "code") void verify();
+                  else void passwordSignIn();
                 }}
                 style={{ display: "grid", gap: 12 }}
               >
                 <h2 style={{ margin: 0, fontSize: 17 }}>{t("public.clientAccount.title")}</h2>
                 <p style={{ margin: 0, fontSize: 14, opacity: 0.8 }}>
-                  {step === "code" ? interpolate(t("public.clientAccount.sentTo"), { email }) : t("public.clientAccount.subtitle")}
+                  {step === "code"
+                    ? interpolate(t("public.clientAccount.sentTo"), { email })
+                    : step === "password"
+                      ? t("public.clientAccount.passwordSubtitle")
+                      : t("public.clientAccount.subtitle")}
                 </p>
                 {step === "email" ? (
-                  <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
-                    {t("public.clientAccount.emailLabel")}
-                    <input type="email" required autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} style={field} />
-                  </label>
-                ) : (
+                  <>
+                    <button type="button" onClick={startGoogle} disabled={pending} style={secondary}>
+                      <AuthGoogleGlyph />
+                      <span>{googlePending ? t("public.clientAccount.googleOpening") : t("public.clientAccount.google")}</span>
+                    </button>
+                    <p style={{ margin: 0, textAlign: "center", fontSize: 12, opacity: 0.65 }}>{t("public.clientAccount.or")}</p>
+                    <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+                      {t("public.clientAccount.emailLabel")}
+                      <input type="email" required autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} style={field} />
+                    </label>
+                  </>
+                ) : null}
+                {step === "code" ? (
                   <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
                     {t("public.clientAccount.codeLabel")}
                     <input type="text" required autoComplete="one-time-code" inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} style={field} />
                   </label>
-                )}
+                ) : null}
+                {step === "password" ? (
+                  <>
+                    <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+                      {t("public.clientAccount.emailLabel")}
+                      <input type="email" required autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} style={field} />
+                    </label>
+                    <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+                      {t("public.clientAccount.passwordLabel")}
+                      <input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} style={field} />
+                    </label>
+                  </>
+                ) : null}
                 {error ? (
                   <p role="alert" style={{ margin: 0, fontSize: 13, color: "var(--token-color-danger, #b00020)" }}>
                     {error}
                   </p>
                 ) : null}
-                <button type="submit" disabled={busy} style={primary}>
-                  {step === "email" ? t("public.clientAccount.sendCode") : t("public.clientAccount.verify")}
+                <button type="submit" disabled={pending} style={primary}>
+                  {step === "email"
+                    ? t("public.clientAccount.sendCode")
+                    : step === "code"
+                      ? t("public.clientAccount.verify")
+                      : t("public.clientAccount.passwordSubmit")}
                 </button>
                 {step === "code" ? (
                   <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap" }}>
-                    <button type="button" disabled={busy || left > 0} onClick={() => void send(true)} style={{ ...linkBtn, opacity: left > 0 ? 0.6 : 1 }}>
+                    <button type="button" disabled={pending || left > 0} onClick={() => void send(true)} style={{ ...linkBtn, opacity: left > 0 ? 0.6 : 1 }}>
                       {left > 0 ? interpolate(t("public.clientAccount.resendIn"), { s: String(left) }) : t("public.clientAccount.resend")}
                     </button>
-                    <button type="button" onClick={() => { setStep("email"); setCode(""); setError(null); }} style={linkBtn}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStep("email");
+                        setCode("");
+                        setError(null);
+                      }}
+                      style={linkBtn}
+                    >
                       {t("public.clientAccount.changeEmail")}
                     </button>
                   </div>
                 ) : null}
-                <p style={{ margin: 0, fontSize: 12, opacity: 0.75 }}>
-                  {t("public.clientAccount.legalPrefix")}{" "}
-                  <a href={`${site}/legal/terms`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
-                    {t("public.clientAccount.legalTerms")}
-                  </a>{" "}
-                  {t("public.clientAccount.legalAnd")}{" "}
-                  <a href={`${site}/legal/privacy`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
-                    {t("public.clientAccount.legalPrivacy")}
-                  </a>
-                  .
-                </p>
+                {step === "email" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep("password");
+                      setError(null);
+                    }}
+                    style={linkBtn}
+                  >
+                    {t("public.clientAccount.usePassword")}
+                  </button>
+                ) : null}
+                {step === "password" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep("email");
+                      setPassword("");
+                      setError(null);
+                    }}
+                    style={linkBtn}
+                  >
+                    {t("public.clientAccount.useCode")}
+                  </button>
+                ) : null}
+                {legal}
               </form>
             )}
           </div>

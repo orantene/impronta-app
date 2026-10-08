@@ -2,6 +2,14 @@
 
 export const RESEND_COOLDOWN_SECONDS = 30;
 
+/** Methods recorded on `client_auth_events.method` (foundation migration). */
+export const CLIENT_AUTH_METHODS = ["email_code", "google", "password", "sso"] as const;
+export type ClientAuthMethod = (typeof CLIENT_AUTH_METHODS)[number];
+
+export function isClientAuthMethod(value: string): value is ClientAuthMethod {
+  return (CLIENT_AUTH_METHODS as readonly string[]).includes(value);
+}
+
 /** Whole seconds left before "Resend code" is allowed again; 0 means allowed. */
 export function resendSecondsLeft(
   nowMs: number,

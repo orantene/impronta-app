@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  CLIENT_AUTH_METHODS,
   RESEND_COOLDOWN_SECONDS,
   accountInitials,
   isClientAccountEligible,
+  isClientAuthMethod,
   resendSecondsLeft,
   shapeAccountSummary,
 } from "./pure";
@@ -31,6 +33,13 @@ test("only client accounts are eligible; talent, staff, platform are not", () =>
   assert.equal(isClientAccountEligible("client"), true);
   assert.equal(isClientAccountEligible(null), true);
   for (const r of ["talent", "agency_staff", "super_admin"]) assert.equal(isClientAccountEligible(r), false, r);
+});
+
+test("client auth methods match foundation migration allow-list", () => {
+  assert.deepEqual([...CLIENT_AUTH_METHODS], ["email_code", "google", "password", "sso"]);
+  for (const m of CLIENT_AUTH_METHODS) assert.equal(isClientAuthMethod(m), true, m);
+  assert.equal(isClientAuthMethod("magic_link"), false);
+  assert.equal(isClientAuthMethod(""), false);
 });
 
 const NOW = Date.parse("2026-10-07T12:00:00Z");
