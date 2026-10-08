@@ -28,8 +28,8 @@ export const HYW_MOVES: Record<HowYouWorkMove, { label: Pair; title: Pair; body:
     label: { en: "Add me as a provider", es: "Agregarme como proveedor" },
     title: { en: "Add yourself as a provider?", es: "¿Agregarte como proveedor?" },
     body: {
-      en: "We create your talent profile in this workspace and open it for bookings, like a fresh signup as both.",
-      es: "Creamos tu perfil de talento en este espacio y lo abrimos a reservas, como un registro nuevo en ambos.",
+      en: "We create your talent profile and your own site, and open you for bookings in this workspace. Pressing it again changes nothing.",
+      es: "Creamos tu perfil de talento y tu propio sitio, y te abrimos a reservas en este espacio. Pulsarlo otra vez no cambia nada.",
     },
     confirm: { en: "Add me", es: "Agregarme" },
   },
@@ -59,5 +59,9 @@ export const HYW_UI = {
   slug: { en: "Address", es: "Dirección" } as Pair,
   working: { en: "Working…", es: "Un momento…" } as Pair,
   done: { en: "Done.", es: "Listo." } as Pair,
+  partial: {
+    en: "Part of it was saved. Press the button again to finish.",
+    es: "Se guardó una parte. Vuelve a pulsar el botón para terminar.",
+  } as Pair,
   loadError: { en: "Could not load this right now.", es: "No se pudo cargar ahora." } as Pair,
 };
