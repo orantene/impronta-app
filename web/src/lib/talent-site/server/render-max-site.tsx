@@ -99,6 +99,7 @@ import { loadMaxSiteSeoFacts } from "./max-site-seo-facts.server";
 import { loadTalentSiteLocaleContext, type TalentSiteLocaleContext } from "./talent-site-locale.server";
 import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links"; import { webOfficeCtxFor, webOfficeFooter, webOfficeHeaderSocial, type WebOfficeCtx } from "./web-office-footer"; import { webOfficeSocialEnabled } from "../web-office-social";
 import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main";
+import { soft404MainNode, soft404Seo } from "./soft-404-main";
 import { policyDocForSlug } from "@/lib/talent-policies/public";
 
 /** Re-export so existing `import type { MaxSiteSeo } from "./render-max-site"` stays valid. */
@@ -162,6 +163,11 @@ export interface RenderTalentMaxSiteInput {
    * `/[<page>]` for a custom-domain apex).
    */
   canonicalPath?: string;
+  /**
+   * TUL-516 S2 — render the site shell (home) with a soft-404 body instead of
+   * a page. Used for allow-list rejects and unknown slugs on talent hosts.
+   */
+  soft404?: boolean;
 }
 
 export type RenderTalentMaxSiteResult =
@@ -244,9 +250,11 @@ async function renderTalentMaxSiteUnguarded(
     // published (the pure core re-applies this — defense in depth over RLS).
     const requirePublished = !isOwnerDraftPreview;
     // `/politicas` and `/privacidad` are platform pages: the site's shell and theme (from home), only the body swaps.
-    const policyDoc = policyDocForSlug(input.pageSlug);
+    // Soft 404 (TUL-516 S2) uses the same home-shell + mainOverride pattern.
+    const soft404 = input.soft404 === true;
+    const policyDoc = soft404 ? null : policyDocForSlug(input.pageSlug);
     const page = selectMaxSitePage(pages, {
-      pageSlug: policyDoc ? null : input.pageSlug,
+      pageSlug: policyDoc || soft404 ? null : input.pageSlug, // home shell for policy + soft 404
       requirePublished,
     });
     if (!page) return NOT_FOUND;
@@ -257,7 +265,7 @@ async function renderTalentMaxSiteUnguarded(
     const body = coerceTree(snapBlocks ?? publicPageBody(page, { draftPreview: isOwnerDraftPreview }));
     const fixed = await prepareTalentSiteTrees({ talentProfileId, locale, chain: localeCtx.chain, logoUrl: site.logoUrl, shellTree, body, ctaMode, designSlug: designSlugEarly, siteSlug: site.siteSlug });
     const blocks = pruneUnconfirmedGuestStubs(fixed.body);
-    if (!policyDoc && !hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
+    if (!policyDoc && !soft404 && !hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       // A published-but-empty page → 404 rather than a blank document.
       return NOT_FOUND;
     }
@@ -287,13 +295,21 @@ async function renderTalentMaxSiteUnguarded(
     const siteTokens = snap?.tokens ?? (await loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview }));
     const designSlug = designSlugEarly;
     const policyModel = policyDoc ? await loadTalentPolicyModel(talentProfileId, policyDoc, locale) : null;
-    // Policy pages keep the home shell but swap the body: give the document a
-    // locale-aware home link so white-on-white chrome never traps the visitor.
-    const policyHomeHref = policyModel
-      ? talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales)
-      : null;
+    // Locale-aware home link for soft-404 + policy bodies so chrome never traps
+    // the visitor on a white-on-white page without a way back.
+    const homeHref = talentSiteLocalePath(
+      "/",
+      locale,
+      localeCtx.settings.defaultLocale,
+      localeCtx.settings.supportedLocales,
+    );
+    const mainOverride = soft404
+      ? soft404MainNode(locale, homeHref)
+      : policyModel
+        ? policyMainNode(policyModel, { homeHref })
+        : undefined;
     const node = await renderMaxSiteDocument({
-      mainOverride: policyModel ? policyMainNode(policyModel, { homeHref: policyHomeHref ?? "/" }) : undefined,
+      mainOverride,
       siteTokens,
       designSlug,
       shellTree: hydratedShell,
@@ -330,14 +346,19 @@ async function renderTalentMaxSiteUnguarded(
       ),
       identity,
       locale,
-      noindex: isOwnerDraftPreview,
+      noindex: isOwnerDraftPreview || soft404,
       canonicalOrigin: input.canonicalOrigin,
       canonicalPath: input.canonicalPath,
-      ignoreExplicitCanonical: Boolean(policyDoc),
+      ignoreExplicitCanonical: Boolean(policyDoc) || soft404,
       locales: { primary: localeCtx.settings.defaultLocale, urlDefault: localeCtx.grammar.defaultLocale, supported: localeCtx.settings.supportedLocales },
     });
 
-    return { kind: "render", node, seo: policyModel ? policySeo(seo, policyModel) : seo, locale };
+    const finalSeo = soft404
+      ? soft404Seo(seo, locale)
+      : policyModel
+        ? policySeo(seo, policyModel)
+        : seo;
+    return { kind: "render", node, seo: finalSeo, locale };
   } catch {
     // Degrade safe — any unexpected failure becomes a 404, never a throw.
     return NOT_FOUND;

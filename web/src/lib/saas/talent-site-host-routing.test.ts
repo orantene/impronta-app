@@ -65,6 +65,8 @@ test("workspace / login / multi-segment / dotted paths are NOT allowed (→ 404)
     "/c", // bare reserved slug — not a thread
     "/pay", // bare reserved — checkout needs /pay/<code>
     "/link",
+    "/agendar", // booking alias — redirected in host-response, never a page slug
+    "/book",
     "/about/extra", // multi-segment
     "/foo.bar", // dotted
     "/Upper", // uppercase
@@ -76,6 +78,14 @@ test("workspace / login / multi-segment / dotted paths are NOT allowed (→ 404)
       `expected null (404) for ${p}`,
     );
   }
+});
+
+test("unknown single-segment paths still render (soft-404 if page missing)", () => {
+  // Allow-list accepts the slug; missing pages soft-404 inside the site shell.
+  assert.deepEqual(isTalentSiteHostPathAllowed("/pagina-que-no-existe"), {
+    kind: "render",
+    pageSlug: "pagina-que-no-existe",
+  });
 });
 
 test("rewrite path targets the internal host route", () => {

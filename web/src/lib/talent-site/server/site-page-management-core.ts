@@ -20,7 +20,16 @@
  */
 
 /** Reserved page slugs the talent can't take (would shadow site-level routes). */
-export const RESERVED_PAGE_SLUGS: readonly string[] = ["site", "__site_shell__", "politicas", "privacidad", "privacy"];
+export const RESERVED_PAGE_SLUGS: readonly string[] = [
+  "site",
+  "__site_shell__",
+  "politicas",
+  "privacidad",
+  "privacy",
+  // Public booking aliases (proxy → `/#book`); never authorable pages.
+  "agendar",
+  "book",
+];
 
 /** A reasonable cap so a page slug never blows out a URL or an index entry. */
 const MAX_PAGE_SLUG_LEN = 48;

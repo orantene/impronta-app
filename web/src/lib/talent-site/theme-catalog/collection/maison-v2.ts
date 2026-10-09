@@ -149,8 +149,8 @@ function unrounded(style: Props): Props {
  */
 /** The primary booking button (header + hero). Mode-dependent seed: see MODE_DEPENDENT_LABELS. */
 export const MAISON_V2_BOOK_LABEL = "Book an appointment";
-/** Booking opens from the services catalog anchor (`id="services"`). */
-export const MAISON_V2_BOOK_HREF = "#services";
+/** Booking opens the guest sheet (`#book`); "See services" stays on `#services`. */
+export const MAISON_V2_BOOK_HREF = "#book";
 
 function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
   const hero = tuneHeading(

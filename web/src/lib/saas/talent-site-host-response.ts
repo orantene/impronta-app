@@ -12,12 +12,17 @@ import {
   HOST_CONTEXT_HEADER,
   HOST_NAME_HEADER,
   HOST_TALENT_PROFILE_HEADER,
+  HOST_TALENT_SOFT_404_HEADER,
   HOST_TENANT_SLUG_HEADER,
 } from "@/lib/saas/host-context";
 import { applyTalentSiteAnonCacheHeaders } from "@/lib/saas/talent-site-anon-cache";
 import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-identity";
 import { isTalentSiteHostPathAllowed, talentSiteHostRewritePath } from "@/lib/saas/talent-site-host-routing";
 import { PUBLIC_PATH_PREFIX_HEADER, TENANT_HEADER_NAME } from "@/lib/saas/scope";
+import {
+  isTalentBookingAliasPath,
+  talentBookingSheetRedirectPath,
+} from "@/lib/talent-site/talent-site-booking-alias";
 import { talentDemoBareHostRedirectHost } from "@/lib/talent-site/site-public-url";
 import { loadTalentLocaleSettingsForProxy } from "@/lib/talent-site/talent-site-locale-proxy";
 import { decideTalentSiteLocale } from "@/lib/talent-site/talent-site-locale-routing";
@@ -27,9 +32,9 @@ import { decideTalentSiteLocale } from "@/lib/talent-site/talent-site-locale-rou
  * agency_domains misses) serves the talent's published Max site. Its surface
  * is intentionally tiny: the site home (`/`), inner page slugs (`/<slug>`),
  * guest `/c/<id>`, public `/pay/<code>` checkout, plus shared plumbing.
- * Anything else 404s: a vanity domain never exposes the workspace, directory,
- * or auth. The render path reads the talent_profile_id from a host header set
- * here, so a client can never spoof it.
+ * Anything else soft-404s inside the site shell: a vanity domain never exposes
+ * the workspace, directory, or auth. The render path reads the talent_profile_id
+ * from a host header set here, so a client can never spoof it.
  *
  * Language (PR 4, 2026-09-29): the talent's OWN languages and URL grammar,
  * decided by `decideTalentSiteLocale` (prefix > `?locale=` 302 >
@@ -83,13 +88,17 @@ export async function talentSiteHostResponse(
   });
   const localeStripped = talentLocale.innerPath;
 
-  const decision = isTalentSiteHostPathAllowed(localeStripped);
-  if (!decision) {
-    return NextResponse.rewrite(
-      new URL("/_page-not-found", request.url),
-      { status: 404 },
-    );
-  }
+  const talentHeaders = new Headers(sanitizedInboundHeaders);
+  talentHeaders.set(LOCALE_HEADER, talentLocale.locale);
+  talentHeaders.set(ORIGINAL_PATHNAME_HEADER, request.nextUrl.pathname);
+  talentHeaders.set(HOST_CONTEXT_HEADER, "talent_site");
+  talentHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
+  talentHeaders.set(HOST_TALENT_PROFILE_HEADER, hostContext.talentProfileId);
+  // A talent_site host is NOT tenant-scoped — never let a tenant id leak.
+  talentHeaders.delete(TENANT_HEADER_NAME);
+  talentHeaders.delete(HOST_TENANT_SLUG_HEADER);
+  talentHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
+
   const rememberChoice = (res: NextResponse): NextResponse => {
     if (talentLocale.explicit) {
       res.cookies.set(LOCALE_COOKIE, talentLocale.locale, localeCookieOptions);
@@ -102,23 +111,43 @@ export async function talentSiteHostResponse(
     }
     return res;
   };
+
+  // `/agendar` (ES) and `/book` (EN, after locale strip of `/en/book`) open the
+  // booking sheet on home — never a missing-page 404 (TUL-516 S2).
+  if (
+    isTalentBookingAliasPath(localeStripped) &&
+    (request.method === "GET" || request.method === "HEAD")
+  ) {
+    const dest = talentBookingSheetRedirectPath(
+      talentLocale.locale,
+      talentLocales.defaultLocale,
+      talentLocales.supportedLocales,
+    );
+    return rememberChoice(NextResponse.redirect(new URL(dest, request.url), 302));
+  }
+
+  const decision = isTalentSiteHostPathAllowed(localeStripped);
+  if (!decision) {
+    // Site-branded soft 404: Max shell + soft body, HTTP 404 (not platform Tulala card).
+    talentHeaders.set(HOST_TALENT_SOFT_404_HEADER, "1");
+    const rewriteUrl = request.nextUrl.clone();
+    rewriteUrl.pathname = talentSiteHostRewritePath(null);
+    return rememberChoice(
+      attachTalentSiteGuestIdentity(request, talentHeaders)(
+        NextResponse.rewrite(rewriteUrl, {
+          status: 404,
+          request: { headers: talentHeaders },
+        }),
+      ),
+    );
+  }
+
   if (talentLocale.redirectPath && (request.method === "GET" || request.method === "HEAD")) {
     const target = request.nextUrl.clone();
     target.pathname = talentLocale.redirectPath;
     target.searchParams.delete("locale");
     return rememberChoice(NextResponse.redirect(target, 302));
   }
-
-  const talentHeaders = new Headers(sanitizedInboundHeaders);
-  talentHeaders.set(LOCALE_HEADER, talentLocale.locale);
-  talentHeaders.set(ORIGINAL_PATHNAME_HEADER, request.nextUrl.pathname);
-  talentHeaders.set(HOST_CONTEXT_HEADER, "talent_site");
-  talentHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
-  talentHeaders.set(HOST_TALENT_PROFILE_HEADER, hostContext.talentProfileId);
-  // A talent_site host is NOT tenant-scoped — never let a tenant id leak.
-  talentHeaders.delete(TENANT_HEADER_NAME);
-  talentHeaders.delete(HOST_TENANT_SLUG_HEADER);
-  talentHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
 
   const attachGuestCookie = attachTalentSiteGuestIdentity(request, talentHeaders);
   const finish = (res: NextResponse): NextResponse =>
