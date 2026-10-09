@@ -31,6 +31,7 @@ import { normalizeCurrencyCode } from "@/lib/inquiry/offer-currency";
 import { resolvePayeeName } from "@/lib/payments/payee-name";
 import { PAYMENT_LINK_METADATA_KEY } from "@/lib/payments/link-settlement";
 import { resolveLinkPayoutReceiver } from "@/lib/payments/link-payout-receiver";
+import { collectForOrderPrincipal } from "@/lib/orders/purchase-collect";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 
@@ -44,6 +45,7 @@ export type OpenPaymentLinkCheckoutDeps = {
   createCheckoutSession?: typeof createCheckoutSessionForTransaction;
   retrieveCheckoutSession?: typeof retrieveCheckoutSessionLink;
   resolveReceiver?: typeof resolveLinkPayoutReceiver;
+  resolveCollect?: typeof collectForOrderPrincipal;
   now?: () => number;
 };
 
@@ -178,6 +180,15 @@ async function openOnce(
   }
   const currency = link.currency || order.currency;
   const amountCents = Number(link.amount_cents);
+  // The principal is what the order is credited. What Stripe charges is the principal plus the
+  // pass_through client surcharge when armed: the same helper the direct checkout uses.
+  const collectCents = await (deps.resolveCollect ?? collectForOrderPrincipal)(admin as unknown as SupabaseClient, {
+    tenantId: link.tenant_id,
+    orderId: order.id,
+    orderCurrency: currency,
+    principalCents: amountCents,
+    subtotalCents: Number((order as { total_cents?: number | string | null }).total_cents ?? 0),
+  });
 
   // ── 2. RESUME, DO NOT MINT A SECOND.
   let transactionId: string | null = claim.transaction_id;
@@ -260,9 +271,9 @@ async function openOnce(
         order_id: order.id,
         source_tenant_id: link.tenant_id,
         payer_email: contact?.email ?? null,
-        gross_amount_cents: amountCents,
+        gross_amount_cents: collectCents,
         platform_fee_basis_points: 0,
-        platform_fee_cents: 0,
+        platform_fee_cents: Math.max(0, collectCents - amountCents),
         net_amount_cents: amountCents,
         currency,
         provider: "stripe",
@@ -320,9 +331,16 @@ async function openOnce(
     portion: paymentPortion(amountCents, order.total_cents),
     locale: input.locale ?? null,
   });
+  // A draft row opened before this amount was known (or before the surcharge was armed) must match
+  // what the session will charge: gross = charge, net = principal, fee = the difference.
+  await admin
+    .from("booking_transactions")
+    .update({ gross_amount_cents: collectCents, platform_fee_cents: Math.max(0, collectCents - amountCents), net_amount_cents: amountCents })
+    .eq("id", transactionId)
+    .eq("status", "draft");
   const session = await (deps.createCheckoutSession ?? createCheckoutSessionForTransaction)({
     transactionId,
-    amountCents,
+    amountCents: collectCents,
     currency,
     payerEmail: contact?.email ?? null,
     inquiryId: null,
