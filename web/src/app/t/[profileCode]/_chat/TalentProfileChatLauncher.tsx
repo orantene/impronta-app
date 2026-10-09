@@ -197,12 +197,24 @@ export function TalentProfileChatLauncher({
   // visible "Requesting: …" first-message prefix downstream).
   // Booking-sheet Ask / Chat now uses `tulala:ask-question` so the sheet
   // (which also listens for offering-request) does not reopen on top.
+  // TUL-246: wait briefly so CatalogBookingSheet can claim the click via
+  // `tulala:maison-sheet` (same pattern as TalentInquiryFormSheet).
   useEffect(() => {
+    let sheetOpen = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onSheet = (e: Event) => {
+      sheetOpen = Boolean((e as CustomEvent<{ open?: boolean }>).detail?.open);
+    };
     const onOfferingRequest = (e: Event) => {
       const detail = (e as CustomEvent).detail;
-      if (detail && typeof detail === "object") setPendingOffering(detail);
-      setOpen(true);
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (sheetOpen) return;
+        if (detail && typeof detail === "object") setPendingOffering(detail);
+        setOpen(true);
+      }, 150);
     };
+    window.addEventListener("tulala:maison-sheet", onSheet);
     window.addEventListener("tulala:offering-request", onOfferingRequest);
     const onOpenClean = () => {
       setPendingOffering(null);
@@ -212,6 +224,8 @@ export function TalentProfileChatLauncher({
     const unready = announceTalentOpenReady("chat");
     return () => {
       unready();
+      if (timer) clearTimeout(timer);
+      window.removeEventListener("tulala:maison-sheet", onSheet);
       window.removeEventListener("tulala:offering-request", onOfferingRequest);
       window.removeEventListener("tulala:open-guest-chat", onOpenClean);
     };
