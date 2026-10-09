@@ -7,14 +7,20 @@
  * Run: npm run test:wt -- src/components/edit-chrome/hero-shift-measure.test.ts
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { JSDOM } from "jsdom";
 
 import {
+  buildEditChromeGutterStyleCss,
   heroShiftDetected,
   measureHeroShiftAfterScrollIntoView,
   readHeroShiftSnapshot,
 } from "./hero-shift-measure";
+
+const THIS_DIR = dirname(fileURLToPath(import.meta.url));
 
 function buildStudioHeroFixture(overflow: "hidden" | "clip") {
   const dom = new JSDOM(
@@ -90,4 +96,15 @@ test("measureHeroShiftAfterScrollIntoView returns before/after snapshots", () =>
   // jsdom scrollIntoView is a no-op; zero delta is expected here. A live
   // studio builder repro must call the same helper and report which field moved.
   assert.equal(heroShiftDetected(before, after), false);
+});
+
+test("gutter CSS pins canvas root overflow-x:clip (studio scroller candidate)", () => {
+  const css = buildEditChromeGutterStyleCss(120, 120);
+  assert.match(css, /\[data-in-editor-canvas-region\]\s*\{\s*overflow-x:\s*clip/);
+});
+
+test("edit-chrome.tsx also pins canvas overflow-x:clip while editing", () => {
+  const src = readFileSync(join(THIS_DIR, "edit-chrome.tsx"), "utf8");
+  assert.match(src, /data-in-editor-canvas-region/);
+  assert.match(src, /overflow-x:\s*clip/);
 });

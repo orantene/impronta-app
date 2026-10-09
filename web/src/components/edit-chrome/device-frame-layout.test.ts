@@ -14,6 +14,7 @@ import {
   shouldShowDeviceFrameSkeleton,
 } from "./device-frame-layout";
 import {
+  buildEditChromeGutterStyleCss,
   desktopCanvasContentWidthPx,
   resolveDesktopCanvasRailGutters,
 } from "./hero-shift-measure";
@@ -103,6 +104,7 @@ test("edit-shell wires reserve gutters + extracted skeleton load tracking", () =
     "utf8",
   );
   assert.match(bodyPad, /resolveDesktopCanvasRailGutters/);
+  assert.match(bodyPad, /buildEditChromeGutterStyleCss/);
   // Must NOT gate body padding at 1024 — that left rails over the canvas at 768/390.
   assert.doesNotMatch(
     bodyPad,
@@ -133,6 +135,20 @@ test("desktop canvas reserves rail gutters at 768 and 390 (run-6 desktop tier)",
     );
     // Content sits beside rails, not under them (rails reserved).
     assert.equal(content, viewport - DOCK - RAIL);
+
+    // Injected CSS must also inset fixed transparent headers + clamp 100vw
+    // breakouts — body padding alone leaves those under the rails.
+    const css = buildEditChromeGutterStyleCss(gutters.left, gutters.right);
+    assert.match(css, /padding-left:\s*120px/);
+    assert.match(css, /padding-right:\s*120px/);
+    assert.match(css, /data-tone="transparent"/);
+    assert.match(css, /left:\s*120px\s*!important/);
+    assert.match(css, /right:\s*120px\s*!important/);
+    assert.match(css, /\.site-prim-fullbleed/);
+    assert.match(css, /data-in-editor-canvas-region/);
+    assert.match(css, /overflow-x:\s*clip/);
+    // Must NOT reintroduce the ≥1024 gate that left 768/390 uncovered.
+    assert.doesNotMatch(css, /min-width:\s*1024/);
   }
 });
 

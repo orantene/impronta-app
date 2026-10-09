@@ -6,6 +6,8 @@
  *
  * TUL-397: must apply at every viewport width. Gating at min-width 1024 left
  * the rails over the live canvas at 768/390 (run-6 desktop device tier).
+ * Also insets fixed transparent headers and clamps 100vw breakouts — those
+ * ignore body padding and still sat under the rails after the first bounce.
  */
 
 import {
@@ -14,7 +16,10 @@ import {
   COMMAND_DOCK_WIDTH_PX,
   INSPECTOR_PANEL_RIGHT_INSET_PX,
 } from "./kit";
-import { resolveDesktopCanvasRailGutters } from "./hero-shift-measure";
+import {
+  buildEditChromeGutterStyleCss,
+  resolveDesktopCanvasRailGutters,
+} from "./hero-shift-measure";
 import {
   resolveBodyHorizontalPadding,
   type WorkspaceCanvasMode,
@@ -54,6 +59,6 @@ export function BodyPaddingController({
     });
   if (effectiveLeft === 0 && effectiveRight === 0) return null;
   return (
-    <style>{`body { padding-left: ${effectiveLeft}px !important; padding-right: ${effectiveRight}px !important; transition: padding-left 200ms ease, padding-right 200ms ease; }`}</style>
+    <style>{buildEditChromeGutterStyleCss(effectiveLeft, effectiveRight)}</style>
   );
 }

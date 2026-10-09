@@ -99,3 +99,43 @@ export function desktopCanvasContentWidthPx(input: {
   if (!(input.viewportWidth > 0)) return 0;
   return Math.max(0, input.viewportWidth - input.leftGutter - input.rightGutter);
 }
+
+/**
+ * CSS injected by BodyPaddingController.
+ *
+ * Body padding alone is not enough: agency transparent headers are
+ * `position:fixed; left:0; right:0` (ignore padding), and `.site-prim-fullbleed`
+ * uses `100vw` breakout. Also pin the canvas root to `overflow-x: clip` so a
+ * studio `scrollIntoView` cannot be the unnamed ~107px scroller.
+ */
+export function buildEditChromeGutterStyleCss(
+  leftPx: number,
+  rightPx: number,
+): string {
+  const left = Math.max(0, leftPx);
+  const right = Math.max(0, rightPx);
+  return [
+    `body {`,
+    `  padding-left: ${left}px !important;`,
+    `  padding-right: ${right}px !important;`,
+    `  --edit-chrome-gutter-left: ${left}px;`,
+    `  --edit-chrome-gutter-right: ${right}px;`,
+    `  transition: padding-left 200ms ease, padding-right 200ms ease;`,
+    `}`,
+    /* Fixed storefront headers ignore body padding — inset them to the gutters. */
+    `[data-cms-section][data-section-type-key="site_header"] .site-header[data-tone="transparent"],`,
+    `header[data-public-header][data-tone="transparent"] {`,
+    `  left: ${left}px !important;`,
+    `  right: ${right}px !important;`,
+    `  width: auto !important;`,
+    `}`,
+    /* 100vw breakouts would slide under the rails despite body padding. */
+    `.site-prim-fullbleed {`,
+    `  width: 100% !important;`,
+    `  max-width: 100% !important;`,
+    `  margin-inline: 0 !important;`,
+    `}`,
+    /* Studio hero-shift candidate: canvas root must not scroll horizontally. */
+    `[data-in-editor-canvas-region] { overflow-x: clip !important; }`,
+  ].join("\n");
+}
