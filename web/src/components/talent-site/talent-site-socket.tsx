@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 import { GUEST_CHAT_LAUNCHER_GAP_PX, GUEST_CHAT_LAUNCHER_HEIGHT_PX } from "@/app/t/[profileCode]/_chat/launcher-clearance";
 import { GUEST_CHAT_LAUNCHER_BOTTOM_PX } from "@/app/t/[profileCode]/_chat/mini-chat-styles";
@@ -12,6 +13,9 @@ import type { SocketLink, SocketModel } from "@/lib/talent-site/footer-socket";
  * and some designs set `color.muted` equal to the text colour. Text is always
  * ink or ink mixed into the strip surface, never on a design's dark band.
  * Phone: stacked. Desktop: one row.
+ *
+ * Links use `next/link`. Tulala legal pages open in the SAME tab so a cold
+ * marketing paint never leaves a new tab stuck on about:blank (TUL-516 H2/H3/H5).
  */
 
 /**
@@ -50,14 +54,9 @@ function LinkGroup({ label, links }: { label: string; links: SocketLink[] }): Re
     <nav aria-label={label}>
       <span className="tulala-socket__label">{label}</span>
       {links.map((l) => (
-        <a
-          key={l.key}
-          href={l.href}
-          data-socket-link={l.key}
-          {...(l.external ? { target: "_blank", rel: "noopener" } : {})}
-        >
+        <Link key={l.key} href={l.href} data-socket-link={l.key} {...(l.external ? { rel: "noopener" } : {})}>
           {l.label}
-        </a>
+        </Link>
       ))}
     </nav>
   );
@@ -93,7 +92,7 @@ export function TalentSiteSocket({
           <nav aria-label={model.langGroupLabel} data-socket-languages="">
             <span className="tulala-socket__label">{model.langGroupLabel}</span>
             {model.languages.map((l) => (
-              <a
+              <Link
                 key={l.locale}
                 href={l.href}
                 hrefLang={l.locale}
@@ -101,16 +100,16 @@ export function TalentSiteSocket({
                 aria-current={l.current ? "true" : undefined}
               >
                 {l.label}
-              </a>
+              </Link>
             ))}
           </nav>
         ) : null}
         {model.credit ? (
           <span className="tulala-socket__credit" data-socket-credit="">
             {model.credit.prefix}
-            <a href={model.credit.href} target="_blank" rel="noopener">
+            <Link href={model.credit.href} rel="noopener">
               {model.credit.label}
-            </a>
+            </Link>
           </span>
         ) : null}
       </div>
