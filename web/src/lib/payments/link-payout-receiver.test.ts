@@ -1,7 +1,7 @@
 /**
  * The payout receiver a payment link's money row gets (solo MXN talent fix),
- * on an injected fake. A fake that THROWS on any read of `agencies` pins that
- * the lane/currency never come from the tenant default.
+ * on an injected fake. The fake records every `agencies` read: the only column ever read is
+ * `workspace_type` (is the tenant talent-type), so the lane/currency never come from the tenant default.
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -9,15 +9,19 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolveLinkPayoutReceiver } from "./link-payout-receiver";
 
 type Row = Record<string, unknown>;
-type Tables = { inquiry_participants?: Row[]; talent_profiles?: Row[]; payout_accounts?: Row[] };
+type Tables = { inquiry_participants?: Row[]; talent_profiles?: Row[]; payout_accounts?: Row[]; agencies?: Row[] };
+const agencyReads: string[] = [];
 
 function fake(tables: Tables, opts: { failTable?: string } = {}): SupabaseClient {
   return {
     from: (table: string) => {
-      if (table === "agencies") throw new Error("the tenant default must never be read for the receiver");
       let rows = (tables as Record<string, Row[] | undefined>)[table] ?? [];
       const b: Record<string, unknown> = {};
-      b.select = () => b;
+      b.select = (cols?: string) => {
+        if (table === "agencies") agencyReads.push(cols ?? "*");
+        return b;
+      };
+      b.maybeSingle = () => Promise.resolve(opts.failTable === table ? { data: null, error: { message: "db down" } } : { data: rows[0] ?? null, error: null });
       b.eq = (col: string, val: unknown) => {
         rows = rows.filter((r) => r[col] === val);
         return b;
@@ -94,5 +98,47 @@ describe("resolveLinkPayoutReceiver", () => {
       { tenantId: TENANT, inquiryId: INQ },
     );
     assert.equal(r, null);
+  });
+});
+
+describe("resolveLinkPayoutReceiver: a sale on a talent-type workspace uses the talent's own connected account", () => {
+  const HUB = "hub-tenant";
+  const base = { inquiry_participants: [part("t1")], talent_profiles: [profile("t1")] };
+  const elsewhere = (id: string, status = "connected", providerAccountId = "acct_1"): Row => ({
+    id, tenant_id: "rosa-business", owner_type: "talent", owner_id: "t1", status, display_name: `Acct ${id}`, provider_account_id: providerAccountId,
+  });
+  const hub = { agencies: [{ id: HUB, workspace_type: "talent" }] };
+
+  it("the account is registered under ANOTHER tenant: a talent-type tenant uses it", async () => {
+    const r = await resolveLinkPayoutReceiver(fake({ ...base, ...hub, payout_accounts: [elsewhere("pa-rosa")] }), { tenantId: HUB, inquiryId: INQ });
+    assert.deepEqual(r, { payoutAccountId: "pa-rosa", receiverKind: "talent", displayName: "Acct pa-rosa" });
+  });
+
+  it("the same Stripe account registered under two tenants counts once; two different accounts give null", async () => {
+    const same = await resolveLinkPayoutReceiver(fake({ ...base, ...hub, payout_accounts: [elsewhere("pa1"), elsewhere("pa2")] }), { tenantId: HUB, inquiryId: INQ });
+    assert.equal(same?.payoutAccountId, "pa1");
+    const two = await resolveLinkPayoutReceiver(fake({ ...base, ...hub, payout_accounts: [elsewhere("pa1"), elsewhere("pa2", "connected", "acct_2")] }), { tenantId: HUB, inquiryId: INQ });
+    assert.equal(two, null);
+  });
+
+  it("a BUSINESS tenant never borrows another tenant's account (no redirect of a workspace sale)", async () => {
+    const r = await resolveLinkPayoutReceiver(fake({ ...base, agencies: [{ id: HUB, workspace_type: "business" }], payout_accounts: [elsewhere("pa-rosa")] }), { tenantId: HUB, inquiryId: INQ });
+    assert.equal(r, null);
+  });
+
+  it("not connected, a read error on the tenant or the accounts, or several sellers give null", async () => {
+    assert.equal(await resolveLinkPayoutReceiver(fake({ ...base, ...hub, payout_accounts: [elsewhere("pa1", "pending_verification")] }), { tenantId: HUB, inquiryId: INQ }), null);
+    const t: Tables = { ...base, ...hub, payout_accounts: [elsewhere("pa1")] };
+    assert.equal(await resolveLinkPayoutReceiver(fake(t, { failTable: "agencies" }), { tenantId: HUB, inquiryId: INQ }), null);
+    assert.equal(await resolveLinkPayoutReceiver(fake(t, { failTable: "payout_accounts" }), { tenantId: HUB, inquiryId: INQ }), null);
+    const many: Tables = { inquiry_participants: [part("t1"), part("t2")], talent_profiles: [profile("t1"), profile("t2")], ...hub, payout_accounts: [elsewhere("pa1")] };
+    assert.equal(await resolveLinkPayoutReceiver(fake(many), { tenantId: HUB, inquiryId: INQ }), null);
+  });
+
+  it("an account under this tenant still wins, and the only column ever read from agencies is workspace_type", async () => {
+    const own = { ...account("pa-here", "t1"), tenant_id: HUB };
+    const r = await resolveLinkPayoutReceiver(fake({ ...base, ...hub, payout_accounts: [own, elsewhere("pa-rosa")] }), { tenantId: HUB, inquiryId: INQ });
+    assert.equal(r?.payoutAccountId, "pa-here");
+    assert.ok(agencyReads.every((c) => c === "workspace_type"), `agencies reads: ${agencyReads.join(",")}`);
   });
 });
