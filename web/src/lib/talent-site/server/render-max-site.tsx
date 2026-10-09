@@ -206,6 +206,12 @@ async function renderTalentMaxSiteUnguarded(
     const pTenant = early(timed("maxSite.tenant", () => loadTalentManagingTenantId(talentProfileId)));
     const pIdentity = early(timed("maxSite.identity", () => loadTalentSiteIdentity(talentProfileId)));
     const pDemo = early(timed("maxSite.isDemo", () => loadMaxSiteIsDemo(talentProfileId)));
+    // Public published tokens can start with the other profile reads; draft preview loads later.
+    const pTokens = early(
+      timed("maxSite.themeTokens", () =>
+        loadMaxSiteThemeTokens(talentProfileId, { draft: false }),
+      ),
+    );
     const pCta = early(timed("maxSite.ctaMode", () => pPlan.then((plan) => loadTalentSiteCtaMode(talentProfileId, plan))));
     const localeCtx = await pLocale;
     const locale = localeCtx.locale;
@@ -305,19 +311,21 @@ async function renderTalentMaxSiteUnguarded(
       input.hrefMode ?? "path",
     );
 
-    // ── Managing tenant — section-embed render context for the page body ─────
-    const tenantId = await pTenant;
-
-    // ── Talent identity for the SITE's JSON-LD + OG image (degrade-safe) ──────
-    const identity = await pIdentity;
-
-    // Demo pill + theme tokens (Design slug already loaded above).
-    const isDemo = await pDemo;
+    // TUL-444 Step 2: settle tenant / identity / demo / published tokens together
+    // (they were sequential awaits after the early() fan-out).
+    const [tenantId, identity, isDemo, publishedTokens] = await Promise.all([
+      pTenant,
+      pIdentity,
+      pDemo,
+      pTokens,
+    ]);
     const siteTokens =
       snap?.tokens ??
-      (await timed("maxSite.themeTokens", () =>
-        loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview }),
-      ));
+      (isOwnerDraftPreview
+        ? await timed("maxSite.themeTokens", () =>
+            loadMaxSiteThemeTokens(talentProfileId, { draft: true }),
+          )
+        : publishedTokens);
     const designSlug = designSlugEarly;
     const policyModel = policyDoc
       ? await timed("maxSite.policyModel", () => loadTalentPolicyModel(talentProfileId, policyDoc, locale))

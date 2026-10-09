@@ -12,6 +12,7 @@ import type {
   MaxSitePageRow,
   MaxSiteRow,
 } from "@/lib/talent-site/resolve-max-site-core";
+import { cachePublicTalentSiteData } from "./public-site-data-cache.server";
 
 /**
  * Talent Max Site — server LOADS (service-role reads).
@@ -104,10 +105,21 @@ export async function loadMaxSiteThemeTokens(
   talentProfileId: string,
   opts: { draft: boolean },
 ): Promise<Record<string, string>> {
+  // Draft tokens are owner-preview only — never put them in the public Data Cache.
+  if (opts.draft) return loadMaxSiteThemeTokensUncached(talentProfileId, true);
+  return cachePublicTalentSiteData(talentProfileId, "themeTokens", ["published"], () =>
+    loadMaxSiteThemeTokensUncached(talentProfileId, false),
+  );
+}
+
+async function loadMaxSiteThemeTokensUncached(
+  talentProfileId: string,
+  draft: boolean,
+): Promise<Record<string, string>> {
   if (!isTalentThemeGalleryEnabled()) return {};
   const admin = createServiceRoleClient();
   if (!admin) return {};
-  const column = opts.draft ? "design_tokens_draft" : "design_tokens";
+  const column = draft ? "design_tokens_draft" : "design_tokens";
   const { data, error } = await admin
     .from("talent_sites")
     .select(column)
@@ -132,6 +144,12 @@ export async function loadMaxSiteThemeTokens(
  * without Design defaults, never broken.
  */
 export async function loadMaxSiteDesignSlug(talentProfileId: string): Promise<string | null> {
+  return cachePublicTalentSiteData(talentProfileId, "designSlug", [], () =>
+    loadMaxSiteDesignSlugUncached(talentProfileId),
+  );
+}
+
+async function loadMaxSiteDesignSlugUncached(talentProfileId: string): Promise<string | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
   const { data, error } = await admin
@@ -196,6 +214,12 @@ export async function loadTalentSiteCtaMode(
 export async function loadTalentPlanKey(
   talentProfileId: string,
 ): Promise<string | null> {
+  return cachePublicTalentSiteData(talentProfileId, "planKey", [], () =>
+    loadTalentPlanKeyUncached(talentProfileId),
+  );
+}
+
+async function loadTalentPlanKeyUncached(talentProfileId: string): Promise<string | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
   const { data, error } = await admin
@@ -237,6 +261,14 @@ export async function loadTalentOwnerUserId(
 export async function loadTalentManagingTenantId(
   talentProfileId: string,
 ): Promise<string | null> {
+  return cachePublicTalentSiteData(talentProfileId, "tenant", [], () =>
+    loadTalentManagingTenantIdUncached(talentProfileId),
+  );
+}
+
+async function loadTalentManagingTenantIdUncached(
+  talentProfileId: string,
+): Promise<string | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
   const { data, error } = await admin
@@ -264,6 +296,14 @@ function i18nMaps(title: unknown, metaTitle: unknown, metaDescription: unknown):
 
 /** Load ALL of a talent's site pages (the pure core filters for nav/render). */
 export async function loadMaxSitePages(
+  talentProfileId: string,
+): Promise<MaxSitePageRow[]> {
+  return cachePublicTalentSiteData(talentProfileId, "pages", [], () =>
+    loadMaxSitePagesUncached(talentProfileId),
+  );
+}
+
+async function loadMaxSitePagesUncached(
   talentProfileId: string,
 ): Promise<MaxSitePageRow[]> {
   const admin = createServiceRoleClient();
@@ -365,6 +405,14 @@ export interface TalentSiteIdentity {
 }
 
 export async function loadTalentSiteIdentity(
+  talentProfileId: string,
+): Promise<TalentSiteIdentity | null> {
+  return cachePublicTalentSiteData(talentProfileId, "identity", [], () =>
+    loadTalentSiteIdentityUncached(talentProfileId),
+  );
+}
+
+async function loadTalentSiteIdentityUncached(
   talentProfileId: string,
 ): Promise<TalentSiteIdentity | null> {
   const admin = createServiceRoleClient();

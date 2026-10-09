@@ -114,6 +114,28 @@ describe("max-site loader timing on fxlank (TUL-444 B1)", () => {
     const ranked = [...spans].sort((a, b) => b.ms - a.ms);
     const top5 = ranked.slice(0, 5);
 
+    // Critical-path proxy for renderTalentMaxSite's early() fan-out (no Next
+    // Data Cache in tsx — this is RTT of the parallel group, not CDN TTFB).
+    const fanOut = [
+      () =>
+        localeMod.loadTalentSiteLocaleContext({
+          talentProfileId: pid,
+          requestedLocale: LOCALE,
+        }),
+      () => loaders.loadTalentPlanKey(pid),
+      () => loaders.loadMaxSitePages(pid),
+      () => loaders.loadMaxSiteDesignSlug(pid),
+      () => loaders.loadTalentManagingTenantId(pid),
+      () => loaders.loadTalentSiteIdentity(pid),
+      () => demo.loadMaxSiteIsDemo(pid),
+      () => loaders.loadMaxSiteThemeTokens(pid, { draft: false }),
+      () => seoFacts.loadMaxSiteSeoFacts(pid, LOCALE),
+      () => offerings.loadPublicOfferingsForProfile(pid, LOCALE, null),
+    ];
+    const critT0 = performance.now();
+    await Promise.all(fanOut.map((fn) => fn()));
+    const criticalPathMs = Math.round(performance.now() - critT0);
+
     process.stderr.write(
       `\n[max-site-timing] target=${TARGET_SLUG} locale=${LOCALE} host=fxlank code=${code || "?"}\n`,
     );
@@ -125,14 +147,21 @@ describe("max-site loader timing on fxlank (TUL-444 B1)", () => {
     for (const s of ranked) {
       process.stderr.write(`  ${s.name} ${s.ms}ms\n`);
     }
+    process.stderr.write(
+      `[max-site-timing] criticalPathFanOut ${criticalPathMs}ms (Promise.all of locale/plan/pages/design/tenant/identity/demo/tokens/seo/offerings)\n`,
+    );
 
     // Machine-readable line for the PR / Notion stamp.
     process.stderr.write(
       `[max-site-timing] TOP5_JSON=${JSON.stringify(top5)}\n`,
     );
+    process.stderr.write(
+      `[max-site-timing] CRITICAL_PATH_MS=${criticalPathMs}\n`,
+    );
 
     assert.equal(top5.length, 5);
     assert.ok(top5.every((s) => Number.isFinite(s.ms) && s.ms >= 0));
+    assert.ok(Number.isFinite(criticalPathMs) && criticalPathMs >= 0);
     assert.ok(
       ranked.some((s) => s.ms >= 5),
       "expected at least one loader >= 5ms against remote fxlank",

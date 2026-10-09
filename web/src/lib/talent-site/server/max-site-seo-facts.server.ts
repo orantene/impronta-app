@@ -10,6 +10,7 @@ import { pick, type LocalizedMapLike } from "../talent-locale-swaps";
 import { loadOwnHosts } from "./own-hosts.server";
 import { canonicalCityLabel } from "./city-label.server";
 import { loadTalentSocialLinks } from "./talent-social-links";
+import { cachePublicTalentSiteData } from "./public-site-data-cache.server";
 
 /** What `buildMaxSiteSeo` needs beyond the page row (TUL-74). Any failure degrades to "none". */
 export interface MaxSiteSeoFacts {
@@ -40,6 +41,16 @@ async function loadCity(talentProfileId: string, locale: string): Promise<string
 }
 
 export async function loadMaxSiteSeoFacts(talentProfileId: string, locale: string): Promise<MaxSiteSeoFacts> {
+  const localeKey = locale.trim().toLowerCase() || "en";
+  return cachePublicTalentSiteData(talentProfileId, "seoFacts", [localeKey], () =>
+    loadMaxSiteSeoFactsUncached(talentProfileId, locale),
+  );
+}
+
+async function loadMaxSiteSeoFactsUncached(
+  talentProfileId: string,
+  locale: string,
+): Promise<MaxSiteSeoFacts> {
   const [offerings, social, city, ownHosts] = await Promise.all([
     loadPublicOfferingsForProfile(talentProfileId, locale, null).catch(() => []),
     loadTalentSocialLinks(talentProfileId).catch(() => []),
