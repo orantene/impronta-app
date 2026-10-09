@@ -11,7 +11,15 @@ import {
 import { parseBookingHours } from "@/lib/scheduling/hours-types";
 import { computePublicSlots } from "@/lib/scheduling/public-slots";
 
-import { resolveMyWebsiteTarget, shouldAutoCreatePersonalSite } from "./my-website-target";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+import {
+  editSiteNeedsPersonalProbe,
+  resolveEditSiteRedirect,
+  resolveMyWebsiteTarget,
+  shouldAutoCreatePersonalSite,
+} from "./my-website-target";
 
 const base = { ownsBusinessWorkspace: false, hasWorkspaceSite: false, workspaceSlug: null, hasPersonalSite: false };
 
@@ -104,4 +112,50 @@ test("the owner-provider's onboarding hours produce slots for a house offering",
   const r = computePublicSlots({ hours, durationMinutes: 60, from, days: 7, busy: [] });
   assert.equal(r.reason, null);
   assert.ok(r.starts.length > 0);
+});
+
+test("TUL-373: business owner goes straight to the admin website URL", () => {
+  assert.equal(
+    resolveEditSiteRedirect({ ...base, ownsBusinessWorkspace: true, hasWorkspaceSite: true, workspaceSlug: "maison" }),
+    "/maison/admin/website",
+  );
+});
+
+test("TUL-373: talent-only and unknown/failed lookups keep the in-page editor", () => {
+  assert.equal(resolveEditSiteRedirect(base), null);
+  assert.equal(resolveEditSiteRedirect({ ...base, hasPersonalSite: true }), null);
+  assert.equal(resolveEditSiteRedirect({ ...base, ownsBusinessWorkspace: true, workspaceSlug: "maison" }), null);
+  assert.equal(resolveEditSiteRedirect({ ...base, ownsBusinessWorkspace: true, hasWorkspaceSite: true, workspaceSlug: null }), null);
+});
+
+test("TUL-373: never redirects to a /talent path (no loop) and rejects unsafe slugs", () => {
+  const owner = { ...base, ownsBusinessWorkspace: true, hasWorkspaceSite: true };
+  for (const slug of ["maison", "a-b-1"]) {
+    const href = resolveEditSiteRedirect({ ...owner, workspaceSlug: slug });
+    assert.ok(href && !href.startsWith("/talent"));
+  }
+  for (const slug of ["../talent", "a/b", "", "Talent X", "//evil.com"]) {
+    assert.equal(resolveEditSiteRedirect({ ...owner, workspaceSlug: slug }), null);
+  }
+});
+
+test("TUL-373: explicit personal request with a personal site stays; without one it still redirects", () => {
+  const owner = { ...base, ownsBusinessWorkspace: true, hasWorkspaceSite: true, workspaceSlug: "maison", explicitPersonal: true };
+  assert.equal(resolveEditSiteRedirect({ ...owner, hasPersonalSite: true }), null);
+  assert.equal(resolveEditSiteRedirect({ ...owner, hasPersonalSite: false }), "/maison/admin/website");
+});
+
+test("TUL-373: the personal probe runs only for an explicit-personal business owner", () => {
+  assert.equal(editSiteNeedsPersonalProbe({ ownsBusinessWorkspace: true, hasWorkspaceSite: true, explicitPersonal: true }), true);
+  assert.equal(editSiteNeedsPersonalProbe({ ownsBusinessWorkspace: true, hasWorkspaceSite: true, explicitPersonal: false }), false);
+  assert.equal(editSiteNeedsPersonalProbe({ ownsBusinessWorkspace: false, hasWorkspaceSite: false, explicitPersonal: true }), false);
+});
+
+test("TUL-373: the page-builder route redirects on the server before the locale hop", () => {
+  const src = readFileSync(path.join(process.cwd(), "src/app/(workspace)/talent/page-builder/page.tsx"), "utf8");
+  assert.ok(!/^\s*"use client"/m.test(src), "route must be a server component");
+  const redirectAt = src.indexOf("resolveEditSiteRedirect({");
+  const localeAt = src.indexOf("loadTalentLocaleState(profile.id)");
+  assert.ok(redirectAt > 0 && localeAt > 0 && redirectAt < localeAt, "workspace redirect must precede locale loads");
+  assert.ok(/if \(workspaceHref\) redirect\(workspaceHref\)/.test(src));
 });
