@@ -1,12 +1,13 @@
 /**
- * Mode-aware CTA remaps (TUL-369). The EN↔ES guess map that lived in
- * design-label-locale.ts is deleted; these tests cover only what remains.
+ * Mode-aware CTA remaps (TUL-369). Guess maps in design-label-locale.ts are
+ * FALLBACK only when a node has no i18n.es (PM split until heal recount=0).
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { localiseSeededDesignLabels, localiseSeededDesignLabel, localiseOne } from "./design-cta-mode";
+import { SEED_TEXT_ES } from "./theme-catalog/seed-i18n";
 
 test("Maison v2 hero primary follows the booking mode (EN + ES)", () => {
   const one = [
@@ -18,8 +19,13 @@ test("Maison v2 hero primary follows the booking mode (EN + ES)", () => {
   assert.equal(label(localiseSeededDesignLabels(one, "en", "instant"), 0), "Book now");
   assert.equal(label(localiseSeededDesignLabels(one, "es", "request"), 0), "Solicitar cita");
   assert.equal(label(localiseSeededDesignLabels(one, "en", "inquiry"), 0), "Ask for a quote");
-  // "Ask" is not mode-dependent and has no guess map — stays English.
-  assert.equal(label(localiseSeededDesignLabels(one, "es", null), 1), "Ask");
+  // "Ask" is not mode-dependent; without i18n.es the guess-map FALLBACK applies.
+  assert.equal(label(localiseSeededDesignLabels(one, "es", null), 1), SEED_TEXT_ES["Ask"]);
+  // With an overlay bag, guess map stays out.
+  const withEs = [
+    { id: "a", kind: "button", props: { label: "Ask", href: "#ask", i18n: { es: { label: "Pregúntame" } } } },
+  ] as unknown as BuilderNode[];
+  assert.equal(label(localiseSeededDesignLabels(withEs, "es", null), 0), "Ask");
 });
 
 test("Spanish mode-action copy follows the booking mode in English", () => {

@@ -1,10 +1,11 @@
 /**
- * Header ask-CTA strip (moved from deleted header-cta-locale.ts, TUL-369).
- * Inquire→Escríbeme guess map is gone; Spanish comes from seed overlays.
+ * Header ask-CTA strip (TUL-369). Inquire→Escríbeme guess lives in
+ * header-cta-locale.ts as a FALLBACK only; render-max-site strips ask CTAs
+ * via header-i18n and does not import the fallback directly.
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { stripHiddenAskHeaderCta } from "./header-i18n";
 
@@ -31,9 +32,10 @@ test("hidden ask: strip #talent-ask primary CTA before render", () => {
   );
 });
 
-test("render-max-site strips hidden ask CTAs (no Inquire guess map)", () => {
+test("render-max-site strips hidden ask CTAs; header-cta-locale is FALLBACK only (TUL-369 split)", () => {
   const src = readFileSync(path.join(__dirname, "server", "render-max-site.tsx"), "utf8");
   assert.match(src, /stripHiddenAskHeaderCta/);
   assert.doesNotMatch(src, /localiseTalentHeaderDefaults/);
   assert.doesNotMatch(src, /header-cta-locale/);
+  assert.equal(existsSync(path.join(__dirname, "header-cta-locale.ts")), true);
 });
