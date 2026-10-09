@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { intentForHref, openIntentFor, resolveBookEntry } from "./book-entry";
+import { intentForHref, openIntentFor, preferBookableOffering, resolveBookEntry } from "./book-entry";
 import { createOpenIntentQueue, type OpenIntent } from "./open-intent-queue";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
@@ -26,6 +26,8 @@ const offering = (id: string, extra: Partial<TalentOffering> = {}): TalentOfferi
     addOns: [],
     attributes: {},
     description: null,
+    isFeatured: false,
+    sortOrder: 0,
     ...extra,
   }) as unknown as TalentOffering;
 
@@ -41,10 +43,36 @@ test("#book with ONE bookable offering opens that offering's sheet", () => {
   assert.deepEqual(intent, { channel: "sheet", eventName: entry.eventName, detail: entry.detail });
 });
 
-test("#book with several bookable offerings opens the picker (the dock)", () => {
-  const entry = resolveBookEntry({ offerings: [offering("a"), offering("b")] });
-  assert.deepEqual(entry, { kind: "picker" });
-  assert.deepEqual(openIntentFor("book", entry), { channel: "chat" });
+test("#book with several bookable offerings opens the preferred offering's sheet (not the dock)", () => {
+  const entry = resolveBookEntry({
+    offerings: [
+      offering("z", { sortOrder: 20 }),
+      offering("a", { sortOrder: 10 }),
+      offering("m", { sortOrder: 5, isFeatured: true }),
+    ],
+  });
+  assert.equal(entry.kind, "sheet");
+  if (entry.kind !== "sheet") return;
+  // Featured wins over lower sortOrder on a non-featured row.
+  assert.equal(entry.offeringId, "m");
+  assert.equal(openIntentFor("book", entry).channel, "sheet");
+});
+
+test("#book with several non-featured offerings picks the lowest sortOrder", () => {
+  const entry = resolveBookEntry({
+    offerings: [offering("b", { sortOrder: 2 }), offering("a", { sortOrder: 1 })],
+  });
+  assert.equal(entry.kind, "sheet");
+  if (entry.kind !== "sheet") return;
+  assert.equal(entry.offeringId, "a");
+});
+
+test("preferBookableOffering is stable by id when sortOrder ties", () => {
+  const rows = [
+    { offering: offering("b", { sortOrder: 1 }), eventName: "tulala:offering-request", detail: { offeringId: "b" } },
+    { offering: offering("a", { sortOrder: 1 }), eventName: "tulala:offering-request", detail: { offeringId: "a" } },
+  ];
+  assert.equal(preferBookableOffering(rows as never)?.offering.id, "a");
 });
 
 test("#book with none bookable falls back to inquire (the dock / form)", () => {

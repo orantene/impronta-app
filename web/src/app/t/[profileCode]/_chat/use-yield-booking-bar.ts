@@ -42,7 +42,7 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
     if (!mounted) return;
     const measure = () => {
       // The pill capsule carries its own chat button: the FAB tucks away too.
-      const pill = document.querySelector<HTMLElement>(".cb-bar[data-bar-style='pill'][data-show='true']");
+      const pill = document.querySelector<HTMLElement>(".cb-bar[data-bar-style='pill'][data-show='true']:not([data-top='true'])");
       const dock = document.querySelector<HTMLElement>(".cb-dock[data-show='true']");
       setSelectionDockUp(Boolean(visibleFixedChrome(dock) || visibleFixedChrome(pill)));
 
@@ -50,7 +50,7 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
       let bookingUp = false;
 
       if (!visibleFixedChrome(pill)) {
-        const bar = document.querySelector<HTMLElement>(".cb-bar[data-show='true']");
+        const bar = document.querySelector<HTMLElement>(".cb-bar[data-show='true']:not([data-top='true'])");
         // display:none bars (desktop idle) still match the attribute — skip them.
         if (visibleFixedChrome(bar)) {
           bookingUp = true;
@@ -79,7 +79,7 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
       subtree: true,
       childList: true,
       attributes: true,
-      attributeFilter: ["data-show", "data-has-selection", "data-locale-suggestion", "class", "style", "hidden"],
+      attributeFilter: ["data-show", "data-top", "data-has-selection", "data-locale-suggestion", "class", "style", "hidden"],
     });
     window.addEventListener("resize", measure);
     return () => {

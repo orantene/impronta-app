@@ -7,6 +7,7 @@ import { bookEntryFrom, listBookableOfferings } from "@/lib/talent-site/book-ent
 import { openAtNextSlot, pickSlotOffering, registerSlotOfferings } from "@/lib/talent-site/next-free-slot";
 import { requestTalentOpen } from "@/lib/talent-site/open-intent-client";
 import { runStickyBarTap } from "@/lib/talent-site/sticky-bar-tap";
+import { STICKY_BAR_DEFAULT_RESERVE_PX } from "@/lib/talent-site/sticky-bar-visibility";
 import type { TalentBookingPosture } from "@/lib/talent/selling-booking-settings";
 import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
@@ -153,7 +154,13 @@ export function CatalogIdleBarText(props: BarProps) {
  * booking window; more air between the selection's x and the chat button.
  */
 export const CATALOG_OVERLAY_CSS = `body:has([data-consent-banner]) [data-locale-suggestion],body:has([role="dialog"][aria-modal="true"]) [data-consent-banner],body:has([role="dialog"][aria-modal="true"]) [data-locale-suggestion]{display:none}
-.cb-dock{gap:16px}.cb-dock-stack{margin-left:6px}`;
+.cb-dock{gap:16px}.cb-dock-stack{margin-left:6px}
+:root{--cb-bar-h:calc(${STICKY_BAR_DEFAULT_RESERVE_PX}px + env(safe-area-inset-bottom))}
+@media (min-width:720px){:root{--cb-bar-h:0px}}
+body{padding-bottom:var(--cb-bar-h,0px)}
+.cb-bar{transition:opacity .2s ease,visibility .2s}
+.cb-bar[data-top="true"]{opacity:0;visibility:hidden;pointer-events:none}
+@media (prefers-reduced-motion:reduce){.cb-bar{transition:none}}`;
 
 export function CatalogOverlayStyles() {
   return <style>{CATALOG_OVERLAY_CSS}</style>;

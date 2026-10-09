@@ -35,6 +35,7 @@ import { getStripeFor, isStripeConfigured } from "@/lib/stripe/client";
 import { loadChargePlatformForTransaction } from "@/lib/stripe/charge-platform";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { recordRefundOnOrderLines } from "@/lib/orders/refund-record-lines";
 
 /**
  * Tulala's refund reason taxonomy. Richer than Stripe's three values, because
@@ -358,6 +359,11 @@ export async function executeBookingRefund(input: {
   reason: RefundReason;
   actorUserId?: string | null;
   note?: string | null;
+  /**
+   * `refundOrderLines` records its own per-line allocation through `recordRefundOnOrderLines`;
+   * everyone else lets this function write the default allocation onto the order's lines.
+   */
+  skipOrderLines?: boolean;
 }): Promise<RefundExecuteResult> {
   // Refund on the platform that TOOK THE CHARGE; the PaymentIntent does not
   // exist on the other one.
@@ -429,7 +435,12 @@ export async function executeBookingRefund(input: {
         ),
       },
     );
-    // Deliberately no ledger write here — `charge.refunded` drives the books.
+    // Deliberately no ledger write here — `charge.refunded` drives the books. The order's lines
+    // are the exception: a refund the order does not show is the bug (idempotent per refund id).
+    if (!input.skipOrderLines) {
+      const sb = createServiceRoleClient();
+      if (sb) await recordRefundOnOrderLines(sb, { transactionId: input.transactionId, refundIds: [refund.id], amountCents });
+    }
     return {
       ok: true,
       refundId: refund.id,

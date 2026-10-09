@@ -7,10 +7,10 @@
  * keeps the existing "Inquire about {name}" button. Agency hosts are untouched.
  *
  * The booking entry is the dedicated `#book` anchor (TUL-206,
- * `TALENT_BOOK_HREF`): every talent site opens its guest entry (service pick,
- * then the booking sheet) on it, on a cold load as well as on click. The old
- * `#talent-ask` anchor still works. Nothing here hand-builds a site URL; the
- * site URL comes from the caller.
+ * `TALENT_BOOK_HREF`): every talent site opens the booking sheet on it (TUL-246:
+ * preferred bookable service), on a cold load as well as on click. The old
+ * `#talent-ask` anchor still opens the guest chat. Nothing here hand-builds a
+ * site URL; the site URL comes from the caller.
  *
  * The CTA honours the talent's intake switches: when the ask entry has no
  * working entry point (`unavailable`, `hidden`, `closed_notice`,
