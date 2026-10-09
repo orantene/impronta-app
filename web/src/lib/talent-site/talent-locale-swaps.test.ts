@@ -59,19 +59,19 @@ test("the marquee's baked English service titles swap to the locale's title (pla
   assert.deepEqual(en, {});
 });
 
-test("a ticker baked from the plain title column swaps like the English map entry, and a one-language title keeps its text (TUL-189)", () => {
+test("a ticker baked from the plain title column swaps like the English map entry; platform-known English-only titles swap too (TUL-189)", () => {
   const offerings = [
     // Plain column differs from the English map entry: either spelling may be baked.
     { title: "Soft gel extensions", titleI18n: { en: "Soft gel extensions (new set)", es: "Extensiones de gel blando" } },
-    // Only English stored: no Spanish name to swap in, so the baked text stays.
+    // Only English stored: platform dictionary still supplies Spanish.
     { title: "Semi-permanent gel", titleI18n: { en: "Semi-permanent gel" } },
-    // No map at all.
+    // No map at all, and not a platform-known name.
     { title: "Pedicure", titleI18n: null },
   ];
   const es = buildTalentLocaleSwaps({ bioI18n: null, typeNames: [], homeCity: null, offerings }, "es");
   assert.equal(es["Soft gel extensions"], "Extensiones de gel blando");
   assert.equal(es["Soft gel extensions (new set)"], "Extensiones de gel blando");
-  assert.ok(!("Semi-permanent gel" in es));
+  assert.equal(es["Semi-permanent gel"], "Gel semipermanente");
   assert.ok(!("Pedicure" in es));
   const en = buildTalentLocaleSwaps({ bioI18n: null, typeNames: [], homeCity: null, offerings }, "en");
   assert.equal(en["Soft gel extensions"], "Soft gel extensions (new set)");
