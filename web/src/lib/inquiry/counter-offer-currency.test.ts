@@ -88,7 +88,7 @@ describe("thread draft currency never guesses USD (TUL-313 follow-up)", () => {
 describe("the remaining callers map the refusal (TUL-313 follow-up)", () => {
   it("createOfferAction returns the sentence, not the raw reason; talent quote maps the code", () => {
     const pipe = readFileSync(new URL("../../app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts", import.meta.url), "utf8");
-    assert.match(pipe, /reason === "offer_currency_unresolved"\) \{\s*return \{ ok: false, error: OFFER_CURRENCY_UNRESOLVED_MESSAGE \}/);
+    assert.match(pipe, /reason === "offer_currency_unresolved"\) \{\s*return \{ ok: false, error: OFFER_CURRENCY_UNRESOLVED_MESSAGE(, code: "offer_currency_unresolved")? \}/);
     assert.doesNotMatch(pipe, /loadPlatformOperatingCurrency/);
     const quote = readFileSync(new URL("../server-actions/messaging-talent-quote.ts", import.meta.url), "utf8");
     assert.match(quote, /created\.reason === "offer_currency_unresolved"\) return fail\("offer_currency_unresolved"\)/);

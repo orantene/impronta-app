@@ -17,7 +17,7 @@ import { CheckoutView } from "./CheckoutView";
 import { payCalendarEvent } from "@/lib/payments/pay-calendar-event";
 import { resolvePaidLinkDisplayStatus } from "@/lib/payments/pay-refund-status";
 import { loadPayLinkFeeLines } from "@/lib/payments/pay-link-fee-lines";
-import { resolvePayeeName } from "@/lib/payments/payee-name";
+import { resolveOrderPayeeName } from "@/lib/payments/payee-name";
 import { interpolate } from "@/i18n/interpolate";
 import { createTranslator } from "@/i18n/messages";
 
@@ -223,7 +223,7 @@ export async function PayByCodePage({
       orderStatus: orderRow?.status ?? null,
       bookingPaymentStatus,
     });
-    const sellerName = await resolvePayeeName(admin, loaded.tenantId);
+    const sellerName = await resolveOrderPayeeName(admin, loaded.tenantId, loaded.orderId);
     const t = createTranslator(uiLocale);
     // Location for .ics/Google only; skip the inquiry read on open/processing.
     const { data: inquiryLoc } =

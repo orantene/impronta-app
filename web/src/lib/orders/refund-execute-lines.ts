@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
+import { recordRefundOnOrderLines } from "@/lib/orders/refund-record-lines";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { executeBookingRefund, type RefundBlockedCode, type RefundReason } from "@/lib/payments/refund-execute";
 import { planRefund, releasesPromoRedemption, type RefundableLine, type PaidTransaction } from "@/lib/orders/refund-plan";
@@ -265,6 +266,7 @@ export async function refundOrderLines(
         reason: input.reason,
         actorUserId: input.actorUserId,
         note: input.note,
+        skipOrderLines: true,
       });
       if (!res.ok) {
         if (moved === 0) {
@@ -314,20 +316,21 @@ export async function refundOrderLines(
     // transaction headroom from the sibling `refunded` rows, not from this
     // column, so a second attempt finds no money left to move — but the row is
     // wrong until a human fixes it, and nobody can fix what nobody is told.
+    // The shared writer (idempotent per Stripe refund id): `executeBookingRefund` was told to skip
+    // its default allocation above, so this explicit per-line one is the only count.
     let lineStateIncomplete = false;
-    for (const l of plan.lines) {
-      const current = lines.find((x) => x.id === l.id)?.refundedCents ?? 0;
-      const { error } = await admin
-        .from("order_lines")
-        .update({ refunded_cents: current + l.amountCents })
-        .eq("id", l.id);
-      if (error) {
+    if (steps.length > 0) {
+      const rec = await recordRefundOnOrderLines(admin, {
+        transactionId: steps[0].transactionId,
+        refundIds: steps.map((x) => x.refundId),
+        amountCents: moved,
+        allocation: plan.lines.map((l) => ({ lineId: l.id, amountCents: l.amountCents })),
+      });
+      if (!rec.recorded && rec.reason !== "already_recorded") {
         lineStateIncomplete = true;
         logServerError(
           "orders.refundLines/LINE_STATE_NOT_STAMPED_AFTER_REFUND",
-          `order ${input.orderId}: ${l.amountCents} cents refunded on line ${l.id}, but `
-            + `refunded_cents could not be updated (${error.message}). The line reads unrefunded. `
-            + `Needs a human.`,
+          `order ${input.orderId}: ${moved} cents refunded, but the lines were not stamped (${rec.reason}). The lines read unrefunded. Needs a human.`,
         );
       }
     }
