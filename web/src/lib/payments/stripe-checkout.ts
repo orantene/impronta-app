@@ -390,7 +390,7 @@ export function checkoutLineItems(input: {
   description?: string;
   serviceFeeCents?: number;
   locale?: string | null;
-}): Stripe.Checkout.SessionCreateParams.LineItem[] {
+}): NonNullable<Stripe.Checkout.SessionCreateParams["line_items"]> {
   const currency = input.currency.toLowerCase();
   const name = input.description ?? "Booking invoice";
   const fee = Math.round(input.serviceFeeCents ?? 0);
