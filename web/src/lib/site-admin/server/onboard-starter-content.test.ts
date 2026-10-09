@@ -617,3 +617,13 @@ test("every seeded image carries real alt text, not the empty string", () => {
     }
   }
 });
+
+// TUL-506: starter pages are written in the tenant's default locale, not the
+// signup UI language (a Spanish workspace made from an English UI was written
+// as `en`, so the root rendered the platform fallback).
+test("starter content takes its locale from the tenant default via siteWriteLocale", () => {
+  const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "onboard-starter-content.ts"), "utf8");
+  assert.match(src, /siteWriteLocale\(\{\s*tenantDefault: identityLocale\?\.default_locale/);
+  assert.match(src, /from\("agency_business_identity"\)\s*\.select\("default_locale"\)/);
+  assert.doesNotMatch(src, /const locale = \(input\.locale \?\? DEFAULT_PLATFORM_LOCALE\)/);
+});
