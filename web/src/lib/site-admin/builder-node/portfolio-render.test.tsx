@@ -11,7 +11,13 @@ import type { BuilderNode } from "./types";
 import type { TalentPortfolioShot } from "./portfolio-types";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
-function render(nodes: BuilderNode[], dataSources: BuilderNodeRenderDataSources = {}, visitorLocale?: string): string {
+function render(
+  nodes: BuilderNode[],
+  dataSources: BuilderNodeRenderDataSources = {},
+  third?: string | boolean,
+): string {
+  const visitorLocale = typeof third === "string" ? third : undefined;
+  const editorPreview = third === true;
   return renderToStaticMarkup(
     renderBuilderNodes(nodes, {
       mode: "freeform",
@@ -19,6 +25,16 @@ function render(nodes: BuilderNode[], dataSources: BuilderNodeRenderDataSources 
       includeFontLinks: false,
       dataSources,
       ...(visitorLocale ? { visitorLocale } : {}),
+      ...(editorPreview
+        ? {
+            contentLocale: {
+              locale: "en",
+              defaultLocale: "en",
+              chain: ["en"],
+              editorPreview: true,
+            },
+          }
+        : {}),
     }) as Parameters<typeof renderToStaticMarkup>[0],
   );
 }
@@ -84,6 +100,14 @@ function offering(partial: Partial<TalentOffering> = {}): TalentOffering {
 test("portfolio renders empty state when no shots", () => {
   const html = render([portfolioNode({ emptyMessage: "No photos yet." })]);
   assert.match(html, /data-builder-node-kind="portfolio"/);
+  assert.match(html, /No photos yet/);
+  assert.doesNotMatch(html, /Not shown on your site/);
+});
+
+test("TUL-124: empty portfolio on the builder canvas shows Not shown on your site", () => {
+  const html = render([portfolioNode({ emptyMessage: "No photos yet." })], {}, true);
+  assert.match(html, /Not shown on your site/);
+  assert.match(html, /data-not-shown-on-site=/);
   assert.match(html, /No photos yet/);
 });
 

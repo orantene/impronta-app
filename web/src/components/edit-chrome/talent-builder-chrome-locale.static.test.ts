@@ -14,6 +14,16 @@ test("F88: the bare talent builder provides the server dashboard locale and the 
   assert.match(hook, /serverLocale === "es"/);
 });
 
+test("TUL-459: editor chrome does not re-read the locale cookie when the server locale is present", () => {
+  const hook = read("components/edit-chrome/use-editor-locale.ts");
+  assert.match(hook, /resolveEditorLocale/);
+  assert.match(hook, /if \(hasServerLocale\) return/);
+  assert.match(hook, /readLocaleCookie/);
+  // Must not unconditionally setLocale from the cookie (the F88 dual-source bug).
+  assert.doesNotMatch(hook, /setLocale\(cookieLocale\)/);
+  assert.doesNotMatch(hook, /document\.cookie\.match/);
+});
+
 test("F88: topbar, health panel, zoom HUD and tip wrap their copy in t()", () => {
   const top = read("components/edit-chrome/topbar.tsx");
   for (const k of ["Publish options", "Exit to live site", "Draft saved", "Publish"]) {
