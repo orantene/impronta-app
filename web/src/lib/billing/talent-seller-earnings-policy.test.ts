@@ -1,7 +1,7 @@
 /**
  * A talent's own Money page reads her earnings with HER OWN client (no service role). That works for a sale she is
  * the SELLER of but not the coordinator of once the talent self-read policies exist (migration
- * 20261231353000_talent_self_read_own_sales.sql); paid run 2026-10-09 showed Cobrado $0 without them.
+ * 20261231354000_talent_self_read_own_sales.sql); paid run 2026-10-09 showed Cobrado $0 without them.
  *
  * Two halves: the loader returns the row from what her client can see (non-coordinator seller), and the
  * migration pins the policy shape (SELECT only, DEFINER helpers closed to anon, snapshot limited to HER participant).
@@ -53,7 +53,7 @@ test("a non-coordinator seller's paid hub sale comes out of the loader with her 
   assert.equal(rows[0].currencyCode, "MXN");
 });
 
-const sql = readFileSync("../supabase/migrations/20261231353000_talent_self_read_own_sales.sql", "utf8");
+const sql = readFileSync("../supabase/migrations/20261231354000_talent_self_read_own_sales.sql", "utf8");
 
 test("the migration is additive and SELECT-only: three helpers, two new policies, snapshot narrowed", () => {
   assert.match(sql, /CREATE POLICY booking_talent_self_select ON public\.booking_talent\s+FOR SELECT TO authenticated/);
@@ -61,6 +61,11 @@ test("the migration is additive and SELECT-only: three helpers, two new policies
   assert.match(sql, /USING \(public\.is_own_talent_profile\(talent_profile_id\)\)/);
   assert.match(sql, /USING \(public\.is_booking_seller\(id\)\)/);
   assert.doesNotMatch(sql, /FOR (INSERT|UPDATE|DELETE|ALL)/, "no write policy");
+});
+
+test("booking_payouts: her own TALENT legs only, SELECT only, never a workspace leg", () => {
+  assert.match(sql, /CREATE POLICY booking_payouts_talent_self_select ON public\.booking_payouts\s+FOR SELECT TO authenticated\s+USING \(party = 'talent' AND public\.is_own_talent_profile\(talent_profile_id\)\)/);
+  assert.doesNotMatch(sql, /booking_payouts[\s\S]{0,120}party = 'workspace'/);
 });
 
 test("the snapshot talent clause is limited to HER participant rows (production's merged policy and the older talent policy)", () => {

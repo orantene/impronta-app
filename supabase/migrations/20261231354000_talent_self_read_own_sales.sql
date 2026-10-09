@@ -7,11 +7,11 @@
 -- Cobrado $0, Pagos 0 (paid run 2026-10-09).
 --
 -- Shape: three tiny SECURITY DEFINER boolean helpers (so the policies never recurse through each other's RLS),
--- each answering only "is this row mine" for auth.uid(); three SELECT policies on top. No write policy, no
+-- each answering only "is this row mine" for auth.uid(); SELECT policies on top (booking_talent, agency_bookings, her own talent payout legs, and the snapshot). No write policy, no
 -- grant to anon. The snapshot talent clause is NARROWED to her own participant rows (it used to be "any
 -- snapshot row of a booking I am on", which would leak co-talents' rows once booking_talent became visible).
 --
--- Rollback: drop the three policies, restore the previous snapshot policy (see the DO block), drop the helpers.
+-- Rollback: drop the policies (booking_talent_self_select, agency_bookings_seller_select, booking_payouts_talent_self_select), restore the previous snapshot policy (see the DO block), drop the helpers.
 
 BEGIN;
 
@@ -61,6 +61,12 @@ DROP POLICY IF EXISTS booking_talent_self_select ON public.booking_talent;
 CREATE POLICY booking_talent_self_select ON public.booking_talent
   FOR SELECT TO authenticated
   USING (public.is_own_talent_profile(talent_profile_id));
+
+-- Her own TALENT payout legs (the transferred_at the Money page windows "paid" on). Never a workspace leg.
+DROP POLICY IF EXISTS booking_payouts_talent_self_select ON public.booking_payouts;
+CREATE POLICY booking_payouts_talent_self_select ON public.booking_payouts
+  FOR SELECT TO authenticated
+  USING (party = 'talent' AND public.is_own_talent_profile(talent_profile_id));
 
 DROP POLICY IF EXISTS agency_bookings_seller_select ON public.agency_bookings;
 CREATE POLICY agency_bookings_seller_select ON public.agency_bookings
