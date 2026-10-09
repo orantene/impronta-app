@@ -5,8 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
-import { canonicalBioEn } from "@/lib/translation/public-bio";
-import { effectiveBioI18n, pickBio } from "@/lib/translation/bios-to-bio-i18n";
+import { effectiveBioI18n } from "@/lib/translation/bios-to-bio-i18n";
 import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
 import { readScalarFieldValuesFromCatalog } from "@/lib/talent/scalar-field-values-catalog";
 import { cityLabelFromPlaceText } from "@/lib/scheduling/timezone-from-place";
@@ -15,6 +14,11 @@ import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { templateKeyForPlan } from "@/lib/talent-site/templates/registry";
 import { buildTemplateSnapshot } from "@/lib/talent-site/templates/build-template-snapshot";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
+import {
+  pickStarterBio,
+  pickStarterI18nLabel,
+  starterPrimaryLocale,
+} from "@/lib/talent-site/starter-locale";
 import { loadHeroProofData } from "./load-hero-proof";
 import { canonicalCityLabel } from "./city-label.server";
 import { pickHeadshotUrl } from "../media-pick";
@@ -42,6 +46,7 @@ export async function loadTalentStarterProfileData(
       talent_plan_key,
       short_bio,
       bio_i18n,
+      preferred_locale,
       services_menu,
       home_city_text,
       talent_profile_taxonomy (
@@ -74,6 +79,7 @@ export async function loadTalentStarterProfileData(
     talent_plan_key: string | null;
     short_bio: string | null;
     bio_i18n: LocalizedMap | null;
+    preferred_locale: string | null;
     services_menu: unknown;
     home_city_text: string | null;
     talent_profile_taxonomy: {
@@ -94,6 +100,9 @@ export async function loadTalentStarterProfileData(
   const p = profileRow as unknown as ProfileRaw;
   if (!p.profile_code?.trim()) return null;
 
+  // TUL-411: seed meta/tagline/publicBio in the talent's primary language, not hardcoded en.
+  const primaryLocale = starterPrimaryLocale(p.preferred_locale);
+
   const displayName =
     p.display_name?.trim() ||
     `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
@@ -101,25 +110,29 @@ export async function loadTalentStarterProfileData(
 
   // Talent-type taxonomy — primary first, then the rest as secondaries. Mirrors
   // the canonical public profile page (kind === "talent_type", `is_primary`
-  // flag, `display_order` ordering). The snapshot renders in English (the
-  // resolver hardcodes locale "en"), so labels use `name_i18n.en`.
+  // flag, `display_order` ordering). Labels follow preferred_locale (TUL-411).
   const talentTypeRows = (p.talent_profile_taxonomy ?? [])
     .filter((t) => t.taxonomy_terms?.kind === "talent_type")
     .slice()
     .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
 
   const primaryTalentTypeLabel =
-    talentTypeRows.find((t) => t.is_primary)?.taxonomy_terms?.name_i18n?.en?.trim() ??
-    null;
+    pickStarterI18nLabel(
+      talentTypeRows.find((t) => t.is_primary)?.taxonomy_terms?.name_i18n,
+      primaryLocale,
+    ) ?? null;
 
   // Backward-compatible: prefer the `is_primary` talent_type; fall back to the
   // legacy `relationship_type === "primary_role"` lookup so this never regresses
   // for rows that only set the relationship_type.
   const primaryTypeLabel =
     primaryTalentTypeLabel ||
-    (p.talent_profile_taxonomy ?? [])
-      .find((t) => t.relationship_type === "primary_role")
-      ?.taxonomy_terms?.name_i18n?.en?.trim() ||
+    pickStarterI18nLabel(
+      (p.talent_profile_taxonomy ?? [])
+        .find((t) => t.relationship_type === "primary_role")
+        ?.taxonomy_terms?.name_i18n,
+      primaryLocale,
+    ) ||
     null;
 
   // All non-primary talent types (de-duped, primary label excluded), e.g.
@@ -130,7 +143,7 @@ export async function loadTalentStarterProfileData(
     const out: string[] = [];
     for (const row of talentTypeRows) {
       if (row.is_primary) continue;
-      const label = row.taxonomy_terms?.name_i18n?.en?.trim();
+      const label = pickStarterI18nLabel(row.taxonomy_terms?.name_i18n, primaryLocale);
       if (!label || seen.has(label)) continue;
       seen.add(label);
       out.push(label);
@@ -140,15 +153,22 @@ export async function loadTalentStarterProfileData(
 
   // Service-area home base first, else the city the drawer saved (F30).
   const homeCityRaw =
-    (p.talent_service_areas ?? [])
-      .find((a) => a.service_kind === "home_base")
-      ?.locations?.display_name_i18n?.en?.trim() ||
+    pickStarterI18nLabel(
+      (p.talent_service_areas ?? [])
+        .find((a) => a.service_kind === "home_base")
+        ?.locations?.display_name_i18n,
+      primaryLocale,
+    ) ||
     cityLabelFromPlaceText(p.home_city_text);
   // Place text can be ASCII-folded ("Cancun"); restore the location's accent.
-  const homeCity = homeCityRaw ? await canonicalCityLabel(trusted, homeCityRaw, "en", [cityLabelFromPlaceText(p.home_city_text)]) : homeCityRaw;
+  const homeCity = homeCityRaw
+    ? await canonicalCityLabel(trusted, homeCityRaw, primaryLocale, [
+        cityLabelFromPlaceText(p.home_city_text),
+      ])
+    : homeCityRaw;
 
   const serviceAreaLabels = (p.talent_service_areas ?? [])
-    .map((a) => a.locations?.display_name_i18n?.en?.trim())
+    .map((a) => pickStarterI18nLabel(a.locations?.display_name_i18n, primaryLocale))
     .filter((label): label is string => !!label);
 
   // Public, active services-menu names (active + non-agency_only), ordered by
@@ -161,7 +181,10 @@ export async function loadTalentStarterProfileData(
     .filter((name): name is string => name.length > 0);
   // F26: services created in Services live in talent_offerings, not the
   // legacy menu; a talent with published offerings shows THEIR names.
-  const serviceNames = menuNames.length > 0 ? menuNames : await loadPublishedServiceNames(trusted, talentProfileId);
+  const serviceNames =
+    menuNames.length > 0
+      ? menuNames
+      : await loadPublishedServiceNames(trusted, talentProfileId, primaryLocale);
 
   const { data: mediaRows } = await trusted
     .from("media_assets")
@@ -200,9 +223,13 @@ export async function loadTalentStarterProfileData(
   // slot templates use for `publicBio`, but the default freeform About renders
   // it in full as a proper paragraph. "" when none.
   // F25: bio_i18n per locale, filled by the drawer's saved `bios` value.
+  // TUL-411: primary locale first (not hardcoded "en") so meta/tagline seed match the live body.
   const bios = (await readBlobFieldValuesFromCatalog(trusted, talentProfileId)).bios;
-  const richBio =
-    pickBio(effectiveBioI18n(p.bio_i18n, bios), "en") || canonicalBioEn(null, p.short_bio) || "";
+  const richBio = pickStarterBio(
+    effectiveBioI18n(p.bio_i18n, bios),
+    primaryLocale,
+    p.short_bio,
+  );
 
   // Cheap, single extra query — joined spoken-language names ("Spanish · English"),
   // ordered the way the public profile orders them. "" when none / on error.
@@ -277,7 +304,11 @@ export async function loadMenuCurrency(db: Db, talentProfileId: string): Promise
 }
 
 /** Published, approved, public service titles in the talent's order. */
-async function loadPublishedServiceNames(db: Db, talentProfileId: string): Promise<string[]> {
+async function loadPublishedServiceNames(
+  db: Db,
+  talentProfileId: string,
+  primaryLocale: ReturnType<typeof starterPrimaryLocale>,
+): Promise<string[]> {
   const { data, error } = await db
     .from("talent_offerings")
     .select("title, title_i18n")
@@ -292,7 +323,7 @@ async function loadPublishedServiceNames(db: Db, talentProfileId: string): Promi
     return [];
   }
   return ((data ?? []) as { title: string | null; title_i18n: Record<string, string | null> | null }[])
-    .map((row) => (row.title_i18n?.en ?? row.title ?? "").trim())
+    .map((row) => pickStarterI18nLabel(row.title_i18n, primaryLocale) || (row.title ?? "").trim())
     .filter((name) => name.length > 0);
 }
 
