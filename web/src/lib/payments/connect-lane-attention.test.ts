@@ -50,5 +50,12 @@ test("the workspace payouts surface loads and renders the lane attention, with e
   const client = readFileSync("src/app/(workspace)/[tenantSlug]/admin/payouts/payouts-section-client.tsx", "utf8");
   assert.match(client, /data-testid="connect-lane-attention"/);
   const i18n = readFileSync("src/components/admin/shell/internal/dashboard-i18n-money.ts", "utf8");
-  assert.match(i18n, /"Connect the business's payout account for this lane to release held money":/);
+  assert.match(i18n, /"Connect the business's payout account in Mexico to release \{amount\} held":/);
+  assert.match(i18n, /en Estados Unidos para liberar \{amount\} retenidos/);
+  // plain language, dashboard money formatter, no gold, a tooltip for the long sentence
+  assert.doesNotMatch(client, /138,\s*111,\s*26|Intl\.NumberFormat/);
+  assert.match(client, /formatDashboardMoney\(row\.amountCents \/ 100/);
+  assert.match(client, /<InfoTip/);
+  const visible = [...client.matchAll(/copy\.t\(\s*"([^"]+)"/g)].map((m) => m[1]).join(" ") + i18n.slice(i18n.indexOf("Connect the business's payout account in Mexico"));
+  assert.doesNotMatch(visible, /carril|\blane\b/i);
 });
