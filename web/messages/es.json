@@ -2096,11 +2096,12 @@
         "draftSubStudio": "Todo lo que nos contaste está guardado, pero tu sitio todavía no abre en línea. Inténtalo de nuevo o ábrelo en el editor.",
         "openEditor": "Abrir el editor",
         "goToPanel": "Ir a mi panel",
+        "openMyPanel": "Abrir mi panel",
         "bookPreview": "Reservar",
         "bookingsStartStudio": "Las reservas empiezan cuando agregues a un proveedor.",
         "inquiryTitle": "Tu página está lista para recibir solicitudes",
         "inquirySub": "Ya pueden enviarte solicitudes. Las reservas empiezan cuando agregues a un integrante del equipo.",
-        "addFirstMember": "Agrega a tu primer integrante para empezar a recibir reservas",
+        "addFirstMember": "Agrega a tu primer integrante",
         "alsoBookMyself": "También quiero recibir reservas yo",
         "urlDiffers": "Tu dirección quedó distinta a la que elegiste porque ya estaba en uso. Esta es la real."
       },
@@ -17760,18 +17761,21 @@
       "setup": {
         "title": "Configuración lista",
         "progress": "Configuración · {done} de {total}",
+        "progressShort": "Terminar configuración · {count} pendientes",
         "missing": "Falta: {items}",
         "complete": "Todo está configurado.",
         "finish": "Terminar configuración",
+        "seeAll": "Ver todo",
+        "setUp": "Configurar",
         "item": {
-          "timeZone": "zona horaria",
-          "catalogItem": "un artículo del catálogo",
-          "bookableHours": "horas reservables",
-          "onlinePayments": "pagos en línea",
-          "payoutDestination": "destino de los pagos",
-          "websitePublished": "una página web publicada",
-          "whoPerforms": "alguien reservable",
-          "bookingPolicy": "una política de reserva"
+          "timeZone": "Zona horaria",
+          "catalogItem": "Un servicio o artículo para vender",
+          "bookableHours": "Horas reservables",
+          "onlinePayments": "Pagos en línea",
+          "payoutDestination": "Destino de los pagos",
+          "websitePublished": "Una página web publicada",
+          "whoPerforms": "Alguien reservable",
+          "bookingPolicy": "Una política de reserva"
         }
       }
     },

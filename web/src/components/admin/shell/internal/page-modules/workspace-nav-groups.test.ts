@@ -28,6 +28,7 @@ const BASE_CONTEXT: WorkspaceNavContext = {
   takesReservations: true,
   runsEvents: true,
   posEnabled: true,
+  counterOps: true,
   canManageBilling: true,
 };
 
@@ -164,6 +165,18 @@ test("a solo professional's rail says Services", () => {
   assert.equal(labelOf(solo, "catalog"), "Services");
   // Appointments needs no override — it is the base label.
   assert.equal(labelOf(solo, "appts"), "Appointments");
+});
+
+test("TUL-525: a salon / service studio rail has no Pedidos, Mesas, or POS", () => {
+  const salon = railFor(
+    { industryPreset: "salon_barber", workspaceType: "business" },
+    { teamMemberCount: 4 },
+  );
+  const ids = flat(salon).map((i) => i.id);
+  assert.ok(!ids.includes("orders"), "Pedidos must not appear for a service studio");
+  assert.ok(!ids.includes("spaces"), "Mesas / Espacios must not appear for a service studio");
+  assert.ok(!ids.includes("pos"), "POS must not appear as a rail row");
+  assert.ok(ids.includes("catalog") || ids.includes("appts"), "Services / Agenda stay");
 });
 
 test("the same trade with a team is hybrid and keeps the base labels", () => {

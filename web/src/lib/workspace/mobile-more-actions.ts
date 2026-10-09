@@ -38,6 +38,11 @@ export type MobileMoreActionsInput = {
    * arrives on the shell bridge as `workspaceUi.posEnabled`.
    */
   readonly posEnabled: boolean;
+  /**
+   * TUL-525: appointment studios (salon, clinic) are not counter businesses.
+   * Absent means fail-open (keep prior behaviour for callers that omit it).
+   */
+  readonly counterOps?: boolean;
   /** The signed-in person's tenant rank. */
   readonly role: PosPersonRole;
   /**
@@ -60,6 +65,7 @@ export type MobileMoreActionsInput = {
  */
 export function showsOpenPosRow(input: MobileMoreActionsInput): boolean {
   if (!input.posEnabled) return false;
+  if (input.counterOps === false) return false;
   return (
     modesForPerson({
       role: input.role,

@@ -17,25 +17,30 @@ function msg(locale: "en" | "es", key: string): string {
   return v as string;
 }
 
-test("studio finish: requests wording, one primary action (add first member), no 'bookable'", () => {
+test("studio finish: Abrir mi panel primary, add-member as a real option, no 'bookable'", () => {
   for (const stamp of [composed, parseArrivalStamp({ outcome: "fallback_used" })]) {
     const a = arrivalFromStamp({ path: "business", stamp, person, businessName: "Uñas Mariana", services: 3, site, talent: null, liveCheck: { ok: true } });
     const plan = finishPlan(a);
     assert.equal(plan.kind, "inquiry_only");
     if (plan.kind !== "inquiry_only") return;
-    assert.equal(plan.primary.id, "add_first_member");
-    assert.equal(plan.primary.href, "https://app.tulala.digital/el-paisa/admin/roster/new");
+    assert.equal(plan.primary.id, "open_panel");
+    assert.equal(plan.primary.href, "https://app.tulala.digital/el-paisa/admin");
+    assert.equal(plan.addMember.id, "add_first_member");
+    assert.equal(plan.addMember.href, "https://app.tulala.digital/el-paisa/admin/roster/new");
     assert.equal(plan.secondary.id, "also_book_myself");
     assert.equal(plan.secondary.href, "https://app.tulala.digital/el-paisa/admin/settings");
 
     assert.equal(msg("es", plan.titleKey), "Tu página está lista para recibir solicitudes");
     assert.equal(msg("en", plan.titleKey), "Your page is ready for requests");
-    assert.equal(msg("es", plan.primary.labelKey), "Agrega a tu primer integrante para empezar a recibir reservas");
-    assert.equal(msg("en", plan.primary.labelKey), "Add your first team member to start taking bookings");
+    assert.equal(msg("es", plan.primary.labelKey), "Abrir mi panel");
+    assert.equal(msg("en", plan.primary.labelKey), "Open my panel");
+    assert.equal(msg("es", plan.addMember.labelKey), "Agrega a tu primer integrante");
+    assert.equal(msg("en", plan.addMember.labelKey), "Add your first team member");
+    assert.ok(!/empezar a recibir|start taking bookings/i.test(msg("es", plan.addMember.labelKey) + msg("en", plan.addMember.labelKey)));
     assert.equal(msg("es", plan.secondary.labelKey), "También quiero recibir reservas yo");
     assert.equal(msg("en", plan.secondary.labelKey), "Also take bookings yourself");
     for (const l of ["en", "es"] as const) {
-      for (const k of [plan.titleKey, plan.subKey, plan.primary.labelKey, plan.secondary.labelKey]) {
+      for (const k of [plan.titleKey, plan.subKey, plan.primary.labelKey, plan.addMember.labelKey, plan.secondary.labelKey]) {
         const s = msg(l, k);
         assert.ok(!/—|–/.test(s), `no dashes in ${l}:${k}`);
         assert.ok(!/bookable|reservable/i.test(msg(l, plan.titleKey) + msg(l, plan.subKey)));

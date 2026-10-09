@@ -46,6 +46,7 @@ import {
   readDevicePosMode,
   writeDevicePosMode,
 } from "@/lib/workspace/pos-device-mode";
+import { industryCounterOps } from "@/lib/workspace/industry-ops";
 
 import { interpolate } from "@/i18n/interpolate";
 import { Icon } from "../primitives";
@@ -100,9 +101,18 @@ export type PosModeMenuModel = {
  * and the device's remembered default, whichever chrome asks.
  */
 export function usePosModeMenuModel(): PosModeMenuModel {
-  const { state, t, workspacePosEnabled, workspacePosModes, adminBasePath, tenantSlug, effectiveTenant } =
-    useAdminShell();
+  const {
+    state,
+    t,
+    workspacePosEnabled,
+    workspacePosModes,
+    adminBasePath,
+    tenantSlug,
+    effectiveTenant,
+    bridgeTenantIdentity,
+  } = useAdminShell();
   const tenantName = effectiveTenant.name;
+  const counterOps = industryCounterOps(bridgeTenantIdentity?.industryPreset);
   const router = useRouter();
   // L10 (D-MSG-172): whichever thread is on screen (a workspace Messages
   // deep link's `?inquiry=`, or the counter's own `?order=`) rides along
@@ -126,6 +136,7 @@ export function usePosModeMenuModel(): PosModeMenuModel {
 
   const model = posSwitchModel({
     posEnabled: workspacePosEnabled,
+    counterOps,
     role: state.role,
     workspaceEnabledModes: workspacePosModes,
     remembered,

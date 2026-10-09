@@ -2096,11 +2096,12 @@
         "draftSubStudio": "Everything you told us is saved, but your site does not open online yet. Try again or open it in the editor.",
         "openEditor": "Open the editor",
         "goToPanel": "Go to my dashboard",
+        "openMyPanel": "Open my panel",
         "bookPreview": "Book",
         "bookingsStartStudio": "Bookings start when you add a provider.",
         "inquiryTitle": "Your page is ready for requests",
         "inquirySub": "People can send you requests now. Bookings start when you add a team member.",
-        "addFirstMember": "Add your first team member to start taking bookings",
+        "addFirstMember": "Add your first team member",
         "alsoBookMyself": "Also take bookings yourself",
         "urlDiffers": "Your address came out different from the one you chose because it was already taken. This is the real one."
       },
@@ -17760,18 +17761,21 @@
       "setup": {
         "title": "Setup readiness",
         "progress": "Setup readiness · {done} of {total}",
+        "progressShort": "Finish setup · {count} left",
         "missing": "Missing: {items}",
         "complete": "Everything is set up.",
         "finish": "Finish setup",
+        "seeAll": "See all",
+        "setUp": "Set up",
         "item": {
-          "timeZone": "time zone",
-          "catalogItem": "a catalog item",
-          "bookableHours": "bookable hours",
-          "onlinePayments": "online payments",
-          "payoutDestination": "payout destination",
-          "websitePublished": "a published website page",
-          "whoPerforms": "somebody bookable",
-          "bookingPolicy": "a booking policy"
+          "timeZone": "Time zone",
+          "catalogItem": "A service or item to sell",
+          "bookableHours": "Bookable hours",
+          "onlinePayments": "Online payments",
+          "payoutDestination": "Where payouts go",
+          "websitePublished": "A published website page",
+          "whoPerforms": "Someone bookable",
+          "bookingPolicy": "A booking policy"
         }
       }
     },
