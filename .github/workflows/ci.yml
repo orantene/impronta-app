@@ -51,7 +51,7 @@ on:
 # TUL-412 (2026-10-09): concurrency groups stay PER-REF. A shared group for
 # all ordinary PRs would cancel queued gates (GitHub keeps one pending run per
 # group). Runner pressure is cut instead by the "ships via integ" policy step
-# in the gate job: ordinary PRs run the heavy gate only with the full-gate
+# in the gate job: ordinary PRs run the heavy gate only with the full-ci
 # label; integ/* batches and main always run it.
 #
 # NEVER cancel on `main`. The original comment here said main pushes cancelling
@@ -112,7 +112,7 @@ jobs:
     steps:
       # TUL-412: the heavy gate (~30 min of a shared ubuntu-latest runner) runs
       # on main, on integ/* batch PRs, and on ordinary PRs that carry the
-      # full-gate label (added when a PR is approved to merge on its own).
+      # full-ci label (added when a PR is approved to merge on its own).
       # Every other ordinary PR ships inside an integ batch whose gate covers
       # it, so here it fails in seconds with a pointer instead of holding a
       # runner. Failing (not skipping) keeps the required check red, so an
@@ -122,7 +122,7 @@ jobs:
         # Runs BEFORE checkout, so web/ (the job default) does not exist yet.
         working-directory: .
         # Labels are read LIVE (not from the event payload), so after adding
-        # full-gate a re-run of this check picks it up; no "labeled" trigger
+        # full-ci a re-run of this check picks it up; no "labeled" trigger
         # (any label event would cancel an in-flight gate on this ref).
         env:
           IS_PR: ${{ github.event_name == 'pull_request' }}
@@ -133,13 +133,13 @@ jobs:
         run: |
           HAS_LABEL=false
           if [ "$IS_PR" = "true" ] && [ "$IS_INTEG" != "true" ]; then
-            gh pr view "$PR_NUMBER" --json labels -q ".labels[].name" | grep -qx "full-gate" && HAS_LABEL=true
+            gh pr view "$PR_NUMBER" --json labels -q ".labels[].name" | grep -qx "full-ci" && HAS_LABEL=true
           fi
           if [ "$IS_PR" != "true" ] || [ "$IS_INTEG" = "true" ] || [ "$HAS_LABEL" = "true" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "::error::Ordinary PRs ship inside an integ/* batch, whose gate covers them. To merge this PR on its own, add the full-gate label, then re-run this check."
+            echo "::error::Ordinary PRs ship inside an integ/* batch, whose gate covers them. To merge this PR on its own, add the full-ci label, then re-run this check."
             exit 1
           fi
 

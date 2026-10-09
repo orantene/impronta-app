@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildStartUrl, legacySignupRedirect, type LegacySignupInput } from "./legacy-signup-redirect";
+import { buildStartUrl, langFromLocalePrefixedPath, legacySignupRedirect, resolveLegacyFlowLang, type LegacySignupInput } from "./legacy-signup-redirect";
 
 const base: LegacySignupInput = {
   flagOn: true,
@@ -74,4 +74,28 @@ test("buildStartUrl trims a trailing slash", () => {
     buildStartUrl({ siteUrl: "https://tulala.digital/", lang: "en", choice: "myself" }),
     "https://tulala.digital/start?choice=myself&lang=en",
   );
+});
+
+test("TUL-492: the legacy door language follows the visitor, never a hardcoded es", () => {
+  // The reported case: an en-US browser (even with a Mexico IP) gets English.
+  assert.equal(resolveLegacyFlowLang({ acceptLanguage: "en-US,en;q=0.9", country: "MX" }), "en");
+  assert.equal(resolveLegacyFlowLang({ acceptLanguage: "es-MX,es;q=0.9", country: "US" }), "es");
+  // No browser language: Mexico is Spanish, anywhere else English.
+  assert.equal(resolveLegacyFlowLang({ country: "MX" }), "es");
+  assert.equal(resolveLegacyFlowLang({}), "en");
+  // The URL's language wins over everything; a deliberate cookie beats the browser, an auto cookie does not.
+  assert.equal(resolveLegacyFlowLang({ urlLang: "en", cookieLocale: "es", acceptLanguage: "es-MX", country: "MX" }), "en");
+  assert.equal(resolveLegacyFlowLang({ urlLang: "es", acceptLanguage: "en-US" }), "es");
+  assert.equal(resolveLegacyFlowLang({ cookieLocale: "es", cookieIsAuto: false, acceptLanguage: "en-US" }), "es");
+  assert.equal(resolveLegacyFlowLang({ cookieLocale: "es", cookieIsAuto: true, acceptLanguage: "en-US" }), "en");
+  assert.equal(resolveLegacyFlowLang({ urlLang: "fr", acceptLanguage: "en-US" }), "en");
+});
+
+test("TUL-492: a locale-prefixed path names its language", () => {
+  assert.equal(langFromLocalePrefixedPath("/en/register"), "en");
+  assert.equal(langFromLocalePrefixedPath("/es/register"), "es");
+  assert.equal(langFromLocalePrefixedPath("/es"), "es");
+  assert.equal(langFromLocalePrefixedPath("/register"), null);
+  assert.equal(langFromLocalePrefixedPath("/espresso"), null);
+  assert.equal(langFromLocalePrefixedPath(null), null);
 });

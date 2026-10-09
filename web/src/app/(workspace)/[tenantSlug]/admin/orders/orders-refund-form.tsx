@@ -63,20 +63,27 @@ export function OrdersRefundForm({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [lines, setLines] = useState<Array<{ id: string; name: string; totalCents: number; refundedCents: number; components: Array<{ name: string; cents: number }> | null }>>([]);
+  const [captureRefundableCents, setCaptureRefundableCents] = useState(0);
   const [picked, setPicked] = useState<string[]>([]);
   const [effect, setEffect] = useState<RefundEffect>("adjustment_after_service");
   const [amountText, setAmountText] = useState("");
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<RefundDeskOutcome | null>(null);
 
-  const maxCents = lines
-    .filter((l) => picked.includes(l.id))
-    .reduce((sum, l) => sum + Math.max(0, l.totalCents - l.refundedCents), 0);
-
-  function syncAmountDefault(nextPicked: string[], nextLines: typeof lines) {
-    const nextMax = nextLines
+  // Line remaining capped by capture left (gross − fees − refunds). Without the
+  // cap, a remainder after a partial asks for more than Stripe will return and
+  // the desk shows "más de lo que se cobró" (TUL-469).
+  function maxFor(nextPicked: string[], nextLines: typeof lines, captureLeft: number) {
+    const lineLeft = nextLines
       .filter((l) => nextPicked.includes(l.id))
       .reduce((sum, l) => sum + Math.max(0, l.totalCents - l.refundedCents), 0);
+    return Math.min(lineLeft, Math.max(0, captureLeft));
+  }
+
+  const maxCents = maxFor(picked, lines, captureRefundableCents);
+
+  function syncAmountDefault(nextPicked: string[], nextLines: typeof lines, captureLeft: number) {
+    const nextMax = maxFor(nextPicked, nextLines, captureLeft);
     setAmountText(nextMax > 0 ? deskRefundAmountDefault(nextMax, currency) : "");
   }
 
@@ -85,6 +92,7 @@ export function OrdersRefundForm({
     setOutcome(null);
     setPicked([]);
     setAmountText("");
+    setCaptureRefundableCents(0);
     const res = await loadOrderLinesForDesk(orderId);
     if (!res.ok) {
       setOutcome(res.outcome);
@@ -94,6 +102,7 @@ export function OrdersRefundForm({
     // ticket to cancel, so it stays pickable (D-175).
     const next = res.lines.filter((l) => l.totalCents > l.refundedCents || l.totalCents === 0);
     setLines(next);
+    setCaptureRefundableCents(res.captureRefundableCents);
     setEffect(res.defaultEffect);
   }
 
@@ -149,7 +158,7 @@ export function OrdersRefundForm({
                       ? [...picked, line.id]
                       : picked.filter((id) => id !== line.id);
                     setPicked(next);
-                    syncAmountDefault(next, lines);
+                    syncAmountDefault(next, lines, captureRefundableCents);
                   }}
                 />{" "}
                 {line.name}

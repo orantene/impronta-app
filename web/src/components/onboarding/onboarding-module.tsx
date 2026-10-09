@@ -439,6 +439,12 @@ export function OnboardingModule({
         onFresh={() => {
           dispatch({ type: "resumeFresh" });
           void resetOnboardingDraft();
+          // TUL-492: the CTA's explicit choice (/start?choice=studio) is honoured
+          // when the person starts over, instead of being lost to the old draft.
+          if (isPage && startChoice) {
+            startChoiceAppliedRef.current = true;
+            void chooseHow(startChoice);
+          }
         }}
       />
     );

@@ -20,6 +20,7 @@ import { inheritedInstantErrors } from "./offering-booking-rules";
 import { IDENTITY_REASONS, isIdentityReason, type IdentityReason } from "@/lib/orders/identity-requirement";
 import {
   SERVICE_PRICING_SUFFIX,
+  SERVICE_PRICING_SUFFIX_ES,
   SERVICE_PRICING_TYPES,
   type ServicePricingType,
 } from "@/lib/talent/services-menu-types";
@@ -533,7 +534,7 @@ export function offeringPriceLabel(
     return es ? "Cotización a pedido" : "Quote on request";
   }
   const price = formatOfferingPrice(o.amountCents, o.currency, locale);
-  const suffix = SERVICE_PRICING_SUFFIX[o.priceType];
+  const suffix = (es ? SERVICE_PRICING_SUFFIX_ES : SERVICE_PRICING_SUFFIX)[o.priceType];
   const core = suffix ? `${price} ${suffix}` : price;
   return o.priceDisplay === "from" ? (es ? `desde ${core}` : `from ${core}`) : core;
 }

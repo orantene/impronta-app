@@ -8,20 +8,22 @@
  * trapped, Esc closes). Colours come only from the `<html>` token vars
  * (`--token-color-*`), so it wears the site's look.
  *
- * Sign-in methods (TUL-173 / Client Account Plan §5.3): email code (default),
- * Google popup on this host (`/auth/google?popup=1`), password behind a link.
- * No redirects off the talent host.
+ * Sign-in methods (TUL-173 / TUL-65): email code (default), Google + Apple
+ * same-origin popups (`/auth/google?popup=1`, `/auth/apple?popup=1`), password
+ * behind a link. No redirects off the talent host.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { requestEmailCode } from "@/app/auth/otp-actions";
+import { AuthAppleGlyph } from "@/components/auth/auth-apple-glyph";
 import { AuthGoogleGlyph } from "@/components/auth/auth-google-glyph";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 import { getSiteUrl } from "@/lib/auth-flow";
 import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
 import {
+  finalizeClientAccountAppleSession,
   finalizeClientAccountGoogleSession,
   saveClientMarketingConsent,
   signInClientAccountPassword,
@@ -59,11 +61,14 @@ export function ClientAccountButton({
   variant,
   locale,
   accountHref = "/account",
+  appleSignInEnabled = false,
 }: {
   variant: "dock" | "header";
   locale: string;
   /** Where "My account" goes; absolute on the marketing apex (see `accountHrefFor`). */
   accountHref?: string;
+  /** Server-resolved `AUTH_APPLE_PROVIDER_ENABLED` — never trust the client. */
+  appleSignInEnabled?: boolean;
 }) {
   const loc = locale === "es" ? "es" : "en";
   const t = createTranslator(loc);
@@ -76,6 +81,7 @@ export function ClientAccountButton({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [googlePending, setGooglePending] = useState(false);
+  const [applePending, setApplePending] = useState(false);
   const [sentAt, setSentAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [optIn, setOptIn] = useState(false);
@@ -86,6 +92,7 @@ export function ClientAccountButton({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const popupRef = useRef<Window | null>(null);
   const closeWatcherRef = useRef<number | null>(null);
+  const oauthProviderRef = useRef<"google" | "apple" | null>(null);
 
   useEffect(() => {
     ageTermsRef.current = ageTerms;
@@ -130,7 +137,10 @@ export function ClientAccountButton({
     function handleMessage(event: MessageEvent<AuthPopupMessage>) {
       if (event.origin !== window.location.origin) return;
       if (event.data?.type !== AUTH_POPUP_MESSAGE_TYPE) return;
+      const provider = oauthProviderRef.current;
+      oauthProviderRef.current = null;
       setGooglePending(false);
+      setApplePending(false);
       if (closeWatcherRef.current) {
         window.clearInterval(closeWatcherRef.current);
         closeWatcherRef.current = null;
@@ -138,16 +148,25 @@ export function ClientAccountButton({
       popupRef.current?.close();
       popupRef.current = null;
       if (!event.data.success) {
-        setError(event.data.error ?? t("public.clientAccount.googleFailed"));
+        setError(
+          event.data.error ??
+            t(provider === "apple" ? "public.clientAccount.appleFailed" : "public.clientAccount.googleFailed"),
+        );
         return;
       }
       void (async () => {
         setBusy(true);
         setError(null);
-        const res = await finalizeClientAccountGoogleSession({
-          locale: loc,
-          ageTerms: ageTermsRef.current === true,
-        });
+        const res =
+          provider === "apple"
+            ? await finalizeClientAccountAppleSession({
+                locale: loc,
+                ageTerms: ageTermsRef.current === true,
+              })
+            : await finalizeClientAccountGoogleSession({
+                locale: loc,
+                ageTerms: ageTermsRef.current === true,
+              });
         setBusy(false);
         if (!res.ok) {
           setError(res.error);
@@ -277,6 +296,7 @@ export function ClientAccountButton({
       return;
     }
     popupRef.current = popup;
+    oauthProviderRef.current = "google";
     setGooglePending(true);
     closeWatcherRef.current = window.setInterval(() => {
       if (!popupRef.current || popupRef.current.closed) {
@@ -285,7 +305,43 @@ export function ClientAccountButton({
           closeWatcherRef.current = null;
         }
         popupRef.current = null;
+        oauthProviderRef.current = null;
         setGooglePending(false);
+      }
+    }, 500);
+  }
+
+  function startApple() {
+    if (!requireAgeTermsTick()) return;
+    setError(null);
+    const W = 520;
+    const H = 640;
+    const left = Math.max(window.screenX + (window.outerWidth - W) / 2, 0);
+    const top = Math.max(window.screenY + (window.outerHeight - H) / 2, 0);
+    const startUrl = new URL("/auth/apple", window.location.origin);
+    startUrl.searchParams.set("popup", "1");
+    startUrl.searchParams.set("next", "/");
+    const popup = window.open(
+      startUrl.toString(),
+      "client-apple-auth-popup",
+      `width=${W},height=${H},left=${left},top=${top},popup=yes,resizable=yes,scrollbars=yes`,
+    );
+    if (!popup) {
+      setError(t("public.clientAccount.applePopupBlocked"));
+      return;
+    }
+    popupRef.current = popup;
+    oauthProviderRef.current = "apple";
+    setApplePending(true);
+    closeWatcherRef.current = window.setInterval(() => {
+      if (!popupRef.current || popupRef.current.closed) {
+        if (closeWatcherRef.current) {
+          window.clearInterval(closeWatcherRef.current);
+          closeWatcherRef.current = null;
+        }
+        popupRef.current = null;
+        oauthProviderRef.current = null;
+        setApplePending(false);
       }
     }, 500);
   }
@@ -309,7 +365,7 @@ export function ClientAccountButton({
   const left = resendSecondsLeft(now, sentAt);
   const label = me.signedIn ? t("public.clientAccount.account") : t("public.clientAccount.signIn");
   const site = getSiteUrl();
-  const pending = busy || googlePending;
+  const pending = busy || googlePending || applePending;
 
   const trigger = (
     <button
@@ -468,6 +524,12 @@ export function ClientAccountButton({
                       <AuthGoogleGlyph />
                       <span>{googlePending ? t("public.clientAccount.googleOpening") : t("public.clientAccount.google")}</span>
                     </button>
+                    {appleSignInEnabled ? (
+                      <button type="button" onClick={startApple} disabled={pending} style={secondary}>
+                        <AuthAppleGlyph />
+                        <span>{applePending ? t("public.clientAccount.appleOpening") : t("public.clientAccount.continueApple")}</span>
+                      </button>
+                    ) : null}
                     <p style={{ margin: 0, textAlign: "center", fontSize: 12, opacity: 0.65 }}>{t("public.clientAccount.or")}</p>
                     <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
                       {t("public.clientAccount.emailLabel")}

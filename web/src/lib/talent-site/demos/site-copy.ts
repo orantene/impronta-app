@@ -2,8 +2,22 @@
  * A demo's page copy, set on the applied design the way a talent edits it in
  * the builder (text, ticker words, photos, facts). Pure: takes the draft
  * trees, returns new ones. Unknown shapes are left untouched.
+ *
+ * ONE RULE (TUL-494): every visitor-visible string this module writes must also
+ * set `props.i18n.es` and `props.i18n.en` for that prop (base = site primary;
+ * the other language is explicit via `overlays` / nested `*I18n`). Same shape
+ * as theme seed overlays in `seed-i18n.ts`. Never leave a Spanish-primary demo
+ * with an English-only rewrite (or the reverse).
  */
 import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
+
+/** Second-language Maison / generic hero chrome (written onto `props.i18n.<lang>`). */
+export type HeroSiteCopyOverlay = {
+  heading?: string;
+  eyebrow?: string;
+  lede?: string;
+  proof?: string;
+};
 
 /** Page copy a demo sets in the builder after the design is applied. */
 export type DemoSiteCopy = {
@@ -12,6 +26,8 @@ export type DemoSiteCopy = {
   heroLede?: string;
   /** Proof line under the hero CTAs; `{b}...{/b}` for the bold lead. */
   heroProof?: string;
+  /** Per-language overlays for hero fields this copy writes (TUL-494). */
+  heroOverlays?: Partial<Record<"en" | "es", HeroSiteCopyOverlay>>;
   ticker?: string[];
   heroInset?: string;
   aboutPhoto?: string;
@@ -25,6 +41,15 @@ export type DemoSiteCopy = {
   folio?: FolioSiteCopy;
 };
 
+/** Second-language Folio chrome. Written onto `props.i18n.<lang>` (TUL-494). */
+export type FolioSiteCopyOverlay = {
+  chapters?: Array<{ heading?: string; creditLine?: string; tocCredit?: string }>;
+  coverStatement?: string;
+  ratesSubtitle?: string;
+  footerCredit?: string;
+  footerContact?: string;
+};
+
 /** Folio page copy: design-owned neutral defaults the demo fills the way a talent would in the builder. */
 export type FolioSiteCopy = {
   chapters: Array<{ heading: string; creditLine: string; tocCredit: string }>;
@@ -33,10 +58,31 @@ export type FolioSiteCopy = {
   footerCredit: string;
   footerContact: string;
   shoeLabel: { en: string; es: string };
+  /** Per-language overlays for every chrome field this copy writes. */
+  overlays?: Partial<Record<"en" | "es", FolioSiteCopyOverlay>>;
 };
 
 /** One language of a spec table (all parts optional; only the parts given become overlay keys). */
 export type SpecTableText = { eyebrow?: string; title?: string; rows?: Array<{ label: string; value: string }> };
+
+
+/**
+ * Second-language Gridline chrome. Written onto `props.i18n.<lang>` so a
+ * Spanish-primary site still serves English on `/en` (and the reverse).
+ */
+export type GridlineSiteCopyOverlay = {
+  topBar?: { subtitle?: string; statusOn?: string; statusOff?: string; callLabel?: string };
+  alert?: { title?: string; safetyLead?: string; safety?: string; ctaLabel?: string };
+  hero?: {
+    kicker?: string;
+    headline?: string;
+    badges?: string[];
+    ctas?: [string, string];
+  };
+  tasks?: { title?: string };
+  specTable?: { eyebrow?: string; title?: string; rows?: Array<{ label: string; value: string }> };
+  services?: { title?: string; subtitle?: string };
+};
 
 /** Gridline page copy: design-owned editable defaults the demo fills the way a talent would in the builder. */
 export type GridlineSiteCopy = {
@@ -68,6 +114,8 @@ export type GridlineSiteCopy = {
     i18n?: Partial<Record<"en" | "es", SpecTableText>>;
   };
   services?: { title?: string; subtitle?: string };
+  /** Per-language overlays for every chrome field this copy writes (TUL-302). */
+  overlays?: Partial<Record<"en" | "es", GridlineSiteCopyOverlay>>;
 };
 
 type Node = { id: string; kind: string; props?: Record<string, unknown>; children?: Node[] };
@@ -118,7 +166,7 @@ export function specTableOverlay(
 }
 
 /** Existing node overlay plus `add`, language by language; `{}` when there is nothing to set. */
-function mergeI18n(
+export function mergeI18n(
   existing: unknown,
   add: Record<string, Record<string, string>> | undefined,
 ): { i18n?: Record<string, Record<string, string>> } {
@@ -131,8 +179,49 @@ function mergeI18n(
   return { i18n: out };
 }
 
+/** Flat prop overlays from every language bag in `overlays` that provides `pick`. */
+function flatOverlay(
+  overlays: GridlineSiteCopy["overlays"],
+  pick: (o: GridlineSiteCopyOverlay) => Record<string, string | undefined> | undefined,
+): Record<string, Record<string, string>> | undefined {
+  if (!overlays) return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [lang, bag] of Object.entries(overlays)) {
+    const props = pick(bag as GridlineSiteCopyOverlay);
+    if (!props) continue;
+    const row: Record<string, string> = {};
+    for (const [k, v] of Object.entries(props)) if (typeof v === "string" && v.trim()) row[k] = v;
+    if (Object.keys(row).length) out[lang] = row;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** Spec-table row overlays (`rows.N.label` / `rows.N.value`) from every language bag. */
+function rowsOverlay(
+  overlays: GridlineSiteCopy["overlays"],
+): Record<string, Record<string, string>> | undefined {
+  if (!overlays) return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [lang, bag] of Object.entries(overlays)) {
+    const rows = (bag as GridlineSiteCopyOverlay).specTable?.rows;
+    if (!rows?.length) continue;
+    const row: Record<string, string> = {};
+    rows.forEach((r, i) => {
+      if (r.label.trim()) row[`rows.${i}.label`] = r.label;
+      if (r.value.trim()) row[`rows.${i}.value`] = r.value;
+    });
+    if (Object.keys(row).length) out[lang] = row;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** One mono badge under the who-card bio (the same card the hero spec kit stamps). */
-function badgeNode(text: string, id: string, textId: string): Node {
+function badgeNode(
+  text: string,
+  id: string,
+  textId: string,
+  textI18n?: Record<string, Record<string, string>>,
+): Node {
   return {
     id,
     kind: "card",
@@ -140,17 +229,44 @@ function badgeNode(text: string, id: string, textId: string): Node {
       variant: "outline",
       style: { radius: "sm", paddingX: "s", paddingY: "s", backgroundColor: styleTokenRef("color.surface-raised") },
     },
-    children: [{ id: textId, kind: "paragraph", props: { text, style: { fontSize: "11px", letterSpacing: ".02em", tone: "muted" } } }],
+    children: [
+      {
+        id: textId,
+        kind: "paragraph",
+        props: {
+          text,
+          style: { fontSize: "11px", letterSpacing: ".02em", tone: "muted" },
+          ...mergeI18n(undefined, textI18n),
+        },
+      },
+    ],
   };
+}
+
+/** Badge paragraph overlays keyed by language (`text` prop). */
+function badgeTextOverlay(
+  overlays: GridlineSiteCopy["overlays"],
+  index: number,
+): Record<string, Record<string, string>> | undefined {
+  if (!overlays) return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [lang, bag] of Object.entries(overlays)) {
+    const text = (bag as GridlineSiteCopyOverlay).hero?.badges?.[index];
+    if (typeof text === "string" && text.trim()) out[lang] = { text };
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 /**
  * Gridline: fill the text the design ships empty. Each rule finds its node by
  * kind and the kit's own layer label, so a talent who rearranged the page still
- * gets the copy, and anything it cannot find is left alone.
+ * gets the copy, and anything it cannot find is left alone. When `overlays`
+ * carries a second language, that language is written onto `props.i18n` so
+ * every Gridline site (not only the demo) can serve English on `/en`.
  */
 function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, newId: () => string): Node {
   const p = n.props ?? {};
+  const ov = g.overlays;
   switch (n.kind) {
     case "utility_bar": {
       const t = g.topBar;
@@ -160,6 +276,19 @@ function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, ne
         ...(t.statusOn ? { statusOnLabel: t.statusOn } : {}),
         ...(t.statusOff ? { statusOffLabel: t.statusOff } : {}),
         ...(t.callLabel ? { callLabel: t.callLabel } : {}),
+        ...mergeI18n(
+          p.i18n,
+          flatOverlay(ov, (o) =>
+            o.topBar
+              ? {
+                  subtitle: o.topBar.subtitle,
+                  statusOnLabel: o.topBar.statusOn,
+                  statusOffLabel: o.topBar.statusOff,
+                  callLabel: o.topBar.callLabel,
+                }
+              : undefined,
+          ),
+        ),
       });
     }
     case "alert_band": {
@@ -170,6 +299,19 @@ function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, ne
         safetyLabel: a.safetyLead,
         safetyNote: a.safety,
         ...(a.ctaLabel ? { ctaLabel: a.ctaLabel } : {}),
+        ...mergeI18n(
+          p.i18n,
+          flatOverlay(ov, (o) =>
+            o.alert
+              ? {
+                  title: o.alert.title,
+                  safetyLabel: o.alert.safetyLead,
+                  safetyNote: o.alert.safety,
+                  ctaLabel: o.alert.ctaLabel,
+                }
+              : undefined,
+          ),
+        ),
       });
     }
     case "task_picker": {
@@ -183,22 +325,44 @@ function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, ne
         defaultKickerEs: t.defaultKickerEs,
         defaultHint: t.defaultHint,
         defaultHintEs: t.defaultHintEs,
+        ...mergeI18n(p.i18n, flatOverlay(ov, (o) => (o.tasks?.title ? { title: o.tasks.title } : undefined))),
       });
     }
     case "spec_table": {
       const s = g.specTable;
       if (!s) return n;
+      // Layer order: seed `p.i18n` → flat `overlays.<lang>.specTable` (TUL-302) →
+      // nested `specTable.i18n` (TUL-207). Later layers win on key clash.
+      // `mergeI18n` returns `{}` when `add` is undefined (drops `existing`), so
+      // only pass a bag when present — otherwise flat overlays vanish and the
+      // seed EN title ("How it works") sticks instead of "Specifications".
+      const titleOv = flatOverlay(ov, (o) =>
+        o.specTable ? { eyebrow: o.specTable.eyebrow, title: o.specTable.title } : undefined,
+      );
+      const rowOv = rowsOverlay(ov);
+      const fromFlat = rowOv ? mergeI18n(titleOv, rowOv).i18n : titleOv;
+      const fromNested = specTableOverlay(s.i18n).i18n;
+      const add = fromNested ? mergeI18n(fromFlat, fromNested).i18n : fromFlat;
       return withProps(n, {
         ...(s.eyebrow ? { eyebrow: s.eyebrow } : {}),
         ...(s.title ? { title: s.title } : {}),
         rows: s.rows.map((r) => ({ ...r })),
-        ...mergeI18n(p.i18n, specTableOverlay(s.i18n).i18n),
+        ...mergeI18n(p.i18n, add),
       });
     }
     case "services_catalog": {
       const s = g.services;
       if (!s) return n;
-      return withProps(n, { ...(s.title ? { title: s.title } : {}), ...(s.subtitle ? { subtitle: s.subtitle } : {}) });
+      return withProps(n, {
+        ...(s.title ? { title: s.title } : {}),
+        ...(s.subtitle ? { subtitle: s.subtitle } : {}),
+        ...mergeI18n(
+          p.i18n,
+          flatOverlay(ov, (o) =>
+            o.services ? { title: o.services.title, subtitle: o.services.subtitle } : undefined,
+          ),
+        ),
+      });
     }
     case "stats": {
       if (!ctx.inHero || p.variant !== "spec" || !g.hero?.facts) return n;
@@ -209,24 +373,43 @@ function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, ne
     }
     case "heading": {
       if (!ctx.inHero || p.level !== 1 || !g.hero?.headline) return n;
-      return withProps(n, { text: g.hero.headline });
+      return withProps(n, {
+        text: g.hero.headline,
+        ...mergeI18n(
+          p.i18n,
+          flatOverlay(ov, (o) => (o.hero?.headline ? { text: o.hero.headline } : undefined)),
+        ),
+      });
     }
     case "container": {
       const label = p.layerLabel;
       const kids = n.children ?? [];
       if (label === "Kicker" && g.hero?.kicker) {
-        return { ...n, children: kids.map((k) => (k.kind === "paragraph" ? withProps(k, { text: g.hero!.kicker }) : k)) };
+        const kickerOv = flatOverlay(ov, (o) => (o.hero?.kicker ? { text: o.hero.kicker } : undefined));
+        return {
+          ...n,
+          children: kids.map((k) =>
+            k.kind === "paragraph"
+              ? withProps(k, { text: g.hero!.kicker, ...mergeI18n(k.props?.i18n, kickerOv) })
+              : k,
+          ),
+        };
       }
       if (label === "Hero actions" && g.hero?.ctas) {
         const [primary, secondary] = g.hero.ctas;
         const buttons = kids.filter((k) => k.kind === "button");
+        const ctaOv = (index: 0 | 1) =>
+          flatOverlay(ov, (o) => {
+            const labelText = o.hero?.ctas?.[index];
+            return labelText ? { label: labelText } : undefined;
+          });
         return {
           ...n,
           children: kids.map((k) =>
             k === buttons[0]
-              ? withProps(k, { label: primary, layerLabel: primary })
+              ? withProps(k, { label: primary, layerLabel: primary, ...mergeI18n(k.props?.i18n, ctaOv(0)) })
               : k === buttons[1]
-                ? withProps(k, { label: secondary })
+                ? withProps(k, { label: secondary, ...mergeI18n(k.props?.i18n, ctaOv(1)) })
                 : k,
           ),
         };
@@ -240,7 +423,7 @@ function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, ne
               id: newId(),
               kind: "container",
               props: { layout: "row", gap: "s", align: "start", layerLabel: "Badges", style: { flexWrap: "wrap" } },
-              children: g.hero.badges.map((b) => badgeNode(b, newId(), newId())),
+              children: g.hero.badges.map((b, i) => badgeNode(b, newId(), newId(), badgeTextOverlay(ov, i))),
             },
           ],
         };
@@ -252,9 +435,64 @@ function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, ne
   }
 }
 
+/** Flat Folio prop overlays from every language bag that provides `pick`. */
+function folioFlatOverlay(
+  overlays: FolioSiteCopy["overlays"],
+  pick: (o: FolioSiteCopyOverlay) => Record<string, string | undefined> | undefined,
+): Record<string, Record<string, string>> | undefined {
+  if (!overlays) return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [lang, bag] of Object.entries(overlays)) {
+    const props = pick(bag as FolioSiteCopyOverlay);
+    if (!props) continue;
+    const row: Record<string, string> = {};
+    for (const [k, v] of Object.entries(props)) if (typeof v === "string" && v.trim()) row[k] = v;
+    if (Object.keys(row).length) out[lang] = row;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** Masthead / contents index overlays (`contents.N` / `items.N` label + credit). */
+function folioChapterListOverlay(
+  overlays: FolioSiteCopy["overlays"],
+  listKey: "contents" | "items",
+): Record<string, Record<string, string>> | undefined {
+  if (!overlays) return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [lang, bag] of Object.entries(overlays)) {
+    const chapters = (bag as FolioSiteCopyOverlay).chapters;
+    if (!chapters?.length) continue;
+    const row: Record<string, string> = {};
+    chapters.forEach((c, i) => {
+      if (c.heading?.trim()) row[`${listKey}.${i}.label`] = c.heading;
+      if (c.tocCredit?.trim()) row[`${listKey}.${i}.credit`] = c.tocCredit;
+    });
+    if (Object.keys(row).length) out[lang] = row;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** Flat Maison / generic hero overlays from `heroOverlays`. */
+function heroFlatOverlay(
+  overlays: DemoSiteCopy["heroOverlays"],
+  pick: (o: HeroSiteCopyOverlay) => Record<string, string | undefined> | undefined,
+): Record<string, Record<string, string>> | undefined {
+  if (!overlays) return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [lang, bag] of Object.entries(overlays)) {
+    const props = pick(bag as HeroSiteCopyOverlay);
+    if (!props) continue;
+    const row: Record<string, string> = {};
+    for (const [k, v] of Object.entries(props)) if (typeof v === "string" && v.trim()) row[k] = v;
+    if (Object.keys(row).length) out[lang] = row;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** Folio: put the demo wording back on the nodes the design ships neutral. Matched by anchor / chapter number / kind. */
 function folioNode(n: Node, f: FolioSiteCopy): Node {
   const p = n.props ?? {};
+  const ov = f.overlays;
   const chapterAt = (anchor: unknown) => {
     const m = typeof anchor === "string" ? /^chapter-(\d+)$/.exec(anchor) : null;
     return m ? f.chapters[Number(m[1]) - 1] : undefined;
@@ -269,16 +507,39 @@ function folioNode(n: Node, f: FolioSiteCopy): Node {
       if (p.sectionTypeKey !== "site_header" || !Array.isArray(sp.navItems)) return n;
       return withProps(n, { sectionProps: { ...sp, navItems: sp.navItems.map((it: Record<string, unknown>) => withChapter(it, false)) } });
     }
-    case "masthead":
+    case "masthead": {
+      const listOv = folioChapterListOverlay(ov, "contents");
+      const coverOv = folioFlatOverlay(ov, (o) =>
+        o.coverStatement ? { coverStatement: o.coverStatement } : undefined,
+      );
       return withProps(n, {
         coverStatement: f.coverStatement,
         ...(Array.isArray(p.contents) ? { contents: p.contents.map((it: Record<string, unknown>) => withChapter(it, true)) } : {}),
+        ...mergeI18n(p.i18n, listOv ? mergeI18n(coverOv, listOv).i18n : coverOv),
       });
-    case "contents":
-      return Array.isArray(p.items) ? withProps(n, { items: p.items.map((it: Record<string, unknown>) => withChapter(it, true)) }) : n;
+    }
+    case "contents": {
+      if (!Array.isArray(p.items)) return n;
+      return withProps(n, {
+        items: p.items.map((it: Record<string, unknown>) => withChapter(it, true)),
+        ...mergeI18n(p.i18n, folioChapterListOverlay(ov, "items")),
+      });
+    }
     case "portfolio": {
-      const c = f.chapters[Number(p.chapterNumber) - 1];
-      return p.layout === "chapter" && c ? withProps(n, { title: c.heading, creditLine: c.creditLine }) : n;
+      const idx = Number(p.chapterNumber) - 1;
+      const c = f.chapters[idx];
+      if (p.layout !== "chapter" || !c) return n;
+      return withProps(n, {
+        title: c.heading,
+        creditLine: c.creditLine,
+        ...mergeI18n(
+          p.i18n,
+          folioFlatOverlay(ov, (o) => {
+            const ch = o.chapters?.[idx];
+            return ch ? { title: ch.heading, creditLine: ch.creditLine } : undefined;
+          }),
+        ),
+      });
     }
     case "comp_card":
       return Array.isArray(p.measures)
@@ -289,9 +550,26 @@ function folioNode(n: Node, f: FolioSiteCopy): Node {
           })
         : n;
     case "services_catalog":
-      return withProps(n, { subtitle: f.ratesSubtitle });
+      return withProps(n, {
+        subtitle: f.ratesSubtitle,
+        ...mergeI18n(
+          p.i18n,
+          folioFlatOverlay(ov, (o) => (o.ratesSubtitle ? { subtitle: o.ratesSubtitle } : undefined)),
+        ),
+      });
     case "statement_footer":
-      return withProps(n, { creditLine: f.footerCredit, contactLine: f.footerContact });
+      return withProps(n, {
+        creditLine: f.footerCredit,
+        contactLine: f.footerContact,
+        ...mergeI18n(
+          p.i18n,
+          folioFlatOverlay(ov, (o) =>
+            o.footerCredit || o.footerContact
+              ? { creditLine: o.footerCredit, contactLine: o.footerContact }
+              : undefined,
+          ),
+        ),
+      });
     default:
       return n;
   }
@@ -312,7 +590,13 @@ export function applyDemoSiteCopy(
     if (g) return gridlineNode(n, ctx, g, newId);
     const p = n.props ?? {};
     if (ctx.inHero && n.kind === "heading" && p.level === 1 && copy.heroHeading) {
-      return withProps(n, { text: copy.heroHeading });
+      return withProps(n, {
+        text: copy.heroHeading,
+        ...mergeI18n(
+          p.i18n,
+          heroFlatOverlay(copy.heroOverlays, (o) => (o.heading ? { text: o.heading } : undefined)),
+        ),
+      });
     }
     if (
       ctx.inHero &&
@@ -322,10 +606,24 @@ export function applyDemoSiteCopy(
       copy.heroEyebrow
     ) {
       eyebrowDone = true;
-      return withProps(n, { text: copy.heroEyebrow });
+      return withProps(n, {
+        text: copy.heroEyebrow,
+        ...mergeI18n(
+          p.i18n,
+          heroFlatOverlay(copy.heroOverlays, (o) => (o.eyebrow ? { text: o.eyebrow } : undefined)),
+        ),
+      });
     }
     if (ctx.inHero && n.kind === "paragraph" && p.layerLabel === "Hero proof") {
-      return copy.heroProof ? withProps(n, { text: copy.heroProof }) : n;
+      return copy.heroProof
+        ? withProps(n, {
+            text: copy.heroProof,
+            ...mergeI18n(
+              p.i18n,
+              heroFlatOverlay(copy.heroOverlays, (o) => (o.proof ? { text: o.proof } : undefined)),
+            ),
+          })
+        : n;
     }
     if (
       ctx.inHero &&
@@ -333,7 +631,13 @@ export function applyDemoSiteCopy(
       (p.style as { textTransform?: string } | undefined)?.textTransform !== "uppercase" &&
       copy.heroLede
     ) {
-      return withProps(n, { text: copy.heroLede });
+      return withProps(n, {
+        text: copy.heroLede,
+        ...mergeI18n(
+          p.i18n,
+          heroFlatOverlay(copy.heroOverlays, (o) => (o.lede ? { text: o.lede } : undefined)),
+        ),
+      });
     }
     if (ctx.inHero && n.kind === "image" && p.layerLabel === "Hero inset" && copy.heroInset) {
       const url = photoUrl(copy.heroInset);

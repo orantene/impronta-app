@@ -31,12 +31,13 @@ import { normalizeCurrencyCode } from "@/lib/inquiry/offer-currency";
 import { resolvePayeeName } from "@/lib/payments/payee-name";
 import { PAYMENT_LINK_METADATA_KEY } from "@/lib/payments/link-settlement";
 import { resolveLinkPayoutReceiver } from "@/lib/payments/link-payout-receiver";
+import { collectForOrderPrincipal } from "@/lib/orders/purchase-collect";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 
 export type OpenPaymentLinkCheckoutResult =
   | { ok: true; url: string }
-  | { ok: false; reason: "not_found" | "expired" | "not_open" | "provider_unavailable" | "unavailable" }
+  | { ok: false; reason: "not_found" | "expired" | "not_open" | "provider_unavailable" | "unavailable" | "start_failed" }
   /** TUL-284: the link is priced in a currency other than its order's. Nothing was opened or charged. */
   | { ok: false; reason: "currency_mismatch"; linkCurrency: string; orderCurrency: string };
 
@@ -44,6 +45,7 @@ export type OpenPaymentLinkCheckoutDeps = {
   createCheckoutSession?: typeof createCheckoutSessionForTransaction;
   retrieveCheckoutSession?: typeof retrieveCheckoutSessionLink;
   resolveReceiver?: typeof resolveLinkPayoutReceiver;
+  resolveCollect?: typeof collectForOrderPrincipal;
   now?: () => number;
 };
 
@@ -178,6 +180,15 @@ async function openOnce(
   }
   const currency = link.currency || order.currency;
   const amountCents = Number(link.amount_cents);
+  // The principal is what the order is credited. What Stripe charges is the principal plus the
+  // pass_through client surcharge when armed: the same helper the direct checkout uses.
+  const collectCents = await (deps.resolveCollect ?? collectForOrderPrincipal)(admin as unknown as SupabaseClient, {
+    tenantId: link.tenant_id,
+    orderId: order.id,
+    orderCurrency: currency,
+    principalCents: amountCents,
+    subtotalCents: Number((order as { total_cents?: number | string | null }).total_cents ?? 0),
+  });
 
   // ── 2. RESUME, DO NOT MINT A SECOND.
   let transactionId: string | null = claim.transaction_id;
@@ -243,7 +254,8 @@ async function openOnce(
       revenue: amountCents / 100,
       contact,
     });
-    if (!shell.ok) return { ok: false, reason: "unavailable" };
+    // A fresh attempt (no earlier row): nothing can have reached Stripe yet, so this is a clean "could not start".
+    if (!shell.ok) return { ok: false, reason: "start_failed" };
     bookingId = shell.bookingId;
 
     // The seller's own connected account when the link's inquiry has exactly
@@ -260,9 +272,9 @@ async function openOnce(
         order_id: order.id,
         source_tenant_id: link.tenant_id,
         payer_email: contact?.email ?? null,
-        gross_amount_cents: amountCents,
+        gross_amount_cents: collectCents,
         platform_fee_basis_points: 0,
-        platform_fee_cents: 0,
+        platform_fee_cents: Math.max(0, collectCents - amountCents),
         net_amount_cents: amountCents,
         currency,
         provider: "stripe",
@@ -282,7 +294,7 @@ async function openOnce(
       .single();
     if (insErr || !inserted) {
       logServerError("payments.openPaymentLinkCheckout.insert", insErr);
-      return { ok: false, reason: "unavailable" };
+      return { ok: false, reason: "start_failed" };
     }
     transactionId = (inserted as { id: string }).id;
 
@@ -320,9 +332,22 @@ async function openOnce(
     portion: paymentPortion(amountCents, order.total_cents),
     locale: input.locale ?? null,
   });
+  // A draft row opened before this amount was known (or before the surcharge was armed) must match
+  // what the session will charge: gross = charge, net = principal, fee = the difference.
+  const { error: amountErr } = await admin
+    .from("booking_transactions")
+    .update({ gross_amount_cents: collectCents, platform_fee_cents: Math.max(0, collectCents - amountCents), net_amount_cents: amountCents })
+    .eq("id", transactionId)
+    .eq("status", "draft");
+  if (amountErr) {
+    // Never create a session for a row whose amounts do not match what it will charge.
+    logServerError("payments.openPaymentLinkCheckout.amounts", amountErr);
+    // No session exists yet, so nothing can have been charged: say "could not start".
+    return { ok: false, reason: "start_failed" };
+  }
   const session = await (deps.createCheckoutSession ?? createCheckoutSessionForTransaction)({
     transactionId,
-    amountCents,
+    amountCents: collectCents,
     currency,
     payerEmail: contact?.email ?? null,
     inquiryId: null,
@@ -335,7 +360,9 @@ async function openOnce(
     expiresAt,
     metadata: { payment_link_code: link.code },
   });
-  if (!session.ok) return { ok: false, reason: "unavailable" };
+  // A DEFINITE refusal (our guard, Stripe rejecting the request) means no session exists: say it could not start.
+  // Only an UNCERTAIN failure (timeout, no URL back) may have left a session or a charge: that stays "status unknown".
+  if (!session.ok) return { ok: false, reason: session.uncertain === false ? "start_failed" : "unavailable" };
   // A Stripe link with no Stripe behind it: never hand the customer a fake
   // page. The row stays a bound draft, and the next attempt resumes it.
   if (session.mock) return { ok: false, reason: "provider_unavailable" };
