@@ -85,8 +85,9 @@ const TALENT = (c: Choice) => c !== "studio";
 const WORKSPACE = (c: Choice) => c !== "myself";
 const EXPECTED = {
   myself: { appRole: "talent", home: "talent", cta: /Abrir mi sitio/i },
-  // Studio has no provider yet: its Finish is the inquiry-only variant (no view/cta button), asserted in step 4.
-  studio: { appRole: "agency_staff", home: "workspace", cta: /^$/ },
+  // Studio: the owner takes clients by default (PM 2026-10-09), so she is a bookable roster provider (role talent)
+  // and the Finish is the standard one. The inquiry-only variant is only for an owner who opts out (not exercised here).
+  studio: { appRole: "talent", home: "workspace", cta: /Ir a mi panel|Abrir mi (espacio|sitio web)|Ver mi sitio/i },
   both: { appRole: "talent", home: "workspace", cta: /Ir a mi panel|Abrir mi (espacio|sitio web)|Ver mi sitio/i },
 } satisfies Record<Choice, { appRole: string; home: string; cta: RegExp }>;
 
@@ -404,7 +405,7 @@ async function signUpWithCode(page: Page, run: Run, email: string) {
   );
   await page.goto(`${MARKETING_BASE}/start?lang=es`);
   await expect(page.getByTestId("onb-building").or(page.getByTestId("onb-arrival")).or(page.getByTestId("onb-ready")).or(page.getByTestId("onb-save"))).toBeVisible({ timeout: 30_000 });
-  if (await page.getByTestId("onb-ready").isVisible().catch(() => false)) await page.getByTestId("onb-build").click();
+  if (await page.getByTestId("onb-ready").isVisible().catch(() => false)) await confirmAge18AndBuild(page);
   await run.shot(page, "building");
 }
 
@@ -546,6 +547,8 @@ async function guestBook(browserCtx: BrowserContext, run: Run, finishHref: strin
   } else {
     const bookEntry = page.getByRole("button", { name: /Reservar|Agendar/i }).first();
     if (await bookEntry.isVisible({ timeout: 5_000 }).catch(() => false)) await bookEntry.click({ timeout: 15_000 });
+    // A business (studio) site has no widget on its home page: its booking page is /book.
+    if (!(await slotPicker.isVisible({ timeout: 5_000 }).catch(() => false))) await page.goto(new URL("/book", url).toString(), { waitUntil: "domcontentloaded" });
     await expect(slotPicker, "an available slot").toBeVisible({ timeout: 45_000 });
     await slotPicker.click({ timeout: 15_000 });
     await run.shot(page, "guest-slot");
@@ -675,20 +678,7 @@ for (const vp of Object.keys(VIEWPORTS) as Vp[]) {
           const talentId = (run.facts.talent as { id?: string; code?: string } | undefined)?.id;
           const talentCode = (run.facts.talent as { code?: string } | undefined)?.code;
           const arrivalEl = page.getByTestId("onb-arrival");
-          if (choice === "studio") {
-            // Studio: "ready for requests", NOT bookable; one primary action = add the first team member.
-            await expect(arrivalEl).toHaveAttribute("data-finish", "inquiry_only");
-            const text = await arrivalEl.innerText();
-            run.facts.finishText = text.replace(/\s+/g, " ").slice(0, 300);
-            expect(text, "Studio Finish says ready for requests").toMatch(/lista para recibir solicitudes|ready for requests/i);
-            expect(text, "Studio Finish never says bookable").not.toMatch(/reservable|bookable|lista para reservar|ready to book/i);
-            const add = page.getByTestId("onb-arrival-add-member");
-            await expect(add, "add-first-team-member action").toBeVisible();
-            expect(await add.getAttribute("href"), "add-member goes to the roster").toMatch(/\/roster\/new/);
-            await expect(page.getByTestId("onb-arrival-also-book")).toBeVisible();
-            run.facts.finishButtonText = (await add.innerText()).trim();
-            finishHref = (await page.getByTestId("onb-arrival-visit").getAttribute("href")) ?? "";
-          } else {
+          {
             await expect(arrivalEl).not.toHaveAttribute("data-finish", "inquiry_only");
             const cta = page.getByTestId("onb-arrival-view").or(page.getByTestId("onb-arrival-cta")).first();
             run.facts.finishButtonText = (await cta.innerText()).trim();
