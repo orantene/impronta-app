@@ -17,16 +17,20 @@ import { createTranslator } from "@/i18n/messages";
 import type { Locale } from "@/i18n/config";
 import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
 import { PublicHeaderDiscoveryTools } from "@/components/public-header-discovery-tools";
+import { isMarketingLegalPath } from "@/lib/marketing/is-legal-path";
 
 /**
  * The outer layout for every platform marketing surface (homepage + sub-pages).
  *
  * Wraps content in `data-platform-surface="marketing"` so the Rostra platform
  * design tokens and typography (see globals.css) apply inside this subtree
- * only — never leaking into tenant storefronts or workspace chrome.
+ * only: never leaking into tenant storefronts or workspace chrome.
  *
  * Resolves the active locale + clean path once and hands them to the header so
  * the nav, CTAs, and the EN|ES toggle render in the right language.
+ *
+ * Legal paths skip discovery/account IO so a cross-host open from a talent
+ * footer paints the document instead of sitting on about:blank (TUL-516 H5).
  */
 export async function MarketingShell({ children }: { children: React.ReactNode }) {
   const locale = await getRequestLocale();
@@ -36,79 +40,95 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
     originalPath,
     FALLBACK_LANGUAGE_SETTINGS,
   );
+  const legalFast = isMarketingLegalPath(pathnameWithoutLocale);
 
   // Auth-aware header: when a session exists (auth cookies are parent-domain
   // scoped, so the marketing host can read them), the top-right shows the
   // signed-in account menu instead of the logged-out CTAs.
-  const actor = await getCachedActorSession();
-  // One settings read per request (cached below the request boundary): with the
-  // module off, every CTA keeps today's behaviour.
-  const onboardingFlags = await getOnboardingFlags();
+  // Legal pages skip this: the document is what matters, not the account menu.
   let account: MarketingAccount | undefined;
-  if (actor.user) {
-    const link = resolveAccountHref(true, actor.profile);
-    const appUrl = getAppUrl();
-    const displayName =
-      actor.profile?.display_name?.trim() ||
-      actor.user.email?.split("@")[0] ||
-      "Account";
-    const email = actor.user.email ?? "";
-    const fallbackDashboardHref = link.href.startsWith("http")
-      ? link.href
-      : `${appUrl}${link.href}`;
+  let onboardingModule = false;
+  if (!legalFast) {
+    const actor = await getCachedActorSession();
+    // One settings read per request (cached below the request boundary): with the
+    // module off, every CTA keeps today's behaviour.
+    const onboardingFlags = await getOnboardingFlags();
+    onboardingModule = onboardingFlags.onboarding_module_enabled;
+    if (actor.user) {
+      const link = resolveAccountHref(true, actor.profile);
+      const appUrl = getAppUrl();
+      const displayName =
+        actor.profile?.display_name?.trim() ||
+        actor.user.email?.split("@")[0] ||
+        "Account";
+      const email = actor.user.email ?? "";
+      const fallbackDashboardHref = link.href.startsWith("http")
+        ? link.href
+        : `${appUrl}${link.href}`;
 
-    // Identity-aware menu: workspace memberships AND (for talents) their public
-    // pages with visibility + tier badge. Composed from existing loaders.
-    account = actor.supabase
-      ? await loadAccountMenuModel(actor.supabase, actor.user.id, {
-          appUrl,
-          displayName,
-          email,
-          appRole: actor.profile?.app_role,
-          fallbackDashboardHref,
-        })
-      : {
-          displayName,
-          email,
-          dashboardHref: fallbackDashboardHref,
-          accountHref: fallbackDashboardHref,
-          workspaces: [],
-          talentPages: [],
-          isTalent: false,
-          globalHidden: false,
-          talentLinks: null,
-          talentUpgradeHref: null,
-          isClient: false,
-          clientTenants: [],
-          clientLinks: null,
-        };
+      // Identity-aware menu: workspace memberships AND (for talents) their public
+      // pages with visibility + tier badge. Composed from existing loaders.
+      account = actor.supabase
+        ? await loadAccountMenuModel(actor.supabase, actor.user.id, {
+            appUrl,
+            displayName,
+            email,
+            appRole: actor.profile?.app_role,
+            fallbackDashboardHref,
+          })
+        : {
+            displayName,
+            email,
+            dashboardHref: fallbackDashboardHref,
+            accountHref: fallbackDashboardHref,
+            workspaces: [],
+            talentPages: [],
+            isTalent: false,
+            globalHidden: false,
+            talentLinks: null,
+            talentUpgradeHref: null,
+            isClient: false,
+            clientTenants: [],
+            clientLinks: null,
+          };
+    }
   }
 
   // Heart + plane for the marketing header. Both reads are cookie-scoped
   // (guest RPC or client_favorites) and already cached per request by the
   // global-directory page, so the apex header shows the same counts as the
-  // grid. The click routes through /directory?inquiry=open, which the
-  // (marketing) layout's DirectoryInquiryUrlSync turns into the dock opening.
-  const [savedIds, favoriteIds] = await Promise.all([
-    getSavedTalentIds(),
-    getFavoriteTalentIds(),
-  ]);
-  const t = createTranslator(locale as Locale);
-  const directoryHeaderCopy = {
-    favoritesAria: t("public.header.directoryShortlistAria"),
-    favoritesTooltipEmpty: t("public.header.directoryShortlistTooltipEmpty"),
-    favoritesTooltipWithCount: t("public.header.directoryShortlistTooltipWithCount"),
-    inquiryAriaEmpty: t("public.header.directoryInquirySparklesAriaEmpty"),
-    inquiryAriaWithCart: t("public.header.directoryInquirySparklesAriaWithShortlist"),
-    inquiryTooltipEmpty: t("public.header.directoryInquiryTooltipEmpty"),
-    inquiryTooltipWithCart: t("public.header.directoryInquiryTooltipWithShortlist"),
-  };
+  // grid. Skipped on /legal/* so the page is not blocked on discovery RPCs.
+  let discoveryTools: React.ReactNode = undefined;
+  if (!legalFast) {
+    const [savedIds, favoriteIds] = await Promise.all([
+      getSavedTalentIds(),
+      getFavoriteTalentIds(),
+    ]);
+    const t = createTranslator(locale as Locale);
+    const directoryHeaderCopy = {
+      favoritesAria: t("public.header.directoryShortlistAria"),
+      favoritesTooltipEmpty: t("public.header.directoryShortlistTooltipEmpty"),
+      favoritesTooltipWithCount: t("public.header.directoryShortlistTooltipWithCount"),
+      inquiryAriaEmpty: t("public.header.directoryInquirySparklesAriaEmpty"),
+      inquiryAriaWithCart: t("public.header.directoryInquirySparklesAriaWithShortlist"),
+      inquiryTooltipEmpty: t("public.header.directoryInquiryTooltipEmpty"),
+      inquiryTooltipWithCart: t("public.header.directoryInquiryTooltipWithShortlist"),
+    };
+    discoveryTools = (
+      <PublicHeaderDiscoveryTools
+        initialFavoritesCount={favoriteIds.length}
+        initialCartCount={savedIds.length}
+        directoryHeaderCopy={directoryHeaderCopy}
+      />
+    );
+  }
 
   return (
     <div
       data-platform-surface="marketing"
+      data-marketing-legal-fast={legalFast ? "true" : undefined}
       /* overflow-x-clip: a single component running a few px past the
-         viewport makes EVERY page scroll sideways on phones (it happened —
+         viewport makes EVERY page scroll sideways on phones (it happened:
          the footer's un-wrappable bottom row, fixed 2026-07-23). `clip`
          guards against the next regression without creating a scroll
          container, so position:sticky descendants keep working ("hidden"
@@ -121,22 +141,16 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
         locale={locale}
         pathnameWithoutLocale={pathnameWithoutLocale}
         account={account}
-        signOutAction={signOut}
-        discoveryTools={
-          <PublicHeaderDiscoveryTools
-            initialFavoritesCount={favoriteIds.length}
-            initialCartCount={savedIds.length}
-            directoryHeaderCopy={directoryHeaderCopy}
-          />
-        }
+        signOutAction={legalFast ? undefined : signOut}
+        discoveryTools={discoveryTools}
       />
       {/* Records the campaign that earned this visit, once, before the
           visitor navigates deeper and the query string disappears. */}
       <AttributionCapture />
       <main className="flex-1 pt-[var(--plt-header-h,84px)] sm:pt-[72px]">{children}</main>
       <MarketingFooter />
-      <MarketingSupportLauncherMount />
-      <MarketingModalHost locale={locale} onboardingModule={onboardingFlags.onboarding_module_enabled} />
+      {legalFast ? null : <MarketingSupportLauncherMount />}
+      <MarketingModalHost locale={locale} onboardingModule={onboardingModule} />
     </div>
   );
 }

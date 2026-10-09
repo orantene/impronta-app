@@ -16,12 +16,24 @@ export function sectionIndexLabel(index: number): string {
   return String(Math.max(0, index) + 1).padStart(2, "0");
 }
 
-/** The fragment of an in-page link (`#services` gives `services`), else null. */
+/**
+ * The fragment of an in-page link (`#services` gives `services`), or of a
+ * locale-aware home anchor rewritten off the home page (`/#services`,
+ * `/en/#services`). Else null.
+ */
 export function hashTargetOf(href: string): string | null {
-  return href.startsWith("#") && href.length > 1 ? href.slice(1) : null;
+  if (href.startsWith("#") && href.length > 1) return href.slice(1);
+  // Policy / non-home pages: dead-section-links rewrites `#services` → `/#services`.
+  const m = /^(?:\/[a-z]{2})?\/#([^#/?]+)$/i.exec(href);
+  return m?.[1] ?? null;
 }
 
-/** Keep only links that point at an in-page anchor; everything else cannot be spied on. */
+/** True when the href navigates to the home page then the fragment (not this document). */
+export function isHomePrefixedHash(href: string): boolean {
+  return /^(?:\/[a-z]{2})?\/#/.test(href);
+}
+
+/** Keep only links that point at an in-page (or home-prefixed) anchor. */
 export function switcherLinksFrom(links: ReadonlyArray<SwitcherLink>): SwitcherLink[] {
   return links.filter((l) => l.label.trim().length > 0 && hashTargetOf(l.href) !== null);
 }

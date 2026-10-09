@@ -23,8 +23,19 @@ export const ALBA_LOCATION: DemoLocation = {
   arrivalNote: "Estudio privado, solo con cita. Hay lugar para estacionarte en la calle.",
 };
 
+/** Linh (Maison v2 nails & lashes): Austin zone for the rich footer WHERE column. */
+export const LINH_LOCATION: DemoLocation = {
+  addressMode: "zone_only",
+  studioKind: "studio",
+  neighbourhood: "South Congress",
+  arrivalNote: "Private studio by appointment. Street parking on the block.",
+};
+
 /** Demos with a location of their own, by profile code. */
-export const DEMO_LOCATIONS: Readonly<Record<string, DemoLocation>> = { "TAL-93020": ALBA_LOCATION };
+export const DEMO_LOCATIONS: Readonly<Record<string, DemoLocation>> = {
+  "TAL-93020": ALBA_LOCATION,
+  "TAL-93103": LINH_LOCATION,
+};
 
 type Db = Pick<SupabaseClient, "from">;
 
