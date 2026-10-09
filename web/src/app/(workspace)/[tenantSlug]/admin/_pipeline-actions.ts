@@ -1565,6 +1565,7 @@ export async function loadInquiryAttachments(
 export async function uploadInquiryAttachment(
   formData: FormData,
 ): Promise<PipelineActionResult<{ attachmentId: string }>> {
+  await requireNotImpersonating();
   return uploadInquiryAttachmentImpl(formData);
 }
 
@@ -1572,6 +1573,7 @@ export async function deleteInquiryAttachment(
   tenantSlug: string,
   attachmentId: string,
 ): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
   return deleteInquiryAttachmentImpl(tenantSlug, attachmentId);
 }
 
