@@ -21,6 +21,7 @@ import { createTranslator } from "@/i18n/messages";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import type { ToastTone } from "../primitives";
 import type { BridgeData, WorkspaceInquiryForMessages, CalendarEvent as BridgeCalendarEvent, WorkspaceOverviewMetrics, WorkspaceBookingRow, WorkspacePitchRow, TalentSelfProfile as BridgeTalentSelfProfile, TalentInquiryRow, TalentAgencyRow, WorkspaceMediaPhoto as BridgeMediaPhoto, WorkspaceMediaFolder as BridgeMediaFolder, RecentActivityItem } from "../data-bridge";
+import type { ShellCounts } from "@/lib/shell/shell-counts";
 // Type-only — erased at compile time, so importing from the `"use server"`
 // payouts actions module pulls no server runtime into this client bundle.
 import type { PayoutsSurfaceResult } from "@/app/(workspace)/[tenantSlug]/admin/payouts/payouts-surface-actions";
@@ -336,6 +337,11 @@ type Ctx = {
   effectiveTeamMembers: TeamMember[];
   /** Live total unread count for the nav badge. Falls back to 0 in mock mode. */
   totalUnread: number;
+  /**
+   * TUL-387 — chrome badge counts (messages / money / attention).
+   * `messages` mirrors `totalUnread` when the layout stamped both.
+   */
+  shellCounts: ShellCounts;
   /** Phase 5 — unread count for the talent's personal inbox (cross-mode pill). undefined = prototype/mock mode. */
   bridgeTalentUnread: number | undefined;
   /** Phase 5 — unread count for the workspace inbox (cross-mode pill). undefined = prototype/mock mode. */
@@ -2017,6 +2023,13 @@ export function AdminShellProvider({
   );
 
   const totalUnread = initialBridgeData?.totalUnread ?? 0;
+  // TUL-387 — shell bubble counts. Absent bridge → derive messages from
+  // totalUnread so prototype mode and older payloads stay coherent.
+  const shellCounts: ShellCounts = initialBridgeData?.shellCounts ?? {
+    messages: totalUnread,
+    money: 0,
+    attention: 0,
+  };
 
   // Phase 5 — cross-mode unread counts for the toggle pill.
   // When no bridge data (standalone prototype), both are undefined so the
@@ -2283,6 +2296,7 @@ export function AdminShellProvider({
       effectivePitches,
       effectiveTeamMembers,
       totalUnread,
+      shellCounts,
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
       bridgeTalentPlanTrial,
@@ -2414,6 +2428,7 @@ export function AdminShellProvider({
       effectivePitches,
       effectiveTeamMembers,
       totalUnread,
+      shellCounts,
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
       bridgeTalentPlanTrial,

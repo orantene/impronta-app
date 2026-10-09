@@ -14,6 +14,7 @@ import { TalentAgencyFilterChips } from "../talent/shared/TalentAgencyFilterChip
 import { AdminInquiryRow } from "./AdminOperationsShell";
 import { EmptyDetail } from "./client-1";
 import { consumePendingConversation, isLocallySeen, isManualUnread, markConvSeen, sortPinnedFirst, useFlagsSubscription, useSeenSubscription } from "./conversation-stash";
+import { inboxPreviewText } from "./inbox-preview-text";
 import { ageLabel, renderWithDateGroups, stageStyle, useScrollIntoViewWhenActive } from "./messages-shared";
 import { HoverActionsCss, InboxRowHoverActions, SearchPill, freshnessTone } from "./shared/inbox-identity-1";
 import { FilterChip } from "./shared/inbox-identity-2";
@@ -411,7 +412,7 @@ export function TalentJobRow({
               {senderPrefix && (
                 <span style={{ fontWeight: 600 }} className="text-admin-ink-muted">{senderPrefix}</span>
               )}
-              {copy.t(conv.lastMessage.preview)}
+              {inboxPreviewText((x) => copy.t(x), { sender: conv.lastMessage.sender, isMock: conv.id in TALENT_RATE_FOR_CONV, preview: conv.lastMessage.preview })}
             </span>
             <span style={{ flexShrink: 0, fontSize: 10.5, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">
               {ageLbl}
