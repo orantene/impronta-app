@@ -6,7 +6,10 @@
 //
 //   --dry-run (default)          READ-ONLY. Per site: profile_code, from -> to
 //                                version, tokens / sections changed, edits kept.
-//   --apply --site <code>        Upgrade ONE site: draft written through the app's
+//                                Ends with a COPY REPORT: per site (profile code, slug) the
+//                                default-copy leaves that would UPDATE (path, before, after)
+//                                and the ones KEPT because she changed them (hers vs new).
+//   --apply --site <code>       Upgrade ONE site: draft written through the app's
 //                                own draft writer (history entry, draft_rev CAS),
 //                                then published through the service-role publish
 //                                path ONLY when the live site already equals the
@@ -68,13 +71,16 @@ async function select(sql) {
 const lit = (s) => `'${String(s).replace(/'/g, "''")}'`;
 
 const server = await import("../src/lib/talent-site/design-upgrade.server.ts");
+const copyReport = await import("../src/lib/talent-site/theme-releases/copy-report.ts");
+/** Per-site default-copy report (UPDATE vs KEPT), printed at the end of every run. */
+const copyReports = [];
 
 const releases = await select("SELECT design_slug, to_version, status, channel FROM public.talent_theme_releases");
 const latest = server.pickLatestReleased(releases);
 
 const sites = await select(`
   SELECT s.id, s.talent_profile_id, p.profile_code, p.user_id, p.display_name, p.is_demo,
-         s.theme_design_slug, s.theme_design_version, s.theme_look_slug, s.theme_token_origin,
+         s.site_slug, s.theme_design_slug, s.theme_design_version, s.theme_look_slug, s.theme_token_origin,
          s.shell_tree, s.shell_published, s.design_tokens_draft, s.design_tokens, s.draft_rev,
          h.id AS home_id, h.blocks AS home_blocks,
          (SELECT count(*) FROM public.talent_pages g
@@ -192,6 +198,7 @@ for (const s of list) {
       `${plan.upgrade.noBase ? "  NO-BASE(additions only, not applicable)" : ""}  ${plan.canPublish ? "publishable" : "needs publish (live differs from draft)"}` +
       `${stale ? `  STALE-PUBLISH(v${shellStamp})` : ""}\n    kept edits (${kept.length}): ${kept.join(", ") || "none"}`,
   );
+  copyReports.push(copyReport.copyReportFromMerge({ profileCode: s.profile_code, slug: s.site_slug ?? null }, plan.upgrade.report));
   if (APPLY) {
     const titleRow = await select(`SELECT title FROM public.talent_theme_catalog WHERE kind='design' AND slug=${lit(s.theme_design_slug)}`);
     const r = await server.applySitePlan(admin, plan, titleRow[0]?.title ?? s.theme_design_slug, null);
@@ -208,5 +215,6 @@ for (const s of list) {
     }
   }
 }
-console.log(`\nSummary: ${JSON.stringify(counts)}${APPLY ? "" : "  (dry run: nothing written)"}`);
+console.log(`\n${copyReport.formatCopyReport(copyReports)}`);
+console.log(`\nSummary:${JSON.stringify(counts)}${APPLY ? "" : "  (dry run: nothing written)"}`);
 process.exit(counts.error > 0 ? 2 : 0);

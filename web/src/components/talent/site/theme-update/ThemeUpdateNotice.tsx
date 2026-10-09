@@ -125,7 +125,7 @@ export function ThemeUpdateNotice({
     setBusy(false);
     if (res && res.ok) {
       setOpen(false);
-      afterWrite(appliedToast(res.value.kept, locale));
+      afterWrite(appliedToast(res.value.kept, locale, res.value.copyKept ?? 0));
     } else setError(res?.error ?? t("failed"));
   }
 
