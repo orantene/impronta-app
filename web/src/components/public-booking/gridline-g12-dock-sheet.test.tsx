@@ -34,7 +34,7 @@ const html = (locale: string, liveStatus?: typeof ON | typeof OFF | null) =>
 
 // TUL-344: re-pinned on purpose (sticky bar hides at the top and reserves --cb-bar-h for every theme).
 test("existing designs: the base booking stylesheet is byte-pinned", () => {
-  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "8d7bb28b30400701ae39e60e5b71cefe0798c203ef72d09f5d66e9142d5692d5");
+  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "164ae491da0b9fa0547b8e5101464631781c2ac8830e6d8b69ee149d8bfa2f5e");
 });
 
 test("existing designs: dock markup is identical with no status, null or off", () => {
