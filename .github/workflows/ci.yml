@@ -119,6 +119,8 @@ jobs:
       # unlabeled PR cannot be merged around the gate.
       - name: Gate policy (ordinary PRs ship via an integ batch)
         id: policy
+        # Runs BEFORE checkout, so web/ (the job default) does not exist yet.
+        working-directory: .
         # Labels are read LIVE (not from the event payload), so after adding
         # full-gate a re-run of this check picks it up; no "labeled" trigger
         # (any label event would cancel an in-flight gate on this ref).
