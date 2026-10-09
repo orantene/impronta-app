@@ -20,6 +20,7 @@ import { Icon, type AdminShellIconName } from "./primitives";
 import {
   countTalentAwaitingInquiries,
   formatShellBubbleCount,
+  shellAttentionTooltip,
   SHELL_BUBBLE_FILL_CLASS,
   visibleShellCountBubbles,
   type ShellBubbleCount,
@@ -31,6 +32,7 @@ export type { ShellBubbleCount, ShellBubbleKind };
 export {
   countTalentAwaitingInquiries,
   formatShellBubbleCount,
+  shellAttentionTooltip,
   SHELL_BUBBLE_FILL_CLASS,
   shellBubbleFillsAvoidGoldRust,
   visibleShellCountBubbles,
@@ -111,12 +113,17 @@ export function ShellCountBubbles({
     >
       {visible.map(({ kind, count }) => {
         const label = copy.t(LABEL_KEY[kind]);
+        const countText = formatShellBubbleCount(count);
+        const aria = `${label} · ${countText}`;
+        const title =
+          kind === "attention" ? shellAttentionTooltip(count, copy.t) : aria;
         return (
           <button
             key={kind}
             type="button"
             data-shell-count-bubble={kind}
-            aria-label={`${label} · ${formatShellBubbleCount(count)}`}
+            aria-label={aria}
+            title={title}
             onClick={() => openDrawer(drawerId, { category: kind })}
             className={cn(
               "relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-[8px] border border-admin-border-soft bg-white text-admin-ink-muted outline-none hover:border-admin-border hover:text-admin-ink [transition:border-color_var(--transition-admin-micro),color_var(--transition-admin-micro)]",

@@ -8,11 +8,12 @@ import type { TalentInquiryRow } from "./data-bridge";
 import {
   countTalentAwaitingInquiries,
   formatShellBubbleCount,
+  isTalentAwaitingYouStage,
   isTalentInquiryAwaitingYou,
+  shellAttentionTooltip,
   shellBubbleFillsAvoidGoldRust,
   SHELL_BUBBLE_FILL_CLASS,
   talentInquiryMsgStageFromStatus,
-  TALENT_AWAITING_YOU_STATUSES,
   visibleShellCountBubbles,
 } from "./shell-count-bubbles-logic";
 
@@ -103,30 +104,34 @@ describe("shell bubble fills", () => {
 });
 
 describe("countTalentAwaitingInquiries (TUL-519 card 385)", () => {
-  it("counts real inquiry_status values that map to awaiting-you", () => {
+  it("counts every status the inbox maps to awaiting-you, including new", () => {
+    // Stack check: submitted 1 + coordination 1 + new 3 = 5 "esperando tu respuesta".
     const rows: TalentInquiryRow[] = [
       bridgeInquiry({ id: "a", status: "submitted" }),
       bridgeInquiry({ id: "b", status: "coordination" }),
+      bridgeInquiry({ id: "n1", status: "new" }),
+      bridgeInquiry({ id: "n2", status: "new" }),
+      bridgeInquiry({ id: "n3", status: "new" }),
       bridgeInquiry({ id: "c", status: "offer_pending", myApprovalStatus: "pending" }),
       bridgeInquiry({ id: "d", status: "approved" }),
       bridgeInquiry({ id: "e", status: "booked" }),
       bridgeInquiry({ id: "f", status: "rejected" }),
       bridgeInquiry({ id: "g", status: "expired" }),
     ];
-    assert.equal(countTalentAwaitingInquiries(rows), 4);
+    assert.equal(countTalentAwaitingInquiries(rows), 7);
+    assert.equal(isTalentInquiryAwaitingYou({ status: "new" }), true);
   });
 
-  it("does not treat MsgStage name inquiry as a DB status", () => {
-    assert.equal(
-      countTalentAwaitingInquiries([
-        bridgeInquiry({ id: "fake", status: "inquiry" }),
-      ]),
-      0,
-    );
-    assert.equal(isTalentInquiryAwaitingYou({ status: "inquiry" }), false);
+  it("uses the stage predicate only — no second status allowlist", () => {
+    assert.equal(isTalentAwaitingYouStage(talentInquiryMsgStageFromStatus("new")), true);
+    assert.equal(isTalentAwaitingYouStage(talentInquiryMsgStageFromStatus("submitted")), true);
+    assert.equal(isTalentAwaitingYouStage(talentInquiryMsgStageFromStatus("booked")), false);
+    const logic = readFileSync(join(DIR, "shell-count-bubbles-logic.ts"), "utf8");
+    assert.doesNotMatch(logic, /TALENT_AWAITING_YOU_STATUSES/);
   });
 
   it("maps DB statuses the same way as the conversation adapter", () => {
+    assert.equal(talentInquiryMsgStageFromStatus("new"), "inquiry");
     assert.equal(talentInquiryMsgStageFromStatus("submitted"), "inquiry");
     assert.equal(talentInquiryMsgStageFromStatus("coordination"), "inquiry");
     assert.equal(talentInquiryMsgStageFromStatus("offer_pending"), "hold");
@@ -136,15 +141,22 @@ describe("countTalentAwaitingInquiries (TUL-519 card 385)", () => {
     assert.equal(talentInquiryMsgStageFromStatus("rejected"), "cancelled");
   });
 
-  it("awaiting-you set is exactly the active pipeline statuses", () => {
-    assert.deepEqual(
-      [...TALENT_AWAITING_YOU_STATUSES].sort(),
-      ["approved", "coordination", "offer_pending", "submitted"],
-    );
-  });
-
   it("returns zero for an empty list", () => {
     assert.equal(countTalentAwaitingInquiries([]), 0);
+  });
+});
+
+describe("shellAttentionTooltip (TUL-519)", () => {
+  it("builds en and es first-time meanings", () => {
+    const en = (s: string) => s;
+    const es = (s: string) =>
+      ({
+        "1 conversation awaits your reply": "1 conversación espera tu respuesta",
+        "{n} conversations await your reply": "{n} conversaciones esperan tu respuesta",
+      }[s] ?? s);
+    assert.equal(shellAttentionTooltip(1, en), "1 conversation awaits your reply");
+    assert.equal(shellAttentionTooltip(2, en), "2 conversations await your reply");
+    assert.equal(shellAttentionTooltip(2, es), "2 conversaciones esperan tu respuesta");
   });
 });
 
@@ -163,6 +175,15 @@ describe("ShellCountBubbles mount (static)", () => {
     const src = readFileSync(join(DIR, "shell-count-bubbles.tsx"), "utf8");
     assert.match(src, /countTalentAwaitingInquiries/);
     assert.match(src, /effectiveTalentInquiries/);
+    assert.match(src, /shellAttentionTooltip/);
+    assert.match(src, /title=\{title\}/);
+    assert.match(src, /Attention/);
+  });
+
+  it("Hoy Requiere atención uses the same awaiting count as the bubble", () => {
+    const today = readFileSync(join(DIR, "talent/pages/TodayPage.tsx"), "utf8");
+    assert.match(today, /countTalentAwaitingInquiries\(effectiveTalentInquiries\)/);
+    assert.doesNotMatch(today, /countAwaitingReply/);
   });
 
   it("adapter + TalentJobShell share the awaiting predicate", () => {
@@ -173,6 +194,15 @@ describe("ShellCountBubbles mount (static)", () => {
     const jobShell = readFileSync(join(DIR, "messages/TalentJobShell.tsx"), "utf8");
     assert.match(adapter, /talentInquiryMsgStageFromStatus/);
     assert.match(jobShell, /isTalentAwaitingYouStage/);
+  });
+
+  it("Attention label + tooltip have ES catalog rows", () => {
+    const gaps = readFileSync(join(DIR, "dashboard-i18n-talent-gaps.ts"), "utf8");
+    assert.match(gaps, /"Attention": "Atención"/);
+    assert.match(
+      gaps,
+      /"\{n\} conversations await your reply": "\{n\} conversaciones esperan tu respuesta"/,
+    );
   });
 
   it("dead TopBarNotificationBell file is gone", () => {

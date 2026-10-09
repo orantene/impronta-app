@@ -21,9 +21,12 @@ test("/talent/inbox does NOT server-start its own list read: list and counts sha
 test("talent inbox reads get the GET budget, not the 4 s server-action stall budget", () => {
   assert.match(read("components/messages-v5/shell/talent-engine.ts"), /loadInboxBudgetMs: TALENT_INBOX_FETCH_BUDGET_MS/);
   assert.match(read("components/messages-v5/shell/MessagesV5Shell.tsx"), /engine\.loadInboxBudgetMs\)/);
+});
+
+test("Hoy attention count shares the bubble/inbox awaiting predicate (TUL-519)", () => {
   const today = read("components/admin/shell/internal/talent/pages/TodayPage.tsx");
-  assert.match(today, /talentShellEngine\.loadInboxBudgetMs/);
-  assert.match(today, /countAwaitingReply\(r\.rows\) : "unavailable"/);
+  assert.match(today, /countTalentAwaitingInquiries\(effectiveTalentInquiries\)/);
+  assert.doesNotMatch(today, /countAwaitingReply/);
 });
 
 test("Today never draws 'You are clear' from an unknown reply count", () => {

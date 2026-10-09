@@ -47,26 +47,22 @@ export function shellBubbleFillsAvoidGoldRust(): boolean {
 
 /**
  * MsgStage derived from raw DB `inquiry_status` on `TalentInquiryRow.status`.
- * Shared with `adaptTalentInquiry` so inbox stage chips and bubble counts
- * cannot drift. There is no DB status named `inquiry` — that is a MsgStage.
+ * Shared with `adaptTalentInquiry` so inbox stage chips, attention bubble,
+ * and Hoy "Needs attention" cannot drift. There is no DB status named
+ * `inquiry` — that is a MsgStage.
  *
- * Active pipeline: submitted / coordination → inquiry; offer_pending /
- * approved → hold. TalentJobShell badges inquiry|hold as "awaiting you" /
- * "esperando tu respuesta".
+ * Active pipeline: `new` / submitted / coordination (and other non-terminal)
+ * → inquiry; offer_pending / approved → hold. TalentJobShell badges
+ * inquiry|hold as "awaiting you" / "esperando tu respuesta".
+ *
+ * Do not maintain a second status allowlist — awaiting = stage inquiry|hold
+ * after this map (same predicate the inbox chip uses).
  */
 export type TalentInquiryMsgStage =
   | "inquiry"
   | "hold"
   | "booked"
   | "cancelled";
-
-/** Real `inquiry_status` values that map to awaiting-you (inquiry|hold). */
-export const TALENT_AWAITING_YOU_STATUSES: ReadonlySet<string> = new Set([
-  "submitted",
-  "coordination",
-  "offer_pending",
-  "approved",
-]);
 
 export function talentInquiryMsgStageFromStatus(
   status: string,
@@ -83,7 +79,7 @@ export function talentInquiryMsgStageFromStatus(
     return "cancelled";
   }
   if (status === "approved" || status === "offer_pending") return "hold";
-  // submitted, coordination, and other non-terminal → inquiry stage
+  // new, submitted, coordination, and other non-terminal → inquiry stage
   return "inquiry";
 }
 
@@ -94,22 +90,19 @@ export function isTalentAwaitingYouStage(stage: string): boolean {
 
 /**
  * True when a bridge `TalentInquiryRow` should count toward the attention
- * bubble / match inbox "esperando tu respuesta". Uses real DB statuses
- * (not MsgStage names); equivalent to stage inquiry|hold for the active
- * pipeline set above.
+ * bubble / Hoy card / match inbox "esperando tu respuesta". One predicate:
+ * map status → MsgStage, then `isTalentAwaitingYouStage` (no status Set).
  */
 export function isTalentInquiryAwaitingYou(row: {
   status: string;
 }): boolean {
-  if (!TALENT_AWAITING_YOU_STATUSES.has(row.status)) return false;
   return isTalentAwaitingYouStage(talentInquiryMsgStageFromStatus(row.status));
 }
 
 /**
  * Pure: how many talent inquiries still need the talent's response.
- * Used for the talent-shell Attention bubble when bridge attention is 0
- * (TUL-519 / card 385). Counts via the same awaiting-you predicate as the
- * inbox list so bubble and list cannot disagree.
+ * Used for the talent-shell Attention bubble and Hoy "Needs attention"
+ * (TUL-519 / card 385). Same awaiting-you predicate as the inbox chip.
  */
 export function countTalentAwaitingInquiries(
   rows: ReadonlyArray<{ status: string }>,
@@ -119,4 +112,16 @@ export function countTalentAwaitingInquiries(
     if (isTalentInquiryAwaitingYou(row)) n += 1;
   }
   return n;
+}
+
+/**
+ * Hover / first-time meaning for the attention bubble. English source strings
+ * are catalog keys; pass `copy.t` so Spanish dashboards get the ES rows.
+ */
+export function shellAttentionTooltip(
+  count: number,
+  t: (value: string) => string,
+): string {
+  if (count === 1) return t("1 conversation awaits your reply");
+  return t("{n} conversations await your reply").replace("{n}", String(count));
 }

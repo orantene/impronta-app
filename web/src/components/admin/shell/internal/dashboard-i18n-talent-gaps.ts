@@ -58,4 +58,8 @@ export const TALENT_GAPS_ES_TEXT: Record<string, string> = {
   "Portfolio media": "Medios del portafolio",
   "Required profile fields": "Campos obligatorios del perfil",
   "Recommended profile fields": "Campos recomendados del perfil",
+  // Shell count bubbles (TUL-519 / card 385) — Attention label + tooltip.
+  "Attention": "Atención",
+  "1 conversation awaits your reply": "1 conversación espera tu respuesta",
+  "{n} conversations await your reply": "{n} conversaciones esperan tu respuesta",
 };
