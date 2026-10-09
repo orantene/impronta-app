@@ -61,7 +61,6 @@ scripts/.bootstrap-*.mjs
 .playwright-vercel-storage.json
 e2e/.auth/
 
-
 # Talent-website journey sign-in states (auth.setup.ts). Real session cookies
 # for local fixture users; regenerated on every run.
 e2e/.auth/
@@ -71,7 +70,7 @@ e2e/.auth/
 
 # TUL-209 demo block English overlays: pre-change backups (never committed)
 /scripts/demo-block-en-overlays/backups/
-# TUL-376 default design backfill: pre-change row backups (never committed)
+# TUL-376 / TUL-402 theme-release backfill backups (never committed)
 /scripts/theme-releases/backups/
 # TUL-516 / TUL-489 demo booking hours ensure: pre-change backups (never committed)
 /scripts/demo-talents/backups/

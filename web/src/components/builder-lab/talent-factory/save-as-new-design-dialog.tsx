@@ -1,5 +1,6 @@
 "use client";
 
+import { localizeBuilderLabError } from "@/lib/talent-site/theme-releases/builder-lab-errors";
 import { useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 
@@ -60,7 +61,7 @@ export function SaveAsNewDesignDialog({
     start(async () => {
       const res = await actionSaveAsNewDesign({ sourceDesign, nameEn, nameEs });
       if (!res.ok) {
-        setError(res.error);
+        setError(localizeBuilderLabError(res.error, lang));
         return;
       }
       setOpen(false);

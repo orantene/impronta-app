@@ -322,5 +322,36 @@
     ],
     "sampleReply": "Gracias. ¿Me compartes el moodboard y el uso de las imágenes? Con eso te paso fecha y tarifa hoy.",
     "footerFine": "Hecho con Tulala"
+  },
+  "translations": {
+    "en": {
+      "services": {
+        "cast": {
+          "name": "In-person casting",
+          "description": "My open slots for castings and go-sees in Mexico City. You pick the time; I arrive with book, polaroids and up-to-date measurements.",
+          "category": "Casting"
+        }
+      },
+      "faq": [
+        {
+          "q": "Do you travel outside Mexico City?",
+          "a": "Yes, with travel and lodging covered. Tell me the city and the dates."
+        },
+        {
+          "q": "Do the rates include usage rights?",
+          "a": "Base rates are for editorial use. Ads, territory and term are quoted separately."
+        },
+        {
+          "q": "How long do you take to reply?",
+          "a": "The same business day. If it is urgent, put the date in the subject."
+        },
+        {
+          "q": "Do you do fittings beforehand?",
+          "a": "Yes. Wardrobe fittings are booked separately before the shoot or the show."
+        }
+      ],
+      "tagline": "Editorial, runway and campaigns. 1.88 m, Mexico City.",
+      "bio": "Model with seven years between the runway and editorial. I arrive on time, with hair and skin ready for camera."
+    }
   }
 }

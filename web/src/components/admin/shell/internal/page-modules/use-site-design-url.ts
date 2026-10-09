@@ -29,7 +29,7 @@ export function useSiteDesignUrl(): string | null {
     const windowOrigin = typeof window === "undefined" ? "" : window.location.origin;
     const liveOrigin = resolveWebsiteLiveOrigin(primaryDomain, windowOrigin);
     return buildEditorPanelUrl({
-      editorBaseUrl: resolveWebsiteEditorBaseUrl({ liveOrigin, tenantSlug, windowOrigin }),
+      editorBaseUrl: resolveWebsiteEditorBaseUrl({ liveOrigin, tenantSlug, windowOrigin, hasPrimaryDomain: Boolean(primaryDomain?.trim()) }),
       panel: "theme",
     });
   }, [primaryDomain, tenantSlug]);

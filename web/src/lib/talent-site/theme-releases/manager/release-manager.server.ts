@@ -26,6 +26,7 @@ import { applyDemosWithPorts, talentSitesOnly } from "./demos";
 import { fanOutWithPorts } from "./fan-out";
 import type { BellRow, UpdateRow } from "./notify";
 import { supersedeOlderBells } from "../theme-bells.server";
+import { supersedeStaleUpdateRows } from "../superseded-rows.server";
 import { makeBaseResolver } from "./base-resolver.server";
 import { mergeSite, writeMergedDraft, type SiteRef } from "./merge-site.server";
 import { runAutoImprove } from "../talent-update/auto-improve.server";
@@ -265,6 +266,11 @@ async function fanOut(admin: SupabaseClient, release: ThemeRelease): Promise<{ u
     locale: s.locale,
     pinnedVersion: s.pinnedVersion,
   }));
+  // THEME CORE P1: rows a site's pin already passed close with every fan-out.
+  await supersedeStaleUpdateRows(
+    admin,
+    sites.map((s) => ({ siteId: s.siteId, talentProfileId: s.talentProfileId, designSlug: release.design_slug, pin: s.pinnedVersion })),
+  );
   return fanOutWithPorts(
     {
       existingUpdateSiteIds: async (releaseId) => {
