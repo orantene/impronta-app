@@ -160,3 +160,32 @@ export function readableAccentText(accent: string, ground: string): string | nul
   }
   return current;
 }
+
+/**
+ * `fg` moved along its own hue (a linear mix toward black on a light `bg`, toward white on a
+ * dark one, in 4% steps) until it reads at `min`:1 on `bg`. Returns `fg` unchanged when it
+ * already passes; falls back to pure black/white if the mix cannot reach `min`. Null when either
+ * colour is not a hex we can measure. Pure.
+ */
+export function ensureContrast(fg: string, bg: string, min: number = ACCENT_TEXT_MIN_CONTRAST): string | null {
+  const bgLum = relativeLuminance(bg);
+  if (bgLum === null || relativeLuminance(fg) === null) return null;
+  if ((contrastRatio(fg, bg) ?? 0) >= min) return fg;
+  const black = (contrastRatio("#000000", bg) ?? 0) >= (contrastRatio("#ffffff", bg) ?? 0);
+  const toward = black ? "#000000" : "#ffffff";
+  for (let t = 0.04; t <= 1.0001; t += 0.04) {
+    const next = mixHex(fg, toward, Math.min(t, 1));
+    if (next && (contrastRatio(next, bg) ?? 0) >= min) return next;
+  }
+  return toward;
+}
+
+/** `ensureContrast` against several backgrounds at once (page, raised surface, soft accent fill). */
+export function ensureContrastOnAll(fg: string, bgs: readonly string[], min: number = ACCENT_TEXT_MIN_CONTRAST): string | null {
+  let cur: string | null = fg;
+  for (let pass = 0; pass < 3 && cur; pass++) {
+    for (const bg of bgs) if (bg) cur = cur ? ensureContrast(cur, bg, min) : null;
+    if (cur && bgs.every((b) => !b || (contrastRatio(cur!, b) ?? min) >= min)) return cur;
+  }
+  return cur;
+}

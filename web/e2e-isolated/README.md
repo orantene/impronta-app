@@ -21,7 +21,7 @@ Evidence (a screenshot per step, `results.json`, `summary.md`) lands in
 - Supabase target must be the isolated project (`scripts/isolated-target-guard.mjs`); production or Impronta refuse.
 - Every Stripe key must be a `*_test_*` key; any live key refuses.
 - `PAID_QA_BASE_URL` and every pay URL must be a local host (`localhost`, `127.0.0.1`, `*.localhost`).
-- The spec asserts the Stripe checkout page shows **Test mode** before it types a card.
+- The spec asserts the Stripe checkout page is a test session (URL contains `cs_test_`) and shows the **Sandbox** or **Test mode** badge before it types a card.
 - Only Stripe's published test cards are used (4242 success, 4000 0000 0000 0002 decline,
   4000 0000 0000 3220 3-D Secure).
 - Database reads are GETs only. The spec never writes.

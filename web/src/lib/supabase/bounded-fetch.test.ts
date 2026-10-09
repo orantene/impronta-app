@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { BoundedFetchTimeoutError, createBoundedFetch, failOnReadTimeout, isBoundedRead } from "./bounded-fetch";
+import {
+  BoundedFetchTimeoutError,
+  createBoundedFetch,
+  isBoundedRead,
+} from "./bounded-fetch";
+import {
+  failOnReadTimeout,
+  secondaryReadDegraded,
+  withSecondaryReadDegrade,
+} from "./bounded-fetch-scope";
 
 const never = () => new Promise<Response>(() => undefined);
 
@@ -56,6 +65,12 @@ describe("bounded fetch is wired into the request-path clients (TUL-444)", () =>
   }
   it("host lookup never caches a failed lookup as not_found", () => {
     assert.match(read("../saas/host-context.ts"), /error && value\.kind === "not_found"/);
+  });
+  it("core bounded-fetch stays free of node:async_hooks (client-reachable via public.ts)", () => {
+    // Comments may mention the Node module; only an import would poison the client graph.
+    assert.doesNotMatch(read("bounded-fetch.ts"), /from\s+["']node:async_hooks["']/);
+    assert.match(read("bounded-fetch-scope.ts"), /from\s+["']node:async_hooks["']/);
+    assert.match(read("bounded-fetch-scope.ts"), /import ["']server-only["']/);
   });
 });
 
@@ -119,10 +134,79 @@ describe("main-row timeout (TUL-444)", () => {
   });
 });
 
-describe("bounded-fetch stays client-bundle safe (TUL-444)", () => {
-  it("has no static node: import (supabase/public.ts reaches client bundles)", () => {
-    const src = readFileSync(join(new URL(".", import.meta.url).pathname, "bounded-fetch.ts"), "utf8");
-    assert.doesNotMatch(src, /^\s*import[^;]*from\s+["']node:/m);
-    assert.doesNotMatch(src, /require\(\s*["']node:/);
+describe("MAIN vs SECONDARY read timeouts (TUL-449)", () => {
+  it("a MAIN-row timeout still fails the whole render (500 path)", async () => {
+    const f = createBoundedFetch(20, never);
+    await assert.rejects(
+      failOnReadTimeout(async () => {
+        await f("https://x.supabase.co/rest/v1/talent_sites").catch(() => undefined);
+        return { kind: "render" };
+      }),
+      BoundedFetchTimeoutError,
+    );
+  });
+
+  it("a SECONDARY timeout returns the section fallback and keeps the render 200", async () => {
+    const f = createBoundedFetch(20, never);
+    const result = await failOnReadTimeout(async () => {
+      const reviews = await withSecondaryReadDegrade(
+        "reviews",
+        async () => {
+          await f("https://x.supabase.co/rest/v1/talent_reviews").catch(() => undefined);
+          return { talentReviews: [{ id: "should-not-surface" }] };
+        },
+        { talentReviews: [] as { id: string }[] },
+      );
+      return { kind: "render" as const, reviews, degraded: secondaryReadDegraded() };
+    });
+    assert.equal(result.kind, "render");
+    assert.deepEqual(result.reviews, { talentReviews: [] });
+    assert.equal(result.degraded, true);
+  });
+
+  it("a SECONDARY timeout does not fail-fast later MAIN reads", async () => {
+    let mainCalls = 0;
+    const f = createBoundedFetch(20, async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      if (url.includes("talent_reviews")) return never();
+      mainCalls += 1;
+      return new Response('[{"ok":1}]', { status: 200 });
+    });
+    const result = await failOnReadTimeout(async () => {
+      await withSecondaryReadDegrade(
+        "reviews",
+        async () => {
+          await f("https://x.supabase.co/rest/v1/talent_reviews").catch(() => undefined);
+          return "loaded";
+        },
+        "empty",
+      );
+      const site = await f("https://x.supabase.co/rest/v1/talent_sites?select=id");
+      return { site: await site.json(), mainCalls };
+    });
+    assert.deepEqual(result.site, [{ ok: 1 }]);
+    assert.equal(result.mainCalls, 1);
+  });
+
+  it("talent-site public routes stay force-no-store so a degraded paint is never cached", () => {
+    const root = join(new URL(".", import.meta.url).pathname, "../../app");
+    for (const rel of [
+      "%5Ftalent-site/[[...pageSlug]]/page.tsx",
+      "t/site/[siteSlug]/page.tsx",
+      "t/site/[siteSlug]/[pageSlug]/page.tsx",
+    ]) {
+      const src = readFileSync(join(root, rel), "utf8");
+      assert.match(src, /fetchCache\s*=\s*"force-no-store"/, rel);
+    }
+  });
+
+  it("personal Max secondary widgets load under withSecondaryReadDegrade", () => {
+    const src = readFileSync(
+      join(new URL(".", import.meta.url).pathname, "../../components/home/homepage-cms-data-sources.ts"),
+      "utf8",
+    );
+    assert.match(src, /withSecondaryReadDegrade\(\s*"reviews"/);
+    assert.match(src, /withSecondaryReadDegrade\(\s*"gallery"/);
+    assert.match(src, /withSecondaryReadDegrade\(\s*"availability-chip"/);
   });
 });

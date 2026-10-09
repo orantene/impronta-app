@@ -35,6 +35,7 @@ import { openCatalogBookingChat } from "@/components/public-booking/catalog-book
 import { useChatAddService } from "@/components/public-booking/use-chat-add-service";
 import { useDockBookingResume } from "@/components/public-booking/use-dock-booking-resume";
 import { useDockToast } from "@/components/public-booking/use-dock-toast";
+import { useStickyBarProps } from "./use-sticky-bar-visible";
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
 import { dispatchCatalogOffering } from "./catalog-offering-dispatch";
 import {
@@ -192,11 +193,11 @@ export function ServicesCatalogFilter({
   const first = named[0]?.name ?? null;
   const [active, setActive] = useState<string | null>(categoryShowAll ? null : first);
   const [openAccordion, setOpenAccordion] = useState<string | null>(first);
-  // AUD-044 — multi-select dock state (front = first picked).
-  const [dock, dispatchDock] = useReducer(dockReducer, EMPTY_DOCK);
+  const [dock, dispatchDock] = useReducer(dockReducer, EMPTY_DOCK); // AUD-044 multi-select dock state (front = first picked)
   const { toast, showToast, clearToast } = useDockToast();
   const selectedId = dock.picked[0]?.id ?? null;
   const [sheetOpen, setSheetOpen] = useState(false);
+  const barProps = useStickyBarProps(nodeId, sheetOpen);
   const [searchQuery, setSearchQuery] = useState("");
   const demoToast = useDemoToast(bookingMode === "demo");
   const es = locale.startsWith("es");
@@ -504,9 +505,9 @@ export function ServicesCatalogFilter({
       </div>
       </div>
 
-      <CatalogOverlayStyles />
-      {/* Idle prompt only; once something is picked the AUD-044 dock takes over. */}
+      <CatalogOverlayStyles /> {/* The bar below is the idle prompt only; once something is picked the AUD-044 dock takes over. */}
       <div
+        {...barProps}
         className="cb-bar"
         data-show={!sheetOpen && selectedId === null && mobileBar !== "hidden"}
         data-has-selection="false"
