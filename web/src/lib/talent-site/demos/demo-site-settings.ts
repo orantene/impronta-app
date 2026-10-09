@@ -79,13 +79,21 @@ export function demoSiteSwitchColumns(profileCode: string): {
   accepting_bookings: boolean;
   accepting_inquiries: boolean;
   chat_enabled: boolean;
-  chat_config: { greeting: string | null; browseServices: boolean };
+  chat_config: {
+    greeting: string | null;
+    browseServices: boolean;
+    aiBookingAssistantEnabled: boolean;
+  };
 } {
   const s = demoSiteSettingsFor(profileCode);
   return {
     accepting_bookings: s.acceptingBookings,
     accepting_inquiries: s.acceptingInquiries,
     chat_enabled: s.chatEnabled,
-    chat_config: { greeting: s.chatConfig.greeting, browseServices: s.chatConfig.browseServices },
+    chat_config: {
+      greeting: s.chatConfig.greeting,
+      browseServices: s.chatConfig.browseServices,
+      aiBookingAssistantEnabled: s.chatConfig.aiBookingAssistantEnabled,
+    },
   };
 }

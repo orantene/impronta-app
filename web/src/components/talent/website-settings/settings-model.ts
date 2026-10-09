@@ -131,10 +131,25 @@ export function withPosture(defaults: SellingDefaults, posture: TalentBookingPos
 
 /** WSF-C: changed talent_sites switches (chat greeting not edited here). */
 export function switchChangeCount(
-  saved: { acceptingBookings: boolean; acceptingInquiries: boolean; chatEnabled: boolean },
-  draft: { acceptingBookings: boolean; acceptingInquiries: boolean; chatEnabled: boolean },
+  saved: {
+    acceptingBookings: boolean;
+    acceptingInquiries: boolean;
+    chatEnabled: boolean;
+    chatConfig?: { aiBookingAssistantEnabled?: boolean };
+  },
+  draft: {
+    acceptingBookings: boolean;
+    acceptingInquiries: boolean;
+    chatEnabled: boolean;
+    chatConfig?: { aiBookingAssistantEnabled?: boolean };
+  },
 ): number {
-  return (["acceptingBookings", "acceptingInquiries", "chatEnabled"] as const).filter((k) => saved[k] !== draft[k]).length;
+  const top = (["acceptingBookings", "acceptingInquiries", "chatEnabled"] as const).filter(
+    (k) => saved[k] !== draft[k],
+  ).length;
+  const aiSaved = saved.chatConfig?.aiBookingAssistantEnabled === true;
+  const aiDraft = draft.chatConfig?.aiBookingAssistantEnabled === true;
+  return top + (aiSaved !== aiDraft ? 1 : 0);
 }
 
 /**
@@ -145,8 +160,18 @@ export function switchChangeCount(
 export function pendingChangeLabels(input: {
   saved: SettingsDraft;
   draft: SettingsDraft;
-  savedSwitches: { acceptingBookings: boolean; acceptingInquiries: boolean; chatEnabled: boolean };
-  draftSwitches: { acceptingBookings: boolean; acceptingInquiries: boolean; chatEnabled: boolean };
+  savedSwitches: {
+    acceptingBookings: boolean;
+    acceptingInquiries: boolean;
+    chatEnabled: boolean;
+    chatConfig?: { aiBookingAssistantEnabled?: boolean };
+  };
+  draftSwitches: {
+    acceptingBookings: boolean;
+    acceptingInquiries: boolean;
+    chatEnabled: boolean;
+    chatConfig?: { aiBookingAssistantEnabled?: boolean };
+  };
   serviceTitle: (id: string) => string;
   labels: { defaults: string; bookings: string; chat: string };
 }): string[] {
@@ -157,7 +182,15 @@ export function pendingChangeLabels(input: {
   const s = input.savedSwitches;
   const n = input.draftSwitches;
   if (s.acceptingBookings !== n.acceptingBookings) out.push(input.labels.bookings);
-  if (s.acceptingInquiries !== n.acceptingInquiries || s.chatEnabled !== n.chatEnabled) out.push(input.labels.chat);
+  const aiSaved = s.chatConfig?.aiBookingAssistantEnabled === true;
+  const aiDraft = n.chatConfig?.aiBookingAssistantEnabled === true;
+  if (
+    s.acceptingInquiries !== n.acceptingInquiries ||
+    s.chatEnabled !== n.chatEnabled ||
+    aiSaved !== aiDraft
+  ) {
+    out.push(input.labels.chat);
+  }
   return out;
 }
 

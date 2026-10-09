@@ -21,6 +21,7 @@ const VERIFIED_2026_09_02: Array<{ model: string; inputPerM: number; outputPerM:
   { model: "claude-opus-5", inputPerM: 5, outputPerM: 25 },
   { model: "claude-opus-4-8", inputPerM: 5, outputPerM: 25 },
   { model: "claude-sonnet-5", inputPerM: 2, outputPerM: 10 },
+  { model: "claude-haiku-5-5", inputPerM: 0.1, outputPerM: 0.5 },
   { model: "claude-haiku-4-5", inputPerM: 1, outputPerM: 5 },
   { model: "claude-fable-5-1", inputPerM: 10, outputPerM: 50 },
 ];
