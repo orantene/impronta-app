@@ -37,3 +37,22 @@ A person or CI runs it. **Agent sessions do not run it**: it types card numbers 
 - MXN + USD variants: run once per currency by passing links created in each currency.
 - Money page and full/partial refund steps: not automated in this first version.
 - Status: written 2026-10-09, **not yet run**. First run: adjust `fillCard` selectors if Stripe changed its markup.
+
+## Live-QA regression pack (`live-qa-pack.spec.ts`)
+
+One Playwright test per Notion card id, replacing the hand-run Live QA checks (Spanish workspace, client portal,
+builder, first-run publish, header CTA). Isolated stack only; `live-qa-pack-setup.ts` refuses first.
+
+```bash
+cd web
+# stack built from the release commit, on 3008/3105/3106, TULALA_PERF_TRACE optional
+export JOURNEYS_ISOLATED=1
+export QA_PACK_FIXTURES=/abs/path/fixtures.json     # shape: e2e-isolated/live-qa-pack.fixtures.example.json
+export IMPERSONATION_COOKIE_SECRET=<same throwaway secret as the stack>   # only for TUL-255
+npm run qa:live-pack
+```
+
+A missing fixture SKIPS the test (a skip is not a pass). Tests that encode a defect open today are written to FAIL
+until the fix ships. The pack creates one throwaway QA client and removes it in `afterAll` with a read-back; the
+inquiries/bookings that client makes are listed in `fixtures-created.json` for the TUL-3 clean-up. Status: written
+2026-10-09, NOT YET RUN end to end; adjust selectors on the first run.
