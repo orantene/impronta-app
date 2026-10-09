@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
 import { normalizeTenantAppointmentsSettings } from "@/lib/scheduling/appointments-settings-types";
+import { rehomeBookingHoursTenant } from "@/lib/scheduling/sync-hours-from-pattern.server";
 import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
 
 import {
@@ -155,12 +156,12 @@ export async function copyMyselfOfferingsAndHoursToWorkspace(
   }
 
   if (plan.rehomeHoursTenant && hoursRow) {
-    const { error: hrErr } = await admin
-      .from("talent_booking_hours")
-      .update({ tenant_id: input.workspaceTenantId })
-      .eq("talent_profile_id", input.talentProfileId);
-    if (hrErr) logServerError("myself-both-copy.hours.rehome", hrErr);
-    else out.hoursTenantRehomed = true;
+    // Write goes through the T1-07 allow-listed IO module (not a second
+    // talent_booking_hours writer under onboarding/).
+    out.hoursTenantRehomed = await rehomeBookingHoursTenant(admin, {
+      talentProfileId: input.talentProfileId,
+      workspaceTenantId: input.workspaceTenantId,
+    });
   }
 
   let nextSettings = settings;
