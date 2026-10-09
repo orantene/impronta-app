@@ -264,7 +264,7 @@ export const MAGAZINE_TYPE_SYSTEM_CSS = [
   `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header{padding:0!important}`,
   // Phone header is one row (artifact .fo-hdr): the off-canvas menu panel duplicates the brand and nav and the burger is hidden, so drop the panel.
   `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__mobile-panel{display:none!important}`,
-  `[data-theme-canvas-root][data-token-type-system="magazine"][data-talent-theme-preview] .site-header__region[data-region="right"]::before{content:"DEMO";display:inline-flex;align-items:center;padding:3px 7px;border-radius:99px;border:${RULE} solid var(--token-color-line);font-family:${LABEL_FACE};font-weight:700;font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--token-color-muted);line-height:1.2}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"][data-talent-theme-preview] .site-header__region[data-region="right"]::before{content:"Demo";display:inline-flex;align-items:center;padding:3px 7px;border-radius:99px;border:${RULE} solid var(--token-color-line);font-family:${LABEL_FACE};font-weight:700;font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--token-color-muted);line-height:1.2}`,
   // Preview dock chrome only — the catalog list also lives under .cb-island.
   `[data-theme-canvas-root][data-token-type-system="magazine"][data-talent-theme-preview] .cb-island > .cb-dock,[data-theme-canvas-root][data-token-type-system="magazine"][data-talent-theme-preview] .cb-island > .cb-bar{display:none!important}`,
   // Rate card: phone stacks; desk 2-col with island display:contents so list fills col 2.

@@ -189,7 +189,6 @@ src/lib/saas/scope.security.test.ts
 src/lib/saas/seat-limit-copy.test.ts
 src/lib/saas/signup-uses-the-brief.test.ts
 src/lib/saas/storefront-discovery.test.ts
-src/lib/saas/talent-demo-host-redirect.test.ts
 src/lib/saas/talent-self-tenant.test.ts
 src/lib/saas/talent-site-guest-identity.test.ts
 src/lib/saas/talent-site-host-context.test.ts

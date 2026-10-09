@@ -24,7 +24,7 @@ export const localeCookieOptions = {
  * `seedTalentDashboardLocaleCookie` may call this. See `@/i18n/locale-cookies`
  * for the full contract and why it exists.
  */
-function markLocaleCookieAuto(res: NextResponse): void {
+export function markLocaleCookieAuto(res: NextResponse): void {
   res.cookies.set(LOCALE_AUTO_COOKIE, "1", localeCookieOptions);
 }
 

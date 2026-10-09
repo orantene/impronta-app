@@ -137,3 +137,16 @@ test("no em dash in Ramon English chrome", () => {
   const en = f.translations!.en!;
   assert.ok(!/—|–/.test(JSON.stringify(en)));
 });
+
+test("TUL-516 B2: Alex Gridline fixture emits overlays.en on every chrome field", () => {
+  const f = loadDemoContentFixture("gridline");
+  assert.equal(f.profileCode, "TAL-93030");
+  assert.ok(f.translations?.en?.hero?.headline);
+  assert.ok(f.translations?.en?.urgency?.statusOff);
+  assert.doesNotMatch(f.translations?.en?.hero?.headline ?? "", /[áéíóúñ¿¡]/i);
+  const copy = gridlineCopyFromFixture(f, (id) => `off-${id}`);
+  assert.ok(copy.overlays?.en?.hero?.headline);
+  assert.ok(copy.overlays?.en?.topBar?.statusOff);
+  assert.ok(copy.overlays?.en?.services?.title);
+  assert.doesNotMatch(JSON.stringify(copy.overlays?.en ?? {}), /\u2014|\u2013/);
+});
