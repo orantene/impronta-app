@@ -35,7 +35,7 @@ import { PageTopThread } from "./shared/machinery-8";
 import type { ThreadTabId } from "./shared/machinery-8";
 import { MOCK_FILES_FOR_CONV, ThreadTabBar, isTalentCoordOnOffer, talentCoordCombinedTotal } from "./shared/machinery-9";
 import type { Offer } from "./shared/machinery-9";
-import { LineupTabPanel, TalentJobShellHeader } from "./talent-1";
+import { TalentJobShellHeader } from "./talent-1";
 
 // ── TalentWhosTurnBanner (D4) ────────────────────────────────────────
 // A slim status-aware banner shown at the top of the Chat tab that tells
@@ -468,15 +468,18 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
           />
         )}
         {/* Slice C + D5: Lineup tab.
-            - Coordinators: see the full admin lineup management UI
-              (LiveLineupPanel) via the openLineupTab / LineupTabPanel flow.
+            - Coordinators: LiveLineupPanel (same as admin) — TUL-472: the
+              old LineupTabPanel → openLineupTab loop stuck on "Abriendo la
+              lista" forever because onOpen only re-set the same tab.
             - Plain talent (D5): see a read-only list of who else is on
               the booking — names + roles, no acceptance states, no
               admin affordances. Closes the awareness gap that left
               talent blind to their colleagues until the day of the shoot. */}
         {activeTab === "lineup" && (
           isCoordinator ? (
-            <LineupTabPanel onOpen={openLineupTab} />
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 14 }}>
+              <LiveLineupPanel inquiryId={conv.id} defaultExpanded />
+            </div>
           ) : (
             <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
               <TalentReadOnlyLineup conv={conv} />
@@ -591,8 +594,11 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
         // OFFER — flipping their `inquiry_approvals` row, the missing half of
         // the multi-party gate. conv.stage === "inquiry" is the pre-offer
         // roster invite (accept/decline the shortlist).
+        // Offer approve stays talent-only (coord manages the offer elsewhere).
+        // TUL-472: invite Accept keys off participantStatus === "invited",
+        // not !isCoordinator — hybrid coord+talent hid Accept while still invited.
         const offerStage  = !isCoordinator && conv.stage === "hold"    && !isMockConv;
-        const inviteStage = !isCoordinator && conv.stage === "inquiry" && !isMockConv;
+        const inviteStage = conv.participantStatus === "invited" && conv.stage === "inquiry" && !isMockConv;
         if (!isRealUuid || (!offerStage && !inviteStage)) return baseAction;
         if (offerStage) {
           // Audit #12 — the talent has already approved THIS offer. The
@@ -902,7 +908,9 @@ export function TalentReservationView({
   // Action row — Accept / Decline when talent is at invite stage on a
   // real DB-backed inquiry (mock convs stay disabled / no engine path).
   const isRealUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
-  const inviteStage = !isCoordinator
+  // TUL-472: show Accept when the talent participant is still invited,
+  // even if iAmCoordinator (hybrid hub self-coord).
+  const inviteStage = conv.participantStatus === "invited"
     && (conv.stage === "inquiry" || conv.stage === "hold")
     && !offerSnap;
   const actionRow = (isRealUuid && inviteStage) ? [
