@@ -247,6 +247,8 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
 
   const [state, setState] = useState<InquiryPaymentState | null>(null);
   const [loading, setLoading] = useState(true);
+  // A failed read says so (with a retry); it must never read as "no booking yet".
+  const [loadFailed, setLoadFailed] = useState(false);
   const [pending, startTransition] = useTransition();
 
   // Latest-t ref: useT() returns a fresh closure each render, so putting t in
@@ -260,11 +262,16 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
 
   const reload = React.useCallback(() => {
     setLoading(true);
+    setLoadFailed(false);
     loadInquiryPaymentState(effectiveTenant.slug, inquiry.id)
       .then((r) => {
         if (r.ok) setState(r.data ?? null);
-        else toast(interpolate(tRef.current("dashboard.adminTabs.payment.loadStateFailed"), { error: r.error ?? "" }));
+        else {
+          setLoadFailed(true);
+          toast(interpolate(tRef.current("dashboard.adminTabs.payment.loadStateFailed"), { error: r.error ?? "" }));
+        }
       })
+      .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false));
   }, [inquiry.id, effectiveTenant.slug, toast]);
 
@@ -295,6 +302,7 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
           label={t("dashboard.adminTabs.payment.status")}
           value={
             loading ? t("dashboard.adminTabs.loading")
+              : loadFailed ? t("dashboard.adminTabs.payment.loadFailedShort")
               : txStatus ? txStatusLabel(txStatus, t)
               : state?.bookingId ? t("dashboard.adminTabs.payment.noTransactionYet")
               : t("dashboard.adminTabs.payment.noBookingYet")
@@ -306,6 +314,16 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
             {txn.paidAt && <DetailField label={t("dashboard.adminTabs.payment.paidAt")} value={new Date(txn.paidAt).toLocaleString()} />}
             {txn.failureReason && <DetailField label={t("dashboard.adminTabs.payment.failureReason")} value={txn.failureReason} />}
           </>
+        )}
+        {loadFailed && !loading && (
+          <div style={{ marginTop: 10 }}>
+            <button type="button" onClick={reload} style={ghostBtn()}>{t("dashboard.adminTabs.payment.retry")}</button>
+          </div>
+        )}
+        {isAdmin && txStatus === "paid" && (
+          <div style={{ marginTop: 10 }}>
+            <a href="/admin/orders" data-pago-refund-link="" style={ghostBtn()}>{t("dashboard.adminTabs.payment.refundInOrders")}</a>
+          </div>
         )}
         {isAdmin && txn && (
           <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>

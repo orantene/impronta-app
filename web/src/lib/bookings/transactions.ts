@@ -1583,7 +1583,7 @@ async function transitionStatus(
 
 // ─── Row mapper ───────────────────────────────────────────────────────────────
 
-type TransactionRow = {
+export type TransactionRow = {
   id: string;
   booking_id: string;
   source_tenant_id: string;
@@ -1700,7 +1700,7 @@ function parsePayoutReceiverKind(raw: string | null): PayoutReceiverKind | null 
   return null;
 }
 
-function mapRow(row: TransactionRow): BookingTransaction {
+export function mapRow(row: TransactionRow): BookingTransaction {
   return {
     id:                       row.id,
     bookingId:                row.booking_id,
