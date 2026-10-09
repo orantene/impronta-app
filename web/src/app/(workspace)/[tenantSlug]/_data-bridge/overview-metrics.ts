@@ -7,6 +7,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { guardedQuery } from "@/lib/server/guarded-query";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import { withTimeout } from "@/lib/tulala/with-timeout";
+import { mapOverviewCounts } from "./overview-counts";
 
 /**
  * The financial KPI read joins every commission snapshot to its booking and
@@ -139,181 +140,53 @@ export async function loadWorkspaceOverviewMetrics(
     const supabase = await createSupabaseServerClient();
     if (!supabase) return null;
 
-    const [rosterRes, openInquiriesRes, teamRes, pendingRes, awaitingClientRes, draftInqRes, oldestCoordRes, nextBookingRes, viewsRes, financialKpisRes, unassignedRes, agencyActionRes, readyToBookRes, issuesOpenCount] = await Promise.all([
-      // Roster: total + published count
-      supabase
-        .from("agency_talent_roster")
-        .select(
-          "status, talent_profiles!talent_profile_id ( workflow_status )",
-          { count: "exact", head: false },
-        )
-        .eq("tenant_id", tenantId)
-        .neq("status", "removed"),
-
-      // Open inquiries.
-      //
-      // `.is("event_id", null)` EXCLUDES LINEUP BOOKINGS, and the direction is
-      // the point. This number is read as INBOUND DEMAND -- people asking to
-      // buy. A lineup inquiry is the workspace's own OUTBOUND supply: the venue
-      // asking a performer to play. Same table, same column, opposite direction
-      // of intent.
-      //
-      // Without the filter, a venue publishing an event with eight performers
-      // watches "open inquiries" jump by eight overnight, for bookings it
-      // initiated itself, and reasonably concludes eight people enquired about a
-      // night nobody enquired about.
-      //
-      // Consent from the Workspace & Dashboards Director, who own this file.
-      supabase
-        .from("inquiries")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .is("event_id", null)
-        .in("status", ["submitted", "coordination", "offer_pending", "approved"]),
-
-      // Active team members
-      supabase
-        .from("agency_memberships")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .eq("status", "active"),
-
-      // Pending approvals
-      supabase
-        .from("agency_talent_roster")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .eq("status", "pending"),
-
-      // Inquiries awaiting client decision
-      supabase
-        .from("inquiries")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .eq("next_action_by", "client"),
-
-      // Draft inquiries the AGENCY owes a send on. Excludes guest pre-send
-      // early-rows (placeholder contact `pending-...@guest.impronta`): those are
-      // the GUEST's in-progress drafts, not the agency's "to send" work, and must
-      // not light up the "Needs you now" surface until their first real send
-      // promotes them to `submitted`.
-      supabase
-        .from("inquiries")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .in("status", ["draft"])
-        .not("contact_email", "like", "pending-%@guest.impronta"),
-
-      // Oldest coordinator-pending inquiry (for urgency signal in TodaysFocusCard).
-      // Exclude terminal statuses. NB: there is no `cancelled` inquiry_status —
-      // the cancel flow maps to `rejected` (close_reason='client_cancelled'). The
-      // old list carried the literal `cancelled`, which is not a valid enum value,
-      // so PostgREST cast-failed the WHOLE query (Postgres: "invalid input value
-      // for enum inquiry_status: cancelled") on every overview load and this
-      // urgency signal silently returned nothing.
-      supabase
-        .from("inquiries")
-        .select("created_at")
-        .eq("tenant_id", tenantId)
-        .eq("next_action_by", "coordinator")
-        .not("status", "in", `(rejected,expired,booked,converted,closed,closed_lost,archived)`)
-        .order("created_at", { ascending: true })
-        .limit(1),
-
-      // Next upcoming confirmed booking (for quiet-day overview signal)
-      supabase
-        .from("inquiries")
-        .select("contact_name, event_date")
-        .eq("tenant_id", tenantId)
-        .in("status", ["booked", "converted"])
-        .gte("event_date", new Date().toISOString().slice(0, 10))
-        .order("event_date", { ascending: true })
-        .limit(1),
+    // One function call replaces the ten per-table count reads (migration
+    // 20261231356000, SECURITY INVOKER so the caller's RLS applies as before).
+    const [countsRes, viewsRes, financialKpisRes, issuesOpenCount] = await Promise.all([
+      supabase.rpc("workspace_overview_counts", {
+        p_tenant_id: tenantId,
+        p_today: new Date().toISOString().slice(0, 10),
+      }),
       loadStorefrontViews7d(tenantId),
       withTimeout(loadWorkspaceFinancialKpis(tenantId), FINANCIAL_KPI_BUDGET_MS, null),
-
-      // "Your move" cohorts — positive status filters only (an invalid enum in
-      // a NOT-IN filter would error the whole query). Mutually exclusive by status.
-      // Unassigned: open + no coordinator of record.
-      supabase
-        .from("inquiries")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .is("coordinator_id", null)
-        .in("status", ["submitted", "coordination", "offer_pending"]),
-      // Assigned + the agency owes the next move.
-      supabase
-        .from("inquiries")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .not("coordinator_id", "is", null)
-        .in("next_action_by", ["coordinator", "admin"])
-        .in("status", ["submitted", "coordination", "offer_pending"]),
-      // Ready to book — client-approved, not yet converted.
-      supabase
-        .from("inquiries")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .eq("status", "approved"),
       // The Issues queue, counted for the rail. Reads with the service role
       // like the Issues page itself: three of its six sources are engine
       // tables no membership policy grants a person.
       countOpenExceptions(tenantId),
     ]);
 
-    if (rosterRes.error) {
-      logServerError("workspace.loadOverviewMetrics.roster", rosterRes.error);
+    if (countsRes.error) {
+      logServerError("workspace.loadOverviewMetrics.counts", countsRes.error);
     }
-    if (openInquiriesRes.error) {
-      logServerError("workspace.loadOverviewMetrics.inquiries", openInquiriesRes.error);
-    }
-    if (teamRes.error) {
-      logServerError("workspace.loadOverviewMetrics.team", teamRes.error);
-    }
-    if (pendingRes.error) {
-      logServerError("workspace.loadOverviewMetrics.pending", pendingRes.error);
-    }
+    const counts = mapOverviewCounts(countsRes.data);
 
-    type RosterRow = {
-      status: string;
-      talent_profiles: { workflow_status: string | null } | null;
-    };
-
-    const rosterRows = ((rosterRes.data ?? []) as unknown as RosterRow[]);
-    const rosterTotal = rosterRows.length;
-    const rosterPublished = rosterRows.filter(
-      (r) => r.status === "active" && r.talent_profiles?.workflow_status === "published",
-    ).length;
-
-    const oldestCoordCreatedAt = (oldestCoordRes.data?.[0] as { created_at: string } | undefined)?.created_at ?? null;
-    const oldestCoordinatorWaitDays = oldestCoordCreatedAt
-      ? Math.floor((Date.now() - new Date(oldestCoordCreatedAt).getTime()) / (1000 * 60 * 60 * 24))
+    const oldestCoordinatorWaitDays = counts.oldestCoordinatorCreatedAt
+      ? Math.floor((Date.now() - new Date(counts.oldestCoordinatorCreatedAt).getTime()) / (1000 * 60 * 60 * 24))
       : null;
 
-    type NextBookingRow = { contact_name: string | null; event_date: string | null };
-    const nextBookingRow = (nextBookingRes.data?.[0] as NextBookingRow | undefined) ?? null;
-    const nextBookingDate = nextBookingRow?.event_date ?? null;
-    const nextBookingLabel = nextBookingRow?.contact_name
+    const nextBookingDate = counts.nextBooking?.eventDate ?? null;
+    const nextBookingContact = counts.nextBooking?.contactName ?? null;
+    const nextBookingLabel = nextBookingContact
       ? (() => {
-          if (!nextBookingDate) return nextBookingRow.contact_name;
+          if (!nextBookingDate) return nextBookingContact;
           const d = new Date(nextBookingDate);
           const month = d.toLocaleDateString("en-GB", { month: "short" });
           const day = d.getDate();
-          return `${nextBookingRow.contact_name} · ${month} ${day}`;
+          return `${nextBookingContact} · ${month} ${day}`;
         })()
       : null;
 
     return {
-      rosterTotal,
-      rosterPublished,
-      openInquiries: openInquiriesRes.count ?? 0,
-      teamMembers: teamRes.count ?? 0,
-      pendingApprovals: pendingRes.count ?? 0,
-      awaitingClientCount: awaitingClientRes.count ?? 0,
-      draftInquiryCount: draftInqRes.count ?? 0,
-      unassignedOpenCount: unassignedRes.count ?? 0,
-      agencyActionCount: agencyActionRes.count ?? 0,
-      readyToBookCount: readyToBookRes.count ?? 0,
+      rosterTotal: counts.rosterTotal,
+      rosterPublished: counts.rosterPublished,
+      openInquiries: counts.openInquiries,
+      teamMembers: counts.teamMembers,
+      pendingApprovals: counts.pendingApprovals,
+      awaitingClientCount: counts.awaitingClientCount,
+      draftInquiryCount: counts.draftInquiryCount,
+      unassignedOpenCount: counts.unassignedOpenCount,
+      agencyActionCount: counts.agencyActionCount,
+      readyToBookCount: counts.readyToBookCount,
       oldestCoordinatorWaitDays,
       nextBookingLabel,
       nextBookingDate,
