@@ -4589,6 +4589,7 @@
         "loadDraftFailed": "Couldn't load offer draft: {error}",
         "starting": "Starting...",
         "startDrafting": "Start drafting offer",
+        "offerCurrencyChoose": "Which currency is this offer in? We could not tell from the seller, so choose one.",
         "startOfferFailed": "Couldn't start offer: {error}",
         "offerCreated": "Offer draft created",
         "statusRemoved": "Removed",

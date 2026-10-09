@@ -675,20 +675,32 @@ export function CreateOfferButton({ inquiryId }: { inquiryId: string }) {
   const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  // 484: when the seller's currency cannot be resolved, ask for it (MXN / USD) instead of a dead end.
+  const [chooseCurrency, setChooseCurrency] = useState(false);
+  const start = (currencyCode?: string) => startTransition(async () => {
+    const r = await createOfferAction(effectiveTenant.slug, inquiryId, currencyCode);
+    if (!r.ok && r.code === "offer_currency_unresolved") { setChooseCurrency(true); return; }
+    if (!r.ok) toast(interpolate(t("dashboard.adminTabs.lineup.startOfferFailed"), { error: r.error }));
+    else { setChooseCurrency(false); toast(t("dashboard.adminTabs.lineup.offerCreated")); router.refresh(); }
+  });
   return (
     <div className="mt-3">
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() => startTransition(async () => {
-          const r = await createOfferAction(effectiveTenant.slug, inquiryId);
-          if (!r.ok) toast(interpolate(t("dashboard.adminTabs.lineup.startOfferFailed"), { error: r.error }));
-          else { toast(t("dashboard.adminTabs.lineup.offerCreated")); router.refresh(); }
-        })}
-        style={primaryBtn(COLORS.accent)}
-      >
-        {pending ? t("dashboard.adminTabs.lineup.starting") : t("dashboard.adminTabs.lineup.startDrafting")}
-      </button>
+      {chooseCurrency ? (
+        <div role="group" aria-label={t("dashboard.adminTabs.lineup.offerCurrencyChoose")} data-offer-currency-chooser>
+          <div style={{ fontSize: 12.5, marginBottom: 6 }}>{t("dashboard.adminTabs.lineup.offerCurrencyChoose")}</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {["MXN", "USD"].map((code) => (
+              <button key={code} type="button" disabled={pending} onClick={() => start(code)} style={primaryBtn(COLORS.accent)}>
+                {pending ? t("dashboard.adminTabs.lineup.starting") : code}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <button type="button" disabled={pending} onClick={() => start()} style={primaryBtn(COLORS.accent)}>
+          {pending ? t("dashboard.adminTabs.lineup.starting") : t("dashboard.adminTabs.lineup.startDrafting")}
+        </button>
+      )}
     </div>
   );
 }
