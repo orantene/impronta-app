@@ -1,5 +1,5 @@
 /**
- * Bounded `fetch` for Supabase clients (TUL-444).
+ * Bounded `fetch` for Supabase clients (TUL-444 / TUL-449).
  *
  * supabase-js uses the global `fetch` with no deadline, so one stalled
  * PostgREST/RPC connection (headers sent, body never finished, or no response
@@ -13,6 +13,12 @@
  * identical reads. The underlying request is left to finish on its own, and a
  * PostgREST body (small JSON) is buffered inside the race so a stalled body is
  * bounded too.
+ *
+ * MAIN vs SECONDARY timeout policy (`failOnReadTimeout` /
+ * `withSecondaryReadDegrade`) lives in `bounded-fetch-scope.ts` (`server-only`
+ * + `node:async_hooks`). This module must stay free of Node builtins: the
+ * public anon client imports it, and that client is reachable from client
+ * bundles via `FALLBACK_LANGUAGE_SETTINGS` → `pathnames.ts`.
  */
 
 export const SUPABASE_READ_TIMEOUT_MS = 8_000;
@@ -28,45 +34,31 @@ export class BoundedFetchTimeoutError extends Error {
 
 type FetchFn = typeof fetch;
 
-/**
- * Per-render record of "a Supabase read timed out". A loader that swallows the
- * error would otherwise hand back an empty-but-successful result (no pages, no
- * theme tokens) and the render would serve a hollow site or a false 404.
- * `failOnReadTimeout` turns that into a thrown error once the work settles, and
- * later reads in the same scope fail fast so a retry ladder cannot stack
- * deadlines (or fall back to draft columns).
- */
-type RenderScope = { timedOut: boolean };
-type ScopeStore = {
-  run<R>(store: RenderScope, fn: () => R): R;
-  getStore(): RenderScope | undefined;
+export type ReadTimeoutScope = {
+  /** MAIN-scope timeout → `failOnReadTimeout` throws after the work settles. */
+  mainTimedOut: boolean;
+  /** Nesting depth inside `withSecondaryReadDegrade`. */
+  secondaryDepth: number;
+  /** Timeout inside the current secondary nest (fail-fast siblings there). */
+  secondaryTimedOut: boolean;
+  /** Any secondary section degraded this render (never cache). */
+  degraded: boolean;
 };
-type ScopeCtor = new () => ScopeStore;
 
 /**
- * No static `node:async_hooks` import: this module reaches client bundles via
- * supabase/public.ts → i18n/pathnames.ts, and Turbopack refuses a node: import
- * there. On the server, Next exposes `globalThis.AsyncLocalStorage`; plain Node
- * (tests) gets it through `process.getBuiltinModule`. In a browser there is no
- * scope, and failOnReadTimeout simply runs the work.
+ * Bridge filled by `bounded-fetch-scope` on the server. Defaults to a no-op so
+ * this module stays client-safe (no `node:async_hooks` import).
  */
-function resolveScopeCtor(): ScopeCtor | undefined {
-  const fromGlobal = (globalThis as { AsyncLocalStorage?: ScopeCtor }).AsyncLocalStorage;
-  if (fromGlobal) return fromGlobal;
-  const proc = (globalThis as { process?: { getBuiltinModule?: (id: string) => unknown } }).process;
-  const mod = proc?.getBuiltinModule?.("node:async_hooks") as { AsyncLocalStorage?: ScopeCtor } | undefined;
-  return mod?.AsyncLocalStorage;
-}
+type ScopeBridge = {
+  getStore: () => ReadTimeoutScope | undefined;
+};
 
-const ScopeImpl = resolveScopeCtor();
-const scope: ScopeStore | null = ScopeImpl ? new ScopeImpl() : null;
+export const readTimeoutScopeBridge: ScopeBridge = {
+  getStore: () => undefined,
+};
 
-export async function failOnReadTimeout<T>(work: () => Promise<T>): Promise<T> {
-  if (!scope) return work();
-  const state = { timedOut: false };
-  const result = await scope.run(state, work);
-  if (state.timedOut) throw new BoundedFetchTimeoutError("render", 0);
-  return result;
+export function installReadTimeoutScopeBridge(bridge: ScopeBridge): void {
+  readTimeoutScopeBridge.getStore = bridge.getStore;
 }
 
 function urlOf(input: Parameters<FetchFn>[0]): string {
@@ -89,6 +81,22 @@ export function isBoundedRead(url: string, method: string): boolean {
   return m === "POST" && READ_ONLY_RPCS.some((fn) => url.includes(`/rest/v1/rpc/${fn}`));
 }
 
+function shouldFailFast(state: ReadTimeoutScope | undefined): boolean {
+  if (!state) return false;
+  if (state.mainTimedOut) return true;
+  return state.secondaryDepth > 0 && state.secondaryTimedOut;
+}
+
+function markTimedOut(state: ReadTimeoutScope | undefined): void {
+  if (!state) return;
+  if (state.secondaryDepth > 0) {
+    state.secondaryTimedOut = true;
+    state.degraded = true;
+    return;
+  }
+  state.mainTimedOut = true;
+}
+
 export function createBoundedFetch(
   ms: number = SUPABASE_READ_TIMEOUT_MS,
   base: FetchFn = (...args) => fetch(...args),
@@ -98,8 +106,8 @@ export function createBoundedFetch(
     // Only PostgREST reads are bounded (small JSON). Writes, auth, storage and
     // functions pass straight through.
     if (!isBoundedRead(url, init?.method ?? (typeof input === "object" && "method" in input ? input.method : "GET"))) return base(input, init);
-    const state = scope?.getStore();
-    if (state?.timedOut) throw new BoundedFetchTimeoutError(url, 0);
+    const state = readTimeoutScopeBridge.getStore();
+    if (shouldFailFast(state)) throw new BoundedFetchTimeoutError(url, 0);
     const work = (async () => {
       const res = await base(input, init);
       const body = await res.arrayBuffer();
@@ -113,7 +121,7 @@ export function createBoundedFetch(
         work,
         new Promise<never>((_, reject) => {
           timer = setTimeout(() => {
-            if (state) state.timedOut = true;
+            markTimedOut(state);
             reject(new BoundedFetchTimeoutError(url, ms));
           }, ms);
         }),
