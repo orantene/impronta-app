@@ -56,6 +56,8 @@ import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
 import { loadTalentPlanGrants } from "@/lib/plan-trials/talent-grants";
 import { talentStudioV2Enabled } from "@/lib/talent/studio-flag";
 import { logServerError } from "@/lib/server/safe-error";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { loadOwnedBusinessWorkspace } from "@/lib/talent-site/server/workspace-site-context";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
 import { effectiveReadContext } from "@/lib/impersonation/effective-read";
 import { resolveTalentActingAs, talentActingAsBannerCopy } from "@/lib/impersonation/acting-as";
@@ -335,6 +337,19 @@ export async function TalentLayoutInner({
 
   const actingAs = resolveTalentActingAs(impersonationIdentity);
 
+  // Dual owner on the hub: isHybrid is per-tenant, so also look up a business workspace this
+  // person owns (any tenant) for the rail's Talent | Admin switch. A failed read means no switch.
+  let ownedWorkspaceSlug: string | null = null;
+  try {
+    const adminDb = createServiceRoleClient();
+    if (adminDb) {
+      const owned = await loadOwnedBusinessWorkspace(adminDb, subjectUserId);
+      if (owned.ownsBusinessWorkspace) ownedWorkspaceSlug = owned.workspaceSlug;
+    }
+  } catch (err) {
+    logServerError("talentLayout.ownedWorkspace", err);
+  }
+
   const isHybrid = membership != null;
   const workspaceUnread: number | undefined = isHybrid ? workspaceUnreadRaw : undefined;
   const userPrefs: UserPrefs | null = isHybrid ? userPrefsRaw : null;
@@ -418,6 +433,7 @@ export async function TalentLayoutInner({
         talentAgencies,
         talentRepresentation,
         isHybrid,
+        ownedWorkspaceSlug,
         workspaceUnread: workspaceUnread ?? 0,
         preferredSurface: userPrefs?.preferredSurface ?? null,
         firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,
