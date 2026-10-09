@@ -70,10 +70,10 @@ test("the talent's own English category wins over the dictionary", () => {
 const base = { caption: "Extensiones clásicas", captionI18n: null, primaryLocale: "es" } as const;
 
 test("hint on fallback only: English visitor, Spanish-only caption", () => {
-  assert.equal(captionLanguageHint({ ...base, locale: "en" }), "(Text in Spanish)");
+  assert.equal(captionLanguageHint({ ...base, locale: "en" }), "Disponible en español");
   assert.equal(
     captionLanguageHint({ caption: "Classic extensions", captionI18n: null, locale: "es", primaryLocale: "en" }),
-    "(Texto en inglés)",
+    "Disponible en inglés",
   );
 });
 
@@ -99,9 +99,9 @@ const PORTFOLIO = { showCaptions: true, layout: "grid" };
 
 test("rendered: the hint follows the caption on fallback and the alt stays the plain caption", () => {
   const html = render([node("portfolio", PORTFOLIO)], { talentPortfolioShots: [shot({})] }, EN);
-  assert.ok(html.includes("(Text in Spanish)"));
+  assert.ok(html.includes("Disponible en español"));
   assert.ok(html.includes('alt="Extensiones clásicas"'));
-  assert.ok(!html.includes('alt="Extensiones clásicas (Text in Spanish)"'));
+  assert.ok(!html.includes('alt="Extensiones clásicas Disponible en español"'));
 });
 
 test("rendered: galleries whose captions already have the visitor language are byte-identical", () => {
@@ -121,7 +121,7 @@ test("rendered: no hint when captions are hidden or empty", () => {
 });
 
 test("lightbox: the caption and the SAME hint ride on the gallery item; no caption means neither", () => {
-  const hint = (s: { id: string; caption?: string | null }) => (s.caption ? "(Text in Spanish)" : null);
+  const hint = (s: { id: string; caption?: string | null }) => (s.caption ? "Disponible en español" : null);
   const items = buildPortfolioGallery(
     [
       { id: "a", url: "u1", caption: "Extensiones clásicas" },
@@ -132,7 +132,7 @@ test("lightbox: the caption and the SAME hint ride on the gallery item; no capti
     hint,
   );
   assert.equal(items[0]!.caption, "Extensiones clásicas");
-  assert.equal(items[0]!.captionHint, "(Text in Spanish)");
+  assert.equal(items[0]!.captionHint, "Disponible en español");
   assert.equal(items[1]!.caption, undefined);
   assert.equal(items[1]!.captionHint, undefined);
   // no hint function: byte-identical to before for items without a caption hint
@@ -141,5 +141,25 @@ test("lightbox: the caption and the SAME hint ride on the gallery item; no capti
 
 test("rendered: the lightbox caption carries the hint on fallback, in the same wording as the grid", () => {
   const html = render([node("portfolio", PORTFOLIO)], { talentPortfolioShots: [shot({})] }, EN);
-  assert.ok((html.match(/\(Text in Spanish\)/g) ?? []).length >= 1);
+  assert.ok((html.match(/Disponible en español/g) ?? []).length >= 1);
+});
+
+test("TUL-187: work_order (Gridline) captions show Disponible en español on /en fallback", () => {
+  const caption = "Cambio de tablero\nOT-0412 · San Pedro · 1 día";
+  const html = render(
+    [node("portfolio", { showCaptions: true, layout: "work_order" })],
+    { talentPortfolioShots: [shot({ caption, alt: "Cambio de tablero" })] },
+    EN,
+  );
+  assert.ok(html.includes("Cambio de tablero"));
+  assert.ok(html.includes("OT-0412"));
+  assert.ok(html.includes("Disponible en español"));
+  assert.ok(html.includes("sb-portfolio-cap-hint"));
+  assert.ok(
+    !render(
+      [node("portfolio", { showCaptions: true, layout: "work_order" })],
+      { talentPortfolioShots: [shot({ caption, alt: "Cambio de tablero" })] },
+      ES,
+    ).includes("Disponible en español"),
+  );
 });
