@@ -8,6 +8,10 @@
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
+  notifyPaymentNeedsAttention,
+  notifyRefundFailed,
+} from "@/lib/notifications/producers/payment-notify";
+import {
   buildFailedRefundAttentionNote,
   formatFailedRefundMoney,
 } from "@/lib/payments/failed-refund-attention-note";
@@ -37,28 +41,46 @@ function attentionNote(input: FailedRefundSettlementInput): string {
  * Resolve the booking_transactions row for a failed Stripe refund.
  * Prefer the linked refund row keyed by provider_refund_id.
  */
+export type FailedRefundTransaction = {
+  id: string;
+  sourceTenantId: string | null;
+  bookingId: string | null;
+  inquiryId: string | null;
+};
+
 export async function findRefundTransactionForFailedSettlement(
   admin: Admin,
   refundId: string,
-): Promise<{ id: string } | null> {
+): Promise<FailedRefundTransaction | null> {
   const { data, error } = await admin
     .from("booking_transactions")
-    .select("id")
+    .select("id, source_tenant_id, booking_id, source_inquiry_id")
     .eq("provider_refund_id", refundId)
     .maybeSingle();
   if (error) {
     logServerError("payments.failedRefundSettlement.lookup", error);
     return null;
   }
-  const id = (data as { id?: string } | null)?.id;
-  return id ? { id } : null;
+  const row = data as {
+    id?: string;
+    source_tenant_id?: string | null;
+    booking_id?: string | null;
+    source_inquiry_id?: string | null;
+  } | null;
+  if (!row?.id) return null;
+  return {
+    id: row.id,
+    sourceTenantId: row.source_tenant_id ?? null,
+    bookingId: row.booking_id ?? null,
+    inquiryId: row.source_inquiry_id ?? null,
+  };
 }
 
 /** Stamp the refund money row so Admin Payments lists it as failed. Idempotent. */
 export async function flagFailedRefundSettlement(
   admin: Admin,
   input: FailedRefundSettlementInput & { transactionId: string },
-): Promise<{ ok: boolean }> {
+): Promise<{ ok: boolean; newlyFlagged: boolean }> {
   const { data, error } = await admin
     .from("booking_transactions")
     .select("metadata")
@@ -66,10 +88,10 @@ export async function flagFailedRefundSettlement(
     .maybeSingle();
   if (error) {
     logServerError("payments.failedRefundSettlement.read", error);
-    return { ok: false };
+    return { ok: false, newlyFlagged: false };
   }
   const meta = ((data as { metadata?: unknown } | null)?.metadata ?? {}) as Record<string, unknown>;
-  if (meta.needs_attention === FAILED_REFUND_ATTENTION) return { ok: true };
+  if (meta.needs_attention === FAILED_REFUND_ATTENTION) return { ok: true, newlyFlagged: false };
 
   const { error: updErr } = await admin
     .from("booking_transactions")
@@ -89,9 +111,9 @@ export async function flagFailedRefundSettlement(
     .eq("id", input.transactionId);
   if (updErr) {
     logServerError("payments.failedRefundSettlement.flag", updErr);
-    return { ok: false };
+    return { ok: false, newlyFlagged: false };
   }
-  return { ok: true };
+  return { ok: true, newlyFlagged: true };
 }
 
 /**
@@ -101,7 +123,11 @@ export async function flagFailedRefundSettlement(
 export async function applyFailedRefundSettlement(
   admin: Admin,
   input: FailedRefundSettlementInput,
-): Promise<{ flagged: boolean; transactionId: string | null }> {
+): Promise<{
+  flagged: boolean;
+  newlyFlagged: boolean;
+  transaction: FailedRefundTransaction | null;
+}> {
   const row = await findRefundTransactionForFailedSettlement(admin, input.refundId);
   if (!row) {
     logServerError(
@@ -112,13 +138,13 @@ export async function applyFailedRefundSettlement(
           `Failed refund is logged only.`,
       ),
     );
-    return { flagged: false, transactionId: null };
+    return { flagged: false, newlyFlagged: false, transaction: null };
   }
   const result = await flagFailedRefundSettlement(admin, {
     ...input,
     transactionId: row.id,
   });
-  return { flagged: result.ok, transactionId: row.id };
+  return { flagged: result.ok, newlyFlagged: result.newlyFlagged, transaction: row };
 }
 
 /**
@@ -146,7 +172,38 @@ export async function handleFailedRefundWebhookAction(input: {
     paymentIntentId: input.paymentIntentId,
   };
   const sb = createServiceRoleClient();
-  if (sb) await applyFailedRefundSettlement(sb, settlement);
+  const result = sb
+    ? await applyFailedRefundSettlement(sb, settlement)
+    : { flagged: false, newlyFlagged: false, transaction: null };
+  // TUL-391: workspace bells (once per newly flagged stamp).
+  const tenantId = result.transaction?.sourceTenantId ?? null;
+  if (tenantId) {
+    notifyRefundFailed({
+      tenantId,
+      transactionId: result.transaction?.id ?? null,
+      bookingId: result.transaction?.bookingId ?? null,
+      inquiryId: result.transaction?.inquiryId ?? null,
+      refundId: input.refundId,
+      amountCents: input.amount,
+      currency: input.currency,
+      failureReason: input.failureReason,
+      status: input.status,
+    });
+    if (result.newlyFlagged && result.transaction) {
+      notifyPaymentNeedsAttention({
+        tenantId,
+        transactionId: result.transaction.id,
+        bookingId: result.transaction.bookingId,
+        inquiryId: result.transaction.inquiryId,
+        reason: "refund_failed",
+        note:
+          `Stripe refund ${input.refundId} ${input.status.toUpperCase()}. ` +
+          `Customer was not paid. Arrange an alternative refund.`,
+        amountCents: input.amount,
+        currency: input.currency,
+      });
+    }
+  }
   const money = formatFailedRefundMoney(input.amount, input.currency);
   logServerError(
     "stripe-webhook.refund.failed",

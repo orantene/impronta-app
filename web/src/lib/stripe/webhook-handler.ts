@@ -73,7 +73,6 @@ import { logServerError } from "@/lib/server/safe-error";
 import { recordDiscountRedemption } from "@/lib/billing/record-discount-redemption";
 import { improntaLog } from "@/lib/server/structured-log";
 import { notifyNonBookingDispute } from "@/lib/payments/dispute-notify";
-import { processRefundSettlement } from "@/lib/stripe/webhook-refund-settlement";
 import {
   claimStripeEvent,
   releaseStripeEventClaim,
