@@ -94,6 +94,9 @@ test("the engine wires the hold: sendOffer branches on awaiting_talent, submitAp
   assert.match(offers, /releaseOfferToClient\(/);
   const approvals = readFileSync(join(process.cwd(), "src/lib/inquiry/inquiry-engine-approvals.ts"), "utf8");
   assert.match(approvals, /transition === "released_to_client"/);
+  assert.match(approvals, /heldAdmin\(\) \?\? supabase/, "held detection and the release use the service role (a talent session cannot read a held offer)");
+  assert.match(approvals, /releaseOfferToClient\(heldWriter/);
+  assert.match(approvals, /noteHeldOfferReturned\(heldWriter/);
   assert.match(approvals, /transition === "returned_to_draft"/);
   assert.match(approvals, /restampExpiry: true/);
 });

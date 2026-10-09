@@ -69,7 +69,11 @@ export async function submitApproval(
     }
 
     // Hold-the-send: was this offer waiting for talent approval (invisible to the client)?
-    const { data: heldRow } = await supabase
+    // Read and write with the service role: a talent's own session cannot read a held offer (RLS) nor
+    // post the client cards, and this path is already gated by validateActorPermission above.
+    const { createServiceRoleClient: heldAdmin } = await import("@/lib/supabase/admin");
+    const heldWriter = heldAdmin() ?? supabase;
+    const { data: heldRow } = await heldWriter
       .from("inquiry_offers")
       .select("status")
       .eq("id", ctx.offerId)
@@ -102,7 +106,7 @@ export async function submitApproval(
     if (wasHeld) {
       // The client has not seen this offer: no client-facing event for the approval itself.
       if (transition === "released_to_client") {
-        await releaseOfferToClient(supabase, {
+        await releaseOfferToClient(heldWriter, {
           inquiryId: ctx.inquiryId,
           tenantId: ctx.tenantId,
           offerId: ctx.offerId,
@@ -112,7 +116,7 @@ export async function submitApproval(
           postOfferReviewCard: true,
         });
       } else if (transition === "returned_to_draft") {
-        await noteHeldOfferReturned(supabase, {
+        await noteHeldOfferReturned(heldWriter, {
           inquiryId: ctx.inquiryId,
           tenantId: ctx.tenantId,
           offerId: ctx.offerId,
