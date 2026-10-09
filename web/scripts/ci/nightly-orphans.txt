@@ -57,7 +57,6 @@ src/components/public-booking/CatalogPurchaseMount.render.test.tsx
 src/components/public-booking/catalog-booking-chat.test.ts
 src/components/public-booking/catalog-booking-cta-contrast.static.test.ts
 src/components/public-booking/selection-dock-state.test.ts
-src/components/public-booking/talent-policy-document.test.tsx
 src/components/shared/ThreadShell.test.ts
 src/components/site-shell/shell-nav-data.static.test.ts
 src/components/support/support-deep-link.test.ts
