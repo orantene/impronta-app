@@ -64,7 +64,8 @@ import {
 } from "./booking-resume-store";
 import type { CatalogTakenSlotNotice } from "./catalog-taken-slot";
 import { resolveSheetOpening, slotArrivalPlan } from "./booking-slot-selection";
-import { serviceLocationLabel } from "@/lib/scheduling/booking-event-location";
+import { ServiceAddressField } from "./ServiceAddressField";
+import { useServiceAddress } from "./use-service-address";
 import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
 import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
 
@@ -295,6 +296,7 @@ export function CatalogBookingSheet({
   const nameValid = name.trim().length >= 2;
   const emailValid = /.+@.+\..+/.test(email.trim());
   const phoneValid = phone.trim() === "" || phone.replace(/\D/g, "").length >= 8;
+  const addr = useServiceAddress(detail?.where, locale);
   const { busy, confirm, resetConfirmGuards } = useCatalogBookingConfirm({
     locale,
     mode,
@@ -308,7 +310,7 @@ export function CatalogBookingSheet({
     variantId,
     addOnIds,
     brief: catalogTaskBrief(detail),
-    eventLocation: serviceLocationLabel(detail?.where, locale),
+    eventLocation: addr.eventLocation, serviceAddress: addr.payload, serviceAddressValid: addr.valid, showServiceAddressError: addr.showError,
     liveStarts,
     liveTz,
     liveDays,
@@ -641,9 +643,7 @@ export function CatalogBookingSheet({
                   aria-invalid={touched && !nameValid}
                   data-testid="cb-name"
                 />
-                {touched && !nameValid ? (
-                  <em>{es ? "Escribe tu nombre para confirmar." : "Enter your name to confirm."}</em>
-                ) : null}
+                {touched && !nameValid ? <em>{es ? "Escribe tu nombre para confirmar." : "Enter your name to confirm."}</em> : null}
               </label>
               <label className="jb-field">
                 <span>
@@ -660,9 +660,7 @@ export function CatalogBookingSheet({
                   data-testid="cb-phone"
                 />
                 {touched && !phoneValid ? <em>{es ? "Revisa el número." : "Check the number."}</em> : null}
-                {askAttempted && !chatPhoneValid ? (
-                  <em>{es ? "WhatsApp hace falta para chatear." : "WhatsApp is needed to chat."}</em>
-                ) : null}
+                {askAttempted && !chatPhoneValid ? <em>{es ? "WhatsApp hace falta para chatear." : "WhatsApp is needed to chat."}</em> : null}
               </label>
               <label className="jb-field">
                 <span>{es ? "Correo" : "Email"}</span>
@@ -677,20 +675,13 @@ export function CatalogBookingSheet({
                   aria-invalid={touched && !emailValid}
                   data-testid="cb-email"
                 />
-                {touched && !emailValid ? (
-                  <em>{es ? "Necesitamos un correo válido." : "We need a valid email."}</em>
-                ) : null}
+                {touched && !emailValid ? <em>{es ? "Necesitamos un correo válido." : "We need a valid email."}</em> : null}
               </label>
+              {addr.rule === "required" ? <ServiceAddressField value={addr.fields.address} note={addr.fields.note} onChange={addr.setFields} error={addr.error} locale={locale} /> : null}
               <p className="jb-fixture" data-catalog-who-pay="">
                 {paymentFixture}
               </p>
-              {captchaRequired ? (
-                <GuestCaptchaField
-                  captcha={captcha}
-                  locale={locale}
-                  onToken={(token) => setCaptchaToken(token)}
-                />
-              ) : null}
+              {captchaRequired ? <GuestCaptchaField captcha={captcha} locale={locale} onToken={(token) => setCaptchaToken(token)} /> : null}
               {showAsk ? (
                 <button
                   type="button"

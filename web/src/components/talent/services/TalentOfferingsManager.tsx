@@ -25,7 +25,6 @@ import { useOfferingsEditor } from "./use-offerings-editor";
 import { actionUploadAndAssignMedia } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import {
-  offeringPriceLabel,
   IDENTITY_REASONS,
   IDENTITY_REASON_LABELS,
   type IdentityReason,
@@ -36,6 +35,7 @@ import {
   type OfferingVariant,
   type OfferingAddOn,
 } from "@/lib/talent/offerings-types";
+import { dashboardOfferingPriceLabel } from "@/lib/talent/services-list-price";
 import { OfferingOptionsEditor } from "./OfferingOptionsEditor";
 import type { ServicePricingType } from "@/lib/talent/services-menu-types";
 import { DEFAULT_CURRENCY_OPTIONS, CURRENCY_LABELS, TALENT_CURRENCY_OPTIONS } from "@/lib/billing/currencies";
@@ -466,7 +466,7 @@ function OfferingForm({
     mode === "contact"
       ? "Clients will see “Contact for price” and message you first."
       : value.amountCents
-        ? `Clients see ${offeringPriceLabel(value, "en")}${usdHint ? `, with ${usdHint} beside it` : ""}.`
+        ? `Clients see ${dashboardOfferingPriceLabel(value, "en")}${usdHint ? `, with ${usdHint} beside it` : ""}.`
         : "Type a price to see how clients will read it.";
 
   return (
@@ -1315,7 +1315,7 @@ export function TalentOfferingsManager(
                     </div>
                   </button>
                   <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
-                    {missingPrice ? "No price yet" : offeringPriceLabel(it, "en")}
+                    {missingPrice ? "No price yet" : dashboardOfferingPriceLabel(it, "en")}
                     {(() => {
                       const usd = missingPrice ? null : usdEquivalentLabel(it.amountCents, it.currency, usdRates, "en");
                       return usd ? <div style={{ fontSize: 11, fontWeight: 500, color: C.inkMuted, textAlign: "right" }}>{usd}</div> : null;

@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
+  SALES_CHANNELS,
   SALES_TYPE_CHIPS,
   salesMoneyPresentation,
   salesSourceHref,
@@ -81,6 +84,38 @@ test("an unrecognised channel still renders — its raw value, never hidden", ()
   assert.equal(salesChannelLabel("some_future_channel", "en"), "some_future_channel");
   assert.equal(salesChannelLabel("pos", "en"), "Counter");
   assert.equal(salesChannelLabel("pos", "fr"), "Comptoir");
+});
+
+test("every known sales channel has en/es/fr labels — never the raw key", () => {
+  // Pedidos/Sales print salesChannelLabel; an unmapped known key shows as
+  // "messages_offer" next to a real "Oferta" row. Fail the map, not the screen.
+  for (const channel of SALES_CHANNELS) {
+    for (const locale of ["en", "es", "fr"] as const) {
+      const label = salesChannelLabel(channel, locale);
+      assert.notEqual(label, channel, `unmapped channel ${channel} (${locale})`);
+      assert.ok(label.trim().length > 0, `${channel} (${locale}) must have a label`);
+    }
+  }
+});
+
+test("messages_offer is Oferta / Offer — same commercial meaning as offer", () => {
+  assert.equal(salesChannelLabel("messages_offer", "es"), "Oferta");
+  assert.equal(salesChannelLabel("messages_offer", "en"), "Offer");
+  assert.equal(salesChannelLabel("messages_offer", "fr"), "Offre");
+  assert.equal(salesChannelLabel("messages_offer", "es"), salesChannelLabel("offer", "es"));
+});
+
+test("ACCEPT_ORDER_CHANNEL stays in the sales channel map", () => {
+  // Static: the accept-offer writer is server-only; reading the constant here
+  // keeps the Pedidos label map honest without pulling that module in.
+  const src = readFileSync(join(process.cwd(), "src/lib/messaging/accept-offer-payment.ts"), "utf8");
+  const m = src.match(/export const ACCEPT_ORDER_CHANNEL\s*=\s*"([^"]+)"/);
+  assert.ok(m, "ACCEPT_ORDER_CHANNEL must still be defined");
+  const channel = m![1]!;
+  assert.ok(
+    (SALES_CHANNELS as readonly string[]).includes(channel),
+    `${channel} must be mapped or Pedidos shows the raw key`,
+  );
 });
 
 // ── Filter addresses ────────────────────────────────────────────────────

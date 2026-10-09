@@ -21,6 +21,19 @@ export type HowYouWorkFacts = {
   displayName: string | null;
 };
 
+/**
+ * The name "add me as a provider" uses for the new talent profile. A studio owner
+ * has no talent profile yet, so the profile's own name is empty: fall back to the
+ * account's display name, then the workspace name. First non-blank wins.
+ */
+export function resolveProviderDisplayName(...candidates: Array<string | null | undefined>): string | null {
+  for (const c of candidates) {
+    const v = typeof c === "string" ? c.trim() : "";
+    if (v) return v;
+  }
+  return null;
+}
+
 export type HowYouWorkMove = "open_studio" | "add_provider" | "resume_bookings" | "stop_bookings";
 
 /** myself = talent only; studio = workspace without me bookable; both = workspace + me bookable. */

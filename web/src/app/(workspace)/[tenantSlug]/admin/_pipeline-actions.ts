@@ -48,6 +48,7 @@ import {
   promoteToPrimary,
 } from "@/lib/inquiry/inquiry-engine-coordinator";
 import { convertToBooking } from "@/lib/inquiry/inquiry-engine-booking";
+import { tryMajorToMinor } from "@/lib/inquiry/offer-minor-units";
 import { updateInquiryDetails, type InquiryDetailsPatch } from "@/lib/inquiry/inquiry-engine-details";
 import type {
   EditableInquiryJobFields,
@@ -68,6 +69,7 @@ import {
   initiatePayout,
   markPayoutSent,
 } from "@/lib/bookings/transactions";
+import { loadInquiryPaymentBooking } from "@/lib/bookings/payment-booking";
 import {
   sendOffer,
   clientRejectOffer,
@@ -288,20 +290,21 @@ export async function loadInquiryPaymentState(
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
-    const { data: booking } = await supabase
-      .from("agency_bookings")
-      .select("id, total_client_revenue, currency_code, deposit_amount_cents, deposit_pct, client_revenue_lifecycle")
-      .eq("tenant_id", tenantId)
-      .eq("source_inquiry_id", inquiryId)
-      .maybeSingle();
-
+    const found = await loadInquiryPaymentBooking(supabase, { tenantId, inquiryId });
+    if (!found.ok) return { ok: false, error: "Could not read this booking's payment." };
+    const { booking, transaction: txn } = found;
     if (!booking) {
       return { ok: true, data: { bookingId: null, totalRevenueCents: null, currency: null, transaction: null, depositAmountCents: 0, depositPaid: false } };
     }
-
-    const txn = await loadActiveBookingTransaction(booking.id as string, supabase);
     const rawRevenue = booking.total_client_revenue as number | string | null;
-    const totalRevenueCents = rawRevenue != null ? Math.round(Number(rawRevenue) * 100) : null;
+    const bookingCurrency = booking.currency_code as string | null;
+    let totalRevenueCents: number | null = null;
+    if (rawRevenue != null) {
+      // Money path: refuse an unreadable currency instead of hard-coding * 100.
+      const minor = tryMajorToMinor(Number(rawRevenue), bookingCurrency);
+      if (minor === null) return { ok: false, error: "offer_currency_unreadable" };
+      totalRevenueCents = minor;
+    }
     // 6.3: resolve the configured deposit (explicit amount wins; else pct of the
     // full charge). 0 when no deposit is set on the offer/booking.
     const depositAmountCents = Number(booking.deposit_amount_cents) > 0
@@ -315,7 +318,7 @@ export async function loadInquiryPaymentState(
       data: {
         bookingId: booking.id as string,
         totalRevenueCents,
-        currency: (booking.currency_code as string | null) ?? null,
+        currency: bookingCurrency,
         transaction: txn,
         depositAmountCents,
         depositPaid: booking.client_revenue_lifecycle === "deposit_paid",
@@ -461,9 +464,16 @@ export async function createInquiryTransactionDraft(
       return { ok: false, error: "An active transaction already exists for this booking." };
     }
 
-    const baseRevenueCents = booking.total_client_revenue != null
-      ? Math.max(0, Math.round(Number(booking.total_client_revenue) * 100))
-      : 0;
+    let baseRevenueCents = 0;
+    if (booking.total_client_revenue != null) {
+      // Charge path: currency-aware major→minor; refuse unreadable codes.
+      const minor = tryMajorToMinor(
+        Number(booking.total_client_revenue),
+        booking.currency_code as string | null,
+      );
+      if (minor === null) return { ok: false, error: "offer_currency_unreadable" };
+      baseRevenueCents = Math.max(0, minor);
+    }
     if (baseRevenueCents <= 0) {
       return { ok: false, error: "Set booking revenue before creating a transaction." };
     }
@@ -1821,7 +1831,12 @@ export async function loadOfferDraft(
     // W6a — read the saved negotiated terms (display + snapshot only). When the
     // offer predates W6a (null terms), fall back to the W5 resolver defaults so
     // the composer always renders a coherent starting state.
-    const totalCents = Math.round(Number(offer.total_client_price ?? 0) * 100);
+    // Offer total → minor units via the offer currency's divisor (not * 100).
+    const totalCents = tryMajorToMinor(
+      Number(offer.total_client_price ?? 0),
+      offer.currency_code,
+    );
+    if (totalCents === null) return { ok: false, error: "offer_currency_unreadable" };
     const { readOfferTermsFromRow, defaultOfferTermsFromResolved, deriveDepositAmountCents } =
       await import("@/lib/billing/offer-commercial-terms");
     let terms = readOfferTermsFromRow(

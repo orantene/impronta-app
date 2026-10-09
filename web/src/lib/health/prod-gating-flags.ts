@@ -172,6 +172,13 @@ export function resolveEnvProdGatingFlags(
       resolved: env.TALENT_SITE_CONSENT_TOOLING_ENABLED === "1",
     },
     {
+      key: "PUBLIC_STREET_AUTOCOMPLETE_ENABLED",
+      source: "env",
+      env: envRaw(env, "PUBLIC_STREET_AUTOCOMPLETE_ENABLED"),
+      // lib/places/street-suggest-contract.ts gates on === "1"; OFF in production until the cost check
+      resolved: env.PUBLIC_STREET_AUTOCOMPLETE_ENABLED === "1",
+    },
+    {
       key: "SUPPORT_DESK_ENABLED",
       source: "env",
       env: envRaw(env, "SUPPORT_DESK_ENABLED"),

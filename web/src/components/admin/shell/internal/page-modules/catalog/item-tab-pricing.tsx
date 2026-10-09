@@ -19,11 +19,11 @@ import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { Icon } from "../../primitives";
 import { DEFAULT_CURRENCY_OPTIONS } from "@/lib/billing/currencies";
 import {
-  formatOfferingPrice,
   type OfferingPriceDisplay,
   type OfferingReserveMode,
   type TalentOffering,
 } from "@/lib/talent/offerings-types";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import type { ServicePricingType } from "@/lib/talent/services-menu-types";
 import { StatePill } from "../appointments-classes-ui";
 import type { TabProps } from "./CatalogItemEditor";
@@ -57,7 +57,7 @@ export function PricingTab({ item, patch, saving, isDraft }: TabProps) {
   const t = useT();
   const locale = useDashboardLocale();
   const quote = item.priceDisplay === "quote";
-  const priceText = item.amountCents == null ? t("dashboard.catalog.dash") : formatOfferingPrice(item.amountCents, item.currency, locale);
+  const priceText = item.amountCents == null ? t("dashboard.catalog.dash") : formatDashboardMoneyCents(item.amountCents, item.currency, locale);
   const bookable = item.kind !== "product";
 
   return (
@@ -259,7 +259,7 @@ export function PricingSide({ item, price, blockers }: { item: TalentOffering; p
   const t = useT();
   const locale = useDashboardLocale();
   const totals = exampleTotals(item);
-  const money = (c: number | null) => (c == null ? t("dashboard.catalog.dash") : formatOfferingPrice(c, item.currency, locale));
+  const money = (c: number | null) => (c == null ? t("dashboard.catalog.dash") : formatDashboardMoneyCents(c, item.currency, locale));
   const hasOptions = (item.variants?.length ?? 0) + (item.addOns?.length ?? 0) > 0;
   return (
     <>

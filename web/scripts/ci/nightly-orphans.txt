@@ -170,7 +170,6 @@ src/lib/notifications/customer-copy-voice.static.test.ts
 src/lib/notifications/dispatcher-outcome.test.ts
 src/lib/notifications/envelope-log.test.ts
 src/lib/notifications/talent-inbox-scope.test.ts
-src/lib/orders/orders-page-wire.static.test.ts
 src/lib/pitch/pitch-engine.deep.test.ts
 src/lib/pitch/pitch-engine.test.ts
 src/lib/pitch/pitch-plan-gate.test.ts
@@ -195,7 +194,6 @@ src/lib/saas/roster-seat-limit.test.ts
 src/lib/saas/scope.security.test.ts
 src/lib/saas/seat-limit-copy.test.ts
 src/lib/saas/signup-uses-the-brief.test.ts
-src/lib/saas/solo-talent-tenant.test.ts
 src/lib/saas/storefront-discovery.test.ts
 src/lib/saas/talent-demo-host-redirect.test.ts
 src/lib/saas/talent-self-tenant.test.ts

@@ -65,6 +65,7 @@ import { closeCheckoutSession, settleCheckoutPayment } from "@/lib/stripe/webhoo
 import { emitBookingConfirmation } from "@/lib/payments/booking-confirmation";
 import { releaseHeldPayouts, syncBookingPayoutLifecycle } from "@/lib/payments/booking-payouts-ledger";
 import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refunds";
+import { formatFailedRefundMoney } from "@/lib/payments/failed-refund-attention-note";
 import { recordProviderPayout } from "@/lib/payments/provider-payouts";
 import { recordProviderDispute } from "@/lib/payments/provider-disputes";
 import { recordProviderInvoice } from "@/lib/payments/provider-invoices";
@@ -611,7 +612,7 @@ export async function processStripeEvent(
         "stripe-webhook.refund.failed",
         new Error(
           `Refund ${action.refundId} ${action.status.toUpperCase()} for ` +
-            `${(action.amount / 100).toFixed(2)} ${action.currency.toUpperCase()} ` +
+            `${formatFailedRefundMoney(action.amount, action.currency)} ` +
             `(charge=${action.chargeId ?? "unknown"}, payment_intent=${action.paymentIntentId ?? "unknown"}, ` +
             `reason=${action.failureReason ?? "unspecified"}). ` +
             `THE CUSTOMER HAS NOT BEEN PAID and the funds are back in the platform balance. ` +

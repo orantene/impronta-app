@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { formatDashboardMoney } from "@/lib/money/dashboard-money-format";
 import { upsertAddonGroup, type AddonGroup } from "@/lib/talent/services-settings-actions";
 import { listTalentPortfolioPhotos, type PortfolioPhoto } from "@/lib/talent/offerings-actions";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
@@ -178,12 +179,14 @@ export function ExtraScreen({
             <span>
               <span className="block font-semibold">{name || copy.t("Extra")}</span>
               <span className="text-admin-ink-dim">
-                {extraMin ? `+${extraMin} min · ` : ""}+{Math.round(extraCents / 100)} {preview.currency}
+                {extraMin ? `+${extraMin} min · ` : ""}+
+                {formatDashboardMoney(extraCents / 100, preview.currency, copy.locale, { wholeUnits: true })}
               </span>
             </span>
           </label>
           <p className="mt-4 text-[13px]">
-            {copy.t("Total")} · {totalMin} min ${Math.round(totalCents / 100).toLocaleString("en-US")} {preview.currency}
+            {copy.t("Total")} · {totalMin} min{" "}
+            {formatDashboardMoney(totalCents / 100, preview.currency, copy.locale, { wholeUnits: true })}
           </p>
         </aside>
       </div>

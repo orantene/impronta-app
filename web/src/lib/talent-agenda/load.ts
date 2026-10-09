@@ -11,7 +11,7 @@ import {
 } from "@/lib/money/total-client-revenue";
 
 import { blocksTime, deriveBookingState, derivePaymentState } from "./derive";
-import { mapAgencyBookingPayment, mapDeliverableDeadline, openInquiriesWithoutBooking } from "./load-map";
+import { mapAgencyBookingPayment, mapDeliverableDeadline, openInquiriesWithoutBooking, pickBookingClient } from "./load-map";
 import { loadUnscheduledDraftsForTalent, txRefundPending } from "./load-unscheduled";
 import { summarizeCommercialEvent } from "@/lib/commercial-activity-summary";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
@@ -446,10 +446,26 @@ export async function loadTalentAgenda(
       ]),
     );
 
+    // TUL-450: the guest's name for bookings that carry none of their own.
+    const linkedInquiryIds = [...new Set(bookings.map((b) => b.inquiry_id).filter((id): id is string => typeof id === "string" && id.length > 0))];
+    const linkedInquiriesRes =
+      linkedInquiryIds.length === 0
+        ? { data: [], error: null }
+        : await moneyDb.from("inquiries").select("id, contact_name, contact_email, contact_phone").in("id", linkedInquiryIds);
+    if (linkedInquiriesRes.error) logServerError("talent-agenda.linked-inquiries", linkedInquiriesRes.error);
+    const inquiryById = new Map(
+      ((linkedInquiriesRes.data ?? []) as Array<{ id: string; contact_name: string | null; contact_email: string | null; contact_phone: string | null }>).map((row) => [row.id, row]),
+    );
+
     const items: TalentAgendaItem[] = [];
 
     for (const booking of bookings) {
       const agency = agencyById.get(booking.id);
+      const guest = pickBookingClient({
+        agency,
+        clientLabel: booking.client_label,
+        inquiry: booking.inquiry_id ? inquiryById.get(booking.inquiry_id) : null,
+      });
       const txRows = transactionsByBooking.get(booking.id) ?? [];
       const latest = latestTransaction(txRows);
       const paidCents = paidCentsFrom(agency, txRows);
@@ -541,10 +557,10 @@ export async function loadTalentAgenda(
         kind: "booking",
         ref: { table: "agency_bookings", id: booking.id },
         client: {
-          name: agency?.contact_name ?? booking.client_label ?? "Untitled client",
-          initials: initials(agency?.contact_name ?? booking.client_label),
-          email: agency?.contact_email ?? undefined,
-          phone: agency?.contact_phone ?? undefined,
+          name: guest.name ?? "Untitled client",
+          initials: initials(guest.name),
+          email: guest.email ?? undefined,
+          phone: guest.phone ?? undefined,
         },
         title: booking.title,
         lines: [{ label: booking.title, cents: totalCents }],
@@ -584,7 +600,11 @@ export async function loadTalentAgenda(
             : undefined,
         orderId: agency?.order_id ?? undefined,
         paymentMethod: agency?.payment_method ?? undefined,
-        blocksTime: false,
+        // TUL-450: a booking occupies its time; blocksTime() then lets a cancelled,
+        // expired or requested STATE turn that off. It used to start false, and
+        // blocksTime() returns the field for a booking, so no booking ever blocked
+        // and every one drew as a dashed "Request - not blocking" card.
+        blocksTime: true,
         tradeSection,
         history,
       };

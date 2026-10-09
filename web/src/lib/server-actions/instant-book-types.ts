@@ -16,6 +16,8 @@ export type InstantBookFormPayload = {
   contactPhone?: string | null;
   eventDate?: string | null;
   eventLocation?: string | null;
+  /** TUL-436: the client's place for services delivered there; the server re-validates it against the offering. */
+  serviceAddress?: { address?: string | null; note?: string | null } | null;
   sourcePage?: string | null;
   offeringId?: string | null;
   payInPerson?: boolean;

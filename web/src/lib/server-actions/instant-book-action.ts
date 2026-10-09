@@ -29,7 +29,8 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadTalentPreferredLocale } from "@/lib/site-admin/server/talent-locale";
 import { normalizeBookingLocale, resolveBookingLocale } from "@/lib/scheduling/booking-locale";
 import { unwindFailedCheckout } from "@/lib/orders/unwind-failed-checkout";
-import { cleanEventLocation } from "@/lib/scheduling/booking-event-location";
+import { serviceAddressCopy } from "@/components/public-booking/service-address-copy";
+import { loadOfferingWhere, resolveBookingLocation } from "@/lib/scheduling/service-address-server";
 import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
 
 export type {
@@ -64,6 +65,13 @@ export async function createInstantBookingAction(
     });
 
     const requireAccount = await loadOfferingRequireAccount(payload.offeringId);
+    // TUL-436: a service at the client's place needs an address; the offering decides, not the sheet.
+    const place = resolveBookingLocation({
+      where: await loadOfferingWhere(payload.offeringId),
+      serviceAddress: payload.serviceAddress,
+      sheetLabel: payload.eventLocation,
+    });
+    if (!place.ok) return { ok: false, error: serviceAddressCopy(bookingLocale).errors[place.error] };
     const actor = await resolveInstantBookActor({
       user: user ? { id: user.id, email: user.email } : null,
       tenantId: payload.tenantId,
@@ -132,7 +140,7 @@ export async function createInstantBookingAction(
           brief: payload.brief ?? null,
           locale: bookingLocale,
           // TUL-426: the sheet's place, trimmed and capped here (visitor text).
-          eventLocation: cleanEventLocation(payload.eventLocation),
+          eventLocation: place.eventLocation,
         });
 
         if (!booked.ok) {

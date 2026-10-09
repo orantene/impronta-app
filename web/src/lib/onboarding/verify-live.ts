@@ -39,13 +39,16 @@ export function resolveLiveCheckOrigin(input: {
     return input.defaultOrigin;
   };
   if (input.vercelEnv === "production" || input.vercelEnv === "preview") return refuse("VERCEL_ENV is production or preview");
-  if (input.nodeEnv === "production") return refuse("NODE_ENV is production");
   let u: URL;
   try {
     u = new URL(raw);
   } catch {
     return refuse("not a valid URL");
   }
+  // A production build served off Vercel (journey QA on `next start`) may point the
+  // live check at loopback only; VERCEL_ENV is always set on Vercel, so it never applies there.
+  const loopback = u.hostname === "127.0.0.1" || u.hostname === "localhost" || u.hostname === "[::1]";
+  if (input.nodeEnv === "production" && !(loopback && !input.vercelEnv)) return refuse("NODE_ENV is production");
   if (u.protocol !== "http:" && u.protocol !== "https:") return refuse("not an http(s) URL");
   return u.origin;
 }

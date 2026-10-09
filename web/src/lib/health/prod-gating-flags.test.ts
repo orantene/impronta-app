@@ -82,6 +82,7 @@ test("resolveEnvProdGatingFlags: catalog includes every FEATURES.md env + DB key
     "COMMISSION_PROCESSING_PASS_THROUGH",
     "CLIENT_WELCOME_EMAIL_ENABLED",
     "TALENT_SITE_CONSENT_TOOLING_ENABLED",
+    "PUBLIC_STREET_AUTOCOMPLETE_ENABLED",
     "SUPPORT_DESK_ENABLED",
     "settings.ai_talent_translate_enabled",
     "settings.ai_master_enabled",

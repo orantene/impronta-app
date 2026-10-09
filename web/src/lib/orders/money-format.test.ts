@@ -80,9 +80,12 @@ test("the FOUR surfaces a customer or staff member sees agree", () => {
   //   es-MX + MXN -> "$4,500.00"     pesos wearing a dollar sign
   //   es-MX + USD -> "USD 4,500.00"  dollars wearing a code
   // on the one panel a customer touches before paying.
+  //
+  // Pedidos (admin/orders) uses formatDashboardMoneyCents ("$1,000 MXN") so
+  // the summary bar and row totals match the rest of the dashboard — pinned
+  // separately below. Card / receipt / Sheet stay on formatOrderMoney.
   const files = [
     "src/lib/orders/order-card.ts",
-    "src/app/(workspace)/[tenantSlug]/admin/orders/page.tsx",
     "src/app/(public)/r/[code]/page.tsx",
     "src/components/cart/PurchaseSheet.tsx",
   ];
@@ -90,6 +93,16 @@ test("the FOUR surfaces a customer or staff member sees agree", () => {
     const body = blankComments(readFileSync(join(process.cwd(), f), "utf8"));
     assert.match(body, /formatOrderMoney/, `${f} must use the shared formatter`);
   }
+});
+
+test("Pedidos desk uses the dashboard money format, not order-card cents", () => {
+  // TUL-435: "1,000.00 MXN" wrapping and looking unlike Money/Today. The
+  // dashboard formatter prints "$1,000 MXN" (no decimals when whole).
+  const body = blankComments(
+    readFileSync(join(process.cwd(), "src/app/(workspace)/[tenantSlug]/admin/orders/page.tsx"), "utf8"),
+  );
+  assert.match(body, /formatDashboardMoneyCents/);
+  assert.doesNotMatch(body, /formatOrderMoney/);
 });
 
 test("money is NOT locale-formatted — an amount is not translated", () => {

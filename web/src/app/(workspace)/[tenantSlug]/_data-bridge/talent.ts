@@ -798,7 +798,7 @@ export async function loadTalentAgencies(
     };
 
     // The platform hub is where every Tulala signup is enrolled (see
-    // ensurePlatformHubRoster). It is the platform, not one of the person's
+    // ensureHubRosterRow). It is the platform, not one of the person's
     // agencies: listing it made the identity bar say "Acting as Tulala ·
     // Primary agency" and offer "Preview site → /tulala" to a talent with no
     // agency at all (owner QA 2026-09-10).

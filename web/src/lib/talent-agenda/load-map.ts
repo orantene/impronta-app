@@ -152,3 +152,28 @@ export function openInquiriesWithoutBooking<T extends { id: string }>(
   }
   return inquiries.filter((inquiry) => !taken.has(inquiry.id));
 }
+
+/**
+ * TUL-450: who the booking is for. An instant-booked guest has no
+ * `client_label` on the talent_bookings mirror and no contact on the
+ * agency_bookings row; the name lives on the inquiry the booking came from.
+ * First non-blank wins: agency contact, the mirror's label, the inquiry contact.
+ */
+export function pickBookingClient(input: {
+  agency?: { contact_name?: string | null; contact_email?: string | null; contact_phone?: string | null } | null;
+  clientLabel?: string | null;
+  inquiry?: { contact_name?: string | null; contact_email?: string | null; contact_phone?: string | null } | null;
+}): { name: string | null; email: string | null; phone: string | null } {
+  const first = (...vals: Array<string | null | undefined>): string | null => {
+    for (const v of vals) {
+      const t = typeof v === "string" ? v.trim() : "";
+      if (t) return t;
+    }
+    return null;
+  };
+  return {
+    name: first(input.agency?.contact_name, input.clientLabel, input.inquiry?.contact_name),
+    email: first(input.agency?.contact_email, input.inquiry?.contact_email),
+    phone: first(input.agency?.contact_phone, input.inquiry?.contact_phone),
+  };
+}

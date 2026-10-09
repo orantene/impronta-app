@@ -8,6 +8,7 @@ import {
   totalsFor,
   canRefund,
   outstandingCents,
+  orderLineItemsLabel,
   type OrderListRow,
 } from "@/lib/orders/orders-list";
 
@@ -87,6 +88,14 @@ test("a free place is not overdue on the desk", () => {
 test("outstanding is clamped — over-collection is a refund, not a negative", () => {
   assert.equal(outstandingCents({ totalCents: 5000, collectedCents: 7500 }), 0);
   assert.equal(outstandingCents({ totalCents: 5000, collectedCents: 2000 }), 3000);
+});
+
+test("line-count copy uses singular for 1 and plural otherwise", () => {
+  assert.equal(orderLineItemsLabel(1, "item", "items"), "1 item");
+  assert.equal(orderLineItemsLabel(2, "item", "items"), "2 items");
+  assert.equal(orderLineItemsLabel(0, "item", "items"), "0 items");
+  assert.equal(orderLineItemsLabel(1, "artículo", "artículos"), "1 artículo");
+  assert.equal(orderLineItemsLabel(2, "artículo", "artículos"), "2 artículos");
 });
 
 test("totals describe the rows ON SCREEN, not the tenant", () => {

@@ -18,7 +18,8 @@ import { useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { Icon } from "../../primitives";
-import { formatOfferingPrice, type TalentOffering } from "@/lib/talent/offerings-types";
+import { type TalentOffering } from "@/lib/talent/offerings-types";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { loadOfferingPricePhasesAction, type OfferingPricePhaseRow } from "@/lib/server-actions/catalog-engine-reads";
 import { setOfferingPricePhaseAction } from "@/lib/server-actions/scheduling-engine";
 import { ActionButton, Outcome, StatePill } from "../appointments-classes-ui";
@@ -64,7 +65,7 @@ export function PricePhases({ item, isDraft, saving }: { item: TalentOffering; i
   const nowIso = new Date().toISOString();
   const when = (iso: string | null) =>
     iso ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso)) : t("dashboard.catalog.phases.open");
-  const money = (c: number) => formatOfferingPrice(c, item.currency, locale);
+  const money = (c: number) => formatDashboardMoneyCents(c, item.currency, locale);
   const off = saving || busy;
 
   async function add() {
