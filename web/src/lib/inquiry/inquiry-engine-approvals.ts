@@ -6,6 +6,7 @@ import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
 import { logServerError } from "@/lib/server/safe-error";
+import { noteHeldOfferReturned, releaseOfferToClient } from "./offer-release";
 
 // SaaS P1.B STEP A: tenant-scoped by construction. Pre-flight the inquiry's
 // tenant_id before invoking the SECURITY DEFINER RPC so cross-tenant ids are
@@ -67,6 +68,15 @@ export async function submitApproval(
       }
     }
 
+    // Hold-the-send: was this offer waiting for talent approval (invisible to the client)?
+    const { data: heldRow } = await supabase
+      .from("inquiry_offers")
+      .select("status")
+      .eq("id", ctx.offerId)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
+    const wasHeld = (heldRow as { status?: string } | null)?.status === "awaiting_talent";
+
     const { data, error } = await supabase.rpc("engine_submit_approval", {
       p_inquiry_id: ctx.inquiryId,
       p_offer_id: ctx.offerId,
@@ -88,6 +98,30 @@ export async function submitApproval(
     const already = Boolean((data as { already?: boolean } | null)?.already);
 
     if (already) return { success: true, already: true };
+
+    if (wasHeld) {
+      // The client has not seen this offer: no client-facing event for the approval itself.
+      if (transition === "released_to_client") {
+        await releaseOfferToClient(supabase, {
+          inquiryId: ctx.inquiryId,
+          tenantId: ctx.tenantId,
+          offerId: ctx.offerId,
+          actorUserId: ctx.actorUserId,
+          restampExpiry: true,
+          skipTalentCard: true,
+        });
+      } else if (transition === "returned_to_draft") {
+        await noteHeldOfferReturned(supabase, {
+          inquiryId: ctx.inquiryId,
+          tenantId: ctx.tenantId,
+          offerId: ctx.offerId,
+          actorUserId: ctx.actorUserId,
+          notes: ctx.notes,
+        });
+      }
+      await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
+      return { success: true };
+    }
 
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.APPROVAL_SUBMITTED,
