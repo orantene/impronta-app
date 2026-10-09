@@ -10,6 +10,9 @@ type Line = { id: string; total_cents: number; refunded_cents: number };
  * Recording fake: ONE order, any number of parent transactions (`txns`), the order's lines, and the
  * refunded sibling rows. Reads hand back COPIES, so a stale read really is stale (the CAS paths need it).
  */
+/** Chainable query fake; the real `from()` returns any, so a loose shape fits. */
+type FakeQuery = { eq: (k: string, v: unknown) => FakeQuery; [k: string]: unknown };
+
 const _vref = { n: 0 };
 function world(opts: { orderId?: string | null; lines: Line[]; parents?: string[]; refundRows?: Array<{ id: string; gross_amount_cents: number }>; beforeLineWrite?: () => void }) {
   const mk = (id: string) => ({ id, order_id: opts.orderId === undefined ? "o1" : opts.orderId, metadata: {} as Record<string, unknown>, updated_at: "v0" });
@@ -22,7 +25,7 @@ function world(opts: { orderId?: string | null; lines: Line[]; parents?: string[
         return {
           select: (_cols?: string) => {
             const f: Record<string, unknown> = {};
-            const q: any = {
+            const q: FakeQuery = {
               eq: (k: string, v: unknown) => { f[k] = v; return q; },
               not: () => q,
               order: async () => ({ data: refundRows, error: null }),
@@ -32,7 +35,7 @@ function world(opts: { orderId?: string | null; lines: Line[]; parents?: string[
           },
           update: (patch: { metadata: Record<string, unknown> }) => {
             const f: Record<string, unknown> = {};
-            const q: any = {
+            const q: FakeQuery = {
               eq: (k: string, v: unknown) => { f[k] = v; return q; },
               select: async () => {
                 const t = txns.find((x) => x.id === f.id);
@@ -51,7 +54,7 @@ function world(opts: { orderId?: string | null; lines: Line[]; parents?: string[
       return {
         select: (_cols?: string) => {
           const f: Record<string, unknown> = {};
-          const q: any = {
+          const q: FakeQuery = {
             eq: (k: string, v: unknown) => { f[k] = v; return q; },
             order: async () => ({ data: lines.map((l) => ({ ...l })), error: null }),
             maybeSingle: async () => ({ data: { ...(lines.find((l) => l.id === f.id) ?? lines[0]) }, error: null }),
@@ -61,7 +64,7 @@ function world(opts: { orderId?: string | null; lines: Line[]; parents?: string[
         },
         update: (patch: { refunded_cents: number }) => {
           const f: Record<string, unknown> = {};
-          const q: any = {
+          const q: FakeQuery = {
             eq: (k: string, v: unknown) => { f[k] = v; return q; },
             select: async () => {
               opts.beforeLineWrite?.();
