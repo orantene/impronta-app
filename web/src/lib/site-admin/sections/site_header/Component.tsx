@@ -329,13 +329,11 @@ export async function SiteHeaderComponent({
   );
   const primaryCtaResolved = primaryCta
     ? (() => {
-        const L = resolveLinkLike(
-          resolveRosterSafeHref(primaryCta.href, hasRoster, inquiryFallback),
-          linkCtx,
-        );
+        // Resolve LinkRef → string first; roster rewrite only accepts paths.
+        const L = resolveLinkLike(primaryCta.href, linkCtx);
         return {
           label: primaryCta.label,
-          href: L.href,
+          href: resolveRosterSafeHref(L.href, hasRoster, inquiryFallback),
           external: primaryCta.external || L.openInNew,
         };
       })()
