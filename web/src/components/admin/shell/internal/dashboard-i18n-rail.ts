@@ -22,6 +22,7 @@
 import { CLIENTS_ES_TEXT } from "./dashboard-i18n-clients";
 import { FEES_ES_TEXT } from "./dashboard-i18n-fees";
 import { INBOX_ES_TEXT } from "./dashboard-i18n-inbox";
+import { TRUST_ES_TEXT } from "./dashboard-i18n-trust";
 import { LANGUAGES_ES_TEXT } from "./dashboard-i18n-languages";
 import { LINKS_ES_TEXT } from "./dashboard-i18n-links";
 import { LOCATION_ES_TEXT } from "./dashboard-i18n-location";
@@ -50,6 +51,7 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   ...LOCATION_ES_TEXT,
   ...LANGUAGES_ES_TEXT,
   ...INBOX_ES_TEXT,
+  ...TRUST_ES_TEXT,
   // The four Appointments sub-views (W39). They are tabs of one route, but the
   // rail draws them as rows, so each needs its own literal. "Appointments" is
   // both the destination label and its landing child, and already has a row in
