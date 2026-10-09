@@ -97,7 +97,9 @@ const STOP = new Set([
 
 /** Fold accents so "cómo"/"horarios" match ascii corpus tokens. */
 function foldAscii(text: string): string {
-  return text.normalize("NFD").replace(/\p{M}/gu, "");
+  // Combining marks only (same house fold as location-settings / offering-intake).
+  // Prefer the explicit range over \p{M} so tokenize stays ES2017-safe.
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 export function flattenHelpCorpus(
