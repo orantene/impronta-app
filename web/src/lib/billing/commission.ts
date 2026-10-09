@@ -231,6 +231,14 @@ export interface ResolveBookingCommissionsInput {
    *  independent talent selling directly (owning_party_type='talent'),
    *  where the talent IS the seller of record. */
   sellerOfRecord?: SellerOfRecord;
+  /**
+   * The booking is paid through an ORDER. The order checkout collects the order
+   * total and, only when pass_through is armed, the pass_through surcharge
+   * (`resolveCheckoutCollectCents`). It never adds a client surcharge in
+   * included mode or the workspace base reservation fee, so the snapshot must not
+   * assume them: gross_charged then equals exactly what the collect charges.
+   */
+  orderBackedCollect?: boolean;
   /** Overrides `platformConfig.processing_mode` (e.g. a frozen snapshot's mode). */
   processingMode?: ProcessingMode | null;
   /** pass_through only. Who pays the processing fee; the SELLER's setting
@@ -456,7 +464,9 @@ export function resolveBookingCommissions(
   // pass_through: the whole take is a client surcharge (seller share = 0).
   const rawClientShareBps = passThrough
     ? platformTakeBps
-    : input.platformConfig.client_surcharge_bps != null
+    : input.orderBackedCollect
+      ? 0
+      : input.platformConfig.client_surcharge_bps != null
       ? input.platformConfig.client_surcharge_bps
       : Math.floor(platformTakeBps / 2);
   const clientShareBps = Math.min(Math.max(Math.round(rawClientShareBps), 0), platformTakeBps);
@@ -483,7 +493,7 @@ export function resolveBookingCommissions(
   //     of the client total + clamped to the platform caps. Workspace seller
   //     only (an independent-talent sale has no workspace, so no base fee).
   let baseReservationFeeCents = 0;
-  if (sellerOfRecord !== "talent" && input.tenantOverride) {
+  if (sellerOfRecord !== "talent" && input.tenantOverride && !input.orderBackedCollect) {
     const flat = Math.max(0, Math.round(input.tenantOverride.base_reservation_fee_cents ?? 0));
     const pctBps = Math.max(0, Math.round(input.tenantOverride.base_reservation_fee_bps ?? 0));
     const pct = Math.round((subtotalCents * pctBps) / 10000);
@@ -501,7 +511,17 @@ export function resolveBookingCommissions(
   let clientSurchargeCents = clientSurchargeBase;
   const takeBeforeFloor = clientSurchargeCents + sellerDeductionCents;
   if (takeBeforeFloor < platformTakeFloorCents) {
-    clientSurchargeCents += platformTakeFloorCents - takeBeforeFloor;
+    const gap = platformTakeFloorCents - takeBeforeFloor;
+    if (input.orderBackedCollect && !passThrough) {
+      // The order checkout charges no client surcharge, so the floor top-up
+      // lands on the seller side (a workspace only up to its margin).
+      const room = sellerOfRecord === "talent" ? gap : Math.max(Math.max(marginCents, 0) - sellerDeductionCents, 0);
+      const add = Math.min(gap, room);
+      sellerDeductionCents += add;
+      sellerShortfallCents += gap - add;
+    } else {
+      clientSurchargeCents += gap;
+    }
   }
 
   let platformFeeCents = clientSurchargeCents + sellerDeductionCents;

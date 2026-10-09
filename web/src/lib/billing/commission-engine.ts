@@ -216,6 +216,22 @@ export async function persistBookingCommissionSnapshot(
   const channelPartyId = ctx.source_workspace_id ?? null;
   const homeTenantId = ctx.home_tenant_id ?? null;
 
+  // The order checkout charges the order total (plus the pass_through surcharge
+  // when armed), so an order-backed snapshot must not assume a surcharge or base
+  // fee the checkout never collects: gross_charged == what the collect charges.
+  const { data: orderBacking, error: bkError } = await supabase
+    .from("agency_bookings")
+    .select("order_id")
+    .eq("id", bookingId)
+    .maybeSingle();
+  if (bkError) {
+    // Never fall back to the legacy shape on a failed read: that would put the
+    // client surcharge back into an order-backed snapshot. Fail the snapshot.
+    logServerError(`commission-engine/order_backing_read_failed[booking=${bookingId}]`, bkError);
+    return { ok: false, reason: "context_load_failed", detail: bkError.message };
+  }
+  const orderBackedCollect = Boolean((orderBacking as { order_id?: string | null } | null)?.order_id);
+
   // 2. Resolve per participant (pure — no IO inside the loop).
   const snapshots: ParticipantSnapshot[] = [];
   try {
@@ -319,6 +335,7 @@ export async function persistBookingCommissionSnapshot(
         // bears it; agency/workspace → the workspace bears it and the talent is
         // paid their full quote (protected).
         sellerOfRecord: p.owning_party_type === "talent" ? "talent" : "workspace",
+        orderBackedCollect,
         offerLineItems: p.offer_line_items as OfferLineItemForResolver[],
         currencyCode: ctx.currency_code,
         paymentMethod,
