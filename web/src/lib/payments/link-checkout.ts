@@ -342,7 +342,8 @@ async function openOnce(
   if (amountErr) {
     // Never create a session for a row whose amounts do not match what it will charge.
     logServerError("payments.openPaymentLinkCheckout.amounts", amountErr);
-    return { ok: false, reason: "unavailable" };
+    // No session exists yet, so nothing can have been charged: say "could not start".
+    return { ok: false, reason: "start_failed" };
   }
   const session = await (deps.createCheckoutSession ?? createCheckoutSessionForTransaction)({
     transactionId,
