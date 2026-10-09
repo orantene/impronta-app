@@ -72,13 +72,14 @@ test("dashboard public URL prefers the published personal site, then hub /t/code
     "utf8",
   );
   // Live website first (custom domain / vanity /t/site/<slug>); hub is fallback.
-  // TUL-347: business owners then override to the workspace live URL.
+  // TUL-347 / TUL-180: business owners then override from workspaceSite.publicUrl
+  // (already loaded via getTenantPreviewUrl on the effective-user probe).
   // Never invent `/t/<code>/site` — that path is not a real surface.
   assert.match(
     dashState,
     /let publicSiteUrl: string \| null = personalSiteUrl \?\? \(profileCode \? `\/t\/\$\{profileCode\}` : null\)/,
   );
-  assert.match(dashState, /resolveWorkspaceSitePublicUrl/);
+  assert.match(dashState, /workspaceSite\?\.publicUrl/);
   assert.match(dashState, /publishedPersonalSiteUrl/);
   assert.match(dashState, /talentSitePathUrl/);
   assert.match(dashState, /maxSitePublicGate/);

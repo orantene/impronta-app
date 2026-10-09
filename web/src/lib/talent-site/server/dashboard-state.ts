@@ -20,12 +20,11 @@ import {
   readUserId,
   type EffectiveReadContext,
 } from "@/lib/impersonation/effective-read";
-import { resolveMyWebsiteTarget, workspaceSiteBuilderHref } from "@/lib/talent-site/my-website-target";
+import { workspaceSiteBuilderHref } from "@/lib/talent-site/my-website-target";
 import {
   loadOwnedBusinessWorkspace,
   type OwnedBusinessWorkspace,
 } from "@/lib/talent-site/server/workspace-site-context";
-import { resolveWorkspaceSitePublicUrl } from "@/lib/talent-site/workspace-site-editor-url";
 import { getTenantPreviewUrl } from "@/lib/site-admin/server/tenant-hosts";
 
 const NO_OWNED_WORKSPACE: OwnedBusinessWorkspace = {
@@ -228,23 +227,13 @@ export async function loadTalentPersonalSiteDashboardState(
     thumbnailUrl: t.thumbnailUrl,
   }));
 
-  // TUL-77 / TUL-347: when "My website" is the business workspace, surface that
-  // live URL on Hoy / presence (not the personal subdomain the owner may also have).
+  // TUL-77 / TUL-347 / TUL-180: when the effective owner has a business
+  // workspace site, surface that live URL on Hoy / presence. Reuse the
+  // workspaceSite already loaded via pickReadClient + subjectUserId — never a
+  // second actor-keyed probe (impersonation would resolve the staff actor).
   let publicSiteUrl: string | null = personalSiteUrl ?? (profileCode ? `/t/${profileCode}` : null);
-  if (admin && scope.session.user?.id) {
-    const owned = await loadOwnedBusinessWorkspace(admin, scope.session.user.id);
-    const target = resolveMyWebsiteTarget({
-      ownsBusinessWorkspace: owned.ownsBusinessWorkspace,
-      hasWorkspaceSite: owned.hasWorkspaceSite,
-      workspaceSlug: owned.workspaceSlug,
-      hasPersonalSite: Boolean(site),
-    });
-    if (target.kind === "workspace" && owned.tenantId) {
-      publicSiteUrl = await resolveWorkspaceSitePublicUrl(admin, {
-        tenantId: owned.tenantId,
-        slug: target.slug,
-      });
-    }
+  if (workspaceSite?.publicUrl) {
+    publicSiteUrl = workspaceSite.publicUrl;
   }
 
   const state: TalentSiteDashboardState = {
