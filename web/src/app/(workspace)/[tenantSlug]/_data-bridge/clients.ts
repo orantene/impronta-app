@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -413,9 +414,14 @@ export type ClientInquiryRow = {
 export async function loadClientInquiries(
   userId: string,
   tenantId: string,
+  /**
+   * TUL-255: from `pickReadClient` only (client portal page loaders). Absent =
+   * the request's own RLS client, exactly as before.
+   */
+  readClient?: SupabaseClient | null,
 ): Promise<ClientInquiryRow[]> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = readClient ?? (await createSupabaseServerClient());
     if (!supabase) return [];
 
     const { data, error } = await supabase

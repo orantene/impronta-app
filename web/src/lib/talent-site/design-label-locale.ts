@@ -291,6 +291,12 @@ const LABEL_PROPS = [
   "creditLine",
   "contactLine",
   "subtitle",
+  // Gridline utility / alert chrome (TUL-494): seed map must rewrite these too.
+  "statusOnLabel",
+  "statusOffLabel",
+  "callLabel",
+  "safetyLabel",
+  "safetyNote",
 ] as const;
 
 /**

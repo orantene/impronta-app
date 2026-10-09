@@ -18,7 +18,8 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate, withPluralization } from "@/i18n/interpolate";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadClientSelfProfile, loadClientPitches } from "../../_data-bridge";
+import { clientPageReadCtx } from "../_data-bridge/client-read-ctx";
+import { loadPitchesPageData } from "../_data-bridge/client-page-loaders";
 import { formatClientDate as fmtClientDate } from "../date-format";
 
 type Translator = (key: string) => string;
@@ -127,10 +128,13 @@ export default async function ClientPitchesPage({
 
   // Same gate as the inquiries page — must be a registered client with
   // an existing relationship to this agency.
-  const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
-  if (!clientProfile) notFound();
-
-  const allPitches = await loadClientPitches(session.user.id);
+  const pageData = await loadPitchesPageData(
+    session.user.id,
+    scope.tenantId,
+    await clientPageReadCtx(session.user.id),
+  );
+  if (!pageData) notFound();
+  const { pitches: allPitches } = pageData;
   const activeFilter: FilterKey =
     STATUS_FILTERS.find((f) => f.key === rawStatus)?.key ?? "all";
   const matcher = STATUS_FILTERS.find((f) => f.key === activeFilter)!.matches;

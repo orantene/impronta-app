@@ -169,7 +169,7 @@ test.describe("J2 locked builder (free talent)", () => {
     await swatches.nth(1).click();
 
     await page.getByRole("button", { name: /Use this (theme|look)/ }).click();
-    await expect(page.getByText(/Publish your site to make it live/)).toBeVisible({
+    await expect(page.getByText(/Visitors still see the old design until you publish/)).toBeVisible({
       timeout: 60_000,
     });
     await page.getByRole("button", { name: /(Re)?[Pp]ublish site/ }).click();
