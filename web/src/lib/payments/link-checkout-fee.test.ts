@@ -19,6 +19,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createPaymentLink } from "./links";
 import { openPaymentLinkCheckout } from "./link-checkout";
 import { paymentLinkFeeLines, resolvePaymentLinkCharge } from "./link-charge";
+import type { PassThroughCollectAdmin } from "@/lib/orders/purchase-pass-through-collect";
 import { checkoutLineItems, type CheckoutSessionInput } from "./stripe-checkout";
 import { feeLineItemName } from "./line-item-name";
 import { PASS_THROUGH_DEFAULT_TAKE_BPS, resolveBookingCommissions } from "@/lib/billing/commission";
@@ -33,7 +34,7 @@ const ARM = "COMMISSION_PROCESSING_PASS_THROUGH";
 type Platform = { take?: number | null; payer?: "seller" | "client"; mode?: string };
 
 /** The pos fake plus the two platform RPCs the fee path reads. */
-function withPlatform(store: ReturnType<typeof makeStore>, p: Platform, calls: string[] = []) {
+function withPlatform(store: ReturnType<typeof makeStore>, p: Platform, calls: string[] = []): PassThroughCollectAdmin {
   const base = fakeAdmin(store);
   return {
     from: base.from,
@@ -55,7 +56,7 @@ function withPlatform(store: ReturnType<typeof makeStore>, p: Platform, calls: s
       if (fn === "engine_processing_fee_payer") return { data: p.payer ?? "seller", error: null };
       return base.rpc(fn, args);
     },
-  };
+  } as unknown as PassThroughCollectAdmin;
 }
 
 async function withArm<T>(value: string | undefined, run: () => Promise<T>): Promise<T> {
