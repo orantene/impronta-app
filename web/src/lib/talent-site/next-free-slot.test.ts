@@ -106,7 +106,7 @@ test("runSlotTap through the real emitter dispatches with slotStart once registe
   const events: CustomEvent[] = [];
   const target = { dispatchEvent: (e: Event) => (events.push(e as CustomEvent), true) };
   const open = ((input: Parameters<typeof openBookingAtSlot>[0]) =>
-    openBookingAtSlot(input, target)) as typeof openBookingAtSlot;
+    openBookingAtSlot({ ...input, now: NOW }, target)) as typeof openBookingAtSlot; // pinned clock: sanitizeSlotStart drops past slots
   assert.equal(runSlotTap({ offeringId: "reg-3", slotStart: SLOT }, false, () => {}, open), "opened-at-slot");
   assert.equal(events.length, 1);
   assert.equal((events[0].detail as OfferingRequestDetail).slotStart, SLOT);
@@ -123,7 +123,7 @@ test("TUL-275: a same-day slot is shown AND opened at that slot, not left to the
 
   const events: CustomEvent[] = [];
   const target = { dispatchEvent: (e: Event) => (events.push(e as CustomEvent), true) };
-  const open = ((i: Parameters<typeof openBookingAtSlot>[0]) => openBookingAtSlot(i, target)) as typeof openBookingAtSlot;
+  const open = ((i: Parameters<typeof openBookingAtSlot>[0]) => openBookingAtSlot({ ...i, now: NOW }, target)) as typeof openBookingAtSlot; // pinned clock
   assert.equal(openAtNextSlot(slot, open), true); // true => the chip calls preventDefault, no #services scroll
   assert.equal((events[0].detail as OfferingRequestDetail).slotStart, today);
 });

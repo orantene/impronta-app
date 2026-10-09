@@ -49,7 +49,7 @@ test("an instant-booked guest booking blocks time, is named, and is not also a r
   assert.equal(item.blocksTime, true);
   assert.equal(blocksTime(item), true);
   assert.equal(weekChipKind(item), "booking");
-  assert.equal(item.client.name, "Live QA Tester");
+  assert.equal(item.client?.name, "Live QA Tester");
   assert.equal(res.items.filter((i) => i.kind === "request").length, 0, "the thread inquiry is not a second, dashed request card");
 });
 

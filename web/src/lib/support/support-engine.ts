@@ -242,8 +242,7 @@ export async function appendMessage(input: {
     .select("*")
     .single();
   if (error) {
-    // 23505 = support_messages_client_send_key_uq: a concurrent delivery of the
-    // same send key won the insert; return that row instead of failing.
+    // 23505 (send-key unique index): a concurrent delivery won the insert; return that row.
     if (sendKey && (error as { code?: string }).code === "23505") {
       const winner = await findMessageByClientSendKey(admin, working.id, sendKey);
       if (winner) {
