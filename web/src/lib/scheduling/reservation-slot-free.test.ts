@@ -55,3 +55,26 @@ test("a busy read that fails is not a free slot", async () => {
   );
   assert.deepEqual(r, { ok: false, code: "unavailable" });
 });
+
+test("excludeHoldIds is forwarded to the busy loader (TUL-433)", async () => {
+  let seen: readonly string[] | undefined;
+  const r = await checkReservationWindowFree(
+    admin,
+    {
+      talentProfileId: "jor",
+      startsAt: "2026-10-02T17:00:00Z",
+      endsAt: "2026-10-02T18:00:00Z",
+      now,
+      excludeHoldIds: ["hold-self"],
+    },
+    {
+      loadBusy: (async (input: { excludeHoldIds?: readonly string[] }) => {
+        seen = input.excludeHoldIds;
+        // Mimic loadBusyIntervals filtering out the excluded hold.
+        return [];
+      }) as never,
+    },
+  );
+  assert.deepEqual(seen, ["hold-self"]);
+  assert.deepEqual(r, { ok: true });
+});

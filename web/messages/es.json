@@ -1656,6 +1656,12 @@
       "fullyBooked": "Todos los horarios libres de las proximas dos semanas estan tomados. Intenta mas tarde o envia una solicitud."
     },
     "instantBook": {
+      "refusal": {
+        "requestOnly": "Este servicio se reserva por solicitud. Escribe un mensaje para pedir un horario.",
+        "notAccepting": "Por ahora no se aceptan reservas nuevas. Envía una consulta.",
+        "tooSoon": "Ese horario es muy pronto. Elige uno más tarde.",
+        "slotTaken": "Ese horario acaba de ocuparse. Elige otro."
+      },
       "guestName": "Tu nombre",
       "guestEmail": "Tu correo",
       "signInToBook": "Inicia sesion para reservar"
