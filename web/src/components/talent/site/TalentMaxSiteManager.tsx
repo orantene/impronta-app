@@ -59,6 +59,11 @@ import {
 import type { MaxSiteManagerState } from "@/lib/talent-site/server/site-management-types";
 import { isThemeApplyBusy, useThemeApplyBusy } from "@/lib/talent-site/history/apply-busy";
 import { CustomDomainRow } from "@/components/talent/site/CustomDomainRow";
+import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
+import {
+  PERSONAL_SITE_BUILDER_HREF,
+  resolveTalentDashboardMyWebsite,
+} from "@/lib/talent-site/dashboard-my-website";
 
 type Props = { locale?: "en" | "es" };
 
@@ -80,6 +85,9 @@ export function TalentMaxSiteManager({
   hideDomainRow = false,
 }: ManagerProps) {
   const copy = useDashboardText();
+  const dashLoad = useTalentSiteDashboardInitialLoad();
+  const myWebsite =
+    dashLoad && dashLoad.ok ? resolveTalentDashboardMyWebsite(dashLoad.state) : null;
   const [state, setState] = useState<MaxSiteManagerState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -119,6 +127,30 @@ export function TalentMaxSiteManager({
     void reload();
   };
 
+  // TUL-180 Option A: dual / business owners treat the workspace site as
+  // "My website". Keep a visible secondary personal card for dual owners so
+  // the personal site stays reachable from Presence (not only Website settings).
+  if (myWebsite?.kind === "workspace") {
+    const isDual = Boolean(dashLoad?.ok && dashLoad.state.isDualSiteOwner);
+    const personalUrl =
+      dashLoad?.ok ? dashLoad.state.personalPublicSiteUrl ?? null : null;
+    return (
+      <div
+        style={{ display: "flex", flexDirection: "column", gap: 14 }}
+        data-talent-max-site-manager
+        data-testid="workspace-primary-website"
+      >
+        <WorkspacePrimaryWebsiteCard
+          publicUrl={myWebsite.publicUrl}
+          editHref={myWebsite.editHref}
+        />
+        {isDual ? (
+          <SecondaryPersonalWebsiteCard personalPublicUrl={personalUrl} />
+        ) : null}
+      </div>
+    );
+  }
+
   if (loading) {
     return <Card><span style={mutedText}>{copy.t("Loading your website…")}</span></Card>;
   }
@@ -154,6 +186,114 @@ export function TalentMaxSiteManager({
       onOpenApps={onOpenApps}
       hideDomainRow={hideDomainRow}
     />
+  );
+}
+
+/** Compact Presence card when "My website" is the business workspace (TUL-180). */
+function WorkspacePrimaryWebsiteCard({
+  publicUrl,
+  editHref,
+}: {
+  publicUrl: string | null;
+  editHref: string;
+}) {
+  const copy = useDashboardText();
+  const host = publicUrl ? publicUrl.replace(/^https?:\/\//, "") : null;
+  return (
+    <Card>
+      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: COLORS.inkMuted }}>
+        {copy.t("My website")}
+      </p>
+      <h3
+        style={{
+          margin: "8px 0 6px",
+          fontFamily: FONTS.display,
+          fontSize: 18,
+          fontWeight: 700,
+          color: COLORS.ink,
+        }}
+      >
+        {host ?? copy.t("Your business website")}
+      </h3>
+      <p style={{ margin: "0 0 14px", fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+        {copy.t("This is your business site. Edit pages, design and domain here.")}
+      </p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+        <Link
+          href={editHref}
+          data-testid="workspace-primary-edit-site"
+          className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--tulala-primary-fill,#3B8277)] bg-[var(--tulala-primary-fill,#3B8277)] px-5 text-[14px] font-semibold text-white no-underline hover:border-[var(--tulala-primary-fill-deep,#326F66)] hover:bg-[var(--tulala-primary-fill-deep,#326F66)]"
+        >
+          {copy.t("Edit site")}
+        </Link>
+        {publicUrl ? (
+          <Link
+            href={publicUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="workspace-primary-view-site"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-admin-border-soft bg-white px-5 text-[14px] font-semibold text-admin-ink no-underline"
+          >
+            {copy.t("Open site")}
+          </Link>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
+/** Dual-owner escape hatch: personal site stays visible on Presence (TUL-180). */
+function SecondaryPersonalWebsiteCard({
+  personalPublicUrl,
+}: {
+  personalPublicUrl: string | null;
+}) {
+  const copy = useDashboardText();
+  const host = personalPublicUrl
+    ? personalPublicUrl.replace(/^https?:\/\//, "")
+    : null;
+  return (
+    <Card data-testid="secondary-personal-website">
+      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: COLORS.inkMuted }}>
+        {copy.t("Other websites")}
+      </p>
+      <h3
+        style={{
+          margin: "8px 0 6px",
+          fontFamily: FONTS.display,
+          fontSize: 16,
+          fontWeight: 700,
+          color: COLORS.ink,
+        }}
+      >
+        {copy.t("Personal site")}
+      </h3>
+      <p style={{ margin: "0 0 14px", fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+        {host
+          ? host
+          : copy.t("Edit your personal site separately from your business site.")}
+      </p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+        <Link
+          href={PERSONAL_SITE_BUILDER_HREF}
+          data-testid="secondary-personal-edit-site"
+          className="inline-flex min-h-12 items-center justify-center rounded-xl border border-admin-border-soft bg-white px-5 text-[14px] font-semibold text-admin-ink no-underline"
+        >
+          {copy.t("Edit site")}
+        </Link>
+        {personalPublicUrl ? (
+          <Link
+            href={personalPublicUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="secondary-personal-view-site"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-admin-border-soft bg-white px-5 text-[14px] font-semibold text-admin-ink no-underline"
+          >
+            {copy.t("Open site")}
+          </Link>
+        ) : null}
+      </div>
+    </Card>
   );
 }
 
