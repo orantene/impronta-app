@@ -17,6 +17,10 @@ import { loadDesignsOverview } from "@/lib/talent-site/theme-releases/manager/re
 
 import { COPY, langOf } from "./copy";
 import { DemoRebuildPanel } from "./demo-rebuild-panel";
+import { StaleDraftsPanel } from "./stale-drafts-panel";
+import { logServerError } from "@/lib/server/safe-error";
+import { loadStaleDrafts } from "@/lib/talent-site/theme-template/stale-drafts.server";
+import type { StaleDraftRow } from "@/lib/talent-site/theme-template/stale-drafts";
 import { demosFor } from "@/lib/talent-site/demos/registry";
 import type { DemoDesign } from "@/lib/talent-site/demos/types";
 
@@ -34,6 +38,14 @@ export default async function BuilderLabThemesPage({
   const t = COPY[lang];
   const admin = createServiceRoleClient();
   const designs = admin ? await loadDesignsOverview(admin) : [];
+  let staleRows: StaleDraftRow[] = [];
+  if (admin) {
+    try {
+      staleRows = await loadStaleDrafts(admin);
+    } catch (err) {
+      logServerError("themeReleaseManager.staleDrafts", err);
+    }
+  }
   const q = lang === "es" ? "?lang=es" : "";
 
   return (
@@ -53,6 +65,8 @@ export default async function BuilderLabThemesPage({
           </Link>
         </div>
       </header>
+
+      <StaleDraftsPanel rows={staleRows} lang={lang} />
 
       <div className="grid gap-3">
         {designs.map((d) => (
