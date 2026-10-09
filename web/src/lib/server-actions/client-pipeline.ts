@@ -25,6 +25,7 @@ import { createPaymentIntentForTransaction } from "@/lib/payments/stripe-payment
 import { publicOrigin } from "@/lib/storefront/request-context";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // A.4 INTENTIONAL DIVERGENCE: align with canonical `ServerActionResult<T>` — currently
@@ -259,8 +260,15 @@ export async function startInquiryCheckout(
     // client is reading in. Never NEXT_PUBLIC_BASE_URL (app-host bounce).
     const origin = await publicOrigin();
     if (!origin) return { ok: false, error: "Could not open payment." };
-    const locale = await getRequestLocale();
-    const { successUrl, cancelUrl } = buildCheckoutReturnUrls({ origin, locale });
+    const [locale, localeSettings] = await Promise.all([
+      getRequestLocale(),
+      getRequestLocaleUrlSettings(),
+    ]);
+    const { successUrl, cancelUrl } = buildCheckoutReturnUrls({
+      origin,
+      locale,
+      localeSettings,
+    });
 
     // The charge ALWAYS lands on the platform account — there is no
     // connected-account routing here any more. It used to branch: a workspace

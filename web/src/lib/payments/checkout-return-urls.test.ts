@@ -91,3 +91,46 @@ test("rows 1-3 build return URLs via buildCheckoutReturnUrls, never process.env.
     );
   }
 });
+
+test("rows 1-3 pass tenant localeSettings into buildCheckoutReturnUrls", () => {
+  const root = join(process.cwd(), "src");
+  const instant = readFileSync(join(root, "lib/server-actions/instant-book-action.ts"), "utf8");
+  const pipeline = readFileSync(join(root, "lib/server-actions/client-pipeline.ts"), "utf8");
+  const pickerServer = readFileSync(
+    join(root, "lib/storefront/appointment-picker.server.ts"),
+    "utf8",
+  );
+  const pickerCore = readFileSync(
+    join(root, "lib/storefront/appointment-picker.core.ts"),
+    "utf8",
+  );
+  assert.match(instant, /getRequestLocaleUrlSettings/);
+  assert.match(pipeline, /getRequestLocaleUrlSettings/);
+  assert.match(pickerServer, /getRequestLocaleUrlSettings/);
+  assert.match(pickerCore, /localeSettings:\s*deps\.localeSettings/);
+});
+
+test("instant-book unwinds the hold when publicOrigin is missing after place", () => {
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/server-actions/instant-book-action.ts"),
+    "utf8",
+  );
+  const originFail = src.slice(src.indexOf("const origin = await publicOrigin()"));
+  const branch = originFail.slice(0, originFail.indexOf("const localeSettings"));
+  assert.match(branch, /unwindFailedCheckout/);
+  assert.match(branch, /checkout_origin_unavailable/);
+});
+
+test("publicOrigin resolves via resolveTrustedPublicOrigin (not raw x-forwarded-host)", () => {
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/storefront/request-context.ts"),
+    "utf8",
+  );
+  assert.match(src, /resolveTrustedPublicOrigin/);
+  assert.match(src, /getPublicHostContext/);
+  // Must not prefer forwarded host ahead of the stamped / Host pair.
+  assert.doesNotMatch(
+    src,
+    /x-forwarded-host\"\)\s*\?\?\s*h\.get\(\"host\"\)/,
+  );
+});

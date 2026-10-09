@@ -27,6 +27,7 @@ import { applySellingTimeToHours, computePublicSlots } from "@/lib/scheduling/pu
 import { parseBookingHours } from "@/lib/scheduling/hours-types";
 import { addUtcDays, utcToZonedYmd } from "@/lib/scheduling/tz";
 import type { InstantPurchaseInput, InstantPurchaseResult } from "@/lib/scheduling/instant-purchase";
+import type { LocaleUrlSettings } from "@/i18n/pathnames";
 import { buildCheckoutReturnUrls } from "@/lib/payments/checkout-return-urls";
 import type { CheckoutSessionInput, CheckoutSessionResult } from "@/lib/payments/stripe-checkout";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
@@ -60,6 +61,8 @@ export type AppointmentPickerDeps = {
   locale: "en" | "es";
   /** `https://host`, for checkout return URLs and manage links. */
   origin: string | null;
+  /** Tenant URL grammar for locale-prefixed checkout paths. */
+  localeSettings?: LocaleUrlSettings;
   now?: () => Date;
   loadOfferings: (tenantId: string, locale: string) => Promise<BookableOffering[]>;
   /** id → portrait url. Cosmetic; a failure is an empty map, never a refusal. */
@@ -403,6 +406,7 @@ async function book(deps: AppointmentPickerDeps, input: AppointmentPickerInput):
     const { successUrl, cancelUrl } = buildCheckoutReturnUrls({
       origin: deps.origin,
       locale: deps.locale,
+      localeSettings: deps.localeSettings,
     });
     const session = await deps.createCheckout({
       transactionId: placed.transactionId,

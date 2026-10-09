@@ -11,6 +11,7 @@
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
 import { buildCheckoutReturnUrls } from "@/lib/payments/checkout-return-urls";
 import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
 import { publicOrigin } from "@/lib/storefront/request-context";
@@ -190,15 +191,29 @@ export async function createInstantBookingAction(
           // never NEXT_PUBLIC_BASE_URL (that dropped talent branding).
           const origin = await publicOrigin();
           if (!origin) {
+            // Booking + hold already placed; without an origin nobody can pay.
+            // Unwind the same way as a refused Stripe session.
+            const admin = createServiceRoleClient();
+            if (admin) {
+              await unwindFailedCheckout(admin, {
+                orderId: booked.orderId,
+                transactionId: booked.transactionId,
+                allocationIds: booked.allocationIds,
+                reservationHoldId: booked.reservationHoldId,
+                why: "checkout_origin_unavailable",
+              });
+            }
             return {
               ok: false as const,
               reason: "engine_error" as const,
               error: "Could not open payment.",
             };
           }
+          const localeSettings = await getRequestLocaleUrlSettings();
           const { successUrl, cancelUrl } = buildCheckoutReturnUrls({
             origin,
             locale: bookingLocale,
+            localeSettings,
           });
           const session = await createCheckoutSessionForTransaction({
             transactionId: booked.transactionId,
