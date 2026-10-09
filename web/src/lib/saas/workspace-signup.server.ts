@@ -173,17 +173,13 @@ async function ensureWorkspaceScaffold(params: {
     logServerError("workspace-signup.ensureWorkspaceScaffold.branding", brandingError);
   }
 
-  // TUL-455: seed the homepage (and composeSiteFromBrief) in the same locale
-  // stamped on identity above. Omitting locale defaulted to "en", so a Spanish
-  // studio opened ?edit=1 on the empty "es" draft while live used the EN
-  // composition / storefront fallback — EmptyCanvasStarter ("Empezar desde cero").
   const starter = await onboardStarterContent(admin, {
     tenantId: params.tenantId,
     actorProfileId: params.actorProfileId,
     seedFreeStarter: true,
     audience: params.audience,
     businessDescription: params.businessDescription,
-    ...(flowLocale && { locale: flowLocale.defaultLocale }),
+    ...(flowLocale && { locale: flowLocale.defaultLocale }), // TUL-455: match identity locale
   });
   if (!starter.ok) {
     logServerError(
