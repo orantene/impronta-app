@@ -27,9 +27,8 @@ test("typeSystemSheetsForTokens: editorial default when unset", () => {
 
 test("TypeSystemStyle with systems mounts only those sheets", () => {
   const html = renderToStaticMarkup(
-    React.createElement(TypeSystemStyle, {
-      systems: ["utility", "motion"] as const,
-    }),
+    // Called directly (no hooks): createElement cannot infer props from the `= {}` default param.
+    TypeSystemStyle({ systems: ["utility", "motion"] }),
   );
   assert.match(html, /data-type-system-style="utility"/);
   assert.match(html, /data-type-system-style="motion"/);
