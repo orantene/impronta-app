@@ -138,7 +138,7 @@ test("primary type: the primary talent_type wins, other kinds are ignored, none 
   assert.deepEqual(primaryTypeOf(null), { slug: null, labelEn: null });
 });
 
-test("plan: with no universal pack and no matching trade, the hero node gets NO image", () => {
+test("TUL-118 / DS-60: with no universal pack and no matching trade, the hero node gets NO image", () => {
   const typedOnly = [
     photo("chef", { businessType: "private-chef", family: "dining" }),
     photo("makeup", { businessType: "makeup-artist", family: "beauty" }),
@@ -146,6 +146,24 @@ test("plan: with no universal pack and no matching trade, the hero node gets NO 
   const tree = maisonHome("");
   const plan = planStockHero({ hasOwnPhoto: false, homeTree: tree, photos: typedOnly, query: { businessType: null, family: "custom" } });
   assert.deepEqual(plan, { action: "skip", reason: "empty_pool" });
-  const other = planStockHero({ hasOwnPhoto: false, homeTree: tree, photos: typedOnly, query: { businessType: "house-cleaner", family: "professional" } });
+  const other = planStockHero({
+    hasOwnPhoto: false,
+    homeTree: tree,
+    photos: typedOnly,
+    query: { businessType: "house-cleaner", family: "professional" },
+  });
   assert.deepEqual(other, { action: "skip", reason: "empty_pool" });
+});
+
+test("TUL-118 / DS-60: a matching type or neutral pack still wins; other-trade photos never do", () => {
+  const pool = [
+    photo("chef", { businessType: "private-chef", family: "dining" }),
+    photo("beauty-pack", { businessType: null, family: "beauty" }),
+    photo("neutral", { businessType: null, family: "custom" }),
+    photo("lash", { businessType: "lash-artist", family: "beauty" }),
+  ];
+  assert.equal(pickStockHero(pool, { businessType: "lash-artist", family: "beauty" })?.stockId, "lash");
+  assert.equal(pickStockHero(pool.filter((p) => p.id !== "lash"), { businessType: "lash-artist", family: "beauty" })?.stockId, "beauty-pack");
+  assert.equal(pickStockHero([pool[0]!], { businessType: "lash-artist", family: "beauty" }), null);
+  assert.equal(pickStockHero(pool, { businessType: null, family: "custom" })?.stockId, "neutral");
 });

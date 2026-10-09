@@ -43,7 +43,7 @@ import {
   isPlatformSubdomainLabelTaken,
   requestSubdomainNamespaceCopy,
 } from "@/lib/saas/platform-subdomain-namespace.server";
-import { PAGE_COLUMNS, siteUrl } from "./site-management-helpers";
+import { PAGE_COLUMNS, resolveManagerPublicSiteUrl, siteUrl } from "./site-management-helpers";
 import {
   derivePageSlug,
   isReservedPageSlug,
@@ -203,6 +203,13 @@ export async function loadMaxSiteManagerAction(): Promise<
     updatedAt: p.updated_at,
   }));
 
+  // TUL-77 / TUL-347: business owners see the workspace live URL as "My website".
+  const publicSiteUrl = await resolveManagerPublicSiteUrl({
+    personalSiteUrl: siteUrl(site?.site_slug ?? null, isDemo),
+    userId: scope.session.user?.id,
+    siteExists,
+  });
+
   return {
     ok: true,
     data: {
@@ -217,7 +224,7 @@ export async function loadMaxSiteManagerAction(): Promise<
       siteExists,
       hasPublishedShell:
         Array.isArray(site?.shell_published) && site!.shell_published.length > 0,
-      publicSiteUrl: siteUrl(site?.site_slug ?? null, isDemo),
+      publicSiteUrl,
       themeDesignSlug: site?.theme_design_slug ?? null,
       themeLookSlug: site?.theme_look_slug ?? null,
       legacyProfileTemplate,

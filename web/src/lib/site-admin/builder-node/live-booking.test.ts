@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
 
 import { buildComponentsForType } from "../builder-core/site-templates/business-components";
@@ -64,4 +66,10 @@ test("price and meta line are locale-aware", () => {
     "en",
   );
   assert.match(meta, /120 min/);
+});
+
+test("LiveBookingBand accepts locale (TUL-452 Spanish studio page)", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/site-admin/builder-node/live-booking-bands.tsx"), "utf8");
+  assert.match(src, /locale\?: string/);
+  assert.match(src, /locale=\{locale\}/);
 });

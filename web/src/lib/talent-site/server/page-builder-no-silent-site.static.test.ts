@@ -19,6 +19,16 @@ test("page-builder route is read-only and shows the create control", () => {
   assert.match(page, /canEdit && !siteExists[\s\S]{0,400}<PageBuilderCreateSite/);
 });
 
+test("TUL-347: business owners open the live storefront editor, not English admin/website first", () => {
+  const page = read("app/(workspace)/talent/page-builder/page.tsx");
+  assert.match(page, /resolveWorkspaceSiteEditorUrl/);
+  // Must not unconditionally redirect(target.href) when href was admin/website.
+  assert.equal(/if \(target\.kind === "workspace"\) redirect\(target\.href\)/.test(page), false);
+  const helper = read("lib/talent-site/workspace-site-editor-url.ts");
+  assert.match(helper, /panel: "sections"/);
+  assert.match(helper, /buildEditorPanelUrl/);
+});
+
 test("the create card only calls the action from the click and refreshes client state", () => {
   const card = read("components/talent/site/CreateMySiteCard.tsx");
   assert.match(card, /router\.refresh\(\)/);

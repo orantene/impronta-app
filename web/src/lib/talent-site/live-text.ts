@@ -18,6 +18,10 @@
  *    Maison v2 tree are recognised by their design origin key and bound only
  *    while their text is still an untouched seed (`seeds`), so a line she
  *    rewrote is never overruled;
+ *  - TUL-187: an About paragraph (or Folio masthead blurb) whose stored text
+ *    still matches one of her bios binds as `bio` the same way, so Maison
+ *    release trees that stripped `liveText: "bio"` still show the visitor's
+ *    language and the "(Text in Spanish)" hint on fallback;
  *  - pure and identity preserving: a tree with nothing to do comes back `===`.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
@@ -120,12 +124,33 @@ function isBaked(key: LiveTextKey, text: unknown, live: TalentLiveText): boolean
   return false;
 }
 
-/** The live key a node follows, explicit first, else the legacy hero binding. */
+/**
+ * TUL-187: an About paragraph whose stored text is still one of her bios, even
+ * when the applied tree never got `liveText: "bio"` (Maison numbered releases
+ * strip it). Exact seed match only, so a line she rewrote by hand stays hers.
+ */
+function isLegacyBioParagraph(node: BuilderNode, live: TalentLiveText): boolean {
+  if (node.kind !== "paragraph") return false;
+  const props = propsOf(node);
+  if (isLiveTextKey(props.liveText)) return false;
+  return isBaked("bio", props.text, live);
+}
+
+/** A Folio masthead whose baked blurb is still one of her bios (no `liveText` yet). */
+function isLegacyBioMasthead(node: BuilderNode, live: TalentLiveText): boolean {
+  if (node.kind !== "masthead") return false;
+  const props = propsOf(node);
+  if (props.liveText === "bio") return false;
+  return isBaked("bio", props.bio, live);
+}
+
+/** The live key a node follows, explicit first, else the legacy hero / bio binding. */
 export function liveKeyOf(node: BuilderNode, live: TalentLiveText): LiveTextKey | null {
   if (node.kind !== "heading" && node.kind !== "paragraph") return null;
   const props = propsOf(node);
   if (isLiveTextKey(props.liveText)) return props.liveText;
   if (node.kind !== "paragraph") return null;
+  if (isLegacyBioParagraph(node, live)) return "bio";
   const label = typeof props.layerLabel === "string" ? LEGACY_LABELS[props.layerLabel] : undefined;
   const origin = readOrigin(node);
   const key = (origin?.design === "maison-v2" ? LEGACY_HERO_KEYS[origin.key] : undefined) ?? label;
@@ -162,13 +187,21 @@ export function applyTalentLiveText(tree: BuilderNode[], live: TalentLiveText): 
       const value = live.values[key]?.trim() ?? "";
       if (value) {
         const props = propsOf(node);
-        if (props.text === value) return node;
-        return { ...node, props: { ...props, text: value } } as BuilderNode;
+        // Stamp liveText on a legacy-bound bio so withBioHints can attach the language line.
+        const stampBio = key === "bio" && props.liveText !== "bio";
+        if (props.text === value && !stampBio) return node;
+        return {
+          ...node,
+          props: { ...props, text: value, ...(stampBio ? { liveText: "bio" } : {}) },
+        } as BuilderNode;
       }
       return LIVE_TEXT_KEEPS_FALLBACK.has(key) ? node : null;
     }
-    // A masthead blurb bound to the live bio (Folio cover, TUL-230).
-    if (isLiveBioMasthead(node)) return applyMastheadBio(node, live.values.bio, live.bioHint);
+    // A masthead blurb bound to the live bio (Folio cover, TUL-230), or one
+    // whose baked blurb is still an untouched bio seed (TUL-187 legacy).
+    if (isLiveBioMasthead(node) || isLegacyBioMasthead(node, live)) {
+      return applyMastheadBio(node, live.values.bio, live.bioHint);
+    }
     // The header lockup under her name: the trade, in the visitor's language, while it still reads the baked trade.
     if (node.kind === "section" && propsOf(node).sectionTypeKey === "site_header" && live.tradeLabel) {
       const sp = (propsOf(node).sectionProps ?? {}) as Record<string, unknown>;
@@ -233,6 +266,8 @@ export function treeHasLiveCandidates(tree: readonly BuilderNode[]): boolean {
     if (n.kind === "section" && propsOf(n).sectionTypeKey === "site_header") return true;
     if (maisonKey(n) === "hero/container") return true;
     if (isLiveBioMasthead(n)) return true;
+    // TUL-187: a Folio masthead with any blurb may still be an untouched bio seed.
+    if (n.kind === "masthead" && typeof propsOf(n).bio === "string" && String(propsOf(n).bio).trim()) return true;
     if (n.kind === "heading" || n.kind === "paragraph") {
       if (isLiveTextKey(propsOf(n).liveText)) return true;
       const origin = readOrigin(n);

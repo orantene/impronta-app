@@ -24,7 +24,16 @@ test("Today and Services page components format no dates and read no clock in re
 
 test("AgendaTodayPage only receives its clock from the gated TodayPage", () => {
   const today = strip(read("./TodayPage.tsx"));
+  assert.match(today, /if \(!hydrated\) return <TodaySkeleton \/>/);
   assert.ok(today.indexOf("!hydrated") < today.indexOf("<AgendaTodayPage"));
+});
+
+test("Today dynamic() loading fallback is TodaySkeleton, not null (TUL-303)", () => {
+  const shell = strip(read("../../talent.tsx"));
+  const todayLine = shell.split("\n").find((l) => l.includes("TalentTodayPage = dynamic"));
+  assert.ok(todayLine, "TalentTodayPage dynamic() line");
+  assert.match(todayLine!, /loading: \(\) => <TodaySkeleton \/>/);
+  assert.doesNotMatch(todayLine!, /loading: \(\) => null/);
 });
 
 test("the always-mounted notifications bell does not read localStorage during render", () => {

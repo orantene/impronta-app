@@ -46,6 +46,16 @@ test("the flow hook shares ONE activation store and keeps the last good value", 
   assert.match(hook, /storeInFlight/);
 });
 
+test("activation store subscribers start empty so SSR and hydrate agree (TUL-303)", () => {
+  const hook = read("src/components/talent/website-reward/useWebsiteFlow.ts");
+  const fn = hook.slice(hook.indexOf("function useActivationStore"));
+  // Must not seed useState from the module singleton (warm SPA vs cold SSR).
+  assert.match(fn, /useState<TalentSiteActivationState \| null>\(null\)/);
+  assert.match(fn, /const \[attempted, setAttempted\] = useState\(false\)/);
+  assert.doesNotMatch(fn, /useState<TalentSiteActivationState \| null>\(storeValue\)/);
+  assert.doesNotMatch(fn, /useState\(storeAttempted\)/);
+});
+
 test("the pill renders a neutral placeholder while websiteFlowPending", () => {
   const pill = read(SURFACES.pill);
   assert.match(pill, /websiteFlowPending\(percent, flow\.loaded\)/);

@@ -97,7 +97,7 @@ const COPY: Record<Locale, Record<string, string>> = {
     no_seats_configured: "Las plazas de esa fecha aun no estan a la venta.",
     not_sellable: "Esta clase no esta a la venta por ahora.",
     unavailable: "No pudimos consultar las plazas. No se reservo nada. Intenta de nuevo.",
-    not_configured: "Este selector de sesiones aun no esta configurado. Abrelo en el editor y elige una clase.",
+    not_configured: "Este selector de sesiones aun no esta configurado. Ábrelo en el editor y elige una clase.",
     invalid_request: "Algo no se ve bien. Revisa los datos e intenta de nuevo.",
     engine_error: "Algo fallo de nuestro lado. No se reservo nada.",
   },

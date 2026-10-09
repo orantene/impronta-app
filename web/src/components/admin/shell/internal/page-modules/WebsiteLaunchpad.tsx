@@ -45,6 +45,7 @@ import { Icon, type AdminShellIconName } from "../primitives";
 import { useAdminShell } from "../state";
 import { useWebsiteSubnav, type WebsiteSubnavItem } from "./website-nav";
 import { StarterDoor } from "./StarterDoor";
+import { StarterPrepareBanner } from "./StarterPrepareBanner";
 
 function LaunchpadCard({
   icon,
@@ -148,6 +149,9 @@ export function WebsiteLaunchpad() {
 
   return (
     <section className="mb-[22px]">
+      {/* TUL-441: provision left starter/compose failed — show even when
+          pages already exist (StarterDoor only covers zero pages). */}
+      <StarterPrepareBanner />
       {/* The empty-site door. Renders only when there are no pages at all —
           the same condition this file already uses to say "No pages yet", a
           sentence that named the problem and offered nothing. */}
