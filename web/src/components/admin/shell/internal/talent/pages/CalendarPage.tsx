@@ -19,8 +19,7 @@ import { openWorkingHoursPanel } from "../agenda/WorkingHoursPanel";
 export function CalendarPage() {
   const { openDrawer, toast, bridgeTalentSelfProfile, bridgeTalentCalendarEntries } = useAdminShell();
   const copy = useDashboardText();
-  // Bridge-aware conversations — same source as TalentTodayPage and
-  // TalentJobShell. When the bridge has real data, use it for the calendar.
+  // Bridge-aware conversations (same source as TalentTodayPage/TalentJobShell).
   const conversations = useTalentConversations();
   const isBridgeMode = !!bridgeTalentSelfProfile;
   // B.3 — real calendar data from talent_bookings + talent_holds +
