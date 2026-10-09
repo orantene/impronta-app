@@ -86,3 +86,17 @@ export async function resolveRefundForEvent(input: {
     return { kind: "unavailable" };
   }
 }
+
+/**
+ * A delivery that lost the race for a refund (its pick was booked by another
+ * delivery) re-resolves once and books the next unrecorded refund. Returns true
+ * when it booked one; false on a plain redelivery (nothing left to book).
+ */
+export async function bookAfterLostRace(
+  resolve: () => Promise<RefundEventResolution>,
+  book: (refundId: string, amountCents: number) => Promise<boolean>,
+): Promise<boolean> {
+  const again = await resolve();
+  if (again.kind !== "next") return false;
+  return book(again.refundId, again.amountCents);
+}
