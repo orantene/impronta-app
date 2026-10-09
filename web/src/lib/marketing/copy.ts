@@ -243,9 +243,6 @@ const en = {
         body: "Structured inquiries, versioned offers, approvals, and traceable bookings. Everything a real business needs that a group chat can't give you.",
       },
     ],
-    mockFeatured: "Featured roster",
-    mockHeading: "People worth booking.",
-    mockAvailable: "Available",
   },
 
   network: {
@@ -635,9 +632,6 @@ const es: MarketingCopy = {
         body: "Solicitudes estructuradas, ofertas con versiones, aprobaciones y reservas rastreables. Todo lo que un negocio de verdad necesita y un grupo de chat no te da.",
       },
     ],
-    mockFeatured: "Catálogo destacado",
-    mockHeading: "Gente que vale la pena reservar.",
-    mockAvailable: "Disponible",
   },
 
   network: {
