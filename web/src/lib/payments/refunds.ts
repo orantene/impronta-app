@@ -382,6 +382,8 @@ async function reconcilePartialRefund(
   chargeId: string,
   refundId: string | null,
   deps: RefundDeps = {},
+  /** True only when `refundAmountCents` is this refund's OWN slice (never the cumulative `amount_refunded`). */
+  exactSlice = true,
 ): Promise<boolean> {
   const d = resolveRefundDeps(deps);
   const sb = d.resolveSupabase();
@@ -397,7 +399,8 @@ async function reconcilePartialRefund(
   const isNew = await recordPartialRefund(sb, ref.transactionId, refundAmountCents, chargeId, refundId);
   // The order's lines: idempotent per refund id, so a webhook that arrives after the app already
   // recorded this refund (executeBookingRefund) counts once; a Stripe-dashboard refund lands here.
-  if (refundId) await recordRefundOnOrderLines(sb, { transactionId: ref.transactionId, refundIds: [refundId], amountCents: refundAmountCents });
+  if (refundId && exactSlice) await recordRefundOnOrderLines(sb, { transactionId: ref.transactionId, refundIds: [refundId], amountCents: refundAmountCents });
+  else if (refundId) logServerError("refunds.partial.linesSkipped", new Error(`refund ${refundId}: no per-refund slice on the event (only the cumulative amount), so the order lines were NOT written. Needs a human.`));
 
   if (!ref.bookingId) {
     logServerError(
@@ -552,7 +555,7 @@ export async function handleBookingRefund(
     // to the cumulative amount only if the routing layer couldn't enumerate the
     // refund object (legacy/trimmed payload).
     const refundAmountCents = eventRefundAmount ?? input.refundedCents;
-    const booked = await reconcilePartialRefund(stripe, ref, refundAmountCents, input.chargeId, eventRefundId, deps);
+    const booked = await reconcilePartialRefund(stripe, ref, refundAmountCents, input.chargeId, eventRefundId, deps, eventRefundAmount !== undefined);
     // Race: two deliveries for different refunds can both pick the same oldest
     // unrecorded refund; the unique provider_refund_id lets one win and this one
     // finds its pick already booked. Re-resolve once and book the next, so the
@@ -590,12 +593,11 @@ export async function handleBookingRefund(
   // The order's lines for this (final) slice: idempotent per refund id, like the partial path.
   if (eventRefundId) {
     const sbLines = d.resolveSupabase();
-    if (sbLines) {
-      await recordRefundOnOrderLines(sbLines, {
-        transactionId: ref.transactionId,
-        refundIds: [eventRefundId],
-        amountCents: eventRefundAmount ?? input.refundedCents,
-      });
+    if (sbLines && eventRefundAmount !== undefined) {
+      await recordRefundOnOrderLines(sbLines, { transactionId: ref.transactionId, refundIds: [eventRefundId], amountCents: eventRefundAmount });
+    } else if (sbLines) {
+      // Never the cumulative `input.refundedCents`: that would count earlier refunds again.
+      logServerError("refunds.full.linesSkipped", new Error(`refund ${eventRefundId}: no per-refund slice on the event, so the order lines were NOT written. Needs a human.`));
     }
   }
 

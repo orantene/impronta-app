@@ -2,43 +2,81 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import { allocateRefundAcrossLines, recordRefundOnOrderLines } from "./refund-record-lines";
+import { allocateRefundAcrossLines, bumpLineRefunded, expectedLineRefundCents, reconcileOrderLineRefunds, recordRefundOnOrderLines } from "./refund-record-lines";
 
 type Line = { id: string; total_cents: number; refunded_cents: number };
 
-/** Recording fake: booking_transactions (one parent) and order_lines. */
+/**
+ * Recording fake: ONE order, any number of parent transactions (`txns`), the order's lines, and the
+ * refunded sibling rows. Reads hand back COPIES, so a stale read really is stale (the CAS paths need it).
+ */
 const _vref = { n: 0 };
-function world(opts: { orderId?: string | null; lines: Line[] }) {
-  const txn: { id: string; order_id: string | null; metadata: Record<string, unknown>; updated_at: string } = { id: "t1", order_id: opts.orderId === undefined ? "o1" : opts.orderId, metadata: {}, updated_at: "v0" };
+function world(opts: { orderId?: string | null; lines: Line[]; parents?: string[]; refundRows?: Array<{ id: string; gross_amount_cents: number }>; beforeLineWrite?: () => void }) {
+  const mk = (id: string) => ({ id, order_id: opts.orderId === undefined ? "o1" : opts.orderId, metadata: {} as Record<string, unknown>, updated_at: "v0" });
+  const txns = (opts.parents ?? ["t1"]).map(mk);
   const lines = opts.lines.map((l) => ({ ...l }));
+  const refundRows = (opts.refundRows ?? []).map((r) => ({ ...r, metadata: {} as Record<string, unknown>, created_at: "2026-10-09" }));
   const admin = {
     from: (table: string) => {
       if (table === "booking_transactions") {
         return {
-          select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { ...txn }, error: null }) }) }),
+          select: (_cols?: string) => {
+            const f: Record<string, unknown> = {};
+            const q: any = {
+              eq: (k: string, v: unknown) => { f[k] = v; return q; },
+              not: () => q,
+              order: async () => ({ data: refundRows, error: null }),
+              maybeSingle: async () => ({ data: { ...(txns.find((t) => t.id === f.id) ?? txns[0]) }, error: null }),
+            };
+            return q;
+          },
           update: (patch: { metadata: Record<string, unknown> }) => {
             const f: Record<string, unknown> = {};
-            type Q = { eq: (k: string, v: unknown) => Q; select: () => Promise<{ data: { id: string }[]; error: null }> };
-            const q: Q = {
+            const q: any = {
               eq: (k: string, v: unknown) => { f[k] = v; return q; },
-              // CAS: only the writer holding the current updated_at wins; a win bumps it.
               select: async () => {
-                if (f.updated_at !== undefined && f.updated_at !== txn.updated_at) return { data: [], error: null };
-                txn.metadata = patch.metadata; txn.updated_at = `v${++_vref.n}`;
-                return { data: [{ id: txn.id }], error: null };
+                const t = txns.find((x) => x.id === f.id);
+                if (!t) { const r = refundRows.find((x) => x.id === f.id); if (r) { r.metadata = patch.metadata; return { data: [{ id: r.id }], error: null }; } return { data: [], error: null }; }
+                if (f.updated_at !== undefined && f.updated_at !== t.updated_at) return { data: [], error: null };
+                t.metadata = patch.metadata; t.updated_at = `v${++_vref.n}`;
+                return { data: [{ id: t.id }], error: null };
               },
             };
+            // reconcile's stamp awaits the chain without .select()
+            q.then = (res: (v: unknown) => void) => { const r = refundRows.find((x) => x.id === f.id); if (r) r.metadata = patch.metadata; res({ error: null }); };
             return q;
           },
         };
       }
       return {
-        select: () => ({ eq: () => ({ order: async () => ({ data: lines, error: null }) }) }),
-        update: (patch: { refunded_cents: number }) => ({ eq: async (_k: string, id: string) => { const l = lines.find((x) => x.id === id)!; l.refunded_cents = patch.refunded_cents; return { error: null }; } }),
+        select: (_cols?: string) => {
+          const f: Record<string, unknown> = {};
+          const q: any = {
+            eq: (k: string, v: unknown) => { f[k] = v; return q; },
+            order: async () => ({ data: lines.map((l) => ({ ...l })), error: null }),
+            maybeSingle: async () => ({ data: { ...(lines.find((l) => l.id === f.id) ?? lines[0]) }, error: null }),
+            then: (res: (v: unknown) => void) => res({ data: lines.map((l) => ({ ...l })), error: null }),
+          };
+          return q;
+        },
+        update: (patch: { refunded_cents: number }) => {
+          const f: Record<string, unknown> = {};
+          const q: any = {
+            eq: (k: string, v: unknown) => { f[k] = v; return q; },
+            select: async () => {
+              opts.beforeLineWrite?.();
+              const l = lines.find((x) => x.id === f.id)!;
+              if (f.refunded_cents !== undefined && f.refunded_cents !== l.refunded_cents) return { data: [], error: null };
+              l.refunded_cents = patch.refunded_cents;
+              return { data: [{ id: l.id }], error: null };
+            },
+          };
+          return q;
+        },
       };
     },
   };
-  return { admin, lines, txn };
+  return { admin, lines, txn: txns[0], txns, refundRows };
 }
 
 describe("allocateRefundAcrossLines", () => {
@@ -113,7 +151,68 @@ describe("recordRefundOnOrderLines", () => {
   });
 });
 
+describe("(a) two refunds on different parents of one order both count", () => {
+  it("interleaved writers on the same line: the CAS loser re-reads and adds on top", async () => {
+    let injected = false;
+    const w = world({
+      parents: ["tA", "tB"],
+      lines: [{ id: "l1", total_cents: 100_000, refunded_cents: 0 }],
+      // Right before A's line write lands, B's refund (a different parent) writes the same line first.
+      beforeLineWrite: () => { if (!injected) { injected = true; w.lines[0].refunded_cents += 25_000; } },
+    });
+    const ok = await bumpLineRefunded(w.admin, "l1", 30_000, { totalCents: 100_000, refundedCents: 0 });
+    assert.equal(ok, true);
+    assert.equal(w.lines[0].refunded_cents, 55_000, "25,000 from the other parent + 30,000, nothing lost");
+  });
+
+  it("gives up (false) rather than overwrite after repeated contention", async () => {
+    const w = world({ lines: [{ id: "l1", total_cents: 100_000, refunded_cents: 0 }], beforeLineWrite: () => { w.lines[0].refunded_cents += 1; } });
+    assert.equal(await bumpLineRefunded(w.admin, "l1", 30_000, { totalCents: 100_000, refundedCents: 0 }), false);
+  });
+});
+
+describe("(c) crash-window reconcile", () => {
+  it("expected = refunded money capped by what the lines can return", () => {
+    assert.equal(expectedLineRefundCents([100_000], 30_000), 30_000);
+    assert.equal(expectedLineRefundCents([100_000], 120_000), 100_000);
+    assert.equal(expectedLineRefundCents([], 5_000), 0);
+  });
+
+  it("a refund the lines never got (crash after the marker) is flagged on the newest refund row", async () => {
+    const w = world({ lines: [{ id: "l1", total_cents: 100_000, refunded_cents: 0 }], refundRows: [{ id: "rf1", gross_amount_cents: 30_000 }] });
+    const r = await reconcileOrderLineRefunds(w.admin, "o1");
+    assert.deepEqual(r, { ok: true, expectedCents: 30_000, actualCents: 0, mismatch: true });
+    const m = w.refundRows[0].metadata;
+    assert.deepEqual(m.order_lines_mismatch, { expected_cents: 30_000, actual_cents: 0 });
+    assert.equal(m.needs_attention, "order_lines_mismatch");
+  });
+
+  it("an order that adds up is left alone", async () => {
+    const w = world({ lines: [{ id: "l1", total_cents: 100_000, refunded_cents: 30_000 }], refundRows: [{ id: "rf1", gross_amount_cents: 30_000 }] });
+    const r = await reconcileOrderLineRefunds(w.admin, "o1");
+    assert.equal(r.ok && r.mismatch, false);
+    assert.equal(w.refundRows[0].metadata.needs_attention, undefined);
+  });
+
+  it("a normal record runs the check at the end and finds nothing wrong", async () => {
+    const w = world({ lines: [{ id: "l1", total_cents: 100_000, refunded_cents: 0 }], refundRows: [{ id: "rf1", gross_amount_cents: 30_000 }] });
+    const rec = await recordRefundOnOrderLines(w.admin, { transactionId: "t1", refundIds: ["re_1"], amountCents: 30_000 });
+    assert.equal(rec.recorded, true);
+    assert.equal(w.refundRows[0].metadata.needs_attention, undefined);
+  });
+});
+
 describe("wiring", () => {
+  it("(b) the webhook records from the per-refund slice only, never the cumulative amount", () => {
+    const hook = readFileSync(new URL("../payments/refunds.ts", import.meta.url), "utf8");
+    assert.match(hook, /if \(refundId && exactSlice\) await recordRefundOnOrderLines\(/);
+    assert.match(hook, /refunds\.partial\.linesSkipped/);
+    assert.match(hook, /sbLines && eventRefundAmount !== undefined/);
+    assert.match(hook, /amountCents: eventRefundAmount \}\)/);
+    assert.match(hook, /refunds\.full\.linesSkipped/);
+    assert.doesNotMatch(hook, /recordRefundOnOrderLines\([^)]*refundedCents/);
+  });
+
   const rd = (p: string) => readFileSync(new URL(p, import.meta.url), "utf8");
   it("executeBookingRefund records lines by default and refundOrderLines opts out and uses the same writer", () => {
     const exec = rd("../payments/refund-execute.ts");
@@ -122,8 +221,8 @@ describe("wiring", () => {
     assert.match(lines, /skipOrderLines: true/);
     assert.match(lines, /recordRefundOnOrderLines\(admin,/);
     const hook = rd("../payments/refunds.ts");
-    assert.match(hook, /if \(refundId\) await recordRefundOnOrderLines\(sb,/);
-    assert.match(hook, /if \(eventRefundId\) \{[\s\S]{0,200}recordRefundOnOrderLines\(sbLines,/);
+    assert.match(hook, /if \(refundId && exactSlice\) await recordRefundOnOrderLines\(sb,/);
+    assert.match(hook, /if \(eventRefundId\) \{[\s\S]{0,300}recordRefundOnOrderLines\(sbLines,/);
     assert.doesNotMatch(lines, /\.update\(\{ refunded_cents:/);
   });
 });
