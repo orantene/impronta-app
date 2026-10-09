@@ -52,14 +52,20 @@ export function TaskPickerIsland({ model, locale, confirmsByHand, bookingPosture
     ? deriveOfferingCta({ offering, defaults: { bookingPosture }, confirmsByHand })
     : null;
 
-  const dispatch = (eventName: string) => {
-    if (!offering || !derived) return;
-    const base = detailFor(offering, confirmsByHand, bookingPosture);
-    const ref = task ? { id: task.id, label: task.label } : null;
+  const dispatchFor = (nextTaskId: string | null, eventName: string) => {
+    const nextTask = nextTaskId ? model.tasks.find((x) => x.id === nextTaskId) ?? null : null;
+    const nextOfferingId = nextTask ? nextTask.offeringId : (model.fallback?.offeringId ?? null);
+    const nextOffering = nextOfferingId ? model.offerings.find((o) => o.id === nextOfferingId) : undefined;
+    const nextDerived = nextOffering
+      ? deriveOfferingCta({ offering: nextOffering, defaults: { bookingPosture }, confirmsByHand })
+      : null;
+    if (!nextOffering || !nextDerived) return;
+    const base = detailFor(nextOffering, confirmsByHand, bookingPosture);
+    const ref = nextTask ? { id: nextTask.id, label: nextTask.label } : null;
     const detail = ref ? { ...base, task: ref, note: taskNotePrefill(ref) } : base;
     // Quote services: ask flow only (same as catalog dispatch) — never open the
     // booking sheet, which would show "no times" over the chat.
-    if (detail.priceDisplay === "quote" || derived.cta === "ask_quote") {
+    if (detail.priceDisplay === "quote" || nextDerived.cta === "ask_quote") {
       openCatalogBookingChat({
         detail,
         askAbout: [detail.title],
@@ -69,6 +75,8 @@ export function TaskPickerIsland({ model, locale, confirmsByHand, bookingPosture
     }
     window.dispatchEvent(new CustomEvent(eventName, { detail }));
   };
+
+  const dispatch = (eventName: string) => dispatchFor(picked, eventName);
 
   return (
     <div className="sb-tp-body">
@@ -80,7 +88,15 @@ export function TaskPickerIsland({ model, locale, confirmsByHand, bookingPosture
             className="sb-tp-task"
             data-task-id={x.id}
             aria-pressed={picked === x.id}
-            onClick={() => setPicked((cur) => (cur === x.id ? null : x.id))}
+            onClick={() => {
+              // TUL-516 W3-4: one tap selects the task AND opens booking (no second tap).
+              setPicked(x.id);
+              const o = model.offerings.find((off) => off.id === x.offeringId);
+              const d = o
+                ? deriveOfferingCta({ offering: o, defaults: { bookingPosture }, confirmsByHand })
+                : null;
+              if (d && !d.hidden) dispatchFor(x.id, d.eventName);
+            }}
           >
             {x.icon ? <BuilderIconSvg name={x.icon} className="sb-tp-ic" /> : <span className="sb-tp-ic" aria-hidden="true" />}
             <span>{x.label}</span>

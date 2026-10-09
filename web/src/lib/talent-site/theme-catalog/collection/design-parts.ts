@@ -38,6 +38,8 @@ export function shell(
     navLinks?: ReadonlyArray<{ label: string; href: string }>;
     /** Override the standard shell primary CTA label (seed English or locale-stable). */
     primaryCtaLabel?: string;
+    /** Override the standard shell primary CTA href (defaults to `#book`). */
+    primaryCtaHref?: string;
   } = {},
 ) {
   return buildKitStandardShell(makeId, {
@@ -46,6 +48,7 @@ export function shell(
     ...(opts.navChrome ? { navChrome: opts.navChrome } : {}),
     ...(opts.navLinks ? { navLinks: opts.navLinks } : {}),
     ...(opts.primaryCtaLabel ? { primaryCtaLabel: opts.primaryCtaLabel } : {}),
+    ...(opts.primaryCtaHref ? { primaryCtaHref: opts.primaryCtaHref } : {}),
   }).map(deferYear);
 }
 

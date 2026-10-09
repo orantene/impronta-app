@@ -208,7 +208,13 @@ export function resolveSiteCtaMode(input: {
   confirmsByHand: boolean;
   /** false = instant cannot work yet (no working hours): same readiness step as resolveEffectiveBookingMode. */
   instantReady?: boolean;
+  /**
+   * TUL-516 W3-4: when new bookings are paused, seeded CTAs must not promise
+   * booking (Mateo / Valeria). Same public effect as applySwitchesToMode → inquiry.
+   */
+  acceptingBookings?: boolean;
 }): SiteCtaMode {
+  if (input.acceptingBookings === false) return "inquiry";
   const posture = parseSellingBookingSettings(input.sellingDefaults).bookingPosture;
   if (posture === "instant" && input.confirmsByHand) return "request";
   if (posture === "instant" && input.instantReady === false) return "request";
@@ -254,6 +260,13 @@ const SEEDED_MODE_COPY: Readonly<Record<string, ModeCopy>> = {
     instant: { en: "Book an appointment", es: "Reservar cita" },
     request: { en: "Request an appointment", es: "Solicitar cita" },
     inquiry: { en: "Write to me", es: "Escríbeme" },
+  },
+  // Contact band token: never promise booking when the site CTA mode is inquiry
+  // (includes acceptingBookings === false).
+  "You can book a time on this page.": {
+    instant: { en: "You can book a time on this page.", es: "Puedes reservar tu hora en esta página." },
+    request: { en: "You can request a time on this page.", es: "Puedes solicitar un horario en esta página." },
+    inquiry: { en: "Ask about a time on this page.", es: "Consulta un horario en esta página." },
   },
 };
 

@@ -23,8 +23,9 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { NEXT_FREE_CHIP_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/next-free-chip-defaults";
 import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
-import { CONTACT_LAYER, TALENT_ASK_HREF, contactChannelButtons } from "../contact-channels";
+import { contactChannelButtons } from "../contact-channels";
 import type { MaxSiteTemplateIdFactory } from "../max-site-templates/types";
+import { sharedHeroBookingCtaRow } from "./hero-booking-cta";
 import { heroCtaRow, heroMediaChip, type HeroCtaRow } from "./section-kit-hero-parts";
 
 export type KitIdFactory = MaxSiteTemplateIdFactory;
@@ -167,25 +168,6 @@ function disciplineChips(
   } as BuilderNode;
 }
 
-/** Ask opens Messages on this page. It does not send the visitor to the hub profile. */
-function inquiryCta(
-  makeId: KitIdFactory,
-  marginTop: "s" | "m" = "s",
-  label = CONTACT_LAYER.ask,
-): BuilderNode {
-  return {
-    id: makeId(),
-    kind: "button",
-    props: {
-      label,
-      href: TALENT_ASK_HREF,
-      tone: "primary",
-      layerLabel: CONTACT_LAYER.ask,
-      style: { marginTop },
-    },
-  } as BuilderNode;
-}
-
 /** Small uppercase eyebrow line. `accent` binds it to the Look's accent. */
 function eyebrow(
   makeId: KitIdFactory,
@@ -283,7 +265,8 @@ export function heroSplit(
             } as BuilderNode,
           ]
         : []),
-      opts.ctaRow ? heroCtaRow(makeId, opts.ctaRow) : inquiryCta(makeId),
+      // Default: shared booking engine CTA (`#book`). Themes may pass ctaRow to override.
+      opts.ctaRow ? heroCtaRow(makeId, opts.ctaRow) : heroCtaRow(makeId, sharedHeroBookingCtaRow()),
     ],
   } as BuilderNode;
 
@@ -414,7 +397,8 @@ export function heroCentered(
         },
       },
       ...(opts.chips !== false ? [disciplineChips(makeId, { accent, center: true })] : []),
-      inquiryCta(makeId),
+      // TUL-516 W3-4: every theme hero leads with the shared booking CTA (`#book`).
+      heroCtaRow(makeId, sharedHeroBookingCtaRow()),
     ],
   } as BuilderNode;
 }
@@ -493,7 +477,8 @@ export function heroCover(
           },
         },
       },
-      inquiryCta(makeId, "m"),
+      // TUL-516 W3-4: every theme hero leads with the shared booking CTA (`#book`).
+      heroCtaRow(makeId, sharedHeroBookingCtaRow()),
     ],
   } as BuilderNode;
 }
