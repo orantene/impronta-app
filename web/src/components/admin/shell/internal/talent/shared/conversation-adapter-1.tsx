@@ -3,6 +3,10 @@
 import { useMemo } from "react";
 import { type TalentInquiryRow } from "../../data-bridge";
 import { pinNextConversation as pinNextConversationT } from "../../messages";
+import {
+  INBOX_PREVIEW_AWAITING,
+  INBOX_PREVIEW_BOOKED,
+} from "../../messages/inbox-generated-previews";
 import { ClientTrustChip, Icon } from "../../primitives";
 import { COLORS, FONTS, INQUIRY_STAGE_META, MY_TALENT_PROFILE, useAdminShell, type ClientTrustLevel, type RichInquiry } from "../../state";
 import { talentInquiryMsgStageFromStatus } from "../../shell-count-bubbles-logic";
@@ -74,8 +78,10 @@ function adaptTalentInquiry(row: InquiryBridgeRow, fallbackAgencyName: string): 
     // inbox row can translate them. A coordinator sender would stay verbatim
     // (TUL-478 / TUL-519 cards 379+500).
     lastMessage: {
+      // Synthetic previews: system sender so inboxPreviewText always translates
+      // (TUL-478 / TUL-519). Keys from inbox-generated-previews.
       sender:  "system" as const,
-      preview: stage === "booked" ? "Booking confirmed. Check logistics tab." : "Awaiting your response.",
+      preview: stage === "booked" ? INBOX_PREVIEW_BOOKED : INBOX_PREVIEW_AWAITING,
       ageHrs,
     },
     unreadCount: row.unreadCount,
