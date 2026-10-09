@@ -106,13 +106,15 @@ async function claimGroup(
   if (decision === "skip_done") return { proceed: false, reason: "done" };
   if (decision === "skip_in_progress") return { proceed: false, reason: "in_progress" };
   // Takeover: compare-and-swap on the stale claimed_at so two takers cannot both win.
-  const { data: won } = await sb
+  const { data: won, error: wonErr } = await sb
     .from("ledger_group_claims")
     .update({ claimed_at: new Date().toISOString() })
     .eq("group_id", groupId)
     .is("completed_at", null)
     .eq("claimed_at", (existing as { claimed_at: string }).claimed_at)
     .select("group_id");
+  // A failed takeover is treated like a lost race (no proceed); log it so it is visible.
+  if (wonErr) logServerError("ledger.write.claimTakeover", wonErr);
   return Array.isArray(won) && won.length > 0 ? { proceed: true, claimed: true } : { proceed: false, reason: "in_progress" };
 }
 
