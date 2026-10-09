@@ -226,6 +226,17 @@ async function refundDomainPaymentIntent(
   }
 }
 
+export type FulfillTalentDomainPurchaseDeps = {
+  createClient?: () => ReturnType<typeof createServiceRoleClient>;
+  buyDomain?: typeof buyDomain;
+  ensureCustomDomainOnVercelProject?: typeof ensureCustomDomainOnVercelProject;
+  refundPaymentIntent?: (
+    paymentIntentId: string | null | undefined,
+    reason: string,
+  ) => Promise<void>;
+  mintVerificationToken?: () => string;
+};
+
 /**
  * Fulfill a paid talent domain Checkout session: Registrar buy → Vercel attach
  * → upsert `talent_site_domains`. Idempotent on stripe_checkout_session_id /
@@ -234,18 +245,32 @@ async function refundDomainPaymentIntent(
  * Permanent fail paths (amount mismatch, registrar reject after pay) refund the
  * PaymentIntent when possible, write an error row, and return ok so Stripe does
  * not retry forever.
+ *
+ * `deps` is for unit tests (fake Supabase + mocked Registrar/Vercel). Production
+ * callers omit it.
  */
-export async function fulfillTalentDomainPurchase(opts: {
-  sessionId: string;
-  talentProfileId: string;
-  domain: string;
-  expectedPriceCents: number;
-  amountTotal?: number | null;
-  currency?: string | null;
-  paymentIntentId?: string | null;
-  metadata: Record<string, string | undefined> | null | undefined;
-}): Promise<BillingResult<{ orderId: string | null }>> {
-  const sb = createServiceRoleClient();
+export async function fulfillTalentDomainPurchase(
+  opts: {
+    sessionId: string;
+    talentProfileId: string;
+    domain: string;
+    expectedPriceCents: number;
+    amountTotal?: number | null;
+    currency?: string | null;
+    paymentIntentId?: string | null;
+    metadata: Record<string, string | undefined> | null | undefined;
+  },
+  deps: FulfillTalentDomainPurchaseDeps = {},
+): Promise<BillingResult<{ orderId: string | null }>> {
+  const createClient = deps.createClient ?? createServiceRoleClient;
+  const buy = deps.buyDomain ?? buyDomain;
+  const attachFn = deps.ensureCustomDomainOnVercelProject ?? ensureCustomDomainOnVercelProject;
+  const refundFn = deps.refundPaymentIntent ?? refundDomainPaymentIntent;
+  const mintToken =
+    deps.mintVerificationToken ??
+    (() => `impronta-verify-${randomBytes(12).toString("hex")}`);
+
+  const sb = createClient();
   if (!sb) return { ok: false, error: "Database not available." };
 
   const domain = opts.domain.trim().toLowerCase();
@@ -274,7 +299,7 @@ export async function fulfillTalentDomainPurchase(opts: {
     currency !== "usd"
   ) {
     const reason = `Checkout amount mismatch (charged=${charged ?? "null"} ${currency}, expected=${opts.expectedPriceCents} usd).`;
-    await refundDomainPaymentIntent(opts.paymentIntentId, reason);
+    await refundFn(opts.paymentIntentId, reason);
     await upsertPurchaseErrorRow(sb, {
       talentProfileId: opts.talentProfileId,
       domain,
@@ -288,7 +313,7 @@ export async function fulfillTalentDomainPurchase(opts: {
   const contact = contactFromMetadata(opts.metadata);
   if (!contact) {
     const reason = "Missing or invalid registrant contact on paid Checkout session.";
-    await refundDomainPaymentIntent(opts.paymentIntentId, reason);
+    await refundFn(opts.paymentIntentId, reason);
     await upsertPurchaseErrorRow(sb, {
       talentProfileId: opts.talentProfileId,
       domain,
@@ -300,20 +325,20 @@ export async function fulfillTalentDomainPurchase(opts: {
   }
 
   const expectedPrice = opts.expectedPriceCents / 100;
-  const buy = await buyDomain(domain, {
+  const buyResult = await buy(domain, {
     expectedPrice,
     contactInformation: contact,
     years: REGISTRAR_PURCHASE_YEARS,
     autoRenew: REGISTRAR_AUTO_RENEW_POLICY,
   });
 
-  if (!buy.purchased) {
+  if (!buyResult.purchased) {
     const reason =
-      buy.skippedReason ??
-      buy.errorMessage ??
-      buy.errorCode ??
+      buyResult.skippedReason ??
+      buyResult.errorMessage ??
+      buyResult.errorCode ??
       "Registrar buy failed after payment.";
-    await refundDomainPaymentIntent(opts.paymentIntentId, reason);
+    await refundFn(opts.paymentIntentId, reason);
     await upsertPurchaseErrorRow(sb, {
       talentProfileId: opts.talentProfileId,
       domain,
@@ -326,8 +351,8 @@ export async function fulfillTalentDomainPurchase(opts: {
   }
 
   // Attach to the tulala project (best-effort; DNS may still need settle).
-  const attach = await ensureCustomDomainOnVercelProject(domain);
-  const verificationToken = `impronta-verify-${randomBytes(12).toString("hex")}`;
+  const attach = await attachFn(domain);
+  const verificationToken = mintToken();
   const failureReason =
     attach.attempted && !attach.attached && !attach.alreadyExists
       ? attach.errorMessage ?? attach.skippedReason ?? "Vercel attach failed after purchase."
@@ -351,7 +376,7 @@ export async function fulfillTalentDomainPurchase(opts: {
     verification_token: verificationToken,
     acquisition: "purchased",
     stripe_checkout_session_id: sessionId,
-    vercel_order_id: buy.orderId,
+    vercel_order_id: buyResult.orderId,
     registrant_email: contact.email,
     failure_reason: failureReason,
     verified_at: null,
@@ -370,14 +395,14 @@ export async function fulfillTalentDomainPurchase(opts: {
     if (error) {
       // Unique conflict on session id from a concurrent webhook = success.
       if ((error as { code?: string }).code === "23505") {
-        return { ok: true, data: { orderId: buy.orderId } };
+        return { ok: true, data: { orderId: buyResult.orderId } };
       }
       logServerError("talent-domain-billing.fulfill.insert", error);
       return { ok: false, error: "Could not save domain row after purchase." };
     }
   }
 
-  return { ok: true, data: { orderId: buy.orderId } };
+  return { ok: true, data: { orderId: buyResult.orderId } };
 }
 
 async function upsertPurchaseErrorRow(
