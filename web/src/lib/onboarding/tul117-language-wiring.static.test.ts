@@ -25,6 +25,26 @@ test("the workspace is born with the flow language on both columns", () => {
   assert.match(src, /workspaceLocaleSettingsForFlow\(params\.locale\)\?\.supportedLocales \?\? \["en"\]/);
 });
 
+// TUL-455: identity locale alone is not enough — the starter homepage must be
+// seeded at the same defaultLocale or ?edit=1 opens EmptyCanvasStarter on ES.
+test("ensureWorkspaceScaffold passes the flow locale into onboardStarterContent", () => {
+  const src = read("src/lib/saas/workspace-signup.server.ts");
+  assert.match(
+    src,
+    /onboardStarterContent\(admin, \{[\s\S]*?locale: flowLocale\?\.defaultLocale/,
+    "scaffold must seed homepage at flowLocale.defaultLocale, not platform EN",
+  );
+});
+
+test("talent workspace shortcut passes the flow locale into onboardStarterContent", () => {
+  const src = read("src/lib/server-actions/talent-workspace-provision.ts");
+  assert.match(
+    src,
+    /onboardStarterContent\(admin, \{[\s\S]*?locale: flowLocale\?\.defaultLocale/,
+    "talent→workspace shortcut must seed at request locale",
+  );
+});
+
 test("the workspace admin layout hops through the seed route behind the attempt-cookie guard", () => {
   const src = read("src/app/(workspace)/[tenantSlug]/admin/layout.tsx");
   assert.match(src, /WORKSPACE_LOCALE_SEED_ATTEMPT_COOKIE/);

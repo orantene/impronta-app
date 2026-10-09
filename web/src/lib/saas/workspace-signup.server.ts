@@ -173,12 +173,17 @@ async function ensureWorkspaceScaffold(params: {
     logServerError("workspace-signup.ensureWorkspaceScaffold.branding", brandingError);
   }
 
+  // TUL-455: seed + compose at the flow locale. Identity already got
+  // default_locale from flowLocale; without this, onboardStarterContent falls
+  // back to DEFAULT_PLATFORM_LOCALE ("en") and an ES studio opens ?edit=1 on
+  // an empty ES homepage while the EN-seeded public site still "looks live".
   const starter = await onboardStarterContent(admin, {
     tenantId: params.tenantId,
     actorProfileId: params.actorProfileId,
     seedFreeStarter: true,
     audience: params.audience,
     businessDescription: params.businessDescription,
+    locale: flowLocale?.defaultLocale,
   });
   if (!starter.ok) {
     logServerError(

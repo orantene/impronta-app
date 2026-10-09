@@ -257,10 +257,13 @@ export async function provisionFreeWorkspaceFromTalent(params: {
     logServerError("talent-workspace-provision.upsertIdentity (non-fatal)", identityError);
   }
 
+  // TUL-455: same locale wiring as ensureWorkspaceScaffold — seed the homepage
+  // the talent will open in the builder, not the platform EN default.
   const starter = await onboardStarterContent(admin, {
     tenantId: agency.id,
     actorProfileId: userId,
     seedFreeStarter: true,
+    locale: flowLocale?.defaultLocale,
   });
   if (!starter.ok) {
     logServerError(
