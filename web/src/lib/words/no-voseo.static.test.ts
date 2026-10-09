@@ -52,13 +52,17 @@ const VOSEO_STEMS: ReadonlyArray<readonly [string, "a" | "e" | "i"]> = [
   ["mir", "a"], ["esper", "a"], ["complet", "a"], ["ingres", "a"], ["record", "a"], ["pregunt", "a"],
   ["eleg", "i"], ["escrib", "i"], ["abr", "i"], ["sub", "i"], ["dec", "i"], ["ped", "i"], ["corregi", "i"],
   ["segu", "i"], ["compart", "i"], ["añad", "i"], ["recib", "i"], ["viv", "i"],
+  // TUL-242: imperatives seen unaccented in es.json ("intentalo", "cambialas", "ofrecela"). The tú form
+  // is accented ("inténtalo", "cámbialas", "ofrécela"), so the bare shape is wrong in either dialect.
+  ["intent", "a"], ["cambi", "a"], ["liber", "a"], ["ofrec", "e"], ["program", "a"], ["reembols", "a"],
+  ["resuelv", "e"], ["retir", "a"], ["pid", "e"], ["abr", "e"],
 ];
 // "mandala" is an ordinary word (a drawing), and "usanos" does not occur; keep the first out of the net.
 const VOSEO_PRONOUN_OK = /^mandala$/i;
 const VOSEO_ATTACHED = new RegExp(
   "(?<![\\p{L}])(?:" +
     VOSEO_STEMS.map(([stem, vowel]) => `${stem}${vowel}`).join("|") +
-    ")(?:la|lo|las|los|me|nos|le|les)(?![\\p{L}])",
+    ")(?:se(?:la|lo|las|los)|la|lo|las|los|me|nos|le|les)(?![\\p{L}])",
   "giu",
 );
 
@@ -117,6 +121,12 @@ test("the guard bites: voseo is caught, tú-form is not", () => {
   assert.ok(offenders("Abrilo y mandame el resultado").length >= 2);
   assert.ok(offenders("Compartilo con tu equipo").length > 0);
   assert.deepEqual(offenders("Revísala y mándame el resultado. Ábrelo cuando puedas."), []);
+  // TUL-242: the unaccented imperative + pronoun shapes the first stem list missed.
+  for (const bad of ["Recarga e intentalo de nuevo", "cambialas en la noche", "Prepara la oferta y enviasela al cliente", "Abrelo en el editor", "o liberalo", "Ofrecela primero", "Ofrecele la plaza", "programala con plazas", "Reembolsala o vende", "resuelvela y retirala", "Pideselo a un propietario", "Abrela en otra pestaña"]) {
+    assert.ok(offenders(bad).length > 0, bad);
+  }
+  assert.deepEqual(offenders("Recarga e inténtalo de nuevo. Cámbialas. Envíasela. Libéralo. Ofrécela. Prográmala. Reembólsala. Resuélvela. Retírala. Pídeselo. Ábrela."), []);
+  assert.deepEqual(offenders("Para mostrarsela al cliente; programe la sesión; cancela cuando quieras."), []);
   assert.deepEqual(offenders("La sala del pelo; un tomate; una mandala; Dame y dile que sí."), []);
   assert.deepEqual(offenders("Hace siete años seguí esa vocación y compartí mi trabajo."), []);
 });
