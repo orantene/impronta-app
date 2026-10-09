@@ -23,7 +23,7 @@ export interface Target {
   siteSlug: string;
 }
 
-/** Hard allow-list: the finished Spanish-primary demos named in TUL-323 plus the hero-fact demos. */
+/** Hard allow-list: finished Spanish-primary demos (TUL-323) plus TUL-488 /en gaps. */
 export const TARGETS: readonly Target[] = [
   { profileCode: "TAL-93020", siteSlug: "alba-nail-artist" },
   { profileCode: "TAL-93003", siteSlug: "camila-nails" },
@@ -31,6 +31,10 @@ export const TARGETS: readonly Target[] = [
   { profileCode: "TAL-93030", siteSlug: "alex-trevino" },
   { profileCode: "TAL-93002", siteSlug: "renata-lashes" },
   { profileCode: "TAL-93105", siteSlug: "sofia-rinaldi" },
+  // TUL-488 / TUL-516 S1: live `/en` was still 404 on these three.
+  { profileCode: "TAL-93209", siteSlug: "karla-beltran" },
+  { profileCode: "TAL-93208", siteSlug: "saul-tapia-ortega" },
+  { profileCode: "TAL-93005", siteSlug: "diego-navarro-dj" },
 ];
 
 /** Real and test talents: never a target, whatever else says so. */

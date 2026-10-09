@@ -645,7 +645,7 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
 
   await writeOfferings(d, profileId);
 
-  // Finished Spanish-primary demos (maison-v2, folio, gridline) also publish /en. Add-only.
+  // Spanish-primary demos always publish /en (TUL-488). Add-only when secondary is empty.
   const { data: locRow, error: locErr } = await admin
     .from("talent_profiles")
     .select("preferred_locale, secondary_locales")

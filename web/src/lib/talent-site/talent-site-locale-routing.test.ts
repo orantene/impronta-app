@@ -50,12 +50,38 @@ test("prefix beats query beats cookie beats primary", () => {
   assert.equal(byCookie.redirectPath, null);
 });
 
-test("languages outside the talent's set are ignored everywhere", () => {
-  const d = decideTalentSiteLocale({ pathname: "/es/x", queryLocale: "es", cookieLocale: "es", ...SOLO });
-  // `/es/x` is not a locale prefix for an English-only talent: it is a page path.
-  assert.deepEqual(d, { locale: "en", innerPath: "/es/x", redirectPath: null, explicit: false });
+test("languages outside the talent's set are ignored for query and cookie", () => {
   assert.equal(decideTalentSiteLocale({ pathname: "/", queryLocale: "fr", ...ALBA }).redirectPath, null);
   assert.equal(decideTalentSiteLocale({ pathname: "/", cookieLocale: "fr", ...ALBA }).locale, "es");
+});
+
+test("a platform locale the talent does not publish is a branded 404, not a page slug (TUL-488)", () => {
+  const d = decideTalentSiteLocale({
+    pathname: "/es/x",
+    queryLocale: "es",
+    cookieLocale: "es",
+    platformLocales: ["en", "es"],
+    ...SOLO,
+  });
+  assert.equal(d.locale, "es");
+  assert.equal(d.innerPath, "/x");
+  assert.equal(d.redirectPath, null);
+  assert.equal(d.explicit, false);
+  assert.equal(d.unsupportedPrefix, true);
+  // Without platformLocales, legacy behavior keeps the segment as a page path.
+  assert.deepEqual(
+    decideTalentSiteLocale({ pathname: "/es/x", ...SOLO }),
+    { locale: "en", innerPath: "/es/x", redirectPath: null, explicit: false },
+  );
+  const enOnly = decideTalentSiteLocale({
+    pathname: "/en",
+    platformLocales: ["en", "es"],
+    primary: "es",
+    supported: ["es"],
+  });
+  assert.equal(enOnly.unsupportedPrefix, true);
+  assert.equal(enOnly.locale, "en");
+  assert.equal(enOnly.innerPath, "/");
 });
 
 test("bounding a requested locale never leaves the talent's set", () => {

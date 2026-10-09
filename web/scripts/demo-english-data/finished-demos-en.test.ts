@@ -59,11 +59,13 @@ test("addEnglishLine is add-only", () => {
   assert.equal(addEnglishLine({}, "  "), null);
 });
 
-test("finishedDemoSecondaryLocales: only empty Spanish-primary finished demos", () => {
+test("finishedDemoSecondaryLocales: every empty Spanish-primary demo gets en (TUL-488)", () => {
   const base = { theme: "folio", preferredLocale: "es", currentSecondary: [] as string[] };
   assert.deepEqual(finishedDemoSecondaryLocales(base), ["en"]);
   assert.deepEqual(finishedDemoSecondaryLocales({ ...base, theme: "gridline", currentSecondary: null }), ["en"]);
-  assert.equal(finishedDemoSecondaryLocales({ ...base, theme: "solace" }), null);
+  assert.deepEqual(finishedDemoSecondaryLocales({ ...base, theme: "solace" }), ["en"]);
+  assert.deepEqual(finishedDemoSecondaryLocales({ ...base, theme: "frame" }), ["en"]);
+  assert.deepEqual(finishedDemoSecondaryLocales({ preferredLocale: "es", currentSecondary: [] }), ["en"]);
   assert.equal(finishedDemoSecondaryLocales({ ...base, preferredLocale: "en" }), null);
   assert.equal(finishedDemoSecondaryLocales({ ...base, currentSecondary: ["fr"] }), null);
 });

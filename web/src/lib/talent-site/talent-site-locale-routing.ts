@@ -26,10 +26,16 @@ export interface TalentSiteLocaleInput {
   cookieLocale?: string | null;
   primary: string;
   supported: readonly string[];
+  /**
+   * Platform public locales (usually `en`/`es`). A prefix in this set that the
+   * talent does not publish must NOT become a page slug — it is a branded 404
+   * in that language (TUL-488: `/en` on a Spanish-only demo was `pageSlug=en`).
+   */
+  platformLocales?: readonly string[];
 }
 
 export interface TalentSiteLocaleDecision {
-  /** The locale this request renders in (always in the talent's set). */
+  /** The locale this request renders in (URL language when unsupportedPrefix). */
   locale: string;
   /** The path with any locale prefix removed (what the allow-list checks). */
   innerPath: string;
@@ -37,6 +43,11 @@ export interface TalentSiteLocaleDecision {
   redirectPath: string | null;
   /** True when the visitor chose the language on this request (persist it). */
   explicit: boolean;
+  /**
+   * True when the URL used a platform locale this talent does not publish.
+   * Caller should 404 in `locale` rather than treat the segment as a page slug.
+   */
+  unsupportedPrefix?: boolean;
 }
 
 function norm(v: string | null | undefined): string {
@@ -63,6 +74,7 @@ export function decideTalentSiteLocale(input: TalentSiteLocaleInput): TalentSite
   const supported = input.supported.includes(primary) ? input.supported : [primary, ...input.supported];
   const path = input.pathname.startsWith("/") ? input.pathname : `/${input.pathname}`;
   const seg = norm(path.split("/")[1]);
+  const platform = (input.platformLocales ?? []).map(norm).filter(Boolean);
 
   if (seg && supported.includes(seg)) {
     const inner = path.slice(seg.length + 1) || "/";
@@ -72,6 +84,19 @@ export function decideTalentSiteLocale(input: TalentSiteLocaleInput): TalentSite
       innerPath,
       redirectPath: seg === primary ? innerPath : null,
       explicit: true,
+    };
+  }
+
+  // Platform locale the talent does not publish → 404 in that language, never a page slug.
+  if (seg && platform.includes(seg) && !supported.includes(seg)) {
+    const inner = path.slice(seg.length + 1) || "/";
+    const innerPath = inner.startsWith("/") ? inner : `/${inner}`;
+    return {
+      locale: seg,
+      innerPath,
+      redirectPath: null,
+      explicit: false,
+      unsupportedPrefix: true,
     };
   }
 

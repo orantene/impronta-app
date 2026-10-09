@@ -77,8 +77,32 @@ export async function talentSiteHostResponse(
     cookieLocale: request.cookies.get(LOCALE_COOKIE)?.value,
     primary: talentLocales.defaultLocale,
     supported: talentLocales.supportedLocales,
+    platformLocales: talentLangSettings.publicLocales,
   });
   const localeStripped = talentLocale.innerPath;
+
+  // TUL-488: `/en` on a Spanish-only site must 404 in English (cookie banner +
+  // html lang), never treat `en` as a page slug under the primary language.
+  if (talentLocale.unsupportedPrefix) {
+    const notFoundHeaders = new Headers(sanitizedInboundHeaders);
+    notFoundHeaders.set(LOCALE_HEADER, talentLocale.locale);
+    notFoundHeaders.set(ORIGINAL_PATHNAME_HEADER, request.nextUrl.pathname);
+    notFoundHeaders.set(HOST_CONTEXT_HEADER, "talent_site");
+    notFoundHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
+    notFoundHeaders.set(HOST_TALENT_PROFILE_HEADER, hostContext.talentProfileId);
+    notFoundHeaders.delete(TENANT_HEADER_NAME);
+    notFoundHeaders.delete(HOST_TENANT_SLUG_HEADER);
+    notFoundHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
+    const res = NextResponse.rewrite(new URL("/_page-not-found", request.url), {
+      status: 404,
+      request: { headers: notFoundHeaders },
+    });
+    // URL language for this response only; cookie is ignored on next visit if
+    // the talent does not publish that locale.
+    res.cookies.set(LOCALE_COOKIE, talentLocale.locale, localeCookieOptions);
+    clearLocaleCookieAutoMarker(res);
+    return attachTalentSiteGuestIdentity(request, notFoundHeaders)(res);
+  }
 
   const decision = isTalentSiteHostPathAllowed(localeStripped);
   if (!decision) {

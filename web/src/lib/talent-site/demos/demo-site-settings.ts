@@ -30,10 +30,13 @@ const base = (partial: Partial<DemoSiteSettings> & Pick<DemoSiteSettings, "siteL
  * (all on) so older seeds stay valid until rebuilt.
  */
 export const DEMO_SITE_SETTINGS: Readonly<Record<string, DemoSiteSettings>> = {
-  // Maison v1 seed + Alba: classic beauty, bookable + chat
-  "TAL-93020": base({ siteLangs: ["es"], bookingMode: "instant", currency: "MXN" }),
-  "TAL-93003": base({ siteLangs: ["es"], bookingMode: "instant", currency: "MXN" }),
+  // Maison v1 seed + Alba: classic beauty, bookable + chat.
+  // Spanish-primary demos always list `en` so `/en` is a locale, not a 404 slug (TUL-488).
+  "TAL-93020": base({ siteLangs: ["es", "en"], bookingMode: "instant", currency: "MXN" }),
+  "TAL-93003": base({ siteLangs: ["es", "en"], bookingMode: "instant", currency: "MXN" }),
   "TAL-93002": base({ siteLangs: ["es", "en"], bookingMode: "mixed", currency: "MXN", chatEnabled: true }),
+  // Frame (Diego DJ) — seeded via demos.ts; was Spanish-only and 404'd on /en.
+  "TAL-93005": base({ siteLangs: ["es", "en"], bookingMode: "request", currency: "MXN" }),
   // Linh: request-only, chat off (shows a quieter rail)
   "TAL-93103": base({
     siteLangs: ["en"],
@@ -43,7 +46,7 @@ export const DEMO_SITE_SETTINGS: Readonly<Record<string, DemoSiteSettings>> = {
     acceptingInquiries: true,
     chatEnabled: false,
   }),
-  "TAL-93104": base({ siteLangs: ["es"], bookingMode: "request", currency: "MXN", chatEnabled: false }),
+  "TAL-93104": base({ siteLangs: ["es", "en"], bookingMode: "request", currency: "MXN", chatEnabled: false }),
   "TAL-93105": base({ siteLangs: ["es", "en"], bookingMode: "quote", currency: "MXN", acceptingBookings: false }),
   "TAL-93106": base({ siteLangs: ["en"], bookingMode: "instant", currency: "USD" }),
   "TAL-93107": base({ siteLangs: ["en"], bookingMode: "request", currency: "USD", chatEnabled: false }),
@@ -57,11 +60,11 @@ export const DEMO_SITE_SETTINGS: Readonly<Record<string, DemoSiteSettings>> = {
   "TAL-93113": base({ siteLangs: ["es", "en"], bookingMode: "request", currency: "MXN" }),
   "TAL-93114": base({ siteLangs: ["es", "en"], bookingMode: "mixed", currency: "MXN" }),
   // Gridline
-  "TAL-93030": base({ siteLangs: ["es"], bookingMode: "instant", currency: "MXN" }),
+  "TAL-93030": base({ siteLangs: ["es", "en"], bookingMode: "instant", currency: "MXN" }),
   "TAL-93206": base({ siteLangs: ["en"], bookingMode: "request", currency: "USD", chatEnabled: false }),
   "TAL-93207": base({ siteLangs: ["en"], bookingMode: "instant", currency: "USD" }),
-  "TAL-93208": base({ siteLangs: ["es"], bookingMode: "quote", currency: "MXN", acceptingBookings: false }),
-  "TAL-93209": base({ siteLangs: ["es"], bookingMode: "instant", currency: "MXN" }),
+  "TAL-93208": base({ siteLangs: ["es", "en"], bookingMode: "quote", currency: "MXN", acceptingBookings: false }),
+  "TAL-93209": base({ siteLangs: ["es", "en"], bookingMode: "instant", currency: "MXN" }),
   "TAL-93210": base({ siteLangs: ["en"], bookingMode: "request", currency: "USD", chatEnabled: false }),
   "TAL-93211": base({ siteLangs: ["en"], bookingMode: "quote", currency: "USD", acceptingBookings: false }),
   "TAL-93212": base({ siteLangs: ["es", "en"], bookingMode: "mixed", currency: "MXN" }),
@@ -70,7 +73,8 @@ export const DEMO_SITE_SETTINGS: Readonly<Record<string, DemoSiteSettings>> = {
 export function demoSiteSettingsFor(profileCode: string): DemoSiteSettings {
   return (
     DEMO_SITE_SETTINGS[profileCode] ??
-    base({ siteLangs: ["es"], bookingMode: "mixed", currency: "MXN" })
+    // Default Spanish-primary demos ship `/en` (TUL-488 / TUL-516 S1).
+    base({ siteLangs: ["es", "en"], bookingMode: "mixed", currency: "MXN" })
   );
 }
 

@@ -24,7 +24,8 @@ import { loadDemoContentFixture } from "./content-fixture";
 import { matchOfferings, type ExistingOffering } from "./fixture-plan";
 import { gridlineCopyFromFixture } from "./gridline-site-copy";
 import { folioSiteCopyFor } from "./folio-site-copy";
-import { demoSiteSwitchColumns } from "./demo-site-settings";
+import { demoSiteSettingsFor, demoSiteSwitchColumns } from "./demo-site-settings";
+import { demoSecondaryFromSiteLangs, finishedDemoSecondaryLocales } from "./finished-demo-locales";
 import { placeDemoApps } from "./app-placement";
 import { applyDemoSiteCopy } from "./site-copy";
 import type { DemoDesign } from "./types";
@@ -303,6 +304,9 @@ export async function writeDemoDraft(
     .eq("id", site.id)
     .eq("talent_profile_id", tp.id);
   if (error) throw error;
+  // TUL-488: Spanish-primary demos must publish `/en`. Derive secondaries from
+  // siteLangs (or the finished-demo rule) and write add-only when empty.
+  await ensureDemoEnglishLocale(admin, tp.id, spec.profileCode);
   if (style || copied) {
     const { error: hErr } = await admin
       .from("talent_pages")
@@ -311,4 +315,31 @@ export async function writeDemoDraft(
       .eq("talent_profile_id", tp.id);
     if (hErr) throw hErr;
   }
+}
+
+/** Add-only: enable English on Spanish-primary demos so `/en` is not a page slug. */
+export async function ensureDemoEnglishLocale(
+  admin: SupabaseClient,
+  talentProfileId: string,
+  profileCode: string,
+): Promise<void> {
+  const { data: locRow, error: locErr } = await admin
+    .from("talent_profiles")
+    .select("preferred_locale, secondary_locales")
+    .eq("id", talentProfileId)
+    .maybeSingle();
+  if (locErr) throw locErr;
+  const preferred = (locRow as { preferred_locale: string | null } | null)?.preferred_locale;
+  const current = (locRow as { secondary_locales: string[] | null } | null)?.secondary_locales;
+  const fromSettings = demoSecondaryFromSiteLangs(demoSiteSettingsFor(profileCode).siteLangs);
+  const secondary =
+    fromSettings.length > 0 && (preferred ?? "es") === "es" && (current ?? []).length === 0
+      ? fromSettings
+      : finishedDemoSecondaryLocales({ preferredLocale: preferred, currentSecondary: current });
+  if (!secondary) return;
+  const { error } = await admin
+    .from("talent_profiles")
+    .update({ secondary_locales: secondary, updated_at: new Date().toISOString() })
+    .eq("id", talentProfileId);
+  if (error) throw error;
 }
