@@ -15,7 +15,14 @@
  * root layout) → no extra link. Anything else → a single combined
  * Google Fonts URL with both families.
  *
- * SSR-only (no client deps), runs inside the root layout.
+ * TUL-495 — NON-BLOCKING by default. Talent Max sites mount this link in
+ * the BODY just above header/main. A render-blocking stylesheet there holds
+ * first paint of the whole site until `/api/fonts/css` returns (often 1s+
+ * cold, longer when queued behind dozens of async chunks). Preload +
+ * `media="print"` → swap to `all` on load keeps text painting with system
+ * fallbacks (`font-display: swap` on the faces) while the CSS arrives.
+ *
+ * SSR-only (no client deps), runs inside the root layout and Max-site render.
  */
 
 import { toFontProxyHref } from "@/lib/fonts/google-proxy";
@@ -27,9 +34,19 @@ import {
 interface GoogleFontsLinkProps {
   tokens: Record<string, string>;
   fontFamilies?: ReadonlyArray<string | undefined | null>;
+  /**
+   * When true (default), the stylesheet does not block first paint.
+   * Pass false only for surfaces that must have the face before paint
+   * (none today; kept for an explicit opt-out).
+   */
+  blocking?: boolean;
 }
 
-export function GoogleFontsLink({ tokens, fontFamilies = [] }: GoogleFontsLinkProps) {
+export function GoogleFontsLink({
+  tokens,
+  fontFamilies = [],
+  blocking = false,
+}: GoogleFontsLinkProps) {
   const wanted: Array<{ value: string; italic: boolean; stretch: boolean }> = [];
   // A wide heading (`type.stretch` above 100%, or the utility type system) needs the
   // `wdth` axis, or `font-stretch` silently does nothing. Heading + body only.
@@ -68,9 +85,34 @@ export function GoogleFontsLink({ tokens, fontFamilies = [] }: GoogleFontsLinkPr
     ],
   );
   if (!href) return null;
+  const proxied = toFontProxyHref(href);
+  if (blocking) {
+    return <link rel="stylesheet" href={proxied} />;
+  }
+  // Preload starts the fetch early; media=print keeps the link out of the
+  // render-blocking set until onload flips it to all. A tiny inline script
+  // (no client component) flips media; noscript keeps the face for no-JS.
   return (
     <>
-      <link rel="stylesheet" href={toFontProxyHref(href)} />
+      <link rel="preload" as="style" href={proxied} />
+      <link
+        rel="stylesheet"
+        href={proxied}
+        media="print"
+        data-talent-font-stylesheet=""
+      />
+      <script
+        data-talent-font-stylesheet-activate=""
+        dangerouslySetInnerHTML={{
+          __html:
+            "(function(){var l=document.querySelector('link[data-talent-font-stylesheet]');" +
+            "if(!l)return;function go(){l.media='all';}" +
+            "if(l.sheet)go();else l.addEventListener('load',go);})();",
+        }}
+      />
+      <noscript>
+        <link rel="stylesheet" href={proxied} />
+      </noscript>
     </>
   );
 }
