@@ -90,6 +90,8 @@ function SendQuoteForm({
   const [note, setNote] = useState("");
   const [amount, setAmount] = useState("");
   const [sent, setSent] = useState(false);
+  // Why the quote did not go out, when the server said so (e.g. the service has no usable currency).
+  const [failReason, setFailReason] = useState<string | null>(null);
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [error, setError] = useState<string | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
@@ -140,6 +142,7 @@ function SendQuoteForm({
         const res = await messagingTalentQuoteSend({ inquiryId: threadId, offeringId: offering.id, amountCents, note: note.trim() || null }).catch(() => ({ ok: false as const }));
         setStep(0);
         setSent(res.ok);
+        setFailReason(res.ok ? null : ("reason" in res ? String(res.reason) : null));
         setCreatedId(threadId);
       });
       return;
@@ -175,6 +178,7 @@ function SendQuoteForm({
       setStep(0);
       // The conversation exists even if the quote did not go out: say so, never fake a send.
       setSent(res.ok);
+      setFailReason(res.ok ? null : ("reason" in res ? String(res.reason) : null));
       setCreatedId(started.inquiryId);
     });
   }
@@ -206,6 +210,15 @@ function SendQuoteForm({
               ? copy.t("They can accept it from the link. You will see the answer in the conversation.")
               : copy.t("Open the conversation to send the quote from there. Nothing reached the client yet.")}
           </p>
+          {!sent && failReason === "offer_currency_unresolved" ? (
+            <p className="text-[13.5px] text-[var(--tc-primary)]" data-quote-currency-unresolved>
+              {copy.t("This service has no usable currency, so the quote could not be priced.")}{" "}
+              <a className="font-semibold underline" href="/talent/services">
+                {copy.t("Set the service's currency in Services")}
+              </a>
+              {copy.t(", then send the quote again.")}
+            </p>
+          ) : null}
         </div>
       </TaskShell>
     );
