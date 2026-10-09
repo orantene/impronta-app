@@ -28,6 +28,13 @@ export interface TalentSiteLocaleInput {
   queryLocale?: string | null;
   primary: string;
   supported: readonly string[];
+  /**
+   * Languages the platform serves (publicLocales). A `/<code>/` prefix naming
+   * one of these that the TALENT does not speak redirects to the unprefixed
+   * URL instead of 404ing: a shared `/en` link on a Spanish-only site lands on
+   * the page, not on "Page not found".
+   */
+  knownLocales?: readonly string[];
 }
 
 export interface TalentSiteLocaleDecision {
@@ -75,6 +82,12 @@ export function decideTalentSiteLocale(input: TalentSiteLocaleInput): TalentSite
       redirectPath: seg === primary ? innerPath : null,
       explicit: true,
     };
+  }
+
+  if (seg && !supported.includes(seg) && (input.knownLocales ?? []).map(norm).includes(seg)) {
+    const inner = path.slice(seg.length + 1) || "/";
+    const innerPath = inner.startsWith("/") ? inner : `/${inner}`;
+    return { locale: primary, innerPath, redirectPath: innerPath, explicit: false };
   }
 
   const q = norm(input.queryLocale);

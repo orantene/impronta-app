@@ -9,6 +9,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
+import { pickAccountTimeZone } from "./account-timezone";
 import { clientAccountEnabledFor } from "./flag";
 import { decideAccountTenantSource, type AccountTenantSource } from "./tenant-source";
 
@@ -67,5 +68,12 @@ export async function resolveAccountTenant(): Promise<AccountTenant | null> {
   if (error) logServerError("clientAccount.tenant.agency", error);
   const row = ag as { slug?: string | null; timezone?: string | null } | null;
   if (decision.source !== "talent_profile" && !row) return null;
-  return { tenantId, slug: slug || row?.slug?.trim() || "", timeZone: row?.timezone?.trim() || "UTC" };
+  // TUL-501: on a talent's own site the visit time is shown in the talent's booking zone.
+  let talentZone: string | null = null;
+  if (decision.source === "talent_profile" && talentProfileId) {
+    const { data: hrs, error: hrsErr } = await admin.from("talent_booking_hours").select("timezone").eq("talent_profile_id", talentProfileId).maybeSingle();
+    if (hrsErr) logServerError("clientAccount.tenant.hours", hrsErr);
+    talentZone = (hrs as { timezone?: string | null } | null)?.timezone ?? null;
+  }
+  return { tenantId, slug: slug || row?.slug?.trim() || "", timeZone: pickAccountTimeZone(talentZone, row?.timezone) };
 }

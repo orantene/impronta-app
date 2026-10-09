@@ -76,6 +76,7 @@ export async function talentSiteHostResponse(
     queryLocale: request.nextUrl.searchParams.get("locale"),
     primary: talentLocales.defaultLocale,
     supported: talentLocales.supportedLocales,
+    knownLocales: talentLangSettings.publicLocales,
   });
   const localeStripped = talentLocale.innerPath;
 

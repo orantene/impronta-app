@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
+import { resolveTalentOwnReceiver } from "./link-payout-receiver-talent-own";
 import { loadInquirySellersChecked } from "@/lib/inquiry/offer-currency-seller";
 
 /**
@@ -48,6 +49,8 @@ export async function resolveLinkPayoutReceiver(
     return null;
   }
   const rows = (data ?? []) as { id: string; display_name: string | null }[];
+  // None registered under THIS tenant: a talent-type workspace falls back to her own connected account.
+  if (rows.length === 0) return resolveTalentOwnReceiver(admin, { tenantId: input.tenantId, talentProfileId });
   if (rows.length !== 1) return null;
   return {
     payoutAccountId: rows[0].id,
