@@ -12,7 +12,7 @@
 
 import type { RefObject } from "react";
 
-import { composerKeyAction } from "./guest-first-send";
+import { composerKeyAction } from "./composer-key-action";
 import { FONT, paletteFor, primaryBtnStyle, type SurfaceMode } from "./mini-chat-styles";
 import { SendIcon } from "./MiniChatMessageBubble";
 import a11y from "./mini-chat-a11y.module.css";
@@ -140,8 +140,7 @@ export function MiniChatComposer({
         value={draft}
         onChange={(e) => onDraftChange(e.target.value)}
         onKeyDown={(e) => {
-          // TUL-401: plain Enter sends (Shift+Enter is a newline).
-          if (composerKeyAction(e.nativeEvent) === "submit") {
+          if (composerKeyAction(e) === "submit") {
             e.preventDefault();
             onSubmit();
           }
