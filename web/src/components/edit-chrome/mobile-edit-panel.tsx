@@ -541,6 +541,8 @@ export function MobileEditPanel() {
   // on-screen. `null` until the first client measure (SSR-safe) — the clamp
   // falls back to the un-clamped navigator-relative offset in that window.
   const [viewportWidth, setViewportWidth] = useState<number | null>(null);
+  // Tablet HUD starts as its header only: the centred tablet frame is as wide as the space beside the rail, so the open body overlapped the canvas (TUL-79 #12).
+  const [tabletBodyOpen, setTabletBodyOpen] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const update = () => setViewportWidth(window.innerWidth);
@@ -639,6 +641,17 @@ export function MobileEditPanel() {
               : t("Style edits scope to mobile")}
           </span>
         </span>
+        {tabletHud ? (
+          <button
+            type="button"
+            data-tablet-hud-toggle
+            aria-expanded={tabletBodyOpen}
+            onClick={() => setTabletBodyOpen((v) => !v)}
+            style={{ height: 26, padding: "0 9px", fontSize: 11, fontWeight: 600, color: "#fff", background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 7, cursor: "pointer", flexShrink: 0 }}
+          >
+            {tabletBodyOpen ? t("Hide") : t("Show")}
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => {
@@ -674,8 +687,9 @@ export function MobileEditPanel() {
 
       {/* Body — scrolls when content is tall */}
       <div
+        data-mobile-edit-body
         style={{
-          display: "flex",
+          display: tabletHud && !tabletBodyOpen ? "none" : "flex",
           flexDirection: "column",
           gap: 10,
           padding: "12px",
