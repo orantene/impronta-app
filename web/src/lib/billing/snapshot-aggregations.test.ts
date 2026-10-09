@@ -41,3 +41,26 @@ test("Finding E: falls back to created_at when a booking has no shoot date — s
 test("resolveWorkDateIso returns null only when the booking has no date at all", () => {
   assert.equal(resolveWorkDateIso(mk({})), null);
 });
+
+// ── Talent Money shows HER collected money, not the client's card charge (paid run #2, 2026-10-09) ──
+import { sellerCollectedCents as _sellerCollected } from "./snapshot-aggregations";
+import assert2 from "node:assert/strict";
+import { test as test2 } from "node:test";
+
+test2("sellerCollectedCents: a full MX$913.50 charge on a MX$900 sale reads as MX$900", () => {
+  assert2.equal(_sellerCollected(91_350, { gross_cents: 90_000, gross_charged_cents: 91_350 }), 90_000);
+});
+
+test2("sellerCollectedCents: a 40% deposit carries 40% of the fee, so it reads as 40% of her price", () => {
+  assert2.equal(_sellerCollected(36_540, { gross_cents: 90_000, gross_charged_cents: 91_350 }), 36_000);
+});
+
+test2("sellerCollectedCents: no surcharge, unknown charged, or no ledger money passes through unchanged", () => {
+  assert2.equal(_sellerCollected(90_000, { gross_cents: 90_000, gross_charged_cents: 90_000 }), 90_000);
+  assert2.equal(_sellerCollected(90_000, { gross_cents: 90_000, gross_charged_cents: null }), 90_000);
+  assert2.equal(_sellerCollected(null, { gross_cents: 90_000, gross_charged_cents: 91_350 }), null);
+});
+
+test2("sellerCollectedCents never reports more than the ledger collected", () => {
+  assert2.equal(_sellerCollected(1_000, { gross_cents: 90_000, gross_charged_cents: 91_350 }), 985);
+});

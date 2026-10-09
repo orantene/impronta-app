@@ -2182,7 +2182,7 @@ export async function createOfferAction(
           new Error(`reason=${reason ?? ""} error=${errMsg ?? ""}`),
         );
         if (reason === "offer_currency_unresolved") {
-          return { ok: false, error: OFFER_CURRENCY_UNRESOLVED_MESSAGE };
+          return { ok: false, error: OFFER_CURRENCY_UNRESOLVED_MESSAGE, code: "offer_currency_unresolved" };
         }
         return { ok: false, error: reason ?? errMsg ?? "Could not create offer." };
       }
