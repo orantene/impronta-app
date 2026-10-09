@@ -288,7 +288,7 @@ test("TUL-440: framed arrow-card keeps the arrow inside the tappable button; unl
     },
     "es",
   );
-  const btn = html.match(/<button[^>]*data-portfolio-shot-link[^>]*>.*?<\/button>/s)?.[0] ?? "";
+  const btn = html.match(/<button[^>]*data-portfolio-shot-link[^>]*>[\s\S]*?<\/button>/)?.[0] ?? "";
   assert.match(btn, /sb-portfolio-arrow/);
   assert.match(btn, /data-offering-cta=/);
   assert.match(html, /<button[^>]*aria-label="Ver foto 2: [^"]*"[^>]*data-portfolio-photo/);

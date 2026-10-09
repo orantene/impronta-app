@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React, { useState, useTransition, useEffect, type CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate, type Translator } from "@/i18n/interpolate";
@@ -316,13 +317,13 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
           </>
         )}
         {loadFailed && !loading && (
-          <div style={{ marginTop: 10 }}>
+          <div className="mt-2.5">
             <button type="button" onClick={reload} style={ghostBtn()}>{t("dashboard.adminTabs.payment.retry")}</button>
           </div>
         )}
         {isAdmin && txStatus === "paid" && (
-          <div style={{ marginTop: 10 }}>
-            <a href="/admin/orders" data-pago-refund-link="" style={ghostBtn()}>{t("dashboard.adminTabs.payment.refundInOrders")}</a>
+          <div className="mt-2.5">
+            <Link href="/admin/orders" data-pago-refund-link="" style={ghostBtn()}>{t("dashboard.adminTabs.payment.refundInOrders")}</Link>
           </div>
         )}
         {isAdmin && txn && (
