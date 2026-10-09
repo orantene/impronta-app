@@ -139,15 +139,18 @@ export type CheckoutSessionInput = {
  * non-integer or negative fee, or fees that leave no positive service line):
  * the caller refuses rather than charge a total the lines do not show.
  */
+/** One Checkout line_items entry. Indexed off SessionCreateParams because the Stripe SDK exports that as a type alias, not a nestable namespace. */
+type CheckoutLineItem = NonNullable<Stripe.Checkout.SessionCreateParams["line_items"]>[number];
+
 export function checkoutLineItems(
   input: Pick<CheckoutSessionInput, "amountCents" | "currency" | "description" | "feeLines">,
-): Stripe.Checkout.SessionCreateParams.LineItem[] | null {
+): CheckoutLineItem[] | null {
   const currency = input.currency.toLowerCase();
   const fees = (input.feeLines ?? []).filter((f) => f.amountCents !== 0);
   if (fees.some((f) => !Number.isInteger(f.amountCents) || f.amountCents < 0 || !f.name.trim())) return null;
   const serviceCents = input.amountCents - fees.reduce((sum, f) => sum + f.amountCents, 0);
   if (!Number.isInteger(serviceCents) || serviceCents <= 0) return null;
-  const line = (name: string, cents: number): Stripe.Checkout.SessionCreateParams.LineItem => ({
+  const line = (name: string, cents: number): CheckoutLineItem => ({
     quantity: 1,
     price_data: { currency, unit_amount: cents, product_data: { name } },
   });
