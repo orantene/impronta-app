@@ -244,7 +244,8 @@ export function notifyRefundFailed(params: {
 /**
  * `payment.needs_attention` — workspace Money alert when a booking transaction
  * is stamped for a human (paid after cancel, refund failed, …). Dedupe on
- * `(transactionId, reason)` so a re-flag is a no-op.
+ * `(transactionId, reason[, refundId])` so a re-flag is a no-op, while a second
+ * distinct failed refund on the same payment row (PI fallback) still nudges.
  */
 export function notifyPaymentNeedsAttention(params: {
   tenantId: string;
@@ -255,13 +256,16 @@ export function notifyPaymentNeedsAttention(params: {
   note: string | null;
   amountCents?: number | null;
   currency?: string | null;
+  /** When set (refund_failed), folded into eventId so two refunds don't collapse. */
+  refundId?: string | null;
 }): void {
+  const refundSuffix = params.refundId?.trim() ? `:${params.refundId.trim()}` : "";
   void dispatchEventNotifications({
     type: "payment.needs_attention",
     tenantId: params.tenantId,
     inquiryId: params.inquiryId,
     bookingId: params.bookingId,
-    eventId: `payment-needs-attention:${params.transactionId}:${params.reason}`,
+    eventId: `payment-needs-attention:${params.transactionId}:${params.reason}${refundSuffix}`,
     payload: {
       transactionId: params.transactionId,
       bookingId: params.bookingId,
@@ -270,6 +274,7 @@ export function notifyPaymentNeedsAttention(params: {
       note: params.note,
       amountCents: params.amountCents ?? null,
       currency: params.currency ?? null,
+      refundId: params.refundId ?? null,
     },
   }).catch((err) => {
     logServerError("notifyPaymentNeedsAttention", err);

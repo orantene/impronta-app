@@ -2,7 +2,10 @@
  * Stripe refund.failed / refund.updated(canceled|failed): the customer never
  * got the money, funds are back in the platform balance, and our books already
  * say refunded. Do not auto-revert. Stamp the refund row so Admin > Payments >
- * Refunds shows a failed state a person can act on (TUL-144 half-2).
+ * Refunds shows a failed state a person can act on (TUL-144 half-2 / TUL-391).
+ *
+ * ONE stamper for the webhook path (post-#2909). Returns `newlyFlagged` so
+ * TUL-391 bells fire once per distinct failed refund id.
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -39,44 +42,102 @@ function attentionNote(input: FailedRefundSettlementInput): string {
 
 /**
  * Resolve the booking_transactions row for a failed Stripe refund.
- * Prefer the linked refund row keyed by provider_refund_id.
+ * Prefer the linked refund row keyed by provider_refund_id; fall back to the
+ * PaymentIntent linkage when no refund row exists yet.
  */
 export type FailedRefundTransaction = {
   id: string;
   sourceTenantId: string | null;
   bookingId: string | null;
   inquiryId: string | null;
+  /** Which lookup matched — logged so ops can see PI-fallback collapses. */
+  matchPath: "provider_refund_id" | "payment_intent_id";
 };
 
-export async function findRefundTransactionForFailedSettlement(
-  admin: Admin,
-  refundId: string,
-): Promise<FailedRefundTransaction | null> {
-  const { data, error } = await admin
-    .from("booking_transactions")
-    .select("id, source_tenant_id, booking_id, source_inquiry_id")
-    .eq("provider_refund_id", refundId)
-    .maybeSingle();
-  if (error) {
-    logServerError("payments.failedRefundSettlement.lookup", error);
-    return null;
-  }
-  const row = data as {
-    id?: string;
-    source_tenant_id?: string | null;
-    booking_id?: string | null;
-    source_inquiry_id?: string | null;
-  } | null;
-  if (!row?.id) return null;
+type TxRow = {
+  id?: string;
+  source_tenant_id?: string | null;
+  booking_id?: string | null;
+  source_inquiry_id?: string | null;
+};
+
+function toTransaction(
+  row: TxRow,
+  matchPath: FailedRefundTransaction["matchPath"],
+): FailedRefundTransaction | null {
+  if (!row.id) return null;
   return {
     id: row.id,
     sourceTenantId: row.source_tenant_id ?? null,
     bookingId: row.booking_id ?? null,
     inquiryId: row.source_inquiry_id ?? null,
+    matchPath,
   };
 }
 
-/** Stamp the refund money row so Admin Payments lists it as failed. Idempotent. */
+export async function findRefundTransactionForFailedSettlement(
+  admin: Admin,
+  input: { refundId: string; paymentIntentId?: string | null },
+): Promise<FailedRefundTransaction | null> {
+  const { data, error } = await admin
+    .from("booking_transactions")
+    .select("id, source_tenant_id, booking_id, source_inquiry_id")
+    .eq("provider_refund_id", input.refundId)
+    .maybeSingle();
+  if (error) {
+    logServerError("payments.failedRefundSettlement.lookupRefund", error);
+  } else if (data) {
+    const hit = toTransaction(data as TxRow, "provider_refund_id");
+    if (hit) {
+      logServerError(
+        "payments.failedRefundSettlement.match",
+        `path=provider_refund_id refund=${input.refundId} transaction=${hit.id}`,
+      );
+      return hit;
+    }
+  }
+
+  const pi = input.paymentIntentId?.trim();
+  if (!pi) return null;
+
+  // Prefer an explicit list over maybeSingle: multiple payment rows sharing a
+  // PaymentIntent must not silently pick one (PostgREST maybeSingle errors).
+  const { data: byPi, error: piErr } = await admin
+    .from("booking_transactions")
+    .select("id, source_tenant_id, booking_id, source_inquiry_id")
+    .eq("provider_metadata->>payment_intent_id", pi);
+  if (piErr) {
+    logServerError("payments.failedRefundSettlement.lookupPi", piErr);
+    return null;
+  }
+  const rows = (Array.isArray(byPi) ? byPi : byPi ? [byPi] : []) as TxRow[];
+  if (rows.length === 0) return null;
+  if (rows.length > 1) {
+    logServerError(
+      "payments.failedRefundSettlement.match",
+      new Error(
+        `path=payment_intent_id ambiguous refund=${input.refundId} ` +
+          `payment_intent=${pi} matches=${rows.length}; stamp skipped.`,
+      ),
+    );
+    return null;
+  }
+  const hit = toTransaction(rows[0]!, "payment_intent_id");
+  if (hit) {
+    logServerError(
+      "payments.failedRefundSettlement.match",
+      `path=payment_intent_id refund=${input.refundId} payment_intent=${pi} transaction=${hit.id}`,
+    );
+  }
+  return hit;
+}
+
+/**
+ * Stamp the refund money row so Admin Payments lists it as failed.
+ * Idempotent per `(transactionId, failed_refund_id)` so a PaymentIntent
+ * fallback that collapses two distinct refunds onto one payment row still
+ * re-stamps and re-nudges for the second refund id.
+ */
 export async function flagFailedRefundSettlement(
   admin: Admin,
   input: FailedRefundSettlementInput & { transactionId: string },
@@ -91,7 +152,12 @@ export async function flagFailedRefundSettlement(
     return { ok: false, newlyFlagged: false };
   }
   const meta = ((data as { metadata?: unknown } | null)?.metadata ?? {}) as Record<string, unknown>;
-  if (meta.needs_attention === FAILED_REFUND_ATTENTION) return { ok: true, newlyFlagged: false };
+  if (
+    meta.needs_attention === FAILED_REFUND_ATTENTION &&
+    meta.failed_refund_id === input.refundId
+  ) {
+    return { ok: true, newlyFlagged: false };
+  }
 
   const { error: updErr } = await admin
     .from("booking_transactions")
@@ -128,12 +194,15 @@ export async function applyFailedRefundSettlement(
   newlyFlagged: boolean;
   transaction: FailedRefundTransaction | null;
 }> {
-  const row = await findRefundTransactionForFailedSettlement(admin, input.refundId);
+  const row = await findRefundTransactionForFailedSettlement(admin, {
+    refundId: input.refundId,
+    paymentIntentId: input.paymentIntentId,
+  });
   if (!row) {
     logServerError(
       "payments.failedRefundSettlement.no_row",
       new Error(
-        `No booking_transactions row for provider_refund_id=${input.refundId} ` +
+        `No booking_transactions row for refund=${input.refundId} ` +
           `(charge=${input.chargeId ?? "unknown"}, payment_intent=${input.paymentIntentId ?? "unknown"}). ` +
           `Failed refund is logged only.`,
       ),
@@ -175,7 +244,7 @@ export async function handleFailedRefundWebhookAction(input: {
   const result = sb
     ? await applyFailedRefundSettlement(sb, settlement)
     : { flagged: false, newlyFlagged: false, transaction: null };
-  // TUL-391: workspace bells (once per newly flagged stamp).
+  // TUL-391: workspace bells (once per newly flagged stamp / distinct refund id).
   const tenantId = result.transaction?.sourceTenantId ?? null;
   if (tenantId) {
     notifyRefundFailed({
@@ -196,6 +265,7 @@ export async function handleFailedRefundWebhookAction(input: {
         bookingId: result.transaction.bookingId,
         inquiryId: result.transaction.inquiryId,
         reason: "refund_failed",
+        refundId: input.refundId,
         note:
           `Stripe refund ${input.refundId} ${input.status.toUpperCase()}. ` +
           `Customer was not paid. Arrange an alternative refund.`,

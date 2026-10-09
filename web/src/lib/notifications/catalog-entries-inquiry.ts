@@ -227,6 +227,10 @@ const OFFER_SENT_TALENT: CatalogEntry = {
  * pending at send; this in-app bell is the "offer pending approval" Attention
  * signal. Talents already get `offer.sent.talent`; clients get the email.
  * No engine bell on offer.sent, so this entry owns in_app with no double-notify.
+ *
+ * Solo owner-talent (coordinator AND priced talent): both bells land. The
+ * dispatcher dedupe key includes catalog entry id, so the talent rate bell and
+ * this workspace approval bell do not collapse onto each other (TUL-380 area).
  */
 const OFFER_PENDING_APPROVAL_WORKSPACE: CatalogEntry = {
   id: "offer.pending_approval.workspace",

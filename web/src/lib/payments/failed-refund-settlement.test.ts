@@ -83,6 +83,7 @@ test("applyFailedRefundSettlement resolves by provider_refund_id and stamps", as
   const out = await applyFailedRefundSettlement(s.admin, baseInput);
   assert.equal(out.flagged, true);
   assert.equal(out.transaction?.id, "rx1");
+  assert.equal(out.transaction?.matchPath, "provider_refund_id");
   assert.equal(
     (s.tables.booking_transactions[0]!.metadata as Record<string, unknown>).needs_attention,
     FAILED_REFUND_ATTENTION,

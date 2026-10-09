@@ -60,9 +60,24 @@ test("catalog: refund.failed.workspace copy names amount and reason", () => {
     }),
     recipient(),
   );
-  assert.match(String(body), /MXN 1,500\.00/);
+  // formatOrderMoney / failed-refund-attention-note (zero-decimal aware).
+  assert.match(String(body), /1,500\.00 MXN/);
   assert.match(String(body), /expired_or_canceled_card/);
   assert.match(String(body), /not paid/i);
+});
+
+test("catalog: refund.failed.workspace copy is zero-decimal aware", () => {
+  const entry = findCatalogEntryById("refund.failed.workspace")!;
+  const body = entry.in_app!.body!(
+    event("refund.failed", {
+      amountCents: 4500,
+      currency: "jpy",
+      failureReason: "lost_or_stolen_card",
+    }),
+    recipient(),
+  );
+  assert.match(String(body), /4,500 JPY/);
+  assert.doesNotMatch(String(body), /45\.00/);
 });
 
 test("catalog: payment.needs_attention title branches on reason", () => {

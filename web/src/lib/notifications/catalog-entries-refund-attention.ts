@@ -2,7 +2,7 @@ import "server-only";
 
 import type { CatalogEntry } from "./types";
 import { str, workspaceAdmins } from "./catalog-audiences";
-import { formatMoneyCents } from "./catalog-render";
+import { formatFailedRefundMoney } from "@/lib/payments/failed-refund-attention-note";
 
 /** Local, as in catalog-entries-billing: a 3-line coercion is not worth a
  *  shared import, and duplicating it keeps this module self-contained. */
@@ -10,6 +10,12 @@ const num = (v: unknown): number | null => {
   const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN;
   return Number.isFinite(n) ? n : null;
 };
+
+/** Zero-decimal-aware money for in-app copy (TUL-375 / review #4). */
+function moneyLabel(amountCents: number | null, currency: string | null): string {
+  if (amountCents == null || !currency) return "";
+  return formatFailedRefundMoney(amountCents, currency);
+}
 
 /**
  * TUL-391 money-attention catalog entries.
@@ -37,7 +43,7 @@ export const REFUND_FAILED_WORKSPACE: CatalogEntry = {
     surface: "workspace",
     title: () => "Refund failed",
     body: (event) => {
-      const amount = formatMoneyCents(num(event.payload.amountCents), str(event.payload.currency));
+      const amount = moneyLabel(num(event.payload.amountCents), str(event.payload.currency));
       const reason = str(event.payload.failureReason);
       if (amount && reason) {
         return `${amount} refund failed (${reason}). The customer was not paid — arrange an alternative refund.`;
