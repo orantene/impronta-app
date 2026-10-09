@@ -70,6 +70,7 @@ export function AdminReservationView({ inquiry, onBack }: { inquiry: RichInquiry
     if (!inquiry.offer) return { text: "Not started", tone: "neutral" };
     const o = inquiry.offer;
     if (o.status === "draft")     return { text: `Draft · ${o.total}`,            tone: "neutral" };
+    if (o.status === "sent" && o.awaitingTalent) return { text: `${o.total} · waiting for talent to approve`, tone: "warn" };
     if (o.status === "sent")      return { text: `${o.total} · awaiting client`,  tone: "warn" };
     if (o.status === "accepted")  return { text: `${o.total} · approved`,         tone: "ok" };
     if (o.status === "rejected")  return { text: `${o.total} · declined`,         tone: "alert" };

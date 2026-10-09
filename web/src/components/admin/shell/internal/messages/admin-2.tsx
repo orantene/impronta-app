@@ -240,6 +240,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
   const offerLabel = (() => {
     if (!offer) return null;
     if (offer.status === "draft") return interpolate(t("dashboard.adminThread.offerDraft"), { total: offer.total });
+    if (offer.status === "sent" && offer.awaitingTalent) return interpolate(t("dashboard.adminThread.offerAwaitingTalent"), { total: offer.total });
     if (offer.status === "sent") return interpolate(t("dashboard.adminThread.offerSent"), { total: offer.total });
     if (offer.status === "accepted") return interpolate(t("dashboard.adminThread.offerAccepted"), { total: offer.total });
     if (offer.status === "rejected") return interpolate(t("dashboard.adminThread.offerRejected"), { total: offer.total });

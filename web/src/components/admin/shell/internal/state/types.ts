@@ -232,6 +232,11 @@ export type Offer = {
   id: string;
   version: number;
   status: "draft" | "sent" | "accepted" | "rejected" | "superseded";
+  /**
+   * Hold-the-send: the DB status is `awaiting_talent` (mapped to `sent` here so the existing
+   * approve / reject surfaces keep working). Staff and talent see it; the client does not.
+   */
+  awaitingTalent?: boolean;
   total: string;
   sentAt: string | null;
   lineItems: OfferLineItem[];

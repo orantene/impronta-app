@@ -8073,6 +8073,7 @@
             "acceptPay": "Accepter et payer l'acompte · {amount}",
             "accept": "Accepter",
             "accepting": "Acceptation",
+            "awaitingApproval": "Le talent examine cette offre. Vous pourrez l'accepter dès qu'il l'aura approuvée.",
             "askChange": "Demander un changement",
             "decline": "Refuser",
             "accepted": "Acceptée",

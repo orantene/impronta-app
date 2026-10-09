@@ -30,7 +30,9 @@ export type OfferStatus =
   | "accepted"
   | "rejected"
   | "superseded"
-  | "invalidated";
+  | "invalidated"
+  /** Staff sent it, a talent has not approved yet: staff and talent see it, the client does not. */
+  | "awaiting_talent";
 
 export type WorkspacePermissions = {
   canSendMessage: boolean;

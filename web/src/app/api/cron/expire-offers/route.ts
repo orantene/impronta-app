@@ -75,8 +75,11 @@ export async function GET(request: Request) {
       const released = await releaseHoldsForInquiry(admin, inquiryId);
       if (released.ok) holdsReleased += released.released;
     }
-    void improntaLog("inquiry.cron.expire_offers", { expired, holdsReleased });
-    return NextResponse.json({ ok: true, expired, holdsReleased });
+    // Hold-the-send: offers a talent never approved go back to staff as a draft after 72 h.
+    const { sweepAwaitingTalentOffers } = await import("@/lib/inquiry/awaiting-talent-expiry");
+    const awaiting = await sweepAwaitingTalentOffers(admin);
+    void improntaLog("inquiry.cron.expire_offers", { expired, holdsReleased, awaitingTalentReturned: awaiting.returned });
+    return NextResponse.json({ ok: true, expired, holdsReleased, awaitingTalentReturned: awaiting.returned });
   } catch (err) {
     logServerError("cron/expire-offers", err);
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });

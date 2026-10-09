@@ -285,7 +285,11 @@ export function ClientOfferCard({ offer, offers, copy, kit, business, locale, no
       </div>
     ) : (
       <div className="cx-row cx-offer-actions">
-        {onAccept ? (
+        {offer.awaitingApproval ? (
+          <span data-client-offer-awaiting-approval="">
+            <CardLine muted label={copy.offer.awaitingApproval} />
+          </span>
+        ) : onAccept ? (
           <Btn size="sm" variant="primary" busy={busy} onClick={() => onAccept(offer)} data-client-action="accept_offer">
             {busy ? copy.offer.accepting : (acceptLabel ?? copy.offer.accept)}
           </Btn>

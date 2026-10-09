@@ -15,6 +15,7 @@ import "server-only";
 import type { ClientOfferSummary } from "@/lib/messages-v5/client-thread-view";
 import { firstName } from "@/lib/messages-v5/client-thread-view";
 import { majorToMinorForDisplay } from "@/lib/inquiry/offer-minor-units";
+import { loadOffersAwaitingApproval } from "@/lib/messaging/offer-pending-approvals";
 
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,6 +55,10 @@ export async function loadClientOfferSummaries(admin: Admin, input: { tenantId: 
     list.push({ label: String(row.label ?? ""), units: num(row.units) || 1, amountCents: majorToMinorForDisplay(num(row.total_price), currencyByOffer.get(offerId)) });
     linesByOffer.set(offerId, list);
   }
+  const awaiting = await loadOffersAwaitingApproval(admin, {
+    tenantId: input.tenantId,
+    offerIds: offers.filter((row) => String(row.status ?? "") === "sent").map((row) => String(row.id)),
+  });
   return offers.map((row) => ({
     id: String(row.id),
     version: Math.max(1, Math.round(num(row.version)) || 1),
@@ -65,6 +70,7 @@ export async function loadClientOfferSummaries(admin: Admin, input: { tenantId: 
     refundPolicy: row.refund_policy_key == null ? null : String(row.refund_policy_key),
     validUntil: row.valid_until == null ? null : String(row.valid_until),
     noteToClient: row.notes == null || String(row.notes).trim() === "" ? null : String(row.notes),
+    ...(awaiting.has(String(row.id)) ? { awaitingApproval: true } : {}),
     lines: linesByOffer.get(String(row.id)) ?? [],
   }));
 }
