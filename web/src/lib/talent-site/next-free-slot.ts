@@ -100,6 +100,57 @@ export function pickSlotOffering(
   return null;
 }
 
+/** How many offerings the chip will probe before giving up (each probe is one cached slots call). */
+export const NEXT_FREE_MAX_PROBES = 4;
+
+export type ChipCandidate = { offering: TalentOffering; openable: boolean };
+
+/**
+ * TUL-346: every offering the chip may probe, in `pickChipOffering` preference order
+ * (slot-openable first, then other slot-eligible ones). A pinned offeringId stays alone.
+ */
+export function chipCandidates(
+  offerings: ReadonlyArray<TalentOffering>,
+  offeringId?: string | null,
+): ChipCandidate[] {
+  if (offeringId?.trim()) {
+    const one = pickChipOffering(offerings, offeringId);
+    return one ? [one] : [];
+  }
+  const openable = offerings.filter(carriesAtSlot).map((offering) => ({ offering, openable: true }));
+  const rest = offerings
+    .filter((o) => isSlotEligibleOffering(o) && !carriesAtSlot(o))
+    .map((offering) => ({ offering, openable: false }));
+  return [...openable, ...rest];
+}
+
+/**
+ * TUL-346: the first candidate whose slots API answer has a future slot. Probing only one
+ * offering hid the chip whenever it could not produce slots server-side (for example a
+ * tenantless "not_bookable_here" row). A thrown fetch counts as "no slots". The result carries
+ * the offering that produced the slots so the shown slot is the opened slot (TUL-275).
+ */
+export async function findFirstFreeSlot(
+  candidates: ReadonlyArray<ChipCandidate>,
+  fetchSlots: (
+    offeringId: string,
+    durationMinutes: number,
+  ) => Promise<{ slots: string[]; timezone: string }>,
+  maxProbes: number = NEXT_FREE_MAX_PROBES,
+): Promise<{ offeringId: string; openable: boolean; slots: string[]; timezone: string } | null> {
+  for (const c of candidates.slice(0, Math.max(1, maxProbes))) {
+    try {
+      const res = await fetchSlots(c.offering.id, c.offering.durationMinutes as number);
+      if (firstSlotStart(res.slots)) {
+        return { offeringId: c.offering.id, openable: c.openable, ...res };
+      }
+    } catch {
+      // try the next offering
+    }
+  }
+  return null;
+}
+
 /** True when booking was opened at the slot; false means the caller keeps its old behaviour. */
 export function openAtNextSlot(
   slot: NextSlot | null,
