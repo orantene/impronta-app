@@ -358,6 +358,9 @@ function MoneyHomePane(props: {
                     <span className="block text-[13px] text-admin-ink-muted">
                       {p.paymentMethod ? t(METHOD_LABEL[methodBucket(p.paymentMethod)]) : t("Method not recorded")}
                       {isPartPaidRow(p) ? ` · ${t("Part paid")}` : ` · ${t("Paid in full")}`}
+                      {!isPartPaidRow(p) && p.clientFeeCents != null && p.clientFeeCents > 0
+                        ? ` · ${t("Client paid {paid}, incl. {fee} service fee (not yours)").replace("{paid}", money(p.grossCents + p.clientFeeCents, cur)).replace("{fee}", money(p.clientFeeCents, cur))}`
+                        : ""}
                     </span>
                   </span>
                   <span className="whitespace-nowrap font-admin-body text-[15px] font-bold text-admin-ink">

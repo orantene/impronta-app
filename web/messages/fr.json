@@ -4268,6 +4268,7 @@
           "hold_ended": "La retenue pour ce creneau est terminee.",
           "basket_changed": "Le panier a change apres le debut du paiement.",
           "not_allowed": "Vous ne pouvez pas faire cela ici.",
+          "awaiting_approval": "Le talent doit encore approuver cette offre. Vous pourrez l'accepter dès que ce sera fait.",
           "not_her_sale": "Ce paiement appartient a l agence. Vous ne pouvez pas le demander d ici.",
           "expired": "Ce lien ou cette offre a expire.",
           "already": "C est deja fait.",

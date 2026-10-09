@@ -72,6 +72,8 @@ function adaptTalentInquiry(row: InquiryBridgeRow, fallbackAgencyName: string): 
     // (independent / open-hub booking, or agency-added) the shell unlocks the
     // coordinator surfaces: the client/private sub-thread, lineup edit, offers.
     iAmCoordinator: row.iAmCoordinator === true,
+    // TUL-472 — invite Accept keys off the talent participant status.
+    participantStatus: row.participantStatus,
     lastMessage: {
       sender:  "coordinator" as const,
       preview: stage === "booked" ? "Booking confirmed — check logistics tab." : "Awaiting your response.",

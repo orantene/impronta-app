@@ -451,7 +451,7 @@ export function AuthFooter({
           {brand.tagline ? (
             <p
               className="text-[0.75rem] leading-[1.5]"
-              style={{ color: "var(--plt-muted-soft)" }}
+              style={{ color: "var(--plt-muted)" }}
             >
               {brand.tagline}
             </p>

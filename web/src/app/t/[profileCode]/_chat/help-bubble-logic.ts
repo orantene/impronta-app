@@ -130,10 +130,16 @@ export function otherHelpBubbleShown(doc: Document, own: Element | null): boolea
   return Array.from(doc.querySelectorAll("[data-help-bubble]")).some((el) => el !== own);
 }
 
-/** TUL-59 C: one overlay at a time. True while a consent or language banner is on screen. */
+/** TUL-59 C / TUL-516: one overlay at a time. True while a consent or language banner is on screen. */
 export function helpBubbleBannerUp(doc: Document): boolean {
+  // Shared with floating-chrome-stack; kept as a thin re-export surface for chat tests.
   return Array.from(doc.querySelectorAll<HTMLElement>("[data-consent-banner], [data-locale-suggestion]")).some((el) => {
     const r = el.getBoundingClientRect();
     return r.width > 0 && r.height > 0;
   });
 }
+
+export {
+  helpBubbleFilterNavBlocking,
+  HELP_BUBBLE_FILTER_BAND_RATIO,
+} from "@/lib/talent-site/floating-chrome-stack";

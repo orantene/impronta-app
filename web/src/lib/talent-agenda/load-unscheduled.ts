@@ -10,7 +10,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { totalClientRevenueToCents } from "@/lib/money/total-client-revenue";
-import { PAID_AFTER_CANCEL_ATTENTION } from "@/lib/payments/paid-after-cancel";
+import { PAID_AFTER_CANCEL_ATTENTION } from "@/lib/payments/paid-after-cancel-attention";
 import { logServerError } from "@/lib/server/safe-error";
 
 import { deriveBookingState, derivePaymentState } from "./derive";

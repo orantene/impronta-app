@@ -20,9 +20,10 @@ import { useEditorLocale } from "./use-editor-locale";
 import { CHROME, CHROME_RADII } from "./kit";
 import type { BuilderNodeKind } from "@/lib/site-admin/builder-node";
 import { performAddGalleryInsert } from "@/lib/site-admin/add-gallery/perform-insert";
-import { templateCopySiteKind } from "@/lib/site-admin/add-gallery/section-template-copy";
+import { buildTemplateCopyContext } from "@/lib/site-admin/add-gallery/section-template-copy";
 import { getActiveContentLocaleSnapshot } from "./active-content-locale-bridge";
 import { useEditContext } from "./edit-context";
+import { useWorkspaceCopyType } from "./use-workspace-copy-type";
 
 const ROOT_PADDING = 8;
 
@@ -56,8 +57,16 @@ export function FreeformInsertPopover({
 }) {
   const { t } = useEditorLocale();
   const [aiPending, setAiPending] = useState(false);
-  const { insertBuilderNode, insertBuilderSectionEmbed, insertBuilderComponent, surfaceKind, reportMutationError } =
-    useEditContext();
+  const {
+    insertBuilderNode,
+    insertBuilderSectionEmbed,
+    insertBuilderComponent,
+    surfaceKind,
+    reportMutationError,
+    tenantId,
+    defaultLocale: siteDefaultLocale,
+  } = useEditContext();
+  const workspaceCopyType = useWorkspaceCopyType(tenantId);
   return (
     <div
       data-freeform-insert-menu={target.key}
@@ -193,10 +202,13 @@ export function FreeformInsertPopover({
                   { parentId: target.parentId ?? null },
                   { insertBuilderNode, insertBuilderSectionEmbed, insertBuilderComponent },
                   {
-                    copy: {
-                      siteKind: templateCopySiteKind(surfaceKind, window.location.pathname),
-                      locale: getActiveContentLocaleSnapshot().locale,
-                    },
+                    copy: buildTemplateCopyContext({
+                      surfaceKind,
+                      pathname: window.location.pathname,
+                      workspaceType: workspaceCopyType,
+                      active: getActiveContentLocaleSnapshot(),
+                      siteDefaultLocale,
+                    }),
                   },
                 );
                 if (!result.ok && result.error) reportMutationError(result.error);

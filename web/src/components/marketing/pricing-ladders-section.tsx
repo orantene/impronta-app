@@ -36,6 +36,8 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
 import {
   getPricingLaddersCopy,
+  localizeTierName,
+  localizeTierPrice,
   type PricingLaddersCopy,
 } from "@/lib/marketing/pricing-ladders-copy";
 import {
@@ -125,8 +127,8 @@ function buildCards(
     const salesLed = t.cadence === "" && !/\d/.test(t.price);
     return {
       key: t.key,
-      name: t.name,
-      price: salesLed ? c.salesLed : t.price,
+      name: localizeTierName(t.name, locale),
+      price: salesLed ? c.salesLed : localizeTierPrice(t.price, locale),
       cadence: salesLed ? "" : localizeCadence(t.cadence, c),
       line: tierCopy?.line ?? t.tagline,
       bullets: tierCopy ? [...tierCopy.bullets] : t.highlights,
