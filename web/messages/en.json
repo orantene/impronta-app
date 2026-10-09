@@ -2267,6 +2267,7 @@
       "closeLabel": "Close",
       "title": "Sign in or create an account",
       "subtitle": "Continue with Google or Apple, or we email you a code.",
+      "subtitleNoApple": "Continue with Google, or we email you a code.",
       "emailLabel": "Email",
       "sendCode": "Send code",
       "codeLabel": "Code",

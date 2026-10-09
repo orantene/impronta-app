@@ -516,7 +516,12 @@ export function ClientAccountButton({
                     ? interpolate(t("public.clientAccount.sentTo"), { email })
                     : step === "password"
                       ? t("public.clientAccount.passwordSubtitle")
-                      : t("public.clientAccount.subtitle")}
+                      : // W5-9 / A1-2: do not promise Apple while AUTH_APPLE_PROVIDER_ENABLED is off.
+                        t(
+                          appleSignInEnabled
+                            ? "public.clientAccount.subtitle"
+                            : "public.clientAccount.subtitleNoApple",
+                        )}
                 </p>
                 {step === "email" ? (
                   <>
