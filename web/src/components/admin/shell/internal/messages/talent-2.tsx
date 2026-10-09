@@ -476,15 +476,18 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
               admin affordances. Closes the awareness gap that left
               talent blind to their colleagues until the day of the shoot. */}
         {activeTab === "lineup" && (
-          isCoordinator ? (
-            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 14 }}>
+          // Shared scroll shell — keep a single inline style on this wrapper
+          // (ratchet count 33). Coord padding via className.
+          <div
+            style={{ flex: 1, minHeight: 0, overflowY: "auto" }}
+            className={isCoordinator ? "p-3.5" : undefined}
+          >
+            {isCoordinator ? (
               <LiveLineupPanel inquiryId={conv.id} defaultExpanded />
-            </div>
-          ) : (
-            <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+            ) : (
               <TalentReadOnlyLineup conv={conv} />
-            </div>
-          )
+            )}
+          </div>
         )}
         {/* Non-conversation tabs — each gets its own scrollable
             wrapper so the parent shell stays fixed (header + tab bar
