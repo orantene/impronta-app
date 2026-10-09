@@ -53,6 +53,15 @@ export function defaultFlowLocale(input: { saved?: string | null; acceptLanguage
   return "en";
 }
 
+/**
+ * TUL-146: an explicit `/es/start` URL is a language choice. The middleware
+ * rewrites it to `/start`, so the page reads the browser pathname it recorded
+ * and uses it as the saved locale (`?lang` still wins). `/start` returns null.
+ */
+export function flowLocaleFromPath(originalPath: string | null | undefined): FlowLocale | null {
+  return /^\/es\/start\/?$/.test(originalPath ?? "") ? "es" : null;
+}
+
 type ChoiceCopy = { title: string; sub: string; creates: string };
 
 export type ChooseCopy = {
