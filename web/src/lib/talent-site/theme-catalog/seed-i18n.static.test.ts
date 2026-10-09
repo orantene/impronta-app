@@ -14,7 +14,13 @@ import { FINISHED_GALLERY_SLUGS } from "./gallery-meta";
 import { COLLECTION_DESIGNS } from "./collection/designs";
 import { buildMaisonDesignPayload } from "./maison/design-payload";
 import { localiseOne } from "../design-label-locale";
-import { isTokenOnlyText, MODE_DEPENDENT_LABELS, SEED_TEXT_ES } from "./seed-i18n";
+import {
+  EMERGENCIES_TODAY_LABEL,
+  isTokenOnlyText,
+  MODE_DEPENDENT_LABELS,
+  NO_EMERGENCIES_TODAY_LABEL,
+  SEED_TEXT_ES,
+} from "./seed-i18n";
 
 const DESIGNS: ReadonlyArray<readonly [string, () => DesignPayload]> = [
   ["maison", buildMaisonDesignPayload],
@@ -129,6 +135,15 @@ test("the seed Spanish table has no em dash and no voseo", () => {
     // A token must survive translation.
     assert.deepEqual(es.match(/\{\{\w+\}\}/g) ?? [], en.match(/\{\{\w+\}\}/g) ?? [], `${en}`);
   }
+});
+
+test("TUL-516 C2: emergencies pill seed pair matches the design-label map", () => {
+  assert.equal(SEED_TEXT_ES[EMERGENCIES_TODAY_LABEL.en], EMERGENCIES_TODAY_LABEL.es);
+  assert.equal(SEED_TEXT_ES[NO_EMERGENCIES_TODAY_LABEL.en], NO_EMERGENCIES_TODAY_LABEL.es);
+  assert.equal(localiseOne(EMERGENCIES_TODAY_LABEL.en, "es"), EMERGENCIES_TODAY_LABEL.es);
+  assert.equal(localiseOne(NO_EMERGENCIES_TODAY_LABEL.en, "es"), NO_EMERGENCIES_TODAY_LABEL.es);
+  assert.equal(localiseOne(EMERGENCIES_TODAY_LABEL.es, "en"), EMERGENCIES_TODAY_LABEL.en);
+  assert.equal(localiseOne(NO_EMERGENCIES_TODAY_LABEL.es, "en"), NO_EMERGENCIES_TODAY_LABEL.en);
 });
 
 test("the scanner flags a missing overlay (guard against a vacuous pass)", () => {
