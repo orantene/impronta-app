@@ -87,6 +87,42 @@ export interface MaxSiteNavItem {
 }
 
 /**
+ * Seeded home-page title used when a site is first created (`title: "Home"`).
+ * `hydrateShellNav` injects page titles into the header AFTER design-label
+ * localisation, so without this map an ES site keeps showing "Home".
+ * Only the untouched seed is rewritten; a talent-edited nav label stays.
+ */
+const SEEDED_HOME_NAV_LABEL: Readonly<Record<"en" | "es", string>> = {
+  en: "Home",
+  es: "Inicio",
+};
+
+/**
+ * Localise the seeded home nav label for the visitor locale.
+ * Only the current home item (`isHome`) is rewritten — after "Set home", a
+ * former home can stay in the nav with `navLabel: "Home"` and `isHome: false`;
+ * rewriting every Home/Inicio label would mislabel that page.
+ */
+export function localiseMaxSiteNavLabel(
+  label: string,
+  locale: string | null | undefined,
+  isHome = false,
+): string {
+  if (!isHome) return label;
+  const key = (locale ?? "").trim().toLowerCase().slice(0, 2);
+  const target = key === "es" ? "es" : key === "en" ? "en" : null;
+  if (!target) return label;
+  const trimmed = label.trim();
+  if (
+    trimmed === SEEDED_HOME_NAV_LABEL.en ||
+    trimmed === SEEDED_HOME_NAV_LABEL.es
+  ) {
+    return SEEDED_HOME_NAV_LABEL[target];
+  }
+  return label;
+}
+
+/**
  * Read-time PLAN + PUBLISH gate for the PUBLIC Max site.
  *
  * The public site renders only when:
@@ -194,16 +230,26 @@ export function selectMaxSitePage(
  */
 export function buildMaxSiteNav(
   pages: readonly MaxSitePageRow[],
+  locale?: string | null,
+  chain?: readonly string[],
 ): MaxSiteNavItem[] {
+  const loc = locale?.trim() || null;
+  const locChain = chain ?? (loc ? [loc] : undefined);
   return pages
     .filter((p) => p.status === "published")
     .slice()
     .sort((a, b) => a.sortOrder - b.sortOrder || a.slug.localeCompare(b.slug))
-    .map((p) => ({
-      slug: p.slug,
-      label: p.navLabel?.trim() || p.title?.trim() || p.slug,
-      isHome: p.isHome,
-    }));
+    .map((p) => {
+      const title = loc
+        ? readI18n(p.titleI18n, p.title, loc, locChain ?? [loc])
+        : p.title;
+      const raw = p.navLabel?.trim() || title?.trim() || p.slug;
+      return {
+        slug: p.slug,
+        label: localiseMaxSiteNavLabel(raw, loc, p.isHome),
+        isHome: p.isHome,
+      };
+    });
 }
 
 /**

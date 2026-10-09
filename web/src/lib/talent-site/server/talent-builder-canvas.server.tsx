@@ -149,7 +149,11 @@ export async function buildTalentBuilderCanvasData(input: {
     ctaMode,
     chain: localeCtx.chain,
   });
-  const nav = buildMaxSiteNav(pages.map((p) => ({ ...p, status: "published" })));
+  const nav = buildMaxSiteNav(
+    pages.map((p) => ({ ...p, status: "published" })),
+    siteLocale,
+    localeCtx.chain,
+  );
   const shell = site?.siteSlug
     ? hydrateShellNav(fixed.shellTree, nav, site.siteSlug, "", "host-root")
     : fixed.shellTree;
