@@ -57,6 +57,7 @@ import { ShellUpgradeModal } from "./internal/shell-upgrade-modal";
 import { CommandPalette } from "./internal/palette";
 import { DRAWER_HELP } from "./internal/help";
 import { useDashboardText } from "./internal/dashboard-i18n";
+import { dashboardTabTitle } from "./internal/dashboard-tab-title";
 import { MESSAGES_MOBILE_CSS } from "./internal/messages-mobile-css";
 import { interpolate } from "@/i18n/interpolate";
 // Type-only import — `_data-bridge.ts` is a server-only module guarded by
@@ -75,12 +76,13 @@ function ToastBridge() {
 }
 
 /**
- * Browser tab title reflects total unread count. e.g. "(3) Tulala" so
- * the talent sees at a glance from another tab that something needs
- * them. Uses bridge unread counts when live data is wired.
+ * Browser tab title: current page (localized) + unread count.
+ * Was bare "Tulala" on every talent page (TUL-146 / C1-09). Now e.g.
+ * "Perfil · Tulala" / "(3) Mensajes · Tulala".
  */
 function TabTitleBridge() {
   const { state, bridgeTalentUnread, totalUnread } = useAdminShell();
+  const copy = useDashboardText();
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -90,12 +92,28 @@ function TabTitleBridge() {
         : state.surface === "workspace"
           ? totalUnread
           : 0;
-    const base = "Tulala";
-    document.title = unread > 0 ? `(${unread}) ${base}` : base;
+    let pageLabel = "";
+    if (state.surface === "talent") {
+      const meta = TALENT_PAGE_META[state.talentPage];
+      pageLabel = meta ? copy.t(meta.label) : "";
+    } else if (state.surface === "workspace") {
+      const meta = PAGE_META[state.page];
+      pageLabel = meta ? copy.t(meta.label) : "";
+    }
+    const title = dashboardTabTitle({ pageLabel, unread });
+    document.title = title;
     return () => {
-      document.title = base;
+      document.title = "Tulala";
     };
-  }, [state.surface, bridgeTalentUnread, totalUnread]);
+  }, [
+    state.surface,
+    state.talentPage,
+    state.page,
+    bridgeTalentUnread,
+    totalUnread,
+    copy.locale,
+    copy.t,
+  ]);
 
   return null;
 }

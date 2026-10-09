@@ -25,6 +25,7 @@ import {
   homeCityFromSources,
 } from "@/lib/talent/website-eligibility-facts";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
+import { primaryRoleLabelsFromTaxonomy } from "@/lib/talent/self-profile-trade-label";
 
 /**
  * _data-bridge/talent.ts — talent-side dashboard loaders.
@@ -42,8 +43,10 @@ export type TalentSelfProfile = {
   /** talent_profiles.id */
   id: string;
   displayName: string;
-  /** Primary talent type label (e.g. "Fashion Model") */
+  /** Primary talent type label in English (stable key for trade matching). */
   primaryTypeLabel: string | null;
+  /** Spanish primary trade label when taxonomy_terms.name_i18n.es is set. */
+  primaryTypeLabelEs: string | null;
   /** Home city display name */
   homeCity: string | null;
   /** workflow_status: draft | published | invited */
@@ -196,10 +199,9 @@ export async function loadTalentSelfProfile(
       `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
       "Unnamed";
 
-    const primaryTypeLabel =
-      (p.talent_profile_taxonomy ?? [])
-        .find((t) => t.relationship_type === "primary_role")
-        ?.taxonomy_terms?.name_i18n?.en ?? null;
+    const primaryTrade = primaryRoleLabelsFromTaxonomy(p.talent_profile_taxonomy);
+    const primaryTypeLabel = primaryTrade.en;
+    const primaryTypeLabelEs = primaryTrade.es;
 
     const homeCity = homeCityFromSources({
       serviceAreaHomeCity:
@@ -217,6 +219,7 @@ export async function loadTalentSelfProfile(
       id: p.id,
       displayName,
       primaryTypeLabel,
+      primaryTypeLabelEs,
       homeCity,
       workflowStatus: p.workflow_status ?? "draft",
       isPubliclyHidden: p.is_publicly_hidden ?? false,
@@ -353,10 +356,9 @@ export async function loadTalentSelfProfileByUser(
       `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
       "Unnamed";
 
-    const primaryTypeLabel =
-      (p.talent_profile_taxonomy ?? [])
-        .find((t) => t.relationship_type === "primary_role")
-        ?.taxonomy_terms?.name_i18n?.en ?? null;
+    const primaryTrade = primaryRoleLabelsFromTaxonomy(p.talent_profile_taxonomy);
+    const primaryTypeLabel = primaryTrade.en;
+    const primaryTypeLabelEs = primaryTrade.es;
 
     const homeCity = homeCityFromSources({
       serviceAreaHomeCity:
@@ -374,6 +376,7 @@ export async function loadTalentSelfProfileByUser(
       id: p.id,
       displayName,
       primaryTypeLabel,
+      primaryTypeLabelEs,
       homeCity,
       workflowStatus: p.workflow_status ?? "draft",
       isPubliclyHidden: p.is_publicly_hidden ?? false,

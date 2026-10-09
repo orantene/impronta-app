@@ -4,6 +4,7 @@ import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { Divider, Icon, PrimaryButton, SecondaryButton, SecondaryCard } from "../../primitives";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PROFILES_BY_ID, TAXONOMY, TAXONOMY_PARENT_LABEL_KEYS, applyProfileOverride, buildFreshTalentProfile, clearPendingReview, computeProfileCompleteness, getPendingReviewForRoster, getProfileById, useAdminShell, usePendingReviewSubscription, useProfileOverrideSubscription } from "../../state";
+import { useDashboardText } from "../../dashboard-i18n";
 import { PageHeader } from "../shared/page-chrome-1";
 import { ProfileEditorSections, ProfileReadyCard } from "./ProfileEditorPanel";
 import { AllSectionsGrid, EngagementStrip, ProfileHero } from "../shared/profile-sections-1";
@@ -11,6 +12,7 @@ import { PersonalPageBand } from "../shared/profile-sections-2";
 import { resolveTalentOwnPageState } from "@/lib/talent/public-profile-href";
 import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
+import { selfProfileTradeLabel } from "@/lib/talent/self-profile-trade-label";
 
 
 
@@ -24,6 +26,7 @@ const MODEL_INDUSTRY_TRADE_LABELS: ReadonlySet<string> = new Set(
 
 export function MyProfilePage() {
   const t = useT();
+  const dash = useDashboardText();
   const { openDrawer, toast, bridgeTalentSelfProfile, bridgeTalentPageAnalytics, tenantSlug, bridgeTenantIdentity } = useAdminShell();
   // Use the real profile id from the bridge when available; fall back to mock.
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
@@ -114,8 +117,13 @@ export function MyProfilePage() {
   const publicUrlLabel = ownPage?.label ?? (liveSiteHref ? liveSiteHref.replace(/^https?:\/\//, "") : p.publicUrl);
 
   // One header line: drop empty parts so no stray " · " separators appear (DS-34).
+  // Trade label follows dashboard locale (TUL-146 / C1-09): ES uses name_i18n.es.
+  const tradeForHeader = bridgeTalentSelfProfile
+    ? selfProfileTradeLabel(bridgeTalentSelfProfile, dash.locale) ??
+      t("dashboard.talentMyProfile.chooseTrade")
+    : roleSummary;
   const headerSubtitle = [
-    bridgeTalentSelfProfile ? (bridgeTalentSelfProfile.primaryTypeLabel ?? t("dashboard.talentMyProfile.chooseTrade")) : roleSummary,
+    tradeForHeader,
     p.measurementsSummary,
     bridgeTalentSelfProfile?.homeCity ?? p.city,
   ]
