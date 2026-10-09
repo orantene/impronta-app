@@ -11,7 +11,7 @@
  * RUN BY A PERSON (or CI), never by an agent session: this spec types card numbers on
  * a stripe.com page. It refuses to start unless the target is the isolated project,
  * every Stripe key is a TEST key and every URL is local (see global-setup.ts), and it
- * asserts the checkout page says "Test mode" BEFORE it types anything.
+ * asserts the checkout is a test session (cs_test_ URL + "Sandbox"/"Test mode" badge) BEFORE it types anything.
  *
  * Inputs (env): PAID_QA_BASE_URL (local app origin), PAID_QA_PAY_URLS (JSON: {"success": "...", "decline": "...",
  * "threeDS": "..."} one fresh pay link per case; a link is single use), JOURNEYS_ISOLATED=1,
@@ -53,8 +53,10 @@ async function openStripeCheckout(page: Page, payUrl: string, tag: string) {
   // The primary action on the pay page is a link to the hosted checkout.
   await page.getByRole("link", { name: /^(pay|pagar)/i }).first().click();
   await page.waitForURL(/checkout\.stripe\.com/, { timeout: 60_000 });
-  // GUARD: never type a card unless Stripe says this is test mode.
-  await expect(page.getByText(/test mode/i).first()).toBeVisible({ timeout: 30_000 });
+  // GUARD: never type a card unless this is a Stripe TEST session: the session id in the URL is
+  // cs_test_ AND the page says Sandbox (Stripe's newer badge) or Test mode (the older one).
+  expect(page.url()).toContain("cs_test_");
+  await expect(page.getByText(/sandbox|test mode/i).first()).toBeVisible({ timeout: 30_000 });
   await shot(page, `${tag}-2-checkout-test-mode`);
 }
 
