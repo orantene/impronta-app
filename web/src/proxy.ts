@@ -553,8 +553,7 @@ export async function proxy(request: NextRequest) {
     if (isDashboardInnerPathForLocalePrefix(inner)) { // A1: carves out /talent|client/register
       const url = request.nextUrl.clone();
       url.pathname = inner;
-      // TUL-492: the legacy signup doors hand the visitor's language to /start;
-      // keep the prefix's language across the strip instead of losing it.
+      // TUL-492: keep the prefix's language across the strip, for /start.
       const prefixLang = langFromLocalePrefixedPath(originalPathname);
       if (prefixLang && /^\/(register|login|onboarding\/role)\/?$/.test(inner) && !url.searchParams.has("lang")) url.searchParams.set("lang", prefixLang);
       return NextResponse.redirect(url, 308);
