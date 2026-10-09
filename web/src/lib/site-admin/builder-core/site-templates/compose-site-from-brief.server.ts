@@ -350,7 +350,16 @@ async function writeStamp(admin: SupabaseClient, tenantId: string, stamp: SiteCo
     const { data, error } = await admin.from("agencies").select("settings").eq("id", tenantId).maybeSingle<{ settings: unknown }>();
     if (error) throw error;
     const settings = (data?.settings && typeof data.settings === "object" ? data.settings : {}) as Record<string, unknown>;
-    const { error: upErr } = await admin.from("agencies").update({ settings: { ...settings, site_compose: stamp } }).eq("id", tenantId);
+    // TUL-524: compose notes "the wordmark carries the header" when there is
+    // no logo. Record that choice so first publish is never a brand wall.
+    const brandIdentity =
+      settings.brand_identity === "logo" || settings.brand_identity === "wordmark"
+        ? settings.brand_identity
+        : "wordmark";
+    const { error: upErr } = await admin
+      .from("agencies")
+      .update({ settings: { ...settings, site_compose: stamp, brand_identity: brandIdentity } })
+      .eq("id", tenantId);
     if (upErr) throw upErr;
   } catch (error) {
     logServerError("compose.stamp", error);

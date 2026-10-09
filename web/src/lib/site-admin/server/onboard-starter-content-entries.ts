@@ -85,26 +85,28 @@ function heroCopyFor(
   audience: StarterAudience,
   name: string,
 ): { headline: string; subheadline: string } {
+  // TUL-524: every headline includes the business name so a seeded site always
+  // has a real H1 and never fails the "missing headline" publish check.
   switch (audience) {
     case "operator":
       return {
-        headline: "Available for your next project.",
+        headline: `${name} is available for your next project`,
         subheadline: `${name} takes on editorial, event, and campaign work. Tell me about your project and I will come back with availability and a quote.`,
       };
     case "business":
       return {
-        headline: "Come see what we do.",
+        headline: `Welcome to ${name}`,
         subheadline: `${name} is open for bookings, events, and private hire. Tell us what you have in mind and we will come back with availability.`,
       };
     case "organization":
       return {
-        headline: "Book us for your next event.",
+        headline: `Book ${name} for your next event`,
         subheadline: `${name} performs at events, private functions, and campaigns. Tell us your date and location and we will come back with availability and a quote.`,
       };
     case "agency":
     default:
       return {
-        headline: "A curated roster, ready for your next production.",
+        headline: `${name}: a curated roster for your next production`,
         subheadline: `${name} represents makeup, hair, photography, and styling professionals for editorial work, events, and campaigns. Tell us about your project and we will assemble the right team.`,
       };
   }
