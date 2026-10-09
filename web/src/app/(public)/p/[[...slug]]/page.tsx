@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
@@ -15,6 +15,7 @@ import type { Locale } from "@/i18n/config";
 import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { getPublicTenantScope, getPublicPathPrefix } from "@/lib/saas/scope";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
+import { missingPageRedirect } from "@/lib/site-admin/server/public-page-fallback.server";
 import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
 import {
   BuilderNodeFontLinks,
@@ -730,7 +731,12 @@ export default async function CmsPublicPage({
     .eq("slug", slugPath)
     .maybeSingle();
 
-  if (!data) notFound();
+  if (!data) {
+    const s = await loadTenantLocaleSettings(publicScope.tenantId);
+    const to = await missingPageRedirect(supabase, { tenantId: publicScope.tenantId, locale, slug: slugPath, settings: localeUrlSettings(s.defaultLocale, s.supportedLocales), pathPrefix: await getPublicPathPrefix() });
+    if (to) redirect(to);
+    notFound();
+  }
 
   return (
     <>

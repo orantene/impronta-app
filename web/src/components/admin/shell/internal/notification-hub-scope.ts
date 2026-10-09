@@ -18,8 +18,13 @@ import type { UserNotification } from "./data-bridge";
 import type { DrawerId } from "./state/drawer-ids";
 import { notificationDrawerFields } from "./notification-drawer-targets";
 import { targetOf } from "./talent-notification-rows";
+import {
+  uiCategoryForKind,
+  type NotificationUiCategory,
+} from "@/lib/notifications/categories-ui";
 
 export type HubSurface = "workspace" | "talent" | "client";
+export type { NotificationUiCategory };
 
 /** Staff/agency queues (pending approvals, plan cap) are workspace-only. */
 export function staffQueuesVisible(surface: HubSurface): boolean {
@@ -32,6 +37,31 @@ export function scopeRealNotifications(
   surface: HubSurface,
 ): UserNotification[] {
   return surface === "talent" ? rows.filter((n) => n.surface === "talent") : [...rows];
+}
+
+/** Filter scoped rows to one UI category (bubble click / popover tab). */
+export function filterNotificationsByUiCategory(
+  rows: readonly UserNotification[],
+  category: NotificationUiCategory,
+): UserNotification[] {
+  return rows.filter((n) => uiCategoryForKind(n.kind) === category);
+}
+
+/**
+ * Unread among real rows: `read` is the server `read_at` mapping from the
+ * data-bridge. Optimistic ids (just-marked in the hub) are treated as read
+ * so the badge clears before the next layout reload.
+ */
+export function countUnreadRealNotifications(
+  rows: readonly UserNotification[],
+  optimisticReadIds: ReadonlySet<string> = new Set(),
+): number {
+  return rows.reduce((n, row) => {
+    if (row.read || optimisticReadIds.has(row.id) || optimisticReadIds.has(`notif-${row.id}`)) {
+      return n;
+    }
+    return n + 1;
+  }, 0);
 }
 
 export type HubClickTarget =

@@ -1,3 +1,4 @@
+import { networkPreviewCopy } from "./network-preview-copy";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { getMarketingCopy } from "@/lib/marketing/copy";
@@ -73,7 +74,7 @@ export async function NetworkSection() {
           </div>
 
           <div>
-            <NetworkDiagram />
+            <NetworkDiagram locale={locale} />
           </div>
         </div>
       </MarketingContainer>
@@ -113,7 +114,8 @@ function NetworkBullet({ title, body }: { title: string; body: string }) {
  * grid lives at `/discover-agencies`; this stays static so the section remains
  * lightweight and fast.
  */
-function NetworkDiagram() {
+function NetworkDiagram({ locale }: { locale: string }) {
+  const preview = networkPreviewCopy(locale);
   return (
     <div
       className="relative mx-auto w-full max-w-[560px] overflow-hidden rounded-[28px] p-4 sm:p-5"
@@ -143,26 +145,26 @@ function NetworkDiagram() {
             className="plt-mono text-[0.625rem] font-medium uppercase"
             style={{ color: "rgba(241,237,227,0.72)" }}
           >
-            Agencies & hubs
+            {preview.eyebrow}
           </span>
           <p
             className="plt-display mt-1 text-[1.35rem] font-semibold leading-[1.08]"
             style={{ color: "var(--plt-on-inverse)" }}
           >
-            Search the network before you apply.
+            {preview.headline}
           </p>
         </div>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {["Open", "Tulum", "Beauty", "Food", "Live music"].map((tag) => (
+        {preview.tags.map((tag) => (
           <span
             key={tag}
             className="rounded-full px-3 py-1.5 text-[0.75rem] font-medium"
             style={{
-              background: tag === "Open" ? "var(--plt-forest)" : "var(--plt-bg)",
-              color: tag === "Open" ? "var(--plt-forest-on)" : "var(--plt-ink-soft)",
-              border: tag === "Open" ? "1px solid var(--plt-forest)" : "1px solid var(--plt-hairline)",
+              background: tag === preview.openTag ? "var(--plt-forest)" : "var(--plt-bg)",
+              color: tag === preview.openTag ? "var(--plt-forest-on)" : "var(--plt-ink-soft)",
+              border: tag === preview.openTag ? "1px solid var(--plt-forest)" : "1px solid var(--plt-hairline)",
             }}
           >
             {tag}
@@ -171,7 +173,7 @@ function NetworkDiagram() {
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {NETWORK_PREVIEW_CARDS.map((card) => (
+        {preview.cards.map((card) => (
           <article
             key={card.name}
             className="rounded-[20px] p-4"
@@ -202,7 +204,7 @@ function NetworkDiagram() {
                   color: card.kind === "Hub" ? "var(--plt-forest)" : "var(--plt-ink-soft)",
                 }}
               >
-                {card.kind}
+                {card.kindLabel}
               </span>
             </div>
           </article>
@@ -211,10 +213,3 @@ function NetworkDiagram() {
     </div>
   );
 }
-
-const NETWORK_PREVIEW_CARDS = [
-  { name: "Impronta Models", meta: "Tulum · models, creators, hosts", kind: "Agency" },
-  { name: "Tulala Service Hub", meta: "Network · chefs, beauty, home", kind: "Hub" },
-  { name: "Nova Crew", meta: "Mexico City · events, performers", kind: "Agency" },
-  { name: "Private Pro Network", meta: "Remote · specialists, teams", kind: "Hub" },
-] as const;

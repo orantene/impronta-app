@@ -26,6 +26,7 @@ import type { OpenIntent } from "@/lib/talent-site/open-intent-queue";
 import { stickyBarAction, stickyBarIntent } from "@/lib/talent-site/sticky-bar-tap";
 import { buildPortfolioGallery, generalBookLabel, type PortfolioGallery } from "./portfolio-lightbox-logic";
 import { captionLanguageHint } from "./portfolio-caption-hint";
+import { NotShownOnSiteBadge } from "./not-shown-on-site-badge";
 import { PortfolioShotLink } from "./portfolio-shot-link";
 import { PORTFOLIO_WORK_ORDER_CSS, WorkOrderFigure } from "./portfolio-work-order";
 import { renderItalicMarkedTitle } from "./services-catalog-title";
@@ -275,6 +276,8 @@ export function renderPortfolioBlock(args: {
   locale?: string;
   /** The page's primary language: the language an unmapped caption is written in. */
   primaryLocale?: string;
+  /** TUL-124 — builder canvas: badge empty bands the live site drops. */
+  editorPreview?: boolean;
 }): ReactNode {
   const p = args.node.props;
   const layout = (p.layout ?? PORTFOLIO_DEFAULT_PROPS.layout) as PortfolioLayout;
@@ -312,7 +315,7 @@ export function renderPortfolioBlock(args: {
     return captionLanguageHint({ caption: full?.caption, captionI18n: full?.captionI18n, locale: args.locale, primaryLocale: args.primaryLocale });
   } : undefined);
   const shotNodes = visible.map((shot, index) => workOrder ? (
-    <WorkOrderFigure key={shot.id} shot={shot} />
+    <WorkOrderFigure key={shot.id} shot={shot} locale={args.locale} />
   ) : (
     <ShotFigure
       key={shot.id}
@@ -370,7 +373,13 @@ export function renderPortfolioBlock(args: {
             {credit ? <p className="sb-portfolio-credit">{credit}</p> : null}
           </header>
           {visible.length === 0 ? (
-            <p className="sb-portfolio-empty">{empty}</p>
+            <div
+              className="sb-portfolio-empty"
+              data-not-shown-on-site-host={args.editorPreview ? "" : undefined}
+            >
+              {args.editorPreview ? <NotShownOnSiteBadge locale={args.locale} /> : null}
+              <p style={{ margin: args.editorPreview ? "8px 0 0" : 0 }}>{empty}</p>
+            </div>
           ) : (
             <div className="sb-portfolio--chapter">{shotNodes}</div>
           )}
@@ -382,7 +391,13 @@ export function renderPortfolioBlock(args: {
             <h2 className="sb-portfolio-title">{renderItalicMarkedTitle(title)}</h2>
           </header>
           {visible.length === 0 ? (
-            <p className="sb-portfolio-empty">{empty}</p>
+            <div
+              className="sb-portfolio-empty"
+              data-not-shown-on-site-host={args.editorPreview ? "" : undefined}
+            >
+              {args.editorPreview ? <NotShownOnSiteBadge locale={args.locale} /> : null}
+              <p style={{ margin: args.editorPreview ? "8px 0 0" : 0 }}>{empty}</p>
+            </div>
           ) : (
             <div className={`sb-portfolio--${layout}`}>{shotNodes}</div>
           )}
