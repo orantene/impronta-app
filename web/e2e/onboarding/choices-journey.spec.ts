@@ -42,6 +42,7 @@ import { assertIsolatedJourneysTarget } from "../../scripts/isolated-target-guar
 import { assertAllowedOrigins, bypassHeadersFor, resolveJourneyTargets, talentHostFor } from "../../scripts/onboarding-qa/target-guard.mjs";
 import { createServerClient } from "@supabase/ssr";
 import { expect, test as baseTest } from "./_module";
+import { confirmAge18AndBuild } from "./_age18";
 
 // Origins come ONLY from env (JOURNEY_MARKETING_ORIGIN, JOURNEY_APP_ORIGIN, JOURNEY_TALENT_HOST_TEMPLATE); JOURNEY_TARGET=local
 // is the only way to get the localhost defaults. Throws at load unless every origin is localhost or staging-qa-*.tulala.digital
@@ -361,7 +362,7 @@ async function driveToAccount(page: Page, run: Run, choice: Choice, displayName:
 }
 
 async function signUpWithCode(page: Page, run: Run, email: string) {
-  await page.getByTestId("onb-build").click();
+  await confirmAge18AndBuild(page); // ticks 18+ when shown, waits for "Guardar y construir" to be enabled, clicks it
   await expect(page.getByTestId("onb-save")).toBeVisible({ timeout: 20_000 });
   await page.getByTestId("onb-email").fill(email);
   await page.getByTestId("onb-age-terms").check();
