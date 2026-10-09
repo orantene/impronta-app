@@ -20,9 +20,11 @@
 import { useState, useRef, useEffect } from "react";
 import {
   DEFAULT_CURRENCY_OPTIONS,
-  CURRENCY_LABELS,
+  localizedCurrencyLabel,
   type DefaultCurrencyCode,
 } from "@/lib/billing/currencies";
+
+import { currencyPickerCopy } from "./currency-picker-copy";
 
 const COOKIE_NAME = "tulala-currency";
 const COOKIE_MAX_AGE_DAYS = 365;
@@ -30,8 +32,11 @@ const COOKIE_MAX_AGE_DAYS = 365;
 export function CurrencyPicker({
   current,
   source,
+  locale = "en",
 }: {
   current: DefaultCurrencyCode | string;
+  /** The request locale; the chip's words follow it. */
+  locale?: string;
   /** Where the current value came from. Shown in the chip subtitle. */
   source?: "url-param" | "cookie" | "ip-country" | "fallback";
 }) {
@@ -94,16 +99,8 @@ export function CurrencyPicker({
     window.location.assign(url.toString());
   }
 
-  const subtitle =
-    displayedSource === "ip-country"
-      ? "Auto-detected"
-      : displayedSource === "cookie"
-        ? "Your pick"
-        : displayedSource === "url-param"
-          ? "Set via link"
-          : displayedSource === "fallback"
-            ? "Default"
-            : undefined;
+  const words = currencyPickerCopy(locale);
+  const subtitle = displayedSource ? words.source[displayedSource] : undefined;
 
   return (
     <div ref={wrapperRef} style={{ position: "relative", display: "inline-block" }}>
@@ -119,7 +116,7 @@ export function CurrencyPicker({
           color: "var(--plt-ink-soft)",
         }}
       >
-        <span>Showing prices in</span>
+        <span>{words.showing}</span>
         <strong style={{ color: "var(--plt-ink)", fontVariantNumeric: "tabular-nums" }}>
           {upperCurrent}
         </strong>
@@ -136,7 +133,7 @@ export function CurrencyPicker({
       {open && (
         <div
           role="listbox"
-          aria-label="Pick a currency"
+          aria-label={words.pick}
           style={{
             position: "absolute",
             bottom: "calc(100% + 6px)",
@@ -188,7 +185,7 @@ export function CurrencyPicker({
                 }}
               >
                 {isCurrent ? "✓" : <span style={{ width: 9 }} aria-hidden />}
-                <span style={{ flex: 1 }}>{CURRENCY_LABELS[code]}</span>
+                <span style={{ flex: 1 }}>{localizedCurrencyLabel(code, locale)}</span>
               </button>
             );
           })}
