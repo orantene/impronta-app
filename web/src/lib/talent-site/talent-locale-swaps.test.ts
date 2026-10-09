@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildTalentLocaleSwaps, clampWords } from "./talent-locale-swaps";
+import {
+  buildTalentLocaleSwaps,
+  clampWords,
+  localiseBakedLanguagesLine,
+} from "./talent-locale-swaps";
 
 const en = "I studied engineering for three years, until I understood that what I really loved was working with my hands and making people feel beautiful every single day, from the first coffee of the morning until the last client of the night.";
 const es = "Estudié ingeniería tres años, hasta que entendí que lo que amaba era trabajar con mis manos y hacer que la gente se sienta bella cada día.";
@@ -90,4 +94,38 @@ test("an ASCII-folded baked city swaps to its accented form, alone and in the ey
   assert.equal(es["Based in Cancun"], "Con base en Cancún");
   const en = buildTalentLocaleSwaps({ ...src, homeCity: { en: "Cancún" } }, "en");
   assert.equal(en["Cancun"], "Cancún");
+});
+
+test("ES swaps the baked About languages line (TUL-121 design polish)", () => {
+  const src = {
+    bioI18n: null,
+    typeNames: [],
+    homeCity: null,
+    proof: { languages: ["English"] },
+  };
+  const es = buildTalentLocaleSwaps(src, "es");
+  assert.equal(es["Languages: English"], "Idiomas: Inglés");
+  const bilingual = buildTalentLocaleSwaps(
+    { ...src, proof: { languages: ["Spanish", "English"] } },
+    "es",
+  );
+  assert.equal(bilingual["Languages: Spanish · English"], "Idiomas: Español · Inglés");
+  assert.ok(!("Languages: English" in buildTalentLocaleSwaps(src, "en")));
+});
+
+test("localiseBakedLanguagesLine translates any Languages seed without current proof (Codex P2)", () => {
+  // Tree baked "Languages: English"; talent later added Spanish — proof list
+  // no longer matches the stored text. Pattern still rewrites the baked line.
+  assert.equal(localiseBakedLanguagesLine("Languages: English", "es"), "Idiomas: Inglés");
+  assert.equal(
+    localiseBakedLanguagesLine("Languages: Spanish · English", "es"),
+    "Idiomas: Español · Inglés",
+  );
+  assert.equal(
+    localiseBakedLanguagesLine("Languages: French · German", "es"),
+    "Idiomas: Francés · Alemán",
+  );
+  assert.equal(localiseBakedLanguagesLine("Languages: English", "en"), null);
+  assert.equal(localiseBakedLanguagesLine("I speak English", "es"), null);
+  assert.equal(localiseBakedLanguagesLine("Idiomas: Inglés", "es"), null);
 });

@@ -85,3 +85,18 @@ test("hydrated seeded labels with a token localise as patterns", async () => {
   assert.equal(localiseSeededDesignLabel("Before you come", "es"), "Antes de venir");
   assert.equal(localiseSeededDesignLabel("Menu and prices", "es"), "Menú y precios");
 });
+
+test("ES About Languages line localises even when swaps only carry the current list (TUL-121 Codex P2)", () => {
+  // Applied tree still has the bake-time line; loadProofInput now lists Spanish+English.
+  const about = [
+    { id: "p", kind: "paragraph", props: { text: "Languages: English" } },
+  ] as unknown as BuilderNode[];
+  const swaps = { "Languages: Spanish · English": "Idiomas: Español · Inglés" };
+  const out = localiseSeededDesignLabels(about, "es", null, swaps);
+  assert.equal((out[0]!.props as { text: string }).text, "Idiomas: Inglés");
+  // Custom / non-seed About copy stays put.
+  const custom = [
+    { id: "p", kind: "paragraph", props: { text: "I speak English at home" } },
+  ] as unknown as BuilderNode[];
+  assert.equal(localiseSeededDesignLabels(custom, "es", null, swaps), custom);
+});
