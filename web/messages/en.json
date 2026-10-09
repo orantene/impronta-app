@@ -20075,6 +20075,15 @@
       "walletBody2": "To spend it locally, you can convert your USDC to pesos or your local currency whenever you like, using any service that supports it in your country.",
       "walletBody3": "Only link a wallet address you own. Double-check it before saving.",
       "checking": "Checking if USDC payouts are available for you..."
+    },
+    "domainRenewal": {
+      "chargedTitle": "Domain renewal paid",
+      "chargedBody": "We charged {amount} to your saved card to renew {domain}. That is our cost, with no markup. It renews on {date}.",
+      "payTitle": "Pay to keep {domain}",
+      "payBody": "{domain} renews on {date}. The renewal costs {amount}, our cost with no markup. Use the link within 24 hours; we will send a new one if needed. If it is not paid a week before, we turn off auto-renew and the domain will expire.",
+      "autorenewOffTitle": "Auto-renew is off for {domain}",
+      "autorenewOffBody": "We did not receive the renewal payment, so {domain} will expire on {date} and your site will stop loading there. Pay before then and we turn auto-renew back on.",
+      "consentDisclosure": "This domain renews every year at the registrar's price, with no markup. We tell you 21 days before and charge this card then. You can pay with a link instead at any time."
     }
   },
   "admin": {

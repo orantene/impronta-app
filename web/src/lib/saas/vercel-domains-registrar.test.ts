@@ -152,3 +152,63 @@ test("checkRegistrarSearchRateLimit caps per talent id", () => {
   assert.equal(blocked.ok, false);
   assert.equal(checkRegistrarSearchRateLimit("tal_2", now + 11).ok, true);
 });
+
+test("getRegistrarDomain: skips without a token; reads expiry, auto-renew and renewal price; states nothing it was not told", async () => {
+  const { getRegistrarDomain } = await import("./vercel-domains-registrar");
+  const skipped = await getRegistrarDomain("x.com", { env: {} });
+  assert.equal(skipped.attempted, false);
+  assert.equal(skipped.expiresAt, null);
+
+  const calls: string[] = [];
+  const info = await getRegistrarDomain("x.com", {
+    env: { VERCEL_TOKEN: "tok", VERCEL_TEAM_ID: "team_1" },
+    fetchFn: async (url) => {
+      calls.push(url);
+      return new Response(JSON.stringify({ expiresAt: "2027-10-09T00:00:00.000Z", autoRenew: true, renewalPrice: 14.99 }), { status: 200 });
+    },
+  });
+  assert.match(calls[0] ?? "", /\/v1\/registrar\/domains\/x\.com\?teamId=team_1$/);
+  assert.deepEqual(
+    { ok: info.ok, expiresAt: info.expiresAt, autoRenew: info.autoRenew, renewalPriceCents: info.renewalPriceCents },
+    { ok: true, expiresAt: "2027-10-09T00:00:00.000Z", autoRenew: true, renewalPriceCents: 1_499 },
+  );
+
+  const bare = await getRegistrarDomain("x.com", {
+    env: { VERCEL_TOKEN: "tok" },
+    fetchFn: async () => new Response(JSON.stringify({ domain: { expiresAt: 1_800_000_000_000 } }), { status: 200 }),
+  });
+  assert.equal(bare.ok, true);
+  assert.equal(bare.autoRenew, null);
+  assert.equal(bare.renewalPriceCents, null, "the buy price is never reused as the renewal price");
+  assert.match(bare.expiresAt ?? "", /^2027-/);
+
+  const bad = await getRegistrarDomain("x.com", {
+    env: { VERCEL_TOKEN: "tok" },
+    fetchFn: async () => new Response(JSON.stringify({ error: { code: "not_found", message: "no" } }), { status: 404 }),
+  });
+  assert.equal(bad.ok, false);
+  assert.equal(bad.errorCode, "not_found");
+});
+
+test("setDomainAutoRenew: PATCHes the flag, skips without a token, reports a registrar refusal", async () => {
+  const { setDomainAutoRenew } = await import("./vercel-domains-registrar");
+  assert.equal((await setDomainAutoRenew("x.com", false, { env: {} })).attempted, false);
+  let seen: { url: string; method?: string; body?: string } | null = null;
+  const ok = await setDomainAutoRenew("x.com", false, {
+    env: { VERCEL_TOKEN: "tok" },
+    fetchFn: async (url, init) => {
+      seen = { url, method: init?.method, body: String(init?.body) };
+      return new Response("{}", { status: 200 });
+    },
+  });
+  assert.equal(ok.ok, true);
+  assert.equal(seen!.method, "PATCH");
+  assert.match(seen!.url, /\/v1\/registrar\/domains\/x\.com\/auto-renew/);
+  assert.equal(seen!.body, JSON.stringify({ autoRenew: false }));
+  const refused = await setDomainAutoRenew("x.com", true, {
+    env: { VERCEL_TOKEN: "tok" },
+    fetchFn: async () => new Response(JSON.stringify({ error: { code: "forbidden" } }), { status: 403 }),
+  });
+  assert.equal(refused.ok, false);
+  assert.equal(refused.errorCode, "forbidden");
+});
