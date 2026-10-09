@@ -123,23 +123,6 @@ export interface FixtureTranslation {
   faq?: Array<{ q: string; a: string }>;
   tasks?: Record<string, { label: string; hint: string }>;
   taskDefault?: { kicker: string; hint: string };
-  /** Utility top bar (Gridline): written onto `props.i18n.<lang>` when the demo applies site copy. */
-  topBar?: { subtitle: string; phoneAriaLabel: string };
-  /** Emergencies band + status pills (Gridline). */
-  urgency?: {
-    statusOn: string;
-    statusOff: string;
-    band: { title: string; safetyLead: string; safety: string };
-    ctaLabel: string;
-  };
-  /** Hero chrome (Gridline): kicker, headline, badges and CTA pair. Spec cells use `factsI18n` on the fixture. */
-  hero?: { eyebrow: string; headline: string; badges: string[]; ctas: [string, string] };
-  /** Spec table title, subtitle and rows (Gridline). */
-  specTable?: { title: string; subtitle: string; rows: Array<{ label: string; value: string }> };
-  /** Services catalog heading (Gridline). */
-  menu?: { title: string; subtitle: string };
-  /** Task picker section title (item labels stay on `tasks`). */
-  tasksTitle?: string;
 }
 
 export interface DemoContentFixture {
