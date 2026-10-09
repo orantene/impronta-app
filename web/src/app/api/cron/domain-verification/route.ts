@@ -3,11 +3,22 @@ import {
   sweepPendingCustomDomainVerifications,
   sweepProvisioningCustomDomains,
 } from "@/lib/saas/custom-domain-actions";
+import {
+  sweepActiveTalentSiteDomainHealth,
+  sweepPendingTalentSiteDomainVerifications,
+  sweepProvisioningTalentSiteDomains,
+  sweepTalentSiteDomainRenewals,
+} from "@/lib/talent-site/server/talent-site-domain-cron";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
 /**
- * Scheduled job: custom-domain DNS verification sweep.
+ * Scheduled job: custom-domain DNS verification + talent health/renewal sweep.
+ *
+ * Agency path (unchanged): pending TXT + provisioning for `agency_domains`.
+ * Talent path (Wave 1B D4): pending advance, provisioning, daily active
+ * DNS+HTTPS health (failure_reason + en/es notify), registrar expiry + 30/7
+ * renewal notices. D5 renewal billing is intentionally not wired here.
  *
  * Auth (audit H12): require Authorization header bearer token.
  * The `?token=` query-param fallback was removed because Vercel access logs
@@ -46,15 +57,32 @@ export async function GET(request: Request) {
   }
 
   try {
-    const [verificationReport, provisioningReport] = await Promise.all([
+    const [
+      verificationReport,
+      provisioningReport,
+      talentVerification,
+      talentProvisioning,
+      talentHealth,
+      talentRenewal,
+    ] = await Promise.all([
       sweepPendingCustomDomainVerifications(supabase),
       sweepProvisioningCustomDomains(supabase),
+      sweepPendingTalentSiteDomainVerifications(supabase),
+      sweepProvisioningTalentSiteDomains(supabase),
+      sweepActiveTalentSiteDomainHealth(supabase),
+      sweepTalentSiteDomainRenewals(supabase),
     ]);
     return NextResponse.json({
       ok: true,
       sweptAt: new Date().toISOString(),
       verification: verificationReport,
       provisioning: provisioningReport,
+      talent: {
+        verification: talentVerification,
+        provisioning: talentProvisioning,
+        health: talentHealth,
+        renewal: talentRenewal,
+      },
     });
   } catch (error) {
     logServerError("cron/domain-verification", error);
