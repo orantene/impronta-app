@@ -104,16 +104,15 @@ export function TalentJobShellHeader({
       fontFamily: FONTS.body,
       display: "flex", flexDirection: "column", gap: 10,
     }}>
-      {/* On narrow viewports the take-home chip + status pill push the
-          title into a 60-char ellipsis. Drop them into a second row so
-          the title gets its full width. Funnel still goes below. */}
+      {/* Narrow: wrap take-home under the title so the client name is
+          not crushed. Brief lives on its own line under the name. */}
       <style dangerouslySetInnerHTML={{ __html:
         // Mobile (≤720px) — heavy compaction. Drop the chunky back
         // button card (the inbox-tab handle on the left edge replaces
         // it), hide the redundant status pill (funnel below carries
-        // stage), shrink the meta line to a single ellipsized strip,
-        // and drop funnel labels to tiny — leaving only the dots and
-        // the active-stage label inline next to them.
+        // stage), wrap header actions under the title, and drop funnel
+        // labels to tiny — leaving only the dots and the active-stage
+        // label inline next to them.
         "@media (max-width: 720px){"
         + "[data-tulala-job-shell-header]{padding:10px 12px!important;gap:6px!important}"
         + "[data-tulala-job-shell-header] h1{font-size:15px!important}"
@@ -123,14 +122,14 @@ export function TalentJobShellHeader({
         + "[data-tulala-job-shell-header] [data-tulala-coord-pill-text]{display:none}"
         + "[data-tulala-job-shell-header] [data-tulala-funnel] .tulala-funnel-label{display:none!important}"
         + "[data-tulala-job-shell-header] [data-tulala-funnel]{gap:3px!important}"
+        // TUL-519 W5-3: take-home + overflow were crushing client+brief into a
+        // ~60-char ellipsis. Give the title the full row; actions wrap under.
+        + "[data-tulala-job-shell-header] [data-tulala-header-row1]{flex-wrap:wrap}"
+        + "[data-tulala-job-shell-header] [data-tulala-header-meta]{flex:1 1 auto;min-width:0}"
+        + "[data-tulala-job-shell-header] [data-tulala-header-actions]{flex:1 1 100%;justify-content:flex-end}"
         + "}"
         + "@media (max-width: 520px){"
-        // Keep title + take-home on row 1, meta below the title.
-        // (We used to wrap actions to a 3rd row, which made the
-        // header taller; with status pill hidden the take-home chip
-        // fits inline now.)
         + "[data-tulala-job-shell-header] h1{font-size:14px!important;line-height:1.2!important}"
-        + "[data-tulala-job-shell-header] [data-tulala-header-actions]{flex-shrink:0!important}"
         + "}"
       }} />
       {/* Row 1: back + title + meta + take-home + status */}
@@ -156,9 +155,13 @@ export function TalentJobShellHeader({
           </svg>
         </button>
         <div data-tulala-header-meta style={{ flex: 1, minWidth: 0 }}>
-          <h1 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, letterSpacing: -0.25, lineHeight: 1.25, display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", overflow: "hidden" }} className="text-admin-ink">
-            <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
-              {conv.client} <span style={{ fontWeight: 500 }} className="text-admin-ink-muted">· {conv.brief}</span>
+          <h1 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, letterSpacing: -0.25, lineHeight: 1.25, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }} className="text-admin-ink">
+            <span
+              data-tulala-thread-title
+              title={conv.client}
+              style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            >
+              {conv.client}
             </span>
             {conv.clientIdentity && (
               <span className="shrink-0">
@@ -172,9 +175,12 @@ export function TalentJobShellHeader({
             )}
           </h1>
           <div style={{ fontSize: 11.5, marginTop: 3, display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", overflow: "hidden" }} className="text-admin-ink-muted">
-            <span style={{
-              minWidth: 0, overflow: "hidden", textOverflow: "ellipsis",
-            }}>{metaLine}</span>
+            <span
+              data-tulala-thread-brief
+              title={[conv.brief, metaLine].filter(Boolean).join(" · ")}
+              style={{
+              flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis",
+            }}>{[conv.brief, metaLine].filter(Boolean).join(" · ")}</span>
             {sourceMeta && (
               <span aria-label={interpolate(t("dashboard.talentThread.sourceAria"), { label: sourceMeta.label })} title={sourceMeta.tooltip} style={{
                 flexShrink: 0,
