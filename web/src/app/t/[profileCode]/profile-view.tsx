@@ -9,7 +9,7 @@ import {
 import { humaniseFieldToken } from "./humanise-field-token";
 import { resolveSharperBanner } from "./banner-source";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 
@@ -147,6 +147,8 @@ import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { resolvePlatformTalentSiteForProfile } from "@/lib/talent-site/resolve-platform-talent-site";
 import { liveTalentProfileCode } from "@/lib/talent/profile-code-redirect.server";
 import { loadTalentMaxSiteLink } from "@/lib/talent-site/server/load-max-site-link";
+import { loadTalentHubCustomDomainHomeRedirect } from "@/lib/talent-site/server/load-hub-custom-domain-redirect";
+import { loadTalentPublicSiteByProfileCode } from "@/lib/talent-site/server/public-load";
 import { TALENT_SITE_TEMPLATES } from "@/lib/talent-site/templates/registry";
 import type { TalentSiteTemplateKey } from "@/lib/talent-site/templates/types";
 import {
@@ -1537,6 +1539,20 @@ export async function TalentProfileView({
   ]);
 
   const platformHost = isTalentProfilePlatformHost(hostCtx.kind);
+  // D1 — hub `/t/<code>` → ACTIVE primary custom domain home. Staff keep the
+  // hub via `?preview=1`. Never fires when the domain is not active.
+  if (platformHost && preview !== "1" && !isModal) {
+    const publicSite = await loadTalentPublicSiteByProfileCode(profileCode);
+    if (publicSite.kind !== "not_found") {
+      const customHome = await loadTalentHubCustomDomainHomeRedirect({
+        talentProfileId: publicSite.talentProfileId,
+        platformHost: true,
+        isModal: false,
+        preview,
+      });
+      if (customHome) permanentRedirect(customHome);
+    }
+  }
   // The freeform platform site carries its own full chrome (PublicHeader +
   // footer), which must never render inside the directory quick-open overlay —
   // the modal falls through to the template dispatcher, whose modal variant
