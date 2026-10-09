@@ -251,7 +251,7 @@ export function catalogRowMinCents(
 
 /** Maison ladder: "from" display OR more than one variant → DESDE / From. */
 export function catalogRowShowsFrom(
-  o: Pick<TalentOffering, "priceDisplay" | "variants">,
+  o: Pick<TalentOffering, "variants"> & { priceDisplay?: TalentOffering["priceDisplay"] | null },
 ): boolean {
   return o.priceDisplay === "from" || (o.variants ?? []).length > 1;
 }
