@@ -58,7 +58,14 @@ export const HERO_FACTS: Readonly<Record<string, HeroFacts>> = {
   "TAL-93003": { headline: "Uñas hechas a mano, a tu medida.", headlineEn: "Nails finished by hand, made to fit you.", instagram: "camila.nails.demo" },
   "TAL-93103": { headline: "Soft gel and lash lifts, made for you.", instagram: "linh.tran.demo" },
   "TAL-93104": { headline: "Brows shaped to frame your face.", instagram: "leo.haddad.demo" },
-  "TAL-93105": { headline: "Maquillaje que te hace brillar.", headlineEn: "Makeup that makes you glow.", instagram: "sofia.rinaldi.demo" },
+  "TAL-93105": {
+    headline: "Maquillaje que te hace brillar.",
+    headlineEn: "Makeup that makes you glow.",
+    // TUL-494: bilingual Maison demos ship tagline + taglineEn (hero_tagline liveText).
+    tagline: "Maquillaje social y de evento en Palermo, Buenos Aires.",
+    taglineEn: "Social and event makeup in Palermo, Buenos Aires.",
+    instagram: "sofia.rinaldi.demo",
+  },
   "TAL-93106": { headline: "Curls cut to show their shape.", instagram: "marcus.bell.demo" },
   "TAL-93107": { headline: "Clean lines, sharp from start to finish.", instagram: "coleman.cuts.demo" },
 };

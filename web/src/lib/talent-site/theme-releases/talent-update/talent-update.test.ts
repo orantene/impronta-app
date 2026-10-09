@@ -359,6 +359,9 @@ test("F78: sheet copy states what Apply will do (EN + ES, no em dash)", () => {
   for (const g of Object.values(GROUP_COPY)) assert.ok(!JSON.stringify(g).includes("—"));
   assert.match(GROUP_COPY.blocks.hintEn, /Apply never adds them/);
   assert.ok(!JSON.stringify(UPDATE_COPY).includes("—"));
+  // TUL-325: post-apply Publish CTA (exact EN/ES; em-dash covered above).
+  assert.deepEqual(UPDATE_COPY.publishCta, { en: "Publish site", es: "Publicar sitio" });
+  assert.deepEqual(UPDATE_COPY.unpublishedPill, { en: "Unpublished changes", es: "Cambios sin publicar" });
 });
 
 test("F78: a release of only new blocks has nothing for Apply", async () => {

@@ -447,7 +447,7 @@ export function galleryExtraDesignsEnabled(): boolean {
   );
 }
 
-/** Designs the gallery shows: the finished three, or all with the flag on. */
+/** Designs the gallery shows: the finished set, or all with the flag on. */
 export function visibleGalleryDesigns(showExtra: boolean = galleryExtraDesignsEnabled()): readonly GalleryDesign[] {
   return showExtra ? GALLERY_DESIGNS : GALLERY_DESIGNS.filter((d) => FINISHED_GALLERY_SLUGS.includes(d.slug));
 }

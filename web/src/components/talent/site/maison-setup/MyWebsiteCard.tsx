@@ -5,7 +5,7 @@
  * one primary Edit site, labeled secondary actions, presence tiles below.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -21,7 +21,9 @@ import {
 } from "lucide-react";
 import { useAdminShellOptional } from "@/components/admin/shell/internal/state/context";
 import type { MaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
+import { isThemeApplyBusy } from "@/lib/talent-site/history/apply-busy";
 import { loadTalentGoLiveAction } from "@/lib/talent-site/history/history-actions";
+import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
 import { goLiveHasPending } from "./go-live-pending";
 import { takeOr } from "../public-page-bootstrap";
 import { DesignOptionsPanel } from "./DesignOptionsPanel";
@@ -188,9 +190,11 @@ export function MyWebsiteCard({
   const [restoreOpen, setRestoreOpen] = useState(false);
   const [customPalette, setCustomPalette] = useState<MaisonCustomPaletteStored | null>(null);
   const [hasPending, setHasPending] = useState<boolean | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
   const [copied, setCopied] = useState(false);
   const [thumbLoaded, setThumbLoaded] = useState(false);
+  const [publishPending, startPublish] = useTransition();
   const hasNamedPalette =
     lookSlugToGalleryPaletteKey(themeDesignSlug, themeLookSlug) !== null;
   const talentId = useAdminShellOptional()?.bridgeTalentSelfProfile?.id ?? null;
@@ -267,6 +271,26 @@ export function MyWebsiteCard({
   const closeOptions = () => {
     setOptionsOpen(false);
     setRestoreOpen(false);
+  };
+
+  const refreshPending = () => {
+    void takeOr("goLive", "card", loadTalentGoLiveAction)
+      .then((res) => setHasPending(res.ok ? goLiveHasPending(res.summary) : null))
+      .catch(() => setHasPending(null));
+  };
+
+  const handlePublish = () => {
+    if (isThemeApplyBusy() || publishPending) return;
+    startPublish(async () => {
+      setPublishError(null);
+      const res = await publishMaxSiteAction();
+      if (!res.ok) {
+        setPublishError(res.error || t("Could not publish. Try again."));
+        return;
+      }
+      setHasPending(false);
+      refreshPending();
+    });
   };
 
   const copyAddress = async () => {
@@ -415,15 +439,49 @@ export function MyWebsiteCard({
             {summary}
           </p>
           {hasPending != null ? (
-            <p data-testid="maison-live-pending" className="text-[13px] text-admin-ink-muted">
-              {hasPending ? t("Unpublished changes") : t("No unpublished changes")}
-            </p>
+            <div className="flex flex-col gap-2">
+              <p
+                data-testid="maison-live-pending"
+                className={`inline-flex w-fit items-center gap-1.5 text-[13px] font-semibold ${
+                  hasPending ? "text-admin-ink" : "text-admin-ink-muted"
+                }`}
+              >
+                {hasPending ? (
+                  <>
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-admin-ink-dim" aria-hidden />
+                    {t("Unpublished changes")}
+                  </>
+                ) : (
+                  t("No unpublished changes")
+                )}
+              </p>
+              {hasPending ? (
+                <button
+                  type="button"
+                  data-testid="maison-live-publish"
+                  disabled={publishPending}
+                  onClick={handlePublish}
+                  className="inline-flex min-h-12 items-center justify-center rounded-xl border border-admin-ink bg-admin-ink px-5 text-[14px] font-semibold text-white disabled:opacity-50"
+                >
+                  {publishPending ? t("Publishing…") : t("Publish site")}
+                </button>
+              ) : null}
+              {publishError ? (
+                <p role="alert" className="m-0 text-[13px] text-admin-critical">
+                  {publishError}
+                </p>
+              ) : null}
+            </div>
           ) : null}
 
           <Link
             href="/talent/page-builder"
             data-testid="maison-edit-site"
-            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--tulala-primary-fill,#3B8277)] bg-[var(--tulala-primary-fill,#3B8277)] px-5 text-[14px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep,#326F66)] hover:bg-[var(--tulala-primary-fill-deep,#326F66)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill,#3B8277)]"
+            className={`inline-flex min-h-12 items-center justify-center rounded-xl border px-5 text-[14px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill,#3B8277)] ${
+              hasPending
+                ? "border-admin-border-soft bg-white text-admin-ink hover:bg-admin-surface-alt"
+                : "border-[var(--tulala-primary-fill,#3B8277)] bg-[var(--tulala-primary-fill,#3B8277)] text-white hover:border-[var(--tulala-primary-fill-deep,#326F66)] hover:bg-[var(--tulala-primary-fill-deep,#326F66)]"
+            }`}
           >
             {t("Edit site")}
           </Link>
