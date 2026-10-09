@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import type { NextRequest } from "next/server";
 
+import { createBoundedFetch, SUPABASE_EDGE_LOOKUP_TIMEOUT_MS } from "@/lib/supabase/bounded-fetch";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
 import { splitTalentSiteHost } from "@/lib/talent-site/site-public-url";
 
@@ -131,7 +132,15 @@ function cacheGet(host: string): HostContext | null {
   return entry.value;
 }
 
+/**
+ * Last good (non-not_found) answer per host, kept past the 60s TTL. Only used
+ * when the lookup itself FAILS (timeout / error): serving the previous answer
+ * beats a 404 page for a real site. Never consulted for a clean "no such host".
+ */
+const lastGood = new Map<string, HostContext>();
+
 function cacheSet(host: string, value: HostContext): void {
+  if (value.kind !== "not_found") lastGood.set(host, value);
   // Migrate across buckets if a previously-missing host now resolves
   // (or vice versa).
   hitCache.delete(host);
@@ -158,6 +167,8 @@ function buildEdgeSupabase(request: NextRequest) {
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anon) return null;
   return createServerClient(url, anon, {
+    // TUL-444: a stalled lookup must settle, not hold every request on this host.
+    global: { fetch: createBoundedFetch(SUPABASE_EDGE_LOOKUP_TIMEOUT_MS) },
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -201,6 +212,13 @@ export async function resolveTenantContext(
     .in("status", ["active", "ssl_provisioned", "verified"])
     .limit(1)
     .maybeSingle();
+
+  if (error) {
+    // Lookup failed (timeout or PostgREST error). Do not cache, and never turn a
+    // transient failure into a 60s "Host not registered" for a real site.
+    const previous = lastGood.get(hostname);
+    if (previous) return previous;
+  }
 
   let value: HostContext;
   if (error || !data) {
@@ -295,7 +313,7 @@ export async function resolveTenantContext(
     }
   }
 
-  cacheSet(hostname, value);
+  if (!(error && value.kind === "not_found")) cacheSet(hostname, value); // never cache a failure as "unregistered"
   return value;
 }
 

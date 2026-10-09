@@ -3,6 +3,8 @@ import "server-only";
 import type { ReactNode } from "react";
 import { loadHistoryPreviewSnapshot } from "../history/history.server";
 import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/talent-update.server";
+import { early } from "@/lib/server/early";
+import { failOnReadTimeout } from "@/lib/supabase/bounded-fetch";
 import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill, withHeaderSiteChrome } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
@@ -204,19 +206,14 @@ const NOT_FOUND: RenderTalentMaxSiteResult = { kind: "not_found" };
  * Resolve the site row from either key. By-slug is the primary path; by-profile
  * is the custom-domain path. Returns null when neither key resolves a row.
  */
-async function resolveSiteRow(
-  input: RenderTalentMaxSiteInput,
-): Promise<MaxSiteRow | null> {
-  if (input.siteSlug) {
-    return loadMaxSiteBySlug(input.siteSlug);
-  }
-  if (input.talentProfileId) {
-    return loadMaxSiteByProfileId(input.talentProfileId);
-  }
-  return null;
-}
+const resolveSiteRow = async (input: RenderTalentMaxSiteInput): Promise<MaxSiteRow | null> =>
+  input.siteSlug ? loadMaxSiteBySlug(input.siteSlug) : input.talentProfileId ? loadMaxSiteByProfileId(input.talentProfileId) : null;
 
-export async function renderTalentMaxSite(
+/** TUL-444: a read that timed out must surface as an error (500, never cached), not a 404 or a half-rendered site. */
+export const renderTalentMaxSite = (input: RenderTalentMaxSiteInput): Promise<RenderTalentMaxSiteResult> =>
+  failOnReadTimeout(() => renderTalentMaxSiteUnguarded(input));
+
+async function renderTalentMaxSiteUnguarded(
   input: RenderTalentMaxSiteInput,
 ): Promise<RenderTalentMaxSiteResult> {
   try {
@@ -226,9 +223,10 @@ export async function renderTalentMaxSite(
     const talentProfileId = site.talentProfileId;
     const previewDraft = input.previewDraft === true;
     // The talent's own languages: bounds the locale, feeds the header switch, the `node.i18n` overlays and hreflang (PR 4 + 5).
-    const localeCtx = await loadTalentSiteLocaleContext({ talentProfileId, requestedLocale: input.locale, hrefMode: input.hrefMode, pagePath: input.canonicalPath });
-    const locale = localeCtx.locale;
-
+    const pLocale = early(loadTalentSiteLocaleContext({ talentProfileId, requestedLocale: input.locale, hrefMode: input.hrefMode, pagePath: input.canonicalPath })); // TUL-444: independent reads start together
+    const pPlan = early(loadTalentPlanKey(talentProfileId)), pPages = early(loadMaxSitePages(talentProfileId)), pDesign = early(loadMaxSiteDesignSlug(talentProfileId));
+    const pTenant = early(loadTalentManagingTenantId(talentProfileId)), pIdentity = early(loadTalentSiteIdentity(talentProfileId)), pDemo = early(loadMaxSiteIsDemo(talentProfileId)); const pCta = early(pPlan.then((plan) => loadTalentSiteCtaMode(talentProfileId, plan)));
+    const localeCtx = await pLocale, locale = localeCtx.locale, pSeoFacts = early(loadMaxSiteSeoFacts(talentProfileId, locale));
     // ── Owner gate for draft preview (owner-only, like the profile preview) ──
     let isOwnerDraftPreview = false;
     if (previewDraft) {
@@ -247,8 +245,7 @@ export async function renderTalentMaxSite(
     // owner draft preview bypasses the gate so the owner can preview an
     // unpublished draft — but the plan is still READ there, because read-time
     // SEO scoping below needs it on both paths.
-    const planKey = await loadTalentPlanKey(talentProfileId);
-    const ctaMode = await loadTalentSiteCtaMode(talentProfileId, planKey); // seeded CTA copy follows booking mode
+    const planKey = await pPlan, ctaMode = await pCta; // seeded CTA copy follows booking mode
     const gateOpen = maxSitePublicGate({
       sitePublishedAt: site.sitePublishedAt,
       planKey,
@@ -267,7 +264,7 @@ export async function renderTalentMaxSite(
     const shellSource = snap?.shell ?? (isOwnerDraftPreview ? site.shellTree : site.shellPublished);
     const shellTree = coerceTree(shellSource);
 
-    const allPages = await loadMaxSitePages(talentProfileId);
+    const allPages = await pPages;
     // PHASE 1 — read-time page scoping. Extra pages are Web Office: a talent
     // without `personalSitePages` serves HOME ONLY on the public path, while
     // every row stays in the database. The owner's draft preview is never
@@ -287,7 +284,7 @@ export async function renderTalentMaxSite(
     if (!page) return NOT_FOUND;
 
     // Guest body + early design slug (live media / Maison trade-app fixups).
-    const designSlugEarly = await loadMaxSiteDesignSlug(talentProfileId);
+    const designSlugEarly = await pDesign;
     const snapBlocks = snap?.pages?.[page.id];
     const body = coerceTree(snapBlocks ?? publicPageBody(page, { draftPreview: isOwnerDraftPreview }));
     const fixed = await prepareTalentSiteTrees({ talentProfileId, locale, chain: localeCtx.chain, logoUrl: site.logoUrl, shellTree, body, ctaMode, designSlug: designSlugEarly, siteSlug: site.siteSlug });
@@ -312,13 +309,13 @@ export async function renderTalentMaxSite(
     );
 
     // ── Managing tenant — section-embed render context for the page body ─────
-    const tenantId = await loadTalentManagingTenantId(talentProfileId);
+    const tenantId = await pTenant;
 
     // ── Talent identity for the SITE's JSON-LD + OG image (degrade-safe) ──────
-    const identity = await loadTalentSiteIdentity(talentProfileId);
+    const identity = await pIdentity;
 
     // Demo pill + theme tokens (Design slug already loaded above).
-    const isDemo = await loadMaxSiteIsDemo(talentProfileId);
+    const isDemo = await pDemo;
     const siteTokens = snap?.tokens ?? (await loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview }));
     const designSlug = designSlugEarly;
     const policyModel = policyDoc ? await loadTalentPolicyModel(talentProfileId, policyDoc, locale) : null;
@@ -342,7 +339,7 @@ export async function renderTalentMaxSite(
       talentName: identity?.name ?? null, webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), { canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL, canonicalPath: input.canonicalPath, siteSlug: site.siteSlug }),
     });
 
-    const seoFacts = await loadMaxSiteSeoFacts(talentProfileId, locale); // services, links, city; never throws
+    const seoFacts = await pSeoFacts; // services, links, city; never throws
 
     const seo = buildMaxSiteSeo({
       ...seoFacts,
