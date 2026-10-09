@@ -8,7 +8,7 @@ import { userHasCapability } from "@/lib/access";
 import { enforceRoleLimit } from "@/lib/approvals/enforce";
 import { refundOrderLines } from "@/lib/orders/refund-execute-lines";
 import { cancelHybridComponents } from "@/lib/orders/hybrid-package";
-import { isRefundEffect, refundReasonForEffect } from "@/lib/orders/refund-effects";
+import { isRefundEffect, refundReasonForEffect, type RefundEffect } from "@/lib/orders/refund-effects";
 import { refundDeskOutcome, type RefundDeskOutcome } from "@/lib/orders/refund-desk-copy";
 import { packageRefundShare } from "@/lib/catalog/packages";
 import { logServerError } from "@/lib/server/safe-error";
@@ -28,7 +28,7 @@ export type RefundDeskResult =
   | { ok: false; outcome: RefundDeskOutcome };
 
 export type DeskLinesResult =
-  | { ok: true; lines: DeskOrderLine[] }
+  | { ok: true; lines: DeskOrderLine[]; defaultEffect: RefundEffect }
   | { ok: false; outcome: RefundDeskOutcome };
 
 export type DeskOrderLine = {
@@ -137,13 +137,32 @@ export async function loadOrderLinesForDesk(orderId: string): Promise<DeskLinesR
     refundedCents: row.refundedCents,
     components: row.offeringId ? shares.get(row.offeringId) ?? null : null,
   }));
-  return { ok: true, lines };
+  // Service orders have no admissions. Defaulting to cancel_ticket put ticket
+  // wording ("Cancelar una entrada…") on a beauty service refund (TUL-431).
+  const lineIds = lines.map((l) => l.id);
+  let hasTicket = false;
+  if (lineIds.length > 0) {
+    const { data: admissions, error: admErr } = await admin
+      .from("admissions")
+      .select("id")
+      .in("order_line_id", lineIds)
+      .limit(1);
+    if (admErr) logServerError("orders.refund.loadAdmissions", admErr);
+    hasTicket = (admissions ?? []).length > 0;
+  }
+  return {
+    ok: true,
+    lines,
+    defaultEffect: hasTicket ? "cancel_ticket" : "adjustment_after_service",
+  };
 }
 
 const schema = z.object({
   orderId: z.string().uuid(),
   lineIds: z.array(z.string().uuid()).min(1),
   effect: z.string(),
+  /** Minor units. Omit / null = full remaining of the picked lines. */
+  amountCents: z.number().int().positive().nullable().optional(),
 });
 
 export async function refundOrderAtDesk(input: z.infer<typeof schema>): Promise<RefundDeskResult> {
@@ -170,7 +189,7 @@ export async function refundOrderAtDesk(input: z.infer<typeof schema>): Promise<
     return { ok: false, outcome: "not_found" };
   }
 
-  // The role's refund limit, judged on what the picked lines would give back,
+  // The role's refund limit, judged on what THIS refund would give back,
   // BEFORE any money moves (D-139). Over it: nothing is refunded and the
   // request is filed for the approvals inbox.
   const { data: picked, error: pickedErr } = await admin
@@ -179,10 +198,13 @@ export async function refundOrderAtDesk(input: z.infer<typeof schema>): Promise<
     .eq("order_id", parsed.data.orderId)
     .in("id", parsed.data.lineIds);
   if (pickedErr) return { ok: false, outcome: "unavailable" };
-  const refundCents = ((picked ?? []) as Array<{ total_cents: number; refunded_cents: number | null }>).reduce(
+  const remainingCents = ((picked ?? []) as Array<{ total_cents: number; refunded_cents: number | null }>).reduce(
     (sum, line) => sum + Math.max(0, Number(line.total_cents) - Number(line.refunded_cents ?? 0)),
     0,
   );
+  const asked = parsed.data.amountCents ?? remainingCents;
+  if (asked > remainingCents) return { ok: false, outcome: "exceeds_captured" };
+  const refundCents = asked;
   const membership = await findTenantMembership(guard.tenantId);
   const limited = await enforceRoleLimit(admin, {
     tenantId: guard.tenantId,
@@ -191,7 +213,7 @@ export async function refundOrderAtDesk(input: z.infer<typeof schema>): Promise<
     amountCents: refundCents,
     subjectId: parsed.data.orderId,
     requestedBy: guard.user.id,
-    operationKey: `refund:${parsed.data.orderId}:${[...parsed.data.lineIds].sort().join(",").slice(0, 60)}`,
+    operationKey: `refund:${parsed.data.orderId}:${[...parsed.data.lineIds].sort().join(",").slice(0, 60)}:${refundCents}`,
     reason: `Refund at the desk (${refundCents} cents, ${parsed.data.effect})`,
   });
   if (!limited.ok) return { ok: false, outcome: limited.reason === "over_limit" ? "over_limit" : "unavailable" };
@@ -214,6 +236,7 @@ export async function refundOrderAtDesk(input: z.infer<typeof schema>): Promise<
     reason: refundReasonForEffect(parsed.data.effect),
     actorUserId: guard.user.id,
     note: `desk:${parsed.data.effect}`,
+    amountCents: parsed.data.amountCents ?? null,
   });
   if (!result.ok) {
     // The PROVIDER's code wins when there is one: "no charge to reverse" and

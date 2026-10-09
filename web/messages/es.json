@@ -13728,6 +13728,8 @@
       "refund": "Reembolsar líneas",
       "refundEffect": "Qué hace este reembolso",
       "refundConfirm": "Confirmar este reembolso",
+      "refundAmount": "Monto a reembolsar",
+      "refundAmountHint": "Por defecto es el restante completo ({max}). Bájalo para un reembolso parcial.",
       "refundEffectCopy": {
         "keepEntitlement": "Reembolsar parte del precio. El cliente conserva lo que compró.",
         "cancelTicket": "Cancelar una entrada. Esa admisión se anula y la plaza vuelve a estar libre.",

@@ -142,6 +142,8 @@ export default async function OrdersPage({
     refund: t("refund"),
     effect: t("refundEffect"),
     confirm: t("refundConfirm"),
+    amount: t("refundAmount"),
+    amountHint: t("refundAmountHint"),
     componentShare: t("refundComponentShare"),
     effects: {
       keep_entitlement: tr(REFUND_EFFECT_KEY.keep_entitlement),
