@@ -58,8 +58,30 @@ export const INBOX_ES_TEXT: Record<string, string> = {
   "Current stage": "Etapa actual",
   "Resize jobs list": "Cambiar el ancho de la lista de trabajos",
   "Awaiting your response.": "Esperando tu respuesta.",
+  "Booking confirmed. Check logistics tab.": "Reserva confirmada. Revisa la pestaña de logística.",
+  // Legacy key (em dash) kept so older seeded previews still translate.
   "Booking confirmed — check logistics tab.": "Reserva confirmada. Revisa la pestaña de logística.",
   "Submit your rate to see this": "Envía tu tarifa para verlo",
+  "Submit your rate": "Envía tu tarifa",
+  "You're booked": "Estás reservado",
+  "You approved this offer": "Aprobaste esta oferta",
+  "You've received an offer": "Recibiste una oferta",
+  "This job is booked and confirmed. Your take-home below is on its way to your connected payout account.":
+    "Este trabajo está reservado y confirmado. Tu pago neto abajo va camino a tu cuenta de cobro.",
+  "You've approved this offer. We're just waiting on the other parties before it converts to a booking.":
+    "Aprobaste esta oferta. Solo esperamos a las demás partes para convertirla en reserva.",
+  "The coordinator has sent you an offer for this job. Review your take-home below, then use Approve or Decline in the action bar.":
+    "El coordinador te envió una oferta para este trabajo. Revisa tu pago neto abajo y usa Aprobar o Rechazar en la barra de acciones.",
+  "The coordinator is waiting on your number. You'll see the agency fee + platform fee deducted before take-home, so quote what you actually need to walk out with, plus a small margin for usage.":
+    "El coordinador espera tu número. Verás la comisión de la agencia y de la plataforma descontadas antes del neto, así que cotiza lo que necesitas llevarte, más un margen pequeño por uso.",
+  "No offer yet. Your coordinator will send one when it's ready.":
+    "Aún no hay oferta. Tu coordinador enviará una cuando esté lista.",
+  "Your take-home:": "Tu pago neto:",
+  "(after the agency + platform fee)": "(después de la comisión de la agencia y la plataforma)",
+  "awaiting the other parties": "esperando a las demás partes",
+  "awaiting your approval": "esperando tu aprobación",
+  "Status": "Estado",
+  "loading…": "cargando…",
   "Confirmed · paid 14d after wrap": "Confirmado · pago 14 d después de terminar",
   "Sent to client · awaiting decision": "Enviado al cliente · esperando decisión",
   "Client countered · review the offer": "El cliente contraofertó · revisa la oferta",
