@@ -93,6 +93,7 @@
  *   5. platform default (platform_commission_config.default_take_bps)
  */
 
+import { baseReservationFee, floorTopUp, splitTake } from "./commission-take-shape";
 import { CommissionResolutionError } from "./commission-errors";
 import {
   estimateProcessorFeeCents,
@@ -231,13 +232,7 @@ export interface ResolveBookingCommissionsInput {
    *  independent talent selling directly (owning_party_type='talent'),
    *  where the talent IS the seller of record. */
   sellerOfRecord?: SellerOfRecord;
-  /**
-   * The booking is paid through an ORDER. The order checkout collects the order
-   * total and, only when pass_through is armed, the pass_through surcharge
-   * (`resolveCheckoutCollectCents`). It never adds a client surcharge in
-   * included mode or the workspace base reservation fee, so the snapshot must not
-   * assume them: gross_charged then equals exactly what the collect charges.
-   */
+  /** Paid through an ORDER checkout: no client surcharge in included mode, no base reservation fee (see commission-take-shape.ts). */
   orderBackedCollect?: boolean;
   /** Overrides `platformConfig.processing_mode` (e.g. a frozen snapshot's mode). */
   processingMode?: ProcessingMode | null;
@@ -459,21 +454,13 @@ export function resolveBookingCommissions(
   // 3. Split the take into a client surcharge + a seller-side deduction.
   const sellerOfRecord: SellerOfRecord = input.sellerOfRecord ?? "workspace";
 
-  // Client share of the take; default to an even split of the resolved
-  // total. Clamp to [0, total] so the seller share is never negative.
-  // pass_through: the whole take is a client surcharge (seller share = 0).
-  const rawClientShareBps = passThrough
-    ? platformTakeBps
-    : input.orderBackedCollect
-      ? 0
-      : input.platformConfig.client_surcharge_bps != null
-      ? input.platformConfig.client_surcharge_bps
-      : Math.floor(platformTakeBps / 2);
-  const clientShareBps = Math.min(Math.max(Math.round(rawClientShareBps), 0), platformTakeBps);
-  const sellerShareBps = Math.max(platformTakeBps - clientShareBps, 0);
-
-  const clientSurchargeBase = Math.round((subtotalCents * clientShareBps) / 10000);
-  const sellerTargetCents = Math.round((subtotalCents * sellerShareBps) / 10000);
+  const { clientSurchargeBase, sellerTargetCents } = splitTake({
+    passThrough,
+    orderBackedCollect: input.orderBackedCollect,
+    platformTakeBps,
+    clientSurchargeBps: input.platformConfig.client_surcharge_bps,
+    subtotalCents,
+  });
 
   // Seller-side: a workspace bears it from its margin (talent fully
   // protected); an independent talent bears it directly. A workspace whose
@@ -492,36 +479,29 @@ export function resolveBookingCommissions(
   //     workspace charges on every booking. Workspace REVENUE, added on top
   //     of the client total + clamped to the platform caps. Workspace seller
   //     only (an independent-talent sale has no workspace, so no base fee).
-  let baseReservationFeeCents = 0;
-  if (sellerOfRecord !== "talent" && input.tenantOverride && !input.orderBackedCollect) {
-    const flat = Math.max(0, Math.round(input.tenantOverride.base_reservation_fee_cents ?? 0));
-    const pctBps = Math.max(0, Math.round(input.tenantOverride.base_reservation_fee_bps ?? 0));
-    const pct = Math.round((subtotalCents * pctBps) / 10000);
-    const maxFlat = input.platformConfig.max_base_fee_cents;
-    const maxBps = input.platformConfig.max_base_fee_bps;
-    const cappedFlat = maxFlat != null ? Math.min(flat, Math.max(0, maxFlat)) : flat;
-    const cappedPct = maxBps != null
-      ? Math.min(pct, Math.round((subtotalCents * Math.max(0, maxBps)) / 10000))
-      : pct;
-    baseReservationFeeCents = cappedFlat + cappedPct;
-  }
+  const baseReservationFeeCents = baseReservationFee({
+    sellerOfRecord,
+    orderBackedCollect: input.orderBackedCollect,
+    tenantOverride: input.tenantOverride,
+    platformConfig: input.platformConfig,
+    subtotalCents,
+  });
 
   // 4. Floor = minimum TOTAL take, topped up via the client surcharge so
   //    that talent + workspace stay whole.
   let clientSurchargeCents = clientSurchargeBase;
   const takeBeforeFloor = clientSurchargeCents + sellerDeductionCents;
   if (takeBeforeFloor < platformTakeFloorCents) {
-    const gap = platformTakeFloorCents - takeBeforeFloor;
-    if (input.orderBackedCollect && !passThrough) {
-      // The order checkout charges no client surcharge, so the floor top-up
-      // lands on the seller side (a workspace only up to its margin).
-      const room = sellerOfRecord === "talent" ? gap : Math.max(Math.max(marginCents, 0) - sellerDeductionCents, 0);
-      const add = Math.min(gap, room);
-      sellerDeductionCents += add;
-      sellerShortfallCents += gap - add;
-    } else {
-      clientSurchargeCents += gap;
-    }
+    const top = floorTopUp({
+      gap: platformTakeFloorCents - takeBeforeFloor,
+      orderBackedIncluded: Boolean(input.orderBackedCollect) && !passThrough,
+      sellerOfRecord,
+      marginCents,
+      sellerDeductionCents,
+    });
+    clientSurchargeCents += top.clientSurchargeAdd;
+    sellerDeductionCents += top.sellerDeductionAdd;
+    sellerShortfallCents += top.sellerShortfallAdd;
   }
 
   let platformFeeCents = clientSurchargeCents + sellerDeductionCents;
