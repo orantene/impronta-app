@@ -7,6 +7,7 @@ import { type Conversation } from "@/components/admin/shell/internal/talent";
 import { DaySeparator } from "@/components/admin/shell/internal/messages/shared/machinery-15";
 import { renderChatCardForMessage } from "@/components/admin/shell/internal/messages/admin-3";
 import { type TalentThreadMessage } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { renderMessageMarkdown } from "@/lib/messages/markdown";
 import { LinkPreview, firstHttpUrl } from "@/components/messages/thread-enhancements";
 import { PinButton } from "@/components/chat-interactions/PinButton";
@@ -44,10 +45,11 @@ function realDayKey(iso: string): string {
 }
 
 function EmptyState({ title, body }: { title: string; body: string }) {
+  const copy = useDashboardText();
   return (
     <div style={{ padding: "32px 16px", textAlign: "center", fontFamily: FONTS.body }} className="text-admin-ink-muted">
-      <div className="text-admin-ink text-admin-13 font-semibold">{title}</div>
-      <div style={{ fontSize: 11.5, marginTop: 4, maxWidth: 260, marginLeft: "auto", marginRight: "auto" }}>{body}</div>
+      <div className="text-admin-ink text-admin-13 font-semibold">{copy.t(title)}</div>
+      <div style={{ fontSize: 11.5, marginTop: 4, maxWidth: 260, marginLeft: "auto", marginRight: "auto" }}>{copy.t(body)}</div>
     </div>
   );
 }

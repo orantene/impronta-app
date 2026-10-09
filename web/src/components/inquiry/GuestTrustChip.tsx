@@ -20,6 +20,8 @@
 
 import { useState } from "react";
 import { TrustBadge } from "@/components/trust-badge";
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { translateRiskLine } from "@/components/admin/shell/internal/dashboard-i18n-trust";
 import type {
   GuestTrustChipProps,
   TrustSignalState,
@@ -84,12 +86,13 @@ function SignalTick({
   label: string;
   state: TrustSignalState;
 }) {
+  const copy = useDashboardText();
   const isVerified = state === "verified";
   const isPresent = state === "present_unverified";
 
   return (
     <span
-      title={`${label}: ${state === "verified" ? "verified" : state === "present_unverified" ? "unverified" : "not provided"}`}
+      title={`${copy.t(label)}: ${copy.t(state === "verified" ? "verified" : state === "present_unverified" ? "unverified" : "not provided")}`}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -126,7 +129,7 @@ function SignalTick({
           border: isVerified || isPresent ? "none" : "1.5px solid rgba(11,11,13,0.25)",
         }}
       />
-      {label}
+      {copy.t(label)}
     </span>
   );
 }
@@ -152,6 +155,7 @@ export function GuestTrustChip({
   );
   const [reportError, setReportError] = useState<string | null>(null);
 
+  const copy = useDashboardText();
   const identityMeta = IDENTITY_META[identity];
 
   async function handleBlock() {
@@ -195,7 +199,7 @@ export function GuestTrustChip({
         border: "1px solid rgba(11,11,13,0.07)",
         fontFamily: '"Inter", system-ui, sans-serif',
       }}
-      aria-label={`Guest trust summary for ${displayName}`}
+      aria-label={copy.isSpanish ? `Resumen de confianza del invitado: ${displayName}` : `Guest trust summary for ${displayName}`}
     >
       {/* Row 1 — display name + identity chip + tier badge */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -238,7 +242,7 @@ export function GuestTrustChip({
               flexShrink: 0,
             }}
           />
-          {identityMeta.label}
+          {copy.t(identityMeta.label)}
         </span>
 
         {/* Trust tier badge (reuses live TrustBadge) */}
@@ -259,7 +263,7 @@ export function GuestTrustChip({
               userSelect: "none",
             }}
           >
-            Blocked
+            {copy.t("Blocked")}
           </span>
         )}
       </div>
@@ -305,7 +309,7 @@ export function GuestTrustChip({
           lineHeight: 1.4,
         }}
       >
-        {riskLine}
+        {translateRiskLine(riskLine, copy.isSpanish, copy.t)}
       </p>
 
       {/* Row 4 — Block / Report affordances (only when injected) */}
@@ -318,10 +322,10 @@ export function GuestTrustChip({
               disabled={blockState !== "idle"}
               aria-label={
                 blockState === "done"
-                  ? "Sender blocked"
+                  ? copy.t("Sender blocked")
                   : isBlocked
-                    ? "Already blocked"
-                    : "Block this sender"
+                    ? copy.t("Already blocked")
+                    : copy.t("Block this sender")
               }
               style={{
                 padding: "3px 10px",
@@ -339,7 +343,7 @@ export function GuestTrustChip({
                 opacity: blockState === "pending" ? 0.6 : 1,
               }}
             >
-              {blockState === "done" ? "Blocked" : isBlocked ? "Unblock" : "Block"}
+              {copy.t(blockState === "done" ? "Blocked" : isBlocked ? "Unblock" : "Block")}
             </button>
           )}
           {onReport && reportState !== "done" && (
@@ -364,7 +368,7 @@ export function GuestTrustChip({
                   opacity: reportState === "pending" ? 0.6 : 1,
                 }}
               >
-                {reportState === "choosing" ? "Cancel" : "Report"}
+                {copy.t(reportState === "choosing" ? "Cancel" : "Report")}
               </button>
               {reportState === "choosing" && (
                 <div
@@ -393,7 +397,7 @@ export function GuestTrustChip({
                         fontFamily: '"Inter", system-ui, sans-serif',
                       }}
                     >
-                      {r.label}
+                      {copy.t(r.label)}
                     </button>
                   ))}
                   {reportError && (
@@ -405,7 +409,7 @@ export function GuestTrustChip({
                         width: "100%",
                       }}
                     >
-                      {reportError}
+                      {copy.t(reportError)}
                     </p>
                   )}
                 </div>
@@ -420,7 +424,7 @@ export function GuestTrustChip({
                 fontFamily: '"Inter", system-ui, sans-serif',
               }}
             >
-              Report submitted
+              {copy.t("Report submitted")}
             </span>
           )}
         </div>
