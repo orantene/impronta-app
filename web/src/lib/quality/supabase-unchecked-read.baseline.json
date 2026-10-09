@@ -195,7 +195,6 @@
   "src/lib/inquiry/inquiry-settings.ts": 3,
   "src/lib/inquiry/load-alternates.ts": 1,
   "src/lib/invites/redeem.ts": 1,
-  "src/lib/ledger/run-projection.ts": 5,
   "src/lib/load-directory-inquiry-payload.ts": 7,
   "src/lib/media/platform-stock.ts": 4,
   "src/lib/media/talent-media-for-hub.ts": 1,
