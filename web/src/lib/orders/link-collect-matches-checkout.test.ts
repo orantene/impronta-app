@@ -82,4 +82,8 @@ test("the link checkout charges the collect, records gross = charge / net = prin
   assert.match(src, /platform_fee_cents: Math\.max\(0, collectCents - amountCents\),\s*\n\s*net_amount_cents: amountCents,/);
   assert.match(src, /amountCents: collectCents,/);
   assert.match(src, /\.update\(\{ gross_amount_cents: collectCents/);
+  // a failed draft-row update aborts the start: no mismatched session
+  assert.match(src, /if \(amountErr\) \{[\s\S]{0,260}return \{ ok: false, reason: "unavailable" \};/);
+  const collect = readFileSync("src/lib/orders/purchase-collect.ts", "utf8");
+  assert.match(collect, /logServerError\(`purchase-collect\.collectForOrderPrincipal/);
 });

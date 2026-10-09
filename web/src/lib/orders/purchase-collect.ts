@@ -6,6 +6,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { logServerError } from "@/lib/server/safe-error";
 import { amountToCollectCents } from "@/lib/orders/purchase-pricing";
 import {
   resolvePassThroughCollectCents,
@@ -78,7 +79,8 @@ export async function collectForOrderPrincipal(
     .select("talent_profile_id, owner_tenant_id, total_cents, talent_cost_cents")
     .eq("order_id", input.orderId);
   if (error) {
-    // Never charge less than the principal on a read failure; never guess a fee either.
+    // Never charge less than the principal on a read failure; never guess a fee either. Say so loudly.
+    logServerError(`purchase-collect.collectForOrderPrincipal[order=${input.orderId}]`, error);
     return input.principalCents;
   }
   const lines: PurchaseLineForCollect[] = ((data ?? []) as Array<{ talent_profile_id: string | null; owner_tenant_id: string | null; total_cents: number | string | null; talent_cost_cents: number | string | null }>).map((l) => ({

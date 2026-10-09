@@ -333,11 +333,16 @@ async function openOnce(
   });
   // A draft row opened before this amount was known (or before the surcharge was armed) must match
   // what the session will charge: gross = charge, net = principal, fee = the difference.
-  await admin
+  const { error: amountErr } = await admin
     .from("booking_transactions")
     .update({ gross_amount_cents: collectCents, platform_fee_cents: Math.max(0, collectCents - amountCents), net_amount_cents: amountCents })
     .eq("id", transactionId)
     .eq("status", "draft");
+  if (amountErr) {
+    // Never create a session for a row whose amounts do not match what it will charge.
+    logServerError("payments.openPaymentLinkCheckout.amounts", amountErr);
+    return { ok: false, reason: "unavailable" };
+  }
   const session = await (deps.createCheckoutSession ?? createCheckoutSessionForTransaction)({
     transactionId,
     amountCents: collectCents,
