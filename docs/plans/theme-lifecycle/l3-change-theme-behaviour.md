@@ -52,14 +52,14 @@
 
 ---
 
-## Code plan (this PR)
+## Code (this PR)
 
-| Piece | Path |
-|---|---|
-| Pure carry + warn plan | `web/src/lib/talent-site/server/design-switch.ts` |
-| Apply wire-up (draft-first, pre-snapshot, restore-on-repick) | `web/src/lib/talent-site/server/theme-apply-core.ts` |
-| Undo design switch | `web/src/lib/talent-site/history/history.server.ts` + timeline undoable for `design_apply` |
-| Tests | `design-switch.test.ts`, updates to apply / timeline tests |
+| Piece | Path | Status |
+|---|---|---|
+| Pure carry + warn plan | `web/src/lib/talent-site/server/design-switch.ts` | done |
+| Apply wire-up (draft-first, pre-snapshot, restore-on-repick) | `web/src/lib/talent-site/server/theme-apply-core.ts` | done |
+| Undo design switch | `history.server.ts` + timeline + history list copy | done |
+| Tests | `design-switch.test.ts`, `timeline.test.ts` | done |
 
 ---
 
