@@ -23,7 +23,20 @@ export type PaidTransaction = {
   grossAmountCents: number;
   /** Already refunded against THIS transaction, from its own eligibility. */
   refundedCents: number;
+  /**
+   * Non-refundable fees kept on this charge (pass-through platform + client-paid
+   * processing). Same ceiling `computeRefundEligibility` uses. Omit / 0 when
+   * none. The refundable headroom is `gross - fee - refunded` — not gross alone
+   * (TUL-469: after a partial, line remainder must not exceed this).
+   */
+  nonRefundableFeeCents?: number;
 };
+
+/** What is still refundable on one paid transaction (fee-aware). */
+export function txnRefundableCents(txn: PaidTransaction): number {
+  const fee = Math.max(0, Math.trunc(txn.nonRefundableFeeCents ?? 0));
+  return Math.max(0, txn.grossAmountCents - fee - txn.refundedCents);
+}
 
 export type RefundPlan =
   | {
@@ -112,31 +125,61 @@ export function planRefund(input: {
     return { ok: false, reason: "line_already_refunded" };
   }
 
-  const fullCents = perLineFull.reduce((s, p) => s + p.amountCents, 0);
+  const lineLeft = perLineFull.reduce((s, p) => s + p.amountCents, 0);
+  // Capture left = what Stripe will still return: gross − non-refundable fees −
+  // already refunded. Line figures alone overstate this whenever a fee is kept
+  // (TUL-469 remainder after a partial).
+  const captureLeft = input.transactions.reduce((s, t) => s + txnRefundableCents(t), 0);
   let perLine = perLineFull;
-  let totalCents = fullCents;
+  let totalCents = lineLeft;
+
+  function allocateToLines(capCents: number): Array<{ id: string; amountCents: number }> {
+    let left = capCents;
+    const out: Array<{ id: string; amountCents: number }> = [];
+    for (const p of perLineFull) {
+      if (left <= 0) break;
+      const take = Math.min(p.amountCents, left);
+      if (take <= 0) continue;
+      out.push({ id: p.id, amountCents: take });
+      left -= take;
+    }
+    return out;
+  }
 
   if (input.amountCents != null) {
     const asked = Math.trunc(input.amountCents);
     if (!Number.isFinite(asked) || asked <= 0) {
       return { ok: false, reason: "nothing_to_refund" };
     }
-    if (asked > fullCents) return { ok: false, reason: "exceeds_captured" };
+    // Refuse over-asks against either the lines or the capture — same sentence
+    // either way ("more than was charged").
+    if (asked > lineLeft || asked > captureLeft) {
+      return { ok: false, reason: "exceeds_captured" };
+    }
     // Drain picked lines in order until the asked amount is allocated. A
     // single line for MX$300 of a larger service is the common desk case;
     // multi-line picks still get a deterministic split without inventing shares.
     // Lines that received $0 of the cap are dropped so a partial money refund
     // does not stamp tickets on untouched lines.
-    let left = asked;
-    perLine = [];
-    for (const p of perLineFull) {
-      if (left <= 0) break;
-      const take = Math.min(p.amountCents, left);
-      if (take <= 0) continue;
-      perLine.push({ id: p.id, amountCents: take });
-      left -= take;
-    }
+    perLine = allocateToLines(asked);
     totalCents = asked;
+  } else if (lineLeft > captureLeft) {
+    // "Full remaining" of the lines is more than the card will return.
+    // Cap ONLY when non-refundable fees explain the shortfall (TUL-469:
+    // after a partial, line remainder can exceed fee-aware capture). A
+    // shortfall fees do not explain is a charge/line mismatch — refuse
+    // rather than silently under-refund (see "more than was captured").
+    const feesKept = input.transactions.reduce(
+      (s, t) => s + Math.max(0, Math.trunc(t.nonRefundableFeeCents ?? 0)),
+      0,
+    );
+    const shortfall = lineLeft - captureLeft;
+    if (captureLeft > 0 && feesKept > 0 && shortfall <= feesKept) {
+      perLine = allocateToLines(captureLeft);
+      totalCents = captureLeft;
+    } else {
+      return { ok: false, reason: "exceeds_captured" };
+    }
   }
 
   // ── Gap 2: spread across transactions, oldest first.
@@ -150,7 +193,7 @@ export function planRefund(input: {
   let left = totalCents;
   for (const txn of input.transactions) {
     if (left <= 0) break;
-    const available = Math.max(0, txn.grossAmountCents - txn.refundedCents);
+    const available = txnRefundableCents(txn);
     if (available <= 0) continue;
     const take = Math.min(available, left);
     steps.push({ transactionId: txn.id, amountCents: take });
@@ -179,7 +222,7 @@ export function planRefund(input: {
     for (const txn of input.transactions) {
       if (tipLeft <= 0) break;
       const already = steps.find((s) => s.transactionId === txn.id)?.amountCents ?? 0;
-      const available = Math.max(0, txn.grossAmountCents - txn.refundedCents - already);
+      const available = Math.max(0, txnRefundableCents(txn) - already);
       if (available <= 0) continue;
       const take = Math.min(available, tipLeft);
       const existing = steps.find((s) => s.transactionId === txn.id);
@@ -187,8 +230,17 @@ export function planRefund(input: {
       else steps.push({ transactionId: txn.id, amountCents: take });
       tipLeft -= take;
     }
-    if (tipLeft > 0) return { ok: false, reason: "exceeds_captured" };
-    return { ok: true, steps, lines: perLine, totalCents: totalCents + tipCents, isFullRefund };
+    // Tip that never sat in the capture (or fees ate the last cents) must not
+    // refuse the line remainder the cashier already confirmed — refund what tip
+    // fits; leave the rest.
+    const tipRefunded = tipCents - tipLeft;
+    return {
+      ok: true,
+      steps,
+      lines: perLine,
+      totalCents: totalCents + tipRefunded,
+      isFullRefund,
+    };
   }
 
   return { ok: true, steps, lines: perLine, totalCents, isFullRefund };

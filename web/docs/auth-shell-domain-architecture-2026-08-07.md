@@ -237,6 +237,14 @@ app is actually being built:
 - Configure the Apple OAuth provider in the Supabase Auth dashboard, add the
   `/auth/apple` route + `LoginAppleButton`, then uncomment the slot in
   `login/page.tsx`.
+- **Rotate the Apple client secret** at least every 6 months (Apple caps JWT
+  client-secret lifetime). In Supabase Auth → Providers → Apple, generate a
+  fresh secret from the Services ID + Team ID + Key ID + `.p8` private key and
+  paste it before the current secret expires; missed rotation breaks Sign in
+  with Apple for `/login` and the client popover until the new secret is saved.
+- After the provider is configured (and the secret is current), set
+  `AUTH_APPLE_PROVIDER_ENABLED=1` in the Vercel env for each environment that
+  should show the button. Unset keeps `/login` and the client popover Apple-free.
 - Confirm which host is the actual Universal Link / App Link domain
   (`app.tulala.digital` vs `tulala.digital`) before entitlements are written
   — this doc's D1/D2 rulings (host-local auth, one shared shell) mean
