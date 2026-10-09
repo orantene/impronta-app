@@ -28,7 +28,6 @@ src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/
 src/components/admin/shell/internal/live-category-fields-editor.test.ts
 src/components/admin/shell/internal/messages-thread-helpers.test.ts
 src/components/admin/shell/internal/messages/shared/offer-local-snapshot.test.ts
-src/components/admin/shell/internal/messages/shared/offer-save-state.test.ts
 src/components/admin/shell/internal/notification-localize.test.ts
 src/components/admin/shell/internal/page-modules/card-design-drift.test.ts
 src/components/admin/shell/internal/page-modules/design-hub-copy.static.test.ts
