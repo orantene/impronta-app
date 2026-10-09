@@ -393,7 +393,8 @@ export async function fetchTalentSnapshotAggregateRows(
       currencyCode: snapshot.currency_code,
       clientFeeCents: clientFeeCents(snapshot),
       collectedCents: sellerCollectedCents(ledger?.paidCents ?? null, snapshot),
-      refundedCents: Math.min(ledger?.refundedCents ?? 0, sellerCollectedCents(ledger?.paidCents ?? null, snapshot) ?? 0) || null,
+      // Refund rows are the CLIENT amount (fee included): scale them by the same gross / gross_charged ratio as the payment.
+      refundedCents: Math.min(sellerCollectedCents(ledger?.refundedCents ?? null, snapshot) ?? 0, sellerCollectedCents(ledger?.paidCents ?? null, snapshot) ?? 0) || null,
       collectedByMethod: scaleByMethod(ledger?.byMethod ?? null, ledger?.paidCents ?? null, sellerCollectedCents(ledger?.paidCents ?? null, snapshot)),
     });
   }
