@@ -212,11 +212,11 @@ export function OfferEditorView(props: OfferEditorViewProps) {
         <div data-offer-editor-phase="refused">
           <RefusalLine code={refusalCode} copy={copy.kit} variant={variant} action={props.onRetry && refusalCode !== "offer_currency_unresolved" ? { label: copy.shell.tryAgain, onClick: props.onRetry } : undefined} />
           {refusalCode === "offer_currency_unresolved" && props.onPickCurrency ? (
-            <div role="group" data-offer-currency-chooser style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <div role="group" data-offer-currency-chooser className="mt-3 flex gap-2">
               {(["MXN", "USD"] as const).map((code) => (
-                <button key={code} type="button" onClick={() => props.onPickCurrency?.(code)} style={{ minHeight: 44, padding: "0 20px", fontWeight: 700, cursor: "pointer" }}>
+                <Btn key={code} size="sm" variant="secondary" onClick={() => props.onPickCurrency?.(code)}>
                   {code}
-                </button>
+                </Btn>
               ))}
             </div>
           ) : null}

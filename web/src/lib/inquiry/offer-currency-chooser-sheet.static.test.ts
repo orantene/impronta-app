@@ -13,6 +13,13 @@ describe("484: the Messages offer sheet asks for a currency instead of dead-endi
     assert.match(sheet, /refusalCode !== "offer_currency_unresolved" \? \{ label: copy\.shell\.tryAgain/);
   });
 
+  it("the chooser uses classes and the Btn primitive, never inline styles (the gate's inline-style freeze)", () => {
+    const chooser = sheet.slice(sheet.indexOf("data-offer-currency-chooser"), sheet.indexOf("data-offer-currency-chooser") + 500);
+    assert.match(chooser, /className="mt-3 flex gap-2"/);
+    assert.match(chooser, /<Btn key=\{code\}/);
+    assert.doesNotMatch(chooser, /style=\{\{/);
+  });
+
   it("the pick is sent with the create call, so the engine takes the explicit currency", () => {
     assert.match(sheet, /messagingCreateOffer\(\{ inquiryId, expectedVersion: ctxNow\.version, currencyCode: pickedCurrencyRef\.current \}\)/);
     assert.match(sheet, /onPickCurrency=\{\(code\) => \{ pickedCurrencyRef\.current = code; void loadEverything\(\); \}\}/);
