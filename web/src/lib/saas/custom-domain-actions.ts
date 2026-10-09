@@ -101,7 +101,11 @@ export type ProvisioningDomainSweepReport = {
 
 export const DOMAIN_VERIFICATION_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
-type VercelDomainChallenge = {
+/** Talent-facing copy when the hostname is on a different Vercel project. */
+export const VERCEL_DOMAIN_TAKEN_ELSEWHERE_MESSAGE =
+  "This domain is used by another Vercel project. Remove it from that project or transfer it to Tulala, then try again.";
+
+export type VercelDomainChallenge = {
   type: string;
   domain: string;
   value: string;
@@ -116,6 +120,19 @@ type VercelDomainPayload = {
     value?: string;
     reason?: string | null;
   }>;
+};
+
+export type VercelDomainConfigResult = {
+  attempted: boolean;
+  skippedReason: string | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  misconfigured: boolean | null;
+  configuredBy: string | null;
+  recommendedIPv4: string[];
+  recommendedCNAME: string[];
+  /** DNS rows derived from Vercel recommendations (A/CNAME). */
+  recommendedRecords: Array<{ type: "A" | "CNAME"; host: string; value: string }>;
 };
 
 type VercelDomainApiConfig = {
@@ -142,6 +159,10 @@ export type VercelDomainRemoveResult = {
   skippedReason: string | null;
   errorCode: string | null;
   errorMessage: string | null;
+};
+
+export type VercelDomainProvisionResult = VercelDomainSyncResult & {
+  config: VercelDomainConfigResult | null;
 };
 
 type EnvLike = Record<string, string | undefined>;
@@ -177,6 +198,22 @@ function normalizeVercelChallenges(payload: VercelDomainPayload): VercelDomainCh
     .filter((challenge) => challenge.type && challenge.domain && challenge.value);
 }
 
+function mergeVercelChallenges(
+  ...groups: VercelDomainChallenge[][]
+): VercelDomainChallenge[] {
+  const seen = new Set<string>();
+  const out: VercelDomainChallenge[] = [];
+  for (const group of groups) {
+    for (const challenge of group) {
+      const key = `${challenge.type}|${challenge.domain}|${challenge.value}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(challenge);
+    }
+  }
+  return out;
+}
+
 async function parseVercelError(response: Response): Promise<{
   code: string | null;
   message: string | null;
@@ -197,6 +234,55 @@ async function parseVercelError(response: Response): Promise<{
 
 function vercelDomainPath(projectId: string, hostname: string): string {
   return `/v9/projects/${encodeURIComponent(projectId)}/domains/${encodeURIComponent(hostname)}`;
+}
+
+function networkFailureResult(
+  error: unknown,
+): Pick<
+  VercelDomainSyncResult,
+  "attempted" | "attached" | "verified" | "alreadyExists" | "skippedReason" | "errorCode" | "errorMessage" | "challenges"
+> {
+  if (error instanceof Error && error.name === "TimeoutError") {
+    return {
+      attempted: true,
+      attached: false,
+      verified: null,
+      alreadyExists: false,
+      skippedReason: null,
+      errorCode: "timeout",
+      errorMessage: "Vercel API timed out",
+      challenges: [],
+    };
+  }
+  return {
+    attempted: true,
+    attached: false,
+    verified: null,
+    alreadyExists: false,
+    skippedReason: null,
+    errorCode: "network_error",
+    errorMessage: error instanceof Error ? error.message : "Network error",
+    challenges: [],
+  };
+}
+
+/**
+ * Map a Vercel attach/sync failure to talent-facing copy. Returns null when the
+ * call was skipped (dark / env missing) or succeeded.
+ */
+export function vercelAttachFailureMessage(
+  sync: Pick<
+    VercelDomainSyncResult,
+    "attempted" | "attached" | "errorCode" | "errorMessage" | "skippedReason"
+  >,
+): string | null {
+  if (!sync.attempted || sync.attached) return null;
+  const code = (sync.errorCode ?? "").toLowerCase();
+  if (code === "domain_taken_elsewhere") {
+    return VERCEL_DOMAIN_TAKEN_ELSEWHERE_MESSAGE;
+  }
+  if (sync.errorMessage?.trim()) return sync.errorMessage.trim();
+  return "Vercel could not attach this domain. Check the domain status and try again.";
 }
 
 export async function ensureCustomDomainOnVercelProject(
@@ -237,28 +323,7 @@ export async function ensureCustomDomainOnVercelProject(
       signal: AbortSignal.timeout(8000),
     });
   } catch (error) {
-    if (error instanceof Error && error.name === "TimeoutError") {
-      return {
-        attempted: true,
-        attached: false,
-        verified: null,
-        alreadyExists: false,
-        skippedReason: null,
-        errorCode: "timeout",
-        errorMessage: "Vercel API timed out",
-        challenges: [],
-      };
-    }
-    return {
-      attempted: true,
-      attached: false,
-      verified: null,
-      alreadyExists: false,
-      skippedReason: null,
-      errorCode: "network_error",
-      errorMessage: error instanceof Error ? error.message : "Network error",
-      challenges: [],
-    };
+    return networkFailureResult(error);
   }
 
   if (addResponse.ok) {
@@ -283,6 +348,22 @@ export async function ensureCustomDomainOnVercelProject(
     addCode === "domain_already_in_use" ||
     addMessage.includes("already exists");
   if (!isAlreadyExists) {
+    if (
+      addMessage.includes("another project") ||
+      addMessage.includes("different project") ||
+      addMessage.includes("used by another")
+    ) {
+      return {
+        attempted: true,
+        attached: false,
+        verified: null,
+        alreadyExists: false,
+        skippedReason: null,
+        errorCode: "domain_taken_elsewhere",
+        errorMessage: VERCEL_DOMAIN_TAKEN_ELSEWHERE_MESSAGE,
+        challenges: [],
+      };
+    }
     return {
       attempted: true,
       attached: false,
@@ -327,23 +408,12 @@ export async function ensureCustomDomainOnVercelProject(
         alreadyExists: false,
         skippedReason: null,
         errorCode: "domain_taken_elsewhere",
-        errorMessage: "This domain is registered on a different Vercel project; transfer it first.",
+        errorMessage: VERCEL_DOMAIN_TAKEN_ELSEWHERE_MESSAGE,
         challenges: [],
       };
     }
   } catch (error) {
-    if (error instanceof Error && error.name === "TimeoutError") {
-      return {
-        attempted: true,
-        attached: false,
-        verified: null,
-        alreadyExists: false,
-        skippedReason: null,
-        errorCode: "timeout",
-        errorMessage: "Vercel API timed out",
-        challenges: [],
-      };
-    }
+    return networkFailureResult(error);
   }
 
   // Unknown error verifying ownership — treat as a retriable failure rather
@@ -357,6 +427,248 @@ export async function ensureCustomDomainOnVercelProject(
     errorCode: "domain_verification_failed",
     errorMessage: "Could not verify domain ownership on Vercel project.",
     challenges: [],
+  };
+}
+
+/**
+ * POST /v9/projects/{id}/domains/{d}/verify — ask Vercel to re-check its
+ * ownership challenge. Returns updated verified flag + challenges.
+ */
+export async function verifyProjectDomainOnVercel(
+  hostname: string,
+  options: {
+    env?: EnvLike;
+    fetchFn?: FetchLike;
+  } = {},
+): Promise<VercelDomainSyncResult> {
+  const config = readVercelDomainApiConfig(options.env);
+  if (!config) {
+    return {
+      attempted: false,
+      attached: false,
+      verified: null,
+      alreadyExists: false,
+      skippedReason: "VERCEL_API_TOKEN/VERCEL_TOKEN or VERCEL_PROJECT_ID is not configured.",
+      errorCode: null,
+      errorMessage: null,
+      challenges: [],
+    };
+  }
+
+  const fetchFn = options.fetchFn ?? fetch;
+  const query = vercelQuery(config);
+  const verifyUrl = `https://api.vercel.com${vercelDomainPath(config.projectId, hostname)}/verify${query}`;
+
+  let response: Response;
+  try {
+    response = await fetchFn(verifyUrl, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${config.token}`,
+        "content-type": "application/json",
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch (error) {
+    return networkFailureResult(error);
+  }
+
+  if (response.ok) {
+    const payload = (await response.json()) as VercelDomainPayload;
+    return {
+      attempted: true,
+      attached: true,
+      verified: typeof payload.verified === "boolean" ? payload.verified : null,
+      alreadyExists: true,
+      skippedReason: null,
+      errorCode: null,
+      errorMessage: null,
+      challenges: normalizeVercelChallenges(payload),
+    };
+  }
+
+  const err = await parseVercelError(response);
+  if (response.status === 404 || (err.code ?? "").toLowerCase() === "not_found") {
+    return {
+      attempted: true,
+      attached: false,
+      verified: null,
+      alreadyExists: false,
+      skippedReason: null,
+      errorCode: "domain_taken_elsewhere",
+      errorMessage: VERCEL_DOMAIN_TAKEN_ELSEWHERE_MESSAGE,
+      challenges: [],
+    };
+  }
+
+  return {
+    attempted: true,
+    attached: false,
+    verified: null,
+    alreadyExists: false,
+    skippedReason: null,
+    errorCode: err.code ?? `http_${response.status}`,
+    errorMessage: err.message ?? "Vercel could not verify this domain.",
+    challenges: [],
+  };
+}
+
+/**
+ * GET /v6/domains/{d}/config — Vercel's view of DNS (misconfigured +
+ * recommended A/CNAME). Does not require the domain to be on our project.
+ */
+export async function getVercelDomainConfig(
+  hostname: string,
+  options: {
+    env?: EnvLike;
+    fetchFn?: FetchLike;
+  } = {},
+): Promise<VercelDomainConfigResult> {
+  const config = readVercelDomainApiConfig(options.env);
+  if (!config) {
+    return {
+      attempted: false,
+      skippedReason: "VERCEL_API_TOKEN/VERCEL_TOKEN or VERCEL_PROJECT_ID is not configured.",
+      errorCode: null,
+      errorMessage: null,
+      misconfigured: null,
+      configuredBy: null,
+      recommendedIPv4: [],
+      recommendedCNAME: [],
+      recommendedRecords: [],
+    };
+  }
+
+  const fetchFn = options.fetchFn ?? fetch;
+  const query = new URLSearchParams();
+  if (config.teamId) query.set("teamId", config.teamId);
+  if (config.teamSlug) query.set("slug", config.teamSlug);
+  query.set("projectIdOrName", config.projectId);
+  const configUrl = `https://api.vercel.com/v6/domains/${encodeURIComponent(hostname)}/config?${query.toString()}`;
+
+  let response: Response;
+  try {
+    response = await fetchFn(configUrl, {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${config.token}`,
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch (error) {
+    const network = networkFailureResult(error);
+    return {
+      attempted: true,
+      skippedReason: null,
+      errorCode: network.errorCode,
+      errorMessage: network.errorMessage,
+      misconfigured: null,
+      configuredBy: null,
+      recommendedIPv4: [],
+      recommendedCNAME: [],
+      recommendedRecords: [],
+    };
+  }
+
+  if (!response.ok) {
+    const err = await parseVercelError(response);
+    return {
+      attempted: true,
+      skippedReason: null,
+      errorCode: err.code ?? `http_${response.status}`,
+      errorMessage: err.message ?? "Could not load Vercel domain config.",
+      misconfigured: null,
+      configuredBy: null,
+      recommendedIPv4: [],
+      recommendedCNAME: [],
+      recommendedRecords: [],
+    };
+  }
+
+  const payload = (await response.json()) as {
+    misconfigured?: boolean;
+    configuredBy?: string | null;
+    recommendedIPv4?: Array<{ value?: string[] } | string>;
+    recommendedCNAME?: Array<{ value?: string } | string>;
+  };
+
+  const ipv4: string[] = [];
+  for (const entry of payload.recommendedIPv4 ?? []) {
+    if (typeof entry === "string") {
+      if (entry) ipv4.push(entry);
+      continue;
+    }
+    for (const value of entry.value ?? []) {
+      if (value) ipv4.push(value);
+    }
+  }
+
+  const cnames: string[] = [];
+  for (const entry of payload.recommendedCNAME ?? []) {
+    if (typeof entry === "string") {
+      if (entry) cnames.push(entry);
+      continue;
+    }
+    if (entry.value) cnames.push(entry.value);
+  }
+
+  const recommendedRecords: VercelDomainConfigResult["recommendedRecords"] = [
+    ...ipv4.map((value) => ({ type: "A" as const, host: "@", value })),
+    ...cnames.map((value) => ({ type: "CNAME" as const, host: hostname, value })),
+  ];
+
+  return {
+    attempted: true,
+    skippedReason: null,
+    errorCode: null,
+    errorMessage: null,
+    misconfigured: typeof payload.misconfigured === "boolean" ? payload.misconfigured : null,
+    configuredBy: payload.configuredBy ?? null,
+    recommendedIPv4: ipv4,
+    recommendedCNAME: cnames,
+    recommendedRecords,
+  };
+}
+
+/**
+ * Attach → POST /verify → GET /config. Used by talent connect/verify so we
+ * store Vercel's own challenges (not only the platform TXT token). Dark when
+ * Vercel env is missing (attempted=false).
+ */
+export async function provisionCustomDomainOnVercel(
+  hostname: string,
+  options: {
+    env?: EnvLike;
+    fetchFn?: FetchLike;
+  } = {},
+): Promise<VercelDomainProvisionResult> {
+  const attached = await ensureCustomDomainOnVercelProject(hostname, options);
+  if (!attached.attempted || !attached.attached) {
+    return { ...attached, config: null };
+  }
+
+  let challenges = attached.challenges;
+  let verified = attached.verified;
+
+  if (verified !== true) {
+    const verifiedResult = await verifyProjectDomainOnVercel(hostname, options);
+    if (verifiedResult.attempted && verifiedResult.attached) {
+      verified = verifiedResult.verified;
+      challenges = mergeVercelChallenges(challenges, verifiedResult.challenges);
+    } else if (verifiedResult.errorCode === "domain_taken_elsewhere") {
+      return { ...verifiedResult, config: null };
+    } else {
+      challenges = mergeVercelChallenges(challenges, verifiedResult.challenges);
+    }
+  }
+
+  const domainConfig = await getVercelDomainConfig(hostname, options);
+
+  return {
+    ...attached,
+    verified,
+    challenges,
+    config: domainConfig,
   };
 }
 

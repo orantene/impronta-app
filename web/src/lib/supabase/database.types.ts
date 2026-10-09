@@ -17083,6 +17083,7 @@ export type Database = {
           updated_at: string
           verification_token: string | null
           verified_at: string | null
+          vercel_challenges: Json
         }
         Insert: {
           created_at?: string
@@ -17097,6 +17098,7 @@ export type Database = {
           updated_at?: string
           verification_token?: string | null
           verified_at?: string | null
+          vercel_challenges?: Json
         }
         Update: {
           created_at?: string
@@ -17111,6 +17113,7 @@ export type Database = {
           updated_at?: string
           verification_token?: string | null
           verified_at?: string | null
+          vercel_challenges?: Json
         }
         Relationships: [
           {

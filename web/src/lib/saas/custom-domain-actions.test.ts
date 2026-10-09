@@ -5,9 +5,14 @@ import {
   DOMAIN_VERIFICATION_WINDOW_MS,
   ensureCustomDomainOnVercelProject,
   flattenTxtRecords,
+  getVercelDomainConfig,
+  provisionCustomDomainOnVercel,
   removeCustomDomainFromVercelProject,
   resolveDomainProvisioningTransition,
   resolveDomainVerificationTransition,
+  VERCEL_DOMAIN_TAKEN_ELSEWHERE_MESSAGE,
+  vercelAttachFailureMessage,
+  verifyProjectDomainOnVercel,
 } from "./custom-domain-actions";
 import {
   buildCustomDomainRoutingRecords,
@@ -312,4 +317,172 @@ test("removeCustomDomainFromVercelProject treats not_found as already removed", 
 
   assert.equal(result.attempted, true);
   assert.equal(result.removed, true);
+});
+
+test("ensureCustomDomainOnVercelProject reports domain used by another project", async () => {
+  const fetchFn = async (input: string | URL, init?: RequestInit) => {
+    const method = init?.method ?? "GET";
+    if (method === "POST") {
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: "domain_already_in_use",
+            message: 'The domain "brand.example" already exists',
+          },
+        }),
+        { status: 409, headers: { "content-type": "application/json" } },
+      );
+    }
+    assert.match(String(input), /\/v9\/projects\/project\/domains\/brand\.example/);
+    return new Response(
+      JSON.stringify({ error: { code: "not_found", message: "not found" } }),
+      { status: 404, headers: { "content-type": "application/json" } },
+    );
+  };
+
+  const result = await ensureCustomDomainOnVercelProject("brand.example", {
+    env: { VERCEL_API_TOKEN: "token", VERCEL_PROJECT_ID: "project" },
+    fetchFn,
+  });
+
+  assert.equal(result.attached, false);
+  assert.equal(result.errorCode, "domain_taken_elsewhere");
+  assert.equal(result.errorMessage, VERCEL_DOMAIN_TAKEN_ELSEWHERE_MESSAGE);
+  assert.equal(
+    vercelAttachFailureMessage(result),
+    VERCEL_DOMAIN_TAKEN_ELSEWHERE_MESSAGE,
+  );
+});
+
+test("verifyProjectDomainOnVercel posts /verify and returns challenges", async () => {
+  const calls: string[] = [];
+  const fetchFn = async (input: string | URL, init?: RequestInit) => {
+    calls.push(`${init?.method ?? "GET"} ${String(input)}`);
+    return new Response(
+      JSON.stringify({
+        verified: false,
+        verification: [
+          {
+            type: "TXT",
+            domain: "_vercel.brand.example",
+            value: "vc-domain-verify=xyz",
+            reason: "pending_domain_verification",
+          },
+        ],
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  };
+
+  const result = await verifyProjectDomainOnVercel("brand.example", {
+    env: { VERCEL_API_TOKEN: "token", VERCEL_PROJECT_ID: "project" },
+    fetchFn,
+  });
+
+  assert.equal(result.attempted, true);
+  assert.equal(result.attached, true);
+  assert.equal(result.verified, false);
+  assert.equal(result.challenges.length, 1);
+  assert.equal(result.challenges[0]?.domain, "_vercel.brand.example");
+  assert.match(calls[0] ?? "", /\/v9\/projects\/project\/domains\/brand\.example\/verify/);
+});
+
+test("getVercelDomainConfig reads /v6/domains/{d}/config recommendations", async () => {
+  const fetchFn = async (input: string | URL) => {
+    assert.match(String(input), /\/v6\/domains\/brand\.example\/config/);
+    assert.match(String(input), /projectIdOrName=project/);
+    return new Response(
+      JSON.stringify({
+        misconfigured: true,
+        configuredBy: null,
+        recommendedIPv4: [{ value: ["76.76.21.21"] }],
+        recommendedCNAME: [{ value: "cname.vercel-dns.com" }],
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  };
+
+  const result = await getVercelDomainConfig("brand.example", {
+    env: { VERCEL_API_TOKEN: "token", VERCEL_PROJECT_ID: "project" },
+    fetchFn,
+  });
+
+  assert.equal(result.attempted, true);
+  assert.equal(result.misconfigured, true);
+  assert.deepEqual(result.recommendedIPv4, ["76.76.21.21"]);
+  assert.deepEqual(result.recommendedCNAME, ["cname.vercel-dns.com"]);
+  assert.equal(result.recommendedRecords.length, 2);
+});
+
+test("provisionCustomDomainOnVercel attaches, verifies, and loads config (mocked)", async () => {
+  const calls: Array<{ method: string; url: string }> = [];
+  const fetchFn = async (input: string | URL, init?: RequestInit) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+    calls.push({ method, url });
+    if (method === "POST" && url.includes("/v10/projects/")) {
+      return new Response(
+        JSON.stringify({
+          verified: false,
+          verification: [
+            {
+              type: "TXT",
+              domain: "_vercel.brand.example",
+              value: "vc-domain-verify=from-add",
+            },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }
+    if (method === "POST" && url.includes("/verify")) {
+      return new Response(
+        JSON.stringify({
+          verified: false,
+          verification: [
+            {
+              type: "TXT",
+              domain: "_vercel.brand.example",
+              value: "vc-domain-verify=from-verify",
+            },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }
+    if (url.includes("/v6/domains/")) {
+      return new Response(
+        JSON.stringify({
+          misconfigured: true,
+          recommendedCNAME: [{ value: "cname.vercel-dns.com" }],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }
+    throw new Error(`unexpected fetch ${method} ${url}`);
+  };
+
+  const result = await provisionCustomDomainOnVercel("brand.example", {
+    env: { VERCEL_API_TOKEN: "token", VERCEL_PROJECT_ID: "project" },
+    fetchFn,
+  });
+
+  assert.equal(result.attached, true);
+  assert.equal(result.challenges.length, 2);
+  assert.equal(result.config?.misconfigured, true);
+  assert.equal(calls.some((c) => c.url.includes("/verify")), true);
+  assert.equal(calls.some((c) => c.url.includes("/v6/domains/")), true);
+});
+
+test("vercelAttachFailureMessage is null when env is dark / skipped", () => {
+  assert.equal(
+    vercelAttachFailureMessage({
+      attempted: false,
+      attached: false,
+      errorCode: null,
+      errorMessage: null,
+      skippedReason: "missing",
+    }),
+    null,
+  );
 });
