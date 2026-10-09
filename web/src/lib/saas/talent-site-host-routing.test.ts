@@ -34,6 +34,9 @@ test("shared plumbing + static assets pass through untouched", () => {
     "/c/00000000-0000-4000-8000-000000000001",
     "/pay/opaque-link-code",
     "/link/opaque-link-code",
+    "/auth/apple",
+    "/auth/google",
+    "/auth/callback",
     "/sitemap.xml",
     "/robots.txt",
     "/favicon.ico",
@@ -46,11 +49,17 @@ test("shared plumbing + static assets pass through untouched", () => {
   }
 });
 
-test("workspace / auth / multi-segment / dotted paths are NOT allowed (→ 404)", () => {
+test("workspace / login / multi-segment / dotted paths are NOT allowed (→ 404)", () => {
   for (const p of [
     "/admin",
     "/admin/settings",
     "/login",
+    "/register",
+    "/auth", // bare reserved — OAuth needs exact /auth/google|/auth/callback
+    "/auth/sign-out",
+    "/auth/confirm",
+    "/auth/sso",
+    "/auth/sso/start",
     "/talent/register",
     "/directory",
     "/c", // bare reserved slug — not a thread

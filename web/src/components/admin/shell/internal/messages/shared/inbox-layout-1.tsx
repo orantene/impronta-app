@@ -3,6 +3,7 @@
 import React, { useState, useRef } from "react";
 import { formatOfferMoney } from "@/lib/inquiry/offer-currency";
 import { COLORS, TRANSITION, FONTS } from "../../state";
+import { useDashboardText } from "../../dashboard-i18n";
 import { type Conversation } from "../../talent";
 import { applyRowOverrides } from "../conversation-stash";
 import { currentTalentId } from "../messages-shared";
@@ -80,6 +81,7 @@ export function useResizableInboxLayout(shellKey: "talent" | "client" | "admin")
 // thread pane. Mouse-down + document-level mousemove/mouseup keeps
 // the drag fluid even when the cursor leaves the rail. ──
 export function ColumnDivider({ onResize, disabled }: { onResize: (w: number) => void; disabled?: boolean }) {
+  const copy = useDashboardText();
   const [hover, setHover] = useState(false);
   const [dragging, setDragging] = useState(false);
   const startRef = useRef<{ x: number; w: number } | null>(null);
@@ -114,7 +116,7 @@ export function ColumnDivider({ onResize, disabled }: { onResize: (w: number) =>
       data-tulala-column-divider
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize jobs list"
+      aria-label={copy.t("Resize jobs list")}
       onMouseDown={onMouseDown}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
@@ -162,14 +164,15 @@ export function ColumnDivider({ onResize, disabled }: { onResize: (w: number) =>
 // Tap → opens the inbox (door open). Selecting a job auto-closes (door
 // close — driven by the existing setMobilePane("thread") on row click). ──
 export function MobileInboxTab({ unreadCount, onOpen }: { unreadCount: number; onOpen: () => void }) {
+  const copy = useDashboardText();
   const hasUnread = unreadCount > 0;
   return (
     <button
       type="button"
       data-tulala-mobile-inbox-tab
       onClick={onOpen}
-      aria-label={hasUnread ? `Open jobs list · ${unreadCount} unread` : "Open jobs list"}
-      title={hasUnread ? `${unreadCount} unread · open jobs` : "Open jobs"}
+      aria-label={hasUnread ? `${copy.t("Open jobs list")} · ${unreadCount} ${copy.t("unread")}` : copy.t("Open jobs list")}
+      title={hasUnread ? `${unreadCount} ${copy.t("unread")} · ${copy.t("Open jobs").toLowerCase()}` : copy.t("Open jobs")}
       style={{
         // CSS in page.tsx unhides this on mobile-thread mode only.
         display: "none",
@@ -229,6 +232,7 @@ export function MobileInboxTab({ unreadCount, onOpen }: { unreadCount: number; o
 export function CollapsedInboxRail({
   count, unreadCount, onExpand,
 }: { count: number; unreadCount: number; onExpand: () => void }) {
+  const copy = useDashboardText();
   return (
     <aside data-tulala-list-pane data-tulala-collapsed style={{
       display: "flex", flexDirection: "column", alignItems: "center",
@@ -239,8 +243,8 @@ export function CollapsedInboxRail({
       <button
         type="button"
         onClick={onExpand}
-        aria-label="Expand jobs list"
-        title="Expand jobs list"
+        aria-label={copy.t("Expand jobs list")}
+        title={copy.t("Expand jobs list")}
         style={{
           width: 24, height: 24, borderRadius: 7,
           border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
@@ -253,7 +257,7 @@ export function CollapsedInboxRail({
         </svg>
       </button>
       <div style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontFamily: FONTS.body, fontSize: 10, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700, marginTop: 6 }} className="text-admin-ink-muted">
-        {count} jobs
+        {count} {copy.t("jobs")}
       </div>
       {unreadCount > 0 && (
         <span style={{ marginTop: 2, minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, color: "#fff", fontSize: 9.5, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: FONTS.body }} className="bg-admin-accent">{unreadCount}</span>

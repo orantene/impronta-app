@@ -2,6 +2,14 @@
 
 export const RESEND_COOLDOWN_SECONDS = 30;
 
+/** Methods recorded on `client_auth_events.method` (foundation migration). */
+export const CLIENT_AUTH_METHODS = ["email_code", "google", "password", "sso"] as const;
+export type ClientAuthMethod = (typeof CLIENT_AUTH_METHODS)[number];
+
+export function isClientAuthMethod(value: string): value is ClientAuthMethod {
+  return (CLIENT_AUTH_METHODS as readonly string[]).includes(value);
+}
+
 /** Whole seconds left before "Resend code" is allowed again; 0 means allowed. */
 export function resendSecondsLeft(
   nowMs: number,
@@ -131,4 +139,61 @@ export function tenantSourceProfileId(hostContext: string | null | undefined, pr
 /** Per-IP verify rate-limit key. */
 export function verifyIpRateKey(ip: string): string {
   return `auth-otp-verify-ip:${ip || "unknown"}`;
+}
+
+/**
+ * Whether claim/relink may run for this auth user.
+ * OTP already proved the address; password/Google/Apple need
+ * `email_confirmed_at` or a provider identity with `email_verified: true`.
+ */
+export function isAuthEmailConfirmedForClaim(user: {
+  email_confirmed_at?: string | null;
+  identities?: ReadonlyArray<{
+    provider?: string | null;
+    identity_data?: { email_verified?: boolean | string | null } | null;
+  }> | null;
+}): boolean {
+  if (user.email_confirmed_at) return true;
+  for (const id of user.identities ?? []) {
+    const v = id.identity_data?.email_verified;
+    if (v === true || v === "true") return true;
+  }
+  return false;
+}
+
+/**
+ * Apple private-relay addresses never match a real inquiry contact email —
+ * skip claim even when the provider marks them verified (TUL-65).
+ */
+export function isApplePrivateRelayEmail(email: string | null | undefined): boolean {
+  const e = (email ?? "").trim().toLowerCase();
+  return e.endsWith("@privaterelay.appleid.com");
+}
+
+/**
+ * Claim/relink gate shared by code / password / Google / Apple attach.
+ * OTP sets `otpProven`; OAuth/password supply confirmed + email.
+ */
+export function shouldClaimInquiriesForSignIn(input: {
+  otpProven?: boolean;
+  email: string | null | undefined;
+  emailConfirmed: boolean;
+}): boolean {
+  if (input.otpProven) return true;
+  if (!input.emailConfirmed) return false;
+  if (isApplePrivateRelayEmail(input.email)) return false;
+  return Boolean(normalizeClaimEmail(input.email));
+}
+
+function normalizeClaimEmail(email: string | null | undefined): string {
+  return (email ?? "").trim().toLowerCase();
+}
+
+/** True when the session has a Google identity (required for Google finalize). */
+export function userHasGoogleIdentity(user: {
+  identities?: ReadonlyArray<{ provider?: string | null }> | null;
+  app_metadata?: { provider?: string | null } | null;
+}): boolean {
+  if ((user.identities ?? []).some((i) => i.provider === "google")) return true;
+  return user.app_metadata?.provider === "google";
 }
