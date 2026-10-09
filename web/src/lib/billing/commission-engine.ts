@@ -37,6 +37,7 @@ import {
   type ProcessingFeePayer,
   type ProcessorFeeRates,
 } from "./commission";
+import { moneyOwningParty } from "@/lib/inquiry/owning-party-resolver";
 import { attachPayoutProcessingFees } from "./commission-processing";
 import {
   processorFeeRatesFromTable,
@@ -218,7 +219,14 @@ export async function persistBookingCommissionSnapshot(
   // 2. Resolve per participant (pure — no IO inside the loop).
   const snapshots: ParticipantSnapshot[] = [];
   try {
-    for (const p of ctx.participants) {
+    for (const rawParticipant of ctx.participants) {
+      // Talent = merchant: a sale in the talent's own workspace is the talent's
+      // sale for money purposes (see moneyOwningParty). Modelled as the
+      // independent-talent case: no workspace tenant, plan or overrides.
+      const money = await moneyOwningParty(supabase, { type: rawParticipant.owning_party_type, id: rawParticipant.owning_party_id }, rawParticipant.talent_profile_id);
+      const p: ParticipantContext = money.type === "talent" && rawParticipant.owning_party_type !== "talent"
+        ? { ...rawParticipant, owning_party_type: "talent", owning_party_id: money.id, tenant_id: null, workspace_plan: null, tenant_override: null }
+        : rawParticipant;
       // P4c: surface this workspace's base reservation fee + the platform caps
       // (the context RPC doesn't carry them). Workspace sellers only; non-fatal.
       let platformConfig = ctx.platform_config;
