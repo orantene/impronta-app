@@ -27,6 +27,7 @@ import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
 import { publicContactMode } from "@/lib/talent/accepting-readiness";
 import { loadSellingDefaultsByTalent } from "@/lib/talent/offering-policy-server";
 import { loadPlanAllowsInstant } from "@/lib/talent/plan-instant.server";
+import { stripPublicOfferingFlightFields } from "@/lib/talent/offerings-public-strip";
 
 export async function loadPublicOfferingsForProfile(
   talentProfileId: string,
@@ -135,26 +136,4 @@ export async function loadPublicOfferingsForProfile(
     logServerError("public.offerings.load", err);
     return [];
   }
-}
-
-/**
- * TUL-446 — omit editor/moderation fields from the public offering object so
- * they never enter the RSC flight payload (catalog / portfolio / task-picker
- * islands). Locale is already baked into title/description/categoryLabel.
- * Cast back to `TalentOffering` for call-site compatibility; runtime shape is
- * intentionally leaner than the editor row.
- */
-function stripPublicOfferingFlightFields(offering: TalentOffering): TalentOffering {
-  const {
-    titleI18n: _titleI18n,
-    descriptionI18n: _descriptionI18n,
-    firstPublishedAt: _firstPublishedAt,
-    updatedAt: _updatedAt,
-    moderationState: _moderationState,
-    status: _status,
-    visibility: _visibility,
-    sortOrder: _sortOrder,
-    ...rest
-  } = offering;
-  return rest as TalentOffering;
 }
