@@ -89,9 +89,12 @@ import { toFontProxyHref } from "@/lib/fonts/google-proxy";
 import { getBuilderIconDefinition } from "./icon-registry";
 import { resolveStyleTokenRef } from "./style-token-bindings";
 import {
+  BUILTIN_EXTRA_TIERS,
   composeBackgroundLayersCss,
   extraResponsiveLaneRules,
+  generateCustomFreeformBreakpointCss,
   isCustomBreakpointTierId,
+  treeHasCustomBreakpointStyles,
 } from "./custom-breakpoint-css";
 import {
   GAP_BY_SIZE,
@@ -1959,6 +1962,24 @@ function builderNodeStyleVars(
   return style as CSSProperties;
 }
 
+/**
+ * Drop keys whose value is `undefined` before spreading onto DOM nodes.
+ *
+ * React's SSR HTML already omits them, but the RSC flight payload still
+ * serializes every explicit `undefined` as `"$undefined"`. On a Maison-sized
+ * tree that was ~14k dead attrs (~800 KB of the vanity HTML). Same filter
+ * `builderNodeStyleVars` already applies to CSS custom properties.
+ */
+function omitUndefinedStyleAttrs(
+  attrs: Record<string, string | undefined>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value !== undefined) out[key] = value;
+  }
+  return out;
+}
+
 function hasTransitionLonghands(style: BuilderNodeStyleValue | undefined): boolean {
   return Boolean(
     style?.transitionProperty ||
@@ -2191,7 +2212,7 @@ export function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     Boolean(style?.stateStyles?.focus) ||
     Boolean(style?.stateStyles?.active) ||
     hasTransitionLonghands(style);
-  return {
+  return omitUndefinedStyleAttrs({
     "data-builder-style-align": style?.align,
     "data-builder-style-size": style?.size,
     "data-builder-style-tone": style?.tone,
@@ -2524,7 +2545,7 @@ export function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-active-opacity":
       typeof style?.stateStyles?.active?.opacity === "number" ? "" : undefined,
     ...hoverLaneAttrs(style),
-  };
+  });
 }
 
 function styleColor(tone: BuilderNodeStyleValue["tone"]): string | undefined {
@@ -9365,20 +9386,37 @@ export function BuilderNodeRendererStyles({
     kinds,
     cqBreakpoints,
   );
+  // TUL-446 — freeform custom-tier lanes only when the tree authors them.
+  // Root layout ships section presentation rules without this ~24 KB sheet.
+  const freeformCss =
+    nodes && treeHasCustomBreakpointStyles(nodes)
+      ? generateCustomFreeformBreakpointCss(BUILTIN_EXTRA_TIERS)
+      : "";
   const sheet = (
     <style
       data-builder-node-renderer-styles=""
       dangerouslySetInnerHTML={{ __html: css }}
     />
   );
-  if (!nodes || !hasAnimationPlayOnceNode(nodes)) return sheet;
-  return (
-    <>
-      {sheet}
+  const freeformSheet = freeformCss ? (
+    <style
+      data-builder-custom-breakpoints-freeform=""
+      dangerouslySetInnerHTML={{ __html: freeformCss }}
+    />
+  ) : null;
+  const animOnce =
+    nodes && hasAnimationPlayOnceNode(nodes) ? (
       <script
         data-builder-node-anim-once-runtime=""
         dangerouslySetInnerHTML={{ __html: BUILDER_NODE_ANIM_ONCE_SCRIPT }}
       />
+    ) : null;
+  if (!freeformSheet && !animOnce) return sheet;
+  return (
+    <>
+      {sheet}
+      {freeformSheet}
+      {animOnce}
     </>
   );
 }
