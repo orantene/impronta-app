@@ -54,6 +54,7 @@ import {
   computeTalentProtectiveClawback,
   reversalLegKey,
 } from "@/lib/payments/booking-payouts-ledger";
+import { flagTalentResidual } from "@/lib/payments/refund-talent-residual";
 import {
   notifyBookingPayoutReversal as notifyBookingPayoutReversalReal,
   notifyClientPartialRefund as notifyClientPartialRefundReal,
@@ -465,6 +466,15 @@ async function reconcilePartialRefund(
         `Partial refund ${refundAmountCents} exceeds platform+workspace buffer by ${clawback.talentResidualCents} cents — talent NOT auto-clawed; needs manual reconciliation.`,
       ),
     );
+  }
+  if (clawback.talentResidualCents > 0) {
+    // Make it visible: stamp the refund row so Admin > Payments > Refunds lists what to recover.
+    await flagTalentResidual(sb, {
+      parentTransactionId: ref.transactionId,
+      refundId,
+      refundAmountCents,
+      residualCents: clawback.talentResidualCents,
+    });
   }
 
   void improntaLog("stripe_webhook.info", {

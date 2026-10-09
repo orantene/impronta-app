@@ -13958,6 +13958,8 @@
         "import": "Importar un informe del terminal todavía no está conectado; no hay tabla donde guardar sus filas.",
         "export": "La exportación de estas tablas todavía no está conectada."
       },
+      "refundRecoverFromTalent": "Recuperar del talento",
+      "refundRecoverDetail": "El pago al talento ya salió. Recupera {amount} manualmente.",
       "refundFailed": "Reembolso fallido",
       "refundFailedDetail": "El cliente no recibió el dinero. Gestiona un reembolso alternativo."
     },
