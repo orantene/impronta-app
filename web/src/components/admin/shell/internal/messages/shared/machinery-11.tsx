@@ -414,7 +414,8 @@ export function LiveLineupPanel({
  * matches the engine contract.
  */
 export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange }: { inquiryId: string; offerId: string; canEdit: boolean; onSendGateChange?: (gate: SendGateResult) => void }) {
-  const { toast, effectiveRoster, effectiveTenant, workspaceType, bridgeTalentSelfProfile } = useAdminShell();
+  const { state: shellState, toast, effectiveRoster, effectiveTenant, bridgeTalentSelfProfile } = useAdminShell();
+  const workspaceType = shellState.workspaceType;
   const t = useT();
   // Latest-`t` ref for async callbacks (see LiveLineupPanel note).
   const tRef = useRef(t);
