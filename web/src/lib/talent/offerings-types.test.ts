@@ -215,4 +215,15 @@ describe("offering translations round-trip (PR 2)", () => {
     assert.equal(offeringText(row({ title: "Plain", title_i18n: null }), "title", "fr"), "Plain");
     assert.equal(offeringText(row({ title_i18n: { en: "Eng" } }), "title", "es"), "Eng");
   });
+
+  it("offeringText uses the platform title dictionary when ES is missing (TUL-189)", () => {
+    const r = row({ title: "Semi-permanent gel", title_i18n: { en: "Semi-permanent gel" } });
+    assert.equal(offeringText(r, "title", "es"), "Gel semipermanente");
+    assert.equal(offeringText(r, "title", "en"), "Semi-permanent gel");
+    // Talent-authored Spanish still wins over the dictionary.
+    assert.equal(
+      offeringText(row({ title: "Semi-permanent gel", title_i18n: { en: "Semi-permanent gel", es: "Mi gel" } }), "title", "es"),
+      "Mi gel",
+    );
+  });
 });

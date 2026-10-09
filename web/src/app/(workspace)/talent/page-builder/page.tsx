@@ -43,8 +43,9 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { buildTalentBuilderCanvasData } from "@/lib/talent-site/server/talent-builder-canvas.server";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
-import { resolveMyWebsiteTarget } from "@/lib/talent-site/my-website-target";
+import { resolveMyWebsiteTarget, workspaceSiteBuilderHref } from "@/lib/talent-site/my-website-target";
 import { loadOwnedBusinessWorkspace } from "@/lib/talent-site/server/workspace-site-context";
+import { resolveWorkspaceSiteEditorUrl } from "@/lib/talent-site/workspace-site-editor-url";
 import { siteScaffoldComplete } from "@/lib/talent-site/server/site-scaffold-complete";
 import { PageBuilderCreateSite } from "@/components/talent/site/PageBuilderCreateSite";
 import { loadSiteRev } from "@/lib/talent-site/history/history.server";
@@ -189,8 +190,9 @@ export default async function TalentPageBuilderRoute({
     redirect(talentLocaleSeedHref(`/talent/page-builder${query ? `?${query}` : ""}`));
   }
 
-  // TUL-77: for the owner of a business workspace the workspace site IS the
-  // website; this entry opens it and never creates a personal site silently.
+  // TUL-77 + TUL-347: for the owner of a business workspace the workspace site
+  // IS the website. Open the LIVE storefront editor (`?edit=1`), never the
+  // English `/admin/website` shell (that left Grokbot on about:blank / wrong host).
   const probe = createServiceRoleClient();
   if (probe) {
     const [owned, personalRes] = await Promise.all([
@@ -206,7 +208,16 @@ export default async function TalentPageBuilderRoute({
       explicitPersonal:
         sp.site === "personal" || shellMode || requestedPage !== null || typeof sp.panel === "string" || typeof sp.app === "string",
     });
-    if (target.kind === "workspace") redirect(target.href);
+    if (target.kind === "workspace" && owned.tenantId) {
+      const editorUrl = await resolveWorkspaceSiteEditorUrl(probe, {
+        tenantId: owned.tenantId,
+        slug: target.slug,
+      });
+      redirect(editorUrl ?? workspaceSiteBuilderHref(target.slug));
+    }
+    if (target.kind === "workspace") {
+      redirect(workspaceSiteBuilderHref(target.slug));
+    }
   }
 
   const [locale, talentLocale, tenantId, siteExists] = await Promise.all([

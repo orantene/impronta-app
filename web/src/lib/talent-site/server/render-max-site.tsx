@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { loadHistoryPreviewSnapshot } from "../history/history.server";
 import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/talent-update.server";
 import { early } from "@/lib/server/early";
-import { failOnReadTimeout } from "@/lib/supabase/bounded-fetch";
+import { failOnReadTimeout } from "@/lib/supabase/bounded-fetch-scope";
 import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill, withHeaderSiteChrome } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
@@ -52,7 +52,7 @@ import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
 import { designTokensToCssVars, designTokensToDataAttrs } from "@/lib/site-admin/tokens/resolve";
 import { TalentSiteHtmlTokens } from "@/components/talent/site/TalentSiteHtmlTokens";
 import { GoogleFontsLink } from "@/app/google-fonts-link";
-import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
+import { TypeSystemStyle, typeSystemSheetsForTokens } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 import { typeSystemComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-type-system";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -98,12 +98,15 @@ import {
   loadTalentSiteCtaMode,
   loadTalentSiteIdentity,
 } from "./load-max-site";
-import { buildMaxSiteSeo } from "./max-site-seo.server";
+import { buildMaxSiteSeo, type MaxSiteSeo } from "./max-site-seo.server";
 import { loadMaxSiteSeoFacts } from "./max-site-seo-facts.server";
 import { loadTalentSiteLocaleContext, type TalentSiteLocaleContext } from "./talent-site-locale.server";
 import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links"; import { webOfficeCtxFor, webOfficeFooter, webOfficeHeaderSocial, type WebOfficeCtx } from "./web-office-footer"; import { webOfficeSocialEnabled } from "../web-office-social";
 import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main";
 import { policyDocForSlug } from "@/lib/talent-policies/public";
+
+/** Re-export so existing `import type { MaxSiteSeo } from "./render-max-site"` stays valid. */
+export type { MaxSiteSeo };
 
 /**
  * Talent Max Site — REUSABLE public render.
@@ -164,36 +167,6 @@ export interface RenderTalentMaxSiteInput {
    * `/[<page>]` for a custom-domain apex).
    */
   canonicalPath?: string;
-}
-
-/**
- * SEO-1 — the talent-site SEO envelope, widened to the SAME field set the
- * cms_pages-backed metadata carries (title/description/OG/canonical/noindex +
- * JSON-LD). This is the shared contract the 3 talent-site routes destructure;
- * SEO-2 populates these from the SEO-1 `talent_pages` columns (meta_description,
- * og_*, canonical_url, noindex, json_ld). Every added field is OPTIONAL so a
- * not-yet-migrated read degrades to undefined and never throws.
- */
-export interface MaxSiteSeo {
-  title: string;
-  description?: string;
-  /** True on the draft preview (never indexed) or when the page's own
-   *  `talent_pages.noindex` column is set. */
-  noindex: boolean;
-  /** og:title — falls back to `title` when absent. */
-  ogTitle?: string;
-  /** og:description — falls back to `description` when absent. */
-  ogDescription?: string;
-  /** Absolute og:image URL for the page. */
-  ogImageUrl?: string;
-  /** Absolute canonical URL for THIS site page (never the /t/[code] profile). */
-  canonical?: string;
-  /** Structured-data (JSON-LD) document emitted in a `<script type="application/ld+json">`. */
-  jsonLd?: unknown;
-  /** PR 5 — canonical + hreflang (two or more talent languages only). */
-  alternates?: { canonical: string; languages: Record<string, string> };
-  /** DS-18: the business's own tab icon (logo, avatar or generated initials). */
-  faviconUrl?: string;
 }
 
 export type RenderTalentMaxSiteResult =
@@ -451,11 +424,12 @@ async function renderMaxSiteDocument(args: {
   const [dataSources, components, platformDefault, experimentContext, pageCaptcha, captchaEnforced, talentOfferings, liveStatusRow, askVisible] =
     await Promise.all([
       tenantId
-        ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId)
+        ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId, args.localeCtx.settings.defaultLocale)
         : pageNeedsTalentOfferings || pageNeedsReviews || pageNeedsVisit || pageNeedsCompCard || pageNeedsFaq
           ? loadPersonalMaxNativeSources({
               talentProfileId,
               locale,
+              primaryLocale: args.localeCtx.settings.defaultLocale,
               servicesCatalog: pageNeedsServicesCatalog,
               portfolio: pageNeedsPortfolio,
               nextFreeChip: pageNeedsNextFreeChip,
@@ -697,7 +671,7 @@ async function renderMaxSiteDocument(args: {
       />
       <BuilderNodeFontLinks nodes={[...shellTree, ...blocks]} components={components} />
       {hasTokens ? <GoogleFontsLink tokens={effectiveTokens} /> : null}
-      <TypeSystemStyle />
+      <TypeSystemStyle systems={typeSystemSheetsForTokens(effectiveTokens)} />
 
       {draftPreview ? (
         <div

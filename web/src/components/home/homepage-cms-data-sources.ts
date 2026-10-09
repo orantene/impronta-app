@@ -29,6 +29,7 @@ import { resolveCollectionDataSources } from "@/lib/site-admin/collections/serve
 import { resolveSocialFeedDataSources } from "@/lib/social-embed/feed-cache";
 import { collectSocialFeedProviders } from "@/lib/site-admin/builder-node/social-feed-source";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { withSecondaryReadDegrade } from "@/lib/supabase/bounded-fetch-scope";
 import { getHomepageData } from "@/lib/home-data";
 import { resolveShellSocialContact } from "@/lib/site-admin/server/shell-social-contact";
 import {
@@ -124,8 +125,11 @@ export async function loadBuilderNodeDataSources(
    */
   previewSubject?: { kind: string; id: string } | null,
   talentProfileId?: string | null,
+  /** The talent's primary language: portfolio caption fallback + language hint (TUL-187). */
+  primaryLocale?: string | null,
 ): Promise<BuilderNodeRenderDataSources> {
   const dataTenantId = previewSubject?.id ?? tenantId;
+  const portfolioPrimaryLocale = primaryLocale ?? null;
   // The public origin the qr_code block composes `<origin>/q/<code>` from. Read
   // from the request host; degrade to undefined outside a request (preview),
   // where a scheme-less short link is acceptable. Set BEFORE the no-data-needs
@@ -379,18 +383,32 @@ export async function loadBuilderNodeDataSources(
         )
       : nativeNeeds.portfolio && catalogTalentId
         ? // Portfolio service links need OfferingCta payloads even without a
-          // services_catalog on the page.
-          await loadServicesCatalogSources(
-            catalogTalentId,
-            locale,
-            servicesCatalogChannel({ explicitTalentProfileId: talentProfileId }),
+          // services_catalog on the page. TUL-449: gallery companion — degrade.
+          await withSecondaryReadDegrade(
+            "gallery",
+            () =>
+              loadServicesCatalogSources(
+                catalogTalentId,
+                locale,
+                servicesCatalogChannel({ explicitTalentProfileId: talentProfileId }),
+              ),
+            {},
           )
         : {}),
     ...(nativeNeeds.portfolio && catalogTalentId
-      ? await loadPortfolioSources(catalogTalentId, { locale })
+      ? // TUL-187: primaryLocale lets caption_i18n fall back and the language hint name the source language.
+        await withSecondaryReadDegrade(
+          "gallery",
+          () => loadPortfolioSources(catalogTalentId, { locale, primaryLocale: portfolioPrimaryLocale ?? null }),
+          { talentPortfolioShots: [] },
+        )
       : {}),
     ...(nativeNeeds.reviews && catalogTalentId
-      ? await loadReviewsSources(catalogTalentId)
+      ? await withSecondaryReadDegrade(
+          "reviews",
+          () => loadReviewsSources(catalogTalentId),
+          { talentReviews: [] },
+        )
       : {}),
     ...(nativeNeeds.visit && catalogTalentId
       ? await loadVisitSources(catalogTalentId, locale)
@@ -500,6 +518,8 @@ export async function loadServicesCatalogSources(
 export async function loadPersonalMaxNativeSources(args: {
   talentProfileId: string;
   locale: string;
+  /** The talent's primary language: portfolio caption fallback + language hint (TUL-187). */
+  primaryLocale?: string | null;
   servicesCatalog: boolean;
   portfolio: boolean;
   nextFreeChip: boolean;
@@ -520,10 +540,32 @@ export async function loadPersonalMaxNativeSources(args: {
   ) {
     return {};
   }
+  // TUL-449: reviews / gallery / chip-only catalog degrade on timeout; the page stays 200.
+  const catalogOnlyForChip = args.nextFreeChip && !args.servicesCatalog && !args.portfolio;
   const [catalog, portfolio, reviews, visit, compCard, faq] = await Promise.all([
-    needCatalog ? loadServicesCatalogSources(args.talentProfileId, args.locale) : {},
-    args.portfolio ? loadPortfolioSources(args.talentProfileId, { locale: args.locale }) : {},
-    args.reviews ? loadReviewsSources(args.talentProfileId) : {},
+    needCatalog
+      ? catalogOnlyForChip
+        ? withSecondaryReadDegrade(
+            "availability-chip",
+            () => loadServicesCatalogSources(args.talentProfileId, args.locale),
+            {},
+          )
+        : loadServicesCatalogSources(args.talentProfileId, args.locale)
+      : {},
+    args.portfolio
+      ? withSecondaryReadDegrade(
+          "gallery",
+          () => loadPortfolioSources(args.talentProfileId, { locale: args.locale, primaryLocale: args.primaryLocale ?? null }),
+          { talentPortfolioShots: [] },
+        )
+      : {},
+    args.reviews
+      ? withSecondaryReadDegrade(
+          "reviews",
+          () => loadReviewsSources(args.talentProfileId),
+          { talentReviews: [] },
+        )
+      : {},
     args.visit ? loadVisitSources(args.talentProfileId, args.locale) : {},
     args.compCard ? loadCompCardSources(args.talentProfileId, args.locale) : {},
     args.talentFaq

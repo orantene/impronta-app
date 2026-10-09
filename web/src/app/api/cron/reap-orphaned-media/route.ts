@@ -34,11 +34,18 @@ import {
  *                                        soft-deleted media_assets ROWS whose
  *                                        files are gone (default OFF = dry
  *                                        run; counts are in the log line)
- *   MEDIA_DELETED_ACCOUNT_PREFIX_ENFORCE=true  TUL-231: lift the prefix
- *                                        protection on a deleted account's own
- *                                        documents/originals (completed
- *                                        deletion + grace). Default OFF = dry
- *                                        run; deletedAccountPrefix* log fields
+ *   MEDIA_DELETED_ACCOUNT_PREFIX_ENFORCE=true  TUL-231/TUL-393: lift the
+ *                                        prefix protection on a deleted
+ *                                        account's own documents/originals/
+ *                                        site assets, and on
+ *                                        `{tenantId}/staging/` for workspaces
+ *                                        suspended as owner_account_deleted
+ *                                        (completion + grace). Default OFF =
+ *                                        dry run; deletedAccountPrefix* log
+ *                                        fields. Row-less documents/staging
+ *                                        are owner-accounted explicitly —
+ *                                        do NOT also flip the unaccounted
+ *                                        opt-in.
  *
  * With the flag off the run reports exactly what it WOULD delete and deletes
  * nothing. Any reference lookup that fails aborts the run with a 500 and
@@ -122,12 +129,15 @@ export async function GET(request: Request) {
           deletedAccountPrefixEnforce: outcome.deletedAccountPrefix.enforce,
           deletedAccountPrefixOk: outcome.deletedAccountPrefix.ok,
           deletedAccountPrefixEligibleTalents: outcome.deletedAccountPrefix.eligibleDeletedTalents,
+          deletedAccountPrefixEligibleTenants: outcome.deletedAccountPrefix.eligibleDeletedTenants,
           deletedAccountPrefixReleasedCount: outcome.deletedAccountPrefix.releasedCount,
           deletedAccountPrefixReleasedBytes: outcome.deletedAccountPrefix.releasedBytes,
           deletedAccountPrefixOwnerAccountedCount: outcome.deletedAccountPrefix.ownerAccountedCount,
           deletedAccountPrefixOwnerAccountedBytes: outcome.deletedAccountPrefix.ownerAccountedBytes,
           deletedAccountPrefixSiteAssetsCount: outcome.deletedAccountPrefix.siteAssetsCount,
           deletedAccountPrefixSiteAssetsBytes: outcome.deletedAccountPrefix.siteAssetsBytes,
+          deletedAccountPrefixStagingCount: outcome.deletedAccountPrefix.stagingCount,
+          deletedAccountPrefixStagingBytes: outcome.deletedAccountPrefix.stagingBytes,
           deletedAccountPrefixStillUnaccountedCount: outcome.deletedAccountPrefix.stillUnaccountedCount,
           deletedAccountPrefixApplied: outcome.deletedAccountPrefix.applied,
           deletedAccountPrefixFailure: outcome.deletedAccountPrefix.error ?? null,

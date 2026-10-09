@@ -11,15 +11,27 @@
 import {
   generateContainerLayoutCss,
   generateCustomBreakpointCss,
+  type CustomBreakpointCssOptions,
 } from "@/lib/site-admin/builder-node/custom-breakpoint-css";
 import type { CustomBreakpoint } from "@/lib/site-admin/sections/shared/presentation";
 
 export function BreakpointStyleEngine({
   tiers,
+  includeFreeform = true,
 }: {
   tiers?: readonly CustomBreakpoint[] | null;
+  /**
+   * Root layout sets false so every request does not pay ~24 KB of unused
+   * freeform node-lane CSS (TUL-446). Editor / trees that author custom-tier
+   * node styles keep the default `true`.
+   */
+  includeFreeform?: boolean;
 }) {
-  const css = [generateCustomBreakpointCss(tiers), generateContainerLayoutCss(tiers)]
+  const opts: CustomBreakpointCssOptions = { includeFreeform };
+  const css = [
+    generateCustomBreakpointCss(tiers, opts),
+    generateContainerLayoutCss(tiers),
+  ]
     .filter(Boolean)
     .join("\n\n");
   if (!css) return null;

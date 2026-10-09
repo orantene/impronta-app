@@ -15,15 +15,16 @@ import { cn } from "@/lib/utils";
  * Spanish speaker reads Spanish, not an English sentence asking whether they
  * would like Spanish.
  *
- * Layout contract (CLS): `position: fixed`, bottom of the viewport, outside
- * document flow. It cannot shift a single pixel of page content, so it costs
- * nothing on Cumulative Layout Shift no matter when it paints. It is rendered
- * in the SSR HTML (not mounted by an effect), so there is no pop-in either.
+ * Layout contract (TUL-394): a thin row IN DOCUMENT FLOW at the very top of
+ * the page (mounted as the first child of `<body>`, which is a flex column).
+ * It is never a fixed overlay, so it can never sit over a primary action: the
+ * /start "Continuar" footer, the booking dock and the sticky booking bar all
+ * live at the bottom and keep their space. It is rendered in the SSR HTML (not
+ * mounted by an effect), so it is in the first paint and shifts nothing after
+ * it; dismissing it removes the row and the content moves up once.
  *
- * Bottom-dock yield: when a talent site's booking dock or "See services" pill
- * (`.cb-dock` / `.cb-bar`) is up, booking CSS hides `[data-locale-suggestion]`
- * the same way it hides the consent banner — see `catalog-booking-styles.ts`.
- * Talent sites already expose ES/EN via `PublicLanguageToggle` in the header.
+ * Booking CSS still hides `[data-locale-suggestion]` while the dock/bar is up
+ * (see `catalog-booking-styles.ts`); harmless for a top row, kept for parity.
  *
  * Accept is a real `<a href>`, not a router push: the locale switch is a full
  * navigation to a different URL, exactly like `PublicLanguageToggle`. The
@@ -76,18 +77,16 @@ export function LocaleSuggestionBannerClient({
 
   return (
     <div
-      // `fixed` + `pointer-events-none` on the positioning layer so the strip
-      // never blocks a click on the content it floats over; only the card
-      // itself takes pointer events back.
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center p-3 print:hidden"
+      // In flow, top of the page: never overlays content or a bottom CTA.
+      className="relative flex shrink-0 justify-center px-3 py-2 print:hidden"
       role="region"
       aria-label={regionLabel}
       data-locale-suggestion={locale}
     >
       <div
         className={cn(
-          "pointer-events-auto flex w-full max-w-lg flex-wrap items-center gap-x-3 gap-y-2",
-          "rounded-lg border border-border/60 bg-background/95 px-3 py-2 shadow-lg backdrop-blur",
+          "flex w-full max-w-lg flex-wrap items-center gap-x-3 gap-y-2",
+          "rounded-lg border border-border/60 bg-background/95 px-3 py-2 shadow-sm",
           "text-sm text-foreground",
         )}
       >

@@ -28,6 +28,7 @@ const LIB = path.join(process.cwd(), "src", "lib");
  * runs only from the talent's own save, rewrites hours only when she CHANGED
  * the pattern, and never creates a row without a real timezone (her city,
  * her browser, or a non-platform workspace zone; never a guessed UTC).
+ * Also hosts onboarding upsert + TUL-453 tenant rehome (no new src/lib writer).
  */
 const ALLOWED_WRITERS = new Set([
   path.join(LIB, "server-actions", "booking-hours.ts"),

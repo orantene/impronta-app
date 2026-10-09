@@ -169,7 +169,15 @@ export function TalentHistoryList({
 
                   {confirming ? (
                     <div className="flex flex-col gap-2" style={{ fontSize: 12, color: CHROME.text }}>
-                      <span>{copyOf(confirming === "undo" ? "undoConfirm" : "restoreConfirm")}</span>
+                      <span>
+                        {copyOf(
+                          confirming === "undo"
+                            ? h.kind === "design_apply"
+                              ? "undoDesignConfirm"
+                              : "undoConfirm"
+                            : "restoreConfirm",
+                        )}
+                      </span>
                       <span className="flex flex-wrap gap-1">
                         <button
                           type="button"
@@ -177,7 +185,13 @@ export function TalentHistoryList({
                           className={HIST_BTN} style={btn("primary", pending)}
                           onClick={() => void (confirming === "undo" ? undo(row) : onRestore(row).then(() => setConfirm(null)))}
                         >
-                          {copyOf(confirming === "undo" ? "undoUpdate" : "restore")}
+                          {copyOf(
+                            confirming === "undo"
+                              ? h.kind === "design_apply"
+                                ? "undoDesign"
+                                : "undoUpdate"
+                              : "restore",
+                          )}
                         </button>
                         <button type="button" disabled={pending} className={HIST_BTN} style={btn("ghost", pending)} onClick={() => setConfirm(null)}>
                           {copyOf("cancel")}
@@ -207,7 +221,7 @@ export function TalentHistoryList({
                           onClick={() => setConfirm({ id: row.id, action: "undo" })}
                           data-history-undo-update
                         >
-                          {copyOf("undoUpdate")}
+                          {copyOf(h.kind === "design_apply" ? "undoDesign" : "undoUpdate")}
                         </button>
                       ) : null}
                     </span>

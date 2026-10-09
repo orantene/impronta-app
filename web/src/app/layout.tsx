@@ -221,6 +221,13 @@ export default async function RootLayout({
         suppressHydrationWarning
         className={`site-theme-${resolvedSiteTheme}${publicScope ? " site-theme-tenant-override" : ""} flex min-h-full flex-col text-foreground`}
       >
+        {/* SEO-safe language suggestion (TUL-394: first child of <body>, in
+            flow, so it never covers a bottom CTA). Renders nothing unless the
+            visitor's browser asks for a language this tenant publishes but is
+            not the one this URL serves. Never redirects, see
+            @/i18n/locale-suggestion. Mounted here because public HTML comes out
+            of four different shells; this is the one node they share. */}
+        <LocaleSuggestionBanner renderLocale={locale} />
         {/* Tenant custom code — head snippet. Storefront-only (publicScope),
             entitlement + status gated inside the resolver. */}
         {publicScope && <TenantCustomCodeHead tenantId={publicScope.tenantId} />}
@@ -250,9 +257,10 @@ export default async function RootLayout({
         {/* Phase 5 — global scroll-reveal observer (no-op when no targets). */}
         <ScrollReveal />
         {/* W5-T6 — built-in extra breakpoint tiers (wide ≤1280 / compact ≤480).
-            Renders a single <style>; reaches both the editor and published
-            storefront so section data-section-<tier>-* overrides take effect. */}
-        <BreakpointStyleEngine tiers={BUILTIN_EXTRA_TIERS} />
+            Section presentation rules only here (~6 KB). Freeform node-lane
+            CSS (~12 KB/tier) mounts from the editor / renderer when a tree
+            actually authors `style.responsive.<tier>` (TUL-446). */}
+        <BreakpointStyleEngine tiers={BUILTIN_EXTRA_TIERS} includeFreeform={false} />
         <AnalyticsScripts
           gaId={tenantAnalytics?.gaId}
           gtmId={tenantAnalytics?.gtmId}
@@ -280,13 +288,6 @@ export default async function RootLayout({
         {/* Custom code library — snippets placed at the end of the page. */}
         {publicScope && <TenantCodeSnippetsBody tenantId={publicScope.tenantId} />}
         <TenantRegisterMount />
-        {/* SEO-safe language suggestion. Renders nothing unless the visitor's
-            browser asks for a language this tenant publishes but is not the one
-            this URL serves. Never redirects, never changes what the URL renders
-            (crawlers get identical HTML minus the banner) — see
-            @/i18n/locale-suggestion. Mounted here because public HTML comes out
-            of four different shells; this is the one node they share. */}
-        <LocaleSuggestionBanner />
         <EditChromeMount />
         {/* Wave 6.1 — the admin quick bar mounts independently of the editor so
             it reaches every public page of a tenant's own site, not just the

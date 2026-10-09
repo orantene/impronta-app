@@ -9,7 +9,8 @@ import type { ServicePricingType } from "@/lib/talent/services-menu-types";
 
 export type PipelineActionResult<T = undefined> =
   | { ok: true; data?: T }
-  | { ok: false; error: string };
+  /** `code` lets a caller render a localized, actionable state instead of the English `error`. */
+  | { ok: false; error: string; code?: "offer_currency_unresolved" };
 
 export type InquiryPaymentState = {
   bookingId: string | null;
