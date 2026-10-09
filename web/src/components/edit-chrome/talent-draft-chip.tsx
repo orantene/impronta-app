@@ -137,7 +137,26 @@ export function TalentDraftChip(): ReactElement | null {
     fontSize: 12,
     fontWeight: 600,
     whiteSpace: "nowrap" as const,
+    // Cap width inside the sticky publish cluster so long es copy
+    // ("Borrador · 1 cambio sin publicar") ellipsizes instead of shoving Publicar.
+    maxWidth: "min(280px, 42vw)",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    flexShrink: 1,
+    minWidth: 0,
   };
+
+  const chipLabel = summary.firstPublish
+    ? pick(FIRST_PUBLISH_COPY.chip, locale)
+    : summary.unpublishedCount === 0
+      ? liveLabel(summary.lastPublishAt ?? summary.sitePublishedAt, locale)
+      : pick(unpublishedChangesLabel(summary.unpublishedCount), locale);
+  // Flex children need their own overflow box for ellipsis (TUL-519 W5-2).
+  const labelSpan = (
+    <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      {chipLabel}
+    </span>
+  );
 
   if (summary.unpublishedCount === 0 && !summary.firstPublish) {
     return (
@@ -146,11 +165,12 @@ export function TalentDraftChip(): ReactElement | null {
       <span
         data-talent-live-chip
         className="min-h-11 sm:min-h-[26px]"
+        title={chipLabel}
         style={{ ...chipStyle, color: CHROME.green, background: CHROME.greenBg, border: `1px solid ${CHROME.greenLine}` }}
       >
-        {liveLabel(summary.lastPublishAt ?? summary.sitePublishedAt, locale)}
+        {labelSpan}
         {summary.siteUrl ? (
-          <a href={summary.siteUrl} target="_blank" rel="noreferrer" style={{ color: CHROME.green, textDecoration: "underline" }}>
+          <a href={summary.siteUrl} target="_blank" rel="noreferrer" className="shrink-0" style={{ color: CHROME.green, textDecoration: "underline" }}>
             {copyOf("viewSite")}
           </a>
         ) : null}
@@ -167,12 +187,10 @@ export function TalentDraftChip(): ReactElement | null {
         data-talent-draft-chip
         className="min-h-11 sm:min-h-[26px]"
         onClick={() => setOpen(true)}
-        title={applyBusy ? copyOf("applying") : copyOf("whatWillGoLive")}
+        title={applyBusy ? copyOf("applying") : chipLabel}
         style={{ ...chipStyle, cursor: "pointer", color: CHROME.text, background: CHROME.surface2, border: `1px solid ${CHROME.lineMid}` }}
       >
-        {summary.firstPublish
-          ? pick(FIRST_PUBLISH_COPY.chip, locale)
-          : pick(unpublishedChangesLabel(summary.unpublishedCount), locale)}
+        {labelSpan}
       </button>
       {open ? (
         <PortaledOverlay>
