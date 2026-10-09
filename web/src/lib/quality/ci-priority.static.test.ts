@@ -39,6 +39,8 @@ test("the gate's first step is the policy step, reading labels live", () => {
   assert.match(ci, /grep -qx "full-gate"/);
   assert.match(ci, /startsWith\(github\.head_ref, 'integ\/'\)/);
   assert.match(ci, /pull-requests: read/);
+  // It runs before checkout, so it must not inherit the job default working-directory (web/).
+  assert.match(steps, /id: policy\n\s+working-directory: \.\n/);
 });
 
 test("an unlabelled ordinary PR fails (not skips) the gate", () => {
