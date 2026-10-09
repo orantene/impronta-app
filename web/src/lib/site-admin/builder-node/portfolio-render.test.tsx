@@ -265,13 +265,21 @@ test("TUL-440: every shape taps into the lightbox, linked or not, with or withou
     { layout: "staggered", cardStyle: "framed", showCaptions: true },
     { layout: "grid", cardStyle: "framed", showCaptions: true },
     { layout: "grid", linkMode: "none" },
+    // TUL-516 / was TUL-490: Gridline work_order shares the same lightbox.
+    { layout: "work_order" },
   ];
   for (const props of shapes) {
     const html = render([portfolioNode(props)], { talentPortfolioShots: shots, talentOfferings: [offering()] });
     const buttons = html.match(/<button[^>]*data-portfolio-gallery-index[^>]*>/g) ?? [];
     assert.equal(buttons.length, 3, JSON.stringify(props));
     assert.doesNotMatch(html, /href="#servicios"/, JSON.stringify(props));
-    assert.doesNotMatch(html, /<div class="sb-portfolio-shot/, JSON.stringify(props));
+    if (props.layout !== "work_order") {
+      assert.doesNotMatch(html, /<div class="sb-portfolio-shot/, JSON.stringify(props));
+    } else {
+      // work_order stays photo-only (no offering CTA), even when shots carry offeringId.
+      assert.equal((html.match(/data-portfolio-photo/g) ?? []).length, 3, JSON.stringify(props));
+      assert.doesNotMatch(html, /data-portfolio-shot-link|data-offering-id=/, JSON.stringify(props));
+    }
     for (const b of buttons) assert.match(b, /aria-label="[^"]+"/);
   }
 });

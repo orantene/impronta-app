@@ -307,12 +307,23 @@ export function renderPortfolioBlock(args: {
   // TUL-440: the header CTA's decision (one service: its sheet; several: the picker; none: hidden).
   const bookable = listBookableOfferings({ offerings: args.offerings ?? [], confirmsByHand: args.confirmsByHand ?? true });
   const generalIntent = stickyBarIntent(stickyBarAction(bookable.length), bookEntryFrom(bookable));
-  const galleryItems = buildPortfolioGallery(visible, (id) => byOffering.has(id), es, showCaptions ? (shot) => {
+  // work_order tiles never link to an offering (photo-only lightbox + optional
+  // general book CTA). Strip offeringId so canBook stays false and the shared
+  // lightbox never shows a dead "Book this look".
+  const galleryShots = workOrder ? visible.map((s) => ({ ...s, offeringId: null })) : visible;
+  const galleryItems = buildPortfolioGallery(galleryShots, (id) => byOffering.has(id), es, showCaptions ? (shot) => {
     const full = visible.find((v) => v.id === shot.id);
     return captionLanguageHint({ caption: full?.caption, captionI18n: full?.captionI18n, locale: args.locale, primaryLocale: args.primaryLocale });
   } : undefined);
   const shotNodes = visible.map((shot, index) => workOrder ? (
-    <WorkOrderFigure key={shot.id} shot={shot} locale={args.locale} />
+    <WorkOrderFigure
+      key={shot.id}
+      shot={shot}
+      gallery={{ items: galleryItems, index }}
+      es={es}
+      generalIntent={generalIntent}
+      locale={args.locale}
+    />
   ) : (
     <ShotFigure
       key={shot.id}

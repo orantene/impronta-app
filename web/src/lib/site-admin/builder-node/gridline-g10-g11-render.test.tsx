@@ -93,7 +93,7 @@ function portfolioNode(): BuilderNode {
   return { ...base, id: "port-wo", props: { ...base.props, layout: "work_order" } } as BuilderNode;
 }
 
-test("work_order: job cards with a two-line caption, no link; alt is the job title (TUL-384)", () => {
+test("work_order: job cards with a two-line caption, photo-only lightbox; alt is the job title (TUL-384)", () => {
   const html = render([portfolioNode()], {
     talentPortfolioShots: [
       shot("a", "Cambio de tablero\nOT-0412 · San Pedro · 1 día"),
@@ -103,7 +103,13 @@ test("work_order: job cards with a two-line caption, no link; alt is the job tit
   assert.match(html, /data-portfolio-layout="work_order"/);
   assert.equal((html.match(/class="sb-wo-job"/g) ?? []).length, 2);
   assert.match(html, /<figcaption><b>Cambio de tablero<\/b>OT-0412 · San Pedro · 1 día<\/figcaption>/);
-  assert.doesNotMatch(html, /<a\s|<button/, "tiles never link to an offering");
+  // TUL-516 / was TUL-490: shared lightbox (photo-only), never an offering CTA.
+  const photos = html.match(/<button[^>]*data-portfolio-photo[^>]*>/g) ?? [];
+  assert.equal(photos.length, 2);
+  assert.match(photos[0]!, /data-portfolio-gallery-index="0"/);
+  assert.match(photos[0]!, /data-portfolio-gallery-size="2"/);
+  assert.match(photos[1]!, /data-portfolio-gallery-index="1"/);
+  assert.doesNotMatch(html, /data-portfolio-shot-link|data-offering-id=|href="#servicios"/);
   assert.doesNotMatch(html, /Maria Lopez/, "the shot alt (a person) never reaches the markup");
   assert.match(html, /alt="Cambio de tablero"/);
   assert.match(html, /alt="Acometida"/);
