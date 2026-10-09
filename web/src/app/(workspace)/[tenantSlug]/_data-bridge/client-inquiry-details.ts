@@ -383,10 +383,11 @@ export async function loadClientInquiryDetails(
     const iq = (inq.interpreted_query ?? {}) as Iq;
 
     // Parallel fan-out for the side data.
-    // ONE client for every read: the verified-impersonation client when one was passed (no service-role
-    // fan-out beside it), else the existing service-role-or-RLS client.
-    const admin = effectiveReadClient ? null : createServiceRoleClient();
-    const readClient = effectiveReadClient ?? admin ?? supabase;
+    // ONE client for every read AND for the privileged parts (the offer approval, signed attachments):
+    // the verified-impersonation client when one was passed (staff must see what the client sees; no extra
+    // service-role fan-out), else the existing service-role-or-RLS client.
+    const admin = effectiveReadClient ?? createServiceRoleClient();
+    const readClient = admin ?? supabase;
     const [participantsRes, offerRes, coordRes, eventsRes, attachmentsRes, pitchRes, bookingRes, txnRes] = await Promise.all([
       // Talent lineup — visible-to-client subset
       readClient
