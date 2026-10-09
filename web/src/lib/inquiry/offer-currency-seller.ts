@@ -30,7 +30,9 @@ export async function loadInquirySellersChecked(
       .select("talent_profile_id")
       .eq("inquiry_id", inquiryId)
       .eq("role", "talent")
-      .eq("status", "active");
+      // An invited talent is the intended seller of a fresh inquiry (the only seat until she accepts):
+      // without her the currency fell through to the workspace default (USD for an MXN seller).
+      .in("status", ["active", "invited"]);
     if (error) {
       logServerError("offer-currency-seller.participants", error);
       return { ok: false };

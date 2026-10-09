@@ -87,3 +87,40 @@ describe("checkInquiryCurrencyMatchesSeller (send and charge creation)", () => {
   });
   it("mixed sellers are unchanged", async () => assert.deepEqual(await check([mx, us], "USD"), { ok: true }));
 });
+
+describe("an INVITED talent is the seller until she accepts (fresh hub inquiry)", () => {
+  /** A fake that records the participant status filter and answers only for rows that pass it. */
+  function recordingSupabase(seats: { id: string; status: string }[], talents: TalentRow[]) {
+    const seen: { statuses?: string[] } = {};
+    const builder = (rows: () => unknown[]) => {
+      const b: Record<string, unknown> = {};
+      for (const m of ["select", "eq"]) b[m] = () => b;
+      b.in = (col: string, vals: string[]) => {
+        if (col === "status") seen.statuses = vals;
+        return b;
+      };
+      b.then = (resolve: (v: { data: unknown[]; error: null }) => unknown) => resolve({ data: rows(), error: null });
+      return b;
+    };
+    const client = {
+      from: (table: string) =>
+        table === "inquiry_participants"
+          ? builder(() => seats.filter((s) => (seen.statuses ?? ["active"]).includes(s.status)).map((s) => ({ talent_profile_id: s.id })))
+          : builder(() => talents),
+    } as unknown as SupabaseClient;
+    return { client, seen };
+  }
+
+  it("a lone invited MXN seller prices the offer in MXN", async () => {
+    const { client, seen } = recordingSupabase([{ id: "t-mx", status: "invited" }], [mx]);
+    const cur = await resolveNewOfferCurrency(client, { inquiryId: "i1", tenantId: "t1", explicitCurrency: null, followSeller: true });
+    assert.equal(cur, "MXN");
+    assert.deepEqual(seen.statuses, ["active", "invited"]);
+  });
+
+  it("a removed or declined seat does not count", async () => {
+    const { client } = recordingSupabase([{ id: "t-mx", status: "declined" }], [mx]);
+    const sellers = await (await import("./offer-currency-seller")).loadInquirySellersChecked(client, "i1");
+    assert.deepEqual(sellers, { ok: true, sellers: [] });
+  });
+});
