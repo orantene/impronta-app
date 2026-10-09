@@ -44,7 +44,7 @@ test("the event route renders the linked builder page through the catch-all comp
 
 test("the catch-all sends a page linked to a published event to the event's canonical URL", () => {
   const src = read("src/app/(public)/p/[[...slug]]/page.tsx");
-  assert.match(src, /import \{ notFound, permanentRedirect \} from "next\/navigation"/);
+  assert.match(src, /import \{ notFound, permanentRedirect(, redirect)? \} from "next\/navigation"/);
   assert.match(src, /redirectWhenLinkedToEvent = true,/, "the opt-out defaults to redirecting");
   assert.match(src, /resolveLinkedEventSlugForPageSlug\(supabase, publicScope\.tenantId, slugPath\)/);
   assert.match(src, /const target = builderPageRedirectForLinkedEvent\(\{/);

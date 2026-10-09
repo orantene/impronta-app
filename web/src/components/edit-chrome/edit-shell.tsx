@@ -52,10 +52,6 @@ import {
   CHROME,
   CHROME_SHADOWS,
   EDIT_TOPBAR_H,
-  COMMAND_DOCK_LEFT_PX,
-  COMMAND_DOCK_WIDTH_PX,
-  COMMAND_DOCK_PANEL_GAP_PX,
-  INSPECTOR_PANEL_RIGHT_INSET_PX,
   Button,
   EditToast,
   Z_INDEX,
@@ -97,7 +93,13 @@ import {
   CanvasGuides,
   useCanvasViewport,
 } from "./canvas-viewport";
-import { DEFAULT_WORKSPACE_CANVAS_MODE, resolveBodyHorizontalPadding, resolveDeviceFrameHorizontalPadding, type WorkspaceCanvasMode } from "./workspace-layout";
+import { DEFAULT_WORKSPACE_CANVAS_MODE } from "./workspace-layout";
+import { resolveDeviceFrameHostPadding } from "./device-frame-layout";
+import {
+  DeviceFrameSkeleton,
+  useDeviceFrameLoadTracking,
+} from "./device-frame-skeleton";
+import { BodyPaddingController } from "./body-padding-controller";
 import { useEditorLocale } from "./use-editor-locale";
 import { presenceBannerMessage } from "./presence-banner-copy";
 import { summarizeOtherEditors } from "./summarize-other-editors";
@@ -1459,51 +1461,6 @@ function FirstPaintTip(p: { navigatorOpen: boolean; navigatorWidth: number }) {
   );
 }
 
-// Command dock (left) + inspector tab rail (right) are PERSISTENT chrome —
-// unlike the Navigator/Inspector panels they aren't opt-in, so in fullBleed
-// mode (the only mode this shell currently uses — canvasMode is hardcoded
-// to DEFAULT_WORKSPACE_CANVAS_MODE above) `resolveBodyHorizontalPadding`
-// always reserved 0px for them. That let the storefront render content
-// (most visibly a left-aligned hero headline) directly underneath the
-// always-on rail with no gutter. These two constants mirror each rail's own
-// left/right + width + gap footprint (same formula as each rail's own
-// `*_PANEL_INSET_PX` / `*_RIGHT_INSET_PX`) so the DEFAULT resting position
-// never occludes canvas content — the rails stay draggable; this only
-// affects the storefront's own layout margin.
-const COMMAND_DOCK_MIN_SAFE_LEFT_PX =
-  COMMAND_DOCK_LEFT_PX + COMMAND_DOCK_WIDTH_PX + COMMAND_DOCK_PANEL_GAP_PX;
-const INSPECTOR_RAIL_MIN_SAFE_RIGHT_PX = INSPECTOR_PANEL_RIGHT_INSET_PX;
-
-function BodyPaddingController({
-  canvasMode,
-  navigatorOpen,
-  navigatorWidth,
-  inspectorOpen,
-  previewing,
-}: {
-  canvasMode: WorkspaceCanvasMode;
-  navigatorOpen: boolean;
-  navigatorWidth: number;
-  inspectorOpen: boolean;
-  /** Preview mode hides both rails entirely — no gutter to reserve then. */
-  previewing: boolean;
-}) {
-  const { left, right } = resolveBodyHorizontalPadding({
-    mode: canvasMode,
-    navigatorOpen,
-    navigatorWidth,
-    inspectorOpen,
-  });
-  const dockGutter = previewing ? 0 : COMMAND_DOCK_MIN_SAFE_LEFT_PX;
-  const railGutter = previewing ? 0 : INSPECTOR_RAIL_MIN_SAFE_RIGHT_PX;
-  const effectiveLeft = Math.max(left, dockGutter);
-  const effectiveRight = Math.max(right, railGutter);
-  if (effectiveLeft === 0 && effectiveRight === 0) return null;
-  return (
-    <style>{`@media (min-width: 1024px) { body { padding-left: ${effectiveLeft}px !important; padding-right: ${effectiveRight}px !important; transition: padding-left 200ms ease, padding-right 200ms ease; } }`}</style>
-  );
-}
-
 function DraftSavedToast() {
   const { t } = useEditorLocale();
   const { clearDraftSavedToast } = useEditContext();
@@ -1882,11 +1839,19 @@ function DeviceFrameSurface({
   const pageVersion = usePageVersion();
   // Job #18 — canvas drag-resize setters. DeviceFrameSurface is rendered
   // inside EditProvider so useEditContext is valid here.
-  const { setDevice: ctxSetDevice, setPreviewFrameWidth } = useEditContext();
+  const {
+    setDevice: ctxSetDevice,
+    setPreviewFrameWidth,
+    mobileEditMode,
+  } = useEditContext();
 
   // Drag state — live width while dragging (null = not dragging).
   const [dragging, setDragging] = useState<boolean>(false);
   const [dragReadout, setDragReadout] = useState<number | null>(null);
+  const { loadedTiers, markTierLoaded } = useDeviceFrameLoadTracking(
+    pageVersion,
+    pageSlug,
+  );
   // Ref to the start-of-drag data so pointermove doesn't close over stale state.
   const dragStartRef = useRef<{
     startX: number;
@@ -2060,14 +2025,16 @@ function DeviceFrameSurface({
   // so the value is irrelevant there — frameWidthForTier falls back to tablet.
   const width = frameWidthForTier(device, device, previewFrame);
 
-  // Padding rules — full-bleed canvas uses safe margins only; panels overlay.
+  // TUL-397 — device frames always reserve gutters for navigator / inspector /
+  // Mobile·Tablet editing HUD so those panels sit beside the canvas, not over it.
   const isPhone = (hostSize?.w ?? 1280) < 1024;
-  const { left: leftPad, right: rightPad } = resolveDeviceFrameHorizontalPadding({
-    mode: DEFAULT_WORKSPACE_CANVAS_MODE,
+  const { left: leftPad, right: rightPad } = resolveDeviceFrameHostPadding({
     isPhone,
     navigatorOpen,
     navigatorWidth,
     inspectorOpen,
+    device,
+    mobileEditMode,
   });
   const verticalPad = isPhone ? 12 : 24;
 
@@ -2204,6 +2171,7 @@ function DeviceFrameSurface({
                   data-active={isActive ? "true" : undefined}
                   data-device-tier={d}
                   hidden={!isActive}
+                  onLoad={() => markTierLoaded(d)}
                   style={{
                     // Absolute layering so the inactive iframes stack
                     // beneath the active one without affecting flex flow.
@@ -2227,6 +2195,7 @@ function DeviceFrameSurface({
                 />
               );
             })}
+            <DeviceFrameSkeleton device={device} loadedTiers={loadedTiers} />
           </div>
           {/* Job #18 — resize grabber on the right edge of the active frame.
               Thin vertical strip; cursor:ew-resize. onPointerDown starts the

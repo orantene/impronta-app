@@ -49,6 +49,7 @@ import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { runMobileHealthCheck } from "@/lib/site-admin/builder-node/mobile-health";
 import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { CHROME } from "./kit";
+import { CANVAS_FLOATING_BAR } from "./kit/tokens";
 import { useEditorLocale } from "./use-editor-locale";
 
 // The navigator rail collapses to this hairline width when closed (mirrors
@@ -60,6 +61,10 @@ const NAVIGATOR_COLLAPSED_RAIL_PX = 22;
 // whole HUD visible on any viewport width.
 const PANEL_WIDTH = 296;
 const PANEL_EDGE_INSET = 14;
+// Sit above the bottom-left zoom bar (TUL-456 / run6 @768): the prior
+// `bottom: 18` shared the zoom bar's band and the two overlapped.
+const PANEL_BOTTOM =
+  CANVAS_FLOATING_BAR.bottom + CANVAS_FLOATING_BAR.height + 8;
 
 // Stable empty-tree fallback so the `useMemo` deps below don't see a fresh array
 // every render when no EditProvider tree is present.
@@ -507,6 +512,9 @@ function nudgeBtnStyle(busy: boolean): React.CSSProperties {
 
 export function MobileEditPanel() {
   const ctx = useMaybeEditContext();
+  // TUL-456: Spanish dashboard chrome must localise this HUD banner. Structure
+  // controls below already call `useEditorLocale`; the banner did not.
+  const { t } = useEditorLocale();
 
   // WS2 — tree VALUE from the micro-store (always safe to call; the store is a
   // module singleton independent of the provider). Keep the `ctx` guard so the
@@ -572,15 +580,17 @@ export function MobileEditPanel() {
       data-edit-drawer
       data-mobile-edit-panel
       role="region"
-      aria-label={tabletHud ? "Tablet editing" : "Mobile-first editing"}
+      aria-label={
+        tabletHud ? t("Tablet editing") : t("Mobile-first editing")
+      }
       style={{
         position: "fixed",
         left: panelLeft,
-        bottom: 18,
+        bottom: PANEL_BOTTOM,
         zIndex: 84,
         width: PANEL_WIDTH,
         maxWidth: panelMaxWidth,
-        maxHeight: "calc(100vh - 54px - 36px)",
+        maxHeight: `calc(100vh - ${PANEL_BOTTOM}px - 54px)`,
         display: "flex",
         flexDirection: "column",
         borderRadius: 12,
@@ -614,7 +624,7 @@ export function MobileEditPanel() {
               letterSpacing: "-0.01em",
             }}
           >
-            {tabletHud ? "Tablet editing" : "Mobile editing"}
+            {tabletHud ? t("Tablet editing") : t("Mobile editing")}
           </span>
           <span
             style={{
@@ -625,8 +635,8 @@ export function MobileEditPanel() {
             }}
           >
             {tabletHud
-              ? "Hide and reorder apply to tablet"
-              : "Style edits scope to mobile"}
+              ? t("Hide and reorder apply to tablet")
+              : t("Style edits scope to mobile")}
           </span>
         </span>
         <button
@@ -635,11 +645,11 @@ export function MobileEditPanel() {
             if (tabletHud) ctx.setDevice("desktop");
             else ctx.setMobileEditMode(false);
           }}
-          title="Exit to desktop editing"
+          title={t("Exit to desktop editing")}
           aria-label={
             tabletHud
-              ? "Exit tablet editing, back to desktop"
-              : "Exit mobile editing, back to desktop"
+              ? t("Exit tablet editing, back to desktop")
+              : t("Exit mobile editing, back to desktop")
           }
           style={{
             display: "inline-flex",
@@ -658,7 +668,7 @@ export function MobileEditPanel() {
           }}
         >
           <CloseIcon />
-          Exit
+          {t("Exit")}
         </button>
       </div>
 

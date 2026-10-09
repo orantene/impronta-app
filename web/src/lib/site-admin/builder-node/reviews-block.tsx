@@ -10,6 +10,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import { BuilderNodeCarouselTrack } from "./carousel";
 import { carouselSlideVars, type CarouselSlidesPerView } from "./carousel-slides-per-view";
+import { NotShownOnSiteBadge } from "./not-shown-on-site-badge";
 import { REVIEWS_DEFAULT_PROPS, type ReviewsLayout } from "./reviews-defaults";
 import { renderItalicMarkedTitle } from "./services-catalog-title";
 import type { TalentSiteReview } from "./reviews-types";
@@ -17,7 +18,10 @@ import type { BuilderReviewsNode } from "./types";
 
 export const REVIEWS_CSS = `
 .sb-reviews{color:var(--token-color-ink);font:inherit;width:100%;min-width:0}
-.sb-reviews[data-reviews-empty="1"]{display:none!important}
+/* Published path: hide empty. Editor empty keeps data-not-shown-on-site-host. */
+.sb-reviews[data-reviews-empty="1"]:not([data-not-shown-on-site-host]){display:none!important}
+.sb-reviews[data-not-shown-on-site-host]{display:flex;flex-direction:column;align-items:flex-start;gap:0.75rem;min-height:8rem;padding:1.25rem 1.35rem;border:1px dashed color-mix(in oklab,var(--token-color-ink) 22%,transparent);border-radius:var(--site-radius-lg,1rem);box-sizing:border-box}
+.sb-reviews-editor-empty-hint{margin:0;font-size:0.8125rem;line-height:1.45;color:var(--token-color-muted)}
 .sb-reviews-header{margin-bottom:1.25rem}
 .sb-reviews-eyebrow{margin:0 0 0.35rem;font-size:0.75rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--token-color-muted)}
 .sb-reviews-title{margin:0;font-size:clamp(1.35rem,2.5vw,1.85rem);font-weight:600;letter-spacing:-0.02em;line-height:1.15}
@@ -142,6 +146,11 @@ export function renderReviewsBlock(args: {
   reviews: ReadonlyArray<TalentSiteReview>;
   styleAttr?: CSSProperties;
   locale?: string;
+  /**
+   * TUL-124 — builder canvas only. Empty reviews stay selectable with a
+   * "Not shown on your site" badge; the published path keeps them hidden.
+   */
+  editorPreview?: boolean;
 }): ReactNode {
   const p = args.node.props;
   const es = (args.locale ?? "").toLowerCase().startsWith("es");
@@ -151,9 +160,30 @@ export function renderReviewsBlock(args: {
   const title = (p.title ?? REVIEWS_DEFAULT_PROPS.title)?.trim() || "What clients say";
   const eyebrow = p.eyebrow?.trim() || "";
 
-  // Hidden when no real quotes (never invent reviews). Still emit the kind
-  // stamp so insert/drop/registration stays discoverable, matching next_free_chip.
+  // No real quotes (never invent reviews). Published: stay hidden. Builder:
+  // show a clear "Not shown on your site" host so canvas and live agree.
   if (visible.length === 0) {
+    if (args.editorPreview) {
+      return (
+        <section
+          data-builder-node-id={args.node.id}
+          data-builder-node-kind="reviews"
+          data-reviews-layout={layout}
+          data-reviews-empty="1"
+          data-not-shown-on-site-host=""
+          className="sb-reviews"
+          style={args.styleAttr}
+        >
+          <style>{REVIEWS_CSS}</style>
+          <NotShownOnSiteBadge locale={args.locale} />
+          <p className="sb-reviews-editor-empty-hint">
+            {es
+              ? "Las reseñas de citas completadas aparecen aquí. Hasta entonces, los visitantes no ven este bloque."
+              : "Reviews from completed appointments appear here. Until then, visitors do not see this block."}
+          </p>
+        </section>
+      );
+    }
     return (
       <section
         data-builder-node-kind="reviews"
