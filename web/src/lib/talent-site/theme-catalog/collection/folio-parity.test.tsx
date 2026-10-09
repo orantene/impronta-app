@@ -21,8 +21,8 @@ import { MAGAZINE_TYPE_SYSTEM_CSS } from "./design-type-system";
 
 const PINS = {
   editorial: "2c29e6f06863523b", // re-pinned after rebase onto #2527/#2528/#2529 + soft chrome (#2530)
-  utility: "d46adc1808b45b81", // re-pinned after the Gridline FAQ heading fix
-  highlight: "f6ed134ba4b1cd9e",
+  utility: "5450f057f44cf0b4", // TUL-474: area title hooks + sticky work_order clearance + hero kicker nowrap
+  highlight: "154aa0752c478aa5", // TUL-474: TITLE_HOOKS includes .sb-area-title
   booking: "8f87f1ae1e51bc17",
   // Re-pinned: only added props.i18n (es + en seed copy), see seed-i18n.ts.
   maison: "ff484407b68ec492", // was ca897a06ce5564b6; TUL-345: aftercare + before-after seed explicit en overlays. Before (42d225e3c02a4810): TUL-230: the About paragraph is liveText "bio". Before: #88 Book an appointment leads in header + hero; #209: + es/en overlay on portfolio, reviews, header labels
