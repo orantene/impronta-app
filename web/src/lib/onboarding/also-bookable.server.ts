@@ -8,18 +8,20 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 
 import type { AlsoBookableFacts } from "./also-bookable";
+import { resolveProviderDisplayName } from "./how-you-work";
 
 export async function loadAlsoBookableFacts(
   admin: SupabaseClient,
   userId: string,
   tenantId: string,
 ): Promise<{ ok: true; facts: AlsoBookableFacts } | { ok: false; error: string }> {
-  const [mem, ag, tp] = await Promise.all([
+  const [mem, ag, tp, account] = await Promise.all([
     admin.from("agency_memberships").select("tenant_id").eq("profile_id", userId).eq("tenant_id", tenantId).eq("role", "owner").eq("status", "active").limit(1).maybeSingle(),
-    admin.from("agencies").select("id, slug").eq("id", tenantId).maybeSingle(),
+    admin.from("agencies").select("id, slug, display_name").eq("id", tenantId).maybeSingle(),
     admin.from("talent_profiles").select("id, display_name").eq("user_id", userId).is("deleted_at", null).limit(1).maybeSingle(),
+    admin.from("profiles").select("display_name").eq("id", userId).maybeSingle(),
   ]);
-  const failed = mem.error ?? ag.error ?? tp.error;
+  const failed = mem.error ?? ag.error ?? tp.error ?? account.error;
   if (failed) {
     logServerError("also-bookable.loadFacts", failed);
     return { ok: false, error: "Could not check your account right now." };
@@ -52,7 +54,13 @@ export async function loadAlsoBookableFacts(
       tenantId: typeof ag.data?.id === "string" ? ag.data.id : null,
       tenantSlug: typeof ag.data?.slug === "string" ? ag.data.slug : null,
       talentProfileId,
-      displayName: typeof tp.data?.display_name === "string" ? tp.data.display_name : null,
+      // A studio-only owner has no talent profile yet: fall back to the account
+      // name, then the workspace name (same chain as "How you work").
+      displayName: resolveProviderDisplayName(
+        typeof tp.data?.display_name === "string" ? tp.data.display_name : null,
+        typeof account.data?.display_name === "string" ? account.data.display_name : null,
+        typeof ag.data?.display_name === "string" ? ag.data.display_name : null,
+      ),
       isOwner: Boolean(mem.data),
       hasOwnSite,
     },
