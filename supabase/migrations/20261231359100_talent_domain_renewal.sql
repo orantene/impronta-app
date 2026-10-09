@@ -19,7 +19,11 @@ alter table public.talent_site_domains
   add column if not exists renewal_last_attempt_at timestamptz,
   add column if not exists renewal_payment_intent_id text,
   add column if not exists renewal_checkout_session_id text,
-  add column if not exists renewal_paid_at timestamptz;
+  add column if not exists renewal_paid_at timestamptz,
+  -- Consent: the payment method the talent agreed to have renewed with, saved at purchase after the checkout
+  -- disclosed "renews yearly at cost, we tell you 21 days before". No consent stored = pay link only.
+  add column if not exists renewal_payment_method_id text,
+  add column if not exists renewal_consent_at timestamptz;
 
 -- One renewal payment maps to at most one domain row (webhook idempotency).
 create unique index if not exists talent_site_domains_renewal_payment_intent_id_key
@@ -39,5 +43,9 @@ comment on column public.talent_site_domains.renewal_price_cents is
   'USD cents the registrar charges to renew (cost). The talent is charged exactly this amount, no markup.';
 comment on column public.talent_site_domains.renewal_state is
   'none | awaiting_payment (pay link sent) | paid | unpaid_autorenew_off (deadline passed, auto-renew turned off) | needs_attention (ops).';
+comment on column public.talent_site_domains.renewal_payment_method_id is
+  'Stripe payment method saved at purchase WITH the renewal disclosure (setup_future_usage=off_session). The only method ever charged off-session for a renewal.';
+comment on column public.talent_site_domains.renewal_consent_at is
+  'When the talent accepted the renewal disclosure at the purchase checkout; null = never charge off-session.';
 comment on column public.talent_site_domains.renewal_cycle_expires_at is
   'The registrar_expires_at value the renewal_* state refers to; a different expiry starts a new cycle.';

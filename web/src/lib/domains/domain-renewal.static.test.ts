@@ -33,10 +33,20 @@ test("the paid-renewal webhook is routed and handled, and a purchase starts the 
   assert.match(read("src/lib/stripe/talent-domain-billing.ts"), /recordRegistrarSnapshot\(sb,/);
 });
 
+test("the purchase checkout discloses the renewal and saves THAT card for off-session use; the sweep never picks a card itself", () => {
+  const billing = read("src/lib/stripe/talent-domain-billing.ts");
+  assert.match(billing, /setup_future_usage: "off_session"/);
+  assert.match(billing, /dashboard\.domainRenewal\.consentDisclosure/);
+  assert.match(billing, /renewal_consent: "1"/);
+  const renewal = read("src/lib/stripe/talent-domain-renewal.ts");
+  assert.doesNotMatch(renewal, /paymentMethods\.list|invoice_settings/, "no 'first saved card' lookup");
+  assert.match(renewal, /renewal_consent_at && row\.renewal_payment_method_id/);
+});
+
 test("renewal copy exists in en, es and fr with no em dash", () => {
   for (const loc of ["en", "es", "fr"]) {
     const c = (JSON.parse(read(`messages/${loc}.json`)) as { dashboard: { domainRenewal: Record<string, string> } }).dashboard.domainRenewal;
-    for (const k of ["chargedTitle", "chargedBody", "payTitle", "payBody", "autorenewOffTitle", "autorenewOffBody"]) {
+    for (const k of ["chargedTitle", "chargedBody", "payTitle", "payBody", "autorenewOffTitle", "autorenewOffBody", "consentDisclosure"]) {
       assert.ok(c[k], `${loc}.${k}`);
       assert.doesNotMatch(c[k], /—/, `${loc}.${k}`);
     }

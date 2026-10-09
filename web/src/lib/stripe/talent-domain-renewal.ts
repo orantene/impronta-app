@@ -54,10 +54,12 @@ type DomainRow = {
   renewal_cycle_expires_at: string | null;
   renewal_attempts: number;
   renewal_last_attempt_at: string | null;
+  renewal_payment_method_id: string | null;
+  renewal_consent_at: string | null;
 };
 
 const COLUMNS =
-  "id, domain, talent_profile_id, registrant_email, registrar_expires_at, registrar_auto_renew, renewal_price_cents, renewal_state, renewal_cycle_expires_at, renewal_attempts, renewal_last_attempt_at";
+  "id, domain, talent_profile_id, registrant_email, registrar_expires_at, registrar_auto_renew, renewal_price_cents, renewal_state, renewal_cycle_expires_at, renewal_attempts, renewal_last_attempt_at, renewal_payment_method_id, renewal_consent_at";
 
 export type RenewalSweepDeps = {
   nowMs?: () => number;
@@ -193,15 +195,6 @@ async function recordPaid(
   }
 }
 
-async function savedCardFor(stripe: Stripe, customerId: string): Promise<string | null> {
-  const customer = await stripe.customers.retrieve(customerId);
-  if (customer.deleted) return null;
-  const def = customer.invoice_settings?.default_payment_method;
-  if (def) return typeof def === "string" ? def : def.id;
-  const cards = await stripe.paymentMethods.list({ customer: customerId, type: "card", limit: 1 });
-  return cards.data[0]?.id ?? null;
-}
-
 function cycleKey(row: DomainRow): string {
   return (row.registrar_expires_at ?? "").slice(0, 10);
 }
@@ -281,37 +274,36 @@ async function chargeOrSendLink(
   }
   const nowIso = new Date(deps.nowMs).toISOString();
 
-  // 1. Saved card, off-session. Idempotent per domain + cycle.
+  // 1. Off-session ONLY with consent: the payment method she saved at purchase after the renewal disclosure.
+  // Never "her first saved card" (that is likely her plan card). No consent stored = pay link only.
   const customerId = await customerIdFor(sb, row.talent_profile_id);
-  if (customerId) {
+  const pm = row.renewal_consent_at && row.renewal_payment_method_id ? row.renewal_payment_method_id : null;
+  if (customerId && pm) {
     try {
-      const pm = await savedCardFor(stripe, customerId);
-      if (pm) {
-        const intent = await stripe.paymentIntents.create(
-          {
-            amount: priceCents,
-            currency: "usd",
-            customer: customerId,
-            payment_method: pm,
-            off_session: true,
-            confirm: true,
-            description: `Domain renewal: ${row.domain}`,
-            metadata: {
-              checkout_type: TALENT_DOMAIN_RENEWAL_CHECKOUT_TYPE,
-              talent_id: row.talent_profile_id,
-              domain: row.domain,
-              domain_row_id: row.id,
-              cycle_expires_at: row.registrar_expires_at ?? "",
-            },
+      const intent = await stripe.paymentIntents.create(
+        {
+          amount: priceCents,
+          currency: "usd",
+          customer: customerId,
+          payment_method: pm,
+          off_session: true,
+          confirm: true,
+          description: `Domain renewal: ${row.domain}`,
+          metadata: {
+            checkout_type: TALENT_DOMAIN_RENEWAL_CHECKOUT_TYPE,
+            talent_id: row.talent_profile_id,
+            domain: row.domain,
+            domain_row_id: row.id,
+            cycle_expires_at: row.registrar_expires_at ?? "",
           },
-          { idempotencyKey: `pi_domain_renewal_${row.id}_${cycleKey(row)}` },
-        );
-        if (intent.status === "succeeded") {
-          await recordPaid(sb, row, { paymentIntentId: intent.id, sessionId: null }, deps);
-          await notifyTalent(sb, row, "charged", deps);
-          report.charged += 1;
-          return;
-        }
+        },
+        { idempotencyKey: `pi_domain_renewal_${row.id}_${cycleKey(row)}` },
+      );
+      if (intent.status === "succeeded") {
+        await recordPaid(sb, row, { paymentIntentId: intent.id, sessionId: null }, deps);
+        await notifyTalent(sb, row, "charged", deps);
+        report.charged += 1;
+        return;
       }
     } catch (err) {
       // authentication_required / card_declined / no method: fall through to the pay link.
@@ -504,5 +496,32 @@ export async function recordRegistrarSnapshot(
     if (error) logServerError("domain-renewal.snapshot", error);
   } catch (err) {
     logServerError("domain-renewal.snapshot", err);
+  }
+}
+
+/**
+ * At purchase: the Checkout disclosed the renewal terms and saved the payment method for off-session use.
+ * Store THAT method on the domain row as the consent record. Without it the sweep sends a pay link only.
+ */
+export async function recordRenewalConsent(
+  sb: SupabaseClient,
+  opts: { talentProfileId: string; domain: string; paymentIntentId: string | null; consentGiven: boolean },
+  deps: { stripe?: () => Stripe | null } = {},
+): Promise<void> {
+  try {
+    if (!opts.consentGiven || !opts.paymentIntentId) return;
+    const stripe = (deps.stripe ?? getStripe)();
+    if (!stripe) return;
+    const intent = await stripe.paymentIntents.retrieve(opts.paymentIntentId);
+    const pm = typeof intent.payment_method === "string" ? intent.payment_method : (intent.payment_method?.id ?? null);
+    if (!pm) return;
+    const { error } = await sb
+      .from("talent_site_domains")
+      .update({ renewal_payment_method_id: pm, renewal_consent_at: new Date().toISOString() })
+      .eq("talent_profile_id", opts.talentProfileId)
+      .eq("domain", opts.domain);
+    if (error) logServerError("domain-renewal.consent", error);
+  } catch (err) {
+    logServerError("domain-renewal.consent", err);
   }
 }

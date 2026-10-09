@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 
 import type { RegistrarDomainInfo } from "@/lib/saas/vercel-domains-registrar";
-import { fulfillTalentDomainRenewal, runDomainRenewalSweep, type RenewalSweepDeps } from "./talent-domain-renewal";
+import { fulfillTalentDomainRenewal, recordRenewalConsent, runDomainRenewalSweep, type RenewalSweepDeps } from "./talent-domain-renewal";
 
 type Row = Record<string, unknown>;
 type Tables = Record<string, Row[]>;
@@ -60,6 +60,8 @@ function domainRow(over: Row = {}): Row {
     renewal_cycle_expires_at: null,
     renewal_attempts: 0,
     renewal_last_attempt_at: null,
+    renewal_payment_method_id: "pm_consented",
+    renewal_consent_at: inDays(-100),
     ...over,
   };
 }
@@ -137,8 +139,38 @@ test("inside the window a saved card is charged off-session at the renewal price
   assert.equal(again.charged + again.linksSent + again.reminded + again.autoRenewOff, 0);
 });
 
+test("the off-session charge uses ONLY the method she consented to at purchase, never another saved card", async () => {
+  const tables = world(domainRow());
+  const calls = newCalls();
+  await runDomainRenewalSweep(fakeDb(tables), deps(calls));
+  assert.equal(calls.intents[0].payment_method, "pm_consented");
+});
+
+test("no stored consent means a pay link only, even when the customer has other cards", async () => {
+  for (const over of [{ renewal_consent_at: null }, { renewal_payment_method_id: null }, { renewal_consent_at: null, renewal_payment_method_id: null }]) {
+    const tables = world(domainRow(over));
+    const calls = newCalls();
+    const report = await runDomainRenewalSweep(fakeDb(tables), deps(calls));
+    assert.equal(calls.intents.length, 0, JSON.stringify(over));
+    assert.equal(report.charged, 0);
+    assert.equal(report.linksSent, 1);
+    assert.equal(tables.talent_site_domains[0].renewal_state, "awaiting_payment");
+  }
+});
+
+test("purchase consent: the card she paid with is stored as the renewal method only when the checkout disclosed the terms", async () => {
+  const stripe = { paymentIntents: { retrieve: async () => ({ payment_method: "pm_paid_with" }) } } as unknown as Stripe;
+  const given = world(domainRow({ renewal_payment_method_id: null, renewal_consent_at: null }));
+  await recordRenewalConsent(fakeDb(given), { talentProfileId: "tp-1", domain: "rosa.com", paymentIntentId: "pi_buy", consentGiven: true }, { stripe: () => stripe });
+  assert.equal(given.talent_site_domains[0].renewal_payment_method_id, "pm_paid_with");
+  assert.ok(given.talent_site_domains[0].renewal_consent_at);
+  const none = world(domainRow({ renewal_payment_method_id: null, renewal_consent_at: null }));
+  await recordRenewalConsent(fakeDb(none), { talentProfileId: "tp-1", domain: "rosa.com", paymentIntentId: "pi_buy", consentGiven: false }, { stripe: () => stripe });
+  assert.equal(none.talent_site_domains[0].renewal_payment_method_id, null);
+});
+
 test("no saved card, or a bank that wants the cardholder: a Checkout link goes out and the cycle waits", async () => {
-  for (const o of [{ card: false }, { intentThrows: true }, { intentStatus: "requires_action" }]) {
+  for (const o of [{ intentThrows: true }, { intentStatus: "requires_action" }]) {
     const tables = world(domainRow());
     const calls = newCalls();
     const report = await runDomainRenewalSweep(fakeDb(tables), deps(calls, o));

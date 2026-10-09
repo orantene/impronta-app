@@ -8523,7 +8523,8 @@
       "payTitle": "Payez pour garder {domain}",
       "payBody": "{domain} se renouvelle le {date}. Le renouvellement coûte {amount}, notre coût sans marge. Utilisez le lien dans les 24 heures ; nous en enverrons un autre si besoin. S'il n'est pas payé une semaine avant, nous désactivons le renouvellement automatique et le domaine expirera.",
       "autorenewOffTitle": "Renouvellement automatique désactivé pour {domain}",
-      "autorenewOffBody": "Nous n'avons pas reçu le paiement du renouvellement : {domain} expirera le {date} et votre site ne s'affichera plus. Payez avant cette date et nous réactivons le renouvellement automatique."
+      "autorenewOffBody": "Nous n'avons pas reçu le paiement du renouvellement : {domain} expirera le {date} et votre site ne s'affichera plus. Payez avant cette date et nous réactivons le renouvellement automatique.",
+      "consentDisclosure": "Ce domaine se renouvelle chaque année au prix du registraire, sans marge. Nous vous prévenons 21 jours avant et débitons alors cette carte. Vous pouvez aussi payer par lien à tout moment."
     }
   },
   "client": {

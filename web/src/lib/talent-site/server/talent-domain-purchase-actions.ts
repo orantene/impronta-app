@@ -9,6 +9,7 @@
 
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { headers } from "next/headers";
+import { getRequestLocale } from "@/i18n/request-locale";
 
 import { normalizeCustomDomainHostname } from "@/app/(workspace)/[tenantSlug]/admin/settings/domain-utils";
 import {
@@ -212,6 +213,7 @@ export async function startTalentDomainPurchaseCheckoutAction(input: {
     contact: contactCheck.contact,
     appBaseUrl,
     returnPath: "/talent/site",
+    locale: await getRequestLocale(),
   });
   if (!session.ok) return { ok: false, error: session.error };
   return { ok: true, url: session.data.url };
