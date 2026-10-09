@@ -15,6 +15,7 @@
  * semantics of the original payParty() so existing behaviour is unchanged.
  */
 
+import { isDeterministicTransferError } from "./payout-transfer-retry";
 import type Stripe from "stripe";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -72,6 +73,8 @@ export type DisburseOutcome = {
   detail?: string;
   /** Platform lane the charge ran on; set on a cross-platform hold so the held leg can say which lane's account to connect. */
   chargePlatform?: string;
+  /** A failed Connect transfer that Stripe will refuse the same way under the same key (see payout-transfer-retry.ts). */
+  deterministic?: boolean;
 };
 
 export type DisburseDeps = {
@@ -136,6 +139,7 @@ async function connectTransfer(input: DisburseInput, deps: DisburseDeps): Promis
       status: "failed",
       destination: accountId,
       detail: err instanceof Error ? err.message : "transfer failed",
+      deterministic: isDeterministicTransferError(err),
     };
   }
 }

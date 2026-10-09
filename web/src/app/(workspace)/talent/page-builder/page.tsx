@@ -45,6 +45,7 @@ import { buildTalentBuilderCanvasData } from "@/lib/talent-site/server/talent-bu
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { editSiteNeedsPersonalProbe, resolveEditSiteRedirect } from "@/lib/talent-site/my-website-target";
 import { loadOwnedBusinessWorkspace } from "@/lib/talent-site/server/workspace-site-context";
+import { resolveWorkspaceSiteEditorUrl } from "@/lib/talent-site/workspace-site-editor-url";
 import { siteScaffoldComplete } from "@/lib/talent-site/server/site-scaffold-complete";
 import { PageBuilderCreateSite } from "@/components/talent/site/PageBuilderCreateSite";
 import { loadSiteRev } from "@/lib/talent-site/history/history.server";
@@ -181,7 +182,15 @@ export default async function TalentPageBuilderRoute({
       hasPersonalSite = !!personalRes.data;
     }
     const workspaceHref = resolveEditSiteRedirect({ ...owned, hasPersonalSite, explicitPersonal });
-    if (workspaceHref) redirect(workspaceHref);
+    if (workspaceHref) {
+      // TUL-347: open the LIVE storefront editor (`?edit=1`) when it resolves,
+      // never the English `/admin/website` shell; that overview is the fallback.
+      const editorUrl =
+        owned.tenantId && owned.workspaceSlug
+          ? await resolveWorkspaceSiteEditorUrl(probe, { tenantId: owned.tenantId, slug: owned.workspaceSlug })
+          : null;
+      redirect(editorUrl ?? workspaceHref);
+    }
   }
 
   // F93 - the independent server loads run as ONE parallel batch instead of a

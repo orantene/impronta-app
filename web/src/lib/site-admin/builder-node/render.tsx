@@ -4649,7 +4649,13 @@ function renderBuilderNodeElement(
       const liveSurface = options.dataSources.liveBooking;
       if (liveSurface && isLiveBookingLabel(node.props.layerLabel) && liveSurface.offerings.length > 0) {
         return (
-          <LiveBookingBand key={node.id} nodeId={node.id} surface={liveSurface} tenantId={options.dataSources.tenantId ?? ""} />
+          <LiveBookingBand
+            key={node.id}
+            nodeId={node.id}
+            surface={liveSurface}
+            tenantId={options.dataSources.tenantId ?? ""}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
+          />
         );
       }
       if (liveSurface && isLiveServicesLabel(node.props.layerLabel) && liveSurface.services.length > 0) {

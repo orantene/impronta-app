@@ -1,4 +1,5 @@
 import { getAppUrl } from "@/lib/auth-flow";
+import { isAppleAuthProviderEnabled } from "@/lib/auth/apple-provider-flag";
 import { accountHrefFor } from "@/lib/client-account/agency-area-pure";
 import { readAccountHost } from "@/lib/client-account/area-site.server";
 import { resolveClientAccountMount } from "@/lib/client-account/gate";
@@ -22,5 +23,12 @@ export async function ClientAccountDock({
 }) {
   if (!resolveClientAccountMount(surface === "profile_page" ? "app" : "talent").dock) return null;
   const { hostContext } = await readAccountHost();
-  return <ClientAccountButton variant="dock" locale={locale} accountHref={accountHrefFor(hostContext, getAppUrl())} />;
+  return (
+    <ClientAccountButton
+      variant="dock"
+      locale={locale}
+      accountHref={accountHrefFor(hostContext, getAppUrl())}
+      appleSignInEnabled={isAppleAuthProviderEnabled()}
+    />
+  );
 }

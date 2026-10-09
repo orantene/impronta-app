@@ -24,6 +24,7 @@ export const AI_ROUTE_AUTO = "auto";
 export const AI_ROUTE_MODEL_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: AI_ROUTE_AUTO, label: "Auto (global provider)" },
   { value: "claude-sonnet-5", label: "Claude Sonnet 5 (best writing)" },
+  { value: "claude-haiku-5-5", label: "Claude Haiku 5.5 (fast facts, booking assistant)" },
   { value: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5 (fast, accurate facts)" },
   { value: "gpt-4.1", label: "GPT-4.1" },
   { value: "gpt-4.1-mini", label: "GPT-4.1 mini" },

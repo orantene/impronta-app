@@ -49,6 +49,7 @@ import { resolveSignupStarterTreeForOnboard } from "./signup-ai-draft-serve";
 import { composeSiteFromBrief } from "@/lib/site-admin/builder-core/site-templates/compose-site-from-brief.server";
 import { loadBriefForTenant } from "@/lib/tulala/brief-store-tenant.server";
 import { isVisualDirection, LOOK_BY_DIRECTION } from "@/lib/onboarding/module-state";
+import { recordStarterPrepareFailed } from "@/lib/onboarding/starter-prepare.server";
 import { buildFreeStarterEntries } from "./onboard-starter-content-entries";
 import type { StarterAudience } from "./onboard-starter-content-entries";
 import { ensureDirectoryPageIfRosterActive } from "./onboard-directory-page";
@@ -724,10 +725,22 @@ async function onboardStarterContentInner(
               "onboardStarterContent.composeSiteFromBrief (starter kept)",
               new Error(composed.notes.join(" | ")),
             );
+            // site_compose is already stamped failed by compose; mirror for
+            // My website Reintentar (TUL-441) when arrival stamp is absent.
+            await recordStarterPrepareFailed(
+              client,
+              input.tenantId,
+              composed.notes.join(" | ") || "compose failed",
+            );
           }
         }
       } catch (error) {
         logServerError("onboardStarterContent.composeSiteFromBrief (threw; starter kept)", error);
+        await recordStarterPrepareFailed(
+          client,
+          input.tenantId,
+          error instanceof Error ? error.message : "compose threw",
+        );
       }
     }
 

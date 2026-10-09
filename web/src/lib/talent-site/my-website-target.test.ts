@@ -23,9 +23,10 @@ import {
 
 const base = { ownsBusinessWorkspace: false, hasWorkspaceSite: false, workspaceSlug: null, hasPersonalSite: false };
 
-test("business owner with a workspace site opens the workspace site", () => {
+test("business owner with a workspace site opens the workspace edit entry", () => {
   const t = resolveMyWebsiteTarget({ ...base, ownsBusinessWorkspace: true, hasWorkspaceSite: true, workspaceSlug: "maison" });
-  assert.deepEqual(t, { kind: "workspace", slug: "maison", href: "/maison/admin/website" });
+  // TUL-347: entry is /talent/page-builder, which resolves the live storefront editor URL.
+  assert.deepEqual(t, { kind: "workspace", slug: "maison", href: "/talent/page-builder" });
 });
 
 test("both sites present: workspace wins for a business owner", () => {
@@ -157,5 +158,5 @@ test("TUL-373: the page-builder route redirects on the server before the locale 
   const redirectAt = src.indexOf("resolveEditSiteRedirect({");
   const localeAt = src.indexOf("loadTalentLocaleState(profile.id)");
   assert.ok(redirectAt > 0 && localeAt > 0 && redirectAt < localeAt, "workspace redirect must precede locale loads");
-  assert.ok(/if \(workspaceHref\) redirect\(workspaceHref\)/.test(src));
+  assert.ok(/redirect\((editorUrl \?\? )?workspaceHref\)/.test(src));
 });

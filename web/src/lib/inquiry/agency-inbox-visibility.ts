@@ -14,6 +14,11 @@
  *   Hide an inquiry IFF it has at least one talent lane AND none of its talent
  *   lanes is owned by this tenant.
  *
+ * OWNER-TALENT EXCEPTION (TUL-318): a talent lane whose `owning_party_id` is a
+ * talent profile belonging to a workspace *owner* of this tenant counts as
+ * tenant-owned. Solo / owner-talent back offices would otherwise hide the
+ * owner's own threads (they still appear in `/talent/inbox`).
+ *
  * Why conservative: many inquiries have NO talent lanes yet (submitted /
  * coordination stage) — those must always show. A multi-talent inquiry can also
  * be MIXED (some lanes owned by the agency, some self-coordinated) — the agency
@@ -30,13 +35,22 @@ export type OwningPartyLane = {
 
 /**
  * A lane is owned by `tenantId` when it is a workspace/agency lane pointing at
- * this tenant, or a legacy lane with no frozen owner (the DB trigger defaults
- * unset talent rows to workspace + tenant_id). A `talent` lane (self-coordinate)
- * is never tenant-owned.
+ * this tenant, a legacy lane with no frozen owner (the DB trigger defaults
+ * unset talent rows to workspace + tenant_id), or a `talent` lane whose
+ * owning party is an owner-talent of this workspace (see
+ * `ownerTalentProfileIds`). Any other `talent` lane (self-coordinate roster
+ * talent) is not tenant-owned.
  */
-export function laneIsOwnedByTenant(lane: OwningPartyLane, tenantId: string): boolean {
+export function laneIsOwnedByTenant(
+  lane: OwningPartyLane,
+  tenantId: string,
+  ownerTalentProfileIds?: ReadonlySet<string>,
+): boolean {
   const type = lane.owningPartyType ?? null;
-  if (type === "talent") return false;
+  if (type === "talent") {
+    const id = lane.owningPartyId ?? null;
+    return Boolean(id && ownerTalentProfileIds?.has(id));
+  }
   if (type === null) return true; // legacy / pre-freeze default → workspace + tenant
   // "workspace" | "agency" — owned by this tenant only when the frozen id matches.
   return lane.owningPartyId === tenantId;
@@ -46,15 +60,19 @@ export function laneIsOwnedByTenant(lane: OwningPartyLane, tenantId: string): bo
  * Given each inquiry's frozen talent lanes, return the set of inquiry ids to
  * HIDE from `tenantId`'s agency inbox. Inquiries absent from the map (no talent
  * lanes) are never hidden.
+ *
+ * `ownerTalentProfileIds` — talent profiles belonging to active owners of this
+ * tenant; their self-coord lanes stay visible (TUL-318).
  */
 export function inquiriesToHideFromAgencyInbox(
   lanesByInquiry: Map<string, OwningPartyLane[]>,
   tenantId: string,
+  ownerTalentProfileIds?: ReadonlySet<string>,
 ): Set<string> {
   const hide = new Set<string>();
   for (const [inquiryId, lanes] of lanesByInquiry) {
     if (lanes.length === 0) continue;
-    if (lanes.every((lane) => !laneIsOwnedByTenant(lane, tenantId))) {
+    if (lanes.every((lane) => !laneIsOwnedByTenant(lane, tenantId, ownerTalentProfileIds))) {
       hide.add(inquiryId);
     }
   }
@@ -110,8 +128,39 @@ export async function loadAgencyInboxHideSet(
       list.push({ owningPartyType: row.owning_party_type, owningPartyId: row.owning_party_id });
       lanesByInquiry.set(row.inquiry_id, list);
     }
-    return inquiriesToHideFromAgencyInbox(lanesByInquiry, tenantId);
+
+    // TUL-318: owner-talent self-coord lanes belong in this back-office inbox.
+    // Fail open — an empty set keeps D5 behavior for pure agencies.
+    const ownerTalentProfileIds = await loadOwnerTalentProfileIds(supabase, tenantId);
+    return inquiriesToHideFromAgencyInbox(lanesByInquiry, tenantId, ownerTalentProfileIds);
   } catch {
     return new Set();
   }
+}
+
+/** Talent profiles claimed by active owners of `tenantId`. Empty on any error. */
+async function loadOwnerTalentProfileIds(
+  supabase: import("@supabase/supabase-js").SupabaseClient,
+  tenantId: string,
+): Promise<Set<string>> {
+  const { data: owners, error: memErr } = await supabase
+    .from("agency_memberships")
+    .select("profile_id")
+    .eq("tenant_id", tenantId)
+    .eq("role", "owner")
+    .eq("status", "active");
+  if (memErr || !owners?.length) return new Set();
+  const userIds = (owners as Array<{ profile_id: string | null }>)
+    .map((o) => o.profile_id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+  if (userIds.length === 0) return new Set();
+  const { data: profiles, error: tpErr } = await supabase
+    .from("talent_profiles")
+    .select("id")
+    .in("user_id", userIds)
+    .is("deleted_at", null);
+  if (tpErr || !profiles) return new Set();
+  return new Set(
+    (profiles as Array<{ id: string }>).map((p) => p.id).filter((id) => typeof id === "string"),
+  );
 }

@@ -92,6 +92,14 @@ lane, take MAIN's line and re-append only your own test file.
 - A green unit lane is not a pass for a user-facing journey, and a skipped
   Playwright spec is not a pass at all. Say which of the three you have.
 
+## QA test data on public sites
+- A service you create for QA / E2E must say so in its name (QA, E2E or Test) and must be created
+  **draft / hidden**, never published and public. Delete it in teardown. Harness code that creates
+  services calls `assertTestServiceIsHidden` (`scripts/lib/qa-test-service.mjs`).
+- `npm run qa:scan-test-services` (read-only, needs `SUPABASE_ACCESS_TOKEN`; `-- --isolated` for the
+  isolated project) lists every published public service with a test name and exits 1 if there is any.
+  Run it after a QA night. Cleaning production rows is a separate read-back-first write by the data owner.
+
 ## Reports
 Use `docs/agent-build-report-template.md`. The NOT-DONE section is the most
 valuable part of the report — and every line in it must be **re-verified against

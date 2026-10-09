@@ -36,6 +36,16 @@ test("AIQ-14/thinking: adaptive thinking + no sampling params on the 4.7+/5 fami
   assert.equal((old as unknown as { thinking?: unknown }).thinking, undefined);
 });
 
+test("TUL-36: claude-haiku-5-5 omits temperature and honors thinking:false", () => {
+  const p = buildAnthropicParams(
+    { ...base, temperature: 0.2, thinking: false },
+    "claude-haiku-5-5",
+    "S",
+  );
+  assert.equal(p.temperature, undefined, "Haiku 5.5 rejects sampling params");
+  assert.deepEqual((p as unknown as { thinking?: unknown }).thinking, { type: "disabled" });
+});
+
 test("AIQ-31: snapshot suffix is not drift; a family change is", () => {
   assert.equal(isModelDrift("claude-opus-4-8", "claude-opus-4-8-20260115"), false);
   assert.equal(isModelDrift("claude-opus-4-8", "claude-opus-4-8"), false);

@@ -45,9 +45,9 @@ export function intentFromStartParam(value: string | null | undefined): Onboardi
 
 /**
  * 1B: the old CTAs now land in the in-app flow (`/start`), not the marketing
- * modal hop (`/?start=`). A known intent preselects the matching card. Only an explicit Spanish page forces `lang`; otherwise the flow reads the browser.
+ * modal hop (`/?start=`). A known intent preselects the matching card. The page language always travels as `lang` (en or es), so an English page never opens the flow in Spanish; only an unknown locale lets the flow read the browser.
  */
 export function inAppFlowUrl(intent: OnboardingIntent, extra: { promo?: string | null; locale?: string | null } = {}): string {
   const choice: OnboardingChoice | null = intent === "talent" ? "myself" : intent === "business" ? "studio" : null;
-  return flowUrl({ choice, promo: extra.promo ?? null, locale: extra.locale === "es" ? "es" : null });
+  return flowUrl({ choice, promo: extra.promo ?? null, locale: extra.locale === "es" ? "es" : extra.locale === "en" ? "en" : null });
 }

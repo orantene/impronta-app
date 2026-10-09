@@ -26,11 +26,12 @@ type Db = {
   hours: Record<string, unknown>;
   bookable: Set<string>;
   apptEnabled: Set<string>;
+  apptTimezone: Map<string, string | null>;
   providers: Set<string>;
   invites: string[];
   businessInfo: Set<string>;
 };
-const fresh = (): Db => ({ offerings: [], hours: {}, bookable: new Set(), apptEnabled: new Set(), providers: new Set(), invites: [], businessInfo: new Set() });
+const fresh = (): Db => ({ offerings: [], hours: {}, bookable: new Set(), apptEnabled: new Set(), apptTimezone: new Map(), providers: new Set(), invites: [], businessInfo: new Set() });
 const key = (o: OfferingOwnerRef) => (o.kind === "talent" ? `t:${o.talentProfileId}` : `w:${o.tenantId}`);
 
 function fakeStore(db: Db, tz = true): EssentialsStore {
@@ -43,7 +44,7 @@ function fakeStore(db: Db, tz = true): EssentialsStore {
     async setTalentBookable(id) { db.bookable.add(id); },
     async setTalentPlace() {},
     async setWorkspaceBusinessInfo(t) { db.businessInfo.add(t); },
-    async enableWorkspaceAppointments(t) { db.apptEnabled.add(t); },
+    async enableWorkspaceAppointments(t, opts) { db.apptEnabled.add(t); db.apptTimezone.set(t, opts.timezone); },
     async hasActiveProvider(t) { return db.providers.has(t); },
     async inviteFirstProvider({ email }) { if (db.invites.includes(email)) return "already"; db.invites.push(email); return "invited"; },
   };
@@ -106,19 +107,33 @@ test("both: her offerings and hours under the workspace, bookable, workspace app
   assert.equal(db.invites.length, 0);
 });
 
-test("studio: house offerings, opening hours, invite once; appointments ON only once a provider is linked", async () => {
+test("studio: house offerings, opening hours, invite once; appointments ON with timezone (same as both)", async () => {
   const db = fresh();
   const input = { choice: "studio" as const, essentials: ess({ firstProviderEmail: "pro@studio.com" }), talent: null, workspace };
   const a = await runEssentialsWrites(fakeStore(db), input);
   assert.ok(db.offerings.length === 4 && db.offerings.every((o) => o.ownerKey === "w:ws1"));
   assert.ok(db.businessInfo.has("ws1"));
   assert.equal(a.providerInvite, "invited");
-  assert.equal(a.appointmentsEnabled, false);
-  db.providers.add("ws1");
+  assert.ok(a.appointmentsEnabled && db.apptEnabled.has("ws1"), "TUL-457: studio writes appointments at onboarding");
+  assert.equal(db.apptTimezone.get("ws1"), ess().timezone);
   const b = await runEssentialsWrites(fakeStore(db), input);
   assert.equal(b.providerInvite, "already");
   assert.equal(b.offeringsCreated, 0);
   assert.ok(b.appointmentsEnabled && db.apptEnabled.has("ws1"));
+});
+
+test("both and studio both land appointments.timezone from essentials", async () => {
+  for (const choice of ["both", "studio"] as const) {
+    const db = fresh();
+    const r = await runEssentialsWrites(fakeStore(db), {
+      choice,
+      essentials: ess({ timezone: "America/Mexico_City" }),
+      talent: choice === "studio" ? null : talent,
+      workspace,
+    });
+    assert.ok(r.appointmentsEnabled, choice);
+    assert.equal(db.apptTimezone.get("ws1"), "America/Mexico_City", choice);
+  }
 });
 
 test("no timezone known: hours skipped with a warning, the rest still written", async () => {

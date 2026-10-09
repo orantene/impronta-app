@@ -68,6 +68,11 @@ function button(pair: Bilingual, href: string, ctx: ComponentContext, tone: "pri
   return node;
 }
 
+/** Booking CTA uses the site's transaction page (`/agendar`, `/book`, …), never a hardcoded EN slug. */
+function transactionHref(ctx: ComponentContext): string {
+  return resolveIdentityTemplate("{{href.transaction}}", ctx.identity);
+}
+
 function empty(id: ComponentId, ctx: ComponentContext, extra: BuilderNode[] = [], layerLabel?: string): BuilderNode[] {
   const pair = COMPONENT_EMPTY_STATES[id];
   if (!pair || !pair.es) return [];
@@ -155,7 +160,7 @@ const sessionPicker: BusinessComponent = {
     // when there is none); a page-less studio still renders its class
     // picker (D-169). The empty line is kept for an example context only.
     if (!ctx.offeringId && ctx.example) {
-      return empty("session_picker", ctx, [ctas([button(label("goToBooking"), "/book", ctx), askButton(ctx)])]);
+      return empty("session_picker", ctx, [ctas([button(label("goToBooking"), transactionHref(ctx), ctx), askButton(ctx)])]);
     }
     return [
       band(
@@ -244,7 +249,7 @@ const serviceList: BusinessComponent = {
     const services = (ctx.services ?? []).map((s) => s.trim()).filter(Boolean).slice(0, 12);
     // The band is MARKED: at render time the live published catalog replaces
     // these static children when the tenant has services (TUL-77, #30).
-    if (services.length === 0) return empty("service_list", ctx, [ctas([button(label("book"), "/book", ctx), askButton(ctx)])], LIVE_SERVICES_LABEL);
+    if (services.length === 0) return empty("service_list", ctx, [ctas([button(label("book"), transactionHref(ctx), ctx), askButton(ctx)])], LIVE_SERVICES_LABEL);
     // Names only, in the owner's words. Prices and durations are not facts we hold.
     const cards = services.map((name) => card([h(3, name)], "outline"));
     return [band([grid(cards, services.length > 6 ? 3 : 2)], { paddingY: "l", layerLabel: LIVE_SERVICES_LABEL })];

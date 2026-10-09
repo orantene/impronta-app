@@ -27,8 +27,18 @@ export type MyWebsiteTarget =
 export const PERSONAL_BUILDER_HREF = "/talent/page-builder";
 export const CREATE_WEBSITE_HREF = "/talent/public-page";
 
+/**
+ * Workspace admin Website overview (settings / pages list). Not the visual
+ * editor — TUL-347: "Edit my site" must open the storefront `?edit=1` URL via
+ * `resolveWorkspaceSiteEditorUrl` instead of this path.
+ */
 export function workspaceSiteBuilderHref(slug: string): string {
   return `/${slug}/admin/website`;
+}
+
+/** Entry that `/talent/page-builder` uses before resolving the live editor URL. */
+export function workspaceSiteEditEntryHref(): string {
+  return PERSONAL_BUILDER_HREF;
 }
 
 export function resolveMyWebsiteTarget(input: MyWebsiteInput): MyWebsiteTarget {
@@ -36,7 +46,9 @@ export function resolveMyWebsiteTarget(input: MyWebsiteInput): MyWebsiteTarget {
     return { kind: "personal", href: PERSONAL_BUILDER_HREF };
   }
   if (input.ownsBusinessWorkspace && input.hasWorkspaceSite && input.workspaceSlug) {
-    return { kind: "workspace", slug: input.workspaceSlug, href: workspaceSiteBuilderHref(input.workspaceSlug) };
+    // href is the talent entry that resolves the live storefront editor
+    // (TUL-347). Callers that need the admin overview use workspaceSiteBuilderHref.
+    return { kind: "workspace", slug: input.workspaceSlug, href: workspaceSiteEditEntryHref() };
   }
   if (input.hasPersonalSite) return { kind: "personal", href: PERSONAL_BUILDER_HREF };
   return { kind: "create", href: CREATE_WEBSITE_HREF };
@@ -69,7 +81,8 @@ export function resolveEditSiteRedirect(input: MyWebsiteInput): string | null {
   const target = resolveMyWebsiteTarget(input);
   if (target.kind !== "workspace") return null;
   if (!SAFE_SLUG.test(target.slug)) return null;
-  return target.href;
+  // Not target.href: since TUL-347 that is the talent entry itself (a loop).
+  return workspaceSiteBuilderHref(target.slug);
 }
 
 /**
