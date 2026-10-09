@@ -109,6 +109,7 @@ export async function submitApproval(
           actorUserId: ctx.actorUserId,
           restampExpiry: true,
           skipTalentCard: true,
+          postOfferReviewCard: true,
         });
       } else if (transition === "returned_to_draft") {
         await noteHeldOfferReturned(supabase, {

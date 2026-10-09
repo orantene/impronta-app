@@ -57,6 +57,17 @@ test("last talent approves: the offer is released, the client is notified once, 
   assert.equal(f.rpcs[0]!.args.p_kind, "offer_sent");
 });
 
+test("the staff send action posts no offer_review card for a held offer; the release posts it", async () => {
+  const { readFileSync: rf } = await import("node:fs");
+  const engine = rf(join(process.cwd(), "src/lib/server-actions/messaging-engine.ts"), "utf8");
+  const send = engine.slice(engine.indexOf("const sent = await sendOffer("));
+  const heldGuard = send.indexOf('status === "awaiting_talent") return { ok: true as const }');
+  const card = send.indexOf('kind: "offer_review"');
+  assert.ok(heldGuard > 0 && card > heldGuard, "the held guard runs before the card is posted");
+  const approvals = rf(join(process.cwd(), "src/lib/inquiry/inquiry-engine-approvals.ts"), "utf8");
+  assert.match(approvals, /postOfferReviewCard: true/);
+});
+
 test("an offer that was never held releases exactly as before (event, audit, both cards, no restamp)", async () => {
   const f = fake();
   await releaseOfferToClient(f.client, ctx, f.deps);

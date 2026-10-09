@@ -14,6 +14,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { logServerError } from "@/lib/server/safe-error";
+import { insertMessage } from "@/lib/messaging/insert-message";
 
 export const DEFAULT_OFFER_EXPIRY_DAYS = 7;
 
@@ -56,6 +57,12 @@ export async function releaseOfferToClient(
     restampExpiry?: boolean;
     /** The talent group-thread card already exists (a held offer announced it at send time). */
     skipTalentCard?: boolean;
+    /**
+     * Post the client-visible `offer_review` card (the one the client link renders with Accept /
+     * Ask for changes / Decline). The staff send action posts it itself for an unheld offer; a
+     * RELEASED held offer has no such card yet, so the release posts it.
+     */
+    postOfferReviewCard?: boolean;
   },
   deps: OfferReleaseDeps = REAL_DEPS,
 ): Promise<void> {
@@ -100,6 +107,30 @@ export async function releaseOfferToClient(
       card_payload: { status: "sent", total_label: totalLabel, offer_id: ctx.offerId },
     });
     if (!ctx.skipTalentCard) await insertTalentGroupCard(supabase, ctx);
+    if (ctx.postOfferReviewCard) {
+      const { data: row } = await supabase
+        .from("inquiry_offers")
+        .select("version, total_client_price, currency_code, valid_until")
+        .eq("id", ctx.offerId)
+        .eq("tenant_id", ctx.tenantId)
+        .maybeSingle();
+      const o = row as { version?: number; total_client_price?: number | string | null; currency_code?: string | null; valid_until?: string | null } | null;
+      await insertMessage(supabase, {
+        tenantId: ctx.tenantId,
+        inquiryId: ctx.inquiryId,
+        kind: "offer_review",
+        body: `Offer v${Number(o?.version ?? 1)} sent`,
+        payload: {
+          state: "sent",
+          offerId: ctx.offerId,
+          version: Number(o?.version ?? 1),
+          totalCents: Math.round(Number(o?.total_client_price ?? 0) * 100),
+          currency: o?.currency_code ?? "USD",
+          validUntil: o?.valid_until ?? null,
+        },
+        senderUserId: ctx.actorUserId,
+      });
+    }
   } catch (emitErr) {
     logServerError("offer-release.chatCard", emitErr);
   }
