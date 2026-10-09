@@ -21,7 +21,8 @@ test("the spec asserts Test mode BEFORE typing a card, and only types Stripe's p
   const open = spec.indexOf("async function openStripeCheckout");
   const fill = spec.indexOf("async function fillCard");
   assert.ok(open > -1 && fill > open);
-  assert.match(spec.slice(open, fill), /getByText\(\/test mode\/i\)/);
+  assert.match(spec.slice(open, fill), /cs_test_/);
+  assert.match(spec.slice(open, fill), /getByText\(\/sandbox\|test mode\/i\)/);
   const cards = [...spec.matchAll(/fillCard\(page, "([0-9 ]+)"\)/g)].map((m) => m[1]);
   assert.deepEqual(cards.sort(), ["4000 0000 0000 0002", "4000 0000 0000 3220", "4242 4242 4242 4242"]);
 });
