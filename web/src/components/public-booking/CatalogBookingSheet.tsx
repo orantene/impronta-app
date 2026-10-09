@@ -363,6 +363,7 @@ export function CatalogBookingSheet({
     locale,
     offeringIntent: detail.intent,
     bookingSettings,
+    where: detail.where,
   });
   const isQuote = catalogIsQuote(detail);
   const timeGroupLabel = whenStepTimeGroupLabel({ action: whoAction, locale });
@@ -637,6 +638,7 @@ export function CatalogBookingSheet({
                 time={time}
                 tz={mode === "live" ? liveTz : null}
                 total={isQuote ? (es ? "A cotizar" : "Quote") : money(total, detail.currency)}
+                where={detail.where}
               />
               <label className="jb-field">
                 <span>{es ? "Nombre" : "Name"}</span>
@@ -721,6 +723,7 @@ export function CatalogBookingSheet({
                 locale,
                 wrote,
                 isRequest,
+                where: detail.where,
               })}
               showDemoNote={mode === "demo" || !wrote}
               chatHref={wrote ? doneHref : null}

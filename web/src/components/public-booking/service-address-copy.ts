@@ -1,7 +1,9 @@
 import type { ServiceAddressErrorCode } from "@/lib/scheduling/service-address";
 
-/** TUL-436: en + es copy for the service address field. No em dashes. */
+/** TUL-436 / TUL-516 E2: en + es copy for the service address field. No em dashes. */
 export type ServiceAddressCopy = {
+  /** Home-visit heading above the address inputs. */
+  visitHeading: string;
   addressLabel: string;
   addressPlaceholder: string;
   noteLabel: string;
@@ -11,9 +13,10 @@ export type ServiceAddressCopy = {
 };
 
 const EN: ServiceAddressCopy = {
+  visitHeading: "We'll come to your place",
   addressLabel: "Service address",
   addressPlaceholder: "Street, number, neighborhood, city",
-  noteLabel: "Access note (optional)",
+  noteLabel: "References (optional)",
   notePlaceholder: "Floor, gate code, how to find you",
   privacy: "Only your provider sees this address",
   errors: {
@@ -25,9 +28,10 @@ const EN: ServiceAddressCopy = {
 };
 
 const ES: ServiceAddressCopy = {
+  visitHeading: "Vamos a tu domicilio",
   addressLabel: "Dirección del servicio",
   addressPlaceholder: "Calle, número, colonia, ciudad",
-  noteLabel: "Nota de acceso (opcional)",
+  noteLabel: "Referencias (opcional)",
   notePlaceholder: "Piso, código de portón, cómo encontrarte",
   privacy: "Solo tu profesional ve esta dirección",
   errors: {

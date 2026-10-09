@@ -39,6 +39,9 @@ export function ServiceAddressField({
   const noteError = error === "note_too_long" ? copy.errors.note_too_long : null;
   return (
     <div className="jb-field" data-service-address-field>
+      <p className="jb-fixture" data-service-address-heading="">
+        {copy.visitHeading}
+      </p>
       <label htmlFor={addressId}>{copy.addressLabel}</label>
       <input
         id={addressId}
