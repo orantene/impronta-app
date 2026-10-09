@@ -1,5 +1,6 @@
 import { languageToggleGroupLabel } from "@/i18n/language-toggle-label";
 import type { HeaderItem } from "./schema";
+import { SiteDemoBadge } from "@/lib/talent-site/site-demo-badge";
 
 /** How an item behaves on each breakpoint when the owner has not chosen (phone: brand stays, rest folds into the menu). */
 export function headerItemMobileDefault(item: HeaderItem): "show" | "menu" {
@@ -19,18 +20,19 @@ export function headerItemAttrs(item: HeaderItem): Record<string, string> {
 }
 
 /**
- * Render-time site chrome for the freeform header (`siteChrome`, injected by
- * the talent site renderer): the Demo pill and the talent site's own
- * language switch ("ES / EN"). Each code links to THIS page in that language
- * (`hrefs`, built in the talent's URL grammar); a `?locale=` link is the
- * fallback, which the talent host redirects to the prefixed URL.
+ * Demo marker for talent sites (TUL-516 P1). Renders the fixed corner badge
+ * (out of flow). Public max-site shells mount the same badge once from
+ * `MaxSiteDemoPill`; this path covers builder canvas / previews that only
+ * paint the header landmark.
  */
-export function HeaderDemoPill({ show }: { show: boolean | undefined }) {
-  return show ? (
-    <span className="site-header__demo" title="Demo">
-      Demo
-    </span>
-  ) : null;
+export function HeaderDemoPill({
+  show,
+  locale = "en",
+}: {
+  show: boolean | undefined;
+  locale?: string;
+}) {
+  return show ? <SiteDemoBadge locale={locale} /> : null;
 }
 
 export function HeaderSiteLocales({

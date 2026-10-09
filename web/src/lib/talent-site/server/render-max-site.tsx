@@ -712,7 +712,8 @@ async function renderMaxSiteDocument(args: {
         </div>
       ) : null}
 
-      {args.isDemo && !(hasShell && headerTree.length > 0 && headerHasLandmark) ? <MaxSiteDemoPill /> : null /* the landmark paints its own pill */}
+      {/* TUL-516 P1: fixed corner badge (out of flow). Never a grey row above the theme header. */}
+      {args.isDemo ? <MaxSiteDemoPill locale={locale} /> : null}
 
       {hasShell && headerTree.length > 0 ? (
         headerHasLandmark ? (

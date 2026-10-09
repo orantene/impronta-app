@@ -223,10 +223,10 @@ test("row cards: the whole row opens the service, the button stays the accessibl
 
 // ── header: demo pill (H-5) and the published header height (MN-6) ───────────
 
-test("H-5: the Demo pill renders only for demo profiles", () => {
+test("H-5: the Demo badge renders only for demo profiles (floating corner, TUL-516 P1)", () => {
   assert.equal(renderToStaticMarkup(<HeaderDemoPill show={false} />), "");
   assert.equal(renderToStaticMarkup(<HeaderDemoPill show={undefined} />), "");
-  assert.match(renderToStaticMarkup(<HeaderDemoPill show />), /site-header__demo/);
+  assert.match(renderToStaticMarkup(<HeaderDemoPill show />), /data-site-demo-badge/);
 });
 
 test("the header publishes --site-header-h (ResizeObserver, removed on unmount) from the freeform header", () => {

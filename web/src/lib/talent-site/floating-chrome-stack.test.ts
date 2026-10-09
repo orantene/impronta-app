@@ -8,7 +8,10 @@ import {
   CATALOG_BAR_RESERVE_CSS,
   CONSENT_BANNER_RESERVE_PX,
   FLOATING_CHROME_CONSENT_Z,
+  FLOATING_CHROME_DEMO_Z,
+  FLOATING_CHROME_LOCALE_Z,
   FLOATING_CHROME_STACK_CSS,
+  SITE_DEMO_BADGE_SELECTOR,
   floatingBannerUp,
   floatingChromeBottomUsesMax,
   floatingChromeClearsHeroCtas,
@@ -95,5 +98,14 @@ describe("TUL-516 / TUL-528 floating chrome stack", () => {
     const hook = readFileSync(join(root, "lib/site-admin/builder-node/use-sticky-bar-visible.ts"), "utf8");
     assert.match(hook, /if \(reserve > 0\) root\.style\.setProperty\("--cb-bar-h"/);
     assert.match(hook, /else root\.style\.removeProperty\("--cb-bar-h"\)/);
+  });
+
+  test("P1: Demo badge + language toast are fixed above floating-chrome-bottom; consent z wins", () => {
+    assert.match(FLOATING_CHROME_STACK_CSS, new RegExp(`${SITE_DEMO_BADGE_SELECTOR.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\{position:fixed`));
+    assert.match(FLOATING_CHROME_STACK_CSS, /\[data-locale-suggestion\]\{position:fixed/);
+    assert.equal(FLOATING_CHROME_DEMO_Z < FLOATING_CHROME_LOCALE_Z, true);
+    assert.equal(FLOATING_CHROME_LOCALE_Z < FLOATING_CHROME_CONSENT_Z, true);
+    assert.match(FLOATING_CHROME_STACK_CSS, /left:max\(12px/);
+    assert.match(FLOATING_CHROME_STACK_CSS, /@media \(min-width:640px\)\{\[data-locale-suggestion\]\{left:auto;right:/);
   });
 });

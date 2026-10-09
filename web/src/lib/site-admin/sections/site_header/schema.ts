@@ -332,7 +332,8 @@ export const siteHeaderSchemaV1 = z.object({
   presentation: sectionPresentationSchema,
   /**
    * Render-time site chrome, injected by the talent site renderer (never
-   * saved): `demo` paints the small Demo pill in the header (the only demo
+   * saved): `demo` flags the profile so the shell mounts the floating Demo
+   * corner badge (TUL-516 P1; the only demo
    * marker), `locales` feeds the language switch ("ES / EN") on a talent site
    * whose languages are not the tenant's.
    */

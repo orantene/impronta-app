@@ -225,12 +225,13 @@ export default async function RootLayout({
         {/* TUL-516: floating chrome stack (consent/locale/chat/bar clearance)
             before any fixed island so /politicas and every theme share one rule. */}
         <FloatingChromeStackStyles />
-        {/* SEO-safe language suggestion (TUL-394: first child of <body>, in
-            flow, so it never covers a bottom CTA). Renders nothing unless the
-            visitor's browser asks for a language this tenant publishes but is
-            not the one this URL serves. Never redirects, see
-            @/i18n/locale-suggestion. Mounted here because public HTML comes out
-            of four different shells; this is the one node they share. */}
+        {/* SEO-safe language suggestion (TUL-516 P1: fixed floating toast —
+            bottom phone / bottom-right desktop — out of flow so theme headers
+            stay first). Renders nothing unless the visitor's browser asks for
+            a language this tenant publishes but is not the one this URL
+            serves. Never redirects, see @/i18n/locale-suggestion. Mounted here
+            because public HTML comes out of four different shells; this is
+            the one node they share. */}
         <LocaleSuggestionBanner renderLocale={locale} />
         {/* Tenant custom code — head snippet. Storefront-only (publicScope),
             entitlement + status gated inside the resolver. */}
