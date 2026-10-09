@@ -348,6 +348,7 @@ async function openOnce(
   const session = await (deps.createCheckoutSession ?? createCheckoutSessionForTransaction)({
     transactionId,
     amountCents: collectCents,
+    serviceFeeCents: Math.max(0, collectCents - amountCents),
     currency,
     payerEmail: contact?.email ?? null,
     inquiryId: null,

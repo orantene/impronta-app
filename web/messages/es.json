@@ -1767,6 +1767,7 @@
         "base_reservation_fee": "Cargo de reserva",
         "platform_fee": "Cargo de la plataforma",
         "processing_fee": "Procesamiento de tarjeta",
+        "client_service_fee": "Cargo por servicio",
         "total_charged": "Total",
         "nonRefundable": "Los cargos no son reembolsables."
       },
