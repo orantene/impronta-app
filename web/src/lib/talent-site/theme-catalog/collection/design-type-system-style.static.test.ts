@@ -28,7 +28,7 @@ test("typeSystemSheetsForTokens: editorial default when unset", () => {
 test("TypeSystemStyle with systems mounts only those sheets", () => {
   const html = renderToStaticMarkup(
     React.createElement(TypeSystemStyle, {
-      systems: ["utility", "motion"],
+      systems: ["utility", "motion"] as const,
     }),
   );
   assert.match(html, /data-type-system-style="utility"/);
