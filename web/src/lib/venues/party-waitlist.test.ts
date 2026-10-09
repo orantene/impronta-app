@@ -100,6 +100,8 @@ test("seat carries the party's name, size and contact to the table as an admissi
         maybeSingle: async () => {
           if (table === "spaces") return { data: space, error: null };
           if (table === "party_waitlist") return { data: party, error: null };
+          // createDraftOrder (via openVisit) reads the workspace default currency.
+          if (table === "agencies") return { data: { id: "t1", default_currency: "USD" }, error: null };
           return { data: null, error: null }; // no open visit on either column
         },
         single: async () => ({ data: { id: table === "visits" ? "v1" : "o1", ...(inserted ?? {}) }, error: null }),
