@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
-import { talentOwnOfferAllowed, talentSelfInquiryAllowed } from "./talent-self-inquiry";
+import { ownerTalentOwnLineupOfferAllowed, talentOwnOfferAllowed, talentSelfInquiryAllowed } from "./talent-self-inquiry";
 
 const OFFER_VERBS: readonly EngineAction[] = ["create_offer", "update_offer", "send_offer"];
 
@@ -245,6 +245,58 @@ export async function validateActorPermission(
       .maybeSingle();
     if (tp && tp.role === "talent" && ["invited", "active"].includes(tp.status)) {
       return { ok: true, isStaff: false, talentProfileId };
+    }
+  }
+
+  // A talent selling in her own business (owner of the workspace, or a sale on a
+  // talent-type workspace such as the hub) who is the only live seat: the offer
+  // verbs are hers even while her invite rows are still 'invited'.
+  // `talentProfileId` above is loaded by `talent_profiles.user_id = actorUserId`,
+  // so it is always the actor's own profile.
+  if (talentProfileId && OFFER_VERBS.includes(action)) {
+    const { data: ownInq, error: ownInqErr } = await supabase
+      .from("inquiries")
+      .select("tenant_id")
+      .eq("id", inquiryId)
+      .maybeSingle();
+    const { data: ownSeats, error: ownSeatsErr } = await supabase
+      .from("inquiry_participants")
+      .select("talent_profile_id")
+      .eq("inquiry_id", inquiryId)
+      .eq("role", "talent")
+      .in("status", ["active", "invited"]);
+    const tenantOfInquiry = (ownInq as { tenant_id?: string | null } | null)?.tenant_id ?? null;
+    // Any failed read fails closed (falls through to the other rules).
+    if (!ownInqErr && !ownSeatsErr && tenantOfInquiry) {
+      const live = ((ownSeats ?? []) as Array<{ talent_profile_id: string | null }>)
+        .map((r) => r.talent_profile_id)
+        .filter((v): v is string => Boolean(v));
+      if (live.length === 1 && live[0] === talentProfileId) {
+        const [{ data: ownerRow, error: ownerErr }, { data: tenantRow, error: tenantErr }] = await Promise.all([
+          supabase
+            .from("agency_memberships")
+            .select("id")
+            .eq("tenant_id", tenantOfInquiry)
+            .eq("profile_id", actorUserId)
+            .eq("role", "owner")
+            .eq("status", "active")
+            .limit(1)
+            .maybeSingle(),
+          supabase.from("agencies").select("workspace_type").eq("id", tenantOfInquiry).maybeSingle(),
+        ]);
+        if (
+          !ownerErr &&
+          !tenantErr &&
+          ownerTalentOwnLineupOfferAllowed({
+            actorTalentProfileId: talentProfileId,
+            liveTalentProfileIds: live,
+            actorIsActiveWorkspaceOwner: Boolean(ownerRow),
+            tenantIsTalentWorkspace: (tenantRow as { workspace_type?: string | null } | null)?.workspace_type === "talent",
+          })
+        ) {
+          return { ok: true, isStaff: false, talentProfileId };
+        }
+      }
     }
   }
 
