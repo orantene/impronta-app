@@ -23,6 +23,11 @@ export type InquirySellersRead = { ok: true; sellers: InquirySeller[] } | { ok: 
 export async function loadInquirySellersChecked(
   supabase: SupabaseClient,
   inquiryId: string,
+  /**
+   * `includeInvited` is for the CURRENCY paths only: an invited talent is the intended seller of a fresh inquiry.
+   * Anything that decides who is PAID (link-payout-receiver) keeps the default, active seats only.
+   */
+  opts: { includeInvited?: boolean } = {},
 ): Promise<InquirySellersRead> {
   try {
     const { data: parts, error } = await supabase
@@ -30,9 +35,7 @@ export async function loadInquirySellersChecked(
       .select("talent_profile_id")
       .eq("inquiry_id", inquiryId)
       .eq("role", "talent")
-      // An invited talent is the intended seller of a fresh inquiry (the only seat until she accepts):
-      // without her the currency fell through to the workspace default (USD for an MXN seller).
-      .in("status", ["active", "invited"]);
+      .in("status", opts.includeInvited ? ["active", "invited"] : ["active"]);
     if (error) {
       logServerError("offer-currency-seller.participants", error);
       return { ok: false };
@@ -169,7 +172,7 @@ export async function resolveNewOfferCurrency(
   input: { inquiryId: string; tenantId: string; explicitCurrency?: string | null; followSeller: boolean },
 ): Promise<string | null> {
   if (!input.followSeller) return normalizeCurrencyCode(input.explicitCurrency);
-  const read = await loadInquirySellersChecked(supabase, input.inquiryId);
+  const read = await loadInquirySellersChecked(supabase, input.inquiryId, { includeInvited: true });
   if (!read.ok) return null;
   const known = read.sellers.map((s) => s.defaultCurrency).filter((c): c is string => c !== null);
   if (known.length > 0 && known.every((c) => c === known[0])) return known[0];
@@ -203,7 +206,7 @@ export async function checkInquiryCurrencyMatchesSeller(
   supabase: SupabaseClient | null,
   input: { inquiryId: string; currency: string | null | undefined; mode: "send" | "charge" },
 ): Promise<SellerCurrencyCheck> {
-  const read = supabase ? await loadInquirySellersChecked(supabase, input.inquiryId) : ({ ok: false } as const);
+  const read = supabase ? await loadInquirySellersChecked(supabase, input.inquiryId, { includeInvited: true }) : ({ ok: false } as const);
   if (!read.ok) {
     if (input.mode === "send") return { ok: true };
     return {
