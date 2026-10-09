@@ -21,6 +21,8 @@ import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 import { legacySignupRedirect } from "@/lib/onboarding/legacy-signup-redirect";
 import { legacyFlowLang } from "@/lib/onboarding/legacy-signup-redirect.server";
 import { LoginForm } from "./login-form";
+import { isAppleAuthProviderEnabled } from "@/lib/auth/apple-provider-flag";
+import { LoginAppleButton } from "./login-apple-button";
 import { LoginGoogleButton } from "./login-google-button";
 
 async function loadInviterAgencyName(nextPath: string | undefined): Promise<string | null> {
@@ -151,35 +153,22 @@ export default async function LoginPage({
         />
 
         {/*
-         * TODO(P5 mobile readiness — web/docs/auth-shell-domain-architecture-2026-08-07.md
-         * §"Mobile readiness — current state"): reserved slot for a "Sign in
-         * with Apple" button, sized/spaced to match <LoginGoogleButton />
-         * above so enabling it does not reflow this card. iOS App Store
-         * Guideline 4.8 requires offering Apple sign-in wherever a
-         * third-party sign-in (Google) is offered, so this MUST ship before
-         * a native iOS app is submitted. Left commented (not flag-gated) so
-         * there is zero runtime cost until then.
-         *
-         * To enable once a native app exists:
-         *   1. Configure the Apple provider in the Supabase Auth dashboard
-         *      (Services ID, Team ID, Key ID, private key) — see
-         *      https://supabase.com/docs/guides/auth/social-login/auth-apple
-         *   2. Add an `/auth/apple` route mirroring `/auth/google`
-         *      (web/src/app/auth/google/route.ts) plus a
-         *      `LoginAppleButton` client component mirroring
-         *      `LoginGoogleButton` (same file, same popup-message flow).
-         *   3. Add `public.auth.login.apple` to en.json + es.json.
-         *   4. Uncomment below:
-         *
-         * <LoginAppleButton
-         *   nextPath={nextPath}
-         *   label={t("public.auth.login.apple")}
-         *   pendingLabel={t("public.auth.googleOpening")}
-         *   failedLabel={t("public.auth.googleFailed")}
-         *   popupBlockedMessage={t("public.auth.googlePopupBlocked")}
-         *   unableToStartMessage={t("public.auth.googleUnableToStart")}
-         * />
+         * TUL-65: Apple next to Google (App Store Guideline 4.8). Render only
+         * when AUTH_APPLE_PROVIDER_ENABLED is on — set after Supabase Apple
+         * provider config (Services ID, Team ID, Key ID, private key).
          */}
+        {isAppleAuthProviderEnabled() ? (
+          <div className="mt-3">
+            <LoginAppleButton
+              nextPath={nextPath}
+              label={t("public.auth.login.apple")}
+              pendingLabel={t("public.auth.appleOpening")}
+              failedLabel={t("public.auth.appleFailed")}
+              popupBlockedMessage={t("public.auth.applePopupBlocked")}
+              unableToStartMessage={t("public.auth.appleUnableToStart")}
+            />
+          </div>
+        ) : null}
 
         <AuthDivider label={t("public.auth.or")} />
 

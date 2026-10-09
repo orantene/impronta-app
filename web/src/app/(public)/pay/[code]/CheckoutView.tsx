@@ -33,7 +33,7 @@ export type CheckoutViewProps = {
   readonly amountCents: number;
   readonly currency: string;
   readonly expiresAt: string;
-  readonly status: "open" | "paid" | "expired" | "cancelled" | "replaced" | "unknown" | "declined" | "processing" | "refunded" | "cancelledReturn";
+  readonly status: "open" | "paid" | "expired" | "cancelled" | "replaced" | "unknown" | "startFailed" | "declined" | "processing" | "refunded" | "cancelledReturn";
   readonly lines: readonly { label: string; units: number; unitCents: number }[];
   readonly holdUntil: string | null;
   readonly stripeUrl: string | null;
@@ -209,6 +209,29 @@ export function CheckoutView(props: CheckoutViewProps) {
         <h1 className="text-[22px] font-semibold" style={titleStyle}>
           {text}
         </h1>
+      </Shell>
+    );
+  }
+
+  if (phase === "startFailed") {
+    return (
+      <Shell>
+        <h1 className="text-[22px] font-semibold" style={titleStyle}>
+          {t("public.thread.startFailedTitle")}
+        </h1>
+        <p className="text-[15px]" style={{ color: MUTED }}>
+          {t("public.thread.startFailedBody")}
+        </p>
+        <div className="mt-4 flex flex-col gap-3">
+          <Action kind="primary" href={`${pathPrefix}/${props.code}`}>
+            {t("public.thread.startFailedRetry")}
+          </Action>
+          {props.threadHref ? (
+            <Action kind="secondary" href={props.threadHref}>
+              {t("public.thread.backToThread")}
+            </Action>
+          ) : null}
+        </div>
       </Shell>
     );
   }

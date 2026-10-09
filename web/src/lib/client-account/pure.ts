@@ -1,14 +1,14 @@
 /** Pure helpers for the client account popover. No I/O, no clock of their own. */
 
-export const RESEND_COOLDOWN_SECONDS = 30;
-
-/** Methods recorded on `client_auth_events.method` (foundation migration). */
-export const CLIENT_AUTH_METHODS = ["email_code", "google", "password", "sso"] as const;
+/** Methods recorded on `client_auth_events.method` (foundation + Apple widen). */
+export const CLIENT_AUTH_METHODS = ["email_code", "google", "password", "sso", "apple"] as const;
 export type ClientAuthMethod = (typeof CLIENT_AUTH_METHODS)[number];
 
 export function isClientAuthMethod(value: string): value is ClientAuthMethod {
   return (CLIENT_AUTH_METHODS as readonly string[]).includes(value);
 }
+
+export const RESEND_COOLDOWN_SECONDS = 30;
 
 /** Whole seconds left before "Resend code" is allowed again; 0 means allowed. */
 export function resendSecondsLeft(
@@ -196,4 +196,13 @@ export function userHasGoogleIdentity(user: {
 }): boolean {
   if ((user.identities ?? []).some((i) => i.provider === "google")) return true;
   return user.app_metadata?.provider === "google";
+}
+
+/** True when the session has an Apple identity (required for Apple finalize). */
+export function userHasAppleIdentity(user: {
+  identities?: ReadonlyArray<{ provider?: string | null }> | null;
+  app_metadata?: { provider?: string | null } | null;
+}): boolean {
+  if ((user.identities ?? []).some((i) => i.provider === "apple")) return true;
+  return user.app_metadata?.provider === "apple";
 }
