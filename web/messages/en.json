@@ -4080,7 +4080,7 @@
         "cancel": "Cancel",
         "requestBalance": "Request balance",
         "requestDeposit": "Request deposit",
-        "requestDepositAmount": "Request deposit ({amount} {currency})",
+        "requestDepositAmount": "Request deposit ({amount})",
         "requestFullPayment": "Request full payment",
         "createDraft": "Create transaction draft",
         "depositCollectedHint": "Deposit collected. Charge the remaining balance. The talent/agency payout fans out when the balance settles.",
@@ -4106,7 +4106,7 @@
         "cashMethodCash": "Cash / efectivo",
         "cashMethodWire": "Bank transfer",
         "cashMethodVenue": "Venue paid",
-        "markPaidCashDeposit": "Mark deposit paid in cash ({amount} {currency})",
+        "markPaidCashDeposit": "Mark deposit paid in cash ({amount})",
         "markPaidCashBalance": "Mark balance paid in cash",
         "markPaidCashFull": "Mark full amount paid in cash"
       },
