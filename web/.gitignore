@@ -68,3 +68,6 @@ e2e/.auth/
 
 # TUL-207 demo English data seed: pre-change backups (never committed)
 /scripts/demo-english-data/backups/
+
+# TUL-209 demo block English overlays: pre-change backups (never committed)
+/scripts/demo-block-en-overlays/backups/

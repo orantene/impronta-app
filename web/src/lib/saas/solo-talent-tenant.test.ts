@@ -2,62 +2,83 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ensureSoloTalentTenantId } from "./solo-talent-tenant";
+import { ensureHubRosterRow } from "./ensure-hub-roster.server";
 
+type RosterRow = { id: string; tenant_id: string; status: string };
 type Rows = {
-  roster?: { tenant_id: string } | null;
+  roster?: RosterRow[];
   profile?: { user_id: string | null; created_by_agency_id: string | null } | null;
   rosterError?: boolean;
 };
 
+/** Fake admin client recording writes; reads roster rows like the real helper. */
 function fakeDb(rows: Rows) {
-  return {
+  const writes: Array<{ kind: "insert" | "update"; payload: unknown }> = [];
+  const db = {
     from(table: string) {
-      const result = () => {
-        if (table === "agency_talent_roster") {
-          return rows.rosterError
-            ? { data: null, error: { message: "boom" } }
-            : { data: rows.roster ?? null, error: null };
-        }
-        return { data: rows.profile ?? null, error: null };
-      };
       const q: Record<string, unknown> = {};
       for (const m of ["select", "eq", "in", "limit"]) q[m] = () => q;
-      q.maybeSingle = async () => result();
+      if (table === "agency_talent_roster") {
+        q.then = (res: (v: unknown) => unknown) =>
+          res(
+            rows.rosterError
+              ? { data: null, error: { message: "boom" } }
+              : { data: rows.roster ?? [], error: null },
+          );
+        q.insert = async (payload: unknown) => {
+          writes.push({ kind: "insert", payload });
+          return { error: null };
+        };
+        q.update = (payload: unknown) => {
+          writes.push({ kind: "update", payload });
+          return { eq: async () => ({ error: null }) };
+        };
+      } else {
+        q.maybeSingle = async () => ({ data: rows.profile ?? null, error: null });
+      }
       return q;
     },
-  } as never;
+  };
+  return { db: db as never, writes };
 }
 
-test("solo talent with no roster row heals onto the hub", async () => {
-  const calls: string[][] = [];
-  const id = await ensureSoloTalentTenantId(
-    fakeDb({ profile: { user_id: "u1", created_by_agency_id: null } }),
-    "tp1",
-    {
-      ensureHub: async (t, u) => {
-        calls.push([t, u]);
-        return { ok: true, tenantId: "hub" };
-      },
-    },
-  );
-  assert.equal(id, "hub");
-  assert.deepEqual(calls, [["tp1", "u1"]]);
+const solo = { user_id: "u1", created_by_agency_id: null };
+const hubDeps = (db: never) => ({
+  ensureHub: (a: { talentProfileId: string; addedBy: string }) =>
+    ensureHubRosterRow(db, { ...a, originDomain: null }, { resolveHub: async () => ({ tenantId: "hub" }) }),
 });
 
-test("agency talent (live roster row) is never moved to the hub", async () => {
-  let called = false;
-  const id = await ensureSoloTalentTenantId(
-    fakeDb({ roster: { tenant_id: "agency" }, profile: { user_id: "u1", created_by_agency_id: null } }),
-    "tp1",
-    {
-      ensureHub: async () => {
-        called = true;
-        return { ok: true, tenantId: "hub" };
-      },
-    },
-  );
-  assert.equal(id, null);
-  assert.equal(called, false);
+test("roster-less solo talent is healed onto the hub", async () => {
+  const { db, writes } = fakeDb({ profile: solo, roster: [] });
+  const id = await ensureSoloTalentTenantId(db, "tp1", hubDeps(db));
+  assert.equal(id, "hub");
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].kind, "insert");
+});
+
+test("talent whose only row is REMOVED gets no hub row", async () => {
+  const { db, writes } = fakeDb({ profile: solo, roster: [{ id: "r1", tenant_id: "hub", status: "removed" }] });
+  assert.equal(await ensureSoloTalentTenantId(db, "tp1", hubDeps(db)), null);
+  assert.deepEqual(writes, []);
+});
+
+test("sole INACTIVE hub row is promoted; sole inactive agency row is not", async () => {
+  const a = fakeDb({ profile: solo, roster: [{ id: "r1", tenant_id: "hub", status: "inactive" }] });
+  assert.equal(await ensureSoloTalentTenantId(a.db, "tp1", hubDeps(a.db)), "hub");
+  assert.equal(a.writes.length, 1);
+  assert.equal(a.writes[0].kind, "update");
+
+  const b = fakeDb({ profile: solo, roster: [{ id: "r2", tenant_id: "agency", status: "inactive" }] });
+  assert.equal(await ensureSoloTalentTenantId(b.db, "tp1", hubDeps(b.db)), null);
+  assert.deepEqual(b.writes, []);
+});
+
+test("talent with an active (agency or hub) row is untouched", async () => {
+  for (const tenant_id of ["agency", "hub"]) {
+    const { db, writes } = fakeDb({ profile: solo, roster: [{ id: "r1", tenant_id, status: "active" }] });
+    assert.equal(await ensureSoloTalentTenantId(db, "tp1", hubDeps(db)), null);
+    assert.deepEqual(writes, []);
+  }
 });
 
 test("agency-created or ownerless profile is not healed", async () => {
@@ -65,24 +86,18 @@ test("agency-created or ownerless profile is not healed", async () => {
     { user_id: "u1", created_by_agency_id: "a1" },
     { user_id: null, created_by_agency_id: null },
   ]) {
-    let called = false;
-    const id = await ensureSoloTalentTenantId(fakeDb({ profile }), "tp1", {
-      ensureHub: async () => {
-        called = true;
-        return { ok: true, tenantId: "hub" };
-      },
-    });
-    assert.equal(id, null);
-    assert.equal(called, false);
+    const { db, writes } = fakeDb({ profile, roster: [] });
+    assert.equal(await ensureSoloTalentTenantId(db, "tp1", hubDeps(db)), null);
+    assert.deepEqual(writes, []);
   }
 });
 
-test("roster read error and hub failure both fail closed", async () => {
-  assert.equal(await ensureSoloTalentTenantId(fakeDb({ rosterError: true }), "tp1"), null);
-  const id = await ensureSoloTalentTenantId(
-    fakeDb({ profile: { user_id: "u1", created_by_agency_id: null } }),
-    "tp1",
-    { ensureHub: async () => ({ ok: false, error: "no hub" }) },
-  );
+test("roster read error writes nothing; hub failure fails closed", async () => {
+  const { db, writes } = fakeDb({ profile: solo, rosterError: true });
+  assert.equal(await ensureSoloTalentTenantId(db, "tp1", hubDeps(db)), null);
+  assert.deepEqual(writes, []);
+  const id = await ensureSoloTalentTenantId(db, "tp1", {
+    ensureHub: async () => ({ ok: false, reason: "no_hub" }),
+  });
   assert.equal(id, null);
 });

@@ -8,6 +8,7 @@ import {
   type HowYouWorkFacts,
   type HowYouWorkMove,
   type MoveDeps,
+  resolveProviderDisplayName,
 } from "./how-you-work";
 import { planProfilePromotion, type ProfileState } from "./talent-profile-promotion";
 
@@ -119,4 +120,18 @@ test("after add_provider / open_studio the profile is approved + public and book
     assert.deepEqual(profile, { workflow_status: "approved", visibility: "public" });
     assert.equal(rosterVisible, true);
   }
+});
+
+test("provider name: the talent name first, then the account name, then the workspace name; blank never wins", () => {
+  assert.equal(resolveProviderDisplayName("Rosa", "Rosa Perez", "Estudio Rosa"), "Rosa");
+  // A studio owner has no talent profile: the account name is used.
+  assert.equal(resolveProviderDisplayName(null, "Rosa Perez", "Estudio Rosa"), "Rosa Perez");
+  assert.equal(resolveProviderDisplayName(undefined, "   ", "Estudio Rosa"), "Estudio Rosa");
+  assert.equal(resolveProviderDisplayName(null, null, null), null);
+});
+
+test("studio -> both: add_provider runs with a non-empty name for a studio owner with no talent profile", async () => {
+  // facts.displayName now comes from resolveProviderDisplayName, so the move never calls addProvider with "".
+  const name = resolveProviderDisplayName(null, "Rosa Perez", "Estudio Rosa");
+  assert.equal(name, "Rosa Perez");
 });

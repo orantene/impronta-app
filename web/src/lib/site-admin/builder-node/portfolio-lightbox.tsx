@@ -9,9 +9,13 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 
+import { requestTalentOpen } from "@/lib/talent-site/open-intent-client";
+import type { OpenIntent } from "@/lib/talent-site/open-intent-queue";
+
 import {
   PORTFOLIO_BOOK_EVENT,
   galleryCounter,
+  lightboxCtas,
   nextIndex,
   swipeDirection,
   type PortfolioGallery,
@@ -22,6 +26,8 @@ export type PortfolioLightboxLabels = {
   closeLabel: string;
   prevLabel: string;
   nextLabel: string;
+  /** TUL-440: secondary "Book an appointment" for photo-only shots; absent when nothing is bookable. */
+  generalBook?: { label: string; intent: OpenIntent };
 };
 
 const navBtn: CSSProperties = {
@@ -72,6 +78,8 @@ export function PortfolioLightbox({
   }, [count, onClose]);
 
   if (!item || typeof document === "undefined") return null;
+  const general = labels.generalBook;
+  const ctas = lightboxCtas({ canBook: item.canBook === true, hasBookableOffering: Boolean(general) });
 
   return createPortal(
     <div
@@ -112,7 +120,7 @@ export function PortfolioLightbox({
           {galleryCounter(index, count)}
         </span>
       ) : null}
-      {item.canBook ? (
+      {ctas.look ? (
         <button
           type="button"
           data-portfolio-lightbox-book
@@ -124,6 +132,20 @@ export function PortfolioLightbox({
           style={{ minHeight: 48, padding: "0 24px", borderRadius: 999, border: 0, background: "#fff", color: "#121212", font: "inherit", fontWeight: 600, cursor: "pointer" }}
         >
           {labels.bookLabel}
+        </button>
+      ) : null}
+      {ctas.general && general ? (
+        <button
+          type="button"
+          data-portfolio-lightbox-general-book
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+            requestTalentOpen(general.intent);
+          }}
+          style={{ minHeight: 44, padding: "0 20px", borderRadius: 999, border: "1px solid rgba(255,255,255,.5)", background: "transparent", color: "#fff", font: "inherit", cursor: "pointer" }}
+        >
+          {general.label}
         </button>
       ) : null}
       {count > 1 ? (

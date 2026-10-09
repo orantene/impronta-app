@@ -47,6 +47,7 @@ import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
 import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
 import { loadPlanAllowsInstant } from "@/lib/talent/plan-instant.server";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { resolveOfferingHomeTenant } from "@/lib/scheduling/offering-home-tenant";
 import { loadLatestPolicyVersionId } from "@/lib/talent-policies/public";
 import type { OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
 
@@ -74,6 +75,8 @@ export type InstantPurchaseInput = {
   brief?: OfferingTaskBrief | null;
   /** G13: buyer locale for the intake answers' heading in the thread. */
   locale?: string | null;
+  /** TUL-426: where the service happens (sheet payload); stamped onto the inquiry. */
+  eventLocation?: string | null;
   /**
    * True only for the point of sale booking a walk-in at the desk. Staff are
    * the confirmation there, so the inquiry-only posture and the public open
@@ -156,7 +159,22 @@ export async function placeInstantPurchase(
   admin: SupabaseClient,
   input: InstantPurchaseInput,
 ): Promise<InstantPurchaseResult> {
-  const { offeringId, tenantId } = input;
+  const { offeringId } = input;
+  // TUL-451: on a DIRECT talent channel the offering's own tenant decides the
+  // workspace (a "both" owner's offerings live under her new workspace). An
+  // agency-routed or staff-desk call keeps the tenant it was given.
+  let tenantId = input.tenantId;
+  if (input.agencyRouted === false) {
+    const home = await resolveOfferingHomeTenant(admin, {
+      offeringId,
+      talentProfileId: input.talentProfileId,
+      tenantId: input.tenantId,
+    });
+    if (!home.ok) {
+      return { ok: false, reason: "engine_error", error: "We could not confirm this service. Please try again." };
+    }
+    tenantId = home.tenantId;
+  }
 
   // A read failure REFUSES rather than resolving to "no pool". `null`
   // means unlimited, so treating an error as null would sell unlimited
@@ -466,6 +484,7 @@ export async function placeInstantPurchase(
     guestSessionId: input.guestSessionId ?? null,
     brief: input.brief ?? null,
     locale: input.locale ?? null,
+    eventLocation: input.eventLocation ?? null,
     // Snapshot: the talent's published policy the buyer saw at checkout.
     policyVersionId: await loadLatestPolicyVersionId(admin, input.talentProfileId),
   });

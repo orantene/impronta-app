@@ -62,6 +62,7 @@ export const ALLOWLIST: Readonly<Record<string, string>> = {
   "src/lib/scheduling/reschedule-booking.test.ts": "echoes a canned RPC reply; the wrapper under test does not read the clock",
   "src/lib/scheduling/reservation-convert-overlap.test.ts": "enrichBookingFromReservation echoes stamps; hold-expiry clock path is not exercised",
   "src/lib/scheduling/slot-conflict-two-customer.test.ts": "hold-insert error mapping over canned stamps, no clock comparison",
+  "src/lib/scheduling/reservation-hold-self-busy.test.ts": "canned hold/booking stamps for post-insert TOCTOU overlap; no clock comparison",
   "src/lib/scheduling/instant-book-first-customer.test.ts": "runResolvedInstantBook echoes the reservation stamp; no clock comparison",
   "src/lib/scheduling/instant-book-guest.test.ts": "runResolvedInstantBook echoes the reservation stamp; no clock comparison",
   "src/lib/bookings/ledger-paid.test.ts": "canned paid_at values on ledger rows, never compared to the clock",

@@ -137,3 +137,15 @@ test("primary type: the primary talent_type wins, other kinds are ignored, none 
   assert.deepEqual(primaryTypeOf([]), { slug: null, labelEn: null });
   assert.deepEqual(primaryTypeOf(null), { slug: null, labelEn: null });
 });
+
+test("plan: with no universal pack and no matching trade, the hero node gets NO image", () => {
+  const typedOnly = [
+    photo("chef", { businessType: "private-chef", family: "dining" }),
+    photo("makeup", { businessType: "makeup-artist", family: "beauty" }),
+  ];
+  const tree = maisonHome("");
+  const plan = planStockHero({ hasOwnPhoto: false, homeTree: tree, photos: typedOnly, query: { businessType: null, family: "custom" } });
+  assert.deepEqual(plan, { action: "skip", reason: "empty_pool" });
+  const other = planStockHero({ hasOwnPhoto: false, homeTree: tree, photos: typedOnly, query: { businessType: "house-cleaner", family: "professional" } });
+  assert.deepEqual(other, { action: "skip", reason: "empty_pool" });
+});

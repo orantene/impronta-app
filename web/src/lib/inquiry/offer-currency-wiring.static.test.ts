@@ -54,15 +54,28 @@ describe("offer currency wiring", () => {
     assert.match(read("src/components/admin/offer/offer-money-split.tsx"), /formatOfferMoney\(n, currencyCode\)/);
     assert.match(read("src/app/(workspace)/[tenantSlug]/client/messages/OfferTab.tsx"), /return formatOfferMoney\(amount, currency/);
   });
+  it("TUL-382: offer panel totals route through formatDashboardMoney (not bare Intl currency)", () => {
+    const bridge = read("src/app/(workspace)/[tenantSlug]/_data-bridge/inquiries-messages.ts");
+    assert.match(bridge, /formatDashboardMoneyCents\(/);
+    assert.match(bridge, /from "@\/lib\/money\/dashboard-money-format"/);
+    // Strip comments so a doc mention of the old Intl form cannot false-pass.
+    const code = bridge.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+    assert.doesNotMatch(code, /NumberFormat\(/);
+    assert.doesNotMatch(code, /style\s*:\s*["']currency["']/);
+    const coord = read("src/app/(workspace)/[tenantSlug]/talent/inbox/[id]/coordinator-offer-loader.ts");
+    assert.match(coord, /formatMoneyCents\(/);
+    assert.match(coord, /from "@\/lib\/talent\/earnings-view"/);
+  });
   it("the service preload goes through planServicePick", () => {
-    assert.match(read("src/components/admin/shell/internal/messages/shared/machinery-11.tsx"), /planServicePick\(/);
+    // Line row lives in offer-draft-line-item (extracted from machinery-11).
+    assert.match(read("src/components/admin/shell/internal/messages/shared/offer-draft-line-item.tsx"), /planServicePick\(/);
   });
   it("the scheduling amendment send maps the currency refusal to its own sentence (TUL-282)", () => {
     const eng = read("src/lib/server-actions/scheduling-engine.ts");
     assert.match(eng, /result\.error === "offer_currency_seller_mismatch"/);
     assert.match(eng, /reason: "offer_currency_seller_mismatch" as const/);
     const refusals = read("src/lib/scheduling/engine-refusals.ts");
-    assert.match(refusals, /"offer_currency_seller_mismatch",\n\] as const/);
+    assert.match(refusals, /"offer_currency_seller_mismatch",\n  "offer_currency_unresolved",\n\] as const/);
     assert.match(refusals, /dashboard\.scheduling\.engine\.refusal\.offer_currency_seller_mismatch/);
   });
 });

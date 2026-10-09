@@ -736,6 +736,8 @@ export async function createPurchase(
         transactionId: createdTransactionId,
         brief: input.brief ?? null,
         locale: input.locale ?? null,
+        eventLocation: input.eventLocation ?? null,
+        offeringId: input.lines[0]?.offeringId ?? null,
         // TUL-93: the REAL appointment (not the buffer-padded hold row).
         appointment: input.reservation
           ? {

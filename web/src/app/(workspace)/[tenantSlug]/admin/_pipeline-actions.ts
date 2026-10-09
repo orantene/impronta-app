@@ -48,6 +48,7 @@ import {
   promoteToPrimary,
 } from "@/lib/inquiry/inquiry-engine-coordinator";
 import { convertToBooking } from "@/lib/inquiry/inquiry-engine-booking";
+import { tryMajorToMinor } from "@/lib/inquiry/offer-minor-units";
 import { updateInquiryDetails, type InquiryDetailsPatch } from "@/lib/inquiry/inquiry-engine-details";
 import type {
   EditableInquiryJobFields,
@@ -68,6 +69,7 @@ import {
   initiatePayout,
   markPayoutSent,
 } from "@/lib/bookings/transactions";
+import { loadInquiryPaymentBooking } from "@/lib/bookings/payment-booking";
 import {
   sendOffer,
   clientRejectOffer,
@@ -78,11 +80,15 @@ import {
   type OfferLineDraft,
 } from "@/lib/inquiry/inquiry-engine-offers";
 import { clientAcceptOffer, staffAcceptOfferForTalent } from "@/lib/inquiry/inquiry-engine-approvals";
-import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
 import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
+import {
+  loadInquiryAttachments as loadInquiryAttachmentsImpl,
+  uploadInquiryAttachment as uploadInquiryAttachmentImpl,
+  deleteInquiryAttachment as deleteInquiryAttachmentImpl,
+} from "./_pipeline-attachment-actions";
 import type {
   PipelineActionResult,
   InquiryPaymentState,
@@ -289,20 +295,21 @@ export async function loadInquiryPaymentState(
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
-    const { data: booking } = await supabase
-      .from("agency_bookings")
-      .select("id, total_client_revenue, currency_code, deposit_amount_cents, deposit_pct, client_revenue_lifecycle")
-      .eq("tenant_id", tenantId)
-      .eq("source_inquiry_id", inquiryId)
-      .maybeSingle();
-
+    const found = await loadInquiryPaymentBooking(supabase, { tenantId, inquiryId });
+    if (!found.ok) return { ok: false, error: "Could not read this booking's payment." };
+    const { booking, transaction: txn } = found;
     if (!booking) {
       return { ok: true, data: { bookingId: null, totalRevenueCents: null, currency: null, transaction: null, depositAmountCents: 0, depositPaid: false } };
     }
-
-    const txn = await loadActiveBookingTransaction(booking.id as string, supabase);
     const rawRevenue = booking.total_client_revenue as number | string | null;
-    const totalRevenueCents = rawRevenue != null ? Math.round(Number(rawRevenue) * 100) : null;
+    const bookingCurrency = booking.currency_code as string | null;
+    let totalRevenueCents: number | null = null;
+    if (rawRevenue != null) {
+      // Money path: refuse an unreadable currency instead of hard-coding * 100.
+      const minor = tryMajorToMinor(Number(rawRevenue), bookingCurrency);
+      if (minor === null) return { ok: false, error: "offer_currency_unreadable" };
+      totalRevenueCents = minor;
+    }
     // 6.3: resolve the configured deposit (explicit amount wins; else pct of the
     // full charge). 0 when no deposit is set on the offer/booking.
     const depositAmountCents = Number(booking.deposit_amount_cents) > 0
@@ -316,7 +323,7 @@ export async function loadInquiryPaymentState(
       data: {
         bookingId: booking.id as string,
         totalRevenueCents,
-        currency: (booking.currency_code as string | null) ?? null,
+        currency: bookingCurrency,
         transaction: txn,
         depositAmountCents,
         depositPaid: booking.client_revenue_lifecycle === "deposit_paid",
@@ -462,9 +469,16 @@ export async function createInquiryTransactionDraft(
       return { ok: false, error: "An active transaction already exists for this booking." };
     }
 
-    const baseRevenueCents = booking.total_client_revenue != null
-      ? Math.max(0, Math.round(Number(booking.total_client_revenue) * 100))
-      : 0;
+    let baseRevenueCents = 0;
+    if (booking.total_client_revenue != null) {
+      // Charge path: currency-aware major→minor; refuse unreadable codes.
+      const minor = tryMajorToMinor(
+        Number(booking.total_client_revenue),
+        booking.currency_code as string | null,
+      );
+      if (minor === null) return { ok: false, error: "offer_currency_unreadable" };
+      baseRevenueCents = Math.max(0, minor);
+    }
     if (baseRevenueCents <= 0) {
       return { ok: false, error: "Set booking revenue before creating a transaction." };
     }
@@ -1548,186 +1562,29 @@ export async function addInquiryLineupTalent(
 }
 
 // ─── Files (inquiry_attachments) ──────────────────────────────────────────────
-
-/**
- * Load (non-deleted) attachments for an inquiry. Tenant scope is enforced
- * by RLS + the `tenant_id` filter so the read can never cross tenants.
- */
+// Load / upload / soft-delete live in `_pipeline-attachment-actions.ts` (TUL-454
+// pays back #2971's +20 size-ratchet raise). Async wrappers keep the public
+// surface on this "use server" module — value re-exports break SWC codegen.
 export async function loadInquiryAttachments(
-  _tenantSlug: string,
+  tenantSlug: string,
   inquiryId: string,
 ): Promise<PipelineActionResult<InquiryAttachment[]>> {
-  try {
-    const auth = await requireInquiryManagerAction(inquiryId);
-    if (!auth.ok) return { ok: false, error: auth.error };
-    const { supabase, tenantId } = auth;
-
-    const { data, error } = await supabase
-      .from("inquiry_attachments")
-      .select("id, filename, mime_type, byte_size, description, visibility, uploaded_by, created_at, attachment_kind")
-      .eq("tenant_id", tenantId)
-      .eq("inquiry_id", inquiryId)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      logServerError("admin._pipeline-actions.loadInquiryAttachments", error);
-      return { ok: false, error: "Could not load files." };
-    }
-
-    type Row = {
-      id: string; filename: string; mime_type: string | null;
-      byte_size: number | null; description: string | null;
-      visibility: "staff" | "shared"; uploaded_by: string | null; created_at: string;
-      attachment_kind: string | null;
-    };
-    const rows = (data ?? []) as Row[];
-    return {
-      ok: true,
-      data: rows.map((r) => ({
-        id: r.id,
-        filename: r.filename,
-        mimeType: r.mime_type,
-        byteSize: r.byte_size,
-        description: r.description,
-        visibility: r.visibility,
-        uploadedBy: r.uploaded_by,
-        createdAt: r.created_at,
-        attachmentKind: r.attachment_kind,
-      })),
-    };
-  } catch (err) {
-    logServerError("admin._pipeline-actions.loadInquiryAttachments", err);
-    return { ok: false, error: "Unexpected error." };
-  }
+  return loadInquiryAttachmentsImpl(tenantSlug, inquiryId);
 }
 
-/**
- * Upload a file to the inquiry-files bucket and create the matching
- * `inquiry_attachments` row. Path convention follows the storage RLS:
- *   {tenant_id}/{inquiry_id}/{uuid}-{filename}
- *
- * Accepts a FormData with `file` (File) + `inquiryId` (string) +
- * optional `description` (string). Tenant ownership of the inquiry is
- * verified before the upload to avoid orphan storage objects.
- *
- * Returns the new attachment id on success.
- */
 export async function uploadInquiryAttachment(
   formData: FormData,
 ): Promise<PipelineActionResult<{ attachmentId: string }>> {
   await requireNotImpersonating();
-  try {
-    const inquiryId = String(formData.get("inquiryId") ?? "");
-    const description = String(formData.get("description") ?? "").trim() || null;
-    // Step 14 — staff can also tag uploads with attachment_kind. Default
-    // is NULL when the caller doesn't supply one so legacy uploads stay
-    // untagged.
-    const kindRaw = String(formData.get("attachmentKind") ?? "").trim();
-    const attachmentKind =
-      kindRaw === "mood_board" || kindRaw === "contract" ||
-      kindRaw === "reference" || kindRaw === "other"
-        ? kindRaw
-        : null;
-    const file = formData.get("file");
-    if (!inquiryId) return { ok: false, error: "Missing inquiryId." };
-    if (!(file instanceof File)) return { ok: false, error: "No file uploaded." };
-    if (file.size === 0) return { ok: false, error: "File is empty." };
-    if (file.size > 100 * 1024 * 1024) return { ok: false, error: "File exceeds 100 MB cap." };
-
-    const auth = await requireWorkspaceStaffAction();
-    if (!auth.ok) return { ok: false, error: auth.error };
-    const { supabase, user, tenantId } = auth;
-
-    const { data: inq } = await supabase
-      .from("inquiries")
-      .select("id")
-      .eq("id", inquiryId)
-      .eq("tenant_id", tenantId)
-      .maybeSingle();
-    if (!inq) return { ok: false, error: "Inquiry not found in this workspace." };
-
-    // Build storage path — matches the bucket RLS pattern.
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
-    const objectId = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    const storagePath = `${tenantId}/${inquiryId}/${objectId}-${safeName}`;
-
-    const { error: uploadErr } = await supabase
-      .storage
-      .from("inquiry-files")
-      .upload(storagePath, file, {
-        contentType: file.type || "application/octet-stream",
-        upsert: false,
-      });
-    if (uploadErr) {
-      logServerError("admin._pipeline-actions.uploadInquiryAttachment/storage", uploadErr);
-      return { ok: false, error: `Upload failed: ${uploadErr.message}` };
-    }
-
-    const { data: row, error: insertErr } = await supabase
-      .from("inquiry_attachments")
-      .insert({
-        tenant_id: tenantId,
-        inquiry_id: inquiryId,
-        uploaded_by: user.id,
-        storage_path: storagePath,
-        filename: file.name,
-        mime_type: file.type || null,
-        byte_size: file.size,
-        description,
-        visibility: "staff",
-        attachment_kind: attachmentKind,
-      })
-      .select("id")
-      .single();
-
-    if (insertErr || !row) {
-      // Compensating delete — pull the orphan storage object so the bucket
-      // doesn't accumulate files with no metadata row.
-      await supabase.storage.from("inquiry-files").remove([storagePath]);
-      logServerError("admin._pipeline-actions.uploadInquiryAttachment/insert", insertErr);
-      return { ok: false, error: "Could not save file metadata." };
-    }
-
-    revalidatePath(`/${auth.tenantSlug}`, "layout");
-    return { ok: true, data: { attachmentId: row.id as string } };
-  } catch (err) {
-    logServerError("admin._pipeline-actions.uploadInquiryAttachment", err);
-    return { ok: false, error: "Unexpected error." };
-  }
+  return uploadInquiryAttachmentImpl(formData);
 }
 
-/**
- * Soft-delete an attachment (sets deleted_at). The storage object stays
- * in the bucket — purging is a separate batch job.
- */
 export async function deleteInquiryAttachment(
-  _tenantSlug: string,
+  tenantSlug: string,
   attachmentId: string,
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
-  try {
-    const auth = await requireWorkspaceStaffAction();
-    if (!auth.ok) return { ok: false, error: auth.error };
-    const { supabase, tenantId } = auth;
-
-    const { error } = await supabase
-      .from("inquiry_attachments")
-      .update({ deleted_at: new Date().toISOString() })
-      .eq("id", attachmentId)
-      .eq("tenant_id", tenantId);
-
-    if (error) {
-      logServerError("admin._pipeline-actions.deleteInquiryAttachment", error);
-      return { ok: false, error: "Could not delete file." };
-    }
-
-    revalidatePath(`/${auth.tenantSlug}`, "layout");
-    return { ok: true };
-  } catch (err) {
-    logServerError("admin._pipeline-actions.deleteInquiryAttachment", err);
-    return { ok: false, error: "Unexpected error." };
-  }
+  return deleteInquiryAttachmentImpl(tenantSlug, attachmentId);
 }
 
 // ─── Offer line-item editor ──────────────────────────────────────────────────
@@ -1822,7 +1679,12 @@ export async function loadOfferDraft(
     // W6a — read the saved negotiated terms (display + snapshot only). When the
     // offer predates W6a (null terms), fall back to the W5 resolver defaults so
     // the composer always renders a coherent starting state.
-    const totalCents = Math.round(Number(offer.total_client_price ?? 0) * 100);
+    // Offer total → minor units via the offer currency's divisor (not * 100).
+    const totalCents = tryMajorToMinor(
+      Number(offer.total_client_price ?? 0),
+      offer.currency_code,
+    );
+    if (totalCents === null) return { ok: false, error: "offer_currency_unreadable" };
     const { readOfferTermsFromRow, defaultOfferTermsFromResolved, deriveDepositAmountCents } =
       await import("@/lib/billing/offer-commercial-terms");
     let terms = readOfferTermsFromRow(
@@ -2254,6 +2116,9 @@ export async function bulkSetInquiryArchived(
   }
 }
 
+const OFFER_CURRENCY_UNRESOLVED_MESSAGE =
+  "We could not tell which currency this offer should use. Choose a currency for the offer and try again.";
+
 /**
  * Coordinator creates a new draft offer for an inquiry. Returns the new
  * offer id so the caller can immediately switch to editing it.
@@ -2261,10 +2126,9 @@ export async function bulkSetInquiryArchived(
 export async function createOfferAction(
   _tenantSlug: string,
   inquiryId: string,
-  // USD-first: when the caller doesn't pin a currency (the offer-builder
-  // "Start drafting offer" button doesn't), fall back to the PLATFORM operating
-  // currency (default USD) instead of a hard-coded EUR — so the whole
-  // inquiry→offer→booking→payment→payout flow runs in one currency.
+  // When the caller doesn't pin a currency (the offer-builder "Start drafting
+  // offer" button doesn't), the engine follows the seller (TUL-313); if that
+  // cannot be resolved the action refuses. No platform/USD fallback.
   currencyCode?: string,
 ): Promise<PipelineActionResult<{ offerId: string }>> {
   await requireNotImpersonating();
@@ -2300,20 +2164,14 @@ export async function createOfferAction(
       }
       if (!inq) return { ok: false, error: "Inquiry not found in this workspace." };
 
-      // USD-first: the offer-builder button doesn't pin a currency, so resolve
-      // the platform operating currency (default USD) rather than defaulting to
-      // EUR. This makes the offer — and the booking/payment/payout that flow
-      // from it — run in the platform's single operating currency.
-      const resolvedCurrency =
-        currencyCode ?? (await loadPlatformOperatingCurrency()).operatingCurrency;
-
       const result = await createOffer(supabase, {
         inquiryId,
         tenantId,
         actorUserId: user.id,
         expectedVersion: (inq.version as number | null) ?? 1,
-        currencyCode: resolvedCurrency,
-        // No explicit currency from the caller: follow the seller (TUL-274).
+        currencyCode,
+        // No explicit currency from the caller: follow the seller (TUL-274,
+        // TUL-313). Unresolvable -> the engine refuses; never a platform guess.
         followSeller: currencyCode == null,
       });
       if (!result.success) {
@@ -2323,6 +2181,9 @@ export async function createOfferAction(
           "createOfferAction/engine_failed",
           new Error(`reason=${reason ?? ""} error=${errMsg ?? ""}`),
         );
+        if (reason === "offer_currency_unresolved") {
+          return { ok: false, error: OFFER_CURRENCY_UNRESOLVED_MESSAGE };
+        }
         return { ok: false, error: reason ?? errMsg ?? "Could not create offer." };
       }
       revalidatePath(`/${auth.tenantSlug}`, "layout");

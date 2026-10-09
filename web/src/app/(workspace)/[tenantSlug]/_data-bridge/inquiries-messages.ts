@@ -3,6 +3,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import "server-only";
 
 import { cache } from "react";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
@@ -139,7 +140,7 @@ export type WorkspaceInquiryForMessages = {
   // ── Offer ────────────────────────────────────────────────────────────────────
   currentOfferId: string | null;
   currentOfferStatus: "draft" | "sent" | "accepted" | "rejected" | null;
-  currentOfferTotal: string | null; // "$15,000" formatted
+  currentOfferTotal: string | null; // "$15,000 MXN" via formatDashboardMoneyCents
   currentOfferCurrency: string | null;
 
   // ── Per-user flags ───────────────────────────────────────────────────────────
@@ -230,19 +231,10 @@ function shortInitials(...parts: (string | null | undefined)[]): string {
   return "?";
 }
 
+/** Offer-panel total (TUL-382 / DS-17): "$850 MXN", never bare MX$850 / MX$850.00. */
 function formatMoneyMinor(amountMinor: number | null, currency: string | null): string | null {
   if (amountMinor == null || isNaN(amountMinor)) return null;
-  const major = amountMinor / 100;
-  const cur = (currency ?? "USD").toUpperCase();
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: cur,
-      maximumFractionDigits: 0,
-    }).format(major);
-  } catch {
-    return `${cur} ${major.toFixed(0)}`;
-  }
+  return formatDashboardMoneyCents(amountMinor, currency, "en");
 }
 
 function truncate(s: string | null | undefined, n: number): string | null {

@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createBoundedFetch, SUPABASE_SERVICE_TIMEOUT_MS } from "@/lib/supabase/bounded-fetch";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 /**
@@ -16,6 +17,7 @@ export function createServiceRoleClient(): SupabaseClient | null {
       autoRefreshToken: false,
       persistSession: false,
     },
+    global: { fetch: createBoundedFetch(SUPABASE_SERVICE_TIMEOUT_MS) },
   });
 }
 
@@ -61,6 +63,7 @@ export function createUncachedServiceRoleClient(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !key) return null;
+  const bounded = createBoundedFetch(SUPABASE_SERVICE_TIMEOUT_MS);
   return createClient(url, key, {
     auth: {
       autoRefreshToken: false,
@@ -73,7 +76,7 @@ export function createUncachedServiceRoleClient(): SupabaseClient | null {
           "x-tulala-read-after-write",
           `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
         );
-        return fetch(input, {
+        return bounded(input, {
           ...init,
           headers,
           cache: "no-store",

@@ -17,7 +17,7 @@
  * verification is the only auth mechanism.
  */
 
-import { handleStripeWebhook } from "@/lib/stripe/webhook-handler";
+import { handleStripeWebhook } from "@/lib/stripe/webhook-http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

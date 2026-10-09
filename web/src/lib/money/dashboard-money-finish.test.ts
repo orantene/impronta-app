@@ -30,14 +30,19 @@ describe("DS-17 finish: one format for MXN and USD talents, es and en", () => {
 
 const ROUTED = [
   "src/components/admin/shell/internal/talent/agenda/AgendaTodayPage.tsx",
+  "src/components/admin/shell/internal/talent/agenda/AgendaNewBooking.tsx",
   "src/components/admin/shell/internal/talent/agenda/view-model.ts",
   "src/components/admin/shell/internal/talent/pages/ClientsPage.tsx",
   "src/components/admin/shell/internal/talent/pages/TodayPage.tsx",
   "src/components/admin/shell/internal/talent/shared/today-2.tsx",
   "src/components/admin/shell/internal/talent/shared/earnings-tile-1.tsx",
+  "src/components/admin/shell/internal/page-modules/catalog/item-tab-pricing.tsx",
+  "src/components/admin/shell/internal/page-modules/catalog/item-tab-pricing-phases.tsx",
   "src/components/talent/money/AgendaMoneyLine.tsx",
   "src/components/talent/money/MoneyHomePage.tsx",
   "src/components/talent/money/MoneyRecordPaymentPanel.tsx",
+  "src/components/talent/services/ExtraScreen.tsx",
+  "src/components/talent/services/TalentOfferingsManager.tsx",
   "src/lib/talent/services-list-price.ts",
 ];
 

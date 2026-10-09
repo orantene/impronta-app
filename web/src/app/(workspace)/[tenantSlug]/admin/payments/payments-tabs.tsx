@@ -132,7 +132,12 @@ export function RefundsTab({ board, t, tenantSlug, locale }: { board: PaymentsBo
                 <span>{t("colState")}</span>
               </div>
               {board.refunds.rows.map((r) => (
-                <div key={r.id} className={`${GRID_ROW} ${cols}`} data-refund-row>
+                <div
+                  key={r.id}
+                  className={`${GRID_ROW} ${cols}`}
+                  data-refund-row
+                  data-refund-settlement={r.settlementFailed ? "failed" : "ok"}
+                >
                   <span className="font-mono text-admin-ink-muted">{dateIn(r.refundedAt, locale, board.timeZone) || t("timeNotRecorded")}</span>
                   <span className="font-mono text-admin-ink">{shortRef(r.id)}</span>
                   <span className="font-semibold text-admin-ink">
@@ -147,8 +152,18 @@ export function RefundsTab({ board, t, tenantSlug, locale }: { board: PaymentsBo
                     )}
                   </span>
                   <span className="text-right font-semibold tabular-nums text-admin-ink">−{formatOrderMoney(r.grossAmountCents, r.currency)}</span>
-                  <span className="text-admin-ink-muted">{r.provider === "manual" ? t("refundManual") : r.provider}</span>
-                  <StatePill block tone="green" state="completed">{t("refundCompleted")}</StatePill>
+                  <span className="truncate text-admin-ink-muted" title={r.settlementFailedNote ?? undefined}>
+                    {r.settlementFailed
+                      ? (r.settlementFailedNote ?? t("refundFailedDetail"))
+                      : r.provider === "manual"
+                        ? t("refundManual")
+                        : r.provider}
+                  </span>
+                  {r.settlementFailed ? (
+                    <StatePill block tone="coral" state="pending">{t("refundFailed")}</StatePill>
+                  ) : (
+                    <StatePill block tone="green" state="completed">{t("refundCompleted")}</StatePill>
+                  )}
                 </div>
               ))}
             </div>

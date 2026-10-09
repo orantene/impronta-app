@@ -16,6 +16,7 @@ import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { PageHeader } from "@/components/admin/shell/internal/talent/shared/page-chrome-1";
 import { loadTalentClients } from "@/lib/talent/clients-actions";
 import type { TalentClientRow } from "@/lib/talent/clients-merge";
+import { isPartPaidRow } from "@/lib/talent/booking-owed";
 import { EMPTY_TALENT_EARNINGS, type TalentEarnings } from "@/lib/talent/earnings-types";
 import {
   agendaMoneyRows,
@@ -356,7 +357,7 @@ function MoneyHomePane(props: {
                     </span>
                     <span className="block text-[13px] text-admin-ink-muted">
                       {p.paymentMethod ? t(METHOD_LABEL[methodBucket(p.paymentMethod)]) : t("Method not recorded")}
-                      {p.status === "pending" ? ` · ${t("Part paid")}` : ""}
+                      {isPartPaidRow(p) ? ` · ${t("Part paid")}` : ""}
                     </span>
                   </span>
                   <span className="whitespace-nowrap font-admin-body text-[15px] font-bold text-admin-ink">

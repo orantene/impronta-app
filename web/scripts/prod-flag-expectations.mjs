@@ -49,6 +49,7 @@ export const EXPECTED_PROD_FLAGS = {
   // Intentionally OFF / unset in prod (batched-ask defaults).
   CLIENT_WELCOME_EMAIL_ENABLED: { resolved: false, envPresent: false },
   TALENT_SITE_CONSENT_TOOLING_ENABLED: { resolved: false, envPresent: false },
+  PUBLIC_STREET_AUTOCOMPLETE_ENABLED: { resolved: false, envPresent: false },
   SUPPORT_DESK_ENABLED: { resolved: true, envPresent: true },
 
   // ── DB settings named in FEATURES.md ────────────────────────────────────

@@ -14,6 +14,7 @@ import "server-only";
 
 import type { ClientOfferSummary } from "@/lib/messages-v5/client-thread-view";
 import { firstName } from "@/lib/messages-v5/client-thread-view";
+import { majorToMinorForDisplay } from "@/lib/inquiry/offer-minor-units";
 
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,18 +46,19 @@ export async function loadClientOfferSummaries(admin: Admin, input: { tenantId: 
     .in("offer_id", ids)
     .order("sort_order", { ascending: true });
   if (lineErr) return [];
+  const currencyByOffer = new Map(offers.map((row) => [String(row.id), row.currency_code == null ? null : String(row.currency_code)]));
   const linesByOffer = new Map<string, ClientOfferSummary["lines"][number][]>();
   for (const row of ((lineRows ?? []) as Array<Record<string, unknown>>)) {
     const offerId = String(row.offer_id);
     const list = linesByOffer.get(offerId) ?? [];
-    list.push({ label: String(row.label ?? ""), units: num(row.units) || 1, amountCents: Math.round(num(row.total_price) * 100) });
+    list.push({ label: String(row.label ?? ""), units: num(row.units) || 1, amountCents: majorToMinorForDisplay(num(row.total_price), currencyByOffer.get(offerId)) });
     linesByOffer.set(offerId, list);
   }
   return offers.map((row) => ({
     id: String(row.id),
     version: Math.max(1, Math.round(num(row.version)) || 1),
     status: String(row.status ?? "sent"),
-    totalCents: Math.round(num(row.total_client_price) * 100),
+    totalCents: majorToMinorForDisplay(num(row.total_client_price), row.currency_code == null ? null : String(row.currency_code)),
     currency: String(row.currency_code ?? "USD") || "USD",
     depositPct: row.deposit_pct == null ? null : num(row.deposit_pct),
     depositCents: row.deposit_amount_cents == null ? null : Math.round(num(row.deposit_amount_cents)),

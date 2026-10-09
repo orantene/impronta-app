@@ -7,15 +7,18 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
 
-import type { HowYouWorkFacts } from "./how-you-work";
+import { resolveProviderDisplayName, type HowYouWorkFacts } from "./how-you-work";
 
 type Admin = SupabaseClient;
 
 export async function loadFacts(admin: Admin, userId: string): Promise<{ facts: HowYouWorkFacts; workspaceName: string | null }> {
-  const [tp, mem] = await Promise.all([
+  const [tp, mem, account] = await Promise.all([
     admin.from("talent_profiles").select("id, display_name").eq("user_id", userId).is("deleted_at", null).limit(1).maybeSingle(),
     admin.from("agency_memberships").select("tenant_id").eq("profile_id", userId).eq("role", "owner").eq("status", "active"),
+    admin.from("profiles").select("display_name").eq("id", userId).maybeSingle(),
   ]);
+  // Unchecked-read ratchet: a failed read must leave a trace, never a silent empty name.
+  if (account.error) logServerError("how-you-work.loadFacts.profile", account.error);
   const talentProfileId = typeof tp.data?.id === "string" ? tp.data.id : null;
   const tenantIds = ((mem.data ?? []) as { tenant_id: string }[]).map((m) => m.tenant_id);
 
@@ -50,7 +53,13 @@ export async function loadFacts(admin: Admin, userId: string): Promise<{ facts: 
       tenantId,
       tenantSlug,
       talentProfileId,
-      displayName: typeof tp.data?.display_name === "string" ? tp.data.display_name : null,
+      // A studio owner has no talent profile yet: fall back to the account name, then the workspace name,
+      // so "add me as a provider" never runs with an empty name ("Display name is required.").
+      displayName: resolveProviderDisplayName(
+        typeof tp.data?.display_name === "string" ? tp.data.display_name : null,
+        typeof account.data?.display_name === "string" ? account.data.display_name : null,
+        workspaceName,
+      ),
     },
   };
 }

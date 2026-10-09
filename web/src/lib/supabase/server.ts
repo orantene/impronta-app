@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
 import { authCoordinationOptions } from "@/lib/supabase/auth-coordination";
+import { createBoundedFetch } from "@/lib/supabase/bounded-fetch";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { cookieDomainForHost, isSupabaseAuthCookie } from "@/lib/supabase/cookie-domain";
 
@@ -36,6 +37,7 @@ export async function createClient(): Promise<SupabaseClient | null> {
     // the proxy client so concurrent RSC/server-action reads of a near-expiry
     // session rotate the refresh token at most once per process.
     ...authCoordinationOptions(),
+    global: { fetch: createBoundedFetch() },
     cookies: {
       getAll() {
         return cookieStore.getAll();

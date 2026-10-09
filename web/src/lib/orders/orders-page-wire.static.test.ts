@@ -59,3 +59,18 @@ test("the loader REFUSES on a read error rather than returning an empty desk", (
     "an error path must not resolve to an empty list",
   );
 });
+
+test("Pedidos list polish — channel label, plural lines, dashboard money, nowrap", () => {
+  // TUL-435 Done-when: Origen via salesChannelLabel, 1 artículo / 2 artículos,
+  // "$1,000 MXN" via formatDashboardMoneyCents, amounts stay on one line.
+  const page = read("src/app/(workspace)/[tenantSlug]/admin/orders/page.tsx");
+  assert.match(page, /salesChannelLabel/);
+  assert.match(page, /orderLineItemsLabel/);
+  assert.match(page, /lineCountOne/);
+  assert.match(page, /lineCountOther/);
+  assert.match(page, /formatDashboardMoneyCents/);
+  assert.match(page, /whiteSpace:\s*["']nowrap["']/);
+  assert.doesNotMatch(page, /formatOrderMoney/);
+  // Bare `lineCount` noun without singular/plural is the defect.
+  assert.doesNotMatch(page, /\{t\("lineCount"\)\}/);
+});

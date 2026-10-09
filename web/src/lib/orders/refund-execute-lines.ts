@@ -104,6 +104,8 @@ export async function refundOrderLines(
     reason: RefundReason;
     actorUserId?: string | null;
     note?: string | null;
+    /** Cap at this many minor units; omit for the full remaining of the lines. */
+    amountCents?: number | null;
   },
 ): Promise<RefundLinesResult> {
   try {
@@ -201,6 +203,7 @@ export async function refundOrderLines(
       discountCents: Number(order.discount_cents ?? 0),
       transactions,
       tipCents: Number(order.tip_cents ?? 0),
+      amountCents: input.amountCents,
     });
     if (!plan.ok) return { ok: false, reason: plan.reason, movedCents: 0 };
 

@@ -10,10 +10,15 @@ import { publicThreadPath, signThreadToken } from "@/lib/messaging/thread-token"
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
 import { venueHhmm } from "@/lib/spaces/venue-clock";
 
+import { googleCalendarUrl, icsDataHref } from "@/lib/payments/calendar-links";
 import { moneyMayHaveMoved } from "@/lib/payments/pay-closed-money";
 import { CheckoutView } from "./CheckoutView";
+import { payCalendarEvent } from "@/lib/payments/pay-calendar-event";
 import { resolvePaidLinkDisplayStatus } from "@/lib/payments/pay-refund-status";
 import { loadPayLinkFeeLines } from "@/lib/payments/pay-link-fee-lines";
+import { resolvePayeeName } from "@/lib/payments/payee-name";
+import { interpolate } from "@/i18n/interpolate";
+import { createTranslator } from "@/i18n/messages";
 
 /**
  * Absolute origin for Stripe success/cancel URLs. Prefer NEXT_PUBLIC_BASE_URL
@@ -118,17 +123,34 @@ export async function PayByCodePage({
   // pickup hold is a pickup; anything else gets neutral wording.
   const { data: slotBooking } = await admin
     .from("agency_bookings")
-    .select("id, status")
+    .select("id, status, title, venue_name, venue_location_text")
     .eq("order_id", loaded.orderId)
     .limit(1)
     .maybeSingle();
   // A booking made from an accepted offer has no time yet: it keeps no slot, so
   // the page must not say the appointment time is kept.
   const slotBookingId = (slotBooking as { id?: string } | null)?.id ?? null;
+  const agencySlot = (slotBooking ?? null) as {
+    id?: string;
+    status?: string | null;
+    title?: string | null;
+    venue_name?: string | null;
+    venue_location_text?: string | null;
+  } | null;
   const { data: slotTime } = slotBookingId
-    ? await admin.from("talent_bookings").select("starts_at").eq("id", slotBookingId).maybeSingle()
+    ? await admin
+        .from("talent_bookings")
+        .select("starts_at, ends_at, location_text, title")
+        .eq("id", slotBookingId)
+        .maybeSingle()
     : { data: null };
-  const bookingHasTime = Boolean((slotTime as { starts_at?: string | null } | null)?.starts_at);
+  const talentSlot = (slotTime ?? null) as {
+    starts_at?: string | null;
+    ends_at?: string | null;
+    location_text?: string | null;
+    title?: string | null;
+  } | null;
+  const bookingHasTime = Boolean(talentSlot?.starts_at);
   const slotKind: "appointment" | "appointment_no_time" | "pickup" | null = slotBooking
     ? bookingHasTime
       ? "appointment"
@@ -151,6 +173,13 @@ export async function PayByCodePage({
   const threadToken = inquiryId && loaded.tenantId ? signThreadToken(inquiryId, loaded.tenantId) : null;
   const threadHref = threadToken ? publicThreadPath(threadToken) : null;
   const receiptHref = orderRow?.receipt_code ? `/r/${orderRow.receipt_code}` : null;
+  const uiLocale = (await getRequestLocale()) === "en" ? "en" : "es";
+  const cameFromConversation = Boolean(inquiryId);
+  const orderLines = ((lines ?? []) as { label: string | null; units: number; unit_cents: number }[]).map((line) => ({
+    label: line.label ?? "",
+    units: Number(line.units) || 1,
+    unitCents: Number(line.unit_cents) || 0,
+  }));
 
   // The RECORD says paid; the query string cannot. Stripe sends the customer
   // back with `?status=paid` before the webhook settles the link, and that
@@ -166,11 +195,8 @@ export async function PayByCodePage({
         currency={orderRow?.currency ?? "USD"}
         expiresAt={expiresAtLabel}
         status="processing"
-        lines={((lines ?? []) as { label: string | null; units: number; unit_cents: number }[]).map((line) => ({
-          label: line.label ?? "",
-          units: Number(line.units) || 1,
-          unitCents: Number(line.unit_cents) || 0,
-        }))}
+        locale={uiLocale}
+        lines={orderLines}
         holdUntil={holdUntilLabel}
         stripeUrl={null}
         threadHref={threadHref}
@@ -196,6 +222,33 @@ export async function PayByCodePage({
       orderStatus: orderRow?.status ?? null,
       bookingPaymentStatus,
     });
+    const sellerName = await resolvePayeeName(admin, loaded.tenantId);
+    const t = createTranslator(uiLocale);
+    // Location for .ics/Google only; skip the inquiry read on open/processing.
+    const { data: inquiryLoc } =
+      paidDisplay === "paid" && inquiryId
+        ? await admin.from("inquiries").select("event_location").eq("id", inquiryId).maybeSingle()
+        : { data: null };
+    const requestedLocation =
+      (inquiryLoc as { event_location?: string | null } | null)?.event_location ?? null;
+    const calendarEv =
+      paidDisplay === "paid"
+        ? payCalendarEvent({
+            uid: slotBookingId ?? loaded.orderId,
+            startsAt: talentSlot?.starts_at,
+            endsAt: talentSlot?.ends_at,
+            title: talentSlot?.title ?? agencySlot?.title ?? orderLines[0]?.label ?? null,
+            locationText: talentSlot?.location_text,
+            requestedLocation,
+            venueLocationText:
+              [agencySlot?.venue_name, agencySlot?.venue_location_text].filter(Boolean).join(" · ") || null,
+            sellerName,
+            description: sellerName ? interpolate(t("public.thread.paidTo"), { seller: sellerName }) : null,
+          })
+        : null;
+    const icsHref = calendarEv ? icsDataHref(calendarEv) : null;
+    const googleHref = calendarEv ? googleCalendarUrl(calendarEv) : null;
+    const calendar = icsHref && googleHref ? { icsHref, googleHref } : null;
     return (
       <CheckoutView
         code={code}
@@ -205,11 +258,36 @@ export async function PayByCodePage({
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
         status={paidDisplay}
-        lines={[]}
+        locale={uiLocale}
+        sellerName={sellerName}
+        autoReturn={cameFromConversation && query.status === "paid"}
+        lines={orderLines}
         holdUntil={holdUntilLabel}
         stripeUrl={null}
         threadHref={threadHref}
         receiptHref={paidDisplay === "paid" ? receiptHref : null}
+        calendar={calendar}
+      />
+    );
+  }
+
+  // Stripe's "back" arrow lands here with ?status=cancelled on a still-open link:
+  // nothing was charged, and the client can try again or return to the chat.
+  if (loaded.status === "open" && query.status === "cancelled") {
+    return (
+      <CheckoutView
+        code={code}
+        pathPrefix={pathPrefix}
+        amountCents={loaded.amountCents}
+        currency={orderRow?.currency ?? ""}
+        expiresAt={expiresAtLabel}
+        status="cancelledReturn"
+        locale={uiLocale}
+        lines={[]}
+        holdUntil={null}
+        stripeUrl={null}
+        threadHref={threadHref}
+        receiptHref={null}
       />
     );
   }
@@ -252,7 +330,7 @@ export async function PayByCodePage({
 
   const origin = await checkoutOrigin();
   const successUrl = `${origin}${pathPrefix}/${code}?status=paid`;
-  const cancelUrl = `${origin}${pathPrefix}/${code}`;
+  const cancelUrl = `${origin}${pathPrefix}/${code}?status=cancelled`;
 
   // A mock link is a demo, and it never settles on production: whoever holds
   // the code could otherwise mark it paid with no money moving. A Stripe link
@@ -349,6 +427,7 @@ export async function PayByCodePage({
       currency={orderRow?.currency ?? ""}
       expiresAt={expiresAtLabel}
       status="open"
+      locale={uiLocale}
       feeLines={feeLines}
       lines={((lines ?? []) as { label: string | null; units: number; unit_cents: number }[]).map((line) => ({
         label: line.label ?? "",

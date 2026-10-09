@@ -8,7 +8,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
-import { resolveInsertAnchor } from "./add-gallery/gallery-insert-hint";
+import { insertLevelForGalleryAction, resolveInsertAnchor } from "./add-gallery/gallery-insert-hint";
 import { resolveDuplicateRoute } from "./builder-duplicate-route";
 import { nextAddMenuChrome, type AddMenuChrome } from "./add-menu-chrome";
 import { liveTextCommitValue } from "./inspectors/live-text-commit";
@@ -67,6 +67,52 @@ describe("duplicate guard (#6): Duplicate never dead-ends on a section node", ()
     assert.deepEqual(resolveDuplicateRoute(tree, "emb"), { route: "node" });
     assert.deepEqual(resolveDuplicateRoute(tree, "t1"), { route: "node" });
     assert.deepEqual(resolveDuplicateRoute(tree, "missing"), { route: "node" });
+  });
+});
+
+describe("nested section duplicate (B-2)", () => {
+  const tree: BuilderNodeTree = [
+    node("hero", "section", { sectionId: "db-hero" }, [
+      node("gallery", "section", { sectionId: "db-gallery" }),
+      node("plain", "container"),
+    ]),
+  ];
+
+  it("a section row nested in another block is reported, not sent to the section duplicate", () => {
+    const route = resolveDuplicateRoute(tree, "gallery");
+    assert.equal(route.route, "unsupported");
+    assert.ok(route.route === "unsupported" && route.message.length > 20);
+  });
+
+  it("the page-root section still routes to the section duplicate; nested plain blocks use the node lane", () => {
+    assert.deepEqual(resolveDuplicateRoute(tree, "hero"), { route: "section", sectionId: "db-hero" });
+    assert.deepEqual(resolveDuplicateRoute(tree, "plain"), { route: "node" });
+  });
+});
+
+describe("whole-section insert never nests in the selected hero (B-1)", () => {
+  const tree: BuilderNodeTree = [
+    node("hero", "section", {}, [node("heading", "heading"), node("box", "container", {}, [node("t", "text")])]),
+    node("faq", "section_embed"),
+  ];
+
+  it("a section-level insert after a nested selection lands after the page-root ancestor", () => {
+    assert.deepEqual(resolveInsertAnchor(tree, "box", null, "page-root"), { parentId: null, index: 1 });
+    assert.deepEqual(resolveInsertAnchor(tree, "t", null, "page-root"), { parentId: null, index: 1 });
+    assert.deepEqual(resolveInsertAnchor(tree, "faq", null, "page-root"), { parentId: null, index: 2 });
+  });
+
+  it("an element insert keeps landing next to the selection inside its container", () => {
+    assert.deepEqual(resolveInsertAnchor(tree, "box", null), { parentId: "hero", index: 2 });
+    assert.deepEqual(resolveInsertAnchor(tree, "t", null, "nearest"), { parentId: "box", index: 1 });
+  });
+
+  it("maps gallery actions to an insert level", () => {
+    assert.equal(insertLevelForGalleryAction("sectionEmbed"), "page-root");
+    assert.equal(insertLevelForGalleryAction("connectedNode"), "page-root");
+    assert.equal(insertLevelForGalleryAction("sectionTemplate"), "page-root");
+    assert.equal(insertLevelForGalleryAction("nativeNode"), "nearest");
+    assert.equal(insertLevelForGalleryAction("dbTemplate"), "nearest");
   });
 });
 

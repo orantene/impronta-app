@@ -56,7 +56,7 @@ describe("claim path writes the lane explicitly", () => {
 
   test("every lane a caller passes is a known WebhookLane", () => {
     const callers: Array<[string, RegExp]> = [
-      ["./webhook-handler.ts", /lane: account === "mx" \? "platform_mx" : "platform"/],
+      ["./webhook-http.ts", /lane: account === "mx" \? "platform_mx" : "platform"/],
       ["../../app/api/discover/subscriptions/webhook/route.ts", /const LANE = "discover_client_subscription" as const/],
     ];
     for (const [file, re] of callers) {

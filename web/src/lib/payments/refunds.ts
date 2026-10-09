@@ -43,6 +43,7 @@
  * they no-op cleanly in mock/test mode (no live transfers to reverse).
  */
 
+import { bookAfterLostRace, resolveRefundForEvent } from "@/lib/payments/refund-event-resolve";
 import type Stripe from "stripe";
 import { markRefunded as markRefundedReal, markDisputed as markDisputedReal } from "@/lib/bookings/transactions";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -379,12 +380,12 @@ async function reconcilePartialRefund(
   chargeId: string,
   refundId: string | null,
   deps: RefundDeps = {},
-): Promise<void> {
+): Promise<boolean> {
   const d = resolveRefundDeps(deps);
   const sb = d.resolveSupabase();
   if (!sb) {
     logServerError("refunds.partial.noDb", new Error(`partial refund ${refundAmountCents} on txn ${ref.transactionId} — no service-role client`));
-    return;
+    return false;
   }
 
   // Record the partial refund on the books regardless of payout state.
@@ -398,7 +399,7 @@ async function reconcilePartialRefund(
       `refunds.partial[txn=${ref.transactionId}]`,
       new Error(`Partial refund ${refundAmountCents} recorded; no booking_id on PI → payout math not reconciled (manual check).`),
     );
-    return;
+    return isNew;
   }
 
   // Only run the clawback for a NEWLY-recorded refund. A re-delivered event
@@ -409,7 +410,7 @@ async function reconcilePartialRefund(
     void improntaLog("stripe_webhook.info", {
       message: `[refund.partial] booking=${ref.bookingId} refund=${refundId ?? "(no-id)"} already recorded — clawback + notify skipped (re-delivery).`,
     });
-    return;
+    return false;
   }
 
   const snaps = await loadBookingCommissionSnapshots(sb, ref.bookingId);
@@ -469,6 +470,7 @@ async function reconcilePartialRefund(
   // Tell the client their (partial) money is on the way back. The talent is
   // protected from a partial clawback, so they're intentionally not notified.
   await d.notifyClientPartialRefund(sb, ref.bookingId, refundAmountCents);
+  return true;
 }
 
 /**
@@ -509,13 +511,47 @@ export async function handleBookingRefund(
       /* fall back to the legacy full-charge comparison */
     }
   }
+  // TUL-144: the event may not name its refund (newer Stripe API versions drop
+  // `charge.refunds`). Resolve the next unrecorded refund from Stripe so each
+  // refund is booked once, under its own id and its own slice.
+  let eventRefundId = input.refundId ?? null;
+  let eventRefundAmount = input.refundAmountCents;
+  let everyRefundRecorded = false;
+  if (!eventRefundId) {
+    const sbResolve = d.resolveSupabase();
+    if (sbResolve) {
+      const resolved = await resolveRefundForEvent({ stripe, sb: sbResolve, chargeId: input.chargeId, transactionId: ref.transactionId });
+      if (resolved.kind === "all_recorded") everyRefundRecorded = true;
+      if (resolved.kind === "next") {
+        eventRefundId = resolved.refundId;
+        eventRefundAmount = resolved.amountCents;
+      }
+    }
+  }
   const isFullRefund = ref.chargeAmountCents > 0 && input.refundedCents >= ref.chargeAmountCents - feesKeptCents;
   if (!isFullRefund) {
+    // A redelivery whose refunds are all on the books: nothing to record. (A FULL
+    // refund still falls through: its payout reversal and book flips must be able
+    // to re-run if the first delivery failed midway.)
+    if (everyRefundRecorded) return true;
     // The individual refund slice drives the partial reconciliation; fall back
     // to the cumulative amount only if the routing layer couldn't enumerate the
     // refund object (legacy/trimmed payload).
-    const refundAmountCents = input.refundAmountCents ?? input.refundedCents;
-    await reconcilePartialRefund(stripe, ref, refundAmountCents, input.chargeId, input.refundId ?? null, deps);
+    const refundAmountCents = eventRefundAmount ?? input.refundedCents;
+    const booked = await reconcilePartialRefund(stripe, ref, refundAmountCents, input.chargeId, eventRefundId, deps);
+    // Race: two deliveries for different refunds can both pick the same oldest
+    // unrecorded refund; the unique provider_refund_id lets one win and this one
+    // finds its pick already booked. Re-resolve once and book the next, so the
+    // loser's own refund is not dropped (a plain redelivery finds none left).
+    if (!booked && !input.refundId && eventRefundId) {
+      const sbRetry = d.resolveSupabase();
+      if (sbRetry) {
+        await bookAfterLostRace(
+          () => resolveRefundForEvent({ stripe, sb: sbRetry, chargeId: input.chargeId, transactionId: ref.transactionId }),
+          (id, amount) => reconcilePartialRefund(stripe, ref, amount, input.chargeId, id, deps),
+        );
+      }
+    }
     return true;
   }
 
@@ -526,8 +562,8 @@ export async function handleBookingRefund(
     // completing path books the remainder row (not a duplicate full gross)
     // and can dedup on re-delivery. Without these, markRefunded still books
     // `remaining = gross − prior partials`, but loses the `re_...` key.
-    refundAmountCents: input.refundAmountCents ?? input.refundedCents,
-    providerRefundId: input.refundId ?? null,
+    refundAmountCents: eventRefundAmount ?? input.refundedCents,
+    providerRefundId: eventRefundId,
   });
   if (!marked.ok) {
     // "already refunded" / bad-state transitions are expected on re-delivery —

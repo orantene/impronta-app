@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { bioPassesRules, draftBio } from "./draft-bio";
-import { planBios } from "./bilingual-bio";
+import { planBios, secondaryLocalesFromBioEntries } from "./bilingual-bio";
 
 const rosa = { name: "Rosa", discipline: "House cleaner", city: "Playa del Carmen", services: ["House cleaning", "Deep cleaning"], yearsExperience: null };
 
@@ -44,4 +44,16 @@ test("an unnamed, trade-less brief still passes in both languages (the floor is 
   const plan = planBios(bare, "es");
   assert.equal(plan.entries.length, 2);
   assert.equal(plan.base?.locale, "es");
+});
+
+test("TUL-442: a Spanish bilingual plan enables en (not es) as secondary", () => {
+  const plan = planBios(rosa, "es");
+  assert.deepEqual(secondaryLocalesFromBioEntries(plan.entries, "es"), ["en"]);
+});
+
+test("TUL-442: when only the primary draft passes, secondary stays empty", () => {
+  assert.deepEqual(
+    secondaryLocalesFromBioEntries([{ locale: "es", text: "Soy Rosa, limpio casas en Playa del Carmen." }], "es"),
+    [],
+  );
 });

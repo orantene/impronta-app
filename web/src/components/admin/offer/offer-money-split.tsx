@@ -28,7 +28,21 @@ export type OfferSplitLine = {
   talentCost: number;
 };
 
-/** Column headings aligned to the line-item grid. */
+/**
+ * Line-item layout. The editor root is a container (`@container`), so these
+ * breakpoints follow the PANEL width, not the viewport: below 640px each line
+ * stacks into labelled fields (1 column under 360px, 2 columns above), at
+ * 640px+ it is the 6-column table and the per-field labels give way to
+ * OfferColumnHeaders.
+ */
+export const OFFER_LINE_ROW_CLASS =
+  "grid grid-cols-1 items-end gap-1.5 rounded-lg border border-admin-border bg-white px-2.5 py-2 @[360px]:grid-cols-2 @[640px]:grid-cols-[1.6fr_0.8fr_0.6fr_0.8fr_0.8fr_28px] @[640px]:items-center";
+export const OFFER_LINE_LABEL_CLASS =
+  "text-[9.5px] font-bold uppercase tracking-[0.5px] text-admin-ink-muted @[640px]:hidden";
+export const OFFER_LINE_CONTROL_CLASS =
+  "w-full min-w-0 rounded border border-admin-border bg-white px-1.5 py-1 text-[11px] text-admin-ink";
+
+/** Column headings aligned to the line-item grid (table layout only). */
 export function OfferColumnHeaders({ t }: { t: (key: string) => string }) {
   // Literal keys on purpose: the i18n static extractor treats a template key
   // as "everything under this prefix is live", which silently revives the
@@ -41,7 +55,7 @@ export function OfferColumnHeaders({ t }: { t: (key: string) => string }) {
     t("dashboard.adminTabs.lineup.colTalentGets"),
   ];
   return (
-    <div className="grid grid-cols-[1.6fr_0.8fr_0.6fr_0.8fr_0.8fr_28px] gap-1.5 px-2.5 text-admin-ink-muted">
+    <div className="hidden grid-cols-[1.6fr_0.8fr_0.6fr_0.8fr_0.8fr_28px] gap-1.5 px-2.5 text-admin-ink-muted @[640px]:grid">
       {cells.map((label) => (
         <span key={label} className="text-[9.5px] font-bold uppercase tracking-[0.5px]">
           {label}
@@ -151,27 +165,31 @@ export function OfferEditorFooter({
         {t("dashboard.adminTabs.lineup.addLineItem")}
       </button>
       <span className="flex-1" />
-      <label className="text-admin-11 text-admin-ink-muted">{t("dashboard.adminTabs.lineup.total")}</label>
+      <span className="text-admin-11 text-admin-ink-muted">{t("dashboard.adminTabs.lineup.total")}</span>
       <span title={t("dashboard.adminTabs.lineup.totalTitle")} className="min-w-[90px] whitespace-nowrap px-1.5 py-1 text-right text-[13px] font-bold text-admin-ink">
         {formatOfferMoney(total, currencyCode, { maximumFractionDigits: 0 })}
       </span>
-      <label htmlFor="offer-agency-fee" title={t("dashboard.adminTabs.lineup.feeTitle")} className="text-admin-11 text-admin-ink-muted">
-        {t("dashboard.adminTabs.lineup.feeExtra")}
-      </label>
-      <input
-        id="offer-agency-fee"
-        type="number"
-        min={0}
-        step="100"
-        value={coordinatorFee}
-        title={t("dashboard.adminTabs.lineup.feeTitle")}
-        onChange={(e) => onFeeChange(parseFloat(e.target.value) || 0)}
-        className="w-20 rounded border border-admin-border px-1.5 py-1 text-[11px] text-admin-ink"
-      />
+      <span className="inline-flex shrink-0 items-center gap-1.5">
+        <label htmlFor="offer-agency-fee" title={t("dashboard.adminTabs.lineup.feeTitle")} className="whitespace-nowrap text-admin-11 text-admin-ink-muted">
+          {t("dashboard.adminTabs.lineup.feeExtra")}
+        </label>
+        <input
+          id="offer-agency-fee"
+          type="number"
+          min={0}
+          step="100"
+          value={coordinatorFee}
+          aria-label={t("dashboard.adminTabs.lineup.feeExtra")}
+          title={t("dashboard.adminTabs.lineup.feeTitle")}
+          onChange={(e) => onFeeChange(parseFloat(e.target.value) || 0)}
+          className="w-20 rounded border border-admin-border px-1.5 py-1 text-[11px] text-admin-ink"
+        />
+      </span>
       <button
         type="button"
         disabled={savePending}
         onClick={onSave}
+        data-offer-save-draft
         className="rounded bg-admin-accent px-2.5 py-1 text-[11px] font-semibold text-white disabled:opacity-50"
       >
         {savePending ? t("dashboard.adminTabs.lineup.saving") : t("dashboard.adminTabs.lineup.saveDraft")}

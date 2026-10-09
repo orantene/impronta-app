@@ -127,3 +127,53 @@ export function mapDeliverableDeadline(
     history: [],
   };
 }
+
+/**
+ * TUL-360: an instant-book purchase opens an `inquiries` row as its message
+ * thread (Messages / `/c/[id]`), and the same purchase writes the booking
+ * (`talent_bookings` mirror, or a hold). The agenda lists open inquiries as
+ * "Booking request" rows, so the thread inquiry showed up as a second,
+ * inquiry-labelled item beside (or instead of) the reserved booking.
+ *
+ * An inquiry already linked from a booking or hold is that booking's thread,
+ * not an open request: the booking row carries the state (reserved, payment
+ * pending, paid). A pure inquiry (no linked booking/hold) is kept.
+ */
+export function openInquiriesWithoutBooking<T extends { id: string }>(
+  inquiries: readonly T[],
+  linked: {
+    bookings: readonly { inquiry_id: string | null }[];
+    holds: readonly { inquiry_id: string | null }[];
+  },
+): T[] {
+  const taken = new Set<string>();
+  for (const row of [...linked.bookings, ...linked.holds]) {
+    if (row.inquiry_id) taken.add(row.inquiry_id);
+  }
+  return inquiries.filter((inquiry) => !taken.has(inquiry.id));
+}
+
+/**
+ * TUL-450: who the booking is for. An instant-booked guest has no
+ * `client_label` on the talent_bookings mirror and no contact on the
+ * agency_bookings row; the name lives on the inquiry the booking came from.
+ * First non-blank wins: agency contact, the mirror's label, the inquiry contact.
+ */
+export function pickBookingClient(input: {
+  agency?: { contact_name?: string | null; contact_email?: string | null; contact_phone?: string | null } | null;
+  clientLabel?: string | null;
+  inquiry?: { contact_name?: string | null; contact_email?: string | null; contact_phone?: string | null } | null;
+}): { name: string | null; email: string | null; phone: string | null } {
+  const first = (...vals: Array<string | null | undefined>): string | null => {
+    for (const v of vals) {
+      const t = typeof v === "string" ? v.trim() : "";
+      if (t) return t;
+    }
+    return null;
+  };
+  return {
+    name: first(input.agency?.contact_name, input.clientLabel, input.inquiry?.contact_name),
+    email: first(input.agency?.contact_email, input.inquiry?.contact_email),
+    phone: first(input.agency?.contact_phone, input.inquiry?.contact_phone),
+  };
+}

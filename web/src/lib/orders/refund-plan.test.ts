@@ -155,6 +155,52 @@ test("a PARTIAL refund does NOT release it — a partial refund is still a purch
   if (plan.ok) assert.equal(releasesPromoRedemption(plan), false);
 });
 
+test("TUL-431: amountCents caps a single line (MX$300 of a larger service)", () => {
+  // Line is 1,500.00 MXN (150_000 minor); ask for 300.00 MXN (30_000 minor).
+  const plan = planRefund({
+    lines: [line("svc", 150_000)],
+    lineIds: ["svc"],
+    scope: {},
+    discountCents: 0,
+    transactions: [txn("t1", 150_000)],
+    amountCents: 30_000,
+  });
+  assert.equal(plan.ok, true);
+  if (!plan.ok) return;
+  assert.equal(plan.totalCents, 30_000);
+  assert.deepEqual(plan.lines, [{ id: "svc", amountCents: 30_000 }]);
+  assert.deepEqual(plan.steps, [{ transactionId: "t1", amountCents: 30_000 }]);
+  assert.equal(plan.isFullRefund, false);
+});
+
+test("TUL-431: amountCents over the remaining refuses as exceeds_captured", () => {
+  const plan = planRefund({
+    lines: [line("svc", 5_000)],
+    lineIds: ["svc"],
+    scope: {},
+    discountCents: 0,
+    transactions: [txn("t1", 5_000)],
+    amountCents: 5_001,
+  });
+  assert.equal(plan.ok, false);
+  if (!plan.ok) assert.equal(plan.reason, "exceeds_captured");
+});
+
+test("TUL-431: amountCents on two lines drains the first, drops the rest at $0", () => {
+  const plan = planRefund({
+    lines: [line("a", 4_000), line("b", 6_000)],
+    lineIds: ["a", "b"],
+    scope: {},
+    discountCents: 0,
+    transactions: [txn("t1", 10_000)],
+    amountCents: 2_500,
+  });
+  assert.equal(plan.ok, true);
+  if (!plan.ok) return;
+  assert.deepEqual(plan.lines, [{ id: "a", amountCents: 2_500 }]);
+  assert.equal(plan.totalCents, 2_500);
+});
+
 test("refunding the LAST outstanding line is full, even if others went earlier", () => {
   // Fullness is a property of the ORDER after this plan, not of this call.
   const plan = planRefund({

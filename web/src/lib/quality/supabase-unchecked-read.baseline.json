@@ -21,7 +21,7 @@
   "src/app/(workspace)/[tenantSlug]/_data-bridge/talent-inquiries-all-agencies.ts": 1,
   "src/app/(workspace)/[tenantSlug]/_data-bridge/talent.ts": 1,
   "src/app/(workspace)/[tenantSlug]/admin/_alternates-actions.ts": 1,
-  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 39,
+  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 37,
   "src/app/(workspace)/[tenantSlug]/admin/account/payout-account-actions.ts": 2,
   "src/app/(workspace)/[tenantSlug]/admin/activity-log/page.tsx": 1,
   "src/app/(workspace)/[tenantSlug]/admin/bookings/[id]/call-sheet/page.tsx": 1,

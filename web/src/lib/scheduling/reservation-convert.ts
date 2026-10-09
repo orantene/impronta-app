@@ -14,6 +14,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
+import { cleanEventLocation } from "./booking-event-location";
 import { parseReservationStamp } from "./reservation-intent";
 import { stampInquiryEventFromBooking } from "./inquiry-event-stamp";
 import { isExclusionViolation, releaseHoldsForInquiry } from "./reservation-hold";
@@ -61,6 +62,8 @@ export type AppointmentMirrorSource = {
   timezone: string;
   title: string;
   holdId: string | null;
+  /** The stamped offering (storefront / request path); null on the hold-only path. */
+  offeringId?: string | null;
 };
 
 type LiveHoldRow = {
@@ -155,6 +158,7 @@ export async function resolveAppointmentMirrorSource(
           timezone: stamp.timezone,
           title,
           holdId: stamp.hold_id ?? null,
+          offeringId: stamp.offering_id,
         },
       };
     }
@@ -198,6 +202,10 @@ export async function enrichBookingFromReservation(
     bookingId: string;
     actorUserId?: string | null;
     appointment?: AppointmentOverride | null;
+    /** TUL-426: what the booking sheet sent for the place, the booked offering and the buyer's locale. */
+    requestedLocation?: string | null;
+    offeringId?: string | null;
+    locale?: string | null;
   },
 ): Promise<EnrichBookingFromReservationResult> {
   if (!input.inquiryId || !input.bookingId) {
@@ -239,6 +247,18 @@ export async function enrichBookingFromReservation(
     return { ok: false, error: stampErr.message };
   }
 
+  // TUL-436: the place the client gave (service address) rides the mirror and the
+  // agency booking, so the talent calendar and the ICS feed show it. Gaps only.
+  const place = cleanEventLocation(input.requestedLocation);
+  if (place) {
+    const { error: venueErr } = await admin
+      .from("agency_bookings")
+      .update({ venue_location_text: place })
+      .eq("id", input.bookingId)
+      .is("venue_location_text", null);
+    if (venueErr) logServerError("reservation-convert/venue_location_text", venueErr);
+  }
+
   const { data: existing } = await admin
     .from("talent_bookings")
     .select("id, location_text")
@@ -255,6 +275,7 @@ export async function enrichBookingFromReservation(
       ends_at: source.endsAt,
       all_day: false,
       status: "confirmed",
+      ...(place ? { location_text: place } : {}),
       created_by_user_id: input.actorUserId ?? null,
     });
     if (insErr) {
@@ -288,6 +309,9 @@ export async function enrichBookingFromReservation(
     tenantId: source.tenantId,
     startsAt: source.startsAt,
     locationText: (existing as { location_text?: string | null } | null)?.location_text ?? null,
+    requestedLocation: input.requestedLocation ?? null,
+    offeringId: input.offeringId ?? source.offeringId ?? null,
+    locale: input.locale ?? null,
   });
 
   if (source.holdId) {

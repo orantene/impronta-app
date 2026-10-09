@@ -20,6 +20,8 @@ import { applyRowOverrides, setRowOverride, useRowOverrideSubscription } from ".
 import { STAGE_LABEL, STAGE_LABEL_KEYS, fmtMoney, getOffer, nextActionFor, rowSubtotal } from "./machinery-10";
 import type { OfferPov } from "./machinery-10";
 import { CreateOfferButton, OfferDraftEditor } from "./machinery-11";
+import { TalentOfferApprovalCard } from "./talent-offer-approval-card";
+import { selectTalentOfferView } from "./talent-offer-view";
 import type { SendGateResult } from "./offer-save-state";
 import { OfferTermsSummary } from "./offer-terms-ui";
 import { type OfferCommercialTerms } from "@/lib/billing/commercial-terms-types";
@@ -333,15 +335,8 @@ export function LiveOfferPanel({
       {/* Engine-wired actions — admin OR the appointed inquiry coordinator.
           sendOfferAction / reopenOfferAction / counterOfferAction are
           coordinator-authorized (WS3) and run under the coordinator session. */}
-      {(canManage && (status === "draft" || status === "sent" || status === "rejected")) && (
+      {(canManage && (status === "sent" || status === "rejected")) && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          {status === "draft" && (
-            <button type="button" disabled={pending || sendBlocked}
-              title={sendBlocked && sendGate && !sendGate.ok ? t(sendGate.reasonKey) : undefined}
-              onClick={() => run(t("dashboard.adminTabs.offer.sendOffer"), () => sendOfferAction(effectiveTenant.slug, inquiryId, offerId))}
-              style={pending || sendBlocked ? disabledBtn(primaryBtn(COLORS.accent)) : primaryBtn(COLORS.accent)}
-            >{t("dashboard.adminTabs.offer.sendToClient")}</button>
-          )}
           {/* A2 — Amend & re-send: when the offer is SENT but the admin needs
               to adjust terms (price error, changed scope, client feedback),
               this button calls reopenOfferAction which flips the offer back to
@@ -406,6 +401,16 @@ export function LiveOfferPanel({
       {status === "draft" && (
         <div style={{ marginTop: 4 }}>
           <OfferDraftEditor inquiryId={inquiryId} offerId={offerId} canEdit={canManage} onSendGateChange={setSendGate} />
+        </div>
+      )}
+      {/* Send comes LAST (edit, then save inside the editor, then send). */}
+      {canManage && status === "draft" && (
+        <div className="flex flex-wrap items-center justify-end gap-2.5" data-offer-send-row>
+          <button type="button" disabled={pending || sendBlocked}
+            title={sendBlocked && sendGate && !sendGate.ok ? t(sendGate.reasonKey) : undefined}
+            onClick={() => run(t("dashboard.adminTabs.offer.sendOffer"), () => sendOfferAction(effectiveTenant.slug, inquiryId, offerId))}
+            style={pending || sendBlocked ? disabledBtn(primaryBtn(COLORS.accent)) : primaryBtn(COLORS.accent)}
+          >{t("dashboard.adminTabs.offer.sendToClient")}</button>
         </div>
       )}
     </div>
@@ -545,6 +550,16 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
         : hasOffer
         ? "The coordinator has sent you an offer for this job. Review your take-home below, then use Approve or Decline in the action bar."
         : "The coordinator is waiting on your number. You'll see the agency fee + platform fee deducted before take-home, so quote what you actually need to walk out with, plus a small margin for usage.";
+      const stubView = realInquiryId && !isBooked
+        ? selectTalentOfferView({ stage: conv.stage, myApprovalStatus: conv.myApprovalStatus, hasSentOffer: !!(liveOffer && liveOffer.status === "sent") })
+        : "draft_cta";
+      if (stubView !== "draft_cta") {
+        return (
+          <div className="flex flex-col gap-3 p-[18px] font-body">
+            <TalentOfferApprovalCard inquiryId={conv.id} view={stubView} takeHome={takeHome} />
+          </div>
+        );
+      }
       return (
         <div style={{ padding: 18, fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 12 }}>
           {talentPayout && talentPayout.hasProfile && (
@@ -591,6 +606,19 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
               </div>
             )}
           </div>
+        </div>
+      );
+    }
+    // TUL-317: a talent (incl. a coordinator who is also a participant) with a
+    // sent offer awaiting their approval sees Approve / Reject here, not the
+    // draft CTA. Non-participants have a null approval status and fall through.
+    const talentView = isTalent && realInquiryId
+      ? selectTalentOfferView({ stage: conv.stage, myApprovalStatus: conv.myApprovalStatus, hasSentOffer: !!(liveOffer && liveOffer.status === "sent") })
+      : "draft_cta";
+    if (talentView !== "draft_cta") {
+      return (
+        <div className="flex flex-col gap-3 p-[18px] font-body">
+          <TalentOfferApprovalCard inquiryId={conv.id} view={talentView} takeHome={takeHome} />
         </div>
       );
     }

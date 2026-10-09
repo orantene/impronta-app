@@ -9,7 +9,10 @@ import "server-only";
  *   talent_profiles         row via the onboarding RPC (display name only; the
  *                           legal identity is never asked here), then city,
  *                           country, short bio, contact email, and the flow
- *                           language as `preferred_locale` (only when NULL)
+ *                           language as `preferred_locale` (only when NULL);
+ *                           non-primary bio locales land in `secondary_locales`
+ *                           (add-only) so `/en` is reachable when `bio_i18n.en`
+ *                           was written (TUL-442)
  *   agency_talent_roster    the platform hub roster (tenant scope for the rest)
  *   talent_profile_taxonomy primary_role from the type chip (validated slug)
  *   talent_languages        the brief's languages, else the module's language
@@ -32,7 +35,9 @@ import { listFact, numberFact, stringFact } from "@/lib/tulala/brief-store";
 import { planBios } from "./bilingual-bio";
 import { syncBiosToBioI18n } from "@/lib/translation/sync-bios-to-bio-i18n.server";
 import { proposeTalentType } from "./type-chip";
+import { resolveTradeType } from "./trade-label";
 import { fillTalentPreferredLocale } from "./talent-preferred-locale";
+import { enableSecondaryLocalesFromBios } from "./talent-secondary-locales-from-bio";
 import { loadTalentTypeTerms } from "./type-chip.server";
 
 export type TalentWriteOutcome = "written" | "skipped" | "failed";
@@ -151,12 +156,9 @@ export async function writeTalentProfileFromBrief(input: {
 
   // ── primary type ──────────────────────────────────────────────────────────
   if (tenantId) {
-    let slug = input.typeSlug;
-    if (!slug && discipline) {
-      const proposal = typeProposal ?? proposeTalentType(discipline, typeTerms);
-      slug = proposal.proposed?.slug ?? null;
-      if (slug) result.aiDrafted.push("primary_role");
-    }
+    // TUL-349: one deterministic trade; no confident trade writes no type (the hero tag stays neutral).
+    const slug = resolveTradeType({ typeSlug: input.typeSlug ?? null, discipline, terms: typeTerms }).slug;
+    if (slug && !input.typeSlug) result.aiDrafted.push("primary_role");
     if (slug) {
       const r = await syncTalentTypeTaxonomyFromShellSlugs(admin, { tenantId, talentProfileId: id, primarySlug: slug, secondarySlugs: [] });
       result.wrote.type = r.ok ? "written" : "failed";
@@ -204,6 +206,8 @@ export async function writeTalentProfileFromBrief(input: {
       await syncBlobFieldValuesToCatalog(admin, id, tenantId, { bios: bioPlan.entries });
       // F25: the public profile and site read bio_i18n (merged per locale); same mirror as the drawer save.
       await syncBiosToBioI18n(admin, id, bioPlan.entries);
+      // TUL-442: enable /en (etc.) when a non-primary bio was actually written.
+      await enableSecondaryLocalesFromBios(admin, id, bioPlan.entries, input.locale);
       result.wrote.bio = "written";
       result.aiDrafted.push("bio");
     } catch (err) {

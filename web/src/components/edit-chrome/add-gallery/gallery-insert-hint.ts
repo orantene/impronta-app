@@ -21,6 +21,12 @@ export interface GalleryInsertHint {
 }
 
 /**
+ * `nearest` - adjacent to the selection inside its own parent (element inserts).
+ * `page-root` - after the selection's top-level page band (section-level inserts).
+ */
+export type GalleryInsertLevel = "nearest" | "page-root";
+
+/**
  * Walk the tree to compute the insert position adjacent to `selectedNodeId`.
  *
  * Returns:
@@ -34,6 +40,7 @@ export interface GalleryInsertHint {
 export function resolveGalleryInsertHint(
   tree: BuilderNodeTree,
   selectedNodeId: string,
+  level: GalleryInsertLevel = "nearest",
 ): GalleryInsertHint | null {
   function walk(
     nodes: ReadonlyArray<BuilderNode>,
@@ -53,9 +60,12 @@ export function resolveGalleryInsertHint(
         // Prefer nested parent context when the selected node lives inside a
         // container (parentId is non-null). For root-level section nodes, use
         // the root index so the insert lands after that section.
-        if (parentId !== null) {
+        if (parentId !== null && level === "nearest") {
           return { parentId, index: i + 1 };
         }
+        // TUL-78 (B-1): a whole-section insert (section embed, section
+        // template) never lives inside a hero / container. It lands after the
+        // page-root ancestor of the selection instead of nesting under it.
         return { parentId: null, index: effectiveRootIdx + 1 };
       }
 
@@ -92,14 +102,28 @@ export function resolveInsertAnchor(
   tree: BuilderNodeTree,
   selectedNodeId: string | null,
   viewportSectionId: string | null,
+  level: GalleryInsertLevel = "nearest",
 ): GalleryInsertHint {
   if (selectedNodeId !== null && selectedNodeId !== "") {
-    const bySelection = resolveGalleryInsertHint(tree, selectedNodeId);
+    const bySelection = resolveGalleryInsertHint(tree, selectedNodeId, level);
     if (bySelection !== null) return bySelection;
   }
   if (viewportSectionId !== null && viewportSectionId !== "") {
-    const byViewport = resolveGalleryInsertHint(tree, viewportSectionId);
+    const byViewport = resolveGalleryInsertHint(tree, viewportSectionId, level);
     if (byViewport !== null) return byViewport;
   }
   return { parentId: null, index: tree.length };
+}
+
+/**
+ * TUL-78 (B-1): which insert level a gallery action needs. Whole-section
+ * actions (section embed, connected section, section template) belong at the
+ * page root; element and block-template inserts stay next to the selection.
+ */
+export function insertLevelForGalleryAction(actionType: string): GalleryInsertLevel {
+  return actionType === "sectionEmbed" ||
+    actionType === "connectedNode" ||
+    actionType === "sectionTemplate"
+    ? "page-root"
+    : "nearest";
 }

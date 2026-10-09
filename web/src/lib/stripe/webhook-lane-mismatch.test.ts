@@ -60,7 +60,7 @@ test("no other-lane secret configured: no crash, verify never called", async () 
 });
 
 test("handler wires the diagnostic before its unchanged 400, never claiming", () => {
-  const src = readFileSync(join(process.cwd(), "src/lib/stripe/webhook-handler.ts"), "utf8");
+  const src = readFileSync(join(process.cwd(), "src/lib/stripe/webhook-http.ts"), "utf8");
   const verifyFail = src.slice(src.indexOf('logServerError("stripe-webhook.verify"'));
   const idx = {
     report: verifyFail.indexOf("reportLaneMismatch("),

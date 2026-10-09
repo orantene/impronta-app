@@ -30,6 +30,8 @@ import {
 import { normalizeCurrencyCode } from "@/lib/inquiry/offer-currency";
 import { resolvePayeeName } from "@/lib/payments/payee-name";
 import { PAYMENT_LINK_METADATA_KEY } from "@/lib/payments/link-settlement";
+import { resolveLinkPayoutReceiver } from "@/lib/payments/link-payout-receiver";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 
 export type OpenPaymentLinkCheckoutResult =
@@ -41,6 +43,7 @@ export type OpenPaymentLinkCheckoutResult =
 export type OpenPaymentLinkCheckoutDeps = {
   createCheckoutSession?: typeof createCheckoutSessionForTransaction;
   retrieveCheckoutSession?: typeof retrieveCheckoutSessionLink;
+  resolveReceiver?: typeof resolveLinkPayoutReceiver;
   now?: () => number;
 };
 
@@ -67,6 +70,7 @@ type LinkForCheckout = {
   status: string;
   expires_at: string;
   reservation_id: string | null;
+  inquiry_id: string | null;
 };
 
 type ClaimRow = { id: string; state: string; transaction_id: string | null; expires_at: string };
@@ -121,7 +125,7 @@ async function openOnce(
 
   const { data: linkData, error: linkErr } = await admin
     .from("payment_links")
-    .select("id, tenant_id, order_id, code, amount_cents, currency, provider, status, expires_at, reservation_id")
+    .select("id, tenant_id, order_id, code, amount_cents, currency, provider, status, expires_at, reservation_id, inquiry_id")
     .eq("code", input.code)
     .maybeSingle();
   if (linkErr) {
@@ -242,6 +246,13 @@ async function openOnce(
     if (!shell.ok) return { ok: false, reason: "unavailable" };
     bookingId = shell.bookingId;
 
+    // The seller's own connected account when the link's inquiry has exactly
+    // one talent seller; null otherwise (the lane guard then keeps refusing).
+    const receiver = await (deps.resolveReceiver ?? resolveLinkPayoutReceiver)(
+      admin as unknown as SupabaseClient,
+      { tenantId: link.tenant_id, inquiryId: link.inquiry_id },
+    );
+
     const { data: inserted, error: insErr } = await admin
       .from("booking_transactions")
       .insert({
@@ -257,6 +268,13 @@ async function openOnce(
         provider: "stripe",
         status: "draft",
         checkout_type: "full",
+        ...(receiver
+          ? {
+              payout_receiver_id: receiver.payoutAccountId,
+              payout_receiver_kind: receiver.receiverKind,
+              payout_receiver_display_name: receiver.displayName,
+            }
+          : {}),
         requested_at: new Date(now()).toISOString(),
         metadata: { [RESERVATION_METADATA_KEY]: claim.id, [PAYMENT_LINK_METADATA_KEY]: link.id },
       })

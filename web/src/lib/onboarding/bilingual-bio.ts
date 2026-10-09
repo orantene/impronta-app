@@ -31,3 +31,20 @@ export function planBios(facts: BioFacts, flowLocale: BioLocale): BioPlan {
   }
   return { entries, base: entries.find((e) => e.locale === flowLocale) ?? entries[0] ?? null };
 }
+
+/**
+ * TUL-442 · locales from a bio plan that must be enabled on the public site
+ * (`secondary_locales`) so `/en` is reachable when English bio text exists.
+ * Excludes the primary/flow locale; order follows `entries`.
+ */
+export function secondaryLocalesFromBioEntries(
+  entries: readonly DraftedBio[],
+  primary: BioLocale,
+): BioLocale[] {
+  const out: BioLocale[] = [];
+  for (const entry of entries) {
+    if (entry.locale === primary) continue;
+    if (!out.includes(entry.locale)) out.push(entry.locale);
+  }
+  return out;
+}

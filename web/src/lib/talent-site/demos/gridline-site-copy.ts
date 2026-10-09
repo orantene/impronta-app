@@ -79,7 +79,7 @@ export function gridlineCopyFromFixture(
     out.tasks = { title: f.tasks.title, items, defaultOfferingId: offeringIdOf(fb.serviceId) ?? "", ...dk };
   }
   if (f.specTable) {
-    out.specTable = { eyebrow: f.specTable.subtitle, title: f.specTable.title, rows: f.specTable.rows };
+    out.specTable = { eyebrow: f.specTable.subtitle, title: f.specTable.title, rows: f.specTable.rows, ...(f.specTable.i18n ? { i18n: f.specTable.i18n } : {}) };
   }
   out.services = { title: f.menu.title, subtitle: f.menu.subtitle };
   return out;

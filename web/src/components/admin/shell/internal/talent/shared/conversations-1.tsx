@@ -34,6 +34,8 @@
 //   guest_session_id set → "guest"
 //   neither              → "client" (email-only, no structural identity anchor)
 
+import { useDashboardText } from "../../dashboard-i18n";
+
 /**
  * Compact identity pill — "Guest" (amber caution), "Registered" (green confirmed),
  * or "Client" (neutral slate). Renders nothing when identity is null/undefined.
@@ -44,6 +46,7 @@ export function ClientIdentityPill({
 }: {
   identity: Conversation["clientIdentity"];
 }) {
+  const copy = useDashboardText();
   if (!identity) return null;
 
   const styles: Record<
@@ -69,7 +72,7 @@ export function ClientIdentityPill({
         text,
       ].join(" ")}
     >
-      {label}
+      {copy.t(label)}
     </span>
   );
 }

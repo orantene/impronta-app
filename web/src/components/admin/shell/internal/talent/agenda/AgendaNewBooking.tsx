@@ -7,7 +7,8 @@ import { blocksTime } from "@/lib/talent-agenda/derive";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import type { BookingHours } from "@/lib/scheduling/hours-types";
 import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
-import { formatOfferingPrice, type TalentOffering } from "@/lib/talent/offerings-types";
+import { type TalentOffering } from "@/lib/talent/offerings-types";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { loadTalentClients } from "@/lib/talent/clients-actions";
 import { clientPickerHint, dedupeClientsByPerson, type TalentClientRow } from "@/lib/talent/clients-merge";
 import { TaskShell } from "./primitives/TaskShell";
@@ -389,7 +390,7 @@ function SlotComposer({
               >
                 <option value="">{copy.t("Choose a service")}</option>
                 {offerings.map((o) => {
-                  const price = o.amountCents != null ? formatOfferingPrice(o.amountCents, o.currency, locale) : "";
+                  const price = o.amountCents != null ? formatDashboardMoneyCents(o.amountCents, o.currency, locale) : "";
                   const mins = o.durationMinutes ? `${o.durationMinutes} ${copy.t("min")}` : "";
                   return (
                     <option key={o.id} value={o.id}>
@@ -447,7 +448,7 @@ function SlotComposer({
                       />
                       <span className="flex-1">{a.label}</span>
                       <span className={MUTED}>
-                        {a.amountCents > 0 ? `+ ${formatOfferingPrice(a.amountCents, currency, locale)}` : ""}
+                        {a.amountCents > 0 ? `+ ${formatDashboardMoneyCents(a.amountCents, currency, locale)}` : ""}
                       </span>
                     </label>
                   </li>
@@ -583,7 +584,7 @@ function SlotComposer({
             <SummaryRow label={copy.t("Client")} value={client?.name ?? null} />
             <SummaryRow label={copy.t("Service")} value={serviceName || null} />
             {pickedAddons.map((a) => (
-              <SummaryRow key={a.id} label={`+ ${a.label}`} value={formatOfferingPrice(a.amountCents, currency, locale)} />
+              <SummaryRow key={a.id} label={`+ ${a.label}`} value={formatDashboardMoneyCents(a.amountCents, currency, locale)} />
             ))}
             <SummaryRow label={copy.t("When")} value={whenLabel} />
             <div className="border-t border-black/10 pt-2">
@@ -592,7 +593,7 @@ function SlotComposer({
                 label={copy.t("Total")}
                 value={
                   totalCents != null
-                    ? formatOfferingPrice(totalCents, currency, locale)
+                    ? formatDashboardMoneyCents(totalCents, currency, locale)
                     : serviceName
                       ? copy.t("Price not set")
                       : null

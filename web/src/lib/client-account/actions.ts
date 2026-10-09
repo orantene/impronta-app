@@ -13,6 +13,7 @@
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { clearGuestCookie } from "@/lib/guest-cookie-clear.server";
 
 import { loadAccessProfile } from "@/lib/access-profile";
 import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";
@@ -191,6 +192,7 @@ export async function signOutClientAccount(): Promise<{ ok: boolean }> {
     if (!isClientAccountEligible(profile?.app_role)) return { ok: false };
   }
   const { error } = await supabase.auth.signOut();
+  if (!error) await clearGuestCookie();
   revalidatePath("/", "layout");
   return { ok: !error };
 }

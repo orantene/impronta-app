@@ -29,6 +29,7 @@ import { supportDeskPostAuthDestination } from "@/lib/support/desk/desk-url";
 import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
 import { claimTulalaBriefOnAuth } from "@/lib/tulala/brief-claim-auth";
 import { headers } from "next/headers";
+import { clearGuestCookie } from "@/lib/guest-cookie-clear.server";
 import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
 import { recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { resetLocaleOnSignIn } from "@/lib/auth/reset-locale-on-sign-in";
@@ -519,6 +520,7 @@ export async function signOut(): Promise<void> {
       });
     }
   }
+  await clearGuestCookie();
   revalidatePath("/", "layout");
   redirect("/");
 }

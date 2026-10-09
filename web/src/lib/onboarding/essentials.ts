@@ -450,6 +450,12 @@ export async function runEssentialsWrites(store: EssentialsStore, input: Essenti
   }
 
   if (choice === "both" && workspace) {
+    // Root cause of the 2026-10-08 run4 defect: the block above wrote only the
+    // owner's talent-owned rows, but the workspace readers (menu/offering
+    // blocks, setup checklist) select owner_kind = 'workspace', so the business
+    // site had nothing. Also write the house rows; the owner's own rows stay
+    // the bookable ones (a house row has no capacity pool, /book skips it).
+    await writeOfferings({ kind: "workspace", tenantId: workspace.tenantId });
     // TUL-77: the owner is the bookable provider; the workspace shows her
     // opening hours and place too (the same week she confirmed).
     await step("businessInfo", () => store.setWorkspaceBusinessInfo(workspace.tenantId, { hours: weekly, place: e.place }));

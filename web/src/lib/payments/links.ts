@@ -43,6 +43,38 @@ export type CreatePaymentLinkResult =
         | "invalid";
     };
 
+/**
+ * A reservation that is no longer live (released, or past its expiry while
+ * still "reserved") keeps its operation key for good, so the same key can
+ * never claim the balance again. Rename it out of the way, as the link's own
+ * key is. A settled reservation is paid money and is never touched.
+ */
+async function freeDeadReservationKey(admin: Admin, orderId: string, key: string): Promise<boolean> {
+  const { data, error } = await admin
+    .from("order_collection_reservations")
+    .select("id, state, expires_at")
+    .eq("order_id", orderId)
+    .eq("operation_key", key)
+    .maybeSingle();
+  if (error) {
+    logServerError("payments.createPaymentLink.reservationKey", error);
+    return false;
+  }
+  if (!data) return true;
+  const r = data as { id: string; state: string; expires_at: string | null };
+  const dead = r.state === "released" || (r.state === "reserved" && r.expires_at != null && Date.parse(r.expires_at) <= Date.now());
+  if (!dead) return true;
+  const { error: freeErr } = await admin
+    .from("order_collection_reservations")
+    .update({ operation_key: `${key}:was:${r.state}:${r.id}`.slice(0, 200), ...(r.state === "reserved" ? { state: "released" } : {}) })
+    .eq("id", r.id);
+  if (freeErr) {
+    logServerError("payments.createPaymentLink.freeReservationKey", freeErr);
+    return false;
+  }
+  return true;
+}
+
 export async function createPaymentLink(
   admin: Admin,
   input: {
@@ -85,11 +117,15 @@ export async function createPaymentLink(
     // A2 / #14: an expired or cancelled key must never block a new mint.
     // Callers send a fresh attempt id; this path is defensive when the same
     // key still points at a dead row — free the unique key, then fall through.
-    if (row.status === "expired" || row.status === "cancelled") {
-      const freedKey = `${input.idempotencyKey.trim()}:was:${row.status}:${row.code}`;
+    // TUL-400: an "open" link past its expiry is dead too; the reaper may not
+    // have run yet, and until it has the key would block every fresh request.
+    const pastExpiry = row.status === "open" && Date.parse(row.expires_at) <= Date.now();
+    if (row.status === "expired" || row.status === "cancelled" || pastExpiry) {
+      const deadStatus = pastExpiry ? "expired" : row.status;
+      const freedKey = `${input.idempotencyKey.trim()}:was:${deadStatus}:${row.code}`;
       const { error: freeErr } = await admin
         .from("payment_links")
-        .update({ operation_key: freedKey.slice(0, 200) })
+        .update({ operation_key: freedKey.slice(0, 200), ...(pastExpiry ? { status: "expired" } : {}) })
         .eq("tenant_id", input.tenantId)
         .eq("code", row.code);
       if (freeErr) {
@@ -133,6 +169,12 @@ export async function createPaymentLink(
   // must not hold the order's money for half an hour.
   const provider = paymentLinkProvider(input.env);
   if (!provider) return { ok: false, reason: "provider_unavailable" };
+
+  // TUL-400: the link's key is freed above, but its reservation keeps the same
+  // key; a released or lapsed reservation must not answer the retry.
+  if (!(await freeDeadReservationKey(admin, input.orderId, input.idempotencyKey.trim()))) {
+    return { ok: false, reason: "unavailable" };
+  }
 
   const claimed = await reserveCollection(admin, {
     tenantId: input.tenantId,

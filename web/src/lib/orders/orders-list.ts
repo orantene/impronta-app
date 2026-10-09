@@ -76,8 +76,25 @@ export function bucketOf(status: string): OrderListBucket {
   return "open";
 }
 
-/** What is still owed on this order. Clamped: over-collection is a refund, not a negative. */
-export function outstandingCents(row: Pick<OrderListRow, "totalCents" | "collectedCents">): number {
+/**
+ * Line-count copy for the Pedidos list. Callers pass the locale's singular and
+ * plural nouns so "1 artículos" never ships again.
+ */
+export function orderLineItemsLabel(count: number, one: string, other: string): string {
+  return `${count} ${count === 1 ? one : other}`;
+}
+
+/** Order states in which nothing is owed any more: the money was returned or the order is dead. */
+const NOTHING_OWED_STATUSES = new Set(["refunded", "partially_refunded", "cancelled", "canceled", "void", "voided"]);
+
+/**
+ * What is still owed on this order. Clamped: over-collection is a refund, not a
+ * negative. `collectedCents` counts only money that is still paid, so a REFUNDED
+ * order has collected 0; without the status guard it read as fully owed
+ * ("Saldo pendiente 1,000.00" on a refunded sale; TUL-429 Money page twin).
+ */
+export function outstandingCents(row: Pick<OrderListRow, "totalCents" | "collectedCents"> & { status?: string | null }): number {
+  if (NOTHING_OWED_STATUSES.has((row.status ?? "").trim().toLowerCase())) return 0;
   return Math.max(0, row.totalCents - row.collectedCents);
 }
 

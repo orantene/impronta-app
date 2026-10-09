@@ -121,7 +121,7 @@ async function sharedDraft(l: Link): Promise<{ orderId: string } | { ok: false; 
   if (!ownerId) return fail("no_owner");
   // The draft follows the thread's seller, else the workspace; unreadable -> refuse (never a guessed USD).
   const draftCurrency = await resolveThreadDraftCurrency(l.admin, { tenantId: l.tenantId, inquiryId: l.inquiryId });
-  if (!draftCurrency) return fail("unavailable");
+  if (!draftCurrency) return fail("offer_currency_unresolved");
   const created = await createDraftOrder(l.admin, { tenantId: l.tenantId, actorUserId: ownerId, currency: draftCurrency, context: "messages" });
   if (!created.ok) return fail("unavailable");
   await scoped(l.admin, "orders", l.tenantId).update({ inquiry_id: l.inquiryId, source_channel: "messages" }).eq("id", created.orderId);

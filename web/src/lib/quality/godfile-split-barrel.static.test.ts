@@ -68,6 +68,14 @@ function exportedNames(src: string): Set<string> {
       if (name) out.add(name);
     }
   }
+  // Value re-exports (`export { foo, bar } from "./sibling"`) keep the
+  // original import path byte-stable after a god-file split (TUL-454).
+  for (const m of src.matchAll(/^export \{([^}]*)\}(?:\s*from\s*["'][^"']+["'])?/gm)) {
+    for (const part of m[1]!.split(",")) {
+      const name = part.trim().split(/\s+as\s+/).pop();
+      if (name) out.add(name);
+    }
+  }
   return out;
 }
 
