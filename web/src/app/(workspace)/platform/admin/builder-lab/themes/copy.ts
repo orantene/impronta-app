@@ -6,9 +6,14 @@ export const COPY = {
     eyebrow: "Builder Lab",
     designsTitle: "Designs",
     designsLead:
-      "Every talent design with its current version, how many sites sit on each version, and its open releases.",
+      "Every talent design with its catalog default, the latest version open to talents, how many sites sit on each version, and its open releases.",
     back: "Builder Lab",
-    current: "Current version",
+    current: "Catalog default",
+    openToTalents: "Open to talents",
+    openToTalentsNone: "None yet",
+    versionClarity:
+      "Catalog default flips on Make default. Open to talents is the newest published opt-in or default release talents can apply.",
+    thisRelease: "This release",
     sitesOn: "Sites per version",
     noSites: "No sites yet",
     openReleases: "Open releases",
@@ -92,9 +97,14 @@ export const COPY = {
     eyebrow: "Builder Lab",
     designsTitle: "Diseños",
     designsLead:
-      "Cada diseño de talento con su versión actual, cuántos sitios hay en cada versión y sus lanzamientos abiertos.",
+      "Cada diseño de talento con su catálogo predeterminado, la última versión abierta a talentos, cuántos sitios hay en cada versión y sus lanzamientos abiertos.",
     back: "Builder Lab",
-    current: "Versión actual",
+    current: "Catálogo predeterminado",
+    openToTalents: "Abierto a talentos",
+    openToTalentsNone: "Aún ninguno",
+    versionClarity:
+      "El catálogo predeterminado cambia al hacer Hacer predeterminado. Abierto a talentos es el lanzamiento opcional o predeterminado publicado más reciente que los talentos pueden aplicar.",
+    thisRelease: "Este lanzamiento",
     sitesOn: "Sitios por versión",
     noSites: "Aún no hay sitios",
     openReleases: "Lanzamientos abiertos",
