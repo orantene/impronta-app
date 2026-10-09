@@ -64,7 +64,7 @@ async function fillCard(page: Page, number: string) {
   const card = page.getByLabel(/card number|número de tarjeta/i).first();
   await card.fill(number);
   await page.getByLabel(/expiration|expiry|vencimiento|mm ?\/ ?yy/i).first().fill("12 / 34");
-  await page.getByLabel(/^cvc|security code|código de seguridad/i).first().fill("123");
+  await page.getByLabel(/cvc|security code|código de seguridad/i).first().fill("123");
   const name = page.getByLabel(/name on card|cardholder|nombre/i).first();
   if (await name.isVisible().catch(() => false)) await name.fill("QA Paid Tester");
   const postal = page.getByLabel(/zip|postal|código postal/i).first();
@@ -124,12 +124,15 @@ test("success 4242: pays, returns to 'Payment received', transaction paid, snaps
     await shot(page, "success-4-return-paid");
 
     const link = await paymentFor(url);
-    const txns = await rest<{ id: string; status: string; gross_amount_cents: number; booking_id: string | null }>(
+    const txns = await rest<{ id: string; status: string; gross_amount_cents: number; net_amount_cents: number; platform_fee_cents: number; booking_id: string | null }>(
       "booking_transactions",
-      `select=id,status,gross_amount_cents,booking_id&order_id=eq.${link.order_id}&status=eq.paid`,
+      `select=id,status,gross_amount_cents,net_amount_cents,platform_fee_cents,booking_id&order_id=eq.${link.order_id}&status=eq.paid`,
     ).catch(() => []);
     expect(txns.length, "exactly one paid transaction").toBe(1);
-    expect(txns[0].gross_amount_cents).toBe(link.amount_cents);
+    // The link names the PRINCIPAL; the card is charged the collect (principal + the pass_through
+    // client service fee when armed): net == principal, gross == net + platform fee (#3051).
+    expect(Number(txns[0].net_amount_cents), "net == link principal").toBe(Number(link.amount_cents));
+    expect(Number(txns[0].gross_amount_cents), "gross == principal + service fee").toBe(Number(txns[0].net_amount_cents) + Number(txns[0].platform_fee_cents));
     if (txns[0].booking_id) {
       const snaps = await rest<{ gross_charged_cents: number }>("booking_commission_snapshot", `select=gross_charged_cents&booking_id=eq.${txns[0].booking_id}`);
       const sum = snaps.reduce((n, s) => n + Number(s.gross_charged_cents), 0);
