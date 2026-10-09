@@ -2,15 +2,17 @@
 
 import { useEffect, useState, useTransition } from "react";
 
-import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
+import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { PrimaryButton, SecondaryButton } from "@/components/admin/shell/internal/primitives";
 import {
   checkTalentSiteDomainProvisioningAction,
   connectTalentSiteDomainAction,
+  expireTalentSiteDomainAction,
   loadTalentSiteDomainsForPanel,
   removeTalentSiteDomainAction,
   setPrimaryTalentSiteDomainAction,
+  transferOutTalentSiteDomainAction,
   verifyTalentSiteDomainAction,
   type TalentSiteDomainActionResult,
   type TalentSiteDomainView,
@@ -50,6 +52,7 @@ export function TalentSiteDomainPanel({
   embedded = false,
 }: Props) {
   const copy = useDashboardText();
+  const { openDrawer } = useAdminShell();
   const [domains, setDomains] = useState<TalentSiteDomainView[]>(initialDomains ?? []);
   const [hostnameInput, setHostnameInput] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -107,21 +110,35 @@ export function TalentSiteDomainPanel({
   }
 
   if (!canManage) {
+    const graceDomain = domains.find((d) => d.inPlanGrace || d.canChooseDisposition || d.vercelDetachedAt);
     return (
       <Card embedded={embedded}>
         {embedded ? null : <Header copy={copy} />}
-        <p
-          style={{
-            margin: embedded ? 0 : "10px 0 0",
-            fontSize: 12.5,
-            color: COLORS.inkMuted,
-            lineHeight: 1.5,
-          }}
-        >
-          {copy.t(
-            "Connecting your own domain is a Web Office feature. Upgrade to Web Office to point a custom domain at your site.",
-          )}
-        </p>
+        {graceDomain ? (
+          <GraceNotice
+            domains={domains}
+            pending={pending}
+            copy={copy}
+            message={message}
+            error={error}
+            onRestore={() => openDrawer("talent-tier-compare")}
+            onTransfer={(domain) => run(() => transferOutTalentSiteDomainAction(domain))}
+            onExpire={(domain) => run(() => expireTalentSiteDomainAction(domain))}
+          />
+        ) : (
+          <p
+            style={{
+              margin: embedded ? 0 : "10px 0 0",
+              fontSize: 12.5,
+              color: COLORS.inkMuted,
+              lineHeight: 1.5,
+            }}
+          >
+            {copy.t(
+              "Connecting your own domain is a Web Office feature. Upgrade to Web Office to point a custom domain at your site.",
+            )}
+          </p>
+        )}
       </Card>
     );
   }
@@ -226,6 +243,101 @@ function Header({ copy }: { copy: Copy }) {
       <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, marginTop: 4 }}>
         {copy.t("Serve your site from your own domain")}
       </div>
+    </div>
+  );
+}
+
+/** WAVE 1B D6 — restore-plan notice + purchased transfer/expire choices. */
+function GraceNotice({
+  domains,
+  pending,
+  copy,
+  message,
+  error,
+  onRestore,
+  onTransfer,
+  onExpire,
+}: {
+  domains: TalentSiteDomainView[];
+  pending: boolean;
+  copy: Copy;
+  message: string | null;
+  error: string | null;
+  onRestore: () => void;
+  onTransfer: (domain: string) => void;
+  onExpire: (domain: string) => void;
+}) {
+  const graceEnds = domains.find((d) => d.planGraceEndsAt)?.planGraceEndsAt;
+  const endsLabel = graceEnds
+    ? new Date(graceEnds).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : null;
+
+  return (
+    <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 12 }}>
+      <p style={{ margin: 0, fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5 }}>
+        {endsLabel
+          ? copy.t(
+              "Your Web Office plan ended. Your custom domain is paused. Restore Web Office by {date} to keep it.",
+            ).replace("{date}", endsLabel)
+          : copy.t(
+              "Your Web Office plan ended. Your custom domain is paused. Restore Web Office within 30 days to keep it.",
+            )}
+      </p>
+      <p style={{ margin: 0, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+        {copy.t(
+          "After the grace period we disconnect the domain from Tulala. Purchased domains will not keep auto-renewing at our cost.",
+        )}
+      </p>
+      <PrimaryButton onClick={onRestore} disabled={pending}>
+        {copy.t("Restore plan")}
+      </PrimaryButton>
+      {message ? (
+        <p style={{ margin: 0, fontSize: 12.5, color: COLORS.successDeep, lineHeight: 1.5 }}>
+          {message}
+        </p>
+      ) : null}
+      {error ? (
+        <p style={{ margin: 0, fontSize: 12.5, color: COLORS.criticalDeep, lineHeight: 1.5 }}>
+          {error}
+        </p>
+      ) : null}
+      {domains.map((d) => (
+        <div
+          key={d.domain}
+          style={{
+            padding: "10px 12px",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 10,
+            background: COLORS.card,
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{d.domain}</div>
+          {d.domainDisposition === "transfer_out" ? (
+            <p style={{ margin: "6px 0 0", fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.45 }}>
+              {copy.t("Transfer-out selected. Auto-renew is off.")}
+            </p>
+          ) : null}
+          {d.domainDisposition === "expire" ? (
+            <p style={{ margin: "6px 0 0", fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.45 }}>
+              {copy.t("This domain will expire. Auto-renew is off.")}
+            </p>
+          ) : null}
+          {d.canChooseDisposition ? (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+              <PrimaryButton onClick={() => onTransfer(d.domain)} disabled={pending}>
+                {copy.t("Transfer out (auth code)")}
+              </PrimaryButton>
+              <SecondaryButton onClick={() => onExpire(d.domain)} disabled={pending}>
+                {copy.t("Let it expire")}
+              </SecondaryButton>
+            </div>
+          ) : null}
+        </div>
+      ))}
     </div>
   );
 }

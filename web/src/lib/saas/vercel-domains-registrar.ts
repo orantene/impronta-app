@@ -78,7 +78,11 @@ export type DomainBuyResult = {
   errorMessage: string | null;
 };
 
-/** Product policy: purchased domains auto-renew at the registrar. */
+/**
+ * Product policy at purchase: registrar auto-renew ON.
+ * WAVE 1B D5 (Payments) owns who pays renewals. WAVE 1B D6 turns auto-renew
+ * OFF when Web Office lapses so Tulala never silently keeps paying.
+ */
 export const REGISTRAR_AUTO_RENEW_POLICY = true as const;
 export const REGISTRAR_PURCHASE_YEARS = 1 as const;
 
@@ -435,6 +439,146 @@ export async function buyDomain(
       skippedReason: null,
       errorCode: "network_error",
       errorMessage: "Domain purchase failed.",
+    };
+  }
+}
+
+export type DomainAutoRenewResult = {
+  attempted: boolean;
+  updated: boolean;
+  skippedReason: string | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+};
+
+export type DomainAuthCodeResult = {
+  attempted: boolean;
+  authCode: string | null;
+  skippedReason: string | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+};
+
+/**
+ * PATCH /v1/registrar/domains/{domain}/auto-renew
+ * D6: turn OFF when Web Office lapses (never keep renewing at Tulala's cost).
+ * D5 owns charging the talent before renewal — not this helper.
+ */
+export async function setDomainAutoRenew(
+  domain: string,
+  autoRenew: boolean,
+  options: { env?: EnvLike; fetchFn?: FetchLike } = {},
+): Promise<DomainAutoRenewResult> {
+  const config = readVercelRegistrarConfig(options.env);
+  if (!config) {
+    return {
+      attempted: false,
+      updated: false,
+      skippedReason: "VERCEL_API_TOKEN/VERCEL_TOKEN is not configured.",
+      errorCode: null,
+      errorMessage: null,
+    };
+  }
+
+  const fetchFn = options.fetchFn ?? fetch;
+  const url = `https://api.vercel.com/v1/registrar/domains/${encodeURIComponent(domain)}/auto-renew${teamQuery(config)}`;
+  try {
+    const response = await fetchFn(url, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${config.token}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ autoRenew }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (response.ok || response.status === 204) {
+      return {
+        attempted: true,
+        updated: true,
+        skippedReason: null,
+        errorCode: null,
+        errorMessage: null,
+      };
+    }
+    const err = await parseVercelError(response);
+    return {
+      attempted: true,
+      updated: false,
+      skippedReason: null,
+      errorCode: err.code,
+      errorMessage: err.message,
+    };
+  } catch (error) {
+    logServerError("vercelRegistrar.setAutoRenew", error);
+    return {
+      attempted: true,
+      updated: false,
+      skippedReason: null,
+      errorCode: "network_error",
+      errorMessage: "Could not update domain auto-renew.",
+    };
+  }
+}
+
+/**
+ * GET /v1/registrar/domains/{domain}/auth-code
+ * Transfer-out code for a purchased domain (D6). Not persisted — returned to
+ * the talent once when they choose transfer-out.
+ */
+export async function getDomainAuthCode(
+  domain: string,
+  options: { env?: EnvLike; fetchFn?: FetchLike } = {},
+): Promise<DomainAuthCodeResult> {
+  const config = readVercelRegistrarConfig(options.env);
+  if (!config) {
+    return {
+      attempted: false,
+      authCode: null,
+      skippedReason: "VERCEL_API_TOKEN/VERCEL_TOKEN is not configured.",
+      errorCode: null,
+      errorMessage: null,
+    };
+  }
+
+  const fetchFn = options.fetchFn ?? fetch;
+  const url = `https://api.vercel.com/v1/registrar/domains/${encodeURIComponent(domain)}/auth-code${teamQuery(config)}`;
+  try {
+    const response = await fetchFn(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${config.token}`,
+        Accept: "application/json",
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) {
+      const err = await parseVercelError(response);
+      return {
+        attempted: true,
+        authCode: null,
+        skippedReason: null,
+        errorCode: err.code,
+        errorMessage: err.message,
+      };
+    }
+    const payload = (await response.json()) as { authCode?: string };
+    return {
+      attempted: true,
+      authCode: typeof payload.authCode === "string" ? payload.authCode : null,
+      skippedReason: null,
+      errorCode: null,
+      errorMessage: null,
+    };
+  } catch (error) {
+    logServerError("vercelRegistrar.getAuthCode", error);
+    return {
+      attempted: true,
+      authCode: null,
+      skippedReason: null,
+      errorCode: "network_error",
+      errorMessage: "Could not load the transfer auth code.",
     };
   }
 }

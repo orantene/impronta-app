@@ -19,6 +19,13 @@ import {
   requireTalentSelf,
 } from "@/lib/server/talent-self-guard";
 import { loadTalentSubscriptionState } from "@/lib/stripe/talent-billing";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import {
+  chooseTalentDomainExpire,
+  chooseTalentDomainTransferOut,
+  isInPlanGrace,
+  isPurchasedAcquisition,
+} from "./talent-domain-plan-grace";
 import {
   loadTalentSiteDomain,
   loadTalentSiteDomains,
@@ -63,10 +70,24 @@ export type TalentSiteDomainView = {
   /** The TXT record the talent must add to prove ownership. */
   txtRecord: { host: string; value: string } | null;
   canBecomePrimary: boolean;
+  acquisition: string | null;
+  planGraceEndsAt: string | null;
+  vercelDetachedAt: string | null;
+  domainDisposition: string | null;
+  /** True while the 30-day restore window is open (D6). */
+  inPlanGrace: boolean;
+  /** Purchased + grace/detached + no disposition yet → show transfer/expire. */
+  canChooseDisposition: boolean;
 };
 
 export type TalentSiteDomainActionResult =
-  | { ok: true; message: string; domains: TalentSiteDomainView[] }
+  | {
+      ok: true;
+      message: string;
+      domains: TalentSiteDomainView[];
+      /** Present once after transfer-out; never persisted. */
+      authCode?: string | null;
+    }
   | { ok: false; error: string; domains?: TalentSiteDomainView[] };
 
 const TXT_HOST_PREFIX = "_impronta-challenge";
@@ -76,7 +97,17 @@ function txtRecordHostFor(domain: string): string {
 }
 
 function toView(row: TalentSiteDomainRecord): TalentSiteDomainView {
-  const isLive = row.status === "active";
+  const isLive = row.status === "active" && !row.vercelDetachedAt && !row.planGraceStartedAt;
+  const inGrace = isInPlanGrace({
+    planGraceStartedAt: row.planGraceStartedAt,
+    planGraceEndsAt: row.planGraceEndsAt,
+    vercelDetachedAt: row.vercelDetachedAt,
+  });
+  const purchased = isPurchasedAcquisition(row.acquisition);
+  const canChooseDisposition =
+    purchased &&
+    Boolean(row.planGraceStartedAt) &&
+    !row.domainDisposition;
   return {
     domain: row.domain,
     status: row.status,
@@ -91,6 +122,12 @@ function toView(row: TalentSiteDomainRecord): TalentSiteDomainView {
       ? { host: txtRecordHostFor(row.domain), value: row.verificationToken }
       : null,
     canBecomePrimary: !row.isPrimary && isLive,
+    acquisition: row.acquisition,
+    planGraceEndsAt: row.planGraceEndsAt,
+    vercelDetachedAt: row.vercelDetachedAt,
+    domainDisposition: row.domainDisposition,
+    inPlanGrace: inGrace,
+    canChooseDisposition,
   };
 }
 
@@ -152,12 +189,161 @@ async function listDomains(ctx: GuardedTalentContext): Promise<TalentSiteDomainV
   }
 }
 
+/**
+ * Owner-only context (no Max). Used to show D6 grace / disposition UI after
+ * Web Office lapses — RLS still allows owner SELECT.
+ */
+async function guardTalentDomainOwnerContext(): Promise<
+  | { ok: true; ctx: GuardedTalentContext }
+  | { ok: false; error: string }
+> {
+  const scope = await requireTalentSelf();
+  if (!scope.ok) {
+    return {
+      ok: false,
+      error:
+        scope.code === "not_authenticated"
+          ? "You must be signed in to manage your site domain."
+          : "We could not find your talent profile.",
+    };
+  }
+  return {
+    ok: true,
+    ctx: { supabase: scope.session.supabase, talentProfileId: scope.talentProfile.id },
+  };
+}
+
 /** Read-only load of the talent's domains for initial panel render. */
 export async function loadTalentSiteDomainsForPanel(): Promise<TalentSiteDomainActionResult> {
-  const guard = await guardTalentDomainContext();
+  // Owner-only so a lapsed Web Office talent still sees the restore / transfer UI.
+  const guard = await guardTalentDomainOwnerContext();
   if (!guard.ok) return { ok: false, error: guard.error, domains: [] };
   const domains = await listDomains(guard.ctx);
   return { ok: true, message: "", domains };
+}
+
+/**
+ * Purchased domain: request transfer-out auth code. Works without Max (service
+ * role write after ownership check). Auth code is returned once, not stored.
+ */
+export async function transferOutTalentSiteDomainAction(
+  rawHostname: string,
+): Promise<TalentSiteDomainActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
+  const guard = await guardTalentDomainOwnerContext();
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { ctx } = guard;
+
+  const normalized = normalizeCustomDomainHostname(rawHostname);
+  if (!normalized.ok) {
+    return { ok: false, error: normalized.message, domains: await listDomains(ctx) };
+  }
+
+  let record: TalentSiteDomainRecord | null = null;
+  try {
+    record = await loadTalentSiteDomain(ctx.supabase, ctx.talentProfileId, normalized.hostname);
+  } catch (error) {
+    logServerError("talentSiteDomain.transferOut.lookup", error);
+    return {
+      ok: false,
+      error: "The saved domain record could not be loaded.",
+      domains: await listDomains(ctx),
+    };
+  }
+  if (!record) {
+    return {
+      ok: false,
+      error: "That custom domain is not attached to your site.",
+      domains: await listDomains(ctx),
+    };
+  }
+
+  const admin = createServiceRoleClient();
+  const result = await chooseTalentDomainTransferOut({
+    talentProfileId: ctx.talentProfileId,
+    domainId: record.id,
+    admin,
+  });
+  if (!result.ok) {
+    return { ok: false, error: result.error, domains: await listDomains(ctx) };
+  }
+
+  const domains = await listDomains(ctx);
+  if (result.authCode) {
+    return {
+      ok: true,
+      message: `Transfer auth code for ${normalized.hostname}: ${result.authCode}. Auto-renew is off.`,
+      domains,
+      authCode: result.authCode,
+    };
+  }
+  if (result.skippedReason) {
+    return {
+      ok: true,
+      message:
+        "Transfer-out saved. Auto-renew will turn off when domain tools are configured. Check back for your auth code.",
+      domains,
+      authCode: null,
+    };
+  }
+  return {
+    ok: true,
+    message: `Transfer-out saved for ${normalized.hostname}. We could not load an auth code yet — try again shortly.`,
+    domains,
+    authCode: null,
+  };
+}
+
+/** Purchased domain: let it expire (auto-renew off). Works without Max. */
+export async function expireTalentSiteDomainAction(
+  rawHostname: string,
+): Promise<TalentSiteDomainActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
+  const guard = await guardTalentDomainOwnerContext();
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { ctx } = guard;
+
+  const normalized = normalizeCustomDomainHostname(rawHostname);
+  if (!normalized.ok) {
+    return { ok: false, error: normalized.message, domains: await listDomains(ctx) };
+  }
+
+  let record: TalentSiteDomainRecord | null = null;
+  try {
+    record = await loadTalentSiteDomain(ctx.supabase, ctx.talentProfileId, normalized.hostname);
+  } catch (error) {
+    logServerError("talentSiteDomain.expire.lookup", error);
+    return {
+      ok: false,
+      error: "The saved domain record could not be loaded.",
+      domains: await listDomains(ctx),
+    };
+  }
+  if (!record) {
+    return {
+      ok: false,
+      error: "That custom domain is not attached to your site.",
+      domains: await listDomains(ctx),
+    };
+  }
+
+  const admin = createServiceRoleClient();
+  const result = await chooseTalentDomainExpire({
+    talentProfileId: ctx.talentProfileId,
+    domainId: record.id,
+    admin,
+  });
+  if (!result.ok) {
+    return { ok: false, error: result.error, domains: await listDomains(ctx) };
+  }
+
+  return {
+    ok: true,
+    message: `${normalized.hostname} will expire. Auto-renew is off so Tulala will not keep paying.`,
+    domains: await listDomains(ctx),
+  };
 }
 
 export async function connectTalentSiteDomainAction(

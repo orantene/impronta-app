@@ -19,6 +19,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { mapStripeStatus } from "@/lib/stripe/utils";
 import { notifyTrialStarted } from "@/lib/notifications/producers/trial-notify";
+import { reconcileTalentDomainPlanGrace } from "@/lib/talent-site/server/talent-domain-plan-grace";
 import { resolveCheckoutDiscount } from "@/lib/billing/checkout-discounts";
 import {
   reconcileAppliedDiscount,
@@ -413,6 +414,17 @@ export async function syncTalentSubscriptionToDb(
       });
     }
 
+    // Read prior plan before overwrite so D6 domain grace can detect loss /
+    // restore of Web Office custom-domain access. Money/renewal = D5.
+    const { data: profileBefore } = await sb
+      .from("talent_profiles")
+      .select("talent_plan_key")
+      .eq("id", talentProfileId)
+      .maybeSingle();
+    const previousPlanKey =
+      (profileBefore as { talent_plan_key?: string | null } | null)?.talent_plan_key ??
+      null;
+
     // Sync talent_profiles.talent_plan_key
     const { error: profileError } = await sb
       .from("talent_profiles")
@@ -424,6 +436,12 @@ export async function syncTalentSubscriptionToDb(
 
     if (profileError) {
       logServerError("talent-billing.syncSubscription.planKey", profileError);
+    } else {
+      await reconcileTalentDomainPlanGrace({
+        talentProfileId,
+        previousPlanKey,
+        nextPlanKey: newPlanKey,
+      });
     }
 
     // Ensure talent_stripe_customers row exists

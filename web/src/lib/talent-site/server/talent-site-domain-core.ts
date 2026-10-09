@@ -55,10 +55,18 @@ export type TalentSiteDomainRecord = {
   sslProvisionedAt: string | null;
   lastHealthCheckAt: string | null;
   failureReason: string | null;
+  /** How the domain was obtained (migration 20261231300000). */
+  acquisition: string | null;
+  /** WAVE 1B D6 — plan grace / detach markers. */
+  planGraceStartedAt: string | null;
+  planGraceEndsAt: string | null;
+  vercelDetachedAt: string | null;
+  registrarAutoRenewDisabledAt: string | null;
+  domainDisposition: string | null;
 };
 
 const DOMAIN_COLUMNS =
-  "id, talent_profile_id, domain, status, verification_token, is_primary, created_at, updated_at, verified_at, ssl_provisioned_at, last_health_check_at, failure_reason";
+  "id, talent_profile_id, domain, status, verification_token, is_primary, created_at, updated_at, verified_at, ssl_provisioned_at, last_health_check_at, failure_reason, acquisition, plan_grace_started_at, plan_grace_ends_at, vercel_detached_at, registrar_auto_renew_disabled_at, domain_disposition";
 
 type DomainRowDb = {
   id: string;
@@ -73,6 +81,12 @@ type DomainRowDb = {
   ssl_provisioned_at: string | null;
   last_health_check_at: string | null;
   failure_reason: string | null;
+  acquisition?: string | null;
+  plan_grace_started_at?: string | null;
+  plan_grace_ends_at?: string | null;
+  vercel_detached_at?: string | null;
+  registrar_auto_renew_disabled_at?: string | null;
+  domain_disposition?: string | null;
 };
 
 function mapDomainRow(row: DomainRowDb): TalentSiteDomainRecord {
@@ -89,6 +103,12 @@ function mapDomainRow(row: DomainRowDb): TalentSiteDomainRecord {
     sslProvisionedAt: row.ssl_provisioned_at,
     lastHealthCheckAt: row.last_health_check_at,
     failureReason: row.failure_reason,
+    acquisition: row.acquisition ?? null,
+    planGraceStartedAt: row.plan_grace_started_at ?? null,
+    planGraceEndsAt: row.plan_grace_ends_at ?? null,
+    vercelDetachedAt: row.vercel_detached_at ?? null,
+    registrarAutoRenewDisabledAt: row.registrar_auto_renew_disabled_at ?? null,
+    domainDisposition: row.domain_disposition ?? null,
   };
 }
 

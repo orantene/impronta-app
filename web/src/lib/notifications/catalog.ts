@@ -31,6 +31,7 @@ import {
 import { formatAppointmentLabel, formatDateLabel, pageUrl, redeemHref, inquiryPathForRole } from "./catalog-render";
 import { INQUIRY_CATALOG_ENTRIES } from "./catalog-entries-inquiry";
 import { BILLING_CATALOG_ENTRIES } from "./catalog-entries-billing";
+import { TALENT_DOMAIN_CATALOG_ENTRIES } from "./catalog-entries-talent-domain";
 import { FORMS_CATALOG_ENTRIES } from "./catalog-entries-forms";
 import { REVIEWS_CATALOG_ENTRIES } from "./catalog-entries-reviews";
 import { SUPPORT_CATALOG_ENTRIES } from "./catalog-entries-support";
@@ -752,6 +753,7 @@ const SELF_TEST: CatalogEntry = {
 export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   ...INQUIRY_CATALOG_ENTRIES,
   ...BILLING_CATALOG_ENTRIES,
+  ...TALENT_DOMAIN_CATALOG_ENTRIES,
   ...FORMS_CATALOG_ENTRIES,
   ...REVIEWS_CATALOG_ENTRIES,
   ...SUPPORT_CATALOG_ENTRIES,

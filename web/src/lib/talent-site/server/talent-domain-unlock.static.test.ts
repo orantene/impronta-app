@@ -110,3 +110,24 @@ test("webhook fulfill buys only after payment and is idempotent on session id", 
   assert.match(src, /stripe_checkout_session_id/);
   assert.match(src, /acquisition: "purchased"/);
 });
+
+test("D6 plan grace hooks subscription sync and disables registrar auto-renew", () => {
+  const billing = readFileSync(join(ROOT, "lib/stripe/talent-billing.ts"), "utf8");
+  const grace = readFileSync(
+    join(ROOT, "lib/talent-site/server/talent-domain-plan-grace.ts"),
+    "utf8",
+  );
+  const registrar = readFileSync(join(ROOT, "lib/saas/vercel-domains-registrar.ts"), "utf8");
+  const cron = readFileSync(join(ROOT, "app/api/cron/talent-domain-grace/route.ts"), "utf8");
+  assert.match(billing, /reconcileTalentDomainPlanGrace/);
+  assert.match(grace, /TALENT_DOMAIN_PLAN_GRACE_DAYS\s*=\s*30/);
+  assert.match(grace, /setDomainAutoRenew/);
+  assert.match(grace, /removeCustomDomainFromVercelProject/);
+  assert.match(grace, /chooseTalentDomainTransferOut/);
+  // D5 owns renewal charging — D6 must not invent Stripe renewal charges.
+  assert.doesNotMatch(grace, /createTalentDomainPurchaseCheckoutSession|invoices\.create|renewalCents/);
+  assert.match(registrar, /export async function setDomainAutoRenew/);
+  assert.match(registrar, /export async function getDomainAuthCode/);
+  assert.match(cron, /sweepTalentDomainPlanGrace/);
+  assert.match(cron, /CRON_SECRET/);
+});

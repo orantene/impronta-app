@@ -6,6 +6,9 @@
     "src/app/api/cron/domain-verification/route.ts": {
       "maxDuration": 60
     },
+    "src/app/api/cron/talent-domain-grace/route.ts": {
+      "maxDuration": 60
+    },
     "src/app/api/cron/publish-scheduled/route.ts": {
       "maxDuration": 60
     },
@@ -251,6 +254,10 @@
     {
       "path": "/api/cron/domain-verification",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/talent-domain-grace",
+      "schedule": "0 */6 * * *"
     },
     {
       "path": "/api/cron/inquiry-engine",

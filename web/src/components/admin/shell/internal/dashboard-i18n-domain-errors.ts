@@ -39,4 +39,25 @@ export const DOMAIN_ERRORS_ES_TEXT: Record<string, string> = {
   "Your primary domain could not be updated.": "No pudimos actualizar tu dominio principal.",
   "That custom domain could not be removed.": "No pudimos quitar ese dominio propio.",
   "Download my data": "Descargar mis datos",
+  // WAVE 1B D6 — plan grace / transfer-out / expire
+  "Your Web Office plan ended. Your custom domain is paused. Restore Web Office by {date} to keep it.":
+    "Tu plan de Oficina Web terminó. Tu dominio propio está en pausa. Restaura Oficina Web antes del {date} para conservarlo.",
+  "Your Web Office plan ended. Your custom domain is paused. Restore Web Office within 30 days to keep it.":
+    "Tu plan de Oficina Web terminó. Tu dominio propio está en pausa. Restaura Oficina Web en 30 días para conservarlo.",
+  "After the grace period we disconnect the domain from Tulala. Purchased domains will not keep auto-renewing at our cost.":
+    "Después del periodo de gracia desconectamos el dominio de Tulala. Los dominios comprados no seguirán renovándose a nuestro costo.",
+  "Restore plan": "Restaurar plan",
+  "Restore plan to keep your domain": "Restaura el plan para conservar tu dominio",
+  "Transfer out (auth code)": "Transferir (código de autorización)",
+  "Let it expire": "Dejar que expire",
+  "Transfer-out selected. Auto-renew is off.": "Transferencia elegida. La renovación automática está desactivada.",
+  "This domain will expire. Auto-renew is off.": "Este dominio expirará. La renovación automática está desactivada.",
+  "Transfer-out is only available for domains purchased through Tulala.":
+    "La transferencia solo está disponible para dominios comprados a través de Tulala.",
+  "Expire is only available for domains purchased through Tulala.":
+    "Expirar solo está disponible para dominios comprados a través de Tulala.",
+  "Could not save your transfer-out choice.": "No pudimos guardar tu elección de transferencia.",
+  "Could not save your expire choice.": "No pudimos guardar tu elección de expiración.",
+  "Transfer-out saved. Auto-renew will turn off when domain tools are configured. Check back for your auth code.":
+    "Transferencia guardada. La renovación automática se desactivará cuando las herramientas de dominio estén configuradas. Vuelve más tarde por tu código de autorización.",
 };
