@@ -11,6 +11,7 @@ const tree = [
     props: {},
     children: [
       { id: "h", kind: "heading", props: { text: "Recent work", level: 2 } },
+      { id: "j", kind: "heading", props: { text: "Recent jobs", level: 2 } },
       { id: "e", kind: "heading", props: { text: "Mi trabajo", level: 2 } },
       { id: "b", kind: "button", props: { label: "Ask a question", href: "#talent-ask" } },
       { id: "s", kind: "services_catalog", props: { eyebrow: "The menu", title: "Services {i}and prices{/i}" } },
@@ -20,10 +21,18 @@ const tree = [
 
 test("es: seeded labels localise, talent-edited text is untouched", () => {
   const out = JSON.stringify(localiseSeededDesignLabels(tree, "es-MX"));
-  for (const s of ["Trabajo reciente", "Mi trabajo", "Hacer una pregunta", "El menú", "Servicios {i}y precios{/i}"]) {
+  for (const s of [
+    "Trabajo reciente",
+    "Trabajos recientes",
+    "Mi trabajo",
+    "Hacer una pregunta",
+    "El menú",
+    "Servicios {i}y precios{/i}",
+  ]) {
     assert.ok(out.includes(s), s);
   }
   assert.ok(!out.includes("Recent work"));
+  assert.ok(!out.includes("Recent jobs"));
 });
 
 test("en: tree returned unchanged", () => {
