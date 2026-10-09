@@ -92,7 +92,9 @@ export function openDeepLinkFromLocation(
   const link = parseBookingDeepLink(loc.search, loc.hash, opts.now);
   if (!link) return "none";
   if (opts.alreadyOpen?.()) return "opened";
+  // The same clock that parsed the link sanitizes the slot (a pinned `now` must not be ignored here).
+  const input = { ...link, now: opts.now };
   const ok =
-    opts.target === undefined ? openBookingAtSlot(link) : openBookingAtSlot(link, opts.target);
+    opts.target === undefined ? openBookingAtSlot(input) : openBookingAtSlot(input, opts.target);
   return ok ? "opened" : "unresolved";
 }
