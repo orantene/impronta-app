@@ -8744,6 +8744,18 @@
               "laneMx": {
                 "label": "Last MX webhook"
               },
+              "mxLane": {
+                "label": "MX lane",
+                "none": "No MX events yet. MX-connected sellers: {sellers}.",
+                "last": "Last MX event {hours}h ago ({mode}). {events} in the last 24h. MX-connected sellers: {sellers}.",
+                "silent": "{sellers} MX-connected seller(s) but 0 MX events in the last 24h.",
+                "connectMissing": "Connect secret missing.",
+                "mode": {
+                  "live": "live",
+                  "test": "test",
+                  "unknown": "mode unknown"
+                }
+              },
               "lane": {
                 "detail": "Hours since the last event: {hours}",
                 "none": "No events recorded yet."
@@ -8752,6 +8764,7 @@
             "fix": {
               "keyModes": "Make every Stripe key in Vercel use the same mode (all test or all live), then redeploy.",
               "secret": "Add this signing secret in Vercel from the matching Stripe webhook endpoint, then redeploy.",
+              "mxLane": "In the Mexico Stripe account (Live), check the endpoint https://app.tulala.digital/api/webhooks/stripe-mx exists and its signing secret equals STRIPE_MX_WEBHOOK_SECRET in Vercel; add the Connect endpoint and STRIPE_MX_WEBHOOK_SECRET_CONNECT. Steps: docs/plans/tul-186-mx-webhook-memo-2026-10-09.md.",
               "mxConnect": "Add the MX Connect signing secret in Vercel. Until then MX Connect events fail signature checks and held payouts only release in the daily cron.",
               "held": "Open the Revenue tab to see which payouts are held and why.",
               "stuck": "Check these transactions in the booking list; the client may need a fresh payment link.",

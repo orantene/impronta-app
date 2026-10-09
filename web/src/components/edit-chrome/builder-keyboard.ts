@@ -29,6 +29,13 @@ export function keyboardFocusIsOnCanvas(): boolean {
   return false;
 }
 
+/** True when focus is inside an inspector, drawer, dock or topbar (not the page itself). */
+export function keyboardFocusIsInPanel(ae: Element | null): boolean {
+  return !!ae?.closest(
+    "[data-edit-drawer],[data-inspector-command-rail],[data-command-dock],[data-edit-topbar]",
+  );
+}
+
 export function hasNativeTextSelection(): boolean {
   if (typeof window === "undefined") return false;
   const sel = window.getSelection();

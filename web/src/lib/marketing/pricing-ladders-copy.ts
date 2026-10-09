@@ -255,3 +255,23 @@ const es: PricingLaddersCopy = {
 export function getPricingLaddersCopy(locale: string): PricingLaddersCopy {
   return pickLocale(locale, { en, es });
 }
+
+/**
+ * Plan names and the "Free" price come from the English catalog rows
+ * (`loadMarketingTiers`), so the Spanish page printed "Free". Localize the
+ * known ones at render; an unknown name passes through unchanged.
+ */
+const ES_TIER_NAMES: Readonly<Record<string, string>> = {
+  Free: "Gratis",
+  Website: "Sitio web",
+  Portfolio: "Portafolio",
+  Agency: "Agencia",
+};
+
+export function localizeTierName(name: string, locale: string): string {
+  return locale.toLowerCase().startsWith("es") ? (ES_TIER_NAMES[name] ?? name) : name;
+}
+
+export function localizeTierPrice(price: string, locale: string): string {
+  return locale.toLowerCase().startsWith("es") && price.trim() === "Free" ? "Gratis" : price;
+}
