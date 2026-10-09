@@ -2,6 +2,7 @@
 
 import React, { useState, useTransition, useEffect, useRef } from "react";
 import { OfferColumnHeaders, OfferMoneySplit, OfferEditorFooter } from "@/components/admin/offer/offer-money-split";
+import { isSoloSeller } from "@/components/admin/offer/offer-solo-seller";
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
@@ -413,7 +414,7 @@ export function LiveLineupPanel({
  * matches the engine contract.
  */
 export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange }: { inquiryId: string; offerId: string; canEdit: boolean; onSendGateChange?: (gate: SendGateResult) => void }) {
-  const { toast, effectiveRoster, effectiveTenant } = useAdminShell();
+  const { toast, effectiveRoster, effectiveTenant, workspaceType, bridgeTalentSelfProfile } = useAdminShell();
   const t = useT();
   // Latest-`t` ref for async callbacks (see LiveLineupPanel note).
   const tRef = useRef(t);
@@ -491,6 +492,11 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
   // hand-typed — so the client sees and is charged exactly the same number
   // (convert already books the line-item sum). This removes the shown≠charged
   // drift that was the third structural root cause of the workflow audit.
+  const solo = isSoloSeller({
+    workspaceType,
+    ownTalentProfileId: bridgeTalentSelfProfile?.id,
+    lineTalentProfileIds: snapshot.lineItems.map((li) => li.talentProfileId),
+  });
   const computedTotal = snapshot.lineItems.reduce(
     (sum, li) => sum + (Number(li.totalPrice) || 0),
     0,
@@ -613,6 +619,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
         total={computedTotal}
         currencyCode={snapshot.currencyCode}
         coordinatorFee={snapshot.coordinatorFee}
+        hideFee={solo}
         onAddLine={addLineItem}
         onFeeChange={(v) => setSnapshot((s) => (s == null ? s : { ...s, coordinatorFee: v }))}
         onSave={save}
@@ -625,6 +632,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
         clientTotal={computedTotal}
         coordinatorFee={snapshot.coordinatorFee}
         currencyCode={snapshot.currencyCode}
+        hideWorkspaceTake={solo}
       />
 
       {/* W6a — negotiated booking terms, persisted via saveOfferDraft. */}
