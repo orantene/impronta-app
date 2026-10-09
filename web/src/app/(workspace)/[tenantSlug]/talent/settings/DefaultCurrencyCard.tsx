@@ -21,6 +21,7 @@ import { SettingsCardLoading } from "./SettingsCardLoading";
  */
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import {
   loadTalentDefaultCurrency,
   updateTalentDefaultCurrency,
@@ -146,9 +147,9 @@ export function DefaultCurrencyCard() {
         {otherCurrencyServices > 0 && !saving && (
           <div data-other-currency-services style={{ fontSize: 11, color: C.inkMuted, marginTop: 4 }}>
             {copy.t("New services will use this currency. Your existing services keep theirs; change them in Services.")}{" "}
-            <a href="/talent/services" style={{ color: C.accentDeep, fontWeight: 600 }}>
+            <Link href="/talent/services" style={{ color: C.accentDeep, fontWeight: 600 }}>
               {copy.t("Open Services")}
-            </a>
+            </Link>
           </div>
         )}
       </div>
