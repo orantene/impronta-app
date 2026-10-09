@@ -58,3 +58,14 @@ test("formatCents en-US explicit locale formats USD with dollar sign", () => {
   assert.ok(result.startsWith("$"), `expected "$" at start of "${result}"`);
   assert.ok(result.includes("2,500"), `expected "2,500" in "${result}"`);
 });
+
+// TUL-473 — paid work-detail prefers booking_commission_snapshot.currency_code.
+// Characterization allows resolver to persist junk codes; Intl throws without a catch.
+test("formatCents never throws on invalid snapshot currency codes", () => {
+  for (const bad of ["$$$", "ZZ", "Z9_", "", "MX"]) {
+    assert.doesNotThrow(() => formatCents(100_000, bad));
+    const result = formatCents(100_000, bad);
+    assert.ok(typeof result === "string" && result.length > 0, `empty for ${JSON.stringify(bad)}`);
+    assert.ok(result.includes("1000.00") || result.includes("1,000"), `amount missing in "${result}" for ${JSON.stringify(bad)}`);
+  }
+});

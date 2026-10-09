@@ -104,4 +104,19 @@ test("Gridline utility bar keeps its subtitle and status pill down to a 330px ba
   assert.match(UTILITY_BAR_CSS, /@container sbub \(max-width:330px\)\{\.sb-ub-pill\{display:none\}/);
   assert.doesNotMatch(UTILITY_BAR_CSS, /\(max-width:330px\)\{[^}]*\.sb-ub-nm small\{display:none/);
   assert.ok(!UTILITY_BAR_CSS.includes("max-width:370px"));
+  // TUL-474: subtitle wraps instead of truncating "Electricista · Monterrey".
+  assert.match(UTILITY_BAR_CSS, /\.sb-ub-nm small\{[^}]*white-space:normal/);
+});
+
+test("TUL-474: utility chrome clears work_order captions under sticky dock/bar", () => {
+  assert.match(
+    UTILITY_TYPE_SYSTEM_CSS,
+    /scroll-padding-bottom:calc\(92px \+ env\(safe-area-inset-bottom,0px\)\)/,
+  );
+  assert.match(
+    UTILITY_TYPE_SYSTEM_CSS,
+    /\.sb-portfolio\[data-portfolio-layout="work_order"\]\{padding-bottom:calc\(72px \+ env\(safe-area-inset-bottom,0px\)\)\}/,
+  );
+  assert.match(UTILITY_TYPE_SYSTEM_CSS, /\.sb-area-title/);
+  assert.match(UTILITY_TYPE_SYSTEM_CSS, /#hero \.site-builder-node--container\[data-builder-layout="row"\]\{flex-wrap:nowrap\}/);
 });
