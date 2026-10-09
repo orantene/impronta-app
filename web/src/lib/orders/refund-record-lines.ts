@@ -53,18 +53,19 @@ export async function recordRefundOnOrderLines(
     /** Explicit per-line amounts (refund by line). Omitted: spread oldest-line-first. */
     allocation?: readonly LineAllocation[];
   },
+  attempt = 1,
 ): Promise<RecordRefundResult> {
   try {
     const { data: txn, error: txnErr } = await admin
       .from("booking_transactions")
-      .select("id, order_id, metadata")
+      .select("id, order_id, metadata, updated_at")
       .eq("id", input.transactionId)
       .maybeSingle();
     if (txnErr) {
       logServerError("orders.recordRefundLines/txn", txnErr);
       return { recorded: false, reason: "unavailable" };
     }
-    const row = txn as { id: string; order_id: string | null; metadata?: unknown } | null;
+    const row = txn as { id: string; order_id: string | null; metadata?: unknown; updated_at?: string | null } | null;
     if (!row?.order_id) return { recorded: false, reason: "no_order" };
 
     const meta = ((row.metadata ?? {}) as Record<string, unknown>);
@@ -88,14 +89,24 @@ export async function recordRefundOnOrderLines(
     if (lines.length === 0) return { recorded: false, reason: "no_lines" };
     const allocation = input.allocation ? [...input.allocation] : allocateRefundAcrossLines(lines, input.amountCents);
 
-    // Marker first (see header): under-count beats double count.
-    const { error: markErr } = await admin
+    // Marker first (see header): under-count beats double count. Compare-and-swap on `updated_at`
+    // (the table's trigger bumps it on every write): the app path and the Stripe webhook can both
+    // record the same refund within moments, and only the writer whose read is still current wins.
+    let claim = admin
       .from("booking_transactions")
       .update({ metadata: { ...meta, [ORDER_LINES_REFUNDS_KEY]: [...applied, ...input.refundIds] } })
       .eq("id", row.id);
+    if (row.updated_at) claim = claim.eq("updated_at", row.updated_at);
+    const { data: claimed, error: markErr } = await claim.select("id");
     if (markErr) {
       logServerError("orders.recordRefundLines/mark", markErr);
       return { recorded: false, reason: "unavailable" };
+    }
+    if (row.updated_at && (!Array.isArray(claimed) || claimed.length === 0)) {
+      // Someone wrote this transaction since we read it: re-read and re-decide (it may be this same refund).
+      return attempt < 3
+        ? recordRefundOnOrderLines(admin, input, attempt + 1)
+        : { recorded: false, reason: "unavailable" };
     }
 
     // A crash between the marker and the lines leaves the lines under-counted with nothing to re-apply

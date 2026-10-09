@@ -7,15 +7,28 @@ import { allocateRefundAcrossLines, recordRefundOnOrderLines } from "./refund-re
 type Line = { id: string; total_cents: number; refunded_cents: number };
 
 /** Recording fake: booking_transactions (one parent) and order_lines. */
+const _vref = { n: 0 };
 function world(opts: { orderId?: string | null; lines: Line[] }) {
-  const txn: { id: string; order_id: string | null; metadata: Record<string, unknown> } = { id: "t1", order_id: opts.orderId === undefined ? "o1" : opts.orderId, metadata: {} };
+  const txn: { id: string; order_id: string | null; metadata: Record<string, unknown>; updated_at: string } = { id: "t1", order_id: opts.orderId === undefined ? "o1" : opts.orderId, metadata: {}, updated_at: "v0" };
   const lines = opts.lines.map((l) => ({ ...l }));
   const admin = {
     from: (table: string) => {
       if (table === "booking_transactions") {
         return {
-          select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: txn, error: null }) }) }),
-          update: (patch: { metadata: Record<string, unknown> }) => ({ eq: async () => { txn.metadata = patch.metadata; return { error: null }; } }),
+          select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { ...txn }, error: null }) }) }),
+          update: (patch: { metadata: Record<string, unknown> }) => {
+            const f: Record<string, unknown> = {};
+            const q: any = {
+              eq: (k: string, v: unknown) => { f[k] = v; return q; },
+              // CAS: only the writer holding the current updated_at wins; a win bumps it.
+              select: async () => {
+                if (f.updated_at !== undefined && f.updated_at !== txn.updated_at) return { data: [], error: null };
+                txn.metadata = patch.metadata; txn.updated_at = `v${++_vref.n}`;
+                return { data: [{ id: txn.id }], error: null };
+              },
+            };
+            return q;
+          },
         };
       }
       return {
@@ -69,6 +82,29 @@ describe("recordRefundOnOrderLines", () => {
     assert.equal(w.lines[0].refunded_cents, 40_000);
   });
 
+  it("the app path then the Stripe webhook for the same re_ id counts once (and vice versa)", async () => {
+    const w = world({ lines: [{ id: "l1", total_cents: 100_000, refunded_cents: 0 }] });
+    await recordRefundOnOrderLines(w.admin, { transactionId: "t1", refundIds: ["re_7"], amountCents: 30_000 }); // executeBookingRefund
+    const hook = await recordRefundOnOrderLines(w.admin, { transactionId: "t1", refundIds: ["re_7"], amountCents: 30_000 }); // webhook
+    assert.equal(hook.recorded, false);
+    assert.equal(w.lines[0].refunded_cents, 30_000);
+    const w2 = world({ lines: [{ id: "l1", total_cents: 100_000, refunded_cents: 0 }] });
+    await recordRefundOnOrderLines(w2.admin, { transactionId: "t1", refundIds: ["re_8"], amountCents: 10_000 }); // Stripe-dashboard refund: webhook first
+    await recordRefundOnOrderLines(w2.admin, { transactionId: "t1", refundIds: ["re_8"], amountCents: 10_000 });
+    assert.equal(w2.lines[0].refunded_cents, 10_000);
+  });
+
+  it("two writers racing on one refund id: the loser re-reads, sees the marker and does not count", async () => {
+    const w = world({ lines: [{ id: "l1", total_cents: 100_000, refunded_cents: 0 }] });
+    // Both read at the same instant (same updated_at), then both try to claim.
+    const [a, b] = await Promise.all([
+      recordRefundOnOrderLines(w.admin, { transactionId: "t1", refundIds: ["re_5"], amountCents: 20_000 }),
+      recordRefundOnOrderLines(w.admin, { transactionId: "t1", refundIds: ["re_5"], amountCents: 20_000 }),
+    ]);
+    assert.equal([a, b].filter((r) => r.recorded).length, 1);
+    assert.equal(w.lines[0].refunded_cents, 20_000);
+  });
+
   it("skips a refund that is not tied to an order", async () => {
     const w = world({ orderId: null, lines: [] });
     const r = await recordRefundOnOrderLines(w.admin, { transactionId: "t1", refundIds: ["re_1"], amountCents: 100 });
@@ -84,6 +120,9 @@ describe("wiring", () => {
     const lines = rd("./refund-execute-lines.ts");
     assert.match(lines, /skipOrderLines: true/);
     assert.match(lines, /recordRefundOnOrderLines\(admin,/);
+    const hook = rd("../payments/refunds.ts");
+    assert.match(hook, /if \(refundId\) await recordRefundOnOrderLines\(sb,/);
+    assert.match(hook, /if \(eventRefundId\) \{[\s\S]{0,200}recordRefundOnOrderLines\(sbLines,/);
     assert.doesNotMatch(lines, /\.update\(\{ refunded_cents:/);
   });
 });

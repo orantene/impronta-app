@@ -61,6 +61,7 @@ import {
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { logServerError } from "@/lib/server/safe-error";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
+import { recordRefundOnOrderLines } from "@/lib/orders/refund-record-lines";
 import { improntaLog } from "@/lib/server/structured-log";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -393,6 +394,9 @@ async function reconcilePartialRefund(
   // re-delivery (same Stripe Refund id) doesn't re-claw or re-notify —
   // recordPartialRefund dedups on the refund id (event-based).
   const isNew = await recordPartialRefund(sb, ref.transactionId, refundAmountCents, chargeId, refundId);
+  // The order's lines: idempotent per refund id, so a webhook that arrives after the app already
+  // recorded this refund (executeBookingRefund) counts once; a Stripe-dashboard refund lands here.
+  if (refundId) await recordRefundOnOrderLines(sb, { transactionId: ref.transactionId, refundIds: [refundId], amountCents: refundAmountCents });
 
   if (!ref.bookingId) {
     logServerError(
@@ -571,6 +575,18 @@ export async function handleBookingRefund(
     void improntaLog("stripe_webhook.info", {
       message: `[refund] markRefunded(${ref.transactionId}) not applied: ${marked.error}`,
     });
+  }
+
+  // The order's lines for this (final) slice: idempotent per refund id, like the partial path.
+  if (eventRefundId) {
+    const sbLines = d.resolveSupabase();
+    if (sbLines) {
+      await recordRefundOnOrderLines(sbLines, {
+        transactionId: ref.transactionId,
+        refundIds: [eventRefundId],
+        amountCents: eventRefundAmount ?? input.refundedCents,
+      });
+    }
   }
 
   if (ref.bookingId) {
