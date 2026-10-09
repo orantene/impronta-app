@@ -62,7 +62,7 @@ function fakeTarget() {
 
 test("emitter puts slotStart in the detail and leaves it absent otherwise", () => {
   const t = fakeTarget();
-  assert.equal(openBookingAtSlot({ offeringId: ID, slotStart: FUTURE, detail }, t), true);
+  assert.equal(openBookingAtSlot({ offeringId: ID, slotStart: FUTURE, detail, now: NOW }, t), true);
   assert.equal(t.events[0]!.type, "tulala:offering-instant");
   assert.equal((t.events[0]!.detail as OfferingRequestDetail).slotStart, FUTURE);
 
@@ -81,7 +81,7 @@ test("a detail without a slot is the same object, byte-identical", () => {
 test("unknown offering dispatches nothing; deep link resolves via the registry", () => {
   const t = fakeTarget();
   const other = "11111111-2222-4333-8444-555555555555";
-  assert.equal(openBookingAtSlot({ offeringId: other, slotStart: FUTURE }, t), false);
+  assert.equal(openBookingAtSlot({ offeringId: other, slotStart: FUTURE, now: NOW }, t), false);
   assert.equal(t.events.length, 0);
 
   const loc = { search: `?book=${ID}&slot=${FUTURE}`, hash: "#book" };
