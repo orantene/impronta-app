@@ -21,6 +21,7 @@
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { forgetUserTenantMemberships } from "@/lib/saas/tenant";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   normalizeWorkspaceSlugCandidate,
@@ -195,6 +196,12 @@ export async function provisionFreeWorkspaceFromTalent(params: {
     return { ok: false, error: "Could not attach ownership. Please try again." };
   }
 
+  // TUL-86: the starter-content scaffold in step 4 runs capability checks AS
+  // THIS USER against the tenant created above. A membership list cached
+  // before this insert (module-level, 30 s) answers `no_membership` and the
+  // whole move failed. Same fix as workspace-signup.server.ts.
+  forgetUserTenantMemberships(userId);
+
   // ── Step 3: Create agency_domains row (so middleware routes the slug) ──────
   // The slug hostname here is for the path-based app host routing;
   // actual subdomain routing uses the tenant_id match.
@@ -257,16 +264,22 @@ export async function provisionFreeWorkspaceFromTalent(params: {
     logServerError("talent-workspace-provision.upsertIdentity (non-fatal)", identityError);
   }
 
-  const starter = await onboardStarterContent(admin, {
-    tenantId: agency.id,
-    actorProfileId: userId,
-    seedFreeStarter: true,
-  });
-  if (!starter.ok) {
-    logServerError(
-      "talent-workspace-provision.onboardStarterContent (non-fatal)",
-      new Error(starter.error ?? "starter-content failed"),
-    );
+  // Starter content is best-effort: a throw here (not just `ok: false`) must not
+  // skip the roster step or strand a half-built workspace, so it is contained.
+  try {
+    const starter = await onboardStarterContent(admin, {
+      tenantId: agency.id,
+      actorProfileId: userId,
+      seedFreeStarter: true,
+    });
+    if (!starter.ok) {
+      logServerError(
+        "talent-workspace-provision.onboardStarterContent (non-fatal)",
+        new Error(starter.error ?? "starter-content failed"),
+      );
+    }
+  } catch (err) {
+    logServerError("talent-workspace-provision.onboardStarterContent (non-fatal, threw)", err);
   }
 
   const selfRoster = await ensureSelfRosterSiteVisible(admin, {
