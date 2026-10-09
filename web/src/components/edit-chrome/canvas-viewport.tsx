@@ -1,5 +1,4 @@
 "use client";
-
 /**
  * Canvas viewport tools — 4C (#29 zoom/pan/fit + #31 rulers/guides).
  *
@@ -45,7 +44,6 @@
  *     (plus the ruler gutter offset).
  *   • For hit-testing while dragging, viewport-px → document-px reverses that.
  */
-
 import {
   createContext,
   useCallback,
@@ -64,9 +62,8 @@ import {
   resolveCanvasAvailableWidth,
   resolveCanvasHudLeftInset,
 } from "./workspace-layout";
-
+import { useMaybeEditContext } from "./edit-context";
 // ── constants ──────────────────────────────────────────────────────────────
-
 /**
  * Neutral hover wash for zoom-bar buttons. Violet is reserved for the ACTIVE
  * state (as on the text toolbar), so hover stays neutral or the two read alike.
@@ -604,6 +601,9 @@ export function CanvasZoomControls({
   const { zoom, zoomIn, zoomOut, zoomTo, fitPage, showRulers, toggleRulers } =
     useCanvasViewport();
   const { t } = useEditorLocale();
+  // TUL-397: hide zoom HUD on device frames (Closer #12 / zoom-over-card).
+  const editCtx = useMaybeEditContext();
+  if (editCtx && editCtx.device !== "desktop") return null;
 
   const leftOffset = resolveCanvasHudLeftInset({
     mode: DEFAULT_WORKSPACE_CANVAS_MODE,

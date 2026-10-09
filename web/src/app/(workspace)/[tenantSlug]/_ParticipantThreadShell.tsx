@@ -1,4 +1,5 @@
 "use client";
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { renderChatCardForMessage } from "@/components/admin/shell/internal/messages/admin-3";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -84,6 +85,7 @@ export default function ParticipantThreadShell({
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const copy = useDashboardText();
   const [sending, startSending] = useTransition();
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -226,7 +228,7 @@ export default function ParticipantThreadShell({
       >
         {grouped.length === 0 ? (
           <div style={{ padding: "24px 10px", textAlign: "center", fontSize: 12.5, color: C.inkMuted }}>
-            No messages yet. Send the first message below.
+            {copy.t("No messages yet. Send the first message below.")}
           </div>
         ) : (
           grouped.map((m) => (
@@ -234,7 +236,7 @@ export default function ParticipantThreadShell({
               <div style={{ maxWidth: "78%" }}>
                 {!m.is_mine ? (
                   <div style={{ fontSize: 10.5, color: C.inkMuted, marginBottom: 3, paddingLeft: 2 }}>
-                    {m.sender_name}
+                    {m.sender_name === "Unknown" ? copy.t("Unknown") : m.sender_name}
                   </div>
                 ) : null}
                 {renderThreadCard(m) ?? (
@@ -274,7 +276,7 @@ export default function ParticipantThreadShell({
 
       {error ? (
         <div style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.redSoft, color: C.red, padding: "8px 12px", fontSize: 12 }}>
-          {error}
+          {copy.t(error)}
         </div>
       ) : null}
 
@@ -291,7 +293,7 @@ export default function ParticipantThreadShell({
           ref={textareaRef}
           value={body}
           rows={1}
-          placeholder="Write a message..."
+          placeholder={copy.t("Write a message...")}
           onChange={(event) => {
             setBody(event.target.value);
             event.currentTarget.style.height = "auto";
@@ -333,7 +335,7 @@ export default function ParticipantThreadShell({
             cursor: sending || body.trim().length === 0 ? "default" : "pointer",
           }}
         >
-          Send
+          {copy.t("Send")}
         </button>
       </div>
     </section>

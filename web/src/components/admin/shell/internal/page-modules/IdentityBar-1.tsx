@@ -13,6 +13,7 @@ import { WorkspaceLifecycleDialog } from "@/components/admin/workspace-lifecycle
 import type { Locale } from "@/i18n/config";
 import { useDashboardText } from "../dashboard-i18n";
 import { NotificationsBell } from "../notifications-hub";
+import { ShellCountBubbles } from "../shell-count-bubbles";
 import { Avatar, Icon, ShortcutsModal } from "../primitives";
 import { COLORS, MY_TALENT_PROFILE, PAGE_META, PLAN_META, meetsRole, useAdminShell } from "../state";
 import { TulalaBrandLockup } from "@/components/brand/tulala-logo";
@@ -296,6 +297,7 @@ export function TulalaIdentityBar() {
               <CreateMenu />
               {/* Dashboard language — same 32px square as search and +. */}
               <LanguageMenu />
+              <ShellCountBubbles />
               <NotificationsBell />
               <span
                 data-tulala-plan-chip
@@ -405,6 +407,7 @@ export function TulalaIdentityBar() {
 
             {/* PR 7: talent language switch (ES | EN pill); also seeds the content locale. */}
             {inTalent ? <LanguageMenu /> : null}
+            <ShellCountBubbles />
             <NotificationsBell />
 
             {/* Preview. Studio v2: prefer the live personal website, with a

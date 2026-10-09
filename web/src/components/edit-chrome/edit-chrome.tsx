@@ -278,12 +278,15 @@ export function EditChrome({
       <style>{`
         body { padding-top: ${EDIT_TOPBAR_H}px !important; background: #F9F9FB !important; overflow-x: clip !important; }
         html { overflow-x: clip !important; }
-        /* Lateral body padding is managed by BodyPaddingController in EditShell
-           when workspaceCanvasMode is reserveGutters; fullBleed (default) uses none. */
+        /* Lateral gutters: BodyPaddingController always reserves command-dock +
+           inspector-rail space (even in fullBleed) so rails never cover the
+           desktop canvas at 768/390. See buildEditChromeGutterStyleCss. */
         /* Keep the storefront header visible below the edit topbar so
            operators can see their nav while editing. The header is sticky
            top-0 by default; offset it to sit below the topbar. */
         header[data-public-header] { top: ${EDIT_TOPBAR_H}px !important; }
+        /* TUL-397: canvas root must not be a horizontal scroller for studio shift. */
+        [data-in-editor-canvas-region] { overflow-x: clip !important; }
       `}</style>
       <EditShell
         tenantId={tenantId}

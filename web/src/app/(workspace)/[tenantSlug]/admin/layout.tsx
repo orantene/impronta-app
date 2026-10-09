@@ -19,7 +19,6 @@ import { WorkspaceNotAvailableScreen } from "@/components/talent/workspace-not-a
 import {
   loadWorkspaceDomainSummary,
   loadWorkspaceOverviewMetrics,
-  loadTotalUnreadMessages,
   loadTalentSelfProfile,
   loadTalentInquiries,
   loadUserNotifications,
@@ -44,6 +43,7 @@ import { LOCALE_AUTO_COOKIE, LOCALE_OWNER_COOKIE } from "@/i18n/locale-cookies";
 import { ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
 import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
 import { loadTalentUnreadCount } from "@/lib/saas/unread-counts";
+import { loadShellCounts } from "@/lib/shell/shell-counts";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { loadTalentPageAnalytics } from "@/lib/analytics/talent-analytics";
 import { AdminShellClient } from "@/components/admin/shell/admin-shell-client";
@@ -198,7 +198,7 @@ export default async function WorkspaceAdminLayout({
   const lazySlices = BRIDGE_SLICE_NAMES.filter((name) => !pageSlices.includes(name));
   const [
     overviewMetrics,
-    totalUnread,
+    shellCounts,
     tenantIdentity,
     profileDisplayName,
     talentSelfProfile,
@@ -214,7 +214,8 @@ export default async function WorkspaceAdminLayout({
     // KPI counts: the identity chip's subline and the rail's pending/issues
     // badges read these on first paint. One parallel wave of COUNT queries.
     timed("layout.loadWorkspaceOverviewMetrics", () => loadWorkspaceOverviewMetrics(tenantId)),
-    timed("layout.loadTotalUnreadMessages", () => loadTotalUnreadMessages(tenantId)),
+    // TUL-387 — chrome badge counts (messages live; money/attention stub 0 until TUL-389).
+    timed("layout.loadShellCounts", () => loadShellCounts("workspace", { tenantId })),
     timed("layout.loadTenantIdentity", () => loadTenantIdentity(tenantId)),
     timed("layout.loadProfileDisplayName", () => loadProfileDisplayName(session.user.id)),
     // Phase 0 — hybrid detection. A workspace admin who is ALSO a talent
@@ -337,7 +338,9 @@ export default async function WorkspaceAdminLayout({
           bookings: slices.bookings ?? null,
           pitches: slices.pitches ?? null,
           teamMembers: slices.teamMembers ?? null,
-          totalUnread,
+          // Compat: totalUnread mirrors shellCounts.messages for existing consumers.
+          totalUnread: shellCounts.messages,
+          shellCounts,
           tenantIdentity,
           sessionIdentity,
           mediaPhotos: slices.mediaPhotos ?? null,

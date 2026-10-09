@@ -444,6 +444,18 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Hide on mobile": "Ocultar en móvil",
   "Hidden on mobile": "Oculto en móvil",
   "Hide on tablet": "Ocultar en tablet",
+  // TUL-456: tablet/mobile HUD banner was English on Spanish chrome.
+  "Tablet editing": "Edición en tableta",
+  "Mobile editing": "Edición móvil",
+  "Mobile-first editing": "Edición centrada en móvil",
+  "Hide and reorder apply to tablet":
+    "Ocultar y reordenar se aplican a la tableta",
+  "Style edits scope to mobile": "Los cambios de estilo se aplican al móvil",
+  "Exit to desktop editing": "Salir a edición de escritorio",
+  "Exit tablet editing, back to desktop":
+    "Salir de edición en tableta, volver a escritorio",
+  "Exit mobile editing, back to desktop":
+    "Salir de edición móvil, volver a escritorio",
   "Hidden on tablet": "Oculto en tablet",
   "Tap to show": "Toca para mostrar",
   "Tap to hide": "Toca para ocultar",
