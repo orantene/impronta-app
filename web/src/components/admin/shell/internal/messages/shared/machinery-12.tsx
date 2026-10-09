@@ -490,6 +490,8 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   // into LiveOfferPanel. Admin keeps reading effectiveMessagesInquiries.
   const [coordOffer, setCoordOffer] = useState<typeof liveOffer>(null);
   const [coordBookingId, setCoordBookingId] = useState<string | null>(null);
+  // TUL-472 — bump after createOffer so the loader re-runs without a remount.
+  const [coordOfferEpoch, setCoordOfferEpoch] = useState(0);
   const isCoordPov = pov.kind === "talent" && pov.isCoordinator;
   useEffect(() => {
     if (!isCoordPov || !realInquiryId) { setCoordOffer(null); setCoordBookingId(null); return; }
@@ -500,7 +502,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
       else { setCoordOffer(null); setCoordBookingId(null); }
     });
     return () => { cancelled = true; };
-  }, [isCoordPov, realInquiryId]);
+  }, [isCoordPov, realInquiryId, coordOfferEpoch]);
   // Submit-rate sheet state — opens from any of:
   //   • the empty-state CTA (no offer at all yet)
   //   • the sticky-bar "Submit my rate" CTA when stage = awaiting_talent
@@ -632,7 +634,12 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
         ) : (
           <div style={{ padding: 24, textAlign: "center", fontSize: 13 }} className="text-admin-ink-dim">
             {t("dashboard.adminTabs.offer.noOfferYet")}
-            {(isAdmin || (isTalent && pov.isCoordinator)) && <CreateOfferButton inquiryId={conv.id} />}
+            {(isAdmin || (isTalent && pov.isCoordinator)) && (
+              <CreateOfferButton
+                inquiryId={conv.id}
+                onCreated={isCoordPov ? async () => { setCoordOfferEpoch((n) => n + 1); } : undefined}
+              />
+            )}
           </div>
         )}
       </div>
