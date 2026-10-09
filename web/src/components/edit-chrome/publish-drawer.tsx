@@ -90,6 +90,11 @@ import { MobileHealthPanel } from "./MobileHealthPanel";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { useEditorLocale } from "./use-editor-locale";
 import { announceSitePublished, runPublishOnce } from "./site-published-event";
+import {
+  formatPublishDisabledReason,
+  resolvePublishDisabledReason,
+  resolvePublishHardBlockReasons,
+} from "./publish-disabled-reason";
 
 const TITLE_MAX = 60;
 const DESC_MAX = 160;
@@ -839,72 +844,43 @@ export function PublishDrawer() {
   // first-matching reason as a `title` tooltip + `aria-describedby` so
   // screen readers also get it. Banners above the button already cover
   // the deeper reasons (blocking checks, missing sections) — the
-  // tooltip is the at-a-glance hint.
+  // tooltip is the at-a-glance hint. TUL-326: English keys resolve via
+  // editor i18n (ES) the same way as the rest of publish chrome.
   const publishDisabledReason = (() => {
-    if (state.kind === "publishing") return "Publishing. Please wait.";
-    if (hasConflictRecovery)
-      return "This page changed in another tab or session. Resolve the conflict banner first: Reload latest or Keep editing this copy.";
-    if (saving) return "Saving draft. Try again in a moment.";
-    if (dirty)
-      return "Unsaved changes. Autosave is catching up; try again in a moment.";
-    if (preflightLoading) return "Running publish checks…";
-    // W3-M1 — when the ONLY blockers are mobile overflow, name them exactly;
-    // a mobile-broken page cannot ship.
-    if (
-      preflightMobileOverflowErrors > 0 &&
-      preflightMobileOverflowErrors === preflightBlockingErrors
-    )
-      return `Fix ${preflightMobileOverflowErrors} mobile overflow issue${
-        preflightMobileOverflowErrors === 1 ? "" : "s"
-      } to publish.`;
-    if (preflightBlockingErrors > 0)
-      return `Fix ${preflightBlockingErrors} blocking publish check${
-        preflightBlockingErrors === 1 ? "" : "s"
-      } above before publishing.`;
-    if (summary.missing.length > 0)
-      return `${summary.missing.length} section${
-        summary.missing.length === 1 ? "" : "s"
-      } missing from the latest published version. Reload composition to recover.`;
-    if (getCompositionCasVersion() === null)
-      return "Page version unavailable. Reload and try again.";
-    return null;
+    const resolved = resolvePublishDisabledReason({
+      publishing: state.kind === "publishing",
+      hasConflictRecovery,
+      saving,
+      dirty,
+      preflightLoading,
+      preflightBlockingErrors,
+      preflightMobileOverflowErrors,
+      missingSectionCount: summary.missing.length,
+      compositionCasVersionMissing: getCompositionCasVersion() === null,
+    });
+    return resolved ? formatPublishDisabledReason(resolved, t) : null;
   })();
   /**
    * Hard blockers only — things that are wrong with *content or checks*, not
    * transient draft/preflight state (those have their own banners above).
    * Preflight **warnings** never appear here; only severity `error` counts.
+   * Keys are English catalog entries; render path runs them through `t()`.
    */
-  const publishHardBlockReasons = useMemo(() => {
-    const reasons: string[] = [];
-    if (hasConflictRecovery) {
-      reasons.push(
-        "This page changed in another tab or session. Use the conflict banner to reload latest or keep editing this copy, then publish.",
-      );
-    }
-    if (preflightMobileOverflowErrors > 0) {
-      reasons.push(
-        `${preflightMobileOverflowErrors} block${
-          preflightMobileOverflowErrors === 1 ? "" : "s"
-        } overflow${preflightMobileOverflowErrors === 1 ? "s" : ""} the mobile viewport horizontally. A page that scrolls sideways on phones cannot be published. Use "Show on canvas" above to fix each one, then publish.`,
-      );
-    }
-    const nonOverflowBlockers =
-      preflightBlockingErrors - preflightMobileOverflowErrors;
-    if (nonOverflowBlockers > 0) {
-      reasons.push(
-        "Something on your page needs fixing before you can publish. Fix the items marked Blocker above. Warnings do not stop publish.",
-      );
-    }
-    if (getCompositionCasVersion() === null) {
-      reasons.push("Page version is unavailable. Reload and try again.");
-    }
-    return reasons;
-  }, [
-    getCompositionCasVersion,
-    preflightBlockingErrors,
-    preflightMobileOverflowErrors,
-    hasConflictRecovery,
-  ]);
+  const publishHardBlockReasons = useMemo(
+    () =>
+      resolvePublishHardBlockReasons({
+        hasConflictRecovery,
+        preflightBlockingErrors,
+        preflightMobileOverflowErrors,
+        compositionCasVersionMissing: getCompositionCasVersion() === null,
+      }),
+    [
+      getCompositionCasVersion,
+      preflightBlockingErrors,
+      preflightMobileOverflowErrors,
+      hasConflictRecovery,
+    ],
+  );
 
   const isSuccess = state.kind === "success";
 
@@ -1931,9 +1907,12 @@ export function PublishDrawer() {
                     gap: 2,
                   }}
                 >
-                  {publishHardBlockReasons.map((reason) => (
-                    <li key={reason}>{t(reason)}</li>
-                  ))}
+                  {publishHardBlockReasons.map((reason) => {
+                    const text = formatPublishDisabledReason(reason, t);
+                    return (
+                      <li key={`${reason.key}:${reason.count ?? ""}`}>{text}</li>
+                    );
+                  })}
                 </ul>
               </div>
             ) : null}

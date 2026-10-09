@@ -22,6 +22,7 @@ import type { WorkRole } from "@/lib/workspace/destinations";
 import { deriveWorkRole } from "@/lib/workspace/nav-context";
 import { WhatsAppTopBarButton } from "@/components/admin/channels/WhatsAppChrome";
 import { NotificationsBell } from "../notifications-hub";
+import { ShellCountBubbles } from "../shell-count-bubbles";
 import { Icon } from "../primitives";
 import { useAdminShell } from "../state";
 import { GLOBAL_SEARCH_OPEN_EVENT } from "./GlobalSearchOverlay";
@@ -68,6 +69,7 @@ export function MobileTopBar() {
             </div>
           ) : null}
         </div>
+        <ShellCountBubbles size="sm" />
         <NotificationsBell size="sm" />
       </div>
     );
@@ -109,6 +111,7 @@ export function MobileTopBar() {
         <Icon name="search" size={16} stroke={1.75} color="currentColor" />
       </button>
       <WhatsAppTopBarButton size={34} iconOnly />
+      <ShellCountBubbles size="md" />
       <NotificationsBell size="md" />
     </div>
   );

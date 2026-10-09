@@ -6,6 +6,13 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import type { MyNotification } from "@/lib/notifications/self-types";
 import {
+  aggregateUnreadByKind,
+  emptyUnreadCounts,
+  kindsForUiCategory,
+  type NotificationUiCategory,
+  type UnreadNotificationCounts,
+} from "@/lib/notifications/categories-ui";
+import {
   resolveReadTarget,
   type EffectiveReadContext,
   type ReadDeps,
@@ -16,12 +23,15 @@ const DEFAULT_READ_DEPS: ReadDeps = {
   adminClient: () => createServiceRoleClient(),
 };
 
+export type { UnreadNotificationCounts };
+
 /**
  * Self-service notification reads for the *current* surface shells (client,
  * talent, admin). This is the shared CONTRACT consumed by the role shells:
  *
- *   loadMyNotifications(limit?)  -> recipient's own notifications, newest first
- *   markNotificationsRead(ids)   -> mark some / all of them read
+ *   loadMyNotifications(limit?)     -> recipient's own notifications, newest first
+ *   markNotificationsRead(ids)      -> mark some / all of them read
+ *   countUnreadNotifications(opts?) -> unread rollup by UI category (read_at IS NULL)
  *
  * Both are scoped to the authenticated auth user (RLS on `user_notifications`
  * limits rows to `user_id = auth.uid()`), so no tenant id is required from the
@@ -143,6 +153,58 @@ export async function markNotificationsRead(
   } catch (err) {
     logServerError("notifications.self.markRead", err);
     return { ok: false };
+  }
+}
+
+export type CountUnreadOptions = {
+  /** When set, only rows whose kind maps to this UI category are counted. */
+  category?: NotificationUiCategory;
+  /** Optional surface filter (`workspace` / `talent` / `client` / `platform`). */
+  surface?: string;
+  /** TUL-245: from `effectiveReadContext` only. */
+  ctx?: EffectiveReadContext;
+  deps?: ReadDeps;
+};
+
+/**
+ * Cheap unread rollup for shell bubbles / notification center (TUL-389).
+ *
+ * Source of truth is `user_notifications.read_at IS NULL` — not localStorage.
+ * One select of `kind` for the caller, then a pure category aggregate. Returns
+ * zeros on any error (counts are never a hard-fail surface).
+ */
+export async function countUnreadNotifications(
+  opts: CountUnreadOptions = {},
+): Promise<UnreadNotificationCounts> {
+  try {
+    const target = await resolveReadTarget(opts.ctx, opts.deps ?? DEFAULT_READ_DEPS);
+    if (!target) return emptyUnreadCounts();
+    const { client: supabase, userId } = target;
+
+    let query = supabase
+      .from("user_notifications")
+      .select("kind")
+      .eq("user_id", userId)
+      .is("read_at", null);
+
+    if (opts.category) {
+      query = query.in("kind", kindsForUiCategory(opts.category));
+    }
+    if (opts.surface) {
+      query = query.eq("surface", opts.surface);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      logServerError("notifications.self.countUnread", error);
+      return emptyUnreadCounts();
+    }
+
+    const kinds = ((data ?? []) as Array<{ kind: string }>).map((r) => r.kind);
+    return aggregateUnreadByKind(kinds);
+  } catch (err) {
+    logServerError("notifications.self.countUnread", err);
+    return emptyUnreadCounts();
   }
 }
 

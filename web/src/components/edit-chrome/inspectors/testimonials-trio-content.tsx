@@ -268,8 +268,8 @@ function VoiceSlot({
             {label}
           </span>
           {isEmpty && (
-            <span className="text-[10px] text-stone-500">
-              {t("Empty, won't appear on page")}
+            <span className="text-[10px] text-stone-500" data-not-shown-on-site="">
+              {t("Not shown on your site")}
             </span>
           )}
         </div>

@@ -357,7 +357,7 @@ export function generateContainerLayoutCss(
   return result;
 }
 
-function rulesFor(id: string): string {
+function sectionRulesFor(id: string): string {
   const lines: string[] = [];
   for (const [v, decl] of Object.entries(BACKGROUND))
     lines.push(`  [data-section-${id}-background="${v}"] { ${decl} }`);
@@ -374,12 +374,28 @@ function rulesFor(id: string): string {
     lines.push(`  [data-section-${id}-align="${v}"] { ${decl} }`);
   for (const [v, decl] of Object.entries(DIVIDER))
     lines.push(`  [data-section-${id}-divider-top="${v}"] { ${decl} }`);
-  lines.push(freeformStyleRulesFor(id));
   return lines.join("\n");
 }
 
-/** Module-level cache: tiers array identity → generated CSS string. */
-const generateCustomBreakpointCssCache = new WeakMap<object, string>();
+function rulesFor(id: string, includeFreeform: boolean): string {
+  const lines: string[] = [sectionRulesFor(id)];
+  // Freeform BuilderNodeStyle lanes (~12 KB/tier). Public roots that never
+  // author `style.responsive.<tier>` skip them (TUL-446); the editor and any
+  // tree that uses those lanes re-add them via `includeFreeform: true`.
+  if (includeFreeform) lines.push(freeformStyleRulesFor(id));
+  return lines.join("\n");
+}
+
+/** Cache key includes the freeform flag so section-only and full sheets coexist. */
+const generateCustomBreakpointCssCache = new Map<string, string>();
+
+export type CustomBreakpointCssOptions = {
+  /**
+   * When false, emit only section presentation rules (`data-section-<tier>-*`).
+   * Default true keeps today's full sheet (section + freeform node lanes).
+   */
+  includeFreeform?: boolean;
+};
 
 /**
  * Build the runtime stylesheet for all valid custom tiers. Widest threshold
@@ -389,9 +405,14 @@ const generateCustomBreakpointCssCache = new WeakMap<object, string>();
  */
 export function generateCustomBreakpointCss(
   tiers: readonly CustomBreakpoint[] | undefined | null,
+  options?: CustomBreakpointCssOptions,
 ): string {
   if (!tiers || tiers.length === 0) return "";
-  const cached = generateCustomBreakpointCssCache.get(tiers);
+  const includeFreeform = options?.includeFreeform !== false;
+  const cacheKey = `${includeFreeform ? "full" : "section"}:${tiers
+    .map((t) => `${t?.id}:${t?.maxWidthPx}`)
+    .join("|")}`;
+  const cached = generateCustomBreakpointCssCache.get(cacheKey);
   if (cached !== undefined) return cached;
   const seen = new Set<string>();
   const valid = tiers
@@ -410,10 +431,77 @@ export function generateCustomBreakpointCss(
     if (seen.has(t.id)) continue;
     seen.add(t.id);
     blocks.push(
-      `@media (max-width: ${Math.round(t.maxWidthPx)}px) {\n${rulesFor(t.id)}\n}`,
+      `@media (max-width: ${Math.round(t.maxWidthPx)}px) {\n${rulesFor(t.id, includeFreeform)}\n}`,
     );
   }
   const result = blocks.join("\n\n");
-  generateCustomBreakpointCssCache.set(tiers, result);
+  generateCustomBreakpointCssCache.set(cacheKey, result);
+  return result;
+}
+
+/**
+ * True when any node (incl. linked-component children) authors
+ * `style.responsive.<customTierId>`. Used to gate freeform custom-tier CSS.
+ * Accepts opaque builder trees — section nodes have no `style` prop.
+ */
+export function treeHasCustomBreakpointStyles(
+  nodes: ReadonlyArray<unknown>,
+): boolean {
+  const walk = (list: ReadonlyArray<unknown> | null | undefined, depth: number): boolean => {
+    if (!list || depth > 64) return false;
+    for (const raw of list) {
+      if (!raw || typeof raw !== "object") continue;
+      const node = raw as {
+        props?: { style?: { responsive?: Record<string, unknown> | null } | null } | null;
+        children?: ReadonlyArray<unknown> | null;
+      };
+      const responsive = node.props?.style?.responsive;
+      if (responsive && typeof responsive === "object") {
+        for (const id of Object.keys(responsive)) {
+          if (isCustomBreakpointTierId(id) && responsive[id]) return true;
+        }
+      }
+      if (walk(node.children, depth + 1)) return true;
+    }
+    return false;
+  };
+  return walk(nodes, 0);
+}
+
+/**
+ * Freeform BuilderNodeStyle lanes only (`data-builder-style-<tier>-*`).
+ * Pair with a section-only {@link generateCustomBreakpointCss} on the root
+ * layout so public pages that never author custom-tier node styles skip
+ * ~12 KB/tier (TUL-446).
+ */
+export function generateCustomFreeformBreakpointCss(
+  tiers: readonly CustomBreakpoint[] | undefined | null,
+): string {
+  if (!tiers || tiers.length === 0) return "";
+  const cacheKey = `freeform:${tiers.map((t) => `${t?.id}:${t?.maxWidthPx}`).join("|")}`;
+  const cached = generateCustomBreakpointCssCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+  const seen = new Set<string>();
+  const valid = tiers
+    .filter(
+      (t) =>
+        !!t &&
+        SLUG.test(t.id) &&
+        !BUILTIN_TIER_IDS.has(t.id) &&
+        Number.isFinite(t.maxWidthPx) &&
+        t.maxWidthPx >= MIN_PX &&
+        t.maxWidthPx <= MAX_PX,
+    )
+    .sort((a, b) => b.maxWidthPx - a.maxWidthPx);
+  const blocks: string[] = [];
+  for (const t of valid) {
+    if (seen.has(t.id)) continue;
+    seen.add(t.id);
+    blocks.push(
+      `@media (max-width: ${Math.round(t.maxWidthPx)}px) {\n${freeformStyleRulesFor(t.id)}\n}`,
+    );
+  }
+  const result = blocks.join("\n\n");
+  generateCustomBreakpointCssCache.set(cacheKey, result);
   return result;
 }

@@ -18,17 +18,16 @@ const sheet: BookEntry = { kind: "sheet", offeringId: detail.offeringId, eventNa
 test("count to action", () => {
   assert.equal(stickyBarAction(0), "scroll");
   assert.equal(stickyBarAction(1), "open-sheet");
-  assert.equal(stickyBarAction(2), "open-chooser");
-  assert.equal(stickyBarAction(9), "open-chooser");
+  assert.equal(stickyBarAction(2), "open-sheet");
+  assert.equal(stickyBarAction(9), "open-sheet");
 });
 
-test("intents: sheet event for one service, guest picker for several, none otherwise", () => {
+test("intents: sheet event for one or more services, none otherwise", () => {
   assert.deepEqual(stickyBarIntent("open-sheet", sheet), {
     channel: "sheet",
     eventName: "tulala:offering-instant",
     detail,
   });
-  assert.deepEqual(stickyBarIntent("open-chooser", { kind: "picker" }), { channel: "chat" });
   assert.equal(stickyBarIntent("scroll", sheet), null);
   assert.equal(stickyBarIntent("open-sheet", { kind: "inquire" }), null);
 });
@@ -59,10 +58,11 @@ test("one bookable service and no known slot: opens the sheet, does NOT scroll (
   assert.equal(r.requested[0]?.channel, "sheet");
 });
 
-test("several bookable services: opens the picker", () => {
-  const r = run({ bookableCount: 3, entry: { kind: "picker" } });
-  assert.equal(r.result, "open-chooser");
-  assert.deepEqual(r.requested, [{ channel: "chat" }]);
+test("several bookable services: opens the preferred sheet (not the dock)", () => {
+  const r = run({ bookableCount: 3, entry: sheet });
+  assert.equal(r.result, "open-sheet");
+  assert.equal(r.requested.length, 1);
+  assert.equal(r.requested[0]?.channel, "sheet");
   assert.equal(r.scrolled, 0);
 });
 

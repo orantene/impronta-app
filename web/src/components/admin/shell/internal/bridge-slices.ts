@@ -11,11 +11,12 @@
  * them. Warm TTFB on the deployed host was 1.8-2.6 s on every route.
  *
  * THE SPLIT. What the chrome itself renders on first paint (identity, session,
- * unread count, notifications, locale, plan switches, the KPI counts behind
- * the rail badges) stays in the layout. Everything else is a slice: the layout
- * loads the slices of the page the URL names, the shell asks for the missing
- * ones in one server action after hydration, and a page whose slice has not
- * arrived shows its skeleton instead of an empty (or, worse, mock) body.
+ * unread count / `shellCounts` from `loadShellCounts` (TUL-387), notifications,
+ * locale, plan switches, the KPI counts behind the rail badges) stays in the
+ * layout — not a lazy slice. Everything else is a slice: the layout loads the
+ * slices of the page the URL names, the shell asks for the missing ones in one
+ * server action after hydration, and a page whose slice has not arrived shows
+ * its skeleton instead of an empty (or, worse, mock) body.
  *
  * This module is imported by both the client shell and the server layout, so
  * it carries no server imports: only names and the page map.

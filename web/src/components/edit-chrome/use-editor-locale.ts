@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
-import { useServerDashboardLocale } from "@/i18n/use-dashboard-locale";
+import {
+  readLocaleCookie,
+  useServerDashboardLocale,
+} from "@/i18n/use-dashboard-locale";
 import {
   detectEditorLocale,
   editorT,
@@ -11,37 +13,49 @@ import {
 } from "./editor-i18n";
 
 /**
+ * One source of truth for editor chrome (TUL-459 / TUL-303 parity):
+ * inside `DashboardLocaleProvider` the SERVER request locale wins and the
+ * cookie is never re-read on the client. F88 seeded the first paint from the
+ * provider but left a mount effect that overwrote from `locale` cookie — so
+ * Publish drawer chrome ("Publish page", "Checks", …) flipped EN↔ES across
+ * renders when the cookie disagreed (cleared at sign-in, auto-default en).
+ * Outside a provider the cookie (then browser detect) remains the source.
+ */
+export function resolveEditorLocale(
+  serverLocale: string | null | undefined,
+  cookieLocale: string | null | undefined,
+  fallback: EditorLocale = "en",
+): EditorLocale {
+  if (serverLocale === "es" || serverLocale === "en") return serverLocale;
+  if (cookieLocale === "es" || cookieLocale === "en") return cookieLocale;
+  return fallback;
+}
+
+/**
  * Editor chrome locale — separate from page content locale (see
  * active-content-locale-bridge.ts for the latter).
- *
- * Seeded from `navigator.language` (available synchronously on first client
- * render) then upgraded to the app's `locale` cookie — the same cookie the
- * dashboard chrome reads via `useDashboardLocale` — once mounted, so the
- * editor's chrome language matches whatever the operator picked for the rest
- * of the app rather than drifting from the browser's Accept-Language.
  */
 export function useEditorLocale(): {
   locale: EditorLocale;
   t: typeof editorT;
 } {
-  // F88: the talent builder is mounted bare (no dashboard shell), so the
-  // server-resolved dashboard locale arrives through DashboardLocaleProvider
-  // and wins over the browser language on the very first render.
   const serverLocale = useServerDashboardLocale();
-  const [locale, setLocale] = useState<EditorLocale>(() =>
-    serverLocale === "es" || serverLocale === "en" ? serverLocale : detectEditorLocale(),
-  );
+  const hasServerLocale = serverLocale === "es" || serverLocale === "en";
+  const [cookieLocale, setCookieLocale] = useState<EditorLocale | null>(null);
 
   useEffect(() => {
-    const match = document.cookie.match(
-      new RegExp(`(?:^|; )${LOCALE_COOKIE}=([^;]*)`),
-    );
-    if (!match) return;
-    const cookieLocale = decodeURIComponent(match[1] ?? "");
-    if (cookieLocale === "es" || cookieLocale === "en") {
-      setLocale(cookieLocale);
-    }
-  }, []);
+    if (hasServerLocale) return;
+    const v = readLocaleCookie();
+    if (v === "es" || v === "en") setCookieLocale(v);
+  }, [hasServerLocale]);
+
+  // Outside a provider, seed synchronously from the browser so the first
+  // client paint is not stuck on English before the cookie effect runs.
+  const locale = resolveEditorLocale(
+    serverLocale,
+    cookieLocale,
+    detectEditorLocale(),
+  );
 
   return useMemo(
     () => ({

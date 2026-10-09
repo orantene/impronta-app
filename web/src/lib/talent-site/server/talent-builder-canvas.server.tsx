@@ -25,6 +25,8 @@ import {
 } from "@/lib/talent-site/resolve-max-site-core";
 import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens";
 import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
+import { BreakpointStyleEngine } from "@/components/edit-chrome/breakpoint-style-engine";
+import { BUILTIN_EXTRA_TIERS } from "@/lib/site-admin/builder-node/custom-breakpoint-css";
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 import { typeSystemComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-type-system";
 import { loadMaxSiteIsDemo, withHeaderSiteChrome } from "./render-max-site-demo";
@@ -200,6 +202,7 @@ export async function buildTalentBuilderCanvasData(input: {
       <>
         <GoogleFontsLink tokens={effectiveTokens} />
         <TypeSystemStyle />
+        <BreakpointStyleEngine tiers={BUILTIN_EXTRA_TIERS} includeFreeform />
       </>
     ),
     shellHeader: renderShell(headerTree),
