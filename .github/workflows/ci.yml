@@ -785,3 +785,50 @@ jobs:
         run: |
           npm run perf:app-budget:selftest
           npm run perf:app-budget
+
+  # PR typecheck (PM, 2026-10-09): ordinary PRs fail the heavy gate in seconds
+  # (TUL-412 policy) and ship inside an integ batch, so a tsc error used to
+  # surface only on the batch gate, ~30 min per batch, six times on 2026-10-09.
+  # This job runs tsc ALONE on ordinary PRs so the author sees it on the PR.
+  # Not required (the batch gate stays the merge gate). Superseded runs on the
+  # same PR are cancelled by the workflow-level per-ref concurrency above.
+  # integ/* batches and main already run tsc inside the gate: skipped there.
+  typecheck:
+    name: Typecheck (tsc only)
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.draft == false
+      && !startsWith(github.head_ref, 'integ/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      - name: tsc --noEmit
+        run: |
+          set +e
+          # Same heap as the gate's tsc step (default heap OOM-exits mid-compile).
+          tsc_output=$(NODE_OPTIONS="--max-old-space-size=11264" npx tsc --noEmit 2>&1)
+          tsc_exit=$?
+          set -e
+          error_count=$(printf '%s\n' "$tsc_output" | grep -cE 'error TS[0-9]+:' || true)
+          printf '%s\n' "$tsc_output" | grep -E 'error TS[0-9]+:' | head -60
+          echo "tsc exit=$tsc_exit  errors=$error_count"
+          if [ "$error_count" -gt 0 ] || [ "$tsc_exit" -ne 0 ]; then
+            echo "::error title=tsc::$error_count type error(s) (exit $tsc_exit). Fix before this PR is batched."
+            exit 1
+          fi
