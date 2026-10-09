@@ -26,6 +26,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
+import { siteWriteLocale } from "@/lib/site-admin/builder-core/site-templates/site-write-locale";
 import { sectionUpsertSchema } from "@/lib/site-admin/forms/sections";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { getLibraryDefault } from "@/lib/site-admin/sections/shared/default-content";
@@ -535,9 +536,18 @@ async function onboardStarterContentInner(
   client: SupabaseClient,
   input: OnboardStarterContentInput,
 ): Promise<OnboardStarterContentResult> {
-  const locale = (input.locale ?? DEFAULT_PLATFORM_LOCALE) as Parameters<
-    typeof ensureHomepageRow
-  >[1]["locale"];
+  // TUL-506: starter pages follow the tenant's default locale (the one the
+  // storefront serves at the root), not the signup UI language.
+  const { data: identityLocale, error: identityLocaleErr } = await client
+    .from("agency_business_identity")
+    .select("default_locale")
+    .eq("tenant_id", input.tenantId)
+    .maybeSingle<{ default_locale: string | null }>();
+  if (identityLocaleErr) logServerError("onboardStarterContent.identityLocale (using requested locale)", identityLocaleErr);
+  const locale = siteWriteLocale({
+    tenantDefault: identityLocale?.default_locale ?? null,
+    explicit: input.locale ?? DEFAULT_PLATFORM_LOCALE,
+  }) as Parameters<typeof ensureHomepageRow>[1]["locale"];
 
   const ensured = await ensureHomepageRow(client, {
     tenantId: input.tenantId,
