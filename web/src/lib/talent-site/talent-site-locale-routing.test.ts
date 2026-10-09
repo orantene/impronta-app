@@ -5,6 +5,7 @@ import {
   boundTalentSiteLocale,
   decideTalentSiteLocale,
   talentSiteLocalePath,
+  talentSiteQueryLocale,
   talentSiteSwitcherHrefs,
   talentSiteUrlSettings,
 } from "./talent-site-locale-routing";
@@ -39,6 +40,38 @@ test("?locale= inside the set redirects to the prefixed path", () => {
   assert.equal(decideTalentSiteLocale({ pathname: "/services", queryLocale: "en", ...ALBA }).redirectPath, "/en/services");
   assert.equal(decideTalentSiteLocale({ pathname: "/", queryLocale: "EN", ...ALBA }).redirectPath, "/en");
   assert.equal(decideTalentSiteLocale({ pathname: "/services", queryLocale: "es", ...ALBA }).redirectPath, "/services");
+});
+
+test("TUL-516: ?lang=en is the same choice as /en (redirect when the site has English)", () => {
+  // Caller maps ?lang= through talentSiteQueryLocale → queryLocale.
+  assert.equal(talentSiteQueryLocale(new URLSearchParams("lang=en")), "en");
+  assert.equal(talentSiteQueryLocale(new URLSearchParams("locale=es&lang=en")), "es");
+  assert.equal(talentSiteQueryLocale(new URLSearchParams("lang=EN")), "EN");
+  const fromLang = decideTalentSiteLocale({ pathname: "/", queryLocale: talentSiteQueryLocale(new URLSearchParams("lang=en")), ...ALBA });
+  assert.equal(fromLang.redirectPath, "/en");
+  assert.equal(fromLang.locale, "en");
+  assert.equal(fromLang.explicit, true);
+  assert.equal(
+    decideTalentSiteLocale({
+      pathname: "/services",
+      queryLocale: talentSiteQueryLocale(new URLSearchParams("lang=en")),
+      ...ALBA,
+    }).redirectPath,
+    "/en/services",
+  );
+});
+
+test("TUL-516: ?lang=en on a Spanish-only site is an explicit notice, not a silent ignore", () => {
+  const ES_ONLY = { primary: "es", supported: ["es"] as const, knownLocales: ["es", "en"] };
+  const d = decideTalentSiteLocale({
+    pathname: "/",
+    queryLocale: talentSiteQueryLocale(new URLSearchParams("lang=en")),
+    ...ES_ONLY,
+  });
+  assert.equal(d.locale, "es");
+  assert.equal(d.redirectPath, null);
+  assert.equal(d.unsupportedLocale, "en");
+  assert.equal(d.explicit, false);
 });
 
 test("prefix beats query beats primary", () => {
