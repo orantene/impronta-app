@@ -2,12 +2,17 @@
 
 /**
  * Wave 4 app page: live try-it, "Se ve mejor en" design thumbnails,
- * "Agregar a mi sitio" / Web Office upgrade path (never a dead lock).
+ * plan-aware primary CTA (Add vs Upgrade to use). Free talents keep the
+ * playground; no dead Add button.
  */
 import Link from "next/link";
-import { useState } from "react";
+import { useAdminShellOptional } from "@/components/admin/shell/internal/state";
 import { requestBuilderAppIntent } from "@/components/edit-chrome/builder-app-intent";
-import { GALLERY_LOCKED_UPGRADE_HREF, galleryLockedHint } from "@/lib/site-admin/add-gallery/structural-lock";
+import {
+  canAddLibraryApp,
+  isPremiumApp,
+} from "@/lib/site-admin/add-gallery/app-plan-gate";
+import { GALLERY_LOCKED_UPGRADE_HREF } from "@/lib/site-admin/add-gallery/structural-lock";
 import { NailStudioFrame } from "@/lib/site-admin/builder-node/nail-designer-frame";
 import {
   designsThatSuitApp,
@@ -36,6 +41,8 @@ export function AppDetailScreen({
   onOpenDesign,
   onBackToLibrary,
   onClose,
+  /** Test / host override. When omitted, resolves from the talent bridge plan. */
+  canAddApps,
 }: {
   locale: MaisonSetupLocale;
   appId: string | null | undefined;
@@ -44,12 +51,16 @@ export function AppDetailScreen({
   onOpenDesign: (designSlug: string) => void;
   onBackToLibrary: () => void;
   onClose: () => void;
+  canAddApps?: boolean;
 }) {
   const app = findLibraryApp(appId);
-  const [tipOpen, setTipOpen] = useState(false);
   const designs = app ? designsThatSuitApp(app) : [];
   const play = app ? PLAYGROUND[app.nativeKind] : null;
-  const lockedHint = galleryLockedHint(locale);
+  const bridgePlan = useAdminShellOptional()?.bridgeTalentSelfProfile?.talentPlanKey ?? null;
+  // Gate only premium apps (`isPremiumApp && !canAdd` → Upgrade). `canAddApps`
+  // is a test/host override for the Web Office capability.
+  const planAllowsPremium = canAddApps ?? canAddLibraryApp(bridgePlan);
+  const canAdd = app ? (!isPremiumApp(app) || planAllowsPremium) : false;
 
   if (!app) {
     return (
@@ -67,6 +78,7 @@ export function AppDetailScreen({
       data-testid="app-detail-screen"
       data-gallery-wave4-app-detail=""
       data-app-id={app.id}
+      data-can-add-apps={canAdd ? "1" : "0"}
       className="mx-auto flex w-full max-w-[1100px] flex-col gap-5 px-4 pb-10 pt-2 font-admin-body"
     >
       <header className="flex min-h-12 items-center gap-2 border-b border-admin-border-soft pb-3">
@@ -79,7 +91,17 @@ export function AppDetailScreen({
           ‹ {galleryAppsT(locale, "backToApps")}
         </button>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[16px] font-semibold text-admin-ink">{appName(app, locale)}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="truncate text-[16px] font-semibold text-admin-ink">{appName(app, locale)}</h1>
+            {app.premium ? (
+              <span
+                data-testid="gallery-app-pro"
+                className="rounded-full bg-admin-ink px-2 py-0.5 text-[10.5px] font-bold text-white"
+              >
+                {galleryAppsT(locale, "pro")}
+              </span>
+            ) : null}
+          </div>
           <p className="truncate text-[12px] text-admin-ink-muted">{appPitch(app, locale)}</p>
         </div>
         <div className="flex rounded-lg border border-admin-border-soft p-0.5">
@@ -151,53 +173,32 @@ export function AppDetailScreen({
         </section>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Link
-          href={
-            app
-              ? `/talent/page-builder?panel=add&app=${encodeURIComponent(app.id)}`
-              : "/talent/page-builder"
-          }
-          data-testid="app-detail-add-to-site"
-          onClick={() => {
-            if (app) requestBuilderAppIntent(app.id);
-          }}
-          className="inline-flex min-h-12 items-center justify-center rounded-xl bg-admin-ink px-5 text-[14px] font-semibold text-white"
-        >
-          {galleryAppsT(locale, "addToSite")}
-        </Link>
-        <div className="relative flex items-center gap-2">
-          <span
-            data-testid="app-detail-web-office"
-            className="text-[13px] font-semibold text-admin-ink-muted"
+      <div className="flex flex-col gap-2">
+        {canAdd ? (
+          <Link
+            href={`/talent/page-builder?panel=add&app=${encodeURIComponent(app.id)}`}
+            data-testid="app-detail-add-to-site"
+            onClick={() => {
+              requestBuilderAppIntent(app.id);
+            }}
+            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-admin-ink px-5 text-[14px] font-semibold text-white"
           >
-            {galleryAppsT(locale, "webOffice")}
-          </span>
-          <button
-            type="button"
-            data-testid="app-detail-web-office-tip"
-            aria-label={galleryAppsT(locale, "webOfficeTip")}
-            onClick={() => setTipOpen((v) => !v)}
-            className="grid h-9 w-9 place-items-center text-[14px] text-admin-ink-dim"
-          >
-            ⓘ
-          </button>
-          {tipOpen ? (
-            <div
-              role="tooltip"
-              className="absolute left-0 top-full z-20 mt-1 w-max max-w-[260px] rounded-lg bg-admin-ink px-3 py-2 text-[12px] leading-snug text-white shadow-lg"
-            >
-              {galleryAppsT(locale, "webOfficeTip")}
-            </div>
-          ) : null}
+            {galleryAppsT(locale, "addToSite")}
+          </Link>
+        ) : (
           <a
             href={GALLERY_LOCKED_UPGRADE_HREF}
-            data-testid="app-detail-see-plans"
-            className="text-[13px] font-semibold text-admin-ink underline-offset-2 hover:underline"
+            data-testid="app-detail-upgrade-to-use"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-admin-ink px-5 text-[14px] font-semibold text-white"
           >
-            {lockedHint.cta}
+            {galleryAppsT(locale, "upgradeToUse")}
           </a>
-        </div>
+        )}
+        {!canAdd ? (
+          <p data-testid="app-detail-web-office" className="text-[13px] text-admin-ink-muted">
+            {galleryAppsT(locale, "webOfficeTip")}
+          </p>
+        ) : null}
       </div>
     </section>
   );

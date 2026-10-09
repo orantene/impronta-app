@@ -62,10 +62,8 @@ src/components/shared/ThreadShell.test.ts
 src/components/site-shell/shell-nav-data.static.test.ts
 src/components/support/support-deep-link.test.ts
 src/components/talent-cards/card-actions-portrait.static.test.ts
-src/components/talent/site/maison-setup/gallery-apps.test.tsx
 src/components/talent/site/maison-setup/gallery-browse-state.test.ts
 src/components/talent/site/maison-setup/gallery-wave3.static.test.ts
-src/components/talent/site/maison-setup/gallery-wave4.static.test.tsx
 src/components/talent/site/maison-setup/go-live-pending.test.ts
 src/components/talent/site/maison-setup/live-design-change.test.ts
 src/components/talent/site/maison-setup/maison-choices.test.ts

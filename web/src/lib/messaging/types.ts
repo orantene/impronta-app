@@ -187,6 +187,10 @@ export type ThreadMessage = {
   system?: boolean;
   /** metadata.system_event_type of an engine line ("offer_sent", "inquiry_created", ...). */
   systemEvent?: string | null;
+  /** TUL-36: booking-assistant (or other) AI-authored system line. */
+  fromAi?: boolean;
+  /** Guest/talent disclosure label when fromAi (e.g. "Automated reply"). */
+  aiDisclosureLabel?: string | null;
 };
 
 export type CustomerMatchLevel = "phone" | "name_only" | "new";
