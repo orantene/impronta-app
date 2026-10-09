@@ -20,7 +20,7 @@ describe("a quote that cannot be priced says why and where to fix it (never a gu
 
   it("every new string has Spanish", () => {
     const es = rd("../../components/admin/shell/internal/dashboard-i18n-quote.ts");
-    for (const key of ["This service has no usable currency, so the quote could not be priced.", "Set the service\\'s currency in Services", ", then send the quote again."]) {
+    for (const key of ["This service has no usable currency, so the quote could not be priced.", "Set the service's currency in Services", ", then send the quote again."]) {
       assert.ok(es.includes(`"${key}"`), `ES for "${key}"`);
     }
   });
