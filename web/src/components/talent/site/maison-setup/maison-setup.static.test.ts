@@ -37,6 +37,36 @@ test("P3: Choose a design renders the browse gallery (supersedes W75)", () => {
   assert.equal(gallery.includes("—"), false, "no em dashes");
 });
 
+test("W5-8 / TUL-519: gallery browse previews use My content (no ?demo=)", () => {
+  const card = read("GalleryDesignCard.tsx");
+  assert.match(card, /preview\.src\(d\.slug, galleryPreviewLookSlug\(d, demo\?\.defaultPalette\)\)/);
+  assert.doesNotMatch(card, /demoParam/);
+  assert.doesNotMatch(card, /preview\.src\([^)]*demoParam/);
+  const choices = read("maison-choices.ts");
+  assert.match(choices, /contentMode:\s*"mine"/);
+  const host = read("MaisonSetupHost.tsx");
+  assert.match(host, /contentMode:\s*"mine" as const/);
+  assert.doesNotMatch(host, /browsing the gallery defaults to Demo/);
+  const magazine = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/theme-catalog/collection/design-type-system.ts"),
+    "utf8",
+  );
+  assert.match(
+    magazine,
+    /\[data-talent-theme-preview\]\[data-preview-content="demo"\] \.site-header__region\[data-region="right"\]::before\{content:"DEMO"/,
+  );
+  const frame = readFileSync(
+    join(process.cwd(), "src/app/template-preview/[key]/theme-preview-frame-client.tsx"),
+    "utf8",
+  );
+  assert.match(frame, /data-preview-content=\{previewContent\}/);
+  const preview = readFileSync(
+    join(process.cwd(), "src/app/template-preview/[key]/theme-preview.tsx"),
+    "utf8",
+  );
+  assert.match(preview, /previewContent=\{demoSource \? "demo" : "mine"\}/);
+});
+
 test("TUL-331 G12: honest finished-theme count in gallery copy (en+es)", () => {
   const copy = read("maison-setup-copy.ts");
   assert.match(copy, /\{n\} designs ready today\. Preview any with your photos and services\./);

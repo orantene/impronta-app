@@ -317,7 +317,12 @@ export async function ThemeCatalogPreview({
   };
 
   return (
-    <ThemeTokenPreviewFrame initialTokens={effectiveTokens} locale={locale === "es" ? "es" : "en"} designSlug={design.slug}>
+    <ThemeTokenPreviewFrame
+      initialTokens={effectiveTokens}
+      locale={locale === "es" ? "es" : "en"}
+      designSlug={design.slug}
+      previewContent={demoSource ? "demo" : "mine"}
+    >
       <GoogleFontsLink tokens={effectiveTokens} />
       <TypeSystemStyle />
       <TalentSiteRenderer
