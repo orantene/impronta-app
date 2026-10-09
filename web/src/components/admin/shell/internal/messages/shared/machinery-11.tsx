@@ -16,10 +16,8 @@ import { OfferTab } from "./machinery-12";
 import { OfferTermsComposer } from "./offer-terms-ui";
 import { PanelSkeleton, ghostBtn, primaryBtn } from "./machinery-13";
 import type { Offer } from "./machinery-9";
-import { LineServicePicker } from "./line-service-picker";
+import { OfferDraftLineItem } from "./offer-draft-line-item";
 import { formatOfferMoney } from "@/lib/inquiry/offer-currency";
-import { planServicePick } from "@/lib/inquiry/offer-service-pick";
-import type { ServicePricingType } from "@/lib/talent/services-menu-types";
 
 
 /**
@@ -565,13 +563,13 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
   }
 
   return (
-    <div style={{
+    <div data-offer-draft-editor style={{
       background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
       borderRadius: RADIUS.md, padding: 12,
       display: "flex", flexDirection: "column", gap: 8,
       fontFamily: FONTS.body, fontSize: 12,
-    }}>
-      <div className="flex items-center gap-2">
+    }} className="@container min-w-0">
+      <div className="flex flex-wrap items-center gap-2">
         <span style={{ fontWeight: 700 }} className="text-admin-ink">{t("dashboard.adminTabs.lineup.draftEditor")}</span>
         {/* W0-4 — live save-state chip, companion to OfferSaveBanner. */}
         <OfferStatusChip state={saveState} />
@@ -591,125 +589,21 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
       <OfferColumnHeaders t={t} />
       <div className="flex flex-col gap-1.5">
         {snapshot.lineItems.map((li) => (
-          <div key={li.id} style={{
-            background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 8, padding: "8px 10px",
-            display: "grid", gridTemplateColumns: "1.6fr 0.8fr 0.6fr 0.8fr 0.8fr 28px",
-            gap: 6, alignItems: "center",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0 }}>
-              <select
-                value={li.talentProfileId ?? ""}
-                onChange={(e) => {
-                  const id = e.target.value || null;
-                  const match = rosterOptions.find((p) => p.id === id);
-                  // Changing the talent invalidates any prior service prefill
-                  // (the service belonged to the previous talent) — clear the stamp.
-                  updateLine(li.id, { talentProfileId: id, talentDisplayName: match?.name ?? null, label: labelTouched.has(li.id) ? li.label : (match?.name ?? li.label), sourceServiceId: null });
-                }}
-                style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4, flex: 1, minWidth: 0 }}
-              >
-                <option value="">{t("dashboard.adminTabs.lineup.chooseTalent")}</option>
-                {rosterOptions.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-              {/* Item #11 final: live coord badge. Renders "+coord"
-                  inline when the selected talent is a coordinator on
-                  this inquiry. Engine commission snapshot pays both
-                  lanes (talent payout + workspace fee share per
-                  coordinator_pct, plan §7.4). */}
-              {li.talentProfileId && coordTalentIds.has(li.talentProfileId) && (
-                <span
-                  title={t("dashboard.adminTabs.lineup.coordBadgeTitle")}
-                  style={{
-                    padding: "1px 6px",
-                    borderRadius: 999,
-                    background: "rgba(43,63,163,0.10)",
-                    color: "#2B3FA3",
-                    fontSize: 9.5, fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.4,
-                    whiteSpace: "nowrap",
-                    flexShrink: 0,
-                  }}
-                >
-                  {t("dashboard.adminTabs.lineup.coordBadge")}
-                </span>
-              )}
-            </div>
-            <select
-              value={li.pricingUnit}
-              onChange={(e) => updateLine(li.id, { pricingUnit: e.target.value as ServicePricingType })}
-              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
-            >
-              <option value="hour">{t("dashboard.adminTabs.lineup.unitHour")}</option>
-              <option value="day">{t("dashboard.adminTabs.lineup.unitDay")}</option>
-              <option value="week">{t("dashboard.adminTabs.lineup.unitWeek")}</option>
-              <option value="half_day">{t("dashboard.adminTabs.lineup.unitHalfDay")}</option>
-              <option value="event">{t("dashboard.adminTabs.lineup.unitEvent")}</option>
-              <option value="per_person">{t("dashboard.adminTabs.lineup.unitPerson")}</option>
-              <option value="per_contact">{t("dashboard.adminTabs.lineup.unitSession")}</option>
-              <option value="flat_package">{t("dashboard.adminTabs.lineup.unitFlat")}</option>
-              <option value="custom">{t("dashboard.adminTabs.lineup.unitCustom")}</option>
-            </select>
-            <input type="number" min={0} step="0.5" value={li.units}
-              onChange={(e) => updateLine(li.id, { units: parseFloat(e.target.value) || 0 })}
-              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
-              placeholder={t("dashboard.adminTabs.lineup.unitsPlaceholder")}
-            />
-            <input type="number" min={0} step="100" value={li.unitPrice}
-              onChange={(e) => updateLine(li.id, { unitPrice: parseFloat(e.target.value) || 0 })}
-              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
-              placeholder={t("dashboard.adminTabs.lineup.ratePlaceholder")}
-            />
-            <input type="number" min={0} step="100" value={li.talentCost}
-              onChange={(e) => updateLine(li.id, { talentCost: parseFloat(e.target.value) || 0 })}
-              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
-              placeholder={t("dashboard.adminTabs.lineup.talentCostPlaceholder")}
-            />
-            <button type="button" onClick={() => removeLine(li.id)} style={{
-              background: "transparent", border: "none",
-              color: COLORS.coralDeep, cursor: "pointer", fontSize: 14, lineHeight: 1,
-            }}>×</button>
-            {/* S14/S15 — prefill this line from the talent's services (W2-1). */}
-            {li.talentProfileId ? (
-              <div className="col-span-full">
-                <LineServicePicker
-                  talentProfileId={li.talentProfileId} currency={snapshot.currencyCode}
-                  onPick={(svc) => {
-                    // TUL-274: an amount never crosses currencies silently.
-                    const plan = planServicePick({ offerCurrency: snapshot.currencyCode, lines: snapshot.lineItems, lineId: li.id, labelTouched: labelTouched.has(li.id), service: svc });
-                    const next = plan.switchCurrency;
-                    if (plan.blocked) { toast(interpolate(t("dashboard.adminTabs.lineup.svcCurrencyBlocked"), plan.blocked)); return; }
-                    if (next) setSnapshot((s) => (s == null ? s : { ...s, currencyCode: next }));
-                    updateLine(li.id, { ...plan.patch, pricingUnit: svc.pricingType });
-                  }}
-                />
-              </div>
-            ) : null}
-            {/* W2-2 — editable line label + "what's included" note: a
-                travel-inclusive rate reads honestly (baked in, no expense line). */}
-            <div className="col-span-full flex gap-1.5">
-              <input
-                type="text"
-                value={li.label ?? ""}
-                onChange={(e) => {
-                  setLabelTouched((prev) => new Set(prev).add(li.id));
-                  updateLine(li.id, { label: e.target.value });
-                }}
-                placeholder={t("dashboard.adminTabs.lineup.lineLabelPlaceholder")}
-                className="min-w-0 flex-[1.4] rounded border border-admin-border bg-white px-1.5 py-1 text-[11px] text-admin-ink"
-              />
-              <input
-                type="text"
-                value={li.notes ?? ""}
-                onChange={(e) => updateLine(li.id, { notes: e.target.value || null })}
-                placeholder={t("dashboard.adminTabs.lineup.lineNotePlaceholder")}
-                className="min-w-0 flex-1 rounded border border-admin-border bg-white px-1.5 py-1 text-[11px] text-admin-ink-muted"
-              />
-            </div>
-          </div>
+          <OfferDraftLineItem
+            key={li.id}
+            li={li}
+            lines={snapshot.lineItems}
+            currencyCode={snapshot.currencyCode}
+            rosterOptions={rosterOptions}
+            coordTalentIds={coordTalentIds}
+            labelTouched={labelTouched.has(li.id)}
+            t={t}
+            toast={toast}
+            updateLine={updateLine}
+            onRemove={removeLine}
+            onLabelTouched={(id) => setLabelTouched((prev) => new Set(prev).add(id))}
+            onSwitchCurrency={(code) => setSnapshot((s) => (s == null ? s : { ...s, currencyCode: code }))}
+          />
         ))}
       </div>
       <OfferEditorFooter
