@@ -316,6 +316,33 @@ export async function undoThemeUpdateEntry(
   input: { talentProfileId: string; entryId: string; expectedDraftRev: number | null; actorId: string | null },
 ): Promise<HistoryWriteResult> {
   const entry = await loadHistorySnapshot(admin, input.talentProfileId, input.entryId);
+  // L3 / TUL-421: design_apply undo restores the pre-switch snapshot exactly.
+  if (entry?.kind === "design_apply" && isHistorySnapshot(entry.snapshot)) {
+    const state = await loadSiteDraftState(admin, input.talentProfileId);
+    if (!state) return { ok: false, code: "not_found", error: "Site not found." };
+    const plan = planRestore(
+      entry.snapshot,
+      { shell: state.shell, pages: Object.fromEntries(state.pages.map((p) => [p.id, p.blocks])) },
+      guard,
+    );
+    const summary = restoreSummary(entry.at);
+    const restored = await writeSiteDraft(admin, {
+      siteId: state.siteId,
+      expectedDraftRev: input.expectedDraftRev,
+      site: { ...plan.site, ...(input.actorId ? { updated_by: input.actorId } : {}) },
+      pages: plan.pages,
+      history: {
+        kind: "restore",
+        summaryEn: summary.en,
+        summaryEs: summary.es,
+        report: { from: input.entryId, skippedPages: plan.skippedPages, undoDesignApply: true },
+        undoOf: input.entryId,
+        createdBy: input.actorId,
+      },
+    });
+    if (restored.ok) await ensureSiteThemeUpdates(admin, input.talentProfileId);
+    return restored;
+  }
   if (!entry || (entry.kind !== "theme_update" && entry.kind !== "auto_improve") || !isThemeUpdateReport(entry.report)) {
     return { ok: false, code: "not_undoable", error: "This entry cannot be undone." };
   }

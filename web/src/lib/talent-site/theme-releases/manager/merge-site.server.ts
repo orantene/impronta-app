@@ -24,6 +24,7 @@ import type { DesignPayload, TalentThemeDesignRow } from "@/lib/talent-site/them
 import { designPaletteTokens, paletteKeyForLook } from "@/lib/talent-site/theme-catalog/design-palettes";
 import type { BaseResolver } from "./base-resolver.server";
 import { writeThemeTokenOrigin } from "../token-origin-store";
+import { supersedeStaleUpdateRows } from "../superseded-rows.server";
 import { indexTree } from "../classify";
 import { mergeDesignUpdate } from "../merge";
 import { planCriticalFix, type CriticalFix } from "../critical-targeted";
@@ -211,4 +212,8 @@ export async function writeMergedDraft(
     if (h !== undefined && tokenOriginMap({ [k]: v })[k] === h) origin[k] = h;
   }
   await writeThemeTokenOrigin(admin, site.siteId, origin);
+  // THEME CORE P1: the demo pin moved; open rows at or below it close.
+  await supersedeStaleUpdateRows(admin, [
+    { siteId: site.siteId, talentProfileId: site.talentProfileId, designSlug: design.slug, pin: toVersion },
+  ]);
 }

@@ -12,6 +12,7 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { sectionNameForKey, sectionNameForLabel } from "@/lib/talent-site/history/draft-diff";
 import { hashString, propsOf } from "../origin";
+import { countCopyKept } from "../copy-merge";
 import { countParts, editedKept, partsOf } from "../parts";
 import { findKeyPath, keyOf, updateAt } from "../tree-ops";
 import type { DesignMergeReport, ReleaseItem, ReleaseItemType, SiteUpdateState } from "../types";
@@ -29,7 +30,7 @@ export function isNoticeVisible(state: SiteUpdateState | string | null | undefin
 }
 
 /** Items Tulala applies on its own (untouched parts only) once a release is default. */
-export const AUTO_ITEM_TYPES: readonly ReleaseItemType[] = ["code", "token-default", "variant-default"];
+export const AUTO_ITEM_TYPES: readonly ReleaseItemType[] = ["code", "token-default", "variant-default", "copy"];
 
 export function isAutoItem(item: Pick<ReleaseItem, "type">): boolean {
   return AUTO_ITEM_TYPES.includes(item.type);
@@ -216,6 +217,8 @@ export interface UpdateSummary {
    * never on her page or not in her base produces no entry at all (silent).
    */
   removedKeys: string[];
+  /** Texts (translations) she changed that the update left alone: "kept 2 texts you changed". */
+  copyKept?: number;
 }
 
 export function summarizeReport(report: Pick<DesignMergeReport, "applied" | "added" | "kept" | "conflicts">): UpdateSummary {
@@ -227,6 +230,7 @@ export function summarizeReport(report: Pick<DesignMergeReport, "applied" | "add
     kept: countParts(edited),
     removedKeys: partsOf(report.kept.filter((e) => e.reason === "removed")).slice(0, 6),
     conflicts: report.conflicts.length,
+    copyKept: countCopyKept(report.conflicts),
     moved: report.applied.filter((e) => e.reason === "moved_edits").length,
     keptLabels: keys.map((k) => (k === "colours" ? k : humanKey(k))),
     keptKeys: keys,

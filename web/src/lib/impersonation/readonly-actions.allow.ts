@@ -44,7 +44,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["app/(workspace)/platform/admin/commerce/commission/actions.ts", ["loadPlatformCommissionConfig"], READ],
   ["app/(workspace)/platform/admin/tenants/actions.ts", ["actionGetTenantManagementDetail"], READ],
   ["app/(workspace)/platform/admin/integrations/platform-integration-actions.ts", ["loadPlatformIntegrationDefaults"], READ],
-  ["app/(workspace)/platform/admin/builder-lab/talent-designs/publish-actions.ts", ["actionPreviewDesignPublish"], READ],
+  ["app/(workspace)/platform/admin/builder-lab/talent-designs/publish-actions.ts", ["actionPreviewDesignPublish", "actionFirstPublishDryRun"], READ],
   ["app/(workspace)/platform/admin/users/actions-billing.ts", ["getPersonBillingSnapshot"], READ],
   ["app/(workspace)/platform/admin/users/actions.ts", ["getPlatformUserActivity", "getPlatformUserAuditLog"], READ],
   ["app/(workspace)/platform/admin/users/actions-notes.ts", ["getPlatformUserNotes"], READ],

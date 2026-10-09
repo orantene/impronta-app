@@ -12,6 +12,8 @@ export type ReleaseItemType =
   | "variant-default"
   | "new-block"
   | "layout"
+  /** Default copy: base text and its `i18n` translations (per leaf, never over her edit). */
+  | "copy"
   | "critical";
 
 /** One typed change inside a release. `key` is the stable design key (slotKey or slotKey/path) or token key. */
@@ -138,6 +140,8 @@ export interface MergeEntry extends MergeReportEntry {
   /** Design key of the sibling the node sits after (null = first). */
   anchor?: string | null;
   changes?: LeafChange[];
+  /** Which of `changes` are default-copy leaves (the dry-run copy report lists them). */
+  copyPaths?: string[];
   /** Node snapshot: inserted (after) or removed (before). */
   node?: BuilderNode;
   /** The node's stamp before a props change (reverse restores it). */
@@ -159,7 +163,11 @@ export interface MergeEntry extends MergeReportEntry {
     | "your_order"
     | "critical"
     | "inherits_default"
-    | "moved_edits";
+    | "moved_edits"
+    /** Copy conflict: her text differs from the base, so the new default text was not written. */
+    | "copy_edited"
+    /** Copy leaves written onto the node (undo restores them leaf by leaf). */
+    | "copy_applied";
   itemId?: string;
 }
 

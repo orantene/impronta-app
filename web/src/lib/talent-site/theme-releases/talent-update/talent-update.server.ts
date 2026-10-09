@@ -27,14 +27,14 @@ import type { HistorySnapshot } from "@/lib/talent-site/history/types";
 import type { WriteSiteDraftResult } from "@/lib/talent-site/history/writer";
 import { assertFreeTalentSiteTreeMutation } from "@/lib/talent-site/free-site-tree-guard";
 import { loadTalentSiteSaveCapabilities } from "@/lib/talent-site/server/free-site-save-guard";
-import { ensureSiteThemeUpdates } from "../lazy-fan-out.server";
+import { ensureSiteThemeUpdates, isSupersededReport, supersedeStaleUpdateRows } from "../lazy-fan-out.server";
 import { resolveBellsForRows } from "../theme-bells.server";
 import { noBaseOfferItems, offerActionableFor, withoutPresentBlocks } from "../offer-actionable.server";
 import { loadReleaseDesign } from "../release-design.server";
 import { makeBaseResolver } from "../manager/base-resolver.server";
 import { mergeSite, type SiteMergeOutcome } from "../manager/merge-site.server";
 import type { ReleaseItem, ReleaseNotes, SiteUpdateState, ThemeRelease } from "../types";
-import { countParts, editedKept } from "../parts";
+import { countCopyKept, countParts, editedKept } from "../parts";
 import { findKeyPath } from "../tree-ops";
 import { addBlockSummary, releaseVersionLabel } from "./copy";
 import {
@@ -534,8 +534,7 @@ export async function loadThemeUpdatePreviewSnapshot(
   if (!ctx) return null;
   const m = await deps.merge(ctx, applyItemsOf(ctx.release.items ?? []));
   if (!m.ok || !m.homePageId) return null;
-  // F76: opening the preview is measurement. Record `previewed` on the update
-  // row only; her site is untouched. Never downgrades applied/dismissed/undone.
+  // F76: preview records `previewed` on the update row only (site untouched; never downgrades).
   await setUpdateState(deps.admin, talentProfileId, updateId, "previewed", { onlyFrom: ["available"] });
   return {
     v: 1,
@@ -583,6 +582,7 @@ export async function setUpdateState(
 export interface ApplyOutcome {
   draftRev: number;
   kept: number;
+  copyKept?: number; // texts she changed that the update left alone (copy conflicts)
   historyId: string | null;
 }
 
@@ -629,7 +629,8 @@ export async function applyThemeUpdate(
       report: { ...summarizeReport(m.result.report), addedBlocks: ctx.addedBlocks },
     });
   }
-  return { ok: true, value: { draftRev: res.draftRev, kept: countParts(editedKept(m.result.report.kept)), historyId: res.historyId } };
+  await supersedeStaleUpdateRows(deps.admin, [{ siteId: ctx.siteId, talentProfileId: ctx.talentProfileId, designSlug: ctx.release.design_slug, pin: ctx.release.to_version }]); // older open rows at or below the new pin close too
+  return { ok: true, value: { draftRev: res.draftRev, kept: countParts(editedKept(m.result.report.kept)), copyKept: countCopyKept(m.result.report.conflicts), historyId: res.historyId } };
 }
 
 /** The update rows one offer covers (falls back to just the given row). */
@@ -784,7 +785,7 @@ export async function loadAvailableBlocks(admin: SupabaseClient, talentProfileId
   const ordered = [...list].sort((a, b) => (releases.get(b.release_id)?.to_version ?? 0) - (releases.get(a.release_id)?.to_version ?? 0));
   for (const row of ordered) {
     const rel = releases.get(row.release_id);
-    if (!rel || rel.status !== "published") continue;
+    if (!rel || rel.status !== "published" || isSupersededReport(row.report)) continue; // a row closed by a newer pin offers no blocks
     const added = new Set(Array.isArray(row.report?.addedBlocks) ? (row.report!.addedBlocks as unknown[]) : []);
     for (const item of Array.isArray(rel.items) ? rel.items : []) {
       if (item.type !== "new-block") continue;

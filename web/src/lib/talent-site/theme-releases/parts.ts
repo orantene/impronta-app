@@ -28,3 +28,4 @@ export function editedKept<T extends { reason?: string }>(kept: ReadonlyArray<T>
 export function countParts(entries: ReadonlyArray<Pick<MergeEntry, "key" | "change">>): number {
   return partsOf(entries).length;
 }
+export { countCopyKept } from "./copy-merge";
