@@ -5,7 +5,7 @@
  *
  * Levers (GitHub has no runner-priority API):
  *   1. The heavy structural gate runs on main, on integ/* PRs, and on ordinary
- *      PRs labelled full-gate. Any other ordinary PR fails a seconds-long
+ *      PRs labelled full-ci. Any other ordinary PR fails a seconds-long
  *      policy step (required check stays red, so it cannot merge around the
  *      gate) and frees the runner; its integ batch's gate covers it.
  *   2. Concurrency stays PER-REF (a shared group would cancel queued gates).
@@ -36,7 +36,7 @@ test("the gate's first step is the policy step, reading labels live", () => {
   const steps = ci.split("\n    steps:\n")[1] ?? "";
   assert.match(steps.trimStart(), /^- name: Gate policy \(ordinary PRs ship via an integ batch\)\n\s+id: policy/);
   assert.match(ci, /gh pr view "\$PR_NUMBER" --json labels/);
-  assert.match(ci, /grep -qx "full-gate"/);
+  assert.match(ci, /grep -qx "full-ci"/);
   assert.match(ci, /startsWith\(github\.head_ref, 'integ\/'\)/);
   assert.match(ci, /pull-requests: read/);
   // It runs before checkout, so it must not inherit the job default working-directory (web/).
@@ -44,7 +44,7 @@ test("the gate's first step is the policy step, reading labels live", () => {
 });
 
 test("an unlabelled ordinary PR fails (not skips) the gate", () => {
-  assert.match(ci, /echo "run=false" >> "\$GITHUB_OUTPUT"\n\s+echo "::error::[^\n]*full-gate[^\n]*"\n\s+exit 1/);
+  assert.match(ci, /echo "run=false" >> "\$GITHUB_OUTPUT"\n\s+echo "::error::[^\n]*full-ci[^\n]*"\n\s+exit 1/);
 });
 
 test("every heavy step is conditioned on the policy output", () => {
