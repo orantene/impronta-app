@@ -4589,6 +4589,7 @@
         "loadDraftFailed": "No se pudo cargar el borrador de oferta: {error}",
         "starting": "Iniciando...",
         "startDrafting": "Empezar a redactar la oferta",
+        "offerCurrencyChoose": "¿En qué moneda va esta oferta? No pudimos saberlo por quien vende, elige una.",
         "startOfferFailed": "No se pudo iniciar la oferta: {error}",
         "offerCreated": "Borrador de oferta creado",
         "statusRemoved": "Quitado",
