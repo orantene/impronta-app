@@ -248,8 +248,11 @@ export async function validateActorPermission(
     }
   }
 
-  // The owner of a workspace who is the whole lineup (solo / 'both' owner): the
-  // offer verbs are hers even while her invite rows are still 'invited'.
+  // A talent selling in her own business (owner of the workspace, or a sale on a
+  // talent-type workspace such as the hub) who is the only live seat: the offer
+  // verbs are hers even while her invite rows are still 'invited'.
+  // `talentProfileId` above is loaded by `talent_profiles.user_id = actorUserId`,
+  // so it is always the actor's own profile.
   if (talentProfileId && OFFER_VERBS.includes(action)) {
     const { data: ownInq, error: ownInqErr } = await supabase
       .from("inquiries")
@@ -260,29 +263,35 @@ export async function validateActorPermission(
       .from("inquiry_participants")
       .select("talent_profile_id")
       .eq("inquiry_id", inquiryId)
-      .eq("role", "talent");
+      .eq("role", "talent")
+      .in("status", ["active", "invited"]);
     const tenantOfInquiry = (ownInq as { tenant_id?: string | null } | null)?.tenant_id ?? null;
     // Any failed read fails closed (falls through to the other rules).
     if (!ownInqErr && !ownSeatsErr && tenantOfInquiry) {
-      const lineup = ((ownSeats ?? []) as Array<{ talent_profile_id: string | null }>)
+      const live = ((ownSeats ?? []) as Array<{ talent_profile_id: string | null }>)
         .map((r) => r.talent_profile_id)
         .filter((v): v is string => Boolean(v));
-      if (lineup.length === 1 && lineup[0] === talentProfileId) {
-        const { data: ownerRow, error: ownerErr } = await supabase
-          .from("agency_memberships")
-          .select("id")
-          .eq("tenant_id", tenantOfInquiry)
-          .eq("profile_id", actorUserId)
-          .eq("role", "owner")
-          .eq("status", "active")
-          .limit(1)
-          .maybeSingle();
+      if (live.length === 1 && live[0] === talentProfileId) {
+        const [{ data: ownerRow, error: ownerErr }, { data: tenantRow, error: tenantErr }] = await Promise.all([
+          supabase
+            .from("agency_memberships")
+            .select("id")
+            .eq("tenant_id", tenantOfInquiry)
+            .eq("profile_id", actorUserId)
+            .eq("role", "owner")
+            .eq("status", "active")
+            .limit(1)
+            .maybeSingle(),
+          supabase.from("agencies").select("workspace_type").eq("id", tenantOfInquiry).maybeSingle(),
+        ]);
         if (
           !ownerErr &&
+          !tenantErr &&
           ownerTalentOwnLineupOfferAllowed({
             actorTalentProfileId: talentProfileId,
-            talentProfileIds: lineup,
+            liveTalentProfileIds: live,
             actorIsActiveWorkspaceOwner: Boolean(ownerRow),
+            tenantIsTalentWorkspace: (tenantRow as { workspace_type?: string | null } | null)?.workspace_type === "talent",
           })
         ) {
           return { ok: true, isStaff: false, talentProfileId };
