@@ -89,13 +89,14 @@ test("fixtures: modes, currency and language follow demos.json", () => {
   }
   // Only the urgent trades carry the emergencies setting.
   for (const code of TRADE_CODES) assert.equal(!!fx(code).urgency, ["TAL-93206", "TAL-93207", "TAL-93209", "TAL-93212"].includes(code), code);
-  // 93212 is bilingual: the second language is written for every service, FAQ item and task.
+  // 93212 is bilingual: the second language is written for every service, FAQ item, task and page chrome.
   const ramon = fx("TAL-93212");
   const en = ramon.translations?.en;
   assert.ok(en?.tagline && en.bio);
   for (const s of ramon.services) assert.ok(en!.services![s.id]?.name && en!.services![s.id]?.matrix, s.id);
   assert.equal(en!.faq!.length, ramon.faq.items.length);
   for (const t of ramon.tasks!.items) assert.ok(en!.tasks![t.id]?.label, t.id);
+  assert.ok(en!.topBar?.subtitle && en!.hero?.headline && en!.specTable?.rows?.length === 5 && en!.menu?.subtitle);
 });
 
 test("offerings: the plan writes matrix cells and intake, and an identical rerun plans nothing", () => {
