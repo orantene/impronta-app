@@ -147,7 +147,7 @@ export const CATALOG_BOOKING_CSS = `
    booking dock or "See services" pill is up. Without this the locale banner
    (z-50) sits behind the dock (z-80+) and its Switch / No thanks controls
    cannot be reached — the prompt looks "stuck". */
-body:has(.cb-dock[data-show="true"]) [data-consent-banner],body:has(.cb-bar[data-show="true"]) [data-consent-banner],body:has(.cb-dock[data-show="true"]) [data-locale-suggestion],body:has(.cb-bar[data-show="true"]) [data-locale-suggestion]{display:none}
+body:has(.cb-dock[data-show="true"]) [data-consent-banner],body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-consent-banner],body:has(.cb-dock[data-show="true"]) [data-locale-suggestion],body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-locale-suggestion]{display:none}
 .cb-dock-toast button{appearance:none;background:color-mix(in srgb,var(--cb-surface) 14%,transparent);color:var(--cb-surface);border:0;border-radius:999px;padding:5px 11px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
 .cb-dock-th-icon{display:grid;place-items:center;background:var(--cb-blush);color:var(--cb-primary)}
 .cb-dock-unread{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--cb-primary);box-shadow:0 0 0 2px var(--cb-surface)}
