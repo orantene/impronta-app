@@ -31,7 +31,7 @@ import {
 } from "../section-kit";
 import { seqIds, servicesSection } from "./design-parts";
 import { GRIDLINE_STYLE_TOKEN_DEFAULTS } from "./gridline-defaults";
-import { seedI18nPayload } from "../seed-i18n";
+import { RECENT_JOBS_LABEL, seedI18nPayload } from "../seed-i18n";
 
 type Props = Record<string, unknown>;
 
@@ -119,7 +119,7 @@ function buildGridlinePayloadUnseeded(): DesignPayload {
             { label: "Payment", value: "" },
             { label: "Review", value: "" },
           ],
-          jobsHeading: "Recent jobs",
+          jobsHeading: RECENT_JOBS_LABEL.en,
         }),
         "spec_table",
         { title: "How it works" },

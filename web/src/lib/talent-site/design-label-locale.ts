@@ -11,6 +11,7 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
 import { registeredAuthoredOverlays } from "./theme-catalog/collection/authored";
 import { localiseBakedLanguagesLine } from "./talent-locale-swaps";
+import { RECENT_JOBS_LABEL } from "./theme-catalog/seed-i18n";
 
 /** Seeded English label -> Spanish. Keys are exact seed strings. */
 const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
@@ -37,8 +38,8 @@ const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "The menu": "El menú",
   "Services {i}and prices{/i}": "Servicios {i}y precios{/i}",
   "Recent work": "Trabajo reciente",
-  // Gridline work_order portfolio heading (seed + render-time rewrite).
-  "Recent jobs": "Trabajos recientes",
+  // TUL-516 C1: Gridline work_order portfolio heading (same pair as seed-i18n).
+  [RECENT_JOBS_LABEL.en]: RECENT_JOBS_LABEL.es,
   "How booking works": "Cómo reservar",
   Questions: "Preguntas",
   "Ask a question": "Hacer una pregunta",

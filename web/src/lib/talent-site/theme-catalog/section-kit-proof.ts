@@ -15,6 +15,7 @@ import { PORTFOLIO_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/portfolio
 import { cloneSpecTableDefaultProps } from "@/lib/site-admin/builder-node/spec-table-defaults";
 import { AREA_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/visit-defaults";
 import type { MaxSiteTemplateIdFactory } from "../max-site-templates/types";
+import { RECENT_JOBS_LABEL } from "./seed-i18n";
 
 const PROOF = { slotKey: "proof", originRole: "talent.proof" } as const;
 const AREA = { slotKey: "area", originRole: "talent.area" } as const;
@@ -55,7 +56,7 @@ export function proofBlock(
         props: {
           ...PORTFOLIO_DEFAULT_PROPS,
           layout: "work_order",
-          title: opts.jobsHeading ?? "Recent jobs",
+          title: opts.jobsHeading ?? RECENT_JOBS_LABEL.en,
           showCaptions: true,
           limit: opts.jobsLimit ?? 6,
         },

@@ -14,7 +14,7 @@ import { FINISHED_GALLERY_SLUGS } from "./gallery-meta";
 import { COLLECTION_DESIGNS } from "./collection/designs";
 import { buildMaisonDesignPayload } from "./maison/design-payload";
 import { localiseOne } from "../design-label-locale";
-import { isTokenOnlyText, MODE_DEPENDENT_LABELS, SEED_TEXT_ES } from "./seed-i18n";
+import { isTokenOnlyText, MODE_DEPENDENT_LABELS, RECENT_JOBS_LABEL, SEED_TEXT_ES } from "./seed-i18n";
 
 const DESIGNS: ReadonlyArray<readonly [string, () => DesignPayload]> = [
   ["maison", buildMaisonDesignPayload],
@@ -129,6 +129,12 @@ test("the seed Spanish table has no em dash and no voseo", () => {
     // A token must survive translation.
     assert.deepEqual(es.match(/\{\{\w+\}\}/g) ?? [], en.match(/\{\{\w+\}\}/g) ?? [], `${en}`);
   }
+});
+
+test("TUL-516 C1: Recent jobs seed and render-time map stay one pair", () => {
+  assert.equal(SEED_TEXT_ES[RECENT_JOBS_LABEL.en], RECENT_JOBS_LABEL.es);
+  assert.equal(localiseOne(RECENT_JOBS_LABEL.en, "es"), RECENT_JOBS_LABEL.es);
+  assert.equal(localiseOne(RECENT_JOBS_LABEL.es, "en"), RECENT_JOBS_LABEL.en);
 });
 
 test("the scanner flags a missing overlay (guard against a vacuous pass)", () => {
