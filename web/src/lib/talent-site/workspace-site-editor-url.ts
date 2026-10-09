@@ -8,6 +8,7 @@
  * exists, otherwise the canonical `tulala.digital/w/<slug>` path.
  */
 
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { buildEditorPanelUrl } from "@/lib/admin/website-editor-links";
@@ -63,7 +64,7 @@ export async function resolveWorkspaceSiteEditorUrl(
               })),
           },
         })
-      : workspacePathUrl(slug);
+      : workspacePathUrl(slug, resolveMarketingOrigin());
 
   return buildEditorPanelUrl({ editorBaseUrl: liveUrl, panel: "sections" });
 }
@@ -74,15 +75,15 @@ export async function resolveWorkspaceSitePublicUrl(
   input: { tenantId: string; slug: string },
 ): Promise<string> {
   const editor = await resolveWorkspaceSiteEditorUrl(admin, input);
-  if (!editor) return workspacePathUrl(input.slug);
+  if (!editor) return workspacePathUrl(input.slug, resolveMarketingOrigin());
   try {
     const u = new URL(editor);
     u.search = "";
     u.hash = "";
     // buildEditorPanelUrl appends a trailing `/` before `?edit=1`; strip it for
     // a clean shareable address that still matches the live storefront.
-    return u.toString().replace(/\/$/, "") || workspacePathUrl(input.slug);
+    return u.toString().replace(/\/$/, "") || workspacePathUrl(input.slug, resolveMarketingOrigin());
   } catch {
-    return workspacePathUrl(input.slug);
+    return workspacePathUrl(input.slug, resolveMarketingOrigin());
   }
 }

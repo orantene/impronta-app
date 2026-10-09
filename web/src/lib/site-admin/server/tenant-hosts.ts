@@ -195,6 +195,7 @@ export function resolveWorkspacePreviewUrl(input: {
 }): string {
   const isDev = input.isDev ?? process.env.NODE_ENV !== "production";
   const publicAddress = resolveWorkspacePublicAddress({
+    pathOrigin: resolveMarketingOrigin(),
     slug: input.slug,
     plan: input.plan,
     domainState: {

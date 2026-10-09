@@ -20,7 +20,7 @@ const MUTED = "var(--token-color-muted, #737373)";
 const RADIUS = "var(--site-radius-base, 8px)";
 
 export type AreaData = {
-  visits?: { upcoming: MeItem[]; waiting: MeItem[]; past: MeItem[] };
+  visits?: { upcoming: MeItem[]; waiting: MeItem[]; past: MeItem[]; /** inquiry id -> its booking talent's zone */ zones?: Record<string, string> };
   visit?: VisitDetail | null;
   threads?: ThreadRow[];
   thread?: { title: string; messages: ThreadMessage[] } | null;
@@ -262,7 +262,7 @@ export function ClientAccountArea(props: Props) {
   );
 
   const visitRow = (v: MeItem) => {
-    const when = formatZonedWhen(v.eventDate, props.timeZone, loc);
+    const when = formatZonedWhen(v.eventDate, visitZone(props.data.visits?.zones?.[v.id], props.timeZone), loc);
     return (
       <li key={v.id} style={{ listStyle: "none" }}>
         <Link href={`/account/visits/${v.id}`} style={{ ...card, display: "block", textDecoration: "none", color: INK }}>
