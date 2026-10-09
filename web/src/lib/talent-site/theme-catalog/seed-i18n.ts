@@ -50,6 +50,7 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   "Services and prices": "Servicios y precios",
   "No services are published yet.": "Aún no hay servicios publicados.",
   Sessions: "Sesiones",
+  "Dance instructor": "Instructora de baile",
   "Take your time": "Tómate tu tiempo",
   Prices: "Precios",
   "Pick a service, pick a time": "Elige un servicio y una hora",
