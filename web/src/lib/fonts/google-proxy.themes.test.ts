@@ -113,5 +113,7 @@ test("GoogleFontsLink output for folio / maison-v2 / gridline is a proxy URL the
     const href = m[1].replace(/&amp;/g, "&");
     assert.ok(href.startsWith("/api/fonts/css?"), `${slug}: not proxied: ${href}`);
     assert.ok(buildUpstreamCssUrl(href.split("?")[1]), `${slug}: proxy rejects ${href}`);
+    // TUL-495: default mount is non-blocking so header/main can paint.
+    assert.match(html, /media="print"/, `${slug}: font CSS still render-blocking`);
   }
 });

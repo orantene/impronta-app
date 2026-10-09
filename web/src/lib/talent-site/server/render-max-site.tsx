@@ -694,7 +694,9 @@ async function renderMaxSiteDocument(args: {
       />
       <BuilderNodeFontLinks nodes={[...shellTree, ...blocks]} components={components} />
       {hasTokens ? <GoogleFontsLink tokens={effectiveTokens} /> : null}
-      <TypeSystemStyle systems={typeSystemSheetsForTokens(effectiveTokens)} />
+      <TypeSystemStyle
+        systems={hasTokens ? typeSystemSheetsForTokens(effectiveTokens) : ["motion"]}
+      />
 
       {draftPreview ? (
         <div
