@@ -29,7 +29,10 @@ const LANGUAGES_ACTIONS_SRC = readFileSync(
   join(DIR, "../../server-actions/talent-self.ts"),
   "utf8",
 );
-const RENDER_SRC = readFileSync(join(DIR, "render-max-site.tsx"), "utf8");
+const RENDER_SRC =
+  readFileSync(join(DIR, "render-max-site.tsx"), "utf8") +
+  "\n" +
+  readFileSync(join(DIR, "render-max-site-document.tsx"), "utf8");
 
 describe("public Max-site data cache (TUL-444 B1 Step 2)", () => {
   it("tags with tagForTalentSite site kind and refuses guest keys", () => {
@@ -73,7 +76,8 @@ describe("public Max-site data cache (TUL-444 B1 Step 2)", () => {
     assert.match(RENDER_SRC, /const bypassCache = previewDraft;/);
     assert.match(RENDER_SRC, /loadMaxSitePages\(talentProfileId,\s*\{\s*bypassCache\s*\}/);
     assert.match(RENDER_SRC, /loadTalentSiteIdentity\(talentProfileId,\s*\{\s*bypassCache\s*\}/);
-    assert.match(RENDER_SRC, /bypassCache:\s*isOwnerDraftPreview/);
+    // Document module receives `draftPreview` (owner draft preview → bypass cache).
+    assert.match(RENDER_SRC, /bypassCache:\s*draftPreview/);
     assert.match(CANVAS_SRC, /const bypassCache = true;/);
     assert.match(CANVAS_SRC, /loadMaxSitePages\(talentProfileId,\s*\{\s*bypassCache\s*\}/);
     assert.match(LOCALE_SRC, /editorPreview \|\| input\.bypassCache/);

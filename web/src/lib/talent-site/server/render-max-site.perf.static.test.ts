@@ -7,10 +7,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
-const SRC = readFileSync(
-  join(new URL(".", import.meta.url).pathname, "render-max-site.tsx"),
-  "utf8",
-);
+const DIR = new URL(".", import.meta.url).pathname;
+/** Orchestrator + document module (document was split for the 800-line cap). */
+const SRC =
+  readFileSync(join(DIR, "render-max-site.tsx"), "utf8") +
+  "\n" +
+  readFileSync(join(DIR, "render-max-site-document.tsx"), "utf8");
 
 const REQUIRED_SPANS = [
   "maxSite.resolveSite",
