@@ -31,6 +31,7 @@ import {
   resolvePassThroughTakeBps,
 } from "@/lib/billing/platform-processing-mode";
 import {
+  moneyOwningParty,
   resolveOwningPartyForTalent,
   type OwningParty,
 } from "@/lib/inquiry/owning-party-resolver";
@@ -159,12 +160,15 @@ export async function resolvePurchaseSellersForCollect(
     if (linePrincipal <= 0 && (line.talentCostCents || 0) <= 0) continue;
 
     if (line.talentProfileId) {
-      const owning =
+      const resolved =
         (await resolveOwningPartyForTalent(
           admin as SupabaseClient,
           line.talentProfileId,
           tenantId,
         )) ?? { type: "workspace" as const, id: tenantId };
+      // Talent = merchant: the talent's own workspace sells as the talent, the
+      // same mapping the commission snapshot applies, so charge and snapshot agree.
+      const owning = await moneyOwningParty(admin as SupabaseClient, resolved, line.talentProfileId);
       const mapped = sellerOfRecordFromOwningParty(owning);
       out.push({
         ...mapped,
