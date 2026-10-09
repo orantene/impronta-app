@@ -29,6 +29,9 @@ describe("one front door", () => {
   test("1B: CTAs land in the in-app flow with the card preselected", () => {
     assert.equal(inAppFlowUrl("talent"), "/start?choice=myself");
     assert.equal(inAppFlowUrl("business", { locale: "es", promo: "X1" }), "/start?choice=studio&promo=X1&lang=es");
-    assert.equal(inAppFlowUrl("unknown", { locale: "en" }), "/start");
+    assert.equal(inAppFlowUrl("unknown", { locale: "en" }), "/start?lang=en");
+    assert.equal(inAppFlowUrl("talent", { locale: "en" }), "/start?choice=myself&lang=en");
+    assert.equal(inAppFlowUrl("business", { locale: "en" }), "/start?choice=studio&lang=en");
+    assert.equal(inAppFlowUrl("unknown"), "/start");
   });
 });
