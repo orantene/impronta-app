@@ -138,6 +138,9 @@ export function buildTalentLiveText(
       footer_contact: contactLine(instagram, src.instagramHref, src.whatsappHref),
     },
     // Only the lines that follow the profile on sites applied before 2.7 need their baked forms.
+    // Bio seeds (TUL-187): every language of her bio plus short_bio, so an About
+    // paragraph baked without `liveText: "bio"` (Maison release trees strip it)
+    // still binds at render and can show the language hint on fallback.
     seeds: {
       hero_eyebrow: [...eyebrows],
       hero_proof: [
@@ -146,6 +149,10 @@ export function buildTalentLiveText(
         cityEs ? `Based in ${cityEs}` : "",
         formatHeroProofLine(src.proof, "en"),
         formatHeroProofLine(src.proof, "es"),
+      ].filter(Boolean),
+      bio: [
+        ...Object.values(src.bioI18n ?? {}).map((v) => (typeof v === "string" ? v.trim() : "")),
+        src.shortBio?.trim() ?? "",
       ].filter(Boolean),
     },
   };
