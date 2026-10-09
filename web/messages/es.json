@@ -59,7 +59,7 @@
       "login": {
         "title": "Iniciar sesión",
         "inviteTitle": "Inicia sesión para unirte a {agency}",
-        "description": "Continúa con Google o correo electrónico. Con Google, la contraseña es opcional; puedes agregar una después en Cuenta.",
+        "description": "Continúa con Google, Apple o correo electrónico. Con Google o Apple, la contraseña es opcional; puedes agregar una después en Cuenta.",
         "inviteDescription": "{agency} te invitó a su roster. Inicia sesión para reclamar tu perfil y empezar a recibir reservas.",
         "google": "Continuar con Google",
         "emailSubmit": "Iniciar sesión con correo",
@@ -69,7 +69,8 @@
         "noAccount": "¿No tienes cuenta?",
         "signUp": "Regístrate",
         "sessionExpired": "Tu sesión expiró. Vuelve a iniciar sesión.",
-        "eyebrow": "Bienvenido de nuevo"
+        "eyebrow": "Bienvenido de nuevo",
+        "apple": "Continuar con Apple"
       },
       "register": {
         "title": "Crea tu cuenta",
@@ -227,7 +228,11 @@
         "title": "Un último paso",
         "description": "Tulala es solo para adultos. Confirma tu edad y acepta nuestros Términos y Política de privacidad para continuar.",
         "submit": "Continuar"
-      }
+      },
+      "appleOpening": "Abriendo Apple…",
+      "appleFailed": "No se pudo iniciar sesión con Apple.",
+      "applePopupBlocked": "El navegador bloqueó la ventana emergente. Permite ventanas emergentes e inténtalo de nuevo.",
+      "appleUnableToStart": "No se pudo iniciar el acceso con Apple."
     },
     "profile": {
       "about": "Acerca de",
@@ -1656,15 +1661,15 @@
       "fullyBooked": "Todos los horarios libres de las proximas dos semanas estan tomados. Intenta mas tarde o envia una solicitud."
     },
     "instantBook": {
+      "guestName": "Tu nombre",
+      "guestEmail": "Tu correo",
+      "signInToBook": "Inicia sesion para reservar",
       "refusal": {
         "requestOnly": "Este servicio se reserva por solicitud. Escribe un mensaje para pedir un horario.",
         "notAccepting": "Por ahora no se aceptan reservas nuevas. Envía una consulta.",
         "tooSoon": "Ese horario es muy pronto. Elige uno más tarde.",
         "slotTaken": "Ese horario acaba de ocuparse. Elige otro."
-      },
-      "guestName": "Tu nombre",
-      "guestEmail": "Tu correo",
-      "signInToBook": "Inicia sesion para reservar"
+      }
     },
     "bookPage": {
       "title": "Reserva un horario",
@@ -1775,11 +1780,20 @@
       "expired": "Esta pagina de pago esta cerrada. Pide un enlace nuevo al negocio.",
       "cancelled": "Este pago ya no está disponible. No se tomó nada.",
       "unknown": "El estado del pago es desconocido. No pagues de nuevo. El negocio lo confirma.",
+      "startFailedTitle": "No se pudo iniciar el pago",
+      "startFailedBody": "No se cobró nada. Inténtalo de nuevo en un momento.",
+      "startFailedRetry": "Reintentar",
       "currencyMismatch": "Este enlace de pago está en {linkCurrency}, pero el pedido que paga está en {orderCurrency}. No se cobró nada. Pide al negocio un enlace nuevo en {orderCurrency}.",
       "paid": "Pagado",
       "refunded": "Reembolsado. El dinero esta en camino de vuelta.",
       "receipt": "Ver recibo",
       "backToThread": "Volver a la conversación",
+      "smsPlain": "El mismo pedido y la misma pagina segura, en texto. Este canal no muestra tarjetas.",
+      "talentView": "Ves al cliente, el servicio y las notas de silla. No la conversación ni otros precios.",
+      "payBy": "Paga a esta hora para guardar el horario.",
+      "payByNoTime": "Paga cuando estés listo. La hora se acuerda con la talento.",
+      "closedMaybePaid": "Esta página de pago está cerrada. Si ya pagaste, la talento te reembolsará.",
+      "replaced": "Este enlace de pago fue reemplazado. Pide el nuevo.",
       "processingTitle": "Confirmando tu pago...",
       "processingBody": "No cierres esta página. Tarda unos segundos.",
       "processingTimeout": "Tu pago sigue en verificación. Si ya pagaste, el negocio te lo confirma. No pagues de nuevo.",
@@ -1792,13 +1806,7 @@
       "redirecting": "Volviendo a tu conversación en {n} s",
       "cancelledReturnTitle": "No se hizo ningún cargo",
       "cancelledReturnBody": "Cancelaste el pago a tiempo. Tu horario sigue guardado mientras este enlace sea válido.",
-      "tryAgain": "Intentar de nuevo",
-      "smsPlain": "El mismo pedido y la misma pagina segura, en texto. Este canal no muestra tarjetas.",
-      "talentView": "Ves al cliente, el servicio y las notas de silla. No la conversación ni otros precios.",
-      "payBy": "Paga a esta hora para guardar el horario.",
-      "payByNoTime": "Paga cuando estés listo. La hora se acuerda con la talento.",
-      "closedMaybePaid": "Esta página de pago está cerrada. Si ya pagaste, la talento te reembolsará.",
-      "replaced": "Este enlace de pago fue reemplazado. Pide el nuevo."
+      "tryAgain": "Intentar de nuevo"
     },
     "storefront": {
       "refusal": {
@@ -2256,11 +2264,8 @@
       "openLabel": "Abrir menú de cuenta",
       "closeLabel": "Cerrar",
       "title": "Inicia sesión o crea tu cuenta",
-      "subtitle": "Continúa con Google, o te enviamos un código por correo.",
-      "passwordSubtitle": "Inicia sesión con el correo y la contraseña de tu cuenta Tulala.",
+      "subtitle": "Continúa con Google o Apple, o te enviamos un código por correo.",
       "emailLabel": "Correo electrónico",
-      "passwordLabel": "Contraseña",
-      "passwordSubmit": "Iniciar sesión",
       "sendCode": "Enviar código",
       "codeLabel": "Código",
       "verify": "Continuar",
@@ -2268,13 +2273,10 @@
       "resendIn": "Reenviar en {s} s",
       "sentTo": "Enviamos un código a {email}.",
       "changeEmail": "Usar otro correo",
-      "google": "Continuar con Google",
-      "googleOpening": "Abriendo Google…",
-      "googleFailed": "No se pudo iniciar con Google. Inténtalo de nuevo o usa tu correo.",
-      "googlePopupBlocked": "Ventana bloqueada. Permite ventanas emergentes en este sitio e inténtalo de nuevo.",
-      "or": "o",
-      "usePassword": "Usar una contraseña",
-      "useCode": "Enviarme un código",
+      "legalPrefix": "Al continuar confirmas que tienes 18 años o más y aceptas los",
+      "legalTerms": "Términos",
+      "legalAnd": "y la",
+      "legalPrivacy": "Política de privacidad",
       "consentLabel": "Quiero recibir novedades y ofertas por correo (opcional)",
       "consentSave": "Guardar",
       "consentSkip": "Ahora no",
@@ -2289,10 +2291,20 @@
       "genericError": "Algo salió mal. Inténtalo de nuevo.",
       "notClient": "Este correo pertenece a una cuenta de equipo. Usa el inicio de sesión principal.",
       "signedInAsTalent": "Iniciaste sesión con una cuenta de negocio. Cierra sesión en app.tulala.digital para usar una cuenta de cliente.",
-      "legalPrefix": "Al continuar confirmas que tienes 18 años o más y aceptas los",
-      "legalTerms": "Términos",
-      "legalAnd": "y la",
-      "legalPrivacy": "Política de privacidad"
+      "passwordSubtitle": "Inicia sesión con el correo y la contraseña de tu cuenta Tulala.",
+      "passwordLabel": "Contraseña",
+      "passwordSubmit": "Iniciar sesión",
+      "google": "Continuar con Google",
+      "googleOpening": "Abriendo Google…",
+      "googleFailed": "No se pudo iniciar con Google. Inténtalo de nuevo o usa tu correo.",
+      "googlePopupBlocked": "Ventana bloqueada. Permite ventanas emergentes en este sitio e inténtalo de nuevo.",
+      "or": "o",
+      "usePassword": "Usar una contraseña",
+      "useCode": "Enviarme un código",
+      "continueApple": "Continuar con Apple",
+      "appleOpening": "Abriendo Apple…",
+      "appleFailed": "Apple no terminó. Inténtalo de nuevo o usa tu correo.",
+      "applePopupBlocked": "El navegador bloqueó la ventana emergente. Permite ventanas emergentes e inténtalo de nuevo."
     }
   },
   "dashboard": {
@@ -4096,9 +4108,6 @@
         "fundsReceivedHint": "Fondos recibidos. Elige un receptor del pago abajo y luego inicia el pago.",
         "releasedHint": "Se libera al Talent una vez que se cobra la factura.",
         "loadStateFailed": "No se pudo cargar el estado del pago: {error}",
-        "loadFailedShort": "No se pudo cargar",
-        "retry": "Reintentar",
-        "refundInOrders": "Reembolsar en Pedidos",
         "actionFailed": "{label} fallo: {error}",
         "actionOk": "{label} listo",
         "unknownError": "Error desconocido",
@@ -4110,7 +4119,10 @@
         "cashMethodVenue": "Pagado por el venue",
         "markPaidCashDeposit": "Marcar depósito pagado en efectivo ({amount} {currency})",
         "markPaidCashBalance": "Marcar saldo pagado en efectivo",
-        "markPaidCashFull": "Marcar monto completo pagado en efectivo"
+        "markPaidCashFull": "Marcar monto completo pagado en efectivo",
+        "loadFailedShort": "No se pudo cargar",
+        "retry": "Reintentar",
+        "refundInOrders": "Reembolsar en Pedidos"
       },
       "nextAction": {
         "showAria": "Mostrar siguiente accion: {label}",
@@ -13725,8 +13737,6 @@
       "emptyBody": "Cuando alguien pida desde tu menú o reserve un horario, aparecerá aquí.",
       "emptyTitle": "Aún no hay pedidos",
       "lineCount": "artículos",
-      "lineCountOne": "artículo",
-      "lineCountOther": "artículos",
       "noCustomer": "Sin nombre registrado",
       "openThread": "Abrir conversación",
       "pageIntro": "Todos los pedidos de este espacio de trabajo, en un solo lugar.",
@@ -13748,8 +13758,6 @@
       "refund": "Reembolsar líneas",
       "refundEffect": "Qué hace este reembolso",
       "refundConfirm": "Confirmar este reembolso",
-      "refundAmount": "Monto a reembolsar",
-      "refundAmountHint": "Por defecto es el restante completo ({max}). Bájalo para un reembolso parcial.",
       "refundEffectCopy": {
         "keepEntitlement": "Reembolsar parte del precio. El cliente conserva lo que compró.",
         "cancelTicket": "Cancelar una entrada. Esa admisión se anula y la plaza vuelve a estar libre.",
@@ -13772,7 +13780,11 @@
         "overLimit": "Ese reembolso supera el límite de tu rol. Se envió una solicitud a un gerente; no se reembolsó nada.",
         "unavailable": "No se pudo registrar el reembolso. No se reembolsó nada. Inténtalo de nuevo en un momento."
       },
-      "refundComponentShare": "Reparto por componente"
+      "refundComponentShare": "Reparto por componente",
+      "lineCountOne": "artículo",
+      "lineCountOther": "artículos",
+      "refundAmount": "Monto a reembolsar",
+      "refundAmountHint": "Por defecto es el restante completo ({max}). Bájalo para un reembolso parcial."
     },
     "sales": {
       "pageTitle": "Ventas",
@@ -13922,8 +13934,6 @@
       "paymentWord": "Pago",
       "refundPending": "Pendiente",
       "refundCompleted": "Completado",
-      "refundFailed": "Reembolso fallido",
-      "refundFailedDetail": "El cliente no recibió el dinero. Gestiona un reembolso alternativo.",
       "refundManual": "Registrado a mano",
       "attemptsTitle": "Intentos desconocidos",
       "attemptsSub": "Cobros con tarjeta iniciados y nunca resueltos. Se vuelve a preguntar al proveedor; nunca se cobra dos veces.",
@@ -13949,7 +13959,9 @@
       "notWired": {
         "import": "Importar un informe del terminal todavía no está conectado; no hay tabla donde guardar sus filas.",
         "export": "La exportación de estas tablas todavía no está conectada."
-      }
+      },
+      "refundFailed": "Reembolso fallido",
+      "refundFailedDetail": "El cliente no recibió el dinero. Gestiona un reembolso alternativo."
     },
     "discounts": {
       "pageTitle": "Promociones y límites de descuento",
