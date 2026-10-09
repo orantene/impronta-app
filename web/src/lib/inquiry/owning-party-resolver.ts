@@ -107,9 +107,21 @@ export function isHubSourcedChannel(sourceChannel: string | null | undefined): b
 }
 
 type AgencyEmbed =
-  | { id?: string; plan_tier: string | null }
-  | { id?: string; plan_tier: string | null }[]
+  | { id?: string; plan_tier: string | null; workspace_type?: string | null }
+  | { id?: string; plan_tier: string | null; workspace_type?: string | null }[]
   | null;
+
+/**
+ * A talent's OWN workspace (`workspace_type = 'talent'`) is the talent's business
+ * ("talent = merchant"): a sale made there, including a 'both' owner selling her
+ * own service on her talent site, is the talent's sale. The payout goes to the
+ * talent on the lane the charge ran on, not to a workspace leg that the
+ * cross-platform guard then holds.
+ */
+export function isTalentOwnWorkspace(agencies: AgencyEmbed): boolean {
+  const agency = Array.isArray(agencies) ? agencies[0] : agencies;
+  return agency?.workspace_type === "talent";
+}
 
 /**
  * A roster row confers exclusivity when the talent is the agency's PRIMARY
@@ -157,7 +169,7 @@ export async function resolveOwningPartyForTalent(
   // 1 + 2: any active roster row for this talent.
   const { data: rosterRows, error } = await supabase
     .from("agency_talent_roster")
-    .select("tenant_id, is_primary, status, exclusivity_status, agencies:tenant_id ( id, plan_tier )")
+    .select("tenant_id, is_primary, status, exclusivity_status, agencies:tenant_id ( id, plan_tier, workspace_type )")
     .eq("talent_profile_id", talentProfileId)
     .in("status", ["active", "pending"]);
 
@@ -198,7 +210,8 @@ export async function resolveOwningPartyForTalent(
   // it: an agency's own storefront (a tenant the talent is rostered on) owns
   // the relationship; the open hub (any other tenant) hands it to the talent.
   if (inquiryTenantId) {
-    if (rows.some((r) => r.tenant_id === inquiryTenantId)) {
+    const onThisTenant = rows.find((r) => r.tenant_id === inquiryTenantId);
+    if (onThisTenant && !isTalentOwnWorkspace(onThisTenant.agencies)) {
       return { type: "workspace", id: inquiryTenantId };
     }
     return { type: "talent", id: talentProfileId };
@@ -240,7 +253,7 @@ export async function resolveOwningPartiesForTalents(
 
   const { data, error } = await supabase
     .from("agency_talent_roster")
-    .select("tenant_id, talent_profile_id, is_primary, status, exclusivity_status, agencies:tenant_id ( id, plan_tier )")
+    .select("tenant_id, talent_profile_id, is_primary, status, exclusivity_status, agencies:tenant_id ( id, plan_tier, workspace_type )")
     .in("talent_profile_id", talentProfileIds)
     .in("status", ["active", "pending"]);
 
@@ -296,9 +309,10 @@ export async function resolveOwningPartiesForTalents(
     // 3. Non-exclusive — source-aware when the inquiry's tenant is known:
     // rostered on it (agency storefront) → workspace; else (open hub) → talent.
     if (inquiryTenantId) {
+      const onThisTenant = myRows.find((r) => r.tenant_id === inquiryTenantId);
       out.set(
         talentId,
-        myRows.some((r) => r.tenant_id === inquiryTenantId)
+        onThisTenant && !isTalentOwnWorkspace(onThisTenant.agencies)
           ? { type: "workspace", id: inquiryTenantId }
           : { type: "talent", id: talentId },
       );
