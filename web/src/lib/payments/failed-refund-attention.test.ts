@@ -74,10 +74,18 @@ test("findTransactionForFailedRefund resolves by provider_refund_id", async () =
 });
 
 test("webhook refund_settlement stamps attention and emits TUL-391 producers", () => {
-  const src = readFileSync(join(process.cwd(), "src/lib/stripe/webhook-handler.ts"), "utf8");
-  const start = src.indexOf('case "refund_settlement"');
+  // Dispatch stays in the handler; stamp + notifies live in the max-lines extract.
+  const handler = readFileSync(join(process.cwd(), "src/lib/stripe/webhook-handler.ts"), "utf8");
+  const start = handler.indexOf('case "refund_settlement"');
   assert.ok(start > 0);
-  const body = src.slice(start, src.indexOf('case "invoice_payment_succeeded"'));
+  const dispatch = handler.slice(start, handler.indexOf('case "invoice_payment_succeeded"'));
+  assert.match(dispatch, /processRefundSettlement\(/);
+  assert.match(handler, /from ["']@\/lib\/stripe\/webhook-refund-settlement["']/);
+
+  const body = readFileSync(
+    join(process.cwd(), "src/lib/stripe/webhook-refund-settlement.ts"),
+    "utf8",
+  );
   assert.match(body, /applyFailedRefundAttention\(/);
   assert.match(body, /notifyRefundFailed\(/);
   assert.match(body, /notifyPaymentNeedsAttention\(/);

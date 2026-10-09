@@ -18,6 +18,10 @@ import type { CatalogEntry } from "./types";
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
 import { PAYMENT_DISPUTE_OPENED_PLATFORM } from "./catalog-entries-disputes";
 import {
+  PAYMENT_NEEDS_ATTENTION_WORKSPACE,
+  REFUND_FAILED_WORKSPACE,
+} from "./catalog-entries-refund-attention";
+import {
   invitedTalent,
   loadInquiryView,
   payoutReceiverTalent,
@@ -285,74 +289,6 @@ const PAYMENT_FAILED_WORKSPACE: CatalogEntry = {
         unsubscribeUrl,
         categoryLabel: "payments",
       }),
-  },
-};
-
-/**
- * refund.failed → workspace owners/admins (TUL-391). Stripe returned the refund
- * as failed/canceled; the customer was not paid. In-app only — the webhook log
- * stays the ops trail; the bell opens Admin → Payments → Refunds.
- */
-const REFUND_FAILED_WORKSPACE: CatalogEntry = {
-  id: "refund.failed.workspace",
-  category: "payments",
-  defaultChannels: ["in_app"],
-  required: false,
-  triggers: ["refund.failed"],
-  resolveAudience: workspaceAdmins,
-  in_app: {
-    kind: "payment",
-    surface: "workspace",
-    title: () => "Refund failed",
-    body: (event) => {
-      const amount = formatMoneyCents(num(event.payload.amountCents), str(event.payload.currency));
-      const reason = str(event.payload.failureReason);
-      if (amount && reason) {
-        return `${amount} refund failed (${reason}). The customer was not paid — arrange an alternative refund.`;
-      }
-      if (amount) {
-        return `${amount} refund failed. The customer was not paid — arrange an alternative refund.`;
-      }
-      return "A refund failed. The customer was not paid — arrange an alternative refund.";
-    },
-    targetDrawer: "workspace-payments",
-  },
-};
-
-/**
- * payment.needs_attention → workspace owners/admins (TUL-391). Fired when a
- * booking_transactions row is stamped for a human (paid after cancellation,
- * refund_failed, …). Opens the same Money Refunds desk.
- */
-const PAYMENT_NEEDS_ATTENTION_WORKSPACE: CatalogEntry = {
-  id: "payment.needs_attention.workspace",
-  category: "payments",
-  defaultChannels: ["in_app"],
-  required: false,
-  triggers: ["payment.needs_attention"],
-  resolveAudience: workspaceAdmins,
-  in_app: {
-    kind: "payment",
-    surface: "workspace",
-    title: (event) => {
-      const reason = str(event.payload.reason);
-      if (reason === "refund_failed") return "Refund needs attention";
-      if (reason === "paid_after_cancellation") return "Payment needs a refund";
-      return "Payment needs attention";
-    },
-    body: (event) => {
-      const note = str(event.payload.note);
-      if (note) return note;
-      const reason = str(event.payload.reason);
-      if (reason === "paid_after_cancellation") {
-        return "A payment landed after the booking was cancelled. Refund it from Money.";
-      }
-      if (reason === "refund_failed") {
-        return "A Stripe refund did not reach the customer. Arrange an alternative refund from Money.";
-      }
-      return "Open Money to review this payment.";
-    },
-    targetDrawer: "workspace-payments",
   },
 };
 
