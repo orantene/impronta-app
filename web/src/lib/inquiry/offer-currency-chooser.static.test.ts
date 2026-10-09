@@ -17,6 +17,9 @@ describe("484: an unresolved offer currency asks for one instead of dead-ending"
     assert.match(btn, /r\.code === "offer_currency_unresolved"[\s\S]{0,60}setChooseCurrency\(true\)/);
     assert.match(btn, /\["MXN", "USD"\]/);
     assert.match(btn, /createOfferAction\(effectiveTenant\.slug, inquiryId, currencyCode\)/);
+    // Classes, never inline styles (the gate's inline-style freeze).
+    const chooser = btn.slice(btn.indexOf("data-offer-currency-chooser"), btn.indexOf("data-offer-currency-chooser") + 700);
+    assert.doesNotMatch(chooser, /style=\{\{ (fontSize|display)/);
     // The English server string is never the toast for this case.
     assert.ok(btn.indexOf("offer_currency_unresolved") < btn.indexOf("startOfferFailed"));
   });
