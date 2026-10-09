@@ -239,7 +239,7 @@ describe("persistBookingCommissionSnapshot — persist_failed", () => {
       "engine_workspace_base_fee_inputs",
       "engine_persist_booking_commission_snapshot",
     ]);
-    assert.deepEqual(calls.from, ["agencies", "workspace_talent_commission_overrides"]);
+    assert.deepEqual(calls.from, ["agency_bookings", "agencies", "workspace_talent_commission_overrides"]);
   });
 });
 
@@ -366,7 +366,7 @@ describe("persistBookingCommissionSnapshot — success", () => {
     const res = await persistBookingCommissionSnapshot(supabase, BOOKING);
     assert.equal(res.ok, true);
     assert.equal(calls.rpc.some((r) => r.name === "inquiry_audit_emit"), false);
-    assert.deepEqual(calls.from, ["agencies", "workspace_talent_commission_overrides", "agency_bookings"]);
+    assert.deepEqual(calls.from, ["agency_bookings", "agencies", "workspace_talent_commission_overrides", "agency_bookings"]);
   });
 
   it("MONEY-PATH GUARANTEE: a FAILING audit emit does NOT fail the booking (fire-and-forget)", async () => {
@@ -382,13 +382,13 @@ describe("persistBookingCommissionSnapshot — success", () => {
     if (res.ok) assert.equal(res.snapshots[0].gross_cents, 100_000);
   });
 
-  it("the agency_bookings lookup error path also leaves the booking ok (bk?. optional-chains to null)", async () => {
+  it("an agency_bookings read error refuses the snapshot (the order-backing read must never fall back to the legacy surcharge shape)", async () => {
     const { supabase, calls } = makeSupabase({
       rpc: { engine_load_commission_context: { data: validCtx() } },
       from: { agency_bookings: { data: null, error: { message: "bk lookup boom" } } },
     });
     const res = await persistBookingCommissionSnapshot(supabase, BOOKING);
-    assert.equal(res.ok, true);
+    assert.equal(res.ok, false);
     assert.equal(calls.rpc.some((r) => r.name === "inquiry_audit_emit"), false);
   });
 });

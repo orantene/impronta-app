@@ -19,6 +19,7 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { getConnectedAccountSnapshot, type ConnectedAccountSnapshot } from "@/lib/payments/stripe-connect";
 import { getHeldPayoutTotals } from "@/lib/payments/booking-payouts-ledger";
+import { getConnectLaneAttention } from "@/lib/payments/connect-lane-attention";
 import { loadWorkspaceBaseFee, type WorkspaceBaseFeeState } from "./base-fee-actions";
 import { PAYOUTS_OWNER_ONLY_ERROR } from "./payouts-access-copy";
 
@@ -41,6 +42,8 @@ export type PayoutsSurfaceData = {
     | { ok: false; error: string };
   /** Held payout totals (earnings waiting on bank connection), by currency. */
   held: Array<{ currency: string; amountCents: number; count: number }>;
+  /** Held legs waiting on a payout account for a specific Stripe lane (needs attention even when the connected account is enabled on another lane). */
+  laneAttention: Array<{ lane: string; currency: string; amountCents: number; count: number }>;
 };
 
 export async function loadPayoutsSurface(
@@ -57,11 +60,12 @@ export async function loadPayoutsSurface(
   if (!canEdit) return { ok: false, error: PAYOUTS_OWNER_ONLY_ERROR };
 
   // Both reads gate on the same capability internally; run them together.
-  const [connect, baseFee, held] = await Promise.all([
+  const [connect, baseFee, held, laneAttention] = await Promise.all([
     getConnectedAccountSnapshot(tenantSlug),
     loadWorkspaceBaseFee(tenantSlug),
     getHeldPayoutTotals({ tenantId: scope.tenantId }),
+    getConnectLaneAttention({ tenantId: scope.tenantId }),
   ]);
 
-  return { ok: true, data: { connect, baseFee, held } };
+  return { ok: true, data: { connect, baseFee, held, laneAttention } };
 }

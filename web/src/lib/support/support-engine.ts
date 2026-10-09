@@ -242,6 +242,14 @@ export async function appendMessage(input: {
     .select("*")
     .single();
   if (error) {
+    // 23505 (send-key unique index): a concurrent delivery won the insert; return that row.
+    if (sendKey && (error as { code?: string }).code === "23505") {
+      const winner = await findMessageByClientSendKey(admin, working.id, sendKey);
+      if (winner) {
+        const fresh = (await loadTicketById(working.id, admin)) ?? working;
+        return { ok: true, data: { message: winner, ticket: fresh } };
+      }
+    }
     logServerError("support.appendMessage", error);
     return { ok: false, error: "Could not send message." };
   }

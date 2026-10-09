@@ -163,13 +163,15 @@ function requestWindow(
 export async function loadTalentAgenda(
   talentProfileId: string,
   range: TalentAgendaRange,
+  /** Test seam: the two clients. Production passes nothing. */
+  deps?: { supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>; moneyDb?: ReturnType<typeof createServiceRoleClient> },
 ): Promise<TalentAgendaLoadResult> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = deps?.supabase ?? (await createSupabaseServerClient());
     if (!supabase) return { items: [], hours: null };
     // Commercial tables are opaque to talent RLS — elevate only after
     // talent_bookings has already scoped bookingIds to this profile.
-    const moneyDb = createServiceRoleClient() ?? supabase;
+    const moneyDb = deps?.moneyDb ?? createServiceRoleClient() ?? supabase;
 
     const fromIso = range.from.toISOString();
     const toIso = range.to.toISOString();

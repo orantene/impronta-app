@@ -28,8 +28,18 @@ on:
 #     triggering event's target_url. This makes it order-independent and
 #     self-healing: even a late/out-of-order run re-points the domains at the
 #     true latest. target_url is only a fallback if the query returns empty.
+#
+# ── Production-only group (2026-10-08, TUL-485) ─────────────────────────────
+# The group used to be shared by EVERY deployment_status event (previews, and
+# production pending/in_progress too). The job-level `if` only filters AFTER
+# the group is chosen, and GitHub keeps ONE pending run per group: a newer
+# preview event replaced (= cancelled) the pending production-success run, then
+# was itself skipped by `if`. On 2026-10-08 that left tulala.digital and
+# app.tulala.digital on dd7efe943 for 38 min after cd429a649 went READY.
+# Now only a SUCCESSFUL PRODUCTION event joins the shared serial group; every
+# other event gets a unique per-run group, so it cannot displace anything.
 concurrency:
-  group: vercel-alias-production
+  group: ${{ github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'Production' && 'vercel-alias-production' || format('vercel-alias-other-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:

@@ -7,6 +7,7 @@ import {
   openBookingAtSlot,
   openDeepLinkFromLocation,
   registerBookableOffering,
+  sanitizeSlotStart,
 } from "./open-booking-at-slot";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 
@@ -92,4 +93,21 @@ test("unknown offering dispatches nothing; deep link resolves via the registry",
   assert.equal(openDeepLinkFromLocation(loc, { now: NOW, target: t, alreadyOpen: () => true }), "opened");
   assert.equal(t.events.length, 1);
   assert.equal(openDeepLinkFromLocation({ search: "", hash: "#book" }, { now: NOW, target: t }), "none");
+});
+
+test("fallback: a malformed or past slotStart opens the normal sheet with no slot", () => {
+  for (const bad of ["garbage", "2026-10-01T10:00:00.000Z", ""]) {
+    const t = fakeTarget();
+    assert.equal(openBookingAtSlot({ offeringId: ID, slotStart: bad, detail, now: NOW }, t), true);
+    assert.equal("slotStart" in (t.events[0]!.detail as object), false);
+  }
+  assert.equal(sanitizeSlotStart("2026-10-09T17:00:00+02:00", NOW), FUTURE);
+  assert.equal(sanitizeSlotStart(null, NOW), null);
+});
+
+test("fallback: a purchase offering is not bookable at a slot (returns false, no event)", () => {
+  const t = fakeTarget();
+  const product = { ...detail, kind: "product" };
+  assert.equal(openBookingAtSlot({ offeringId: ID, slotStart: FUTURE, detail: product, now: NOW }, t), false);
+  assert.equal(t.events.length, 0);
 });
