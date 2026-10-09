@@ -122,7 +122,7 @@ export function classifyDraft(
           draft.design,
           { payload: base, version: draft.baseVersion },
           { payload: next, version: draft.baseVersion + 1 },
-        ).length
+        ).filter((item) => item.type !== "copy").length // copy items are text, not design
       : 0;
   }
 
