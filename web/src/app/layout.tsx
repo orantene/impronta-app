@@ -62,6 +62,7 @@ import { PlatformJsonLd } from "@/components/marketing/platform-json-ld";
 import { BreakpointStyleEngine } from "@/components/edit-chrome/breakpoint-style-engine";
 import { BUILTIN_EXTRA_TIERS } from "@/lib/site-admin/builder-node/custom-breakpoint-css";
 import { PwaServiceWorkerRegister } from "@/components/pwa/sw-register";
+import { FloatingChromeStackStyles } from "@/lib/talent-site/floating-chrome-stack-styles";
 
 import "./globals.css";
 
@@ -221,6 +222,9 @@ export default async function RootLayout({
         suppressHydrationWarning
         className={`site-theme-${resolvedSiteTheme}${publicScope ? " site-theme-tenant-override" : ""} flex min-h-full flex-col text-foreground`}
       >
+        {/* TUL-516: floating chrome stack (consent/locale/chat/bar clearance)
+            before any fixed island so /politicas and every theme share one rule. */}
+        <FloatingChromeStackStyles />
         {/* SEO-safe language suggestion (TUL-394: first child of <body>, in
             flow, so it never covers a bottom CTA). Renders nothing unless the
             visitor's browser asks for a language this tenant publishes but is
