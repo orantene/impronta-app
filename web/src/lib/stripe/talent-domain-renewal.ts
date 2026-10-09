@@ -117,11 +117,16 @@ async function notifyTalent(
   deps: { notify: typeof emitNotification; payUrl?: string | null },
 ): Promise<void> {
   try {
-    const { data } = await sb
+    const { data, error } = await sb
       .from("talent_profiles")
       .select("user_id, preferred_locale")
       .eq("id", row.talent_profile_id)
       .maybeSingle();
+    if (error) {
+      // Money notice: fail closed (no notice rather than one in the wrong language or to the wrong person).
+      logServerError("domain-renewal.notify.profile", error);
+      return;
+    }
     const profile = data as { user_id: string | null; preferred_locale: string | null } | null;
     if (!profile?.user_id) return;
     const locale = localeOf(profile.preferred_locale);
@@ -141,7 +146,7 @@ async function notifyTalent(
       surface: "talent",
       title: interpolate(t(NOTICE_KEYS[notice].title), vars),
       body: interpolate(t(NOTICE_KEYS[notice].body), vars),
-      targetDrawer: "site",
+      targetDrawer: "talent-site",
       targetPayload: deps.payUrl ? { payUrl: deps.payUrl, domain: row.domain } : { domain: row.domain },
       originEventId: null,
       originKind: `domain_renewal_${notice}`,
@@ -200,10 +205,19 @@ function cycleKey(row: DomainRow): string {
 }
 
 async function customerIdFor(sb: SupabaseClient, talentProfileId: string): Promise<string | null> {
-  const { data: profile } = await sb.from("talent_profiles").select("user_id").eq("id", talentProfileId).maybeSingle();
+  const { data: profile, error: profileError } = await sb.from("talent_profiles").select("user_id").eq("id", talentProfileId).maybeSingle();
+  if (profileError) {
+    logServerError("domain-renewal.customer.profile", profileError);
+    return null;
+  }
   const userId = (profile as { user_id: string | null } | null)?.user_id;
   if (!userId) return null;
-  const { data } = await sb.from("talent_stripe_customers").select("stripe_customer_id").eq("user_id", userId).maybeSingle();
+  const { data, error } = await sb.from("talent_stripe_customers").select("stripe_customer_id").eq("user_id", userId).maybeSingle();
+  if (error) {
+    // Unreadable customer: fail closed. No off-session charge; a Checkout link without a customer is still safe.
+    logServerError("domain-renewal.customer.lookup", error);
+    return null;
+  }
   return (data as { stripe_customer_id: string | null } | null)?.stripe_customer_id ?? null;
 }
 

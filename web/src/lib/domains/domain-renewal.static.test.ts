@@ -28,6 +28,11 @@ test("the sweep is a bearer-authenticated daily cron, wired in vercel.json, dark
   assert.match(read("src/lib/stripe/talent-domain-renewal.ts"), /registrar_not_configured/);
 });
 
+test("renewal notices open a real page target, not the 'Coming up next' stub", () => {
+  assert.match(read("src/lib/stripe/talent-domain-renewal.ts"), /targetDrawer: "talent-site"/);
+  assert.match(read("src/components/admin/shell/internal/notification-drawer-targets.ts"), /"talent-site": \{ kind: "page", surface: "talent", path: "\/talent\/site" \}/);
+});
+
 test("the paid-renewal webhook is routed and handled, and a purchase starts the renewal clock", () => {
   assert.match(read("src/lib/stripe/webhook-handler.ts"), /case "talent_domain_renewal"[\s\S]{0,400}fulfillTalentDomainRenewal/);
   assert.match(read("src/lib/stripe/talent-domain-billing.ts"), /recordRegistrarSnapshot\(sb,/);

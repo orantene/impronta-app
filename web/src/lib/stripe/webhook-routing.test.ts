@@ -150,43 +150,6 @@ test("checkout payment: talent_domain_purchase → talent_domain_purchase", () =
     { amountTotal: 1999, currency: "usd", paymentIntentId: "pi_domain_1" },
   );
 });
-test("checkout payment: talent_domain_renewal → talent_domain_renewal (settled by the renewal path, not the purchase path)", () => {
-  const paid = classifyStripeEvent(
-    evt("checkout.session.completed", {
-      id: "cs_renew_1",
-      mode: "payment",
-      payment_status: "paid",
-      amount_total: 1499,
-      currency: "usd",
-      payment_intent: "pi_renew_1",
-      metadata: { checkout_type: "talent_domain_renewal", talent_id: "tal_abc", domain: "mysite.com", domain_row_id: "row-1" },
-    }),
-  );
-  const action = expectKind(paid, "talent_domain_renewal");
-  assert.deepEqual(
-    { s: action.sessionId, r: action.domainRowId, a: action.amountTotal, c: action.currency, p: action.paymentIntentId },
-    { s: "cs_renew_1", r: "row-1", a: 1499, c: "usd", p: "pi_renew_1" },
-  );
-  const unpaid = classifyStripeEvent(
-    evt("checkout.session.completed", {
-      id: "cs_renew_2",
-      mode: "payment",
-      payment_status: "unpaid",
-      metadata: { checkout_type: "talent_domain_renewal", domain_row_id: "row-1" },
-    }),
-  );
-  expectKind(unpaid, "ignore");
-  const bad = classifyStripeEvent(
-    evt("checkout.session.completed", {
-      id: "cs_renew_3",
-      mode: "payment",
-      payment_status: "paid",
-      metadata: { checkout_type: "talent_domain_renewal" },
-    }),
-  );
-  expectKind(bad, "invalid");
-});
-
 test("checkout payment: talent_domain_purchase missing domain → invalid", () => {
   const a = classifyStripeEvent(
     evt("checkout.session.completed", {

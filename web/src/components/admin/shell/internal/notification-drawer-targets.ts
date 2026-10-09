@@ -127,6 +127,11 @@ export const NOTIFICATION_PAGE_TARGETS: Readonly<Record<string, NotificationPage
   // admins), and a talent has no access to it.
   "talent-reviews": { kind: "page", surface: "talent", path: "/talent/reviews" },
 
+  // lib/stripe/talent-domain-renewal.ts — domain renewal notices (paid / pay link / auto-renew off).
+  // `/talent/site` is "Mi sitio": the talent's site, address and domain surface, which is where she acts on
+  // a domain. There is no site/domain DRAWER on the talent surface, so this is a page target.
+  "talent-site": { kind: "page", surface: "talent", path: "/talent/site" },
+
   // lib/talent/apply-actions.ts — "New roster application" to workspace staff.
   // Real tenant-scoped page: it lists pending + decided applications and wires
   // approve/reject to `decideTalentApplication`. Relative to `adminBasePath`
