@@ -22,7 +22,7 @@ export interface AppLibraryMeta {
   trades: ReadonlyArray<ThemeDemoProfession>;
   /** Design slugs that show the app off well (hint, not a binding). */
   recommendedDesigns: ReadonlyArray<string>;
-  /** Premium library flag the plan system reads later. False today. */
+  /** Premium library flag: Pro badge in gallery / Apps tab; insert still needs Web Office. */
   premium: boolean;
 }
 
@@ -57,7 +57,7 @@ export const APP_REGISTRY: ReadonlyArray<AppRegistryEntry> = [
     },
     trades: ["nails"],
     recommendedDesigns: ["maison-v2"],
-    premium: false,
+    premium: true,
     searchTerms: ["nails", "manicure", "polish", "design", "app", "uñas", "manicura", "esmalte"],
   },
 ];

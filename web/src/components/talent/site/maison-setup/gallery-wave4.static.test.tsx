@@ -30,9 +30,11 @@ function read(name: string): string {
   return readFileSync(join(ROOT, name), "utf8");
 }
 
-test("G4-LIB: suggested + all apps copy and library screen", () => {
+test("G4-LIB: suggested + all apps copy and library screen with Web Office badge", () => {
   assert.equal(galleryAppsT("es", "suggested"), "Sugeridas para tu oficio");
   assert.equal(galleryAppsT("es", "allApps"), "Todas las apps");
+  assert.equal(galleryAppsT("en", "pro"), "Web Office");
+  assert.equal(galleryAppsT("es", "pro"), "Oficina Web");
   assert.deepEqual(Object.keys(GALLERY_APPS_COPY.en).sort(), Object.keys(GALLERY_APPS_COPY.es).sort());
   for (const lang of ["en", "es"] as const) {
     for (const v of Object.values(GALLERY_APPS_COPY[lang])) assert.ok(!v.includes("—"));
@@ -45,33 +47,67 @@ test("G4-LIB: suggested + all apps copy and library screen", () => {
   assert.match(html, /apps-library-all/);
   assert.match(html, /Sugeridas para tu oficio/);
   assert.match(html, /Todas las apps/);
+  assert.match(html, /gallery-app-pro/);
+  assert.match(html, />Oficina Web</);
+  assert.doesNotMatch(html, />Pro</);
 });
 
-test("G4-APP: try-it, Se ve mejor en, Agregar / Oficina Web path", () => {
+test("G4-APP: free plan sees Upgrade to use (preview stays); paid sees Add", () => {
   const nail = APP_LIBRARY[0]!;
+  assert.ok(nail.premium);
   assert.ok(designsThatSuitApp(nail).some((d) => d.slug === "maison-v2"));
-  const html = renderToStaticMarkup(
+  const freeHtml = renderToStaticMarkup(
     <AppDetailScreen
       locale="es"
       appId={nail.id}
       previewDevice="desktop"
+      canAddApps={false}
       onOpenDesign={() => {}}
       onBackToLibrary={() => {}}
       onClose={() => {}}
     />,
   );
-  assert.match(html, /app-detail-screen/);
-  assert.match(html, /Se ve mejor en/);
-  assert.match(html, /Agregar a mi sitio/);
-  assert.match(html, /Disponible en Oficina Web/);
-  assert.match(html, /app-detail-see-plans/);
-  assert.match(html, /app-detail-design-maison-v2/);
-  assert.match(html, /layout=desktop/);
-  // Add to site carries the app into the builder Add gallery.
-  assert.match(html, /panel=add/);
-  assert.match(html, new RegExp(`app=${encodeURIComponent(nail.id)}`));
+  assert.match(freeHtml, /app-detail-screen/);
+  assert.match(freeHtml, /Se ve mejor en/);
+  assert.match(freeHtml, /app-detail-upgrade-to-use/);
+  assert.match(freeHtml, /Mejora tu plan para usarla/);
+  assert.match(freeHtml, /app-detail-playground-app_nail_designer/);
+  assert.doesNotMatch(freeHtml, /app-detail-add-to-site/);
+  assert.doesNotMatch(freeHtml, /app-detail-see-plans/);
+  assert.match(freeHtml, /gallery-app-pro/);
+  assert.match(freeHtml, /Oficina Web/);
+
+  const paidHtml = renderToStaticMarkup(
+    <AppDetailScreen
+      locale="es"
+      appId={nail.id}
+      previewDevice="desktop"
+      canAddApps={true}
+      onOpenDesign={() => {}}
+      onBackToLibrary={() => {}}
+      onClose={() => {}}
+    />,
+  );
+  assert.match(paidHtml, /Agregar a mi sitio/);
+  assert.match(paidHtml, /app-detail-add-to-site/);
+  assert.match(paidHtml, /panel=add/);
+  assert.match(paidHtml, new RegExp(`app=${encodeURIComponent(nail.id)}`));
+  assert.doesNotMatch(paidHtml, /app-detail-upgrade-to-use/);
   const detail = read("AppDetailScreen.tsx");
   assert.match(detail, /requestBuilderAppIntent/);
+  assert.match(detail, /canAddLibraryApp/);
+  assert.match(detail, /isPremiumApp/);
+  // Draft-save chokepoints must refuse premium inserts server-side.
+  const pageActions = readFileSync(
+    join(process.cwd(), "src/lib/site-admin/builder-core/adapters/talent-page-actions.ts"),
+    "utf8",
+  );
+  const shellActions = readFileSync(
+    join(process.cwd(), "src/lib/site-admin/builder-core/adapters/talent-site-shell-actions.ts"),
+    "utf8",
+  );
+  assert.match(pageActions, /refuseTalentPremiumAppTreeMutation/);
+  assert.match(shellActions, /refuseTalentPremiumAppTreeMutation/);
 });
 
 test("G4-BACK: App↔templates + library patches", () => {

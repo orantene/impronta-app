@@ -21,6 +21,7 @@ import { normalizeUnknownBuilderTreeLayout } from "@/lib/site-admin/builder-node
 import { assertFreeTalentSiteTreeMutation } from "@/lib/talent-site/free-site-tree-guard";
 import { stripTalentSiteSeoPatch } from "@/lib/talent-site/free-site-seo";
 import { loadTalentSiteSaveCapabilities } from "@/lib/talent-site/server/free-site-save-guard";
+import { refuseTalentPremiumAppTreeMutation } from "@/lib/talent-site/server/premium-app-save-guard";
 import { publishTalentPageBodies } from "@/lib/talent-site/server/publish-talent-page-bodies";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -253,6 +254,20 @@ export async function saveTalentPageAction(
       }
     }
 
+    // TUL-39 — premium apps: fail-closed on the talent-owner add/install path
+    // (flag-independent). Staff saves skip; a talent cannot bypass.
+    {
+      const premiumErr = await refuseTalentPremiumAppTreeMutation({
+        talentProfileId,
+        previousTree: (existing as { blocks: unknown } | null)?.blocks,
+        nextTree: enforcedBlocks,
+        locale: await getRequestLocale(),
+      });
+      if (premiumErr) {
+        return { ok: false as const, error: premiumErr };
+      }
+    }
+
     const updatePayload: Record<string, unknown> = {
       blocks: enforcedBlocks,
       theme: mergedTheme,
@@ -453,6 +468,18 @@ export async function restoreTalentPageRevisionAction(
       });
       if (!structural.ok) {
         return { ok: false as const, error: structural.message };
+      }
+    }
+
+    {
+      const premiumErr = await refuseTalentPremiumAppTreeMutation({
+        talentProfileId,
+        previousTree: (live as { blocks: unknown } | null)?.blocks,
+        nextTree: restoredBlocks,
+        locale: await getRequestLocale(),
+      });
+      if (premiumErr) {
+        return { ok: false as const, error: premiumErr };
       }
     }
 
