@@ -10,10 +10,11 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import type { SiteLookRow } from "@/lib/site-admin/builder-core/site-templates/site-looks.server";
+import { localizeBuilderLabError, type BuilderLabLang } from "@/lib/talent-site/theme-releases/builder-lab-errors";
 
 import { actionImportLook, actionSetLookStatus, actionSyncBuiltinLooks } from "./actions";
 
-export function LookImportPanel({ rows }: { rows: SiteLookRow[] }) {
+export function LookImportPanel({ rows, lang }: { rows: SiteLookRow[]; lang: BuilderLabLang }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -21,7 +22,7 @@ export function LookImportPanel({ rows }: { rows: SiteLookRow[] }) {
   const run = (work: () => Promise<{ ok: true; data: unknown } | { ok: false; error: string }>, okText: (d: unknown) => string) =>
     start(async () => {
       const res = await work();
-      setMessage(res.ok ? okText(res.data) : res.error);
+      setMessage(res.ok ? okText(res.data) : localizeBuilderLabError(res.error, lang));
       router.refresh();
     });
 

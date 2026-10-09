@@ -40,7 +40,7 @@ export function PublishDesignButton({ design, lang }: { design: string; lang: "e
     if (!window.confirm(t.confirm)) return;
     const rev = getPageVersionSnapshot();
     if (typeof rev !== "number") {
-      setMsg(t.failed("draft revision unknown"));
+      setMsg(t.failed(localizeBuilderLabError("draft revision unknown", lang)));
       return;
     }
     setBusy(true);
