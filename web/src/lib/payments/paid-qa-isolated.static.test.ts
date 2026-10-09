@@ -36,3 +36,15 @@ test("the isolated config is its own testDir and the other configs never collect
   assert.match(readFileSync("playwright.live.config.ts", "utf8"), /testDir: "\.\/e2e-live"/);
   assert.match(readFileSync("package.json", "utf8"), /"qa:paid-isolated": "playwright test -c playwright\.isolated\.config\.ts"/);
 });
+
+const after = readFileSync("e2e-isolated/paid-qa-after-pay.spec.ts", "utf8");
+
+test("the after-pay spec never pays or types a card, never writes the database, and skips until its feature is live", () => {
+  assert.doesNotMatch(after, /fillCard|4242|checkout\.stripe\.com/);
+  assert.doesNotMatch(after, /method:\s*"(POST|PATCH|PUT|DELETE)"/);
+  assert.match(after, /PAID_QA_LIVE/);
+  assert.match(after, /test\.skip\(!LIVE\.has\("money-net"\)/);
+  assert.match(after, /test\.skip\(!LIVE\.has\("refund-lines"\)/);
+  // It runs only behind the isolated-target refusal in global-setup (the same config as the paid spec).
+  assert.match(config, /globalSetup: "\.\/e2e-isolated\/global-setup\.ts"/);
+});
