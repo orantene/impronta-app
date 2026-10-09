@@ -3,7 +3,7 @@ import "server-only";
 import { improntaLog } from "@/lib/server/structured-log";
 import { logServerError } from "@/lib/server/safe-error";
 import { normalizeEmailAddress, shouldAcceptInboundReply } from "./support-inbound-accept";
-import { matchTicketFromInbound } from "./support-inbound-match";
+import { matchTicketFromInbound, supportInboundSecret } from "./support-inbound-match";
 import { sanitizeInboundReplyBody } from "./support-inbound-sanitize";
 
 /**
@@ -135,7 +135,7 @@ async function run(emailId: string, deps: AppendDeps): Promise<AppendOutcome> {
 
 /** Production wiring. Dynamic imports keep the pure path light in tests. */
 export function buildDefaultAppendDeps(): AppendDeps {
-  const secret = process.env.GUEST_COOKIE_SECRET?.trim() || null;
+  const secret = supportInboundSecret();
   return {
     secret,
     async loadInboundRow(emailId) {

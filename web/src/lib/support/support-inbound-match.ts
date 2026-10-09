@@ -29,6 +29,17 @@ function base32(buf: Buffer, chars: number): string {
   return out.slice(0, chars);
 }
 
+/**
+ * HMAC secret for ticket tokens: the dedicated SUPPORT_INBOUND_SECRET, falling
+ * back to GUEST_COOKIE_SECRET only until the dedicated one is set (rotating a
+ * guest-cookie secret must not silently orphan reply tokens already mailed).
+ */
+export function supportInboundSecret(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): string | null {
+  return env.SUPPORT_INBOUND_SECRET?.trim() || env.GUEST_COOKIE_SECRET?.trim() || null;
+}
+
 function mac(ticketIdHex: string, secret: string): string {
   const digest = createHmac("sha256", secret)
     .update(`support-inbound-v1:${ticketIdHex}`)
