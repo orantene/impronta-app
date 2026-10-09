@@ -826,6 +826,8 @@
       "checkAgain": "Verifier de nouveau",
       "paidTitle": "Paiement recu",
       "paidTo": "Paye a {seller}",
+      "addToCalendar": "Ajouter au calendrier",
+      "googleCalendar": "Ajouter a Google Calendar",
       "redirecting": "Retour a votre conversation dans {n} s",
       "cancelledReturnTitle": "Aucun debit n a ete fait",
       "cancelledReturnBody": "Vous avez annule a temps. Votre creneau reste garde tant que ce lien est valide.",
