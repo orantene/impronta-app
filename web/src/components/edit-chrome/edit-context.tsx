@@ -3865,7 +3865,7 @@ export function EditProvider({
   const insertBuilderSectionEmbed = useCallback<
     EditContextValue["insertBuilderSectionEmbed"]
   >(
-    async (parentId, sectionTypeKey, index) => {
+    async (parentId, sectionTypeKey, index, copy) => {
       // Builder Studio (WS-C) — apply the SAME catalog governance the "+" gallery
       // applies to a native insert, but on the curated section_embed / connected
       // insert path. All embed callers (chips, layers tree, navigator, palette
@@ -3874,7 +3874,7 @@ export function EditProvider({
       // `createBuilderSectionEmbed(sectionTypeKey)` for any embed the admin
       // hasn't governed.
       const node = governSectionEmbedNode(
-        createBuilderSectionEmbed(sectionTypeKey),
+        createBuilderSectionEmbed(sectionTypeKey, copy),
         sectionTypeKey,
         galleryItemsRef.current,
       );
