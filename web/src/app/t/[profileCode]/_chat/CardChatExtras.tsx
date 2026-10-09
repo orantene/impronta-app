@@ -66,7 +66,12 @@ export function CardChatChips({ t, onPick, service = null }: { t: Translator; on
     ? ["public.guestChat.cardChipWhenFor", "public.guestChat.cardChipDurationFor", ASK_QUICK_KEYS[2]]
     : ASK_QUICK_KEYS;
   return (
-    <div role="group" aria-label={t("public.guestChat.askQuickLabel")} data-card-chat-chips="" style={{ display: "flex", flexWrap: "nowrap", gap: 8, overflowX: "auto", scrollbarWidth: "none", maskImage: "linear-gradient(to right, black calc(100% - 28px), transparent)", WebkitMaskImage: "linear-gradient(to right, black calc(100% - 28px), transparent)", paddingRight: 28 }}>
+    <div
+      role="group"
+      aria-label={t("public.guestChat.askQuickLabel")}
+      data-card-chat-chips=""
+      style={{ display: "flex", flexWrap: "wrap", gap: 8 }}
+    >
       {keys.map((k) => {
         const q = short ? interpolate(t(k), { service: short }) : t(k);
         return (

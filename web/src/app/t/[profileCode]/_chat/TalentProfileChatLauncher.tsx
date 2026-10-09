@@ -601,6 +601,9 @@ export function TalentProfileChatLauncher({
           display: "flex",
           flexDirection: "column",
           alignItems: "flex-end",
+          // While the panel is open the FAB unmounts, but this wrapper stays at
+          // z-95. Never let an empty hit box steal the panel's ✕ (Gridline desktop).
+          pointerEvents: open ? "none" : undefined,
         }}
       >
         {/* The avatar cart — DISPLAY-ONLY count (faces + a single "+N"). Only when

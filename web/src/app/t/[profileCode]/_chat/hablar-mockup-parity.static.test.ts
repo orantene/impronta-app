@@ -37,6 +37,8 @@ test("dock nav active tab is accent outline, not white fill", () => {
   const nav = read("GuestDockNav.tsx");
   assert.match(nav, /inset 0 0 0 1\.5px/);
   assert.doesNotMatch(nav, /background:\s*isActive\s*\?\s*"#fff"/);
+  // Icon over label — row layout clipped Spanish tab names (W4-5).
+  assert.match(nav, /flexDirection:\s*"column"/);
 });
 
 test("composer send is circular; front-door sites use composerPhrase", () => {
