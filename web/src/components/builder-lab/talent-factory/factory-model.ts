@@ -22,11 +22,11 @@ export interface FactoryMockupRun {
 export interface FactoryDesignRow {
   slug: string;
   title: string;
-  /** Version stored in talent_theme_catalog (null = not synced yet). */
+  /** Catalog default: talent_theme_catalog.version (flips on Make default; null = not synced). */
   catalogVersion: number | null;
   /** Version a sync would leave the design at (newest known, +1 if code differs). */
   codeVersion: number;
-  /** Newest published release version for THIS slug (null = no release row). */
+  /** Latest open to talents: highest published opt-in/default to_version (null = none). */
   releasedVersion: number | null;
   status: FactoryStatus;
   demoCount: number;
@@ -71,13 +71,77 @@ export function codeVersionOf(highestKnown: number, codeDiffers: boolean): numbe
   return codeDiffers ? highestKnown + 1 : highestKnown;
 }
 
-/** Newest published release target; paused/draft/archived do not count. */
-export function releasedVersionOf(
-  releases: ReadonlyArray<{ to_version: number; status: string }>,
+/**
+ * Latest version open to talents: published opt-in or default only.
+ * Demos/draft/paused/archived never count. Catalog default is separate
+ * (talent_theme_catalog.version); it can lag until Make default.
+ */
+export function openToTalentsVersionOf(
+  releases: ReadonlyArray<{ to_version: number; status: string; channel?: string }>,
 ): number | null {
   let best: number | null = null;
-  for (const r of releases) if (r.status === "published" && (best === null || r.to_version > best)) best = r.to_version;
+  for (const r of releases) {
+    const channel = r.channel;
+    const open = channel === undefined || channel === "optin" || channel === "default";
+    if (!open || r.status !== "published") continue;
+    if (best === null || r.to_version > best) best = r.to_version;
+  }
   return best;
+}
+
+/** Alias kept for existing call sites; same as openToTalentsVersionOf. */
+export function releasedVersionOf(
+  releases: ReadonlyArray<{ to_version: number; status: string; channel?: string }>,
+): number | null {
+  return openToTalentsVersionOf(releases);
+}
+
+/** Sync result fields the Factory tab turns into a human summary. */
+export interface TalentSyncSummaryInput {
+  created: number;
+  updated: number;
+  unchanged: number;
+  heldBack: string[];
+  skippedAuthored: Array<{ kind: string; slug: string }>;
+  authoredPending: Array<{ slug: string; version: number }>;
+  authoredConflict: Array<{ slug: string; version: number }>;
+}
+
+/** One line of a sync summary (lang-agnostic facts; UI wraps with copy). */
+export interface TalentSyncSummaryFacts {
+  created: number;
+  updated: number;
+  unchanged: number;
+  heldBack: string[];
+  skippedAuthored: string[];
+  authoredPending: string[];
+  authoredConflict: string[];
+  /** True when nothing moved and nothing was held/skipped/pending. */
+  quiet: boolean;
+}
+
+export function talentSyncSummaryFacts(input: TalentSyncSummaryInput): TalentSyncSummaryFacts {
+  const heldBack = [...input.heldBack];
+  const skippedAuthored = input.skippedAuthored.map((s) => s.slug);
+  const authoredPending = input.authoredPending.map((s) => `${s.slug} v${s.version}`);
+  const authoredConflict = input.authoredConflict.map((s) => `${s.slug} v${s.version}`);
+  const quiet =
+    input.created === 0 &&
+    input.updated === 0 &&
+    heldBack.length === 0 &&
+    skippedAuthored.length === 0 &&
+    authoredPending.length === 0 &&
+    authoredConflict.length === 0;
+  return {
+    created: input.created,
+    updated: input.updated,
+    unchanged: input.unchanged,
+    heldBack,
+    skippedAuthored,
+    authoredPending,
+    authoredConflict,
+    quiet,
+  };
 }
 
 export function pullAuthoredCommandFor(slug: string): string {
