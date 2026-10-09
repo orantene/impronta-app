@@ -1,12 +1,33 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DEFAULT_MARKETING_ORIGIN, resolveMarketingOrigin } from "./marketing-origin";
+import {
+  DEFAULT_MARKETING_ORIGIN,
+  resolveMarketingApexHost,
+  resolveMarketingOrigin,
+} from "./marketing-origin";
 
 test("unset or blank -> the production default", () => {
   assert.equal(resolveMarketingOrigin({}), "https://tulala.digital");
   assert.equal(DEFAULT_MARKETING_ORIGIN, "https://tulala.digital");
   assert.equal(resolveMarketingOrigin({ TULALA_MARKETING_ORIGIN: "   " }), "https://tulala.digital");
+});
+
+test("resolveMarketingApexHost is the hostname half of the origin", () => {
+  assert.equal(resolveMarketingApexHost({}), "tulala.digital");
+  assert.equal(
+    resolveMarketingApexHost({
+      TULALA_MARKETING_ORIGIN: "https://staging-qa-journeys.tulala.digital/start",
+    }),
+    "staging-qa-journeys.tulala.digital",
+  );
+  assert.equal(
+    resolveMarketingApexHost({
+      VERCEL_ENV: "production",
+      TULALA_MARKETING_ORIGIN: "https://evil.example.com",
+    }),
+    "tulala.digital",
+  );
 });
 
 test("set -> the staging origin (origin only; path, query and credentials dropped)", () => {

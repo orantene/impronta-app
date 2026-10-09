@@ -328,7 +328,7 @@ async function finalizeProvisionResult(params: {
 }): Promise<ProvisionWorkspaceResult> {
   const adminPath = `/${params.agency.slug}/admin`;
   const publicPath = `/${params.agency.slug}`;
-  const publicUrl = workspacePathUrl(params.agency.slug);
+  const publicUrl = workspacePathUrl(params.agency.slug, process.env);
   const tierInterest = params.lead.tier_interest;
 
   // revalidatePath is forbidden during server component renders in Next.js 16

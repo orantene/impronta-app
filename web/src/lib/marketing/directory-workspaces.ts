@@ -90,7 +90,7 @@ export async function loadDirectoryWorkspaces(): Promise<DirectoryWorkspace[]> {
         id: row.id,
         slug,
         name: row.display_name?.trim() || slug,
-        href: workspacePathUrl(slug),
+        href: workspacePathUrl(slug, process.env),
         planTier: row.plan_tier,
       };
     })

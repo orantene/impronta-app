@@ -39,3 +39,12 @@ export function resolveMarketingOrigin(env: MarketingOriginEnv = process.env): s
   if (url.protocol === "https:" || (url.protocol === "http:" && local)) return url.origin;
   return DEFAULT_MARKETING_ORIGIN;
 }
+
+/**
+ * Hostname half of {@link resolveMarketingOrigin} — the apex QA / staging hosts
+ * should use when building path-scoped workspace addresses
+ * (`<apex>/w/<slug>`). Same env rails; never a scheme or path.
+ */
+export function resolveMarketingApexHost(env: MarketingOriginEnv = process.env): string {
+  return new URL(resolveMarketingOrigin(env)).hostname;
+}

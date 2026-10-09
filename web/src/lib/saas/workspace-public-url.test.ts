@@ -21,6 +21,46 @@ test("workspace path helpers produce the canonical Tulala path URL", () => {
   assert.equal(workspacePathUrl("impronta"), "https://tulala.digital/w/impronta");
 });
 
+test("workspacePathHost reads apex from env for QA / isolated staging hosts", () => {
+  // Omit env → production constant (client-safe default).
+  assert.equal(workspacePathHost("acme"), "tulala.digital/w/acme");
+  // Pass env → same rails as resolveMarketingOrigin (hostname only).
+  assert.equal(
+    workspacePathHost("acme", {
+      TULALA_MARKETING_ORIGIN: "https://staging-qa-journeys.tulala.digital",
+    }),
+    "staging-qa-journeys.tulala.digital/w/acme",
+  );
+  assert.equal(
+    workspacePathUrl("acme", {
+      TULALA_MARKETING_ORIGIN: "https://qa-1.tulala.digital/",
+    }),
+    "https://qa-1.tulala.digital/w/acme",
+  );
+  // Production ignores the override.
+  assert.equal(
+    workspacePathHost("acme", {
+      VERCEL_ENV: "production",
+      TULALA_MARKETING_ORIGIN: "https://evil.example.com",
+    }),
+    "tulala.digital/w/acme",
+  );
+  // resolveWorkspacePublicAddress threads env into the path fallback.
+  const staged = resolveWorkspacePublicAddress({
+    slug: "acme",
+    plan: "free",
+    domainState: {
+      primaryHost: null,
+      primaryHostKind: null,
+      subdomainHost: null,
+    },
+    env: { TULALA_MARKETING_ORIGIN: "https://staging-qa-journeys.tulala.digital" },
+  });
+  assert.equal(staged.primaryKind, "path");
+  assert.equal(staged.primaryHost, "staging-qa-journeys.tulala.digital/w/acme");
+  assert.equal(staged.primaryUrl, "https://staging-qa-journeys.tulala.digital/w/acme");
+});
+
 test("whitelabel branding is gated to Agency / Network (and grandfathered legacy)", () => {
   // Only the top paid tiers get whitelabel — matches customDomainEligible.
   assert.equal(whitelabelBrandingEligible("agency"), true);

@@ -202,6 +202,7 @@ export function resolveWorkspacePreviewUrl(input: {
       primaryHostKind: input.primaryHostKind,
       subdomainHost: input.subdomainHost,
     },
+    env: process.env,
   });
 
   if (!isDev) {

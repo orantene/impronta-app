@@ -1,6 +1,9 @@
+import { resolveMarketingApexHost } from "@/lib/brand/marketing-origin";
 import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 import { PLAN_CATALOG } from "@/lib/access/plan-catalog";
 import { WORKSPACE_PATH_SEGMENT } from "@/lib/saas/surface-allow-list";
+
+type MarketingOriginEnv = Readonly<Record<string, string | undefined>>;
 
 export type WorkspaceUrlPlan =
   | "free"
@@ -30,18 +33,30 @@ export type WorkspacePublicAddress = {
 
 /**
  * Canonical public address for a path-based (free-tier) workspace:
- * `tulala.digital/w/<slug>`.
+ * `<apex>/w/<slug>` (production: `tulala.digital/w/<slug>`).
  *
  * The `/w` parent keeps every workspace out of the apex root namespace, so a
  * tenant slug can never shadow a marketing route. Legacy flat `/<slug>` URLs
  * still resolve — middleware 301s them here.
+ *
+ * Apex host: omit `env` to keep the production constant (client-safe; no
+ * hydration drift). Pass `process.env` from server-only callers so QA /
+ * isolated staging hosts honour `TULALA_MARKETING_ORIGIN` via the same rails
+ * as {@link resolveMarketingApexHost}.
  */
-export function workspacePathHost(slug: string): string {
-  return `${TULALA_APEX_HOST}/${WORKSPACE_PATH_SEGMENT}/${slug}`;
+export function workspacePathHost(
+  slug: string,
+  env?: MarketingOriginEnv,
+): string {
+  const apex = env === undefined ? TULALA_APEX_HOST : resolveMarketingApexHost(env);
+  return `${apex}/${WORKSPACE_PATH_SEGMENT}/${slug}`;
 }
 
-export function workspacePathUrl(slug: string): string {
-  return `https://${workspacePathHost(slug)}`;
+export function workspacePathUrl(
+  slug: string,
+  env?: MarketingOriginEnv,
+): string {
+  return `https://${workspacePathHost(slug, env)}`;
 }
 
 export function brandedSubdomainEligible(plan: WorkspaceUrlPlan): boolean {
@@ -181,9 +196,11 @@ export function resolveWorkspacePublicAddress(input: {
   slug: string;
   plan: WorkspaceUrlPlan;
   domainState: WorkspaceDomainState;
+  /** Server-only: pass `process.env` so path hosts honour marketing-origin overrides. */
+  env?: MarketingOriginEnv;
 }): WorkspacePublicAddress {
-  const pathHost = workspacePathHost(input.slug);
-  const pathUrl = workspacePathUrl(input.slug);
+  const pathHost = workspacePathHost(input.slug, input.env);
+  const pathUrl = workspacePathUrl(input.slug, input.env);
   const subdomainAllowed = brandedSubdomainEligible(input.plan);
   const customAllowed = customDomainEligible(input.plan);
   const actualBrandedHost = subdomainAllowed ? input.domainState.subdomainHost : null;

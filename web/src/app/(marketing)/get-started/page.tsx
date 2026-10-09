@@ -53,7 +53,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-const FREE_LINK_EXAMPLE = workspacePathHost("your-roster");
+const FREE_LINK_EXAMPLE = workspacePathHost("your-roster", process.env);
 const STUDIO_LINK_EXAMPLE = reservedBrandedSubdomainHost("your-roster");
 
 type AudienceKey = "operator" | "agency" | "organization" | "business";
