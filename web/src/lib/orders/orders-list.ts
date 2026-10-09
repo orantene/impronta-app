@@ -76,6 +76,14 @@ export function bucketOf(status: string): OrderListBucket {
   return "open";
 }
 
+/**
+ * Line-count copy for the Pedidos list. Callers pass the locale's singular and
+ * plural nouns so "1 artículos" never ships again.
+ */
+export function orderLineItemsLabel(count: number, one: string, other: string): string {
+  return `${count} ${count === 1 ? one : other}`;
+}
+
 /** What is still owed on this order. Clamped: over-collection is a refund, not a negative. */
 export function outstandingCents(row: Pick<OrderListRow, "totalCents" | "collectedCents">): number {
   return Math.max(0, row.totalCents - row.collectedCents);

@@ -13702,6 +13702,8 @@
       "emptyBody": "When someone orders from your menu or books a time, it lands here.",
       "emptyTitle": "No orders yet",
       "lineCount": "items",
+      "lineCountOne": "item",
+      "lineCountOther": "items",
       "noCustomer": "No name on file",
       "openThread": "Open conversation",
       "pageIntro": "Every order this workspace has taken, in one place.",

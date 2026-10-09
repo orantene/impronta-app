@@ -72,9 +72,10 @@ export function filterSalesRows<T extends { kind: string }>(
  *
  * The known values are every literal actually passed as `sourceChannel` into
  * `createPurchase` in this worktree (menu, pos, session_picker, ticket_picker,
- * reservation, instant_book) plus `offer`, exercised by
- * `purchase-refusal.test.ts`. An unrecognised channel still renders — as its
- * raw value — rather than disappearing; see `salesChannelLabel`.
+ * reservation, instant_book) plus `offer` / `messages_offer` (accept-offer
+ * payment), exercised by `purchase-refusal.test.ts` and the channel-label
+ * map tests. An unrecognised channel still renders — as its raw value —
+ * rather than disappearing; see `salesChannelLabel`.
  */
 export const SALES_CHANNELS = [
   "menu",
@@ -84,6 +85,9 @@ export const SALES_CHANNELS = [
   "reservation",
   "instant_book",
   "offer",
+  // Accept-offer payment writes this channel (ACCEPT_ORDER_CHANNEL). Same
+  // commercial meaning as `offer` — Pedidos must never show the raw key.
+  "messages_offer",
   "guest_qr",
   "messages",
 ] as const;
@@ -98,6 +102,7 @@ const CHANNEL_LABELS: Record<SalesChannel, Record<SalesLocale, string>> = {
   reservation: { en: "Table reservation", es: "Reserva de mesa", fr: "Réservation de table" },
   instant_book: { en: "Instant book", es: "Reserva instantánea", fr: "Réservation instantanée" },
   offer: { en: "Offer", es: "Oferta", fr: "Offre" },
+  messages_offer: { en: "Offer", es: "Oferta", fr: "Offre" },
   guest_qr: { en: "Guest QR", es: "QR de mesa", fr: "QR de table" },
   messages: { en: "Messages", es: "Mensajes", fr: "Messages" },
 };
