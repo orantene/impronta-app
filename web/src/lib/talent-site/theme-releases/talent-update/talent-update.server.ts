@@ -34,7 +34,7 @@ import { loadReleaseDesign } from "../release-design.server";
 import { makeBaseResolver } from "../manager/base-resolver.server";
 import { mergeSite, type SiteMergeOutcome } from "../manager/merge-site.server";
 import type { ReleaseItem, ReleaseNotes, SiteUpdateState, ThemeRelease } from "../types";
-import { countParts, editedKept } from "../parts";
+import { countCopyKept, countParts, editedKept } from "../parts";
 import { findKeyPath } from "../tree-ops";
 import { addBlockSummary, releaseVersionLabel } from "./copy";
 import {
@@ -583,6 +583,7 @@ export async function setUpdateState(
 export interface ApplyOutcome {
   draftRev: number;
   kept: number;
+  copyKept?: number; // texts she changed that the update left alone (copy conflicts)
   historyId: string | null;
 }
 
@@ -629,7 +630,7 @@ export async function applyThemeUpdate(
       report: { ...summarizeReport(m.result.report), addedBlocks: ctx.addedBlocks },
     });
   }
-  return { ok: true, value: { draftRev: res.draftRev, kept: countParts(editedKept(m.result.report.kept)), historyId: res.historyId } };
+  return { ok: true, value: { draftRev: res.draftRev, kept: countParts(editedKept(m.result.report.kept)), copyKept: countCopyKept(m.result.report.conflicts), historyId: res.historyId } };
 }
 
 /** The update rows one offer covers (falls back to just the given row). */
