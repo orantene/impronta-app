@@ -3,6 +3,7 @@
 import React, { type CSSProperties } from "react";
 import { COLORS, FONTS } from "../../state";
 import { Avatar } from "../../primitives";
+import { useDashboardText } from "../../dashboard-i18n";
 import { UNIT_TYPE_LABEL, fmtMoney, rowSubtotal } from "./machinery-10";
 import type { OfferPov } from "./machinery-10";
 import { OfferTab } from "./machinery-12";
@@ -32,6 +33,7 @@ export function DealSummaryCard({
   currency: string;
   onEditBudget?: () => void;
 }) {
+  const copy = useDashboardText();
   const isClient = pov.kind === "client";
   const isAdmin = pov.kind === "admin";
   const isTalent = pov.kind === "talent";
@@ -46,36 +48,36 @@ export function DealSummaryCard({
     if (isTalent && myRow) {
       const myTotal = rowSubtotal(myRow, "cost");
       return {
-        label: "Your take-home",
-        value: myRow.costRate ? fmtMoney(myTotal, currency) : "Not set",
-        unit: myRow.costRate ? `${myRow.units} × ${UNIT_TYPE_LABEL[myRow.unitType]}` : "Submit your rate to see this",
+        label: copy.t("Your take-home"),
+        value: myRow.costRate ? fmtMoney(myTotal, currency) : copy.t("Not set"),
+        unit: myRow.costRate ? `${myRow.units} × ${UNIT_TYPE_LABEL[myRow.unitType]}` : copy.t("Submit your rate to see this"),
         tone: "accent",
         subtitle: myRow.costRate
-          ? (offer.stage === "accepted" ? "Confirmed · paid 14d after wrap"
-            : offer.stage === "sent" ? "Sent to client · awaiting decision"
-            : offer.stage === "countered" ? "Client countered · review the offer"
-            : offer.stage === "talent_submitted" ? "Submitted · coordinator finalizing"
-            : "Awaiting send")
+          ? (offer.stage === "accepted" ? copy.t("Confirmed · paid 14d after wrap")
+            : offer.stage === "sent" ? copy.t("Sent to client · awaiting decision")
+            : offer.stage === "countered" ? copy.t("Client countered · review the offer")
+            : offer.stage === "talent_submitted" ? copy.t("Submitted · coordinator finalizing")
+            : copy.t("Awaiting send"))
           : undefined,
       };
     }
     if (isClient) {
       return {
-        label: "Proposed total",
+        label: copy.t("Proposed total"),
         value: isOfferLive ? fmtMoney(totalRevenue, currency) : "—",
         unit: offer.clientBudget ? UNIT_TYPE_LABEL[offer.clientBudget.unitType] : "",
         tone: "accent",
         subtitle: !isOfferLive
-          ? "Add a budget so the team can build your offer"
-          : `${offer.rows.length} talent · ${offer.coordinators.length} coordinator${offer.coordinators.length === 1 ? "" : "s"}`,
+          ? copy.t("Add a budget so the team can build your offer")
+          : `${offer.rows.length} ${copy.t("talent")} · ${offer.coordinators.length} ${copy.t(offer.coordinators.length === 1 ? "coordinator" : "coordinators")}`,
       };
     }
     return {
-      label: "Offer total",
+      label: copy.t("Offer total"),
       value: isOfferLive ? fmtMoney(totalRevenue, currency) : "—",
       unit: offer.clientBudget ? UNIT_TYPE_LABEL[offer.clientBudget.unitType] : "",
       tone: "accent",
-      subtitle: isOfferLive ? `${offer.rows.length} talent on the lineup` : "Build the offer to send to client",
+      subtitle: isOfferLive ? `${offer.rows.length} ${copy.t("talent on the lineup")}` : copy.t("Build the offer to send to client"),
     };
   })();
 
@@ -85,28 +87,28 @@ export function DealSummaryCard({
     const rows: ContextRow[] = [];
     if (offer.clientBudget) {
       rows.push({
-        label: "Client budget",
+        label: copy.t("Client budget"),
         value: `${fmtMoney(offer.clientBudget.amount, offer.clientBudget.currency)} ${UNIT_TYPE_LABEL[offer.clientBudget.unitType]}`,
         tooltip: offer.clientBudget.note,
       });
     }
     if (isAdmin) {
       rows.push({
-        label: "Talent cost",
+        label: copy.t("Talent cost"),
         value: fmtMoney(totalCost, currency),
-        tooltip: "What goes to talent · before agency fee",
+        tooltip: copy.t("What goes to talent · before agency fee"),
       });
       rows.push({
-        label: "Margin",
+        label: copy.t("Margin"),
         value: fmtMoney(totalMargin, currency),
         emphasis: true,
-        tooltip: `Agency fee + lineup margin · ${offer.coordinatorPct}% to coordinator`,
+        tooltip: `${copy.t("Agency fee + lineup margin")} · ${offer.coordinatorPct}% ${copy.t("to coordinator")}`,
       });
     }
     // Coord-talent: also show the offer total as supporting context
     if (isTalent && pov.isCoordinator && isOfferLive) {
       rows.push({
-        label: "Total offer",
+        label: copy.t("Total offer"),
         value: `${fmtMoney(totalRevenue, currency)}${offer.clientBudget ? " " + UNIT_TYPE_LABEL[offer.clientBudget.unitType] : ""}`,
       });
     }
@@ -181,7 +183,7 @@ export function DealSummaryCard({
                 type="button"
                 disabled={!onEditBudget}
                 onClick={onEditBudget}
-                title={onEditBudget ? undefined : "Budget editing needs a live client-brief workflow."}
+                title={onEditBudget ? undefined : copy.t("Budget editing needs a live client-brief workflow.")}
                 style={onEditBudget ? {
                   alignSelf: "flex-start",
                   marginTop: 4,
@@ -196,7 +198,7 @@ export function DealSummaryCard({
                   fontSize: 11.5, fontWeight: 600, fontFamily: FONTS.body,
                 }}
               >
-                Edit budget →
+                {copy.t("Edit budget")} →
               </button>
             )}
             {offer.clientBudget?.note && (
@@ -218,6 +220,7 @@ export function SummaryTile({
   editable?: boolean; onEdit?: () => void;
   tone?: "accent" | "success";
 }) {
+  const copy = useDashboardText();
   const primaryColor = tone === "accent" ? COLORS.accent : tone === "success" ? COLORS.success : COLORS.ink;
   return (
     <div style={{
@@ -238,7 +241,7 @@ export function SummaryTile({
         <div style={{ fontSize: 11, marginTop: 6, fontStyle: "italic" }} className="text-admin-ink-dim">“{note}”</div>
       )}
       {editable && onEdit && (
-        <button type="button" onClick={onEdit} aria-label="Edit"
+        <button type="button" onClick={onEdit} aria-label={copy.t("Edit")}
           style={{
             position: "absolute", top: 8, right: 8,
             padding: 4, borderRadius: 6, border: "none", background: "transparent",
@@ -319,11 +322,12 @@ export function disabledBtn(base: React.CSSProperties): React.CSSProperties {
  *  Renders N stacked light-grey bars with a subtle shimmer animation so
  *  the panel doesn't flash blank → populated. */
 export function PanelSkeleton({ lines = 3 }: { lines?: number }) {
+  const copy = useDashboardText();
   const rows = Array.from({ length: Math.max(1, Math.min(lines, 8)) });
   return (
     <div
       role="status"
-      aria-label="Loading"
+      aria-label={copy.t("Loading")}
       style={{ display: "flex", flexDirection: "column", gap: 8 }}
     >
       {rows.map((_, i) => (
@@ -394,6 +398,7 @@ export function LineupRowCard({
    *  Counter button hides. */
   onCounterRate?: () => void;
 }) {
+  const copy = useDashboardText();
   const subCost = rowSubtotal(row, "cost");
   const subRevenue = rowSubtotal(row, "client");
   const subMargin = subRevenue - subCost;
@@ -403,11 +408,11 @@ export function LineupRowCard({
     || (pov.kind === "talent" && pov.isCoordinator);
   const isMine = pov.kind === "talent" && pov.talentId === row.talentId;
   const rowStatusTone =
-      row.status === "submitted" ? { bg: COLORS.successSoft, fg: COLORS.successDeep, label: "Submitted" }
-    : row.status === "approved"  ? { bg: COLORS.accentSoft,  fg: COLORS.accentDeep,  label: "Approved" }
-    : row.status === "countered" ? { bg: COLORS.amberSoft,   fg: COLORS.amberDeep,   label: "Countered" }
-    : row.status === "declined"  ? { bg: COLORS.coralSoft,   fg: COLORS.coralDeep,   label: "Declined" }
-                                 : { bg: "rgba(11,11,13,0.05)", fg: COLORS.inkMuted, label: "Pending rate" };
+      row.status === "submitted" ? { bg: COLORS.successSoft, fg: COLORS.successDeep, label: copy.t("Submitted") }
+    : row.status === "approved"  ? { bg: COLORS.accentSoft,  fg: COLORS.accentDeep,  label: copy.t("Approved") }
+    : row.status === "countered" ? { bg: COLORS.amberSoft,   fg: COLORS.amberDeep,   label: copy.t("Countered") }
+    : row.status === "declined"  ? { bg: COLORS.coralSoft,   fg: COLORS.coralDeep,   label: copy.t("Declined") }
+                                 : { bg: "rgba(11,11,13,0.05)", fg: COLORS.inkMuted, label: copy.t("Pending rate") };
 
   return (
     <div style={{
@@ -419,16 +424,16 @@ export function LineupRowCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="text-admin-ink text-admin-13h font-bold">
-              {pov.kind === "talent" && !pov.isCoordinator && !isMine ? "Hidden talent" : row.talentName}
+              {pov.kind === "talent" && !pov.isCoordinator && !isMine ? copy.t("Hidden talent") : row.talentName}
             </span>
             {offer.coordinators.some(c => c.alsoTalentId === row.talentId) && (
-              <span aria-label="Coordinator" title="Coordinator" style={{
+              <span aria-label={copy.t("Coordinator")} title={copy.t("Coordinator")} style={{
                 fontSize: 9.5, fontWeight: 700,                 padding: "1px 6px", borderRadius: 4,
                 background: COLORS.royalSoft, color: COLORS.royalDeep,
-              }}>Coord</span>
+              }}>{copy.t("Coord")}</span>
             )}
             {isMine && (
-              <span style={{ fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 4 }} className="bg-admin-accent-soft text-admin-accent-deep">You</span>
+              <span style={{ fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 4 }} className="bg-admin-accent-soft text-admin-accent-deep">{copy.t("You")}</span>
             )}
           </div>
           <div style={{ fontSize: 12, marginTop: 1 }} className="text-admin-ink-muted">{row.role}</div>
@@ -444,27 +449,27 @@ export function LineupRowCard({
         marginTop: 10, paddingTop: 10, borderTop: `1px dashed ${COLORS.borderSoft}`,
         display: "grid", gridTemplateColumns: "1fr 80px 1fr 1fr", gap: 10,
       }}>
-        <RateField label="Unit" value={row.unitType} editable={editable && pov.kind === "admin"} />
-        <RateField label="Units" value={String(row.units)} editable={editable} />
-        {showCost  && <RateField label="Cost rate"   value={fmtMoney(row.costRate, (offer.clientBudget?.currency ?? "USD"))}   editable={editable && (pov.kind === "admin" || isMine)} />}
-        {showRevenue && <RateField label="Client rate" value={fmtMoney(row.clientRate, (offer.clientBudget?.currency ?? "USD"))} editable={editable && (pov.kind === "admin" || (pov.kind === "talent" && pov.isCoordinator))} />}
+        <RateField label={copy.t("Unit")} value={row.unitType} editable={editable && pov.kind === "admin"} />
+        <RateField label={copy.t("Units")} value={String(row.units)} editable={editable} />
+        {showCost  && <RateField label={copy.t("Cost rate")}   value={fmtMoney(row.costRate, (offer.clientBudget?.currency ?? "USD"))}   editable={editable && (pov.kind === "admin" || isMine)} />}
+        {showRevenue && <RateField label={copy.t("Client rate")} value={fmtMoney(row.clientRate, (offer.clientBudget?.currency ?? "USD"))} editable={editable && (pov.kind === "admin" || (pov.kind === "talent" && pov.isCoordinator))} />}
       </div>
 
       {/* Subtotals */}
       <div style={{ marginTop: 8, display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", fontSize: 11.5 }}>
         {showCost && (
           <span className="text-admin-ink-muted">
-            Cost <strong style={{ marginLeft: 4 }} className="text-admin-ink">{fmtMoney(subCost, (offer.clientBudget?.currency ?? "USD"))}</strong>
+            {copy.t("Cost")} <strong style={{ marginLeft: 4 }} className="text-admin-ink">{fmtMoney(subCost, (offer.clientBudget?.currency ?? "USD"))}</strong>
           </span>
         )}
         {showRevenue && (
           <span className="text-admin-ink-muted">
-            {pov.kind === "client" ? "Subtotal" : "Revenue"} <strong style={{ marginLeft: 4 }} className="text-admin-ink">{fmtMoney(subRevenue, (offer.clientBudget?.currency ?? "USD"))}</strong>
+            {copy.t(pov.kind === "client" ? "Subtotal" : "Revenue")} <strong style={{ marginLeft: 4 }} className="text-admin-ink">{fmtMoney(subRevenue, (offer.clientBudget?.currency ?? "USD"))}</strong>
           </span>
         )}
         {showMargin && (
           <span className="text-admin-ink-muted">
-            Margin <strong style={{ marginLeft: 4 }} className="text-admin-success">{fmtMoney(subMargin, (offer.clientBudget?.currency ?? "USD"))}</strong>
+            {copy.t("Margin")} <strong style={{ marginLeft: 4 }} className="text-admin-success">{fmtMoney(subMargin, (offer.clientBudget?.currency ?? "USD"))}</strong>
           </span>
         )}
         {row.notes && (
@@ -486,12 +491,12 @@ export function LineupRowCard({
               type="button"
               onClick={onOpenRateSheet ? () => onOpenRateSheet("submit") : undefined}
               disabled={!onOpenRateSheet}
-              title={onOpenRateSheet ? undefined : "Rate submission needs a live offer workflow."}
+              title={onOpenRateSheet ? undefined : copy.t("Rate submission needs a live offer workflow.")}
               style={onOpenRateSheet
                 ? tinyBtn(COLORS.accent, "#fff")
                 : disabledBtn(tinyBtn(COLORS.accent, "#fff"))}
             >
-              Submit my rate
+              {copy.t("Submit my rate")}
             </button>
           )}
           {row.status === "submitted" && (
@@ -500,21 +505,21 @@ export function LineupRowCard({
                 type="button"
                 onClick={onOpenRateSheet ? () => onOpenRateSheet("edit") : undefined}
                 disabled={!onOpenRateSheet}
-                title={onOpenRateSheet ? undefined : "Rate edits need a live offer workflow."}
+                title={onOpenRateSheet ? undefined : copy.t("Rate edits need a live offer workflow.")}
                 style={onOpenRateSheet
                   ? tinyBtn(COLORS.accentSoft, COLORS.accentDeep, `rgba(15,79,62,0.18)`)
                   : disabledBtn(tinyBtn(COLORS.accentSoft, COLORS.accentDeep, `rgba(15,79,62,0.18)`))}
               >
-                Edit rate
+                {copy.t("Edit rate")}
               </button>
               {onCounterRate ? (
                 <button
                   type="button"
                   onClick={onCounterRate}
-                  title="Send a counter rate to the coordinator (used after the offer has been sent to the client)."
+                  title={copy.t("Send a counter rate to the coordinator (used after the offer has been sent to the client).")}
                   style={tinyBtn(COLORS.amberSoft, COLORS.amberDeep, `${COLORS.amber}40`)}
                 >
-                  Counter rate
+                  {copy.t("Counter rate")}
                 </button>
               ) : null}
             </>
@@ -524,16 +529,16 @@ export function LineupRowCard({
               type="button"
               onClick={onOpenRateSheet ? () => onOpenRateSheet("edit") : undefined}
               disabled={!onOpenRateSheet}
-              title={onOpenRateSheet ? undefined : "Counter review needs a live offer workflow."}
+              title={onOpenRateSheet ? undefined : copy.t("Counter review needs a live offer workflow.")}
               style={onOpenRateSheet
                 ? tinyBtn(COLORS.amberSoft, COLORS.amberDeep, `${COLORS.amber}40`)
                 : disabledBtn(tinyBtn(COLORS.amberSoft, COLORS.amberDeep, `${COLORS.amber}40`))}
             >
-              Review counter
+              {copy.t("Review counter")}
             </button>
           )}
           {row.status === "approved" && (
-            <span className="text-admin-success-deep text-admin-11h">✓ You&apos;re booked at this rate.</span>
+            <span className="text-admin-success-deep text-admin-11h">✓ {copy.t("You're booked at this rate.")}</span>
           )}
         </div>
       )}

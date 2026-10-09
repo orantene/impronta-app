@@ -3,6 +3,7 @@
 import React, { useTransition, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { interpolate } from "@/i18n/interpolate";
 import { MessageReactionMenu, replyTargetFromMessage, ReplyContextBar, type ReplyTarget } from "@/components/chat-interactions";
 import { VoiceNotePlayer } from "@/components/chat-interactions/VoiceNotePlayer";
@@ -55,6 +56,7 @@ export function AdminMessageStream({
   topInset?: number;
 }) {
   const t = useT();
+  const dashLocale = useDashboardLocale();
   const { toast, state, effectiveTenant } = useAdminShell();
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -434,7 +436,7 @@ export function AdminMessageStream({
               // through the send so the inserted row gets
               // reply_to_message_id (migration 20260513210912).
               const replyId = replyTarget?.messageId ?? null;
-              appendLocalMessage(threadKey, text);
+              appendLocalMessage(threadKey, text, "you", dashLocale);
               setReplyTarget(null);
               startTransition(async () => {
                 const result = await sendMessageAction(tenantSlug, inquiryId, threadType, text, replyId);
@@ -454,7 +456,7 @@ export function AdminMessageStream({
             canSendAsWorkspace={canSendAsWs && threadType !== "private"}
             onSendAsWorkspace={(text) => {
               const replyId = replyTarget?.messageId ?? null;
-              appendLocalMessage(threadKey, text, "workspace");
+              appendLocalMessage(threadKey, text, "workspace", dashLocale);
               setReplyTarget(null);
               startTransition(async () => {
                 const result = await sendMessageAction(tenantSlug, inquiryId, threadType, text, replyId);
