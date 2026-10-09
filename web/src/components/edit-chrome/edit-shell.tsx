@@ -52,10 +52,6 @@ import {
   CHROME,
   CHROME_SHADOWS,
   EDIT_TOPBAR_H,
-  COMMAND_DOCK_LEFT_PX,
-  COMMAND_DOCK_WIDTH_PX,
-  COMMAND_DOCK_PANEL_GAP_PX,
-  INSPECTOR_PANEL_RIGHT_INSET_PX,
   Button,
   EditToast,
   Z_INDEX,
@@ -97,11 +93,13 @@ import {
   CanvasGuides,
   useCanvasViewport,
 } from "./canvas-viewport";
-import { DEFAULT_WORKSPACE_CANVAS_MODE, resolveBodyHorizontalPadding, type WorkspaceCanvasMode } from "./workspace-layout";
+import { DEFAULT_WORKSPACE_CANVAS_MODE } from "./workspace-layout";
+import { resolveDeviceFrameHostPadding } from "./device-frame-layout";
 import {
-  resolveDeviceFrameHostPadding,
-  shouldShowDeviceFrameSkeleton,
-} from "./device-frame-layout";
+  DeviceFrameSkeleton,
+  useDeviceFrameLoadTracking,
+} from "./device-frame-skeleton";
+import { BodyPaddingController } from "./body-padding-controller";
 import { useEditorLocale } from "./use-editor-locale";
 import { presenceBannerMessage } from "./presence-banner-copy";
 import { summarizeOtherEditors } from "./summarize-other-editors";
@@ -1463,51 +1461,6 @@ function FirstPaintTip(p: { navigatorOpen: boolean; navigatorWidth: number }) {
   );
 }
 
-// Command dock (left) + inspector tab rail (right) are PERSISTENT chrome —
-// unlike the Navigator/Inspector panels they aren't opt-in, so in fullBleed
-// mode (the only mode this shell currently uses — canvasMode is hardcoded
-// to DEFAULT_WORKSPACE_CANVAS_MODE above) `resolveBodyHorizontalPadding`
-// always reserved 0px for them. That let the storefront render content
-// (most visibly a left-aligned hero headline) directly underneath the
-// always-on rail with no gutter. These two constants mirror each rail's own
-// left/right + width + gap footprint (same formula as each rail's own
-// `*_PANEL_INSET_PX` / `*_RIGHT_INSET_PX`) so the DEFAULT resting position
-// never occludes canvas content — the rails stay draggable; this only
-// affects the storefront's own layout margin.
-const COMMAND_DOCK_MIN_SAFE_LEFT_PX =
-  COMMAND_DOCK_LEFT_PX + COMMAND_DOCK_WIDTH_PX + COMMAND_DOCK_PANEL_GAP_PX;
-const INSPECTOR_RAIL_MIN_SAFE_RIGHT_PX = INSPECTOR_PANEL_RIGHT_INSET_PX;
-
-function BodyPaddingController({
-  canvasMode,
-  navigatorOpen,
-  navigatorWidth,
-  inspectorOpen,
-  previewing,
-}: {
-  canvasMode: WorkspaceCanvasMode;
-  navigatorOpen: boolean;
-  navigatorWidth: number;
-  inspectorOpen: boolean;
-  /** Preview mode hides both rails entirely — no gutter to reserve then. */
-  previewing: boolean;
-}) {
-  const { left, right } = resolveBodyHorizontalPadding({
-    mode: canvasMode,
-    navigatorOpen,
-    navigatorWidth,
-    inspectorOpen,
-  });
-  const dockGutter = previewing ? 0 : COMMAND_DOCK_MIN_SAFE_LEFT_PX;
-  const railGutter = previewing ? 0 : INSPECTOR_RAIL_MIN_SAFE_RIGHT_PX;
-  const effectiveLeft = Math.max(left, dockGutter);
-  const effectiveRight = Math.max(right, railGutter);
-  if (effectiveLeft === 0 && effectiveRight === 0) return null;
-  return (
-    <style>{`@media (min-width: 1024px) { body { padding-left: ${effectiveLeft}px !important; padding-right: ${effectiveRight}px !important; transition: padding-left 200ms ease, padding-right 200ms ease; } }`}</style>
-  );
-}
-
 function DraftSavedToast() {
   const { t } = useEditorLocale();
   const { clearDraftSavedToast } = useEditContext();
@@ -1891,22 +1844,14 @@ function DeviceFrameSurface({
     setPreviewFrameWidth,
     mobileEditMode,
   } = useEditContext();
-  const { t } = useEditorLocale();
 
   // Drag state — live width while dragging (null = not dragging).
   const [dragging, setDragging] = useState<boolean>(false);
   const [dragReadout, setDragReadout] = useState<number | null>(null);
-  // TUL-397 — tiers that have finished their first iframe `load`. Warm-keep
-  // flips between ready tiers instantly; the skeleton covers only the first
-  // load of each tier (the blank 1.5–5s storefront boot).
-  const [loadedTiers, setLoadedTiers] = useState<ReadonlySet<EditDevice>>(
-    () => new Set(),
+  const { loadedTiers, markTierLoaded } = useDeviceFrameLoadTracking(
+    pageVersion,
+    pageSlug,
   );
-  // Iframe `key` includes pageVersion/pageSlug — a remount needs a fresh
-  // load signal or the skeleton would stay hidden over a blank document.
-  useEffect(() => {
-    setLoadedTiers(new Set());
-  }, [pageVersion, pageSlug]);
   // Ref to the start-of-drag data so pointermove doesn't close over stale state.
   const dragStartRef = useRef<{
     startX: number;
@@ -2092,7 +2037,6 @@ function DeviceFrameSurface({
     mobileEditMode,
   });
   const verticalPad = isPhone ? 12 : 24;
-  const showSkeleton = shouldShowDeviceFrameSkeleton({ device, loadedTiers });
 
   // Available iframe footprint inside the host gutter.
   const containerWidth = (hostSize?.w ?? 1280) - leftPad - rightPad - 32;
@@ -2227,14 +2171,7 @@ function DeviceFrameSurface({
                   data-active={isActive ? "true" : undefined}
                   data-device-tier={d}
                   hidden={!isActive}
-                  onLoad={() => {
-                    setLoadedTiers((prev) => {
-                      if (prev.has(d)) return prev;
-                      const next = new Set(prev);
-                      next.add(d);
-                      return next;
-                    });
-                  }}
+                  onLoad={() => markTierLoaded(d)}
                   style={{
                     // Absolute layering so the inactive iframes stack
                     // beneath the active one without affecting flex flow.
@@ -2258,36 +2195,7 @@ function DeviceFrameSurface({
                 />
               );
             })}
-            {/* TUL-397 — short translated skeleton while the active tier's
-                first storefront boot finishes. Warm-kept ready tiers skip it. */}
-            {showSkeleton ? (
-              <div
-                data-device-frame-skeleton=""
-                role="status"
-                aria-live="polite"
-                aria-label={t("Loading preview…")}
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: 16,
-                  background:
-                    "linear-gradient(180deg, rgba(249,249,251,0.98) 0%, rgba(244,244,245,0.98) 100%)",
-                  color: "rgba(24,24,27,0.55)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  letterSpacing: "-0.01em",
-                  fontFamily:
-                    'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
-                  pointerEvents: "none",
-                  zIndex: 2,
-                }}
-              >
-                {t("Loading preview…")}
-              </div>
-            ) : null}
+            <DeviceFrameSkeleton device={device} loadedTiers={loadedTiers} />
           </div>
           {/* Job #18 — resize grabber on the right edge of the active frame.
               Thin vertical strip; cursor:ew-resize. onPointerDown starts the

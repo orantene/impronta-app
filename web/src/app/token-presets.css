@@ -5955,14 +5955,6 @@ html[data-theme="dark"] [data-tone="light"] {
   .site-header[data-variant="split"] .site-header__brand-label {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  /* TUL-397: "Get in touch" (and similarly long CTAs) must stay inside the
-   * 390px bar — shrink + ellipsis instead of running off the right edge. */
-  .site-header__cta {
-    max-width: min(9.5rem, 38vw);
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
 }
 
 /* Same invariant for the two ROW variants whose brand sits BETWEEN two

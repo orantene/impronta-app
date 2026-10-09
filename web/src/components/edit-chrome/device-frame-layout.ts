@@ -1,6 +1,6 @@
 /**
  * device-frame-layout — pure geometry for TUL-397 builder gaps:
- *   - hero slider scale → sideways overflow (the ~107px left shift)
+ *   - Ken-Burns scale overflow math (hypothesis only — see hero-shift-measure)
  *   - tablet/mobile iframe host gutters so the Mobile/Tablet editing HUD
  *     and inspector dock sit beside the canvas, not over it
  *   - iframe warm-keep readiness (blank-frame skeleton)
