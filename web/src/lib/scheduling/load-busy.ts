@@ -17,6 +17,8 @@ export type BusySourceRow = {
 
 export type HoldBusyRow = BusySourceRow & {
   expires_at?: string | null;
+  /** Present when selected; used to ignore a just-inserted hold on TOCTOU re-check. */
+  id?: string | null;
 };
 
 export type BookingBusyRow = BusySourceRow & {
@@ -90,16 +92,25 @@ export async function loadBusyIntervals(input: {
   from: Date;
   to: Date;
   now?: Date;
+  /**
+   * Hold ids to omit from the busy union. Used by placeReservationHold's
+   * post-insert TOCTOU re-check so the hold just created is not treated as
+   * a conflict with itself (TUL-433).
+   */
+  excludeHoldIds?: readonly string[];
 }): Promise<BusyInterval[]> {
   const now = input.now ?? new Date();
   const fromIso = input.from.toISOString();
   const toIso = input.to.toISOString();
   const liveHolds = unexpiredHoldOrFilter(now);
+  const exclude = new Set(
+    (input.excludeHoldIds ?? []).filter((id): id is string => typeof id === "string" && id.length > 0),
+  );
 
   const [holdsRes, bookingsRes, blocksRes] = await Promise.all([
     input.admin
       .from("talent_holds")
-      .select("starts_at, ends_at, expires_at")
+      .select("id, starts_at, ends_at, expires_at")
       .eq("talent_profile_id", input.talentProfileId)
       .lt("starts_at", toIso)
       .gt("ends_at", fromIso)
@@ -122,8 +133,12 @@ export async function loadBusyIntervals(input: {
   const loadErr = holdsRes.error ?? bookingsRes.error ?? blocksRes.error;
   if (loadErr) throw loadErr;
 
+  const holds = ((holdsRes.data ?? []) as HoldBusyRow[]).filter(
+    (row) => !row.id || !exclude.has(row.id),
+  );
+
   return collectBusyIntervals({
-    holds: (holdsRes.data ?? []) as HoldBusyRow[],
+    holds,
     bookings: (bookingsRes.data ?? []) as BookingBusyRow[],
     blocks: (blocksRes.data ?? []) as BusySourceRow[],
     now,
