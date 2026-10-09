@@ -110,6 +110,8 @@ export type OfferEditorViewProps = {
   readonly onClose: () => void;
   readonly refusalCode?: MessagingRefusal | null;
   readonly onRetry?: () => void;
+  /** The seller's currency is unknown: the refusal offers MXN / USD and retries with the pick (484). */
+  readonly onPickCurrency?: (code: "MXN" | "USD") => void;
 
   readonly draft: OfferDraftState | null;
   readonly clientName: string;
@@ -208,7 +210,16 @@ export function OfferEditorView(props: OfferEditorViewProps) {
     return (
       <Sheet open title={title} copy={copy.kit} onClose={onClose} variant={sheetVariant} width={560} labelledBy="msgv5-offer-editor-title">
         <div data-offer-editor-phase="refused">
-          <RefusalLine code={refusalCode} copy={copy.kit} variant={variant} action={props.onRetry ? { label: copy.shell.tryAgain, onClick: props.onRetry } : undefined} />
+          <RefusalLine code={refusalCode} copy={copy.kit} variant={variant} action={props.onRetry && refusalCode !== "offer_currency_unresolved" ? { label: copy.shell.tryAgain, onClick: props.onRetry } : undefined} />
+          {refusalCode === "offer_currency_unresolved" && props.onPickCurrency ? (
+            <div role="group" data-offer-currency-chooser style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              {(["MXN", "USD"] as const).map((code) => (
+                <button key={code} type="button" onClick={() => props.onPickCurrency?.(code)} style={{ minHeight: 44, padding: "0 20px", fontWeight: 700, cursor: "pointer" }}>
+                  {code}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       </Sheet>
     );
@@ -545,6 +556,8 @@ export function OfferEditorSheet({ open, onClose, ctx, copy, variant }: ActionSh
   const inquiryId = ctx.row?.id ?? "";
   const clientName = ctx.essentials?.customer.name || ctx.row?.contactName || "";
   const loadedForRef = useRef<string | null>(null);
+  // 484: set when the seller's currency could not be resolved and the user picked one.
+  const pickedCurrencyRef = useRef<"MXN" | "USD" | undefined>(undefined);
 
   // `ctx` and `copy` are new object identities on every shell render (they
   // carry live thread state); reading them through a ref inside the callback
@@ -574,7 +587,7 @@ export function OfferEditorSheet({ open, onClose, ctx, copy, variant }: ActionSh
       const existing = ctxNow.chips.find((c) => c.kind === "offer");
       let offerId: string;
       if (!existing) {
-        const created = await messagingCreateOffer({ inquiryId, expectedVersion: ctxNow.version });
+        const created = await messagingCreateOffer({ inquiryId, expectedVersion: ctxNow.version, currencyCode: pickedCurrencyRef.current });
         if (!created.ok) {
           setRefusalCode(created.reason);
           setPhase("refused");
@@ -718,6 +731,7 @@ export function OfferEditorSheet({ open, onClose, ctx, copy, variant }: ActionSh
       onClose={onClose}
       refusalCode={refusalCode}
       onRetry={() => void loadEverything()}
+      onPickCurrency={(code) => { pickedCurrencyRef.current = code; void loadEverything(); }}
       draft={draft}
       clientName={clientName}
       seller={ctx.seller ?? null}
