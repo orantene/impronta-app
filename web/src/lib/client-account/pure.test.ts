@@ -11,6 +11,13 @@ import {
   shapeAccountSummary,
 } from "./pure";
 
+test("client auth methods include apple (TUL-65)", () => {
+  assert.ok(CLIENT_AUTH_METHODS.includes("apple"));
+  assert.equal(isClientAuthMethod("apple"), true);
+  assert.equal(isClientAuthMethod("email_code"), true);
+  assert.equal(isClientAuthMethod("facebook"), false);
+});
+
 test("resend cooldown is 30 s, counts down and reaches 0", () => {
   assert.equal(RESEND_COOLDOWN_SECONDS, 30);
   assert.equal(resendSecondsLeft(1000, null), 0);
@@ -35,8 +42,8 @@ test("only client accounts are eligible; talent, staff, platform are not", () =>
   for (const r of ["talent", "agency_staff", "super_admin"]) assert.equal(isClientAccountEligible(r), false, r);
 });
 
-test("client auth methods match foundation migration allow-list", () => {
-  assert.deepEqual([...CLIENT_AUTH_METHODS], ["email_code", "google", "password", "sso"]);
+test("client auth methods match foundation + Apple widen allow-list", () => {
+  assert.deepEqual([...CLIENT_AUTH_METHODS], ["email_code", "google", "password", "sso", "apple"]);
   for (const m of CLIENT_AUTH_METHODS) assert.equal(isClientAuthMethod(m), true, m);
   assert.equal(isClientAuthMethod("magic_link"), false);
   assert.equal(isClientAuthMethod(""), false);
@@ -103,6 +110,7 @@ import {
   shouldClaimInquiriesForSignIn,
   shouldSignOutAfterVerify,
   tenantSourceProfileId,
+  userHasAppleIdentity,
   userHasGoogleIdentity,
   verifyIpRateKey,
 } from "./pure";
@@ -165,6 +173,9 @@ test("claim requires confirmed email; OTP proven bypasses; Apple relay skips", (
   assert.equal(userHasGoogleIdentity({ identities: [{ provider: "google" }] }), true);
   assert.equal(userHasGoogleIdentity({ identities: [{ provider: "email" }], app_metadata: {} }), false);
   assert.equal(userHasGoogleIdentity({ identities: [], app_metadata: { provider: "google" } }), true);
+  assert.equal(userHasAppleIdentity({ identities: [{ provider: "apple" }] }), true);
+  assert.equal(userHasAppleIdentity({ identities: [{ provider: "email" }], app_metadata: {} }), false);
+  assert.equal(userHasAppleIdentity({ identities: [], app_metadata: { provider: "apple" } }), true);
 });
 
 test("UTC fallback shows the zone label next to the time", () => {

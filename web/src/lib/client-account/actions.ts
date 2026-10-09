@@ -10,10 +10,10 @@
  * file verifies with the same Supabase call, the same rate limits and the same
  * claim helpers, then returns data instead of redirecting.
  *
- * TUL-173: Google (after same-origin `/auth/google?popup=1`) and password use
- * the same non-redirecting attach path. No new account types.
+ * TUL-173 / TUL-65: Google + Apple (after same-origin `/auth/{google,apple}?popup=1`)
+ * and password use the same non-redirecting attach path. No new account types.
  *
- * Session note (Google popup): completing OAuth on this host replaces any prior
+ * Session note (OAuth popup): completing OAuth on this host replaces any prior
  * session cookie on the same host. If a talent/staff was signed in, finalize
  * with `signOutIfNotClient: true` signs that business session out after the
  * eligibility check — intentional, but operators should know.
@@ -24,6 +24,7 @@ import { headers } from "next/headers";
 import { clearGuestCookie } from "@/lib/guest-cookie-clear.server";
 
 import { loadAccessProfile } from "@/lib/access-profile";
+import { isAppleAuthProviderEnabled } from "@/lib/auth/apple-provider-flag";
 import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";
 import {
   isCompleteOtpCode,
@@ -36,10 +37,12 @@ import { claimInquiriesByConfirmedEmail } from "@/lib/inquiry/claim-by-email";
 import { hasSignupAcceptance, recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import {
+  authAppleFinalizeUserKey,
   authGoogleFinalizeUserKey,
   authOtpVerifyEmailKey,
   authPasswordEmailKey,
   authPasswordIpKey,
+  checkAuthAppleFinalizeByUser,
   checkAuthGoogleFinalizeByUser,
   checkAuthOtpVerifyByEmail,
   checkAuthPasswordByEmail,
@@ -60,6 +63,7 @@ import {
   precheckSignIn,
   shouldClaimInquiriesForSignIn,
   shouldSignOutAfterVerify,
+  userHasAppleIdentity,
   userHasGoogleIdentity,
   type ClientAuthMethod,
   verifyIpRateKey,
@@ -81,6 +85,8 @@ const PASSWORD_PER_EMAIL = 10;
 const PASSWORD_PER_IP = 30;
 const GOOGLE_FINALIZE_WINDOW_MS = 15 * 60 * 1000;
 const GOOGLE_FINALIZE_PER_USER = 10;
+const APPLE_FINALIZE_WINDOW_MS = 15 * 60 * 1000;
+const APPLE_FINALIZE_PER_USER = 10;
 
 async function requestHost(): Promise<string> {
   try {
@@ -392,6 +398,62 @@ export async function finalizeClientAccountGoogleSession(input: {
     locale: input.locale,
     ageTerms: input.ageTerms,
     method: "google",
+    emailConfirmed: isAuthEmailConfirmedForClaim(user),
+    signOutIfNotClient: true,
+  });
+}
+
+/**
+ * After the Apple popup writes a session on this host, attach the client
+ * account side-effects without navigating away (TUL-65).
+ *
+ * Requires a real Apple identity on the session. Rate-limited per user so
+ * repeated finalize calls cannot spam `client_auth_events` / claims.
+ * Inquiry claim still requires a verified non-relay email (shared helper).
+ */
+export async function finalizeClientAccountAppleSession(input: {
+  locale: string;
+  ageTerms: boolean;
+}): Promise<ClientAccountSignInResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
+  const t = createTranslator(input.locale === "es" ? "es" : "en");
+  const generic = t("public.clientAccount.genericError");
+  if (!isAppleAuthProviderEnabled()) {
+    return { ok: false, error: t("public.clientAccount.appleFailed") };
+  }
+  if (!(await accountSurfaceEnabledForRequest())) return { ok: false, error: generic };
+
+  const supabase = await getCachedServerSupabase();
+  if (!supabase) return { ok: false, error: generic };
+  const got = await supabase.auth.getUser().catch(() => null);
+  const user = got?.data?.user ?? null;
+  if (!user) return { ok: false, error: t("public.clientAccount.appleFailed") };
+
+  if (!userHasAppleIdentity(user)) {
+    logServerExpected("clientAccount/appleFinalize", { message: "missing_apple_identity" });
+    return { ok: false, error: t("public.clientAccount.appleFailed") };
+  }
+
+  const tooMany = { ok: false, error: t("public.auth.passwordless.errors.tooMany") } as const;
+  if (
+    !tryConsumeRateLimit(
+      `auth-apple-finalize:${user.id}`,
+      APPLE_FINALIZE_PER_USER,
+      APPLE_FINALIZE_WINDOW_MS,
+    )
+  ) {
+    return tooMany;
+  }
+  const durable = await checkAuthAppleFinalizeByUser(authAppleFinalizeUserKey(user.id));
+  if (!durable.ok) return tooMany;
+
+  return completeClientAccountSignIn({
+    userId: user.id,
+    email: user.email ?? null,
+    locale: input.locale,
+    ageTerms: input.ageTerms,
+    method: "apple",
     emailConfirmed: isAuthEmailConfirmedForClaim(user),
     signOutIfNotClient: true,
   });
