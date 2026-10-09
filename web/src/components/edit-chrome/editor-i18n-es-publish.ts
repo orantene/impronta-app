@@ -63,4 +63,13 @@ export const ES_PUBLISH_TEXT: Record<string, string> = {
   "Use my business name as my logo": "Usar el nombre de mi negocio como logo",
   // Tablet editing HUD toggle (TUL-79 #12); "Hide" lives in editor-i18n-es-inspectors.ts.
   "Show": "Mostrar",
+  "Tablet editing": "Edición de tableta",
+  "Mobile-first editing": "Edición móvil primero",
+  "Mobile editing": "Edición móvil",
+  "Hide and reorder apply to tablet": "Ocultar y reordenar aplican a la tableta",
+  "Style edits scope to mobile": "Los cambios de estilo aplican a móvil",
+  "Exit to desktop editing": "Salir a la edición de escritorio",
+  "Exit tablet editing, back to desktop": "Salir de la edición de tableta y volver a escritorio",
+  "Exit mobile editing, back to desktop": "Salir de la edición móvil y volver a escritorio",
+  "Exit": "Salir",
 };

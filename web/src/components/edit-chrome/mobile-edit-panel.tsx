@@ -575,7 +575,7 @@ export function MobileEditPanel() {
       data-edit-drawer
       data-mobile-edit-panel
       role="region"
-      aria-label={tabletHud ? "Tablet editing" : "Mobile-first editing"}
+      aria-label={tabletHud ? t("Tablet editing") : t("Mobile-first editing")}
       style={{
         position: "fixed",
         left: panelLeft,
@@ -617,7 +617,7 @@ export function MobileEditPanel() {
               letterSpacing: "-0.01em",
             }}
           >
-            {tabletHud ? "Tablet editing" : "Mobile editing"}
+            {tabletHud ? t("Tablet editing") : t("Mobile editing")}
           </span>
           <span
             style={{
@@ -628,8 +628,8 @@ export function MobileEditPanel() {
             }}
           >
             {tabletHud
-              ? "Hide and reorder apply to tablet"
-              : "Style edits scope to mobile"}
+              ? t("Hide and reorder apply to tablet")
+              : t("Style edits scope to mobile")}
           </span>
         </span>
         {tabletHud ? (
@@ -649,11 +649,11 @@ export function MobileEditPanel() {
             if (tabletHud) ctx.setDevice("desktop");
             else ctx.setMobileEditMode(false);
           }}
-          title="Exit to desktop editing"
+          title={t("Exit to desktop editing")}
           aria-label={
             tabletHud
-              ? "Exit tablet editing, back to desktop"
-              : "Exit mobile editing, back to desktop"
+              ? t("Exit tablet editing, back to desktop")
+              : t("Exit mobile editing, back to desktop")
           }
           style={{
             display: "inline-flex",
@@ -672,7 +672,7 @@ export function MobileEditPanel() {
           }}
         >
           <CloseIcon />
-          Exit
+          {t("Exit")}
         </button>
       </div>
 

@@ -29,3 +29,23 @@ test("the Show/Hide toggle labels go through the editor i18n (es: Mostrar / Ocul
   const inspectors = readFileSync(join(process.cwd(), "src/components/edit-chrome/editor-i18n-es-inspectors.ts"), "utf8");
   assert.match(inspectors, /Hide: "Ocultar"/);
 });
+
+test("the HUD header copy (title, subtitle, exit button, aria/title) goes through t() with Spanish rows", () => {
+  for (const key of [
+    "Tablet editing",
+    "Mobile-first editing",
+    "Mobile editing",
+    "Hide and reorder apply to tablet",
+    "Style edits scope to mobile",
+    "Exit to desktop editing",
+    "Exit tablet editing, back to desktop",
+    "Exit mobile editing, back to desktop",
+    "Exit",
+  ]) {
+    assert.ok(src.includes(`t("${key}")`), `${key} must be rendered through t()`);
+    const catalog = readFileSync(join(process.cwd(), "src/components/edit-chrome/editor-i18n-es-publish.ts"), "utf8");
+    assert.ok(catalog.includes(`"${key}": "`), `${key} needs a Spanish row`);
+  }
+  assert.doesNotMatch(src, /aria-label=\{tabletHud \? "Tablet editing"/);
+  assert.doesNotMatch(src, /\{tabletHud \? "Tablet editing" : "Mobile editing"\}/);
+});
