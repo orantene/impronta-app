@@ -283,11 +283,16 @@ export function PolicyLine(props: { line: string; link: string; title: string; b
 }
 
 /** The link's validity, in words, with a clock. */
-export function ExpiryRow(props: { text: string }) {
+export function ExpiryRow(props: { text: string; hint?: string | null }) {
   return (
     <p className="m-0 flex items-center gap-2 text-[14px]" style={{ color: MUTED }} data-pay-expiry="">
       <Icon name="clock" size={18} />
       {props.text}
+      {props.hint ? (
+        <span title={props.hint} role="img" aria-label={props.hint} data-pay-hint="" className="inline-flex">
+          <Icon name="info" size={16} />
+        </span>
+      ) : null}
     </p>
   );
 }

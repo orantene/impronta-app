@@ -13,7 +13,6 @@ import {
   Action,
   AmountBlock,
   ExpiryRow,
-  Icon,
   INK,
   MUTED,
   PolicyLine,
@@ -507,13 +506,7 @@ function ReadyToPay(props: CheckoutViewProps & { t: T; money: (cents: number) =>
         fees={feeRows(props, props.money)}
         rows={summaryRows(props)}
       />
-      {expiryText ? <ExpiryRow text={expiryText} /> : null}
-      {holdsTime ? (
-        <p className="m-0 flex items-center gap-2 text-[14px]" style={{ color: MUTED }}>
-          <Icon name="info" size={18} />
-          {t("public.payPage.keepSlotNote")}
-        </p>
-      ) : null}
+      {expiryText ? <ExpiryRow text={expiryText} hint={holdsTime ? t("public.payPage.keepSlotNote") : null} /> : null}
       <PolicyLine
         line={props.policyText ? props.policyText.split(/(?<=[.!?])\s/)[0] : t("public.payPage.policyDefault")}
         link={t("public.payPage.policyLink")}
