@@ -332,6 +332,7 @@ export async function moneyOwningParty(
   talentProfileId: string | null,
 ): Promise<OwningParty> {
   if (owning.type !== "workspace" || !talentProfileId) return owning;
+  const talent: OwningParty = { type: "talent", id: talentProfileId };
   const { data, error } = await supabase.from("agencies").select("workspace_type").eq("id", owning.id).maybeSingle();
   if (error) {
     // Never guess: a silent fallback to 'workspace' could make the snapshot and
@@ -339,7 +340,29 @@ export async function moneyOwningParty(
     logServerError("owning-party-resolver.moneyOwningParty", error);
     throw new Error(`moneyOwningParty: could not read workspace_type for ${owning.id}`);
   }
-  return (data as { workspace_type?: string | null } | null)?.workspace_type === "talent"
-    ? { type: "talent", id: talentProfileId }
-    : owning;
+  if ((data as { workspace_type?: string | null } | null)?.workspace_type === "talent") return talent;
+
+  // A 'both' owner selling her own service: the talent's account is an active
+  // OWNER of this (business) workspace, so she is selling for herself.
+  const { data: tp, error: tpErr } = await supabase.from("talent_profiles").select("user_id").eq("id", talentProfileId).maybeSingle();
+  if (tpErr) {
+    logServerError("owning-party-resolver.moneyOwningParty.talent", tpErr);
+    throw new Error(`moneyOwningParty: could not read talent ${talentProfileId}`);
+  }
+  const userId = (tp as { user_id?: string | null } | null)?.user_id ?? null;
+  if (!userId) return owning;
+  const { data: owner, error: ownerErr } = await supabase
+    .from("agency_memberships")
+    .select("id")
+    .eq("tenant_id", owning.id)
+    .eq("profile_id", userId)
+    .eq("role", "owner")
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+  if (ownerErr) {
+    logServerError("owning-party-resolver.moneyOwningParty.owner", ownerErr);
+    throw new Error(`moneyOwningParty: could not read ownership of ${owning.id}`);
+  }
+  return owner ? talent : owning;
 }
