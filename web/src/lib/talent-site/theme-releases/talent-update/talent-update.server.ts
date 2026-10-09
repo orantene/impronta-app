@@ -534,8 +534,7 @@ export async function loadThemeUpdatePreviewSnapshot(
   if (!ctx) return null;
   const m = await deps.merge(ctx, applyItemsOf(ctx.release.items ?? []));
   if (!m.ok || !m.homePageId) return null;
-  // F76: opening the preview is measurement. Record `previewed` on the update
-  // row only; her site is untouched. Never downgrades applied/dismissed/undone.
+  // F76: preview records `previewed` on the update row only (site untouched; never downgrades).
   await setUpdateState(deps.admin, talentProfileId, updateId, "previewed", { onlyFrom: ["available"] });
   return {
     v: 1,
