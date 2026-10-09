@@ -1,6 +1,6 @@
 # AUTH · Custom-domain edit hand-off (C2)
 
-**Status:** design locked for PM review · implement after draft PR body lands  
+**Status:** implemented · ready for PM review (Auth) · not merged  
 **Surface:** Admin Editar → storefront `?edit=1` on a verified CUSTOM domain  
 **Auth gate:** PM review before any batch / merge
 

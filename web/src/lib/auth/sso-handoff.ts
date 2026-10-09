@@ -5,9 +5,9 @@ import "server-only";
  *
  * Auth cookies are shared across *.tulala.digital / *.lvh.me only; tenant CUSTOM
  * domains are host-only. To let an existing Tulala talent "sign in to apply" on
- * a custom domain, we mint a single-use, short-TTL nonce on a host where the
- * session is readable, then redeem it on the custom domain to establish a fresh
- * host-only session.
+ * a custom domain — and for Admin Editar on a custom domain (C2) — we mint a
+ * single-use, short-TTL nonce on a host where the session is readable, then
+ * redeem it on the custom domain to establish a fresh host-only session.
  *
  * The nonce stores ONLY a user_id (no session tokens at rest). Redemption is
  * single-use (atomic used_at claim, replay-safe), TTL-bounded, and bound to the
@@ -15,12 +15,20 @@ import "server-only";
  * fresh by Supabase (generateLink + verifyOtp) in the redeem route.
  *
  * SECURITY-REVIEW + real-custom-domain QA required before trusting in prod.
+ * Design: docs/plans/auth/custom-domain-edit-handoff.md
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  SSO_HANDOFF_TTL_MS,
+  mintHandoffExpiresAt,
+  normalizeHandoffHost,
+  validateHandoffRow,
+  type HandoffTokenRow,
+} from "@/lib/auth/sso-handoff-pure";
 
-const TTL_MS = 120_000; // 2 minutes — just enough for the redirect round-trip.
+export { SSO_HANDOFF_TTL_MS } from "@/lib/auth/sso-handoff-pure";
 
 /** Is `host` a verified tenant CUSTOM domain (so SSO to it is allowed)? */
 export async function isVerifiedCustomHost(host: string): Promise<boolean> {
@@ -29,7 +37,7 @@ export async function isVerifiedCustomHost(host: string): Promise<boolean> {
   const { data, error } = await admin
     .from("agency_domains")
     .select("hostname, kind, status")
-    .eq("hostname", host.toLowerCase())
+    .eq("hostname", normalizeHandoffHost(host))
     .eq("kind", "custom")
     .in("status", ["active", "verified", "ssl_provisioned"])
     .maybeSingle();
@@ -47,12 +55,12 @@ export async function mintSsoHandoff(
 ): Promise<string | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
-  const expiresAt = new Date(Date.now() + TTL_MS).toISOString();
+  const expiresAt = mintHandoffExpiresAt(Date.now(), SSO_HANDOFF_TTL_MS);
   const { data, error } = await admin
     .from("sso_handoff_tokens")
     .insert({
       user_id: userId,
-      target_host: targetHost.toLowerCase(),
+      target_host: normalizeHandoffHost(targetHost),
       expires_at: expiresAt,
     })
     .select("token")
@@ -77,17 +85,21 @@ export async function redeemSsoHandoff(
 ): Promise<RedeemResult> {
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false };
-  const host = requestHost.toLowerCase();
+  const host = normalizeHandoffHost(requestHost);
 
   const { data: row, error } = await admin
     .from("sso_handoff_tokens")
     .select("user_id, target_host, expires_at, used_at")
     .eq("token", token)
     .maybeSingle();
-  if (error || !row) return { ok: false };
-  if (row.used_at) return { ok: false };
-  if (row.target_host !== host) return { ok: false };
-  if (new Date(row.expires_at).getTime() < Date.now()) return { ok: false };
+  if (error) return { ok: false };
+
+  const checked = validateHandoffRow(
+    row as HandoffTokenRow | null,
+    host,
+    Date.now(),
+  );
+  if (!checked.ok) return { ok: false };
 
   // Atomic single-use claim: only the request that flips used_at NULL→now wins.
   const { data: claimed, error: claimError } = await admin
