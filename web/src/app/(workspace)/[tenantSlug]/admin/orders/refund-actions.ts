@@ -13,6 +13,9 @@ import { refundDeskOutcome, type RefundDeskOutcome } from "@/lib/orders/refund-d
 import { packageRefundShare } from "@/lib/catalog/packages";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { nonRefundableFeeCents } from "@/lib/billing/commission";
+import { loadBookingCommissionSnapshotsForRefund } from "@/lib/billing/commission-engine";
+import { txnRefundableCents, type PaidTransaction } from "@/lib/orders/refund-plan";
 
 /**
  * EVERY ANSWER FROM THIS FILE IS A CODE, NEVER A SENTENCE.
@@ -28,7 +31,18 @@ export type RefundDeskResult =
   | { ok: false; outcome: RefundDeskOutcome };
 
 export type DeskLinesResult =
-  | { ok: true; lines: DeskOrderLine[]; defaultEffect: RefundEffect }
+  | {
+      ok: true;
+      lines: DeskOrderLine[];
+      defaultEffect: RefundEffect;
+      /**
+       * Capture still refundable across paid transactions (gross − fees −
+       * already refunded). The amount field's max is min(line remaining, this)
+       * so a remainder after a partial cannot ask for more than Stripe will
+       * return (TUL-469).
+       */
+      captureRefundableCents: number;
+    }
   | { ok: false; outcome: RefundDeskOutcome };
 
 export type DeskOrderLine = {
@@ -43,6 +57,69 @@ export type DeskOrderLine = {
    */
   components: Array<{ name: string; cents: number }> | null;
 };
+
+async function captureRefundableForOrder(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  orderId: string,
+): Promise<number | null> {
+  const { data: txnRows, error: txnErr } = await admin
+    .from("booking_transactions")
+    .select("id, gross_amount_cents, booking_id")
+    .eq("order_id", orderId)
+    .eq("status", "paid");
+  if (txnErr) {
+    logServerError("orders.refund.captureTxns", txnErr);
+    return null;
+  }
+  const paid = (txnRows ?? []) as Array<{
+    id: string;
+    gross_amount_cents: number;
+    booking_id: string | null;
+  }>;
+  if (paid.length === 0) return 0;
+
+  const parentIds = paid.map((t) => t.id);
+  const refundedByParent = new Map<string, number>();
+  const { data: refundRows, error: refErr } = await admin
+    .from("booking_transactions")
+    .select("refund_of_transaction_id, gross_amount_cents")
+    .in("refund_of_transaction_id", parentIds)
+    .eq("status", "refunded");
+  if (refErr) {
+    logServerError("orders.refund.captureRefunds", refErr);
+    return null;
+  }
+  for (const r of (refundRows ?? []) as Array<{ refund_of_transaction_id: string; gross_amount_cents: number }>) {
+    refundedByParent.set(
+      r.refund_of_transaction_id,
+      (refundedByParent.get(r.refund_of_transaction_id) ?? 0) + Number(r.gross_amount_cents ?? 0),
+    );
+  }
+
+  const feeByBooking = new Map<string, number | null>();
+  for (const bookingId of new Set(paid.map((t) => t.booking_id).filter((x): x is string => !!x))) {
+    try {
+      feeByBooking.set(
+        bookingId,
+        nonRefundableFeeCents(await loadBookingCommissionSnapshotsForRefund(admin, bookingId)),
+      );
+    } catch (err) {
+      logServerError("orders.refund.captureFees", err);
+      feeByBooking.set(bookingId, null);
+    }
+  }
+  for (const t of paid) {
+    if (t.booking_id && feeByBooking.get(t.booking_id) === null) return null;
+  }
+
+  const txns: PaidTransaction[] = paid.map((t) => ({
+    id: t.id,
+    grossAmountCents: Number(t.gross_amount_cents),
+    refundedCents: refundedByParent.get(t.id) ?? 0,
+    nonRefundableFeeCents: t.booking_id ? (feeByBooking.get(t.booking_id) ?? 0) : 0,
+  }));
+  return txns.reduce((s, t) => s + txnRefundableCents(t), 0);
+}
 
 async function packageShares(
   admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
@@ -150,10 +227,14 @@ export async function loadOrderLinesForDesk(orderId: string): Promise<DeskLinesR
     if (admErr) logServerError("orders.refund.loadAdmissions", admErr);
     hasTicket = (admissions ?? []).length > 0;
   }
+  const captureRefundableCents = await captureRefundableForOrder(admin, orderId);
+  if (captureRefundableCents == null) return { ok: false, outcome: "unavailable" };
+
   return {
     ok: true,
     lines,
     defaultEffect: hasTicket ? "cancel_ticket" : "adjustment_after_service",
+    captureRefundableCents,
   };
 }
 
@@ -198,10 +279,14 @@ export async function refundOrderAtDesk(input: z.infer<typeof schema>): Promise<
     .eq("order_id", parsed.data.orderId)
     .in("id", parsed.data.lineIds);
   if (pickedErr) return { ok: false, outcome: "unavailable" };
-  const remainingCents = ((picked ?? []) as Array<{ total_cents: number; refunded_cents: number | null }>).reduce(
+  const lineRemainingCents = ((picked ?? []) as Array<{ total_cents: number; refunded_cents: number | null }>).reduce(
     (sum, line) => sum + Math.max(0, Number(line.total_cents) - Number(line.refunded_cents ?? 0)),
     0,
   );
+  const captureLeft = await captureRefundableForOrder(admin, parsed.data.orderId);
+  if (captureLeft == null) return { ok: false, outcome: "unavailable" };
+  // Ceiling is the lesser of line remainder and capture left (TUL-469).
+  const remainingCents = Math.min(lineRemainingCents, captureLeft);
   const asked = parsed.data.amountCents ?? remainingCents;
   if (asked > remainingCents) return { ok: false, outcome: "exceeds_captured" };
   const refundCents = asked;
