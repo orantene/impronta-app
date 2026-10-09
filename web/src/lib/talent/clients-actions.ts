@@ -1,5 +1,6 @@
 "use server";
 
+import { bookingOwedCents } from "@/lib/talent/booking-owed";
 import { isDeadBookingStatus } from "@/lib/money/money-rules";
 import { loadLedgerPaidByBooking } from "@/lib/bookings/ledger-paid";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -159,13 +160,13 @@ export async function loadTalentClients(
         Math.round(Number(leg.client_charge_total) * 100) || 0,
       );
       const basis = chargeCents > 0 ? chargeCents : totalCents;
-      let owed: number | null = null;
       let overdue = false;
-      const ledgerPaid = ledgerByBooking.get(booking.id as string)?.paidCents ?? 0;
-      if (booking.payment_status === "paid") owed = 0;
-      else if (ledgerPaid > 0) owed = Math.max(0, basis - ledgerPaid);
-      else if (booking.payment_status === "partial") owed = Math.max(0, basis - deposit);
-      else if (basis > 0) owed = basis;
+      const owed = bookingOwedCents({
+        paymentStatus: booking.payment_status as string | null,
+        basisCents: basis,
+        depositCents: deposit,
+        ledgerPaidCents: ledgerByBooking.get(booking.id as string)?.paidCents ?? 0,
+      });
       if (owed && owed > 0 && start && start < nowIso) overdue = true;
       const inquiryId = booking.source_inquiry_id as string | null;
       const visit = clientVisit({

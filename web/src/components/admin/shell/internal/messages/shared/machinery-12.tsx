@@ -335,15 +335,8 @@ export function LiveOfferPanel({
       {/* Engine-wired actions — admin OR the appointed inquiry coordinator.
           sendOfferAction / reopenOfferAction / counterOfferAction are
           coordinator-authorized (WS3) and run under the coordinator session. */}
-      {(canManage && (status === "draft" || status === "sent" || status === "rejected")) && (
+      {(canManage && (status === "sent" || status === "rejected")) && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          {status === "draft" && (
-            <button type="button" disabled={pending || sendBlocked}
-              title={sendBlocked && sendGate && !sendGate.ok ? t(sendGate.reasonKey) : undefined}
-              onClick={() => run(t("dashboard.adminTabs.offer.sendOffer"), () => sendOfferAction(effectiveTenant.slug, inquiryId, offerId))}
-              style={pending || sendBlocked ? disabledBtn(primaryBtn(COLORS.accent)) : primaryBtn(COLORS.accent)}
-            >{t("dashboard.adminTabs.offer.sendToClient")}</button>
-          )}
           {/* A2 — Amend & re-send: when the offer is SENT but the admin needs
               to adjust terms (price error, changed scope, client feedback),
               this button calls reopenOfferAction which flips the offer back to
@@ -408,6 +401,16 @@ export function LiveOfferPanel({
       {status === "draft" && (
         <div style={{ marginTop: 4 }}>
           <OfferDraftEditor inquiryId={inquiryId} offerId={offerId} canEdit={canManage} onSendGateChange={setSendGate} />
+        </div>
+      )}
+      {/* Send comes LAST (edit, then save inside the editor, then send). */}
+      {canManage && status === "draft" && (
+        <div className="flex flex-wrap items-center justify-end gap-2.5" data-offer-send-row>
+          <button type="button" disabled={pending || sendBlocked}
+            title={sendBlocked && sendGate && !sendGate.ok ? t(sendGate.reasonKey) : undefined}
+            onClick={() => run(t("dashboard.adminTabs.offer.sendOffer"), () => sendOfferAction(effectiveTenant.slug, inquiryId, offerId))}
+            style={pending || sendBlocked ? disabledBtn(primaryBtn(COLORS.accent)) : primaryBtn(COLORS.accent)}
+          >{t("dashboard.adminTabs.offer.sendToClient")}</button>
         </div>
       )}
     </div>

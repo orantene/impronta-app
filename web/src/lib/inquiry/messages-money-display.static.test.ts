@@ -154,8 +154,11 @@ describe("messages sheets: money goes through the shared formatter", () => {
     assert.doesNotMatch(picker, /"USD"/);
     assert.match(picker, /formatOfferMoney\(it\.amountCents \/ 100, it\.currency\)/);
     assert.match(picker, /buildDefaultRateTemplates\(currency\)/);
+    // OfferDraftLineItem owns the picker row; editor passes the offer currency through.
     const m11 = readFileSync(join(WEB_ROOT, "src/components/admin/shell/internal/messages/shared/machinery-11.tsx"), "utf8");
-    assert.match(m11, /currency=\{snapshot\.currencyCode\}/);
+    const line = readFileSync(join(WEB_ROOT, "src/components/admin/shell/internal/messages/shared/offer-draft-line-item.tsx"), "utf8");
+    assert.match(m11, /currencyCode=\{snapshot\.currencyCode\}/);
+    assert.match(line, /currency=\{currencyCode\}/);
   });
 
   it("messages-v5: one chain, the view-models carry currencyCode, no USD-only helper is left", () => {

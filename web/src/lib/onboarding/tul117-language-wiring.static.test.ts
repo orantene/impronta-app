@@ -18,6 +18,11 @@ test("the talent writer fills preferred_locale from the flow locale", () => {
   assert.match(src, /fillTalentPreferredLocale\(admin, id, input\.locale\)/);
 });
 
+test("the talent writer enables secondary_locales when the bio plan has a non-primary locale", () => {
+  const src = read("src/lib/onboarding/talent-writer.server.ts");
+  assert.match(src, /enableSecondaryLocalesFromBios\(admin, id, bioPlan\.entries, input\.locale\)/);
+});
+
 test("the workspace is born with the flow language on both columns", () => {
   const src = read("src/lib/saas/workspace-signup.server.ts");
   assert.match(src, /default_locale: flowLocale\.defaultLocale/);
