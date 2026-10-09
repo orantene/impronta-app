@@ -25,6 +25,7 @@ import { clearGuestCookie } from "@/lib/guest-cookie-clear.server";
 
 import { loadAccessProfile } from "@/lib/access-profile";
 import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";
+import { activateGuestBookerIfEligible } from "./guest-activate.server";
 import {
   isCompleteOtpCode,
   isValidAuthEmail,
@@ -166,6 +167,10 @@ async function completeClientAccountSignIn(input: {
         userId: input.userId,
         verifiedEmail: claimEmail,
       }).catch((e) => logServerError("clientAccount/claimByEmail", e));
+      // TUL-465: a verified guest booker is a client, not an onboarding account.
+      await activateGuestBookerIfEligible(adminForClaim, { userId: input.userId, emailProven: true }).catch((e) =>
+        logServerError("clientAccount/guestActivate", e),
+      );
     }
   }
 
