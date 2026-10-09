@@ -4,7 +4,13 @@
  * Fresh "myself" sites used to hardcode English for the bio that seeds
  * `metaDescription` and `introTagline`, while the live Maison body followed
  * `preferred_locale` (TUL-411). Pure helpers keep the seed path aligned with
- * the talent's primary language.
+ * the page locale (the talent's primary language at provision time).
+ *
+ * Rule (TUL-411): meta / tagline follow the PAGE locale. Fall back to the
+ * other language (map entry or `short_bio`) only when that page locale has
+ * nothing — e.g. English-primary talent with only a Spanish `short_bio` still
+ * seeds Spanish when `bio_i18n.en` is empty. Existing sites are healed by the
+ * public SEO re-render fallback (#2961), not a data backfill script.
  */
 
 export type StarterLocale = "en" | "es";
@@ -16,9 +22,12 @@ export function starterPrimaryLocale(preferred: string | null | undefined): Star
 }
 
 /**
- * Bio that seeds starter `publicBio` / meta / intro tagline.
- * Prefer the primary locale map entry, then `short_bio` (flow language), then
- * any other saved locale — never English-first when primary is Spanish.
+ * Bio that seeds starter `publicBio` / meta / intro tagline for the page locale.
+ *
+ * Precedence: page-locale map → `short_bio` → other locale map → any map value.
+ * Never English-first when the page locale is Spanish. When the page locale is
+ * English and only a Spanish `short_bio` exists, that Spanish text is the
+ * intentional fallback (page locale had nothing).
  */
 export function pickStarterBio(
   map: Readonly<Record<string, string>>,

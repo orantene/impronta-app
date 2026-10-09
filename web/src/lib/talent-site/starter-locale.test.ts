@@ -43,6 +43,20 @@ test("pickStarterBio: en primary still prefers English", () => {
   assert.equal(pickStarterBio(map, "en", null), "Manicures and nail art in Guadalajara");
 });
 
+// Page-locale rule: EN primary with only Spanish short_bio falls back to that
+// Spanish text — meta follows the page locale, then the other language when
+// the page locale has nothing (TUL-411 review Q1).
+test("pickStarterBio: en primary, only Spanish short_bio → Spanish fallback", () => {
+  assert.equal(
+    pickStarterBio({}, "en", "Manicuras y nail art en Guadalajara"),
+    "Manicuras y nail art en Guadalajara",
+  );
+  assert.equal(
+    pickStarterBio({ es: "Bio ES del mapa" }, "en", "Manicuras y nail art en Guadalajara"),
+    "Manicuras y nail art en Guadalajara",
+  );
+});
+
 test("pickStarterI18nLabel prefers primary then en then es", () => {
   assert.equal(
     pickStarterI18nLabel({ es: "Uñas", en: "Nails" }, "es"),
