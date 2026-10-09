@@ -212,3 +212,66 @@ test("loader filters express the same rule: explicit lane, null-only prefix fall
   // The prefix rule must only ever apply to legacy nulls.
   for (const f of Object.values(LANE_FILTER_OR)) assert.match(f, /and\(lane\.is\.null,/);
 });
+
+// ── TUL-186: the MX lane row ─────────────────────────────────────────────────────────────────────────
+const mxRow = (over: Partial<CommerceHealthInput>) => byId(computeCommerceHealth(base(over)), "mx-lane");
+
+test("mx-lane: never used (production today) is ok and says no events yet", () => {
+  const r = mxRow({ mxLane: { lastEventAt: null, lastEventLivemode: null, eventsLast24h: 0, mxSellers: 0 } });
+  assert.equal(r.status, "ok");
+  assert.equal(r.data?.state, "no_events");
+  assert.match(r.detail, /no MX events yet; MX-connected sellers: 0/);
+});
+
+test("mx-lane: last event shows its age and live vs test", () => {
+  const live = mxRow({ mxLane: { lastEventAt: hoursAgo(3), lastEventLivemode: true, eventsLast24h: 4, mxSellers: 2 } });
+  assert.equal(live.status, "ok");
+  assert.deepEqual([live.data?.state, live.data?.mode, live.data?.hours, live.data?.events24h], ["last", "live", 3, 4]);
+  assert.equal(mxRow({ mxLane: { lastEventAt: hoursAgo(3), lastEventLivemode: false, eventsLast24h: 1, mxSellers: 1 } }).data?.mode, "test");
+  assert.equal(mxRow({ mxLane: { lastEventAt: hoursAgo(3), lastEventLivemode: null, eventsLast24h: 1, mxSellers: 1 } }).data?.mode, "unknown");
+});
+
+test("mx-lane: an MX-connected seller exists but 0 events in 24h is a warn", () => {
+  const r = mxRow({ mxLane: { lastEventAt: hoursAgo(40), lastEventLivemode: true, eventsLast24h: 0, mxSellers: 3 } });
+  assert.equal(r.status, "warn");
+  assert.equal(r.data?.state, "silent");
+  assert.match(r.detail, /3 MX-connected seller\(s\) but 0 platform_mx events in 24h/);
+});
+
+test("mx-lane: no MX sellers and a quiet lane is NOT a warning (nothing should have arrived)", () => {
+  assert.equal(mxRow({ mxLane: { lastEventAt: hoursAgo(90), lastEventLivemode: false, eventsLast24h: 0, mxSellers: 0 } }).status, "ok");
+});
+
+test("mx-lane: the Connect secret missing is named, and warns once MX sellers exist", () => {
+  const unset = { ...base().webhookSecretsSet, STRIPE_MX_WEBHOOK_SECRET_CONNECT: false };
+  const noSellers = mxRow({ webhookSecretsSet: unset, mxLane: { lastEventAt: null, lastEventLivemode: null, eventsLast24h: 0, mxSellers: 0 } });
+  assert.equal(noSellers.status, "ok");
+  assert.equal(noSellers.data?.connectMissing, true);
+  assert.match(noSellers.detail, /Connect secret missing/);
+  const withSellers = mxRow({ webhookSecretsSet: unset, mxLane: { lastEventAt: hoursAgo(1), lastEventLivemode: true, eventsLast24h: 2, mxSellers: 1 } });
+  assert.equal(withSellers.status, "warn");
+  assert.match(withSellers.detail, /Connect secret missing/);
+});
+
+test("mx-lane: the row is absent when the caller has no MX data (a failed read is not shown as zeros)", () => {
+  assert.equal(computeCommerceHealth(base()).some((r) => r.id === "mx-lane"), false);
+});
+
+test("mx-lane: presence only, never a secret value", () => {
+  const blob = JSON.stringify(mxRow({ mxLane: { lastEventAt: hoursAgo(1), lastEventLivemode: true, eventsLast24h: 1, mxSellers: 1 } }));
+  assert.doesNotMatch(blob, /whsec_|sk_live|sk_test/);
+});
+
+test("mx-lane: loader and section are wired, with en and es text", () => {
+  const rd = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
+  const loader = rd("../../app/(workspace)/platform/admin/commerce/health/load-commerce-health.ts");
+  assert.match(loader, /\.eq\("stripe_account_platform", "mx"\)/);
+  assert.match(loader, /failedReads\.push\("mx-lane"\)/);
+  const section = rd("../../app/(workspace)/platform/admin/commerce/health/CommerceWiringSection.tsx");
+  assert.match(section, /row\.id === "mx-lane"/);
+  for (const lang of ["en", "es"]) {
+    const m = rd(`../../../messages/${lang}.json`);
+    assert.match(m, /"mxLane": \{\s+"label":/);
+    assert.match(m, /"connectMissing":/);
+  }
+});
