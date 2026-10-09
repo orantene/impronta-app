@@ -37,7 +37,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type OpenPaymentLinkCheckoutResult =
   | { ok: true; url: string }
-  | { ok: false; reason: "not_found" | "expired" | "not_open" | "provider_unavailable" | "unavailable" }
+  | { ok: false; reason: "not_found" | "expired" | "not_open" | "provider_unavailable" | "unavailable" | "start_failed" }
   /** TUL-284: the link is priced in a currency other than its order's. Nothing was opened or charged. */
   | { ok: false; reason: "currency_mismatch"; linkCurrency: string; orderCurrency: string };
 
@@ -254,7 +254,8 @@ async function openOnce(
       revenue: amountCents / 100,
       contact,
     });
-    if (!shell.ok) return { ok: false, reason: "unavailable" };
+    // A fresh attempt (no earlier row): nothing can have reached Stripe yet, so this is a clean "could not start".
+    if (!shell.ok) return { ok: false, reason: "start_failed" };
     bookingId = shell.bookingId;
 
     // The seller's own connected account when the link's inquiry has exactly
@@ -293,7 +294,7 @@ async function openOnce(
       .single();
     if (insErr || !inserted) {
       logServerError("payments.openPaymentLinkCheckout.insert", insErr);
-      return { ok: false, reason: "unavailable" };
+      return { ok: false, reason: "start_failed" };
     }
     transactionId = (inserted as { id: string }).id;
 
@@ -341,7 +342,8 @@ async function openOnce(
   if (amountErr) {
     // Never create a session for a row whose amounts do not match what it will charge.
     logServerError("payments.openPaymentLinkCheckout.amounts", amountErr);
-    return { ok: false, reason: "unavailable" };
+    // No session exists yet, so nothing can have been charged: say "could not start".
+    return { ok: false, reason: "start_failed" };
   }
   const session = await (deps.createCheckoutSession ?? createCheckoutSessionForTransaction)({
     transactionId,
@@ -358,7 +360,9 @@ async function openOnce(
     expiresAt,
     metadata: { payment_link_code: link.code },
   });
-  if (!session.ok) return { ok: false, reason: "unavailable" };
+  // A DEFINITE refusal (our guard, Stripe rejecting the request) means no session exists: say it could not start.
+  // Only an UNCERTAIN failure (timeout, no URL back) may have left a session or a charge: that stays "status unknown".
+  if (!session.ok) return { ok: false, reason: session.uncertain === false ? "start_failed" : "unavailable" };
   // A Stripe link with no Stripe behind it: never hand the customer a fake
   // page. The row stays a bound draft, and the next attempt resumes it.
   if (session.mock) return { ok: false, reason: "provider_unavailable" };

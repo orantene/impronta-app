@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadPaymentLinkByCode, markPaymentLinkPaid, mockPaymentsAllowed } from "@/lib/payments/links";
 import { openPaymentLinkCheckout } from "@/lib/payments/link-checkout";
+import { payStartViewStatus } from "@/lib/payments/pay-start-status";
 import type { PayLinkPathPrefix } from "@/lib/payments/pay-link-url";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { publicThreadPath, signThreadToken } from "@/lib/messaging/thread-token";
@@ -381,7 +382,7 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
-        status={opened.reason === "expired" ? "expired" : "unknown"}
+        status={payStartViewStatus(opened.reason)}
         lines={[]}
         holdUntil={null}
         stripeUrl={null}
