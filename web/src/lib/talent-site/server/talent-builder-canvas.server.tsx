@@ -158,6 +158,7 @@ export async function buildTalentBuilderCanvasData(input: {
     locale: siteLocale,
     publicPathPrefix: "",
     supportedLocales: localeCtx.settings.supportedLocales,
+    primaryLocale: localeCtx.settings.defaultLocale,
     switcherHrefs: localeCtx.switcherHrefs,
     showCredit: talentSiteShowsPlatformBadge(planKey),
     whitelabel: input.tenantId ? await loadTenantWhitelabel(input.tenantId) : false,
