@@ -7,6 +7,7 @@ import { InfoTip } from "@/components/ui/info-tip";
 import { getAppUrl } from "@/lib/auth-flow";
 import { resolveStorefrontEditorOpenUrl } from "@/lib/auth/edit-handoff";
 import {
+  hasBrandedWebsitePrimaryDomain,
   resolveWebsiteEditorBaseUrl,
   resolveWebsiteLiveOrigin,
 } from "@/lib/admin/website-editor-links";
@@ -168,7 +169,13 @@ export function WebsitePage() {
     [w.domain.primaryDomain, windowOrigin],
   );
   const editorBaseUrl = useMemo(
-    () => resolveWebsiteEditorBaseUrl({ liveOrigin, tenantSlug, windowOrigin, hasPrimaryDomain: Boolean(w.domain.primaryDomain?.trim()) }),
+    () =>
+      resolveWebsiteEditorBaseUrl({
+        liveOrigin,
+        tenantSlug,
+        windowOrigin,
+        hasPrimaryDomain: hasBrandedWebsitePrimaryDomain(w.domain.primaryDomain),
+      }),
     [liveOrigin, tenantSlug, windowOrigin, w.domain.primaryDomain],
   );
   // Site theme + site header/footer entry points MOVED to the Design hub
