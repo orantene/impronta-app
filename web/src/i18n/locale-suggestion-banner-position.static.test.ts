@@ -22,3 +22,10 @@ test("TUL-394: the banner mounts before the page content, not after it", () => {
   assert.ok(banner > 0 && children > 0);
   assert.ok(banner < children, "banner row precedes {children} in <body>");
 });
+
+test("TUL-516: floating chrome stack styles mount before the language banner", () => {
+  const stack = layout.indexOf("<FloatingChromeStackStyles");
+  const banner = layout.indexOf("<LocaleSuggestionBanner ");
+  assert.ok(stack > 0 && banner > 0);
+  assert.ok(stack < banner, "stack CSS precedes locale suggestion in <body>");
+});
