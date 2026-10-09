@@ -295,6 +295,7 @@ import {
   isEditableKeyboardTarget,
   keyboardFocusIsOnCanvas,
 } from "./builder-keyboard";
+import { isTextEntryElement, shouldPullCanvasFocus } from "./selection-focus";
 
 function eventTargetElement(target: EventTarget | null): Element | null {
   if (target instanceof Element) return target;
@@ -1034,6 +1035,7 @@ export function SelectionLayer() {
   useEffect(() => {
     builderTreeRef.current = builderTree;
   }, [builderTree]);
+  const lastPulledIdRef = useRef<string | null>(null);
   const nodeCapCtxRef = useRef(
     capabilityContext({
       device,
@@ -1065,6 +1067,7 @@ export function SelectionLayer() {
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
     if (!selectedBuilderNodeId) {
+      lastPulledIdRef.current = null;
       setSelectionAnnounce("");
       setSelectionFocused(false);
       return undefined;
@@ -1083,18 +1086,8 @@ export function SelectionLayer() {
     let boundEl: HTMLElement | null = null;
     const onFocus = () => setSelectionFocused(true);
     const onBlur = () => setSelectionFocused(false);
-    const activeIsTextEntry = (): boolean => {
-      const a = document.activeElement as HTMLElement | null;
-      if (!a) return false;
-      const tag = a.tagName;
-      return (
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        tag === "SELECT" ||
-        a.isContentEditable ||
-        a.getAttribute("role") === "textbox"
-      );
-    };
+    const activeIsTextEntry = () => isTextEntryElement(document.activeElement);
+    const selectionChanged = lastPulledIdRef.current !== selectedBuilderNodeId;
     const run = () => {
       if (cancelled) return;
       const el =
@@ -1119,8 +1112,9 @@ export function SelectionLayer() {
       if (el.tabIndex < 0) el.tabIndex = -1;
       el.addEventListener("focus", onFocus);
       el.addEventListener("blur", onBlur);
-      // Only pull focus to the canvas if the operator isn't mid-edit in a panel.
-      if (!activeIsTextEntry()) {
+      // Only pull focus to the canvas when the SELECTION changed and the operator isn't mid-edit in a panel.
+      lastPulledIdRef.current = selectedBuilderNodeId;
+      if (shouldPullCanvasFocus({ selectionChanged, activeIsTextEntry: activeIsTextEntry() })) {
         try {
           el.focus({ preventScroll: true });
         } catch {
