@@ -136,8 +136,8 @@ export const BUILDER_2027_INSPECTOR_GROUPS: Readonly<
           control: "select",
           prop: "source",
           label: "What the strip says",
-          // An unset source is a ticker saved before this option: its own words.
-          fallback: "custom",
+          // Unset matches create + Maison: follow published services (TUL-189).
+          fallback: "services",
           options: [
             { value: "services", label: "My services, in my visitor's language" },
             { value: "custom", label: "Words I write myself" },

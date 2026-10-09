@@ -10,6 +10,7 @@ import { AllSectionsGrid, EngagementStrip, ProfileHero } from "../shared/profile
 import { PersonalPageBand } from "../shared/profile-sections-2";
 import { resolveTalentOwnPageState } from "@/lib/talent/public-profile-href";
 import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
+import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 
 
 
@@ -93,8 +94,10 @@ export function MyProfilePage() {
     ? `${primaryRoleLabel} · ${t("dashboard.talentMyProfile.roleAlso")} ${secondaryRoleLabels.join(" · ")}`
     : primaryRoleLabel;
 
-  // TUL-90: one source of truth for her public address and whether it is live.
+  // TUL-90: hub `/t/<code>` when published. TUL-347: if the hub is not live but
+  // the website is, show that address instead of "no public link".
   const origin = useCurrentOrigin();
+  const siteLoad = useTalentSiteDashboardInitialLoad();
   const ownPage = bridgeTalentSelfProfile
     ? resolveTalentOwnPageState({
         profileCode: bridgeTalentSelfProfile.profileCode,
@@ -103,8 +106,12 @@ export function MyProfilePage() {
         currentOrigin: origin,
       })
     : null;
-  const previewHref = ownPage?.href ?? null;
-  const publicUrlLabel = ownPage ? ownPage.label : p.publicUrl;
+  const liveSiteHref =
+    siteLoad?.ok && typeof siteLoad.state.publicSiteUrl === "string" && siteLoad.state.publicSiteUrl.trim()
+      ? siteLoad.state.publicSiteUrl.trim()
+      : null;
+  const previewHref = ownPage?.href ?? liveSiteHref;
+  const publicUrlLabel = ownPage?.label ?? (liveSiteHref ? liveSiteHref.replace(/^https?:\/\//, "") : p.publicUrl);
 
   // One header line: drop empty parts so no stray " · " separators appear (DS-34).
   const headerSubtitle = [

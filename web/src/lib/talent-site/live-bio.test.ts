@@ -35,7 +35,15 @@ test("resolver: only the primary language exists, so the visitor gets it with a 
 });
 
 test("resolver: only the base short bio, then nothing", () => {
-  assert.deepEqual(resolveLiveBio({ bioI18n: {}, shortBio: "  Hola  ", locale: "en", primary: "es" }), { text: "Hola", hint: "" });
+  // TUL-187: short_bio is her primary language; an EN visitor gets the hint, not silent Spanish.
+  assert.deepEqual(resolveLiveBio({ bioI18n: {}, shortBio: "  Hola  ", locale: "en", primary: "es" }), {
+    text: "Hola",
+    hint: "(Text in Spanish)",
+  });
+  assert.deepEqual(resolveLiveBio({ bioI18n: {}, shortBio: "  Hola  ", locale: "es", primary: "es" }), {
+    text: "Hola",
+    hint: "",
+  });
   assert.deepEqual(resolveLiveBio({ bioI18n: null, shortBio: null, locale: "es", primary: "es" }), { text: "", hint: "" });
   assert.deepEqual(resolveLiveBio({ bioI18n: { es: "   " }, locale: "es" }), { text: "", hint: "" });
 });
@@ -76,6 +84,21 @@ test("render: a fallback shows the other language and the hint right under it, a
   assert.equal((hint.props as { style: { tone?: string } }).style.tone, "muted");
   // Idempotent: applying again does not stack a second hint.
   assert.deepEqual(texts(applyTalentLiveText(out, live)), texts(out));
+});
+
+test("TUL-187: a baked About paragraph without liveText still binds and shows the language hint", () => {
+  // Maison numbered releases strip liveText: "bio"; the stored text is still her Spanish bio.
+  const baked = [box("about", [para("greet", "Hello"), para("bio", BOTH.es), para("loc", "Based in Merida")])];
+  const live = buildTalentLiveText({ ...SRC, bioI18n: { es: BOTH.es, en: BOTH.en } }, "en", ["en", "es"]);
+  assert.ok(live.seeds?.bio?.includes(BOTH.es), "her Spanish bio is a seed");
+  const out = applyTalentLiveText(baked, live);
+  assert.deepEqual(texts(out), ["Hello", BOTH.en, "Based in Merida"], "EN visitor reads the EN bio");
+  const stamped = (out[0] as { children: BuilderNode[] }).children[1]!;
+  assert.equal((stamped.props as { liveText?: string }).liveText, "bio", "legacy bind stamps liveText for the hint path");
+
+  const onlyEs = buildTalentLiveText({ ...SRC, bioI18n: { es: BOTH.es } }, "en", ["en", "es"]);
+  const fallback = applyTalentLiveText(baked, onlyEs);
+  assert.deepEqual(texts(fallback), ["Hello", BOTH.es, "(Text in Spanish)", "Based in Merida"]);
 });
 
 test("render: no bio hides the paragraph and its hint; a failed load keeps the baked text", () => {
@@ -185,15 +208,21 @@ test("masthead: no bio hides the blurb (no empty element), keeps the buttons; a 
   assert.match(html(tree), /baked blurb/);
 });
 
-test("masthead: without liveText the tree is byte-identical and not a live candidate", () => {
+test("masthead: without liveText, an unmatched baked blurb stays put; a bio seed binds", () => {
   const tree = [masthead({ liveText: undefined })];
   const live = buildTalentLiveText({ ...SRC, bioI18n: BOTH }, "en", ["en", "es"]);
   const before = JSON.stringify(tree);
   const out = applyTalentLiveText(tree, live);
   assert.equal(out, tree);
   assert.equal(JSON.stringify(out), before);
-  assert.equal(treeHasLiveCandidates(tree), false);
+  // TUL-187: any masthead with a blurb is a live candidate (the seed match decides at apply).
+  assert.equal(treeHasLiveCandidates(tree), true);
   assert.equal(treeHasLiveCandidates([masthead()]), true);
+  // Baked blurb that IS her Spanish bio: EN visitor gets the EN bio + no hint.
+  const seeded = [masthead({ liveText: undefined, bio: BOTH.es })];
+  const bound = applyTalentLiveText(seeded, live);
+  assert.match(html(bound), /<p>I paint nails in Merida\.<\/p>/);
+  assert.doesNotMatch(html(bound), /data-bio-hint|Pinto uñas/);
 });
 
 test("the Folio seed binds its masthead blurb to the live bio", () => {

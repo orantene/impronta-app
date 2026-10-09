@@ -80,8 +80,40 @@ export function isReservedWorkspaceSlug(candidate: string): boolean {
   );
 }
 
+const SOCIAL_HOSTS = new Set([
+  "instagram", "facebook", "tiktok", "twitter", "x", "linkedin", "youtube", "linktr", "wa", "t",
+  "snapchat", "pinterest", "behance", "vimeo", "threads",
+]);
+
+/** True when the whole string is a URL or bare domain ("https://www.shop.com/x", "shop.com"), not a name. */
+export function looksLikeUrl(input: string): boolean {
+  return /^\s*(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}(?:[/?#]\S*)?\s*$/i.test(input);
+}
+
+/**
+ * A pasted link is not a name: "https://www.airstriplasvegas.com" must give
+ * "airstriplasvegas", never "https-www-airstriplasvegas-com". Social links keep
+ * the handle ("instagram.com/thebarber" -> "thebarber"). Anything that is not
+ * wholly a URL passes through unchanged.
+ */
+export function stripUrlForSlug(input: string): string {
+  if (!looksLikeUrl(input)) return input;
+  const trimmed = input.trim().replace(/^https?:\/\//i, "").replace(/^www\./i, "");
+  const [hostAndPath] = trimmed.split(/[?#]/);
+  const [host, ...segments] = hostAndPath.split("/");
+  const labels = host.split(".");
+  // Second-level label: "shop.co.uk" -> "shop", "shop.com" -> "shop", "blog.shop.com" -> "shop".
+  const tldLen = labels.length >= 3 && labels[labels.length - 1].length === 2 && labels[labels.length - 2].length <= 3 ? 2 : 1;
+  const brand = labels[Math.max(0, labels.length - 1 - tldLen)] ?? labels[0];
+  if (SOCIAL_HOSTS.has(brand.toLowerCase())) {
+    const handle = segments.find((seg) => seg && !/^(p|reel|reels|in|company|channel|c|user|u|@)$/i.test(seg));
+    if (handle) return handle.replace(/^@/, "");
+  }
+  return brand;
+}
+
 export function normalizeWorkspaceSlugCandidate(input: string): string {
-  const ascii = input
+  const ascii = stripUrlForSlug(input)
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
