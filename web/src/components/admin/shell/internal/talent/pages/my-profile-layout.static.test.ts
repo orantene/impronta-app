@@ -13,6 +13,9 @@ test("profile body is one grid item, not a bare fragment (QA DS-33)", () => {
 test("the aside always shows text, never an empty card", () => {
   assert.match(src, /previewHref \? \(\s*<a/);
   assert.match(src, /previewUnavailable/);
+  // TUL-347: fall back to the live website when the hub profile is not published.
+  assert.match(src, /liveSiteHref/);
+  assert.match(src, /ownPage\?\.href \?\? liveSiteHref/);
 });
 
 test("header subtitle drops empty parts", () => {

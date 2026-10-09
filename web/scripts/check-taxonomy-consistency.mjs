@@ -294,7 +294,11 @@ const [terms, settings, roster, assigns, profiles, agencies] = await Promise.all
     "agency_talent_roster",
     "tenant_id,talent_profile_id,status,agency_visibility,talent_site_hidden",
   ),
-  selectAll("talent_profile_taxonomy", "talent_profile_id,taxonomy_term_id"),
+  // tenant_id included so Check A only counts THIS workspace's assignments
+  // (TUL-443). A profile on two rosters can hold cabaret-act for tulala while
+  // impronta has switched it off — that must not warn on tulala, and clearing
+  // impronta rows must clear the impronta warning without touching tulala.
+  selectAll("talent_profile_taxonomy", "talent_profile_id,taxonomy_term_id,tenant_id"),
   selectAll("talent_profiles", "id,profile_code,deleted_at,is_publicly_hidden,is_publicly_listed"),
   selectAll("agencies", "id,slug,plan_tier"),
 ]);
@@ -337,10 +341,27 @@ for (const s of settings) {
   settingsByTenant.get(s.tenant_id).set(s.taxonomy_term_id, s);
 }
 
-const assignsByProfile = new Map();
+/** Assignments keyed by `${tenantId}|${profileId}` → term ids for that tenant.
+ *  Legacy null-tenant rows are attributed to every roster the profile is on
+ *  (same hide rule as disable-term-holders: null still counts as a holdover). */
+const assignsByTenantProfile = new Map();
 for (const a of assigns) {
-  if (!assignsByProfile.has(a.talent_profile_id)) assignsByProfile.set(a.talent_profile_id, []);
-  assignsByProfile.get(a.talent_profile_id).push(a.taxonomy_term_id);
+  if (a.tenant_id) {
+    const key = `${a.tenant_id}|${a.talent_profile_id}`;
+    if (!assignsByTenantProfile.has(key)) assignsByTenantProfile.set(key, []);
+    assignsByTenantProfile.get(key).push(a.taxonomy_term_id);
+  } else {
+    // legacy: attach when we see the profile on a roster (below)
+    if (!assignsByTenantProfile.has(`*|${a.talent_profile_id}`)) {
+      assignsByTenantProfile.set(`*|${a.talent_profile_id}`, []);
+    }
+    assignsByTenantProfile.get(`*|${a.talent_profile_id}`).push(a.taxonomy_term_id);
+  }
+}
+function termsHeldOnTenant(tenantId, profileId) {
+  const scoped = assignsByTenantProfile.get(`${tenantId}|${profileId}`) ?? [];
+  const legacy = assignsByTenantProfile.get(`*|${profileId}`) ?? [];
+  return scoped.length || legacy.length ? [...scoped, ...legacy] : [];
 }
 
 // `listTalentIdsOnTenantRoster` — the storefront roster predicate.
@@ -389,7 +410,7 @@ console.log("\nA. Roster holds no switched-off service");
   const perTenant = new Map();
   for (const r of publicRoster) {
     const hidden = hiddenFor(r.tenant_id);
-    for (const termId of assignsByProfile.get(r.talent_profile_id) ?? []) {
+    for (const termId of termsHeldOnTenant(r.tenant_id, r.talent_profile_id)) {
       if (!hidden.has(termId)) continue;
       const key = r.tenant_id;
       if (!perTenant.has(key)) perTenant.set(key, { talents: new Set(), terms: new Set() });
@@ -471,7 +492,7 @@ console.log("\nB. Directory chips promise what clicking them returns");
     const p = profileById.get(r.talent_profile_id);
     if (!p || p.deleted_at != null || p.is_publicly_hidden !== false || p.is_publicly_listed !== true)
       continue;
-    for (const termId of assignsByProfile.get(r.talent_profile_id) ?? []) {
+    for (const termId of termsHeldOnTenant(r.tenant_id, r.talent_profile_id)) {
       const k = `${r.tenant_id}|${termId}`;
       if (!holdersOf.has(k)) holdersOf.set(k, new Set());
       holdersOf.get(k).add(r.talent_profile_id);

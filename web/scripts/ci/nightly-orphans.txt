@@ -44,10 +44,8 @@ src/components/admin/shell/internal/talent/agenda/present.test.ts
 src/components/admin/shell/internal/talent/agenda/primitives/TaskShell.static.test.ts
 src/components/admin/shell/internal/talent/agenda/record-actions.test.ts
 src/components/admin/shell/internal/talent/agenda/view-model-reschedule.test.ts
-src/components/admin/shell/internal/talent/agenda/working-hours-panel.static.test.ts
 src/components/admin/shell/internal/talent/pages/messages/MessagesPage.actions.static.test.ts
 src/components/admin/shell/internal/talent/pages/messages/TalentDecisionBar.static.test.ts
-src/components/admin/shell/internal/talent/pages/today-hydration.static.test.ts
 src/components/admin/shell/internal/talent/shared/profile-identity-meta.test.ts
 src/components/appointments/booking-targets.test.ts
 src/components/consent/consent-embed-logic.test.ts
@@ -105,7 +103,6 @@ src/lib/discover/pro-gate.test.ts
 src/lib/email/order-confirmation.test.ts
 src/lib/email/reply-to.test.ts
 src/lib/email/resend-inbound-forward.test.ts
-src/lib/email/reserved-domains.test.ts
 src/lib/email/ticket-issued.test.ts
 src/lib/field-engine/canonical-shadow.test.ts
 src/lib/field-engine/client-field-source.test.ts

@@ -223,8 +223,17 @@ export type LocaleSuggestionInput = {
   acceptLanguage?: string | null;
   /** Raw `x-vercel-ip-country` (case-insensitive; absent off Vercel). */
   country?: string | null;
-  /** The locale the URL is ALREADY rendering. Never guessed, never changed. */
+  /** The locale the URL grammar says the page is in. Fallback only; see `renderLocale`. */
   currentLocale: string;
+  /**
+   * The page's RESOLVED render locale, the exact value that drives `<html lang>`
+   * (server-resolved in the root layout). When present it wins over
+   * `currentLocale`: a URL-derived guess can disagree with what was actually
+   * rendered (talent host primary `es` with an unprefixed URL, a host whose
+   * grammar failed to load), and then the banner offered the language the page
+   * was already in. Never a cookie, never a client guess.
+   */
+  renderLocale?: string | null;
   /**
    * This tenant's URL grammar + published locales, from
    * `localeUrlSettings(defaultLocale, supportedLocales)`. The grammar inverts
@@ -373,7 +382,6 @@ export function shouldSuggestLocale(input: LocaleSuggestionInput): LocaleSuggest
     localeCookieIsAuto,
     acceptLanguage,
     country,
-    currentLocale,
     tenantSettings,
     showLanguageSwitcher,
     pathname,
@@ -381,6 +389,7 @@ export function shouldSuggestLocale(input: LocaleSuggestionInput): LocaleSuggest
     userAgent,
     dismissed,
   } = input;
+  const currentLocale = input.renderLocale?.trim() || input.currentLocale;
 
   // 1 — the visitor already said no.
   if (dismissed) return { suggest: false, reason: "dismissed" };
@@ -440,7 +449,7 @@ export function shouldSuggestLocale(input: LocaleSuggestionInput): LocaleSuggest
   let source: LocaleSuggestionSource = "accept-language";
 
   if (signal.kind === "supported") {
-    if (signal.locale === currentLocale) {
+    if (tagMatchesLocale(currentLocale, signal.locale)) {
       return { suggest: false, reason: "already-rendering-preferred" };
     }
     target = signal.locale;
@@ -455,7 +464,7 @@ export function shouldSuggestLocale(input: LocaleSuggestionInput): LocaleSuggest
       ? (supported.find((l) => tagMatchesLocale(geoLanguage, l)) ?? null)
       : null;
     if (!geoLocale) return { suggest: false, reason: "no-signal" };
-    if (geoLocale === currentLocale) {
+    if (tagMatchesLocale(currentLocale, geoLocale)) {
       return { suggest: false, reason: "already-rendering-preferred" };
     }
     target = geoLocale;

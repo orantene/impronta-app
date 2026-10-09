@@ -124,8 +124,11 @@ export async function loadBuilderNodeDataSources(
    */
   previewSubject?: { kind: string; id: string } | null,
   talentProfileId?: string | null,
+  /** The talent's primary language: portfolio caption fallback + language hint (TUL-187). */
+  primaryLocale?: string | null,
 ): Promise<BuilderNodeRenderDataSources> {
   const dataTenantId = previewSubject?.id ?? tenantId;
+  const portfolioPrimaryLocale = primaryLocale ?? null;
   // The public origin the qr_code block composes `<origin>/q/<code>` from. Read
   // from the request host; degrade to undefined outside a request (preview),
   // where a scheme-less short link is acceptable. Set BEFORE the no-data-needs
@@ -387,7 +390,11 @@ export async function loadBuilderNodeDataSources(
           )
         : {}),
     ...(nativeNeeds.portfolio && catalogTalentId
-      ? await loadPortfolioSources(catalogTalentId, { locale })
+      ? // TUL-187: primaryLocale lets caption_i18n fall back and the language hint name the source language.
+        await loadPortfolioSources(catalogTalentId, {
+          locale,
+          primaryLocale: portfolioPrimaryLocale ?? null,
+        })
       : {}),
     ...(nativeNeeds.reviews && catalogTalentId
       ? await loadReviewsSources(catalogTalentId)
@@ -500,6 +507,8 @@ export async function loadServicesCatalogSources(
 export async function loadPersonalMaxNativeSources(args: {
   talentProfileId: string;
   locale: string;
+  /** The talent's primary language: portfolio caption fallback + language hint (TUL-187). */
+  primaryLocale?: string | null;
   servicesCatalog: boolean;
   portfolio: boolean;
   nextFreeChip: boolean;
@@ -522,7 +531,12 @@ export async function loadPersonalMaxNativeSources(args: {
   }
   const [catalog, portfolio, reviews, visit, compCard, faq] = await Promise.all([
     needCatalog ? loadServicesCatalogSources(args.talentProfileId, args.locale) : {},
-    args.portfolio ? loadPortfolioSources(args.talentProfileId, { locale: args.locale }) : {},
+    args.portfolio
+      ? loadPortfolioSources(args.talentProfileId, {
+          locale: args.locale,
+          primaryLocale: args.primaryLocale ?? null,
+        })
+      : {},
     args.reviews ? loadReviewsSources(args.talentProfileId) : {},
     args.visit ? loadVisitSources(args.talentProfileId, args.locale) : {},
     args.compCard ? loadCompCardSources(args.talentProfileId, args.locale) : {},
