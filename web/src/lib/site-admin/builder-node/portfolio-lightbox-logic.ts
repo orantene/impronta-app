@@ -30,6 +30,23 @@ export function claimPortfolioBook(event: Event, shotId: string): boolean {
   return true;
 }
 
+/**
+ * TUL-440: which booking buttons the lightbox shows for one photo. A linked photo books its own
+ * look; a photo-only one gets a secondary general "Book an appointment" (the header CTA's sheet)
+ * when the site has something bookable, and nothing otherwise (never a dead button).
+ */
+export function lightboxCtas(input: { canBook: boolean; hasBookableOffering: boolean }): {
+  look: boolean;
+  general: boolean;
+} {
+  return { look: input.canBook, general: !input.canBook && input.hasBookableOffering };
+}
+
+/** Label of the general booking button. */
+export function generalBookLabel(es: boolean): string {
+  return es ? "Reservar cita" : "Book an appointment";
+}
+
 /** A horizontal swipe longer than this changes photo. */
 export const PORTFOLIO_SWIPE_PX = 60;
 
