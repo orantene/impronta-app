@@ -179,7 +179,8 @@ export function buildSocketModel(input: {
     },
     {
       key: "tulala-cookies",
-      label: "Cookies",
+      // ES: drop the English loanword; EN keeps Cookies. Ownership is the Tulala group.
+      label: pickLocale(locale, { en: "Cookies", es: "Política de cookies" }),
       href: localizedLegalUrl(TULALA_LEGAL_COOKIES_URL, locale),
       external: true,
     },
