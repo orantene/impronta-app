@@ -18,6 +18,7 @@ import {
   snapshotKeyEnv,
   type CommerceHealthRow,
   type HeldPayoutsHealth,
+  type MxLaneHealth,
 } from "@/lib/payments/commerce-health";
 
 export interface CommerceHealthResult {
@@ -35,6 +36,7 @@ export async function loadCommerceHealth(): Promise<CommerceHealthResult> {
   let stuck = 0;
   let platformLast: string | null = null;
   let mxLast: string | null = null;
+  let mxLane: MxLaneHealth | undefined;
 
   if (!sb) {
     failedReads.push("db");
@@ -83,6 +85,28 @@ export async function loadCommerceHealth(): Promise<CommerceHealthResult> {
     } else {
       mxLast = (mx.data?.[0]?.processed_at as string | undefined) ?? null;
     }
+
+    // The MX lane in one row (TUL-186): last event with its livemode, events in 24h, and how many sellers are
+    // connected on the MX platform. A failed read leaves `mxLane` unset (no row, a named failed read), never zeros.
+    const [mxNewest, mx24, mxTalents, mxAgencies] = await Promise.all([
+      sb.from("stripe_processed_events").select("processed_at, livemode").or(LANE_FILTER_OR.platform_mx).order("processed_at", { ascending: false }).limit(1),
+      sb.from("stripe_processed_events").select("event_id", { count: "exact", head: true }).or(LANE_FILTER_OR.platform_mx).gte("processed_at", cutoff),
+      sb.from("talent_profiles").select("id", { count: "exact", head: true }).eq("stripe_account_platform", "mx"),
+      sb.from("agencies").select("id", { count: "exact", head: true }).eq("stripe_account_platform", "mx"),
+    ]);
+    const mxErr = mxNewest.error ?? mx24.error ?? mxTalents.error ?? mxAgencies.error;
+    if (mxErr) {
+      logServerError("commerce-health.mx-lane", mxErr);
+      failedReads.push("mx-lane");
+    } else {
+      const newest = mxNewest.data?.[0] as { processed_at?: string; livemode?: boolean | null } | undefined;
+      mxLane = {
+        lastEventAt: newest?.processed_at ?? null,
+        lastEventLivemode: newest?.livemode ?? null,
+        eventsLast24h: mx24.count ?? 0,
+        mxSellers: (mxTalents.count ?? 0) + (mxAgencies.count ?? 0),
+      };
+    }
   }
 
   // Reuse the Revenue tab's held-payouts query. A failed read is an error row,
@@ -102,6 +126,7 @@ export async function loadCommerceHealth(): Promise<CommerceHealthResult> {
     heldPayouts,
     stuckPaymentRequestedCount: stuck,
     lastWebhookAt: { platform: platformLast, platform_mx: mxLast },
+    mxLane,
     now,
   });
 

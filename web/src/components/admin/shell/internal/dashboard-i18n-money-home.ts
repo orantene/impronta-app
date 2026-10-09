@@ -45,6 +45,7 @@ export const MONEY_HOME_ES_TEXT: Record<string, string> = {
   "New services will use this currency. Your existing services keep theirs; change them in Services.": "Los servicios nuevos usarán esta moneda. Tus servicios actuales conservan la suya; cámbialos en Servicios.",
   "Open Services": "Abrir Servicios",
   "Paid in full": "Pagado",
+  "Client paid {paid}, incl. {fee} service fee (not yours)": "El cliente pagó {paid}, con {fee} de cargo por servicio (no es tuyo)",
   "Cash and transfers never pass through Tulala, so they show as collected and never as a payout.":
     "El efectivo y las transferencias nunca pasan por Tulala, así que aparecen como cobrado y nunca como depósito.",
   Overdue: "Vencido",
