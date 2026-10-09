@@ -7,6 +7,7 @@ import { createQaHost } from "./qa-host.mjs";
 const NOW = 1_800_000_000_000;
 const HOUR = 3600_000;
 const VERCEL_TOKEN = "vcl_SECRET_API_TOKEN";
+// secret-scan:allow: fake fixture for the mocked fetch below, never a real secret
 const BYPASS = "bypass_SECRET_AUTOMATION";
 const HOST = "qa-1.tulala.digital";
 const share = (token, expiresMs) => ({ [token]: { scope: "shareable-link", expires: expiresMs } });
