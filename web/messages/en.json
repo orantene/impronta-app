@@ -1761,6 +1761,7 @@
         "base_reservation_fee": "Reservation fee",
         "platform_fee": "Platform fee",
         "processing_fee": "Card processing",
+        "client_service_fee": "Service fee",
         "total_charged": "Total",
         "nonRefundable": "Fees are non-refundable."
       },

@@ -802,6 +802,7 @@
         "base_reservation_fee": "Frais de réservation",
         "platform_fee": "Frais de plateforme",
         "processing_fee": "Traitement de carte",
+        "client_service_fee": "Frais de service",
         "total_charged": "Total",
         "nonRefundable": "Les frais ne sont pas remboursables."
       },
