@@ -6124,7 +6124,7 @@ function renderBuilderNodeElement(
                 matrix={layout === "matrix"}
                 liveStatus={options.dataSources.liveStatus ?? null}
                 signedIn={
-                  options.headerWidgets?.account?.signedIn === true ||
+                  options.dataSources.headerWidgets?.account?.signedIn === true ||
                   options.visibilityContext?.signedIn === true
                 }
               />

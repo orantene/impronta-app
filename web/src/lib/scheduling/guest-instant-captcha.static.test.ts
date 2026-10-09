@@ -64,12 +64,24 @@ test("TUL-62: signed-in booking form prefill wires chrome.client into InquiryDra
     join(SRC, "app/t/[profileCode]/_shared/ProfileSlotPickerChrome.tsx"),
     "utf8",
   );
+  const catalogRender = readFileSync(join(SRC, "lib/site-admin/builder-node/render.tsx"), "utf8");
   assert.match(chrome, /client:\s*GuestInstantClient\s*\|\s*null/);
   assert.match(chrome, /client_profiles/);
   assert.match(composer, /client\?:/);
   assert.match(composer, /trust_level:\s*"verified"/);
   assert.doesNotMatch(composer, /client=\{null\}/);
   assert.match(slotChrome, /client=\{chrome\.client\}/);
+  // Normalized options expose headerWidgets on dataSources, not options root.
+  assert.match(
+    catalogRender,
+    /dataSources\.headerWidgets\?\.account\?\.signedIn/,
+    "services_catalog signedIn must read dataSources.headerWidgets (NormalizedBuilderNodeRenderOptions)",
+  );
+  assert.doesNotMatch(
+    catalogRender,
+    /options\.headerWidgets\?\.account/,
+    "options.headerWidgets is not on NormalizedBuilderNodeRenderOptions",
+  );
 });
 
 /** TUL-452: studio Live booking band must not inherit English cookie / light-on-white. */
