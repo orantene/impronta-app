@@ -14,6 +14,7 @@
  * coordinator fee + commission internals are not selected.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -68,12 +69,19 @@ function todayKey(): string {
 export async function loadClientUpcoming(
   userId: string,
   tenantId: string,
+  /**
+   * TUL-255: from `pickReadClient` only (client portal page loaders). Absent =
+   * the request's own RLS client, exactly as before.
+   */
+  effectiveReadClient?: SupabaseClient | null,
 ): Promise<UpcomingBooking[]> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = effectiveReadClient ?? (await createSupabaseServerClient());
     if (!supabase) return [];
-    const admin = createServiceRoleClient();
-    const readClient = admin ?? supabase;
+    // ONE client for every read: the verified-impersonation client when one was passed (no service-role
+    // fan-out beside it), else the existing service-role-or-RLS client.
+    const admin = effectiveReadClient ? null : createServiceRoleClient();
+    const readClient = effectiveReadClient ?? admin ?? supabase;
 
     const now = new Date();
     const start = now.toISOString().slice(0, 10); // YYYY-MM-DD

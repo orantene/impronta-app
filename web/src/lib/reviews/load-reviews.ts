@@ -18,6 +18,7 @@
  * wave.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
@@ -432,9 +433,11 @@ function mapClientReviewRow(
 export async function loadClientReviews(
   clientUserId: string,
   limit = 20,
+  /** TUL-255: from `pickReadClient` only. Absent = the request's RLS client. */
+  readClient?: SupabaseClient | null,
 ): Promise<ClientReview[]> {
   if (!clientUserId) return [];
-  const supabase = await getCachedServerSupabase();
+  const supabase = readClient ?? (await getCachedServerSupabase());
   if (!supabase) return [];
 
   const { data, error } = await supabase
@@ -461,10 +464,11 @@ export async function loadClientReviews(
  */
 export async function loadClientRatingSummary(
   clientUserId: string,
+  readClient?: SupabaseClient | null,
 ): Promise<RatingSummary> {
   const empty: RatingSummary = { average: 0, count: 0 };
   if (!clientUserId) return empty;
-  const supabase = await getCachedServerSupabase();
+  const supabase = readClient ?? (await getCachedServerSupabase());
   if (!supabase) return empty;
 
   const { data, error } = await supabase
@@ -488,9 +492,10 @@ export async function loadClientRatingSummary(
 export async function loadReviewsAuthoredByUser(
   userId: string,
   limit = 50,
+  readClient?: SupabaseClient | null,
 ): Promise<TalentReview[]> {
   if (!userId) return [];
-  const supabase = await getCachedServerSupabase();
+  const supabase = readClient ?? (await getCachedServerSupabase());
   if (!supabase) return [];
 
   const { data, error } = await supabase

@@ -128,6 +128,11 @@ export const CHROME_COPY = {
     en: "Undo only this design update? Your later edits stay.",
     es: "¿Deshacer solo esta actualización del diseño? Tus cambios posteriores se conservan.",
   },
+  undoDesign: { en: "Undo this design change", es: "Deshacer este cambio de diseño" },
+  undoDesignConfirm: {
+    en: "Restore the previous design in your draft exactly? Nothing goes live until you publish.",
+    es: "¿Restaurar el diseño anterior exactamente en tu borrador? Nada se publica hasta que publiques.",
+  },
   cancel: { en: "Cancel", es: "Cancelar" },
   close: { en: "Close", es: "Cerrar" },
   previewing: { en: "Previewing a saved version · read only", es: "Vista previa de una versión guardada · solo lectura" },

@@ -1,7 +1,8 @@
 /**
  * THEME RELEASES: which release item lets the merge make a given change.
  *
- *   node    a keyed node's design-owned props   variant-default, layout, critical
+ *   node    a keyed node's design-owned props   variant-default, layout, copy, critical
+ *   copy    a node's default text + translations  copy, critical
  *   remove  drop a node the design removed       layout, critical
  *   new     insert a key new in the design       new-block, layout, critical
  *   order   reorder a sibling list               layout, critical
@@ -15,7 +16,7 @@
  */
 import type { ReleaseItem, ReleaseItemType } from "./types";
 
-export type ChangeScope = "node" | "remove" | "new" | "order" | "token";
+export type ChangeScope = "node" | "remove" | "new" | "order" | "token" | "copy";
 
 export interface Allowance {
   ok: boolean;
@@ -27,7 +28,10 @@ export interface Allowance {
 }
 
 const SCOPE_TYPES: Record<ChangeScope, ReadonlyArray<ReleaseItemType>> = {
-  node: ["variant-default", "layout", "critical"],
+  node: ["variant-default", "layout", "copy", "critical"],
+  // Copy leaves are written ONLY under an item of type `copy` naming the node
+  // (or `critical`, which still never overwrites a text she changed).
+  copy: ["copy", "critical"],
   remove: ["layout", "critical"],
   new: ["new-block", "layout", "critical"],
   order: ["layout", "critical"],

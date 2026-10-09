@@ -6,6 +6,11 @@ const ES: Record<string, string> = {
   Today: "Hoy",
   "Your free website": "Tu sitio web gratis",
   "Find your website style": "Encuentra el estilo de tu sitio",
+  // TUL-331 / G12: honest finished-gallery count (no aspirational library size).
+  "{n} designs ready today. Preview any with your photos and services.":
+    "{n} diseños listos hoy. Previsualiza cualquiera con tus fotos y servicios.",
+  "1 design ready today. Preview it with your photos and services.":
+    "1 diseño listo hoy. Previsualízalo con tus fotos y servicios.",
   "Explore designs, then see them with your photos and services.":
     "Explora diseños y míralos con tus fotos y servicios.",
   "Featured demo:": "Demo destacada:",
@@ -58,6 +63,7 @@ const ES: Record<string, string> = {
   "Ready to publish": "Listo para publicar",
   "1 thing before publishing": "1 cosa antes de publicar",
   Publish: "Publicar",
+  "Publish site": "Publicar sitio",
   "Publishing…": "Publicando…",
   Undo: "Deshacer",
   "Design applied to your draft": "Diseño aplicado a tu borrador",

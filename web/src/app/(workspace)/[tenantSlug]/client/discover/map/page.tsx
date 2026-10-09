@@ -13,7 +13,8 @@ import { createTranslator } from "@/i18n/messages";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { loadClientSelfProfile } from "../../../_data-bridge";
+import { clientPageReadCtx } from "../../_data-bridge/client-read-ctx";
+import { resolveClientPageRead } from "../../_data-bridge/client-page-read";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveGoogleMapsKeyForClient } from "@/lib/integrations/resolve";
 import { DiscoverMapShell, type DiscoverMapTalent } from "./DiscoverMapShell";
@@ -199,8 +200,12 @@ export default async function ClientDiscoverMapPage({ params }: { params: PagePa
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
-  const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
-  if (!clientProfile) notFound();
+  const read = await resolveClientPageRead(
+    session.user.id,
+    scope.tenantId,
+    await clientPageReadCtx(session.user.id),
+  );
+  if (!read) notFound();
 
   const [{ mappable, unmappedCount }] = await Promise.all([
     loadMappableTalents(),
