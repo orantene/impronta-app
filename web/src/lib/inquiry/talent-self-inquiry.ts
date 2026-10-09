@@ -37,3 +37,25 @@ export function talentOwnOfferAllowed(input: {
   if (input.startedBy !== "talent") return false;
   return talentSelfInquiryAllowed(input);
 }
+
+/**
+ * The offer verbs for a talent selling in her OWN business: the owner of the
+ * inquiry's workspace, or a sale on a talent-type workspace (the hub / a talent's
+ * own site, where there is no agency_memberships owner), and her seat is the ONLY
+ * live seat on the inquiry. The invite rows a fresh inquiry starts with
+ * ('invited') must not lock her out: nobody else could accept for her. A lineup
+ * with another live talent stays with its coordinator. Pure; the proofs are read
+ * by the caller.
+ */
+export function ownerTalentOwnLineupOfferAllowed(input: {
+  actorTalentProfileId: string | null;
+  /** Talent ids on ACTIVE or INVITED seats only (declined/removed seats are not on the lineup). */
+  liveTalentProfileIds: readonly string[];
+  actorIsActiveWorkspaceOwner: boolean;
+  tenantIsTalentWorkspace: boolean;
+}): boolean {
+  const own = input.actorTalentProfileId;
+  if (!own) return false;
+  if (!input.actorIsActiveWorkspaceOwner && !input.tenantIsTalentWorkspace) return false;
+  return input.liveTalentProfileIds.length === 1 && input.liveTalentProfileIds[0] === own;
+}
