@@ -291,20 +291,24 @@ executes is the structural gate.
 
 ### CI priority (TUL-412)
 
-GitHub has no runner-priority API; `ubuntu-latest` is one shared pool. To keep
-`main`, `integ/*`, `promote-production` and `vercel-post-deploy-alias` from
-waiting 30–50 minutes behind ordinary PR gates:
+GitHub has no runner-priority API; `ubuntu-latest` is one shared pool, and the
+structural gate holds a runner for about 30 minutes. To keep `main`, `integ/*`
+batches, `promote-production` and the post-deploy alias from waiting behind
+ordinary PR gates:
 
-1. Ordinary PR structural gates share **one** concurrency slot
-   (`CI — structural quality gate-ordinary-pr-pool`). Only one runs at a time.
-2. `integ/*` keeps a per-ref slot; `main` stays per-sha and never cancels.
-3. Promote and alias cancel superseded queued runs (`cancel-in-progress: true`);
-   both reconcile / re-query, so cancellation cannot freeze production.
-4. Draft PRs still skip the gate. **Convert held ready PRs back to draft** so
-   idle work stops enqueueing. Mark ready again when you want a fresh gate.
-
-Optional: set repo variables `PROMOTE_RUNNER` / `ALIAS_RUNNER` to a dedicated
-runner label to take those tiny jobs off the shared pool entirely.
+1. The heavy gate runs on `main`, on `integ/*` PRs, and on ordinary PRs that
+   carry the **`full-gate`** label. Any other ordinary PR fails its first step in
+   seconds ("ships via an integ batch") and frees the runner; the batch that
+   carries it runs the full gate. Failing (not skipping) keeps the required
+   check red, so an unlabelled PR cannot be merged around the gate.
+2. To merge a PR on its own: add `full-gate` (done at approval), then re-run the
+   failed check. The step reads labels live, so the re-run picks it up. There is
+   deliberately no `labeled` trigger (any label event would cancel an in-flight
+   gate on that ref). Alternatively ship it through a one-PR `integ/*` wrapper.
+3. Concurrency stays per-ref: a shared group would cancel queued gates.
+4. `promote-production` cancels a superseded queued run (it reconciles to the
+   newest green commit). Optional: repo variable `PROMOTE_RUNNER` takes it off
+   the shared pool.
 
 ### Not PR checks
 

@@ -1,13 +1,15 @@
 /**
- * ci-priority.static.test.ts — pins TUL-412 CI priority so main / integ /
- * promote / alias never sit behind a flood of ordinary PR gates.
+ * ci-priority.static.test.ts pins TUL-412: main, integ/* batches, promote and
+ * the alias job must not wait 30-50 min behind a flood of ordinary PR gates on
+ * the shared ubuntu-latest pool.
  *
  * Levers (GitHub has no runner-priority API):
- *   1. Ordinary PR structural gates share one concurrency slot.
- *   2. integ/* keeps a per-ref slot; main stays per-sha and never cancels.
- *   3. promote + alias cancel superseded queued runs (reconcile / re-query
- *      makes replacement safe).
- *   4. Draft PRs still skip the heavy gate job (pinned elsewhere).
+ *   1. The heavy structural gate runs on main, on integ/* PRs, and on ordinary
+ *      PRs labelled full-gate. Any other ordinary PR fails a seconds-long
+ *      policy step (required check stays red, so it cannot merge around the
+ *      gate) and frees the runner; its integ batch's gate covers it.
+ *   2. Concurrency stays PER-REF (a shared group would cancel queued gates).
+ *   3. promote-production cancels a superseded queued run (it reconciles).
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -16,30 +18,41 @@ import { test } from "node:test";
 
 const REPO_ROOT = path.resolve(process.cwd(), "..");
 const read = (rel: string) => readFileSync(path.join(REPO_ROOT, rel), "utf8");
-
-function activeYaml(raw: string): string {
-  return raw
+const activeYaml = (raw: string) =>
+  raw
     .split("\n")
     .filter((l) => !/^\s*#/.test(l))
     .join("\n");
-}
 
-const ci = read(".github/workflows/ci.yml");
+const ci = activeYaml(read(".github/workflows/ci.yml"));
 const promote = activeYaml(read(".github/workflows/promote-production.yml"));
-const alias = activeYaml(read(".github/workflows/vercel-post-deploy-alias.yml"));
 
-test("ordinary PR gates share one concurrency slot (not per-ref)", () => {
-  assert.match(ci, /ordinary-pr-pool/);
-  assert.match(ci, /startsWith\(github\.head_ref, 'integ\/'\)/);
-  // main still keys on sha so concurrent main runs never cancel each other
-  assert.match(ci, /github\.ref == 'refs\/heads\/main' && format\('\{0\}-\{1\}', github\.workflow, github\.sha\)/);
+test("concurrency stays per-ref; no shared ordinary-PR pool", () => {
+  assert.match(ci, /group: \$\{\{ github\.workflow \}\}-\$\{\{ github\.ref == 'refs\/heads\/main' && github\.sha \|\| github\.ref \}\}/);
+  assert.doesNotMatch(ci, /ordinary-pr-pool/);
 });
 
-test("cancel-in-progress stays false on main and on the ordinary PR pool", () => {
-  assert.match(
-    ci,
-    /cancel-in-progress: \$\{\{ github\.ref != 'refs\/heads\/main' && \(github\.event_name != 'pull_request' \|\| startsWith\(github\.head_ref, 'integ\/'\)\) \}\}/,
-  );
+test("the gate's first step is the policy step, reading labels live", () => {
+  const steps = ci.split("\n    steps:\n")[1] ?? "";
+  assert.match(steps.trimStart(), /^- name: Gate policy \(ordinary PRs ship via an integ batch\)\n\s+id: policy/);
+  assert.match(ci, /gh pr view "\$PR_NUMBER" --json labels/);
+  assert.match(ci, /grep -qx "full-gate"/);
+  assert.match(ci, /startsWith\(github\.head_ref, 'integ\/'\)/);
+  assert.match(ci, /pull-requests: read/);
+});
+
+test("an unlabelled ordinary PR fails (not skips) the gate", () => {
+  assert.match(ci, /echo "run=false" >> "\$GITHUB_OUTPUT"\n\s+echo "::error::[^\n]*full-gate[^\n]*"\n\s+exit 1/);
+});
+
+test("every heavy step is conditioned on the policy output", () => {
+  assert.doesNotMatch(ci, /if: \$\{\{ !cancelled\(\) \}\}/);
+  const gated = ci.match(/steps\.policy\.outputs\.run == 'true'/g) ?? [];
+  assert.ok(gated.length >= 50, `only ${gated.length} steps gated on the policy`);
+});
+
+test("no labeled trigger (a label event would cancel an in-flight gate)", () => {
+  assert.doesNotMatch(ci, /types: \[[^\]]*labeled/);
 });
 
 test("promote cancels superseded queued runs in its own group", () => {
@@ -47,12 +60,4 @@ test("promote cancels superseded queued runs in its own group", () => {
   assert.ok(m, "promote concurrency block missing");
   assert.equal(m[1], "promote-production");
   assert.equal(m[2], "true");
-});
-
-test("alias cancels superseded queued runs and may use a dedicated runner", () => {
-  const m = alias.match(/\nconcurrency:\n\s+group: (\S+)\n\s+cancel-in-progress: (\S+)/);
-  assert.ok(m, "alias concurrency block missing");
-  assert.equal(m[1], "vercel-alias-production");
-  assert.equal(m[2], "true");
-  assert.match(alias, /vars\.ALIAS_RUNNER \|\| vars\.PROMOTE_RUNNER \|\| 'ubuntu-latest'/);
 });

@@ -47,15 +47,11 @@ test("draft skip and event_name check on the gate job still hold", () => {
   );
 });
 
-test("PR concurrency never cancels main; ordinary PRs share a non-cancelling pool (TUL-412)", () => {
-  // Main never cancels. integ/* still cancels superseded pushes on its ref.
-  // Ordinary PRs share one slot with cancel-in-progress false so they cannot
-  // steal each other's in-flight gate (see ci-priority.static.test.ts).
+test("PR concurrency still cancels superseded runs and never cancels main", () => {
   assert.match(
     ci,
-    /cancel-in-progress: \$\{\{ github\.ref != 'refs\/heads\/main' && \(github\.event_name != 'pull_request' \|\| startsWith\(github\.head_ref, 'integ\/'\)\) \}\}/,
+    /cancel-in-progress: \$\{\{ github\.ref != 'refs\/heads\/main' \}\}/,
   );
-  assert.match(ci, /ordinary-pr-pool/);
 });
 
 test("the decision is documented and the no-stacking rule is in CLAUDE.md", () => {
