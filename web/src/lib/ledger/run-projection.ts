@@ -38,14 +38,20 @@ import {
   projectTransfer,
   type CommissionLane,
 } from "./project";
-import { writeLedgerGroup } from "./write";
+import { groupIdFor, writeLedgerGroup, type WriteResult } from "./write";
+import type { LedgerLeg } from "./project";
 
-/** Bound one run so a first backfill cannot page forever. */
+/** Rows per page. */
 const BATCH = 200;
+/** Pages of booking payments per run (newest first), so a first backfill cannot page forever. */
+const MAX_PAGES = 10;
+/** A payment with no commission snapshot older than this is a known pre-snapshot sale, not a fresh failure. */
+const UNATTRIBUTABLE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type ProjectionRunResult = {
   ok: boolean;
-  bookingPayments: { projected: number; skipped: number; refused: number };
+  /** `unattributable`: old payments with no commission snapshot (counted, never a heartbeat failure). */
+  bookingPayments: { projected: number; skipped: number; refused: number; unattributable: number };
   processingFees: { projected: number; skipped: number; refused: number };
   invoices: { projected: number; skipped: number; refused: number };
   payouts: { projected: number; skipped: number; refused: number };
@@ -53,6 +59,8 @@ export type ProjectionRunResult = {
   /** Reasons a source was refused, so a stuck row is diagnosable without a
    *  database session. Capped — the point is a sample, not a dump. */
   refusals: string[];
+  /** True when nothing was written (a dry run). */
+  dryRun?: boolean;
   error?: string;
 };
 
@@ -60,97 +68,172 @@ function emptyCounts() {
   return { projected: 0, skipped: 0, refused: 0 };
 }
 
-export async function runLedgerProjection(): Promise<ProjectionRunResult> {
+/**
+ * Honest health for the heartbeat. A run that refused work and projected nothing is NOT ok (the old
+ * heartbeat read `ok` for `projected=0 refused=10`). Known old unattributable payments never count.
+ */
+export function projectionHealth(r: ProjectionRunResult): { ok: boolean; detail: string } {
+  const projected = r.bookingPayments.projected + r.processingFees.projected + r.invoices.projected + r.payouts.projected + r.transfers.projected;
+  const refused = r.bookingPayments.refused + r.processingFees.refused + r.invoices.refused + r.payouts.refused + r.transfers.refused;
+  const base = `projected=${projected} refused=${refused} unattributable=${r.bookingPayments.unattributable}`;
+  if (!r.ok) return { ok: false, detail: `failed: ${r.error ?? r.refusals[0] ?? "unknown"} (${base})` };
+  if (refused > 0 && projected === 0) return { ok: false, detail: `${base}; first refusal: ${r.refusals[0] ?? "unknown"}` };
+  return { ok: true, detail: refused > 0 ? `${base}; first refusal: ${r.refusals[0] ?? "unknown"}` : base };
+}
+
+/** A dry run's writer: says what WOULD be written (and what already exists) without writing. */
+async function dryWrite(sb: NonNullable<ReturnType<typeof createServiceRoleClient>>, legs: LedgerLeg[]): Promise<WriteResult> {
+  if (legs.length === 0) return { ok: true, written: 0, skipped: true, groupId: "" };
+  const groupId = groupIdFor(legs[0].groupKey);
+  const { data, error } = await sb.from("ledger_entries").select("id").eq("group_id", groupId).limit(1);
+  if (error) return { ok: false, error: "Could not check for an existing group.", groupId };
+  return data && data.length > 0
+    ? { ok: true, written: 0, skipped: true, groupId }
+    : { ok: true, written: legs.length, skipped: false, groupId };
+}
+
+export async function runLedgerProjection(opts: { dryRun?: boolean } = {}): Promise<ProjectionRunResult> {
   const result: ProjectionRunResult = {
     ok: true,
-    bookingPayments: emptyCounts(),
+    bookingPayments: { ...emptyCounts(), unattributable: 0 },
     processingFees: emptyCounts(),
     invoices: emptyCounts(),
     payouts: emptyCounts(),
     transfers: emptyCounts(),
     refusals: [],
+    ...(opts.dryRun ? { dryRun: true } : {}),
   };
 
   const sb = createServiceRoleClient();
   if (!sb) return { ...result, ok: false, error: "Database not available." };
 
+  const write = (legs: LedgerLeg[]): Promise<WriteResult> => (opts.dryRun ? dryWrite(sb, legs) : writeLedgerGroup(legs));
+
   const note = (msg: string) => {
     if (result.refusals.length < 20) result.refusals.push(msg);
+  };
+  /** A failed read is NOT "nothing to do": it fails the run loudly (the old code read `data` and ignored `error`). */
+  const readFailed = (what: string, error: { message?: string } | null): boolean => {
+    if (!error) return false;
+    result.ok = false;
+    note(`${what}: read failed: ${error.message ?? String(error)}`);
+    logServerError(`ledger.runProjection/${what}`, error);
+    return true;
   };
 
   try {
     // ── 1. Paid booking transactions ────────────────────────────────────────
-    const { data: txns } = await sb
-      .from("booking_transactions")
-      .select("id, booking_id, source_tenant_id, gross_amount_cents, currency, paid_at, provider_metadata")
-      .in("status", ["paid", "payout_pending", "payout_sent"])
-      .is("refund_of_transaction_id", null)
-      .limit(BATCH);
+    // NEWEST FIRST with a keyset cursor (paid_at, id): rows that can never be projected (old sales
+    // with no snapshot) must not fill the page and starve every sale after them.
+    let cursor: { paidAt: string; id: string } | null = null;
+    for (let page = 0; page < MAX_PAGES; page++) {
+      let query = sb
+        .from("booking_transactions")
+        .select("id, booking_id, source_tenant_id, gross_amount_cents, currency, paid_at, provider_metadata")
+        .in("status", ["paid", "payout_pending", "payout_sent"])
+        .is("refund_of_transaction_id", null)
+        .not("paid_at", "is", null)
+        .order("paid_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(BATCH);
+      if (cursor) query = query.or(`paid_at.lt.${cursor.paidAt},and(paid_at.eq.${cursor.paidAt},id.lt.${cursor.id})`);
+      const { data: txns, error: txnErr } = await query;
+      if (readFailed("booking_transactions", txnErr)) return result;
+      if (!txns || txns.length === 0) break;
 
-    for (const raw of txns ?? []) {
-      const t = raw as Record<string, unknown>;
-      const txnId = String(t.id);
-      const bookingId = (t.booking_id as string | null) ?? null;
-
-      // The commission snapshot is what says whose money this is.
-      const { data: snaps } = await sb
-        .from("booking_commission_snapshot")
-        .select("participant_id, talent_profile_id, owning_party_type, owning_party_id, talent_net_cents, workspace_fee_cents, platform_fee_cents, gross_charged_cents")
-        .eq("booking_id", bookingId ?? "");
-
-      const lanes: CommissionLane[] = (snaps ?? []).map((s) => {
-        const r = s as Record<string, unknown>;
-        return {
-          participantId: String(r.participant_id),
-          talentProfileId: (r.talent_profile_id as string | null) ?? null,
-          owningPartyType: String(r.owning_party_type ?? ""),
-          owningPartyId: (r.owning_party_id as string | null) ?? null,
-          talentNetCents: Number(r.talent_net_cents ?? 0),
-          workspaceFeeCents: Number(r.workspace_fee_cents ?? 0),
-          platformFeeCents: Number(r.platform_fee_cents ?? 0),
-          grossChargedCents: Number(r.gross_charged_cents ?? 0),
-        };
-      });
-
-      const meta = t.provider_metadata;
-      const providerObjectId =
-        meta && typeof meta === "object" && !Array.isArray(meta)
-          ? ((meta as Record<string, unknown>).payment_intent_id as string | undefined) ?? null
-          : null;
-
-      const projected = projectBookingPayment({
-        transactionId: txnId,
-        bookingId,
-        tenantId: (t.source_tenant_id as string | null) ?? null,
-        currency: String(t.currency ?? "USD"),
-        grossChargedCents: Number(t.gross_amount_cents ?? 0),
-        lanes,
-        providerObjectId,
-        occurredAt: String(t.paid_at ?? new Date().toISOString()),
-      });
-
-      if (!projected.ok) {
-        result.bookingPayments.refused += 1;
-        note(`booking_payment ${txnId}: ${projected.error}`);
-        continue;
+      // Lanes for the whole page in two reads. `talent_profile_id` is NOT a column of the snapshot
+      // (the old per-row read selected it, failed, and refused every payment as "no commission lanes").
+      const bookingIds = [...new Set(txns.map((t) => (t as { booking_id: string | null }).booking_id).filter((x): x is string => !!x))];
+      const lanesByBooking = new Map<string, CommissionLane[]>();
+      if (bookingIds.length > 0) {
+        const { data: snaps, error: snapErr } = await sb
+          .from("booking_commission_snapshot")
+          .select("booking_id, participant_id, owning_party_type, owning_party_id, talent_net_cents, workspace_fee_cents, platform_fee_cents, gross_charged_cents")
+          .in("booking_id", bookingIds);
+        if (readFailed("booking_commission_snapshot", snapErr)) return result;
+        const participantIds = [...new Set((snaps ?? []).map((x) => String((x as { participant_id: string }).participant_id)))];
+        const talentByParticipant = new Map<string, string | null>();
+        if (participantIds.length > 0) {
+          const { data: parts, error: partErr } = await sb.from("inquiry_participants").select("id, talent_profile_id").in("id", participantIds);
+          if (readFailed("inquiry_participants", partErr)) return result;
+          for (const pr of parts ?? []) talentByParticipant.set(String((pr as { id: string }).id), ((pr as { talent_profile_id: string | null }).talent_profile_id) ?? null);
+        }
+        for (const raw of snaps ?? []) {
+          const r = raw as Record<string, unknown>;
+          const lane: CommissionLane = {
+            participantId: String(r.participant_id),
+            talentProfileId: talentByParticipant.get(String(r.participant_id)) ?? null,
+            owningPartyType: String(r.owning_party_type ?? ""),
+            owningPartyId: (r.owning_party_id as string | null) ?? null,
+            talentNetCents: Number(r.talent_net_cents ?? 0),
+            workspaceFeeCents: Number(r.workspace_fee_cents ?? 0),
+            platformFeeCents: Number(r.platform_fee_cents ?? 0),
+            grossChargedCents: Number(r.gross_charged_cents ?? 0),
+          };
+          const key = String(r.booking_id);
+          lanesByBooking.set(key, [...(lanesByBooking.get(key) ?? []), lane]);
+        }
       }
-      const w = await writeLedgerGroup(projected.legs);
-      if (!w.ok) {
-        result.bookingPayments.refused += 1;
-        note(`booking_payment ${txnId}: ${w.error}`);
-      } else if (w.skipped) {
-        result.bookingPayments.skipped += 1;
-      } else {
-        result.bookingPayments.projected += 1;
+
+      for (const raw of txns) {
+        const t = raw as Record<string, unknown>;
+        const txnId = String(t.id);
+        const bookingId = (t.booking_id as string | null) ?? null;
+        const lanes = bookingId ? (lanesByBooking.get(bookingId) ?? []) : [];
+
+        const meta = t.provider_metadata;
+        const providerObjectId =
+          meta && typeof meta === "object" && !Array.isArray(meta)
+            ? ((meta as Record<string, unknown>).payment_intent_id as string | undefined) ?? null
+            : null;
+        const paidAt = String(t.paid_at);
+
+        if (lanes.length === 0 && Date.now() - Date.parse(paidAt) > UNATTRIBUTABLE_AFTER_MS) {
+          // A known old sale from before commission snapshots existed: counted, not a fresh failure.
+          result.bookingPayments.unattributable += 1;
+          continue;
+        }
+
+        const projected = projectBookingPayment({
+          transactionId: txnId,
+          bookingId,
+          tenantId: (t.source_tenant_id as string | null) ?? null,
+          currency: String(t.currency ?? "USD"),
+          grossChargedCents: Number(t.gross_amount_cents ?? 0),
+          lanes,
+          providerObjectId,
+          occurredAt: paidAt,
+        });
+
+        if (!projected.ok) {
+          result.bookingPayments.refused += 1;
+          note(`booking_payment ${txnId}: ${projected.error}`);
+          continue;
+        }
+        const w = await write(projected.legs);
+        if (!w.ok) {
+          result.bookingPayments.refused += 1;
+          note(`booking_payment ${txnId}: ${w.error}`);
+        } else if (w.skipped) {
+          result.bookingPayments.skipped += 1;
+        } else {
+          result.bookingPayments.projected += 1;
+        }
       }
+
+      if (txns.length < BATCH) break;
+      const last = txns[txns.length - 1] as { paid_at: string; id: string };
+      cursor = { paidAt: last.paid_at, id: last.id };
     }
 
     // ── 2. Processing fees ──────────────────────────────────────────────────
-    const { data: bts } = await sb
+    const { data: bts, error: btsErr } = await sb
       .from("provider_balance_transactions")
       .select("stripe_balance_txn_id, fee_cents, currency, tenant_id, booking_transaction_id, stripe_created_at")
       .gt("fee_cents", 0)
+      .order("stripe_created_at", { ascending: false })
       .limit(BATCH);
+    if (readFailed("provider_balance_transactions", btsErr)) return result;
 
     for (const raw of bts ?? []) {
       const b = raw as Record<string, unknown>;
@@ -168,7 +251,7 @@ export async function runLedgerProjection(): Promise<ProjectionRunResult> {
         continue;
       }
       if (projected.legs.length === 0) continue;
-      const w = await writeLedgerGroup(projected.legs);
+      const w = await write(projected.legs);
       if (!w.ok) {
         result.processingFees.refused += 1;
         note(`processing_fee ${String(b.stripe_balance_txn_id)}: ${w.error}`);
@@ -180,12 +263,14 @@ export async function runLedgerProjection(): Promise<ProjectionRunResult> {
     }
 
     // ── 3. Paid invoices ────────────────────────────────────────────────────
-    const { data: invs } = await sb
+    const { data: invs, error: invsErr } = await sb
       .from("provider_invoices")
       .select("stripe_invoice_id, amount_paid_cents, tax_cents, currency, tenant_id, talent_profile_id, paid_at")
       .eq("status", "paid")
       .gt("amount_paid_cents", 0)
+      .order("paid_at", { ascending: false })
       .limit(BATCH);
+    if (readFailed("provider_invoices", invsErr)) return result;
 
     for (const raw of invs ?? []) {
       const i = raw as Record<string, unknown>;
@@ -203,7 +288,7 @@ export async function runLedgerProjection(): Promise<ProjectionRunResult> {
         note(`invoice ${String(i.stripe_invoice_id)}: ${projected.error}`);
         continue;
       }
-      const w = await writeLedgerGroup(projected.legs);
+      const w = await write(projected.legs);
       if (!w.ok) {
         result.invoices.refused += 1;
         note(`invoice ${String(i.stripe_invoice_id)}: ${w.error}`);
@@ -219,12 +304,14 @@ export async function runLedgerProjection(): Promise<ProjectionRunResult> {
     // payout moves money on THEIR ledger, not ours — ours was already reduced
     // when the transfer left, and booking that as a second movement would
     // double-count the same money leaving.
-    const { data: pos } = await sb
+    const { data: pos, error: posErr } = await sb
       .from("provider_payouts")
       .select("stripe_payout_id, amount_cents, currency, status, arrival_date, updated_at, stripe_account_id")
       .is("stripe_account_id", null)
       .in("status", ["in_transit", "paid"])
+      .order("updated_at", { ascending: false })
       .limit(BATCH);
+    if (readFailed("provider_payouts", posErr)) return result;
 
     for (const raw of pos ?? []) {
       const p = raw as Record<string, unknown>;
@@ -251,7 +338,7 @@ export async function runLedgerProjection(): Promise<ProjectionRunResult> {
           note(`payout ${payoutId} (${phase}): ${projected.error}`);
           continue;
         }
-        const w = await writeLedgerGroup(projected.legs);
+        const w = await write(projected.legs);
         if (!w.ok) {
           result.payouts.refused += 1;
           note(`payout ${payoutId} (${phase}): ${w.error}`);
@@ -273,6 +360,7 @@ export async function runLedgerProjection(): Promise<ProjectionRunResult> {
       .select("stripe_transfer_id, party, amount_cents, currency, talent_profile_id, tenant_id, transferred_at, updated_at")
       .eq("status", "transferred")
       .not("stripe_transfer_id", "is", null)
+      .order("updated_at", { ascending: false })
       .limit(BATCH);
 
     // A failed read is NOT "no transfers to settle". Swallowing it would report
@@ -309,7 +397,7 @@ export async function runLedgerProjection(): Promise<ProjectionRunResult> {
         note(`transfer ${transferId}: ${projected.error}`);
         continue;
       }
-      const w = await writeLedgerGroup(projected.legs);
+      const w = await write(projected.legs);
       if (!w.ok) {
         result.transfers.refused += 1;
         note(`transfer ${transferId}: ${w.error}`);

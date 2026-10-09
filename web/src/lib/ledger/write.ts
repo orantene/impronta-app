@@ -154,5 +154,11 @@ export async function writeLedgerGroup(legs: LedgerLeg[]): Promise<WriteResult> 
     logServerError("ledger.write.insert", insErr);
     return { ok: false, error: insErr.message ?? "insert failed", groupId };
   }
+  // Two runs racing past the existence check above would each insert the group (there is no unique
+  // key to stop them). Entries are append-only, so the only honest move is to DETECT it loudly.
+  const { count } = await sb.from("ledger_entries").select("id", { count: "exact", head: true }).eq("group_id", groupId);
+  if (typeof count === "number" && count > rows.length) {
+    logServerError("ledger.write.DOUBLE_POST", new Error(`group ${groupId} (${groupKey}) has ${count} entries, expected ${rows.length}. Needs a human.`));
+  }
   return { ok: true, written: rows.length, skipped: false, groupId };
 }

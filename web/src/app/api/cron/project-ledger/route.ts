@@ -23,7 +23,7 @@
 import { NextResponse } from "next/server";
 import { recordCronHeartbeat } from "@/lib/ops/cron-heartbeat";
 import * as Sentry from "@sentry/nextjs";
-import { runLedgerProjection } from "@/lib/ledger/run-projection";
+import { projectionHealth, runLedgerProjection } from "@/lib/ledger/run-projection";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 
@@ -41,13 +41,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // `?dry=1`: what WOULD be posted, nothing written, no heartbeat (the pre-merge look at a first run).
+  if (new URL(request.url).searchParams.get("dry") === "1") {
+    return NextResponse.json(await runLedgerProjection({ dryRun: true }));
+  }
+
   const result = await runLedgerProjection();
 
   const refusedTotal =
     result.bookingPayments.refused +
     result.processingFees.refused +
     result.invoices.refused +
-    result.payouts.refused;
+    result.payouts.refused +
+    result.transfers.refused;
 
   // Flat scalars only — the structured logger does not accept nested objects.
   void improntaLog("money.cron.ledger_projection", {
@@ -89,18 +95,8 @@ export async function GET(request: Request) {
   // alive and its own Sentry alert covers the failure. Recording only successes
   // would make a hard-failing job indistinguishable from a stopped one, and
   // they need different responses.
-  await recordCronHeartbeat({
-    job: "project-ledger",
-    ok: result.ok,
-    detail: result.ok
-      ? `projected=${
-          result.bookingPayments.projected +
-          result.processingFees.projected +
-          result.invoices.projected +
-          result.payouts.projected
-        } refused=${refusedTotal}`
-      : `failed: ${result.error ?? "unknown"}`,
-  });
+  const health = projectionHealth(result);
+  await recordCronHeartbeat({ job: "project-ledger", ok: health.ok, detail: health.detail });
 
   if (!result.ok) {
     return NextResponse.json(result, { status: 500 });
