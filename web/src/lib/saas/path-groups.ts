@@ -113,6 +113,11 @@ export const SHARED_API_PREFIXES = [
   // platform default). Public by design, host-independent (talent hosts,
   // agency hosts and the platform path all open the same sheet).
   "/api/public/talent-policy",
+  // Street-address suggestions for the booking sheet (flag-gated, rate-limited,
+  // fail-closed). The sheet opens on talent sites, agency sites and the hub, so
+  // it cannot belong to one host kind. Off by default: the handler answers
+  // 404 `disabled` until PUBLIC_STREET_AUTOCOMPLETE_ENABLED=1.
+  "/api/public/places",
   // Tulala Agent intake + Account Strategist. Anonymous-first on marketing
   // (/get-started/agent) and authenticated on app (/account/brief/agent). Own
   // KV namespaces, own SSRF guard, own fail-closed gate. Not under `/api/ai`
