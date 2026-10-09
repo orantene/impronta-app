@@ -28,6 +28,19 @@ describe("help-corpus", () => {
     assert.deepEqual(tokenize("How do I change my domain"), ["change", "domain"]);
   });
 
+  test("tokenize folds Spanish accents before stopword filter", () => {
+    assert.deepEqual(tokenize("Cómo cambio mi dominio"), ["cambio", "dominio"]);
+  });
+
+  test("settings-hours ranks for a Spanish hours question", () => {
+    const hits = retrieveHelpEntries("cómo cambio mis horas");
+    assert.ok(
+      hits.some((h) => h.slug === "settings-hours"),
+      "expected settings-hours grounding for a Spanish hours question",
+    );
+  });
+
+
   test("origin slug and category get a hard boost", () => {
     const mini = flattenHelpCorpus().filter((e) =>
       ["domain", "branding", "plan-billing"].includes(e.slug),
