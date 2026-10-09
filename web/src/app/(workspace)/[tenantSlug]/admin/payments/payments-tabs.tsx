@@ -152,15 +152,19 @@ export function RefundsTab({ board, t, tenantSlug, locale }: { board: PaymentsBo
                     )}
                   </span>
                   <span className="text-right font-semibold tabular-nums text-admin-ink">−{formatOrderMoney(r.grossAmountCents, r.currency)}</span>
-                  <span className="truncate text-admin-ink-muted" title={r.settlementFailedNote ?? undefined}>
+                  <span className="truncate text-admin-ink-muted" title={r.settlementFailedNote ?? r.talentResidualNote ?? undefined}>
                     {r.settlementFailed
                       ? (r.settlementFailedNote ?? t("refundFailedDetail"))
-                      : r.provider === "manual"
+                      : r.talentResidualNote
+                        ? r.talentResidualNote
+                        : r.provider === "manual"
                         ? t("refundManual")
                         : r.provider}
                   </span>
                   {r.settlementFailed ? (
                     <StatePill block tone="coral" state="pending">{t("refundFailed")}</StatePill>
+                  ) : r.talentResidualNote ? (
+                    <StatePill block tone="coral" state="pending">{t("refundRecoverFromTalent")}</StatePill>
                   ) : (
                     <StatePill block tone="green" state="completed">{t("refundCompleted")}</StatePill>
                   )}

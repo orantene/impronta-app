@@ -5666,6 +5666,7 @@
       "paymentWord": "Paiement",
       "refundPending": "En attente",
       "refundCompleted": "Terminé",
+      "refundRecoverFromTalent": "À récupérer auprès du talent",
       "refundFailed": "Remboursement échoué",
       "refundFailedDetail": "Le client n'a pas été payé. Organisez un remboursement alternatif.",
       "refundManual": "Enregistré à la main",

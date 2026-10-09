@@ -13958,6 +13958,7 @@
         "import": "Importing a terminal report is not wired yet; there is no table to hold its rows.",
         "export": "An export of these tables is not wired yet."
       },
+      "refundRecoverFromTalent": "Recover from talent",
       "refundFailed": "Refund failed",
       "refundFailedDetail": "Customer was not paid. Arrange an alternative refund."
     },
