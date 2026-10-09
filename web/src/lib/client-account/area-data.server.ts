@@ -35,6 +35,8 @@ export type VisitDetail = {
   /** Cancellation facts, from the same source the engine and `/manage` use. */
   policy: { enforceable: boolean; insideWindow: boolean; deadlineIso: string | null; refundIfCancelled: number };
   offeringId: string | null;
+  /** The booking talent's own booking-hours zone (null when unknown); the host zone is the fallback. */
+  timeZone: string | null;
   canManage: boolean;
   payCode: string | null;
 };
@@ -142,6 +144,7 @@ export async function loadVisitDetail(userId: string, tenantId: string, inquiryI
       }),
     },
     offeringId,
+    timeZone: await offeringTalentZone(admin, offeringId),
     // The server action re-checks ownership; this only decides whether to show the buttons.
     canManage: !!b && b.client_user_id === userId && !closed && Number.isFinite(startMs) && startMs > nowMs,
     payCode,
@@ -403,4 +406,22 @@ export async function loadOwedPayLinks(userId: string, tenantId: string): Promis
     const code = byOrder.get(r.order_id);
     return code ? [{ title: r.title?.trim() || "", code }] : [];
   });
+}
+
+/** The zone the offering's talent takes bookings in (talent_booking_hours), or null. */
+async function offeringTalentZone(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>, offeringId: string | null): Promise<string | null> {
+  if (!offeringId) return null;
+  const { data: off, error: offErr } = await admin.from("talent_offerings").select("talent_profile_id").eq("id", offeringId).maybeSingle();
+  if (offErr) {
+    logServerError("clientAccount.visit.offeringTalent", offErr);
+    return null;
+  }
+  const talentId = (off as { talent_profile_id?: string | null } | null)?.talent_profile_id;
+  if (!talentId) return null;
+  const { data: hrs, error: hrsErr } = await admin.from("talent_booking_hours").select("timezone").eq("talent_profile_id", talentId).maybeSingle();
+  if (hrsErr) {
+    logServerError("clientAccount.visit.talentZone", hrsErr);
+    return null;
+  }
+  return (hrs as { timezone?: string | null } | null)?.timezone ?? null;
 }
