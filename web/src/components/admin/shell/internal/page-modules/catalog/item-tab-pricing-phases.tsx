@@ -25,7 +25,6 @@ import { setOfferingPricePhaseAction } from "@/lib/server-actions/scheduling-eng
 import { ActionButton, Outcome, StatePill } from "../appointments-classes-ui";
 import { BUTTON_SMALL, CARD, Field, INPUT, ListHead, ListRow, Note, SectionHead } from "./catalog-ui";
 import { PHASE_STATE_KEY, engineRefusalKey, phaseState } from "./catalog-model";
-import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 const COLS = "grid-cols-[1.4fr_1fr_1fr_110px_100px_90px]";
 

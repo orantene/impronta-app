@@ -30,7 +30,6 @@ import type { TabProps } from "./CatalogItemEditor";
 import { exampleTotals } from "./catalog-model";
 import { AddPill, CARD, Eyebrow, Field, INPUT, SectionHead, SELECT, SelectShell, TotalRow } from "./catalog-ui";
 import { PricePhases } from "./item-tab-pricing-phases";
-import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 const UNITS: ReadonlyArray<{ value: ServicePricingType; key: string }> = [
   { value: "flat_package", key: "dashboard.catalog.pricing.unit.each" },
