@@ -15,14 +15,15 @@
 
 import { i18nPair, toI18nMap } from "@/lib/i18n/i18n-columns";
 import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
-import { resolveCategoryLabel } from "./category-label-fallback";
-import { inheritedInstantErrors } from "./offering-booking-rules";
 import { IDENTITY_REASONS, isIdentityReason, type IdentityReason } from "@/lib/orders/identity-requirement";
+import { formatMoney } from "@/lib/talent/offerings-money";
 import {
   SERVICE_PRICING_SUFFIX,
   SERVICE_PRICING_TYPES,
   type ServicePricingType,
 } from "@/lib/talent/services-menu-types";
+import { resolveCategoryLabel } from "./category-label-fallback";
+import { inheritedInstantErrors } from "./offering-booking-rules";
 
 export type OfferingKind = "service" | "package" | "product";
 export const OFFERING_KINDS: readonly OfferingKind[] = ["service", "package", "product"];
@@ -508,18 +509,9 @@ export function offeringIsDirectlyBookable(
   );
 }
 
-/** Money formatter resilient to a bad currency code. */
+/** Money formatter resilient to a bad currency code (TUL-383: `$700 MXN`). */
 export function formatOfferingPrice(amountCents: number, currency: string, locale: string): string {
-  const amount = amountCents / 100;
-  try {
-    return new Intl.NumberFormat(locale === "es" ? "es" : "en", {
-      style: "currency",
-      currency: currency.toUpperCase(),
-      maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
-    }).format(amount);
-  } catch {
-    return `${currency.toUpperCase()} ${amount.toLocaleString()}`;
-  }
+  return formatMoney(amountCents, currency, locale);
 }
 
 /** The public price line: "$120 / session" · "from $450" · "Quote on request" · "On request". */
