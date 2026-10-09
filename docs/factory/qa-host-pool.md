@@ -12,6 +12,8 @@ npm run qa:host -- release factory/my-theme # or a host
 - `claim` also creates (or reuses, while at least 1h is left) a 23-hour Vercel share link for the deployment and prints it, so the QA Tester opens one URL with no manual bypass. If the share-link call fails, `claim` still succeeds, prints a one-line warning on stderr and falls back to the bare host URL. `list` shows each host's link and expiry; run `claim` again for a fresh link once it expires. The link is a credential for that preview: share it with QA only.
 - Needs `VERCEL_TOKEN` in the environment. Never print it.
 - The Vercel alias is the lease. A host is reusable when its branch is deleted or its alias is older than 24h. `factory/*` previews are claimed automatically by `.github/workflows/qa-host-pool.yml`, which posts the host as a `qa-host` commit status.
+- **Workflow limitation (TUL-196):** `qa-host-pool.yml` has no private channel for the share URL (every GitHub-native output is repo-readable). The workflow already strips the query string before posting the `qa-host` commit status; testers who need an openable link mint one locally with `npm run qa:host -- claim <branch>` or `list` (needs `VERCEL_TOKEN`).
+- Tests: `npm run test:qa-host` covers the pure helpers plus mocked-fetch tests of `claim`, `list` and the share-link path (`web/scripts/qa-host.test.mjs`; fetch and the clock are injected via `createQaHost`). No test touches the real Vercel API.
 - **These hosts use the PRODUCTION database.** Stay read-only: no writes, no checkout, no sign-up.
 - Deployment protection is on. Send `x-vercel-protection-bypass` with the value of `VERCEL_AUTOMATION_BYPASS_SECRET` (never log or commit it).
 
