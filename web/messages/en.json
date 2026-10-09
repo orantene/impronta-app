@@ -6847,7 +6847,12 @@
       "starterDoorBody": "Start from a ready-made set — a home page, a not-found page and a directory — then edit anything you like.",
       "starterDoorCta": "Start from a starter",
       "starterDoorPending": "Building your pages…",
-      "starterDoorFailed": "We could not build your pages just now. Nothing was changed."
+      "starterDoorFailed": "We could not build your pages just now. Nothing was changed.",
+      "starterPrepareFailedTitle": "We couldn't prepare your site",
+      "starterPrepareFailedBody": "Your workspace is ready, but the starter pages did not finish. Retry to fill the site. Nothing else needs to change.",
+      "starterPrepareRetryCta": "Retry",
+      "starterPrepareRetryPending": "Preparing your site…",
+      "starterPrepareRetryFailed": "We could not prepare your site just now. Try again in a moment."
     },
     "adminCardStudio": {
       "title": "Card Design",

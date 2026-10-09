@@ -6847,7 +6847,12 @@
       "starterDoorBody": "Empieza con un conjunto listo: una página de inicio, una de página no encontrada y un directorio. Después edita lo que quieras.",
       "starterDoorCta": "Empezar con una plantilla",
       "starterDoorPending": "Creando tus páginas…",
-      "starterDoorFailed": "No pudimos crear tus páginas ahora mismo. No se cambió nada."
+      "starterDoorFailed": "No pudimos crear tus páginas ahora mismo. No se cambió nada.",
+      "starterPrepareFailedTitle": "Tu sitio no se pudo preparar",
+      "starterPrepareFailedBody": "Tu espacio de trabajo ya está listo, pero las páginas iniciales no terminaron. Reintenta para llenar el sitio. No hace falta cambiar nada más.",
+      "starterPrepareRetryCta": "Reintentar",
+      "starterPrepareRetryPending": "Preparando tu sitio…",
+      "starterPrepareRetryFailed": "No pudimos preparar tu sitio ahora mismo. Inténtalo de nuevo en un momento."
     },
     "adminCardStudio": {
       "title": "Diseño de tarjeta",
