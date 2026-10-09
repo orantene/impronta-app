@@ -1,23 +1,40 @@
 /**
  * W-14 `reviews` — live talent_reviews quote cards; hidden when empty.
+ * TUL-124 — builder canvas badges empty reviews "Not shown on your site".
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { createBuilderNode } from "./create";
+import { NOT_SHOWN_ON_SITE_EN, NOT_SHOWN_ON_SITE_ES } from "./not-shown-on-site";
 import { REVIEWS_CSS } from "./reviews-block";
 import { renderBuilderNodes, type BuilderNodeRenderDataSources } from "./render";
 import type { TalentSiteReview } from "./reviews-types";
 import type { BuilderNode } from "./types";
 
-function render(nodes: BuilderNode[], dataSources: BuilderNodeRenderDataSources = {}): string {
+function render(
+  nodes: BuilderNode[],
+  dataSources: BuilderNodeRenderDataSources = {},
+  editorPreview = false,
+  locale = "en",
+): string {
   return renderToStaticMarkup(
     renderBuilderNodes(nodes, {
       mode: "freeform",
       includeRendererStyles: false,
       includeFontLinks: false,
       dataSources,
+      ...(editorPreview
+        ? {
+            contentLocale: {
+              locale,
+              defaultLocale: "en",
+              chain: [locale, "en"],
+              editorPreview: true,
+            },
+          }
+        : {}),
     }) as Parameters<typeof renderToStaticMarkup>[0],
   );
 }
@@ -47,6 +64,7 @@ test("reviews hides entirely when there are no quotes", () => {
   assert.match(html, /data-reviews-empty="1"/);
   assert.match(html, /hidden/);
   assert.doesNotMatch(html, /data-review-id=/);
+  assert.doesNotMatch(html, new RegExp(NOT_SHOWN_ON_SITE_EN));
 });
 
 test("reviews hides reviews with empty bodies (never invents quotes)", () => {
@@ -55,6 +73,21 @@ test("reviews hides reviews with empty bodies (never invents quotes)", () => {
   });
   assert.match(html, /data-reviews-empty="1"/);
   assert.doesNotMatch(html, /data-review-id=/);
+});
+
+test("TUL-124: empty reviews on the builder canvas show Not shown on your site", () => {
+  const html = render([reviewsNode()], {}, true);
+  assert.match(html, /data-not-shown-on-site-host/);
+  assert.match(html, /data-not-shown-on-site=/);
+  assert.match(html, new RegExp(NOT_SHOWN_ON_SITE_EN));
+  assert.doesNotMatch(html, /\shidden(\s|>)/);
+  assert.doesNotMatch(html, /data-review-id=/);
+});
+
+test("TUL-124: empty reviews badge is Spanish when the canvas locale is es", () => {
+  const html = render([reviewsNode()], {}, true, "es");
+  assert.match(html, new RegExp(NOT_SHOWN_ON_SITE_ES));
+  assert.doesNotMatch(html, new RegExp(NOT_SHOWN_ON_SITE_EN));
 });
 
 test("reviews row layout emits shared carousel rail + quote cards", () => {

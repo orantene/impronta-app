@@ -30,7 +30,7 @@ test("mobile editing keeps its body always visible (the toggle is tablet-only)",
 });
 
 test("the Show/Hide toggle labels go through the editor i18n (es: Mostrar / Ocultar)", () => {
-  assert.match(src, /const \{ t \} = useEditorLocale\(\);\n\s*const ctx = |const ctx = useMaybeEditContext\(\);\n\s*const \{ t \} = useEditorLocale\(\);/);
+  assert.match(src, /const \{ t \} = useEditorLocale\(\);\n\s*const ctx = |const ctx = useMaybeEditContext\(\);\n(?:\s*\/\/.*\n)*\s*const \{ t \} = useEditorLocale\(\);/);
   assert.match(src, /\{tabletBodyOpen \? t\("Hide"\) : t\("Show"\)\}/);
   assert.doesNotMatch(src, /\{tabletBodyOpen \? "Hide" : "Show"\}/);
   // One definition per key across the ES catalogs (es-parity); "Show" lives in the inspectors file.
@@ -53,7 +53,7 @@ test("the HUD header copy (title, subtitle, exit button, aria/title) goes throug
   ]) {
     assert.ok(src.includes(`t("${key}")`), `${key} must be rendered through t()`);
     const catalog = esCatalogs();
-    assert.ok(catalog.includes(`"${key}": "`) || new RegExp(`\\b${key}: "`).test(catalog), `${key} needs a Spanish row`);
+    assert.ok(catalog.includes(`"${key}":`) || new RegExp(`\\b${key}: "`).test(catalog), `${key} needs a Spanish row`);
   }
   assert.doesNotMatch(src, /aria-label=\{tabletHud \? "Tablet editing"/);
   assert.doesNotMatch(src, /\{tabletHud \? "Tablet editing" : "Mobile editing"\}/);

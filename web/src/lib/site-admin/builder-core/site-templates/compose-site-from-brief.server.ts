@@ -56,6 +56,7 @@ import { LOOKS } from "./looks";
 import { loadLookBySlug } from "./site-looks.server";
 import { resolveTenantBusinessType } from "./tenant-business-type";
 import { themePatchFromPalette } from "./theme-from-palette";
+import { siteWriteLocale } from "./site-write-locale";
 import { SITE_PAGE_ROLES, type Bilingual, type Look, type SiteIdentity, type SiteLocale, type SitePageRole } from "./types";
 import { writeFreeformSiteShell } from "./write-site-shell.server";
 
@@ -395,8 +396,9 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   // The site is written in the tenant's own default locale: a home written in
   // a locale the storefront never requests is a home nobody sees.
   const tenantLocale = identityRow?.default_locale ?? agency.supported_locales?.[0] ?? null;
-  const locale: SiteLocale = input.locale ?? (tenantLocale === "en" ? "en" : "es");
-  if (!input.locale) notes.push(`locale ${locale} (tenant default ${tenantLocale ?? "unset"})`);
+  // TUL-506: the tenant's default wins over the caller's UI language (see site-write-locale.ts).
+  const locale: SiteLocale = siteWriteLocale({ tenantDefault: tenantLocale, explicit: input.locale });
+  notes.push(`locale ${locale} (tenant default ${tenantLocale ?? "unset"}${input.locale && input.locale !== locale ? `, requested ${input.locale} ignored` : ""})`);
   const brief = await loadBriefForTenant({ tenantId: input.tenantId, briefId: input.briefId ?? null });
   if (!brief) notes.push("no brief stamped on this tenant; identity and settings only");
   const facts = brief;

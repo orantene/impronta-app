@@ -61,14 +61,34 @@ export const ES_PUBLISH_TEXT: Record<string, string> = {
     "Completa tu identidad de marca para publicar: sube un logo o usa el nombre de tu negocio como logo.",
   "Upload my logo": "Subir mi logo",
   "Use my business name as my logo": "Usar el nombre de mi negocio como logo",
-  // Tablet editing HUD toggle (TUL-79 #12); "Show" and "Hide" live in editor-i18n-es-inspectors.ts.
-  "Tablet editing": "Edición de tableta",
-  "Mobile-first editing": "Edición móvil primero",
-  "Mobile editing": "Edición móvil",
-  "Hide and reorder apply to tablet": "Ocultar y reordenar aplican a la tableta",
-  "Style edits scope to mobile": "Los cambios de estilo aplican a móvil",
-  "Exit to desktop editing": "Salir a la edición de escritorio",
-  "Exit tablet editing, back to desktop": "Salir de la edición de tableta y volver a escritorio",
-  "Exit mobile editing, back to desktop": "Salir de la edición móvil y volver a escritorio",
-  // "Exit" lives in editor-i18n-es.ts.
+  // ── TUL-326 publish-disabled / hard-block reasons ─────────────────────────
+  "Publishing. Please wait.": "Publicando. Espera un momento.",
+  "This page changed in another tab or session. Resolve the conflict banner first: Reload latest or Keep editing this copy.":
+    "Esta página cambió en otra pestaña o sesión. Resuelve primero el aviso de conflicto: Recargar lo más reciente o Seguir editando esta copia.",
+  "Saving draft. Try again in a moment.":
+    "Guardando el borrador. Inténtalo de nuevo en un momento.",
+  "Unsaved changes. Autosave is catching up; try again in a moment.":
+    "Hay cambios sin guardar. El autoguardado se está poniendo al día; inténtalo de nuevo en un momento.",
+  "Fix {count} mobile overflow issue to publish.":
+    "Corrige {count} problema de desbordamiento en móvil para publicar.",
+  "Fix {count} mobile overflow issues to publish.":
+    "Corrige {count} problemas de desbordamiento en móvil para publicar.",
+  "Fix {count} blocking publish check above before publishing.":
+    "Corrige {count} verificación de publicación bloqueante arriba antes de publicar.",
+  "Fix {count} blocking publish checks above before publishing.":
+    "Corrige {count} verificaciones de publicación bloqueantes arriba antes de publicar.",
+  "{count} section missing from the latest published version. Reload composition to recover.":
+    "Falta {count} sección de la última versión publicada. Recarga la composición para recuperarla.",
+  "{count} sections missing from the latest published version. Reload composition to recover.":
+    "Faltan {count} secciones de la última versión publicada. Recarga la composición para recuperarlas.",
+  "Page version unavailable. Reload and try again.":
+    "La versión de la página no está disponible. Recarga e inténtalo de nuevo.",
+  "This page changed in another tab or session. Use the conflict banner to reload latest or keep editing this copy, then publish.":
+    "Esta página cambió en otra pestaña o sesión. Usa el aviso de conflicto para recargar lo más reciente o seguir editando esta copia, y luego publica.",
+  "{count} block overflows the mobile viewport horizontally. A page that scrolls sideways on phones cannot be published. Use \"Show on canvas\" above to fix each one, then publish.":
+    "{count} bloque se desborda horizontalmente en la vista móvil. Una página que se desplaza de lado en teléfonos no se puede publicar. Usa \"Mostrar en el lienzo\" arriba para corregir cada uno, y luego publica.",
+  "{count} blocks overflow the mobile viewport horizontally. A page that scrolls sideways on phones cannot be published. Use \"Show on canvas\" above to fix each one, then publish.":
+    "{count} bloques se desbordan horizontalmente en la vista móvil. Una página que se desplaza de lado en teléfonos no se puede publicar. Usa \"Mostrar en el lienzo\" arriba para corregir cada uno, y luego publica.",
+  "Page version is unavailable. Reload and try again.":
+    "La versión de la página no está disponible. Recarga e inténtalo de nuevo.",
 };

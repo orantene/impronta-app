@@ -43,7 +43,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { buildTalentBuilderCanvasData } from "@/lib/talent-site/server/talent-builder-canvas.server";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
-import { resolveMyWebsiteTarget, workspaceSiteBuilderHref } from "@/lib/talent-site/my-website-target";
+import { editSiteNeedsPersonalProbe, resolveEditSiteRedirect } from "@/lib/talent-site/my-website-target";
 import { loadOwnedBusinessWorkspace } from "@/lib/talent-site/server/workspace-site-context";
 import { resolveWorkspaceSiteEditorUrl } from "@/lib/talent-site/workspace-site-editor-url";
 import { siteScaffoldComplete } from "@/lib/talent-site/server/site-scaffold-complete";
@@ -154,14 +154,44 @@ export default async function TalentPageBuilderRoute({
     redirect("/login?next=/talent/page-builder");
   }
 
-  const profile = await loadTalentSelfProfileByUser(session.user.id);
-  if (!profile) {
-    redirect("/talent/today");
-  }
-
   const sp = (await searchParams) ?? {};
   const shellMode = sp.shell === "1" || sp.shell === "true";
   const requestedPage = typeof sp.page === "string" ? sp.page : null;
+  const explicitPersonal =
+    sp.site === "personal" || shellMode || requestedPage !== null || typeof sp.panel === "string" || typeof sp.app === "string";
+
+  // TUL-77 / TUL-373: for the owner of a business workspace the workspace site
+  // IS the website. Decide that FIRST, in parallel with the profile read and
+  // before the locale-seed hop and the talent locale loads, so a business owner
+  // is redirected in one server pass (no skeleton while unrelated work runs,
+  // no extra seed round trip). A failed or unknown lookup yields `null` and
+  // falls through to the editor below.
+  const probe = createServiceRoleClient();
+  const [profile, owned] = await Promise.all([
+    loadTalentSelfProfileByUser(session.user.id),
+    probe ? loadOwnedBusinessWorkspace(probe, session.user.id) : Promise.resolve(null),
+  ]);
+  if (!profile) {
+    redirect("/talent/today");
+  }
+  if (probe && owned) {
+    let hasPersonalSite = false;
+    if (editSiteNeedsPersonalProbe({ ...owned, explicitPersonal })) {
+      const personalRes = await probe.from("talent_sites").select("id").eq("talent_profile_id", profile.id).maybeSingle();
+      if (personalRes.error) logServerError("talentPageBuilder/personalProbe", personalRes.error);
+      hasPersonalSite = !!personalRes.data;
+    }
+    const workspaceHref = resolveEditSiteRedirect({ ...owned, hasPersonalSite, explicitPersonal });
+    if (workspaceHref) {
+      // TUL-347: open the LIVE storefront editor (`?edit=1`) when it resolves,
+      // never the English `/admin/website` shell; that overview is the fallback.
+      const editorUrl =
+        owned.tenantId && owned.workspaceSlug
+          ? await resolveWorkspaceSiteEditorUrl(probe, { tenantId: owned.tenantId, slug: owned.workspaceSlug })
+          : null;
+      redirect(editorUrl ?? workspaceHref);
+    }
+  }
 
   // F93 - the independent server loads run as ONE parallel batch instead of a
   // 6-deep serial chain (locale, site probe, agency tenant, talent
@@ -188,36 +218,6 @@ export default async function TalentPageBuilderRoute({
     for (const [k, v] of Object.entries(sp)) if (typeof v === "string") qs.set(k, v);
     const query = qs.toString();
     redirect(talentLocaleSeedHref(`/talent/page-builder${query ? `?${query}` : ""}`));
-  }
-
-  // TUL-77 + TUL-347: for the owner of a business workspace the workspace site
-  // IS the website. Open the LIVE storefront editor (`?edit=1`), never the
-  // English `/admin/website` shell (that left Grokbot on about:blank / wrong host).
-  const probe = createServiceRoleClient();
-  if (probe) {
-    const [owned, personalRes] = await Promise.all([
-      loadOwnedBusinessWorkspace(probe, session.user.id),
-      probe.from("talent_sites").select("id").eq("talent_profile_id", profile.id).maybeSingle(),
-    ]);
-    if (personalRes.error) logServerError("talentPageBuilder/personalProbe", personalRes.error);
-    const target = resolveMyWebsiteTarget({
-      ownsBusinessWorkspace: owned.ownsBusinessWorkspace,
-      hasWorkspaceSite: owned.hasWorkspaceSite,
-      workspaceSlug: owned.workspaceSlug,
-      hasPersonalSite: !!personalRes.data,
-      explicitPersonal:
-        sp.site === "personal" || shellMode || requestedPage !== null || typeof sp.panel === "string" || typeof sp.app === "string",
-    });
-    if (target.kind === "workspace" && owned.tenantId) {
-      const editorUrl = await resolveWorkspaceSiteEditorUrl(probe, {
-        tenantId: owned.tenantId,
-        slug: target.slug,
-      });
-      redirect(editorUrl ?? workspaceSiteBuilderHref(target.slug));
-    }
-    if (target.kind === "workspace") {
-      redirect(workspaceSiteBuilderHref(target.slug));
-    }
   }
 
   const [locale, talentLocale, tenantId, siteExists] = await Promise.all([
