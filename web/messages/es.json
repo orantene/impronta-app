@@ -16293,6 +16293,7 @@
           "hold_ended": "La reserva de este horario ya termino.",
           "basket_changed": "La canasta cambio despues de iniciar el pago.",
           "not_allowed": "No puedes hacer eso desde aqui.",
+          "awaiting_approval": "El talento aún tiene que aprobar esta oferta. Podrás aceptarla en cuanto lo haga.",
           "not_her_sale": "Ese pago es de la agencia. No puedes solicitarlo desde aqui.",
           "expired": "Este enlace u oferta ya vencio.",
           "already": "Eso ya esta hecho.",

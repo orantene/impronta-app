@@ -18,7 +18,8 @@
  * returns. Stripe then emits `charge.refunded`, and the existing, well-tested
  * webhook path (`handleBookingRefund`) does all the bookkeeping: marks the
  * transaction, records the linked refund row, and reverses the talent /
- * workspace legs talent-protectively.
+ * workspace legs talent-protectively. A later `refund.failed` is handled by
+ * the webhook `refund_settlement` path (TUL-391: metadata + workspace bells).
  *
  * Doing it that way means there is exactly ONE code path that writes a refund
  * into our books, and it is driven by what Stripe actually did rather than by

@@ -222,6 +222,41 @@ const OFFER_SENT_TALENT: CatalogEntry = {
   },
 };
 
+/**
+ * offer.sent → workspace coordinator + admins (TUL-391). Approvals are seeded
+ * pending at send; this in-app bell is the "offer pending approval" Attention
+ * signal. Talents already get `offer.sent.talent`; clients get the email.
+ * No engine bell on offer.sent, so this entry owns in_app with no double-notify.
+ *
+ * Solo owner-talent (coordinator AND priced talent): both bells land. The
+ * dispatcher dedupe key includes catalog entry id, so the talent rate bell and
+ * this workspace approval bell do not collapse onto each other (TUL-380 area).
+ */
+const OFFER_PENDING_APPROVAL_WORKSPACE: CatalogEntry = {
+  id: "offer.pending_approval.workspace",
+  category: "offers",
+  defaultChannels: ["in_app"],
+  required: false,
+  triggers: ["offer.sent"],
+  hydrate: loadInquiryView,
+  resolveAudience: coordinatorAndAdmins,
+  in_app: {
+    kind: "approval",
+    surface: "workspace",
+    title: () => "Offer pending approval",
+    body: (event) => {
+      const contact = str(event.payload.contactName);
+      const total = str(event.payload.offerTotal);
+      if (contact && total) return `${contact}: ${total}. Waiting on approvals.`;
+      if (contact) return `${contact}: offer sent. Waiting on approvals.`;
+      return "An offer was sent and is waiting on approvals.";
+    },
+    targetDrawer: "inquiry-workspace",
+    targetPayload: (event) =>
+      event.inquiryId ? { inquiryId: event.inquiryId } : {},
+  },
+};
+
 /** booking.confirmed (emitted at payment) → client confirmation. */
 const BOOKING_CONFIRMED_CLIENT: CatalogEntry = {
   id: "booking.confirmed.client",
@@ -579,13 +614,14 @@ const MESSAGE_NEW: CatalogEntry = {
   },
 };
 
-/** The 15 inquiry-engine entries, in catalog order. */
+/** The inquiry-engine entries, in catalog order. */
 export const INQUIRY_CATALOG_ENTRIES: CatalogEntry[] = [
   INQUIRY_SUBMITTED_CLIENT,
   INQUIRY_SUBMITTED_COORDINATOR,
   INQUIRY_SUBMITTED_TALENT,
   OFFER_SENT_CLIENT,
   OFFER_SENT_TALENT,
+  OFFER_PENDING_APPROVAL_WORKSPACE,
   BOOKING_CONFIRMED_CLIENT,
   BOOKING_CONFIRMED_TALENT,
   ROSTER_TALENT_INVITED,
