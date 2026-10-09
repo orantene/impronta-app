@@ -610,6 +610,8 @@ export async function createPurchase(
       subtotalCents: priced.subtotalCents,
       currency: orderCurrency,
       contact: input.contact,
+      // TUL-62: same actor the inquiry gets — Cancel/Reschedule need it on the booking.
+      clientUserId: input.actorUserId ?? null,
       policyVersionId: input.policyVersionId ?? null,
     });
     if (!anchor.ok) {

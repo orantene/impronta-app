@@ -72,3 +72,49 @@ test("two visits with different talents read in different zones in the list", ()
   const data = readFileSync(join(process.cwd(), "src/lib/client-account/area-data.server.ts"), "utf8");
   assert.match(data, /loadVisitZones\(tenantId, rows\.map/);
 });
+
+test("TUL-62: list when uses starts_at (not date-only UTC midnight) in the talent zone", () => {
+  const zone = visitZone("America/Mexico_City", "UTC");
+  // Date-only → UTC midnight → previous evening in Mexico City (the Live QA bug).
+  const dateOnly = formatZonedWhen("2026-10-20", zone, "es");
+  assert.ok(dateOnly);
+  assert.match(dateOnly.time, /6:00|18:00/);
+  // Full timestamptz (what detail uses / what loadMeData now maps into eventDate).
+  const startsAt = formatZonedWhen("2026-10-20T16:00:00.000Z", zone, "es");
+  assert.ok(startsAt);
+  assert.match(startsAt.time, /10:00/);
+  assert.match(startsAt.date, /20/);
+  assert.notEqual(dateOnly.date, startsAt.date);
+});
+
+test("TUL-62: Cancel/Reschedule show when canManage; list uses MeItem title/status/when", () => {
+  const view = readFileSync(join(process.cwd(), "src/components/client-account/ClientAccountArea.tsx"), "utf8");
+  assert.match(view, /v\.canManage && v\.bookingId/);
+  assert.match(view, /VisitActions/);
+  assert.match(view, /cancelVisit/);
+  assert.match(view, /reschedule/);
+  assert.match(view, /v\.title \|\| a\("service"\)/);
+  assert.match(view, /statusLabel\(v\.status\)/);
+  const data = readFileSync(join(process.cwd(), "src/lib/client-account/area-data.server.ts"), "utf8");
+  assert.match(data, /b\.client_user_id === userId/);
+  const loadMe = readFileSync(join(process.cwd(), "src/lib/me/load-me.ts"), "utf8");
+  assert.match(loadMe, /meVisitListFields/);
+  assert.match(loadMe, /starts_at/);
+});
+
+test("TUL-62: en+es status and manage copy stay paired", () => {
+  const en = JSON.parse(readFileSync(join(process.cwd(), "messages/en.json"), "utf8"));
+  const es = JSON.parse(readFileSync(join(process.cwd(), "messages/es.json"), "utf8"));
+  const a = en.public.clientAccountArea;
+  const b = es.public.clientAccountArea;
+  assert.equal(a.statusConfirmed, "Confirmed");
+  assert.equal(b.statusConfirmed, "Confirmada");
+  assert.equal(a.statusPending, "Pending");
+  assert.equal(b.statusPending, "Pendiente");
+  assert.equal(a.cancelVisit, "Cancel visit");
+  assert.equal(b.cancelVisit, "Cancelar visita");
+  assert.equal(a.reschedule, "Change time");
+  assert.equal(b.reschedule, "Cambiar horario");
+  assert.equal(a.service, "Service");
+  assert.equal(b.service, "Servicio");
+});

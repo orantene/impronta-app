@@ -61,6 +61,7 @@ export async function loadLiveBookingSurface(
         bookingMode: o.bookingMode === "instant" ? "instant" : "request",
       })),
       signedIn: chrome.signedIn,
+      client: chrome.client,
       captcha: chrome.captcha,
     };
   } catch (error) {

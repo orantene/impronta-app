@@ -57,6 +57,21 @@ test("guest instant confirm surfaces render GuestCaptchaField", () => {
   );
 });
 
+test("TUL-62: signed-in booking form prefill wires chrome.client into InquiryDrawer", () => {
+  const chrome = readFileSync(join(SRC, "lib/scheduling/guest-instant-chrome.ts"), "utf8");
+  const composer = readFileSync(join(SRC, "components/public-booking/BookableComposer.tsx"), "utf8");
+  const slotChrome = readFileSync(
+    join(SRC, "app/t/[profileCode]/_shared/ProfileSlotPickerChrome.tsx"),
+    "utf8",
+  );
+  assert.match(chrome, /client:\s*GuestInstantClient\s*\|\s*null/);
+  assert.match(chrome, /client_profiles/);
+  assert.match(composer, /client\?:/);
+  assert.match(composer, /trust_level:\s*"verified"/);
+  assert.doesNotMatch(composer, /client=\{null\}/);
+  assert.match(slotChrome, /client=\{chrome\.client\}/);
+});
+
 /** TUL-452: studio Live booking band must not inherit English cookie / light-on-white. */
 test("studio Live booking passes page locale and isolates ink + overflow", () => {
   const band = readFileSync(join(SRC, "lib/site-admin/builder-node/live-booking-bands.tsx"), "utf8");

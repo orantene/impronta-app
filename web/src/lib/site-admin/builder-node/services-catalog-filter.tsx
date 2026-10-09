@@ -147,6 +147,7 @@ export function ServicesCatalogFilter({
   onlineCollectReady,
   matrix = false,
   liveStatus = null,
+  signedIn = false,
 }: {
   groups: CatalogGroup[];
   locale: string;
@@ -188,6 +189,8 @@ export function ServicesCatalogFilter({
   /** layout "matrix": one comparison table (wide) / stacked cards (narrow). */
   matrix?: boolean;
   liveStatus?: LiveStatusRenderContext | null;
+  /** TUL-62: signed-in catalog purchase skips empty guest contact fields. */
+  signedIn?: boolean;
 }) {
   const named = groups.filter((g) => g.name);
   const first = named[0]?.name ?? null;
@@ -573,6 +576,7 @@ export function ServicesCatalogFilter({
         captcha={captcha}
         mode={bookingMode}
         onlineCollectReady={onlineCollectReady}
+        signedIn={signedIn}
       />
     </div>
   );
