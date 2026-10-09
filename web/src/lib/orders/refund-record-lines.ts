@@ -115,18 +115,109 @@ export async function recordRefundOnOrderLines(
       message: `[order-lines-refund] txn=${row.id} order=${row.order_id} refunds=${input.refundIds.join(",")} allocation=${allocation.map((a) => `${a.lineId}:${a.amountCents}`).join(",")}`,
     });
     for (const a of allocation) {
-      const current = lines.find((l) => l.id === a.lineId)?.refundedCents ?? 0;
-      const { error } = await admin.from("order_lines").update({ refunded_cents: current + a.amountCents }).eq("id", a.lineId);
-      if (error) {
+      const ok = await bumpLineRefunded(admin, a.lineId, a.amountCents, lines.find((l) => l.id === a.lineId));
+      if (!ok) {
         logServerError(
           "orders.recordRefundLines/LINE_NOT_STAMPED_AFTER_REFUND",
-          `${a.amountCents} cents refunded on line ${a.lineId} (refund ${input.refundIds.join(",")}), but refunded_cents could not be updated: ${error.message}. Needs a human.`,
+          `${a.amountCents} cents refunded on line ${a.lineId} (refund ${input.refundIds.join(",")}), but refunded_cents could not be updated. Needs a human.`,
         );
       }
     }
+    // (c) crash-window safety net: after every record, check the whole order adds up.
+    await reconcileOrderLineRefunds(admin, row.order_id);
     return { recorded: true, allocation };
   } catch (err) {
     logServerError("orders.recordRefundLines", err);
     return { recorded: false, reason: "unavailable" };
+  }
+}
+
+/**
+ * Add `amountCents` to one line's `refunded_cents` as an optimistic compare-and-swap on the value read.
+ * Two refunds on DIFFERENT parent transactions of one order both touch the same line; the per-parent
+ * marker cannot order them, so the line write itself must (a plain read-then-write loses one).
+ */
+export async function bumpLineRefunded(
+  admin: Admin,
+  lineId: string,
+  amountCents: number,
+  firstRead?: { totalCents: number; refundedCents: number },
+): Promise<boolean> {
+  let seen = firstRead ?? null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (!seen) {
+      const { data, error } = await admin.from("order_lines").select("total_cents, refunded_cents").eq("id", lineId).maybeSingle();
+      if (error || !data) return false;
+      const r = data as { total_cents: number; refunded_cents: number | null };
+      seen = { totalCents: Number(r.total_cents), refundedCents: Number(r.refunded_cents ?? 0) };
+    }
+    const { data: won, error } = await admin
+      .from("order_lines")
+      .update({ refunded_cents: seen.refundedCents + amountCents })
+      .eq("id", lineId)
+      .eq("refunded_cents", seen.refundedCents)
+      .select("id");
+    if (error) return false;
+    if (Array.isArray(won) && won.length > 0) return true;
+    seen = null; // someone else moved it: re-read and try again
+  }
+  return false;
+}
+
+export type OrderLineReconcile =
+  | { ok: true; expectedCents: number; actualCents: number; mismatch: boolean }
+  | { ok: false };
+
+/** What the lines should read after these refunds: the refunded money, capped by what the lines can return. */
+export function expectedLineRefundCents(lineTotalsCents: readonly number[], refundedSiblingCents: number): number {
+  return Math.min(Math.max(0, refundedSiblingCents), lineTotalsCents.reduce((n, t) => n + Math.max(0, t), 0));
+}
+
+/**
+ * Crash-window safety net: sum(order_lines.refunded_cents) vs the refunded sibling transactions of the
+ * order, capped by the line totals. A mismatch is logged and stamped on the newest refund row
+ * (`metadata.order_lines_mismatch`; `needs_attention` is set only when that row has none yet).
+ * Read-mostly and idempotent; it never moves money or edits lines.
+ */
+export async function reconcileOrderLineRefunds(admin: Admin, orderId: string): Promise<OrderLineReconcile> {
+  try {
+    const { data: lines, error: lErr } = await admin.from("order_lines").select("total_cents, refunded_cents").eq("order_id", orderId);
+    const { data: refunds, error: rErr } = await admin
+      .from("booking_transactions")
+      .select("id, gross_amount_cents, metadata, created_at")
+      .eq("order_id", orderId)
+      .eq("status", "refunded")
+      .not("refund_of_transaction_id", "is", null)
+      .order("created_at", { ascending: false });
+    if (lErr || rErr) {
+      logServerError("orders.reconcileLineRefunds/read", lErr ?? rErr);
+      return { ok: false };
+    }
+    const ls = (lines ?? []) as Array<{ total_cents: number; refunded_cents: number | null }>;
+    const rs = (refunds ?? []) as Array<{ id: string; gross_amount_cents: number; metadata?: unknown }>;
+    const expectedCents = expectedLineRefundCents(ls.map((l) => Number(l.total_cents)), rs.reduce((n, r) => n + Number(r.gross_amount_cents ?? 0), 0));
+    const actualCents = ls.reduce((n, l) => n + Number(l.refunded_cents ?? 0), 0);
+    const mismatch = expectedCents !== actualCents;
+    if (mismatch && rs[0]) {
+      logServerError(
+        "orders.reconcileLineRefunds/MISMATCH",
+        `order ${orderId}: lines read ${actualCents} refunded, refunded transactions say ${expectedCents}. Needs a human.`,
+      );
+      const meta = ((rs[0].metadata ?? {}) as Record<string, unknown>);
+      await admin
+        .from("booking_transactions")
+        .update({
+          metadata: {
+            ...meta,
+            order_lines_mismatch: { expected_cents: expectedCents, actual_cents: actualCents },
+            ...(meta.needs_attention ? {} : { needs_attention: "order_lines_mismatch", needs_attention_at: new Date().toISOString() }),
+          },
+        })
+        .eq("id", rs[0].id);
+    }
+    return { ok: true, expectedCents, actualCents, mismatch };
+  } catch (err) {
+    logServerError("orders.reconcileLineRefunds", err);
+    return { ok: false };
   }
 }
