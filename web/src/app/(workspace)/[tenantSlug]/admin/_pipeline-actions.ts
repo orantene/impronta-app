@@ -82,6 +82,11 @@ import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
 import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
+import {
+  loadInquiryAttachments as loadInquiryAttachmentsImpl,
+  uploadInquiryAttachment as uploadInquiryAttachmentImpl,
+  deleteInquiryAttachment as deleteInquiryAttachmentImpl,
+} from "./_pipeline-attachment-actions";
 import type {
   PipelineActionResult,
   InquiryPaymentState,
@@ -1548,12 +1553,27 @@ export async function addInquiryLineupTalent(
 
 // ─── Files (inquiry_attachments) ──────────────────────────────────────────────
 // Load / upload / soft-delete live in `_pipeline-attachment-actions.ts` (TUL-454
-// pays back #2971's +20 size-ratchet raise). Re-export keeps import paths stable.
-export {
-  loadInquiryAttachments,
-  uploadInquiryAttachment,
-  deleteInquiryAttachment,
-} from "./_pipeline-attachment-actions";
+// pays back #2971's +20 size-ratchet raise). Async wrappers keep the public
+// surface on this "use server" module — value re-exports break SWC codegen.
+export async function loadInquiryAttachments(
+  tenantSlug: string,
+  inquiryId: string,
+): Promise<PipelineActionResult<InquiryAttachment[]>> {
+  return loadInquiryAttachmentsImpl(tenantSlug, inquiryId);
+}
+
+export async function uploadInquiryAttachment(
+  formData: FormData,
+): Promise<PipelineActionResult<{ attachmentId: string }>> {
+  return uploadInquiryAttachmentImpl(formData);
+}
+
+export async function deleteInquiryAttachment(
+  tenantSlug: string,
+  attachmentId: string,
+): Promise<PipelineActionResult> {
+  return deleteInquiryAttachmentImpl(tenantSlug, attachmentId);
+}
 
 // ─── Offer line-item editor ──────────────────────────────────────────────────
 
