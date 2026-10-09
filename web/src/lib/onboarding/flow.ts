@@ -79,6 +79,8 @@ export type ChooseCopy = {
   agencyLink: string;
   /** TUL-163: visitors who want to book someone, not sign up. */
   bookLink: string;
+  /** Shown while the book-someone link navigates to the directory (TUL-518 W5-13). */
+  bookOpening: string;
   agencyNote: string;
   createsPrefix: string;
   next: string;
@@ -99,6 +101,7 @@ export const CHOOSE_COPY: Record<FlowLocale, ChooseCopy> = {
     },
     agencyLink: "I work for an agency or studio",
     bookLink: "I am here to book someone",
+    bookOpening: "Opening the directory…",
     agencyNote: "You join an agency or studio by invitation. Ask them to send you an invite link, and you will be set up from there.",
     createsPrefix: "We'll create: ",
     next: "Continue",
@@ -117,6 +120,7 @@ export const CHOOSE_COPY: Record<FlowLocale, ChooseCopy> = {
     },
     agencyLink: "Trabajo para una agencia o estudio",
     bookLink: "Vengo a reservar con alguien",
+    bookOpening: "Abriendo el directorio…",
     agencyNote: "Te unes a una agencia o estudio por invitación. Pídeles que te envíen un enlace de invitación y desde ahí te configuramos.",
     createsPrefix: "Crearemos: ",
     next: "Continuar",

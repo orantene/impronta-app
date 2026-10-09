@@ -8,12 +8,12 @@
 
 import { withLocaleHref } from "@/i18n/pathnames";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 
 import { CHOOSE_COPY, type FlowLocale } from "@/lib/onboarding/flow";
 import type { OnboardingChoice } from "@/lib/onboarding/module-state";
 
-import { PrimaryButton } from "../ui";
+import { PrimaryButton, Spinner } from "../ui";
 
 const ORDER: OnboardingChoice[] = ["myself", "studio", "both"];
 
@@ -36,10 +36,39 @@ export function ChooseStep({
   onContinue: (choice: OnboardingChoice) => void;
 }) {
   const c = CHOOSE_COPY[locale];
+  const directoryHref = withLocaleHref("/directory", locale);
   const [selected, setSelected] = useState<OnboardingChoice | null>(initial);
   const [agencyOpen, setAgencyOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+
+  // Hard nav keeps the locale prefix. Soft nav from /start (outside the
+  // marketing shell) to /directory has sat blank for ~3s and dropped /es.
+  function goBook(event: MouseEvent<HTMLAnchorElement>) {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+    event.preventDefault();
+    if (leaving) return;
+    setLeaving(true);
+    window.location.assign(directoryHref);
+  }
+
   return (
     <div data-testid="onb-choose">
+      {leaving ? (
+        <div
+          data-testid="onb-book-leaving"
+          aria-busy="true"
+          aria-live="polite"
+          className="fixed inset-0 z-50 grid place-items-center px-6"
+          style={{ background: "var(--tl-bone)", color: "var(--tl-ink)" }}
+        >
+          <div className="flex flex-col items-center gap-3 text-center">
+            <span className="inline-flex size-10 items-center justify-center rounded-full" style={{ background: "var(--tl-stone-soft)", color: "var(--tl-forest)" }}>
+              <Spinner />
+            </span>
+            <p className="text-[0.9375rem] font-medium">{c.bookOpening}</p>
+          </div>
+        </div>
+      ) : null}
       <h1 className="tl-display font-semibold leading-[1.08] tracking-[-0.03em]" style={{ color: "var(--tl-ink)", fontSize: 32 }}>
         {c.title}
       </h1>
@@ -53,7 +82,7 @@ export function ChooseStep({
               type="button"
               role="radio"
               aria-checked={on}
-              disabled={busy}
+              disabled={busy || leaving}
               onClick={() => setSelected(choice)}
               data-testid={`onb-choice-${choice}`}
               className="flex min-h-[76px] w-full items-center gap-4 rounded-[22px] px-4 py-3 text-left transition-colors motion-reduce:transition-none disabled:opacity-60"
@@ -88,25 +117,28 @@ export function ChooseStep({
         type="button"
         onClick={() => setAgencyOpen((v) => !v)}
         aria-expanded={agencyOpen}
+        disabled={leaving}
         data-testid="onb-agency-link"
-        className="mt-5 inline-flex min-h-11 items-center text-[0.875rem] font-medium underline underline-offset-4"
+        className="mt-5 inline-flex min-h-11 items-center text-[0.875rem] font-medium underline underline-offset-4 disabled:opacity-60"
         style={{ color: "var(--tl-ink-soft)" }}
       >
         {c.agencyLink}
       </button>
       <Link
-        href={withLocaleHref("/directory", locale)}
+        href={directoryHref}
+        onClick={goBook}
+        aria-busy={leaving || undefined}
         data-testid="onb-book-link"
         className="mt-1 inline-flex min-h-11 items-center text-[0.875rem] font-medium underline underline-offset-4 sm:ml-5"
         style={{ color: "var(--tl-ink-soft)" }}
       >
-        {c.bookLink}
+        {leaving ? c.bookOpening : c.bookLink}
       </Link>
       {agencyOpen ? (
         <p className="mt-1 text-[0.875rem] leading-[1.5]" style={{ color: "var(--tl-ink-soft)" }} data-testid="onb-agency-note">{c.agencyNote}</p>
       ) : null}
       <div className="sticky bottom-0 -mx-4 mt-6 px-4 pb-1 pt-3 sm:mx-0 sm:px-0" style={{ background: "var(--tl-bone)" }}>
-        <PrimaryButton disabled={!selected || busy} onClick={() => selected && onContinue(selected)} testId="onb-choose-continue">
+        <PrimaryButton disabled={!selected || busy || leaving} onClick={() => selected && onContinue(selected)} testId="onb-choose-continue">
           {c.next}
         </PrimaryButton>
       </div>

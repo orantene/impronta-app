@@ -56,6 +56,8 @@ test("the /start choose screen offers a way out for visitors who want to book (T
   for (const locale of ["en", "es"] as const) {
     assert.ok(CHOOSE_COPY[locale].bookLink.length > 0, locale);
     assert.ok(!/—/.test(CHOOSE_COPY[locale].bookLink), `${locale}: no em dash`);
+    assert.ok(CHOOSE_COPY[locale].bookOpening.length > 0, locale);
+    assert.ok(!/—/.test(CHOOSE_COPY[locale].bookOpening), `${locale}: opening no em dash`);
   }
 });
 
