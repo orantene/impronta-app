@@ -321,10 +321,10 @@ export async function loadClientInquiryDetails(
    * TUL-255: from `pickReadClient` only (client portal page loaders). Absent =
    * the request's own RLS client, exactly as before.
    */
-  readClient?: SupabaseClient | null,
+  effectiveReadClient?: SupabaseClient | null,
 ): Promise<ClientInquiryDetails | null> {
   try {
-    const supabase = readClient ?? (await createSupabaseServerClient());
+    const supabase = effectiveReadClient ?? (await createSupabaseServerClient());
     if (!supabase) return null;
 
     // Pull the inquiry row + interpreted_query (the rich InquiryIntent
@@ -383,8 +383,10 @@ export async function loadClientInquiryDetails(
     const iq = (inq.interpreted_query ?? {}) as Iq;
 
     // Parallel fan-out for the side data.
-    const admin = createServiceRoleClient();
-    const readClient = admin ?? supabase;
+    // ONE client for every read: the verified-impersonation client when one was passed (no service-role
+    // fan-out beside it), else the existing service-role-or-RLS client.
+    const admin = effectiveReadClient ? null : createServiceRoleClient();
+    const readClient = effectiveReadClient ?? admin ?? supabase;
     const [participantsRes, offerRes, coordRes, eventsRes, attachmentsRes, pitchRes, bookingRes, txnRes] = await Promise.all([
       // Talent lineup — visible-to-client subset
       readClient

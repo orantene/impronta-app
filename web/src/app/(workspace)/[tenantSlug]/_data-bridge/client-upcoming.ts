@@ -73,13 +73,15 @@ export async function loadClientUpcoming(
    * TUL-255: from `pickReadClient` only (client portal page loaders). Absent =
    * the request's own RLS client, exactly as before.
    */
-  readClient?: SupabaseClient | null,
+  effectiveReadClient?: SupabaseClient | null,
 ): Promise<UpcomingBooking[]> {
   try {
-    const supabase = readClient ?? (await createSupabaseServerClient());
+    const supabase = effectiveReadClient ?? (await createSupabaseServerClient());
     if (!supabase) return [];
-    const admin = createServiceRoleClient();
-    const readClient = admin ?? supabase;
+    // ONE client for every read: the verified-impersonation client when one was passed (no service-role
+    // fan-out beside it), else the existing service-role-or-RLS client.
+    const admin = effectiveReadClient ? null : createServiceRoleClient();
+    const readClient = effectiveReadClient ?? admin ?? supabase;
 
     const now = new Date();
     const start = now.toISOString().slice(0, 10); // YYYY-MM-DD
