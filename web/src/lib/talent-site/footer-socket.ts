@@ -19,10 +19,48 @@ export const TULALA_LEGAL_PRIVACY_URL = "https://tulala.digital/legal/privacy";
 export const TULALA_HOME_URL = "https://tulala.digital";
 export const TULALA_LEGAL_COOKIES_URL = "https://tulala.digital/legal/cookies";
 export const TULALA_LEGAL_REFUNDS_URL = "https://tulala.digital/legal/refunds";
+export const TULALA_CONTACT_URL = "https://tulala.digital/contact";
 
 /** Legal pages keep one language per URL; a Spanish site links the /es/ copy. */
 export function localizedLegalUrl(url: string, locale: string | null | undefined): string {
   return (locale ?? "").toLowerCase().startsWith("es") ? url.replace("tulala.digital/legal/", "tulala.digital/es/legal/") : url;
+}
+
+/** Marketing contact: Spanish sites land on /es/contact. */
+export function localizedContactUrl(locale: string | null | undefined): string {
+  return (locale ?? "").toLowerCase().startsWith("es")
+    ? "https://tulala.digital/es/contact"
+    : TULALA_CONTACT_URL;
+}
+
+/**
+ * Footer Help → marketing contact, with host + talent code so the ticket can
+ * attach the talent site context (TUL-310). Help is not a paid feature.
+ */
+export function talentSiteHelpHref(input: {
+  locale: string;
+  profileCode?: string | null;
+  siteHost?: string | null;
+}): string {
+  const params = new URLSearchParams();
+  params.set("source", "talent-site");
+  const host = (input.siteHost ?? "").trim();
+  const code = (input.profileCode ?? "").trim();
+  if (host) params.set("host", host);
+  if (code) params.set("code", code);
+  return `${localizedContactUrl(input.locale)}?${params.toString()}`;
+}
+
+/** Hostname from an absolute origin (canonicalOrigin), or null when unusable. */
+export function siteHostFromOrigin(origin: string | null | undefined): string | null {
+  const raw = (origin ?? "").trim();
+  if (!raw) return null;
+  try {
+    const host = new URL(raw.includes("://") ? raw : `https://${raw}`).hostname.trim().toLowerCase();
+    return host || null;
+  } catch {
+    return null;
+  }
 }
 
 /** Talent-host policy routes (served by the policy-pages work). */
@@ -132,6 +170,11 @@ export function buildSocketModel(input: {
   talentName?: string | null;
   /** The header already has a language switch, so the strip does not repeat it. */
   headerHasLanguageSwitch?: boolean;
+  /**
+   * When set, the Tulala group opens with Help → marketing contact, carrying
+   * host + talent code for the support ticket (TUL-310). Agency storefronts omit.
+   */
+  helpContext?: { profileCode: string; siteHost?: string | null } | null;
 }): SocketModel {
   const { locale } = input;
   const prefix = input.publicPathPrefix.replace(/\/+$/, "");
@@ -162,7 +205,21 @@ export function buildSocketModel(input: {
     });
   }
 
-  const tulalaLinks: SocketLink[] = [
+  const tulalaLinks: SocketLink[] = [];
+  const help = input.helpContext;
+  if (help?.profileCode?.trim()) {
+    tulalaLinks.push({
+      key: "tulala-help",
+      label: pickLocale(locale, { en: "Help", es: "Ayuda" }),
+      href: talentSiteHelpHref({
+        locale,
+        profileCode: help.profileCode,
+        siteHost: help.siteHost,
+      }),
+      external: true,
+    });
+  }
+  tulalaLinks.push(
     {
       key: "tulala-terms",
       label: pickLocale(locale, { en: "Terms", es: "Términos" }),
@@ -187,7 +244,7 @@ export function buildSocketModel(input: {
       href: localizedLegalUrl(TULALA_LEGAL_REFUNDS_URL, locale),
       external: true,
     },
-  ];
+  );
 
   const hrefs = input.switcherHrefs;
   const languages: SocketLanguage[] =

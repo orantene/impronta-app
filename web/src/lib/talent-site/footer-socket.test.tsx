@@ -22,6 +22,9 @@ import {
   stripDesignCredits,
   TULALA_LEGAL_PRIVACY_URL,
   localizedLegalUrl,
+  localizedContactUrl,
+  talentSiteHelpHref,
+  siteHostFromOrigin,
   TULALA_LEGAL_TERMS_URL,
 } from "./footer-socket";
 
@@ -233,6 +236,45 @@ test("the Tulala group has Cookies and Refunds, pointing at the platform pages",
   assert.equal(refunds.external, true);
   assert.match(html(), /data-socket-link="tulala-refunds"/);
   assert.equal(model({ locale: "en" }).tulalaLinks.find((l) => l.key === "tulala-refunds")!.label, "Refunds");
+});
+
+test("TUL-310: Help opens marketing contact with host + talent code (all plans)", () => {
+  assert.equal(model().tulalaLinks.some((l) => l.key === "tulala-help"), false);
+  const m = model({
+    helpContext: { profileCode: "TAL-93900", siteHost: "jorg-beauty-qa.tulala.digital" },
+  });
+  assert.deepEqual(
+    m.tulalaLinks.map((l) => l.key),
+    ["tulala-help", "tulala-terms", "tulala-privacy", "tulala-cookies", "tulala-refunds"],
+  );
+  const help = m.tulalaLinks[0]!;
+  assert.equal(help.label, "Ayuda");
+  assert.equal(help.external, true);
+  assert.equal(
+    help.href,
+    "https://tulala.digital/es/contact?source=talent-site&host=jorg-beauty-qa.tulala.digital&code=TAL-93900",
+  );
+  assert.equal(
+    model({
+      locale: "en",
+      helpContext: { profileCode: "TAL-93900", siteHost: "demo.tulala.digital" },
+    }).tulalaLinks[0]!.label,
+    "Help",
+  );
+  assert.equal(localizedContactUrl("es"), "https://tulala.digital/es/contact");
+  assert.equal(localizedContactUrl("en"), "https://tulala.digital/contact");
+  assert.equal(
+    talentSiteHelpHref({ locale: "en", profileCode: "TAL-1", siteHost: "x.tulala.digital" }),
+    "https://tulala.digital/contact?source=talent-site&host=x.tulala.digital&code=TAL-1",
+  );
+  assert.equal(siteHostFromOrigin("https://jorg.tulala.digital/"), "jorg.tulala.digital");
+  assert.equal(siteHostFromOrigin(null), null);
+  assert.match(
+    html({ helpContext: { profileCode: "TAL-93900", siteHost: "jorg.tulala.digital" } }),
+    /data-socket-link="tulala-help"/,
+  );
+  // Agency storefront path (no helpContext) stays without Help.
+  assert.equal(model({ siteLinks: [] }).tulalaLinks.some((l) => l.key === "tulala-help"), false);
 });
 
 test("the credit reads 'Sitio creado con Tulala.digital' (EN 'Site made with'), linked, on the right, whitelabel-aware", () => {
