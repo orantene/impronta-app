@@ -45,31 +45,78 @@ export function shellBubbleFillsAvoidGoldRust(): boolean {
   );
 }
 
-/** Inquiries that show the inbox "awaiting you" chip (inquiry / hold). */
-const AWAITING_STATUSES = new Set([
-  "inquiry",
+/**
+ * MsgStage derived from raw DB `inquiry_status` on `TalentInquiryRow.status`.
+ * Shared with `adaptTalentInquiry` so inbox stage chips and bubble counts
+ * cannot drift. There is no DB status named `inquiry` — that is a MsgStage.
+ *
+ * Active pipeline: submitted / coordination → inquiry; offer_pending /
+ * approved → hold. TalentJobShell badges inquiry|hold as "awaiting you" /
+ * "esperando tu respuesta".
+ */
+export type TalentInquiryMsgStage =
+  | "inquiry"
+  | "hold"
+  | "booked"
+  | "cancelled";
+
+/** Real `inquiry_status` values that map to awaiting-you (inquiry|hold). */
+export const TALENT_AWAITING_YOU_STATUSES: ReadonlySet<string> = new Set([
+  "submitted",
+  "coordination",
   "offer_pending",
   "approved",
 ]);
 
+export function talentInquiryMsgStageFromStatus(
+  status: string,
+): TalentInquiryMsgStage {
+  if (status === "booked" || status === "converted") return "booked";
+  if (
+    status === "rejected" ||
+    status === "expired" ||
+    status === "cancelled" ||
+    status === "closed" ||
+    status === "closed_lost" ||
+    status === "archived"
+  ) {
+    return "cancelled";
+  }
+  if (status === "approved" || status === "offer_pending") return "hold";
+  // submitted, coordination, and other non-terminal → inquiry stage
+  return "inquiry";
+}
+
+/** Same stage check TalentJobShell uses for the "awaiting you" chip. */
+export function isTalentAwaitingYouStage(stage: string): boolean {
+  return stage === "inquiry" || stage === "hold";
+}
+
+/**
+ * True when a bridge `TalentInquiryRow` should count toward the attention
+ * bubble / match inbox "esperando tu respuesta". Uses real DB statuses
+ * (not MsgStage names); equivalent to stage inquiry|hold for the active
+ * pipeline set above.
+ */
+export function isTalentInquiryAwaitingYou(row: {
+  status: string;
+}): boolean {
+  if (!TALENT_AWAITING_YOU_STATUSES.has(row.status)) return false;
+  return isTalentAwaitingYouStage(talentInquiryMsgStageFromStatus(row.status));
+}
+
 /**
  * Pure: how many talent inquiries still need the talent's response.
  * Used for the talent-shell Attention bubble when bridge attention is 0
- * (TUL-519 / card 385).
+ * (TUL-519 / card 385). Counts via the same awaiting-you predicate as the
+ * inbox list so bubble and list cannot disagree.
  */
 export function countTalentAwaitingInquiries(
-  rows: ReadonlyArray<{
-    status: string;
-    myApprovalStatus?: string | null;
-  }>,
+  rows: ReadonlyArray<{ status: string }>,
 ): number {
   let n = 0;
   for (const row of rows) {
-    if (!AWAITING_STATUSES.has(row.status)) continue;
-    if (row.myApprovalStatus === "accepted" || row.myApprovalStatus === "declined") {
-      continue;
-    }
-    n += 1;
+    if (isTalentInquiryAwaitingYou(row)) n += 1;
   }
   return n;
 }

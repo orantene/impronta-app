@@ -4,15 +4,42 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import type { TalentInquiryRow } from "./data-bridge";
 import {
   countTalentAwaitingInquiries,
   formatShellBubbleCount,
+  isTalentInquiryAwaitingYou,
   shellBubbleFillsAvoidGoldRust,
   SHELL_BUBBLE_FILL_CLASS,
+  talentInquiryMsgStageFromStatus,
+  TALENT_AWAITING_YOU_STATUSES,
   visibleShellCountBubbles,
 } from "./shell-count-bubbles-logic";
 
 const DIR = dirname(fileURLToPath(import.meta.url));
+
+/** Bridge-shaped fixture — fields mirror `TalentInquiryRow` from the data bridge. */
+function bridgeInquiry(
+  overrides: Partial<TalentInquiryRow> & Pick<TalentInquiryRow, "status" | "id">,
+): TalentInquiryRow {
+  return {
+    contact_name: "QA Client",
+    company: null,
+    message: null,
+    event_date: null,
+    event_location: null,
+    created_at: "2026-10-01T12:00:00.000Z",
+    updated_at: "2026-10-08T12:00:00.000Z",
+    participantStatus: "invited",
+    unreadCount: 0,
+    trustLevel: null,
+    sourceChannel: null,
+    myApprovalStatus: null,
+    iAmCoordinator: false,
+    clientIdentity: null,
+    ...overrides,
+  };
+}
 
 describe("formatShellBubbleCount", () => {
   it("hides zero and negatives", () => {
@@ -76,17 +103,43 @@ describe("shell bubble fills", () => {
 });
 
 describe("countTalentAwaitingInquiries (TUL-519 card 385)", () => {
-  it("counts inquiry / offer_pending / approved that still need a response", () => {
+  it("counts real inquiry_status values that map to awaiting-you", () => {
+    const rows: TalentInquiryRow[] = [
+      bridgeInquiry({ id: "a", status: "submitted" }),
+      bridgeInquiry({ id: "b", status: "coordination" }),
+      bridgeInquiry({ id: "c", status: "offer_pending", myApprovalStatus: "pending" }),
+      bridgeInquiry({ id: "d", status: "approved" }),
+      bridgeInquiry({ id: "e", status: "booked" }),
+      bridgeInquiry({ id: "f", status: "rejected" }),
+      bridgeInquiry({ id: "g", status: "expired" }),
+    ];
+    assert.equal(countTalentAwaitingInquiries(rows), 4);
+  });
+
+  it("does not treat MsgStage name inquiry as a DB status", () => {
     assert.equal(
       countTalentAwaitingInquiries([
-        { status: "inquiry", myApprovalStatus: null },
-        { status: "offer_pending", myApprovalStatus: "pending" },
-        { status: "approved", myApprovalStatus: undefined },
-        { status: "booked", myApprovalStatus: null },
-        { status: "inquiry", myApprovalStatus: "accepted" },
-        { status: "offer_pending", myApprovalStatus: "declined" },
+        bridgeInquiry({ id: "fake", status: "inquiry" }),
       ]),
-      3,
+      0,
+    );
+    assert.equal(isTalentInquiryAwaitingYou({ status: "inquiry" }), false);
+  });
+
+  it("maps DB statuses the same way as the conversation adapter", () => {
+    assert.equal(talentInquiryMsgStageFromStatus("submitted"), "inquiry");
+    assert.equal(talentInquiryMsgStageFromStatus("coordination"), "inquiry");
+    assert.equal(talentInquiryMsgStageFromStatus("offer_pending"), "hold");
+    assert.equal(talentInquiryMsgStageFromStatus("approved"), "hold");
+    assert.equal(talentInquiryMsgStageFromStatus("booked"), "booked");
+    assert.equal(talentInquiryMsgStageFromStatus("converted"), "booked");
+    assert.equal(talentInquiryMsgStageFromStatus("rejected"), "cancelled");
+  });
+
+  it("awaiting-you set is exactly the active pipeline statuses", () => {
+    assert.deepEqual(
+      [...TALENT_AWAITING_YOU_STATUSES].sort(),
+      ["approved", "coordination", "offer_pending", "submitted"],
     );
   });
 
@@ -110,6 +163,16 @@ describe("ShellCountBubbles mount (static)", () => {
     const src = readFileSync(join(DIR, "shell-count-bubbles.tsx"), "utf8");
     assert.match(src, /countTalentAwaitingInquiries/);
     assert.match(src, /effectiveTalentInquiries/);
+  });
+
+  it("adapter + TalentJobShell share the awaiting predicate", () => {
+    const adapter = readFileSync(
+      join(DIR, "talent/shared/conversation-adapter-1.tsx"),
+      "utf8",
+    );
+    const jobShell = readFileSync(join(DIR, "messages/TalentJobShell.tsx"), "utf8");
+    assert.match(adapter, /talentInquiryMsgStageFromStatus/);
+    assert.match(jobShell, /isTalentAwaitingYouStage/);
   });
 
   it("dead TopBarNotificationBell file is gone", () => {
