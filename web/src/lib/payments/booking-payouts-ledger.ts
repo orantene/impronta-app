@@ -12,6 +12,7 @@
  * double-pay a leg that already went out.
  */
 
+import { attemptLegTransfer } from "./payout-transfer-retry";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getStripeFor } from "@/lib/stripe/client";
 import { decideReleasePlatform, loadChargePlatformForBooking } from "@/lib/stripe/charge-platform";
@@ -202,6 +203,7 @@ type HeldRow = {
   currency: string;
   attempts: number;
   payout_rail: string | null;
+  last_error?: string | null;
 };
 
 export type ReleaseOutcome = {
@@ -261,7 +263,7 @@ export async function releaseHeldPayouts(
     // `status` = ACCOUNT, `release_after` = DATE. See payout-release-gate.ts.
     let query = sb
       .from("booking_payouts")
-      .select("id, booking_id, participant_id, party, talent_profile_id, tenant_id, amount_cents, currency, attempts, payout_rail, release_after")
+      .select("id, booking_id, participant_id, party, talent_profile_id, tenant_id, amount_cents, currency, attempts, payout_rail, release_after, last_error")
       .in("status", ["held", "failed"])
       .or(`release_after.is.null,release_after.lte.${new Date().toISOString()}`);
     for (const [col, val] of scope.eq) query = query.eq(col, val);
@@ -311,41 +313,41 @@ export async function releaseHeldPayouts(
         continue;
       }
 
-      try {
-        const transfer = await stripe.transfers.create(
-          {
-            amount: row.amount_cents,
-            currency: row.currency,
-            destination: accountId,
-            transfer_group: `booking_${row.booking_id}`,
-            metadata: { booking_id: row.booking_id, participant_id: row.participant_id, party: row.party, released: "1" },
-          },
-          { idempotencyKey: payoutIdempotencyKey(row.booking_id, row.participant_id, row.party) },
-        );
-        await sb
-          .from("booking_payouts")
-          .update({
-            status: "transferred",
-            stripe_transfer_id: transfer.id,
-            destination_account_id: accountId,
-            transferred_at: new Date().toISOString(),
-            attempts: (row.attempts ?? 0) + 1,
-            last_error: null,
-          })
-          .eq("id", row.id);
-        outcomes.push({ legId: row.id, party: row.party, amountCents: row.amount_cents, result: "released", transferId: transfer.id });
-        // A released talent leg may complete the booking's talent payout →
-        // flip it to 'paid' so the talent dashboard reflects the late payout.
-        if (row.party === "talent") await syncBookingPayoutLifecycle(sb, row.booking_id);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "transfer failed";
-        await sb
-          .from("booking_payouts")
-          .update({ status: "failed", attempts: (row.attempts ?? 0) + 1, last_error: msg })
-          .eq("id", row.id);
-        logServerError(`booking-payouts.release[leg=${row.id}]`, err);
-        outcomes.push({ legId: row.id, party: row.party, amountCents: row.amount_cents, result: "failed", detail: msg });
+      const attemptRes = await attemptLegTransfer(stripe, {
+        bookingId: row.booking_id,
+        participantId: row.participant_id,
+        party: row.party,
+        baseKey: payoutIdempotencyKey(row.booking_id, row.participant_id, row.party),
+        amountCents: row.amount_cents,
+        currency: row.currency,
+        destination: accountId,
+        lastError: row.last_error,
+        metadata: { released: "1" },
+      });
+      if (attemptRes.kind === "unverified") {
+        outcomes.push({ legId: row.id, party: row.party, amountCents: row.amount_cents, result: "still_held", detail: "could not verify earlier transfers; not retried" });
+        continue;
       }
+      if (attemptRes.kind === "failed") {
+        await sb.from("booking_payouts").update({ status: "failed", attempts: (row.attempts ?? 0) + 1, last_error: attemptRes.note }).eq("id", row.id);
+        logServerError(`booking-payouts.release[leg=${row.id}]`, new Error(attemptRes.message));
+        outcomes.push({ legId: row.id, party: row.party, amountCents: row.amount_cents, result: "failed", detail: attemptRes.message });
+        continue;
+      }
+      await sb
+        .from("booking_payouts")
+        .update({
+          status: "transferred",
+          stripe_transfer_id: attemptRes.transferId,
+          destination_account_id: accountId,
+          transferred_at: new Date().toISOString(),
+          attempts: (row.attempts ?? 0) + 1,
+          last_error: null,
+        })
+        .eq("id", row.id);
+      outcomes.push({ legId: row.id, party: row.party, amountCents: row.amount_cents, result: "released", transferId: attemptRes.transferId });
+      // A released talent leg may complete the booking's talent payout → flip it to 'paid'.
+      if (row.party === "talent") await syncBookingPayoutLifecycle(sb, row.booking_id);
     }
   } catch (err) {
     logServerError("booking-payouts.release", err);

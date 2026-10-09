@@ -7,12 +7,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { failureNote } from "./payout-transfer-retry";
 import type { TransferOutcome } from "./transfers";
 
 export const CONNECT_LANE_ATTENTION_MARKER = "needs_attention:connect_lane:";
 
-export function legLastError(o: Pick<TransferOutcome, "status" | "detail" | "chargePlatform">): string | null {
-  if (o.status === "failed") return o.detail ?? "transfer failed";
+export function legLastError(o: Pick<TransferOutcome, "status" | "detail" | "chargePlatform" | "deterministic">): string | null {
+  // A deterministic refusal tells the release path to use a NEW key next time (payout-transfer-retry.ts).
+  if (o.status === "failed") return o.deterministic ? failureNote(o.detail ?? "transfer failed", 0, true) : (o.detail ?? "transfer failed");
   if (o.status === "skipped_cross_platform") {
     // The marker lets the workspace admin say exactly which lane's payout account to connect.
     const marker = o.chargePlatform ? ` [${CONNECT_LANE_ATTENTION_MARKER}${o.chargePlatform}]` : "";
