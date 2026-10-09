@@ -35,7 +35,7 @@
 
 import type { TokenSpec } from "./registry";
 import { TOKEN_REGISTRY, tokenDefaults } from "./registry";
-import { contrastRatio, foregroundForFill, foregroundForPrimary, readableAccentText } from "./contrast-pair";
+import { contrastRatio, foregroundForFill, foregroundForPrimary, readableAccentText, ensureContrastOnAll } from "./contrast-pair";
 import { STYLE_TOKEN_DATA_ATTRS, STYLE_TOKEN_VAR_NAMES } from "./style-tokens";
 
 /** Minimal row shape accepted by `resolveDesignTokens`. */
@@ -195,8 +195,19 @@ export function designTokensToCssVars(
   if (accentText && page && page !== ground && (contrastRatio(accentText, page) ?? 5) < 4.5) {
     accentText = readableAccentText(accentSource, page) ?? accentText;
   }
+  // The soft accent fill (`color.blush`) carries accent text too (service buttons, tags):
+  // the text must clear AA on it as well, darkened/lightened along its own hue (TUL-377).
+  const soft = tokens["color.blush"];
+  if (accentText && soft) accentText = ensureContrastOnAll(accentText, [soft, ground, page ?? ""]) ?? accentText;
   if (accentText) out["--token-color-accent-text"] = accentText;
   else delete out["--token-color-accent-text"];
+
+  // DERIVED: muted text that is guaranteed AA on the page and raised surface (disclaimers, notes).
+  const muted = tokens["color.muted"];
+  if (muted) {
+    const m = ensureContrastOnAll(muted, [ground, page ?? ""]);
+    if (m) out["--token-color-muted-text"] = m;
+  }
 
   // DERIVED: the readable foreground for an ACCENT FILL (a primary button painted with the
   // accent). `primary-on` is measured against the PRIMARY, so a design whose buttons fill with
