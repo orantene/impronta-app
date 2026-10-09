@@ -1779,6 +1779,8 @@
       "checkAgain": "Check again",
       "paidTitle": "Payment received",
       "paidTo": "Paid to {seller}",
+      "addToCalendar": "Add to calendar",
+      "googleCalendar": "Add to Google Calendar",
       "redirecting": "Taking you back to your conversation in {n} s",
       "cancelledReturnTitle": "You were not charged",
       "cancelledReturnBody": "You cancelled in time. Your slot stays kept while this link is valid.",

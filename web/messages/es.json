@@ -1779,6 +1779,8 @@
       "checkAgain": "Revisar de nuevo",
       "paidTitle": "Pago recibido",
       "paidTo": "Pagado a {seller}",
+      "addToCalendar": "Agregar al calendario",
+      "googleCalendar": "Agregar a Google Calendar",
       "redirecting": "Volviendo a tu conversación en {n} s",
       "cancelledReturnTitle": "No se hizo ningún cargo",
       "cancelledReturnBody": "Cancelaste el pago a tiempo. Tu horario sigue guardado mientras este enlace sea válido.",
