@@ -237,6 +237,8 @@ function TalentSidebar() {
             }
             // isHybrid is per-tenant: on the hub a dual owner has no membership here, so go to the
             // workspace they own directly (the admin rail's switch does the mirror with /talent/today).
+            // admin-href-allow: cross-tenant switch — target is another workspace
+            // (bridgeOwnedWorkspaceSlug), so the slug is required. adminBasePath here is the hub.
             window.location.assign(`/${bridgeOwnedWorkspaceSlug}/admin`);
           }}
         />
