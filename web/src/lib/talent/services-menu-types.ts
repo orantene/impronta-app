@@ -72,6 +72,19 @@ export const SERVICE_PRICING_SUFFIX: Record<ServicePricingType, string> = {
   custom: "",
 };
 
+/** Spanish short suffix for the public price line (TUL-494: no English "/ session" on ES). */
+export const SERVICE_PRICING_SUFFIX_ES: Record<ServicePricingType, string> = {
+  hour: "/ hora",
+  day: "/ día",
+  week: "/ semana",
+  half_day: "/ medio día",
+  event: "/ evento",
+  per_person: "/ persona",
+  per_contact: "/ sesión",
+  flat_package: "",
+  custom: "",
+};
+
 /**
  * i18n catalog-key siblings for the two label maps above (additive, non-breaking).
  * Localized consumers that hold a `useT()` render `t(SERVICE_PRICING_LABEL_KEYS[type])`
