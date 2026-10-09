@@ -6,11 +6,14 @@
  *   - Money: green circle
  *   - Approvals / attention: amber/ink circle
  * Max 3 bubbles; hide when count is 0; 99+ cap. No gold/rust accents.
+ *
+ * Styling: Tailwind + CSS custom properties only
+ * (`ratchet/no-new-inline-style` freezes plain style={{…}} under admin/shell).
  */
 
 import type { CSSProperties, ReactNode } from "react";
 
-import { COLORS, FONTS } from "./state";
+import { COLORS } from "./state";
 
 export type NotificationBubbleKind = "messages" | "money" | "attention";
 
@@ -57,34 +60,18 @@ export function NotificationCountBubble({
 }): ReactNode {
   const label = formatBubbleCount(count);
   if (!label) return null;
-  const style: CSSProperties = {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    minWidth: size,
-    height: size,
-    padding: "0 4px",
-    boxSizing: "border-box",
-    borderRadius: 999,
-    border: "2px solid #fff",
-    background: BUBBLE_FILL[kind],
-    color: "#fff",
-    fontSize: size <= 16 ? 9 : 10,
-    fontWeight: 700,
-    lineHeight: 1,
-    fontVariantNumeric: "tabular-nums",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontFamily: FONTS.body,
-    boxShadow: "0 1px 2px rgba(11,11,13,0.18)",
-    pointerEvents: "none",
-  };
+  // Dynamic channel: CSS custom properties only (ratchet allows `--*` keys).
+  const vars = {
+    "--notif-bubble-bg": BUBBLE_FILL[kind],
+    "--notif-bubble-size": `${size}px`,
+    "--notif-bubble-fs": size <= 16 ? "9px" : "10px",
+  } as CSSProperties;
   return (
     <span
       data-notif-bubble={kind}
       aria-hidden="true"
-      style={style}
+      style={vars}
+      className="pointer-events-none absolute -top-1 -right-1 inline-flex h-[var(--notif-bubble-size)] min-w-[var(--notif-bubble-size)] items-center justify-center rounded-full border-2 border-white bg-[var(--notif-bubble-bg)] px-1 box-border text-[length:var(--notif-bubble-fs)] font-bold leading-none text-white tabular-nums shadow-[0_1px_2px_rgba(11,11,13,0.18)] font-[Inter,system-ui,sans-serif]"
     >
       {label}
     </span>
