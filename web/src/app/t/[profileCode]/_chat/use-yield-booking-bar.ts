@@ -69,6 +69,11 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
         bookingUp = true;
         lift = Math.max(lift, Math.max(GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX, chromeLiftFor(mnBar)));
       }
+      // TUL-516 F2: lift above the cookie card if CSS hide has not applied yet.
+      const consent = document.querySelector<HTMLElement>("[data-consent-banner]");
+      if (visibleFixedChrome(consent)) {
+        lift = Math.max(lift, chromeLiftFor(consent));
+      }
 
       setYieldBookingBar(bookingUp);
       setChromeLiftPx(lift);
@@ -79,7 +84,16 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
       subtree: true,
       childList: true,
       attributes: true,
-      attributeFilter: ["data-show", "data-top", "data-has-selection", "data-locale-suggestion", "class", "style", "hidden"],
+      attributeFilter: [
+        "data-show",
+        "data-top",
+        "data-has-selection",
+        "data-locale-suggestion",
+        "data-consent-banner",
+        "class",
+        "style",
+        "hidden",
+      ],
     });
     window.addEventListener("resize", measure);
     return () => {
