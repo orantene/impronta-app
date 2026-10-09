@@ -32,7 +32,7 @@ export const UTILITY_BAR_CSS = `
 .sb-ub-pill[data-on="true"] i{background:var(--token-color-accent,var(--token-color-primary));animation:sbUbPulse 1.8s infinite}
 @keyframes sbUbPulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--token-color-accent,var(--token-color-primary)) 55%,transparent)}70%,100%{box-shadow:0 0 0 7px transparent}}
 @media (prefers-reduced-motion:reduce){.sb-ub-pill i{animation:none!important}}
-/* TUL-496: phone header keeps Book a visit (was desktop-only). */
+/* TUL-496: phone header keeps the visit CTA (was desktop-only). */
 .sb-ub-cta{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 12px;border-radius:6px;background:var(--token-color-accent,var(--token-color-primary));color:var(--token-color-on-accent,var(--token-color-ink));font-weight:700;font-size:13px;text-decoration:none;white-space:nowrap;flex:0 0 auto}
 .sb-ub-tel{flex:0 0 auto;width:44px;height:44px;border-radius:99px;border:1.5px solid color-mix(in srgb,var(--token-color-background) 28%,transparent);color:var(--token-color-background);display:grid;place-items:center;text-decoration:none;box-sizing:border-box}
 .sb-ub-tel svg{width:18px;height:18px}
