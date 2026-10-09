@@ -85,6 +85,15 @@ export const SERVICE_PRICING_SUFFIX_ES: Record<ServicePricingType, string> = {
   custom: "",
 };
 
+/** Public/dashboard price unit suffix for `locale` (TUL-516: no English "/ session" on ES). */
+export function servicePricingSuffix(
+  type: ServicePricingType,
+  locale: string | null | undefined,
+): string {
+  const es = (locale ?? "").trim().toLowerCase().startsWith("es");
+  return (es ? SERVICE_PRICING_SUFFIX_ES : SERVICE_PRICING_SUFFIX)[type];
+}
+
 /**
  * i18n catalog-key siblings for the two label maps above (additive, non-breaking).
  * Localized consumers that hold a `useT()` render `t(SERVICE_PRICING_LABEL_KEYS[type])`

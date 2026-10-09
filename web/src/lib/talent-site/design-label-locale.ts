@@ -80,6 +80,10 @@ const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "What clients say": "Lo que dicen mis clientes",
   Reviews: "Reseñas",
   Ask: "Pregunta",
+  // TUL-516 C: latin-dancer taxonomy is gender-neutral "Baile latino" (mig 358000).
+  // Applied trees may still bake the old masculine ES label or English EN seed.
+  "Bailarín Latino": "Baile latino",
+  "Latin Dancer": "Baile latino",
   // Maison v2 (the Rosé proposal copy).
   "Recent {i}work{/i}": "Trabajo {i}reciente{/i}",
   "Menu and prices": "Menú y precios",
@@ -343,6 +347,14 @@ function localiseHeaderProps(
         : items;
     }
     if (changed) (next ??= { ...sp }).regions = out;
+  }
+  // Header lockup under the name: trade tagline (TUL-516 Bailarín Latino → Baile latino).
+  if (sp.brand && typeof sp.brand === "object") {
+    const brand = sp.brand as Record<string, unknown>;
+    if (typeof brand.tagline === "string") {
+      const out = one(brand.tagline);
+      if (out !== null) (next ??= { ...sp }).brand = { ...brand, tagline: out };
+    }
   }
   return next;
 }

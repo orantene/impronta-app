@@ -18,9 +18,8 @@ import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { IDENTITY_REASONS, isIdentityReason, type IdentityReason } from "@/lib/orders/identity-requirement";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import {
-  SERVICE_PRICING_SUFFIX,
-  SERVICE_PRICING_SUFFIX_ES,
   SERVICE_PRICING_TYPES,
+  servicePricingSuffix,
   type ServicePricingType,
 } from "@/lib/talent/services-menu-types";
 import { resolveCategoryLabel } from "./category-label-fallback";
@@ -539,13 +538,13 @@ export function offeringPriceLabel(
   o: Pick<TalentOffering, "priceType" | "priceDisplay" | "amountCents" | "currency" | "visibility">,
   locale: string,
 ): string {
-  const es = locale === "es";
+  const es = (locale ?? "").trim().toLowerCase().startsWith("es");
   if (o.visibility === "on_request") return es ? "Bajo consulta" : "On request";
   if (o.priceDisplay === "quote" || o.priceType === "custom" || o.amountCents == null) {
     return es ? "Cotización a pedido" : "Quote on request";
   }
   const price = formatOfferingPrice(o.amountCents, o.currency, locale);
-  const suffix = (es ? SERVICE_PRICING_SUFFIX_ES : SERVICE_PRICING_SUFFIX)[o.priceType];
+  const suffix = servicePricingSuffix(o.priceType, locale);
   const core = suffix ? `${price} ${suffix}` : price;
   return o.priceDisplay === "from" ? (es ? `desde ${core}` : `from ${core}`) : core;
 }
