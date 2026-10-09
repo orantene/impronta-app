@@ -99,15 +99,21 @@ export function LiveServicesBand({
  * modules, so it is imported lazily and only when a marked band renders. A
  * static import would put it in every consumer of the renderer (the perf
  * budget script, golden renders) for a band they never draw.
+ *
+ * TUL-452: isolate ink + overflow. Themed CMS pages often set light ink and
+ * overflow:hidden on ancestors; slot buttons/fields then vanish on white, and
+ * Turnstile's challenge expand is clipped (Confirm dead-ends with no widget).
  */
 export async function LiveBookingBand({
   nodeId,
   surface,
   tenantId,
+  locale,
 }: {
   nodeId: string;
   surface: LiveBookingSurface;
   tenantId: string;
+  locale?: string;
 }) {
   const { BookPageClient } = await import("@/app/(public)/book/BookPageClient");
   return (
@@ -115,7 +121,18 @@ export async function LiveBookingBand({
       data-builder-node-id={nodeId}
       data-builder-node-kind="container"
       data-live-booking=""
-      style={{ width: "100%", maxWidth: 640, margin: "0 auto", padding: "32px 16px" }}
+      style={{
+        width: "100%",
+        maxWidth: 640,
+        margin: "0 auto",
+        padding: "32px 16px",
+        overflow: "visible",
+        position: "relative",
+        zIndex: 1,
+        color: "var(--token-color-ink, #0B0B0D)",
+        background: "var(--token-color-surface-raised, #ffffff)",
+        borderRadius: 12,
+      }}
     >
       <BookPageClient
         tenantSlug={surface.tenantSlug}
@@ -124,6 +141,7 @@ export async function LiveBookingBand({
         offerings={surface.offerings}
         signedIn={surface.signedIn}
         captcha={surface.captcha}
+        locale={locale}
       />
     </div>
   );

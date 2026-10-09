@@ -39,14 +39,14 @@ test("the Maison v2 ticker seeds with the services source and keeps its token wo
   assert.deepEqual(itemsOf(t), ["{{service1}}", "{{service2}}", "{{service3}}"]);
 });
 
-test("inspector: the Words group comes first, offers the two sources, and defaults to custom when unset", () => {
+test("inspector: the Words group comes first, offers the two sources, and defaults to services when unset (TUL-189)", () => {
   const first = BUILDER_2027_INSPECTOR_GROUPS.marquee[0]!;
   assert.equal(first.title, "Words");
   const field = first.fields[0]!;
   assert.equal(field.control, "select");
   if (field.control !== "select") return;
   assert.equal(field.prop, "source");
-  assert.equal(field.fallback, "custom");
+  assert.equal(field.fallback, "services");
   assert.deepEqual(field.options.map((o) => o.value), ["services", "custom"]);
   for (const text of [field.label, first.note ?? "", ...field.options.map((o) => o.label)]) {
     assert.ok(!/[–—]/.test(text), `no dashes in: ${text}`);

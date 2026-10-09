@@ -8,6 +8,7 @@
  * `server/talent-locale-swaps.server.ts`.
  */
 
+import { platformServiceTitle } from "@/lib/talent/offering-title-fallback";
 import { accentHeadline, seedHeadlineFor } from "./hero-headline";
 import { formatHeroEyebrow, formatHeroProofLine, type HeroProofInput } from "./hero-proof-line";
 
@@ -111,8 +112,12 @@ export function buildTalentLocaleSwaps(
     // Either spelling may be what got baked into a ticker or card: the English
     // map entry, or the plain column (the primary language's title, which can
     // differ from `title_i18n.en`). Both swap to the same visitor-language title.
-    // A language the service has no title in simply keeps the baked text.
-    const target = pick(o.titleI18n, key, chain);
+    // When the talent stored English only, a few platform-known names still
+    // swap (TUL-189); otherwise the baked text stays.
+    const stored = pick(o.titleI18n, key, chain);
+    const en = (o.titleI18n?.en ?? o.title ?? "").trim();
+    const platform = key !== "en" ? platformServiceTitle(en || o.title, key) : null;
+    const target = stored && stored !== en ? stored : platform || stored;
     for (const baked of new Set([o.titleI18n?.en, o.title])) {
       const from = baked?.trim();
       if (from && target) add(from, target);

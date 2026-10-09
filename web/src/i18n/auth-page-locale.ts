@@ -9,9 +9,9 @@
  *
  * The rule, in order:
  *   1. A DELIBERATE cookie (present, not auto-written) always wins.
- *   2. Otherwise a Spanish signal (an `es-*` browser language or a Mexico
- *      country code, the same inputs the `/start` flow uses via
- *      `defaultFlowLocale`) picks Spanish, when Spanish is enabled here.
+ *   2. Otherwise the browser decides: an explicit `en-*` / `es-*` language wins;
+ *      a Mexico country code picks Spanish only when the browser names no
+ *      language we serve (same rule as `/start`, via `defaultFlowLocale`).
  *   3. Otherwise the auto cookie, then the ambient default, as before.
  *
  * Pure: no `next/*` imports, so the proxy and unit tests share it.
@@ -33,6 +33,11 @@ export type AuthPageLocaleInput = {
   enabledLocales: readonly string[];
 };
 
+function hasExplicitBrowserLanguage(acceptLanguage: string | null | undefined, code: string): boolean {
+  const first = (acceptLanguage ?? "").split(",")[0]?.trim().toLowerCase() ?? "";
+  return first === code || first.startsWith(`${code}-`);
+}
+
 export function resolveAuthPageLocale(input: AuthPageLocaleInput): string {
   if (input.cookieLocale && !input.cookieIsAuto) return input.cookieLocale;
   const detected = defaultFlowLocale({
@@ -40,6 +45,9 @@ export function resolveAuthPageLocale(input: AuthPageLocaleInput): string {
     acceptLanguage: input.acceptLanguage,
     country: input.country,
   });
+  // An explicit browser language (en-US in Mexico is English) or Mexico with no
+  // browser language: same order as /start and the legacy doors (TUL-492).
   if (detected === "es" && input.enabledLocales.includes("es")) return "es";
+  if (detected === "en" && hasExplicitBrowserLanguage(input.acceptLanguage, "en") && input.enabledLocales.includes("en")) return "en";
   return input.cookieLocale ?? input.fallback;
 }

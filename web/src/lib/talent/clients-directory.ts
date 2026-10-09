@@ -124,6 +124,17 @@ export function countClientsByFilter(
   };
 }
 
+/** TUL-359 / DS-49: hide "New" filter chip at 0; "Due for a refill" only when refill applies. */
+export function showClientsFilterChip(
+  id: ClientsFilter,
+  counts: Record<ClientsFilter, number>,
+  showRefill: boolean,
+): boolean {
+  if (id === "follow") return showRefill;
+  if (id === "fresh") return counts.fresh > 0;
+  return true;
+}
+
 export function filterClientsDirectory(opts: {
   items: TalentClientRow[];
   filter: ClientsFilter;

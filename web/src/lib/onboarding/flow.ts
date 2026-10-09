@@ -43,13 +43,18 @@ export type FlowLocale = "en" | "es";
 
 /**
  * Spanish by default for Mexico: an `es-*` (or `es`) browser language, or a
- * Mexico country code. An explicit saved choice (cookie / module state) wins.
+ * Mexico country code when the browser names no language we serve. An explicit
+ * saved choice (cookie / module state) wins, then an explicit en/es browser.
  */
 export function defaultFlowLocale(input: { saved?: string | null; acceptLanguage?: string | null; country?: string | null }): FlowLocale {
   if (input.saved === "es" || input.saved === "en") return input.saved;
-  if ((input.country ?? "").toUpperCase() === "MX") return "es";
+  // TUL-492: an EXPLICIT browser language wins over the IP country (an en-US
+  // browser in Mexico gets English); Mexico only decides when the browser says
+  // nothing we serve. This is the one resolver for /start and the auth pages.
   const first = (input.acceptLanguage ?? "").split(",")[0]?.trim().toLowerCase() ?? "";
   if (first === "es" || first.startsWith("es-")) return "es";
+  if (first === "en" || first.startsWith("en-")) return "en";
+  if ((input.country ?? "").toUpperCase() === "MX") return "es";
   return "en";
 }
 

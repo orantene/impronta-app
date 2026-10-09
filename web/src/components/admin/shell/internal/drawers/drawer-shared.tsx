@@ -1198,14 +1198,48 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
     }
     markSaving(node.id, true);
     const before = node.is_enabled;
-    patchNode(node.id, { is_enabled: !before });
-    const res = await setTaxonomyEnabled({
+    const next = !before;
+    patchNode(node.id, { is_enabled: next });
+    let res = await setTaxonomyEnabled({
       taxonomy_term_id: node.id,
-      is_enabled: !before,
+      is_enabled: next,
     });
+    // TUL-443: switching off with roster holders requires an explicit hide
+    // confirm (clears this tenant's assignments). Cancel leaves the type on.
+    if (!res.ok && !next && res.needsClearHolders) {
+      const count = res.holderCount ?? 0;
+      const confirmed = confirm(
+        interpolate(
+          t(
+            count === 1
+              ? "dashboard.adminDrawers.taxonomyDisableHoldersConfirmOne"
+              : "dashboard.adminDrawers.taxonomyDisableHoldersConfirmOther",
+          ),
+          { count, name: taxonomyDisplayName(node, isSpanish) },
+        ),
+      );
+      if (confirmed) {
+        res = await setTaxonomyEnabled({
+          taxonomy_term_id: node.id,
+          is_enabled: false,
+          clear_holders: true,
+        });
+      }
+    }
     if (!res.ok) {
       patchNode(node.id, { is_enabled: before });
       toast(res.error);
+    } else if (!next && res.clearedHolders && res.clearedHolders > 0) {
+      toast(
+        interpolate(
+          t(
+            res.clearedHolders === 1
+              ? "dashboard.adminDrawers.taxonomyDisableHoldersClearedOne"
+              : "dashboard.adminDrawers.taxonomyDisableHoldersClearedOther",
+          ),
+          { count: res.clearedHolders },
+        ),
+      );
     }
     markSaveDone(node.id, res.ok);
   };

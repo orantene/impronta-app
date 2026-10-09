@@ -22,6 +22,7 @@ import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { forgetUserTenantMemberships } from "@/lib/saas/tenant";
+import { recordStarterPrepareFailed } from "@/lib/onboarding/starter-prepare.server";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   normalizeWorkspaceSlugCandidate,
@@ -41,6 +42,7 @@ import {
   isPlatformSubdomainLabelTaken,
   requestSubdomainNamespaceCopy,
 } from "@/lib/saas/platform-subdomain-namespace.server";
+import { copyMyselfOfferingsAndHoursToWorkspace } from "@/lib/onboarding/myself-both-workspace-copy.server";
 
 export type ProvisionFreeWorkspaceResult =
   | { ok: true; slug: string }
@@ -264,22 +266,33 @@ export async function provisionFreeWorkspaceFromTalent(params: {
     logServerError("talent-workspace-provision.upsertIdentity (non-fatal)", identityError);
   }
 
-  // Starter content is best-effort: a throw here (not just `ok: false`) must not
-  // skip the roster step or strand a half-built workspace, so it is contained.
+  // Starter content is best-effort: a throw (not just ok:false) must not skip
+  // the roster step. On failure, stamp starter_prepare so My website can offer
+  // Reintentar (TUL-441). Compose failures also stamp site_compose.
+  // TUL-455: match identity default_locale so the builder draft is not empty
+  // when the request locale is "es" (same gap as workspace-signup scaffold).
   try {
     const starter = await onboardStarterContent(admin, {
       tenantId: agency.id,
       actorProfileId: userId,
       seedFreeStarter: true,
+      ...(flowLocale && { locale: flowLocale.defaultLocale }),
     });
     if (!starter.ok) {
+      const reason = starter.error ?? "starter-content failed";
       logServerError(
         "talent-workspace-provision.onboardStarterContent (non-fatal)",
-        new Error(starter.error ?? "starter-content failed"),
+        new Error(reason),
       );
+      await recordStarterPrepareFailed(admin, agency.id, reason);
     }
   } catch (err) {
     logServerError("talent-workspace-provision.onboardStarterContent (non-fatal, threw)", err);
+    await recordStarterPrepareFailed(
+      admin,
+      agency.id,
+      err instanceof Error ? err.message : "starter-content threw",
+    );
   }
 
   const selfRoster = await ensureSelfRosterSiteVisible(admin, {
@@ -294,6 +307,18 @@ export async function provisionFreeWorkspaceFromTalent(params: {
     );
     await rollbackAgency(admin, agency.id);
     return { ok: false, error: selfRoster.error };
+  }
+
+  // TUL-453: front-door "both" writes offerings + opening_hours on the
+  // workspace tenant; open_studio used to leave them on the hub, so the
+  // public site stayed inquiry-only. Best-effort — never rolls back roster.
+  try {
+    await copyMyselfOfferingsAndHoursToWorkspace(admin, {
+      workspaceTenantId: agency.id,
+      talentProfileId,
+    });
+  } catch (err) {
+    logServerError("talent-workspace-provision.myselfBothCopy (non-fatal)", err);
   }
 
   return { ok: true, slug: agency.slug };
