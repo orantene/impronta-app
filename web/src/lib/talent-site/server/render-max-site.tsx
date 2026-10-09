@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { loadHistoryPreviewSnapshot } from "../history/history.server";
 import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/talent-update.server";
 import { early } from "@/lib/server/early";
-import { failOnReadTimeout } from "@/lib/supabase/bounded-fetch";
+import { failOnReadTimeout } from "@/lib/supabase/bounded-fetch-scope";
 import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill, withHeaderSiteChrome } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
