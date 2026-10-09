@@ -64,3 +64,54 @@ describe("groupIdFor", () => {
     assert.notEqual(groupIdFor("booking_payment:txn-1"), groupIdFor("booking_payment:TXN-1"));
   });
 });
+
+// ── The double-post guard (ledger_group_claims, PM decision 2026-10-09) ──────────────────────────────
+import { CLAIM_STALE_MS, decideClaim } from "./write";
+import { readFileSync } from "node:fs";
+
+describe("decideClaim", () => {
+  const now = Date.parse("2026-10-09T12:00:00Z");
+  const iso = (msAgo: number) => new Date(now - msAgo).toISOString();
+
+  test("winning the insert proceeds", () => {
+    assert.equal(decideClaim({ inserted: true, existing: null, nowMs: now }), "proceed");
+  });
+  test("a completed claim means the group is already posted: skip", () => {
+    assert.equal(decideClaim({ inserted: false, existing: { completed_at: iso(5000), claimed_at: iso(9000) }, nowMs: now }), "skip_done");
+  });
+  test("a fresh unfinished claim is another run mid-write: skip, never double post", () => {
+    assert.equal(decideClaim({ inserted: false, existing: { completed_at: null, claimed_at: iso(30_000) }, nowMs: now }), "skip_in_progress");
+  });
+  test("a stale unfinished claim (the run died) may be taken over", () => {
+    assert.equal(decideClaim({ inserted: false, existing: { completed_at: null, claimed_at: iso(CLAIM_STALE_MS + 1000) }, nowMs: now }), "takeover");
+  });
+  test("a claim that vanished while we read it is treated as in progress, not as free", () => {
+    assert.equal(decideClaim({ inserted: false, existing: null, nowMs: now }), "skip_in_progress");
+  });
+});
+
+describe("the claim migration is additive and wired", () => {
+  const mig = readFileSync(new URL("../../../../supabase/migrations/20261231355000_ledger_group_claims.sql", import.meta.url), "utf8");
+  const writer = readFileSync(new URL("./write.ts", import.meta.url), "utf8");
+
+  test("one new table keyed by the group id; nothing existing is altered or dropped", () => {
+    assert.match(mig, /CREATE TABLE IF NOT EXISTS public\.ledger_group_claims[\s\S]{0,80}group_id\s+UUID PRIMARY KEY/);
+    assert.doesNotMatch(mig, /\bDROP\b|ALTER TABLE public\.ledger_entries|ALTER TABLE public\.ledger_accounts|UPDATE public\.ledger_entries|DELETE FROM public\.ledger_entries/i);
+  });
+  test("service-role only", () => {
+    assert.match(mig, /ENABLE ROW LEVEL SECURITY/);
+    assert.match(mig, /REVOKE ALL ON public\.ledger_group_claims FROM PUBLIC, anon, authenticated/);
+    assert.match(mig, /GRANT SELECT, INSERT, UPDATE, DELETE ON public\.ledger_group_claims TO service_role/);
+  });
+  test("existing groups are back-filled as complete", () => {
+    assert.match(mig, /INSERT INTO public\.ledger_group_claims[\s\S]{0,300}FROM public\.ledger_entries[\s\S]{0,60}GROUP BY group_id/);
+  });
+  test("the writer claims before it writes, completes after, and releases on a failed insert", () => {
+    assert.ok(writer.indexOf("claimGroup(sb, groupId, groupKey)") < writer.indexOf('sb.from("ledger_entries").insert(rows)'));
+    assert.match(writer, /update\(\{ completed_at: new Date\(\)\.toISOString\(\) \}\)/);
+    assert.match(writer, /Release the claim so the next run can retry/);
+  });
+  test("a missing claim table degrades loudly instead of blocking the ledger", () => {
+    assert.match(writer, /code === "42P01" \|\| code === "PGRST205"[\s\S]{0,400}return \{ proceed: true, claimed: false \}/);
+  });
+});
