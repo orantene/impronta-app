@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { PrimaryButton, SecondaryButton } from "@/components/admin/shell/internal/primitives";
+import { InfoTip } from "@/components/ui/info-tip";
 import {
   checkTalentSiteDomainProvisioningAction,
   connectTalentSiteDomainAction,
@@ -20,19 +21,10 @@ import {
  * TalentSiteDomainPanel — SELF-CONTAINED custom-domain manager for the talent
  * Max site. Also embedded inside Domain setup drawer (`embedded`).
  *
- * Mirrors the agency domain settings UI: connect a domain, surface the DNS
- * records to add (A/CNAME + TXT), verify, check routing/SSL, set-primary, and
- * remove. All writes go through the Max + owner-gated server actions in
- * `lib/talent-site/server/talent-site-domain-actions.ts`; this component holds
- * no secrets and resolves the talent from the session server-side.
- *
- * Props:
- *   - `initialDomains` — optional SSR-hydrated rows (skip the first load).
- *   - `canManage`      — optional gate hint; when false the panel renders an
- *                        upgrade nudge instead of the editor. The server action
- *                        re-checks Max regardless, so this is UX-only.
- *   - `embedded`       — when true (drawer), drop outer card chrome / title so
- *                        Domain setup owns the hierarchy.
+ * Connect → copy-paste DNS cards with live status → one primary action per
+ * state (Verify / Check connection / Make primary). Plain language; (i) tips
+ * for jargon. D2 may later add more challenge rows to the view — this panel
+ * already maps every txt + routing record into the same card shape.
  */
 
 type Copy = { t: (s: string) => string };
@@ -42,12 +34,17 @@ type Props = {
   canManage?: boolean;
   /** Soften chrome when mounted inside Domain setup drawer. */
   embedded?: boolean;
+  /** Primary connect CTA label (drawer uses "Connect mine"). */
+  connectLabel?: string;
 };
+
+type DnsLiveStatus = "waiting" | "checking" | "done";
 
 export function TalentSiteDomainPanel({
   initialDomains,
   canManage = true,
   embedded = false,
+  connectLabel,
 }: Props) {
   const copy = useDashboardText();
   const [domains, setDomains] = useState<TalentSiteDomainView[]>(initialDomains ?? []);
@@ -148,7 +145,7 @@ export function TalentSiteDomainPanel({
               connect();
             }
           }}
-          placeholder="yourname.com"
+          placeholder={copy.t("yourname.com")}
           spellCheck={false}
           autoCapitalize="none"
           autoCorrect="off"
@@ -165,9 +162,22 @@ export function TalentSiteDomainPanel({
             borderRadius: 10,
           }}
         />
-        <PrimaryButton onClick={connect} disabled={pending}>
-          {copy.t("Connect domain")}
-        </PrimaryButton>
+        {domains.some(
+          (d) =>
+            d.status === "pending" ||
+            d.status === "dns_verification_sent" ||
+            d.status === "verified" ||
+            d.status === "ssl_provisioned" ||
+            d.canBecomePrimary,
+        ) ? (
+          <SecondaryButton onClick={connect} disabled={pending}>
+            {connectLabel ?? copy.t("Connect mine")}
+          </SecondaryButton>
+        ) : (
+          <PrimaryButton onClick={connect} disabled={pending}>
+            {connectLabel ?? copy.t("Connect mine")}
+          </PrimaryButton>
+        )}
       </div>
 
       {message ? (
@@ -186,9 +196,7 @@ export function TalentSiteDomainPanel({
           <p style={{ fontSize: 12.5, color: COLORS.inkMuted }}>{copy.t("Loading domains…")}</p>
         ) : domains.length === 0 ? (
           <p style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
-            {copy.t(
-              "No custom domain yet. Add one above to serve your site from your own address. We will show the DNS records to add.",
-            )}
+            {copy.t("No custom domain yet. Add yours above and we will show the DNS steps.")}
           </p>
         ) : (
           domains.map((d) => (
@@ -267,15 +275,41 @@ function statusMeta(
     case "pending":
       return { label: copy.t("Pending"), fg: COLORS.amberDeep, bg: COLORS.amberSoft };
     case "dns_verification_sent":
-      return { label: copy.t("Awaiting TXT"), fg: COLORS.amberDeep, bg: COLORS.amberSoft };
+      return { label: copy.t("Waiting on DNS"), fg: COLORS.amberDeep, bg: COLORS.amberSoft };
     case "verified":
       return { label: copy.t("Verified"), fg: COLORS.indigoDeep, bg: COLORS.indigoSoft };
     case "ssl_provisioned":
-      return { label: copy.t("Provisioning SSL"), fg: COLORS.indigoDeep, bg: COLORS.indigoSoft };
+      return { label: copy.t("Finishing secure link"), fg: COLORS.indigoDeep, bg: COLORS.indigoSoft };
     case "active":
       return { label: copy.t("Live"), fg: COLORS.successDeep, bg: COLORS.successSoft };
     case "error":
       return { label: copy.t("Needs attention"), fg: COLORS.criticalDeep, bg: COLORS.criticalSoft };
+  }
+}
+
+function liveStatusFor(
+  domain: TalentSiteDomainView,
+  kind: "txt" | "routing",
+): DnsLiveStatus {
+  if (kind === "txt") {
+    if (domain.status === "pending" || domain.status === "dns_verification_sent") return "waiting";
+    if (domain.status === "error") return "waiting";
+    return "done";
+  }
+  if (domain.status === "active") return "done";
+  if (domain.status === "ssl_provisioned") return "checking";
+  if (domain.status === "verified") return "waiting";
+  return "waiting";
+}
+
+function liveLabel(status: DnsLiveStatus, copy: Copy): { text: string; fg: string; bg: string } {
+  switch (status) {
+    case "done":
+      return { text: copy.t("Done"), fg: COLORS.successDeep, bg: COLORS.successSoft };
+    case "checking":
+      return { text: copy.t("Checking…"), fg: COLORS.indigoDeep, bg: COLORS.indigoSoft };
+    default:
+      return { text: copy.t("Waiting"), fg: COLORS.amberDeep, bg: COLORS.amberSoft };
   }
 }
 
@@ -301,6 +335,42 @@ function DomainRow({
     domain.status === "pending" || domain.status === "dns_verification_sent";
   const needsRouting =
     domain.status === "verified" || domain.status === "ssl_provisioned";
+
+  const dnsRows: Array<{
+    key: string;
+    type: string;
+    name: string;
+    value: string;
+    live: DnsLiveStatus;
+    tip: string;
+  }> = [];
+
+  if (needsTxt && domain.txtRecord) {
+    dnsRows.push({
+      key: "txt",
+      type: "TXT",
+      name: domain.txtRecord.host,
+      value: domain.txtRecord.value,
+      live: liveStatusFor(domain, "txt"),
+      tip: copy.t("This record proves you own the domain. Add it where you manage DNS."),
+    });
+  }
+
+  if ((needsTxt || needsRouting) && domain.routingRecords.length > 0) {
+    for (const [i, r] of domain.routingRecords.entries()) {
+      dnsRows.push({
+        key: `route-${r.type}-${i}`,
+        type: r.type,
+        name: r.host,
+        value: r.value,
+        live: liveStatusFor(domain, "routing"),
+        tip:
+          r.type === "CNAME"
+            ? copy.t("Points a subdomain (like www) to your Tulala site.")
+            : copy.t("Points your domain to the address that serves your site."),
+      });
+    }
+  }
 
   return (
     <div
@@ -355,117 +425,226 @@ function DomainRow({
             {meta.label}
           </span>
         </div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {needsTxt ? (
-            <SecondaryButton onClick={onVerify} disabled={pending}>
-              {copy.t("Verify")}
-            </SecondaryButton>
-          ) : null}
-          {needsRouting ? (
-            <SecondaryButton onClick={onCheck} disabled={pending}>
-              {copy.t("Check routing")}
-            </SecondaryButton>
-          ) : null}
-          {domain.canBecomePrimary ? (
-            <SecondaryButton onClick={onSetPrimary} disabled={pending}>
-              {copy.t("Make primary")}
-            </SecondaryButton>
-          ) : null}
-          <button
-            type="button"
-            onClick={onRemove}
-            disabled={pending}
-            style={{
-              fontSize: 12,
-              fontFamily: FONTS.body,
-              color: COLORS.criticalDeep,
-              background: "transparent",
-              border: "none",
-              cursor: pending ? "not-allowed" : "pointer",
-              padding: "7px 6px",
-            }}
-          >
-            {copy.t("Remove")}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={pending}
+          style={{
+            fontSize: 12,
+            fontFamily: FONTS.body,
+            color: COLORS.criticalDeep,
+            background: "transparent",
+            border: "none",
+            cursor: pending ? "not-allowed" : "pointer",
+            padding: "7px 6px",
+          }}
+        >
+          {copy.t("Remove")}
+        </button>
       </div>
 
       {domain.failureReason ? (
-        <p style={{ margin: "8px 0 0", fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
-          {domain.failureReason}
+        <p style={{ margin: "8px 0 0", fontSize: 11.5, color: COLORS.criticalDeep, lineHeight: 1.45 }}>
+          {copy.t(domain.failureReason)}
         </p>
       ) : null}
 
-      {needsTxt && domain.txtRecord ? (
-        <DnsBlock
-          title={copy.t("1. Add this TXT record to prove you own the domain")}
-          rows={[
-            { type: "TXT", host: domain.txtRecord.host, value: domain.txtRecord.value },
-          ]}
-        />
+      {dnsRows.length > 0 ? (
+        <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 650, color: COLORS.ink }}>
+              {copy.t("DNS steps")}
+            </span>
+            <InfoTip
+              label={copy.t("Copy each row into the DNS settings of the place where you bought the domain.")}
+              triggerLabel={copy.t("More info")}
+              className="text-admin-ink-dim hover:text-admin-ink"
+            />
+          </div>
+          {dnsRows.map((row) => (
+            <DnsCopyCard key={row.key} row={row} copy={copy} />
+          ))}
+        </div>
       ) : null}
 
-      {(needsTxt || needsRouting) && domain.routingRecords.length > 0 ? (
-        <DnsBlock
-          title={
-            needsTxt
-              ? copy.t("2. Then point the domain at Vercel")
-              : copy.t("Point the domain at Vercel")
-          }
-          rows={domain.routingRecords.map((r) => ({
-            type: r.type,
-            host: r.host,
-            value: r.value,
-          }))}
-        />
-      ) : null}
+      <div style={{ marginTop: 12, display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {needsTxt ? (
+          <PrimaryButton onClick={onVerify} disabled={pending}>
+            {copy.t("I added the records · Verify")}
+          </PrimaryButton>
+        ) : null}
+        {needsRouting ? (
+          <PrimaryButton onClick={onCheck} disabled={pending}>
+            {copy.t("Check connection")}
+          </PrimaryButton>
+        ) : null}
+        {domain.canBecomePrimary ? (
+          <PrimaryButton onClick={onSetPrimary} disabled={pending}>
+            {copy.t("Make primary")}
+          </PrimaryButton>
+        ) : null}
+        {domain.status === "active" && !domain.canBecomePrimary ? (
+          <SecondaryButton onClick={onCheck} disabled={pending}>
+            {copy.t("Recheck")}
+          </SecondaryButton>
+        ) : null}
+      </div>
     </div>
   );
 }
 
-function DnsBlock({
-  title,
-  rows,
+function DnsCopyCard({
+  row,
+  copy,
 }: {
-  title: string;
-  rows: Array<{ type: string; host: string; value: string }>;
+  row: {
+    type: string;
+    name: string;
+    value: string;
+    live: DnsLiveStatus;
+    tip: string;
+  };
+  copy: Copy;
 }) {
+  const live = liveLabel(row.live, copy);
   return (
-    <div style={{ marginTop: 10 }}>
-      <div style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 6 }}>
-        {title}
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {rows.map((r, i) => (
-          <div
-            key={`${r.type}-${r.host}-${i}`}
+    <div
+      style={{
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 10,
+        background: COLORS.surfaceAlt,
+        padding: "10px 12px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          marginBottom: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span
             style={{
-              display: "grid",
-              gridTemplateColumns: "56px 1fr",
-              gap: 8,
-              alignItems: "start",
-              fontSize: 11.5,
-              fontFamily:
-                "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-              background: COLORS.surfaceAlt,
+              fontSize: 11,
+              fontWeight: 700,
+              color: COLORS.ink,
+              background: COLORS.card,
               border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 8,
-              padding: "8px 10px",
+              borderRadius: 6,
+              padding: "2px 7px",
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
             }}
           >
-            <span style={{ fontWeight: 700, color: COLORS.ink }}>{r.type}</span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ color: COLORS.inkMuted, wordBreak: "break-all" }}>
-                <span style={{ color: COLORS.inkDim }}>host </span>
-                {r.host}
-              </div>
-              <div style={{ color: COLORS.ink, wordBreak: "break-all", marginTop: 2 }}>
-                <span style={{ color: COLORS.inkDim }}>value </span>
-                {r.value}
-              </div>
-            </div>
-          </div>
-        ))}
+            {row.type}
+          </span>
+          <InfoTip
+            label={row.tip}
+            triggerLabel={copy.t("More info")}
+            className="text-admin-ink-dim hover:text-admin-ink"
+          />
+        </div>
+        <span
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            color: live.fg,
+            background: live.bg,
+            padding: "2px 7px",
+            borderRadius: 999,
+            textTransform: "uppercase",
+            letterSpacing: 0.3,
+          }}
+        >
+          {live.text}
+        </span>
+      </div>
+      <CopyField label={copy.t("Name")} value={row.name} copy={copy} />
+      <div style={{ height: 6 }} />
+      <CopyField label={copy.t("Value")} value={row.value} copy={copy} />
+    </div>
+  );
+}
+
+function CopyField({
+  label,
+  value,
+  copy,
+}: {
+  label: string;
+  value: string;
+  copy: Copy;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  async function onCopy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 10.5,
+          fontWeight: 650,
+          color: COLORS.inkMuted,
+          marginBottom: 3,
+          textTransform: "uppercase",
+          letterSpacing: 0.3,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "stretch",
+          gap: 6,
+        }}
+      >
+        <code
+          style={{
+            flex: 1,
+            minWidth: 0,
+            fontSize: 11.5,
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            color: COLORS.ink,
+            background: COLORS.card,
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 8,
+            padding: "8px 10px",
+            wordBreak: "break-all",
+          }}
+        >
+          {value}
+        </code>
+        <button
+          type="button"
+          onClick={() => void onCopy()}
+          style={{
+            flexShrink: 0,
+            fontSize: 11.5,
+            fontWeight: 650,
+            fontFamily: FONTS.body,
+            color: COLORS.ink,
+            background: COLORS.card,
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 8,
+            padding: "0 10px",
+            cursor: "pointer",
+          }}
+        >
+          {copied ? copy.t("Copied") : copy.t("Copy")}
+        </button>
       </div>
     </div>
   );
