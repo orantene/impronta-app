@@ -486,8 +486,13 @@ async function assertAccounts(run: Run, choice: Choice, userId: string, displayN
     run.facts.place = (tpBook?.booking_terms as { place?: unknown } | null)?.place ?? null;
     expect(run.facts.place, "booking_terms.place").toBeTruthy();
   } else {
-    const { count } = await admin.from("talent_profiles").select("id", { count: "exact", head: true }).eq("user_id", userId).is("deleted_at", null);
-    expect(count, "studio creates no talent profile").toBe(0);
+    // Studio: the owner takes clients by default (PM 2026-10-09), so she is a roster provider with hours and a live profile.
+    const { data: own } = await admin.from("talent_profiles").select("id, workflow_status, visibility").eq("user_id", userId).is("deleted_at", null);
+    run.facts.studioOwnerProvider = own ?? null;
+    expect(own?.length ?? 0, "studio owner has exactly one talent profile (owner-provider)").toBe(1);
+    expect(own?.[0]?.workflow_status, "studio owner profile is live").toBe("approved");
+    const { data: ownHours } = await admin.from("talent_booking_hours").select("talent_profile_id").eq("talent_profile_id", own![0]!.id).limit(1);
+    expect((ownHours ?? []).length, "studio owner-provider booking hours").toBeGreaterThan(0);
   }
 
   if (WORKSPACE(choice)) {
@@ -559,6 +564,9 @@ async function guestBook(browserCtx: BrowserContext, run: Run, finishHref: strin
   const phone = page.getByTestId("cb-phone").or(page.getByRole("textbox", { name: /whatsapp|tel/i })).first();
   if (await phone.isVisible().catch(() => false)) await phone.fill("984 765 4321");
   await run.shot(page, "guest-details");
+  // The captcha (Cloudflare always-pass test key on the isolated stack) fills its token a few seconds after the page loads;
+  // confirming before it does creates no row.
+  await page.waitForFunction(() => (document.querySelector('input[name="cf-turnstile-response"]') as HTMLInputElement | null)?.value, null, { timeout: 25_000 }).catch(() => undefined);
   await page.getByRole("button", { name: /confirmar|reservar|confirm this time|enviar solicitud/i }).last().click({ timeout: 15_000 });
   const sawConfirmation = await page.getByText(/confirmad|reserva|listo|solicitud enviada|gracias|booked|cita/i).first().isVisible({ timeout: 20_000 }).catch(() => false);
   run.facts.guestConfirmationTextSeen = sawConfirmation;
