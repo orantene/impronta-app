@@ -16,6 +16,7 @@
 import { i18nPair, toI18nMap } from "@/lib/i18n/i18n-columns";
 import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { resolveCategoryLabel } from "./category-label-fallback";
+import { platformServiceTitle } from "./offering-title-fallback";
 import { inheritedInstantErrors } from "./offering-booking-rules";
 import { IDENTITY_REASONS, isIdentityReason, type IdentityReason } from "@/lib/orders/identity-requirement";
 import {
@@ -264,10 +265,28 @@ export function offeringText(
   const map = field === "title" ? row.title_i18n : row.description_i18n;
   const clean = toI18nMap(map);
   const max = field === "title" ? MAX_TITLE : MAX_DESC;
+  const visitor = (locale ?? "").trim().toLowerCase().slice(0, 2) || "en";
+  let otherLang: string | null = null;
   for (const code of [locale, ...chain]) {
     const hit = str(clean[code], max);
-    if (hit) return hit;
+    if (!hit) continue;
+    const codeKey = (code ?? "").trim().toLowerCase().slice(0, 2) || "en";
+    if (codeKey === visitor) return hit;
+    // Keep the first non-visitor hit (usually English) for later; a Spanish
+    // visitor must not lock onto English before the platform dictionary runs.
+    if (!otherLang) otherLang = hit;
   }
+  // TUL-189: platform dictionary for a few standard titles when the talent
+  // has no title in the visitor's language (same idea as category labels).
+  if (field === "title") {
+    const plain = str(row.title, max);
+    for (const candidate of [plain, otherLang, str(clean.en, max)]) {
+      if (!candidate) continue;
+      const platform = platformServiceTitle(candidate, visitor);
+      if (platform) return str(platform, max);
+    }
+  }
+  if (otherLang) return otherLang;
   return field === "title" ? row.title : row.description;
 }
 

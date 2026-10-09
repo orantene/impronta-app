@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { BookableComposer } from "@/components/public-booking/BookableComposer";
 import { pickBookableOffering } from "@/components/public-booking/pick-bookable-offering";
-import { useT } from "@/i18n/use-t";
+import { translatorFor, useT } from "@/i18n/use-t";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 
@@ -14,6 +14,7 @@ export function BookPageClient({
   offerings,
   signedIn = false,
   captcha = null,
+  locale: localeProp,
 }: {
   tenantSlug: string;
   tenantId?: string | null;
@@ -21,8 +22,15 @@ export function BookPageClient({
   offerings: Array<TalentOffering & { bookingMode?: "inquire" | "request" | "instant"; seatsLabel?: string | null }>;
   signedIn?: boolean;
   captcha?: GuestCaptchaConfig | null;
+  /** Page/request locale — required on CMS Live booking so labels match the site. */
+  locale?: string | null;
 }) {
-  const t = useT();
+  const cookieT = useT();
+  const pageLocale = (localeProp?.trim() || "en").startsWith("es") ? "es" : "en";
+  const t = useMemo(
+    () => (localeProp?.trim() ? translatorFor(pageLocale) : cookieT),
+    [localeProp, pageLocale, cookieT],
+  );
   const [offeringId, setOfferingId] = useState(offerings[0]?.id ?? "");
   const selected = useMemo(
     () => offerings.find((o) => o.id === offeringId) ?? offerings[0] ?? null,
@@ -41,7 +49,11 @@ export function BookPageClient({
   }
 
   return (
-    <div className="mt-8 flex flex-col gap-6">
+    <div
+      className="mt-8 flex flex-col gap-6"
+      data-book-page-client=""
+      style={{ color: "var(--token-color-ink, #0B0B0D)" }}
+    >
       <p className="text-base font-medium">{selected.title}</p>
       {offerings.length > 1 ? (
         <label className="flex flex-col gap-1.5 text-sm">
@@ -49,7 +61,7 @@ export function BookPageClient({
           <select
             value={selected.id}
             onChange={(e) => setOfferingId(e.target.value)}
-            className="rounded-lg border border-[rgba(24,24,27,0.12)] bg-white px-3 py-2"
+            className="rounded-lg border border-[rgba(24,24,27,0.12)] bg-white px-3 py-2 text-[var(--token-color-ink,#0B0B0D)]"
           >
             {offerings.map((o) => (
               <option key={o.id} value={o.id}>
@@ -74,6 +86,7 @@ export function BookPageClient({
         bookingMode={selected.bookingMode === "instant" ? "instant" : "request"}
         signedIn={signedIn}
         captcha={captcha}
+        locale={pageLocale}
       />
     </div>
   );

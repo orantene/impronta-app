@@ -9,9 +9,16 @@ export type OwnedBusinessWorkspace = {
   ownsBusinessWorkspace: boolean;
   hasWorkspaceSite: boolean;
   workspaceSlug: string | null;
+  /** Owning business workspace tenant id when known (for live URL / editor resolve). */
+  tenantId: string | null;
 };
 
-const NONE: OwnedBusinessWorkspace = { ownsBusinessWorkspace: false, hasWorkspaceSite: false, workspaceSlug: null };
+const NONE: OwnedBusinessWorkspace = {
+  ownsBusinessWorkspace: false,
+  hasWorkspaceSite: false,
+  workspaceSlug: null,
+  tenantId: null,
+};
 
 type AgencyJoin = { slug: string | null; status: string | null; workspace_type: string | null };
 
@@ -44,9 +51,19 @@ export async function loadOwnedBusinessWorkspace(
       .limit(1);
     if (pageErr) {
       logServerError("talentSite.workspaceContext.pages", pageErr);
-      return { ownsBusinessWorkspace: true, hasWorkspaceSite: false, workspaceSlug: agency.slug };
+      return {
+        ownsBusinessWorkspace: true,
+        hasWorkspaceSite: false,
+        workspaceSlug: agency.slug,
+        tenantId: row.tenant_id,
+      };
     }
-    return { ownsBusinessWorkspace: true, hasWorkspaceSite: (page ?? []).length > 0, workspaceSlug: agency.slug };
+    return {
+      ownsBusinessWorkspace: true,
+      hasWorkspaceSite: (page ?? []).length > 0,
+      workspaceSlug: agency.slug,
+      tenantId: row.tenant_id,
+    };
   }
   return NONE;
 }

@@ -9,13 +9,21 @@
 import { hcaptchaLocale, turnstileLocale } from "@/lib/i18n/vendor-locale";
 
 export type CaptchaProvider = "hcaptcha" | "turnstile";
+export type TurnstileAppearance = "always" | "execute" | "interaction-only";
 
 /** Height reserved up front for a VISIBLE widget so nothing shifts when it paints. */
 export const CAPTCHA_MIN_HEIGHT_PX = 78;
 
-/** Turnstile in interaction-only mode is invisible, so it reserves no space. */
-export function captchaReservedHeightPx(provider: CaptchaProvider): number {
-  return provider === "turnstile" ? 0 : CAPTCHA_MIN_HEIGHT_PX;
+/**
+ * Turnstile in interaction-only mode is invisible, so it reserves no space.
+ * `always` (and hCaptcha) need the visible widget height up front.
+ */
+export function captchaReservedHeightPx(
+  provider: CaptchaProvider,
+  appearance: TurnstileAppearance = "interaction-only",
+): number {
+  if (provider === "hcaptcha") return CAPTCHA_MIN_HEIGHT_PX;
+  return appearance === "always" ? CAPTCHA_MIN_HEIGHT_PX : 0;
 }
 
 export type TurnstileCallbacks = {
@@ -31,11 +39,12 @@ export function turnstileRenderOptions(
   locale: string | null | undefined,
   cb: TurnstileCallbacks,
   theme?: "light" | "dark",
+  appearance: TurnstileAppearance = "interaction-only",
 ): Record<string, unknown> {
   const language = turnstileLocale(locale);
   return {
     sitekey: siteKey,
-    appearance: "interaction-only",
+    appearance,
     retry: "auto",
     "refresh-expired": "auto",
     ...(language ? { language } : {}),

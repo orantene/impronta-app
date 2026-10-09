@@ -24,7 +24,10 @@ test("step mapping follows the ticket", () => {
 test("locale default: Spanish for es-* and Mexico, saved choice wins", () => {
   assert.equal(defaultFlowLocale({ acceptLanguage: "es-MX,es;q=0.9,en;q=0.8" }), "es");
   assert.equal(defaultFlowLocale({ acceptLanguage: "es" }), "es");
-  assert.equal(defaultFlowLocale({ acceptLanguage: "en-US,en;q=0.9", country: "MX" }), "es");
+  // TUL-492: an explicit en-US browser in Mexico is English; Mexico alone is Spanish.
+  assert.equal(defaultFlowLocale({ acceptLanguage: "en-US,en;q=0.9", country: "MX" }), "en");
+  assert.equal(defaultFlowLocale({ country: "MX" }), "es");
+  assert.equal(defaultFlowLocale({ acceptLanguage: "fr-FR", country: "MX" }), "es");
   assert.equal(defaultFlowLocale({ acceptLanguage: "en-US,en;q=0.9", country: "US" }), "en");
   assert.equal(defaultFlowLocale({ acceptLanguage: "en-US", saved: "es" }), "es");
   assert.equal(defaultFlowLocale({ acceptLanguage: "es-MX", saved: "en" }), "en");

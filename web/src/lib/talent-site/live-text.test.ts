@@ -52,6 +52,43 @@ test("headline: her own wins, then a line seeded from her trade (both locales), 
   }
 });
 
+test("TUL-118 / E-14: Spanish-only own headline yields the English trade seed on /en", () => {
+  const live = buildTalentLiveText(
+    {
+      ...SRC,
+      primaryLocale: "es",
+      headline: "Pestañas que enamoran en Playa QA",
+      trade: { en: "Lash Artist", es: "Extensiones de pestañas" },
+      seedKey: "TAL-93944",
+    },
+    "en",
+  ).values;
+  const seed = seedHeadlineFor("Lash Artist", "TAL-93944")!;
+  assert.equal(live.hero_headline, accentHeadline(seed.en));
+  assert.doesNotMatch(live.hero_headline ?? "", /Pestañas|enamoran/i);
+});
+
+test("TUL-118 / E-14: an explicit EN map entry still wins over the Spanish plain field", () => {
+  const live = buildTalentLiveText(
+    {
+      ...SRC,
+      primaryLocale: "es",
+      headline: "Pestañas que enamoran en Playa QA",
+      headlineI18n: { es: "Pestañas que enamoran en Playa QA", en: "Lashes that win hearts in Playa" },
+      trade: { en: "Lash Artist", es: "Extensiones de pestañas" },
+    },
+    "en",
+  ).values;
+  assert.equal(live.hero_headline, accentHeadline("Lashes that win hearts in Playa"));
+});
+
+test("TUL-118 / E-02: Maison About paragraph stays liveText bio (ES canvas reads bio_i18n.es)", () => {
+  // Guard: if About loses liveText "bio", ES primary canvas falls back to baked English from apply time.
+  // Maison v2 About is `aboutBlock(...)` from section-kit (liveText "bio" there), not an inline paragraph.
+  assert.match(read("theme-catalog/section-kit.ts"), /liveText:\s*"bio"/);
+  assert.match(read("theme-catalog/collection/maison-v2.ts"), /const about = aboutBlock\(/);
+});
+
 test("headline seeds never use an em dash or a hex colour", () => {
   for (const trade of ["Nail Artist", "Lash Artist", "Hair Stylist", "Private Chef", "DJ", "Personal Trainer"]) {
     const s = seedHeadlineFor(trade);

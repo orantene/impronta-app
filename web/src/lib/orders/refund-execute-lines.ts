@@ -2,11 +2,14 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
+import { recordRefundOnOrderLines } from "@/lib/orders/refund-record-lines";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { executeBookingRefund, type RefundBlockedCode, type RefundReason } from "@/lib/payments/refund-execute";
 import { planRefund, releasesPromoRedemption, type RefundableLine, type PaidTransaction } from "@/lib/orders/refund-plan";
 import { admissionIsRefundable, classifyAdmissionEffect } from "@/lib/orders/refund-admissions";
 import type { PromoScope } from "@/lib/orders/promo-eligibility";
+import { nonRefundableFeeCents } from "@/lib/billing/commission";
+import { loadBookingCommissionSnapshotsForRefund } from "@/lib/billing/commission-engine";
 
 /**
  * Refund whole order lines: money, per-line state, tickets, seats.
@@ -146,7 +149,7 @@ export async function refundOrderLines(
     // path that predates refund-by-line.
     const { data: txnRows, error: txnErr } = await admin
       .from("booking_transactions")
-      .select("id, gross_amount_cents, created_at")
+      .select("id, gross_amount_cents, booking_id, created_at")
       .eq("order_id", input.orderId)
       .eq("status", "paid")
       .order("created_at", { ascending: true });
@@ -154,7 +157,11 @@ export async function refundOrderLines(
       logServerError("orders.refundLines/transactions", txnErr);
       return { ok: false, reason: "unavailable", movedCents: 0 };
     }
-    const paidRows = (txnRows ?? []) as Array<{ id: string; gross_amount_cents: number }>;
+    const paidRows = (txnRows ?? []) as Array<{
+      id: string;
+      gross_amount_cents: number;
+      booking_id: string | null;
+    }>;
 
     // HOW MUCH IS ALREADY REFUNDED, by the engine's own definition rather than
     // a second one of mine.
@@ -186,10 +193,33 @@ export async function refundOrderLines(
       }
     }
 
+    // Non-refundable fees per booking — same source as loadRefundEligibility —
+    // so the plan's capture ceiling matches what Stripe will accept (TUL-469).
+    const feeByBooking = new Map<string, number | null>();
+    for (const bookingId of new Set(paidRows.map((t) => t.booking_id).filter((x): x is string => !!x))) {
+      try {
+        feeByBooking.set(
+          bookingId,
+          nonRefundableFeeCents(await loadBookingCommissionSnapshotsForRefund(admin, bookingId)),
+        );
+      } catch (err) {
+        logServerError("orders.refundLines/fees", err);
+        feeByBooking.set(bookingId, null);
+      }
+    }
+    // A null fee (seller-pays, unset) means the refund base is unknowable —
+    // refuse before planning rather than inventing headroom execute will deny.
+    for (const t of paidRows) {
+      if (t.booking_id && feeByBooking.get(t.booking_id) === null) {
+        return { ok: false, reason: "unavailable", movedCents: 0 };
+      }
+    }
+
     const transactions: PaidTransaction[] = paidRows.map((t) => ({
       id: t.id,
       grossAmountCents: Number(t.gross_amount_cents),
       refundedCents: refundedByParent.get(t.id) ?? 0,
+      nonRefundableFeeCents: t.booking_id ? (feeByBooking.get(t.booking_id) ?? 0) : 0,
     }));
 
     // Scope is the order's own promo scope. Null when no code was used, which
@@ -236,6 +266,7 @@ export async function refundOrderLines(
         reason: input.reason,
         actorUserId: input.actorUserId,
         note: input.note,
+        skipOrderLines: true,
       });
       if (!res.ok) {
         if (moved === 0) {
@@ -285,20 +316,21 @@ export async function refundOrderLines(
     // transaction headroom from the sibling `refunded` rows, not from this
     // column, so a second attempt finds no money left to move — but the row is
     // wrong until a human fixes it, and nobody can fix what nobody is told.
+    // The shared writer (idempotent per Stripe refund id): `executeBookingRefund` was told to skip
+    // its default allocation above, so this explicit per-line one is the only count.
     let lineStateIncomplete = false;
-    for (const l of plan.lines) {
-      const current = lines.find((x) => x.id === l.id)?.refundedCents ?? 0;
-      const { error } = await admin
-        .from("order_lines")
-        .update({ refunded_cents: current + l.amountCents })
-        .eq("id", l.id);
-      if (error) {
+    if (steps.length > 0) {
+      const rec = await recordRefundOnOrderLines(admin, {
+        transactionId: steps[0].transactionId,
+        refundIds: steps.map((x) => x.refundId),
+        amountCents: moved,
+        allocation: plan.lines.map((l) => ({ lineId: l.id, amountCents: l.amountCents })),
+      });
+      if (!rec.recorded && rec.reason !== "already_recorded") {
         lineStateIncomplete = true;
         logServerError(
           "orders.refundLines/LINE_STATE_NOT_STAMPED_AFTER_REFUND",
-          `order ${input.orderId}: ${l.amountCents} cents refunded on line ${l.id}, but `
-            + `refunded_cents could not be updated (${error.message}). The line reads unrefunded. `
-            + `Needs a human.`,
+          `order ${input.orderId}: ${moved} cents refunded, but the lines were not stamped (${rec.reason}). The lines read unrefunded. Needs a human.`,
         );
       }
     }

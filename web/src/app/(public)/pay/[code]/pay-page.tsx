@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadPaymentLinkByCode, markPaymentLinkPaid, mockPaymentsAllowed } from "@/lib/payments/links";
 import { openPaymentLinkCheckout } from "@/lib/payments/link-checkout";
+import { payStartViewStatus } from "@/lib/payments/pay-start-status";
 import type { PayLinkPathPrefix } from "@/lib/payments/pay-link-url";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { publicThreadPath, signThreadToken } from "@/lib/messaging/thread-token";
@@ -16,7 +17,7 @@ import { CheckoutView } from "./CheckoutView";
 import { payCalendarEvent } from "@/lib/payments/pay-calendar-event";
 import { resolvePaidLinkDisplayStatus } from "@/lib/payments/pay-refund-status";
 import { loadPayLinkFeeLines } from "@/lib/payments/pay-link-fee-lines";
-import { resolvePayeeName } from "@/lib/payments/payee-name";
+import { resolveOrderPayeeName } from "@/lib/payments/payee-name";
 import { interpolate } from "@/i18n/interpolate";
 import { createTranslator } from "@/i18n/messages";
 
@@ -222,7 +223,7 @@ export async function PayByCodePage({
       orderStatus: orderRow?.status ?? null,
       bookingPaymentStatus,
     });
-    const sellerName = await resolvePayeeName(admin, loaded.tenantId);
+    const sellerName = await resolveOrderPayeeName(admin, loaded.tenantId, loaded.orderId);
     const t = createTranslator(uiLocale);
     // Location for .ics/Google only; skip the inquiry read on open/processing.
     const { data: inquiryLoc } =
@@ -381,7 +382,7 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
-        status={opened.reason === "expired" ? "expired" : "unknown"}
+        status={payStartViewStatus(opened.reason)}
         lines={[]}
         holdUntil={null}
         stripeUrl={null}

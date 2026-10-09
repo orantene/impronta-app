@@ -199,6 +199,28 @@ export async function upsertBookingHoursFromOnboarding(
   return true;
 }
 
+/**
+ * TUL-453 · myself → both: point the one hours row at the new workspace
+ * tenant. Does not invent hours, wipe weekly/exceptions, or create a row —
+ * only moves `tenant_id` when a row already exists. Lives here so the
+ * booking-hours write-surface invariant (T1-07) stays one allow-listed IO
+ * module under src/lib.
+ */
+export async function rehomeBookingHoursTenant(
+  admin: Admin,
+  input: { talentProfileId: string; workspaceTenantId: string },
+): Promise<boolean> {
+  const { error } = await admin
+    .from("talent_booking_hours")
+    .update({ tenant_id: input.workspaceTenantId })
+    .eq("talent_profile_id", input.talentProfileId);
+  if (error) {
+    logServerError("myself-both-copy.hours.rehome", error);
+    return false;
+  }
+  return true;
+}
+
 /** Hours row -> drawer pattern, when a pattern describes the saved days. */
 export async function syncPatternFromBookingHours(
   admin: Admin,

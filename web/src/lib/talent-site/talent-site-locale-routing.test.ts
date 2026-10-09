@@ -81,3 +81,15 @@ test("clicking the primary switcher link beats a stale cookie and is remembered"
   // and a bare unprefixed visit still honours the cookie
   assert.equal(decideTalentSiteLocale({ pathname: "/", cookieLocale: "en", ...ALBA }).locale, "en");
 });
+
+test("a platform language the talent does not speak redirects to the primary page instead of 404ing", () => {
+  const ES_ONLY = { primary: "es", supported: ["es"], knownLocales: ["es", "en"] };
+  assert.deepEqual(decideTalentSiteLocale({ pathname: "/en", ...ES_ONLY }), { locale: "es", innerPath: "/", redirectPath: "/", explicit: false });
+  assert.deepEqual(decideTalentSiteLocale({ pathname: "/en/services", ...ES_ONLY }), { locale: "es", innerPath: "/services", redirectPath: "/services", explicit: false });
+  // a language the platform does not know is still a page path (unchanged)
+  assert.equal(decideTalentSiteLocale({ pathname: "/fr/x", ...ES_ONLY }).redirectPath, null);
+  // a language the talent DOES speak is untouched
+  assert.equal(decideTalentSiteLocale({ pathname: "/en", primary: "es", supported: ["es", "en"], knownLocales: ["es", "en"] }).redirectPath, null);
+  // without knownLocales the old behaviour holds
+  assert.equal(decideTalentSiteLocale({ pathname: "/en", primary: "es", supported: ["es"] }).redirectPath, null);
+});

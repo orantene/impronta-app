@@ -34,22 +34,13 @@ import { type MoneyLanding } from "@/lib/money/today-money-tiles";
 import { safeLoadInbox } from "@/components/messages-v5/shell/safe-load-inbox";
 import { talentShellEngine } from "@/components/messages-v5/shell/talent-engine";
 import { countAwaitingReply } from "@/lib/messages-v5/inbox-view";
+import { TodaySkeleton } from "./today-skeleton";
+
+export { TodaySkeleton } from "./today-skeleton";
 
 const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", MXN: "$" };
 
 const subscribeNever = () => () => {};
-
-/** Static, clock-free placeholder: identical on server and first client render. */
-export function TodaySkeleton() {
-  return (
-    <div className="space-y-4" aria-busy="true" data-testid="today-skeleton">
-      <div className="h-8 w-56 animate-pulse rounded-lg bg-black/[0.06]" />
-      <div className="h-4 w-40 animate-pulse rounded bg-black/[0.05]" />
-      <div className="h-28 animate-pulse rounded-2xl bg-black/[0.05]" />
-      <div className="h-44 animate-pulse rounded-2xl bg-black/[0.05]" />
-    </div>
-  );
-}
 
 export function TalentTodayPage() {
   const copy = useDashboardText();
@@ -72,10 +63,10 @@ export function TalentTodayPage() {
   // single source read by Today, the header reward control and the website
   // card. Called above the agenda early return (hooks rule).
   const websiteEligibility = useWebsiteEligibility();
-  // TUL-109: Today's text depends on the wall clock (greeting, dates, times)
-  // and the viewer's timezone, which differ between the server render and the
-  // browser (React #418). Until hydration finishes, both sides render the same
-  // static skeleton; the clock-dependent page mounts right after.
+  // TUL-109 / TUL-303: Today's text depends on the wall clock (greeting, dates,
+  // times) and the viewer's timezone, which differ between the server render
+  // and the browser (React #418). Until hydration finishes, BOTH Agenda V2 and
+  // legacy Today render the same static skeleton; the real page mounts after.
   const hydrated = useSyncExternalStore(subscribeNever, () => true, () => false);
   // Client threads awaiting her reply: the SAME loader and rule as the inbox
   // "Needs reply" filter (talentShellEngine.loadInbox + countAwaitingReply).
@@ -162,7 +153,7 @@ export function TalentTodayPage() {
     }
     setTalentPage(fallbackPage);
   };
-  if (bridgeTalentAgendaV2 && !hydrated) return <TodaySkeleton />;
+  if (!hydrated) return <TodaySkeleton />;
   if (bridgeTalentAgendaV2) {
     const openMoney = (_landing: MoneyLanding) => {
       setTalentPage("money");
