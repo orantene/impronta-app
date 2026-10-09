@@ -23,10 +23,14 @@ import {
 } from "../theme-releases/origin";
 import { stripDesignKeys } from "../theme-releases/design-keys";
 import { designApplySummary, lookSummary } from "../history/copy";
-import type { HistoryActor } from "../history/types";
+import { isHistorySnapshot, planRestore } from "../history/restore-plan";
+import type { HistoryActor, HistorySnapshot } from "../history/types";
 import { writeSiteDraft } from "../history/writer";
 import { ensureSiteThemeUpdates } from "../theme-releases/lazy-fan-out.server";
 import { checkSitePin } from "../theme-releases/pin-guard.server";
+import { DESIGN_APPLY_DRAFT_SITE_KEYS, planDesignSwitch, snapshotDesignSlug } from "./design-switch";
+
+export { DESIGN_APPLY_DRAFT_SITE_KEYS };
 
 /**
  * Talent theme gallery: APPLY CORE (server-only, NOT "use server").
@@ -229,10 +233,113 @@ export interface ApplyDesignInput {
   actor?: HistoryActor;
 }
 
+type DraftRead = {
+  draftRev: number;
+  shell: BuilderNode[];
+  tokens: Record<string, string>;
+  designSlug: string | null;
+  designVersion: number | null;
+  lookSlug: string | null;
+  homeId: string | null;
+  home: BuilderNode[];
+};
+
+function asTree(v: unknown): BuilderNode[] {
+  return Array.isArray(v) ? (v as BuilderNode[]) : [];
+}
+
+/** Current DRAFT only (never published columns). Used for carry + pre-snapshot. */
+async function readApplyDraft(
+  admin: SupabaseClient,
+  input: { talentProfileId: string; siteId: string },
+): Promise<DraftRead | null> {
+  const [siteRes, homeRes] = await Promise.all([
+    admin
+      .from("talent_sites")
+      .select(
+        "draft_rev, shell_tree, design_tokens_draft, theme_design_slug, theme_design_version, theme_look_slug",
+      )
+      .eq("id", input.siteId)
+      .eq("talent_profile_id", input.talentProfileId)
+      .maybeSingle(),
+    admin
+      .from("talent_pages")
+      .select("id, blocks")
+      .eq("talent_profile_id", input.talentProfileId)
+      .eq("is_home", true)
+      .maybeSingle(),
+  ]);
+  if (siteRes.error) {
+    logServerError("talentTheme.applyDesign.readSite", siteRes.error);
+    return null;
+  }
+  if (homeRes.error) {
+    logServerError("talentTheme.applyDesign.readHome", homeRes.error);
+    return null;
+  }
+  const s = siteRes.data as Record<string, unknown> | null;
+  if (!s) return null;
+  const home = homeRes.data as { id?: string; blocks?: unknown } | null;
+  return {
+    draftRev: typeof s.draft_rev === "number" ? s.draft_rev : 0,
+    shell: asTree(s.shell_tree),
+    tokens: coerceTokenMap(s.design_tokens_draft),
+    designSlug: typeof s.theme_design_slug === "string" ? s.theme_design_slug : null,
+    designVersion: typeof s.theme_design_version === "number" ? s.theme_design_version : null,
+    lookSlug: typeof s.theme_look_slug === "string" ? s.theme_look_slug : null,
+    homeId: typeof home?.id === "string" ? home.id : null,
+    home: asTree(home?.blocks),
+  };
+}
+
+function preSwitchSnapshot(draft: DraftRead): HistorySnapshot {
+  return {
+    v: 1,
+    source: "draft",
+    rev: draft.draftRev,
+    shell: draft.shell,
+    tokens: draft.tokens,
+    design: {
+      slug: draft.designSlug,
+      version: draft.designVersion,
+      look: draft.lookSlug,
+    },
+    pages: draft.homeId ? { [draft.homeId]: draft.home } : {},
+  };
+}
+
+/**
+ * Latest pre-switch snapshot taken when leaving `designSlug` (G-L5-01 / restore-exact).
+ * The `design_apply` entry stores the PRIOR draft in `snapshot_ref`.
+ */
+export async function findPreLeaveSnapshot(
+  admin: SupabaseClient,
+  input: { talentProfileId: string; designSlug: string },
+): Promise<HistorySnapshot | null> {
+  const { data, error } = await admin
+    .from("talent_site_history")
+    .select("snapshot_ref, kind")
+    .eq("talent_profile_id", input.talentProfileId)
+    .eq("kind", "design_apply")
+    .order("at", { ascending: false })
+    .limit(40);
+  if (error) {
+    logServerError("talentTheme.applyDesign.preLeave", error);
+    return null;
+  }
+  const want = input.designSlug.trim().toLowerCase();
+  for (const row of (data ?? []) as Array<{ snapshot_ref?: unknown }>) {
+    if (!isHistorySnapshot(row.snapshot_ref)) continue;
+    const slug = snapshotDesignSlug(row.snapshot_ref)?.toLowerCase();
+    if (slug === want) return row.snapshot_ref;
+  }
+  return null;
+}
+
 export async function applyDesign(
   admin: SupabaseClient,
   input: ApplyDesignInput,
-): Promise<ThemeApplyResult<{ designSlug: string; designVersion: number }>> {
+): Promise<ThemeApplyResult<{ designSlug: string; designVersion: number; restoreExact?: boolean; warned?: number }>> {
   const { design } = input;
   const check = validateDesign(design.payload);
   if (!check.ok) {
@@ -248,6 +355,74 @@ export async function applyDesign(
     where: "applyDesign",
   });
   if (!pin.ok) return { ok: false, code: "invalid_theme", error: pin.reason.en };
+
+  const draft = await readApplyDraft(admin, {
+    talentProfileId: input.talentProfileId,
+    siteId: input.siteId,
+  });
+  if (!draft) return { ok: false, code: "site_not_found", error: "Site not found." };
+
+  const expected =
+    input.expectedDraftRev ?? (typeof draft.draftRev === "number" ? draft.draftRev : null);
+  const preSnapshot = preSwitchSnapshot(draft);
+  const summary = designApplySummary(design.title);
+  const switchingAway =
+    !!draft.designSlug && draft.designSlug.trim().toLowerCase() !== design.slug.trim().toLowerCase();
+
+  // Switch back: restore the exact draft captured when she left this Design.
+  if (switchingAway) {
+    const prior = await findPreLeaveSnapshot(admin, {
+      talentProfileId: input.talentProfileId,
+      designSlug: design.slug,
+    });
+    if (prior && draft.homeId) {
+      const restore = planRestore(prior, {
+        shell: draft.shell,
+        pages: { [draft.homeId]: draft.home },
+      });
+      const res = await writeSiteDraft(admin, {
+        siteId: input.siteId,
+        expectedDraftRev: expected,
+        site: {
+          ...restore.site,
+          ...(input.userId ? { updated_by: input.userId } : {}),
+        },
+        pages: restore.pages,
+        history: {
+          kind: "design_apply",
+          actor: input.actor ?? "talent",
+          summaryEn: summary.en,
+          summaryEs: summary.es,
+          report: {
+            design: design.slug,
+            version: design.version,
+            fromSlug: draft.designSlug,
+            toSlug: design.slug,
+            fromVersion: draft.designVersion,
+            toVersion: design.version,
+            restoreExact: true,
+            mappedKeys: [],
+            warned: [],
+          },
+          undoable: true,
+          snapshot: preSnapshot,
+          createdBy: input.userId ?? null,
+        },
+      });
+      if (!res.ok) {
+        if (res.code === "conflict") return { ok: false, code: "conflict", error: res.error };
+        if (res.code === "site_not_found") return { ok: false, code: "site_not_found", error: "Site not found." };
+        if (res.code === "page_not_found") return { ok: false, code: "page_not_found", error: "Home page not found." };
+        logServerError("talentTheme.applyDesign.restoreExact", res.error);
+        return { ok: false, code: "server_error", error: "Could not apply the design." };
+      }
+      await ensureSiteThemeUpdates(admin, input.talentProfileId);
+      return {
+        ok: true,
+        data: { designSlug: design.slug, designVersion: design.version, restoreExact: true, warned: 0 },
+      };
+    }
+  }
 
   const tokens = await loadTemplateHydrationTokens(input.talentProfileId);
   if (!tokens) {
@@ -279,29 +454,46 @@ export async function applyDesign(
     tokens.secondaryType2,
     tokens.secondaryType3,
   ]);
-  const homeTree = placeMaisonTradeApps(built.homeTree, trades, { designSlug: design.slug }).tree;
+  const builtHome = placeMaisonTradeApps(built.homeTree, trades, { designSlug: design.slug }).tree;
+
+  const plan = planDesignSwitch({
+    fromShell: draft.shell,
+    fromHome: draft.home,
+    toShell: built.shellTree,
+    toHome: builtHome,
+    fromSlug: draft.designSlug,
+    toSlug: design.slug,
+    fromVersion: draft.designVersion,
+    toVersion: design.version,
+  });
 
   // Theme releases Phase 2 — ONE atomic write (shell + home + pin + token
   // origin + history entry), CAS on draft_rev when the caller sends it, so a
   // publish can never land between the shell and the home page.
-  const summary = designApplySummary(design.title);
+  // L3: draft-first (no published columns), pre-switch snapshot, undoable.
   const res = await writeSiteDraft(admin, {
     siteId: input.siteId,
-    expectedDraftRev: input.expectedDraftRev ?? null,
+    expectedDraftRev: expected,
     site: {
-      shell_tree: built.shellTree,
+      shell_tree: plan.shell,
       theme_design_slug: design.slug,
       theme_design_version: design.version,
       theme_token_origin: tokenOriginMap(design.payload.tokenDefaults),
       ...(input.userId ? { updated_by: input.userId } : {}),
     },
-    pages: [{ home: true, patch: { blocks: homeTree } }],
+    pages: [{ home: true, patch: { blocks: plan.home } }],
     history: {
       kind: "design_apply",
       actor: input.actor ?? "talent",
       summaryEn: summary.en,
       summaryEs: summary.es,
-      report: { design: design.slug, version: design.version },
+      report: {
+        design: design.slug,
+        version: design.version,
+        ...plan.report,
+      },
+      undoable: true,
+      snapshot: preSnapshot,
       createdBy: input.userId ?? null,
     },
   });
@@ -315,7 +507,15 @@ export async function applyDesign(
 
   // F108: a new apply can land below an open release; offer the update now.
   await ensureSiteThemeUpdates(admin, input.talentProfileId);
-  return { ok: true, data: { designSlug: design.slug, designVersion: design.version } };
+  return {
+    ok: true,
+    data: {
+      designSlug: design.slug,
+      designVersion: design.version,
+      restoreExact: false,
+      warned: plan.warned.length,
+    },
+  };
 }
 
 export interface ApplyLookInput {
