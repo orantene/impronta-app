@@ -40,8 +40,8 @@ export function TalentSiteContactBridge({
   whatsappHref: string;
   emailHref: string;
   /**
-   * Where `#book` lands (TUL-246): one bookable service opens its booking sheet,
-   * several the service picker (the dock), none the plain inquire entry.
+   * Where `#book` lands (TUL-246): any bookable service opens the booking sheet
+   * (preferred = featured, then sortOrder); none opens the plain inquire entry.
    */
   bookEntry?: BookEntry | null;
 }) {

@@ -4,13 +4,15 @@
  * Each tile is a photo with a two-line work-order caption. Convention (no
  * schema change): the media caption is two lines, first = the job title,
  * second = the detail ("OT-0412 · San Pedro · 1 día"). The tile never links
- * to an offering, never shows a person or a client name (the alt is empty:
- * the caption says what the job was), and a tile without a caption shows the
- * photo alone. Phone: 2 columns, square. Desktop (the block's own container
- * >= 900px): 6 columns, 4:5 tiles. Token colours only.
+ * to an offering and never shows a person or a client name. Alt text is the
+ * resolved shot alt, else the job title, else a generic portfolio label
+ * (TUL-384 — empty alt marked content photos as decorative). A tile without
+ * a caption shows the photo alone. Phone: 2 columns, square. Desktop (the
+ * block's own container >= 900px): 6 columns, 4:5 tiles. Token colours only.
  */
 import type { ReactNode } from "react";
 
+import { portfolioPhotoFallbackAlt } from "./portfolio-i18n";
 import type { TalentPortfolioShot } from "./portfolio-types";
 
 export const PORTFOLIO_WORK_ORDER_CSS = `
@@ -37,12 +39,22 @@ export function splitWorkOrderCaption(caption: string | null | undefined): { tit
   return { title: lines[0] ?? "", detail: lines.slice(1).join(" ") };
 }
 
-export function WorkOrderFigure({ shot }: { shot: TalentPortfolioShot }): ReactNode {
+export function WorkOrderFigure({
+  shot,
+  locale,
+}: {
+  shot: TalentPortfolioShot;
+  /** Visitor locale for the generic portfolio alt fallback (TUL-384). */
+  locale?: string | null;
+}): ReactNode {
   const { title, detail } = splitWorkOrderCaption(shot.caption);
+  // Prefer the job-title line of the caption — never the media `alt` column,
+  // which on demos is often a person name (see gridline G10/G11 tests).
+  const alt = title || portfolioPhotoFallbackAlt(locale);
   return (
     <figure className="sb-wo-job" data-portfolio-media={shot.id}>
       {/* eslint-disable-next-line @next/next/no-img-element -- public CDN URLs, same as the other portfolio layouts */}
-      <img src={shot.url} alt="" loading="lazy" decoding="async" />
+      <img src={shot.url} alt={alt} loading="lazy" decoding="async" />
       {title ? (
         <figcaption>
           <b>{title}</b>

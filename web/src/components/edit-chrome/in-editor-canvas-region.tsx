@@ -27,6 +27,8 @@
  */
 
 import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
+import { BreakpointStyleEngine } from "@/components/edit-chrome/breakpoint-style-engine";
+import { BUILTIN_EXTRA_TIERS } from "@/lib/site-admin/builder-node/custom-breakpoint-css";
 import type { ReactNode } from "react";
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
@@ -251,6 +253,9 @@ export function InEditorCanvasRegion({
       }}
     >
       <TypeSystemStyle />
+      {/* Root layout ships section-only custom breakpoints; the editor needs
+          freeform node lanes so wide/compact style overrides paint live. */}
+      <BreakpointStyleEngine tiers={BUILTIN_EXTRA_TIERS} includeFreeform />
       {canvasRenderData?.headNodes ?? null}
       {shellHeader ? (
         <div

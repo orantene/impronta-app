@@ -31,7 +31,11 @@ describe("render-max-site catalog sources (null tenant)", () => {
   it("loadPersonalMaxNativeSources pulls loadServicesCatalogSources", () => {
     assert.match(DATA_SOURCES, /export async function loadServicesCatalogSources/);
     assert.match(DATA_SOURCES, /export async function loadPersonalMaxNativeSources/);
-    assert.match(DATA_SOURCES, /needCatalog \? loadServicesCatalogSources/);
+    // TUL-449: chip-only catalog may wrap in withSecondaryReadDegrade; still gated on needCatalog.
+    assert.match(
+      DATA_SOURCES,
+      /needCatalog[\s\S]{0,280}loadServicesCatalogSources\(/,
+    );
   });
 
   it("detects services_catalog in the page tree when tenantId is absent", () => {
