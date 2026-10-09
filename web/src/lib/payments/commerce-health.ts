@@ -58,7 +58,21 @@ export interface CommerceHealthInput {
   stuckPaymentRequestedCount: number;
   /** ISO timestamps (or null when no events). */
   lastWebhookAt: { platform: string | null; platform_mx: string | null };
+  /** The Mexico lane in one place (TUL-186): optional so older callers and tests keep working. */
+  mxLane?: MxLaneHealth;
   now: Date;
+}
+
+/** What the Mexico lane has done, and whether anything should have reached it. */
+export interface MxLaneHealth {
+  /** Newest `platform_mx` event, or null when the lane has never recorded one. */
+  lastEventAt: string | null;
+  /** That event's livemode (true live, false test), null when unknown or no event. */
+  lastEventLivemode: boolean | null;
+  /** `platform_mx` events recorded in the last 24h. */
+  eventsLast24h: number;
+  /** Talents plus agencies connected on the MX platform (`stripe_account_platform = 'mx'`). */
+  mxSellers: number;
 }
 
 export interface CommerceHealthRow {
@@ -209,6 +223,39 @@ function heldRow(h: HeldPayoutsHealth): CommerceHealthRow {
   };
 }
 
+/**
+ * The MX lane row (TUL-186). Production had 0 MX events because nothing had ever used the lane; this makes
+ * that visible, and warns when it stops being true quietly: an MX-connected seller exists but the lane
+ * recorded nothing in 24h, or the Connect signing secret is unset while MX sellers exist. Presence only.
+ */
+export function mxLaneRow(mx: MxLaneHealth, connectSecretSet: boolean, now: Date): CommerceHealthRow {
+  const hours = hoursSince(mx.lastEventAt, now);
+  const mode = mx.lastEventAt == null ? null : mx.lastEventLivemode === true ? "live" : mx.lastEventLivemode === false ? "test" : "unknown";
+  const silent = mx.mxSellers > 0 && mx.eventsLast24h === 0;
+  const connectMissing = !connectSecretSet;
+  const status: HealthRowStatus = silent || (mx.mxSellers > 0 && connectMissing) ? "warn" : "ok";
+  const state = silent ? "silent" : mx.lastEventAt == null ? "no_events" : "last";
+  const detail =
+    state === "no_events"
+      ? `no MX events yet; MX-connected sellers: ${mx.mxSellers}`
+      : state === "silent"
+        ? `${mx.mxSellers} MX-connected seller(s) but 0 platform_mx events in 24h`
+        : `last MX event ${Math.floor(hours ?? 0)}h ago (${mode}); ${mx.eventsLast24h} in 24h; MX-connected sellers: ${mx.mxSellers}`;
+  return {
+    id: "mx-lane",
+    status,
+    detail: connectMissing ? `${detail}; Connect secret missing` : detail,
+    data: {
+      state,
+      hours: hours === null ? null : Math.floor(hours),
+      mode,
+      events24h: mx.eventsLast24h,
+      sellers: mx.mxSellers,
+      connectMissing,
+    },
+  };
+}
+
 export function computeCommerceHealth(input: CommerceHealthInput): CommerceHealthRow[] {
   const rows: CommerceHealthRow[] = [keyModeRow(input.keyModes)];
   rows.push(...webhookSecretRows(input.webhookSecretsSet));
@@ -221,5 +268,6 @@ export function computeCommerceHealth(input: CommerceHealthInput): CommerceHealt
   });
   rows.push(laneRow("last-webhook:platform", input.lastWebhookAt.platform, input.now));
   rows.push(laneRow("last-webhook:platform_mx", input.lastWebhookAt.platform_mx, input.now));
+  if (input.mxLane) rows.push(mxLaneRow(input.mxLane, input.webhookSecretsSet.STRIPE_MX_WEBHOOK_SECRET_CONNECT, input.now));
   return rows;
 }
