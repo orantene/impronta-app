@@ -15,12 +15,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  authAppleFinalizeUserKey,
   authGoogleFinalizeUserKey,
   authOtpSendEmailKey,
   authOtpSendIpKey,
   authOtpVerifyEmailKey,
   authPasswordEmailKey,
   authPasswordIpKey,
+  checkAuthAppleFinalizeByUser,
   checkAuthGoogleFinalizeByUser,
   checkAuthOtpSendByEmail,
   checkAuthOtpSendByIp,
@@ -117,12 +119,13 @@ test("result type is consumable without the guest-chat contract", () => {
   }
 });
 
-test("password + Google finalize keys are namespaced and normalize email", () => {
+test("password + Google/Apple finalize keys are namespaced and normalize email", () => {
   const email = "booker+x@gmail.com";
   assert.equal(authPasswordEmailKey(email), authPasswordEmailKey("boo.ker@gmail.com"));
   assert.match(authPasswordEmailKey(email), /^auth_password_email:/);
   assert.equal(authPasswordIpKey("203.0.113.7"), "auth_password_ip:203.0.113.7");
   assert.equal(authGoogleFinalizeUserKey("user-1"), "auth_google_finalize_user:user-1");
+  assert.equal(authAppleFinalizeUserKey("user-1"), "auth_apple_finalize_user:user-1");
   assert.notEqual(authPasswordEmailKey(email), authOtpVerifyEmailKey(email));
 });
 
@@ -137,6 +140,7 @@ test("without Upstash env the auth limiters fail OPEN (never lock sign-in out)",
     checkAuthPasswordByEmail(authPasswordEmailKey("booker@example.com")),
     checkAuthPasswordByIp(authPasswordIpKey("203.0.113.7")),
     checkAuthGoogleFinalizeByUser(authGoogleFinalizeUserKey("user-1")),
+    checkAuthAppleFinalizeByUser(authAppleFinalizeUserKey("user-1")),
   ]) {
     assert.deepEqual(await check, { ok: true });
   }
