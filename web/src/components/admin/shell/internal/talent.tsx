@@ -463,7 +463,9 @@ function TalentRouter() {
       break;
     }
     case "calendar-availability":
-      page = agendaV2 && bridgeTalentSelfProfile?.id
+      // TUL-358: hours editor whenever we have a profile id. Do not fall through
+      // to the week CalendarPage (Disponibilidad there is block-dates, no zone).
+      page = bridgeTalentSelfProfile?.id
         ? (
           <AgendaAvailabilityPage
             talentProfileId={bridgeTalentSelfProfile.id}
