@@ -4,14 +4,14 @@ import { describe, it } from "node:test";
 
 import { legsBalance, projectBookingPayment } from "./project";
 import { groupIdFor } from "./write";
-import { projectionHealth, type ProjectionRunResult } from "./run-projection";
+import { LEGACY_UNBALANCED_BEFORE, projectionHealth, type ProjectionRunResult } from "./run-projection";
 
 const rd = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 
 const counts = (o: Partial<{ projected: number; skipped: number; refused: number }> = {}) => ({ projected: 0, skipped: 0, refused: 0, ...o });
 const run = (o: Partial<ProjectionRunResult> = {}): ProjectionRunResult => ({
   ok: true,
-  bookingPayments: { ...counts(), unattributable: 0 },
+  bookingPayments: { ...counts(), unattributable: 0, legacyUnbalanced: 0 },
   processingFees: counts(),
   invoices: counts(),
   payouts: counts(),
@@ -45,23 +45,47 @@ describe("paid run #2 example: MX$1,000 sale + 1.5% client fee (gross charged 10
 
 describe("the heartbeat tells the truth", () => {
   it("projected=0 with a fresh refusal is NOT ok, and names the reason", () => {
-    const h = projectionHealth(run({ bookingPayments: { ...counts({ refused: 3 }), unattributable: 0 }, refusals: ["booking_payment x: no commission lanes"] }));
+    const h = projectionHealth(run({ bookingPayments: { ...counts({ refused: 3 }), unattributable: 0, legacyUnbalanced: 0 }, refusals: ["booking_payment x: no commission lanes"] }));
     assert.equal(h.ok, false);
     assert.match(h.detail, /refused=3/);
     assert.match(h.detail, /first refusal: booking_payment x: no commission lanes/);
   });
   it("a run that projected something is ok even with a refusal (the refusal is still reported)", () => {
-    const h = projectionHealth(run({ bookingPayments: { ...counts({ projected: 2, refused: 1 }), unattributable: 0 }, refusals: ["r"] }));
+    const h = projectionHealth(run({ bookingPayments: { ...counts({ projected: 2, refused: 1 }), unattributable: 0, legacyUnbalanced: 0 }, refusals: ["r"] }));
     assert.equal(h.ok, true);
     assert.match(h.detail, /refused=1/);
   });
   it("old unattributable payments never turn the heartbeat red", () => {
-    const h = projectionHealth(run({ bookingPayments: { ...counts({ skipped: 4 }), unattributable: 6 } }));
+    const h = projectionHealth(run({ bookingPayments: { ...counts({ skipped: 4 }), unattributable: 6, legacyUnbalanced: 2 } }));
     assert.equal(h.ok, true);
     assert.match(h.detail, /unattributable=6/);
   });
+  it("legacy unbalanced sales are listed in the detail and never turn it red", () => {
+    const h = projectionHealth(run({ bookingPayments: { ...counts({ skipped: 2 }), unattributable: 0, legacyUnbalanced: 2 } }));
+    assert.equal(h.ok, true);
+    assert.match(h.detail, /legacy_unbalanced=2/);
+  });
   it("a failed read is not ok", () => {
     assert.equal(projectionHealth(run({ ok: false, error: "boom" })).ok, false);
+  });
+});
+
+describe("legacy unbalanced sales (PM decision 2026-10-09)", () => {
+  const src = rd("./run-projection.ts");
+  it("the cutoff is a dated constant at the moment #3051 reached production", () => {
+    assert.equal(LEGACY_UNBALANCED_BEFORE, "2026-10-09T09:40:00Z");
+    assert.ok(!Number.isNaN(Date.parse(LEGACY_UNBALANCED_BEFORE)));
+  });
+  it("an unbalanced payment BEFORE the cutoff is counted as legacy and skipped; one AFTER still refuses", () => {
+    const block = src.slice(src.indexOf("const attributed = lanes.reduce"), src.indexOf("const projected = projectBookingPayment"));
+    assert.match(block, /lanes\.length > 0 && attributed !== Number\(t\.gross_amount_cents \?\? 0\) && Date\.parse\(paidAt\) < Date\.parse\(LEGACY_UNBALANCED_BEFORE\)/);
+    assert.match(block, /legacyUnbalanced \+= 1/);
+    assert.match(block, /continue;/);
+    // After the cutoff the normal projection (and its unbalanced refusal) runs.
+    assert.ok(src.indexOf("const projected = projectBookingPayment") > src.indexOf("LEGACY_UNBALANCED_BEFORE)) {"));
+  });
+  it("the snapshots are never written by the runner", () => {
+    assert.doesNotMatch(src, /\.from\("booking_commission_snapshot"\)\s*\.(update|insert|upsert|delete)/);
   });
 });
 
