@@ -2,8 +2,22 @@
  * A demo's page copy, set on the applied design the way a talent edits it in
  * the builder (text, ticker words, photos, facts). Pure: takes the draft
  * trees, returns new ones. Unknown shapes are left untouched.
+ *
+ * ONE RULE (TUL-494): every visitor-visible string this module writes must also
+ * set `props.i18n.es` and `props.i18n.en` for that prop (base = site primary;
+ * the other language is explicit via `overlays` / nested `*I18n`). Same shape
+ * as theme seed overlays in `seed-i18n.ts`. Never leave a Spanish-primary demo
+ * with an English-only rewrite (or the reverse).
  */
 import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
+
+/** Second-language Maison / generic hero chrome (written onto `props.i18n.<lang>`). */
+export type HeroSiteCopyOverlay = {
+  heading?: string;
+  eyebrow?: string;
+  lede?: string;
+  proof?: string;
+};
 
 /** Page copy a demo sets in the builder after the design is applied. */
 export type DemoSiteCopy = {
@@ -12,6 +26,8 @@ export type DemoSiteCopy = {
   heroLede?: string;
   /** Proof line under the hero CTAs; `{b}...{/b}` for the bold lead. */
   heroProof?: string;
+  /** Per-language overlays for hero fields this copy writes (TUL-494). */
+  heroOverlays?: Partial<Record<"en" | "es", HeroSiteCopyOverlay>>;
   ticker?: string[];
   heroInset?: string;
   aboutPhoto?: string;
@@ -25,6 +41,15 @@ export type DemoSiteCopy = {
   folio?: FolioSiteCopy;
 };
 
+/** Second-language Folio chrome. Written onto `props.i18n.<lang>` (TUL-494). */
+export type FolioSiteCopyOverlay = {
+  chapters?: Array<{ heading?: string; creditLine?: string; tocCredit?: string }>;
+  coverStatement?: string;
+  ratesSubtitle?: string;
+  footerCredit?: string;
+  footerContact?: string;
+};
+
 /** Folio page copy: design-owned neutral defaults the demo fills the way a talent would in the builder. */
 export type FolioSiteCopy = {
   chapters: Array<{ heading: string; creditLine: string; tocCredit: string }>;
@@ -33,6 +58,8 @@ export type FolioSiteCopy = {
   footerCredit: string;
   footerContact: string;
   shoeLabel: { en: string; es: string };
+  /** Per-language overlays for every chrome field this copy writes. */
+  overlays?: Partial<Record<"en" | "es", FolioSiteCopyOverlay>>;
 };
 
 /** One language of a spec table (all parts optional; only the parts given become overlay keys). */
@@ -408,9 +435,64 @@ function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, ne
   }
 }
 
+/** Flat Folio prop overlays from every language bag that provides `pick`. */
+function folioFlatOverlay(
+  overlays: FolioSiteCopy["overlays"],
+  pick: (o: FolioSiteCopyOverlay) => Record<string, string | undefined> | undefined,
+): Record<string, Record<string, string>> | undefined {
+  if (!overlays) return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [lang, bag] of Object.entries(overlays)) {
+    const props = pick(bag as FolioSiteCopyOverlay);
+    if (!props) continue;
+    const row: Record<string, string> = {};
+    for (const [k, v] of Object.entries(props)) if (typeof v === "string" && v.trim()) row[k] = v;
+    if (Object.keys(row).length) out[lang] = row;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** Masthead / contents index overlays (`contents.N` / `items.N` label + credit). */
+function folioChapterListOverlay(
+  overlays: FolioSiteCopy["overlays"],
+  listKey: "contents" | "items",
+): Record<string, Record<string, string>> | undefined {
+  if (!overlays) return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [lang, bag] of Object.entries(overlays)) {
+    const chapters = (bag as FolioSiteCopyOverlay).chapters;
+    if (!chapters?.length) continue;
+    const row: Record<string, string> = {};
+    chapters.forEach((c, i) => {
+      if (c.heading?.trim()) row[`${listKey}.${i}.label`] = c.heading;
+      if (c.tocCredit?.trim()) row[`${listKey}.${i}.credit`] = c.tocCredit;
+    });
+    if (Object.keys(row).length) out[lang] = row;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** Flat Maison / generic hero overlays from `heroOverlays`. */
+function heroFlatOverlay(
+  overlays: DemoSiteCopy["heroOverlays"],
+  pick: (o: HeroSiteCopyOverlay) => Record<string, string | undefined> | undefined,
+): Record<string, Record<string, string>> | undefined {
+  if (!overlays) return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [lang, bag] of Object.entries(overlays)) {
+    const props = pick(bag as HeroSiteCopyOverlay);
+    if (!props) continue;
+    const row: Record<string, string> = {};
+    for (const [k, v] of Object.entries(props)) if (typeof v === "string" && v.trim()) row[k] = v;
+    if (Object.keys(row).length) out[lang] = row;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** Folio: put the demo wording back on the nodes the design ships neutral. Matched by anchor / chapter number / kind. */
 function folioNode(n: Node, f: FolioSiteCopy): Node {
   const p = n.props ?? {};
+  const ov = f.overlays;
   const chapterAt = (anchor: unknown) => {
     const m = typeof anchor === "string" ? /^chapter-(\d+)$/.exec(anchor) : null;
     return m ? f.chapters[Number(m[1]) - 1] : undefined;
@@ -425,16 +507,39 @@ function folioNode(n: Node, f: FolioSiteCopy): Node {
       if (p.sectionTypeKey !== "site_header" || !Array.isArray(sp.navItems)) return n;
       return withProps(n, { sectionProps: { ...sp, navItems: sp.navItems.map((it: Record<string, unknown>) => withChapter(it, false)) } });
     }
-    case "masthead":
+    case "masthead": {
+      const listOv = folioChapterListOverlay(ov, "contents");
+      const coverOv = folioFlatOverlay(ov, (o) =>
+        o.coverStatement ? { coverStatement: o.coverStatement } : undefined,
+      );
       return withProps(n, {
         coverStatement: f.coverStatement,
         ...(Array.isArray(p.contents) ? { contents: p.contents.map((it: Record<string, unknown>) => withChapter(it, true)) } : {}),
+        ...mergeI18n(p.i18n, listOv ? mergeI18n(coverOv, listOv).i18n : coverOv),
       });
-    case "contents":
-      return Array.isArray(p.items) ? withProps(n, { items: p.items.map((it: Record<string, unknown>) => withChapter(it, true)) }) : n;
+    }
+    case "contents": {
+      if (!Array.isArray(p.items)) return n;
+      return withProps(n, {
+        items: p.items.map((it: Record<string, unknown>) => withChapter(it, true)),
+        ...mergeI18n(p.i18n, folioChapterListOverlay(ov, "items")),
+      });
+    }
     case "portfolio": {
-      const c = f.chapters[Number(p.chapterNumber) - 1];
-      return p.layout === "chapter" && c ? withProps(n, { title: c.heading, creditLine: c.creditLine }) : n;
+      const idx = Number(p.chapterNumber) - 1;
+      const c = f.chapters[idx];
+      if (p.layout !== "chapter" || !c) return n;
+      return withProps(n, {
+        title: c.heading,
+        creditLine: c.creditLine,
+        ...mergeI18n(
+          p.i18n,
+          folioFlatOverlay(ov, (o) => {
+            const ch = o.chapters?.[idx];
+            return ch ? { title: ch.heading, creditLine: ch.creditLine } : undefined;
+          }),
+        ),
+      });
     }
     case "comp_card":
       return Array.isArray(p.measures)
@@ -445,9 +550,26 @@ function folioNode(n: Node, f: FolioSiteCopy): Node {
           })
         : n;
     case "services_catalog":
-      return withProps(n, { subtitle: f.ratesSubtitle });
+      return withProps(n, {
+        subtitle: f.ratesSubtitle,
+        ...mergeI18n(
+          p.i18n,
+          folioFlatOverlay(ov, (o) => (o.ratesSubtitle ? { subtitle: o.ratesSubtitle } : undefined)),
+        ),
+      });
     case "statement_footer":
-      return withProps(n, { creditLine: f.footerCredit, contactLine: f.footerContact });
+      return withProps(n, {
+        creditLine: f.footerCredit,
+        contactLine: f.footerContact,
+        ...mergeI18n(
+          p.i18n,
+          folioFlatOverlay(ov, (o) =>
+            o.footerCredit || o.footerContact
+              ? { creditLine: o.footerCredit, contactLine: o.footerContact }
+              : undefined,
+          ),
+        ),
+      });
     default:
       return n;
   }
@@ -468,7 +590,13 @@ export function applyDemoSiteCopy(
     if (g) return gridlineNode(n, ctx, g, newId);
     const p = n.props ?? {};
     if (ctx.inHero && n.kind === "heading" && p.level === 1 && copy.heroHeading) {
-      return withProps(n, { text: copy.heroHeading });
+      return withProps(n, {
+        text: copy.heroHeading,
+        ...mergeI18n(
+          p.i18n,
+          heroFlatOverlay(copy.heroOverlays, (o) => (o.heading ? { text: o.heading } : undefined)),
+        ),
+      });
     }
     if (
       ctx.inHero &&
@@ -478,10 +606,24 @@ export function applyDemoSiteCopy(
       copy.heroEyebrow
     ) {
       eyebrowDone = true;
-      return withProps(n, { text: copy.heroEyebrow });
+      return withProps(n, {
+        text: copy.heroEyebrow,
+        ...mergeI18n(
+          p.i18n,
+          heroFlatOverlay(copy.heroOverlays, (o) => (o.eyebrow ? { text: o.eyebrow } : undefined)),
+        ),
+      });
     }
     if (ctx.inHero && n.kind === "paragraph" && p.layerLabel === "Hero proof") {
-      return copy.heroProof ? withProps(n, { text: copy.heroProof }) : n;
+      return copy.heroProof
+        ? withProps(n, {
+            text: copy.heroProof,
+            ...mergeI18n(
+              p.i18n,
+              heroFlatOverlay(copy.heroOverlays, (o) => (o.proof ? { text: o.proof } : undefined)),
+            ),
+          })
+        : n;
     }
     if (
       ctx.inHero &&
@@ -489,7 +631,13 @@ export function applyDemoSiteCopy(
       (p.style as { textTransform?: string } | undefined)?.textTransform !== "uppercase" &&
       copy.heroLede
     ) {
-      return withProps(n, { text: copy.heroLede });
+      return withProps(n, {
+        text: copy.heroLede,
+        ...mergeI18n(
+          p.i18n,
+          heroFlatOverlay(copy.heroOverlays, (o) => (o.lede ? { text: o.lede } : undefined)),
+        ),
+      });
     }
     if (ctx.inHero && n.kind === "image" && p.layerLabel === "Hero inset" && copy.heroInset) {
       const url = photoUrl(copy.heroInset);

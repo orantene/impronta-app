@@ -5,13 +5,15 @@
  * Change design / Apps tiles on MyWebsiteCard must not no-op: open the
  * theme gallery or Apps library instead of MaisonSetupHost.
  */
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
 import { AppsLibraryScreen } from "@/components/talent/site/maison-setup/AppsLibraryScreen";
 import { AppDetailScreen } from "@/components/talent/site/maison-setup/AppDetailScreen";
 import type { MaisonSetupLocale } from "@/components/talent/site/maison-setup/maison-setup-copy";
 import { ManagerThemeGallery } from "@/components/talent/site/theme-gallery/ManagerThemeGallery";
 import type { ThemeGalleryLocale } from "@/components/talent/site/theme-gallery/theme-gallery-i18n";
+import { isThemeApplyBusy } from "@/lib/talent-site/history/apply-busy";
+import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
 
 export type PresenceLiveFallbackScreen = "gallery" | "apps";
 
@@ -28,6 +30,16 @@ export function PresenceLiveFallback({
 }) {
   const maisonLocale: MaisonSetupLocale = locale === "es" ? "es" : "en";
   const [appId, setAppId] = useState<string | null>(null);
+  const [publishPending, startPublish] = useTransition();
+
+  function handlePublish() {
+    if (isThemeApplyBusy()) return;
+    startPublish(async () => {
+      const res = await publishMaxSiteAction();
+      if (!res.ok) return;
+      await onApplied();
+    });
+  }
 
   return (
     <div
@@ -52,6 +64,8 @@ export function PresenceLiveFallback({
           <ManagerThemeGallery
             locale={locale}
             onApplied={onApplied}
+            onPublish={handlePublish}
+            publishPending={publishPending}
             wrap={(gallery) => gallery}
             fallback={
               <p className="text-[14px] text-admin-ink-muted">

@@ -5,6 +5,8 @@
  *   token-default    a `tokenDefaults` key changed, appeared or went away;
  *                    or a palette colour (`palettes`, key `palette:<p>:<token>`)
  *   variant-default  a keyed node's design-owned props changed
+ *   copy             a keyed node's default text changed in a leaf the design diff
+ *                    cannot see (`i18n.<locale>.<key>`); one item per node
  *   new-block        a top-level section key new in `to`
  *   layout           a node kind swap, a key removed, a key new below a
  *                    section, or a sibling order change
@@ -21,7 +23,7 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { DesignPayload } from "../theme-catalog/types";
 import { diffDesignPalettes, paletteDisplayName, paletteItemKey } from "../theme-catalog/design-palettes";
 import { indexTree } from "./classify";
-import { designLeaves, kidsOf, stampDesignOrigin } from "./origin";
+import { copyLeaves, designLeaves, kidsOf, stampDesignOrigin } from "./origin";
 import { detectSwaps, swapGroupId } from "./swap";
 import { ROOT_KEY, keyOrder, sameList } from "./tree-ops";
 import type { ReleaseItem } from "./types";
@@ -32,7 +34,7 @@ export interface PayloadVersion {
 }
 
 export interface CandidateItem extends ReleaseItem {
-  /** Changed design-owned prop paths (variant-default). */
+  /** Changed design-owned prop paths (variant-default) or copy leaf paths (copy). */
   paths?: string[];
   /** What a layout item is about (`detail.layout` carries the same). */
   layout?: "kind" | "removed" | "nested-new" | "order";
@@ -74,6 +76,17 @@ function diffTree(tree: string, from: BuilderNode[], to: BuilderNode[], out: Can
       .sort();
     if (paths.length > 0) {
       out.push({ id: `variant-default:${tree}:${key}`, type: "variant-default", tree, key: qualified(key), paths, detail: { paths } });
+    }
+    const ca = copyLeaves(prev.node.props as Record<string, unknown>, cp, prev.node.kind);
+    const cb = copyLeaves(next.node.props as Record<string, unknown>, cp, next.node.kind);
+    // A design-owned base text leaf already rides the variant-default item above, so `copy`
+    // carries only what a design diff cannot see (the i18n overlay, token-free text).
+    const designPaths = new Set(paths);
+    const copyPaths = [...new Set([...ca.keys(), ...cb.keys()])]
+      .filter((p) => ca.get(p) !== cb.get(p) && !designPaths.has(p))
+      .sort();
+    if (copyPaths.length > 0) {
+      out.push({ id: `copy:${tree}:${key}`, type: "copy", tree, key: qualified(key), paths: copyPaths, detail: { paths: copyPaths } });
     }
   }
   for (const [key] of a) {

@@ -1,6 +1,6 @@
 /**
- * Three finished designs in the gallery (Maison, Maison v2, Folio); Solace,
- * Mono and Frame only with TALENT_GALLERY_EXTRA_DESIGNS=1.
+ * Four finished designs in the gallery (Maison, Maison v2, Folio, Gridline);
+ * Solace, Mono and Frame only with TALENT_GALLERY_EXTRA_DESIGNS=1.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
