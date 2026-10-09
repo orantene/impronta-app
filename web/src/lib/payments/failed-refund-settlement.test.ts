@@ -82,7 +82,7 @@ test("applyFailedRefundSettlement resolves by provider_refund_id and stamps", as
   const s = refundStore();
   const out = await applyFailedRefundSettlement(s.admin, baseInput);
   assert.equal(out.flagged, true);
-  assert.equal(out.transactionId, "rx1");
+  assert.equal(out.transaction?.id, "rx1");
   assert.equal(
     (s.tables.booking_transactions[0]!.metadata as Record<string, unknown>).needs_attention,
     FAILED_REFUND_ATTENTION,
@@ -97,7 +97,7 @@ test("applyFailedRefundSettlement with no matching row does not invent a stamp",
   });
   const out = await applyFailedRefundSettlement(s.admin, baseInput);
   assert.equal(out.flagged, false);
-  assert.equal(out.transactionId, null);
+  assert.equal(out.transaction, null);
   assert.equal(s.writes.length, 0);
 });
 
