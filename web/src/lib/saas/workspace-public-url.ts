@@ -2,6 +2,9 @@ import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 import { PLAN_CATALOG } from "@/lib/access/plan-catalog";
 import { WORKSPACE_PATH_SEGMENT } from "@/lib/saas/surface-allow-list";
 
+/** Production marketing origin (same value as DEFAULT_MARKETING_ORIGIN in lib/brand/marketing-origin). */
+const DEFAULT_PATH_ORIGIN = `https://${TULALA_APEX_HOST}`;
+
 export type WorkspaceUrlPlan =
   | "free"
   | "website"
@@ -36,12 +39,18 @@ export type WorkspacePublicAddress = {
  * tenant slug can never shadow a marketing route. Legacy flat `/<slug>` URLs
  * still resolve — middleware 301s them here.
  */
-export function workspacePathHost(slug: string): string {
-  return `${TULALA_APEX_HOST}/${WORKSPACE_PATH_SEGMENT}/${slug}`;
+export function workspacePathHost(slug: string, origin: string = DEFAULT_PATH_ORIGIN): string {
+  return `${origin.replace(/^https?:\/\//, "")}/${WORKSPACE_PATH_SEGMENT}/${slug}`;
 }
 
-export function workspacePathUrl(slug: string): string {
-  return `https://${workspacePathHost(slug)}`;
+/**
+ * `origin` defaults to production (`https://tulala.digital`), so every existing caller is byte-identical.
+ * SERVER code that serves a QA or staging stack passes `resolveMarketingOrigin()` (lib/brand/marketing-origin)
+ * so path links point at that stack, not at production. Client components keep the default: reading the env
+ * there would differ between server HTML and the browser.
+ */
+export function workspacePathUrl(slug: string, origin: string = DEFAULT_PATH_ORIGIN): string {
+  return `${origin}/${WORKSPACE_PATH_SEGMENT}/${slug}`;
 }
 
 export function brandedSubdomainEligible(plan: WorkspaceUrlPlan): boolean {
@@ -181,9 +190,11 @@ export function resolveWorkspacePublicAddress(input: {
   slug: string;
   plan: WorkspaceUrlPlan;
   domainState: WorkspaceDomainState;
+  /** Server callers on a QA/staging stack pass `resolveMarketingOrigin()`; omitted = production. */
+  pathOrigin?: string;
 }): WorkspacePublicAddress {
-  const pathHost = workspacePathHost(input.slug);
-  const pathUrl = workspacePathUrl(input.slug);
+  const pathHost = workspacePathHost(input.slug, input.pathOrigin);
+  const pathUrl = workspacePathUrl(input.slug, input.pathOrigin);
   const subdomainAllowed = brandedSubdomainEligible(input.plan);
   const customAllowed = customDomainEligible(input.plan);
   const actualBrandedHost = subdomainAllowed ? input.domainState.subdomainHost : null;

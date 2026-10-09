@@ -6,8 +6,8 @@
  * tier-gated cards (never selectable, always reads "Web Office"), and native
  * radio semantics so the grid is a real radiogroup: arrow keys, screen
  * readers and 44px targets all come from the platform instead of being
- * hand-rolled. Built for ~5 cards today, a responsive `auto-fill` grid for
- * 40+ later.
+ * hand-rolled. Sized for the finished gallery set (`FINISHED_GALLERY_SLUGS`);
+ * the responsive `auto-fill` grid grows with that list only.
  */
 import { useMemo, useState } from "react";
 
@@ -16,6 +16,7 @@ import type { GalleryCatalogEntry } from "./types";
 import {
   themeGalleryCategoryLabel,
   themeGalleryCopy,
+  themeGalleryDesignStepSubtitle,
   themeGalleryLockedAria,
   themeGallerySelectDesignAria,
   type ThemeGalleryLocale,
@@ -52,7 +53,9 @@ export function DesignStep({
     <div data-theme-gallery-design-step="">
       <div style={{ marginBottom: 10 }}>
         <div style={headingStyle}>{themeGalleryCopy(locale, "designStepHeading")}</div>
-        <p style={subtitleStyle}>{themeGalleryCopy(locale, "designStepSubtitle")}</p>
+        <p style={subtitleStyle} data-testid="theme-gallery-finished-count" data-finished-count={designs.length}>
+          {themeGalleryDesignStepSubtitle(locale, designs.length)}
+        </p>
       </div>
 
       {categories.length > 0 ? (

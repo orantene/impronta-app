@@ -35,11 +35,12 @@ test("workspace client reader: the client wrapper reads private only and drops i
 
 test("client Messages page and /api/client/messages use the client reader, not the staff one", () => {
   for (const rel of [
-    "app/(workspace)/[tenantSlug]/client/messages/page.tsx",
+    // TUL-255: the page's reads moved into its loader.
+    "app/(workspace)/[tenantSlug]/client/_data-bridge/client-page-loaders.ts",
     "app/api/client/messages/route.ts",
   ]) {
     const text = src(rel);
-    assert.match(text, /loadClientInquiryMessages\(/, `${rel} must call loadClientInquiryMessages`);
+    assert.match(text, /loadClientInquiryMessages\b/, `${rel} must call loadClientInquiryMessages`);
     assert.doesNotMatch(text, /\bloadInquiryMessages\(/, `${rel} must not call the staff reader`);
   }
 });

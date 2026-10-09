@@ -1,7 +1,7 @@
 /**
  * Guarded release of the Maison v2 "Book an appointment" header + hero CTA
  * (ticket #88) as a NEW theme version, through Builder Lab's OWN release code
- * (same wiring as release-theme-i18n-overlay.mts; no parallel writer).
+ * (Builder Lab's own publish wiring; no parallel writer).
  *
  * DRY RUN by default (prints the node diff). Writes only with `--apply --yes --design maison-v2`.
  *
@@ -20,7 +20,7 @@
  * the CTA node diff only. Rerunning once the CTA is already on the draft says "Nothing to patch"
  * and writes nothing.
  * Needs NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, DEMO_SEED_TARGET_REF (must match
- * the URL); run through the npm script with --env-file as for qa:release-theme-i18n.
+ * the URL); run through the npm script with --env-file as for qa:release-theme-cta.
  */
 import { createClient } from "@supabase/supabase-js";
 

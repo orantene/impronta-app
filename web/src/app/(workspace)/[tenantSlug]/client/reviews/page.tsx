@@ -5,14 +5,9 @@
 
 import { notFound } from "next/navigation";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
-import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import {
-  loadClientReviews,
-  loadClientRatingSummary,
-  loadReviewsAuthoredByUser,
-} from "@/lib/reviews/load-reviews";
-import { loadClientSelfProfile, loadWorkspaceRosterLite } from "../../_data-bridge";
+import { clientPageReadCtx } from "../_data-bridge/client-read-ctx";
+import { loadReviewsPageData } from "../_data-bridge/client-page-loaders";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
 import {
   ClientReviewsPanel,
@@ -37,14 +32,17 @@ export default async function ClientReviewsPage({ params }: { params: PageParams
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
-  const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
-  if (!clientProfile) notFound();
+  const pageData = await loadReviewsPageData(
+    session.user.id,
+    scope.tenantId,
+    await clientPageReadCtx(session.user.id),
+  );
+  if (!pageData) notFound();
 
   // Review surfaces are switched per SURFACE tenant; the platform default is ON
   // (collecting reviews is free on every tier). A workspace staff switched OFF
   // gets a plain empty state (same ClientPageHeader shell) instead of the panel.
-  const reviewsEnabled = await tenantReviewsEnabled(scope.tenantId);
-  if (!reviewsEnabled) {
+  if (!pageData.enabled) {
     return (
       <div style={{ fontFamily: FONT }}>
         <ClientPageHeader
@@ -56,12 +54,7 @@ export default async function ClientReviewsPage({ params }: { params: PageParams
     );
   }
 
-  const [received, receivedSummary, authored, roster] = await Promise.all([
-    loadClientReviews(session.user.id),
-    loadClientRatingSummary(session.user.id),
-    loadReviewsAuthoredByUser(session.user.id),
-    loadWorkspaceRosterLite(scope.tenantId),
-  ]);
+  const { received, receivedSummary, authored, roster } = pageData;
 
   // Resolve talent-profile IDs to display names for the "reviews you've written"
   // list. The roster carries { id, name } where id is the talent_profile id.
