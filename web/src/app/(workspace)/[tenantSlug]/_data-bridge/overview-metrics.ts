@@ -7,7 +7,10 @@ import { logServerError } from "@/lib/server/safe-error";
 import { guardedQuery } from "@/lib/server/guarded-query";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import { withTimeout } from "@/lib/tulala/with-timeout";
-import { mapOverviewCounts } from "./overview-counts";
+import { mapOverviewCounts, type OverviewCounts } from "./overview-counts";
+import { loadOverviewCountsLegacy } from "./overview-counts-legacy";
+
+let loggedCountsFallback = false;
 
 /**
  * The financial KPI read joins every commission snapshot to its booking and
@@ -155,10 +158,18 @@ export async function loadWorkspaceOverviewMetrics(
       countOpenExceptions(tenantId),
     ]);
 
+    let counts: OverviewCounts;
     if (countsRes.error) {
-      logServerError("workspace.loadOverviewMetrics.counts", countsRes.error);
+      // Missing function (code before migration) or any error: log once per
+      // process, then read the way this loader did before the RPC existed.
+      if (!loggedCountsFallback) {
+        loggedCountsFallback = true;
+        logServerError("workspace.loadOverviewMetrics.counts", countsRes.error);
+      }
+      counts = await loadOverviewCountsLegacy(supabase, tenantId);
+    } else {
+      counts = mapOverviewCounts(countsRes.data);
     }
-    const counts = mapOverviewCounts(countsRes.data);
 
     const oldestCoordinatorWaitDays = counts.oldestCoordinatorCreatedAt
       ? Math.floor((Date.now() - new Date(counts.oldestCoordinatorCreatedAt).getTime()) / (1000 * 60 * 60 * 24))

@@ -56,3 +56,36 @@ test("the migration the mapper reads from exists and is invoker-secured", async 
     assert.ok(sql.includes(`'${key}'`), key);
   }
 });
+
+test("legacy fallback returns the same shape from per-table reads", async () => {
+  const { loadOverviewCountsLegacy } = await import("./overview-counts-legacy");
+  const calls: string[] = [];
+  // A chainable stand-in: every filter returns itself, awaiting yields the result.
+  const query = (table: string) => {
+    calls.push(table);
+    const result =
+      table === "agency_talent_roster"
+        ? {
+            data: [
+              { status: "active", talent_profiles: { workflow_status: "published" } },
+              { status: "pending", talent_profiles: { workflow_status: "draft" } },
+            ],
+            count: 2,
+            error: null,
+          }
+        : { data: [], count: 3, error: null };
+    const chain: Record<string, unknown> = {};
+    for (const m of ["select", "eq", "neq", "is", "in", "not", "gte", "order", "limit"]) {
+      chain[m] = () => chain;
+    }
+    chain.then = (resolve: (v: unknown) => unknown) => resolve(result);
+    return chain;
+  };
+  const fake = { from: query } as unknown as Parameters<typeof loadOverviewCountsLegacy>[0];
+  const out = await loadOverviewCountsLegacy(fake, "t1");
+  assert.equal(calls.length, 11, "ten counts plus the roster read, one request each");
+  assert.equal(out.rosterTotal, 2);
+  assert.equal(out.rosterPublished, 1);
+  assert.equal(out.openInquiries, 3);
+  assert.equal(out.nextBooking, null);
+});
