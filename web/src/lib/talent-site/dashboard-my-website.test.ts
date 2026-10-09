@@ -119,6 +119,9 @@ test("page-builder wires sp.site === personal to explicitPersonal", () => {
     "utf8",
   );
   assert.match(src, /sp\.site\s*===\s*["']personal["']/);
-  assert.match(src, /explicitPersonal\s*:/);
-  assert.match(src, /resolveMyWebsiteTarget/);
+  // Main probe uses resolveEditSiteRedirect (wraps resolveMyWebsiteTarget) and
+  // object-shorthand `explicitPersonal` on the redirect input.
+  assert.match(src, /explicitPersonal/);
+  assert.match(src, /resolveEditSiteRedirect\(\{[\s\S]*explicitPersonal/);
+  assert.match(src, /editSiteNeedsPersonalProbe\(\{[\s\S]*explicitPersonal/);
 });
