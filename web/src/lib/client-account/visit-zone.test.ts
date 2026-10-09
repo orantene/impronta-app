@@ -59,10 +59,11 @@ test("the visits LIST resolves each inquiry to its booking talent's zone through
     ],
   });
   assert.deepEqual(zones, { i1: "America/Mexico_City", i2: "Europe/Madrid" });
+  const byId: Record<string, string | undefined> = zones;
   // i3 has no order, i4 an invalid zone, i5 no offering: all fall back to the host zone.
-  assert.equal(visitZone(zones["i3"], "America/Cancun"), "America/Cancun");
-  assert.equal(visitZone(zones["i4"], "America/Cancun"), "America/Cancun");
-  assert.equal(visitZone(zones["i1"], "America/Cancun"), "America/Mexico_City");
+  assert.equal(visitZone(byId["i3"], "America/Cancun"), "America/Cancun");
+  assert.equal(visitZone(byId["i4"], "America/Cancun"), "America/Cancun");
+  assert.equal(visitZone(byId["i1"], "America/Cancun"), "America/Mexico_City");
 });
 
 test("two visits with different talents read in different zones in the list", () => {

@@ -45,9 +45,9 @@ export const BUILDER_LAB_ERROR_PATTERNS: readonly Pattern[] = [
   { re: /^(\d+) site\(s\) failed the dry run\. Fix or rerun\.$/, es: (m) => `${m[1]} sitio(s) fallaron en la prueba. Corrige o vuelve a probar.` },
   { re: /^Move one step at a time: (.+) to the next channel\.$/, es: (m) => `Avanza un paso a la vez: de ${m[1]} al siguiente canal.` },
   { re: /^Catalog is at v(\d+), release targets v(\d+)\.$/, es: (m) => `El catálogo está en la v${m[1]}, la entrega apunta a la v${m[2]}.` },
-  { re: /^Base build failed: (.+)$/s, es: (m) => `Falló la compilación base: ${m[1]}` },
-  { re: /^Target build failed: (.+)$/s, es: (m) => `Falló la compilación de destino: ${m[1]}` },
-  { re: /^Publish failed: (.+)\.$/s, es: (m) => `No se pudo publicar: ${m[1]}.` },
+  { re: /^Base build failed: ([\s\S]+)$/, es: (m) => `Falló la compilación base: ${m[1]}` },
+  { re: /^Target build failed: ([\s\S]+)$/, es: (m) => `Falló la compilación de destino: ${m[1]}` },
+  { re: /^Publish failed: ([\s\S]+)\.$/, es: (m) => `No se pudo publicar: ${m[1]}.` },
 ];
 
 export function localizeBuilderLabError(error: string, lang: BuilderLabLang, errorEs?: string | null): string {
