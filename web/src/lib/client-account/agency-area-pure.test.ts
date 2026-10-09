@@ -86,7 +86,7 @@ test("sign-in on agency and hub hosts: verify resolves the tenant from the host 
   assert.match(src, /accountSurfaceEnabledForRequest\(\)/);
   assert.match(src, /isClientAccountEligible\(profile\?\.app_role\)/);
   assert.match(src, /resolveAccountTenant\(\)/);
-  assert.match(src, /ensureTenantClientRelationship\(\{ userId: user\.id, tenantId: tenant\.tenantId/);
+  assert.match(src, /ensureTenantClientRelationship\(\{\s*userId: input\.userId,\s*tenantId: tenant\.tenantId/);
   assert.doesNotMatch(src, /tenantId:\s*input\./);
 });
 
