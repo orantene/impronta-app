@@ -1,0 +1,15 @@
+{
+  "card": "TUL-120",
+  "step": "sign-out works",
+  "n": 15,
+  "status": "PASS",
+  "facts": {
+    "authCookiesBefore": 1,
+    "signOutVia": "account menu 'Cerrar sesión'",
+    "authCookiesAfter": 0
+  },
+  "shots": [
+    "run6-TUL-120-15-01-menu.jpg",
+    "run6-TUL-120-15-02-after-signout.jpg"
+  ]
+}

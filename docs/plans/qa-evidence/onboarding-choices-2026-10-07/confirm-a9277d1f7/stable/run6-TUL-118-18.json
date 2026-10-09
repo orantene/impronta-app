@@ -1,0 +1,19 @@
+{
+  "card": "TUL-118",
+  "step": "header shows fallback logo > label > display name > slug (both widths)",
+  "n": 18,
+  "status": "PASS",
+  "facts": {
+    "header1440": {
+      "text": "Rosa r6a arawtc LIMPIEZA DE AIRBNB Trabajos Menú y precios Reseñas Sobre mí ES / EN Reservar cita",
+      "imgs": []
+    },
+    "header390": {
+      "text": "Rosa r6a arawtc LIMPIEZA DE AIRBNB 01 Inicio ES / EN",
+      "imgs": []
+    },
+    "brandShown(name|logoAlt|slug)": true,
+    "displayNameInVisibleText": true
+  },
+  "shots": []
+}

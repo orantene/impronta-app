@@ -1,0 +1,54 @@
+{
+  "A": {
+    "label": "A",
+    "choice": "myself",
+    "email": "qa-onb-choice-myself-a-desktop-arawtc@impronta.test",
+    "displayName": "Rosa r6a arawtc",
+    "userId": "e7fd1671-de70-4bf3-aa03-586ff1e51070",
+    "talentId": "97885ed7-5ea2-4d58-9c31-03658e1d02dc",
+    "tenantId": null,
+    "tenantSlug": null,
+    "siteSlug": "rosa-r6a-arawtc",
+    "finishHref": "https://rosa-r6a-arawtc.tulala.digital",
+    "pickedLook": "blush"
+  },
+  "M2": {
+    "label": "M2",
+    "choice": "myself",
+    "email": "qa-onb-choice-myself-m2-desktop-arawtc@impronta.test",
+    "displayName": "Rosa r6m2 arawtc",
+    "userId": "120f1b4b-410f-448f-9851-7cf419e7286a",
+    "talentId": "978cb0b4-dfa4-4aa0-8f64-495b55ed42b2",
+    "tenantId": "9163e125-d041-416c-9738-3caea13eff50",
+    "tenantSlug": "r6m2arawtc",
+    "siteSlug": "rosa-r6m2-arawtc",
+    "finishHref": "https://rosa-r6m2-arawtc.tulala.digital",
+    "pickedLook": "blush"
+  },
+  "S": {
+    "label": "S",
+    "choice": "studio",
+    "email": "qa-onb-choice-studio-s-desktop-arawtc@impronta.test",
+    "displayName": "Estudio r6s arawtc",
+    "userId": "4f29300f-8be6-49a6-af2a-26c98d21a152",
+    "talentId": "cec9f255-bef7-4700-9587-1a21c91f97db",
+    "tenantId": "33668c0f-6927-4b3a-8ec5-0f6c19ee3295",
+    "tenantSlug": "estudio-r6s-arawtc",
+    "siteSlug": null,
+    "finishHref": "https://estudio-r6s-arawtc.tulala.digital",
+    "pickedLook": null
+  },
+  "B": {
+    "label": "B",
+    "choice": "both",
+    "email": "qa-onb-choice-both-b-desktop-arawtc@impronta.test",
+    "displayName": "Ambas r6b arawtc",
+    "userId": "6a2ab2a5-3310-4fe5-bc50-0eba43861c61",
+    "talentId": "57e1025f-1663-436b-858d-db41ba420600",
+    "tenantId": "5e88554e-d514-436f-9088-4d6c3a6b3652",
+    "tenantSlug": "ambas-r6b-arawtc",
+    "siteSlug": "ambas-r6b-arawtc-2",
+    "finishHref": "https://ambas-r6b-arawtc.tulala.digital",
+    "pickedLook": "blush"
+  }
+}

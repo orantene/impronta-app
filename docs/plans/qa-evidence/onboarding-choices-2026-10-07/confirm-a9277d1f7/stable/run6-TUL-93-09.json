@@ -1,0 +1,83 @@
+{
+  "card": "TUL-93",
+  "step": "guest booking email + talent notification evidence",
+  "n": 9,
+  "status": "BLOCKED",
+  "facts": {
+    "notification_dispatch_log": [
+      {
+        "event_kind": "booking.confirmed",
+        "channel": "email",
+        "status": "skipped",
+        "error": "channel not configured or no endpoint",
+        "sent_at": null,
+        "payloadKeys": [
+          "locale",
+          "bookingId",
+          "eventDate",
+          "offerTotal",
+          "contactName",
+          "clientUserId",
+          "contactEmail",
+          "coordinatorId",
+          "eventLocation",
+          "offeringTitle",
+          "offeringSuffix"
+        ]
+      },
+      {
+        "event_kind": "booking.confirmed",
+        "channel": "in_app",
+        "status": "sent",
+        "error": null,
+        "sent_at": "2026-10-09T09:28:13.703+00:00",
+        "payloadKeys": [
+          "locale",
+          "bookingId",
+          "eventDate",
+          "offerTotal",
+          "contactName",
+          "clientUserId",
+          "contactEmail",
+          "coordinatorId",
+          "eventLocation",
+          "offeringTitle",
+          "offeringSuffix"
+        ]
+      },
+      {
+        "event_kind": "booking.confirmed",
+        "channel": "email",
+        "status": "skipped",
+        "error": "channel not configured or no endpoint",
+        "sent_at": null,
+        "payloadKeys": [
+          "locale",
+          "bookingId",
+          "eventDate",
+          "offerTotal",
+          "contactName",
+          "clientUserId",
+          "contactEmail",
+          "coordinatorId",
+          "eventLocation",
+          "offeringTitle",
+          "offeringSuffix"
+        ]
+      }
+    ],
+    "user_notifications_for_talent": [
+      {
+        "kind": "booking",
+        "surface": "talent",
+        "title": "New booking confirmed",
+        "body": "A client booked a time with you.",
+        "created_at": "2026-10-09T09:28:13.666599+00:00"
+      }
+    ],
+    "bodiesNote": "no table stores sent email bodies (dispatch log keeps status + payload only); rendered bodies are asserted in TUL-108/136 and TUL-67",
+    "emailProof": "email unproven: hook (TUL-333)"
+  },
+  "shots": [],
+  "detail": "email unproven: hook (TUL-333); email dispatch rows=2 statuses=skipped,skipped; the in-app notification row for the talent IS present (1)"
+}

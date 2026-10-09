@@ -1,0 +1,15 @@
+{
+  "card": "Studio booking",
+  "step": "provider added (hours + one service seeded on the isolated project) and a guest books",
+  "n": 13,
+  "status": "FAIL",
+  "facts": {
+    "hoursSeeded": true,
+    "offeringSeeded": true,
+    "guestFailPageText": "Cookies y analítica × Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes. Política de privacidad · Política de cookies Rechazar Aceptar Skip to content ESTUDIO R6S ARAWTC ES | EN Estudio r6s arawtc Lo que ofrecemos Agenda Nosotros Galería Contacto 02 / 03 SCROLL Estudio r6s arawtc Con gusto te atendemos"
+  },
+  "shots": [
+    "run6-Studio_booking-13-01-guest-FAIL.jpg"
+  ],
+  "detail": "an available slot |  | expect(locator).toBeVisible() failed |  | Locator: locator('[data-testid=slot-picker] button').first() | Expected: visible | Timeout: 45000ms | Error: element(s) not found"
+}

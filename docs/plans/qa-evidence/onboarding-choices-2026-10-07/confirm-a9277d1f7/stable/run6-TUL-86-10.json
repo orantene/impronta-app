@@ -1,0 +1,30 @@
+{
+  "card": "TUL-86",
+  "step": "myself -> both (Cómo trabajas, M2)",
+  "n": 10,
+  "status": "PASS",
+  "facts": {
+    "dialogTextAfterConfirm": "",
+    "landedOn": "/r6m2arawtc/admin",
+    "serverLog_how-you-work": [],
+    "memberships": [
+      {
+        "tenant_id": "9163e125-d041-416c-9738-3caea13eff50",
+        "role": "owner",
+        "status": "active"
+      }
+    ],
+    "selfRoster": {
+      "status": "active",
+      "agency_visibility": "site_visible"
+    },
+    "home_surface_preference": "workspace",
+    "uiStateAfter": "card not reached at /<slug>/admin/settings (settings route guessed)"
+  },
+  "shots": [
+    "run6-TUL-86-10-01-before.jpg",
+    "run6-TUL-86-10-02-confirm-sheet.jpg",
+    "run6-TUL-86-10-03-after.jpg",
+    "run6-TUL-86-10-04-state-after.jpg"
+  ]
+}

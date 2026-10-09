@@ -1,0 +1,708 @@
+{
+ "A_myself": {
+  "host": "rosa-r6a-arawtc.tulala.digital",
+  "pages": {
+   "/": {
+    "status": 200,
+    "final": "/",
+    "text": "Saltar al contenido Rosa r6a arawtc LIMPIEZA DE AIRBNB Trabajos Menú y precios Reseñas Sobre mí ES / EN Reservar cita LIMPIEZA DE AIRBNB · PLAYA DEL CARMEN Rosa r6a arawtc Soy Rosa r6a arawtc, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas. Reservar cita Ver servicios Español Hoy a las 10:30 Próximo horario libre Limpieza profunda ✦ Limpieza ligera ✦ Limpieza profunda ✦ Limpieza ligera ✦ Trab",
+    "slotButtons": 0,
+    "reservarBtns": 4,
+    "notFound": false
+   },
+   "/servicios": {
+    "status": 404,
+    "final": "/servicios",
+    "text": "TULALA Page not found We couldn't find the page you're looking for. Go home Sign in",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/book": {
+    "status": 404,
+    "final": "/book",
+    "text": "TULALA Page not found We couldn't find the page you're looking for. Go home Sign in",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/agendar": {
+    "status": 404,
+    "final": "/agendar",
+    "text": "TULALA Page not found We couldn't find the page you're looking for. Go home Sign in",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/nosotros": {
+    "status": 404,
+    "final": "/nosotros",
+    "text": "TULALA Page not found We couldn't find the page you're looking for. Go home Sign in",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/contacto": {
+    "status": 404,
+    "final": "/contacto",
+    "text": "TULALA Page not found We couldn't find the page you're looking for. Go home Sign in",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/galeria": {
+    "status": 404,
+    "final": "/galeria",
+    "text": "TULALA Page not found We couldn't find the page you're looking for. Go home Sign in",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   }
+  },
+  "links": {
+   "/": "ERR",
+   "/?locale=es": "ERR",
+   "/en": "ERR",
+   "/politicas": "ERR",
+   "/privacidad": "ERR"
+  },
+  "heroLinks": [
+   [
+    "Política de privacidad",
+    "http://localhost:3105/legal/privacy"
+   ],
+   [
+    "Política de cookies",
+    "http://localhost:3105/legal/cookies"
+   ],
+   [
+    "Saltar al contenido",
+    "#main-content"
+   ],
+   [
+    "Rosa r6a arawtc\nLIMPIEZA DE AI",
+    "/"
+   ],
+   [
+    "Trabajos",
+    "#gallery"
+   ],
+   [
+    "Menú y precios",
+    "#services"
+   ],
+   [
+    "Reseñas",
+    "#about"
+   ],
+   [
+    "Sobre mí",
+    "#location"
+   ],
+   [
+    "ES",
+    "/?locale=es"
+   ],
+   [
+    "EN",
+    "/en"
+   ],
+   [
+    "Reservar cita",
+    "#services"
+   ],
+   [
+    "Reservar cita",
+    "#services"
+   ],
+   [
+    "Ver servicios",
+    "#services"
+   ],
+   [
+    "Hoy a las 10:30\nPróximo horari",
+    "#services"
+   ],
+   [
+    "Ver servicios",
+    "#services"
+   ],
+   [
+    "Escríbeme",
+    "#talent-ask"
+   ],
+   [
+    "Ver zona en el mapa",
+    "https://www.google.com/maps/search/?api=1&query=Playa%20del%20Carmen"
+   ],
+   [
+    "Pagos, cambios y cancelaciones",
+    "/politicas"
+   ],
+   [
+    "Reservar cita",
+    "#services"
+   ],
+   [
+    "Ver ubicación",
+    "#location"
+   ],
+   [
+    "Escribir por este sitio",
+    "#talent-ask"
+   ],
+   [
+    "Políticas de reserva",
+    "/politicas"
+   ],
+   [
+    "Privacidad",
+    "/privacidad"
+   ],
+   [
+    "Términos",
+    "https://tulala.digital/es/legal/terms"
+   ],
+   [
+    "Privacidad",
+    "https://tulala.digital/es/legal/privacy"
+   ],
+   [
+    "Cookies",
+    "https://tulala.digital/es/legal/cookies"
+   ],
+   [
+    "Reembolsos",
+    "https://tulala.digital/es/legal/refunds"
+   ],
+   [
+    "Tulala.digital",
+    "https://tulala.digital"
+   ]
+  ]
+ },
+ "B_ws": {
+  "host": "ambas-r6b-arawtc.tulala.digital",
+  "pages": {
+   "/": {
+    "status": 200,
+    "final": "/",
+    "text": "Skip to content AMBAS R6B ARAWTC ES | EN Ambas r6b arawtc Lo que ofrecemos Agenda Nosotros Galería Contacto 01 / 03 SCROLL Ambas r6b arawtc Con gusto te atendemos. Escríbenos o ven a vernos. ESCRÍBENOS LO QUE OFRECEMOS Ambas r6b arawtc ◆ Lo que ofrecemos ◆ Galería ◆ Contacto ◆ Ambas r6b arawtc ◆ Lo que ofrecemos ◆ Galería ◆ Contacto ◆ Lo esencial, bien hecho. LO QUE HACEMOS Lo esencial El lugar Un espacio pensado par",
+    "slotButtons": 0,
+    "reservarBtns": 2,
+    "notFound": false
+   },
+   "/servicios": {
+    "status": 404,
+    "final": "/servicios",
+    "text": "AMBAS R6B ARAWTC This page is no longer here We couldn't find that page on Ambas r6b arawtc. The roster, news, or campaign you were looking for may have moved. Back to homepage Send an inquiry Powered by Tulala",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/book": {
+    "status": 200,
+    "final": "/book",
+    "text": "AMBAS R6B ARAWTC ES | EN Reserva un horario Elige un servicio y un horario. Confirmamos enseguida. Limpieza profunda Service Limpieza profunda Limpieza ligera Choose a time Times are shown in the studio timezone. vie, 9 oct, 9:00 vie, 9 oct, 9:30 vie, 9 oct, 10:00 vie, 9 oct, 10:30 vie, 9 oct, 11:00 vie, 9 oct, 11:30 vie, 9 oct, 12:00 vie, 9 oct, 12:30 vie, 9 oct, 13:00 vie, 9 oct, 13:30 vie, 9 oct, 14:00 vie, 9 oct,",
+    "slotButtons": 192,
+    "reservarBtns": 0,
+    "notFound": false
+   },
+   "/agendar": {
+    "status": 404,
+    "final": "/agendar",
+    "text": "AMBAS R6B ARAWTC This page is no longer here We couldn't find that page on Ambas r6b arawtc. The roster, news, or campaign you were looking for may have moved. Back to homepage Send an inquiry Powered by Tulala",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/nosotros": {
+    "status": 404,
+    "final": "/nosotros",
+    "text": "AMBAS R6B ARAWTC This page is no longer here We couldn't find that page on Ambas r6b arawtc. The roster, news, or campaign you were looking for may have moved. Back to homepage Send an inquiry Powered by Tulala",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/contacto": {
+    "status": 404,
+    "final": "/contacto",
+    "text": "AMBAS R6B ARAWTC This page is no longer here We couldn't find that page on Ambas r6b arawtc. The roster, news, or campaign you were looking for may have moved. Back to homepage Send an inquiry Powered by Tulala",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/galeria": {
+    "status": 404,
+    "final": "/galeria",
+    "text": "AMBAS R6B ARAWTC This page is no longer here We couldn't find that page on Ambas r6b arawtc. The roster, news, or campaign you were looking for may have moved. Back to homepage Send an inquiry Powered by Tulala",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   }
+  },
+  "links": {
+   "/directory": "ERR",
+   "/": "ERR",
+   "/en": "ERR",
+   "/login": "ERR",
+   "/services": "ERR",
+   "/book": "ERR",
+   "/about": "ERR",
+   "/gallery": "ERR",
+   "/contact": "ERR"
+  },
+  "heroLinks": [
+   [
+    "Skip to content",
+    "#main-content"
+   ],
+   [
+    "",
+    "/directory"
+   ],
+   [
+    "AMBAS R6B ARAWTC",
+    "/"
+   ],
+   [
+    "Ambas r6b arawtc",
+    "/"
+   ],
+   [
+    "ES",
+    "/"
+   ],
+   [
+    "EN",
+    "/en"
+   ],
+   [
+    "",
+    "/login"
+   ],
+   [
+    "Lo que ofrecemos",
+    "/services"
+   ],
+   [
+    "Agenda",
+    "/book"
+   ],
+   [
+    "Nosotros",
+    "/about"
+   ],
+   [
+    "Galería",
+    "/gallery"
+   ],
+   [
+    "Contacto",
+    "/contact"
+   ],
+   [
+    "Lo que ofrecemos",
+    "/services"
+   ],
+   [
+    "Agenda",
+    "/book"
+   ],
+   [
+    "Nosotros",
+    "/about"
+   ],
+   [
+    "Galería",
+    "/gallery"
+   ],
+   [
+    "Contacto",
+    "/contact"
+   ],
+   [
+    "Escríbenos",
+    "/book"
+   ],
+   [
+    "ESCRÍBENOS",
+    "/book"
+   ],
+   [
+    "LO QUE OFRECEMOS",
+    "/services"
+   ],
+   [
+    "Agendar",
+    "/book"
+   ],
+   [
+    "Agendar",
+    "/book"
+   ],
+   [
+    "<",
+    "#builder-carousel-85bc433b-b141-42c0-9468-0497648c8227-slide-1"
+   ],
+   [
+    ">",
+    "#builder-carousel-85bc433b-b141-42c0-9468-0497648c8227-slide-2"
+   ],
+   [
+    "VER LA GALERÍA",
+    "/gallery"
+   ],
+   [
+    "ESCRÍBENOS",
+    "/book"
+   ],
+   [
+    "CÓMO LLEGAR",
+    "/contact"
+   ],
+   [
+    "Lo que ofrecemos",
+    "/services"
+   ],
+   [
+    "Agenda",
+    "/book"
+   ],
+   [
+    "Nosotros",
+    "/about"
+   ],
+   [
+    "Galería",
+    "/gallery"
+   ],
+   [
+    "Contacto",
+    "/contact"
+   ],
+   [
+    "Lo que ofrecemos",
+    "/services"
+   ],
+   [
+    "Agenda",
+    "/book"
+   ],
+   [
+    "Nosotros",
+    "/about"
+   ],
+   [
+    "Galería",
+    "/gallery"
+   ],
+   [
+    "Contacto",
+    "/contact"
+   ],
+   [
+    "Escríbenos",
+    "/book"
+   ],
+   [
+    "Términos",
+    "https://tulala.digital/es/legal/terms"
+   ],
+   [
+    "Privacidad",
+    "https://tulala.digital/es/legal/privacy"
+   ],
+   [
+    "Cookies",
+    "https://tulala.digital/es/legal/cookies"
+   ],
+   [
+    "Reembolsos",
+    "https://tulala.digital/es/legal/refunds"
+   ],
+   [
+    "Tulala.digital",
+    "https://tulala.digital"
+   ]
+  ]
+ },
+ "B_talent": {
+  "host": "ambas-r6b-arawtc-2.tulala.digital",
+  "pages": {
+   "/": {
+    "status": 200,
+    "final": "/",
+    "text": "Saltar al contenido Ambas r6b arawtc LIMPIEZA DE AIRBNB Trabajos Menú y precios Reseñas Sobre mí ES / EN Reservar cita LIMPIEZA DE AIRBNB · PLAYA DEL CARMEN Ambas r6b arawtc Soy Ambas r6b arawtc, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas. Reservar cita Ver servicios Español Hoy a las 09:00 Próximo horario libre Limpieza profunda ✦ Limpieza ligera ✦ Limpieza profunda ✦ Limpieza ligera ✦ E",
+    "slotButtons": 0,
+    "reservarBtns": 4,
+    "notFound": false
+   },
+   "/servicios": {
+    "status": 404,
+    "final": "/servicios",
+    "text": "TULALA Page not found We couldn't find the page you're looking for. Go home Sign in",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/book": {
+    "status": 404,
+    "final": "/book",
+    "text": "TULALA Page not found We couldn't find the page you're looking for. Go home Sign in",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/agendar": {
+    "status": 404,
+    "final": "/agendar",
+    "text": "TULALA Page not found We couldn't find the page you're looking for. Go home Sign in",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/nosotros": {
+    "status": 404,
+    "final": "/nosotros",
+    "text": "TULALA Page not found We couldn't find the page you're looking for. Go home Sign in",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/contacto": {
+    "status": 404,
+    "final": "/contacto",
+    "text": "TULALA Page not found We couldn't find the page you're looking for. Go home Sign in",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/galeria": {
+    "status": 404,
+    "final": "/galeria",
+    "text": "TULALA Page not found We couldn't find the page you're looking for. Go home Sign in",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   }
+  },
+  "links": {
+   "/": "ERR",
+   "/?locale=es": "ERR",
+   "/en": "ERR",
+   "/politicas": "ERR",
+   "/privacidad": "ERR"
+  },
+  "heroLinks": [
+   [
+    "Política de privacidad",
+    "http://localhost:3105/legal/privacy"
+   ],
+   [
+    "Política de cookies",
+    "http://localhost:3105/legal/cookies"
+   ],
+   [
+    "Saltar al contenido",
+    "#main-content"
+   ],
+   [
+    "Ambas r6b arawtc\nLIMPIEZA DE A",
+    "/"
+   ],
+   [
+    "Trabajos",
+    "#gallery"
+   ],
+   [
+    "Menú y precios",
+    "#services"
+   ],
+   [
+    "Reseñas",
+    "#about"
+   ],
+   [
+    "Sobre mí",
+    "#location"
+   ],
+   [
+    "ES",
+    "/?locale=es"
+   ],
+   [
+    "EN",
+    "/en"
+   ],
+   [
+    "Reservar cita",
+    "#services"
+   ],
+   [
+    "Reservar cita",
+    "#services"
+   ],
+   [
+    "Ver servicios",
+    "#services"
+   ],
+   [
+    "Hoy a las 09:00\nPróximo horari",
+    "#services"
+   ],
+   [
+    "Ver servicios",
+    "#services"
+   ],
+   [
+    "Escríbeme",
+    "#talent-ask"
+   ],
+   [
+    "Ver zona en el mapa",
+    "https://www.google.com/maps/search/?api=1&query=Playa%20del%20Carmen"
+   ],
+   [
+    "Pagos, cambios y cancelaciones",
+    "/politicas"
+   ],
+   [
+    "Reservar cita",
+    "#services"
+   ],
+   [
+    "Ver ubicación",
+    "#location"
+   ],
+   [
+    "Escribir por este sitio",
+    "#talent-ask"
+   ],
+   [
+    "Políticas de reserva",
+    "/politicas"
+   ],
+   [
+    "Privacidad",
+    "/privacidad"
+   ],
+   [
+    "Términos",
+    "https://tulala.digital/es/legal/terms"
+   ],
+   [
+    "Privacidad",
+    "https://tulala.digital/es/legal/privacy"
+   ],
+   [
+    "Cookies",
+    "https://tulala.digital/es/legal/cookies"
+   ],
+   [
+    "Reembolsos",
+    "https://tulala.digital/es/legal/refunds"
+   ],
+   [
+    "Tulala.digital",
+    "https://tulala.digital"
+   ]
+  ]
+ },
+ "S_studio": {
+  "host": "estudio-r6s-arawtc.tulala.digital",
+  "pages": {
+   "/": {
+    "final": "/",
+    "text": "Skip to content Estudio r6s arawtc Estudio r6s arawtc ES|EN",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": false
+   },
+   "/servicios": {
+    "status": 404,
+    "final": "/servicios",
+    "text": "ESTUDIO R6S ARAWTC This page is no longer here We couldn't find that page on Estudio r6s arawtc. The roster, news, or campaign you were looking for may have moved. Back to homepage Send an inquiry Powered by Tulala",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/book": {
+    "status": 200,
+    "final": "/book",
+    "text": "ESTUDIO R6S ARAWTC ES | EN Reserva un horario Elige un servicio y un horario. Confirmamos enseguida. No open times in the next two weeks. Try again later. TULALA Términos Privacidad Cookies Reembolsos Sitio creado con Tulala.digital",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": false
+   },
+   "/agendar": {
+    "status": 404,
+    "final": "/agendar",
+    "text": "ESTUDIO R6S ARAWTC This page is no longer here We couldn't find that page on Estudio r6s arawtc. The roster, news, or campaign you were looking for may have moved. Back to homepage Send an inquiry Powered by Tulala",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/nosotros": {
+    "status": 404,
+    "final": "/nosotros",
+    "text": "ESTUDIO R6S ARAWTC This page is no longer here We couldn't find that page on Estudio r6s arawtc. The roster, news, or campaign you were looking for may have moved. Back to homepage Send an inquiry Powered by Tulala",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/contacto": {
+    "status": 404,
+    "final": "/contacto",
+    "text": "ESTUDIO R6S ARAWTC This page is no longer here We couldn't find that page on Estudio r6s arawtc. The roster, news, or campaign you were looking for may have moved. Back to homepage Send an inquiry Powered by Tulala",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   },
+   "/galeria": {
+    "status": 404,
+    "final": "/galeria",
+    "text": "ESTUDIO R6S ARAWTC This page is no longer here We couldn't find that page on Estudio r6s arawtc. The roster, news, or campaign you were looking for may have moved. Back to homepage Send an inquiry Powered by Tulala",
+    "slotButtons": 0,
+    "reservarBtns": 0,
+    "notFound": true
+   }
+  },
+  "links": {
+   "/directory": "ERR",
+   "/": "ERR",
+   "/en": "ERR",
+   "/login": "ERR"
+  },
+  "heroLinks": [
+   [
+    "Skip to content",
+    "#main-content"
+   ],
+   [
+    "",
+    "/directory"
+   ],
+   [
+    "Estudio r6s arawtc",
+    "/"
+   ],
+   [
+    "Estudio r6s arawtc",
+    "/"
+   ],
+   [
+    "ES",
+    "/"
+   ],
+   [
+    "EN",
+    "/en"
+   ],
+   [
+    "",
+    "/login"
+   ]
+  ]
+ }
+}

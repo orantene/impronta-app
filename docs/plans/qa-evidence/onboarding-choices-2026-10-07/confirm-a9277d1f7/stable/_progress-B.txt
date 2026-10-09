@@ -1,0 +1,21 @@
+TUL-319: MOVED TO PAID RUN (per main, Payments Developer); not attempted by B
+TUL-400: MOVED TO PAID RUN (per main, Payments Developer); not attempted by B
+TUL-429: MOVED TO PAID RUN (per main, Payments Developer); not attempted by B
+TUL-430: MOVED TO PAID RUN (per main, Payments Developer); not attempted by B
+TUL-437: MOVED TO PAID RUN (per main, Payments Developer); not attempted by B
+TUL-468: MOVED TO PAID RUN (per main, Payments Developer); not attempted by B
+plan flip M2 talent_basic -> talent_portfolio on throwaway M2 talent e2a5c03b (to exercise Web Office-only Add/Duplicate); restore with node e2e/onboarding/_b-plan.mjs talent_basic
+TUL-78: FAIL on one item (#11 heading rich-text field loses focus to canvas after live commit). PASS: +Add with inspector open, insert-after-selected (Reviews>FAQ>Gallery), Duplicate Hero/FAQ/Gallery/Ticker/Reviews + nested heading, no blocked toast, undo/redo, inline replace no ghost, Escape no jump, one toolbar. (M2 flipped to Web Office plan: free plan locks add/duplicate by design)
+TUL-396: same evidence as 78 (#3 PASS, #15 PASS, undo/redo PASS, nested heading dup PASS, nested Gallery/FAQ child not exercised; #11 FAIL on Heading text field, PASS on plain inputs)
+TUL-79: FAIL on #12 (tablet device frame blank ~5.0s; Tablet editing panel x36-332 overlaps frame x223-1057 at 1280). #4 PASS (hero fully visible 1280/834/390, no sideways scroll, mobile header CTA not overflowing, Mobile health 'Todo en orden')
+TUL-81: PASS on exercised items (Draft saved toast z=120 topmost over Publish dialog, contrast 5.96, no stale tab banner, no photos pill); error-toast-above-dialog BLOCKED (no way to trigger a mutation error here)
+TUL-182: PASS (es UI talent surfaces)
+TUL-225: BLOCKED (design doc only, no UI)
+TUL-327: PASS (no silent fallback; demo strips list only named built demos)
+M2 plan restored to talent_basic
+TUL-484: FAIL (hub-chat inquiry 781067e6, talent invited, coordinator active: start no longer 'forbidden' but dead-ends with 'No se pudo iniciar la oferta: We could not tell which currency this offer should use. Choose a currency...' (English text in ES toast, no currency chooser). Workspace /book inquiry 9812078c has only an active talent participant and NO start button in /talent/inbox Oferta tab ('Submit your rate / No offer yet. Your coordinator will send one'). Admin /admin/messages for tenant B empty.)
+TUL-355: BLOCKED (no offer can be started, so counter-offer + thread draft currency not exercised); only observed: unresolved currency is refused, not silent USD
+TUL-381: BLOCKED (no offer draft editor reachable, downstream of 484)
+TUL-317: BLOCKED (needs a sent offer awaiting talent approval; none creatable)
+TUL-280: BLOCKED (needs a sent offer in guest chat; none creatable; no client sign-in account created per rules)
+TUL-435: PASS on observed parts (B tenant /admin/orders: '1 artículo', Origen 'Reserva instantánea', totals '$850 MXN' / '$4,250 MXN' one line); messages_offer row and plural n>1 not present

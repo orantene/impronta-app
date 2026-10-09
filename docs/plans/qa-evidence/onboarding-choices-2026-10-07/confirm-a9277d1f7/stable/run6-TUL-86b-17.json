@@ -1,0 +1,15 @@
+{
+  "card": "TUL-86b",
+  "step": "myself->both result: the new workspace's public site is bookable (M2)",
+  "n": 17,
+  "status": "FAIL",
+  "facts": {
+    "studioPageHasServices": false,
+    "studioPageHoursPublished": false,
+    "studioPageExcerpt": "Skip to content ROSA R6M2 ARAWTC STUDIO ES | EN Rosa r6m2 arawtc Studio Lo que ofrecemos Agenda Nosotros Galería Contacto 01 / 03 SCROLL Rosa r6m2 arawtc Studio Con gusto te atendemos. Escríbenos o ven a vernos. ESCRÍBENOS LO QUE OFRECEMOS Rosa r6m2 arawtc Studio ◆ Lo que ofrecemos ◆ Galería ◆ Contacto ◆ Rosa r6m2 arawtc Studio ◆ Lo que ofrecemos ◆ Galería ◆ Contacto ◆ Lo esencial, bien hecho. LO QUE HACEMOS Lo esencial El lugar Un espacio pensado para quedarse un rato. Ven a conocerlo. El ofici"
+  },
+  "shots": [
+    "run6-TUL-86b-17-01-studio-site.jpg"
+  ],
+  "detail": "no bookable entry (Agendar) on the studio site: the page offers an inquiry form only"
+}

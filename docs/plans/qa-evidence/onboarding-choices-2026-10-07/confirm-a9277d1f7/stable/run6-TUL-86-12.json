@@ -1,0 +1,29 @@
+{
+  "card": "TUL-86",
+  "step": "studio -> both (Agregarme como proveedor, S)",
+  "n": 12,
+  "status": "PASS",
+  "facts": {
+    "dialogTextAfterConfirm": "(dialog closed)",
+    "serverLog_how-you-work": [],
+    "uiConfirmationSeen": false,
+    "uiStateAfter": "Un estudio, y yo también recibo reservas",
+    "talentProfileId": "cec9f255-bef7-4700-9587-1a21c91f97db",
+    "selfRoster": {
+      "status": "active",
+      "agency_visibility": "site_visible"
+    },
+    "memberships": [
+      {
+        "role": "owner",
+        "status": "active"
+      }
+    ]
+  },
+  "shots": [
+    "run6-TUL-86-12-01-before.jpg",
+    "run6-TUL-86-12-02-confirm-sheet.jpg",
+    "run6-TUL-86-12-03-after-click-10s.jpg",
+    "run6-TUL-86-12-04-after.jpg"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "card": "Studio booking",
+  "step": "re-test booking on the studio fixture (no provider)",
+  "n": 11,
+  "status": "PASS",
+  "facts": {
+    "status": 200,
+    "bookingWidgetControls": 0,
+    "reservarControls": 0,
+    "inquiryOnlyControls": 3
+  },
+  "shots": [
+    "run6-Studio_booking-11-01-studio-site.jpg"
+  ]
+}

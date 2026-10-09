@@ -1,0 +1,126 @@
+{
+ "es-start": {
+  "status": 200,
+  "url": "/es/start",
+  "lang": "es",
+  "title": "Tulala · Tulala",
+  "enWords": [],
+  "text": "tulala. ES EN TU INICIO · 1/4 Paso 1 de 4 ¿Cómo trabajas? Una sola elección. Lo demás se adapta a ti. Trabajo por mi cuenta Soy yo y mis clientes Tengo un estudio o equipo Otras personas ofrecen servicios conmigo Ambos Tengo un equipo y también atiendo clientes Trabajo para una agencia o estudioVengo a reservar con alguien Continuar"
+ },
+ "start-es-browser": {
+  "status": 200,
+  "url": "/start",
+  "lang": "es",
+  "title": "Tulala · Tulala",
+  "enWords": [],
+  "text": "tulala. ES EN TU INICIO · 1/4 Paso 1 de 4 ¿Cómo trabajas? Una sola elección. Lo demás se adapta a ti. Trabajo por mi cuenta Soy yo y mis clientes Tengo un estudio o equipo Otras personas ofrecen servicios conmigo Ambos Tengo un equipo y también atiendo clientes Trabajo para una agencia o estudioVengo a reservar con alguien Continuar"
+ },
+ "register-es": {
+  "status": 200,
+  "url": "/start?lang=es",
+  "lang": "es",
+  "title": "Tulala · Tulala",
+  "enWords": [],
+  "text": "tulala. ES EN TU INICIO · 1/4 Paso 1 de 4 ¿Cómo trabajas? Una sola elección. Lo demás se adapta a ti. Trabajo por mi cuenta Soy yo y mis clientes Tengo un estudio o equipo Otras personas ofrecen servicios conmigo Ambos Tengo un equipo y también atiendo clientes Trabajo para una agencia o estudioVengo a reservar con alguien Continuar"
+ },
+ "onboarding-role-anon": {
+  "status": 200,
+  "url": "/login",
+  "lang": "es",
+  "title": "Tulala · Sell what you do, not what you ship",
+  "enWords": [],
+  "text": "VENDE LO QUE HACES, NO LO QUE ENVÍAS Vende lo que haces, Vende tus servicios, lleva tu negocio y cobra, todo en una sola plataforma. Gratis para siempre Sin código Reservas y pagos incluidos © 2026 Tulala. Volver a Tulala BIENVENIDO DE NUEVO Iniciar sesión Continúa con Google o correo electrónico. Con Google, la contraseña es opcional; puedes agregar una después en Cuenta. EN ES Continuar con Google O CORREO ELECTRÓNICO CONTRASEÑA ¿OLVIDASTE TU CONTRASEÑA? Mantener mi sesión activa por 30 días Iniciar sesión con correo ¿No tienes cuenta? Regístrate © 2026 Tulala Digital. Software para negocios de talento. Vende lo que haces, no lo que envías Términos Privacidad Contacto"
+ },
+ "start-en-browser": {
+  "status": 200,
+  "url": "/start",
+  "lang": "en",
+  "title": "Tulala · Tulala",
+  "enWords": [
+   "and",
+   "with"
+  ],
+  "text": "tulala. ES EN YOUR START · 1/4 Step 1 of 4 How do you work? One choice. The next steps adapt to you. I work for myself It is me and my clients I own a studio or team Other people offer services with me Both I run a team and I also serve clients myself I work for an agency or studioI am here to book someone Continue"
+ },
+ "register-en": {
+  "status": 200,
+  "url": "/start?lang=en",
+  "lang": "en",
+  "title": "Tulala · Tulala",
+  "enWords": [
+   "and",
+   "with"
+  ],
+  "text": "tulala. ES EN YOUR START · 1/4 Step 1 of 4 How do you work? One choice. The next steps adapt to you. I work for myself It is me and my clients I own a studio or team Other people offer services with me Both I run a team and I also serve clients myself I work for an agency or studioI am here to book someone Continue"
+ },
+ "en-start": {
+  "status": 200,
+  "url": "/start",
+  "lang": "en",
+  "title": "Tulala · Tulala",
+  "enWords": [
+   "and",
+   "with"
+  ],
+  "text": "tulala. ES EN YOUR START · 1/4 Step 1 of 4 How do you work? One choice. The next steps adapt to you. I work for myself It is me and my clients I own a studio or team Other people offer services with me Both I run a team and I also serve clients myself I work for an agency or studioI am here to book someone Continue"
+ },
+ "a-today": {
+  "status": 200,
+  "url": "/talent/today",
+  "lang": "es",
+  "title": "Tulala · Vende lo que haces, no lo que envías",
+  "enWords": [],
+  "text": ""
+ },
+ "a-profile": {
+  "status": 200,
+  "url": "/talent/profile",
+  "lang": "es",
+  "title": "Tulala",
+  "enWords": [],
+  "text": "Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS Sitio en vivo rosa-r6a-arawtc.tulala.digital ES EN Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista previa del sitio Ajustes Rosa r6a arawtc Airbnb Turnover Cleaner · Playa del Carmen Ver como cliente Editar perfil 42% Calidad del perfil Tu sitio está en línea Editar tu perfil Cada campo aparece en tu página. No hay un segundo lugar donde editarlo. Nombre y qué haces Listo El nombre que ven tus clientas y tu oficio. Se muestra en todas partes. Rosa r6a arawtc · Airbnb Turnover Cleaner Cuenta para tu sitio gratis Editar Tu presentación Listo Unas líneas con tu pr"
+ },
+ "a-settings": {
+  "status": 200,
+  "url": "/talent/settings",
+  "lang": "es",
+  "title": "Tulala",
+  "enWords": [],
+  "text": "Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS Sitio en vivo rosa-r6a-arawtc.tulala.digital ES EN Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista previa del sitio Ajustes Ajustes Rosa r6a arawtc Cuándo trabajas Horario y días libres Horario, descansos, tiempo entre citas, con cuánta anticipación y hasta cuándo pueden reservar. Reglas de dinero Depósito y cancelaciones Tus valores por defecto para reservas nuevas. Cada reserva puede tener los suyos. Moneda Todo lo que cobras y todo lo que ves. A dónde va tu dinero Los pagos con tarjeta se depositan en tu cuenta. Datos fiscales en recibos Opcional Servicios y"
+ },
+ "a-services": {
+  "status": 200,
+  "url": "/talent/services",
+  "lang": "es",
+  "title": "Tulala",
+  "enWords": [],
+  "text": "Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS Sitio en vivo rosa-r6a-arawtc.tulala.digital ES EN Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista previa del sitio Ajustes Servicios Administra tus servicios, paquetes y productos · 2 artículos Organizar Valores predeterminados + Agregar artículo ··· Buscar por nombre Todos 2 Servicios 2 Paquetes 0 Productos 0 Borradores 0 Ocultos 0 Archivados 0 2 elementos necesitan atención: 2 sin foto. Mostrarlos El mismo catálogo que tu sitio. Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño "
+ },
+ "s-relogin": {
+  "status": 200,
+  "url": "/estudio-r6s-arawtc/admin",
+  "lang": "es",
+  "title": "Tulala",
+  "enWords": [],
+  "text": "Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS ES Estudio r6s arawtc Plan Gratis Talento Admin Resumen OPERAR Mensajes Calendario Citas y clases Pedidos Proyectos Incidencias VENDER Y GESTIONAR Catálogo Espacios y recursos RELACIONES Clientes Personas Reseñas DINERO Ventas Pagos CRECER Analíticas Sitio web Ajustes Estudio r6s arawtc Resumen Oficina POS · Mostrador ES 4 Gratis Buenos días, qa-onb-choice-studio-s-desktop-arawtc vie 9 oct · 0 llegadas hoy · 0 cosas te necesitan Abrir POS Nueva cita Hoy COBRADO HOY $0 USD Efectivo $0 USD · Tarjeta $0 USD SALDOS PENDIENTES $0 USD 0 pedidos · 0 vencen hoy LLEGADAS 0 0 en servicio · 0 con retraso PEDIDOS ABIERTOS 0 0 en preparac"
+ },
+ "s-onboarding-role": {
+  "status": 200,
+  "url": "/estudio-r6s-arawtc/admin",
+  "lang": "es",
+  "title": "Tulala",
+  "enWords": [],
+  "text": "Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS ES Estudio r6s arawtc Plan Gratis Talento Admin Resumen OPERAR Mensajes Calendario Citas y clases Pedidos Proyectos Incidencias VENDER Y GESTIONAR Catálogo Espacios y recursos RELACIONES Clientes Personas 2 Reseñas DINERO Ventas Pagos CRECER Analíticas Sitio web Ajustes Estudio r6s arawtc Resumen Oficina POS · Mostrador ES 4 Gratis Buenos días, qa-onb-choice-studio-s-desktop-arawtc vie 9 oct · Cargando los números de hoy Abrir POS Nueva cita Hoy COBRADO HOY SALDOS PENDIENTES LLEGADAS PEDIDOS ABIERTOS EXCEPCIONES Te necesita ahora Ordenado por consecuencia Hoy Llegadas Clases Mesas"
+ },
+ "client-onboarding-role-en": {
+  "status": 200,
+  "url": "/start?lang=en",
+  "lang": "en",
+  "title": "Tulala · Tulala",
+  "enWords": [
+   "and",
+   "with"
+  ],
+  "text": "tulala. ES EN YOUR START · 1/4 Step 1 of 4 How do you work? One choice. The next steps adapt to you. I work for myself It is me and my clients I own a studio or team Other people offer services with me Both I run a team and I also serve clients myself I work for an agency or studioI am here to book someone Continue"
+ }
+}

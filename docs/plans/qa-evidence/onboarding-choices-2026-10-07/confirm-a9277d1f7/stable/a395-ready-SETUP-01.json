@@ -1,0 +1,29 @@
+{
+  "card": "SETUP",
+  "step": "signup A (myself)",
+  "n": 1,
+  "status": "PASS",
+  "facts": {
+    "sentence": "Me llamo Rosa r6a asqupg. Soy limpiadora de casas en Playa del Carmen. Hago limpieza profunda y ligera, de lunes a sábado.",
+    "deliveryChoice": {
+      "mode": "studio",
+      "label": "En mi estudio",
+      "area": "Centro"
+    },
+    "languageBannerShownOnSpanishPage": true,
+    "readyStepText": "Listo para guardar tu página Un toque y tu página queda guardada. Añade fotos después para publicarla. TU NOMBRE Rosa r6a asqupg QUÉ HACES Limpieza de Airbnb DÓNDE Playa del Carmen Elige cómo se ve tu página Tres estilos listos. Puedes cambiarlo después en el editor. Rosé Recomendado Rubor Orquídea Dejar el estilo por defecto Tengo 18 años o más Guardar mi página Siguiente: tu cuenta.",
+    "readyBodyText": "tulala. ES EN TU INICIO · 3/4 Paso 3 de 4 Listo para guardar tu página Un toque y tu página queda guardada. Añade fotos después para publicarla. TU NOMBRE Rosa r6a asqupg QUÉ HACES Limpieza de Airbnb DÓNDE Playa del Carmen Elige cómo se ve tu página Tres estilos listos. Puedes cambiarlo después en el editor. Rosé Recomendado Rubor Orquídea Dejar el estilo por defecto Tengo 18 años o más Guardar mi página Siguiente: tu cuenta.",
+    "readyHasDevCopy": false,
+    "pickedLook": "blush",
+    "emailCode": "send failed on the isolated stack; UI error: No pudimos enviar tu código. Revisa el correo e inténtalo de nuevo.",
+    "userId": "9716026a-6dc1-4830-b394-ab6e480931ea",
+    "finishHref": "https://rosa-r6a-asqupg.tulala.digital",
+    "talentId": "9f820331-0bbe-4106-84b1-15933cc59e4a",
+    "tenantSlug": null,
+    "siteSlug": "rosa-r6a-asqupg"
+  },
+  "shots": [
+    "run6-SETUP-01-01-ready-step.jpg",
+    "run6-SETUP-01-02-arrival.jpg"
+  ]
+}

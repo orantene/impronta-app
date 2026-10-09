@@ -1,0 +1,25 @@
+{
+  "card": "SETUP",
+  "step": "signup A (myself)",
+  "n": 1,
+  "status": "PASS",
+  "facts": {
+    "sentence": "Me llamo Rosa r6a arawtc. Soy limpiadora de casas en Playa del Carmen. Hago limpieza profunda y ligera, de lunes a sábado.",
+    "deliveryChoice": {
+      "mode": "studio",
+      "label": "En mi estudio",
+      "area": "Centro"
+    },
+    "languageBannerShownOnSpanishPage": true,
+    "pickedLook": "blush",
+    "emailCode": "send failed on the isolated stack; UI error: No pudimos enviar tu código. Revisa el correo e inténtalo de nuevo.",
+    "userId": "e7fd1671-de70-4bf3-aa03-586ff1e51070",
+    "finishHref": "https://rosa-r6a-arawtc.tulala.digital",
+    "talentId": "97885ed7-5ea2-4d58-9c31-03658e1d02dc",
+    "tenantSlug": null,
+    "siteSlug": "rosa-r6a-arawtc"
+  },
+  "shots": [
+    "run6-SETUP-01-01-arrival.jpg"
+  ]
+}
