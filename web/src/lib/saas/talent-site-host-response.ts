@@ -4,7 +4,7 @@ import {
   clearLocaleCookieAutoMarker,
   LOCALE_COOKIE,
   localeCookieOptions,
-  syncLocaleCookieForPath,
+  markLocaleCookieAuto,
 } from "@/i18n/locale-middleware";
 import { LOCALE_HEADER, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import { getLanguageSettingsForMiddleware } from "@/lib/language-settings/middleware-locale-cache";
@@ -70,7 +70,6 @@ export async function talentSiteHostResponse(
     getLanguageSettingsForMiddleware(),
     loadTalentLocaleSettingsForProxy(hostContext.talentProfileId),
   ]);
-  const talentGrammar = { ...talentLangSettings, defaultLocale: talentLocales.defaultLocale, publicLocales: [...talentLocales.supportedLocales] };
   const talentLocale = decideTalentSiteLocale({
     pathname,
     queryLocale: request.nextUrl.searchParams.get("locale"),
@@ -80,29 +79,7 @@ export async function talentSiteHostResponse(
   });
   const localeStripped = talentLocale.innerPath;
 
-  const decision = isTalentSiteHostPathAllowed(localeStripped);
-  if (!decision) {
-    return NextResponse.rewrite(
-      new URL("/_page-not-found", request.url),
-      { status: 404 },
-    );
-  }
-  const rememberChoice = (res: NextResponse): NextResponse => {
-    if (talentLocale.explicit) {
-      res.cookies.set(LOCALE_COOKIE, talentLocale.locale, localeCookieOptions);
-      clearLocaleCookieAutoMarker(res);
-    } else {
-      syncLocaleCookieForPath(res, localeStripped, talentGrammar, request);
-    }
-    return res;
-  };
-  if (talentLocale.redirectPath && (request.method === "GET" || request.method === "HEAD")) {
-    const target = request.nextUrl.clone();
-    target.pathname = talentLocale.redirectPath;
-    target.searchParams.delete("locale");
-    return rememberChoice(NextResponse.redirect(target, 302));
-  }
-
+  /** Locale + host context for talent rewrites, including hard-404 and B1 notice. */
   const talentHeaders = new Headers(sanitizedInboundHeaders);
   talentHeaders.set(LOCALE_HEADER, talentLocale.locale);
   talentHeaders.set(ORIGINAL_PATHNAME_HEADER, request.nextUrl.pathname);
@@ -114,10 +91,52 @@ export async function talentSiteHostResponse(
   talentHeaders.delete(HOST_TENANT_SLUG_HEADER);
   talentHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
 
+  const rememberChoice = (res: NextResponse): NextResponse => {
+    // TUL-516 B5: cookie follows the URL locale on every talent response so
+    // visiting `/en` cannot leave `locale=en` stuck on the unprefixed primary.
+    res.cookies.set(LOCALE_COOKIE, talentLocale.locale, localeCookieOptions);
+    if (talentLocale.explicit) {
+      clearLocaleCookieAutoMarker(res);
+    } else {
+      markLocaleCookieAuto(res);
+    }
+    return res;
+  };
+
+  const decision = isTalentSiteHostPathAllowed(localeStripped);
+  if (!decision) {
+    // TUL-516 B4 / TUL-121: forward resolved talent locale on hard-404.
+    return rememberChoice(
+      NextResponse.rewrite(new URL("/_page-not-found", request.url), {
+        status: 404,
+        request: { headers: talentHeaders },
+      }),
+    );
+  }
+
+  // TUL-516 B1: unsupported platform locale → explicit single-language notice.
+  if (
+    talentLocale.unsupportedLocale &&
+    (request.method === "GET" || request.method === "HEAD")
+  ) {
+    return rememberChoice(
+      NextResponse.rewrite(new URL("/_talent-locale-unavailable", request.url), {
+        request: { headers: talentHeaders },
+      }),
+    );
+  }
+
+  if (talentLocale.redirectPath && (request.method === "GET" || request.method === "HEAD")) {
+    const target = request.nextUrl.clone();
+    target.pathname = talentLocale.redirectPath;
+    target.searchParams.delete("locale");
+    return rememberChoice(NextResponse.redirect(target, 302));
+  }
+
   const attachGuestCookie = attachTalentSiteGuestIdentity(request, talentHeaders);
   if (decision.kind === "passthrough") {
     if (localeStripped === pathname) {
-      return attachGuestCookie(NextResponse.next({ request: { headers: talentHeaders } }));
+      return rememberChoice(attachGuestCookie(NextResponse.next({ request: { headers: talentHeaders } })));
     }
     // `/en/c/<id>`: serve the unprefixed route under the chosen language.
     const inner = request.nextUrl.clone();

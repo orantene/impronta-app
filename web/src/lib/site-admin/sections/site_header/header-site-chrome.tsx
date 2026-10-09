@@ -24,12 +24,15 @@ export function headerItemAttrs(item: HeaderItem): Record<string, string> {
  * (`hrefs`, built in the talent's URL grammar); a `?locale=` link is the
  * fallback, which the talent host redirects to the prefixed URL.
  */
-export function HeaderDemoPill({ show }: { show: boolean | undefined }) {
-  return show ? (
-    <span className="site-header__demo" title="Demo">
-      Demo
+export function HeaderDemoPill({ show, locale }: { show: boolean | undefined; locale?: string }) {
+  if (!show) return null;
+  const es = (locale ?? "").toLowerCase().startsWith("es");
+  const label = es ? "Demo" : "Demo";
+  return (
+    <span className="site-header__demo" title={label}>
+      {label}
     </span>
-  ) : null;
+  );
 }
 
 /** Group label for the language switch, in the page's language. */
