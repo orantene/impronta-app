@@ -19,6 +19,7 @@ import type { Offer } from "./machinery-9";
 // Friendly labels for booking_transactions.status — source of truth is
 // status-labels.ts; the export alias keeps existing callers stable.
 import { TRANSACTION_STATUS_LABELS as TRANSACTION_STATUS_LABEL, TRANSACTION_STATUS_LABEL_KEYS } from "@/lib/status-labels";
+import { depositMoney } from "./deposit-money";
 export { TRANSACTION_STATUS_LABELS as TRANSACTION_STATUS_LABEL } from "@/lib/status-labels";
 
 
@@ -397,7 +398,7 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
                     onClick={() => run(t("dashboard.adminTabs.payment.requestDeposit"), () => createInquiryTransactionDraft(effectiveTenant.slug, inquiry.id, "deposit"))}
                     style={primaryBtn(COLORS.accent)}
                   >
-                    {pending ? t("dashboard.adminTabs.creating") : interpolate(t("dashboard.adminTabs.payment.requestDepositAmount"), { amount: (state.depositAmountCents / 100).toFixed(2), currency: state.currency ?? "USD" })}
+                    {pending ? t("dashboard.adminTabs.creating") : interpolate(t("dashboard.adminTabs.payment.requestDepositAmount"), { amount: depositMoney(state.depositAmountCents, state.currency) })}
                   </button>
                   <button
                     type="button"
