@@ -34,6 +34,7 @@ import { DOMAIN_ERRORS_ES_TEXT } from "./dashboard-i18n-domain-errors";
 import { SWEEP_R1_ES_TEXT } from "./dashboard-i18n-sweep-r1";
 import { LEAKS_1007_ES_TEXT } from "./dashboard-i18n-leaks-1007";
 import { WEBSITE_ES_TEXT } from "./dashboard-i18n-website";
+import { THREAD_ES_TEXT } from "./dashboard-i18n-thread";
 
 export const RAIL_ES_TEXT: Record<string, string> = {
   // First, so a generic key already translated elsewhere keeps its wording.
@@ -157,4 +158,5 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   "Run your own roster. Free plan, 1 minute.": "Administra tu propio roster. Plan gratis, 1 minuto.",
   // Agenda/Today missing client label sentinel — keep out of grandfathered dashboard-i18n.ts.
   "Untitled client": "Cliente sin nombre",
+  ...THREAD_ES_TEXT,
 };
