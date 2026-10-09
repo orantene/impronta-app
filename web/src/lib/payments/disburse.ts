@@ -70,6 +70,8 @@ export type DisburseOutcome = {
   /** Connect transfer id (tr_…) OR v2 outbound payment id (obp_…). */
   transferId?: string | null;
   detail?: string;
+  /** Platform lane the charge ran on; set on a cross-platform hold so the held leg can say which lane's account to connect. */
+  chargePlatform?: string;
 };
 
 export type DisburseDeps = {
