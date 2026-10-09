@@ -15,12 +15,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  authGoogleFinalizeUserKey,
   authOtpSendEmailKey,
   authOtpSendIpKey,
   authOtpVerifyEmailKey,
+  authPasswordEmailKey,
+  authPasswordIpKey,
+  checkAuthGoogleFinalizeByUser,
   checkAuthOtpSendByEmail,
   checkAuthOtpSendByIp,
   checkAuthOtpVerifyByEmail,
+  checkAuthPasswordByEmail,
+  checkAuthPasswordByIp,
   normalizeEmailForKey,
   type KvRateLimitCode,
   type KvRateLimitResult,
@@ -111,6 +117,15 @@ test("result type is consumable without the guest-chat contract", () => {
   }
 });
 
+test("password + Google finalize keys are namespaced and normalize email", () => {
+  const email = "booker+x@gmail.com";
+  assert.equal(authPasswordEmailKey(email), authPasswordEmailKey("boo.ker@gmail.com"));
+  assert.match(authPasswordEmailKey(email), /^auth_password_email:/);
+  assert.equal(authPasswordIpKey("203.0.113.7"), "auth_password_ip:203.0.113.7");
+  assert.equal(authGoogleFinalizeUserKey("user-1"), "auth_google_finalize_user:user-1");
+  assert.notEqual(authPasswordEmailKey(email), authOtpVerifyEmailKey(email));
+});
+
 test("without Upstash env the auth limiters fail OPEN (never lock sign-in out)", async () => {
   // CI/local have no UPSTASH_* vars, so this exercises the documented no-op
   // fallback: an outage or unconfigured KV must not block authentication.
@@ -119,6 +134,9 @@ test("without Upstash env the auth limiters fail OPEN (never lock sign-in out)",
     checkAuthOtpSendByEmail(authOtpSendEmailKey("booker@example.com")),
     checkAuthOtpSendByIp(authOtpSendIpKey("203.0.113.7")),
     checkAuthOtpVerifyByEmail(authOtpVerifyEmailKey("booker@example.com")),
+    checkAuthPasswordByEmail(authPasswordEmailKey("booker@example.com")),
+    checkAuthPasswordByIp(authPasswordIpKey("203.0.113.7")),
+    checkAuthGoogleFinalizeByUser(authGoogleFinalizeUserKey("user-1")),
   ]) {
     assert.deepEqual(await check, { ok: true });
   }
