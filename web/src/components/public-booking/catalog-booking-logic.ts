@@ -1,3 +1,4 @@
+import { zoneCity } from "@/lib/events/public-event-time";
 import { bookingDurationMinutes } from "@/lib/scheduling/reservation-window";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { resolveOfferingCta, type TalentOffering } from "@/lib/talent/offerings-types";
@@ -405,12 +406,17 @@ const ZONE_CITY_DISPLAY: Record<string, string> = {
   Port_of_Spain: "Port of Spain",
 };
 
-/** TUL-59: "Hora de {city}" / "{city} time" from an IANA zone; falls back to the zone name. */
+/**
+ * TUL-59 / TUL-494: "Hora de {city}" / "{city} time" from an IANA zone.
+ * City name follows the page language (America/Mexico_City → "Ciudad de México"
+ * on ES, not "Mexico City"). Accent-only overrides keep Cancún / Mérida etc.
+ * when the shared zone map has no entry.
+ */
 export function catalogTimezoneLabel(tz: string | null | undefined, es: boolean): string {
   const zone = (tz ?? "").trim();
   if (!zone) return "";
   const raw = zone.includes("/") ? (zone.split("/").pop() ?? zone) : zone;
-  const city = ZONE_CITY_DISPLAY[raw] ?? raw.replace(/_/g, " ");
+  const city = ZONE_CITY_DISPLAY[raw] ?? zoneCity(zone, es ? "es" : "en");
   return es ? `Hora de ${city}` : `${city} time`;
 }
 
