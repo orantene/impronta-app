@@ -24,7 +24,7 @@ export const UTILITY_BAR_CSS = `
 .sb-ub-logo img{width:100%;height:100%;object-fit:cover;display:block}
 .sb-ub-nm{flex:1;min-width:0;line-height:1.1}
 .sb-ub-nm b{display:block;font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sb-ub-nm small{display:block;margin-top:2px;font:500 10.5px var(--site-mono-font,ui-monospace,monospace);opacity:.7;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-ub-nm small{display:block;margin-top:2px;font:500 10.5px/1.25 var(--site-mono-font,ui-monospace,monospace);opacity:.7;letter-spacing:.02em;overflow-wrap:anywhere;white-space:normal}
 .sb-ub-pill{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px;border-radius:99px;background:color-mix(in srgb,var(--token-color-background) 10%,transparent);color:var(--token-color-background);font-size:12px;font-weight:700;white-space:nowrap;box-sizing:border-box}
 .sb-ub-pill i{width:8px;height:8px;border-radius:50%;background:color-mix(in srgb,var(--token-color-background) 45%,transparent);flex:0 0 auto}
 .sb-ub-pill[data-on="true"]{background:color-mix(in srgb,var(--token-color-accent,var(--token-color-primary)) 16%,transparent);color:var(--token-color-accent,var(--token-color-primary))}

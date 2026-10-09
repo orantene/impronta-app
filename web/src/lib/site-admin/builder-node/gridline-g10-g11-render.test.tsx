@@ -93,7 +93,7 @@ function portfolioNode(): BuilderNode {
   return { ...base, id: "port-wo", props: { ...base.props, layout: "work_order" } } as BuilderNode;
 }
 
-test("work_order: job cards with a two-line caption, no link; alt is the job title (TUL-384)", () => {
+test("work_order: job cards with a two-line caption, lightbox photo button, alt is the job title (TUL-384)", () => {
   const html = render([portfolioNode()], {
     talentPortfolioShots: [
       shot("a", "Cambio de tablero\nOT-0412 · San Pedro · 1 día"),
@@ -103,7 +103,9 @@ test("work_order: job cards with a two-line caption, no link; alt is the job tit
   assert.match(html, /data-portfolio-layout="work_order"/);
   assert.equal((html.match(/class="sb-wo-job"/g) ?? []).length, 2);
   assert.match(html, /<figcaption><b>Cambio de tablero<\/b>OT-0412 · San Pedro · 1 día<\/figcaption>/);
-  assert.doesNotMatch(html, /<a\s|<button/, "tiles never link to an offering");
+  // TUL-474: photo-only lightbox (no offering link) — same TUL-440 path as other layouts.
+  assert.match(html, /data-portfolio-photo/);
+  assert.doesNotMatch(html, /data-portfolio-shot-link|data-offering-id|data-offering-cta/, "tiles never link to an offering");
   assert.doesNotMatch(html, /Maria Lopez/, "the shot alt (a person) never reaches the markup");
   assert.match(html, /alt="Cambio de tablero"/);
   assert.match(html, /alt="Acometida"/);
