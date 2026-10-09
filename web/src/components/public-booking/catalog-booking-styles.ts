@@ -43,11 +43,13 @@ export const CATALOG_BOOKING_CSS = `
 .jb-lines{border-top:1px solid var(--cb-line);padding-top:14px;display:grid;gap:8px}
 .jb-lines>div{display:flex;justify-content:space-between;gap:16px;font-size:.9375rem;color:var(--cb-muted)}
 .jb-lines>div span:last-child{font-variant-numeric:tabular-nums;color:var(--cb-ink)}
-.jb-back-link{appearance:none;border:0;background:none;padding:0 0 16px;cursor:pointer;font-family:inherit;font-size:.875rem;color:var(--cb-primary);font-weight:600;min-height:40px}
+/* TUL-516 E6: stack back-nav links (column + gap) so labels never run together. */
+.jb-back-nav{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin:0 0 16px}
+.jb-back-link{appearance:none;border:0;background:none;padding:0;cursor:pointer;font-family:inherit;font-size:.875rem;color:var(--cb-primary);font-weight:600;min-height:40px;display:block;text-align:left}
 .jb-recap{margin:0 0 18px;font-size:.9375rem;color:var(--cb-muted)}
 .jb-days{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px}
 .jb-day{flex:0 0 auto;width:64px;min-height:76px;border-radius:12px;cursor:pointer;background:var(--cb-surface);border:1px solid var(--cb-edge);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;color:var(--cb-ink)}
-/* TUL-498: ink fill + white text fails on dark looks (sofia ink ≈ surface). Use surface ink-on. */
+/* TUL-498: selected day/time uses surface on ink (readable on light-ink dark looks). */
 .jb-day[data-on="true"]{background:var(--cb-ink);border-color:var(--cb-ink);color:var(--cb-surface)}
 .jb-day:disabled{opacity:.32;cursor:not-allowed}
 .jb-day span{font-size:.625rem;text-transform:uppercase;letter-spacing:.08em;opacity:.7}

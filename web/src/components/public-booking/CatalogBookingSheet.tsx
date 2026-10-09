@@ -461,10 +461,34 @@ export function CatalogBookingSheet({
         />
 
         <div className="jb-body">
-          {step !== "choose" && step !== "done" ? (
-            <button type="button" className="jb-back-link" data-catalog-start-over="" onClick={startOver}>
-              {es ? "Empezar de nuevo" : "Start over"}
-            </button>
+          {step === "when" || step === "who" ? (
+            <nav className="jb-back-nav" aria-label={es ? "Navegación de la reserva" : "Booking navigation"}>
+              {step === "when" ? (
+                <button
+                  type="button"
+                  className="jb-back-link"
+                  data-catalog-change-service=""
+                  onClick={() => {
+                    setTakenNotice(null);
+                    setStep("choose");
+                  }}
+                >
+                  {es ? "← Cambiar servicio u opciones" : "← Change service or options"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="jb-back-link"
+                  data-catalog-change-time=""
+                  onClick={() => setStep("when")}
+                >
+                  {es ? "← Cambiar horario" : "← Change time"}
+                </button>
+              )}
+              <button type="button" className="jb-back-link" data-catalog-start-over="" onClick={startOver}>
+                {es ? "Empezar de nuevo" : "Start over"}
+              </button>
+            </nav>
           ) : null}
           {step === "choose" ? (
             <>
@@ -581,9 +605,6 @@ export function CatalogBookingSheet({
 
           {step === "when" ? (
             <>
-              <button type="button" className="jb-back-link" onClick={() => { setTakenNotice(null); setStep("choose"); }}>
-                {es ? "← Cambiar servicio u opciones" : "← Change service or options"}
-              </button>
               {mode === "live" && (slotsLoading || !slotsReady) ? (
                 <p className="jb-fixture">
                   <span className="cb-spinner" aria-hidden="true" />
@@ -600,7 +621,13 @@ export function CatalogBookingSheet({
                   timeGroupLabel={timeGroupLabel}
                   emptyConsultButton={emptyConsultButton}
                   takenNotice={takenNotice}
-                  onPickDay={(i) => { setDayIndex(i); setTime(null); setLiveStarts(null); }}
+                  onPickDay={(i) => {
+                    // Re-tapping the selected day must not clear the time (TUL-516 E1).
+                    if (i === dayIndex) return;
+                    setDayIndex(i);
+                    setTime(null);
+                    setLiveStarts(null);
+                  }}
                   onPickStart={(iso, label, i) => {
                     if (i !== undefined && i >= 0) setDayIndex(i);
                     setLiveStarts(iso);
@@ -618,7 +645,11 @@ export function CatalogBookingSheet({
                   demoTimes={demoTimes}
                   timeGroupLabel={timeGroupLabel}
                   emptyConsultButton={emptyConsultButton}
-                  onPickDay={(i) => { setDayIndex(i); setTime(null); }}
+                  onPickDay={(i) => {
+                    if (i === dayIndex) return;
+                    setDayIndex(i);
+                    setTime(null);
+                  }}
                   onPickTime={setTime}
                 />
               )}
@@ -627,9 +658,6 @@ export function CatalogBookingSheet({
 
           {step === "who" ? (
             <>
-              <button type="button" className="jb-back-link" onClick={() => setStep("when")}>
-                {es ? "← Cambiar horario" : "← Change time"}
-              </button>
               <CatalogWhoSummary
                 es={es}
                 service={variant ? `${detail.title} · ${variant.label}` : detail.title}

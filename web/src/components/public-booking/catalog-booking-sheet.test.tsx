@@ -542,7 +542,7 @@ test("longer extras clear a start that dropped out of the list (BUF-6)", async (
   act(() => timeBtn.click());
   assert.equal(host.querySelectorAll('.jb-time[data-on="true"]').length, 1);
   // Back to choose, add the long extra, return to when → 15:00 must disappear / selection clear.
-  const back = host.querySelector<HTMLButtonElement>(".jb-back-link");
+  const back = host.querySelector<HTMLButtonElement>("[data-catalog-change-service]");
   assert.ok(back);
   act(() => back.click());
   const checkbox = host.querySelector<HTMLInputElement>('input[type="checkbox"]');
@@ -706,6 +706,84 @@ test("ES: the booking sheet renders no English UI chrome on the choose step", ()
     /\b(Continue|Your booking|Loading times|Change service|Book now|Next free|Today at|Choose an option|Designs and extras|Estimated duration)\b/,
   );
   unmount();
+});
+
+test("TUL-516 E6: when-step back links are stacked Change-service then Start-over (en+es)", () => {
+  const cases = [
+    { locale: "es", change: /Cambiar servicio/, start: /Empezar de nuevo/ },
+    { locale: "en", change: /Change service/, start: /Start over/ },
+  ] as const;
+  for (const c of cases) {
+    const host = dom.window.document.createElement("div");
+    dom.window.document.body.appendChild(host);
+    const root = createRoot(host);
+    act(() => {
+      root.render(
+        <CatalogBookingSheet
+          locale={c.locale}
+          mode="demo"
+          tenantId="tenant-1"
+          bookFn={mockBook() as never}
+        />,
+      );
+    });
+    open(detail({ addOns: [] }), "when");
+    const nav = host.querySelector(".jb-back-nav");
+    assert.ok(nav, `${c.locale} back nav`);
+    const links = [...nav.querySelectorAll<HTMLButtonElement>(".jb-back-link")];
+    assert.equal(links.length, 2);
+    assert.match(links[0]!.textContent ?? "", c.change);
+    assert.match(links[1]!.textContent ?? "", c.start);
+    assert.equal(links[0]!.getAttribute("data-catalog-change-service"), "");
+    assert.equal(links[1]!.getAttribute("data-catalog-start-over"), "");
+    assert.doesNotMatch(nav.textContent ?? "", /nuevo←|over←/);
+    act(() => root.unmount());
+    host.remove();
+  }
+});
+
+test("TUL-516 E1: Continuar after picking a slot keeps it on who and when returning", async () => {
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+  act(() => {
+    root.render(
+      <CatalogBookingSheet
+        locale="es"
+        mode="live"
+        tenantId="tenant-1"
+        bookFn={mockBook() as never}
+        slotsFn={async () => ({
+          slots: ["2026-09-25T15:00:00.000Z", "2026-09-25T16:00:00.000Z"],
+          timezone: "UTC",
+        })}
+      />,
+    );
+  });
+  open(detail({ addOns: [] }), "when");
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 40));
+  });
+  const slot = host.querySelectorAll<HTMLButtonElement>(".jb-times .jb-time")[1]!;
+  assert.ok(slot);
+  act(() => slot.click());
+  assert.equal(host.querySelectorAll('.jb-time[data-on="true"]').length, 1);
+  const pickedLabel = host.querySelector('.jb-time[data-on="true"]')?.textContent ?? "";
+  // Re-tap the selected day — must not clear the slot.
+  act(() => host.querySelector<HTMLButtonElement>('.jb-day[data-on="true"]')!.click());
+  assert.equal(host.querySelectorAll('.jb-time[data-on="true"]').length, 1);
+  act(() => host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]')!.click());
+  const summary = host.querySelector("[data-catalog-who-summary]");
+  assert.ok(summary, "who step after Continuar");
+  assert.match(summary.textContent ?? "", new RegExp(pickedLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  act(() => host.querySelector<HTMLButtonElement>("[data-catalog-change-time]")!.click());
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 40));
+  });
+  assert.equal(host.querySelectorAll('.jb-time[data-on="true"]').length, 1, "slot still selected after back");
+  assert.equal(host.querySelector('.jb-time[data-on="true"]')?.textContent, pickedLabel);
+  act(() => root.unmount());
+  host.remove();
 });
 
 test("Track D10: quote tulala:offering-request never opens the booking sheet", () => {

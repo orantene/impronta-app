@@ -278,7 +278,7 @@ test("booking state is never lost: the edited note survives a trip to the chat a
   assert.equal(handoffs[0]!.detail.note, "Se bota cada noche", "the chat gets the edited note");
   assert.ok(peekBookingResume());
   act(() => requestBookingResume());
-  act(() => host.querySelector<HTMLButtonElement>(".jb-back-link")?.click());
+  act(() => host.querySelector<HTMLButtonElement>("[data-catalog-change-service]")?.click());
   assert.equal(note(host)?.value, "Se bota cada noche", "the note is kept on the way back");
   act(() => root.unmount());
   host.remove();
