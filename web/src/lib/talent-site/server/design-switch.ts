@@ -59,7 +59,8 @@ function mapList(
     const nextKids = kidsOf(carried);
     if (prevKids.length === 0 || nextKids.length === 0) return carried;
     const child = mapList(prevKids, nextKids, tree);
-    for (const mk of child.mappedKeys) mappedKeys.push(`${k}/${mk}`);
+    // Child origin keys are already absolute (`hero/heading`), so push as-is.
+    mappedKeys.push(...child.mappedKeys);
     warned.push(...child.warned);
     return { ...carried, children: child.nodes } as BuilderNode;
   });
