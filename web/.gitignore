@@ -73,3 +73,5 @@ e2e/.auth/
 /scripts/demo-block-en-overlays/backups/
 # TUL-376 default design backfill: pre-change row backups (never committed)
 /scripts/theme-releases/backups/
+# TUL-516 / TUL-489 demo booking hours ensure: pre-change backups (never committed)
+/scripts/demo-talents/backups/
