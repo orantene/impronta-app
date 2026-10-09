@@ -101,8 +101,8 @@ function useWebsitePagesSurface() {
     [w.domain.primaryDomain, windowOrigin],
   );
   const editorBaseUrl = useMemo(
-    () => resolveWebsiteEditorBaseUrl({ liveOrigin, tenantSlug, windowOrigin }),
-    [liveOrigin, tenantSlug, windowOrigin],
+    () => resolveWebsiteEditorBaseUrl({ liveOrigin, tenantSlug, windowOrigin, hasPrimaryDomain: Boolean(w.domain.primaryDomain?.trim()) }),
+    [liveOrigin, tenantSlug, windowOrigin, w.domain.primaryDomain],
   );
 
   const notify = useCallback(

@@ -54,13 +54,24 @@ export function resolveWebsiteEditorBaseUrl({
   liveOrigin,
   tenantSlug,
   windowOrigin,
+  hasPrimaryDomain,
 }: {
   liveOrigin: string;
   tenantSlug: string | undefined;
   windowOrigin: string;
+  /**
+   * Whether the tenant has a primary domain. A workspace WITHOUT one has no host
+   * of its own, so its site is path-hosted at `<app host>/w/<slug>`; the editor
+   * link used to fall back to the bare app host (`<app host>/<page>?edit=1`),
+   * which is "Page not found" (TUL-372). Omit to keep the old behaviour.
+   */
+  hasPrimaryDomain?: boolean;
 }): string {
   if (windowOrigin && tenantSlug && isLocalWebsiteOrigin(windowOrigin)) {
     return `${windowOrigin}/${tenantSlug}`;
+  }
+  if (hasPrimaryDomain === false && tenantSlug && windowOrigin) {
+    return `${windowOrigin}/w/${tenantSlug}`;
   }
   return liveOrigin;
 }
