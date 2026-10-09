@@ -67,7 +67,8 @@ describe("offer currency wiring", () => {
     assert.match(coord, /from "@\/lib\/talent\/earnings-view"/);
   });
   it("the service preload goes through planServicePick", () => {
-    assert.match(read("src/components/admin/shell/internal/messages/shared/machinery-11.tsx"), /planServicePick\(/);
+    // Line row lives in offer-draft-line-item (extracted from machinery-11).
+    assert.match(read("src/components/admin/shell/internal/messages/shared/offer-draft-line-item.tsx"), /planServicePick\(/);
   });
   it("the scheduling amendment send maps the currency refusal to its own sentence (TUL-282)", () => {
     const eng = read("src/lib/server-actions/scheduling-engine.ts");
