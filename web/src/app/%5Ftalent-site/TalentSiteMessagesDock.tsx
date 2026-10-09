@@ -223,7 +223,7 @@ export async function TalentSiteMessagesDock({
   });
   const t = createTranslator(locale);
   const instant = talentOffersInstantBooking(profile?.talent_plan_key);
-  // TUL-246: `#book` opens the booking sheet itself when she has exactly one bookable service.
+  // TUL-246: `#book` opens the booking sheet (preferred bookable service), not the guest dock.
   const bookEntry = await loadBookEntry({ talentProfileId, locale, confirmsByHand: !instant });
 
   // Her trade, or the solo salon default when the taxonomy does not know it

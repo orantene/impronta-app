@@ -3,25 +3,22 @@
  * menu. PURE decision plus the tap runner; the DOM, the open-intent queue (TUL-246) and the
  * next-free-slot opener are injected.
  *
- * - exactly one bookable service: open its booking sheet (queued until the sheet has hydrated);
- * - several: open the service picker (the guest dock, same as `#book` with several services);
+ * - one or more bookable services: open the preferred booking sheet (same as `#book`, TUL-246);
  * - none: keep the old scroll to the menu.
  */
 import { openIntentFor, type BookEntry } from "./book-entry";
 import type { NextSlot } from "./next-free-slot";
 import type { OpenIntent } from "./open-intent-queue";
 
-export type StickyBarAction = "open-sheet" | "open-chooser" | "scroll";
+export type StickyBarAction = "open-sheet" | "scroll";
 
 export function stickyBarAction(bookableCount: number): StickyBarAction {
-  if (bookableCount === 1) return "open-sheet";
-  if (bookableCount > 1) return "open-chooser";
+  if (bookableCount >= 1) return "open-sheet";
   return "scroll";
 }
 
 export function stickyBarIntent(action: StickyBarAction, entry: BookEntry): OpenIntent | null {
   if (action === "open-sheet") return entry.kind === "sheet" ? openIntentFor("book", entry) : null;
-  if (action === "open-chooser") return { channel: "chat" };
   return null;
 }
 

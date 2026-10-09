@@ -1,11 +1,16 @@
 /**
  * Where `<site>#book` lands (TUL-246). PURE.
  *
- * A talent with exactly ONE bookable service opens that service's booking
- * sheet directly (the same `tulala:offering-*` event a tap on the service card
- * dispatches, built by the same `buildOfferingRequestDetail`). With several, the
- * service picker (the guest dock) opens as before; with none, the plain inquire
- * entry. `#talent-ask` and contact links always open the guest chat.
+ * A talent with one or more bookable services opens the booking sheet (the same
+ * `tulala:offering-*` event a tap on the service card dispatches, built by the
+ * same `buildOfferingRequestDetail`). With several, the preferred offering is
+ * featured first, then lowest `sortOrder` (stable by id). With none, the plain
+ * inquire entry (guest dock / form). `#talent-ask` and contact links always
+ * open the guest chat.
+ *
+ * Live QA (jorg-beauty-qa / book-jorgelina): `#book` must open the sheet, never
+ * the guest dock, even when the menu has many services. The dock is chat; Book
+ * is the sheet.
  *
  * "Bookable" mirrors what the sheet itself accepts: a visible service whose CTA
  * is Book or Request to book, priced, and not a straight purchase (products and
@@ -20,10 +25,27 @@ import type { OpenIntent } from "@/lib/talent-site/open-intent-queue";
 
 export type BookEntry =
   | { kind: "sheet"; offeringId: string; eventName: string; detail: OfferingRequestDetail }
-  | { kind: "picker" }
   | { kind: "inquire" };
 
-export type BookableEntry = { offering: TalentOffering; eventName: string; detail: OfferingRequestDetail };
+export type BookableEntry = {
+  offering: TalentOffering;
+  eventName: string;
+  detail: OfferingRequestDetail;
+};
+
+/** Featured first, then sortOrder ascending, then id (stable). */
+export function preferBookableOffering(
+  bookable: readonly BookableEntry[],
+): BookableEntry | undefined {
+  if (bookable.length === 0) return undefined;
+  const featured = bookable.filter((b) => b.offering.isFeatured === true);
+  const pool = featured.length > 0 ? featured : bookable;
+  return [...pool].sort((a, b) => {
+    const bySort = (a.offering.sortOrder ?? 0) - (b.offering.sortOrder ?? 0);
+    if (bySort !== 0) return bySort;
+    return a.offering.id.localeCompare(b.offering.id);
+  })[0];
+}
 
 export function resolveBookEntry(input: {
   offerings: readonly TalentOffering[];
@@ -58,11 +80,15 @@ export function listBookableOfferings(input: {
 }
 
 export function bookEntryFrom(bookable: readonly BookableEntry[]): BookEntry {
-  const only = bookable.length === 1 ? bookable[0] : undefined;
-  if (only) {
-    return { kind: "sheet", offeringId: only.offering.id, eventName: only.eventName, detail: only.detail };
+  const preferred = preferBookableOffering(bookable);
+  if (preferred) {
+    return {
+      kind: "sheet",
+      offeringId: preferred.offering.id,
+      eventName: preferred.eventName,
+      detail: preferred.detail,
+    };
   }
-  if (bookable.length > 1) return { kind: "picker" };
   return { kind: "inquire" };
 }
 
