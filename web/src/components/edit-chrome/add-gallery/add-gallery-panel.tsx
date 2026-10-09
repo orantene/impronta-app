@@ -20,7 +20,8 @@ import {
 import { fetchSurfaceGalleryItems } from "@/lib/site-admin/add-gallery/gallery-fetch-action";
 import { listCatalogStructure } from "@/lib/site-admin/add-gallery/catalog-structure-actions";
 import { performAddGalleryInsert } from "@/lib/site-admin/add-gallery/perform-insert";
-import { templateCopySiteKind } from "@/lib/site-admin/add-gallery/section-template-copy";
+import { buildTemplateCopyContext, templateCopySiteKind } from "@/lib/site-admin/add-gallery/section-template-copy";
+import { filterGalleryItemsForSiteKind } from "@/lib/site-admin/add-gallery/site-kind-visibility";
 import { applyShellVariantToWorkspaceAction } from "@/lib/site-admin/builder-core/templates/apply-shell-variant-action";
 import {
   armAddGalleryPointerDrag,
@@ -36,6 +37,7 @@ import {
 } from "@/lib/site-admin/add-gallery/catalog-structure";
 
 import { useEditContext } from "../edit-context";
+import { useWorkspaceCopyType } from "../use-workspace-copy-type";
 import { paidPlanInsertBlockMessage } from "@/lib/site-admin/add-gallery/paid-plan-gate";
 import {
   GALLERY_LOCKED_UPGRADE_HREF,
@@ -194,7 +196,10 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     surfaceKind,
     workspacePlan,
     queueRouterRefresh,
+    tenantId,
+    defaultLocale: siteDefaultLocale,
   } = useEditContext();
+  const workspaceCopyType = useWorkspaceCopyType(tenantId);
   // WS2 — read tree from micro-store so edits don't re-render this panel.
   const builderTree = useBuilderTree();
   // CANVAS-1 — read selection from micro-store for insert-at-selection hint.
@@ -234,8 +239,17 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     const app = codeSeed.find((i) => i.tab === "apps" && i.id === intent);
     if (app) setQuery(app.label);
   }, [open, codeSeed]);
-  const [mergedItems, setMergedItems] =
+  const [allMergedItems, setMergedItems] =
     useState<ReadonlyArray<AddGalleryItem>>(codeSeed);
+  // TUL-80: roster categories (Featured Talent / Talent Roster) are agency-only.
+  const rosterSiteKind =
+    workspaceCopyType === "talent"
+      ? "talent"
+      : templateCopySiteKind(surfaceKind, typeof window === "undefined" ? null : window.location.pathname, workspaceCopyType);
+  const mergedItems = useMemo(
+    () => filterGalleryItemsForSiteKind(allMergedItems, rosterSiteKind),
+    [allMergedItems, rosterSiteKind],
+  );
   // Admin-editable catalog structure; empty until open-effect fetch resolves.
   const [structure, setStructure] = useState<CatalogStructureMap>({});
   const fetchSeqRef = useRef(0);
@@ -436,7 +450,15 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
           item,
           anchor,
           { insertBuilderNode, insertBuilderSectionEmbed, insertBuilderComponent },
-          { copy },
+          {
+            copy: buildTemplateCopyContext({
+              surfaceKind,
+              pathname: window.location.pathname,
+              workspaceType: workspaceCopyType,
+              active: getActiveContentLocaleSnapshot(),
+              siteDefaultLocale,
+            }),
+          },
         );
         if (!result.ok && result.error) {
           reportMutationError(result.error);
@@ -472,7 +494,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       insertBuilderSectionEmbed,
       insertBuilderComponent,
       reportMutationError,
-      workspacePlan, t, surfaceKind,
+      workspacePlan, t, surfaceKind, workspaceCopyType, siteDefaultLocale,
       gallerySurface.structuralEdits,
       selectBuilderNode,
       notifyTemplateApplied,
