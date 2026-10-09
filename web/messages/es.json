@@ -1664,7 +1664,8 @@
       },
       "guestName": "Tu nombre",
       "guestEmail": "Tu correo",
-      "signInToBook": "Inicia sesion para reservar"
+      "signInToBook": "Inicia sesion para reservar",
+      "captchaRequired": "Completa la verificación para continuar."
     },
     "bookPage": {
       "title": "Reserva un horario",

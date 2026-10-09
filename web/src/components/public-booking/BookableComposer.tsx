@@ -4,7 +4,7 @@
  * Opens InquiryDrawer (request) or confirms via instant-book-action (instant).
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
 import { SlotPicker, type SlotPickerValue } from "@/components/public-booking/SlotPicker";
 import {
@@ -15,10 +15,14 @@ import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import type { BookableOffering } from "@/components/public-booking/pick-bookable-offering";
 import { createInstantBookingAction } from "@/lib/server-actions/instant-book-action";
 import type { TalentBookingMode } from "@/lib/scheduling/booking-surface";
-import { useT } from "@/i18n/use-t";
+import { translatorFor, useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { GuestInstantContact } from "@/components/public-booking/GuestInstantContact";
-import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
+import {
+  preloadGuestCaptchaScript,
+  type GuestCaptchaConfig,
+} from "@/components/public-booking/GuestCaptchaField";
+import { shouldSkipGuestCaptchaOnHost } from "@/components/public-booking/catalog-booking-live-slots";
 
 export type { BookableOffering };
 
@@ -45,6 +49,7 @@ export function BookableComposer({
   showInlinePicker = true,
   signedIn = false,
   captcha = null,
+  locale: localeProp,
 }: {
   tenantSlug: string;
   tenantId?: string | null;
@@ -55,9 +60,18 @@ export function BookableComposer({
   showInlinePicker?: boolean;
   signedIn?: boolean;
   captcha?: GuestCaptchaConfig | null;
+  /** Page locale (CMS Live booking / /book). Prefer over dashboard cookie. */
+  locale?: string | null;
 }) {
-  const t = useT();
+  const cookieT = useT();
   const dashboardLocale = useDashboardLocale();
+  const pageLocale = (localeProp?.trim() || dashboardLocale || "en").startsWith("es")
+    ? "es"
+    : "en";
+  const t = useMemo(
+    () => (localeProp?.trim() ? translatorFor(pageLocale) : cookieT),
+    [localeProp, pageLocale, cookieT],
+  );
   const [open, setOpen] = useState(false);
   const [slot, setSlot] = useState<SlotPickerValue | null>(null);
   const [eventOffering, setEventOffering] = useState<BookableOffering | null>(null);
@@ -71,6 +85,16 @@ export function BookableComposer({
   const active = eventOffering ?? offering;
   const instant = bookingMode === "instant" && !forceRequest && !!tenantId;
   const requireAccountToBook = active.requireAccountToBook === true;
+  const skipCaptcha = shouldSkipGuestCaptchaOnHost();
+  const captchaForGuest =
+    skipCaptcha || !captcha || captcha.provider === "none" || !captcha.siteKey ? null : captcha;
+
+  // Warm the vendor script as soon as the composer mounts so Confirm is not
+  // racing a cold Turnstile load after the guest picks a slot.
+  useEffect(() => {
+    if (!captchaForGuest?.provider || captchaForGuest.provider === "none") return;
+    void preloadGuestCaptchaScript(captchaForGuest.provider);
+  }, [captchaForGuest?.provider]);
 
   useEffect(() => {
     const onSlot = (e: Event) => {
@@ -150,9 +174,7 @@ export function BookableComposer({
         // TUL-93 / #177: the language the guest is browsing in. The page's
         // <html lang> wins (URL-language surfaces), the dashboard cookie is the
         // fallback; the server stamps it on the booking for the confirmation.
-        locale:
-          (typeof document !== "undefined" && document.documentElement.lang) ||
-          dashboardLocale,
+        locale: pageLocale,
         contactName: signedIn ? undefined : guestName,
         contactEmail: signedIn ? undefined : guestEmail,
         captchaToken: signedIn ? undefined : captchaToken || null,
@@ -163,7 +185,13 @@ export function BookableComposer({
           window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
           return;
         }
-        setError(res.error);
+        // Server still returns English captcha strings; map to the page locale.
+        const raw = res.error ?? "";
+        setError(
+          /challenge|captcha|robot/i.test(raw)
+            ? t("public.instantBook.captchaRequired")
+            : raw,
+        );
         if (res.upgrade) {
           setForceRequest(true);
           setOpen(true);
@@ -195,6 +223,7 @@ export function BookableComposer({
           offeringId={active.offeringId}
           durationMinutes={active.durationMinutes}
           timezone={active.timezone}
+          locale={pageLocale}
           value={slot}
           onChange={(next) => {
             setSlot(next);
@@ -233,8 +262,8 @@ export function BookableComposer({
               <GuestInstantContact
                 name={guestName}
                 email={guestEmail}
-                captcha={captcha}
-                locale={typeof document !== "undefined" && document.documentElement.lang.startsWith("es") ? "es" : "en"}
+                captcha={captchaForGuest}
+                locale={pageLocale}
                 onName={setGuestName}
                 onEmail={setGuestEmail}
                 onCaptchaToken={setCaptchaToken}
