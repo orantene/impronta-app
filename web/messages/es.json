@@ -3684,6 +3684,7 @@
       "offerDraft": "Borrador · {total}",
       "offerSent": "Enviada · {total} · a la espera del cliente",
       "offerAwaitingTalent": "Esperando la aprobación del talento · {total}",
+      "offerAwaitingTalentPill": "{total} · esperando la aprobación del talento",
       "offerAccepted": "Aceptada · {total}",
       "offerRejected": "Rechazada · {total}",
       "actionInquiryHint": "Responde al cliente para que esto siga avanzando.",

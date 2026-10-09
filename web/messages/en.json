@@ -3684,6 +3684,7 @@
       "offerDraft": "Draft · {total}",
       "offerSent": "Sent · {total} · awaiting client",
       "offerAwaitingTalent": "Waiting for the talent to approve · {total}",
+      "offerAwaitingTalentPill": "{total} · waiting for talent to approve",
       "offerAccepted": "Accepted · {total}",
       "offerRejected": "Rejected · {total}",
       "actionInquiryHint": "Reply to client to keep this moving.",
