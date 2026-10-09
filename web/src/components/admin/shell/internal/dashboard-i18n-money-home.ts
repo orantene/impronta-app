@@ -42,6 +42,8 @@ export const MONEY_HOME_ES_TEXT: Record<string, string> = {
   "No payments in this month yet.": "Aún no hay pagos en este mes.",
   "Method not recorded": "Método no registrado",
   "Part paid": "Pago parcial",
+  "New services will use this currency. Your existing services keep theirs; change them in Services.": "Los servicios nuevos usarán esta moneda. Tus servicios actuales conservan la suya; cámbialos en Servicios.",
+  "Open Services": "Abrir Servicios",
   "Paid in full": "Pagado",
   "Cash and transfers never pass through Tulala, so they show as collected and never as a payout.":
     "El efectivo y las transferencias nunca pasan por Tulala, así que aparecen como cobrado y nunca como depósito.",
