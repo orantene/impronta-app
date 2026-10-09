@@ -70,6 +70,8 @@ test("G5/G6 CSS is token-only (no hex) and the pulse respects reduced motion", (
   assert.match(UTILITY_BAR_CSS, /prefers-reduced-motion:reduce\)\{\.sb-ub-pill i\{animation:none/);
   assert.match(UTILITY_BAR_CSS, /min-height:44px/);
   assert.match(UTILITY_BAR_CSS, /\.sb-ub-tel\{[^}]*width:44px;height:44px/);
+  // TUL-496: CTA visible on phone (not gated behind desktop container query).
+  assert.match(UTILITY_BAR_CSS, /\.sb-ub-cta\{display:inline-flex/);
 });
 
 test("utility bar: status ON shows the on label and data-on=true", () => {

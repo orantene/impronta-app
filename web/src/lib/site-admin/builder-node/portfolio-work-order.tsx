@@ -23,6 +23,11 @@ export const PORTFOLIO_WORK_ORDER_CSS = `
 .sb-wo-job img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
 .sb-wo-job figcaption{padding:8px;font:500 10.5px/1.4 var(--site-mono-font,ui-monospace,monospace);color:var(--token-color-muted);overflow-wrap:anywhere}
 .sb-wo-job figcaption b{display:block;color:var(--token-color-ink);font:800 13px var(--token-typography-heading-font-family,var(--site-heading-font,inherit));margin-bottom:2px}
+/* TUL-474/496: last job captions clear sticky book bar + chat bubble on phone. */
+@media (max-width:899px){
+  .sb-portfolio[data-portfolio-layout="work_order"]{padding-bottom:max(28px,calc(96px + env(safe-area-inset-bottom,0px)));scroll-margin-bottom:96px}
+  .sb-portfolio--work_order{margin-bottom:12px}
+}
 @container sbwo (min-width:900px){
   .sb-portfolio--work_order{margin-top:0;grid-template-columns:repeat(6,1fr);gap:8px}
   .sb-wo-job img{aspect-ratio:4/5}
