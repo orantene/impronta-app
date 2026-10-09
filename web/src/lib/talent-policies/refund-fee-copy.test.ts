@@ -29,7 +29,7 @@ test("policy text follows processing_fee_payer and states fees are non-refundabl
 
 test("checkout has one fee source: engine fee lines, with a non-refundable fallback note", () => {
   const view = readFileSync("src/app/(public)/pay/[code]/CheckoutView.tsx", "utf8");
-  assert.match(view, /data-refund-fees-note/);
+  assert.match(readFileSync("src/app/(public)/pay/[code]/PayParts.tsx", "utf8"), /data-refund-fees-note/);
   assert.doesNotMatch(view, /cardFeeCents|refundFeesNote/);
   for (const f of ["messages/en.json", "messages/es.json"]) {
     const j = JSON.parse(readFileSync(f, "utf8")).public.thread;

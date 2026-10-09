@@ -10,20 +10,22 @@ import { test } from "node:test";
 const DIR = join(process.cwd(), "src/app/(public)/pay/[code]");
 const view = readFileSync(join(DIR, "CheckoutView.tsx"), "utf8");
 const page = readFileSync(join(DIR, "pay-page.tsx"), "utf8");
+const parts = readFileSync(join(DIR, "PayParts.tsx"), "utf8");
 
 test("pay confirmation uses site tokens, no admin-* colour classes", () => {
   for (const [name, src] of [
     ["CheckoutView.tsx", view],
     ["pay-page.tsx", page],
+    ["PayParts.tsx", parts],
   ] as const) {
     const hits = src.match(/\b(?:bg|text|border|ring|from|to|via|fill|stroke|divide|outline)-admin-[\w-]+/g) ?? [];
     assert.deepEqual(hits, [], `${name} paints the dashboard palette: ${hits.join(", ")}`);
   }
   assert.doesNotMatch(view, /POS_PRIMARY_ACTION|POS_SECONDARY_ACTION|POS_NOTE/);
-  assert.match(view, /--token-color-ink/, "ink is the seller's token");
-  assert.match(view, /--token-color-primary/, "primary action is the seller's token");
-  assert.match(view, /--site-heading-font/, "headings use the seller's heading font");
-  assert.match(view, /data-pay-theme="tokens"/);
+  assert.match(parts, /--token-color-ink/, "ink is the seller's token");
+  assert.match(parts, /--token-color-primary/, "primary action is the seller's token");
+  assert.match(parts, /--site-heading-font/, "headings use the seller's heading font");
+  assert.match(parts, /data-pay-theme="tokens"/);
 });
 
 test("paid confirmation wires .ics + Google when the page passes calendar links", () => {
