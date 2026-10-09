@@ -168,12 +168,30 @@ export function PayoutsSectionClient({
 }
 
 function PayoutsBody({ tenantSlug, data }: { tenantSlug: string; data: PayoutsSurfaceData }) {
-  const { connect, baseFee, held } = data;
+  const { connect, baseFee, held, laneAttention } = data;
+  const copy = useDashboardText();
   const enabled = connect.ok && connect.data.status === "enabled" && connect.data.payoutsEnabled;
 
   return (
     <>
       {!enabled && <HeldPayoutsBanner held={held} audience="workspace" />}
+      {(laneAttention ?? []).map((row) => (
+        <div
+          key={`${row.lane}-${row.currency}`}
+          data-testid="connect-lane-attention"
+          role="status"
+          style={{ marginBottom: 16, padding: "12px 14px", background: "rgba(138,111,26,0.10)", border: "1px solid rgba(138,111,26,0.28)", borderRadius: 12 }}
+        >
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0B0B0D", lineHeight: 1.35 }}>
+            {copy.t("Connect the business's payout account for this lane to release held money")}
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(11,11,13,0.62)", marginTop: 3, lineHeight: 1.5 }}>
+            {`${new Intl.NumberFormat(undefined, { style: "currency", currency: row.currency.toUpperCase() }).format(row.amountCents / 100)} · ${row.lane.toUpperCase()}`}
+            {" "}
+            {copy.t("The payment was collected on a different payout lane than this account. It is released automatically once the business connects its account on that lane.")}
+          </div>
+        </div>
+      ))}
       <section style={{
         background: C.cardBg,
         border: `1px solid ${C.border}`,
