@@ -403,9 +403,11 @@ export type EssentialsRunResult = {
  *
  *   myself : her offerings + hours + bookable + place            (hub tenant)
  *   both   : her offerings + hours + bookable + place            (workspace tenant)
- *            + workspace appointments ON
- *   studio : house offerings + opening hours + place; appointments ON only
- *            once a provider is linked; first provider invite
+ *            + workspace appointments ON (timezone)
+ *   studio : house offerings + opening hours + place + workspace
+ *            appointments ON (timezone, same writer as both); first provider invite
+ *            (#178 owner hours when solo). TUL-457: do not wait for a roster
+ *            provider before writing settings.appointments — both never did.
  */
 export async function runEssentialsWrites(store: EssentialsStore, input: EssentialsRunInput): Promise<EssentialsRunResult> {
   const { choice, essentials: e, talent, workspace } = input;
@@ -483,12 +485,12 @@ export async function runEssentialsWrites(store: EssentialsStore, input: Essenti
         if (out.providerInvite === "failed") out.warnings.push("essentials:invite:failed");
       });
     }
-    // Honest rule: booking starts when a provider is linked, not before.
+    // TUL-457: same appointments writer as both — timezone (and enabled) land at
+    // onboarding even when the roster is still empty. Capacity /book still needs
+    // a provider; the missing settings.appointments object was the bug.
     await step("appointments", async () => {
-      if (await store.hasActiveProvider(workspace.tenantId)) {
-        await store.enableWorkspaceAppointments(workspace.tenantId, { timezone: e.timezone, presetId: "salon" });
-        out.appointmentsEnabled = true;
-      }
+      await store.enableWorkspaceAppointments(workspace.tenantId, { timezone: e.timezone, presetId: "salon" });
+      out.appointmentsEnabled = true;
     });
   }
   return out;
