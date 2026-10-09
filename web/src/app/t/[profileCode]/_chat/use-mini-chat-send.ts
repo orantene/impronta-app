@@ -23,7 +23,7 @@ imports no backend module.
 
 import { attachPendingLookImage } from "./attach-pending-look-image";
 import { clearPendingOfferingIntent, peekPendingOfferingIntent } from "./pending-offering-intent";
-import { firstSendPlan } from "./retry-same-inquiry";
+import { firstSendPlan, shouldMarkPromotedAfterFirstDelivery } from "./retry-same-inquiry";
 import { firstSendRoute } from "./guest-first-send";
 import {
   buildInstantRows,
@@ -274,7 +274,10 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     const earlyId = inquiryId;
     if (firstSendPlan(earlyId, contactPromoted) === "continue" && earlyId) {
       const ok = await continueEarlyInquiry(earlyId, body);
-      if (ok && sendToAgencyPendingRef.current) {
+      // TUL-458: always flip to reply after a delivered first message — not only
+      // when "Send to agency" forced the gate. Skipping onSent left contactPromoted
+      // false so the next composer submit re-entered continue and stuck the draft.
+      if (ok && shouldMarkPromotedAfterFirstDelivery(earlyId)) {
         sendToAgencyPendingRef.current = false;
         onSent?.();
       }
@@ -337,7 +340,10 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
       if (res.assistantMessage) seeded.push(res.assistantMessage);
       mergeServer(seeded);
       flushLookImage(res.inquiryId);
-      if (sendToAgencyPendingRef.current) {
+      // TUL-458: composer first-send must mark the thread live (same as Send to
+      // agency). Otherwise the second message after "Solicitud recibida" never
+      // takes the reply path.
+      if (shouldMarkPromotedAfterFirstDelivery(res.inquiryId)) {
         sendToAgencyPendingRef.current = false;
         onSent?.();
       }

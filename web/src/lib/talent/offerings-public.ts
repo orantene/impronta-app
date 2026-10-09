@@ -118,18 +118,43 @@ export async function loadPublicOfferingsForProfile(
       planAllowsInstant: tenantId ? undefined : plan.get(talentProfileId),
     };
     const pause = switches ? publicContactMode(switches) : "open";
-    return rows.map((r) => ({
-      ...(pause !== "open" ? { publicPause: pause } : {}),
-      ...withPublicAvailability(
-        withEffectivePolicy(rowToOffering(r, locale, images.get(r.id) ?? [], opts?.chain), sellingDefaults),
-        sellingDefaults,
-        availability,
-      ),
-      variants: children.variants.get(r.id) ?? [],
-      addOns: addOnsByOffering.get(r.id) ?? [],
-    }));
+    return rows.map((r) => {
+      const full: TalentOffering = {
+        ...(pause !== "open" ? { publicPause: pause } : {}),
+        ...withPublicAvailability(
+          withEffectivePolicy(rowToOffering(r, locale, images.get(r.id) ?? [], opts?.chain), sellingDefaults),
+          sellingDefaults,
+          availability,
+        ),
+        variants: children.variants.get(r.id) ?? [],
+        addOns: addOnsByOffering.get(r.id) ?? [],
+      };
+      return stripPublicOfferingFlightFields(full);
+    });
   } catch (err) {
     logServerError("public.offerings.load", err);
     return [];
   }
+}
+
+/**
+ * TUL-446 — omit editor/moderation fields from the public offering object so
+ * they never enter the RSC flight payload (catalog / portfolio / task-picker
+ * islands). Locale is already baked into title/description/categoryLabel.
+ * Cast back to `TalentOffering` for call-site compatibility; runtime shape is
+ * intentionally leaner than the editor row.
+ */
+function stripPublicOfferingFlightFields(offering: TalentOffering): TalentOffering {
+  const {
+    titleI18n: _titleI18n,
+    descriptionI18n: _descriptionI18n,
+    firstPublishedAt: _firstPublishedAt,
+    updatedAt: _updatedAt,
+    moderationState: _moderationState,
+    status: _status,
+    visibility: _visibility,
+    sortOrder: _sortOrder,
+    ...rest
+  } = offering;
+  return rest as TalentOffering;
 }

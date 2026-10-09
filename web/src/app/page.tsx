@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { AgencyHomeStorefront } from "@/components/home/agency-home-storefront";
 import { AppLanding } from "@/components/home/app-landing";
+import { appLandingLocale } from "@/components/home/app-landing-locale.server";
 import { HubLanding } from "@/components/home/hub-landing";
 import { MarketingLanding } from "@/components/home/marketing-landing";
 import { getPublicHostContext } from "@/lib/saas/scope";
@@ -329,7 +330,7 @@ export default async function HomePage() {
       }
       // `unknown` only happens outside a real request (build / tests) — the
       // landing has no tenant reads and is safe.
-      return <AppLanding />;
+      return <AppLanding locale={await appLandingLocale()} />;
     }
   }
 }
