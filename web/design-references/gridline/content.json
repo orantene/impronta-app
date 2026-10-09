@@ -408,28 +408,28 @@
       },
       "tasks": {
         "t1": {
-          "label": "Se fue la luz en una zona",
-          "hint": "Una revisión encuentra el circuito que falla y te da precio antes de reparar."
+          "label": "Power is out in one area",
+          "hint": "An inspection finds the circuit that failed and gives you the price before I repair."
         },
         "t2": {
-          "label": "Instalar lámparas o ventiladores",
-          "hint": "Se cobra por pieza. Mándame fotos del techo y de la lámpara."
+          "label": "Install lights or ceiling fans",
+          "hint": "Priced per piece. Send me photos of the ceiling and the fixture."
         },
         "t3": {
-          "label": "Se bota el breaker",
-          "hint": "Suele ser sobrecarga o un corto. Primero se revisa, luego se cotiza la reparación."
+          "label": "A breaker keeps tripping",
+          "hint": "Usually an overload or a short. I check first, then quote the repair."
         },
         "t4": {
-          "label": "Tablero viejo o de fusibles",
-          "hint": "Un cambio de tablero se cotiza con fotos del tablero actual y el número de circuitos."
+          "label": "Old or fuse panel",
+          "hint": "A panel swap is quoted from photos of your current panel and the number of circuits."
         },
         "t5": {
-          "label": "Contactos que no sirven",
-          "hint": "En la revisión se prueban todos los contactos y se reparan los sencillos ahí mismo."
+          "label": "Outlets that do not work",
+          "hint": "The inspection tests every outlet and fixes the simple ones on the spot."
         },
         "t6": {
-          "label": "Chispas u olor a quemado",
-          "hint": "Corta la luz en el interruptor principal y escríbeme. Atiendo el mismo día cuando hay espacio."
+          "label": "Sparks or a burning smell",
+          "hint": "Cut the power at the main breaker and message me. I can come the same day when there is room."
         }
       }
     }
