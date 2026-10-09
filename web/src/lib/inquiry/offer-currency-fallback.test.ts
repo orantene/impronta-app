@@ -16,6 +16,8 @@ type World = {
   owners?: string[];
   ownerTalentCurrency?: string | null;
   readError?: boolean;
+  /** Fail one of the seller-currency fallback reads (TUL-313 fail-closed). */
+  failTable?: "agencies" | "agency_memberships" | "talent_profiles";
 };
 
 function fake(w: World): SupabaseClient {
@@ -33,12 +35,13 @@ function fake(w: World): SupabaseClient {
       } else if (table === "talent_profiles") {
         rows = (w.participants ?? []).map((p) => ({ id: p.id, default_currency: p.currency, stripe_account_platform: null }));
       }
+      if (w.failTable === table) error = { message: "db down" };
       const b: Record<string, unknown> = {};
       for (const m of ["select", "eq", "in", "is", "limit"]) b[m] = () => b;
       // participants lookup awaits the builder (.in); the owner lookup uses maybeSingle()
       b.maybeSingle = async () =>
         table === "talent_profiles"
-          ? { data: { default_currency: w.ownerTalentCurrency ?? null }, error: null }
+          ? { data: error ? null : { default_currency: w.ownerTalentCurrency ?? null }, error }
           : { data: rows[0] ?? null, error };
       b.then = (resolve: (v: { data: unknown[] | null; error: unknown }) => unknown) =>
         resolve({ data: error ? null : rows, error });
@@ -146,4 +149,16 @@ describe("offer_currency_unresolved has a user-facing message in every layer (TU
     const src = readFileSync(new URL("src/lib/server-actions/messaging-offers.ts", WEB), "utf8");
     assert.match(src, /result\.reason === "offer_currency_unresolved"\) return fail\("offer_currency_unresolved"\)/);
   });
+});
+
+describe("a read ERROR refuses instead of falling through (fail closed)", () => {
+  const solo = { participants: [], workspaceType: "talent", owners: ["u1"], ownerTalentCurrency: "MXN", workspaceDefault: "USD" } as const;
+  it("agencies read fails: refuse, never the workspace default", async () =>
+    assert.equal(await run({ ...solo, owners: [...solo.owners], participants: [], failTable: "agencies" }), null));
+  it("owner memberships read fails: refuse", async () =>
+    assert.equal(await run({ ...solo, owners: [...solo.owners], participants: [], failTable: "agency_memberships" }), null));
+  it("owner talent read fails: refuse, not USD from the workspace", async () =>
+    assert.equal(await run({ ...solo, owners: [...solo.owners], participants: [], failTable: "talent_profiles" }), null));
+  it("no error and no solo currency still falls to the workspace default", async () =>
+    assert.equal(await run({ participants: [], workspaceType: "business", workspaceDefault: "MXN" }), "MXN"));
 });

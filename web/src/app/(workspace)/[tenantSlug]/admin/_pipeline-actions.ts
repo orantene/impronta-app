@@ -78,7 +78,6 @@ import {
   type OfferLineDraft,
 } from "@/lib/inquiry/inquiry-engine-offers";
 import { clientAcceptOffer, staffAcceptOfferForTalent } from "@/lib/inquiry/inquiry-engine-approvals";
-import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
 import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
@@ -2254,6 +2253,9 @@ export async function bulkSetInquiryArchived(
   }
 }
 
+const OFFER_CURRENCY_UNRESOLVED_MESSAGE =
+  "We could not tell which currency this offer should use. Choose a currency for the offer and try again.";
+
 /**
  * Coordinator creates a new draft offer for an inquiry. Returns the new
  * offer id so the caller can immediately switch to editing it.
@@ -2261,10 +2263,9 @@ export async function bulkSetInquiryArchived(
 export async function createOfferAction(
   _tenantSlug: string,
   inquiryId: string,
-  // USD-first: when the caller doesn't pin a currency (the offer-builder
-  // "Start drafting offer" button doesn't), fall back to the PLATFORM operating
-  // currency (default USD) instead of a hard-coded EUR — so the whole
-  // inquiry→offer→booking→payment→payout flow runs in one currency.
+  // When the caller doesn't pin a currency (the offer-builder "Start drafting
+  // offer" button doesn't), the engine follows the seller (TUL-313); if that
+  // cannot be resolved the action refuses. No platform/USD fallback.
   currencyCode?: string,
 ): Promise<PipelineActionResult<{ offerId: string }>> {
   await requireNotImpersonating();
@@ -2300,20 +2301,14 @@ export async function createOfferAction(
       }
       if (!inq) return { ok: false, error: "Inquiry not found in this workspace." };
 
-      // USD-first: the offer-builder button doesn't pin a currency, so resolve
-      // the platform operating currency (default USD) rather than defaulting to
-      // EUR. This makes the offer — and the booking/payment/payout that flow
-      // from it — run in the platform's single operating currency.
-      const resolvedCurrency =
-        currencyCode ?? (await loadPlatformOperatingCurrency()).operatingCurrency;
-
       const result = await createOffer(supabase, {
         inquiryId,
         tenantId,
         actorUserId: user.id,
         expectedVersion: (inq.version as number | null) ?? 1,
-        currencyCode: resolvedCurrency,
-        // No explicit currency from the caller: follow the seller (TUL-274).
+        currencyCode,
+        // No explicit currency from the caller: follow the seller (TUL-274,
+        // TUL-313). Unresolvable -> the engine refuses; never a platform guess.
         followSeller: currencyCode == null,
       });
       if (!result.success) {
@@ -2323,6 +2318,9 @@ export async function createOfferAction(
           "createOfferAction/engine_failed",
           new Error(`reason=${reason ?? ""} error=${errMsg ?? ""}`),
         );
+        if (reason === "offer_currency_unresolved") {
+          return { ok: false, error: OFFER_CURRENCY_UNRESOLVED_MESSAGE };
+        }
         return { ok: false, error: reason ?? errMsg ?? "Could not create offer." };
       }
       revalidatePath(`/${auth.tenantSlug}`, "layout");
