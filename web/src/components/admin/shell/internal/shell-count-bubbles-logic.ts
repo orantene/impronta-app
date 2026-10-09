@@ -44,3 +44,32 @@ export function shellBubbleFillsAvoidGoldRust(): boolean {
     joined,
   );
 }
+
+/** Inquiries that show the inbox "awaiting you" chip (inquiry / hold). */
+const AWAITING_STATUSES = new Set([
+  "inquiry",
+  "offer_pending",
+  "approved",
+]);
+
+/**
+ * Pure: how many talent inquiries still need the talent's response.
+ * Used for the talent-shell Attention bubble when bridge attention is 0
+ * (TUL-519 / card 385).
+ */
+export function countTalentAwaitingInquiries(
+  rows: ReadonlyArray<{
+    status: string;
+    myApprovalStatus?: string | null;
+  }>,
+): number {
+  let n = 0;
+  for (const row of rows) {
+    if (!AWAITING_STATUSES.has(row.status)) continue;
+    if (row.myApprovalStatus === "accepted" || row.myApprovalStatus === "declined") {
+      continue;
+    }
+    n += 1;
+  }
+  return n;
+}

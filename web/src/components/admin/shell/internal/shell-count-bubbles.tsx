@@ -8,9 +8,8 @@
  * class fills (coral / forest / slate) — no gold or rust, no inline styles.
  *
  * Click opens the notifications center filtered by category (drawer payload
- * for TUL-390 tabs). Counts come from the shell bridge: messages via
- * `totalUnread` today; money / attention stay 0 until TUL-387/389 land
- * `shellCounts` on the bridge.
+ * for TUL-390 tabs). Counts prefer `shellCounts` from the bridge (TUL-387);
+ * talent attention also counts inquiries awaiting the talent (TUL-519 / 385).
  */
 
 import { CountBadge } from "@/components/ui/count-badge";
@@ -19,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useDashboardText } from "./dashboard-i18n";
 import { Icon, type AdminShellIconName } from "./primitives";
 import {
+  countTalentAwaitingInquiries,
   formatShellBubbleCount,
   SHELL_BUBBLE_FILL_CLASS,
   visibleShellCountBubbles,
@@ -29,6 +29,7 @@ import { useAdminShell } from "./state";
 
 export type { ShellBubbleCount, ShellBubbleKind };
 export {
+  countTalentAwaitingInquiries,
   formatShellBubbleCount,
   SHELL_BUBBLE_FILL_CLASS,
   shellBubbleFillsAvoidGoldRust,
@@ -62,18 +63,35 @@ export function ShellCountBubbles({
   counts: countsProp,
   className,
 }: ShellCountBubblesProps) {
-  const { state, openDrawer, totalUnread, bridgeTalentUnread } = useAdminShell();
+  const {
+    state,
+    openDrawer,
+    totalUnread,
+    bridgeTalentUnread,
+    shellCounts,
+    effectiveTalentInquiries,
+  } = useAdminShell();
   const copy = useDashboardText();
   const inWorkspace = state.surface === "workspace";
 
+  const bridgeMessages = inWorkspace
+    ? (shellCounts?.messages ?? totalUnread)
+    : (shellCounts?.messages ??
+      (bridgeTalentUnread !== undefined ? bridgeTalentUnread : totalUnread));
   const messages =
-    countsProp?.find((c) => c.kind === "messages")?.count ??
-    (inWorkspace
-      ? totalUnread
-      : (bridgeTalentUnread !== undefined ? bridgeTalentUnread : totalUnread));
-  const money = countsProp?.find((c) => c.kind === "money")?.count ?? 0;
+    countsProp?.find((c) => c.kind === "messages")?.count ?? bridgeMessages;
+  const money =
+    countsProp?.find((c) => c.kind === "money")?.count ??
+    shellCounts?.money ??
+    0;
+  const awaiting = inWorkspace
+    ? 0
+    : countTalentAwaitingInquiries(effectiveTalentInquiries);
   const attention =
-    countsProp?.find((c) => c.kind === "attention")?.count ?? 0;
+    countsProp?.find((c) => c.kind === "attention")?.count ??
+    (shellCounts?.attention && shellCounts.attention > 0
+      ? shellCounts.attention
+      : awaiting);
 
   const visible = visibleShellCountBubbles([
     { kind: "messages", count: messages },

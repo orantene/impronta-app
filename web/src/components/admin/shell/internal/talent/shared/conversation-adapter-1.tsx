@@ -74,9 +74,12 @@ function adaptTalentInquiry(row: InquiryBridgeRow, fallbackAgencyName: string): 
     iAmCoordinator: row.iAmCoordinator === true,
     // TUL-472 — invite Accept keys off the talent participant status.
     participantStatus: row.participantStatus,
+    // Synthetic previews (no real last message yet) are system copy so the
+    // inbox row can translate them. A coordinator sender would stay verbatim
+    // (TUL-478 / TUL-519 cards 379+500).
     lastMessage: {
-      sender:  "coordinator" as const,
-      preview: stage === "booked" ? "Booking confirmed — check logistics tab." : "Awaiting your response.",
+      sender:  "system" as const,
+      preview: stage === "booked" ? "Booking confirmed. Check logistics tab." : "Awaiting your response.",
       ageHrs,
     },
     unreadCount: row.unreadCount,

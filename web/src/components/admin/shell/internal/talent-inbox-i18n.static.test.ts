@@ -116,5 +116,41 @@ describe("talent inbox i18n", () => {
 
   it("generated inbox previews have ES rows", () => {
     assert.notEqual(translateDashboardText("Awaiting your response.", "es"), "Awaiting your response.");
+    assert.equal(
+      translateDashboardText("Awaiting your response.", "es"),
+      "Esperando tu respuesta.",
+    );
+    assert.equal(
+      translateDashboardText("Booking confirmed. Check logistics tab.", "es"),
+      "Reserva confirmada. Revisa la pestaña de logística.",
+    );
+  });
+
+  it("Today checklist chip labels have ES rows (TUL-519 card 146)", () => {
+    for (const [en, es] of [
+      ["Originally from", "De origen"],
+      ["Lives in", "Vive en"],
+      ["Talent type", "Tipo de talento"],
+    ] as const) {
+      assert.equal(translateDashboardText(en, "es"), es, en);
+    }
+  });
+
+  it("talent thread empty states have ES rows (TUL-519 cards 379+500)", () => {
+    assert.equal(translateDashboardText("No activity yet", "es"), "Aún no hay actividad");
+    assert.notEqual(
+      translateDashboardText(
+        "Start the conversation below. Your message will go to the right people in this thread.",
+        "es",
+      ),
+      "Start the conversation below. Your message will go to the right people in this thread.",
+    );
+  });
+
+  it("synthetic talent previews use system sender so inboxPreviewText can translate", () => {
+    const adapter = read("talent/shared/conversation-adapter-1.tsx");
+    assert.match(adapter, /sender:\s*"system"/);
+    assert.match(adapter, /Awaiting your response\./);
+    assert.match(adapter, /Booking confirmed\. Check logistics tab\./);
   });
 });

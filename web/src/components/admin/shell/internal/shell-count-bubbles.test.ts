@@ -1,14 +1,18 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
+  countTalentAwaitingInquiries,
   formatShellBubbleCount,
   shellBubbleFillsAvoidGoldRust,
   SHELL_BUBBLE_FILL_CLASS,
   visibleShellCountBubbles,
 } from "./shell-count-bubbles-logic";
+
+const DIR = dirname(fileURLToPath(import.meta.url));
 
 describe("formatShellBubbleCount", () => {
   it("hides zero and negatives", () => {
@@ -71,20 +75,45 @@ describe("shell bubble fills", () => {
   });
 });
 
+describe("countTalentAwaitingInquiries (TUL-519 card 385)", () => {
+  it("counts inquiry / offer_pending / approved that still need a response", () => {
+    assert.equal(
+      countTalentAwaitingInquiries([
+        { status: "inquiry", myApprovalStatus: null },
+        { status: "offer_pending", myApprovalStatus: "pending" },
+        { status: "approved", myApprovalStatus: undefined },
+        { status: "booked", myApprovalStatus: null },
+        { status: "inquiry", myApprovalStatus: "accepted" },
+        { status: "offer_pending", myApprovalStatus: "declined" },
+      ]),
+      3,
+    );
+  });
+
+  it("returns zero for an empty list", () => {
+    assert.equal(countTalentAwaitingInquiries([]), 0);
+  });
+});
+
 describe("ShellCountBubbles mount (static)", () => {
   it("IdentityBar and MobileTopBar import ShellCountBubbles", () => {
-    const root = join(import.meta.dirname);
-    const identity = readFileSync(join(root, "page-modules/IdentityBar-1.tsx"), "utf8");
-    const mobile = readFileSync(join(root, "page-modules/MobileTopBar.tsx"), "utf8");
+    const identity = readFileSync(join(DIR, "page-modules/IdentityBar-1.tsx"), "utf8");
+    const mobile = readFileSync(join(DIR, "page-modules/MobileTopBar.tsx"), "utf8");
     assert.match(identity, /ShellCountBubbles/);
     assert.match(mobile, /ShellCountBubbles/);
+    // Talent surface mounts the mobile top bar so bubbles stay reachable.
+    assert.match(identity, /MobileTopBar/);
+    assert.match(identity, /data-tulala-identity-mobile/);
+  });
+
+  it("talent shell falls back to awaiting-inquiry attention counts", () => {
+    const src = readFileSync(join(DIR, "shell-count-bubbles.tsx"), "utf8");
+    assert.match(src, /countTalentAwaitingInquiries/);
+    assert.match(src, /effectiveTalentInquiries/);
   });
 
   it("dead TopBarNotificationBell file is gone", () => {
-    const path = join(
-      import.meta.dirname,
-      "../../../admin-shell-notification-bell.tsx",
-    );
+    const path = join(DIR, "../../../admin-shell-notification-bell.tsx");
     let missing = false;
     try {
       readFileSync(path);

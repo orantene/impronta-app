@@ -55,3 +55,25 @@ test("F88: every newly wrapped key resolves to Spanish", () => {
   assert.equal(editorT("Publish", "es"), "Publicar");
   assert.equal(editorT("Mobile health", "es"), "Salud en móvil");
 });
+
+test("TUL-519: mobile/tablet HUD structure hint and phone-menu card resolve in Spanish", () => {
+  const panel = read("components/edit-chrome/mobile-edit-panel.tsx");
+  assert.match(panel, /useEditorLocale/);
+  assert.match(panel, /on the canvas to hide it on \{device\}/);
+  assert.match(panel, /device tablet|device mobile/);
+  const hud = read("components/edit-chrome/mobile-hud-cards.tsx");
+  assert.match(hud, /t\("Phone menu"\)/);
+  assert.match(hud, /t\("Open on canvas"\)/);
+  for (const k of [
+    "on the canvas to hide it on {device} or change its {device} order. Style edits already apply to this breakpoint.",
+    "device tablet",
+    "device mobile",
+    "Phone menu",
+    "Open on canvas",
+    "{count} link",
+    "{count} links",
+  ] as const) {
+    assert.notEqual(editorT(k, "es"), k, k);
+    assert.equal(editorT(k, "en"), k);
+  }
+});
