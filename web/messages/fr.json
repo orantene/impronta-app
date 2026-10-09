@@ -826,6 +826,7 @@
       "processingTimeout": "Votre paiement est encore en cours de verification. Si vous avez deja paye, l entreprise le confirmera. Ne payez pas de nouveau.",
       "checkAgain": "Verifier de nouveau",
       "paidTitle": "Paiement recu",
+      "paidNote": "Votre reservation est confirmee. Il ne reste rien a payer.",
       "paidTo": "Paye a {seller}",
       "addToCalendar": "Ajouter au calendrier",
       "googleCalendar": "Ajouter a Google Calendar",

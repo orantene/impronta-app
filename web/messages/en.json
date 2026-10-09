@@ -1785,6 +1785,7 @@
       "processingTimeout": "Your payment is still being verified. If you already paid, the business will confirm it. Please do not pay again.",
       "checkAgain": "Check again",
       "paidTitle": "Payment received",
+      "paidNote": "Your booking is confirmed. Nothing more is due.",
       "paidTo": "Paid to {seller}",
       "addToCalendar": "Add to calendar",
       "googleCalendar": "Add to Google Calendar",
