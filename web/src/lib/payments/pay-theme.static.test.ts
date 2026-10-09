@@ -29,8 +29,8 @@ test("pay confirmation uses site tokens, no admin-* colour classes", () => {
 });
 
 test("paid confirmation wires .ics + Google when the page passes calendar links", () => {
-  assert.match(view, /data-pay-calendar="ics"/);
-  assert.match(view, /data-pay-calendar="google"/);
+  assert.match(parts, /data-pay-calendar="ics"/);
+  assert.match(parts, /data-pay-calendar="google"/);
   assert.match(page, /icsDataHref/);
   assert.match(page, /googleCalendarUrl/);
   assert.match(page, /payCalendarEvent/);

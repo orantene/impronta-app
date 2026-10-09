@@ -185,7 +185,6 @@ export async function PayByCodePage({
   const threadToken = inquiryId && loaded.tenantId ? signThreadToken(inquiryId, loaded.tenantId) : null;
   const threadHref = threadToken ? publicThreadPath(threadToken) : null;
   const receiptHref = orderRow?.receipt_code ? `/r/${orderRow.receipt_code}` : null;
-  const cameFromConversation = Boolean(inquiryId);
   const orderLines = ((lines ?? []) as { label: string | null; units: number; unit_cents: number }[]).map((line) => ({
     label: line.label ?? "",
     units: Number(line.units) || 1,
@@ -274,7 +273,6 @@ export async function PayByCodePage({
         status={paidDisplay}
         whereLabel={whereLabel ?? requestedLocation}
         alreadyPaid={query.status !== "paid"}
-        autoReturn={cameFromConversation && query.status === "paid"}
         lines={orderLines}
         stripeUrl={null}
         threadHref={threadHref}

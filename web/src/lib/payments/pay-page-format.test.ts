@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { clockWords, dayWords, expiryParts, payMoney, payUsdLine, whenWords, zoneAbbreviation } from "./pay-page-format";
+import { clockWords, dayWords, expiryParts, payMoney, payUsdLine, whenWords, zoneCity, zoneNote } from "./pay-page-format";
 
 // 2026-10-10 15:00 UTC = 10:00 am in Cancun (UTC-5, no DST).
 const AT = "2026-10-10T15:00:00Z";
@@ -31,10 +31,13 @@ test("day reads weekday day month in es, weekday month day in en", () => {
   assert.equal(dayWords(AT, "America/Cancun", "en"), "Sat Oct 10");
 });
 
-test("the appointment carries its zone; UTC and bad zones carry none", () => {
-  assert.match(whenWords(AT, "America/Cancun", "es") ?? "", /^Sáb 10 oct · 10:00 am \(.+\)$/);
-  assert.equal(zoneAbbreviation(AT, "UTC", "es"), null);
-  assert.equal(zoneAbbreviation(AT, "Not/AZone", "es"), null);
+test("the appointment names the city's clock, not an abbreviation; UTC and bad zones name none", () => {
+  assert.equal(whenWords(AT, "America/Cancun", "es"), "Sáb 10 oct · 10:00 am · hora de Cancún");
+  assert.equal(whenWords(AT, "America/Mexico_City", "es"), "Sáb 10 oct · 9:00 am · hora de Ciudad de México");
+  assert.equal(whenWords(AT, "America/Los_Angeles", "en"), "Sat Oct 10 · 8:00 am · Los Angeles time");
+  assert.equal(zoneNote("America/Cancun", "fr"), "heure de Cancun");
+  assert.equal(zoneCity("UTC", "es"), null);
+  assert.equal(zoneCity("Not/AZone", "es"), null);
   assert.equal(whenWords(AT, "UTC", "en"), "Sat Oct 10 · 3:00 pm");
 });
 

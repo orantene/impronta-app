@@ -12,6 +12,7 @@ import { payMoney } from "@/lib/payments/pay-page-format";
 import {
   Action,
   AmountBlock,
+  CalendarMenu,
   ExpiryRow,
   INK,
   MUTED,
@@ -72,8 +73,6 @@ export type CheckoutViewProps = {
   readonly logoUrl?: string | null;
   /** UI locale for money and copy ("es" | "en" | "fr"). */
   readonly locale?: string;
-  /** The link came from a conversation: the paid page sends the client back to it. */
-  readonly autoReturn?: boolean;
   /** Paid link opened again later (not the return from Stripe). */
   readonly alreadyPaid?: boolean;
   /** Dated booking: .ics download + Google Calendar (paid confirmation only). */
@@ -103,7 +102,6 @@ type T = (key: string) => string;
 export type PayRuntime = {
   readonly timedOut?: boolean;
   readonly onCheckAgain?: () => void;
-  readonly secondsLeft?: number | null;
 };
 
 export function CheckoutView(props: CheckoutViewProps) {
@@ -116,15 +114,11 @@ export function CheckoutView(props: CheckoutViewProps) {
     <PayStateView {...props} status={phase} t={t} runtime={runtime} onPayNavigate={() => setPhase("processing")} />
   );
   if (phase === "processing") return <ProcessingRuntime>{view}</ProcessingRuntime>;
-  if (phase === "paid" && props.autoReturn && props.threadHref) {
-    return <PaidRuntime threadHref={props.threadHref}>{view}</PaidRuntime>;
-  }
   return view({});
 }
 
 const POLL_MS = 2500;
 const POLL_MAX_MS = 45_000;
-const RETURN_AFTER_S = 8;
 
 /** Stripe sent the client back before the webhook settled: re-read until it has, then say so. */
 function ProcessingRuntime(props: { children: (rt: PayRuntime) => ReactNode }) {
@@ -144,20 +138,6 @@ function ProcessingRuntime(props: { children: (rt: PayRuntime) => ReactNode }) {
     return () => clearInterval(id);
   }, [router, timedOut]);
   return <>{props.children({ timedOut, onCheckAgain: () => setTimedOut(false) })}</>;
-}
-
-/** The paid page, then back to the conversation it came from. */
-function PaidRuntime(props: { threadHref: string; children: (rt: PayRuntime) => ReactNode }) {
-  const [left, setLeft] = useState(RETURN_AFTER_S);
-  useEffect(() => {
-    if (left <= 0) {
-      window.location.assign(props.threadHref);
-      return;
-    }
-    const id = setTimeout(() => setLeft((n) => n - 1), 1000);
-    return () => clearTimeout(id);
-  }, [left, props.threadHref]);
-  return <>{props.children({ secondsLeft: Math.max(left, 0) })}</>;
 }
 
 const FEE_LABEL_KEY: Partial<Record<FeeLine["code"], string>> = {
@@ -205,7 +185,10 @@ function summaryRows(props: CheckoutViewProps): SummaryRow[] {
 function feeRows(props: CheckoutViewProps & { t: T }, money: (cents: number) => string): SummaryRow[] {
   // The client's lines only: seller-side codes (talent_quote, workspace_margin...) never print here.
   const rows: SummaryRow[] = [];
+  const single = props.lines.length <= 1;
   for (const l of props.feeLines ?? []) {
+    // One item: the item row IS the subtotal, so "Servicio" would repeat it.
+    if (single && l.code === "service_subtotal") continue;
     const key = FEE_LABEL_KEY[l.code];
     if (key) rows.push({ key: l.code, label: props.t(key), value: money(l.cents), strong: l.code === "total_charged" });
   }
@@ -228,7 +211,8 @@ export function PayStateView(props: CheckoutViewProps & { t: T; runtime?: PayRun
   switch (props.status) {
     case "paid": {
       const alreadyPaid = props.alreadyPaid === true;
-      const secondsLeft = props.runtime?.secondsLeft ?? null;
+      const fees = feeRows(props, money);
+      const hasTotalRow = fees.some((f) => f.key === "total_charged");
       return frame(
         <>
           <StatusHeader
@@ -246,37 +230,33 @@ export function PayStateView(props: CheckoutViewProps & { t: T; runtime?: PayRun
           />
           <SummaryCard
             items={props.lines.map((l) => ({ label: `${l.units > 1 ? `${l.units} × ` : ""}${l.label}`, price: money(l.unitCents * l.units) }))}
-            fees={feeRows(props, money)}
+            fees={fees}
             rows={summaryRows(props)}
           />
-          <p className="m-0 text-[20px] font-semibold tabular-nums" style={{ color: INK }} data-pay-charged="">
-            {interpolate(t("public.payPage.charged"), { amount: charged })}
-          </p>
+          {hasTotalRow ? null : (
+            <p className="m-0 text-[20px] font-semibold tabular-nums" style={{ color: INK }} data-pay-charged="">
+              {interpolate(t("public.payPage.charged"), { amount: charged })}
+            </p>
+          )}
           {stack(
             <>
               <WayBack {...props} kind="primary" />
+              {props.calendar ? (
+                <CalendarMenu
+                  label={t("public.payPage.addToCalendar")}
+                  icsLabel={t("public.payPage.calendarIcs")}
+                  googleLabel={t("public.payPage.googleCalendar")}
+                  icsHref={props.calendar.icsHref}
+                  googleHref={props.calendar.googleHref}
+                />
+              ) : null}
               {props.receiptHref ? (
-                <Action kind="secondary" href={props.receiptHref}>
+                <Action kind="link" href={props.receiptHref}>
                   {t("public.payPage.viewReceipt")}
                 </Action>
               ) : null}
-              {props.calendar ? (
-                <>
-                  <Action kind="secondary" href={props.calendar.icsHref} download="booking.ics" data-pay-calendar="ics">
-                    {t("public.payPage.addToCalendar")}
-                  </Action>
-                  <Action kind="secondary" href={props.calendar.googleHref} external data-pay-calendar="google">
-                    {t("public.payPage.googleCalendar")}
-                  </Action>
-                </>
-              ) : null}
             </>,
           )}
-          {secondsLeft !== null ? (
-            <p className="m-0 text-[13px]" style={{ color: MUTED }}>
-              {interpolate(t("public.payPage.returning"), { n: String(secondsLeft) })}
-            </p>
-          ) : null}
         </>,
       );
     }

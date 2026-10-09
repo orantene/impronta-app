@@ -282,6 +282,29 @@ export function PolicyLine(props: { line: string; link: string; title: string; b
   );
 }
 
+/** One "add to calendar" control: a native disclosure with the two ways in (works with no script). */
+export function CalendarMenu(props: { label: string; icsLabel: string; googleLabel: string; icsHref: string; googleHref: string }) {
+  return (
+    <details data-pay-calendar-menu="" className="w-full">
+      <summary
+        className="flex cursor-pointer list-none items-center justify-center gap-2"
+        style={{ ...ACTION_STYLE.secondary }}
+      >
+        <Icon name="calendar" size={18} />
+        {props.label}
+      </summary>
+      <div className="mt-2 flex flex-col gap-1">
+        <Action kind="link" href={props.icsHref} download="booking.ics" data-pay-calendar="ics">
+          {props.icsLabel}
+        </Action>
+        <Action kind="link" href={props.googleHref} external data-pay-calendar="google">
+          {props.googleLabel}
+        </Action>
+      </div>
+    </details>
+  );
+}
+
 /** The link's validity, in words, with a clock. */
 export function ExpiryRow(props: { text: string; hint?: string | null }) {
   return (

@@ -21,7 +21,7 @@ const base: CheckoutViewProps = {
   threadHref: "/c/t/tok",
   receiptHref: "/r/abc",
   expiry: { time: "9:24 pm", day: null },
-  whenLabel: "Jue 10 oct · 5:00 pm (CST)",
+  whenLabel: "Jue 10 oct · 5:00 pm · hora de Cancún",
   whereLabel: "Studio Roma Norte",
   usdLine: "≈ US$54",
   feeLines: [
@@ -44,7 +44,7 @@ function primaries(html: string): number {
 const ALL_STATES: Partial<CheckoutViewProps>[] = [
   { status: "open" },
   { status: "processing" },
-  { status: "paid", autoReturn: true },
+  { status: "paid", calendar: { icsHref: "#i", googleHref: "#g" } },
   { status: "paid", alreadyPaid: true },
   { status: "cancelledReturn" },
   { status: "expired" },
@@ -78,7 +78,7 @@ test("A ready: business, one money format, charged total, approx US$ line, when,
   assert.match(html, /Pagar a Rosa Nails/);
   assert.match(html, /Pagar \$1,015 MXN/);
   assert.match(html, /≈ US\$54/);
-  assert.match(html, /Jue 10 oct · 5:00 pm \(CST\)/);
+  assert.match(html, /Jue 10 oct · 5:00 pm · hora de Cancún/);
   assert.match(html, /Studio Roma Norte/);
   assert.match(html, /Válido hasta las 9:24 pm/);
   assert.doesNotMatch(html, /\d{2}:\d{2}</, "no raw hh:mm");
@@ -137,23 +137,26 @@ test("D taking longer: reassures, never asks to pay again, offers check again an
   assert.equal(primaries(html), 1);
 });
 
-test("C paid: who, what, when, charged amount (not the price), receipt, way back, countdown, no stale 'nothing is charged'", () => {
-  const html = render({ status: "paid", autoReturn: true }, { secondsLeft: 8 });
+test("C paid: who, what, when, the charged total once, receipt as a link, one primary, no auto-redirect, no stale 'nothing is charged'", () => {
+  const html = render({ status: "paid" });
   assert.match(html, /data-pay-return="paid"/);
   assert.match(html, /Pago recibido/);
   assert.match(html, /Pagado a Rosa Nails/);
   assert.match(html, /Manicure gel/);
-  assert.match(html, /Jue 10 oct · 5:00 pm \(CST\)/);
-  assert.match(html, /Se cobró \$1,015 MXN/);
+  assert.match(html, /Jue 10 oct · 5:00 pm · hora de Cancún/);
+  assert.equal((html.match(/\$1,015 MXN/g) ?? []).length, 1, "the charged total appears once");
+  assert.doesNotMatch(html, /Se cobró/);
+  assert.doesNotMatch(html, /Servicio/, "one item: no repeated subtotal row");
   assert.match(html, /href="\/r\/abc"[^>]*>Ver recibo</);
+  assert.doesNotMatch(html, /border:1px solid var\(--token-color-line[^>]*href="\/r\/abc"/, "the receipt is a text link, not a button");
   assert.match(html, /href="\/c\/t\/tok"[^>]*>Volver a la conversación</);
-  assert.match(html, /Volviendo a tu conversación en 8 s/);
+  assert.doesNotMatch(html, /Volviendo|redirect/i);
   assert.doesNotMatch(html, /no se cobra nada|nothing is charged|Nada se cobra/i);
   assert.doesNotMatch(html, /data-pay-calendar/);
   assert.equal(primaries(html), 1, "the success mark is not an action; the way back is the one primary");
 });
 
-test("C paid: a dated booking offers .ics and Google Calendar; no thread falls back to the seller's site", () => {
+test("C paid: a dated booking offers ONE calendar menu with .ics and Google; no thread falls back to the seller's site", () => {
   const html = render({
     status: "paid",
     threadHref: null,
@@ -162,8 +165,10 @@ test("C paid: a dated booking offers .ics and Google Calendar; no thread falls b
   assert.match(html, /data-pay-calendar="ics"/);
   assert.match(html, /download="booking\.ics"/);
   assert.match(html, /data-pay-calendar="google"/);
+  assert.equal((html.match(/data-pay-calendar-menu/g) ?? []).length, 1);
   assert.match(html, /Agregar al calendario/);
-  assert.match(html, /Agregar a Google Calendar/);
+  assert.match(html, /Apple Calendar o archivo \.ics/);
+  assert.match(html, /Google Calendar/);
   assert.doesNotMatch(html, /Volver a la conversación/);
   assert.match(html, /Ir al sitio de Rosa Nails/);
   assert.doesNotMatch(html, /Volviendo/);

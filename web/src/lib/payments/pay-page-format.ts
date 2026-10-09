@@ -67,24 +67,41 @@ export function dayWords(iso: string, timeZone: string, locale: string): string 
   return out.charAt(0).toUpperCase() + out.slice(1);
 }
 
-/** "CST" / "GMT-5": the zone's short name at that instant; null for UTC or an unusable zone. */
-export function zoneAbbreviation(iso: string, timeZone: string, locale: string): string | null {
+const ZONE_CITY_ES: Record<string, string> = {
+  "America/Mexico_City": "Ciudad de México",
+  "America/Cancun": "Cancún",
+  "America/Merida": "Mérida",
+  "America/Mazatlan": "Mazatlán",
+  "America/Bogota": "Bogotá",
+  "America/Sao_Paulo": "São Paulo",
+};
+
+/** The city a zone is named for: "Ciudad de México", "Cancún", "Los Angeles"; null for UTC or an unusable zone. */
+export function zoneCity(timeZone: string, locale: string): string | null {
   if (!isValidIanaTimeZone(timeZone) || timeZone === "UTC") return null;
-  const at = new Date(iso);
-  if (Number.isNaN(at.getTime())) return null;
-  const name = new Intl.DateTimeFormat(intlLocale(locale), { timeZone, timeZoneName: "short" })
-    .formatToParts(at)
-    .find((p) => p.type === "timeZoneName")?.value;
-  return name ?? null;
+  if (intlLocale(locale) === "es-MX" && ZONE_CITY_ES[timeZone]) return ZONE_CITY_ES[timeZone];
+  const last = timeZone.split("/").pop() ?? "";
+  const city = last.replace(/_/g, " ").trim();
+  return city || null;
 }
 
-/** "Jue 10 oct · 5:00 pm (CST)": the appointment, with the zone it is read in. */
+/** "hora de Cancún" / "Cancún time" / "heure de Cancún": says which clock the time is on. */
+export function zoneNote(timeZone: string, locale: string): string | null {
+  const city = zoneCity(timeZone, locale);
+  if (!city) return null;
+  const lang = locale.toLowerCase();
+  if (lang.startsWith("es")) return `hora de ${city}`;
+  if (lang.startsWith("fr")) return `heure de ${city}`;
+  return `${city} time`;
+}
+
+/** "Jue 10 oct · 5:00 pm · hora de Cancún": the appointment, with the clock it is read on. */
 export function whenWords(iso: string, timeZone: string, locale: string): string | null {
   const day = dayWords(iso, timeZone, locale);
   const clock = clockWords(iso, timeZone, locale);
   if (!day || !clock) return null;
-  const abbr = zoneAbbreviation(iso, timeZone, locale);
-  return `${day} · ${clock}${abbr ? ` (${abbr})` : ""}`;
+  const note = zoneNote(timeZone, locale);
+  return `${day} · ${clock}${note ? ` · ${note}` : ""}`;
 }
 
 function ymdIn(at: Date, timeZone: string): string {
