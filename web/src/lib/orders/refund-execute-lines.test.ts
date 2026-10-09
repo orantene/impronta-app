@@ -56,11 +56,10 @@ test("a failure with NOTHING moved is retryable and says so", () => {
 test("money moves BEFORE per-line state is written", () => {
   // A line marked refunded with no refund behind it hides money owed. A refund
   // with a late mark is visible in Stripe. So the reversible write goes last.
-  // Anchored on the UPDATE itself: `from("order_lines")` also appears in the
-  // earlier SELECT, so matching the table name would have compared the wrong
-  // two positions and passed for the wrong reason.
+  // The per-line write is the shared idempotent writer (refund-record-lines.ts), called after the
+  // charge loop. Anchored on that call: `from("order_lines")` also appears in the earlier SELECT.
   const money = SRC.indexOf("await executeBookingRefund");
-  const lineState = SRC.indexOf(".update({ refunded_cents");
+  const lineState = SRC.indexOf("await recordRefundOnOrderLines(");
   assert.ok(money > -1, "the charge step must exist");
   assert.ok(lineState > -1, "the per-line write must exist");
   assert.ok(money < lineState, "the charge must precede the bookkeeping");
