@@ -157,7 +157,7 @@ function TalentSidebar() {
   const [supportSlotReady, setSupportSlotReady] = useState(false);
   useEffect(() => setSupportSlotReady(true), []);
   const copy = useDashboardText();
-  const { state, setTalentPage, openDrawer, flipMode, bridgeTalentSelfProfile, bridgeTalentUnread, bridgeTalentPlanTrial, bridgeWorkspaceUnread } = useAdminShell();
+  const { state, setTalentPage, openDrawer, flipMode, bridgeTalentSelfProfile, bridgeTalentUnread, bridgeTalentPlanTrial, bridgeWorkspaceUnread, bridgeOwnedWorkspaceSlug } = useAdminShell();
   const studioV2 = useTalentStudioV2();
   // WS-12.6 — roving tabindex on the rail: arrow keys move between pages.
   const railNavRef = useRef<HTMLElement | null>(null);
@@ -229,11 +229,19 @@ function TalentSidebar() {
       {/* Talent | Admin switch, same component and position as the admin rail
           (top of the rail). Dual owners only: a person who also runs a
           workspace; the top-bar pill uses the same flag. */}
-      {state.alsoTalent && (
+      {(state.alsoTalent || !!bridgeOwnedWorkspaceSlug) && (
         <RailModeSwitch
           active="talent"
           adminUnread={bridgeWorkspaceUnread ?? 0}
-          onSwitch={flipMode}
+          onSwitch={() => {
+            if (state.alsoTalent) {
+              flipMode();
+              return;
+            }
+            // isHybrid is per-tenant: on the hub a dual owner has no membership here, so go to the
+            // workspace they own directly (the admin rail's switch does the mirror with /talent/today).
+            window.location.assign(`/${bridgeOwnedWorkspaceSlug}/admin`);
+          }}
         />
       )}
       <nav ref={railNavRef} aria-label={copy.t("Talent sections")} className="flex flex-col gap-[2px]">

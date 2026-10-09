@@ -346,6 +346,8 @@ type Ctx = {
   bridgeTalentUnread: number | undefined;
   /** Phase 5 — unread count for the workspace inbox (cross-mode pill). undefined = prototype/mock mode. */
   bridgeWorkspaceUnread: number | undefined;
+  /** Slug of a business workspace the viewer owns (talent rail switch target). null/undefined = none. */
+  bridgeOwnedWorkspaceSlug: string | null | undefined;
   /** Phase 5 — whether the first-run toggle tip has been seen. undefined = prototype/mock mode. */
   bridgeFirstRunToggleTipSeen: boolean | undefined;
   /** W14 — whether the talent dismissed the Day-1 checklist. undefined = prototype/mock mode. */
@@ -2036,6 +2038,7 @@ export function AdminShellProvider({
   // pill falls back to mock constants (preserves design-QA behaviour).
   const bridgeTalentUnread: number | undefined = initialBridgeData?.talentUnread;
   const bridgeWorkspaceUnread: number | undefined = initialBridgeData?.workspaceUnread;
+  const bridgeOwnedWorkspaceSlug: string | null | undefined = initialBridgeData?.ownedWorkspaceSlug;
   // First-run tooltip flag. undefined in prototype mode → tooltip hidden.
   const bridgeFirstRunToggleTipSeen: boolean | undefined = initialBridgeData?.firstRunToggleTipSeen;
   // W14 — Day-1 checklist dismissal. undefined in prototype mode → not dismissed.
@@ -2330,6 +2333,7 @@ export function AdminShellProvider({
       // Phase 5
       bridgeTalentUnread,
       bridgeWorkspaceUnread,
+      bridgeOwnedWorkspaceSlug,
       bridgeFirstRunToggleTipSeen,
       bridgeTalentChecklistDismissed,
       supportedLocales,
@@ -2462,6 +2466,7 @@ export function AdminShellProvider({
       // Phase 5
       bridgeTalentUnread,
       bridgeWorkspaceUnread,
+      bridgeOwnedWorkspaceSlug,
       bridgeFirstRunToggleTipSeen,
       bridgeTalentChecklistDismissed,
       supportedLocales,
