@@ -6,6 +6,7 @@
  * generated), dry-runs it and sends it to demos. Never opens it to talents.
  * The draft rev comes from the builder's live CAS version.
  */
+import { localizeBuilderLabError } from "@/lib/talent-site/theme-releases/builder-lab-errors";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -47,7 +48,7 @@ export function PublishDesignButton({ design, lang }: { design: string; lang: "e
     const res = await actionPublishDesignAndUpdateDemos(design, rev);
     setBusy(false);
     if (!res.ok) {
-      setMsg(t.failed(res.error));
+      setMsg(t.failed(localizeBuilderLabError(res.error, lang, res.errorEs)));
       return;
     }
     setMsg(t.done(res.data.version));

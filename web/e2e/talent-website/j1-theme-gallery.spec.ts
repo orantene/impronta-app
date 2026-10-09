@@ -71,7 +71,7 @@ test.describe("J1 theme gallery", () => {
   async function applyAndPublish(page: Page) {
     page.once("dialog", (d) => void d.accept());
     await page.getByRole("button", { name: /Use this (theme|look)/ }).click();
-    await expect(page.getByText(/Publish your site to make it live/)).toBeVisible();
+    await expect(page.getByText(/Visitors still see the old design until you publish/)).toBeVisible();
     await page.getByRole("button", { name: /(Re)?[Pp]ublish site/ }).click();
     await expect(page.getByText(/your site is live/)).toBeVisible();
   }

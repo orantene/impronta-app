@@ -157,7 +157,9 @@ describe("ThemeGallery", () => {
     fireEvent.click(screen.getByRole("radio", { name: /Select the Warm look/i }));
     fireEvent.click(screen.getByRole("button", { name: /Use this theme/i }));
 
-    await screen.findByText("Theme saved to your draft. Publish your site to make it live.");
+    await screen.findByText(
+      "Theme saved to your draft. Visitors still see the old design until you publish.",
+    );
     expect(onApply).toHaveBeenCalledWith({ designSlug: "editorial", lookSlug: "warm" });
   });
 

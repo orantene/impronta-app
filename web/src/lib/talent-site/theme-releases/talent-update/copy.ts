@@ -51,6 +51,10 @@ export const UPDATE_COPY = {
     en: "Block added to your draft. Publish when you are ready.",
     es: "Bloque agregado a tu borrador. Publica cuando estés lista.",
   },
+  /** TUL-325: matches MyWebsiteCard unpublished pill wording. */
+  unpublishedPill: { en: "Unpublished changes", es: "Cambios sin publicar" },
+  publishCta: { en: "Publish site", es: "Publicar sitio" },
+  publishing: { en: "Publishing…", es: "Publicando…" },
   close: { en: "Close", es: "Cerrar" },
   cancel: { en: "Cancel", es: "Cancelar" },
   loading: { en: "Checking your site…", es: "Revisando tu sitio…" },
@@ -102,15 +106,32 @@ export function bannerTitleAgain(designTitle: string, locale: UpdateLocale): str
 }
 
 /** Toast after Apply: "Update applied to your draft · we kept N of your edits". */
-export function appliedToast(kept: number, locale: UpdateLocale): string {
+export function appliedToast(kept: number, locale: UpdateLocale, copyKept = 0): string {
+  const texts = copyKeptNoun(copyKept, locale);
   if (locale === "es") {
-    return kept > 0
-      ? `Actualización aplicada a tu borrador · conservamos ${kept} de tus cambios`
-      : "Actualización aplicada a tu borrador";
+    const base = "Actualización aplicada a tu borrador";
+    if (kept > 0) return `${base} · conservamos ${kept} de tus cambios${texts ? ` y ${texts}` : ""}`;
+    return texts ? `${base} · conservamos ${texts}` : base;
   }
-  return kept > 0
-    ? `Update applied to your draft · we kept ${kept} of your edits`
-    : "Update applied to your draft";
+  const base = "Update applied to your draft";
+  if (kept > 0) return `${base} · we kept ${kept} of your edits${texts ? ` and ${texts}` : ""}`;
+  return texts ? `${base} · we kept ${texts}` : base;
+}
+
+/** "2 texts you changed" / "2 textos que cambiaste" (null when none). */
+function copyKeptNoun(n: number, locale: UpdateLocale): string | null {
+  if (n <= 0) return null;
+  return locale === "es"
+    ? `${n} ${n === 1 ? "texto que cambiaste" : "textos que cambiaste"}`
+    : `${n} ${n === 1 ? "text you changed" : "texts you changed"}`;
+}
+
+/** The preview panel's copy line: "We keep 2 texts you changed", null when none. */
+export function copyKeptLine(s: Pick<UpdateSummary, "copyKept">, locale: UpdateLocale): string | null {
+  const n = s.copyKept ?? 0;
+  if (n <= 0) return null;
+  const noun = copyKeptNoun(n, locale);
+  return locale === "es" ? `Conservamos ${noun}` : `We keep ${noun}`;
 }
 
 /** F86: a kept part in the talent's language, from the same name map as the go-live sheet. */

@@ -133,6 +133,12 @@ describe("offeringPriceLabel", () => {
     assert.equal(offeringPriceLabel({ ...base, visibility: "on_request" }, "en"), "On request");
     assert.equal(offeringPriceLabel({ ...base, visibility: "on_request" }, "es"), "Bajo consulta");
   });
+
+  it("uses the Spanish price suffix on es (TUL-494: no English / session)", () => {
+    const base = rowToOffering(row());
+    assert.match(offeringPriceLabel(base, "es"), /sesión/);
+    assert.doesNotMatch(offeringPriceLabel(base, "es"), /session/);
+  });
 });
 
 describe("offeringToOfferLineSeed", () => {

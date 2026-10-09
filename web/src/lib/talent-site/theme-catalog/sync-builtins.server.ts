@@ -16,6 +16,7 @@ import { generateReleaseItems } from "../theme-releases/release-notes";
 import type { ReleaseItem, ReleaseNotes } from "../theme-releases/types";
 import { writeThemeVersionSnapshots } from "../theme-releases/theme-versions.server";
 import { decideAuthoredSync, type SnapshotMeta } from "./authored-sync-rule";
+import { catalogDriftVersion } from "./catalog-version-drift";
 import { authoredOverlayVersion } from "./collection/authored";
 
 /**
@@ -160,6 +161,8 @@ export interface BuiltinSyncPlan {
   authoredPending: AuthoredPendingDesign[];
   /** Subset of authoredPending where the code also moved since the editor's base. */
   authoredConflict: AuthoredPendingDesign[];
+  /** `kind:slug` keys whose row carried the latest payload under a stale version number. */
+  driftFixes: ReadonlySet<string>;
   created: number;
   updated: number;
   unchanged: number;
@@ -186,6 +189,7 @@ export function planBuiltinSync(
   const designChanges: DesignChange[] = [];
   const authoredPending: AuthoredPendingDesign[] = [];
   const authoredConflict: AuthoredPendingDesign[] = [];
+  const driftFixes = new Set<string>();
   let created = 0;
   let updated = 0;
   let unchanged = 0;
@@ -220,8 +224,21 @@ export function planBuiltinSync(
       }
       if (decision.kind === "unchanged") {
         unchanged += 1;
-        if (latest.version > prior.version) continue; // held state: no write
-        version = prior.version;
+        if (latest.version > prior.version) {
+          // Held state (row carries an older payload): no write. Version-only drift
+          // (row already carries the latest payload): write the number the payload is.
+          const fixed = catalogDriftVersion({
+            priorVersion: prior.version,
+            priorHash: hashBuiltinPayload(prior.payload),
+            latestVersion: latest.version,
+            latestHash: hashBuiltinPayload(latest.payload),
+          });
+          if (fixed === null) continue;
+          version = fixed;
+          driftFixes.add(key);
+        } else {
+          version = prior.version;
+        }
       } else {
         version = highestKnownVersion(prior.version, h) + 1;
         updated += 1;
@@ -267,7 +284,7 @@ export function planBuiltinSync(
     });
   }
 
-  return { upserts, designChanges, skippedAuthored, authoredPending, authoredConflict, created, updated, unchanged };
+  return { upserts, designChanges, skippedAuthored, authoredPending, authoredConflict, driftFixes, created, updated, unchanged };
 }
 
 export interface ReleaseDraftCandidate {
@@ -328,13 +345,15 @@ export function splitGatedUpserts<T extends { kind: TalentThemeKind; slug: strin
   upserts: readonly T[],
   priorVersions: ReadonlyMap<string, number>,
   flipCatalog: boolean,
+  /** Version-only drift fixes (`kind:slug`): the payload is already in the row, so never held. */
+  exempt: ReadonlySet<string> = new Set(),
 ): { catalogUpserts: T[]; held: T[] } {
   if (flipCatalog) return { catalogUpserts: [...upserts], held: [] };
   const held: T[] = [];
   const catalogUpserts: T[] = [];
   for (const u of upserts) {
     const prior = priorVersions.get(`${u.kind}:${u.slug}`);
-    if (u.kind === "design" && prior !== undefined && u.version > prior) held.push(u);
+    if (u.kind === "design" && prior !== undefined && u.version > prior && !exempt.has(`${u.kind}:${u.slug}`)) held.push(u);
     else catalogUpserts.push(u);
   }
   return { catalogUpserts, held };
@@ -490,6 +509,7 @@ export async function syncBuiltinTalentThemes(
     plan.upserts,
     priorVersions,
     options.flipCatalog === true,
+    plan.driftFixes,
   );
   if (catalogUpserts.length > 0) {
     const { error: writeErr } = await admin

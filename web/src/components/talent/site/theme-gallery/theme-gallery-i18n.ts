@@ -18,7 +18,7 @@ const COPY = {
     loading: "Loading themes.",
     loadError: "We could not load the theme gallery.",
     retry: "Retry",
-    emptyFilter: "No designs in this category yet.",
+    emptyFilter: "No designs in this category.",
     previewLoading: "Loading preview.",
     previewError: "The preview could not load.",
     previewRetry: "Retry preview",
@@ -27,7 +27,10 @@ const COPY = {
     applyButton: "Use this theme",
     applyLookOnlyButton: "Use this look",
     applying: "Applying.",
-    applySuccess: "Theme saved to your draft. Publish your site to make it live.",
+    applySuccess: "Theme saved to your draft. Visitors still see the old design until you publish.",
+    unpublishedPill: "Unpublished changes",
+    publishCta: "Publish site",
+    publishing: "Publishing…",
     stepsAria: "Theme gallery steps",
     categoryFilterAria: "Filter designs by category",
     previewTitle: "Theme preview",
@@ -38,7 +41,9 @@ const COPY = {
     applyErrorGeneric: "Something went wrong. Try again.",
     fontSample: "Aa",
     designStepHeading: "Pick a design",
-    designStepSubtitle: "Choose the layout for your shell and home page.",
+    // TUL-331 / G12: {n} = finished designs handed to the step (no aspirational library size).
+    designStepSubtitle: "{n} designs ready. Choose the layout for your shell and home page.",
+    designStepSubtitleOne: "1 design ready. Choose the layout for your shell and home page.",
     lookStepHeading: "Pick a look",
     lookStepSubtitle: "Choose colors and fonts. This restyles the preview right away.",
     confirmReplaceDesign: "This replaces your current page content. Continue?",
@@ -60,7 +65,7 @@ const COPY = {
     loading: "Cargando temas.",
     loadError: "No pudimos cargar la galería de temas.",
     retry: "Reintentar",
-    emptyFilter: "Aún no hay diseños en esta categoría.",
+    emptyFilter: "No hay diseños en esta categoría.",
     previewLoading: "Cargando vista previa.",
     previewError: "No se pudo cargar la vista previa.",
     previewRetry: "Reintentar vista previa",
@@ -69,7 +74,10 @@ const COPY = {
     applyButton: "Usar este tema",
     applyLookOnlyButton: "Usar este estilo",
     applying: "Aplicando.",
-    applySuccess: "Tema guardado en tu borrador. Publica tu sitio para que esté en línea.",
+    applySuccess: "Tema guardado en tu borrador. Las visitas siguen viendo el diseño anterior hasta que publiques.",
+    unpublishedPill: "Cambios sin publicar",
+    publishCta: "Publicar sitio",
+    publishing: "Publicando…",
     stepsAria: "Pasos de la galería de temas",
     categoryFilterAria: "Filtrar diseños por categoría",
     previewTitle: "Vista previa del tema",
@@ -80,7 +88,8 @@ const COPY = {
     applyErrorGeneric: "Algo salió mal. Intenta de nuevo.",
     fontSample: "Aa",
     designStepHeading: "Elige un diseño",
-    designStepSubtitle: "Elige el diseño de tu estructura y página de inicio.",
+    designStepSubtitle: "{n} diseños listos. Elige el diseño de tu estructura y página de inicio.",
+    designStepSubtitleOne: "1 diseño listo. Elige el diseño de tu estructura y página de inicio.",
     lookStepHeading: "Elige un estilo",
     lookStepSubtitle: "Elige colores y tipografías. La vista previa cambia al instante.",
     confirmReplaceDesign: "Esto reemplaza el contenido actual de tu página. ¿Continuar?",
@@ -102,6 +111,15 @@ export function themeGalleryCopy(
 ): string {
   const loc = pickLocale(locale, { en: "en", es: "es" } as const);
   return COPY[loc][key];
+}
+
+/** Design-step subtitle with honest finished count (TUL-331 / G12). */
+export function themeGalleryDesignStepSubtitle(
+  locale: ThemeGalleryLocale | string | undefined,
+  designCount: number,
+): string {
+  if (designCount === 1) return themeGalleryCopy(locale, "designStepSubtitleOne");
+  return themeGalleryCopy(locale, "designStepSubtitle").replace("{n}", String(designCount));
 }
 
 export function themeGallerySelectDesignAria(

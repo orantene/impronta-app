@@ -21,6 +21,7 @@ import { publishDemoSite } from "./server/demo-pipeline.server";
 import { stableStringify } from "./theme-releases/origin";
 import { loadThemeVersionPayload } from "./theme-releases/theme-versions.server";
 import { loadReleaseDesign } from "./theme-releases/release-design.server";
+import { supersedeStaleUpdateRows } from "./theme-releases/superseded-rows.server";
 import { upgradeSiteDesign, type UpgradeResult, type UpgradeSiteInput } from "./design-upgrade";
 import type { DesignPayload } from "./theme-catalog/types";
 
@@ -129,6 +130,10 @@ export async function applySitePlan(
     tokenOrigin: upgrade.tokenOrigin,
   });
   if (!res.ok) return { ok: false, error: `${res.code ?? "write"}: ${res.error}` };
+  // THEME CORE P1: the pin moved; open rows at or below it close.
+  await supersedeStaleUpdateRows(admin, [
+    { siteId: row.siteId, talentProfileId: row.talentProfileId, designSlug: row.designSlug, pin: upgrade.toVersion },
+  ]);
   if (!plan.canPublish) return { ok: true, published: false, note: "needs publish" };
   await publishDemoSite(admin, {
     siteId: row.siteId,
