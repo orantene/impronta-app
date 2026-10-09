@@ -24,10 +24,11 @@ export function isTalentResidualAttention(metadata: unknown): boolean {
   return (metadata as Record<string, unknown>).needs_attention === TALENT_RESIDUAL_ATTENTION;
 }
 
-export function talentResidualAttentionNote(metadata: unknown): string | null {
+/** The residual as data, so each locale renders its own sentence (the stored note is English-only). */
+export function talentResidualAmount(metadata: unknown): number | null {
   if (!isTalentResidualAttention(metadata)) return null;
-  const note = (metadata as Record<string, unknown>).needs_attention_note;
-  return typeof note === "string" && note.trim() ? note : null;
+  const c = Number((metadata as Record<string, unknown>).talent_residual_cents);
+  return Number.isFinite(c) && c > 0 ? c : null;
 }
 
 /** Stamp the partial-refund row with the amount a person must recover from the talent. */

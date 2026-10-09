@@ -1,5 +1,5 @@
 import "server-only";
-import { talentResidualAttentionNote } from "@/lib/payments/refund-talent-residual";
+import { talentResidualAmount } from "@/lib/payments/refund-talent-residual";
 
 import { ORDER_MONEY_STATUSES, collectedByOrder } from "@/lib/orders/order-principal";
 import {
@@ -203,8 +203,8 @@ export type RefundRow = {
   settlementFailed: boolean;
   /** Actionable note from the failed-settlement stamp, when present. */
   settlementFailedNote: string | null;
-  /** A partial refund left money in an already paid-out talent leg: what a person must recover (null otherwise). */
-  talentResidualNote: string | null;
+  /** A partial refund left money in an already paid-out talent leg: cents a person must recover (null otherwise). Rendered per locale at display time. */
+  talentResidualCents: number | null;
 };
 
 export type RefundsLoad = { ok: true; rows: RefundRow[] } | { ok: false };
@@ -259,7 +259,7 @@ export async function loadTenantRefunds(tenantId: string, opts: { limit?: number
       refundOfTransactionId: row.refund_of_transaction_id,
       settlementFailed,
       settlementFailedNote: settlementFailed ? failedRefundAttentionNote(row.metadata) : null,
-      talentResidualNote: talentResidualAttentionNote(row.metadata),
+      talentResidualCents: talentResidualAmount(row.metadata),
     };
   });
   return { ok: true, rows };

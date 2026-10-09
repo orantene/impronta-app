@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import {
   flagTalentResidual,
   isTalentResidualAttention,
-  talentResidualAttentionNote,
+  talentResidualAmount,
   talentResidualNote,
 } from "./refund-talent-residual";
 
@@ -53,7 +53,7 @@ describe("owner-talent partial refund after the talent leg transferred (paid run
     assert.equal(m.a, 1, "existing metadata is kept");
     assert.match(String(m.needs_attention_note), /Talent leg already paid out; recover .*300.* MXN manually/);
     assert.equal(isTalentResidualAttention(m), true);
-    assert.equal(talentResidualAttentionNote(m), m.needs_attention_note);
+    assert.equal(talentResidualAmount(m), 30_000, "the amount is data, so each locale renders its own sentence");
   });
 
   it("is idempotent: a re-delivery does not re-stamp", async () => {
@@ -85,6 +85,10 @@ describe("owner-talent partial refund after the talent leg transferred (paid run
     const refunds = readFileSync(new URL("./refunds.ts", import.meta.url), "utf8");
     assert.match(refunds, /if \(clawback\.talentResidualCents > 0\) \{[\s\S]{0,300}await flagTalentResidual\(sb,/);
     const tabs = readFileSync(new URL("../../app/(workspace)/[tenantSlug]/admin/payments/payments-tabs.tsx", import.meta.url), "utf8");
-    assert.match(tabs, /r\.talentResidualNote/);
+    assert.match(tabs, /r\.talentResidualCents != null/);
+    assert.match(tabs, /t\("refundRecoverDetail"\)/);
+    assert.doesNotMatch(tabs, /r\.talentResidualNote/);
+    for (const l of ["en", "es", "fr"]) assert.match(readFileSync(new URL(`../../../messages/${l}.json`, import.meta.url), "utf8"), /"refundRecoverDetail":/);
+    assert.match(readFileSync(new URL("../../../messages/es.json", import.meta.url), "utf8"), /"Recuperar del talento"/);
   });
 });

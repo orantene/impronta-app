@@ -13959,6 +13959,7 @@
         "export": "An export of these tables is not wired yet."
       },
       "refundRecoverFromTalent": "Recover from talent",
+      "refundRecoverDetail": "Talent leg already paid out. Recover {amount} manually.",
       "refundFailed": "Refund failed",
       "refundFailedDetail": "Customer was not paid. Arrange an alternative refund."
     },

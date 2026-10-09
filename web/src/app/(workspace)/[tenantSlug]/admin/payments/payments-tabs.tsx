@@ -88,6 +88,9 @@ export function CollectionsTab({ board, t, tenantSlug }: { board: PaymentsBoard;
 // ── Refunds ────────────────────────────────────────────────────────────────
 
 export function RefundsTab({ board, t, tenantSlug, locale }: { board: PaymentsBoard; t: T; tenantSlug: string; locale: string }) {
+  // The residual is stored as cents, so each locale renders its own sentence (the stored note is English-only).
+  const residualText = (r: { talentResidualCents: number | null; currency: string }): string | null =>
+    r.talentResidualCents != null ? t("refundRecoverDetail").replace("{amount}", formatOrderMoney(r.talentResidualCents, r.currency)) : null;
   // The board's columns: TIME · REF · RECORD · AMOUNT · METHOD (or the detail) · STATE.
   const cols = "grid-cols-[150px_100px_1fr_110px_1.3fr_150px]";
   const pending = board.exceptions.ok ? board.exceptions.refundsPending : [];
@@ -152,18 +155,18 @@ export function RefundsTab({ board, t, tenantSlug, locale }: { board: PaymentsBo
                     )}
                   </span>
                   <span className="text-right font-semibold tabular-nums text-admin-ink">−{formatOrderMoney(r.grossAmountCents, r.currency)}</span>
-                  <span className="truncate text-admin-ink-muted" title={r.settlementFailedNote ?? r.talentResidualNote ?? undefined}>
+                  <span className="truncate text-admin-ink-muted" title={r.settlementFailedNote ?? residualText(r) ?? undefined}>
                     {r.settlementFailed
                       ? (r.settlementFailedNote ?? t("refundFailedDetail"))
-                      : r.talentResidualNote
-                        ? r.talentResidualNote
+                      : r.talentResidualCents != null
+                        ? residualText(r)
                         : r.provider === "manual"
                         ? t("refundManual")
                         : r.provider}
                   </span>
                   {r.settlementFailed ? (
                     <StatePill block tone="coral" state="pending">{t("refundFailed")}</StatePill>
-                  ) : r.talentResidualNote ? (
+                  ) : r.talentResidualCents != null ? (
                     <StatePill block tone="coral" state="pending">{t("refundRecoverFromTalent")}</StatePill>
                   ) : (
                     <StatePill block tone="green" state="completed">{t("refundCompleted")}</StatePill>

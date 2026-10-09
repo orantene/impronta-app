@@ -5667,6 +5667,7 @@
       "refundPending": "En attente",
       "refundCompleted": "Terminé",
       "refundRecoverFromTalent": "À récupérer auprès du talent",
+      "refundRecoverDetail": "Le versement au talent est déjà parti. Récupérez {amount} manuellement.",
       "refundFailed": "Remboursement échoué",
       "refundFailedDetail": "Le client n'a pas été payé. Organisez un remboursement alternatif.",
       "refundManual": "Enregistré à la main",
