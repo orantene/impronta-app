@@ -107,21 +107,9 @@ export function isHubSourcedChannel(sourceChannel: string | null | undefined): b
 }
 
 type AgencyEmbed =
-  | { id?: string; plan_tier: string | null; workspace_type?: string | null }
-  | { id?: string; plan_tier: string | null; workspace_type?: string | null }[]
+  | { id?: string; plan_tier: string | null }
+  | { id?: string; plan_tier: string | null }[]
   | null;
-
-/**
- * A talent's OWN workspace (`workspace_type = 'talent'`) is the talent's business
- * ("talent = merchant"): a sale made there, including a 'both' owner selling her
- * own service on her talent site, is the talent's sale. The payout goes to the
- * talent on the lane the charge ran on, not to a workspace leg that the
- * cross-platform guard then holds.
- */
-export function isTalentOwnWorkspace(agencies: AgencyEmbed): boolean {
-  const agency = Array.isArray(agencies) ? agencies[0] : agencies;
-  return agency?.workspace_type === "talent";
-}
 
 /**
  * A roster row confers exclusivity when the talent is the agency's PRIMARY
@@ -169,7 +157,7 @@ export async function resolveOwningPartyForTalent(
   // 1 + 2: any active roster row for this talent.
   const { data: rosterRows, error } = await supabase
     .from("agency_talent_roster")
-    .select("tenant_id, is_primary, status, exclusivity_status, agencies:tenant_id ( id, plan_tier, workspace_type )")
+    .select("tenant_id, is_primary, status, exclusivity_status, agencies:tenant_id ( id, plan_tier )")
     .eq("talent_profile_id", talentProfileId)
     .in("status", ["active", "pending"]);
 
@@ -210,8 +198,7 @@ export async function resolveOwningPartyForTalent(
   // it: an agency's own storefront (a tenant the talent is rostered on) owns
   // the relationship; the open hub (any other tenant) hands it to the talent.
   if (inquiryTenantId) {
-    const onThisTenant = rows.find((r) => r.tenant_id === inquiryTenantId);
-    if (onThisTenant && !isTalentOwnWorkspace(onThisTenant.agencies)) {
+    if (rows.some((r) => r.tenant_id === inquiryTenantId)) {
       return { type: "workspace", id: inquiryTenantId };
     }
     return { type: "talent", id: talentProfileId };
@@ -253,7 +240,7 @@ export async function resolveOwningPartiesForTalents(
 
   const { data, error } = await supabase
     .from("agency_talent_roster")
-    .select("tenant_id, talent_profile_id, is_primary, status, exclusivity_status, agencies:tenant_id ( id, plan_tier, workspace_type )")
+    .select("tenant_id, talent_profile_id, is_primary, status, exclusivity_status, agencies:tenant_id ( id, plan_tier )")
     .in("talent_profile_id", talentProfileIds)
     .in("status", ["active", "pending"]);
 
@@ -309,10 +296,9 @@ export async function resolveOwningPartiesForTalents(
     // 3. Non-exclusive — source-aware when the inquiry's tenant is known:
     // rostered on it (agency storefront) → workspace; else (open hub) → talent.
     if (inquiryTenantId) {
-      const onThisTenant = myRows.find((r) => r.tenant_id === inquiryTenantId);
       out.set(
         talentId,
-        onThisTenant && !isTalentOwnWorkspace(onThisTenant.agencies)
+        myRows.some((r) => r.tenant_id === inquiryTenantId)
           ? { type: "workspace", id: inquiryTenantId }
           : { type: "talent", id: talentId },
       );
@@ -324,4 +310,29 @@ export async function resolveOwningPartiesForTalents(
   }
 
   return out;
+}
+
+/**
+ * MONEY-LAYER ONLY. A sale made in a talent's OWN workspace (`workspace_type =
+ * 'talent'`) is the talent's sale ("talent = merchant"): the commission snapshot
+ * and the payout leg must treat the talent as the seller of record so the payout
+ * goes to the talent on the lane the charge ran on, not to a workspace leg the
+ * cross-platform guard holds.
+ *
+ * Deliberately NOT folded into `resolveOwningPartyForTalent`. That resolver also
+ * decides who coordinates and who sees an inquiry (a talent-owned lane is hidden
+ * from the workspace inbox and gets a platform oversight officer), and a talent
+ * must keep seeing her own workspace's inquiries. The frozen participant row is
+ * therefore untouched; only the money callers apply this mapping.
+ */
+export async function moneyOwningParty(
+  supabase: SupabaseClient,
+  owning: OwningParty,
+  talentProfileId: string | null,
+): Promise<OwningParty> {
+  if (owning.type !== "workspace" || !talentProfileId) return owning;
+  const { data } = await supabase.from("agencies").select("workspace_type").eq("id", owning.id).maybeSingle();
+  return (data as { workspace_type?: string | null } | null)?.workspace_type === "talent"
+    ? { type: "talent", id: talentProfileId }
+    : owning;
 }
