@@ -47,6 +47,7 @@
     "playwright.config.ts",
     "playwright.isolated.config.ts",
     "src/lib/billing",
-    "scripts/_sandbox"
+    "scripts/_sandbox",
+    "scripts/qa/hub-offer-drive.mts"
   ]
 }

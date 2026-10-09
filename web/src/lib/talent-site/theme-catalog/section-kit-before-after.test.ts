@@ -74,7 +74,11 @@ test("F77: the builder shows the prompt (EN + ES, no em dash)", () => {
   const block = beforeAfterBlock(ids());
   const en = html([block], true);
   assert.match(en, /Choose your before and after photos/);
+  // TUL-124 — live drops incomplete before/after; canvas badges that clearly.
+  assert.match(en, /Not shown on your site/);
+  assert.match(en, /data-not-shown-on-site=/);
   const es = html([block], true, "es");
   assert.match(es, /Elige tus fotos de antes y después/);
+  assert.match(es, /No se muestra en tu sitio/);
   assert.ok(!en.includes("—") && !es.includes("—"));
 });

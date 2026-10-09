@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
+import { visitZone } from "@/lib/client-account/visit-zone";
 import { ACCOUNT_TABS, formatZonedWhen, type AccountTab, type AccountView } from "@/lib/client-account/area-pure";
 import type { ReceiptDetail, ReceiptRow, ThreadMessage, ThreadRow, VisitDetail } from "@/lib/client-account/area-data.server";
 import type { MeItem } from "@/lib/me/shape-me";
@@ -99,9 +100,10 @@ export function ClientAccountArea(props: Props) {
   if (props.view.kind === "visit") {
     const v = props.data.visit;
     if (!v) return shell(<>{back("/account")}<p>{a("noVisits")}</p></>);
-    const when = formatZonedWhen(v.startsAt ?? v.eventDate, props.timeZone, loc);
+    const zone = visitZone(v.timeZone, props.timeZone);
+    const when = formatZonedWhen(v.startsAt ?? v.eventDate, zone, loc);
     const p = v.policy;
-    const dl = formatZonedWhen(p.deadlineIso, props.timeZone, loc);
+    const dl = formatZonedWhen(p.deadlineIso, zone, loc);
     const deadlineLabel = dl ? `${dl.date}, ${dl.time} ${dl.tzLabel}` : "";
     const policyLine = p.enforceable
       ? p.insideWindow
@@ -141,7 +143,7 @@ export function ClientAccountArea(props: Props) {
           <VisitActions
             bookingId={v.bookingId}
             offeringId={v.offeringId}
-            timeZone={props.timeZone}
+            timeZone={zone}
             locale={loc}
             refundCents={p.refundIfCancelled}
             refundLabel={money(p.refundIfCancelled, v.currency)}
