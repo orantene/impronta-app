@@ -1,5 +1,6 @@
 "use client";
 
+import { localizeBuilderLabError } from "@/lib/talent-site/theme-releases/builder-lab-errors";
 import { useEffect, useState, useTransition } from "react";
 
 import type { DemoRebuildResult, DemoRebuildRow } from "@/lib/talent-site/demos/types";
@@ -65,7 +66,7 @@ export function DemoRebuildPanel({ design, lang }: { design: string; lang: Lang 
         setTimedOut(true);
         setError(t.timeout);
       } else if (res.ok) setPreview(res.data);
-      else setError(res.error || t.genericError);
+      else setError(res.error ? localizeBuilderLabError(res.error, lang) : t.genericError);
     });
   }
 
@@ -78,7 +79,7 @@ export function DemoRebuildPanel({ design, lang }: { design: string; lang: Lang 
         setResult(res.data);
         setPreview(null);
         setRestored(new Set());
-      } else setError(res.error || t.genericError);
+      } else setError(res.error ? localizeBuilderLabError(res.error, lang) : t.genericError);
     });
   }
 
@@ -89,7 +90,7 @@ export function DemoRebuildPanel({ design, lang }: { design: string; lang: Lang 
       const res = await actionRestoreDemoRun(runId);
       setRestoringId(null);
       if (res.ok) setRestored((s) => new Set(s).add(runId));
-      else setError(res.error || t.genericError);
+      else setError(res.error ? localizeBuilderLabError(res.error, lang) : t.genericError);
     });
   }
 

@@ -54,6 +54,7 @@ export function useSiteShellEditorUrl(): string | null {
         liveOrigin,
         tenantSlug,
         windowOrigin,
+        hasPrimaryDomain: Boolean(primaryDomain?.trim()),
       }),
     });
   }, [available, primaryDomain, tenantSlug]);

@@ -105,6 +105,14 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   Price: "Precio",
   Payment: "Pago",
   Review: "Revisión",
+  // Gridline utility bar + catalog chrome (TUL-302): every new site gets es+en.
+  Call: "Llamar",
+  "See times": "Ver horarios",
+  "Ask now": "Consultar",
+  "Emergencies today": "Urgencias hoy",
+  "No emergencies today": "Sin urgencias hoy",
+  Specifications: "Especificaciones",
+  "How I work": "Cómo trabajo",
 };
 
 /**

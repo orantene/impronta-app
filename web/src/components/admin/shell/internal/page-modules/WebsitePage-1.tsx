@@ -166,8 +166,8 @@ export function WebsitePage() {
     [w.domain.primaryDomain, windowOrigin],
   );
   const editorBaseUrl = useMemo(
-    () => resolveWebsiteEditorBaseUrl({ liveOrigin, tenantSlug, windowOrigin }),
-    [liveOrigin, tenantSlug, windowOrigin],
+    () => resolveWebsiteEditorBaseUrl({ liveOrigin, tenantSlug, windowOrigin, hasPrimaryDomain: Boolean(w.domain.primaryDomain?.trim()) }),
+    [liveOrigin, tenantSlug, windowOrigin, w.domain.primaryDomain],
   );
   // Site theme + site header/footer entry points MOVED to the Design hub
   // (`/website/design`, WebsiteDesignHub.tsx). They were two of four scattered

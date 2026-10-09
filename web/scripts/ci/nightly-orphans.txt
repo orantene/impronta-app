@@ -196,7 +196,6 @@ src/lib/saas/talent-site-guest-identity.test.ts
 src/lib/saas/talent-site-host-context.test.ts
 src/lib/saas/talent-site-rewrite-reentry.test.ts
 src/lib/saas/workspace-path-redirects.test.ts
-src/lib/saas/workspace-public-url.test.ts
 src/lib/saas/workspace-signup.test.ts
 src/lib/seo/request-base.test.ts
 src/lib/seo/robots-rules.test.ts
