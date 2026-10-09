@@ -17071,16 +17071,12 @@ export type Database = {
       }
       talent_site_domains: {
         Row: {
-          breakage_notified_at: string | null
           created_at: string
           domain: string
           failure_reason: string | null
           id: string
           is_primary: boolean
           last_health_check_at: string | null
-          registrar_expires_at: string | null
-          renewal_notice_30d_sent_at: string | null
-          renewal_notice_7d_sent_at: string | null
           ssl_provisioned_at: string | null
           status: string
           talent_profile_id: string
@@ -17089,16 +17085,12 @@ export type Database = {
           verified_at: string | null
         }
         Insert: {
-          breakage_notified_at?: string | null
           created_at?: string
           domain: string
           failure_reason?: string | null
           id?: string
           is_primary?: boolean
           last_health_check_at?: string | null
-          registrar_expires_at?: string | null
-          renewal_notice_30d_sent_at?: string | null
-          renewal_notice_7d_sent_at?: string | null
           ssl_provisioned_at?: string | null
           status?: string
           talent_profile_id: string
@@ -17107,16 +17099,12 @@ export type Database = {
           verified_at?: string | null
         }
         Update: {
-          breakage_notified_at?: string | null
           created_at?: string
           domain?: string
           failure_reason?: string | null
           id?: string
           is_primary?: boolean
           last_health_check_at?: string | null
-          registrar_expires_at?: string | null
-          renewal_notice_30d_sent_at?: string | null
-          renewal_notice_7d_sent_at?: string | null
           ssl_provisioned_at?: string | null
           status?: string
           talent_profile_id?: string
@@ -21604,7 +21592,6 @@ export type Database = {
         | "superseded"
         | "invalidated"
         | "expired"
-        | "awaiting_talent"
       inquiry_participant_role: "client" | "coordinator" | "talent" | "house"
       inquiry_participant_status: "invited" | "active" | "declined" | "removed"
       inquiry_source_channel:
@@ -21956,7 +21943,6 @@ export const Constants = {
         "superseded",
         "invalidated",
         "expired",
-        "awaiting_talent",
       ],
       inquiry_participant_role: ["client", "coordinator", "talent", "house"],
       inquiry_participant_status: ["invited", "active", "declined", "removed"],

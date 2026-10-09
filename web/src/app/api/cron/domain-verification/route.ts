@@ -17,8 +17,9 @@ import { logServerError } from "@/lib/server/safe-error";
  *
  * Agency path (unchanged): pending TXT + provisioning for `agency_domains`.
  * Talent path (Wave 1B D4): pending advance, provisioning, daily active
- * DNS+HTTPS health (failure_reason + en/es notify), registrar expiry + 30/7
- * renewal notices. D5 renewal billing is intentionally not wired here.
+ * DNS+HTTPS health (existing failure_reason + en/es notify), live registrar
+ * expiry lookup + 30/7 renewal notices (dispatch eventId dedupe). No new
+ * migration — prebuild blocks unapplied SQL (same as #3208). D5 billing off.
  *
  * Auth (audit H12): require Authorization header bearer token.
  * The `?token=` query-param fallback was removed because Vercel access logs

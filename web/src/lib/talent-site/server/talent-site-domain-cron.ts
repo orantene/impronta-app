@@ -13,7 +13,6 @@ import {
   notifyTalentDomainRenewal,
 } from "@/lib/notifications/producers/talent-domain-notify";
 import {
-  loadTalentSiteDomain,
   syncTalentSiteDomainProvisioning,
   verifyTalentSiteDomainRecord,
   type TalentSiteDomainRecord,
@@ -22,12 +21,22 @@ import {
 import {
   resolveActiveDomainHealthTransition,
   resolveRenewalNoticeKind,
-  shouldResetRenewalNoticeStamps,
   talentDomainNeedsDailyHealthCheck,
 } from "@/lib/talent-site/server/talent-site-domain-health";
 
+/**
+ * Wave 1B D4 cron sweeps for `talent_site_domains`.
+ *
+ * No new schema: preview/prebuild refuses unapplied migrations (same gate that
+ * failed #3208). Health uses existing `failure_reason` + `last_health_check_at`.
+ * Breakage notify fires on the healthy→broken transition (and when the reason
+ * changes). Renewal notices read registrar expiry live from Vercel each run;
+ * dispatch `eventId` dedupes 30/7-day sends. Persistence of expiry is a later
+ * PM migration when ready to `db:push`.
+ */
+
 const CRON_COLUMNS =
-  "id, talent_profile_id, domain, status, verification_token, is_primary, created_at, updated_at, verified_at, ssl_provisioned_at, last_health_check_at, failure_reason, registrar_expires_at, renewal_notice_30d_sent_at, renewal_notice_7d_sent_at, breakage_notified_at";
+  "id, talent_profile_id, domain, status, verification_token, is_primary, created_at, updated_at, verified_at, ssl_provisioned_at, last_health_check_at, failure_reason";
 
 type CronDomainRow = {
   id: string;
@@ -42,10 +51,6 @@ type CronDomainRow = {
   ssl_provisioned_at: string | null;
   last_health_check_at: string | null;
   failure_reason: string | null;
-  registrar_expires_at: string | null;
-  renewal_notice_30d_sent_at: string | null;
-  renewal_notice_7d_sent_at: string | null;
-  breakage_notified_at: string | null;
 };
 
 export type TalentPendingSweepReport = {
@@ -90,7 +95,7 @@ export type TalentActiveHealthSweepReport = {
 
 export type TalentRenewalSweepReport = {
   scanned: number;
-  expiryUpdated: number;
+  expirySeen: number;
   noticed30d: number;
   noticed7d: number;
   results: Array<{
@@ -101,12 +106,7 @@ export type TalentRenewalSweepReport = {
   }>;
 };
 
-function mapCronRow(row: CronDomainRow): TalentSiteDomainRecord & {
-  registrarExpiresAt: string | null;
-  renewalNotice30dSentAt: string | null;
-  renewalNotice7dSentAt: string | null;
-  breakageNotifiedAt: string | null;
-} {
+function mapCronRow(row: CronDomainRow): TalentSiteDomainRecord {
   return {
     id: row.id,
     talentProfileId: row.talent_profile_id,
@@ -120,10 +120,6 @@ function mapCronRow(row: CronDomainRow): TalentSiteDomainRecord & {
     sslProvisionedAt: row.ssl_provisioned_at,
     lastHealthCheckAt: row.last_health_check_at,
     failureReason: row.failure_reason,
-    registrarExpiresAt: row.registrar_expires_at,
-    renewalNotice30dSentAt: row.renewal_notice_30d_sent_at,
-    renewalNotice7dSentAt: row.renewal_notice_7d_sent_at,
-    breakageNotifiedAt: row.breakage_notified_at,
   };
 }
 
@@ -131,7 +127,7 @@ async function loadTalentDomainsByStatus(
   supabase: SupabaseClient,
   statuses: TalentSiteDomainStatus[],
   limit: number,
-): Promise<ReturnType<typeof mapCronRow>[]> {
+): Promise<TalentSiteDomainRecord[]> {
   const { data, error } = await supabase
     .from("talent_site_domains")
     .select(CRON_COLUMNS)
@@ -252,8 +248,8 @@ export async function sweepProvisioningTalentSiteDomains(
 
 /**
  * Daily re-check of active talent domains (DNS + HTTPS). Sets failure_reason,
- * notifies once per breakage episode, clears on recovery. Does not demote
- * status (D1 owns redirect gating on status=active).
+ * notifies once when entering a breakage episode (or reason changes). Clears
+ * failure_reason on recovery. Keeps status=active.
  */
 export async function sweepActiveTalentSiteDomainHealth(
   supabase: SupabaseClient,
@@ -290,26 +286,20 @@ export async function sweepActiveTalentSiteDomainHealth(
       const observation = await inspectCustomDomainProvisioning(row.domain, options);
       const transition = resolveActiveDomainHealthTransition(observation, now);
       const shouldNotify =
-        !transition.healthy && row.breakageNotifiedAt == null;
-      const patch: Record<string, unknown> = {
-        failure_reason: transition.failureReason,
-        last_health_check_at: transition.lastHealthCheckAt,
-      };
-      if (transition.healthy) {
-        patch.breakage_notified_at = null;
-        report.healthy += 1;
-      } else {
-        report.broken += 1;
-        if (shouldNotify) {
-          patch.breakage_notified_at = now.toISOString();
-        }
-      }
+        !transition.healthy &&
+        (row.failureReason == null || row.failureReason !== transition.failureReason);
 
       const { error } = await supabase
         .from("talent_site_domains")
-        .update(patch)
+        .update({
+          failure_reason: transition.failureReason,
+          last_health_check_at: transition.lastHealthCheckAt,
+        })
         .eq("id", row.id);
       if (error) throw error;
+
+      if (transition.healthy) report.healthy += 1;
+      else report.broken += 1;
 
       let notified = false;
       if (shouldNotify) {
@@ -347,8 +337,9 @@ export async function sweepActiveTalentSiteDomainHealth(
 }
 
 /**
- * Refresh registrar expiry for talent domains and emit 30/7-day renewal
- * notices. Skips D5 billing (notice only).
+ * Read registrar expiry live and emit 30/7-day renewal notices.
+ * Dedupe is via notification `eventId` (dispatch_log), not DB stamps.
+ * D5 billing is intentionally out of scope.
  */
 export async function sweepTalentSiteDomainRenewals(
   supabase: SupabaseClient,
@@ -363,7 +354,6 @@ export async function sweepTalentSiteDomainRenewals(
   const fetchInfo = options.fetchRegistrarInfo ?? getDomainRegistrarInfo;
   const notifyRenewal = options.notifyRenewal ?? notifyTalentDomainRenewal;
 
-  // Active + purchased-in-progress rows; expiry is meaningless once error/gone.
   const rows = await loadTalentDomainsByStatus(
     supabase,
     ["active", "ssl_provisioned", "verified"],
@@ -372,7 +362,7 @@ export async function sweepTalentSiteDomainRenewals(
 
   const report: TalentRenewalSweepReport = {
     scanned: rows.length,
-    expiryUpdated: 0,
+    expirySeen: 0,
     noticed30d: 0,
     noticed7d: 0,
     results: [],
@@ -381,34 +371,19 @@ export async function sweepTalentSiteDomainRenewals(
   for (const row of rows) {
     try {
       const info = await fetchInfo(row.domain);
-      let registrarExpiresAt = row.registrarExpiresAt;
-      let notice30 = row.renewalNotice30dSentAt;
-      let notice7 = row.renewalNotice7dSentAt;
-      const patch: Record<string, unknown> = {};
+      const registrarExpiresAt = info.attempted ? info.expiresAtIso : null;
+      if (registrarExpiresAt) report.expirySeen += 1;
 
-      if (info.attempted && info.expiresAtIso) {
-        if (shouldResetRenewalNoticeStamps(row.registrarExpiresAt, info.expiresAtIso)) {
-          notice30 = null;
-          notice7 = null;
-          patch.renewal_notice_30d_sent_at = null;
-          patch.renewal_notice_7d_sent_at = null;
-        }
-        if (info.expiresAtIso !== row.registrarExpiresAt) {
-          registrarExpiresAt = info.expiresAtIso;
-          patch.registrar_expires_at = info.expiresAtIso;
-          report.expiryUpdated += 1;
-        }
-      }
-
+      // No DB notice stamps — always evaluate the window; dispatch eventId
+      // collapses re-sends for the same (domain, days, expiresAt) tuple.
       const notice = resolveRenewalNoticeKind({
         registrarExpiresAt,
-        notice30dSentAt: notice30,
-        notice7dSentAt: notice7,
+        notice30dSentAt: null,
+        notice7dSentAt: null,
         now,
       });
 
       if (notice === 30) {
-        patch.renewal_notice_30d_sent_at = now.toISOString();
         await notifyRenewal({
           talentProfileId: row.talentProfileId,
           domainId: row.id,
@@ -418,10 +393,6 @@ export async function sweepTalentSiteDomainRenewals(
         });
         report.noticed30d += 1;
       } else if (notice === 7) {
-        patch.renewal_notice_7d_sent_at = now.toISOString();
-        // A 7-day window also covers the 30-day stamp so we never send both
-        // on the first discovery inside the last week.
-        if (!notice30) patch.renewal_notice_30d_sent_at = now.toISOString();
         await notifyRenewal({
           talentProfileId: row.talentProfileId,
           domainId: row.id,
@@ -430,14 +401,6 @@ export async function sweepTalentSiteDomainRenewals(
           expiresAtIso: registrarExpiresAt,
         });
         report.noticed7d += 1;
-      }
-
-      if (Object.keys(patch).length > 0) {
-        const { error } = await supabase
-          .from("talent_site_domains")
-          .update(patch)
-          .eq("id", row.id);
-        if (error) throw error;
       }
 
       report.results.push({
@@ -451,20 +414,11 @@ export async function sweepTalentSiteDomainRenewals(
       report.results.push({
         id: row.id,
         domain: row.domain,
-        registrarExpiresAt: row.registrarExpiresAt,
+        registrarExpiresAt: null,
         notice: null,
       });
     }
   }
 
   return report;
-}
-
-/** Re-load one row after a write (tests / debugging). */
-export async function reloadTalentSiteDomainForCron(
-  supabase: SupabaseClient,
-  talentProfileId: string,
-  domain: string,
-): Promise<TalentSiteDomainRecord | null> {
-  return loadTalentSiteDomain(supabase, talentProfileId, domain);
 }

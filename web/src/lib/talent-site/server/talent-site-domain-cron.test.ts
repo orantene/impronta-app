@@ -64,10 +64,6 @@ function baseActive(overrides: Row = {}): Row {
     ssl_provisioned_at: "2026-01-01T00:00:00Z",
     last_health_check_at: null,
     failure_reason: null,
-    registrar_expires_at: null,
-    renewal_notice_30d_sent_at: null,
-    renewal_notice_7d_sent_at: null,
-    breakage_notified_at: null,
     ...overrides,
   };
 }
@@ -92,14 +88,11 @@ test("sweepActiveTalentSiteDomainHealth notifies once on breakage and sets failu
   assert.equal(report.notified, 1);
   assert.deepEqual(notified, ["example.com"]);
   assert.equal(typeof updates[0]?.patch.failure_reason, "string");
-  assert.equal(typeof updates[0]?.patch.breakage_notified_at, "string");
 });
 
-test("sweepActiveTalentSiteDomainHealth does not re-notify when breakage_notified_at is set", async () => {
-  const row = baseActive({
-    breakage_notified_at: "2026-10-08T12:00:00Z",
-    failure_reason: "prior",
-  });
+test("sweepActiveTalentSiteDomainHealth does not re-notify when failure_reason already matches", async () => {
+  const reason = "DNS routing records are missing or no longer point to Tulala.";
+  const row = baseActive({ failure_reason: reason });
   const { client } = makeAdmin([row]);
   let calls = 0;
 
@@ -120,7 +113,6 @@ test("sweepActiveTalentSiteDomainHealth does not re-notify when breakage_notifie
 test("sweepActiveTalentSiteDomainHealth clears failure on recovery", async () => {
   const row = baseActive({
     failure_reason: "DNS routing records are missing or no longer point to Tulala.",
-    breakage_notified_at: "2026-10-08T12:00:00Z",
   });
   const { client, updates } = makeAdmin([row]);
 
@@ -136,10 +128,9 @@ test("sweepActiveTalentSiteDomainHealth clears failure on recovery", async () =>
 
   assert.equal(report.healthy, 1);
   assert.equal(updates[0]?.patch.failure_reason, null);
-  assert.equal(updates[0]?.patch.breakage_notified_at, null);
 });
 
-test("sweepTalentSiteDomainRenewals stores expiry and sends 30-day notice", async () => {
+test("sweepTalentSiteDomainRenewals reads live expiry and sends 30-day notice", async () => {
   const now = new Date("2026-10-09T00:00:00Z");
   const expires = new Date(now.getTime() + 20 * 24 * 60 * 60 * 1000).toISOString();
   const row = baseActive();
@@ -161,11 +152,11 @@ test("sweepTalentSiteDomainRenewals stores expiry and sends 30-day notice", asyn
     },
   });
 
-  assert.equal(report.expiryUpdated, 1);
+  assert.equal(report.expirySeen, 1);
   assert.equal(report.noticed30d, 1);
   assert.deepEqual(notices, [{ days: 30, domain: "example.com" }]);
-  assert.equal(updates.some((u) => u.patch.registrar_expires_at === expires), true);
-  assert.equal(typeof updates.find((u) => u.patch.renewal_notice_30d_sent_at)?.patch.renewal_notice_30d_sent_at, "string");
+  // No schema writes for expiry/notices (preview-safe; no unapplied migration).
+  assert.equal(updates.length, 0);
 });
 
 test("sweepPendingTalentSiteDomainVerifications advances on TXT match", async () => {
