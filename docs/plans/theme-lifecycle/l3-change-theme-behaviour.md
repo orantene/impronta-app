@@ -12,7 +12,7 @@
 1. Switch is **draft-first** (TUL-321): live `shell_published` / `blocks_published` / `design_tokens` stay until Publish.
 2. Business data never moves: services, prices, currency, booking, policies, reviews, bio, contact, gallery media rows.
 3. Page content she wrote **carries** into the new design where a matching section exists; where none exists it is **kept** (not deleted) and she is **warned**.
-4. Switching back (gallery re-pick of the prior Design, or Undo this design change) restores the old design **exactly** (shell, home, tokens, look pin, design pin).
+4. Switching back via **Undo** always restores the old design **exactly**. Gallery re-pick of the prior Design restores **exactly** only when the draft is **unchanged since she left** that Design (`draft_rev` still matches the leave history row); if she edited after the switch, re-pick **carries** current content onto the prior Design instead.
 5. Gallery offers only finished / published Designs (TUL-327 / TUL-331).
 6. Site languages (es base + en) stay; carried i18n props travel with content.
 
@@ -37,7 +37,9 @@
 | SEO / meta on home | **Kept** | Page patch writes `blocks` only. |
 | Open theme-update notice | **Warned** | After apply, `ensureSiteThemeUpdates` may surface a pending update for the new pin (existing F108). |
 | History entry | **Mapped** | `kind=design_apply`, `undoable=true`, `snapshot_ref` = **pre-switch** draft (G-L5-01). Report stores from/to + carry summary. |
-| Undo / switch back to prior Design | **Mapped** | Restores the pre-switch snapshot exactly (draft only). Re-picking that Design from the gallery prefers the latest pre-leave snapshot for that slug when present. |
+| Undo this design change | **Mapped** | Restores the pre-switch snapshot exactly (draft only). |
+| Gallery re-pick of prior Design (draft unchanged since leave) | **Mapped** | **restore-exact** from latest pre-leave snapshot for that slug. |
+| Gallery re-pick of prior Design (draft edited since leave) | **Mapped** | **carry-over** onto the re-picked Design (same as a first-time switch); do not wipe her post-switch edits. |
 
 ---
 

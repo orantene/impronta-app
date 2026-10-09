@@ -28,7 +28,12 @@ import type { HistoryActor, HistorySnapshot } from "../history/types";
 import { writeSiteDraft } from "../history/writer";
 import { ensureSiteThemeUpdates } from "../theme-releases/lazy-fan-out.server";
 import { checkSitePin } from "../theme-releases/pin-guard.server";
-import { DESIGN_APPLY_DRAFT_SITE_KEYS, planDesignSwitch, snapshotDesignSlug } from "./design-switch";
+import {
+  DESIGN_APPLY_DRAFT_SITE_KEYS,
+  draftUnchangedSinceSwitch,
+  planDesignSwitch,
+  snapshotDesignSlug,
+} from "./design-switch";
 
 export { DESIGN_APPLY_DRAFT_SITE_KEYS };
 
@@ -308,6 +313,13 @@ function preSwitchSnapshot(draft: DraftRead): HistorySnapshot {
   };
 }
 
+/** Pre-leave capture for a Design: snapshot + the site rev right after that leave. */
+export type PreLeaveSnapshot = {
+  snapshot: HistorySnapshot;
+  /** `talent_site_history.draft_rev` after the leave write (null on legacy rows). */
+  leaveDraftRev: number | null;
+};
+
 /**
  * Latest pre-switch snapshot taken when leaving `designSlug` (G-L5-01 / restore-exact).
  * The `design_apply` entry stores the PRIOR draft in `snapshot_ref`.
@@ -315,10 +327,10 @@ function preSwitchSnapshot(draft: DraftRead): HistorySnapshot {
 export async function findPreLeaveSnapshot(
   admin: SupabaseClient,
   input: { talentProfileId: string; designSlug: string },
-): Promise<HistorySnapshot | null> {
+): Promise<PreLeaveSnapshot | null> {
   const { data, error } = await admin
     .from("talent_site_history")
-    .select("snapshot_ref, kind")
+    .select("snapshot_ref, kind, draft_rev")
     .eq("talent_profile_id", input.talentProfileId)
     .eq("kind", "design_apply")
     .order("at", { ascending: false })
@@ -328,10 +340,15 @@ export async function findPreLeaveSnapshot(
     return null;
   }
   const want = input.designSlug.trim().toLowerCase();
-  for (const row of (data ?? []) as Array<{ snapshot_ref?: unknown }>) {
+  for (const row of (data ?? []) as Array<{ snapshot_ref?: unknown; draft_rev?: number | null }>) {
     if (!isHistorySnapshot(row.snapshot_ref)) continue;
     const slug = snapshotDesignSlug(row.snapshot_ref)?.toLowerCase();
-    if (slug === want) return row.snapshot_ref;
+    if (slug === want) {
+      return {
+        snapshot: row.snapshot_ref,
+        leaveDraftRev: typeof row.draft_rev === "number" ? row.draft_rev : null,
+      };
+    }
   }
   return null;
 }
@@ -369,14 +386,19 @@ export async function applyDesign(
   const switchingAway =
     !!draft.designSlug && draft.designSlug.trim().toLowerCase() !== design.slug.trim().toLowerCase();
 
-  // Switch back: restore the exact draft captured when she left this Design.
+  // Switch back: restore-exact ONLY when the draft is unchanged since she left
+  // that Design. Any edit since → fall through to carry-over (keep her work).
   if (switchingAway) {
     const prior = await findPreLeaveSnapshot(admin, {
       talentProfileId: input.talentProfileId,
       designSlug: design.slug,
     });
-    if (prior && draft.homeId) {
-      const restore = planRestore(prior, {
+    if (
+      prior &&
+      draft.homeId &&
+      draftUnchangedSinceSwitch(draft.draftRev, prior.leaveDraftRev)
+    ) {
+      const restore = planRestore(prior.snapshot, {
         shell: draft.shell,
         pages: { [draft.homeId]: draft.home },
       });

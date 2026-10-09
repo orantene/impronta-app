@@ -131,6 +131,18 @@ export function snapshotDesignSlug(snapshot: {
   return typeof slug === "string" && slug.trim() ? slug.trim() : null;
 }
 
+/**
+ * Gallery re-pick may restore-exact only when the draft has not moved since
+ * the leave entry was written (`talent_site_history.draft_rev` == current
+ * `talent_sites.draft_rev`). Any later edit → carry-over instead.
+ */
+export function draftUnchangedSinceSwitch(
+  currentDraftRev: number,
+  leaveEntryDraftRev: number | null | undefined,
+): boolean {
+  return typeof leaveEntryDraftRev === "number" && currentDraftRev === leaveEntryDraftRev;
+}
+
 /** Site patch keys a Design apply may write (draft-first: never published columns). */
 export const DESIGN_APPLY_DRAFT_SITE_KEYS = [
   "shell_tree",

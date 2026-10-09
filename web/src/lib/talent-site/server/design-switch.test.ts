@@ -10,6 +10,7 @@ import { findKeyPath } from "@/lib/talent-site/theme-releases/tree-ops";
 import { addNode, built, edit, plain, prop } from "@/lib/talent-site/theme-releases/test-fixtures";
 import {
   DESIGN_APPLY_DRAFT_SITE_KEYS,
+  draftUnchangedSinceSwitch,
   isDesignSwitchReport,
   planDesignSwitch,
   snapshotDesignSlug,
@@ -131,6 +132,20 @@ test("restore-exact: planRestore from pre-switch snapshot returns prior shell, t
   assert.equal(plan.site.theme_look_slug, "maison-stone");
   assert.equal(plan.pages.length, 1);
   assert.deepEqual(plan.pages[0], { id: "page-home", patch: { blocks: priorHome } });
+});
+
+test("restore-exact: allowed only when draft_rev still equals the leave entry rev", () => {
+  // A→B wrote history.draft_rev=5; no edits → current still 5 → restore-exact.
+  assert.equal(draftUnchangedSinceSwitch(5, 5), true);
+  assert.equal(draftUnchangedSinceSwitch(5, null), false);
+  assert.equal(draftUnchangedSinceSwitch(5, undefined), false);
+});
+
+test("carry-over: preferred when draft moved after the leave (edited on B)", () => {
+  // A→B left at rev 5; she edited → rev 6+ → gallery re-pick of A carries, not restores.
+  assert.equal(draftUnchangedSinceSwitch(6, 5), false);
+  assert.equal(draftUnchangedSinceSwitch(12, 5), false);
+  assert.equal(draftUnchangedSinceSwitch(4, 5), false);
 });
 
 test("report helpers: isDesignSwitchReport + snapshotDesignSlug", () => {
