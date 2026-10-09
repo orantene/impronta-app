@@ -289,6 +289,27 @@ Otherwise the job is skipped (its `if:` is false). On push to `main` and on
 manual runs they always run. So on an ordinary PR the only check that actually
 executes is the structural gate.
 
+### CI priority (TUL-412)
+
+GitHub has no runner-priority API; `ubuntu-latest` is one shared pool, and the
+structural gate holds a runner for about 30 minutes. To keep `main`, `integ/*`
+batches, `promote-production` and the post-deploy alias from waiting behind
+ordinary PR gates:
+
+1. The heavy gate runs on `main`, on `integ/*` PRs, and on ordinary PRs that
+   carry the **`full-gate`** label. Any other ordinary PR fails its first step in
+   seconds ("ships via an integ batch") and frees the runner; the batch that
+   carries it runs the full gate. Failing (not skipping) keeps the required
+   check red, so an unlabelled PR cannot be merged around the gate.
+2. To merge a PR on its own: add `full-gate` (done at approval), then re-run the
+   failed check. The step reads labels live, so the re-run picks it up. There is
+   deliberately no `labeled` trigger (any label event would cancel an in-flight
+   gate on that ref). Alternatively ship it through a one-PR `integ/*` wrapper.
+3. Concurrency stays per-ref: a shared group would cancel queued gates.
+4. `promote-production` cancels a superseded queued run (it reconciles to the
+   newest green commit). Optional: repo variable `PROMOTE_RUNNER` takes it off
+   the shared pool.
+
 ### Not PR checks
 
 These run on other events and never report a status on a PR to `main`:
