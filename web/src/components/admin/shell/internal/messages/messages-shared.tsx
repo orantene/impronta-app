@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect } from "react";
 import { MY_TALENT_PROFILE, COLORS } from "../state";
+import { formatAgeHours } from "@/lib/locale-time";
 
 
 /**
@@ -39,8 +40,7 @@ export const stageStyle = (stage: string): { bg: string; fg: string } => {
   }
 };
 
-export const ageLabel = (hrs: number) =>
-  hrs < 1 ? "now" : hrs < 24 ? `${Math.floor(hrs)}h` : `${Math.floor(hrs / 24)}d`;
+export const ageLabel = (hrs: number, locale?: string | null) => formatAgeHours(hrs, locale);
 
 // Active-row scroll-into-view. Pass the active flag; returns a ref to
 // attach to the row's outer button. Only triggers when the row is NOT
