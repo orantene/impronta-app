@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = join(process.cwd(), "src");
@@ -130,4 +130,20 @@ test("D6 plan grace hooks subscription sync and disables registrar auto-renew", 
   assert.match(registrar, /export async function getDomainAuthCode/);
   assert.match(cron, /sweepTalentDomainPlanGrace/);
   assert.match(cron, /CRON_SECRET/);
+});
+
+test("D6 migration is parked for PM (not in drift-scanned migrations root)", () => {
+  const root = join(process.cwd(), "..", "supabase", "migrations");
+  const parked = join(
+    root,
+    "_pending_pm",
+    "20261231357100_talent_site_domains_plan_grace.sql",
+  );
+  assert.equal(existsSync(parked), true, "PM mig must stay in _pending_pm");
+  const rootSql = readdirSync(root).filter((f) => f.endsWith(".sql"));
+  assert.equal(
+    rootSql.includes("20261231357100_talent_site_domains_plan_grace.sql"),
+    false,
+    "parked mig must not sit in migrations root (Vercel prebuild drift check)",
+  );
 });

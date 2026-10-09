@@ -214,6 +214,7 @@ export async function beginTalentDomainPlanGrace(opts: {
     .select(GRACE_COLUMNS)
     .eq("talent_profile_id", opts.talentProfileId);
   if (error) {
+    // Schema not applied yet (mig parked in `_pending_pm` until PM db:push).
     logServerError("talentDomainGrace.begin.list", error);
     return { stamped: 0, notified: false };
   }
