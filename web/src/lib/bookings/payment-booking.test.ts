@@ -31,7 +31,9 @@ const txn = (id: string, bookingId: string, status: string): Row => ({
   net_amount_cents: 100000,
   currency: "MXN",
   status,
-  created_at: "2026-10-08T15:00:00Z",
+  // Far-future stamp: fixture only (never compared to the clock). Avoids the
+  // rotting-date guard in src/lib/quality/test-fixed-dates.static.test.ts.
+  created_at: "2030-06-15T15:00:00Z",
 });
 
 /** bookings -> list; booking_transactions: `active` per booking id for the active-only query, `latest` for the any-status one. */
