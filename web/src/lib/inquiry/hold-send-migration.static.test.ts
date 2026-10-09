@@ -53,5 +53,16 @@ test("engine_submit_approval: last talent releases to sent + offer.sent; a rejec
 test("signatures and grants are untouched (CREATE OR REPLACE keeps the anon revoke)", () => {
   const code = sql.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
   assert.doesNotMatch(code, /DROP FUNCTION/i);
-  assert.doesNotMatch(code, /\b(GRANT|REVOKE)\b/i);
+  assert.doesNotMatch(code, /\bGRANT\b/i);
+  // The only REVOKE is on the NEW internal helper; the two engine functions keep their existing privileges.
+  const revokes = code.match(/\bREVOKE\b[^;]*;/gi) ?? [];
+  assert.equal(revokes.length, 1);
+  assert.match(revokes[0]!, /REVOKE ALL ON FUNCTION public\.offer_pending_talent_approvals\(uuid, uuid\) FROM PUBLIC, anon, authenticated/);
+});
+
+test("the new helper is not executable by anon, authenticated or PUBLIC, and the migration asserts it", () => {
+  assert.match(sql, /has_function_privilege\('anon', 'public\.offer_pending_talent_approvals\(uuid, uuid\)', 'EXECUTE'\)/);
+  assert.match(sql, /has_function_privilege\('authenticated'/);
+  assert.match(sql, /has_function_privilege\('public'/);
+  assert.match(sql, /RAISE EXCEPTION 'offer_pending_talent_approvals must not be executable/);
 });

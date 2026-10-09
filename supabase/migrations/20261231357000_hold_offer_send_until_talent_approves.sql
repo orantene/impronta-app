@@ -128,6 +128,19 @@ AS $f$
     );
 $f$;
 
+-- Internal helper for the two SECURITY DEFINER engine functions below: nobody calls it directly.
+REVOKE ALL ON FUNCTION public.offer_pending_talent_approvals(uuid, uuid) FROM PUBLIC, anon, authenticated;
+
+DO $assert$
+BEGIN
+  IF has_function_privilege('anon', 'public.offer_pending_talent_approvals(uuid, uuid)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.offer_pending_talent_approvals(uuid, uuid)', 'EXECUTE')
+     OR has_function_privilege('public', 'public.offer_pending_talent_approvals(uuid, uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'offer_pending_talent_approvals must not be executable by anon, authenticated or PUBLIC';
+  END IF;
+END
+$assert$;
+
 CREATE OR REPLACE FUNCTION public.engine_send_offer(p_inquiry_id uuid, p_offer_id uuid, p_actor_user_id uuid, p_inquiry_expected_version integer, p_offer_expected_version integer)
  RETURNS TABLE(next_inquiry_version integer, next_offer_version integer)
  LANGUAGE plpgsql
