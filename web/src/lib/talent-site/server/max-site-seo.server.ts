@@ -16,7 +16,39 @@ import { buildTalentLocalBusinessJsonLd, withLocalBusiness } from "@/lib/talent-
 
 import { siteFaviconFor } from "@/lib/talent-site/site-favicon";
 import type { TalentSiteIdentity } from "./load-max-site";
-import type { MaxSiteSeo } from "./render-max-site";
+
+/**
+ * SEO-1 — the talent-site SEO envelope, widened to the SAME field set the
+ * cms_pages-backed metadata carries (title/description/OG/canonical/noindex +
+ * JSON-LD). This is the shared contract the 3 talent-site routes destructure;
+ * SEO-2 populates these from the SEO-1 `talent_pages` columns (meta_description,
+ * og_*, canonical_url, noindex, json_ld). Every added field is OPTIONAL so a
+ * not-yet-migrated read degrades to undefined and never throws.
+ *
+ * Lives here (not in `render-max-site.tsx`) so the render file stays under the
+ * 800-line max-lines budget — same split pattern as `render-max-site-shell`.
+ */
+export interface MaxSiteSeo {
+  title: string;
+  description?: string;
+  /** True on the draft preview (never indexed) or when the page's own
+   *  `talent_pages.noindex` column is set. */
+  noindex: boolean;
+  /** og:title — falls back to `title` when absent. */
+  ogTitle?: string;
+  /** og:description — falls back to `description` when absent. */
+  ogDescription?: string;
+  /** Absolute og:image URL for the page. */
+  ogImageUrl?: string;
+  /** Absolute canonical URL for THIS site page (never the /t/[code] profile). */
+  canonical?: string;
+  /** Structured-data (JSON-LD) document emitted in a `<script type="application/ld+json">`. */
+  jsonLd?: unknown;
+  /** PR 5 — canonical + hreflang (two or more talent languages only). */
+  alternates?: { canonical: string; languages: Record<string, string> };
+  /** DS-18: the business's own tab icon (logo, avatar or generated initials). */
+  faviconUrl?: string;
+}
 
 /**
  * SEO-2 — populate the widened `MaxSiteSeo` from the selected page's SEO-1

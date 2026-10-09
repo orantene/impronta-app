@@ -179,6 +179,7 @@ async function ensureWorkspaceScaffold(params: {
     seedFreeStarter: true,
     audience: params.audience,
     businessDescription: params.businessDescription,
+    ...(flowLocale && { locale: flowLocale.defaultLocale }), // TUL-455: match identity locale
   });
   if (!starter.ok) {
     logServerError(

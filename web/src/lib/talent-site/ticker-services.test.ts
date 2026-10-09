@@ -29,6 +29,12 @@ test("words come from offeringText in the visitor's language, falling back down 
   assert.deepEqual(buildTickerServiceWords(rows, "fr", ["fr", "es"]).slice(0, 2), ["Manicura de gel", "Arte en uñas"]);
 });
 
+test("English-only Semi-permanent gel becomes Gel semipermanente on an ES ticker (TUL-189)", () => {
+  const onlyEn = [{ title: "Semi-permanent gel", title_i18n: { en: "Semi-permanent gel" } }];
+  assert.deepEqual(buildTickerServiceWords(onlyEn, "es"), ["Gel semipermanente"]);
+  assert.deepEqual(buildTickerServiceWords(onlyEn, "en"), ["Semi-permanent gel"]);
+});
+
 test("blank titles drop, repeats collapse in any casing, and the list is capped", () => {
   const many = Array.from({ length: 30 }, (_, i) => ({ title: `Service ${i}`, title_i18n: null }));
   assert.equal(buildTickerServiceWords(many, "en").length, 12);
@@ -41,14 +47,16 @@ test("blank titles drop, repeats collapse in any casing, and the list is capped"
   );
 });
 
-test("a services ticker is filled with the words; a custom or unset one is left alone", () => {
+test("a services ticker and a legacy unset one fill from offerings; only explicit custom is left alone (TUL-189)", () => {
   const services = ticker({ source: "services", items: [{ text: "Old" }, { text: "Words" }] }, "a");
   const custom = ticker({ source: "custom", items: [{ text: "Mine" }, { text: "Own" }] }, "b");
-  const legacy = ticker({ items: [{ text: "Saved before" }, { text: "The field" }] }, "c");
+  const legacy = ticker({ items: [{ text: "Semi-permanent gel" }, { text: "Soft gel extensions" }] }, "c");
   const out = applyTalentTickerServices([services, custom, legacy], ["Manicura", "Pedicura"]);
   assert.deepEqual(itemsOf(out[0]!), ["Manicura", "Pedicura"]);
   assert.equal(out[1], custom, "custom ticker is returned untouched");
-  assert.equal(out[2], legacy, "a ticker saved before the field is returned untouched");
+  assert.deepEqual(itemsOf(out[2]!), ["Manicura", "Pedicura"], "absent source follows services");
+  assert.equal(treeHasServicesTicker([legacy]), true);
+  assert.equal(tickerSourceOf(legacy), "services");
 });
 
 test("no published services keeps the literal items as the fallback (identity preserved)", () => {
@@ -65,7 +73,9 @@ test("a nested services ticker is found and filled, and the other branches keep 
   const kids = (out[0] as unknown as { children: BuilderNode[] }).children;
   assert.equal(kids[0], sibling);
   assert.deepEqual(itemsOf(kids[1]!), ["A", "B"]);
-  assert.equal(treeHasServicesTicker([wrap, ticker({ items: [] })].slice(1)), false);
+  // Explicit custom is the only way to opt out; an unset source follows services.
+  assert.equal(treeHasServicesTicker([ticker({ source: "custom", items: [] })]), false);
+  assert.equal(treeHasServicesTicker([ticker({ items: [] })]), true);
 });
 
 test("an unknown source fails closed to custom with a dev-only warning", () => {

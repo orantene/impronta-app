@@ -20,8 +20,14 @@ test("laneIsOwnedByTenant: workspace/agency lane matching tenant is owned", () =
   assert.equal(laneIsOwnedByTenant(agencyLane(T), T), true);
 });
 
-test("laneIsOwnedByTenant: talent lane is never tenant-owned", () => {
+test("laneIsOwnedByTenant: roster talent lane is never tenant-owned", () => {
   assert.equal(laneIsOwnedByTenant(talentLane(), T), false);
+});
+
+test("laneIsOwnedByTenant: owner-talent lane counts as tenant-owned", () => {
+  const owners = new Set(["owner-talent"]);
+  assert.equal(laneIsOwnedByTenant(talentLane("owner-talent"), T, owners), true);
+  assert.equal(laneIsOwnedByTenant(talentLane("roster-talent"), T, owners), false);
 });
 
 test("laneIsOwnedByTenant: legacy null lane defaults to tenant-owned", () => {
@@ -50,6 +56,26 @@ test("all lanes self-coordinated (talent) → HIDDEN", () => {
   const hide = inquiriesToHideFromAgencyInbox(
     new Map([["i1", [talentLane("t1"), talentLane("t2")]]]),
     T,
+  );
+  assert.equal(hide.has("i1"), true);
+});
+
+test("TUL-318: all lanes self-coord but owning party is workspace owner → shown", () => {
+  const owners = new Set(["owner-talent"]);
+  const hide = inquiriesToHideFromAgencyInbox(
+    new Map([["i1", [talentLane("owner-talent")]]]),
+    T,
+    owners,
+  );
+  assert.equal(hide.has("i1"), false);
+});
+
+test("TUL-318: non-owner roster talent self-coord stays hidden", () => {
+  const owners = new Set(["owner-talent"]);
+  const hide = inquiriesToHideFromAgencyInbox(
+    new Map([["i1", [talentLane("roster-talent")]]]),
+    T,
+    owners,
   );
   assert.equal(hide.has("i1"), true);
 });
@@ -87,4 +113,18 @@ test("multiple inquiries partition correctly", () => {
     T,
   );
   assert.deepEqual([...hide].sort(), ["foreign", "self"]);
+});
+
+test("TUL-318: owner-talent threads stay visible among roster self-coord hides", () => {
+  const owners = new Set(["owner-talent"]);
+  const hide = inquiriesToHideFromAgencyInbox(
+    new Map([
+      ["owner-thread", [talentLane("owner-talent")]],
+      ["roster-thread", [talentLane("roster-talent")]],
+      ["workspace", [workspaceLane(T)]],
+    ]),
+    T,
+    owners,
+  );
+  assert.deepEqual([...hide].sort(), ["roster-thread"]);
 });

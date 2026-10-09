@@ -15,6 +15,7 @@ import {
   turnstileRenderOptions,
   type CaptchaUiEvent,
   type CaptchaUiState,
+  type TurnstileAppearance,
 } from "@/lib/captcha/widget-options";
 
 export type GuestCaptchaConfig = {
@@ -61,10 +62,19 @@ export function GuestCaptchaField({
   captcha,
   locale,
   onToken,
+  /**
+   * Studio/CMS embeds sit inside themed containers that often clip overflow.
+   * `always` keeps the widget visible (never a dead end). Catalog overlays keep
+   * the default interaction-only.
+   */
+  appearance = "interaction-only",
+  theme = "light",
 }: {
   captcha?: GuestCaptchaConfig | null;
   locale: string;
   onToken: (token: string) => void;
+  appearance?: TurnstileAppearance;
+  theme?: "light" | "dark";
 }) {
   const provider = captcha?.provider ?? "none";
   const siteKey = captcha?.siteKey;
@@ -135,12 +145,18 @@ export function GuestCaptchaField({
                   onExpired,
                   onError,
                 })
-              : turnstileRenderOptions(siteKey as string, locale, {
-                  callback: cbToken,
-                  onExpired,
-                  onError,
-                  onTimeout: onError,
-                }),
+              : turnstileRenderOptions(
+                  siteKey as string,
+                  locale,
+                  {
+                    callback: cbToken,
+                    onExpired,
+                    onError,
+                    onTimeout: onError,
+                  },
+                  theme,
+                  appearance,
+                ),
           );
         } catch {
           // fall through to a retry below
@@ -172,15 +188,19 @@ export function GuestCaptchaField({
         // vendor already tore the widget down
       }
     };
-  }, [active, provider, siteKey, locale, attemptKey]);
+  }, [active, provider, siteKey, locale, attemptKey, appearance, theme]);
 
   if (!active) return null;
-  const reservedHeight = captchaReservedHeightPx(provider);
+  const reservedHeight = captchaReservedHeightPx(provider, appearance);
   const reserve = reservedHeight > 0 ? ({ minHeight: reservedHeight } as const) : undefined;
   const copy = captchaRetryCopy(locale);
 
   return (
-    <div data-guest-instant-captcha={provider} style={reserve}>
+    <div
+      data-guest-instant-captcha={provider}
+      data-captcha-appearance={appearance}
+      style={{ ...reserve, overflow: "visible", position: "relative", zIndex: 1 }}
+    >
       <div
         ref={widgetRef}
         className={provider === "hcaptcha" ? "h-captcha" : "cf-turnstile"}
