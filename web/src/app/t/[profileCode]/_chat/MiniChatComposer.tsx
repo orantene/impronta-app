@@ -140,7 +140,8 @@ export function MiniChatComposer({
         value={draft}
         onChange={(e) => onDraftChange(e.target.value)}
         onKeyDown={(e) => {
-          if (composerKeyAction(e) === "submit") {
+          // nativeEvent carries isComposing (IME); React's KeyboardEvent type does not.
+          if (composerKeyAction(e.nativeEvent) === "submit") {
             e.preventDefault();
             onSubmit();
           }
