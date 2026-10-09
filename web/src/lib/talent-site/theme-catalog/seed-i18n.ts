@@ -18,8 +18,9 @@
  * shape the builder's language tabs write (validate mirrors it to `node.i18n`).
  * The base prop stays the English seed and `en` repeats it.
  *
- * Stored trees that still have an English seed base and no `i18n.es` now
- * render English on `/es` (maps deleted). Prod inventory (2026-10-08):
+ * Stored trees that still have an English seed base and no `i18n.es` fall
+ * back to the render-time EN↔ES guess maps (TUL-369 split: do not delete
+ * those maps until PM heal recount = 0). Prod inventory (2026-10-08):
  * **127 trees / 43 profiles** (draft+published shells/pages). Recount with
  * `scripts/heal-seed-i18n-missing-es.mts` (dry-run). Heal via copy release
  * (`npm run qa:release-theme-i18n`), not a silent migration.
@@ -52,7 +53,8 @@ export type SeedI18nOverlay = {
 /**
  * English seed text -> neutral Mexican Spanish (tuteo). Exact seed strings.
  * Single source of truth for seeded EN→ES wording (TUL-369). Applied into
- * `props.i18n` at seed time; the render-time EN↔ES guess maps are deleted.
+ * `props.i18n` at seed time. Render-time EN↔ES guess maps stay as FALLBACK
+ * only until missing-es heal recount = 0 (then a follow-up deletes them).
  */
 export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   // Hero / actions
