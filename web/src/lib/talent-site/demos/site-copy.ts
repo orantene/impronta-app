@@ -304,16 +304,23 @@ function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, ne
     case "spec_table": {
       const s = g.specTable;
       if (!s) return n;
+      // Layer order: seed `p.i18n` → flat `overlays.<lang>.specTable` (TUL-302) →
+      // nested `specTable.i18n` (TUL-207). Later layers win on key clash.
+      // `mergeI18n` returns `{}` when `add` is undefined (drops `existing`), so
+      // only pass a bag when present — otherwise flat overlays vanish and the
+      // seed EN title ("How it works") sticks instead of "Specifications".
       const titleOv = flatOverlay(ov, (o) =>
         o.specTable ? { eyebrow: o.specTable.eyebrow, title: o.specTable.title } : undefined,
       );
-      const fromOverlays = mergeI18n(titleOv, rowsOverlay(ov)).i18n;
+      const rowOv = rowsOverlay(ov);
+      const fromFlat = rowOv ? mergeI18n(titleOv, rowOv).i18n : titleOv;
       const fromNested = specTableOverlay(s.i18n).i18n;
+      const add = fromNested ? mergeI18n(fromFlat, fromNested).i18n : fromFlat;
       return withProps(n, {
         ...(s.eyebrow ? { eyebrow: s.eyebrow } : {}),
         ...(s.title ? { title: s.title } : {}),
         rows: s.rows.map((r) => ({ ...r })),
-        ...mergeI18n(p.i18n, mergeI18n(fromOverlays, fromNested).i18n),
+        ...mergeI18n(p.i18n, add),
       });
     }
     case "services_catalog": {
