@@ -77,7 +77,7 @@ export function CheckoutView(props: CheckoutViewProps) {
           sellerLine={props.sellerName ? interpolate(t("public.thread.paidTo"), { seller: props.sellerName }) : null}
           lines={props.lines.map((l) => `${l.units > 1 ? `${l.units} × ` : ""}${l.label}`)}
           total={total}
-          note={t(keepSlotKey)}
+          note={t("public.thread.paidNote")}
           receiptHref={props.receiptHref}
           receiptLabel={t("public.thread.receipt")}
           threadHref={props.threadHref}
