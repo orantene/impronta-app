@@ -67,7 +67,16 @@ export function CheckoutView(props: CheckoutViewProps) {
         : props.slotKind === "pickup"
         ? "public.thread.keepSlot"
         : "public.thread.keepSlotGeneric";
-  const total = formatDashboardMoneyCents(props.amountCents, props.currency || null, props.locale ?? "es");
+  // What the card is / was CHARGED: the service price plus the service fee when there is one.
+  const chargedCents = props.feeLines?.find((l) => l.code === "total_charged")?.cents ?? props.amountCents;
+  const feeCents = props.feeLines?.find((l) => l.code === "platform_fee")?.cents ?? 0;
+  const total = formatDashboardMoneyCents(chargedCents, props.currency || null, props.locale ?? "es");
+  const feeNote =
+    feeCents > 0
+      ? interpolate(t("public.thread.fees.includedNote"), {
+          fee: formatDashboardMoneyCents(feeCents, props.currency || null, props.locale ?? "es"),
+        })
+      : null;
 
   if (phase === "paid") {
     return (
@@ -77,6 +86,7 @@ export function CheckoutView(props: CheckoutViewProps) {
           sellerLine={props.sellerName ? interpolate(t("public.thread.paidTo"), { seller: props.sellerName }) : null}
           lines={props.lines.map((l) => `${l.units > 1 ? `${l.units} × ` : ""}${l.label}`)}
           total={total}
+          feeNote={feeNote}
           note={t(keepSlotKey)}
           receiptHref={props.receiptHref}
           receiptLabel={t("public.thread.receipt")}
@@ -451,6 +461,8 @@ type PaidCopy = {
   sellerLine: string | null;
   lines: string[];
   total: string;
+  /** "Includes $15 service fee." when the charge is price + fee. */
+  feeNote?: string | null;
   note: string;
   receiptHref: string | null;
   receiptLabel: string;
@@ -509,6 +521,11 @@ export function PaidView(props: PaidCopy & { secondsLeft: number | null }) {
           </p>
         ))}
         <p className="mt-2 text-[22px] font-semibold tabular-nums">{props.total}</p>
+        {props.feeNote ? (
+          <p data-pay-fee-note="" className="text-[13px]" style={{ color: MUTED }}>
+            {props.feeNote}
+          </p>
+        ) : null}
       </div>
       <p className="text-[13px]" style={{ color: MUTED }}>
         {props.note}

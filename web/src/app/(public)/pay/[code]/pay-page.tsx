@@ -17,6 +17,7 @@ import { CheckoutView } from "./CheckoutView";
 import { payCalendarEvent } from "@/lib/payments/pay-calendar-event";
 import { resolvePaidLinkDisplayStatus } from "@/lib/payments/pay-refund-status";
 import { loadPayLinkFeeLines } from "@/lib/payments/pay-link-fee-lines";
+import { loadPaidChargeLines, loadPreviewChargeLines } from "@/lib/payments/pay-page-charge";
 import { resolveOrderPayeeName } from "@/lib/payments/payee-name";
 import { interpolate } from "@/i18n/interpolate";
 import { createTranslator } from "@/i18n/messages";
@@ -224,6 +225,8 @@ export async function PayByCodePage({
       bookingPaymentStatus,
     });
     const sellerName = await resolveOrderPayeeName(admin, loaded.tenantId, loaded.orderId);
+    // What the card was actually charged (price + service fee), not just the price.
+    const paidFeeLines = paidDisplay === "paid" ? await loadPaidChargeLines(admin, loaded.orderId) : [];
     const t = createTranslator(uiLocale);
     // Location for .ics/Google only; skip the inquiry read on open/processing.
     const { data: inquiryLoc } =
@@ -260,6 +263,7 @@ export async function PayByCodePage({
         expiresAt={expiresAtLabel}
         status={paidDisplay}
         locale={uiLocale}
+        feeLines={paidFeeLines}
         sellerName={sellerName}
         autoReturn={cameFromConversation && query.status === "paid"}
         lines={orderLines}
@@ -418,7 +422,17 @@ export async function PayByCodePage({
     );
   }
 
-  const feeLines = await loadPayLinkFeeLines(admin, loaded.orderId, loaded.amountCents);
+  // Before Pay the client must see the fee and the total the card will be charged. The booking
+  // snapshot only exists after payment, so fall back to the amount Checkout will charge.
+  const snapshotLines = await loadPayLinkFeeLines(admin, loaded.orderId, loaded.amountCents);
+  const feeLines = snapshotLines.length
+    ? snapshotLines
+    : await loadPreviewChargeLines(admin, {
+        tenantId: loaded.tenantId ?? null,
+        orderId: loaded.orderId,
+        currency: orderRow?.currency ?? "",
+        principalCents: loaded.amountCents,
+      });
   return (
     <CheckoutView
       code={code}

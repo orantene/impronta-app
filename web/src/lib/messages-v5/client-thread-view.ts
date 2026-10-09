@@ -375,6 +375,8 @@ export type PaymentView = {
   readonly totalCents: number | null;
   readonly paidCents: number | null;
   readonly dueCents: number | null;
+  /** What the card was charged (price + service fee), stamped when it is more than paidCents. */
+  readonly chargedCents?: number | null;
   readonly method: string | null;
   /** Client fee breakdown stamped at request time; [] unless it sums to amountCents. */
   readonly feeLines: readonly FeeLine[];
@@ -394,6 +396,7 @@ export function readPayment(payload: Record<string, unknown> | null): PaymentVie
     totalCents: num(p.totalCents),
     paidCents: num(p.paidCents),
     dueCents: num(p.dueCents),
+    chargedCents: num(p.chargedCents),
     method: str(p.method),
     feeLines: validClientFeeLines(p.feeLines, num(p.amountCents)),
   };

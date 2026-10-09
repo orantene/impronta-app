@@ -380,8 +380,15 @@ export function ClientPaymentCard({ view, copy, business, locale, now, onPay }: 
             ? copy.pay.methodCardDeposit
             : copy.pay.methodCard
           : null;
+  const chargedMore =
+    hasMoney && typeof view.chargedCents === "number" && view.chargedCents > (view.paidCents as number) && view.dueCents === 0;
   const paidFoot =
-    hasMoney && view.dueCents! > 0
+    chargedMore
+      ? fill(copy.pay.paidWithFee, {
+          charged: money(view.chargedCents as number, view.currency),
+          fee: money((view.chargedCents as number) - (view.paidCents as number), view.currency),
+        })
+      : hasMoney && view.dueCents! > 0
       ? fill(copy.pay.paidBalanceDue, {
           paid: money(view.paidCents, view.currency),
           due: money(view.dueCents, view.currency),
