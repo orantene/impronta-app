@@ -37,3 +37,20 @@ export function talentOwnOfferAllowed(input: {
   if (input.startedBy !== "talent") return false;
   return talentSelfInquiryAllowed(input);
 }
+
+/**
+ * The offer verbs for the OWNER of a workspace who is herself the whole lineup
+ * (a solo or 'both' owner selling her own service). The invite rows a fresh
+ * inquiry starts with ('invited') must not lock her out of her own business: she
+ * is the owner, so nobody else could accept for her. Lineups with another talent
+ * stay with their coordinator. Pure; the owner proof is read by the caller.
+ */
+export function ownerTalentOwnLineupOfferAllowed(input: {
+  actorTalentProfileId: string | null;
+  talentProfileIds: readonly string[];
+  actorIsActiveWorkspaceOwner: boolean;
+}): boolean {
+  const own = input.actorTalentProfileId;
+  if (!own || !input.actorIsActiveWorkspaceOwner) return false;
+  return input.talentProfileIds.length === 1 && input.talentProfileIds[0] === own;
+}

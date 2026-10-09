@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
-import { talentOwnOfferAllowed, talentSelfInquiryAllowed } from "./talent-self-inquiry";
+import { ownerTalentOwnLineupOfferAllowed, talentOwnOfferAllowed, talentSelfInquiryAllowed } from "./talent-self-inquiry";
 
 const OFFER_VERBS: readonly EngineAction[] = ["create_offer", "update_offer", "send_offer"];
 
@@ -245,6 +245,49 @@ export async function validateActorPermission(
       .maybeSingle();
     if (tp && tp.role === "talent" && ["invited", "active"].includes(tp.status)) {
       return { ok: true, isStaff: false, talentProfileId };
+    }
+  }
+
+  // The owner of a workspace who is the whole lineup (solo / 'both' owner): the
+  // offer verbs are hers even while her invite rows are still 'invited'.
+  if (talentProfileId && OFFER_VERBS.includes(action)) {
+    const { data: ownInq, error: ownInqErr } = await supabase
+      .from("inquiries")
+      .select("tenant_id")
+      .eq("id", inquiryId)
+      .maybeSingle();
+    const { data: ownSeats, error: ownSeatsErr } = await supabase
+      .from("inquiry_participants")
+      .select("talent_profile_id")
+      .eq("inquiry_id", inquiryId)
+      .eq("role", "talent");
+    const tenantOfInquiry = (ownInq as { tenant_id?: string | null } | null)?.tenant_id ?? null;
+    // Any failed read fails closed (falls through to the other rules).
+    if (!ownInqErr && !ownSeatsErr && tenantOfInquiry) {
+      const lineup = ((ownSeats ?? []) as Array<{ talent_profile_id: string | null }>)
+        .map((r) => r.talent_profile_id)
+        .filter((v): v is string => Boolean(v));
+      if (lineup.length === 1 && lineup[0] === talentProfileId) {
+        const { data: ownerRow, error: ownerErr } = await supabase
+          .from("agency_memberships")
+          .select("id")
+          .eq("tenant_id", tenantOfInquiry)
+          .eq("profile_id", actorUserId)
+          .eq("role", "owner")
+          .eq("status", "active")
+          .limit(1)
+          .maybeSingle();
+        if (
+          !ownerErr &&
+          ownerTalentOwnLineupOfferAllowed({
+            actorTalentProfileId: talentProfileId,
+            talentProfileIds: lineup,
+            actorIsActiveWorkspaceOwner: Boolean(ownerRow),
+          })
+        ) {
+          return { ok: true, isStaff: false, talentProfileId };
+        }
+      }
     }
   }
 
