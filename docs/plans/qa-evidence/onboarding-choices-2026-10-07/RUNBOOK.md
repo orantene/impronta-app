@@ -99,3 +99,9 @@ Isolated DB only (`fxlankepwnvelxjrahwk`). Test accounts are `qa-onb-choice-<cho
 and guests `qa-onb-guest-...@impronta.test`. Use the existing journeys cleanup tooling
 (`scripts/isolated-target-guard.mjs` guarded) or delete those users and their rows by that email prefix. Never run
 cleanup against any other project.
+
+## Captcha on fxlank (TUL-479)
+fxlank hub captcha row stays empty (no provider/site_key) → env Turnstile always-pass test keys apply.
+A row with provider + site_key is tenant-owned and always uses its own stored secret, never the env keys, so do not
+put a provider back on it. Backup/before-after (secrets redacted) and restore command: `captcha-479/`. Always-pass
+keys accept any token, so they do not prove bad-token rejection.

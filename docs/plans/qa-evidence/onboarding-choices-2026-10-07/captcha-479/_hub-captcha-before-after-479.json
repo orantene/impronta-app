@@ -1,0 +1,21 @@
+{
+  "before": {
+    "tenant_id": "00000000-0000-0000-0000-000000000002",
+    "integration_key": "captcha",
+    "credential_mode": "custom",
+    "status": "connected",
+    "config_json": {
+      "provider": "hcaptcha",
+      "site_key": "<redacted 36 chars>"
+    },
+    "updated_at": "2026-10-09T04:03:22.087489+00:00"
+  },
+  "after": {
+    "tenant_id": "00000000-0000-0000-0000-000000000002",
+    "integration_key": "captcha",
+    "credential_mode": "custom",
+    "status": "connected",
+    "config_json": {},
+    "updated_at": "2026-10-09T04:40:31.79319+00:00"
+  }
+}

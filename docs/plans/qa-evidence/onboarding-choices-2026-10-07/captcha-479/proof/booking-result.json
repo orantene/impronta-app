@@ -1,0 +1,44 @@
+{
+ "startedAt": "2026-10-09T04:47:08.157Z",
+ "capBefore": [],
+ "email": "qa-captcha-proof-1791521228721@impronta.test",
+ "chip": "09:00",
+ "captchaSlot": 1,
+ "iframes": [],
+ "sitekeyAttr": [
+  {
+   "cls": "cf-turnstile",
+   "sitekey": null
+  }
+ ],
+ "tokenArrived": true,
+ "iframesAfter": [],
+ "tokenLen": 21,
+ "alerts": [
+  ""
+ ],
+ "refusal": "",
+ "dialogTail": "CONFIRMADA · PAGAS EN TU CITA Limpieza profunda ✕ ✓ Viernes 9 de oct, 09:00 Limpieza profunda · $850 Recibirás la confirmación por correo. El pago se realiza en el estudio. Ver mi cita y escribir Listo",
+ "url": "http://rosa-r6a-ahjjta.tulala.digital:3008/",
+ "net": [
+  "REQ https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit",
+  "REQ https://challenges.cloudflare.com/turnstile/v0/g/4df4a60fa397/api.js",
+  "REQ https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/g/turnstile/f/av0/rch/yxn4t/1x00000000000000000000AA/auto/fbE/new/normal?lang=es",
+  "REQ blob:https://challenges.cloudflare.com/1bf4e483-fe79-47ad-8999-58e1123b2e73",
+  "POST 200 /"
+ ],
+ "inquiry": {
+  "id": "c73a32f7-eecb-4e77-ae23-43ba65254968",
+  "status": "new",
+  "contact_email": "qa-captcha-proof-1791521228721@impronta.test",
+  "created_at": "2026-10-09T04:47:28.679599+00:00",
+  "tenant_id": "00000000-0000-0000-0000-000000000002"
+ },
+ "order": null,
+ "capAfter": [],
+ "logLines": [
+  "[rate-limit-kv] UPSTASH_REDIS_REST_URL/TOKEN are UNSET in production — the guest-chat cross-instance rate-limit floor is DISABLED (no-op). The inquiry-create hard ceiling is not enforced. Provision the Upstash env vars in the Vercel project to restore the floor.",
+  "{\"ns\":\"impronta\",\"event\":\"email.warn\",\"requestId\":\"req-24674086-1979-45fc-b58e-23a25848506c\",\"ts\":\"2026-10-09T04:47:33.360Z\",\"message\":\"[guest-claim-link] RESEND_API_KEY not set — claim email skipped\",\"email\":\"qa-captcha-proof-1791521228721@impronta.test\",\"subject\":\"Continue your conversation with the studio\"}",
+  "{\"ns\":\"impronta\",\"event\":\"notif.send.email\",\"requestId\":\"req-3f740173-287f-4c74-bd8e-42a4964204b0\",\"ts\":\"2026-10-09T04:47:33.969Z\",\"eventType\":\"booking.confirmed\",\"eventId\":\"booking-confirmed:28cd1e99-0369-4b7b-98fa-461da8dbaea2\",\"entryId\":\"booking.confirmed.client\",\"tenantId\":\"00000000-0000-0000-0000-000000000002\",\"recipient\":\"guest:qa-captcha-proof-1791521228721@impronta.test\",\"durationMs\":431,\""
+ ]
+}
