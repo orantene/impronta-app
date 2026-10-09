@@ -38,6 +38,7 @@ export type {
 } from "./instant-book-types";
 import type { InstantBookActionResult, InstantBookFormPayload } from "./instant-book-types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { localizedBookingRefusal } from "@/lib/scheduling/instant-book-refusal-copy";
 
 export async function createInstantBookingAction(
   payload: InstantBookFormPayload,
@@ -170,7 +171,8 @@ export async function createInstantBookingAction(
                     || booked.reason === "outside_hours"
                   ? booked.reason
                   : ("engine_error" as const),
-            error: booked.error,
+            // The page's language, not the engine's English (TUL-451).
+            error: localizedBookingRefusal(booked.reason, bookingLocale, booked.error),
           };
         }
         let checkoutUrl: string | null = null;
