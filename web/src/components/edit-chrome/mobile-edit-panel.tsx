@@ -718,11 +718,14 @@ export function MobileEditPanel() {
             }}
           >
             <span style={{ fontWeight: 600, color: CHROME.text }}>
-              Select a block
+              {t("Select a block")}
             </span>{" "}
-            on the canvas to hide it on {tabletHud ? "tablet" : "mobile"} or
-            change its {tabletHud ? "tablet" : "mobile"} order. Style edits
-            already apply to this breakpoint.
+            {t(
+              "on the canvas to hide it on {device} or change its {device} order. Style edits already apply to this breakpoint.",
+            ).replaceAll(
+              "{device}",
+              t(tabletHud ? "device tablet" : "device mobile"),
+            )}
           </div>
         )}
 

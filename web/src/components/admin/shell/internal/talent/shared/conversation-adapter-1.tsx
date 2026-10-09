@@ -5,6 +5,7 @@ import { type TalentInquiryRow } from "../../data-bridge";
 import { pinNextConversation as pinNextConversationT } from "../../messages";
 import { ClientTrustChip, Icon } from "../../primitives";
 import { COLORS, FONTS, INQUIRY_STAGE_META, MY_TALENT_PROFILE, useAdminShell, type ClientTrustLevel, type RichInquiry } from "../../state";
+import { talentInquiryMsgStageFromStatus } from "../../shell-count-bubbles-logic";
 import { MOCK_CONVERSATIONS, type Conversation, type MsgStage } from "./conversations-1";
 import { myStatusOn, unreadOnInquiry } from "./inquiry-bridge-1";
 import { TALENT_INQUIRY_TO_CONV } from "./today-1";
@@ -32,14 +33,9 @@ function adaptTalentInquiry(row: InquiryBridgeRow, fallbackAgencyName: string): 
   const agencyName = row.agencyName?.trim() || fallbackAgencyName;
   const clientName = row.company ?? row.contact_name;
   const brief = row.message?.trim() || (row.company ? `${row.company} inquiry` : "Direct inquiry");
-  const stage: MsgStage =
-    row.status === "booked" || row.status === "converted"
-      ? "booked"
-      : row.status === "rejected" || row.status === "expired" || row.status === "cancelled"
-      ? "cancelled"
-      : row.status === "approved" || row.status === "offer_pending"
-      ? "hold"
-      : "inquiry";
+  // Shared with ShellCountBubbles awaiting count (TUL-519) — DB inquiry_status
+  // → MsgStage. Never treat MsgStage names as raw statuses.
+  const stage: MsgStage = talentInquiryMsgStageFromStatus(row.status);
   const initials = clientName
     .split(/\s+/)
     .map((w: string) => w[0]?.toUpperCase() ?? "")
@@ -74,9 +70,12 @@ function adaptTalentInquiry(row: InquiryBridgeRow, fallbackAgencyName: string): 
     iAmCoordinator: row.iAmCoordinator === true,
     // TUL-472 — invite Accept keys off the talent participant status.
     participantStatus: row.participantStatus,
+    // Synthetic previews (no real last message yet) are system copy so the
+    // inbox row can translate them. A coordinator sender would stay verbatim
+    // (TUL-478 / TUL-519 cards 379+500).
     lastMessage: {
-      sender:  "coordinator" as const,
-      preview: stage === "booked" ? "Booking confirmed — check logistics tab." : "Awaiting your response.",
+      sender:  "system" as const,
+      preview: stage === "booked" ? "Booking confirmed. Check logistics tab." : "Awaiting your response.",
       ageHrs,
     },
     unreadCount: row.unreadCount,

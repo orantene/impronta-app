@@ -44,4 +44,22 @@ export const TALENT_GAPS_ES_TEXT: Record<string, string> = {
   "Shown to visitors who read your site in that language. Leave empty to show your main language.":
     "Se muestra a quien lee tu sitio en ese idioma. Déjalo vacío para mostrar tu idioma principal.",
   "Shown in the line under your hero buttons.": "Se muestra en la línea bajo los botones de tu portada.",
+  // Today profile checklist chips (TUL-519 / card 146) — labels from buildTalentChecklist.
+  "Originally from": "De origen",
+  "Lives in": "Vive en",
+  "Talent type": "Tipo de talento",
+  "Profile name": "Nombre del perfil",
+  "First name": "Nombre",
+  "Last name": "Apellido",
+  "Phone number": "Teléfono",
+  "Gender": "Género",
+  "Date of birth": "Fecha de nacimiento",
+  "Short bio": "Bio corta",
+  "Portfolio media": "Medios del portafolio",
+  "Required profile fields": "Campos obligatorios del perfil",
+  "Recommended profile fields": "Campos recomendados del perfil",
+  // Shell count bubbles (TUL-519 / card 385) — Attention label + tooltip.
+  "Attention": "Atención",
+  "1 conversation awaits your reply": "1 conversación espera tu respuesta",
+  "{n} conversations await your reply": "{n} conversaciones esperan tu respuesta",
 };
