@@ -12,6 +12,8 @@
  * (`theme`, `assets`, `revisions`, `pageSettings`, `sections`, …).
  */
 
+import { DEFAULT_MARKETING_ORIGIN } from "@/lib/brand/marketing-origin";
+
 export type EditorPanel =
   | "theme"
   | "assets"
@@ -61,17 +63,20 @@ export function resolveWebsiteEditorBaseUrl({
   windowOrigin: string;
   /**
    * Whether the tenant has a primary domain. A workspace WITHOUT one has no host
-   * of its own, so its site is path-hosted at `<app host>/w/<slug>`; the editor
+   * of its own, so its site is path-hosted at `<marketing origin>/w/<slug>`; the editor
    * link used to fall back to the bare app host (`<app host>/<page>?edit=1`),
-   * which is "Page not found" (TUL-372). Omit to keep the old behaviour.
+   * which is "Page not found" (TUL-372). The path host lives on the MARKETING origin. Omit to keep the old behaviour.
    */
   hasPrimaryDomain?: boolean;
 }): string {
   if (windowOrigin && tenantSlug && isLocalWebsiteOrigin(windowOrigin)) {
     return `${windowOrigin}/${tenantSlug}`;
   }
-  if (hasPrimaryDomain === false && tenantSlug && windowOrigin) {
-    return `${windowOrigin}/w/${tenantSlug}`;
+  if (hasPrimaryDomain === false && tenantSlug) {
+    // `/w/<slug>` resolves only on the marketing / hub host (and app on localhost,
+    // handled above): proxy-locale-context.ts canResolvePathBasedTenant. The
+    // admin itself links `tulala.digital/w/<slug>` for such workspaces.
+    return `${DEFAULT_MARKETING_ORIGIN}/w/${tenantSlug}`;
   }
   return liveOrigin;
 }

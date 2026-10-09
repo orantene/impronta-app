@@ -4,16 +4,17 @@ import test from "node:test";
 import { buildSiteShellEditorUrl, resolveWebsiteEditorBaseUrl, resolveWebsiteLiveOrigin } from "./website-editor-links";
 
 // TUL-372: Admin 'Paginas' > Editar opened <app host>/<page>?edit=1 ('Page not found')
-// for a workspace with no primary domain; its site is path-hosted at /w/<slug>.
+// for a workspace with no primary domain; its site is path-hosted at <marketing origin>/w/<slug>
+// (proxy-locale-context canResolvePathBasedTenant: hub + marketing hosts, app only on localhost).
 const APP = "https://app.tulala.digital";
 
-test("a workspace without a primary domain edits at <app host>/w/<slug>", () => {
+test("a workspace without a primary domain edits at <marketing host>/w/<slug>", () => {
   const liveOrigin = resolveWebsiteLiveOrigin(undefined, APP);
-  assert.equal(resolveWebsiteEditorBaseUrl({ liveOrigin, tenantSlug: "luna", windowOrigin: APP, hasPrimaryDomain: false }), `${APP}/w/luna`);
-  assert.equal(resolveWebsiteEditorBaseUrl({ liveOrigin, tenantSlug: "luna", windowOrigin: APP, hasPrimaryDomain: false }), `${APP}/w/luna`);
+  assert.equal(resolveWebsiteEditorBaseUrl({ liveOrigin, tenantSlug: "luna", windowOrigin: APP, hasPrimaryDomain: false }), `https://tulala.digital/w/luna`);
+  assert.equal(resolveWebsiteEditorBaseUrl({ liveOrigin, tenantSlug: "luna", windowOrigin: APP, hasPrimaryDomain: false }), `https://tulala.digital/w/luna`);
   assert.equal(
     buildSiteShellEditorUrl({ editorBaseUrl: resolveWebsiteEditorBaseUrl({ liveOrigin, tenantSlug: "luna", windowOrigin: APP, hasPrimaryDomain: false }) }),
-    `${APP}/w/luna/p/__site_shell__?edit=1&panel=sections`,
+    `https://tulala.digital/w/luna/p/__site_shell__?edit=1&panel=sections`,
   );
 });
 
