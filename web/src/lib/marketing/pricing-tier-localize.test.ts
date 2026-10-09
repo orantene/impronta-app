@@ -65,3 +65,23 @@ test("ladders and teaser render names, prices, cadence and CTAs through marketin
   assert.doesNotMatch(teaser, /Start 14-day trial/);
   assert.doesNotMatch(teaser, /Book a walkthrough/);
 });
+
+test("teaser overlays tagline/highlights from code copy only for Spanish", () => {
+  const teaser = readFileSync(
+    join(process.cwd(), "src/components/marketing/pricing-teaser-section.tsx"),
+    "utf8",
+  );
+  // English must keep product_* tagline/highlights from loadMarketingTiers.
+  assert.match(
+    teaser,
+    /const esCopy = locale\.toLowerCase\(\)\.startsWith\("es"\)/,
+  );
+  assert.match(
+    teaser,
+    /tagline: esCopy \? \(tierCopy\?\.line \?\? t\.tagline\) : t\.tagline/,
+  );
+  assert.match(
+    teaser,
+    /highlights: esCopy && tierCopy \? \[\.\.\.tierCopy\.bullets\] : t\.highlights/,
+  );
+});

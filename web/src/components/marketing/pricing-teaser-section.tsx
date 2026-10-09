@@ -16,9 +16,11 @@ import type { DefaultCurrencyCode } from "@/lib/billing/currencies";
 /**
  * Funnel href + intent per workspace tier slug. Labels come from
  * `getPricingLaddersCopy(locale).workspace[slug].cta` (marketing i18n core)
- * so /es never ships English CTAs. The tier `name` + `tagline` + `price` come
- * from the `product_*` tables via `loadMarketingTiers`; names/prices/cadence
- * are localized at render.
+ * so /es never ships English CTAs. Tier `name` + `price` come from the
+ * `product_*` tables via `loadMarketingTiers`; names/prices/cadence are
+ * localized at render. Tagline + highlights stay on the catalog rows for
+ * English; Spanish overlays `line` / `bullets` from marketing i18n because
+ * the catalog columns are English-only.
  *
  * The DB tier slug for the 4th tier is `hub` (the renamed Network from
  * Phase 1); the funnel URL param keeps `network` for backward-compat
@@ -70,6 +72,8 @@ export async function PricingTeaserSection({
   const locale = await getRequestLocale();
   const copy = getMarketingCopy(locale).pricing;
   const ladders = getPricingLaddersCopy(locale);
+  // Code-copy tagline/bullets only for Spanish — English keeps product_* rows.
+  const esCopy = locale.toLowerCase().startsWith("es");
   // Attach localized CTAs + filter out unknown tiers gracefully.
   const TIERS: Tier[] = rows
     .filter((t) => TIER_CTA[t.key] !== undefined)
@@ -82,8 +86,8 @@ export async function PricingTeaserSection({
         name: localizeTierName(t.name, locale),
         price: salesLed ? ladders.salesLed : localizeTierPrice(t.price, locale),
         cadence: salesLed ? "" : localizeTierCadence(t.cadence, locale),
-        tagline: tierCopy?.line ?? t.tagline,
-        highlights: tierCopy ? [...tierCopy.bullets] : t.highlights,
+        tagline: esCopy ? (tierCopy?.line ?? t.tagline) : t.tagline,
+        highlights: esCopy && tierCopy ? [...tierCopy.bullets] : t.highlights,
         featured: t.featured,
         isOnSale: t.isOnSale && !salesLed,
         canonicalPrice: t.canonicalPrice,
