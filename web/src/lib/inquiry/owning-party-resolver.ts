@@ -41,6 +41,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { logServerError } from "@/lib/server/safe-error";
 import { planAllowsExclusivity as planTierAllowsExclusivity } from "@/lib/access/exclusive-plan-tiers";
 
 export type OwningPartyType = "agency" | "workspace" | "talent";
@@ -331,7 +332,13 @@ export async function moneyOwningParty(
   talentProfileId: string | null,
 ): Promise<OwningParty> {
   if (owning.type !== "workspace" || !talentProfileId) return owning;
-  const { data } = await supabase.from("agencies").select("workspace_type").eq("id", owning.id).maybeSingle();
+  const { data, error } = await supabase.from("agencies").select("workspace_type").eq("id", owning.id).maybeSingle();
+  if (error) {
+    // Never guess: a silent fallback to 'workspace' could make the snapshot and
+    // the collect disagree about who the seller is. Fail the money step instead.
+    logServerError("owning-party-resolver.moneyOwningParty", error);
+    throw new Error(`moneyOwningParty: could not read workspace_type for ${owning.id}`);
+  }
   return (data as { workspace_type?: string | null } | null)?.workspace_type === "talent"
     ? { type: "talent", id: talentProfileId }
     : owning;

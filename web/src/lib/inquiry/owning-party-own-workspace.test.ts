@@ -32,6 +32,16 @@ test("a real business workspace, an agency lane and an already-talent lane are u
   assert.deepEqual(await moneyOwningParty(sbWith("talent"), { type: "workspace", id: "ws" }, null), { type: "workspace", id: "ws" });
 });
 
+test("a failed agencies read throws instead of guessing 'workspace'", async () => {
+  const builder = {
+    select: () => builder,
+    eq: () => builder,
+    maybeSingle: () => Promise.resolve({ data: null, error: { message: "boom" } }),
+  };
+  const sb = { from: () => builder } as unknown as Parameters<typeof moneyOwningParty>[0];
+  await assert.rejects(() => moneyOwningParty(sb, { type: "workspace", id: "ws" }, "t1"), /could not read workspace_type/);
+});
+
 test("the shared resolver still freezes a workspace lane for the talent's own workspace (visibility and coordination unchanged)", async () => {
   const roster = [
     { tenant_id: "ws", talent_profile_id: "t1", is_primary: true, status: "active", exclusivity_status: null, agencies: { id: "ws", plan_tier: "free", workspace_type: "talent" } },
