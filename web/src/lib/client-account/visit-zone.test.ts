@@ -29,3 +29,45 @@ test("the visit detail loads the talent zone and the page renders with it", () =
   const view = readFileSync(join(process.cwd(), "src/components/client-account/ClientAccountArea.tsx"), "utf8");
   assert.match(view, /visitZone\(v\.timeZone, props\.timeZone\)/);
 });
+
+import { buildVisitZoneMap } from "./visit-zone";
+
+test("the visits LIST resolves each inquiry to its booking talent's zone through booking, order line, offering and hours", () => {
+  const zones = buildVisitZoneMap({
+    bookings: [
+      { inquiryId: "i1", orderId: "o1" },
+      { inquiryId: "i2", orderId: "o2" },
+      { inquiryId: "i3", orderId: null },
+      { inquiryId: "i4", orderId: "o4" },
+      { inquiryId: "i5", orderId: "o5" },
+    ],
+    lines: [
+      { orderId: "o1", offeringId: "f1" },
+      { orderId: "o2", offeringId: "f2" },
+      { orderId: "o4", offeringId: "f4" },
+      { orderId: "o5", offeringId: null },
+    ],
+    offerings: [
+      { id: "f1", talentId: "t1" },
+      { id: "f2", talentId: "t2" },
+      { id: "f4", talentId: "t4" },
+    ],
+    hours: [
+      { talentId: "t1", timezone: "America/Mexico_City" },
+      { talentId: "t2", timezone: "Europe/Madrid" },
+      { talentId: "t4", timezone: "Not/AZone" },
+    ],
+  });
+  assert.deepEqual(zones, { i1: "America/Mexico_City", i2: "Europe/Madrid" });
+  // i3 has no order, i4 an invalid zone, i5 no offering: all fall back to the host zone.
+  assert.equal(visitZone(zones["i3"], "America/Cancun"), "America/Cancun");
+  assert.equal(visitZone(zones["i4"], "America/Cancun"), "America/Cancun");
+  assert.equal(visitZone(zones["i1"], "America/Cancun"), "America/Mexico_City");
+});
+
+test("two visits with different talents read in different zones in the list", () => {
+  const src = readFileSync(join(process.cwd(), "src/components/client-account/ClientAccountArea.tsx"), "utf8");
+  assert.match(src, /visitZone\(props\.data\.visits\?\.zones\?\.\[v\.id\], props\.timeZone\)/);
+  const data = readFileSync(join(process.cwd(), "src/lib/client-account/area-data.server.ts"), "utf8");
+  assert.match(data, /loadVisitZones\(tenantId, rows\.map/);
+});
