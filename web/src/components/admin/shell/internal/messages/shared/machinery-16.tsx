@@ -102,6 +102,7 @@ export function ConversationTab({
 }) {
   const { toast, bridgeTalentSelfProfile, bridgeSessionIdentity } = useAdminShell();
   const t = useT();
+  const dashLocale = useDashboardLocale();
   // S0.3 retirement: TeamStrip tap now nudges user to the Lineup tab
   // (parent shell handles tab switching). The drawer is no longer rendered.
   const openLineupTab = () => toast(t("dashboard.adminTabs.composer.openLineupToast"));
@@ -534,7 +535,7 @@ export function ConversationTab({
             threadKey={threadKey}
             placeholder={placeholder}
             onSend={(text) => {
-              appendLocalMessage(stashKey, text);
+              appendLocalMessage(stashKey, text, "you", dashLocale);
               // Synthetic mock conv ids stay local-only for the demo.
               const isRealInquiry = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
               if (isRealInquiry) {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatClockTime, isSpanishLocale } from "@/lib/locale-time";
 import { setInquiryPinned, setInquiryManuallyUnread, setInquiryArchived } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { getInquiryFlagsUserId, getInquiryFlagsTenantSlug } from "../inquiry-flags-tenant-slug";
 import { MOCK_OFFER_FOR_CONV, RICH_OFFER_ALIAS } from "./shared/machinery-10";
@@ -159,12 +160,12 @@ export function useNotesSubscription(): void {
 export type StashedMsg = { id: string; body: string; ts: string; sender: "you" | "workspace" };
 export const __localMsgStash: Record<string, StashedMsg[]> = {};
 export const __msgSubscribers = new Set<() => void>();
-export function appendLocalMessage(threadKey: string, body: string, sender: "you" | "workspace" = "you") {
+export function appendLocalMessage(threadKey: string, body: string, sender: "you" | "workspace" = "you", locale?: string | null) {
   const trimmed = body.trim();
   if (!trimmed) return;
   const arr = __localMsgStash[threadKey] ?? [];
-  const stamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  arr.push({ id: `local-${threadKey}-${arr.length + 1}`, body: trimmed, ts: `Just now · ${stamp}`, sender });
+  const stamp = formatClockTime(new Date(), locale);
+  arr.push({ id: `local-${threadKey}-${arr.length + 1}`, body: trimmed, ts: `${isSpanishLocale(locale) ? "Ahora" : "Just now"} · ${stamp}`, sender });
   __localMsgStash[threadKey] = arr;
   __msgSubscribers.forEach(fn => fn());
 }

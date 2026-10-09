@@ -1,6 +1,10 @@
 import "server-only";
 
 import { ORDER_MONEY_STATUSES, collectedByOrder } from "@/lib/orders/order-principal";
+import {
+  failedRefundAttentionNote,
+  isFailedRefundAttention,
+} from "@/lib/payments/failed-refund-settlement";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import type { TakingsSourceRow, DrawerSessionRow, OwedSourceRow } from "@/lib/payments/activity-shape";
@@ -191,6 +195,13 @@ export type RefundRow = {
   bookingId: string | null;
   /** The transaction this refund reverses — the trace back to the original payment. */
   refundOfTransactionId: string | null;
+  /**
+   * True when Stripe later reported refund.failed / canceled for this row
+   * (`metadata.needs_attention = refund_failed`). Status stays `refunded`.
+   */
+  settlementFailed: boolean;
+  /** Actionable note from the failed-settlement stamp, when present. */
+  settlementFailedNote: string | null;
 };
 
 export type RefundsLoad = { ok: true; rows: RefundRow[] } | { ok: false };
@@ -209,7 +220,9 @@ export async function loadTenantRefunds(tenantId: string, opts: { limit?: number
   const limit = Math.min(Math.max(opts.limit ?? 200, 1), 500);
   const { data, error } = await admin
     .from("booking_transactions")
-    .select("id, gross_amount_cents, currency, provider, refunded_at, order_id, booking_id, refund_of_transaction_id")
+    .select(
+      "id, gross_amount_cents, currency, provider, refunded_at, order_id, booking_id, refund_of_transaction_id, metadata",
+    )
     .eq("source_tenant_id", tenantId)
     .eq("status", REFUNDED)
     .order("refunded_at", { ascending: false })
@@ -228,16 +241,21 @@ export async function loadTenantRefunds(tenantId: string, opts: { limit?: number
       order_id: string | null;
       booking_id: string | null;
       refund_of_transaction_id: string | null;
+      metadata: unknown;
     };
+    const settlementFailed = isFailedRefundAttention(row.metadata);
     return {
       id: row.id,
       grossAmountCents: num(row.gross_amount_cents),
-      currency: row.currency ?? "USD",
+      // Currency is required on money rows; never invent USD when missing.
+      currency: (row.currency ?? "").trim().toUpperCase(),
       provider: row.provider ?? "manual",
       refundedAt: row.refunded_at,
       orderId: row.order_id,
       bookingId: row.booking_id,
       refundOfTransactionId: row.refund_of_transaction_id,
+      settlementFailed,
+      settlementFailedNote: settlementFailed ? failedRefundAttentionNote(row.metadata) : null,
     };
   });
   return { ok: true, rows };

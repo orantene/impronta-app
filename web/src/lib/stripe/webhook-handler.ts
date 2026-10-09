@@ -35,15 +35,13 @@
  * outlives a failed attempt would make retries no-ops and silently lose paid events).
  */
 
-import { NextResponse } from "next/server";
 import {
   classifyStripeEvent,
   isTalentSubscription,
   WORKSPACE_PLAN_KEYS,
   type StripeAction,
 } from "@/lib/stripe/webhook-routing";
-import { getStripeFor, isStripeConfigured, type StripeAccountKey } from "@/lib/stripe/client";
-import { eventModeMismatch } from "@/lib/stripe/key-mode";
+import { type StripeAccountKey } from "@/lib/stripe/client";
 import { syncStripeSubscriptionToDb } from "@/lib/stripe/workspace-billing";
 import { syncTalentSubscriptionToDb } from "@/lib/stripe/talent-billing";
 import {
@@ -65,21 +63,16 @@ import { closeCheckoutSession, settleCheckoutPayment } from "@/lib/stripe/webhoo
 import { emitBookingConfirmation } from "@/lib/payments/booking-confirmation";
 import { releaseHeldPayouts, syncBookingPayoutLifecycle } from "@/lib/payments/booking-payouts-ledger";
 import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refunds";
-import { formatFailedRefundMoney } from "@/lib/payments/failed-refund-attention-note";
+import { handleFailedRefundWebhookAction } from "@/lib/payments/failed-refund-settlement";
 import { recordProviderPayout } from "@/lib/payments/provider-payouts";
 import { recordProviderDispute } from "@/lib/payments/provider-disputes";
 import { recordProviderInvoice } from "@/lib/payments/provider-invoices";
 import { notifyTrialWillEnd } from "@/lib/notifications/producers/trial-notify";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { reportLaneMismatch } from "@/lib/stripe/webhook-lane-mismatch";
 import { recordDiscountRedemption } from "@/lib/billing/record-discount-redemption";
 import { improntaLog } from "@/lib/server/structured-log";
 import { notifyNonBookingDispute } from "@/lib/payments/dispute-notify";
-import {
-  claimStripeEvent,
-  releaseStripeEventClaim,
-} from "@/lib/stripe/event-idempotency";
 import type Stripe from "stripe";
 
 // ─── Error classification ─────────────────────────────────────────────────────
@@ -594,33 +587,10 @@ export async function processStripeEvent(
       await applyConnectTransferSettlement(action);
       return;
 
-    case "refund_settlement": {
-      // The refund did NOT reach the customer. Stripe has returned the money to
-      // the PLATFORM balance, while our records already say this booking was
-      // refunded and its payouts were reversed.
-      //
-      // This deliberately does NOT auto-revert that state. Un-reversing would
-      // move real money on the strength of a rare event no human has looked at,
-      // and Stripe's own guidance is that a failed refund needs an alternative
-      // arrangement with the customer rather than an automatic retry. The
-      // correct action is a loud, actionable alert; a person decides how the
-      // customer actually gets paid.
-      //
-      // Alerting is therefore the whole job here, and it must carry every id
-      // needed to act without going digging.
-      logServerError(
-        "stripe-webhook.refund.failed",
-        new Error(
-          `Refund ${action.refundId} ${action.status.toUpperCase()} for ` +
-            `${formatFailedRefundMoney(action.amount, action.currency)} ` +
-            `(charge=${action.chargeId ?? "unknown"}, payment_intent=${action.paymentIntentId ?? "unknown"}, ` +
-            `reason=${action.failureReason ?? "unspecified"}). ` +
-            `THE CUSTOMER HAS NOT BEEN PAID and the funds are back in the platform balance. ` +
-            `Our records still show this payment as refunded — arrange an alternative refund manually.`,
-        ),
-      );
+    case "refund_settlement":
+      // Failed refund: no auto-revert. Stamp admin visibility + loud log (TUL-144).
+      await handleFailedRefundWebhookAction(action);
       return;
-    }
 
     case "invoice_payment_succeeded": {
       // Record before the re-sync, so the register is complete even if the
@@ -671,128 +641,4 @@ export async function processStripeEvent(
     case "ignore":
       return;
   }
-}
-
-// ─── Event-level idempotency ──────────────────────────────────────────────────
-
-/**
- * Returns `true` when this event.id was already processed (caller should
- * short-circuit with 200). Returns `false` when the event was just claimed.
- *
- * Insert-on-claim: INSERT first; ON CONFLICT (23505) means another delivery
- * already won. The handler runs only when we successfully claimed the row.
- */
-export async function claimEventForProcessing(
-  event: Stripe.Event,
-  account: StripeAccountKey = "us",
-): Promise<boolean> {
-  return claimStripeEvent({
-    lane: account === "mx" ? "platform_mx" : "platform",
-    eventId: event.id,
-    eventType: event.type,
-    livemode: event.livemode ?? null,
-    apiVersion: event.api_version ?? null,
-  });
-}
-
-// `interpretClaimError` (the pure 23505→duplicate classifier) lives in
-// `webhook-routing.ts` and is imported above — it is unit-tested there.
-
-/**
- * Release a claim so a transient failure can be retried. Without this, the
- * claim row outlives the failed attempt and Stripe's retry short-circuits as
- * "already processed" — silently dropping a paid event.
- */
-async function releaseEventClaim(eventId: string, account: StripeAccountKey = "us"): Promise<void> {
-  return releaseStripeEventClaim({ lane: account === "mx" ? "platform_mx" : "platform", eventId });
-}
-
-// ─── HTTP entry ────────────────────────────────────────────────────────────────
-
-/**
- * The one webhook entry. Both /api/stripe/webhook and /api/webhooks/stripe are
- * thin shims over this, so EITHER configured URL behaves identically and shares
- * one idempotency ledger.
- */
-export async function handleStripeWebhook(
-  req: Request,
-  opts: { account?: StripeAccountKey } = {},
-): Promise<NextResponse> {
-  const account: StripeAccountKey = opts.account ?? "us";
-  const stripe = getStripeFor(account);
-  if (account === "us" ? !isStripeConfigured() : !stripe) {
-    return NextResponse.json({ error: "Stripe not configured." }, { status: 503 });
-  }
-  // Stripe splits deliveries across TWO endpoint types, each with its own
-  // signing secret: account (payment_intent.*, charge.*, …) and CONNECT
-  // (account.updated, capability.updated, account.external_account.*).
-  // Connected-account events are what tell us a talent finished onboarding, which
-  // is what releases their held payouts. Verified live 2026-08-09: with only the
-  // account endpoint registered, a Mexican talent completed onboarding, Stripe
-  // emitted account.updated on her account, we never received it, and her $80
-  // stayed held until the next daily cron. Accept either secret so ONE URL can
-  // serve both endpoints.
-  const webhookSecrets = (account === "mx"
-    ? [process.env.STRIPE_MX_WEBHOOK_SECRET, process.env.STRIPE_MX_WEBHOOK_SECRET_CONNECT]
-    : [process.env.STRIPE_WEBHOOK_SECRET, process.env.STRIPE_WEBHOOK_SECRET_CONNECT]
-  ).filter((s): s is string => !!s && s.trim().length > 0);
-  if (webhookSecrets.length === 0) {
-    logServerError(
-      "stripe-webhook",
-      account === "mx" ? "STRIPE_MX_WEBHOOK_SECRET not set" : "STRIPE_WEBHOOK_SECRET not set",
-    );
-    return NextResponse.json({ error: "Webhook secret not configured." }, { status: 503 });
-  }
-
-  const body = await req.text();
-  const signature = req.headers.get("stripe-signature");
-  if (!signature) {
-    return NextResponse.json({ error: "Missing stripe-signature header." }, { status: 400 });
-  }
-
-  let event: Stripe.Event | null = null;
-  let lastVerifyError: unknown = null;
-  for (const secret of webhookSecrets) {
-    try {
-      event = await stripe!.webhooks.constructEventAsync(body, signature, secret);
-      break;
-    } catch (err) {
-      lastVerifyError = err;
-    }
-  }
-  if (!event) {
-    logServerError("stripe-webhook.verify", lastVerifyError);
-    await reportLaneMismatch({ expectedLane: account, body, signature, log: logServerError, verify: (b, sg, sec) => stripe!.webhooks.constructEventAsync(b, sg, sec) });
-    return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
-  }
-
-  // TUL-143: a test event on a live key (or vice versa) is acknowledged and
-  // ignored so Stripe does not retry it. No secrets are logged.
-  const modeKey = account === "mx" ? process.env.STRIPE_MX_SECRET_KEY : process.env.STRIPE_SECRET_KEY;
-  if (eventModeMismatch(event.livemode, modeKey)) {
-    logServerError("stripe-webhook.livemode-mismatch", `ignored ${event.id} ${event.type} lane=${account} livemode=${event.livemode}`);
-    return NextResponse.json({ received: true, ignored: "livemode_mismatch" });
-  }
-
-  // Idempotency: claim the event id, short-circuit duplicates.
-  const alreadyProcessed = await claimEventForProcessing(event, account);
-  if (alreadyProcessed) {
-    return NextResponse.json({ received: true, idempotent: true });
-  }
-
-  try {
-    await processStripeEvent(event, stripe!, account);
-  } catch (err) {
-    logServerError(`stripe-webhook.${event.type}`, err);
-    // Release the claim so the retry actually re-runs this handler. Both
-    // transient and unexpected failures are treated as retryable — better to
-    // retry an unknown failure than silently lose a paid event.
-    await releaseEventClaim(event.id, account);
-    return NextResponse.json(
-      { error: "Processing failure; will retry." },
-      { status: 503 },
-    );
-  }
-
-  return NextResponse.json({ received: true });
 }

@@ -13910,6 +13910,8 @@
       "paymentWord": "Payment",
       "refundPending": "Pending",
       "refundCompleted": "Completed",
+      "refundFailed": "Refund failed",
+      "refundFailedDetail": "Customer was not paid. Arrange an alternative refund.",
       "refundManual": "Recorded by hand",
       "attemptsTitle": "Unknown attempts",
       "attemptsSub": "Card collections started and never resolved either way. The provider is asked again; nothing is charged twice.",
