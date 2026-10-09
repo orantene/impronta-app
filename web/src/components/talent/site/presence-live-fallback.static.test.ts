@@ -20,3 +20,24 @@ test("live fallback mounts when Maison bootstrap settles off with a forced scree
   assert.match(fallback, /ManagerThemeGallery/);
   assert.match(fallback, /AppsLibraryScreen/);
 });
+
+test("TUL-325: manager gallery applySuccess wires Publish CTA", () => {
+  const mgr = read("TalentMaxSiteManager.tsx");
+  assert.match(mgr, /onPublish=\{handlePublish\}/);
+  const gallery = read("theme-gallery/ThemeGallery.tsx");
+  assert.match(gallery, /data-theme-gallery-apply-success/);
+  assert.match(gallery, /data-theme-gallery-publish/);
+  assert.match(gallery, /data-theme-gallery-unpublished/);
+  const i18n = read("theme-gallery/theme-gallery-i18n.ts");
+  assert.match(i18n, /publishCta: "Publish site"/);
+  assert.match(i18n, /publishCta: "Publicar sitio"/);
+  assert.match(i18n, /unpublishedPill: "Unpublished changes"/);
+  assert.doesNotMatch(i18n, /—/);
+  const fallback = read("PresenceLiveFallback.tsx");
+  assert.match(fallback, /onPublish=\{handlePublish\}/);
+  assert.match(fallback, /publishMaxSiteAction/);
+  const card = read("maison-setup/MyWebsiteCard.tsx");
+  assert.match(card, /maison-live-publish/);
+  assert.match(card, /publishMaxSiteAction/);
+  assert.match(card, /Publish site/);
+});
