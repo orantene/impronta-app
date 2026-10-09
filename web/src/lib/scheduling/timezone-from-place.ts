@@ -26,6 +26,8 @@ const MULTI: Record<string, { rules: readonly Rule[]; fallback: string }> = {
       { match: ["sinaloa", "mazatlan", "culiacan", "nayarit", "tepic"], tz: "America/Mazatlan" },
       { match: ["chihuahua"], tz: "America/Chihuahua" },
       { match: ["ciudad juarez"], tz: "America/Ciudad_Juarez" },
+      // Central Mexico cities that must not fall through a coastal rule.
+      { match: ["michoacan", "morelia", "guadalajara", "jalisco", "monterrey", "nuevo leon", "puebla", "oaxaca", "queretaro", "guanajuato"], tz: "America/Mexico_City" },
     ],
     fallback: "America/Mexico_City",
   },
@@ -34,7 +36,7 @@ const MULTI: Record<string, { rules: readonly Rule[]; fallback: string }> = {
       { match: ["california", ", ca", "los angeles", "san francisco", "san diego", "seattle", "oregon", "portland", "nevada", "las vegas"], tz: "America/Los_Angeles" },
       { match: ["arizona", "phoenix"], tz: "America/Phoenix" },
       { match: ["colorado", "denver", "utah", "salt lake", "new mexico", "montana", "idaho", "wyoming"], tz: "America/Denver" },
-      { match: ["texas", ", tx", "illinois", "chicago", "minnesota", "louisiana", "new orleans", "missouri", "tennessee", "nashville", "wisconsin", "iowa", "kansas", "oklahoma", "alabama", "mississippi", "arkansas", "nebraska"], tz: "America/Chicago" },
+      { match: ["texas", ", tx", "houston", "austin", "dallas", "san antonio", "illinois", "chicago", "minnesota", "louisiana", "new orleans", "missouri", "tennessee", "nashville", "wisconsin", "iowa", "kansas", "oklahoma", "alabama", "mississippi", "arkansas", "nebraska"], tz: "America/Chicago" },
       { match: ["hawaii", "honolulu"], tz: "Pacific/Honolulu" },
       { match: ["alaska", "anchorage"], tz: "America/Anchorage" },
     ],
@@ -127,8 +129,11 @@ export function timezoneFromPlaceText(text: string | null | undefined): string |
   if (SINGLE[country]) return SINGLE[country]!;
   // No country segment: try a known city keyword in any multi-zone country.
   if (parts.length === 1) {
-    if (/\b(cdmx|ciudad de mexico|mexico city|guadalajara|monterrey|puebla|oaxaca|merida|queretaro)\b/.test(full)) {
+    if (/\b(cdmx|ciudad de mexico|mexico city|guadalajara|monterrey|puebla|oaxaca|merida|queretaro|morelia)\b/.test(full)) {
       return "America/Mexico_City";
+    }
+    if (/\b(houston|austin|dallas|san antonio|chicago)\b/.test(full)) {
+      return "America/Chicago";
     }
     for (const { rules } of Object.values(MULTI)) {
       for (const rule of rules) if (rule.match.some((k) => !k.startsWith(",") && full === k)) return rule.tz;
