@@ -121,6 +121,10 @@
       "schedule": "0 7 * * *"
     },
     {
+      "path": "/api/cron/domain-renewal",
+      "schedule": "30 6 * * *"
+    },
+    {
       "path": "/api/cron/skill-metrics-refresh",
       "schedule": "0 4 * * *"
     },

@@ -20074,6 +20074,14 @@
       "walletBody2": "Para usarlo localmente, puedes convertir tus USDC a pesos o a tu moneda local cuando quieras, con cualquier servicio que lo permita en tu país.",
       "walletBody3": "Vincula solo una dirección que sea tuya. Revísala bien antes de guardar.",
       "checking": "Verificando si puedes cobrar en USDC..."
+    },
+    "domainRenewal": {
+      "chargedTitle": "Renovación de dominio pagada",
+      "chargedBody": "Cobramos {amount} a tu tarjeta guardada para renovar {domain}. Es nuestro costo, sin margen. Se renueva el {date}.",
+      "payTitle": "Paga para conservar {domain}",
+      "payBody": "{domain} se renueva el {date}. La renovación cuesta {amount}, nuestro costo sin margen. Usa el enlace en las próximas 24 horas; si hace falta te enviamos otro. Si no se paga una semana antes, apagamos la renovación automática y el dominio vencerá.",
+      "autorenewOffTitle": "Renovación automática apagada para {domain}",
+      "autorenewOffBody": "No recibimos el pago de la renovación, así que {domain} vence el {date} y tu sitio dejará de cargar ahí. Paga antes de esa fecha y volvemos a encender la renovación automática."
     }
   },
   "admin": {

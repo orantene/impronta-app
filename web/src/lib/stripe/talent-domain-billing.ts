@@ -16,6 +16,7 @@ import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { ensureCustomDomainOnVercelProject } from "@/lib/saas/custom-domain-actions";
+import { recordRegistrarSnapshot } from "@/lib/stripe/talent-domain-renewal";
 import {
   buyDomain,
   REGISTRAR_AUTO_RENEW_POLICY,
@@ -376,6 +377,9 @@ export async function fulfillTalentDomainPurchase(opts: {
       return { ok: false, error: "Could not save domain row after purchase." };
     }
   }
+
+  // Start the renewal clock: the registrar's expiry + renewal price land on the row (shared with the D4 cron).
+  await recordRegistrarSnapshot(sb, { talentProfileId: opts.talentProfileId, domain });
 
   return { ok: true, data: { orderId: buy.orderId } };
 }

@@ -8516,6 +8516,14 @@
       "walletBody2": "Pour l'utiliser localement, vous pouvez convertir vos USDC en monnaie locale quand vous voulez, avec tout service qui le permet dans votre pays.",
       "walletBody3": "Liez uniquement une adresse qui vous appartient. Vérifiez-la avant d'enregistrer.",
       "checking": "Vérification de la disponibilité des paiements en USDC..."
+    },
+    "domainRenewal": {
+      "chargedTitle": "Renouvellement du domaine payé",
+      "chargedBody": "Nous avons débité {amount} de votre carte enregistrée pour renouveler {domain}. C'est notre coût, sans marge. Il se renouvelle le {date}.",
+      "payTitle": "Payez pour garder {domain}",
+      "payBody": "{domain} se renouvelle le {date}. Le renouvellement coûte {amount}, notre coût sans marge. Utilisez le lien dans les 24 heures ; nous en enverrons un autre si besoin. S'il n'est pas payé une semaine avant, nous désactivons le renouvellement automatique et le domaine expirera.",
+      "autorenewOffTitle": "Renouvellement automatique désactivé pour {domain}",
+      "autorenewOffBody": "Nous n'avons pas reçu le paiement du renouvellement : {domain} expirera le {date} et votre site ne s'affichera plus. Payez avant cette date et nous réactivons le renouvellement automatique."
     }
   },
   "client": {
