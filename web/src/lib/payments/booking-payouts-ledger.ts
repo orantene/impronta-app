@@ -325,7 +325,7 @@ export async function releaseHeldPayouts(
         metadata: { released: "1" },
       });
       if (attemptRes.kind === "unverified") {
-        outcomes.push({ legId: row.id, party: row.party, amountCents: row.amount_cents, result: "still_held", detail: "could not verify earlier transfers; not retried" });
+        outcomes.push({ legId: row.id, party: row.party, amountCents: row.amount_cents, result: "still_held", detail: "not retried: earlier transfers unverified or flagged for review" });
         continue;
       }
       if (attemptRes.kind === "failed") {

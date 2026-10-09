@@ -12,11 +12,18 @@
  *    succeed is replayed, not repeated.
  *  - Before any new-key attempt, the transfers for that booking are listed; if one already exists for this leg
  *    no new transfer is made, and if the list cannot be read the attempt is skipped (never a blind retry).
+ *  - A transfer that was REVERSED (fully or partly, a refund clawback) still counts as existing: the leg is
+ *    never paid again automatically. It is flagged `needs_attention:transfer_reversed` for a person to decide.
+ *  - Every transfer path wrote `transfer_group = booking_<id>` and metadata booking_id / participant_id / party since
+ *    the first implementation (Money P3, 2026-05-29), so no legacy fallback match is needed.
  */
 import type Stripe from "stripe";
 
 
 const KEY_NOTE = /\[key_a:(\d+)\]/;
+
+/** Stamped on a leg whose Stripe transfer was (even partly) reversed: it is never paid again automatically. */
+export const REVERSED_NOTE = "needs_attention:transfer_reversed";
 
 /** The key attempt a leg is on, from its last_error note (0 when it has none). */
 export function keyAttemptOf(lastError: string | null | undefined): number {
@@ -43,7 +50,7 @@ export function failureNote(message: string, attempt: number, deterministic: boo
 export type LegTransferResult =
   | { kind: "transferred"; transferId: string }
   | { kind: "existing"; transferId: string }
-  | { kind: "unverified" }
+  | { kind: "unverified" } // the list could not be read, or the leg was flagged reversed: not retried
   | { kind: "failed"; message: string; note: string };
 
 export async function attemptLegTransfer(
@@ -61,12 +68,18 @@ export async function attemptLegTransfer(
     metadata?: Record<string, string>;
   },
 ): Promise<LegTransferResult> {
+  // Flagged earlier: a person decides, not the cron.
+  if ((leg.lastError ?? "").includes(REVERSED_NOTE)) return { kind: "unverified" };
   const attempt = keyAttemptOf(leg.lastError);
   if (attempt > 0) {
     // A new key could duplicate a transfer made under an older key: look first.
     try {
       const listed = await stripe.transfers.list({ transfer_group: `booking_${leg.bookingId}`, limit: 100 });
-      const found = listed.data.find((t) => t.metadata?.participant_id === leg.participantId && t.metadata?.party === leg.party && !t.reversed);
+      const found = listed.data.find((t) => t.metadata?.participant_id === leg.participantId && t.metadata?.party === leg.party);
+      if (found && (found.reversed || (found.amount_reversed ?? 0) > 0)) {
+        const message = `a transfer for this leg (${found.id}) was reversed on Stripe; not paid again`;
+        return { kind: "failed", message, note: `${message} [${REVERSED_NOTE}]` };
+      }
       if (found) return { kind: "existing", transferId: found.id };
     } catch {
       return { kind: "unverified" };

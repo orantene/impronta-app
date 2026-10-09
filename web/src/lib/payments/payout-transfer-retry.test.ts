@@ -6,14 +6,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { attemptLegTransfer, failureNote, isDeterministicTransferError, keyAttemptOf, keyForAttempt } from "./payout-transfer-retry";
+import { REVERSED_NOTE, attemptLegTransfer, failureNote, isDeterministicTransferError, keyAttemptOf, keyForAttempt } from "./payout-transfer-retry";
 import { legLastError } from "./transfers";
 
 const BASE = "transfer_bk_p1_talent";
 const LEG = { bookingId: "bk", participantId: "p1", party: "talent", baseKey: BASE, amountCents: 94_896, currency: "mxn", destination: "acct_1" };
 
 type Created = { params: Record<string, unknown>; key?: string };
-function fakeStripe(opts: { existing?: Array<{ id: string; metadata: Record<string, string>; reversed?: boolean }>; createError?: unknown; listError?: boolean }) {
+function fakeStripe(opts: { existing?: Array<{ id: string; metadata: Record<string, string>; reversed?: boolean; amount_reversed?: number }>; createError?: unknown; listError?: boolean }) {
   const created: Created[] = [];
   let listed = 0;
   const stripe = {
@@ -99,13 +99,38 @@ test("an existing transfer for the leg found before a new-key attempt: no new tr
   assert.equal(f.created.length, 0);
 });
 
-test("a reversed or other party's transfer does not count as the leg's; an unreadable list skips the attempt", async () => {
+test("a REVERSED transfer still counts as the leg's: never paid again, flagged for a person", async () => {
   const note = failureNote("insufficient", 0, true);
-  const other = fakeStripe({ existing: [{ id: "tr_x", metadata: { participant_id: "p1", party: "workspace" } }, { id: "tr_r", metadata: { participant_id: "p1", party: "talent" }, reversed: true }] });
+  for (const reversed of [{ reversed: true }, { amount_reversed: 10_000 }]) {
+    const f = fakeStripe({ existing: [{ id: "tr_rev", metadata: { participant_id: "p1", party: "talent" }, ...reversed }] });
+    const res = await attemptLegTransfer(f.stripe, { ...LEG, lastError: note });
+    assert.equal(res.kind, "failed");
+    assert.match((res as { note: string }).note, new RegExp(REVERSED_NOTE));
+    assert.equal(f.created.length, 0, "no new transfer after a clawback");
+  }
+});
+
+test("a leg already flagged reversed is not retried by the cron", async () => {
+  const f = fakeStripe({});
+  const res = await attemptLegTransfer(f.stripe, { ...LEG, lastError: `a transfer for this leg (tr_rev) was reversed [${REVERSED_NOTE}]` });
+  assert.deepEqual(res, { kind: "unverified" });
+  assert.equal(f.created.length, 0);
+  assert.equal(f.listedCount(), 0);
+});
+
+test("another party's transfer is not this leg's; an unreadable list skips the attempt", async () => {
+  const note = failureNote("insufficient", 0, true);
+  const other = fakeStripe({ existing: [{ id: "tr_x", metadata: { participant_id: "p1", party: "workspace" } }] });
   assert.equal((await attemptLegTransfer(other.stripe, { ...LEG, lastError: note })).kind, "transferred");
   const down = fakeStripe({ listError: true });
   assert.deepEqual(await attemptLegTransfer(down.stripe, { ...LEG, lastError: note }), { kind: "unverified" });
   assert.equal(down.created.length, 0);
+});
+
+test("a transfer written by the FIRST implementation (Money P3: group + booking/participant/party metadata, no 'released') is found", async () => {
+  const legacy = { id: "tr_p3", metadata: { booking_id: "bk", participant_id: "p1", party: "talent" } };
+  const res = await attemptLegTransfer(fakeStripe({ existing: [legacy] }).stripe, { ...LEG, lastError: failureNote("x", 0, true) });
+  assert.deepEqual(res, { kind: "existing", transferId: "tr_p3" });
 });
 
 test("the initial fan-out marks a deterministic failure the same way; an ambiguous one keeps its plain text", () => {
