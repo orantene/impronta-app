@@ -32,7 +32,7 @@ import { resolveDockViewerIdentityTier } from "@/lib/client-account/dock-viewer-
 import { loadGuestDockFlags } from "@/lib/inquiry/guest-dock-flags";
 import { TalentProfileChatLauncher } from "./TalentProfileChatLauncher";
 import { categoryChipLabel } from "./category-chip-label";
-import { guestDockServicePriceLabel } from "./guest-dock-service-price";
+import { guestDockServicePriceLabel, guestDockServiceUsdLabel } from "./guest-dock-service-price";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { loadUsdRatesForSitePrices } from "@/lib/talent-site/server/vanity-usd-rates";
 import { loadTalentPlanKey, loadTalentSellingDefaults } from "@/lib/talent-site/server/load-max-site";
@@ -284,6 +284,12 @@ export async function TalentProfileChatLauncherMount({
               amountCents,
               currency: o.currency,
               priceLabel: guestDockServicePriceLabel(
+                amountCents,
+                o.currency,
+                usdRates,
+                locale ?? "en",
+              ),
+              usdLabel: guestDockServiceUsdLabel(
                 amountCents,
                 o.currency,
                 usdRates,

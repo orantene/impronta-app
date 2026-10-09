@@ -91,23 +91,31 @@ export function ServicesCatalogStaticFallback({
                   </span>
                   <span className="site-builder-node--services-catalog-buy">
                     <span className="site-builder-node--services-catalog-price">
-                      {onRequest || quote || minCents == null ? (
+                      {onRequest || quote || minCents == null || minCents <= 0 ? (
                         <strong>
-                          {es
-                            ? onRequest
+                          {onRequest
+                            ? es
                               ? "Bajo consulta"
-                              : "Cotización a pedido"
-                            : onRequest
-                              ? "On request"
-                              : "Quote on request"}
+                              : "On request"
+                            : minCents != null && minCents <= 0 && !quote
+                              ? es
+                                ? "Consultar"
+                                : "Ask"
+                              : es
+                                ? "Cotización a pedido"
+                                : "Quote on request"}
                         </strong>
                       ) : (
                         <>
-                          {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
+                          {ladder ? <small>{es ? "desde" : "from"}</small> : null}
                           <strong>{formatMoney(minCents, item.currency, locale)}</strong>
                         </>
                       )}
-                      {usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
+                      {usd ? (
+                        <span className="site-builder-node--services-catalog-usd" data-usd-equivalent>
+                          {usd}
+                        </span>
+                      ) : null}
                     </span>
                     {item.publicCtaHidden ? null : (
                       <span className="site-builder-node--services-catalog-cta" aria-hidden>

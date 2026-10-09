@@ -39,29 +39,25 @@ function titleEndsWithWord(title: string, word: string): boolean {
 }
 
 /**
- * Chip money line for Hablar empty-home. Mockup shows "Soft Gel 500 MXN"
- * (amount + code, no currency symbol). Other currencies keep Intl formatting.
+ * Chip money line for Hablar empty-home. TUL-516: one public format `$500 MXN`
+ * (symbol + amount + code, with thousands grouping).
  */
 export function offeringChipPriceLabel(o: ChatOffering, locale: string): string {
-  if (o.amountCents == null) {
+  if (o.amountCents == null || o.amountCents <= 0) {
     const label = pickLocale(locale, { en: "quote", es: "cotización" });
     // Avoid doubling the word: the synthetic default's title IS this word
     // ("Custom quote"), and a real quote-priced offering's title may already
     // end in it too (e.g. "Wedding Quote" with on-request pricing).
-    if (o.offeringId === SYNTHETIC_CUSTOM_QUOTE_OFFERING_ID || titleEndsWithWord(o.title, label)) {
+    if (
+      o.amountCents == null &&
+      (o.offeringId === SYNTHETIC_CUSTOM_QUOTE_OFFERING_ID || titleEndsWithWord(o.title, label))
+    ) {
       return "";
     }
+    if (o.amountCents != null && o.amountCents <= 0) {
+      return pickLocale(locale, { en: "Ask", es: "Consultar" });
+    }
     return label;
-  }
-  const cur = (o.currency || "USD").trim().toUpperCase() || "USD";
-  if (cur === "MXN") {
-    const amount = o.amountCents / 100;
-    const whole = Number.isInteger(amount);
-    const shown = amount.toLocaleString("en-US", {
-      minimumFractionDigits: whole ? 0 : 2,
-      maximumFractionDigits: whole ? 0 : 2,
-    });
-    return `${shown} MXN`;
   }
   return formatOfferingPrice(o.amountCents, o.currency, locale);
 }

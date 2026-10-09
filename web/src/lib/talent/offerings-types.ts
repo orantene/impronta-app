@@ -18,6 +18,10 @@ import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { IDENTITY_REASONS, isIdentityReason, type IdentityReason } from "@/lib/orders/identity-requirement";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import {
+  publicCatalogPriceLabel,
+  publicConsultLabel,
+} from "@/lib/talent/public-price-format";
+import {
   SERVICE_PRICING_SUFFIX,
   SERVICE_PRICING_SUFFIX_ES,
   SERVICE_PRICING_TYPES,
@@ -534,20 +538,37 @@ export function formatOfferingPrice(amountCents: number, currency: string, local
   return formatMoney(amountCents, currency, locale);
 }
 
-/** The public price line: "$120 / session" · "from $450" · "Quote on request" · "On request". */
+/** The public price line: "$120 MXN / session" · "desde $450 MXN" · "Quote on request" · "On request". */
 export function offeringPriceLabel(
-  o: Pick<TalentOffering, "priceType" | "priceDisplay" | "amountCents" | "currency" | "visibility">,
+  o: Pick<
+    TalentOffering,
+    "priceType" | "priceDisplay" | "amountCents" | "currency" | "visibility" | "variants"
+  >,
   locale: string,
 ): string {
-  const es = locale === "es";
+  const es = locale === "es" || locale.toLowerCase().startsWith("es");
   if (o.visibility === "on_request") return es ? "Bajo consulta" : "On request";
   if (o.priceDisplay === "quote" || o.priceType === "custom" || o.amountCents == null) {
     return es ? "Cotización a pedido" : "Quote on request";
   }
-  const price = formatOfferingPrice(o.amountCents, o.currency, locale);
+  // TUL-516: $0 → Consultar; ladder / multi-variant → min cents (hero = card).
+  if (o.amountCents <= 0) return publicConsultLabel(locale);
+  const minLabel = publicCatalogPriceLabel(
+    {
+      visibility: o.visibility,
+      priceDisplay: o.priceDisplay,
+      priceType: o.priceType,
+      amountCents: o.amountCents,
+      currency: o.currency,
+      variants: o.variants,
+      attributes: {},
+    },
+    locale,
+  );
+  // Unit suffix only on exact (non-ladder) amounts that already print as money.
+  if (o.priceDisplay === "from" || (o.variants ?? []).length > 1) return minLabel;
   const suffix = (es ? SERVICE_PRICING_SUFFIX_ES : SERVICE_PRICING_SUFFIX)[o.priceType];
-  const core = suffix ? `${price} ${suffix}` : price;
-  return o.priceDisplay === "from" ? (es ? `desde ${core}` : `from ${core}`) : core;
+  return suffix ? `${minLabel} ${suffix}` : minLabel;
 }
 
 /** Blank offering for the editor's Add flow (smart defaults do the hiding). */

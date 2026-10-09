@@ -49,22 +49,10 @@
     "imageKey": "th16-gridline-alex",
     "imageAlt": "Alex Treviño",
     "facts": [
-      {
-        "label": "Respuesta",
-        "value": "24 h"
-      },
-      {
-        "label": "Garantía",
-        "value": "6 meses"
-      },
-      {
-        "label": "Precio",
-        "value": "Antes de empezar"
-      },
-      {
-        "label": "Revisión",
-        "value": "$550"
-      }
+      { "label": "Respuesta", "value": "24 h" },
+      { "label": "Garantía", "value": "6 meses" },
+      { "label": "Precio", "value": "Antes de empezar" },
+      { "label": "Revisión", "value": "desde $500 MXN" }
     ],
     "badges": [
       "12 años",
@@ -249,8 +237,9 @@
       "name": "Revisión eléctrica",
       "durationLabel": "1 h",
       "durationMinutes": 60,
-      "priceLabel": "$550",
+      "priceLabel": "desde $500 MXN",
       "priceAmount": 550,
+      "priceFrom": true,
       "currency": "MXN",
       "mode": "instant",
       "ctaLabel": "Ver horarios",
@@ -271,30 +260,9 @@
       },
       "optionsLabel": "Tipo de inmueble",
       "variants": [
-        {
-          "id": "casa",
-          "label": "Casa",
-          "note": "Hasta 3 recámaras",
-          "priceDelta": 0,
-          "minutesDelta": 0,
-          "deltaLabel": ""
-        },
-        {
-          "id": "depa",
-          "label": "Departamento",
-          "note": "Hasta 2 recámaras",
-          "priceDelta": -50,
-          "minutesDelta": 0,
-          "deltaLabel": "-$50"
-        },
-        {
-          "id": "local",
-          "label": "Local comercial",
-          "note": "Hasta 120 m²",
-          "priceDelta": 250,
-          "minutesDelta": 0,
-          "deltaLabel": "+$250"
-        }
+        { "id": "casa", "label": "Casa", "note": "Hasta 3 recámaras", "priceDelta": 0, "minutesDelta": 0, "deltaLabel": "" },
+        { "id": "depa", "label": "Departamento", "note": "Hasta 2 recámaras", "priceDelta": -50, "minutesDelta": 0, "deltaLabel": "-$50 MXN" },
+        { "id": "local", "label": "Local comercial", "note": "Hasta 120 m²", "priceDelta": 250, "minutesDelta": 0, "deltaLabel": "+$250 MXN" }
       ],
       "slots": [
         "08:00",
@@ -320,7 +288,7 @@
       "name": "Instalación de lámparas",
       "durationLabel": "Por pieza",
       "durationMinutes": null,
-      "priceLabel": "$350 por pieza",
+      "priceLabel": "$350 MXN por pieza",
       "priceAmount": 350,
       "currency": "MXN",
       "priceUnit": "por pieza",
@@ -369,22 +337,8 @@
         }
       ],
       "extras": [
-        {
-          "id": "heavy",
-          "label": "Lámpara de más de 5 kg",
-          "priceDelta": 150,
-          "minutesDelta": 0,
-          "deltaLabel": "+$150",
-          "note": "Requiere soporte reforzado"
-        },
-        {
-          "id": "old",
-          "label": "Retiro de lámpara anterior",
-          "priceDelta": 80,
-          "minutesDelta": 0,
-          "deltaLabel": "+$80",
-          "note": "Por pieza"
-        }
+        { "id": "heavy", "label": "Lámpara de más de 5 kg", "priceDelta": 150, "minutesDelta": 0, "deltaLabel": "+$150 MXN", "note": "Requiere soporte reforzado" },
+        { "id": "old", "label": "Retiro de lámpara anterior", "priceDelta": 80, "minutesDelta": 0, "deltaLabel": "+$80 MXN", "note": "Por pieza" }
       ],
       "flow": {
         "title": "Solicitar visita",
@@ -555,22 +509,10 @@
   "faq": {
     "title": "Preguntas",
     "items": [
-      {
-        "q": "¿La garantía es por escrito?",
-        "a": "Sí. Al terminar te dejo una nota con el trabajo, la fecha y 6 meses de garantía en mano de obra."
-      },
-      {
-        "q": "¿Cobras por ir a ver?",
-        "a": "La revisión cuesta $550 y la pagas en la visita. Si decides reparar, te doy el precio antes."
-      },
-      {
-        "q": "¿Tú compras el material?",
-        "a": "Puedo comprarlo yo con ticket, o lo compras tú con la lista que te mando."
-      },
-      {
-        "q": "¿Atiendes locales comerciales?",
-        "a": "Sí, hasta 120 m² en revisión estándar. Locales más grandes se cotizan."
-      }
+      { "q": "¿La garantía es por escrito?", "a": "Sí. Al terminar te dejo una nota con el trabajo, la fecha y 6 meses de garantía en mano de obra." },
+      { "q": "¿Cobras por ir a ver?", "a": "La revisión cuesta desde $500 MXN y la pagas en la visita. Si decides reparar, te doy el precio antes." },
+      { "q": "¿Tú compras el material?", "a": "Puedo comprarlo yo con ticket, o lo compras tú con la lista que te mando." },
+      { "q": "¿Atiendes locales comerciales?", "a": "Sí, hasta 120 m² en revisión estándar. Locales más grandes se cotizan." }
     ]
   },
   "stats": [],

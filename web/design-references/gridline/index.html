@@ -252,19 +252,19 @@ const T = {
   reply:'Hola, soy Alex. Mándame una foto de lo que ves y tu colonia, y te digo qué conviene hacer.',
   suggestions:['¿Cuánto cuesta cambiar un contacto?','¿Vas a San Nicolás?','¿La garantía es por escrito?'],
   services:[
-    {id:'rev', cat:'Revisión', name:'Revisión eléctrica', dur:'1 h', price:'$550', mode:'instant', cta:'Ver horarios', img:'th16-gridline-test',
+    {id:'rev', cat:'Revisión', name:'Revisión eléctrica', dur:'1 h', price:'$550 MXN', priceLabel:'desde $500 MXN', mode:'instant', cta:'Ver horarios', img:'th16-gridline-test',
       desc:'Reviso tablero, contactos y circuitos, y te explico qué está bien y qué no. Si hay que reparar, te doy el precio antes de empezar.',
       includes:['Prueba de tablero, tierra y contactos','Reporte por escrito con fotos','Reparaciones menores ahí mismo, con tu visto bueno'],
-      optLabel:'Tipo de inmueble', options:[['casa','Casa','Hasta 3 recámaras',''],['depa','Departamento','Hasta 2 recámaras','-$50'],['local','Local comercial','Hasta 120 m²','+$250']],
+      optLabel:'Tipo de inmueble', options:[['casa','Casa','Hasta 3 recámaras',''],['depa','Departamento','Hasta 2 recámaras','-$50 MXN'],['local','Local comercial','Hasta 120 m²','+$250 MXN']],
       slots:['08:00','10:00','12:00','15:00','17:00'], slotNote:'Llego en una ventana de 30 min. Te aviso por mensaje cuando voy en camino.',
       policy:'Pagas en la visita. Cambios de horario hasta 4 h antes.', payNote:'Pagas en la visita, en efectivo o transferencia. No se cobra nada en línea.',
       whoFields:[{k:'col',l:'Colonia',p:'Ej. Del Valle, San Pedro'}],
       reply:'Claro. La revisión incluye probar todos los contactos. Si ya sabes cuál falla, dime y empiezo por ahí.'},
-    {id:'lamp', cat:'Instalación', name:'Instalación de lámparas', dur:'Por pieza', price:'$350', priceLabel:'$350 por pieza', mode:'request', cta:'Solicitar visita', img:'th16-gridline-lamps',
+    {id:'lamp', cat:'Instalación', name:'Instalación de lámparas', dur:'Por pieza', price:'$350 MXN', priceLabel:'$350 MXN por pieza', mode:'request', cta:'Solicitar visita', img:'th16-gridline-lamps',
       desc:'Instalo lámparas colgantes, plafones y ventiladores de techo. Reviso la caja y el cableado antes de colgar nada.',
       includes:['Montaje y conexión por pieza','Revisión de caja y soporte','Limpieza al terminar'],
       optLabel:'Cuántas piezas', options:[['p1','1 a 2 piezas','',''],['p3','3 a 5 piezas','','-5% por pieza'],['p6','6 o más','Se agenda medio día','-10% por pieza']],
-      extras:[['heavy','Lámpara de más de 5 kg','+$150','Requiere soporte reforzado'],['old','Retiro de lámpara anterior','+$80','Por pieza']],
+      extras:[['heavy','Lámpara de más de 5 kg','+$150 MXN','Requiere soporte reforzado'],['old','Retiro de lámpara anterior','+$80 MXN','Por pieza']],
       flowTitle:'Solicitar visita', flowIntro:'Esto es una solicitud: Alex confirma el horario antes de apartarlo.', submit:'Enviar solicitud',
       brief:[{k:'n',l:'Número de piezas',p:'Ej. 3',im:'numeric',demo:'3'},{k:'h',l:'Altura del techo',type:'select',opts:['Hasta 2.7 m','2.7 a 3.5 m','Más de 3.5 m'],demo:'2.7 a 3.5 m'},{k:'when',l:'Días que te funcionan',type:'chips',opts:['Entre semana','Sábado','Mañana','Tarde'],demo:['Sábado','Mañana']},{k:'pic',l:'Foto del techo y la lámpara',type:'upload',p:'Subir foto',h:'Opcional. Ayuda a llegar con el material correcto.'}]},
     {id:'tablero', cat:'Tablero', name:'Cambio de tablero', dur:'1 día', price:'A cotizar', mode:'quote', cta:'Pedir cotización', img:'th16-gridline-board',
@@ -305,7 +305,7 @@ const T = {
         <h1 class="gl-h1">${K.mine?E(D.talent.tagline):'Instalaciones eléctricas seguras, <em>con garantía por escrito.</em>'}</h1>
         <div class="gl-spec gl-mono">
           <div><small>Respuesta</small><b>24 h</b></div><div><small>Garantía</small><b>6 meses</b></div>
-          <div><small>Precio</small><b>Antes de empezar</b></div><div><small>Revisión</small><b>${rev?E(rev.price):'$550'}</b></div>
+          <div><small>Precio</small><b>Antes de empezar</b></div><div><small>Revisión</small><b>${rev?E(rev.priceLabel||rev.price):'desde $500 MXN'}</b></div>
         </div>
         <div class="gl-acts">${rev?K.act(rev,'k-btn'):''}<button class="k-btn ghost" data-k-act="go:gl-pick">¿Qué necesitas?</button></div>
       </div>
@@ -338,7 +338,7 @@ const T = {
       <section class="gl-sec gl-faq" data-w="W-02 FAQ · accordion">
         <div class="gl-hd"><h2>Preguntas</h2><small>4</small></div>
         <details><summary>¿La garantía es por escrito?</summary><p>Sí. Al terminar te dejo una nota con el trabajo, la fecha y 6 meses de garantía en mano de obra.</p></details>
-        <details><summary>¿Cobras por ir a ver?</summary><p>La revisión cuesta ${rev?E(rev.price):'$550'} y la pagas en la visita. Si decides reparar, te doy el precio antes.</p></details>
+        <details><summary>¿Cobras por ir a ver?</summary><p>La revisión cuesta ${rev?E(rev.priceLabel||rev.price):'desde $500 MXN'} y la pagas en la visita. Si decides reparar, te doy el precio antes.</p></details>
         <details><summary>¿Tú compras el material?</summary><p>Puedo comprarlo yo con ticket, o lo compras tú con la lista que te mando.</p></details>
         <details><summary>¿Atiendes locales comerciales?</summary><p>Sí, hasta 120 m² en revisión estándar. Locales más grandes se cotizan.</p></details>
       </section>

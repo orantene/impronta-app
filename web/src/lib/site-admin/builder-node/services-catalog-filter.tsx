@@ -756,15 +756,31 @@ export function CatalogRow({
       <span className="site-builder-node--services-catalog-buy">
         {priceInMeta ? null : showPrice ? (
           <span className="site-builder-node--services-catalog-price">
-            {onRequest || quote || minCents == null ? (
-              <strong>{es ? (onRequest ? "Bajo consulta" : "Cotización a pedido") : onRequest ? "On request" : "Quote on request"}</strong>
+            {onRequest || quote || minCents == null || minCents <= 0 ? (
+              <strong>
+                {onRequest
+                  ? es
+                    ? "Bajo consulta"
+                    : "On request"
+                  : minCents != null && minCents <= 0 && !quote
+                    ? es
+                      ? "Consultar"
+                      : "Ask"
+                    : es
+                      ? "Cotización a pedido"
+                      : "Quote on request"}
+              </strong>
             ) : (
               <>
-                {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
+                {ladder ? <small>{es ? "desde" : "from"}</small> : null}
                 <strong>{formatMoney(minCents, item.currency, locale)}</strong>
               </>
             )}
-            {showUsdEquivalent && usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
+            {showUsdEquivalent && usd ? (
+              <span className="site-builder-node--services-catalog-usd" data-usd-equivalent>
+                {usd}
+              </span>
+            ) : null}
           </span>
         ) : (
           <span className="site-builder-node--services-catalog-price" aria-hidden />

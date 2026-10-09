@@ -10,19 +10,11 @@
 import type { ServiceMenuItem } from "@/lib/talent/services-menu-types";
 import { SERVICE_PRICING_SUFFIX } from "@/lib/talent/services-menu-types";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { formatPublicMoney, publicConsultLabel } from "@/lib/talent/public-price-format";
 
-/** Money formatter resilient to a bad/short currency code (falls back to plain). */
+/** TUL-516: one public money format (`$700 MXN`). */
 export function formatPrice(amountCents: number, currency: string, locale: string): string {
-  const amount = amountCents / 100;
-  try {
-    return new Intl.NumberFormat(pickLocale(locale, { en: "en", es: "es" }), {
-      style: "currency",
-      currency: currency.toUpperCase(),
-      maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
-    }).format(amount);
-  } catch {
-    return `${currency.toUpperCase()} ${amount.toLocaleString()}`;
-  }
+  return formatPublicMoney(amountCents, currency, locale);
 }
 
 /** The price label for a service line: amount + unit suffix, or quote/on-request. */
@@ -31,6 +23,7 @@ function priceLabel(it: ServiceMenuItem, locale: string): string {
   if (it.pricingType === "custom" || it.amountCents == null) {
     return pickLocale(locale, { en: "Quote on request", es: "Cotización a pedido" });
   }
+  if (it.amountCents <= 0) return publicConsultLabel(locale);
   const suffix = SERVICE_PRICING_SUFFIX[it.pricingType];
   const price = formatPrice(it.amountCents, it.currency, locale);
   return suffix ? `${price} ${suffix}` : price;

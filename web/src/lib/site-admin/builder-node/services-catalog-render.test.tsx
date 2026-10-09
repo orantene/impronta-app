@@ -249,7 +249,7 @@ test("row with extras uses Choose options even when inspector ctaLabel is Select
   assert.match(html, /data-offering-cta=/);
 });
 
-test("ladder rows print Desde / From above region-aware money", () => {
+test("ladder rows print lowercase from / desde above region-aware money", () => {
   const html = render([catalogNode()], {
     talentOfferings: [
       offering({
@@ -262,8 +262,8 @@ test("ladder rows print Desde / From above region-aware money", () => {
       }),
     ],
   });
-  assert.match(html, /<small>From<\/small>/);
-  // TUL-383: one public format — symbol + amount + code (never bare $500 / MX$500).
+  assert.match(html, /<small>from<\/small>/);
+  // TUL-383 / TUL-516: one public format — symbol + amount + code (never bare $500 / MX$500).
   assert.match(html, /\$500 MXN/);
   assert.doesNotMatch(html, /MX\$500/);
 });

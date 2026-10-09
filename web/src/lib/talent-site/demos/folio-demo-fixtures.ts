@@ -62,8 +62,10 @@ function durationLabel(mins: number, lang: "es" | "en"): string | null {
 }
 
 function priceLabel(amount: number, cur: string, from: boolean, lang: "es" | "en"): string {
+  if (amount <= 0) return lang === "es" ? "Consultar" : "Ask";
   const n = amount.toLocaleString(lang === "es" ? "es-MX" : "en-US");
-  if (from) return lang === "es" ? `Desde $${n} ${cur}` : `From $${n} ${cur}`;
+  // TUL-516: lowercase desde/from + `$N CODE`.
+  if (from) return lang === "es" ? `desde $${n} ${cur}` : `from $${n} ${cur}`;
   return `$${n} ${cur}`;
 }
 

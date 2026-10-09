@@ -15,15 +15,21 @@ test("no amount at all reads as a quote", () => {
   assert.equal(catalogBarPriceLabel(item, "es"), "A cotizar");
 });
 
-test("from pricing says Desde / From", () => {
+test("from pricing says lowercase desde / from + CODE", () => {
   const item = { ...base, priceDisplay: "from", amountCents: 50000 } as never;
-  assert.match(catalogBarPriceLabel(item, "es"), /^Desde .*500/);
-  assert.match(catalogBarPriceLabel(item, "en"), /^From .*500/);
+  assert.match(catalogBarPriceLabel(item, "es"), /^desde .*500.*MXN/);
+  assert.match(catalogBarPriceLabel(item, "en"), /^from .*500.*MXN/);
 });
 
-test("exact pricing is just the money", () => {
+test("exact pricing is just the money with CODE", () => {
   const item = { ...base, priceDisplay: "exact", amountCents: 50000 } as never;
   const label = catalogBarPriceLabel(item, "es");
-  assert.match(label, /500/);
-  assert.doesNotMatch(label, /Desde|cotizar/);
+  assert.match(label, /\$500 MXN/);
+  assert.doesNotMatch(label, /desde|cotizar|Consultar/i);
+});
+
+test("zero amount is Consultar, never $0 MXN", () => {
+  const item = { ...base, priceDisplay: "exact", amountCents: 0 } as never;
+  assert.equal(catalogBarPriceLabel(item, "es"), "Consultar");
+  assert.equal(catalogBarPriceLabel(item, "en"), "Ask");
 });
