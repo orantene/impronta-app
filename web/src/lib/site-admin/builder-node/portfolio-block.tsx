@@ -317,6 +317,7 @@ export function renderPortfolioBlock(args: {
       shot={shot}
       gallery={{ items: galleryItems, index }}
       es={es}
+      locale={args.locale}
       generalIntent={generalIntent}
     />
   ) : (

@@ -126,7 +126,7 @@ export default async function PricingPage({
         without scrolling to the footer.
       */}
       <div className="flex justify-center px-4 pt-4 pb-2">
-        <CurrencyPicker current={currency} source={source} />
+        <CurrencyPicker current={currency} source={source} locale={locale} />
       </div>
 
       {/*

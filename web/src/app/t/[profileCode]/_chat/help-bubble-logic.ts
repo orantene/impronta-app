@@ -98,7 +98,7 @@ const visible = (el: HTMLElement | null): el is HTMLElement => {
 export function findHelpBubbleAnchor(doc: Document): HelpBubbleAnchor | null {
   const dock = doc.querySelector<HTMLElement>(".cb-dock[data-show='true'] .cb-dock-ask");
   if (visible(dock)) return { el: dock, side: "left" };
-  const bar = doc.querySelector<HTMLElement>(".cb-bar[data-show='true'] .cb-bar-chat");
+  const bar = doc.querySelector<HTMLElement>(".cb-bar[data-show='true']:not([data-top='true']) .cb-bar-chat");
   if (visible(bar)) return { el: bar, side: "left" };
   const fab = doc.querySelector<HTMLElement>("[data-guest-chat-fab]:not([data-gone='true'])");
   if (visible(fab)) return { el: fab, side: "right" };
@@ -110,7 +110,7 @@ export function findHelpBubbleBarTops(doc: Document): number[] {
   const out: number[] = [];
   doc
     .querySelectorAll<HTMLElement>(
-      ".cb-bar[data-show='true'], .cb-dock[data-show='true'], [data-locale-suggestion], .mn-bar[data-show='true']",
+      ".cb-bar[data-show='true']:not([data-top='true']), .cb-dock[data-show='true'], [data-locale-suggestion], .mn-bar[data-show='true']",
     )
     .forEach((el) => {
       if (!visible(el)) return;

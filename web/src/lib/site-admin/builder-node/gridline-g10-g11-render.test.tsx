@@ -93,7 +93,7 @@ function portfolioNode(): BuilderNode {
   return { ...base, id: "port-wo", props: { ...base.props, layout: "work_order" } } as BuilderNode;
 }
 
-test("work_order: job cards with a two-line caption, lightbox photo button, no alt text", () => {
+test("work_order: job cards with a two-line caption, lightbox photo button, alt is the job title (TUL-384)", () => {
   const html = render([portfolioNode()], {
     talentPortfolioShots: [
       shot("a", "Cambio de tablero\nOT-0412 · San Pedro · 1 día"),
@@ -107,7 +107,9 @@ test("work_order: job cards with a two-line caption, lightbox photo button, no a
   assert.match(html, /data-portfolio-photo/);
   assert.doesNotMatch(html, /data-portfolio-shot-link|data-offering-id|data-offering-cta/, "tiles never link to an offering");
   assert.doesNotMatch(html, /Maria Lopez/, "the shot alt (a person) never reaches the markup");
-  assert.match(html, /alt=""/);
+  assert.match(html, /alt="Cambio de tablero"/);
+  assert.match(html, /alt="Acometida"/);
+  assert.doesNotMatch(html, /alt=""/);
 });
 
 test("work_order: container query matches the mockup (6 columns, 4:5 tiles from 900px; 2 on a phone)", () => {

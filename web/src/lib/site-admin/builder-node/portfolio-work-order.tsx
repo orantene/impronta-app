@@ -5,7 +5,9 @@
  * schema change): the media caption is two lines, first = the job title,
  * second = the detail ("OT-0412 · San Pedro · 1 día"). The tile never links
  * to an offering (work_order shots stay unlinked); a tap opens the shared
- * portfolio lightbox (TUL-474 / TUL-440). A tile without a caption shows the
+ * portfolio lightbox (TUL-474 / TUL-440). Alt text is the job title, else a
+ * generic portfolio label (TUL-384: empty alt marked content photos as
+ * decorative). A tile without a caption shows the
  * photo alone. Phone: 2 columns, square. Desktop (the block's own container
  * >= 900px): 6 columns, 4:5 tiles. Token colours only.
  */
@@ -15,6 +17,7 @@ import type { OpenIntent } from "@/lib/talent-site/open-intent-queue";
 
 import { PortfolioShotLink } from "./portfolio-shot-link";
 import { generalBookLabel, type PortfolioGallery } from "./portfolio-lightbox-logic";
+import { portfolioPhotoFallbackAlt } from "./portfolio-i18n";
 import type { TalentPortfolioShot } from "./portfolio-types";
 
 export const PORTFOLIO_WORK_ORDER_CSS = `
@@ -46,15 +49,21 @@ export function WorkOrderFigure({
   shot,
   gallery,
   es,
+  locale,
   generalIntent,
 }: {
   shot: TalentPortfolioShot;
   gallery: PortfolioGallery;
   es: boolean;
+  /** Visitor locale for the generic portfolio alt fallback (TUL-384). */
+  locale?: string | null;
   generalIntent?: OpenIntent | null;
 }): ReactNode {
   const { title, detail } = splitWorkOrderCaption(shot.caption);
   const label = title || (es ? "Ver foto" : "View photo");
+  // Prefer the job-title line of the caption, never the media `alt` column,
+  // which on demos is often a person name (see gridline G10/G11 tests).
+  const alt = title || portfolioPhotoFallbackAlt(locale ?? (es ? "es" : "en"));
   return (
     <figure className="sb-wo-job" data-portfolio-media={shot.id}>
       <PortfolioShotLink
@@ -71,7 +80,7 @@ export function WorkOrderFigure({
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- public CDN URLs, same as the other portfolio layouts */}
-        <img src={shot.url} alt="" loading="lazy" decoding="async" />
+        <img src={shot.url} alt={alt} loading="lazy" decoding="async" />
       </PortfolioShotLink>
       {title ? (
         <figcaption>
