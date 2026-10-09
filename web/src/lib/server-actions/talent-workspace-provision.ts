@@ -266,11 +266,14 @@ export async function provisionFreeWorkspaceFromTalent(params: {
 
   // Starter content is best-effort: a throw here (not just `ok: false`) must not
   // skip the roster step or strand a half-built workspace, so it is contained.
+  // TUL-455: match identity default_locale so the builder draft is not empty
+  // when the request locale is "es" (same gap as workspace-signup scaffold).
   try {
     const starter = await onboardStarterContent(admin, {
       tenantId: agency.id,
       actorProfileId: userId,
       seedFreeStarter: true,
+      ...(flowLocale && { locale: flowLocale.defaultLocale }),
     });
     if (!starter.ok) {
       logServerError(

@@ -87,6 +87,25 @@ test("every provisioning call site hands the seed an audience", () => {
   );
 });
 
+// TUL-455: scaffold must pass flow locale into onboardStarterContent (not only
+// identity columns). Without it, Spanish studios open an empty ES builder draft.
+test("the workspace scaffold threads the flow locale into the starter seed", () => {
+  const provisioner = read("lib/saas/workspace-signup.server.ts");
+  assert.match(
+    provisioner,
+    /onboardStarterContent\(admin, \{[\s\S]*?\.\.\.\(flowLocale && \{ locale: flowLocale\.defaultLocale \}\)/,
+    "onboardStarterContent must receive flowLocale.defaultLocale",
+  );
+  const blocks = scaffoldCallBlocks(provisioner);
+  assert.ok(blocks.length >= 3, "expected the three provisioning paths");
+  const missingFlowLocaleArg = blocks.filter((b) => !/\n\s*locale: params\.locale,/.test(b));
+  assert.deepEqual(
+    missingFlowLocaleArg,
+    [],
+    "ensureWorkspaceScaffold callers must pass locale so the seed can match default_locale",
+  );
+});
+
 test("the four audiences write four different heroes", () => {
   const headlines = new Set(
     (["operator", "agency", "organization", "business"] as const).map(heroHeadline),
