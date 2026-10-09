@@ -57,7 +57,7 @@ export function OfferDraftLineItem({
         {li.talentProfileId && coordTalentIds.has(li.talentProfileId) && (
           <span
             title={t("dashboard.adminTabs.lineup.coordBadgeTitle")}
-            className="shrink-0 whitespace-nowrap rounded-full px-1.5 py-px text-[9.5px] font-bold uppercase tracking-[0.4px] text-[#2B3FA3] bg-[rgba(43,63,163,0.10)]"
+            className="shrink-0 whitespace-nowrap rounded-full bg-admin-indigo-soft px-1.5 py-px text-[9.5px] font-bold uppercase tracking-[0.4px] text-admin-indigo-deep"
           >
             {t("dashboard.adminTabs.lineup.coordBadge")}
           </span>
