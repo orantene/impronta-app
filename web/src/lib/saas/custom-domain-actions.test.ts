@@ -5,6 +5,7 @@ import {
   DOMAIN_VERIFICATION_WINDOW_MS,
   ensureCustomDomainOnVercelProject,
   flattenTxtRecords,
+  getProjectDomainOnVercel,
   getVercelDomainConfig,
   provisionCustomDomainOnVercel,
   removeCustomDomainFromVercelProject,
@@ -352,6 +353,34 @@ test("ensureCustomDomainOnVercelProject reports domain used by another project",
     vercelAttachFailureMessage(result),
     VERCEL_DOMAIN_TAKEN_ELSEWHERE_MESSAGE,
   );
+});
+
+test("getProjectDomainOnVercel reads challenges without mutate", async () => {
+  const fetchFn = async (input: string | URL, init?: RequestInit) => {
+    assert.equal(init?.method ?? "GET", "GET");
+    assert.match(String(input), /\/v9\/projects\/project\/domains\/brand\.example(\?|$)/);
+    return new Response(
+      JSON.stringify({
+        verified: false,
+        verification: [
+          {
+            type: "TXT",
+            domain: "_vercel.brand.example",
+            value: "vc-domain-verify=get",
+          },
+        ],
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  };
+
+  const result = await getProjectDomainOnVercel("brand.example", {
+    env: { VERCEL_API_TOKEN: "token", VERCEL_PROJECT_ID: "project" },
+    fetchFn,
+  });
+
+  assert.equal(result.attached, true);
+  assert.equal(result.challenges[0]?.value, "vc-domain-verify=get");
 });
 
 test("verifyProjectDomainOnVercel posts /verify and returns challenges", async () => {

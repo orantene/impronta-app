@@ -431,6 +431,88 @@ export async function ensureCustomDomainOnVercelProject(
 }
 
 /**
+ * GET /v9/projects/{id}/domains/{d} — read current verified flag + challenges
+ * without mutating. Dark when env is missing.
+ */
+export async function getProjectDomainOnVercel(
+  hostname: string,
+  options: {
+    env?: EnvLike;
+    fetchFn?: FetchLike;
+  } = {},
+): Promise<VercelDomainSyncResult> {
+  const config = readVercelDomainApiConfig(options.env);
+  if (!config) {
+    return {
+      attempted: false,
+      attached: false,
+      verified: null,
+      alreadyExists: false,
+      skippedReason: "VERCEL_API_TOKEN/VERCEL_TOKEN or VERCEL_PROJECT_ID is not configured.",
+      errorCode: null,
+      errorMessage: null,
+      challenges: [],
+    };
+  }
+
+  const fetchFn = options.fetchFn ?? fetch;
+  const query = vercelQuery(config);
+  const getUrl = `https://api.vercel.com${vercelDomainPath(config.projectId, hostname)}${query}`;
+
+  let response: Response;
+  try {
+    response = await fetchFn(getUrl, {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${config.token}`,
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch (error) {
+    return networkFailureResult(error);
+  }
+
+  if (response.ok) {
+    const payload = (await response.json()) as VercelDomainPayload;
+    return {
+      attempted: true,
+      attached: true,
+      verified: typeof payload.verified === "boolean" ? payload.verified : null,
+      alreadyExists: true,
+      skippedReason: null,
+      errorCode: null,
+      errorMessage: null,
+      challenges: normalizeVercelChallenges(payload),
+    };
+  }
+
+  const err = await parseVercelError(response);
+  if (response.status === 404 || (err.code ?? "").toLowerCase() === "not_found") {
+    return {
+      attempted: true,
+      attached: false,
+      verified: null,
+      alreadyExists: false,
+      skippedReason: null,
+      errorCode: "domain_taken_elsewhere",
+      errorMessage: VERCEL_DOMAIN_TAKEN_ELSEWHERE_MESSAGE,
+      challenges: [],
+    };
+  }
+
+  return {
+    attempted: true,
+    attached: false,
+    verified: null,
+    alreadyExists: false,
+    skippedReason: null,
+    errorCode: err.code ?? `http_${response.status}`,
+    errorMessage: err.message ?? "Could not load domain from Vercel project.",
+    challenges: [],
+  };
+}
+
+/**
  * POST /v9/projects/{id}/domains/{d}/verify — ask Vercel to re-check its
  * ownership challenge. Returns updated verified flag + challenges.
  */

@@ -4,7 +4,6 @@ import test from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
-  normalizeStoredVercelChallenges,
   persistTalentSiteDomainVercelState,
   syncTalentSiteDomainProvisioning,
   verifyTalentSiteDomainRecord,
@@ -48,7 +47,6 @@ function baseRecord(overrides: Partial<TalentSiteDomainRecord> = {}): TalentSite
     sslProvisionedAt: null,
     lastHealthCheckAt: null,
     failureReason: null,
-    vercelChallenges: [],
     ...overrides,
   };
 }
@@ -121,46 +119,15 @@ test("sync holds at 'verified' while routing records are not yet live", async ()
   assert.equal(read()?.status, "verified");
 });
 
-test("normalizeStoredVercelChallenges keeps only complete challenge rows", () => {
-  assert.deepEqual(
-    normalizeStoredVercelChallenges([
-      {
-        type: "TXT",
-        domain: "_vercel.example.com",
-        value: "vc-domain-verify=abc",
-        reason: "pending",
-      },
-      { type: "TXT", domain: "", value: "x" },
-      null,
-      "nope",
-    ]),
-    [
-      {
-        type: "TXT",
-        domain: "_vercel.example.com",
-        value: "vc-domain-verify=abc",
-        reason: "pending",
-      },
-    ],
-  );
-});
-
-test("persistTalentSiteDomainVercelState writes status + failure_reason + challenges", async () => {
+test("persistTalentSiteDomainVercelState writes status + failure_reason", async () => {
   const { client, read } = captureClient();
   await persistTalentSiteDomainVercelState(client, "dom-1", {
     status: "error",
-    failureReason: "This domain is used by another Vercel project. Remove it from that project or transfer it to Tulala, then try again.",
-    vercelChallenges: [
-      {
-        type: "TXT",
-        domain: "_vercel.example.com",
-        value: "vc-domain-verify=abc",
-        reason: null,
-      },
-    ],
+    failureReason:
+      "This domain is used by another Vercel project. Remove it from that project or transfer it to Tulala, then try again.",
   });
 
   assert.equal(read()?.status, "error");
   assert.match(String(read()?.failure_reason ?? ""), /another Vercel project/);
-  assert.equal(Array.isArray(read()?.vercel_challenges), true);
+  assert.equal(read()?.vercel_challenges, undefined);
 });

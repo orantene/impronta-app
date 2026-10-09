@@ -12,7 +12,6 @@ import {
   resolveDomainVerificationTransition,
   type DomainProvisioningTransition,
   type DomainVerificationTransition,
-  type VercelDomainChallenge,
 } from "@/lib/saas/custom-domain-actions";
 
 /**
@@ -56,11 +55,10 @@ export type TalentSiteDomainRecord = {
   sslProvisionedAt: string | null;
   lastHealthCheckAt: string | null;
   failureReason: string | null;
-  vercelChallenges: VercelDomainChallenge[];
 };
 
 const DOMAIN_COLUMNS =
-  "id, talent_profile_id, domain, status, verification_token, is_primary, created_at, updated_at, verified_at, ssl_provisioned_at, last_health_check_at, failure_reason, vercel_challenges";
+  "id, talent_profile_id, domain, status, verification_token, is_primary, created_at, updated_at, verified_at, ssl_provisioned_at, last_health_check_at, failure_reason";
 
 type DomainRowDb = {
   id: string;
@@ -75,31 +73,7 @@ type DomainRowDb = {
   ssl_provisioned_at: string | null;
   last_health_check_at: string | null;
   failure_reason: string | null;
-  vercel_challenges?: unknown;
 };
-
-export function normalizeStoredVercelChallenges(
-  raw: unknown,
-): VercelDomainChallenge[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((entry) => {
-      if (!entry || typeof entry !== "object") return null;
-      const row = entry as Record<string, unknown>;
-      const type = typeof row.type === "string" ? row.type : "";
-      const domain = typeof row.domain === "string" ? row.domain : "";
-      const value = typeof row.value === "string" ? row.value : "";
-      const reason =
-        typeof row.reason === "string"
-          ? row.reason
-          : row.reason === null
-            ? null
-            : null;
-      if (!type || !domain || !value) return null;
-      return { type, domain, value, reason };
-    })
-    .filter((entry): entry is VercelDomainChallenge => Boolean(entry));
-}
 
 function mapDomainRow(row: DomainRowDb): TalentSiteDomainRecord {
   return {
@@ -115,7 +89,6 @@ function mapDomainRow(row: DomainRowDb): TalentSiteDomainRecord {
     sslProvisionedAt: row.ssl_provisioned_at,
     lastHealthCheckAt: row.last_health_check_at,
     failureReason: row.failure_reason,
-    vercelChallenges: normalizeStoredVercelChallenges(row.vercel_challenges),
   };
 }
 
@@ -217,23 +190,22 @@ export async function verifyTalentSiteDomainRecord(
   return transition;
 }
 
-/** Persist Vercel attach/verify outcome (status + failure_reason + challenges). */
+/**
+ * Persist attach/verify failure visibility (existing columns only — no
+ * migration). Vercel challenges are read live from the Vercel API, not stored.
+ */
 export async function persistTalentSiteDomainVercelState(
   supabase: SupabaseClient,
   domainId: string,
   patch: {
     status?: TalentSiteDomainStatus;
     failureReason: string | null;
-    vercelChallenges?: VercelDomainChallenge[];
   },
 ): Promise<void> {
   const update: Record<string, unknown> = {
     failure_reason: patch.failureReason,
   };
   if (patch.status) update.status = patch.status;
-  if (patch.vercelChallenges !== undefined) {
-    update.vercel_challenges = patch.vercelChallenges;
-  }
   const { error } = await supabase
     .from("talent_site_domains")
     .update(update)
