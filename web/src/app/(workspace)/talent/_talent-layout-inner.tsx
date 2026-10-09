@@ -30,6 +30,7 @@ import { findTenantMembership } from "@/lib/saas/tenant";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { loadWorkspaceUnreadCount } from "@/lib/saas/unread-counts";
+import { loadShellCounts, type ShellCounts } from "@/lib/shell/shell-counts";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { TalentShellClient } from "@/components/admin/shell/admin-shell-client";
 import { SupportLauncherShellMount } from "@/components/support/SupportLauncherShellMount";
@@ -232,12 +233,15 @@ export async function TalentLayoutInner({
   // components cannot read TALENT_AGENDA_V2 (non-NEXT_PUBLIC).
   const talentAgendaV2 = isAgendaV2(talentSelfProfile.id);
 
+  const zeroShellCounts: ShellCounts = { messages: 0, money: 0, attention: 0 };
+
   const [
     talentInquiries,
     talentAgencies,
     talentRepresentation,
     membership,
     workspaceUnreadRaw,
+    shellCounts,
     userPrefsRaw,
     tenantIdentity,
     profileDisplayName,
@@ -264,6 +268,13 @@ export async function TalentLayoutInner({
     loadTalentRepresentation(talentSelfProfile.id, talentSelfProfile.profileCode),
     tenantId ? findTenantMembership(tenantId) : Promise.resolve(null),
     tenantId ? loadWorkspaceUnreadCount(tenantId) : Promise.resolve(0),
+    // TUL-387 — talent chrome badge counts (replaces the prior hard-coded zero).
+    tenantId
+      ? loadShellCounts("talent", {
+          tenantId,
+          talentProfileId: talentSelfProfile.id,
+        })
+      : Promise.resolve(zeroShellCounts),
     loadUserPrefs(session.user.id),
     tenantId ? loadTenantIdentity(tenantId) : Promise.resolve(null),
     loadProfileDisplayName(subjectUserId),
@@ -394,7 +405,11 @@ export async function TalentLayoutInner({
         bookings: null,
         pitches: null,
         teamMembers: null,
-        totalUnread: 0,
+        // Compat: totalUnread mirrors shellCounts.messages for existing consumers.
+        totalUnread: shellCounts.messages,
+        // Identity bar / mobile nav read talentUnread on the talent surface.
+        talentUnread: shellCounts.messages,
+        shellCounts,
         // Stamp the talent's exclusivity to the active agency onto the identity
         // payload. Whitelabel branding on the talent dashboard shows the agency
         // logo only when the talent is EXCLUSIVE to it (is_primary) AND the

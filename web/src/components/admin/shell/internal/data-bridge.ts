@@ -15,6 +15,7 @@ import {
 import type { ProfileEditorLayout } from "@/lib/profile-editor/section-layout";
 import type { ClientFieldSourcePayload } from "@/lib/field-engine/client-field-source-types";
 import type { BridgeSliceName } from "./bridge-slices";
+import type { ShellCounts } from "@/lib/shell/shell-counts";
 
 // Re-export the workspace-level loaders so layout.tsx has a single import
 // surface for all bridge data. The workspace bridge is tenant-id-explicit;
@@ -190,8 +191,17 @@ export type BridgeData = {
   pitches: WorkspacePitchRow[] | null;
   /** Team members for the Settings > Team surface. */
   teamMembers: WorkspaceTeamMember[] | null;
-  /** Unread message count for the nav badge. */
+  /**
+   * Unread message count for the nav badge.
+   * Compat mirror of `shellCounts.messages` — keep them equal when both are set.
+   */
   totalUnread: number;
+  /**
+   * TUL-387 — chrome badge counts for shell bubbles (messages / money / attention).
+   * Layouts populate via `loadShellCounts`. Optional so prototype / older
+   * bridges stay valid; consumers fall back to `totalUnread` for messages.
+   */
+  shellCounts?: ShellCounts;
   /** Recent workspace activity (real inquiry_events). null = mock mode; [] = live with no events yet. */
   recentActivity?: RecentActivityItem[] | null;
   /** B.2 — user notifications feed for the workspace surface drawer. */

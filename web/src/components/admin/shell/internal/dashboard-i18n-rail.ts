@@ -22,6 +22,7 @@
 import { CLIENTS_ES_TEXT } from "./dashboard-i18n-clients";
 import { FEES_ES_TEXT } from "./dashboard-i18n-fees";
 import { INBOX_ES_TEXT } from "./dashboard-i18n-inbox";
+import { TRUST_ES_TEXT } from "./dashboard-i18n-trust";
 import { LANGUAGES_ES_TEXT } from "./dashboard-i18n-languages";
 import { LINKS_ES_TEXT } from "./dashboard-i18n-links";
 import { LOCATION_ES_TEXT } from "./dashboard-i18n-location";
@@ -33,6 +34,7 @@ import { DOMAIN_ERRORS_ES_TEXT } from "./dashboard-i18n-domain-errors";
 import { SWEEP_R1_ES_TEXT } from "./dashboard-i18n-sweep-r1";
 import { LEAKS_1007_ES_TEXT } from "./dashboard-i18n-leaks-1007";
 import { WEBSITE_ES_TEXT } from "./dashboard-i18n-website";
+import { THREAD_ES_TEXT } from "./dashboard-i18n-thread";
 
 export const RAIL_ES_TEXT: Record<string, string> = {
   // First, so a generic key already translated elsewhere keeps its wording.
@@ -50,6 +52,7 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   ...LOCATION_ES_TEXT,
   ...LANGUAGES_ES_TEXT,
   ...INBOX_ES_TEXT,
+  ...TRUST_ES_TEXT,
   // The four Appointments sub-views (W39). They are tabs of one route, but the
   // rail draws them as rows, so each needs its own literal. "Appointments" is
   // both the destination label and its landing child, and already has a row in
@@ -158,4 +161,5 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   // Talent | Admin rail switch (shared RailModeSwitch), kept out of grandfathered dashboard-i18n.ts.
   "Switch to admin": "Cambiar a administración",
   "Go to your admin workspace": "Ir a tu espacio de administración",
+  ...THREAD_ES_TEXT,
 };
