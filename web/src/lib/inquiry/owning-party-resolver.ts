@@ -41,6 +41,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { logServerError } from "@/lib/server/safe-error";
 import { planAllowsExclusivity as planTierAllowsExclusivity } from "@/lib/access/exclusive-plan-tiers";
 
 export type OwningPartyType = "agency" | "workspace" | "talent";
@@ -310,4 +311,35 @@ export async function resolveOwningPartiesForTalents(
   }
 
   return out;
+}
+
+/**
+ * MONEY-LAYER ONLY. A sale made in a talent's OWN workspace (`workspace_type =
+ * 'talent'`) is the talent's sale ("talent = merchant"): the commission snapshot
+ * and the payout leg must treat the talent as the seller of record so the payout
+ * goes to the talent on the lane the charge ran on, not to a workspace leg the
+ * cross-platform guard holds.
+ *
+ * Deliberately NOT folded into `resolveOwningPartyForTalent`. That resolver also
+ * decides who coordinates and who sees an inquiry (a talent-owned lane is hidden
+ * from the workspace inbox and gets a platform oversight officer), and a talent
+ * must keep seeing her own workspace's inquiries. The frozen participant row is
+ * therefore untouched; only the money callers apply this mapping.
+ */
+export async function moneyOwningParty(
+  supabase: SupabaseClient,
+  owning: OwningParty,
+  talentProfileId: string | null,
+): Promise<OwningParty> {
+  if (owning.type !== "workspace" || !talentProfileId) return owning;
+  const { data, error } = await supabase.from("agencies").select("workspace_type").eq("id", owning.id).maybeSingle();
+  if (error) {
+    // Never guess: a silent fallback to 'workspace' could make the snapshot and
+    // the collect disagree about who the seller is. Fail the money step instead.
+    logServerError("owning-party-resolver.moneyOwningParty", error);
+    throw new Error(`moneyOwningParty: could not read workspace_type for ${owning.id}`);
+  }
+  return (data as { workspace_type?: string | null } | null)?.workspace_type === "talent"
+    ? { type: "talent", id: talentProfileId }
+    : owning;
 }
