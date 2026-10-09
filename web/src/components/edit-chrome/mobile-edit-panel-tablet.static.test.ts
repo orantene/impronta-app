@@ -19,3 +19,13 @@ test("mobile editing keeps its body always visible (the toggle is tablet-only)",
   assert.match(src, /\{tabletHud \? \(\s*<button\s+type="button"\s+data-tablet-hud-toggle/);
   assert.doesNotMatch(src, /display: !tabletBodyOpen/);
 });
+
+test("the Show/Hide toggle labels go through the editor i18n (es: Mostrar / Ocultar)", () => {
+  assert.match(src, /const \{ t \} = useEditorLocale\(\);\n\s*const ctx = |const ctx = useMaybeEditContext\(\);\n\s*const \{ t \} = useEditorLocale\(\);/);
+  assert.match(src, /\{tabletBodyOpen \? t\("Hide"\) : t\("Show"\)\}/);
+  assert.doesNotMatch(src, /\{tabletBodyOpen \? "Hide" : "Show"\}/);
+  const catalog = readFileSync(join(process.cwd(), "src/components/edit-chrome/editor-i18n-es-publish.ts"), "utf8");
+  assert.match(catalog, /"Show": "Mostrar"/);
+  const inspectors = readFileSync(join(process.cwd(), "src/components/edit-chrome/editor-i18n-es-inspectors.ts"), "utf8");
+  assert.match(inspectors, /Hide: "Ocultar"/);
+});

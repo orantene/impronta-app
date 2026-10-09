@@ -507,6 +507,7 @@ function nudgeBtnStyle(busy: boolean): React.CSSProperties {
 
 export function MobileEditPanel() {
   const ctx = useMaybeEditContext();
+  const { t } = useEditorLocale();
 
   // WS2 — tree VALUE from the micro-store (always safe to call; the store is a
   // module singleton independent of the provider). Keep the `ctx` guard so the
@@ -639,7 +640,7 @@ export function MobileEditPanel() {
             onClick={() => setTabletBodyOpen((v) => !v)}
             style={{ height: 26, padding: "0 9px", fontSize: 11, fontWeight: 600, color: "#fff", background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 7, cursor: "pointer", flexShrink: 0 }}
           >
-            {tabletBodyOpen ? "Hide" : "Show"}
+            {tabletBodyOpen ? t("Hide") : t("Show")}
           </button>
         ) : null}
         <button
