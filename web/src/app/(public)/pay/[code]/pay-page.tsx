@@ -180,11 +180,6 @@ export async function PayByCodePage({
     units: Number(line.units) || 1,
     unitCents: Number(line.unit_cents) || 0,
   }));
-  const { data: inquiryLoc } = inquiryId
-    ? await admin.from("inquiries").select("event_location").eq("id", inquiryId).maybeSingle()
-    : { data: null };
-  const requestedLocation =
-    (inquiryLoc as { event_location?: string | null } | null)?.event_location ?? null;
 
   // The RECORD says paid; the query string cannot. Stripe sends the customer
   // back with `?status=paid` before the webhook settles the link, and that
@@ -229,6 +224,13 @@ export async function PayByCodePage({
     });
     const sellerName = await resolvePayeeName(admin, loaded.tenantId);
     const t = createTranslator(uiLocale);
+    // Location for .ics/Google only; skip the inquiry read on open/processing.
+    const { data: inquiryLoc } =
+      paidDisplay === "paid" && inquiryId
+        ? await admin.from("inquiries").select("event_location").eq("id", inquiryId).maybeSingle()
+        : { data: null };
+    const requestedLocation =
+      (inquiryLoc as { event_location?: string | null } | null)?.event_location ?? null;
     const calendarEv =
       paidDisplay === "paid"
         ? payCalendarEvent({
