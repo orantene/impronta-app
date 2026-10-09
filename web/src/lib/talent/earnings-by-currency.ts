@@ -1,6 +1,5 @@
 import "server-only";
 
-import { earningsClientForOwnProfile } from "@/lib/talent/own-earnings-client";
 import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -121,7 +120,7 @@ export const loadTalentEarningsByCurrency = cache(
         loadError: "Could not load earnings.",
       };
     }
-    return loadTalentEarningsByCurrencyWithSupabase(await earningsClientForOwnProfile(supabase, talentProfileId), talentProfileId, opts);
+    return loadTalentEarningsByCurrencyWithSupabase(supabase, talentProfileId, opts);
   },
 );
 

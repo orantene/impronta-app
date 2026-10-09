@@ -1,6 +1,5 @@
 import "server-only";
 
-import { earningsClientForOwnProfile } from "@/lib/talent/own-earnings-client";
 import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -60,6 +59,6 @@ export const loadTalentEarnings = cache(
   ): Promise<TalentEarnings> => {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return EMPTY_TALENT_EARNINGS;
-    return loadTalentEarningsWithSupabase(await earningsClientForOwnProfile(supabase, talentProfileId), talentProfileId, opts);
+    return loadTalentEarningsWithSupabase(supabase, talentProfileId, opts);
   },
 );
