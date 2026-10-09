@@ -35,7 +35,10 @@ export type MoneyHomeOwed = {
 export type MoneyHomeView = {
   month: string;
   currency: string;
+  /** Collected this month NET of refunds (what she keeps). */
   collectedCents: number;
+  /** Refunded back to clients on this month's payments; shown as a sub-line. */
+  refundedCents: number;
   collectedCount: number;
   byMethod: Record<MoneyMethodBucket, number>;
   owed: MoneyHomeOwed[];
@@ -101,8 +104,10 @@ export function buildMoneyHomeView(input: {
     .sort((a, b) => b.workDate.localeCompare(a.workDate));
   const byMethod: Record<MoneyMethodBucket, number> = { card: 0, cash: 0, transfer: 0, other: 0 };
   let collectedCents = 0;
+  let refundedCents = 0;
   for (const r of payments) {
     const ledger = r.collectedCents != null && r.collectedCents > 0 ? r.collectedCents : null;
+    refundedCents += Math.max(0, r.refundedCents ?? 0);
     if (ledger != null) {
       collectedCents += ledger;
       const split = r.collectedByMethod ?? {};
@@ -117,6 +122,9 @@ export function buildMoneyHomeView(input: {
     collectedCents += r.grossCents;
     byMethod[methodBucket(r.paymentMethod)] += r.grossCents;
   }
+
+  collectedCents = Math.max(0, collectedCents - refundedCents);
+  byMethod.card = Math.max(0, byMethod.card - refundedCents);
 
   const payoutMap = new Map<string, MoneyHomePayout>();
   for (const r of earnings.rows) {
@@ -171,6 +179,7 @@ export function buildMoneyHomeView(input: {
     month,
     currency,
     collectedCents,
+    refundedCents,
     collectedCount: payments.length,
     byMethod,
     owed,

@@ -29,6 +29,8 @@ export type TalentEarningsRow = {
    * Never hers: shown on the Money row so the card charge and her price are both explained.
    */
   clientFeeCents?: number | null;
+  /** Handed back to the client through linked refund rows; Money "Collected" shows it net of this. */
+  refundedCents?: number | null;
 };
 
 export type TalentEarningsPerAgency = {
@@ -112,6 +114,7 @@ export type TalentSnapshotAggregateRow = {
    * Never hers: shown on the Money row so the card charge and her price are both explained.
    */
   clientFeeCents?: number | null;
+  refundedCents?: number | null;
 };
 
 type BookingPayoutFields = {
@@ -294,6 +297,7 @@ export function buildTalentEarnings(
       collectedCents: row.collectedCents ?? null,
       collectedByMethod: row.collectedByMethod ?? null,
       clientFeeCents: row.clientFeeCents ?? null,
+      refundedCents: row.refundedCents ?? null,
     })),
   };
 }
