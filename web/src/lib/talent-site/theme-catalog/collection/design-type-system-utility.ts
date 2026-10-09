@@ -27,8 +27,8 @@ export const UTILITY_LABEL_FACE =
   "var(--token-typography-label-font-family,var(--token-shell-header-nav-font,ui-monospace,monospace))";
 const RULE = v("shape.rule-width");
 const MQ_DESK = "@media (min-width:900px)";
-const TITLE_HOOKS = ".sb-portfolio-title,.sb-reviews-title,.sb-visit-title,.site-builder-node--services-catalog-title";
-const EYEBROW_HOOKS = ".sb-portfolio-eyebrow,.sb-reviews-eyebrow,.sb-visit-eyebrow,.site-builder-node--services-catalog-eyebrow";
+const TITLE_HOOKS = ".sb-portfolio-title,.sb-reviews-title,.sb-visit-title,.sb-area-title,.site-builder-node--services-catalog-title";
+const EYEBROW_HOOKS = ".sb-portfolio-eyebrow,.sb-reviews-eyebrow,.sb-visit-eyebrow,.sb-area-eyebrow,.site-builder-node--services-catalog-eyebrow";
 export const labelType = `font-family:${UTILITY_LABEL_FACE};font-size:${v("type.label-size")};font-weight:${v("type.label-weight")};letter-spacing:${v("type.label-tracking")}`;
 export const displayType = `font-family:var(--site-heading-font,system-ui,sans-serif);font-weight:${v("type.display-weight")};font-stretch:${v("type.stretch")};letter-spacing:${v("type.display-tracking")};line-height:${v("type.display-line-height")}`;
 
@@ -51,6 +51,13 @@ export const UTILITY_TYPE_SYSTEM_CSS = [
   `${U} :is(.site-builder-node--button[data-builder-button-tone="primary"],.site-builder-node--button-primary){background:${ACCENT};color:${ACCENT_ON}}`,
   `${U} :is(.site-builder-node--button[data-builder-button-tone="secondary"],.site-builder-node--button-secondary){background:transparent;color:var(--token-color-ink)}`,
   `${MQ_DESK}{${U} #hero h1{font-size:${v("type.hero-size-desktop")};line-height:${v("type.hero-line-height-desktop")}}${U} h2,${U} :is(${TITLE_HOOKS}){font-size:${v("type.section-title-size-desktop")}}${U} #faq .site-builder-node--heading{font-size:${v("type.section-title-size-desktop")}}}`,
+  // TUL-474: keep work_order captions + later bands clear of sticky See-services / Continuar chrome
+  // (soft chrome already clears the services island; utility's gallery sits below it).
+  `html:has([data-theme-canvas-root][data-token-type-system="utility"]):has(.cb-dock[data-show="true"],.cb-bar[data-show="true"]){scroll-padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}`,
+  `body:has(.cb-dock[data-show="true"],.cb-bar[data-show="true"]) ${U} .sb-portfolio[data-portfolio-layout="work_order"]{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}`,
+  // TUL-474: keep the hero status-dot kicker on one line (seed still says wrap; CSS wins at render).
+  `${U} #hero .site-builder-node--container[data-builder-layout="row"]{flex-wrap:nowrap}`,
+  `${U} #hero .site-builder-node--container[data-builder-layout="row"] > .site-builder-node--paragraph{align-self:center}`,
 ].join("\n");
 
 /**

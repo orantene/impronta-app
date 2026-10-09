@@ -36,6 +36,8 @@ const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "The menu": "El menú",
   "Services {i}and prices{/i}": "Servicios {i}y precios{/i}",
   "Recent work": "Trabajo reciente",
+  // Gridline work_order portfolio heading (seed + render-time rewrite).
+  "Recent jobs": "Trabajos recientes",
   "How booking works": "Cómo reservar",
   Questions: "Preguntas",
   "Ask a question": "Hacer una pregunta",
