@@ -146,6 +146,7 @@ import type {
   BuilderNodeStyleValue,
 } from "./types";
 import type { BuilderImageMediaAsset } from "@/lib/site-admin/media/types";
+import { NotShownOnSiteBadge } from "./not-shown-on-site-badge";
 import { isIncompleteBeforeAfter, isRenderableEmptySection } from "./render-prune";
 import { CaptchaThemeStamper } from "@/lib/site-admin/sections/contact_form/captcha-theme";
 import { FormResultBanner } from "./form-result-banner";
@@ -4730,22 +4731,34 @@ function renderBuilderNodeElement(
         >
           {bgMedia}
           {beforeAfterIncomplete ? (
-            <p
+            <div
               data-before-after-prompt=""
+              data-not-shown-on-site-host=""
               style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                gap: 8,
                 margin: 0,
                 padding: "12px 16px",
                 border: "1px dashed rgba(24,24,27,0.28)",
                 borderRadius: 12,
-                fontSize: 13,
-                lineHeight: 1.5,
-                color: "rgba(24,24,27,0.60)",
               }}
             >
-              {options.contentLocale?.locale === "es"
-                ? "Elige tus fotos de antes y después"
-                : "Choose your before and after photos"}
-            </p>
+              <NotShownOnSiteBadge locale={options.contentLocale?.locale} />
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                  color: "rgba(24,24,27,0.60)",
+                }}
+              >
+                {options.contentLocale?.locale === "es"
+                  ? "Elige tus fotos de antes y después"
+                  : "Choose your before and after photos"}
+              </p>
+            </div>
           ) : null}
           {renderDataBoundContainerChildren(node, options)}
         </ContainerTag>
@@ -6038,7 +6051,19 @@ function renderBuilderNodeElement(
               rows={Math.min(Math.max(visible.length, 4), 6)}
             />
           ) : visible.length === 0 ? (
-            <p className="site-builder-node--services-catalog-empty">{emptyMessage}</p>
+            <div
+              className="site-builder-node--services-catalog-empty"
+              data-not-shown-on-site-host={
+                options.contentLocale?.editorPreview ? "" : undefined
+              }
+            >
+              {options.contentLocale?.editorPreview ? (
+                <NotShownOnSiteBadge locale={locale} />
+              ) : null}
+              <p style={{ margin: options.contentLocale?.editorPreview ? "8px 0 0" : 0 }}>
+                {emptyMessage}
+              </p>
+            </div>
           ) : (
             <CatalogIslandBoundary
               fallback={
@@ -6107,6 +6132,7 @@ function renderBuilderNodeElement(
         styleAttr: sharedNodeStyle(node.props.style),
         styleDataAttrs: node.props.style?.responsive ? builderNodeStyleAttrs(node.props.style) : undefined,
         locale: options.contentLocale?.locale ?? options.visitorLocale, primaryLocale: options.contentLocale?.defaultLocale,
+        editorPreview: options.contentLocale?.editorPreview === true,
       });
     }
     case "reviews": {
@@ -6116,6 +6142,7 @@ function renderBuilderNodeElement(
           reviews={options.dataSources?.talentReviews ?? []}
           styleAttr={sharedNodeStyle(node.props.style)}
           locale={options.contentLocale?.locale ?? options.visitorLocale}
+          editorPreview={options.contentLocale?.editorPreview === true}
         />
       );
     }
@@ -6731,11 +6758,13 @@ function renderBuilderNodeElement(
             {...anchorIdAttrs(node)}
             data-builder-node-id={node.id}
             data-builder-node-kind={node.kind}
+            data-not-shown-on-site-host=""
             {...builderNodeStyleAttrs(node.props.style)}
             className="site-builder-node site-builder-node--social-feed"
             style={inlineNodeStyle(node.props.style, {
               display: "grid",
               placeItems: "center",
+              gap: 10,
               minHeight: 240,
               padding: 24,
               border: "1px dashed rgba(24,24,27,0.28)",
@@ -6746,6 +6775,7 @@ function renderBuilderNodeElement(
               lineHeight: 1.5,
             })}
           >
+            <NotShownOnSiteBadge locale={options.contentLocale?.locale} />
             <span>
               {node.props.source === "connected"
                 ? "Connect Instagram or TikTok in Settings, Integrations, and your latest posts appear here."
@@ -6805,11 +6835,13 @@ function renderBuilderNodeElement(
             data-builder-node-id={node.id}
             data-builder-node-kind={node.kind}
             data-social-post-empty=""
+            data-not-shown-on-site-host=""
             {...builderNodeStyleAttrs(node.props.style)}
             className="site-builder-node site-builder-node--social-post"
             style={inlineNodeStyle(node.props.style, {
               display: "grid",
               placeItems: "center",
+              gap: 10,
               minHeight: 220,
               padding: 24,
               border: "1px dashed rgba(24,24,27,0.28)",
@@ -6820,6 +6852,7 @@ function renderBuilderNodeElement(
               lineHeight: 1.5,
             })}
           >
+            <NotShownOnSiteBadge locale={options.contentLocale?.locale} />
             <span>
               {`Paste a ${providerLabel} ${
                 node.props.provider === "tiktok" ? "video" : "post or reel"

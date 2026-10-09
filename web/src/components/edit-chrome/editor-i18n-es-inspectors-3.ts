@@ -351,4 +351,6 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
     "Colores del sitio en todas las páginas. Tema abre el editor completo.",
   "This block can't go there. Select a section first, then add it inside.":
     "Este bloque no puede ir ahí. Selecciona primero una sección y agrégalo dentro.",
+  // TUL-124: empty testimonials slot / live-dropped block badge
+  "Not shown on your site": "No se muestra en tu sitio",
 };
