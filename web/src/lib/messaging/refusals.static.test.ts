@@ -41,3 +41,11 @@ test("every messaging refusal code has en es fr sentences and no em dash", () =>
     }
   }
 });
+
+test("guest accept with a pending talent approval answers awaiting_approval, never the generic not_allowed", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/server-actions/messaging-client.ts"), "utf8");
+  const direct = src.slice(src.indexOf("async function acceptDirect"));
+  assert.match(direct, /split\.blocking\.length > 0\) return fail\("awaiting_approval"\)/);
+  assert.doesNotMatch(direct.slice(0, direct.indexOf("const own = split.settle")), /fail\("not_allowed"\)/);
+  assert.ok((MESSAGING_REFUSAL_CODES as readonly string[]).includes("awaiting_approval"));
+});
