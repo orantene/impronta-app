@@ -11,7 +11,7 @@
  * RUN BY A PERSON (or CI), never by an agent session: this spec types card numbers on
  * a stripe.com page. It refuses to start unless the target is the isolated project,
  * every Stripe key is a TEST key and every URL is local (see global-setup.ts), and it
- * asserts the checkout page says "Test mode" BEFORE it types anything.
+ * asserts the checkout is a test session (cs_test_ URL + "Sandbox"/"Test mode" badge) BEFORE it types anything.
  *
  * Inputs (env): PAID_QA_BASE_URL (local app origin), PAID_QA_PAY_URLS (JSON: {"success": "...", "decline": "...",
  * "threeDS": "..."} one fresh pay link per case; a link is single use), JOURNEYS_ISOLATED=1,
@@ -53,8 +53,10 @@ async function openStripeCheckout(page: Page, payUrl: string, tag: string) {
   // The primary action on the pay page is a link to the hosted checkout.
   await page.getByRole("link", { name: /^(pay|pagar)/i }).first().click();
   await page.waitForURL(/checkout\.stripe\.com/, { timeout: 60_000 });
-  // GUARD: never type a card unless Stripe says this is test mode.
-  await expect(page.getByText(/test mode/i).first()).toBeVisible({ timeout: 30_000 });
+  // GUARD: never type a card unless this is a Stripe TEST session: the session id in the URL is
+  // cs_test_ AND the page says Sandbox (Stripe's newer badge) or Test mode (the older one).
+  expect(page.url()).toContain("cs_test_");
+  await expect(page.getByText(/sandbox|test mode/i).first()).toBeVisible({ timeout: 30_000 });
   await shot(page, `${tag}-2-checkout-test-mode`);
 }
 
@@ -62,7 +64,7 @@ async function fillCard(page: Page, number: string) {
   const card = page.getByLabel(/card number|número de tarjeta/i).first();
   await card.fill(number);
   await page.getByLabel(/expiration|expiry|vencimiento|mm ?\/ ?yy/i).first().fill("12 / 34");
-  await page.getByLabel(/^cvc|security code|código de seguridad/i).first().fill("123");
+  await page.getByLabel(/cvc|security code|código de seguridad/i).first().fill("123");
   const name = page.getByLabel(/name on card|cardholder|nombre/i).first();
   if (await name.isVisible().catch(() => false)) await name.fill("QA Paid Tester");
   const postal = page.getByLabel(/zip|postal|código postal/i).first();
@@ -122,12 +124,15 @@ test("success 4242: pays, returns to 'Payment received', transaction paid, snaps
     await shot(page, "success-4-return-paid");
 
     const link = await paymentFor(url);
-    const txns = await rest<{ id: string; status: string; gross_amount_cents: number; booking_id: string | null }>(
+    const txns = await rest<{ id: string; status: string; gross_amount_cents: number; net_amount_cents: number; platform_fee_cents: number; booking_id: string | null }>(
       "booking_transactions",
-      `select=id,status,gross_amount_cents,booking_id&order_id=eq.${link.order_id}&status=eq.paid`,
+      `select=id,status,gross_amount_cents,net_amount_cents,platform_fee_cents,booking_id&order_id=eq.${link.order_id}&status=eq.paid`,
     ).catch(() => []);
     expect(txns.length, "exactly one paid transaction").toBe(1);
-    expect(txns[0].gross_amount_cents).toBe(link.amount_cents);
+    // The link names the PRINCIPAL; the card is charged the collect (principal + the pass_through
+    // client service fee when armed): net == principal, gross == net + platform fee (#3051).
+    expect(Number(txns[0].net_amount_cents), "net == link principal").toBe(Number(link.amount_cents));
+    expect(Number(txns[0].gross_amount_cents), "gross == principal + service fee").toBe(Number(txns[0].net_amount_cents) + Number(txns[0].platform_fee_cents));
     if (txns[0].booking_id) {
       const snaps = await rest<{ gross_charged_cents: number }>("booking_commission_snapshot", `select=gross_charged_cents&booking_id=eq.${txns[0].booking_id}`);
       const sum = snaps.reduce((n, s) => n + Number(s.gross_charged_cents), 0);

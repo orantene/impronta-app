@@ -4592,6 +4592,7 @@
         "loadDraftFailed": "No se pudo cargar el borrador de oferta: {error}",
         "starting": "Iniciando...",
         "startDrafting": "Empezar a redactar la oferta",
+        "offerCurrencyChoose": "¿En qué moneda va esta oferta? No pudimos saberlo por quien vende, elige una.",
         "startOfferFailed": "No se pudo iniciar la oferta: {error}",
         "offerCreated": "Borrador de oferta creado",
         "statusRemoved": "Quitado",
@@ -13970,6 +13971,8 @@
         "import": "Importar un informe del terminal todavía no está conectado; no hay tabla donde guardar sus filas.",
         "export": "La exportación de estas tablas todavía no está conectada."
       },
+      "refundRecoverFromTalent": "Recuperar del talento",
+      "refundRecoverDetail": "El pago al talento ya salió. Recupera {amount} manualmente.",
       "refundFailed": "Reembolso fallido",
       "refundFailedDetail": "El cliente no recibió el dinero. Gestiona un reembolso alternativo."
     },

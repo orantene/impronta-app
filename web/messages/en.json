@@ -4592,6 +4592,7 @@
         "loadDraftFailed": "Couldn't load offer draft: {error}",
         "starting": "Starting...",
         "startDrafting": "Start drafting offer",
+        "offerCurrencyChoose": "Which currency is this offer in? We could not tell from the seller, so choose one.",
         "startOfferFailed": "Couldn't start offer: {error}",
         "offerCreated": "Offer draft created",
         "statusRemoved": "Removed",
@@ -13970,6 +13971,8 @@
         "import": "Importing a terminal report is not wired yet; there is no table to hold its rows.",
         "export": "An export of these tables is not wired yet."
       },
+      "refundRecoverFromTalent": "Recover from talent",
+      "refundRecoverDetail": "Talent leg already paid out. Recover {amount} manually.",
       "refundFailed": "Refund failed",
       "refundFailedDetail": "Customer was not paid. Arrange an alternative refund."
     },
