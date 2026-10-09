@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CHOOSE_COPY, FLOW_STEP_OF, FLOW_TOTAL, defaultFlowLocale, flowStepOf, flowUrl } from "./flow";
+import { CHOOSE_COPY, FLOW_STEP_OF, FLOW_TOTAL, defaultFlowLocale, flowLocaleFromPath, flowStepOf, flowUrl } from "./flow";
 import { isModuleStep, type ModuleStep } from "./module-state";
 
 test("every module step maps into exactly one of the 4 steps; fork is gone", () => {
@@ -54,4 +54,13 @@ test("the /start choose screen offers a way out for visitors who want to book (T
     assert.ok(CHOOSE_COPY[locale].bookLink.length > 0, locale);
     assert.ok(!/—/.test(CHOOSE_COPY[locale].bookLink), `${locale}: no em dash`);
   }
+});
+
+test("TUL-146: /es/start is an explicit Spanish choice, /start is not", () => {
+  assert.equal(flowLocaleFromPath("/es/start"), "es");
+  assert.equal(flowLocaleFromPath("/es/start/"), "es");
+  assert.equal(flowLocaleFromPath("/start"), null);
+  assert.equal(flowLocaleFromPath("/es/startup"), null);
+  assert.equal(flowLocaleFromPath(null), null);
+  assert.equal(defaultFlowLocale({ saved: flowLocaleFromPath("/es/start"), acceptLanguage: "en-US", country: "US" }), "es");
 });
