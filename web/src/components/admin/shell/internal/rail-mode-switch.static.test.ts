@@ -12,8 +12,10 @@ const read = (rel: string) => readFileSync(join(here, rel), "utf8");
 test("the talent rail renders the shared Talent | Admin switch for dual owners only", () => {
   const talent = read("talent.tsx");
   assert.match(talent, /import \{ RailModeSwitch \} from "\.\/page-modules\/RailModeSwitch"/);
-  assert.match(talent, /state\.alsoTalent && \(\s*<RailModeSwitch\s+active="talent"/);
-  assert.match(talent, /onSwitch=\{flipMode\}/);
+  assert.match(talent, /\(state\.alsoTalent \|\| !!bridgeOwnedWorkspaceSlug\) && \(\s*<RailModeSwitch\s+active="talent"/);
+  assert.match(talent, /flipMode\(\)/);
+  // A dual owner on the hub (membership in ANOTHER tenant, isHybrid=false) still gets the switch.
+  assert.match(talent, /window\.location\.assign\(`\/\$\{bridgeOwnedWorkspaceSlug\}\/admin`\)/);
   // The switch sits ABOVE the section nav (top of the rail), as on the admin rail.
   assert.ok(talent.indexOf("<RailModeSwitch") < talent.indexOf('aria-label={copy.t("Talent sections")}'));
 });
@@ -34,4 +36,12 @@ test("both halves carry en labels from the catalog and a link on the other hat",
   for (const k of ["Switch to admin", "Go to your admin workspace", "Switch to talent"]) {
     assert.match(i18n, new RegExp(`"${k}": "`), k);
   }
+});
+
+test("the talent layout feeds ownedWorkspaceSlug to the bridge from the owned business workspace", () => {
+  const layout = readFileSync(join(here, "../../../../app/(workspace)/talent/_talent-layout-inner.tsx"), "utf8");
+  assert.match(layout, /loadOwnedBusinessWorkspace\(adminDb, subjectUserId\)/);
+  assert.match(layout, /ownedWorkspaceSlug,\n/);
+  const bridge = readFileSync(join(here, "data-bridge.ts"), "utf8");
+  assert.match(bridge, /ownedWorkspaceSlug\?: string \| null;/);
 });

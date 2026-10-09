@@ -339,6 +339,14 @@ export type BridgeData = {
    */
   isHybrid?: boolean;
 
+  /**
+   * Slug of a business workspace this person OWNS, set by talent/layout. `isHybrid` is
+   * per-tenant (membership in the tenant being viewed), so on /talent (the hub) a dual
+   * owner whose workspace is another tenant reads isHybrid=false. This is the signal the
+   * talent rail's Talent | Admin switch uses (null/undefined = no owned workspace).
+   */
+  ownedWorkspaceSlug?: string | null;
+
   // ── Phase 1 (master plan) — chrome identity bridge ────────────────────────
   /**
    * Real tenant identity for the workspace surface. When provided, the
