@@ -15,8 +15,6 @@
  * bounded too.
  */
 
-import { AsyncLocalStorage } from "node:async_hooks";
-
 export const SUPABASE_READ_TIMEOUT_MS = 8_000;
 export const SUPABASE_SERVICE_TIMEOUT_MS = 12_000;
 export const SUPABASE_EDGE_LOOKUP_TIMEOUT_MS = 3_000;
@@ -38,9 +36,33 @@ type FetchFn = typeof fetch;
  * later reads in the same scope fail fast so a retry ladder cannot stack
  * deadlines (or fall back to draft columns).
  */
-const scope = new AsyncLocalStorage<{ timedOut: boolean }>();
+type RenderScope = { timedOut: boolean };
+type ScopeStore = {
+  run<R>(store: RenderScope, fn: () => R): R;
+  getStore(): RenderScope | undefined;
+};
+type ScopeCtor = new () => ScopeStore;
+
+/**
+ * No static `node:async_hooks` import: this module reaches client bundles via
+ * supabase/public.ts → i18n/pathnames.ts, and Turbopack refuses a node: import
+ * there. On the server, Next exposes `globalThis.AsyncLocalStorage`; plain Node
+ * (tests) gets it through `process.getBuiltinModule`. In a browser there is no
+ * scope, and failOnReadTimeout simply runs the work.
+ */
+function resolveScopeCtor(): ScopeCtor | undefined {
+  const fromGlobal = (globalThis as { AsyncLocalStorage?: ScopeCtor }).AsyncLocalStorage;
+  if (fromGlobal) return fromGlobal;
+  const proc = (globalThis as { process?: { getBuiltinModule?: (id: string) => unknown } }).process;
+  const mod = proc?.getBuiltinModule?.("node:async_hooks") as { AsyncLocalStorage?: ScopeCtor } | undefined;
+  return mod?.AsyncLocalStorage;
+}
+
+const ScopeImpl = resolveScopeCtor();
+const scope: ScopeStore | null = ScopeImpl ? new ScopeImpl() : null;
 
 export async function failOnReadTimeout<T>(work: () => Promise<T>): Promise<T> {
+  if (!scope) return work();
   const state = { timedOut: false };
   const result = await scope.run(state, work);
   if (state.timedOut) throw new BoundedFetchTimeoutError("render", 0);
@@ -76,7 +98,7 @@ export function createBoundedFetch(
     // Only PostgREST reads are bounded (small JSON). Writes, auth, storage and
     // functions pass straight through.
     if (!isBoundedRead(url, init?.method ?? (typeof input === "object" && "method" in input ? input.method : "GET"))) return base(input, init);
-    const state = scope.getStore();
+    const state = scope?.getStore();
     if (state?.timedOut) throw new BoundedFetchTimeoutError(url, 0);
     const work = (async () => {
       const res = await base(input, init);

@@ -118,3 +118,11 @@ describe("main-row timeout (TUL-444)", () => {
     assert.match(src, /export const renderTalentMaxSite[\s\S]{0,200}failOnReadTimeout\(/);
   });
 });
+
+describe("bounded-fetch stays client-bundle safe (TUL-444)", () => {
+  it("has no static node: import (supabase/public.ts reaches client bundles)", () => {
+    const src = readFileSync(join(new URL(".", import.meta.url).pathname, "bounded-fetch.ts"), "utf8");
+    assert.doesNotMatch(src, /^\s*import[^;]*from\s+["']node:/m);
+    assert.doesNotMatch(src, /require\(\s*["']node:/);
+  });
+});
