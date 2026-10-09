@@ -18,6 +18,7 @@
  *  - pure and identity preserving: a tree with nothing to do comes back `===`.
  * The loader lives in `server/load-ticker-services.server.ts`.
  */
+import { platformServiceTitle } from "@/lib/talent/offering-title-fallback";
 import { offeringText, type TalentOfferingRow } from "@/lib/talent/offerings-types";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
@@ -65,6 +66,10 @@ type WordRow = Pick<TalentOfferingRow, "title" | "title_i18n">;
  * Her published offerings as ticker words in `locale`: `offeringText` walks the
  * visitor's language, the talent's fallback `chain`, then English. Blank titles
  * drop out, repeats (any casing) collapse, and the list is capped.
+ *
+ * A-02 / TUL-475: an English-only `title_i18n.en` with no visitor-locale title
+ * and no platform dictionary hit is skipped on a non-English ticker, so the
+ * strip does not mix Soft-gel-style English leftovers into Spanish.
  */
 export function buildTickerServiceWords(
   rows: ReadonlyArray<WordRow>,
@@ -73,6 +78,7 @@ export function buildTickerServiceWords(
 ): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
+  const visitor = (locale ?? "").trim().toLowerCase().slice(0, 2) || "en";
   for (const row of rows) {
     const text = offeringText(
       { title: row.title, title_i18n: row.title_i18n, description: null, description_i18n: null },
@@ -83,6 +89,22 @@ export function buildTickerServiceWords(
     const word = (text ?? "").trim().slice(0, WORD_MAX);
     const key = word.toLowerCase();
     if (!word || seen.has(key)) continue;
+    if (visitor !== "en") {
+      const map =
+        row.title_i18n && typeof row.title_i18n === "object"
+          ? (row.title_i18n as Record<string, string>)
+          : null;
+      const visitorTitle = typeof map?.[visitor] === "string" ? map[visitor]!.trim() : "";
+      const enTitle = typeof map?.en === "string" ? map.en.trim() : "";
+      if (
+        !visitorTitle &&
+        enTitle &&
+        word === enTitle &&
+        !platformServiceTitle(enTitle, visitor)
+      ) {
+        continue;
+      }
+    }
     seen.add(key);
     out.push(word);
     if (out.length >= TICKER_SERVICE_WORDS_MAX) break;

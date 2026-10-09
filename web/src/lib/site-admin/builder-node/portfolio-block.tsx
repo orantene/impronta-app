@@ -90,8 +90,8 @@ export const PORTFOLIO_CSS = `
 .sb-portfolio--staggered .sb-portfolio-shot{background:none}
 .sb-portfolio--staggered .sb-portfolio-shot img{transition:transform .5s ease}
 .sb-portfolio--staggered .sb-portfolio-shot:hover img{transform:scale(1.04)}
-/* Phone filmstrip bleeds to the screen edge (Maison staggered default). */
-@media (max-width:899px){.sb-portfolio--staggered{margin:0 -18px;padding:0 18px 6px}}
+/* Phone strip keeps an 18px gutter so the first card does not hug the edge (TUL-475). */
+@media (max-width:899px){.sb-portfolio--staggered{margin:0;padding:0 18px 6px}}
 @media (min-width:900px){
   .sb-portfolio--staggered{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible;padding:0;margin:0;align-items:center}
   .sb-portfolio--staggered .sb-portfolio-item:nth-child(2),.sb-portfolio--staggered .sb-portfolio-item:nth-child(4){margin-top:40px}
@@ -240,9 +240,15 @@ function ShotFigure({
               .join(" · ")}
             {hint}
           </figcaption>
-        ) : showCaptions && framed && (shot.caption?.trim() || shot.offeringTitle?.trim() || shot.offeringId) ? (
+        ) : showCaptions && framed ? (
           <figcaption className="sb-portfolio-cap">
-            <span className="sb-portfolio-name">{shot.caption?.trim() || shot.offeringTitle?.trim() || null}{hint}</span>
+            <span className="sb-portfolio-name">
+              {shot.caption?.trim() ||
+                shot.offeringTitle?.trim() ||
+                serviceLine ||
+                (es ? `Trabajo ${gallery.index + 1}` : `Work ${gallery.index + 1}`)}
+              {hint}
+            </span>
             {shot.offeringId ? (
               <>
                 <span className="sb-portfolio-arrow" aria-hidden="true">

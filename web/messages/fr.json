@@ -222,7 +222,7 @@
       "cardAddService": "Ajouter",
       "cardRailOne": "1 service · {label}",
       "cardRailMany": "{count} services · {label}",
-      "cardComposerPlaceholder": "Rien n'est envoyé avant que vous touchiez envoyer.",
+      "cardComposerPlaceholder": "Écrivez votre message…",
       "cardNoBookings": "Vous n'avez pas encore de rendez-vous. Choisissez un service pour commencer.",
       "cardSeeServices": "Voir les services",
       "cardChipWhenFor": "Une place cette semaine pour {service} ?",

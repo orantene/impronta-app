@@ -144,6 +144,26 @@ test("links: talent policies on the talent host, Tulala documents off-host", () 
   assert.match(html(), /rel="noopener"/);
 });
 
+test("TUL-498: EN visitor on an ES-primary site gets /en/politicas (and /en/privacidad)", () => {
+  const m = model({
+    locale: "en",
+    primaryLocale: "es",
+    supportedLocales: ["es", "en"],
+  });
+  const by = Object.fromEntries(m.siteLinks.map((l) => [l.key, l]));
+  assert.equal(by["booking-policy"]!.href, "/en/politicas");
+  assert.equal(by["privacy"]!.href, "/en/privacidad");
+  assert.equal(
+    model({
+      locale: "en",
+      primaryLocale: "es",
+      supportedLocales: ["es", "en"],
+      publicPathPrefix: "/t/site/jor/",
+    }).siteLinks[0]!.href,
+    "/t/site/jor/en/politicas",
+  );
+});
+
 test("privacy choices only with the consent-tooling flag; default off", () => {
   assert.equal(html().includes("opciones de privacidad"), false);
   assert.match(html({ consentTooling: true }), /Tus opciones de privacidad/);
