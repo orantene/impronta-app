@@ -77,6 +77,7 @@ export async function talentSiteHostResponse(
     cookieLocale: request.cookies.get(LOCALE_COOKIE)?.value,
     primary: talentLocales.defaultLocale,
     supported: talentLocales.supportedLocales,
+    knownLocales: talentLangSettings.publicLocales,
   });
   const localeStripped = talentLocale.innerPath;
 
