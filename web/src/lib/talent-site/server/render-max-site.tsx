@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { loadHistoryPreviewSnapshot } from "../history/history.server";
 import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/talent-update.server";
 import { early } from "@/lib/server/early";
+import { perfMark, perfStart, timed } from "@/lib/server/perf-trace";
 import { failOnReadTimeout } from "@/lib/supabase/bounded-fetch-scope";
 import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill, withHeaderSiteChrome } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
@@ -189,23 +190,32 @@ export const renderTalentMaxSite = (input: RenderTalentMaxSiteInput): Promise<Re
 async function renderTalentMaxSiteUnguarded(
   input: RenderTalentMaxSiteInput,
 ): Promise<RenderTalentMaxSiteResult> {
+  const t0 = perfStart();
   try {
-    const site = await resolveSiteRow(input);
+    // TUL-444 / TUL-495: per-loader wall-clock spans (TULALA_PERF_TRACE=1).
+    const site = await timed("maxSite.resolveSite", () => resolveSiteRow(input));
     if (!site || !site.siteSlug) return NOT_FOUND;
 
     const talentProfileId = site.talentProfileId;
     const previewDraft = input.previewDraft === true;
     // The talent's own languages: bounds the locale, feeds the header switch, the `node.i18n` overlays and hreflang (PR 4 + 5).
-    const pLocale = early(loadTalentSiteLocaleContext({ talentProfileId, requestedLocale: input.locale, hrefMode: input.hrefMode, pagePath: input.canonicalPath })); // TUL-444: independent reads start together
-    const pPlan = early(loadTalentPlanKey(talentProfileId)), pPages = early(loadMaxSitePages(talentProfileId)), pDesign = early(loadMaxSiteDesignSlug(talentProfileId));
-    const pTenant = early(loadTalentManagingTenantId(talentProfileId)), pIdentity = early(loadTalentSiteIdentity(talentProfileId)), pDemo = early(loadMaxSiteIsDemo(talentProfileId)); const pCta = early(pPlan.then((plan) => loadTalentSiteCtaMode(talentProfileId, plan)));
-    const localeCtx = await pLocale, locale = localeCtx.locale, pSeoFacts = early(loadMaxSiteSeoFacts(talentProfileId, locale));
+    const pLocale = early(timed("maxSite.locale", () => loadTalentSiteLocaleContext({ talentProfileId, requestedLocale: input.locale, hrefMode: input.hrefMode, pagePath: input.canonicalPath }))); // TUL-444: independent reads start together
+    const pPlan = early(timed("maxSite.plan", () => loadTalentPlanKey(talentProfileId)));
+    const pPages = early(timed("maxSite.pages", () => loadMaxSitePages(talentProfileId)));
+    const pDesign = early(timed("maxSite.designSlug", () => loadMaxSiteDesignSlug(talentProfileId)));
+    const pTenant = early(timed("maxSite.tenant", () => loadTalentManagingTenantId(talentProfileId)));
+    const pIdentity = early(timed("maxSite.identity", () => loadTalentSiteIdentity(talentProfileId)));
+    const pDemo = early(timed("maxSite.isDemo", () => loadMaxSiteIsDemo(talentProfileId)));
+    const pCta = early(timed("maxSite.ctaMode", () => pPlan.then((plan) => loadTalentSiteCtaMode(talentProfileId, plan))));
+    const localeCtx = await pLocale;
+    const locale = localeCtx.locale;
+    const pSeoFacts = early(timed("maxSite.seoFacts", () => loadMaxSiteSeoFacts(talentProfileId, locale)));
     // ── Owner gate for draft preview (owner-only, like the profile preview) ──
     let isOwnerDraftPreview = false;
     if (previewDraft) {
       const [session, ownerUserId] = await Promise.all([
-        getCachedActorSession(),
-        loadTalentOwnerUserId(talentProfileId),
+        timed("maxSite.session", () => getCachedActorSession()),
+        timed("maxSite.ownerUserId", () => loadTalentOwnerUserId(talentProfileId)),
       ]);
       isOwnerDraftPreview = Boolean(
         session.user && ownerUserId && session.user.id === ownerUserId,
@@ -218,19 +228,21 @@ async function renderTalentMaxSiteUnguarded(
     // owner draft preview bypasses the gate so the owner can preview an
     // unpublished draft — but the plan is still READ there, because read-time
     // SEO scoping below needs it on both paths.
-    const planKey = await pPlan, ctaMode = await pCta; // seeded CTA copy follows booking mode
+    const planKey = await pPlan;
+    const ctaMode = await pCta; // seeded CTA copy follows booking mode
     const gateOpen = maxSitePublicGate({
       sitePublishedAt: site.sitePublishedAt,
       planKey,
       isOwnerDraftPreview,
     });
     if (!gateOpen) return NOT_FOUND;
+    perfMark("maxSite.afterGate", t0);
 
     // Theme releases Phase 2 — the owner's read-only preview of a saved version.
     const snap = isOwnerDraftPreview && input.previewHistoryEntryId
-      ? await loadHistoryPreviewSnapshot(talentProfileId, input.previewHistoryEntryId)
+      ? await timed("maxSite.historySnap", () => loadHistoryPreviewSnapshot(talentProfileId, input.previewHistoryEntryId!))
       : isOwnerDraftPreview && input.previewThemeUpdateId
-        ? await loadThemeUpdatePreviewSnapshot(talentProfileId, input.previewThemeUpdateId)
+        ? await timed("maxSite.themeUpdateSnap", () => loadThemeUpdatePreviewSnapshot(talentProfileId, input.previewThemeUpdateId!))
         : null;
 
     // ── Pick the shell + page set for this view ─────────────────────────────
@@ -260,7 +272,19 @@ async function renderTalentMaxSiteUnguarded(
     const designSlugEarly = await pDesign;
     const snapBlocks = snap?.pages?.[page.id];
     const body = coerceTree(snapBlocks ?? publicPageBody(page, { draftPreview: isOwnerDraftPreview }));
-    const fixed = await prepareTalentSiteTrees({ talentProfileId, locale, chain: localeCtx.chain, logoUrl: site.logoUrl, shellTree, body, ctaMode, designSlug: designSlugEarly, siteSlug: site.siteSlug });
+    const fixed = await timed("maxSite.prepareTrees", () =>
+      prepareTalentSiteTrees({
+        talentProfileId,
+        locale,
+        chain: localeCtx.chain,
+        logoUrl: site.logoUrl,
+        shellTree,
+        body,
+        ctaMode,
+        designSlug: designSlugEarly,
+        siteSlug: site.siteSlug,
+      }),
+    );
     const blocks = pruneUnconfirmedGuestStubs(fixed.body);
     if (!policyDoc && !hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       // A published-but-empty page → 404 rather than a blank document.
@@ -289,28 +313,41 @@ async function renderTalentMaxSiteUnguarded(
 
     // Demo pill + theme tokens (Design slug already loaded above).
     const isDemo = await pDemo;
-    const siteTokens = snap?.tokens ?? (await loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview }));
+    const siteTokens =
+      snap?.tokens ??
+      (await timed("maxSite.themeTokens", () =>
+        loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview }),
+      ));
     const designSlug = designSlugEarly;
-    const policyModel = policyDoc ? await loadTalentPolicyModel(talentProfileId, policyDoc, locale) : null;
-    const node = await renderMaxSiteDocument({
-      mainOverride: policyModel ? policyMainNode(policyModel) : undefined,
-      siteTokens,
-      designSlug,
-      shellTree: hydratedShell,
-      logoUrl: site.logoUrl,
-      page,
-      blocks,
-      tenantId,
-      talentProfileId,
-      locale,
-      localeCtx,
-      publicPathPrefix,
-      draftPreview: isOwnerDraftPreview,
-      // PHASE 1 — a free site carries the "Made with Tulala" mark; a paid plan removes it (same predicate as /t/[code]).
-      showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
-      isDemo,
-      talentName: identity?.name ?? null, webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), { canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL, canonicalPath: input.canonicalPath, siteSlug: site.siteSlug }),
-    });
+    const policyModel = policyDoc
+      ? await timed("maxSite.policyModel", () => loadTalentPolicyModel(talentProfileId, policyDoc, locale))
+      : null;
+    const node = await timed("maxSite.document", () =>
+      renderMaxSiteDocument({
+        mainOverride: policyModel ? policyMainNode(policyModel) : undefined,
+        siteTokens,
+        designSlug,
+        shellTree: hydratedShell,
+        logoUrl: site.logoUrl,
+        page,
+        blocks,
+        tenantId,
+        talentProfileId,
+        locale,
+        localeCtx,
+        publicPathPrefix,
+        draftPreview: isOwnerDraftPreview,
+        // PHASE 1 — a free site carries the "Made with Tulala" mark; a paid plan removes it (same predicate as /t/[code]).
+        showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
+        isDemo,
+        talentName: identity?.name ?? null,
+        webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), {
+          canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL,
+          canonicalPath: input.canonicalPath,
+          siteSlug: site.siteSlug,
+        }),
+      }),
+    );
 
     const seoFacts = await pSeoFacts; // services, links, city; never throws
 
@@ -333,6 +370,7 @@ async function renderTalentMaxSiteUnguarded(
       locales: { primary: localeCtx.settings.defaultLocale, urlDefault: localeCtx.grammar.defaultLocale, supported: localeCtx.settings.supportedLocales },
     });
 
+    perfMark("maxSite.total", t0);
     return { kind: "render", node, seo: policyModel ? policySeo(seo, policyModel) : seo, locale };
   } catch {
     // Degrade safe — any unexpected failure becomes a 404, never a throw.
@@ -415,7 +453,8 @@ async function renderMaxSiteDocument(args: {
   // Codex P2: catalogBookingLive=false mounts demo booking on published free vanity; own-work Path A uses the platform hub (like Agenda).
   let bookingTenantId: string | null = tenantId;
   if (!bookingTenantId && !draftPreview && pageNeedsTalentOfferings) {
-    bookingTenantId = (await getPlatformHubTenant())?.tenantId ?? null;
+    bookingTenantId =
+      (await timed("maxSite.platformHub", () => getPlatformHubTenant()))?.tenantId ?? null;
   }
   const catalogBookingLive = Boolean(bookingTenantId) && !draftPreview;
   // Published vanity with a booking tenant always resolves captcha for catalog.
@@ -423,50 +462,62 @@ async function renderMaxSiteDocument(args: {
 
   const [dataSources, components, platformDefault, experimentContext, pageCaptcha, captchaEnforced, talentOfferings, liveStatusRow, askVisible] =
     await Promise.all([
-      tenantId
-        ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId, args.localeCtx.settings.defaultLocale)
-        : pageNeedsTalentOfferings || pageNeedsReviews || pageNeedsVisit || pageNeedsCompCard || pageNeedsFaq
-          ? loadPersonalMaxNativeSources({
-              talentProfileId,
-              locale,
-              primaryLocale: args.localeCtx.settings.defaultLocale,
-              servicesCatalog: pageNeedsServicesCatalog,
-              portfolio: pageNeedsPortfolio,
-              nextFreeChip: pageNeedsNextFreeChip,
-              reviews: pageNeedsReviews,
-              visit: pageNeedsVisit,
-              compCard: pageNeedsCompCard,
-              talentFaq: pageNeedsFaq,
-            })
-          : Promise.resolve({} as BuilderNodeRenderDataSources),
-      tenantId && treeHasInstances(blocks)
-        ? loadBuilderComponentsForTenant(tenantId)
-        : Promise.resolve({}),
-      loadPlatformDefaultTheme("talent"),
+      timed("maxSite.dataSources", () =>
+        tenantId
+          ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId, args.localeCtx.settings.defaultLocale)
+          : pageNeedsTalentOfferings || pageNeedsReviews || pageNeedsVisit || pageNeedsCompCard || pageNeedsFaq
+            ? loadPersonalMaxNativeSources({
+                talentProfileId,
+                locale,
+                primaryLocale: args.localeCtx.settings.defaultLocale,
+                servicesCatalog: pageNeedsServicesCatalog,
+                portfolio: pageNeedsPortfolio,
+                nextFreeChip: pageNeedsNextFreeChip,
+                reviews: pageNeedsReviews,
+                visit: pageNeedsVisit,
+                compCard: pageNeedsCompCard,
+                talentFaq: pageNeedsFaq,
+              })
+            : Promise.resolve({} as BuilderNodeRenderDataSources),
+      ),
+      timed("maxSite.components", () =>
+        tenantId && treeHasInstances(blocks)
+          ? loadBuilderComponentsForTenant(tenantId)
+          : Promise.resolve({}),
+      ),
+      timed("maxSite.platformDefaultTheme", () => loadPlatformDefaultTheme("talent")),
       // ABTEST-1 — stable per-visitor seed for any A/B CTA/form nodes on the talent's personal Max site.
-      resolveExperimentRenderContext({ tenantId, surface: "talentSite" }),
-      resolveCaptcha && bookingTenantId
-        ? resolveTenantCaptcha(bookingTenantId)
-        : Promise.resolve(null),
-      isGuestCaptchaEnforced(),
+      timed("maxSite.experiment", () =>
+        resolveExperimentRenderContext({ tenantId, surface: "talentSite" }),
+      ),
+      timed("maxSite.captcha", () =>
+        resolveCaptcha && bookingTenantId
+          ? resolveTenantCaptcha(bookingTenantId)
+          : Promise.resolve(null),
+      ),
+      timed("maxSite.captchaEnforced", () => isGuestCaptchaEnforced()),
       // D-MSG-421 — vanity hosts never went through profile-storefront-payload,
       // so peso prices printed with no ≈ US$ line. Tenant stays null: this is
       // the talent's own site, not an agency storefront.
-      loadPublicOfferingsForProfile(talentProfileId, locale, null),
+      timed("maxSite.offerings", () =>
+        loadPublicOfferingsForProfile(talentProfileId, locale, null),
+      ),
       // G3b: "Atiendo emergencias hoy", read PER REQUEST (this route is
       // force-dynamic). Service role: the table has no anon read by design.
-      (async () => {
+      timed("maxSite.liveStatus", async () => {
         const admin = createServiceRoleClient();
         return admin ? loadTalentLiveStatus(admin, talentProfileId) : { ...DEFAULT_TALENT_LIVE_STATUS };
-      })(),
-      loadTalentAskVisible(talentProfileId),
+      }),
+      timed("maxSite.askVisible", () => loadTalentAskVisible(talentProfileId)),
     ]);
   // Expiry is applied here, at render time: a lapsed flag renders as off.
   const liveStatus = toLiveStatusRenderContext(liveStatusRow, new Date());
-  const usdRates = await loadUsdRatesForSitePrices([
-    ...talentOfferings,
-    ...(dataSources.menuOfferings ?? []),
-  ]);
+  const usdRates = await timed("maxSite.usdRates", () =>
+    loadUsdRatesForSitePrices([
+      ...talentOfferings,
+      ...(dataSources.menuOfferings ?? []),
+    ]),
+  );
   // D-MSG-421 loads offerings for the talent vanity even when there is no
   // agency `tenantId` (so `loadBuilderNodeDataSources` is skipped). Merge them
   // onto the render dataSources — otherwise `services_catalog` always renders
@@ -534,7 +585,20 @@ async function renderMaxSiteDocument(args: {
   const liveHeaderTree = pruneDeadSectionLinks(headerTree, renderedBlocks, [footerTree], { homePath });
   // TUL-133: a transparent header gets white text only over a dark full-bleed hero.
   const overHeroAttr = headerOverlayAllowed(renderedBlocks) ? { "data-over-hero": "true" } : {};
-  const hasSocialNode = builderTreeHasKind(footerTree, "social_links"); const { records: footerSocialLinks, strip: webOfficeStrip } = webOfficeFooter(args.webOffice, hasSocialNode || args.webOffice ? await loadTalentSocialLinks(talentProfileId) : [], hasSocialNode, locale);
+  const hasSocialNode = builderTreeHasKind(footerTree, "social_links");
+  const socialLinks =
+    hasSocialNode || args.webOffice
+      ? await timed("maxSite.socialLinks", () => loadTalentSocialLinks(talentProfileId))
+      : [];
+  const { records: footerSocialLinks, strip: webOfficeStrip } = webOfficeFooter(
+    args.webOffice,
+    socialLinks,
+    hasSocialNode,
+    locale,
+  );
+  const whitelabel = tenantId
+    ? await timed("maxSite.whitelabel", () => loadTenantWhitelabel(tenantId))
+    : false;
   const socketModel = buildSocketModel({
     locale,
     publicPathPrefix,
@@ -542,7 +606,7 @@ async function renderMaxSiteDocument(args: {
     primaryLocale: args.localeCtx.settings.defaultLocale,
     switcherHrefs: args.localeCtx.switcherHrefs,
     showCredit: showPlatformBadge,
-    whitelabel: tenantId ? await loadTenantWhitelabel(tenantId) : false,
+    whitelabel,
     consentTooling: socketConsentToolingEnabled(),
     talentName: args.talentName,
     headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),
