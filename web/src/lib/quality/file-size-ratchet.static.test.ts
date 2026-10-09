@@ -599,7 +599,9 @@ const BUDGETS: Record<string, number> = {
   // pays back #2971's +20 residue; async wrappers (not value re-exports) keep
   // the "use server" surface SWC-safe. +2: requireNotImpersonating on the
   // upload/delete wrappers (static scan only sees this "use server" file).
-  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 3378,
+  // Rebase onto main@8d088d1a2 (#3002 payment-booking + tryMajorToMinor call
+  // sites): post-rebase actual 3393 (still ≤3532).
+  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 3393,
   // 2026-08-10 branding-media: +12 for the wordmark/favicon in-use delete
   // guard (logic extracted to site-admin/server/brand-library.ts; this is
   // the import + call site + refusal message).
