@@ -506,7 +506,10 @@ async function assertAccounts(run: Run, choice: Choice, userId: string, displayN
     const { data: ident } = await admin.from("agency_business_identity").select("default_locale, public_name").eq("tenant_id", tenantId).maybeSingle();
     run.facts.businessIdentity = { default_locale: ident?.default_locale };
     expect(ident?.default_locale, "agency_business_identity.default_locale").toBe("es");
-    const { data: offers } = await admin.from("talent_offerings").select("title, amount_cents").eq("tenant_id", tenantId).eq("owner_kind", "workspace");
+    // "both" writes house rows next to the owner's own; a studio whose owner takes clients (the default) writes the
+    // sole owner-provider's rows instead (TUL-77b), so a studio is checked on the tenant's offerings of either owner kind.
+    const offersQuery = admin.from("talent_offerings").select("title, amount_cents").eq("tenant_id", tenantId);
+    const { data: offers } = choice === "studio" ? await offersQuery : await offersQuery.eq("owner_kind", "workspace");
     run.facts.workspaceOfferings = offers;
     for (const s of SERVICES) {
       const row = (offers ?? []).find((o) => o.title === s.name);
