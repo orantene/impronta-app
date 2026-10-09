@@ -1,0 +1,38 @@
+{
+  "card": "TUL-157",
+  "step": "hub roster row, media upload, services, hero, languages",
+  "n": 5,
+  "status": "FAIL",
+  "facts": {
+    "hubRosterActive": 2,
+    "talent_languages": [
+      {
+        "id": "e086396a-ba84-4cbc-8cd3-56a8a815c23e",
+        "tenant_id": "00000000-0000-0000-0000-000000000002",
+        "talent_profile_id": "e2a5c03b-890f-41f1-ab30-46f340cfd80e",
+        "language_code": "es",
+        "language_name": "Spanish",
+        "speaking_level": "fluent",
+        "reading_level": null,
+        "writing_level": null,
+        "is_native": false,
+        "can_host": false,
+        "can_sell": false,
+        "can_translate": false,
+        "can_teach": false,
+        "display_order": 0,
+        "created_at": "2026-10-09T05:47:08.956723+00:00",
+        "updated_at": "2026-10-09T05:47:08.956723+00:00"
+      }
+    ],
+    "offerings": [
+      "Limpieza profunda",
+      "Limpieza ligera"
+    ],
+    "mediaUploadError": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Fotos de tu trabajo').first()\nExpected: visible\nTimeout: 60000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 60000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Fotos "
+  },
+  "shots": [
+    "run6-TUL-157-05-01-services.jpg"
+  ],
+  "detail": "media upload through the editor (Agregar fotos) |  | expect(received).toBe(expected) // Object.is equality |  | Expected: false | Received: true"
+}

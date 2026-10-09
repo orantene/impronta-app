@@ -1,0 +1,67 @@
+{
+ "db": {
+  "tp_created": "2026-10-09T06:31:49.391629+00:00",
+  "tp_updated": "2026-10-09T06:32:18.152+00:00",
+  "secondary_locales": [
+   "en"
+  ],
+  "preferred_locale": "es",
+  "bio_en": "I'm Rosa r6a alhmbi, a limpieza de airbnb in Playa del Carmen. Write to me and we'll sort out what you need.",
+  "bio_es": "Soy Rosa r6a alhmbi, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas.",
+  "short_bio": "Soy Rosa r6a alhmbi, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas.",
+  "site_created": "2026-10-09T06:31:53.009383+00:00",
+  "site_published_at": "2026-10-09T06:32:03.235+00:00"
+ },
+ "es": {
+  "status": 200,
+  "htmlLang": "es",
+  "h1": "Rosa r6a alhmbi",
+  "paragraphs": [
+   "LIMPIEZA DE AIRBNB · PLAYA DEL CARMEN",
+   "Soy Rosa r6a alhmbi, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas.",
+   "Español",
+   "EL MENÚ",
+   "Precios en MXN.",
+   "HOLA, SOY ROSA R6A ALHMBI",
+   "Soy Rosa r6a alhmbi, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas.",
+   "TU VISITA"
+  ],
+  "nav": "Rosa r6a alhmbi LIMPIEZA DE AIRBNB Trabajos Menú y precios Reseñas Sobre mí ES / EN Reservar cita",
+  "switcher": [
+   [
+    "ES",
+    "/?locale=es"
+   ],
+   [
+    "EN",
+    "/en"
+   ]
+  ]
+ },
+ "en": {
+  "status": 200,
+  "htmlLang": "en",
+  "h1": "Rosa r6a alhmbi",
+  "paragraphs": [
+   "AIRBNB TURNOVER CLEANER · PLAYA DEL CARMEN",
+   "Soy Rosa r6a alhmbi, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas.",
+   "Español",
+   "THE MENU",
+   "Prices in MXN.",
+   "HELLO, I'M ROSA R6A ALHMBI",
+   "I'm Rosa r6a alhmbi, a limpieza de airbnb in Playa del Carmen. Write to me and we'll sort out what you need.",
+   "YOUR VISIT"
+  ],
+  "nav": "Rosa r6a alhmbi AIRBNB TURNOVER CLEANER Work Menu and prices Reviews About ES / EN Book an appointment",
+  "switcher": [
+   [
+    "ES",
+    "/?locale=es"
+   ],
+   [
+    "EN",
+    "/en"
+   ]
+  ]
+ }
+}

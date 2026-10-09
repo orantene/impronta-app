@@ -1,0 +1,15 @@
+{
+  "A": {
+    "label": "A",
+    "choice": "myself",
+    "email": "qa-onb-choice-myself-a-desktop-alhmbi@impronta.test",
+    "displayName": "Rosa r6a alhmbi",
+    "userId": "e12528d1-f2b9-4530-8dcf-0650c32b8b5e",
+    "talentId": "6ac18b19-5784-4196-a700-987cdd6ef785",
+    "tenantId": null,
+    "tenantSlug": null,
+    "siteSlug": "rosa-r6a-alhmbi",
+    "finishHref": "https://rosa-r6a-alhmbi.tulala.digital",
+    "pickedLook": "blush"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "card": "TUL-130",
+  "step": "no legacy-signup leftovers after a fresh signup",
+  "n": 2,
+  "status": "PASS",
+  "facts": {
+    "talent_profiles_rows_incl_deleted": 1,
+    "rosterRows": [
+      {
+        "tenant_id": "00000000-0000-0000-0000-000000000002",
+        "status": "active"
+      }
+    ],
+    "profile": {
+      "app_role": "talent",
+      "account_status": "active"
+    },
+    "tablesChecked": [
+      "talent_profiles (legacy chooseTalentRole stub)",
+      "client_profiles (legacy chooseClientRole)",
+      "agency_client_relationships (legacy portal next)",
+      "agency_talent_roster (legacy ensureTalentRosterForNext)",
+      "profiles.app_role"
+    ],
+    "legacy /register ->": "/start",
+    "legacy /onboarding/role ->": "/start"
+  },
+  "shots": [
+    "run6-TUL-130-02-01-legacy-door-redirect.jpg"
+  ]
+}

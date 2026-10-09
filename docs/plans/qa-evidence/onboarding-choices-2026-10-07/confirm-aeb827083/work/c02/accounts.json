@@ -1,0 +1,67 @@
+{
+  "A": {
+    "label": "A",
+    "choice": "myself",
+    "email": "qa-r6-a-achisj@impronta.test",
+    "displayName": "Rosa r6a achisj",
+    "userId": "8fcef5fa-497f-471e-88e6-0ae477b9f545",
+    "talentId": "8915d594-b7e5-4bc3-990d-690fd189936b",
+    "tenantId": null,
+    "tenantSlug": null,
+    "siteSlug": "rosa-r6a-achisj",
+    "finishHref": "https://rosa-r6a-achisj.tulala.digital",
+    "pickedLook": "blush"
+  },
+  "M2": {
+    "label": "A",
+    "choice": "myself",
+    "email": "qa-r6-a-achisj@impronta.test",
+    "displayName": "Rosa r6a achisj",
+    "userId": "8fcef5fa-497f-471e-88e6-0ae477b9f545",
+    "talentId": "8915d594-b7e5-4bc3-990d-690fd189936b",
+    "tenantId": null,
+    "tenantSlug": null,
+    "siteSlug": "rosa-r6a-achisj",
+    "finishHref": "https://rosa-r6a-achisj.tulala.digital",
+    "pickedLook": "blush"
+  },
+  "S": {
+    "label": "S",
+    "choice": "studio",
+    "email": "qa-r6-s-acstbl@impronta.test",
+    "displayName": "Estudio r6s acstbl",
+    "userId": "772cdb0f-ac4c-430a-8d2e-4fb2ebaa3e3b",
+    "talentId": null,
+    "tenantId": "d19606ec-9651-47f4-8869-f0334748d777",
+    "tenantSlug": "estudio-r6s-acstbl",
+    "siteSlug": null,
+    "finishHref": "https://estudio-r6s-acstbl.tulala.digital",
+    "pickedLook": null
+  },
+  "B": {
+    "label": "B",
+    "choice": "both",
+    "email": "qa-r6-b-acstbl@impronta.test",
+    "displayName": "Ambas r6b acstbl",
+    "userId": "97ede5f5-6b56-4f39-8289-6769aebafe7d",
+    "talentId": "f04664aa-e2d2-49f7-a7b8-b254c7f40fe4",
+    "tenantId": "af9a22fe-22c5-4067-9911-546ef64a908b",
+    "tenantSlug": "ambas-r6b-acstbl",
+    "siteSlug": "ambas-r6b-acstbl-2",
+    "finishHref": "https://ambas-r6b-acstbl.tulala.digital",
+    "pickedLook": "blush"
+  },
+  "D": {
+    "label": "D",
+    "choice": "myself",
+    "email": "qa-r6-d-abdkai@impronta.test",
+    "displayName": "Rosa r6d abdkai",
+    "userId": "be53bb64-1b9a-4021-b8f5-b56f5e37e418",
+    "talentId": "b2a97873-3ae9-4b52-88c3-dcfdaa514a1d",
+    "tenantId": null,
+    "tenantSlug": null,
+    "siteSlug": "rosa-r6d-abdkai",
+    "finishHref": "https://rosa-r6d-abdkai.tulala.digital",
+    "pickedLook": "blush"
+  }
+}

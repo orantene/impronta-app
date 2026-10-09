@@ -1,0 +1,16 @@
+{
+  "card": "TUL-120",
+  "step": "no error banner after login + Messages empty state",
+  "n": 6,
+  "status": "FAIL",
+  "facts": {
+    "errorBannerCount": 0,
+    "http5xx": [],
+    "messagesText": "VENDE LO QUE HACES, NO LO QUE ENVÍAS Administrar sitio qa-rosa-account.localhost ES EN Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan OFICINA WEB Vista previa del sitio Ajustes Mis trabajos 36 ⌘K Todos Los Trabajos Consulta En Espera Reservada Pasadas Coordinando 3 HOY Invitada QA Direct inquiry · 15 oct · En el estudio Impronta: Esperando tu r"
+  },
+  "shots": [
+    "run6-TUL-120-06-01-after-login.jpg",
+    "run6-TUL-120-06-02-messages.jpg"
+  ],
+  "detail": "Messages empty state wording (Spanish) |  | expect(received).toMatch(expected) |  | Expected pattern: /sin mensajes|no hay mensajes|aún no|todavía no|empieza|ningún mensaje|no tienes|nada en esta vista|Nothing in this view/i | Received string:  \"VENDE LO QUE HACES, NO LO QUE ENVÍAS | Administrar sitio | qa-rosa-account.localhost"
+}

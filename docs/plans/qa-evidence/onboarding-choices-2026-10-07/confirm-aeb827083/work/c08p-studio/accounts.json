@@ -1,0 +1,15 @@
+{
+  "A": {
+    "label": "A",
+    "choice": "studio",
+    "email": "qa-onb-choice-studio-a-phone-ambdcj@impronta.test",
+    "displayName": "Estudio r6a ambdcj",
+    "userId": "b7b00adb-d5f8-44e4-825e-95620f8f5c9f",
+    "talentId": null,
+    "tenantId": "eba9571b-edb6-4dd0-b6f2-9eace4a19705",
+    "tenantSlug": "estudio-r6a-ambdcj",
+    "siteSlug": null,
+    "finishHref": "https://estudio-r6a-ambdcj.tulala.digital",
+    "pickedLook": null
+  }
+}

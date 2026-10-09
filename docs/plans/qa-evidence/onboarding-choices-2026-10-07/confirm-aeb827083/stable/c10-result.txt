@@ -1,0 +1,4 @@
+c10 TUL-146 sanity on aeb827083 (marketing host mapping localhost:3105):
+GET /es/start -> 200, <html lang="es"> but body copy is ENGLISH: "How do you work? One choice. The next steps adapt to you. I work for myself ... Continue"
+GET /start?lang=es -> 200, lang=es, Spanish copy ("¿Cómo trabajas? ... Continuar")
+GET /start -> 200, lang=en, English.

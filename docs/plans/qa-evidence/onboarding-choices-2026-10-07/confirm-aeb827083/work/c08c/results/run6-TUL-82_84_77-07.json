@@ -1,0 +1,26 @@
+{
+  "card": "TUL-82/84/77",
+  "step": "both: has an offering AND a bookable slot (guest books on the owner's talent site)",
+  "n": 7,
+  "status": "PASS",
+  "facts": {
+    "chip": "09:00",
+    "captchaElementPresent": true,
+    "captchaTokenArrivedBeforeConfirm": true,
+    "refusalTextShown": "",
+    "sheetTextAfterConfirm": "(no booking sheet open)",
+    "guest": {
+      "chip": "09:00",
+      "inquiry": "236e4072-71c8-4e42-834c-442619b34f11",
+      "order": {
+        "id": "c542dfdd-a43f-4aed-bf7f-357fd2f6c1fa",
+        "status": "pending_payment"
+      }
+    }
+  },
+  "shots": [
+    "run6-TUL-82_84_77-07-01-guest-slot.jpg",
+    "run6-TUL-82_84_77-07-02-guest-details.jpg",
+    "run6-TUL-82_84_77-07-03-guest-after-confirm.jpg"
+  ]
+}

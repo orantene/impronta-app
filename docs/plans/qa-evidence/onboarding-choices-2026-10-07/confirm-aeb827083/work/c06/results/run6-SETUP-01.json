@@ -1,0 +1,28 @@
+{
+  "card": "SETUP",
+  "step": "signup A (myself)",
+  "n": 1,
+  "status": "PASS",
+  "facts": {
+    "sentence": "Me llamo Rosa r6a alhmbi. Soy limpiadora de casas en Playa del Carmen. Hago limpieza profunda y ligera, de lunes a sábado.",
+    "deliveryChoice": {
+      "mode": "studio",
+      "label": "En mi estudio",
+      "area": "Centro"
+    },
+    "languageBannerShownOnSpanishPage": true,
+    "pickedLook": "blush",
+    "emailCode": "send failed on the isolated stack; UI error: No pudimos enviar tu código. Revisa el correo e inténtalo de nuevo.",
+    "userId": "e12528d1-f2b9-4530-8dcf-0650c32b8b5e",
+    "arrivalWaitMsFromEmailCodeSubmit": 29908,
+    "ctaHref": "https://rosa-r6a-alhmbi.tulala.digital",
+    "ctaText": "Abrir",
+    "finishHref": "https://rosa-r6a-alhmbi.tulala.digital",
+    "talentId": "6ac18b19-5784-4196-a700-987cdd6ef785",
+    "tenantSlug": null,
+    "siteSlug": "rosa-r6a-alhmbi"
+  },
+  "shots": [
+    "run6-SETUP-01-01-arrival.jpg"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "card": "TUL-82/84/77",
+  "step": "studio with a provider is bookable (B workspace site: owner is the provider)",
+  "n": 9,
+  "status": "FAIL",
+  "facts": {
+    "studioPageHasServices": true,
+    "studioPageHoursPublished": false,
+    "studioPageExcerpt": "Skip to content AMBAS R6B AJLBYF ES | EN Ambas r6b ajlbyf Lo que ofrecemos Agenda Nosotros Galería Contacto 01 / 03 SCROLL Ambas r6b ajlbyf Con gusto te atendemos. Escríbenos o ven a vernos. ESCRÍBENOS LO QUE OFRECEMOS Ambas r6b ajlbyf ◆ Lo que ofrecemos ◆ Galería ◆ Contacto ◆ Ambas r6b ajlbyf ◆ Lo que ofrecemos ◆ Galería ◆ Contacto ◆ Lo esencial, bien hecho. LO QUE HACEMOS Lo esencial El lugar Un espacio pensado para quedarse un rato. Ven a conocerlo. El oficio Lo que hacemos, lo hacemos con cu",
+    "firstSlot": "vie, 9 oct, 10:30",
+    "afterConfirmText": "Reserva un horario Elige un servicio y un horario",
+    "rows": {
+      "inquiry": null,
+      "customer": null
+    }
+  },
+  "shots": [
+    "run6-TUL-82_84_77-09-01-studio-site.jpg",
+    "run6-TUL-82_84_77-09-02-studio-booking-form.jpg",
+    "run6-TUL-82_84_77-09-03-studio-booking-after.jpg"
+  ],
+  "detail": "a booking row exists for the studio booking |  | expect(received).toBe(expected) // Object.is equality |  | Expected: true | Received: false"
+}

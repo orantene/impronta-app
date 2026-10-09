@@ -1,0 +1,24 @@
+{
+  "card": "SETUP",
+  "step": "signup S (studio)",
+  "n": 3,
+  "status": "PASS",
+  "facts": {
+    "sentence": "Soy Estudio r6s ajbnsi. Tengo un estudio de limpieza de casas en Playa del Carmen con un equipo de tres personas. Hacemos limpieza profunda y ligera, de lunes a sábado.",
+    "deliveryChoice": {
+      "mode": "studio",
+      "label": "En mi estudio",
+      "area": "Centro"
+    },
+    "languageBannerShownOnSpanishPage": true,
+    "emailCode": "send failed on the isolated stack; UI error: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+    "userId": "bed5721c-63a2-4838-94c4-f96b403b40e8",
+    "finishHref": "https://estudio-r6s-ajbnsi.tulala.digital",
+    "talentId": null,
+    "tenantSlug": "estudio-r6s-ajbnsi",
+    "siteSlug": null
+  },
+  "shots": [
+    "run6-SETUP-03-01-arrival.jpg"
+  ]
+}

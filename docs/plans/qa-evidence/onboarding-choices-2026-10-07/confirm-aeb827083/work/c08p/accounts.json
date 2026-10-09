@@ -1,0 +1,15 @@
+{
+  "A": {
+    "label": "A",
+    "choice": "myself",
+    "email": "qa-onb-choice-myself-a-phone-ajyafy@impronta.test",
+    "displayName": "Rosa r6a ajyafy",
+    "userId": "6806e8aa-07b1-49bc-aeea-201dd1f8c25e",
+    "talentId": "a91935a3-ae92-4f58-a6c4-c0e05a738795",
+    "tenantId": null,
+    "tenantSlug": null,
+    "siteSlug": "rosa-r6a-ajyafy",
+    "finishHref": "https://rosa-r6a-ajyafy.tulala.digital",
+    "pickedLook": "blush"
+  }
+}

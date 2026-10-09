@@ -1,0 +1,44 @@
+[
+  {
+    "card": "SETUP",
+    "step": "signup A (myself)",
+    "status": "PASS"
+  },
+  {
+    "card": "SETUP",
+    "step": "signup M2 (myself, for TUL-86)",
+    "status": "PASS"
+  },
+  {
+    "card": "SETUP",
+    "step": "signup S (studio)",
+    "status": "PASS"
+  },
+  {
+    "card": "SETUP",
+    "step": "signup B (both)",
+    "status": "PASS"
+  },
+  {
+    "card": "SETUP",
+    "step": "guest booking on A's site (shared by TUL-93/168/132)",
+    "status": "PASS"
+  },
+  {
+    "card": "TUL-86",
+    "step": "myself -> both (Cómo trabajas, M2)",
+    "status": "PASS"
+  },
+  {
+    "card": "TUL-86",
+    "step": "studio -> both (Agregarme como proveedor, S)",
+    "status": "FAIL",
+    "detail": "provider talent profile created |  | expect(received).toBeTruthy() |  | Received: null"
+  },
+  {
+    "card": "TUL-86b",
+    "step": "myself->both result: the new workspace's public site is bookable (M2)",
+    "status": "FAIL",
+    "detail": "no bookable entry (Agendar) on the studio site: the page offers an inquiry form only"
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "card": "SETUP",
+    "step": "signup A (myself)",
+    "status": "PASS"
+  },
+  {
+    "card": "SETUP",
+    "step": "guest booking on A's site (shared by TUL-93/168/132)",
+    "status": "FAIL",
+    "detail": "an available slot |  | expect(locator).toBeVisible() failed |  | Locator: locator('[data-testid=slot-picker] button').first() | Expected: visible | Timeout: 45000ms | Error: element(s) not found"
+  }
+]

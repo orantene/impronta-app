@@ -1,0 +1,33 @@
+[
+  {
+    "card": "SETUP",
+    "step": "signup A (myself)",
+    "status": "PASS"
+  },
+  {
+    "card": "SETUP",
+    "step": "signup M2 (myself, for TUL-86)",
+    "status": "PASS"
+  },
+  {
+    "card": "SETUP",
+    "step": "signup S (studio)",
+    "status": "PASS"
+  },
+  {
+    "card": "SETUP",
+    "step": "signup B (both)",
+    "status": "PASS"
+  },
+  {
+    "card": "TUL-157",
+    "step": "hub roster row, media upload, services, hero, languages",
+    "status": "FAIL",
+    "detail": "media upload through the editor (Agregar fotos) |  | expect(received).toBe(expected) // Object.is equality |  | Expected: false | Received: true"
+  },
+  {
+    "card": "SETUP",
+    "step": "guest booking on A's site (shared by TUL-93/168/132)",
+    "status": "PASS"
+  }
+]

@@ -1,0 +1,54 @@
+{
+  "A": {
+    "label": "A",
+    "choice": "myself",
+    "email": "qa-onb-choice-myself-a-desktop-ajbnsi@impronta.test",
+    "displayName": "Rosa r6a ajbnsi",
+    "userId": "e6f2d9ff-9a36-40ee-a2bd-72067415dcb2",
+    "talentId": null,
+    "tenantId": null,
+    "tenantSlug": null,
+    "siteSlug": null,
+    "finishHref": "",
+    "pickedLook": "blush"
+  },
+  "M2": {
+    "label": "M2",
+    "choice": "myself",
+    "email": "qa-onb-choice-myself-m2-desktop-ajbnsi@impronta.test",
+    "displayName": "Rosa r6m2 ajbnsi",
+    "userId": "0a4fd547-358f-4573-91b2-61a6ab652baf",
+    "talentId": null,
+    "tenantId": null,
+    "tenantSlug": null,
+    "siteSlug": null,
+    "finishHref": "",
+    "pickedLook": "blush"
+  },
+  "S": {
+    "label": "S",
+    "choice": "studio",
+    "email": "qa-onb-choice-studio-s-desktop-ajbnsi@impronta.test",
+    "displayName": "Estudio r6s ajbnsi",
+    "userId": "bed5721c-63a2-4838-94c4-f96b403b40e8",
+    "talentId": null,
+    "tenantId": "0f807df9-b6d6-4003-90c2-1899f7558f20",
+    "tenantSlug": "estudio-r6s-ajbnsi",
+    "siteSlug": null,
+    "finishHref": "https://estudio-r6s-ajbnsi.tulala.digital",
+    "pickedLook": null
+  },
+  "B": {
+    "label": "B",
+    "choice": "both",
+    "email": "qa-onb-choice-both-b-desktop-ajbnsi@impronta.test",
+    "displayName": "Ambas r6b ajbnsi",
+    "userId": "593d0a20-2113-4f48-bad5-79220f1872ee",
+    "talentId": null,
+    "tenantId": null,
+    "tenantSlug": null,
+    "siteSlug": null,
+    "finishHref": "",
+    "pickedLook": "blush"
+  }
+}

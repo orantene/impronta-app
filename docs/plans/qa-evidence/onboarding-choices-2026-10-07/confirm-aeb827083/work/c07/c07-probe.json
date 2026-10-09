@@ -1,0 +1,41 @@
+{
+ "visitDetail": {
+  "url": "http://rosa-r6a-alhmbi.tulala.digital:3008/account/visits/7038220c-3b64-4c11-9ffb-f746b9de8c46",
+  "text": "Cookies y analítica × Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes. Política de privacidad · Política de cookies Rechazar Aceptar Rosa r6a alhmbi Tu cuenta ← Volver Política de cancelación La ventana de cancelación gratis ya pasó. Aún no has pagado, así que no hay nada que reembolsar. Servicio Limpieza profunda Fecha y hora viernes, 9 de octubre de 2026 4:30 p.m. UTC (UTC) Precio 850.00 MXN Estado Confirmada Los horarios están en UTC (UTC).",
+  "cancelBtn": 0,
+  "changeTime": 0
+ },
+ "/account?tab=visits": {
+  "status": 200,
+  "finalPath": "/account?tab=visits",
+  "text": "Cookies y analítica × Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes. Política de privacidad · Política de cookies Rechazar Aceptar Rosa r6a alhmbi Tu cuenta Visitas Mensajes Pagos Ajustes Próximas Se"
+ },
+ "user": {
+  "id": "48eb9c02-785a-4b4b-b8e9-c7a35aebb01a"
+ },
+ "profile": [
+  {
+   "app_role": "client",
+   "account_status": "active"
+  }
+ ],
+ "clientProfile": [
+  {
+   "id": "e9106b89-3c0f-4b53-a85c-83cfcd0e505a"
+  }
+ ],
+ "customers": [
+  {
+   "id": "982a7173-8d9e-49b0-8cbc-eca4530c7700",
+   "tenant_id": "a29faba7-cf90-42a4-9259-d99b6fe70d40",
+   "email": "qa-r6-guest-alhmbi@impronta.test",
+   "user_id": "48eb9c02-785a-4b4b-b8e9-c7a35aebb01a"
+  },
+  {
+   "id": "d3a8c039-ebb4-49ac-803b-e37e89a095c4",
+   "tenant_id": "00000000-0000-0000-0000-000000000002",
+   "email": "qa-r6-guest-alhmbi@impronta.test",
+   "user_id": "48eb9c02-785a-4b4b-b8e9-c7a35aebb01a"
+  }
+ ]
+}

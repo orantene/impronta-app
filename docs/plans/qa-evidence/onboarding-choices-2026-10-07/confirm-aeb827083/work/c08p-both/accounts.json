@@ -1,0 +1,15 @@
+{
+  "A": {
+    "label": "A",
+    "choice": "both",
+    "email": "qa-onb-choice-both-a-phone-amdkhv@impronta.test",
+    "displayName": "Ambas r6a amdkhv",
+    "userId": "66094ed0-c500-40e5-989e-7731a40049ce",
+    "talentId": "b937d3e7-5183-4862-af9c-21bc9309527b",
+    "tenantId": "1d5c4755-f413-40b5-9eaa-08f75064845c",
+    "tenantSlug": "ambas-r6a-amdkhv",
+    "siteSlug": "ambas-r6a-amdkhv-2",
+    "finishHref": "https://ambas-r6a-amdkhv.tulala.digital",
+    "pickedLook": "blush"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "card": "TUL-130",
+  "step": "no legacy-signup leftovers after a fresh signup",
+  "n": 5,
+  "status": "FAIL",
+  "facts": {
+    "talent_profiles_rows_incl_deleted": 0
+  },
+  "shots": [],
+  "detail": "exactly one talent_profiles row (no orphan from the legacy role picker) |  | expect(received).toBe(expected) // Object.is equality |  | Expected: 1 | Received: 0"
+}

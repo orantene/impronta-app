@@ -1,0 +1,9 @@
+{
+  "card": "TUL-86",
+  "step": "myself -> both (Cómo trabajas, M2)",
+  "n": 6,
+  "status": "FAIL",
+  "facts": {},
+  "shots": [],
+  "detail": "locator.click: Timeout 120000ms exceeded. | Call log: |   - waiting for getByText(/^Cómo trabajas$/).first() | "
+}

@@ -1,0 +1,29 @@
+{
+  "card": "SETUP",
+  "step": "guest booking on A's site (shared by TUL-93/168/132)",
+  "n": 5,
+  "status": "PASS",
+  "facts": {
+    "talentTimezone": "America/Mexico_City",
+    "chip": "10:30",
+    "captchaElementPresent": true,
+    "captchaTokenArrivedBeforeConfirm": true,
+    "refusalTextShown": "",
+    "sheetTextAfterConfirm": "(no booking sheet open)",
+    "guest": {
+      "chip": "10:30",
+      "inquiry": "295506ca-705f-4e24-b3ba-ac9b077b51dd",
+      "order": {
+        "id": "87624c2c-362c-443b-8088-9c883f4badb8",
+        "status": "pending_payment",
+        "channel": "instant_book"
+      },
+      "confirmationSeen": true
+    }
+  },
+  "shots": [
+    "run6-SETUP-05-01-guest-slot.jpg",
+    "run6-SETUP-05-02-guest-details.jpg",
+    "run6-SETUP-05-03-guest-after-confirm.jpg"
+  ]
+}

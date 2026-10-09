@@ -1,0 +1,38 @@
+[
+  {
+    "card": "SETUP",
+    "step": "signup A (myself)",
+    "status": "PASS"
+  },
+  {
+    "card": "SETUP",
+    "step": "signup M2 (myself, for TUL-86)",
+    "status": "PASS"
+  },
+  {
+    "card": "SETUP",
+    "step": "signup S (studio)",
+    "status": "PASS"
+  },
+  {
+    "card": "SETUP",
+    "step": "signup B (both)",
+    "status": "PASS"
+  },
+  {
+    "card": "SETUP",
+    "step": "guest booking on A's site (shared by TUL-93/168/132)",
+    "status": "PASS"
+  },
+  {
+    "card": "TUL-132",
+    "step": "booking inquiry has event_date and location",
+    "status": "FAIL",
+    "detail": "inquiries.event_location |  | expect(received).toBeGreaterThan(expected) |  | Expected: > 0 | Received:   0"
+  },
+  {
+    "card": "TUL-132",
+    "step": "event_location: null without a delivery setting; delivery label once the offering has one",
+    "status": "PASS"
+  }
+]

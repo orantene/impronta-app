@@ -1,0 +1,17 @@
+[
+  {
+    "card": "SETUP",
+    "step": "signup A (myself)",
+    "status": "PASS"
+  },
+  {
+    "card": "TUL-125",
+    "step": "bilingual bio + stock hero image",
+    "status": "PASS"
+  },
+  {
+    "card": "SETUP",
+    "step": "guest booking on A's site (shared by TUL-93/168/132)",
+    "status": "PASS"
+  }
+]

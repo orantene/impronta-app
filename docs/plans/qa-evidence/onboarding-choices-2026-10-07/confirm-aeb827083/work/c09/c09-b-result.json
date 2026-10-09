@@ -1,0 +1,51 @@
+{
+ "orders": null,
+ "inquiries": [
+  {
+   "id": "236e4072-71c8-4e42-834c-442619b34f11",
+   "status": "new",
+   "contact_name": "Invitada QA",
+   "tenant_id": "a29faba7-cf90-42a4-9259-d99b6fe70d40",
+   "event_date": "2026-10-09"
+  },
+  {
+   "id": "c7074361-9918-4afb-986e-80a153195ece",
+   "status": "new",
+   "contact_name": "Invitada Book",
+   "tenant_id": "a29faba7-cf90-42a4-9259-d99b6fe70d40",
+   "event_date": "2026-10-09"
+  },
+  {
+   "id": "d10d6a84-4851-4162-ab3d-744ee10c9fcc",
+   "status": "new",
+   "contact_name": "Invitada Book",
+   "tenant_id": "a29faba7-cf90-42a4-9259-d99b6fe70d40",
+   "event_date": "2026-10-09"
+  },
+  {
+   "id": "b1d920e9-9921-4568-aa16-55c47b4bf04b",
+   "status": "new",
+   "contact_name": "Cliente Qa",
+   "tenant_id": "a29faba7-cf90-42a4-9259-d99b6fe70d40",
+   "event_date": "2026-10-09"
+  }
+ ],
+ "/admin": {
+  "status": 200,
+  "final": "/ambas-r6b-ajlbyf/admin",
+  "hasGuest": false,
+  "excerpt": "Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS AM Ambas r6b ajlbyf Plan Gratis Talento Admin Resumen OPERAR Mensajes Calendario Citas y clases Pedidos Proyectos Incidencias VENDER Y GESTIONAR Catálogo Espacios y recursos RELACIONES Clientes Personas 2 Reseñas DINERO Ventas Pagos CRECER Analíticas Sitio web Ajustes Ambas r6b ajlbyf Resumen Oficina POS · Mostrador ES 4 Gratis Buenos días, qa-onb-choice-both-b-desktop-ajlbyf vie 9 oct · Cargando los números de hoy Abrir POS Nuev"
+ },
+ "/admin/inquiries": {
+  "status": 404,
+  "final": "/ambas-r6b-ajlbyf/admin/inquiries",
+  "hasGuest": false,
+  "excerpt": "TULALA Page not found We couldn't find the page you're looking for. Go home Sign in"
+ },
+ "/admin/calendar": {
+  "status": 200,
+  "final": "/ambas-r6b-ajlbyf/admin/calendar",
+  "hasGuest": true,
+  "excerpt": "Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS AM Ambas r6b ajlbyf Plan Gratis Talento Admin Resumen OPERAR Mensajes Calendario Citas y clases Pedidos Proyectos Incidencias VENDER Y GESTIONAR Catálogo Espacios y recursos RELACIONES Clientes Personas Reseñas DINERO Ventas Pagos CRECER Analíticas Sitio web Ajustes Ambas r6b ajlbyf Calendario Oficina POS · Mostrador ES 4 Gratis vie 9 oct UTC · Ambas r6b ajlbyf Dia Semana Agenda Recursos Mes Agregar Ubicacion: cualquiera cualquie"
+ }
+}

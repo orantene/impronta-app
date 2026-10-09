@@ -1,0 +1,42 @@
+{
+  "card": "TUL-157",
+  "step": "hub roster row, media upload, services, hero, languages",
+  "n": 5,
+  "status": "FAIL",
+  "facts": {
+    "hubRosterActive": 1,
+    "talent_languages": [
+      {
+        "id": "7fd021da-aae7-4d95-9b78-7eac5b942258",
+        "tenant_id": "00000000-0000-0000-0000-000000000002",
+        "talent_profile_id": "20f65550-4688-4464-ae36-603048ff640d",
+        "language_code": "es",
+        "language_name": "Spanish",
+        "speaking_level": "fluent",
+        "reading_level": null,
+        "writing_level": null,
+        "is_native": false,
+        "can_host": false,
+        "can_sell": false,
+        "can_translate": false,
+        "can_teach": false,
+        "display_order": 0,
+        "created_at": "2026-10-09T05:46:30.763665+00:00",
+        "updated_at": "2026-10-09T05:46:30.763665+00:00"
+      }
+    ],
+    "offerings": [
+      "Limpieza profunda",
+      "Limpieza ligera"
+    ],
+    "agregarFotosLabelClicked": false,
+    "editorDrawerTextTail": " usadas en tu plan. Te caben 149 más. ✦ Reel de saludo · intro de 30 segundos + Arrastra o elige un reel de saludo de 30 segundos Video y redes sociales Añadir Fotos de tus agencias Estas fotos las produjo un espacio que te representa, así que son suyas. Aquí puedes verlas y siguen en el sitio de ese espacio. Para usar alguna en otro lugar, pídele al espacio que la libere. Todavía no hay fotos tuyas propiedad de una agencia. Todo lo que está en tu galería es tuyo y puedes usarlo donde quieras. ↑",
+    "mediaUploadError": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[type=\"file\"][accept^=\"image\"]').first()\u001b[22m\n"
+  },
+  "shots": [
+    "run6-TUL-157-05-01-services.jpg",
+    "run6-TUL-157-05-02-before-agregar-fotos.jpg",
+    "run6-TUL-157-05-03-after-agregar-fotos-click.jpg"
+  ],
+  "detail": "media upload through the editor (Agregar fotos) |  | expect(received).toBe(expected) // Object.is equality |  | Expected: false | Received: true"
+}

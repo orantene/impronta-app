@@ -1,0 +1,26 @@
+{
+  "card": "SETUP",
+  "step": "signup B (both)",
+  "n": 4,
+  "status": "PASS",
+  "facts": {
+    "sentence": "Soy Ambas r6b ajbnsi. Tengo un estudio de limpieza en Playa del Carmen con un equipo, y también limpio casas yo misma. Hacemos limpieza profunda y ligera, de lunes a sábado.",
+    "deliveryChoice": {
+      "mode": "studio",
+      "label": "En mi estudio",
+      "area": "Centro"
+    },
+    "languageBannerShownOnSpanishPage": true,
+    "pickedLook": "blush",
+    "emailCode": "send failed on the isolated stack; UI error: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+    "userId": "593d0a20-2113-4f48-bad5-79220f1872ee",
+    "firstBuildEndedOnFailedScreen": true,
+    "finishHref": "",
+    "talentId": null,
+    "tenantSlug": null,
+    "siteSlug": null
+  },
+  "shots": [
+    "run6-SETUP-04-01-arrival.jpg"
+  ]
+}

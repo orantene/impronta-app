@@ -1,0 +1,9 @@
+{
+  "card": "TUL-86",
+  "step": "myself -> both (Cómo trabajas, M2)",
+  "n": 6,
+  "status": "FAIL",
+  "facts": {},
+  "shots": [],
+  "detail": "expect(locator).toContainText(expected) failed |  | Locator: getByTestId('how-you-work-current') | Expected substring: \"Solo yo\" | Received string:    \"Un estudio, yo no recibo reservas\" | Timeout: 150000ms |  | Call log:"
+}

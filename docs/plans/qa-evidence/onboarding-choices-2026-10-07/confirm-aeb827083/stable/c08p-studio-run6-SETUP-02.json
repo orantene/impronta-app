@@ -1,0 +1,14 @@
+{
+  "card": "SETUP",
+  "step": "guest booking on A's site (shared by TUL-93/168/132)",
+  "n": 2,
+  "status": "FAIL",
+  "facts": {
+    "talentTimezone": "America/Cancun",
+    "guestFailPageText": "Cookies y analítica × Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes. Política de privacidad · Política de cookies Rechazar Aceptar Skip to content ESTUDIO R6A AMBDCJ Estudio r6a ambdcj SCROLL Estudio r6a ambdcj Con gusto te atendemos. Escríbenos o ven a vernos. ESCRÍBENOS LO QUE OFRECEMOS Estudio r"
+  },
+  "shots": [
+    "run6-SETUP-02-01-guest-FAIL.jpg"
+  ],
+  "detail": "an available slot |  | expect(locator).toBeVisible() failed |  | Locator: locator('[data-testid=slot-picker] button').first() | Expected: visible | Timeout: 45000ms | Error: element(s) not found"
+}

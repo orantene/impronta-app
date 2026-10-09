@@ -1,0 +1,26 @@
+{
+  "card": "SETUP",
+  "step": "signup M2 (myself, for TUL-86)",
+  "n": 2,
+  "status": "PASS",
+  "facts": {
+    "sentence": "Me llamo Rosa r6m2 ajbnsi. Soy limpiadora de casas en Playa del Carmen. Hago limpieza profunda y ligera, de lunes a sábado.",
+    "deliveryChoice": {
+      "mode": "studio",
+      "label": "En mi estudio",
+      "area": "Centro"
+    },
+    "languageBannerShownOnSpanishPage": true,
+    "pickedLook": "blush",
+    "emailCode": "send failed on the isolated stack; UI error: Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+    "userId": "0a4fd547-358f-4573-91b2-61a6ab652baf",
+    "firstBuildEndedOnFailedScreen": true,
+    "finishHref": "",
+    "talentId": null,
+    "tenantSlug": null,
+    "siteSlug": null
+  },
+  "shots": [
+    "run6-SETUP-02-01-arrival.jpg"
+  ]
+}

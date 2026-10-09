@@ -1,0 +1,20 @@
+{
+  "card": "TUL-86",
+  "step": "studio -> both (Agregarme como proveedor, S)",
+  "n": 7,
+  "status": "FAIL",
+  "facts": {
+    "dialogTextAfterConfirm": "¿Agregarte como proveedor? Creamos tu perfil de talento y tu propio sitio, y te abrimos a reservas en este espacio. Pulsarlo otra vez no cambia nada. Display name is required. Cancelar Agregarme",
+    "serverLog_how-you-work": [],
+    "uiConfirmationSeen": false,
+    "uiStateAfter": "Un estudio, yo no recibo reservas",
+    "talentProfileId": null
+  },
+  "shots": [
+    "run6-TUL-86-07-01-before.jpg",
+    "run6-TUL-86-07-02-confirm-sheet.jpg",
+    "run6-TUL-86-07-03-after-click-10s.jpg",
+    "run6-TUL-86-07-04-after.jpg"
+  ],
+  "detail": "provider talent profile created |  | expect(received).toBeTruthy() |  | Received: null"
+}
