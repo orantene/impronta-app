@@ -45,7 +45,8 @@ export function collectHudNavs(tree: BuilderNodeTree): HudNavSummary[] {
       if (node.kind === "nav" && typeof node.id === "string") {
         out.push({
           id: node.id,
-          label: node.props?.ariaLabel || node.props?.brand || "",
+          // English default; the card translates via t() at render.
+          label: node.props?.ariaLabel || node.props?.brand || "Navigation",
           linkCount: Array.isArray(node.props?.links) ? node.props!.links!.length : 0,
         });
       }
@@ -119,7 +120,9 @@ export function MobilePhoneMenuCard({
 
       {navs.map((nav) => {
         const open = pinnedId === nav.id;
-        const label = nav.label || t("Navigation");
+        // Aria/brand labels stay as authored; the English default key translates.
+        const label =
+          nav.label && nav.label !== "Navigation" ? nav.label : t("Navigation");
         const linkLabel = t(
           nav.linkCount === 1 ? "{count} link" : "{count} links",
         ).replace("{count}", String(nav.linkCount));

@@ -454,11 +454,10 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "device mobile": "móvil",
   "Phone menu": "Menú del teléfono",
   "Open on canvas": "Abrir en el lienzo",
+  // "{count} links" + Navigation already live in inspector catalogs; keep one.
   "{count} link": "{count} enlace",
-  "{count} links": "{count} enlaces",
   "Opens the menu on the canvas so you can style it while you look at it. Nothing is saved by opening it.":
     "Abre el menú en el lienzo para que puedas estilizarlo mientras lo ves. Abrirlo no guarda nada.",
-  Navigation: "Navegación",
   "Mobile-first editing": "Edición centrada en móvil",
   "Hide and reorder apply to tablet":
     "Ocultar y reordenar se aplican a la tableta",
