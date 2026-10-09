@@ -76,6 +76,7 @@ const PATH_BASED_TENANT_RESERVED_PREFIXES = new Set([
   "book",
   "get-started",
   "discover-agencies",
+  "discover",
   "operators",
   "agencies",
   "organizations",
