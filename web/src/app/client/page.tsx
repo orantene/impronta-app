@@ -6,11 +6,10 @@
 // Resolution order:
 //   1. Unauthenticated → /login?next=/client (preserving query)
 //   2. Has agency_client_relationships row → /{slug}/client/today
-//   3. Has client_profiles row but no relationship → tulala.digital (marketing home)
-//      Clients with no agency attachment are directed to the marketing surface
-//      where they can discover talent. /directory only exists on the marketing
-//      host, so we use an absolute redirect rather than a relative one to avoid
-//      a 404 when this page is served from the app host (app.tulala.digital).
+//   3. Has client_profiles row but no relationship → marketing home via
+//      resolveMarketingOrigin() (isolated stacks stay off production).
+//      /directory only exists on the marketing host, so the redirect is
+//      absolute to avoid a 404 from the app host.
 //   4. No client_profiles row at all → /onboarding/role
 
 import { redirect } from "next/navigation";
@@ -19,7 +18,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientPrimaryTenantSlug } from "@/lib/saas/role-tenant-resolver";
 import { logServerError } from "@/lib/server/safe-error";
 import { buildQuerySuffix } from "@/lib/saas/redirect-query";
-import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { legacyClientEntryRedirectFor } from "@/lib/client-account/entry-redirect.server";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +57,8 @@ export default async function ClientRootPage({
       // Redirect to the marketing site so the user can discover talent.
       // /directory is a marketing-host route; using a relative path here
       // would 404 when served from the app host (app.tulala.digital).
-      redirect(`https://${TULALA_APEX_HOST}`);
+      // TUL-520: origin from env so an isolated stack never lands on production.
+      redirect(resolveMarketingOrigin());
     }
   }
 
