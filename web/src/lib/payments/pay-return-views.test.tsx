@@ -1,5 +1,5 @@
 /**
- * TUL-428: the pay-link return states. Pure views, rendered to markup.
+ * TUL-428 / TUL-437: the pay-link return states. Pure views, rendered to markup.
  * Run: node_modules/.bin/tsx --test src/lib/payments/pay-return-views.test.tsx
  */
 import assert from "node:assert/strict";
@@ -24,6 +24,9 @@ const paid = {
   autoReturn: true,
   redirectingLabel: "Volviendo en {n} s",
   secondsLeft: 8,
+  calendar: null as null | { icsHref: string; googleHref: string },
+  addToCalendarLabel: "Agregar al calendario",
+  googleCalendarLabel: "Agregar a Google Calendar",
 };
 
 test("paid: confirmation with seller, service, formatted amount, receipt and the way back", () => {
@@ -36,6 +39,25 @@ test("paid: confirmation with seller, service, formatted amount, receipt and the
   assert.match(html, /href="\/r\/abc"/);
   assert.match(html, /href="\/c\/t\/tok"[^>]*>Volver a la conversación</);
   assert.match(html, /Volviendo en 8 s/);
+  assert.doesNotMatch(html, /data-pay-calendar/);
+});
+
+test("paid: dated booking shows .ics download and Google Calendar", () => {
+  const html = renderToStaticMarkup(
+    <PaidView
+      {...paid}
+      calendar={{
+        icsHref: "data:text/calendar;charset=utf-8,BEGIN",
+        googleHref: "https://calendar.google.com/calendar/render?action=TEMPLATE",
+      }}
+    />,
+  );
+  assert.match(html, /data-pay-calendar="ics"/);
+  assert.match(html, /data-pay-calendar="google"/);
+  assert.match(html, /download="booking\.ics"/);
+  assert.match(html, /Agregar al calendario/);
+  assert.match(html, /Agregar a Google Calendar/);
+  assert.match(html, /href="https:\/\/calendar\.google\.com\/calendar\/render/);
 });
 
 test("paid: no countdown when the link did not come from a conversation", () => {
@@ -44,7 +66,17 @@ test("paid: no countdown when the link did not come from a conversation", () => 
   assert.doesNotMatch(html, /Volver a la conversación/);
 });
 
-const proc = { title: "Confirmando tu pago...", body: "Tarda unos segundos.", timeoutBody: "Sigue en verificación. No pagues de nuevo.", checkAgain: "Revisar de nuevo", total: "$1,000 MXN", threadHref: "/c/t/tok", backLabel: "Volver", timedOut: false, onCheckAgain: () => undefined };
+const proc = {
+  title: "Confirmando tu pago...",
+  body: "Tarda unos segundos.",
+  timeoutBody: "Sigue en verificación. No pagues de nuevo.",
+  checkAgain: "Revisar de nuevo",
+  total: "$1,000 MXN",
+  threadHref: "/c/t/tok",
+  backLabel: "Volver",
+  timedOut: false,
+  onCheckAgain: () => undefined,
+};
 
 test("processing: says confirming, never 'still open'; spinner shown", () => {
   const html = renderToStaticMarkup(<ProcessingView {...proc} />);
