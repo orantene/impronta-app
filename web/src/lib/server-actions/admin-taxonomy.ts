@@ -22,6 +22,14 @@ import type {
   ResolvedFieldGroup,
 } from "@/lib/field-engine/resolve-talent-fields";
 import { assertCanEnableTenantParentCategory } from "@/lib/taxonomy/tenant-taxonomy-plan-limits";
+import {
+  clearDisabledTermHolders,
+  countDisabledTermHolders,
+} from "@/lib/taxonomy/clear-disabled-term-holders";
+import {
+  DISABLE_HOLDERS_CODE,
+  disableHoldersBlockedMessage,
+} from "@/lib/taxonomy/disable-term-holders";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { localizedValue } from "@/lib/i18n/resolve-localized";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
@@ -458,12 +466,25 @@ export async function getCategoryDetail(input: {
 const setEnabledSchema = z.object({
   taxonomy_term_id: pgUuidSchema(),
   is_enabled: z.boolean(),
+  /** When disabling, confirm hide: clear this tenant's holder assignments first. */
+  clear_holders: z.boolean().optional(),
 });
+
+export type SetTaxonomyEnabledResult =
+  | { ok: true; clearedHolders?: number }
+  | {
+      ok: false;
+      error: string;
+      code?: typeof DISABLE_HOLDERS_CODE;
+      holderCount?: number;
+      needsClearHolders?: true;
+    };
 
 export async function setTaxonomyEnabled(input: {
   taxonomy_term_id: string;
   is_enabled: boolean;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+  clear_holders?: boolean;
+}): Promise<SetTaxonomyEnabledResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
@@ -494,6 +515,34 @@ export async function setTaxonomyEnabled(input: {
       taxonomyTermId: parsed.data.taxonomy_term_id,
     });
     if (!planLimit.ok) return planLimit;
+  }
+
+  let clearedHolders = 0;
+  if (!parsed.data.is_enabled) {
+    const holders = await countDisabledTermHolders({
+      supabase,
+      tenantId,
+      taxonomyTermId: parsed.data.taxonomy_term_id,
+    });
+    if (!holders.ok) return holders;
+    if (holders.holderCount > 0 && !parsed.data.clear_holders) {
+      return {
+        ok: false,
+        error: disableHoldersBlockedMessage(holders.holderCount),
+        code: DISABLE_HOLDERS_CODE,
+        holderCount: holders.holderCount,
+        needsClearHolders: true,
+      };
+    }
+    if (holders.holderCount > 0 && parsed.data.clear_holders) {
+      const cleared = await clearDisabledTermHolders({
+        supabase,
+        tenantId,
+        taxonomyTermId: parsed.data.taxonomy_term_id,
+      });
+      if (!cleared.ok) return cleared;
+      clearedHolders = cleared.holderCount;
+    }
   }
 
   // Upsert a settings row. The PK is (tenant_id, taxonomy_term_id) per
@@ -534,11 +583,14 @@ export async function setTaxonomyEnabled(input: {
     subjectKey: null,
     operation: parsed.data.is_enabled ? "enable" : "disable",
     beforeValue: beforeRow ? { is_enabled: beforeRow.is_enabled } : null,
-    afterValue: { is_enabled: parsed.data.is_enabled },
+    afterValue: {
+      is_enabled: parsed.data.is_enabled,
+      ...(clearedHolders > 0 ? { cleared_holders: clearedHolders } : {}),
+    },
   });
 
   revalidateTenantTaxonomySurfaces();
-  return { ok: true };
+  return clearedHolders > 0 ? { ok: true, clearedHolders } : { ok: true };
 }
 
 // ─── Mutate: bulk-update flags for one term ──────────────────────────────────
@@ -546,6 +598,7 @@ export async function setTaxonomyEnabled(input: {
 const setFlagsSchema = z.object({
   taxonomy_term_id: pgUuidSchema(),
   is_enabled: z.boolean().optional(),
+  clear_holders: z.boolean().optional(),
   show_in_registration: z.boolean().optional(),
   show_in_directory: z.boolean().optional(),
   allow_as_primary: z.boolean().optional(),
@@ -560,7 +613,7 @@ const setFlagsSchema = z.object({
 
 export async function setTaxonomyFlags(
   input: z.infer<typeof setFlagsSchema>,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<SetTaxonomyEnabledResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   const auth = await requireWorkspaceStaffAction();
@@ -574,7 +627,7 @@ export async function setTaxonomyFlags(
       error: parsed.error.issues[0]?.message ?? "Invalid request.",
     };
   }
-  const { taxonomy_term_id, ...flags } = parsed.data;
+  const { taxonomy_term_id, clear_holders, ...flags } = parsed.data;
 
   // Phase 7a audit — capture before-state. Missing row → null beforeValue
   // (i.e. all defaults). Same columns as the upsert below for symmetry.
@@ -597,6 +650,34 @@ export async function setTaxonomyFlags(
       taxonomyTermId: taxonomy_term_id,
     });
     if (!planLimit.ok) return planLimit;
+  }
+
+  let clearedHolders = 0;
+  if (flags.is_enabled === false) {
+    const holders = await countDisabledTermHolders({
+      supabase,
+      tenantId,
+      taxonomyTermId: taxonomy_term_id,
+    });
+    if (!holders.ok) return holders;
+    if (holders.holderCount > 0 && !clear_holders) {
+      return {
+        ok: false,
+        error: disableHoldersBlockedMessage(holders.holderCount),
+        code: DISABLE_HOLDERS_CODE,
+        holderCount: holders.holderCount,
+        needsClearHolders: true,
+      };
+    }
+    if (holders.holderCount > 0 && clear_holders) {
+      const cleared = await clearDisabledTermHolders({
+        supabase,
+        tenantId,
+        taxonomyTermId: taxonomy_term_id,
+      });
+      if (!cleared.ok) return cleared;
+      clearedHolders = cleared.holderCount;
+    }
   }
 
   // custom_label/custom_label_es are folded into custom_label_i18n {en,es} (WS4).
@@ -652,11 +733,14 @@ export async function setTaxonomyFlags(
     subjectKey: null,
     operation: "set",
     beforeValue: beforeRow ?? null,
-    afterValue: flags,
+    afterValue: {
+      ...flags,
+      ...(clearedHolders > 0 ? { cleared_holders: clearedHolders } : {}),
+    },
   });
 
   revalidateTenantTaxonomySurfaces();
-  return { ok: true };
+  return clearedHolders > 0 ? { ok: true, clearedHolders } : { ok: true };
 }
 
 // ─── Mutate: add a tenant-local sub-type ─────────────────────────────────────
