@@ -9,7 +9,8 @@
  *
  * Precedence for the locale a request renders in:
  *   1. a `/<locale>/` prefix in the talent's set (explicit choice);
- *   2. `?locale=<code>` in the set: 302 to the prefixed URL (explicit);
+ *   2. `?locale=<code>` or `?lang=<code>` in the set: 302 to the prefixed URL
+ *      (TUL-516: `?lang=en` is the same choice as `/en`);
  *   3. the talent's primary.
  * The URL decides the language. The `locale` cookie is deliberately NOT an
  * input: an unprefixed URL always renders the primary, so a cookie left by an
@@ -24,7 +25,10 @@ import { localeUrlSettings, withLocalePath, type LocaleUrlSettings } from "@/i18
 
 export interface TalentSiteLocaleInput {
   pathname: string;
-  /** Raw `?locale=` value, if any. */
+  /**
+   * Raw `?locale=` or `?lang=` value (caller resolves `locale` first, then
+   * `lang`). Both mean the same explicit language choice (TUL-516).
+   */
   queryLocale?: string | null;
   primary: string;
   supported: readonly string[];
@@ -32,7 +36,8 @@ export interface TalentSiteLocaleInput {
    * Languages the platform serves (publicLocales). A `/<code>/` prefix naming
    * one of these that the TALENT does not speak redirects to the unprefixed
    * URL instead of 404ing: a shared `/en` link on a Spanish-only site lands on
-   * the page, not on "Page not found".
+   * the page, not on "Page not found". A `?lang=` / `?locale=` for such a
+   * code marks `unsupportedLocale` so the host can show an honest notice.
    */
   knownLocales?: readonly string[];
 }
@@ -42,10 +47,26 @@ export interface TalentSiteLocaleDecision {
   locale: string;
   /** The path with any locale prefix removed (what the allow-list checks). */
   innerPath: string;
-  /** Path to 302 to (the caller drops `?locale=`), or null to serve. */
+  /** Path to 302 to (the caller drops `?locale=` / `?lang=`), or null to serve. */
   redirectPath: string | null;
   /** True when the visitor chose the language on this request (persist it). */
   explicit: boolean;
+  /**
+   * Platform locale from `?lang=` / `?locale=` that the talent does not speak
+   * (TUL-516). When set, the host shows an explicit single-language notice
+   * instead of silently ignoring the query.
+   */
+  unsupportedLocale?: string;
+}
+
+/**
+ * Resolve the talent-site language query: `?locale=` wins, then `?lang=`.
+ * Both are the same explicit choice as a `/<code>/` prefix (TUL-516).
+ */
+export function talentSiteQueryLocale(searchParams: {
+  get(name: string): string | null;
+}): string | null {
+  return searchParams.get("locale") ?? searchParams.get("lang");
 }
 
 function norm(v: string | null | undefined): string {
@@ -97,6 +118,17 @@ export function decideTalentSiteLocale(input: TalentSiteLocaleInput): TalentSite
       innerPath: path,
       redirectPath: talentSiteLocalePath(path, q, primary, supported),
       explicit: true,
+    };
+  }
+
+  // TUL-516: `?lang=en` on a Spanish-only site is an honest notice, not a no-op.
+  if (q && !supported.includes(q) && (input.knownLocales ?? []).map(norm).includes(q)) {
+    return {
+      locale: primary,
+      innerPath: path,
+      redirectPath: null,
+      explicit: false,
+      unsupportedLocale: q,
     };
   }
 
