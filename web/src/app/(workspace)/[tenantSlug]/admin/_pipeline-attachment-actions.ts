@@ -1,10 +1,9 @@
-"use server";
-
 /**
- * Inquiry attachment server actions (load / upload / soft-delete).
+ * Inquiry attachment helpers (load / upload / soft-delete).
  *
  * Extracted from `_pipeline-actions.ts` so that god-file can pay back the
- * #2971 size-ratchet residue. The parent module re-exports every name so
+ * #2971 size-ratchet residue. No `"use server"` here — the parent module
+ * exposes async wrappers so SWC server-actions codegen stays intact and
  * existing import paths stay byte-stable.
  */
 
@@ -108,12 +107,16 @@ export async function uploadInquiryAttachment(
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
-    const { data: inq } = await supabase
+    const { data: inq, error: inqErr } = await supabase
       .from("inquiries")
       .select("id")
       .eq("id", inquiryId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
+    if (inqErr) {
+      logServerError("admin._pipeline-actions.uploadInquiryAttachment/inquiry", inqErr);
+      return { ok: false, error: "Could not verify inquiry." };
+    }
     if (!inq) return { ok: false, error: "Inquiry not found in this workspace." };
 
     // Build storage path — matches the bucket RLS pattern.

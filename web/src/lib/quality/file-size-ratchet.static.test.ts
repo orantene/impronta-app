@@ -595,9 +595,10 @@ const BUDGETS: Record<string, number> = {
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3769,
   // +6: loadOfferDraft returns createdByName (the lookup itself is extracted to offer-author.ts)
-  // TUL-454: attachment load/upload/delete → `_pipeline-attachment-actions.ts` (−174)
-  // pays back #2971's +20 residue; budget locked to post-extract actual.
-  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 3356,
+  // TUL-454: attachment load/upload/delete → `_pipeline-attachment-actions.ts`
+  // pays back #2971's +20 residue; async wrappers (not value re-exports) keep
+  // the "use server" surface SWC-safe. Budget locked to post-fix actual.
+  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 3376,
   // 2026-08-10 branding-media: +12 for the wordmark/favicon in-use delete
   // guard (logic extracted to site-admin/server/brand-library.ts; this is
   // the import + call site + refusal message).
