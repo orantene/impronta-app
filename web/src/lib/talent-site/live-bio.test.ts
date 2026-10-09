@@ -27,18 +27,18 @@ test("resolver: the visitor's own language wins, no hint", () => {
 
 test("resolver: only the primary language exists, so the visitor gets it with a hint", () => {
   const r = resolveLiveBio({ bioI18n: { es: BOTH.es }, locale: "en", chain: ["en", "es"], primary: "es" });
-  assert.deepEqual(r, { text: BOTH.es, hint: "(Text in Spanish)" });
+  assert.deepEqual(r, { text: BOTH.es, hint: "Disponible en español" });
   // The primary is found even when her chain does not list it.
   assert.equal(resolveLiveBio({ bioI18n: { es: BOTH.es }, locale: "en", chain: [], primary: "es" }).text, BOTH.es);
   const r2 = resolveLiveBio({ bioI18n: { en: BOTH.en }, locale: "es", chain: ["es", "en"], primary: "en" });
-  assert.deepEqual(r2, { text: BOTH.en, hint: "(Texto en inglés)" });
+  assert.deepEqual(r2, { text: BOTH.en, hint: "Disponible en inglés" });
 });
 
 test("resolver: only the base short bio, then nothing", () => {
   // TUL-187: short_bio is her primary language; an EN visitor gets the hint, not silent Spanish.
   assert.deepEqual(resolveLiveBio({ bioI18n: {}, shortBio: "  Hola  ", locale: "en", primary: "es" }), {
     text: "Hola",
-    hint: "(Text in Spanish)",
+    hint: "Disponible en español",
   });
   assert.deepEqual(resolveLiveBio({ bioI18n: {}, shortBio: "  Hola  ", locale: "es", primary: "es" }), {
     text: "Hola",
@@ -78,7 +78,7 @@ test("render: an EN visitor reads the EN bio, an ES visitor the ES bio, no hint"
 test("render: a fallback shows the other language and the hint right under it, aligned like the bio", () => {
   const live = buildTalentLiveText({ ...SRC, bioI18n: { es: BOTH.es } }, "en", ["en", "es"]);
   const out = applyTalentLiveText(about(), live);
-  assert.deepEqual(texts(out), ["Hello", BOTH.es, "(Text in Spanish)", "Based in Merida"]);
+  assert.deepEqual(texts(out), ["Hello", BOTH.es, "Disponible en español", "Based in Merida"]);
   const hint = (out[0] as { children: BuilderNode[] }).children[2]!;
   assert.equal((hint.props as { style: { align?: string; tone?: string } }).style.align, "center");
   assert.equal((hint.props as { style: { tone?: string } }).style.tone, "muted");
@@ -98,7 +98,7 @@ test("TUL-187: a baked About paragraph without liveText still binds and shows th
 
   const onlyEs = buildTalentLiveText({ ...SRC, bioI18n: { es: BOTH.es } }, "en", ["en", "es"]);
   const fallback = applyTalentLiveText(baked, onlyEs);
-  assert.deepEqual(texts(fallback), ["Hello", BOTH.es, "(Text in Spanish)", "Based in Merida"]);
+  assert.deepEqual(texts(fallback), ["Hello", BOTH.es, "Disponible en español", "Based in Merida"]);
 });
 
 test("render: no bio hides the paragraph and its hint; a failed load keeps the baked text", () => {
@@ -114,7 +114,7 @@ test("render: no bio hides the paragraph and its hint; a failed load keeps the b
 
 test("hints: identity when there is no bio node or no hint", () => {
   const plain = [para("a", "x"), para("b", "y")];
-  assert.equal(withBioHints(plain, "(Text in Spanish)"), plain);
+  assert.equal(withBioHints(plain, "Disponible en español"), plain);
   const withBio = [para("a", "x", { liveText: "bio" })];
   assert.equal(withBioHints(withBio, ""), withBio);
   assert.equal(withBioHints(withBio, undefined), withBio);
@@ -183,7 +183,7 @@ test("masthead: an EN visitor reads the EN blurb, an ES visitor the ES blurb, no
   const src = { ...SRC, bioI18n: BOTH };
   const en = html(applyTalentLiveText([masthead()], buildTalentLiveText(src, "en", ["en", "es"])));
   assert.match(en, /<p>I paint nails in Merida\.<\/p>/);
-  assert.doesNotMatch(en, /baked blurb|data-bio-hint|Text in/);
+  assert.doesNotMatch(en, /baked blurb|data-bio-hint|Disponible en/);
   const es = html(applyTalentLiveText([masthead()], buildTalentLiveText(src, "es", ["es"])));
   assert.match(es, /<p>Pinto uñas en Mérida\.<\/p>/);
   assert.doesNotMatch(es, /data-bio-hint/);
@@ -192,7 +192,7 @@ test("masthead: an EN visitor reads the EN blurb, an ES visitor the ES blurb, no
 test("masthead: the hint shows on a fallback only, right after the blurb", () => {
   const live = buildTalentLiveText({ ...SRC, bioI18n: { es: BOTH.es } }, "en", ["en", "es"]);
   const out = applyTalentLiveText([masthead()], live);
-  assert.match(html(out), /<p>Pinto uñas en Mérida\.<\/p><p data-bio-hint="1"[^>]*>\(Text in Spanish\)<\/p>/);
+  assert.match(html(out), /<p>Pinto uñas en Mérida\.<\/p><p data-bio-hint="1"[^>]*>Disponible en español<\/p>/);
   assert.equal(applyTalentLiveText(out, live), out, "idempotent");
   // Back to the visitor's own language: a stale hint is dropped.
   const own = applyTalentLiveText(out, buildTalentLiveText({ ...SRC, bioI18n: BOTH }, "en", ["en", "es"]));

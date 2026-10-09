@@ -56,6 +56,7 @@ export function WorkOrderFigure({
   es,
   locale,
   generalIntent,
+  captionHint,
 }: {
   shot: TalentPortfolioShot;
   gallery: PortfolioGallery;
@@ -63,12 +64,19 @@ export function WorkOrderFigure({
   /** Visitor locale for the generic portfolio alt fallback (TUL-384). */
   locale?: string | null;
   generalIntent?: OpenIntent | null;
+  /** TUL-187: "Disponible en español" when the caption is not in the visitor's language. */
+  captionHint?: string | null;
 }): ReactNode {
   const { title, detail } = splitWorkOrderCaption(shot.caption);
   const label = title || (es ? "Ver foto" : "View photo");
   // Prefer the job-title line of the caption, never the media `alt` column,
   // which on demos is often a person name (see gridline G10/G11 tests).
   const alt = title || portfolioPhotoFallbackAlt(locale ?? (es ? "es" : "en"));
+  const hint = captionHint ? (
+    <small className="sb-portfolio-cap-hint" style={{ display: "block", opacity: 0.6, fontSize: "0.8em" }}>
+      {captionHint}
+    </small>
+  ) : null;
   return (
     <figure className="sb-wo-job" data-portfolio-media={shot.id}>
       <PortfolioShotLink
@@ -91,6 +99,7 @@ export function WorkOrderFigure({
         <figcaption>
           <b>{title}</b>
           {detail}
+          {hint}
         </figcaption>
       ) : null}
     </figure>
