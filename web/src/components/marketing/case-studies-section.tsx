@@ -19,6 +19,7 @@ import { createPortal } from "react-dom";
 import { CASE_STUDY_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { getMarketingCopy, type MarketingCopy } from "@/lib/marketing/copy";
+import { marketingReadStoryNamedLabel } from "@/lib/marketing/chrome-aria";
 import { getCaseStudies, type CaseStudy, type Motion } from "./case-studies-data";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { EditorialFrame } from "./editorial-image";
@@ -99,6 +100,7 @@ export function CaseStudiesSection({ locale = "en" }: { locale?: string }) {
               study={study}
               onOpen={() => open(study)}
               readStory={copy.readStory}
+              locale={locale}
             />
           ))}
         </div>
@@ -146,10 +148,12 @@ function CaseStudyCard({
   study,
   onOpen,
   readStory,
+  locale,
 }: {
   study: CaseStudy;
   onOpen: () => void;
   readStory: string;
+  locale: string;
 }) {
   return (
     <article
@@ -206,7 +210,7 @@ function CaseStudyCard({
         type="button"
         onClick={onOpen}
         className="absolute inset-0 rounded-[20px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]"
-        aria-label={`Read ${study.persona}'s story`}
+        aria-label={marketingReadStoryNamedLabel(locale, study.persona)}
       />
     </article>
   );

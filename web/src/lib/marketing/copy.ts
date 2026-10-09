@@ -130,6 +130,8 @@ const en = {
     ctaTalent: "Sell your work · free",
     ctaBusiness: "Start a business",
     trust: ["Free forever", "No code", "Bookings & payments built in"],
+    /** Hero carousel dot; `{n}` is the 1-based slide index. */
+    showSlide: "Show slide {n}",
   },
 
   audience: {
@@ -335,6 +337,8 @@ const en = {
       "Illustrative stories that show what's possible today. Real customer pages connect here as they launch.",
     filters: ["All stories", "Talent", "Business", "Hubs", "Hybrid"],
     readStory: "Read the story",
+    /** Card overlay button; `{name}` is the persona. */
+    readStoryNamed: "Read {name}'s story",
     challengeLabel: "The challenge",
     approachLabel: "How they use Tulala",
     resultLabel: "The result",
@@ -519,6 +523,7 @@ const es: MarketingCopy = {
     ctaTalent: "Vende tu trabajo · gratis",
     ctaBusiness: "Abre tu negocio",
     trust: ["Gratis para siempre", "Sin código", "Reservas y pagos incluidos"],
+    showSlide: "Mostrar diapositiva {n}",
   },
 
   audience: {
@@ -724,6 +729,7 @@ const es: MarketingCopy = {
       "Historias ilustrativas de lo que ya es posible hoy. Las páginas de clientes reales se conectan aquí conforme se lanzan.",
     filters: ["Todas", "Talento", "Negocios", "Hubs", "Híbrido"],
     readStory: "Leer la historia",
+    readStoryNamed: "Leer la historia de {name}",
     challengeLabel: "El reto",
     approachLabel: "Cómo usan Tulala",
     resultLabel: "El resultado",
