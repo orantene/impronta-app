@@ -81,7 +81,7 @@ test("bilingual Maison hero facts ship headlineEn; Sofía also ships taglineEn",
 });
 
 test("Maison site-copy heroOverlays write props.i18n.en on hero heading and lede", () => {
-  const home: Node[] = [
+  const home: Parameters<typeof applyDemoSiteCopy>[1] = [
     {
       id: "hero",
       kind: "section",
