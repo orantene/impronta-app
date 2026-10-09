@@ -13,6 +13,7 @@
  * instead of double counting money.
  */
 import { logServerError } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = { from: (table: string) => any };
@@ -97,6 +98,11 @@ export async function recordRefundOnOrderLines(
       return { recorded: false, reason: "unavailable" };
     }
 
+    // A crash between the marker and the lines leaves the lines under-counted with nothing to re-apply
+    // them. This line is the trace to reconcile from (refund ids + the intended allocation).
+    void improntaLog("order_lines_refund.recording", {
+      message: `[order-lines-refund] txn=${row.id} order=${row.order_id} refunds=${input.refundIds.join(",")} allocation=${allocation.map((a) => `${a.lineId}:${a.amountCents}`).join(",")}`,
+    });
     for (const a of allocation) {
       const current = lines.find((l) => l.id === a.lineId)?.refundedCents ?? 0;
       const { error } = await admin.from("order_lines").update({ refunded_cents: current + a.amountCents }).eq("id", a.lineId);
