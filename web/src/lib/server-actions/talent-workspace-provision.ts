@@ -41,6 +41,7 @@ import {
   isPlatformSubdomainLabelTaken,
   requestSubdomainNamespaceCopy,
 } from "@/lib/saas/platform-subdomain-namespace.server";
+import { copyMyselfOfferingsAndHoursToWorkspace } from "@/lib/onboarding/myself-both-workspace-copy.server";
 
 export type ProvisionFreeWorkspaceResult =
   | { ok: true; slug: string }
@@ -294,6 +295,18 @@ export async function provisionFreeWorkspaceFromTalent(params: {
     );
     await rollbackAgency(admin, agency.id);
     return { ok: false, error: selfRoster.error };
+  }
+
+  // TUL-453: front-door "both" writes offerings + opening_hours on the
+  // workspace tenant; open_studio used to leave them on the hub, so the
+  // public site stayed inquiry-only. Best-effort — never rolls back roster.
+  try {
+    await copyMyselfOfferingsAndHoursToWorkspace(admin, {
+      workspaceTenantId: agency.id,
+      talentProfileId,
+    });
+  } catch (err) {
+    logServerError("talent-workspace-provision.myselfBothCopy (non-fatal)", err);
   }
 
   return { ok: true, slug: agency.slug };
