@@ -114,6 +114,7 @@ export async function proxy(request: NextRequest) {
     // Branded "page not found" page for known-host disallowed paths — same
     // recursion-avoidance rationale as /_host-unregistered above.
     pathname === "/_page-not-found" ||
+    pathname === "/_talent-locale-unavailable" ||
     // Talent custom-domain host route — internal rewrite target for a
     // `kind: "talent_site"` host. Whitelisted so the rewrite below does not
     // recurse back through host resolution. The route reads the resolved

@@ -59,13 +59,15 @@ test("addEnglishLine is add-only", () => {
   assert.equal(addEnglishLine({}, "  "), null);
 });
 
-test("finishedDemoSecondaryLocales: only empty Spanish-primary finished demos", () => {
-  const base = { theme: "folio", preferredLocale: "es", currentSecondary: [] as string[] };
+test("finishedDemoSecondaryLocales: only empty Spanish-primary finished demos that publish English", () => {
+  const base = { theme: "folio", preferredLocale: "es", currentSecondary: [] as string[], siteLangs: ["es", "en"] as string[] };
   assert.deepEqual(finishedDemoSecondaryLocales(base), ["en"]);
   assert.deepEqual(finishedDemoSecondaryLocales({ ...base, theme: "gridline", currentSecondary: null }), ["en"]);
   assert.equal(finishedDemoSecondaryLocales({ ...base, theme: "solace" }), null);
   assert.equal(finishedDemoSecondaryLocales({ ...base, preferredLocale: "en" }), null);
   assert.equal(finishedDemoSecondaryLocales({ ...base, currentSecondary: ["fr"] }), null);
+  // TUL-516 B1: Spanish-only site languages never enable /en.
+  assert.equal(finishedDemoSecondaryLocales({ ...base, siteLangs: ["es"] }), null);
 });
 
 test("dry run writes nothing and prints code, id and slug", async () => {
@@ -84,14 +86,18 @@ test("--apply without --yes is refused", async () => {
   assert.equal(writes.length, 0);
 });
 
-test("apply sets en, adds hero lines, backs up first; second run is idempotent", async () => {
+test("apply sets en for bilingual demos, adds hero lines, backs up first; second run is idempotent", async () => {
   const db = fakeDb();
   db.maps["id-TAL-93020"] = { headline_i18n: { es: "Manos que hablan por ti." } };
   const { io, writes, backups } = fakeIo(db);
   const r = await run(["--apply", "--yes"], io);
   assert.equal(r.exitCode, 0);
   assert.equal(backups.length, 1);
-  assert.deepEqual(db.profiles["TAL-93003"]!.secondary_locales, ["en"]);
+  // TUL-516 B1: Spanish-only siteLangs (camila/alba) stay single-language.
+  assert.deepEqual(db.profiles["TAL-93003"]!.secondary_locales, []);
+  assert.deepEqual(db.profiles["TAL-93020"]!.secondary_locales, []);
+  // Bilingual finished demos still get secondary_locales += en.
+  assert.deepEqual(db.profiles["TAL-93011"]!.secondary_locales, ["en"]);
   assert.deepEqual(db.maps["id-TAL-93020"]!.headline_i18n, { es: "Manos que hablan por ti.", en: "Hands that speak for you." });
   assert.deepEqual(db.maps["id-TAL-93020"]!.tagline_i18n, { en: ALBA_TAGLINE_EN });
   const first = writes.length;
@@ -145,10 +151,10 @@ test("--restore puts back exactly the backed-up values, incl. removing a row tha
   await run(["--apply", "--yes"], io);
   const dry = await run(["--restore", "/tmp/b.json"], io);
   assert.equal(dry.exitCode, 0);
-  assert.deepEqual(db.profiles["TAL-93003"]!.secondary_locales, ["en"]);
+  assert.deepEqual(db.profiles["TAL-93011"]!.secondary_locales, ["en"]);
   const r = await run(["--restore", "/tmp/b.json", "--apply", "--yes"], io);
   assert.equal(r.exitCode, 0);
-  assert.deepEqual(db.profiles["TAL-93003"]!.secondary_locales, []);
+  assert.deepEqual(db.profiles["TAL-93011"]!.secondary_locales, []);
   assert.deepEqual(db.maps["id-TAL-93020"]!.headline_i18n, { es: "Manos que hablan por ti." });
   assert.equal(db.maps["id-TAL-93020"]!.tagline_i18n, undefined);
 });
@@ -157,8 +163,8 @@ test("--restore refuses a backup whose id does not match the profile", async () 
   const db = fakeDb();
   const { io } = fakeIo(db);
   await run(["--apply", "--yes"], io);
-  db.profiles["TAL-93003"]!.id = "other-id";
-  db.slugs["other-id"] = "camila-nails";
+  db.profiles["TAL-93011"]!.id = "other-id";
+  db.slugs["other-id"] = "mateo-ferrer";
   const r = await run(["--restore", "/tmp/b.json", "--apply", "--yes"], io);
   assert.equal(r.exitCode, 2);
 });

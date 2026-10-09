@@ -30,9 +30,9 @@ export interface TalentSiteLocaleInput {
   supported: readonly string[];
   /**
    * Languages the platform serves (publicLocales). A `/<code>/` prefix naming
-   * one of these that the TALENT does not speak redirects to the unprefixed
-   * URL instead of 404ing: a shared `/en` link on a Spanish-only site lands on
-   * the page, not on "Page not found".
+   * one of these that the TALENT does not speak marks `unsupportedLocale`
+   * (TUL-516 B1): the host shows an explicit single-language notice instead of
+   * a silent redirect or a bare 404.
    */
   knownLocales?: readonly string[];
 }
@@ -46,6 +46,12 @@ export interface TalentSiteLocaleDecision {
   redirectPath: string | null;
   /** True when the visitor chose the language on this request (persist it). */
   explicit: boolean;
+  /**
+   * Platform locale prefix the talent does not speak (TUL-516 B1). When set,
+   * the host serves an explicit single-language notice instead of a silent
+   * redirect to the primary home.
+   */
+  unsupportedLocale?: string;
 }
 
 function norm(v: string | null | undefined): string {
@@ -87,7 +93,15 @@ export function decideTalentSiteLocale(input: TalentSiteLocaleInput): TalentSite
   if (seg && !supported.includes(seg) && (input.knownLocales ?? []).map(norm).includes(seg)) {
     const inner = path.slice(seg.length + 1) || "/";
     const innerPath = inner.startsWith("/") ? inner : `/${inner}`;
-    return { locale: primary, innerPath, redirectPath: innerPath, explicit: false };
+    // TUL-516 B1: keep the visitor on the requested prefix path for the notice
+    // page; do not silent-302 to the primary home.
+    return {
+      locale: primary,
+      innerPath,
+      redirectPath: null,
+      explicit: false,
+      unsupportedLocale: seg,
+    };
   }
 
   const q = norm(input.queryLocale);
