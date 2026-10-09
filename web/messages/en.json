@@ -3080,8 +3080,7 @@
       "signInGoogle": "Google",
       "signInGithub": "GitHub",
       "signInApple": "Apple",
-      "signInMicrosoft": "Microsoft",
-      "readOnlyViewingAs": "Read-only while viewing as this client. Account changes are disabled."
+      "signInMicrosoft": "Microsoft"
     },
     "clientFavorites": {
       "savedPick": "{count} saved · pick who to inquire about",
