@@ -1,4 +1,5 @@
 import { ClientAccountButton } from "@/components/client-account/ClientAccountButton";
+import { isAppleAuthProviderEnabled } from "@/lib/auth/apple-provider-flag";
 
 import type { headerItemAttrs } from "./header-site-chrome";
 
@@ -9,7 +10,11 @@ import type { headerItemAttrs } from "./header-site-chrome";
 export function HeaderAccountItem({ attrs, locale }: { attrs: ReturnType<typeof headerItemAttrs>; locale: string }) {
   return (
     <div {...attrs} className="site-header__ritem site-header__account">
-      <ClientAccountButton variant="header" locale={locale} />
+      <ClientAccountButton
+        variant="header"
+        locale={locale}
+        appleSignInEnabled={isAppleAuthProviderEnabled()}
+      />
     </div>
   );
 }

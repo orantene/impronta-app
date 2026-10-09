@@ -7,6 +7,8 @@ import { executeBookingRefund, type RefundBlockedCode, type RefundReason } from 
 import { planRefund, releasesPromoRedemption, type RefundableLine, type PaidTransaction } from "@/lib/orders/refund-plan";
 import { admissionIsRefundable, classifyAdmissionEffect } from "@/lib/orders/refund-admissions";
 import type { PromoScope } from "@/lib/orders/promo-eligibility";
+import { nonRefundableFeeCents } from "@/lib/billing/commission";
+import { loadBookingCommissionSnapshotsForRefund } from "@/lib/billing/commission-engine";
 
 /**
  * Refund whole order lines: money, per-line state, tickets, seats.
@@ -146,7 +148,7 @@ export async function refundOrderLines(
     // path that predates refund-by-line.
     const { data: txnRows, error: txnErr } = await admin
       .from("booking_transactions")
-      .select("id, gross_amount_cents, created_at")
+      .select("id, gross_amount_cents, booking_id, created_at")
       .eq("order_id", input.orderId)
       .eq("status", "paid")
       .order("created_at", { ascending: true });
@@ -154,7 +156,11 @@ export async function refundOrderLines(
       logServerError("orders.refundLines/transactions", txnErr);
       return { ok: false, reason: "unavailable", movedCents: 0 };
     }
-    const paidRows = (txnRows ?? []) as Array<{ id: string; gross_amount_cents: number }>;
+    const paidRows = (txnRows ?? []) as Array<{
+      id: string;
+      gross_amount_cents: number;
+      booking_id: string | null;
+    }>;
 
     // HOW MUCH IS ALREADY REFUNDED, by the engine's own definition rather than
     // a second one of mine.
@@ -186,10 +192,33 @@ export async function refundOrderLines(
       }
     }
 
+    // Non-refundable fees per booking — same source as loadRefundEligibility —
+    // so the plan's capture ceiling matches what Stripe will accept (TUL-469).
+    const feeByBooking = new Map<string, number | null>();
+    for (const bookingId of new Set(paidRows.map((t) => t.booking_id).filter((x): x is string => !!x))) {
+      try {
+        feeByBooking.set(
+          bookingId,
+          nonRefundableFeeCents(await loadBookingCommissionSnapshotsForRefund(admin, bookingId)),
+        );
+      } catch (err) {
+        logServerError("orders.refundLines/fees", err);
+        feeByBooking.set(bookingId, null);
+      }
+    }
+    // A null fee (seller-pays, unset) means the refund base is unknowable —
+    // refuse before planning rather than inventing headroom execute will deny.
+    for (const t of paidRows) {
+      if (t.booking_id && feeByBooking.get(t.booking_id) === null) {
+        return { ok: false, reason: "unavailable", movedCents: 0 };
+      }
+    }
+
     const transactions: PaidTransaction[] = paidRows.map((t) => ({
       id: t.id,
       grossAmountCents: Number(t.gross_amount_cents),
       refundedCents: refundedByParent.get(t.id) ?? 0,
+      nonRefundableFeeCents: t.booking_id ? (feeByBooking.get(t.booking_id) ?? 0) : 0,
     }));
 
     // Scope is the order's own promo scope. Null when no code was used, which
