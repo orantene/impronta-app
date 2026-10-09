@@ -152,21 +152,28 @@ export async function flagFailedRefundSettlement(
     return { ok: false, newlyFlagged: false };
   }
   const meta = ((data as { metadata?: unknown } | null)?.metadata ?? {}) as Record<string, unknown>;
-  if (
-    meta.needs_attention === FAILED_REFUND_ATTENTION &&
-    meta.failed_refund_id === input.refundId
-  ) {
+  // Once per distinct failed refund id, whichever attention flag the row carries.
+  if (meta.failed_refund_id === input.refundId) {
     return { ok: true, newlyFlagged: false };
   }
+  // A DIFFERENT needs_attention (talent_residual, order_lines_mismatch, ...) must survive:
+  // keep it and its note/timestamp, and record the failed refund only under its own keys.
+  const existing = meta.needs_attention;
+  const keepsOtherAttention =
+    typeof existing === "string" && existing.length > 0 && existing !== FAILED_REFUND_ATTENTION;
 
   const { error: updErr } = await admin
     .from("booking_transactions")
     .update({
       metadata: {
         ...meta,
-        needs_attention: FAILED_REFUND_ATTENTION,
-        needs_attention_note: attentionNote(input),
-        needs_attention_at: input.nowIso ?? new Date().toISOString(),
+        ...(keepsOtherAttention
+          ? {}
+          : {
+              needs_attention: FAILED_REFUND_ATTENTION,
+              needs_attention_note: attentionNote(input),
+              needs_attention_at: input.nowIso ?? new Date().toISOString(),
+            }),
         failed_refund_id: input.refundId,
         failed_refund_status: input.status,
         failed_refund_reason: input.failureReason,
@@ -216,6 +223,48 @@ export async function applyFailedRefundSettlement(
   return { flagged: result.ok, newlyFlagged: result.newlyFlagged, transaction: row };
 }
 
+type FailedRefundBellDeps = {
+  notifyRefundFailed: typeof notifyRefundFailed;
+  notifyPaymentNeedsAttention: typeof notifyPaymentNeedsAttention;
+};
+
+/**
+ * TUL-391 workspace bells. BOTH fire only on a newly flagged stamp (once per distinct failed
+ * refund id), so a Stripe retry or the refund.failed + refund.updated(failed) pair does not re-ring.
+ */
+export function emitFailedRefundBells(
+  result: { newlyFlagged: boolean; transaction: FailedRefundTransaction | null },
+  input: { refundId: string; status: string; failureReason: string | null; amount: number; currency: string },
+  deps: FailedRefundBellDeps = { notifyRefundFailed, notifyPaymentNeedsAttention },
+): void {
+  const tenantId = result.transaction?.sourceTenantId ?? null;
+  if (!tenantId || !result.transaction || !result.newlyFlagged) return;
+  deps.notifyRefundFailed({
+    tenantId,
+    transactionId: result.transaction.id,
+    bookingId: result.transaction.bookingId,
+    inquiryId: result.transaction.inquiryId,
+    refundId: input.refundId,
+    amountCents: input.amount,
+    currency: input.currency,
+    failureReason: input.failureReason,
+    status: input.status,
+  });
+  deps.notifyPaymentNeedsAttention({
+    tenantId,
+    transactionId: result.transaction.id,
+    bookingId: result.transaction.bookingId,
+    inquiryId: result.transaction.inquiryId,
+    reason: "refund_failed",
+    refundId: input.refundId,
+    note:
+      `Stripe refund ${input.refundId} ${input.status.toUpperCase()}. ` +
+      `Customer was not paid. Arrange an alternative refund.`,
+    amountCents: input.amount,
+    currency: input.currency,
+  });
+}
+
 /**
  * `refund_settlement` action from the Stripe webhook. Does NOT auto-revert
  * books (funds are on the platform; a person arranges an alternative refund).
@@ -244,36 +293,7 @@ export async function handleFailedRefundWebhookAction(input: {
   const result = sb
     ? await applyFailedRefundSettlement(sb, settlement)
     : { flagged: false, newlyFlagged: false, transaction: null };
-  // TUL-391: workspace bells (once per newly flagged stamp / distinct refund id).
-  const tenantId = result.transaction?.sourceTenantId ?? null;
-  if (tenantId) {
-    notifyRefundFailed({
-      tenantId,
-      transactionId: result.transaction?.id ?? null,
-      bookingId: result.transaction?.bookingId ?? null,
-      inquiryId: result.transaction?.inquiryId ?? null,
-      refundId: input.refundId,
-      amountCents: input.amount,
-      currency: input.currency,
-      failureReason: input.failureReason,
-      status: input.status,
-    });
-    if (result.newlyFlagged && result.transaction) {
-      notifyPaymentNeedsAttention({
-        tenantId,
-        transactionId: result.transaction.id,
-        bookingId: result.transaction.bookingId,
-        inquiryId: result.transaction.inquiryId,
-        reason: "refund_failed",
-        refundId: input.refundId,
-        note:
-          `Stripe refund ${input.refundId} ${input.status.toUpperCase()}. ` +
-          `Customer was not paid. Arrange an alternative refund.`,
-        amountCents: input.amount,
-        currency: input.currency,
-      });
-    }
-  }
+  emitFailedRefundBells(result, input);
   const money = formatFailedRefundMoney(input.amount, input.currency);
   logServerError(
     "stripe-webhook.refund.failed",

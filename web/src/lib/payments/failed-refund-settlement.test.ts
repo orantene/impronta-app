@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   FAILED_REFUND_ATTENTION,
   applyFailedRefundSettlement,
+  emitFailedRefundBells,
   failedRefundAttentionNote,
   flagFailedRefundSettlement,
   isFailedRefundAttention,
@@ -147,4 +148,55 @@ test("admin RefundsTab shows coral failed state for refund_failed attention", ()
   );
   assert.match(activity, /metadata/);
   assert.match(activity, /FAILED_REFUND_ATTENTION|isFailedRefundAttention|failedRefund/);
+});
+
+test("a DIFFERENT needs_attention is kept: only the failed_refund_* keys are written (talent_residual, order_lines_mismatch)", async () => {
+  for (const other of ["talent_residual", "order_lines_mismatch"]) {
+    const s = refundStore({ needs_attention: other, needs_attention_note: "keep me", needs_attention_at: "2026-10-01T00:00:00.000Z", talent_residual_cents: 30000 });
+    const result = await flagFailedRefundSettlement(s.admin, { ...baseInput, transactionId: "rx1" });
+    assert.deepEqual(result, { ok: true, newlyFlagged: true });
+    const meta = s.tables.booking_transactions[0]!.metadata as Record<string, unknown>;
+    assert.equal(meta.needs_attention, other, `${other} survives`);
+    assert.equal(meta.needs_attention_note, "keep me");
+    assert.equal(meta.needs_attention_at, "2026-10-01T00:00:00.000Z");
+    assert.equal(meta.talent_residual_cents, 30000);
+    assert.equal(meta.failed_refund_id, "re_fail_1");
+    assert.equal(meta.failed_refund_status, "failed");
+    assert.equal(meta.failed_refund_amount_cents, 30000);
+  }
+});
+
+test("the same failed refund delivered under a different flag is still idempotent (keyed on failed_refund_id)", async () => {
+  const s = refundStore({ needs_attention: "talent_residual" });
+  await flagFailedRefundSettlement(s.admin, { ...baseInput, transactionId: "rx1" });
+  const writes = s.writes.length;
+  const again = await flagFailedRefundSettlement(s.admin, { ...baseInput, transactionId: "rx1" });
+  assert.equal(again.newlyFlagged, false);
+  assert.equal(s.writes.length, writes);
+});
+
+test("bells fire once per distinct failed refund: delivering the same event twice rings one bell pair", async () => {
+  const s = refundStore();
+  const calls: string[] = [];
+  const deps = {
+    notifyRefundFailed: () => { calls.push("refund.failed"); },
+    notifyPaymentNeedsAttention: () => { calls.push("payment.needs_attention"); },
+  };
+  const evt = { refundId: "re_fail_1", status: "failed", failureReason: "lost_or_stolen_card", amount: 30000, currency: "mxn" };
+  for (let i = 0; i < 2; i += 1) {
+    const r = await applyFailedRefundSettlement(s.admin, { ...baseInput });
+    const tx = r.transaction ? { ...r.transaction, sourceTenantId: "tenant-1" } : null;
+    emitFailedRefundBells({ newlyFlagged: r.newlyFlagged, transaction: tx }, evt, deps as never);
+  }
+  assert.deepEqual(calls, ["refund.failed", "payment.needs_attention"]);
+});
+
+test("no bell without a newly flagged stamp or without a tenant", () => {
+  const calls: string[] = [];
+  const deps = { notifyRefundFailed: () => { calls.push("a"); }, notifyPaymentNeedsAttention: () => { calls.push("b"); } };
+  const tx = { id: "rx1", sourceTenantId: "t1", bookingId: null, inquiryId: null, matchPath: "provider_refund_id" as const };
+  const evt = { refundId: "re_x", status: "failed", failureReason: null, amount: 100, currency: "mxn" };
+  emitFailedRefundBells({ newlyFlagged: false, transaction: tx }, evt, deps as never);
+  emitFailedRefundBells({ newlyFlagged: true, transaction: { ...tx, sourceTenantId: null } }, evt, deps as never);
+  assert.deepEqual(calls, []);
 });
