@@ -52,6 +52,8 @@ type SnapshotRow = {
   booking_id: string;
   participant_id: string;
   gross_cents: number;
+  /** What the client was charged (gross + the pass_through client service fee). Null on older rows. */
+  gross_charged_cents?: number | null;
   talent_net_cents: number;
   workspace_fee_cents: number;
   currency_code: string;
@@ -63,6 +65,34 @@ type ParticipantRow = {
   inquiry_id: string;
   talent_profile_id: string | null;
 };
+
+/**
+ * What the SELLER collected out of a ledger payment. The ledger records the card charge, which
+ * includes the client's pass_through service fee (gross_charged = gross + fee); that fee is the
+ * platform's, never hers. Scale by gross / gross_charged so a full payment reads as her price
+ * and a deposit reads as her share of it. Rows with no surcharge are returned unchanged.
+ */
+export function sellerCollectedCents(
+  paidCents: number | null,
+  snapshot: { gross_cents: number; gross_charged_cents?: number | null },
+): number | null {
+  if (paidCents == null) return null;
+  const charged = Number(snapshot.gross_charged_cents ?? 0);
+  const gross = Number(snapshot.gross_cents);
+  if (!(charged > gross) || !(gross > 0)) return paidCents;
+  return Math.min(paidCents, Math.round((paidCents * gross) / charged));
+}
+
+function scaleByMethod(
+  byMethod: Record<string, number> | null,
+  paidCents: number | null,
+  sellerCents: number | null,
+): Record<string, number> | null {
+  if (!byMethod || paidCents == null || sellerCents == null || paidCents === sellerCents || paidCents <= 0) return byMethod;
+  const out: Record<string, number> = {};
+  for (const [m, c] of Object.entries(byMethod)) out[m] = Math.round((c * sellerCents) / paidCents);
+  return out;
+}
 
 export function resolveWorkDateIso(booking: BookingTalentJoinRow["agency_bookings"]): string | null {
   if (booking.event_date) return booking.event_date;
@@ -204,7 +234,7 @@ export async function fetchTalentSnapshotAggregateRows(
     supabase
       .from("booking_commission_snapshot")
       .select(
-        "booking_id, participant_id, gross_cents, talent_net_cents, workspace_fee_cents, currency_code, payment_method",
+        "booking_id, participant_id, gross_cents, gross_charged_cents, talent_net_cents, workspace_fee_cents, currency_code, payment_method",
       )
       .in("booking_id", bookingIds),
     inquiryIds.length > 0
@@ -353,8 +383,8 @@ export async function fetchTalentSnapshotAggregateRows(
       paymentMethod: snapshot.payment_method ?? booking.payment_method,
       paymentStatus: booking.payment_status ?? null,
       currencyCode: snapshot.currency_code,
-      collectedCents: ledger?.paidCents ?? null,
-      collectedByMethod: ledger?.byMethod ?? null,
+      collectedCents: sellerCollectedCents(ledger?.paidCents ?? null, snapshot),
+      collectedByMethod: scaleByMethod(ledger?.byMethod ?? null, ledger?.paidCents ?? null, sellerCollectedCents(ledger?.paidCents ?? null, snapshot)),
     });
   }
 
