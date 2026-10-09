@@ -16,7 +16,8 @@ import { buildMaisonDesignPayload } from "./maison/design-payload";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { blankComments } from "@/lib/quality/supabase-unchecked-read";
-import { localiseOne } from "../design-cta-mode";
+import { localiseOne, localiseSeededDesignLabels } from "../design-cta-mode";
+import { guessSeededLabelFallback } from "../design-label-locale";
 import { localizeBlockNode } from "@/lib/site-admin/builder-node/block-i18n";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import {
@@ -242,14 +243,17 @@ test("the seed Spanish table has no em dash and no voseo", () => {
   }
 });
 
-test("design-label-locale.ts and header-cta-locale.ts are deleted (TUL-369)", () => {
+test("design-label-locale.ts and header-cta-locale.ts stay as guess-map FALLBACK until heal (TUL-369 split)", () => {
   const root = path.join(__dirname, "..");
-  assert.equal(existsSync(path.join(root, "design-label-locale.ts")), false);
-  assert.equal(existsSync(path.join(root, "header-cta-locale.ts")), false);
-  // Mode-aware CTA remaps live here; no SEED_TEXT_ES guess map.
+  assert.equal(existsSync(path.join(root, "design-label-locale.ts")), true);
+  assert.equal(existsSync(path.join(root, "header-cta-locale.ts")), true);
+  const fallbackSrc = blankComments(readFileSync(path.join(root, "design-label-locale.ts"), "utf8"));
+  assert.ok(fallbackSrc.includes("guessSeededLabelFallback"));
+  assert.ok(fallbackSrc.includes("FALLBACK") || fallbackSrc.includes("fallback"));
+  // Mode-aware CTA remaps stay free of an inline SEED_TEXT_ES table.
   const modeSrc = blankComments(readFileSync(path.join(root, "design-cta-mode.ts"), "utf8"));
   assert.ok(modeSrc.includes("SiteCtaMode"));
-  assert.ok(!modeSrc.includes("SEED_TEXT_ES"));
+  assert.ok(modeSrc.includes("guessSeededLabelFallback"));
   assert.ok(!modeSrc.includes("CODE_SEEDED_LABELS_ES"));
   assert.ok(!modeSrc.includes("CTA_LABEL_BY_LOCALE"));
 });
@@ -271,7 +275,7 @@ test("looksLikeSpanishSeedBase is language-based (no accent regex) (TUL-369)", (
 
 /**
  * Render-time Spanish for one seeded string: props.i18n.es when present,
- * else mode-aware CTA map, else the base (maps deleted — no EN↔ES guess).
+ * else mode-aware CTA map, else guess-map FALLBACK (TUL-369 split), else base.
  */
 function renderedEs(base: string, esOverlay: string | undefined, href?: unknown): string {
   if (typeof esOverlay === "string" && esOverlay.trim()) return esOverlay;
@@ -281,7 +285,7 @@ function renderedEs(base: string, esOverlay: string | undefined, href?: unknown)
   if (base.trim() === "Book" && href === "#gallery") {
     return localiseOne(base, "es", "instant", href) ?? base;
   }
-  return base;
+  return guessSeededLabelFallback(base, "es") ?? base;
 }
 
 /**
@@ -426,14 +430,32 @@ for (const [slug, build] of DESIGNS) {
   });
 }
 
-test("without overlays the deleted guess maps do not invent Spanish (TUL-369)", () => {
+test("without overlays localizeBlockNode stays English; guess-map FALLBACK fills via localiseSeededDesignLabels (TUL-369 split)", () => {
   const bare = {
     kind: "portfolio",
     id: "bare",
     props: { title: "Recent work", emptyMessage: "No photos in your portfolio yet." },
   } as BuilderNode;
+  // Overlay path alone does not invent Spanish.
   const bareEs = localizeBlockNode(bare, { locale: "es", defaultLocale: "en", chain: ["es", "en"] });
   assert.equal((bareEs.props as { title?: string }).title, "Recent work");
+  // Guess-map fallback (until heal recount=0) localises when no i18n.es.
+  const viaGuess = localiseSeededDesignLabels([bare], "es");
+  assert.equal((viaGuess[0]!.props as { title?: string }).title, SEED_TEXT_ES["Recent work"]);
+  assert.equal(
+    (viaGuess[0]!.props as { emptyMessage?: string }).emptyMessage,
+    SEED_TEXT_ES["No photos in your portfolio yet."],
+  );
+  // With an overlay bag present, guess map must not rewrite.
+  const withOverlay = {
+    ...bare,
+    props: {
+      ...bare.props,
+      i18n: { es: { title: "Trabajo reciente (authored)" } },
+    },
+  } as BuilderNode;
+  const kept = localiseSeededDesignLabels([withOverlay], "es");
+  assert.equal((kept[0]!.props as { title?: string }).title, "Recent work");
 });
 
 test("the scanner flags a missing overlay (guard against a vacuous pass)", () => {

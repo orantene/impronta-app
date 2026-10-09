@@ -1,10 +1,11 @@
 /**
  * Site-wide booking CTA mode + render-time remaps that depend on it.
  *
- * TUL-369 deletes the EN↔ES guess maps that lived in `design-label-locale.ts`
- * and `header-cta-locale.ts`. Seeded copy carries `props.i18n.es` /
- * `props.i18n.en` (see `theme-catalog/seed-i18n.ts`); the renderer overlays
- * win. This module only:
+ * TUL-369 split (PM 2026-10-09): seeded copy prefers `props.i18n.es` /
+ * `props.i18n.en` (see `theme-catalog/seed-i18n.ts`). The EN↔ES guess maps in
+ * `design-label-locale.ts` / `header-cta-locale.ts` stay as a FALLBACK only
+ * when a node has no overlay for the target locale (dev warning + heal via
+ * `qa:heal-seed-i18n-missing-es`). This module also:
  *   - resolves the site CTA mode (posture + plan ceiling);
  *   - rewrites mode-dependent action copy (`SEEDED_MODE_COPY`);
  *   - remaps Folio's legacy "Book" → #gallery nav to Work / Trabajos;
@@ -15,6 +16,14 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
+import {
+  guessSeededLabelFallback,
+  nodeHasLocaleOverlay,
+  warnGuessMapFallback,
+  type GuessLabelTarget,
+} from "./design-label-locale";
+import { localiseTalentHeaderDefaults } from "./header-cta-locale";
+import { DESIGN_ORIGIN_PROP, type DesignOrigin } from "@/lib/site-admin/builder-node/design-origin";
 
 /** The talent's site-wide booking mode (posture after the plan ceiling). */
 export type SiteCtaMode = "instant" | "request" | "inquiry";
@@ -172,7 +181,7 @@ export function labelTarget(locale: string | null | undefined): LabelTarget {
 
 /**
  * Mode-aware / Folio-gallery replacement for one seeded string, or null when
- * it stays as is. No EN↔ES guess table (TUL-369): seeded overlays carry that.
+ * it stays as is. EN↔ES guess maps are applied separately (fallback only).
  */
 export function localiseOne(
   value: string,
@@ -200,35 +209,71 @@ export function localiseSeededDesignLabel(
   return localiseOne(value, labelTarget(locale), mode) ?? value;
 }
 
+export interface LocaliseSeededContext {
+  /** Talent profile code for guess-map fallback warnings. */
+  profileCode?: string | null;
+}
+
 /**
  * Returns a copy of `tree` with mode-dependent seeded action copy matched to
  * the booking `mode` (null reads as instant), plus optional per-talent
- * `swaps`. Returns the input unchanged when there is nothing to do.
- *
- * TUL-369: no EN↔ES guess rewrite — that lives in `props.i18n` overlays.
+ * `swaps`. When a node has no `props.i18n` for the target locale, the EN↔ES
+ * guess map in `design-label-locale.ts` fills in (dev warning). Overlays win.
  */
 export function localiseSeededDesignLabels(
   tree: BuilderNode[],
   locale: string | null | undefined,
   mode: SiteCtaMode | null = null,
   swaps: Readonly<Record<string, string>> = {},
+  context: LocaliseSeededContext = {},
 ): BuilderNode[] {
   const target = labelTarget(locale);
   if (target === "other" && mode === null && Object.keys(swaps).length === 0) return tree;
-  const one = (v: string, href?: unknown): string | null =>
-    swaps[v.trim()] ?? localiseOne(v, target, mode, href);
+  const guessTarget: GuessLabelTarget | null = target === "es" || target === "en" ? target : null;
   const visit = (node: BuilderNode): BuilderNode => {
     const props = (node.props ?? {}) as Record<string, unknown>;
+    const origin = props[DESIGN_ORIGIN_PROP] as DesignOrigin | undefined;
+    const nodeKey = typeof origin?.key === "string" ? origin.key : null;
+    const hasOverlay = guessTarget ? nodeHasLocaleOverlay(props, guessTarget) : true;
+    const one = (v: string, href?: unknown, path?: string): string | null => {
+      const swapped = swaps[v.trim()];
+      if (swapped) return swapped;
+      const modeHit = localiseOne(v, target, mode, href);
+      if (modeHit !== null) return modeHit;
+      // Guess map: only when this node has no i18n overlay for the locale.
+      if (!guessTarget || hasOverlay) return null;
+      const guessed = guessSeededLabelFallback(v, guessTarget);
+      if (guessed === null) return null;
+      warnGuessMapFallback({
+        profileCode: context.profileCode,
+        nodeKey,
+        nodeKind: node.kind,
+        locale: guessTarget,
+        path: path ?? "?",
+        from: v,
+        to: guessed,
+      });
+      return guessed;
+    };
     let next: Record<string, unknown> | null = null;
     for (const key of LABEL_PROPS) {
       const v = props[key];
       if (typeof v !== "string") continue;
-      const out = one(v, key === "label" ? props.href : undefined);
+      const out = one(v, key === "label" ? props.href : undefined, key);
       if (out !== null) (next ??= { ...props })[key] = out;
     }
     if (node.kind === "section" && props.sectionTypeKey === "site_header") {
-      const header = localiseHeaderProps(props.sectionProps, one);
+      let sectionProps = props.sectionProps;
+      // Legacy Inquire CTA when the header node itself has no i18n overlay.
+      if (!hasOverlay && guessTarget === "es") {
+        sectionProps = localiseTalentHeaderDefaults(sectionProps, locale, {
+          profileCode: context.profileCode,
+          nodeKey: nodeKey ?? "shell/site_header",
+        });
+      }
+      const header = localiseHeaderProps(sectionProps, (v, href) => one(v, href, "sectionProps"));
       if (header) (next ??= { ...props }).sectionProps = header;
+      else if (sectionProps !== props.sectionProps) (next ??= { ...props }).sectionProps = sectionProps;
     }
     const items = props.items;
     if (node.kind === "marquee" && Array.isArray(items)) {
