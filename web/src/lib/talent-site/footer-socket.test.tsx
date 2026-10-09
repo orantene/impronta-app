@@ -144,6 +144,24 @@ test("links: talent policies on the talent host, Tulala documents off-host", () 
   assert.match(html(), /rel="noopener"/);
 });
 
+test("DS-20: platform privacy/terms labels name Tulala so they are not a second Privacidad", () => {
+  const es = model({ locale: "es" });
+  const en = model({ locale: "en" });
+  const esBy = Object.fromEntries([...es.siteLinks, ...es.tulalaLinks].map((l) => [l.key, l]));
+  const enBy = Object.fromEntries([...en.siteLinks, ...en.tulalaLinks].map((l) => [l.key, l]));
+  assert.equal(esBy["privacy"]!.label, "Privacidad");
+  assert.equal(esBy["tulala-privacy"]!.label, "Privacidad Tulala");
+  assert.equal(esBy["tulala-terms"]!.label, "Términos Tulala");
+  assert.equal(enBy["privacy"]!.label, "Privacy");
+  assert.equal(enBy["tulala-privacy"]!.label, "Tulala privacy");
+  assert.equal(enBy["tulala-terms"]!.label, "Tulala terms");
+  const labels = [...es.siteLinks, ...es.tulalaLinks].map((l) => l.label);
+  assert.equal(labels.filter((l) => l === "Privacidad").length, 1);
+  assert.equal(labels.filter((l) => l === "Términos").length, 0);
+  assert.match(html({ locale: "es" }), /data-socket-link="tulala-privacy"[^>]*>Privacidad Tulala</);
+  assert.match(html({ locale: "en" }), /data-socket-link="tulala-privacy"[^>]*>Tulala privacy</);
+});
+
 test("privacy choices only with the consent-tooling flag; default off", () => {
   assert.equal(html().includes("opciones de privacidad"), false);
   assert.match(html({ consentTooling: true }), /Tus opciones de privacidad/);
