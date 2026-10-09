@@ -1663,7 +1663,13 @@
     "instantBook": {
       "guestName": "Tu nombre",
       "guestEmail": "Tu correo",
-      "signInToBook": "Inicia sesion para reservar"
+      "signInToBook": "Inicia sesion para reservar",
+      "refusal": {
+        "requestOnly": "Este servicio se reserva por solicitud. Escribe un mensaje para pedir un horario.",
+        "notAccepting": "Por ahora no se aceptan reservas nuevas. Envía una consulta.",
+        "tooSoon": "Ese horario es muy pronto. Elige uno más tarde.",
+        "slotTaken": "Ese horario acaba de ocuparse. Elige otro."
+      }
     },
     "bookPage": {
       "title": "Reserva un horario",
@@ -1783,7 +1789,19 @@
       "payBy": "Paga a esta hora para guardar el horario.",
       "payByNoTime": "Paga cuando estés listo. La hora se acuerda con la talento.",
       "closedMaybePaid": "Esta página de pago está cerrada. Si ya pagaste, la talento te reembolsará.",
-      "replaced": "Este enlace de pago fue reemplazado. Pide el nuevo."
+      "replaced": "Este enlace de pago fue reemplazado. Pide el nuevo.",
+      "processingTitle": "Confirmando tu pago...",
+      "processingBody": "No cierres esta página. Tarda unos segundos.",
+      "processingTimeout": "Tu pago sigue en verificación. Si ya pagaste, el negocio te lo confirma. No pagues de nuevo.",
+      "checkAgain": "Revisar de nuevo",
+      "paidTitle": "Pago recibido",
+      "paidTo": "Pagado a {seller}",
+      "addToCalendar": "Agregar al calendario",
+      "googleCalendar": "Agregar a Google Calendar",
+      "redirecting": "Volviendo a tu conversación en {n} s",
+      "cancelledReturnTitle": "No se hizo ningún cargo",
+      "cancelledReturnBody": "Cancelaste el pago a tiempo. Tu horario sigue guardado mientras este enlace sea válido.",
+      "tryAgain": "Intentar de nuevo"
     },
     "storefront": {
       "refusal": {
@@ -1970,7 +1988,7 @@
         "build": "Guardar y construir",
         "buildTalent": "Guardar mi página",
         "buildBoth": "Guardar y construir",
-        "nextPhase": "Siguiente: tu cuenta (llega en el próximo paso de esta construcción).",
+        "nextPhase": "Siguiente: tu cuenta.",
         "age18Label": "Tengo 18 años o más",
         "age18Required": "Confirma que tienes 18 años o más para publicar tu página."
       },
@@ -4096,7 +4114,10 @@
         "cashMethodVenue": "Pagado por el venue",
         "markPaidCashDeposit": "Marcar depósito pagado en efectivo ({amount} {currency})",
         "markPaidCashBalance": "Marcar saldo pagado en efectivo",
-        "markPaidCashFull": "Marcar monto completo pagado en efectivo"
+        "markPaidCashFull": "Marcar monto completo pagado en efectivo",
+        "loadFailedShort": "No se pudo cargar",
+        "retry": "Reintentar",
+        "refundInOrders": "Reembolsar en Pedidos"
       },
       "nextAction": {
         "showAria": "Mostrar siguiente accion: {label}",
@@ -13754,7 +13775,11 @@
         "overLimit": "Ese reembolso supera el límite de tu rol. Se envió una solicitud a un gerente; no se reembolsó nada.",
         "unavailable": "No se pudo registrar el reembolso. No se reembolsó nada. Inténtalo de nuevo en un momento."
       },
-      "refundComponentShare": "Reparto por componente"
+      "refundComponentShare": "Reparto por componente",
+      "lineCountOne": "artículo",
+      "lineCountOther": "artículos",
+      "refundAmount": "Monto a reembolsar",
+      "refundAmountHint": "Por defecto es el restante completo ({max}). Bájalo para un reembolso parcial."
     },
     "sales": {
       "pageTitle": "Ventas",
@@ -13929,7 +13954,9 @@
       "notWired": {
         "import": "Importar un informe del terminal todavía no está conectado; no hay tabla donde guardar sus filas.",
         "export": "La exportación de estas tablas todavía no está conectada."
-      }
+      },
+      "refundFailed": "Reembolso fallido",
+      "refundFailedDetail": "El cliente no recibió el dinero. Gestiona un reembolso alternativo."
     },
     "discounts": {
       "pageTitle": "Promociones y límites de descuento",
