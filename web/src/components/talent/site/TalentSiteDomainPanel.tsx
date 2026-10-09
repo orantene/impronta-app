@@ -297,10 +297,14 @@ function DomainRow({
   onRemove: () => void;
 }) {
   const meta = statusMeta(domain.status, copy);
+  const purchased = domain.acquisition === "purchased";
+  // Purchased (Vercel DNS) never asks the talent for TXT / routing records.
   const needsTxt =
-    domain.status === "pending" || domain.status === "dns_verification_sent";
+    !purchased &&
+    (domain.status === "pending" || domain.status === "dns_verification_sent");
   const needsRouting =
-    domain.status === "verified" || domain.status === "ssl_provisioned";
+    !purchased &&
+    (domain.status === "verified" || domain.status === "ssl_provisioned");
 
   return (
     <div
@@ -393,6 +397,12 @@ function DomainRow({
       {domain.failureReason ? (
         <p style={{ margin: "8px 0 0", fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
           {domain.failureReason}
+        </p>
+      ) : null}
+
+      {purchased && domain.status === "active" ? (
+        <p style={{ margin: "8px 0 0", fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
+          {copy.t("Bought through Tulala. No DNS setup needed.")}
         </p>
       ) : null}
 

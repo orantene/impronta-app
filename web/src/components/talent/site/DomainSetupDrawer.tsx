@@ -217,6 +217,11 @@ export function DomainSetupDrawerBody({
           </p>
           <p style={{ margin: "8px 0 0", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
             {copy.t(
+              "No DNS steps for you. Domains bought here go live automatically once registration finishes.",
+            )}
+          </p>
+          <p style={{ margin: "8px 0 0", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+            {copy.t(
               "This usually finishes within a few minutes. You can close this drawer and check the Custom domain row.",
             )}
           </p>

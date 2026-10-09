@@ -40,6 +40,7 @@ function baseRecord(overrides: Partial<TalentSiteDomainRecord> = {}): TalentSite
     status: "dns_verification_sent",
     verificationToken: "impronta-verify-abc",
     isPrimary: false,
+    acquisition: null,
     createdAt: new Date("2026-06-10T00:00:00Z").toISOString(),
     updatedAt: new Date("2026-06-10T00:00:00Z").toISOString(),
     verifiedAt: null,

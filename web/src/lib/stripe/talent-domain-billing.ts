@@ -4,8 +4,9 @@
  * Pass-through only: charge the talent the exact Vercel Registrar quoted USD
  * price for that domain/year (no markup, no prepaid domain wallet). Checkout
  * `mode: "payment"` + `price_data` uses the live quote cents. The webhook buys
- * via Vercel Registrar ONLY after payment succeeds, then attaches the hostname
- * to the project and upserts `talent_site_domains`.
+ * via Vercel Registrar ONLY after payment succeeds, then attaches + verifies
+ * the hostname on the project and upserts `talent_site_domains` as `active`
+ * (purchased hosts use Vercel DNS — no talent TXT step). Renewal money is D5.
  */
 
 import "server-only";
@@ -15,7 +16,10 @@ import { randomBytes } from "node:crypto";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { ensureCustomDomainOnVercelProject } from "@/lib/saas/custom-domain-actions";
+import {
+  ensureCustomDomainOnVercelProject,
+  verifyCustomDomainOnVercelProject,
+} from "@/lib/saas/custom-domain-actions";
 import {
   buyDomain,
   REGISTRAR_AUTO_RENEW_POLICY,
@@ -26,6 +30,7 @@ import {
   getOrCreateTalentStripeCustomer,
   type BillingResult,
 } from "@/lib/stripe/talent-billing";
+import { buildPurchasedTalentDomainRow } from "@/lib/stripe/talent-domain-purchase-activation";
 
 export const TALENT_DOMAIN_CHECKOUT_TYPE = "talent_domain_purchase" as const;
 
@@ -228,8 +233,9 @@ async function refundDomainPaymentIntent(
 
 /**
  * Fulfill a paid talent domain Checkout session: Registrar buy → Vercel attach
- * → upsert `talent_site_domains`. Idempotent on stripe_checkout_session_id /
- * vercel_order_id. Buy ONLY runs from this post-payment path.
+ * → Vercel verify → upsert `talent_site_domains` as `active` (no TXT).
+ * Idempotent on stripe_checkout_session_id / vercel_order_id. Buy ONLY runs
+ * from this post-payment path.
  *
  * Permanent fail paths (amount mismatch, registrar reject after pay) refund the
  * PaymentIntent when possible, write an error row, and return ok so Stripe does
@@ -325,13 +331,15 @@ export async function fulfillTalentDomainPurchase(opts: {
     return { ok: true, data: { orderId: null } };
   }
 
-  // Attach to the tulala project (best-effort; DNS may still need settle).
+  // Attach + auto-verify. Purchased hosts use Vercel DNS → no talent TXT step.
+  // Renewal billing is Payments (D5); REGISTRAR_AUTO_RENEW_POLICY is unchanged here.
   const attach = await ensureCustomDomainOnVercelProject(domain);
-  const verificationToken = `impronta-verify-${randomBytes(12).toString("hex")}`;
-  const failureReason =
-    attach.attempted && !attach.attached && !attach.alreadyExists
-      ? attach.errorMessage ?? attach.skippedReason ?? "Vercel attach failed after purchase."
-      : null;
+  let verify: Awaited<ReturnType<typeof verifyCustomDomainOnVercelProject>> | null = null;
+  if (attach.attached || attach.alreadyExists) {
+    if (attach.verified !== true) {
+      verify = await verifyCustomDomainOnVercelProject(domain);
+    }
+  }
 
   const { data: existingDomain, error: existingDomainError } = await sb
     .from("talent_site_domains")
@@ -344,19 +352,31 @@ export async function fulfillTalentDomainPurchase(opts: {
     return { ok: false, error: "Could not look up domain row after purchase." };
   }
 
-  const row = {
-    talent_profile_id: opts.talentProfileId,
+  const { data: primaryRow, error: primaryError } = await sb
+    .from("talent_site_domains")
+    .select("id")
+    .eq("talent_profile_id", opts.talentProfileId)
+    .eq("is_primary", true)
+    .maybeSingle();
+  if (primaryError) {
+    logServerError("talent-domain-billing.fulfill.primary", primaryError);
+    return { ok: false, error: "Could not look up primary domain after purchase." };
+  }
+
+  const updatingId = (existingDomain?.id ?? existingBySession?.id) as string | undefined;
+  const nowIso = new Date().toISOString();
+  const row = buildPurchasedTalentDomainRow({
+    talentProfileId: opts.talentProfileId,
     domain,
-    status: failureReason ? "error" : "dns_verification_sent",
-    verification_token: verificationToken,
-    acquisition: "purchased",
-    stripe_checkout_session_id: sessionId,
-    vercel_order_id: buy.orderId,
-    registrant_email: contact.email,
-    failure_reason: failureReason,
-    verified_at: null,
-    ssl_provisioned_at: null,
-  };
+    sessionId,
+    orderId: buy.orderId,
+    registrantEmail: contact.email,
+    attach,
+    verify,
+    nowIso,
+    // First purchased domain becomes primary; keep primary if we are refreshing that row.
+    makePrimary: !primaryRow?.id || Boolean(updatingId && primaryRow.id === updatingId),
+  });
 
   if (existingDomain?.id || existingBySession?.id) {
     const id = (existingDomain?.id ?? existingBySession?.id) as string;
