@@ -42,6 +42,7 @@ import { assertIsolatedJourneysTarget } from "../../scripts/isolated-target-guar
 import { assertAllowedOrigins, bypassHeadersFor, resolveJourneyTargets, talentHostFor } from "../../scripts/onboarding-qa/target-guard.mjs";
 import { createServerClient } from "@supabase/ssr";
 import { expect, test as baseTest } from "./_module";
+import { confirmAge18AndBuild } from "./_age18";
 
 // Origins come ONLY from env (JOURNEY_MARKETING_ORIGIN, JOURNEY_APP_ORIGIN, JOURNEY_TALENT_HOST_TEMPLATE); JOURNEY_TARGET=local
 // is the only way to get the localhost defaults. Throws at load unless every origin is localhost or staging-qa-*.tulala.digital
@@ -84,8 +85,9 @@ const TALENT = (c: Choice) => c !== "studio";
 const WORKSPACE = (c: Choice) => c !== "myself";
 const EXPECTED = {
   myself: { appRole: "talent", home: "talent", cta: /Abrir mi sitio/i },
-  // Studio has no provider yet: its Finish is the inquiry-only variant (no view/cta button), asserted in step 4.
-  studio: { appRole: "agency_staff", home: "workspace", cta: /^$/ },
+  // Studio: the owner takes clients by default (PM 2026-10-09), so she is a bookable roster provider (role talent)
+  // and the Finish is the standard one. The inquiry-only variant is only for an owner who opts out (not exercised here).
+  studio: { appRole: "talent", home: "workspace", cta: /Ir a mi panel|Abrir mi (espacio|sitio web)|Ver mi sitio/i },
   both: { appRole: "talent", home: "workspace", cta: /Ir a mi panel|Abrir mi (espacio|sitio web)|Ver mi sitio/i },
 } satisfies Record<Choice, { appRole: string; home: string; cta: RegExp }>;
 
@@ -361,7 +363,7 @@ async function driveToAccount(page: Page, run: Run, choice: Choice, displayName:
 }
 
 async function signUpWithCode(page: Page, run: Run, email: string) {
-  await page.getByTestId("onb-build").click();
+  await confirmAge18AndBuild(page); // ticks 18+ when shown, waits for "Guardar y construir" to be enabled, clicks it
   await expect(page.getByTestId("onb-save")).toBeVisible({ timeout: 20_000 });
   await page.getByTestId("onb-email").fill(email);
   await page.getByTestId("onb-age-terms").check();
@@ -403,7 +405,7 @@ async function signUpWithCode(page: Page, run: Run, email: string) {
   );
   await page.goto(`${MARKETING_BASE}/start?lang=es`);
   await expect(page.getByTestId("onb-building").or(page.getByTestId("onb-arrival")).or(page.getByTestId("onb-ready")).or(page.getByTestId("onb-save"))).toBeVisible({ timeout: 30_000 });
-  if (await page.getByTestId("onb-ready").isVisible().catch(() => false)) await page.getByTestId("onb-build").click();
+  if (await page.getByTestId("onb-ready").isVisible().catch(() => false)) await confirmAge18AndBuild(page);
   await run.shot(page, "building");
 }
 
@@ -484,8 +486,13 @@ async function assertAccounts(run: Run, choice: Choice, userId: string, displayN
     run.facts.place = (tpBook?.booking_terms as { place?: unknown } | null)?.place ?? null;
     expect(run.facts.place, "booking_terms.place").toBeTruthy();
   } else {
-    const { count } = await admin.from("talent_profiles").select("id", { count: "exact", head: true }).eq("user_id", userId).is("deleted_at", null);
-    expect(count, "studio creates no talent profile").toBe(0);
+    // Studio: the owner takes clients by default (PM 2026-10-09), so she is a roster provider with hours and a live profile.
+    const { data: own } = await admin.from("talent_profiles").select("id, workflow_status, visibility").eq("user_id", userId).is("deleted_at", null);
+    run.facts.studioOwnerProvider = own ?? null;
+    expect(own?.length ?? 0, "studio owner has exactly one talent profile (owner-provider)").toBe(1);
+    expect(own?.[0]?.workflow_status, "studio owner profile is live").toBe("approved");
+    const { data: ownHours } = await admin.from("talent_booking_hours").select("talent_profile_id").eq("talent_profile_id", own![0]!.id).limit(1);
+    expect((ownHours ?? []).length, "studio owner-provider booking hours").toBeGreaterThan(0);
   }
 
   if (WORKSPACE(choice)) {
@@ -499,7 +506,10 @@ async function assertAccounts(run: Run, choice: Choice, userId: string, displayN
     const { data: ident } = await admin.from("agency_business_identity").select("default_locale, public_name").eq("tenant_id", tenantId).maybeSingle();
     run.facts.businessIdentity = { default_locale: ident?.default_locale };
     expect(ident?.default_locale, "agency_business_identity.default_locale").toBe("es");
-    const { data: offers } = await admin.from("talent_offerings").select("title, amount_cents").eq("tenant_id", tenantId).eq("owner_kind", "workspace");
+    // "both" writes house rows next to the owner's own; a studio whose owner takes clients (the default) writes the
+    // sole owner-provider's rows instead (TUL-77b), so a studio is checked on the tenant's offerings of either owner kind.
+    const offersQuery = admin.from("talent_offerings").select("title, amount_cents").eq("tenant_id", tenantId);
+    const { data: offers } = choice === "studio" ? await offersQuery : await offersQuery.eq("owner_kind", "workspace");
     run.facts.workspaceOfferings = offers;
     for (const s of SERVICES) {
       const row = (offers ?? []).find((o) => o.title === s.name);
@@ -545,6 +555,8 @@ async function guestBook(browserCtx: BrowserContext, run: Run, finishHref: strin
   } else {
     const bookEntry = page.getByRole("button", { name: /Reservar|Agendar/i }).first();
     if (await bookEntry.isVisible({ timeout: 5_000 }).catch(() => false)) await bookEntry.click({ timeout: 15_000 });
+    // A business (studio) site has no widget on its home page: its booking page is /book.
+    if (!(await slotPicker.isVisible({ timeout: 5_000 }).catch(() => false))) await page.goto(new URL("/book", url).toString(), { waitUntil: "domcontentloaded" });
     await expect(slotPicker, "an available slot").toBeVisible({ timeout: 45_000 });
     await slotPicker.click({ timeout: 15_000 });
     await run.shot(page, "guest-slot");
@@ -555,6 +567,9 @@ async function guestBook(browserCtx: BrowserContext, run: Run, finishHref: strin
   const phone = page.getByTestId("cb-phone").or(page.getByRole("textbox", { name: /whatsapp|tel/i })).first();
   if (await phone.isVisible().catch(() => false)) await phone.fill("984 765 4321");
   await run.shot(page, "guest-details");
+  // The captcha (Cloudflare always-pass test key on the isolated stack) fills its token a few seconds after the page loads;
+  // confirming before it does creates no row.
+  await page.waitForFunction(() => (document.querySelector('input[name="cf-turnstile-response"]') as HTMLInputElement | null)?.value, null, { timeout: 25_000 }).catch(() => undefined);
   await page.getByRole("button", { name: /confirmar|reservar|confirm this time|enviar solicitud/i }).last().click({ timeout: 15_000 });
   const sawConfirmation = await page.getByText(/confirmad|reserva|listo|solicitud enviada|gracias|booked|cita/i).first().isVisible({ timeout: 20_000 }).catch(() => false);
   run.facts.guestConfirmationTextSeen = sawConfirmation;
@@ -674,20 +689,7 @@ for (const vp of Object.keys(VIEWPORTS) as Vp[]) {
           const talentId = (run.facts.talent as { id?: string; code?: string } | undefined)?.id;
           const talentCode = (run.facts.talent as { code?: string } | undefined)?.code;
           const arrivalEl = page.getByTestId("onb-arrival");
-          if (choice === "studio") {
-            // Studio: "ready for requests", NOT bookable; one primary action = add the first team member.
-            await expect(arrivalEl).toHaveAttribute("data-finish", "inquiry_only");
-            const text = await arrivalEl.innerText();
-            run.facts.finishText = text.replace(/\s+/g, " ").slice(0, 300);
-            expect(text, "Studio Finish says ready for requests").toMatch(/lista para recibir solicitudes|ready for requests/i);
-            expect(text, "Studio Finish never says bookable").not.toMatch(/reservable|bookable|lista para reservar|ready to book/i);
-            const add = page.getByTestId("onb-arrival-add-member");
-            await expect(add, "add-first-team-member action").toBeVisible();
-            expect(await add.getAttribute("href"), "add-member goes to the roster").toMatch(/\/roster\/new/);
-            await expect(page.getByTestId("onb-arrival-also-book")).toBeVisible();
-            run.facts.finishButtonText = (await add.innerText()).trim();
-            finishHref = (await page.getByTestId("onb-arrival-visit").getAttribute("href")) ?? "";
-          } else {
+          {
             await expect(arrivalEl).not.toHaveAttribute("data-finish", "inquiry_only");
             const cta = page.getByTestId("onb-arrival-view").or(page.getByTestId("onb-arrival-cta")).first();
             run.facts.finishButtonText = (await cta.innerText()).trim();
