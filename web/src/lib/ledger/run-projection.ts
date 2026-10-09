@@ -47,11 +47,21 @@ const BATCH = 200;
 const MAX_PAGES = 10;
 /** A payment with no commission snapshot older than this is a known pre-snapshot sale, not a fresh failure. */
 const UNATTRIBUTABLE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
+/**
+ * Payments made BEFORE this instant whose commission lanes do not sum to the charge are LEGACY: sales from
+ * before the pay-link collect fix (#3051, on production 2026-10-09 ~09:40 UTC) recorded the client service
+ * fee in the snapshot but did not charge it. PM decision 2026-10-09: the ledger starts after them; their
+ * snapshots are NOT touched. They are listed (`legacyUnbalanced`), never red. An unbalanced payment AFTER
+ * this instant is a real refusal.
+ */
+export const LEGACY_UNBALANCED_BEFORE = "2026-10-09T09:40:00Z";
 
 export type ProjectionRunResult = {
   ok: boolean;
   /** `unattributable`: old payments with no commission snapshot (counted, never a heartbeat failure). */
-  bookingPayments: { projected: number; skipped: number; refused: number; unattributable: number };
+  bookingPayments: { projected: number; skipped: number; refused: number; unattributable: number; legacyUnbalanced: number };
+  /** Transaction ids of the legacy unbalanced sales (capped), so they are listed rather than silent. */
+  legacyUnbalancedIds?: string[];
   processingFees: { projected: number; skipped: number; refused: number };
   invoices: { projected: number; skipped: number; refused: number };
   payouts: { projected: number; skipped: number; refused: number };
@@ -75,7 +85,7 @@ function emptyCounts() {
 export function projectionHealth(r: ProjectionRunResult): { ok: boolean; detail: string } {
   const projected = r.bookingPayments.projected + r.processingFees.projected + r.invoices.projected + r.payouts.projected + r.transfers.projected;
   const refused = r.bookingPayments.refused + r.processingFees.refused + r.invoices.refused + r.payouts.refused + r.transfers.refused;
-  const base = `projected=${projected} refused=${refused} unattributable=${r.bookingPayments.unattributable}`;
+  const base = `projected=${projected} refused=${refused} unattributable=${r.bookingPayments.unattributable} legacy_unbalanced=${r.bookingPayments.legacyUnbalanced}`;
   if (!r.ok) return { ok: false, detail: `failed: ${r.error ?? r.refusals[0] ?? "unknown"} (${base})` };
   if (refused > 0 && projected === 0) return { ok: false, detail: `${base}; first refusal: ${r.refusals[0] ?? "unknown"}` };
   return { ok: true, detail: refused > 0 ? `${base}; first refusal: ${r.refusals[0] ?? "unknown"}` : base };
@@ -95,7 +105,7 @@ async function dryWrite(sb: NonNullable<ReturnType<typeof createServiceRoleClien
 export async function runLedgerProjection(opts: { dryRun?: boolean } = {}): Promise<ProjectionRunResult> {
   const result: ProjectionRunResult = {
     ok: true,
-    bookingPayments: { ...emptyCounts(), unattributable: 0 },
+    bookingPayments: { ...emptyCounts(), unattributable: 0, legacyUnbalanced: 0 },
     processingFees: emptyCounts(),
     invoices: emptyCounts(),
     payouts: emptyCounts(),
@@ -191,6 +201,14 @@ export async function runLedgerProjection(opts: { dryRun?: boolean } = {}): Prom
         if (lanes.length === 0 && Date.now() - Date.parse(paidAt) > UNATTRIBUTABLE_AFTER_MS) {
           // A known old sale from before commission snapshots existed: counted, not a fresh failure.
           result.bookingPayments.unattributable += 1;
+          continue;
+        }
+
+        const attributed = lanes.reduce((n, l) => n + l.talentNetCents + l.workspaceFeeCents + l.platformFeeCents, 0);
+        if (lanes.length > 0 && attributed !== Number(t.gross_amount_cents ?? 0) && Date.parse(paidAt) < Date.parse(LEGACY_UNBALANCED_BEFORE)) {
+          // Legacy (pre-#3051) sale: listed, never red, snapshot untouched.
+          result.bookingPayments.legacyUnbalanced += 1;
+          if ((result.legacyUnbalancedIds ??= []).length < 50) result.legacyUnbalancedIds.push(txnId);
           continue;
         }
 
