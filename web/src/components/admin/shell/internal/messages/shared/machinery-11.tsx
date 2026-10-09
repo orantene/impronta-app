@@ -687,8 +687,8 @@ export function CreateOfferButton({ inquiryId }: { inquiryId: string }) {
     <div className="mt-3">
       {chooseCurrency ? (
         <div role="group" aria-label={t("dashboard.adminTabs.lineup.offerCurrencyChoose")} data-offer-currency-chooser>
-          <div style={{ fontSize: 12.5, marginBottom: 6 }}>{t("dashboard.adminTabs.lineup.offerCurrencyChoose")}</div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="text-[12.5px] mb-1.5">{t("dashboard.adminTabs.lineup.offerCurrencyChoose")}</div>
+          <div className="flex gap-2">
             {["MXN", "USD"].map((code) => (
               <button key={code} type="button" disabled={pending} onClick={() => start(code)} style={primaryBtn(COLORS.accent)}>
                 {pending ? t("dashboard.adminTabs.lineup.starting") : code}

@@ -18,7 +18,8 @@ function world(opts: { orderId?: string | null; lines: Line[] }) {
           select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { ...txn }, error: null }) }) }),
           update: (patch: { metadata: Record<string, unknown> }) => {
             const f: Record<string, unknown> = {};
-            const q: any = {
+            type Q = { eq: (k: string, v: unknown) => Q; select: () => Promise<{ data: { id: string }[]; error: null }> };
+            const q: Q = {
               eq: (k: string, v: unknown) => { f[k] = v; return q; },
               // CAS: only the writer holding the current updated_at wins; a win bumps it.
               select: async () => {

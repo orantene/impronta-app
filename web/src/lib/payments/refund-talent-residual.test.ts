@@ -20,9 +20,10 @@ function fake(rows: Row[]) {
       from: (_t: string) => ({
         select: () => {
           const filters: Record<string, unknown> = {};
-          const q: any = {
+          type Q = { eq: (k: string, v: unknown) => Q; maybeSingle: () => Promise<{ data: unknown; error: null }> };
+          const q: Q = {
             eq: (k: string, v: unknown) => { filters[k] = v; return q; },
-            maybeSingle: async () => ({ data: rows.find((r) => Object.entries(filters).every(([k, v]) => (r as any)[k] === v)) ?? null, error: null }),
+            maybeSingle: async () => ({ data: rows.find((r) => Object.entries(filters).every(([k, v]) => (r as unknown as Record<string, unknown>)[k] === v)) ?? null, error: null }),
           };
           return q;
         },
