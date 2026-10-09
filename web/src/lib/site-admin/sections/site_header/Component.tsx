@@ -460,7 +460,7 @@ export async function SiteHeaderComponent({
   // the existing resolved config (brand / navLinks / social / contacts /
   // primaryCta), so there is no duplicate content store.
   const regions = props.regions;
-  const demoPill = <HeaderDemoPill show={props.siteChrome?.demo} />; // demo talents' only marker
+  const demoPill = <HeaderDemoPill show={props.siteChrome?.demo} locale={locale} />; // demo talents' only marker
   const siteLocales = props.siteChrome?.locales ?? []; // talent site languages, links to this page per locale
   if (regions) {
     const renderItem = (item: HeaderItem, idx: number) => {
@@ -548,7 +548,10 @@ export async function SiteHeaderComponent({
           );
         }
         case "language":
+          // TUL-516 B1: talent sites never show tenant locale pills without real
+          // switcher hrefs (no EN pill when the talent does not publish English).
           if (siteLocales.length > 1) return <HeaderSiteLocales key={key} locales={siteLocales} hrefs={props.siteChrome?.hrefs} locale={locale} attrs={attrs} />;
+          if (props.siteChrome) return null;
           return tenantLocaleSettings.supportedLocales.length > 1 ? (
             <div key={key} {...attrs} className="site-header__ritem site-header__lang">
               {tenantLocaleSettings.supportedLocales.map((code) => (

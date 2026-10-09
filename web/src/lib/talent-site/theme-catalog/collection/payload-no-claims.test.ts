@@ -57,8 +57,10 @@ test("folio: the demo wording lives in the demo site-copy, and applying it resto
     "Base rates in MXN. Ad use and travel are quoted separately.",
     "For editorials, runway and campaigns. I reply the same day.",
     "Shoe MX",
-    '"label":"Runway","href":"#chapter-2"',
-    '"label":"Runway","anchor":"chapter-2"',
+    // Spanish-primary Folio demo chrome uses Pasarela; EN overlay keeps Runway.
+    '"label":"Pasarela","href":"#chapter-2"',
+    '"label":"Pasarela","anchor":"chapter-2"',
+    '"contents.1.label":"Runway"',
   ]) {
     assert.ok(text.includes(s), `demo copy restores ${s}`);
   }

@@ -85,3 +85,11 @@ test("hydrated seeded labels with a token localise as patterns", async () => {
   assert.equal(localiseSeededDesignLabel("Before you come", "es"), "Antes de venir");
   assert.equal(localiseSeededDesignLabel("Menu and prices", "es"), "Menú y precios");
 });
+
+test("TUL-516 C1: Recent jobs localises on Spanish pages", async () => {
+  const { localiseSeededDesignLabel } = await import("./design-label-locale");
+  assert.equal(localiseSeededDesignLabel("Recent jobs", "es"), "Trabajos recientes");
+  assert.equal(localiseSeededDesignLabel("No emergencies today", "es"), "Sin urgencias hoy");
+  assert.equal(localiseSeededDesignLabel("Measures · Comp card", "es"), "Medidas · Ficha");
+  assert.equal(localiseSeededDesignLabel("Runway", "es"), "Pasarela");
+});

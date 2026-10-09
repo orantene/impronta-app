@@ -50,6 +50,9 @@ test("folioSiteCopyFor: Mateo Spanish primary carries overlays.en for every chro
   const copy = folioSiteCopyFor("TAL-93011");
   assert.match(copy.coverStatement, /campañas/);
   assert.doesNotMatch(copy.coverStatement, /Mexico City/);
+  assert.match(copy.chapters?.[1]?.heading ?? "", /Pasarela/);
+  assert.doesNotMatch(copy.chapters?.[1]?.heading ?? "", /Runway/);
+  assert.match(copy.overlays?.en?.chapters?.[1]?.heading ?? "", /Runway/);
   const en = copy.overlays?.en;
   assert.ok(en, "overlays.en");
   assert.equal(en!.coverStatement, "Editorial, runway and campaigns.");

@@ -1,31 +1,27 @@
 /**
- * Branded 404 page for unregistered hosts (TUL-516 C5: locale-aware copy).
+ * Soft "this site is only in one language" notice (TUL-516 B1).
  *
- * Rendered by the middleware when a request arrives from a hostname that is
- * not present in the `public.agency_domains` table. This page lives outside
- * every tenant-aware route group so it renders safely without a host context.
- *
- * The middleware rewrites to `/_host-unregistered` and sets the response
- * status to 404. This page component renders the HTML body.
+ * Talent hosts rewrite here when the URL carries a platform locale the talent
+ * does not publish (e.g. `/en` on a Spanish-only demo). Explicit, not a silent
+ * redirect to the Spanish home. Whitelisted in the proxy short-circuit.
  */
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getRequestLocale } from "@/i18n/request-locale";
-import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
-import { hostUnregisteredCopy } from "@/lib/saas/host-unregistered-copy";
+import { talentLocaleUnavailableCopy } from "@/lib/saas/talent-locale-unavailable-copy";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
-  const copy = hostUnregisteredCopy(locale);
+  const copy = talentLocaleUnavailableCopy(locale);
   return {
     title: { absolute: copy.title },
     robots: { index: false, follow: false },
   };
 }
 
-export default async function HostUnregisteredPage() {
+export default async function TalentLocaleUnavailablePage() {
   const locale = await getRequestLocale();
-  const copy = hostUnregisteredCopy(locale);
-  const marketing = resolveMarketingOrigin();
+  const copy = talentLocaleUnavailableCopy(locale);
   return (
     <div
       style={{
@@ -47,19 +43,6 @@ export default async function HostUnregisteredPage() {
           padding: "32px 32px",
         }}
       >
-        <p
-          style={{
-            fontFamily: '"Inter", system-ui, sans-serif',
-            fontSize: 11,
-            fontWeight: 600,
-            color: "rgba(11,11,13,0.38)",
-            letterSpacing: 0.8,
-            textTransform: "uppercase",
-            margin: 0,
-          }}
-        >
-          Tulala
-        </p>
         <h1
           style={{
             fontFamily: '"Inter", system-ui, sans-serif',
@@ -67,7 +50,7 @@ export default async function HostUnregisteredPage() {
             fontWeight: 600,
             color: "#0B0B0D",
             letterSpacing: -0.4,
-            marginTop: 12,
+            marginTop: 0,
             marginBottom: 0,
           }}
         >
@@ -83,30 +66,11 @@ export default async function HostUnregisteredPage() {
             marginBottom: 0,
           }}
         >
-          {copy.bodyBefore}
-          <a
-            href={marketing}
-            style={{
-              color: "#0F4F3E",
-              textDecoration: "underline",
-              textUnderlineOffset: 2,
-            }}
-          >
-            tulala.digital
-          </a>
-          {copy.bodyAfter}
+          {copy.body}
         </p>
-
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 10,
-            marginTop: 24,
-          }}
-        >
-          <a
-            href={marketing}
+        <div style={{ marginTop: 24 }}>
+          <Link
+            href="/"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -121,7 +85,7 @@ export default async function HostUnregisteredPage() {
             }}
           >
             {copy.homeCta}
-          </a>
+          </Link>
         </div>
       </div>
     </div>
