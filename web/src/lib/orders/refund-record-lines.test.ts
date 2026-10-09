@@ -18,7 +18,7 @@ function world(opts: { orderId?: string | null; lines: Line[]; parents?: string[
   const mk = (id: string) => ({ id, order_id: opts.orderId === undefined ? "o1" : opts.orderId, metadata: {} as Record<string, unknown>, updated_at: "v0" });
   const txns = (opts.parents ?? ["t1"]).map(mk);
   const lines = opts.lines.map((l) => ({ ...l }));
-  const refundRows = (opts.refundRows ?? []).map((r) => ({ ...r, metadata: {} as Record<string, unknown>, created_at: "2026-10-09" }));
+  const refundRows = (opts.refundRows ?? []).map((r) => ({ ...r, metadata: {} as Record<string, unknown>, created_at: new Date().toISOString() }));
   const admin = {
     from: (table: string) => {
       if (table === "booking_transactions") {
