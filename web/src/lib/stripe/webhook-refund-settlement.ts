@@ -15,6 +15,7 @@ import {
   notifyPaymentNeedsAttention,
   notifyRefundFailed,
 } from "@/lib/notifications/producers/payment-notify";
+import { formatFailedRefundMoney } from "@/lib/payments/failed-refund-attention-note";
 import { logServerError } from "@/lib/server/safe-error";
 import type { StripeAction } from "@/lib/stripe/webhook-routing";
 
@@ -63,7 +64,7 @@ export async function processRefundSettlement(action: RefundSettlementAction): P
     "stripe-webhook.refund.failed",
     new Error(
       `Refund ${action.refundId} ${action.status.toUpperCase()} for ` +
-        `${(action.amount / 100).toFixed(2)} ${action.currency.toUpperCase()} ` +
+        `${formatFailedRefundMoney(action.amount, action.currency)} ` +
         `(charge=${action.chargeId ?? "unknown"}, payment_intent=${action.paymentIntentId ?? "unknown"}, ` +
         `reason=${action.failureReason ?? "unspecified"}). ` +
         `THE CUSTOMER HAS NOT BEEN PAID and the funds are back in the platform balance. ` +
