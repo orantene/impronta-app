@@ -435,7 +435,7 @@ test("without overlays localizeBlockNode stays English; guess-map FALLBACK fills
     kind: "portfolio",
     id: "bare",
     props: { title: "Recent work", emptyMessage: "No photos in your portfolio yet." },
-  } as BuilderNode;
+  } as unknown as BuilderNode;
   // Overlay path alone does not invent Spanish.
   const bareEs = localizeBlockNode(bare, { locale: "es", defaultLocale: "en", chain: ["es", "en"] });
   assert.equal((bareEs.props as { title?: string }).title, "Recent work");
@@ -453,7 +453,7 @@ test("without overlays localizeBlockNode stays English; guess-map FALLBACK fills
       ...bare.props,
       i18n: { es: { title: "Trabajo reciente (authored)" } },
     },
-  } as BuilderNode;
+  } as unknown as BuilderNode;
   const kept = localiseSeededDesignLabels([withOverlay], "es");
   assert.equal((kept[0]!.props as { title?: string }).title, "Recent work");
 });
