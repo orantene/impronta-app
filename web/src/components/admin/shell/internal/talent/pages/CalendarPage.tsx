@@ -14,12 +14,12 @@ import { useTalentConversations } from "../shared/conversation-adapter-1";
 import { PageHeader } from "../shared/page-chrome-1";
 import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
 import { BookingHoursCard } from "@/components/appointments/BookingHoursCard";
+import { openWorkingHoursPanel } from "../agenda/WorkingHoursPanel";
 
 export function CalendarPage() {
   const { openDrawer, toast, bridgeTalentSelfProfile, bridgeTalentCalendarEntries } = useAdminShell();
   const copy = useDashboardText();
-  // Bridge-aware conversations — same source as TalentTodayPage and
-  // TalentJobShell. When the bridge has real data, use it for the calendar.
+  // Bridge-aware conversations (same source as TalentTodayPage/TalentJobShell).
   const conversations = useTalentConversations();
   const isBridgeMode = !!bridgeTalentSelfProfile;
   // B.3 — real calendar data from talent_bookings + talent_holds +
@@ -382,7 +382,7 @@ export function CalendarPage() {
           // "+ Add" (the talent-add-event drawer) is hidden until off-platform
           // work-logging / calendar-blocking is actually built — both drawer modes
           // are unpersisted "coming soon" stubs, so the button was a dead CTA.
-          <SecondaryButton onClick={() => openDrawer("talent-block-dates")}>
+          <SecondaryButton onClick={openWorkingHoursPanel}>
             {copy.t("Availability")}
           </SecondaryButton>
         }

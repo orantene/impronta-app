@@ -1669,7 +1669,8 @@
         "notAccepting": "Not taking new bookings right now. Send an inquiry instead.",
         "tooSoon": "That time is too soon. Pick a later start.",
         "slotTaken": "That time was just taken. Pick another time."
-      }
+      },
+      "captchaRequired": "Please complete the challenge to continue."
     },
     "bookPage": {
       "title": "Reserve a time",
@@ -6859,7 +6860,12 @@
       "starterDoorBody": "Start from a ready-made set — a home page, a not-found page and a directory — then edit anything you like.",
       "starterDoorCta": "Start from a starter",
       "starterDoorPending": "Building your pages…",
-      "starterDoorFailed": "We could not build your pages just now. Nothing was changed."
+      "starterDoorFailed": "We could not build your pages just now. Nothing was changed.",
+      "starterPrepareFailedTitle": "We couldn't prepare your site",
+      "starterPrepareFailedBody": "Your workspace is ready, but the starter pages did not finish. Retry to fill the site. Nothing else needs to change.",
+      "starterPrepareRetryCta": "Retry",
+      "starterPrepareRetryPending": "Preparing your site…",
+      "starterPrepareRetryFailed": "We could not prepare your site just now. Try again in a moment."
     },
     "adminCardStudio": {
       "title": "Card Design",
@@ -7165,6 +7171,10 @@
       "taxonomyTalentTypesCountOther": "{count} talent types",
       "taxonomyLeafOffTooltip": "Not offered on your site. Click to enable.",
       "taxonomyLeafOnTooltip": "Offered on your site. Click to turn off.",
+      "taxonomyDisableHoldersConfirmOne": "Turn off \"{name}\"? 1 person on your roster still has it. OK hides it for them on this workspace (removes it from their profile here). Cancel if you want to migrate them to another type first.",
+      "taxonomyDisableHoldersConfirmOther": "Turn off \"{name}\"? {count} people on your roster still have it. OK hides it for them on this workspace (removes it from their profiles here). Cancel if you want to migrate them to another type first.",
+      "taxonomyDisableHoldersClearedOne": "Service type turned off. Hidden for 1 person on this workspace.",
+      "taxonomyDisableHoldersClearedOther": "Service type turned off. Hidden for {count} people on this workspace.",
       "taxonomyLeafOffCount": "{count} off",
       "taxonomyDragSubtypes": "Drag to reorder sub-types",
       "taxonomyDirectTypes": "DIRECT TYPES",

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { ONBOARDING_FIXTURES, briefFromOnboardingFixture, fixtureById } from "./fixtures";
-import { buildUnderstanding, decidePath } from "./understanding";
+import { buildUnderstanding, decidePath, linkNameFor } from "./understanding";
 import { hoursFromPreset, normalizeWhatsapp, unknownQuestionTargets } from "./module-questions";
 
 for (const fx of ONBOARDING_FIXTURES) {
@@ -55,4 +55,19 @@ test("question targets are real fact keys; hours presets and WhatsApp normalise"
   assert.equal(normalizeWhatsapp("00 52 998 123 4567"), "+529981234567");
   assert.equal(normalizeWhatsapp("hola"), null);
   assert.equal(normalizeWhatsapp("+1"), null);
+});
+
+const fact = (factKey: string, value: string) =>
+  ({ factKey, value, source: "user_stated", status: "confirmed", confidence: 1, sourceExcerpt: null, sourceUrl: null, questionId: null, questionVersion: null, updatedAt: "" }) as const;
+
+test("a link pasted as the business name never becomes the link name when a real name exists", () => {
+  const brief = briefFromOnboardingFixture({ ...fixtureById("rosa"), facts: [] });
+  brief.facts.push(fact("business.name", "https://www.airstriplasvegas.com"), fact("person.professional_name", "Air Strip Vegas"));
+  assert.deepEqual(linkNameFor(brief, "business"), { slug: "air-strip-vegas", from: "person.professional_name" });
+});
+
+test("a link as the only name falls back to its brand, not scheme-www-tld soup", () => {
+  const brief = briefFromOnboardingFixture({ ...fixtureById("rosa"), facts: [] });
+  brief.facts.push(fact("business.name", "https://www.instagram.com/thebarberstudio"));
+  assert.deepEqual(linkNameFor(brief, "business"), { slug: "thebarberstudio", from: "business.name" });
 });

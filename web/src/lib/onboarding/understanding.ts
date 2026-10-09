@@ -17,7 +17,7 @@
 
 import type { Brief, BriefFact, FactSource } from "@/lib/tulala/brief-store";
 import { booleanFact, listFact, stringFact } from "@/lib/tulala/brief-store";
-import { normalizeWorkspaceSlugCandidate } from "@/lib/saas/workspace-signup";
+import { looksLikeUrl, normalizeWorkspaceSlugCandidate } from "@/lib/saas/workspace-signup";
 
 import type { OnboardingIntent, OnboardingPath } from "./module-state";
 import { MODULE_QUESTIONS, type ModuleQuestionId } from "./module-questions";
@@ -211,13 +211,22 @@ export function linkNameFor(brief: Brief, path: OnboardingPath): Understanding["
     path === "talent"
       ? ["person.professional_name", "person.name"]
       : ["business.name", "person.professional_name", "person.name"];
+  // A pasted link in the name field ("https://www.shop.com") is not a business
+  // name: prefer a candidate that reads as a name, and only fall back to the
+  // link's own brand/handle when nothing else is known.
+  let fallback: Understanding["linkName"] = null;
   for (const from of candidates) {
     const v = stringFact(brief, from);
     if (!v) continue;
     const slug = normalizeWorkspaceSlugCandidate(v);
-    if (slug) return { slug, from };
+    if (!slug) continue;
+    if (looksLikeUrl(v)) {
+      fallback ??= { slug, from };
+      continue;
+    }
+    return { slug, from };
   }
-  return null;
+  return fallback;
 }
 
 export function buildUnderstanding(input: {

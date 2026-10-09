@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { useT } from "@/i18n/use-t";
+import { translatorFor, useT } from "@/i18n/use-t";
 
 export type SlotPickerValue = {
   startsAt: string;
@@ -21,7 +21,12 @@ type Props = {
   value: SlotPickerValue | null;
   onChange: (next: SlotPickerValue | null) => void;
   days?: number;
+  /** Page locale when known (CMS /book). Falls back to dashboard cookie via useT. */
+  locale?: string;
 };
+
+const INK = "var(--token-color-ink, #0B0B0D)";
+const MUTED = "var(--token-color-muted, rgba(11,11,13,0.62))";
 
 function ymd(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -49,8 +54,13 @@ export function SlotPicker({
   value,
   onChange,
   days = 14,
+  locale: localeProp,
 }: Props) {
-  const t = useT();
+  const cookieT = useT();
+  const t = useMemo(() => {
+    if (!localeProp?.trim()) return cookieT;
+    return translatorFor(localeProp.startsWith("es") ? "es" : "en");
+  }, [localeProp, cookieT]);
   const [slots, setSlots] = useState<string[]>([]);
   // WHY THE LIST IS EMPTY, when it is. The endpoint says (`no_booking_hours`,
   // `closed_in_window`, `fully_booked`) and this used to drop it, so a
@@ -109,27 +119,33 @@ export function SlotPicker({
     };
   }, [offeringId, from, days, t]);
 
-  const locale = typeof document !== "undefined" && document.documentElement.lang.startsWith("es")
-    ? "es"
-    : "en";
+  const locale =
+    localeProp?.trim()
+      ? localeProp.startsWith("es")
+        ? "es"
+        : "en"
+      : typeof document !== "undefined" && document.documentElement.lang.startsWith("es")
+        ? "es"
+        : "en";
 
   return (
-    <div data-testid="slot-picker">
-      <p className="text-sm font-semibold text-[var(--plt-ink,#0B0B0D)]">
+    <div data-testid="slot-picker" style={{ color: INK }}>
+      <p className="text-sm font-semibold" style={{ color: INK }}>
         {t("public.slotPicker.title")}
       </p>
-      <p className="mt-1 text-xs text-[var(--plt-muted,rgba(11,11,13,0.62))]">
+      <p className="mt-1 text-xs" style={{ color: MUTED }}>
         {t("public.slotPicker.subtitle")}
       </p>
       {loading ? (
-        <p className="mt-3 text-xs text-[var(--plt-muted,rgba(11,11,13,0.62))]">
+        <p className="mt-3 text-xs" style={{ color: MUTED }}>
           {t("public.slotPicker.loading")}
         </p>
       ) : error ? (
         <p className="mt-3 text-xs text-[#dc2626]">{error}</p>
       ) : slots.length === 0 ? (
         <p
-          className="mt-3 text-xs text-[var(--plt-muted,rgba(11,11,13,0.62))]"
+          className="mt-3 text-xs"
+          style={{ color: MUTED }}
           data-testid="slot-picker-empty"
           data-reason={emptyReason ?? "unknown"}
         >
@@ -162,6 +178,7 @@ export function SlotPicker({
                     ? "border-[rgba(11,11,13,0.85)] bg-[rgba(11,11,13,0.06)]"
                     : "border-[rgba(24,24,27,0.12)] bg-white"
                 }`}
+                style={{ color: INK }}
               >
                 {formatSlot(start, resolvedTz, locale)}
               </button>
