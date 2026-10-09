@@ -146,6 +146,9 @@ export type Conversation = {
    *  job — runs her own workspace, talks to client directly, organizes
    *  other talents. Drives the talent_coord pov + tab visibility. */
   iAmCoordinator?: boolean;
+  /** Talent `inquiry_participants.status` (invited | active | …).
+   *  TUL-472 — Accept/Decline invite CTA keys off this, not !iAmCoordinator. */
+  participantStatus?: string;
   /** Where the inquiry came from. Surfaces as a chip in the header. */
   source?: ConvSource;
   /** Closure detail when stage is past or cancelled. */
