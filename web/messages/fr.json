@@ -803,7 +803,8 @@
         "platform_fee": "Frais de plateforme",
         "processing_fee": "Traitement de carte",
         "total_charged": "Total",
-        "nonRefundable": "Les frais ne sont pas remboursables."
+        "nonRefundable": "Les frais ne sont pas remboursables.",
+        "includedNote": "Comprend {fee} de frais de service."
       },
       "waitlist": "Cette seance est complete. Rejoignez la liste d attente.",
       "dateMismatch": "Cette date n est pas disponible. Une autre date est proposee ci-dessous.",
@@ -8127,6 +8128,7 @@
             "balanceDue": "Reste dû",
             "paidBalanceDue": "{paid} payé. Reste {due} à régler.",
             "paidInFull": "{paid} payé. Rien à devoir.",
+            "paidWithFee": "{charged} débités sur votre carte, dont {fee} de frais de service. Rien à payer.",
             "methodCard": "Payé par carte",
             "methodCardDeposit": "Acompte par carte",
             "methodCash": "Payé en espèces",
