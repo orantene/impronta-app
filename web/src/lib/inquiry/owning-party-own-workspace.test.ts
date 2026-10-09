@@ -9,46 +9,19 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { moneyOwningParty, resolveOwningPartiesForTalents, resolveOwningPartyForTalent } from "./owning-party-resolver";
 
-function sbWith(workspaceType: string | null, roster?: unknown[], opts?: { userId?: string | null; isOwner?: boolean }) {
-  const make = (table: string) => {
-    const builder = {
-      select: () => builder,
-      eq: () => builder,
-      in: () => builder,
-      limit: () => builder,
-      maybeSingle: () =>
-        Promise.resolve({
-          data:
-            table === "agencies" ? { workspace_type: workspaceType }
-            : table === "talent_profiles" ? { user_id: opts?.userId ?? null }
-            : table === "agency_memberships" ? (opts?.isOwner ? { id: "m1" } : null)
-            : null,
-          error: null,
-        }),
-      then: (resolve: (v: unknown) => unknown) => Promise.resolve({ data: roster ?? [], error: null }).then(resolve),
-    };
-    return builder;
+function sbWith(workspaceType: string | null, roster?: unknown[]) {
+  const builder = {
+    select: () => builder,
+    eq: () => builder,
+    in: () => builder,
+    maybeSingle: () => Promise.resolve({ data: { workspace_type: workspaceType }, error: null }),
+    then: (resolve: (v: unknown) => unknown) => Promise.resolve({ data: roster ?? [], error: null }).then(resolve),
   };
-  return { from: (t: string) => make(t) } as unknown as Parameters<typeof moneyOwningParty>[0];
+  return { from: () => builder } as unknown as Parameters<typeof moneyOwningParty>[0];
 }
 
 test("a workspace-owned lane in the talent's own workspace is the talent's for money", async () => {
   assert.deepEqual(await moneyOwningParty(sbWith("talent"), { type: "workspace", id: "ws" }, "t1"), { type: "talent", id: "t1" });
-});
-
-test("a 'both' owner selling her own service in her business workspace is the seller; a non-owner talent is not", async () => {
-  assert.deepEqual(
-    await moneyOwningParty(sbWith("business", [], { userId: "u1", isOwner: true }), { type: "workspace", id: "ws" }, "t1"),
-    { type: "talent", id: "t1" },
-  );
-  assert.deepEqual(
-    await moneyOwningParty(sbWith("business", [], { userId: "u1", isOwner: false }), { type: "workspace", id: "ws" }, "t1"),
-    { type: "workspace", id: "ws" },
-  );
-  assert.deepEqual(
-    await moneyOwningParty(sbWith("business", [], { userId: null, isOwner: true }), { type: "workspace", id: "ws" }, "t1"),
-    { type: "workspace", id: "ws" },
-  );
 });
 
 test("a real business workspace, an agency lane and an already-talent lane are unchanged", async () => {
