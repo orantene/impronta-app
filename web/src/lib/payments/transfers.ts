@@ -20,6 +20,7 @@
  * Until then this runs harmlessly in skip/mock mode.
  */
 
+import { legLastError } from "./connect-lane-attention";
 import { getStripeFor, type StripeAccountKey } from "@/lib/stripe/client";
 import { decideLegPlatform } from "@/lib/stripe/account-routing";
 import { loadChargePlatformForTransaction, loadRecipientPlatform } from "@/lib/stripe/charge-platform";
@@ -141,6 +142,7 @@ export async function disburseOnChargePlatform(
       rail: input.route.rail,
       status: "skipped_cross_platform",
       detail: decision.reason,
+      chargePlatform: ctx.chargePlatform,
     };
   }
   return (ctx.disburseFn ?? disburse)(input, { stripe: ctx.stripe });
@@ -148,11 +150,7 @@ export async function disburseOnChargePlatform(
 
 /** Ledger last_error for a leg: the failure, or WHY a held leg is held when the
  *  release path cannot fix it (cross-platform), so admins see the reason. */
-export function legLastError(o: Pick<TransferOutcome, "status" | "detail">): string | null {
-  if (o.status === "failed") return o.detail ?? "transfer failed";
-  if (o.status === "skipped_cross_platform") return `cross-platform hold: ${o.detail ?? "recipient account is on another Stripe platform"}`;
-  return null;
-}
+export { CONNECT_LANE_ATTENTION_MARKER, legLastError } from "./connect-lane-attention";
 
 /** Map a transfer outcome status to the ledger's persisted status.
  *  'mock' (no STRIPE_SECRET_KEY) and zero-amount legs are not recorded by the

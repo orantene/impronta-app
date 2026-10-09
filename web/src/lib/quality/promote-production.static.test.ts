@@ -53,11 +53,13 @@ test("promote: falls back to the newest green commit on any gate conclusion", ()
   assert.match(YAML, /\n  schedule:/);
 });
 
-test("promote: own non-cancelling concurrency group, shared with no PR workflow", () => {
+test("promote: own concurrency group that cancels superseded queued runs (TUL-412)", () => {
   const m = YAML.match(/\nconcurrency:\n\s+group: (\S+)\n\s+cancel-in-progress: (\S+)/);
   assert.ok(m, "top-level concurrency block missing");
   assert.equal(m[1], "promote-production");
-  assert.equal(m[2], "false");
+  // true: reconcile recomputes newest green, so cancelling a queued promote
+  // cannot freeze the pointer (TUL-412). Shared with no PR workflow.
+  assert.equal(m[2], "true");
   const others = ["ci", "admin-boot", "builder-e2e", "builder-fidelity", "talent-website-e2e"];
   assert.ok(others.length > 0 && !others.includes(m[1]));
 });

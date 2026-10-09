@@ -172,4 +172,13 @@ export const MONEY_ES_TEXT: Record<string, string> = {
   "Get paid to your local bank, anywhere": "Cobra en tu banco local, en cualquier país",
   "When a client pays for a booking you're on, your share transfers to you automatically, on Stripe's standard schedule (typically 2 business days). You file your own taxes, and we hand you the year-end summary.":
     "Cuando un cliente paga una reserva tuya, tu parte se transfiere sola según el calendario estándar de Stripe (por lo general 2 días hábiles). Tú presentas tus impuestos y nosotros te damos el resumen de fin de año.",
+  "Connect the business's payout account in Mexico to release {amount} held":
+    "Conecta la cuenta de cobros del negocio en México para liberar {amount} retenidos",
+  "Connect the business's payout account in the United States to release {amount} held":
+    "Conecta la cuenta de cobros del negocio en Estados Unidos para liberar {amount} retenidos",
+  "Connect the business's payout account to release {amount} held":
+    "Conecta la cuenta de cobros del negocio para liberar {amount} retenidos",
+  "The payment was collected in a different country than this account. It is released automatically once the business connects its account there.":
+    "El pago se cobró en un país distinto al de esta cuenta. Se libera solo cuando el negocio conecta su cuenta allí.",
+  "More info": "Más información",
 };

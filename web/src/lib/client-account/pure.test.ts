@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  CLIENT_AUTH_METHODS,
   RESEND_COOLDOWN_SECONDS,
   accountInitials,
   isClientAccountEligible,
+  isClientAuthMethod,
   resendSecondsLeft,
   shapeAccountSummary,
 } from "./pure";
@@ -31,6 +33,13 @@ test("only client accounts are eligible; talent, staff, platform are not", () =>
   assert.equal(isClientAccountEligible("client"), true);
   assert.equal(isClientAccountEligible(null), true);
   for (const r of ["talent", "agency_staff", "super_admin"]) assert.equal(isClientAccountEligible(r), false, r);
+});
+
+test("client auth methods match foundation migration allow-list", () => {
+  assert.deepEqual([...CLIENT_AUTH_METHODS], ["email_code", "google", "password", "sso"]);
+  for (const m of CLIENT_AUTH_METHODS) assert.equal(isClientAuthMethod(m), true, m);
+  assert.equal(isClientAuthMethod("magic_link"), false);
+  assert.equal(isClientAuthMethod(""), false);
 });
 
 const NOW = Date.parse("2026-10-07T12:00:00Z");
@@ -88,9 +97,13 @@ test("mixed currencies never sum across currencies", () => {
 
 import {
   chooseTrustedHost,
+  isApplePrivateRelayEmail,
+  isAuthEmailConfirmedForClaim,
   precheckSignIn,
+  shouldClaimInquiriesForSignIn,
   shouldSignOutAfterVerify,
   tenantSourceProfileId,
+  userHasGoogleIdentity,
   verifyIpRateKey,
 } from "./pure";
 
@@ -125,6 +138,33 @@ test("tenant source: proxy profile header on talent_site hosts only", () => {
 test("IP verify key", () => {
   assert.equal(verifyIpRateKey("1.2.3.4"), "auth-otp-verify-ip:1.2.3.4");
   assert.equal(verifyIpRateKey(""), "auth-otp-verify-ip:unknown");
+});
+
+test("claim requires confirmed email; OTP proven bypasses; Apple relay skips", () => {
+  assert.equal(isAuthEmailConfirmedForClaim({ email_confirmed_at: "2026-01-01T00:00:00Z" }), true);
+  assert.equal(isAuthEmailConfirmedForClaim({ email_confirmed_at: null, identities: [] }), false);
+  assert.equal(
+    isAuthEmailConfirmedForClaim({
+      email_confirmed_at: null,
+      identities: [{ provider: "google", identity_data: { email_verified: true } }],
+    }),
+    true,
+  );
+  assert.equal(isApplePrivateRelayEmail("a@privaterelay.appleid.com"), true);
+  assert.equal(isApplePrivateRelayEmail("a@example.com"), false);
+  assert.equal(shouldClaimInquiriesForSignIn({ otpProven: true, email: "x@y.com", emailConfirmed: false }), true);
+  assert.equal(shouldClaimInquiriesForSignIn({ email: "x@y.com", emailConfirmed: false }), false);
+  assert.equal(shouldClaimInquiriesForSignIn({ email: "x@y.com", emailConfirmed: true }), true);
+  assert.equal(
+    shouldClaimInquiriesForSignIn({
+      email: "h@privaterelay.appleid.com",
+      emailConfirmed: true,
+    }),
+    false,
+  );
+  assert.equal(userHasGoogleIdentity({ identities: [{ provider: "google" }] }), true);
+  assert.equal(userHasGoogleIdentity({ identities: [{ provider: "email" }], app_metadata: {} }), false);
+  assert.equal(userHasGoogleIdentity({ identities: [], app_metadata: { provider: "google" } }), true);
 });
 
 test("UTC fallback shows the zone label next to the time", () => {
