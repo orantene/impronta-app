@@ -2039,10 +2039,8 @@ export function AdminShellProvider({
   const bridgeTalentUnread: number | undefined = initialBridgeData?.talentUnread;
   const bridgeWorkspaceUnread: number | undefined = initialBridgeData?.workspaceUnread;
   const bridgeOwnedWorkspaceSlug: string | null | undefined = initialBridgeData?.ownedWorkspaceSlug;
-  // First-run tooltip flag. undefined in prototype mode → tooltip hidden.
-  const bridgeFirstRunToggleTipSeen: boolean | undefined = initialBridgeData?.firstRunToggleTipSeen;
-  // W14 — Day-1 checklist dismissal. undefined in prototype mode → not dismissed.
-  const bridgeTalentChecklistDismissed: boolean | undefined = initialBridgeData?.talentChecklistDismissed;
+  const bridgeFirstRunToggleTipSeen: boolean | undefined = initialBridgeData?.firstRunToggleTipSeen; // first-run tooltip; undefined (prototype) → hidden
+  const bridgeTalentChecklistDismissed: boolean | undefined = initialBridgeData?.talentChecklistDismissed; // W14 Day-1 checklist; undefined (prototype) → not dismissed
 
   // Phase 1 (master plan) — chrome identity bridge.
   // When provided by the workspace admin layout, the prototype's chrome
@@ -2330,8 +2328,7 @@ export function AdminShellProvider({
       pageSlicesReady,
       profileEditorLayout,
       clientFieldSource,
-      // Phase 5
-      bridgeTalentUnread,
+      bridgeTalentUnread, // Phase 5
       bridgeWorkspaceUnread,
       bridgeOwnedWorkspaceSlug,
       bridgeFirstRunToggleTipSeen,
@@ -2463,8 +2460,7 @@ export function AdminShellProvider({
       pageSlicesReady,
       profileEditorLayout,
       clientFieldSource,
-      // Phase 5
-      bridgeTalentUnread,
+      bridgeTalentUnread, // Phase 5
       bridgeWorkspaceUnread,
       bridgeOwnedWorkspaceSlug,
       bridgeFirstRunToggleTipSeen,
