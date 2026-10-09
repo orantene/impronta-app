@@ -221,6 +221,13 @@ export default async function RootLayout({
         suppressHydrationWarning
         className={`site-theme-${resolvedSiteTheme}${publicScope ? " site-theme-tenant-override" : ""} flex min-h-full flex-col text-foreground`}
       >
+        {/* SEO-safe language suggestion (TUL-394: first child of <body>, in
+            flow, so it never covers a bottom CTA). Renders nothing unless the
+            visitor's browser asks for a language this tenant publishes but is
+            not the one this URL serves. Never redirects, see
+            @/i18n/locale-suggestion. Mounted here because public HTML comes out
+            of four different shells; this is the one node they share. */}
+        <LocaleSuggestionBanner renderLocale={locale} />
         {/* Tenant custom code — head snippet. Storefront-only (publicScope),
             entitlement + status gated inside the resolver. */}
         {publicScope && <TenantCustomCodeHead tenantId={publicScope.tenantId} />}
@@ -280,13 +287,6 @@ export default async function RootLayout({
         {/* Custom code library — snippets placed at the end of the page. */}
         {publicScope && <TenantCodeSnippetsBody tenantId={publicScope.tenantId} />}
         <TenantRegisterMount />
-        {/* SEO-safe language suggestion. Renders nothing unless the visitor's
-            browser asks for a language this tenant publishes but is not the one
-            this URL serves. Never redirects, never changes what the URL renders
-            (crawlers get identical HTML minus the banner) — see
-            @/i18n/locale-suggestion. Mounted here because public HTML comes out
-            of four different shells; this is the one node they share. */}
-        <LocaleSuggestionBanner />
         <EditChromeMount />
         {/* Wave 6.1 — the admin quick bar mounts independently of the editor so
             it reaches every public page of a tenant's own site, not just the

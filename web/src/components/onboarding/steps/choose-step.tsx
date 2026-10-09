@@ -6,6 +6,7 @@
  * choice makes. Copy is local (ES/EN pairs from the 1B ticket).
  */
 
+import { withLocaleHref } from "@/i18n/pathnames";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -92,7 +93,7 @@ export function ChooseStep({
         {c.agencyLink}
       </button>
       <Link
-        href="/directory"
+        href={withLocaleHref("/directory", locale)}
         data-testid="onb-book-link"
         className="mt-1 inline-flex min-h-11 items-center text-[0.875rem] font-medium underline underline-offset-4 sm:ml-5"
         style={{ color: "var(--tl-ink-soft)" }}

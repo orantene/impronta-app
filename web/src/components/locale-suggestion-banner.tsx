@@ -50,7 +50,7 @@ import { LocaleSuggestionBannerClient } from "./locale-suggestion-banner-client"
  */
 type BannerProps = React.ComponentProps<typeof LocaleSuggestionBannerClient>;
 
-async function resolveBannerProps(): Promise<BannerProps | null> {
+async function resolveBannerProps(renderLocale: string): Promise<BannerProps | null> {
   try {
     const [h, jar, tenantUrlSettings, scope] = await Promise.all([
       headers(),
@@ -75,6 +75,9 @@ async function resolveBannerProps(): Promise<BannerProps | null> {
     const talentId =
       h.get(HOST_CONTEXT_HEADER) === "talent_site" ? h.get(HOST_TALENT_PROFILE_HEADER)?.trim() : null;
     const talent = talentId ? await loadTalentLocaleSettings(talentId) : null;
+    // A talent host whose locale settings did not load has no honest grammar
+    // to build an href from (the platform fallback inverts it). Say nothing.
+    if (talentId && !talent) return null;
     const settings = talent
       ? localeUrlSettings(talent.defaultLocale, talent.supportedLocales)
       : tenantUrlSettings;
@@ -105,6 +108,8 @@ async function resolveBannerProps(): Promise<BannerProps | null> {
       acceptLanguage: h.get("accept-language"),
       country: h.get("x-vercel-ip-country"),
       currentLocale,
+      // The locale the page was actually rendered in (drives <html lang>).
+      renderLocale,
       tenantSettings: settings,
       showLanguageSwitcher,
       pathname,
@@ -131,8 +136,8 @@ async function resolveBannerProps(): Promise<BannerProps | null> {
   }
 }
 
-export async function LocaleSuggestionBanner() {
-  const props = await resolveBannerProps();
+export async function LocaleSuggestionBanner({ renderLocale }: { renderLocale: string }) {
+  const props = await resolveBannerProps(renderLocale);
   if (!props) return null;
   return <LocaleSuggestionBannerClient {...props} />;
 }

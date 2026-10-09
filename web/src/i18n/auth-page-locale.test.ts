@@ -25,10 +25,12 @@ test("an auto-written en cookie does not hide a Spanish signal", () => {
     resolveAuthPageLocale({ ...base, cookieLocale: "en", cookieIsAuto: true, acceptLanguage: "es-MX,es;q=0.9" }),
     "es",
   );
+  // ...but a Mexico IP alone does not beat an explicit English browser (TUL-492).
   assert.equal(
     resolveAuthPageLocale({ ...base, cookieLocale: "en", cookieIsAuto: true, country: "MX", acceptLanguage: "en-US" }),
-    "es",
+    "en",
   );
+  assert.equal(resolveAuthPageLocale({ ...base, cookieLocale: "en", cookieIsAuto: true, country: "MX" }), "es");
 });
 
 test("no cookie: Spanish browser or Mexico gives Spanish", () => {
@@ -50,4 +52,15 @@ test("Spanish is never served where it is not enabled", () => {
     resolveAuthPageLocale({ ...base, enabledLocales: ["en"], acceptLanguage: "es-MX", country: "MX" }),
     "en",
   );
+});
+
+test("TUL-492: an en-US browser from Mexico gets English on every auth page; Mexico alone gets Spanish", () => {
+  assert.equal(resolveAuthPageLocale({ ...base, acceptLanguage: "en-US,en;q=0.9", country: "MX" }), "en");
+  assert.equal(resolveAuthPageLocale({ ...base, acceptLanguage: "es-MX,es;q=0.9", country: "US" }), "es");
+  assert.equal(resolveAuthPageLocale({ ...base, country: "MX" }), "es");
+  assert.equal(resolveAuthPageLocale({ ...base, acceptLanguage: "fr-FR", country: "MX" }), "es");
+  // a deliberate cookie still beats the browser
+  assert.equal(resolveAuthPageLocale({ ...base, cookieLocale: "es", acceptLanguage: "en-US", country: "MX" }), "es");
+  // English not enabled on this host: never forced
+  assert.equal(resolveAuthPageLocale({ ...base, enabledLocales: ["es"], fallback: "es", acceptLanguage: "en-US", country: "MX" }), "es");
 });

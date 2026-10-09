@@ -15,9 +15,10 @@ import { resolveMyWebsiteTarget, shouldAutoCreatePersonalSite } from "./my-websi
 
 const base = { ownsBusinessWorkspace: false, hasWorkspaceSite: false, workspaceSlug: null, hasPersonalSite: false };
 
-test("business owner with a workspace site opens the workspace site", () => {
+test("business owner with a workspace site opens the workspace edit entry", () => {
   const t = resolveMyWebsiteTarget({ ...base, ownsBusinessWorkspace: true, hasWorkspaceSite: true, workspaceSlug: "maison" });
-  assert.deepEqual(t, { kind: "workspace", slug: "maison", href: "/maison/admin/website" });
+  // TUL-347: entry is /talent/page-builder, which resolves the live storefront editor URL.
+  assert.deepEqual(t, { kind: "workspace", slug: "maison", href: "/talent/page-builder" });
 });
 
 test("both sites present: workspace wins for a business owner", () => {
