@@ -9,7 +9,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { CONNECT_LANE_ATTENTION_MARKER, legLastError } from "./transfers";
-import { getConnectLaneAttention } from "./booking-payouts-ledger";
+import { getConnectLaneAttention } from "./connect-lane-attention";
 
 test("a cross-platform hold records the lane the charge ran on", () => {
   const msg = legLastError({ status: "skipped_cross_platform", detail: "charge on mx, recipient account on us", chargePlatform: "mx" }) ?? "";

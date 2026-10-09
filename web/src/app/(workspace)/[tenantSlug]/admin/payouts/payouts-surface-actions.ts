@@ -18,7 +18,8 @@
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { getConnectedAccountSnapshot, type ConnectedAccountSnapshot } from "@/lib/payments/stripe-connect";
-import { getConnectLaneAttention, getHeldPayoutTotals } from "@/lib/payments/booking-payouts-ledger";
+import { getHeldPayoutTotals } from "@/lib/payments/booking-payouts-ledger";
+import { getConnectLaneAttention } from "@/lib/payments/connect-lane-attention";
 import { loadWorkspaceBaseFee, type WorkspaceBaseFeeState } from "./base-fee-actions";
 import { PAYOUTS_OWNER_ONLY_ERROR } from "./payouts-access-copy";
 
