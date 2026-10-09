@@ -22,7 +22,8 @@ import { PUBLIC_PATH_PREFIX_HEADER, TENANT_HEADER_NAME } from "@/lib/saas/scope"
  * re-bind; never trust client-supplied talent headers alone.
  *
  * Also re-attach guest identity (D-MSG-422): a plain `next()` would replace the
- * first-pass rewrite response and drop Set-Cookie / `x-impronta-guest`.
+ * first-pass rewrite response and drop a peeked `x-impronta-guest` header.
+ * Minting stays in ensureGuestIdentity (cookie-only).
  */
 export async function talentSiteRewriteReentryResponse(
   request: NextRequest,

@@ -18,6 +18,7 @@ import { eventPathRedirectResponse } from "@/lib/events/event-path-middleware";
 import { resolveEventPathRewrite } from "@/lib/events/event-page-paths";
 import { rateLimitHtmlResponse, rateLimitJsonResponse, tryConsumeRateLimit } from "@/lib/rate-limit";
 import { updateSession } from "@/lib/supabase/middleware";
+import { GUEST_HEADER_NAME } from "@/lib/guest-cookie";
 import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-identity";
 import { resolveTenantContext, HOST_CONTEXT_HEADER, HOST_NAME_HEADER, HOST_TENANT_SLUG_HEADER, HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
 import { offRosterTalentResponse } from "@/lib/saas/off-roster-talent-gate";
@@ -67,13 +68,15 @@ function clientIp(request: NextRequest): string {
 }
 
 /**
- * Strip client-forged host-context headers on every inbound path so only the
- * proxy-written values reach `/_talent-site` (and mirrors actor-header hygiene
- * in `lib/supabase/middleware.ts`).
+ * Strip client-forged host-context / guest headers on every inbound path so
+ * only the proxy-written values reach `/_talent-site` (and mirrors actor-header
+ * hygiene in `lib/supabase/middleware.ts`). `x-impronta-guest` is never
+ * trusted from the client — only re-bound from a verified cookie.
  */
 const HOST_CONTEXT_HEADERS_TO_STRIP = [
   HOST_CONTEXT_HEADER, HOST_TALENT_PROFILE_HEADER, HOST_NAME_HEADER,
   HOST_TENANT_SLUG_HEADER, TENANT_HEADER_NAME, PUBLIC_PATH_PREFIX_HEADER,
+  GUEST_HEADER_NAME,
 ];
 
 function stripInboundHostContextHeaders(request: NextRequest): Headers {

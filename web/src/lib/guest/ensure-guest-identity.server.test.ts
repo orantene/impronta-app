@@ -24,6 +24,14 @@ test("ensureGuestIdentity does not reimplement HMAC verify/mint", () => {
   assert.doesNotMatch(SRC, /createHmac|timingSafeEqual|crypto\.randomUUID/);
 });
 
+test("ensureGuestIdentity never trusts x-impronta-guest header", () => {
+  // Cookie-only: cookies() only — never import or call the headers() helper.
+  assert.doesNotMatch(SRC, /GUEST_HEADER_NAME/);
+  assert.match(SRC, /import \{\s*cookies\s*\} from "next\/headers"/);
+  assert.doesNotMatch(SRC, /import \{[^}]*\bheaders\b[^}]*\} from "next\/headers"/);
+  assert.doesNotMatch(SRC, /(?<!\/)headers\s*\(/); // not next/headers path; no headers() call
+});
+
 test("guest-session exports ensureGuestSessionId for write paths", () => {
   const sessionSrc = readFileSync(
     join(process.cwd(), "src/lib/guest/guest-session.ts"),
@@ -34,4 +42,7 @@ test("guest-session exports ensureGuestSessionId for write paths", () => {
   // Peek path must not mint.
   assert.match(sessionSrc, /export async function resolveGuestSessionId/);
   assert.match(sessionSrc, /peekGuestIdentity/);
+  // Cookie only — never the forgeable request header symbol.
+  assert.doesNotMatch(sessionSrc, /GUEST_HEADER_NAME/);
+  assert.doesNotMatch(sessionSrc, /\.get\(\s*GUEST_HEADER|\.get\(\s*["']x-impronta-guest["']/);
 });

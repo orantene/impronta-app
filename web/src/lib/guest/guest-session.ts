@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { ensureGuestIdentity } from "@/lib/guest/ensure-guest-identity.server";
-import { GUEST_COOKIE_NAME, GUEST_HEADER_NAME, peekGuestIdentity } from "@/lib/guest-cookie";
+import { GUEST_COOKIE_NAME, peekGuestIdentity } from "@/lib/guest-cookie";
 
 /**
  * Client IP — the TRUSTED hop. Vercel appends the real client IP to the RIGHT
@@ -28,9 +28,11 @@ export async function resolveClientIp(): Promise<string | null> {
   return null;
 }
 
+/**
+ * Plain guest key from the HMAC-verified cookie only. Never from the
+ * guest request header (client-forgeable if present on the inbound request).
+ */
 async function guestKeyFromRequest(): Promise<string | null> {
-  const fromHeader = (await headers()).get(GUEST_HEADER_NAME)?.trim();
-  if (fromHeader) return fromHeader;
   const raw = (await cookies()).get(GUEST_COOKIE_NAME)?.value;
   return peekGuestIdentity(raw)?.guestKey ?? null;
 }
@@ -54,9 +56,9 @@ async function sessionIdForGuestKey(guestKey: string): Promise<string | null> {
 }
 
 /**
- * Resolve guest_sessions.id from an existing guest identity (proxy header or
- * verified cookie). Does NOT mint — SSR resume and read paths stay soft-null
- * for first-time visitors (TUL-445 CDN). Write paths use `ensureGuestSessionId`.
+ * Resolve guest_sessions.id from the verified `impronta_guest` cookie.
+ * Does NOT mint — SSR resume and read paths stay soft-null for first-time
+ * visitors (TUL-445 CDN). Write paths use `ensureGuestSessionId`.
  */
 export async function resolveGuestSessionId(): Promise<string | null> {
   const guestKey = await guestKeyFromRequest();

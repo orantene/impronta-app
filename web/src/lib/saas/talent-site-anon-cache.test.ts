@@ -6,7 +6,9 @@ import {
   applyTalentSiteAnonCacheHeaders,
   TALENT_SITE_ANON_CDN_CACHE,
   TALENT_SITE_PRIVATE_NO_STORE,
+  talentSiteLocaleIsPathOnly,
 } from "./talent-site-anon-cache";
+import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import { GUEST_COOKIE_NAME, GUEST_COOKIE_OPTIONS, signGuestCookie } from "@/lib/guest-cookie";
 
 function req(cookieHeader?: string, method = "GET"): NextRequest {
@@ -33,6 +35,16 @@ describe("applyTalentSiteAnonCacheHeaders", () => {
       NextResponse.next(),
       req(`${GUEST_COOKIE_NAME}=${signed}`),
     );
+    assert.equal(res.headers.get("Cache-Control"), TALENT_SITE_PRIVATE_NO_STORE);
+  });
+
+  it("stays private when a locale cookie is present (path-locale-only CDN)", () => {
+    const res = applyTalentSiteAnonCacheHeaders(
+      NextResponse.next(),
+      req(`${LOCALE_COOKIE}=en`),
+    );
+    assert.equal(talentSiteLocaleIsPathOnly(req(`${LOCALE_COOKIE}=en`)), false);
+    assert.equal(talentSiteLocaleIsPathOnly(req()), true);
     assert.equal(res.headers.get("Cache-Control"), TALENT_SITE_PRIVATE_NO_STORE);
   });
 

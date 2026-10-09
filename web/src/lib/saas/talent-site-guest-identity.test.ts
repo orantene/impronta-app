@@ -1,10 +1,10 @@
 // D-MSG-422 (2026-09-24): a talent_site host's rewrite in proxy.ts returns
 // before `updateSession` ever runs, so x-impronta-guest never reached a
 // guest server action on ANY talent vanity host — every guest ask came back
-// "forbidden" and no client could message a talent.
+// "forbidden" and no guest could message a talent.
 //
-// TUL-445: anonymous GETs must NOT Set-Cookie a fresh impronta_guest (CDN).
-// Returning guests still get the header; minting moves to guest write actions.
+// TUL-445: peek-only — never Set-Cookie / mint here. Write actions mint via
+// ensureGuestIdentity (cookie-only; never trusts the header).
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { NextRequest, NextResponse } from "next/server";
@@ -59,17 +59,15 @@ describe("attachTalentSiteGuestIdentity", () => {
     assert.equal(res.cookies.get(GUEST_COOKIE_NAME), undefined);
   });
 
-  it("a non-GET (server action) still mints + Set-Cookie for a fresh guest", () => {
+  it("TUL-445: a non-GET without cookie also peeks only (mint is ensureGuestIdentity)", () => {
     const request = req(undefined, "POST");
-    const talentHeaders = new Headers();
+    const talentHeaders = new Headers({ [GUEST_HEADER_NAME]: "forged-client-value" });
     const attach = attachTalentSiteGuestIdentity(request, talentHeaders);
 
-    assert.ok(talentHeaders.get(GUEST_HEADER_NAME), "guest header was not set on POST");
+    assert.equal(talentHeaders.get(GUEST_HEADER_NAME), null);
 
     const res = attach(NextResponse.next());
-    const setCookie = res.cookies.get(GUEST_COOKIE_NAME);
-    assert.ok(setCookie, "no Set-Cookie on POST for a fresh guest");
-    assert.equal(setCookie!.value.length > 0, true);
+    assert.equal(res.cookies.get(GUEST_COOKIE_NAME), undefined);
   });
 
   it("works on BOTH response kinds the talent_site branch returns: passthrough and rewrite", () => {

@@ -19,6 +19,7 @@ test("proxy strips every proxy-written host header from inbound requests", () =>
     "HOST_TENANT_SLUG_HEADER",
     "TENANT_HEADER_NAME",
     "PUBLIC_PATH_PREFIX_HEADER",
+    "GUEST_HEADER_NAME",
   ]) {
     assert.match(list, new RegExp(`\\b${h}\\b`), `${h} must be stripped`);
   }
