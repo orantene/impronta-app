@@ -16,6 +16,9 @@ import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomai
 import { maxSitePublicGate } from "@/lib/talent-site/resolve-max-site-core";
 import { talentSitePathUrl, talentSitePublicUrl } from "@/lib/talent-site/site-public-url";
 import type { EffectiveReadContext } from "@/lib/impersonation/effective-read";
+import { resolveMyWebsiteTarget } from "@/lib/talent-site/my-website-target";
+import { loadOwnedBusinessWorkspace } from "@/lib/talent-site/server/workspace-site-context";
+import { resolveWorkspaceSitePublicUrl } from "@/lib/talent-site/workspace-site-editor-url";
 
 function mapSiteRow(row: TalentSiteRow): TalentSiteDashboardState["site"] {
   const draftSnapshot = parseTalentSiteSnapshot(row.draft_snapshot);
@@ -176,6 +179,25 @@ export async function loadTalentPersonalSiteDashboardState(
     thumbnailUrl: t.thumbnailUrl,
   }));
 
+  // TUL-77 / TUL-347: when "My website" is the business workspace, surface that
+  // live URL on Hoy / presence (not the personal subdomain the owner may also have).
+  let publicSiteUrl: string | null = personalSiteUrl ?? (profileCode ? `/t/${profileCode}` : null);
+  if (admin && scope.session.user?.id) {
+    const owned = await loadOwnedBusinessWorkspace(admin, scope.session.user.id);
+    const target = resolveMyWebsiteTarget({
+      ownsBusinessWorkspace: owned.ownsBusinessWorkspace,
+      hasWorkspaceSite: owned.hasWorkspaceSite,
+      workspaceSlug: owned.workspaceSlug,
+      hasPersonalSite: Boolean(site),
+    });
+    if (target.kind === "workspace" && owned.tenantId) {
+      publicSiteUrl = await resolveWorkspaceSitePublicUrl(admin, {
+        tenantId: owned.tenantId,
+        slug: target.slug,
+      });
+    }
+  }
+
   const state: TalentSiteDashboardState = {
     planKey: membership.planKey,
     tier: membership.tier,
@@ -187,8 +209,7 @@ export async function loadTalentPersonalSiteDashboardState(
     canUseCustomBuilder: membership.capabilities.canUseCustomBuilder,
     profileCode,
     talentProfileId: scope.talentProfile.id,
-    // Prefer the live personal website; hub `/t/<code>` is the discovery fallback.
-    publicSiteUrl: personalSiteUrl ?? (profileCode ? `/t/${profileCode}` : null),
+    publicSiteUrl,
     // `preview=1` forces the standard profile renderer when a published site exists.
     publicProfileUrl: profileCode ? `/t/${profileCode}?preview=1` : null,
     isPubliclyHidden: scope.talentProfile.isPubliclyHidden,

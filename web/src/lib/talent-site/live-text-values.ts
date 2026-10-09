@@ -6,7 +6,7 @@
 import { resolveHeadline } from "./hero-headline";
 import { formatHeroEyebrow, formatHeroProofLine, type HeroProofInput } from "./hero-proof-line";
 import { resolveLiveBio } from "./live-bio";
-import { resolveLocalizedLine } from "./live-line-language";
+import { guessLineLanguage, resolveLocalizedLine } from "./live-line-language";
 import type { TalentLiveText } from "./live-text";
 import { pick, type LocalizedMapLike } from "./talent-locale-swaps";
 
@@ -83,7 +83,15 @@ export function buildTalentLiveText(
 
   const primary = (src.primaryLocale ?? "").toLowerCase().startsWith("en") ? "en" : "es";
   // Her own words per language: the map, the plain field, `short_bio`; never English for a Spanish visitor when a Spanish line exists.
-  const ownHeadline = resolveLocalizedLine({ map: src.headlineI18n, plain: src.headline, locale: key, primary });
+  const ownHeadlineRaw = resolveLocalizedLine({ map: src.headlineI18n, plain: src.headline, locale: key, primary });
+  // TUL-118 / E-14: a Spanish-only own headline must not paint the /en hero. Clear it
+  // so `resolveHeadline` can serve the trade seed in the visitor's language (or her name).
+  // Taglines keep the cross-language fallback below (short supporting line; Done-when is the H1).
+  const ownHeadlineLang = guessLineLanguage(ownHeadlineRaw);
+  const ownHeadline =
+    ownHeadlineRaw && ownHeadlineLang && ownHeadlineLang !== key && !(src.headlineI18n?.[key]?.trim())
+      ? ""
+      : ownHeadlineRaw;
   const ownTagline = resolveLocalizedLine({ map: src.taglineI18n, plain: src.tagline, alt: src.shortBio, locale: key, primary });
   const headline = resolveHeadline({ headline: ownHeadline, tradeEn, displayName: src.displayName, seedKey: src.seedKey }, key);
   const eyebrow = formatHeroEyebrow(tradeNow, cityNow);
@@ -130,6 +138,9 @@ export function buildTalentLiveText(
       footer_contact: contactLine(instagram, src.instagramHref, src.whatsappHref),
     },
     // Only the lines that follow the profile on sites applied before 2.7 need their baked forms.
+    // Bio seeds (TUL-187): every language of her bio plus short_bio, so an About
+    // paragraph baked without `liveText: "bio"` (Maison release trees strip it)
+    // still binds at render and can show the language hint on fallback.
     seeds: {
       hero_eyebrow: [...eyebrows],
       hero_proof: [
@@ -138,6 +149,10 @@ export function buildTalentLiveText(
         cityEs ? `Based in ${cityEs}` : "",
         formatHeroProofLine(src.proof, "en"),
         formatHeroProofLine(src.proof, "es"),
+      ].filter(Boolean),
+      bio: [
+        ...Object.values(src.bioI18n ?? {}).map((v) => (typeof v === "string" ? v.trim() : "")),
+        src.shortBio?.trim() ?? "",
       ].filter(Boolean),
     },
   };

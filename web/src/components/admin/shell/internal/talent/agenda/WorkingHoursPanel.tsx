@@ -13,7 +13,11 @@ import { useAgendaCopy } from "./use-agenda-copy";
  * on a phone. Settings, Calendar, Today and setup all open the same panel with
  * `openWorkingHoursPanel()` instead of navigating away from where she was.
  * `/talent/calendar/availability` stays as the full-page fallback (deep links,
- * and the agenda data not being loaded yet).
+ * and when the talent profile id is not on the bridge yet).
+ *
+ * TUL-358 / C1-10: eligibility is the profile id only. Gating on agendaV2 sent
+ * Settings › Horario to the week CalendarPage, whose Disponibilidad drawer had
+ * no Zona horaria / hours form.
  */
 const store = createPanelStore();
 
@@ -25,11 +29,11 @@ export function WorkingHoursPanelHost() {
   const open = store.useOpen();
   const router = useRouter();
   const copy = useAgendaCopy();
-  const { setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgendaHours, bridgeTalentAgendaV2, toast } = useAdminShell();
+  const { setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgendaHours, toast } = useAdminShell();
   const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
-  const eligible = Boolean(bridgeTalentAgendaV2 && talentProfileId);
+  const eligible = Boolean(talentProfileId);
 
-  // No agenda data to edit in place: fall back to the full page.
+  // No profile id to edit in place: fall back to the full hours page (never the week calendar).
   useEffect(() => {
     if (open && !eligible) {
       store.close();

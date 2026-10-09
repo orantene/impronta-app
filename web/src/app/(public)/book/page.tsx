@@ -100,6 +100,7 @@ export default async function BookPage() {
           offerings={offerings}
           signedIn={guestChrome.signedIn}
           captcha={guestChrome.captcha}
+          locale={locale}
         />
       </main>
       <PublicFooter className="mt-auto border-t border-border px-4 py-8 sm:px-6 lg:px-8" />

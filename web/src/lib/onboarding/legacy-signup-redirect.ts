@@ -13,6 +13,7 @@
  * the platform's own (a whitelabel agency host keeps its own brand).
  */
 
+import { resolveAuthPageLocale } from "@/i18n/auth-page-locale";
 import type { FlowLocale } from "./flow";
 
 export type LegacySignupSurface = "register" | "role";
@@ -93,11 +94,17 @@ export function resolveLegacyFlowLang(input: {
   country?: string | null;
 }): FlowLocale {
   if (input.urlLang === "es" || input.urlLang === "en") return input.urlLang;
-  if ((input.cookieLocale === "es" || input.cookieLocale === "en") && !input.cookieIsAuto) return input.cookieLocale;
-  const browser = explicitBrowserLang(input.acceptLanguage);
-  if (browser) return browser;
-  if ((input.country ?? "").toUpperCase() === "MX") return "es";
-  return input.cookieLocale === "es" ? "es" : "en";
+  // One resolver for every auth/onboarding page (see resolveAuthPageLocale).
+  return resolveAuthPageLocale({
+    cookieLocale: input.cookieLocale === "es" || input.cookieLocale === "en" ? input.cookieLocale : null,
+    cookieIsAuto: input.cookieIsAuto === true,
+    acceptLanguage: input.acceptLanguage,
+    country: input.country,
+    fallback: "en",
+    enabledLocales: ["en", "es"],
+  }) === "es"
+    ? "es"
+    : "en";
 }
 
 /** `/es/register`-style path → its language, or null when the path has no locale prefix. */
