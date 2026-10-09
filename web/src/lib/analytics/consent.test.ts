@@ -3,7 +3,11 @@ import { beforeEach, describe, test } from "node:test";
 
 import {
   CONSENT_COOKIE,
+  CONSENT_COOKIE_DENIED,
+  CONSENT_COOKIE_VALUE,
   CONSENT_STORAGE_KEY,
+  buildConsentCookieAssignments,
+  consentFromCookieValue,
   cookieGrantsAnalytics,
   hasAnalyticsConsent,
   isAnalyticsAllowed,
@@ -77,6 +81,68 @@ describe("server gating on the consent cookie", () => {
     assert.equal(decideEnsureVisitorCookie(base).shouldSet, false);
     assert.equal(decideEnsureVisitorCookie({ ...base, consentCookie: "nope" }).shouldSet, false);
     assert.equal(decideEnsureVisitorCookie({ ...base, consentCookie: "analytics" }).shouldSet, true);
+  });
+});
+
+describe("parent-domain consent cookie (tulala.digital ↔ app.tulala.digital)", () => {
+  test("cookie value maps analytics→granted and denied→denied", () => {
+    assert.equal(consentFromCookieValue(CONSENT_COOKIE_VALUE), "granted");
+    assert.equal(consentFromCookieValue(CONSENT_COOKIE_DENIED), "denied");
+    assert.equal(consentFromCookieValue("analytics,embeds"), null);
+    assert.equal(consentFromCookieValue(undefined), null);
+  });
+
+  test("decline and accept both persist a cookie (decline is not Max-Age=0)", () => {
+    for (const host of ["tulala.digital", "app.tulala.digital"] as const) {
+      const denied = buildConsentCookieAssignments({
+        next: "denied",
+        hostname: host,
+        secure: true,
+      });
+      assert.match(denied[0]!, /tulala_consent=denied/);
+      assert.match(denied[0]!, /Max-Age=\d+/);
+      assert.doesNotMatch(denied[0]!, /Max-Age=0/);
+      assert.match(denied[0]!, /Domain=\.tulala\.digital/);
+
+      const granted = buildConsentCookieAssignments({
+        next: "granted",
+        hostname: host,
+        secure: true,
+      });
+      assert.match(granted[0]!, /tulala_consent=analytics/);
+      assert.match(granted[0]!, /Domain=\.tulala\.digital/);
+    }
+  });
+
+  test("parent-domain write also clears a legacy host-only shadow", () => {
+    const parts = buildConsentCookieAssignments({
+      next: "denied",
+      hostname: "tulala.digital",
+      secure: true,
+    });
+    assert.equal(parts.length, 2);
+    assert.match(parts[0]!, /Domain=\.tulala\.digital/);
+    assert.match(parts[1]!, /Max-Age=0/);
+    assert.doesNotMatch(parts[1]!, /Domain=/);
+  });
+
+  test("localhost stays host-only (no Domain attribute)", () => {
+    const parts = buildConsentCookieAssignments({
+      next: "granted",
+      hostname: "localhost",
+      secure: false,
+    });
+    assert.equal(parts.length, 1);
+    assert.doesNotMatch(parts[0]!, /Domain=/);
+    assert.doesNotMatch(parts[0]!, /Secure/);
+  });
+
+  test("banner stays hidden when the other host already declined (cookie signal)", () => {
+    // Decline on apex leaves tulala_consent=denied on .tulala.digital; app
+    // host has empty localStorage but reads the shared cookie → no banner.
+    assert.equal(shouldShowBanner(consentFromCookieValue("denied"), false), false);
+    assert.equal(shouldShowBanner(consentFromCookieValue("analytics"), false), false);
+    assert.equal(shouldShowBanner(consentFromCookieValue(null), false), true);
   });
 });
 
