@@ -16,7 +16,8 @@ test("login page mounts Apple next to Google only when provider flag is on", () 
   const page = read("src/app/(auth)/login/page.tsx");
   assert.match(page, /LoginAppleButton/);
   assert.match(page, /isAppleAuthProviderEnabled/);
-  assert.match(page, /isAppleAuthProviderEnabled\(\) \? \(/);
+  assert.match(page, /appleSignInEnabled = isAppleAuthProviderEnabled\(\)/);
+  assert.match(page, /\{appleSignInEnabled \? \(/);
   assert.match(page, /public\.auth\.login\.apple/);
   assert.match(page, /public\.auth\.appleUnableToStart/);
   assert.doesNotMatch(page, /TODO\(P5 mobile readiness/);

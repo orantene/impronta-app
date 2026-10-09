@@ -60,6 +60,7 @@
         "title": "Log in",
         "inviteTitle": "Sign in to join {agency}",
         "description": "Continue with Google, Apple, or email. With Google or Apple, a password is optional; you can add one later under Account.",
+        "descriptionNoApple": "Continue with Google or email. With Google, a password is optional; you can add one later under Account.",
         "inviteDescription": "{agency} invited you to their roster. Sign in to claim your profile and start receiving bookings.",
         "google": "Continue with Google",
         "emailSubmit": "Log in with email",
