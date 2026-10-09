@@ -137,9 +137,9 @@ export async function proxy(request: NextRequest) {
     // Branded 404 page for unregistered hosts — must bypass host gating to
     // avoid infinite rewrite loops when the middleware rewrites here.
     pathname === "/_host-unregistered" ||
-    // Branded "page not found" page for known-host disallowed paths — same
-    // recursion-avoidance rationale as /_host-unregistered above.
+    // Branded 404 + locale-unavailable internals — same recursion bypass as host-unregistered.
     pathname === "/_page-not-found" ||
+    pathname === "/_talent-locale-unavailable" ||
     // Talent custom-domain host route — internal rewrite target for a
     // `kind: "talent_site"` host. Whitelisted so the rewrite below does not
     // recurse back through host resolution. The route reads the resolved

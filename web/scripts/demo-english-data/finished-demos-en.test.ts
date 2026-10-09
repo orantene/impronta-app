@@ -59,13 +59,15 @@ test("addEnglishLine is add-only", () => {
   assert.equal(addEnglishLine({}, "  "), null);
 });
 
-test("finishedDemoSecondaryLocales: only empty Spanish-primary finished demos", () => {
-  const base = { theme: "folio", preferredLocale: "es", currentSecondary: [] as string[] };
+test("finishedDemoSecondaryLocales: only empty Spanish-primary finished demos that publish English", () => {
+  const base = { theme: "folio", preferredLocale: "es", currentSecondary: [] as string[], siteLangs: ["es", "en"] as string[] };
   assert.deepEqual(finishedDemoSecondaryLocales(base), ["en"]);
   assert.deepEqual(finishedDemoSecondaryLocales({ ...base, theme: "gridline", currentSecondary: null }), ["en"]);
   assert.equal(finishedDemoSecondaryLocales({ ...base, theme: "solace" }), null);
   assert.equal(finishedDemoSecondaryLocales({ ...base, preferredLocale: "en" }), null);
   assert.equal(finishedDemoSecondaryLocales({ ...base, currentSecondary: ["fr"] }), null);
+  // TUL-516 B1: Spanish-only site languages never enable /en.
+  assert.equal(finishedDemoSecondaryLocales({ ...base, siteLangs: ["es"] }), null);
 });
 
 test("dry run writes nothing and prints code, id and slug", async () => {

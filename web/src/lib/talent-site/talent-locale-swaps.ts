@@ -102,10 +102,15 @@ export function buildTalentLocaleSwaps(
   const cityEn = src.homeCity?.en?.trim();
   const cityNames = [cityEn, ...(src.cityAliases ?? [])].map((c) => c?.trim() ?? "").filter(Boolean);
   if (cityEn || cityNames.length) {
-    const city = pick(src.homeCity, key, chain) || cityNames[0]!;
-    for (const name of new Set(cityNames)) {
+    let city = pick(src.homeCity, key, chain) || cityNames[0]!;
+    // TUL-516 C6: English place name "Mexico City" must not paint on Spanish pages.
+    if (key === "es" && /^mexico\s*city$/i.test(city.trim())) city = "Ciudad de México";
+    for (const name of new Set([...cityNames, "Mexico City", cityEn].filter(Boolean) as string[])) {
       add(name, city);
-      if (key === "es") add(`Based in ${name}`, `Con base en ${city}`);
+      if (key === "es") {
+        add(`Based in ${name}`, `Con base en ${city}`);
+        add(`BASED IN ${name.toUpperCase()}`, `CON BASE EN ${city.toUpperCase()}`);
+      }
     }
   }
   for (const o of src.offerings ?? []) {

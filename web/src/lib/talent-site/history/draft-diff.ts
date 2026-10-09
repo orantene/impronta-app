@@ -181,7 +181,7 @@ const LABEL_NAMES: Record<string, { en: string; es: string }> = {
   header: { en: "Header", es: "Encabezado" },
   footer: { en: "Footer", es: "Pie de página" },
   "statement footer": { en: "Statement footer", es: "Pie con mensaje" },
-  "comp card": { en: "Comp card", es: "Comp card" },
+  "comp card": { en: "Comp card", es: "Ficha" },
   contents: { en: "Contents", es: "Contenido" },
   "the book": { en: "The book", es: "El portafolio" },
 };

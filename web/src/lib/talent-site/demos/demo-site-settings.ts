@@ -31,8 +31,8 @@ const base = (partial: Partial<DemoSiteSettings> & Pick<DemoSiteSettings, "siteL
  */
 export const DEMO_SITE_SETTINGS: Readonly<Record<string, DemoSiteSettings>> = {
   // Maison v1 seed + Alba: classic beauty, bookable + chat
-  "TAL-93020": base({ siteLangs: ["es"], bookingMode: "instant", currency: "MXN" }),
-  "TAL-93003": base({ siteLangs: ["es"], bookingMode: "instant", currency: "MXN" }),
+  "TAL-93020": base({ siteLangs: ["es", "en"], bookingMode: "instant", currency: "MXN" }),
+  "TAL-93003": base({ siteLangs: ["es", "en"], bookingMode: "instant", currency: "MXN" }),
   "TAL-93002": base({ siteLangs: ["es", "en"], bookingMode: "mixed", currency: "MXN", chatEnabled: true }),
   // Linh: request-only, chat off (shows a quieter rail)
   "TAL-93103": base({
@@ -57,7 +57,7 @@ export const DEMO_SITE_SETTINGS: Readonly<Record<string, DemoSiteSettings>> = {
   "TAL-93113": base({ siteLangs: ["es", "en"], bookingMode: "request", currency: "MXN" }),
   "TAL-93114": base({ siteLangs: ["es", "en"], bookingMode: "mixed", currency: "MXN" }),
   // Gridline
-  "TAL-93030": base({ siteLangs: ["es"], bookingMode: "instant", currency: "MXN" }),
+  "TAL-93030": base({ siteLangs: ["es", "en"], bookingMode: "instant", currency: "MXN" }),
   "TAL-93206": base({ siteLangs: ["en"], bookingMode: "request", currency: "USD", chatEnabled: false }),
   "TAL-93207": base({ siteLangs: ["en"], bookingMode: "instant", currency: "USD" }),
   "TAL-93208": base({ siteLangs: ["es"], bookingMode: "quote", currency: "MXN", acceptingBookings: false }),

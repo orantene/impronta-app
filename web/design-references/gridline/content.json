@@ -43,7 +43,27 @@
       { "label": "Precio", "value": "Antes de empezar" },
       { "label": "Revisión", "value": "$550" }
     ],
-    "badges": ["12 años", "Casas y locales"]
+    "badges": ["12 años", "Casas y locales"],
+    "factsI18n": {
+      "en": [
+        {
+          "label": "Response",
+          "value": "24 h"
+        },
+        {
+          "label": "Warranty",
+          "value": "6 months"
+        },
+        {
+          "label": "Price",
+          "value": "Before I start"
+        },
+        {
+          "label": "Inspection",
+          "value": "$550"
+        }
+      ]
+    }
   },
   "tasks": {
     "title": "¿Qué está pasando?",
@@ -298,6 +318,119 @@
         "lamp": { "n": "3", "h": "2.7 a 3.5 m", "when": ["Sábado", "Mañana"] },
         "tablero": { "type": ["Casa"], "circ": "7 a 12" },
         "emerg": { "what": ["Sin luz en una zona"], "col": "Cumbres, Monterrey" }
+      }
+    }
+  },
+  "translations": {
+    "en": {
+      "topBar": {
+        "subtitle": "Electrician · Monterrey",
+        "phoneAriaLabel": "Call"
+      },
+      "urgency": {
+        "statusOn": "Emergencies today",
+        "statusOff": "No emergencies today",
+        "band": {
+          "title": "Same-day emergency",
+          "safetyLead": "Meanwhile:",
+          "safety": "if there are sparks or a burning smell, cut the power at the main breaker and do not touch the panel."
+        },
+        "ctaLabel": "Ask now"
+      },
+      "hero": {
+        "eyebrow": "Schedule open · Monterrey and metro area",
+        "headline": "Safe electrical installs, {i}with a written warranty.{/i}",
+        "badges": [
+          "12 years",
+          "Homes and small shops"
+        ],
+        "ctas": [
+          "See times",
+          "What do you need?"
+        ]
+      },
+      "tasksTitle": "What is going on?",
+      "taskDefault": {
+        "kicker": "Not sure what it is?",
+        "hint": "Tell me what is happening with the power. If you are not sure, the diagnostic finds the fault and I give you the price before I repair."
+      },
+      "specTable": {
+        "title": "Specifications",
+        "subtitle": "How I work",
+        "rows": [
+          {
+            "label": "Voltage",
+            "value": "127 V and 220 V, residential and commercial"
+          },
+          {
+            "label": "Warranty",
+            "value": "6 months in writing on labor"
+          },
+          {
+            "label": "Materials",
+            "value": "Brand and price on the quote, before buying"
+          },
+          {
+            "label": "Price",
+            "value": "Always before I start"
+          },
+          {
+            "label": "Payment",
+            "value": "At the visit: cash or transfer"
+          }
+        ]
+      },
+      "menu": {
+        "title": "Services and prices",
+        "subtitle": "Prices in MXN"
+      },
+      "services": {
+        "rev": {
+          "name": "Electrical inspection",
+          "description": "Diagnosis of a fault or general installation check; credited if you hire the work.",
+          "category": "Inspection"
+        },
+        "lamp": {
+          "name": "Light fixture install",
+          "description": "Per fixture, with connection materials included.",
+          "category": "Installs"
+        },
+        "tablero": {
+          "name": "Panel replacement",
+          "description": "Removal of the old panel and installation of a new one; materials extra.",
+          "category": "Installs"
+        },
+        "emerg": {
+          "name": "Same-day emergency",
+          "description": "Same-day visit when the power is out, there are sparks or a burning smell.",
+          "category": "Emergency"
+        }
+      },
+      "tasks": {
+        "t1": {
+          "label": "Power is out in one area",
+          "hint": "An inspection finds the circuit that failed and gives you the price before I repair."
+        },
+        "t2": {
+          "label": "Install lights or ceiling fans",
+          "hint": "Priced per piece. Send me photos of the ceiling and the fixture."
+        },
+        "t3": {
+          "label": "A breaker keeps tripping",
+          "hint": "Usually an overload or a short. I check first, then quote the repair."
+        },
+        "t4": {
+          "label": "Old or fuse panel",
+          "hint": "A panel swap is quoted from photos of your current panel and the number of circuits."
+        },
+        "t5": {
+          "label": "Outlets that do not work",
+          "hint": "The inspection tests every outlet and fixes the simple ones on the spot."
+        },
+        "t6": {
+          "label": "Sparks or a burning smell",
+          "hint": "Cut the power at the main breaker and message me. I can come the same day when there is room."
+        }
       }
     }
   }
