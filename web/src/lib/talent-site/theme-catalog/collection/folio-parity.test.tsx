@@ -84,6 +84,17 @@ test("magazine CSS: desktop sizes come from tokens with the TH02 desktop default
   assert.match(MASTHEAD_MAGAZINE_CSS, /aspect-ratio:var\(--sb-mag-cover-aspect-d,4\/3\.4\)/);
 });
 
+test("TUL-476 Folio magazine: cover keeps heads, caption has a scrim, phone intro clears sticky chrome, chapters collapse empty columns", () => {
+  assert.match(MASTHEAD_MAGAZINE_CSS, /\.sb-mag-cover img\{[^}]*object-position:center 18%/);
+  assert.match(MASTHEAD_MAGAZINE_CSS, /\.sb-mag-cover::after\{/);
+  assert.match(MASTHEAD_MAGAZINE_CSS, /color-mix\(in srgb,black 55%,transparent\)/);
+  assert.match(MASTHEAD_MAGAZINE_CSS, /\.sb-mag-tag\{scroll-margin-top:72px/);
+  assert.match(MASTHEAD_MAGAZINE_CSS, /padding-bottom:max\(20px,calc\(72px \+ env\(safe-area-inset-bottom/);
+  assert.match(PORTFOLIO_MAGAZINE_CSS, /\.sb-portfolio--chapter:has\(>:nth-child\(2\):last-child\)\{grid-template-columns:1\.4fr minmax\(0,1fr\)\}/);
+  assert.match(PORTFOLIO_MAGAZINE_CSS, /\.sb-portfolio--chapter:has\(>:only-child\)\{grid-template-columns:minmax\(0,1fr\)\}/);
+  assert.match(PORTFOLIO_MAGAZINE_CSS, /\.sb-portfolio-chapter\{margin:0 0 28px;padding:0\}/);
+});
+
 test("comp strip keeps the TH02 desktop grid and the keyed section is the dark box", () => {
   assert.match(COMP_CARD_MAGAZINE_CSS, /grid-template-columns:260px/);
   assert.match(COMP_CARD_MAGAZINE_CSS, /var\(--token-type-stat-size-desktop,54px\)/);

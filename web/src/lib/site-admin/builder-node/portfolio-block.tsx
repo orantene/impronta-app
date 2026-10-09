@@ -47,15 +47,23 @@ export const PORTFOLIO_MAGAZINE_CSS = `
 .sb-portfolio[data-edition="magazine"] .sb-portfolio-item--pair .sb-portfolio-frame{aspect-ratio:3/4}
 .sb-portfolio[data-edition="magazine"] .sb-portfolio-cap{position:absolute;left:8px;bottom:8px;margin:0;padding:3px 6px;font:600 9.5px/1.2 var(--sb-mag-label);letter-spacing:.16em;text-transform:uppercase;color:white;background:color-mix(in srgb,black 35%,transparent)}
 .sb-portfolio[data-edition="magazine"] .sb-portfolio-service{display:none}
+/* TUL-476: no ghost gap under a short Editorial set (collapse trailing chapter air). */
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter{margin:0 0 28px;padding:0}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter:last-child{margin-bottom:0}
 @media (min-width:900px){
   .sb-portfolio[data-edition="magazine"]{padding:90px 40px 0}
-  .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter{display:grid;grid-template-columns:320px minmax(0,1fr);gap:40px;align-items:start}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter{display:grid;grid-template-columns:320px minmax(0,1fr);gap:40px;align-items:start;margin-bottom:48px}
   .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-head{display:block;border:0;padding:0;margin:0;position:sticky;top:80px}
   .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-num{display:block;font-size:120px}
   .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-title{margin-top:6px;font-size:var(--token-type-group-title-size-desktop,56px)}
   .sb-portfolio[data-edition="magazine"] .sb-portfolio-credit{margin-top:12px}
   .sb-portfolio[data-edition="magazine"] .sb-portfolio--chapter{grid-template-columns:1.4fr 1fr 1fr;gap:10px}
+  /* TUL-476: 1–2 shots must not leave an empty third column under Editorial. */
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio--chapter:has(>:only-child){grid-template-columns:minmax(0,1fr)}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio--chapter:has(>:nth-child(2):last-child){grid-template-columns:1.4fr minmax(0,1fr)}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio--chapter:has(>:nth-child(2):last-child) .sb-portfolio-item--hero{grid-row:auto}
   .sb-portfolio[data-edition="magazine"] .sb-portfolio-item--hero{grid-column:auto;grid-row:span 2}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio--chapter:has(>:only-child) .sb-portfolio-item--hero{grid-column:1;grid-row:auto}
   .sb-portfolio[data-edition="magazine"] .sb-portfolio-item--hero .sb-portfolio-frame{aspect-ratio:auto}
   .sb-portfolio[data-edition="magazine"] .sb-portfolio-item--pair .sb-portfolio-frame{aspect-ratio:4/5}
 }
