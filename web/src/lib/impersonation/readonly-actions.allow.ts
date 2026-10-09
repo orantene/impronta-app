@@ -13,6 +13,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["app/(workspace)/platform/admin/integrations/captcha-override-actions.ts", ["loadWorkspaceCaptchaOverrides"], READ],
   ["lib/server-actions/how-you-work.ts", ["loadHowYouWork"], READ],
   ["lib/site-admin/media/photo-caption-actions.ts", ["loadTalentPhotoCaptionLocalesAction"], READ],
+  ["lib/site-admin/add-gallery/workspace-copy-type-action.ts", ["fetchWorkspaceTypeForCopy"], READ],
   ["lib/client-account/actions.ts", ["signOutClientAccount"], "SIGN-OUT: ends the session; must keep working while impersonating (PM exception)"],
   ["lib/reviews/review-actions.ts", ["loadReviewableBookingsAction", "loadClientReviewablesAction"], READ],
   ["lib/server-actions/messaging-engine.ts", ["staff", "messagingLoadInbox", "messagingResolveOrderThread", "messagingLoadThread", "messagingLoadEssentials", "loadConversationHistory", "messagingResolve", "messagingRelinkImpact", "messagingSearch"], READ],

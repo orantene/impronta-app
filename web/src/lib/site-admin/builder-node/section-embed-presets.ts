@@ -15,6 +15,7 @@
  * Kept out of create.ts (which is at its max-lines budget) and imported by the
  * `createBuilderSectionEmbed` factory there.
  */
+import { localizeSectionTemplate, type TemplateCopyContext } from "@/lib/site-admin/add-gallery/section-template-copy";
 import { v11FeaturedTalentPreset } from "@/lib/site-admin/sections/featured_talent/presets";
 import { fashionDirectoryPreset } from "@/lib/site-admin/sections/directory/presets";
 
@@ -495,14 +496,18 @@ export function sectionEmbedTypeLabel(
  * still produce a valid node (empty config → the renderer shows a placeholder),
  * so the factory never throws.
  */
-export function createBuilderSectionEmbed(sectionTypeKey: string): BuilderNode {
+export function createBuilderSectionEmbed(sectionTypeKey: string, copy?: TemplateCopyContext): BuilderNode {
   const preset = SECTION_EMBED_PRESET_BY_TYPE_KEY.get(sectionTypeKey);
-  return {
-    id: makeId("section_embed"),
-    kind: "section_embed",
-    props: {
-      sectionTypeKey,
-      config: preset ? { ...preset.config } : {},
+  // TUL-80: placeholder copy follows the site kind and language, same pass as templates.
+  return localizeSectionTemplate(
+    {
+      id: makeId("section_embed"),
+      kind: "section_embed",
+      props: {
+        sectionTypeKey,
+        config: preset ? { ...preset.config } : {},
+      },
     },
-  };
+    copy,
+  );
 }

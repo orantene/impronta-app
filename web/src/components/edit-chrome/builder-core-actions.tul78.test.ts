@@ -9,6 +9,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { insertLevelForGalleryAction, resolveInsertAnchor } from "./add-gallery/gallery-insert-hint";
+import { duplicateBuilderNode, insertBuilderNode } from "@/lib/site-admin/builder-node/operations";
+import { keyboardFocusIsInPanel } from "./builder-keyboard";
 import { resolveDuplicateRoute } from "./builder-duplicate-route";
 import { nextAddMenuChrome, type AddMenuChrome } from "./add-menu-chrome";
 import { liveTextCommitValue } from "./inspectors/live-text-commit";
@@ -182,5 +184,60 @@ describe("inline edit box (#7 / E-06)", () => {
       viewportWidth: 800,
     });
     assert.ok(box.left + box.width <= 800);
+  });
+});
+
+describe("nested Gallery/FAQ section duplicate (TUL-396)", () => {
+  // A Gallery/FAQ nested in a hero is a `section_embed` node, which the node
+  // lane duplicates (a DB-backed `section` child of a section is not a valid
+  // tree shape at all, so it is not duplicated here).
+  const tree = (): BuilderNodeTree => [
+    node("hero", "section", { sectionTypeKey: "hero" }, [
+      node("faq", "section_embed", { sectionTypeKey: "faq_accordion" }),
+      node("tail", "section_embed", { sectionTypeKey: "gallery_strip" }),
+    ]),
+  ];
+
+  it("routes a nested embed to the node lane", () => {
+    assert.deepEqual(resolveDuplicateRoute(tree(), "faq"), { route: "node" });
+  });
+
+  it("copies it right after the original inside its parent with a fresh id", () => {
+    const res = duplicateBuilderNode({ tree: tree(), nodeId: "faq" });
+    assert.ok(res.ok);
+    if (!res.ok) return;
+    const kids = (res.tree[0] as { children: BuilderNode[] }).children;
+    assert.deepEqual(kids.map((k) => k.id), ["faq", res.nodeId, "tail"]);
+    assert.notEqual(res.nodeId, "faq");
+  });
+
+  it("undo: the operation never mutates the input tree, so the previous tree restores exactly", () => {
+    const before = tree();
+    const snapshot = JSON.stringify(before);
+    const res = duplicateBuilderNode({ tree: before, nodeId: "faq" });
+    assert.ok(res.ok);
+    assert.equal(JSON.stringify(before), snapshot);
+  });
+});
+
+describe("insert undo (TUL-396)", () => {
+  it("insert returns a new tree; the previous tree is unchanged so undo restores it", () => {
+    const props = { sectionTypeKey: "faq" };
+    const before: BuilderNodeTree = [node("a", "section_embed", props), node("b", "section_embed", props)];
+    const snapshot = JSON.stringify(before);
+    const res = insertBuilderNode({ tree: before, node: node("n", "section_embed", props), parentId: null, index: 1 });
+    assert.ok(res.ok);
+    if (!res.ok) return;
+    assert.deepEqual(res.tree.map((n) => n.id), ["a", "n", "b"]);
+    assert.equal(JSON.stringify(before), snapshot);
+  });
+});
+
+describe("Tab inside a panel is not hijacked (#11)", () => {
+  const el = (inPanel: boolean) => ({ closest: () => (inPanel ? {} : null) }) as unknown as Element;
+  it("focus in the inspector, drawer, dock or topbar keeps native Tab", () => {
+    assert.equal(keyboardFocusIsInPanel(el(true)), true);
+    assert.equal(keyboardFocusIsInPanel(el(false)), false);
+    assert.equal(keyboardFocusIsInPanel(null), false);
   });
 });
