@@ -32,6 +32,10 @@ export function useCatalogBookingConfirm(input: {
   brief?: OfferingTaskBrief | null;
   /** TUL-426: the offering's delivery setting as a label, sent with the booking. */
   eventLocation?: string | null;
+  /** TUL-436: the typed service address (null when the offering does not need one) and whether it passes the rule. */
+  serviceAddress?: { address: string; note: string } | null;
+  serviceAddressValid?: boolean;
+  showServiceAddressError?: (shown: boolean) => void;
   liveStarts: string | null;
   liveTz: string;
   liveDays: Array<{ starts: string[] }>;
@@ -82,7 +86,8 @@ export function useCatalogBookingConfirm(input: {
 
   const confirm = async () => {
     input.setTouched(true);
-    if (!input.nameValid || !input.emailValid || !input.phoneValid) return;
+    input.showServiceAddressError?.(true);
+    if (!input.nameValid || !input.emailValid || !input.phoneValid || input.serviceAddressValid === false) return;
     if (input.captchaRequired && !input.captchaToken.trim()) {
       input.setError(
         input.locale.toLowerCase().startsWith("es")
@@ -124,6 +129,7 @@ export function useCatalogBookingConfirm(input: {
         addOnIds: input.addOnIds,
         brief: input.brief ?? null,
         eventLocation: input.eventLocation ?? null,
+        serviceAddress: input.serviceAddress ?? null,
         liveStarts: input.liveStarts,
         liveTz: input.liveTz,
         bookingDurationMinutes: input.bookingDurationMinutes,

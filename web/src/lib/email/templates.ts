@@ -127,6 +127,11 @@ export function offerSentEmail(data: {
 }
 
 /** Sent to client + each talent when a booking is confirmed. */
+/** TUL-436: the booking place is visitor-typed text (a service address); never trust it inside HTML. */
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 export function bookingConfirmedEmail(data: {
   recipientName: string | null;
   role: "client" | "talent";
@@ -157,7 +162,7 @@ export function bookingConfirmedEmail(data: {
         details.length > 0
           ? `<table role="presentation" style="width:100%;border:1px solid #e5e5e5;border-radius:8px;margin-bottom:16px;">
           ${data.eventDate ? `<tr><td style="padding:10px 16px;font-size:13px;color:#666;border-bottom:1px solid #f0f0f0;">Date</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#1a1a1a;text-align:right;">${data.eventDate}</td></tr>` : ""}
-          ${data.eventLocation ? `<tr><td style="padding:10px 16px;font-size:13px;color:#666;">Location</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#1a1a1a;text-align:right;">${data.eventLocation}</td></tr>` : ""}
+          ${data.eventLocation ? `<tr><td style="padding:10px 16px;font-size:13px;color:#666;">Location</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#1a1a1a;text-align:right;">${escapeHtml(data.eventLocation)}</td></tr>` : ""}
         </table>`
           : ""
       }
@@ -299,7 +304,7 @@ export function inquiryReceivedEmail(data: {
         details.length > 0
           ? `<table role="presentation" style="width:100%;border:1px solid #e5e5e5;border-radius:8px;margin-bottom:16px;">
           ${data.eventDate ? `<tr><td style="padding:10px 16px;font-size:13px;color:#666;border-bottom:1px solid #f0f0f0;">Date</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#1a1a1a;text-align:right;">${data.eventDate}</td></tr>` : ""}
-          ${data.eventLocation ? `<tr><td style="padding:10px 16px;font-size:13px;color:#666;">Location</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#1a1a1a;text-align:right;">${data.eventLocation}</td></tr>` : ""}
+          ${data.eventLocation ? `<tr><td style="padding:10px 16px;font-size:13px;color:#666;">Location</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#1a1a1a;text-align:right;">${escapeHtml(data.eventLocation)}</td></tr>` : ""}
         </table>`
           : ""
       }
@@ -415,7 +420,7 @@ export function talentInvitedEmail(data: {
         details.length > 0
           ? `<table role="presentation" style="width:100%;border:1px solid #e5e5e5;border-radius:8px;margin-bottom:16px;">
           ${data.eventDate ? `<tr><td style="padding:10px 16px;font-size:13px;color:#666;border-bottom:1px solid #f0f0f0;">Date</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#1a1a1a;text-align:right;">${data.eventDate}</td></tr>` : ""}
-          ${data.eventLocation ? `<tr><td style="padding:10px 16px;font-size:13px;color:#666;">Location</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#1a1a1a;text-align:right;">${data.eventLocation}</td></tr>` : ""}
+          ${data.eventLocation ? `<tr><td style="padding:10px 16px;font-size:13px;color:#666;">Location</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#1a1a1a;text-align:right;">${escapeHtml(data.eventLocation)}</td></tr>` : ""}
         </table>`
           : ""
       }
