@@ -26,10 +26,10 @@ import { createTranslator } from "@/i18n/messages";
 import { loadWorkspaceOrders } from "../../_data-bridge/orders";
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { salesChannelLabel, type SalesLocale } from "@/lib/sales/activity-shape";
-import { salesChannelLabel, type SalesLocale } from "@/lib/sales/activity-shape";
 import {
   bucketOf,
   filterOrders,
+  orderLineItemsLabel,
   outstandingCents,
   totalsFor,
   type OrderListBucket,
@@ -222,13 +222,11 @@ export default async function OrdersPage({
   const locale = await getRequestLocale();
   const tr = await createTranslator(locale);
   const t = (k: string) => tr(`dashboard.orders.${k}`);
+  // The channel in words (Counter, Instant book, Guest QR), as Sales prints it; an unknown value stays verbatim.
   const channelLocale: SalesLocale = locale === "es" || locale === "fr" ? locale : "en";
   const channel = (raw: string) => salesChannelLabel(raw, channelLocale);
   const money = (cents: number, currency: string) => formatDashboardMoneyCents(cents, currency, locale);
   const lines = (count: number) => orderLineItemsLabel(count, t("lineCountOne"), t("lineCountOther"));
-  // The channel in words (Counter, Instant book, Guest QR), as Sales prints it; an unknown value stays verbatim.
-  const channelLocale: SalesLocale = locale === "es" || locale === "fr" ? locale : "en";
-  const channel = (raw: string) => salesChannelLabel(raw, channelLocale);
 
   const load = await loadWorkspaceOrders(scope.tenantId);
 
@@ -257,6 +255,8 @@ export default async function OrdersPage({
     refund: t("refund"),
     effect: t("refundEffect"),
     confirm: t("refundConfirm"),
+    amount: t("refundAmount"),
+    amountHint: t("refundAmountHint"),
     componentShare: t("refundComponentShare"),
     effects: {
       keep_entitlement: tr(REFUND_EFFECT_KEY.keep_entitlement),
@@ -391,13 +391,25 @@ export default async function OrdersPage({
                   <span key={c.currency} style={{ display: "contents" }}>
                     <span style={{ fontSize: 14 }}>
                       <span style={{ color: C.inkMuted }}>{t("totalsSettled")}: </span>
-                      <strong style={{ color: C.green }}>
+                      <strong
+                        style={{
+                          color: C.green,
+                          fontVariantNumeric: "tabular-nums",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         {money(c.settledCents, c.currency)}
                       </strong>
                     </span>
                     <span style={{ fontSize: 14 }}>
                       <span style={{ color: C.inkMuted }}>{t("totalsOutstanding")}: </span>
-                      <strong style={{ color: C.amber }}>
+                      <strong
+                        style={{
+                          color: C.amber,
+                          fontVariantNumeric: "tabular-nums",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         {money(c.outstandingCents, c.currency)}
                       </strong>
                     </span>
@@ -445,8 +457,15 @@ export default async function OrdersPage({
                               #{shortId(row.id)} · {row.customerName ?? t("noCustomer")}
                             </span>
                             <span className="mt-0.5 block text-[12.5px] leading-[1.35] text-admin-ink-muted">
-                              {row.lineCount} {t("lineCount")} · {channel(row.sourceChannel)} · {money(row.totalCents, row.currency)}
-                              {owed > 0 ? ` · ${t("colOutstanding")} ${money(owed, row.currency)}` : ""}
+                              {lines(row.lineCount)} · {channel(row.sourceChannel)} ·{" "}
+                              <span className="whitespace-nowrap tabular-nums">{money(row.totalCents, row.currency)}</span>
+                              {owed > 0 ? (
+                                <>
+                                  {" "}
+                                  · {t("colOutstanding")}{" "}
+                                  <span className="whitespace-nowrap tabular-nums">{money(owed, row.currency)}</span>
+                                </>
+                              ) : null}
                             </span>
                           </span>
                           <span className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${pill}`}>
@@ -503,7 +522,7 @@ export default async function OrdersPage({
                                   shortId(row.id)
                                 )}
                                 <div style={{ color: C.inkDim, fontSize: 12 }}>
-                                  {row.lineCount} {t("lineCount")}
+                                  {lines(row.lineCount)}
                                 </div>
                               </td>
                               <td style={{ padding: "12px" }}>
@@ -520,6 +539,7 @@ export default async function OrdersPage({
                                   padding: "12px",
                                   textAlign: "right",
                                   fontVariantNumeric: "tabular-nums",
+                                  whiteSpace: "nowrap",
                                 }}
                               >
                                 {money(row.totalCents, row.currency)}
@@ -529,6 +549,7 @@ export default async function OrdersPage({
                                   padding: "12px",
                                   textAlign: "right",
                                   fontVariantNumeric: "tabular-nums",
+                                  whiteSpace: "nowrap",
                                   color: owed > 0 ? C.amber : C.inkDim,
                                 }}
                               >
