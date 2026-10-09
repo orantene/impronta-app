@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import { clearLocaleAutoMarkerLine, localeCookieLine } from "@/i18n/locale-cookies";
@@ -7,7 +8,7 @@ import { LOCALE_SUGGESTION_DISMISSED_COOKIE } from "@/i18n/locale-suggestion";
 import { cn } from "@/lib/utils";
 
 /**
- * The visible half of the language suggestion banner.
+ * The visible half of the language suggestion toast (TUL-516 P1).
  *
  * Everything about WHETHER to render is decided server-side by
  * `shouldSuggestLocale`; this component only paints the result and owns the two
@@ -15,22 +16,14 @@ import { cn } from "@/lib/utils";
  * Spanish speaker reads Spanish, not an English sentence asking whether they
  * would like Spanish.
  *
- * Layout contract (TUL-394): a thin row IN DOCUMENT FLOW at the very top of
- * the page (mounted as the first child of `<body>`, which is a flex column).
- * It is never a fixed overlay, so it can never sit over a primary action: the
- * /start "Continuar" footer, the booking dock and the sticky booking bar all
- * live at the bottom and keep their space. It is rendered in the SSR HTML (not
- * mounted by an effect), so it is in the first paint and shifts nothing after
- * it; dismissing it removes the row and the content moves up once.
+ * Layout contract (TUL-516 P1): a fixed floating toast — bottom on phone,
+ * bottom-right on desktop — out of document flow so theme headers are never
+ * pushed down. Positioning and clearance come from `floating-chrome-stack`
+ * (hidden while the cookie banner is up; yields to the booking dock/bar).
  *
- * Booking CSS still hides `[data-locale-suggestion]` while the dock/bar is up
- * (see `catalog-booking-styles.ts`); harmless for a top row, kept for parity.
- *
- * Accept is a real `<a href>`, not a router push: the locale switch is a full
- * navigation to a different URL, exactly like `PublicLanguageToggle`. The
- * cookie write happens in the click handler and the browser follows the link
- * normally afterwards — so it still works with JS disabled, minus the cookie
- * (the proxy's own locale sync then covers it on arrival).
+ * Accept uses next/link for an internal same-site navigation. The cookie write
+ * happens in the click handler; without JS the link still works and the proxy
+ * locale sync covers the cookie on arrival.
  */
 export function LocaleSuggestionBannerClient({
   href,
@@ -77,22 +70,21 @@ export function LocaleSuggestionBannerClient({
 
   return (
     <div
-      // In flow, top of the page: never overlays content or a bottom CTA.
-      className="relative flex shrink-0 justify-center px-3 py-2 print:hidden"
+      className="print:hidden"
       role="region"
       aria-label={regionLabel}
       data-locale-suggestion={locale}
     >
       <div
         className={cn(
-          "flex w-full max-w-lg flex-wrap items-center gap-x-3 gap-y-2",
+          "flex w-full flex-wrap items-center gap-x-3 gap-y-2",
           "rounded-lg border border-border/60 bg-background/95 px-3 py-2 shadow-sm",
           "text-sm text-foreground",
         )}
       >
         <p className="min-w-0 flex-1 leading-snug">{prompt}</p>
         <div className="flex shrink-0 items-center gap-1.5">
-          <a
+          <Link
             href={href}
             hrefLang={locale}
             lang={locale}
@@ -103,7 +95,7 @@ export function LocaleSuggestionBannerClient({
             )}
           >
             {acceptLabel}
-          </a>
+          </Link>
           <button
             type="button"
             onClick={() => {

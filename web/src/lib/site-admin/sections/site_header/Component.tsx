@@ -1,4 +1,4 @@
-import { HeaderDemoPill, HeaderSiteLocales, headerItemAttrs, headerItemMobileDefault } from "./header-site-chrome";
+import { HeaderSiteLocales, headerItemAttrs, headerItemMobileDefault } from "./header-site-chrome";
 import { SectionSwitcher } from "./SectionSwitcher";
 import { switcherLinksFrom, withSwitcherHome } from "./section-switcher-logic";
 import type { CSSProperties } from "react";
@@ -394,7 +394,8 @@ export async function SiteHeaderComponent({
   // the existing resolved config (brand / navLinks / social / contacts /
   // primaryCta), so there is no duplicate content store.
   const regions = props.regions;
-  const demoPill = <HeaderDemoPill show={props.siteChrome?.demo} />; // demo talents' only marker
+  // TUL-516 P1: Demo is a fixed corner badge from MaxSiteDemoPill / SiteDemoBadge,
+  // not an in-header pill that steals a grey row or right-zone slot.
   const siteLocales = props.siteChrome?.locales ?? []; // talent site languages, links to this page per locale
   if (regions) {
     const renderItem = (item: HeaderItem, idx: number) => {
@@ -536,7 +537,7 @@ export async function SiteHeaderComponent({
         <div className="site-header__inner site-header__inner--freeform">
           <div className="site-header__region" data-region="left">{regions.left.map(renderItem)}</div>
           <div className="site-header__region" data-region="center">{regions.center.map(renderItem)}</div>
-          <div className="site-header__region" data-region="right">{demoPill}{regions.right.map(renderItem)}</div>
+          <div className="site-header__region" data-region="right">{regions.right.map(renderItem)}</div>
           {hasMobileMenu ? <input type="checkbox" id={`${sectionId}-menu`} className="site-header__menu-toggle" aria-hidden="true" tabIndex={-1} /> : null}
           {hasMobileMenu ? <label htmlFor={`${sectionId}-menu`} className="site-header__burger" aria-label="Menu"><span /><span /><span /></label> : null}
         </div>
@@ -689,7 +690,7 @@ export async function SiteHeaderComponent({
             standard / minimal / split / editorial keep their exact prior
             flat layout; editorial-split promotes it to a real flex zone
             so the brand stays optically centred. */}
-        <div className="site-header__actions">{demoPill}
+        <div className="site-header__actions">
           {/* The v11 prototype's top bar has NO inline CTA — "Start an
               Inquiry" lives in the hero + the ☰ drawer, keeping the
               wordmark dead-centre with air around it. So for

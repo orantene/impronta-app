@@ -34,6 +34,9 @@ import { LocaleSuggestionBannerClient } from "./locale-suggestion-banner-client"
  * already resolves the tenant scope. The dashboard/auth exclusion is handled
  * where it belongs: inside the predicate, which is unit-tested.
  *
+ * TUL-516 P1: the client paints a fixed floating toast (not an in-flow top
+ * bar), so theme headers are never pushed down.
+ *
  * WHY THE COPY IS RESOLVED HERE
  * ─────────────────────────────
  * `useT()` translates into the CURRENT locale, and the banner must speak the

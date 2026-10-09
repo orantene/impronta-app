@@ -29,7 +29,7 @@ import { BreakpointStyleEngine } from "@/components/edit-chrome/breakpoint-style
 import { BUILTIN_EXTRA_TIERS } from "@/lib/site-admin/builder-node/custom-breakpoint-css";
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 import { typeSystemComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-type-system";
-import { loadMaxSiteIsDemo, withHeaderSiteChrome } from "./render-max-site-demo";
+import { loadMaxSiteIsDemo, MaxSiteDemoPill, withHeaderSiteChrome } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
 import {
   loadMaxSiteByProfileId,
@@ -214,7 +214,12 @@ export async function buildTalentBuilderCanvasData(input: {
         <BreakpointStyleEngine tiers={BUILTIN_EXTRA_TIERS} includeFreeform />
       </>
     ),
-    shellHeader: renderShell(headerTree),
+    shellHeader: (
+      <>
+        {isDemo ? <MaxSiteDemoPill locale={siteLocale} /> : null}
+        {renderShell(headerTree)}
+      </>
+    ),
     shellHeaderOverHero: headerOverlayAllowed(input.tree),
     shellFooter: renderShell(footerTree),
     shellSocket: <TalentSiteSocket model={socketModel} hint={socketLockedHint(siteLocale)} clearDock={false} />,
