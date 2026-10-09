@@ -41,9 +41,11 @@ export async function loadTalentSiteLocaleContext(input: {
   pagePath?: string;
   /** Editor canvas only: dim untranslated nodes. */
   editorPreview?: boolean;
+  /** Owner draft/edit preview — skip the public Data Cache. */
+  bypassCache?: boolean;
 }): Promise<TalentSiteLocaleContext> {
-  // Editor preview dims untranslated nodes — keep that path uncached.
-  if (input.editorPreview) {
+  // Editor / owner preview must never serve a stale public cache entry.
+  if (input.editorPreview || input.bypassCache) {
     return loadTalentSiteLocaleContextUncached(input);
   }
   const hrefMode = input.hrefMode ?? "path";

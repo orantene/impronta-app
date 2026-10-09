@@ -47,19 +47,20 @@ export async function loadPublicOfferingsForProfile(
    */
   tenantId?: string | null,
   /** WSF-C §7: "agency" skips the talent's switches (default: direct unless tenantId). */
-  opts?: { channel?: "direct" | "agency"; chain?: readonly string[] },
+  opts?: { channel?: "direct" | "agency"; chain?: readonly string[]; bypassCache?: boolean },
 ): Promise<TalentOffering[]> {
   const localeKey = locale.trim().toLowerCase() || "en";
   const channel = opts?.channel ?? (tenantId ? "agency" : "direct");
   const chainKey = (opts?.chain ?? []).join(",");
   // Public catalog only — never guest-keyed. 120s TTL bounds staleness when
   // an offering edits without a site publish (publish still busts the tag).
+  // Owner/edit/preview passes bypassCache so a save is visible immediately.
   return cachePublicTalentSiteData(
     talentProfileId,
     "offerings",
     [localeKey, tenantId ?? "", channel, chainKey],
     () => loadPublicOfferingsForProfileUncached(talentProfileId, locale, tenantId, opts),
-    { revalidate: 120 },
+    { revalidate: 120, bypass: opts?.bypassCache },
   );
 }
 

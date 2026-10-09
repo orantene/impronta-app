@@ -198,24 +198,27 @@ async function renderTalentMaxSiteUnguarded(
 
     const talentProfileId = site.talentProfileId;
     const previewDraft = input.previewDraft === true;
+    // Owner draft / history / theme-update preview: bypass the public Data Cache
+    // so a save is visible immediately (TTL is up to 5 min otherwise).
+    const bypassCache = previewDraft;
     // The talent's own languages: bounds the locale, feeds the header switch, the `node.i18n` overlays and hreflang (PR 4 + 5).
-    const pLocale = early(timed("maxSite.locale", () => loadTalentSiteLocaleContext({ talentProfileId, requestedLocale: input.locale, hrefMode: input.hrefMode, pagePath: input.canonicalPath }))); // TUL-444: independent reads start together
-    const pPlan = early(timed("maxSite.plan", () => loadTalentPlanKey(talentProfileId)));
-    const pPages = early(timed("maxSite.pages", () => loadMaxSitePages(talentProfileId)));
-    const pDesign = early(timed("maxSite.designSlug", () => loadMaxSiteDesignSlug(talentProfileId)));
-    const pTenant = early(timed("maxSite.tenant", () => loadTalentManagingTenantId(talentProfileId)));
-    const pIdentity = early(timed("maxSite.identity", () => loadTalentSiteIdentity(talentProfileId)));
+    const pLocale = early(timed("maxSite.locale", () => loadTalentSiteLocaleContext({ talentProfileId, requestedLocale: input.locale, hrefMode: input.hrefMode, pagePath: input.canonicalPath, bypassCache }))); // TUL-444: independent reads start together
+    const pPlan = early(timed("maxSite.plan", () => loadTalentPlanKey(talentProfileId, { bypassCache })));
+    const pPages = early(timed("maxSite.pages", () => loadMaxSitePages(talentProfileId, { bypassCache })));
+    const pDesign = early(timed("maxSite.designSlug", () => loadMaxSiteDesignSlug(talentProfileId, { bypassCache })));
+    const pTenant = early(timed("maxSite.tenant", () => loadTalentManagingTenantId(talentProfileId, { bypassCache })));
+    const pIdentity = early(timed("maxSite.identity", () => loadTalentSiteIdentity(talentProfileId, { bypassCache })));
     const pDemo = early(timed("maxSite.isDemo", () => loadMaxSiteIsDemo(talentProfileId)));
     // Public published tokens can start with the other profile reads; draft preview loads later.
     const pTokens = early(
       timed("maxSite.themeTokens", () =>
-        loadMaxSiteThemeTokens(talentProfileId, { draft: false }),
+        loadMaxSiteThemeTokens(talentProfileId, { draft: false, bypassCache }),
       ),
     );
     const pCta = early(timed("maxSite.ctaMode", () => pPlan.then((plan) => loadTalentSiteCtaMode(talentProfileId, plan))));
     const localeCtx = await pLocale;
     const locale = localeCtx.locale;
-    const pSeoFacts = early(timed("maxSite.seoFacts", () => loadMaxSiteSeoFacts(talentProfileId, locale)));
+    const pSeoFacts = early(timed("maxSite.seoFacts", () => loadMaxSiteSeoFacts(talentProfileId, locale, { bypassCache })));
     // ── Owner gate for draft preview (owner-only, like the profile preview) ──
     let isOwnerDraftPreview = false;
     if (previewDraft) {
@@ -508,7 +511,9 @@ async function renderMaxSiteDocument(args: {
       // so peso prices printed with no ≈ US$ line. Tenant stays null: this is
       // the talent's own site, not an agency storefront.
       timed("maxSite.offerings", () =>
-        loadPublicOfferingsForProfile(talentProfileId, locale, null),
+        loadPublicOfferingsForProfile(talentProfileId, locale, null, {
+          bypassCache: isOwnerDraftPreview,
+        }),
       ),
       // G3b: "Atiendo emergencias hoy", read PER REQUEST (this route is
       // force-dynamic). Service role: the table has no anon read by design.

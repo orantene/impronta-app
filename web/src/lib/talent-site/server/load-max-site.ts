@@ -103,12 +103,16 @@ export async function loadMaxSiteByProfileId(
  */
 export async function loadMaxSiteThemeTokens(
   talentProfileId: string,
-  opts: { draft: boolean },
+  opts: { draft: boolean; bypassCache?: boolean },
 ): Promise<Record<string, string>> {
   // Draft tokens are owner-preview only — never put them in the public Data Cache.
   if (opts.draft) return loadMaxSiteThemeTokensUncached(talentProfileId, true);
-  return cachePublicTalentSiteData(talentProfileId, "themeTokens", ["published"], () =>
-    loadMaxSiteThemeTokensUncached(talentProfileId, false),
+  return cachePublicTalentSiteData(
+    talentProfileId,
+    "themeTokens",
+    ["published"],
+    () => loadMaxSiteThemeTokensUncached(talentProfileId, false),
+    { bypass: opts.bypassCache },
   );
 }
 
@@ -143,9 +147,16 @@ async function loadMaxSiteThemeTokensUncached(
  * token defaults (`design-type-system.ts`). Null on any failure: the site then renders
  * without Design defaults, never broken.
  */
-export async function loadMaxSiteDesignSlug(talentProfileId: string): Promise<string | null> {
-  return cachePublicTalentSiteData(talentProfileId, "designSlug", [], () =>
-    loadMaxSiteDesignSlugUncached(talentProfileId),
+export async function loadMaxSiteDesignSlug(
+  talentProfileId: string,
+  opts?: { bypassCache?: boolean },
+): Promise<string | null> {
+  return cachePublicTalentSiteData(
+    talentProfileId,
+    "designSlug",
+    [],
+    () => loadMaxSiteDesignSlugUncached(talentProfileId),
+    { bypass: opts?.bypassCache },
   );
 }
 
@@ -213,9 +224,14 @@ export async function loadTalentSiteCtaMode(
 
 export async function loadTalentPlanKey(
   talentProfileId: string,
+  opts?: { bypassCache?: boolean },
 ): Promise<string | null> {
-  return cachePublicTalentSiteData(talentProfileId, "planKey", [], () =>
-    loadTalentPlanKeyUncached(talentProfileId),
+  return cachePublicTalentSiteData(
+    talentProfileId,
+    "planKey",
+    [],
+    () => loadTalentPlanKeyUncached(talentProfileId),
+    { bypass: opts?.bypassCache },
   );
 }
 
@@ -260,9 +276,14 @@ export async function loadTalentOwnerUserId(
  */
 export async function loadTalentManagingTenantId(
   talentProfileId: string,
+  opts?: { bypassCache?: boolean },
 ): Promise<string | null> {
-  return cachePublicTalentSiteData(talentProfileId, "tenant", [], () =>
-    loadTalentManagingTenantIdUncached(talentProfileId),
+  return cachePublicTalentSiteData(
+    talentProfileId,
+    "tenant",
+    [],
+    () => loadTalentManagingTenantIdUncached(talentProfileId),
+    { bypass: opts?.bypassCache },
   );
 }
 
@@ -297,9 +318,14 @@ function i18nMaps(title: unknown, metaTitle: unknown, metaDescription: unknown):
 /** Load ALL of a talent's site pages (the pure core filters for nav/render). */
 export async function loadMaxSitePages(
   talentProfileId: string,
+  opts?: { bypassCache?: boolean },
 ): Promise<MaxSitePageRow[]> {
-  return cachePublicTalentSiteData(talentProfileId, "pages", [], () =>
-    loadMaxSitePagesUncached(talentProfileId),
+  return cachePublicTalentSiteData(
+    talentProfileId,
+    "pages",
+    [],
+    () => loadMaxSitePagesUncached(talentProfileId),
+    { bypass: opts?.bypassCache },
   );
 }
 
@@ -406,9 +432,14 @@ export interface TalentSiteIdentity {
 
 export async function loadTalentSiteIdentity(
   talentProfileId: string,
+  opts?: { bypassCache?: boolean },
 ): Promise<TalentSiteIdentity | null> {
-  return cachePublicTalentSiteData(talentProfileId, "identity", [], () =>
-    loadTalentSiteIdentityUncached(talentProfileId),
+  return cachePublicTalentSiteData(
+    talentProfileId,
+    "identity",
+    [],
+    () => loadTalentSiteIdentityUncached(talentProfileId),
+    { bypass: opts?.bypassCache },
   );
 }
 

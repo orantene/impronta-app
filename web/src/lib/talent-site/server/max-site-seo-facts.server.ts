@@ -40,19 +40,30 @@ async function loadCity(talentProfileId: string, locale: string): Promise<string
   return raw ? (await canonicalCityLabel(admin, raw, locale, [hint])) || null : null;
 }
 
-export async function loadMaxSiteSeoFacts(talentProfileId: string, locale: string): Promise<MaxSiteSeoFacts> {
+export async function loadMaxSiteSeoFacts(
+  talentProfileId: string,
+  locale: string,
+  opts?: { bypassCache?: boolean },
+): Promise<MaxSiteSeoFacts> {
   const localeKey = locale.trim().toLowerCase() || "en";
-  return cachePublicTalentSiteData(talentProfileId, "seoFacts", [localeKey], () =>
-    loadMaxSiteSeoFactsUncached(talentProfileId, locale),
+  return cachePublicTalentSiteData(
+    talentProfileId,
+    "seoFacts",
+    [localeKey],
+    () => loadMaxSiteSeoFactsUncached(talentProfileId, locale, opts),
+    { bypass: opts?.bypassCache },
   );
 }
 
 async function loadMaxSiteSeoFactsUncached(
   talentProfileId: string,
   locale: string,
+  opts?: { bypassCache?: boolean },
 ): Promise<MaxSiteSeoFacts> {
   const [offerings, social, city, ownHosts] = await Promise.all([
-    loadPublicOfferingsForProfile(talentProfileId, locale, null).catch(() => []),
+    loadPublicOfferingsForProfile(talentProfileId, locale, null, {
+      bypassCache: opts?.bypassCache,
+    }).catch(() => []),
     loadTalentSocialLinks(talentProfileId).catch(() => []),
     loadCity(talentProfileId, locale).catch((err) => {
       logServerError("talentSite.seoFacts.city", err);

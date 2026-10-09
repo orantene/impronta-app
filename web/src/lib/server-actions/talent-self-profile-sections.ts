@@ -7,6 +7,7 @@
 // check would reject them.
 
 import { revalidatePath } from "next/cache";
+import { bustTalentSiteCache } from "@/lib/talent-site/cache-tags";
 import { requireTalentSelfAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
@@ -487,6 +488,8 @@ export async function updateSelfIdentity(input: {
   });
 
   revalidatePath(`/t/${profileCode}`, "page");
+  // Max-site identity / seoFacts are Data-Cache tagged — bust so name edits show.
+  bustTalentSiteCache(input.talent_profile_id, profileCode);
   return { ok: true };
 }
 
