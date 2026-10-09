@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
@@ -33,19 +33,10 @@ test("myself→both hours rehome uses T1-07 allow-listed writer (no direct updat
   }
 });
 
-test("backfill migration exists and only updates, never deletes", () => {
-  const mig = readFileSync(
-    join(process.cwd(), "../supabase/migrations/20261231350000_tul453_myself_both_offerings_hours.sql"),
-    "utf8",
-  );
-  const sql = mig
-    .split("\n")
-    .filter((line) => !line.trimStart().startsWith("--"))
-    .join("\n");
-  assert.match(mig, /TUL-453/);
-  assert.match(sql, /talent_offerings/);
-  assert.match(sql, /opening_hours/);
-  assert.match(sql, /\bupdate\b/i);
-  assert.doesNotMatch(sql, /\bDELETE\b/i);
-  assert.doesNotMatch(sql, /\bDROP\b/i);
+test("no TUL-453 backfill migration ships (PM: code path only)", () => {
+  // Migration was stripped: data backfill doesn't belong in schema migrations,
+  // target rule was too wide, and prod had 0 matching rows. Code path alone.
+  const migDir = join(process.cwd(), "../supabase/migrations");
+  const hits = readdirSync(migDir).filter((f) => /tul453/i.test(f));
+  assert.deepEqual(hits, [], `unexpected TUL-453 migration(s): ${hits.join(", ")}`);
 });
