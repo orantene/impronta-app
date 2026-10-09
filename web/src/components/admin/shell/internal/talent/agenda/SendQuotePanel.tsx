@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 
 import { messagingTalentQuoteSend, messagingTalentQuoteStart } from "@/lib/server-actions/messaging-talent-quote";
 import { loadTalentClients } from "@/lib/talent/clients-actions";
@@ -213,9 +214,9 @@ function SendQuoteForm({
           {!sent && failReason === "offer_currency_unresolved" ? (
             <p className="text-[13.5px] text-[var(--tc-primary)]" data-quote-currency-unresolved>
               {copy.t("This service has no usable currency, so the quote could not be priced.")}{" "}
-              <a className="font-semibold underline" href="/talent/services">
+              <Link className="font-semibold underline" href="/talent/services">
                 {copy.t("Set the service's currency in Services")}
-              </a>
+              </Link>
               {copy.t(", then send the quote again.")}
             </p>
           ) : null}
