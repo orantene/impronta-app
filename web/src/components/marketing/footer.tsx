@@ -166,7 +166,7 @@ export async function MarketingFooter() {
               activeLocale={locale}
               pathnameWithoutLocale={pathnameWithoutLocale}
             />
-            <CurrencyPicker current={currency} source={source} />
+            <CurrencyPicker current={currency} source={source} locale={locale} />
             <span className="inline-flex items-center gap-2">
               <span
                 className="inline-block h-1.5 w-1.5 rounded-full"
