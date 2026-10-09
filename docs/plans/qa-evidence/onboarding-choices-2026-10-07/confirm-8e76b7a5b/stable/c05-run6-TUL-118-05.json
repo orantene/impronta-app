@@ -1,0 +1,61 @@
+{
+  "card": "TUL-118",
+  "step": "fresh site: bio in primary language + other language, /en hero, header name, Reservar, stock hero",
+  "n": 5,
+  "status": "FAIL",
+  "facts": {
+    "primaryLanguage": "es",
+    "primaryLanguageSource": "assumed es (no native language row)",
+    "bio_i18n": {
+      "es": "Soy Rosa r6a achisj, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas.",
+      "en": "I'm Rosa r6a achisj, a limpieza de airbnb in Playa del Carmen. Write to me and we'll sort out what you need."
+    },
+    "short_bio": "Soy Rosa r6a achisj, limpieza de airbnb en Playa del Carmen. Escríbeme y vemos qué necesitas.",
+    "primaryBioLooksLikePrimaryLanguage": true,
+    "otherBioDiffersFromPrimary": true,
+    "h1_es": "Rosa r6a achisj",
+    "headerText": "Rosa r6a achisj LIMPIEZA DE AIRBNB Trabajos Menú y precios Reseñas Sobre mí ES / EN Reservar cita",
+    "headerHtmlHasName": true,
+    "headerNameAnywhereInBodyText": true,
+    "headerShots": [
+      "TUL-118-header-1440.png",
+      "TUL-118-header-390.png"
+    ],
+    "reservarControls": 4,
+    "heroImageUrlsInDb": [
+      "https://fxlankepwnvelxjrahwk.supabase.co/storage/v1/object/public/media-public/tenant/a2968a2e-1ebd-48c0-a04f-b53cede55c1b/stock/715988ff-807a-4ef4-ba81-e1f2511913ac.jpg",
+      "https://fxlankepwnvelxjrahwk.supabase.co/storage/v1/object/public/media-public/tenant/a2968a2e-1ebd-48c0-a04f-b53cede55c1b/stock/715988ff-807a-4ef4-ba81-e1f2511913ac.jpg",
+      "https://fxlankepwnvelxjrahwk.supabase.co/storage/v1/object/public/media-public/tenant/a2968a2e-1ebd-48c0-a04f-b53cede55c1b/stock/715988ff-807a-4ef4-ba81-e1f2511913ac.jpg",
+      "https://fxlankepwnvelxjrahwk.supabase.co/storage/v1/object/public/media-public/tenant/a2968a2e-1ebd-48c0-a04f-b53cede55c1b/stock/715988ff-807a-4ef4-ba81-e1f2511913ac.jpg"
+    ],
+    "heroImageUrlsInDom": [
+      "http://rosa-r6a-achisj.tulala.digital:3008/_next/image?url=https%3A%2F%2Ffxlankepwnvelxjrahwk.supabase.co%2Fstorage%2Fv1%2Fobject%2Fpublic%2Fmedia-public%2F8915d594-b7e5-4bc3-990d-690fd189936b%2Fgallery%2Fd00e8e5d-5e0c-44c6-9baa-246ff69aabf7.png&w=1920&q=75",
+      "https://fxlankepwnvelxjrahwk.supabase.co/storage/v1/object/public/media-public/8915d594-b7e5-4bc3-990d-690fd189936b/gallery/d00e8e5d-5e0c-44c6-9baa-246ff69aabf7.png",
+      "http://rosa-r6a-achisj.tulala.digital:3008/_next/image?url=https%3A%2F%2Ffxlankepwnvelxjrahwk.supabase.co%2Fstorage%2Fv1%2Fobject%2Fpublic%2Fmedia-public%2F8915d594-b7e5-4bc3-990d-690fd189936b%2Fgallery%2Fd00e8e5d-5e0c-44c6-9baa-246ff69aabf7.png&w=1920&q=75"
+    ],
+    "heroImageHosts": [
+      "fxlankepwnvelxjrahwk.supabase.co",
+      "rosa-r6a-achisj.tulala.digital:3008"
+    ],
+    "ownPhotos": 1,
+    "heroIsPlatformStock": true,
+    "heroStockAsset": "f50ac992-ab64-4246-806d-a6206e7fbe6a",
+    "heroStockPath": "tenant/a2968a2e-1ebd-48c0-a04f-b53cede55c1b/stock/715988ff-807a-4ef4-ba81-e1f2511913ac.jpg",
+    "enStatus": 200,
+    "talent_profiles.locales": {
+      "preferred_locale": "es",
+      "secondary_locales": [
+        "en"
+      ]
+    },
+    "h1_en": "Rosa r6a achisj",
+    "enFallbackMarker": "(none)",
+    "enHtmlLang": "en",
+    "h1EnDiffersFromEs": false
+  },
+  "shots": [
+    "run6-TUL-118-05-01-site-es.jpg",
+    "run6-TUL-118-05-02-site-en.jpg"
+  ],
+  "detail": "/en hero headline is not the Spanish one, or a fallback marker explains it |  | expect(received).toBe(expected) // Object.is equality |  | Expected: true | Received: false"
+}

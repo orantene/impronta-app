@@ -1,0 +1,36 @@
+{
+  "card": "TUL-89",
+  "step": "never-published site: design blocker only when no design; applying one enables Publish",
+  "n": 5,
+  "status": "PASS",
+  "facts": {
+    "siteAfterSignup": {
+      "theme_design_slug": "maison-v2",
+      "status": "published",
+      "site_published_at": null,
+      "site_slug": "rosa-r6d-abdkai"
+    },
+    "rewind": {
+      "site_published_at": null,
+      "theme_design_slug": "maison-v2",
+      "note": "status left published: setting status=draft makes /talent/page-builder show the Estamos preparando tu pagina gate (verified, screenshot publish-unreachable)"
+    },
+    "phase1_designApplied_drawerExcerpt": "Publish page Last published Oct 8, 8:49 PM Checks Changes SEO Publishing makes this draft the live page visitors see. i Publish checks: no blockers, 3 advisory warnings. PUBLISH CHECKS 3 advisories Blockers disable Publish now until fixed. Advisory items are non-blocking, review them, then publish if you accept the risk. ADVISORY, NON-BLOCKING (3) Review Mobile health All clear Save draft Copy from live Cancel Publish now",
+    "phase1_publishNowEnabled": true,
+    "phase2_noDesign_drawerExcerpt": "Publish page Last published Oct 8, 8:49 PM Checks 1 Changes SEO Publishing makes this draft the live page visitors see. i Publish checks: 1 blocking issue, 3 advisory warnings. PUBLISH CHECKS 1 blocker · 3 advisories Blockers disable Publish now until fixed. Advisory items are non-blocking, review them, then publish if you accept the risk. PUBLISH BLOCKERS (1) DESIGN BLOCKER Apply a design before publishing. Choose a design ADVISORY, NON-BLOCKING (3) Review Mobile health All clear PUBLISH BLOCKE",
+    "phase2_publishNowEnabled": false,
+    "phase2_publishNowReason": "Publish now (Fix 1 blocking publish check above before publishing.)",
+    "phase2_fixButton(preflight-fix-design)": true,
+    "designAppliedThroughUi": false,
+    "designRestoredViaServiceRole": "maison-v2",
+    "phase3_drawerExcerpt": "Publicar página Última publicación 8 oct, 20:49 Revisión Cambios SEO Publicar convierte este borrador en la página en vivo que ven los visitantes. i Verificaciones de publicación: sin bloqueos, 3 avisos. VERIFICACIONES DE PUBLICACIÓN 3 avisos Los bloqueos desactivan Publicar ahora hasta que se corrijan. Los avisos no bloquean: revísalos y publica si aceptas el riesgo. AVISOS, NO BLOQUEANTES (3) Revisar Salud en móvil Todo en orden Guardar borrador Copiar del sitio en vivo Cancelar Publicar ahora",
+    "phase3_publishNowEnabled": true,
+    "phase3_publishNowReason": ""
+  },
+  "shots": [
+    "run6-TUL-89-05-01-phase1-design-applied.jpg",
+    "run6-TUL-89-05-02-phase2-no-design.jpg",
+    "run6-TUL-89-05-03-phase3-after-ui-apply-attempt.jpg",
+    "run6-TUL-89-05-04-phase3-design-applied.jpg"
+  ]
+}

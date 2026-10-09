@@ -1,0 +1,16 @@
+{
+  "card": "TUL-120",
+  "step": "no error banner after login + Messages empty state",
+  "n": 6,
+  "status": "PASS",
+  "facts": {
+    "errorBannerCount": 0,
+    "http5xx": [],
+    "messagesText": "VENDE LO QUE HACES, NO LO QUE ENVÍAS Sitio en vivo rosa-r6m2-achisj.tulala.digital Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista previa del sitio Ajustes My jobs 0 ⌘K All Jobs Inquiry Hold Booked Past Nothing in this view Try the All jobs filter or clear your search to see everything. No job selected",
+    "messagesEmptyStateIsEnglishOnSpanishDashboard": true
+  },
+  "shots": [
+    "run6-TUL-120-06-01-after-login.jpg",
+    "run6-TUL-120-06-02-messages.jpg"
+  ]
+}

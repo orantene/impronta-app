@@ -1,0 +1,13 @@
+{
+ "before_backup": {
+  "provider": "hcaptcha",
+  "site_key": "<redacted>"
+ },
+ "after_restore": {
+  "provider": "hcaptcha",
+  "site_key": "<redacted>"
+ },
+ "config_json_identical_to_backup": true,
+ "row_updated_at_now": "2026-10-09T03:51:32.584983+00:00",
+ "note": "updated_at changed by the borrow (original 2026-10-09T01:40:07.146+00:00)"
+}

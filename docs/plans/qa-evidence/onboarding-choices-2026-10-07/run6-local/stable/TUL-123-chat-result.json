@@ -1,0 +1,18 @@
+{
+  "card": "TUL-123c",
+  "step": "captcha on chat: widget slot after velocity, token accepted",
+  "n": 6,
+  "status": "BLOCKED",
+  "facts": {
+    "composerVisible": true,
+    "sendsAttempted": 3,
+    "chatCaptchaSlotCount": 0,
+    "turnstileIframes": 0,
+    "chatTextTail": "OVER Browse talent Agencies & hubs Stories COMPANY About Pricing How it works Start free FAQ Resources Integrations & API The network Privacy Terms Cookies Refunds © 2026 Tulala Digital. Software for talent businesses. Privacy choices EN ES Showing prices in USD · Default ▾ Free workspaces · No card"
+  },
+  "shots": [
+    "run6-TUL-123c-06-01-chat-open.jpg",
+    "run6-TUL-123c-06-02-chat-after-sends.jpg"
+  ],
+  "detail": "blocked: after 3 rapid sends no [data-guest-chat-captcha-slot] appeared (velocity > 8 per minute per runtime instance needed; composer/send flow may differ); see chat-after-sends screenshot and chatTextTail"
+}

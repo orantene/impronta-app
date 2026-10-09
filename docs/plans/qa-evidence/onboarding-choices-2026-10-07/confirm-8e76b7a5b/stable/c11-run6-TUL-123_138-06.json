@@ -1,0 +1,23 @@
+{
+ "card": "TUL-123/138",
+ "step": "captcha on guest booking: widget present, submit without a token refused",
+ "n": 6,
+ "status": "PASS",
+ "facts": {
+  "captchaEnvOfTestProcess(booleans only)": {
+   "turnstileSiteKeyInTestEnv": false,
+   "turnstileSecretInTestEnv": false,
+   "hcaptchaSiteKeyInTestEnv": false
+  },
+  "chip": "12:00",
+  "captchaElementPresent": true,
+  "refusalTextShown": "Completa la verificaci\u00f3n.",
+  "sheetTextAfterConfirm": "anc\u00fan Total $850 Te enviamos la ubicaci\u00f3n exacta al confirmar Nombre WhatsApp OPCIONAL Correo No se cobra nada ahora. El pago se realiza en el estudio. \u00bfTienes una duda? Pregunta antes de reservar \u2192 Completa la verificaci\u00f3n. Pol\u00edticas TOTAL $850 Confirmar cita",
+  "captcha_bypassed": "captcha bypassed: hub captcha provider temporarily none, env Turnstile always-pass"
+ },
+ "shots": [
+  "run6-TUL-123_138-06-01-guest-slot.jpg",
+  "run6-TUL-123_138-06-02-guest-details.jpg",
+  "run6-TUL-123_138-06-03-guest-after-confirm.jpg"
+ ]
+}

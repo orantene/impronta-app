@@ -1,0 +1,33 @@
+{
+  "card": "TUL-82/84/77",
+  "step": "retry creates nothing new (re-open /start as the signed-in both account)",
+  "n": 11,
+  "status": "PASS",
+  "facts": {
+    "retryButtonVisible": false,
+    "landedOn": "/start",
+    "before": {
+      "talent_profiles": 1,
+      "memberships": 1,
+      "agencies_owned": 1,
+      "offerings_talent": 2,
+      "offerings_house": 2,
+      "roster": 2,
+      "sites": 1,
+      "pages": 1
+    },
+    "after": {
+      "talent_profiles": 1,
+      "memberships": 1,
+      "agencies_owned": 1,
+      "offerings_talent": 2,
+      "offerings_house": 2,
+      "roster": 2,
+      "sites": 1,
+      "pages": 1
+    }
+  },
+  "shots": [
+    "run6-TUL-82_84_77-11-01-after-retry.jpg"
+  ]
+}

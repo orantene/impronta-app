@@ -1,0 +1,18 @@
+{
+ "card": "TUL-132",
+ "step": "booking inquiry has event_date and location",
+ "n": 6,
+ "status": "FAIL",
+ "facts": {
+  "inquiry": {
+   "id": "49d3c19e-f318-4177-a05e-4dc3db85a367",
+   "status": "new",
+   "event_date": "2026-10-12",
+   "event_location": null
+  },
+  "talent_bookings_mirror_exists": true,
+  "captcha_bypassed": "captcha bypassed: hub captcha row provider temporarily none, env Turnstile always-pass"
+ },
+ "shots": [],
+ "detail": "inquiries.event_location |  | expect(received).toBeGreaterThan(expected) |  | Expected: > 0 | Received:   0"
+}

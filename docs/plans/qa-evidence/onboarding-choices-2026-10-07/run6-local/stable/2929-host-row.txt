@@ -1,0 +1,4 @@
+INSERTED {"id":"10334b31-9a28-48a2-9026-50b309a34576","hostname":"qa-r6-client.localhost","tenant_id":"00000000-0000-0000-0000-000000000002","kind":"subdomain","created_at":"2026-10-09T02:42:29.481027+00:00"} tenant_slug=hub
+PROXY started pid=29622 port 3107 -> 3008 host qa-r6-client.localhost
+PROXY pid=29622 STOPPED at 2026-10-09T02:53:13Z
+DELETE REFUSED by DB guard: 'Cannot delete subdomain row for tenant 00000000-0000-0000-0000-000000000002; subdomains are the permanent fallback (Plan 4)'. Row 10334b31-9a28-48a2-9026-50b309a34576 (qa-r6-client.localhost, kind subdomain, tenant hub, status active) STILL EXISTS on fxlank; not bypassed. Harmless (no listener, *.localhost only); needs an owner decision (e.g. status update or a platform delete path).

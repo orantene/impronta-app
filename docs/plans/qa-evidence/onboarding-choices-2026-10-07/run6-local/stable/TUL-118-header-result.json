@@ -1,0 +1,19 @@
+{
+  "card": "TUL-118",
+  "step": "header shows fallback logo > label > display name > slug (both widths)",
+  "n": 14,
+  "status": "PASS",
+  "facts": {
+    "header1440": {
+      "text": "Rosa r6a achisj LIMPIEZA DE AIRBNB Trabajos Menú y precios Reseñas Sobre mí Reservar cita",
+      "imgs": []
+    },
+    "header390": {
+      "text": "Rosa r6a achisj LIMPIEZA DE AIRBNB 01 Inicio",
+      "imgs": []
+    },
+    "brandShown(name|logoAlt|slug)": true,
+    "displayNameInVisibleText": true
+  },
+  "shots": []
+}

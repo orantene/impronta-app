@@ -1,0 +1,46 @@
+{
+  "card": "TUL-157",
+  "step": "hub roster row, media upload, services, hero, languages",
+  "n": 5,
+  "status": "PASS",
+  "facts": {
+    "hubRosterActive": 1,
+    "talent_languages": [
+      {
+        "id": "86d96f7c-4300-4c23-a135-804716984a37",
+        "tenant_id": "00000000-0000-0000-0000-000000000002",
+        "talent_profile_id": "b2a97873-3ae9-4b52-88c3-dcfdaa514a1d",
+        "language_code": "es",
+        "language_name": "Spanish",
+        "speaking_level": "fluent",
+        "reading_level": null,
+        "writing_level": null,
+        "is_native": false,
+        "can_host": false,
+        "can_sell": false,
+        "can_translate": false,
+        "can_teach": false,
+        "display_order": 0,
+        "created_at": "2026-10-09T01:48:53.842717+00:00",
+        "updated_at": "2026-10-09T01:48:53.842717+00:00"
+      }
+    ],
+    "offerings": [
+      "Limpieza profunda",
+      "Limpieza ligera"
+    ],
+    "agregarFotosLabelClicked": true,
+    "editorDrawerTextTail": "do de 30 segundos Video y redes sociales Añadir Fotos de tus agencias Estas fotos las produjo un espacio que te representa, así que son suyas. Aquí puedes verlas y siguen en el sitio de ese espacio. Para usar alguna en otro lugar, pídele al espacio que la libere. Todavía no hay fotos tuyas propiedad de una agencia. Todo lo que está en tu galería es tuyo y puedes usarlo donde quieras. Photo gallery × + Upload photos (select multiple) Import from Google Drive 📷 No photos yet. Upload some above. ↑",
+    "uploadFrom": "/talent/profile > Editar (Fotos de tu trabajo) > Medios > Agregar fotos",
+    "media_assets_rows": {
+      "before": 0,
+      "after": 1
+    }
+  },
+  "shots": [
+    "run6-TUL-157-05-01-services.jpg",
+    "run6-TUL-157-05-02-before-agregar-fotos.jpg",
+    "run6-TUL-157-05-03-after-agregar-fotos-click.jpg",
+    "run6-TUL-157-05-04-after-upload.jpg"
+  ]
+}

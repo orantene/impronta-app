@@ -1,0 +1,3 @@
+config_json identical to backup: true
+before: {"provider":"hcaptcha","site_key":"<redacted>"}
+after: {"provider":"hcaptcha","site_key":"<redacted>"}

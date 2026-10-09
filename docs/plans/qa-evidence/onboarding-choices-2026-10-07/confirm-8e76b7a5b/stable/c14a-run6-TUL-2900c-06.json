@@ -1,0 +1,32 @@
+{
+  "card": "TUL-2900c",
+  "step": "clients page dates are stable under America/Los_Angeles and Asia/Tokyo",
+  "n": 6,
+  "status": "FAIL",
+  "facts": {
+    "America/Los_Angeles": {
+      "dates": [],
+      "hydrationErrors": [],
+      "hasClientRow": false,
+      "excerpt": "VENDE LO QUE HACES, NO LO QUE ENVÍAS Administrar sitio qa-rosa-account.localhost ES EN Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan OFICINA WEB "
+    },
+    "Asia/Tokyo": {
+      "dates": [
+        "15 de oct",
+        "15 de oct",
+        "15 de oct",
+        "14 de oct",
+        "14 de oct",
+        "14 de oct"
+      ],
+      "hydrationErrors": [],
+      "hasClientRow": true,
+      "excerpt": "VENDE LO QUE HACES, NO LO QUE ENVÍAS Administrar sitio qa-rosa-account.localhost ES EN Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan OFICINA WEB "
+    }
+  },
+  "shots": [
+    "run6-TUL-2900c-06-01-clients-America_Los_Angeles.jpg",
+    "run6-TUL-2900c-06-02-clients-Asia_Tokyo.jpg"
+  ],
+  "detail": "a date is shown on the clients page |  | expect(received).toBeGreaterThan(expected) |  | Expected: > 0 | Received:   0"
+}

@@ -1,0 +1,32 @@
+{
+  "card": "TUL-123/138",
+  "step": "captcha on guest booking: widget loads; no token and invalid token refused; valid test token accepted",
+  "n": 8,
+  "status": "FAIL",
+  "facts": {
+    "valid_widgetSlot": "turnstile",
+    "valid_turnstileIframes": 1,
+    "valid_widgetErrorShown": false,
+    "valid_pageText": "Reservar cita LIMPIEZA DE AIRBNB · PLAYA DEL CARMEN Rosa r6a achisj Soy Rosa r6a achisj, limpieza de airbnb en Playa del Carmen",
+    "valid_inquiryCreated": true,
+    "notoken_widgetSlot": "turnstile",
+    "notoken_turnstileIframes": 0,
+    "notoken_widgetErrorShown": false,
+    "notoken_pageText": "Reservar cita LIMPIEZA DE AIRBNB · PLAYA DEL CARMEN Rosa r6a achisj Soy Rosa r6a achisj, limpieza de airbnb en Playa del Carmen",
+    "notoken_inquiryCreated": false,
+    "invalid_widgetSlot": "turnstile",
+    "invalid_turnstileIframes": 0,
+    "invalid_widgetErrorShown": false,
+    "invalid_pageText": "Reservar cita LIMPIEZA DE AIRBNB · PLAYA DEL CARMEN Rosa r6a achisj Soy Rosa r6a achisj, limpieza de airbnb en Playa del Carmen",
+    "invalid_inquiryCreated": true
+  },
+  "shots": [
+    "run6-TUL-123_138-08-01-valid-details.jpg",
+    "run6-TUL-123_138-08-02-valid-after-confirm.jpg",
+    "run6-TUL-123_138-08-03-notoken-details.jpg",
+    "run6-TUL-123_138-08-04-notoken-after-confirm.jpg",
+    "run6-TUL-123_138-08-05-invalid-details.jpg",
+    "run6-TUL-123_138-08-06-invalid-after-confirm.jpg"
+  ],
+  "detail": "invalid token: refused server-side (no inquiry) |  | expect(received).toBe(expected) // Object.is equality |  | Expected: false | Received: true"
+}

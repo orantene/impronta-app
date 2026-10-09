@@ -1,0 +1,41 @@
+{
+ "card": "TUL-132",
+ "step": "event_location: null without a delivery setting; delivery label once the offering has one",
+ "n": 7,
+ "status": "PASS",
+ "facts": {
+  "noDeliverySetting_inquiry": {
+   "id": "49d3c19e-f318-4177-a05e-4dc3db85a367",
+   "event_date": "2026-10-12",
+   "event_location": null
+  },
+  "offeringsAttributesWhereBefore": [
+   {
+    "title": "Limpieza profunda",
+    "where": null
+   },
+   {
+    "title": "Limpieza ligera",
+    "where": null
+   }
+  ],
+  "seeded": "talent_offerings.attributes.where=[studio] on the isolated project (service role); typed address NOT supplied",
+  "chip": "09:00",
+  "captchaElementPresent": true,
+  "captchaTokenArrivedBeforeConfirm": true,
+  "refusalTextShown": "",
+  "sheetTextAfterConfirm": "(no booking sheet open)",
+  "withDeliverySetting_inquiry": {
+   "id": "8fd6e65c-6713-4053-98f8-b15f2970d495",
+   "event_date": "2026-10-13",
+   "event_location": "En el estudio"
+  },
+  "event_location": "En el estudio",
+  "captcha_bypassed": "captcha bypassed: hub captcha row provider temporarily none, env Turnstile always-pass"
+ },
+ "shots": [
+  "run6-TUL-132-07-01-guest-slot.jpg",
+  "run6-TUL-132-07-02-guest-details.jpg",
+  "run6-TUL-132-07-03-guest-after-confirm.jpg"
+ ]
+}

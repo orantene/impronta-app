@@ -1,0 +1,135 @@
+{
+  "card": "TUL-84",
+  "step": "studio (S) and both (B) hours + timezone saved on the records",
+  "n": 6,
+  "status": "PASS",
+  "facts": {
+    "studio_S.opening_hours": {
+      "0": [],
+      "1": [
+        {
+          "endMin": 1080,
+          "startMin": 540
+        }
+      ],
+      "2": [
+        {
+          "endMin": 1080,
+          "startMin": 540
+        }
+      ],
+      "3": [
+        {
+          "endMin": 1080,
+          "startMin": 540
+        }
+      ],
+      "4": [
+        {
+          "endMin": 1080,
+          "startMin": 540
+        }
+      ],
+      "5": [
+        {
+          "endMin": 1080,
+          "startMin": 540
+        }
+      ],
+      "6": [
+        {
+          "endMin": 1080,
+          "startMin": 540
+        }
+      ]
+    },
+    "studio_S.business_place": {
+      "area": "Centro",
+      "mode": "studio"
+    },
+    "studio_S.appointments": null,
+    "both_B.opening_hours": {
+      "0": [],
+      "1": [
+        {
+          "endMin": 1080,
+          "startMin": 540
+        }
+      ],
+      "2": [
+        {
+          "endMin": 1080,
+          "startMin": 540
+        }
+      ],
+      "3": [
+        {
+          "endMin": 1080,
+          "startMin": 540
+        }
+      ],
+      "4": [
+        {
+          "endMin": 1080,
+          "startMin": 540
+        }
+      ],
+      "5": [
+        {
+          "endMin": 1080,
+          "startMin": 540
+        }
+      ],
+      "6": [
+        {
+          "endMin": 1080,
+          "startMin": 540
+        }
+      ]
+    },
+    "both_B.talent_booking_hours": {
+      "timezone": "America/Mexico_City",
+      "weekly": {
+        "0": [],
+        "1": [
+          {
+            "endMin": 1080,
+            "startMin": 540
+          }
+        ],
+        "2": [
+          {
+            "endMin": 1080,
+            "startMin": 540
+          }
+        ],
+        "3": [
+          {
+            "endMin": 1080,
+            "startMin": 540
+          }
+        ],
+        "4": [
+          {
+            "endMin": 1080,
+            "startMin": 540
+          }
+        ],
+        "5": [
+          {
+            "endMin": 1080,
+            "startMin": 540
+          }
+        ],
+        "6": [
+          {
+            "endMin": 1080,
+            "startMin": 540
+          }
+        ]
+      }
+    },
+    "studio_S.timezone": null
+  },
+  "shots": []
+}

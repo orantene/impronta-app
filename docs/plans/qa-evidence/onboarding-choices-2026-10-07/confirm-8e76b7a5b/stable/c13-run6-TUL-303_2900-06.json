@@ -1,0 +1,44 @@
+{
+  "card": "TUL-303/#2900",
+  "step": "Today: content language equals chrome language (cookie absent, then cookie=en)",
+  "n": 6,
+  "status": "PASS",
+  "facts": {
+    "cookieAbsent": {
+      "chrome": {
+        "es": 6,
+        "en": 0,
+        "dominant": "es"
+      },
+      "content": {
+        "es": 6,
+        "en": 0,
+        "dominant": "es"
+      },
+      "htmlLang": "es",
+      "hydrationErrors": [],
+      "sideExcerpt": "Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista previa del sitio Ajustes",
+      "mainExcerpt": "VENDE LO QUE HACES, NO LO QUE ENVÍAS Sitio en vivo ambas-r6b-acstbl-2.tulala.digital Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista p"
+    },
+    "cookieEn": {
+      "chrome": {
+        "es": 6,
+        "en": 0,
+        "dominant": "es"
+      },
+      "content": {
+        "es": 14,
+        "en": 0,
+        "dominant": "es"
+      },
+      "htmlLang": "es",
+      "hydrationErrors": [],
+      "sideExcerpt": "Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista previa del sitio Ajustes",
+      "mainExcerpt": "VENDE LO QUE HACES, NO LO QUE ENVÍAS Sitio en vivo ambas-r6b-acstbl-2.tulala.digital Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista p"
+    }
+  },
+  "shots": [
+    "run6-TUL-303_2900-06-01-today-cookieAbsent.jpg",
+    "run6-TUL-303_2900-06-02-today-cookieEn.jpg"
+  ]
+}

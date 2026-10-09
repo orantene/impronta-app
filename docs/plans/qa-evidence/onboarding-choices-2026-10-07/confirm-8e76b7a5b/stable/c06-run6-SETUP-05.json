@@ -1,0 +1,25 @@
+{
+  "card": "SETUP",
+  "step": "guest booking on A's site (shared by TUL-93/168/132)",
+  "n": 5,
+  "status": "FAIL",
+  "facts": {
+    "talentTimezone": "America/Cancun",
+    "chip": "13:30",
+    "captchaElementPresent": true,
+    "captchaTokenArrivedBeforeConfirm": false,
+    "refusalTextShown": "Completa la verificación.",
+    "sheetTextAfterConfirm": "ancún Total $850 Te enviamos la ubicación exacta al confirmar Nombre WhatsApp OPCIONAL Correo No se cobra nada ahora. El pago se realiza en el estudio. ¿Tienes una duda? Pregunta antes de reservar → Completa la verificación. Políticas TOTAL $850 Confirmar cita",
+    "guest": {
+      "chip": "13:30",
+      "order": null,
+      "confirmationSeen": true
+    }
+  },
+  "shots": [
+    "run6-SETUP-05-01-guest-slot.jpg",
+    "run6-SETUP-05-02-guest-details.jpg",
+    "run6-SETUP-05-03-guest-after-confirm.jpg"
+  ],
+  "detail": "a booking row (inquiry or order) exists |  | expect(received).toBeTruthy() |  | Received: null"
+}

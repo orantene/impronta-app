@@ -1,0 +1,15 @@
+{
+ "card": "TUL-123/138",
+ "step": "captcha on guest chat",
+ "n": 7,
+ "status": "BLOCKED",
+ "facts": {
+  "chatComposerVisible": false,
+  "chatCaptchaSlotCount": 0,
+  "captcha_bypassed": "captcha bypassed: hub captcha provider temporarily none, env Turnstile always-pass"
+ },
+ "shots": [
+  "run6-TUL-123_138-07-01-chat.jpg"
+ ],
+ "detail": "blocked: the chat captcha slot only renders after the server returns captcha_required (velocity guard in guest-chat-actions.ts / evaluate policy), not on a first message; composer was NOT found. Forcing it needs repeated sends from one device or a captcha-configured stack."
+}

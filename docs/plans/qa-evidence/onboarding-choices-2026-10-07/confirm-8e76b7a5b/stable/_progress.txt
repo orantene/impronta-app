@@ -1,0 +1,20 @@
+TUL-84 CONFIRMED on 8e76b7a5b: hours+tz on records (B talent America/Mexico_City? see c01-run6-TUL-84-05.json); S opening_hours; note SETUP guest-booking step flaked (Turnstile token not arrived)
+TUL-87 CONFIRMED on 8e76b7a5b: Assets panel, see c02-run6-TUL-87-06.json
+TUL-89 CONFIRMED on 8e76b7a5b
+TUL-115 CONFIRMED on 8e76b7a5b: toast 'Disponibilidad guardada.', reload shows week, tz America/Cancun
+TUL-118 header name CONFIRMED on 8e76b7a5b (1440+390); /en part FAIL (same as run6 TUL-125)
+TUL-120 login CONFIRMED (no banner, no 5xx; sign-out ok); /talent/messages empty state is ENGLISH 'Nothing in this view' on Spanish dashboard on 8e76b7a5b (#2925 not in sha)
+TUL-132 CONFIRMED on 8e76b7a5b (captcha bypassed): null without delivery setting, 'En el estudio' with where=studio
+TUL-157 CONFIRMED on 8e76b7a5b on talent D (no prior media): roster active, services listed, upload via Agregar fotos -> media_assets 0->1, hero image ref, talent_languages es. On A (already has 1 gallery photo) the 'Agregar fotos' label is absent (harness could not add a 2nd photo; note)
+TUL-157 attempt on A with existing photo: no Agregar fotos label
+TUL-451 CONFIRMED on 8e76b7a5b (captcha bypassed): both-owner B talent site guest booking created inquiry 3a0ba670 (tenant = B workspace) + order pending_payment 58d0db10, no 'booked by request' refusal. #2901 calendar FAIL: still 'Solicitud · no bloquea' / 'Cliente sin nombre', 0 Reservada. Studio B workspace booking FAIL (no row, harness no captcha wait)
+TUL-433 CONFIRMED core on 8e76b7a5b (captcha bypassed): request slot creates inquiry; repeat/second guest: slot no longer offered; post-submit 404 page defect. stable/c-TUL-433-*
+TUL-125 PARTIAL on 8e76b7a5b: /en 200 lang en, EN bio in About, hero shows Spanish bio; secondary_locales=['en'] since 21:48:05Z (25s after signup)
+TUL-481: QA-env artifact (Secure impronta_guest dropped over http); with Secure stripped, lands on /c/<id> thread page
+TUL-123 talent sheet CONFIRMED on 8e76b7a5b (captcha path: Turnstile always-pass; widget loads, no token refused, valid token accepted); chat BLOCKED
+#2900 Today locale CONFIRMED on 8e76b7a5b
+#2900 clients tz run1: Tokyo ok, LA list not loaded (harness)
+#2900 clients tz CONFIRMED on 8e76b7a5b (0 hydration errors in LA and Tokyo across 2 runs)
+#2929: FAIL on both accounts = stack/host-kind mismatch (host qa-r6-client.localhost = hub tenant; CLIENT_ACCOUNT_HOSTS=agency only enables kind agency; /account -> /client 'No client account here'; guest user is sent to /onboarding/role as it has no profile). Spec lines 84 (icon), 99 (tabs), 151 (/me redirect)
+TUL-86 myself->both on A: OLD behavior on 8e76b7a5b (no #2945): 'Something went wrong', server log forbidden capability=agency.site_admin.homepage.compose reason=no_membership
+RESULTS.md written

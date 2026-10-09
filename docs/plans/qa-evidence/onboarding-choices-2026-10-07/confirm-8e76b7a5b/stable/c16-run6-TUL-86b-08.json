@@ -1,0 +1,9 @@
+{
+  "card": "TUL-86b",
+  "step": "myself->both result: the new workspace's public site is bookable (M2)",
+  "n": 8,
+  "status": "BLOCKED",
+  "facts": {},
+  "shots": [],
+  "detail": "blocked: M2 workspace slug unknown"
+}

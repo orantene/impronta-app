@@ -1,0 +1,16 @@
+{
+  "card": "TUL-82/84/77",
+  "step": "guest booking shows Reservada (not Consulta) on the talent calendar (#2901, account A)",
+  "n": 8,
+  "status": "FAIL",
+  "facts": {
+    "calendarTextExcerpt": "Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS Sitio en vivo rosa-r6a-achisj.tulala.digital Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista previa del sitio Ajustes Reservas Semana del lun 5 de oct · 4 citas Lista Horario Bloquear tiempo Nueva cita Hoy ‹ › 5 oct – 11 oct 2026 ▾ America/Mexico_City Día Semana Mes ⟳ Sincronización de calendario lun 5 mar 6 mié 7 jue 8 vie 9 sáb 10 dom 11 16:44 08:00 09:00 10:00 11:00 12:00 13:00 14:00 15:00 16:00 17:00 18:00 19:00 20:00 + Reservar + Reservar + Reservar Ahora + Reservar 09:00–10:30 Cliente sin nombre Limpieza profunda ◌ Solicitud · no bloquea 10:30–12:00 Cliente sin nombre Limpieza profunda ◌ Solicitud · no bloquea 12:00–13:30 Cliente sin nombre Limpieza profunda ◌ Solicitud · no bloquea 13:30–15:00 Cliente sin nombre Limpieza profunda ◌ Solicitud · no blo",
+    "countReservada": 0,
+    "countConsulta": 0,
+    "guestItemVisibleOnCalendarPage": false
+  },
+  "shots": [
+    "run6-TUL-82_84_77-08-01-calendar.jpg"
+  ],
+  "detail": "calendar shows the guest booking as Reservada |  | expect(received).toMatch(expected) |  | Expected pattern: /Reservada/i | Received string:  \"Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS Sitio en vivo rosa-r6a-achisj.tulala.digital Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista previa del sitio Ajustes Reservas Semana del lun 5 de oct · 4 citas Lista Horario Bloquear tiempo Nueva cita Hoy ‹ › 5 oct – 11 oct 2026 ▾ America/Mexico_City Día Semana Mes ⟳ Sincronización de calendario lun 5 mar 6 mié 7 jue 8 vie 9 sáb 10 dom 11 16:44 08:00 09:00 10:00 11:00 12:00 13:00 14:00 15:00 16:00 17:00 18:00 19:00 20:00 + Reservar + Reservar + Reservar Ahora + Reservar 09:00–10:30 Cliente sin nombre Limpieza profunda ◌ Solicitud · no bloquea 10:30–12:00 Cliente sin nombre Limpieza profunda ◌ Solicitud · no bloquea 12:00–13:30 Cliente sin nombre Limpieza profunda ◌ Solicitud · no bloquea 13:30–15:00 Cliente sin nombre Limpieza profunda ◌ Solicitud · no bloquea + Reservar + Reservar Cerrado ✓ Confirmado ◷ Apartada (bloquea hasta que vence) ◌ Solicitud (no bloquea) Trabajo de agencia Margen, traslado o bloqueo Fuera de horario\""
+}

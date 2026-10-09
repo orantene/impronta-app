@@ -1,0 +1,33 @@
+[
+  {
+    "card": "SETUP",
+    "step": "signup A (myself)",
+    "status": "PASS"
+  },
+  {
+    "card": "SETUP",
+    "step": "signup M2 (myself, for TUL-86)",
+    "status": "PASS"
+  },
+  {
+    "card": "SETUP",
+    "step": "signup S (studio)",
+    "status": "PASS"
+  },
+  {
+    "card": "SETUP",
+    "step": "signup B (both)",
+    "status": "PASS"
+  },
+  {
+    "card": "SETUP",
+    "step": "guest booking on A's site (shared by TUL-93/168/132)",
+    "status": "FAIL",
+    "detail": "a booking row (inquiry or order) exists |  | expect(received).toBeTruthy() |  | Received: null"
+  },
+  {
+    "card": "TUL-2900c",
+    "step": "clients page dates are stable under America/Los_Angeles and Asia/Tokyo",
+    "status": "PASS"
+  }
+]

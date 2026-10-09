@@ -1,0 +1,14 @@
+{
+  "card": "SETUP",
+  "step": "guest booking on A's site (shared by TUL-93/168/132)",
+  "n": 6,
+  "status": "FAIL",
+  "facts": {
+    "talentTimezone": "America/Mexico_City",
+    "guestFailPageText": "Cookies & analytics × We use cookies and analytics to understand how this site is used. Ads and tracking pixels stay off unless you accept. Privacy policy · Cookie policy Decline Accept TULALA This domain isn't connected yet If you're looking for a talent or business page, it may have moved. Try searching on tulala.digital. Go to tulala.digital"
+  },
+  "shots": [
+    "run6-SETUP-06-01-guest-FAIL.jpg"
+  ],
+  "detail": "public site status |  | expect(received).toBe(expected) // Object.is equality |  | Expected: 200 | Received: 404"
+}

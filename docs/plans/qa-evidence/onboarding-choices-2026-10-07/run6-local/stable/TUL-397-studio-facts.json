@@ -1,0 +1,80 @@
+{
+  "390": {
+    "url": "/w/estudio-r6s-acstbl",
+    "hero": null,
+    "switcherFound": true,
+    "switcherButtons": [
+      "Escritorio",
+      "Tablet",
+      "Modo de edición móvil"
+    ],
+    "afterSwitch": {
+      "Escritorio": {
+        "textLen": 460,
+        "imgs": 0
+      },
+      "Tablet": {
+        "textLen": 278,
+        "imgs": 0
+      },
+      "Modo_de_edici_n_m_vil": {
+        "textLen": 316,
+        "imgs": 0
+      }
+    },
+    "mobileHealthMentioned": true,
+    "mobileHealthExcerpt": null
+  },
+  "768": {
+    "url": "/w/estudio-r6s-acstbl",
+    "hero": null,
+    "switcherFound": true,
+    "switcherButtons": [
+      "Escritorio",
+      "Tablet",
+      "Modo de edición móvil"
+    ],
+    "afterSwitch": {
+      "Escritorio": {
+        "textLen": 466,
+        "imgs": 0
+      },
+      "Tablet": {
+        "textLen": 278,
+        "imgs": 0
+      },
+      "Modo_de_edici_n_m_vil": {
+        "textLen": 316,
+        "imgs": 0
+      }
+    },
+    "mobileHealthMentioned": true,
+    "mobileHealthExcerpt": null
+  },
+  "1280": {
+    "url": "/w/estudio-r6s-acstbl",
+    "hero": null,
+    "switcherFound": true,
+    "switcherButtons": [
+      "Escritorio",
+      "Tablet",
+      "Modo de edición móvil"
+    ],
+    "afterSwitch": {
+      "Escritorio": {
+        "textLen": 466,
+        "imgs": 0
+      },
+      "Tablet": {
+        "textLen": 278,
+        "imgs": 0
+      },
+      "Modo_de_edici_n_m_vil": {
+        "textLen": 316,
+        "imgs": 0
+      }
+    },
+    "mobileHealthMentioned": true,
+    "mobileHealthExcerpt": null
+  }
+}

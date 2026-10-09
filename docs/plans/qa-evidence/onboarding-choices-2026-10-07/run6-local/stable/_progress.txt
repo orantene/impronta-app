@@ -1,0 +1,18 @@
+DONE (reported to main): TUL-125 FAIL(/en 404) | TUL-86 myself->both PASS (workspace site inquiry-only FAIL) | TUL-86 studio->both FAIL | TUL-82 both records PASS; both talent-site booking FAIL; TUL-360/#2901 calendar FAIL | TUL-123 studio page FAIL | TUL-397 talent builder evidence | TUL-120 stub directive PASS
+DONE in work-9 (copy pending): TUL-118 header PASS, TUL-118 /en FAIL (same as 125), TUL-132 PASS (null w/o delivery, 'En el estudio' with), TUL-157 PASS
+TUL-87 PASS (studio Assets: 'Mostrando 0 de 0', no alert, no media API errors) -> stable/TUL-87-*
+TUL-118 header PASS (name at 1440 and 390; stable/TUL-118-header-*) ; /en part FAIL same as 125
+TUL-132 PASS (#2954: null w/o delivery setting; 'En el estudio' with where=studio) stable/TUL-132-*
+TUL-157 PASS stable/TUL-157-*
+TUL-397 studio builder pass done: stable/TUL-397-studio-*
+TUL-84 PASS (hours+tz on records: both B, studio S hours; NOTE studio S has no timezone stored: agencies.settings.appointments null) stable/TUL-84-result.json
+TUL-115 PASS (Horario drawer: tz Cancun saved + 'Disponibilidad guardada.' toast, reload shows hours; weekly row written) stable/TUL-115-*
+TUL-123/138 talent sheet: widget loads PASS, no token refused PASS, valid always-pass token accepted PASS, invalid token NOT PROVABLE (always-pass secret accepts any); chat BLOCKED (2nd send not delivered; velocity not reachable) stable/TUL-123-talent-sheet-*, TUL-123-chat-*
+TUL-89 PASS w/ caveat (blocker 'Apply a design before publishing' + Publish now disabled with no design; none with design; UI apply not exercised -> restored by service role; drawer English in phases 1-2, Spanish in 3) stable/TUL-89-*
+TUL-120 PASS: no error banner after login, Messages empty state Spanish ('No hay nada en esta vista'), sign-out clears cookies + /talent/today -> login, support directive (AI stubbed) stable/TUL-120-*
+#2921 FAIL: talent rail (/talent/today) has NO Talent|Admin switch for 'both' B and for M2 (state.alsoTalent false); admin rail has it ('Talento | Admin') stable/TUL-303-2921-*
+#2900 today locale PASS (cookie absent and cookie=en: chrome es == content es, no hydration error) stable/TUL-2900-today-locale-result.json
+#2900 clients dates: no hydration error (#418) in America/Los_Angeles or Asia/Tokyo in 2 runs; dates render in viewer zone after hydration (LA '12 de oct'/'11 de oct', Tokyo 'mar 13'/'12 de oct'); run2 LA list not loaded in time (harness). PASS for #418 stable/TUL-2900-clients-tz-*
+#2929 client spec: BLOCKED/FAIL on local hosts (3 fail, 4 skip): TUL-61 icon selector, TUL-62 nav link visits, TUL-64 /me redirect; stable/2929-client-spec-*.log
+RESULTS.md written; TUL-16 table in it
+#2929 rerun on registered host qa-r6-client.localhost:3107: still 3 fail/4 skip = BLOCKED stack env: CLIENT_ACCOUNT_HOSTS unset (src/lib/client-account/flag.ts) so the client account surface is OFF; /me shows legacy "Your visits"; /account -> /client "No client account here". Proxy 29622 stopped; agency_domains row 10334b31... could NOT be deleted (DB guard) stable/2929-host-row.txt

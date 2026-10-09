@@ -1,0 +1,52 @@
+{
+ "sessionOk": true,
+ "error": null,
+ "/": {
+  "url": "http://qa-r6-client.localhost:3107/onboarding/role",
+  "title": "Account setup · Tulala",
+  "text": "Cookies & analytics × We use cookies and analytics to understand how this site is used. Ads and tracking pixels stay off unless you accept. Privacy policy · Cookie policy Decline Accept tulala . STEP 1 OF 2 · ROLE How will you use Tulala? Pick how you want to ",
+  "buttons": [
+   "Close and decide later",
+   "Decline",
+   "Accept",
+   "I'm TalentModel, performer, artist, or c",
+   "I'm a ClientBrand, producer, event plann"
+  ]
+ },
+ "/me": {
+  "url": "http://qa-r6-client.localhost:3107/onboarding/role",
+  "title": "Account setup · Tulala",
+  "text": "Cookies & analytics × We use cookies and analytics to understand how this site is used. Ads and tracking pixels stay off unless you accept. Privacy policy · Cookie policy Decline Accept tulala . STEP 1 OF 2 · ROLE How will you use Tulala? Pick how you want to ",
+  "buttons": [
+   "Close and decide later",
+   "Decline",
+   "Accept",
+   "I'm TalentModel, performer, artist, or c",
+   "I'm a ClientBrand, producer, event plann"
+  ]
+ },
+ "/account": {
+  "url": "http://qa-r6-client.localhost:3107/onboarding/role",
+  "title": "Account setup · Tulala",
+  "text": "Cookies & analytics × We use cookies and analytics to understand how this site is used. Ads and tracking pixels stay off unless you accept. Privacy policy · Cookie policy Decline Accept tulala . STEP 1 OF 2 · ROLE How will you use Tulala? Pick how you want to ",
+  "buttons": [
+   "Close and decide later",
+   "Decline",
+   "Accept",
+   "I'm TalentModel, performer, artist, or c",
+   "I'm a ClientBrand, producer, event plann"
+  ]
+ },
+ "/client": {
+  "url": "http://qa-r6-client.localhost:3107/onboarding/role",
+  "title": "Account setup · Tulala",
+  "text": "Cookies & analytics × We use cookies and analytics to understand how this site is used. Ads and tracking pixels stay off unless you accept. Privacy policy · Cookie policy Decline Accept tulala . STEP 1 OF 2 · ROLE How will you use Tulala? Pick how you want to ",
+  "buttons": [
+   "Close and decide later",
+   "Decline",
+   "Accept",
+   "I'm TalentModel, performer, artist, or c",
+   "I'm a ClientBrand, producer, event plann"
+  ]
+ }
+}

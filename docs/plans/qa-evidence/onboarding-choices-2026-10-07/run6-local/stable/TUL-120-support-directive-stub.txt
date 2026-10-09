@@ -1,0 +1,5 @@
+[
+ "<SUPPORT SYSTEM_PROMPT> Always answer in the same language as the requester's latest message. If that is unclear, answer in Spanish. Never reply in English to a Spanish message.",
+ "<SUPPORT SYSTEM_PROMPT> Always answer in the same language as the requester's latest message. If that is unclear, answer in Spanish. Never reply in English to a Spanish message.",
+ "<SUPPORT SYSTEM_PROMPT> Always answer in the same language as the requester's latest message. If that is unclear, answer in English. Never reply in English to a Spanish message."
+]

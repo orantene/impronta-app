@@ -1,0 +1,39 @@
+{
+  "card": "TUL-303/#2900",
+  "step": "clients page dates are stable under America/Los_Angeles and Asia/Tokyo",
+  "n": 8,
+  "status": "FAIL",
+  "facts": {
+    "America/Los_Angeles": {
+      "dates": [
+        "12 de oct",
+        "12 de oct",
+        "12 de oct",
+        "11 de oct",
+        "11 de oct",
+        "11 de oct"
+      ],
+      "hydrationErrors": [],
+      "hasClientRow": true,
+      "excerpt": "VENDE LO QUE HACES, NO LO QUE ENVÍAS Sitio en vivo rosa-r6a-achisj.tulala.digital Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista prev"
+    },
+    "Asia/Tokyo": {
+      "dates": [
+        "mar 13",
+        "mar 13",
+        "12 de oct",
+        "12 de oct",
+        "12 de oct",
+        "12 de oct"
+      ],
+      "hydrationErrors": [],
+      "hasClientRow": true,
+      "excerpt": "VENDE LO QUE HACES, NO LO QUE ENVÍAS Sitio en vivo rosa-r6a-achisj.tulala.digital Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista prev"
+    }
+  },
+  "shots": [
+    "run6-TUL-303_2900-08-01-clients-America_Los_Angeles.jpg",
+    "run6-TUL-303_2900-08-02-clients-Asia_Tokyo.jpg"
+  ],
+  "detail": "the same dates render in both time zones |  | expect(received).toBe(expected) // Object.is equality |  | Expected: \"[\\\"mar 13\\\",\\\"mar 13\\\",\\\"12 de oct\\\",\\\"12 de oct\\\",\\\"12 de oct\\\",\\\"12 de oct\\\"]\" | Received: \"[\\\"12 de oct\\\",\\\"12 de oct\\\",\\\"12 de oct\\\",\\\"11 de oct\\\",\\\"11 de oct\\\",\\\"11 de oct\\\"]\""
+}

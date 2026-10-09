@@ -1,0 +1,20 @@
+{
+  "card": "TUL-86",
+  "step": "myself -> both (Cómo trabajas, M2)",
+  "n": 6,
+  "status": "FAIL",
+  "facts": {
+    "dialogTextAfterConfirm": "¿Abrir un espacio de estudio? Creamos un espacio gratis contigo como dueño y te sumamos al equipo como proveedor reservable. Tu página sigue igual. Nombre del espacio Dirección Something went wrong. Please try again. Cancelar Abrir espacio",
+    "landedOn": "/talent/settings",
+    "serverLog_how-you-work": [
+      "[how-you-work.move] forbidden: capability=agency.site_admin.homepage.compose tenant=5e764775-e760-4696-806a-7c9a87a25922 reason=no_membership AccessDeniedError: forbidden: capability=agency.site_admin.homepage.compose tenant=5e764775-e760-4696-806a-7c9a87a25922 reason=no_membership",
+      "{\"ns\":\"impronta\",\"event\":\"server_error\",\"requestId\":\"req-852391f0-3c92-4203-9e27-c9830c4540c9\",\"ts\":\"2026-10-09T04:23:10.037Z\",\"context\":\"how-you-work.move\",\"message\":\"forbidden: capability=agency.site_admin.homepage.compose tenant=5e764775-e760-4696-806a-7c9a87a25922 reason=no_membership\",\"hasStack\":true}"
+    ]
+  },
+  "shots": [
+    "run6-TUL-86-06-01-before.jpg",
+    "run6-TUL-86-06-02-confirm-sheet.jpg",
+    "run6-TUL-86-06-03-after.jpg"
+  ],
+  "detail": "no 'Something went wrong' after myself->both |  | expect(received).not.toMatch(expected) |  | Expected pattern: not /Something went wrong|Algo sali[oó] mal/i | Received string:      \"Cookies y analítica |  | ×"
+}

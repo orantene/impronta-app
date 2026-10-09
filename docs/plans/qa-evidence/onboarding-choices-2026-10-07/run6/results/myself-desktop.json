@@ -1,0 +1,51 @@
+{
+  "choice": "myself",
+  "viewport": "desktop",
+  "results": [
+    {
+      "n": 1,
+      "name": "front door",
+      "status": "FAIL",
+      "detail": "\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m |  | Expected: \u001b[32m200\u001b[39m | Received: \u001b[31m502\u001b[39m"
+    },
+    {
+      "n": 2,
+      "name": "screens + email code",
+      "status": "FAIL",
+      "detail": "locator.fill: Target page, context or browser has been closed | Call log: | \u001b[2m  - waiting for getByTestId('onb-sentence')\u001b[22m | "
+    },
+    {
+      "n": 3,
+      "name": "build + DB accounts and essentials",
+      "status": "FAIL",
+      "detail": "locator._expect: Target page, context or browser has been closed"
+    },
+    {
+      "n": 4,
+      "name": "finish screen + URL is real",
+      "status": "FAIL",
+      "detail": "no arrival screen"
+    },
+    {
+      "n": 5,
+      "name": "sign out and back in lands on the Spanish dashboard",
+      "status": "FAIL",
+      "detail": "browserContext.clearCookies: Target page, context or browser has been closed"
+    },
+    {
+      "n": 6,
+      "name": "guest books a service",
+      "status": "FAIL",
+      "detail": "no finish URL to open"
+    }
+  ],
+  "facts": {
+    "visibleAtFail1": "",
+    "sentence": "Me llamo Rosa myself desktop zgkpie. Soy limpiadora de casas en Playa del Carmen. Hago limpieza profunda y ligera, de lunes a sábado.",
+    "visibleAtFail2": "",
+    "visibleAtFail3": "",
+    "visibleAtFail4": "",
+    "visibleAtFail5": "",
+    "visibleAtFail6": ""
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "card": "TUL-87",
+  "step": "page builder Assets panel loads the media grid with no error card",
+  "n": 9,
+  "status": "PASS",
+  "facts": {
+    "triedUrls": [
+      "http://localhost:3008/w/estudio-r6s-acstbl?edit=1&panel=assets"
+    ],
+    "usedUrl": "http://localhost:3008/w/estudio-r6s-acstbl?edit=1&panel=assets",
+    "alertsInPanel": [],
+    "tilesInGrid": 0,
+    "panelExcerpt": "Biblioteca de recursos Biblioteca de medios del espacio Filtros Mostrando 0 de 0 Subir Imágenes hasta 30 MB (se comprimen automáticamente), videos hasta 30 MB, documentos hasta 25 MB. Aún no hay archivos Sube un archivo o suelta uno en cualquier parte de este panel. Subir",
+    "mediaApiErrors": [],
+    "skeletonStillShown": false
+  },
+  "shots": [
+    "run6-TUL-87-09-01-assets-panel.jpg",
+    "run6-TUL-87-09-02-assets-panel-settled.jpg"
+  ]
+}

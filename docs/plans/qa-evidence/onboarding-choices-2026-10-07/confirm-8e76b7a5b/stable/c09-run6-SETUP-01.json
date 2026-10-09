@@ -1,0 +1,10 @@
+{
+ "card": "SETUP",
+ "step": "signup A (myself)",
+ "n": 1,
+ "status": "PASS",
+ "facts": {
+  "captcha_bypassed": "captcha bypassed (hub captcha row provider temporarily none, env Turnstile always-pass)"
+ },
+ "shots": []
+}

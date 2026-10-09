@@ -1,0 +1,53 @@
+{
+ "sessionOk": true,
+ "error": null,
+ "/": {
+  "url": "http://qa-r6-client.localhost:3107/",
+  "title": "Impronta Hub · Tulala",
+  "text": "Cookies & analytics × We use cookies and analytics to understand how this site is used. Ads and tracking pixels stay off unless you accept. Privacy policy · Cookie policy Decline Accept Skip to content IMPRONTA HUB Impronta Hub Lo que ofrecemos Agenda Nosotros",
+  "buttons": [
+   "Close and decide later",
+   "Decline",
+   "Accept",
+   "Open shortlist and inquiry",
+   "Start an inquiry",
+   "Dashboard",
+   "Sign out",
+   "Go to slide 1",
+   "Go to slide 2",
+   "Go to slide 3",
+   "Enviar solicitud",
+   "Message Impronta Hub"
+  ]
+ },
+ "/me": {
+  "url": "http://qa-r6-client.localhost:3107/me",
+  "title": "Your visits · Impronta Hub",
+  "text": "Cookies & analytics × We use cookies and analytics to understand how this site is used. Ads and tracking pixels stay off unless you accept. Privacy policy · Cookie policy Decline Accept Your visits Impronta Hub Nothing here yet. Once you book something, it sho",
+  "buttons": [
+   "Close and decide later",
+   "Decline",
+   "Accept"
+  ]
+ },
+ "/account": {
+  "url": "http://qa-r6-client.localhost:3107/client",
+  "title": "Tulala · Sell what you do, not what you ship",
+  "text": "Cookies & analytics × We use cookies and analytics to understand how this site is used. Ads and tracking pixels stay off unless you accept. Privacy policy · Cookie policy Decline Accept No client account here You don't have a client account on Hub. You can ask",
+  "buttons": [
+   "Close and decide later",
+   "Decline",
+   "Accept"
+  ]
+ },
+ "/client": {
+  "url": "http://qa-r6-client.localhost:3107/client",
+  "title": "Tulala · Sell what you do, not what you ship",
+  "text": "Cookies & analytics × We use cookies and analytics to understand how this site is used. Ads and tracking pixels stay off unless you accept. Privacy policy · Cookie policy Decline Accept No client account here You don't have a client account on Hub. You can ask",
+  "buttons": [
+   "Close and decide later",
+   "Decline",
+   "Accept"
+  ]
+ }
+}

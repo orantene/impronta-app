@@ -1,0 +1,16 @@
+{
+  "card": "TUL-82/84/77",
+  "step": "phone: re-login lands on the Spanish dashboard (visible marker)",
+  "n": 10,
+  "status": "PASS",
+  "facts": {
+    "landedOn": "/ambas-r6b-acstbl/admin",
+    "htmlLang": "es",
+    "excerpt": "Saltar al contenido principal AM Ambas r6b acstbl propietario 4 Buenas noches, qa-r6-b-acstbl vie 9 oct · 1 llegadas hoy · 1 cosa te necesita COBRADO $0 MXN POR COBRAR $850 MXN LLEGADAS 1 TE NECESITA Saldo vence hoy · Invitada QA · Limpieza profunda Quedan MX$850 Cobrar saldo › Ventas HOY Llegadas Clases Mesas 15:00 · Invitada QA Limpieza profunda · MX$850 pendientes Confirmada Saldo pendiente Atr",
+    "spanishMarkers": 4,
+    "englishMarkers": 0
+  },
+  "shots": [
+    "run6-TUL-82_84_77-10-01-phone-dashboard.jpg"
+  ]
+}

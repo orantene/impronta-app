@@ -1,0 +1,27 @@
+{
+ "tag": "g4-Y-other-guest-same-slot",
+ "url": "http://ambas-r6b-acstbl.tulala.digital:3008/book",
+ "captcha_bypassed": "captcha bypassed (hub captcha row provider temporarily none, env Turnstile always-pass)",
+ "pageText": "AMBAS R6B ACSTBL ES | EN Reserva un horario Elige un servicio y un horario. Confirmamos enseguida. Limpieza profunda Service Limpieza profunda Limpieza ligera Choose a time Times are shown in the studio timezone. vie, 9 oct, 12:00 vie, 9 oct, 12:30 vie, 9 oct, 13:00 vie, 9 oct, 16:00 vie, 9 oct, 16:30 sáb, 10 oct, 10:30 sáb, 10 oct, 11:00 sáb, 10 oct, 11:30 sáb, 10 oct, 12:00 sáb, 10 oct, 12:30 sáb, 10 oct, 13:00 sáb, 10 oct, 13:30 sáb, 10 oct, 14:00 sáb, 10 oct, 14:30 sáb, 10 oct, 15:00 sáb, 10",
+ "slotsOffered": 162,
+ "slot": "sáb, 10 oct, 10:30",
+ "captchaTokenReady": true,
+ "afterText": "AMBAS R6B ACSTBL This page is no longer here We couldn't find that page on Ambas r6b acstbl. The roster, news, or campaign you were looking for may have moved. Back to homepage Send an inquiry Powered by Tulala",
+ "alerts": [
+  ""
+ ],
+ "selfCollisionMsgShown": false,
+ "posts": [
+  "200 /book"
+ ],
+ "inquiries": [
+  {
+   "id": "b6abb4e1-ba97-4669-b33b-2566f62dfcd4",
+   "status": "new",
+   "tenant_id": "af9a22fe-22c5-4067-9911-546ef64a908b",
+   "created_at": "2026-10-09T03:49:56.048241+00:00",
+   "event_date": "2026-10-10"
+  }
+ ],
+ "recentHolds": []
+}

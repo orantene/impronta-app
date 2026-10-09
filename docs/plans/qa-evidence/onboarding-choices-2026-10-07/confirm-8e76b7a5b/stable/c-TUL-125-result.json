@@ -1,0 +1,50 @@
+{
+ "sha": "8e76b7a5b",
+ "account": "A (myself)",
+ "site": "https://rosa-r6a-achisj.tulala.digital",
+ "talent_profiles": {
+  "id": "8915d594-b7e5-4bc3-990d-690fd189936b",
+  "preferred_locale": "es",
+  "secondary_locales": [
+   "en"
+  ],
+  "bio_i18n": {
+   "en": "I'm Rosa r6a achisj, a limpieza de airbnb in Playa del Carmen. Write to me and we'll sort out what you need.",
+   "es": "Soy Rosa r6a achisj, limpieza de airbnb en Playa del Carmen. Escr\u00edbeme y vemos qu\u00e9 necesitas."
+  },
+  "short_bio": "Soy Rosa r6a achisj, limpieza de airbnb en Playa del Carmen. Escr\u00edbeme y vemos qu\u00e9 necesitas.",
+  "updated_at": "2026-10-08T21:48:05.182+00:00",
+  "created_at": "2026-10-08T21:47:40.840389+00:00",
+  "profile_code": "TAL-93071"
+ },
+ "talent_languages": [
+  {
+   "language_code": "es",
+   "language_name": "Spanish",
+   "is_native": false,
+   "speaking_level": "fluent",
+   "created_at": "2026-10-08T21:47:42.778751+00:00",
+   "updated_at": "2026-10-08T21:47:42.778751+00:00"
+  }
+ ],
+ "home_es": {
+  "path": "/",
+  "status": 200,
+  "htmlLang": "es",
+  "es_bio_text_present": true,
+  "en_bio_text_present": false,
+  "switcherVisible": true,
+  "textHead": "Saltar al contenido Rosa r6a achisj LIMPIEZA DE AIRBNB Trabajos Men\u00fa y precios Rese\u00f1as Sobre m\u00ed ES / EN Reservar cita LIMPIEZA DE AIRBNB \u00b7 PLAYA DEL CARMEN Rosa r6a achisj Soy Rosa r6a achisj, limpieza de airbnb en Playa del Carmen. Escr\u00edbeme y vemos qu\u00e9 necesitas. Reservar cita Ver servicios Espa\u00f1o"
+ },
+ "home_en": {
+  "path": "/en",
+  "status": 200,
+  "htmlLang": "en",
+  "es_bio_text_present": true,
+  "en_bio_text_present": true,
+  "switcherVisible": true,
+  "textHead": "Skip to content Rosa r6a achisj AIRBNB TURNOVER CLEANER Work Menu and prices Reviews About ES / EN Book an appointment AIRBNB TURNOVER CLEANER \u00b7 PLAYA DEL CARMEN Rosa r6a achisj Soy Rosa r6a achisj, limpieza de airbnb en Playa del Carmen. Escr\u00edbeme y vemos qu\u00e9 necesitas. Book an appointment See serv"
+ },
+ "verdict_en": "PARTIAL FAIL on 8e76b7a5b: /en = 200, html lang=en, chrome English (nav, 'Book an appointment'), switcher ES/EN visible, English bio present in the About section; BUT the hero paragraph on /en still shows the SPANISH bio ('Soy Rosa r6a achisj...'), so es bio is NOT absent.",
+ "secondary_locales_timeline": "talent_profiles.created_at 2026-10-08T21:47:40Z, updated_at 2026-10-08T21:48:05Z (25s after creation, during the signup/publish flow of this account, not touched by this confirm pass); no audit table queried; consistent with the build code setting it, not a later backfill (cannot prove)."
+}

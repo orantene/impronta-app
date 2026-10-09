@@ -1,0 +1,16 @@
+{
+  "card": "TUL-120",
+  "step": "Spanish support reply: language directive reaches the provider call (AI stubbed, no real AI call)",
+  "n": 8,
+  "status": "PASS",
+  "facts": {
+    "unitTest": [
+      "# tests 2",
+      "# pass 2",
+      "# fail 0"
+    ],
+    "directiveSource": "src/lib/support/support-ai-language.ts:20-25 (supportAiLanguageDirective); composed into the provider call at src/app/api/ai/support-chat/route.ts:177 with appLocale from getRequestLocale() (route.ts:151)",
+    "stubCheck": "stable/TUL-120-support-directive-stub.txt: a stub adapter received systemPrompt ending 'answer in Spanish. Never reply in English to a Spanish message.' for appLocale es and es-MX, and 'answer in English' for en"
+  },
+  "shots": []
+}

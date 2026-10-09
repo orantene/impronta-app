@@ -1,0 +1,23 @@
+{
+  "card": "TUL-82/84/77",
+  "step": "both: has an offering AND a bookable slot (guest books on the owner's talent site)",
+  "n": 7,
+  "status": "FAIL",
+  "facts": {
+    "chip": "09:00",
+    "captchaElementPresent": true,
+    "captchaTokenArrivedBeforeConfirm": true,
+    "refusalTextShown": "",
+    "sheetTextAfterConfirm": "ón exacta al confirmar Nombre WhatsApp OPCIONAL Correo No se cobra nada ahora. El pago se realiza en el estudio. ¿Tienes una duda? Pregunta antes de reservar → This one is booked by request. Send a message to ask for a time. Políticas TOTAL $850 Confirmar cita",
+    "guest": {
+      "chip": "09:00",
+      "order": null
+    }
+  },
+  "shots": [
+    "run6-TUL-82_84_77-07-01-guest-slot.jpg",
+    "run6-TUL-82_84_77-07-02-guest-details.jpg",
+    "run6-TUL-82_84_77-07-03-guest-after-confirm.jpg"
+  ],
+  "detail": "booking row exists (sheet said: antes de reservar → This one is booked by request. Send a message to ask for a time. Políticas TOTAL $850 Confirmar cita) |  | expect(received).toBeTruthy() |  | Received: null"
+}
