@@ -56,6 +56,66 @@ export function groupIdFor(groupKey: string): string {
   ].join("-");
 }
 
+/** An unfinished claim older than this is a run that died mid-write: it may be taken over. */
+export const CLAIM_STALE_MS = 10 * 60 * 1000;
+
+export type ClaimDecision = "proceed" | "skip_done" | "skip_in_progress" | "takeover";
+
+/**
+ * What to do when claiming a group. `inserted` = our INSERT won the primary key. Otherwise `existing` is the
+ * claim that beat us: complete -> skip; in progress -> skip (another run is writing it); stale -> take over.
+ */
+export function decideClaim(input: {
+  inserted: boolean;
+  existing: { completed_at: string | null; claimed_at: string } | null;
+  nowMs: number;
+}): ClaimDecision {
+  if (input.inserted) return "proceed";
+  if (!input.existing) return "skip_in_progress";
+  if (input.existing.completed_at) return "skip_done";
+  return input.nowMs - Date.parse(input.existing.claimed_at) > CLAIM_STALE_MS ? "takeover" : "skip_in_progress";
+}
+
+type ClaimOutcome = { proceed: true; claimed: boolean } | { proceed: false; reason: "done" | "in_progress" } | { proceed: false; error: string };
+
+/** Claim the group in `ledger_group_claims` (PRIMARY KEY on the group id). Degrades to "no claim" if the table is not there yet. */
+async function claimGroup(
+  sb: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  groupId: string,
+  groupKey: string,
+): Promise<ClaimOutcome> {
+  const { error } = await sb.from("ledger_group_claims").insert({ group_id: groupId, group_key: groupKey });
+  if (!error) return { proceed: true, claimed: true };
+  const code = (error as { code?: string }).code;
+  if (code === "42P01" || code === "PGRST205") {
+    // Migration not applied yet: behave exactly as before (existence check only), loudly.
+    logServerError("ledger.write.claim", new Error("ledger_group_claims is missing; double-post guard inactive"));
+    return { proceed: true, claimed: false };
+  }
+  if (code !== "23505") {
+    logServerError("ledger.write.claim", error);
+    return { proceed: false, error: "Could not claim the ledger group." };
+  }
+  const { data: existing, error: readErr } = await sb
+    .from("ledger_group_claims")
+    .select("completed_at, claimed_at")
+    .eq("group_id", groupId)
+    .maybeSingle();
+  if (readErr) return { proceed: false, error: "Could not read the ledger group claim." };
+  const decision = decideClaim({ inserted: false, existing: existing as { completed_at: string | null; claimed_at: string } | null, nowMs: Date.now() });
+  if (decision === "skip_done") return { proceed: false, reason: "done" };
+  if (decision === "skip_in_progress") return { proceed: false, reason: "in_progress" };
+  // Takeover: compare-and-swap on the stale claimed_at so two takers cannot both win.
+  const { data: won } = await sb
+    .from("ledger_group_claims")
+    .update({ claimed_at: new Date().toISOString() })
+    .eq("group_id", groupId)
+    .is("completed_at", null)
+    .eq("claimed_at", (existing as { claimed_at: string }).claimed_at)
+    .select("group_id");
+  return Array.isArray(won) && won.length > 0 ? { proceed: true, claimed: true } : { proceed: false, reason: "in_progress" };
+}
+
 export type WriteResult =
   | { ok: true; written: number; skipped: boolean; groupId: string }
   | { ok: false; error: string; groupId?: string };
@@ -125,6 +185,12 @@ export async function writeLedgerGroup(legs: LedgerLeg[]): Promise<WriteResult> 
     return { ok: true, written: 0, skipped: true, groupId };
   }
 
+  const claim = await claimGroup(sb, groupId, groupKey);
+  if (!claim.proceed) {
+    if ("error" in claim) return { ok: false, error: claim.error, groupId };
+    return { ok: true, written: 0, skipped: true, groupId };
+  }
+
   const rows: Record<string, unknown>[] = [];
   for (const leg of legs) {
     const accountId = accounts.get(leg.accountCode);
@@ -152,7 +218,10 @@ export async function writeLedgerGroup(legs: LedgerLeg[]): Promise<WriteResult> 
   const { error: insErr } = await sb.from("ledger_entries").insert(rows);
   if (insErr) {
     logServerError("ledger.write.insert", insErr);
+    // Release the claim so the next run can retry this group.
+    if (claim.claimed) await sb.from("ledger_group_claims").delete().eq("group_id", groupId).is("completed_at", null);
     return { ok: false, error: insErr.message ?? "insert failed", groupId };
   }
+  if (claim.claimed) await sb.from("ledger_group_claims").update({ completed_at: new Date().toISOString() }).eq("group_id", groupId);
   return { ok: true, written: rows.length, skipped: false, groupId };
 }
