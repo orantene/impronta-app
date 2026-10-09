@@ -188,9 +188,9 @@ export async function maybeSendGuestReplyNudge(
     }
 
     // Bucket the eventId to the coalescing window: the dispatch_log unique
-    // index on `dedupe_key` (= `${eventId}:${recipient}:${channel}`) makes a
-    // second reply inside the same bucket a no-op even under a concurrent race
-    // the sliding-window read above can't see.
+    // index on `dedupe_key` (= `${eventId}:${entryId}:${recipient}:${channel}`)
+    // makes a second reply inside the same bucket a no-op even under a
+    // concurrent race the sliding-window read above can't see.
     const bucket = Math.floor(nowMs / GUEST_REPLY_THROTTLE_WINDOW_MS);
     const eventId = `guest-reply-nudge:${args.inquiryId}:${bucket}`;
 

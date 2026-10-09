@@ -653,6 +653,26 @@ function OfferingForm({
             </div>
           </div>
         )}
+        {!showAmount && (
+          // "Contact for price" hides the amount, but the currency still decides what a quote you send for this
+          // service is priced in, so it stays visible and editable (a hidden currency was silently USD).
+          <label data-service-currency style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8, fontSize: 13 }}>
+            <span style={{ color: C.inkMuted }}>Currency</span>
+            <select
+              value={currencyOptions.includes(value.currency) ? value.currency : defaultCurrency}
+              disabled={saving}
+              onChange={(e) => onPatch({ currency: e.target.value })}
+              style={{ ...inputStyle, cursor: "pointer" }}
+            >
+              {currencyOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                  {CURRENCY_LABELS[c as keyof typeof CURRENCY_LABELS] ? ` — ${CURRENCY_LABELS[c as keyof typeof CURRENCY_LABELS]}` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 8 }}>{priceSentence}</div>
       </div>
 

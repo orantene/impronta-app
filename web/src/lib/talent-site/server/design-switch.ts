@@ -42,6 +42,7 @@ function mapList(
   from: ReadonlyArray<BuilderNode>,
   to: ReadonlyArray<BuilderNode>,
   tree: DesignSwitchTree,
+  keepOrphans: boolean,
 ): { nodes: BuilderNode[]; mappedKeys: string[]; warned: DesignSwitchWarn[] } {
   const fromMap = keyedMap(from);
   const toMap = keyedMap(to);
@@ -58,7 +59,7 @@ function mapList(
     const prevKids = kidsOf(prev);
     const nextKids = kidsOf(carried);
     if (prevKids.length === 0 || nextKids.length === 0) return carried;
-    const child = mapList(prevKids, nextKids, tree);
+    const child = mapList(prevKids, nextKids, tree, keepOrphans);
     // Child origin keys are already absolute (`hero/heading`), so push as-is.
     mappedKeys.push(...child.mappedKeys);
     warned.push(...child.warned);
@@ -67,7 +68,8 @@ function mapList(
 
   const orphans: BuilderNode[] = [];
   const seenTo = new Set(toMap.keys());
-  for (const node of from) {
+  // A site that was never on a Design has only the starter tree: nothing of hers to keep.
+  for (const node of keepOrphans ? from : []) {
     const k = keyOf(node);
     if (!k) {
       orphans.push(node);
@@ -96,8 +98,12 @@ export function planDesignSwitch(input: {
   fromVersion: number | null;
   toVersion: number;
 }): DesignSwitchPlan {
-  const shell = mapList(input.fromShell, input.toShell, "shell");
-  const home = mapList(input.fromHome, input.toHome, "home");
+  // First apply on a fresh site (no Design pinned yet, e.g. onboarding): the old tree is the unstamped starter
+  // (default-talent-*), so it is REPLACED by the design. Keeping it as "talent-added" orphans stacked a second
+  // header, hero, about, services and footer under Maison v2 and buried the booking CTAs (TUL-421 follow-up).
+  const keepOrphans = input.fromSlug != null && input.fromSlug.trim() !== "";
+  const shell = mapList(input.fromShell, input.toShell, "shell", keepOrphans);
+  const home = mapList(input.fromHome, input.toHome, "home", keepOrphans);
   const mappedKeys = [...shell.mappedKeys, ...home.mappedKeys];
   const warned = [...shell.warned, ...home.warned];
   return {

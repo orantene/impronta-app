@@ -99,6 +99,41 @@ test("carry-over: talent-added top-level node is kept and warned", () => {
   assert.ok(plan.warned.some((w) => w.reason === "talent_added" && w.kind === "paragraph"));
 });
 
+test("first apply on a fresh site (no Design pinned): the unstamped starter tree is replaced, not appended as orphans", () => {
+  // The starter tree a new talent site is created with: unstamped, ids like default-talent-*.
+  const starterHome: BuilderNode[] = [
+    { id: "default-talent-hero", kind: "split", props: {}, children: [] } as unknown as BuilderNode,
+    { id: "default-talent-about", kind: "container", props: {}, children: [] } as unknown as BuilderNode,
+    { id: "default-talent-services", kind: "container", props: {}, children: [] } as unknown as BuilderNode,
+  ];
+  const starterShell: BuilderNode[] = [{ id: "default-talent-header", kind: "container", props: {}, children: [] } as unknown as BuilderNode];
+  const to = stampAs(built(1), "maison-v2", 1);
+  const plan = planDesignSwitch({
+    fromShell: starterShell,
+    fromHome: starterHome,
+    toShell: to.shell,
+    toHome: to.home,
+    fromSlug: null,
+    toSlug: "maison-v2",
+    fromVersion: null,
+    toVersion: 1,
+  });
+  assert.deepEqual(plan.home, to.home, "home is exactly the design");
+  assert.deepEqual(plan.shell, to.shell, "shell is exactly the design");
+  assert.ok(!plan.home.some((n) => String(n.id).startsWith("default-talent-")), "no starter node survives");
+  assert.deepEqual(plan.warned, []);
+  // A blank slug string counts as "no design pinned" too.
+  const blank = planDesignSwitch({ fromShell: starterShell, fromHome: starterHome, toShell: to.shell, toHome: to.home, fromSlug: " ", toSlug: "maison-v2", fromVersion: null, toVersion: 1 });
+  assert.deepEqual(blank.home, to.home);
+});
+
+test("a site already on a Design still keeps unmatched and talent-added sections when she switches", () => {
+  const from = built(1, { withGallery: true });
+  const to = stampAs(built(2, { withGallery: false }), "folio", 1);
+  const plan = planDesignSwitch({ fromShell: from.trees.shell!, fromHome: from.trees.home!, toShell: to.shell, toHome: to.home, fromSlug: "maison-v2", toSlug: "folio", fromVersion: 1, toVersion: 1 });
+  assert.ok(plan.warned.length > 0);
+});
+
 test("draft-first: apply site patch keys never include published columns", () => {
   for (const key of DESIGN_APPLY_DRAFT_SITE_KEYS) {
     assert.equal(/published/i.test(key), false, key);
