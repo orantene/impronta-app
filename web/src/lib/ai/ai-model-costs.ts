@@ -22,6 +22,8 @@ const MODEL_RATES: ReadonlyArray<{ prefix: string; rate: Rate }> = [
   // must remain AFTER this entry: matching is longest-prefix.
   { prefix: "claude-sonnet-5", rate: { inputPerM: 2, outputPerM: 10 } },
   { prefix: "claude-sonnet", rate: { inputPerM: 3, outputPerM: 15 } },
+  // Haiku 5.5 list price (2026-10) — must sit above the generic haiku row.
+  { prefix: "claude-haiku-5-5", rate: { inputPerM: 0.1, outputPerM: 0.5 } },
   { prefix: "claude-haiku", rate: { inputPerM: 1, outputPerM: 5 } },
   { prefix: "claude-fable-5", rate: { inputPerM: 10, outputPerM: 50 } },
   // OpenAI

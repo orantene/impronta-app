@@ -66,6 +66,19 @@ export function ChatInquiriesGroup({
           detail={t("Off hides Ask and Consultar. Clients with a booking can still message you.")}
           onChange={(v) => setSwitches({ ...switches, acceptingInquiries: v })}
         />
+        <Switch
+          checked={switches.chatConfig.aiBookingAssistantEnabled}
+          label={t("Booking assistant (AI)")}
+          detail={t(
+            "Off keeps today's scripted chat. On lets the assistant answer from your public services and hand off to you when unsure. It does not book or send pay links yet. Starts off.",
+          )}
+          onChange={(v) =>
+            setSwitches({
+              ...switches,
+              chatConfig: { ...switches.chatConfig, aiBookingAssistantEnabled: v },
+            })
+          }
+        />
         {strandedTitles.length > 0 ? (
           <p role="status" className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-[12.5px] text-amber-900">
             {(strandedTitles.length === 1
@@ -97,7 +110,7 @@ export function VisibilityGroup(props: SwitchProps) {
 export function chatSummary(t: T, s: TalentSiteSwitches): string {
   return `${s.chatEnabled ? t("Chat on") : t("Chat off")} · ${
     s.acceptingInquiries ? t("Taking inquiries") : t("Inquiries paused")
-  }`;
+  } · ${s.chatConfig.aiBookingAssistantEnabled ? t("AI on") : t("AI off")}`;
 }
 
 export function visibilitySummary(t: T, s: TalentSiteSwitches): string {

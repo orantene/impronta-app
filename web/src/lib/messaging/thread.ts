@@ -65,6 +65,9 @@ export async function loadMessagingThread(
     delivery: delivery.get(row.id) ?? null,
     system: row.sender_user_id === null && typeof row.metadata?.system_event_type === "string",
     systemEvent: typeof row.metadata?.system_event_type === "string" ? row.metadata.system_event_type : null,
+    fromAi: row.metadata?.from_ai === true || row.metadata?.author_kind === "booking_assistant",
+    aiDisclosureLabel:
+      typeof row.metadata?.disclosure_label === "string" ? row.metadata.disclosure_label : null,
   }));
   return { ok: true, messages };
 }

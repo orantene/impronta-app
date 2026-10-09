@@ -70,6 +70,7 @@ import {
 import { isBlocked } from "@/lib/inquiry/recipient-safety";
 import { resolveInquiryRecipients } from "@/lib/notifications/recipients";
 import { emitGuestAutoAck } from "@/lib/inquiry/guest-auto-ack";
+import { scheduleBookingAssistantTurn } from "@/lib/ai/booking-assistant/turn.server";
 import { nextFreeTimesForTalent } from "@/lib/scheduling/next-free-times";
 import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
 import { sendGuestClaimEmail } from "@/lib/inquiry/guest-claim-link";
@@ -351,6 +352,24 @@ function toGuestThreadMessage(
     const ident = identityByUserId.get(row.sender_user_id);
     authorLabel = ident?.label ?? null;
     authorAvatarUrl = ident?.avatarUrl ?? null;
+  }
+  // TUL-36: booking-assistant system bubbles carry an AI disclosure label.
+  if (authorRole === "system") {
+    const meta = (row as { metadata?: unknown }).metadata;
+    if (meta && typeof meta === "object" && !Array.isArray(meta)) {
+      const m = meta as Record<string, unknown>;
+      if (
+        m.from_ai === true ||
+        m.author_kind === "booking_assistant" ||
+        (typeof m.system_event_type === "string" &&
+          m.system_event_type.startsWith("booking_assistant_"))
+      ) {
+        authorLabel =
+          typeof m.disclosure_label === "string" && m.disclosure_label.trim()
+            ? m.disclosure_label.trim()
+            : "Automated reply";
+      }
+    }
   }
 
   return {
@@ -938,6 +957,7 @@ export async function startGuestChatInquiry(
         : {}),
       referrer_page: input.sourcePage,
       tenant_id: tenantId,
+      ...(input.locale ? { guest_locale: input.locale } : {}),
       ...(capture.eventType ? { ai_event_type: capture.eventType } : {}),
       ...(offering ? { offering } : {}),
       ...(input.entryPoint === "inquiry_form" ? { entry_point: "inquiry_form" } : {}),
@@ -1163,6 +1183,17 @@ export async function startGuestChatInquiry(
   // read-back (covers a pre-existing group system_event, e.g. from the engine).
   const autoAckMessage =
     emittedAutoAck ?? messages.find((m) => m.authorRole === "system") ?? null;
+
+  // TUL-36 phase 1: schedule facts reply / handoff AFTER the guest send
+  // response. The panel poll / realtime reconcile merges the system bubble.
+  scheduleBookingAssistantTurn({
+    inquiryId,
+    tenantId,
+    talentProfileId,
+    guestMessage: firstMessage,
+    locale: input.locale ?? null,
+    instantAnswered: false,
+  });
 
   return {
     ok: true,
@@ -1449,6 +1480,56 @@ export async function sendGuestMessageAction(
     .eq("tenant_id", owned.inquiry.tenantId)
     .maybeSingle();
 
+  let assistantTalentId: string | null = null;
+  {
+    const { data: talentPart, error: talentPartErr } = await admin
+      .from("inquiry_participants")
+      .select("talent_profile_id")
+      .eq("inquiry_id", owned.inquiry.id)
+      .eq("role", "talent")
+      .not("talent_profile_id", "is", null)
+      .limit(1)
+      .maybeSingle();
+    if (talentPartErr) {
+      logServerError(
+        "guest-chat-actions.sendGuestMessageAction/assistantTalent",
+        talentPartErr,
+      );
+    }
+    assistantTalentId = (talentPart?.talent_profile_id as string | null) ?? null;
+  }
+  // Locale: prefer this send's value; else the locale stored at inquiry create.
+  let followUpLocale = input.locale?.trim() || null;
+  if (!followUpLocale) {
+    const { data: ctxRow, error: ctxErr } = await admin
+      .from("inquiries")
+      .select("source_context")
+      .eq("id", owned.inquiry.id)
+      .eq("tenant_id", owned.inquiry.tenantId)
+      .maybeSingle();
+    if (ctxErr) {
+      logServerError(
+        "guest-chat-actions.sendGuestMessageAction/guestLocale",
+        ctxErr,
+      );
+    }
+    const ctx =
+      ctxRow?.source_context &&
+      typeof ctxRow.source_context === "object" &&
+      !Array.isArray(ctxRow.source_context)
+        ? (ctxRow.source_context as Record<string, unknown>)
+        : {};
+    followUpLocale = typeof ctx.guest_locale === "string" ? ctx.guest_locale : null;
+  }
+  scheduleBookingAssistantTurn({
+    inquiryId: owned.inquiry.id,
+    tenantId: owned.inquiry.tenantId,
+    talentProfileId: assistantTalentId,
+    guestMessage: body,
+    locale: followUpLocale,
+    instantAnswered: false,
+  });
+
   if (rawRow) {
     const row = rawRow as unknown as RawMessageRow;
     // A guest's own send is always authorRole "guest".
@@ -1457,7 +1538,10 @@ export async function sendGuestMessageAction(
   }
 
   // Fallback synthetic echo (insert succeeded but read-back failed).
-  return { ok: true, message: synthOpeningMessage(owned.inquiry.id, messageId, body) };
+  return {
+    ok: true,
+    message: synthOpeningMessage(owned.inquiry.id, messageId, body),
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

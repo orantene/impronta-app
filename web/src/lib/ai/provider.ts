@@ -50,6 +50,8 @@ export type ChatCompletionInput = {
    * SDK types don't expose. Ignored elsewhere. Pairs with `thinking`.
    */
   effort?: "low" | "medium" | "high" | "xhigh";
+  /** Optional cancel — hard-cut guest assistant turns when the budget expires. */
+  signal?: AbortSignal;
 };
 
 /** Token usage returned by a provider, when available. */
