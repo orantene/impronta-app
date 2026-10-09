@@ -13,7 +13,7 @@ import { logServerError } from "@/lib/server/safe-error";
  * converted-but-unpaid booking sends nothing; the confirmation only goes out
  * once money is collected. The payment receipt (`payment.received`) fires
  * alongside this from the same `markPaid` but on a DISTINCT eventId, so the two
- * never collide on the dispatch_log dedupe key (`eventId:recipient:channel`).
+ * never collide on the dispatch_log dedupe key (`eventId:entryId:recipient:channel`).
  *
  * Dispatched directly (NOT through the engine's `notifyUsers`), so the entries
  * own the channel with no double-notify. `inquiryId` is required —

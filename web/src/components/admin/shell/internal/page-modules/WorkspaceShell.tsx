@@ -39,6 +39,7 @@ import {
   WorkspacePageView,
 } from "./workspace-pages-lazy";
 import { PageSkeleton } from "../primitives/page-skeleton";
+import { RailModeSwitch } from "./RailModeSwitch";
 import { useUrlPageSync } from "../use-url-page-sync";
 
 
@@ -202,57 +203,6 @@ function SidebarNavButton({
  * here is presentation: the brand block, the tenant chip, the skip link, roving
  * focus, and how a row and its children draw.
  */
-/**
- * The rail's Talent | Admin segmented switch: which HAT this person wears,
- * not which business (the chip above picks the business). "Admin" reads the
- * same for someone who runs three businesses; a business type would not.
- * The admin half is the lit, inert one on this surface; the talent half
- * carries that dashboard's unread count and leaves.
- */
-function RailModeSwitch({
-  talentUnread,
-  onSwitchToTalent,
-}: {
-  talentUnread: number;
-  onSwitchToTalent: () => void;
-}) {
-  const copy = useDashboardText();
-  const half =
-    "inline-flex h-[26px] flex-1 items-center justify-center gap-[6px] rounded-[7px] border-none font-admin-body text-admin-11h font-semibold [transition:background_var(--transition-admin-micro),color_var(--transition-admin-micro)]";
-  return (
-    <div
-      role="group"
-      data-tulala-rail-mode-switch
-      aria-label={copy.t("Switch between Talent and Admin")}
-      className="flex w-full items-center gap-[2px] rounded-[9px] bg-[rgba(11,11,13,0.05)] p-[3px]"
-    >
-      <button
-        type="button"
-        onClick={onSwitchToTalent}
-        aria-label={copy.t("Switch to talent")}
-        title={copy.t("Go to your talent dashboard")}
-        className={`${half} cursor-pointer bg-transparent text-admin-ink-muted hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink`}
-      >
-        {copy.t("Talent")}
-        {talentUnread > 0 && (
-          <span
-            aria-label={`${talentUnread} ${copy.t("unread")}`}
-            className="inline-flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-admin-brand px-[4px] text-[9.5px] font-bold leading-none text-white"
-          >
-            {talentUnread > 99 ? "99+" : talentUnread}
-          </span>
-        )}
-      </button>
-      <span
-        aria-current="true"
-        className={`${half} cursor-default bg-admin-card text-admin-ink shadow-admin-rest`}
-      >
-        {copy.t("Admin")}
-      </span>
-    </div>
-  );
-}
-
 function WorkspaceSidebarShell() {
   const { state, setPage, openDrawer, effectiveTenant, flipMode, bridgeTalentSelfProfile, bridgeTalentUnread } = useAdminShell();
   const copy = useDashboardText();
@@ -435,8 +385,9 @@ function WorkspaceSidebarShell() {
               after a fresh talent signup. Hidden for everyone else. */}
           {(state.alsoTalent || bridgeTalentSelfProfile !== null) && (
             <RailModeSwitch
+              active="admin"
               talentUnread={bridgeTalentUnread ?? 0}
-              onSwitchToTalent={() => {
+              onSwitch={() => {
                 if (state.alsoTalent) { flipMode(); return; }
                 // Canonical, agency-agnostic talent surface. Deliberately
                 // NOT /{slug}/talent (that legacy redirector bounces a

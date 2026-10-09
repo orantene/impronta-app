@@ -72,6 +72,13 @@ type ParticipantRow = {
  * platform's, never hers. Scale by gross / gross_charged so a full payment reads as her price
  * and a deposit reads as her share of it. Rows with no surcharge are returned unchanged.
  */
+/** The client's service fee on top of her price: gross charged minus gross, 0 when there is none. */
+export function clientFeeCents(snapshot: { gross_cents: number; gross_charged_cents?: number | null }): number {
+  const charged = Number(snapshot.gross_charged_cents ?? 0);
+  const gross = Number(snapshot.gross_cents);
+  return charged > gross && gross > 0 ? charged - gross : 0;
+}
+
 export function sellerCollectedCents(
   paidCents: number | null,
   snapshot: { gross_cents: number; gross_charged_cents?: number | null },
@@ -383,6 +390,7 @@ export async function fetchTalentSnapshotAggregateRows(
       paymentMethod: snapshot.payment_method ?? booking.payment_method,
       paymentStatus: booking.payment_status ?? null,
       currencyCode: snapshot.currency_code,
+      clientFeeCents: clientFeeCents(snapshot),
       collectedCents: sellerCollectedCents(ledger?.paidCents ?? null, snapshot),
       collectedByMethod: scaleByMethod(ledger?.byMethod ?? null, ledger?.paidCents ?? null, sellerCollectedCents(ledger?.paidCents ?? null, snapshot)),
     });
