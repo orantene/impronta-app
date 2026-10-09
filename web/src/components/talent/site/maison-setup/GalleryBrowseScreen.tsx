@@ -119,6 +119,7 @@ export function GalleryBrowseScreen({
   const searching = view.terms.length > 0;
   const multi = view.terms.length >= 2;
   const { output } = view;
+  const finishedCount = visibleGalleryDesigns().length;
 
   const update = (patch: Partial<GalleryBrowseState>) => setState((s) => ({ ...s, ...patch }));
   const applyQuery = (q: string) => {
@@ -207,8 +208,16 @@ export function GalleryBrowseScreen({
         <h2 className="text-[24px] font-semibold leading-tight tracking-[-0.02em] text-admin-ink md:text-[30px]">
           {t("Find your website style")}
         </h2>
-        <p className="mt-1 text-[14.5px] text-admin-ink-muted md:text-[16px]">
-          {t("Explore designs, then see them with your photos and services.")}
+        <p
+          className="mt-1 text-[14.5px] text-admin-ink-muted md:text-[16px]"
+          data-testid="gallery-finished-count"
+          data-finished-count={finishedCount}
+        >
+          {finishedCount === 1
+            ? t("1 design ready today. Preview it with your photos and services.")
+            : t("{n} designs ready today. Preview any with your photos and services.", {
+                n: finishedCount,
+              })}
         </p>
       </div>
 
@@ -392,7 +401,7 @@ export function GalleryBrowseScreen({
           </h3>
           <p className="max-w-[46ch] text-[14.5px] text-admin-ink-muted">
             {t("Every theme works for any profession. Try a nearby word, or reset the filters to see all {n} themes.", {
-              n: visibleGalleryDesigns().length,
+              n: finishedCount,
             })}
           </p>
           <div className="flex flex-wrap justify-center gap-2">
