@@ -36,6 +36,7 @@
 // Exit code: 0 = all checks pass, 1 = at least one failure.
 
 import { judgeGetStartedRedirect, cronSecretPlan } from "./lib/smoke-decisions.mjs";
+import { checkPublicTalentHosts } from "./lib/public-talent-hosts.mjs";
 
 const args = process.argv.slice(2);
 const hostFlag = args.indexOf("--host");
@@ -779,6 +780,7 @@ console.log(`Smoke-testing ${HOST} (and ${PUBLIC_HOST})…`);
 for (const check of [
   check_root_reachable,
   check_services_band_renders,
+  () => checkPublicTalentHosts({ get, pass, fail, warn, env: process.env, fetchJson: async (u, t) => (await fetch(u, { headers: { Authorization: `Bearer ${t}` } })).json() }),
   check_csp,
   check_image_optimizer,
   check_places_route,
