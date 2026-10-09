@@ -255,3 +255,37 @@ test("the derived list follows the predicate, not a typed string", () => {
   assert.equal(customDomainEligible("studio"), false);
   assert.doesNotMatch(named, /Studio\.|on Studio and/);
 });
+
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
+
+test("path links default to production, byte-identical", () => {
+  assert.equal(workspacePathHost("acme"), "tulala.digital/w/acme");
+  assert.equal(workspacePathUrl("acme"), "https://tulala.digital/w/acme");
+  const a = resolveWorkspacePublicAddress({ slug: "acme", plan: "free", domainState: { primaryHost: null, primaryHostKind: null, subdomainHost: null } });
+  assert.equal(a.pathHost, "tulala.digital/w/acme");
+  assert.equal(a.pathUrl, "https://tulala.digital/w/acme");
+  assert.equal(a.primaryUrl, "https://tulala.digital/w/acme");
+});
+
+test("a QA or staging stack's origin moves the path link there; production env ignores the override", () => {
+  const qa = resolveMarketingOrigin({ TULALA_MARKETING_ORIGIN: "https://qa-1.tulala.digital" });
+  assert.equal(qa, "https://qa-1.tulala.digital");
+  assert.equal(workspacePathUrl("acme", qa), "https://qa-1.tulala.digital/w/acme");
+  assert.equal(workspacePathHost("acme", qa), "qa-1.tulala.digital/w/acme");
+  const a = resolveWorkspacePublicAddress({ slug: "acme", plan: "free", pathOrigin: qa, domainState: { primaryHost: null, primaryHostKind: null, subdomainHost: null } });
+  assert.equal(a.primaryUrl, "https://qa-1.tulala.digital/w/acme");
+  // A production deployment can never be moved by a stray variable.
+  const prod = resolveMarketingOrigin({ VERCEL_ENV: "production", TULALA_MARKETING_ORIGIN: "https://qa-1.tulala.digital" });
+  assert.equal(workspacePathUrl("acme", prod), "https://tulala.digital/w/acme");
+  // Branded subdomain and custom domain addresses are unaffected by the path origin.
+  const sub = resolveWorkspacePublicAddress({ slug: "acme", plan: "studio", pathOrigin: qa, domainState: { primaryHost: "acme.tulala.digital", primaryHostKind: "subdomain", subdomainHost: "acme.tulala.digital" } });
+  assert.equal(sub.primaryUrl, "https://acme.tulala.digital");
+});
+
+test("server callers pass the resolved origin; client-reachable helpers keep the default", () => {
+  const read = (f: string) => readFileSync(path.join(process.cwd(), f), "utf8");
+  assert.match(read("src/lib/site-admin/server/tenant-hosts.ts"), /pathOrigin: resolveMarketingOrigin\(\)/);
+  assert.match(read("src/lib/saas/workspace-signup.server.ts"), /workspacePathUrl\(params\.agency\.slug, resolveMarketingOrigin\(\)\)/);
+  assert.match(read("src/lib/marketing/directory-workspaces.ts"), /workspacePathUrl\(slug, resolveMarketingOrigin\(\)\)/);
+  assert.doesNotMatch(read("src/components/marketing/get-started-form-subdomain-hint.tsx"), /resolveMarketingOrigin/);
+});

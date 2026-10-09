@@ -63,3 +63,13 @@ test("promote cancels superseded queued runs in its own group", () => {
   assert.equal(m[1], "promote-production");
   assert.equal(m[2], "true");
 });
+
+test("ordinary PRs get a tsc-only typecheck job; integ batches and main skip it", () => {
+  const job = ci.split("\n  typecheck:\n")[1] ?? "";
+  assert.ok(job, "ci.yml has a top-level typecheck job");
+  assert.match(job, /github\.event_name == 'pull_request'/);
+  assert.match(job, /!startsWith\(github\.head_ref, 'integ\/'\)/);
+  assert.match(job, /npx tsc --noEmit/);
+  // tsc only: no lint, no test lanes, no full-ci policy step.
+  assert.doesNotMatch(job, /npm run lint|npm run test:|id: policy/);
+});

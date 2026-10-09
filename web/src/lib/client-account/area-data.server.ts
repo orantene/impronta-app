@@ -12,12 +12,16 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 import { groupVisits, shapeReceiptLines, type ReceiptLine } from "./area-pure";
+import { loadVisitZones } from "./visit-zones.server";
 
 /** Every query here is `client_user_id = session user` AND `tenant_id = this site's tenant`. */
 
 export async function loadVisitGroups(userId: string, tenantId: string) {
   const me = await loadMeData(userId, tenantId);
-  return groupVisits([...me.upcoming, ...me.waitingOnYou, ...me.past], Date.now());
+  const rows = [...me.upcoming, ...me.waitingOnYou, ...me.past];
+  // Each row shows in its booking talent's zone (visit-zone.ts); gaps fall back to the host zone.
+  const zones = await loadVisitZones(tenantId, rows.map((r) => r.id));
+  return { ...groupVisits(rows, Date.now()), zones };
 }
 
 export type VisitDetail = {

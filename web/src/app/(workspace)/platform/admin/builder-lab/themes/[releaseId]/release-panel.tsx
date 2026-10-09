@@ -1,5 +1,6 @@
 "use client";
 
+import { localizeBuilderLabError } from "@/lib/talent-site/theme-releases/builder-lab-errors";
 import { useState, useTransition } from "react";
 
 import type { DryRunReport } from "@/lib/talent-site/theme-releases/manager/dry-run";
@@ -79,11 +80,11 @@ export function ReleasePanel({ lang, release, report: initialReport }: Props) {
     setDirty((d) => new Set(d).add(id));
   }
 
-  function run<T>(job: () => Promise<{ ok: true; data: T } | { ok: false; error: string }>, done: (d: T) => string | null) {
+  function run<T>(job: () => Promise<{ ok: true; data: T } | { ok: false; error: string; errorEs?: string }>, done: (d: T) => string | null) {
     setMsg(null);
     start(async () => {
       const res = await job();
-      setMsg(res.ok ? done(res.data) : res.error);
+      setMsg(res.ok ? done(res.data) : localizeBuilderLabError(res.error, lang, res.errorEs));
     });
   }
 
