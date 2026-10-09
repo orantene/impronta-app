@@ -52,7 +52,18 @@ export function classifySaveError(raw: string | null | undefined): SaveErrorClas
     return { kind: "auth", messageKey: K + "auth", retryable: true };
   }
   // Optimistic-concurrency: a stale editor vs a newer server offer.
-  if (s.includes("version_conflict") || s.includes("conflict")) {
+  // Pipeline maps version_conflict → friendly copy (TUL-472):
+  //   "Offer was updated elsewhere — refresh and retry."
+  //   "Inquiry changed since you opened it — refresh and retry."
+  //   "Offer changed since you opened it — refresh and retry."
+  // Match those too, not only the raw engine token, or the chip stays on
+  // generic "Error al guardar".
+  if (
+    s.includes("version_conflict") ||
+    s.includes("updated elsewhere") ||
+    s.includes("changed since you opened") ||
+    (s.includes("conflict") && !s.includes("conflicting"))
+  ) {
     return { kind: "conflict", messageKey: K + "conflict", retryable: false };
   }
   if (s.includes("rate_limited") || s.includes("too many") || s.includes("rate limit")) {
