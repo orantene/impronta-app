@@ -21,6 +21,7 @@ import { TalentMoreScreen } from "@/components/talent/studio/MoreScreen";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { MOBILE_NAV_CSS } from "./mobile-nav-css";
 import { MOBILE_BUTTON_SECONDARY, MobileSheet } from "./MobileSheet";
+import { PhoneRailModeSwitch } from "./PhoneRailModeSwitch";
 import { WORKSPACE_SWITCH_OPEN_EVENT, WorkspaceSwitchSheet } from "./WorkspaceSwitchSheet";
 import type { TalentPage, WorkspacePage } from "../state";
 import {
@@ -275,6 +276,9 @@ export function MobileBottomNav() {
             <Icon name="chevron-down" size={14} stroke={1.75} color="currentColor" />
           </button>
 
+          {/* Dual-owner Talent | Admin — rail is hidden on phone (TUL-378). */}
+          <PhoneRailModeSwitch active="admin" onAfterSwitch={() => setMoreOpen(false)} className="mb-3" />
+
           {chipGroups.map((g) => (
             <div key={g.group}>
               {g.label && <div className="tulala-mnav-group-label">{copy.t(g.label)}</div>}
@@ -509,6 +513,9 @@ export function MobileBottomNav() {
                   margin: "8px auto 12px",
                 }}
               />
+              <div style={{ padding: "0 14px 8px" }}>
+                <PhoneRailModeSwitch active="talent" onAfterSwitch={() => setMoreOpen(false)} className="" />
+              </div>
               {overflow.map((t) => (
                 <button
                   key={t.id}

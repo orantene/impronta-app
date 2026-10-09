@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signOut } from "@/app/auth/actions";
 import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { PhoneRailModeSwitch } from "@/components/admin/shell/internal/page-modules/PhoneRailModeSwitch";
 import { useAdminShell, type TalentPage } from "@/components/admin/shell/internal/state";
 import { openGuideArticle } from "@/lib/guide/open-guide";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
@@ -95,6 +96,7 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
           {name}
           {city ? ` · ${city}` : ""}
         </p>
+        <PhoneRailModeSwitch active="talent" onAfterSwitch={onClose} className="mt-3" />
         <div className="mt-3">
           <WebsiteRewardControl placement="mobile" />
         </div>

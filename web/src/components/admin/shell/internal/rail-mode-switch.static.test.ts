@@ -13,9 +13,11 @@ test("the talent rail renders the shared Talent | Admin switch for dual owners o
   const talent = read("talent.tsx");
   assert.match(talent, /import \{ RailModeSwitch \} from "\.\/page-modules\/RailModeSwitch"/);
   assert.match(talent, /\(state\.alsoTalent \|\| !!bridgeOwnedWorkspaceSlug\) && \(\s*<RailModeSwitch\s+active="talent"/);
-  assert.match(talent, /flipMode\(\)/);
-  // A dual owner on the hub (membership in ANOTHER tenant, isHybrid=false) still gets the switch.
-  assert.match(talent, /window\.location\.assign\(`\/\$\{bridgeOwnedWorkspaceSlug\}\/admin`\)/);
+  assert.match(talent, /leaveRailHat\(/);
+  // Hub dual-owner assign lives in the shared leave helper (not inlined).
+  const action = read("page-modules/rail-mode-switch-action.ts");
+  assert.match(action, /\/\$\{input\.ownedWorkspaceSlug\}\/admin/);
+  assert.match(action, /window\.location\.assign/);
   // The switch sits ABOVE the section nav (top of the rail), as on the admin rail.
   assert.ok(talent.indexOf("<RailModeSwitch") < talent.indexOf('aria-label={copy.t("Talent sections")}'));
 });
@@ -24,6 +26,7 @@ test("the admin rail uses the same component, no private copy of the markup", ()
   const ws = read("page-modules/WorkspaceShell.tsx");
   assert.match(ws, /import \{ RailModeSwitch \} from "\.\/RailModeSwitch"/);
   assert.match(ws, /<RailModeSwitch\s+active="admin"/);
+  assert.match(ws, /leaveRailHat\(/);
   assert.doesNotMatch(ws, /function RailModeSwitch/);
 });
 
@@ -44,4 +47,28 @@ test("the talent layout feeds ownedWorkspaceSlug to the bridge from the owned bu
   assert.match(layout, /ownedWorkspaceSlug,\n/);
   const bridge = readFileSync(join(here, "data-bridge.ts"), "utf8");
   assert.match(bridge, /ownedWorkspaceSlug\?: string \| null;/);
+});
+
+// TUL-378 Live QA: phone had an inert top-bar pill and no switch in Más.
+test("phone Más sheets mount PhoneRailModeSwitch for dual owners", () => {
+  const more = readFileSync(
+    join(here, "../../../talent/studio/MoreScreen.tsx"),
+    "utf8",
+  );
+  assert.match(more, /PhoneRailModeSwitch/);
+  assert.match(more, /active="talent"/);
+
+  const mobile = read("page-modules/MobileBottomNav.tsx");
+  assert.match(mobile, /PhoneRailModeSwitch/);
+  assert.match(mobile, /active="admin"/);
+  assert.match(mobile, /active="talent"/);
+});
+
+test("talent top-bar pill uses leaveRailHat and the dual-owner gate (not alsoTalent alone)", () => {
+  const bar = read("page-modules/IdentityBar-1.tsx");
+  assert.match(bar, /canShowRailModeSwitch/);
+  assert.match(bar, /leaveRailHat/);
+  assert.match(bar, /ownedWorkspaceSlug: bridgeOwnedWorkspaceSlug/);
+  assert.match(bar, /onSwitch=\{/);
+  assert.doesNotMatch(bar, /flipMode=\{flipMode\}/);
 });
