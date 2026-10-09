@@ -216,6 +216,8 @@ export interface UpdateSummary {
    * never on her page or not in her base produces no entry at all (silent).
    */
   removedKeys: string[];
+  /** TUL-420: parts with a both-changed conflict (decisions before Apply). */
+  conflictKeys: string[];
 }
 
 export function summarizeReport(report: Pick<DesignMergeReport, "applied" | "added" | "kept" | "conflicts">): UpdateSummary {
@@ -227,6 +229,7 @@ export function summarizeReport(report: Pick<DesignMergeReport, "applied" | "add
     kept: countParts(edited),
     removedKeys: partsOf(report.kept.filter((e) => e.reason === "removed")).slice(0, 6),
     conflicts: report.conflicts.length,
+    conflictKeys: partsOf(report.conflicts).slice(0, 6),
     moved: report.applied.filter((e) => e.reason === "moved_edits").length,
     keptLabels: keys.map((k) => (k === "colours" ? k : humanKey(k))),
     keptKeys: keys,

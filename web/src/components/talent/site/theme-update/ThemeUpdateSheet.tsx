@@ -1,9 +1,11 @@
 "use client";
 
 /**
- * THEME RELEASES (Phase 4): the What's new sheet. Bottom sheet on phones, side
- * panel from `sm` up. Focus trapped, Escape closes.
+ * THEME RELEASES (Phase 4) + TUL-420 L2: the What's new sheet. Bottom sheet on
+ * phones, side panel from `sm` up. Focus trapped, Escape closes.
  *
+ *   - Summary before Apply: What's new · What we keep · Decisions needed
+ *     (plain EN/ES, (i) tooltips, one primary Apply)
  *   - release notes + items grouped (important fixes, automatic improvements,
  *     new blocks, layout changes) with EN/ES notes and screenshots
  *   - Preview on my site: the merge runs in memory (no save); the link opens
@@ -23,6 +25,7 @@ import {
   applyLabel,
   bannerTitle,
   changesLine,
+  decisionsLine,
   keptLine,
   keptRemovedLine,
   type UpdateLocale,
@@ -137,15 +140,20 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
                 </p>
               ) : (
                 <>
-                  <p className="m-0 text-[14px] font-semibold text-admin-ink">{changesLine(preview.summary, locale)}</p>
-                  <p className="m-0 mt-1 text-[13px] text-admin-ink-muted" data-theme-update-kept>
-                    {keptLine(preview.summary, locale)}
-                  </p>
-                  {keptRemovedLine(preview.summary, locale) ? (
-                    <p className="m-0 mt-1 text-[13px] text-admin-ink-muted" data-theme-update-kept-removed>
-                      {keptRemovedLine(preview.summary, locale)}
+                  <SummaryBlock title={t("sectionWhatsNew")} tip={t("tipWhatsNew")} testId="whats-new">
+                    <p className="m-0 text-[14px] font-semibold text-admin-ink">{changesLine(preview.summary, locale)}</p>
+                  </SummaryBlock>
+                  <SummaryBlock title={t("sectionWeKeep")} tip={t("tipWeKeep")} testId="we-keep" className="mt-3">
+                    <p className="m-0 text-[13px] text-admin-ink-muted" data-theme-update-kept>
+                      {keptLine(preview.summary, locale)}
                     </p>
-                  ) : null}
+                    {keptRemovedLine(preview.summary, locale) ? (
+                      <p className="m-0 mt-1 text-[13px] text-admin-ink-muted" data-theme-update-kept-removed>
+                        {keptRemovedLine(preview.summary, locale)}
+                      </p>
+                    ) : null}
+                  </SummaryBlock>
+                  <DecisionsBlock preview={preview} locale={locale} t={t} />
                   {preview.previewUrl ? (
                     <a href={preview.previewUrl} target="_blank" rel="noreferrer" className={`${BTN_GHOST} mt-3`} data-theme-update-preview-link>
                       {t("previewOnSite")}
@@ -227,6 +235,61 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
         </footer>
       </div>
     </div>
+  );
+}
+
+function SummaryBlock(p: {
+  title: string;
+  tip: string;
+  testId: "whats-new" | "we-keep" | "decisions";
+  className?: string;
+  children: React.ReactNode;
+}): ReactElement {
+  return (
+    <div className={p.className} data-theme-update-summary={p.testId}>
+      <div className="mb-1 flex items-center gap-1.5">
+        <h3 className="m-0 text-[12.5px] font-semibold uppercase tracking-wide text-admin-ink-muted">{p.title}</h3>
+        <InfoTip label={p.tip} />
+      </div>
+      {p.children}
+    </div>
+  );
+}
+
+function InfoTip(p: { label: string }): ReactElement {
+  return (
+    <span
+      className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border border-admin-border-soft text-[10px] font-semibold text-admin-ink-muted"
+      title={p.label}
+      aria-label={p.label}
+      role="img"
+    >
+      i
+    </span>
+  );
+}
+
+function DecisionsBlock(p: {
+  preview: UpdatePreview;
+  locale: UpdateLocale;
+  t: (k: keyof typeof UPDATE_COPY) => string;
+}): ReactElement | null {
+  const decision = decisionsLine(p.preview.summary, p.locale);
+  const hasBlocks = p.preview.groups.some((g) => g.group === "blocks" && g.items.length > 0);
+  if (!decision && !hasBlocks) return null;
+  return (
+    <SummaryBlock title={p.t("sectionDecisions")} tip={p.t("tipDecisions")} testId="decisions" className="mt-3">
+      {decision ? (
+        <p className="m-0 text-[13px] text-admin-ink-muted" data-theme-update-decisions-line>
+          {decision}
+        </p>
+      ) : null}
+      {hasBlocks ? (
+        <p className="m-0 mt-1 text-[13px] text-admin-ink-muted" data-theme-update-decisions-blocks>
+          {p.t("decisionsNewBlocks")}
+        </p>
+      ) : null}
+    </SummaryBlock>
   );
 }
 

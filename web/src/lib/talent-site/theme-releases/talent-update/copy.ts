@@ -61,6 +61,26 @@ export const UPDATE_COPY = {
   failed: { en: "Something went wrong. Try again.", es: "Algo salió mal. Inténtalo de nuevo." },
   version: { en: "Version", es: "Versión" },
   screenshotAlt: { en: "Screenshot of this change", es: "Captura de este cambio" },
+  /** TUL-420: sheet summary sections before Apply. */
+  sectionWhatsNew: { en: "What's new", es: "Novedades" },
+  sectionWeKeep: { en: "What we keep", es: "Lo que conservamos" },
+  sectionDecisions: { en: "Decisions needed", es: "Decisiones pendientes" },
+  tipWhatsNew: {
+    en: "Design changes that apply to parts you have not edited. Critical fixes apply for everyone.",
+    es: "Cambios del diseño en partes que no editaste. Los arreglos importantes se aplican a todas.",
+  },
+  tipWeKeep: {
+    en: "Your wording, colours, photos, section order, and anything you hid stay as you left them.",
+    es: "Tus textos, colores, fotos, el orden de las secciones y lo que ocultaste se quedan como los dejaste.",
+  },
+  tipDecisions: {
+    en: "Places where you and the update both changed something, or a new block that needs a place. Review before you apply.",
+    es: "Lugares donde tú y la actualización cambiaron lo mismo, o un bloque nuevo que necesita un lugar. Revísalo antes de aplicar.",
+  },
+  decisionsNewBlocks: {
+    en: "New blocks are not added by Apply: use Add this block and choose where it goes.",
+    es: "Los bloques nuevos no se agregan con Aplicar: usa Agregar este bloque y elige el lugar.",
+  },
 } as const satisfies Record<string, Bilingual>;
 
 export const GROUP_COPY: Record<WhatsNewGroup, Bilingual & { hintEn: string; hintEs: string }> = {
@@ -153,6 +173,20 @@ export function changesLine(s: UpdateSummary, locale: UpdateLocale): string {
   return locale === "es"
     ? `${n} cambio${n === 1 ? "" : "s"} del diseño en tu borrador`
     : `${n} design change${n === 1 ? "" : "s"} to your draft`;
+}
+
+/**
+ * TUL-420: decisions before Apply: conflicts (both changed the same prop).
+ * Null when there is nothing she must review for conflicts.
+ * New blocks stay in their own group with Add this block (not this line).
+ */
+export function decisionsLine(s: UpdateSummary, locale: UpdateLocale): string | null {
+  if (s.conflicts <= 0) return null;
+  const names = [...new Set((s.conflictKeys ?? []).map((k) => keptPartLabel(k, locale)))];
+  const parts = names.length > 0 ? `: ${names.join(", ")}` : "";
+  return locale === "es"
+    ? `Conservamos tu versión donde ambos cambiaron algo${parts}. Revísalo en la vista previa.`
+    : `We keep your version where you and the update both changed something${parts}. Check the preview.`;
 }
 
 /** History summary for an Add this block entry. */
