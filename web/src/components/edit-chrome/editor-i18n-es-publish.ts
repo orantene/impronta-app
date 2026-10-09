@@ -61,8 +61,7 @@ export const ES_PUBLISH_TEXT: Record<string, string> = {
     "Completa tu identidad de marca para publicar: sube un logo o usa el nombre de tu negocio como logo.",
   "Upload my logo": "Subir mi logo",
   "Use my business name as my logo": "Usar el nombre de mi negocio como logo",
-  // Tablet editing HUD toggle (TUL-79 #12); "Hide" lives in editor-i18n-es-inspectors.ts.
-  "Show": "Mostrar",
+  // Tablet editing HUD toggle (TUL-79 #12); "Show" and "Hide" live in editor-i18n-es-inspectors.ts.
   "Tablet editing": "Edición de tableta",
   "Mobile-first editing": "Edición móvil primero",
   "Mobile editing": "Edición móvil",
@@ -71,5 +70,5 @@ export const ES_PUBLISH_TEXT: Record<string, string> = {
   "Exit to desktop editing": "Salir a la edición de escritorio",
   "Exit tablet editing, back to desktop": "Salir de la edición de tableta y volver a escritorio",
   "Exit mobile editing, back to desktop": "Salir de la edición móvil y volver a escritorio",
-  "Exit": "Salir",
+  // "Exit" lives in editor-i18n-es.ts.
 };
