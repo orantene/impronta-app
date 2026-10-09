@@ -43,7 +43,9 @@
     "node_modules",
     ".next/dev",
     "e2e",
+    "e2e-isolated",
     "playwright.config.ts",
+    "playwright.isolated.config.ts",
     "src/lib/billing",
     "scripts/_sandbox"
   ]

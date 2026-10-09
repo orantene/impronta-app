@@ -1,9 +1,10 @@
-import { buildSupportThreading } from "./support-inbound-match";
+import { buildSupportThreading, supportInboundSecret } from "./support-inbound-match";
 
 /**
  * Reply-To plus-token + Message-ID/References for requester-facing support
  * mail. Returns null (no behaviour change) unless BOTH SUPPORT_INBOUND_DOMAIN
- * (a Resend-receiving domain) and GUEST_COOKIE_SECRET are set.
+ * (a Resend-receiving domain) and a secret (SUPPORT_INBOUND_SECRET, else
+ * GUEST_COOKIE_SECRET) are set.
  */
 export function supportOutboundThreading(
   entryId: string,
@@ -14,7 +15,7 @@ export function supportOutboundThreading(
   if (!entryId.startsWith("support.") || payload?.platformFrom !== true) return null;
   const ticketId = payload.ticketId;
   const domain = env.SUPPORT_INBOUND_DOMAIN?.trim();
-  const secret = env.GUEST_COOKIE_SECRET?.trim();
+  const secret = supportInboundSecret(env);
   if (typeof ticketId !== "string" || !domain || !secret) return null;
   try {
     return buildSupportThreading({ ticketId, secret, domain, uniq });

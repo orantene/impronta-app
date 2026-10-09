@@ -10,7 +10,13 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { fetchLiveSlots } from "@/components/public-booking/catalog-booking-live-slots";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
-import { chipSlot, openAtNextSlot, pickChipOffering, type NextSlot } from "@/lib/talent-site/next-free-slot";
+import {
+  chipCandidates,
+  chipSlot,
+  findFirstFreeSlot,
+  openAtNextSlot,
+  type NextSlot,
+} from "@/lib/talent-site/next-free-slot";
 
 import { safeChipHref } from "./next-free-chip-href";
 import type { BuilderNextFreeChipNode } from "./types";
@@ -106,14 +112,9 @@ export function NextFreeChipIsland({
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      const chosen = pickChipOffering(offerings, offeringId);
-      const picked = chosen
-        ? {
-            offeringId: chosen.offering.id,
-            durationMinutes: chosen.offering.durationMinutes as number,
-          }
-        : null;
-      if (!picked) {
+      // TUL-346: probe up to 4 candidates in pickChipOffering order; a pinned offering stays alone.
+      const candidates = chipCandidates(offerings, offeringId);
+      if (candidates.length === 0) {
         if (!cancelled) {
           setWhen(null);
           setSlot(null);
@@ -122,14 +123,13 @@ export function NextFreeChipIsland({
         return;
       }
       try {
-        const { slots, timezone } = await fetchLiveSlots(
-          picked.offeringId,
-          picked.durationMinutes,
-        );
+        const found = await findFirstFreeSlot(candidates, fetchLiveSlots);
+        const slots = found?.slots ?? [];
+        const timezone = found?.timezone ?? "UTC";
         // days prop reserved for a future slots API days param; fetchLiveSlots uses 14 today.
         void days;
         // TUL-275: show and open the SAME slot (first future instant, same-day included).
-        const shown = chipSlot(picked.offeringId, slots, chosen?.openable === true);
+        const shown = chipSlot(found?.offeringId ?? "", slots, found?.openable === true);
         const first = shown.when;
         const formatted = first
           ? variant === "stacked"

@@ -151,3 +151,11 @@ test("outbound threading only when configured and platform support mail", () => 
   assert.equal(supportOutboundThreading("support.message.agent", payload, "e", {}), null);
   assert.equal(supportOutboundThreading("support.message.agent", { ticketId: "nope", platformFrom: true }, "e", env), null);
 });
+
+test("supportInboundSecret: dedicated secret wins, GUEST_COOKIE_SECRET is only the fallback", async () => {
+  const { supportInboundSecret } = await import("./support-inbound-match");
+  assert.equal(supportInboundSecret({ SUPPORT_INBOUND_SECRET: " a ", GUEST_COOKIE_SECRET: "b" }), "a");
+  assert.equal(supportInboundSecret({ GUEST_COOKIE_SECRET: "b" }), "b");
+  assert.equal(supportInboundSecret({ SUPPORT_INBOUND_SECRET: "  ", GUEST_COOKIE_SECRET: " " }), null);
+  assert.equal(supportInboundSecret({}), null);
+});
