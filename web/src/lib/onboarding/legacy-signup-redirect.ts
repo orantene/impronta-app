@@ -68,3 +68,40 @@ export function legacySignupRedirect(input: LegacySignupInput): string | null {
     choice: talent ? "myself" : null,
   });
 }
+
+/** The first browser language when it is one the flow serves; null when absent or another language. */
+function explicitBrowserLang(acceptLanguage: string | null | undefined): FlowLocale | null {
+  const first = (acceptLanguage ?? "").split(",")[0]?.trim().toLowerCase() ?? "";
+  if (first === "es" || first.startsWith("es-")) return "es";
+  if (first === "en" || first.startsWith("en-")) return "en";
+  return null;
+}
+
+/**
+ * TUL-492: the language to hand `/start` from a legacy door (`/register`,
+ * `/login`, `/onboarding/role`). Order: the URL's own language (`/es/...` prefix
+ * or a `?lang=` the proxy kept when it stripped the prefix), a deliberate
+ * `locale` cookie, an explicit browser language (an `en-US` browser is not
+ * overridden by an IP in Mexico), then Mexico, then English. Never a hardcoded
+ * default of Spanish.
+ */
+export function resolveLegacyFlowLang(input: {
+  urlLang?: string | null;
+  cookieLocale?: string | null;
+  cookieIsAuto?: boolean;
+  acceptLanguage?: string | null;
+  country?: string | null;
+}): FlowLocale {
+  if (input.urlLang === "es" || input.urlLang === "en") return input.urlLang;
+  if ((input.cookieLocale === "es" || input.cookieLocale === "en") && !input.cookieIsAuto) return input.cookieLocale;
+  const browser = explicitBrowserLang(input.acceptLanguage);
+  if (browser) return browser;
+  if ((input.country ?? "").toUpperCase() === "MX") return "es";
+  return input.cookieLocale === "es" ? "es" : "en";
+}
+
+/** `/es/register`-style path → its language, or null when the path has no locale prefix. */
+export function langFromLocalePrefixedPath(pathname: string | null | undefined): FlowLocale | null {
+  const m = /^\/(es|en)(?:\/|$)/.exec(pathname ?? "");
+  return m ? (m[1] as FlowLocale) : null;
+}
