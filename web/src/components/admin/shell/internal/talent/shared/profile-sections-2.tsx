@@ -257,10 +257,11 @@ export function TierPill({ tier, onClick }: { tier: TalentSubscriptionTier; onCl
         borderRadius: 999,
         cursor: "pointer",
       }}
-      title={`${meta.label} · ${meta.tagline} · ${copy.t("click to compare tiers")}`}
+      title={`${copy.t(meta.label)} · ${copy.t(meta.tagline)} · ${copy.t("click to compare tiers")}`}
     >
       <span style={{ fontSize: 9, opacity: 0.85 }}>●</span>
-      {copy.isSpanish ? `Plan ${meta.label}` : `${meta.label} plan`}
+      {/* TUL-146: ES must say "Plan Oficina Web", never "Plan Web Office". */}
+      {copy.isSpanish ? `Plan ${copy.t(meta.label)}` : `${meta.label} plan`}
       {tier !== "max" && (
         <span style={{ fontSize: 10, marginLeft: 2, opacity: 0.7 }}>↗</span>
       )}
@@ -293,10 +294,10 @@ function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier })
         borderRadius: 999,
         textTransform: "uppercase",
       }}
-      title={`${copy.t("Unlocked at")} ${meta.label}`}
+      title={`${copy.t("Unlocked at")} ${copy.t(meta.label)}`}
     >
       <span className="text-admin-9">🔒</span>
-      {meta.label}
+      {copy.t(meta.label)}
     </span>
   );
 }
