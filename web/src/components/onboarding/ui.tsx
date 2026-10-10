@@ -48,14 +48,22 @@ export function PrimaryButton({
   type?: "button" | "submit";
   testId?: string;
 }) {
+  // E1-3176: opacity fade on disabled dropped Continue to ~2.2:1 on bone. Solid mix keeps AA.
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
       data-testid={testId}
-      className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold transition-opacity disabled:opacity-40"
-      style={{ background: "var(--tl-forest)", color: "var(--tl-forest-on)" }}
+      className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold transition-colors"
+      style={
+        disabled
+          ? {
+              background: "color-mix(in srgb, var(--tl-forest) 35%, var(--tl-bone))",
+              color: "var(--tl-ink)",
+            }
+          : { background: "var(--tl-forest)", color: "var(--tl-forest-on)" }
+      }
     >
       {children}
     </button>
