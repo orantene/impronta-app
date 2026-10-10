@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import {
+  clientActingAsBannerCopy,
+  resolveClientActingAs,
   resolveTalentActingAs,
   shouldShowTalentActingChip,
   talentActingAsBannerCopy,
@@ -50,6 +52,11 @@ test("banner copy is en + es, names the person, and has no em dashes", () => {
   for (const copy of [en, es]) {
     for (const value of Object.values(copy)) assert.ok(!/[—–]/.test(value), value);
   }
+  const clientEn = clientActingAsBannerCopy("en", "Ana Client");
+  const clientEs = clientActingAsBannerCopy("es", "Ana Client");
+  assert.equal(clientEn.roleLabel, "Client");
+  assert.equal(clientEs.roleLabel, "Cliente");
+  assert.equal(resolveClientActingAs({ isImpersonating: true, effectiveProfile: profile("Ana") })?.name, "Ana");
 });
 
 test("wiring: layout renders the banner from the real identity; chip is gated", () => {
@@ -62,4 +69,22 @@ test("wiring: layout renders the banner from the real identity; chip is gated", 
   assert.doesNotMatch(bar, /\(inWorkspace \|\| inTalent\) && \(/);
   const dict = read("src/components/admin/shell/internal/dashboard-i18n.ts");
   assert.match(dict, /"Acting as another user": "Actuando como otro usuario"/);
+});
+
+test("wiring: client layout mounts ImpersonationBanner with Exit; platform hosts WorkspaceSwitcher", () => {
+  const clientLayout = read("src/app/(workspace)/[tenantSlug]/client/layout.tsx");
+  assert.match(clientLayout, /resolveDashboardIdentity\(\)/);
+  assert.match(clientLayout, /<ImpersonationBanner/);
+  assert.match(clientLayout, /clientActingAsBannerCopy/);
+  assert.doesNotMatch(clientLayout, /readOnlyViewingAs/);
+  const clientRoot = read("src/app/client/page.tsx");
+  assert.match(clientRoot, /effectiveReadContext\(/);
+  assert.match(clientRoot, /loadClientPrimaryTenantSlug\(subjectUserId\)/);
+  assert.doesNotMatch(clientRoot, /loadClientPrimaryTenantSlug\(session\.user\.id\)/);
+  const platform = read("src/app/(workspace)/platform/admin/layout.tsx");
+  assert.match(platform, /<WorkspaceSwitcher/);
+  assert.match(platform, /qaClientUserIdEnv\(\)/);
+  assert.match(platform, /startImpersonationAsQaClient|workspaceClientQa/);
+  const startAction = read("src/lib/server-actions/admin-impersonation.ts");
+  assert.match(startAction, /loadClientPrimaryTenantSlug\(target\)/);
 });

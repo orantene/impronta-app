@@ -35,6 +35,9 @@ test("GuestTrustChip renders its labels through the dashboard dictionary", () =>
   assert.match(src, /copy\.t\(reportState === "choosing" \? "Cancel" : "Report"\)/);
   assert.match(src, /translateRiskLine\(riskLine, copy\.isSpanish, copy\.t\)/);
   assert.doesNotMatch(src, />\s*\{identityMeta\.label\}\s*</);
+  // TUL-379: seed displayName "Guest" / empty → localized, not raw English.
+  assert.match(src, /copy\.t\("Guest"\)/);
+  assert.match(src, /identity === "guest"/);
 });
 
 test("the empty thread state translates its title and body", () => {

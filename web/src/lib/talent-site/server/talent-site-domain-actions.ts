@@ -4,8 +4,13 @@ import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { randomBytes } from "node:crypto";
 
 import {
-  ensureCustomDomainOnVercelProject,
+  getProjectDomainOnVercel,
+  provisionCustomDomainOnVercel,
   removeCustomDomainFromVercelProject,
+  VERCEL_DOMAIN_TAKEN_ELSEWHERE_MESSAGE,
+  vercelAttachFailureMessage,
+  verifyProjectDomainOnVercel,
+  type VercelDomainChallenge,
 } from "@/lib/saas/custom-domain-actions";
 import {
   buildCustomDomainRoutingRecords,
@@ -22,6 +27,7 @@ import { loadTalentSubscriptionState } from "@/lib/stripe/talent-billing";
 import {
   loadTalentSiteDomain,
   loadTalentSiteDomains,
+  persistTalentSiteDomainVercelState,
   syncTalentSiteDomainProvisioning,
   verifyTalentSiteDomainRecord,
   type TalentSiteDomainRecord,
@@ -62,6 +68,12 @@ export type TalentSiteDomainView = {
   routingRecords: DomainRoutingRecord[];
   /** The TXT record the talent must add to prove ownership. */
   txtRecord: { host: string; value: string } | null;
+  /**
+   * Vercel project-domain challenges (TXT/CNAME) from attach/verify/GET.
+   * Sourced live from the Vercel API (no DB column — keeps preview builds dark
+   * without a pending migration).
+   */
+  vercelChallenges: VercelDomainChallenge[];
   canBecomePrimary: boolean;
 };
 
@@ -75,7 +87,10 @@ function txtRecordHostFor(domain: string): string {
   return `${TXT_HOST_PREFIX}.${domain}`;
 }
 
-function toView(row: TalentSiteDomainRecord): TalentSiteDomainView {
+function toView(
+  row: TalentSiteDomainRecord,
+  vercelChallenges: VercelDomainChallenge[] = [],
+): TalentSiteDomainView {
   const isLive = row.status === "active";
   return {
     domain: row.domain,
@@ -90,14 +105,45 @@ function toView(row: TalentSiteDomainRecord): TalentSiteDomainView {
     txtRecord: row.verificationToken
       ? { host: txtRecordHostFor(row.domain), value: row.verificationToken }
       : null,
+    vercelChallenges,
     canBecomePrimary: !row.isPrimary && isLive,
   };
+}
+
+function needsVercelChallengeRefresh(status: TalentSiteDomainRecord["status"]): boolean {
+  return (
+    status === "pending" ||
+    status === "dns_verification_sent" ||
+    status === "error"
+  );
+}
+
+async function challengesForDomain(
+  domain: string,
+  known?: VercelDomainChallenge[],
+): Promise<VercelDomainChallenge[]> {
+  if (known && known.length > 0) return known;
+  try {
+    const live = await getProjectDomainOnVercel(domain);
+    return live.challenges;
+  } catch (error) {
+    logServerError("talentSiteDomain.challenges", error);
+    return [];
+  }
 }
 
 type GuardedTalentContext = {
   supabase: import("@supabase/supabase-js").SupabaseClient;
   talentProfileId: string;
 };
+
+async function loadDomainId(
+  ctx: GuardedTalentContext,
+  domain: string,
+): Promise<string | null> {
+  const row = await loadTalentSiteDomain(ctx.supabase, ctx.talentProfileId, domain);
+  return row?.id ?? null;
+}
 
 /**
  * Resolve the calling talent + assert Max. Returns a typed failure result on any
@@ -142,10 +188,21 @@ async function guardTalentDomainContext(): Promise<
 }
 
 /** Read the current domain set (used to hydrate the panel + after each write). */
-async function listDomains(ctx: GuardedTalentContext): Promise<TalentSiteDomainView[]> {
+async function listDomains(
+  ctx: GuardedTalentContext,
+  challengeOverrides: Record<string, VercelDomainChallenge[]> = {},
+): Promise<TalentSiteDomainView[]> {
   try {
     const rows = await loadTalentSiteDomains(ctx.supabase, ctx.talentProfileId);
-    return rows.map(toView);
+    return Promise.all(
+      rows.map(async (row) => {
+        const override = challengeOverrides[row.domain];
+        const challenges = needsVercelChallengeRefresh(row.status)
+          ? await challengesForDomain(row.domain, override)
+          : (override ?? []);
+        return toView(row, challenges);
+      }),
+    );
   } catch (error) {
     logServerError("talentSiteDomain.list", error);
     return [];
@@ -243,27 +300,44 @@ export async function connectTalentSiteDomainAction(
     }
   }
 
-  // Attach to the Vercel project (best-effort — the TXT token is already saved).
-  const vercelSync = await ensureCustomDomainOnVercelProject(domain);
+  // Attach + POST /verify + GET /config. Dark when Vercel env is missing.
+  const vercelSync = await provisionCustomDomainOnVercel(domain);
+  const domainId =
+    existing?.id ?? (await loadDomainId(ctx, domain));
+
   if (vercelSync.attempted && !vercelSync.attached) {
+    const failureReason = vercelAttachFailureMessage(vercelSync);
     logServerError("talentSiteDomain.connect.vercelAttach", {
       domain,
       code: vercelSync.errorCode,
       message: vercelSync.errorMessage,
     });
+    if (domainId && failureReason) {
+      try {
+        await persistTalentSiteDomainVercelState(ctx.supabase, domainId, {
+          status: "error",
+          failureReason,
+        });
+      } catch (error) {
+        logServerError("talentSiteDomain.connect.persistAttachFailure", error);
+      }
+    }
+    return {
+      ok: false,
+      error: failureReason ?? "Vercel could not attach this domain.",
+      domains: await listDomains(ctx, { [domain]: vercelSync.challenges }),
+    };
   }
 
   const vercelHint =
     !vercelSync.attempted && vercelSync.skippedReason
       ? " Vercel provisioning is not configured yet; finish DNS and re-check after env setup."
-      : vercelSync.attempted && !vercelSync.attached
-        ? " DNS token is ready, but Vercel provisioning needs attention."
-        : "";
+      : "";
 
   return {
     ok: true,
-    message: `DNS instructions are ready for ${domain}. Add the TXT record to verify it.${vercelHint}`,
-    domains: await listDomains(ctx),
+    message: `DNS instructions are ready for ${domain}. Add the records below to verify it.${vercelHint}`,
+    domains: await listDomains(ctx, { [domain]: vercelSync.challenges }),
   };
 }
 
@@ -312,21 +386,46 @@ export async function verifyTalentSiteDomainAction(
   }
 
   try {
+    // Refresh Vercel challenges / verified flag (POST /v9/.../verify) before
+    // the platform TXT check so the drawer shows Vercel's own DNS rows.
+    const vercelVerify = await verifyProjectDomainOnVercel(domain);
+    const challengeOverride = { [domain]: vercelVerify.challenges };
+    if (vercelVerify.attempted && vercelVerify.errorCode === "domain_taken_elsewhere") {
+      const failureReason = vercelAttachFailureMessage(vercelVerify);
+      try {
+        await persistTalentSiteDomainVercelState(ctx.supabase, record.id, {
+          status: "error",
+          failureReason,
+        });
+      } catch (error) {
+        logServerError("talentSiteDomain.verify.persistTaken", error);
+      }
+      return {
+        ok: false,
+        error: failureReason ?? VERCEL_DOMAIN_TAKEN_ELSEWHERE_MESSAGE,
+        domains: await listDomains(ctx, challengeOverride),
+      };
+    }
+
     const transition = await verifyTalentSiteDomainRecord(ctx.supabase, record);
     if (transition.status === "verified") {
-      return { ok: true, message: `${domain} is now verified.`, domains: await listDomains(ctx) };
+      return {
+        ok: true,
+        message: `${domain} is now verified.`,
+        domains: await listDomains(ctx, challengeOverride),
+      };
     }
     if (transition.status === "failed") {
       return {
         ok: false,
         error: `TXT record for ${domain} still has not been found within the verification window. Add it now and reconnect the domain for a fresh token.`,
-        domains: await listDomains(ctx),
+        domains: await listDomains(ctx, challengeOverride),
       };
     }
     return {
       ok: false,
       error: `TXT record not found for ${domain} yet. DNS changes may still be propagating.`,
-      domains: await listDomains(ctx),
+      domains: await listDomains(ctx, challengeOverride),
     };
   } catch (error) {
     logServerError("talentSiteDomain.verify.update", error);

@@ -69,6 +69,30 @@ test("header: business name and the handler's first name; team fallback", () => 
   assert.match(team, /The team is handling your request/);
 });
 
+test("W5-10 /c/t: unsigned guest sees Sign in to accept; open panel replaces Accept (never not_allowed)", () => {
+  const labeled = renderToStaticMarkup(
+    <ClientThreadView {...base} offerAcceptLabel="Sign in to accept" />,
+  );
+  assert.match(labeled, /data-client-action="accept_offer"[^>]*>Sign in to accept</);
+  assert.doesNotMatch(labeled, /You cannot do that from here/);
+  const panel = renderToStaticMarkup(
+    <ClientThreadView
+      {...base}
+      offerAcceptLabel="Sign in to accept"
+      offerSignInOfferId="of1"
+      offerSignInPanel={<div data-guest-offer-sign-in="">email code</div>}
+    />,
+  );
+  assert.match(panel, /data-client-offer-sign-in/);
+  assert.match(panel, /data-guest-offer-sign-in/);
+  assert.doesNotMatch(panel, /data-client-action="accept_offer"/);
+  assert.doesNotMatch(panel, /data-refusal/);
+  const es = renderToStaticMarkup(
+    <ClientThreadView {...base} copy={ES_CLIENT} locale="es" offerAcceptLabel="Inicia sesión para aceptar" />,
+  );
+  assert.match(es, /data-client-action="accept_offer"[^>]*>Inicia sesión para aceptar</);
+});
+
 test("stream: staff bubble, client bubble as me, day separator, one card per kind, internal note never rendered, later offer rows read as one line", () => {
   const html = renderToStaticMarkup(<ClientThreadView {...base} />);
   assert.match(html, /mx-day/);
