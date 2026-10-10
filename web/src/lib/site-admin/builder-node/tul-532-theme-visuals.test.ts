@@ -1,5 +1,6 @@
 /**
- * TUL-532 / GRK-048 · 073 · 044 · 076 · 046 · 083 — theme visual QA done-when.
+ * TUL-532 / GRK-048 · 073 · 044 · 076 · 083 — theme visual QA done-when.
+ * GRK-046 (logo ≥32px) is pinned in token-presets.grk046-header-logo.static.test.ts (TUL-549).
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -14,10 +15,6 @@ import { UTILITY_TYPE_SYSTEM_CSS } from "@/lib/talent-site/theme-catalog/collect
 import { buildGridlinePayload } from "@/lib/talent-site/theme-catalog/collection/gridline";
 
 const renderCss = readFileSync(path.join(__dirname, "render.tsx"), "utf8");
-const tokenPresets = readFileSync(
-  path.join(__dirname, "../../../app/token-presets.css"),
-  "utf8",
-);
 const proofSeed = readFileSync(
   path.join(__dirname, "../../talent-site/theme-catalog/section-kit-proof.ts"),
   "utf8",
@@ -63,13 +60,6 @@ test("GRK-076: face-forward object-position on portfolio + heroes", () => {
   assert.match(PORTFOLIO_WORK_ORDER_CSS, /object-position:center 18%/);
   assert.match(sectionKit, /objectPosition: "center 18%"/);
   assert.match(sectionKit, /backgroundPosition: "center 18%"/);
-});
-
-test("GRK-046: header brand mark is at least 32px", () => {
-  assert.match(
-    tokenPresets,
-    /\.site-header__brand-mark \{ width: clamp\(32px, 3\.5vw, 44px\); height: clamp\(32px, 3\.5vw, 44px\)/,
-  );
 });
 
 test("GRK-083: cards/grid/editorial stay 1 column through 899px with wrapping CTAs", () => {
