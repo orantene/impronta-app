@@ -21,7 +21,6 @@ src/app/api/cron/expire-free-reserves/logic.test.ts
 src/app/api/dev/preview-qa-signin/route.test.ts
 src/app/api/dev/reset-guest/route.test.ts
 src/app/api/webhooks/stripe-mx/route.test.ts
-src/app/sitemap.platform-talent.test.ts
 src/components/account/account-export-links.test.ts
 src/components/admin/shell/internal/drawers/profile-shell/profile-polaroids-policy.test.ts
 src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/new-talent-taxonomy.test.ts
