@@ -45,3 +45,11 @@ describe("white-text rule is gated on the over-hero marker", () => {
     assert.ok(!css.includes('[data-talent-max-site-header] .site-header[data-tone="transparent"] { color: #fff; }'));
   });
 });
+
+describe("policy / mainOverride pages never stamp over-hero (TUL-516 H1)", () => {
+  it("render-max-site gates data-over-hero on !mainOverride", () => {
+    const src = readFileSync(path.join(process.cwd(), "src/lib/talent-site/server/render-max-site.tsx"), "utf8");
+    assert.match(src, /!args\.mainOverride\s*&&\s*headerOverlayAllowed/);
+    assert.match(src, /policyMainNode\(policyModel,\s*\{\s*homeHref:/);
+  });
+});

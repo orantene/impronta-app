@@ -89,6 +89,32 @@ export function normalizeAnchorId(value: unknown): string | undefined {
 }
 
 /**
+ * Kit section `slotKey`s that also act as in-page anchor ids (`#services`,
+ * `#gallery`, …). Mirrored from `TALENT_KIT_SECTIONS` so stale trees that kept
+ * `slotKey` but lost `anchorId` still resolve header CTAs (TUL-530 / E1-3168).
+ * Kept local to avoid a builder-node → talent-site import cycle.
+ */
+const KIT_SECTION_SLOT_IDS: ReadonlySet<string> = new Set([
+  "hero",
+  "about",
+  "services",
+  "gallery",
+  "contents",
+  "visit",
+  "reviews",
+  "comp_card",
+  "contact",
+  "statement_footer",
+  "before_after",
+  "aftercare",
+  "location",
+  "proof",
+  "area",
+  "emergency",
+  "tasks",
+]);
+
+/**
  * The `id` attribute to spread onto a rendered node, or an empty object when
  * the node has no anchor.
  *
@@ -114,7 +140,16 @@ export function anchorIdAttrs(node: {
       ? (node.props as Record<string, unknown>)
       : undefined;
   const fromProps = normalizeAnchorId(props?.anchorId);
-  return fromProps ? { id: fromProps, ...parity } : { ...parity };
+  if (fromProps) return { id: fromProps, ...parity };
+
+  // Stale kit trees often keep `slotKey: "services"` (parity paints) but lose
+  // `anchorId`, so `#services` CTAs stay (prune sees slotKey) and do not scroll.
+  const slot = typeof props?.slotKey === "string" ? props.slotKey : typeof node.slotKey === "string" ? node.slotKey : "";
+  if (KIT_SECTION_SLOT_IDS.has(slot)) {
+    const fromSlot = normalizeAnchorId(slot);
+    if (fromSlot) return { id: fromSlot, ...parity };
+  }
+  return { ...parity };
 }
 
 /**

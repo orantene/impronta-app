@@ -241,6 +241,34 @@ test("hydrateShellNav still hydrates a plain `nav` builder node (legacy shells)"
   assert.equal(navNode.props.brandHref, "/t/site/morena");
 });
 
+test("hydrateShellNav sets utility_bar.homeHref to the site home (Gridline)", () => {
+  const shell: BuilderNode[] = [
+    {
+      id: "hdr",
+      kind: "container",
+      props: { layout: "stack" },
+      children: [
+        {
+          id: "ub",
+          kind: "utility_bar",
+          props: { name: "Alex", homeHref: "/" },
+        },
+      ],
+    } as BuilderNode,
+  ];
+  const before = JSON.stringify(shell);
+  const nav = buildMaxSiteNav([
+    page({ slug: "home", isHome: true, sortOrder: 0, title: "Home" }),
+    page({ slug: "politicas", sortOrder: 1, title: "Policies" }),
+  ]);
+  const hydrated = hydrateShellNav(shell, nav, "alex");
+  const bar = (hydrated[0] as { children: BuilderNode[] }).children.find(
+    (n) => n.kind === "utility_bar",
+  ) as { props: { homeHref?: string } };
+  assert.equal(bar.props.homeHref, "/t/site/alex");
+  assert.equal(JSON.stringify(shell), before, "hydrate must not mutate the input shell");
+});
+
 test("hydrateShellNav does not mutate the input shell's header config", () => {
   const shell = buildDefaultShellTree({ displayName: "Morena" });
   const before = JSON.stringify(shell);

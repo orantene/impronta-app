@@ -1,7 +1,8 @@
 /**
  * Utility bar (Gridline `.gl-top`): the dark sticky header of an on-call trade.
- * Logo tile, name plus mono subtitle, an emergencies status pill, an optional
- * action (desktop) and a tap-to-call button.
+ * Logo tile + name (always an `<a>` to site home via `homeHref`), mono subtitle,
+ * an emergencies status pill, an optional action (desktop) and a tap-to-call
+ * button.
  *
  * The status flag arrives as `liveStatus` (G3b `dataSources.liveStatus`, absent
  * = off). Off renders only the off pill; on renders the on pill marked
@@ -13,6 +14,7 @@
  */
 import type { CSSProperties, ReactNode } from "react";
 
+import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 
 import { anchorIdAttrs } from "./anchor-id";
@@ -20,6 +22,7 @@ import type { BuilderUtilityBarNode } from "./types";
 
 export const UTILITY_BAR_CSS = `
 .sb-ub{container:sbub/inline-size;position:sticky;top:0;z-index:7;display:flex;align-items:center;gap:10px;padding:10px 12px;box-sizing:border-box;width:100%;background:var(--token-color-ink);color:var(--token-color-background);border-bottom:1px solid color-mix(in srgb,var(--token-color-background) 10%,transparent)}
+.sb-ub-brand{display:flex;align-items:center;gap:10px;flex:1;min-width:0;color:inherit;text-decoration:none}
 .sb-ub-logo{flex:0 0 auto;width:36px;height:36px;border-radius:6px;background:var(--token-color-accent,var(--token-color-primary));color:var(--token-color-on-accent,var(--token-color-ink));display:grid;place-items:center;overflow:hidden;font-weight:800;font-size:15px}
 .sb-ub-logo img{width:100%;height:100%;object-fit:cover;display:block}
 .sb-ub-nm{flex:1;min-width:0;line-height:1.1}
@@ -59,6 +62,8 @@ export function renderUtilityBarBlock(args: {
   liveStatus?: LiveStatusRenderContext;
   /** Call link from the page (G4 `callHref`); wins over the node's own. */
   callHref?: string;
+  /** Public path prefix (host-root sites pass ""). */
+  publicPathPrefix?: string;
   styleAttr?: CSSProperties;
 }): ReactNode {
   const { node, styleAttr } = args;
@@ -66,6 +71,7 @@ export function renderUtilityBarBlock(args: {
   const on = args.liveStatus?.emergenciesToday === true;
   const name = (p.name ?? "").trim();
   const subtitle = (p.subtitle ?? "").trim();
+  const homeHref = prefixPublicHref((p.homeHref ?? "").trim() || "/", args.publicPathPrefix ?? "");
   const call = p.showCall === false ? "" : safeCallHref(args.callHref || p.callHref);
   const ctaLabel = (p.ctaLabel ?? "").trim();
   const ctaHref = (p.ctaHref ?? "").trim();
@@ -81,13 +87,15 @@ export function renderUtilityBarBlock(args: {
       {...anchorIdAttrs(node)}
     >
       <style>{UTILITY_BAR_CSS}</style>
-      <span className="sb-ub-logo" aria-hidden="true">
-        {p.logoUrl ? <img src={p.logoUrl} alt="" /> : (name.charAt(0) || "·").toUpperCase()}
-      </span>
-      <div className="sb-ub-nm">
-        <b>{name}</b>
-        {subtitle ? <small>{subtitle}</small> : null}
-      </div>
+      <a className="sb-ub-brand" href={homeHref} data-ub-brand-home="true">
+        <span className="sb-ub-logo" aria-hidden="true">
+          {p.logoUrl ? <img src={p.logoUrl} alt="" /> : (name.charAt(0) || "·").toUpperCase()}
+        </span>
+        <div className="sb-ub-nm">
+          <b>{name}</b>
+          {subtitle ? <small>{subtitle}</small> : null}
+        </div>
+      </a>
       {p.showStatus === false ? null : (
         <>
           {on ? (
