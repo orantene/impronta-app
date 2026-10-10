@@ -14,6 +14,7 @@ import { useWebsiteFlow } from "@/components/talent/website-reward/useWebsiteFlo
 import { websiteFlowPending, websitePillProgress } from "@/lib/talent/website-flow";
 import { isWebsitePublished } from "@/lib/talent/website-published-truth";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
+import { resolveTalentDashboardLivePill } from "@/lib/talent-site/dashboard-my-website";
 import { loadMyBio, saveMyBio } from "@/lib/server-actions/ai-writing-helper";
 
 // Missing-item keys come from buildTalentChecklist (src/lib/talent-dashboard.ts).
@@ -91,9 +92,12 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
     openSliceTarget(key);
   };
 
-  const siteUrl = siteLoad?.ok ? siteLoad.state.publicSiteUrl : null;
+  const livePill = siteLoad?.ok
+    ? resolveTalentDashboardLivePill(siteLoad.state, reward === "published")
+    : null;
+  const siteUrl = livePill?.siteUrl ?? null;
   const siteHost = siteUrl ? siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") : null;
-  const isLive = reward === "published";
+  const isLive = livePill ? livePill.isLive : reward === "published";
   const onWebOffice = state.talentTier === "max";
   const onPress = () => {
     if (isLive && onWebOffice) {

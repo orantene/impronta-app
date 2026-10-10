@@ -5,6 +5,7 @@ import test from "node:test";
 
 import {
   PERSONAL_SITE_BUILDER_HREF,
+  resolveTalentDashboardLivePill,
   resolveTalentDashboardMyWebsite,
 } from "./dashboard-my-website";
 import { resolveMyWebsiteTarget } from "./my-website-target";
@@ -31,6 +32,7 @@ test("dual owner: My website primary is the business workspace", () => {
       publicUrl: "https://maison.tulala.digital",
       adminHref: "/maison/admin/website",
       tenantId: "t1",
+      isPublished: true,
     },
     site: personalSite,
     profileCode: "TAL-93900",
@@ -49,6 +51,7 @@ test("business-only: workspace still wins without a personal row", () => {
       publicUrl: "https://tulala.digital/w/maison",
       adminHref: "/maison/admin/website",
       tenantId: "t1",
+      isPublished: true,
     },
     site: null,
     profileCode: "TAL-93900",
@@ -124,4 +127,72 @@ test("page-builder wires sp.site === personal to explicitPersonal", () => {
   assert.match(src, /explicitPersonal/);
   assert.match(src, /resolveEditSiteRedirect\(\{[\s\S]*explicitPersonal/);
   assert.match(src, /editSiteNeedsPersonalProbe\(\{[\s\S]*explicitPersonal/);
+});
+
+// TUL-371: the Hoy live pill follows the workspace site and never opens the
+// personal `<slug>-2` vanity host, while publicSiteUrl keeps TUL-180's override.
+const workspace = {
+  slug: "maison",
+  publicUrl: "https://maison.tulala.digital",
+  adminHref: "/maison/admin/website",
+  tenantId: "t1",
+  isPublished: true,
+};
+
+test("live pill: published workspace is live and opens the workspace URL", () => {
+  const pill = resolveTalentDashboardLivePill(
+    { publicSiteUrl: "https://maison.tulala.digital", workspaceSite: workspace },
+    true,
+  );
+  assert.deepEqual(pill, { isLive: true, siteUrl: "https://maison.tulala.digital" });
+});
+
+test("live pill: workspace live even when the personal site is unpublished", () => {
+  const pill = resolveTalentDashboardLivePill(
+    { publicSiteUrl: "https://maison.tulala.digital", workspaceSite: workspace },
+    false,
+  );
+  assert.equal(pill.isLive, true);
+});
+
+test("live pill: draft-only workspace is not live and never falls back to -2", () => {
+  const pill = resolveTalentDashboardLivePill(
+    {
+      publicSiteUrl: "https://jorg-2.tulala.digital",
+      workspaceSite: { ...workspace, isPublished: false },
+    },
+    true,
+  );
+  assert.deepEqual(pill, { isLive: false, siteUrl: null });
+});
+
+test("live pill: pure talent keeps the personal reward and URL", () => {
+  const pill = resolveTalentDashboardLivePill(
+    { publicSiteUrl: "https://jorg.tulala.digital", workspaceSite: null },
+    true,
+  );
+  assert.deepEqual(pill, { isLive: true, siteUrl: "https://jorg.tulala.digital" });
+});
+
+test("WebsiteRewardControl reads the live pill helper, not publicSiteUrl directly", () => {
+  const src = readFileSync(
+    join(process.cwd(), "src/components/talent/website-reward/WebsiteRewardControl.tsx"),
+    "utf8",
+  );
+  assert.match(src, /resolveTalentDashboardLivePill\(siteLoad\.state, reward === "published"\)/);
+  assert.doesNotMatch(src, /siteLoad\.state\.publicSiteUrl/);
+});
+
+test("workspace context marks published from cms_pages status; TUL-180 override stays", () => {
+  const ctx = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/workspace-site-context.ts"),
+    "utf8",
+  );
+  assert.match(ctx, /hasPublishedWorkspaceSite: rows\.some\(\(p\) => p\.status === "published"\)/);
+  const dash = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/dashboard-state.ts"),
+    "utf8",
+  );
+  assert.match(dash, /isPublished: ownedWorkspace\.hasPublishedWorkspaceSite/);
+  assert.match(dash, /if \(workspaceSite\?\.publicUrl\) \{\s*publicSiteUrl = workspaceSite\.publicUrl;/);
 });
