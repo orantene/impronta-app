@@ -39,7 +39,7 @@ Do **not** seed these (or talent `{siteSlug}-demo` hosts) into `agency_domains` 
 
 ## QA nickname hosts (short labels)
 
-QA sometimes hits a first-name or checklist label that is not the `site_slug`. Those aliases live in the same lookup (migration `20261231357000_demo_nickname_host_aliases.sql`) and then 308 to the canonical `{siteSlug}-demo` host:
+QA sometimes hits a first-name or checklist label that is not the `site_slug`. Those aliases live in the same lookup (migration `20261231359400_demo_nickname_host_aliases.sql`) and then 308 to the canonical `{siteSlug}-demo` host:
 
 | Host | Resolves to |
 |---|---|

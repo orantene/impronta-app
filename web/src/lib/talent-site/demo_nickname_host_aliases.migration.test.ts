@@ -1,5 +1,5 @@
 /**
- * Static assertions over `20261231357000_demo_nickname_host_aliases.sql`.
+ * Static assertions over `20261231359400_demo_nickname_host_aliases.sql`.
  *
  * QA nickname hosts (`alba-demo`, `linh-demo`, `sofia-nails-demo`) must resolve
  * via `talent_site_subdomain_lookup` to each featured demo — not via
@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 
 const MIGRATION_PATH = join(
   fileURLToPath(new URL(".", import.meta.url)),
-  "../../../../supabase/migrations/20261231357000_demo_nickname_host_aliases.sql",
+  "../../../../supabase/migrations/20261231359400_demo_nickname_host_aliases.sql",
 );
 const MIGRATION = readFileSync(MIGRATION_PATH, "utf8");
 
