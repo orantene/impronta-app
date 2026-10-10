@@ -28,7 +28,8 @@ import { publicContactMode } from "@/lib/talent/accepting-readiness";
 import { loadSellingDefaultsByTalent } from "@/lib/talent/offering-policy-server";
 import { loadPlanAllowsInstant } from "@/lib/talent/plan-instant.server";
 import { stripPublicOfferingFlightFields } from "@/lib/talent/offerings-public-strip";
-import { isTestServiceOffering } from "@/lib/talent/qa-test-service";
+import { hideTestServiceOnPublicSite } from "@/lib/talent/qa-test-service";
+import { loadTestServiceScope } from "@/lib/talent/qa-test-service.server";
 
 export async function loadPublicOfferingsForProfile(
   talentProfileId: string,
@@ -67,10 +68,10 @@ export async function loadPublicOfferingsForProfile(
       logServerError("public.offerings.load", error);
       return [];
     }
-    // Drop QA/E2E/Test harness leftovers before media/child loads (TUL-537).
-    const rows = ((data ?? []) as TalentOfferingRow[]).filter(
-      (r) => !isTestServiceOffering(r),
-    );
+    // Drop QA/E2E harness leftovers on demo/fixture talents before media/child loads (TUL-537).
+    const loaded = (data ?? []) as TalentOfferingRow[];
+    const testScope = await loadTestServiceScope(db, loaded);
+    const rows = loaded.filter((r) => !hideTestServiceOnPublicSite(r, testScope));
     if (rows.length === 0) return [];
 
     const { data: mediaRows } = await db

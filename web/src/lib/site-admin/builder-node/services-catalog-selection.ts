@@ -4,7 +4,6 @@
  */
 
 import type { TalentOffering } from "@/lib/talent/offerings-types";
-import { isTestServiceOffering } from "@/lib/talent/qa-test-service";
 
 export type ServicesCatalogSelectionMode = "all" | "categories" | "ids";
 
@@ -22,9 +21,7 @@ export function isPublicEligibleOffering(o: TalentOffering): boolean {
   return (
     o.status === "published" &&
     o.visibility !== "agency_only" &&
-    o.moderationState === "approved" &&
-    // TUL-537: harness leftovers (QA / E2E / Test titles) stay out of public catalogs.
-    !isTestServiceOffering(o)
+    o.moderationState === "approved"
   );
 }
 

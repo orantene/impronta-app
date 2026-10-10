@@ -12,6 +12,8 @@ import {
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
 import { loadOfferingSeats } from "@/lib/sessions/offering-seats";
+import { hideTestServiceOnPublicSite } from "@/lib/talent/qa-test-service";
+import { loadTestServiceScope } from "@/lib/talent/qa-test-service.server";
 import { describeSeatsLeft, seatsLeft } from "@/lib/sessions/seats-left";
 
 export async function loadPublicBookableOfferings(args: {
@@ -41,7 +43,9 @@ export async function loadPublicBookableOfferings(args: {
       logServerError("public.book.offerings", error);
       return [];
     }
-    const rows = (data ?? []) as TalentOfferingRow[];
+    const loaded = (data ?? []) as TalentOfferingRow[];
+    const testScope = await loadTestServiceScope(admin, loaded);
+    const rows = loaded.filter((r) => !hideTestServiceOnPublicSite(r, testScope));
     const offerings = await withEffectiveBookingModes(
       admin,
       rows.map((row) => rowToOffering(row, args.locale ?? "en", [])),
