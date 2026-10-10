@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * TrustBadge — inline chip that shows a client's trust tier.
  *
@@ -16,6 +18,8 @@
  *   <TrustBadge level="verified" size="sm" />
  *   <TrustBadge level={null} />   ← renders nothing (client has no trust record)
  */
+
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 
 export type ClientTrustLevel = "basic" | "verified" | "silver" | "gold";
 
@@ -68,16 +72,23 @@ export function TrustBadge({
   /** When false, renders only the coloured dot — useful in dense tables. */
   showLabel?: boolean;
 }) {
+  const copy = useDashboardText();
   if (!level) return null;
 
   const meta = TIER_META[level];
   const sz = SIZE_STYLES[size];
+  const label = copy.t(meta.label);
+  const tipShort = copy.t("{tier} client").replace("{tier}", label);
+  const tipLong = copy
+    .t("{tier} client — trust level granted by account activity")
+    .replace("{tier}", label);
+  const aria = copy.t("Trust level: {tier}").replace("{tier}", label);
 
   if (!showLabel) {
     return (
       <span
-        title={`${meta.label} client`}
-        aria-label={`Trust level: ${meta.label}`}
+        title={tipShort}
+        aria-label={aria}
         style={{
           display: "inline-block",
           width: sz.dotSize + 4,
@@ -93,8 +104,8 @@ export function TrustBadge({
 
   return (
     <span
-      title={`${meta.label} client — trust level granted by account activity`}
-      aria-label={`Trust level: ${meta.label}`}
+      title={tipLong}
+      aria-label={aria}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -122,7 +133,7 @@ export function TrustBadge({
           flexShrink: 0,
         }}
       />
-      {meta.label}
+      {label}
     </span>
   );
 }

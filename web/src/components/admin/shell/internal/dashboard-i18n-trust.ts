@@ -39,6 +39,17 @@ export const TRUST_ES_TEXT: Record<string, string> = {
   "No messages yet": "Aún no hay mensajes",
   "Start the conversation below — your message will go to the right people in this thread.":
     "Empieza la conversación abajo: tu mensaje llegará a las personas correctas de este hilo.",
+  // TUL-500 residuals: TrustBadge tiers + booking count on the chip.
+  Basic: "Básico",
+  Verified: "Verificado",
+  Silver: "Plata",
+  Gold: "Oro",
+  "{tier} client": "Cliente {tier}",
+  "{tier} client — trust level granted by account activity":
+    "Cliente {tier}: nivel de confianza por actividad de la cuenta",
+  "Trust level: {tier}": "Nivel de confianza: {tier}",
+  "1 booking": "1 reserva",
+  "{n} bookings": "{n} reservas",
 };
 
 /** "Gold client · booked 3x on Tulala" / "Booked 3x on Tulala": counts are dynamic, so translate by shape. */

@@ -34,10 +34,21 @@ test("GuestTrustChip renders its labels through the dashboard dictionary", () =>
   assert.match(src, /copy\.t\(blockState === "done" \? "Blocked"/);
   assert.match(src, /copy\.t\(reportState === "choosing" \? "Cancel" : "Report"\)/);
   assert.match(src, /translateRiskLine\(riskLine, copy\.isSpanish, copy\.t\)/);
+  assert.match(src, /copy\.t\("1 booking"\)/);
+  assert.match(src, /copy\.t\("\{n\} bookings"\)/);
+  assert.doesNotMatch(src, /booking\{completedBookings/);
   assert.doesNotMatch(src, />\s*\{identityMeta\.label\}\s*</);
   // TUL-379: seed displayName "Guest" / empty → localized, not raw English.
   assert.match(src, /copy\.t\("Guest"\)/);
   assert.match(src, /identity === "guest"/);
+});
+
+test("TrustBadge tier labels go through the dashboard dictionary", () => {
+  const src = readFileSync(join(here, "..", "trust-badge.tsx"), "utf8");
+  assert.match(src, /useDashboardText\(\)/);
+  assert.match(src, /const label = copy\.t\(meta\.label\)/);
+  assert.match(src, /\{label\}/);
+  assert.doesNotMatch(src, /\{\s*meta\.label\s*\}/);
 });
 
 test("the empty thread state translates its title and body", () => {
