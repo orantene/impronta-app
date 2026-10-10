@@ -74,7 +74,7 @@ function headerHasCta(tree: readonly BuilderNode[]): boolean {
   return ok;
 }
 
-test("ensureHeaderCta injects Book → #services on a bare kit heading+nav shell", () => {
+test("ensureHeaderCta injects Book → #book on a bare kit heading+nav shell", () => {
   const shell: BuilderNode[] = [
     {
       id: "hdr",
@@ -93,7 +93,7 @@ test("ensureHeaderCta injects Book → #services on a bare kit heading+nav shell
   const out = ensureHeaderCta(shell);
   assert.equal(headerHasCta(out), true);
   const btn = (out[0] as AnyNode).children!.find((c) => c.kind === "button")!;
-  assert.equal((btn.props as Rec).href, "#services");
+  assert.equal((btn.props as Rec).href, "#book");
   assert.equal((btn.props as Rec).label, "Book");
 });
 
@@ -107,7 +107,20 @@ test("ensureHeaderCta fills an empty utility_bar CTA", () => {
   ];
   const out = ensureHeaderCta(shell);
   assert.equal((out[0]!.props as Rec).ctaLabel, "Book");
-  assert.equal((out[0]!.props as Rec).ctaHref, "#services");
+  assert.equal((out[0]!.props as Rec).ctaHref, "#book");
+});
+
+test("ensureHeaderCta rewrites a scroll-only Book CTA to #book (E6-kbd-open)", () => {
+  const shell: BuilderNode[] = [
+    {
+      id: "ub",
+      kind: "utility_bar",
+      props: { name: "Karla", ctaLabel: "Agendar visita", ctaHref: "#services" },
+    } as BuilderNode,
+  ];
+  const out = ensureHeaderCta(shell);
+  assert.equal((out[0]!.props as Rec).ctaHref, "#book");
+  assert.equal((out[0]!.props as Rec).ctaLabel, "Agendar visita");
 });
 
 test("buildKitShell without utilityBar seeds brand href + Header CTA", () => {
