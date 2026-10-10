@@ -96,6 +96,22 @@ export function overlayHasProp(
   return typeof v === "string" && v.trim().length > 0;
 }
 
+/**
+ * The overlay locale an edit made in `locale` must write, or `null` for the base
+ * prop. The renderer lets `i18n[defaultLocale][prop]` shadow the base prop (seeded
+ * themes carry both `es` and `en`), so a default-locale edit on such a prop has to
+ * land in that overlay entry or the canvas keeps showing the old text.
+ */
+export function overlayWriteLocale(
+  overlay: BuilderNodeI18nOverlay | null | undefined,
+  locale: string,
+  defaultLocale: string,
+  prop: string,
+): string | null {
+  if (locale !== defaultLocale) return locale;
+  return overlayHasProp(overlay, defaultLocale, prop) ? defaultLocale : null;
+}
+
 type OverlayCarrier = { i18n?: unknown; props?: Record<string, unknown> | null; children?: unknown };
 
 /**
