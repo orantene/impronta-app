@@ -3,7 +3,8 @@
  *
  * Collection designs that ship in the default gallery must keep a pinned Theme
  * Review pack under design-references/. Unfinished designs (solace/mono/frame)
- * stay out of FINISHED_GALLERY_SLUGS until Oran pins a real mockup (do not invent).
+ * carry a developer DRAFT pack for PM review and stay out of
+ * FINISHED_GALLERY_SLUGS until the PM approves it and the design gap closes.
  */
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
@@ -28,6 +29,8 @@ const PACK_FILES = [
   "content.json",
 ] as const;
 
+const DRAFT_PACK_FILES = ["index.html", "kit.js", "README.md"] as const;
+
 function finishedGallerySlugs(): string[] {
   const src = readFileSync(GALLERY_META, "utf8");
   const m = src.match(/FINISHED_GALLERY_SLUGS[^=]*=\s*\[([^\]]+)\]/);
@@ -51,24 +54,31 @@ test("finished collection designs keep a Theme Review mockup pack", () => {
   }
 });
 
-test("unfinished collection designs stay hidden and have no invented Theme Review pack", () => {
+test("unfinished collection designs stay hidden with a DRAFT Theme Review pack", () => {
   const finished = finishedGallerySlugs();
   for (const slug of UNFINISHED_COLLECTION) {
-    assert.ok(!finished.includes(slug), `${slug}: must not be in FINISHED_GALLERY_SLUGS until mockup + gaps close`);
-    assert.ok(
-      !existsSync(join(REFS, slug)),
-      `${slug}: design-references/${slug}/ must not be invented; Oran supplies the Theme Review artifact`,
+    assert.ok(!finished.includes(slug), `${slug}: must not be in FINISHED_GALLERY_SLUGS until PM approval + gaps close`);
+    const dir = join(REFS, slug);
+    for (const file of DRAFT_PACK_FILES) {
+      assert.ok(existsSync(join(dir, file)), `${slug}: draft pack missing ${file}`);
+    }
+    assert.match(
+      readFileSync(join(dir, "README.md"), "utf8"),
+      /DRAFT/,
+      `${slug}: README.md must mark the pack as DRAFT until the PM approves it`,
     );
+    assert.ok(readmeLists(slug), `${slug}: missing row in design-references/README.md`);
   }
 });
 
-test("shared review kit.js is identical across finished collection packs", () => {
-  const hashes = FINISHED_COLLECTION.map((slug) => readFileSync(join(REFS, slug, "kit.js")));
-  for (let i = 1; i < hashes.length; i++) {
+test("shared review kit.js is identical across every collection pack", () => {
+  const slugs = [...FINISHED_COLLECTION, ...UNFINISHED_COLLECTION];
+  const kits = slugs.map((slug) => readFileSync(join(REFS, slug, "kit.js")));
+  for (let i = 1; i < kits.length; i++) {
     assert.equal(
-      hashes[i]!.compare(hashes[0]!),
+      kits[i]!.compare(kits[0]!),
       0,
-      `${FINISHED_COLLECTION[i]} kit.js must match ${FINISHED_COLLECTION[0]} (shared review kit)`,
+      `${slugs[i]} kit.js must match ${slugs[0]} (shared review kit)`,
     );
   }
 });
