@@ -86,8 +86,11 @@ test("Mateo fixture offerings plan bilingual titles for runway and editorial ser
   const rows = planOfferingOps(mateo, []).map((o) => (o.op === "insert" ? o.row : null)).filter(Boolean);
   const run = rows.find((r) => r!.title === "Reserva de show de pasarela");
   const ed = rows.find((r) => r!.title === "Sesión editorial, medio día");
-  assert.ok(run?.title_i18n?.es && run.title_i18n.en === "Runway show booking");
-  assert.ok(ed?.title_i18n?.es && ed.title_i18n.en === "Editorial shoot, half day");
+  // Row values are unknown; cast like gridline-demos.test.ts so tsc accepts .es/.en.
+  const runTitles = run?.title_i18n as Record<string, string> | undefined;
+  const edTitles = ed?.title_i18n as Record<string, string> | undefined;
+  assert.ok(runTitles?.es && runTitles.en === "Runway show booking");
+  assert.ok(edTitles?.es && edTitles.en === "Editorial shoot, half day");
 });
 
 test("site-copy writes props.i18n.en on Folio masthead, chapters, catalog and footer", () => {
