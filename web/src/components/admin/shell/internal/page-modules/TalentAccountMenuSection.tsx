@@ -237,7 +237,7 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
         onClick={() => {
           onNavigate();
           if (!hasWebsiteLink) {
-            window.location.assign(myWebsite?.editHref ?? "/talent/public-page");
+            window.location.assign(myWebsite?.editHref ?? "/talent/site");
           }
         }}
       >

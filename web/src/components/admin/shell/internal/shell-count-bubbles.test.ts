@@ -178,6 +178,12 @@ describe("ShellCountBubbles mount (static)", () => {
     assert.match(src, /shellAttentionTooltip/);
     assert.match(src, /title=\{title\}/);
     assert.match(src, /Attention/);
+    // TUL-536: talent must not prefer shellCounts.attention over inbox awaiting.
+    assert.match(src, /inWorkspace\s*\?\s*\(shellCounts\?\.attention/);
+    assert.doesNotMatch(
+      src,
+      /shellCounts\?\.attention && shellCounts\.attention > 0\s*\?\s*shellCounts\.attention\s*:\s*awaiting/,
+    );
   });
 
   it("Hoy Requiere atención uses the same awaiting count as the bubble", () => {

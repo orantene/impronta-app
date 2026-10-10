@@ -149,6 +149,13 @@ test("G3-PRESENCE: settings reachable before publish; domain tile entitlement-ga
   // Website settings open in the Presence right drawer (not a full-page takeover).
   assert.match(editor, /presence-website-settings-sheet/);
   assert.match(editor, /onOpenSettings=\{openWebsiteSettings\}/);
+  // Card 36: Mi sitio Settings lands on Chat & inquiries (Booking assistant AI).
+  assert.match(editor, /setSettingsView\("chat"\)/);
+  const intent = readFileSync(
+    join(process.cwd(), "src/components/talent/website-settings/website-settings-intent.ts"),
+    "utf8",
+  );
+  assert.match(intent, /WebsiteSettingsIntentView = "lang" \| "chat"/);
   // Codex P1: backdrop/Escape go through the screen's guarded close, not setSettingsOpen(false).
   assert.match(editor, /requestSettingsCloseRef/);
   assert.match(editor, /onRegisterClose/);

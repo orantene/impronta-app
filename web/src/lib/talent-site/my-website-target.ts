@@ -25,7 +25,10 @@ export type MyWebsiteTarget =
   | { kind: "create"; href: string };
 
 export const PERSONAL_BUILDER_HREF = "/talent/page-builder";
-export const CREATE_WEBSITE_HREF = "/talent/public-page";
+/** Canonical My website route. Never `/talent/public-page` — that alias only
+ *  `redirect()`s to `/talent/site`, and soft-nav into a redirect page is the
+ *  live3-01 "This page couldn't load until reload" trap. */
+export const CREATE_WEBSITE_HREF = "/talent/site";
 
 /**
  * Workspace admin Website overview (settings / pages list). Not the visual

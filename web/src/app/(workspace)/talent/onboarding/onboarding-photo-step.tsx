@@ -132,7 +132,7 @@ export function PhotoStep({
           />
         </label>
         <Link
-          href="/talent/public-page"
+          href="/talent/site"
           style={{
             ...secondaryBtn,
             textDecoration: "none",

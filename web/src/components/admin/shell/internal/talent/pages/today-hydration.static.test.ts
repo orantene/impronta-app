@@ -20,3 +20,10 @@ test("talent shell dynamic() loading for Today matches the SSR skeleton (TUL-303
   assert.match(todayLine!, /loading: \(\) => <TodaySkeleton \/>/);
   assert.doesNotMatch(todayLine!, /loading: \(\) => null/);
 });
+
+test("TodaySkeleton never depends on theme CSS vars (TUL-536 phone Hoy)", () => {
+  const skel = readFileSync(new URL("./today-skeleton.tsx", import.meta.url), "utf8");
+  assert.match(skel, /data-testid="today-skeleton"/);
+  assert.doesNotMatch(skel, /--tc-/);
+  assert.match(skel, /bg-black\/\[0\.0[56]\]/);
+});

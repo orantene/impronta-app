@@ -20,6 +20,13 @@ test("the talent rail renders the shared Talent | Admin switch for dual owners o
   assert.ok(talent.indexOf("<RailModeSwitch") < talent.indexOf('aria-label={copy.t("Talent sections")}'));
 });
 
+test("live2-01: flipMode hard-navs so Talent|Admin does not soft-stick", () => {
+  const ctx = read("state/context.tsx");
+  assert.match(ctx, /window\.location\.assign\(nextHref\)/);
+  // Soft router.push left the shared shell painting the old surface until F5.
+  assert.doesNotMatch(ctx, /router\.push\(nextHref\)/);
+});
+
 test("the admin rail uses the same component, no private copy of the markup", () => {
   const ws = read("page-modules/WorkspaceShell.tsx");
   assert.match(ws, /import \{ RailModeSwitch \} from "\.\/RailModeSwitch"/);

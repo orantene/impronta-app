@@ -297,7 +297,9 @@ export function GuestTrustChip({
             <span aria-hidden style={{ fontSize: 9 }}>
               &#9733;
             </span>
-            {completedBookings} booking{completedBookings === 1 ? "" : "s"}
+            {completedBookings === 1
+              ? copy.t("1 booking")
+              : copy.t("{n} bookings").replace("{n}", String(completedBookings))}
           </span>
         )}
       </div>
