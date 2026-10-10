@@ -12,8 +12,8 @@
  *
  * TUL-528:
  * - GRK-033: hero first-viewport CTAs clear the consent card (pad hero chrome).
- * - GRK-034: catalog/footer bottom reserve follows --cb-bar-h on phone + desktop
- *   while the bar/dock is painted (not a hardcoded 72px undershoot).
+ * - GRK-034: root stack reserves --cb-bar-h from SSR `.cb-island` (phone) and
+ *   painted bar/dock (desktop) so body/footer clear before catalog CSS hydrates.
  * - GRK-039: guest chat panels use aria-modal=false; consent yields to
  *   [data-guest-chat-panel] so the message box stays reachable.
  */
@@ -50,6 +50,8 @@ body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${CONSENT_BANNER_SELECTOR},body:has(${GUE
 body:has(${CONSENT_BANNER_SELECTOR}) [data-guest-chat-launcher]{opacity:0;visibility:hidden;pointer-events:none}
 body:has(${CONSENT_BANNER_SELECTOR}) [data-help-bubble]{display:none!important}
 :root{--cb-bar-h:0px;--floating-launcher-clearance:0px;--floating-consent-clearance:0px;--floating-chrome-bottom:max(var(--cb-bar-h),var(--floating-launcher-clearance),var(--floating-consent-clearance),env(safe-area-inset-bottom,0px))}
+:root:has(.cb-island){--cb-bar-h:${BAR_RESERVE}}
+@media (min-width:720px){:root:has(.cb-island){--cb-bar-h:0px}:root:has(.cb-bar[data-show="true"]:not([data-top="true"]),.cb-dock[data-show="true"]){--cb-bar-h:${BAR_RESERVE}}}
 body:has(${CONSENT_BANNER_SELECTOR}){--floating-consent-clearance:calc(${CONSENT_BANNER_RESERVE_PX}px + env(safe-area-inset-bottom,0px))}
 @media (max-width:480px){body:has([data-guest-chat-launcher]){--floating-launcher-clearance:calc(${GUEST_CHAT_LAUNCHER_CLEARANCE_PX}px + env(safe-area-inset-bottom,0px))}}
 body{padding-bottom:var(--floating-chrome-bottom)}
@@ -117,6 +119,16 @@ export function floatingChromeClearsHeroCtas(css: string): boolean {
     css.includes(`body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__inner`) &&
     css.includes(`body:has(${CONSENT_BANNER_SELECTOR}) #hero`) &&
     css.includes("--floating-consent-clearance")
+  );
+}
+
+/** GRK-034: root stack reserves bar height from SSR island / painted bar+dock. */
+export function floatingChromeReservesBarForIsland(css: string): boolean {
+  return (
+    css.includes(":root:has(.cb-island){--cb-bar-h:") &&
+    css.includes(
+      ':root:has(.cb-bar[data-show="true"]:not([data-top="true"]),.cb-dock[data-show="true"]){--cb-bar-h:',
+    )
   );
 }
 
