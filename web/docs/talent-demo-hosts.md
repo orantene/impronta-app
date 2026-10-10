@@ -37,6 +37,18 @@ These labels are **not** `talent_sites.site_slug` values. They alias to each des
 
 Do **not** seed these (or talent `{siteSlug}-demo` hosts) into `agency_domains` — that table wins first and would serve them as agency/app hosts instead of talent sites.
 
+## QA nickname hosts (short labels)
+
+QA sometimes hits a first-name or checklist label that is not the `site_slug`. Those aliases live in the same lookup (migration `20261231357000_demo_nickname_host_aliases.sql`) and then 308 to the canonical `{siteSlug}-demo` host:
+
+| Host | Resolves to |
+|---|---|
+| `alba-demo.tulala.digital` (also bare `alba`) | `alba-nail-artist` |
+| `linh-demo.tulala.digital` (also bare `linh`) | `linh-tran` |
+| `sofia-nails-demo.tulala.digital` (also bare `sofia-nails`) | `sofia-rinaldi` |
+
+`sofia-nails` has no seed slug; it maps to Sofía Rinaldi by name (makeup, not nails). Prefer canonical hosts in new checklists.
+
 ## Going forward
 
 New demo seeds keep an unsuffixed `siteSlug`. Seed/apply scripts verify lookup with `{siteSlug}-demo` and log that host. Do not rename `site_slug` to include `-demo`.
