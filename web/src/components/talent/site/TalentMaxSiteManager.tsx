@@ -145,6 +145,7 @@ export function TalentMaxSiteManager({
         <WorkspacePrimaryWebsiteCard
           publicUrl={myWebsite.publicUrl}
           editHref={myWebsite.editHref}
+          designHref={myWebsite.designHref}
         />
         {isDual ? (
           <SecondaryPersonalWebsiteCard personalPublicUrl={personalUrl} />
@@ -195,9 +196,11 @@ export function TalentMaxSiteManager({
 function WorkspacePrimaryWebsiteCard({
   publicUrl,
   editHref,
+  designHref,
 }: {
   publicUrl: string | null;
   editHref: string;
+  designHref: string | null;
 }) {
   const copy = useDashboardText();
   const host = publicUrl ? publicUrl.replace(/^https?:\/\//, "") : null;
@@ -228,6 +231,15 @@ function WorkspacePrimaryWebsiteCard({
         >
           {copy.t("Edit site")}
         </Link>
+        {designHref ? (
+          <Link
+            href={designHref}
+            data-testid="maison-change-design"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-admin-border-soft bg-white px-5 text-[14px] font-semibold text-admin-ink no-underline"
+          >
+            {copy.t("Change design")}
+          </Link>
+        ) : null}
         {publicUrl ? (
           <Link
             href={publicUrl}

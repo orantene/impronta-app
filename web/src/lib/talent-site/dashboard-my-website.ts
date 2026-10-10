@@ -24,6 +24,8 @@ export type DashboardMyWebsite = {
   publicUrl: string | null;
   /** In-app editor href. */
   editHref: string;
+  /** Workspace design picker (TUL-559); null when the gallery lives on Mi sitio itself. */
+  designHref: string | null;
   /** talent_sites status when primary is personal; null for workspace/hub/create. */
   personalStatus: TalentSiteStatus | null;
 };
@@ -40,6 +42,7 @@ export function resolveTalentDashboardMyWebsite(
       kind: "workspace",
       publicUrl: workspace.publicUrl,
       editHref: workspace.adminHref || workspaceSiteBuilderHref(workspace.slug),
+      designHref: `${workspaceSiteBuilderHref(workspace.slug)}/design`,
       personalStatus: null,
     };
   }
@@ -55,6 +58,7 @@ export function resolveTalentDashboardMyWebsite(
       kind: isHubOnly ? "hub" : "personal",
       publicUrl: state.publicSiteUrl,
       editHref: PERSONAL_BUILDER_HREF,
+      designHref: null,
       personalStatus: state.site.status,
     };
   }
@@ -63,6 +67,7 @@ export function resolveTalentDashboardMyWebsite(
     kind: "create",
     publicUrl: state.publicSiteUrl,
     editHref: CREATE_WEBSITE_HREF,
+    designHref: null,
     personalStatus: null,
   };
 }

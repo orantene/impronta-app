@@ -22,6 +22,14 @@ test("pre-publish Mi sitio exposes maison-change-design (TUL-559)", () => {
   assert.match(mgr, /Cambiar diseño/);
 });
 
+test("dual / business owner Mi sitio card links to the workspace design picker in one click (TUL-559)", () => {
+  const mgr = readFileSync(join(root, "components/talent/site/TalentMaxSiteManager.tsx"), "utf8");
+  const card = mgr.slice(mgr.indexOf("function WorkspacePrimaryWebsiteCard"), mgr.indexOf("function SecondaryPersonalWebsiteCard"));
+  assert.match(card, /href=\{designHref\}\s+data-testid="maison-change-design"/);
+  assert.match(card, /copy\.t\("Change design"\)/);
+  assert.match(mgr, /designHref=\{myWebsite\.designHref\}/);
+});
+
 test("WebsiteDesignHub talent path opens /talent/site gallery (TUL-559)", () => {
   const hub = readFileSync(
     join(root, "components/admin/shell/internal/page-modules/WebsiteDesignHub.tsx"),
