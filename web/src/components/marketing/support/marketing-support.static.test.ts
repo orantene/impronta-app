@@ -116,6 +116,27 @@ test("guest support path never reads GUEST_CHAT_CAPTCHA_WIDGET_READY", () => {
 // handed down by the server; SupportCardRenderer called useT(), which reads the
 // DASHBOARD locale from a cookie. Two locale sources in one panel, and the
 // cookie won for the half a guest notices least and trusts most.
+// QA 2026-10-10 (TUL-51): /support "Ask a question" did nothing on a stack
+// without NEXT_PUBLIC_MARKETING_SUPPORT_FAB=1, because only the launcher
+// listens for the open event and it is not mounted with the flag off.
+test("/support only offers 'Ask a question' when the panel that answers it is mounted", () => {
+  const mount = readFileSync(join(here, "MarketingSupportLauncherMount.tsx"), "utf8");
+  assert.match(mount, /export function marketingSupportPanelAvailable\(\)/);
+  assert.match(mount, /if \(!marketingSupportPanelAvailable\(\)\) return null;/);
+
+  const start = readFileSync(join(here, "SupportStartHere.tsx"), "utf8");
+  const dispatch = start.indexOf("TULALA_SUPPORT_OPEN_EVENT))");
+  assert.ok(dispatch > -1, "SupportStartHere no longer dispatches the open event");
+  assert.match(
+    start.slice(0, dispatch),
+    /\{askAvailable \? \(\s*<button/,
+    "the Ask button must be gated on askAvailable",
+  );
+
+  const page = readFileSync(join(here, "../../../app/(marketing)/support/page.tsx"), "utf8");
+  assert.match(page, /askAvailable=\{marketingSupportPanelAvailable\(\)\}/);
+});
+
 test("the panel hands its own locale to the cards it renders", () => {
   const panel = readFileSync(join(here, "MarketingSupportPanel.tsx"), "utf8");
   const idx = panel.indexOf("<SupportCardRenderer");

@@ -7,6 +7,7 @@ import { SUPPORT_EMAIL, SUPPORT_EMAIL_CAN_RECEIVE } from "@/lib/platform/support
 import { getRequestLocale } from "@/i18n/request-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { SupportStartHere } from "@/components/marketing/support/SupportStartHere";
+import { marketingSupportPanelAvailable } from "@/components/marketing/support/MarketingSupportLauncherMount";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { breadcrumbJsonLdToString, buildBreadcrumbJsonLd } from "@/lib/seo/breadcrumb-json-ld";
@@ -164,6 +165,7 @@ export default async function SupportPage() {
               {t.title}
             </h1>
             <SupportStartHere
+              askAvailable={marketingSupportPanelAvailable()}
               askLabel={t.startAsk}
               writeLabel={t.startWrite}
               writeHref={L("/contact")}
