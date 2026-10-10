@@ -15,11 +15,15 @@ import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 import { choiceToPath, localePatch, parsePersistedModuleState } from "@/lib/onboarding/module-state";
 import { choiceToIntent } from "@/lib/onboarding/module-state";
 import {
+  hoursHaveAnyOpenDay,
   parseEssentials,
   servicesFromFacts,
   suggestedEssentials,
+  weeklyHoursFromCanonical,
   type Essentials,
 } from "@/lib/onboarding/essentials";
+import { resolveEssentialsTimezone } from "@/lib/onboarding/essentials-resolve";
+import { normalizeHoursValue } from "@/lib/tulala/normalize-facts";
 import type { OnboardingChoice } from "@/lib/onboarding/choice";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -50,12 +54,14 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
   const { brief, state } = got as Exclude<typeof got, { error: string }>;
   const choice = state.choice ?? (state.path === "business" ? "studio" : state.path === "both" ? "both" : "myself");
   const country = stringFact(brief, "person.country");
+  const city = stringFact(brief, "person.city");
   const locale = state.locale ?? "en";
   const name = stringFact(brief, "business.name") ?? stringFact(brief, "person.professional_name") ?? stringFact(brief, "person.name");
   const ctx = {
     trade: state.typeChoice?.slug ?? null,
     discipline: stringFact(brief, "work.discipline") ?? stringFact(brief, "work.industry"),
     country,
+    city,
     locale,
   } as const;
   const saved = state.essentials ?? null;
@@ -66,7 +72,34 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
     const fromWords = servicesFromFacts(listFact(brief, "work.services"), ctx);
     // What the person said wins over a trade pack; the pack fills in when they said nothing.
     essentials = fromWords.length ? { ...base, services: fromWords, source: "ai" } : base;
-    if (saved) essentials = { ...essentials, hours: saved.hours ?? essentials.hours, place: saved.place, timezone: saved.timezone ?? essentials.timezone };
+    // TUL-540 / onb1-05: seed the weekly grid from what they said about hours.
+    const hoursRaw = brief.facts.find((f) => f.factKey === "business.hours" && f.status !== "rejected")?.value;
+    const normalized = normalizeHoursValue(hoursRaw);
+    const hourLines = Array.isArray(normalized)
+      ? normalized.map(String)
+      : typeof normalized === "string"
+        ? [normalized]
+        : [];
+    const fromSaid = weeklyHoursFromCanonical(hourLines);
+    if (fromSaid && hoursHaveAnyOpenDay(fromSaid)) essentials = { ...essentials, hours: fromSaid };
+    // Soft city zone (Cancún) over pack Mexico_City when still unconfirmed.
+    essentials = {
+      ...essentials,
+      timezone: resolveEssentialsTimezone({
+        timezone: essentials.timezone,
+        city,
+        country,
+        softTimezone: true,
+      }),
+    };
+    if (saved) {
+      essentials = {
+        ...essentials,
+        hours: hoursHaveAnyOpenDay(saved.hours) ? saved.hours : essentials.hours,
+        place: saved.place,
+        timezone: saved.timezone ?? essentials.timezone,
+      };
+    }
   }
   return { ok: true, setup: { choice, country, essentials, saved: !!saved?.confirmed } };
 }

@@ -15,6 +15,8 @@ import {
   type WeeklyEssentialHours,
 } from "./essentials";
 import type { OnboardingChoice } from "./choice";
+import { timezoneFromPlaceText } from "@/lib/scheduling/timezone-from-place";
+import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
 
 /** Monday first for people, Sunday = "0" for the data. */
 export const DAY_ORDER: readonly DayKey[] = ["1", "2", "3", "4", "5", "6", "0"];
@@ -24,21 +26,49 @@ export const DAY_LABELS: Record<"en" | "es", Record<DayKey, string>> = {
   es: { "1": "Lun", "2": "Mar", "3": "Mié", "4": "Jue", "5": "Vie", "6": "Sáb", "0": "Dom" },
 };
 
-/** Zones offered when the person is not in Mexico. The list is short on purpose; the rest is "Other". */
-export const TIMEZONE_OPTIONS: ReadonlyArray<{ id: string; label: string }> = [
-  { id: "America/New_York", label: "New York (ET)" },
-  { id: "America/Chicago", label: "Chicago (CT)" },
-  { id: "America/Denver", label: "Denver (MT)" },
-  { id: "America/Los_Angeles", label: "Los Angeles (PT)" },
-  { id: "America/Bogota", label: "Bogota" },
-  { id: "America/Argentina/Buenos_Aires", label: "Buenos Aires" },
-  { id: "Europe/Madrid", label: "Madrid" },
-  { id: "Europe/London", label: "London" },
+/** Zones offered on setup. MX zones first (TUL-540 / onb1-04); bilingual labels (onb1-01). */
+export const TIMEZONE_OPTIONS: ReadonlyArray<{ id: string; label: { en: string; es: string } }> = [
+  { id: "America/Mexico_City", label: { en: "Mexico City (CDMX)", es: "Ciudad de México (CDMX)" } },
+  { id: "America/Cancun", label: { en: "Cancún (Quintana Roo)", es: "Cancún (Quintana Roo)" } },
+  { id: "America/Merida", label: { en: "Mérida (Yucatán)", es: "Mérida (Yucatán)" } },
+  { id: "America/Monterrey", label: { en: "Monterrey", es: "Monterrey" } },
+  { id: "America/Tijuana", label: { en: "Tijuana", es: "Tijuana" } },
+  { id: "America/Mazatlan", label: { en: "Mazatlán", es: "Mazatlán" } },
+  { id: "America/New_York", label: { en: "New York (ET)", es: "Nueva York (ET)" } },
+  { id: "America/Chicago", label: { en: "Chicago (CT)", es: "Chicago (CT)" } },
+  { id: "America/Denver", label: { en: "Denver (MT)", es: "Denver (MT)" } },
+  { id: "America/Los_Angeles", label: { en: "Los Angeles (PT)", es: "Los Ángeles (PT)" } },
+  { id: "America/Bogota", label: { en: "Bogotá", es: "Bogotá" } },
+  { id: "America/Argentina/Buenos_Aires", label: { en: "Buenos Aires", es: "Buenos Aires" } },
+  { id: "Europe/Madrid", label: { en: "Madrid", es: "Madrid" } },
+  { id: "Europe/London", label: { en: "London", es: "Londres" } },
 ];
 
-/** Only outside Mexico: inside, the zone comes from the country and is never asked. */
-export function needsTimezoneQuestion(country: string | null | undefined): boolean {
-  return !isMexico(country);
+/** Label for a timezone option in the setup locale. */
+export function timezoneOptionLabel(id: string, locale: "en" | "es"): string {
+  const hit = TIMEZONE_OPTIONS.find((z) => z.id === id);
+  return hit ? hit.label[locale] : id;
+}
+
+/**
+ * Show the timezone picker when:
+ * - country is Mexico (TUL-540 / onb1-04: MX zones must be listed, Cancún choosable), or
+ * - no city is known yet (country-only fallbacks like "United States" → New York
+ *   must not hide the picker), or
+ * - city+country does not resolve to a valid IANA zone.
+ * Abroad with a known city (e.g. "Chicago, United States") stays hidden.
+ */
+export function needsTimezoneQuestion(
+  country: string | null | undefined,
+  city?: string | null,
+): boolean {
+  if (isMexico(country)) return true;
+  const cityTrim = city?.trim() || null;
+  if (!cityTrim) return true;
+  const place = [cityTrim, country].map((x) => x?.trim()).filter(Boolean).join(", ");
+  const inferred = timezoneFromPlaceText(place);
+  if (inferred && isValidIanaTimeZone(inferred)) return false;
+  return true;
 }
 
 /** "12:30" <-> minutes. */
@@ -120,7 +150,7 @@ export function setupIssues(input: {
   if (cleanServices(e.services).length === 0) issues.push("services");
   if (!hoursHaveAnyOpenDay(e.hours)) issues.push("hours");
   if (!e.place) issues.push("place");
-  if (needsTimezoneQuestion(input.country) && !e.timezone) issues.push("timezone");
+  if (needsTimezoneQuestion(input.country, e.place?.area ?? null) && !e.timezone) issues.push("timezone");
   const draft = input.providerEmailDraft.trim();
   if (choice === "studio" && draft && !EMAIL_RE.test(draft)) issues.push("providerEmail");
   return issues;

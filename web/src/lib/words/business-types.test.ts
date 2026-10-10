@@ -31,6 +31,8 @@ test("search matches EN, ES, aliases and accent-folded unas", () => {
   assert.ok(searchBusinessTypes("unas").some((r) => r.id === "nail-salon"));
   assert.ok(searchBusinessTypes("restaurante").some((r) => r.id === "restaurant"));
   assert.ok(searchBusinessTypes("mantenimiento del hogar").some((r) => r.id === "handyman"));
+  // TUL-540: beauty salon before academy on the Spanish phrase.
+  assert.equal(searchBusinessTypes("salón de belleza")[0]?.id, "beauty-salon");
 });
 
 test("catalog reaches 120 excluding custom fallback", () => {
