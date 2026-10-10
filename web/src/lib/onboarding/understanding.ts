@@ -18,6 +18,7 @@
 import type { Brief, BriefFact, FactSource } from "@/lib/tulala/brief-store";
 import { booleanFact, listFact, stringFact } from "@/lib/tulala/brief-store";
 import { looksLikeUrl, normalizeWorkspaceSlugCandidate } from "@/lib/saas/workspace-signup";
+import { formatHoursValueForLocale } from "@/lib/tulala/normalize-facts";
 
 import type { OnboardingIntent, OnboardingPath } from "./module-state";
 import { MODULE_QUESTIONS, type ModuleQuestionId } from "./module-questions";
@@ -144,10 +145,14 @@ function line(
   id: EssentialId,
   factKey: string,
   edit: UnderstoodLine["edit"],
-  opts: { later?: boolean } = {},
+  opts: { later?: boolean; locale?: "en" | "es" } = {},
 ): UnderstoodLine {
   const f = fact(brief, factKey);
-  const value = displayValue(f);
+  // onb1-01: hours stay canonical in storage; the card shows them in the flow language.
+  const value =
+    factKey === "business.hours" && f
+      ? formatHoursValueForLocale(f.value, opts.locale ?? "en")
+      : displayValue(f);
   const status: LineStatus = opts.later ? "later" : lineStatus(f, value !== null);
   return {
     id,
@@ -162,27 +167,27 @@ function line(
 }
 
 /** The person's name for the card: professional name first, else name. */
-function personNameLine(brief: Brief): UnderstoodLine {
+function personNameLine(brief: Brief, locale: "en" | "es" = "en"): UnderstoodLine {
   const pro = fact(brief, "person.professional_name");
   const key = pro && displayValue(pro) ? "person.professional_name" : "person.name";
-  return line(brief, "name", key, { kind: "question", questionId: "name" });
+  return line(brief, "name", key, { kind: "question", questionId: "name" }, { locale });
 }
 
-export function essentialsFor(brief: Brief, path: OnboardingPath): UnderstoodLine[] {
+export function essentialsFor(brief: Brief, path: OnboardingPath, locale: "en" | "es" = "en"): UnderstoodLine[] {
   const talent: UnderstoodLine[] = [
-    personNameLine(brief),
-    line(brief, "what", "work.discipline", { kind: "question", questionId: "basics" }),
-    line(brief, "city", "person.city", { kind: "question", questionId: "basics" }),
-    line(brief, "services", "work.services", { kind: "question", questionId: "services" }),
+    personNameLine(brief, locale),
+    line(brief, "what", "work.discipline", { kind: "question", questionId: "basics" }, { locale }),
+    line(brief, "city", "person.city", { kind: "question", questionId: "basics" }, { locale }),
+    line(brief, "services", "work.services", { kind: "question", questionId: "services" }, { locale }),
   ];
   const business: UnderstoodLine[] = [
-    line(brief, "businessName", "business.name", { kind: "inline" }),
-    line(brief, "kind", "work.industry", { kind: "question", questionId: "kind_of_business" }),
-    line(brief, "offer", "work.services", { kind: "question", questionId: "services" }),
-    line(brief, "city", "person.city", { kind: "question", questionId: "basics" }),
-    line(brief, "hours", "business.hours", { kind: "question", questionId: "two_quick_things" }),
-    line(brief, "whatsapp", "presence.whatsapp", { kind: "question", questionId: "two_quick_things" }),
-    line(brief, "logo", "brand.logo_url", { kind: "none" }, { later: true }),
+    line(brief, "businessName", "business.name", { kind: "inline" }, { locale }),
+    line(brief, "kind", "work.industry", { kind: "question", questionId: "kind_of_business" }, { locale }),
+    line(brief, "offer", "work.services", { kind: "question", questionId: "services" }, { locale }),
+    line(brief, "city", "person.city", { kind: "question", questionId: "basics" }, { locale }),
+    line(brief, "hours", "business.hours", { kind: "question", questionId: "two_quick_things" }, { locale }),
+    line(brief, "whatsapp", "presence.whatsapp", { kind: "question", questionId: "two_quick_things" }, { locale }),
+    line(brief, "logo", "brand.logo_url", { kind: "none" }, { later: true, locale }),
   ];
   if (path === "talent") return talent;
   if (path === "business") return business;
@@ -233,9 +238,11 @@ export function buildUnderstanding(input: {
   brief: Brief;
   intent: OnboardingIntent;
   userPath?: OnboardingPath | null;
+  /** Flow language: hours on the card localize (onb1-01). */
+  locale?: "en" | "es";
 }): Understanding {
   const decided = decidePath(input.brief, input.intent, input.userPath ?? null);
-  const lines = essentialsFor(input.brief, decided.path);
+  const lines = essentialsFor(input.brief, decided.path, input.locale ?? "en");
   const followUps: ModuleQuestionId[] = [];
   if (decided.pathConfidence === "ambiguous") followUps.push("fork");
   for (const q of MODULE_QUESTIONS) {

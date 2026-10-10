@@ -81,7 +81,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   t("sushi-restaurant", "dining", "Sushi restaurant", "Restaurante de sushi", ["sushi"]),
   t("home-takeaway", "dining", "Home takeaway", "Comida para llevar", ["takeaway kitchen", "takeout", "comida para llevar"]),
   t("nail-salon", "beauty", "Nail salon", "Salón de uñas", ["manicure", "unas", "uñas", "salón de uñas"], "salon_barber"),
-  t("hair-salon", "beauty", "Hair salon", "Peluquería", ["hairdresser", "peluqueria", "peluquería"], "salon_barber"),
+  t("hair-salon", "beauty", "Hair salon", "Peluquería", ["hairdresser", "peluqueria", "peluquería", "beauty salon", "salón de belleza", "salon de belleza", "belleza"], "salon_barber"),
   t("eyelash-studio", "beauty", "Eyelash studio", "Estudio de pestañas", ["lash studio", "eyelash extensions", "pestañas"]),
   t("makeup-artist", "beauty", "Makeup artist", "Maquillador", ["makeup", "maquillista"]),
   t("spa", "wellness", "Spa", "Spa", ["day spa", "spa de día", "spa de dia"], "spa_wellness"),
@@ -235,6 +235,9 @@ export function searchBusinessTypes(query: string): BusinessType[] {
       let score = 0;
       if (en === q || es === q || fold(row.id) === q) score = 400;
       else if (aliases.includes(q)) score = 300;
+      // onb1-02: "beauty salon Cancún" / "salón de belleza en Tulum" — the
+      // catalogue alias is inside the free-text phrase, not equal to it.
+      else if (aliases.some((alias) => alias.length >= 5 && q.includes(alias))) score = 280;
       else if (en.startsWith(q) || es.startsWith(q) || aliases.some((alias) => alias.startsWith(q))) score = 200;
       else if (
         en.includes(q) ||

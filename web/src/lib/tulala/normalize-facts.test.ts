@@ -1,7 +1,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 
-import { normalizeExtractedFacts, normalizeHoursPhrase, normalizeHoursValue, normalizePhoneValue, normalizeServiceList } from "./normalize-facts";
+import { formatHoursLineForLocale, normalizeExtractedFacts, normalizeHoursPhrase, normalizeHoursValue, normalizePhoneValue, normalizeServiceList } from "./normalize-facts";
 
 describe("hours phrases", () => {
   const cases: Array<[string, string | null]> = [
@@ -26,6 +26,13 @@ describe("hours phrases", () => {
     assert.deepEqual(normalizeHoursValue(["lunes", "martes", "miercoles", "jueves", "viernes", "sabado"]), ["Mon-Sat"]);
     assert.deepEqual(normalizeHoursValue(["de lunes a viernes", "cuando se pueda"]), ["Mon-Fri", "cuando se pueda"]);
     assert.equal(normalizeHoursValue(42), 42);
+  });
+
+  test("onb1-01: ES card shows Lun-Sáb, not Mon-Sat", () => {
+    assert.equal(formatHoursLineForLocale("Mon-Sat 09:00-19:00", "es"), "Lun-Sáb 09:00-19:00");
+    assert.equal(formatHoursLineForLocale("By appointment", "es"), "Con cita");
+    assert.equal(formatHoursLineForLocale("Every day 10:00-20:00", "es"), "Todos los días 10:00-20:00");
+    assert.equal(formatHoursLineForLocale("Mon-Sat 09:00-19:00", "en"), "Mon-Sat 09:00-19:00");
   });
 });
 

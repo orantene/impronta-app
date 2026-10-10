@@ -220,6 +220,7 @@ async function cardFor(briefId: string, state: PersistedModuleState, brief: Para
     brief,
     intent: state.intent ?? "unknown",
     userPath: state.path ?? null,
+    locale: state.locale ?? "en",
   });
   return { briefId, understanding, chip, state };
 }

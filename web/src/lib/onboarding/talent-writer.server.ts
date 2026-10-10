@@ -92,7 +92,7 @@ export async function writeTalentProfileFromBrief(input: {
       p_residence_country_iso2: null, p_residence_country_name_en: null, p_residence_country_name_es: null,
       p_residence_city_slug: null, p_residence_city_name_en: null, p_residence_city_name_es: null,
       p_residence_lat: null, p_residence_lng: null,
-      p_display_name: displayName || "My page", p_first_name: null, p_last_name: null, p_phone: null,
+      p_display_name: displayName || (input.locale === "es" ? "Mi página" : "My page"), p_first_name: null, p_last_name: null, p_phone: null,
       p_gender: null, p_date_of_birth: null, p_nationality: null,
     });
     if (error) {

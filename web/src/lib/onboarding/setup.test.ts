@@ -2,13 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { suggestedEssentials, essentialsReady, parseEssentials } from "./essentials";
 import {
-  DAY_ORDER, cleanServices, copyDayToAll, finalizeSetup, minToTime, needsTimezoneQuestion,
-  parsePriceToCents, setupIssues, timeToMin, toggleDay,
+  DAY_ORDER, MX_TIMEZONE_OPTIONS, cleanServices, copyDayToAll, finalizeSetup, minToTime, needsTimezoneQuestion,
+  parsePriceToCents, setupIssues, timeToMin, timezoneOptionsForCountry, toggleDay,
 } from "./setup";
 
-test("timezone is asked only outside Mexico", () => {
-  assert.equal(needsTimezoneQuestion("Mexico"), false);
-  assert.equal(needsTimezoneQuestion("MX"), false);
+test("timezone is always asked (Mexico is multi-zone: Cancún ≠ CDMX)", () => {
+  assert.equal(needsTimezoneQuestion("Mexico"), true);
+  assert.equal(needsTimezoneQuestion("MX"), true);
   assert.equal(needsTimezoneQuestion("United States"), true);
   assert.equal(needsTimezoneQuestion(null), true);
 });
@@ -55,4 +55,21 @@ test("issues: services, place, timezone abroad, bad provider email; empty email 
   assert.deepEqual(setupIssues({ choice: "studio", essentials: ok, country: "United States", providerEmailDraft: "" }), []);
   assert.equal(finalizeSetup(ok, "Ana@Studio.com", false).firstProviderEmail, "ana@studio.com");
   assert.equal(cleanServices([{ name: "Cut", durationMin: 30, priceCents: null, quote: false, currency: "USD" }])[0].quote, true);
+});
+
+test("onb1-04: Mexico lists Cancún and the other MX zones", () => {
+  const mx = timezoneOptionsForCountry("Mexico");
+  assert.equal(mx, MX_TIMEZONE_OPTIONS);
+  assert.ok(mx.some((z) => z.id === "America/Cancun"));
+  assert.ok(mx.some((z) => z.id === "America/Mexico_City"));
+  assert.ok(timezoneOptionsForCountry("United States").every((z) => z.id !== "America/Cancun"));
+});
+
+test("Mexico setup with preselected Cancún zone has no timezone issue", () => {
+  const e = {
+    ...suggestedEssentials({ trade: "hair", country: "Mexico", locale: "es", name: "Bella" }),
+    place: { mode: "studio" as const, area: "Cancún" },
+    timezone: "America/Cancun",
+  };
+  assert.deepEqual(setupIssues({ choice: "studio", essentials: e, country: "Mexico", providerEmailDraft: "" }), []);
 });

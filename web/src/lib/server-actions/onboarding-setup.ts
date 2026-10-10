@@ -15,11 +15,14 @@ import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 import { choiceToPath, localePatch, parsePersistedModuleState } from "@/lib/onboarding/module-state";
 import { choiceToIntent } from "@/lib/onboarding/module-state";
 import {
+  hoursHaveAnyOpenDay,
   parseEssentials,
   servicesFromFacts,
   suggestedEssentials,
+  weeklyHoursFromLines,
   type Essentials,
 } from "@/lib/onboarding/essentials";
+import { resolveEssentialsTimezone } from "@/lib/onboarding/essentials-resolve";
 import type { OnboardingChoice } from "@/lib/onboarding/choice";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -50,23 +53,35 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
   const { brief, state } = got as Exclude<typeof got, { error: string }>;
   const choice = state.choice ?? (state.path === "business" ? "studio" : state.path === "both" ? "both" : "myself");
   const country = stringFact(brief, "person.country");
+  const city = stringFact(brief, "person.city");
   const locale = state.locale ?? "en";
+  // onb1-06: business name from the brief always wins over a stale essentials.name.
   const name = stringFact(brief, "business.name") ?? stringFact(brief, "person.professional_name") ?? stringFact(brief, "person.name");
   const ctx = {
     trade: state.typeChoice?.slug ?? null,
     discipline: stringFact(brief, "work.discipline") ?? stringFact(brief, "work.industry"),
     country,
+    city,
     locale,
   } as const;
   const saved = state.essentials ?? null;
+  const hoursFromWords = weeklyHoursFromLines(listFact(brief, "business.hours"));
+  const timezone = resolveEssentialsTimezone({ timezone: saved?.timezone, city, country });
   let essentials: Essentials;
-  if (saved && saved.services.length) essentials = saved;
-  else {
-    const base = suggestedEssentials({ ...ctx, name });
+  if (saved && saved.services.length) {
+    // Resume: keep confirmed services; still refresh name + fill missing hours/zone from the brief.
+    essentials = {
+      ...saved,
+      name: name?.trim() || saved.name,
+      hours: hoursHaveAnyOpenDay(saved.hours) ? saved.hours : (hoursFromWords ?? saved.hours),
+      timezone: saved.timezone ?? timezone,
+    };
+  } else {
+    const base = suggestedEssentials({ ...ctx, name, hours: hoursFromWords, timezone });
     const fromWords = servicesFromFacts(listFact(brief, "work.services"), ctx);
     // What the person said wins over a trade pack; the pack fills in when they said nothing.
     essentials = fromWords.length ? { ...base, services: fromWords, source: "ai" } : base;
-    if (saved) essentials = { ...essentials, hours: saved.hours ?? essentials.hours, place: saved.place, timezone: saved.timezone ?? essentials.timezone };
+    if (saved) essentials = { ...essentials, hours: saved.hours ?? essentials.hours, place: saved.place, timezone: saved.timezone ?? essentials.timezone, name: name?.trim() || essentials.name };
   }
   return { ok: true, setup: { choice, country, essentials, saved: !!saved?.confirmed } };
 }

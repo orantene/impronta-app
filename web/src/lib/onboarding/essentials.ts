@@ -96,6 +96,22 @@ export function currencyForCountry(country: string | null | undefined): string {
   return isMexico(country) ? "MXN" : "USD";
 }
 
+/**
+ * Currency from country, or from a Mexican city when the country fact is
+ * missing (Cancún / Tulum alone used to land USD — onb1-03).
+ */
+export function currencyForPlace(input: {
+  country?: string | null;
+  city?: string | null;
+}): string {
+  if (isMexico(input.country)) return "MXN";
+  const place = [input.city, input.country].map((x) => x?.trim()).filter(Boolean).join(", ");
+  if (place && /cancun|cancún|tulum|playa del carmen|cdmx|ciudad de mexico|mexico city|guadalajara|monterrey|merida|mérida|oaxaca|puebla|queretaro|querétaro|mexico|méxico/i.test(place)) {
+    return "MXN";
+  }
+  return currencyForCountry(input.country);
+}
+
 export function defaultTimezoneForCountry(country: string | null | undefined): string | null {
   return isMexico(country) ? "America/Mexico_City" : null;
 }
@@ -141,7 +157,8 @@ const TRADE_PATTERNS: Array<[string, RegExp]> = [
   ["nails", /nail|u[ñn]a|manicur|pedicur/i],
   ["brows", /brow|ceja/i],
   ["makeup", /make-?up|maquill|\bmua\b/i],
-  ["hair", /hair|cabello|peluq|barber|stylist|estilista|colorist/i],
+  // Beauty salon / salón de belleza before bare "salon" event-venue false friends.
+  ["hair", /beauty\s*salon|sal[oó]n\s+de\s+belleza|\bbelleza\b|hair|cabello|peluq|barber|stylist|estilista|colorist|hair-salon/i],
 ];
 
 /** Pack key for a trade slug or free-text discipline; null when no pack exists. */
@@ -153,13 +170,20 @@ export function packKeyForTrade(...candidates: Array<string | null | undefined>)
   return null;
 }
 
-export type PackContext = { trade?: string | null; discipline?: string | null; country?: string | null; locale: "en" | "es" };
+export type PackContext = {
+  trade?: string | null;
+  discipline?: string | null;
+  country?: string | null;
+  /** City from the brief; feeds MXN + Cancún zone when country is thin (onb1-03/04). */
+  city?: string | null;
+  locale: "en" | "es";
+};
 
 /** Suggested services for a trade, with MX defaults (MXN) in Mexico; other countries get durations and "quote". */
 export function suggestedServices(ctx: PackContext): EssentialService[] {
   const key = packKeyForTrade(ctx.trade, ctx.discipline);
   if (!key) return [];
-  const currency = currencyForCountry(ctx.country);
+  const currency = currencyForPlace(ctx);
   const mx = currency === "MXN";
   return BEAUTY_PACKS[key].services.map((s) => ({
     name: ctx.locale === "es" ? s.es : s.en,
@@ -172,13 +196,13 @@ export function suggestedServices(ctx: PackContext): EssentialService[] {
 }
 
 /** What the essentials screen opens with: pack services, Mon-Sat 9-19, country currency/timezone. */
-export function suggestedEssentials(ctx: PackContext & { name?: string | null }): Essentials {
+export function suggestedEssentials(ctx: PackContext & { name?: string | null; hours?: WeeklyEssentialHours | null; timezone?: string | null }): Essentials {
   const services = suggestedServices(ctx);
   return {
     name: ctx.name?.trim() || null,
     services,
-    hours: defaultWeeklyHours(),
-    timezone: defaultTimezoneForCountry(ctx.country),
+    hours: hoursHaveAnyOpenDay(ctx.hours ?? null) ? ctx.hours! : defaultWeeklyHours(),
+    timezone: ctx.timezone?.trim() || defaultTimezoneForCountry(ctx.country),
     place: null,
     firstProviderEmail: null,
     firstProviderName: null,
@@ -190,7 +214,7 @@ export function suggestedEssentials(ctx: PackContext & { name?: string | null })
 
 /** AI-read service names -> essentials services, matching the pack for durations/prices (names are kept as said). */
 export function servicesFromFacts(names: string[], ctx: PackContext): EssentialService[] {
-  const currency = currencyForCountry(ctx.country);
+  const currency = currencyForPlace(ctx);
   const pack = (() => { const k = packKeyForTrade(ctx.trade, ctx.discipline); return k ? BEAUTY_PACKS[k] : null; })();
   const seen = new Set<string>();
   const out: EssentialService[] = [];
@@ -200,8 +224,10 @@ export function servicesFromFacts(names: string[], ctx: PackContext): EssentialS
     if (!name || seen.has(key)) continue;
     seen.add(key);
     const hit = pack?.services.find((s) => s.en.toLowerCase() === key || s.es.toLowerCase() === key);
+    // onb1-01: ES flow keeps Spanish pack labels when the model echoed the English pack name.
+    const display = hit && ctx.locale === "es" && hit.en.toLowerCase() === key ? hit.es : name;
     out.push({
-      name,
+      name: display,
       durationMin: hit?.durationMin ?? null,
       priceCents: hit && currency === "MXN" ? hit.mxnCents : null,
       quote: !(hit && currency === "MXN"),
@@ -210,6 +236,83 @@ export function servicesFromFacts(names: string[], ctx: PackContext): EssentialS
     });
   }
   return out.slice(0, MAX_ESSENTIAL_SERVICES);
+}
+
+// ── hours text → weekly grid (onb1-05) ─────────────────────────────────────
+
+const CANON_DAY_TO_KEY: Record<string, DayKey> = {
+  Mon: "1", Tue: "2", Wed: "3", Thu: "4", Fri: "5", Sat: "6", Sun: "0",
+};
+const CANON_DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+
+function clockToMin(hhmm: string): number | null {
+  const m = /^(\d{2}):(\d{2})$/.exec(hhmm);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const mm = Number(m[2]);
+  return h <= 24 && mm < 60 && h * 60 + mm <= 1440 ? h * 60 + mm : null;
+}
+
+function expandCanonDays(from: string, to: string | null): DayKey[] {
+  if (from === "Every day") return (["0", "1", "2", "3", "4", "5", "6"] as DayKey[]);
+  const a = CANON_DAY_ORDER.indexOf(from as (typeof CANON_DAY_ORDER)[number]);
+  if (a < 0) return [];
+  if (!to) return CANON_DAY_TO_KEY[from] ? [CANON_DAY_TO_KEY[from]] : [];
+  const b = CANON_DAY_ORDER.indexOf(to as (typeof CANON_DAY_ORDER)[number]);
+  if (b < 0) return CANON_DAY_TO_KEY[from] ? [CANON_DAY_TO_KEY[from]] : [];
+  const keys: DayKey[] = [];
+  if (a <= b) {
+    for (let i = a; i <= b; i++) keys.push(CANON_DAY_TO_KEY[CANON_DAY_ORDER[i]]!);
+  } else {
+    for (let i = a; i < CANON_DAY_ORDER.length; i++) keys.push(CANON_DAY_TO_KEY[CANON_DAY_ORDER[i]]!);
+    for (let i = 0; i <= b; i++) keys.push(CANON_DAY_TO_KEY[CANON_DAY_ORDER[i]]!);
+  }
+  return keys;
+}
+
+function canonDay(token: string): (typeof CANON_DAY_ORDER)[number] | null {
+  const t = token.trim().toLowerCase();
+  return CANON_DAY_ORDER.find((d) => d.toLowerCase() === t || d.toLowerCase().startsWith(t.slice(0, 3))) ?? null;
+}
+
+/**
+ * Canonical hours lines ("Mon-Sat 09:00-19:00", "Every day 10:00-20:00") →
+ * the weekly grid the setup screen edits. "By appointment" / unreadable → null
+ * so the Mon-Sat default stays. onb1-05: what the person wrote must open the editor.
+ */
+export function weeklyHoursFromLines(lines: readonly string[]): WeeklyEssentialHours | null {
+  const week = emptyWeek();
+  let any = false;
+  for (const raw of lines) {
+    const s = raw.trim();
+    if (!s || /by appointment|con cita|previa cita/i.test(s)) continue;
+    const timeM = /\s+(\d{2}:\d{2})-(\d{2}:\d{2})$/.exec(s);
+    const startMin = timeM ? clockToMin(timeM[1]) : 9 * 60;
+    const endMin = timeM ? clockToMin(timeM[2]) : 19 * 60;
+    if (startMin == null || endMin == null || endMin <= startMin) continue;
+    const daysPart = timeM ? s.slice(0, timeM.index).trim() : s;
+    let keys: DayKey[] = [];
+    if (/^every day$/i.test(daysPart)) {
+      keys = expandCanonDays("Every day", null);
+    } else if (daysPart.includes(",")) {
+      for (const part of daysPart.split(/\s*,\s*/)) {
+        const d = canonDay(part);
+        if (d) keys.push(CANON_DAY_TO_KEY[d]!);
+      }
+    } else {
+      const range = /^([A-Za-z]+)(?:-([A-Za-z]+))?$/.exec(daysPart);
+      if (!range) continue;
+      const from = /^every$/i.test(range[1]) ? "Every day" : canonDay(range[1]);
+      if (!from) continue;
+      const to = range[2] ? canonDay(range[2]) : null;
+      keys = expandCanonDays(from, to);
+    }
+    for (const k of keys) {
+      week[k] = [{ startMin, endMin }];
+      any = true;
+    }
+  }
+  return any ? week : null;
 }
 
 // ── parsing (module_state is free JSON) ────────────────────────────────────

@@ -108,6 +108,30 @@ function finish(days: string | null, time: string | null): string | null {
   return null;
 }
 
+const HOURS_DAY_ES: Record<string, string> = {
+  Mon: "Lun", Tue: "Mar", Wed: "Mié", Thu: "Jue", Fri: "Vie", Sat: "Sáb", Sun: "Dom",
+};
+
+/**
+ * Show canonical hours ("Mon-Sat 09:00-19:00") in the person's language.
+ * Storage stays English-canonical; only the card/summary display localizes (onb1-01).
+ */
+export function formatHoursLineForLocale(line: string, locale: "en" | "es"): string {
+  const s = line.trim();
+  if (!s || locale === "en") return s;
+  if (/^by appointment$/i.test(s)) return "Con cita";
+  let out = s.replace(/^Every day\b/i, "Todos los días");
+  out = out.replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/g, (d) => HOURS_DAY_ES[d] ?? d);
+  return out;
+}
+
+export function formatHoursValueForLocale(value: unknown, locale: "en" | "es"): string | null {
+  const lines = Array.isArray(value) ? value.map(String) : typeof value === "string" ? [value] : null;
+  if (!lines?.length) return null;
+  const shown = lines.map((l) => formatHoursLineForLocale(l, locale)).filter((l) => l.length > 0);
+  return shown.length ? shown.join(" · ") : null;
+}
+
 /** Whole `business.hours` value (string or list) → canonical lines; unreadable lines kept verbatim. */
 export function normalizeHoursValue(value: unknown): unknown {
   const lines = Array.isArray(value) ? value.map(String) : typeof value === "string" ? [value] : null;

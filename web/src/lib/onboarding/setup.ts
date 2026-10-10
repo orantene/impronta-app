@@ -24,7 +24,7 @@ export const DAY_LABELS: Record<"en" | "es", Record<DayKey, string>> = {
   es: { "1": "Lun", "2": "Mar", "3": "Mié", "4": "Jue", "5": "Vie", "6": "Sáb", "0": "Dom" },
 };
 
-/** Zones offered when the person is not in Mexico. The list is short on purpose; the rest is "Other". */
+/** Zones offered outside Mexico. The list is short on purpose. */
 export const TIMEZONE_OPTIONS: ReadonlyArray<{ id: string; label: string }> = [
   { id: "America/New_York", label: "New York (ET)" },
   { id: "America/Chicago", label: "Chicago (CT)" },
@@ -36,9 +36,30 @@ export const TIMEZONE_OPTIONS: ReadonlyArray<{ id: string; label: string }> = [
   { id: "Europe/London", label: "London" },
 ];
 
-/** Only outside Mexico: inside, the zone comes from the country and is never asked. */
-export function needsTimezoneQuestion(country: string | null | undefined): boolean {
-  return !isMexico(country);
+/** Mexican zones (onb1-04): Cancún and the rest must be listed, not only CDMX. */
+export const MX_TIMEZONE_OPTIONS: ReadonlyArray<{ id: string; label: string }> = [
+  { id: "America/Cancun", label: "Cancún" },
+  { id: "America/Mexico_City", label: "Ciudad de México" },
+  { id: "America/Merida", label: "Mérida" },
+  { id: "America/Monterrey", label: "Monterrey" },
+  { id: "America/Mazatlan", label: "Mazatlán" },
+  { id: "America/Tijuana", label: "Tijuana" },
+  { id: "America/Hermosillo", label: "Hermosillo" },
+  { id: "America/Chihuahua", label: "Chihuahua" },
+  { id: "America/Ciudad_Juarez", label: "Ciudad Juárez" },
+];
+
+/** Zone list for the setup picker: Mexico gets MX zones; everyone else the short world list. */
+export function timezoneOptionsForCountry(country: string | null | undefined): ReadonlyArray<{ id: string; label: string }> {
+  return isMexico(country) ? MX_TIMEZONE_OPTIONS : TIMEZONE_OPTIONS;
+}
+
+/**
+ * Always asked: Mexico is multi-zone (Cancún ≠ CDMX). Preselect from city;
+ * the person can still change it (onb1-04).
+ */
+export function needsTimezoneQuestion(_country?: string | null | undefined): boolean {
+  return true;
 }
 
 /** "12:30" <-> minutes. */

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   currencyForCountry,
+  currencyForPlace,
   defaultWeeklyHours,
   essentialsReady,
   packKeyForTrade,
@@ -12,6 +13,7 @@ import {
   servicesFromFacts,
   suggestedEssentials,
   suggestedServices,
+  weeklyHoursFromLines,
   type Essentials,
   type EssentialsStore,
   type ExistingOffering,
@@ -68,6 +70,45 @@ test("beauty pack: Mexico gets MXN prices, others get quotes; trade detection co
   assert.ok(suggestedServices({ trade: "nails", country: "Spain", locale: "en" }).every((s) => s.quote && s.priceCents === null));
   assert.equal(packKeyForTrade("pestañas", null), "lashes");
   assert.equal(packKeyForTrade("dentist"), null);
+  assert.equal(packKeyForTrade("salón de belleza", null), "hair");
+  assert.equal(packKeyForTrade("beauty salon", null), "hair");
+  assert.equal(packKeyForTrade("hair-salon", null), "hair");
+});
+
+test("onb1-01: ES flow maps English pack service names to Spanish", () => {
+  const es = servicesFromFacts(["Classic lash set", "Gel manicure"], { trade: "lashes", country: "Mexico", locale: "es" });
+  assert.equal(es[0].name, "Pestañas clásicas");
+  // Gel manicure is nails pack — without nails trade it stays as said (no lashes pack hit for that EN name)
+  const nails = servicesFromFacts(["Gel manicure"], { trade: "nails", country: "Mexico", locale: "es" });
+  assert.equal(nails[0].name, "Manicura en gel");
+  assert.equal(nails[0].currency, "MXN");
+});
+
+test("onb1-03: Cancún city alone yields MXN even without country", () => {
+  const s = suggestedServices({ trade: "hair", city: "Cancún", locale: "es" });
+  assert.ok(s.length > 0);
+  assert.ok(s.every((x) => x.currency === "MXN" && x.priceCents && !x.quote));
+});
+
+test("onb1-05: written hours open the weekly grid, not the Mon-Sat default", () => {
+  const w = weeklyHoursFromLines(["Tue-Sun 13:00-23:00"]);
+  assert.ok(w);
+  assert.deepEqual(w!["2"], [{ startMin: 13 * 60, endMin: 23 * 60 }]);
+  assert.equal(w!["1"].length, 0, "Monday closed");
+  assert.deepEqual(w!["0"], [{ startMin: 13 * 60, endMin: 23 * 60 }], "Sunday open");
+  assert.equal(weeklyHoursFromLines(["By appointment"]), null);
+  assert.deepEqual(weeklyHoursFromLines(["Mon-Sat 09:00-19:00"])?.["1"], [{ startMin: 540, endMin: 1140 }]);
+});
+
+test("onb1-03 currencyForPlace: Mexican city without country is still MXN", () => {
+  assert.equal(currencyForPlace({ city: "Cancún" }), "MXN");
+  assert.equal(currencyForPlace({ city: "Tulum", country: null }), "MXN");
+  assert.equal(currencyForPlace({ country: "Spain" }), "USD");
+});
+
+test("onb1-06: suggested essentials keep the business name", () => {
+  const e = suggestedEssentials({ trade: "hair", country: "Mexico", locale: "es", name: "Salón Bella Cancún" });
+  assert.equal(e.name, "Salón Bella Cancún");
 });
 
 test("myself: services published+bookable, hours written, owner bookable, retry changes nothing", async () => {
