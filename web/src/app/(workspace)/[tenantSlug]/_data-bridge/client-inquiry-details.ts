@@ -19,6 +19,7 @@
  * gate by RLS.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { policyChangedSinceRequest } from "@/lib/legal/acceptances.core";
 import "server-only";
 
@@ -316,9 +317,14 @@ function resolveServiceName(sourceServiceId: string | null, servicesMenu: unknow
 export async function loadClientInquiryDetails(
   tenantId: string,
   inquiryId: string,
+  /**
+   * TUL-255: from `pickReadClient` only (client portal page loaders). Absent =
+   * the request's own RLS client, exactly as before.
+   */
+  effectiveReadClient?: SupabaseClient | null,
 ): Promise<ClientInquiryDetails | null> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = effectiveReadClient ?? (await createSupabaseServerClient());
     if (!supabase) return null;
 
     // Pull the inquiry row + interpreted_query (the rich InquiryIntent
@@ -377,7 +383,10 @@ export async function loadClientInquiryDetails(
     const iq = (inq.interpreted_query ?? {}) as Iq;
 
     // Parallel fan-out for the side data.
-    const admin = createServiceRoleClient();
+    // ONE client for every read AND for the privileged parts (the offer approval, signed attachments):
+    // the verified-impersonation client when one was passed (staff must see what the client sees; no extra
+    // service-role fan-out), else the existing service-role-or-RLS client.
+    const admin = effectiveReadClient ?? createServiceRoleClient();
     const readClient = admin ?? supabase;
     const [participantsRes, offerRes, coordRes, eventsRes, attachmentsRes, pitchRes, bookingRes, txnRes] = await Promise.all([
       // Talent lineup — visible-to-client subset

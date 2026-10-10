@@ -21592,6 +21592,7 @@ export type Database = {
         | "superseded"
         | "invalidated"
         | "expired"
+        | "awaiting_talent"
       inquiry_participant_role: "client" | "coordinator" | "talent" | "house"
       inquiry_participant_status: "invited" | "active" | "declined" | "removed"
       inquiry_source_channel:
@@ -21943,6 +21944,7 @@ export const Constants = {
         "superseded",
         "invalidated",
         "expired",
+        "awaiting_talent",
       ],
       inquiry_participant_role: ["client", "coordinator", "talent", "house"],
       inquiry_participant_status: ["invited", "active", "declined", "removed"],

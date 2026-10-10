@@ -1,5 +1,4 @@
 import "server-only";
-
 import type { ReactNode } from "react";
 import { loadHistoryPreviewSnapshot } from "../history/history.server";
 import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/talent-update.server";
@@ -11,10 +10,8 @@ import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-ki
 import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
 import { pruneDeadSectionLinks } from "@/lib/talent-site/dead-section-links"; import { headerOverlayAllowed } from "@/lib/talent-site/header-overlay";
 import { talentSiteLocalePath } from "@/lib/talent-site/talent-site-locale-routing";
-
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
-
 import {
   BuilderNodeFontLinks,
   BuilderNodeRendererStyles,
@@ -56,7 +53,6 @@ import { TypeSystemStyle, typeSystemSheetsForTokens } from "@/lib/talent-site/th
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 import { typeSystemComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-type-system";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-
 import {
   buildMaxSiteNav,
   coerceTree,
@@ -75,6 +71,7 @@ import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import {
   buildSocketModel,
   headerShowsLanguageSwitch,
+  siteHostFromOrigin,
   socketConsentToolingEnabled,
   stripDesignCredits,
 } from "@/lib/talent-site/footer-socket";
@@ -86,7 +83,6 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { DEFAULT_TALENT_LIVE_STATUS, loadTalentLiveStatus } from "@/lib/talent/live-status";
 import { LIVE_STATUS_CSS, liveStatusRootAttrs, toLiveStatusRenderContext } from "@/lib/talent/live-status-render";
 import { LiveStatusExpiry } from "@/components/talent-site/LiveStatusExpiry";
-
 import {
   loadMaxSiteByProfileId,
   loadMaxSiteBySlug,
@@ -126,7 +122,6 @@ export type { MaxSiteSeo };
  *
  * NEVER throws to the visitor — every resolution miss degrades to `not_found`.
  */
-
 export interface RenderTalentMaxSiteInput {
   /** Resolve the site by its globally-unique slug (the /t/site/<slug> path). */
   siteSlug?: string;
@@ -309,7 +304,10 @@ async function renderTalentMaxSiteUnguarded(
       // PHASE 1 — a free site carries the "Made with Tulala" mark; a paid plan removes it (same predicate as /t/[code]).
       showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
       isDemo,
-      talentName: identity?.name ?? null, webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), { canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL, canonicalPath: input.canonicalPath, siteSlug: site.siteSlug }),
+      talentName: identity?.name ?? null,
+      profileCode: identity?.profileCode ?? null,
+      siteHost: siteHostFromOrigin(input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL),
+      webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), { canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL, canonicalPath: input.canonicalPath, siteSlug: site.siteSlug }),
     });
 
     const seoFacts = await pSeoFacts; // services, links, city; never throws
@@ -369,7 +367,11 @@ async function renderMaxSiteDocument(args: {
   /** Fictional demo talent: a Demo pill above the header + a footer line. */
   isDemo?: boolean;
   /** The talent's display name: labels the first group of the Tulala strip. */
-  talentName?: string | null; /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
+  talentName?: string | null;
+  /** TUL-310 footer Help context. */
+  profileCode?: string | null;
+  siteHost?: string | null;
+  /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -539,12 +541,14 @@ async function renderMaxSiteDocument(args: {
     locale,
     publicPathPrefix,
     supportedLocales: args.localeCtx.settings.supportedLocales,
+    primaryLocale: args.localeCtx.settings.defaultLocale,
     switcherHrefs: args.localeCtx.switcherHrefs,
     showCredit: showPlatformBadge,
     whitelabel: tenantId ? await loadTenantWhitelabel(tenantId) : false,
     consentTooling: socketConsentToolingEnabled(),
     talentName: args.talentName,
     headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),
+    helpContext: args.profileCode ? { profileCode: args.profileCode, siteHost: args.siteHost ?? null } : null,
   });
 
   // Render one shell root. A `site_header`/`site_footer` SECTION LANDMARK carries

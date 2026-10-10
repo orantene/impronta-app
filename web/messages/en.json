@@ -60,6 +60,7 @@
         "title": "Log in",
         "inviteTitle": "Sign in to join {agency}",
         "description": "Continue with Google, Apple, or email. With Google or Apple, a password is optional; you can add one later under Account.",
+        "descriptionNoApple": "Continue with Google or email. With Google, a password is optional; you can add one later under Account.",
         "inviteDescription": "{agency} invited you to their roster. Sign in to claim your profile and start receiving bookings.",
         "google": "Continue with Google",
         "emailSubmit": "Log in with email",
@@ -972,7 +973,7 @@
       "cardAddService": "Add",
       "cardRailOne": "1 service · {label}",
       "cardRailMany": "{count} services · {label}",
-      "cardComposerPlaceholder": "Nothing is sent until you tap send.",
+      "cardComposerPlaceholder": "Type your message…",
       "cardNoBookings": "You have no bookings yet. Pick a service to get started.",
       "cardSeeServices": "See services",
       "cardChipWhenFor": "Any room this week for {service}?",
@@ -1767,6 +1768,7 @@
         "base_reservation_fee": "Reservation fee",
         "platform_fee": "Platform fee",
         "processing_fee": "Card processing",
+        "client_service_fee": "Service fee",
         "total_charged": "Total",
         "nonRefundable": "Fees are non-refundable."
       },
@@ -1799,6 +1801,7 @@
       "processingTimeout": "Your payment is still being verified. If you already paid, the business will confirm it. Please do not pay again.",
       "checkAgain": "Check again",
       "paidTitle": "Payment received",
+      "paidNote": "Your booking is confirmed. Nothing more is due.",
       "paidTo": "Paid to {seller}",
       "addToCalendar": "Add to calendar",
       "googleCalendar": "Add to Google Calendar",
@@ -4093,7 +4096,7 @@
         "cancel": "Cancel",
         "requestBalance": "Request balance",
         "requestDeposit": "Request deposit",
-        "requestDepositAmount": "Request deposit ({amount} {currency})",
+        "requestDepositAmount": "Request deposit ({amount})",
         "requestFullPayment": "Request full payment",
         "createDraft": "Create transaction draft",
         "depositCollectedHint": "Deposit collected. Charge the remaining balance. The talent/agency payout fans out when the balance settles.",
@@ -4116,7 +4119,7 @@
         "cashMethodCash": "Cash / efectivo",
         "cashMethodWire": "Bank transfer",
         "cashMethodVenue": "Venue paid",
-        "markPaidCashDeposit": "Mark deposit paid in cash ({amount} {currency})",
+        "markPaidCashDeposit": "Mark deposit paid in cash ({amount})",
         "markPaidCashBalance": "Mark balance paid in cash",
         "markPaidCashFull": "Mark full amount paid in cash",
         "loadFailedShort": "Could not load",
@@ -8742,6 +8745,18 @@
               "laneMx": {
                 "label": "Last MX webhook"
               },
+              "mxLane": {
+                "label": "MX lane",
+                "none": "No MX events yet. MX-connected sellers: {sellers}.",
+                "last": "Last MX event {hours}h ago ({mode}). {events} in the last 24h. MX-connected sellers: {sellers}.",
+                "silent": "{sellers} MX-connected seller(s) but 0 MX events in the last 24h.",
+                "connectMissing": "Connect secret missing.",
+                "mode": {
+                  "live": "live",
+                  "test": "test",
+                  "unknown": "mode unknown"
+                }
+              },
               "lane": {
                 "detail": "Hours since the last event: {hours}",
                 "none": "No events recorded yet."
@@ -8750,6 +8765,7 @@
             "fix": {
               "keyModes": "Make every Stripe key in Vercel use the same mode (all test or all live), then redeploy.",
               "secret": "Add this signing secret in Vercel from the matching Stripe webhook endpoint, then redeploy.",
+              "mxLane": "In the Mexico Stripe account (Live), check the endpoint https://app.tulala.digital/api/webhooks/stripe-mx exists and its signing secret equals STRIPE_MX_WEBHOOK_SECRET in Vercel; add the Connect endpoint and STRIPE_MX_WEBHOOK_SECRET_CONNECT. Steps: docs/plans/tul-186-mx-webhook-memo-2026-10-09.md.",
               "mxConnect": "Add the MX Connect signing secret in Vercel. Until then MX Connect events fail signature checks and held payouts only release in the daily cron.",
               "held": "Open the Revenue tab to see which payouts are held and why.",
               "stuck": "Check these transactions in the booking list; the client may need a fresh payment link.",
@@ -16218,6 +16234,7 @@
           "hold_ended": "The hold for this booking has ended.",
           "basket_changed": "The basket changed after checkout started.",
           "not_allowed": "You cannot do that from here.",
+          "awaiting_approval": "The talent still has to approve this offer. You can accept it as soon as they have.",
           "not_her_sale": "That payment belongs to the agency. You cannot request it from here.",
           "expired": "This link or offer has expired.",
           "already": "That is already done.",

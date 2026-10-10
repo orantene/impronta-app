@@ -219,6 +219,11 @@ export interface UpdateSummary {
   removedKeys: string[];
   /** Texts (translations) she changed that the update left alone: "kept 2 texts you changed". */
   copyKept?: number;
+  /**
+   * L2 (TUL-420): parts where she and the Design both changed the same prop.
+   * Merge keeps hers; the sheet warns before Apply (`decisionLine`).
+   */
+  conflictKeys: string[];
 }
 
 export function summarizeReport(report: Pick<DesignMergeReport, "applied" | "added" | "kept" | "conflicts">): UpdateSummary {
@@ -231,6 +236,7 @@ export function summarizeReport(report: Pick<DesignMergeReport, "applied" | "add
     removedKeys: partsOf(report.kept.filter((e) => e.reason === "removed")).slice(0, 6),
     conflicts: report.conflicts.length,
     copyKept: countCopyKept(report.conflicts),
+    conflictKeys: partsOf(report.conflicts).slice(0, 6),
     moved: report.applied.filter((e) => e.reason === "moved_edits").length,
     keptLabels: keys.map((k) => (k === "colours" ? k : humanKey(k))),
     keptKeys: keys,

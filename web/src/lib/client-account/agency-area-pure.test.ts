@@ -9,13 +9,19 @@ import {
   accountHomeMode,
   agencyAccountTabs,
   authPageBrand,
+  isTenantAccountHost,
   legacyClientEntryRedirect,
 } from "./agency-area-pure";
 
-test("flag kind per host", () => {
+test("flag kind per host follows x-impronta-host-context 1:1 (TUL-64)", () => {
   assert.equal(accountFlagKindForHost("talent_site"), "talent");
-  for (const h of ["agency", "hub", "app", "marketing"]) assert.equal(accountFlagKindForHost(h), "app");
+  assert.equal(accountFlagKindForHost("agency"), "agency");
+  assert.equal(accountFlagKindForHost("hub"), "hub");
+  assert.equal(accountFlagKindForHost("app"), "app");
+  assert.equal(accountFlagKindForHost("marketing"), "marketing");
   for (const h of ["not_found", "x", null, undefined]) assert.equal(accountFlagKindForHost(h), null);
+  for (const h of ["agency", "hub", "app", "marketing"]) assert.equal(isTenantAccountHost(h), true);
+  assert.equal(isTenantAccountHost("talent_site"), false);
 });
 
 test("home mode: flag off is always legacy", () => {
@@ -34,6 +40,9 @@ test("home mode: signed out and clients get the area, team accounts keep the rol
     assert.equal(accountHomeMode({ ...base, userId: "u", appRole }), "legacy");
   }
   assert.equal(accountHomeMode({ flagOn: true, hostContext: "talent_site", userId: null, appRole: null }), "legacy");
+  // Hub and app hosts use their own flag kinds, not a collapsed `app` check.
+  assert.equal(accountHomeMode({ flagOn: true, hostContext: "hub", userId: "u", appRole: "client" }), "area");
+  assert.equal(accountHomeMode({ flagOn: true, hostContext: "app", userId: "u", appRole: "client" }), "area");
 });
 
 test("legacy redirect: flag off never redirects", () => {
@@ -53,20 +62,30 @@ test("legacy redirect: only agency and hub hosts, only clients or signed out", (
   }
 });
 
-test("agency tabs: agency host, client audience, valid slug only", () => {
-  const ok = agencyAccountTabs({ hostContext: "agency", tenantSlug: "impronta", audience: "client" });
+test("agency tabs: agency host + slug + client-eligible role only", () => {
+  const ok = agencyAccountTabs({
+    hostContext: "agency",
+    tenantSlug: "impronta",
+    userId: "u",
+    appRole: "client",
+  });
   assert.deepEqual(ok.map((t) => t.key), ["quotes", "shortlists", "approvals"]);
   assert.deepEqual(ok.map((t) => t.href), ["/impronta/client/inquiries", "/impronta/client/shortlists", "/impronta/client/pitches"]);
+  // Null role is client-eligible (fresh sign-in).
+  assert.equal(
+    agencyAccountTabs({ hostContext: "agency", tenantSlug: "impronta", userId: "u", appRole: null }).length,
+    3,
+  );
 });
 
 test("hub has no agency tabs; neither do other audiences or bad slugs", () => {
-  assert.deepEqual(agencyAccountTabs({ hostContext: "hub", tenantSlug: "tulala", audience: "client" }), []);
-  assert.deepEqual(agencyAccountTabs({ hostContext: "app", tenantSlug: "tulala", audience: "client" }), []);
-  assert.deepEqual(agencyAccountTabs({ hostContext: "talent_site", tenantSlug: "x", audience: "client" }), []);
-  assert.deepEqual(agencyAccountTabs({ hostContext: "agency", tenantSlug: "impronta", audience: "signed_out" }), []);
-  assert.deepEqual(agencyAccountTabs({ hostContext: "agency", tenantSlug: "impronta", audience: "not_client" }), []);
+  assert.deepEqual(agencyAccountTabs({ hostContext: "hub", tenantSlug: "tulala", userId: "u", appRole: "client" }), []);
+  assert.deepEqual(agencyAccountTabs({ hostContext: "app", tenantSlug: "tulala", userId: "u", appRole: "client" }), []);
+  assert.deepEqual(agencyAccountTabs({ hostContext: "talent_site", tenantSlug: "x", userId: "u", appRole: "client" }), []);
+  assert.deepEqual(agencyAccountTabs({ hostContext: "agency", tenantSlug: "impronta", userId: null, appRole: null }), []);
+  assert.deepEqual(agencyAccountTabs({ hostContext: "agency", tenantSlug: "impronta", userId: "u", appRole: "talent" }), []);
   for (const tenantSlug of ["", null, undefined, "../admin", "a/b", "a b"]) {
-    assert.deepEqual(agencyAccountTabs({ hostContext: "agency", tenantSlug, audience: "client" }), []);
+    assert.deepEqual(agencyAccountTabs({ hostContext: "agency", tenantSlug, userId: "u", appRole: "client" }), []);
   }
 });
 
@@ -95,6 +114,7 @@ test("tenant renderer: data only for a client, always scoped by session user and
   assert.match(src, /resolveAccountTenant\(\)/);
   assert.match(src, /audience === "client" && userId/);
   assert.match(src, /accountFlagKindForHost\(/);
+  assert.match(src, /agencyAccountTabs\(\{ hostContext, tenantSlug: tenant\.slug, userId, appRole \}\)/);
   assert.doesNotMatch(src, /searchParams|cookies\(\)/);
   const loads = [...src.matchAll(/load(?:VisitGroups|VisitDetail|Thread|Threads|Receipt|ReceiptDetail|Receipts|OwedPayLinks)\(([^)]*)\)/g)];
   assert.ok(loads.length >= 6);
@@ -133,4 +153,5 @@ test("popover account link goes through accountHrefFor, not a literal", () => {
   const dock = readFileSync(join(__dirname, "..", "..", "components", "client-account", "ClientAccountDock.tsx"), "utf8");
   assert.match(dock, /accountHrefFor\(/);
   assert.match(dock, /getAppUrl\(\)/);
+  assert.match(dock, /mountKindForHostContext\(/);
 });

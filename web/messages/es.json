@@ -60,6 +60,7 @@
         "title": "Iniciar sesión",
         "inviteTitle": "Inicia sesión para unirte a {agency}",
         "description": "Continúa con Google, Apple o correo electrónico. Con Google o Apple, la contraseña es opcional; puedes agregar una después en Cuenta.",
+        "descriptionNoApple": "Continúa con Google o correo electrónico. Con Google, la contraseña es opcional; puedes agregar una después en Cuenta.",
         "inviteDescription": "{agency} te invitó a su roster. Inicia sesión para reclamar tu perfil y empezar a recibir reservas.",
         "google": "Continuar con Google",
         "emailSubmit": "Iniciar sesión con correo",
@@ -972,7 +973,7 @@
       "cardAddService": "Agregar",
       "cardRailOne": "1 servicio · {label}",
       "cardRailMany": "{count} servicios · {label}",
-      "cardComposerPlaceholder": "Nada se envía hasta que toques enviar.",
+      "cardComposerPlaceholder": "Escribe tu mensaje…",
       "cardNoBookings": "Aún no tienes citas. Elige un servicio para empezar.",
       "cardSeeServices": "Ver servicios",
       "cardChipWhenFor": "¿Hay hueco esta semana para {service}?",
@@ -1767,6 +1768,7 @@
         "base_reservation_fee": "Cargo de reserva",
         "platform_fee": "Cargo de la plataforma",
         "processing_fee": "Procesamiento de tarjeta",
+        "client_service_fee": "Cargo por servicio",
         "total_charged": "Total",
         "nonRefundable": "Los cargos no son reembolsables."
       },
@@ -1787,9 +1789,9 @@
       "paid": "Pagado",
       "refunded": "Reembolsado. El dinero esta en camino de vuelta.",
       "receipt": "Ver recibo",
-      "backToThread": "Volver a la conversacion",
+      "backToThread": "Volver a la conversación",
       "smsPlain": "El mismo pedido y la misma pagina segura, en texto. Este canal no muestra tarjetas.",
-      "talentView": "Ves al cliente, el servicio y las notas de silla. No la conversacion ni otros precios.",
+      "talentView": "Ves al cliente, el servicio y las notas de silla. No la conversación ni otros precios.",
       "payBy": "Paga a esta hora para guardar el horario.",
       "payByNoTime": "Paga cuando estés listo. La hora se acuerda con la talento.",
       "closedMaybePaid": "Esta página de pago está cerrada. Si ya pagaste, la talento te reembolsará.",
@@ -1799,6 +1801,7 @@
       "processingTimeout": "Tu pago sigue en verificación. Si ya pagaste, el negocio te lo confirma. No pagues de nuevo.",
       "checkAgain": "Revisar de nuevo",
       "paidTitle": "Pago recibido",
+      "paidNote": "Tu reserva está confirmada. No queda nada por pagar.",
       "paidTo": "Pagado a {seller}",
       "addToCalendar": "Agregar al calendario",
       "googleCalendar": "Agregar a Google Calendar",
@@ -4093,7 +4096,7 @@
         "cancel": "Cancelar",
         "requestBalance": "Solicitar saldo",
         "requestDeposit": "Solicitar deposito",
-        "requestDepositAmount": "Solicitar deposito ({amount} {currency})",
+        "requestDepositAmount": "Solicitar deposito ({amount})",
         "requestFullPayment": "Solicitar pago completo",
         "createDraft": "Crear borrador de transaccion",
         "depositCollectedHint": "Deposito cobrado. Cobra el saldo restante. El pago al Talent/Agency se distribuye cuando se liquida el saldo.",
@@ -4116,7 +4119,7 @@
         "cashMethodCash": "Efectivo",
         "cashMethodWire": "Transferencia bancaria",
         "cashMethodVenue": "Pagado por el venue",
-        "markPaidCashDeposit": "Marcar depósito pagado en efectivo ({amount} {currency})",
+        "markPaidCashDeposit": "Marcar depósito pagado en efectivo ({amount})",
         "markPaidCashBalance": "Marcar saldo pagado en efectivo",
         "markPaidCashFull": "Marcar monto completo pagado en efectivo",
         "loadFailedShort": "No se pudo cargar",
@@ -8742,6 +8745,18 @@
               "laneMx": {
                 "label": "Último webhook de MX"
               },
+              "mxLane": {
+                "label": "Carril MX",
+                "none": "Aún no hay eventos de MX. Vendedores conectados en MX: {sellers}.",
+                "last": "Último evento de MX hace {hours} h ({mode}). {events} en las últimas 24 h. Vendedores conectados en MX: {sellers}.",
+                "silent": "{sellers} vendedor(es) conectados en MX pero 0 eventos de MX en las últimas 24 h.",
+                "connectMissing": "Falta el secreto de Connect.",
+                "mode": {
+                  "live": "en vivo",
+                  "test": "de prueba",
+                  "unknown": "modo desconocido"
+                }
+              },
               "lane": {
                 "detail": "Horas desde el último evento: {hours}",
                 "none": "Aún no hay eventos registrados."
@@ -8750,6 +8765,7 @@
             "fix": {
               "keyModes": "Haz que todas las claves de Stripe en Vercel usen el mismo modo (todas de prueba o todas reales) y vuelve a desplegar.",
               "secret": "Agrega este secreto de firma en Vercel desde el endpoint de webhook de Stripe que corresponde y vuelve a desplegar.",
+              "mxLane": "En la cuenta de Stripe de México (en vivo), revisa que exista el endpoint https://app.tulala.digital/api/webhooks/stripe-mx y que su secreto de firma sea igual a STRIPE_MX_WEBHOOK_SECRET en Vercel; agrega el endpoint de Connect y STRIPE_MX_WEBHOOK_SECRET_CONNECT. Pasos: docs/plans/tul-186-mx-webhook-memo-2026-10-09.md.",
               "mxConnect": "Agrega el secreto de firma de MX Connect en Vercel. Mientras tanto, los eventos de MX Connect fallan la verificación de firma y los pagos retenidos solo se liberan en el cron diario.",
               "held": "Abre la pestaña Ingresos para ver qué pagos están retenidos y por qué.",
               "stuck": "Revisa estas transacciones en la lista de reservas; quizá el cliente necesite un nuevo enlace de pago.",
@@ -16218,6 +16234,7 @@
           "hold_ended": "La reserva de este horario ya termino.",
           "basket_changed": "La canasta cambio despues de iniciar el pago.",
           "not_allowed": "No puedes hacer eso desde aqui.",
+          "awaiting_approval": "El talento aún tiene que aprobar esta oferta. Podrás aceptarla en cuanto lo haga.",
           "not_her_sale": "Ese pago es de la agencia. No puedes solicitarlo desde aqui.",
           "expired": "Este enlace u oferta ya vencio.",
           "already": "Eso ya esta hecho.",

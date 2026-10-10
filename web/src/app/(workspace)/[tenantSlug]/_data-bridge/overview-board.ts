@@ -55,6 +55,7 @@ import type { ExceptionRow } from "@/lib/exceptions/model";
 import { loadHostStand, type HostStandState } from "../admin/reservations/host-stand-data";
 import { loadTenantOwedOrders, loadTenantTakings } from "./payments-activity";
 import { loadWorkspaceOrders } from "./orders";
+import { timed } from "@/lib/server/perf-trace";
 import { loadSetupItems, readAgencySetupRow } from "./setup-checklist";
 
 const DEFAULT_ZONE = "UTC";
@@ -400,20 +401,27 @@ export async function loadOverviewSnapshot(input: {
   if (!window) return null;
   const takesReservations = agency?.takes_reservations === true;
 
-  const [dayRead, stand, floor, ordersRead, board, exceptions] = await Promise.all([
-    loadClassesDay(admin, { tenantId: input.tenantId, timeZone, now, dayOffset: 0 }),
+  // The setup checklist reads its own rows (and the People surface for the "who
+  // performs" row), none of it depending on the wave, so it rides in the same
+  // wave. It used to run last, which put the slowest reader on the critical
+  // path of every studio sign-in (20-38 s landing, measured 2026-10-09).
+  const [dayRead, stand, floor, ordersRead, board, exceptions, setup] = await Promise.all([
+    timed("overview.classesDay", () => loadClassesDay(admin, { tenantId: input.tenantId, timeZone, now, dayOffset: 0 })),
     takesReservations
-      ? loadHostStand(input.tenantId, window.ymd, now)
+      ? timed("overview.hostStand", () => loadHostStand(input.tenantId, window.ymd, now))
       : Promise.resolve<HostStandState>({ kind: "no_venue" }),
-    listFloor(admin, input.tenantId),
-    loadWorkspaceOrders(input.tenantId, { limit: 500 }),
-    listBoard(admin, input.tenantId),
-    loadExceptions(admin, { tenantId: input.tenantId, tenantSlug: input.tenantSlug, now: now.getTime() }),
+    timed("overview.floor", () => listFloor(admin, input.tenantId)),
+    timed("overview.orders", () => loadWorkspaceOrders(input.tenantId, { limit: 500 })),
+    timed("overview.board", () => listBoard(admin, input.tenantId)),
+    timed("overview.exceptions", () =>
+      loadExceptions(admin, { tenantId: input.tenantId, tenantSlug: input.tenantSlug, now: now.getTime() }),
+    ),
+    timed("overview.setupItems", () => loadSetupItems(input.tenantId, agency)),
   ]);
 
   const day = dayRead.ok ? dayRead.day : null;
   const book = stand.kind === "ok" ? stand.data.entries : [];
-  const money = await readMoney(input.tenantId, window.from.toISOString(), day);
+  const money = await timed("overview.money", () => readMoney(input.tenantId, window.from.toISOString(), day));
 
   const arrivals: OverviewArrivals =
     stand.kind === "ok"
@@ -476,6 +484,6 @@ export async function loadOverviewSnapshot(input: {
       adminBase: input.adminBase,
     }),
     today,
-    setup: await loadSetupItems(input.tenantId, agency),
+    setup,
   };
 }

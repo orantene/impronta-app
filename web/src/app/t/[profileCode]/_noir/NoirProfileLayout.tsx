@@ -619,6 +619,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
         <ProfileFooterSocket
           locale={locale}
           whitelabel={props.whitelabel}
+          profileCode={props.profileCode}
           tokens={{ surface: "var(--nf-bg)", ink: "var(--nf-ink)", line: "var(--nf-line-soft)" }}
         />
       ) : null}

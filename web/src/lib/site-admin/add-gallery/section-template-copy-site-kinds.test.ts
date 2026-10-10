@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import { buildAddGallerySectionTemplate } from "./section-templates";
 import { searchSections } from "./section-search";
-import { templateCopySiteKind, type TemplateCopyContext } from "./section-template-copy";
+import { buildTemplateCopyContext, resolveCopyLocale, templateCopySiteKind, type TemplateCopyContext } from "./section-template-copy";
 
 const IDS = ["hero", "about", "about-split", "about-stats", "services", "services-list", "testimonials", "cta", "cta-split", "faq", "contact", "inquiry-cta"];
 const AGENCY_WORDS = /agency|roster|scouting|leading brands|global campaign|agencia|marcas líderes/i;
@@ -52,4 +52,48 @@ test("structure search finds sections by Spanish name, accent-insensitive", () =
 test("empty query returns nothing, gibberish returns nothing", () => {
   assert.equal(searchSections("", tr).length, 0);
   assert.equal(searchSections("zzzqqq", tr).length, 0);
+});
+
+// TUL-80 / Grokbot B-9: the insert context must use the workspace type and the site locale.
+test("resolveCopyLocale: unpublished store (boot en) on an es site falls back to the site default", () => {
+  assert.equal(resolveCopyLocale({ locale: "en", defaultLocale: "en" }, "es"), "es");
+});
+test("resolveCopyLocale: published store keeps the editing locale", () => {
+  assert.equal(resolveCopyLocale({ locale: "en", defaultLocale: "es" }, "es"), "en");
+  assert.equal(resolveCopyLocale({ locale: "es", defaultLocale: "en" }, "en"), "es");
+  assert.equal(resolveCopyLocale({ locale: "en", defaultLocale: "en" }, undefined), "en");
+});
+test("business workspace on an es site gets business Spanish FAQ copy, no agency wording", () => {
+  const ctx = buildTemplateCopyContext({
+    surfaceKind: "cms_page",
+    pathname: "/w/lash/admin",
+    workspaceType: "business",
+    active: { locale: "en", defaultLocale: "en" },
+    siteDefaultLocale: "es",
+  });
+  assert.deepEqual(ctx, { siteKind: "business", locale: "es" });
+  const out = dump("faq", ctx);
+  assert.ok(!/scouting|búsqueda de talento|Travel costs/i.test(out));
+  assert.ok(out.includes("Cada reserva incluye agenda"));
+});
+
+// Structure "Add block" search: accents, UI labels, and EN/ES aliases (even when
+// the translated label is "testimonios" rather than "reseñas").
+const ES2: Record<string, string> = {
+  "Testimonials Trio": "Trío de testimonios",
+  "FAQ Accordion": "Acordeón de preguntas frecuentes",
+  "Gallery Grid": "Cuadrícula de galería",
+};
+const tr2 = (en: string) => ES2[en] ?? en;
+test("structure search is accent-insensitive in both directions and matches by key", () => {
+  for (const q of ["resenas", "reseñas", "acordeon", "ACORDEÓN", "testimonios", "galeria"]) {
+    assert.ok(searchSections(q, tr2).length > 0, q);
+  }
+  assert.ok(searchSections("faq-accordion", tr2).length > 0, "by template key");
+});
+test("structure search matches UI-language aliases without a Spanish label hit", () => {
+  const identity = (en: string) => en;
+  for (const q of ["reseñas", "preguntas frecuentes", "fotos"]) {
+    assert.ok(searchSections(q, identity).length > 0, q);
+  }
 });

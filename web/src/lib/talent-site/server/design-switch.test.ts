@@ -10,8 +10,10 @@ import { findKeyPath } from "@/lib/talent-site/theme-releases/tree-ops";
 import { addNode, built, edit, plain, prop } from "@/lib/talent-site/theme-releases/test-fixtures";
 import {
   DESIGN_APPLY_DRAFT_SITE_KEYS,
+  canRestoreExactSinceLeave,
   draftUnchangedSinceSwitch,
   isDesignSwitchReport,
+  onlyDesignAppliesSinceLeave,
   planDesignSwitch,
   snapshotDesignSlug,
 } from "./design-switch";
@@ -24,6 +26,11 @@ function stampAs(side: ReturnType<typeof built>, design: string, version: number
     shell: refreshOriginFingerprints(stampDesignOrigin(side.trees.shell!, src)),
     home: refreshOriginFingerprints(stampDesignOrigin(side.trees.home!, src)),
   };
+}
+
+function originDesign(node: BuilderNode): string | undefined {
+  const o = propsOf(node).__origin as { design?: string } | undefined;
+  return typeof o?.design === "string" ? o.design : undefined;
 }
 
 test("carry-over: matched keys keep her content text and i18n", () => {
@@ -59,7 +66,7 @@ test("carry-over: matched keys keep her content text and i18n", () => {
   assert.ok(plan.mappedKeys.includes("hero/heading"));
 });
 
-test("carry-over: unmatched stamped section is kept and warned (not deleted)", () => {
+test("carry-over: unmatched stamped section is dropped and warned (TUL-527)", () => {
   const from = built(1, { withGallery: true });
   // Target has no gallery key.
   const to = stampAs(built(2, { withGallery: false }), "folio", 1);
@@ -75,7 +82,11 @@ test("carry-over: unmatched stamped section is kept and warned (not deleted)", (
     toVersion: 1,
   });
 
-  assert.ok(plan.home.some((n) => (propsOf(n).__origin as { key?: string } | undefined)?.key === "gallery"));
+  assert.equal(
+    plan.home.some((n) => (propsOf(n).__origin as { key?: string } | undefined)?.key === "gallery"),
+    false,
+    "theme gallery orphan must not stack onto the new Design",
+  );
   assert.ok(plan.warned.some((w) => w.key === "gallery" && w.reason === "no_match" && w.tree === "home"));
 });
 
@@ -97,6 +108,89 @@ test("carry-over: talent-added top-level node is kept and warned", () => {
 
   assert.ok(plan.home.some((n) => n.kind === "paragraph" && getPath(propsOf(n), "text").value === "My note"));
   assert.ok(plan.warned.some((w) => w.reason === "talent_added" && w.kind === "paragraph"));
+});
+
+test("first apply on a fresh site (no Design pinned): the unstamped starter tree is replaced, not appended as orphans", () => {
+  // The starter tree a new talent site is created with: unstamped, ids like default-talent-*.
+  const starterHome: BuilderNode[] = [
+    { id: "default-talent-hero", kind: "split", props: {}, children: [] } as unknown as BuilderNode,
+    { id: "default-talent-about", kind: "container", props: {}, children: [] } as unknown as BuilderNode,
+    { id: "default-talent-services", kind: "container", props: {}, children: [] } as unknown as BuilderNode,
+  ];
+  const starterShell: BuilderNode[] = [{ id: "default-talent-header", kind: "container", props: {}, children: [] } as unknown as BuilderNode];
+  const to = stampAs(built(1), "maison-v2", 1);
+  const plan = planDesignSwitch({
+    fromShell: starterShell,
+    fromHome: starterHome,
+    toShell: to.shell,
+    toHome: to.home,
+    fromSlug: null,
+    toSlug: "maison-v2",
+    fromVersion: null,
+    toVersion: 1,
+  });
+  assert.deepEqual(plan.home, to.home, "home is exactly the design");
+  assert.deepEqual(plan.shell, to.shell, "shell is exactly the design");
+  assert.ok(!plan.home.some((n) => String(n.id).startsWith("default-talent-")), "no starter node survives");
+  assert.deepEqual(plan.warned, []);
+  // A blank slug string counts as "no design pinned" too.
+  const blank = planDesignSwitch({ fromShell: starterShell, fromHome: starterHome, toShell: to.shell, toHome: to.home, fromSlug: " ", toSlug: "maison-v2", fromVersion: null, toVersion: 1 });
+  assert.deepEqual(blank.home, to.home);
+});
+
+test("a site already on a Design drops unmatched theme sections but keeps talent-added ones", () => {
+  let from = built(1, { withGallery: true });
+  from = addNode(from, "home", null, plain("paragraph", { text: "My note" }));
+  const to = stampAs(built(2, { withGallery: false }), "folio", 1);
+  const plan = planDesignSwitch({
+    fromShell: from.trees.shell!,
+    fromHome: from.trees.home!,
+    toShell: to.shell,
+    toHome: to.home,
+    fromSlug: "maison-v2",
+    toSlug: "folio",
+    fromVersion: 1,
+    toVersion: 1,
+  });
+  assert.ok(plan.warned.some((w) => w.key === "gallery" && w.reason === "no_match"));
+  assert.ok(plan.home.some((n) => n.kind === "paragraph" && getPath(propsOf(n), "text").value === "My note"));
+  assert.equal(plan.home.some((n) => (propsOf(n).__origin as { key?: string } | undefined)?.key === "gallery"), false);
+});
+
+test("TUL-527: A→B→C does not pile foreign theme blocks onto the live home", () => {
+  const a = stampAs(built(1, { withGallery: true }), "maison-v2", 1);
+  const b = stampAs(built(2, { withGallery: false, heroVariant: "stacked" }), "gridline", 1);
+  const c = stampAs(built(3, { withGallery: false }), "folio", 1);
+
+  const ab = planDesignSwitch({
+    fromShell: a.shell,
+    fromHome: a.home,
+    toShell: b.shell,
+    toHome: b.home,
+    fromSlug: "maison-v2",
+    toSlug: "gridline",
+    fromVersion: 1,
+    toVersion: 1,
+  });
+  const bc = planDesignSwitch({
+    fromShell: ab.shell,
+    fromHome: ab.home,
+    toShell: c.shell,
+    toHome: c.home,
+    fromSlug: "gridline",
+    toSlug: "folio",
+    fromVersion: 1,
+    toVersion: 1,
+  });
+
+  assert.equal(bc.home.length, c.home.length, "top-level count must match the target Design");
+  for (const n of bc.home) {
+    const d = originDesign(n);
+    if (!d) continue; // talent-added allowed
+    assert.equal(d, "folio", `no foreign theme origin, got ${d}`);
+  }
+  assert.equal(bc.home.some((n) => String(n.id).startsWith("maison-v2")), false);
+  assert.equal(bc.home.some((n) => String(n.id).startsWith("gridline")), false);
 });
 
 test("draft-first: apply site patch keys never include published columns", () => {
@@ -146,6 +240,39 @@ test("carry-over: preferred when draft moved after the leave (edited on B)", () 
   assert.equal(draftUnchangedSinceSwitch(6, 5), false);
   assert.equal(draftUnchangedSinceSwitch(12, 5), false);
   assert.equal(draftUnchangedSinceSwitch(4, 5), false);
+});
+
+test("TUL-527: restore-exact after A→B→C when only design_apply happened since leave", () => {
+  assert.equal(onlyDesignAppliesSinceLeave([{ kind: "design_apply" }, { kind: "design_apply" }]), true);
+  assert.equal(onlyDesignAppliesSinceLeave([{ kind: "design_apply" }, { kind: "edit" }]), false);
+  assert.equal(onlyDesignAppliesSinceLeave([]), false);
+  // A→B left at rev 5; B→C bumped to 6 with only design_apply → restore A.
+  assert.equal(
+    canRestoreExactSinceLeave({
+      currentDraftRev: 6,
+      leaveEntryDraftRev: 5,
+      entriesAfterLeave: [{ kind: "design_apply" }],
+    }),
+    true,
+  );
+  // Same rev path still works.
+  assert.equal(
+    canRestoreExactSinceLeave({
+      currentDraftRev: 5,
+      leaveEntryDraftRev: 5,
+      entriesAfterLeave: [],
+    }),
+    true,
+  );
+  // An edit on B blocks restore-exact.
+  assert.equal(
+    canRestoreExactSinceLeave({
+      currentDraftRev: 7,
+      leaveEntryDraftRev: 5,
+      entriesAfterLeave: [{ kind: "edit" }, { kind: "design_apply" }],
+    }),
+    false,
+  );
 });
 
 test("report helpers: isDesignSwitchReport + snapshotDesignSlug", () => {

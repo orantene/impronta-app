@@ -156,16 +156,21 @@ export async function buildTalentBuilderCanvasData(input: {
   const [headerTree, rawFooterTree] = splitShell(shell);
   // The socket carries the ONE Tulala credit, so the canvas hides any design-level one too.
   const footerTree = stripDesignCredits(rawFooterTree);
+  const canvasIdentity = await loadTalentSiteIdentity(talentProfileId);
   const socketModel = buildSocketModel({
     locale: siteLocale,
     publicPathPrefix: "",
     supportedLocales: localeCtx.settings.supportedLocales,
+    primaryLocale: localeCtx.settings.defaultLocale,
     switcherHrefs: localeCtx.switcherHrefs,
     showCredit: talentSiteShowsPlatformBadge(planKey),
     whitelabel: input.tenantId ? await loadTenantWhitelabel(input.tenantId) : false,
     consentTooling: socketConsentToolingEnabled(),
-    talentName: (await loadTalentSiteIdentity(talentProfileId))?.name ?? null,
+    talentName: canvasIdentity?.name ?? null,
     headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),
+    helpContext: canvasIdentity?.profileCode
+      ? { profileCode: canvasIdentity.profileCode, siteHost: null }
+      : null,
   });
 
   const dataSources = await dataSourcesP;

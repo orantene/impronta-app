@@ -141,6 +141,15 @@ export const NOTIFICATION_PAGE_TARGETS: Readonly<Record<string, NotificationPage
   // drawer id here would resolve to the stub.
   whatsapp: { kind: "page", surface: "workspace", path: "/settings/channels" },
 
+  // TUL-391 — refund.failed / payment.needs_attention workspace bells. Admin →
+  // Payments → Refunds is where paid-after-cancel and failed Stripe refunds
+  // surface for a manual alternative refund. Relative to adminBasePath.
+  "workspace-payments": {
+    kind: "page",
+    surface: "workspace",
+    path: "/payments?tab=refunds",
+  },
+
   // lib/talent-site/theme-releases/manager/notify.ts: "Maison v2 has an update"
   // (theme releases). My presence (/talent/site) hosts the update notice; the
   // query opens its What's new sheet straight away.

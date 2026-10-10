@@ -9,4 +9,11 @@ export const THREAD_ES_TEXT: Record<string, string> = {
   "Write a message...": "Escribe un mensaje...",
   Send: "Enviar",
   Unknown: "Desconocido",
+  // Talent inbox Activity / Chat empty states (TUL-519 cards 379+500).
+  "No activity yet": "Aún no hay actividad",
+  "Offers, payments and booking confirmations will appear here as the job progresses.":
+    "Las ofertas, pagos y confirmaciones de reserva aparecerán aquí conforme avance el trabajo.",
+  "Start the conversation below. Your message will go to the right people in this thread.":
+    "Empieza la conversación abajo. Tu mensaje llegará a las personas correctas de este hilo.",
+  "Offer sent": "Oferta enviada",
 };

@@ -1,0 +1,8 @@
+{
+  "myself": { "userId": "<auth user id of a QA solo talent>", "talentId": "<talent_profiles.id>", "siteHost": "rosa-myself-xxxx.tulala.digital", "serviceName": "Limpieza profunda" },
+  "both": { "userId": "<auth user id of a QA dual owner>", "slug": "rosa-both-xxxx" },
+  "studio": { "userId": "<auth user id of a QA studio owner>", "slug": "estudio-xxxx" },
+  "clientPortal": { "userId": "<QA client with an agency relationship>", "slug": "qa-journeys" },
+  "superAdmin": { "userId": "<QA super_admin auth user id>" },
+  "sites": ["rosa-myself-xxxx.tulala.digital"]
+}

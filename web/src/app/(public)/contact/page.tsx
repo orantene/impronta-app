@@ -20,12 +20,25 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ContactPage({
   searchParams,
 }: {
-  searchParams: Promise<{ t?: string }>;
+  searchParams: Promise<{ t?: string; source?: string; host?: string; code?: string }>;
 }) {
   const ctx = await getPublicHostContext();
   if (contactSurfaceForHostKind(ctx.kind) === "marketing") {
     const params = await searchParams;
-    return <MarketingContactPage token={typeof params.t === "string" ? params.t : undefined} />;
+    const talentSite =
+      typeof params.source === "string" && params.source.trim()
+        ? {
+            source: params.source.trim(),
+            host: typeof params.host === "string" ? params.host : null,
+            code: typeof params.code === "string" ? params.code : null,
+          }
+        : null;
+    return (
+      <MarketingContactPage
+        token={typeof params.t === "string" ? params.t : undefined}
+        talentSite={talentSite}
+      />
+    );
   }
 
   const t = createTranslator(await getRequestLocale());

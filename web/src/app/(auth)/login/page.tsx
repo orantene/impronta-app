@@ -74,9 +74,15 @@ export default async function LoginPage({
   const title = inviterAgencyName
     ? t("public.auth.login.inviteTitle").replace("{agency}", inviterAgencyName)
     : t("public.auth.login.title");
+  // A1-2 (TUL-518): subtitle must not promise Apple while AUTH_APPLE_PROVIDER_ENABLED is off.
+  const appleSignInEnabled = isAppleAuthProviderEnabled();
   const description = inviterAgencyName
     ? t("public.auth.login.inviteDescription").replace("{agency}", inviterAgencyName)
-    : t("public.auth.login.description");
+    : t(
+        appleSignInEnabled
+          ? "public.auth.login.description"
+          : "public.auth.login.descriptionNoApple",
+      );
 
   // TUL-117: a pro's "create account" goes to the guided /start flow. Client
   // links, invites and anything with a non-talent `next` keep /register.
@@ -157,7 +163,7 @@ export default async function LoginPage({
          * when AUTH_APPLE_PROVIDER_ENABLED is on — set after Supabase Apple
          * provider config (Services ID, Team ID, Key ID, private key).
          */}
-        {isAppleAuthProviderEnabled() ? (
+        {appleSignInEnabled ? (
           <div className="mt-3">
             <LoginAppleButton
               nextPath={nextPath}

@@ -64,3 +64,28 @@ test2("sellerCollectedCents: no surcharge, unknown charged, or no ledger money p
 test2("sellerCollectedCents never reports more than the ledger collected", () => {
   assert2.equal(_sellerCollected(1_000, { gross_cents: 90_000, gross_charged_cents: 91_350 }), 985);
 });
+
+// ── The Money row explains the client's fee next to her price ───────────────────────────────────────
+import { clientFeeCents as _clientFee } from "./snapshot-aggregations";
+import { readFileSync as _read } from "node:fs";
+
+test2("clientFeeCents: MX$913.50 charged on a MX$900 sale is a MX$13.50 fee that is not hers", () => {
+  assert2.equal(_clientFee({ gross_cents: 90_000, gross_charged_cents: 91_350 }), 1_350);
+});
+
+test2("clientFeeCents: no surcharge, unknown charged or a nonsense gross is 0", () => {
+  assert2.equal(_clientFee({ gross_cents: 90_000, gross_charged_cents: 90_000 }), 0);
+  assert2.equal(_clientFee({ gross_cents: 90_000, gross_charged_cents: null }), 0);
+  assert2.equal(_clientFee({ gross_cents: 0, gross_charged_cents: 500 }), 0);
+});
+
+test2("the fee rides from the snapshot row to the Money row (and never on part-paid rows)", () => {
+  const types = _read(new URL("../talent/earnings-types.ts", import.meta.url), "utf8");
+  assert2.equal((types.match(/clientFeeCents\?: number \| null;/g) ?? []).length, 2);
+  assert2.match(types, /clientFeeCents: row\.clientFeeCents \?\? null,/);
+  const page = _read(new URL("../../components/talent/money/MoneyHomePage.tsx", import.meta.url), "utf8");
+  assert2.match(page, /!isPartPaidRow\(p\) && p\.clientFeeCents != null && p\.clientFeeCents > 0/);
+  assert2.match(page, /money\(p\.grossCents \+ p\.clientFeeCents, cur\)/);
+  const es = _read(new URL("../../components/admin/shell/internal/dashboard-i18n-money-home.ts", import.meta.url), "utf8");
+  assert2.ok(es.includes("El cliente pagó {paid}, con {fee} de cargo por servicio (no es tuyo)"));
+});
