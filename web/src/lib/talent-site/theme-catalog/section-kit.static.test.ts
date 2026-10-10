@@ -235,17 +235,21 @@ test("the kit source files carry no hex literal at all", async () => {
   }
 });
 
-test("aftercareBlock: every visible text has an ES overlay and no dash in the copy", () => {
+test("aftercareBlock: every visible text has es + en overlays and no dash in the copy (TUL-207)", () => {
   const section = aftercareBlock(ids());
-  const texts: Array<{ text: string; es?: string }> = [];
+  const texts: Array<{ text: string; es?: string; en?: string }> = [];
   for (const node of walk([section])) {
-    const p = node.props as { text?: string; i18n?: { es?: { text?: string } } };
-    if (typeof p.text === "string") texts.push({ text: p.text, es: p.i18n?.es?.text });
+    const p = node.props as {
+      text?: string;
+      i18n?: { es?: { text?: string }; en?: { text?: string } };
+    };
+    if (typeof p.text === "string") texts.push({ text: p.text, es: p.i18n?.es?.text, en: p.i18n?.en?.text });
   }
   assert.ok(texts.length >= 8, "eyebrow, heading and three tips (title + text)");
   for (const t of texts) {
     assert.ok(t.es && t.es.length > 0, `"${t.text}" needs an ES overlay`);
-    assert.doesNotMatch(`${t.text} ${t.es}`, /[\u2013\u2014]/, "no en or em dash in user-facing copy");
+    assert.ok(t.en && t.en.length > 0, `"${t.text}" needs an EN overlay`);
+    assert.doesNotMatch(`${t.text} ${t.es} ${t.en}`, /[\u2013\u2014]/, "no en or em dash in user-facing copy");
   }
   assert.equal(TALENT_KIT_SECTIONS.aftercare.originRole, "talent.aftercare");
 });

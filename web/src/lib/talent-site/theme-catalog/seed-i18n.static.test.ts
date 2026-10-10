@@ -14,7 +14,15 @@ import { FINISHED_GALLERY_SLUGS } from "./gallery-meta";
 import { COLLECTION_DESIGNS } from "./collection/designs";
 import { buildMaisonDesignPayload } from "./maison/design-payload";
 import { localiseOne } from "../design-label-locale";
-import { isTokenOnlyText, MODE_DEPENDENT_LABELS, SEED_TEXT_ES } from "./seed-i18n";
+import { resolveLocalized } from "@/lib/i18n/resolve-localized";
+import {
+  isTokenOnlyText,
+  MODE_DEPENDENT_LABELS,
+  SEED_TEXT_EN_FROM_ES,
+  SEED_TEXT_ES,
+  seedI18nTree,
+} from "./seed-i18n";
+import { beforeAfterBlock } from "./section-kit-before-after";
 
 const DESIGNS: ReadonlyArray<readonly [string, () => DesignPayload]> = [
   ["maison", buildMaisonDesignPayload],
@@ -226,4 +234,140 @@ test("the scanner flags a seeded FAQ item, stats cell and catalog string lacking
   assert.ok(problems.some((p) => p.includes("items.0.value")));
   assert.ok(problems.some((p) => p.includes("accordion_item") && p.includes(".title")));
   assert.ok(problems.some((p) => p.includes("services_catalog") && p.includes(".ctaLabel")));
+});
+
+/**
+ * Done-when (TUL-207): on a fresh site the visitor-facing seed copy resolves to
+ * Spanish at `/` (defaultLocale es) and English at `/en`, with no cross-language
+ * swap. Mirrors the renderer map: base prop = defaultLocale, overlays fill the rest.
+ */
+function resolveSeeded(
+  base: string,
+  overlays: { es?: string; en?: string },
+  locale: "es" | "en",
+  defaultLocale: "es" | "en",
+): string {
+  const map: Record<string, string | null | undefined> = { [defaultLocale]: base };
+  if (overlays.es) map.es = overlays.es;
+  if (overlays.en) map.en = overlays.en;
+  const chain = locale === defaultLocale ? ([locale] as const) : ([locale, defaultLocale] as const);
+  const resolved = resolveLocalized(map, locale, chain);
+  return resolved.value !== "" ? resolved.value : base;
+}
+
+function seededPairs(payload: DesignPayload): Array<{ path: string; base: string; es: string; en: string }> {
+  const out: Array<{ path: string; base: string; es: string; en: string }> = [];
+  const bag = payload as unknown as Record<string, unknown>;
+  for (const treeName of ["homeTree", "shellTree", "optionalBlocks"] as const) {
+    walk(bag[treeName], treeName, (path, node) => {
+      const props = (node.props ?? {}) as Record<string, unknown>;
+      const kind = node.kind as Parameters<typeof localizablePropsForKind>[0];
+      const keys: Array<{ key: string; base: string }> = [];
+      for (const prop of localizablePropsForKind(kind)) {
+        const text = props[prop];
+        if (typeof text !== "string" || isTokenOnlyText(text) || MODE_DEPENDENT_LABELS.includes(text.trim())) continue;
+        keys.push({ key: prop, base: text });
+      }
+      if (node.kind === "marquee" && Array.isArray(props.items)) {
+        props.items.forEach((it, n) => {
+          const text = it && typeof it === "object" ? (it as { text?: unknown }).text : undefined;
+          if (typeof text !== "string" || isTokenOnlyText(text) || MODE_DEPENDENT_LABELS.includes(text.trim())) return;
+          keys.push({ key: `items.${n}.text`, base: text });
+        });
+      }
+      for (const spec of localizableListSpecsForKind(kind)) {
+        const items = props[spec.list];
+        if (!Array.isArray(items)) continue;
+        items.forEach((item, n) => {
+          for (const field of spec.fields) {
+            const text = item && typeof item === "object" ? (item as Record<string, unknown>)[field] : undefined;
+            if (typeof text !== "string" || isTokenOnlyText(text) || MODE_DEPENDENT_LABELS.includes(text.trim())) continue;
+            keys.push({ key: listOverlayKey(spec.list, n, field), base: text });
+          }
+        });
+      }
+      if (node.kind === "section" && props.sectionTypeKey === "site_header") {
+        for (const { key, text } of headerLabelEntries(props.sectionProps)) {
+          if (isTokenOnlyText(text) || MODE_DEPENDENT_LABELS.includes(text.trim())) continue;
+          keys.push({ key: `${HEADER_OVERLAY_PREFIX}${key}`, base: text });
+        }
+      }
+      for (const { key, base } of keys) {
+        const es = overlayValue(props, "es", key);
+        const en = overlayValue(props, "en", key);
+        if (es === undefined || en === undefined) continue;
+        out.push({ path: `${path}.${key}`, base, es, en });
+      }
+    });
+  }
+  return out;
+}
+
+for (const [slug, build] of DESIGNS) {
+  test(`${slug}: fresh ES site resolves Spanish on / and English on /en (TUL-207 done-when)`, () => {
+    const pairs = seededPairs(build());
+    assert.ok(pairs.length > 0, `${slug} has no seeded text pairs`);
+    const problems: string[] = [];
+    for (const p of pairs) {
+      const esHome = resolveSeeded(p.base, p, "es", "es");
+      const enAlt = resolveSeeded(p.base, p, "en", "es");
+      if (esHome !== p.es) problems.push(`${p.path} ES-site/es got ${JSON.stringify(esHome)} want ${JSON.stringify(p.es)}`);
+      if (enAlt !== p.en) problems.push(`${p.path} ES-site/en got ${JSON.stringify(enAlt)} want ${JSON.stringify(p.en)}`);
+      // Cross-language: when the two overlays differ, neither locale may show the other.
+      if (p.es !== p.en) {
+        if (esHome === p.en) problems.push(`${p.path} ES-site/es shows English overlay`);
+        if (enAlt === p.es) problems.push(`${p.path} ES-site/en shows Spanish overlay`);
+      }
+      const enHome = resolveSeeded(p.base, p, "en", "en");
+      const esAlt = resolveSeeded(p.base, p, "es", "en");
+      if (enHome !== p.en) problems.push(`${p.path} EN-site/en got ${JSON.stringify(enHome)} want ${JSON.stringify(p.en)}`);
+      if (esAlt !== p.es) problems.push(`${p.path} EN-site/es got ${JSON.stringify(esAlt)} want ${JSON.stringify(p.es)}`);
+    }
+    assert.deepEqual(problems, [], `\n${problems.join("\n")}`);
+  });
+}
+
+test("SEED_TEXT_ES covers before/after and aftercare kit strings (TUL-207)", () => {
+  for (const en of [
+    "Before and after",
+    "The difference",
+    "Aftercare",
+    "Aftercare tips",
+    "Follow the care steps",
+    "Ask me anything",
+    "Plan your next visit",
+  ]) {
+    assert.ok(en in SEED_TEXT_ES, `${en} missing from SEED_TEXT_ES`);
+    assert.ok(!SEED_TEXT_ES[en]!.includes("—"));
+  }
+  assert.ok("Consultar" in SEED_TEXT_EN_FROM_ES);
+});
+
+test("seedI18nTree fills a missing en on a hand-authored es-only heading (TUL-207)", () => {
+  const tree = seedI18nTree([
+    {
+      id: "h",
+      kind: "heading",
+      props: { text: "Before and after", i18n: { es: { text: "Antes y después" } } },
+    } as never,
+  ]);
+  const props = tree[0]!.props as { i18n: { es: { text: string }; en: { text: string } } };
+  assert.equal(props.i18n.es.text, "Antes y después");
+  assert.equal(props.i18n.en.text, "Before and after");
+});
+
+test("beforeAfterBlock kit ships es + en on the heading without waiting for seedI18n (TUL-207)", () => {
+  let n = 0;
+  const block = beforeAfterBlock(() => `ba-${++n}`);
+  const heading = JSON.stringify(block).includes('"Before and after"');
+  assert.ok(heading);
+  const walkKit = (node: { kind?: string; props?: { text?: string; i18n?: { es?: { text?: string }; en?: { text?: string } } }; children?: unknown[] }): void => {
+    const p = node.props;
+    if (p && typeof p.text === "string" && p.text === "Before and after") {
+      assert.equal(p.i18n?.es?.text, "Antes y después");
+      assert.equal(p.i18n?.en?.text, "Before and after");
+    }
+    for (const c of node.children ?? []) walkKit(c as never);
+  };
+  walkKit(block as never);
 });
