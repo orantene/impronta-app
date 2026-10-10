@@ -63,6 +63,7 @@ import {
   DEFAULT_ACCENT,
   FONT,
   firstNameOf,
+  launcherAccentFill,
   readableOn,
   type SurfaceMode,
 } from "./mini-chat-styles";
@@ -478,8 +479,9 @@ export function TalentProfileChatLauncher({
     liveInquiryIdRef,
   });
 
-  const accent = brand.accentColor ?? DEFAULT_ACCENT;
-  const accentInk = readableOn(brand.accentColor);
+  // GRK-037: clamp near-black brand fills so Hablar stays visible on dark headers.
+  const accent = launcherAccentFill(brand.accentColor ?? DEFAULT_ACCENT);
+  const accentInk = readableOn(accent);
   const talentFirst = firstNameOf(brand.talentDisplayName);
   // Guest UI locale rides along on `brand` (resolved server-side from the
   // tenant's default_locale, since guests have no LOCALE_COOKIE).

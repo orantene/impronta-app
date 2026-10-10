@@ -144,6 +144,32 @@ export function surfaceModeFromBackgroundMode(
 // for the brand color so nothing falls back to a near-black fill.
 export const DEFAULT_ACCENT = "#33507a";
 
+/**
+ * GRK-037 — Hablar FAB fill floor. A near-black brand accent on a dark header
+ * (karla / noir) paints an invisible circle. Below this relative-luminance
+ * floor we substitute DEFAULT_ACCENT so the FAB stays findable on every theme.
+ */
+export const LAUNCHER_ACCENT_MIN_LUMINANCE = 0.18;
+
+/** Solid fill for the guest-chat FAB; never a near-black brand colour. */
+export function launcherAccentFill(hex: string | null | undefined): string {
+  if (!hex || typeof hex !== "string") return DEFAULT_ACCENT;
+  const m = hex.trim().replace(/^#/, "");
+  const full =
+    m.length === 3
+      ? m
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : m;
+  if (full.length !== 6 || !/^[0-9a-fA-F]{6}$/.test(full)) return DEFAULT_ACCENT;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum < LAUNCHER_ACCENT_MIN_LUMINANCE ? DEFAULT_ACCENT : `#${full.toLowerCase()}`;
+}
+
 /** Launcher pill offset from the viewport bottom (safe-area added at use site). */
 export const GUEST_CHAT_LAUNCHER_BOTTOM_PX = 130;
 
