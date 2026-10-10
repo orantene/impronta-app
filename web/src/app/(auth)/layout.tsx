@@ -15,6 +15,7 @@ import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-local
 import { createTranslator } from "@/i18n/messages";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { localeUrlSettings, stripLocaleFromPathname } from "@/i18n/pathnames";
+import { authTabTitleMessageKey } from "@/lib/auth/auth-tab-title";
 
 import { AuthLanguageToggle } from "./auth-language-toggle";
 import {
@@ -29,24 +30,38 @@ const AUTH_ROBOTS: Metadata = { robots: { index: false, follow: false } };
 
 /**
  * TUL-64: with the client account flag on, a whitelabel agency's own login page
- * is titled with the agency's name, not "Tulala". Everything else is unchanged.
+ * is titled with the agency's name, not "Tulala".
+ *
+ * GRK-094 / GRK-095: on platform hosts (and any agency/hub without a brand
+ * override), set a path-specific title so /login and /register are not both
+ * the root default (`Tulala · {tagline}`). Uses the root `%s · Tulala` template.
  */
 export async function generateMetadata(): Promise<Metadata> {
+  const h = await headers();
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
+  const originalPath = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
+  const { pathnameWithoutLocale } = stripLocaleFromPathname(originalPath);
+  const titleKey = authTabTitleMessageKey(pathnameWithoutLocale);
+  const pageTitle = titleKey ? t(titleKey) : null;
+
   const ctx = await getPublicHostContext();
-  if (ctx.kind !== "agency" && ctx.kind !== "hub") return AUTH_ROBOTS;
-  // TUL-64: flag kind matches x-impronta-host-context (agency / hub), not `app`.
-  if (!clientAccountEnabledFor(ctx.kind)) return AUTH_ROBOTS;
-  const [identity, whitelabel] = await Promise.all([
-    loadPublicIdentity(ctx.tenantId).catch(() => null),
-    loadTenantWhitelabel(ctx.tenantId).catch(() => false),
-  ]);
-  const brand = authPageBrand({
-    flagOn: true,
-    hostKind: ctx.kind,
-    whitelabel,
-    publicName: identity?.public_name,
-  });
-  return brand ? { ...AUTH_ROBOTS, title: { absolute: brand.title } } : AUTH_ROBOTS;
+  if ((ctx.kind === "agency" || ctx.kind === "hub") && clientAccountEnabledFor(ctx.kind)) {
+    // TUL-64: flag kind matches x-impronta-host-context (agency / hub), not `app`.
+    const [identity, whitelabel] = await Promise.all([
+      loadPublicIdentity(ctx.tenantId).catch(() => null),
+      loadTenantWhitelabel(ctx.tenantId).catch(() => false),
+    ]);
+    const brand = authPageBrand({
+      flagOn: true,
+      hostKind: ctx.kind,
+      whitelabel,
+      publicName: identity?.public_name,
+    });
+    if (brand) return { ...AUTH_ROBOTS, title: { absolute: brand.title } };
+  }
+
+  return pageTitle ? { ...AUTH_ROBOTS, title: pageTitle } : AUTH_ROBOTS;
 }
 
 /** What the layout needs beyond the brand object itself. */
