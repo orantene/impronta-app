@@ -8,6 +8,8 @@ import {
   catalogTimezoneLabel,
   catalogWeekdayShort,
   formatClock,
+  nextDayWithSlotsIndex,
+  nextOpenDemoDayIndex,
 } from "./catalog-booking-logic";
 import type { CatalogTakenSlotNotice } from "./catalog-taken-slot";
 import { CatalogTakenSlotNoticeView } from "./CatalogTakenSlotNotice";
@@ -70,6 +72,12 @@ export function CatalogLiveWhenPicker({
 }) {
   const liveTimes = liveDays[dayIndex]?.starts ?? [];
   const stripRef = useScrollSelectedDayIntoView(dayIndex, liveDays.length);
+  const windowHasSlots = liveDays.some((d) => d.starts.length > 0);
+  const nextFree = nextDayWithSlotsIndex(liveDays, dayIndex);
+  const jumpToNextFree = () => {
+    if (nextFree == null) return;
+    onPickDay(nextFree);
+  };
   return (
     <>
       {takenNotice && !liveStarts ? (
@@ -93,12 +101,34 @@ export function CatalogLiveWhenPicker({
       <CatalogSelectedDateLine date={liveDays[dayIndex]?.date} tz={liveTz} es={es} />
       {liveTimes.length === 0 ? (
         <div className="jb-empty">
-          <strong>{es ? "Sin horarios disponibles." : "No times available."}</strong>
+          <strong>
+            {windowHasSlots
+              ? es
+                ? "Sin horarios disponibles ese día."
+                : "No times that day."
+              : es
+                ? "Sin horarios disponibles."
+                : "No times available."}
+          </strong>
           <p>
-            {es
-              ? "No hay huecos en las próximas dos semanas. Prueba otra fecha o consulta."
-              : "Nothing is open in the next two weeks. Try another day or send a question."}
+            {windowHasSlots
+              ? es
+                ? "Prueba otra fecha o consulta."
+                : "Try another day or send a question."
+              : es
+                ? "No hay huecos en las próximas dos semanas. Prueba otra fecha o consulta."
+                : "Nothing is open in the next two weeks. Try another day or send a question."}
           </p>
+          {nextFree != null ? (
+            <button
+              type="button"
+              className="jb-try-date"
+              data-catalog-try-another-date=""
+              onClick={jumpToNextFree}
+            >
+              {es ? "Prueba otra fecha" : "Try another date"}
+            </button>
+          ) : null}
           {emptyConsultButton}
         </div>
       ) : (
@@ -142,6 +172,7 @@ export function CatalogDemoWhenPicker({
   onPickTime: (t: string) => void;
 }) {
   const stripRef = useScrollSelectedDayIntoView(dayIndex, days.length);
+  const nextOpen = nextOpenDemoDayIndex(days, dayIndex);
   return (
     <>
       <div ref={stripRef} className="jb-days" role="group" aria-label={es ? "Elige una fecha" : "Pick a date"}>
@@ -165,6 +196,16 @@ export function CatalogDemoWhenPicker({
         <div className="jb-empty">
           <strong>{es ? "Sin horarios disponibles ese día." : "No times that day."}</strong>
           <p>{es ? "Elige otra fecha." : "Pick another date."}</p>
+          {nextOpen != null ? (
+            <button
+              type="button"
+              className="jb-try-date"
+              data-catalog-try-another-date=""
+              onClick={() => onPickDay(nextOpen)}
+            >
+              {es ? "Prueba otra fecha" : "Try another date"}
+            </button>
+          ) : null}
           {emptyConsultButton}
         </div>
       ) : (
