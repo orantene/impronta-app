@@ -8,8 +8,8 @@ import {
   recordBookingCashCollected,
   recordBookingTransferAwaiting,
 } from "@/lib/talent-agenda";
-import { formatOfferingPrice } from "@/lib/talent/offerings-types";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 type CollectMethod = "cash" | "card" | "transfer" | "unpaid";
 type Step = "method" | "confirm" | "done";
@@ -50,7 +50,7 @@ export function AgendaFinishCollect({
   const [payUrl, setPayUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const amountLabel = dueCents && dueCents > 0 ? formatOfferingPrice(dueCents, "MXN", copy.locale) : null;
+  const amountLabel = dueCents && dueCents > 0 ? formatDashboardMoneyCents(dueCents, "MXN", copy.locale) : null;
   const stepNo = step === "method" ? 1 : step === "confirm" ? 2 : 3;
   const chosen = METHODS.find(([id]) => id === method);
 

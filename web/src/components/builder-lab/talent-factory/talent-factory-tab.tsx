@@ -21,7 +21,13 @@ import {
   type FactoryOverview,
   type TalentSyncSummaryFacts,
 } from "./factory-model";
-import { actionLoadTalentFactory, actionSyncTalentCatalog, type TalentSyncJson } from "./talent-factory-actions";
+import {
+  actionExportAuthoredOverlay,
+  actionLoadTalentFactory,
+  actionOpenCodeSeedReview,
+  actionSyncTalentCatalog,
+  type TalentSyncJson,
+} from "./talent-factory-actions";
 
 const btn =
   "rounded border border-white/30 px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40";
@@ -178,6 +184,9 @@ function DesignCard({
   const cmd = parityCommandFor(row.slug);
   const [copied, setCopied] = useState(false);
   const [pullCopied, setPullCopied] = useState(false);
+  const [exportCopied, setExportCopied] = useState(false);
+  const [reviewMsg, setReviewMsg] = useState<string | null>(null);
+  const [reviewPending, startReview] = useTransition();
   const pullCmd = pullAuthoredCommandFor(row.slug);
   function copyPull() {
     try {
@@ -195,6 +204,35 @@ function DesignCard({
       setCopied(false);
     }
   }
+  function openCodeSeedReview() {
+    startReview(async () => {
+      setReviewMsg(null);
+      const res = await actionOpenCodeSeedReview(row.slug);
+      if (!res.ok) {
+        setReviewMsg(res.error);
+        return;
+      }
+      setReviewMsg(lang === "es" ? res.data.summaryEs : res.data.summary);
+      if (typeof window !== "undefined") window.location.assign(res.data.editHref);
+    });
+  }
+  function exportOverlay() {
+    startReview(async () => {
+      setReviewMsg(null);
+      const res = await actionExportAuthoredOverlay(row.slug);
+      if (!res.ok) {
+        setReviewMsg(res.error);
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(res.data.overlayJson);
+        setExportCopied(true);
+        setReviewMsg(`${t.exportOverlayDone}: ${res.data.file}`);
+      } catch {
+        setReviewMsg(res.data.file);
+      }
+    });
+  }
   return (
     <section className="rounded-lg border border-white/10 bg-white/5 p-4" data-factory-design={row.slug}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -205,6 +243,20 @@ function DesignCard({
           {t.status[row.status]}
         </span>
       </div>
+      {row.codeSeedReview ? (
+        <div className="mt-2" data-code-seed-review>
+          <p className="text-xs text-white/60">{t.codeSeedReviewHint}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <button type="button" className={btn} disabled={reviewPending} onClick={openCodeSeedReview}>
+              {reviewPending ? t.codeSeedReviewing : t.codeSeedReview}
+            </button>
+            <button type="button" className={btn} disabled={reviewPending} onClick={exportOverlay}>
+              {exportCopied ? t.exportOverlayDone : t.exportOverlay}
+            </button>
+          </div>
+          {reviewMsg ? <p className="mt-1 text-xs text-white/70">{reviewMsg}</p> : null}
+        </div>
+      ) : null}
       {row.status === "authored_pending" ? (
         <div className="mt-2" data-pull-hint>
           <p className="text-xs text-white/60">{t.pendingHint}</p>

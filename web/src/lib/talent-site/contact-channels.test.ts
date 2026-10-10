@@ -82,8 +82,9 @@ test("WhatsApp uses her number or a published link; email is a mailto only", () 
 });
 
 test("the guest dock opens in place for an ask, without a pending service", () => {
+  // TUL-246: the launcher's open listeners live in its use-offering-request-open hook.
   const launcher = readFileSync(
-    new URL("../../app/t/[profileCode]/_chat/TalentProfileChatLauncher.tsx", import.meta.url),
+    new URL("../../app/t/[profileCode]/_chat/use-offering-request-open.ts", import.meta.url),
     "utf8",
   );
   assert.match(launcher, /tulala:open-guest-chat/);

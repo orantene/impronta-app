@@ -577,16 +577,38 @@ test("TUL-93 · confirmed booking on the fixture talent has guest + talent notif
     .order("created_at", { ascending: false })
     .limit(1);
   test.skip(!bookings?.length, "fixture missing: no confirmed booking on myself talent");
+  const bookingId = bookings![0]!.id as string;
   const inquiryId = bookings![0]!.inquiry_id as string | null;
   test.skip(!inquiryId, "fixture missing: confirmed booking has no inquiry_id");
-  const { data: dispatches } = await svc
+  // Column is event_kind (not kind) — a bad select 400s and looks like "no rows".
+  const { data: byInquiry, error: byInquiryErr } = await svc
     .from("notification_dispatch_log")
-    .select("id, status, channel, kind")
+    .select("id, status, channel, event_kind, error_message, catalog_entry_id")
     .eq("inquiry_id", inquiryId)
     .limit(20);
-  writeFileSync(join(evidence, "TUL-93-dispatches.json"), JSON.stringify(dispatches ?? [], null, 2));
-  expect((dispatches ?? []).length, "at least one dispatch row for the booking inquiry").toBeGreaterThan(0);
-  const skipped = (dispatches ?? []).filter((d) => String(d.status).includes("skipped") || /not configured/i.test(String(d.status)));
+  expect(byInquiryErr, `dispatch by inquiry: ${byInquiryErr?.message ?? ""}`).toBeNull();
+  let dispatches = byInquiry ?? [];
+  if (dispatches.length === 0) {
+    // Free-path emits may stamp inquiry_id null on older rows; match payload.bookingId.
+    const { data: byBooking, error: byBookingErr } = await svc
+      .from("notification_dispatch_log")
+      .select("id, status, channel, event_kind, error_message, catalog_entry_id")
+      .eq("event_kind", "booking.confirmed")
+      .filter("payload->>bookingId", "eq", bookingId)
+      .limit(20);
+    expect(byBookingErr, `dispatch by bookingId: ${byBookingErr?.message ?? ""}`).toBeNull();
+    dispatches = byBooking ?? [];
+  }
+  writeFileSync(
+    join(evidence, "TUL-93-dispatches.json"),
+    JSON.stringify({ inquiryId, bookingId, dispatches }, null, 2),
+  );
+  expect(dispatches.length, "at least one dispatch row for the booking inquiry").toBeGreaterThan(0);
+  const skipped = dispatches.filter(
+    (d) =>
+      d.status === "skipped" &&
+      /not configured|no endpoint/i.test(String(d.error_message ?? "")),
+  );
   expect(skipped, "no 'channel not configured' skips for this inquiry").toEqual([]);
 });
 

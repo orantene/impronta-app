@@ -91,6 +91,8 @@ test.describe("QA notifications — IncomingToast + shell bell", () => {
       timeout: 10_000,
       state: "attached",
     });
+    // TUL-390 — category tabs always; dual owner tabs only when alsoTalent.
+    await expect(page.locator("[data-tulala-notif-category-tabs]")).toBeVisible({ timeout: 5_000 });
     await shot(page, "notif-shell-bell");
     await assertNoRawI18nKeys(page);
     expect(errors, errors.join("\n")).toEqual([]);

@@ -1,11 +1,9 @@
 /**
- * Brand identity publish rule (owner decision 1, 2026-09-16).
+ * Brand identity publish tip (TUL-524; was owner decision 1, 2026-09-16).
  *
- * A site may be built, previewed and edited with no branding asset at all.
- * Publishing needs the identity completed: a logo, OR the choice "use my
- * business name as my logo" (a wordmark set in the Look's typography). Never
- * a prerequisite before value; never read as "not a business". Pure rule
- * here; the server reads the two inputs and the drawer offers the wordmark.
+ * A site may be built, previewed, edited and published with no logo asset.
+ * New sites default to the business-name wordmark at seed. Missing identity
+ * is an advisory tip only (upload a logo later), never a publish blocker.
  */
 
 export type BrandIdentityInputs = {
@@ -28,4 +26,4 @@ export function brandIdentityAppliesTo(surfaceKind: string | null | undefined): 
 }
 
 export const BRAND_IDENTITY_MESSAGE =
-  "Complete your brand identity to publish: upload a logo, or use your business name as your logo.";
+  "Your business name is your logo for now. Upload a custom logo anytime from Brand.";
