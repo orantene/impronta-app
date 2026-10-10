@@ -19,6 +19,7 @@
 import { loadCompareTable } from "@/lib/pricing/get-compare-table";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { localizeTierName } from "@/lib/marketing/pricing-ladders-copy";
 import {
   COMPARE_CATEGORY_LABEL,
   type CompareTableRow,
@@ -97,7 +98,7 @@ export async function PlanFeatureCompareTable({
                       : "var(--plt-ink)",
                 }}
               >
-                {table.tierLabels[slug]}
+                {localizeTierName(table.tierLabels[slug] ?? slug, locale)}
               </span>
               {captions[slug] && (
                 <p
@@ -161,7 +162,7 @@ export async function PlanFeatureCompareTable({
                       : "var(--plt-ink)",
                 }}
               >
-                {table.tierLabels[slug]}
+                {localizeTierName(table.tierLabels[slug] ?? slug, locale)}
               </span>
               <span
                 className="plt-mono text-[0.625rem] uppercase tracking-[0.22em]"
