@@ -131,6 +131,14 @@ test("the seed Spanish table has no em dash and no voseo", () => {
   }
 });
 
+test("Folio Comp card + Runway seed ES pairs stay Spanish-complete (W2-5 C3)", () => {
+  assert.equal(SEED_TEXT_ES["Measures · Comp card"], "Medidas · Ficha");
+  assert.doesNotMatch(SEED_TEXT_ES["Measures · Comp card"] ?? "", /Comp card/);
+  assert.equal(SEED_TEXT_ES.Runway, "Pasarela");
+  assert.equal(localiseOne("Measures · Comp card", "es", null), "Medidas · Ficha");
+  assert.equal(localiseOne("Runway", "es", null), "Pasarela");
+});
+
 test("the scanner flags a missing overlay (guard against a vacuous pass)", () => {
   const fake = {
     shellTree: [],
