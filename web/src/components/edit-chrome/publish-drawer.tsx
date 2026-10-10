@@ -85,7 +85,6 @@ import { useBuilderTree } from "./builder-tree-bridge";
 import { useDirty } from "./dirty-bridge";
 import { useSaving } from "./save-cycle-bridge";
 import { PublishPreflight } from "./PublishPreflight";
-import { InspectorInfoTip } from "./inspectors/kit";
 import { MobileHealthPanel } from "./MobileHealthPanel";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { useEditorLocale } from "./use-editor-locale";
@@ -93,7 +92,6 @@ import { announceSitePublished, runPublishOnce } from "./site-published-event";
 import {
   formatPublishDisabledReason,
   resolvePublishDisabledReason,
-  resolvePublishHardBlockReasons,
 } from "./publish-disabled-reason";
 
 const TITLE_MAX = 60;
@@ -343,7 +341,6 @@ export function PublishDrawer() {
   const [copyState, setCopyState] = useState<
     { kind: "idle" } | { kind: "busy" } | { kind: "success" }
   >({ kind: "idle" });
-  const [showLegacy, setShowLegacy] = useState(false);
   // Declutter (2026-08-19): the two heavy cards below the stats collapse by
   // default — the stats card already carries their counts. `null` = "use the
   // default": What's going live auto-opens when a REQUIRED section is missing
@@ -360,6 +357,8 @@ export function PublishDrawer() {
   const [publishTab, setPublishTab] = useState<
     "checks" | "changes" | "seo" | "schedule"
   >("checks");
+  // TUL-524: Checks / Changes / SEO / Schedule live under "More options".
+  const [moreOptionsOpen, setMoreOptionsOpen] = useState(false);
   const [host, setHost] = useState("");
   const [preflightLoading, setPreflightLoading] = useState(false);
   const [preflightBlockingErrors, setPreflightBlockingErrors] = useState(0);
@@ -440,8 +439,8 @@ export function PublishDrawer() {
   useEffect(() => {
     if (publishOpen) {
       setState({ kind: "idle" });
-      setShowLegacy(false);
-      setPublishTab("checks"); // every open starts on Checks (blockers first)
+      setMoreOptionsOpen(false);
+      setPublishTab("checks");
       // PublishPreflight resolves status before this parent effect; start
       // loading only on surfaces that actually run the checks.
       setPreflightLoading(isPublishPreflightSurface(surfaceKind));
@@ -860,28 +859,6 @@ export function PublishDrawer() {
     });
     return resolved ? formatPublishDisabledReason(resolved, t) : null;
   })();
-  /**
-   * Hard blockers only — things that are wrong with *content or checks*, not
-   * transient draft/preflight state (those have their own banners above).
-   * Preflight **warnings** never appear here; only severity `error` counts.
-   * Keys are English catalog entries; render path runs them through `t()`.
-   */
-  const publishHardBlockReasons = useMemo(
-    () =>
-      resolvePublishHardBlockReasons({
-        hasConflictRecovery,
-        preflightBlockingErrors,
-        preflightMobileOverflowErrors,
-        compositionCasVersionMissing: getCompositionCasVersion() === null,
-      }),
-    [
-      getCompositionCasVersion,
-      preflightBlockingErrors,
-      preflightMobileOverflowErrors,
-      hasConflictRecovery,
-    ],
-  );
-
   const isSuccess = state.kind === "success";
 
   // W1-L2 — "N sections ready" used to count only curated SLOT rows, so a
@@ -967,7 +944,7 @@ export function PublishDrawer() {
         onClose={state.kind === "publishing" ? undefined : closePublish}
       />
 
-      {!isSuccess ? (
+      {!isSuccess && moreOptionsOpen ? (
         <DrawerTabs>
           <DrawerTab
             active={publishTab === "checks"}
@@ -1046,95 +1023,73 @@ export function PublishDrawer() {
             <div
               style={{
                 marginBottom: 12,
-                display: "flex",
+                fontSize: 13,
+                lineHeight: 1.5,
+                color: CHROME.text,
+              }}
+              data-testid="publish-primary-sentence"
+            >
+              {surfaceKind === "platform_lab"
+                ? t("Publishing adds this template to the gallery. No live pages change.")
+                : t("Your page will be published at {host}.").replace(
+                    "{host}",
+                    host || "…",
+                  )}
+            </div>
+            {/* TUL-524: single PublishPreflight instance (always mounted).
+                Visible in the primary view when there are real blockers, or
+                under More options → Checks. display:none keeps the gate alive. */}
+            <div
+              style={{
+                display:
+                  (!moreOptionsOpen && preflightBlockingErrors > 0) ||
+                  (moreOptionsOpen && publishTab === "checks")
+                    ? undefined
+                    : "none",
+              }}
+            >
+              <div className="mb-3">
+                <PublishPreflight
+                  enabled={publishOpen && isPublishPreflightSurface(surfaceKind)}
+                  refreshKey={publishOpen ? 1 : 0}
+                  locale={locale}
+                  pageId={pageId}
+                  surfaceKind={surfaceKind}
+                  builderTree={builderTree}
+                  onStatusChange={handlePreflightStatusChange}
+                  onFocusSection={focusSectionForEdit}
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              data-testid="publish-more-options"
+              aria-expanded={moreOptionsOpen}
+              onClick={() => setMoreOptionsOpen((open) => !open)}
+              style={{
+                display: "inline-flex",
                 alignItems: "center",
                 gap: 6,
+                marginBottom: moreOptionsOpen ? 10 : 4,
+                padding: "4px 0",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
                 fontSize: 12,
-                lineHeight: 1.5,
+                fontWeight: 600,
                 color: CHROME.text2,
               }}
             >
-              {/* The one fact that must stay visible before a publish click.
-                  The how-it-works essay (autosave vs draft vs live, Revisions
-                  rollback, the lab-sandbox variant) lives behind the ⓘ. */}
-              <span>
-                {surfaceKind === "platform_lab"
-                  ? t("Publishing adds this template to the gallery. No live pages change.")
-                  : t("Publishing makes this draft the live page visitors see.")}
-              </span>
-              <InspectorInfoTip
-                title={t("What publishing does")}
-                content={
-                  <span style={{ display: "block" }}>
-                    {surfaceKind === "platform_lab" ? (
-                      editorLocale === "es" ? (
-                        <>
-                          El <strong>guardado automático</strong> conserva tu trabajo en curso
-                          como <strong>borrador</strong>. <strong>Publicar</strong> convierte
-                          esta <strong>plantilla</strong> en parte de la galería del editor de
-                          páginas, para que <strong>+ Agregar</strong> pueda usarla en los
-                          sitios en vivo. Este lienzo es un entorno de prueba; no hay cambios
-                          en páginas en vivo.
-                        </>
-                      ) : (
-                        <>
-                          <strong>Autosave</strong> keeps your in-progress work as a{" "}
-                          <strong>draft</strong>. <strong>Publishing</strong> promotes this{" "}
-                          <strong>template</strong> into the page-builder gallery, so the live
-                          builders&rsquo; <strong>+ Add</strong> can use it. The canvas here is
-                          a sandbox; no live page changes.
-                        </>
-                      )
-                    ) : editorLocale === "es" ? (
-                      <>
-                        El <strong>guardado automático</strong> conserva tu trabajo en curso
-                        como <strong>borrador</strong>. <strong>Publicar</strong> reemplaza la
-                        versión <strong>pública</strong> actual de{" "}
-                        {pageSlug ? "esta página" : "tu página de inicio"} con ese borrador,
-                        así los visitantes ven la página tal como está ahora. Las demás
-                        páginas no cambian. Usa <strong>Revisiones</strong> para volver a una
-                        instantánea anterior si lo necesitas.
-                      </>
-                    ) : (
-                      <>
-                        <strong>Autosave</strong> keeps your in-progress work as a{" "}
-                        <strong>draft</strong>. <strong>Publishing</strong> replaces the
-                        current <strong>public</strong> version of{" "}
-                        {pageSlug ? "this page" : "your homepage"} with that draft, so
-                        visitors then see this page as you have it now. Other pages are
-                        unchanged. Use <strong>Revisions</strong> to roll back to a previous
-                        snapshot if needed.
-                      </>
-                    )}
-                    <span style={{ display: "block", marginTop: 6 }}>
-                      {t(
-                        "Saving only stores your draft. It does not mean visitors see these changes. Scroll the canvas, try Preview mode, and review the publish checks below before publishing.",
-                      )}
-                    </span>
-                  </span>
-                }
-              />
-            </div>
-            {/* ── Tab: Checks ────────────────────────────────────── */}
-            {/* Kept mounted on every tab (display gate, never unmount):
-                PublishPreflight's status callback is the publish gate. */}
-            <div style={{ display: publishTab === "checks" ? undefined : "none" }}>
-            {/* Phase 10 — preflight (heading + alt-text + contrast). */}
-            <div className="mb-3">
-              <PublishPreflight
-                enabled={publishOpen && isPublishPreflightSurface(surfaceKind)}
-                refreshKey={publishOpen ? 1 : 0}
-                locale={locale}
-                pageId={pageId}
-                surfaceKind={surfaceKind}
-                builderTree={builderTree}
-                onStatusChange={handlePreflightStatusChange}
-                onFocusSection={focusSectionForEdit}
-              />
-            </div>
-            {/* Wave-2 2C — mobile health advisory checklist (advisory only,
-                never blocks publish). Only shown when the builder tree is
-                non-empty so the panel doesn't appear for legacy-only pages. */}
+              <ChevronDown flipped={moreOptionsOpen} />
+              {moreOptionsOpen ? t("Hide options") : t("More options")}
+            </button>
+            {/* ── Tab: Checks extras (mobile health only; preflight above) ── */}
+            <div
+              style={{
+                display:
+                  moreOptionsOpen && publishTab === "checks" ? undefined : "none",
+              }}
+            >
             {builderTree.length > 0 ? (
               <div className="mb-3">
                 <MobileHealthPanel builderTree={builderTree} />
@@ -1142,7 +1097,7 @@ export function PublishDrawer() {
             ) : null}
             </div>
             {/* ── Tab: Changes (part 1: stats) ───────────────────── */}
-            <div style={{ display: publishTab === "changes" ? undefined : "none" }}>
+            <div style={{ display: moreOptionsOpen && publishTab === "changes" ? undefined : "none" }}>
             {/* ── Preview thumbnail + stats ───────────────────────── */}
             <Card>
               <CardBody>
@@ -1268,7 +1223,7 @@ export function PublishDrawer() {
             </Card>
             </div>
             {/* ── Tab: SEO ───────────────────────────────────────── */}
-            <div style={{ display: publishTab === "seo" ? undefined : "none" }}>
+            <div style={{ display: moreOptionsOpen && publishTab === "seo" ? undefined : "none" }}>
             {/* ── Page settings (mini) ───────────────────────────── */}
             <Card>
               <CardHead
@@ -1496,111 +1451,6 @@ export function PublishDrawer() {
                   )}
                 </ul>
 
-                {summary.legacy.length > 0 ? (
-                  <div
-                    style={{
-                      borderTop: `1px solid ${CHROME.line}`,
-                      padding: "6px 13px 8px",
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setShowLegacy((s) => !s)}
-                      style={{
-                        background: "transparent",
-                        border: "none",
-                        cursor: "pointer",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        fontSize: 11.5,
-                        fontWeight: 600,
-                        color: CHROME.muted,
-                        padding: "4px 0",
-                      }}
-                    >
-                      <ChevronDown flipped={showLegacy} />
-                      {showLegacy
-                        ? `Hide ${summary.legacyCount} legacy ${summary.legacyCount === 1 ? "section" : "sections"}`
-                        : `Show ${summary.legacyCount} legacy ${summary.legacyCount === 1 ? "section" : "sections"}`}
-                    </button>
-
-                    {showLegacy ? (
-                      <ul
-                        style={{
-                          listStyle: "none",
-                          margin: "4px 0 0",
-                          padding: 0,
-                        }}
-                      >
-                        {summary.legacy.flatMap((row) =>
-                          row.sections.map((s) => (
-                            <li
-                              key={s.id}
-                              style={{
-                                padding: "6px 0",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 10,
-                                opacity: 0.85,
-                              }}
-                            >
-                              <span
-                                aria-hidden
-                                style={{
-                                  color: CHROME.muted3,
-                                  display: "inline-flex",
-                                }}
-                              >
-                                <SectionIcon />
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <div
-                                  style={{
-                                    fontSize: 12,
-                                    color: CHROME.text2,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 6,
-                                  }}
-                                >
-                                  <span
-                                    style={{
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis",
-                                      whiteSpace: "nowrap",
-                                    }}
-                                  >
-                                    {s.name || row.label}
-                                  </span>
-                                  {!publishDiff.loading ? (
-                                    <ChangeBadge
-                                      kind={
-                                        publishDiff.draftSectionChanges.get(s.id) ??
-                                        "unchanged"
-                                      }
-                                    />
-                                  ) : null}
-                                </div>
-                                <div
-                                  style={{
-                                    fontSize: 10,
-                                    color: CHROME.muted2,
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.04em",
-                                  }}
-                                >
-                                  {row.label} · legacy
-                                </div>
-                              </div>
-                            </li>
-                          )),
-                        )}
-                      </ul>
-                    ) : null}
-                  </div>
-                ) : null}
-
                 {!publishDiff.loading && removedLiveSections.length > 0 ? (
                   <div
                     style={{
@@ -1768,7 +1618,7 @@ export function PublishDrawer() {
             {/* ── Tab: Schedule (publish later) ──────────────────── */}
             {surfaceKind === "homepage" || surfaceKind === "cms_page" ? (
               <div
-                style={{ display: publishTab === "schedule" ? undefined : "none" }}
+                style={{ display: moreOptionsOpen && publishTab === "schedule" ? undefined : "none" }}
               >
                 <Card>
                   <CardHead icon={<ClockIcon />} title={t("Schedule publish")} />
@@ -1782,7 +1632,7 @@ export function PublishDrawer() {
             ) : null}
 
             {/* ── Inline status / error banners ───────────────── */}
-            {summary.missing.length > 0 ? (
+            {moreOptionsOpen && summary.missing.length > 0 ? (
               <div
                 role="status"
                 aria-live="polite"
@@ -1798,14 +1648,10 @@ export function PublishDrawer() {
                   lineHeight: 1.45,
                 }}
               >
-                Add at least one section to{" "}
-                {summary.missing.map((s, i) => (
-                  <span key={s.key}>
-                    <strong>{s.label}</strong>
-                    {i < summary.missing.length - 1 ? ", " : ""}
-                  </span>
-                ))}{" "}
-                before publishing.
+                {t("Add at least one section to {slots} before publishing.").replace(
+                  "{slots}",
+                  summary.missing.map((s) => s.label).join(", "),
+                )}
               </div>
             ) : null}
 
@@ -1872,50 +1718,9 @@ export function PublishDrawer() {
               </div>
             ) : null}
 
-            {state.kind !== "publishing" &&
-            publishHardBlockReasons.length > 0 ? (
-              <div
-                role="status"
-                aria-live="polite"
-                aria-atomic="true"
-                style={{
-                  marginTop: 10,
-                  borderRadius: 8,
-                  border: `1px solid ${CHROME.roseLine}`,
-                  background: CHROME.roseBg,
-                  color: CHROME.rose,
-                  padding: "9px 10px",
-                  fontSize: 11.5,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    marginBottom: 5,
-                  }}
-                >
-                  Publish blocked
-                </div>
-                <ul
-                  style={{
-                    margin: 0,
-                    paddingLeft: 14,
-                    display: "grid",
-                    gap: 2,
-                  }}
-                >
-                  {publishHardBlockReasons.map((reason) => {
-                    const text = formatPublishDisabledReason(reason, t);
-                    return (
-                      <li key={`${reason.key}:${reason.count ?? ""}`}>{text}</li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ) : null}
+            {/* TUL-524: no duplicate hard-block banner. The primary button
+                stays disabled with a title tooltip; the one checklist above
+                lists real gaps. */}
           </>
         )}
       </DrawerBody>
@@ -1923,6 +1728,7 @@ export function PublishDrawer() {
       {!isSuccess ? (
         <DrawerFoot
           start={
+            moreOptionsOpen ? (
             <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
               <button
                 type="button"
@@ -2006,6 +1812,7 @@ export function PublishDrawer() {
                 </span>
               ) : null}
             </div>
+            ) : null
           }
           end={
             <>

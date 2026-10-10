@@ -441,6 +441,14 @@ test("the starter seed publishes the classic theme for untouched tenants", () =>
   );
 });
 
+test("TUL-524: starter seed defaults brand identity to the business-name wordmark", () => {
+  assert.match(
+    seedSrc,
+    /ensureBrandIdentityWordmark\(params\.client,\s*params\.tenantId\)/,
+    "seed must record brand_identity=wordmark so first publish has no brand wall",
+  );
+});
+
 test("both starter-seed CAS writes re-read the version first", () => {
   const casCalls = seedSrc.match(/resolveCasExpectedVersion\(/g) ?? [];
   assert.equal(
@@ -517,12 +525,15 @@ test("each signup audience gets its own hero copy, and the name is interpolated"
   const agency = heroOf(buildFreeStarterEntries("Vera Atelier", "agency"));
   const operator = heroOf(buildFreeStarterEntries("Vera Atelier", "operator"));
   const organization = heroOf(buildFreeStarterEntries("Vera Atelier", "organization"));
+  const business = heroOf(buildFreeStarterEntries("Vera Atelier", "business"));
 
   // Three genuinely different headlines — not one string with the name swapped.
   const headlines = [agency.headline, operator.headline, organization.headline];
   assert.equal(new Set(headlines).size, 3, `expected 3 distinct headlines, got ${JSON.stringify(headlines)}`);
 
-  for (const hero of [agency, operator, organization]) {
+  // TUL-524: every seeded headline carries the business name (never a blank H1).
+  for (const hero of [agency, operator, organization, business]) {
+    assert.match(String(hero.headline), /Vera Atelier/);
     assert.match(String(hero.subheadline), /Vera Atelier/);
   }
 
