@@ -7,6 +7,10 @@
  * instead of returning bare "Not found" text, so a wrong URL lands on branded
  * chrome with a clear way home, never a dead end.
  *
+ * Talent custom-domain allow-list rejects also rewrite here
+ * (`talent-site-host-response.ts`) and forward the resolved talent locale so
+ * this page's metadata matches Spanish hosts (TUL-121 theme9 P2).
+ *
  * Lives outside every tenant-aware route group so it renders safely without a
  * host context (mirrors `/_host-unregistered`). Whitelisted in the proxy
  * short-circuit so the rewrite doesn't recurse. Links are absolute (the
@@ -14,14 +18,22 @@
  * regardless of which host produced the 404.
  */
 import type { Metadata } from "next";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { getAppUrl, getSiteUrl } from "@/lib/auth-flow";
+import { pageNotFoundCopy } from "@/lib/saas/page-not-found-copy";
 
-export const metadata: Metadata = {
-  title: "Page not found — Tulala",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const copy = pageNotFoundCopy(locale);
+  return {
+    title: { absolute: copy.title },
+    robots: { index: false, follow: false },
+  };
+}
 
-export default function PageNotFound() {
+export default async function PageNotFound() {
+  const locale = await getRequestLocale();
+  const copy = pageNotFoundCopy(locale);
   const site = getSiteUrl();
   const app = getAppUrl();
   return (
@@ -69,7 +81,7 @@ export default function PageNotFound() {
             marginBottom: 0,
           }}
         >
-          Page not found
+          {copy.heading}
         </h1>
         <p
           style={{
@@ -81,8 +93,7 @@ export default function PageNotFound() {
             marginBottom: 0,
           }}
         >
-          The page you&apos;re looking for doesn&apos;t exist or may have moved.
-          Head back to the homepage, or sign in to your workspace.
+          {copy.body}
         </p>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 24 }}>
@@ -101,7 +112,7 @@ export default function PageNotFound() {
               textDecoration: "none",
             }}
           >
-            Go to homepage
+            {copy.homeCta}
           </a>
           <a
             href={`${app}/login`}
@@ -119,7 +130,7 @@ export default function PageNotFound() {
               textDecoration: "none",
             }}
           >
-            Sign in
+            {copy.signInCta}
           </a>
         </div>
       </div>
