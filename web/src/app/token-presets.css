@@ -5909,7 +5909,8 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header[data-variant="minimal"] .site-header__inner { flex-direction: column; align-items: center; gap: 8px; padding-block: 8px; }
 
 .site-header__brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--token-color-ink); font-family: var(--site-heading-font); font-weight: 600; letter-spacing: -0.005em; }
-.site-header__brand-mark { width: clamp(20px, 2vw, 28px); height: clamp(20px, 2vw, 28px); object-fit: contain; }
+/* GRK-046: logo mark ≥32px (was clamp 20–28 — unreadably small on phone). */
+.site-header__brand-mark { width: clamp(32px, 2.8vw, 40px); height: clamp(32px, 2.8vw, 40px); object-fit: contain; }
 .site-header__brand-label { font-size: clamp(14px, 1.1vw, 16px); }
 /* Phones: the header is ONE row on every design and variant. A long name gives way (ellipsis), never wraps the bar. */
 @media (max-width: 767px) {
@@ -6391,7 +6392,8 @@ html[data-theme="dark"] [data-tone="light"] {
 }
 
 /* ---- Optional density controls (only match when operator set them) --- */
-.site-header[data-logo-scale="sm"] .site-header__brand-mark { height: clamp(24px, 2.4vw, 30px); }
+/* GRK-046: even "sm" stays ≥32px so demos never drop below the done-when floor. */
+.site-header[data-logo-scale="sm"] .site-header__brand-mark { width: clamp(32px, 2.8vw, 36px); height: clamp(32px, 2.8vw, 36px); }
 .site-header[data-logo-scale="lg"] .site-header__brand-mark { height: clamp(38px, 4vw, 52px); }
 .site-header[data-logo-scale="xl"] .site-header__brand-mark { height: clamp(46px, 5vw, 64px); }
 .site-header[data-logo-scale="sm"] .site-header__brand-label { font-size: clamp(0.95rem, 1.7vw, 1.25rem); }
