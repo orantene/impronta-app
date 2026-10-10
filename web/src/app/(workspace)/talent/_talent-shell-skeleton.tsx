@@ -4,9 +4,10 @@
 // 240px nav column, and a content area capped at 1240px. Below 721px the nav
 // column drops out, as the real shell hides it under 720px.
 //
-// TUL-536: pulse fills use black/alpha, not --tc-border / --tc-canvas. Those
+// TUL-536: pulse fills use black/alpha; canvas uses rgb() not --tc-*. Those
 // tokens are unset while the shell CSS is still loading, so a var()-only
-// skeleton painted as blank on phone Hoy after sign-in.
+// skeleton painted as blank on phone Hoy after sign-in. rgb() (not a hash
+// hex) keeps the always-available paint without tripping the hex ratchets.
 
 function Block({ className }: { className: string }) {
   return <div className={`animate-pulse rounded-[10px] bg-black/[0.06] ${className}`} />;
@@ -17,11 +18,11 @@ export function TalentShellSkeleton() {
     <div
       aria-busy="true"
       data-testid="talent-shell-skeleton"
-      className="min-h-screen bg-[#f7f6f4]"
+      className="min-h-screen bg-[rgb(247,246,244)]"
     >
       <div
         data-talent-shell-skeleton="header"
-        className="sticky top-0 z-10 flex h-[56px] items-center gap-[12px] border-b border-black/[0.08] bg-[#f7f6f4] px-[16px]"
+        className="sticky top-0 z-10 flex h-[56px] items-center gap-[12px] border-b border-black/[0.08] bg-[rgb(247,246,244)] px-[16px]"
       >
         <Block className="h-[24px] w-[96px]" />
         <div className="flex-1" />
