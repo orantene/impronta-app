@@ -43,6 +43,15 @@ test("TUL-358: Horario panel opens on profile id alone (never week calendar with
   assert.match(panel, /AgendaAvailabilityPage/);
 });
 
+test("live2b-01: seeded bridge hours keep closed days closed (no fake Mon–Sat open)", () => {
+  const page = read("talent/agenda/AgendaAvailabilityPage.tsx");
+  assert.match(page, /open: seeded \? false : idx >= 1 && idx <= 6/);
+  assert.doesNotMatch(
+    page,
+    /return \{\s*day: idx,\s*label,\s*open: idx >= 1 && idx <= 6/,
+  );
+});
+
 test("the panel is a drawer on desktop and a bottom sheet on a phone, and closes after a real save", () => {
   const panel = read("talent/agenda/WorkingHoursPanel.tsx");
   assert.match(read("talent/agenda/AgendaPanelFrame.tsx"), /role="dialog"/);
