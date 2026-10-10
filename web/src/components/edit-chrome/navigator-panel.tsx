@@ -3405,9 +3405,7 @@ function sectionMatchesNavigatorSearch(
   // label can be a headline string. Search BOTH the headline and the
   // cleaned stored name so an operator hunting for "Featured talent" still
   // matches a section the navigator labels as real page copy.
-  //
-  // TUL-80 — also match EN/ES type aliases (servicios, galeria) via the
-  // shared layer-search helper (accent-insensitive).
+  // TUL-80: also EN/ES type aliases (servicios, galeria), accent-insensitive.
   const cleanedName = cleanSectionName(row.ref.name) || row.ref.name;
   const probedHeadline = displayNameById.get(row.ref.sectionId) ?? "";
   return sectionLayerMatchesSearch({
