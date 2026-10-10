@@ -12,3 +12,13 @@ test("legacy Today never falls back to the EARNINGS_ROWS demo fixture", () => {
   assert.match(src, /bridgeTalentEarnings \?\? EMPTY_TALENT_EARNINGS/);
   assert.match(src, /earnings=\{todayEarnings\}/);
 });
+
+test("Admin shell loads the hybrid talent's real earnings so Pagado este mes matches Hoy", () => {
+  const layout = readFileSync(
+    new URL("../../../../../../app/(workspace)/[tenantSlug]/admin/layout.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(layout, /loadTalentEarningsByCurrency\(talentSelfProfile!\.id\)/);
+  assert.match(layout, /applyOperatingCurrencyToEarnings\(talentEarningsRaw, operatingCurrency\)/);
+  assert.match(layout, /talentInquiries,\s+talentEarnings,/);
+});
