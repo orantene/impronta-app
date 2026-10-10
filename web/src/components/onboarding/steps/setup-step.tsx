@@ -45,6 +45,7 @@ export function SetupStep({
   const [edited, setEdited] = useState(false);
   const [providerEmail, setProviderEmail] = useState(setup.essentials.firstProviderEmail ?? "");
   const [later, setLater] = useState(!setup.essentials.firstProviderEmail);
+  const ownerProvides = e.ownerProvides !== false;
   const [tried, setTried] = useState(false);
   const currency = e.services[0]?.currency ?? currencyForCountry(country);
   const change = (p: Partial<Essentials>) => {
@@ -138,6 +139,11 @@ export function SetupStep({
 
       {choice === "studio" ? (
         <section className="mt-6">
+          <label className="flex min-h-11 items-center gap-2 text-[0.9375rem] font-medium" style={{ color: "var(--tl-ink)" }}>
+            <input type="checkbox" checked={ownerProvides} onChange={(ev) => change({ ownerProvides: ev.target.checked })} className="size-5" data-testid="onb-owner-provides" />
+            {c.ownerProvides}
+          </label>
+          <p className="mb-5 text-[0.8125rem]" style={{ color: "var(--tl-ink-soft)" }}>{c.ownerProvidesHint}</p>
           <Label>{c.provider}</Label>
           <p className="mb-2 text-[0.8125rem]" style={{ color: "var(--tl-ink-soft)" }}>{c.providerHint}</p>
           <input
