@@ -113,7 +113,13 @@ export function catalogSelectedStartStillOpen(
   selectedStartsAt: string | null | undefined,
   openStarts: readonly string[],
 ): boolean {
-  return Boolean(selectedStartsAt && openStarts.includes(selectedStartsAt));
+  if (!selectedStartsAt) return false;
+  if (openStarts.includes(selectedStartsAt)) return true;
+  // APIs sometimes drop `.000Z` vs `Z`; compare instants so Continuar cannot
+  // lose a still-open pick on refetch (TUL-516 E1).
+  const selectedMs = Date.parse(selectedStartsAt);
+  if (!Number.isFinite(selectedMs)) return false;
+  return openStarts.some((s) => Date.parse(s) === selectedMs);
 }
 
 export function catalogCanContinueWhen(time: string | null): boolean {

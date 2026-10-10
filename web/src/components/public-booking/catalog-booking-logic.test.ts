@@ -422,6 +422,17 @@ test("a selected start is dropped when the longer duration removes it", () => {
   assert.equal(catalogSelectedStartStillOpen(null, open), false);
 });
 
+test("TUL-516 E1: selected start matches across Z vs .000Z ISO forms", () => {
+  assert.equal(
+    catalogSelectedStartStillOpen("2026-09-25T15:00:00.000Z", ["2026-09-25T15:00:00Z"]),
+    true,
+  );
+  assert.equal(
+    catalogSelectedStartStillOpen("2026-09-25T15:00:00Z", ["2026-09-25T15:00:00.000Z"]),
+    true,
+  );
+});
+
 test("price unit reads a string or a per-locale map from attributes", () => {
   assert.equal(offeringPriceUnit({ price_unit: "uña" }, "es"), "uña");
   assert.equal(offeringPriceUnit({ price_unit: { es: "uña", en: "nail" } }, "en-US"), "nail");
