@@ -27,7 +27,7 @@ const sql = `
   from talent_offerings o
   left join talent_profiles tp on tp.id = o.talent_profile_id
   left join agencies a on a.id = o.tenant_id
-  where o.status = 'published' and o.visibility = 'public'
+  where o.status = 'published' and o.visibility in ('public', 'on_request')
   order by tp.profile_code, o.title`;
 
 const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {

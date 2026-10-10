@@ -15,15 +15,16 @@ test("real services are not flagged", () => {
   }
 });
 
-test("only a published + public test service is a leftover; a translation counts", () => {
+test("only a published + public/on_request test service is a leftover; a translation counts", () => {
   assert.equal(isPublicTestService({ title: "QA US E2E $100", status: "published", visibility: "public" }), true);
+  assert.equal(isPublicTestService({ title: "QA US E2E $100", status: "published", visibility: "on_request" }), true);
   assert.equal(isPublicTestService({ title: "Corte", title_i18n: { en: "QA cut" }, status: "published", visibility: "public" }), true);
   assert.equal(isPublicTestService({ title: "QA US E2E $100", status: "draft", visibility: "public" }), false);
-  assert.equal(isPublicTestService({ title: "QA US E2E $100", status: "published", visibility: "hidden" }), false);
+  assert.equal(isPublicTestService({ title: "QA US E2E $100", status: "published", visibility: "agency_only" }), false);
   assert.equal(isPublicTestService({ title: "Corte", status: "published", visibility: "public" }), false);
 });
 
-test("the creation guard refuses a published test service and accepts a hidden one", () => {
+test("the creation guard refuses a published test service and accepts a draft one", () => {
   assert.throws(() => assertTestServiceIsHidden({ title: "QA Fee Line 100 USD", status: "published", visibility: "public" }), /refusing to publish/);
-  assert.doesNotThrow(() => assertTestServiceIsHidden({ title: "QA Fee Line 100 USD", status: "draft", visibility: "hidden" }));
+  assert.doesNotThrow(() => assertTestServiceIsHidden({ title: "QA Fee Line 100 USD", status: "draft", visibility: "agency_only" }));
 });
