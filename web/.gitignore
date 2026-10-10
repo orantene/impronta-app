@@ -74,3 +74,6 @@ e2e/.auth/
 /scripts/theme-releases/backups/
 # TUL-516 / TUL-489 demo booking hours ensure: pre-change backups (never committed)
 /scripts/demo-talents/backups/
+
+# Isolated Live-QA stack PIDs (start-isolated-stack.sh)
+.isolated-stack.pids

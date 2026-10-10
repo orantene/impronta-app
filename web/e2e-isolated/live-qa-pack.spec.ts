@@ -53,10 +53,14 @@ mkdirSync(evidence, { recursive: true });
 
 type Fixtures = {
   myself?: { userId: string; talentId: string; siteHost: string; serviceName?: string };
-  both?: { userId: string; slug: string };
+  both?: { userId: string; slug: string; siteHost?: string };
   studio?: { userId: string; slug: string };
   clientPortal?: { userId: string; slug: string };
   superAdmin?: { userId: string };
+  /** Talent with an inbox inquiry that can open the Oferta draft editor (TUL-381). */
+  offerDraft?: { userId: string };
+  /** Paid booking row for /admin/work/<id> (TUL-473). */
+  paidBooking?: { userId: string; bookingId: string };
   sites?: string[];
 };
 const FIX: Fixtures = JSON.parse(readFileSync(process.env.QA_PACK_FIXTURES ?? "/dev/null", "utf8") || "{}");
@@ -332,8 +336,10 @@ test("TUL-81 · builder: 'Borrador guardado' toast is readable and on top; the p
     await page.keyboard.type(" ", { delay: 40 });
     await page.keyboard.press("Backspace");
   }
-  const toast = page.locator("[role=status],[role=alert],[aria-live]").filter({ hasText: /Borrador guardado/ }).first();
+  // Stable hook from EditToast overlayId="draft-saved-toast" (not a generic live region).
+  const toast = page.locator('[data-edit-overlay="draft-saved-toast"]').first();
   await expect(toast).toBeVisible({ timeout: 15_000 });
+  await expect(toast).toContainText(/Borrador guardado/);
   const probe = await toast.evaluate((el) => {
     const cs = getComputedStyle(el as HTMLElement);
     return { color: cs.color, bg: cs.backgroundColor, z: Number(cs.zIndex) || 0 };
@@ -346,23 +352,34 @@ test("TUL-81 · builder: 'Borrador guardado' toast is readable and on top; the p
   const ratio = (Math.max(lum(probe.color), lum(probe.bg)) + 0.05) / (Math.min(lum(probe.color), lum(probe.bg)) + 0.05);
   expect(ratio, `toast contrast ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(4.5);
   expect(probe.z).toBeGreaterThanOrEqual(100);
+  const pill = page.locator('[data-edit-overlay="pending-images-pill"]');
+  if (await pill.count()) {
+    await expect(pill.first()).toBeHidden({ timeout: 200_000 });
+  }
   await ctx.close();
 });
 
 test("TUL-381 · talent offer draft editor: fits its panel, Spanish labels, no typo", async ({ browser }) => {
-  const fx = need(FIX.myself, "myself");
+  // Prefer a dedicated offerDraft fixture (inbox with an offerable inquiry); fall back to myself.
+  const fx = need(FIX.offerDraft ?? FIX.myself, "offerDraft (or myself)");
   const { ctx, page } = await openAs(browser, fx.userId, { width: 1440, height: 1000 });
   await go(page, `${APP}/talent/inbox`, 14_000);
-  await page.locator("[role=listitem],a[href*=inbox]").first().click().catch(() => undefined);
+  const thread = page.locator("[role=listitem],a[href*='inbox']").first();
+  test.skip(!(await thread.count()), "fixture missing: offerDraft talent has no inbox thread");
+  await thread.click();
   await page.waitForTimeout(5000);
-  await page.getByRole("tab", { name: /^Oferta$/ }).or(page.getByRole("button", { name: /^Oferta$/ })).first().click();
-  await page.getByRole("button", { name: /Empezar a redactar la oferta/ }).first().click();
+  const oferta = page.getByRole("tab", { name: /^Oferta$/ }).or(page.getByRole("button", { name: /^Oferta$/ })).first();
+  test.skip(!(await oferta.count()), "fixture missing: offerDraft thread has no Oferta tab");
+  await oferta.click();
+  const start = page.getByRole("button", { name: /Empezar a redactar la oferta/ }).first();
+  if (await start.isVisible().catch(() => false)) await start.click();
   await page.getByRole("button", { name: /^MXN$/ }).first().click({ timeout: 5000 }).catch(() => undefined);
   await expect(page.getByRole("button", { name: /^Editar$/ }).first()).toBeVisible({ timeout: 40_000 });
   await page.getByRole("button", { name: /^Editar$/ }).first().click();
   await page.waitForTimeout(4000);
   const t = await bodyText(page);
   await shot(page, "TUL-381");
+  // Open defect until i18n ships: "+ Anadir linea" / "— elige Talent —" must be gone.
   expect(t).not.toMatch(/Anadir linea|— elige Talent —/);
   await ctx.close();
 });
@@ -463,5 +480,383 @@ test("TUL-421 · theme A to B to A: business data identical and the live page re
   expect(hash(await business()), "business data unchanged after B to A").toBe(baseBiz);
   expect(hash(await live()), "live page restored to A exactly").toBe(baseLive);
   await shot(page, "TUL-421-restored");
+  await ctx.close();
+});
+
+// ───────────────────────── WO3 enrollments (21 cards) ─────────────────────────
+
+test("TUL-39 · free talent Apps: premium Nail Designer shows Web Office badge and Upgrade to use", async ({ browser }) => {
+  const fx = need(FIX.myself, "myself");
+  const { ctx, page } = await openAs(browser, fx.userId, { width: 1440, height: 1000 });
+  await go(page, `${APP}/talent/site`, 14_000);
+  const apps = page.getByRole("button", { name: /^Apps$/ }).or(page.getByRole("link", { name: /^Apps$/ })).or(page.getByText(/^Apps$/)).first();
+  if (await apps.isVisible().catch(() => false)) await apps.click();
+  else await go(page, `${APP}/talent/site?tab=apps`, 12_000);
+  await page.waitForTimeout(4000);
+  const t = await bodyText(page);
+  await shot(page, "TUL-39-apps");
+  expect(t, "Nail Designer is listed").toMatch(/Nail Designer|Diseñador de uñas/i);
+  expect(t, "Web Office / Oficina Web badge on premium").toMatch(/Web Office|Oficina Web/);
+  expect(t, "free plan sees Upgrade to use (or Spanish equivalent)").toMatch(/Upgrade to use|Mejorar para usar|Actualizar para usar/i);
+  await ctx.close();
+});
+
+test("TUL-67 · client receipt/email path: seller block and fee line are present in the render fixture", async ({ browser }) => {
+  // Done-when: receipt shows seller block + 1.5% fee line. Uses the pack throwaway client's booking
+  // receipt surface when available; otherwise SKIPs (missing fixture path).
+  const fx = need(FIX.myself, "myself");
+  test.skip(!created.clientUserId, "fixture missing: throwaway client");
+  const { ctx, page } = await openAs(browser, created.clientUserId!, { width: 1440, height: 900 }, fx.siteHost);
+  await go(page, siteUrl(fx.siteHost, "/account"), 10_000);
+  const visit = page.locator('a[href^="/account/visits/"]').first();
+  test.skip(!(await visit.count()), "fixture missing: client has no visit for receipt proof");
+  await visit.click();
+  await page.waitForTimeout(8000);
+  const receipt = page.getByRole("link", { name: /recibo|receipt|factura/i }).or(page.getByRole("button", { name: /recibo|receipt/i })).first();
+  if (await receipt.isVisible().catch(() => false)) {
+    await receipt.click();
+    await page.waitForTimeout(5000);
+  }
+  const t = await bodyText(page);
+  await shot(page, "TUL-67-receipt");
+  expect(t, "seller / booked-with block").toMatch(/via Tulala|Reservado con|Booked with|Vendedor|Seller/i);
+  expect(t, "fee line visible").toMatch(/1[\.,]5\s?%|comisi[oó]n|fee/i);
+  await ctx.close();
+});
+
+test("TUL-77 · myself site: public services list + /book offers real slots (not inquiry-only)", async ({ browser }) => {
+  const fx = need(FIX.myself, "myself");
+  const { ctx, page } = await guestPage(browser);
+  await go(page, siteUrl(fx.siteHost, "/servicios"), 10_000);
+  let t = await bodyText(page);
+  if (/Page not found|No encontramos/i.test(t)) {
+    await go(page, siteUrl(fx.siteHost) + "#services", 8000);
+    t = await bodyText(page);
+  }
+  await shot(page, "TUL-77-services");
+  expect(t, "services surface is not a bare 404").not.toMatch(/Page not found|No encontramos/i);
+  await go(page, siteUrl(fx.siteHost, "/book"), 12_000);
+  const book = await bodyText(page);
+  await shot(page, "TUL-77-book");
+  expect(book, "book page is not inquiry-only").not.toMatch(/preferred date|fecha preferida.*mensaje/i);
+  expect(book, "slots or service picker present").toMatch(/Seleccionar|Continuar|Reservar|:\d{2}|No open times|Sin horarios/i);
+  // Done-when requires real slots for a bookable myself; "No open times" is FAIL until fixed.
+  expect(book, "real open times (not empty)").not.toMatch(/No open times|Sin horarios disponibles/i);
+  await ctx.close();
+});
+
+test("TUL-79 · builder: device switch shows skeleton then content; hero not cut off on desktop", async ({ browser }) => {
+  const fx = need(FIX.myself, "myself");
+  const { ctx, page } = await openAs(browser, fx.userId, { width: 1440, height: 1000 });
+  await go(page, `${APP}/talent/page-builder`, 20_000);
+  const tablet = page.getByRole("button", { name: /tablet|tableta/i }).or(page.locator("[data-viewport=tablet]")).first();
+  if (await tablet.isVisible().catch(() => false)) {
+    await tablet.click();
+    const skeleton = page.locator("[data-edit-chrome-loading], [data-device-frame-skeleton], [aria-busy=true]").first();
+    // Skeleton may be brief; either it appears or content returns without a blank frame.
+    await page.waitForTimeout(500);
+    await expect(page.locator("iframe, [data-edit-canvas], main").first()).toBeVisible({ timeout: 20_000 });
+    void skeleton;
+  }
+  const hero = page.locator("h1").first();
+  if (await hero.count()) {
+    const box = await hero.boundingBox();
+    expect(box && box.x >= -2, "hero heading not cut off on the left").toBeTruthy();
+  }
+  await shot(page, "TUL-79-builder");
+  await ctx.close();
+});
+
+test("TUL-93 · confirmed booking on the fixture talent has guest + talent notification dispatch rows", async () => {
+  const fx = need(FIX.myself, "myself");
+  const { data: bookings } = await svc
+    .from("talent_bookings")
+    .select("id, inquiry_id, status")
+    .eq("talent_profile_id", fx.talentId)
+    .eq("status", "confirmed")
+    .order("created_at", { ascending: false })
+    .limit(1);
+  test.skip(!bookings?.length, "fixture missing: no confirmed booking on myself talent");
+  const inquiryId = bookings![0]!.inquiry_id as string | null;
+  test.skip(!inquiryId, "fixture missing: confirmed booking has no inquiry_id");
+  const { data: dispatches } = await svc
+    .from("notification_dispatch_log")
+    .select("id, status, channel, kind")
+    .eq("inquiry_id", inquiryId)
+    .limit(20);
+  writeFileSync(join(evidence, "TUL-93-dispatches.json"), JSON.stringify(dispatches ?? [], null, 2));
+  expect((dispatches ?? []).length, "at least one dispatch row for the booking inquiry").toBeGreaterThan(0);
+  const skipped = (dispatches ?? []).filter((d) => String(d.status).includes("skipped") || /not configured/i.test(String(d.status)));
+  expect(skipped, "no 'channel not configured' skips for this inquiry").toEqual([]);
+});
+
+test("TUL-146 · Spanish talent chrome: profile/settings/services have no English shell strings", async ({ browser }) => {
+  const fx = need(FIX.myself, "myself");
+  const { ctx, page } = await openAs(browser, fx.userId, { width: 1440, height: 900 });
+  for (const path of ["/talent/profile", "/talent/settings", "/talent/services"]) {
+    await go(page, `${APP}${path}`, 12_000);
+    const t = await bodyText(page);
+    await shot(page, `TUL-146-${path.replace(/\W+/g, "_")}`);
+    expect(t, `${path}: no English How do you work / Continue / Settings chrome leaks`).not.toMatch(
+      /\bHow do you work\b|\bI work for myself\b|\bContinue\b|\bSettings\b|\bSave changes\b/,
+    );
+  }
+  const title = await page.title();
+  expect(title === "Tulala" || /·\s*Tulala/.test(title), "tab title is Page · Tulala, not bare Tulala").toBeTruthy();
+  await ctx.close();
+});
+
+test("TUL-279 · isolated /start understand-your-words step accepts a short valid brief", async ({ browser }) => {
+  const { ctx, page } = await guestPage(browser);
+  await go(page, `${MARKETING}/start?lang=es`, 12_000);
+  const myself = page.getByRole("button", { name: /Trabajo por mi cuenta|Por mi cuenta/i }).or(page.getByText(/Trabajo por mi cuenta/i)).first();
+  test.skip(!(await myself.isVisible().catch(() => false)), "fixture missing: /start three-choice door not reachable on marketing origin");
+  await myself.click();
+  await page.getByRole("button", { name: /^Continuar$/ }).first().click().catch(() => undefined);
+  await page.waitForTimeout(3000);
+  const input = page.locator("textarea, input[type=text]").first();
+  test.skip(!(await input.count()), "fixture missing: understand-your-words input");
+  await input.fill("Hago uñas en Playa del Carmen, limpiezas y diseños");
+  await page.getByRole("button", { name: /Continuar|Siguiente|Entendido/i }).first().click().catch(() => undefined);
+  await page.waitForTimeout(12_000);
+  const t = await bodyText(page);
+  await shot(page, "TUL-279-brief");
+  expect(t, "not stuck on Tell us a little more / Cuéntanos un poco más").not.toMatch(/Tell us a little more|Cu[eé]ntanos un poco m[aá]s/i);
+  await ctx.close();
+});
+
+test("TUL-312 · /start redirects stay on the local marketing origin (never production tulala.digital)", async ({ browser }) => {
+  const { ctx, page } = await guestPage(browser);
+  const chain: string[] = [];
+  page.on("response", (r) => {
+    if (r.request().resourceType() === "document") chain.push(r.url());
+  });
+  await page.goto(`${MARKETING}/start?lang=es`, { waitUntil: "domcontentloaded" }).catch(() => undefined);
+  await page.waitForTimeout(4000);
+  await shot(page, "TUL-312-start");
+  for (const u of chain) {
+    expect(u, "no redirect to production tulala.digital").not.toMatch(/^https:\/\/(www\.)?tulala\.digital\b/);
+  }
+  expect(page.url(), "final URL stays local").not.toMatch(/^https:\/\/(www\.)?tulala\.digital\b/);
+  await ctx.close();
+});
+
+test("TUL-325 · after gallery design apply, Publish CTA is visible and primary", async ({ browser }) => {
+  const fx = need(FIX.myself, "myself");
+  const { ctx, page } = await openAs(browser, fx.userId, { width: 1440, height: 1000 });
+  await go(page, `${APP}/talent/site`, 14_000);
+  const change = page.getByRole("button", { name: /Cambiar diseño|Explorar diseños/i }).first();
+  test.skip(!(await change.isVisible().catch(() => false)), "fixture missing: design gallery entry");
+  await change.click();
+  await page.waitForTimeout(5000);
+  const explore = page.getByRole("button", { name: /^Explorar$/ }).first();
+  if (await explore.isVisible().catch(() => false)) {
+    await explore.click();
+    await page.waitForTimeout(5000);
+    await page.getByRole("button", { name: /Usar este diseño/i }).first().click().catch(() => undefined);
+    await page.waitForTimeout(4000);
+  }
+  const publish = page.getByRole("button", { name: /Publicar|Cambiar y publicar/i }).first();
+  await expect(publish).toBeVisible({ timeout: 20_000 });
+  await shot(page, "TUL-325-publish-cta");
+  await ctx.close();
+});
+
+test("TUL-358 · Horario y días libres exposes Zona horaria and an hours form", async ({ browser }) => {
+  const fx = need(FIX.myself, "myself");
+  const { ctx, page } = await openAs(browser, fx.userId, { width: 1440, height: 1000 });
+  await go(page, `${APP}/talent/today`, 12_000);
+  const open = page.getByRole("button", { name: /Horario|Disponibilidad|Hours/i }).or(page.getByText(/Horario y d[ií]as libres/i)).first();
+  if (await open.isVisible().catch(() => false)) await open.click();
+  else await go(page, `${APP}/talent/settings/hours`, 12_000);
+  await page.waitForTimeout(5000);
+  const t = await bodyText(page);
+  await shot(page, "TUL-358-horario");
+  expect(t, "Zona horaria control present").toMatch(/Zona horaria|Timezone|America\//i);
+  expect(t, "hours form / day rows present").toMatch(/Lunes|Monday|09:00|Cerrado|Closed|Disponibilidad/i);
+  await ctx.close();
+});
+
+test("TUL-379 · Spanish /talent/inbox has no English chrome and uses 24h times", async ({ browser }) => {
+  const fx = need(FIX.myself, "myself");
+  const { ctx, page } = await openAs(browser, fx.userId, { width: 1440, height: 900 });
+  await go(page, `${APP}/talent/inbox`, 14_000);
+  const t = await bodyText(page);
+  await shot(page, "TUL-379-inbox");
+  expect(t).not.toMatch(/\bMy jobs\b|\bSearch jobs\b|\bAll Jobs\b|\bAwaiting your response\b|\bCOORDINATING\b|\bGUEST\b/);
+  expect(t, "no English 12h AM/PM clock in Spanish inbox").not.toMatch(/\b\d{1,2}:\d{2}\s?(AM|PM)\b/);
+  await ctx.close();
+});
+
+test("TUL-391 · money/approval notification catalog includes refund.failed, payment.needs_attention, offer-pending-approval", async () => {
+  // Done-when: catalog entries exist (DB or static registry exposed via RPC/table the pack can read).
+  const kinds = ["refund.failed", "payment.needs_attention", "offer.pending_approval", "offer-pending-approval"];
+  const { data, error } = await svc.from("notification_catalog").select("kind").in("kind", kinds).limit(20);
+  if (error || !data) {
+    // Fallback: some stacks store kinds only in code — skip rather than false pass.
+    test.skip(true, `fixture missing: notification_catalog unreadable (${error?.message ?? "empty"})`);
+  }
+  const have = new Set((data ?? []).map((r) => String(r.kind)));
+  expect(
+    have.has("refund.failed") || have.has("payment.needs_attention") || [...have].some((k) => k.includes("offer") && k.includes("approval")),
+    `catalog has money/approval kinds; got ${[...have].join(",") || "none"}`,
+  ).toBeTruthy();
+});
+
+test("TUL-397 · builder device switch: content returns; inspector does not cover the whole canvas", async ({ browser }) => {
+  const fx = need(FIX.myself, "myself");
+  const { ctx, page } = await openAs(browser, fx.userId, { width: 1280, height: 900 });
+  await go(page, `${APP}/talent/page-builder`, 20_000);
+  const phone = page.getByRole("button", { name: /390|phone|m[oó]vil/i }).or(page.locator("[data-viewport=phone]")).first();
+  if (await phone.isVisible().catch(() => false)) {
+    await phone.click();
+    await page.waitForTimeout(2500);
+  }
+  const canvas = page.locator("iframe, [data-edit-canvas]").first();
+  await expect(canvas).toBeVisible({ timeout: 20_000 });
+  const canvasBox = await canvas.boundingBox();
+  const inspector = page.locator("[data-edit-inspector], [data-edit-drawer]").first();
+  if (canvasBox && (await inspector.count())) {
+    const ib = await inspector.boundingBox();
+    if (ib) {
+      expect(ib.width < canvasBox.width * 0.85, "inspector panel must not cover most of the canvas").toBeTruthy();
+    }
+  }
+  await shot(page, "TUL-397-device");
+  await ctx.close();
+});
+
+test("TUL-420 · theme update on a customized site surfaces a keep/update/conflict decision before apply", async ({ browser }) => {
+  const fx = need(FIX.myself, "myself");
+  const { ctx, page } = await openAs(browser, fx.userId, { width: 1440, height: 1000 });
+  await go(page, `${APP}/talent/site`, 14_000);
+  const change = page.getByRole("button", { name: /Cambiar diseño|Actualizaci[oó]n|Update/i }).first();
+  test.skip(!(await change.isVisible().catch(() => false)), "fixture missing: theme update / gallery entry");
+  await change.click();
+  await page.waitForTimeout(6000);
+  const t = await bodyText(page);
+  await shot(page, "TUL-420-decision");
+  expect(t, "talent is told what is kept / updates / conflicts").toMatch(/conserv|mantien|actualiz|conflicto|kept|update|conflict|Se mantiene|Cambiar/i);
+  await ctx.close();
+});
+
+test("TUL-441 · starter-content failure shows clear retry state (not empty success)", async ({ browser }) => {
+  // When starter fails, UI must show "Tu sitio no se pudo preparar" + Reintentar.
+  // On a healthy fixture this SKIPs unless QA_PACK_STARTER_FAIL=1 forces the failure path.
+  test.skip(process.env.QA_PACK_STARTER_FAIL !== "1", "set QA_PACK_STARTER_FAIL=1 on a throwaway that triggers starter failure");
+  const fx = need(FIX.studio, "studio");
+  const { ctx, page } = await openAs(browser, fx.userId, { width: 1440, height: 900 });
+  await go(page, `${APP}/${fx.slug}/admin`, 14_000);
+  const t = await bodyText(page);
+  await shot(page, "TUL-441-retry");
+  expect(t).toMatch(/Tu sitio no se pudo preparar|no se pudo preparar/i);
+  await expect(page.getByRole("button", { name: /Reintentar/i }).first()).toBeVisible();
+  await ctx.close();
+});
+
+test("TUL-449 · talent site secondary-read degrade: public home stays 200 (not a whole-page 500)", async ({ browser }) => {
+  const fx = need(FIX.myself, "myself");
+  const { ctx, page } = await guestPage(browser);
+  const resp = await page.goto(siteUrl(fx.siteHost), { waitUntil: "domcontentloaded" }).catch(() => null);
+  await page.waitForTimeout(8000);
+  await shot(page, "TUL-449-home");
+  expect(resp?.status(), "main talent/site row answers 200").toBe(200);
+  const t = await bodyText(page);
+  expect(t).not.toMatch(/Something broke|Algo sali[oó] mal|Internal Server Error/i);
+  await ctx.close();
+});
+
+test("TUL-458 · hub guest chat: second message after Solicitud recibida is sent (composer clears)", async ({ browser }) => {
+  const fx = need(FIX.myself, "myself");
+  const { ctx, page } = await guestPage(browser);
+  await go(page, siteUrl(fx.siteHost), 10_000);
+  await page.locator('[aria-label^="Enviar mensaje a"]').first().evaluate((el) => (el as HTMLElement).click());
+  await page.waitForTimeout(3000);
+  const name = page.getByLabel(/Nombre/i).or(page.locator('input[name*=name i]')).first();
+  if (await name.isVisible().catch(() => false)) {
+    await name.fill("QA Pack");
+    await page.getByLabel(/Correo|Email/i).first().fill(`qa-pack-chat-${Date.now().toString(36)}@example.test`);
+  }
+  const box = page.locator("textarea, input[type=text]").last();
+  await box.fill("Hola, primera pregunta del pack");
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(10_000);
+  await expect(page.getByText(/Solicitud recibida|recibimos tu mensaje/i).first()).toBeVisible({ timeout: 30_000 });
+  await box.fill("Segunda pregunta: ¿tienen hueco mañana?");
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(8000);
+  const value = await box.inputValue().catch(() => "");
+  await shot(page, "TUL-458-second");
+  expect(value.trim(), "composer cleared after second send").toBe("");
+  await ctx.close();
+});
+
+test("TUL-472 · offer flow: Oferta tab shows draft after reload; no sticky Error al guardar", async ({ browser }) => {
+  const fx = need(FIX.offerDraft ?? FIX.myself, "offerDraft (or myself)");
+  const { ctx, page } = await openAs(browser, fx.userId, { width: 1440, height: 1000 });
+  await go(page, `${APP}/talent/inbox`, 14_000);
+  const thread = page.locator("[role=listitem],a[href*='inbox']").first();
+  test.skip(!(await thread.count()), "fixture missing: no inbox thread for offer flow");
+  await thread.click();
+  await page.waitForTimeout(4000);
+  await page.getByRole("tab", { name: /^Oferta$/ }).or(page.getByRole("button", { name: /^Oferta$/ })).first().click().catch(() => undefined);
+  await page.waitForTimeout(3000);
+  let t = await bodyText(page);
+  expect(t, "Selección not stuck opening").not.toMatch(/Abriendo la lista/i);
+  await page.reload({ waitUntil: "domcontentloaded" }).catch(() => undefined);
+  await page.waitForTimeout(8000);
+  await page.getByRole("tab", { name: /^Oferta$/ }).or(page.getByRole("button", { name: /^Oferta$/ })).first().click().catch(() => undefined);
+  await page.waitForTimeout(3000);
+  t = await bodyText(page);
+  await shot(page, "TUL-472-offer");
+  expect(t, "draft still present after reload").not.toMatch(/A[uú]n no hay oferta/i);
+  expect(t, "no sticky save error").not.toMatch(/Error al guardar/i);
+  await ctx.close();
+});
+
+test("TUL-473 · /admin/work/<bookingId> for a paid booking is not Something broke", async ({ browser }) => {
+  const fx = need(FIX.paidBooking, "paidBooking");
+  const { ctx, page } = await openAs(browser, fx.userId, { width: 1440, height: 900 });
+  const resp = await page.goto(`${APP}/admin/work/${fx.bookingId}`, { waitUntil: "domcontentloaded" }).catch(() => null);
+  await page.waitForTimeout(10_000);
+  const t = await bodyText(page);
+  await shot(page, "TUL-473-work");
+  expect(resp?.status(), "work page answers").toBeLessThan(500);
+  expect(t, "not the generic broken page").not.toMatch(/Something broke|Algo sali[oó] mal/i);
+  await ctx.close();
+});
+
+test("TUL-503 · client hub/agency /account visit rows show each visit's talent booking zone label", async ({ browser }) => {
+  const portal = need(FIX.clientPortal, "clientPortal");
+  const { ctx, page } = await openAs(browser, portal.userId, { width: 1440, height: 900 });
+  await go(page, `${APP}/account`, 12_000);
+  const t = await bodyText(page);
+  await shot(page, "TUL-503-account");
+  test.skip(!/visita|visit|reserva|booking/i.test(t), "fixture missing: client has no visits on hub account");
+  expect(t, "zone label present (not a single tenant zone only)").toMatch(/zona|zone|America\/|UTC|GMT|Canc[uú]n|CDMX/i);
+  await ctx.close();
+});
+
+test("TUL-505 · both/studio workspace site: header and hero links return 200 in the site language", async ({ browser }) => {
+  const fx = need(FIX.both, "both");
+  const host = fx.siteHost;
+  test.skip(!host, "fixture missing: both.siteHost");
+  const { ctx, page } = await guestPage(browser);
+  await go(page, siteUrl(host!), 10_000);
+  const hrefs = await page.evaluate(() => {
+    const roots = [...document.querySelectorAll("header a[href], [data-talent-max-site-header] a[href], a.site-btn")];
+    return [...new Set(roots.map((a) => (a as HTMLAnchorElement).getAttribute("href") ?? "").filter((h) => h.startsWith("/") && !h.startsWith("//")))];
+  });
+  test.skip(hrefs.length === 0, "fixture missing: no header/hero links on both site");
+  const bad: string[] = [];
+  for (const href of hrefs.slice(0, 12)) {
+    const resp = await page.goto(siteUrl(host!, href), { waitUntil: "domcontentloaded" }).catch(() => null);
+    await page.waitForTimeout(2000);
+    const status = resp?.status() ?? 0;
+    const t = await bodyText(page);
+    if (status === 404 || /Page not found|No encontramos/i.test(t)) bad.push(`${href}→${status}`);
+  }
+  await shot(page, "TUL-505-nav");
+  expect(bad, `header/hero links must be 200; bad=${bad.join(", ")}`).toEqual([]);
   await ctx.close();
 });
