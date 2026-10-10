@@ -36,6 +36,30 @@ export type MeRow = {
   } | null;
 };
 
+/**
+ * TUL-62: list row fields must match visit detail — booking title/status/
+ * starts_at win over inquiry company/status/date-only event_date.
+ * (Detail uses the same preference in `loadVisitDetail`.)
+ */
+export function meVisitListFields(input: {
+  readonly company: string | null | undefined;
+  readonly inquiryStatus: string | null | undefined;
+  readonly eventDate: string | null | undefined;
+  readonly booking: {
+    readonly title?: string | null;
+    readonly status?: string | null;
+    readonly starts_at?: string | null;
+  } | null | undefined;
+}): { title: string | null; status: string | null; eventDate: string | null } {
+  const bookingTitle = input.booking?.title?.trim() || null;
+  const company = input.company?.trim() || null;
+  return {
+    title: bookingTitle || company,
+    status: (input.booking?.status ?? input.inquiryStatus) ?? null,
+    eventDate: input.booking?.starts_at ?? input.eventDate ?? null,
+  };
+}
+
 export type MeItem = MeRow & {
   /** Rendered under the tenant's own words by the page, never here. */
   readonly kind: "upcoming" | "waiting_on_you" | "past";

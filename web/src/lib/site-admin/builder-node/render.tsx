@@ -6123,6 +6123,10 @@ function renderBuilderNodeElement(
                 onlineCollectReady={options.dataSources.onlineCollectReady}
                 matrix={layout === "matrix"}
                 liveStatus={options.dataSources.liveStatus ?? null}
+                signedIn={
+                  options.dataSources.headerWidgets?.account?.signedIn === true ||
+                  options.visibilityContext?.signedIn === true
+                }
               />
             </CatalogIslandBoundary>
           )}

@@ -63,6 +63,12 @@ export async function openPurchaseBooking(
     readonly currency: string;
     /** Talent policy version in force at checkout, when there is one. */
     readonly policyVersionId?: string | null;
+    /**
+     * TUL-62: signed-in client who owns this booking. `/account` cancel and
+     * reschedule gate on `agency_bookings.client_user_id`; the inquiry alone
+     * is not enough.
+     */
+    readonly clientUserId?: string | null;
     readonly contact: {
       readonly displayName?: string | null;
       readonly email?: string | null;
@@ -94,6 +100,9 @@ export async function openPurchaseBooking(
       contact_name: input.contact.displayName ?? null,
       contact_email: input.contact.email ?? null,
       contact_phone: input.contact.phone ?? null,
+      // Stamp at insert so cancel/receipt ownership works even if the
+      // best-effort thread step never runs.
+      ...(input.clientUserId ? { client_user_id: input.clientUserId } : {}),
       total_client_revenue: input.subtotalCents / 100,
       currency_code: input.currency,
       ...(input.policyVersionId ? { policy_version_id: input.policyVersionId } : {}),

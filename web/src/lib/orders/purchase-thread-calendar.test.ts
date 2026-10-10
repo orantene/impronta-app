@@ -248,6 +248,15 @@ test("openThread stamps guest_session_id with actorUserId, attaches hold, links 
 
   assert.equal(holdsById.get("hold_1")?.inquiry_id, "inq_1", "hold must link to inquiry");
 
+  // TUL-62: booking insert (and the inquiry-link update) must carry the signed-in client.
+  const bookingInsert = calls.find((c) => c.table === "agency_bookings" && c.op === "insert");
+  assert.ok(bookingInsert, "agency_bookings must be inserted");
+  assert.equal(
+    (bookingInsert.payload as { client_user_id?: string }).client_user_id,
+    ACTOR,
+    "signed-in purchase must stamp agency_bookings.client_user_id at insert",
+  );
+
   const bookingLink = calls.find(
     (c) =>
       c.table === "agency_bookings"
@@ -255,6 +264,11 @@ test("openThread stamps guest_session_id with actorUserId, attaches hold, links 
       && (c.payload as { source_inquiry_id?: string }).source_inquiry_id === "inq_1",
   );
   assert.ok(bookingLink, "agency_bookings.source_inquiry_id must be stamped");
+  assert.equal(
+    (bookingLink.payload as { client_user_id?: string }).client_user_id,
+    ACTOR,
+    "thread link update must keep client_user_id on the booking",
+  );
 
   const mirror = calls.find((c) => c.table === "talent_bookings" && c.op === "insert");
   assert.ok(mirror, "talent_bookings mirror must be written");

@@ -57,6 +57,45 @@ test("guest instant confirm surfaces render GuestCaptchaField", () => {
   );
 });
 
+test("TUL-62: signed-in booking form prefill wires chrome.client into InquiryDrawer", () => {
+  const chrome = readFileSync(join(SRC, "lib/scheduling/guest-instant-chrome.ts"), "utf8");
+  const composer = readFileSync(join(SRC, "components/public-booking/BookableComposer.tsx"), "utf8");
+  const slotChrome = readFileSync(
+    join(SRC, "app/t/[profileCode]/_shared/ProfileSlotPickerChrome.tsx"),
+    "utf8",
+  );
+  const catalogRender = readFileSync(join(SRC, "lib/site-admin/builder-node/render.tsx"), "utf8");
+  const catalogFilter = readFileSync(
+    join(SRC, "lib/site-admin/builder-node/services-catalog-filter.tsx"),
+    "utf8",
+  );
+  const catalogRow = readFileSync(
+    join(SRC, "lib/site-admin/builder-node/services-catalog-row.tsx"),
+    "utf8",
+  );
+  assert.match(chrome, /client:\s*GuestInstantClient\s*\|\s*null/);
+  assert.match(chrome, /client_profiles/);
+  assert.match(composer, /client\?:/);
+  assert.match(composer, /trust_level:\s*"verified"/);
+  assert.doesNotMatch(composer, /client=\{null\}/);
+  assert.match(slotChrome, /client=\{chrome\.client\}/);
+  // Normalized options expose headerWidgets on dataSources, not options root.
+  assert.match(
+    catalogRender,
+    /dataSources\.headerWidgets\?\.account\?\.signedIn/,
+    "services_catalog signedIn must read dataSources.headerWidgets (NormalizedBuilderNodeRenderOptions)",
+  );
+  assert.doesNotMatch(
+    catalogRender,
+    /options\.headerWidgets\?\.account/,
+    "options.headerWidgets is not on NormalizedBuilderNodeRenderOptions",
+  );
+  // max-lines headroom: CatalogRow lives beside the filter, not inside it.
+  assert.match(catalogFilter, /from "\.\/services-catalog-row"/);
+  assert.match(catalogRow, /export function CatalogRow/);
+  assert.match(catalogFilter, /signedIn/);
+});
+
 /** TUL-452: studio Live booking band must not inherit English cookie / light-on-white. */
 test("studio Live booking passes page locale and isolates ink + overflow", () => {
   const band = readFileSync(join(SRC, "lib/site-admin/builder-node/live-booking-bands.tsx"), "utf8");

@@ -42,7 +42,25 @@ export function groupVisits(rows: readonly MeRow[], nowMs: number) {
   return { upcoming: m.upcoming, waiting: m.waitingOnYou, past: m.past };
 }
 
-const CLOSED = new Set(["cancelled", "completed", "archived", "declined", "expired", "closed"]);
+export const CLOSED_BOOKING_STATUSES = ["cancelled", "completed", "archived", "declined", "expired", "closed"] as const;
+const CLOSED = new Set<string>(CLOSED_BOOKING_STATUSES);
+
+/**
+ * What the client still owes on one booking, in cents: the booking price less
+ * money the ledger holds as paid. 0 for a closed or already-paid booking, or one
+ * with no price: there is nothing to put on a pay link.
+ */
+export function owedCents(input: {
+  bookingStatus: string | null;
+  paymentStatus: string | null;
+  amountCents: number | null;
+  paidCents: number;
+}): number {
+  if (CLOSED.has((input.bookingStatus ?? "").toLowerCase())) return 0;
+  if (input.paymentStatus !== "unpaid" && input.paymentStatus !== "partial") return 0;
+  if (input.amountCents == null || !Number.isFinite(input.amountCents)) return 0;
+  return Math.max(0, Math.round(input.amountCents) - Math.max(0, Math.round(input.paidCents)));
+}
 
 export type ManageBookingFacts = {
   bookingTenantId: string | null;

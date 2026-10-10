@@ -212,7 +212,8 @@ test("row cards: a quote-only service reads 'Por evento' / 'By event'; other cat
 });
 
 test("row cards: the whole row opens the service, the button stays the accessible control, a paused service shows a disabled pill", () => {
-  const src = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "services-catalog-filter.tsx"), "utf8");
+  // CatalogRow lives in services-catalog-row.tsx (max-lines split from the filter).
+  const src = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "services-catalog-row.tsx"), "utf8");
   assert.match(src, /rowCard && !derived\.hidden/);
   assert.match(src, /closest\("button,a"\)/, "a click on the button or a link is not doubled");
   assert.match(src, /data-paused="true"/);
