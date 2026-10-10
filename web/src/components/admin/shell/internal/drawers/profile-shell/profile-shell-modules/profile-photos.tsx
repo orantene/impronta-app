@@ -212,19 +212,29 @@ export function GalleryStrip({
   onOpen: () => void;
 }) {
   const copy = useDashboardText();
-  // Show up to 8 thumbs; anything beyond gets a +N chip
-  const MAX_THUMBS = 8;
-  const shown = photos.slice(0, MAX_THUMBS);
+  // Reserve one grid cell for the persistent "Add photos" tile so the
+  // labeled CTA stays visible after the first gallery upload (TUL-480 /
+  // TUL-519). Remaining thumbs share the rest of the budget; overflow
+  // still gets a +N chip.
+  const MAX_CELLS = 8;
+  const thumbBudget = MAX_CELLS - 1;
+  const shown = photos.slice(0, thumbBudget);
   const extra = totalCount - shown.length;
 
   if (totalCount === 0) {
     return (
-      <button type="button" onClick={onOpen} style={{
-        flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center",
-        gap: 6, padding: "10px 14px", borderRadius: 8,
-        border: `1.5px dashed ${COLORS.borderSoft}`,
-        background: COLORS.surfaceAlt, cursor: "pointer", minHeight: 86,
-      }}>
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={copy.t("Add photos")}
+        data-pshell-gallery-add
+        style={{
+          flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center",
+          gap: 6, padding: "10px 14px", borderRadius: 8,
+          border: `1.5px dashed ${COLORS.borderSoft}`,
+          background: COLORS.surfaceAlt, cursor: "pointer", minHeight: 86,
+        }}
+      >
         <span style={{ fontSize: 20, opacity: 0.35 }}>📷</span>
         <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 500 }} className="text-admin-ink-muted">
           {copy.t("Add photos")}
@@ -234,16 +244,22 @@ export function GalleryStrip({
   }
 
   return (
-    <button type="button" onClick={onOpen} style={{
-      flex: 1, minWidth: 0,
-      padding: 6, borderRadius: 8,
-      border: `1px solid ${COLORS.borderSoft}`,
-      background: COLORS.surfaceAlt, cursor: "pointer",
-      display: "grid",
-      gridTemplateColumns: `repeat(auto-fill, minmax(62px, 1fr))`,
-      gap: 4,
-      alignItems: "stretch",
-    }}>
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={copy.t("Add photos")}
+      data-pshell-gallery-add
+      style={{
+        flex: 1, minWidth: 0,
+        padding: 6, borderRadius: 8,
+        border: `1px solid ${COLORS.borderSoft}`,
+        background: COLORS.surfaceAlt, cursor: "pointer",
+        display: "grid",
+        gridTemplateColumns: `repeat(auto-fill, minmax(62px, 1fr))`,
+        gap: 4,
+        alignItems: "stretch",
+      }}
+    >
       {shown.map((url, i) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img key={i} src={url} alt="" style={{
@@ -254,6 +270,13 @@ export function GalleryStrip({
       {extra > 0 && (
         <div style={{ aspectRatio: "3 / 4", borderRadius: 5, background: "rgba(15,79,62,0.10)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONTS.body, fontSize: 12, fontWeight: 700 }} className="text-admin-accent">+{extra}</div>
       )}
+      {/* Trailing add tile — same label as the empty state so Medios keeps
+          "Agregar fotos" discoverable once a gallery photo already exists.
+          Token classes only (ratchet/no-new-inline-style baseline = 31). */}
+      <div className="flex aspect-[3/4] flex-col items-center justify-center gap-0.5 rounded-[5px] border border-dashed border-admin-border-soft bg-admin-surface p-1 font-sans text-admin-10 font-semibold text-admin-ink-muted">
+        <span className="text-base font-bold leading-none">+</span>
+        <span className="text-center leading-snug">{copy.t("Add photos")}</span>
+      </div>
     </button>
   );
 }
