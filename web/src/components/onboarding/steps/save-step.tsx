@@ -6,9 +6,10 @@ import { getSiteUrl } from "@/lib/auth-flow";
  * Step 3 · Save it. Google, or an email that gets an 8-digit code. The
  * screen is the same whether the address is new or known. Signed-in people
  * skip it (the module never shows it to them).
+ *
+ * onb1-11: email + ageTerms draft live on the module (props below). Local
+ * useState here remounted with the step body and kept only the first character.
  */
-
-import { useState } from "react";
 
 import { AuthGoogleButtonSurface } from "@/components/auth/auth-ui";
 import type { OnboardingChoice, OnboardingPath } from "@/lib/onboarding/module-state";
@@ -22,6 +23,10 @@ export function SaveStep({
   choice = null,
   busy,
   error,
+  email,
+  onEmailChange,
+  ageTerms,
+  onAgeTermsChange,
   onEmail,
   onGoogleSuccess,
 }: {
@@ -31,13 +36,14 @@ export function SaveStep({
   choice?: OnboardingChoice | null;
   busy: boolean;
   error: string | null;
+  /** Draft owned by OnboardingModule so a step-body remount cannot wipe typing (onb1-11). */
+  email: string;
+  onEmailChange: (email: string) => void;
+  ageTerms: boolean;
+  onAgeTermsChange: (checked: boolean) => void;
   onEmail: (email: string, ageTerms: boolean) => void;
   onGoogleSuccess: () => void;
 }) {
-  const [email, setEmail] = useState("");
-  // Legal 2.2: 18+ and Terms/Privacy, required before a code is sent. The
-  // server action re-checks it; `disabled` here is only a convenience.
-  const [ageTerms, setAgeTerms] = useState(false);
   // Talent (and both): the callback promotes the fresh profile to talent when
   // `next` is a talent onboarding path. The module ignores the destination.
   const base = path === "business" ? "/" : "/talent/profile/fields";
@@ -83,11 +89,16 @@ export function SaveStep({
         </label>
         <input
           id="onb-email"
-          type="email"
+          // text + inputMode: avoids mobile email-input engines that rewrite
+          // mid-keystroke and fight a controlled value (onb1-11).
+          type="text"
           inputMode="email"
           autoComplete="email"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => onEmailChange(e.target.value)}
           placeholder={t("public.onboarding.save.emailPlaceholder")}
           data-testid="onb-email"
           className="mt-1 h-12 w-full rounded-[14px] px-3 text-[1rem] outline-none placeholder:text-[var(--tl-muted-soft)]"
@@ -97,7 +108,7 @@ export function SaveStep({
           <input
             type="checkbox"
             checked={ageTerms}
-            onChange={(e) => setAgeTerms(e.target.checked)}
+            onChange={(e) => onAgeTermsChange(e.target.checked)}
             className="mt-0.5 size-4 shrink-0"
             data-testid="onb-age-terms"
           />
