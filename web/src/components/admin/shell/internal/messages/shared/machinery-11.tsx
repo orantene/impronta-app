@@ -714,8 +714,10 @@ export function CreateOfferButton({
     else {
       setChooseCurrency(false);
       toast(t("dashboard.adminTabs.lineup.offerCreated"));
+      // Hydrate the talent Oferta tab immediately; do not keep "Starting…"
+      // pending on a full RSC refresh (that was ~20s of Iniciando on the stack).
       await onCreated?.();
-      router.refresh();
+      void router.refresh();
     }
   });
   return (
