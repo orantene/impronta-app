@@ -14,10 +14,11 @@
  * A section may animate in, but from a visible resting state; it is never left
  * at opacity 0 waiting for an observer. Concretely:
  *
- *   (a) Anything already in the viewport on load is revealed straight away by a
- *       direct geometry check (two animation frames after arming, so the
- *       entrance still plays from load), and again at DOMContentLoaded and at
- *       window load. The observer is not on the critical path for the fold.
+ *   (a) Anything already in the viewport on load is revealed BEFORE the hidden
+ *       pose is applied (sync geometry check), so first paint is never blank
+ *       while the main thread is busy. A two-frame re-check catches layout
+ *       stragglers; DOMContentLoaded and window load re-check again. The
+ *       observer is not on the critical path for the fold.
  *   (b) The hidden pose is applied only AFTER the observer exists and is
  *       observing. No JS, a CSP block, no IntersectionObserver, or a throw
  *       while constructing it = the server-rendered, fully visible markup.
@@ -80,11 +81,13 @@ export function buildRevealArmingScript(config: {
     "try{io=new IntersectionObserver(function(es){for(var k=0;k<es.length;k++){var e=es[k];if(e.isIntersecting){show();if(once)return;}else if(!once){r.removeAttribute('data-bn-reveal-in');}}}," +
     `{threshold:${threshold}});io.observe(r);}catch(e){return;}` +
     `for(var j=0;j<kids.length;j++){kids[j].style.setProperty('--bn-reveal-stagger',(j*${stagger})+'ms');}` +
-    "r.setAttribute('data-bn-reveal-armed','1');" +
-    // (a) above the fold: reveal without waiting on the observer.
+    // (a) above the fold: mark revealed BEFORE arming so first paint is never
+    // blank while rAF is delayed by a heavy main thread (TUL-495).
     IN_VIEW_FN +
     TWO_FRAMES_FN +
     "function check(){if(!isIn()&&inView(r))show();}" +
+    "check();" +
+    "r.setAttribute('data-bn-reveal-armed','1');" +
     "twoFrames(check);" +
     "if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',check);}" +
     "window.addEventListener('load',check);" +
@@ -173,11 +176,15 @@ export function buildScrollLaneRuntimeScript(lane: {
         var pending=[];
         if(own&&!root.hasAttribute('data-bn-revealed'))pending.push(root);
         for(var m=0;m<list.length;m++)if(!list[m].hasAttribute('data-bn-revealed'))pending.push(list[m]);
-        // Observe FIRST, arm second: the hidden pose never exists without an
-        // observer already watching the node it hides.
+        // Observe FIRST. Reveal above-fold SYNCHRONOUSLY, then arm: the hidden
+        // pose must never cover the fold while rAF waits on a busy main thread
+        // (TUL-495 blank first paint after a 1 MB HTML parse).
         for(var p=0;p<pending.length;p++)io.observe(pending[p]);
+        for(var q0=0;q0<pending.length;q0++){
+          var n0=pending[q0];
+          if(!n0.hasAttribute('data-bn-revealed')&&inView(n0))reveal(n0);
+        }
         arm();
-        // Above the fold: reveal on geometry, do not wait for the observer.
         twoFrames(function(){
           for(var q=0;q<pending.length;q++){
             var n=pending[q];
