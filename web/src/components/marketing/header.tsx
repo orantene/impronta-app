@@ -450,7 +450,8 @@ function DesktopMenu({
         aria-haspopup="true"
         aria-expanded={open}
         onClick={onToggle}
-        onFocus={onOpen}
+        /* GRK-098: same as DesktopMegaMenu — open on hover/click only, never
+           on focus, so keyboard Tab skips closed dropdown panels. */
         className={cn(
           "inline-flex items-center gap-1 rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:bg-[var(--plt-bg-raised)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]",
           open ? "bg-[var(--plt-bg-raised)] text-[var(--plt-ink)]" : "text-[var(--plt-muted)] hover:text-[var(--plt-ink)]",

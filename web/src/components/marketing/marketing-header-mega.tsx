@@ -39,7 +39,9 @@ export function DesktopMegaMenu({
         aria-haspopup="true"
         aria-expanded={open}
         onClick={onToggle}
-        onFocus={onOpen}
+        /* GRK-098: do not open on keyboard focus. Focus-open put all ~26 panel
+           links into the Tab order as soon as the trigger received focus, so
+           Tab never reached the hero CTA. Hover + click still open. */
         className={cn(
           "inline-flex items-center gap-1 rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:bg-[var(--plt-bg-raised)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]",
           open
