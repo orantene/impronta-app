@@ -37,8 +37,8 @@ test("TUL-561: agency and talent sites paint the card from their theme tokens", 
     assert.ok(themed.includes(token), `themed card reads ${token}`);
   }
   assert.doesNotMatch(themed, /--tl-/, "a themed site never falls back to the Tulala palette");
-  assert.match(themed, /--consent-primary:var\(--token-color-accent,/, "Accept matches the site's own CTA color");
-  assert.match(themed, /--consent-primary-on:var\(--token-color-accent-on,/);
+  assert.match(themed, /--consent-primary:var\(--token-color-primary,/, "Accept matches .site-btn--primary");
+  assert.match(themed, /--consent-radius:var\(--token-shape-radius-card,min\(var\(--site-radius-lg,/, "sharp themes get square corners");
   assert.match(src, /\[data-consent-themed\] \[data-consent-title\]\{font-family:var\(--site-heading-font/);
   const layout = readFileSync(join(here, "../../app/layout.tsx"), "utf8");
   assert.match(layout, /themed=\{Boolean\(publicScope\) \|\| reqHeaders\.get\(HOST_CONTEXT_HEADER\) === "talent_site"\}/);
