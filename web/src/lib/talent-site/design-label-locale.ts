@@ -54,6 +54,8 @@ const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "Let's work together": "Trabajemos juntos",
   "She confirms by hand.": "Confirmo cada cita personalmente.",
   "You can book a time on this page.": "Puedes reservar tu hora en esta página.",
+  "Not taking new bookings right now. You can still send an inquiry.":
+    "No estoy tomando nuevas reservas por ahora. Puedes consultarme.",
   "No services are published yet.": "Aún no hay servicios publicados.",
   "No photos in your portfolio yet.": "Aún no hay fotos en tu portafolio.",
   // Theme collection v1 designs (Maison v2, Solace, Mono, Frame, Folio).
@@ -202,13 +204,20 @@ export type SiteCtaMode = "instant" | "request" | "inquiry";
  * Site-wide CTA mode: the talent default posture (`selling_defaults`), with
  * the plan ceiling applied the same way deriveOfferingCta does (a plan that
  * confirms by hand turns instant into request).
+ *
+ * GRK-068: when `acceptingBookings` is off, every seeded CTA must read as
+ * inquiry (never "Reservar" / "You can book") — same public effect as
+ * `applySwitchesToMode`.
  */
 export function resolveSiteCtaMode(input: {
   sellingDefaults: unknown;
   confirmsByHand: boolean;
   /** false = instant cannot work yet (no working hours): same readiness step as resolveEffectiveBookingMode. */
   instantReady?: boolean;
+  /** false = taking new bookings is paused (§8). undefined = not asked. */
+  acceptingBookings?: boolean;
 }): SiteCtaMode {
+  if (input.acceptingBookings === false) return "inquiry";
   const posture = parseSellingBookingSettings(input.sellingDefaults).bookingPosture;
   if (posture === "instant" && input.confirmsByHand) return "request";
   if (posture === "instant" && input.instantReady === false) return "request";

@@ -223,6 +223,8 @@ export async function TalentSiteMessagesDock({
   });
   const t = createTranslator(locale);
   const instant = talentOffersInstantBooking(profile?.talent_plan_key);
+  // GRK-068: plan may allow instant, but accepting_bookings off must not promise a bookable slot.
+  const promisesBooking = instant && switches.acceptingBookings;
   // TUL-246: `#book` opens the booking sheet (preferred bookable service), not the guest dock.
   const bookEntry = await loadBookEntry({ talentProfileId, locale, confirmsByHand: !instant });
 
@@ -258,9 +260,11 @@ export async function TalentSiteMessagesDock({
         whatsappLabel={t("public.talentSite.contact.whatsapp")}
         emailLabel={t("public.talentSite.contact.email")}
         truth={t(
-          instant
+          promisesBooking
             ? "public.talentSite.contact.bookInstant"
-            : "public.talentSite.contact.confirmByHand",
+            : switches.acceptingBookings
+              ? "public.talentSite.contact.confirmByHand"
+              : "public.talentSite.contact.bookingsPaused",
         )}
         whatsappHref={hrefs.whatsappHref}
         emailHref={hrefs.emailHref}
