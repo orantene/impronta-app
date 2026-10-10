@@ -47,18 +47,40 @@ export function hasMessageCatalog(locale: string): boolean {
 }
 
 /**
- * Ordered, de-duplicated fallback chain for a locale:
- *   requested → platform default → en
- * Only codes with a registered catalog are kept.
+ * Normalize a request/page locale to the catalog code `createTranslator` will
+ * actually use (exact tag → language base → platform default → en).
+ *
+ * Guest-chat CTAs (`dockServiceCtaLabel`) already treat `es-MX` as Spanish via
+ * `startsWith("es")`, but catalogs are keyed by bare `es` / `en` / `fr`. Without
+ * the language-base step, `createTranslator("es-MX")` skipped straight to `en`
+ * — English quick-reply chips under a Spanish CONSULTAR row (TUL-529).
  */
-function catalogChain(locale: string): Catalog[] {
+export function resolveMessageLocale(locale: string | null | undefined): string {
+  return messageLocaleCodes(locale ?? "")[0] ?? ROOT_FALLBACK_LOCALE;
+}
+
+/** Ordered catalog codes for a locale (same order as `catalogChain`). */
+function messageLocaleCodes(locale: string): string[] {
+  const raw = locale.trim().toLowerCase();
+  const base = raw.split("-")[0] ?? "";
   const order: string[] = [];
-  for (const code of [locale, defaultLocale, ROOT_FALLBACK_LOCALE]) {
+  for (const code of [raw, base, defaultLocale, ROOT_FALLBACK_LOCALE]) {
     if (code && !order.includes(code) && hasMessageCatalog(code)) order.push(code);
   }
-  // Guarantee at least one catalog so callers never see an empty map.
   if (order.length === 0) order.push(ROOT_FALLBACK_LOCALE);
-  return order.map((code) => CATALOG_REGISTRY[code] ?? CATALOG_REGISTRY[ROOT_FALLBACK_LOCALE]);
+  return order;
+}
+
+/**
+ * Ordered, de-duplicated fallback chain for a locale:
+ *   requested → language base (es-MX → es) → platform default → en
+ * Only codes with a registered catalog are kept. Tags are lower-cased so
+ * `ES` / `en-US` hit the same catalogs as `es` / `en`.
+ */
+function catalogChain(locale: string): Catalog[] {
+  return messageLocaleCodes(locale).map(
+    (code) => CATALOG_REGISTRY[code] ?? CATALOG_REGISTRY[ROOT_FALLBACK_LOCALE],
+  );
 }
 
 /**

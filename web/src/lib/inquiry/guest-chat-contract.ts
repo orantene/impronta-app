@@ -785,10 +785,10 @@ export type MiniChatBrand = {
    */
   greeting?: string | null;
   /**
-   * Guest UI locale. Guests have no LOCALE_COOKIE, so this is resolved
-   * server-side from the tenant's `default_locale` and threaded through `brand`
-   * (which already flows to every panel/bubble) so card-kind + status labels
-   * render in the tenant's language. Falls back to "en" when absent.
+   * Guest UI locale (page locale → message-catalog code, e.g. es-MX → es).
+   * Guests have no LOCALE_COOKIE; the launcher mount threads this through
+   * `brand` so quick-reply chips and dock CTAs stay in the page language.
+   * Falls back to "en" when absent.
    */
   locale?: string | null;
   /** L13: tenant switch, the dock shows its Items tab (default on). */

@@ -40,7 +40,9 @@ test("AUD-040: chip rail hides scrollbar, keeps scroll-snap, fades the right edg
 test("AUD-040: chip names are the locale-resolved offering titles the services block shows", () => {
   const mount = read("TalentProfileChatLauncherMount.tsx");
   // Same loader + locale as the Max-site services_catalog (loadServicesCatalogSources).
-  assert.match(mount, /loadPublicOfferingsForProfile\(talentProfileId, locale \?\? "en"\)/);
+  assert.match(mount, /loadPublicOfferingsForProfile\(talentProfileId, uiLocale\)/);
+  assert.match(mount, /resolveMessageLocale\(locale\)/);
+  assert.match(mount, /locale: uiLocale/);
   assert.match(mount, /title: o\.title,/);
   const picker = read("OfferingQuickPicker.tsx");
   assert.match(picker, /\{o\.title\}/);

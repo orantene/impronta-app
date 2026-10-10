@@ -59,7 +59,7 @@ import { loadTenantWords } from "@/lib/words/server";
 import { loadGuestChatSettings } from "@/lib/inquiry/guest-chat-settings";
 import { loadGuestDockFlags } from "@/lib/inquiry/guest-dock-flags";
 import { getRequestLocale } from "@/i18n/request-locale";
-import { createTranslator } from "@/i18n/messages";
+import { createTranslator, resolveMessageLocale } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 
@@ -91,8 +91,9 @@ export async function AgencyChatLauncherMount({
   const ctx = await getPublicHostContext();
   // Resolve the request locale so the client panel renders in the page language
   // (the talent mount passes brand.locale; the agency mount must too, or the
-  // panel falls back to English on a localized directory).
-  const locale = await getRequestLocale();
+  // panel falls back to English on a localized directory). Catalog codes only
+  // (es-MX → es) so quick-reply chips match dock CTAs (TUL-529).
+  const locale = resolveMessageLocale(await getRequestLocale());
   const t = createTranslator(locale);
 
   // Resolve the tenant that owns this chat:

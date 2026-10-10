@@ -41,7 +41,7 @@ import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode
 import type { GuestChatOffering } from "@/lib/inquiry/guest-chat-contract";
 import { surfaceModeFromBackgroundMode } from "./mini-chat-styles";
 import type { ChatCardConfig } from "@/lib/talent-site/chat-card";
-import { createTranslator } from "@/i18n/messages";
+import { createTranslator, resolveMessageLocale } from "@/i18n/messages";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import {
   resolveLauncherLifecycleInputs,
@@ -181,9 +181,12 @@ export async function TalentProfileChatLauncherMount({
   // truth for "the builder canvas is active", so check it here too.
   if (tenantId && (await isEditModeActiveForTenant(tenantId))) return null;
 
-  const t = createTranslator(locale ?? "en");
+  // Page locale → message-catalog code (es-MX → es). Same code is threaded on
+  // `brand.locale` so quick-reply chips and dock CTAs agree (TUL-529).
+  const uiLocale = resolveMessageLocale(locale);
+  const t = createTranslator(uiLocale);
   // L13: the tenant-wide dock switches + the per-business Items label.
-  const dockFlags = await loadGuestDockFlags(tenantId, locale, wordsPresetOverride);
+  const dockFlags = await loadGuestDockFlags(tenantId, uiLocale, wordsPresetOverride);
 
   // Cold-load `?order=` wins over cookie resume when the guest owns that order.
   const parsedOrder = parseGuestOrderQuery(orderId);
@@ -214,7 +217,7 @@ export async function TalentProfileChatLauncherMount({
   // W2-B — the talent's published services as in-chat request chips. Talents
   // with none get a single "Custom quote" default so EVERY talent is
   // requestable from the chat.
-  const publicOfferings = await loadPublicOfferingsForProfile(talentProfileId, locale ?? "en");
+  const publicOfferings = await loadPublicOfferingsForProfile(talentProfileId, uiLocale);
   const [usdRates, sellingDefaults, planKey] = await Promise.all([
     loadUsdRatesForSitePrices(publicOfferings),
     loadTalentSellingDefaults(talentProfileId),
@@ -236,8 +239,8 @@ export async function TalentProfileChatLauncherMount({
       reserveMode: o.reserveMode,
       depositPct: o.depositPct,
       imageUrl: o.imageUrls[0] ?? null,
-      priceLabel: catalogRowPriceText(o, locale ?? "en"),
-      priceIsPerUnit: Boolean(offeringPriceUnit(o.attributes, locale ?? "en")),
+      priceLabel: catalogRowPriceText(o, uiLocale),
+      priceIsPerUnit: Boolean(offeringPriceUnit(o.attributes, uiLocale)),
     });
   // The chips show the first 8; the instant price/duration answer (dock) matches against ALL of them (#116).
   const answerOfferings: GuestChatOffering[] = publicOfferings.map(toChatOffering);
@@ -287,7 +290,7 @@ export async function TalentProfileChatLauncherMount({
                 amountCents,
                 o.currency,
                 usdRates,
-                locale ?? "en",
+                uiLocale,
               ),
               cta: deriveOfferingCta({ offering: o, defaults: sellingDefaults ?? {}, confirmsByHand }).cta,
             };
@@ -300,7 +303,7 @@ export async function TalentProfileChatLauncherMount({
         logoUrl,
         photoUrl,
         greeting,
-        locale,
+        locale: uiLocale,
         omitPlatformBrand,
       }}
       label={t("public.guestChat.bookNow")}

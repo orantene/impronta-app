@@ -481,8 +481,8 @@ export function TalentProfileChatLauncher({
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
   const accentInk = readableOn(brand.accentColor);
   const talentFirst = firstNameOf(brand.talentDisplayName);
-  // Guest UI locale rides along on `brand` (resolved server-side from the
-  // tenant's default_locale, since guests have no LOCALE_COOKIE).
+  // Guest UI locale rides along on `brand` (page locale → message catalog code
+  // from the launcher mount; guests have no LOCALE_COOKIE).
   const t = createTranslator(brand.locale ?? "en");
 
   // Phase 3 — lifecycle-aware pill label (locked decision 1). The resolver owns
