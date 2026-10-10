@@ -266,7 +266,7 @@ async function renderTalentMaxSiteUnguarded(
     const navSource: readonly MaxSitePageRow[] = requirePublished
       ? pages
       : pages.map((p) => ({ ...p, status: "published" }));
-    const nav = buildMaxSiteNav(navSource);
+    const nav = buildMaxSiteNav(navSource, locale, localeCtx.chain);
     const publicPathPrefix = input.publicPathPrefix ?? "";
     const hydratedShell = hydrateShellNav(
       fixed.shellTree,

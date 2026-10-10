@@ -16,6 +16,9 @@
  *   - Agency homepage       (agency-home-storefront.tsx)
  *   - Talent profile        (/t/[profileCode]/page.tsx)
  *   - Talent Max site       (render-max-site.tsx — both /t/site and /_talent-site)
+ *
+ * Pass `locale` when the page already resolved it (talent Max sites, path
+ * locales). Spanish screens must not keep the English landmark label (TUL-121).
  */
 /** The link text in the page's language; any locale but Spanish reads English. */
 export function skipToContentLabel(locale?: string | null): string {

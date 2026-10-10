@@ -42,7 +42,7 @@ export function PlatformTalentMaxSiteView({
       {/* A11Y-2 — skip link is the first focusable element on the platform-host
           talent profile (this branch renders instead of LightProfileLayout on
           app/marketing hosts; the agency-host LightProfileLayout already has it). */}
-      <SkipToContent />
+      <SkipToContent locale={locale} />
       {/* ANALYTICS-2 — first-party page-view on the platform-host talent profile. */}
       {freeformContext ? (
         <SitePageViewAnalytics

@@ -149,6 +149,24 @@ test("links: talent policies on the talent host, Tulala documents off-host", () 
   assert.equal(html().includes('target="_blank"'), false);
 });
 
+test("DS-20: platform privacy/terms labels name Tulala so they are not a second Privacidad", () => {
+  const es = model({ locale: "es" });
+  const en = model({ locale: "en" });
+  const esBy = Object.fromEntries([...es.siteLinks, ...es.tulalaLinks].map((l) => [l.key, l]));
+  const enBy = Object.fromEntries([...en.siteLinks, ...en.tulalaLinks].map((l) => [l.key, l]));
+  assert.equal(esBy["privacy"]!.label, "Privacidad");
+  assert.equal(esBy["tulala-privacy"]!.label, "Privacidad Tulala");
+  assert.equal(esBy["tulala-terms"]!.label, "Términos Tulala");
+  assert.equal(enBy["privacy"]!.label, "Privacy");
+  assert.equal(enBy["tulala-privacy"]!.label, "Tulala privacy");
+  assert.equal(enBy["tulala-terms"]!.label, "Tulala terms");
+  const labels = [...es.siteLinks, ...es.tulalaLinks].map((l) => l.label);
+  assert.equal(labels.filter((l) => l === "Privacidad").length, 1);
+  assert.equal(labels.filter((l) => l === "Términos").length, 0);
+  assert.match(html({ locale: "es" }), /data-socket-link="tulala-privacy"[^>]*>Privacidad Tulala</);
+  assert.match(html({ locale: "en" }), /data-socket-link="tulala-privacy"[^>]*>Tulala privacy</);
+});
+
 test("TUL-498: EN visitor on an ES-primary site gets /en/politicas (and /en/privacidad)", () => {
   const m = model({
     locale: "en",
@@ -248,10 +266,14 @@ test("the Tulala group has Cookies and Refunds, pointing at the platform pages",
     "tulala-refunds",
   ]);
   const cookies = m.tulalaLinks.find((l) => l.key === "tulala-cookies")!;
-  assert.equal(cookies.label, "Cookies");
+  assert.equal(cookies.label, "Política de cookies");
   assert.equal(cookies.href, "https://tulala.digital/es/legal/cookies");
   assert.equal(cookies.external, true);
   assert.match(html(), /data-socket-link="tulala-cookies"/);
+  assert.equal(
+    model({ locale: "en" }).tulalaLinks.find((l) => l.key === "tulala-cookies")!.label,
+    "Cookies",
+  );
   const refunds = m.tulalaLinks.find((l) => l.key === "tulala-refunds")!;
   assert.equal(refunds.label, "Reembolsos");
   assert.equal(refunds.href, "https://tulala.digital/es/legal/refunds");

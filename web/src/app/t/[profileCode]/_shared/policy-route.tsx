@@ -103,7 +103,7 @@ export async function TalentProfilePolicyPage({ profileCode, doc, searchParams }
       data-talent-policy-standalone=""
       style={{ minHeight: "100vh", backgroundColor: "var(--token-color-background, Canvas)", color: "var(--token-color-ink, CanvasText)" }}
     >
-      <SkipToContent />
+      <SkipToContent locale={locale} />
       <PublicHeader />
       <main id="main-content">{policyMainNode(model, { homeHref })}</main>
     </div>

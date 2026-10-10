@@ -249,7 +249,7 @@ export default async function PublicTalentFreeformPage({
       {/* A11Y / parity — skip link is the FIRST focusable element, before the
           header and all navigation (matches the storefront /p/ + profile +
           talent-site render branches). */}
-      <SkipToContent />
+      <SkipToContent locale={locale} />
       {/* SEO — Portfolio-gated structured data from `talent_pages.json_ld`,
           emitted through the SAME shared serializer as the /t/site routes. */}
       {talentPageJsonLd ? (

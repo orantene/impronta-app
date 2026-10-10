@@ -219,6 +219,8 @@ export function buildSocketModel(input: {
     });
   }
 
+  // DS-20: platform docs keep "Tulala" in the label so they never read as a
+  // second copy of the talent's own Privacidad / Privacy (or bare Términos).
   const tulalaLinks: SocketLink[] = [];
   const help = input.helpContext;
   if (help?.profileCode?.trim()) {
@@ -236,19 +238,20 @@ export function buildSocketModel(input: {
   tulalaLinks.push(
     {
       key: "tulala-terms",
-      label: pickLocale(locale, { en: "Terms", es: "Términos" }),
+      label: pickLocale(locale, { en: "Tulala terms", es: "Términos Tulala" }),
       href: localizedLegalUrl(TULALA_LEGAL_TERMS_URL, locale),
       external: true,
     },
     {
       key: "tulala-privacy",
-      label: pickLocale(locale, { en: "Privacy", es: "Privacidad" }),
+      label: pickLocale(locale, { en: "Tulala privacy", es: "Privacidad Tulala" }),
       href: localizedLegalUrl(TULALA_LEGAL_PRIVACY_URL, locale),
       external: true,
     },
     {
       key: "tulala-cookies",
-      label: "Cookies",
+      // ES: drop the English loanword; EN keeps Cookies. Ownership is the Tulala group.
+      label: pickLocale(locale, { en: "Cookies", es: "Política de cookies" }),
       href: localizedLegalUrl(TULALA_LEGAL_COOKIES_URL, locale),
       external: true,
     },

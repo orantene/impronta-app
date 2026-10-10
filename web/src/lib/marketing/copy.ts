@@ -99,6 +99,10 @@ const en = {
     accountSettings: "Account settings",
     /** Accessible name + heading for the header's globe language menu. */
     language: "Language",
+    /** Accessible name for the mobile hamburger (same voice as public.header.openMenuAria). */
+    openMenu: "Open menu",
+    /** Accessible name when the mobile menu is open. */
+    closeMenu: "Close menu",
     /** Placeholder + accessible name for the mobile menu's directory search. */
     searchTalent: "Search talent…",
     /** Reassurance line under the mobile menu's Get started CTA. */
@@ -126,6 +130,8 @@ const en = {
     ctaTalent: "Sell your work · free",
     ctaBusiness: "Start a business",
     trust: ["Free forever", "No code", "Bookings & payments built in"],
+    /** Hero carousel dot; `{n}` is the 1-based slide index. */
+    showSlide: "Show slide {n}",
   },
 
   audience: {
@@ -237,9 +243,6 @@ const en = {
         body: "Structured inquiries, versioned offers, approvals, and traceable bookings. Everything a real business needs that a group chat can't give you.",
       },
     ],
-    mockFeatured: "Featured roster",
-    mockHeading: "People worth booking.",
-    mockAvailable: "Available",
   },
 
   network: {
@@ -331,6 +334,8 @@ const en = {
       "Illustrative stories that show what's possible today. Real customer pages connect here as they launch.",
     filters: ["All stories", "Talent", "Business", "Hubs", "Hybrid"],
     readStory: "Read the story",
+    /** Card overlay button; `{name}` is the persona. */
+    readStoryNamed: "Read {name}'s story",
     challengeLabel: "The challenge",
     approachLabel: "How they use Tulala",
     resultLabel: "The result",
@@ -493,6 +498,8 @@ const es: MarketingCopy = {
     savedTalent: "Talento guardado",
     accountSettings: "Configuración de cuenta",
     language: "Idioma",
+    openMenu: "Abrir menú",
+    closeMenu: "Cerrar menú",
     searchTalent: "Busca talento…",
     stageNote: "Espacios de trabajo gratis · Sin tarjeta · dirigido por su fundador",
   },
@@ -513,6 +520,7 @@ const es: MarketingCopy = {
     ctaTalent: "Vende tu trabajo · gratis",
     ctaBusiness: "Abre tu negocio",
     trust: ["Gratis para siempre", "Sin código", "Reservas y pagos incluidos"],
+    showSlide: "Mostrar diapositiva {n}",
   },
 
   audience: {
@@ -624,9 +632,6 @@ const es: MarketingCopy = {
         body: "Solicitudes estructuradas, ofertas con versiones, aprobaciones y reservas rastreables. Todo lo que un negocio de verdad necesita y un grupo de chat no te da.",
       },
     ],
-    mockFeatured: "Catálogo destacado",
-    mockHeading: "Gente que vale la pena reservar.",
-    mockAvailable: "Disponible",
   },
 
   network: {
@@ -718,6 +723,7 @@ const es: MarketingCopy = {
       "Historias ilustrativas de lo que ya es posible hoy. Las páginas de clientes reales se conectan aquí conforme se lanzan.",
     filters: ["Todas", "Talento", "Negocios", "Hubs", "Híbrido"],
     readStory: "Leer la historia",
+    readStoryNamed: "Leer la historia de {name}",
     challengeLabel: "El reto",
     approachLabel: "Cómo usan Tulala",
     resultLabel: "El resultado",

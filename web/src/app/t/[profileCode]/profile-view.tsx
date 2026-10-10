@@ -1596,7 +1596,7 @@ export async function TalentProfileView({
             {/* Parity — even the degenerate config-error branch carries the
                 skip-link + #main-content landmark so every render branch of
                 this surface is uniform (locked by render-branch-parity test). */}
-            <SkipToContent />
+            <SkipToContent locale={locale} />
             <PublicHeader />
             <main
               id="main-content"
@@ -2625,7 +2625,7 @@ export async function TalentProfileView({
           ) : null}
           <PublicFlashHost dismissAria={ui.flash.dismissAria} />
           {/* A11Y-2 — skip link is first focusable element, before all navigation. */}
-          <SkipToContent />
+          <SkipToContent locale={locale} />
           {/* ANALYTICS-2 — unified first-party page-view; talent-profile also
               emits the legacy view_talent_profile event (distinct name) so the
               inquiry-funnel loaders keep counting. tenantId = the resolved
