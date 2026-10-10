@@ -822,6 +822,12 @@ html[data-token-typography-scale-preset="editorial"] {
 [data-section-container="editorial"]   > *[class*="__inner"] { width: min(1240px, 100% - 48px) !important; }
 [data-section-container="full-bleed"]  > * > *[class*="__inner"],
 [data-section-container="full-bleed"]  > *[class*="__inner"] { width: 100% !important; max-width: 100% !important; padding-inline: 0 !important; }
+/* GRK-073: site_header is chrome, not a content band — full-bleed must not
+ * wipe its side gutter (brand flush to x=0 on phone demos). ≥16px floor. */
+.site-header[data-section-container="full-bleed"] > .site-header__inner,
+.site-header[data-section-container="full-bleed"] > .site-header__inner--freeform {
+  padding-inline: clamp(16px, 3vw, 44px) !important;
+}
 
 /* Alignment (applies to text children). */
 [data-section-align="left"]   { text-align: left; }
@@ -911,6 +917,10 @@ html[data-token-typography-scale-preset="editorial"] {
   [data-section-tablet-container="editorial"]  > *[class*="__inner"] { width: min(960px, 100% - 32px) !important; }
   [data-section-tablet-container="full-bleed"] > * > *[class*="__inner"],
   [data-section-tablet-container="full-bleed"] > *[class*="__inner"] { width: 100% !important; max-width: 100% !important; padding-inline: 0 !important; }
+  .site-header[data-section-tablet-container="full-bleed"] > .site-header__inner,
+  .site-header[data-section-tablet-container="full-bleed"] > .site-header__inner--freeform {
+    padding-inline: clamp(16px, 3vw, 44px) !important;
+  }
 
   /* Tablet alignment. */
   [data-section-tablet-align="left"]   { text-align: left; }
@@ -955,6 +965,10 @@ html[data-token-typography-scale-preset="editorial"] {
   [data-section-mobile-container="editorial"]  > *[class*="__inner"] { width: 100% !important; max-width: calc(100% - 16px); }
   [data-section-mobile-container="full-bleed"] > * > *[class*="__inner"],
   [data-section-mobile-container="full-bleed"] > *[class*="__inner"] { width: 100% !important; max-width: 100% !important; padding-inline: 0 !important; }
+  .site-header[data-section-mobile-container="full-bleed"] > .site-header__inner,
+  .site-header[data-section-mobile-container="full-bleed"] > .site-header__inner--freeform {
+    padding-inline: clamp(16px, 3vw, 44px) !important;
+  }
 
   /* Mobile alignment. */
   [data-section-mobile-align="left"]   { text-align: left; }
@@ -5909,7 +5923,9 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header[data-variant="minimal"] .site-header__inner { flex-direction: column; align-items: center; gap: 8px; padding-block: 8px; }
 
 .site-header__brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--token-color-ink); font-family: var(--site-heading-font); font-weight: 600; letter-spacing: -0.005em; }
-.site-header__brand-mark { width: clamp(20px, 2vw, 28px); height: clamp(20px, 2vw, 28px); object-fit: contain; }
+/* GRK-046: default mark was clamp(20–28px) — floor at 32px so the logo
+ * reads as a brand mark next to the business name on every demo. */
+.site-header__brand-mark { width: clamp(32px, 3vw, 44px); height: clamp(32px, 3vw, 44px); object-fit: contain; }
 .site-header__brand-label { font-size: clamp(14px, 1.1vw, 16px); }
 /* Phones: the header is ONE row on every design and variant. A long name gives way (ellipsis), never wraps the bar. */
 @media (max-width: 767px) {
@@ -6391,9 +6407,9 @@ html[data-theme="dark"] [data-tone="light"] {
 }
 
 /* ---- Optional density controls (only match when operator set them) --- */
-.site-header[data-logo-scale="sm"] .site-header__brand-mark { height: clamp(24px, 2.4vw, 30px); }
-.site-header[data-logo-scale="lg"] .site-header__brand-mark { height: clamp(38px, 4vw, 52px); }
-.site-header[data-logo-scale="xl"] .site-header__brand-mark { height: clamp(46px, 5vw, 64px); }
+.site-header[data-logo-scale="sm"] .site-header__brand-mark { height: clamp(32px, 2.8vw, 36px); width: auto; }
+.site-header[data-logo-scale="lg"] .site-header__brand-mark { height: clamp(38px, 4vw, 52px); width: auto; }
+.site-header[data-logo-scale="xl"] .site-header__brand-mark { height: clamp(46px, 5vw, 64px); width: auto; }
 .site-header[data-logo-scale="sm"] .site-header__brand-label { font-size: clamp(0.95rem, 1.7vw, 1.25rem); }
 .site-header[data-logo-scale="lg"] .site-header__brand-label { font-size: clamp(1.35rem, 2.7vw, 2rem); }
 .site-header[data-logo-scale="xl"] .site-header__brand-label { font-size: clamp(1.6rem, 3.2vw, 2.5rem); }
