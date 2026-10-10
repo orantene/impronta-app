@@ -462,7 +462,8 @@ const BUDGETS: Record<string, number> = {
   // to the other services-editor keys in ES_TEXT; raise with the growth.
   // 2026-10-10 TUL-538: +4 ES for availability switch ("Turn on availability",
   // taking/paused bookings, public-page hint). Raise with the growth.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3846,
+  // 2026-10-10 TUL-146: +1 ES "Your personal page plan" → "Tu plan de página personal".
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3847,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.
