@@ -26,11 +26,13 @@ test("Send stays hidden until an inquiry exists", () => {
   assert.match(panel, /onEnsureInquiry && inquiryId && !unified\.contactPromoted/);
 });
 
-test("empty Home still exposes the intake rail (Nada todav\u00eda) and paints Hablar active", () => {
+test("empty Home still paints Hablar active; card rail stays hidden until a pick (TUL-531)", () => {
   const column = readFileSync(join(DIR, "MiniChatPanelColumn.tsx"), "utf8");
   assert.match(column, /activeDockView === "chat" \|\| activeDockView === "home"/);
   const nav = readFileSync(join(DIR, "GuestDockNav.tsx"), "utf8");
   assert.match(nav, /active === "home" && view === "chat"/);
+  const chrome = readFileSync(join(DIR, "GuestDockChrome.tsx"), "utf8");
+  assert.match(chrome, /journeySegs\.filter\(\(s\) => s\.on\)\.length\) > 0/);
 });
 
 test("first open lands on Hablar chat, not the Home hub", () => {

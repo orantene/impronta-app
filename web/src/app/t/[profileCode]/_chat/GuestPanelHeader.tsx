@@ -214,7 +214,10 @@ export function GuestPanelHeader({
 
       <button
         type="button"
-        onClick={onClose}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
         aria-label={t("public.guestChat.closeAria")}
         style={iconBtnStyle(C)}
       >

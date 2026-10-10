@@ -124,8 +124,17 @@ export function GuestDockChrome({
         <CardDockBack label={t("public.guestChat.cardBrowseBack")} onBack={() => onDockViewChange("chat")} />
       ) : null}
 
-      {card && dockEnabled && activeDockView === "chat" && journeySegs.length > 0 && railLabel ? (
-        <CardDockRail count={lineupCount || journeySegs.filter((s) => s.on).length} label={railLabel} t={t} onOpenDetails={onOpenDetails} />
+      {card &&
+      dockEnabled &&
+      activeDockView === "chat" &&
+      railLabel &&
+      (lineupCount || journeySegs.filter((s) => s.on).length) > 0 ? (
+        <CardDockRail
+          count={lineupCount || journeySegs.filter((s) => s.on).length}
+          label={railLabel}
+          t={t}
+          onOpenDetails={onOpenDetails}
+        />
       ) : null}
 
       {!card && dockEnabled && journeySegs.length > 0 && railLabel && (
