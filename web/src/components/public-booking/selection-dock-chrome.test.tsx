@@ -307,3 +307,47 @@ test("ES: the dock renders no English UI chrome", () => {
   assert.doesNotMatch(labels, /\b(Continue|Remove|Ask|Chat with|Close|Your booking)\b/);
   unmount();
 });
+
+// E6-tab-count — Continuar must receive focus when the dock first appears
+test("E6-tab-count: Continuar is focused when the dock becomes shown", () => {
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+  act(() =>
+    root.render(
+      <SelectionDock
+        items={[]}
+        show
+        locale="es"
+        formatPrice={(c) => `$${c / 100}`}
+        onRemoveFront={() => undefined}
+        onAsk={() => undefined}
+        onContinue={() => undefined}
+        toast={null}
+        onUndo={() => undefined}
+      />,
+    ),
+  );
+  assert.notEqual(dom.window.document.activeElement?.classList.contains("cb-dock-go"), true);
+  act(() =>
+    root.render(
+      <SelectionDock
+        items={[ITEM]}
+        show
+        locale="es"
+        formatPrice={(c) => `$${c / 100}`}
+        onRemoveFront={() => undefined}
+        onAsk={() => undefined}
+        onContinue={() => undefined}
+        toast={null}
+        onUndo={() => undefined}
+      />,
+    ),
+  );
+  assert.ok(
+    dom.window.document.activeElement?.classList.contains("cb-dock-go"),
+    "Continuar focused on dock show so Tab need not walk the catalog",
+  );
+  act(() => root.unmount());
+  host.remove();
+});
