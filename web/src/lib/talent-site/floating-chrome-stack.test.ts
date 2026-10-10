@@ -12,6 +12,7 @@ import {
   floatingBannerUp,
   floatingChromeBottomUsesMax,
   floatingChromeClearsHeroCtas,
+  floatingChromeClearsStickyBarFab,
   floatingChromeYieldsToGuestChat,
   helpBubbleFilterNavBlocking,
 } from "./floating-chrome-stack";
@@ -64,6 +65,17 @@ describe("TUL-516 / TUL-528 floating chrome stack", () => {
     ]) {
       assert.match(readFileSync(join(root, file), "utf8"), /data-guest-chat-panel/);
     }
+  });
+
+  test("GRK-036: phone FAB clears sticky booking bar before JS yield", () => {
+    assert.equal(floatingChromeClearsStickyBarFab(FLOATING_CHROME_STACK_CSS), true);
+    assert.match(
+      FLOATING_CHROME_STACK_CSS,
+      /body:has\(\.cb-bar\[data-show="true"\]:not\(\[data-top="true"\]\)\) \[data-guest-chat-launcher\]/,
+    );
+    const yieldHook = readFileSync(join(root, "app/t/[profileCode]/_chat/use-yield-booking-bar.ts"), "utf8");
+    assert.match(yieldHook, /useLayoutEffect/);
+    assert.match(yieldHook, /BOOKING_BAR_CLEARANCE_PX = 24/);
   });
 
   test("floatingBannerUp is true only for painted consent/locale nodes", () => {
