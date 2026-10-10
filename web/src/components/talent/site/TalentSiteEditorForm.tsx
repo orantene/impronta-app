@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition, type CSSProperties } from "react";
 
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import { PrimaryButton, SecondaryButton } from "@/components/admin/shell/internal/primitives";
 import {
@@ -49,6 +50,7 @@ const DISABLED_INPUT_STYLE: CSSProperties = {
 };
 
 export function TalentSiteEditorForm({ state, initialSnapshot, onSaved }: Props) {
+  const copy = useDashboardText();
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [version, setVersion] = useState(state.site?.version ?? 1);
   const [message, setMessage] = useState<string | null>(null);
@@ -157,7 +159,7 @@ export function TalentSiteEditorForm({ state, initialSnapshot, onSaved }: Props)
     <div style={{ fontFamily: FONTS.body }}>
       <div style={{ display: "grid", gap: 14, marginBottom: 16 }}>
         <label>
-          <span style={FIELD_LABEL_STYLE}>Site title</span>
+          <span style={FIELD_LABEL_STYLE}>{copy.t("Site title")}</span>
           <input
             type="text"
             value={snapshot.fields.title}
@@ -169,7 +171,7 @@ export function TalentSiteEditorForm({ state, initialSnapshot, onSaved }: Props)
           />
         </label>
         <label>
-          <span style={FIELD_LABEL_STYLE}>Meta description</span>
+          <span style={FIELD_LABEL_STYLE}>{copy.t("Meta description")}</span>
           <textarea
             value={snapshot.fields.metaDescription ?? ""}
             disabled={disabled}
@@ -185,7 +187,7 @@ export function TalentSiteEditorForm({ state, initialSnapshot, onSaved }: Props)
           />
         </label>
         <label>
-          <span style={FIELD_LABEL_STYLE}>Intro tagline</span>
+          <span style={FIELD_LABEL_STYLE}>{copy.t("Intro tagline")}</span>
           <input
             type="text"
             value={snapshot.fields.introTagline ?? ""}
@@ -208,17 +210,17 @@ export function TalentSiteEditorForm({ state, initialSnapshot, onSaved }: Props)
         }}
       >
         <SecondaryButton onClick={handleSave} disabled={disabled}>
-          Save draft
+          {copy.t("Save draft")}
         </SecondaryButton>
         <PrimaryButton onClick={handlePublish} disabled={disabled || !state.canPublishPersonalSite}>
-          Publish
+          {copy.t("Publish")}
         </PrimaryButton>
         {state.site?.status === "published" ? (
           <SecondaryButton
             onClick={handleUnpublish}
             disabled={disabled || !state.canPublishPersonalSite}
           >
-            Unpublish
+            {copy.t("Unpublish")}
           </SecondaryButton>
         ) : null}
       </div>
