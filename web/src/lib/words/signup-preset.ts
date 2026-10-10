@@ -49,6 +49,9 @@ const KEYWORD_PRESETS: ReadonlyArray<{
     words: [
       "salon", "barber", "barbershop", "barberia", "barbería",
       "peluqueria", "peluquería", "nails", "beauty", "estetica", "estética",
+      // Not a bare "salón": this row wins first, and "salón de eventos" is a venue.
+      "belleza", "salón de belleza", "uñas", "manicure", "pedicure", "lashes",
+      "pestañas", "cejas",
     ],
     presetId: "salon_barber",
   },
