@@ -146,6 +146,16 @@ test("every talent-reachable builder surface pins raw HTML off", () => {
   );
 });
 
+test("TUL-516: talent host route mounts host-change full navigation guard", () => {
+  const source = src(HOST_ROUTE);
+  assert.match(source, /TalentSiteHostFullNav/);
+  assert.match(source, /servedHost=\{servedHost\}/);
+  assert.match(source, /resolveServedHost/);
+  const guard = src("src/components/talent-site/talent-site-host-full-nav.tsx");
+  assert.match(guard, /hrefRequiresFullNavigation/);
+  assert.match(guard, /location\.assign/);
+});
+
 test("the render-time href and form-action neutralizers are still in force", () => {
   const hrefs = src("src/lib/saas/public-hrefs.ts");
   assert.match(hrefs, /export function neutralizeDangerousHref\(/);

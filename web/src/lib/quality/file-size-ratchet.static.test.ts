@@ -253,7 +253,8 @@ const BUDGETS: Record<string, number> = {
   // Schedule card mount. The schedule FORM itself was extracted to
   // schedule-form.tsx (shared with ScheduleDrawer); what lives here is only
   // the drawer's own tab state and wiring.
-  "src/components/edit-chrome/publish-drawer.tsx": 2372,
+  // 2372 → 2179 (TUL-524 first publish with zero blockers, 2026-10-10).
+  "src/components/edit-chrome/publish-drawer.tsx": 2179,
   // 1826 → 1844 (+18), 2026-08-16, footer inspector parity.
   //   +2  import of <SiteFooterInspector> and its routing predicate
   //   +14 the `isSiteFooterSelected` block: a 4-line const plus the comment
@@ -462,7 +463,8 @@ const BUDGETS: Record<string, number> = {
   // to the other services-editor keys in ES_TEXT; raise with the growth.
   // 2026-10-10 TUL-538: +4 ES for availability switch ("Turn on availability",
   // taking/paused bookings, public-page hint). Raise with the growth.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3846,
+  // 2026-10-10 TUL-146: +1 ES "Your personal page plan" → "Tu plan de página personal".
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3847,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.
@@ -636,7 +638,7 @@ const BUDGETS: Record<string, number> = {
   // +37 — option labels keep their English key AND their unit; without this
   // the public profile discarded both (TS also needs unit on NewDefEmbed).
   // 2026-09-24 services-rebuild: +11 (2682). Measured wc -l.
-  "src/app/t/[profileCode]/profile-view.tsx": 2683,
+  "src/app/t/[profileCode]/profile-view.tsx": 2677,
   // 2026-08-16 T4 attachments off the Server Action body: +123. Files used to
   // ride the submit FormData, which put the whole inquiry behind the ~4 MB
   // body cap while the drawer advertised 10 x 20 MB. Added:

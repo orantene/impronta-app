@@ -44,6 +44,11 @@ export interface FactoryDesignRow {
   authored?: boolean;
   /** Editor href for an authored design. */
   editHref?: string | null;
+  /**
+   * Code moved (or Maison CTA seed patch) while latest is authored and not in
+   * git yet — offer "Review code seed in Builder Lab" (TUL-366).
+   */
+  codeSeedReview?: boolean;
 }
 
 export interface FactoryOverview {
