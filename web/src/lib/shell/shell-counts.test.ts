@@ -24,6 +24,8 @@ const read = (rel: string) => readFileSync(join(root, rel), "utf8");
 function fakeLoaders(opts: {
   workspace?: number | (() => Promise<number>);
   talent?: number | (() => Promise<number>);
+  money?: number;
+  attention?: number;
 }): ShellCountLoaders {
   const asFn = (v: number | (() => Promise<number>) | undefined, label: string) => {
     if (v === undefined) {
@@ -37,6 +39,13 @@ function fakeLoaders(opts: {
   return {
     loadWorkspaceUnread: asFn(opts.workspace, "workspace"),
     loadTalentUnread: asFn(opts.talent, "talent"),
+    countUnreadNotifications: async () => ({
+      total: (opts.money ?? 0) + (opts.attention ?? 0),
+      messages: 0,
+      money: opts.money ?? 0,
+      attention: opts.attention ?? 0,
+      updates: 0,
+    }),
   };
 }
 
@@ -121,14 +130,30 @@ test("negative / non-finite loader results sanitize to 0 messages", async () => 
   );
 });
 
-test("money and attention stay stubbed at 0 (TUL-389)", async () => {
+test("money and attention come from countUnreadNotifications (TUL-389)", async () => {
   const counts = await loadShellCounts(
     "workspace",
     { tenantId: "t1" },
-    fakeLoaders({ workspace: 12 }),
+    fakeLoaders({ workspace: 12, money: 2, attention: 5 }),
   );
-  assert.equal(counts.money, 0);
-  assert.equal(counts.attention, 0);
+  assert.deepEqual(counts, {
+    messages: 12,
+    money: 2,
+    attention: 5,
+  } satisfies ShellCounts);
+});
+
+test("notif loader throw leaves money/attention at 0 without blanking messages", async () => {
+  const counts = await loadShellCounts("workspace", { tenantId: "t1" }, {
+    loadWorkspaceUnread: async () => 4,
+    loadTalentUnread: async () => {
+      throw new Error("talent unused");
+    },
+    countUnreadNotifications: async () => {
+      throw new Error("notif down");
+    },
+  });
+  assert.deepEqual(counts, { messages: 4, money: 0, attention: 0 });
 });
 
 // ── Layout bridge wiring (source scan) ──────────────────────────────────────
