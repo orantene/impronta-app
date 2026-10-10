@@ -755,7 +755,7 @@ export function MobileEditPanel() {
                 color: CHROME.muted2,
               }}
             >
-              Mobile checks
+              {t("Mobile checks")}
             </span>
             {issueCount > 0 ? (
               <span
