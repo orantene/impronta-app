@@ -2,24 +2,23 @@
  * TUL-390 — pure helpers for the bell popover: category tabs, dual-owner
  * surface tabs, and the >8 → "See all" drawer threshold.
  *
- * Kind→category mapping mirrors `lib/notifications/categories-ui.ts` (TUL-389)
- * so this PR can land in parallel without stacking. When 389 merges, prefer
- * importing `uiCategoryForKind` from that module and delete the local map.
+ * Kind→category uses `lib/notifications/categories-ui.ts` (TUL-389 on main).
  */
 
-export type HubUiCategory = "messages" | "money" | "attention" | "updates";
+import {
+  NOTIFICATION_UI_CATEGORIES,
+  uiCategoryForKind,
+  type NotificationUiCategory,
+} from "@/lib/notifications/categories-ui";
+
+export type HubUiCategory = NotificationUiCategory;
 
 export type HubOwnerSurface = "admin" | "talent";
 
 /** Popover shows at most this many rows; beyond that, "See all" opens the drawer. */
 export const POPOVER_LIST_LIMIT = 8;
 
-export const HUB_UI_CATEGORIES: readonly HubUiCategory[] = [
-  "messages",
-  "money",
-  "attention",
-  "updates",
-] as const;
+export const HUB_UI_CATEGORIES: readonly HubUiCategory[] = NOTIFICATION_UI_CATEGORIES;
 
 /** English labels for category tabs (dashboard-i18n keys). */
 export const HUB_CATEGORY_LABEL: Record<HubUiCategory, string> = {
@@ -35,21 +34,10 @@ export const HUB_OWNER_LABEL: Record<HubOwnerSurface, string> = {
   talent: "Talent",
 };
 
-const KIND_TO_CATEGORY: Record<string, HubUiCategory> = {
-  message: "messages",
-  payment: "money",
-  approval: "attention",
-  offer: "attention",
-  booking: "attention",
-  ticket: "attention",
-  system: "updates",
-  profile: "updates",
-};
-
 /** Map a DB kind (or hub bucket fallback) to a UI category. */
 export function hubUiCategoryForKind(kind: string | undefined | null): HubUiCategory {
-  if (kind && KIND_TO_CATEGORY[kind]) return KIND_TO_CATEGORY[kind];
-  return "updates";
+  if (!kind) return "updates";
+  return uiCategoryForKind(kind);
 }
 
 /** Legacy hub buckets → UI category (fixture / derived rows without a kind). */

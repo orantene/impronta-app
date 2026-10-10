@@ -93,7 +93,7 @@ test("TUL-390: ES chrome keys for See all + Attention", async () => {
   const { NOTIFICATIONS_ES_TEXT } = await import("./dashboard-i18n-notifications");
   assert.equal(NOTIFICATIONS_ES_TEXT["See all notifications"], "Ver todas las notificaciones");
   assert.equal(NOTIFICATIONS_ES_TEXT["Attention"], "Atención");
-  // Owner + category labels already live in dashboard-i18n ES_TEXT.
+  // Messages / Money / Updates / All / Admin / Talent already live in dashboard-i18n ES_TEXT.
   for (const en of Object.values(HUB_CATEGORY_LABEL)) {
     assert.ok(typeof en === "string" && en.length > 0);
   }
