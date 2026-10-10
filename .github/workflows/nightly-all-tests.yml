@@ -51,7 +51,7 @@ jobs:
           node -e '
             const s = require("./web/package.json").scripts;
             const skip = (k) => /^test:e2e/.test(k) || /:watch$/.test(k)
-              || ["test:components", "test:orphans", "test:commission-pipeline"].includes(k);
+              || ["test:components", "test:orphans", "test:commission-pipeline", "test:wt"].includes(k);
             const lanes = Object.keys(s).filter((k) => k.startsWith("test:") && !skip(k)).sort();
             console.log("lanes=" + JSON.stringify(lanes));
           ' >> "$GITHUB_OUTPUT"

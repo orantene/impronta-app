@@ -1,9 +1,8 @@
 import { HubProfileCta } from "./hub-profile-book-cta";
-import { loadTalentIntake } from "./_chat/talent-intake.server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { loadTalentMaxSiteLink } from "@/lib/talent-site/server/load-max-site-link";
+import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
 import { resolveHubProfileCta } from "@/lib/talent-site/hub-profile-book-cta";
-import type { TalentAskEntry } from "@/lib/talent/chat-entry";
+import { loadBookEntry } from "@/lib/talent-site/server/load-book-entry";
 
 /** Same look as the layouts' primary Inquire button (profile-view `inquireBtnClass`). */
 const BOOK_BTN_CLASS =
@@ -13,26 +12,23 @@ const BOOK_BTN_CLASS =
  * The freeform hub profile renders the site view instead of the layouts that
  * carry `inquireButtons`, so it gets its own Book bar (TUL-246). Presentational
  * and sync so the rule is testable: the SAME `HubProfileCta` decision as the
- * other slots (talent has a site, intake switches allow it) with no Inquire
- * fallback, since the freeform view brings its own contact chrome.
+ * other slots (bookable services → `#book`) with no Inquire fallback, since the
+ * freeform view brings its own contact chrome.
  */
 export function FreeformHubBookBar({
-  maxSiteUrl,
-  askEntry,
+  hasBookableServices,
   locale,
 }: {
-  maxSiteUrl: string | null;
-  askEntry: TalentAskEntry;
+  hasBookableServices: boolean;
   locale: string;
 }) {
-  if (resolveHubProfileCta({ platformHost: true, maxSiteUrl, askEntry }).kind !== "book") return null;
+  if (resolveHubProfileCta({ platformHost: true, hasBookableServices }).kind !== "book") return null;
   return (
     <div data-hub-book-bar="" className="flex justify-center px-4 py-3">
       <HubProfileCta
         slot="freeform"
         platformHost
-        maxSiteUrl={maxSiteUrl}
-        askEntry={askEntry}
+        hasBookableServices
         locale={locale}
         className={BOOK_BTN_CLASS}
       >
@@ -49,9 +45,22 @@ export async function FreeformHubBook({
   talentProfileId: string;
   locale: string;
 }) {
-  const [link, intake] = await Promise.all([
-    loadTalentMaxSiteLink(talentProfileId),
-    loadTalentIntake({ admin: createServiceRoleClient(), talentProfileId, chatTenantSlug: null }),
-  ]);
-  return <FreeformHubBookBar maxSiteUrl={link?.url ?? null} askEntry={intake.askEntry} locale={locale} />;
+  let confirmsByHand = true;
+  const admin = createServiceRoleClient();
+  if (admin) {
+    const { data, error } = await admin
+      .from("talent_profiles")
+      .select("talent_plan_key")
+      .eq("id", talentProfileId)
+      .maybeSingle();
+    if (!error) {
+      confirmsByHand = !talentOffersInstantBooking(
+        (data as { talent_plan_key?: string | null } | null)?.talent_plan_key,
+      );
+    }
+  }
+  const bookEntry = await loadBookEntry({ talentProfileId, locale, confirmsByHand });
+  return (
+    <FreeformHubBookBar hasBookableServices={bookEntry.kind === "sheet"} locale={locale} />
+  );
 }
