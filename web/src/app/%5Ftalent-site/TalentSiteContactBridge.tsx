@@ -54,7 +54,18 @@ export function TalentSiteContactBridge({
       const link = target.closest("a");
       if (!link) return;
       const href = link.getAttribute("href") ?? "";
-      if (!isAskHref(href)) return;
+      const label = link.textContent ?? "";
+      // TUL-77: Ask labels (Escríbenos / Escríbeme / Inquire) must open chat even
+      // when the seeded href is /agendar or another same-site page — otherwise the
+      // header reloads the booking page and the guest never gets the dock.
+      if (!isAskHref(href) && !isAskLabel(label)) return;
+      if (
+        href.startsWith("mailto:") ||
+        href.includes("wa.me") ||
+        href.includes("whatsapp.com")
+      ) {
+        return;
+      }
       event.preventDefault();
       requestTalentOpen(intentForHref(href, bookEntry) ?? openIntentFor("ask", bookEntry));
     };
@@ -168,6 +179,10 @@ const ASK_LABELS = new Set([
   "poser une question",
   "escríbeme",
   "escribeme",
+  "escríbenos",
+  "escribenos",
+  "get in touch",
+  "write me",
   "inquire",
 ]);
 
