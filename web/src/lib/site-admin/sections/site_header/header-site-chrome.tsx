@@ -10,6 +10,12 @@ export function headerItemMobileDefault(item: HeaderItem): "show" | "menu" {
     : "menu";
 }
 
+/** Effective phone visibility: language always shows (GRK-030), even if a seed pinned menu. */
+export function headerItemMobileResolved(item: HeaderItem): "show" | "menu" | "hide" {
+  if (item.type === "language") return "show";
+  return item.responsive?.mobile ?? headerItemMobileDefault(item);
+}
+
 /** `data-header-item` + per-breakpoint attrs. The section switcher is phone-only unless the owner says otherwise. */
 export function headerItemAttrs(item: HeaderItem): Record<string, string> {
   const bp = item.responsive ?? {};
@@ -18,7 +24,7 @@ export function headerItemAttrs(item: HeaderItem): Record<string, string> {
     "data-header-item": item.type,
     "data-bp-desktop": bp.desktop ?? wide,
     "data-bp-tablet": bp.tablet ?? bp.desktop ?? wide,
-    "data-bp-mobile": bp.mobile ?? headerItemMobileDefault(item),
+    "data-bp-mobile": headerItemMobileResolved(item),
   };
 }
 

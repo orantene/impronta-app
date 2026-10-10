@@ -1,4 +1,4 @@
-import { HeaderDemoPill, HeaderSiteLocales, headerItemAttrs, headerItemMobileDefault } from "./header-site-chrome";
+import { HeaderDemoPill, HeaderSiteLocales, headerItemAttrs, headerItemMobileResolved } from "./header-site-chrome";
 import { SectionSwitcher } from "./SectionSwitcher";
 import { switcherLinksFrom, withSwitcherHome } from "./section-switcher-logic";
 import type { CSSProperties } from "react";
@@ -512,7 +512,7 @@ export async function SiteHeaderComponent({
     };
     const allItems = [...regions.left, ...regions.center, ...regions.right];
     // Burger + panel only when an item actually folds into it on the phone.
-    const hasMobileMenu = allItems.some((i) => (i.responsive?.mobile ?? headerItemMobileDefault(i)) === "menu");
+    const hasMobileMenu = allItems.some((i) => headerItemMobileResolved(i) === "menu");
     return (
       <header
         className="site-header"

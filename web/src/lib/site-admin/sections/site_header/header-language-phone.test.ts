@@ -13,7 +13,7 @@ test("language defaults to show on phone so bilingual demos keep a visible switc
   assert.equal(headerItemAttrs(item)["data-bp-mobile"], "show");
 });
 
-test("an owner choice still wins over the phone default", () => {
-  const item = { type: "language", responsive: { mobile: "menu" } } as HeaderItem;
-  assert.equal(headerItemAttrs(item)["data-bp-mobile"], "menu");
+test("language stays show on phone even when a seed tree pinned mobile menu", () => {
+  const item = { type: "language", responsive: { mobile: "menu" } as const } as HeaderItem;
+  assert.equal(headerItemAttrs(item)["data-bp-mobile"], "show");
 });
