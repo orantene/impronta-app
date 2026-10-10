@@ -36,7 +36,7 @@ import {
   resolveWorkspacePathTenantPublicPath,
   WORKSPACE_PATH_SEGMENT,
 } from "@/lib/saas/surface-allow-list";
-import { marketingWorkspacePathRedirect, workspacePathRedirect } from "@/lib/saas/workspace-path-redirects";
+import { freeSubdomainPathRedirect, marketingWorkspacePathRedirect, workspacePathRedirect } from "@/lib/saas/workspace-path-redirects";
 import { resolveLegacyTalentPlatformPath } from "@/lib/talent/legacy-talent-redirect";
 import { talentProfileCodeAliasRedirectResponse } from "@/lib/talent/profile-code-alias-middleware";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
@@ -392,6 +392,9 @@ export async function proxy(request: NextRequest) {
     hostKind: effectiveHostContext.kind,
   });
   if (marketingWorkspaceRedirect) return marketingWorkspaceRedirect;
+
+  const freeSubdomainRedirect = await freeSubdomainPathRedirect({ request, pathname, canonicalPath, hostContext });
+  if (freeSubdomainRedirect) return freeSubdomainRedirect;
 
   // Re-derived from `canonicalPath` (not from the locale-agnostic probe above)
   // because `pathnameWithoutTenant` is what actually gets rewritten, and it must

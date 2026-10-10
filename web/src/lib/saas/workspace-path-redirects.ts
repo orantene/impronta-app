@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getAppUrl } from "@/lib/auth-flow";
-import { resolveTenantContextFromPathSlug } from "@/lib/saas/host-context";
+import { resolveTenantContextFromPathSlug, type HostContext } from "@/lib/saas/host-context";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   isWorkspaceSlugPath,
   resolvePathBasedTenantPublicPath,
@@ -22,14 +23,105 @@ export function freeSubdomainToPathRedirectUrl(input: {
   planTier: string | null | undefined;
   pathname?: string;
   search?: string;
+  /** `/es` when the request carried a non-default locale prefix; goes before `/w`. */
+  localePrefix?: string;
 }): string | null {
   const slug = input.tenantSlug.trim().toLowerCase();
   const host = input.hostname.trim().toLowerCase();
   if (!slug || host !== `${slug}.tulala.digital`) return null;
   if (brandedSubdomainEligible(normalizeWorkspaceUrlPlan(input.planTier))) return null;
   const path = input.pathname && input.pathname !== "/" ? input.pathname : "";
-  const search = input.search ?? "";
-  return `${workspacePathUrl(slug)}${path}${search}`;
+  const target = new URL(workspacePathUrl(slug));
+  target.pathname = `${input.localePrefix ?? ""}${target.pathname}${path}`;
+  target.search = input.search ?? "";
+  return target.toString();
+}
+
+/**
+ * Workspace, auth, API and checkout paths stay on the host they were opened on:
+ * only the public storefront has a `/w/<slug>` twin to send a visitor to.
+ */
+const NON_STOREFRONT_PREFIXES = [
+  "/api", "/admin", "/login", "/logout", "/auth", "/register",
+  "/account", "/client", "/talent", "/onboarding", "/pay", "/c", "/manage", "/share",
+];
+
+export function freeSubdomainRedirectablePath(canonicalPath: string): boolean {
+  if (canonicalPath.startsWith("/_") || canonicalPath.includes(".")) return false;
+  return !NON_STOREFRONT_PREFIXES.some((p) => canonicalPath === p || canonicalPath.startsWith(`${p}/`));
+}
+
+export type WorkspacePlanReader = (tenantId: string) => Promise<string | null>;
+
+const PLAN_TTL_MS = 60_000;
+const PLAN_MAX_ENTRIES = 500;
+const planCache = new Map<string, { plan: string | null; expiresAt: number }>();
+
+/** Test hook. */
+export function clearWorkspacePlanCache(): void {
+  planCache.clear();
+}
+
+async function readPlanWithServiceRole(tenantId: string): Promise<string | null> {
+  const admin = createServiceRoleClient();
+  if (!admin) throw new Error("no service client");
+  const { data, error } = await admin.from("agencies").select("plan_tier").eq("id", tenantId).limit(1).maybeSingle();
+  if (error) throw error;
+  return ((data ?? null) as { plan_tier?: string | null } | null)?.plan_tier ?? null;
+}
+
+/** Raw `agencies.plan_tier`, cached 60s per tenant like the suspended gate. null on any failure. */
+async function cachedPlanTier(tenantId: string, read: WorkspacePlanReader, now: number): Promise<string | null> {
+  const hit = planCache.get(tenantId);
+  if (hit && hit.expiresAt > now) return hit.plan;
+  try {
+    const plan = await read(tenantId);
+    planCache.delete(tenantId);
+    planCache.set(tenantId, { plan, expiresAt: now + PLAN_TTL_MS });
+    while (planCache.size > PLAN_MAX_ENTRIES) {
+      const oldest = planCache.keys().next().value;
+      if (oldest === undefined) break;
+      planCache.delete(oldest);
+    }
+    return plan;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * onb1-17 proxy wire: a Free workspace opened on its leftover
+ * `<slug>.tulala.digital` host gets a 308 to `tulala.digital/w/<slug>/...`.
+ *
+ * Fails OPEN: only a plan read that says exactly `free` redirects. An unknown
+ * plan or a read error serves the subdomain as before, because
+ * `normalizeWorkspaceUrlPlan` maps unknown to "free" and a paying workspace must
+ * never be bounced off its branded host by a DB blip.
+ */
+export async function freeSubdomainPathRedirect(params: {
+  request: NextRequest;
+  pathname: string;
+  canonicalPath: string;
+  hostContext: HostContext;
+  readPlan?: WorkspacePlanReader;
+  now?: number;
+}): Promise<NextResponse | null> {
+  const { request, pathname, canonicalPath, hostContext } = params;
+  if (hostContext.kind !== "agency" || hostContext.domainKind !== "subdomain") return null;
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
+  if (!freeSubdomainRedirectablePath(canonicalPath)) return null;
+  if (hostContext.hostname.trim().toLowerCase() !== `${hostContext.tenantSlug.trim().toLowerCase()}.tulala.digital`) return null;
+  const plan = await cachedPlanTier(hostContext.tenantId, params.readPlan ?? readPlanWithServiceRole, params.now ?? Date.now());
+  if ((plan ?? "").trim().toLowerCase() !== "free") return null;
+  const target = freeSubdomainToPathRedirectUrl({
+    hostname: hostContext.hostname,
+    tenantSlug: hostContext.tenantSlug,
+    planTier: plan,
+    pathname: canonicalPath,
+    search: request.nextUrl.search,
+    localePrefix: pathname.slice(0, pathname.length - canonicalPath.length),
+  });
+  return target ? NextResponse.redirect(target, 308) : null;
 }
 
 /**
