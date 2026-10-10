@@ -8,9 +8,11 @@ const view = readFileSync(join(WEB, "src/app/(public)/pay/[code]/CheckoutView.ts
 
 describe("paid return page copy (TUL-466)", () => {
   it("the paid view never shows the pre-payment 'nothing is charged' note", () => {
-    const paid = view.slice(view.indexOf('phase === "paid"'), view.indexOf('phase === "refunded"'));
-    assert.match(paid, /public\.thread\.paidNote/);
-    assert.doesNotMatch(paid, /keepSlot/);
+    const start = view.indexOf('case "paid": {');
+    assert.ok(start >= 0, "paid state block not found");
+    const paid = view.slice(start, view.indexOf("case ", start + 1));
+    assert.match(paid, /public\.payPage\.charged/);
+    assert.doesNotMatch(paid, /keepSlot|nothingCharged|notCharged/);
   });
   it("es 'back to conversation' carries its accent in every locale file", () => {
     const es = readFileSync(join(WEB, "messages/es.json"), "utf8");

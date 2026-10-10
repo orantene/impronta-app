@@ -68,6 +68,8 @@ export type CheckoutViewProps = {
   readonly receiptHref: string | null;
   /** Engine client fee lines; [] / absent = no breakdown. */
   readonly feeLines?: readonly FeeLine[];
+  /** What the checkout charges (`collectForOrderPrincipal`): the total when `feeLines` has none. */
+  readonly chargedCents?: number | null;
   /** The business the client pays ("Pagado a ..."). */
   readonly sellerName?: string | null;
   readonly logoUrl?: string | null;
@@ -148,8 +150,24 @@ const FEE_LABEL_KEY: Partial<Record<FeeLine["code"], string>> = {
   total_charged: "public.thread.fees.total_charged",
 };
 
+/**
+ * The client's fee lines: the engine's when it sent any; else, when the checkout charges more
+ * than the price (`chargedCents`), price + service fee = charged, so the page never shows less
+ * than the card is charged.
+ */
+function clientFeeLines(props: CheckoutViewProps): readonly FeeLine[] {
+  if (props.feeLines?.length) return props.feeLines;
+  const charged = Math.round(props.chargedCents ?? 0);
+  if (!(props.amountCents > 0) || !(charged > props.amountCents)) return [];
+  return [
+    { code: "service_subtotal", cents: props.amountCents },
+    { code: "platform_fee", cents: charged - props.amountCents },
+    { code: "total_charged", cents: charged },
+  ];
+}
+
 function chargedOf(props: CheckoutViewProps): number {
-  return props.feeLines?.find((l) => l.code === "total_charged")?.cents ?? props.amountCents;
+  return clientFeeLines(props).find((l) => l.code === "total_charged")?.cents ?? props.amountCents;
 }
 
 /** The place the client goes when there is no conversation: the seller's site. */
@@ -186,7 +204,7 @@ function feeRows(props: CheckoutViewProps & { t: T }, money: (cents: number) => 
   // The client's lines only: seller-side codes (talent_quote, workspace_margin...) never print here.
   const rows: SummaryRow[] = [];
   const single = props.lines.length <= 1;
-  for (const l of props.feeLines ?? []) {
+  for (const l of clientFeeLines(props)) {
     // One item: the item row IS the subtotal, so "Servicio" would repeat it.
     if (single && l.code === "service_subtotal") continue;
     const key = FEE_LABEL_KEY[l.code];

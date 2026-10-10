@@ -468,6 +468,7 @@ export async function PayByCodePage({
       whereLabel={whereLabel}
       usdLine={usdLine}
       feeLines={feeLines}
+      chargedCents={collectCents}
       lines={((lines ?? []) as { label: string | null; units: number; unit_cents: number }[]).map((line) => ({
         label: line.label ?? "",
         units: Number(line.units) || 1,

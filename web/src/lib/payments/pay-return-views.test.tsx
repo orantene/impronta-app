@@ -3,6 +3,8 @@
  * client's language. Pure views. Run: node_modules/.bin/tsx --test src/lib/payments/pay-return-views.test.tsx
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -107,6 +109,23 @@ test("A ready: rows with no data drop out, a deposit says what is left, the day 
   assert.match(bare, /Pagar \$1,000 MXN/);
   const dep = render({ depositBalanceCents: 70_000 });
   assert.match(dep, /Anticipo · resto \$700 MXN el día de tu cita/);
+});
+
+test("A ready: no engine fee lines but the checkout charges a service fee, so the page shows the charged total", () => {
+  const html = render({ feeLines: [], chargedCents: 101_500 });
+  assert.match(html, /Pagar \$1,015 MXN/);
+  assert.match(html, /\$15 MXN/);
+  assert.doesNotMatch(html, /Pagar \$1,000 MXN/);
+  const paid = render({ status: "paid", feeLines: [], chargedCents: 101_500 });
+  assert.match(paid, /\$1,015 MXN/);
+  const noFee = render({ feeLines: [], chargedCents: 100_000 });
+  assert.match(noFee, /Pagar \$1,000 MXN/);
+  assert.doesNotMatch(noFee, /\$15 MXN/);
+});
+
+test("pay page passes what the checkout charges (collectCents) to the view", () => {
+  const page = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/pay-page.tsx"), "utf8");
+  assert.match(page, /chargedCents=\{collectCents\}/);
 });
 
 test("A ready (en): same layout, the money format does not change", () => {
