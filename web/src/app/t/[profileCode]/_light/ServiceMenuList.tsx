@@ -8,7 +8,7 @@
  */
 
 import type { ServiceMenuItem } from "@/lib/talent/services-menu-types";
-import { SERVICE_PRICING_SUFFIX } from "@/lib/talent/services-menu-types";
+import { servicePricingSuffix } from "@/lib/talent/services-menu-types";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 
 /** Money formatter resilient to a bad/short currency code (falls back to plain). */
@@ -31,7 +31,7 @@ function priceLabel(it: ServiceMenuItem, locale: string): string {
   if (it.pricingType === "custom" || it.amountCents == null) {
     return pickLocale(locale, { en: "Quote on request", es: "Cotización a pedido" });
   }
-  const suffix = SERVICE_PRICING_SUFFIX[it.pricingType];
+  const suffix = servicePricingSuffix(it.pricingType, locale);
   const price = formatPrice(it.amountCents, it.currency, locale);
   return suffix ? `${price} ${suffix}` : price;
 }
@@ -141,7 +141,9 @@ export function ServiceMenuList({ items, locale, disciplineLabels, nameById }: S
                 >
                   {addOnsLabel}:
                 </span>
-                {it.addOns.map((ao) => (
+                {it.addOns.map((ao) => {
+                  const aoSuffix = servicePricingSuffix(ao.pricingType, locale);
+                  return (
                   <span
                     key={ao.id}
                     className="inline-flex items-center rounded-full border px-2 py-0.5 text-[0.75rem]"
@@ -154,13 +156,12 @@ export function ServiceMenuList({ items, locale, disciplineLabels, nameById }: S
                     {ao.amountCents != null ? (
                       <span className="ml-1 tabular-nums" style={{ color: "var(--plt-muted)" }}>
                         +{formatPrice(ao.amountCents, it.currency, locale)}
-                        {SERVICE_PRICING_SUFFIX[ao.pricingType]
-                          ? ` ${SERVICE_PRICING_SUFFIX[ao.pricingType]}`
-                          : ""}
+                        {aoSuffix ? ` ${aoSuffix}` : ""}
                       </span>
                     ) : null}
                   </span>
-                ))}
+                  );
+                })}
               </div>
             ) : null}
           </div>

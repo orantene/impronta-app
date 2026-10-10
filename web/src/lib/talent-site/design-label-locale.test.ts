@@ -100,3 +100,23 @@ test("ES About Languages line localises even when swaps only carry the current l
   ] as unknown as BuilderNode[];
   assert.equal(localiseSeededDesignLabels(custom, "es", null, swaps), custom);
 });
+
+test("TUL-516 C: latin-dancer masculine ES and EN seed localise to Baile latino", async () => {
+  const { localiseSeededDesignLabel, localiseSeededDesignLabels } = await import("./design-label-locale");
+  assert.equal(localiseSeededDesignLabel("Bailarín Latino", "es"), "Baile latino");
+  assert.equal(localiseSeededDesignLabel("Latin Dancer", "es"), "Baile latino");
+  const tree = [
+    {
+      id: "h",
+      kind: "section",
+      props: {
+        sectionTypeKey: "site_header",
+        sectionProps: { brand: { tagline: "Bailarín Latino" } },
+      },
+      children: [],
+    },
+  ] as unknown as import("@/lib/site-admin/builder-node/types").BuilderNode[];
+  const out = localiseSeededDesignLabels(tree, "es");
+  const brand = (out[0]!.props as { sectionProps: { brand: { tagline: string } } }).sectionProps.brand;
+  assert.equal(brand.tagline, "Baile latino");
+});
