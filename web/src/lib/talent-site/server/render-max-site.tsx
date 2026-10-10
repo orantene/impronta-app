@@ -4,7 +4,7 @@ import { loadHistoryPreviewSnapshot } from "../history/history.server";
 import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/talent-update.server";
 import { early } from "@/lib/server/early";
 import { failOnReadTimeout } from "@/lib/supabase/bounded-fetch-scope";
-import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill, withHeaderSiteChrome } from "./render-max-site-demo";
+import { loadMaxSiteIsDemo, MaxSiteDemoBadge, MaxSiteDemoFooter, withHeaderSiteChrome } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
 import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
@@ -712,7 +712,7 @@ async function renderMaxSiteDocument(args: {
         </div>
       ) : null}
 
-      {args.isDemo && !(hasShell && headerTree.length > 0 && headerHasLandmark) ? <MaxSiteDemoPill /> : null /* the landmark paints its own pill */}
+      {args.isDemo ? <MaxSiteDemoBadge locale={locale} /> : null}
 
       {hasShell && headerTree.length > 0 ? (
         headerHasLandmark ? (

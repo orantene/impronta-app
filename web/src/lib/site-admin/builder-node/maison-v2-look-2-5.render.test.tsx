@@ -13,7 +13,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { HeaderDemoPill } from "@/lib/site-admin/sections/site_header/header-site-chrome";
+import { MaxSiteDemoBadge } from "@/lib/talent-site/server/render-max-site-demo";
 import { EDITORIAL_SOFT_CHROME_CSS } from "@/lib/talent-site/theme-catalog/collection/design-type-system-soft";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
@@ -221,12 +221,19 @@ test("row cards: the whole row opens the service, the button stays the accessibl
   assert.match(SERVICES_CATALOG_ROW_CARD_CSS, /:not\(\[disabled\]\)/, "a paused pill takes no hover fill");
 });
 
-// ── header: demo pill (H-5) and the published header height (MN-6) ───────────
+// ── demo marker (H-5 → TUL-560) and the published header height (MN-6) ───────
 
-test("H-5: the Demo pill renders only for demo profiles", () => {
-  assert.equal(renderToStaticMarkup(<HeaderDemoPill show={false} />), "");
-  assert.equal(renderToStaticMarkup(<HeaderDemoPill show={undefined} />), "");
-  assert.match(renderToStaticMarkup(<HeaderDemoPill show />), /site-header__demo/);
+test("TUL-560: the demo marker is a fixed bottom-left badge, not header chrome", () => {
+  const html = renderToStaticMarkup(<MaxSiteDemoBadge locale="es" />);
+  assert.match(html, /data-demo-badge=""/);
+  assert.match(html, /position:fixed/);
+  assert.match(html, /left:12px/);
+  assert.match(html, /bottom:calc\(var\(--floating-chrome-bottom, 0px\) \+ 12px\)/);
+  const headerSrc = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), "../sections/site_header/Component.tsx"),
+    "utf8",
+  );
+  assert.doesNotMatch(headerSrc, /site-header__demo|HeaderDemoPill|demoPill/);
 });
 
 test("the header publishes --site-header-h (ResizeObserver, removed on unmount) from the freeform header", () => {
