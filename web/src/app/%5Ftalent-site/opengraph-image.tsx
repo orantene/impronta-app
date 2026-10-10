@@ -21,6 +21,8 @@ import { resolveGatedTalentProfileId } from "@/lib/talent-site/server/talent-sit
 // custom-domain surface is NOT a silent OG fork. The talent_profile_id is
 // resolved through the same proxy-header gate the page uses (never from the URL).
 
+// TUL-534: never CDN-cache a cold notFound() as the share card.
+export const dynamic = "force-dynamic";
 export const alt = "Talent site";
 export const size = OG_IMAGE_SIZE;
 export const contentType = OG_IMAGE_CONTENT_TYPE;

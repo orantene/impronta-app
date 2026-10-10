@@ -62,7 +62,7 @@ test("patch: hero primary becomes the mode-aware booking button, old primary the
   assert.deepEqual(r.refusals, []);
   const row = find(r.trees.homeTree, (n) => props(n).layerLabel === "Hero actions")!;
   const [a, b] = row.children!.map(props);
-  assert.deepEqual([a!.label, a!.href, a!.tone, a!.i18n], [BOOK_LABEL, "#services", "primary", undefined]);
+  assert.deepEqual([a!.label, a!.href, a!.tone, a!.i18n], [BOOK_LABEL, "#book", "primary", undefined]);
   assert.deepEqual([b!.label, b!.href, b!.tone], ["See services", "#services", "secondary"]);
   assert.deepEqual((b!.i18n as { es: Rec }).es, { label: "Ver servicios" });
 });
@@ -72,7 +72,7 @@ test("patch: header cta + primaryCta say Book an appointment, other items untouc
   const header = r.trees.shellTree.find((n) => props(n).sectionTypeKey === "site_header")!;
   const sp = props(header).sectionProps as { primaryCta: Rec; regions: { right: Rec[] } };
   assert.equal(sp.primaryCta.label, BOOK_LABEL);
-  assert.equal(sp.primaryCta.href, "#services");
+  assert.equal(sp.primaryCta.href, "#book");
   assert.deepEqual(sp.regions.right.map((i) => i.type), ["language", "cta"]);
   assert.equal(sp.regions.right[1]!.label, BOOK_LABEL);
   assert.equal(r.edits.length, 3);
@@ -121,7 +121,7 @@ test("patch: adds the seed cta item when the live header has none", () => {
   assert.deepEqual(r.refusals, []);
   const out = r.trees.shellTree.find((n) => props(n).sectionTypeKey === "site_header")!;
   const right = ((props(out).sectionProps as Rec).regions as { right: Rec[] }).right;
-  assert.deepEqual(right.find((i) => i.type === "cta"), { type: "cta", label: BOOK_LABEL, href: "#services", responsive: { mobile: "hide" } });
+  assert.deepEqual(right.find((i) => i.type === "cta"), { type: "cta", label: BOOK_LABEL, href: "#book", responsive: { mobile: "hide" } });
 });
 
 test("plan: draft must equal released apart from props.designKey", () => {

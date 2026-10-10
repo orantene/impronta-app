@@ -133,7 +133,17 @@ export async function generateMetadata({
     canonicalPath: apexPath(seg),
   });
   if (result.kind !== "render") return { title: "Not found" };
-  return maxSiteSeoToMetadata(result.seo, { ogLocale: result.locale });
+  const meta = maxSiteSeoToMetadata(result.seo, { ogLocale: result.locale });
+  // Vanity/demo hosts: resolve relative OG/canonical against this apex (TUL-534).
+  if (!canonicalOrigin) return meta;
+  try {
+    return {
+      metadataBase: new URL(canonicalOrigin.endsWith("/") ? canonicalOrigin : `${canonicalOrigin}/`),
+      ...meta,
+    };
+  } catch {
+    return meta;
+  }
 }
 
 export default async function TalentSiteHostPage({

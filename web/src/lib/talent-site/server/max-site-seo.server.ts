@@ -176,6 +176,18 @@ export function buildMaxSiteSeo(args: {
 
   const faviconUrl = siteFaviconFor({ logoUrl: site.logoUrl, displayName: identity?.name || pageTitle });
 
+  // TUL-534 / GRK-091: always emit og:image. Page column → logo → generated card
+  // on the platform `/t/site/<slug>/opengraph-image` (fetchable; vanity
+  // `/opengraph-image` is wired separately). Without this, demos ship no picture.
+  const ogImageUrl =
+    page.ogImageUrl?.trim() ||
+    site.logoUrl?.trim() ||
+    (site.siteSlug
+      ? `${publicSiteMetadataBase().origin.replace(/\/$/, "")}/t/site/${encodeURIComponent(site.siteSlug)}/opengraph-image`
+      : origin
+        ? `${origin}/opengraph-image`
+        : null);
+
   return {
     title,
     ...(faviconUrl ? { faviconUrl } : {}),
@@ -189,7 +201,7 @@ export function buildMaxSiteSeo(args: {
     ...(page.ogDescription?.trim()
       ? { ogDescription: page.ogDescription.trim() }
       : {}),
-    ...(page.ogImageUrl?.trim() ? { ogImageUrl: page.ogImageUrl.trim() } : {}),
+    ...(ogImageUrl ? { ogImageUrl } : {}),
     ...(canonical ? { canonical } : {}),
     ...(alt?.languages ? { alternates: { canonical, languages: alt.languages } } : {}),
     ...(jsonLd ? { jsonLd } : {}),
