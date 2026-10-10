@@ -64,11 +64,12 @@ export default async function ClientRootPage({
 
   // TUL-64: an already-active client must never re-enter /onboarding/role
   // (on the app host that door becomes /start). Send them to discovery.
+  // TUL-520: same marketing-origin resolver as the profile path above.
   if (
     session.profile?.app_role === "client" &&
     session.profile?.account_status === "active"
   ) {
-    redirect(`https://${TULALA_APEX_HOST}`);
+    redirect(resolveMarketingOrigin());
   }
 
   redirect(`/onboarding/role${querySuffix}`);
