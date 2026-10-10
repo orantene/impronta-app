@@ -69,6 +69,28 @@ export const TALENT_BOOKING_POLICY_PATH = "/politicas";
 export const TALENT_PRIVACY_PATH = "/privacidad";
 export const TALENT_PRIVACY_CHOICES_PATH = "/privacidad#opciones";
 
+/**
+ * GRK-029 / TUL-498: policy page URLs follow the visitor locale
+ * (`/en/politicas` on an EN visit to an ES-primary site). Shared by the footer
+ * socket and in-page links (location "Payments, changes…" → /politicas).
+ */
+export function talentPolicyPageHref(input: {
+  path: string;
+  locale: string;
+  primaryLocale: string;
+  supportedLocales: readonly string[];
+  publicPathPrefix?: string;
+}): string {
+  const prefix = (input.publicPathPrefix ?? "").replace(/\/+$/, "");
+  const supported =
+    input.supportedLocales.length > 0
+      ? input.supportedLocales
+      : [input.primaryLocale || input.locale];
+  const primary = (input.primaryLocale || input.locale).trim() || input.locale;
+  const localized = talentSiteLocalePath(input.path, input.locale, primary, supported);
+  return prefix ? `${prefix}${localized}` : localized;
+}
+
 /** The builder canvas hint (locked strip). */
 export function socketLockedHint(locale: string | null | undefined): string {
   return pickLocale(locale, {
@@ -183,15 +205,18 @@ export function buildSocketModel(input: {
   helpContext?: { profileCode: string; siteHost?: string | null } | null;
 }): SocketModel {
   const { locale } = input;
-  const prefix = input.publicPathPrefix.replace(/\/+$/, "");
   const primary = (input.primaryLocale ?? locale).trim() || locale;
   const supported =
     input.supportedLocales.length > 0 ? input.supportedLocales : [primary];
-  /** TUL-498: keep /politicas under the visitor locale (`/en/politicas` on EN). */
-  const policyHref = (path: string) => {
-    const localized = talentSiteLocalePath(path, locale, primary, supported);
-    return prefix ? `${prefix}${localized}` : localized;
-  };
+  /** TUL-498 / GRK-029: keep policy pages under the visitor locale. */
+  const policyHref = (path: string) =>
+    talentPolicyPageHref({
+      path,
+      locale,
+      primaryLocale: primary,
+      supportedLocales: supported,
+      publicPathPrefix: input.publicPathPrefix,
+    });
 
   const siteLinks: SocketLink[] = [
     {
