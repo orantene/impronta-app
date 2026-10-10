@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { translatorFor } from "@/i18n/use-t";
 import { getSiteUrl } from "@/lib/auth-flow";
 import {
+  CONSENT_BANNER_CLOSED_EVENT,
   PRIVACY_CHOICES_EVENT,
   isConsentBannerSuppressedPath,
   isGpcEnabled,
@@ -126,6 +127,14 @@ export function AnalyticsConsentBanner({ locale: rootLocale = "en" }: { locale?:
     return () => window.removeEventListener(PRIVACY_CHOICES_EVENT, reopen);
   }, []);
 
+  const notifyBannerClosed = useCallback(() => {
+    try {
+      window.dispatchEvent(new Event(CONSENT_BANNER_CLOSED_EVENT));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const dismiss = useCallback(() => {
     try {
       window.sessionStorage.setItem(DISMISS_SESSION_KEY, String(Date.now()));
@@ -133,15 +142,21 @@ export function AnalyticsConsentBanner({ locale: rootLocale = "en" }: { locale?:
       /* ignore */
     }
     setOpen(false);
-  }, []);
+    notifyBannerClosed();
+  }, [notifyBannerClosed]);
 
-  const choose = useCallback((next: StoredConsent) => {
-    writeConsent(next);
-    // Google reacts to the consent update; Meta flips in place; TikTok and
-    // LinkedIn have no runtime consent API and need a reload to load.
-    if (next === "granted") activatePixelsAfterConsent();
-    setOpen(false);
-  }, []);
+  const choose = useCallback(
+    (next: StoredConsent) => {
+      writeConsent(next);
+      setOpen(false);
+      notifyBannerClosed();
+      // Google reacts to the consent update; Meta flips in place; TikTok and
+      // LinkedIn have no runtime consent API and need a reload to load.
+      // Notify language-banner listeners before any reload.
+      if (next === "granted") activatePixelsAfterConsent();
+    },
+    [notifyBannerClosed],
+  );
 
   if (!mounted || !open || isPreviewRoute) return null;
 

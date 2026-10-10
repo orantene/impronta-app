@@ -54,6 +54,15 @@
 export const LOCALE_AUTO_COOKIE = "locale_auto";
 
 /**
+ * Persistent "stop asking" cookie for the language suggestion banner.
+ * Separate from `locale` on purpose: dismissing is not choosing a language.
+ * Lives here (leaf module) so the client banner can write it without importing
+ * `locale-suggestion` → `locale-middleware` → `next/server` (live2b-05: that
+ * chain left the SSR "No thanks" button without a hydrated click handler).
+ */
+export const LOCALE_SUGGESTION_DISMISSED_COOKIE = "locale-suggest-dismissed";
+
+/**
  * Owner stamp (F132): the user id the `locale` cookie belongs to. A locale
  * cookie is per BROWSER; this makes a deliberate choice per USER. Stamped at
  * sign-in and by the talent locale-seed route. On talent surfaces a cookie

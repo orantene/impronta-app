@@ -1,10 +1,51 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { clearLocaleAutoMarkerLine, localeCookieLine } from "@/i18n/locale-cookies";
-import { LOCALE_SUGGESTION_DISMISSED_COOKIE } from "@/i18n/locale-suggestion";
+import {
+  CONSENT_BANNER_CLOSED_EVENT,
+  CONSENT_CHANGE_EVENT,
+  isGpcEnabled,
+  readStoredConsent,
+  shouldShowBanner,
+} from "@/lib/analytics/consent";
+import {
+  clearLocaleAutoMarkerLine,
+  localeCookieLine,
+  LOCALE_SUGGESTION_DISMISSED_COOKIE,
+} from "@/i18n/locale-cookies";
 import { cn } from "@/lib/utils";
+
+/** Session backup when the dismiss cookie is blocked or stripped on reload. */
+const DISMISS_SESSION_KEY = "tulala_locale_suggest_dismissed";
+
+function readDismissedLocally(): boolean {
+  if (typeof document === "undefined") return false;
+  try {
+    if (window.sessionStorage.getItem(DISMISS_SESSION_KEY)) return true;
+  } catch {
+    /* ignore */
+  }
+  try {
+    const match = document.cookie.match(
+      new RegExp(`(?:^|;\\s*)${LOCALE_SUGGESTION_DISMISSED_COOKIE}=([^;]*)`),
+    );
+    return Boolean(match?.[1]);
+  } catch {
+    return false;
+  }
+}
+
+function writeDismissedLocally(secureCookies: boolean): void {
+  document.cookie = localeCookieLine(LOCALE_SUGGESTION_DISMISSED_COOKIE, "1", {
+    secure: secureCookies,
+  });
+  try {
+    window.sessionStorage.setItem(DISMISS_SESSION_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
 
 /**
  * The visible half of the language suggestion banner.
@@ -23,8 +64,11 @@ import { cn } from "@/lib/utils";
  * mounted by an effect), so it is in the first paint and shifts nothing after
  * it; dismissing it removes the row and the content moves up once.
  *
- * Booking CSS still hides `[data-locale-suggestion]` while the dock/bar is up
- * (see `catalog-booking-styles.ts`); harmless for a top row, kept for parity.
+ * Consent queue (live2b-05): while the cookie card is up, CSS also hides this
+ * row (`body:has([data-consent-banner])`). After the card closes we must paint
+ * with a live click handler — importing through `locale-suggestion` used to
+ * pull the server middleware module into the client bundle and left the SSR
+ * "No thanks" button inert. This file imports only the leaf cookie helpers.
  *
  * Accept is a real `<a href>`, not a router push: the locale switch is a full
  * navigation to a different URL, exactly like `PublicLanguageToggle`. The
@@ -53,7 +97,27 @@ export function LocaleSuggestionBannerClient({
   regionLabel: string;
 }) {
   const [hidden, setHidden] = useState(false);
-  if (hidden) return null;
+  /** True while the cookie card owns the first decision (consent-then-language). */
+  const [yieldToConsent, setYieldToConsent] = useState(false);
+
+  useEffect(() => {
+    if (readDismissedLocally()) {
+      setHidden(true);
+      return;
+    }
+    if (shouldShowBanner(readStoredConsent(), isGpcEnabled())) {
+      setYieldToConsent(true);
+    }
+    const release = () => setYieldToConsent(false);
+    window.addEventListener(CONSENT_CHANGE_EVENT, release);
+    window.addEventListener(CONSENT_BANNER_CLOSED_EVENT, release);
+    return () => {
+      window.removeEventListener(CONSENT_CHANGE_EVENT, release);
+      window.removeEventListener(CONSENT_BANNER_CLOSED_EVENT, release);
+    };
+  }, []);
+
+  if (hidden || yieldToConsent) return null;
 
   const writeCookie = (name: string, value: string) => {
     document.cookie = localeCookieLine(name, value, { secure: secureCookies });
@@ -107,7 +171,7 @@ export function LocaleSuggestionBannerClient({
           <button
             type="button"
             onClick={() => {
-              writeCookie(LOCALE_SUGGESTION_DISMISSED_COOKIE, "1");
+              writeDismissedLocally(secureCookies);
               setHidden(true);
             }}
             className={cn(
