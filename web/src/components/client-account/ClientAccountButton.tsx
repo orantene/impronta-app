@@ -516,7 +516,11 @@ export function ClientAccountButton({
                     ? interpolate(t("public.clientAccount.sentTo"), { email })
                     : step === "password"
                       ? t("public.clientAccount.passwordSubtitle")
-                      : t("public.clientAccount.subtitle")}
+                      : t(
+                          appleSignInEnabled
+                            ? "public.clientAccount.subtitle"
+                            : "public.clientAccount.subtitleNoApple",
+                        )}
                 </p>
                 {step === "email" ? (
                   <>
