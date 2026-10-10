@@ -14,6 +14,7 @@ import {
   stripSectionEmbeds,
   talentProfileTokens,
 } from "./default-talent-tree";
+import { clampWords } from "./talent-locale-swaps";
 
 /**
  * Runtime flag — the PLATFORM-DEFAULT FREEFORM talent profile.
@@ -173,7 +174,7 @@ export async function buildDefaultTalentFreeformSnapshot(input: {
   const tree = hydrateTalentTree(baseTree, tokens);
 
   const title = tokens.displayName;
-  const intro = tokens.tagline || tokens.bio.slice(0, 160) || null;
+  const intro = tokens.tagline || (tokens.bio ? clampWords(tokens.bio) : null) || null;
 
   return {
     version: 1,

@@ -106,6 +106,13 @@ test("Gridline utility bar keeps its subtitle and status pill down to a 330px ba
   assert.ok(!UTILITY_BAR_CSS.includes("max-width:370px"));
   // TUL-474: subtitle wraps instead of truncating "Electricista · Monterrey".
   assert.match(UTILITY_BAR_CSS, /\.sb-ub-nm small\{[^}]*white-space:normal/);
+  // GRK-074: accent-on (not missing on-accent→ink); desktop keeps wrap (no nowrap ellipsis).
+  assert.match(UTILITY_BAR_CSS, /--token-color-accent-on/);
+  assert.doesNotMatch(UTILITY_BAR_CSS, /--token-color-on-accent/);
+  assert.doesNotMatch(
+    UTILITY_BAR_CSS,
+    /@container sbub \(min-width:900px\)\{[^}]*\.sb-ub-nm small\{[^}]*white-space:nowrap/,
+  );
 });
 
 test("TUL-474: utility chrome clears work_order captions under sticky dock/bar", () => {
