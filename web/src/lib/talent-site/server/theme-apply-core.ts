@@ -64,6 +64,7 @@ export { isLookOwnedTokenKey, mergeLookIntoTokens } from "../theme-catalog/look-
 
 export type ThemeApplyErrorCode =
   | "invalid_theme"
+  | "unreleased_version"
   | "site_not_found"
   | "page_not_found"
   | "conflict"
@@ -397,7 +398,7 @@ export async function applyDesign(
     version: design.version,
     where: "applyDesign",
   });
-  if (!pin.ok) return { ok: false, code: "invalid_theme", error: pick(pin.reason, input.locale) };
+  if (!pin.ok) return { ok: false, code: "unreleased_version", error: pick(pin.reason, input.locale) };
 
   const draft = await readApplyDraft(admin, {
     talentProfileId: input.talentProfileId,
