@@ -144,7 +144,9 @@ test("links: talent policies on the talent host, Tulala documents off-host", () 
   assert.equal(by["tulala-privacy"]!.href, "https://tulala.digital/es/legal/privacy");
   assert.equal(by["tulala-terms"]!.external, true);
   assert.equal(model({ publicPathPrefix: "/t/site/jor/" }).siteLinks[0]!.href, "/t/site/jor/politicas");
+  // Same-tab next/link: never target=_blank (a cold marketing paint left about:blank).
   assert.match(html(), /rel="noopener"/);
+  assert.equal(html().includes('target="_blank"'), false);
 });
 
 test("TUL-498: EN visitor on an ES-primary site gets /en/politicas (and /en/privacidad)", () => {
@@ -299,8 +301,8 @@ test("TUL-310: Help opens marketing contact with host + talent code (all plans)"
 
 test("the credit reads 'Sitio creado con Tulala.digital' (EN 'Site made with'), linked, on the right, whitelabel-aware", () => {
   const es = html({ locale: "es" });
-  assert.match(es, /data-socket-credit[^>]*>Sitio creado con<a href="https:\/\/tulala\.digital"[^>]*>Tulala\.digital<\/a>/);
-  assert.match(html({ locale: "en" }), />Site made with<a href="https:\/\/tulala\.digital"[^>]*>Tulala\.digital</);
+  assert.match(es, /data-socket-credit[^>]*>Sitio creado con<a[^>]*href="https:\/\/tulala\.digital"[^>]*>Tulala\.digital<\/a>/);
+  assert.match(html({ locale: "en" }), />Site made with<a[^>]*href="https:\/\/tulala\.digital"[^>]*>Tulala\.digital</);
   assert.equal(html({ whitelabel: true }).includes("data-socket-credit"), false);
   assert.equal(html({ showCredit: false }).includes("data-socket-credit"), false);
   assert.ok(!html().includes("Hecho con Tulala"));

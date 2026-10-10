@@ -95,6 +95,9 @@ export async function TalentProfilePolicyPage({ profileCode, doc, searchParams }
   if (themed.kind === "render") return <>{themed.node}</>;
 
   const model = await loadTalentPolicyModel(talentProfileId, doc, locale);
+  const homeHref = publicPathPrefix
+    ? `${publicPathPrefix.replace(/\/+$/, "")}/`
+    : `/t/${encodeURIComponent(profileCode)}`;
   return (
     <div
       data-talent-policy-standalone=""
@@ -102,7 +105,7 @@ export async function TalentProfilePolicyPage({ profileCode, doc, searchParams }
     >
       <SkipToContent />
       <PublicHeader />
-      <main id="main-content">{policyMainNode(model)}</main>
+      <main id="main-content">{policyMainNode(model, { homeHref })}</main>
     </div>
   );
 }

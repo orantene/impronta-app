@@ -18,13 +18,16 @@ export async function loadTalentPolicyModel(talentProfileId: string, doc: Policy
   return loadPolicyPage(admin, { talentProfileId, doc, locale });
 }
 
-export function policyMainNode(model: PolicyPageModel): ReactNode {
+export function policyMainNode(
+  model: PolicyPageModel,
+  opts: { homeHref?: string } = {},
+): ReactNode {
   return (
     <div
       data-talent-policy-page=""
       style={{ maxWidth: 760, margin: "0 auto", padding: "48px 20px 132px", width: "100%", boxSizing: "border-box" }}
     >
-      <TalentPolicyDocument model={model} />
+      <TalentPolicyDocument model={model} homeHref={opts.homeHref} />
     </div>
   );
 }

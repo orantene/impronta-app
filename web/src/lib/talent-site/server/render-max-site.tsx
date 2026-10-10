@@ -287,8 +287,13 @@ async function renderTalentMaxSiteUnguarded(
     const siteTokens = snap?.tokens ?? (await loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview }));
     const designSlug = designSlugEarly;
     const policyModel = policyDoc ? await loadTalentPolicyModel(talentProfileId, policyDoc, locale) : null;
+    // Policy pages keep the home shell but swap the body: give the document a
+    // locale-aware home link so white-on-white chrome never traps the visitor.
+    const policyHomeHref = policyModel
+      ? talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales)
+      : null;
     const node = await renderMaxSiteDocument({
-      mainOverride: policyModel ? policyMainNode(policyModel) : undefined,
+      mainOverride: policyModel ? policyMainNode(policyModel, { homeHref: policyHomeHref ?? "/" }) : undefined,
       siteTokens,
       designSlug,
       shellTree: hydratedShell,
@@ -535,7 +540,10 @@ async function renderMaxSiteDocument(args: {
   // The header's section links get the same treatment (a talent with no reviews has no #reviews band, so the link goes).
   const liveHeaderTree = pruneDeadSectionLinks(headerTree, renderedBlocks, [footerTree], { homePath });
   // TUL-133: a transparent header gets white text only over a dark full-bleed hero.
-  const overHeroAttr = headerOverlayAllowed(renderedBlocks) ? { "data-over-hero": "true" } : {};
+  // Policy / override bodies are light documents: never stamp over-hero from the
+  // home tree, or brand + nav stay white-on-white with no readable way home (TUL-516 H1).
+  const overHeroAttr =
+    !args.mainOverride && headerOverlayAllowed(renderedBlocks) ? { "data-over-hero": "true" } : {};
   const hasSocialNode = builderTreeHasKind(footerTree, "social_links"); const { records: footerSocialLinks, strip: webOfficeStrip } = webOfficeFooter(args.webOffice, hasSocialNode || args.webOffice ? await loadTalentSocialLinks(talentProfileId) : [], hasSocialNode, locale);
   const socketModel = buildSocketModel({
     locale,
