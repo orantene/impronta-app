@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { TULALA_BRAND } from "@/lib/brand/tulala";
 import type { MaxSitePageRow, MaxSiteRow } from "@/lib/talent-site/resolve-max-site-core";
 import { talentProfileSitemapEntries, talentSiteUrlSettings } from "@/lib/talent-site/talent-site-locale-routing";
 import { talentHostSitemapPaths } from "@/lib/talent-site/talent-site-sitemap";
@@ -77,6 +78,85 @@ test("secondary page uses its own title and description", () => {
   const es = seo("es", "en", "es");
   assert.equal(es.title, "Uñas en Playa");
   assert.equal(es.description, "Manicura de lujo");
+});
+
+test("TUL-411: scrubbed/empty meta description falls back to Spanish bio, not English platform copy", () => {
+  const blank = {
+    ...page,
+    metaDescription: null,
+    metaDescriptionI18n: undefined,
+  } as unknown as MaxSitePageRow;
+  const out = buildMaxSiteSeo({
+    site,
+    page: blank,
+    identity: { name: "Rosa r5a", firstName: "Rosa", lastName: null, profileCode: "TAL-1", createdAt: null, updatedAt: null },
+    locale: "es",
+    noindex: false,
+    canonicalOrigin: ORIGIN,
+    canonicalPath: "/",
+    addressLocality: "Playa del Carmen",
+    bio: "Rosa es manicurista en Playa del Carmen. Citas a domicilio.",
+    talentType: "Manicurista",
+    locales: { primary: "es", urlDefault: "es", supported: ["es", "en"] },
+  });
+  assert.ok(out.description);
+  assert.match(out.description!, /Rosa|manicurista|Playa/i);
+  assert.doesNotMatch(out.description!, /booking request/i);
+  const md = maxSiteSeoToMetadata(out, { ogLocale: "es" });
+  assert.ok(md.description);
+  assert.equal(md.description, out.description);
+});
+
+test("TUL-411: empty bio still emits Spanish structured meta, never omits description", () => {
+  const blank = {
+    ...page,
+    metaDescription: null,
+    metaDescriptionI18n: undefined,
+  } as unknown as MaxSitePageRow;
+  const out = buildMaxSiteSeo({
+    site,
+    page: blank,
+    identity: { name: "Rosa", firstName: "Rosa", lastName: null, profileCode: "TAL-1", createdAt: null, updatedAt: null },
+    locale: "es",
+    noindex: false,
+    canonicalOrigin: ORIGIN,
+    canonicalPath: "/",
+    addressLocality: "Mérida",
+    bio: null,
+    talentType: "Manicurista",
+  });
+  assert.ok(out.description);
+  assert.match(out.description!, /solicitud de reserva|portafolio/i);
+  assert.doesNotMatch(out.description!, /booking request/i);
+});
+
+// Wiring regression: pure seoDescriptionFallback alone does not prove buildMaxSiteSeo
+// always emits description so root PLATFORM_BRAND English cannot inherit.
+test("TUL-411: buildMaxSiteSeo with null page description emits non-empty ES copy, not brand blurb", () => {
+  const blank = {
+    ...page,
+    metaDescription: null,
+    metaDescriptionI18n: undefined,
+  } as unknown as MaxSitePageRow;
+  const out = buildMaxSiteSeo({
+    site,
+    page: blank,
+    identity: { name: "Rosa r5a", firstName: "Rosa", lastName: null, profileCode: "TAL-1", createdAt: null, updatedAt: null },
+    locale: "es",
+    noindex: false,
+    canonicalOrigin: ORIGIN,
+    canonicalPath: "/",
+    addressLocality: "Playa del Carmen",
+    bio: null,
+    talentType: "Manicurista",
+  });
+  assert.ok(out.description && out.description.trim().length > 0);
+  assert.ok(!out.description!.includes(TULALA_BRAND.description.slice(0, 24)));
+  assert.doesNotMatch(out.description!, /\b(booking request|portfolio, services)\b/i);
+  assert.match(out.description!, /Rosa|solicitud de reserva|portafolio/i);
+  const md = maxSiteSeoToMetadata(out);
+  assert.ok(md.description);
+  assert.equal(md.description, out.description);
 });
 
 test("sitemap: ES-primary lists / and /en with matching alternates, never /es", () => {

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { isOwnCanonical } from "@/lib/talent-site/canonical-own-host";
+import { seoDescriptionFallback } from "@/lib/talent-site/seo-description-fallback";
 import { seoTitleFallback } from "@/lib/talent-site/seo-title-fallback";
 import { buildLocaleAlternates } from "@/i18n/alternates";
 import { buildTalentProfileJsonLd, type TalentJsonLdService } from "@/lib/seo/talent-json-ld";
@@ -93,6 +94,10 @@ export function buildMaxSiteSeo(args: {
    * hreflang at all (`buildLocaleAlternates` rule 2).
    */
   locales?: { primary: string; urlDefault: string; supported: readonly string[] };
+  /** TUL-411: locale-resolved bio when page meta description is empty/scrubbed. */
+  bio?: string | null;
+  /** TUL-411: primary talent-type label in the visitor locale. */
+  talentType?: string | null;
 }): MaxSiteSeo {
   const { site, page, identity, locale, noindex } = args;
 
@@ -111,7 +116,17 @@ export function buildMaxSiteSeo(args: {
       name: identity?.name,
       city: args.addressLocality,
     }) ?? storedTitle;
-  const description = resolveMaxSiteDescription(page, locale);
+  // TUL-411: never leave description unset — empty/scrubbed SEO would inherit
+  // English PLATFORM_BRAND.description from the root layout on an ES-primary site.
+  const description =
+    seoDescriptionFallback({
+      locale,
+      stored: resolveMaxSiteDescription(page, locale),
+      bio: args.bio,
+      name: identity?.name,
+      talentType: args.talentType,
+      city: args.addressLocality,
+    }) ?? undefined;
 
   // Canonical — explicit column wins; else origin + path. Never the profile.
   const origin = (args.canonicalOrigin?.trim() || publicSiteMetadataBase().origin)
