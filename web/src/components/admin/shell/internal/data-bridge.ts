@@ -287,6 +287,14 @@ export type BridgeData = {
     | import("@/lib/payments/talent-payout-attention-types").TalentPayoutAttention
     | null;
   /**
+   * TUL-392: derived Attention signals (theme update waiting, site needs
+   * publish). Already counted in `shellCounts.attention`; the bell and the
+   * talent notifications drawer list them. `null` = not loaded / unknown.
+   */
+  talentAttentionSignals?:
+    | import("@/lib/notifications/attention-signals").TalentAttentionSignal[]
+    | null;
+  /**
    * The talent's active inquiries — adapted into `Conversation[]` by the
    * AdminShellProvider adapter for use in TodayPage / InboxShell / CalendarPage.
    * `null` means talent surface is in mock mode (use MOCK_CONVERSATIONS).
@@ -543,6 +551,7 @@ export function createBridgeDataFromRoster(
     talentPageAnalytics: null,
     talentPayoutSnapshot: null,
     talentPayoutAttention: null,
+    talentAttentionSignals: null,
     talentInquiries: null,
     talentAgencies: null,
     website: null,

@@ -37,6 +37,7 @@ import {
   type ShellCounts,
 } from "@/lib/shell/shell-counts";
 import { countTalentAwaitingInquiries } from "@/components/admin/shell/internal/shell-count-bubbles-logic";
+import { loadTalentAttentionSignals } from "@/lib/talent-site/attention-signals.server";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { TalentShellClient } from "@/components/admin/shell/admin-shell-client";
 import { SupportLauncherShellMount } from "@/components/support/SupportLauncherShellMount";
@@ -268,6 +269,7 @@ export async function TalentLayoutInner({
     talentPlanGrants,
     operatingCurrency,
     requestLocale,
+    talentAttentionSignals,
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
@@ -339,6 +341,8 @@ export async function TalentLayoutInner({
     loadTalentPlanGrants(talentSelfProfile.id).catch(() => null),
     loadPlatformOperatingCurrency(),
     getRequestLocale(),
+    // TUL-392: theme update waiting + site needs publish (Attention signals).
+    loadTalentAttentionSignals(talentSelfProfile.id),
   ]);
 
   const userNotifications = scopeTalentNotificationsToInbox(userNotificationsAll, visibleInquiryIds);
@@ -350,7 +354,9 @@ export async function TalentLayoutInner({
   const shellCountsResolved: ShellCounts = {
     messages: sanitizeShellCount(sumTalentInquiryUnread(talentInquiries)),
     money: sanitizeShellCount(shellCounts.money),
-    attention: sanitizeShellCount(countTalentAwaitingInquiries(talentInquiries)),
+    attention: sanitizeShellCount(
+      countTalentAwaitingInquiries(talentInquiries) + (talentAttentionSignals?.length ?? 0),
+    ),
   };
 
 
@@ -463,6 +469,7 @@ export async function TalentLayoutInner({
         talentPageAnalytics,
         talentPayoutSnapshot,
         talentPayoutAttention,
+        talentAttentionSignals,
         talentInquiries,
         talentAgencies,
         talentRepresentation,

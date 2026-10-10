@@ -384,6 +384,8 @@ type Ctx = {
   bridgeTalentPayoutAttention:
     | import("@/lib/payments/talent-payout-attention-types").TalentPayoutAttention
     | null;
+  /** TUL-392: derived Attention signals for the talent bell + drawer. */
+  bridgeTalentAttentionSignals: import("@/lib/notifications/attention-signals").TalentAttentionSignal[] | null;
   /**
    * The talent's agency relationships (cross-tenant). `null` means the
    * layout didn't load them (workspace-only entry). Empty array means the
@@ -2135,6 +2137,7 @@ export function AdminShellProvider({
   const bridgeTalentPageAnalytics = initialBridgeData?.talentPageAnalytics ?? null;
   const bridgeTalentPayoutSnapshot = initialBridgeData?.talentPayoutSnapshot ?? null;
   const bridgeTalentPayoutAttention = initialBridgeData?.talentPayoutAttention ?? null;
+  const bridgeTalentAttentionSignals = initialBridgeData?.talentAttentionSignals ?? null;
   // Talent's agency relationships. `null` means the layout didn't load
   // them (workspace-only entry); empty array means "real bridge, no
   // agency relationships yet" — render empty state, not Marta's mocks.
@@ -2305,6 +2308,7 @@ export function AdminShellProvider({
       bridgeTalentPageAnalytics,
       bridgeTalentPayoutSnapshot,
       bridgeTalentPayoutAttention,
+      bridgeTalentAttentionSignals,
       bridgeTalentAgencies,
       bridgeTalentRepresentation,
       bridgeUserNotifications,
@@ -2437,6 +2441,7 @@ export function AdminShellProvider({
       bridgeTalentPageAnalytics,
       bridgeTalentPayoutSnapshot,
       bridgeTalentPayoutAttention,
+      bridgeTalentAttentionSignals,
       bridgeTalentAgencies,
       bridgeTalentRepresentation,
       bridgeUserNotifications,
