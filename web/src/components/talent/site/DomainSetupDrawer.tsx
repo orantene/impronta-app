@@ -1,19 +1,24 @@
 "use client";
 
 /**
- * Domain setup wizard body (Buy domain · Connect existing · Get help).
+ * Domain setup wizard body (search → buy · connect mine · help).
  * Mounted inside the shell `talent-custom-domain` drawer.
- * Buy path: search + quote in-app via Registrar API, pay exact quote via Stripe.
+ * One primary action per state. Price in the talent's currency with USD charge noted.
+ * Buy path stays dark when the registrar token is missing ("Coming soon").
  */
 
-import { useEffect, useMemo, useState, useTransition, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, useTransition, type CSSProperties, type ReactNode } from "react";
 
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { PrimaryButton, SecondaryButton } from "@/components/admin/shell/internal/primitives";
+import { InfoTip } from "@/components/ui/info-tip";
 import { TalentSiteDomainPanel } from "@/components/talent/site/TalentSiteDomainPanel";
+import { buildDomainPriceDisplay } from "@/lib/pricing/domain-price-display";
+import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import {
   isTalentDomainSearchConfiguredAction,
+  loadTalentDomainPriceDisplayAction,
   requestTalentDomainHelpAction,
   searchTalentDomainAction,
   startTalentDomainPurchaseCheckoutAction,
@@ -21,7 +26,7 @@ import {
 import type { DomainSearchQuote } from "@/lib/saas/vercel-domains-registrar";
 import type { TalentDomainContactDraft } from "@/lib/stripe/talent-domain-billing";
 
-type Path = "choose" | "search" | "connect" | "help" | "provisioning";
+type Path = "search" | "connect" | "help" | "provisioning";
 
 type ContactForm = TalentDomainContactDraft;
 
@@ -35,7 +40,7 @@ const EMPTY_CONTACT: ContactForm = {
   city: "",
   state: "",
   zip: "",
-  country: "US",
+  country: "MX",
 };
 
 const NOT_CONFIGURED_SEARCH_ERROR =
@@ -48,12 +53,14 @@ export function DomainSetupDrawerBody({
   provisioning?: boolean;
 }) {
   const copy = useDashboardText();
-  const [path, setPath] = useState<Path>(provisioning ? "provisioning" : "choose");
+  const [path, setPath] = useState<Path>(provisioning ? "provisioning" : "search");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   // Default false so missing registrar token never flashes a searchable Buy path.
   const [searchConfigured, setSearchConfigured] = useState(false);
+  const [talentCurrency, setTalentCurrency] = useState("USD");
+  const [fx, setFx] = useState<UsdRates | null>(null);
 
   const [query, setQuery] = useState("");
   const [quote, setQuote] = useState<DomainSearchQuote | null>(null);
@@ -71,17 +78,25 @@ export function DomainSetupDrawerBody({
     void isTalentDomainSearchConfiguredAction().then((ok) => {
       if (!cancelled) setSearchConfigured(ok);
     });
+    void loadTalentDomainPriceDisplayAction().then((ctx) => {
+      if (cancelled) return;
+      setTalentCurrency(ctx.currency);
+      setFx(ctx.rates);
+    });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const priceLabel = useMemo(() => {
+  const priceDisplay = useMemo(() => {
     if (!quote?.priceCents) return null;
-    const dollars = (quote.priceCents / 100).toFixed(2);
-    const currency = (quote.currency ?? "usd").toUpperCase();
-    return `${currency} ${dollars} / year`;
-  }, [quote]);
+    return buildDomainPriceDisplay({
+      usdCents: quote.priceCents,
+      talentCurrency,
+      fx,
+      locale: copy.locale,
+    });
+  }, [quote, talentCurrency, fx, copy.locale]);
 
   function go(next: Path) {
     setError(null);
@@ -91,7 +106,7 @@ export function DomainSetupDrawerBody({
 
   function search() {
     if (!searchConfigured) {
-      go("search");
+      setError(null);
       return;
     }
     startTransition(async () => {
@@ -124,11 +139,11 @@ export function DomainSetupDrawerBody({
         return;
       }
       if (!phoneOk) {
-        setError(copy.t("Phone must be E.164 (e.g. +15551234567)."));
+        setError(copy.t("Enter a phone with country code, like +52…"));
         return;
       }
       if (!countryOk) {
-        setError(copy.t("Country must be a 2-letter ISO code (e.g. US)."));
+        setError(copy.t("Enter a 2-letter country, like MX or US."));
         return;
       }
       const result = await startTalentDomainPurchaseCheckoutAction({
@@ -164,43 +179,6 @@ export function DomainSetupDrawerBody({
     });
   }
 
-  if (path === "choose") {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <p style={lead}>{copy.t("Choose how you want to set up your custom domain.")}</p>
-        {searchConfigured ? (
-          <PathCard
-            title={copy.t("Buy domain")}
-            body={copy.t("Search here, pay the registrar price, we register it for you.")}
-            mark={copy.t("Buy")}
-            onClick={() => go("search")}
-          />
-        ) : (
-          <PathCard
-            title={copy.t("Buy domain")}
-            body={copy.t(
-              "Domain search and purchase are coming soon. Use Connect or Get help for now.",
-            )}
-            mark={copy.t("Coming soon")}
-            disabled
-          />
-        )}
-        <PathCard
-          title={copy.t("Connect existing")}
-          body={copy.t("Point a domain you already own at your website.")}
-          mark={copy.t("DNS")}
-          onClick={() => go("connect")}
-        />
-        <PathCard
-          title={copy.t("Get help")}
-          body={copy.t("Ask Tulala to help finish domain setup.")}
-          mark={copy.t("Help")}
-          onClick={() => go("help")}
-        />
-      </div>
-    );
-  }
-
   if (path === "provisioning") {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -222,7 +200,7 @@ export function DomainSetupDrawerBody({
           </p>
         </div>
         <PrimaryButton onClick={() => go("connect")}>{copy.t("View domain status")}</PrimaryButton>
-        <SecondaryButton onClick={() => go("choose")}>{copy.t("Back")}</SecondaryButton>
+        <TextLink onClick={() => go("search")}>{copy.t("Back")}</TextLink>
       </div>
     );
   }
@@ -230,8 +208,9 @@ export function DomainSetupDrawerBody({
   if (path === "connect") {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <SecondaryButton onClick={() => go("choose")}>{copy.t("Back")}</SecondaryButton>
-        <TalentSiteDomainPanel canManage embedded />
+        <TextLink onClick={() => go("search")}>{copy.t("Back to search")}</TextLink>
+        <p style={lead}>{copy.t("Enter a domain you already own. We will show the DNS steps next.")}</p>
+        <TalentSiteDomainPanel canManage embedded connectLabel={copy.t("Connect mine")} />
       </div>
     );
   }
@@ -239,10 +218,10 @@ export function DomainSetupDrawerBody({
   if (path === "help") {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <SecondaryButton onClick={() => go("choose")}>{copy.t("Back")}</SecondaryButton>
+        <TextLink onClick={() => go("search")}>{copy.t("Back")}</TextLink>
         <p style={lead}>{copy.t("Tell us the domain and anything we should know.")}</p>
         <Field
-          label={copy.t("Hostname (optional)")}
+          label={copy.t("Domain (optional)")}
           value={helpHost}
           onChange={setHelpHost}
           placeholder={copy.t("yourname.com")}
@@ -259,17 +238,22 @@ export function DomainSetupDrawerBody({
         {error ? <Err>{error}</Err> : null}
         {message ? <Ok>{message}</Ok> : null}
         <PrimaryButton onClick={sendHelp} disabled={pending}>
-          {pending ? copy.t("Sending…") : copy.t("Create support ticket")}
+          {pending ? copy.t("Sending…") : copy.t("Ask for help")}
         </PrimaryButton>
       </div>
     );
   }
 
-  // search — when registrar token is missing, show Coming soon (not a red error).
-  if (!searchConfigured) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <SecondaryButton onClick={() => go("choose")}>{copy.t("Back")}</SecondaryButton>
+  // ── Search (default) — one primary: Search → Buy ─────────────────────
+  const canBuy = Boolean(searchConfigured && quote?.available && quote.priceCents);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <p style={lead}>
+        {copy.t("Search for a domain for your site. Or connect one you already own.")}
+      </p>
+
+      {!searchConfigured ? (
         <div
           style={{
             borderRadius: 14,
@@ -278,43 +262,62 @@ export function DomainSetupDrawerBody({
             padding: "14px 16px",
           }}
         >
-          <p style={{ ...lead, color: COLORS.ink, fontWeight: 650 }}>{copy.t("Coming soon")}</p>
-          <p style={{ margin: "8px 0 0", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
-            {copy.t(
-              "Domain search and purchase are coming soon. Use Connect or Get help for now.",
-            )}
-          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <p style={{ ...lead, color: COLORS.ink, fontWeight: 650, margin: 0 }}>
+              {copy.t("Buy domain")}
+            </p>
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: 0.3,
+                textTransform: "uppercase",
+                color: COLORS.inkMuted,
+                background: COLORS.borderSoft,
+                padding: "2px 7px",
+                borderRadius: 999,
+              }}
+            >
+              {copy.t("Coming soon")}
+            </span>
+            <InfoTip
+              label={copy.t("Domain purchase will open here soon. You can connect a domain you already own now.")}
+              triggerLabel={copy.t("More info")}
+              className="text-admin-ink-dim hover:text-admin-ink"
+            />
+          </div>
         </div>
-        <PrimaryButton onClick={() => go("connect")}>{copy.t("Connect existing")}</PrimaryButton>
-        <SecondaryButton onClick={() => go("help")}>{copy.t("Get help")}</SecondaryButton>
-      </div>
-    );
-  }
+      ) : (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                search();
+              }
+            }}
+            placeholder={copy.t("yourname.com")}
+            spellCheck={false}
+            autoCapitalize="none"
+            autoCorrect="off"
+            style={{ ...inputStyle, flex: 1, minWidth: 160 }}
+          />
+          {canBuy ? (
+            <SecondaryButton onClick={search} disabled={pending || !query.trim()}>
+              {pending ? copy.t("Searching…") : copy.t("Search")}
+            </SecondaryButton>
+          ) : (
+            <PrimaryButton onClick={search} disabled={pending || !query.trim()}>
+              {pending ? copy.t("Searching…") : copy.t("Search")}
+            </PrimaryButton>
+          )}
+        </div>
+      )}
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <SecondaryButton onClick={() => go("choose")}>{copy.t("Back")}</SecondaryButton>
-      <p style={lead}>
-        {copy.t("Search for a domain. The price shown is the Vercel Registrar quote.")}
-      </p>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              search();
-            }
-          }}
-          placeholder={copy.t("yourname.com")}
-          style={{ ...inputStyle, flex: 1, minWidth: 160 }}
-        />
-        <PrimaryButton onClick={search} disabled={pending || !query.trim()}>
-          {pending ? copy.t("Searching…") : copy.t("Search")}
-        </PrimaryButton>
-      </div>
       {error ? <Err>{error}</Err> : null}
+
       {quote ? (
         <div
           style={{
@@ -325,21 +328,56 @@ export function DomainSetupDrawerBody({
           }}
         >
           <div style={{ fontWeight: 650, color: COLORS.ink, fontSize: 15 }}>{quote.domain}</div>
-          <div style={{ marginTop: 6, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
-            {quote.available
-              ? priceLabel
-                ? copy.t("Available · {price} (Vercel price)").replace("{price}", priceLabel)
-                : copy.t("Available")
-              : copy.t("Not available")}
-          </div>
+          {quote.available && priceDisplay ? (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontSize: 15, fontWeight: 650, color: COLORS.ink }}>
+                {copy.t("{price} / year").replace("{price}", priceDisplay.primary)}
+              </div>
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: 12,
+                  color: COLORS.inkMuted,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  flexWrap: "wrap",
+                }}
+              >
+                <span>
+                  {copy
+                    .t("Charged in USD: {usd}")
+                    .replace("{usd}", priceDisplay.usdCharge)}
+                </span>
+                {priceDisplay.converted ? (
+                  <InfoTip
+                    label={copy.t("You pay in US dollars at checkout. The amount above is an estimate in your currency.")}
+                    triggerLabel={copy.t("More info")}
+                    className="text-admin-ink-dim hover:text-admin-ink"
+                  />
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <div style={{ marginTop: 6, fontSize: 12.5, color: COLORS.inkMuted }}>
+              {copy.t("Not available")}
+            </div>
+          )}
         </div>
       ) : null}
 
-      {quote?.available && quote.priceCents ? (
+      {canBuy ? (
         <>
-          <p style={{ ...lead, marginTop: 4 }}>
-            {copy.t("Registrant contact (required for the domain registry)")}
-          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+            <p style={{ ...lead, margin: 0, fontWeight: 600, color: COLORS.ink }}>
+              {copy.t("Owner contact")}
+            </p>
+            <InfoTip
+              label={copy.t("The domain registry needs a real owner name and address.")}
+              triggerLabel={copy.t("More info")}
+              className="text-admin-ink-dim hover:text-admin-ink"
+            />
+          </div>
           <div
             style={{
               display: "grid",
@@ -363,10 +401,11 @@ export function DomainSetupDrawerBody({
               onChange={(v) => setContact({ ...contact, email: v })}
             />
             <Field
-              label={copy.t("Phone (E.164)")}
+              label={copy.t("Phone")}
               value={contact.phone}
               onChange={(v) => setContact({ ...contact, phone: v })}
-              placeholder="+15551234567"
+              placeholder="+52…"
+              tip={copy.t("Include the country code, like +52…")}
             />
             <Field
               label={copy.t("Address")}
@@ -394,10 +433,11 @@ export function DomainSetupDrawerBody({
               onChange={(v) => setContact({ ...contact, zip: v })}
             />
             <Field
-              label={copy.t("Country (ISO)")}
+              label={copy.t("Country")}
               value={contact.country}
               onChange={(v) => setContact({ ...contact, country: v })}
-              placeholder="US"
+              placeholder="MX"
+              tip={copy.t("Two letters, like MX or US.")}
             />
           </div>
           <PrimaryButton
@@ -415,81 +455,46 @@ export function DomainSetupDrawerBody({
               !contact.country.trim()
             }
           >
-            {pending ? copy.t("Opening checkout…") : copy.t("Buy domain")}
+            {pending ? copy.t("Opening checkout…") : copy.t("Buy")}
           </PrimaryButton>
         </>
       ) : null}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+        {/* One filled primary per state: Coming soon → Connect mine; search live →
+            Search (above); quote ready → Buy (above). Connect / help are links
+            whenever another primary already owns the filled button. */}
+        {!searchConfigured ? (
+          <PrimaryButton onClick={() => go("connect")}>{copy.t("Connect mine")}</PrimaryButton>
+        ) : (
+          <TextLink onClick={() => go("connect")}>{copy.t("Connect mine")}</TextLink>
+        )}
+        <TextLink onClick={() => go("help")}>{copy.t("Need help?")}</TextLink>
+      </div>
     </div>
   );
 }
 
-function PathCard({
-  title,
-  body,
-  mark,
-  onClick,
-  disabled = false,
-}: {
-  title: string;
-  body: string;
-  mark: string;
-  onClick?: () => void;
-  disabled?: boolean;
-}) {
-  const [hovered, setHovered] = useState(false);
-  const interactive = !disabled && typeof onClick === "function";
+function TextLink({ onClick, children }: { onClick: () => void; children: ReactNode }) {
   return (
     <button
       type="button"
-      onClick={interactive ? onClick : undefined}
-      disabled={disabled}
-      aria-disabled={disabled || undefined}
-      onMouseEnter={() => {
-        if (interactive) setHovered(true);
-      }}
-      onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
       style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 12,
-        textAlign: "left",
-        padding: "14px 16px",
-        borderRadius: 14,
-        border: `1px solid ${hovered && interactive ? COLORS.border : COLORS.borderSoft}`,
-        background: hovered && interactive ? COLORS.surfaceAlt : COLORS.card,
-        cursor: interactive ? "pointer" : "default",
-        opacity: disabled ? 0.85 : 1,
+        alignSelf: "flex-start",
+        background: "none",
+        border: "none",
+        padding: 0,
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: COLORS.inkMuted,
+        cursor: "pointer",
         fontFamily: FONTS.body,
-        transition: "background 120ms ease, border-color 120ms ease",
+        textDecoration: "underline",
+        textUnderlineOffset: 2,
       }}
     >
-      <span
-        aria-hidden
-        style={{
-          flexShrink: 0,
-          width: "auto",
-          minWidth: 40,
-          height: 28,
-          padding: "0 8px",
-          borderRadius: 8,
-          display: "grid",
-          placeItems: "center",
-          background: disabled ? COLORS.inkMuted : COLORS.ink,
-          color: COLORS.card,
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: 0.3,
-          textTransform: "uppercase",
-        }}
-      >
-        {mark}
-      </span>
-      <span style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 650, fontSize: 14, color: COLORS.ink }}>{title}</div>
-        <div style={{ marginTop: 4, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
-          {body}
-        </div>
-      </span>
+      {children}
     </button>
   );
 }
@@ -499,15 +504,27 @@ function Field({
   value,
   onChange,
   placeholder,
+  tip,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  tip?: string;
 }) {
+  const copy = useDashboardText();
   return (
     <label style={labelStyle}>
-      {label}
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+        {label}
+        {tip ? (
+          <InfoTip
+            label={tip}
+            triggerLabel={copy.t("More info")}
+            className="text-admin-ink-dim hover:text-admin-ink"
+          />
+        ) : null}
+      </span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}

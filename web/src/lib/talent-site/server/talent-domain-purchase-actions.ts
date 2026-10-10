@@ -11,6 +11,9 @@ import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { headers } from "next/headers";
 
 import { normalizeCustomDomainHostname } from "@/app/(workspace)/[tenantSlug]/admin/settings/domain-utils";
+import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
+import { loadUsdRates } from "@/lib/pricing/usd-rates";
+import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import {
   checkRegistrarSearchRateLimit,
   readVercelRegistrarConfig,
@@ -47,6 +50,35 @@ export type TalentDomainHelpResult =
 /** True only when Vercel Registrar env is present (search/buy). Connect/help do not need this. */
 export async function isTalentDomainSearchConfiguredAction(): Promise<boolean> {
   return readVercelRegistrarConfig() != null;
+}
+
+export type TalentDomainPriceDisplayContext = {
+  currency: string;
+  rates: UsdRates | null;
+};
+
+/**
+ * Currency + FX for the domain drawer price line. Read-only; used so the
+ * talent sees the quote in her currency with the USD charge noted.
+ */
+export async function loadTalentDomainPriceDisplayAction(): Promise<TalentDomainPriceDisplayContext> {
+  const scope = await requireTalentSelf();
+  if (!scope.ok) {
+    return { currency: "USD", rates: null };
+  }
+  const { data, error } = await scope.session.supabase
+    .from("talent_profiles")
+    .select("default_currency")
+    .eq("id", scope.talentProfile.id)
+    .maybeSingle();
+  if (error) {
+    logServerError("talent-domain-purchase.priceDisplayCurrency", error);
+  }
+  const currency = resolveDefaultCurrencyForUI(
+    (data as { default_currency?: string | null } | null)?.default_currency,
+  );
+  const rates = await loadUsdRates().catch(() => null);
+  return { currency, rates };
 }
 
 async function guardUnlockedDomainOwner(): Promise<

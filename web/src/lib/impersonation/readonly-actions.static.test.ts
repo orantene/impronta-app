@@ -143,7 +143,7 @@ const BASE_ALLOW: AllowEntry[] = [
   ["lib/talent-site/server/maison-review-actions.ts", ["loadMaisonReviewStateAction"], READ],
   ["lib/talent-site/server/page-text-i18n-actions.ts", ["loadMaxSitePageTextAction"], READ],
   ["lib/talent-site/server/site-activation-state.ts", ["loadTalentSiteActivationStateAction"], READ],
-  ["lib/talent-site/server/talent-domain-purchase-actions.ts", ["isTalentDomainSearchConfiguredAction", "searchTalentDomainAction"], "registrar availability lookup; no charge and no row written until checkout, which is guarded"],
+  ["lib/talent-site/server/talent-domain-purchase-actions.ts", ["isTalentDomainSearchConfiguredAction", "searchTalentDomainAction", "loadTalentDomainPriceDisplayAction"], "registrar availability / price-display lookup; no charge and no row written until checkout, which is guarded"],
   ["lib/talent-site/server/talent-site-domain-actions.ts", ["loadTalentSiteDomainsForPanel"], READ],
   ["lib/talent-site/server/maison-apply-actions.ts", ["loadMaisonApplyUndoStateAction"], READ],
   ["lib/talent-site/theme-releases/talent-update/talent-update-actions.ts", ["loadThemeUpdateNoticesAction", "previewThemeUpdateAction", "loadAvailableBlocksAction"], READ],
